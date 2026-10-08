@@ -3,7 +3,7 @@
 //! `impl WsSession for podssh_ws::client::RelaySession` — the one line the
 //! relay path exists for. `podssh-transport` owns the protocol,
 //! `podssh-ws` owns RFC 6455 and TLS, and this file is the whole of where
-//! they meet: three one-line forwards and the opcode mapping, and nothing
+//! they meet: four one-line forwards and the opcode mapping, and nothing
 //! else may learn both sides.
 //!
 //! ⛔ **Why each forward is shaped the way it is:**
@@ -15,6 +15,9 @@
 //!   with. `RelaySession::read_frame` already answers Pings it meets while
 //!   reading, so a Ping that arrives between two `read` calls is answered at
 //!   most twice — harmless, and RFC 6455 answers MUSTs, not counts.
+//! * `send_text` → `send_text`: the node leg's JSON control must leave as a
+//!   text frame. A binary one is read by the relay as a session id, and the
+//!   relay closes the node `1003 bad multiplex id`.
 //! * `read` → `read_frame`, mapped to [`WsFrame`]. Only `opcode` and
 //!   `payload` cross: `fin` is always true on the frames this client reads,
 //!   and carrying it would invite a caller to branch on it.
@@ -30,7 +33,7 @@ use podssh_ws::client::RelaySession;
 
 use crate::socket::{WsFrame, WsSession};
 
-/// ⛔ **C1, as an impl.** Three forwards and the opcode mapping. If the live
+/// ⛔ **C1, as an impl.** Four forwards and the opcode mapping. If the live
 /// session's signatures drift, this file — not a caller — is what fails to
 /// compile, and `tests/adapt.rs` turns that into a red suite.
 impl WsSession for RelaySession {
@@ -40,6 +43,10 @@ impl WsSession for RelaySession {
 
     async fn send_pong(&mut self, payload: &[u8]) -> Result<(), String> {
         RelaySession::send_pong(self, payload).await
+    }
+
+    async fn send_text(&mut self, text: &str) -> Result<(), String> {
+        RelaySession::send_text(self, text).await
     }
 
     async fn read(&mut self) -> Result<WsFrame, String> {

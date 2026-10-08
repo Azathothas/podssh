@@ -14,7 +14,7 @@ Confirmed here on `3ee70dc` by reading the code.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -26,19 +26,18 @@ reads a binary node frame as a 32-character session id and a payload. The first 
 
 ## Premise
 
-Read: `WsSocket::send_text` calls `self.session.send(text)`
-(`crates/podssh-transport/src/socket.rs:114-118`). The seam trait `WsSession` has `send`,
-`send_pong` and `read`, and no text method (`crates/podssh-transport/src/socket.rs:74-81`). The
-live adapter maps `send` to `RelaySession::send_binary`
-(`crates/podssh-transport/src/adapt.rs:37-39`). `Leg::send_control` reaches the wire only through
-`send_text` (`crates/podssh-transport/src/socket.rs:247-263`). `podssh-ws` already has
-`RelaySession::send_text` (`crates/podssh-ws/src/session.rs:91-94`).
+Read, at `692b3b0`: `WsSocket::send_text` calls `self.session.send(text)`
+(`crates/podssh-transport/src/socket.rs` lines 114-118). The seam trait `WsSession` has `send`,
+`send_pong` and `read`, and no text method (the same file, lines 74-81). The live adapter maps
+`send` to `RelaySession::send_binary` (`crates/podssh-transport/src/adapt.rs` lines 37-39).
+`Leg::send_control` reaches the wire only through `send_text` (`socket.rs` lines 247-263).
+`podssh-ws` already has `RelaySession::send_text` (`crates/podssh-ws/src/session.rs:91-94`).
 
-Read: the test double records each `send` as `OPCODE_BINARY`
-(`crates/podssh-transport/tests/socket.rs:43-47`). The one `send_text` test counts frames and does
-not check the opcode (`crates/podssh-transport/tests/socket.rs:121-122`). `FrameQueue` keeps the
-frame type (`crates/podssh-transport/src/socket.rs:409-418`), but it replaces `WsSocket`, so it
-cannot show this defect.
+Read, at `692b3b0`: the test double records each `send` as `OPCODE_BINARY`
+(`crates/podssh-transport/tests/socket.rs` lines 43-47). The one `send_text` test counts frames
+and does not check the opcode (the same file, lines 121-122). `FrameQueue` keeps the frame type
+(`crates/podssh-transport/src/socket.rs` lines 409-418), but it replaces `WsSocket`, so it cannot
+show this defect.
 
 Read: the contract sends control as text, and data as binary frames that start with 32 hex
 characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141`,
@@ -47,20 +46,22 @@ characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141
 
 ## Approach
 
+The lines below are those of `692b3b0`.
+
 1. Add `async fn send_text(&mut self, text: &str) -> Result<(), String>` to `WsSession`
-   (`crates/podssh-transport/src/socket.rs:74-81`). It takes `&str`, because RFC 6455 allows only
-   UTF-8 in a text frame.
-2. Forward it to `RelaySession::send_text` in `crates/podssh-transport/src/adapt.rs:36-50`. Reuse
-   that method; build no frame in this crate.
-3. In `WsSocket::send_text` (`crates/podssh-transport/src/socket.rs:114-118`), convert with
-   `std::str::from_utf8`, and refuse bytes that are not UTF-8 with a new `CodecError` variant.
-   Check the 4 KiB control cap (`crates/podssh-transport/src/framing.rs:58-62`). Count the frame
-   only after the send succeeds.
-4. Make the double in `crates/podssh-transport/tests/socket.rs:25-60` record `(opcode, bytes)` for
-   each of its methods. Keep one double; do not add a second one.
-5. Pitfall: `Socket::send_text` takes `&[u8]` (`crates/podssh-transport/src/socket.rs:29`). Keep
-   that signature, so `FrameQueue` does not change, or change both in one commit.
-6. In the same commit, update the `podssh-transport` row of `docs/STATUS.md:211`, and close this
+   (`crates/podssh-transport/src/socket.rs` lines 74-81). It takes `&str`, because RFC 6455
+   allows only UTF-8 in a text frame.
+2. Forward it to `RelaySession::send_text` in `crates/podssh-transport/src/adapt.rs` (lines
+   36-50). Reuse that method; build no frame in this crate.
+3. In `WsSocket::send_text` (`socket.rs` lines 114-118), convert with `std::str::from_utf8`, and
+   refuse bytes that are not UTF-8 with a new `CodecError` variant. Check the 4 KiB control cap
+   (`crates/podssh-transport/src/framing.rs` lines 58-62). Count the frame only after the send
+   succeeds.
+4. Make the double in `crates/podssh-transport/tests/socket.rs` (lines 25-60) record
+   `(opcode, bytes)` for each of its methods. Keep one double; do not add a second one.
+5. Pitfall: `Socket::send_text` takes `&[u8]` (`socket.rs` line 29). Keep that signature, so
+   `FrameQueue` does not change, or change both in one commit.
+6. In the same commit, update the `podssh-transport` row of `docs/STATUS.md`, and close this
    entry in place (`TODO/RULES.md:41-42`).
 
 ## Prove
@@ -78,6 +79,29 @@ recorded `OPCODE_TEXT` with the exact JSON bytes, and that `send_data` recorded 
 with the 32-byte id first. Plant: make `WsSocket::send_text` call `session.send` again; the test
 must fail on the opcode. No command uses this leg, so there is no check of the binary here; T-079
 runs the node leg against the live relay.
+
+## Done
+
+2026-10-09, in the commit "The node leg's control leaves as a text frame".
+
+- `WsSession` has `send_text(&mut self, text: &str)`, and the adapter forwards it to
+  `RelaySession::send_text`; this crate builds no frame of its own.
+- `WsSocket::send_text` keeps its `&[u8]` signature, so `FrameQueue` did not change. It refuses
+  a control over the 4 KiB cap (`ControlFrameTooLong`) and bytes that are not UTF-8 (the new
+  `CodecError::ControlNotUtf8`, which has no relay close code, because the frame never leaves
+  this client; its row cites RFC 6455 section 8.1). It counts a frame only after the session
+  took it.
+- `Leg::socket()` gives a test the socket underneath, read-only.
+- The one double in `crates/podssh-transport/tests/socket.rs` records the opcode of each write,
+  and can fail the next write.
+- Prove: `cargo test -p podssh-transport --test socket -- a_control_frame_leaves_as_text`: 1
+  passed (`ready` leaves as `OPCODE_TEXT` with the exact JSON; `send_data` as `OPCODE_BINARY`
+  with the 32-byte id first). New beside it: text that is not UTF-8 and a control of 4097 bytes
+  never leave and are not counted, 4096 bytes leave; a write that the session failed is not
+  counted. `cargo test -p podssh-transport --no-fail-fast`: 73 passed, 0 failed.
+  `cargo test --no-fail-fast`: 773 passed, 0 failed, 7 ignored.
+- Plant: `WsSocket::send_text` calls `session.send` again: 3 tests failed;
+  `a_control_frame_leaves_as_text` on the opcode (`left: (2, ...)`, `right: (1, ...)`).
 
 # T-072: T2: a received Close frame loses its code and reason
 
@@ -102,13 +126,13 @@ same. The text of a read error is lost too.
 Read: `RelaySession::read_frame` echoes a Close and returns it to its caller
 (`crates/podssh-ws/src/session.rs:191-199`). `WsSocket::recv` handles the opcodes of text, binary,
 Ping and Pong, and maps each other opcode, Close included, to `TransportError::Unexpected`
-(`crates/podssh-transport/src/socket.rs:120-148`). A read error becomes
-`Aborted { clean: false }` and its text is dropped (`crates/podssh-transport/src/socket.rs:149-152`).
-The adapter states the gap (`crates/podssh-transport/src/adapt.rs:22-26`). `Unexpected` is
+(`crates/podssh-transport/src/socket.rs:136-164`). A read error becomes
+`Aborted { clean: false }` and its text is dropped (`crates/podssh-transport/src/socket.rs:165-168`).
+The adapter states the gap (`crates/podssh-transport/src/adapt.rs:25-29`). `Unexpected` is
 `Retry::Never`, and only `Closed` reaches `classify` (`crates/podssh-transport/src/error.rs:225-234`).
 
 Read: the helper `closed(code, reason, clean)` exists and has no caller
-(`crates/podssh-transport/src/socket.rs:456-459`). `podssh-ws` parses a Close payload in
+(`crates/podssh-transport/src/socket.rs:478-481`). `podssh-ws` parses a Close payload in
 `close_code_and_reason` (`crates/podssh-ws/src/session.rs:274-282`), and `podssh proxy` uses it
 (`crates/podssh-cli/src/proxy.rs:239-242`).
 
@@ -121,7 +145,7 @@ The test that says the reason survives only checks that the message is not empty
 
 ## Approach
 
-1. In `WsSocket::recv` (`crates/podssh-transport/src/socket.rs:120-155`), add an arm for opcode
+1. In `WsSocket::recv` (`crates/podssh-transport/src/socket.rs:136-171`), add an arm for opcode
    0x8. Parse the payload with `podssh_ws::session::close_code_and_reason` and return
    `closed(code, &reason, true)`. Reuse that parser; do not write a second one.
 2. A Close with no status code gets code 1005, as RFC 6455 section 7.1.5 says. The parser already
@@ -170,14 +194,14 @@ with an error, so a caller cannot read the mixed control and data of a node sock
 
 ## Premise
 
-Read: `Leg` holds one `ready: bool` (`crates/podssh-transport/src/socket.rs:167-177`); `set_ready`
-and `is_ready` write and read it (`crates/podssh-transport/src/socket.rs:183-192`); `send_data`
-never reads it (`crates/podssh-transport/src/socket.rs:213-238`). A test sends node data before
+Read: `Leg` holds one `ready: bool` (`crates/podssh-transport/src/socket.rs:183-193`); `set_ready`
+and `is_ready` write and read it (`crates/podssh-transport/src/socket.rs:205-214`); `send_data`
+never reads it (`crates/podssh-transport/src/socket.rs:235-260`). A test sends node data before
 `ready` and expects success (`crates/podssh-transport/tests/plants.rs:308-318`).
 
-Read: `recv_data` returns an error for a text frame (`crates/podssh-transport/src/socket.rs:270-288`)
+Read: `recv_data` returns an error for a text frame (`crates/podssh-transport/src/socket.rs:292-310`)
 and `recv_control` returns an error for a binary frame
-(`crates/podssh-transport/src/socket.rs:295-313`). Both read the same socket, so the frame of the
+(`crates/podssh-transport/src/socket.rs:317-335`). Both read the same socket, so the frame of the
 other type is lost.
 
 Read: the contract closes the node with `1003 data before ready` and the operator with

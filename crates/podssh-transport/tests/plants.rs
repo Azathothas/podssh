@@ -361,4 +361,10 @@ fn a_codec_error_names_the_close_code_the_relay_would_answer_with() {
     }
     let err = podssh_transport::framing::legs::decode_node_frame(b"short").unwrap_err();
     assert_eq!(err.relay_close_code(), Some(1009));
+    // Text that is not UTF-8 never leaves this client, so the relay's table has
+    // no row and no code for it: RFC 6455 is the source.
+    let text = CodecError::ControlNotUtf8 { valid_up_to: 1 };
+    assert_eq!(text.relay_close_code(), None);
+    assert!(text.spec_row().starts_with("RFC 6455 section 8.1"), "{}", text.spec_row());
+    assert!(text.to_string().contains("RFC 6455"), "{text}");
 }

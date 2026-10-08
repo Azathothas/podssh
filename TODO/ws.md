@@ -383,7 +383,7 @@ Read: `send_binary` and `send_text` (`crates/podssh-ws/src/session.rs:86-94`), `
 `watch_liveness` returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs:95-96` and 138-140 put it in `RelayEnd::Failed`;
 `crates/podssh-cli/src/proxy.rs:212-247` prints it; `podssh-transport` makes it
-`TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs:75-80`, 109, 115, 136).
+`TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs:75-84`, 113, 131, 152).
 Tests and the gate match the text: `crates/podssh-ws/tests/session.rs:108` ("continuation") and
 172 ("without a WebSocket Close"), and `scripts/interop-faults.sh:148` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:50-70`), but the session does not use it.

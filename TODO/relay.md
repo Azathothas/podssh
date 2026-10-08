@@ -339,8 +339,8 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
 1. A live test, ignored by default, in a new file crates/podssh-relay/tests/live_reverse.rs:
    `POST /v1/pair`; a node socket to `/v1/node/NAME`; an operator socket to `/v1/connect/NAME`;
    the node answers `open` with `ready`. Send `ready` with `RelaySession::send_text`
-   (`crates/podssh-ws/src/session.rs:91-94`), which sends a real text frame; `podssh-transport`
-   does not (T-071).
+   (`crates/podssh-ws/src/session.rs:91-94`), which sends a real text frame; since T-071,
+   `Leg::send_control` over `WsSocket` sends one too.
 2. Three runs of 240 s: (a) no payload and no pings; (b) WebSocket pings every 20 s from both
    ends; (c) one byte of payload every 60 s. For each socket, record the time, the code and the
    reason of the close, or "open at 240 s".

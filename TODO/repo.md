@@ -860,6 +860,15 @@ sh scripts/dev.sh check          # the fmt and clippy steps of the gate pass
 Each command exits 0. Planted defects: `if v.len() == 0 {}` in a test must
 fail clippy (`len_zero`); two spaces before an `=` must fail the fmt step.
 
+## Correction
+
+2026-10-09, `wc -l`: the files near 500 lines changed after the Premise was
+read. `crates/podssh-cli/src/tree.rs` is 358 lines (T-051 moved `Parsed` to
+`parsed.rs`); `crates/podssh-cli/src/flags.rs` is 482;
+`crates/podssh-transport/src/socket.rs` is 480 (T-071);
+`crates/podssh-cli/src/dispatch.rs` is 480; `crates/podssh-ws/tests/rfc6455.rs`
+is 486. Measure again before the format.
+
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh

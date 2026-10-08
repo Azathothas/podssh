@@ -126,6 +126,9 @@ pub enum CodecError {
     OperatorPayloadTooLong { got: usize, max: usize },
     /// Spec line 181: node JSON control over 4 KiB. `1009 control frame byte cap`.
     ControlFrameTooLong { got: usize, max: usize },
+    /// RFC 6455 section 8.1: a text frame carries UTF-8 only. Refused before
+    /// the wire, so the relay never answers it and its table has no row.
+    ControlNotUtf8 { valid_up_to: usize },
 }
 
 impl CodecError {
@@ -144,6 +147,8 @@ impl CodecError {
             CodecError::SessionIdLength { .. } => Some(1003),
             CodecError::OperatorPayloadTooLong { .. } => Some(1009),
             CodecError::ControlFrameTooLong { .. } => Some(1009),
+            // Not in the relay's table: the frame never leaves this client.
+            CodecError::ControlNotUtf8 { .. } => None,
         }
     }
 
@@ -162,6 +167,9 @@ impl CodecError {
             }
             CodecError::ControlFrameTooLong { .. } => {
                 "spec line 181 | 1009 | control frame byte cap | node"
+            }
+            CodecError::ControlNotUtf8 { .. } => {
+                "RFC 6455 section 8.1 | none: refused before the wire | text is UTF-8 | node"
             }
         }
     }
@@ -197,6 +205,11 @@ impl std::fmt::Display for CodecError {
             CodecError::ControlFrameTooLong { got, max } => write!(
                 f,
                 "node control frame is {got} bytes, over the {max} cap (spec line 181)"
+            ),
+            CodecError::ControlNotUtf8 { valid_up_to } => write!(
+                f,
+                "node control frame is not UTF-8 after byte {valid_up_to}; a text frame \
+                 carries UTF-8 only (RFC 6455 section 8.1)"
             ),
         }
     }

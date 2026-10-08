@@ -77,6 +77,10 @@ pub trait WsSession {
     /// method because a Pong is a control frame and not data: a session that
     /// could only send binary could not answer a Ping at all.
     async fn send_pong(&mut self, payload: &[u8]) -> Result<(), String>;
+    /// A text frame: the node leg's JSON control. It takes `&str` because
+    /// RFC 6455 allows only UTF-8 in a text frame; the relay reads a binary
+    /// node frame as a session id and closes `1003 bad multiplex id`.
+    async fn send_text(&mut self, text: &str) -> Result<(), String>;
     async fn read(&mut self) -> Result<WsFrame, String>;
 }
 
@@ -112,7 +116,19 @@ impl<S: WsSession> Socket for WsSocket<S> {
     }
 
     async fn send_text(&mut self, text: &[u8]) -> Result<(), TransportError> {
-        self.session.send(text).await.map_err(TransportError::Unexpected)?;
+        // Refused before the wire, as `send_binary` refuses: the relay closes
+        // a node control over 4 KiB, and a text frame that is not UTF-8 fails
+        // the connection (RFC 6455 section 8.1).
+        if text.len() > control::CONTROL_MAX {
+            return Err(TransportError::Codec(crate::framing::CodecError::ControlFrameTooLong {
+                got: text.len(),
+                max: control::CONTROL_MAX,
+            }));
+        }
+        let text = std::str::from_utf8(text).map_err(|e| {
+            TransportError::Codec(crate::framing::CodecError::ControlNotUtf8 { valid_up_to: e.valid_up_to() })
+        })?;
+        self.session.send_text(text).await.map_err(TransportError::Unexpected)?;
         self.sent += 1;
         Ok(())
     }
@@ -178,6 +194,12 @@ impl<S: Socket> Leg<S> {
 
     pub const fn leg(&self) -> LegShape {
         self.shape
+    }
+
+    /// The socket underneath, read-only, so a test can see which frame type
+    /// each write became.
+    pub const fn socket(&self) -> &S {
+        &self.socket
     }
 
     /// ⛔ **Mark a session readied.** ⛔ `ready` **gates a session, not the

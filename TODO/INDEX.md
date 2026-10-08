@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 210 open, 0 partial, 7 blocked, 33 done.**
+**250 entries: 209 open, 0 partial, 7 blocked, 34 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 115 | 0 | 3 | 25 | 143 |
+| P2 | 114 | 0 | 3 | 26 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 210 | 0 | 7 | 33 | 250 |
+| **All** | 209 | 0 | 7 | 34 | 250 |
 
 ## Entries
 
@@ -144,7 +144,7 @@ repository and CI).
 | [T-068](ws.md) | P3 | S | M4 | feature | open | Plain `ws://` to loopback, for tests only |
 | [T-069](ws.md) | P2 | S | M4 | feature | open | Typed session errors in `podssh-ws` |
 | [T-070](ws.md) | P2 | M | backlog | feature | open | A SOCKS5 proxy for the egress |
-| [T-071](transport.md) | P2 | S | M4 | defect | open | T1: `send_text` sends a binary frame, so the node leg cannot work |
+| [T-071](transport.md) | P2 | S | M4 | defect | done | T1: `send_text` sends a binary frame, so the node leg cannot work |
 | [T-072](transport.md) | P2 | S | M4 | defect | open | T2: a received Close frame loses its code and reason |
 | [T-073](transport.md) | P2 | S | M4 | defect | open | T5: the `ready` gate is not enforced |
 | [T-074](transport.md) | P3 | S | M4 | chore | open | T7: the backpressure module is not used |
