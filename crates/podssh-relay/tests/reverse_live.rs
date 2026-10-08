@@ -1,9 +1,8 @@
-//! The node runner against the live relay (T-079), on request only:
-//! `cargo test -p podssh-relay --features pair --test reverse_live -- --ignored`.
-//! It makes a pair, runs an echo node, opens two operator sessions at once,
-//! sends 1 MiB on each and compares what comes back, then stops the node and
-//! the pair. It prints no token. The operator here is a few lines over
-//! `podssh_ws::connect`; the operator runner is T-080.
+//! The runners of the reverse road against the live relay (T-079, T-080), on
+//! request only: `cargo test -p podssh-relay --features pair --test
+//! reverse_live -- --ignored`. Each test makes a pair, runs a node, opens
+//! operator sessions with the operator runner, and stops the node and the
+//! pair. No test prints a token.
 #![cfg(feature = "pair")]
 
 use std::sync::Arc;
@@ -11,10 +10,9 @@ use std::time::Duration;
 
 use podssh_relay::pair::{self, Pair, PairContext};
 use podssh_relay::relay::{Relay, DEFAULT_RELAY_HOST};
-use podssh_relay::reverse::{run, Exit, Handler, NodeConfig, Opening, Settings};
-use podssh_transport::{LegTarget, SessionId};
-use podssh_ws::client::{connect, Endpoint, WsClientConfig};
-use podssh_ws::{frame, ProxyChoice, Trust};
+use podssh_relay::reverse::{operator, run, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, Outcome, Settings};
+use podssh_transport::SessionId;
+use podssh_ws::{ProxyChoice, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::Notify;
 
@@ -48,58 +46,35 @@ impl Handler for Echo {
     }
 }
 
-/// An operator's session: wait for `ready`, send `payload` in frames of
-/// 64 KiB, and read until as many bytes came back.
-async fn operator(pair: &Pair, payload: Vec<u8>) -> Vec<u8> {
-    let path = (LegTarget::ReverseOperator { name: pair.name.clone() }).path().unwrap();
-    let ws = WsClientConfig {
-        endpoint: Endpoint { host: pair.relay.host.clone(), port: pair.relay.port, path },
-        trust: Trust::Default,
-        server_name: pair.relay.host.clone(),
-        timeout: LIMIT,
-        idle_timeout: Some(LIMIT),
-        proxy: ProxyChoice::FromEnvironment,
-    };
-    let session = Arc::new(connect(&ws, pair.connect_token()).await.expect("the operator's socket"));
-    let ready = session.read_frame().await.expect("ready");
-    assert_eq!(ready.opcode, frame::OPCODE_TEXT);
-    assert!(String::from_utf8_lossy(&ready.payload).contains(r#""type":"ready""#));
-    let sender = {
-        let session = session.clone();
-        let total = payload.len();
-        tokio::spawn(async move {
-            for chunk in payload.chunks(64 * 1024) {
-                session.send_binary(chunk).await.expect("a send");
-            }
-            total
-        })
-    };
-    let mut got = Vec::new();
-    while got.len() < MIB {
-        let f = tokio::time::timeout(LIMIT, session.read_frame()).await.expect("data in time").expect("a frame");
-        assert_eq!(f.opcode, frame::OPCODE_BINARY, "{f:?}");
-        got.extend_from_slice(&f.payload);
+/// Each session is refused with this reason.
+struct Refuse(String);
+
+impl Handler for Refuse {
+    type Stream = DuplexStream;
+
+    fn open(&self, _id: SessionId) -> Opening<DuplexStream> {
+        let reason = self.0.clone();
+        Box::pin(async move { Err(reason) })
     }
-    assert_eq!(sender.await.unwrap(), MIB);
-    let _ = session.send_close(1000, "").await;
-    got
 }
 
-fn pattern(seed: u8) -> Vec<u8> {
-    (0..MIB).map(|i| (i as u8).wrapping_mul(31).wrapping_add(seed)).collect()
+fn relay() -> Relay {
+    Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 }
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[ignore = "the live relay: run with --ignored"]
-async fn node_serves_two_sessions_at_once() {
-    let relay = Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 };
-    let ctx = PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: LIMIT };
+/// A pair, and a second copy of it for the operator's side.
+async fn paired(relay: &Relay) -> (Pair, Pair) {
+    let ctx = PairContext { relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: LIMIT };
     let made = pair::create(&ctx).await.expect("a pair");
-    let operator_pair = pair::parse(&relay, &body_of(&made), now_ms()).expect("the same pair");
+    let copy = pair::parse(relay, &body_of(&made), now_ms()).expect("the same pair");
+    (made, copy)
+}
 
+/// Run a node with `handler` until the returned notify is notified.
+fn node<H: Handler>(made: Pair, handler: H) -> (tokio::task::JoinHandle<Exit>, Arc<Notify>) {
     let stop = Arc::new(Notify::new());
     let stopper = stop.clone();
-    let node = tokio::spawn(async move {
+    let task = tokio::spawn(async move {
         let config = NodeConfig {
             pair: made,
             label: None,
@@ -109,20 +84,103 @@ async fn node_serves_two_sessions_at_once() {
             settings: Settings::default(),
             repair: None,
         };
-        run(config, Arc::new(Echo), async move { stopper.notified().await }).await
+        run(config, Arc::new(handler), async move { stopper.notified().await }).await
     });
+    (task, stop)
+}
+
+/// One operator session over the operator runner: send `payload`, read as
+/// many bytes back, then end the input.
+async fn operator_echo(pair: &Pair, payload: Vec<u8>) -> (Vec<u8>, Outcome) {
+    let (io, mut user) = tokio::io::duplex(4 * MIB);
+    let relay = pair.relay.clone();
+    let (name, token) = (pair.name.clone(), pair.connect_token().to_string());
+    let session = tokio::spawn(async move {
+        let config = OperatorConfig {
+            relay: &relay,
+            name: &name,
+            connect_token: &token,
+            trust: &Trust::Default,
+            proxy: &ProxyChoice::FromEnvironment,
+            timeout: LIMIT,
+            limits: OperatorLimits::default(),
+        };
+        operator::run(&config, io).await.expect("the operator's socket")
+    });
+    let (mut from_user, mut to_user) = tokio::io::split(&mut user);
+    let sent = payload.len();
+    let (_, back) = tokio::join!(
+        async move { to_user.write_all(&payload).await.unwrap() },
+        async move {
+            let mut back = vec![0u8; sent];
+            tokio::time::timeout(LIMIT, from_user.read_exact(&mut back)).await.expect("the echo in time").unwrap();
+            back
+        }
+    );
+    user.shutdown().await.unwrap();
+    let outcome = tokio::time::timeout(LIMIT, session).await.expect("an outcome").unwrap();
+    (back, outcome)
+}
+
+fn pattern(seed: u8) -> Vec<u8> {
+    (0..MIB).map(|i| (i as u8).wrapping_mul(31).wrapping_add(seed)).collect()
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "the live relay: run with --ignored"]
+async fn node_serves_two_sessions_at_once() {
+    let relay = relay();
+    let (made, copy) = paired(&relay).await;
+    let (task, stop) = node(made, Echo);
     tokio::time::sleep(Duration::from_secs(2)).await;
 
-    let (one, two) = tokio::join!(operator(&operator_pair, pattern(1)), operator(&operator_pair, pattern(2)));
+    let ((one, first), (two, second)) = tokio::join!(operator_echo(&copy, pattern(1)), operator_echo(&copy, pattern(2)));
     assert!(one == pattern(1), "the first session's bytes came back changed");
     assert!(two == pattern(2), "the second session's bytes came back changed");
-    eprintln!("two sessions, 1 MiB each way, came back whole");
+    assert!(first.is_success() && second.is_success(), "{first:?} {second:?}");
+    eprintln!("two sessions, 1 MiB each way, came back whole: {first:?}, {second:?}");
 
     stop.notify_one();
-    let exit = tokio::time::timeout(LIMIT, node).await.expect("the node stops").unwrap();
+    let exit = tokio::time::timeout(LIMIT, task).await.expect("the node stops").unwrap();
     assert!(matches!(exit, Exit::Stopped), "{exit:?}");
-    let stopped = pair::stop(&ctx, &operator_pair).await.expect("the pair stops");
-    eprintln!("node: {exit:?}; pair: {stopped:?}");
+    stop_pair(&relay, &copy).await;
+}
+
+/// The relay cuts the reason of its Close to 123 bytes; the operator still
+/// gets the node's 200 bytes, from the text `reject`.
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "the live relay: run with --ignored"]
+async fn operator_sees_reject_with_full_reason() {
+    let relay = relay();
+    let (made, copy) = paired(&relay).await;
+    let reason: String = (0..200).map(|i| char::from(b'a' + (i % 26) as u8)).collect();
+    let (task, stop) = node(made, Refuse(reason.clone()));
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    let (io, _user) = tokio::io::duplex(1024);
+    let config = OperatorConfig {
+        relay: &copy.relay,
+        name: &copy.name,
+        connect_token: copy.connect_token(),
+        trust: &Trust::Default,
+        proxy: &ProxyChoice::FromEnvironment,
+        timeout: LIMIT,
+        limits: OperatorLimits::default(),
+    };
+    let outcome = operator::run(&config, io).await.expect("the operator's socket");
+    eprintln!("outcome: {outcome:?}");
+    assert_eq!(outcome, Outcome::NeverReady { code: Some(1011), reason: reason.clone() }, "all 200 bytes");
+    assert!(!outcome.is_success());
+
+    stop.notify_one();
+    let _ = tokio::time::timeout(LIMIT, task).await;
+    stop_pair(&relay, &copy).await;
+}
+
+async fn stop_pair(relay: &Relay, pair: &Pair) {
+    let ctx = PairContext { relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: LIMIT };
+    let stopped = pair::stop(&ctx, pair).await.expect("the pair stops");
+    eprintln!("pair: {stopped:?}");
 }
 
 /// The pair as a body of `/v1/pair`, to give the operator its own copy.

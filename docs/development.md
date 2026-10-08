@@ -224,6 +224,8 @@ cargo test -p podssh-cli --test proxy_live -- --ignored   # the proxy path, with
 cargo test -p podssh-cli --test doctor -- --ignored       # doctor, end to end
 cargo test -p podssh-ws --test live_doh -- --ignored      # DNS over HTTPS
 cargo test -p podssh-relay --test live -- --ignored       # the relay answers pings
+cargo test -p podssh-relay --features pair --test pair_live -- --ignored     # a pair, made and stopped
+cargo test -p podssh-relay --features pair --test reverse_live -- --ignored  # a node and its operators
 ```
 
 For interactive use on Windows, `scripts/interop-conpty.py` runs
@@ -248,7 +250,8 @@ python scripts/capture-reverse.py            # one session of the reverse road, 
 `scripts/capture-reverse.py` makes a pair, opens the node's and an
 operator's socket, and records each frame of one session (`hello`, `open`,
 `ready`, data both ways, `close`) and whether the relay answers a Ping on the
-node's socket; it stops the pair at the end and prints no token.
+node's socket and on the operator's; it stops the pair at the end and prints
+no token.
 
 WARNING: Some older examples read a token from the environment. Mint the
 token, use it and remove it in one shell. Do not print it.

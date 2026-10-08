@@ -51,8 +51,21 @@ sessions at once, 1 MiB each way through an echo node, came back whole
 
 1. Never add or remove the 32-byte id. The operator leg has no framing.
 2. A `reject` text frame carries the full reason before the close. The
-   reason of the close is cut to 123 bytes.
+   reason of the close is cut to 123 bytes. (Measured 2026-10-09: a node's
+   reason of 200 bytes reached the operator whole, with a Close `1011`.)
 3. Wait longer than the relay's 15 s for `ready`.
+
+podssh's operator (`podssh_relay::reverse::operator`, feature `pair`, T-080)
+keeps these rules. Before `ready` it keeps up to 1 MiB of input and sends
+nothing; it waits 20 s for `ready`. Then it sends what it kept, in order, and
+copies both ways in frames of at most 64 KiB, with no id and no text frame;
+an empty frame is ignored. At the end of its input it sends a Close `1000`
+and waits up to 10 s, so the last bytes arrive. The relay answers a Ping on
+the operator's socket too (measured 2026-10-09), so it pings as the node
+does. Its outcome: never ready (a failure, with a `reject`'s whole reason),
+ended after `ready` (`1000` a success, each other code a failure with the code
+and the reason), or the end of its input. podssh's node sends the whole
+reason of a `reject` or a `close`, cut only to fit the 4 KiB control frame.
 
 ## Exit codes
 

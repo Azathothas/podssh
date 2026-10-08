@@ -157,30 +157,44 @@ pub fn ready(id: &SessionId) -> Result<Vec<u8>, ControlError> {
     encode(&frame)
 }
 
-/// ⛔ **Build a `reject`, whose reason is capped at **123 UTF-8 bytes**.
+/// Build a `reject`, with the node's whole reason.
 ///
-/// ⛔ **Spec line 157 caps the reason at 100 chars *and* 123 UTF-8 bytes,
-/// without splitting a code point.** Truncating at a byte index that lands
-/// mid-character produces invalid UTF-8, which is the one thing the relay's own
-/// wording is careful about. `truncate_reason` therefore walks back to a
+/// Spec line 192: the relay cuts the reason of the Close that it makes to 100
+/// characters and 123 bytes, but "the `reject` text frame preserves the full
+/// reason", and that frame is what the operator reads. So the reason is cut
+/// only when the frame would pass the 4 KiB control cap (spec line 181), on a
 /// character boundary.
 pub fn reject(id: &SessionId, reason: &str) -> Result<Vec<u8>, ControlError> {
-    let frame = NodeOutbound::Reject {
-        id: id.as_str().to_string(),
-        reason: truncate_reason(reason),
-    };
-    encode(&frame)
+    fitted(|reason| NodeOutbound::Reject { id: id.as_str().to_string(), reason }, reason)
 }
 
 /// ⛔ **Build a `close`.** ⛔ **Never closes the WebSocket** — the node's socket is
 /// shared and a Close frame there kills every other session
 /// (`reverse-node.md:155-156`).
 pub fn close(id: &SessionId, reason: Option<&str>) -> Result<Vec<u8>, ControlError> {
-    let frame = NodeOutbound::Close {
-        id: id.as_str().to_string(),
-        reason: reason.map(truncate_reason),
-    };
-    encode(&frame)
+    match reason {
+        None => encode(&NodeOutbound::Close { id: id.as_str().to_string(), reason: None }),
+        Some(reason) => fitted(|reason| NodeOutbound::Close { id: id.as_str().to_string(), reason: Some(reason) }, reason),
+    }
+}
+
+/// The frame of `make(reason)`, with the reason halved, on a character
+/// boundary, until the frame fits the control cap. Only a reason of kilobytes
+/// is cut; the relay itself cuts the reason of its Close.
+fn fitted(make: impl Fn(String) -> NodeOutbound, reason: &str) -> Result<Vec<u8>, ControlError> {
+    let mut reason = reason.to_string();
+    loop {
+        match encode(&make(reason.clone())) {
+            Err(ControlError::Codec(CodecError::ControlFrameTooLong { .. })) if !reason.is_empty() => {
+                let mut end = reason.len() / 2;
+                while !reason.is_char_boundary(end) {
+                    end -= 1;
+                }
+                reason.truncate(end);
+            }
+            built => return built,
+        }
+    }
 }
 
 /// ⛔ **Serialise and check the 4 KiB control cap** — **READ**, spec line 181.
@@ -221,6 +235,8 @@ pub fn parse_operator_control(text: &[u8]) -> Result<NodeOutbound, ControlError>
 /// splitting a code point"*. Both bounds apply, so a 100-character string of
 /// 4-byte characters is cut on the byte bound and a 200-character string of
 /// ASCII is cut on the character bound.
+///
+/// It cuts a reason for display; `reject` and `close` send the whole one.
 pub fn truncate_reason(reason: &str) -> String {
     if reason.chars().count() <= CLOSE_REASON_MAX_CHARS && reason.len() <= CLOSE_REASON_MAX_BYTES {
         return reason.to_string();

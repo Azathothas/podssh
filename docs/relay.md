@@ -209,9 +209,10 @@ command uses it yet.
   text frames. Measured 2026-10-09 (`python scripts/capture-reverse.py`):
   `hello` comes first, with `maxSessions` 64 and `maxFrameBytes` 65536; the
   operator's `ready` carries the session's id; the relay answers a Ping on
-  the node's socket. Each **binary** frame of the node is the 32 lowercase hex
-  characters of the session id, then up to 64 KiB of payload (65568 bytes on
-  the wire at most). Control frames are limited to 4 KiB.
+  the node's socket and on the operator's. Each **binary** frame of the node
+  is the 32 lowercase hex characters of the session id, then up to 64 KiB of
+  payload (65568 bytes on the wire at most). Control frames are limited to
+  4 KiB.
 - The **operator** connects to `/v1/connect/<name>` with `connect_token`,
   waits for the `ready` text frame, then sends and receives raw binary frames
   with **no framing**. A text frame from the operator closes the socket with

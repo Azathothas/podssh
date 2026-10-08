@@ -288,24 +288,27 @@ fn a_control_frame_over_4_kib_is_refused_with_the_control_cap() {
     // close-reason cap (spec line 192). They are different bounds and
     // `reverse-node.md:53-57` records the conflation as a correction.
     //
-    // ⛔ **The reason cap binds FIRST, and that is the point.** A reason long
-    // enough to trip the control cap cannot reach it, because `reject`
-    // truncates on the way in — so the frame is bounded at the builder instead
-    // of discovering a `1009` at runtime.
-    // ⛔ **ASCII binds on the 100-CHARACTER bound, not the 123-byte one** —
-    // spec line 192 caps both, and for one-byte characters the character bound
-    // is the tighter of the two. ⛔ The multi-byte case, where the byte bound
-    // binds, is asserted in the next test.
+    // A `reject` keeps the node's whole reason (spec line 192: the relay cuts
+    // only the reason of its own Close, and "the `reject` text frame preserves
+    // the full reason"): 200 bytes go out whole. A reason of kilobytes is cut
+    // until the frame fits the control cap, so the builder never makes a frame
+    // that the relay closes with `1009`.
+    let long = "r".repeat(200);
+    let built = control::reject(&id(), &long).expect("200 bytes fit");
+    assert!(String::from_utf8(built).unwrap().contains(&long), "the whole reason");
+    let huge = "é".repeat(CONTROL_FRAME_MAX);
+    for built in [control::reject(&id(), &huge).expect("cut to fit"), control::close(&id(), Some(&huge)).expect("cut to fit")] {
+        assert!(built.len() <= CONTROL_FRAME_MAX, "{} bytes", built.len());
+        assert!(std::str::from_utf8(&built).is_ok(), "no code point was split");
+    }
+    // The cut for display still binds on 100 characters for ASCII.
     let text = control::truncate_reason(&"r".repeat(CONTROL_FRAME_MAX));
     assert_eq!(text.len(), 100, "⛔ 100 chars of ASCII is 100 bytes, under the 123 bound");
-    assert!(text.len() < CONTROL_FRAME_MAX);
-    let built = control::reject(&id(), &text).expect("a truncated reason always fits");
-    assert!(built.len() <= CONTROL_FRAME_MAX);
     assert_eq!(control::CONTROL_MAX, CONTROL_FRAME_MAX, "one number, two names");
 
-    // ⛔ **And the cap IS enforced when a frame really is over it.** The reason is
-    // fixed at 123 bytes, so the refusal is proved through `Leg::send_control`,
-    // which checks the bound on the bytes it is handed.
+    // ⛔ **And the cap IS enforced when a frame really is over it**, proved
+    // through `Leg::send_control`, which checks the bound on the bytes it is
+    // handed.
     let mut leg = podssh_transport::socket::Leg::new(
         podssh_transport::socket::FrameQueue::new(),
         podssh_transport::LegShape::ReverseNode,

@@ -6,8 +6,9 @@ from a client that podssh did not write: the Python standard library only. It
 makes a pair, opens the node's socket and an operator's socket, and records
 what each side receives: the node's control frames (`hello`, `open`, `close`),
 the operator's `ready`, data both ways with the node's 32-character id, and
-whether the relay answers a Ping on the node's socket. It stops the pair at
-the end. It prints no token; the pair's name is printed as its shape.
+whether the relay answers a Ping on the node's socket and on the operator's.
+It stops the pair at the end. It prints no token; the pair's name is printed
+as its shape.
 
 Each read has a time limit of 10 s.
 
@@ -135,6 +136,16 @@ def main() -> int:
 
         operator = upgrade(f"/v1/connect/{name}", pair["connect_token"])
         print("operator: upgraded")
+        send_frame(operator, 0x9, b"operator-probe")
+        operator.settimeout(5)
+        try:
+            opcode, payload = read_frame(operator)
+            print(f"operator after a Ping: opcode 0x{opcode:x}, {payload!r}")
+            seen["operator pong"] = opcode == 0xA and payload == b"operator-probe"
+        except (socket.timeout, TimeoutError):
+            print("operator after a Ping: nothing within 5 s")
+            seen["operator pong"] = False
+        operator.settimeout(LIMIT)
         opcode, payload = read_frame(node)
         text = payload.decode("utf-8", "replace")
         print(f"node: opcode 0x{opcode:x}: {shown(text, name)!r}")

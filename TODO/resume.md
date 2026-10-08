@@ -484,7 +484,7 @@ together (`docs/relay.md:115`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:140-141`, `docs/relay.md:228-234`). Skip a
+   needs a token (`docs/relay.md:140-141`, `docs/relay.md:229-235`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.

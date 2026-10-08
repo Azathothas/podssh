@@ -76,8 +76,10 @@ pub enum PairError {
     Connect(ConnectError),
     /// `429`: the brake that pairs share with mints.
     RateLimited { retry_after: Option<String> },
-    /// `503`: the relay makes no pairs.
-    NotIssued,
+    /// `503`: the relay makes no pairs, with what it said (an answer that is
+    /// not a 2xx holds no token). Seen once on 2026-10-09 and gone at the
+    /// next request.
+    NotIssued { detail: String },
     /// `403 reverse: forbidden`: a wrong token, an expired pair or a stopped
     /// one look the same.
     Forbidden,
@@ -100,7 +102,7 @@ impl std::fmt::Display for PairError {
                 write!(f, "the relay is limiting new pairs; try again in {s} s")
             }
             PairError::RateLimited { retry_after: None } => write!(f, "the relay is limiting new pairs; try again later"),
-            PairError::NotIssued => write!(f, "the relay makes no pairs (503)"),
+            PairError::NotIssued { detail } => write!(f, "the relay makes no pairs (503){detail}"),
             PairError::Forbidden => {
                 write!(f, "the relay refused the token (403 reverse: forbidden): the pair is stopped or has expired")
             }
@@ -246,7 +248,10 @@ fn refused(status: u16, response: &podssh_ws::http::Response) -> PairError {
     match status {
         403 => PairError::Forbidden,
         429 => PairError::RateLimited { retry_after: response.header("retry-after").map(str::to_string) },
-        503 => PairError::NotIssued,
+        503 => {
+            let body = response.body_text(200);
+            PairError::NotIssued { detail: if body.is_empty() { String::new() } else { format!(": {body}") } }
+        }
         _ => {
             let body = response.body_text(200);
             PairError::Failed { status, detail: if body.is_empty() { String::new() } else { format!(": {body}") } }
