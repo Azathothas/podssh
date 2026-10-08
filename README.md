@@ -133,6 +133,7 @@ Builds are memory-hungry; on small machines and VMs cap parallelism with
 | --- | --- |
 | [docs/STATUS.md](docs/STATUS.md) | what works and what is broken, measured |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | milestones to a first beta |
+| [docs/design.md](docs/design.md) | what a finished podssh is: library use, constrained hosts, reliability, socat, iroh |
 | [docs/architecture.md](docs/architecture.md) | crates, data flow, design rules |
 | [docs/relay.md](docs/relay.md) | the relay protocol and its limits |
 | [docs/cli.md](docs/cli.md) | the command line, OpenSSH parity, exit codes, prompts |

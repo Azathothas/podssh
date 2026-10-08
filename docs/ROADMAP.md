@@ -120,18 +120,24 @@ The command line follows OpenSSH; [cli.md](cli.md) has the measured details.
 
 ## M3 — Public beta
 
+**Re-scope proposed 2026-10-08** in [design.md](design.md) section 7, pending
+the operator's decisions in its section 8: the beta waits for relay-host
+failover, liveness checks, a no-proxy/no-DNS fallback, `doctor`, `keygen` and
+a run in a real sandbox, so nothing in it is single-point or assumed. The
+items below are the publication part.
+
 - [ ] Static release binaries (x86_64 and aarch64 Linux musl; Windows) with
-      checksums, built by CI from a tag. Checks for each artefact: a musl
+      checksums, built by CI from a tag. The workflow
+      (`.github/workflows/release.yml`) and the notes
+      (`docs/releases/v0.1.0-beta.1.md`) are written; no tag is cut. Checks for each artefact: a musl
       static-PIE binary reports `Type: DYN`, so the proof that it is static is
       no `NEEDED` entries and no `PT_INTERP` segment; `readelf` reads only ELF,
       so Windows uses `dumpbin /dependents` (and an MSVC build needs
       `+crt-static` to avoid the VC runtime DLL); check `ldd`'s printed text,
       not its exit code, which varies.
-- [ ] Git history cleaned before the repository goes public: it still contains
-      notes about operator credentials, private test machines and a
-      third-party sandbox capture that were removed from the tree on
-      2026-10-08.
-- [ ] Repository made public; CI runs on every push.
+- [x] Git history cleaned before the repository went public (2026-10-08: one
+      fresh commit; the old history kept only in a local bundle).
+- [x] Repository made public; CI runs on every push (2026-10-08, green).
 - [ ] README usage verified on a clean machine; known limitations listed.
 - Open: how the compiled-in `webpki-roots` certificates get updated in
   released binaries.

@@ -20,7 +20,8 @@ work; reverse mode, chat and file copy do not yet.
 4. [docs/decisions.md](docs/decisions.md) — the operator's decisions. Do not
    re-argue them; ask the operator if one seems wrong.
 
-Then the page you need: [architecture](docs/architecture.md),
+Then the page you need: [design](docs/design.md) (where podssh is going, and
+why), [architecture](docs/architecture.md),
 [relay](docs/relay.md), [target environment](docs/target-environment.md),
 [command line](docs/cli.md), [terminal](docs/terminal.md),
 [development](docs/development.md), the milestone pages

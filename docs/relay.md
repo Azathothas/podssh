@@ -84,8 +84,8 @@ when the target speaks first; a non-numeric value is silently treated as `0`.
   forward token (`403 trace: missing or wrong token` without one).
 - **The forward path's close codes are not in the contract**; its published
   table is for the reverse path only (reading a forward close through it is how
-  a first-pass report invented a `1009`). Read from the relay's source
-  (`worker/src/relay.js`, version 2026-10-03-r2), they are:
+  a first-pass report invented a `1009`). As the relay sends them in its
+  Close frames (version 2026-10-03-r2, read from its source), they are:
 
   | code | reasons |
   | --- | --- |
