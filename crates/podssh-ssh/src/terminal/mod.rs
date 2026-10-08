@@ -9,6 +9,8 @@ use std::io::IsTerminal;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(unix)]
+pub mod ctty;
+#[cfg(unix)]
 mod unix;
 #[cfg(unix)]
 use unix as platform;
@@ -51,6 +53,19 @@ pub fn stdout_is_terminal() -> bool {
 /// The terminal's size, if one can be measured.
 pub fn size() -> Option<Size> {
     platform::size()
+}
+
+/// How long a prompt on the terminal waits when stdin, stdout and stderr are
+/// all redirected. podssh is then most likely run by a program, and a
+/// terminal that nobody watches must not stop it for ever; a person at the
+/// terminal still has this long to answer.
+pub const UNWATCHED_PROMPT: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// The limit for a prompt now: [`UNWATCHED_PROMPT`] when none of stdin,
+/// stdout and stderr is a terminal, else none.
+pub fn prompt_limit() -> Option<std::time::Duration> {
+    let watched = stdin_is_terminal() || stdout_is_terminal() || std::io::stderr().is_terminal();
+    (!watched).then_some(UNWATCHED_PROMPT)
 }
 
 /// The size to send when there is no terminal to measure: `COLUMNS` and

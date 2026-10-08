@@ -142,6 +142,15 @@ The edit distance alone suggests `doctor` for `example.org` and `cp` for
 - With no terminal and no askpass program, a prompt becomes a refusal that
   names the remedy. For an unknown host key: its fingerprint and
   `-o StrictHostKeyChecking=accept-new`. For a password: a key file.
+- podssh asks on `/dev/tty` only when the kernel names it as the controlling
+  terminal: the descriptor is a terminal of this process's session, and
+  `/proc/self/stat` (when it can be read) names a terminal. In a measured
+  sandbox, `/dev/tty` opened with no controlling terminal, and a read
+  blocked for ever.
+- When stdin, stdout and stderr are all redirected, a prompt on the terminal
+  waits 60 s at most (`terminal::UNWATCHED_PROMPT`), then refuses with the
+  remedy. A person at the terminal can still answer; a terminal that nobody
+  watches does not stop podssh for ever.
 - `-o BatchMode=yes` makes each prompt a refusal.
 - A changed host key is refused, also on a terminal.
 - A duration is parsed as a whole string. A malformed duration is an error,

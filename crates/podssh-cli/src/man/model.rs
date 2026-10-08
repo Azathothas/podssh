@@ -135,8 +135,14 @@ fn intro() -> Vec<Block> {
     blocks.extend(super::examples::start_here());
     blocks.push(Block::Sub("Conventions".into()));
     blocks.push(para(
-        "Answers go to stdout. Diagnostics and prompts go to stderr, so stdout can carry a protocol.",
+        "Answers go to stdout. Diagnostics go to stderr, so stdout can carry a protocol.",
     ));
+    blocks.push(para(format!(
+        "A question (a host key, a password, a passphrase) goes to the controlling terminal or to \
+         SSH_ASKPASS. With neither, podssh refuses at once and names the remedy. When stdin, stdout and \
+         stderr are all redirected, a question on the terminal waits {} s at most.",
+        podssh_ssh::terminal::UNWATCHED_PROMPT.as_secs()
+    )));
     blocks.push(para(
         "With no command, podssh lists the commands on stderr and exits 64. It never takes a word as a \
          host: podssh example.org prints the line to type, podssh ssh example.org.",

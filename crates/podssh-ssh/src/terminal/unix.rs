@@ -1,6 +1,5 @@
 //! Unix terminals, through termios.
 
-use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::os::fd::AsRawFd;
 use std::sync::Mutex;
@@ -154,13 +153,15 @@ pub fn pty_modes() -> Vec<(Pty, u32)> {
 }
 
 /// Ask on the controlling terminal (`/dev/tty`), which works even when stdin
-/// and stdout are pipes. An error when there is no controlling terminal.
+/// and stdout are pipes. An error when there is no controlling terminal
+/// ([`super::ctty`]), and `TimedOut` when nobody answers within
+/// [`super::prompt_limit`].
 ///
 /// Without echo, the terminal is read one key at a time with signals off, so
 /// Ctrl-C cancels the prompt (an `Interrupted` error) instead of killing
 /// podssh with echo still turned off.
 pub fn read_line(prompt: &str, echo: bool) -> std::io::Result<Zeroizing<String>> {
-    let mut tty = OpenOptions::new().read(true).write(true).open("/dev/tty")?;
+    let mut tty = super::ctty::open()?;
     let fd = tty.as_raw_fd();
     tty.write_all(prompt.as_bytes())?;
     tty.flush()?;
@@ -174,18 +175,27 @@ pub fn read_line(prompt: &str, echo: bool) -> std::io::Result<Zeroizing<String>>
         quiet.c_cc[libc::VTIME] = 0;
         unsafe { libc::tcsetattr(fd, libc::TCSAFLUSH, &quiet) };
     }
-    let result = read_keys(&mut tty, !echo && have_termios);
+    let deadline = super::prompt_limit().map(|limit| std::time::Instant::now() + limit);
+    let result = read_keys(&mut tty, !echo && have_termios, deadline);
     if !echo && have_termios {
         unsafe { libc::tcsetattr(fd, libc::TCSAFLUSH, &saved) };
         let _ = tty.write_all(b"\n");
     }
+    if result.as_ref().is_err_and(|e| e.kind() == std::io::ErrorKind::TimedOut) {
+        let _ = tty.write_all(b"(no answer)\n");
+    }
     result
 }
 
-fn read_keys(tty: &mut std::fs::File, keywise: bool) -> std::io::Result<Zeroizing<String>> {
+fn read_keys(
+    tty: &mut std::fs::File,
+    keywise: bool,
+    deadline: Option<std::time::Instant>,
+) -> std::io::Result<Zeroizing<String>> {
     let mut line = Zeroizing::new(Vec::<u8>::new());
     let mut byte = [0u8; 1];
     loop {
+        wait_readable(tty.as_raw_fd(), deadline)?;
         match tty.read(&mut byte) {
             Ok(0) => break,
             Ok(_) => match byte[0] {
@@ -207,4 +217,64 @@ fn read_keys(tty: &mut std::fs::File, keywise: bool) -> std::io::Result<Zeroizin
         }
     }
     Ok(Zeroizing::new(String::from_utf8_lossy(&line).into_owned()))
+}
+
+/// Wait until `fd` can be read, or fail with `TimedOut` at `deadline`. With
+/// no deadline, return at once: the read itself waits.
+fn wait_readable(fd: std::os::fd::RawFd, deadline: Option<std::time::Instant>) -> std::io::Result<()> {
+    let Some(deadline) = deadline else { return Ok(()) };
+    loop {
+        let left = deadline.saturating_duration_since(std::time::Instant::now());
+        if left.is_zero() {
+            return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, "no answer on the terminal"));
+        }
+        let mut p = libc::pollfd { fd, events: libc::POLLIN, revents: 0 };
+        let ms = left.as_millis().clamp(1, i32::MAX as u128) as i32;
+        // SAFETY: one pollfd that this function owns, for a descriptor held open.
+        match unsafe { libc::poll(&mut p, 1, ms) } {
+            n if n > 0 => return Ok(()),
+            0 => continue,
+            _ => {
+                let e = std::io::Error::last_os_error();
+                if e.kind() != std::io::ErrorKind::Interrupted {
+                    return Err(e);
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::fd::FromRawFd;
+
+    fn pipe() -> (std::fs::File, std::fs::File) {
+        let mut fds = [0; 2];
+        // SAFETY: `fds` has room for the two descriptors pipe() writes.
+        assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0);
+        // SAFETY: the descriptors are new and owned by nothing else.
+        unsafe { (std::fs::File::from_raw_fd(fds[0]), std::fs::File::from_raw_fd(fds[1])) }
+    }
+
+    /// Nobody writes: the read stops at the deadline instead of waiting for
+    /// ever, which is what a terminal that nobody watches needs.
+    #[test]
+    fn a_read_with_a_deadline_stops_when_nobody_answers() {
+        let (mut rx, _tx) = pipe();
+        let start = std::time::Instant::now();
+        let deadline = Some(start + std::time::Duration::from_millis(300));
+        let err = read_keys(&mut rx, false, deadline).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::TimedOut);
+        assert!(start.elapsed() < std::time::Duration::from_secs(5));
+    }
+
+    /// The control: an answer that comes in time is read.
+    #[test]
+    fn an_answer_in_time_is_read() {
+        let (mut rx, mut tx) = pipe();
+        tx.write_all(b"yes\n").unwrap();
+        let deadline = Some(std::time::Instant::now() + std::time::Duration::from_secs(5));
+        assert_eq!(read_keys(&mut rx, false, deadline).unwrap().as_str(), "yes");
+    }
 }

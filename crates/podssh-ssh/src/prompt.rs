@@ -21,6 +21,9 @@ use zeroize::Zeroizing;
 pub enum PromptError {
     /// No controlling terminal, and no askpass program allowed to stand in.
     NoTerminal,
+    /// A terminal that nobody watched: no answer within the limit
+    /// (`terminal::UNWATCHED_PROMPT`).
+    NoAnswer,
     /// The user cancelled: Ctrl-C or Ctrl-D at a prompt, or the askpass
     /// program exited non-zero.
     Cancelled,
@@ -32,6 +35,11 @@ impl std::fmt::Display for PromptError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PromptError::NoTerminal => f.write_str("there is no terminal to ask on (and no SSH_ASKPASS)"),
+            PromptError::NoAnswer => write!(
+                f,
+                "nobody answered on the terminal within {} s",
+                crate::terminal::UNWATCHED_PROMPT.as_secs()
+            ),
             PromptError::Cancelled => f.write_str("cancelled"),
             PromptError::Failed(why) => write!(f, "SSH_ASKPASS failed: {why}"),
         }
@@ -57,6 +65,7 @@ pub fn ask(prompt: &str, echo: bool) -> Result<Zeroizing<String>, PromptError> {
     match crate::terminal::read_line(prompt, echo) {
         Ok(answer) => Ok(answer),
         Err(e) if e.kind() == std::io::ErrorKind::Interrupted => Err(PromptError::Cancelled),
+        Err(e) if e.kind() == std::io::ErrorKind::TimedOut => Err(PromptError::NoAnswer),
         Err(_) => match (allowed, askpass.as_ref()) {
             (true, Some(program)) => run_askpass(program, prompt),
             _ => Err(PromptError::NoTerminal),
@@ -80,7 +89,7 @@ pub fn can_ask() -> bool {
 
 #[cfg(unix)]
 fn controlling_terminal_exists() -> bool {
-    std::fs::OpenOptions::new().read(true).write(true).open("/dev/tty").is_ok()
+    crate::terminal::ctty::open().is_ok()
 }
 
 #[cfg(windows)]

@@ -96,9 +96,9 @@ impl Policy {
         loop {
             let answer = match prompt::ask(&question, true) {
                 Ok(a) => a,
-                Err(PromptError::NoTerminal) => {
+                Err(e @ (PromptError::NoTerminal | PromptError::NoAnswer)) => {
                     return Verdict::Reject(format!(
-                        "'{}' is not a known host, and there is no terminal to ask on.\n  \
+                        "'{}' is not a known host, and {e}.\n  \
                          Its {kind} key fingerprint is {fp}.\n  \
                          If that is the right key, re-run with -o StrictHostKeyChecking=accept-new.",
                         self.name

@@ -170,9 +170,14 @@ fn ask_new_passphrase() -> Result<Zeroizing<String>, String> {
         return Err("there is no terminal and no SSH_ASKPASS to ask for a passphrase; use -N '' for a key without one"
             .into());
     }
-    let first = prompt::ask("Enter passphrase (empty for no passphrase): ", false)
-        .map_err(|e| format!("the passphrase: {e}"))?;
-    let second = prompt::ask("Enter same passphrase again: ", false).map_err(|e| format!("the passphrase: {e}"))?;
+    let why = |e: prompt::PromptError| match e {
+        prompt::PromptError::NoTerminal | prompt::PromptError::NoAnswer => {
+            format!("the passphrase: {e}; use -N '' for a key without one")
+        }
+        _ => format!("the passphrase: {e}"),
+    };
+    let first = prompt::ask("Enter passphrase (empty for no passphrase): ", false).map_err(why)?;
+    let second = prompt::ask("Enter same passphrase again: ", false).map_err(why)?;
     if *first != *second {
         return Err("the passphrases do not match".into());
     }
