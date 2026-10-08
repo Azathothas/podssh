@@ -22,16 +22,31 @@
 //!   `payload` cross: `fin` is always true on the frames this client reads,
 //!   and carrying it would invite a caller to branch on it.
 //!
+//! * `close_code_and_reason` and `one_line`: the Close parser and the one
+//!   definition of text that is safe to print, lent from `podssh-ws` to
+//!   `WsSocket::recv` and to the close table, so neither crate has a second
+//!   copy and no other module names `podssh-ws`.
+//!
 //! ⛔ **What this file does NOT do.** It does not construct a session
 //! (`connect` dials; C4 owns the runner), it does not map Close frames to
-//! [`crate::closes::RelayClose`] (a Close arrives here as `WsFrame` with
-//! opcode `0x8` and `WsSocket::recv` reports it `Unexpected` — C4 owns that
-//! seam, named in E02's entry), and it never sees the token (`connect` took
-//! it; E12 owns it from there).
+//! [`crate::closes::RelayClose`] (`WsSocket::recv` does, with the parser
+//! lent here), and it never sees the token (`connect` took it; E12 owns it
+//! from there).
 
 use podssh_ws::client::RelaySession;
 
 use crate::socket::{WsFrame, WsSession};
+
+/// The status code and reason of a Close payload; the reason is already safe
+/// to print.
+pub(crate) fn close_code_and_reason(payload: &[u8]) -> (Option<u16>, String) {
+    podssh_ws::session::close_code_and_reason(payload)
+}
+
+/// Text from the network, made safe to print on one line.
+pub(crate) fn one_line(text: &str) -> String {
+    podssh_ws::text::one_line(text)
+}
 
 /// ⛔ **C1, as an impl.** Four forwards and the opcode mapping. If the live
 /// session's signatures drift, this file — not a caller — is what fails to

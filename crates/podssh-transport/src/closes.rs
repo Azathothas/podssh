@@ -111,17 +111,25 @@ pub struct Classified {
     pub retry: Retry,
     /// ⛔ Whether this close is the end of the *session* or of the *socket*.
     pub session: SessionAction,
+    /// The code as received, matched or not.
+    pub code: u16,
+    /// The reason as received, safe to print: no control characters, and
+    /// within the relay's own cap of 100 characters and 123 bytes.
+    pub reason: String,
 }
 
 impl Classified {
     /// ⛔ **The user-facing message.** ⛔ **Never carries a token**, and never
-    /// quotes a reason longer than the relay's own 123-byte cap produces.
+    /// quotes a reason longer than the relay's own 123-byte cap produces. It
+    /// names the code and the reason as received, matched or not: the reason
+    /// is what a user acts on (`docs/relay.md`, "Errors and close codes").
     pub fn message(&self) -> String {
+        let reason = if self.reason.is_empty() { "(no reason)" } else { self.reason.as_str() };
         match self.row {
             Some(row) => format!(
                 "relay closed {} {} ({}, spec line {}): {}",
-                row.code,
-                row.reason,
+                self.code,
+                reason,
                 match row.observed_by {
                     Leg::Either => "either leg",
                     Leg::Node => "node leg, possibly forwarded to the operator",
@@ -131,22 +139,11 @@ impl Classified {
                 describe(row.action)
             ),
             None => format!(
-                "relay closed a code this table does not publish ({} {:?}); \
+                "relay closed {} {}: the relay's table has no row for it; \
                  the forward close set is unpublished, so no row applies",
-                self.session_code(),
-                self.reason_as_written()
-            )
+                self.code, reason
+            ),
         }
-    }
-
-    fn reason_as_written(&self) -> &'static str {
-        // ⛔ `message` never inlines the reason a caller supplied; a close reason
-        // arrives from the network and belongs in a log, not in a format string.
-        "reason withheld"
-    }
-
-    fn session_code(&self) -> &'static str {
-        "code withheld"
     }
 }
 
@@ -225,7 +222,10 @@ pub fn classify(close: &RelayClose) -> Classified {
         (_, SessionAction::BackOff) => Retry::Reconnect,
     };
 
-    Classified { row: row.copied(), retry, session }
+    // The reason comes from the network: printed only through the one
+    // definition of safe text, and cut on a character boundary.
+    let reason = crate::control::truncate_reason(&crate::adapt::one_line(&close.reason));
+    Classified { row: row.copied(), retry, session, code: close.code, reason }
 }
 
 /// ⛔ **Does this reason read as a refusal a node sent?**

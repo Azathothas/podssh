@@ -231,6 +231,16 @@ give:
 python scripts/interop-conpty.py target/debug/podssh.exe root@HOST --direct
 ```
 
+`scripts/capture-close.py` captures the payload of a Close that the live
+relay sends, with a client of the Python standard library: bytes that podssh
+did not make, for a fixture of the Close parser
+(`crates/podssh-transport/tests/socket.rs`). It mints a token that it keeps in
+memory and never prints:
+
+```sh
+python scripts/capture-close.py              # github.com:22: 1000 target closed
+```
+
 WARNING: Some older examples read a token from the environment. Mint the
 token, use it and remove it in one shell. Do not print it.
 

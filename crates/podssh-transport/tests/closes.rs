@@ -255,7 +255,28 @@ fn a_node_supplied_close_carries_the_nodes_own_reason_and_the_code_is_not_the_si
     // ⛔ And the reason survives into the message, because parsing the reason is
     // the whole instruction.
     let message = classify(&closed(1011, "connection refused")).message();
-    assert!(!message.is_empty());
+    assert!(message.contains("1011 connection refused"), "{message}");
+}
+
+/// Each message names the code and the reason as received, matched or not,
+/// with no control characters and within the relay's own cap.
+#[test]
+fn the_message_names_the_code_and_the_reason() {
+    let unmatched = classify(&closed(4000, "x")).message();
+    assert!(unmatched.contains("4000 x"), "{unmatched}");
+    assert!(unmatched.contains("forward close set is unpublished"), "{unmatched}");
+    let refusal = classify(&closed(1011, "connection refused")).message();
+    assert!(refusal.contains("1011 connection refused"), "{refusal}");
+    assert!(refusal.contains("spec line 192"), "{refusal}");
+    let expired = classify(&closed(1001, "pair expired")).message();
+    assert!(expired.contains("1001 pair expired"), "{expired}");
+    let empty = classify(&closed(1001, "")).message();
+    assert!(empty.contains("1001 (no reason)"), "{empty}");
+
+    let noisy = classify(&closed(4001, "a\u{1b}]0;title\u{7}b\r\nc")).message();
+    assert!(!noisy.chars().any(char::is_control), "{noisy:?}");
+    let long = classify(&closed(4002, &"y".repeat(500))).message();
+    assert!(long.contains(&"y".repeat(100)) && !long.contains(&"y".repeat(101)), "{long}");
 }
 
 #[test]

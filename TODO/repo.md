@@ -337,7 +337,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:253-279`): the
+5. docs/development.md, "Release builds" (`docs/development.md:263-289`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.

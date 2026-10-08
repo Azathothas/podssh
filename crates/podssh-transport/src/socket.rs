@@ -10,8 +10,6 @@
 //! proven against [`FrameQueue`], and the socket half against `podssh-ws`'s own
 //! suite.**
 
-use std::collections::VecDeque;
-
 use crate::closes::RelayClose;
 use crate::control;
 use crate::endpoint::{AddressFamily, EgressRoad, Knobs, LegTarget, RelayConfig, TOKEN_HEADER};
@@ -19,6 +17,8 @@ use crate::error::{HttpFailure, TransportError};
 use crate::framing::legs::{encode_forward_frame, encode_node_frame, encode_operator_frame};
 use crate::framing::SessionId;
 use crate::transport::{Control, LegShape, Limits};
+
+pub use crate::queue::FrameQueue;
 
 /// ⛔ **The one method that reaches a socket.** ⛔ **Everything else in this crate
 /// is pure**, so a defect in the framing rules cannot hide behind a network that
@@ -46,11 +46,37 @@ pub struct WsSocket<S> {
     session: S,
     limits: Limits,
     sent: usize,
+    /// Set by a Close or a read error. A later read returns the same error
+    /// and never reads the socket again: after a Close nothing more is valid.
+    ended: Option<Ended>,
+}
+
+/// How the socket ended, kept to answer each later read the same way.
+#[derive(Debug, Clone)]
+enum Ended {
+    Closed(RelayClose),
+    Aborted(String),
+}
+
+impl Ended {
+    fn error(&self) -> TransportError {
+        match self {
+            Ended::Closed(c) => closed(c.code, &c.reason, c.clean),
+            Ended::Aborted(detail) => TransportError::Aborted { clean: false, detail: detail.clone() },
+        }
+    }
 }
 
 impl<S: WsSession> WsSocket<S> {
     pub const fn new(session: S, limits: Limits) -> Self {
-        Self { session, limits, sent: 0 }
+        Self { session, limits, sent: 0, ended: None }
+    }
+
+    /// Record how the socket ended, and return that error.
+    fn end(&mut self, ended: Ended) -> TransportError {
+        let error = ended.error();
+        self.ended = Some(ended);
+        error
     }
 
     /// ⛔ **The session underneath**, so a test can read what the adapter did
@@ -90,11 +116,12 @@ pub struct WsFrame {
     pub payload: Vec<u8>,
 }
 
-/// ⛔ **Opcode numbers from RFC 6455 §5.6**, duplicated here as four constants
+/// ⛔ **Opcode numbers from RFC 6455 §5.6**, duplicated here as five constants
 /// rather than imported, because a fake and a real socket must agree on what a
 /// text frame is and a live socket's module may still be in flux.
 pub const OPCODE_TEXT: u8 = 0x1;
 pub const OPCODE_BINARY: u8 = 0x2;
+pub const OPCODE_CLOSE: u8 = 0x8;
 pub const OPCODE_PING: u8 = 0x9;
 pub const OPCODE_PONG: u8 = 0xa;
 
@@ -134,6 +161,9 @@ impl<S: WsSession> Socket for WsSocket<S> {
     }
 
     async fn recv(&mut self) -> Result<WireFrame, TransportError> {
+        if let Some(ended) = &self.ended {
+            return Err(ended.error());
+        }
         loop {
             match self.session.read().await {
                 Ok(frame) if frame.opcode == OPCODE_BINARY => {
@@ -156,16 +186,25 @@ impl<S: WsSession> Socket for WsSocket<S> {
                 // and the read continues: a control frame that carries no data
                 // must not be delivered to a caller that asked for bytes.
                 Ok(frame) if frame.opcode == OPCODE_PONG => {}
+                // A Close keeps its code and reason, because the close table
+                // branches on both: `1001 pair expired` and `1001 operator
+                // stopped reverse relay` need opposite actions. `podssh-ws`
+                // has already echoed it. RFC 6455 section 7.1.5: a Close with
+                // no status code is read as 1005.
+                Ok(frame) if frame.opcode == OPCODE_CLOSE => {
+                    let (code, reason) = crate::adapt::close_code_and_reason(&frame.payload);
+                    let close = RelayClose { code: code.unwrap_or(1005), reason, clean: true };
+                    return Err(self.end(Ended::Closed(close)));
+                }
                 Ok(frame) => {
                     return Err(TransportError::Unexpected(format!(
                         "opcode 0x{:x} is not a data frame",
                         frame.opcode
                     )))
                 }
-                Err(detail) => {
-                    let _ = detail;
-                    return Err(TransportError::Aborted { clean: false });
-                }
+                // The text of the failure is kept, safe to print: it is what a
+                // user can act on, and it may quote a peer.
+                Err(detail) => return Err(self.end(Ended::Aborted(crate::adapt::one_line(&detail)))),
             }
         }
     }
@@ -361,96 +400,6 @@ pub struct RecvFrame {
     /// 32 bytes of every message it receives.
     pub id: Option<SessionId>,
     pub payload: Vec<u8>,
-}
-
-/// ⛔ **A socket that is a queue. ⛔ This is the seam E02's acceptance runs on.**
-///
-/// ⛔ **It records the exact bytes that went out**, so a test can assert the wire
-/// image rather than "something was sent". E02's `Prove` block is explicit that
-/// *"a test that only checks that 'something was sent' cannot catch this class of
-/// bug"*, and a fake that stored only a frame *count* would be exactly that
-/// test.
-#[derive(Debug, Default)]
-pub struct FrameQueue {
-    outbound: Vec<WireFrame>,
-    inbound: VecDeque<WireFrame>,
-    failure: Option<TransportError>,
-}
-
-impl FrameQueue {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// ⛔ **Queue a binary frame as if the relay had sent it.**
-    pub fn push_binary(&mut self, payload: Vec<u8>) {
-        self.inbound.push_back(WireFrame::Binary(payload));
-    }
-
-    /// ⛔ **Queue a text frame as if the relay had sent it.**
-    pub fn push_text(&mut self, payload: Vec<u8>) {
-        self.inbound.push_back(WireFrame::Text(payload));
-    }
-
-    /// ⛔ **Make the next read fail, for a close-path test.**
-    pub fn fail_with(&mut self, error: TransportError) {
-        self.failure = Some(error);
-    }
-
-    /// ⛔ **The exact bytes that went out, in order.** ⛔ This is the assertion
-    /// surface: `assert_eq!(wire(), expected)` and nothing weaker.
-    pub fn wire(&self) -> &[WireFrame] {
-        &self.outbound
-    }
-
-    /// ⛔ **The binary payloads that went out, in order, concatenated.** ⛔ For a
-    /// test that cares about the byte image and not the frame boundaries —
-    /// ⛔ **and frame boundaries carry no meaning**, so this is a legitimate view
-    /// and not a weaker one.
-    pub fn wire_bytes(&self) -> Vec<u8> {
-        let mut out = Vec::new();
-        for frame in &self.outbound {
-            if let WireFrame::Binary(bytes) = frame {
-                out.extend_from_slice(bytes);
-            }
-        }
-        out
-    }
-
-    pub fn wire_text(&self) -> Vec<String> {
-        self.outbound
-            .iter()
-            .filter_map(|frame| match frame {
-                WireFrame::Text(bytes) => Some(String::from_utf8_lossy(bytes).into_owned()),
-                WireFrame::Binary(_) => None,
-            })
-            .collect()
-    }
-}
-
-impl Socket for FrameQueue {
-    async fn send_binary(&mut self, payload: &[u8]) -> Result<(), TransportError> {
-        self.outbound.push(WireFrame::Binary(payload.to_vec()));
-        Ok(())
-    }
-
-    async fn send_text(&mut self, text: &[u8]) -> Result<(), TransportError> {
-        self.outbound.push(WireFrame::Text(text.to_vec()));
-        Ok(())
-    }
-
-    fn sent_frames(&self) -> usize {
-        self.outbound.len()
-    }
-
-    async fn recv(&mut self) -> Result<WireFrame, TransportError> {
-        if let Some(error) = self.failure.take() {
-            return Err(error);
-        }
-        self.inbound
-            .pop_front()
-            .ok_or(TransportError::Aborted { clean: true })
-    }
 }
 
 /// ⛔ **Build the request for a leg. ⛔ No default relay path, and no token in the

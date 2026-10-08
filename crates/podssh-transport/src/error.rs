@@ -212,8 +212,9 @@ pub enum TransportError {
     /// The socket closed. ⛔ **The reason travels with it**, because the reason
     /// is the discriminator and the code alone is not.
     Closed(crate::closes::RelayClose),
-    /// The socket ended without a closing handshake — `1006`.
-    Aborted { clean: bool },
+    /// The socket ended without a closing handshake — `1006`. `detail` is the
+    /// text of the failure, kept for the user.
+    Aborted { clean: bool, detail: String },
     /// ⛔ **Something happened that this crate has no row for**, named rather
     /// than flattened into "unknown". Four sibling projects shipped a doctor that
     /// reported green over a broken environment.
@@ -257,8 +258,8 @@ impl std::fmt::Display for TransportError {
             TransportError::Closed(close) => {
                 write!(f, "{}", crate::closes::classify(close).message())
             }
-            TransportError::Aborted { clean } => {
-                write!(f, "socket ended without a closing handshake (clean={clean})")
+            TransportError::Aborted { clean, detail } => {
+                write!(f, "socket ended without a closing handshake (clean={clean}): {detail}")
             }
             TransportError::Unexpected(detail) => write!(f, "unexpected transport failure: {detail}"),
         }

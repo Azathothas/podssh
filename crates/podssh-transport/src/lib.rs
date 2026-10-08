@@ -38,6 +38,7 @@ pub mod endpoint;
 pub mod error;
 pub mod forward;
 pub mod framing;
+pub mod queue;
 pub mod socket;
 pub mod transport;
 

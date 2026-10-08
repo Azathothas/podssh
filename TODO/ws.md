@@ -382,8 +382,9 @@ Read: `send_binary` and `send_text` (`crates/podssh-ws/src/session.rs:86-94`), `
 (104-109), `read_frame` (170-221) and `write` (223-228) return `Result<_, String>`;
 `watch_liveness` returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs:95-96` and 138-140 put it in `RelayEnd::Failed`;
-`crates/podssh-cli/src/proxy.rs:212-247` prints it; `podssh-transport` makes it
-`TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs:75-84`, 113, 131, 152).
+`crates/podssh-cli/src/proxy.rs:212-247` prints it; `podssh-transport` makes a write error
+`TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs:101-110`, 140, 158, 182),
+and, since T-072, a read error `Aborted` with its text.
 Tests and the gate match the text: `crates/podssh-ws/tests/session.rs:108` ("continuation") and
 172 ("without a WebSocket Close"), and `scripts/interop-faults.sh:148` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:50-70`), but the session does not use it.
@@ -397,7 +398,8 @@ Tests and the gate match the text: `crates/podssh-ws/tests/session.rs:108` ("con
 2. Each session method returns it; `watch_liveness` returns `Dead`.
 3. `Display` gives the same text as now, so the tests and the gate still match.
 4. The callers keep their behaviour: `RelayEnd::Failed` takes the error; `podssh proxy` keeps
-   its exit codes; `podssh-transport` maps each class (T-072 and T-073 use them later).
+   its exit codes; `podssh-transport` maps each class (T-073 uses them later). T-072, done
+   first, keeps the text of a read error in `Aborted { detail }`; the class replaces the text.
 5. Record the change in `docs/STATUS.md` (Components) in the same commit.
 
 ## Prove

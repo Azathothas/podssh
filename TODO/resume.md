@@ -180,10 +180,10 @@ GitHub #19 reports. Some closes mean "do not come back".
 
 Read: the failover across relay hosts serves the first connection only
 (`crates/podssh-relay/src/open.rs:174-213`). `classify` maps each reverse close
-to a retry class (`crates/podssh-transport/src/closes.rs:157-229`), with
+to a retry class (`crates/podssh-transport/src/closes.rs:154-229`), with
 `relay backpressure` as `Retry::Never`
-(`crates/podssh-transport/src/closes.rs:205`); a received Close loses its code
-today (T-072). Read, not measured: `/v1/node` and `/v1/connect` are on the
+(`crates/podssh-transport/src/closes.rs:202`); a received Close lost its code
+until T-072 (repaired 2026-10-09). Read, not measured: `/v1/node` and `/v1/connect` are on the
 control host only (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:23-24`).
 A second node socket for one name gets `409`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:152-153`), and
@@ -331,7 +331,7 @@ meets these limits, and an end at a limit costs a resume and its delay.
 Read: the reverse road has the same cap, `1009 session byte cap`, "Open a new
 session" (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:183`),
 which `classify` maps to `Retry::NewSession`
-(`crates/podssh-transport/src/closes.rs:206-208`), and a session lives 720
+(`crates/podssh-transport/src/closes.rs:203-205`), and a session lives 720
 minutes at most (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
 Measured in sandbox A (T-001; `docs/STATUS.md`, "In the operator's real
 sandboxes, measured"): 67,107,943 bytes, then `1009 session byte cap`. A pair

@@ -108,8 +108,8 @@ reverse sockets; connect again with a jitter.
 Read: the codecs exist, with tests: node frames and chunks (`crates/podssh-transport/src/framing/legs.rs:26-58`,
 `:113-123`), control messages (`crates/podssh-transport/src/control.rs:155-238`), a limit of 16 sessions when
 no `hello` comes (`crates/podssh-transport/src/control.rs:111-137`), and the close table
-(`crates/podssh-transport/src/closes.rs:60-88`, `:159-229`). They carry the defects of T-071, T-072, T-073,
-T-075 and T-076.
+(`crates/podssh-transport/src/closes.rs:60-88`, `:156-229`). They carry the defects of T-071, T-072, T-073,
+T-075 and T-076 (T-071 and T-072 repaired 2026-10-09).
 
 Read: `RelaySession` has text, binary, Ping and Close writes and a liveness watcher
 (`crates/podssh-ws/src/session.rs:86-166`); `podssh_relay::open::backoff` has a jitter
@@ -344,7 +344,7 @@ and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs
    the crate: `Cargo.toml:6`, `Cargo.toml:24`, `Cargo.toml:55-58`, `crates/podssh-cli/Cargo.toml:34`,
    `scripts/gate.sh:61`, `scripts/plant.sh:39`.
 6. Update in the same commit: `AGENTS.md:188-190` and `AGENTS.md:234`, `docs/architecture.md:75` and
-   `:92-102`, `docs/development.md:13-14` and `:240`, `docs/STATUS.md:208`, `:210` and `:220`. The list
+   `:92-102`, `docs/development.md:13-14` and `:250`, `docs/STATUS.md:208`, `:210` and `:220`. The list
    of library crates in `docs/decisions.md:34` is a fact of a decision row: correct it, and move the
    old text to Superseded (the operator's ruling of 2026-10-08).
 

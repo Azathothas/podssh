@@ -15,11 +15,11 @@ use std::collections::VecDeque;
 
 use podssh_transport::control::{self, CONTROL_MAX};
 use podssh_transport::socket::{
-    Leg, Socket, WireFrame, WsFrame, WsSession, WsSocket, OPCODE_BINARY, OPCODE_PING, OPCODE_PONG,
-    OPCODE_TEXT,
+    Leg, Socket, WireFrame, WsFrame, WsSession, WsSocket, OPCODE_BINARY, OPCODE_CLOSE, OPCODE_PING,
+    OPCODE_PONG, OPCODE_TEXT,
 };
 use podssh_transport::transport::{LegShape, Limits};
-use podssh_transport::{CodecError, SessionId, TransportError};
+use podssh_transport::{CodecError, Retry, SessionId, TransportError};
 
 mod common;
 use common::block_on;
@@ -203,4 +203,102 @@ fn a_text_frame_the_session_failed_is_not_counted() {
     assert_eq!(socket.sent_frames(), 0);
     block_on(socket.send_text(br#"{"type":"close"}"#)).expect("the next write goes out");
     assert_eq!(socket.sent_frames(), 1);
+}
+
+/// The payload of a Close that the live relay sent (version 2026-10-03-r2),
+/// captured on 2026-10-09 by `python scripts/capture-close.py`, a client of
+/// the Python standard library: github.com:22 closed the connection after a
+/// line that is not SSH. Bytes that podssh did not make.
+const LIVE_CLOSE: &str = "03e874617267657420636c6f736564";
+
+fn from_hex(hex: &str) -> Vec<u8> {
+    (0..hex.len()).step_by(2).map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap()).collect()
+}
+
+fn close_frame(code: u16, reason: &str) -> WsFrame {
+    let mut payload = code.to_be_bytes().to_vec();
+    payload.extend_from_slice(reason.as_bytes());
+    FakeSession::frame(OPCODE_CLOSE, &payload)
+}
+
+/// The code and the reason of a Close, as received.
+fn close_of(error: &TransportError) -> (u16, String, bool) {
+    match error {
+        TransportError::Closed(close) => (close.code, close.reason.clone(), close.clean),
+        other => panic!("not a Close: {other:?}"),
+    }
+}
+
+/// The two `1001` reasons need opposite actions, so the reason must survive
+/// the read: a new pair after `pair expired`, nothing after a stop.
+#[test]
+fn a_close_keeps_its_code_and_reason() {
+    let mut socket = socket(vec![
+        close_frame(1001, "pair expired"),
+        FakeSession::frame(OPCODE_BINARY, b"after the close"),
+    ]);
+    let error = block_on(socket.recv()).unwrap_err();
+    assert_eq!(close_of(&error), (1001, "pair expired".into(), true));
+    assert_eq!(error.retry(), Retry::NewPair);
+    assert!(error.to_string().contains("1001 pair expired"), "{error}");
+
+    // After a Close, a read returns the same error and leaves the socket alone.
+    let again = block_on(socket.recv()).unwrap_err();
+    assert_eq!(close_of(&again), (1001, "pair expired".into(), true));
+    assert_eq!(socket.session().inbound.len(), 1, "a frame after the Close was read");
+
+    let mut socket = socket_with_close(close_frame(1001, "operator stopped reverse relay"));
+    let error = block_on(socket.recv()).unwrap_err();
+    assert_eq!(close_of(&error), (1001, "operator stopped reverse relay".into(), true));
+    assert_eq!(error.retry(), Retry::Never);
+}
+
+fn socket_with_close(frame: WsFrame) -> WsSocket<FakeSession> {
+    socket(vec![frame])
+}
+
+#[test]
+fn a_close_captured_from_the_live_relay_is_read_as_sent() {
+    let payload = from_hex(LIVE_CLOSE);
+    let mut socket = socket_with_close(FakeSession::frame(OPCODE_CLOSE, &payload));
+    let error = block_on(socket.recv()).unwrap_err();
+    assert_eq!(close_of(&error), (1000, "target closed".into(), true));
+    assert!(error.to_string().contains("1000 target closed"), "{error}");
+}
+
+/// RFC 6455 section 7.1.5: a Close with no status code is 1005. A reason is
+/// printed with no control characters.
+#[test]
+fn a_close_with_no_code_is_1005_and_a_reason_loses_its_control_characters() {
+    let mut socket = socket_with_close(FakeSession::frame(OPCODE_CLOSE, b""));
+    assert_eq!(close_of(&block_on(socket.recv()).unwrap_err()), (1005, String::new(), true));
+
+    let mut socket = socket_with_close(close_frame(4000, "bad\u{1b}[2J\u{7}news"));
+    let error = block_on(socket.recv()).unwrap_err();
+    assert_eq!(close_of(&error).1, "bad[2Jnews");
+    assert!(!error.to_string().chars().any(char::is_control), "{error:?}");
+}
+
+/// A read error keeps its text, stays a reason to reconnect, and is returned
+/// again with no second read.
+#[test]
+fn a_read_error_keeps_its_text() {
+    let mut socket = WsSocket::new(
+        FakeSession {
+            inbound: vec![FakeSession::frame(OPCODE_BINARY, b"never read")].into(),
+            fail: Some("tls: connection reset by peer".into()),
+            ..FakeSession::default()
+        },
+        Limits::reverse_node(),
+    );
+    let error = block_on(socket.recv()).unwrap_err();
+    assert!(
+        matches!(&error, TransportError::Aborted { clean: false, detail } if detail == "tls: connection reset by peer"),
+        "{error:?}"
+    );
+    assert_eq!(error.retry(), Retry::Reconnect);
+    assert!(error.to_string().contains("tls: connection reset by peer"), "{error}");
+    let again = block_on(socket.recv()).unwrap_err();
+    assert!(matches!(&again, TransportError::Aborted { detail, .. } if detail == "tls: connection reset by peer"));
+    assert_eq!(socket.session().inbound.len(), 1, "the socket was read after it failed");
 }

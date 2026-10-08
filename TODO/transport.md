@@ -111,7 +111,7 @@ Confirmed here on `3ee70dc` by reading the code; a related gap in `closes.rs` fo
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -123,39 +123,50 @@ same. The text of a read error is lost too.
 
 ## Premise
 
+The lines of `crates/podssh-transport` below are those of `3d4785a`.
+
 Read: `RelaySession::read_frame` echoes a Close and returns it to its caller
 (`crates/podssh-ws/src/session.rs:191-199`). `WsSocket::recv` handles the opcodes of text, binary,
 Ping and Pong, and maps each other opcode, Close included, to `TransportError::Unexpected`
-(`crates/podssh-transport/src/socket.rs:136-164`). A read error becomes
-`Aborted { clean: false }` and its text is dropped (`crates/podssh-transport/src/socket.rs:165-168`).
-The adapter states the gap (`crates/podssh-transport/src/adapt.rs:25-29`). `Unexpected` is
-`Retry::Never`, and only `Closed` reaches `classify` (`crates/podssh-transport/src/error.rs:225-234`).
+(`crates/podssh-transport/src/socket.rs` lines 136-164). A read error becomes
+`Aborted { clean: false }` and its text is dropped (the same file, lines 165-168). The adapter
+states the gap (`crates/podssh-transport/src/adapt.rs` lines 25-29). `Unexpected` is
+`Retry::Never`, and only `Closed` reaches `classify` (`crates/podssh-transport/src/error.rs` lines
+225-234).
 
-Read: the helper `closed(code, reason, clean)` exists and has no caller
-(`crates/podssh-transport/src/socket.rs:478-481`). `podssh-ws` parses a Close payload in
-`close_code_and_reason` (`crates/podssh-ws/src/session.rs:274-282`), and `podssh proxy` uses it
+Read: the helper `closed(code, reason, clean)` exists and has no caller (`socket.rs` lines
+478-481). `podssh-ws` parses a Close payload in `close_code_and_reason`
+(`crates/podssh-ws/src/session.rs:274-282`), and `podssh proxy` uses it
 (`crates/podssh-cli/src/proxy.rs:239-242`).
 
 Read, a related gap that the former defects page did not list: `Classified::message` prints
 "code withheld" and "reason withheld" for a close that matches no row, and the row's own words
-for a matched row, never the received reason (`crates/podssh-transport/src/closes.rs:119-150`).
-The test that says the reason survives only checks that the message is not empty
-(`crates/podssh-transport/tests/closes.rs:255-258`). The rules want the code and the reason
+for a matched row, never the received reason (`crates/podssh-transport/src/closes.rs` lines
+119-150). The test that says the reason survives only checks that the message is not empty
+(`crates/podssh-transport/tests/closes.rs` lines 255-258). The rules want the code and the reason
 (`docs/relay.md:155-163`, `docs/reverse.md:42-44`).
 
 ## Approach
 
-1. In `WsSocket::recv` (`crates/podssh-transport/src/socket.rs:136-171`), add an arm for opcode
-   0x8. Parse the payload with `podssh_ws::session::close_code_and_reason` and return
+1. In `WsSocket::recv` (`crates/podssh-transport/src/socket.rs` lines 136-171 at `3d4785a`), add
+   an arm for opcode 0x8. Parse the payload with `podssh_ws::session::close_code_and_reason` and return
    `closed(code, &reason, true)`. Reuse that parser; do not write a second one.
 2. A Close with no status code gets code 1005, as RFC 6455 section 7.1.5 says. The parser already
    removes control characters from the reason.
 3. Keep the text of a read error: give `Aborted` a detail field. Its retry stays `Reconnect`.
-4. In `crates/podssh-transport/src/closes.rs:119-150`, print the received code and reason for each
-   close, matched or not. Remove `reason_as_written` and `session_code`.
+4. In `crates/podssh-transport/src/closes.rs` (lines 119-150 at `3d4785a`), print the received
+   code and reason for each close, matched or not. Remove `reason_as_written` and `session_code`.
 5. Pitfall: after a Close, a later `recv` must not read the socket again. Return the same error.
 6. This entry also repairs the `closes.rs` gap; write no second entry for it. Close this entry
    in place in the same commit (`TODO/RULES.md:41-42`).
+
+## Decision
+
+2026-10-09: the parser of `podssh-ws` is reached through two lines in `adapt.rs`
+(`close_code_and_reason`, and `one_line` for the message), and `socket.rs` and `closes.rs` call
+those. The rule of `crates/podssh-transport/src/lib.rs` is that `adapt` is the only module that
+names `podssh-ws`. Lost: a call to `podssh_ws` from `socket.rs` itself, which breaks that rule
+for no gain; a second parser in this crate, which the Approach forbids.
 
 ## Prove
 
@@ -173,6 +184,32 @@ the live relay (for example `1000 target closed` through `podssh proxy`) as a fi
 parser also meets bytes that podssh did not make (`docs/development.md:201-203`). The second test
 asserts that an unmatched `4000 x` and a node's `1011 connection refused` both show their own code
 and reason. Plant: delete the new 0x8 arm; the first test must fail with `Unexpected`.
+
+## Done
+
+2026-10-09, in the commit "A Close from the relay keeps its code and reason".
+
+- `WsSocket::recv` reads a Close (opcode 0x8, the new `OPCODE_CLOSE`) with the parser of
+  `podssh-ws` and returns `TransportError::Closed` with the code and the reason; a Close with no
+  status code is 1005. A read error is `Aborted { clean: false, detail }` with its text, and its
+  retry stays `Reconnect`. After either, each later read returns the same error and does not
+  read the socket again.
+- `Classified` carries the received `code` and `reason`; `message` names them for each close,
+  matched or not, with the reason through `one_line` and the relay's cap (100 characters, 123
+  bytes). `reason_as_written` and `session_code` are gone.
+- `FrameQueue` moved, unchanged, to `crates/podssh-transport/src/queue.rs` (re-exported as
+  `socket::FrameQueue`), to keep `socket.rs` under 500 lines (480 before, 429 now).
+- The fixture: `scripts/capture-close.py` (new), a client of the Python standard library, captured
+  the payload of the live relay's Close after github.com:22 closed: `03e874617267657420636c6f736564`,
+  1000 `target closed`. `docs/development.md` names the script.
+- Prove: `cargo test -p podssh-transport --test socket -- a_close_keeps_its_code_and_reason` and
+  `cargo test -p podssh-transport --test closes -- the_message_names_the_code_and_the_reason`: 1
+  passed each. Beside them: the captured Close, a Close with no code (1005), a reason with
+  control characters, and a read error that keeps its text. `cargo test -p podssh-transport
+  --no-fail-fast`: 78 passed, 0 failed. `cargo test --no-fail-fast`: 778 passed, 0
+  failed, 7 ignored.
+- Plants: the 0x8 arm deleted: 3 tests failed with `not a Close: Unexpected("opcode 0x8 is not a
+  data frame")`. The message given `reason withheld` again: 2 tests of `closes` failed.
 
 # T-073: T5: the `ready` gate is not enforced
 
@@ -194,14 +231,14 @@ with an error, so a caller cannot read the mixed control and data of a node sock
 
 ## Premise
 
-Read: `Leg` holds one `ready: bool` (`crates/podssh-transport/src/socket.rs:183-193`); `set_ready`
-and `is_ready` write and read it (`crates/podssh-transport/src/socket.rs:205-214`); `send_data`
-never reads it (`crates/podssh-transport/src/socket.rs:235-260`). A test sends node data before
+Read: `Leg` holds one `ready: bool` (`crates/podssh-transport/src/socket.rs:222-232`); `set_ready`
+and `is_ready` write and read it (`crates/podssh-transport/src/socket.rs:244-253`); `send_data`
+never reads it (`crates/podssh-transport/src/socket.rs:274-299`). A test sends node data before
 `ready` and expects success (`crates/podssh-transport/tests/plants.rs:308-318`).
 
-Read: `recv_data` returns an error for a text frame (`crates/podssh-transport/src/socket.rs:292-310`)
+Read: `recv_data` returns an error for a text frame (`crates/podssh-transport/src/socket.rs:331-349`)
 and `recv_control` returns an error for a binary frame
-(`crates/podssh-transport/src/socket.rs:317-335`). Both read the same socket, so the frame of the
+(`crates/podssh-transport/src/socket.rs:356-374`). Both read the same socket, so the frame of the
 other type is lost.
 
 Read: the contract closes the node with `1003 data before ready` and the operator with
@@ -262,7 +299,7 @@ the forward path, and the ledger has two defects, so a later caller would inheri
 ## Premise
 
 Read: only the module line, a re-export and two test files reach the module
-(`crates/podssh-transport/src/lib.rs:34`, `crates/podssh-transport/src/lib.rs:50`,
+(`crates/podssh-transport/src/lib.rs:34`, `crates/podssh-transport/src/lib.rs:51`,
 `crates/podssh-transport/tests/backpressure.rs`, `crates/podssh-transport/tests/backpressure_plants.rs`).
 
 Read: the module says that the forward path drops a frame under backpressure, from the row
@@ -285,7 +322,7 @@ flow control that podssh uses (`docs/relay.md:165-166`).
 ## Approach
 
 1. Delete `crates/podssh-transport/src/backpressure/mod.rs`, `ledger.rs`, both test files, and the
-   lines `crates/podssh-transport/src/lib.rs:34` and `:50`.
+   lines `crates/podssh-transport/src/lib.rs:34` and `:51`.
 2. Keep no part of it. The runners of T-079 and T-080 bound their queues with bounded channels
    and the relay's caps (`docs/reverse.md:30-35`), not with a ledger.
 3. Check with `git grep` that no script or test still names the deleted files.
@@ -468,12 +505,12 @@ follow a design that nothing else follows.
 
 Read: `Transport` (`crates/podssh-transport/src/transport.rs:15-35`) has no implementation in the
 workspace (a search for `impl ... Transport for` finds none). It is exported at
-`crates/podssh-transport/src/lib.rs:57`. `target_for` has no caller either
+`crates/podssh-transport/src/lib.rs:58`. `target_for` has no caller either
 (`crates/podssh-transport/src/transport.rs:203-211`).
 
 Read: `Backoff` doubles from 1 s to 30 s with no jitter (`crates/podssh-transport/src/backoff.rs:1-8`,
-`:15-17`, `:51-55`). It is exported at `crates/podssh-transport/src/lib.rs:49` and used only by
-`crates/podssh-transport/tests/closes.rs:308-345`.
+`:15-17`, `:51-55`). It is exported at `crates/podssh-transport/src/lib.rs:50` and used only by
+`crates/podssh-transport/tests/closes.rs:329-366`.
 
 Read: a node connects again "with a jittered backoff" (`docs/reverse.md:22-24`,
 `docs/ROADMAP.md:150-158`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
@@ -485,7 +522,7 @@ it (`crates/podssh-cli/src/ssh/mod.rs:125-131`).
 1. Delete the `Transport` trait and `target_for`. Keep `Control`, `LegShape` and `Limits`, which
    `socket.rs` uses; T-082 moves them with the codecs.
 2. Delete `crates/podssh-transport/src/backoff.rs`, its export, and its two tests
-   (`crates/podssh-transport/tests/closes.rs:308-345`).
+   (`crates/podssh-transport/tests/closes.rs:329-366`).
 3. The node runner of T-079 uses `podssh_relay::open::backoff`. If a reset after a good connection
    is necessary, add it there, not as a second schedule.
 4. Close this entry in place in the same commit.

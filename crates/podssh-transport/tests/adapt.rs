@@ -13,7 +13,7 @@
 //!    that disagree on what a text frame is corrupt each other silently.
 
 use podssh_transport::socket::{
-    WsSession, OPCODE_BINARY, OPCODE_PING, OPCODE_PONG, OPCODE_TEXT,
+    WsSession, OPCODE_BINARY, OPCODE_CLOSE, OPCODE_PING, OPCODE_PONG, OPCODE_TEXT,
 };
 use podssh_ws::client::RelaySession;
 use podssh_ws::frame as ws_frame;
@@ -34,6 +34,7 @@ fn relay_session_implements_ws_session() {
 fn both_crates_agree_on_opcodes() {
     assert_eq!(OPCODE_TEXT, ws_frame::OPCODE_TEXT);
     assert_eq!(OPCODE_BINARY, ws_frame::OPCODE_BINARY);
+    assert_eq!(OPCODE_CLOSE, ws_frame::OPCODE_CLOSE);
     assert_eq!(OPCODE_PING, ws_frame::OPCODE_PING);
     assert_eq!(OPCODE_PONG, ws_frame::OPCODE_PONG);
 }
