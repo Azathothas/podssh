@@ -60,19 +60,43 @@ echo "CARGO_BUILD_JOBS=$CARGO_BUILD_JOBS"
 # native SSH client is russh with aws-lc-rs (operator decision).
 LIBS="-p podssh-ws -p podssh-relay -p podssh-transport -p podssh-core -p podssh-terminal -p podssh-probe"
 
+# The feature `blocking` of podssh-relay (the facade for podbox, T-081) brings
+# `pair` and the runners of the reverse road.
 # shellcheck disable=SC2086  # $LIBS is a list of flags
 run "library crates build with no C compiler" \
-    env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS --features podssh-relay/pair
+    env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS --features podssh-relay/blocking
 
 # shellcheck disable=SC2086
 run "library crates: tests, no C compiler" \
-    env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast $LIBS --features podssh-relay/pair
+    env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast $LIBS --features podssh-relay/blocking
 
 # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
-# its test runs with the feature, and the binary must never enable it.
+# its tests run with the feature, and the binary must never enable it.
 run "plain ws:// to the loopback: test (feature plain-ws, no C compiler)" \
     env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-ws --features plain-ws --test plain_loopback
+run "the blocking facade against a stand-in relay (features blocking, plain-ws, no C compiler)" \
+    env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features blocking,plain-ws --test blocking_plain
 run "the binary does not enable plain-ws" sh scripts/no-plain-ws.sh
+
+# The declared minimum Rust of the library crates and podssh-todo, the
+# workspace's rust-version (podbox's minimum, T-081), checked so that the
+# number stays true. rustup fetches that toolchain at each run.
+MSRV=$(tr -d '\r' < Cargo.toml | sed -n 's/^rust-version = "\([0-9.]*\)"$/\1/p')
+# An empty version would run `cargo +` on the default toolchain: a false pass.
+case "$MSRV" in
+    1.*) ;;
+    *)
+        echo "FAIL the workspace's rust-version could not be read from Cargo.toml"
+        failed=1
+        MSRV=unreadable
+        ;;
+esac
+run "Rust $MSRV, the declared minimum of the library crates: install" \
+    rustup toolchain install "$MSRV" --profile minimal
+# shellcheck disable=SC2086
+run "library crates and podssh-todo: check on Rust $MSRV (no C compiler)" \
+    env CC=/nonexistent CXX=/nonexistent cargo "+$MSRV" check --locked $LIBS -p podssh-todo \
+        --features podssh-relay/blocking,podssh-relay/plain-ws --all-targets
 
 # The work record (TODO/): the checker's own tests, where each planted
 # disagreement must be found, then the record of this tree. A count, a status

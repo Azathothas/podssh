@@ -409,10 +409,10 @@ Measured: `podssh ping example.org` exits 64 ("unknown subcommand 'ping'. No clo
 so none is guessed.").
 
 Read: the session pings the relay every 10 s and counts the pongs, but it measures no round
-trip (`crates/podssh-ws/src/session.rs:142-166`; the payload is a counter, line 162). `doctor`
+trip (`crates/podssh-ws/src/session.rs:155-179`; the payload is a counter, line 162). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs:129-131`). The relay counts both directions
-against 64 MiB for each session (`docs/relay.md:115`). The stand-in relay answers pings
+against 64 MiB for each session (`docs/relay.md:120`). The stand-in relay answers pings
 (`scripts/fake-relay.py:167-169`).
 
 ## Approach

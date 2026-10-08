@@ -6,7 +6,7 @@ step and each open of a session has a time limit.
 
 # T-133: An SFTP client in the process, the base of `cp`
 
-**Source:** ROADMAP M5 ("SFTP in the process"), `docs/design.md:146-150`;
+**Source:** ROADMAP M5 ("SFTP in the process"), `docs/design.md:161-165`;
 GitHub #20 (Nemo-010, 2026-10-08: "Bound every SFTP/PTY wait", after tty7's
 issue 1126).
 **Category:** feature
@@ -54,7 +54,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
    function that returns the handles, for `session::run` and for SFTP.
 4. Invariant: no request and no step of the open waits without a limit.
    Three named constants, shown by the manual: 30 s for a metadata reply (as
-   `REPLY_WAIT`), 60 s with no data acknowledged (`docs/design.md:170`),
+   `REPLY_WAIT`), 60 s with no data acknowledged (`docs/design.md:185`),
    and the `--timeout` deadline over all, authentication included. Wrap a
    call in `tokio::time::timeout` where the crate has no limit.
 5. Size the requests from `limits@openssh.com`, else 32 KiB. Keep the
@@ -91,7 +91,7 @@ own outer limit of 10 s.
 
 # T-134: `podssh cp` over SFTP: a temporary name, the digest, then a rename
 
-**Source:** ROADMAP M5 (`podssh cp` and `podssh mv`), `docs/design.md:146-150`;
+**Source:** ROADMAP M5 (`podssh cp` and `podssh mv`), `docs/design.md:161-165`;
 GitHub #21 (Nemo-010, 2026-10-08: agent-ssh-cli verifies, then renames;
 syq's integrity checks and atomic replacement; read in the issue).
 **Category:** feature
@@ -187,7 +187,7 @@ one data byte; `podssh cp` must exit 70 and leave the destination as it was.
 
 **Source:** ROADMAP M5 ("an exec transfer as the fallback for minimal
 servers"; "Do not assume POSIX tools or an interactive shell"),
-`docs/design.md:146-150`; GitHub #18 (zuko's file server, read in the issue).
+`docs/design.md:161-165`; GitHub #18 (zuko's file server, read in the issue).
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -245,7 +245,7 @@ never reaches this road. A far `cat` can still run after a drop (T-136).
 ## Decision
 
 Recommendation: raw `cat` over a channel with no pty, and `base64` only
-when step 5 fails. `docs/design.md:147` names both tools; raw bytes are
+when step 5 fails. `docs/design.md:162` names both tools; raw bytes are
 measured clean, and `base64` adds a third to the bytes that count against
 the relay's 64 MiB and needs a tool that not each host has. `base64` for
 each copy lost on both counts.
@@ -266,7 +266,7 @@ case must then fail on its digest.
 # T-136: `podssh cp` continues from an offset after a drop
 
 **Source:** ROADMAP M5 ("Continue from an offset after a drop"),
-`docs/design.md:148-149`; GitHub #21 (agent-ssh-cli's `.part` and
+`docs/design.md:163-164`; GitHub #21 (agent-ssh-cli's `.part` and
 `.part.meta`, parsync's resume, syq's partial file; read in the issue);
 GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 **Category:** feature
@@ -285,7 +285,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
 ## Premise
 
 - Read: today a drop ends the session with the relay's reason, and nothing
-  continues (`docs/design.md:166-174`).
+  continues (`docs/design.md:181-189`).
 - Read: SFTP reads and writes name their offset, so a copy can continue at
   any offset. The far file's size is no proof: with requests in flight
   (T-140), a later write can land while an earlier one fails.
@@ -293,7 +293,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
   (`crates/podssh-relay/src/cache.rs:59-73`,
   `crates/podssh-relay/src/cache.rs:128-154`).
 - Read: after a drop, the relay closes the target's TCP connection within
-  15 s (`docs/design.md:176-179`), so a far `cat` can write for a while.
+  15 s (`docs/design.md:191-194`), so a far `cat` can write for a while.
 
 ## Approach
 
@@ -346,7 +346,7 @@ one byte late; the digest check must fail the copy.
 # T-137: `podssh cp` opens a new relay session before the relay's limits
 
 **Source:** ROADMAP M5 ("Open a new relay session before the limits of the
-relay (64 MiB, 12 h)"), `docs/relay.md:109-117`; the KTM sandbox report of
+relay (64 MiB, 12 h)"), `docs/relay.md:114-122`; the KTM sandbox report of
 2026-10-08 (`report-podssh-sandbox-KTM-2026-10-08.txt`, not in the
 repository).
 **Category:** feature
@@ -358,7 +358,7 @@ repository).
 ## Problem
 
 The relay ends a session after 64 MiB in both directions together, or after
-12 h (`docs/relay.md:114-115`). A larger copy breaks in a request with
+12 h (`docs/relay.md:119-120`). A larger copy breaks in a request with
 `1009 session byte cap`. T-136 continues after it, but each cut costs a
 broken SSH connection, a wait and an error line, and on the exec road an
 old writer can race the new one.
@@ -408,7 +408,7 @@ old writer can race the new one.
 
 Recommendation: a budget of 60 MiB counted by podssh, as `podssh-core`
 uses for IRC: the relay counts bytes that podssh has not yet received, and
-can hold 2 MiB queued (`docs/relay.md:153`). Waiting for `1009` (T-136
+can hold 2 MiB queued (`docs/relay.md:158`). Waiting for `1009` (T-136
 alone) lost: each cut breaks a request in flight. Credentials stay in
 memory for the run, never on disk; asking again lost: a 200 MiB copy would
 ask four times, and with no terminal it could not ask at all.
@@ -422,7 +422,7 @@ sh scripts/dev.sh check                    # interop-cp.sh through a small cap
 ```
 
 A new stand-in relay mode closes with `1009` at 4,000,000 bytes counted in
-both directions, as the relay counts (`docs/relay.md:115`). With
+both directions, as the relay counts (`docs/relay.md:120`). With
 `PODSSH_SESSION_BUDGET=3000000`, an upload and a download of 10,000,000
 bytes finish with equal digests, no `1009` on stderr, and 4 sessions or
 more. Plant: count one direction only; the upload then meets `1009`.
@@ -609,7 +609,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (1 MiB queued, `1011`, a dropped frame;
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). T-024
   corrected it to the forward path's rule
-  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:164-168` gives
+  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:169-173` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
 - Measured in two sandboxes (`docs/STATUS.md:154`): 20 MiB through the
@@ -665,9 +665,9 @@ stream.
 - Read: `AGENTS.md` rule 2 allows one outbound connection. Several channels
   in one SSH connection keep the rule; several relay sessions at once do
   not. The operator accepted more than one outbound connection for the iroh
-  road (`docs/design.md:331-334`), and on 2026-10-08 for one copy when the
+  road (`docs/design.md:346-349`), and on 2026-10-08 for one copy when the
   user asks (`docs/decisions.md`).
-- Read: the cap of 64 MiB is for each session (`docs/relay.md:115`).
+- Read: the cap of 64 MiB is for each session (`docs/relay.md:120`).
 - Not measured: whether one relay session, or the path itself, limits the
   rate. T-157 measures it.
 
@@ -1193,7 +1193,7 @@ non-zero. Plant: skip the check of step 5; that case must then fail.
 **Source:** GitHub #18 (zuko's `files` server, `adonm/zuko:src/files.rs`)
 and GitHub #21 (parsync's internal helper,
 `AlpinDale/parsync:src/remote_helper.rs`), read in the issues;
-`docs/design.md:336-342`.
+`docs/design.md:351-357`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -1214,7 +1214,7 @@ can do better.
   request; it names its own requests `NAME@openssh.com`.
 - Read: `podssh serve` will have an SFTP server in the process (T-112).
 - Read: both roads between podssh ends carry the same `cp`
-  (`docs/design.md:336-342`).
+  (`docs/design.md:351-357`).
 
 ## Approach
 

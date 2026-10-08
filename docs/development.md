@@ -6,7 +6,8 @@ target sandbox, and release it.
 ## Requirements
 
 - Rust 1.89 or later for the binary. The library crates build with Rust
-  1.88. The `ts` feature needs Rust 1.92.
+  1.85, podbox's minimum; the gate checks them on it. The `ts` feature needs
+  Rust 1.92.
 - A C compiler for the binary. The SSH client uses aws-lc (`aws-lc-sys`,
   through `russh`). On Windows, also NASM; without it, aws-lc uses prebuilt
   objects.
@@ -226,6 +227,7 @@ cargo test -p podssh-ws --test live_doh -- --ignored      # DNS over HTTPS
 cargo test -p podssh-relay --test live -- --ignored       # the relay answers pings
 cargo test -p podssh-relay --features pair --test pair_live -- --ignored     # a pair, made and stopped
 cargo test -p podssh-relay --features pair --test reverse_live -- --ignored  # a node and its operators
+cargo test -p podssh-relay --features blocking --test blocking_live -- --ignored  # the same, and a forward session, through the facade
 ```
 
 For interactive use on Windows, `scripts/interop-conpty.py` runs
@@ -244,6 +246,7 @@ memory and never prints:
 
 ```sh
 python scripts/capture-close.py              # github.com:22: 1000 target closed
+python scripts/capture-close.py --client-close   # what the relay does after the client's Close
 python scripts/capture-reverse.py            # one session of the reverse road, frame by frame
 ```
 

@@ -42,10 +42,12 @@ exclude = ["vendor/tailscale-rs"]
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-# MEASURED 2026-10-08: the library crates pass `cargo check --all-targets` on
-# Rust 1.88.0. podssh-ssh and podssh-cli declare 1.89 (russh's minimum) and
-# podssh-ts its own.
-rust-version = "1.88"
+# MEASURED 2026-10-09: the library crates and podssh-todo pass `cargo check
+# --locked --all-targets` on Rust 1.85.0, podbox's minimum (T-081), and no
+# locked dependency of theirs declares a newer one. The gate checks it at each
+# run (scripts/gate.sh). podssh-ssh and podssh-cli declare 1.89 (russh's
+# minimum) and podssh-ts its own.
+rust-version = "1.85"
 license = "0BSD"
 publish = false
 repository = "https://github.com/Azathothas/podssh"

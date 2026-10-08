@@ -182,3 +182,18 @@ async fn the_end_of_input_sends_a_close_and_waits_for_the_last_bytes() {
     assert_eq!(&tail, b"tail");
     assert_eq!(outcome(task).await, Outcome::LocalEnd);
 }
+
+/// A Close that crosses this side's Close with another code than `1000` is
+/// a failure: the node's end of the session broke before the last bytes.
+#[tokio::test]
+async fn a_close_that_crosses_the_end_of_input_with_another_code_is_a_failure() {
+    let (mut relay, mut local, task) = start(limits());
+    relay.send(frame::OPCODE_TEXT, ready().as_bytes()).await;
+    local.shutdown().await.unwrap();
+    let f = relay.next(LIMIT).await.expect("a Close");
+    assert_eq!((f.opcode, close_code_and_reason(&f.payload).0), (frame::OPCODE_CLOSE, Some(1000)));
+    relay.close(1011, "write failed").await;
+    let outcome = outcome(task).await;
+    assert_eq!(outcome, Outcome::Ended { code: 1011, reason: "write failed".into() });
+    assert!(!outcome.is_success());
+}

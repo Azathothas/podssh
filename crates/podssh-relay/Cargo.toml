@@ -21,9 +21,15 @@ podssh-transport = { path = "../podssh-transport", optional = true }
 
 [features]
 # Pairs of the reverse road: `POST /v1/pair`, the status of a pair and
-# `POST /v1/stop/<name>` (T-078), and the node runner (T-079). No C either;
-# the gate builds it.
+# `POST /v1/stop/<name>` (T-078), and the node and operator runners (T-079,
+# T-080). No C either; the gate builds it.
 pair = ["dep:podssh-transport"]
+# A synchronous facade over pairs, the runners and forward sessions, for a
+# caller with no async runtime (podbox, T-081). No C either; the gate builds it.
+blocking = ["pair"]
+# Plain ws:// to a stand-in relay on the loopback, for the tests of an embedder
+# (T-068). The binary never enables it (scripts/no-plain-ws.sh).
+plain-ws = ["podssh-ws/plain-ws"]
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

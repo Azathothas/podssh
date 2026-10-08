@@ -86,12 +86,25 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
 
     /// Send one binary frame.
     pub async fn send_binary(&self, payload: &[u8]) -> Result<(), SessionError> {
+        self.no_data_after_close()?;
         self.write(frame::OPCODE_BINARY, payload).await
     }
 
     /// Send one text frame.
     pub async fn send_text(&self, text: &str) -> Result<(), SessionError> {
+        self.no_data_after_close()?;
         self.write(frame::OPCODE_TEXT, text.as_bytes()).await
+    }
+
+    /// RFC 6455 section 5.5.1: no data frame after this side's Close.
+    fn no_data_after_close(&self) -> Result<(), SessionError> {
+        if self.close_sent() {
+            return Err(SessionError::Io {
+                kind: std::io::ErrorKind::BrokenPipe,
+                text: "this side sent its Close; no data may follow".into(),
+            });
+        }
+        Ok(())
     }
 
     /// Send a Pong. The reader already answers Pings; this exists for callers

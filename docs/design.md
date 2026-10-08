@@ -79,24 +79,39 @@ Facts about podbox (READ):
 - It is made for TLS-intercepting proxies, which often present RSA
   certificates or TLS 1.2.
 
-**What exists (2026-10-08).** The C-free crate `podssh-relay` gives relay
+**What exists (2026-10-09).** The C-free crate `podssh-relay` gives relay
 selection, the pool, failover, tokens (mint, cache, mint again) and the
 forward opener. `podssh-ws` gives CONNECT dialing with `NO_PROXY`, verified
 TLS with RSA, the DNS fallbacks, the WebSocket upgrade with typed errors that
 keep the relay's status and reason, and `RelaySession`, which keeps text and
 binary frames apart as the reverse protocol needs.
 
-**What podbox needs in addition (milestone M4):**
+The facade for podbox (`podssh_relay::blocking`, feature `blocking`, T-081)
+is a `Client` that owns a tokio runtime on the current thread and blocks on
+it; no tokio type is in its API. It makes, asks about and stops pairs; runs
+a node whose handler opens each session as a `std::io` reader and writer;
+runs an operator session over a reader and a writer, such as standard input
+and output; and opens a forward session as a `Read + Write` stream. Two
+threads carry each session, so a blocking read stalls no other session. A
+call from a thread that runs a tokio runtime is refused, and nothing panics.
+Its offline tests run against a stand-in relay over plain `ws://` (feature
+`plain-ws`), as podbox's can. The library crates declare Rust 1.85,
+podbox's minimum: they pass `cargo check --locked --all-targets` on 1.85.0
+(measured 2026-10-09), and the gate checks them on it, so podbox needs no
+newer Rust.
+
+**What podbox needs (milestone M4), and what of it exists:**
 
 ```
 podssh-relay
-  pair       pair / stop / status                    [feature pair]
+  pair       pair / stop / status                    [feature pair: T-078]
   reverse    node::run(handler) and operator::run(io): one writer, ready
              before data, late bytes dropped, a limited queue before ready,
              liveness pings, actions for close codes (409 exit, 1001 stopped,
-             expiry -> a re-pair hook), jittered backoff
+             expiry -> a re-pair hook), jittered backoff  [T-079, T-080]
   session    the resumable stream layer (section 5)
   blocking   a synchronous facade that owns a current-thread runtime
+                                                   [feature blocking: T-081]
 ```
 
 - `podssh-ws`: a `rustls::ClientConfig` that the caller supplies (so podbox

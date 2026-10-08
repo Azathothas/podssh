@@ -9,9 +9,16 @@ github.com:22), waits for the server's first bytes, and sends a line that is
 not SSH, so that the server closes the connection. It then prints the payload
 of the relay's Close: the code, the reason and the bytes in hex.
 
+With --client-close, the client answers the server's first bytes with an SSH
+identification line and a Close 1000 right after it, and prints what the relay
+does next: each frame (the server's answer to the line comes after the
+Close), then a Close (its code, its reason and when it came), the end of the
+connection, or nothing in 20 s. A podssh that waits for the relay's answer to
+its own Close must know when it comes, and what comes before it.
+
 It uses no proxy. Each read has a time limit of 20 s, and the whole run 90 s.
 
-Usage: python scripts/capture-close.py [HOST [PORT]]
+Usage: python scripts/capture-close.py [--client-close] [HOST [PORT]]
 Exit 0 when a Close arrived, 1 when none did.
 """
 
@@ -105,9 +112,38 @@ def upgrade(tls: ssl.SSLSocket, host: str, port: int, token: str) -> None:
         raise RuntimeError("Sec-WebSocket-Accept does not match the key")
 
 
+def after_client_close(tls: ssl.SSLSocket, deadline: float) -> int:
+    """Send a line and a Close 1000, and print what the relay does next."""
+    send_frame(tls, 0x2, b"SSH-2.0-podssh_capture\r\n")
+    send_frame(tls, 0x8, struct.pack(">H", 1000))
+    sent = time.monotonic()
+    print("sent: an SSH identification line, then a Close 1000")
+    while time.monotonic() < deadline:
+        try:
+            opcode, payload = read_frame(tls)
+        except (socket.timeout, TimeoutError):
+            print(f"after the client's Close: nothing in {READ_LIMIT:.0f} s")
+            return 1
+        except (EOFError, ConnectionError, ssl.SSLError) as e:
+            print(f"after the client's Close: the connection ended with no Close after {time.monotonic() - sent:.1f} s ({e})")
+            return 1
+        if opcode == 0x8:
+            code = struct.unpack(">H", payload[:2])[0] if len(payload) >= 2 else None
+            reason = payload[2:].decode("utf-8", "replace")
+            print(f"after the client's Close: a Close after {time.monotonic() - sent:.1f} s: code {code}, reason {reason!r}")
+            return 0
+        print(f"after the client's Close: frame after {time.monotonic() - sent:.1f} s: opcode 0x{opcode:x}, {len(payload)} bytes")
+    print("no Close within the time limit")
+    return 1
+
+
 def main() -> int:
-    host = sys.argv[1] if len(sys.argv) > 1 else "github.com"
-    port = int(sys.argv[2]) if len(sys.argv) > 2 else 22
+    args = sys.argv[1:]
+    client_close = bool(args) and args[0] == "--client-close"
+    if client_close:
+        args = args[1:]
+    host = args[0] if len(args) > 0 else "github.com"
+    port = int(args[1]) if len(args) > 1 else 22
     deadline = time.monotonic() + RUN_LIMIT
     token = mint()
     raw = socket.create_connection((RELAY, 443), timeout=READ_LIMIT)
@@ -127,6 +163,8 @@ def main() -> int:
                 send_frame(tls, 0x8, payload[:2])
                 return 0
             print(f"frame: opcode 0x{opcode:x}, {len(payload)} bytes")
+            if client_close and opcode == 0x2 and payload:
+                return after_client_close(tls, deadline)
             if opcode == 0x2 and payload and not sent:
                 send_frame(tls, 0x2, b"this is not SSH\r\n")
                 sent = True

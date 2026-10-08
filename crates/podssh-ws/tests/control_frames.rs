@@ -1,6 +1,7 @@
 //! RFC 6455 section 5.5 for received control frames: never fragmented, 125
 //! bytes or less, and a Close of 0 bytes or of 2 and more. The frames are
-//! bytes written from the RFC, not made by podssh's encoder.
+//! bytes written from the RFC, not made by podssh's encoder. And section
+//! 5.5.1 for sent ones: no data frame after this side's Close.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -112,4 +113,24 @@ async fn a_continuation_with_no_message_fails_the_connection_with_1002() {
     let mut buf = Vec::new();
     let sent = next_from_client(&mut peer, &mut buf).await;
     assert_eq!((sent.opcode, close_code_and_reason(&sent.payload).0), (frame::OPCODE_CLOSE, Some(1002)));
+}
+
+/// RFC 6455 section 5.5.1: after its Close, an endpoint sends no data frame.
+/// A send of data then fails, and the peer gets the Close alone.
+#[tokio::test]
+async fn no_data_frame_follows_this_sides_close() {
+    let (client, mut peer) = tokio::io::duplex(64 * 1024);
+    let session = RelaySession::new(client, Vec::new(), None, Duration::from_secs(5));
+    session.send_close(1000, "").await.unwrap();
+    for sent in [session.send_binary(b"late").await, session.send_text("late").await] {
+        let error = sent.expect_err("no data after the Close");
+        assert!(matches!(error, podssh_ws::SessionError::Io { kind: std::io::ErrorKind::BrokenPipe, .. }), "{error:?}");
+    }
+    let mut buf = Vec::new();
+    let first = next_from_client(&mut peer, &mut buf).await;
+    assert_eq!((first.opcode, close_code_and_reason(&first.payload).0), (frame::OPCODE_CLOSE, Some(1000)));
+    drop(session);
+    let mut rest = Vec::new();
+    peer.read_to_end(&mut rest).await.unwrap();
+    assert!(buf.is_empty() && rest.is_empty(), "nothing after the Close");
 }

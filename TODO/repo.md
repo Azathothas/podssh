@@ -120,7 +120,7 @@ Read:
      image. Do this item after T-206;
    - no entry for `vendor/tailscale-rs`.
 2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
-   the live check. The no-C steps of the gate (`scripts/gate.sh:63-69`) judge
+   the live check. The no-C steps of the gate (`scripts/gate.sh:63-71`) judge
    each update of a library crate's dependencies.
 3. Dependabot alerts and security updates: on since 2026-10-08, turned on
    with `gh api` and the operator's approval (`gh api
@@ -244,8 +244,8 @@ Read:
 - The help (`scripts/dev.sh:315-350`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
-  and the release with neither (`scripts/gate.sh:63-69`,
-  `scripts/gate.sh:93-96`). The help omits the work record, interop, the man
+  and the release with neither (`scripts/gate.sh:63-71`,
+  `scripts/gate.sh:117-120`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (`scripts/dev.sh:586`).
 - Stale comments: `scripts/dev.sh:55-59` ("the default build"),
   `scripts/dev.sh:381-388` ("links the fork since 4b", "steps 4-5"),
@@ -265,7 +265,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:55-142`).
+   (`scripts/gate.sh:55-166`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -337,7 +337,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:275-301`): the
+5. docs/development.md, "Release builds" (`docs/development.md:278-304`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -582,7 +582,7 @@ Read:
   (lines 67-73) and the live check (lines 75-92) follow it.
 - `.github/workflows/build.yml:3-5`: CI implements nothing of the gate again.
 - `scripts/gate.sh:5-6`: the gate takes no argument. Its steps are at
-  `scripts/gate.sh:63-142`.
+  `scripts/gate.sh:65-166`.
 - `scripts/gate.sh:18-29`: one cargo job for each 3 GiB of free memory.
 - AGENTS.md, section 4: on the operator's machine, one build at a time
   (`scripts/dev.sh:540-559` holds a lock).
@@ -744,7 +744,7 @@ Read:
 - `.github/workflows/release.yml:65-106`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
-- `docs/STATUS.md:225`: the default tests pass on Windows, run by hand.
+- `docs/STATUS.md:226`: the default tests pass on Windows, run by hand.
   `docs/STATUS.md:67`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
@@ -813,7 +813,7 @@ code is not in the default style of rustfmt.
 
 Read:
 
-- `scripts/gate.sh:55-142` has no step for rustfmt or clippy. There is no
+- `scripts/gate.sh:55-166` has no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
 - One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:315`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
@@ -872,7 +872,7 @@ is 486. Measure again before the format.
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
-(`docs/design.md:276-278`) show that a dependency can get one.
+(`docs/design.md:291-293`) show that a dependency can get one.
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -918,7 +918,7 @@ Read:
    with all features (the fork comes with `ts`).
 3. Notices: make a file of third-party licenses for each release (cargo-about,
    a Rust tool), publish it with the binaries, and name it in the notes.
-4. docs/development.md, "Checks" (`docs/development.md:68-78`): the command.
+4. docs/development.md, "Checks" (`docs/development.md:69-79`): the command.
    `SECURITY.md`: how an advisory is handled.
 
 ## Decision
@@ -941,7 +941,7 @@ on webpki-roots.
 # T-217: The declared minimum Rust versions, checked in CI
 
 **Source:** the minimum versions that the manifests declare
-(`docs/development.md:8-9`), measured by hand on 2026-10-08 (the note beside
+(`docs/development.md:8-10`), measured by hand on 2026-10-08 (the note beside
 `rust-version` in `Cargo.toml`).
 **Category:** chore
 **Milestone:** none
@@ -999,6 +999,15 @@ Each command exits 0, and the job runs the same three. Planted defect: call
 `std::fs::File::lock` (stable since Rust 1.89; confirm in its release notes)
 in a library crate; the check with 1.88 must fail.
 
+## Correction
+
+2026-10-09 (T-081): the workspace declares Rust 1.85 now, not 1.88. The library crates and
+podssh-todo passed `cargo check --locked --all-targets` on 1.85.0, and two steps of
+`scripts/gate.sh` check them on the declared version at each run. Step 1 keeps the checks of 1.89
+(podssh-ssh, podssh-cli) and 1.92 (podssh-ts); the job may take the check of the library crates
+over from the gate. The plant for 1.85: a call stable since 1.86 (`Vec::pop_if`) fails it with
+`E0658`.
+
 # T-218: More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64
 
 **Source:** the iroh-ssh report in GitHub #18 (static musl binaries for more
@@ -1028,7 +1037,7 @@ Read:
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
   (`.github/workflows/release.yml:46-53`), `dumpbin /dependents` on Windows
   (lines 86-101).
-- The binary needs a C compiler for aws-lc (`docs/development.md:10-12`); the
+- The binary needs a C compiler for aws-lc (`docs/development.md:11-13`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
   `/proc/self/stat` when it can (`crates/podssh-ssh/src/terminal/ctty.rs:27`),
@@ -1094,14 +1103,14 @@ the gate on any host that has a C++ compiler. The no-C rule held only because
 
 Read, in the tree as it is now:
 
-- `scripts/gate.sh:55-69`: the library crates build and test with
+- `scripts/gate.sh:55-71`: the library crates build and test with
   `CC=/nonexistent` and `CXX=/nonexistent`.
 - `scripts/plant.sh:100-145`: a crate in a temporary path whose build script
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:92-94` states the rule with `CXX`, and
-  `docs/STATUS.md:231` records the measurement. Rule 4 of
+- `docs/development.md:93-95` states the rule with `CXX`, and
+  `docs/STATUS.md:232` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:67-73` runs the plant on each push.
@@ -1132,7 +1141,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:231`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:232`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1341,7 +1350,7 @@ Read, wrong facts:
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
 - `crates/podssh-transport/src/backpressure/mod.rs:4-22` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:164-168` says
+  as the forward path's. For the forward path, `docs/relay.md:169-173` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.
@@ -1498,7 +1507,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:42-47`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:80-83`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:104-107`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -1515,7 +1524,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:130-131` lists what the containers do not get; name
+5. `docs/development.md:131-132` lists what the containers do not get; name
    each excluded pattern there.
 
 ## Prove
@@ -1570,7 +1579,7 @@ command uses `podssh-probe`.
 2. Move `podssh-core` and `podssh-transport` to the dev-dependencies: an
    example can use a dev-dependency, and the binary does not declare them.
 3. Move `libc` to the dependencies for Unix only, as
-   `crates/podssh-relay/Cargo.toml:28` does; else the lint of step 4 fails on
+   `crates/podssh-relay/Cargo.toml:34` does; else the lint of step 4 fails on
    Windows.
 4. The check: `#![cfg_attr(not(test), deny(unused_crate_dependencies))]` in
    `crates/podssh-cli/src/lib.rs`. rustc then refuses a dependency that the

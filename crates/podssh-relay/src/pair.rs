@@ -48,6 +48,20 @@ impl Pair {
     pub fn stop_token(&self) -> &str {
         &self.stop_token
     }
+
+    /// A second copy, for a runner that owns its pair while the caller keeps
+    /// its own. Each copy zeroes its tokens when it is dropped.
+    #[cfg(feature = "blocking")]
+    pub(crate) fn duplicate(&self) -> Pair {
+        Pair {
+            relay: self.relay.clone(),
+            name: self.name.clone(),
+            node_token: self.node_token.clone(),
+            connect_token: self.connect_token.clone(),
+            stop_token: self.stop_token.clone(),
+            expires_ms: self.expires_ms,
+        }
+    }
 }
 
 impl std::fmt::Debug for Pair {

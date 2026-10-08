@@ -6,7 +6,7 @@ shell that T-108 runs.
 
 # T-107: `podssh serve`: the russh server, its host key in a state file, and authorized keys
 
-**Source:** `docs/ROADMAP.md:177-182` (M5), `docs/design.md:136-140`; GitHub #20
+**Source:** `docs/ROADMAP.md:177-182` (M5), `docs/design.md:151-155`; GitHub #20
 (Nemo-010, 2026-10-08: bssh-server and tty7 as references).
 **Category:** feature
 **Milestone:** M5
@@ -41,7 +41,7 @@ core: the handshake, a host key that does not change, and key authentication.
    waits (podssh: 30 s, `crates/podssh-ssh/src/session.rs:18-21`).
 2. russh settings: `publickey` only (the default also offers `password`);
    the 512 KiB window of `crates/podssh-ssh/src/run.rs:25-29`; no inactivity
-   cut (russh: 600 s); a keepalive every 60 s (`docs/relay.md:150`).
+   cut (russh: 600 s); a keepalive every 60 s (`docs/relay.md:155`).
 3. Host key: `--host-key FILE`, else a file in the first usable directory of
    the cache chain, made with `keygen::generate` and `keygen::write_pair`.
    Invariant: never overwritten; the loser of a `create_new` race reads the
@@ -223,7 +223,7 @@ planted rejection with no reason fails that last check.
 
 # T-110: `podssh serve`: a real pty when `/dev/ptmx` exists
 
-**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:141-145`,
+**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:156-160`,
 `docs/terminal.md:45-55`; GitHub #20 (bound every PTY wait).
 **Category:** feature
 **Milestone:** M5
@@ -293,7 +293,7 @@ serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 
 # T-111: `podssh serve` with no `/dev/ptmx`: the line discipline, and Ctrl-C to the child's process group
 
-**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:141-145`,
+**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:156-160`,
 `docs/decisions.md:43`; GitHub #20 (fux line-discipline notes).
 **Category:** feature
 **Milestone:** M5
@@ -306,7 +306,7 @@ serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 The measured cage has no `/dev/ptmx` (`docs/target-environment.md:26`). There
 a shell on pipes gives no echo, no editing and no prompt, and Ctrl-C reaches
 nothing. Only the server side can turn Ctrl-C into a signal for the child's
-process group (`docs/design.md:141-145`). Without it, a user cannot stop a
+process group (`docs/design.md:156-160`). Without it, a user cannot stop a
 command, and the session must end.
 
 ## Premise
@@ -366,7 +366,7 @@ shell's pid and not its group fails the 15 s check.
 
 # T-112: An SFTP server in `podssh serve`
 
-**Source:** `docs/ROADMAP.md:189`, `docs/design.md:146-150`; GitHub #20
+**Source:** `docs/ROADMAP.md:189`, `docs/design.md:161-165`; GitHub #20
 (tty7 issue #1126: bound every SFTP wait); GitHub #21 (bssh pipelined SFTP).
 **Category:** feature
 **Milestone:** M5
@@ -453,7 +453,7 @@ out with matching digests.
   `docs/STATUS.md:147`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:42`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:151`; measured: `docs/STATUS.md:155`). 200 MiB each way
+  (`docs/relay.md:156`; measured: `docs/STATUS.md:155`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:19-26`).
@@ -526,7 +526,7 @@ so a key with limits cannot be used at all.
 - Read: the patterns of `from=` are those of `known_hosts`, which
   `crates/podssh-ssh/src/known_hosts.rs:145-168` matches (negation included).
 - Read: on the reverse road, serve does not know the client's address: the
-  stream comes from the relay (`docs/relay.md:192-215`).
+  stream comes from the relay (`docs/relay.md:197-220`).
 - Read in the reports of GitHub #21 and #18, not verified here: agent-ssh-cli
   checks regex lists before exec; sandhole limits local forwarding.
 
@@ -650,7 +650,7 @@ syslog and no `/var`. A record must not leak secrets or session data.
 
 - Read: podssh's log goes to stderr or to a file
   (`crates/podssh-ssh/src/log.rs:23-33`), as lines with no structure.
-- Read: `serde_json` is a workspace dependency (`Cargo.toml:98`), but not a
+- Read: `serde_json` is a workspace dependency (`Cargo.toml:100`), but not a
   dependency of `podssh-ssh` yet.
 - Read in the report of GitHub #25, not verified here: USBoverSSH writes an
   audit log of connection events.
@@ -700,7 +700,7 @@ lifecycle); GitHub #22 (Petyok/SSHub: hot reload).
 
 A node that stops must not leave shells behind, and must not cut sessions
 with no word. An operator who adds a key must not have to restart the node:
-a restart ends each session on it (`docs/design.md:176-179`).
+a restart ends each session on it (`docs/design.md:191-194`).
 
 ## Premise
 
@@ -772,7 +772,7 @@ must slow the child down, and a client that is gone must end the session.
   buffer of 100 messages (T-108).
 - Read: the comment on the SSH window said that the relay drops a frame
   past 1 MiB with 1011 (`crates/podssh-ssh/src/run.rs` lines 25-29 at
-  `80f20bf`); `docs/relay.md:164-168` says that it closes with 1013 at
+  `80f20bf`); `docs/relay.md:169-173` says that it closes with 1013 at
   2 MiB. T-024 corrected the comment; T-062 measures whether the relay's
   check operates.
 
@@ -1046,9 +1046,9 @@ default of russh refuses each `tcpip-forward` with no reason.
 - Read: the cage refuses `bind` (`docs/target-environment.md:25`; the box:
   `scripts/box/probe.sh:86-91`). The operator's ruling on Q1 (2026-10-08)
   allows a listener only when the user asks and a probe allows the bind.
-- Read: `docs/design.md:254-256` allows a listener on the far side. The relay
+- Read: `docs/design.md:269-271` allows a listener on the far side. The relay
   is a listener that podssh does not run: a node name takes operator
-  sessions (`docs/relay.md:192-215`).
+  sessions (`docs/relay.md:197-220`).
 - Read in the report of GitHub #18, not verified here: sandhole publishes
   services through a stock `ssh -R`.
 

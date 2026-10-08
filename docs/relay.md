@@ -65,7 +65,12 @@ X-Relay-Token: <forward token>
 - The relay sends a **zero-length binary frame every 25 s** as a keepalive.
   A client must ignore an empty frame; it is not the end of the stream.
 - A WebSocket Close stops the delivery from the client to the target. There
-  is no TCP half-close.
+  is no TCP half-close. But the target's bytes still come after the client's
+  Close, until the target closes, or until it is idle for 15 s; then the
+  relay's Close is `1000 client half-closed, target idle for 15s`. Measured
+  2026-10-09 (`python scripts/capture-close.py --client-close`): GitHub's
+  answer, 800 bytes, came 0.4 s after the Close, and the relay's Close
+  15.4 s after it.
 - The maximum frame is 262144 bytes (`/relays.json`,
   `limits.max_frame_bytes`).
 - The relay answers WebSocket pings with pongs (measured 2026-10-08).

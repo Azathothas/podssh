@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use podssh_relay::pair::{self, Pair, PairContext};
 use podssh_relay::relay::{Relay, DEFAULT_RELAY_HOST};
-use podssh_relay::reverse::{operator, run, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, Outcome, Settings};
+use podssh_relay::reverse::{operator, run, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, Outcome, Settings, Wire};
 use podssh_transport::SessionId;
 use podssh_ws::{ProxyChoice, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
@@ -75,7 +75,7 @@ fn node<H: Handler>(made: Pair, handler: H) -> (tokio::task::JoinHandle<Exit>, A
     let stop = Arc::new(Notify::new());
     let stopper = stop.clone();
     let task = tokio::spawn(async move {
-        let config = NodeConfig {
+        let mut config = NodeConfig {
             pair: made,
             label: None,
             trust: &Trust::Default,
@@ -83,8 +83,9 @@ fn node<H: Handler>(made: Pair, handler: H) -> (tokio::task::JoinHandle<Exit>, A
             timeout: LIMIT,
             settings: Settings::default(),
             repair: None,
+            wire: Wire::Tls,
         };
-        run(config, Arc::new(handler), async move { stopper.notified().await }).await
+        run(&mut config, Arc::new(handler), async move { stopper.notified().await }).await
     });
     (task, stop)
 }
@@ -104,6 +105,7 @@ async fn operator_echo(pair: &Pair, payload: Vec<u8>) -> (Vec<u8>, Outcome) {
             proxy: &ProxyChoice::FromEnvironment,
             timeout: LIMIT,
             limits: OperatorLimits::default(),
+            wire: Wire::Tls,
         };
         operator::run(&config, io).await.expect("the operator's socket")
     });
@@ -166,6 +168,7 @@ async fn operator_sees_reject_with_full_reason() {
         proxy: &ProxyChoice::FromEnvironment,
         timeout: LIMIT,
         limits: OperatorLimits::default(),
+        wire: Wire::Tls,
     };
     let outcome = operator::run(&config, io).await.expect("the operator's socket");
     eprintln!("outcome: {outcome:?}");

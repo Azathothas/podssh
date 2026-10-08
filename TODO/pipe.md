@@ -1,11 +1,11 @@
 The work of milestone M7, `podssh pipe` and `--persist`, and the backlog of
 streams that `pipe` can carry: desktop streams and Telnet, a published HTTP
-service, serial devices and USB/IP. The design is `docs/design.md:225-260`;
+service, serial devices and USB/IP. The design is `docs/design.md:240-275`;
 the milestone is `docs/ROADMAP.md:227-236`.
 
 # T-174: `podssh pipe A B` with local addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`), `docs/design.md:242-260`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`), `docs/design.md:257-275`;
 GitHub #26 (Nemo-010, 2026-10-08). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M7
@@ -63,7 +63,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    ENOSYS), two pipes; Windows uses pipes. stderr is shared. When the other
    side ends, the child gets the end of input, and podssh waits for it as a
    shell waits. Add the `process` feature of tokio to podssh-cli
-   (`Cargo.toml:70-72` lacks it; `crates/podssh-ssh/Cargo.toml:20` has it).
+   (`Cargo.toml:72-74` lacks it; `crates/podssh-ssh/Cargo.toml:20` has it).
 6. The exit status: the child's, and 128 + N for a signal; with two children,
    B's. A program that is not found gives 127, one that cannot run 126, as a
    shell gives. With no child, a clean end gives 0.
@@ -71,7 +71,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    (`crates/podssh-cli/src/man/notes.rs:7-18`), two examples
    (`crates/podssh-cli/src/man/examples.rs:8-50`; its test at
    `crates/podssh-cli/src/man/examples.rs:171-178` learns the new variant),
-   `docs/design.md:244-252`, `docs/STATUS.md`. Each file stays under 500
+   `docs/design.md:259-267`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:191-192`).
 
 ## Decision
@@ -101,7 +101,7 @@ checks for 7 and 64 must fail.
 
 # T-175: `podssh pipe` with remote addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`), `docs/design.md:249-252`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`), `docs/design.md:264-267`;
 GitHub #26 (Nemo-010, 2026-10-08); the RustConn report in GitHub #24 (one
 address model across roads; read in the report, not verified here).
 **Category:** feature
@@ -124,7 +124,7 @@ local program to a target, and `podssh proxy` stays a second pump.
   (`crates/podssh-cli/src/proxy.rs:45-93`).
 - Read: `crates/podssh-ssh/src/relay_stream.rs:89-93` sends Close 1000 when
   its write side ends. That is right for SSH and wrong for a pipe: the relay
-  has no half-close (`docs/relay.md:67-68`), so a Close cuts a reply on its
+  has no half-close (`docs/relay.md:67-73`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
   (`docs/STATUS.md:90`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:12-18`
@@ -167,7 +167,7 @@ local program to a target, and `podssh proxy` stays a second pump.
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:115-163` a typed error, so that 77 is not
    guessed from a message.
-7. In the same commit: `docs/cli.md`, `docs/design.md:244-252`, the notes,
+7. In the same commit: `docs/cli.md`, `docs/design.md:259-267`, the notes,
    the examples, `docs/STATUS.md`.
 
 ## Decision
@@ -194,6 +194,16 @@ the path of `-W`. A late reply: a target sends 1 s after it accepts, and
 `pipe stdio relay:` with stdin at its end gets the bytes. Plant: send a
 Close at the end of input, as `crates/podssh-ssh/src/relay_stream.rs:89-93`
 does; the late-reply check must fail.
+
+## Correction
+
+2026-10-09 (T-081): the relay does not cut a reply at a client's Close. It
+stops the client's bytes to the target, but the target's bytes still come,
+until the target closes or is idle for 15 s; then its Close is `1000 client
+half-closed, target idle for 15s` (`docs/relay.md:67-73`, measured with
+`python scripts/capture-close.py --client-close`). A Close is a half-close for
+a reply that comes within 15 s of silence; a target that waits for the end of
+its input sees no end.
 
 # T-176: `podssh pipe` with `unix-connect:PATH`
 
@@ -240,7 +250,7 @@ not a listener, so `docs/target-environment.md:74-78` allows it.
    after a probe at run time; where one fails, exit 69 with the reason
    (the operator's ruling of 2026-10-08).
 5. T-040 gives the remote form: a socket on the server, through `-W`.
-6. In the same commit: `docs/cli.md`, `docs/design.md:248`, the notes,
+6. In the same commit: `docs/cli.md`, `docs/design.md:263`, the notes,
    `docs/STATUS.md`. With T-174 and T-175 done, the first item of ROADMAP M7
    is done.
 
@@ -259,7 +269,7 @@ never answers, and the test fails at its limit of 10 s.
 
 # T-177: `podssh pipe` with a local listener after a probe
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:232-233`), `docs/design.md:254-260`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:232-233`), `docs/design.md:269-275`;
 GitHub #26 (a local-only mode, as the `--local` of bunflared; read in the
 report, not verified here); sandbox A of T-001.
 **Category:** feature
@@ -271,9 +281,9 @@ report, not verified here); sandbox A of T-001.
 ## Problem
 
 Desktop clients, browsers and database clients call `connect()` themselves:
-they need a local port or socket (`docs/design.md:257-260`). podssh refuses
+they need a local port or socket (`docs/design.md:272-275`). podssh refuses
 each listener. The design allows one for `pipe`, locally, after a probe
-shows that an AF_UNIX or loopback bind works (`docs/design.md:254-256`).
+shows that an AF_UNIX or loopback bind works (`docs/design.md:269-271`).
 
 ## Premise
 
@@ -354,7 +364,7 @@ Plant: bind with no umask; the check of the mode must fail.
 
 # T-178: `--persist`: connect again and attach `tmux` again
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:234-236`), `docs/design.md:206-216`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:234-236`), `docs/design.md:221-231`;
 GitHub #19 (a lasting terminal through `tmux`, from the slingshot report:
 `ado11231/slingshot:crates/slingshot-agent/src/jobs.rs`; read in the
 report, not verified here).
@@ -367,10 +377,10 @@ report, not verified here).
 ## Problem
 
 When the relay drops a session, `podssh ssh` exits 255 and the remote shell
-is gone (`docs/design.md:173`). Against a standard sshd only one end runs
-podssh, so the layer of M6 cannot help (`docs/design.md:206-208`). The
+is gone (`docs/design.md:188`). Against a standard sshd only one end runs
+podssh, so the layer of M6 cannot help (`docs/design.md:221-223`). The
 cheapest repair: connect again, and attach a `tmux` session that kept
-running on the server (`docs/design.md:209-211`).
+running on the server (`docs/design.md:224-226`).
 
 ## Premise
 
@@ -381,7 +391,7 @@ running on the server (`docs/design.md:209-211`).
   (`crates/podssh-ssh/src/session.rs:102-104`). Raw mode is entered once for
   each session (`crates/podssh-ssh/src/session.rs:82-98`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
-  (`docs/relay.md:147-153`). Sandbox A measured the cap at 67,107,943 bytes,
+  (`docs/relay.md:152-158`). Sandbox A measured the cap at 67,107,943 bytes,
   and one close `1011` in 180 short sessions (`docs/STATUS.md:155-156`).
 - Read: tmux is never assumed (`docs/target-environment.md:90-92`).
 
@@ -407,7 +417,7 @@ running on the server (`docs/design.md:209-211`).
    cached token. A prompt with no terminal ends the loop
    (`docs/cli.md:219-221`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes.rs:20-52`), `docs/design.md:209-211`,
+   (`crates/podssh-cli/src/man/notes.rs:20-52`), `docs/design.md:224-226`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:32-33`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
@@ -457,11 +467,11 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 
 - Read: a byte pipe carries each TCP protocol
   (`crates/podssh-cli/src/man/notes.rs:54-58`); a client that calls
-  `connect()` itself needs a listener (`docs/design.md:257-260`), which
+  `connect()` itself needs a listener (`docs/design.md:272-275`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
-  (`docs/relay.md:115`), then Close 1009 (`docs/relay.md:151`); public
-  targets only (`docs/relay.md:117`). Through the proxy of sandbox A: 0.5 to
+  (`docs/relay.md:120`), then Close 1009 (`docs/relay.md:156`); public
+  targets only (`docs/relay.md:122`). Through the proxy of sandbox A: 0.5 to
   0.7 MB/s (`docs/STATUS.md:154`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
@@ -488,7 +498,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
    form a to `crates/podssh-cli/src/man/examples.rs:8-50`; its ProxyCommand
    parses (`crates/podssh-cli/src/man/examples.rs:148-155`). Link the table
-   from `docs/design.md:257-260`.
+   from `docs/design.md:272-275`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
 ## Prove
@@ -520,14 +530,14 @@ and sandhole. Read in the reports, not verified here.
 
 A developer in a sandbox runs a web application and wants a URL for it. The
 relay carries TCP to public targets and reverse sessions to named nodes
-(`docs/relay.md:192-227`). It has no endpoint that takes public HTTPS for a
+(`docs/relay.md:197-232`). It has no endpoint that takes public HTTPS for a
 name, and podssh alone cannot add one.
 
 ## Premise
 
 - Read: the relay is the operator's Cloudflare Worker, another project, and
   its document is the contract (`docs/relay.md:3-16`). It has no publish
-  endpoint (`docs/relay.md:51-73`, `docs/relay.md:192-235`).
+  endpoint (`docs/relay.md:51-78`, `docs/relay.md:197-240`).
 - Read: on the measured sandbox, `connect()` to loopback fails with EACCES
   (`docs/target-environment.md:22`). A node there cannot reach a server on
   127.0.0.1; it can reach a Unix socket (T-176) or a program (`exec:`,
@@ -543,7 +553,7 @@ When the relay's operator adds the endpoint:
 
 1. The relay's operator publishes it in the contract first: a name, a public
    host name, and each incoming connection as a reverse session
-   (`open {id}`, `ready {id}`; `docs/relay.md:199-219`).
+   (`open {id}`, `ready {id}`; `docs/relay.md:204-224`).
 2. podssh uses the node runner (T-079) and `podssh node` (T-083):
    `podssh node NAME TARGET --publish`, TARGET each address of T-174 to
    T-176. podssh parses no HTTP: the bytes pass, WebSocket upgrades too.
@@ -651,7 +661,7 @@ and with which limits.
   SSH exec channel, and says that USB/IP needs kernel modules on the server.
 - Read: an exec channel carries binary data with equal digests
   (`docs/STATUS.md:63`), and `pipe` carries a TCP stream (T-174, T-175).
-- Read: through the relay, a session ends at 64 MiB (`docs/relay.md:115`);
+- Read: through the relay, a session ends at 64 MiB (`docs/relay.md:120`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
   privilege (`AGENTS.md:175-176`). The recipe uses the user's own `usbip` and

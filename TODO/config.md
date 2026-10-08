@@ -255,7 +255,7 @@ result, `Resolved` (lines 27-41), holds the settings in effect, the defaults inc
    (`crates/podssh-cli/src/ssh/keywords.rs:23-57`), and `host`, `hostname`, `user`, `port`,
    `identityfile` and `proxyjump`. Spell each value as `ssh -G` does (`true` or `yes`).
 5. Keep a list in the test of the values that differ on purpose, each with its reason:
-   `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:113`) and `connecttimeout 60`.
+   `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:118`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
 7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:20-52`) and `docs/cli.md:48-91`

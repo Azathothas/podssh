@@ -37,7 +37,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   (`crates/podssh-ssh/src/known_hosts.rs:209-241`).
 - Read: with no cached token, each session mints one
   (`crates/podssh-relay/src/token.rs:132-151`); the relay allows 120 attempts
-  with no token for each minute and address (`docs/relay.md:116`).
+  with no token for each minute and address (`docs/relay.md:121`).
 
 ## Approach
 
@@ -628,7 +628,7 @@ of the command.
    changed.
 3. Then one exec on the same SSH connection: `cd DIR && COMMAND`, with DIR
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
-   (`docs/relay.md:115`), run the exec on a new session (T-137).
+   (`docs/relay.md:120`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
    (`docs/cli.md:205-208`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
@@ -665,7 +665,7 @@ outlives the session, show it later, or stop it.
 
 ## Premise
 
-- Read: a session ends with its connection (`docs/design.md:173`), and `-f`
+- Read: a session ends with its connection (`docs/design.md:188`), and `-f`
   is refused (`crates/podssh-cli/src/flags.rs:209-210`).
 - Read: tmux is never assumed; T-178 probes it with `command -v tmux`.
 - Read: `podssh serve` (T-107, M5) runs on the far end only where the user
@@ -820,7 +820,7 @@ queue, no wait for a result, and no way to get the output back.
   queue on the client dies with it, and a client that waits must not need a
   listener (`docs/target-environment.md:74-78`).
 - Read: the output comes back with `cp` (T-134), within 64 MiB for each
-  relay session (`docs/relay.md:115`); T-137 opens a new session.
+  relay session (`docs/relay.md:120`); T-137 opens a new session.
 - Read in the report: GPU-Share places jobs by idle time and free VRAM. No
   such logic here: a count of slots is the only limit.
 

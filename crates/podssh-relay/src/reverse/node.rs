@@ -8,11 +8,12 @@ use std::time::Duration;
 
 use podssh_transport::closes::RelayClose;
 use podssh_transport::{LegTarget, SessionId};
-use podssh_ws::client::{connect, ConnectError, Endpoint, WsClientConfig};
-use podssh_ws::{ProxyChoice, Trust};
+use podssh_ws::client::{ConnectError, Endpoint, WsClientConfig};
+use podssh_ws::{DialError, ProxyChoice, Trust};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use super::serve::{serve, End, Settings};
+use super::wire::{self, Socket, Wire};
 use crate::pair::Pair;
 
 /// The local side of a session, as a handler opens it.
@@ -42,6 +43,8 @@ pub struct NodeConfig<'a> {
     pub settings: Settings,
     /// Off by default: an expired pair ends the node.
     pub repair: Option<RepairHook>,
+    /// TLS, except in the tests of an embedder.
+    pub wire: Wire,
 }
 
 /// Why a node ended. Each is final: a failure that a reconnection repairs is
@@ -61,6 +64,10 @@ pub enum Exit {
     Forbidden,
     /// `1003` or `1009`: a fault of this node that a reconnection would repeat.
     Fault(RelayClose),
+    /// The node cannot connect as it is set up: an unusable proxy setting or
+    /// trust store, or a host that plain `ws://` refuses. A reconnection would
+    /// repeat it.
+    Unusable(String),
 }
 
 /// What to do after a socket ended.
@@ -71,7 +78,7 @@ pub enum Next {
     Exit(&'static str),
 }
 
-/// The action for a Close of the relay (`docs/reverse.md`, "Operator", 3):
+/// The action for a Close of the relay (`docs/reverse.md`, "Exit codes", 3):
 /// by the code and the reason, never the code alone.
 pub fn after_close(close: &RelayClose) -> Next {
     let reason = close.reason.trim().to_ascii_lowercase();
@@ -84,8 +91,9 @@ pub fn after_close(close: &RelayClose) -> Next {
 }
 
 /// Run the node until it ends; reconnect after a broken socket, with the
-/// jittered backoff of the forward opener.
-pub async fn run<H, F>(mut config: NodeConfig<'_>, handler: Arc<H>, stop: F) -> Exit
+/// jittered backoff of the forward opener. `config.pair` is then the pair that
+/// the node ended with: a new one after a re-pair.
+pub async fn run<H, F>(config: &mut NodeConfig<'_>, handler: Arc<H>, stop: F) -> Exit
 where
     H: Handler,
     F: Future<Output = ()>,
@@ -107,13 +115,18 @@ where
             proxy: config.proxy.clone(),
         };
         let connected = tokio::select! {
-            connected = connect(&ws, config.pair.node_token()) => connected,
+            connected = wire::open(config.wire, &ws, config.pair.node_token()) => connected,
             () = &mut stop => return Exit::Stopped,
         };
         let next = match connected {
-            Ok(session) => {
+            Ok(socket) => {
                 retry = 0;
-                match serve(session, handler.clone(), config.settings, &mut stop).await {
+                let end = match socket {
+                    Socket::Tls(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
+                    #[cfg(feature = "plain-ws")]
+                    Socket::Plain(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
+                };
+                match end {
                     End::Stopped => return Exit::Stopped,
                     End::Failed(_) => Next::Reconnect,
                     End::Closed(close) => match after_close(&close) {
@@ -127,6 +140,9 @@ where
                         next => next,
                     },
                 }
+            }
+            Err(ConnectError::Config(why) | ConnectError::Dial(DialError::BadProxy(why) | DialError::InvalidTarget(why))) => {
+                return Exit::Unusable(why)
             }
             Err(ConnectError::Refused { status: 409, .. }) => return Exit::NameInUse,
             Err(ConnectError::Refused { status: 403, .. }) if expired(&config.pair) => Next::Repair,

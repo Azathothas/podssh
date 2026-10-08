@@ -8,11 +8,17 @@
 //! - [`open`]: a forward session, failing over from host to host with backoff,
 //!   one bounded attempt per host;
 //! - `pair` (feature `pair`): the pairs of the reverse road, made, asked
-//!   about and stopped on the relay's control host, kept in a private file.
+//!   about and stopped on the relay's control host, kept in a private file;
+//! - `reverse` (feature `pair`): the node and the operator of the reverse road;
+//! - `blocking` (feature `blocking`): a synchronous facade over all of these,
+//!   for a caller with no async runtime: it owns a runtime on the current
+//!   thread, and refuses a call from inside a tokio runtime.
 //!
 //! No C compiler is needed (the gate builds this crate with
 //! `CC=/nonexistent`), so other projects can depend on it.
 
+#[cfg(feature = "blocking")]
+pub mod blocking;
 pub mod cache;
 pub mod open;
 #[cfg(feature = "pair")]

@@ -9,14 +9,16 @@ use std::time::Duration;
 use podssh_transport::control::{self, NodeOutbound};
 use podssh_transport::framing::legs::chunk_for_bare;
 use podssh_transport::LegTarget;
-use podssh_ws::client::{connect, ConnectError, Endpoint, WsClientConfig};
+use podssh_ws::client::{ConnectError, Endpoint, WsClientConfig};
 use podssh_ws::frame;
 use podssh_ws::session::{close_code_and_reason, RelaySession};
 use podssh_ws::{ProxyChoice, SessionError, Trust};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadHalf, WriteHalf};
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 use tokio::time::Instant;
 
+use super::wire::{self, Socket, Wire};
 use crate::relay::Relay;
 
 /// The most input kept before `ready`; more fails the session.
@@ -61,6 +63,8 @@ pub struct OperatorConfig<'a> {
     /// Bound on connecting.
     pub timeout: Duration,
     pub limits: OperatorLimits,
+    /// TLS, except in the tests of an embedder.
+    pub wire: Wire,
 }
 
 /// How an operator session ended.
@@ -101,11 +105,16 @@ where
         idle_timeout: None,
         proxy: config.proxy.clone(),
     };
-    let session = connect(&ws, config.connect_token).await?;
-    Ok(exchange(session, io, config.limits).await)
+    Ok(match wire::open(config.wire, &ws, config.connect_token).await? {
+        Socket::Tls(session) => exchange(session, io, config.limits).await,
+        #[cfg(feature = "plain-ws")]
+        Socket::Plain(session) => exchange(session, io, config.limits).await,
+    })
 }
 
-/// Carry `io` over a connected operator socket (any stream, for tests).
+/// Carry `io` over a connected operator socket (any stream, for tests). At
+/// each end, the write side of `io` is shut, so its reader sees the end, and
+/// the tasks that read stop.
 pub async fn exchange<S, IO>(session: RelaySession<S>, io: IO, limits: OperatorLimits) -> Outcome
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
@@ -113,8 +122,27 @@ where
 {
     let session = Arc::new(session);
     let (local_read, mut local_write) = tokio::io::split(io);
-    let mut frames = frames_of(session.clone());
-    let mut input = input_of(local_read);
+    let (frames, frames_task) = frames_of(session.clone());
+    let (input, input_task) = input_of(local_read);
+    let outcome = carry(&session, frames, input, &mut local_write, limits).await;
+    input_task.abort();
+    frames_task.abort();
+    let _ = local_write.shutdown().await;
+    outcome
+}
+
+/// The session from the first frame to its end.
+async fn carry<S, IO>(
+    session: &RelaySession<S>,
+    mut frames: mpsc::Receiver<Result<frame::Frame, SessionError>>,
+    mut input: mpsc::Receiver<Vec<u8>>,
+    local_write: &mut WriteHalf<IO>,
+    limits: OperatorLimits,
+) -> Outcome
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+    IO: AsyncRead + AsyncWrite,
+{
     let liveness = session.watch_liveness(limits.ping_every, limits.pings_allowed);
     tokio::pin!(liveness);
 
@@ -165,7 +193,7 @@ where
     }
 
     // `ready`: the queue first, in order, then both ways.
-    if send_bytes(&session, &queue).await.is_err() {
+    if send_bytes(session, &queue).await.is_err() {
         return Outcome::Ended { code: 1006, reason: "the relay connection broke".into() };
     }
     drop(queue);
@@ -193,11 +221,12 @@ where
                     }
                 }
                 Some(Ok(f)) if f.opcode == frame::OPCODE_CLOSE => {
-                    let _ = local_write.shutdown().await;
-                    if closing.is_some() {
+                    let (code, reason) = close_code_and_reason(&f.payload);
+                    // The answer to this side's Close echoes 1000; another code
+                    // crossed it, and names a failure.
+                    if closing.is_some() && matches!(code, None | Some(1000)) {
                         return Outcome::LocalEnd;
                     }
-                    let (code, reason) = close_code_and_reason(&f.payload);
                     return Outcome::Ended { code: code.unwrap_or(1005), reason: text_reason.unwrap_or(reason) };
                 }
                 Some(Ok(_)) => {}
@@ -206,7 +235,7 @@ where
             },
             bytes = input.recv(), if closing.is_none() => match bytes {
                 Some(bytes) => {
-                    if send_bytes(&session, &bytes).await.is_err() {
+                    if send_bytes(session, &bytes).await.is_err() {
                         return Outcome::Ended { code: 1006, reason: "the relay connection broke".into() };
                     }
                 }
@@ -215,10 +244,7 @@ where
                     closing = Some(Instant::now() + limits.close_limit);
                 }
             },
-            () = tokio::time::sleep_until(close_deadline), if closing.is_some() => {
-                let _ = local_write.shutdown().await;
-                return Outcome::LocalEnd;
-            }
+            () = tokio::time::sleep_until(close_deadline), if closing.is_some() => return Outcome::LocalEnd,
             dead = &mut liveness => return Outcome::Ended { code: 1006, reason: dead.to_string() },
         }
     }
@@ -241,12 +267,12 @@ where
 
 /// The socket's frames, read by their own task, so that waiting for one
 /// never stands in the way of the input.
-fn frames_of<S>(session: Arc<RelaySession<S>>) -> mpsc::Receiver<Result<frame::Frame, SessionError>>
+fn frames_of<S>(session: Arc<RelaySession<S>>) -> (mpsc::Receiver<Result<frame::Frame, SessionError>>, JoinHandle<()>)
 where
     S: AsyncRead + AsyncWrite + Send + 'static,
 {
     let (tx, rx) = mpsc::channel(32);
-    tokio::spawn(async move {
+    let task = tokio::spawn(async move {
         loop {
             let frame = session.read_frame().await;
             let last = !matches!(&frame, Ok(f) if f.opcode != frame::OPCODE_CLOSE);
@@ -255,16 +281,16 @@ where
             }
         }
     });
-    rx
+    (rx, task)
 }
 
 /// The local input, read by its own task; `None` at its end.
-fn input_of<R>(mut local: R) -> mpsc::Receiver<Vec<u8>>
+fn input_of<IO>(mut local: ReadHalf<IO>) -> (mpsc::Receiver<Vec<u8>>, JoinHandle<()>)
 where
-    R: AsyncRead + Send + Unpin + 'static,
+    IO: AsyncRead + Send + 'static,
 {
     let (tx, rx) = mpsc::channel(32);
-    tokio::spawn(async move {
+    let task = tokio::spawn(async move {
         let mut buf = vec![0u8; FRAME_PAYLOAD];
         loop {
             match local.read(&mut buf).await {
@@ -277,5 +303,5 @@ where
             }
         }
     });
-    rx
+    (rx, task)
 }

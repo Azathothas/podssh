@@ -36,7 +36,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
 - Read: the rule: three inputs select the mode, the user selects the
   discipline, and the absence of a pty alone never selects it
   (`docs/terminal.md:10-18`, `docs/terminal.md:27-32`). On the server side,
-  serve selects it when the cage has no `/dev/ptmx` (`docs/design.md:141-145`).
+  serve selects it when the cage has no `/dev/ptmx` (`docs/design.md:156-160`).
 
 ## Approach
 

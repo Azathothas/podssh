@@ -70,7 +70,7 @@ The new file crates/podssh-ts/tests/netmap_wait.rs gives the limit a future that
 wait. Plant: await with no limit; an outer `tokio::time::timeout` must then fail the test. An
 offline test cannot reach the fork's queue: with a silent control server, the start itself waits
 (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:79-89`). The second command is the feature
-suite (226 passed, `docs/STATUS.md:226`). The third is live, with a `ts` build, while no map comes
+suite (226 passed, `docs/STATUS.md:227`). The third is live, with a `ts` build, while no map comes
 (`docs/tailscale.md:10-11`): it must print `exit=78` after about 20 s, not `exit=124`.
 
 # T-101: C3: a local end of input cuts the reply in the `podssh-ts` pipe
@@ -103,7 +103,7 @@ Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/
 and a closed stdout is a clean end there (`crates/podssh-cli/src/proxy.rs:266-269`) and in the rules
 (`docs/cli.md:211`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:399-402`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
-(`docs/relay.md:149`). An earlier version of the pipe waited with no limit, and hung
+(`docs/relay.md:154`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs:84-88`).
 
 ## Approach
@@ -303,7 +303,7 @@ Read: `ControlRunner` stops when the map stream ends
 (`vendor/tailscale-rs/ts_runtime/src/lib.rs:160-169`): five restarts in 5 s at most, with no wait
 (`tqwewe/kameo:src/supervision.rs`). podssh's relay client has the rules to copy: a capped backoff
 with jitter (`crates/podssh-relay/src/open.rs:261-275`), and a ping every 10 s with three silent
-checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:72-74`).
+checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:77-79`).
 
 ## Approach
 
@@ -572,7 +572,7 @@ its control runner, for each registration (`vendor/tailscale-rs/ts_runtime/src/l
 `vendor/tailscale-rs/ts_runtime/src/control_runner.rs:54`, `vendor/tailscale-rs/ts_runtime/src/control_runner.rs:108`).
 
 Read: the relay token is a `Zeroizing<String>` (`crates/podssh-relay/src/token.rs:29`), and
-`zeroize` is a workspace dependency (`Cargo.toml:161`), but podssh-ts does not use it
+`zeroize` is a workspace dependency (`Cargo.toml:163`), but podssh-ts does not use it
 (`crates/podssh-ts/Cargo.toml:10-14`). The fork already depends on it
 (`vendor/tailscale-rs/Cargo.toml:106`). The comment at `crates/podssh-ts/src/secret.rs:3-5` names a
 model file that no longer exists.

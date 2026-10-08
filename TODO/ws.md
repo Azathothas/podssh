@@ -1,8 +1,8 @@
 This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP and proxies, TLS
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
-`podssh-ws` item of ROADMAP M4 and `docs/design.md:102-106`, and from GitHub issues. The crate
-must build with no C compiler (`scripts/gate.sh:61-69`).
+`podssh-ws` item of ROADMAP M4 and `docs/design.md:117-121`, and from GitHub issues. The crate
+must build with no C compiler (`scripts/gate.sh:61-71`).
 
 # T-063: W10: the frame decoder does not check a received control frame
 
@@ -311,7 +311,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207, 
 (`crates/podssh-relay/src/token.rs:92-97`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:117-126`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:169`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:174`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -328,7 +328,7 @@ HTTP/1.1 only (`docs/relay.md:169`). The `tls12` feature of `rustls` is on in th
 5. `podssh-ws` must not depend on `ring`, also not in its tests: the gate builds the tests with
    no C compiler. The tests make the caller's configuration with podssh's own provider.
 6. The default stays `Trust`, so the binary does not change.
-7. Change `docs/design.md:102-106` and `docs/architecture.md` in the same commit.
+7. Change `docs/design.md:117-121` and `docs/architecture.md` in the same commit.
 
 ## Decision
 
@@ -455,7 +455,7 @@ from the list; its OpenSSL check fails.
 
 # T-068: Plain `ws://` to loopback, for tests only
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:103-104`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:118-119`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P3
@@ -489,7 +489,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 4. The runners of `podssh-relay` (T-079, T-081) must take any stream type, so that podbox's
    tests can use them.
 5. The binary never enables the feature; a check in the gate proves it.
-6. Change `docs/design.md:103-104` in the same commit.
+6. Change `docs/design.md:118-119` in the same commit.
 
 ## Decision
 
@@ -545,7 +545,7 @@ the feature. Planted defect: remove the loopback check; the refusal test fails.
 
 # T-069: Typed session errors in `podssh-ws`
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:104-105`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:119-120`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P2
@@ -748,7 +748,7 @@ minimal. The only caller in the code is `next_event`, for the frames of the rela
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
    connection. Since T-063 the session sends that Close for each error of the decoder
-   (`crates/podssh-ws/src/session.rs:232-239`), so this entry needs no new path.
+   (`crates/podssh-ws/src/session.rs:245-252`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,

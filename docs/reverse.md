@@ -41,8 +41,10 @@ open the local side. It acts on each end by its code and reason: `409`,
 exit; `1001 operator stopped reverse relay`, exit and delete the stored pair;
 `1001 pair expired` (or a `403` after the expiry), a re-pair hook, off by
 default; `1003` and `1009`, exit; anything else, connect again with the
-jittered backoff. A stop closes each session with `close {id}`, then the
-socket with `1000`. Measured against the live relay on 2026-10-09: two
+jittered backoff. A node that cannot connect as it is set up (an unusable
+proxy setting or trust store) exits too, as connecting again would repeat
+it. A stop closes each session with `close {id}`, then the socket with
+`1000`. Measured against the live relay on 2026-10-09: two
 sessions at once, 1 MiB each way through an echo node, came back whole
 (`cargo test -p podssh-relay --features pair --test reverse_live --
 --ignored`).
@@ -66,6 +68,13 @@ does. Its outcome: never ready (a failure, with a `reject`'s whole reason),
 ended after `ready` (`1000` a success, each other code a failure with the code
 and the reason), or the end of its input. podssh's node sends the whole
 reason of a `reject` or a `close`, cut only to fit the 4 KiB control frame.
+A Close of the relay that crosses the operator's own, with a code other than
+`1000`, is a failure too.
+
+Synchronous code (podbox) runs the node and the operator through
+`podssh_relay::blocking` (feature `blocking`, T-081): a handler opens each
+session of the node as a reader and a writer, and an operator session runs
+over a reader and a writer, such as standard input and output.
 
 ## Exit codes
 

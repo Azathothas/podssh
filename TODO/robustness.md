@@ -30,7 +30,7 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/http.rs:113`, line 179); the upgrade answer
 (`crates/podssh-ws/src/handshake.rs:188`); proxy URLs, `NO_PROXY` and the
 CONNECT status (`crates/podssh-ws/src/dial.rs:49`, lines 178 and 334); close
-reasons (`crates/podssh-ws/src/session.rs:299`); PEM bundles
+reasons (`crates/podssh-ws/src/session.rs:312`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:80`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:81`, `crates/podssh-relay/src/pool.rs:92`);
 `known_hosts` lines, in a private function
@@ -86,7 +86,7 @@ sh scripts/dev.sh check                                   # the gate does not ch
 
 The list names each target, and each run ends with no crash (`ws_frame`
 after T-063). Planted defect: remove the length guard of
-`close_code_and_reason` (`crates/podssh-ws/src/session.rs:300-302`);
+`close_code_and_reason` (`crates/podssh-ws/src/session.rs:313-315`);
 `close_reason` must crash within its 120 s.
 
 # T-199: A scored interop harness
@@ -119,7 +119,7 @@ seconds at `scripts/interop.sh:237`, the tty at line 221), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
-(`scripts/gate.sh:135`). The totals are typed in `docs/STATUS.md:19`, line 57
+(`scripts/gate.sh:159`). The totals are typed in `docs/STATUS.md:19`, line 57
 and line 196.
 
 ## Approach
@@ -210,7 +210,7 @@ Read:
 
 1. A model of a VT terminal for the tests: the `vt100` crate (pure Rust, over
    `vte`) as a dev-dependency. The gate's library test step runs under
-   `CC=/nonexistent` and `CXX=/nonexistent` (`scripts/gate.sh:67-69`), so it
+   `CC=/nonexistent` and `CXX=/nonexistent` (`scripts/gate.sh:69-71`), so it
    shows that no C or C++ comes with it.
 2. A helper: bytes in, screen out (rows, cursor, attributes). Each case
    compares screens, not bytes.
@@ -295,7 +295,7 @@ Read, the bounds today:
   backpressure`): the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
   now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:25-28`):
-  `docs/relay.md:164-168` says that backpressure closes with `1013` at
+  `docs/relay.md:169-173` says that backpressure closes with `1013` at
   2 MiB and drops no frame. T-062 measures whether that check operates.
 
 ## Approach
@@ -307,7 +307,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:213-216`): a proxy head that never ends stops at
+   (`docs/development.md:214-217`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -317,7 +317,7 @@ Read, the bounds today:
    plus a margin; the check fails above it.
 5. Give `known_hosts` a read limit (16 MiB, far above a real file) with a
    message that names the file, or state in the table that it has none.
-6. In M6, the replay buffer (4 to 16 MiB, `docs/design.md:191-192`; T-152)
+6. In M6, the replay buffer (4 to 16 MiB, `docs/design.md:206-207`; T-152)
    joins the table.
 
 ## Prove
@@ -332,7 +332,7 @@ Each command exits 0. Planted defect: set `WINDOW`
 (`crates/podssh-ssh/src/run.rs:29`) to 64 MiB; the slow-reader check must
 fail. If it does not, the bound is somewhere else: find it before anybody
 trusts the check. A second plant: remove the check at
-`crates/podssh-ws/src/session.rs:264-266`; the fragment test must fail.
+`crates/podssh-ws/src/session.rs:277-279`; the fragment test must fail.
 
 # T-202: Property tests for the state machines
 
@@ -358,7 +358,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 
 - WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:67`,
   `crates/podssh-ws/src/frame.rs:113`).
-- The joining of fragments (`crates/podssh-ws/src/session.rs:258-282`). It is
+- The joining of fragments (`crates/podssh-ws/src/session.rs:271-295`). It is
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:69`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:81-147`, `crates/podssh-ws/src/names.rs:8-57`).
@@ -374,7 +374,7 @@ the gate must show it.
 
 1. `proptest` as a dev-dependency of podssh-ws, podssh-relay and podssh-ssh.
    The gate's library test step runs under `CC=/nonexistent` and
-   `CXX=/nonexistent` (`scripts/gate.sh:67-69`), so it shows that no C comes
+   `CXX=/nonexistent` (`scripts/gate.sh:69-71`), so it shows that no C comes
    with it. Commit the regression files of proptest as seeds.
 2. One test file for each crate (tests/properties.rs), with these properties:
    - frames: for each opcode, FIN, role, mask and payload up to 262144 bytes,
@@ -411,7 +411,7 @@ trip of frames must fail and print the smallest frame that fails.
 
 # T-203: The fault-injection harness: latency, jitter, bandwidth, a new address
 
-**Source:** `docs/design.md:221-223` (layers 2 and 3 need the harness
+**Source:** `docs/design.md:236-238` (layers 2 and 3 need the harness
 extended), and the exit criteria of M6 (`docs/ROADMAP.md`, M6; T-156).
 **Category:** chore
 **Milestone:** M6
@@ -465,7 +465,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate,
-   `docs/development.md:115-121`) and the faults table of docs/STATUS.md.
+   `docs/development.md:116-122`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 
