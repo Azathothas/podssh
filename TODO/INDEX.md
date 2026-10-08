@@ -57,19 +57,19 @@ repository and CI).
 6. An entry that waits for a measurement in a real sandbox is done in one
    session with the other entries of that kind.
 7. The entries that wait for the relay's operator are skipped: T-086,
-   T-106, T-169, T-173, T-180 and T-226.
+   T-106, T-169, T-173, T-180, T-226 and T-253.
 
 ## Counts
 
-**249 entries: 233 open, 0 partial, 6 blocked, 10 done.**
+**250 entries: 232 open, 0 partial, 7 blocked, 11 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 4 | 0 | 0 | 5 | 9 |
-| P2 | 136 | 0 | 2 | 4 | 142 |
+| P1 | 3 | 0 | 0 | 6 | 9 |
+| P2 | 136 | 0 | 3 | 4 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 233 | 0 | 6 | 10 | 249 |
+| **All** | 232 | 0 | 7 | 11 | 250 |
 
 ## Entries
 
@@ -80,7 +80,7 @@ repository and CI).
 | [T-004](beta.md) | P2 | S | M3 | measurement | open | Interactive use over `-tt` from a box like the sandbox: vi, less, top and Ctrl-C |
 | [T-005](beta.md) | P1 | S | M3 | defect | done | A prompt never waits for ever on a `/dev/tty` with nobody behind it (GitHub #15) |
 | [T-006](beta.md) | P1 | S | M3 | defect | done | `scripts/sandbox-check.sh` exits 0 when its steps fail, and ignores `CARGO_TARGET_DIR` (GitHub #28) |
-| [T-007](cli.md) | P1 | S | M3 | defect | open | Bracketed IPv6 literal destinations are refused (GitHub #2) |
+| [T-007](cli.md) | P1 | S | M3 | defect | done | Bracketed IPv6 literal destinations are refused (GitHub #2) |
 | [T-008](cli.md) | P2 | S | M3 | defect | open | The `--timeout` refusal with no terminal names `chat` for each command, and contradicts itself (GitHub #6) |
 | [T-009](cli.md) | P2 | S | M3 | defect | open | A missing flag value is reported as an unknown flag (GitHub #8) |
 | [T-010](cli.md) | P2 | S | M3 | defect | open | `podssh --help` with other words prints the help and drops the words silently (GitHub #10) |
@@ -324,3 +324,4 @@ repository and CI).
 | [T-250](release.md) | P1 | M | M9 | release | open | Publish v1.0.0, the first stable release |
 | [T-251](release.md) | P1 | M | M9 | measurement | open | The check of a release from end to end, with no human |
 | [T-252](irc.md) | P2 | M | M8 | feature | open | `podssh chat --irc`: IRC as a second transport for chat |
+| [T-253](relay.md) | P2 | M | backlog | defect | blocked | The relay's egress reaches no IPv6 host |

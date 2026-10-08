@@ -170,7 +170,18 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
     } else {
         let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
         let relays = relay::select_relays(args.relay_host.as_deref(), env.relay.clone(), &pool)?;
-        relay::check_host(&first).map_err(|why| format!("cannot reach {first} through the relay: {why}"))?;
+        relay::check_target(&first).map_err(|why| format!("cannot reach {first} through the relay: {why}"))?;
+        // The relay dials a literal as it is; a family of the other kind
+        // cannot apply to it.
+        match family {
+            Some(4) if relay::is_ipv6_literal(&first) => {
+                return Err(format!("-4 asks the relay for IPv4, but {first} is an IPv6 address"))
+            }
+            Some(6) if first.parse::<std::net::Ipv4Addr>().is_ok() => {
+                return Err(format!("-6 asks the relay for IPv6, but {first} is an IPv4 address"))
+            }
+            _ => {}
+        }
         let trust = match args.ca_file.clone().or_else(|| env.ssl_cert_file.clone()) {
             Some(file) => Trust::File(file.into()),
             None => Trust::Default,

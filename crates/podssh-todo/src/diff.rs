@@ -26,6 +26,7 @@ pub fn line_map(old: &[&str], new: &[&str]) -> Vec<Option<usize>> {
     let a = &old[head..n - tail];
     let b = &new[head..m - tail];
     if a.is_empty() || b.is_empty() || a.len().saturating_mul(b.len()) > MAX_CELLS {
+        slide_up(&mut map, new);
         return map;
     }
     // lcs[i * w + j] is the length of a longest common subsequence of a[i..]
@@ -54,7 +55,26 @@ pub fn line_map(old: &[&str], new: &[&str]) -> Vec<Option<usize>> {
             j += 1;
         }
     }
+    slide_up(&mut map, new);
     map
+}
+
+/// Each unchanged line at the earliest place where the same text allows it.
+/// The common tail is matched from the end, so new functions added after
+/// the closing `}` of a cited one would take that `}` as theirs; when the
+/// first added line has the same text as the line after the addition, the
+/// addition can be read as coming after it, and the citation keeps its own
+/// lines.
+fn slide_up(map: &mut [Option<usize>], new: &[&str]) {
+    let mut before = 0;
+    for slot in map.iter_mut() {
+        if let Some(at) = *slot {
+            if at > before + 1 && new[before] == new[at - 1] {
+                *slot = Some(before + 1);
+            }
+            before = slot.unwrap_or(at);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -83,6 +103,15 @@ mod tests {
     fn a_changed_or_removed_line_has_no_new_number() {
         assert_eq!(map("a\nb\nc\n", "a\nB\nc\n"), vec![Some(1), None, Some(3)]);
         assert_eq!(map("a\nb\nc\nd\n", "a\nd\n"), vec![Some(1), None, None, Some(2)]);
+    }
+
+    /// New code after a closing line, with a change above it: the old
+    /// closing line stays with its own part, not with the new code.
+    #[test]
+    fn an_addition_after_a_closing_line_comes_after_it() {
+        let old = "top\nfn a {\nx\n}\n}\n";
+        let new = "TOP\nfn a {\nx\n}\nfn b {\ny\n}\n}\n";
+        assert_eq!(map(old, new), vec![None, Some(2), Some(3), Some(4), Some(8)]);
     }
 
     #[test]

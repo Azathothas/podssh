@@ -15,6 +15,7 @@ pub mod resolve;
 use std::io::Write;
 use std::sync::Arc;
 
+use podssh_ssh::relay_stream::RelayEnd;
 use podssh_ssh::{Log, EXIT_FAILURE};
 use podssh_relay::open::Request;
 use podssh_ws::ProxyChoice;
@@ -74,7 +75,7 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
 async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
     let opts = &resolved.options;
     let first = opts.jump.first().unwrap_or(&opts.destination).clone();
-    let target = format!("{}:{}", first.host, first.port);
+    let target = podssh_ws::dial::authority(&first.host, first.port);
     match &resolved.transport {
         Transport::Relay { relays, trust, family } => {
             let mut path = match podssh_relay::relay::forward_path(&first.host, first.port) {
@@ -102,7 +103,14 @@ async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
                 Ok(opened) => {
                     log.verbose(&format!("the relay host {} opened the session", opened.relay.host));
                     let (stream, status) = podssh_ssh::relay_stream::spawn(opened.session);
-                    podssh_ssh::run(stream, opts, Some(status), log).await
+                    let code = podssh_ssh::run(stream, opts, Some(status.clone()), log.clone()).await;
+                    let v6 = *family == Some(6) || podssh_relay::relay::is_ipv6_literal(&first.host);
+                    if let (true, Some(RelayEnd::Closed { reason, .. })) = (code != 0, status.get()) {
+                        if let Some(note) = podssh_relay::relay::ipv6_note(v6, &reason) {
+                            log.error(&format!("{note}; where this host has IPv6, --direct connects without the relay"));
+                        }
+                    }
+                    code
                 }
                 Err(failure) => {
                     for line in failure.lines(&target) {

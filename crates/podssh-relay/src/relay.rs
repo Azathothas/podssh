@@ -115,15 +115,44 @@ pub fn parse_relay(value: &str) -> Result<Relay, String> {
 
 /// The relay's forward path for `host:port`: `/connect/<host>/<port>`.
 ///
-/// The host is restricted to the characters of DNS names and IPv4 literals,
-/// so nothing a user types can add a path segment, a query string or a header
-/// to the request.
+/// The host is a DNS name, an IPv4 literal or a bare IPv6 literal (see
+/// [`check_target`]), so nothing a user types can add a path segment, a
+/// query string or a header to the request. The relay takes the bare IPv6
+/// literal in the path (measured 2026-10-08), and `:` is valid in a path
+/// segment (RFC 3986), where `[` and `]` are not.
 pub fn forward_path(host: &str, port: u16) -> Result<String, String> {
-    check_host(host)?;
+    check_target(host)?;
     if port == 0 {
         return Err("port 0 is not a port".into());
     }
     Ok(format!("/connect/{host}/{port}"))
+}
+
+/// A host for the relay to dial: what [`check_host`] accepts, or an IPv6
+/// literal with no brackets. A zone id (`%eth0`) does not parse, and a zone
+/// names a link-local address, which the relay refuses anyway.
+pub fn check_target(host: &str) -> Result<(), String> {
+    if host.contains(':') {
+        return match host.parse::<std::net::Ipv6Addr>() {
+            Ok(_) => Ok(()),
+            Err(_) => Err(format!("{host:?} is not a host name or an IPv6 address")),
+        };
+    }
+    check_host(host)
+}
+
+/// Whether `host` is an IPv6 literal (with no brackets).
+pub fn is_ipv6_literal(host: &str) -> bool {
+    host.parse::<std::net::Ipv6Addr>().is_ok()
+}
+
+/// A note for a session to an IPv6 target that the relay closed with
+/// `reason`. The relay takes IPv6 targets, but on 2026-10-08 its egress
+/// reached none: each such session closed at once with this reason, while
+/// IPv4 to the same hosts worked.
+pub fn ipv6_note(ipv6_target: bool, reason: &str) -> Option<&'static str> {
+    (ipv6_target && reason.contains("target closed before sending anything"))
+        .then_some("an IPv6 target that closes at once usually means that the relay has no IPv6 route out")
 }
 
 /// A host name or IPv4 literal: letters, digits, `.`, `-` and `_`, not
@@ -194,5 +223,30 @@ mod tests {
             assert!(forward_path(bad, 22).is_err(), "{bad:?}");
         }
         assert!(forward_path("github.com", 0).is_err());
+    }
+
+    /// The relay takes the bare literal (measured 2026-10-08); brackets are
+    /// for the command line, never for the path.
+    #[test]
+    fn ipv6_literals_are_targets_and_zones_are_not() {
+        assert_eq!(forward_path("2001:db8::1", 22).unwrap(), "/connect/2001:db8::1/22");
+        assert_eq!(forward_path("::1", 8079).unwrap(), "/connect/::1/8079");
+        // Eight groups: one address, not an address and a port.
+        assert_eq!(forward_path("2001:db8::1:22", 22).unwrap(), "/connect/2001:db8::1:22/22");
+        assert_eq!(forward_path("::ffff:192.0.2.1", 22).unwrap(), "/connect/::ffff:192.0.2.1/22");
+        for bad in ["[2001:db8::1]", "fe80::1%eth0", "fe80::1%25eth0", "2001:db8::1/64", "2001:db8:::1", "a:b", "host:22", ":::"] {
+            assert!(forward_path(bad, 22).is_err(), "{bad:?}");
+            assert!(check_target(bad).is_err(), "{bad:?}");
+        }
+        assert!(is_ipv6_literal("2001:db8::1") && !is_ipv6_literal("[2001:db8::1]") && !is_ipv6_literal("192.0.2.1"));
+        // Relay hosts stay TLS names, with no IPv6 literal.
+        assert!(parse_relay("2001:db8::1").is_err());
+    }
+
+    #[test]
+    fn ipv6_note_only_for_an_ipv6_target_that_the_relay_closed_at_once() {
+        assert!(ipv6_note(true, "target closed before sending anything").is_some());
+        assert!(ipv6_note(false, "target closed before sending anything").is_none());
+        assert!(ipv6_note(true, "idle timeout").is_none());
     }
 }

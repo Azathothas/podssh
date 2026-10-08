@@ -60,8 +60,32 @@ fn a_change_inside_a_cited_range_is_listed_and_not_moved() {
     assert!(area.contains("`crates/x/src/lib.rs:3`."), "{area}");
     assert!(area.contains("`crates/x/src/lib.rs:2-4`"), "{area}");
     assert_eq!(r.review.len(), 2, "{r:#?}");
-    assert!(r.review.iter().all(|l| l.contains("move the citation by hand")), "{r:#?}");
+    assert!(r.review.iter().any(|l| l.contains("lib.rs 3:") && l.contains("move the citation by hand")), "{r:#?}");
+    assert!(r.review.iter().any(|l| l.contains("lib.rs 2-4:") && l.contains("a line inside it changed")), "{r:#?}");
     assert!(r.moved.is_empty(), "{r:#?}");
+}
+
+/// A range names a part of a file; it moves by its ends when a line inside
+/// it changed, so it keeps naming that part, and it is listed for review.
+#[test]
+fn a_range_moves_by_its_ends_when_a_line_inside_changed() {
+    let t = Tree::new("remap-range-ends");
+    let head = snapshot(&t);
+    t.write(LIB, &format!("line 0
+{}", SOURCE.replace("line 3", "line three")));
+    let r = run(&t, &head, true);
+    let area = t.read("TODO/area.md");
+    assert!(area.contains("`crates/x/src/lib.rs:3-5`"), "{area}");
+    assert!(area.contains("`crates/x/src/lib.rs:3`."), "a changed single line stays: {area}");
+    assert!(r.review.iter().any(|l| l.contains("lib.rs 3-5: moved by its ends")), "{r:#?}");
+    // An end that changed keeps the range where it was.
+    let t = Tree::new("remap-range-end-changed");
+    let head = snapshot(&t);
+    t.write(LIB, &format!("line 0
+{}", SOURCE.replace("line 4", "line four")));
+    let r = run(&t, &head, true);
+    assert!(t.read("TODO/area.md").contains("`crates/x/src/lib.rs:2-4`"));
+    assert!(r.review.iter().any(|l| l.contains("lib.rs 2-4:") && l.contains("by hand")), "{r:#?}");
 }
 
 #[test]

@@ -204,7 +204,7 @@ Read: `open_tls` builds the trust anchors and the configuration on each call
 (`crates/podssh-relay/src/pool.rs:109-118`), and the `https_*` functions
 (`crates/podssh-ws/src/client.rs:253-279`). podssh's configuration offers no ALPN
 (`crates/podssh-ws/src/tls.rs:157-160`), because the upgrade is HTTP/1.1 only
-(`docs/relay.md:141`). The `tls12` feature of `rustls` is on in the workspace
+(`docs/relay.md:160`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -382,7 +382,7 @@ Read: `send_binary` and `send_text` (`crates/podssh-ws/src/session.rs:86-94`), `
 (104-109), `read_frame` (170-221) and `write` (223-228) return `Result<_, String>`;
 `watch_liveness` returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs:95-96` and 138-140 put it in `RelayEnd::Failed`;
-`crates/podssh-cli/src/proxy.rs:178-213` prints it; `podssh-transport` makes it
+`crates/podssh-cli/src/proxy.rs:209-244` prints it; `podssh-transport` makes it
 `TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs:75-80`, 109, 115, 136).
 Tests and the gate match the text: `crates/podssh-ws/tests/session.rs:108` ("continuation") and
 172 ("without a WebSocket Close"), and `scripts/interop-faults.sh:122` ("pings unanswered").
@@ -438,7 +438,7 @@ supported; podssh speaks HTTP CONNECT to an http:// proxy"
 `all_proxy` and `ALL_PROXY` (line 153), and parses the first that is set (line 161). `dial`
 makes the error `DialError::BadProxy` (line 217), which stops the failover at once
 (`crates/podssh-relay/src/open.rs:62`) and gives exit 78 in `podssh proxy`
-(`crates/podssh-cli/src/proxy.rs:130`). `doctor` reports it as `FAIL`
+(`crates/podssh-cli/src/proxy.rs:160`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs:67-73`). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs:120-129` and `crates/podssh-ws/tests/dial.rs:34-42`.
 
@@ -456,7 +456,7 @@ makes the error `DialError::BadProxy` (line 217), which stops the failover at on
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
    (`crates/podssh-relay/src/open.rs:54-76`) and the exit codes of `podssh proxy`
-   (`crates/podssh-cli/src/proxy.rs:126-139`) already treat: a refused user or password as 407
+   (`crates/podssh-cli/src/proxy.rs:156-169`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (`dial.rs:39-44`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks

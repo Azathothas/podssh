@@ -223,6 +223,12 @@ fn rebuild(
                 if new != now {
                     report.moved.push(format!("{at}: {} {now} -> {new}", c.path));
                 }
+                if changed_inside(h, maps) {
+                    report.review.push(format!(
+                        "{at}: {} {new}: moved by its ends, but a line inside it changed; read it",
+                        c.path
+                    ));
+                }
                 out.push_str(&new);
             }
             None => {
@@ -241,12 +247,14 @@ fn rebuild(
     out
 }
 
-/// The new first and last line of a citation, when each old line that it
-/// names is unchanged.
+/// The new first and last line of a citation, when the lines at its ends
+/// are unchanged: a range moves by its ends, also when a line inside it
+/// changed (`changed_inside` lists that for review), so that it keeps naming
+/// the same part of the file.
 fn moved_range(c: &Cite, maps: &HashMap<String, Vec<Option<usize>>>) -> Option<(usize, Option<usize>)> {
     let map = maps.get(&c.path)?;
     let end = c.last.unwrap_or(c.first);
-    if c.first == 0 || end < c.first || end > map.len() || (c.first..=end).any(|n| map[n - 1].is_none()) {
+    if c.first == 0 || end < c.first || end > map.len() {
         return None;
     }
     let last = match c.last {
@@ -254,6 +262,13 @@ fn moved_range(c: &Cite, maps: &HashMap<String, Vec<Option<usize>>>) -> Option<(
         None => None,
     };
     Some((map[c.first - 1]?, last))
+}
+
+/// Whether the change removed or changed a line inside a cited range.
+fn changed_inside(c: &Cite, maps: &HashMap<String, Vec<Option<usize>>>) -> bool {
+    let Some(map) = maps.get(&c.path) else { return false };
+    let end = c.last.unwrap_or(c.first).min(map.len());
+    (c.first.max(1)..=end).any(|n| map[n - 1].is_none())
 }
 
 /// The citations on each line of a text; those of `names` move. A blank

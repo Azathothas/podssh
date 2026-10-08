@@ -128,10 +128,10 @@ leave a short or wrong file under the destination's name.
    operands, or none remote, exit 64.
 2. Build an `SshArgs` (host, `-P` as the port, `-i`, `-o`) for
    `crate::ssh::resolve::resolve`
-   (`crates/podssh-cli/src/ssh/resolve.rs:77-227`), so `-F` follows the rule
+   (`crates/podssh-cli/src/ssh/resolve.rs:77-238`), so `-F` follows the rule
    of `ssh`. Add `-o`, `-J`, `-v`, `-q` and the relay rows of `ssh`
    (`--relay-host`, `--relay-addr`, `--ca-file`, `--direct`) to `CP_FLAGS`.
-3. Split `crates/podssh-cli/src/ssh/mod.rs:74-146` so that the relay (with
+3. Split `crates/podssh-cli/src/ssh/mod.rs:75-154` so that the relay (with
    failover) or `--direct` gives T-133 a stream. The parsed `--timeout` is
    the deadline of the whole copy.
 4. Upload: write `.NAME.podssh-RANDOM.part` beside the destination, created
@@ -280,7 +280,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:135`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:137`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -346,7 +346,7 @@ one byte late; the digest check must fail the copy.
 # T-137: `podssh cp` opens a new relay session before the relay's limits
 
 **Source:** ROADMAP M5 ("Open a new relay session before the limits of the
-relay (64 MiB, 12 h)"), `docs/relay.md:86-94`; the KTM sandbox report of
+relay (64 MiB, 12 h)"), `docs/relay.md:105-113`; the KTM sandbox report of
 2026-10-08 (`report-podssh-sandbox-KTM-2026-10-08.txt`, not in the
 repository).
 **Category:** feature
@@ -358,7 +358,7 @@ repository).
 ## Problem
 
 The relay ends a session after 64 MiB in both directions together, or after
-12 h (`docs/relay.md:91-92`). A larger copy breaks in a request with
+12 h (`docs/relay.md:110-111`). A larger copy breaks in a request with
 `1009 session byte cap`. T-136 continues after it, but each cut costs a
 broken SSH connection, a wait and an error line, and on the exec road an
 old writer can race the new one.
@@ -367,7 +367,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:134`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:136`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -408,7 +408,7 @@ old writer can race the new one.
 
 Recommendation: a budget of 60 MiB counted by podssh, as `podssh-core`
 uses for IRC: the relay counts bytes that podssh has not yet received, and
-can hold 2 MiB queued (`docs/relay.md:130`). Waiting for `1009` (T-136
+can hold 2 MiB queued (`docs/relay.md:149`). Waiting for `1009` (T-136
 alone) lost: each cut breaks a request in flight. Credentials stay in
 memory for the run, never on disk; asking again lost: a 200 MiB copy would
 ask four times, and with no terminal it could not ask at all.
@@ -422,7 +422,7 @@ sh scripts/dev.sh check                    # interop-cp.sh through a small cap
 ```
 
 A new stand-in relay mode closes with `1009` at 4,000,000 bytes counted in
-both directions, as the relay counts (`docs/relay.md:92`). With
+both directions, as the relay counts (`docs/relay.md:111`). With
 `PODSSH_SESSION_BUDGET=3000000`, an upload and a download of 10,000,000
 bytes finish with equal digests, no `1009` on stderr, and 4 sessions or
 more. Plant: count one direction only; the upload then meets `1009`.
@@ -560,7 +560,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:186-196` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:133-136`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:138-141`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -607,9 +607,9 @@ trip is long, so such a copy uses a small part of what the path carries.
 - Read: the comment at `crates/podssh-ssh/src/run.rs:25-28` quotes a row of
   the reverse close codes (1 MiB queued, `1011`, a dropped frame;
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); for
-  the forward path, `docs/relay.md:136-140` gives 2 MiB, `1013` and no drop.
+  the forward path, `docs/relay.md:155-159` gives 2 MiB, `1013` and no drop.
   The window can grow only after that is settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:133`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:135`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -664,7 +664,7 @@ stream.
   not. The operator accepted more than one outbound connection for the iroh
   road (`docs/design.md:329-332`), and on 2026-10-08 for one copy when the
   user asks (`docs/decisions.md`).
-- Read: the cap of 64 MiB is for each session (`docs/relay.md:92`).
+- Read: the cap of 64 MiB is for each session (`docs/relay.md:111`).
 - Not measured: whether one relay session, or the path itself, limits the
   rate. T-157 measures it.
 
@@ -715,7 +715,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:133`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:135`).
 
 ## Premise
 
@@ -894,7 +894,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:133`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:135`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 

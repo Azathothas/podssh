@@ -68,6 +68,25 @@ X-Relay-Token: <forward token>
   podssh pings every 10 s and declares the link dead after three checks with
   no frame at all.
 
+### IPv6 targets
+
+podssh writes an IPv6 address bare in the path: `/connect/2001:db8::1/22`.
+RFC 3986 allows `:` in a path segment, and does not allow a raw `[` or `]`
+there.
+
+Measured 2026-10-08 (T-007), with a TLS handshake through each session:
+
+- The relay takes the bare address, and also `%5B` and `%5D`, raw brackets,
+  and `%3A` for each colon. `/trace` reports `dialed_literal: true` and
+  `address_family: 6` for such a target.
+- But no byte reached an IPv6 host. On the VPC road, the upgrade succeeds,
+  and the session closes at once with `1011 target closed before sending
+  anything`. On the direct road (`?path=direct`), the upgrade fails with
+  `502`. `?family=6` with a host name gives the same results. IPv4 to the
+  same hosts worked.
+- podssh then adds a note that names the likely cause: the relay has no
+  IPv6 route out. The repair is the relay's (T-253).
+
 ### Tokens
 
 - A token is minted with no account: `POST https://tcp.ssh.relay.ajam.dev/v1/mint`

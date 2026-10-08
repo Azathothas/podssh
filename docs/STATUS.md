@@ -62,6 +62,7 @@ in [ROADMAP.md](ROADMAP.md).
 | Interactive use in a Windows console: `scripts/interop-conpty.py` (a real ConPTY), `--direct` to a Tailscale SSH server | **14 of 14,** with the debug build and with the release workflow's binary: window size, resize, Ctrl-C to the remote command, `vi`, `less`, `top`, a command's exit status through a pty, `~.`, and the console's input mode restored after each session. A planted podssh that does not restore the console fails the three restore checks. |
 | The exit status of an interactive login shell on Tailscale SSH | 0 for `exit 7`, also with the client of OpenSSH 10.3: that server sends no status for an interactive login shell. A command's status (`-t ... 'exit 7'`) is 7 with both clients. |
 | Repeated flags, against `ssh -G` of OpenSSH 10.3p1 (`cargo test -p podssh-cli --test ssh_args`) | As OpenSSH: the first `-p` and `-l`, the last `-e`, `-E` and `-F`, the first value of each `-o` keyword. A second `-J`, `-W`, `--relay-host`, `--relay-addr` or `--ca-file` is refused with exit 64 before anything connects. Before 2026-10-08, the last value won, and `-J a -J b` dropped the first hop. |
+| IPv6 addresses (T-007, GitHub #2), offline and through the live relay | `u@V6`, `u@[V6]:PORT`, `ssh://u@[V6]:PORT`, and the same in `-J` and `-W`, pass each check of the client (`cargo test -p podssh-cli --test ssh_args -- ipv6`); `-4` with an IPv6 address and `-6` with an IPv4 address exit 64. Through the relay, the session to `[2001:4860:4860::8888]:853` opened and the relay closed it at once with 1011 "target closed before sending anything"; podssh adds a note on the relay's IPv6 route and names `--direct` (T-253). |
 | A `/dev/tty` that is not the controlling terminal, or a terminal that nobody watches (`cargo test -p podssh-ssh`, Linux; the box) | The terminal is used only when the kernel names it (`isatty`, the same session, `tty_nr` not 0). With stdin, stdout and stderr all redirected, a prompt waits 60 s at most, then refuses with the remedy. A sandbox had measured a silent hang: `/dev/tty` opened with no controlling terminal, and the read never returned. In the box, with such a `/dev/tty`, `keygen` and the host-key prompt refuse within 1 s ("In a box like the target sandbox"). |
 | In two real sandboxes, 2026-10-08 (T-001) | `ssh -T` and `ssh -tt` to `github.com` reach `Permission denied (publickey)` through the relay. In one run, the relay closed the session with `1011 write failed: Network connection lost` (T-024). Interactive programs over `-tt` were not run (T-004). See "In the operator's real sandboxes, measured". |
 
@@ -76,6 +77,7 @@ in [ROADMAP.md](ROADMAP.md).
 | HTTP to `example.com:80`, stdin closed before the reply | The full reply, exit 0. |
 | An unknown host; a private address | The relay's reason (`does not resolve`, `blocked address range`), exit 69 and 77. |
 | A real login: OpenSSH on Windows, then `podssh proxy` and the relay to `railway.new` | The shell and `exit 3` work; `ssh` exits 3. |
+| IPv6: `podssh proxy 2001:4860:4860::8888 853` (the `%h %p` form), `[V6] 853` and `[V6]:853` | The relay takes the bare address (`/connect/2001:4860:4860::8888/853`), then closes with 1011; exit 69, with the note on the relay's IPv6 route. `V6:PORT` in one word exits 64 and names the brackets. |
 | An idle session: `ServerAliveInterval=60`, remote `sleep 600` | It stays up: 602 s, exit 0. |
 | The same with `ServerAliveInterval=0` (the control) | The relay cuts it after 184 s (its idle limit is 180 s); `ssh` exits 255. |
 | Failover: `--relay-host "tcp.ssh.relay.ajam.dev:9,tcp-eu-west-3.ssh.relay.ajam.dev"` to `github.com:22` | The first host times out after 20 s and is named. The second host, from the pool, accepts the token cached for the default host and gives GitHub's banner. |
@@ -196,10 +198,10 @@ behind them.
 | What | Result | Command |
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
-| The default tests | **722 passed, 0 failed, 5 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
+| The default tests | **728 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
-| The work record | `TODO/` agrees with itself. The checker's tests pass: 11 unit tests, 32 plant tests (the control, and 31 planted disagreements, each found), 9 tests of the remap, 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 7 of its 9 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |
+| The work record | `TODO/` agrees with itself. The checker's tests pass: 12 unit tests, 32 plant tests (the control, and 31 planted disagreements, each found), 10 tests of the remap, 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 8 of its 10 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |
 | The static release binary | **4,008,448 bytes**: a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
 | The container gate | **Green**: each build and test step; interop 98 of 98 (62 SSH checks, 25 keygen checks, 11 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
 | The no-C plant | Fails for the right reason when `ring` is planted (no C compiler), twice, and when a crate that compiles C++ is planted (it stops at `CXX=/nonexistent`). With `CC=/nonexistent` alone, the C++ build is not stopped there, so `CXX` is load-bearing. The control passes. Measured 2026-10-08 in `rust:1-alpine`. | `sh scripts/dev.sh plant` |
@@ -208,7 +210,9 @@ behind them.
 
 ## The relay
 
-`tcp.ssh.relay.ajam.dev` reports version `2026-10-03-r2`. Its published
+`tcp.ssh.relay.ajam.dev` reports version `2026-10-03-r2`. It takes an IPv6
+address in the forward path, but reached no IPv6 host on 2026-10-08
+([relay.md](relay.md), T-253). Its published
 document is the same, byte for byte, as the pinned copy (SHA-256
 `88eb1b0b8571b829daab17614ea2e27966ba5611951ea28db84660fc41cfa5a8`).
 `python scripts/check-relay-spec.py` passes against it. The limits from

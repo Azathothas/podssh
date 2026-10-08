@@ -123,6 +123,7 @@ the owner can read the cache.
 | Session volume | 64 MiB, both directions together | Use a new session for large transfers |
 | Token lifetime | 72 h or less, minted with `POST /v1/mint` | podssh mints and caches tokens |
 | Targets | Public hosts only; the relay refuses private, link-local and internal addresses | None |
+| IPv6 targets | The relay takes an IPv6 address, but reached no IPv6 host when measured (2026-10-08) | `--direct`, where the host has IPv6 |
 
 ## Build
 

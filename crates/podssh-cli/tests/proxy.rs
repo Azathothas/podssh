@@ -46,9 +46,33 @@ fn bad_targets_are_refused_before_anything_is_dialled() {
     for port in ["0", "65536", "ssh", "-1"] {
         assert!(parse_target(Some("host.example"), Some(port)).is_err(), "port {port:?}");
     }
-    for host in ["a/b", "a b", "-oProxyCommand=x", "a?b", "[::1]"] {
+    for host in ["a/b", "a b", "-oProxyCommand=x", "a?b", "[host.example]", "[::1"] {
         assert!(parse_target(Some(host), Some("22")).is_err(), "host {host:?}");
     }
+}
+
+/// OpenSSH gives `%h` as a bare IPv6 address; brackets are accepted too,
+/// and one word needs them before a port (GitHub #2).
+#[test]
+fn ipv6_forms_of_the_target() {
+    let v6 = |host: &str, port: Option<&str>| parse_target(Some(host), port);
+    assert_eq!(v6("2001:db8::1", Some("22")).unwrap(), ("2001:db8::1".into(), 22));
+    assert_eq!(v6("[2001:db8::1]", Some("22")).unwrap(), ("2001:db8::1".into(), 22));
+    assert_eq!(v6("[2001:db8::1]:8079", None).unwrap(), ("2001:db8::1".into(), 8079));
+    assert_eq!(v6("::1", Some("22")).unwrap(), ("::1".into(), 22));
+    let bad: [(&str, Option<&str>); 6] = [
+        ("2001:db8::1:22", None),
+        ("[2001:db8::1]", None),
+        ("[2001:db8::1", Some("22")),
+        ("[host.example]", Some("22")),
+        ("fe80::1%eth0", Some("22")),
+        ("[2001:db8::1]x", None),
+    ];
+    for (host, port) in bad {
+        assert!(v6(host, port).is_err(), "{host:?} {port:?}");
+    }
+    let err = v6("2001:db8::1:22", None).unwrap_err();
+    assert!(err.contains("brackets"), "the refusal names the remedy: {err}");
 }
 
 #[test]

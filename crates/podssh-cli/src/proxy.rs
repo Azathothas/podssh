@@ -82,37 +82,67 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             return EXIT_NOT_IMPLEMENTED;
         }
     };
-    let code = runtime.block_on(session(&relays, &path, &trust, &format!("{host}:{port}"), err));
+    let v6 = relay::is_ipv6_literal(&host);
+    let code = runtime.block_on(session(&relays, &path, &trust, &podssh_ws::dial::authority(&host, port), v6, err));
     // A read on stdin may still be blocked in a helper thread; do not wait
     // for it, or podssh would hang after the session has ended.
     runtime.shutdown_background();
     code
 }
 
-/// `HOST PORT`, or `HOST:PORT` alone.
+/// `HOST PORT`, or one word: `HOST:PORT` or `[IPV6]:PORT`. HOST may be a
+/// bare IPv6 address (OpenSSH gives `%h` so) or one in brackets.
 pub fn parse_target(target: Option<&str>, port: Option<&str>) -> Result<(String, u16), String> {
     let target = target.ok_or("missing HOST and PORT")?;
     let (host, port_text) = match port {
-        Some(p) => (target, p),
-        None => target.rsplit_once(':').ok_or("missing PORT")?,
+        Some(p) => (unbracket(target)?, p.to_string()),
+        None => one_word(target)?,
     };
     let port = port_text
         .parse::<u16>()
         .ok()
         .filter(|p| *p != 0)
         .ok_or_else(|| format!("{port_text:?} is not a port"))?;
-    relay::check_host(host)?;
-    Ok((host.to_string(), port))
+    relay::check_target(&host)?;
+    Ok((host, port))
 }
 
-async fn session(relays: &RelayList, path: &str, trust: &Trust, target: &str, err: &mut dyn Write) -> i32 {
+/// `[IPV6]` to the address; a name or a bare address as it is.
+fn unbracket(host: &str) -> Result<String, String> {
+    let Some(rest) = host.strip_prefix('[') else { return Ok(host.to_string()) };
+    match rest.strip_suffix(']') {
+        Some(inner) if relay::is_ipv6_literal(inner) => Ok(inner.to_string()),
+        Some(_) => Err(format!("{host:?}: brackets hold an IPv6 address, as in [2001:db8::1]")),
+        None => Err(format!("{host:?}: '[' is not closed")),
+    }
+}
+
+/// One word, by the rule of `podssh_ws::dial`'s proxy URLs: `[IPV6]:PORT`,
+/// or `HOST:PORT` with one `:`. More than one `:` with no brackets is
+/// refused: in `2001:db8::1:22`, the `:22` is a part of the address.
+fn one_word(target: &str) -> Result<(String, String), String> {
+    if let Some(rest) = target.strip_prefix('[') {
+        let (inner, after) = rest.split_once(']').ok_or_else(|| format!("{target:?}: '[' is not closed"))?;
+        let port = after.strip_prefix(':').ok_or_else(|| format!("missing PORT: {target:?} needs :PORT after ']'"))?;
+        return Ok((unbracket(&format!("[{inner}]"))?, port.to_string()));
+    }
+    if target.matches(':').count() > 1 {
+        return Err(format!(
+            "{target:?}: an IPv6 address with a port needs brackets, as in [2001:db8::1]:22; or give the port as a second word"
+        ));
+    }
+    let (host, port) = target.rsplit_once(':').ok_or("missing PORT")?;
+    Ok((host.to_string(), port.to_string()))
+}
+
+async fn session(relays: &RelayList, path: &str, trust: &Trust, target: &str, v6: bool, err: &mut dyn Write) -> i32 {
     let request = Request { relays, path, trust, target, rounds: 1 };
     let opened = podssh_relay::open(&request, &mut |note: &str| {
         let _ = writeln!(err, "podssh: {note}");
     })
     .await;
     match opened {
-        Ok(opened) => pump(opened.session, err).await,
+        Ok(opened) => pump(opened.session, v6, err).await,
         Err(failure) => {
             for line in failure.lines(target) {
                 let _ = writeln!(err, "podssh: {line}");
@@ -146,7 +176,8 @@ enum Ended {
 }
 
 /// Copy both directions until the relay ends the session.
-async fn pump(session: RelaySession, err: &mut dyn Write) -> i32 {
+/// `v6`: the target is an IPv6 address, for the note on how its session ended.
+async fn pump(session: RelaySession, v6: bool, err: &mut dyn Write) -> i32 {
     let session = Arc::new(session);
     let upstream = stdin_to_relay(session.clone());
     let downstream = relay_to_stdout(session.clone());
@@ -170,7 +201,7 @@ async fn pump(session: RelaySession, err: &mut dyn Write) -> i32 {
                     return EX_UNAVAILABLE;
                 }
             },
-            ended = &mut downstream => return finish(ended, &session, err).await,
+            ended = &mut downstream => return finish(ended, &session, v6, err).await,
         }
     }
 }
@@ -212,7 +243,7 @@ async fn relay_to_stdout(session: Arc<RelaySession>) -> Result<Ended, String> {
     }
 }
 
-async fn finish(ended: Result<Ended, String>, session: &RelaySession, err: &mut dyn Write) -> i32 {
+async fn finish(ended: Result<Ended, String>, session: &RelaySession, v6: bool, err: &mut dyn Write) -> i32 {
     match ended {
         // 1000 is a normal end (the target closed). The relay uses 1001 for its
         // own limits ("idle timeout", "session time cap"), which are not.
@@ -225,6 +256,9 @@ async fn finish(ended: Result<Ended, String>, session: &RelaySession, err: &mut 
                     err,
                     "podssh: the relay closes a session after {idle} s without traffic; set ServerAliveInterval below {idle}"
                 );
+            }
+            if let Some(note) = relay::ipv6_note(v6, &reason) {
+                let _ = writeln!(err, "podssh: {note}");
             }
             EX_UNAVAILABLE
         }

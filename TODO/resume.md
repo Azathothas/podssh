@@ -251,7 +251,7 @@ maps each close row to resume or stop; a planted policy that resumes on
 ## Problem
 
 The relay cuts a connection after 180 s with no payload, and its empty
-keepalive frames do not count (`docs/relay.md:61-62`, `docs/relay.md:90`). A
+keepalive frames do not count (`docs/relay.md:61-62`, `docs/relay.md:109`). A
 reverse socket gets no keepalive at all (`docs/reverse.md:22-24`). SSH's own
 keepalives must not end a session that the layer would resume.
 
@@ -265,7 +265,7 @@ sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:216-235`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:187-193`, and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:198-204`, and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -279,7 +279,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:187-193`.
+   `crates/podssh-cli/src/ssh/resolve.rs:198-204`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:190-200`,
    `crates/podssh-cli/src/man/facts.rs:219-226`), the note at
@@ -323,7 +323,7 @@ close at the volume cap).
 ## Problem
 
 The relay ends a WebSocket session after 64 MiB, both directions together, or
-after 12 h (`docs/relay.md:91-92`). A long or large session on the layer
+after 12 h (`docs/relay.md:110-111`). A long or large session on the layer
 meets these limits, and an end at a limit costs a resume and its delay.
 
 ## Premise
@@ -469,7 +469,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
 (`docs/design.md:302-322`). A session carries 64 MiB at most, both directions
-together (`docs/relay.md:92`).
+together (`docs/relay.md:111`).
 
 ## Approach
 
@@ -484,7 +484,7 @@ together (`docs/relay.md:92`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:117-118`, `docs/relay.md:188-194`). Skip a
+   needs a token (`docs/relay.md:136-137`, `docs/relay.md:207-213`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.

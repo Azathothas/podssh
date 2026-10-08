@@ -104,9 +104,12 @@ entry that large is two entries.
 When you edit a document or a file that entries cite at a line, run
 `cargo todo remap FILE...` on it in the same change. It moves each citation
 of FILE in the documents by a line diff against `HEAD`, also a bare `:N`
-after a citation of FILE. It does not move a citation of a line that the
-change removed or changed: it lists it for review, and you move it by hand.
-It starts from `HEAD` each time, so run it again after each later edit.
+after a citation of FILE. A range moves by its ends; when a line inside it
+changed, it is also listed for review. A cited line, or the end of a range,
+that the change removed or changed does not move: it is listed for review,
+and you move it by hand. It starts from `HEAD` each time, so run it again
+after each later edit, and move citations by hand last: a later run computes
+each citation that it can move again.
 
 The checker tests that each cited line exists, and that a citation which
 quotes its line (`` `FILE:N` says "TEXT" ``) holds that text there. Quote the

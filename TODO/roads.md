@@ -201,7 +201,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:19-39`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:19-43`).
 
 ## Decision
 
@@ -264,7 +264,7 @@ in iroh's source at the pinned version.
    `--relay-host` and `PODSSH_RELAY` replace the relay list
    (`crates/podssh-relay/src/relay.rs:52-75`). The flag wins.
 3. Accept `https://` URLs only, with a host that passes `check_host`
-   (`crates/podssh-relay/src/relay.rs:129-145`), and with no user information
+   (`crates/podssh-relay/src/relay.rs:158-174`), and with no user information
    and no query.
 4. The order is a failover: the first relay that answers `/ping` through the
    proxy, within a time limit, is the home relay.
@@ -520,13 +520,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:119-134`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:138-153`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-cli/src/doctor/relay_checks.rs:19-21`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:94`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:113`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -776,7 +776,7 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:78-80`).
+   URL or in output (`docs/relay.md:97-99`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
    `crates/podssh-relay/src/pool.rs:71-80`).

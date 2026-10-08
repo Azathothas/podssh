@@ -28,20 +28,20 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## Baseline
 
-Measured on 2026-10-08 after T-249, on Windows 11 with native cargo 1.98.0
+Measured on 2026-10-08 after T-007, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`: 722 passed, 0 failed, 5 ignored (the live
+- `cargo test --no-fail-fast`: 728 passed, 0 failed, 6 ignored (the live
   tests).
-- `cargo test -p podssh-todo`: 60 passed: 11 unit tests, 32 plant tests (31
-  planted disagreements and the control), 9 tests of the remap, 7 tests of
+- `cargo test -p podssh-todo`: 62 passed: 12 unit tests, 32 plant tests (31
+  planted disagreements and the control), 10 tests of the remap, 7 tests of
   the writer, and the test of this record.
 - `cargo todo check`: the record agrees. `python scripts/check-repo.py`: ok.
 - `cargo clippy -p podssh-todo --all-targets -- -D warnings`: no warning.
 
 ## Counts
 
-`TODO/INDEX.md` holds 249 entries: 233 open, 0 partial, 6 blocked, 10 done.
+`TODO/INDEX.md` holds 250 entries: 232 open, 0 partial, 7 blocked, 11 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -53,8 +53,7 @@ then take the next one. Each session runs unattended until the goal of
 
 **M3:**
 
-1. The P1 defects: T-007 (bracketed IPv6 literals, which `docs/cli.md`
-   documents) and T-057 (a token can go to a relay host that did not mint
+1. The P1 defect T-057 (a token can go to a relay host that did not mint
    it).
 2. The small defects that a user meets first: T-008, T-009, T-010,
    T-011, T-023, T-024, T-230, T-231, T-233, T-234, T-236, T-237, T-238 and
@@ -77,7 +76,7 @@ its run before the tag), and last T-250 (the one release). Between milestone
 entries: the `none` entries of `TODO/repo.md`, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
-`blocked`): T-086, T-106, T-169, T-173, T-180 and T-226.
+`blocked`): T-086, T-106, T-169, T-173, T-180, T-226 and T-253.
 
 ## Parked open work
 
@@ -110,4 +109,5 @@ None blocks a session. After the release:
 
 As the relay's operator: a mailbox for pairing (T-086), the node keys of
 the Tailscale test (T-106), a self-hosted relay (T-169), resumption in the
-relay (T-173), a publish endpoint (T-180), and signed pairing grants (T-226).
+relay (T-173), a publish endpoint (T-180), signed pairing grants (T-226),
+and an IPv6 route out of the relay (T-253).

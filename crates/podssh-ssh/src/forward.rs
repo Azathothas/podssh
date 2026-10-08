@@ -14,7 +14,7 @@ pub async fn open(handle: &Handle<Client>, host: &str, port: u16) -> Result<russ
         .channel_open_direct_tcpip(host, u32::from(port), "127.0.0.1", 0)
         .await
         .map(|c| c.into_stream())
-        .map_err(|e| format!("the server could not open a connection to {host}:{port}: {e}"))
+        .map_err(|e| format!("the server could not open a connection to {}: {e}", podssh_ws::dial::authority(host, port)))
 }
 
 /// Copy stdin to the stream and the stream to stdout until the far side
@@ -74,7 +74,7 @@ pub async fn stdio(handle: &Handle<Client>, host: &str, port: u16, log: &Log) ->
     // russh ends a channel's stream the same way whether the far side closed
     // it or the whole connection died; only the second is a failure.
     if code == 0 && handle.is_closed() {
-        log.error(&format!("the connection was lost while forwarding to {host}:{port}"));
+        log.error(&format!("the connection was lost while forwarding to {}", podssh_ws::dial::authority(host, port)));
         return crate::run::EXIT_FAILURE;
     }
     code

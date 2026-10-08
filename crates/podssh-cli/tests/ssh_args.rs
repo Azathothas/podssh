@@ -199,6 +199,28 @@ fn jump_hosts_transport_and_family() {
     assert!(err.contains("invalid!host"), "{err}");
 }
 
+/// Each form of an IPv6 address goes to the relay, and -4 or -6 against an
+/// address of the other family is refused (GitHub #2).
+#[test]
+fn ipv6_literals_resolve_through_the_relay_in_every_form() {
+    for (dest, port) in [("u@[2001:db8::1]:8079", 8079), ("u@2001:db8::1", 22), ("ssh://u@[2001:db8::1]:8079", 8079), ("[2001:db8::1]", 22)] {
+        let r = resolve(&ssh(&[dest]), &env()).unwrap_or_else(|e| panic!("{dest}: {e}"));
+        assert_eq!((r.options.destination.host.as_str(), r.options.destination.port), ("2001:db8::1", port), "{dest}");
+        assert!(matches!(r.transport, Transport::Relay { .. }), "{dest}");
+    }
+    let r = resolve(&ssh(&["-J", "u@[2001:db8::2]:2222", "u@2001:db8::1"]), &env()).unwrap();
+    assert_eq!((r.options.jump[0].host.as_str(), r.options.jump[0].port), ("2001:db8::2", 2222));
+    let r = resolve(&ssh(&["-6", "u@2001:db8::1"]), &env()).unwrap();
+    assert!(matches!(r.transport, Transport::Relay { family: Some(6), .. }));
+    let err = resolve(&ssh(&["-4", "u@2001:db8::1"]), &env()).unwrap_err();
+    assert!(err.contains("-4") && err.contains("IPv6"), "{err}");
+    let err = resolve(&ssh(&["-6", "u@192.0.2.1"]), &env()).unwrap_err();
+    assert!(err.contains("-6") && err.contains("IPv4"), "{err}");
+    // A zone id names a link-local address, which no relay dials.
+    let err = resolve(&ssh(&["u@fe80::1%eth0"]), &env()).unwrap_err();
+    assert!(err.contains("fe80::1%eth0"), "{err}");
+}
+
 #[test]
 fn a_config_file_is_refused_unless_it_is_none() {
     assert!(resolve(&ssh(&["-F", "none", "host"]), &env()).is_ok());

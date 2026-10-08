@@ -36,6 +36,10 @@ const SSH: &[&str] = &[
      of each -o keyword. A second -J or -W is refused, and so is a second --relay-host, --relay-addr or \
      --ca-file: give several hops, hosts or addresses as one comma list.",
     "podssh sends keepalives (ServerAliveInterval), so the relay does not close an idle session.",
+    "An IPv6 address needs brackets only before a port: user@2001:db8::1 is port 22, and \
+     user@[2001:db8::1]:2222 or -p 2222 gives another port. -4 or -6 with an address of the other family \
+     is refused. The relay takes an IPv6 address, but when this version was measured, its way out \
+     reached no IPv6 host: such a session ends at once, and podssh says so. --direct needs no relay.",
 ];
 
 const PROXY: &[&str] = &[
@@ -47,6 +51,8 @@ const PROXY: &[&str] = &[
      RELAY).",
     "The session ends when the target closes the connection or when stdout closes; both are a success. \
      An error is one line on stderr; the codes are in EXIT STATUS.",
+    "HOST can be an IPv6 address, bare (as OpenSSH gives %h) or in brackets. In one word, the form is \
+     [ADDRESS]:PORT. Through the relay, see the IPv6 note of ssh.",
 ];
 
 const DOCTOR: &[&str] = &[

@@ -51,7 +51,12 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `ssh host:2222` connects to a host named `host:2222` on port 22. The port
   form of OpenSSH is `ssh://user@host:2222`. podssh also accepts `host:PORT`,
   because its own "did you mean" message gives that form. A host name cannot
-  contain `:`, and an IPv6 literal needs brackets.
+  contain `:`. An IPv6 address needs brackets only before a port:
+  `user@2001:db8::1` is port 22, and podssh reads the port of
+  `user@[2001:db8::1]:2222` as it reads `host:PORT` (OpenSSH reads a port
+  there only in the `ssh://` form). `-4` or `-6` with an address of the
+  other family is refused. `podssh proxy` takes the bare address that
+  OpenSSH gives for `%h`.
 - `-N` alone is valid. `-W HOST:PORT` is a stdio forward: no session, and
   exit when the forward fails. `-V` prints the version and does not connect.
 - **A repeated value follows OpenSSH** (measured with `ssh -G`): the first

@@ -17,7 +17,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
             .arg(
                 Arg::new("destination")
                     .value_name("[user@]host")
-                    .help("the host to log in to: [user@]host, host:PORT or ssh://[user@]host[:PORT]"),
+                    .help("the host to log in to: [user@]host, host:PORT, [user@][IPV6]:PORT or ssh://[user@]host[:PORT]"),
             )
             .arg(
                 Arg::new("remote-command")
@@ -44,7 +44,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
             .arg(
                 Arg::new("target")
                     .value_name("HOST")
-                    .help("the host that the relay connects to; HOST:PORT in one word also works"),
+                    .help("the host that the relay connects to, or an IPv6 address; HOST:PORT or [IPV6]:PORT in one word also works"),
             )
             .arg(Arg::new("port").value_name("PORT").help("the TCP port on that host")),
         "status" | "doctor" | "keygen" => cmd,

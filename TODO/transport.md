@@ -42,7 +42,7 @@ cannot show this defect.
 
 Read: the contract sends control as text, and data as binary frames that start with 32 hex
 characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141`,
-`docs/relay.md:171-176`). A prefix that is not hex closes the node with `1003 bad multiplex id`
+`docs/relay.md:190-195`). A prefix that is not hex closes the node with `1003 bad multiplex id`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:176`).
 
 ## Approach
@@ -60,7 +60,7 @@ characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141
    each of its methods. Keep one double; do not add a second one.
 5. Pitfall: `Socket::send_text` takes `&[u8]` (`crates/podssh-transport/src/socket.rs:29`). Keep
    that signature, so `FrameQueue` does not change, or change both in one commit.
-6. In the same commit, update the `podssh-transport` row of `docs/STATUS.md:187`, and close this
+6. In the same commit, update the `podssh-transport` row of `docs/STATUS.md:189`, and close this
    entry in place (`TODO/RULES.md:41-42`).
 
 ## Prove
@@ -110,14 +110,14 @@ The adapter states the gap (`crates/podssh-transport/src/adapt.rs:22-26`). `Unex
 Read: the helper `closed(code, reason, clean)` exists and has no caller
 (`crates/podssh-transport/src/socket.rs:456-459`). `podssh-ws` parses a Close payload in
 `close_code_and_reason` (`crates/podssh-ws/src/session.rs:274-282`), and `podssh proxy` uses it
-(`crates/podssh-cli/src/proxy.rs:205-208`).
+(`crates/podssh-cli/src/proxy.rs:236-239`).
 
 Read, a related gap that the former defects page did not list: `Classified::message` prints
 "code withheld" and "reason withheld" for a close that matches no row, and the row's own words
 for a matched row, never the received reason (`crates/podssh-transport/src/closes.rs:119-150`).
 The test that says the reason survives only checks that the message is not empty
 (`crates/podssh-transport/tests/closes.rs:255-258`). The rules want the code and the reason
-(`docs/relay.md:132-135`, `docs/reverse.md:42-44`).
+(`docs/relay.md:151-154`, `docs/reverse.md:42-44`).
 
 ## Approach
 
@@ -245,7 +245,7 @@ Read: the module says that the forward path drops a frame under backpressure, fr
 `1011 relay backpressure` (`crates/podssh-transport/src/backpressure/mod.rs:4-22`). That row is in
 the table of the reverse path (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`).
 On the forward path the relay closes with `1013` at 2 MiB and drops no frame
-(`docs/relay.md:136-140`). The ledger counts the completion of local writes, which does not show
+(`docs/relay.md:155-159`). The ledger counts the completion of local writes, which does not show
 the relay's queue (`crates/podssh-transport/src/backpressure/ledger.rs:212-254`).
 
 Read, the two ledger defects (the row does not name them; this is the reading here):
@@ -256,7 +256,7 @@ never pushed on that path (`crates/podssh-transport/src/backpressure/ledger.rs:1
 can pass the 32 MiB budget.
 
 Read: the design removes the module (`docs/design.md:105-106`). The SSH window of 512 KiB is the
-flow control that podssh uses (`docs/relay.md:137-138`).
+flow control that podssh uses (`docs/relay.md:156-157`).
 
 ## Approach
 
@@ -265,7 +265,7 @@ flow control that podssh uses (`docs/relay.md:137-138`).
 2. Keep no part of it. The runners of T-079 and T-080 bound their queues with bounded channels
    and the relay's caps (`docs/reverse.md:30-35`), not with a ledger.
 3. Check with `git grep` that no script or test still names the deleted files.
-4. Update the line counts of the crate in `docs/STATUS.md:187`, and close this entry in place.
+4. Update the line counts of the crate in `docs/STATUS.md:189`, and close this entry in place.
 5. T-082 can do these steps in the move; then this entry closes with the commit of T-082.
 
 ## Decision
@@ -315,10 +315,10 @@ and not the body (`crates/podssh-transport/src/error.rs:122-146`, `:186-196`), s
 
 Read: the contract: `403 missing or wrong token` needs a new token; a `403` that names the target
 is a policy refusal; `503` means that the relay does not issue or check tokens
-(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:81-84`). On
-the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:114-116`),
+(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:100-103`). On
+the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:133-135`),
 also after `POST /v1/stop` (`docs/reverse.md:51-52`). A `409` from `/v1/pair` means "pair again"
-(`docs/relay.md:160-162`); a `409` on `/v1/node/<name>` means "exit" (`docs/reverse.md:19`).
+(`docs/relay.md:179-181`); a `409` on `/v1/node/<name>` means "exit" (`docs/reverse.md:19`).
 
 Read: the forward path already follows the contract in `podssh-relay`. It mints once again after a
 `403` for a cached token that is not a policy refusal (`crates/podssh-relay/src/open.rs:236-244`,
@@ -386,8 +386,8 @@ but not `#`, `/` or `..` in a segment (`crates/podssh-ws/src/client.rs:68-89`).
 
 Read: the commands already check the forward path. `podssh_relay::relay::forward_path` calls
 `check_host`: letters, digits, `.`, `-` and `_`, no leading `-` or `.`, at most 253 characters
-(`crates/podssh-relay/src/relay.rs:116-145`), with a test of bad hosts
-(`crates/podssh-relay/src/relay.rs:189-197`). Nothing checks a node name.
+(`crates/podssh-relay/src/relay.rs:158-174`), with a test of bad hosts
+(`crates/podssh-relay/src/relay.rs:218-226`). Nothing checks a node name.
 
 Read in a local copy of podbox at `5bd8cb0` (`docs/design.md:66` names `452d792`): `validate_name`
 accepts 1 to 128 characters of `[A-Za-z0-9._-]` and refuses anything else, with no encoding
@@ -397,12 +397,12 @@ that one `POST /v1/pair` returns (T-078).
 
 ## Approach
 
-1. Add `check_node_name` beside `check_host` in `crates/podssh-relay/src/relay.rs:129-145`: 1 to
+1. Add `check_node_name` beside `check_host` in `crates/podssh-relay/src/relay.rs:158-174`: 1 to
    128 bytes of `[A-Za-z0-9._-]`, not `.` or `..`, no leading `-` or `.`. Refuse; never
    percent-encode, because an encoded `/` hides a different path.
 2. Make `LegTarget::path` return a `Result` and call `check_host` and `check_node_name`
    (`crates/podssh-transport/src/endpoint.rs:34-43`). Reuse the one `check_host`; do not copy it.
-3. Refuse port 0, as `forward_path` does (`crates/podssh-relay/src/relay.rs:123-125`).
+3. Refuse port 0, as `forward_path` does (`crates/podssh-relay/src/relay.rs:125-127`).
 4. Check the name that `/v1/pair` returns with the same function, before podssh stores or uses it
    (T-078). A bad name from the relay gives a clear error and no request.
 5. Close this entry in place in the same commit.
@@ -454,7 +454,7 @@ Read: `Backoff` doubles from 1 s to 30 s with no jitter (`crates/podssh-transpor
 Read: a node connects again "with a jittered backoff" (`docs/reverse.md:22-24`,
 `docs/ROADMAP.md:148-156`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
 by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:263-277`); `podssh ssh` uses
-it (`crates/podssh-cli/src/ssh/mod.rs:120-126`).
+it (`crates/podssh-cli/src/ssh/mod.rs:128-134`).
 
 ## Approach
 
