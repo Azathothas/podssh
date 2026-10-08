@@ -183,16 +183,24 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             // row and skips it). `man` never reaches here (handled above: it
             // has no `--timeout` row and its pipeless acceptance forbids one),
             // and neither do `Help`/`Version` or the parse-level refusals.
-            if crate::flags::verb_for(verb).is_some_and(|v| v.flags.iter().any(|r| r.long == "timeout"))
-            {
+            //
+            // A verb that is not implemented skips the gate and is refused
+            // below (70): it has nothing to bound, and a 64 would tell a script
+            // that its command line is wrong. A --timeout that was given and
+            // does not parse is wrong for each verb, so it stays 64.
+            let not_yet = VERB_OWNER.iter().any(|(name, _)| *name == *verb);
+            let gated = crate::flags::verb_for(verb).is_some_and(|v| v.flags.iter().any(|r| r.long == "timeout"));
+            let checked = if not_yet {
+                timeout.as_deref().map(crate::non_interactive::parse_timeout).transpose()
+            } else if gated {
                 let attachment = crate::non_interactive::resolve_tty(tty, *jsonl);
-                match crate::non_interactive::require_timeout(attachment, timeout.as_deref()) {
-                    Ok(_) => {}
-                    Err(refusal) => {
-                        let _ = writeln!(s.err, "{}", refusal.message);
-                        return refusal.fault.code();
-                    }
-                }
+                crate::non_interactive::require_timeout(verb, attachment, timeout.as_deref())
+            } else {
+                Ok(None)
+            };
+            if let Err(refusal) = checked {
+                let _ = writeln!(s.err, "{}", refusal.message);
+                return refusal.fault.code();
             }
             // ⛔ Refused flags first, and they refuse before anything else
             // happens, so nothing is half-done.
@@ -392,20 +400,35 @@ mod tests {
     }
 
     /// ⛔ **E33 Prove check 6, as a unit test.** `run` uses `Tty::none`, which
-    /// is a pipe: `chat --send` with no `--timeout` is a USAGE error naming
-    /// the flag, not a hang and not a session attempt.
+    /// is a pipe: `chat --send` with no `--timeout` is refused as a verb that
+    /// is not implemented (70), not as a usage error that asks for a flag
+    /// that would change nothing (GitHub #6).
     #[test]
-    fn chat_without_timeout_in_a_pipe_is_usage_64_naming_the_flag() {
+    fn chat_without_timeout_in_a_pipe_is_refused_as_not_implemented() {
         let p = crate::tree::parse(vec!["chat", "--send", "#chan hi"]);
         let mut out: Vec<u8> = Vec::new();
         let mut err: Vec<u8> = Vec::new();
         let rc = run(&p, &mut Streams { out: &mut out, err: &mut err });
-        assert_eq!(rc, 64);
+        let err = String::from_utf8(err).unwrap();
+        assert_eq!(rc, EXIT_NOT_IMPLEMENTED, "{err}");
         assert!(out.is_empty(), "a refusal writes nothing to stdout");
+        assert!(err.contains("not implemented yet") && !err.contains("--timeout"), "{err}");
+    }
+
+    /// The gate's message names its verb, one true reason, and an example of
+    /// that verb; no internal name and no other verb (GitHub #6).
+    #[test]
+    fn the_timeout_refusal_names_the_verb() {
+        use crate::non_interactive::{require_timeout, Attachment};
+        let m = require_timeout("ts", Attachment::Pipe, None).unwrap_err().message;
         assert!(
-            String::from_utf8(err).unwrap().contains("--timeout"),
-            "must name the flag"
+            m.starts_with("podssh ts: --timeout DURATION is required when stdin or stdout is not a terminal"),
+            "{m}"
         );
+        assert!(m.contains("Example: podssh ts --timeout 30s -W HOST:PORT"), "{m}");
+        assert!(!m.contains("chat") && !m.contains("Pipe") && !m.contains("hangs for ever"), "{m}");
+        let m = require_timeout("ts", Attachment::Forced, None).unwrap_err().message;
+        assert!(m.contains("when --jsonl was given"), "{m}");
     }
 
     /// A valid `--timeout` passes the gate; `chat` itself is still E33's to

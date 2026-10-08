@@ -316,7 +316,7 @@ unused. Two crates for one protocol drift: they already disagree on the backoff 
 ## Premise
 
 Read: about 600 lines of `podssh-transport` are used outside its tests (the former defects page),
-and `docs/STATUS.md:191` gives 2.8k source and 2.2k test lines. Only examples use it:
+and `docs/STATUS.md:192` gives 2.8k source and 2.2k test lines. Only examples use it:
 `crates/podssh-cli/examples/live_irc.rs:20-22`, `crates/podssh-cli/examples/live_irc/support.rs:11-16`
 and `crates/podssh-transport/examples/live_forward.rs:23-25`; `podssh-cli` depends on it
 (`crates/podssh-cli/Cargo.toml:34`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
@@ -344,7 +344,7 @@ and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs
    the crate: `Cargo.toml:6`, `Cargo.toml:24`, `Cargo.toml:55-58`, `crates/podssh-cli/Cargo.toml:34`,
    `scripts/gate.sh:61`, `scripts/plant.sh:39`.
 6. Update in the same commit: `AGENTS.md:188-190` and `AGENTS.md:234`, `docs/architecture.md:66` and
-   `:83-93`, `docs/development.md:13-14` and `:234`, `docs/STATUS.md:188`, `:190` and `:200`. The list
+   `:83-93`, `docs/development.md:13-14` and `:234`, `docs/STATUS.md:189`, `:191` and `:201`. The list
    of library crates in `docs/decisions.md:34` is a fact of a decision row: correct it, and move the
    old text to Superseded (the operator's ruling of 2026-10-08).
 
@@ -520,7 +520,7 @@ cargo test -p podssh-relay --features pair --test reverse_live -- --ignored ssh_
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:59`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:60`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 # T-085: M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox

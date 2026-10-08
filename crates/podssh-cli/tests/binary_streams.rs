@@ -173,16 +173,14 @@ fn the_p_split_is_visible_in_the_binarys_output() {
     assert!(err.contains("accepted and ignored"), "{err}");
     assert!(err.contains("For a port use -p"), "{err}");
 
-    // ⛔ E33's gate runs before E36's refusal: without `--timeout` a piped
-    // `cp` exits 64 naming the flag, and only with one does it reach E36.
-    // Both orders are asserted — the gate first, then the split.
+    // A verb that is not implemented says so before the `--timeout` gate
+    // (GitHub #6): a piped `cp` with no `--timeout` exits 70, not 64, and
+    // asks for no flag that would change nothing.
     let (rc, out, err) = podssh(&["cp", "-P", "2222", "a", "b"]);
-    assert_eq!(rc, 64, "no --timeout in a pipe is a usage error: {err:?}");
+    let text = String::from_utf8_lossy(&err);
+    assert_eq!(rc, 70, "cp is not implemented, also with no --timeout: {text}");
     assert!(out.is_empty(), "cp -P wrote to stdout: {out:?}");
-    assert!(
-        String::from_utf8_lossy(&err).contains("--timeout"),
-        "must name the flag: {err:?}"
-    );
+    assert!(text.contains("not implemented yet") && !text.contains("--timeout"), "{text}");
 
     let (rc, out, err) = podssh(&["cp", "-P", "2222", "a", "b", "--timeout", "30s"]);
     assert_ne!(rc, 0, "cp is not built, so it refuses; that is E36's clause");

@@ -28,12 +28,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## Baseline
 
-Measured on 2026-10-08 after T-057, on Windows 11 with native cargo 1.98.0
+Measured on 2026-10-08 after T-008, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`: 732 passed, 0 failed, 6 ignored (the live
+- `cargo test --no-fail-fast`: 734 passed, 0 failed, 6 ignored (the live
   tests).
-- `sh scripts/dev.sh check`: green; interop 99 of 99.
+- `sh scripts/dev.sh check` (after T-057): green; interop 99 of 99.
 - `cargo test -p podssh-todo`: 62 passed: 12 unit tests, 32 plant tests (31
   planted disagreements and the control), 10 tests of the remap, 7 tests of
   the writer, and the test of this record.
@@ -42,7 +42,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 250 entries: 231 open, 0 partial, 7 blocked, 12 done.
+`TODO/INDEX.md` holds 250 entries: 230 open, 0 partial, 7 blocked, 13 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -54,9 +54,8 @@ then take the next one. Each session runs unattended until the goal of
 
 **M3:**
 
-1. The small defects that a user meets first: T-008, T-009, T-010,
-   T-011, T-023, T-024, T-230, T-231, T-233, T-234, T-236, T-237, T-238 and
-   T-239.
+1. The small defects that a user meets first: T-009, T-010, T-011,
+   T-023, T-024, T-230, T-231, T-233, T-234, T-236, T-237, T-238 and T-239.
 2. T-003: the decision about the compiled-in roots.
 3. T-004, measured in the box (the operator's ruling of 2026-10-08).
 

@@ -16,7 +16,7 @@ Triage of 2026-10-08: issues #1 to #36.
 | #3 | The token cache key is the first host | closed | T-057 (the commit "Relay tokens: one cache entry for each deployment, with the host that minted it") |
 | #4 | Blank flag names under groff | closed | T-015 |
 | #5 | `-c`, `-m`, `-X`, `-Y`, `-O`: "unknown flag" | closed | T-016 |
-| #6 | `cp`, `mv`, `relay` print the `chat` example | open | T-008 |
+| #6 | `cp`, `mv`, `relay` print the `chat` example | closed | T-008 (the commit "A command that is not implemented says so before the --timeout gate") |
 | #7 | `PubkeyAuthentication=no` still advises `-i` | open | T-023 |
 | #8 | A missing value reads as an unknown flag | open | T-009 |
 | #9 | `podssh doctor --json` | open | T-049 |

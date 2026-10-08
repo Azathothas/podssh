@@ -436,7 +436,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 71-136 (`docs/STATUS.md:164-180`, 11 of 11).
+  checks are at lines 71-136 (`docs/STATUS.md:165-181`, 11 of 11).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:236`, enforced at
   `crates/podssh-ssh/src/run.rs:109-114`); a reply, 30 s
@@ -520,7 +520,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   the gate's image has `/usr/bin/ssh`.
 - `crates/podssh-ssh/src/io.rs:115-120` maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:58`, `docs/STATUS.md:60`).
+  (`docs/STATUS.md:59`, `docs/STATUS.md:61`).
 - A correction to the framing of #34: for a signal, podssh differs from
   OpenSSH on purpose. `docs/cli.md:144-145` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the

@@ -104,7 +104,7 @@ fn missing_timeout_outside_a_terminal_is_usage_64() {
         Attachment::Forced,
         Attachment::ForcedInteractive,
     ] {
-        let refusal = require_timeout(attachment, None).unwrap_err();
+        let refusal = require_timeout("ts", attachment, None).unwrap_err();
         assert_eq!(refusal.fault, Fault::Usage, "{attachment:?}");
         assert_eq!(refusal.fault.code(), 64, "{attachment:?}");
         assert!(
@@ -118,21 +118,21 @@ fn missing_timeout_outside_a_terminal_is_usage_64() {
 /// A terminal with no `--timeout` is unbounded — a human can interrupt.
 #[test]
 fn terminal_without_timeout_is_unbounded() {
-    assert_eq!(require_timeout(Attachment::Terminal, None).unwrap(), None);
+    assert_eq!(require_timeout("ts", Attachment::Terminal, None).unwrap(), None);
 }
 
 /// A provided value is parsed everywhere, even on a terminal.
 #[test]
 fn a_provided_timeout_is_always_parsed() {
     assert_eq!(
-        require_timeout(Attachment::Pipe, Some("30s")).unwrap(),
+        require_timeout("ts", Attachment::Pipe, Some("30s")).unwrap(),
         Some(Duration::from_secs(30))
     );
     assert_eq!(
-        require_timeout(Attachment::Terminal, Some("2m")).unwrap(),
+        require_timeout("ts", Attachment::Terminal, Some("2m")).unwrap(),
         Some(Duration::from_secs(120))
     );
-    let refusal = require_timeout(Attachment::Terminal, Some("30x")).unwrap_err();
+    let refusal = require_timeout("ts", Attachment::Terminal, Some("30x")).unwrap_err();
     assert_eq!(refusal.fault, Fault::Usage);
 }
 
@@ -249,17 +249,31 @@ fn podssh(args: &[&str]) -> (i32, Vec<u8>, Vec<u8>) {
     (out.status.code().unwrap_or(-1), out.stdout, out.stderr)
 }
 
-/// ⛔ **E33 Prove check 6, against the process.** A missing `--timeout` in a
-/// pipe is exit 64 naming the flag — never a hang. Wrapped in `timeout 10`
-/// by the entry; here the assertion itself is the bound, because a hang
-/// fails the suite instead of passing it.
+/// A verb that is not implemented says so before the `--timeout` gate (70),
+/// with no example of another verb (GitHub #6); a `--timeout` that does not
+/// parse stays a usage error (64) for each verb.
 #[test]
-fn missing_timeout_in_a_pipe_is_64_naming_the_flag() {
-    let (rc, out, err) = podssh(&["chat", "--send", "#chan hi"]);
-    assert_eq!(rc, 64);
-    assert!(out.is_empty(), "a refusal writes nothing to stdout");
-    let err = String::from_utf8(err).unwrap();
-    assert!(err.contains("--timeout"), "{err}");
+fn not_implemented_before_the_timeout() {
+    for verb in ["cp", "mv", "relay", "chat"] {
+        let (rc, out, err) = podssh(&[verb]);
+        let err = String::from_utf8(err).unwrap();
+        assert_eq!(rc, 70, "{verb}: {err}");
+        assert!(out.is_empty(), "{verb}: a refusal writes nothing to stdout");
+        assert!(err.contains("not implemented yet") && !err.contains("--send"), "{verb}: {err}");
+    }
+    let (rc, _, err) = podssh(&["cp", "--timeout", "30x"]);
+    assert_eq!(rc, 64, "{}", String::from_utf8_lossy(&err));
+}
+
+/// The message of the gate itself, for the verb that runs it today.
+#[test]
+fn the_timeout_refusal_names_the_verb() {
+    for attachment in [Attachment::Pipe, Attachment::Forced] {
+        let m = require_timeout("ts", attachment, None).unwrap_err().message;
+        assert!(m.starts_with("podssh ts: --timeout DURATION is required when "), "{m}");
+        assert!(m.contains("podssh ts --timeout 30s"), "{m}");
+        assert!(!m.contains("chat") && !m.contains(&format!("{attachment:?}")), "{m}");
+    }
 }
 
 /// `30x` is rejected by the binary before anything is attempted.

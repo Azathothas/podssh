@@ -155,7 +155,7 @@ Read:
    `scripts/interop-faults.sh:129` looks for `1009 session byte cap`.
 6. Correct the comment at `crates/podssh-ssh/src/run.rs:25-29`. The window of
    512 KiB stays: it is below both limits.
-7. Update `docs/relay.md:155-158` and `docs/STATUS.md:177`. T-025 uses the
+7. Update `docs/relay.md:155-158` and `docs/STATUS.md:178`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -343,7 +343,7 @@ and that a case with no status never gives 0. Planted defect: make
 
 The title is a goal that podssh already meets on its main path: a Close or a
 lost channel with no status gives 255. The open work is `-N`, a closed
-stdout, and `-W`. Also, `docs/STATUS.md:63` says that Tailscale SSH sends no
+stdout, and `-W`. Also, `docs/STATUS.md:64` says that Tailscale SSH sends no
 status for a login shell, and that both clients exit 0. With no status,
 podssh gives 255 (`crates/podssh-ssh/src/session.rs:104`), so that server
 probably sends an exit status of 0. Check it with `ssh -v` of OpenSSH, which
@@ -353,7 +353,7 @@ logs each `exit-status` request, and correct the row.
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
 lablup/bssh report in GitHub #18, #20 and #22 (item 8, "`@cert-authority`
-rejection"); the known gap in `docs/STATUS.md:189` and `SECURITY.md:66-68`.
+rejection"); the known gap in `docs/STATUS.md:190` and `SECURITY.md:66-68`.
 Each claim read again here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog
@@ -419,7 +419,7 @@ back to the plain key only when no CA line matches.
    (`crates/podssh-cli/src/doctor/clock.rs`).
 6. Keep the test `a_cert_authority_line_does_not_make_a_key_known`: a CA line
    never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:35-37`.
-   When certificates work, change `docs/STATUS.md:189` and `SECURITY.md:66-68`.
+   When certificates work, change `docs/STATUS.md:190` and `SECURITY.md:66-68`.
 
 GitHub #29 notes that the bssh report in #18, #20 and #22 asks podssh to
 keep refusing a certificate that no trusted CA signed. Verification keeps

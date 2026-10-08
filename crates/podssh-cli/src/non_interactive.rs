@@ -179,26 +179,40 @@ pub fn parse_timeout(raw: &str) -> Result<Duration, Refusal> {
     }
 }
 
-/// The timeout for this run: required outside `Terminal`, optional inside.
+/// The timeout for this run of `verb`: required outside `Terminal`,
+/// optional inside.
 ///
 /// `Terminal` with none means unbounded (a human can interrupt). Anywhere
-/// else with none is [`Fault::Usage`] naming `--timeout`. A provided value is
-/// always parsed, even on a terminal — `30x` on a TTY is still a typo.
+/// else with none is [`Fault::Usage`]: the message names the verb, the reason
+/// and an example of that verb. A provided value is always parsed, even on a
+/// terminal: `30x` on a TTY is still a typo.
 pub fn require_timeout(
+    verb: &str,
     attachment: Attachment,
     raw: Option<&str>,
 ) -> Result<Option<Duration>, Refusal> {
     match (attachment, raw) {
         (_, Some(text)) => parse_timeout(text).map(Some),
         (Attachment::Terminal, None) => Ok(None),
-        (_, None) => Err(Refusal {
-            fault: Fault::Usage,
-            message: format!(
-                "podssh: --timeout DURATION is required when there is no TTY ({attachment:?}).\n\
-                 Without it a script cannot hang for ever — it hangs for ever.\n\
-                 Example: podssh chat --send '#chan hi' --timeout 30s"
-            ),
-        }),
+        (_, None) => {
+            let why = match attachment {
+                Attachment::Forced => "--jsonl was given",
+                Attachment::ForcedInteractive => "--interactive was given",
+                _ => "stdin or stdout is not a terminal",
+            };
+            let example = match verb {
+                "ts" => "podssh ts --timeout 30s -W HOST:PORT".to_string(),
+                _ => format!("podssh {verb} --timeout 30s ..."),
+            };
+            Err(Refusal {
+                fault: Fault::Usage,
+                message: format!(
+                    "podssh {verb}: --timeout DURATION is required when {why}: nobody may be there to \
+                     stop a run that waits.\n\
+                     Example: {example}"
+                ),
+            })
+        }
     }
 }
 
