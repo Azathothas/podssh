@@ -194,7 +194,10 @@ take podssh down.
 - [ ] **Measured in the operator's real sandbox**: run
       `sh scripts/sandbox-check.sh` there (it builds podssh if no binary is
       given, then runs `doctor`, `proxy`, `keygen`, `ssh`, and OpenSSH with
-      podssh as its `ProxyCommand`) and record the output in STATUS.
+      podssh as its `ProxyCommand`) and record the output in STATUS. A
+      Podman box built to the sandbox's sandprobe report
+      (`scripts/test_in_box.sh`) passes all of it (2026-10-08); the real
+      sandbox is still to be run.
 - [ ] **Publication**: tag `v0.1.0-beta.1`; the release workflow
       (`.github/workflows/release.yml`) builds static musl binaries for
       x86_64 and aarch64 and a Windows binary with checksums, and the notes

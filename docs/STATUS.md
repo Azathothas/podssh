@@ -110,6 +110,20 @@ fault; the live tests show it works with the real relay. 2026-10-08, 11 of
 | the relay stalls: no frames, no Pongs, connection open | declared dead by the ping watcher at 50 s (38 s after the stall) |
 | the relay host killed mid-session | `ssh` exit 255 after 5 s, the relay named |
 
+### In a box like the target sandbox, measured
+
+`sh scripts/test_in_box.sh` (Podman 5.8.6 machine on Windows), with the
+release workflow's static x86_64 binary of `aa9cfaa`, 2026-10-08:
+
+| check | result |
+| --- | --- |
+| the box against the sandprobe report (`scripts/box/probe.sh`) | 17 of 17 required properties match: no name for uid 0; no capabilities, `NoNewPrivs=1`, seccomp; no `/dev/ptmx`; no DNS; no direct TCP; UDP and `bind` refused; the proxy answers `200` for ports 443, 80 and 8443, `403 not on the egress allowlist` for 22, 25 and `127.0.0.1:22`, and `403 not a public host` for metadata and private addresses |
+| the probe, planted: the same image with an open network and no filter | fails all 9 of its required checks, exit 1 |
+| `podssh doctor` in the box | 27 ok, 0 FAIL, 0 ????: no passwd entry, no pty, `bind` refused, `/dev/shm` noexec, DNS refused; the four relay hosts reached through the proxy; a token minted; `github.com:22` met GitHub's Ed25519 key |
+| `podssh proxy github.com 22` | GitHub's banner, exit 0 |
+| `podssh keygen`, then `podssh ssh` and `ssh -tt` to `github.com` with that key | exit 255, `Permission denied (publickey)`: the handshake and the host-key check passed through the proxy and the relay |
+| OpenSSH's `ssh` with podssh as its `ProxyCommand` | `No user exists for uid 0`, exit 255: OpenSSH's client cannot run where the user database has no entry, which is why `podssh ssh` exists |
+
 ### `podssh keygen`, measured
 
 | check | result |

@@ -25,6 +25,10 @@ agent's Linux sandbox, kernel 7.2, running as uid 0 inside the sandbox.
 | writable | `/tmp`, `/dev/shm`, `$HOME`, the workspace; `/etc/ssl` is mounted read-only |
 | tools | that image had `ssh`, `curl`, `openssl`, `python3`, compilers and `cargo` — other images do not, and the same image has changed between sessions |
 
+`scripts/test_in_box.sh` builds a Podman box with these properties and
+checks the box against the report before it measures podssh; see
+[development.md](development.md#a-box-like-the-target-sandbox).
+
 ## Other hosts of the same kind
 
 - **No user database.** podbox issue #114 describes a host running as uid 966

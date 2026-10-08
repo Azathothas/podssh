@@ -102,6 +102,32 @@ checks that:
 Containers are ephemeral, and `.git`, `target/`, `.env/`, `.work/`, `.tmp/` and
 `.codegraph/` are not copied into them.
 
+## A box like the target sandbox
+
+`scripts/test_in_box.sh` builds, with Podman, a box with the properties the
+operator's sandprobe report measured on the target sandbox, and measures
+podssh in it:
+
+```sh
+sh scripts/test_in_box.sh path/to/podssh-x86_64-unknown-linux-musl
+```
+
+1. The box has no route out. Its only way out is a CONNECT proxy
+   (`scripts/box/proxy.py`) that allows ports 443, 80 and 8443 to public
+   hosts, with the sandbox proxy's refusal texts.
+2. The box has a resolver that never answers, no capabilities,
+   `no_new_privs`, a seccomp filter that refuses `bind` and UDP
+   (`scripts/box/seccomp.json`), no `/dev/ptmx`, and uid 0 with no name.
+3. `scripts/box/probe.sh` compares the box with the report. If a required
+   property differs, the script stops and does not run podssh.
+4. `scripts/sandbox-check.sh` then runs `doctor`, `proxy`, `keygen`, `ssh`
+   and OpenSSH with podssh as its `ProxyCommand`.
+
+The box does not reproduce the sandbox's EACCES on `connect()` to loopback
+and to some ports. The report is `.work/sandprobe-run1.txt`, which is not in
+the repository: it describes the operator's own sandbox. On Windows, start
+the Podman machine first (`podman machine start`).
+
 ## Tests that count
 
 Unit tests in this repository have repeatedly passed while the code was wrong,
