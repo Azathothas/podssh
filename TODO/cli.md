@@ -176,9 +176,9 @@ done." `podssh status`, `node` and `operator x` (no `--timeout` row) exit 70.
 
 Read: dispatch runs the `--timeout` gate (`crates/podssh-cli/src/dispatch.rs` lines 186-196 at `37ace00`)
 before the refusal of a verb that is not implemented
-(`crates/podssh-cli/src/dispatch.rs:218-226`). `require_timeout` writes the
+(`crates/podssh-cli/src/dispatch.rs:220-228`). `require_timeout` writes the
 fixed text and has no verb to name (`crates/podssh-cli/src/non_interactive.rs` lines 194-201 at `37ace00`).
-`podssh ts` uses the same function (`crates/podssh-cli/src/ts.rs:43-50`), so a
+`podssh ts` uses the same function (`crates/podssh-cli/src/ts.rs:43-52`), so a
 build with the `ts` feature shows the chat example for `ts` too (read, not
 measured: the debug binary has no `ts`).
 
@@ -192,9 +192,9 @@ measured: the debug binary has no `ts`).
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
    "--jsonl was given".
-3. Pass `"ts"` from `crates/podssh-cli/src/ts.rs:43-50`.
+3. Pass `"ts"` from `crates/podssh-cli/src/ts.rs:43-52`.
 4. Change the tests that use `chat` for the gate
-   (`crates/podssh-cli/src/dispatch.rs:397-450`,
+   (`crates/podssh-cli/src/dispatch.rs:399-452`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:205-211`).
 5. Same commit: `docs/STATUS.md`. `docs/cli.md:186` needs no change.
@@ -304,7 +304,7 @@ flag-shaped (`crates/podssh-cli/src/clap_error.rs:110-112`), so the arm calls
    when the user typed `-p`, so print both spellings.
 4. A `Refused` row with no value gets its own refusal: a value would not change
    the answer. Move the refusal text of `refusals`
-   (`crates/podssh-cli/src/dispatch.rs:236-244`) to `refuse.rs`, so the two
+   (`crates/podssh-cli/src/dispatch.rs:238-246`) to `refuse.rs`, so the two
    cannot differ.
 5. A long name with no row keeps today's message, as a fallback.
 6. Same commit: `docs/cli.md:55-59` (a flag with no value names the flag and
@@ -564,7 +564,7 @@ measured here on `3ee70dc`.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -593,16 +593,16 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    lookup passed in, as `proxy_from_vars` does
    (`crates/podssh-ws/src/dial.rs:141-162`): the flag, else a `PODSSH_TIMEOUT`
    that is not empty, else nothing. It returns the text and its source.
-2. Call it at both gate sites: `crates/podssh-cli/src/dispatch.rs:193-206` and
-   `crates/podssh-cli/src/ts.rs:43-50`. Parse with `parse_timeout`
-   (`crates/podssh-cli/src/non_interactive.rs:136-180`): a whole duration,
+2. Call it at both gate sites: `crates/podssh-cli/src/dispatch.rs:193-208` and
+   `crates/podssh-cli/src/ts.rs:43-52`. Parse with `parse_timeout`
+   (`crates/podssh-cli/src/non_interactive.rs:173-222`): a whole duration,
    never zero.
 3. A malformed value names its source: `--timeout` (exit 64), or
    `PODSSH_TIMEOUT` (exit 78, see Decision). The variable never bounds `ssh`
    or `proxy`.
-4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-87`),
+4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-90`),
    which `each_variable_in_the_source_is_documented` requires
-   (`crates/podssh-cli/src/man/facts.rs:255-268`); "default: env
+   (`crates/podssh-cli/src/man/facts.rs:258-271`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
    it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:209-211`;
    `docs/STATUS.md`.
@@ -632,6 +632,34 @@ directions. The third runs the binary of a `ts` build: with
 `PODSSH_TIMEOUT=30s`, `podssh ts` passes the gate and stops at the missing key
 file (77, as `crates/podssh-cli/tests/ts_behave.rs:37-48`); without it, 64.
 Plant: drop the variable from the reader; the third test gets 64.
+
+## Correction
+
+2026-10-09: the note in the Decision is out of date. Since T-231, a bad
+`PODSSH_RELAY` exits 78 too, by the same rule as this entry.
+
+## Done
+
+2026-10-09, in the commit "PODSSH_TIMEOUT gives the default of --timeout".
+
+- `crates/podssh-cli/src/non_interactive.rs`: `timeout_text` reads the
+  flag, else a `PODSSH_TIMEOUT` that is not empty, with the lookup passed
+  in; `require_timeout_or_env` gives a bad value of the variable `Config`
+  (78) and a message that names it, and leaves the flag's rules as they
+  were. `parse_duration` names the setting in its refusal. Both gate sites
+  use it (`dispatch.rs` and `ts.rs`); a command that is not implemented
+  still exits 70 before the gate (T-008).
+- The help of each `--timeout` row says "default: env PODSSH_TIMEOUT"; the
+  variable has a row in ENVIRONMENT; `docs/cli.md` gives the rule.
+- Prove: `cargo test -p podssh-cli --test non_interactive -- podssh_timeout`
+  passed (the flag wins, the variable is used, an empty value is no value,
+  `30x` from the variable is 78 and names it, `30x` from the flag is 64);
+  `cargo test -p podssh-cli --lib -- man::facts` passed (the variable is in
+  the source and in ENVIRONMENT). The `ts` test ran in the container (a `ts`
+  build): with `PODSSH_TIMEOUT=30s`, `podssh ts` passed the gate and
+  stopped at the missing key file (77); without it, 64; with `30x`, 78.
+- Plant, in the container: the reader looked up another name; the `ts`
+  test got 64 for 77.
 
 # T-013: The help groups the commands by purpose
 
@@ -867,7 +895,7 @@ the same for the other fifteen.
    `-k` is supported and `-g` is accepted with no effect
    (`crates/podssh-cli/src/flags.rs:182-186`).
 2. A refusal with nothing to use instead says "Leave it out."
-   (`crates/podssh-cli/src/dispatch.rs:236-244`), and `--help` shows
+   (`crates/podssh-cli/src/dispatch.rs:238-246`), and `--help` shows
    "(refused)" (`crates/podssh-cli/src/help.rs:100-103`).
 3. A test holds the reviewed set (`crates/podssh-cli/tests/flag_table.rs:15-30`).
    `docs/cli.md:88-91` states the rule.
@@ -1362,7 +1390,7 @@ that `forward-remote` names `-W HOST:PORT`
 1. The `-R` row (`crates/podssh-cli/src/flags.rs:194-195`): the help "remote
    forwarding is not implemented yet", the words of `-o RemoteForward`; the
    replacement `no flag`, so the refusal says "Leave it out."
-   (`crates/podssh-cli/src/dispatch.rs:236-244`).
+   (`crates/podssh-cli/src/dispatch.rs:238-246`).
 2. `crates/podssh-cli/src/help.rs:232-234` and
    `crates/podssh-cli/src/man/notes.rs:31-33`: `-L` and `-D` need a local
    listener and are refused, and `-W HOST:PORT` carries one connection; `-R`
@@ -1538,9 +1566,9 @@ the false flag name.
 
 Read: no source outside the module and the tests uses `gate_prompt`,
 `PromptSite` or `force_interactive` (a search of `crates/` for each name). The
-texts: `--accept-new` at `crates/podssh-cli/src/non_interactive.rs:245-246`,
-`--relay URL` at `crates/podssh-cli/src/non_interactive.rs:255`, E01 at
-`crates/podssh-cli/src/non_interactive.rs:259-260`; the claim at
+texts: `--accept-new` at `crates/podssh-cli/src/non_interactive.rs:287-288`,
+`--relay URL` at `crates/podssh-cli/src/non_interactive.rs:297`, E01 at
+`crates/podssh-cli/src/non_interactive.rs:301-302`; the claim at
 `crates/podssh-cli/src/non_interactive.rs:9-13`. A test asserts the false
 flag (`crates/podssh-cli/tests/non_interactive.rs:225`).
 
@@ -1549,8 +1577,8 @@ The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:78`), called at
 `crates/podssh-ssh/src/keys.rs:201` and `crates/podssh-cli/src/keygen.rs:169`.
 Its refusals name the real remedies (`docs/cli.md:195-197`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
-`parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:193-206`,
-`crates/podssh-cli/src/ts.rs:43-50`) and `refuse_jsonl_in_proxy`
+`parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:193-208`,
+`crates/podssh-cli/src/ts.rs:43-52`) and `refuse_jsonl_in_proxy`
 (`crates/podssh-cli/src/tree.rs:323-327`).
 
 ## Approach
@@ -1558,7 +1586,7 @@ these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 1. Remove `force_interactive` and the variant `Attachment::ForcedInteractive`
    (`crates/podssh-cli/src/non_interactive.rs:78-96`), `PromptSite`
    (`crates/podssh-cli/src/non_interactive.rs:112-134`) and `gate_prompt`
-   (`crates/podssh-cli/src/non_interactive.rs:219-280`).
+   (`crates/podssh-cli/src/non_interactive.rs:261-322`).
 2. Remove their tests (`crates/podssh-cli/tests/non_interactive.rs:40-55`,
    `crates/podssh-cli/tests/non_interactive.rs:143-202` and
    `crates/podssh-cli/tests/non_interactive.rs:216-226`), and take

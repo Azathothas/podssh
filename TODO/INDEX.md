@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 213 open, 0 partial, 7 blocked, 30 done.**
+**250 entries: 212 open, 0 partial, 7 blocked, 31 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 118 | 0 | 3 | 22 | 143 |
+| P2 | 117 | 0 | 3 | 23 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 213 | 0 | 7 | 30 | 250 |
+| **All** | 212 | 0 | 7 | 31 | 250 |
 
 ## Entries
 
@@ -85,7 +85,7 @@ repository and CI).
 | [T-009](cli.md) | P2 | S | M3 | defect | done | A missing flag value is reported as an unknown flag (GitHub #8) |
 | [T-010](cli.md) | P2 | S | M3 | defect | done | `podssh --help` with other words prints the help and drops the words silently (GitHub #10) |
 | [T-011](cli.md) | P2 | S | M3 | defect | done | A host or target that starts with `-` can be read as a flag |
-| [T-012](cli.md) | P2 | S | backlog | feature | open | `PODSSH_TIMEOUT` gives the default of `--timeout` (GitHub #12) |
+| [T-012](cli.md) | P2 | S | backlog | feature | done | `PODSSH_TIMEOUT` gives the default of `--timeout` (GitHub #12) |
 | [T-013](cli.md) | P3 | S | backlog | feature | open | The help groups the commands by purpose |
 | [T-014](cli.md) | P2 | M | M3 | feature | done | `podssh man` writes the whole manual from the binary (GitHub #1) |
 | [T-015](cli.md) | P1 | S | M3 | defect | done | The manual showed blank flag names under groff and mandoc (GitHub #4, audit C7) |

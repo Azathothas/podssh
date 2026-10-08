@@ -196,7 +196,9 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 timeout.as_deref().map(crate::non_interactive::parse_timeout).transpose()
             } else if gated {
                 let attachment = crate::non_interactive::resolve_tty(tty, *jsonl);
-                crate::non_interactive::require_timeout(verb, attachment, timeout.as_deref())
+                crate::non_interactive::require_timeout_or_env(verb, attachment, timeout.as_deref(), |n| {
+                    std::env::var(n).ok()
+                })
             } else {
                 Ok(None)
             };

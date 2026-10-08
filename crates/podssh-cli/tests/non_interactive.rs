@@ -307,3 +307,29 @@ fn proxy_jsonl_names_the_ssh_stream() {
     assert!(err.contains("--jsonl"), "{err}");
     assert!(err.contains("SSH"), "{err}");
 }
+
+/// `PODSSH_TIMEOUT` gives the default of `--timeout` (GitHub #12): the flag
+/// wins, the variable is used, an empty value is no value, and a bad value of
+/// the variable is a configuration error (78) that names it.
+#[test]
+fn podssh_timeout_is_the_default_of_the_flag() {
+    use podssh_cli::non_interactive::{require_timeout_or_env, timeout_text, TimeoutFrom};
+    let var = |value: &'static str| move |name: &str| (name == "PODSSH_TIMEOUT").then(|| value.to_string());
+    assert_eq!(timeout_text(Some("5s"), var("30s")), Some(("5s".to_string(), TimeoutFrom::Flag)));
+    assert_eq!(timeout_text(None, var("30s")), Some(("30s".to_string(), TimeoutFrom::Variable)));
+    assert_eq!(timeout_text(None, var("  ")), None);
+    let pipe = Attachment::Pipe;
+    assert_eq!(require_timeout_or_env("mv", pipe, None, var("30s")).unwrap(), Some(Duration::from_secs(30)));
+    assert_eq!(require_timeout_or_env("mv", pipe, Some("5s"), var("30s")).unwrap(), Some(Duration::from_secs(5)));
+    let bad = require_timeout_or_env("mv", pipe, None, var("30x")).unwrap_err();
+    assert_eq!(bad.fault, Fault::Config);
+    assert_eq!(bad.fault.code(), 78);
+    assert!(bad.message.contains("bad PODSSH_TIMEOUT \"30x\""), "{}", bad.message);
+    let flag = require_timeout_or_env("mv", pipe, Some("30x"), var("30s")).unwrap_err();
+    assert_eq!(flag.fault.code(), 64);
+    assert!(flag.message.contains("bad --timeout"), "{}", flag.message);
+    // Neither: with no terminal, the refusal names the flag.
+    let missing = require_timeout_or_env("mv", pipe, None, |_: &str| None).unwrap_err();
+    assert_eq!(missing.fault.code(), 64);
+    assert!(missing.message.contains("--timeout DURATION is required"), "{}", missing.message);
+}

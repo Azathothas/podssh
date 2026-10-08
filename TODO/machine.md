@@ -125,7 +125,7 @@ Read: the data is in tables already. Commands and flags: `VERBS`
 and the availability (lines 443-451). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:201-208`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:23-88`, with the stated defaults (lines 99-104).
-Variables: `crates/podssh-cli/src/man/facts.rs:45-87`. The files and the exit codes were text
+Variables: `crates/podssh-cli/src/man/facts.rs:45-90`. The files and the exit codes were text
 blocks only (`crates/podssh-cli/src/man/facts.rs` lines 100-145 and 231-271 at `332ee58`), and the blocks of the
 manual do not keep the kind and the `instead` of a flag.
 
@@ -559,7 +559,7 @@ replaces a whole file (lines 178-197), and no function appends to one.
    two processes do not mix their lines.
 5. A size limit: at 1 MiB, rename the file to `sessions.1.jsonl`, and start a new one.
 6. `podssh status` (T-051) shows the last line in short form.
-7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:45-87`; the tests require
+7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:45-90`; the tests require
    it) and the file to FILES, in the same commit.
 
 ## Prove

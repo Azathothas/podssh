@@ -133,20 +133,62 @@ pub enum PromptSite {
     SendfileUnreadable { path: String, errno: String },
 }
 
+/// The variable that gives `--timeout` its default (GitHub #12).
+pub const TIMEOUT_ENV: &str = "PODSSH_TIMEOUT";
+
+/// Where the text of a timeout came from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TimeoutFrom {
+    Flag,
+    Variable,
+}
+
+/// The text of the timeout: `--timeout`, else a `PODSSH_TIMEOUT` that is not
+/// empty, else none. `var` looks a variable up, so a test can supply one.
+pub fn timeout_text(flag: Option<&str>, var: impl Fn(&str) -> Option<String>) -> Option<(String, TimeoutFrom)> {
+    match flag {
+        Some(text) => Some((text.to_string(), TimeoutFrom::Flag)),
+        None => var(TIMEOUT_ENV).filter(|v| !v.trim().is_empty()).map(|v| (v, TimeoutFrom::Variable)),
+    }
+}
+
+/// As [`require_timeout`], with `PODSSH_TIMEOUT` as the default of the flag.
+/// A bad value of the variable is a configuration error (78) that names it:
+/// the command line is right, so a script must not look for the fault there.
+pub fn require_timeout_or_env(
+    verb: &str,
+    attachment: Attachment,
+    flag: Option<&str>,
+    var: impl Fn(&str) -> Option<String>,
+) -> Result<Option<Duration>, Refusal> {
+    match timeout_text(flag, var) {
+        Some((text, TimeoutFrom::Variable)) => parse_duration(TIMEOUT_ENV, &text)
+            .map(Some)
+            .map_err(|r| Refusal { fault: Fault::Config, message: r.message }),
+        Some((text, TimeoutFrom::Flag)) => require_timeout(verb, attachment, Some(&text)),
+        None => require_timeout(verb, attachment, None),
+    }
+}
+
 /// Parse `--timeout DURATION`: `<n>`, `<n>s`, `<n>m`, `<n>h` or `<n>ms`.
 ///
 /// Whole-string, checked, and greater than zero. `30x` is not 30 seconds and
 /// `0` is not "no bound" — both are usage errors naming `--timeout`.
 pub fn parse_timeout(raw: &str) -> Result<Duration, Refusal> {
-    fn refuse(raw: &str, why: &str) -> Refusal {
+    parse_duration("--timeout", raw)
+}
+
+/// [`parse_timeout`] for the setting called `name`, which its refusal names.
+pub fn parse_duration(name: &str, raw: &str) -> Result<Duration, Refusal> {
+    let refuse = |raw: &str, why: &str| -> Refusal {
         Refusal {
             fault: Fault::Usage,
             message: format!(
-                "podssh: bad --timeout {raw:?}: {why}.\n\
+                "podssh: bad {name} {raw:?}: {why}.\n\
                  Want a whole duration like 30s, 2m or 1h (a bare 30 means 30s)."
             ),
         }
-    }
+    };
     // The leading digit run; anything after it must be exactly one unit.
     let digits_len = raw.bytes().take_while(u8::is_ascii_digit).count();
     let (digits, suffix) = raw.split_at(digits_len);

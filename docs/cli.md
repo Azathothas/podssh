@@ -209,6 +209,11 @@ The edit distance alone suggests `doctor` for `example.org` and `cp` for
 - A duration is parsed as a whole string. A malformed duration is an error,
   never zero. A time limit applies to the whole operation, not only to the
   dial.
+- `PODSSH_TIMEOUT` gives `--timeout` its default, for each command that has
+  the flag (GitHub #12): the flag wins, and an empty value is no value. A
+  bad value of the variable exits 78 and names it; a bad `--timeout` exits
+  64. It never bounds `ssh` or `proxy`, which have no `--timeout`. A command
+  that is not implemented exits 70 first.
 - `ConnectTimeout` (60 s by default) limits the SSH handshake, and each
   answer of the server while podssh logs in: a server that stalls after the
   key exchange ends the run with 255 and names the request that it did not

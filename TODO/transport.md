@@ -60,7 +60,7 @@ characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141
    each of its methods. Keep one double; do not add a second one.
 5. Pitfall: `Socket::send_text` takes `&[u8]` (`crates/podssh-transport/src/socket.rs:29`). Keep
    that signature, so `FrameQueue` does not change, or change both in one commit.
-6. In the same commit, update the `podssh-transport` row of `docs/STATUS.md:209`, and close this
+6. In the same commit, update the `podssh-transport` row of `docs/STATUS.md:210`, and close this
    entry in place (`TODO/RULES.md:41-42`).
 
 ## Prove
@@ -265,7 +265,7 @@ flow control that podssh uses (`docs/relay.md:165-166`).
 2. Keep no part of it. The runners of T-079 and T-080 bound their queues with bounded channels
    and the relay's caps (`docs/reverse.md:30-35`), not with a ledger.
 3. Check with `git grep` that no script or test still names the deleted files.
-4. Update the line counts of the crate in `docs/STATUS.md:209`, and close this entry in place.
+4. Update the line counts of the crate in `docs/STATUS.md:210`, and close this entry in place.
 5. T-082 can do these steps in the move; then this entry closes with the commit of T-082.
 
 ## Decision

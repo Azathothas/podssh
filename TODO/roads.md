@@ -109,7 +109,7 @@ Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
 the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:285-286`,
-`crates/podssh-cli/src/ts.rs:181`). Credentials never go on argv
+`crates/podssh-cli/src/ts.rs:183`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
 ## Approach
@@ -132,7 +132,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:285-286`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:250`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:64-110`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-87`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-90`).
 
 ## Decision
 
@@ -272,9 +272,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-87`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-90`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:99-189`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:102-192`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.

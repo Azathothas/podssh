@@ -41,7 +41,9 @@ pub fn run_ts(a: &TsArgs, out: &mut dyn Write, err: &mut dyn Write, tty: Tty) ->
     // ⛔ E33's gate, same as every other verb with a `--timeout` row: required
     // with no TTY, parsed always. The bound caps the whole operation below.
     let attachment = crate::non_interactive::resolve_tty(tty, a.jsonl);
-    let bound = match crate::non_interactive::require_timeout("ts", attachment, a.timeout.as_deref()) {
+    let bound = match crate::non_interactive::require_timeout_or_env("ts", attachment, a.timeout.as_deref(), |n| {
+        std::env::var(n).ok()
+    }) {
         Ok(b) => b,
         Err(refusal) => {
             let _ = writeln!(err, "{}", refusal.message);

@@ -253,7 +253,7 @@ pub const CP_FLAGS: &[FlagRow] = &[
     row(None, "jsonl", None, FlagKind::Supported,
         "one JSON object per event on stdout", None),
     row(None, "timeout", Some("DURATION"), FlagKind::Supported,
-        "bound the transfer; required with no TTY", None),
+        "bound the transfer; required with no TTY (default: env PODSSH_TIMEOUT)", None),
 ];
 
 /// ⛔ **`chat` and its `irc` alias (E33).** `--jsonl` and `--timeout` are E33's
@@ -266,7 +266,7 @@ pub const CHAT_FLAGS: &[FlagRow] = &[
     row(None, "jsonl", None, FlagKind::Supported,
         "one JSON object per event on stdout", None),
     row(None, "timeout", Some("DURATION"), FlagKind::Supported,
-        "bound the run; required when stdin is not a TTY", None),
+        "bound the run; required when stdin is not a TTY (default: env PODSSH_TIMEOUT)", None),
     row(None, "nick", Some("NICK"), FlagKind::Supported,
         "nickname to use", None),
 ];
@@ -295,7 +295,7 @@ pub const TS_FLAGS: &[FlagRow] = &[
     row(None, "jsonl", None, FlagKind::Supported,
         "one JSON object per event on stdout", None),
     row(None, "timeout", Some("DURATION"), FlagKind::Supported,
-        "bound the run; required when stdin is not a TTY", None),
+        "bound the run; required when stdin is not a TTY (default: env PODSSH_TIMEOUT)", None),
 ];
 
 /// `man`: the manual of this binary, generated from these tables.
@@ -315,7 +315,7 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
     row(None, "relay-host", Some("URL"), FlagKind::Supported,
         "relay base URL, overriding the compiled default", None),
     row(None, "timeout", Some("DURATION"), FlagKind::Supported,
-        "bound the request", None),
+        "bound the request (default: env PODSSH_TIMEOUT)", None),
 ];
 
 /// ⛔ **`proxy`, E08.** ⛔ `06-cli.md`:19 says it is **not an alias** of `ssh`

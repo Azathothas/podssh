@@ -55,6 +55,9 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       and * matches each host. A loopback address never goes through a proxy."),
     (&["PODSSH_RELAY"], "The relay hosts, as --relay-host. The flag wins."),
     (&["PODSSH_RELAY_ADDR"], "Addresses to use in place of DNS, as --relay-addr, after the flag's addresses."),
+    (&["PODSSH_TIMEOUT"],
+     "The default of --timeout for each command that has the flag, as a whole duration such as 30s; the \
+      flag wins, and an empty value is no value. A bad value is a configuration error (78)."),
     (&["PODSSH_RELAY_TOKEN"], "A relay token to use in place of one podssh mints. podssh never prints it."),
     (&["SSL_CERT_FILE"], "Trust only the CA certificates in this file, as --ca-file. The flag wins."),
     (&["SSH_AUTH_SOCK"],

@@ -240,3 +240,21 @@ fn ts_live_status_prints_the_node_line() {
     assert_eq!(rc, 0, "{err}");
     assert!(out.starts_with("node "), "{out}");
 }
+
+/// `PODSSH_TIMEOUT` passes the gate of `ts` (GitHub #12): with it, `ts` stops
+/// at the missing key file (77); without it, the gate refuses (64); a bad
+/// value is 78. The binary runs, so the variable reaches only its process.
+#[test]
+fn podssh_timeout_passes_the_gate() {
+    let run = |value: Option<&str>| {
+        let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_podssh"));
+        cmd.arg("ts").env("PODSSH_OFFLINE", "1").env_remove("PODSSH_TIMEOUT");
+        if let Some(v) = value {
+            cmd.env("PODSSH_TIMEOUT", v);
+        }
+        cmd.stdin(std::process::Stdio::null()).output().expect("podssh runs").status.code()
+    };
+    assert_eq!(run(Some("30s")), Some(77), "the variable passes the gate");
+    assert_eq!(run(None), Some(64), "no flag and no variable, with no terminal");
+    assert_eq!(run(Some("30x")), Some(78), "a bad variable");
+}

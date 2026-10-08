@@ -65,7 +65,7 @@ sends fixed headers, and `https_request`, which takes headers, is private
 8. Use the control host only (`tcp.ssh.relay.ajam.dev`, or one host that the user names). No failover
    to pool hosts until a measurement shows that they serve `/v1/*`.
 9. In the same commit: `docs/relay.md:192-214`, `docs/reverse.md:46-53`, and the FILES section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:93`).
+   manual (`crates/podssh-cli/src/man/facts.rs:96`).
 
 ## Prove
 
@@ -316,7 +316,7 @@ unused. Two crates for one protocol drift: they already disagree on the backoff 
 ## Premise
 
 Read: about 600 lines of `podssh-transport` are used outside its tests (the former defects page),
-and `docs/STATUS.md:209` gives 2.8k source and 2.2k test lines. Only examples use it:
+and `docs/STATUS.md:210` gives 2.8k source and 2.2k test lines. Only examples use it:
 `crates/podssh-cli/examples/live_irc.rs:20-22`, `crates/podssh-cli/examples/live_irc/support.rs:11-16`
 and `crates/podssh-transport/examples/live_forward.rs:23-25`; `podssh-cli` depends on it
 (`crates/podssh-cli/Cargo.toml:34`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
@@ -344,7 +344,7 @@ and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs
    the crate: `Cargo.toml:6`, `Cargo.toml:24`, `Cargo.toml:55-58`, `crates/podssh-cli/Cargo.toml:34`,
    `scripts/gate.sh:61`, `scripts/plant.sh:39`.
 6. Update in the same commit: `AGENTS.md:188-190` and `AGENTS.md:234`, `docs/architecture.md:75` and
-   `:92-102`, `docs/development.md:13-14` and `:240`, `docs/STATUS.md:206`, `:208` and `:218`. The list
+   `:92-102`, `docs/development.md:13-14` and `:240`, `docs/STATUS.md:207`, `:209` and `:219`. The list
    of library crates in `docs/decisions.md:34` is a fact of a decision row: correct it, and move the
    old text to Superseded (the operator's ruling of 2026-10-08).
 
@@ -417,12 +417,12 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    has no NAME.
 4. Exit codes as `podssh proxy` (`docs/cli.md:185`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
-   `crates/podssh-cli/src/man/facts.rs:192`.
+   `crates/podssh-cli/src/man/facts.rs:195`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
    `crates/podssh-cli/src/doctor/relay_checks.rs:39-64` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:95`). New variables go in `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:93` there), examples in
+   (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:96` there), examples in
    `crates/podssh-cli/src/man/examples.rs:8-42`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md:48-50`.
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
@@ -521,7 +521,7 @@ cargo test -p podssh-relay --features pair --test reverse_live -- --ignored ssh_
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:62`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:63`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 # T-085: M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox
