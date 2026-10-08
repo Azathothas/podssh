@@ -383,7 +383,7 @@ Read: `send_binary` and `send_text` (`crates/podssh-ws/src/session.rs:86-94`), `
 `watch_liveness` returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs:95-96` and 138-140 put it in `RelayEnd::Failed`;
 `crates/podssh-cli/src/proxy.rs:212-247` prints it; `podssh-transport` makes a write error
-`TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs:101-110`, 140, 158, 182),
+`TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs:104-113`, 143, 161, 185),
 and, since T-072, a read error `Aborted` with its text.
 Tests and the gate match the text: `crates/podssh-ws/tests/session.rs:108` ("continuation") and
 172 ("without a WebSocket Close"), and `scripts/interop-faults.sh:148` ("pings unanswered").

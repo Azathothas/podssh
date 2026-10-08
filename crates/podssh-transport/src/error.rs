@@ -212,6 +212,10 @@ pub enum TransportError {
     /// The socket closed. ⛔ **The reason travels with it**, because the reason
     /// is the discriminator and the code alone is not.
     Closed(crate::closes::RelayClose),
+    /// A frame refused before the wire, named by the close the relay would
+    /// answer it with (`crate::sessions`). Nothing was sent, and the socket
+    /// is still up.
+    Refused(crate::sessions::Refusal),
     /// The socket ended without a closing handshake — `1006`. `detail` is the
     /// text of the failure, kept for the user.
     Aborted { clean: bool, detail: String },
@@ -229,6 +233,8 @@ impl TransportError {
             TransportError::Http(status) => status.retry(),
             TransportError::Codec(_) | TransportError::Control(_) => Retry::Never,
             TransportError::Closed(close) => crate::closes::classify(close).retry,
+            // The same frame would be refused again.
+            TransportError::Refused(_) => Retry::Never,
             TransportError::Aborted { .. } => Retry::Reconnect,
             TransportError::Unexpected(_) => Retry::Never,
         }
@@ -238,6 +244,13 @@ impl TransportError {
     pub fn session_action(&self) -> SessionAction {
         match self {
             TransportError::Closed(close) => crate::closes::classify(close).session,
+            // The action of the close that the refusal avoided.
+            TransportError::Refused(refusal) => crate::closes::classify(&crate::closes::RelayClose {
+                code: refusal.code,
+                reason: refusal.reason.to_string(),
+                clean: true,
+            })
+            .session,
             _ => SessionAction::Unknown,
         }
     }
@@ -258,6 +271,11 @@ impl std::fmt::Display for TransportError {
             TransportError::Closed(close) => {
                 write!(f, "{}", crate::closes::classify(close).message())
             }
+            TransportError::Refused(refusal) => write!(
+                f,
+                "refused before the wire: the relay closes the socket with {} {} for it",
+                refusal.code, refusal.reason
+            ),
             TransportError::Aborted { clean, detail } => {
                 write!(f, "socket ended without a closing handshake (clean={clean}): {detail}")
             }

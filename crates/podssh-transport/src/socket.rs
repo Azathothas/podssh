@@ -16,7 +16,10 @@ use crate::endpoint::{AddressFamily, EgressRoad, Knobs, LegTarget, RelayConfig, 
 use crate::error::{HttpFailure, TransportError};
 use crate::framing::legs::{encode_forward_frame, encode_node_frame, encode_operator_frame};
 use crate::framing::SessionId;
-use crate::transport::{Control, LegShape, Limits};
+use crate::sessions::{
+    Outbound, OperatorState, Sessions, BAD_MULTIPLEX_FRAME, BINARY_FRAMES_REQUIRED, WAIT_FOR_READY,
+};
+use crate::transport::{Control, Inbound, LegShape, Limits};
 
 pub use crate::queue::FrameQueue;
 
@@ -223,12 +226,15 @@ pub struct Leg<S> {
     socket: S,
     shape: LegShape,
     limits: Limits,
-    ready: bool,
+    /// The sessions of the node leg, by id; empty on the other two.
+    sessions: Sessions,
+    /// The one session of the operator leg; nothing reads it on the others.
+    operator: OperatorState,
 }
 
 impl<S: Socket> Leg<S> {
     pub const fn new(socket: S, shape: LegShape, limits: Limits) -> Self {
-        Self { socket, shape, limits, ready: false }
+        Self { socket, shape, limits, sessions: Sessions::new(), operator: OperatorState::Waiting }
     }
 
     pub const fn leg(&self) -> LegShape {
@@ -241,15 +247,16 @@ impl<S: Socket> Leg<S> {
         &self.socket
     }
 
-    /// ⛔ **Mark a session readied.** ⛔ `ready` **gates a session, not the
-    /// socket** — `reverse-node.md:171-173` — and on the node leg it is what
-    /// keeps `1003 data before ready` off the wire.
-    pub fn set_ready(&mut self, ready: bool) {
-        self.ready = ready;
+    /// The sessions of the node leg, as the relay opened them and the node
+    /// readied them. `ready` gates a session, not the socket. The node's
+    /// runner reads this state; it keeps no copy of its own.
+    pub const fn sessions(&self) -> &Sessions {
+        &self.sessions
     }
 
-    pub const fn is_ready(&self) -> bool {
-        self.ready
+    /// Where the one session of the operator leg is.
+    pub const fn operator_state(&self) -> OperatorState {
+        self.operator
     }
 
     /// ⛔ **How many frames this leg has put on the wire.** ⛔ A refused frame
@@ -277,17 +284,23 @@ impl<S: Socket> Leg<S> {
                 // ⛔ A node frame with no id cannot be expressed: `id` is `None`
                 // only when a caller forgot, and that is refused here rather
                 // than written as a bare payload the relay closes 1009 on.
-                let id = id.ok_or_else(|| {
-                    TransportError::Unexpected(
-                        "the node leg cannot send without a session id: a bare node frame is \
-                         closed 1009 bad multiplex frame"
-                            .into(),
-                    )
-                })?;
+                let id = id.ok_or(TransportError::Refused(BAD_MULTIPLEX_FRAME))?;
+                // Data for a session that is not readied closes the whole node
+                // socket, so it is refused before a byte reaches it.
+                self.sessions.may_send_data(id).map_err(TransportError::Refused)?;
                 let frame = encode_node_frame(id, payload)?;
                 self.socket.send_binary(&frame).await
             }
             LegShape::ReverseOperator => {
+                match self.operator {
+                    OperatorState::Readied => {}
+                    OperatorState::Waiting => return Err(TransportError::Refused(WAIT_FOR_READY)),
+                    OperatorState::Closed => {
+                        return Err(TransportError::Unexpected(
+                            "the node closed this session; the operator sends nothing after it".into(),
+                        ))
+                    }
+                }
                 let frame = encode_operator_frame(payload)?;
                 self.socket.send_binary(&frame).await
             }
@@ -314,62 +327,82 @@ impl<S: Socket> Leg<S> {
                 },
             ));
         }
-        if !self.shape.may_send_control() {
-            return Err(TransportError::Unexpected(format!(
-                "the {:?} leg is binary-only; a text frame closes it 1003 binary frames required",
-                self.shape
-            )));
+        match self.shape {
+            LegShape::ReverseNode => {}
+            LegShape::ReverseOperator => return Err(TransportError::Refused(BINARY_FRAMES_REQUIRED)),
+            LegShape::Forward => {
+                return Err(TransportError::Unexpected(
+                    "the forward leg has no control channel; it carries binary frames only".into(),
+                ))
+            }
         }
-        self.socket.send_text(frame).await
+        // Checked as the relay checks it, so that no frame of this crate
+        // closes the node socket: JSON, a known type, a valid id, and a
+        // `ready` only for a session that is open.
+        let message = crate::sessions::check_outbound(frame).map_err(TransportError::Refused)?;
+        if let Outbound::Ready(id) = &message {
+            self.sessions.may_send_ready(id).map_err(TransportError::Refused)?;
+        }
+        self.socket.send_text(frame).await?;
+        // Only after the send: a refused or failed frame changes nothing.
+        match message {
+            Outbound::Ready(id) => self.sessions.readied(id),
+            Outbound::Reject(id) | Outbound::Close(id) => self.sessions.closed(&id),
+        }
+        Ok(())
     }
 
-    /// ⛔ **Read the next data frame.** ⛔ On the node leg the id is stripped and
-    /// returned beside the payload; ⛔ on the other two the payload is returned
-    /// untouched, ⛔ **and on the operator leg nothing is ever subtracted** — the
-    /// strip half is undocumented (`01-relay-protocol.md:352-355`) and the
-    /// inbound frame is already payload.
-    pub async fn recv_data(&mut self) -> Result<RecvFrame, TransportError> {
+    /// The next frame on this leg, data or control, in the order of the
+    /// socket. One reader for both: the node socket carries them mixed, and a
+    /// reader of one kind would lose each frame of the other.
+    ///
+    /// ⛔ On the node leg the id is stripped from a data frame and returned
+    /// beside the payload; on the other two the payload is returned untouched,
+    /// ⛔ **and on the operator leg nothing is ever subtracted** — the strip
+    /// half is undocumented (`01-relay-protocol.md:352-355`) and the inbound
+    /// frame is already payload. A control frame moves its session before it
+    /// is returned. A text frame on the forward leg is an error: that path has
+    /// no control channel, and a peer that sends one is a fault this client
+    /// cannot recover from by reading more.
+    pub async fn recv(&mut self) -> Result<Inbound, TransportError> {
         match self.socket.recv().await? {
             WireFrame::Binary(bytes) => match self.shape {
                 LegShape::ReverseNode => {
                     let (id, payload) = crate::framing::legs::decode_node_frame(&bytes)?;
-                    Ok(RecvFrame { id: Some(id), payload: payload.to_vec() })
+                    Ok(Inbound::Data { id: Some(id), payload: payload.to_vec() })
                 }
-                _ => Ok(RecvFrame { id: None, payload: bytes }),
+                _ => Ok(Inbound::Data { id: None, payload: bytes }),
             },
-            // ⛔ A text frame arriving where data was expected is `1003` on the
-            // operator leg and on the forward leg. It is refused here as well,
-            // because podssh never sends one and a peer that does is a fault
-            // this client cannot recover from by reading more.
-            WireFrame::Text(_) => Err(TransportError::Unexpected(format!(
-                "the {:?} leg received a text frame; its data channel is binary-only",
-                self.shape
-            ))),
+            WireFrame::Text(bytes) => {
+                let control = match self.shape {
+                    LegShape::Forward => {
+                        return Err(TransportError::Unexpected(
+                            "the forward leg received a text frame; its data channel is binary-only"
+                                .into(),
+                        ))
+                    }
+                    LegShape::ReverseNode => parse_node_control(&bytes)?,
+                    LegShape::ReverseOperator => parse_operator_control(&bytes)?,
+                };
+                self.note(&control);
+                Ok(Inbound::Control(control))
+            }
         }
     }
 
-    /// ⛔ **Read the next control frame, or `None` on a leg that has none.**
-    ///
-    /// ⛔ `None` is **not an error and not an EOF**: the forward path has no
-    /// control channel, and a caller that treated `None` as "the socket ended"
-    /// would tear down a healthy forward session on its first read.
-    pub async fn recv_control(&mut self) -> Option<Result<Control, TransportError>> {
-        match self.shape {
-            LegShape::Forward => None,
-            LegShape::ReverseNode => match self.socket.recv().await {
-                Ok(WireFrame::Text(bytes)) => Some(parse_node_control(&bytes)),
-                Ok(WireFrame::Binary(_)) => Some(Err(TransportError::Unexpected(
-                    "the node leg received binary where a control frame was expected".into(),
-                ))),
-                Err(e) => Some(Err(e)),
-            },
-            LegShape::ReverseOperator => match self.socket.recv().await {
-                Ok(WireFrame::Text(bytes)) => Some(parse_operator_control(&bytes)),
-                Ok(WireFrame::Binary(_)) => Some(Err(TransportError::Unexpected(
-                    "the operator leg received binary where a control frame was expected".into(),
-                ))),
-                Err(e) => Some(Err(e)),
-            },
+    /// A control frame that arrived moves its session: `open` and `close` on
+    /// the node leg; `ready`, then `reject` or `close`, on the operator leg.
+    fn note(&mut self, control: &Control) {
+        match (self.shape, control) {
+            (LegShape::ReverseNode, Control::Open { id }) => self.sessions.opened(*id),
+            (LegShape::ReverseNode, Control::Close { id, .. }) => self.sessions.closed(id),
+            (LegShape::ReverseOperator, Control::Ready { .. }) if self.operator == OperatorState::Waiting => {
+                self.operator = OperatorState::Readied
+            }
+            (LegShape::ReverseOperator, Control::Reject { .. } | Control::Close { .. }) => {
+                self.operator = OperatorState::Closed
+            }
+            _ => {}
         }
     }
 }
@@ -389,17 +422,6 @@ fn parse_operator_control(bytes: &[u8]) -> Result<Control, TransportError> {
         Err(control::ControlError::Malformed { detail }) => Ok(Control::Malformed { detail }),
         Err(e) => Err(TransportError::Control(e)),
     }
-}
-
-/// ⛔ **What `recv_data` hands back.**
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RecvFrame {
-    /// ⛔ **`None` on every leg but the node's.** ⛔ The operator's inbound frame
-    /// is already payload and ⛔ **must not be shortened by 32** — the strip
-    /// behaviour is undocumented, and a client that subtracts 32 eats the first
-    /// 32 bytes of every message it receives.
-    pub id: Option<SessionId>,
-    pub payload: Vec<u8>,
 }
 
 /// ⛔ **Build the request for a leg. ⛔ No default relay path, and no token in the

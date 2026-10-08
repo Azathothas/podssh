@@ -18,8 +18,12 @@ use podssh_transport::socket::{
     Leg, Socket, WireFrame, WsFrame, WsSession, WsSocket, OPCODE_BINARY, OPCODE_CLOSE, OPCODE_PING,
     OPCODE_PONG, OPCODE_TEXT,
 };
-use podssh_transport::transport::{LegShape, Limits};
-use podssh_transport::{CodecError, Retry, SessionId, TransportError};
+use podssh_transport::sessions::{
+    OperatorState, SessionState, DATA_BEFORE_READY, INVALID_CONTROL_JSON, INVALID_SESSION_ID,
+    UNKNOWN_CONTROL_TYPE, UNKNOWN_SESSION_ID, WAIT_FOR_READY,
+};
+use podssh_transport::transport::{Control, Inbound, LegShape, Limits};
+use podssh_transport::{CodecError, Retry, SessionAction, SessionId, TransportError};
 
 mod common;
 use common::block_on;
@@ -147,7 +151,8 @@ const ID: &[u8; 32] = b"0123456789abcdef0123456789abcdef";
 #[test]
 fn a_control_frame_leaves_as_text() {
     let id = SessionId::parse(ID).expect("32 lowercase hex");
-    let mut leg = Leg::new(socket(vec![]), LegShape::ReverseNode, Limits::reverse_node());
+    let mut leg = Leg::new(socket(vec![open(&id)]), LegShape::ReverseNode, Limits::reverse_node());
+    block_on(leg.recv()).expect("the relay opens the session");
     let ready = control::ready(&id).expect("a ready frame");
     assert_eq!(
         String::from_utf8(ready.clone()).unwrap(),
@@ -301,4 +306,135 @@ fn a_read_error_keeps_its_text() {
     let again = block_on(socket.recv()).unwrap_err();
     assert!(matches!(&again, TransportError::Aborted { detail, .. } if detail == "tls: connection reset by peer"));
     assert_eq!(socket.session().inbound.len(), 1, "the socket was read after it failed");
+}
+
+/// A control frame as the relay sends it (spec lines 138-139).
+fn control_frame(kind: &str, id: &SessionId) -> WsFrame {
+    FakeSession::frame(OPCODE_TEXT, format!(r#"{{"type":"{kind}","id":"{}"}}"#, id.as_str()).as_bytes())
+}
+
+fn open(id: &SessionId) -> WsFrame {
+    control_frame("open", id)
+}
+
+fn refusal_of(error: TransportError) -> podssh_transport::sessions::Refusal {
+    match error {
+        TransportError::Refused(refusal) => refusal,
+        other => panic!("not a refusal: {other:?}"),
+    }
+}
+
+fn node(frames: Vec<WsFrame>) -> Leg<WsSocket<FakeSession>> {
+    Leg::new(socket(frames), LegShape::ReverseNode, Limits::reverse_node())
+}
+
+/// Data for a session goes out only between its `ready` and its `close`.
+/// Before, the relay closes the whole node socket (`1003 data before ready`,
+/// `1003 unknown session id`), which ends each session on it.
+#[test]
+fn node_data_before_ready_is_refused_and_not_sent() {
+    let id = SessionId::parse(ID).unwrap();
+    let mut leg = node(vec![open(&id), control_frame("close", &id)]);
+
+    let error = block_on(leg.send_data(Some(&id), b"early")).unwrap_err();
+    assert_eq!(refusal_of(error), UNKNOWN_SESSION_ID, "never opened");
+    assert_eq!(leg.sent_frames(), 0);
+
+    assert_eq!(block_on(leg.recv()).unwrap(), Inbound::Control(Control::Open { id }));
+    assert_eq!(leg.sessions().state(&id), Some(SessionState::Opened));
+    let error = block_on(leg.send_data(Some(&id), b"early")).unwrap_err();
+    assert_eq!(error.session_action(), SessionAction::AnswerReadyFirst);
+    assert!(error.to_string().contains("1003 data before ready"), "{error}");
+    assert_eq!(refusal_of(error), DATA_BEFORE_READY);
+    assert_eq!(leg.sent_frames(), 0, "a refused frame reached the wire");
+
+    block_on(leg.send_control(&control::ready(&id).unwrap())).expect("ready for an open session");
+    assert_eq!(leg.sessions().state(&id), Some(SessionState::Readied));
+    block_on(leg.send_data(Some(&id), b"in time")).expect("data after ready");
+    assert_eq!(leg.sent_frames(), 2);
+
+    assert!(matches!(block_on(leg.recv()).unwrap(), Inbound::Control(Control::Close { .. })));
+    assert_eq!(leg.sessions().state(&id), None, "a closed session is forgotten");
+    let error = block_on(leg.send_data(Some(&id), b"late")).unwrap_err();
+    assert_eq!(refusal_of(error), UNKNOWN_SESSION_ID);
+    let error = block_on(leg.send_control(&control::ready(&id).unwrap())).unwrap_err();
+    assert_eq!(refusal_of(error), UNKNOWN_SESSION_ID, "a ready for an old id");
+    assert_eq!(leg.sent_frames(), 2);
+    assert_eq!(leg.socket().session().sent.len(), 2);
+}
+
+/// One reader returns the control and the data of a node socket, mixed, in
+/// the order they arrived. (The JSON follows the contract; T-079 records
+/// frames from the live relay.)
+#[test]
+fn mixed_control_and_data_all_arrive_in_order() {
+    let id = SessionId::parse(ID).unwrap();
+    let mut data = ID.to_vec();
+    data.extend_from_slice(b"SSH-2.0-OpenSSH_10.0\r\n");
+    let mut leg = node(vec![
+        open(&id),
+        FakeSession::frame(OPCODE_BINARY, &data),
+        FakeSession::frame(OPCODE_PING, b"keepalive"),
+        control_frame("close", &id),
+    ]);
+    let mut got = Vec::new();
+    for _ in 0..3 {
+        got.push(block_on(leg.recv()).expect("a frame"));
+    }
+    assert_eq!(
+        got,
+        vec![
+            Inbound::Control(Control::Open { id }),
+            Inbound::Data { id: Some(id), payload: b"SSH-2.0-OpenSSH_10.0\r\n".to_vec() },
+            Inbound::Control(Control::Close { id, reason: None }),
+        ]
+    );
+    assert!(block_on(leg.recv()).is_err(), "the session ended");
+}
+
+/// The operator's data waits for the node's `ready` (`1008 wait for ready`)
+/// and stops at its `reject`.
+#[test]
+fn operator_data_waits_for_ready_and_stops_after_reject() {
+    let id = SessionId::parse(ID).unwrap();
+    let reject = format!(r#"{{"type":"reject","id":"{}","reason":"connection refused"}}"#, id.as_str());
+    let mut leg = Leg::new(
+        socket(vec![control_frame("ready", &id), FakeSession::frame(OPCODE_TEXT, reject.as_bytes())]),
+        LegShape::ReverseOperator,
+        Limits::reverse_operator(),
+    );
+    let error = block_on(leg.send_data(None, b"early")).unwrap_err();
+    assert_eq!(error.session_action(), SessionAction::WaitForReady);
+    assert_eq!(refusal_of(error), WAIT_FOR_READY);
+    assert_eq!(leg.sent_frames(), 0);
+
+    assert_eq!(block_on(leg.recv()).unwrap(), Inbound::Control(Control::Ready { id }));
+    assert_eq!(leg.operator_state(), OperatorState::Readied);
+    block_on(leg.send_data(None, b"in time")).expect("data after ready");
+
+    assert!(matches!(block_on(leg.recv()).unwrap(), Inbound::Control(Control::Reject { .. })));
+    assert_eq!(leg.operator_state(), OperatorState::Closed);
+    assert!(block_on(leg.send_data(None, b"late")).is_err());
+    assert_eq!(leg.sent_frames(), 1);
+}
+
+/// A control frame that the relay would close the node socket for never
+/// leaves: not JSON, an unknown type, an id that is not 32 lowercase hex.
+#[test]
+fn a_control_frame_the_relay_would_refuse_never_leaves() {
+    let id = SessionId::parse(ID).unwrap();
+    let mut leg = node(vec![open(&id)]);
+    block_on(leg.recv()).unwrap();
+    let cases: [(&[u8], _); 4] = [
+        (b"ready", INVALID_CONTROL_JSON),
+        (br#"{"type":"ping","id":"0123456789abcdef0123456789abcdef"}"#, UNKNOWN_CONTROL_TYPE),
+        (br#"{"type":"ready","id":"0123456789ABCDEF0123456789abcdef"}"#, INVALID_SESSION_ID),
+        (br#"{"type":"ready"}"#, INVALID_SESSION_ID),
+    ];
+    for (frame, expected) in cases {
+        let error = block_on(leg.send_control(frame)).unwrap_err();
+        assert_eq!(refusal_of(error), expected, "{}", String::from_utf8_lossy(frame));
+    }
+    assert_eq!(leg.sent_frames(), 0);
+    assert_eq!(leg.sessions().state(&id), Some(SessionState::Opened), "a refusal changes nothing");
 }

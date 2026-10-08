@@ -34,6 +34,17 @@ pub trait Transport {
     async fn next_control(&mut self) -> Option<Result<Control, TransportError>>;
 }
 
+/// One frame off a leg, in the order of the socket (`Leg::recv`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Inbound {
+    /// ⛔ **`id` is `None` on every leg but the node's.** ⛔ The operator's
+    /// inbound frame is already payload and ⛔ **must not be shortened by 32**
+    /// — the strip behaviour is undocumented, and a client that subtracts 32
+    /// eats the first 32 bytes of every message it receives.
+    Data { id: Option<SessionId>, payload: Vec<u8> },
+    Control(Control),
+}
+
 /// ⛔ **A control frame as it arrived, before any leg interprets it.**
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Control {

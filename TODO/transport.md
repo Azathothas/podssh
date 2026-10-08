@@ -219,7 +219,7 @@ Confirmed here on `3ee70dc` by reading the code.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -231,15 +231,16 @@ with an error, so a caller cannot read the mixed control and data of a node sock
 
 ## Premise
 
-Read: `Leg` holds one `ready: bool` (`crates/podssh-transport/src/socket.rs:222-232`); `set_ready`
-and `is_ready` write and read it (`crates/podssh-transport/src/socket.rs:244-253`); `send_data`
-never reads it (`crates/podssh-transport/src/socket.rs:274-299`). A test sends node data before
-`ready` and expects success (`crates/podssh-transport/tests/plants.rs:308-318`).
+The lines of `crates/podssh-transport` below are those of `6d7737f`.
 
-Read: `recv_data` returns an error for a text frame (`crates/podssh-transport/src/socket.rs:331-349`)
-and `recv_control` returns an error for a binary frame
-(`crates/podssh-transport/src/socket.rs:356-374`). Both read the same socket, so the frame of the
-other type is lost.
+Read: `Leg` holds one `ready: bool` (`crates/podssh-transport/src/socket.rs` lines 222-232);
+`set_ready` and `is_ready` write and read it (lines 244-253); `send_data` never reads it (lines
+274-299). A test sends node data before `ready` and expects success
+(`crates/podssh-transport/tests/plants.rs` lines 308-318).
+
+Read: `recv_data` returns an error for a text frame (`socket.rs` lines 331-349) and
+`recv_control` returns an error for a binary frame (lines 356-374). Both read the same socket, so
+the frame of the other type is lost.
 
 Read: the contract closes the node with `1003 data before ready` and the operator with
 `1008 wait for ready`, and reaps an operator after 15 s with no `ready`
@@ -250,8 +251,8 @@ accepts; route by id (`docs/reverse.md:12-18`).
 ## Approach
 
 1. Replace `recv_data` and `recv_control` with one `recv` that returns `Data { id, payload }` or
-   `Control(Control)` (`crates/podssh-transport/src/transport.rs:37-49`). A text frame on the
-   forward leg stays an error.
+   `Control(Control)` (`crates/podssh-transport/src/transport.rs` lines 37-49 at `6d7737f`). A
+   text frame on the forward leg stays an error.
 2. Keep the state of each session id on the node leg: opened, readied, closed. Use a map keyed by
    `SessionId` (`crates/podssh-transport/src/framing.rs:69-73`). The runner of T-079 uses this
    map; it keeps no second copy of the state.
@@ -260,8 +261,30 @@ accepts; route by id (`docs/reverse.md:12-18`).
 4. A `ready` sent through `send_control` marks its id readied only after the send succeeds. A
    received `close {id}` marks it closed (`docs/reverse.md:12-14`). Remove `set_ready`.
 5. On the operator leg, data before the `ready` frame is refused here; T-080 owns the queue.
-6. Change `crates/podssh-transport/tests/plants.rs:308-318` to expect the refusal. Close this
-   entry in place in the same commit (`TODO/RULES.md:41-42`).
+6. Change `crates/podssh-transport/tests/plants.rs` (lines 308-318 at `6d7737f`) to expect the
+   refusal. Close this entry in place in the same commit (`TODO/RULES.md:41-42`).
+
+## Decision
+
+2026-10-09:
+
+1. A closed session is forgotten: the map holds `Opened` and `Readied`, and `close` removes the
+   id. The relay answers a stale id and an invented one the same way (`1003 unknown session id`,
+   spec line 172), so the two need no separate state, and a node that runs for 72 hours must not
+   keep each id that it ever saw. Lost: a `Closed` state for each id, which grows without bound.
+2. A refusal is a typed `TransportError::Refused(Refusal)`, named by the close that the relay
+   would answer with, and its `session_action` comes from the close table (`AnswerReadyFirst`,
+   `WaitForReady`). The runners of T-079 and T-080 branch on it: queue before `ready`, drop after
+   `close`. The two refusals that were text (a node frame with no id, `1009 bad multiplex
+   frame`; a text frame on the operator leg, `1003 binary frames required`) use it too. Lost:
+   text in `Unexpected`, which a runner could only match as a string.
+3. `send_control` checks a node's frame as the relay checks it (JSON, a known type, an id of 32
+   lowercase hex: spec lines 173-175), and refuses a `ready` for an id that is not open, because
+   a `ready` for an old id closes the node socket with `1003` (`docs/reverse.md`, "Node", 2).
+   This goes beyond steps 3 and 4, for the reason of this entry. Lost: a `send_control` that
+   sends any text, which leaves the state of the session wrong when the relay refuses the frame.
+4. On the operator leg, data after a `reject` or a `close` is refused as `Unexpected`: the relay
+   closes the operator socket after them, and its table has no row for data after that.
 
 ## Prove
 
@@ -279,6 +302,37 @@ again. Second test: the double queues `open` (text), a binary frame for that id,
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-139`); replace it with frames
 captured from the live relay when T-079 records them. Plant: remove the readied check; the first
 test must fail because a frame was sent.
+
+## Done
+
+2026-10-09, in the commit "The node leg sends data only for a readied session".
+
+- `Leg::recv` is the one reader: it returns `Inbound::Data { id, payload }` or
+  `Inbound::Control(Control)` in the order of the socket, and moves the session of a control
+  frame. `recv_data`, `recv_control` and `RecvFrame` are gone; `ForwardRunner::recv_bytes` uses
+  `recv`.
+- `crates/podssh-transport/src/sessions.rs` (new): `Sessions` (by id, `Opened` or `Readied`),
+  `OperatorState` (`Waiting`, `Readied`, `Closed`), `Refusal` with the relay's rows that it
+  names, and `check_outbound`. `Leg::sessions()` and `Leg::operator_state()` give the state to
+  the runners; `set_ready` and `is_ready` are gone.
+- `send_data` on the node leg refuses a session that is opened and not readied
+  (`1003 data before ready`) and one that was never opened or is closed (`1003 unknown session
+  id`); on the operator leg, data before `ready` (`1008 wait for ready`) and after a `reject` or
+  a `close`. `send_control` refuses what the relay would close the node socket for, and moves the
+  state only after the send succeeded.
+- Prove: `cargo test -p podssh-transport --test socket -- node_data_before_ready_is_refused_and_not_sent`
+  and `-- mixed_control_and_data_all_arrive_in_order`: 1 passed each. New beside them:
+  `operator_data_waits_for_ready_and_stops_after_reject` and
+  `a_control_frame_the_relay_would_refuse_never_leaves`; `plant_data_before_ready` expects the
+  refusal; T-071's test opens its session first, as on the wire. `cargo test -p podssh-transport
+  --no-fail-fast`: 82 passed, 0 failed. `cargo test --no-fail-fast`: 782 passed, 0
+  failed, 7 ignored.
+- Plants, each restored: the readied check removed: `node_data_before_ready_is_refused_and_not_sent`
+  failed (data for an id that was never opened went out) and so did `plant_data_before_ready`;
+  the operator's wait removed: `operator_data_waits_for_ready_and_stops_after_reject` failed; a
+  frame that fails `check_outbound` sent anyway: `a_control_frame_the_relay_would_refuse_never_leaves`
+  failed; the check of `ready` removed: the first test failed; a node leg whose `recv` refuses a
+  text frame: 4 tests failed, `mixed_control_and_data_all_arrive_in_order` among them.
 
 # T-074: T7: the backpressure module is not used
 
@@ -299,7 +353,7 @@ the forward path, and the ledger has two defects, so a later caller would inheri
 ## Premise
 
 Read: only the module line, a re-export and two test files reach the module
-(`crates/podssh-transport/src/lib.rs:34`, `crates/podssh-transport/src/lib.rs:51`,
+(`crates/podssh-transport/src/lib.rs:34`, `crates/podssh-transport/src/lib.rs:52`,
 `crates/podssh-transport/tests/backpressure.rs`, `crates/podssh-transport/tests/backpressure_plants.rs`).
 
 Read: the module says that the forward path drops a frame under backpressure, from the row
@@ -322,7 +376,7 @@ flow control that podssh uses (`docs/relay.md:165-166`).
 ## Approach
 
 1. Delete `crates/podssh-transport/src/backpressure/mod.rs`, `ledger.rs`, both test files, and the
-   lines `crates/podssh-transport/src/lib.rs:34` and `:51`.
+   lines `crates/podssh-transport/src/lib.rs:34` and `:52`.
 2. Keep no part of it. The runners of T-079 and T-080 bound their queues with bounded channels
    and the relay's caps (`docs/reverse.md:30-35`), not with a ledger.
 3. Check with `git grep` that no script or test still names the deleted files.
@@ -391,7 +445,7 @@ Read: the forward path already follows the contract in `podssh-relay`. It mints 
 1. Keep the body: build `HttpFailure` from `ConnectError::Refused { status, body }`
    (`crates/podssh-ws/src/client.rs:117-120`). Reuse `podssh_relay::open::is_policy_refusal`; do
    not parse the body a second way.
-2. Make the rule depend on the leg (`crates/podssh-transport/src/transport.rs:106-116`):
+2. Make the rule depend on the leg (`crates/podssh-transport/src/transport.rs:117-127`):
    forward `403` that is not a policy refusal: a new `Retry::NewToken` (mint once, then stop);
    forward `403` policy: `Never`; reverse `403`: `ReverseForbidden`, and the runner of T-079 picks
    `NewPair` when the stored `expires` has passed (T-078), else `Never`; `503`: `Never` on this
@@ -505,11 +559,11 @@ follow a design that nothing else follows.
 
 Read: `Transport` (`crates/podssh-transport/src/transport.rs:15-35`) has no implementation in the
 workspace (a search for `impl ... Transport for` finds none). It is exported at
-`crates/podssh-transport/src/lib.rs:58`. `target_for` has no caller either
-(`crates/podssh-transport/src/transport.rs:203-211`).
+`crates/podssh-transport/src/lib.rs:59`. `target_for` has no caller either
+(`crates/podssh-transport/src/transport.rs:214-222`).
 
 Read: `Backoff` doubles from 1 s to 30 s with no jitter (`crates/podssh-transport/src/backoff.rs:1-8`,
-`:15-17`, `:51-55`). It is exported at `crates/podssh-transport/src/lib.rs:50` and used only by
+`:15-17`, `:51-55`). It is exported at `crates/podssh-transport/src/lib.rs:51` and used only by
 `crates/podssh-transport/tests/closes.rs:329-366`.
 
 Read: a node connects again "with a jittered backoff" (`docs/reverse.md:22-24`,

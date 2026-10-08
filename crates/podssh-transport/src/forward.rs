@@ -15,12 +15,12 @@
 //! runs first so that refusal is unreachable, not merely unhit.
 //!
 //! ⛔ **Receives are binary or an error.** A text frame where data was
-//! expected is `1003`-shaped on the wire; [`Leg::recv_data`] refuses it, and
+//! expected is `1003`-shaped on the wire; [`Leg::recv`] refuses it, and
 //! this runner surfaces that rather than decoding it as data.
 
 use crate::framing::legs::chunk_for_bare;
 use crate::socket::{Leg, Socket};
-use crate::transport::{LegShape, Limits};
+use crate::transport::{Inbound, LegShape, Limits};
 use crate::TransportError;
 
 /// A forward session: bare bytes out, bare bytes back.
@@ -53,7 +53,14 @@ impl<S: Socket> ForwardRunner<S> {
 
     /// Read one payload off the session.
     pub async fn recv_bytes(&mut self) -> Result<Vec<u8>, TransportError> {
-        Ok(self.leg.recv_data().await?.payload)
+        match self.leg.recv().await? {
+            Inbound::Data { payload, .. } => Ok(payload),
+            // `Leg::recv` returns no control frame on this leg; kept as an
+            // error, not a panic, should that ever change.
+            Inbound::Control(control) => Err(TransportError::Unexpected(format!(
+                "the forward leg has no control channel, and returned {control:?}"
+            ))),
+        }
     }
 
     /// Frames this runner has put on the wire. A refused frame is not a sent

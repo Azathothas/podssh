@@ -305,17 +305,21 @@ fn plant_data_before_ready() {
     NodeSessionState { readied: true }.accept_data().unwrap_or_else(closed_unexpectedly);
     operator_wait_for_ready(14_999).unwrap_or_else(closed_unexpectedly);
 
-    // ⛔ **And podssh's node leg tracks readiness**, so the ordering is a value a
-    // caller can read rather than a comment.
+    // ⛔ **And podssh's node leg refuses the same ordering**, so the defect
+    // cannot reach the wire through this crate: the session is open, not
+    // readied, and the data is refused with the relay's own words.
+    let mut queue = podssh_transport::socket::FrameQueue::new();
+    queue.push_text(format!(r#"{{"type":"open","id":"{}"}}"#, id.as_str()).into_bytes());
     let mut leg = podssh_transport::socket::Leg::new(
-        podssh_transport::socket::FrameQueue::new(),
+        queue,
         podssh_transport::LegShape::ReverseNode,
         podssh_transport::Limits::reverse_node(),
     );
-    assert!(!leg.is_ready(), "a fresh node leg has readied nothing");
-    block_on(leg.send_data(Some(&id), version)).expect("the send itself is fine");
-    leg.set_ready(true);
-    assert!(leg.is_ready());
+    block_on(leg.recv()).expect("the relay opens the session");
+    let err = block_on(leg.send_data(Some(&id), version)).expect_err("data before ready is refused");
+    assert!(err.to_string().contains("1003 data before ready"), "{err}");
+    assert_eq!(err.session_action(), SessionAction::AnswerReadyFirst);
+    assert_eq!(leg.sent_frames(), 0, "⛔ a refused frame must not reach the wire");
 }
 
 // ── the caps are three different numbers, and the plants did not blur them ──

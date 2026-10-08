@@ -39,6 +39,7 @@ pub mod error;
 pub mod forward;
 pub mod framing;
 pub mod queue;
+pub mod sessions;
 pub mod socket;
 pub mod transport;
 
@@ -55,4 +56,4 @@ pub use endpoint::{endpoint, Endpoint, Knobs, LegTarget, RelayConfig, TOKEN_HEAD
 pub use error::{HttpFailure, Retry, SessionAction, TransportError};
 pub use framing::{CodecError, SessionId};
 pub use socket::{FrameQueue, Leg, Socket};
-pub use transport::{Control, LegShape, Limits, Transport};
+pub use transport::{Control, Inbound, LegShape, Limits, Transport};
