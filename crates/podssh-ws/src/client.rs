@@ -209,12 +209,15 @@ pub async fn open_tls(
 /// and any bytes that arrived after the response head (the relay dials the
 /// target first, so its first frame can share a segment with the headers). On
 /// any other status, reads a little of the body for the error message.
-async fn upgrade(
-    mut tls: RelayStream,
+pub(crate) async fn upgrade<S>(
+    mut tls: S,
     host_header: &str,
     path: &str,
     token: &str,
-) -> Result<(RelayStream, Vec<u8>), ConnectError> {
+) -> Result<(S, Vec<u8>), ConnectError>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
     let io = |e: std::io::Error| ConnectError::Upgrade(e.to_string());
     let key = handshake::generate_key().map_err(|e| ConnectError::Upgrade(e.to_string()))?;
     tls.write_all(&handshake::build_request(host_header, path, token, &key)).await.map_err(io)?;

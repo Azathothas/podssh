@@ -29,6 +29,12 @@ zeroize = { workspace = true }
 # DNS-over-HTTPS answers are JSON (resolve.rs).
 serde_json = { workspace = true }
 
+[features]
+# A plain WebSocket over TCP to the loopback, for the tests of an embedder
+# (podbox) and a stand-in relay (T-068). Off by default; the binary never
+# enables it, and the gate checks that with `cargo tree`.
+plain-ws = []
+
 [dev-dependencies]
 # ⛔ The doctor is async because it may be asked to perform a handshake, and
 # the plants that assert `????` rather than `ok` have to drive it as a caller

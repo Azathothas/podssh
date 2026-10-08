@@ -6,7 +6,7 @@ on the layer, which wait in the backlog.
 
 # T-151: The resumable layer: its handshake and the byte offsets
 
-**Source:** ROADMAP M6 (the resumable stream layer); `docs/design.md:187-204`
+**Source:** ROADMAP M6 (the resumable stream layer); `docs/design.md:188-205`
 (layer 2, decided); GitHub #19 (Nemo-010, 2026-10-08: the quic-ssh, ssh-obi
 and fux reports) and GitHub #20 (a handshake with a version and a role).
 **Category:** feature
@@ -18,13 +18,13 @@ and fux reports) and GitHub #20 (a handshake with a version and a role).
 ## Problem
 
 A dropped link to the relay ends the session with exit 255, and a new client
-address loses it (`docs/design.md:161-173`). The relay keeps nothing across a
-new connection (`docs/design.md:175-178`).
+address loses it (`docs/design.md:162-174`). The relay keeps nothing across a
+new connection (`docs/design.md:176-179`).
 
 ## Premise
 
 Read: the design is decided: offsets and acknowledgements in each direction,
-a session id and a 256-bit resume secret, under SSH (`docs/design.md:187-204`),
+a session id and a 256-bit resume secret, under SSH (`docs/design.md:188-205`),
 in a `session` module of `podssh-relay` (`docs/design.md:92-100`), a crate
 with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
@@ -86,7 +86,7 @@ unknown session. The gate builds `podssh-relay` with `CC=/nonexistent`.
 # T-152: The replay buffer, limited, with backpressure
 
 **Source:** ROADMAP M6 (a limited replay buffer with backpressure);
-`docs/design.md:189-191`; GitHub #19 (Nemo-010, 2026-10-08: quic-ssh's bounded
+`docs/design.md:190-192`; GitHub #19 (Nemo-010, 2026-10-08: quic-ssh's bounded
 buffer with a start offset; ssh-obi's duplicate recent bytes); GitHub #31.
 **Category:** feature
 **Milestone:** M6
@@ -102,14 +102,14 @@ with no limit fills the memory of a small host when the peer is slow.
 ## Premise
 
 Read: the sender keeps each byte that is not acknowledged, in 4 to 16 MiB,
-"with backpressure when it is full" (`docs/design.md:190-191`). So no byte
+"with backpressure when it is full" (`docs/design.md:191-192`). So no byte
 that is not acknowledged is dropped, and a resume is byte-exact; the start in
 an escape sequence of GitHub #31 needs dropped bytes (T-221). The reverse road
 drops a frame and closes with `1011 relay backpressure` above 1 MiB queued
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the buffer
 turns that close into a resume. The SSH window is 512 KiB for each channel
 (`crates/podssh-ssh/src/run.rs:25-29`). Do not reuse the backpressure module of
-`podssh-transport`, which the design removes (T-074, `docs/design.md:106-107`).
+`podssh-transport`, which the design removes (T-074, `docs/design.md:107-108`).
 
 ## Approach
 
@@ -133,7 +133,7 @@ turns that close into a resume. The SSH window is 512 KiB for each channel
 
 ## Decision
 
-Byte replay or screen state: byte replay is decided (`docs/design.md:187-188`,
+Byte replay or screen state: byte replay is decided (`docs/design.md:188-189`,
 the model of Eternal Terminal), and the layer sees only SSH ciphertext. Screen
 state matters only when a new client attaches to a kept shell (T-161).
 
@@ -161,7 +161,7 @@ fails it, and so does one that drops its oldest bytes when it is full.
 # T-153: Resume through any road and relay host, with a session secret and a capped backoff
 
 **Source:** ROADMAP M6 (reconnection through each relay host);
-`docs/design.md:193-195`; GitHub #19 (Nemo-010, 2026-10-08: ssh-obi's policy,
+`docs/design.md:194-196`; GitHub #19 (Nemo-010, 2026-10-08: ssh-obi's policy,
 talaria0101's drops); GitHub #17 and #25 (a retry by the close reason).
 **Category:** feature
 **Milestone:** M6
@@ -240,7 +240,7 @@ maps each close row to resume or stop; a planted policy that resumes on
 
 # T-154: Heartbeats that also prevent the relay's idle cut
 
-**Source:** ROADMAP M6 (heartbeats); `docs/design.md:196-197`; GitHub #19
+**Source:** ROADMAP M6 (heartbeats); `docs/design.md:197-198`; GitHub #19
 (Nemo-010, 2026-10-08: ssh-obi pings each 15 s and wants a pong in 45 s).
 **Category:** feature
 **Milestone:** M6
@@ -312,7 +312,7 @@ answers T-061.
 # T-155: Move a session to a new relay connection before the relay's limits
 
 **Source:** ROADMAP M6 (a new session before the relay's limits);
-`docs/design.md:198-199`; the report of sandbox A, 2026-10-08 (the `1009`
+`docs/design.md:199-200`; the report of sandbox A, 2026-10-08 (the `1009`
 close at the volume cap).
 **Category:** feature
 **Milestone:** M6
@@ -380,7 +380,7 @@ the test fails. The live test sends 200 MiB each way with equal digests.
 
 # T-156: M6 exit: a session survives a stopped relay host, a new address and a stall of 3 minutes
 
-**Source:** ROADMAP M6, exit criteria; `docs/design.md:220-222` (the harness
+**Source:** ROADMAP M6, exit criteria; `docs/design.md:221-223` (the harness
 must grow for layer 2).
 **Category:** measurement
 **Milestone:** M6
@@ -444,7 +444,7 @@ live session that survives a stall of 3 minutes.
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:303-323`; the two
+sandbox, before a default depends on it); `docs/design.md:304-324`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -468,7 +468,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:303-323`). A session carries 64 MiB at most, both directions
+(`docs/design.md:304-324`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:115`).
 
 ## Approach
@@ -531,7 +531,7 @@ tmux; a cage usually has none.
 
 ## Premise
 
-Inferred from the design: the layer runs under SSH (`docs/design.md:187-188`),
+Inferred from the design: the layer runs under SSH (`docs/design.md:188-189`),
 so the keys and the sequence numbers of the SSH connection live in the client
 process. A new process cannot continue that byte stream, so an attach is a
 new SSH login to a far end that kept the shell (T-159). Read: podssh knows
@@ -651,7 +651,7 @@ second.
 
 # T-160: Local echo and prediction for high latency
 
-**Source:** `docs/design.md:217-218`; GitHub #19 and GitHub #18 (Nemo-010,
+**Source:** `docs/design.md:218-219`; GitHub #19 and GitHub #18 (Nemo-010,
 2026-10-08: quic-ssh's prediction, `VLOD-ZDOV/quic-ssh:src/client/predict.rs`;
 rose's prediction, GPL, of which only the specification may be read).
 **Category:** feature
@@ -670,7 +670,7 @@ later.
 
 Read: an interactive echo for high latency is a later option on top of layer
 2; it needs podssh at both ends, and it cannot use UDP here
-(`docs/design.md:217-218`). podssh passes the bytes of a remote pty unchanged
+(`docs/design.md:218-219`). podssh passes the bytes of a remote pty unchanged
 and has no model of the remote screen (`docs/terminal.md:20-25`). A
 prediction needs the place of the cursor, and needs to know when the far end
 echoed a key. Only a podssh far end can tell when a key reached the pty and
@@ -729,7 +729,7 @@ screen needs a terminal model on the far end.
 
 ## Premise
 
-Read: the resumable layer replays bytes, as decided (`docs/design.md:187-204`).
+Read: the resumable layer replays bytes, as decided (`docs/design.md:188-205`).
 That serves the same client process, whose terminal still holds the screen
 and its modes. A new process starts with an empty terminal. Read in the
 reports, not verified here: ssh-obi replays the byte stream and accepts
@@ -781,7 +781,7 @@ recorded result.
 
 **Source:** GitHub #31 (2026-10-08: a rule for where a kept window may start),
 with the coordinator's reading of 2026-10-08, checked here against
-`docs/design.md:189-195`.
+`docs/design.md:190-196`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -799,13 +799,13 @@ on the command line.
 ## Premise
 
 Read: the layer keeps each byte that is not acknowledged, "with backpressure
-when it is full" (`docs/design.md:190-191`), and a resume sends again from the
-other side's offset (`docs/design.md:193-195`). Thus a resume in the buffer
+when it is full" (`docs/design.md:191-192`), and a resume sends again from the
+other side's offset (`docs/design.md:194-196`). Thus a resume in the buffer
 is byte-exact, and it cannot start in the middle of a sequence; T-152 tests
 that invariant. Bytes are dropped only where a client attaches after output
 that it never received: T-158, T-159 and T-161. The report puts the tracker
 in `podssh-transport`; it cannot work there. The layer runs under SSH and
-sees only ciphertext (`docs/design.md:187-188`), and the transport crates do
+sees only ciphertext (`docs/design.md:188-189`), and the transport crates do
 not know the protocol that they carry (`docs/architecture.md:99-101`). The
 plaintext of a pty exists only on the far end that keeps the shell. Read in
 the report, not verified here: tty7 drops bytes from its ring until a tracker

@@ -119,7 +119,7 @@ seconds at `scripts/interop.sh:237`, the tty at line 221), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
-(`scripts/gate.sh:129`). The totals are typed in `docs/STATUS.md:19`, line 57
+(`scripts/gate.sh:135`). The totals are typed in `docs/STATUS.md:19`, line 57
 and line 196.
 
 ## Approach
@@ -307,7 +307,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:210-213`): a proxy head that never ends stops at
+   (`docs/development.md:213-216`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -317,7 +317,7 @@ Read, the bounds today:
    plus a margin; the check fails above it.
 5. Give `known_hosts` a read limit (16 MiB, far above a real file) with a
    message that names the file, or state in the table that it has none.
-6. In M6, the replay buffer (4 to 16 MiB, `docs/design.md:190-191`; T-152)
+6. In M6, the replay buffer (4 to 16 MiB, `docs/design.md:191-192`; T-152)
    joins the table.
 
 ## Prove
@@ -411,7 +411,7 @@ trip of frames must fail and print the smallest frame that fails.
 
 # T-203: The fault-injection harness: latency, jitter, bandwidth, a new address
 
-**Source:** `docs/design.md:220-222` (layers 2 and 3 need the harness
+**Source:** `docs/design.md:221-223` (layers 2 and 3 need the harness
 extended), and the exit criteria of M6 (`docs/ROADMAP.md`, M6; T-156).
 **Category:** chore
 **Milestone:** M6
@@ -465,7 +465,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate,
-   `docs/development.md:112-118`) and the faults table of docs/STATUS.md.
+   `docs/development.md:115-121`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 

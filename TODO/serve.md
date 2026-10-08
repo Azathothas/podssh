@@ -6,7 +6,7 @@ shell that T-108 runs.
 
 # T-107: `podssh serve`: the russh server, its host key in a state file, and authorized keys
 
-**Source:** `docs/ROADMAP.md:177-182` (M5), `docs/design.md:135-139`; GitHub #20
+**Source:** `docs/ROADMAP.md:177-182` (M5), `docs/design.md:136-140`; GitHub #20
 (Nemo-010, 2026-10-08: bssh-server and tty7 as references).
 **Category:** feature
 **Milestone:** M5
@@ -223,7 +223,7 @@ planted rejection with no reason fails that last check.
 
 # T-110: `podssh serve`: a real pty when `/dev/ptmx` exists
 
-**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:140-144`,
+**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:141-145`,
 `docs/terminal.md:45-55`; GitHub #20 (bound every PTY wait).
 **Category:** feature
 **Milestone:** M5
@@ -293,7 +293,7 @@ serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 
 # T-111: `podssh serve` with no `/dev/ptmx`: the line discipline, and Ctrl-C to the child's process group
 
-**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:140-144`,
+**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:141-145`,
 `docs/decisions.md:43`; GitHub #20 (fux line-discipline notes).
 **Category:** feature
 **Milestone:** M5
@@ -306,7 +306,7 @@ serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 The measured cage has no `/dev/ptmx` (`docs/target-environment.md:26`). There
 a shell on pipes gives no echo, no editing and no prompt, and Ctrl-C reaches
 nothing. Only the server side can turn Ctrl-C into a signal for the child's
-process group (`docs/design.md:140-144`). Without it, a user cannot stop a
+process group (`docs/design.md:141-145`). Without it, a user cannot stop a
 command, and the session must end.
 
 ## Premise
@@ -366,7 +366,7 @@ shell's pid and not its group fails the 15 s check.
 
 # T-112: An SFTP server in `podssh serve`
 
-**Source:** `docs/ROADMAP.md:189`, `docs/design.md:145-149`; GitHub #20
+**Source:** `docs/ROADMAP.md:189`, `docs/design.md:146-150`; GitHub #20
 (tty7 issue #1126: bound every SFTP wait); GitHub #21 (bssh pipelined SFTP).
 **Category:** feature
 **Milestone:** M5
@@ -700,7 +700,7 @@ lifecycle); GitHub #22 (Petyok/SSHub: hot reload).
 
 A node that stops must not leave shells behind, and must not cut sessions
 with no word. An operator who adds a key must not have to restart the node:
-a restart ends each session on it (`docs/design.md:175-178`).
+a restart ends each session on it (`docs/design.md:176-179`).
 
 ## Premise
 
@@ -1046,7 +1046,7 @@ default of russh refuses each `tcpip-forward` with no reason.
 - Read: the cage refuses `bind` (`docs/target-environment.md:25`; the box:
   `scripts/box/probe.sh:86-91`). The operator's ruling on Q1 (2026-10-08)
   allows a listener only when the user asks and a probe allows the bind.
-- Read: `docs/design.md:253-255` allows a listener on the far side. The relay
+- Read: `docs/design.md:254-256` allows a listener on the far side. The relay
   is a listener that podssh does not run: a node name takes operator
   sessions (`docs/relay.md:192-204`).
 - Read in the report of GitHub #18, not verified here: sandhole publishes

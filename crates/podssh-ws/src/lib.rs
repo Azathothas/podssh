@@ -19,6 +19,8 @@ pub mod frame;
 pub mod handshake;
 pub mod http;
 pub mod names;
+#[cfg(feature = "plain-ws")]
+pub mod plain;
 pub mod resolve;
 pub mod session;
 pub mod text;

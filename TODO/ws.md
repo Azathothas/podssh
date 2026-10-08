@@ -1,7 +1,7 @@
 This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP and proxies, TLS
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
-`podssh-ws` item of ROADMAP M4 and `docs/design.md:102-105`, and from GitHub issues. The crate
+`podssh-ws` item of ROADMAP M4 and `docs/design.md:102-106`, and from GitHub issues. The crate
 must build with no C compiler (`scripts/gate.sh:61-69`).
 
 # T-063: W10: the frame decoder does not check a received control frame
@@ -328,7 +328,7 @@ HTTP/1.1 only (`docs/relay.md:169`). The `tls12` feature of `rustls` is on in th
 5. `podssh-ws` must not depend on `ring`, also not in its tests: the gate builds the tests with
    no C compiler. The tests make the caller's configuration with podssh's own provider.
 6. The default stays `Trust`, so the binary does not change.
-7. Change `docs/design.md:102-105` and `docs/architecture.md` in the same commit.
+7. Change `docs/design.md:102-106` and `docs/architecture.md` in the same commit.
 
 ## Decision
 
@@ -460,7 +460,7 @@ from the list; its OpenSSL check fails.
 **Milestone:** M4
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -469,8 +469,9 @@ TCP on the loopback. `podssh-ws` always does TLS, so each such test needs a CA a
 
 ## Premise
 
-Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs:162-184`), and the
-upgrade takes the TLS stream type (`crates/podssh-ws/src/client.rs:212-256`). `RelaySession` is
+Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs` lines 162-184 at
+`23b5d82`), and the upgrade takes the TLS stream type (the same file, lines 212-256 at
+`23b5d82`). `RelaySession` is
 generic over its stream (`crates/podssh-ws/src/session.rs:33`), so a session over `TcpStream`
 is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:137-142`). The tests use in-memory streams
@@ -496,6 +497,17 @@ Recommendation: the feature and the loopback check together. The feature keeps t
 the binary; the check holds in each build that enables the feature. The check alone lost: the
 code would be in the binary, one mistake from use.
 
+The session that built it (2026-10-09) made these calls:
+
+- **The resolved address is checked too.** A name such as `x.localhost` goes through the resolver,
+  which could answer with an address that is not the loopback; only a loopback answer is used, so
+  the token stays on the host whatever the resolver says. The plant of the first check showed the
+  second: 192.0.2.1 was still refused, as "resolved to no loopback address".
+- **The check of the binary is a script**, `scripts/no-plain-ws.sh`, that reads the exit code of
+  `cargo tree` on its own (the command of the Prove passes when `cargo tree` itself fails).
+- **Step 4 is a step of T-079**, the node runner, which now says it; T-081 is the facade for
+  podbox's production, which needs no plain stream.
+
 ## Prove
 
 ```sh
@@ -509,9 +521,31 @@ writes for a `101` (lines 136-138), and the session carries data both ways. The 
 is refused with no connection attempt. The second command shows that the binary does not enable
 the feature. Planted defect: remove the loopback check; the refusal test fails.
 
+## Done
+
+2026-10-09, in the commit "A plain ws:// session to the loopback, for tests".
+
+- `crates/podssh-ws/src/plain.rs` (new, feature `plain-ws`, off by default):
+  `plain::connect_loopback(host, port, path, token, timeout, idle)` gives a
+  `RelaySession<TcpStream>`. It refuses a host that `is_loopback` refuses, before any connection;
+  it uses only a loopback address of what the name resolves to; it uses no proxy; the path and the
+  token meet the rules of `connect`. `upgrade` is generic over the stream, and both paths share
+  it.
+- `scripts/gate.sh`: the test of the feature, and `scripts/no-plain-ws.sh` (new), which fails
+  when `cargo tree -p podssh-cli -e features` names `plain-ws`. `docs/development.md`,
+  `docs/design.md` and T-079 (step 10) say so.
+- Prove: `cargo test -p podssh-ws --features plain-ws --test plain_loopback`: 2 passed (the
+  upgrade answered with the 101 of `scripts/fake-relay.py`, `hello` down and `ping` up, the token
+  in its header; 192.0.2.1, `example.org`, 10.0.0.1, `[2001:db8::1]`, 0.0.0.0 and
+  `localhost.example` refused at once). `sh scripts/no-plain-ws.sh`: exit 0. `cargo test
+  --no-fail-fast`: 810 passed, 0 failed, 7 ignored.
+- Plants, each restored: the loopback check removed: the refusal test failed; `features =
+  ["plain-ws"]` on the dependency of `podssh-cli`: `scripts/no-plain-ws.sh` exited 1 and showed
+  the feature.
+
 # T-069: Typed session errors in `podssh-ws`
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:104`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:104-105`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P2
@@ -703,7 +737,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (lines 80-88). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:108-137`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:374-383`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:377-386`). The stand-in relay writes the minimal form
 (`scripts/fake-relay.py:54-62`); the frames of the real relay were not checked for it.
 
 ## Approach

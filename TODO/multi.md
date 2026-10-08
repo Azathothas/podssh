@@ -665,7 +665,7 @@ outlives the session, show it later, or stop it.
 
 ## Premise
 
-- Read: a session ends with its connection (`docs/design.md:172`), and `-f`
+- Read: a session ends with its connection (`docs/design.md:173`), and `-f`
   is refused (`crates/podssh-cli/src/flags.rs:209-210`).
 - Read: tmux is never assumed; T-178 probes it with `command -v tmux`.
 - Read: `podssh serve` (T-107, M5) runs on the far end only where the user

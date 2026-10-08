@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**251 entries: 200 open, 0 partial, 7 blocked, 44 done.**
+**251 entries: 199 open, 0 partial, 7 blocked, 45 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
 | P2 | 106 | 0 | 3 | 35 | 144 |
-| P3 | 92 | 0 | 4 | 1 | 97 |
-| **All** | 200 | 0 | 7 | 44 | 251 |
+| P3 | 91 | 0 | 4 | 2 | 97 |
+| **All** | 199 | 0 | 7 | 45 | 251 |
 
 ## Entries
 
@@ -141,7 +141,7 @@ repository and CI).
 | [T-065](ws.md) | P2 | S | M4 | defect | done | W14: `probe::PrintChain` accepts each certificate, and is a public export |
 | [T-066](ws.md) | P2 | M | M4 | feature | done | A `rustls::ClientConfig` that the caller supplies, for podbox |
 | [T-067](ws.md) | P2 | M | backlog | feature | open | TLS 1.2, for intercepting proxies |
-| [T-068](ws.md) | P3 | S | M4 | feature | open | Plain `ws://` to loopback, for tests only |
+| [T-068](ws.md) | P3 | S | M4 | feature | done | Plain `ws://` to loopback, for tests only |
 | [T-069](ws.md) | P2 | S | M4 | feature | done | Typed session errors in `podssh-ws` |
 | [T-070](ws.md) | P2 | M | backlog | feature | open | A SOCKS5 proxy for the egress |
 | [T-071](transport.md) | P2 | S | M4 | defect | done | T1: `send_text` sends a binary frame, so the node leg cannot work |

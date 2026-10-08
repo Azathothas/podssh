@@ -134,7 +134,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`docs/relay.md:140-141`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:82-137`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:117-135` fetches `/relays.json`. `https_get` sends no
-token header (`crates/podssh-ws/src/client.rs:275-286`); `https_request` takes headers (lines
+token header (`crates/podssh-ws/src/client.rs:278-289`); `https_request` takes headers (lines
 282-303).
 
 ## Approach
@@ -469,7 +469,7 @@ listener" (lines 86-88), and the ruling on Q10 allows more than one for a moment
    a slow target also starts the next host. Measure the open times through a proxy in the box,
    and record D in `docs/STATUS.md`.
 3. Send a Close to each attempt that is not kept, at once. The relay then frees the target
-   socket within 15 s (`docs/design.md:175-177`, `docs/relay.md:149`); the target still sees one
+   socket within 15 s (`docs/design.md:176-178`, `docs/relay.md:149`); the target still sees one
    short connection, because the relay dials it before the upgrade.
 4. One mint at a time for each relay deployment (single flight, keyed as T-057 keys the cache),
    against the brake of `docs/relay.md:116`. When the minting attempt is the silent one, the next

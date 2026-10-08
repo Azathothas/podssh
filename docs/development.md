@@ -31,6 +31,7 @@ cargo test --no-fail-fast          # the default members
 cargo test -p podssh-core          # one crate
 cargo build -p podssh-cli --features ts                          # with Tailscale
 cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts   # its tests
+cargo test -p podssh-ws --features plain-ws --test plain_loopback   # plain ws:// to loopback, for tests
 ```
 
 - A `cargo build` or `cargo test` at the root uses `default-members`. These
@@ -91,7 +92,9 @@ gate makes sure that:
 
 1. The library crates build and pass their tests with `CC=/nonexistent`
    and `CXX=/nonexistent`. The `cc` crate reads `CXX` for C++, so `CC` alone
-   does not stop a C++ dependency on a host that has `c++`.
+   does not stop a C++ dependency on a host that has `c++`. The test of the
+   feature `plain-ws` of `podssh-ws` runs too, and `scripts/no-plain-ws.sh`
+   shows that the binary does not enable it (T-068).
 2. The work record agrees with itself (`crates/podssh-todo`). Its checker
    passes its tests, where each planted disagreement must be found, and then
    checks `TODO/`: the counts against the rows, the status, title and

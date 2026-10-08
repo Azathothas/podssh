@@ -245,7 +245,7 @@ Read:
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
   and the release with neither (`scripts/gate.sh:63-69`,
-  `scripts/gate.sh:87-90`). The help omits the work record, interop, the man
+  `scripts/gate.sh:93-96`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (`scripts/dev.sh:586`).
 - Stale comments: `scripts/dev.sh:55-59` ("the default build"),
   `scripts/dev.sh:381-388` ("links the fork since 4b", "steps 4-5"),
@@ -265,7 +265,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:55-136`).
+   (`scripts/gate.sh:55-142`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -337,7 +337,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:263-289`): the
+5. docs/development.md, "Release builds" (`docs/development.md:266-292`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -582,7 +582,7 @@ Read:
   (lines 67-73) and the live check (lines 75-92) follow it.
 - `.github/workflows/build.yml:3-5`: CI implements nothing of the gate again.
 - `scripts/gate.sh:5-6`: the gate takes no argument. Its steps are at
-  `scripts/gate.sh:63-136`.
+  `scripts/gate.sh:63-142`.
 - `scripts/gate.sh:18-29`: one cargo job for each 3 GiB of free memory.
 - AGENTS.md, section 4: on the operator's machine, one build at a time
   (`scripts/dev.sh:540-559` holds a lock).
@@ -813,9 +813,9 @@ code is not in the default style of rustfmt.
 
 Read:
 
-- `scripts/gate.sh:55-136` has no step for rustfmt or clippy. There is no
+- `scripts/gate.sh:55-142` has no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
-- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:288`).
+- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:291`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
   `crates/podssh-transport/src/socket.rs` (458),
   `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
@@ -872,7 +872,7 @@ is 486. Measure again before the format.
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
-(`docs/design.md:275-277`) show that a dependency can get one.
+(`docs/design.md:276-278`) show that a dependency can get one.
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -918,7 +918,7 @@ Read:
    with all features (the fork comes with `ts`).
 3. Notices: make a file of third-party licenses for each release (cargo-about,
    a Rust tool), publish it with the binaries, and name it in the notes.
-4. docs/development.md, "Checks" (`docs/development.md:67-77`): the command.
+4. docs/development.md, "Checks" (`docs/development.md:68-78`): the command.
    `SECURITY.md`: how an advisory is handled.
 
 ## Decision
@@ -1498,7 +1498,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:42-47`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:74-77`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:80-83`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -1515,7 +1515,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:127-128` lists what the containers do not get; name
+5. `docs/development.md:130-131` lists what the containers do not get; name
    each excluded pattern there.
 
 ## Prove

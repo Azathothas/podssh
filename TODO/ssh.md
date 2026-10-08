@@ -1045,7 +1045,7 @@ On the relay road, a write that makes no progress for 60 s ends the session.
 On the direct road (`--direct`), nothing limits a write. If the peer stops
 reading below SSH (a TCP zero window that never opens, or a path that drops
 each packet after the connection is up), `podssh ssh --direct` can wait for
-ever. `docs/design.md:169` says "A stuck write | Fails after 60 s" and names
+ever. `docs/design.md:170` says "A stuck write | Fails after 60 s" and names
 no road.
 
 ## Premise
@@ -1098,7 +1098,7 @@ Read:
    `ServerAliveInterval=0` before this choice.
 4. Keep the forwarder as a fault in `scripts/interop-faults.sh`, with the
    exit code and the time as its check.
-5. Name both roads in `docs/design.md:169`, and add the fault to
+5. Name both roads in `docs/design.md:170`, and add the fault to
    `docs/STATUS.md`. This is not the path of GitHub #17 (T-024, T-025): there
    the relay closes the session.
 

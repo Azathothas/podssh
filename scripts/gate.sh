@@ -68,6 +68,12 @@ run "library crates build with no C compiler" \
 run "library crates: tests, no C compiler" \
     env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast $LIBS
 
+# The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
+# its test runs with the feature, and the binary must never enable it.
+run "plain ws:// to the loopback: test (feature plain-ws, no C compiler)" \
+    env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-ws --features plain-ws --test plain_loopback
+run "the binary does not enable plain-ws" sh scripts/no-plain-ws.sh
+
 # The work record (TODO/): the checker's own tests, where each planted
 # disagreement must be found, then the record of this tree. A count, a status
 # or a cited line that disagrees fails the gate. Pure Rust, no C.

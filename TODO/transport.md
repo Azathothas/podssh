@@ -181,7 +181,7 @@ The first test feeds the double a Close with code 1001 and `pair expired`. It as
 `TransportError::Closed` with that code and reason, and `retry() == Retry::NewPair`; with
 `operator stopped reverse relay` it asserts `Retry::Never`. Add one Close payload captured from
 the live relay (for example `1000 target closed` through `podssh proxy`) as a fixture, so the
-parser also meets bytes that podssh did not make (`docs/development.md:201-203`). The second test
+parser also meets bytes that podssh did not make (`docs/development.md:204-206`). The second test
 asserts that an unmatched `4000 x` and a node's `1011 connection refused` both show their own code
 and reason. Plant: delete the new 0x8 arm; the first test must fail with `Unexpected`.
 
@@ -370,7 +370,7 @@ never pushed on that path (`crates/podssh-transport/src/backpressure/ledger.rs:1
 (`crates/podssh-transport/src/backpressure/ledger.rs:240-252`, compare `:193-204`), so a session
 can pass the 32 MiB budget.
 
-Read: the design removes the module (`docs/design.md:106-107`). The SSH window of 512 KiB is the
+Read: the design removes the module (`docs/design.md:107-108`). The SSH window of 512 KiB is the
 flow control that podssh uses (`docs/relay.md:165-166`).
 
 ## Approach
@@ -385,7 +385,7 @@ flow control that podssh uses (`docs/relay.md:165-166`).
 
 ## Decision
 
-Recommendation: delete the module, because the design already says so (`docs/design.md:106-107`),
+Recommendation: delete the module, because the design already says so (`docs/design.md:107-108`),
 nothing uses it, and its premise contradicts the measured forward path. The alternative, repair
 the two ledger defects and keep it for the reverse legs, lost: the ledger measures local write
 completions, which do not show the relay's queue, so a repaired ledger still paces on the wrong
