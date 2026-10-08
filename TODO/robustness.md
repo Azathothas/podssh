@@ -306,7 +306,7 @@ Read, the bounds today:
    table states the forward path's bound, and the result of T-062 when it
    exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:181-184`): a proxy head that never ends stops at
+   (`docs/development.md:187-190`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -436,7 +436,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 71-136 (`docs/STATUS.md:156-172`, 11 of 11).
+  checks are at lines 71-136 (`docs/STATUS.md:160-176`, 11 of 11).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:236`, enforced at
   `crates/podssh-ssh/src/run.rs:109-114`); a reply, 30 s
@@ -516,7 +516,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   more, for `podssh keygen`.
 - `scripts/interop.sh:31-32` installs `openssh-server`, `openssh-keygen` and
   others, but no client package. No harness runs the stock `ssh`; only
-  `scripts/sandbox-check.sh:70-75` does, in a sandbox. Nobody knows whether
+  `scripts/sandbox-check.sh:103-108` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
 - `crates/podssh-ssh/src/io.rs:115-120` maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number

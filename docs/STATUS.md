@@ -62,7 +62,7 @@ in [ROADMAP.md](ROADMAP.md).
 | Interactive use in a Windows console: `scripts/interop-conpty.py` (a real ConPTY), `--direct` to a Tailscale SSH server | **14 of 14,** with the debug build and with the release workflow's binary: window size, resize, Ctrl-C to the remote command, `vi`, `less`, `top`, a command's exit status through a pty, `~.`, and the console's input mode restored after each session. A planted podssh that does not restore the console fails the three restore checks. |
 | The exit status of an interactive login shell on Tailscale SSH | 0 for `exit 7`, also with the client of OpenSSH 10.3: that server sends no status for an interactive login shell. A command's status (`-t ... 'exit 7'`) is 7 with both clients. |
 | Repeated flags, against `ssh -G` of OpenSSH 10.3p1 (`cargo test -p podssh-cli --test ssh_args`) | As OpenSSH: the first `-p` and `-l`, the last `-e`, `-E` and `-F`, the first value of each `-o` keyword. A second `-J`, `-W`, `--relay-host`, `--relay-addr` or `--ca-file` is refused with exit 64 before anything connects. Before 2026-10-08, the last value won, and `-J a -J b` dropped the first hop. |
-| A `/dev/tty` that is not the controlling terminal, or a terminal that nobody watches (`cargo test -p podssh-ssh`, Linux) | The terminal is used only when the kernel names it (`isatty`, the same session, `tty_nr` not 0). With stdin, stdout and stderr all redirected, a prompt waits 60 s at most, then refuses with the remedy. A sandbox had measured a silent hang: `/dev/tty` opened with no controlling terminal, and the read never returned. |
+| A `/dev/tty` that is not the controlling terminal, or a terminal that nobody watches (`cargo test -p podssh-ssh`, Linux; the box) | The terminal is used only when the kernel names it (`isatty`, the same session, `tty_nr` not 0). With stdin, stdout and stderr all redirected, a prompt waits 60 s at most, then refuses with the remedy. A sandbox had measured a silent hang: `/dev/tty` opened with no controlling terminal, and the read never returned. In the box, with such a `/dev/tty`, `keygen` and the host-key prompt refuse within 1 s ("In a box like the target sandbox"). |
 | In two real sandboxes, 2026-10-08 (T-001) | `ssh -T` and `ssh -tt` to `github.com` reach `Permission denied (publickey)` through the relay. In one run, the relay closed the session with `1011 write failed: Network connection lost` (T-024). Interactive programs over `-tt` were not run (T-004). See "In the operator's real sandboxes, measured". |
 
 ## `podssh proxy`, measured live
@@ -99,16 +99,19 @@ in [ROADMAP.md](ROADMAP.md).
 
 ## In a box like the target sandbox, measured
 
-`sh scripts/test_in_box.sh` on a Podman 5.8.6 machine on Windows, with the
-release workflow's static x86_64 binary of `aa9cfaa`, 2026-10-08:
+`sh scripts/test_in_box.sh` on a Podman 6.1.2 machine on Windows, with the
+gate's static x86_64 binary of `4bf0c26` (CI run 37783671123), 2026-10-08:
 
 | Check | Result |
 | --- | --- |
-| The box against the sandprobe report (`scripts/box/probe.sh`) | 17 of 17 required properties match: uid 0 has no name; no capabilities, `NoNewPrivs=1`, seccomp; no `/dev/ptmx`; no DNS; no direct TCP; UDP and `bind` refused; the proxy answers `200` for ports 443, 80 and 8443, `403 not on the egress allowlist` for ports 22 and 25 and for `127.0.0.1:22`, and `403 not a public host` for metadata and private addresses. |
-| The probe, planted: the same image with an open network and no filter | All 9 required checks fail, exit 1. |
+| The box against the sandprobe report (`scripts/box/probe.sh`) | 17 of 17 required properties match: uid 0 has no name; no capabilities, `NoNewPrivs=1`, seccomp; no `/dev/ptmx`; a `/dev/tty` that opens and never answers, and no controlling terminal; no DNS; no direct TCP; UDP and `bind` refused; the proxy answers `200` for ports 443, 80 and 8443, `403 not on the egress allowlist` for ports 22 and 25 and for `127.0.0.1:22`, and `403 not a public host` for metadata and private addresses. |
+| The probe, planted: the same image with an open network and no filter (`aa9cfaa`) | All 9 required checks of that version fail, exit 1. |
+| The probe, planted: the same box with no `/dev/tty` bound | `DIFFERS /dev/tty`: `can't open '/dev/tty': No such device or address`, exit 1. |
 | `podssh doctor` in the box | 27 ok, 0 FAIL, 0 ????. No passwd entry, no pty, `bind` refused, `/dev/shm` noexec, DNS refused. The four relay hosts are reached through the proxy; a token is minted; `github.com:22` meets GitHub's Ed25519 key. |
 | `podssh proxy github.com 22` | GitHub's banner, exit 0. |
 | `podssh keygen`, then `podssh ssh` and `ssh -tt` to `github.com` with that key | Exit 255, `Permission denied (publickey)`: the handshake and the host-key check pass through the proxy and the relay. |
+| A prompt with nobody to answer it, on the `/dev/tty` that never answers (T-005, GitHub #15) | `podssh keygen` with no `-N` and no `SSH_ASKPASS`: exit 1 after 0 s; it names `-N ''` and writes no key. `podssh ssh -o StrictHostKeyChecking=ask` to `github.com` with no `known_hosts`: exit 255 after 1 s, with GitHub's fingerprint and `accept-new`. The run exits 0. |
+| The same, planted: the gate's binary of `d0b16a3`, before `eacd94e` | `keygen` waits until `timeout` stops it at 90 s (exit 143); `ssh` waits until its 60 s handshake limit. Both steps print `FAIL`, and the run exits 1. |
 | The `ssh` of OpenSSH with podssh as its `ProxyCommand` | `No user exists for uid 0`, exit 255: the client of OpenSSH cannot run when the user database has no entry. |
 
 ## In the operator's real sandboxes, measured
@@ -131,7 +134,8 @@ reports are outside the repository.
 | Short sessions in a row | 179 of 180 (one `1011` close; GitHub #17) | Not measured |
 
 Not measured in a real sandbox yet: interactive programs over `-tt`
-(T-004), the prompt repair of `eacd94e` (T-005), and `podssh ts`.
+(T-004), the prompt repair of `eacd94e` (measured in the box, T-005), and
+`podssh ts`.
 
 ## `podssh keygen`, measured
 

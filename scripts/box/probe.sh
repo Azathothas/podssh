@@ -44,6 +44,24 @@ else
     match /dev/ptmx "absent"
 fi
 
+# /dev/tty opens and never answers, and the process has no controlling
+# terminal (sandprobe: "opened but no byte available within 10s; it blocked
+# rather than refused"). A prompt that trusted the open waited for ever
+# there (GitHub #15). busybox timeout exits 143, GNU timeout 124.
+ctty=$(awk '{ print $7 }' /proc/self/stat)
+tty=$(timeout 5 dd if=/dev/tty of=/dev/null bs=1 count=1 2>&1)
+rc=$?
+case $rc in
+    124 | 143)
+        if [ "$ctty" = 0 ]; then
+            match /dev/tty "opens, no byte within 5 s, no controlling terminal"
+        else
+            differs /dev/tty "the controlling terminal (tty_nr $ctty)" "no controlling terminal"
+        fi
+        ;;
+    *) differs /dev/tty "$(printf '%s' "${tty:-exit $rc}" | head -n 1)" "opens, and no byte within 10 s" ;;
+esac
+
 # No DNS: the resolver is listed but nothing answers.
 if timeout 10 nslookup github.com >/dev/null 2>&1; then
     differs DNS "github.com resolves" "unresolved (Temporary failure in name resolution)"

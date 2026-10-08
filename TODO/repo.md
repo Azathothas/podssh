@@ -179,7 +179,7 @@ Read:
   (`.github/workflows/release.yml:34-35`). So the pin must be the digest of
   the multi-platform index, not the digest of one platform's image.
 - The box uses two more moving tags, `alpine:3.20` and `python:3.12-alpine`
-  (`scripts/test_in_box.sh:29-30`).
+  (`scripts/test_in_box.sh:30-31`).
 - `scripts/gate.sh:50-53` prints the toolchain of each run, so the logs show
   the drift.
 
@@ -337,7 +337,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:224-250`): the
+5. docs/development.md, "Release builds" (`docs/development.md:230-256`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -652,17 +652,17 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:100-112`: the box, measured by hand on 2026-10-08.
-- `scripts/test_in_box.sh:101-103`: the box runs `probe.sh`, then
+- `docs/STATUS.md:100-115`: the box, measured by hand on 2026-10-08.
+- `scripts/test_in_box.sh:144-146`: the box runs `probe.sh`, then
   `sandbox-check.sh`, and the script exits with the code of the second.
-  `scripts/sandbox-check.sh:45-75` prints the exit code of each step and does
+  `scripts/sandbox-check.sh:45-108` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
-- `scripts/box/probe.sh:104-109` exits 1 when the box differs from the sandbox
+- `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:107`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:94-98`).
-- The box uses `--disable-dns` (`scripts/test_in_box.sh:68`) and a mask on
-  `/dev/pts` (`scripts/test_in_box.sh:92`). Nobody measured the Podman of a
+- The box uses `--disable-dns` (`scripts/test_in_box.sh:90`) and a mask on
+  `/dev/pts` (`scripts/test_in_box.sh:134`). Nobody measured the Podman of a
   GitHub runner with them.
 - The box reaches the live relay and `github.com` through its proxy.
 
@@ -685,7 +685,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:131`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:134`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -705,6 +705,17 @@ The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
 of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:108`,
 and the job must fail.
+
+## Correction
+
+2026-10-08, counted in the probe of `HEAD` and in the log of the box: the
+probe had 16 required properties, not 17, until the commit "The box has the
+sandbox's dead /dev/tty; T-005 measured there". That commit added the 17th
+(`/dev/tty`), so the count of 17 holds from then on. Since that commit, the
+step "a prompt with nobody to answer it" fails the run of
+`scripts/sandbox-check.sh`; its other steps still do not (T-006). The dead
+tty needs Python 3 and `setsid` on the Podman host (`scripts/box/deadtty.py`),
+so the job of this entry must have both; nobody measured a runner for them.
 
 # T-214: CI on Windows
 
@@ -732,7 +743,7 @@ Read:
 - `.github/workflows/release.yml:65-106`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
-- `docs/STATUS.md:194`: 660 tests pass on Windows, run by hand.
+- `docs/STATUS.md:198`: 660 tests pass on Windows, run by hand.
   `docs/STATUS.md:62`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
@@ -1080,7 +1091,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:91-93` states the rule with `CXX`, and
-  `docs/STATUS.md:200` records the measurement. Rule 4 of
+  `docs/STATUS.md:204` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:67-73` runs the plant on each push.
@@ -1111,7 +1122,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:200`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:204`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1387,13 +1398,13 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:122`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:125`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
 - `docs/target-environment.md:25`: for listening, "The probe did not measure
   it".
-- `scripts/box/probe.sh:68-74` checks an AF_INET listen only, and expects the
+- `scripts/box/probe.sh:86-92` checks an AF_INET listen only, and expects the
   refusal. `doctor` probes both families
   (`crates/podssh-cli/src/doctor/host.rs:20-21`).
 - A seccomp filter compares the arguments of a call as numbers. It cannot read

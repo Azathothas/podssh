@@ -23,7 +23,7 @@ repository.
 | UDP | `EPERM` |
 | DNS | The system resolver fails for each name (port 53 is refused). The proxy resolves the names that `CONNECT` gives, so a client that uses the proxy needs no DNS. |
 | Listening | The probe did not measure it. The operator reports that binding sockets is not allowed. |
-| Terminal | No `/dev/ptmx` and no `/dev/pts`. `TERM=xterm-256color` is set. |
+| Terminal | No `/dev/ptmx` and no `/dev/pts`. `/dev/tty` opens, but no byte came within 10 s: the read blocked, and the process has no controlling terminal. `TERM=xterm-256color` is set. |
 | Other devices | No `/dev/net/tun`. |
 | Writable | `/tmp`, `/dev/shm`, `$HOME`, the workspace. `/etc/ssl` is read-only. |
 | Tools | That image had `ssh`, `curl`, `openssl`, `python3`, compilers and `cargo`. Other images do not, and the same image changed between sessions. |

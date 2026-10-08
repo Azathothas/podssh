@@ -149,11 +149,17 @@ The box has these properties:
 - A resolver that does not answer, no capabilities, `no_new_privs`, and a
   seccomp filter that refuses `bind` and UDP (`scripts/box/seccomp.json`).
 - No `/dev/ptmx`, and uid 0 with no name.
+- A `/dev/tty` that opens and never answers, and no controlling terminal,
+  as in the target sandbox. `scripts/box/deadtty.py` holds a pty with
+  nobody at its master on the Podman host (the Podman machine on Windows),
+  and the box has its slave at `/dev/tty`. It needs Python 3 and `setsid`
+  on that host.
 
 `scripts/box/probe.sh` compares the box with the operator's sandprobe report
 of the target sandbox. If a required property is different, the script stops
 and does not run podssh. Then `scripts/sandbox-check.sh` runs `doctor`,
-`proxy`, `keygen`, `ssh`, and OpenSSH with podssh as its `ProxyCommand`.
+`proxy`, `keygen`, `ssh`, a prompt with nobody to answer it, and OpenSSH
+with podssh as its `ProxyCommand`.
 
 NOTE: The box does not give EACCES for `connect()` to loopback and to some
 ports, as the sandbox does.

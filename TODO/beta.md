@@ -187,7 +187,7 @@ T-001 with the static musl artifact of CI run 37745692511.
 **Milestone:** M3
 **Priority:** P1
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -234,10 +234,36 @@ keygen command exits 1 at once with the refusal that names `-N ''`, and
 
 ## Done
 
-2026-10-08, commit `eacd94e`: `cargo test -p podssh-ssh` passed on Linux in CI
-run 37756964230, with the tests `a_tty_the_kernel_does_not_name_is_not_trusted`,
-`a_read_with_a_deadline_stops_when_nobody_answers` and
-`an_answer_in_time_is_read`. Not yet measured in a sandbox.
+2026-10-08. The repair is commit `eacd94e`. The measurement in the box is
+the commit "The box has the sandbox's dead /dev/tty; T-005 measured there".
+
+- `cargo test -p podssh-ssh` passed on Linux in CI run 37756964230, with the
+  tests `a_tty_the_kernel_does_not_name_is_not_trusted`,
+  `a_read_with_a_deadline_stops_when_nobody_answers` and
+  `an_answer_in_time_is_read`.
+- The box has the `/dev/tty` of the target sandbox now:
+  `scripts/box/deadtty.py` holds a pty with nobody at its master on the
+  Podman host, and `scripts/test_in_box.sh` binds its slave at `/dev/tty`.
+  `scripts/box/probe.sh` checks it: in the box, "opens, no byte within 5 s,
+  no controlling terminal"; planted (the same box with no bound tty),
+  `DIFFERS` with "No such device or address", exit 1.
+- `scripts/sandbox-check.sh` has the step "a prompt with nobody to answer
+  it", under `setsid`. In the box, with the gate's static binary of
+  `4bf0c26` (CI run 37783671123): `podssh keygen` with no `-N` and no
+  `SSH_ASKPASS` exits 1 after 0 s with "there is no terminal and no
+  SSH_ASKPASS to ask for a passphrase; use -N '' for a key without one", and
+  writes no key. `podssh ssh -o StrictHostKeyChecking=ask` to `github.com`
+  with no `known_hosts` exits 255 after 1 s, with GitHub's fingerprint and
+  `accept-new`. The run exits 0.
+- The planted control: the gate's binary of `d0b16a3`, before `eacd94e`, in
+  the same box. `keygen` waits until `timeout` stops it at 90 s (exit 143);
+  `ssh` waits until its 60 s handshake limit ("the SSH handshake did not
+  finish within 60 s"). Both steps print `FAIL`, and the run exits 1.
+- Found on the way: on Windows, each podman command wrote the Podman
+  machine's host key to a file named `NUL` in the current directory.
+  `scripts/test_in_box.sh` now runs podman from its own work directory.
+- A run in a real sandbox follows the release (`TODO/PROGRESS.md`,
+  "Operator actions").
 
 # T-006: `scripts/sandbox-check.sh` exits 0 when its steps fail, and ignores `CARGO_TARGET_DIR` (GitHub #28)
 
@@ -262,7 +288,7 @@ with no user database entry, the OpenSSH step prints `No user exists for uid
 
 Read: the path of the built binary is fixed (`scripts/sandbox-check.sh:41`);
 each step prints its exit code and goes on; the OpenSSH step runs only when
-`ssh` exists (`scripts/sandbox-check.sh:70`); the last line is `exit 0`.
+`ssh` exists (`scripts/sandbox-check.sh:103`); the last line is `exit 0`.
 `scripts/test_in_box.sh` runs this script in the box, so the box's result has
 the same defect. Measured by the reporter, with eleven `exit=127` lines in a
 run that exited 0.

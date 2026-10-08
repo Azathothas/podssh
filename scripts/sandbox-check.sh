@@ -67,9 +67,43 @@ echo "exit=$?"
 HOME="$T" timeout 90 "$B" ssh -o StrictHostKeyChecking=accept-new -o BatchMode=yes -i "$T/key" -tt git@github.com </dev/null
 echo "-tt with no terminal: exit=$?"
 
+say "a prompt with nobody to answer it (GitHub #15): podssh stops at once and names the remedy"
+# podssh asks only on a terminal that the kernel names as its own, or through
+# SSH_ASKPASS. setsid drops a terminal of the caller, so each host gives the
+# same answer. In the target sandbox /dev/tty opens and never answers; a
+# podssh that trusted the open waited there for ever.
+failed=0
+SETSID=$(command -v setsid || true)
+[ -n "$SETSID" ] || echo "(no setsid here: the steps run in this session)"
+asked() { # asked OUT ERR COMMAND...: run it with nobody to answer; sets rc and secs
+    out=$1 err=$2
+    shift 2
+    start=$(date +%s)
+    # shellcheck disable=SC2086  # SETSID is empty or one path
+    env -u SSH_ASKPASS -u SSH_ASKPASS_REQUIRE -u DISPLAY -u WAYLAND_DISPLAY \
+        timeout 90 $SETSID "$@" </dev/null >"$out" 2>"$err"
+    rc=$?
+    secs=$(($(date +%s) - start))
+}
+verdict() { # verdict NAME yes|no DETAIL
+    if [ "$2" = yes ]; then printf 'ok    %s: %s\n' "$1" "$3"; else printf 'FAIL  %s: %s\n' "$1" "$3"; failed=1; fi
+}
+asked "$T/kp.out" "$T/kp.err" "$B" keygen -t ed25519 -q -f "$T/kprompt"
+ok=no
+[ "$rc" = 1 ] && [ "$secs" -lt 30 ] && grep -q -- "-N ''" "$T/kp.err" && [ ! -e "$T/kprompt" ] && ok=yes
+verdict "keygen with no -N" "$ok" "exit $rc after ${secs} s (want 1 within 30 s, -N '' named, no key written)"
+head -n 3 "$T/kp.err"
+mkdir -p "$T/fresh"
+asked "$T/hp.out" "$T/hp.err" env HOME="$T/fresh" "$B" ssh -o StrictHostKeyChecking=ask -i "$T/key" -T git@github.com true
+ok=no
+[ "$rc" = 255 ] && [ "$secs" -lt 60 ] && grep -q 'SHA256:' "$T/hp.err" && grep -q 'accept-new' "$T/hp.err" && ok=yes
+verdict "an unknown host key" "$ok" "exit $rc after ${secs} s (want 255 within 60 s, the fingerprint and accept-new named)"
+head -n 4 "$T/hp.err"
+
 if command -v ssh >/dev/null; then
     say "OpenSSH with podssh as its ProxyCommand"
     timeout 90 ssh -o ProxyCommand="$B proxy %h %p" -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
         -o UserKnownHostsFile="$T/known_hosts_openssh" -i "$T/key" -T git@github.com </dev/null
     echo "exit=$?"
 fi
+exit "$failed"

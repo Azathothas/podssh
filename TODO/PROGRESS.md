@@ -16,8 +16,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   work order below does them first. There is one release only: `v1.0.0`, at
   the end (T-250).
 - **GitHub.** 36 issues on 2026-10-08. #1, #4, #5 and #16 are closed by their
-  commits (T-014, T-015, T-016, T-017). #15 is repaired in `eacd94e` and waits
-  for a measurement in a sandbox (T-005). The feature requests #18 to #26 are
+  commits (T-014, T-015, T-016, T-017). #15 is repaired in `eacd94e`,
+  measured in the box, and closed (T-005). The feature requests #18 to #26 are
   split into entries. The requests #29 to #36 came later the same day; each
   is an entry (T-027, and T-220 to T-227). The operator ruled on the
   twelve questions of scope and design the same day (`docs/decisions.md`).
@@ -41,7 +41,7 @@ cargo 1.98.0 and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 249 entries: 235 open, 1 partial, 6 blocked, 7 done.
+`TODO/INDEX.md` holds 249 entries: 235 open, 0 partial, 6 blocked, 8 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -62,8 +62,7 @@ then take the next one. Each session runs unattended until the goal of
    T-011, T-023, T-024, T-230, T-231, T-233, T-234, T-236, T-237, T-238 and
    T-239.
 4. T-003: the decision about the compiled-in roots.
-5. T-005 and T-004, measured in the box (the operator's ruling of
-   2026-10-08).
+5. T-004, measured in the box (the operator's ruling of 2026-10-08).
 
 **After M3 and before M4 (the operator's ruling of 2026-10-08):**
 the surface for agents: T-049, T-050, T-012, T-052 and T-051.

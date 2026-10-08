@@ -25,7 +25,7 @@ Triage of 2026-10-08: issues #1 to #36.
 | #12 | `PODSSH_TIMEOUT` | open | T-012 |
 | #13 | `podssh doctor --full` | open | T-052 |
 | #14 | `ssh_config`, `-F` and `-G` | open | T-043, T-044, T-045, T-046 |
-| #15 | `keygen` waits for ever on a dead `/dev/tty` | open | T-005 (repaired in `eacd94e`; the sandbox measurement is owed) |
+| #15 | `keygen` waits for ever on a dead `/dev/tty` | closed | T-005 (repaired in `eacd94e`; measured in the box in the commit "The box has the sandbox's dead /dev/tty; T-005 measured there") |
 | #16 | A repeated flag keeps the last value | closed | T-017 |
 | #17 | Relay drops (1011): a generic message, no retry | open | T-024, T-025; T-062 (the backpressure close) |
 | #27 | Repository health | open | T-205, T-206, T-207, T-208, T-209, T-210, T-211, T-212, T-213, T-214, T-215, T-216, T-217, T-218 |

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**249 entries: 235 open, 1 partial, 6 blocked, 7 done.**
+**249 entries: 235 open, 0 partial, 6 blocked, 8 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 5 | 1 | 0 | 3 | 9 |
+| P1 | 5 | 0 | 0 | 4 | 9 |
 | P2 | 137 | 0 | 2 | 3 | 142 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 235 | 1 | 6 | 7 | 249 |
+| **All** | 235 | 0 | 6 | 8 | 249 |
 
 ## Entries
 
@@ -78,7 +78,7 @@ repository and CI).
 | [T-001](beta.md) | P1 | M | M3 | measurement | done | Measure podssh in the operator's real sandbox |
 | [T-003](beta.md) | P2 | S | M3 | research | open | Decide how the compiled-in root certificates get updates in released binaries |
 | [T-004](beta.md) | P2 | S | M3 | measurement | open | Interactive use over `-tt` from a box like the sandbox: vi, less, top and Ctrl-C |
-| [T-005](beta.md) | P1 | S | M3 | defect | partial | A prompt never waits for ever on a `/dev/tty` with nobody behind it (GitHub #15) |
+| [T-005](beta.md) | P1 | S | M3 | defect | done | A prompt never waits for ever on a `/dev/tty` with nobody behind it (GitHub #15) |
 | [T-006](beta.md) | P1 | S | M3 | defect | open | `scripts/sandbox-check.sh` exits 0 when its steps fail, and ignores `CARGO_TARGET_DIR` (GitHub #28) |
 | [T-007](cli.md) | P1 | S | M3 | defect | open | Bracketed IPv6 literal destinations are refused (GitHub #2) |
 | [T-008](cli.md) | P2 | S | M3 | defect | open | The `--timeout` refusal with no terminal names `chat` for each command, and contradicts itself (GitHub #6) |
