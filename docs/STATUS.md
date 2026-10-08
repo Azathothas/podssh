@@ -48,7 +48,8 @@ in [ROADMAP.md](ROADMAP.md).
 | `podssh node`, `podssh operator` | Not implemented (exit 70). Milestone M4. |
 | `podssh cp`, `podssh mv` | Not implemented (exit 70). Milestone M5. |
 | `podssh relay` | Not implemented (exit 70). Milestone M4. |
-| `podssh chat`, `podssh status` | Not implemented (exit 70). Milestone M8. |
+| `podssh status` | **Works.** One line of JSON about this host: the relays and where they came from, the pool, the token (never the token), the proxy (never its credentials), the terminal, and a destination's host key. No connection, no DNS, no write (T-051). |
+| `podssh chat` | Not implemented (exit 70). Milestone M8. |
 | A command that is not implemented, with no terminal (T-008) | Exit 70, "not implemented yet", before the `--timeout` check: `cp`, `mv`, `relay` and `chat` with stdin from `/dev/null` (`PODSSH_OFFLINE=1`, 2026-10-08). A `--timeout` that does not parse is still 64. |
 | A relay variable that cannot be used (T-231), offline | `PODSSH_RELAY='bad host!'` and `PODSSH_RELAY_ADDR=nonsense` give exit 78 and the variable's name, for `proxy`, `ssh` and `doctor`. `--relay-host 'bad host!'` and `--relay-addr nonsense` stay 64 (`cargo test -p podssh-cli --test proxy -- a_bad_variable_is_a_configuration_error`, 2026-10-08). |
 | `PODSSH_TIMEOUT` (T-012, GitHub #12) | The default of `--timeout`: with `PODSSH_TIMEOUT=30s` and no terminal, `podssh ts` (a `ts` build, in the container) passes the gate (77 at the missing key file); without it, 64; `30x` gives 78 and names the variable. The flag wins (`cargo test -p podssh-cli --test non_interactive -- podssh_timeout`). |
@@ -176,7 +177,7 @@ Not measured in a real sandbox yet: interactive programs over `-tt`
 | `podssh man --json` (T-050, GitHub #10), offline | One object with the options, the commands (availability, arguments, flags with kind and `instead`), the `-o` keywords, the variables, the files and the exit codes; each flag of each working command's `--help` is in it with the same value name, kind and replacement; the bytes are the same with an empty environment (`cargo test -p podssh-cli --test man_json`). |
 | A real Windows console (ConPTY, 20 rows), debug build | 8 of 8: the built-in pager shows one screen and its prompt; Enter shows the next; `q` and the end of input stop it with exit 0; `--no-pager` writes to the end with no prompt. |
 | groff 1.23.0 and mandoc, Alpine 3.22 | The former `Fl` macro (`\$*`) printed blank flag names in both. The new page shows each flag in both. |
-| `scripts/interop-man.sh` in the container gate, the static binary | 65 flag spellings from the `--help` of `ssh`, `proxy`, `man`, `doctor` and `keygen` (gate run of 2026-10-09, after T-050): groff and mandoc show each one. groff `-ww` gives no warning; `mandoc -Tlint` gives no error. The planted page fails (2 spellings missing). |
+| `scripts/interop-man.sh` in the container gate, the static binary | 66 flag spellings from the `--help` of `ssh`, `proxy`, `man`, `status`, `doctor` and `keygen` (gate run of 2026-10-09, after T-051): groff and mandoc show each one. groff `-ww` gives no warning; `mandoc -Tlint` gives no error. The planted page fails (2 spellings missing). |
 
 ## Faults between podssh and the relay, measured
 
@@ -221,12 +222,12 @@ behind them.
 | What | Result | Command |
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
-| The default tests | **767 passed, 0 failed, 7 ignored** (the live tests), Windows, 2026-10-09 | `cargo test --no-fail-fast` |
+| The default tests | **770 passed, 0 failed, 7 ignored** (the live tests), Windows, 2026-10-09 | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
 | The work record | `TODO/` agrees with itself. The checker's tests pass: 12 unit tests, 32 plant tests (the control, and 31 planted disagreements, each found), 10 tests of the remap, 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 8 of its 10 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |
-| The static release binary | **4,151,808 bytes** (gate run of 2026-10-09, after T-050): a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
-| The container gate | **Green** (run of 2026-10-09, after T-050): each build and test step; interop 103 of 103 (64 SSH checks, 25 keygen checks, 14 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
+| The static release binary | **4,200,960 bytes** (gate run of 2026-10-09, after T-051): a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
+| The container gate | **Green** (run of 2026-10-09, after T-051): each build and test step; interop 103 of 103 (64 SSH checks, 25 keygen checks, 14 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
 | The no-C plant | Fails for the right reason when `ring` is planted (no C compiler), twice, and when a crate that compiles C++ is planted (it stops at `CXX=/nonexistent`). With `CC=/nonexistent` alone, the C++ build is not stopped there, so `CXX` is load-bearing. The control passes. Measured 2026-10-08 in `rust:1-alpine`. | `sh scripts/dev.sh plant` |
 | CI | Runs the gate on each push. Each run from `9b806fe` to `e275d36` passed. | `gh run list` |
 | The release workflow, run by hand | Linux x86_64 and aarch64 static, Windows with no C runtime DLL; publish skipped | `gh workflow run release.yml --ref main` |

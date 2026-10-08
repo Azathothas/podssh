@@ -67,7 +67,7 @@ server listens, and the client connects out for each connection.
    proxy's answer, or the error of a refused loopback connection.
 6. Change the `-R` row to supported and the keyword to honoured. T-230
    corrected the texts of the `-R` refusal (the help and the manual's note
-   at `crates/podssh-cli/src/man/notes.rs:31-33`). Change the test that
+   at `crates/podssh-cli/src/man/notes.rs:32-34`). Change the test that
    asserts the refusal (`crates/podssh-cli/tests/flag_table.rs:67-86`).
    Update `docs/cli.md:105-119` (correct line 78) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
@@ -100,7 +100,7 @@ channel for any port, and the second test fails.
 `podssh ssh -R 8080:localhost:80 example.invalid` gives "-R SPEC is
 refused. Leave it out." and "remote forwarding is not implemented yet.",
 exit 64, as `-o RemoteForward` does; it names no `-W`. The manual's note
-gives `-R` a sentence of its own (`crates/podssh-cli/src/man/notes.rs:31-33`).
+gives `-R` a sentence of its own (`crates/podssh-cli/src/man/notes.rs:32-34`).
 The rest of the Premise holds.
 
 2026-10-08, T-237: podssh's handler now refuses each channel that the
@@ -352,7 +352,7 @@ AF_UNIX.
    variable that refuses each local listener (`-L`, `-D`, T-039, T-034). Add
    it to `VARIABLES` in `crates/podssh-cli/src/man/facts.rs`.
 6. In the same commit, change the rows, the keywords, the note at
-   `crates/podssh-cli/src/man/notes.rs:31-33`, the test at
+   `crates/podssh-cli/src/man/notes.rs:32-34`, the test at
    `crates/podssh-cli/tests/flag_table.rs:67-86`, and the documents that the
    Premise quotes.
 

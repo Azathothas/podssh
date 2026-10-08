@@ -60,6 +60,14 @@ pub fn alternates(primary: &str) -> Vec<String> {
     hosts.into_iter().filter(|h| same_deployment(primary, h)).collect()
 }
 
+/// The pool cached for `primary`: when it was fetched, and how many hosts
+/// it has.
+pub fn cached(primary: &str) -> Option<(i64, usize)> {
+    cache::load_file(&file_name(primary))
+        .and_then(|text| serde_json::from_str::<CachedPool>(&text).ok())
+        .map(|c| (c.fetched_ms, c.hosts.len()))
+}
+
 /// Whether the pool cached for `primary` is missing or older than
 /// [`STALE_AFTER_MS`] at `now_ms`.
 pub fn needs_refresh(primary: &str, now_ms: i64) -> bool {

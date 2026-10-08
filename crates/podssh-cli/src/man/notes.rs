@@ -9,6 +9,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "ssh" => SSH,
         "proxy" => PROXY,
         "doctor" => DOCTOR,
+        "status" => STATUS,
         "keygen" => KEYGEN,
         "man" => MAN,
         "ts" => TS,
@@ -84,6 +85,18 @@ const DOCTOR: &[&str] = &[
      os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown) and \
      counts (ok, fail, unknown). The details are the text's, the exit code is the same, and nothing is \
      printed before the object.",
+];
+
+const STATUS: &[&str] = &[
+    "podssh status writes one line of JSON on stdout and exits 0: schema, podssh, relays (each host and \
+     port) and relays_from (--relay-host, PODSSH_RELAY, or the default and its pool), pool (cached, when \
+     it was fetched, how many hosts), token (source: PODSSH_RELAY_TOKEN, cache or none; the relay that it \
+     is for; when it expires; whether it can be used), proxy (the variable and HOST:PORT), offline, \
+     attachment, stdin_tty and stdout_tty, and host for a destination (its name in known_hosts, whether \
+     a key is recorded, the key types).",
+    "It shows no token and no proxy credentials, opens no connection, asks no DNS and writes nothing. A \
+     bad --relay-host or destination is a usage error (64), a bad PODSSH_RELAY a configuration error \
+     (78). podssh doctor is the report that measures.",
 ];
 
 const KEYGEN: &[&str] = &[

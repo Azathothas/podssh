@@ -89,6 +89,40 @@ pub fn load_from(dirs: &[PathBuf], relay_host: &str, now_ms: i64) -> Option<Cach
     })
 }
 
+/// What the cache holds for `relay_host`, without the token: when it
+/// expires, the file, and the relay that minted it. The token field is never
+/// read into memory, so `podssh status` cannot hold or show a token.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Peek {
+    pub expires_ms: i64,
+    pub path: PathBuf,
+    pub minted_at: Option<String>,
+}
+
+/// An entry with each field but the token.
+#[derive(Deserialize)]
+struct Meta {
+    expires: i64,
+    #[serde(default)]
+    minted_at: Option<String>,
+}
+
+/// The entry for `relay_host` in the first directory that has a trusted one,
+/// expired or not, as a [`Peek`].
+pub fn peek(relay_host: &str) -> Option<Peek> {
+    peek_from(&candidate_dirs(), relay_host)
+}
+
+/// [`peek`] over explicit directories (for tests).
+pub fn peek_from(dirs: &[PathBuf], relay_host: &str) -> Option<Peek> {
+    let name = file_name(relay_host);
+    dirs.iter().find_map(|dir| {
+        let path = dir.join(&name);
+        let meta: Meta = serde_json::from_str(&read_trusted(&path)?).ok()?;
+        Some(Peek { expires_ms: meta.expires, path, minted_at: meta.minted_at })
+    })
+}
+
 /// The contents of the private file `name`, from the first directory that has
 /// a trusted one.
 pub fn load_file(name: &str) -> Option<String> {

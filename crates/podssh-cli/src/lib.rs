@@ -34,12 +34,14 @@ pub mod keygen;
 pub mod man;
 pub mod non_interactive;
 pub mod pager;
+pub mod parsed;
 pub mod pins;
 pub mod positionals;
 pub mod proxy;
 pub mod refuse;
 pub mod relay_settings;
 pub mod ssh;
+pub mod status;
 pub mod suggest;
 pub mod tree;
 // `podssh ts` links the vendored tailscale-rs fork, which needs a C toolchain,

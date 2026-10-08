@@ -348,6 +348,14 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
         "also log in to github.com through the relay with a key made for the check, which GitHub refuses", None),
 ];
 
+/// `status`: the relay settings that it reports, as `doctor` takes them.
+pub const STATUS_FLAGS: &[FlagRow] = &[
+    row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
+        "relay hosts to report, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
+    row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
+        "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
+];
+
 /// `keygen` takes the `ssh-keygen` flags scripts use. `-N` exists so that
 /// `-N ''` works; a non-empty passphrase there is refused, because every
 /// process on the host can read a command line.
@@ -406,8 +414,8 @@ pub const VERBS: &[Verb] = &[
         about: "this manual: each command, flag, variable, file and exit code" },
     Verb { name: "relay", aliases: &["relay"], flags: RELAY_FLAGS,
         about: "relay status, facts, and pair management" },
-    Verb { name: "status", aliases: &["status"], flags: &[],
-        about: "one-shot state, one line, machine-readable" },
+    Verb { name: "status", aliases: &["status"], flags: STATUS_FLAGS,
+        about: "the state of this host as one line of JSON: relays, token, proxy, terminal, a host key" },
     Verb { name: "doctor", aliases: &["doctor"], flags: DOCTOR_FLAGS,
         about: "what this host allows and whether the relay works: ok, FAIL or ???? per check" },
     Verb { name: "keygen", aliases: &["keygen", "ssh-keygen"], flags: KEYGEN_FLAGS,
@@ -432,7 +440,6 @@ pub const VERB_OWNER: &[(&str, &str)] = &[
     ("cp", "M5"),
     ("mv", "M5"),
     ("relay", "M4"),
-    ("status", "M8"),
 ];
 
 /// Whether a verb does something in this binary. `--help` and the manual

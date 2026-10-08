@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:449-457`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:456-464`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -118,7 +118,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:285-286`,
    file. `--iroh-key FILE` names the file, as `--ts-state` does; with no flag,
    it goes to the first usable directory of the cache chain
    (`crates/podssh-relay/src/cache.rs:58-73`). Reuse the private-file code of
-   the token cache (`crates/podssh-relay/src/cache.rs:173-206`: mode 0600, no
+   the token cache (`crates/podssh-relay/src/cache.rs:207-240`: mode 0600, no
    symbolic link, the owner checked); do not write a second copy.
 2. Print the fingerprint of the public key, never the secret key. A node key
    persists, and a node warns when it makes a new one, because its ticket
@@ -201,7 +201,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:19-51`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:20-52`).
 
 ## Decision
 
@@ -779,7 +779,7 @@ The part of podssh, when the start condition holds:
    URL or in output (`docs/relay.md:101-103`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
-   `crates/podssh-relay/src/pool.rs:71-80`).
+   `crates/podssh-relay/src/pool.rs:79-88`).
 5. Test against the relay's implementation, live, and against the stand-in
    relay with the same state machine.
 6. When the relay's version changes, update the pinned contract and

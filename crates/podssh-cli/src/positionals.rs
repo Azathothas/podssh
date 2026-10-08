@@ -47,7 +47,12 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .help("the host that the relay connects to, or an IPv6 address; HOST:PORT or [IPV6]:PORT in one word also works"),
             )
             .arg(Arg::new("port").value_name("PORT").help("the TCP port on that host")),
-        "status" | "doctor" | "keygen" => cmd,
+        "status" => cmd.arg(
+            Arg::new("destination")
+                .value_name("[user@]host")
+                .help("a host whose host key is looked up: [user@]host, host:PORT or [IPV6]:PORT"),
+        ),
+        "doctor" | "keygen" => cmd,
         // `ts` takes its three forms: bare (status), `[user@]host` (a session)
         // and `-W` (a byte pipe).
         "ts" => cmd

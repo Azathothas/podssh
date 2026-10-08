@@ -10,6 +10,7 @@ fn examples() -> Vec<(&'static str, String)> {
     let other = podssh_relay::pool::SEED[0];
     vec![
         ("what works on this host, one line for each check", "podssh doctor".into()),
+        ("the state of this host as one line of JSON, and whether a host's key is known", "podssh status github.com".into()),
         ("log in to a host, through the relay", "podssh ssh user@example.org".into()),
         ("run one command; podssh exits with its exit status", "podssh ssh user@example.org 'uname -a'".into()),
         (
@@ -171,6 +172,7 @@ mod tests {
                     Parsed::Command { verb, .. } => *verb,
                     Parsed::Proxy { .. } => "proxy",
                     Parsed::Doctor { .. } => "doctor",
+                    Parsed::Status { .. } => "status",
                     Parsed::Man { .. } => "man",
                     other => panic!("{command}: {other:?}"),
                 };

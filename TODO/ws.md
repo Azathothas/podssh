@@ -201,7 +201,7 @@ Read: `open_tls` builds the trust anchors and the configuration on each call
 `WsClientConfig` carries only a `Trust` (`crates/podssh-ws/src/client.rs:47-61`). The same
 `Trust` goes through `podssh-relay`: `Request` (`crates/podssh-relay/src/open.rs:127-137`),
 `MintContext` (`crates/podssh-relay/src/token.rs:92-97`), the pool refresh
-(`crates/podssh-relay/src/pool.rs:109-118`), and the `https_*` functions
+(`crates/podssh-relay/src/pool.rs:117-126`), and the `https_*` functions
 (`crates/podssh-ws/src/client.rs:253-279`). podssh's configuration offers no ALPN
 (`crates/podssh-ws/src/tls.rs:167-170`), because the upgrade is HTTP/1.1 only
 (`docs/relay.md:169`). The `tls12` feature of `rustls` is on in the workspace

@@ -162,6 +162,22 @@ The edit distance alone suggests `doctor` for `example.org` and `cp` for
   or `unknown`) and `counts`. The exit code does not change. `--json` is
   for a report that ends; `--jsonl` stays for the events of a long run.
 
+## `podssh status`
+
+`podssh status [--relay-host HOSTS] [--relay-addr HOST=IP] [[user@]host]`
+writes one line of JSON and exits 0 (GitHub #11). It is the cheap call
+before anything else; `podssh doctor` is the report that measures.
+
+- The line: `schema`, `podssh`, `relays` and `relays_from`, `pool`,
+  `token` (its source, the relay that it is for, its expiry, whether it can
+  be used), `proxy`, `offline`, `attachment`, `stdin_tty`, `stdout_tty`,
+  and `host` for a destination (its name in `known_hosts`, whether a key is
+  recorded, the key types).
+- It never holds a token: it reads the cache entry without its token field
+  (`cache::peek`). It shows no proxy credentials, opens no connection, asks
+  no DNS and writes nothing.
+- A bad flag or destination is 64, a bad variable 78, as for `doctor`.
+
 ## `podssh keygen`
 
 `podssh man keygen` gives the flags. The rules behind them:

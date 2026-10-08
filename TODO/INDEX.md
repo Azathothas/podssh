@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 211 open, 0 partial, 7 blocked, 32 done.**
+**250 entries: 210 open, 0 partial, 7 blocked, 33 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 116 | 0 | 3 | 24 | 143 |
+| P2 | 115 | 0 | 3 | 25 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 211 | 0 | 7 | 32 | 250 |
+| **All** | 210 | 0 | 7 | 33 | 250 |
 
 ## Entries
 
@@ -124,7 +124,7 @@ repository and CI).
 | [T-048](config.md) | P3 | M | backlog | feature | open | A podssh settings file for its own defaults, below flags and variables |
 | [T-049](machine.md) | P2 | S | backlog | feature | done | `podssh doctor --json` (GitHub #9) |
 | [T-050](machine.md) | P2 | S | backlog | feature | done | `podssh man --json`: the commands, flags, keywords, variables and exit codes as data (GitHub #10) |
-| [T-051](machine.md) | P2 | M | backlog | feature | open | `podssh status`: one line of JSON about the state of this host (GitHub #11) |
+| [T-051](machine.md) | P2 | M | backlog | feature | done | `podssh status`: one line of JSON about the state of this host (GitHub #11) |
 | [T-052](machine.md) | P2 | M | backlog | feature | done | `podssh doctor --full`: the end-to-end checks of `sandbox-check.sh`, in the binary (GitHub #13) |
 | [T-053](machine.md) | P2 | M | backlog | feature | open | `podssh ping`: a short check of the path, with latency and throughput |
 | [T-054](machine.md) | P3 | M | backlog | feature | open | A machine-readable result for `podssh ssh`: exit status, signal and byte counts |

@@ -21,7 +21,7 @@ Triage of 2026-10-08: issues #1 to #36.
 | #8 | A missing value reads as an unknown flag | closed | T-009 (the commit "A flag with no value names the flag and its value") |
 | #9 | `podssh doctor --json` | closed | T-049 (the commit "podssh doctor --json") |
 | #10 | A machine-readable flag table | closed | T-050 (the commit "podssh man --json"), and T-010 (`--help --json` drops `--json`; done in the commit "podssh --help and --version drop no word") |
-| #11 | `podssh status` | open | T-051 |
+| #11 | `podssh status` | closed | T-051 (the commit "podssh status: one line of JSON about this host") |
 | #12 | `PODSSH_TIMEOUT` | closed | T-012 (the commit "PODSSH_TIMEOUT gives the default of --timeout") |
 | #13 | `podssh doctor --full` | closed | T-052 (the commit "podssh doctor --full logs in to GitHub with a key made for the check") |
 | #14 | `ssh_config`, `-F` and `-G` | open | T-043, T-044, T-045, T-046 |

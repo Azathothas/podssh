@@ -11,7 +11,7 @@ no installed `ssh`, and no TLS or crypto library of the system.
 
 > [!WARNING]
 > **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh doctor`,
-> `podssh keygen` and `podssh man` work. Tests run them against OpenSSH and
+> `podssh keygen`, `podssh man` and `podssh status` work. Tests run them against OpenSSH and
 > Dropbear servers, through the live relay, and in a box like the target
 > sandbox. Reverse mode, chat and file copy are not available yet. The
 > measured state is in [docs/STATUS.md](docs/STATUS.md). The plan is in
