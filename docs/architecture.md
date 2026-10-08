@@ -83,16 +83,25 @@ These rules apply to each change. The reasons are in
 2. **The transport does not know the protocol.** `podssh-transport`,
    `podssh-relay` and `podssh-ws` move bytes. They do not know whether the
    bytes are SSH, IRC or another protocol.
-3. **One outbound connection, never a listener.** No `bind`, no `listen`, no
-   loopback helpers. `podssh doctor` is the only exception: it binds a
-   socket to test the host and closes it without listening.
+3. **One outbound connection, and no listener that the user did not ask
+   for.** No `bind`, no `listen`, no loopback helpers. `podssh doctor` binds
+   a socket to test the host and closes it without listening. A listener
+   that the user asks for (`-L`, `-D`, connection sharing, `podssh agent`)
+   opens only when a probe at run time allows the bind: on loopback or
+   AF_UNIX, unless the user sets the address. A race between relay hosts can
+   open a second connection for a short time ([decisions.md](decisions.md),
+   2026-10-08).
 4. **No C in the library crates.** `podssh-ws`, `podssh-relay`,
    `podssh-transport`, `podssh-core`, `podssh-terminal` and `podssh-probe`
    use rustls with podssh's own provider and RustCrypto crates. The gate
-   makes sure of this with `CC=/nonexistent`. The binary links aws-lc
-   through `russh` for SSH, and the Tailscale fork with the feature `ts`.
+   makes sure of this with `CC=/nonexistent` and `CXX=/nonexistent`. The
+   binary links aws-lc through `russh` for SSH, and the Tailscale fork with
+   the feature `ts`.
 5. **No `LD_PRELOAD`, no helper processes.** podssh does in its own process
-   what the host cannot supply (a pty, a line discipline).
+   what the host cannot supply (a pty, a line discipline). A tty in user
+   space for a child of `podssh serve` keeps this rule: podssh answers the
+   child's tty system calls from its own process, and puts no code into the
+   child ([decisions.md](decisions.md), 2026-10-08; T-248).
 6. **Credentials never go to output.** Tokens and keys never appear in
    stdout, stderr, logs, URLs or argv. They go in headers, in files with
    tight permissions, or in the environment.

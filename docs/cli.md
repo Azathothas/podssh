@@ -69,14 +69,17 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
 
 - `-L` and `-D` need a local listener, so podssh refuses them. The refusal
   of `-L` gives `-W HOST:PORT`. For `-D`, `-W` is only a partial answer: a
-  SOCKS proxy serves many connections, and `-W` serves one.
+  SOCKS proxy serves many connections, and `-W` serves one. T-038 adds
+  both, with a listener that opens only after a probe allows the bind
+  ([decisions.md](decisions.md), 2026-10-08).
 - `-R` does not need a local listener: the server listens, and podssh
   connects out for each connection. It is not implemented yet. Its refusal
   must not say that podssh never binds. On the measured sandbox, a
   connection back to loopback is refused, so `-R` must go through the proxy
   or fail with a clear message.
 - When a server refuses `tcpip-forward`, podssh gives the server's reason.
-- Agent forwarding (`-A`) is not in the scope of podssh.
+- Agent forwarding (`-A`) is not implemented yet. It is in the scope of
+  podssh, off by default as in OpenSSH (T-036).
 
 ## A word with no subcommand
 

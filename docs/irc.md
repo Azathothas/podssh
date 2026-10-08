@@ -2,8 +2,8 @@
 
 `podssh chat` lets two users on constrained hosts talk and exchange files.
 podssh speaks IRC itself, and the relay carries the bytes, as for SSH. No
-command uses the client yet. The client has known defects ([defects.md](defects.md),
-I1 to I8): the registration does not finish on IRCv3 servers, and the client
+command uses the client yet. The client has known defects ([TODO/irc.md](../TODO/irc.md),
+T-091 to T-098): the registration does not finish on IRCv3 servers, and the client
 sends plain text through the relay.
 
 The operator decides when chat starts, and whether it stays on IRC or moves

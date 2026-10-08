@@ -21,12 +21,15 @@ only record. Do these steps at the start of each session.
 
 1. Read [README.md](README.md).
 2. Read [docs/STATUS.md](docs/STATUS.md). It gives the measured state.
-3. Read [docs/ROADMAP.md](docs/ROADMAP.md). Find the first item that is not
-   done (`- [ ]`) in the current milestone. That item is your task, unless
-   the operator gives you a different task.
+3. Read [TODO/PROGRESS.md](TODO/PROGRESS.md). Its work order gives your
+   task, unless the operator gives you a different task. Each task is an
+   entry in `TODO/`: read the entry. [docs/ROADMAP.md](docs/ROADMAP.md)
+   gives the milestones and their exit criteria.
 4. Read [docs/decisions.md](docs/decisions.md). Do not change a decision. If
    a decision seems wrong, ask the operator.
 5. Find your task in section 3. Read the documents in its row.
+6. Before you change the record in `TODO/`, read
+   [TODO/RULES.md](TODO/RULES.md).
 
 ## 3. Documents for each task
 
@@ -44,7 +47,8 @@ only record. Do these steps at the start of each session.
 | Work on reverse mode (milestone M4) | [docs/reverse.md](docs/reverse.md), [docs/design.md](docs/design.md) |
 | Work on IRC | [docs/irc.md](docs/irc.md) |
 | Work on Tailscale | [docs/tailscale.md](docs/tailscale.md) |
-| Repair a known defect | [docs/defects.md](docs/defects.md) |
+| Repair a known defect, or do any open work | [TODO/PROGRESS.md](TODO/PROGRESS.md) (the order), [TODO/INDEX.md](TODO/INDEX.md) (each entry) |
+| File, close or reorder work; a GitHub issue | [TODO/RULES.md](TODO/RULES.md), [TODO/issues.md](TODO/issues.md), `cargo todo` (`crates/podssh-todo`) |
 | Know where podssh goes, and why | [docs/design.md](docs/design.md) |
 | Know the security model | [SECURITY.md](SECURITY.md) |
 
@@ -79,10 +83,15 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    Probe it at runtime. Do not use a capability that was not probed.
 2. Make one outbound connection, through `HTTPS_PROXY` when it is set. Do
    not bind, listen, or use loopback helpers. (`podssh doctor` binds a
-   socket to test the host, and closes it without listening.)
+   socket to test the host, and closes it without listening.) Two
+   exceptions, by the decisions of 2026-10-08: a listener that the user asks
+   for, when a probe at run time allows the bind; and a race between relay
+   hosts, which can open a second connection for a short time.
 3. Do not use `LD_PRELOAD` or shims in other processes. Start another
    program only when the user names it (`SSH_ASKPASS`, `PAGER`) or a probe
-   found it (`less` for `podssh man` on a terminal).
+   found it (`less` for `podssh man` on a terminal). A tty in user space for
+   a child of `podssh serve` is not a shim: podssh answers the child's tty
+   system calls from its own process (decision of 2026-10-08, T-248).
 4. Do not put C code in the library crates: `podssh-ws`, `podssh-relay`,
    `podssh-transport`, `podssh-core`, `podssh-terminal` and `podssh-probe`.
    The binary links aws-lc for SSH (`russh`).
@@ -91,22 +100,24 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 6. Write comments that tell why, in few words. Do not write `⛔`, session
    history, or document line numbers in the code.
 7. Prefer redundancy and fallbacks to minimal code.
-8. Repair a defect that you find in the same session. If you cannot, add it
-   to [docs/defects.md](docs/defects.md).
+8. Repair a defect that you find in the same session. If you cannot, write
+   an entry for it in `TODO/` ([TODO/RULES.md](TODO/RULES.md)).
 
 ## 6. Procedure for a change
 
-1. Do one ROADMAP item at a time. Complete it to its exit criteria.
+1. Do one entry of `TODO/` at a time. Complete it until its Prove passes.
 2. Test protocol code against software that podssh did not write: OpenSSH,
    Dropbear, a real IRC server, the live relay, or bytes captured from one.
 3. Trust a new check only after it fails on a planted defect and passes on
    correct input.
 4. Read each exit code directly, not through a pipe. Put a time limit on
    each network wait and on each process wait.
-5. Before each commit, run `python scripts/check-repo.py` and the tests.
+5. Before each commit, run `python scripts/check-repo.py`,
+   `cargo todo check` and the tests.
 6. In the same commit, record the result in
    [docs/STATUS.md](docs/STATUS.md) with the date and the command that
-   measured it. Mark the ROADMAP item done.
+   measured it. Close the entry in place: write its `## Done`, then run
+   `cargo todo set T-NNN done`, which also updates the counts.
 7. Commit on `main`. Attribute the commit to the operator only. Do not add
    co-author lines.
 8. Push only verified work. Do not rewrite published history. CI runs the
@@ -129,9 +140,11 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | `crates/podssh-terminal` | A line discipline (not used yet) |
 | `crates/podssh-probe` | Facts about the relay document (tests only) |
 | `crates/podssh-ts` | The Tailscale adapter (feature `ts`) |
+| `crates/podssh-todo` | The checker of the work record: `cargo todo check` (the gate runs it), `cargo todo set`, `counts`, `next` |
 | `vendor/tailscale-rs` | A fork with local patches (`vendor/patches/`). It is outside the workspace and the 500-line rule. |
 | `scripts/dev.sh`, `scripts/gate.sh` | Container runs, and the build gate that CI also runs |
 | `scripts/interop*.sh`, `scripts/interop-pty.py`, `scripts/interop-conpty.py` | Tests against OpenSSH and Dropbear, faults, groff and mandoc (`interop-man.sh`), and terminals on Linux and Windows |
 | `scripts/test_in_box.sh`, `scripts/box/`, `scripts/sandbox-check.sh` | The Podman box like the target sandbox, and the measurement for a sandbox |
 | `scripts/check-*.py`, `scripts/plant.sh` | Repository checks, and the planted-defect check of the gate |
-| `docs/` | The documents: STATUS, ROADMAP, decisions, defects and topic pages |
+| `docs/` | The documents: STATUS, ROADMAP, decisions and topic pages |
+| `TODO/` | The work record: the progress record with the work order, the index, the entries by area, the map of GitHub issues, the rules |

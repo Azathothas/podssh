@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MAX_SOURCE_LINES = 500
 
 # Markdown whose links are checked.
-LIVE_DOCS = ["README.md", "AGENTS.md", "SECURITY.md", "docs"]
+LIVE_DOCS = ["README.md", "AGENTS.md", "SECURITY.md", "docs", "TODO"]
 
 LINK = re.compile(r"\[[^\]]*\]\((?P<target>[^)\s]+)(?:\s+\"[^\"]*\")?\)")
 FENCE = re.compile(r"^(```|~~~)")

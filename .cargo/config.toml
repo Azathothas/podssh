@@ -1,0 +1,4 @@
+# `cargo todo check` reads the work record in TODO/; `cargo todo set T-NNN STATUS`
+# moves a status and derives the counts (see TODO/RULES.md).
+[alias]
+todo = "run -q -p podssh-todo --"

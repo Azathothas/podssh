@@ -28,11 +28,12 @@ code 70.
   tables. It needs nothing but the binary.
 - podssh fails over between relay hosts, and finds a silent relay in 30 to
   40 s. It works with no DNS.
-- Not done in M3: a run in the operator's real sandbox. A Podman box built
-  to that sandbox's profile passes all checks.
+- podssh was measured in two real sandboxes on 2026-10-08 (below). Not done
+  in M3: the release (T-002), and the entries that the sandbox runs found.
 
-The open defects are in [defects.md](defects.md). The plan is in
-[ROADMAP.md](ROADMAP.md).
+The open work, the defects included, is in [TODO/INDEX.md](../TODO/INDEX.md),
+and its order in [TODO/PROGRESS.md](../TODO/PROGRESS.md). The milestones are
+in [ROADMAP.md](ROADMAP.md).
 
 ## Commands
 
@@ -61,7 +62,7 @@ The open defects are in [defects.md](defects.md). The plan is in
 | The exit status of an interactive login shell on Tailscale SSH | 0 for `exit 7`, also with the client of OpenSSH 10.3: that server sends no status for an interactive login shell. A command's status (`-t ... 'exit 7'`) is 7 with both clients. |
 | Repeated flags, against `ssh -G` of OpenSSH 10.3p1 (`cargo test -p podssh-cli --test ssh_args`) | As OpenSSH: the first `-p` and `-l`, the last `-e`, `-E` and `-F`, the first value of each `-o` keyword. A second `-J`, `-W`, `--relay-host`, `--relay-addr` or `--ca-file` is refused with exit 64 before anything connects. Before 2026-10-08, the last value won, and `-J a -J b` dropped the first hop. |
 | A `/dev/tty` that is not the controlling terminal, or a terminal that nobody watches (`cargo test -p podssh-ssh`, Linux) | The terminal is used only when the kernel names it (`isatty`, the same session, `tty_nr` not 0). With stdin, stdout and stderr all redirected, a prompt waits 60 s at most, then refuses with the remedy. A sandbox had measured a silent hang: `/dev/tty` opened with no controlling terminal, and the read never returned. |
-| In the operator's real sandbox | **Not run yet.** |
+| In two real sandboxes, 2026-10-08 (T-001) | `ssh -T` and `ssh -tt` to `github.com` reach `Permission denied (publickey)` through the relay. In one run, the relay closed the session with `1011 write failed: Network connection lost` (T-024). Interactive programs over `-tt` were not run (T-004). See "In the operator's real sandboxes, measured". |
 
 ## `podssh proxy`, measured live
 
@@ -109,6 +110,28 @@ release workflow's static x86_64 binary of `aa9cfaa`, 2026-10-08:
 | `podssh keygen`, then `podssh ssh` and `ssh -tt` to `github.com` with that key | Exit 255, `Permission denied (publickey)`: the handshake and the host-key check pass through the proxy and the relay. |
 | The `ssh` of OpenSSH with podssh as its `ProxyCommand` | `No user exists for uid 0`, exit 255: the client of OpenSSH cannot run when the user database has no entry. |
 
+## In the operator's real sandboxes, measured
+
+On 2026-10-08, the operator's agents ran `sh scripts/sandbox-check.sh`, a
+failover check and a throughput check in two real sandboxes (T-001). Their
+reports are outside the repository.
+
+| | Sandbox A (edge KTM) | Sandbox B (Artix Linux) |
+| --- | --- | --- |
+| The host | Linux 7.2.9 x86_64; uid 0 with no `/etc/passwd`; egress only through an HTTP CONNECT proxy in the environment; no DNS; no direct TCP; `bind` refused for AF_INET, allowed for AF_UNIX; no `/dev/ptmx`; `/tmp` and `$HOME` noexec; a `/dev/tty` that opens with no controlling terminal | Linux 7.2.2 x86_64; uid 966 with no passwd entry; no proxy; `connect()` refused (EACCES) for each port except 443; no `/dev/ptmx`; `/dev/tty` not a controlling terminal; `TERM=dumb` |
+| podssh | Built from `4853e6c` (glibc); the static artifact of CI run 37745692511 for GitHub #15 to #17 | Built from `3a88e1d` |
+| `podssh doctor` | 26 ok, 0 FAIL, 0 ????, exit 0 | 26 ok, 0 FAIL, 0 ????, exit 0 |
+| `podssh proxy github.com 22` | GitHub's banner, exit 0 | GitHub's banner, exit 0 |
+| `keygen`, then `ssh -T` and `ssh -tt` to `github.com` | keygen 0. `-T`: 255 after the relay's close `1011 write failed: Network connection lost` (T-024). `-tt`: 255, `Permission denied (publickey)` | keygen 0; both 255, `Permission denied (publickey)` |
+| OpenSSH with podssh as its `ProxyCommand` | `No user exists for uid 0`: OpenSSH needs a user database entry. With a `getpwuid` shim that the tester put into OpenSSH: `Permission denied (publickey)` | `No user exists for uid 966` |
+| Failover: a first relay host on port 9 | Exit 0, GitHub's banner; the proxy's `403 not on the egress allowlist` named | Exit 0, GitHub's banner; `Permission denied (os error 13)` named |
+| 20 MiB through the relay | 0.5 to 0.7 MB/s (2 runs), through the proxy | 1.8 to 6.9 MiB/s (4 runs) |
+| The relay's byte cap | 67,107,943 bytes, then `1009 session byte cap` | Not measured |
+| Short sessions in a row | 179 of 180 (one `1011` close; GitHub #17) | Not measured |
+
+Not measured in a real sandbox yet: interactive programs over `-tt`
+(T-004), the prompt repair of `eacd94e` (T-005), and `podssh ts`.
+
 ## `podssh keygen`, measured
 
 | Check | Result |
@@ -151,28 +174,30 @@ behind them.
 
 | Crate | Lines (src / tests) | What works | What is missing |
 | --- | --- | --- | --- |
-| `podssh-ws` | 4.2k / 4.0k | TLS 1.3 through rustls with podssh's own pure-Rust provider (ECDSA P-256 and P-384, Ed25519, RSA PKCS #1 and PSS); certificate and host-name checks with no bypass; a full-duplex session with ping liveness; HTTP CONNECT proxies (never for loopback); trust fallbacks; limits on connect, TLS and upgrade; pinned addresses and DNS over HTTPS | No TLS 1.2 (some intercepting proxies need it). Defects W10, W13, W14. |
+| `podssh-ws` | 4.2k / 4.0k | TLS 1.3 through rustls with podssh's own pure-Rust provider (ECDSA P-256 and P-384, Ed25519, RSA PKCS #1 and PSS); certificate and host-name checks with no bypass; a full-duplex session with ping liveness; HTTP CONNECT proxies (never for loopback); trust fallbacks; limits on connect, TLS and upgrade; pinned addresses and DNS over HTTPS | No TLS 1.2 (some intercepting proxies need it; T-067). Defects T-063, T-064, T-065. |
 | `podssh-relay` | 1.2k / 0.2k | Relay host lists, the cached pool, failover; tokens minted, cached and minted again; the forward opener. No C. | No reverse legs or pairing (M4). |
-| `podssh-ssh` | 3.1k / 0.1k | The client on russh 0.64.1 (aws-lc-rs; strict key exchange and the ML-KEM hybrid key exchange in its defaults); a relay stream that keeps the relay's close reason; a `known_hosts` reader (hashed entries, wildcards, negation, markers); the authentication chain; prompts through `/dev/tty`, `CONIN$` or `SSH_ASKPASS`; raw mode, resize, escapes; the exit codes of OpenSSH; a host-key probe; key generation | No `ssh_config`. No `-L`, `-R`, `-D`, `-A` or X11. Host certificates are checked as plain keys. No reconnect after a drop (M6). |
-| `podssh-cli` | 8.9k / 2.9k | Arguments, help, the generated manual (text and roff) and its pager, refusals; `proxy`; the options of `ssh`; `doctor`; `keygen` | 7 of 13 commands are not implemented. Defect C2. |
-| `podssh-transport` | 2.8k / 2.2k | Forward framing; the session-id codec of the reverse path; the close-code table | About 600 lines are used outside the tests. Defects T1, T2, T5, T7 to T10. |
-| `podssh-core` (`irc/`) | 3.8k / 1.9k | A sans-IO IRC client: the message grammar and IRCv3 tags | No command uses it. Defects I1 to I8. |
-| `podssh-terminal` | 2.5k / 1.2k | A line-editing state machine | No command uses it. Defects L1 to L5. |
-| `podssh-ts` and `vendor/tailscale-rs` | 0.5k / 0.4k and a 68k fork | DERP over WebSocket (patches in the fork) | Behind the `ts` feature. Defects C3, C9. |
-| `podssh-probe` | 0.4k / 0.3k | Checks the structure of the relay's document against a pinned copy | No command uses it. Defect P1. |
+| `podssh-ssh` | 3.1k / 0.1k | The client on russh 0.64.1 (aws-lc-rs; strict key exchange and the ML-KEM hybrid key exchange in its defaults); a relay stream that keeps the relay's close reason; a `known_hosts` reader (hashed entries, wildcards, negation, markers); the authentication chain; prompts through `/dev/tty`, `CONIN$` or `SSH_ASKPASS`; raw mode, resize, escapes; the exit codes of OpenSSH; a host-key probe; key generation | No `ssh_config` (T-043). No `-L`, `-R`, `-D`, `-A` or X11 (T-035 to T-038). podssh offers no host certificate algorithm, and does not use `@cert-authority` lines (T-027). No reconnect after a drop (M6). |
+| `podssh-cli` | 8.9k / 2.9k | Arguments, help, the generated manual (text and roff) and its pager, refusals; `proxy`; the options of `ssh`; `doctor`; `keygen` | 7 of 13 commands are not implemented. Defect T-100 (`podssh ts`). |
+| `podssh-transport` | 2.8k / 2.2k | Forward framing; the session-id codec of the reverse path; the close-code table | About 600 lines are used outside the tests. Defects T-071 to T-077. |
+| `podssh-core` (`irc/`) | 3.8k / 1.9k | A sans-IO IRC client: the message grammar and IRCv3 tags | No command uses it. Defects T-091 to T-098. |
+| `podssh-terminal` | 2.5k / 1.2k | A line-editing state machine | No command uses it. Defects T-125 to T-129. |
+| `podssh-ts` and `vendor/tailscale-rs` | 0.5k / 0.4k and a 68k fork | DERP over WebSocket (patches in the fork) | Behind the `ts` feature. Defects T-101, T-102. |
+| `podssh-probe` | 0.4k / 0.3k | Checks the structure of the relay's document against a pinned copy | No command uses it (T-060). |
+| `podssh-todo` | 1.2k / 0.5k | The checker of the work record in `TODO/`: `cargo todo check` compares the counts with the rows, each row with its entry, each id that a document names with the entries, each cited path and line with the tree, and the roadmap with the milestones. It fails when it finds nothing to check. `cargo todo set`, `counts` and `next` write the record. No dependencies. | Not a part of the `podssh` binary. |
 
 ## Build, tests, CI
 
 | What | Result | Command |
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
-| The default tests | **660 passed, 0 failed, 5 ignored** (the live tests), Windows | `cargo test --no-fail-fast` |
+| The default tests | **707 passed, 0 failed, 5 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
+| The work record | `TODO/` agrees with itself. The checker's tests pass: 7 unit tests, 30 plant tests (29 planted disagreements, each found, and the control), 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. | `cargo todo check`, `cargo test -p podssh-todo` |
 | The static release binary | **4,008,448 bytes**: a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
 | The container gate | **Green**: each build and test step; interop 98 of 98 (62 SSH checks, 25 keygen checks, 11 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
 | The no-C plant | Fails for the right reason when `ring` is planted (no C compiler), twice, and when a crate that compiles C++ is planted (it stops at `CXX=/nonexistent`). With `CC=/nonexistent` alone, the C++ build is not stopped there, so `CXX` is load-bearing. The control passes. Measured 2026-10-08 in `rust:1-alpine`. | `sh scripts/dev.sh plant` |
-| CI | Runs the gate on each push. Each run from `9b806fe` to `4853e6c` passed. | `gh run list` |
+| CI | Runs the gate on each push. Each run from `9b806fe` to `3ee70dc` passed. | `gh run list` |
 | The release workflow, run by hand | Linux x86_64 and aarch64 static, Windows with no C runtime DLL; publish skipped | `gh workflow run release.yml --ref main` |
 
 ## The relay
@@ -198,6 +223,7 @@ target/debug/podssh doctor                                # this host, its egres
 sh scripts/sandbox-check.sh target/debug/podssh           # the sandbox record
 sh scripts/test_in_box.sh path/to/static/podssh           # the Podman box
 python scripts/check-repo.py
+cargo todo check                                          # the work record in TODO/
 python scripts/check-relay-spec.py                        # the live relay
 ssh -o ProxyCommand='target/debug/podssh proxy %h %p' -T git@github.com
 sh scripts/dev.sh check                                   # the Linux gate and the static binary

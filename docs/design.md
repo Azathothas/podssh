@@ -137,8 +137,9 @@ podssh does not yet have, in order of importance:
    in a state file. Authorized keys come from a flag or a file. This
    replaces dropbear and each patch of the siblings.
 3. **A terminal on the server side for cages with no `/dev/ptmx`**: a real
-   pty when one exists; else a line discipline in the process that also
-   *signals the process group of the child* on Ctrl-C. Only the server side
+   pty when one exists; else a tty that podssh makes when a probe allows it
+   (T-248); else a line discipline in the process that also *signals the
+   process group of the child* on Ctrl-C. Only the server side
    can do this, and `errandsh` cannot.
 4. **File copy with no scp, sftp-server or rsync**: an SFTP server in
    `podssh serve`, and `podssh cp` with an exec transfer (cat and base64) as

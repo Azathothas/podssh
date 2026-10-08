@@ -15,7 +15,8 @@ HTTPS. Build it only with `--features ts`; see [development.md](development.md).
 - The operator adds node keys to the allowlist. This needs a Tailscale admin
   token and a deployment credential for the relay.
 - The live test with two nodes has never passed.
-- More open defects: C2, C3 and C9 in [defects.md](defects.md).
+- More open defects: T-100, T-101 and T-102 (formerly C2, C3 and C9) in
+  [TODO/ts.md](../TODO/ts.md).
 
 ## Rules
 

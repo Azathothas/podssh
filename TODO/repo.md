@@ -1,0 +1,1565 @@
+The work on the repository, CI and the releases: the work record,
+Dependabot, the build image, the developer script, the changelog, secret
+scanning, the provenance and signatures of releases, parallel CI, the box and
+Windows in CI, formatting and lints, the checks of the dependencies, the
+minimum Rust versions, more release targets, and the gate's own checks. It is
+not milestone work (milestone `none`). The main sources are GitHub #27 and
+GitHub #33.
+
+# T-204: Adopt the todo model, with a Rust checker in the gate
+
+**Source:** the operator, 2026-10-08: turn the GitHub issues and the sandbox
+reports into trackable entries with the todo model of the operator's template
+(`Azathothas/TEMPLATE:docs/methodology/work-todo.md`), with the checker in
+Rust and in the gate, and no shell script for it. The floors of the reader
+follow GitHub #33.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** done
+
+## Problem
+
+The work was in three places: the open checkboxes of `docs/ROADMAP.md`, the
+rows of a defects page (`git show 3ee70dc:docs/defects.md`), and 28 GitHub
+issues. There was no single order,
+and nothing compared two of them. A count or a status could disagree between
+files with no failure.
+
+## Premise
+
+Read: the template asks for a writer that moves a status and derives each
+count from the rows, and a reader that asserts that the counts agree with the
+rows, that no status disagrees between the index and the entry, that each row
+has an entry and each entry a row, that each reference resolves, and that
+each cited path and line exists. The reader runs as a gate.
+
+## Approach
+
+1. `crates/podssh-todo` (no dependencies): `check` (the reader), `set
+   T-NNN STATUS` (the writer, which refuses `done` without dated evidence and
+   `blocked` without a blocker), `counts` and `next`. The alias `cargo todo`
+   is in `.cargo/config.toml`.
+2. The reader also checks the form of each entry, the work order (no done
+   entry), the questions that blocked entries wait for, and `docs/ROADMAP.md`
+   (no open checkbox; each id under a milestone has that milestone). It fails
+   when the index has no rows or the roadmap is missing.
+3. Two gate steps in `scripts/gate.sh`: the checker's tests, then `check`.
+   `scripts/check-repo.py` also checks the links of `TODO/`.
+4. The record: `TODO/INDEX.md`, `TODO/PROGRESS.md`, `TODO/RULES.md`,
+   `TODO/issues.md` and the area files. The rows of the defects page became
+   entries, and the page was removed. The open items of `docs/ROADMAP.md`
+   name their entries. `AGENTS.md` starts each session at
+   `TODO/PROGRESS.md`.
+
+## Prove
+
+```sh
+cargo test -p podssh-todo
+cargo todo check
+python scripts/check-repo.py
+```
+
+The tests include 29 plants, each a disagreement that the reader must find,
+and the control record, which must pass. Two plants are floors (GitHub #33):
+an index with no rows, and a missing roadmap. A reader that finds nothing to
+check fails; it does not pass. `check` prints the counts that the rows give.
+
+## Done
+
+2026-10-08, in the commit that adds `TODO/INDEX.md` (`git log --diff-filter=A
+-- TODO/INDEX.md`). Results on Windows: see `docs/STATUS.md`, "Build, tests,
+CI", the row of the work record.
+
+# T-205: Dependabot for cargo, GitHub Actions and the build image (GitHub #27)
+
+**Source:** GitHub #27 (the operator, 2026-10-08), which asks for proper
+Dependabot.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Nothing tells the operator that a dependency has a new release or a fix. A
+fix in russh, rustls or tokio reaches podssh only when someone runs
+`cargo update` by hand. The actions of the workflows and the build image do
+not change either.
+
+## Premise
+
+Read:
+
+- `.github/` holds only `workflows/`: there is no Dependabot configuration.
+- Measured with grep on `HEAD`: `Cargo.lock` holds 478 packages, 438 of them
+  from crates.io, and no git source.
+- The workflows use four actions, each by a major tag:
+  `actions/checkout@v5` (`.github/workflows/build.yml:26`),
+  `actions/upload-artifact@v7` (`.github/workflows/build.yml:94`),
+  `actions/download-artifact@v8` (`.github/workflows/release.yml:116`) and
+  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:76`).
+- The build image is a variable in two workflows and in a shell script
+  (`.github/workflows/build.yml:15`, `.github/workflows/release.yml:23`,
+  `scripts/dev.sh:60`). Dependabot's docker ecosystem reads the `FROM` lines
+  of Dockerfiles, not such variables (from GitHub's documentation as known;
+  to verify).
+- `vendor/tailscale-rs` has its own `Cargo.lock`, and its patches apply to a
+  fixed upstream state (`vendor/patches/`). The build resolves the fork's
+  dependencies in the root `Cargo.lock`.
+
+## Approach
+
+1. Add .github/dependabot.yml, version 2, with a weekly schedule:
+   - `cargo` at the root: one group for minor and patch updates, one pull
+     request for each major update, at most 5 open pull requests;
+   - `github-actions` at the root: one group;
+   - `docker`: the directory that T-206 makes the one source of the build
+     image. Do this item after T-206;
+   - no entry for `vendor/tailscale-rs`.
+2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
+   the live check. The no-C steps of the gate (`scripts/gate.sh:63-69`) judge
+   each update of a library crate's dependencies.
+3. Ask the operator to turn on Dependabot alerts and security updates. This
+   is a setting of the repository, not a file.
+4. An update can need a newer Rust than a declared minimum: the job of T-217
+   refuses it.
+5. docs/development.md: how an update is judged and merged.
+
+## Decision
+
+A merged pull request of Dependabot makes a commit that names the bot (to
+confirm at the first merge). `docs/decisions.md` attributes each commit to
+the operator only. Recommendation: the operator applies a judged update as
+the operator's own commit (`git cherry-pick`, then close the pull request), so
+the rule stays as it is. Accepting the bot as an author lost: it changes a
+standing decision, which only the operator can do.
+
+## Prove
+
+```sh
+pipx run check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml
+test "$(gh pr list -R Azathothas/podssh --author app/dependabot --state all --json number --jq length)" -gt 0
+```
+
+The first command shows that the file is valid. The second, a week later,
+shows that Dependabot opened pull requests, each with a CI run. Planted
+defect: write `package-ecosystem: cargoo`; the schema check must fail.
+
+# T-206: B7: the build image is not pinned to a digest
+
+**Source:** row B7 of the former defects page
+(`git show 3ee70dc:docs/defects.md`), severity low.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The gate, CI and the release build in `docker.io/library/rust:1-alpine`. That
+tag moves with each release of Rust and of Alpine. Two runs of the same commit
+can use two compilers, and a release can differ from the gate run that judged
+it. A new toolchain can also turn the gate red on a tree that did not change,
+for example with new lints (T-215).
+
+## Premise
+
+Read:
+
+- The reference is written in three places: `.github/workflows/build.yml:15`
+  (line 14 says that it must equal the one in `scripts/dev.sh`),
+  `.github/workflows/release.yml:23` and `scripts/dev.sh:60`. No check makes
+  them equal.
+- The release builds aarch64 on an arm64 runner
+  (`.github/workflows/release.yml:34-35`). So the pin must be the digest of
+  the multi-platform index, not the digest of one platform's image.
+- The box uses two more moving tags, `alpine:3.20` and `python:3.12-alpine`
+  (`scripts/test_in_box.sh:29-30`).
+- `scripts/gate.sh:50-53` prints the toolchain of each run, so the logs show
+  the drift.
+
+## Approach
+
+1. Read the digest of the index:
+   `docker buildx imagetools inspect docker.io/library/rust:1-alpine`. Check
+   that the index lists linux/amd64 and linux/arm64.
+2. Keep the reference in one file: a Dockerfile of one line (proposed:
+   .github/build-image/Dockerfile, a `FROM` line with the reference and its
+   `@sha256:` digest). The two workflows and `scripts/dev.sh` read it from
+   there. The docker ecosystem of T-205 then updates the digest.
+3. A check in `scripts/check-repo.py`: the reference has `@sha256:` and 64 hex
+   digits, and no workflow or script holds a second literal of the image.
+4. Pin the two images of the box the same way.
+5. Measure that wsl-toolkit takes a reference with a digest
+   (`scripts/dev.sh:131` passes it to `--image`): `sh scripts/dev.sh images`.
+6. Record the pinned toolchain in docs/STATUS.md ("Build, tests, CI"), and
+   name the file in docs/development.md.
+
+## Prove
+
+```sh
+python scripts/check-repo.py               # the image is pinned, in one place
+sh scripts/dev.sh images                   # the pinned image runs and prints its rustc
+sh scripts/dev.sh check                    # the gate is green in the pinned image
+gh workflow run release.yml --ref main     # x86_64 and aarch64 build from the same pin
+```
+
+Each command exits 0, and the run of the release workflow passes. Planted
+defect: write the literal `rust:1-alpine` back into
+`.github/workflows/release.yml`; `check-repo.py` must exit 1 and name the
+file.
+
+# T-207: B8: `scripts/dev.sh` has about 600 lines
+
+**Source:** row B8 of the former defects page
+(`git show 3ee70dc:docs/defects.md`), severity low; the 500-line rule
+(`docs/decisions.md`).
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`scripts/dev.sh` has 592 lines, more than the 500 that a source file may
+have. The size check reads only the Rust files under `crates/`, so the script
+grew with no warning, and another script can do the same. Its help also
+describes steps of the gate that no longer exist.
+
+## Premise
+
+Measured: `wc -l scripts/dev.sh` gives 592.
+
+Read:
+
+- `scripts/check-repo.py:55-65` checks only the Rust files under `crates/`.
+- `scripts/dev.sh:302-313` defines `step`, which nothing calls.
+- The help (`scripts/dev.sh:315-350`) says that the gate builds the default
+  members with `CC=/nonexistent`, and the release too (lines 339-342). The
+  gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
+  and the release with neither (`scripts/gate.sh:63-69`,
+  `scripts/gate.sh:87-90`). The help omits the work record, interop, the man
+  page, the C++ plant, and the subcommand `gate` (`scripts/dev.sh:586`).
+- Stale comments: `scripts/dev.sh:55-59` ("the default build"),
+  `scripts/dev.sh:381-388` ("links the fork since 4b", "steps 4-5"),
+  `scripts/dev.sh:446`.
+- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:50-56`);
+  `scripts/check-scripts.py:45-49` finds the scripts under `scripts/` at any
+  depth.
+
+## Approach
+
+1. Remove the unused `step`.
+2. Move the Windows transport into one file that `scripts/dev.sh` sources
+   (proposed: scripts/dev-wsl.sh, directly in `scripts/`): the tool settings,
+   `EXCLUDES` with its comments, `run_in_image`, the PowerShell bridge, `b64`,
+   `preflight`, `wt`, `win_path` and `scratch_file` (lines 48-300 and
+   352-377). Source it after the self-location (lines 37-46). Keep each
+   comment. Invariant: the text of the bridge does not change by one byte;
+   compare the old and the new text with `cmp`.
+3. Correct the help and the stale comments to the gate as it is
+   (`scripts/gate.sh:55-136`).
+4. Extend the size check of `scripts/check-repo.py` to the shell and Python
+   files under `scripts/`, with a floor (T-223).
+5. Ask the operator to drop the sentence on the exception from
+   `docs/decisions.md`; the decision itself stays.
+
+Pitfalls: keep the new file directly in `scripts/`, so the dash loop of CI
+reads it. `.gitattributes` gives it LF. The lock and its trap stay in
+`scripts/dev.sh` (lines 540-559).
+
+## Prove
+
+```sh
+wc -l scripts/dev.sh scripts/dev-wsl.sh   # each 500 lines or fewer
+python scripts/check-repo.py              # the size check now reads scripts/ too
+python scripts/check-scripts.py           # both files are LF and parse under dash
+sh scripts/dev.sh help                    # the help names the real steps of the gate, and gate
+sh scripts/dev.sh check                   # the whole gate through the split script, green
+```
+
+Each command exits 0. Planted defect: a copy of a script in `scripts/` with
+501 lines; `check-repo.py` must exit 1 and name it.
+
+# T-208: A changelog from the commits, and release notes from it (GitHub #27)
+
+**Source:** GitHub #27 (the operator, 2026-10-08), which asks for automated
+changelog generators.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A release has hand-written notes only. Nothing lists the commits since the
+previous release, so a change that the notes forget is invisible to a user.
+
+## Premise
+
+Read:
+
+- The job `publish` reads the notes from `docs/releases/`, and fails without
+  them (`.github/workflows/release.yml:126-136`).
+  `docs/releases/v0.1.0-beta.1.md` is the only notes file.
+- `actions/checkout@v5` fetches one commit by default
+  (`.github/workflows/release.yml:115`), which hides the history from a
+  generator.
+- Measured: `git rev-list --count HEAD` gives 27, and `git tag -l` gives no
+  tag. The subjects are "scope: text" ("podssh ssh: ...", "gate: ...") or
+  plain text ("Fix -4/-6, ..."); none is a Conventional Commit.
+- `docs/decisions.md` (the documents in ASD-STE100): the documents give the
+  current state, not history; git keeps the history.
+
+## Approach
+
+1. Add cliff.toml at the root, for git-cliff (a Rust tool). Parse the
+   subjects with the patterns of this repository: `podssh COMMAND:` to
+   "Commands"; `gate:`, `Workflows:` and a script's path to "Build and CI";
+   `Docs` and `docs:` to "Documents"; `Fix` to "Repairs"; a last group,
+   "Other", for the rest. Invariant: no commit is dropped (no `skip`, and the
+   commits that are not conventional are kept).
+2. In `.github/workflows/release.yml`, the job `publish`: fetch the whole
+   history (`fetch-depth: 0`); install a pinned git-cliff; make the list of
+   the commits since the previous tag; publish the notes file, then the list,
+   as the body of the release.
+3. On a run by hand, make the list of the commits since the last tag as an
+   artifact, so that it can be read before a tag.
+4. Link each "Fixes #N" of a commit to its issue in the list.
+5. docs/development.md, "Release builds" (`docs/development.md:224-250`): the
+   body is the notes file and the generated list.
+
+No new shell script: each step is a step of the workflow.
+
+## Decision
+
+Recommendation: make the list at release time, into the body of the release
+and an artifact, and commit no CHANGELOG.md. A committed changelog copies the
+history of git into a document, which `docs/decisions.md` rules out, and a
+bot commit to update it breaks the rule that each commit is the operator's
+(`docs/decisions.md`). A CHANGELOG.md that a workflow commits lost for these
+two reasons.
+
+## Prove
+
+```sh
+git cliff --config cliff.toml --unreleased --strip all > /tmp/changes.md
+test "$(grep -c '^- ' /tmp/changes.md)" -eq "$(git rev-list --count HEAD)"   # no commit dropped
+gh workflow run release.yml --ref main     # the artifact holds the same list
+```
+
+The count test exits 0. After the first tag, compare with
+`git rev-list --count TAG..HEAD` instead. Planted defect: give the
+"Documents" parser `skip = true`; the count test must fail.
+
+# T-209: Secret scanning with TruffleHog in CI (GitHub #27)
+
+**Source:** GitHub #27 (the operator, 2026-10-08), which asks for TruffleHog.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The repository is public, with its whole history. Only three shapes of
+credentials are checked, and only in the files of the current tree. A key of
+another service (GitHub, Cloudflare, a cloud provider) in a commit, or a
+credential that a later commit removed, is not found.
+
+## Premise
+
+Read:
+
+- `scripts/check-repo.py:32-45` defines the shapes (a relay token, a Tailscale
+  key, a private key block); `scripts/check-repo.py:100-121` scans the tracked
+  files outside `vendor/`. It reads no history.
+- `docs/decisions.md` (the repository is public): its history was
+  replaced by one commit on 2026-10-08, so a scan of the whole history is
+  cheap now.
+- `.env/` holds the operator's live credentials. git ignores it, and
+  AGENTS.md forbids to read or print it.
+- TruffleHog prints the raw secret of a finding in its normal output (to
+  verify with the pinned version). The CI logs of a public repository are
+  public.
+
+## Approach
+
+1. A job `secrets` in `.github/workflows/build.yml`, beside the gate:
+   `fetch-depth: 0`, and TruffleHog pinned by digest or by commit SHA.
+2. The `git` mode only: the commits of the push or the pull request, and the
+   whole history on `main` and on a weekly schedule. Never the `filesystem`
+   mode: on a developer's machine it reads `.env/`.
+3. JSON output into a file, with `--fail`; read the exit code directly. Then
+   print only the detector, the file, the line, the commit, and whether the
+   result was verified. Never print the raw fields.
+4. Keep `check_secrets` of `scripts/check-repo.py`: it owns the shapes of
+   podssh, which TruffleHog does not know (the relay token `ephm1.`).
+5. docs/development.md: what to do on a finding. Revoke the credential first,
+   because the history is public; then remove it. Never rewrite published
+   history (AGENTS.md, section 6).
+6. Fail on verified and unknown results; list unverified results as notes.
+   The operator can choose to fail on them too.
+
+## Prove
+
+```sh
+test "$(gh run list -R Azathothas/podssh --workflow build.yml -b main -L 1 --json conclusion --jq '.[0].conclusion')" = success
+```
+
+The last run on `main`, with the job `secrets`, passed. Planted defect, in a
+temporary repository outside the tree: commit a throwaway key that
+`podssh keygen` made, run TruffleHog on it in `git` mode with no verification
+and with unverified results, and check that it exits non-zero and names the
+detector for private keys. Then delete the directory. The key is used nowhere
+and never printed.
+
+# T-210: Build provenance for each release binary
+
+**Source:** GitHub #25 (Nemo-010, 2026-10-08), the request for provenance of
+released binaries; the csshw report in GitHub #24
+(`whme/csshw:.github/workflows/release.yml`), read in the report, not
+verified here.
+**Category:** release
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A downloaded binary carries no proof of its origin. `SHA256SUMS` comes from
+the same job as the binaries, so it shows that a download is complete, not who
+built it or from which commit. `podssh --version` names no commit, so a tester
+cannot tie a binary to its source.
+
+## Premise
+
+Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
+
+Read:
+
+- The jobs `linux` and `windows` build the binaries, and `publish` adds
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:26-136`).
+  The workflow has `contents: read` (lines 19-20); `publish` adds
+  `contents: write` (lines 112-113).
+- The KTM tester could not tell from an artifact which commit made it, and
+  moved the checkout one commit ahead (the KTM report, section 1a; read in
+  the report).
+- `crates/podssh-cli/src/man/facts.rs:340-356`: the drift test of the manual
+  counts each quoted upper-case name with `_` in the sources as a variable
+  (except `CARGO_` names).
+
+## Approach
+
+1. In the jobs `linux` and `windows`, after the checks of the binary, attest
+   each binary with `actions/attest-build-provenance`, pinned by commit SHA,
+   for a tag `v*` only. Give these jobs `id-token: write` and
+   `attestations: write`. A run by hand makes no attestation.
+2. Tell the user how to check, in `README.md` (lines 46-47) and in the
+   release notes: `gh attestation verify FILE --repo Azathothas/podssh`.
+3. Let `podssh --version` name the commit: the workflows set a variable at
+   compile time (`option_env!`, no build script, no `git` call); a local build
+   prints the version alone. In the same commit, add the name to the facts of
+   the manual, or teach the drift test about names read at compile time.
+4. One paragraph in the release notes on the Windows binary, which is not
+   signed (SmartScreen warns about it).
+5. Do this before T-002, if the operator wants the first beta attested.
+
+## Prove
+
+```sh
+gh release download TAG -R Azathothas/podssh -p 'podssh-*'
+gh attestation verify podssh-x86_64-unknown-linux-musl --repo Azathothas/podssh
+gh attestation verify podssh-x86_64-pc-windows-msvc.exe --repo Azathothas/podssh
+./podssh-x86_64-unknown-linux-musl --version     # names the commit of the tag
+```
+
+Each command exits 0, and each verification names the release workflow and
+the commit of the tag. Planted defect: change one byte of a copy of a binary;
+`gh attestation verify` must fail.
+
+# T-211: Signed checksums for each release
+
+**Source:** GitHub #25 (Nemo-010, 2026-10-08), the request for provenance of
+released binaries (checksums).
+**Category:** release
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`SHA256SUMS` is not signed. A person who can replace a binary on the release
+page can replace the sums too. A user cannot check that the sums come from
+the release workflow of podssh.
+
+## Premise
+
+Read:
+
+- `.github/workflows/release.yml:120-125` writes `SHA256SUMS` with
+  `sha256sum`, and `.github/workflows/release.yml:126-136` publishes it with
+  the binaries. No signature is published.
+- `docs/releases/v0.1.0-beta.1.md:81` tells the user that `SHA256SUMS` holds
+  the sums. `README.md:46-47` gives no step to check a download.
+- AGENTS.md, section 4: a private key is a credential. The repository has no
+  signing key today.
+
+## Approach
+
+1. In the job `publish`, after the sums: sign `SHA256SUMS` with the keyless
+   signing of Sigstore (`cosign sign-blob` with a bundle; cosign installed by
+   an action pinned by commit SHA) and `id-token: write`. Publish the bundle
+   with the release.
+2. Verify in the same job, before the release is published, with
+   `cosign verify-blob`. Run the check once on a changed copy too, so that it
+   is seen to fail.
+3. The identity: the release workflow at a tag ref (`refs/tags/v`), never a
+   branch, so that a run by hand on `main` cannot make a valid signature.
+4. Tell the user how to check, in `README.md` and the release notes: first
+   `sha256sum -c`, then `cosign verify-blob` with the identity and the issuer.
+5. With T-210: the two proofs name the same commit; the notes say so.
+
+## Decision
+
+Recommendation: the keyless signing of Sigstore. No long-term key exists, so
+no key can leak or need rotation, and the signature names the workflow and
+the tag. minisign lost: its private key would be a long-term credential in
+the secrets of the repository, although its check works offline with one
+small tool. GPG lost for the same reason, and for its weight.
+
+## Prove
+
+```sh
+gh release download TAG -R Azathothas/podssh -p 'SHA256SUMS*' -p 'podssh-x86_64-unknown-linux-musl'
+sha256sum -c SHA256SUMS --ignore-missing
+cosign verify-blob --bundle SHA256SUMS.sigstore.json \
+  --certificate-identity-regexp '^https://github.com/Azathothas/podssh/\.github/workflows/release\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS
+```
+
+Each command exits 0. Planted defect: change one hex digit in a copy of
+`SHA256SUMS`; `cosign verify-blob` must fail.
+
+# T-212: Parallel CI, with the gate as the one source
+
+**Source:** GitHub #27 (the operator, 2026-10-08), which asks for parallel CI.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+CI runs the whole gate in one job, one step after the other: the library
+crates, the work record, the SSH client and the CLI, the Tailscale tests, the
+static release, interop and the man page; then the plant and the live check
+of the relay. A failure late in that list shows only after each earlier step,
+and the job takes the sum of all the steps.
+
+## Premise
+
+Read:
+
+- `.github/workflows/build.yml:20-98`: one job, `gate`, with a limit of
+  45 min (line 24). The gate is one `docker run` (lines 58-65); the plant
+  (lines 67-73) and the live check (lines 75-92) follow it.
+- `.github/workflows/build.yml:3-5`: CI implements nothing of the gate again.
+- `scripts/gate.sh:5-6`: the gate takes no argument. Its steps are at
+  `scripts/gate.sh:63-136`.
+- `scripts/gate.sh:18-29`: one cargo job for each 3 GiB of free memory.
+- AGENTS.md, section 4: on the operator's machine, one build at a time
+  (`scripts/dev.sh:540-559` holds a lock).
+
+Not measured: the wall time of a CI run. Measure it with `gh run list` before
+the change.
+
+## Approach
+
+1. `scripts/gate.sh` takes optional step names: `libs`, `record`, `ssh`, `ts`
+   and `release` (the static build, the check of the artefact, interop and the
+   man page, which share one binary). With no name, it runs each step in
+   order, as now; `--list` prints the names. Each step keeps `run`
+   (`scripts/gate.sh:34-48`) and its rule for exit codes.
+2. `.github/workflows/build.yml`: a matrix over the step names, each job
+   `docker run ... sh scripts/gate.sh STEP`; the jobs `checks` (the
+   repository checks and the live check) and `plant` run beside it. A last
+   job, `all`, needs each job, and is the one required status.
+3. A drift check in CI: the matrix equals the output of `--list`, so that a
+   new step cannot miss CI.
+4. Caches: the cargo registry (mounted into the container) and `target/`,
+   with a key from the build image (T-206), the step and the hash of
+   `Cargo.lock`. No cache for `ts` if it passes the size limit of the cache.
+5. The jobs of T-213 to T-217 join this workflow as parallel jobs.
+6. Record the wall time before and after in docs/STATUS.md; update the gate
+   in docs/development.md.
+
+Pitfall: `sh scripts/dev.sh check` stays sequential under its lock. Parallel
+runs are for CI runners only.
+
+## Decision
+
+Recommendation: a matrix of the gate's own steps, so that CI runs exactly
+what a developer runs. Jobs with their own cargo commands lost: they copy the
+gate, and a copy drifts (`.github/workflows/build.yml:3-5`).
+
+## Prove
+
+```sh
+sh scripts/dev.sh run -- 'sh scripts/gate.sh --list'    # the step names, in the build image
+gh run list -R Azathothas/podssh --workflow build.yml -L 1 --json conclusion,createdAt,updatedAt
+```
+
+The list equals the matrix, and the last run passed in less wall time than
+before. Planted defect: remove `ts` from the matrix; the drift check must
+fail.
+
+# T-213: CI runs the box like the target sandbox
+
+**Source:** GitHub #27 (the operator, 2026-10-08), which asks for a proper CI
+test in a box replica.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The box like the target sandbox runs only by hand, on the operator's Podman
+machine; its last record is for the binary of `aa9cfaa`. A change that breaks
+podssh in the sandbox's profile (no DNS, no way out but a CONNECT proxy,
+`bind` and UDP refused, no pty, no user entry) can reach `main`, and no run
+sees it.
+
+## Premise
+
+Read:
+
+- `docs/STATUS.md:99-111`: the box, measured by hand on 2026-10-08.
+- `scripts/test_in_box.sh:101-103`: the box runs `probe.sh`, then
+  `sandbox-check.sh`, and the script exits with the code of the second.
+  `scripts/sandbox-check.sh:45-75` prints the exit code of each step and does
+  not fail on it (T-006). So today the box exits 0 when podssh fails in it.
+- `scripts/box/probe.sh:104-109` exits 1 when the box differs from the sandbox
+  in a required property (17 properties, `docs/STATUS.md:106`).
+- The box needs a static binary; CI uploads one
+  (`.github/workflows/build.yml:94-98`).
+- The box uses `--disable-dns` (`scripts/test_in_box.sh:68`) and a mask on
+  `/dev/pts` (`scripts/test_in_box.sh:92`). Nobody measured the Podman of a
+  GitHub runner with them.
+- The box reaches the live relay and `github.com` through its proxy.
+
+## Approach
+
+1. T-006 first: `scripts/sandbox-check.sh` must exit non-zero when a step
+   fails.
+2. A job `box` in `.github/workflows/build.yml`: it needs the job that builds
+   the static binary, and downloads it; it prints `podman version` and fails
+   when there is no Podman; it runs `sh scripts/test_in_box.sh` with the
+   binary and a limit of 45 min; it keeps the log as an artifact.
+3. A faithful box or no result: the job fails unless the probe printed 17
+   `match` lines. Count them in the saved log, and read each exit code
+   directly.
+4. Pin the images of the box with the build image (T-206).
+5. Credentials: the box mints a token and never prints it
+   (`scripts/sandbox-check.sh:2-4`). Before the job is required, scan its
+   first log with the token pattern of `scripts/check-repo.py:36`.
+6. docs/STATUS.md (the box section) cites the CI run; docs/development.md says
+   that CI runs the box.
+
+Pitfall: the live path can drop a session (179 of 180 short sessions,
+`docs/STATUS.md:130`). Run a failure again by hand and record it. Never retry
+inside the job.
+
+## Decision
+
+Recommendation: the job is required. The box measures the properties of M3,
+and a silent break in a sandbox costs more than a second run. A job that only
+informs lost: a check that cannot fail the run is not a check.
+
+## Prove
+
+```sh
+gh run download RUN_ID -R Azathothas/podssh -n box-log      # the log of the job box
+test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithful
+```
+
+The run passed, with the job `box`, and its log has 17 `match` lines.
+Planted defect: run the job by hand with the seccomp option removed (an input
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:107`,
+and the job must fail.
+
+# T-214: CI on Windows
+
+**Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
+platform (`.github/workflows/release.yml:65-106`).
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+No CI run executes the tests of podssh on Windows. The release workflow
+builds the Windows binary only for a tag or by hand, and runs no test. The
+code for Windows only (the console, prompts through `CONIN$`, the branches of
+the token cache that are not Unix) is measured only on the operator's
+machine.
+
+## Premise
+
+Read:
+
+- `.github/workflows/build.yml:21-23`: one job, on `ubuntu-latest`.
+- `.github/workflows/release.yml:65-106`: the Windows job installs NASM
+  (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
+  test.
+- `docs/STATUS.md:193`: 660 tests pass on Windows, run by hand.
+  `docs/STATUS.md:61`: `scripts/interop-conpty.py` passes 14 of 14 against a
+  Tailscale SSH server, by hand.
+- `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
+  `stty`, `vi`, `less`, `top`, `seq` and `/tmp`.
+- The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
+  `crates/podssh-ssh/src/prompt.rs:95`, and the `cfg(not(unix))` branches of
+  `crates/podssh-relay/src/cache.rs:205-260`.
+
+## Approach
+
+1. A job `windows` on `windows-2025` (pinned, not `windows-latest`):
+   checkout, NASM as in the release, `cargo test --locked --no-fail-fast` with
+   `CARGO_BUILD_JOBS=4`, and `python scripts/check-repo.py`.
+2. An SSH server on the runner for `scripts/interop-conpty.py`, on
+   127.0.0.1, with a throwaway key that `podssh keygen` makes and the job
+   deletes (see Decision). Run the script with `--direct`; 14 of 14 must pass.
+3. With T-199: score the output with the Windows part of the baseline.
+4. The plant: a podssh that does not restore the mode of the console must
+   fail the three restore checks (as measured by hand, `docs/STATUS.md:61`).
+   Run it once in CI, and record it.
+5. docs/STATUS.md cites the CI run for the rows of Windows;
+   docs/development.md names the job.
+
+## Decision
+
+The server for the console checks. Recommendation: the OpenSSH server of
+MSYS2, if the runner image has MSYS2 (to verify), with vim, less and procps
+(for `top`) from its package manager: one POSIX environment with each program
+that the script uses. The OpenSSH server of Windows lost: it needs a POSIX
+shell as its default shell, and it puts a second pseudo console between the
+script and the shell. Checks by hand only lost: the restore checks guard a
+defect of Windows that no Linux test reaches.
+
+## Prove
+
+```sh
+cargo test --locked --no-fail-fast       # in the job windows: each default test passes
+python scripts/interop-conpty.py target/debug/podssh.exe podtest@127.0.0.1 --direct -p 2222 -i KEY -o StrictHostKeyChecking=accept-new
+```
+
+The tests pass, and the console script prints 14 `ok` lines and exits 0. The
+plant of step 4 must fail the three restore checks.
+
+# T-215: rustfmt and clippy in the gate
+
+**Source:** the triage of GitHub #27 (2026-10-08).
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The gate runs neither `cargo fmt --check` nor `cargo clippy`. The format of
+the code is not consistent, and nobody knows the lints that clippy gives. A
+lint that points at a defect (an unused result, a wrong comparison) is never
+seen.
+
+## Premise
+
+Measured with awk over `git ls-files 'crates/*.rs'` (216 files, comment lines
+not counted): 686 lines are longer than 100 characters, the default
+`max_width` of rustfmt, in 114 files; 119 lines are longer than 120. So the
+code is not in the default style of rustfmt.
+
+Read:
+
+- `scripts/gate.sh:55-136` has no step for rustfmt or clippy. There is no
+  rustfmt.toml and no clippy.toml.
+- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:281`).
+- Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
+  `crates/podssh-transport/src/socket.rs` (458),
+  `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
+
+Not measured (no build here): the changes of rustfmt, the warnings of clippy,
+and whether `rust:1-alpine` has the components rustfmt and clippy.
+
+## Approach
+
+1. Measure first, and record in docs/STATUS.md: `cargo fmt --all --check`
+   with the default style and with `max_width = 120`; `cargo clippy` with
+   `--all-targets`, for the default members and with
+   `--features podssh-cli/ts`.
+2. Choose the style (see Decision), and write it in rustfmt.toml. Keep
+   `wrap_comments = false`: comments must not change.
+3. One commit that only formats. Then run `python scripts/check-repo.py`, and
+   split each file that went over 500 lines, in the same commit.
+4. Repair each warning of clippy, or allow it at the item with a comment that
+   says why. Never allow a lint for a whole crate.
+5. Two steps at the start of `scripts/gate.sh` (they are fast):
+   `cargo fmt --all --check`, and clippy with `-D warnings`. When the image
+   lacks a component, add it with `rustup component add`.
+6. T-206 first. With a moving toolchain, a new release of Rust adds lints and
+   turns the gate red on a tree that did not change.
+
+## Decision
+
+Recommendation: the `max_width` with the smallest measured change that keeps
+each file at 500 lines or fewer, written in rustfmt.toml. The default style
+lost if it rewrites most files or pushes files over 500 lines; the
+measurement of step 1 decides.
+
+## Prove
+
+```sh
+cargo fmt --all --check
+cargo clippy --locked --all-targets -- -D warnings
+python scripts/check-repo.py     # no file over 500 lines after the format
+sh scripts/dev.sh check          # the fmt and clippy steps of the gate pass
+```
+
+Each command exits 0. Planted defects: `if v.len() == 0 {}` in a test must
+fail clippy (`len_zero`); two spaces before an `=` must fail the fmt step.
+
+# T-216: Advisories and licenses of the dependencies, checked in CI
+
+**Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
+(`docs/design.md:274-276`) show that a dependency can get one.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+No check reads the dependencies for security advisories, licenses or sources.
+A dependency with a known vulnerability, a license that podssh cannot ship, or
+a crate from an unknown source can come in with an update of the lockfile.
+The release binaries also ship with no license notices.
+
+## Premise
+
+Measured with grep on `HEAD`: `Cargo.lock` holds 478 packages, 438 from
+crates.io; the others are crates of the workspace and of the fork. There is no
+git source.
+
+Read:
+
+- The licenses that the release binary links, as the manifests in the local
+  cargo registry declare them: aws-lc-sys 0.45.0 "ISC AND (Apache-2.0 OR ISC)
+  AND Apache-2.0 AND MIT AND BSD-3-Clause AND ..."; webpki-roots 1.0.9
+  CDLA-Permissive-2.0; russh 0.64.1 Apache-2.0.
+- BSD-3-Clause and Apache-2.0 ask that a binary copy carries the notices. The
+  release publishes the binaries and `SHA256SUMS` only
+  (`.github/workflows/release.yml:120-136`).
+- The fork already has a configuration for cargo-deny
+  (`vendor/tailscale-rs/deny.toml:1-35`): an allow list of licenses, one
+  ignored advisory with its reason, crates.io only.
+- podssh is 0BSD (`LICENSE`).
+
+## Approach
+
+1. deny.toml at the root: allow each license that `cargo deny list` reports,
+   by name; crates.io as the only source, with unknown git sources and
+   registries denied; duplicate versions as a warning; each ignored advisory
+   with a reason and a date, as the fork does.
+2. A job `deny` in `.github/workflows/build.yml`, with cargo-deny pinned, on
+   each push, each pull request and a daily schedule, because an advisory can
+   appear when the tree does not change. Check the default graph and the graph
+   with all features (the fork comes with `ts`).
+3. Notices: make a file of third-party licenses for each release (cargo-about,
+   a Rust tool), publish it with the binaries, and name it in the notes.
+4. docs/development.md, "Checks" (`docs/development.md:67-76`): the command.
+   `SECURITY.md`: how an advisory is handled.
+
+## Decision
+
+Recommendation: cargo-deny. One configuration checks advisories, licenses,
+duplicates and sources, and the fork already uses it. cargo-audit lost: it
+checks advisories only.
+
+## Prove
+
+```sh
+cargo deny --locked check advisories licenses bans sources
+cargo deny --locked --all-features check licenses sources
+```
+
+Both exit 0, and the next release has a file of notices. Planted defect:
+remove `CDLA-Permissive-2.0` from the allow list; the license check must fail
+on webpki-roots.
+
+# T-217: The declared minimum Rust versions, checked in CI
+
+**Source:** the minimum versions that the manifests declare
+(`docs/development.md:8-9`), measured by hand on 2026-10-08 (the note beside
+`rust-version` in `Cargo.toml`).
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The manifests declare minimum Rust versions, but the gate builds only with the
+newest stable Rust of its image. An update of a dependency, or a new call of
+the standard library, can break a declared minimum, and no run sees it. A user
+who builds from source with that Rust then gets a compile error.
+
+## Premise
+
+Read:
+
+- `Cargo.toml`, the workspace's package table: `rust-version = "1.88"`, with
+  the note that the library crates passed `cargo check --all-targets` on
+  Rust 1.88.0 (measured 2026-10-08).
+- `crates/podssh-ssh/Cargo.toml:6-8` and `crates/podssh-cli/Cargo.toml:6-8`:
+  1.89, the minimum of russh 0.64.1. `crates/podssh-ts/Cargo.toml:5-6`: 1.92,
+  the minimum of the fork.
+- `scripts/gate.sh:50-53` prints the one toolchain of the gate.
+- The workspace uses the resolver "2", which ignores `rust-version` when it
+  picks versions.
+
+## Approach
+
+1. A job `msrv` in `.github/workflows/build.yml`, one entry for each declared
+   version: 1.88 for the library crates and each crate that takes the
+   workspace's value (podssh-todo too); 1.89 for podssh-ssh and podssh-cli;
+   1.92 for podssh-ts with its feature. Run `cargo check --locked
+   --all-targets`, so that the committed lockfile is what is checked.
+2. Read the versions from the manifests in the job; do not write them again
+   in the workflow.
+3. Build in `rust:1.88-alpine` and the same family for each version, so that
+   the C toolchain for aws-lc is the gate's.
+4. With the operator: `incompatible-rust-versions = "fallback"` in the
+   resolver table of `.cargo/config.toml`, so that `cargo update` prefers
+   versions that keep the minimums. The updates of T-205 then fail less often.
+5. docs/STATUS.md, "Build, tests, CI": one row for each version, with the date
+   and the run.
+
+## Prove
+
+```sh
+cargo +1.88.0 check --locked --all-targets -p podssh-ws -p podssh-relay -p podssh-transport -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-todo
+cargo +1.89.0 check --locked --all-targets -p podssh-ssh -p podssh-cli
+cargo +1.92.0 check --locked --all-targets -p podssh-ts -p podssh-cli --features podssh-cli/ts
+```
+
+Each command exits 0, and the job runs the same three. Planted defect: call
+`std::fs::File::lock` (stable since Rust 1.89; confirm in its release notes)
+in a library crate; the check with 1.88 must fail.
+
+# T-218: More release targets
+
+**Source:** the iroh-ssh report in GitHub #18 (static musl binaries for more
+architectures; its issues 51 and 57), read in the report, not verified here.
+**Category:** release
+**Milestone:** none
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A release has three binaries: static Linux for x86_64 and aarch64, and
+Windows for x86_64. A Raspberry Pi with a 32-bit system, a Mac, a Windows
+machine on ARM and a FreeBSD host get none. Their users must build podssh,
+with a C toolchain for aws-lc.
+
+## Premise
+
+Read:
+
+- `.github/workflows/release.yml:31-35`: x86_64 and aarch64 musl, each on a
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:65-106`:
+  Windows x86_64 with a static C runtime.
+- The check of each platform: `readelf` for `NEEDED` and `INTERP`
+  (`.github/workflows/release.yml:46-53`), `dumpbin /dependents` on Windows
+  (lines 86-101).
+- The binary needs a C compiler for aws-lc (`docs/development.md:10-12`); the
+  library crates need none.
+- Some code reads facts of Linux. The terminal check reads `tty_nr` from
+  `/proc/self/stat` when it can (`crates/podssh-ssh/src/terminal/ctty.rs:27`),
+  and does without it when it cannot (`crates/podssh-ssh/src/terminal/ctty.rs:40-41`).
+  `doctor` reads `/proc` too. These need a run on each new system.
+
+## Approach
+
+One target for each commit, each with a build, a check of its links, and a run
+of the binary:
+
+1. `armv7-unknown-linux-musleabihf` (a Raspberry Pi with 32 bits): static, the
+   `readelf` check, and a run under QEMU (`--version`, `man --no-pager`,
+   `keygen`, then `keygen -y`).
+2. `aarch64-apple-darwin` on a macOS runner: `otool -L` lists system
+   libraries only. Run the default tests there first.
+3. `aarch64-pc-windows-msvc` on a Windows runner for ARM: the `dumpbin` check;
+   aws-lc on Windows for ARM64, to measure.
+4. Later: `riscv64gc-unknown-linux-musl` and `x86_64-unknown-freebsd`.
+5. For each target: a row in the table of binaries of the release notes (as
+   `docs/releases/v0.1.0-beta.1.md:73-81`), the README, and the attestation of
+   T-210.
+
+Invariant: no target ships that no run executed.
+
+## Decision
+
+Recommendation: build each new Linux target in the image family of the gate
+under QEMU, where that image exists for the platform, so that there is one
+toolchain. `cross` and `cargo-zigbuild` lost: each brings a second C
+toolchain that the gate never judged. Measure the build time first: QEMU is
+slow, and the job limit is 60 min (`.github/workflows/release.yml:37`).
+
+## Prove
+
+```sh
+gh workflow run release.yml --ref main      # builds and checks each target, publishes nothing
+gh run download RUN_ID -R Azathothas/podssh -n podssh-armv7-unknown-linux-musleabihf
+```
+
+The run passes for each target, and each artifact ran under its check.
+Planted defect: build one target without `+crt-static`; its static check must
+fail.
+
+# T-219: The no-C gate also stops C++
+
+**Source:** the operator's commit `a378863` (2026-10-08).
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The gate built the library crates with `CC=/nonexistent` only. The `cc` crate
+reads `CXX` for a C++ file, so a library crate with a C++ dependency passed
+the gate on any host that has a C++ compiler. The no-C rule held only because
+`rust:1-alpine` has no C++ compiler (the commit message says so).
+
+## Premise
+
+Read, in the tree as it is now:
+
+- `scripts/gate.sh:55-69`: the library crates build and test with
+  `CC=/nonexistent` and `CXX=/nonexistent`.
+- `scripts/plant.sh:100-145`: a crate in a temporary path whose build script
+  compiles one C++ file with the `cc` crate. With both variables set, the
+  build must fail at `/nonexistent`; the control, with `CC` alone, must not
+  stop there.
+- `docs/development.md:91-93` states the rule with `CXX`, and
+  `docs/STATUS.md:199` records the measurement. Rule 4 of
+  `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
+  same change as the record.
+- `.github/workflows/build.yml:67-73` runs the plant on each push.
+
+## Approach
+
+Done in commit `a378863`:
+
+1. `scripts/gate.sh` sets `CXX=/nonexistent` beside `CC` for the build and the
+   tests of the library crates.
+2. `scripts/plant.sh` plants the C++ crate and checks that the build fails at
+   `/nonexistent`. Then it runs the control with `CC` alone, and checks that
+   the build does not stop there. This shows that `CXX` is what stops it.
+3. docs/development.md and docs/STATUS.md record the rule and the measurement.
+
+## Prove
+
+```sh
+sh scripts/dev.sh plant     # C twice, C++ at CXX=/nonexistent, the C++ control, the clean tree
+```
+
+The plant prints its verdict (`scripts/plant.sh:148`) and exits 0. CI runs
+the same script in its step "the no-C rule is load-bearing".
+
+## Done
+
+2026-10-08, commit `a378863` ("gate: the no-C rule also stops C++
+(CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
+`rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
+failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
+there, and the clean tree built (`docs/STATUS.md:199`). The CI run of
+`eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
+load-bearing".
+
+# T-223: `scripts/check-repo.py` passes when it finds nothing to check (GitHub #33)
+
+**Source:** GitHub #33 (2026-10-08), part 1; reproduced here on 2026-10-08.
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+Each check of `scripts/check-repo.py` reports `ok` when it finds no problem,
+also when it found no file to check. With no `crates/` directory the 500-line
+rule passes; with no Markdown the link check passes; with no tracked file the
+credential check passes. A guard that scanned nothing must fail, not pass.
+
+## Premise
+
+Measured: a verbatim copy of `scripts/check-repo.py` in an empty git
+repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
+0. With a planted file crates/x/src/big.rs of 501 lines, the same copy exited
+1 and named the file. Each exit code was read directly.
+
+Read:
+
+- `scripts/check-repo.py:57`: the size check walks `crates/` with `rglob`; a
+  missing directory yields nothing. (#33 cites line 56; the walk is at 57
+  now.)
+- `scripts/check-repo.py:68-97`, `scripts/check-repo.py:100-121` and
+  `scripts/check-repo.py:124-129`: the links, the credentials and the line
+  endings have no floor either.
+- `scripts/check-repo.py:132-146`: `main` passes when each list of problems is
+  empty.
+- The model of a floor: `crates/podssh-relay/tests/default_relay.rs:55`
+  asserts that the sweep read more than 20 files.
+  `scripts/check-scripts.py:112-115` already fails when it finds no script.
+- The counts today: 216 tracked Rust files under `crates/`, 24 live Markdown
+  files on disk, 827 tracked files, 11 shell scripts.
+
+## Approach
+
+1. Each scan counts the files that it read, and its check fails below a
+   floor, with a message that names the count and the floor: Rust files under
+   `crates/`, at least 100; Markdown files, at least 10; tracked files, at
+   least 300; shell scripts, at least 5. Each floor is far below today's count
+   and far above zero.
+2. The floor is judged before the problems, so that a check cannot report
+   `ok` for a scan that did not happen.
+3. A plant in the same script: a mode `--plant-empty` runs the checks on an
+   empty temporary directory and must exit 1. The control is the real tree,
+   which must exit 0. CI runs both, as it does for the relay check
+   (`.github/workflows/build.yml:80-92`).
+4. With T-207: the size check also reads `scripts/`, with its own floor.
+5. The checker of `TODO/` gets its own floor in its own change; this entry
+   does not plan it.
+6. docs/development.md, "Checks": one line on the floors.
+
+## Prove
+
+```sh
+python scripts/check-repo.py                  # the real tree: each check reads its files, exit 0
+python scripts/check-repo.py --plant-empty    # an empty tree: exit 1, each check names its floor
+```
+
+The first command exits 0 and prints each count; the second must exit 1.
+Planted defect: set one floor to 0; `--plant-empty` then exits 0, and the CI
+step must fail on that.
+
+# T-224: The gate finds a listener in the source: a scan with an allow-list (GitHub #33)
+
+**Source:** GitHub #33 (2026-10-08), part 2; a scan of this kind in
+`willykeenan/warren:tests/network_audit.rs` and floors in
+`l0ng-ai/tty7:.github/scripts/check-host-boundary.sh` (read in the report).
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A rule of podssh for the client is: no listener, unless the user asks for it
+and a probe at run time allows the bind. No step of the gate checks it. A
+change that adds a `TcpListener::bind` to a crate passes each check, and only
+a reviewer can see it.
+
+## Premise
+
+Read: the rule as written is rule 3 of `docs/architecture.md:86-93` (the
+bind check of `podssh doctor` is the one exception), rule 3 of
+`docs/target-environment.md:74-78`, and rule 2 of AGENTS.md, section 5. The
+operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
+listener when the user asks for it and a probe at run time allows the bind
+(T-038, T-039, T-124, T-186, and `podssh agent` in T-034); Q10 allows a race
+of relay hosts (T-220), more than one outbound connection for a moment, which
+is not a listener.
+`scripts/check-repo.py:132-138` has four checks, and none reads a socket
+call; `scripts/plant.sh` plants C and C++ only.
+
+Measured with grep over `git ls-files 'crates/*'`: three files hold a
+listener or a bind. `crates/podssh-cli/src/doctor/unix.rs:151` and line 226
+are the bind probes of `doctor`, which close at once and never listen
+(`crates/podssh-cli/src/doctor/mod.rs:15-16`). The test servers are in
+`crates/podssh-ws/tests/dial.rs:80` and
+`crates/podssh-ws/tests/hostname_verification.rs:63`. No file uses
+`UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
+that skips comments and test modules is
+`crates/podssh-relay/tests/default_relay.rs:22-57`.
+
+## Approach
+
+1. A table, each row with a pattern, the rule that it protects ("no listener
+   unless the user asks for it and a probe allows it"), and the files
+   allowed: `TcpListener`, `UnixListener`, `UdpSocket`, `bind(` (with
+   `libc::bind`), `listen(` and `socket2`. Allowed today: `bind(` in
+   `crates/podssh-cli/src/doctor/unix.rs` only, and each pattern in the
+   `tests/` directory of a crate (servers on 127.0.0.1 for tests). `listen(`
+   is allowed in no source file today.
+2. The scan reads each `.rs` file under `crates/` and skips comment lines
+   (`crates/podssh-cli/src/doctor/mod.rs:15` names `bind()` in a comment). A
+   floor comes first: the scan fails when it read fewer than 100 files (T-223).
+3. A plant at each run: the same scan over a temporary tree with one
+   `TcpListener::bind` in the `src/` of a library crate must report it, or the
+   check fails as vacuous. The control: the real tree passes, with exactly the
+   allowed hits.
+4. Each listener that the ruling on Q1 allows joins the allow-list in the
+   commit that adds it (T-038, T-039, T-124, T-186, T-034). Its row names the
+   flag that asks for it and the probe that allows it. No such file exists
+   yet. The scan reads no outbound call, so T-220 needs no row.
+5. docs/development.md, "Checks": the scan and its table. A rule that still
+   says "never a listener" (in docs/architecture.md, docs/target-environment.md
+   or AGENTS.md) changes to the rule as ruled, in the same commit.
+
+## Decision
+
+Recommendation: a fifth check in `scripts/check-repo.py`, as #33 proposes. It
+runs before any build, on the host and in the first step of CI, beside the
+floors of T-223. A Rust test beside
+`crates/podssh-relay/tests/default_relay.rs` lost: it runs only after a build,
+and its sweep and its floor are easy to repeat in Python.
+
+## Prove
+
+```sh
+python scripts/check-repo.py     # the floor, the plant found, the real tree with the allowed hits only
+```
+
+It exits 0 and prints the count of files read and the allowed hits. Planted
+defect: add `let _l = std::net::TcpListener::bind("127.0.0.1:0");` to a file
+under `crates/podssh-ws/src/`; the check must exit 1 and name the file and the
+rule.
+
+# T-244: Code comments break `AGENTS.md` rule 6, and some name files and facts that are wrong
+
+**Source:** the reports of the writers of the record (2026-10-08), measured
+again here; rule 6 of AGENTS.md, section 5.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Rule 6 forbids stop-sign markers, session history and line numbers of
+documents in the code. The code has thousands of each kind. Some comments
+also name files that do not exist, or state wrong facts, and a reader who
+trusts them acts on a wrong fact.
+
+## Premise
+
+Measured with Python over the tracked files outside `vendor/`:
+
+- The stop-sign marker (U+26D4) is on 3608 lines of 130 of the 227 Rust files
+  (4694 times). It is also in `Cargo.toml` (13), three crate manifests,
+  `crates/podssh-probe/facts/relay-facts.toml` (11), the comment lines of
+  `crates/podssh-core/tests/fixtures/grammar.txt` (8), `scripts/dev.sh` (34),
+  `scripts/ts-derp-prove.sh` (4), `scripts/check-scripts.py` (7),
+  `scripts/check-relay-spec.py` (2) and `.gitattributes` (6). Other markers:
+  U+26A0 (7, in podssh-transport), U+2B50 (3, in podssh-terminal), U+1F6D8
+  (`scripts/dev.sh:179-189`).
+- 340 markers are in string literals: 326 in tests, 14 in `src`, one of them
+  in a message for users (`crates/podssh-transport/src/backpressure/mod.rs:157`).
+- 266 lines in 42 code files hold a line number of a document; 188 lines in
+  63 files name a work item of an earlier session (E02, E16).
+
+Read, names of files that do not exist: docs/spec/06-cli.md
+(`crates/podssh-cli/src/flags.rs:3`, lines 12 and 372-374, and four more
+files); docs/TODO/cli/surface.md (`crates/podssh-cli/src/flags.rs:103`,
+`crates/podssh-cli/src/suggest.rs:9`); docs/TODO/protocol/ssh-core.md
+(`crates/podssh-terminal/src/window.rs:42-44`); docs/spec/01-relay-protocol.md
+(`crates/podssh-core/src/irc/limits.rs:8`,
+`crates/podssh-probe/facts/relay-facts.toml:3-5`); a root RULES.md with lines
+138-142 (`crates/podssh-transport/src/lib.rs:4`); check-todo.py
+(`scripts/check-scripts.py:12`, line 25). The link to `SCP_FLAGS`
+(`crates/podssh-cli/src/flags.rs:110`) names a constant that does not exist.
+
+Read, wrong facts:
+
+- `crates/podssh-transport/src/error.rs:17-24` and lines 38-78 cite rows of the
+  relay's document by line, each 35 lower than the row in the pinned copy
+  (line 135 there is line 170 of
+  `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
+- `crates/podssh-ssh/src/run.rs:25-28` and
+  `crates/podssh-transport/src/backpressure/mod.rs:4-22` give the reverse
+  path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
+  as the forward path's. For the forward path, `docs/relay.md:136-140` says
+  1013 at 2 MiB, with no frame dropped.
+- The comment "THE BUILD RULE" in `Cargo.toml` lists the no-C crates without
+  `podssh-relay`; `crates/podssh-cli/Cargo.toml:3` names a `--doctor` flag.
+
+## Approach
+
+1. Remove the four markers, each with its space, from the code, the
+   manifests, the scripts, `.gitattributes` and the IRC fixture's comments.
+   Remove no word and no line, so each comment keeps its meaning and each
+   file its length (rule 5). Change the test messages with the code.
+2. Replace each line number of a document with its section's name or the
+   fact, and each name of an earlier work item with what it means.
+3. Replace each missing file with the document that holds the fact now
+   (`docs/cli.md`, `docs/relay.md`, `docs/terminal.md`, `TODO/RULES.md`).
+   `SCP_FLAGS` becomes plain text until `scp` has flags (T-139).
+4. Correct the wrong facts: the forward path's backpressure (with T-201),
+   `podssh-relay` in the list of `Cargo.toml`, `doctor` as a command.
+5. A check in `scripts/check-repo.py` refuses, in each code file (`.rs`,
+   `.toml`, `.sh`, `.py`, `.gitattributes`, fixture comments), the four
+   markers, a line number of a document (`NAME.md:N`), and a path under
+   docs/spec/ or docs/TODO/. A floor first (100 code files, as in T-223), and
+   a plant at each run. Documents stay out: `AGENTS.md` names the marker.
+6. Work crate by crate; each commit passes the gate.
+
+Pitfalls: `crates/podssh-core/tests/fixtures/grammar.txt` keeps its CRLF
+bytes (git stores it with `-text`); edit it as bytes. Change the line endings
+of no file.
+
+## Prove
+
+```sh
+python scripts/check-repo.py      # the new check: the floor, the plant found, no marker in code
+RUSTDOCFLAGS='-D rustdoc::broken_intra_doc_links' cargo doc --no-deps --locked
+sh scripts/dev.sh check           # the gate, with the changed messages
+```
+
+Each command exits 0; the second shows no link to a missing item. Planted
+defect: put one U+26D4 into a comment of `crates/podssh-ws/src/frame.rs`;
+`check-repo.py` must exit 1 and name the file and the line.
+
+# T-245: The box refuses each bind, but sandbox A allows an AF_UNIX bind
+
+**Source:** the report of the writer of `TODO/pipe.md` (2026-10-08); the
+measurement of sandbox A (T-001); the operator's ruling on Q1
+(`docs/decisions.md`).
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The box like the target sandbox refuses each bind, of each family. Sandbox A,
+where podssh was measured, refuses a bind of AF_INET and allows one of
+AF_UNIX. The ruling on Q1 lets podssh listen when a probe allows the bind, so
+the box must show both cases: a probe that allows the bind, and one that
+refuses it. Today it shows only the second.
+
+## Premise
+
+Read:
+
+- `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
+  whatever its family.
+- `docs/STATUS.md:121`: in sandbox A, `bind` is refused for AF_INET and
+  allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
+  `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
+  path and for the abstract namespace.
+- `docs/target-environment.md:25`: for listening, "The probe did not measure
+  it".
+- `scripts/box/probe.sh:68-74` checks an AF_INET listen only, and expects the
+  refusal. `doctor` probes both families
+  (`crates/podssh-cli/src/doctor/host.rs:20-21`).
+- A seccomp filter compares the arguments of a call as numbers. It cannot read
+  the address that `bind` gets through a pointer, so it cannot refuse AF_INET
+  and allow AF_UNIX.
+
+## Approach
+
+1. Two profiles of the box. `sandbox-a`, the new default: an AF_INET bind
+   fails with EACCES; an AF_UNIX bind (a path, and the abstract namespace)
+   succeeds. `strict`, the box of today: each bind fails.
+2. For `sandbox-a`: drop the `bind` rule from that profile's seccomp file, and
+   refuse a TCP bind with Landlock (its TCP bind right, Linux 6.7 or later; to
+   confirm), set by a small helper of the box before podssh starts. The helper
+   belongs to the box, not to podssh. UDP stays refused at `socket`, as now.
+3. Probe the host kernel for the Landlock version first. When it is too old,
+   stop with a message: no silent fall back to `strict`.
+4. `scripts/box/probe.sh`: one more property, an AF_UNIX bind (a path and the
+   abstract namespace), bound in `sandbox-a` and refused in `strict`. The
+   AF_INET check stays.
+5. `scripts/test_in_box.sh` takes the profile (default `sandbox-a`). Both
+   profiles run `scripts/sandbox-check.sh`, and the two bind lines of
+   `doctor` must match the profile.
+6. The entries that listen after a probe (T-038, T-039, T-124, T-186, T-034)
+   test both profiles: the listener works in one, and the refusal is clear in
+   the other. T-213 runs both profiles in CI.
+7. `docs/target-environment.md` (the row "Listening") and the box section of
+   `docs/development.md` state the measured facts and the two profiles.
+
+Pitfall: do not set the Landlock scope for abstract sockets; sandbox A allows
+them.
+
+## Decision
+
+Recommendation: Landlock for the AF_INET refusal. It refuses a TCP bind with
+EACCES, as sandbox A does, and leaves AF_UNIX alone. A seccomp filter with a
+supervisor that reads the address (user notification) lost: it needs a
+process outside the box. A box with no bind rule lost: it allows the AF_INET
+bind that sandbox A refuses.
+
+## Prove
+
+```sh
+sh scripts/test_in_box.sh --profile sandbox-a path/to/podssh   # AF_UNIX bound, AF_INET refused
+sh scripts/test_in_box.sh --profile strict path/to/podssh      # each bind refused
+```
+
+Each run exits 0, and the probe prints `match` for both bind properties of
+its profile. Planted defect: run `sandbox-a` with the Landlock rule removed;
+the probe must report `DIFFERS` for the AF_INET bind, and exit 1.
+
+# T-246: `scripts/dev.sh` excludes each file named `agents.md` from the container copy, with no reason given
+
+**Source:** a finding of the writer of `TODO/robustness.md` (2026-10-08),
+while reading `scripts/dev.sh`.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+`sh scripts/dev.sh check` copies the tree into a container without the files
+named `agents.md`, and no comment says why. On Windows, where file names have
+no case, the pattern can also match the root `AGENTS.md`. Then the gate in the
+container reads another tree than CI does: a citation of `AGENTS.md` in
+`TODO/` fails only there, and the ids that `AGENTS.md` names go unchecked
+there.
+
+## Premise
+
+Read:
+
+- `scripts/dev.sh:99` puts `agents.md` in `EXCLUDES`. The comments above it
+  (lines 66-98) give a reason for each other pattern, not for this one. The
+  line is in the first public commit, `9a03102`.
+- `.gitignore` (lines 16-18) keeps a root `/agents.md` out of git, as "a
+  lowercase duplicate of AGENTS.md created by the filesystem".
+- The record's checker reads `AGENTS.md` for ids, and drops a missing file
+  with no word (`crates/podssh-todo/src/refs.rs:41-46`). It accepts
+  `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
+  container (`scripts/gate.sh:74-77`). 22 lines of `TODO/` cite `AGENTS.md`.
+- The area file that was TODO/agents.md is `TODO/machine.md` now.
+
+Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
+and with or without case.
+
+## Approach
+
+1. Measure: `sh scripts/dev.sh run -- 'ls -la /work/AGENTS.md /work/TODO'`.
+   Plant a file docs/agents.md for one run, and see whether it reaches
+   `/work`. Read the rules of `--exclude` in the help of `wsl-toolkit run`.
+2. Remove `agents.md` from `EXCLUDES`: git already keeps a lowercase copy out,
+   and the container must see the tree that CI sees.
+3. If a pattern must stay, anchor it to the root, and give the reason in the
+   comment above it.
+4. In `scripts/gate.sh`, before the record's checker runs: fail when
+   `/work/AGENTS.md` is missing, so a missing root file fails loudly.
+5. `docs/development.md:126-127` lists what the containers do not get; name
+   each excluded pattern there.
+
+## Prove
+
+```sh
+sh scripts/dev.sh run -- 'test -f /work/AGENTS.md && test -f /work/TODO/machine.md'
+sh scripts/dev.sh check     # the record's checker passes in the container too
+```
+
+Both exit 0. Planted defect: add `AGENTS.md` to `EXCLUDES`; the new step of
+the gate must fail before the record's checker runs.
+
+# T-247: `podssh-cli` declares dependencies that it does not use
+
+**Source:** the reports of the writers of the record (2026-10-08), measured
+again here.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The binary crate declares four library crates that its code does not use, or
+uses in an example only. Each one is built with the binary, enters each check
+of the dependency graph (T-216, T-217), and tells a reader that `podssh` uses
+it. Nothing stops the list from growing.
+
+## Premise
+
+Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
+
+- `podssh-terminal` (`crates/podssh-cli/Cargo.toml:33`) and `podssh-probe`
+  (line 31): no use at all.
+- `podssh-core` (line 30) and `podssh-transport` (line 34): used only by the
+  example `crates/podssh-cli/examples/live_irc.rs` and its module
+  `crates/podssh-cli/examples/live_irc/support.rs`.
+- The crate has no build script, and no check in the repository looks for
+  unused dependencies.
+
+Read: `libc` (line 44) is used only in code under `cfg(unix)`
+(`crates/podssh-cli/src/keygen.rs:257`, `crates/podssh-cli/src/ssh/resolve.rs:65`,
+the module of `crates/podssh-cli/src/doctor/unix.rs`). T-060 decides whether a
+command uses `podssh-probe`.
+
+## Approach
+
+1. Remove `podssh-terminal` and `podssh-probe` from the dependencies. The
+   commit that uses one again (M5, T-060) adds it back.
+2. Move `podssh-core` and `podssh-transport` to the dev-dependencies: an
+   example can use a dev-dependency, and the binary does not declare them.
+3. Move `libc` to the dependencies for Unix only, as
+   `crates/podssh-relay/Cargo.toml:20` does; else the lint of step 4 fails on
+   Windows.
+4. The check: `#![cfg_attr(not(test), deny(unused_crate_dependencies))]` in
+   `crates/podssh-cli/src/lib.rs`. rustc then refuses a dependency that the
+   library does not use, in each build, with no new tool.
+5. Update `Cargo.lock` in the same commit; the gate builds with `--locked`.
+
+## Decision
+
+Recommendation: the lint of rustc. It runs in each build and each test run,
+on Linux and Windows, and the gate already builds this crate. cargo-machete
+lost: it is one more tool, and it reads text, so it can miss a use through a
+macro. cargo-udeps lost: it needs nightly Rust.
+
+## Prove
+
+```sh
+cargo build --locked -p podssh-cli              # the lint passes: each dependency is used
+cargo build --locked -p podssh-cli --examples   # the example builds from the dev-dependencies
+cargo tree -p podssh-cli -e normal --depth 1    # none of the four crates is a normal dependency
+```
+
+Each command exits 0, also on Windows. Planted defect: add `podssh-terminal`
+back to the dependencies; the first build must fail with
+`unused_crate_dependencies`.

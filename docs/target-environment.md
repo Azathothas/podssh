@@ -71,13 +71,15 @@ should name them:
    directly only when no proxy is set. Never require working DNS.
 2. **Use port 443.** A proxy's allowlist usually drops port 22 first. That
    is why the relay exists.
-3. **One outbound connection, never a listener.** No `bind()`, no
-   `listen()`, no loopback services. Features that need a local listening
-   socket (`ssh -L`, `-D`, `ControlMaster`) cannot work on such hosts, and
-   must fail with a clear message.
+3. **One outbound connection, and no listener unless the user asks for it
+   and a probe allows it.** No `bind()`, no `listen()`, no loopback services
+   by default. Features that need a local listening socket (`ssh -L`, `-D`,
+   `ControlMaster`) probe first. Where the bind is refused, they fail with a
+   clear message ([decisions.md](decisions.md), 2026-10-08).
 4. **No pty required.** A remote pty needs nothing local. When there is no
    pty anywhere, podssh can supply the line discipline (echo, editing,
-   history) in its own process; [terminal.md](terminal.md) tells when. No
+   history) in its own process, or a tty in user space for a child of
+   `podssh serve` (T-248); [terminal.md](terminal.md) tells when. No
    `LD_PRELOAD` and no helper processes: a preload shim fails silently
    against a static binary and looks like an authentication failure.
 5. **Depend on nothing installed:** not `ssh`, not `curl`, not a CA bundle,

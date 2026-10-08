@@ -158,7 +158,8 @@ container. See [docs/development.md](docs/development.md).
 | [docs/terminal.md](docs/terminal.md) | Ptys, raw mode, and the line discipline |
 | [docs/target-environment.md](docs/target-environment.md) | What a constrained host allows, and the rules that follow |
 | [docs/decisions.md](docs/decisions.md) | The decisions of the operator |
-| [docs/defects.md](docs/defects.md) | The open defects, with their files |
+| [TODO/PROGRESS.md](TODO/PROGRESS.md) | The work order, and the questions for the operator |
+| [TODO/INDEX.md](TODO/INDEX.md) | Each open and done item of work (defects, features, measurements), with its entry |
 | [docs/development.md](docs/development.md) | Build, test, checks, the sandbox box, releases |
 | [SECURITY.md](SECURITY.md) | How to report a vulnerability; what podssh guarantees |
 

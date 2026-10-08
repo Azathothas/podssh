@@ -28,7 +28,7 @@ The line discipline in the process (`crates/podssh-terminal`) is for the
 case that remains: a person types through a front end that is not a
 terminal and sends raw keys, to a server with no pty and no line discipline.
 The user must select it explicitly. The absence of a pty alone must never
-select it (defect L1 in [defects.md](defects.md) is that wrong selection).
+select it (T-125 in [TODO/terminal.md](../TODO/terminal.md), formerly L1, is that wrong selection).
 No command uses the crate yet (milestone M5).
 
 ## `-t`, `-T` and `RequestTTY`
@@ -111,7 +111,9 @@ acceptance:
 
 `fg`, `bg` and `jobs` go to the shell. `less`, `vi` and `top` need a real
 pty; sandhome gave a warning when one of about 20 such command names was
-typed.
+typed. Where `/dev/ptmx` is missing, `podssh serve` makes a tty when a probe
+allows it (T-248): a new devpts instance, or a tty in user space that answers
+the child's tty system calls.
 
 Newlines: change a lone `\n` to `\r\n` only when the remote side has no pty
 and podssh holds the local terminal in raw mode. Never change newlines when

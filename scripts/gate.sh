@@ -68,6 +68,14 @@ run "library crates build with no C compiler" \
 run "library crates: tests, no C compiler" \
     env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast $LIBS
 
+# The work record (TODO/): the checker's own tests, where each planted
+# disagreement must be found, then the record of this tree. A count, a status
+# or a cited line that disagrees fails the gate. Pure Rust, no C.
+run "the work record: the checker's tests (plants included)" \
+    env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-todo
+run "the work record: TODO/ agrees with itself" \
+    env CC=/nonexistent CXX=/nonexistent cargo run --locked -q -p podssh-todo -- check
+
 run "the SSH client and the CLI (need cc): tests" \
     cargo test --locked --no-fail-fast -p podssh-ssh -p podssh-cli
 

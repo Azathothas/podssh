@@ -60,12 +60,13 @@ Each rule is implemented.
 
 ## Known gaps
 
-The open defects are in [docs/defects.md](docs/defects.md). These affect
+The open defects are entries in [TODO/INDEX.md](TODO/INDEX.md). These affect
 security:
 
-- Host certificates are checked as plain keys. `@cert-authority` lines are
-  not used.
+- podssh offers no host certificate algorithm, so a server shows its plain
+  key. podssh does not use `@cert-authority` lines: a host that only such a
+  line trusts is an unknown host (T-027, [TODO/ssh.md](TODO/ssh.md)).
 - The IRC client sends plain text through the relay. No command uses it yet.
 - `PrintChain` in `podssh-ws`, a certificate verifier that accepts every
-  certificate, is a public export of the library ([W14](docs/defects.md)).
+  certificate, is a public export of the library (T-065, [TODO/ws.md](TODO/ws.md)).
   No command uses it.

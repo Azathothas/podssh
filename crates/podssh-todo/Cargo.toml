@@ -1,0 +1,12 @@
+[package]
+name = "podssh-todo"
+description = "The checker of the work record in TODO/: a reader that the gate runs, and a writer that moves a status and derives the counts."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# No dependencies: the record is Markdown with fixed lines, and the gate
+# builds this crate on every push.
+[dependencies]

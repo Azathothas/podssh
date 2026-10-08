@@ -70,6 +70,7 @@ No script changes this file.
 python scripts/check-repo.py        # 500-line rule, doc links, credentials, LF in shell scripts
 python scripts/check-scripts.py     # shell scripts parse under dash
 python scripts/check-relay-spec.py  # the live relay still matches what podssh uses
+cargo todo check                    # the work record in TODO/ agrees: counts, statuses, cited paths and lines
 ```
 
 Read each exit code directly. `cmd | tail` gives the exit code of `tail`.
@@ -90,26 +91,31 @@ gate makes sure that:
 1. The library crates build and pass their tests with `CC=/nonexistent`
    and `CXX=/nonexistent`. The `cc` crate reads `CXX` for C++, so `CC` alone
    does not stop a C++ dependency on a host that has `c++`.
-2. The SSH client and the command line pass their tests.
-3. The tests of the `ts` feature pass.
-4. The static musl binary has no dynamic dependencies and no program
+2. The work record agrees with itself (`crates/podssh-todo`). Its checker
+   passes its tests, where each planted disagreement must be found, and then
+   checks `TODO/`: the counts against the rows, the status, title and
+   milestone of each row against its entry, each id that a document names,
+   each cited path and line, the work order, and `docs/ROADMAP.md`.
+3. The SSH client and the command line pass their tests.
+4. The tests of the `ts` feature pass.
+5. The static musl binary has no dynamic dependencies and no program
    interpreter.
-5. The binary works against real servers. `scripts/interop.sh` installs
+6. The binary works against real servers. `scripts/interop.sh` installs
    OpenSSH and Dropbear in the container, starts them on 127.0.0.1, and runs
    `podssh ssh --direct` against them: exit statuses and signals, streams
    and digests, each authentication method, host keys, `-W`, `-J`, `-s`,
    ptys through pipes, and a real pty (`scripts/interop-pty.py`: resize,
    Ctrl-C, `vi`, `less`, `top`, `~.`).
-6. OpenSSH accepts the keys of `podssh keygen` (`scripts/interop-keygen.sh`):
+7. OpenSSH accepts the keys of `podssh keygen` (`scripts/interop-keygen.sh`):
    its `ssh-keygen` reads them and its `sshd` accepts them for login.
-7. podssh handles a relay that fails (`scripts/interop-faults.sh`). A
+8. podssh handles a relay that fails (`scripts/interop-faults.sh`). A
    stand-in relay (`scripts/fake-relay.py`, with TLS from a CA made for the
    run) and a stand-in proxy (`scripts/fake-proxy.py`) fail in one way each:
    a host that is down, a 503, a host that does not answer after TLS, a host
    that does not start TLS, a proxy 502, a Close during a transfer (1011)
    and at the byte limit (1009), a stall, and a host that stops during a
    session.
-8. The man page renders (`scripts/interop-man.sh`): groff and mandoc show
+9. The man page renders (`scripts/interop-man.sh`): groff and mandoc show
    each flag that `--help` shows, groff gives no warning, and `mandoc -Tlint`
    gives no error. A planted page, with one flag's term removed, must fail.
 
