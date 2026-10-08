@@ -66,7 +66,11 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   that it did not write puts `--` before it: `podssh ssh -- "$HOST" COMMAND`,
   `podssh proxy -- "$HOST" PORT`.
 - `-N` alone is valid. `-W HOST:PORT` is a stdio forward: no session, and
-  exit when the forward fails. `-V` prints the version and does not connect.
+  exit when the forward fails. `-W` takes `HOST:PORT` or `[ADDR]:PORT` only:
+  a value with no port is refused, as OpenSSH refuses it, and a path (a Unix
+  socket on the server, for OpenSSH) is refused until T-040 (exit 64). A
+  `-J` hop keeps its own reading, where a host alone is port 22. `-V` prints
+  the version and does not connect.
 - **A repeated value follows OpenSSH** (measured with `ssh -G`): the first
   `-p` and `-l`, the last `-e`, `-E` and `-F`, and the first value of each
   `-o` keyword. A second `-J` or `-W` is an error, as in OpenSSH. podssh's

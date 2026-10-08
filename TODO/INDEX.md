@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 218 open, 0 partial, 7 blocked, 25 done.**
+**250 entries: 217 open, 0 partial, 7 blocked, 26 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 123 | 0 | 3 | 17 | 143 |
+| P2 | 122 | 0 | 3 | 18 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 218 | 0 | 7 | 25 | 250 |
+| **All** | 217 | 0 | 7 | 26 | 250 |
 
 ## Entries
 
@@ -310,7 +310,7 @@ repository and CI).
 | [T-236](ssh.md) | P2 | S | M3 | defect | done | Authentication has no time limit, but the comment of `connect_timeout` says that it has |
 | [T-237](ssh.md) | P2 | S | M3 | defect | done | The client accepts each channel that the server opens; OpenSSH refuses a channel that it did not ask for |
 | [T-238](ssh.md) | P2 | S | M3 | defect | done | `%` tokens differ from OpenSSH: some stay literal, `%u` gives the remote user, and an unknown token is kept |
-| [T-239](forwarding.md) | P2 | S | M3 | defect | open | `-W` with a path, or with no port, is read as a TCP host on port 22 |
+| [T-239](forwarding.md) | P2 | S | M3 | defect | done | `-W` with a path, or with no port, is read as a TCP host on port 22 |
 | [T-240](ts.md) | P2 | S | M8 | defect | open | `podssh ts --jsonl` writes no JSON |
 | [T-241](ts.md) | P2 | S | M8 | defect | open | The tailnet auth key is not cleared from memory |
 | [T-242](ws.md) | P3 | S | backlog | defect | open | The frame decoder accepts a length that is not in the minimal form |

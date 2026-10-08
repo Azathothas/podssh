@@ -5,7 +5,7 @@ of the forwards of a session.
 
 # T-035: `-R`: remote forwarding, each connection made out through the proxy
 
-**Source:** `docs/ROADMAP.md:244-245` (M8) and `docs/cli.md:100-105`; the
+**Source:** `docs/ROADMAP.md:244-245` (M8) and `docs/cli.md:104-109`; the
 VLOD-ZDOV/quic-ssh report in GitHub #22 (item 7) and the cubic-vm/cubic
 report in GitHub #23 (item 7). Read and measured here on `3ee70dc`.
 **Category:** feature
@@ -33,7 +33,7 @@ server listens, and the client connects out for each connection.
   carries the other direction.
 - Read: the manual's note says "-L, -R and -D are refused by name: podssh
   never listens on a port" (`crates/podssh-cli/src/man/notes.rs` lines 31-32
-  at `25ab0e7`), but `docs/cli.md:100-102` says that the refusal of `-R` must
+  at `25ab0e7`), but `docs/cli.md:104-106` says that the refusal of `-R` must
   not say that.
 - Read: russh 0.64.1 has `Handle::tcpip_forward`, and its default handler
   accepts each `forwarded-tcpip` channel that a server opens. podssh's handler
@@ -44,7 +44,7 @@ server listens, and the client connects out for each connection.
   `crates/podssh-ws/src/dial.rs:204-227`). On the measured sandbox, a direct
   connection to loopback is refused (`docs/target-environment.md:22`).
 - Read: a refused `tcpip-forward` gets SSH_MSG_REQUEST_FAILURE, which has no
-  reason field (RFC 4254, section 4). So `docs/cli.md:105` ("podssh gives the
+  reason field (RFC 4254, section 4). So `docs/cli.md:109` ("podssh gives the
   server's reason") cannot hold as written.
 
 ## Approach
@@ -69,7 +69,7 @@ server listens, and the client connects out for each connection.
    corrected the texts of the `-R` refusal (the help and the manual's note
    at `crates/podssh-cli/src/man/notes.rs:31-33`). Change the test that
    asserts the refusal (`crates/podssh-cli/tests/flag_table.rs:67-86`).
-   Update `docs/cli.md:93-107` (correct line 78) and `docs/STATUS.md`.
+   Update `docs/cli.md:97-111` (correct line 78) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
    under the proxy rule of `AGENTS.md:177-182`; say so in the help. The relay's
    64 MiB and 12 h cover all the forwarded connections of a session
@@ -292,7 +292,7 @@ it (`SECURITY.md`, "Design rules").
 a local listener when the user asks for it and a probe at run time allows
 the bind; loopback and AF_UNIX by default; an address that the user sets;
 listening that the user can turn off; the same refusal where the probe
-fails. Also `docs/cli.md:95-99`; the totoshko88/RustConn report in GitHub
+fails. Also `docs/cli.md:99-103`; the totoshko88/RustConn report in GitHub
 #24 (item 3) and the OthmaneBlial/MobaRust report in GitHub #21 (item 3);
 sandbox A of T-001 (`bind` refused for AF_INET, allowed for AF_UNIX).
 **Category:** feature
@@ -489,8 +489,8 @@ Measured, offline, with `MSYS_NO_PATHCONV=1` and `PODSSH_OFFLINE=1`:
 Read:
 
 - `request` parses the value of `-W` with `parse_hop`
-  (`crates/podssh-cli/src/ssh/resolve.rs:297-306`), which reads a value with
-  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/resolve.rs:336-349`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:318-328`), which reads a value with
+  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/resolve.rs:358-371`).
 - russh 0.64.1 has `Handle::channel_open_direct_streamlocal` (the channel
   `direct-streamlocal@openssh.com`). podssh opens only `direct-tcpip`
   (`crates/podssh-ssh/src/forward.rs:11-18`).
@@ -506,7 +506,8 @@ Read:
 3. A server that refuses the channel (OpenSSH with
    `AllowStreamLocalForwarding no`) gives its reason, and 255, as for TCP.
 4. Change the help of the `-W` row (`crates/podssh-cli/src/flags.rs:139-140`)
-   and `docs/cli.md:68-69`, and add an example to the manual. A local socket
+   and `docs/cli.md:68-73` (T-239 refuses a path there until this entry), and
+   add an example to the manual. A local socket
    is the work of T-176 (`pipe`).
 
 ## Decision
@@ -655,7 +656,7 @@ the second read fails.
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -679,9 +680,9 @@ at the connection step (exit 255), after the parse:
 | `db.internal:5432`, `[::1]:5432` | accepted | accepted |
 
 Read: `request` parses the value with `parse_hop`
-(`crates/podssh-cli/src/ssh/resolve.rs:297-306`), which reads a value with no
+(`crates/podssh-cli/src/ssh/resolve.rs:318-328`), which reads a value with no
 `:` as a host on port 22, and splits a value at its one `:`
-(`crates/podssh-cli/src/ssh/resolve.rs:336-349`). `forward::open` opens
+(`crates/podssh-cli/src/ssh/resolve.rs:358-371`). `forward::open` opens
 `direct-tcpip` only (`crates/podssh-ssh/src/forward.rs:11-18`).
 
 ## Approach
@@ -694,7 +695,7 @@ Read: `request` parses the value with `parse_hop`
    refuses `-W 5432`, whose meaning in OpenSSH is not known here.
 3. Keep `HOST:PORT` and `[v6]:PORT`. A `-J` hop keeps its own parse, where a
    host alone means port 22, as in OpenSSH.
-4. Add the rule to `docs/cli.md:68-69`. The help of the `-W` row
+4. Add the rule to `docs/cli.md:68-73`. The help of the `-W` row
    (`crates/podssh-cli/src/flags.rs:139-140`) already says `HOST:PORT`.
 
 ## Prove
@@ -710,3 +711,26 @@ The test, in `crates/podssh-cli/tests/ssh_args.rs`, refuses `/tmp/sock`,
 names the form, and accepts `db.internal:5432` and `[::1]:5432`. The binary
 prints the refusal and exits 64, before anything connects. Planted defect:
 remove the check of step 2, and the test fails for `db.internal`.
+
+## Done
+
+2026-10-08, in the commit "-W takes HOST:PORT, as OpenSSH reads it".
+
+- `stdio_forward_form` in `crates/podssh-cli/src/ssh/resolve.rs` runs
+  before `parse_hop` for `-W`: a value with a `/` is refused ("a Unix socket
+  on the server is not supported yet"), and so is a value with no port
+  ("expected HOST:PORT"), also `db.internal:` and `[::1]`. A bare IPv6
+  address, with more than one `:` and no brackets, is refused too, with the
+  form to use: its port would otherwise be read as 22, the same defect. A
+  `-J` hop keeps its own reading. `docs/cli.md` gives the rule.
+- The test `the_request_follows_the_flags` asserted that `-W db` is port
+  22; it now asserts the refusal.
+- Prove: `cargo test -p podssh-cli --test ssh_args -- stdio_forward_form`
+  passed: `/tmp/sock`, `/tmp/sock:22`, `db.internal`, `5432`, `db.internal:`,
+  `[::1]` and `2001:db8::1` are refused with exit 64 and a message that
+  names the form; `db.internal:5432` and `[::1]:5432` are accepted; a `-J`
+  host alone stays port 22. The binary: `podssh ssh -W db.internal
+  example.invalid` printed "podssh ssh: -W db.internal: expected HOST:PORT"
+  and exited 64; `-W db.internal:5432` reached the offline stop (255).
+- Plant: the check of step 2 removed; the test failed for `db.internal`,
+  which became `StdioForward { host: "db.internal", port: 22 }`.

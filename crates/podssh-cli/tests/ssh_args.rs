@@ -183,7 +183,7 @@ fn the_request_follows_the_flags() {
         r(&["-W", "db:5432", "host"]).unwrap(),
         (Request::StdioForward { host: "db".into(), port: 5432 }, RequestTty::No)
     );
-    assert!(r(&["-W", "db", "host"]).is_ok_and(|(req, _)| req == Request::StdioForward { host: "db".into(), port: 22 }));
+    assert!(r(&["-W", "db", "host"]).is_err(), "-W needs a port, as in OpenSSH");
     assert!(r(&["-W", "db:5432", "host", "ls"]).is_err());
     assert_eq!(r(&["-t", "host"]).unwrap().1, RequestTty::Yes);
     assert_eq!(r(&["-tt", "host"]).unwrap().1, RequestTty::Force);
@@ -278,4 +278,32 @@ fn percent_tokens_follow_openssh() {
     // -E is opened with the name as typed, as OpenSSH does.
     let r = resolve(&ssh(&["-E", "/log/p%p-%h.log", "host"]), &env()).unwrap();
     assert_eq!(r.log_file, Some(PathBuf::from("/log/p%p-%h.log")));
+}
+
+/// `-W` takes `HOST:PORT` or `[ADDR]:PORT` only: OpenSSH reads a path as a
+/// Unix socket on the server and refuses a value with no port, so podssh
+/// must not read either as a host on port 22.
+#[test]
+fn stdio_forward_form_is_host_and_port() {
+    for (value, says) in [
+        ("/tmp/sock", "a Unix socket on the server is not supported yet"),
+        ("/tmp/sock:22", "a Unix socket on the server is not supported yet"),
+        ("db.internal", "expected HOST:PORT"),
+        ("5432", "expected HOST:PORT"),
+        ("db.internal:", "expected HOST:PORT"),
+        ("[::1]", "expected HOST:PORT"),
+        ("2001:db8::1", "an IPv6 address needs brackets"),
+    ] {
+        let err = resolve_or_refuse(&ssh(&["-W", value, "host"]), &env()).unwrap_err();
+        assert_eq!(err.code, 64, "{value}");
+        assert!(err.message.starts_with(&format!("-W {value}: ")), "{value}: {}", err.message);
+        assert!(err.message.contains(says), "{value}: {}", err.message);
+    }
+    for (value, host, port) in [("db.internal:5432", "db.internal", 5432), ("[::1]:5432", "::1", 5432)] {
+        let r = resolve(&ssh(&["-W", value, "host"]), &env()).unwrap_or_else(|e| panic!("{value}: {e}"));
+        assert_eq!(r.options.request, Request::StdioForward { host: host.into(), port }, "{value}");
+    }
+    // A -J hop keeps its own reading: a host alone is port 22.
+    let r = resolve(&ssh(&["-J", "jump.example", "-W", "db:5432", "host"]), &env()).unwrap();
+    assert_eq!(r.options.jump[0].port, 22);
 }

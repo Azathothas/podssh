@@ -294,11 +294,33 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     })
 }
 
+/// `-W` takes `HOST:PORT` or `[ADDR]:PORT`. OpenSSH reads a value with a `/`
+/// as a Unix socket on the server, and refuses a value with no port: a host
+/// on port 22 would change the meaning of its command line. A `-J` hop is
+/// read elsewhere, where a host alone is port 22, as in OpenSSH.
+fn stdio_forward_form(target: &str) -> Result<(), String> {
+    if target.contains('/') {
+        return Err(format!("-W {target}: a Unix socket on the server is not supported yet"));
+    }
+    let port = match target.strip_prefix('[') {
+        Some(rest) => rest.split_once("]:").map(|(_, port)| port),
+        None if target.matches(':').count() > 1 => {
+            return Err(format!("-W {target}: expected HOST:PORT; an IPv6 address needs brackets: [ADDR]:PORT"))
+        }
+        None => target.split_once(':').map(|(_, port)| port),
+    };
+    match port {
+        Some(port) if !port.is_empty() => Ok(()),
+        _ => Err(format!("-W {target}: expected HOST:PORT")),
+    }
+}
+
 fn request(args: &SshArgs, settings: &Settings) -> Result<Request, String> {
     if let Some(target) = &args.stdio_forward {
         if !args.command.is_empty() {
             return Err("-W cannot be combined with a remote command".into());
         }
+        stdio_forward_form(target)?;
         let hop = parse_hop(target)?;
         if hop.user.is_some() {
             return Err(format!("-W {target}: expected HOST:PORT"));
