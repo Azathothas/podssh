@@ -6,7 +6,8 @@ whenever the state changes, with the date and the command that measured it.
 
 ## Summary
 
-**`podssh ssh` and `podssh proxy` work; nothing else does yet.**
+**`podssh ssh`, `podssh proxy` and `podssh doctor` work; nothing else does
+yet.**
 
 - `podssh ssh` is a native SSH client (on `russh`) with OpenSSH's command
   line. On 2026-10-08 it passed all 62 checks against real OpenSSH and
@@ -15,6 +16,9 @@ whenever the state changes, with the date and the command that measured it.
 - `podssh proxy HOST PORT` carries a TCP stream through the relay, directly or
   through an HTTP CONNECT proxy, and works as an OpenSSH `ProxyCommand`
   (verified live 2026-10-08, including a 10-minute idle session).
+- `podssh doctor` reports what a host allows and whether the relay path
+  works, one `ok`/`FAIL`/`????` line per check (2026-10-08: Windows, the Linux
+  container, and through a CONNECT proxy that allows only port 443).
 
 Reverse mode, chat, file copy and the other subcommands are not implemented.
 The IRC code has wire-level bugs found by review
@@ -30,7 +34,8 @@ The IRC code has wire-level bugs found by review
 | `podssh node`, `podssh operator` | not implemented (exits 70) |
 | `podssh chat` | not implemented (exits 70) |
 | `podssh cp`, `podssh mv` | not implemented (exits 70) |
-| `podssh relay`, `status`, `doctor` | not implemented (exits 70) |
+| `podssh doctor` | **works** (2026-10-08): host, egress and relay checks; exit 0, or 1 when a check failed |
+| `podssh relay`, `status` | not implemented (exits 70) |
 | `podssh man` | works: the manual page, generated from the flag tables |
 | `podssh ts` | only with the `ts` cargo feature: status line and a `-W` byte pipe over a tailnet; the live two-node test has never run |
 
@@ -68,17 +73,28 @@ The IRC code has wire-level bugs found by review
 | `--relay-addr tcp.ssh.relay.ajam.dev=1.1.1.1` (a wrong address) | Cloudflare's edge there holds a valid certificate for the name and refuses the request (its error 1034); podssh failed over to a pool host and the session opened |
 | from a real constrained sandbox | **not yet run** |
 
+### `podssh doctor`, measured
+
+| where | result |
+| --- | --- |
+| Windows 11, native debug build, no proxy | 16 ok, 0 FAIL, 0 ????; exit 0 in about 4 s. Four relay hosts answered `/health` (`tcp-ssh-relay 2026-10-03-r2`) over TLS 1.3 with verified certificates, each line naming the address opened; the forward session to `github.com:22` met GitHub's published Ed25519 key `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`; clock within 2 s |
+| the same, through a local CONNECT proxy that allows only port 443 | 17 ok; `CONNECT` lines: the relay and `github.com:443` allowed, `github.com:22` refused with the proxy's `403 not on the egress allowlist`; every relay line says `opened CONNECT … through` the proxy. The proxy's log listed exactly the connections the report named |
+| `--relay-host dead-host.invalid,tcp.ssh.relay.ajam.dev` | exit 1, 2 FAIL: DNS over HTTPS (`1.1.1.1 answered that dead-host.invalid does not exist`) and that relay host; the token and the forward session went through the second host (`after dead-host.invalid failed`) |
+| `rust:1-alpine` container, as root | 26 ok, exit 0: a passwd entry, `/proc`, a pty (`/dev/pts/0`), AF_INET and AF_UNIX bind (file and abstract) allowed; a copy of podssh ran from `/tmp`, `/var/tmp`, `/root` and `/work`, and was refused in `/dev/shm`, which the report named as a noexec mount; trust store from `SSL_CERT_FILE` |
+| `cargo test -p podssh-cli --test doctor` | offline: network checks reported as one `????`, never `ok`; planted failures (no `HOME`, an unusable proxy setting) give `FAIL` and exit 1; proxy credentials and a token in the environment never appear in the output |
+| `cargo test -p podssh-cli --test doctor -- --ignored` | the live path end to end, exit 0 (3.6 s) |
+
 ## Components
 
 | crate | size (src / tests, lines) | what holds | what is broken or missing |
 | --- | --- | --- | --- |
-| `podssh-ws` | 4.2k / 3.2k | TLS 1.3 through rustls with podssh's own pure-Rust crypto provider (ECDSA P-256/P-384, Ed25519, RSA PKCS #1 and PSS); certificate and hostname checks with no bypass; full-duplex session with ping liveness; HTTP CONNECT proxies (never for loopback); trust fallbacks; bounded connect, TLS and upgrade; pinned addresses and DNS over HTTPS when the system resolver fails | no TLS 1.2 (some intercepting proxies need it); control frames not size-checked on receive; `probe::PrintChain` (accepts any certificate) still a public export |
+| `podssh-ws` | 4.2k / 4.0k | TLS 1.3 through rustls with podssh's own pure-Rust crypto provider (ECDSA P-256/P-384, Ed25519, RSA PKCS #1 and PSS); certificate and hostname checks with no bypass; full-duplex session with ping liveness; HTTP CONNECT proxies (never for loopback); trust fallbacks; bounded connect, TLS and upgrade; pinned addresses and DNS over HTTPS when the system resolver fails (a name that does not exist ends the lookup at the first answer) | no TLS 1.2 (some intercepting proxies need it); control frames not size-checked on receive; `probe::PrintChain` (accepts any certificate) still a public export |
 | `podssh-relay` | 1.2k / 0.2k | relay host lists, the cached pool and failover; tokens minted, cached and re-minted; the forward opener (moved out of `podssh-cli` 2026-10-08; no C) | no reverse node/operator legs or pairing yet (M4) |
 | `podssh-transport` | 5.6k / 3.9k | forward-path framing; reverse-path session-id codec and close-code table | about 600 lines are used outside tests; the reverse node leg sends control frames as binary and cannot work live; the 2.3k-line DNS/DoH stack is unused and cannot resolve anything; the backpressure module is unused |
-| `podssh-ssh` | 3.0k / 0.2k | the native client: russh 0.64.1 (aws-lc-rs; strict key exchange and the ML-KEM hybrid key exchange in its defaults); a relay-to-stream pipe that keeps the relay's close reason; a `known_hosts` reader (hashed entries, wildcards, negation, markers); the auth chain; prompts via `/dev/tty`, `CONIN$` or `SSH_ASKPASS`; raw mode, resize, escapes; OpenSSH exit codes | no `ssh_config`; no `-L`/`-R`/`-D`/`-A`/X11; host certificates checked as plain keys; Windows interactive use not tested; no reconnect when the connection drops |
+| `podssh-ssh` | 3.1k / 0.1k | the native client: russh 0.64.1 (aws-lc-rs; strict key exchange and the ML-KEM hybrid key exchange in its defaults); a relay-to-stream pipe that keeps the relay's close reason; a `known_hosts` reader (hashed entries, wildcards, negation, markers); the auth chain; prompts via `/dev/tty`, `CONIN$` or `SSH_ASKPASS`; raw mode, resize, escapes; OpenSSH exit codes; a host-key probe that never authenticates (for `doctor`) | no `ssh_config`; no `-L`/`-R`/`-D`/`-A`/X11; host certificates checked as plain keys; Windows interactive use not tested; no reconnect when the connection drops |
 | `podssh-core` (`irc/`; the hand-written `ssh/` was removed 2026-10-08) | 3.8k / 1.9k | sans-IO client, message grammar, IRCv3 tags | registration hangs on IRCv3 servers (CAP END order); CRLF injection through message text; plaintext through the relay; file transfer never run live and broken for short final chunks |
 | `podssh-terminal` | 2.5k / 1.2k | line-editing state machine | used by nothing; **mode selection inverted** (with no remote pty it refuses all input); no raw mode; cursor counts bytes, not characters |
-| `podssh-cli` | 6.0k / 2.5k | parsing, help, generated man page, refusals; relay selection, token minting and caching, a shared relay opener; `proxy`; `ssh` option resolution (`-o`, destinations, defaults, transport) | 9 of 12 subcommands unimplemented; relay and token code lives in the binary crate, not a library (the unreachable `security/` module was removed 2026-10-08) |
+| `podssh-cli` | 7.0k / 2.9k | parsing, help, generated man page, refusals; `proxy`; `ssh` option resolution (`-o`, destinations, defaults, transport); `doctor` | 7 of 12 subcommands unimplemented (`node`, `operator`, `chat`, `cp`, `mv`, `relay`, `status`) |
 | `podssh-ts` + `vendor/tailscale-rs` | 0.5k / 0.4k + 68k vendored | DERP over WebSocket (fork patches) | behind the `ts` feature; auto mode always picks `tcp`; live acceptance not run |
 | `podssh-probe` | 0.4k / 0.3k | checks the relay document's structure against a pinned copy | used by nothing; duplicates `scripts/check-relay-spec.py` |
 
@@ -87,11 +103,11 @@ The IRC code has wire-level bugs found by review
 | what | result | how |
 | --- | --- | --- |
 | library crates (`podssh-ws`, `-transport`, `-core`, `-terminal`, `-probe`) | build and pass their tests with `CC=/nonexistent` | `scripts/gate.sh` |
-| default tests | **601 passed, 0 failed, 1 ignored** (the live proxy test); fewer than before because the removed `security/` and hand-written SSH modules took their tests with them | `cargo test --no-fail-fast` |
+| default tests | **637 passed, 0 failed, 5 ignored** (the live tests: proxy, doctor, relay pings, DNS over HTTPS twice), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
 | Tailscale feature tests | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | repository checks | pass | `python scripts/check-repo.py` |
-| static release binary | **3,586,496 bytes** with the SSH client (aws-lc and russh), static PIE, no `NEEDED` entries, no interpreter. It was 1,622,944 with `proxy` only, and 7,403,072 while the Tailscale fork was linked | `scripts/gate.sh` |
-| container gate | **green**: every build and test step, and interop 62 of 62 | `sh scripts/dev.sh check` |
+| static release binary | **3,848,704 bytes** with the SSH client (aws-lc and russh) and `doctor`, static PIE, no `NEEDED` entries, no interpreter. It was 3,586,496 before `doctor`, 1,622,944 with `proxy` only, and 7,403,072 while the Tailscale fork was linked | `scripts/gate.sh` |
+| container gate | **green** (2026-10-08, with `doctor`): every build and test step, and interop 62 of 62 | `sh scripts/dev.sh check` |
 | no-C plant | fires twice for the right reason (a planted `ring` fails because no C compiler exists), control passes | `sh scripts/dev.sh plant` |
 | CI | the repository is public since 2026-10-08; the first run on it (commit `9a03102`) passed | `gh run list` |
 
@@ -110,6 +126,8 @@ See [relay.md](relay.md).
 cargo test                                   # default members
 cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts
 cargo test -p podssh-cli --test proxy_live -- --ignored   # network: live relay
+cargo test -p podssh-cli --test doctor -- --ignored       # network: live relay
+target/debug/podssh doctor                   # this host, its egress, the relay
 python scripts/check-repo.py
 python scripts/check-relay-spec.py           # live relay
 ssh -o ProxyCommand='target/debug/podssh proxy %h %p' -T git@github.com

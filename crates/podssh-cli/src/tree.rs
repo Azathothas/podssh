@@ -206,6 +206,13 @@ pub enum Parsed {
         ca_file: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
+    /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
+    Doctor {
+        relay_host: Option<String>,
+        relay_addr: Option<String>,
+        ca_file: Option<String>,
+        refused: Vec<(String, &'static str, &'static str)>,
+    },
     /// ⛔ **`podssh ts`, and it is its own variant because it carries behaviour
     /// inputs no other verb has** (E39). Like `Man`, the refusal list rides
     /// along so a `Refused` row added to `TS_FLAGS` later refuses instead of
@@ -259,6 +266,7 @@ impl Parsed {
             Parsed::Command { refused, .. } => !refused.is_empty(),
             Parsed::Man { refused, .. } => !refused.is_empty(),
             Parsed::Proxy { refused, .. } => !refused.is_empty(),
+            Parsed::Doctor { refused, .. } => !refused.is_empty(),
             Parsed::Ts { refused, .. } => !refused.is_empty(),
             other => other.is_error(),
         }
@@ -406,6 +414,16 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         return Parsed::Proxy {
             target: get("target"),
             port: get("port"),
+            relay_host: get("relay-host"),
+            relay_addr: get("relay-addr"),
+            ca_file: get("ca-file"),
+            refused,
+        };
+    }
+
+    if verb.name == "doctor" {
+        let get = |id: &str| matches.get_one::<String>(id).cloned();
+        return Parsed::Doctor {
             relay_host: get("relay-host"),
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),

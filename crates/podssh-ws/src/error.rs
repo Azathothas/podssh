@@ -29,9 +29,9 @@ impl Verdict {
         }
     }
 
-    /// ⛔ `Unknown` counts as a failure for an exit code. A doctor that exits 0
-    /// because a probe could not run is the exact defect this enum exists to
-    /// prevent, so the process exit and the label cannot disagree.
+    /// Whether the check passed. `Unknown` never did: a check that could not
+    /// run is never counted as passing. (`podssh doctor` counts unknowns
+    /// apart from failures, and only a failure fails its run.)
     pub fn is_success(&self) -> bool {
         matches!(self, Verdict::Ok { .. })
     }

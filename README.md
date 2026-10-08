@@ -90,12 +90,18 @@ It honours:
 | --- | --- |
 | `HTTPS_PROXY`, `https_proxy`, `ALL_PROXY` | reach the relay through this HTTP proxy (`CONNECT`, by name, so no local DNS is needed) |
 | `NO_PROXY`, `no_proxy` | names that bypass the proxy |
-| `PODSSH_RELAY` | a different relay (`host` or `host:port`); also `--relay-host` |
+| `PODSSH_RELAY` | relay hosts to try in order (`host[:port][,...]`); also `--relay-host` |
+| `PODSSH_RELAY_ADDR` | addresses to use instead of DNS (`host=ip[,...]`); also `--relay-addr` |
 | `PODSSH_RELAY_TOKEN` | use this token instead of minting one |
 | `SSL_CERT_FILE` | trust only these CA certificates; also `--ca-file` |
 
 A relay token is minted on first use (`POST /v1/mint`, no account) and cached
 for its lifetime in the user's cache directory, readable by its owner only.
+
+On a new host, `podssh doctor` says what the host allows and whether the
+whole path works: one line per check (`ok`, `FAIL`, or `????` for a check
+that could not run), and exit 1 if a check failed. Details:
+[docs/cli.md](docs/cli.md#podssh-doctor).
 
 ### Relay limits you will hit
 

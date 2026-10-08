@@ -46,6 +46,39 @@ first the shape (`@`, `.` or `:` means `Try: podssh ssh <word>`), then edit
 distance with an absolute threshold and a shared two-letter prefix. Distance
 alone suggests `doctor` for `example.org` and `cp` for `xz`.
 
+## `podssh doctor`
+
+`podssh doctor` reports what this host allows and whether the relay path
+works, measured rather than assumed. It takes the relay settings `ssh` and
+`proxy` take (`--relay-host`, `--relay-addr`, `--ca-file` and their
+environment variables), so it checks the path they would use. Each line is
+`ok`, `FAIL` or `????`, the thing checked, and what was found or opened:
+
+- **this host**: the user database entry, where host keys are recorded, the
+  token cache, `/proc`, a pty, binding AF_INET and AF_UNIX sockets (closed at
+  once, never listening), which directories programs can run from (a copy of
+  podssh is run from each), and the terminal;
+- **egress**: the proxy setting (credentials never shown), the TLS provider
+  and trust store, what the proxy lets through (`CONNECT` to the relay and to
+  `github.com` on 443 and 22) or, with no proxy, whether port 22 is open
+  directly, the system resolver, and DNS over HTTPS;
+- **relay**: each relay host's `/health` over verified TLS, with the address
+  actually opened; a token (never shown); a forward session to
+  `github.com:22`, identified by GitHub's published host key; and this
+  host's clock against the relay's.
+
+A condition podssh is built for (no listener, no pty, no user database
+entry, no DNS) is a fact and reads `ok`. `FAIL` means something podssh or one
+of its fallbacks needs is broken: an unusable proxy setting, nowhere to
+record host keys, a relay host that does not answer, no token, a forward
+session that fails or meets the wrong host key, a clock more than an hour
+off. `????` is a check that could not run: never counted as passing, and
+never a reason for the run to fail.
+
+The report goes to stdout. Exit status: 0 when no check failed, 1 when one
+did, 64 for a usage error. With `PODSSH_OFFLINE` set nothing connects, and
+the network checks are one `????` line.
+
 ## Exit status
 
 `podssh ssh`:

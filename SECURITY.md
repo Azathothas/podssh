@@ -50,7 +50,9 @@ These are rules the code follows or must follow; each says which.
   relay's name. A changed key is never replaced automatically: podssh prints
   the file, the line and both fingerprints.
 - **Nothing listens.** podssh opens outbound connections only, and never
-  executes anything it receives over chat.
+  executes anything it receives over chat. `podssh doctor` is the one place
+  that binds a socket, to learn whether the host allows it; it closes the
+  socket without listening.
 
 ## Known gaps
 

@@ -37,6 +37,10 @@ pub const DOH_RESOLVERS: &[(&str, &str)] = &[
 /// The bound on one resolver's answer, inside the caller's overall deadline.
 const DOH_EACH: Duration = Duration::from_secs(5);
 
+/// A resolver's answer that the name does not exist (DNS status 3). It holds
+/// for every record type and every resolver, so the lookup stops there.
+pub const NXDOMAIN: &str = "no such name (NXDOMAIN)";
+
 static PINS: RwLock<Vec<(String, IpAddr)>> = RwLock::new(Vec::new());
 
 /// `HOST=IP[,HOST=IP...]`; a host may appear more than once. IPv6 addresses
@@ -98,17 +102,20 @@ pub async fn resolve(host: &str, port: u16, deadline: Instant) -> Result<Vec<Soc
         Ok(Err(e)) => e.to_string(),
         Err(_) => "timed out".to_string(),
     };
+    // The caller names the host ("could not resolve HOST: ..."), so these
+    // say only what each source answered.
     if !dns_safe(host) {
-        return Err(format!("could not resolve {host}: {system}"));
+        return Err(system);
     }
     match doh_lookup(host, deadline).await {
         Ok(ips) => Ok(ips.into_iter().map(|ip| SocketAddr::new(ip, port)).collect()),
-        Err(doh) => Err(format!("could not resolve {host}: {system}; DNS over HTTPS: {doh}")),
+        Err(doh) => Err(format!("{system}; DNS over HTTPS: {doh}")),
     }
 }
 
 /// Ask the [`DOH_RESOLVERS`] in turn for A, then AAAA records; the first
-/// resolver that answers with addresses wins.
+/// resolver that answers with addresses wins, and the first that says the
+/// name does not exist ends the lookup.
 pub async fn doh_lookup(host: &str, deadline: Instant) -> Result<Vec<IpAddr>, String> {
     doh_lookup_with(DOH_RESOLVERS, host, deadline).await
 }
@@ -126,6 +133,7 @@ pub async fn doh_lookup_with(resolvers: &[(&str, &str)], host: &str, deadline: I
         for kind in ["A", "AAAA"] {
             match tokio::time::timeout_at(each, query(ip, path, host, kind)).await {
                 Ok(Ok(mut ips)) => found.append(&mut ips),
+                Ok(Err(e)) if e == NXDOMAIN => return Err(format!("{ip}: {e}")),
                 Ok(Err(e)) => reasons.push(format!("{ip}: {e}")),
                 Err(_) => reasons.push(format!("{ip}: timed out")),
             }
@@ -165,8 +173,10 @@ async fn query(ip: &str, path: &str, host: &str, kind: &str) -> Result<Vec<IpAdd
 pub fn parse_answer(body: &[u8], kind: &str) -> Result<Vec<IpAddr>, String> {
     let want: u64 = if kind == "AAAA" { 28 } else { 1 };
     let doc: serde_json::Value = serde_json::from_slice(body).map_err(|_| "not a DNS JSON answer".to_string())?;
-    if doc.get("Status").and_then(|s| s.as_u64()).unwrap_or(2) != 0 {
-        return Err(format!("DNS status {}", doc.get("Status").map(|s| s.to_string()).unwrap_or_default()));
+    match doc.get("Status").and_then(|s| s.as_u64()) {
+        Some(0) => {}
+        Some(3) => return Err(NXDOMAIN.to_string()),
+        other => return Err(format!("DNS status {}", other.map(|s| s.to_string()).unwrap_or_else(|| "missing".into()))),
     }
     Ok(doc
         .get("Answer")
@@ -210,7 +220,9 @@ mod tests {
             {"name":"b.example.","type":28,"data":"2001:db8::7"}]}"#;
         assert_eq!(parse_answer(body, "A").unwrap(), vec!["192.0.2.7".parse::<IpAddr>().unwrap()]);
         assert_eq!(parse_answer(body, "AAAA").unwrap(), vec!["2001:db8::7".parse::<IpAddr>().unwrap()]);
-        assert!(parse_answer(br#"{"Status":3}"#, "A").is_err(), "NXDOMAIN is an error");
+        assert_eq!(parse_answer(br#"{"Status":3}"#, "A").unwrap_err(), NXDOMAIN);
+        assert_eq!(parse_answer(br#"{"Status":2}"#, "A").unwrap_err(), "DNS status 2");
+        assert_eq!(parse_answer(br#"{"Answer":[]}"#, "A").unwrap_err(), "DNS status missing");
         assert!(parse_answer(b"nope", "A").is_err());
         assert!(parse_answer(br#"{"Status":0}"#, "A").unwrap().is_empty());
     }

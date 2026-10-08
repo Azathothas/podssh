@@ -298,6 +298,17 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
 ];
 
+/// `doctor` checks the relay path `ssh` and `proxy` would take, so it takes
+/// their relay settings.
+pub const DOCTOR_FLAGS: &[FlagRow] = &[
+    row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
+        "relay hosts to check, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
+    row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
+        "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
+    row(None, "ca-file", Some("FILE"), FlagKind::Supported,
+        "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
+];
+
 /// One verb: its names, its flags, and the flag table its `-P` belongs to.
 #[derive(Clone, Copy)]
 pub struct Verb {
@@ -336,8 +347,8 @@ pub const VERBS: &[Verb] = &[
         about: "relay status, facts, and pair management" },
     Verb { name: "status", aliases: &["status"], flags: &[],
         about: "one-shot state, one line, machine-readable" },
-    Verb { name: "doctor", aliases: &["doctor"], flags: &[],
-        about: "diagnostics: ok, FAIL, or ???? for each probe" },
+    Verb { name: "doctor", aliases: &["doctor"], flags: DOCTOR_FLAGS,
+        about: "what this host allows and whether the relay works: ok, FAIL or ???? per check" },
     Verb { name: "ts", aliases: &["ts", "tailscale"], flags: TS_FLAGS,
         about: "the tailnet node and byte pipe, over DERP" },
 ];
@@ -359,7 +370,6 @@ pub const VERB_OWNER: &[(&str, &str)] = &[
     ("man", "built"),
     ("relay", "M4"),
     ("status", "M8"),
-    ("doctor", "M3"),
 ];
 
 /// Find a verb by any of its spellings. Returns `None` for anything else —

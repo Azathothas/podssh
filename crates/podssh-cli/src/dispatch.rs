@@ -98,6 +98,20 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 s.err,
             )
         }
+        Parsed::Doctor { relay_host, relay_addr, ca_file, refused } => {
+            if refusals("doctor", refused, s.err) {
+                return EXIT_USAGE;
+            }
+            crate::doctor::run_doctor(
+                &crate::doctor::DoctorArgs {
+                    relay_host: relay_host.clone(),
+                    relay_addr: relay_addr.clone(),
+                    ca_file: ca_file.clone(),
+                },
+                s.out,
+                s.err,
+            )
+        }
         // A build without the `ts` feature still parses `ts` (so help and the
         // man page stay complete) but refuses it, naming the feature.
         #[cfg(not(feature = "ts"))]
@@ -310,7 +324,7 @@ mod tests {
 
     #[test]
     fn a_parsed_verb_with_no_behaviour_refuses_and_is_not_zero() {
-        let p = crate::tree::parse(vec!["doctor"]);
+        let p = crate::tree::parse(vec!["status"]);
         let mut out: Vec<u8> = Vec::new();
         let mut err: Vec<u8> = Vec::new();
         let rc = run(&p, &mut Streams { out: &mut out, err: &mut err });

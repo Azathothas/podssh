@@ -19,6 +19,7 @@
 
 pub mod clap_error;
 pub mod dispatch;
+pub mod doctor;
 pub mod exit_codes;
 // ⛔ **E24's fault table, as code.** ⛔ `exit_codes.rs` holds the two
 // candidate usage constants and names the fork; `exitmap.rs` holds the whole

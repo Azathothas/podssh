@@ -146,14 +146,18 @@ take podssh down.
       provider, which Google's resolvers require (measured: all four
       resolvers answer, each on its own). The unused DoH stack in
       `podssh-transport` is still to be removed.
-- [ ] **`podssh doctor`**: proxy and its allowlist (which ports and names it
-      lets through), AF_INET and AF_UNIX bind, `/dev/ptmx`, a passwd entry,
-      which directories can execute, `/proc`, the CA bundle, each relay
-      host, the token. Each check is `ok`, `FAIL` or `????`; unknowns are
-      counted separately and never fail the run; a check that did not run is
-      never `ok`; it prints what was actually opened; servers are identified
-      by equality (the expected host key), never by the shape of a banner (a
-      banner-shape check once graded the wrong server as good).
+- [x] **`podssh doctor`** (2026-10-08): the proxy and what it lets through
+      (`CONNECT` to the relay and to `github.com` on 443 and 22), AF_INET and
+      AF_UNIX bind (never listening), a pty, the user database entry, which
+      directories can execute (a copy of podssh is run from each), `/proc`,
+      the trust store, DNS and DNS over HTTPS, each relay host's `/health`
+      with the address actually opened, the token (never shown), a forward
+      session to `github.com:22` identified by GitHub's published host key
+      (equality, never a banner's shape), and the clock. `ok`, `FAIL` or
+      `????` per check; unknowns are counted apart and never fail the run
+      (exit 0, or 1 when a check failed). Measured on Windows, in the Linux
+      container (it found `/dev/shm` mounted noexec), and through a CONNECT
+      proxy that allows only port 443 (the proxy's log matched every line).
 - [ ] **`podssh keygen`** for hosts with no `ssh-keygen` (Ed25519 by default;
       OpenSSH format; never prints the private key).
 - [ ] **A fault-injection harness** in the gate: a killed relay host, a proxy
