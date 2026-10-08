@@ -86,7 +86,9 @@ The client is `russh` with the `aws-lc-rs` backend
 - [x] An interactive session (`vi`, `less`, `top`, Ctrl-C) works from a
       terminal, from a host with no `/dev/ptmx` (`-tt` over pipes), and on
       Windows.
-- The same from the operator's real sandbox: T-004 (M3).
+- [x] The same from a box like the operator's sandbox (T-004, 2026-10-09);
+      a run in a real sandbox follows the release (the operator's ruling of
+      2026-10-08).
 
 ## M3: Nothing single-point and nothing assumed
 
@@ -127,21 +129,21 @@ podssh. M3 has no release: the one release is `v1.0.0`, in M9
 - [x] **Measured in the operator's real sandbox** (T-001): two sandboxes
       on 2026-10-08, with `sh scripts/sandbox-check.sh`, failover and
       throughput. See STATUS.
-- The entries that the sandbox runs found: T-005, T-006,
-  T-007, T-008, T-009, T-010, T-011, T-023, T-024 and T-057; and T-004
-  (interactive use from a sandbox).
+- [x] The entries that the sandbox runs found: T-005, T-006,
+      T-007, T-008, T-009, T-010, T-011, T-023, T-024 and T-057; and T-004
+      (interactive use from a box like the sandbox).
 - [x] The git history was replaced by one commit before the repository went
       public. The old history is in a local bundle.
 - [x] The repository is public. CI runs the gate on each push.
 
-Open question: how do the compiled-in `webpki-roots` certificates get updates
-in released binaries? T-003.
+- [x] The compiled-in roots (T-003): a release follows each update of
+      `webpki-roots`, and `podssh doctor` gives their version and age.
 
-**Exit criteria**
+**Exit criteria** (met on 2026-10-09)
 
-- The interop and fault-injection harnesses pass in the gate.
-- `podssh ssh` and `podssh proxy` work from the operator's real sandbox,
-  also when one relay host cannot be reached.
+- [x] The interop and fault-injection harnesses pass in the gate.
+- [x] `podssh ssh` and `podssh proxy` work from the operator's real sandbox,
+      also when one relay host cannot be reached (T-001).
 
 ## M4: `podssh-relay`, the reverse road, and podbox
 

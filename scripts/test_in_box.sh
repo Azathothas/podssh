@@ -4,6 +4,12 @@
 # inside it (scripts/sandbox-check.sh).
 #
 #   sh scripts/test_in_box.sh [PODSSH_LINUX_BINARY]
+#   BOX_RUN=tt sh scripts/test_in_box.sh [PODSSH_LINUX_BINARY]
+#
+# BOX_RUN=tt runs scripts/box/tt-session.sh in place of sandbox-check.sh: an
+# interactive session over -tt (T-004) against OpenSSH in a container next
+# to the box, reached with --direct through the box's proxy, which lets that
+# one target through.
 #
 # The binary is a static Linux build (default:
 # target/x86_64-unknown-linux-musl/release/podssh, or one from the release
@@ -26,6 +32,9 @@ BIN=${1:-$REPO/target/x86_64-unknown-linux-musl/release/podssh}
 NET=podssh-box-net
 PROXY=podssh-box-proxy
 BOX=podssh-box
+TARGET=podssh-box-target
+RUN=${BOX_RUN:-check}
+case $RUN in check | tt) ;; *) echo "test_in_box: BOX_RUN is check or tt, not $RUN" >&2; exit 1 ;; esac
 IMAGE=localhost/podssh-box:2
 BASE_IMAGE=docker.io/library/alpine:3.20
 PROXY_IMAGE=docker.io/library/python:3.12-alpine
@@ -70,7 +79,7 @@ TTYFILE=/tmp/podssh-box-tty.$$
 TTY_STARTED=0
 
 remove() {
-    podman rm -f "$BOX" "$PROXY" >/dev/null 2>&1
+    podman rm -f "$BOX" "$PROXY" "$TARGET" >/dev/null 2>&1
     podman network rm -f "$NET" >/dev/null 2>&1
     # The holder stops within a second after its path file goes.
     [ "$TTY_STARTED" = 0 ] || on_host "rm -f $TTYFILE $TTYFILE.py" </dev/null >/dev/null 2>&1
@@ -89,10 +98,34 @@ echo "== the network: internal, so the box has no route out"
 # name" for outside names, which broke the proxy's resolution (measured).
 podman network create --internal --disable-dns "$NET" >/dev/null || die "could not create the network $NET"
 
+ALLOW=
+mkdir -p "$WORK/tt"
+if [ "$RUN" = tt ]; then
+    echo "== the SSH server for the session: OpenSSH with less and procps, on the box's network only"
+    printf 'FROM %s\nRUN apk add --no-cache openssh-server less procps\n' "$BASE_IMAGE" >"$WORK/Containerfile.target"
+    timeout 900 podman build -q -t localhost/podssh-box-target:1 -f "$(hostpath "$WORK/Containerfile.target")" \
+        "$(hostpath "$WORK")" >"$WORK/build-target.log" 2>&1 || { cat "$WORK/build-target.log"; die "the server image did not build"; }
+    # A throwaway key pair for this run only; the box copies the private key
+    # with mode 600, and the work directory goes at the end.
+    timeout 120 podman run --rm --mount "type=bind,source=$(hostpath "$WORK/tt"),target=/tt" localhost/podssh-box-target:1 \
+        sh -c 'ssh-keygen -q -t ed25519 -N "" -C podssh-tt -f /tt/key && chmod 644 /tt/key' || die "no key pair"
+    timeout 120 podman run -d --name "$TARGET" --network "$NET" \
+        --mount "type=bind,source=$(hostpath "$WORK/tt"),target=/tt,readonly" localhost/podssh-box-target:1 \
+        sh -c 'adduser -D -s /bin/sh tt && sed -i "s/^tt:!/tt:*/" /etc/shadow && mkdir -p /home/tt/.ssh &&
+            cp /tt/key.pub /home/tt/.ssh/authorized_keys && chown -R tt:tt /home/tt/.ssh &&
+            chmod 700 /home/tt/.ssh && chmod 600 /home/tt/.ssh/authorized_keys && ssh-keygen -A &&
+            exec /usr/sbin/sshd -D -e' >/dev/null || die "the SSH server did not start"
+    TIP=$(podman inspect -f "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}" "$TARGET")
+    [ -n "$TIP" ] || die "the SSH server has no address on $NET"
+    ALLOW="--allow tt.box:22=$TIP:22"
+    echo "the SSH server at $TIP:22 is tt.box:22 through the proxy"
+fi
+
 echo "== the proxy: the only way out"
+# shellcheck disable=SC2086
 timeout 600 podman run -d --name "$PROXY" --network podman --network "$NET"     --dns 1.1.1.1 --dns 8.8.8.8 \
     --mount "type=bind,source=$(hostpath "$HERE/box"),target=/box,readonly" \
-    "$PROXY_IMAGE" python3 /box/proxy.py --listen "0.0.0.0:$PORT" >/dev/null || die "the proxy did not start"
+    "$PROXY_IMAGE" python3 /box/proxy.py --listen "0.0.0.0:$PORT" $ALLOW >/dev/null || die "the proxy did not start"
 tries=0
 until podman logs "$PROXY" 2>&1 | grep -q '^listening'; do
     tries=$((tries + 1))
@@ -137,12 +170,15 @@ timeout 1800 podman run --rm --name "$BOX" --network "$NET" \
     --mount "type=bind,source=$(hostpath "$WORK/empty"),target=/etc/group,readonly" \
     --mount "type=bind,source=$(hostpath "$BIN"),target=/in/podssh,readonly" \
     --mount "type=bind,source=$(hostpath "$HERE"),target=/scripts,readonly" \
+    --mount "type=bind,source=$(hostpath "$WORK/tt"),target=/tt,readonly" \
     --tmpfs /state/home:rw,exec,mode=1777 \
     -e HOME=/state/home -e TERM=xterm \
     -e HTTPS_PROXY="http://$PIP:$PORT" -e https_proxy="http://$PIP:$PORT" \
     -e NO_PROXY="$PIP" -e no_proxy="$PIP" \
-    "$IMAGE" sh -c 'install -m 755 /in/podssh /usr/local/bin/podssh &&
-        sh /scripts/box/probe.sh && sh /scripts/sandbox-check.sh /usr/local/bin/podssh'
+    -e BOX_RUN="$RUN" \
+    "$IMAGE" sh -c 'install -m 755 /in/podssh /usr/local/bin/podssh && sh /scripts/box/probe.sh &&
+        if [ "$BOX_RUN" = tt ]; then sh /scripts/box/tt-session.sh /usr/local/bin/podssh;
+        else sh /scripts/sandbox-check.sh /usr/local/bin/podssh; fi'
 rc=$?
 
 echo

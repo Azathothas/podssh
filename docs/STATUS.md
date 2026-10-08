@@ -129,6 +129,7 @@ gate's static x86_64 binary of `4bf0c26` (CI run 37783671123), 2026-10-08:
 | The same, planted: the gate's binary of `d0b16a3`, before `eacd94e` | `keygen` waits until `timeout` stops it at 90 s (exit 143); `ssh` waits until its 60 s handshake limit. Both steps print `FAIL`, and the run exits 1. |
 | The `ssh` of OpenSSH with podssh as its `ProxyCommand` | `No user exists for uid 0`, exit 255: the client of OpenSSH cannot run when the user database has no entry. `scripts/sandbox-check.sh` prints `skip` for it, with that reason. |
 | The verdicts of `scripts/sandbox-check.sh` (T-006) | 7 ok, 0 FAIL, 1 skip, exit 0. Planted: the same binary behind a wrapper whose `doctor` exits 3 gives `FAIL doctor`, and the box exits 1. A binary that does not run (`/bin/false`) stops the script with exit 1 before any step. |
+| An interactive session over `-tt` from the box (T-004; `BOX_RUN=tt sh scripts/test_in_box.sh`), the gate's binary of `2c39778`, 2026-10-09 | Written through a pipe to OpenSSH next to the box, with `--direct` through the box's proxy: exit 7, `vi` saved a file, `less` and `top` drew, Ctrl-C stopped `sleep 30` (20 s in all). railway.new now refuses an anonymous visitor (exit 13), so it was not the server. |
 
 ## In the operator's real sandboxes, measured
 

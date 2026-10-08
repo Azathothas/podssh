@@ -174,7 +174,7 @@ sandbox follows the release (`docs/decisions.md`).
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -199,6 +199,19 @@ Read: `-tt` asks the server for a pty and needs nothing local
    and quit; stop `sleep 30` with Ctrl-C; end with `exit 7`.
 3. Record the output markers and the exit status in `docs/STATUS.md`.
 
+## Decision
+
+railway.new refuses an anonymous visitor now (see Correction). What this
+entry measures is the client: podssh in the box, written to through a pipe,
+with no `/dev/ptmx` and a `/dev/tty` that never answers. So the server is
+OpenSSH in a container next to the box (Alpine 3.20 with `less` and
+`procps`; busybox `vi`), reached with `--direct` through the box's proxy,
+which lets that one target through (`proxy.py --allow`). The relay is not on
+this path: it reaches no private address; its path from a sandbox is
+measured in T-001. Alternatives that lost: to block the entry on
+railway.new, an outside service; the tailnet hosts, which the box cannot
+reach; a public server of the project, which there is not.
+
 ## Prove
 
 ```sh
@@ -211,6 +224,44 @@ grep -c hello /tmp/tt.out
 
 The exit status is 7, the file holds `hello`, and Ctrl-C stopped `sleep`
 before 30 s.
+
+## Correction
+
+2026-10-08, measured from Windows with a throwaway key: railway.new answers
+an anonymous visitor with `{"status":"refused", ...}` on stdout, "visitors
+are limited. Sign up to keep building.", and exit 13. The URL in that
+answer is not recorded. And the key sequence of the Prove needs a pause
+after ESC: in the box, vi read `\033:wq` as one escape sequence and stayed
+in insert mode, so each later key went into the file.
+
+## Done
+
+2026-10-09, in the commit "An interactive session over -tt from the box:
+vi, less, top and Ctrl-C".
+
+- `BOX_RUN=tt sh scripts/test_in_box.sh BINARY` starts the server of the
+  Decision and runs `scripts/box/tt-session.sh` (new) in the box after the
+  probe, in place of `sandbox-check.sh`. The script writes the keys of the
+  Prove through a pipe, with a pause after ESC, and checks five markers.
+  `scripts/box/proxy.py` has `--allow NAME:PORT=HOST:PORT` for that one
+  target; each other request meets the sandbox's policy, and the probe
+  still checks it.
+- Result, with the gate's binary of `2c39778` (its CI run): the box matched
+  the sandbox on each required property; then exit 7, the file held
+  `hello` (cat printed it), less showed `/etc/services`, top drew its
+  header, and Ctrl-C stopped `sleep 30`: the session took 20 s.
+- Plant: the driver sends no Ctrl-C. The session took 46 s, the Ctrl-C
+  check failed, and the run exited 1. Before the pause after ESC, each
+  marker but the exit status failed (the session ran into the limit of
+  120 s), so the markers fail when the session does not do its work.
+- The box's default mode still runs `sandbox-check.sh`: 7 ok, 0 FAIL, 1 skip
+  with the same binary. In two runs before that, the same hour, the relay
+  closed `podssh proxy github.com 22` with `1011 write failed: Network
+  connection lost.` before the banner (GitHub #17, T-025), and a binary of
+  `02e4e1f` passed between them: the relay's drop, not a defect of this
+  change. The new first line named the hop that broke (T-024).
+- A run in a real sandbox follows the release (the operator's ruling of
+  2026-10-08).
 
 # T-005: A prompt never waits for ever on a `/dev/tty` with nobody behind it (GitHub #15)
 

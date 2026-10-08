@@ -11,7 +11,11 @@ the target sandbox's proxy was measured to have (sandprobe report,
 It resolves names itself, so a client behind it needs no DNS. Each request
 is logged to stdout as one line: the status, then the request line.
 
-Usage: proxy.py [--listen HOST:PORT]
+`--allow NAME:PORT=HOST:PORT` lets one test target through, by the exact
+name and port that the client asks for: an SSH server next to the box
+(T-004). Every other request meets the policy above.
+
+Usage: proxy.py [--listen HOST:PORT] [--allow NAME:PORT=HOST:PORT ...]
 """
 
 import argparse
@@ -21,6 +25,8 @@ import socket
 import sys
 
 ALLOWED_PORTS = {443, 80, 8443}
+# NAME:PORT -> (HOST, PORT): the test targets of --allow.
+TARGETS = {}
 
 
 def log(line):
@@ -61,6 +67,18 @@ async def handle(reader, writer):
         return
     host, _, port_text = parts[1].rpartition(":")
     host = host.strip("[]")
+    target = TARGETS.get(f"{host}:{port_text}")
+    if target is not None:
+        try:
+            up_reader, up_writer = await asyncio.wait_for(asyncio.open_connection(*target), 15)
+        except (OSError, asyncio.TimeoutError):
+            await answer(writer, 502, "Bad Gateway", request_line)
+            return
+        log(f"200 {request_line} (the test target)")
+        writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+        await writer.drain()
+        await asyncio.gather(pipe(reader, up_writer), pipe(up_reader, writer))
+        return
     if not port_text.isdigit() or int(port_text) not in ALLOWED_PORTS:
         await answer(writer, 403, "not on the egress allowlist", request_line)
         return
@@ -88,7 +106,12 @@ async def handle(reader, writer):
 async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--listen", default="0.0.0.0:45331")
+    parser.add_argument("--allow", action="append", default=[])
     args = parser.parse_args()
+    for item in args.allow:
+        name, target = item.split("=", 1)
+        target_host, target_port = target.rsplit(":", 1)
+        TARGETS[name] = (target_host, int(target_port))
     host, port = args.listen.rsplit(":", 1)
     server = await asyncio.start_server(handle, host, int(port))
     log(f"listening on {args.listen}")

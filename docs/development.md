@@ -156,6 +156,12 @@ The box has these properties:
   and the box has its slave at `/dev/tty`. It needs Python 3 and `setsid`
   on that host.
 
+`BOX_RUN=tt sh scripts/test_in_box.sh BINARY` runs an interactive session
+over `-tt` instead of `sandbox-check.sh` (T-004): `scripts/box/tt-session.sh`
+writes keys for `vi`, `less`, `top` and Ctrl-C through a pipe to OpenSSH in a
+container next to the box, which the box's proxy lets through
+(`proxy.py --allow`), and checks five markers.
+
 `scripts/box/probe.sh` compares the box with the operator's sandprobe report
 of the target sandbox. If a required property is different, the script stops
 and does not run podssh. Then `scripts/sandbox-check.sh` runs `doctor`,

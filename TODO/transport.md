@@ -2,7 +2,7 @@ This file holds the open defects of `podssh-transport`, one entry for each row o
 "podssh-transport" of the former defects page (`git show 3ee70dc:docs/defects.md`): T1, T2, T5,
 T7, T8, T9 and T10. No command of the default build uses this crate; only examples do
 (`crates/podssh-cli/examples/live_irc.rs:20-22`). The reverse runners of milestone M4 use it, so
-T-071, T-072, T-073, T-075 and T-076 come first in M4 (`docs/ROADMAP.md:148-156`, and the work
+T-071, T-072, T-073, T-075 and T-076 come first in M4 (`docs/ROADMAP.md:150-158`, and the work
 order in `TODO/PROGRESS.md`). M4 starts after M3 is complete (`docs/ROADMAP.md:7-9`). T-082 moves
 the repaired codecs into `podssh-relay` later in M4, and T-074 and T-077 can close in that commit.
 
@@ -60,7 +60,7 @@ characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141
    each of its methods. Keep one double; do not add a second one.
 5. Pitfall: `Socket::send_text` takes `&[u8]` (`crates/podssh-transport/src/socket.rs:29`). Keep
    that signature, so `FrameQueue` does not change, or change both in one commit.
-6. In the same commit, update the `podssh-transport` row of `docs/STATUS.md:206`, and close this
+6. In the same commit, update the `podssh-transport` row of `docs/STATUS.md:207`, and close this
    entry in place (`TODO/RULES.md:41-42`).
 
 ## Prove
@@ -146,7 +146,7 @@ The first test feeds the double a Close with code 1001 and `pair expired`. It as
 `TransportError::Closed` with that code and reason, and `retry() == Retry::NewPair`; with
 `operator stopped reverse relay` it asserts `Retry::Never`. Add one Close payload captured from
 the live relay (for example `1000 target closed` through `podssh proxy`) as a fixture, so the
-parser also meets bytes that podssh did not make (`docs/development.md:195-197`). The second test
+parser also meets bytes that podssh did not make (`docs/development.md:201-203`). The second test
 asserts that an unmatched `4000 x` and a node's `1011 connection refused` both show their own code
 and reason. Plant: delete the new 0x8 arm; the first test must fail with `Unexpected`.
 
@@ -265,7 +265,7 @@ flow control that podssh uses (`docs/relay.md:165-166`).
 2. Keep no part of it. The runners of T-079 and T-080 bound their queues with bounded channels
    and the relay's caps (`docs/reverse.md:30-35`), not with a ledger.
 3. Check with `git grep` that no script or test still names the deleted files.
-4. Update the line counts of the crate in `docs/STATUS.md:206`, and close this entry in place.
+4. Update the line counts of the crate in `docs/STATUS.md:207`, and close this entry in place.
 5. T-082 can do these steps in the move; then this entry closes with the commit of T-082.
 
 ## Decision
@@ -452,7 +452,7 @@ Read: `Backoff` doubles from 1 s to 30 s with no jitter (`crates/podssh-transpor
 `crates/podssh-transport/tests/closes.rs:308-345`.
 
 Read: a node connects again "with a jittered backoff" (`docs/reverse.md:22-24`,
-`docs/ROADMAP.md:148-156`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
+`docs/ROADMAP.md:150-158`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
 by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:263-277`); `podssh ssh` uses
 it (`crates/podssh-cli/src/ssh/mod.rs:125-131`).
 

@@ -1,11 +1,11 @@
 The work of milestone M7, `podssh pipe` and `--persist`, and the backlog of
 streams that `pipe` can carry: desktop streams and Telnet, a published HTTP
 service, serial devices and USB/IP. The design is `docs/design.md:223-258`;
-the milestone is `docs/ROADMAP.md:224-233`.
+the milestone is `docs/ROADMAP.md:226-235`.
 
 # T-174: `podssh pipe A B` with local addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:226-230`), `docs/design.md:240-258`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:228-232`), `docs/design.md:240-258`;
 GitHub #26 (Nemo-010, 2026-10-08). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M7
@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:141`).
+  do not run programs (`docs/STATUS.md:142`).
 
 ## Approach
 
@@ -101,7 +101,7 @@ checks for 7 and 64 must fail.
 
 # T-175: `podssh pipe` with remote addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:226-230`), `docs/design.md:247-250`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:228-232`), `docs/design.md:247-250`;
 GitHub #26 (Nemo-010, 2026-10-08); the RustConn report in GitHub #24 (one
 address model across roads; read in the report, not verified here).
 **Category:** feature
@@ -197,7 +197,7 @@ does; the late-reply check must fail.
 
 # T-176: `podssh pipe` with `unix-connect:PATH`
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:226-230`); GitHub #26 ("a name for
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:228-232`); GitHub #26 ("a name for
 AF_UNIX streams"), from the USBoverSSH report in GitHub #25
 (`ImKKingshuk/USBoverSSH:usboverssh/src/tunnel.rs`; read in the report, not
 verified here).
@@ -223,7 +223,7 @@ not a listener, so `docs/target-environment.md:74-78` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:189-198`,
   `crates/podssh-cli/src/doctor/unix.rs:210-212`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:141`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:142`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -259,7 +259,7 @@ never answers, and the test fails at its limit of 10 s.
 
 # T-177: `podssh pipe` with a local listener after a probe
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-230`), `docs/design.md:252-258`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:231-232`), `docs/design.md:252-258`;
 GitHub #26 (a local-only mode, as the `--local` of bunflared; read in the
 report, not verified here); sandbox A of T-001.
 **Category:** feature
@@ -285,7 +285,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:252-254`).
   `AGENTS.md:177-182`, `docs/architecture.md:95-102`,
   `docs/target-environment.md:74-78`, `SECURITY.md:56-59`, `README.md:35-36`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:141`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:142`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs:137-231`). A bind that works does
@@ -354,7 +354,7 @@ Plant: bind with no umask; the check of the mode must fail.
 
 # T-178: `--persist`: connect again and attach `tmux` again
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:231-233`), `docs/design.md:204-214`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-235`), `docs/design.md:204-214`;
 GitHub #19 (a lasting terminal through `tmux`, from the slingshot report:
 `ado11231/slingshot:crates/slingshot-agent/src/jobs.rs`; read in the
 report, not verified here).
@@ -382,7 +382,7 @@ running on the server (`docs/design.md:207-209`).
   each session (`crates/podssh-ssh/src/session.rs:82-98`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:147-153`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:149-150`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:150-151`).
 - Read: tmux is never assumed (`docs/target-environment.md:90-92`).
 
 ## Approach
@@ -462,7 +462,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:115`), then Close 1009 (`docs/relay.md:151`); public
   targets only (`docs/relay.md:117`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:148`).
+  0.7 MB/s (`docs/STATUS.md:149`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 

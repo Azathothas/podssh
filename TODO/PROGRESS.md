@@ -11,9 +11,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   of one. `TODO/issues.md` maps the GitHub issues. The writers of the
   entries read the code at each cited line, and found more defects; each is
   an entry (T-230 to T-248).
-- **M3.** Measured in two real sandboxes on 2026-10-08 (T-001, done). The
-  sandbox runs found defects in podssh and in the measurement script; the
-  work order below does them first. There is one release only: `v1.0.0`, at
+- **M3.** Done on 2026-10-09: measured in two real sandboxes (T-001), each
+  defect that the sandbox runs found is repaired, and the interactive
+  session runs in the box (T-004). There is one release only: `v1.0.0`, at
   the end (T-250).
 - **GitHub.** 36 issues on 2026-10-08. #1, #4, #5 and #16 are closed by their
   commits (T-014, T-015, T-016, T-017). #15 is repaired in `eacd94e`,
@@ -42,7 +42,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 250 entries: 216 open, 0 partial, 7 blocked, 27 done.
+`TODO/INDEX.md` holds 250 entries: 215 open, 0 partial, 7 blocked, 28 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -51,10 +51,6 @@ Open includes parked work. `cargo todo check` verifies this line.
 Finish each entry, close it in place, update this page in the same commit,
 then take the next one. Each session runs unattended until the goal of
 `AGENTS.md` (section 2) is reached or the operator interrupts it.
-
-**M3:**
-
-1. T-004, measured in the box (the operator's ruling of 2026-10-08).
 
 **After M3 and before M4 (the operator's ruling of 2026-10-08):**
 the surface for agents: T-049, T-050, T-012, T-052 and T-051.

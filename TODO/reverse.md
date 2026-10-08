@@ -1,4 +1,4 @@
-This file holds milestone M4, the reverse road (`docs/ROADMAP.md:146-170`): pairing, the node and
+This file holds milestone M4, the reverse road (`docs/ROADMAP.md:148-172`): pairing, the node and
 operator runners and a blocking facade in `podssh-relay`, the move of the codecs, the commands
 `podssh node`, `podssh operator` and `podssh ssh NODE`, and the exit measurement. It also holds the
 backlog work on that road: pairing by a code, node identity, end-to-end encryption, routes,
@@ -9,7 +9,7 @@ and in the pinned contract (`crates/podssh-probe/tests/spec/relay-spec-2026-10-0
 
 # T-078: Pairing in `podssh-relay`: pair, stop and status
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:148-150`); `docs/design.md:89-100` (`pair`, cargo feature
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-152`); `docs/design.md:89-100` (`pair`, cargo feature
 `pair`); `docs/relay.md:192-214`. Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -84,7 +84,7 @@ tokens, in one run that prints no token. The gate shows that the feature adds no
 
 # T-079: The node runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:148-156`); `docs/design.md:94-97`; `docs/reverse.md:8-28`; GitHub #19
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md:94-97`; `docs/reverse.md:8-28`; GitHub #19
 (a design input). Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -167,7 +167,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:148-156`); `docs/design.md:94-97`; `docs/reverse.md:30-44`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md:94-97`; `docs/reverse.md:30-44`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -237,7 +237,7 @@ operator's outcome holds all 200 bytes.
 
 # T-081: A blocking facade of `podssh-relay`, for podbox
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:148-150`, `:174-175`); `docs/design.md:98-108`. Read here
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-152`, `:176-177`); `docs/design.md:98-108`. Read here
 on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -298,7 +298,7 @@ gate shows the feature adds no C. The podbox side is proved in T-085.
 
 # T-082: Move the codecs of `podssh-transport` into `podssh-relay`
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:151-152`); `docs/design.md:105-106`; the former defects
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:153-154`); `docs/design.md:105-106`; the former defects
 page (`git show 3ee70dc:docs/defects.md`), section "podssh-transport". Read here on `3ee70dc`.
 **Category:** chore
 **Milestone:** M4
@@ -316,7 +316,7 @@ unused. Two crates for one protocol drift: they already disagree on the backoff 
 ## Premise
 
 Read: about 600 lines of `podssh-transport` are used outside its tests (the former defects page),
-and `docs/STATUS.md:206` gives 2.8k source and 2.2k test lines. Only examples use it:
+and `docs/STATUS.md:207` gives 2.8k source and 2.2k test lines. Only examples use it:
 `crates/podssh-cli/examples/live_irc.rs:20-22`, `crates/podssh-cli/examples/live_irc/support.rs:11-16`
 and `crates/podssh-transport/examples/live_forward.rs:23-25`; `podssh-cli` depends on it
 (`crates/podssh-cli/Cargo.toml:34`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
@@ -344,7 +344,7 @@ and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs
    the crate: `Cargo.toml:6`, `Cargo.toml:24`, `Cargo.toml:55-58`, `crates/podssh-cli/Cargo.toml:34`,
    `scripts/gate.sh:61`, `scripts/plant.sh:39`.
 6. Update in the same commit: `AGENTS.md:188-190` and `AGENTS.md:234`, `docs/architecture.md:75` and
-   `:92-102`, `docs/development.md:13-14` and `:234`, `docs/STATUS.md:203`, `:205` and `:215`. The list
+   `:92-102`, `docs/development.md:13-14` and `:240`, `docs/STATUS.md:204`, `:206` and `:216`. The list
    of library crates in `docs/decisions.md:34` is a fact of a decision row: correct it, and move the
    old text to Superseded (the operator's ruling of 2026-10-08).
 
@@ -371,7 +371,7 @@ compiler. Plant: leave one `use podssh_transport` in an example; the build must 
 
 # T-083: `podssh node NAME TARGET`
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:161-162`); `crates/podssh-cli/src/positionals.rs:42`; GitHub #19, and
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:163-164`); `crates/podssh-cli/src/positionals.rs:42`; GitHub #19, and
 GitHub #18 for zuko's doctor (read in the reports, not verified here). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -454,7 +454,7 @@ node in front of a public TCP service and reaches it through T-080. Plant: print
 
 # T-084: `podssh operator NAME` and `podssh ssh NODE`
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:161-162`); `crates/podssh-cli/src/flags.rs:391-392`. Measured
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:163-164`); `crates/podssh-cli/src/flags.rs:391-392`. Measured
 here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -526,7 +526,7 @@ with no slashes as a node; `node_destinations` must fail.
 
 # T-085: M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox
 
-**Source:** the exit criteria of M4 (`docs/ROADMAP.md:165-170`). Read here on `3ee70dc`.
+**Source:** the exit criteria of M4 (`docs/ROADMAP.md:167-172`). Read here on `3ee70dc`.
 **Category:** measurement
 **Milestone:** M4
 **Priority:** P2
@@ -543,9 +543,9 @@ facade later, as an operator action (the operator's ruling of 2026-10-08).
 ## Premise
 
 Read: the box like the target sandbox has one CONNECT proxy for ports 443, 80 and 8443 as its only
-way out, refuses `bind` and UDP, and has no `/dev/ptmx` (`docs/development.md:130-166`,
+way out, refuses `bind` and UDP, and has no `/dev/ptmx` (`docs/development.md:130-172`,
 `scripts/test_in_box.sh`). It allows `connect()` to loopback, which the real sandbox refuses
-(`docs/development.md:165-166`, `docs/target-environment.md:22`).
+(`docs/development.md:171-172`, `docs/target-environment.md:22`).
 
 Read: in such a sandbox nothing can listen (`docs/target-environment.md:25`, `:74-77`), so a node
 there has no local TCP service to offer before `podssh serve` (M5). Its TARGET must be a host that
@@ -568,7 +568,7 @@ not here.
 5. The facade of T-081: a test in this repository with two clients that use the blocking facade at
    once, each through the box's proxy. podbox runs its own test when the operator pins the facade.
 6. Record the commands and the results in `docs/STATUS.md` (a section "The reverse road, measured"),
-   and update `docs/ROADMAP.md:165-170`.
+   and update `docs/ROADMAP.md:167-172`.
 
 ## Prove
 
@@ -684,7 +684,7 @@ over a trusted channel (`:137-138`); the node chooses what to expose (`:245-246`
 
 Read: `podssh ssh` checks host keys with `known_hosts`, and never records one under the relay's name
 (`SECURITY.md:28-32`, `:50-55`). `podssh serve` keeps its host key in a state file and takes
-authorized keys from a flag or a file (`docs/ROADMAP.md:174-179`, T-107).
+authorized keys from a flag or a file (`docs/ROADMAP.md:176-181`, T-107).
 
 Read in the reports (not verified here): iroh-ssh warns about an ephemeral node key
 (`rustonbsd/iroh-ssh:src/ssh.rs`); GPU-Share keeps an Ed25519 identity in a state directory and a
