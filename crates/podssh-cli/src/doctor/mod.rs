@@ -20,9 +20,10 @@ use std::io::Write;
 use podssh_relay::relay::{self, RelayList};
 use podssh_ws::{Trust, Verdict};
 
-mod clock;
+pub(crate) mod clock;
 mod host;
 mod net;
+mod pairs;
 mod relay_checks;
 #[cfg(unix)]
 mod unix;
@@ -84,6 +85,9 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         if args.full {
             report.unknown("login", "not attempted: PODSSH_OFFLINE is set");
         }
+        report.section("pairs");
+        let stored = pairs::stored(&mut report);
+        pairs::not_asked(&mut report, &stored, "not asked: PODSSH_OFFLINE is set");
         return report.finish();
     }
     match tokio::runtime::Builder::new_current_thread().enable_all().build() {
@@ -102,6 +106,9 @@ async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, ful
     net::check_network(report, relays).await;
     report.section("relay");
     relay_checks::check(report, relays, trust, full).await;
+    report.section("pairs");
+    let stored = pairs::stored(report);
+    pairs::presence(report, &stored, trust).await;
 }
 
 /// One check, as the report keeps it for `--json`.

@@ -135,3 +135,56 @@ fn the_operator_file_is_new_private_and_has_the_connect_token_only() {
     assert_eq!(again.kind(), std::io::ErrorKind::AlreadyExists);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn a_pair_file_is_read_when_it_is_private() {
+    let dir = scratch("file");
+    let dirs = vec![dir.clone()];
+    let path = pair::store_in_first(&dirs, "lab", &good()).expect("stored");
+    let back = pair::read_file(&path).expect("a private pair file");
+    assert_eq!((back.node_token(), back.connect_token(), back.stop_token()), (NODE, CONNECT, STOP));
+    assert_eq!((back.name.as_str(), back.expires_ms), (NAME, NOW + HOURS_72));
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        let open = pair::read_file(&path).expect_err("others can read it");
+        assert!(open.to_string().contains("chmod 600"), "{open}");
+        no_token(&format!("{open} {open:?}"));
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn a_file_that_is_not_a_pair_is_refused_with_what_it_is() {
+    let dir = scratch("notpair");
+    let operator = dir.join("operator.json");
+    pair::write_operator_file(&operator, &good()).unwrap();
+    let error = pair::read_file(&operator).expect_err("no node token");
+    assert!(error.to_string().contains("operator's part"), "{error}");
+    no_token(&format!("{error} {error:?}"));
+    let junk = dir.join("junk.json");
+    std::fs::write(&junk, b"not json").unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&junk, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    assert!(pair::read_file(&junk).expect_err("junk").to_string().contains("not readable"));
+    assert!(pair::read_file(&dir.join("missing.json")).is_err());
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn the_labels_of_the_store_are_listed_in_order() {
+    let dir = scratch("labels");
+    let dirs = vec![dir.clone()];
+    for label in ["lab", "alpha"] {
+        pair::store_in_first(&dirs, label, &good()).unwrap();
+    }
+    std::fs::write(dir.join("relay-token-example.json"), b"{}").unwrap();
+    assert_eq!(pair::labels_from(&dirs), vec!["alpha".to_string(), "lab".to_string()]);
+    pair::remove_from(&dirs, "alpha").unwrap();
+    assert_eq!(pair::labels_from(&dirs), vec!["lab".to_string()]);
+    std::fs::remove_dir_all(&dir).unwrap();
+}

@@ -1,0 +1,207 @@
+//! `podssh node` and `podssh relay` (T-083) as processes, offline, with a
+//! scratch HOME and cache: the parse, each refusal and its code, a pair file,
+//! the doctor's line for each stored pair, and no token in any output, with
+//! tokens in the environment and in the store.
+
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
+
+use podssh_relay::pair;
+use podssh_relay::relay::Relay;
+
+const NAME: &str = "p-0123456789abcdef0123456789abcdef";
+const NODE: &str = "testonlynode0000000000000000000000000000000000000000000000000000";
+const CONNECT: &str = "testonlyconnect0000000000000000000000000000000000000000000000000";
+const STOP: &str = "testonlystop0000000000000000000000000000000000000000000000000000";
+// The repository's fixture form: a MAC with no digit is not a credential.
+const FORWARD: &str = "ephm1.9999999999999.forward.TESTONLYNOTACREDENTIALNODE";
+
+fn scratch(tag: &str) -> PathBuf {
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
+    let dir = std::env::temp_dir().join(format!("podssh-node-{tag}-{}-{nanos}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// The cache directory that podssh uses under `home`.
+fn cache_dir(home: &Path) -> PathBuf {
+    home.join("cache").join("podssh")
+}
+
+/// A pair named NAME with the test tokens, made `made_ms_ago`, for 72 hours.
+fn test_pair(made_ms_ago: i64) -> pair::Pair {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64;
+    let made = now - made_ms_ago;
+    let body = format!(
+        r#"{{"name":"{NAME}","node_token":"{NODE}","connect_token":"{CONNECT}","stop_token":"{STOP}","expires":{}}}"#,
+        made + 72 * 3600 * 1000
+    );
+    let relay = Relay { host: "relay.example.org".into(), port: 443 };
+    pair::parse(&relay, body.as_bytes(), made).expect("a test pair")
+}
+
+/// Keep a test pair under `label` in the cache of `home`.
+fn store(home: &Path, label: &str, made_ms_ago: i64) -> PathBuf {
+    pair::store_in_first(&[cache_dir(home)], label, &test_pair(made_ms_ago)).expect("stored")
+}
+
+const EXPIRED: i64 = 80 * 3600 * 1000;
+
+/// Run `podssh ARGS` offline, with HOME and the cache under `home`: the code,
+/// stdout and stderr, within 30 s.
+fn podssh(home: &Path, args: &[&str], set: &[(&str, &str)]) -> (i32, String, String) {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(args);
+    for name in ["PODSSH_RELAY", "PODSSH_RELAY_ADDR", "PODSSH_RELAY_TOKEN", "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"] {
+        cmd.env_remove(name);
+    }
+    cmd.env("HOME", home).env("USERPROFILE", home).env("PODSSH_OFFLINE", "1");
+    cmd.env("XDG_CACHE_HOME", home.join("cache")).env("LOCALAPPDATA", home.join("cache"));
+    cmd.envs(set.iter().copied());
+    let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("podssh runs");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while child.try_wait().expect("wait").is_none() {
+        assert!(Instant::now() < deadline, "podssh {args:?} did not end within 30 s");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let out = child.wait_with_output().expect("output");
+    let text = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
+    (out.status.code().unwrap_or(-1), text(&out.stdout), text(&out.stderr))
+}
+
+/// No token of the pair, nor the token in the environment, in `text`.
+fn no_token(text: &str) {
+    for token in [NODE, CONNECT, STOP, FORWARD] {
+        assert!(!text.contains(token), "a token is in {text:?}");
+    }
+}
+
+#[test]
+fn node_needs_a_name_and_a_target_and_refuses_bad_ones_before_any_connection() {
+    let home = scratch("parse");
+    for (args, says) in [
+        (vec!["node"], "missing NAME"),
+        (vec!["node", "lab"], "missing TARGET"),
+        (vec!["node", "lab", "127.0.0.1:0"], "not a port"),
+        (vec!["node", "lab", "127.0.0.1"], "PORT"),
+        (vec!["node", "../x", "127.0.0.1:22"], "not a pair name"),
+        (vec!["node", "lab", "127.0.0.1:22", "extra"], "extra"),
+    ] {
+        let (rc, out, err) = podssh(&home, &args, &[]);
+        assert_eq!(rc, 64, "{args:?}: {err}");
+        assert!(err.contains(says), "{args:?}: {err}");
+        assert!(out.is_empty(), "{args:?}: stdout {out:?}");
+    }
+}
+
+#[test]
+fn with_no_stored_pair_each_command_names_the_remedy() {
+    let home = scratch("none");
+    for args in [vec!["node", "lab", "127.0.0.1:22"], vec!["relay", "status", "lab"]] {
+        let (rc, out, err) = podssh(&home, &args, &[]);
+        assert_eq!(rc, 78, "{args:?}: {err}");
+        assert!(err.contains("podssh relay pair lab"), "{args:?}: {err}");
+        assert!(out.is_empty());
+    }
+    let (rc, _, err) = podssh(&home, &["relay", "revoke", "lab"], &[]);
+    assert_eq!(rc, 78, "{err}");
+    assert!(err.contains("no pair is stored"), "{err}");
+}
+
+#[test]
+fn an_expired_pair_is_refused_with_77_and_the_remedy() {
+    let home = scratch("expired");
+    store(&home, "lab", EXPIRED);
+    for args in [vec!["node", "lab", "127.0.0.1:22"], vec!["relay", "status", "lab"]] {
+        let (rc, _, err) = podssh(&home, &args, &[]);
+        assert_eq!(rc, 77, "{args:?}: {err}");
+        assert!(err.contains("expired") && err.contains("podssh relay pair lab"), "{args:?}: {err}");
+    }
+}
+
+/// With a pair in the store and a token in the environment, each command gets
+/// as far as the network, which `PODSSH_OFFLINE` stops, and prints no token.
+#[test]
+fn a_stored_pair_reaches_the_network_and_no_token_is_shown() {
+    let home = scratch("redact");
+    let stored = store(&home, "lab", 0);
+    let set = [("PODSSH_RELAY_TOKEN", FORWARD)];
+    for (args, code) in [
+        (vec!["node", "lab", "127.0.0.1:22"], 69),
+        (vec!["relay", "status", "lab"], 69),
+        (vec!["relay", "revoke", "lab"], 69),
+        (vec!["relay", "pair", "lab"], 78),
+        (vec!["doctor"], 0),
+    ] {
+        let (rc, out, err) = podssh(&home, &args, &set);
+        assert_eq!(rc, code, "{args:?}: {err}");
+        no_token(&out);
+        no_token(&err);
+    }
+    assert!(stored.exists(), "a revoke that reached no relay keeps the stored copy");
+    let (_, _, err) = podssh(&home, &["relay", "pair", "lab"], &set);
+    assert!(err.contains("podssh relay revoke lab"), "a pair is not replaced while it lives: {err}");
+}
+
+#[test]
+fn relay_pair_refuses_an_operator_file_that_exists_before_any_request() {
+    let home = scratch("opfile");
+    let file = home.join("operator.json");
+    std::fs::write(&file, b"keep me").unwrap();
+    let path = file.to_str().unwrap();
+    let (rc, _, err) = podssh(&home, &["relay", "pair", "lab", "--operator-file", path], &[]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("never replaces"), "{err}");
+    assert_eq!(std::fs::read(&file).unwrap(), b"keep me");
+    let (rc, _, err) = podssh(&home, &["relay", "status", "lab", "--operator-file", path], &[]);
+    assert_eq!(rc, 64, "--operator-file goes with pair only: {err}");
+}
+
+/// T-058's subcommands, and `status` with no NAME, refuse until it.
+#[test]
+fn the_other_relay_subcommands_are_not_implemented() {
+    let home = scratch("t058");
+    for sub in ["status", "info", "spec", "trace"] {
+        let (rc, out, err) = podssh(&home, &["relay", sub], &[]);
+        assert_eq!(rc, 70, "{sub}: {err}");
+        assert!(err.contains("not implemented yet") && out.is_empty(), "{sub}: {err}");
+    }
+    let (rc, _, err) = podssh(&home, &["relay", "bogus", "lab"], &[]);
+    assert_eq!(rc, 64, "{err}");
+    let (rc, _, err) = podssh(&home, &["relay", "--timeout", "5s", "pair", "lab"], &[]);
+    assert_eq!(rc, 64, "relay has no --timeout: {err}");
+}
+
+#[test]
+fn a_pair_file_is_used_in_place_of_the_store() {
+    let home = scratch("pairfile");
+    let elsewhere = home.join("elsewhere");
+    let file = pair::store_in_first(&[elsewhere.clone()], "carried", &test_pair(0)).unwrap();
+    let path = file.to_str().unwrap();
+    let (rc, out, err) = podssh(&home, &["node", "lab", "127.0.0.1:22", "--pair-file", path], &[]);
+    assert_eq!(rc, 69, "the pair was read, and only the network stopped it: {err}");
+    no_token(&out);
+    no_token(&err);
+    let operator = home.join("operator.json");
+    pair::write_operator_file(&operator, &test_pair(0)).unwrap();
+    let (rc, _, err) = podssh(&home, &["node", "lab", "127.0.0.1:22", "--pair-file", operator.to_str().unwrap()], &[]);
+    assert_eq!(rc, 78, "{err}");
+    assert!(err.contains("operator's part"), "{err}");
+    no_token(&err);
+}
+
+#[test]
+fn doctor_has_a_line_for_each_stored_pair() {
+    let home = scratch("doctor");
+    let (_, out, _) = podssh(&home, &["doctor"], &[]);
+    assert!(out.contains("pairs          none in the store"), "{out}");
+    store(&home, "lab", 0);
+    store(&home, "old", EXPIRED);
+    let (rc, out, err) = podssh(&home, &["doctor"], &[]);
+    assert_eq!(rc, 1, "an expired pair is a FAIL: {out}{err}");
+    let line = |label: &str| out.lines().find(|l| l.contains(&format!("pair {label} "))).unwrap_or_default().to_string();
+    assert!(line("lab").starts_with("  ????") && line("lab").contains("expires"), "{out}");
+    assert!(line("old").starts_with("  FAIL") && line("old").contains("podssh relay pair old"), "{out}");
+    no_token(&out);
+}

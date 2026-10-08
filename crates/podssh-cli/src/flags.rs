@@ -308,14 +308,27 @@ pub const MAN_FLAGS: &[FlagRow] = &[
         "write the tables (commands, flags, keywords, variables, files, exit codes) as JSON; never paged", None),
 ];
 
-/// ⛔ **`relay` (E35).**
+/// `relay` (E35): the pairs of the reverse road (T-083). Each request has its
+/// own bound, so there is no `--timeout` (T-058).
 pub const RELAY_FLAGS: &[FlagRow] = &[
-    row(None, "jsonl", None, FlagKind::Supported,
-        "one JSON object per event on stdout", None),
-    row(None, "relay-host", Some("URL"), FlagKind::Supported,
-        "relay base URL, overriding the compiled default", None),
-    row(None, "timeout", Some("DURATION"), FlagKind::Supported,
-        "bound the request (default: env PODSSH_TIMEOUT)", None),
+    row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
+        "pair: the first of HOST[:PORT][,...] makes the pair (default: env PODSSH_RELAY, else the built-in relay)", None),
+    row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
+        "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
+    row(None, "ca-file", Some("FILE"), FlagKind::Supported,
+        "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
+    row(None, "operator-file", Some("FILE"), FlagKind::Supported,
+        "pair: write the operator's part of the pair to FILE, a new file that only its owner can read", None),
+];
+
+/// `node` (T-083), a service: no `--timeout`.
+pub const NODE_FLAGS: &[FlagRow] = &[
+    row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
+        "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
+    row(None, "ca-file", Some("FILE"), FlagKind::Supported,
+        "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
+    row(None, "pair-file", Some("FILE"), FlagKind::Supported,
+        "use the pair in FILE, a private file of the store's form, not the one stored under NAME", None),
 ];
 
 /// ⛔ **`proxy`, E08.** ⛔ `06-cli.md`:19 says it is **not an alias** of `ssh`
@@ -400,7 +413,7 @@ pub const VERBS: &[Verb] = &[
         about: "the OpenSSH-compatible client, over the relay" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
         about: "ProxyCommand form: a byte pipe, not an SSH client" },
-    Verb { name: "node", aliases: &["node"], flags: &[],
+    Verb { name: "node", aliases: &["node"], flags: NODE_FLAGS,
         about: "reverse mode: expose a local service to operators" },
     Verb { name: "operator", aliases: &["operator"], flags: &[],
         about: "reverse mode, operator side: raw bytes to a named node" },
@@ -413,7 +426,7 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "man", aliases: &["man"], flags: MAN_FLAGS,
         about: "this manual: each command, flag, variable, file and exit code" },
     Verb { name: "relay", aliases: &["relay"], flags: RELAY_FLAGS,
-        about: "relay status, facts, and pair management" },
+        about: "the pairs of the reverse road: make one, ask about it, stop it" },
     Verb { name: "status", aliases: &["status"], flags: STATUS_FLAGS,
         about: "the state of this host as one line of JSON: relays, token, proxy, terminal, a host key" },
     Verb { name: "doctor", aliases: &["doctor"], flags: DOCTOR_FLAGS,
@@ -434,12 +447,10 @@ pub const VERBS: &[Verb] = &[
 /// `tests/flag_table.rs`; dispatch treats a verb with neither an arm nor a row
 /// as an internal error, never as success.
 pub const VERB_OWNER: &[(&str, &str)] = &[
-    ("node", "M4"),
     ("operator", "M4"),
     ("chat", "M8"),
     ("cp", "M5"),
     ("mv", "M5"),
-    ("relay", "M4"),
 ];
 
 /// Whether a verb does something in this binary. `--help` and the manual

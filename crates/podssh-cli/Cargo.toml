@@ -38,7 +38,8 @@ podssh-relay = { path = "../podssh-relay", features = ["pair"] }
 # The native SSH client. It needs a C compiler (russh with aws-lc-rs); the
 # operator accepted that for the binary on 2026-10-08.
 podssh-ssh = { path = "../podssh-ssh" }
-tokio = { workspace = true }
+# `signal`: `podssh node` stops on Ctrl-C and SIGTERM.
+tokio = { workspace = true, features = ["signal"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 libc = { workspace = true }

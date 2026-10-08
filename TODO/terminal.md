@@ -2,7 +2,7 @@ This file holds the defects of the line discipline in `crates/podssh-terminal`,
 the rows L1 to L5 of the former defects page (`git show 3ee70dc:docs/defects.md`),
 as T-125 to T-129. `podssh serve` needs the crate on a host with no
 `/dev/ptmx` (T-111), so they come before it. No command uses the crate yet
-(`docs/STATUS.md:215`), so each defect is P2 at most. Three small terminal
+(`docs/STATUS.md:217`), so each defect is P2 at most. Three small terminal
 items for the backlog follow.
 
 # T-125: L1: the mode selection of the line discipline is the wrong way round
@@ -52,10 +52,10 @@ a local echo to the echo of the remote pty, so each key shows two times.
    discipline (T-111); a client flag can select it later. Invariant: the
    absence of a pty alone never selects `Cooked`.
 5. Rewrite the tests above to the new table. Same commit:
-   `docs/terminal.md:27-32`, `docs/STATUS.md:215`, and the module notes
+   `docs/terminal.md:27-32`, `docs/STATUS.md:217`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-53`,
    `crates/podssh-terminal/src/lib.rs:18-31`). Remove the warning markers
-   from the lines that you change (`AGENTS.md:193-194`).
+   from the lines that you change (`AGENTS.md:194-195`).
 
 ## Prove
 
@@ -102,7 +102,7 @@ writes over the rows above it.
   (`crates/podssh-terminal/src/session.rs:235-241`).
 - Read: `podssh-ssh` has a raw mode and a size that work, and the gate checks
   them (`crates/podssh-ssh/src/terminal/unix.rs:12-76`,
-  `crates/podssh-ssh/src/terminal/windows.rs:32-112`, `docs/STATUS.md:63`).
+  `crates/podssh-ssh/src/terminal/windows.rs:32-112`, `docs/STATUS.md:65`).
 - Read: the crate has its own `TERM` rule: it replaces `dumb` and `unknown`,
   and reads `PODSSH_TERM` (`crates/podssh-terminal/src/term.rs:47-53`). The
   documented rule sends `TERM` unchanged (`docs/terminal.md:57-62`). The
@@ -121,7 +121,7 @@ writes over the rows above it.
 4. One `TERM` rule: remove the crate's selection, because the caller sends
    the `TERM` of the request. Remove the unused `libc` dependency.
 5. Same commit: `docs/terminal.md` (who owns raw mode and the size),
-   `docs/STATUS.md:215`.
+   `docs/STATUS.md:217`.
 
 ## Decision
 
@@ -190,7 +190,7 @@ character takes two cells and counts as one.
 3. Backspace, Ctrl-W, Ctrl-D and the arrows act on whole characters; the
    rubout and the arrow echo use the cell count (`ESC [ n D`).
 4. The history keeps bytes (`Vec<u8>`), not lossy strings.
-5. Same commit: `docs/terminal.md:78-91` (the rules), `docs/STATUS.md:215`.
+5. Same commit: `docs/terminal.md:78-91` (the rules), `docs/STATUS.md:217`.
 
 ## Decision
 
@@ -258,7 +258,7 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
    CSI state. Invariant: an escape never consumes Ctrl-C, Ctrl-D or Enter.
 3. A printable byte after a lone `ESC`: see Decision.
 4. Rewrite the tests that pin the loss. Same commit: `docs/terminal.md:93-100`,
-   `docs/STATUS.md:215`.
+   `docs/STATUS.md:217`.
 
 ## Decision
 
@@ -331,7 +331,7 @@ that arrives during an edit is written over the edited line.
    output is written, then the prompt and the line are drawn again with the
    cursor in place. Invariant: output never changes the line under edit.
 5. Rewrite the tests that pin the old behaviour. Same commit:
-   `docs/terminal.md:102-110`, `docs/STATUS.md:215`.
+   `docs/terminal.md:102-110`, `docs/STATUS.md:217`.
 
 ## Prove
 
@@ -385,7 +385,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
    pty, serve with the line discipline), list the bytes that podssh acts on,
    the bytes that it refuses, and say that each other byte passes unchanged.
 2. Put the same list in the manual's notes for `ssh`
-   (`crates/podssh-cli/src/man/notes.rs:6-18`), and for `serve` when it
+   (`crates/podssh-cli/src/man/notes.rs:6-20`), and for `serve` when it
    exists.
 3. A drift test: each escape command of `crates/podssh-ssh/src/escape.rs:8-13`
    is in the note, and the note names no other.
@@ -437,7 +437,7 @@ on it. podssh cannot select a behaviour without that fact.
 2. Run it in the gate's container against OpenSSH's sshd and Dropbear
    (`scripts/interop.sh:73-84`). Run it by hand against Tailscale SSH
    (`--direct`) and `railway.new` through the relay, with a throwaway key,
-   as in `docs/STATUS.md:64`.
+   as in `docs/STATUS.md:66`.
 3. Record a table (server, version, result) in `docs/terminal.md` in place of
    the open item, and in `docs/STATUS.md`.
 4. With the table, decide in `docs/terminal.md` whether the client sends
@@ -480,7 +480,7 @@ find a case that the 14 console checks of podssh do not cover.
   `crates/podssh-ssh/src/terminal/windows.rs:116-139` (pty modes),
   `crates/podssh-ssh/src/terminal/windows.rs:143-182` (prompts), and the size
   poll every 500 ms (`crates/podssh-ssh/src/io.rs:179-227`). The checks of
-  `scripts/interop-conpty.py` pass 14 of 14 (`docs/STATUS.md:67`).
+  `scripts/interop-conpty.py` pass 14 of 14 (`docs/STATUS.md:69`).
 - Read: podssh sets no console code page, and remote output goes through
   Rust's standard output (`crates/podssh-ssh/src/io.rs:140-150`). Rust's
   documentation of `std::io::Stdout` says that a console refuses bytes that
@@ -511,5 +511,5 @@ grep -n 'UTF-8' docs/terminal.md
 
 The first grep shows the table, and the second the measured result for
 output that is not UTF-8 in a console. The ConPTY run that measured it uses
-a server, as in `docs/STATUS.md:67`, and its output is recorded in
+a server, as in `docs/STATUS.md:69`, and its output is recorded in
 `docs/STATUS.md`.

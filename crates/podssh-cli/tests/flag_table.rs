@@ -92,7 +92,7 @@ fn every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub() {
     // with their own dispatch arm are listed in DISPATCHED. Dispatch
     // also treats a verb with no row as an internal error (non-zero), so this
     // test is the first line of defence, not the only one.
-    const DISPATCHED: &[&str] = &["ts", "proxy", "ssh", "doctor", "keygen", "man", "status"];
+    const DISPATCHED: &[&str] = &["ts", "proxy", "ssh", "doctor", "keygen", "man", "status", "node", "relay"];
     let owner_names: Vec<&str> =
         podssh_cli::flags::VERB_OWNER.iter().map(|(n, _)| *n).collect();
     for v in VERBS {

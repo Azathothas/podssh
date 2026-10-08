@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**251 entries: 195 open, 0 partial, 7 blocked, 49 done.**
+**251 entries: 194 open, 0 partial, 7 blocked, 50 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 102 | 0 | 3 | 39 | 144 |
+| P2 | 101 | 0 | 3 | 40 | 144 |
 | P3 | 91 | 0 | 4 | 2 | 97 |
-| **All** | 195 | 0 | 7 | 49 | 251 |
+| **All** | 194 | 0 | 7 | 50 | 251 |
 
 ## Entries
 
@@ -156,7 +156,7 @@ repository and CI).
 | [T-080](reverse.md) | P2 | M | M4 | feature | done | The operator runner |
 | [T-081](reverse.md) | P2 | M | M4 | feature | done | A blocking facade of `podssh-relay`, for podbox |
 | [T-082](reverse.md) | P2 | M | M4 | chore | open | Move the codecs of `podssh-transport` into `podssh-relay` |
-| [T-083](reverse.md) | P2 | M | M4 | feature | open | `podssh node NAME TARGET` |
+| [T-083](reverse.md) | P2 | M | M4 | feature | done | `podssh node NAME TARGET` |
 | [T-084](reverse.md) | P2 | M | M4 | feature | open | `podssh operator NAME` and `podssh ssh NODE` |
 | [T-085](reverse.md) | P2 | M | M4 | measurement | open | M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox |
 | [T-086](reverse.md) | P3 | M | backlog | feature | blocked | Pairing by a short one-time code, given out of band |

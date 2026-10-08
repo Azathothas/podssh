@@ -283,6 +283,31 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         };
     }
 
+    if verb.name == "node" {
+        let get = |id: &str| matches.get_one::<String>(id).cloned();
+        return Parsed::Node(Box::new(crate::node::NodeArgs {
+            name: get("name"),
+            target: get("target"),
+            relay_addr: get("relay-addr"),
+            ca_file: get("ca-file"),
+            pair_file: get("pair-file"),
+            refused,
+        }));
+    }
+
+    if verb.name == "relay" {
+        let get = |id: &str| matches.get_one::<String>(id).cloned();
+        return Parsed::Relay(Box::new(crate::relay_cmd::RelayArgs {
+            subcommand: get("subcommand"),
+            args: matches.get_many::<String>("args").map(|v| v.cloned().collect()).unwrap_or_default(),
+            relay_host: get("relay-host"),
+            relay_addr: get("relay-addr"),
+            ca_file: get("ca-file"),
+            operator_file: get("operator-file"),
+            refused,
+        }));
+    }
+
     if verb.name == "doctor" {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Doctor {

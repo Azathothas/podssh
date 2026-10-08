@@ -27,18 +27,27 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         ),
         row(
             sysexits::EX_UNAVAILABLE,
-            "podssh proxy: no relay host could be reached, or the relay ended the session abnormally.",
+            "podssh proxy: no relay host could be reached, or the relay ended the session abnormally. \
+             podssh node and relay: the relay or TARGET could not be reached, the pair was stopped, or \
+             another node serves it.",
         ),
-        row(crate::exit_codes::EXIT_NOT_IMPLEMENTED, "The command is not implemented yet, or podssh failed inside."),
+        row(
+            crate::exit_codes::EXIT_NOT_IMPLEMENTED,
+            "The command is not implemented yet, or podssh failed inside. podssh node: the relay closed \
+             the node for a fault of the node (1003 or 1009).",
+        ),
         row(
             sysexits::EX_NOPERM,
-            "podssh proxy: the relay or the proxy refused (a token, a blocked address, a proxy's 403 or 407).",
+            "podssh proxy: the relay or the proxy refused (a token, a blocked address, a proxy's 403 or 407). \
+             podssh node and relay: the relay refused the pair, or the pair expired.",
         ),
         row(
             sysexits::EX_CONFIG,
             "A setting of the environment cannot be used: PODSSH_RELAY or PODSSH_RELAY_ADDR (podssh ssh, \
              proxy and doctor). For podssh proxy also a proxy URL that is not http://, or a \
-             PODSSH_RELAY_TOKEN that is not a token. The same value as a flag is a usage error (64).",
+             PODSSH_RELAY_TOKEN that is not a token. The same value as a flag is a usage error (64). \
+             podssh node and relay: no pair is stored under the label, the pair cannot be read or \
+             stored, or a node cannot connect as it is set up.",
         ),
         row(
             podssh_ssh::EXIT_FAILURE,
@@ -91,8 +100,8 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             format!(
                 "The cache: the first of these directories that podssh can use. It holds one relay token for \
                  each relay deployment, with the host that minted it ({} for the default relay), and the \
-                 relay's list of hosts ({}). It will hold each pair of the reverse road under its label ({}), \
-                 which no command writes yet (milestone M4). Each file has mode 0600. \
+                 relay's list of hosts ({}). It holds each pair of the reverse road under its label ({}), \
+                 as podssh relay pair writes it. Each file has mode 0600. \
                  podssh ignores a cache file that is a symbolic link, that belongs to another user, or that \
                  others can read.",
                 podssh_relay::cache::file_name(podssh_relay::DEFAULT_RELAY_HOST),

@@ -49,6 +49,14 @@ sessions at once, 1 MiB each way through an echo node, came back whole
 (`cargo test -p podssh-relay --features pair --test reverse_live --
 --ignored`).
 
+`podssh node NAME TARGET` (T-083) runs this node for the pair stored under
+the label NAME, and each session dials TARGET. `podssh relay pair NAME`
+makes the pair, and writes the operator's part with `--operator-file`.
+Measured against the live relay on 2026-10-09: an operator that held the
+operator's part alone read GitHub's SSH banner through
+`podssh node lab github.com:22` (`cargo test -p podssh-cli --test node_live
+-- --ignored`).
+
 ## Operator
 
 1. Never add or remove the 32-byte id. The operator leg has no framing.

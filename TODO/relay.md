@@ -109,7 +109,7 @@ that minted it".
 
 # T-058: `podssh relay status`, `info`, `spec` and `trace`
 
-**Source:** `crates/podssh-cli/src/positionals.rs:39-41` (the subcommands that the parser
+**Source:** `crates/podssh-cli/src/positionals.rs:39-45` (the subcommands that the parser
 declares); `docs/relay.md:234-240`; the tester of sandbox A, who used `curl` and a minted token
 on `/trace` (`report-podssh-sandbox-KTM-2026-10-08.txt`, outside the repository).
 **Category:** feature
@@ -129,7 +129,7 @@ relay what it sees.
 Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh relay status` exits
 64 with the `--timeout` message that names `chat` (T-008); with `--timeout 5s`, it exits 70
 ("'relay' is not implemented yet; nothing was done."). Its help shows `--relay-host URL`
-(`crates/podssh-cli/src/flags.rs:315-316`), not the `HOSTS` of the other commands (lines
+(`crates/podssh-cli/src/flags.rs` lines 315-316 at `af0a163`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
 (`docs/relay.md:145-146`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:82-137`) already makes a verified `/health`
@@ -153,15 +153,15 @@ token header (`crates/podssh-ws/src/client.rs:278-289`); `https_request` takes h
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
    (T-049). Each request has the 10 s limit of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs:27`), and the run has a limit too.
-7. Remove the owner row (`crates/podssh-cli/src/flags.rs:442`); change `DISPATCHED`, `usage_tail`
+7. Remove the owner row (`crates/podssh-cli/src/flags.rs` line 442 at `af0a163`); change `DISPATCHED`, `usage_tail`
    (`crates/podssh-cli/src/help.rs:254`), the notes, `docs/relay.md:234-240` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags.rs:312-319`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:205-220` stops
+(`crates/podssh-cli/src/flags.rs:313-322`), and bound each request in the code, as `doctor`
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:209-224` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -178,6 +178,15 @@ cargo test -p podssh-cli --test relay_live -- --ignored   # the live relay, on r
 `/trace` and `/llms-full.txt`. In the gate, `relay status` exits 0 with the stand-in's version;
 `relay trace` sends `X-Relay-Token`, which the stand-in requires; a HOST of `a&b` exits 64 before
 any connection. Planted defect: leave the header out; the stand-in answers 403, the test fails.
+
+## Correction
+
+2026-10-09 (T-083): `podssh relay` is dispatched now. `pair NAME`, `revoke NAME` and `status NAME`
+work (step 5 is moot), and the owner row and the entry of `DISPATCHED` are done (step 7). Its
+`--timeout` and `--jsonl` rows are gone, as the Decision here recommends, and its `--relay-host`
+takes `HOSTS`, with `--relay-addr` and `--ca-file` (step 6). `status` with no NAME, `info`, `spec`
+and `trace` exit 70 until this entry; `status` with NAME is the state of a pair, so step 1's form
+is `status` with no NAME.
 
 # T-059: A relay host that failed recently is tried last, also in the next run
 
@@ -346,7 +355,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:88-97`).
+   and above all not the `stop_token` (`docs/reverse.md:96-105`).
 5. Answer the question in `docs/relay.md:189-195`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md:24-29` if the result differs.
 
@@ -548,7 +557,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    then the platform's temporary directory (`std::env::temp_dir`) with the user's tag; then the
    working directory. No path literal stays in `cache.rs`.
 3. Probe each as now: a missing directory is made with mode 0700
-   (`crates/podssh-relay/src/cache.rs:281-298`), and one that refuses a write is skipped. When the
+   (`crates/podssh-relay/src/cache.rs:321-338`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
    (`crates/podssh-ws/src/dial.rs:141-162`), so that the tests can set it.
@@ -557,7 +566,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:76`,
    108-113, 122-132), the test of lines 365-377, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:69-88`).
+   notes (`crates/podssh-cli/src/man/notes.rs:98-117`).
 
 ## Decision
 

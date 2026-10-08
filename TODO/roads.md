@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:456-464`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:467-475`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -118,7 +118,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:285-286`,
    file. `--iroh-key FILE` names the file, as `--ts-state` does; with no flag,
    it goes to the first usable directory of the cache chain
    (`crates/podssh-relay/src/cache.rs:58-73`). Reuse the private-file code of
-   the token cache (`crates/podssh-relay/src/cache.rs:212-245`: mode 0600, no
+   the token cache (`crates/podssh-relay/src/cache.rs:252-285`: mode 0600, no
    symbolic link, the owner checked); do not write a second copy.
 2. Print the fingerprint of the public key, never the secret key. A node key
    persists, and a node warns when it makes a new one, because its ticket
@@ -131,7 +131,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:285-286`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:267`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:64-112`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:73-121`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-90`).
 
 ## Decision
@@ -201,7 +201,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:20-52`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:22-54`).
 
 ## Decision
 
@@ -317,7 +317,7 @@ Read: the far end of the layer can be a podssh next to a standard sshd, which
 then owns the TCP connection to sshd (`docs/design.md:217-220`). `podssh node`
 does not exist yet (T-083). Measured on `3ee70dc`: `podssh node x` exits 70
 (not implemented), and `podssh node x y` exits 64, because the parser takes
-a NAME only (`crates/podssh-cli/src/positionals.rs:42`). Read in the report,
+a NAME only (`crates/podssh-cli/src/positionals.rs` line 42 at `af0a163`). Read in the report,
 not verified here: iroh-ssh checks that a local sshd answers before it accepts
 (`rustonbsd/iroh-ssh:src/ssh.rs`).
 
@@ -358,6 +358,11 @@ with nothing on it, and at a server that answers `HTTP/1.1`: the roost exits
 before it registers, and names the target. A planted roost with no preflight
 registers, and the test fails. The interop harness of the gate runs a roost in
 front of OpenSSH and Dropbear, and the session survives a cut link.
+
+## Correction
+
+2026-10-09 (T-083): `podssh node NAME TARGET` exists now. It serves a TCP TARGET for the pair stored
+under the label NAME, and dials TARGET once before it registers, as iroh-ssh checks its sshd.
 
 # T-167: Start from a standard sshd, then move the session to a better road
 

@@ -32,13 +32,16 @@ pub mod help;
 pub mod keygen;
 // The manual (`man/`) and the pager that shows it on a terminal.
 pub mod man;
+pub mod node;
 pub mod non_interactive;
 pub mod pager;
+mod pairs;
 pub mod parsed;
 pub mod pins;
 pub mod positionals;
 pub mod proxy;
 pub mod refuse;
+pub mod relay_cmd;
 pub mod relay_settings;
 pub mod ssh;
 pub mod status;

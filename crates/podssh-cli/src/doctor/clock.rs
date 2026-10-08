@@ -33,6 +33,14 @@ pub(super) fn parse_day(text: &str) -> Option<i64> {
     Some(days_from_civil(y, m, d))
 }
 
+/// `2026-10-12T08:10:00Z`, RFC 3339 in UTC, for seconds since the Unix epoch:
+/// the expiry of a pair.
+pub(crate) fn format_utc(secs: i64) -> String {
+    let (y, m, d) = civil_from_days(secs.div_euclid(86_400));
+    let rest = secs.rem_euclid(86_400);
+    format!("{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z", rest / 3600, rest % 3600 / 60, rest % 60)
+}
+
 /// An IMF-fixdate for seconds since the Unix epoch.
 pub(super) fn format_http_date(secs: i64) -> String {
     let days = secs.div_euclid(86_400);

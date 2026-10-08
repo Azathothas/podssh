@@ -37,9 +37,20 @@ pub fn add(cmd: Command, name: &str) -> Command {
                 .help("one section only: a command, or environment, files, relay-facts, exit-status, examples or see-also"),
         ),
         "relay" => cmd
-            .arg(Arg::new("subcommand").value_name("SUBCOMMAND").help("status, info, spec, trace, pair, revoke"))
-            .arg(Arg::new("args").value_name("ARGS").num_args(0..).help("arguments for the subcommand")),
-        "node" | "operator" => cmd.arg(Arg::new("name").value_name("NAME").help("node name")),
+            .arg(
+                Arg::new("subcommand")
+                    .value_name("SUBCOMMAND")
+                    .help("pair, revoke or status; info, spec and trace are not implemented yet"),
+            )
+            .arg(Arg::new("args").value_name("NAME").num_args(0..).help("the label of a pair, which you choose")),
+        "node" => cmd
+            .arg(Arg::new("name").value_name("NAME").help("the label of a stored pair (podssh relay pair NAME)"))
+            .arg(
+                Arg::new("target")
+                    .value_name("TARGET")
+                    .help("the TCP service that each session reaches: HOST:PORT, or [IPV6]:PORT"),
+            ),
+        "operator" => cmd.arg(Arg::new("name").value_name("NAME").help("node name")),
         "proxy" => cmd
             .arg(
                 Arg::new("target")

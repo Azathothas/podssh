@@ -208,7 +208,7 @@ fn json_has_each_check_of_the_text() {
     for line in text.out.lines() {
         if line.starts_with("  ") {
             lines.push((section, line));
-        } else if ["this host", "egress", "relay"].contains(&line) {
+        } else if ["this host", "egress", "relay", "pairs"].contains(&line) {
             section = line;
         }
     }

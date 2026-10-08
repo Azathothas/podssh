@@ -353,14 +353,48 @@ pub fn load(label: &str) -> Result<Option<Pair>, PairError> {
 /// [`load`] over explicit directories (for tests).
 pub fn load_from(dirs: &[PathBuf], label: &str) -> Result<Option<Pair>, PairError> {
     let Some(text) = cache::load_file_from(dirs, &file_name(label)?) else { return Ok(None) };
-    let text = Zeroizing::new(text);
-    let stored: Stored =
-        serde_json::from_str(&text).map_err(|_| PairError::Store(format!("the pair stored under {label:?} is not readable")))?;
+    parse_stored(&Zeroizing::new(text), &format!("the pair stored under {label:?}")).map(Some)
+}
+
+/// A pair from a file of the store's form, as a user names one: a regular
+/// file of this user that nobody else can read (`podssh node --pair-file`).
+pub fn read_file(path: &Path) -> Result<Pair, PairError> {
+    let text = Zeroizing::new(cache::read_private(path).map_err(PairError::Store)?);
+    parse_stored(&text, &format!("the pair in {}", path.display()))
+}
+
+/// A pair as the store writes it; `what` names it in an error, with no token.
+fn parse_stored(text: &str, what: &str) -> Result<Pair, PairError> {
+    let stored: Stored = serde_json::from_str(text).map_err(|_| {
+        // The operator's part has the connect token alone: a node needs the
+        // whole pair.
+        let operator_part = serde_json::from_str::<serde_json::Value>(text)
+            .is_ok_and(|v| v.get("connect_token").is_some() && v.get("node_token").is_none());
+        PairError::Store(if operator_part {
+            format!("{what} is the operator's part of a pair, with no node token")
+        } else {
+            format!("{what} is not readable")
+        })
+    })?;
     let Stored { relay, name, node_token, connect_token, stop_token, expires } = stored;
     let (node_token, connect_token, stop_token) =
         (Zeroizing::new(node_token), Zeroizing::new(connect_token), Zeroizing::new(stop_token));
-    let relay = parse_relay(&relay).map_err(|_| PairError::Store(format!("the pair stored under {label:?} names no relay")))?;
-    Ok(Some(Pair { relay, name, node_token, connect_token, stop_token, expires_ms: expires }))
+    let relay = parse_relay(&relay).map_err(|_| PairError::Store(format!("{what} names no relay")))?;
+    Ok(Pair { relay, name, node_token, connect_token, stop_token, expires_ms: expires })
+}
+
+/// The labels of the pairs in the store, sorted.
+pub fn labels() -> Vec<String> {
+    labels_from(&cache::candidate_dirs())
+}
+
+/// [`labels`] over explicit directories (for tests).
+pub fn labels_from(dirs: &[PathBuf]) -> Vec<String> {
+    cache::names_from(dirs, "pair-", ".json")
+        .into_iter()
+        .filter_map(|name| Some(name.strip_prefix("pair-")?.strip_suffix(".json")?.to_string()))
+        .filter(|label| file_name(label).is_ok())
+        .collect()
 }
 
 /// Forget the pair kept under `label`, in each directory where it is ours.

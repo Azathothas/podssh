@@ -79,6 +79,10 @@ pub enum Parsed {
         destination: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
     },
+    /// `podssh node NAME TARGET` (T-083).
+    Node(Box<crate::node::NodeArgs>),
+    /// `podssh relay SUBCOMMAND NAME` (T-083).
+    Relay(Box<crate::relay_cmd::RelayArgs>),
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
     Doctor {
         relay_host: Option<String>,
@@ -145,6 +149,8 @@ impl Parsed {
             Parsed::Proxy { refused, .. } => !refused.is_empty(),
             Parsed::Doctor { refused, .. } => !refused.is_empty(),
             Parsed::Status { refused, .. } => !refused.is_empty(),
+            Parsed::Node(args) => !args.refused.is_empty(),
+            Parsed::Relay(args) => !args.refused.is_empty(),
             Parsed::Ts { refused, .. } => !refused.is_empty(),
             other => other.is_error(),
         }

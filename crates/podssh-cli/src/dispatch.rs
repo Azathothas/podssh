@@ -98,6 +98,10 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 s.err,
             )
         }
+        Parsed::Node(args) if refusals("node", &args.refused, s.err) => EXIT_USAGE,
+        Parsed::Node(args) => crate::node::run_node(args, s.err),
+        Parsed::Relay(args) if refusals("relay", &args.refused, s.err) => EXIT_USAGE,
+        Parsed::Relay(args) => crate::relay_cmd::run_relay(args, s.out, s.err),
         Parsed::Status { relay_host, relay_addr, destination, refused } => {
             if refusals("status", refused, s.err) {
                 return EXIT_USAGE;
@@ -344,7 +348,7 @@ mod tests {
 
     #[test]
     fn a_parsed_verb_with_no_behaviour_refuses_and_is_not_zero() {
-        let p = crate::tree::parse(vec!["relay"]);
+        let p = crate::tree::parse(vec!["chat"]);
         let mut out: Vec<u8> = Vec::new();
         let mut err: Vec<u8> = Vec::new();
         let rc = run(&p, &mut Streams { out: &mut out, err: &mut err });

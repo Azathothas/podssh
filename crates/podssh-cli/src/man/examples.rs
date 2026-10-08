@@ -39,6 +39,12 @@ fn examples() -> Vec<(&'static str, String)> {
             "another TCP protocol: here, HTTP",
             r"printf 'HEAD / HTTP/1.0\r\nHost: example.org\r\n\r\n' | podssh proxy example.org 80".into(),
         ),
+        (
+            "offer a service of this host to an operator outside: a pair, with its operator's part in a file",
+            "podssh relay pair lab --operator-file lab-operator.json".into(),
+        ),
+        ("then the node: each operator's session reaches this host's SSH server", "podssh node lab 127.0.0.1:22".into()),
+        ("whether the node is online; then stop the pair", "podssh relay status lab && podssh relay revoke lab".into()),
         ("make a key where ssh-keygen does not work", "podssh keygen -t ed25519 -f ~/.ssh/id_ed25519".into()),
         ("a key with no passphrase, for a script", "podssh keygen -N '' -f ./deploy_key".into()),
         ("the public key of a private key", "podssh keygen -y -f ~/.ssh/id_ed25519".into()),
@@ -174,6 +180,8 @@ mod tests {
                     Parsed::Doctor { .. } => "doctor",
                     Parsed::Status { .. } => "status",
                     Parsed::Man { .. } => "man",
+                    Parsed::Node(_) => "node",
+                    Parsed::Relay(_) => "relay",
                     other => panic!("{command}: {other:?}"),
                 };
                 let v = crate::flags::verb_for(verb).unwrap();

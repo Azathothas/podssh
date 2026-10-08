@@ -254,7 +254,7 @@ fn podssh(args: &[&str]) -> (i32, Vec<u8>, Vec<u8>) {
 /// parse stays a usage error (64) for each verb.
 #[test]
 fn not_implemented_before_the_timeout() {
-    for verb in ["cp", "mv", "relay", "chat"] {
+    for verb in ["cp", "mv", "chat"] {
         let (rc, out, err) = podssh(&[verb]);
         let err = String::from_utf8(err).unwrap();
         assert_eq!(rc, 70, "{verb}: {err}");

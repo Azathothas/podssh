@@ -192,6 +192,43 @@ before anything else; `podssh doctor` is the report that measures.
 - DSA is refused, because OpenSSH 10 removed it.
 - The comment comes from the environment, never from the user database.
 
+## `podssh node` and `podssh relay`
+
+`podssh man node` and `podssh man relay` give the commands. The rules
+behind them:
+
+- **A pair has a label.** The relay names a pair, and the name changes with
+  each new pair. NAME is the user's label for the pair in the cache
+  (`pair-NAME.json`, mode 0600), so a script stays the same.
+  `relay pair NAME` makes and keeps one; `node NAME TARGET` serves it;
+  `relay status NAME` asks whether its node is online; `relay revoke NAME`
+  stops it and forgets it.
+- **No token in the output.** `relay pair` prints the label and the expiry.
+  The operator's part, the connect token alone, goes to the new private
+  file of `--operator-file`; the node's token and the stop token stay in
+  the store.
+- **One pair for each label.** A pair that has not expired is not replaced:
+  a second pair would leave the first with no holder, for up to 72 hours.
+  When a new pair cannot be stored, or its operator file cannot be written,
+  it is stopped at once. A relay that cannot be reached keeps the stored
+  copy at `revoke`: its stop token is the one way to stop the pair before
+  it expires.
+- **`relay` has no `--timeout`.** Each request has a bound of 30 s, so a
+  script needs no `--timeout` (T-058's decision). `--relay-host` names the
+  control host: the first host of the list.
+- **A node dials TARGET first,** once, and exits 69 when it cannot; else
+  each operator would get a `reject`. It runs until Ctrl-C or SIGTERM
+  (exit 0). Its stdout stays empty.
+- **The exit codes follow the faults of E24**
+  (`crates/podssh-cli/src/exitmap.rs`): 69 for a relay or TARGET out of
+  reach, a stopped pair, or a pair that another node serves; 77 for a
+  refused or expired pair; 78 for no stored pair, or a node that cannot
+  connect as it is set up; 70 for a fault of the node that the relay closed
+  (`1003`, `1009`).
+- **`--pair-file FILE`** uses a pair of the store's form, which must be a
+  regular file of the user that nobody else can read, as ssh reads a key.
+  The store is not used.
+
 ## Exit codes
 
 `podssh man exit-status` gives each code. The rules behind them:

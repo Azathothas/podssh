@@ -251,8 +251,9 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "cp" | "mv" => "[OPTIONS] SRC... DST",
         "chat" => "[OPTIONS] [CHANNEL] [MESSAGE]",
         "man" => "[OPTIONS] [SECTION]",
-        "relay" => "[OPTIONS] SUBCOMMAND [ARGS...]",
-        "node" | "operator" => "NAME",
+        "relay" => "[OPTIONS] SUBCOMMAND NAME",
+        "node" => "[OPTIONS] NAME TARGET",
+        "operator" => "NAME",
         "proxy" => "[OPTIONS] [--] HOST PORT",
         _ => "[OPTIONS]",
     }

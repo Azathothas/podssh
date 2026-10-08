@@ -8,6 +8,8 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
     match name {
         "ssh" => SSH,
         "proxy" => PROXY,
+        "node" => NODE,
+        "relay" => RELAY,
         "doctor" => DOCTOR,
         "status" => STATUS,
         "keygen" => KEYGEN,
@@ -64,6 +66,33 @@ const PROXY: &[&str] = &[
      [ADDRESS]:PORT. Through the relay, see the IPv6 note of ssh.",
     "Put -- before a HOST that a script did not write: podssh proxy -- \"$HOST\" 22. Else a HOST that \
      starts with - is read as a flag.",
+];
+
+const NODE: &[&str] = &[
+    "podssh node serves TARGET, a TCP service, to the operators of the pair stored under NAME (see \
+     podssh relay). Each session that an operator opens is one connection to TARGET, from this host, \
+     through HTTPS_PROXY unless TARGET is on the loopback. podssh dials TARGET once at the start, and \
+     exits when it cannot.",
+    "The node runs until Ctrl-C or SIGTERM (exit 0), or until the relay ends the pair: stopped, \
+     expired, refused, or served by another node; each has its code in EXIT STATUS. A broken \
+     connection to the relay is made again, after a growing wait. stdout stays empty; notes go to \
+     stderr.",
+    "With --pair-file, the pair comes from FILE, in the form of the store, and the store is not used. \
+     FILE must be a regular file of the user that nobody else can read.",
+];
+
+const RELAY: &[&str] = &[
+    "podssh relay pair NAME makes a pair on the relay and keeps it under the label NAME, in a private \
+     file of the cache (see FILES). It prints the label and when the pair expires, 72 hours later, and \
+     never a token. With --operator-file, the operator's part of the pair, its connect token alone, \
+     goes to FILE, a new file that only its owner can read: give it to the operator by a channel that \
+     you trust.",
+    "A pair under NAME that has not expired is not replaced: stop it first with podssh relay revoke \
+     NAME. revoke stops the pair on the relay and deletes the stored copy; when the relay cannot be \
+     reached, the copy is kept, because its stop token is the one way to stop the pair before it \
+     expires.",
+    "podssh relay status NAME says whether the pair's node is online, and its sessions. status with no \
+     NAME, info, spec and trace are not implemented yet (exit 70).",
 ];
 
 const DOCTOR: &[&str] = &[

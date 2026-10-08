@@ -185,6 +185,46 @@ pub fn remove_from(dirs: &[PathBuf], relay_host: &str) {
     remove_named_from(dirs, &file_name(relay_host));
 }
 
+/// The names of the files that start with `prefix` and end with `suffix`, in
+/// each directory, that are ours as [`load_file_from`] takes them; sorted, once
+/// each.
+pub fn names_from(dirs: &[PathBuf], prefix: &str, suffix: &str) -> Vec<String> {
+    let mut names: Vec<String> = Vec::new();
+    for dir in dirs {
+        let Ok(entries) = std::fs::read_dir(dir) else { continue };
+        for entry in entries.flatten() {
+            let Ok(name) = entry.file_name().into_string() else { continue };
+            let fits = name.len() > prefix.len() + suffix.len() && name.starts_with(prefix) && name.ends_with(suffix);
+            if fits && !names.contains(&name) && read_trusted(&entry.path()).is_some() {
+                names.push(name);
+            }
+        }
+    }
+    names.sort();
+    names
+}
+
+/// A private file that the user names, such as a pair file: read only when it
+/// is a regular file of this user that nobody else can read, as ssh reads a
+/// key. A symbolic link that the user gives is followed.
+pub fn read_private(path: &Path) -> Result<String, String> {
+    let shown = path.display();
+    let file = std::fs::File::open(path).map_err(|e| format!("{shown}: {e}"))?;
+    let meta = file.metadata().map_err(|e| format!("{shown}: {e}"))?;
+    if !meta.is_file() {
+        return Err(format!("{shown} is not a regular file"));
+    }
+    if meta.len() > MAX_FILE {
+        return Err(format!("{shown} is larger than a file of the cache can be"));
+    }
+    if !owned_and_private(&meta) {
+        return Err(format!("{shown} is another user's, or others can read it; make it private (chmod 600)"));
+    }
+    let mut text = String::new();
+    std::io::Read::read_to_string(&mut &file, &mut text).map_err(|e| format!("{shown}: {e}"))?;
+    Ok(text)
+}
+
 /// Delete the private file `name` from each directory where it is ours: a
 /// file that another user owns, or that others can read, is not touched.
 pub fn remove_named_from(dirs: &[PathBuf], name: &str) {
