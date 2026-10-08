@@ -86,6 +86,29 @@ The IRC code has wire-level bugs found by review
 | `cargo test -p podssh-cli --test doctor` | offline: network checks reported as one `????`, never `ok`; planted failures (no `HOME`, an unusable proxy setting) give `FAIL` and exit 1; proxy credentials and a token in the environment never appear in the output |
 | `cargo test -p podssh-cli --test doctor -- --ignored` | the live path end to end, exit 0 (3.6 s) |
 
+### Faults between podssh and the relay, measured
+
+`scripts/interop-faults.sh` in the container gate: a stand-in relay
+(`scripts/fake-relay.py`, verified TLS from a CA made for the run) and proxy
+(`scripts/fake-proxy.py`) between podssh and OpenSSH, each failing one way.
+The stand-ins are written here, so they show podssh's handling of each
+fault; the live tests show it works with the real relay. 2026-10-08, 11 of
+11:
+
+| fault | what podssh did |
+| --- | --- |
+| none (the control) | the stand-in carried a session |
+| first relay host down (connection refused) | failed over to the next host at once |
+| first host answers the upgrade with 503 | failed over at once |
+| first host completes TLS, then never answers | failed over after the 20 s bound |
+| first host accepts TCP and never starts TLS | failed over after the 20 s bound |
+| the proxy answers 502 for the first host | failed over to the next host through the proxy |
+| the proxy answers 502 for every host | exit 255, the proxy's answer shown |
+| a Close with 1011 in the middle of a 5 MB transfer | `ssh` exit 255 with the relay's reason; 351,575 bytes had arrived |
+| a Close with 1009 (`session byte cap`) | `proxy` exit 69 with the relay's reason |
+| the relay stalls: no frames, no Pongs, connection open | declared dead by the ping watcher at 50 s (38 s after the stall) |
+| the relay host killed mid-session | `ssh` exit 255 after 5 s, the relay named |
+
 ### `podssh keygen`, measured
 
 | check | result |
@@ -100,7 +123,7 @@ The IRC code has wire-level bugs found by review
 | --- | --- | --- | --- |
 | `podssh-ws` | 4.2k / 4.0k | TLS 1.3 through rustls with podssh's own pure-Rust crypto provider (ECDSA P-256/P-384, Ed25519, RSA PKCS #1 and PSS); certificate and hostname checks with no bypass; full-duplex session with ping liveness; HTTP CONNECT proxies (never for loopback); trust fallbacks; bounded connect, TLS and upgrade; pinned addresses and DNS over HTTPS when the system resolver fails (a name that does not exist ends the lookup at the first answer) | no TLS 1.2 (some intercepting proxies need it); control frames not size-checked on receive; `probe::PrintChain` (accepts any certificate) still a public export |
 | `podssh-relay` | 1.2k / 0.2k | relay host lists, the cached pool and failover; tokens minted, cached and re-minted; the forward opener (moved out of `podssh-cli` 2026-10-08; no C) | no reverse node/operator legs or pairing yet (M4) |
-| `podssh-transport` | 5.6k / 3.9k | forward-path framing; reverse-path session-id codec and close-code table | about 600 lines are used outside tests; the reverse node leg sends control frames as binary and cannot work live; the 2.3k-line DNS/DoH stack is unused and cannot resolve anything; the backpressure module is unused |
+| `podssh-transport` | 2.8k / 2.2k | forward-path framing; reverse-path session-id codec and close-code table | about 600 lines are used outside tests; the reverse node leg sends control frames as binary and cannot work live; the backpressure module is unused (the unused DNS/DoH stack was removed 2026-10-08) |
 | `podssh-ssh` | 3.1k / 0.1k | the native client: russh 0.64.1 (aws-lc-rs; strict key exchange and the ML-KEM hybrid key exchange in its defaults); a relay-to-stream pipe that keeps the relay's close reason; a `known_hosts` reader (hashed entries, wildcards, negation, markers); the auth chain; prompts via `/dev/tty`, `CONIN$` or `SSH_ASKPASS`; raw mode, resize, escapes; OpenSSH exit codes; a host-key probe that never authenticates (for `doctor`) | no `ssh_config`; no `-L`/`-R`/`-D`/`-A`/X11; host certificates checked as plain keys; Windows interactive use not tested; no reconnect when the connection drops |
 | `podssh-core` (`irc/`; the hand-written `ssh/` was removed 2026-10-08) | 3.8k / 1.9k | sans-IO client, message grammar, IRCv3 tags | registration hangs on IRCv3 servers (CAP END order); CRLF injection through message text; plaintext through the relay; file transfer never run live and broken for short final chunks |
 | `podssh-terminal` | 2.5k / 1.2k | line-editing state machine | used by nothing; **mode selection inverted** (with no remote pty it refuses all input); no raw mode; cursor counts bytes, not characters |
@@ -113,11 +136,11 @@ The IRC code has wire-level bugs found by review
 | what | result | how |
 | --- | --- | --- |
 | library crates (`podssh-ws`, `-transport`, `-core`, `-terminal`, `-probe`) | build and pass their tests with `CC=/nonexistent` | `scripts/gate.sh` |
-| default tests | **647 passed, 0 failed, 5 ignored** (the live tests: proxy, doctor, relay pings, DNS over HTTPS twice), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
+| default tests | **624 passed, 0 failed, 5 ignored** (the live tests: proxy, doctor, relay pings, DNS over HTTPS twice), Windows, 2026-10-08; fewer than the day's 647 because the unused DNS code in `podssh-transport` was removed with its tests | `cargo test --no-fail-fast` |
 | Tailscale feature tests | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | repository checks | pass | `python scripts/check-repo.py` |
 | static release binary | **4,008,448 bytes** with the SSH client (aws-lc and russh), `doctor` and `keygen`, static PIE, no `NEEDED` entries, no interpreter. It was 3,848,704 before `keygen`, 3,586,496 before `doctor`, 1,622,944 with `proxy` only, and 7,403,072 while the Tailscale fork was linked | `scripts/gate.sh` |
-| container gate | **green** (2026-10-08, with `doctor` and `keygen`): every build and test step, and interop 87 of 87 (62 SSH checks, 25 keygen checks) | `sh scripts/dev.sh check` |
+| container gate | **green** (2026-10-08, with `doctor`, `keygen` and the fault harness): every build and test step, and interop 98 of 98 (62 SSH checks, 25 keygen checks, 11 faults) | `sh scripts/dev.sh check` |
 | no-C plant | fires twice for the right reason (a planted `ring` fails because no C compiler exists), control passes | `sh scripts/dev.sh plant` |
 | CI | the repository is public since 2026-10-08; the first run on it (commit `9a03102`) passed | `gh run list` |
 

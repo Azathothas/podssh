@@ -151,7 +151,6 @@ rsa = { version = "0.9", default-features = false, features = ["std"] }
 rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
 
 # podssh's own. No crates.io equivalent is acceptable for these.
-crc32fast = "1"
 base64 = "0.22"
 hex = "0.4"
 libc = "0.2"

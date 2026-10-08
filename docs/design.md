@@ -61,8 +61,8 @@ podssh-relay
 `podssh-ws` gains: a caller-supplied `rustls::ClientConfig` (so podbox can
 keep `ring` and TLS 1.2), plain `ws://` on loopback for fake-relay tests, and
 typed session errors; `probe::PrintChain` moves behind a feature.
-`podssh-transport` folds into `podssh-relay` and its unused DNS and
-backpressure modules go. podbox then pins `podssh-relay` by git revision and
+`podssh-transport` folds into `podssh-relay` and its unused backpressure
+module goes (its unused DNS module was removed on 2026-10-08). podbox then pins `podssh-relay` by git revision and
 drops its own `ws.rs`, `tls.rs`, direct dial and curl-based pairing.
 
 ## 2. Can podssh work in the most constrained environments and replace the siblings?
@@ -102,8 +102,9 @@ not yet do, in the order it matters:
    digest, resumable by offset, and aware of the relay's 64 MiB and 12 h
    per-session caps.
 5. **No proxy and no DNS**: DNS over HTTPS to an IP literal, or a configured
-   (hostname, address) pair. The 2.3k-line DoH stack in `podssh-transport` is
-   unused and cannot resolve anything today.
+   (hostname, address) pair. (Done 2026-10-08, in `podssh-ws`; the unused
+   2.3k-line DoH stack in `podssh-transport`, which could not resolve
+   anything, was removed.)
 6. **`podssh doctor`**: proxy allowlist, AF_INET vs AF_UNIX bind (a measured
    cage refuses the first and allows the second), ptmx, passwd, which
    directories can execute, `/proc`, CA bundle, relay reachability — `ok`,
@@ -354,8 +355,8 @@ M0–M2 are done. Proposed from here, each with commands as exit criteria:
   refused upgrades; jittered backoff; one overall deadline per attempt;
   `ConnectionAttempts` honoured.
 - WebSocket pings with a miss count (seconds, not the 90 s idle limit).
-- No proxy and no DNS: DNS over HTTPS to an IP literal (the existing DoH code,
-  repaired and wired), and a `--relay-addr HOST=IP` pin.
+- No proxy and no DNS: DNS over HTTPS to an IP literal (written anew in
+  `podssh-ws`; the old stack was removed), and a `--relay-addr HOST=IP` pin.
 - `podssh doctor` (each probe `ok`, `FAIL` or `????`) and `podssh keygen`.
 - Run in the operator's real sandbox; interactive use on Windows.
 - Exit: the interop harness plus a fault-injection harness (killed relay

@@ -2569,10 +2569,7 @@ dependencies = [
 name = "podssh-transport"
 version = "0.1.0"
 dependencies = [
- "crc32fast",
- "hex",
  "podssh-ws",
- "rustls-pki-types",
  "serde",
  "serde_json",
  "tokio",

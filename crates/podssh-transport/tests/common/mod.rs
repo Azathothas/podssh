@@ -35,8 +35,6 @@ pub fn block_on<F: Future>(future: F) -> F::Output {
     }
 }
 
-pub mod dns;
-
 /// ⛔ **A 32-lowercase-hex session id, written out.** ⛔ Not `"0".repeat(32)`,
 /// because a repeated digit is the shape a mistake produces and it would hide
 /// one.

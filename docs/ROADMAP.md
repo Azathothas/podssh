@@ -134,7 +134,8 @@ take podssh down.
       first host failed over to `tcp-eu-west-3`, which accepted the token
       cached for the default host.
 - [x] **Liveness** (2026-10-08). The session pings the relay every 10 s and
-      declares the link dead after 30 s with nothing at all from it (any
+      declares the link dead after three checks in a row with nothing at all
+      from it, 30 to 40 s (38 s measured against a stalled stand-in; any
       frame counts, so a slow upload cannot fake a death), enforced only once
       the relay has answered a ping. Measured: the relay answers pings (3 of
       3); a 50 s idle session with SSH keepalives off stayed up.
@@ -145,7 +146,9 @@ take podssh down.
       always checks the relay's name. This needed RSA verification in the TLS
       provider, which Google's resolvers require (measured: all four
       resolvers answer, each on its own). The unused DoH stack in
-      `podssh-transport` is still to be removed.
+      `podssh-transport` (2.8k lines and 1.5k of tests) was removed the same
+      day; the one test there that guarded the default relay's name moved to
+      `podssh-relay`.
 - [x] **`podssh doctor`** (2026-10-08): the proxy and what it lets through
       (`CONNECT` to the relay and to `github.com` on 443 and 22), AF_INET and
       AF_UNIX bind (never listening), a pty, the user database entry, which
@@ -166,9 +169,17 @@ take podssh down.
       `-l` agree, `sshd` accepts the keys, an encrypted key decrypts with
       OpenSSH), and on Windows against OpenSSH 10.3's `ssh-keygen`. The
       repository check now refuses a committed private key.
-- [ ] **A fault-injection harness** in the gate: a killed relay host, a proxy
-      answering 5xx, a stalled link past each timeout, a WebSocket closed
-      mid-transfer; run against real OpenSSH like the interop harness.
+- [x] **A fault-injection harness** in the gate (2026-10-08):
+      `scripts/interop-faults.sh` puts a stand-in relay and proxy between
+      podssh and OpenSSH. Measured, 11 of 11: a host that is down and one
+      answering 503 fail over at once; one silent after TLS and one that never
+      starts TLS fail over at the 20 s bound; a proxy answering 502 for one
+      host fails over through the proxy, and with every host behind a 502 the
+      exit is 255 with the proxy's answer; a Close mid-transfer (1011) ends
+      `ssh` with 255 and the relay's reason, and the byte-cap Close (1009)
+      ends `proxy` with 69 and its reason; a stall (no frames, no Pongs) is
+      declared dead at 50 s; a host killed mid-session ends the session in
+      5 s, naming the relay.
 - [ ] **Measured where it is meant to run**: the operator's real sandbox, and
       interactive use on Windows.
 - [ ] **Publication**: tag `v0.1.0-beta.1`; the release workflow

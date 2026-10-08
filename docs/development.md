@@ -86,7 +86,18 @@ checks that:
    and runs `podssh ssh --direct` against them (exit statuses and signals,
    streams and digests, every authentication method, host keys, `-W`, `-J`,
    `-s`, ptys through pipes, and an interactive pty driven by
-   `scripts/interop-pty.py`: resize, Ctrl-C, `vi`, `less`, `top`, `~.`).
+   `scripts/interop-pty.py`: resize, Ctrl-C, `vi`, `less`, `top`, `~.`);
+   `scripts/interop-keygen.sh` checks the keys `podssh keygen` makes with
+   OpenSSH's own `ssh-keygen` and `sshd`;
+6. podssh survives the relay failing: `scripts/interop-faults.sh` puts a
+   stand-in relay (`scripts/fake-relay.py`, TLS from a CA made for the run)
+   and a stand-in CONNECT proxy (`scripts/fake-proxy.py`) between podssh and
+   OpenSSH, and has them fail one way each: a host that is down, one that
+   answers 503, one that never answers after TLS, one that never starts TLS,
+   a proxy answering 502, a Close mid-transfer (1011) and at the byte cap
+   (1009), a stall (no frames, no Pongs), and a host killed mid-session. The
+   stand-ins are written here, so they test podssh's handling of each fault;
+   that podssh works with the real relay is what the live tests show.
 
 Containers are ephemeral, and `.git`, `target/`, `.env/`, `.work/`, `.tmp/` and
 `.codegraph/` are not copied into them.
