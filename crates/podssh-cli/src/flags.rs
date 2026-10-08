@@ -349,13 +349,13 @@ pub const VERBS: &[Verb] = &[
 pub const VERB_OWNER: &[(&str, &str)] = &[
     ("node", "M4"),
     ("operator", "M4"),
-    ("chat", "M5"),
-    ("cp", "M7"),
-    ("mv", "M7"),
+    ("chat", "M8"),
+    ("cp", "M5"),
+    ("mv", "M5"),
     ("man", "built"),
-    ("relay", "M7"),
-    ("status", "M7"),
-    ("doctor", "M7"),
+    ("relay", "M4"),
+    ("status", "M8"),
+    ("doctor", "M3"),
 ];
 
 /// Find a verb by any of its spellings. Returns `None` for anything else —

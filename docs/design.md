@@ -266,14 +266,27 @@ What it then gives, when both ends run podssh:
 - **full speed off the sandbox**: on ordinary networks the connection moves
   from relay to direct UDP mid-flight.
 
-What it does **not** give in the sandbox: speed. Every byte is relayed, as
-QUIC inside a WebSocket inside TLS inside a CONNECT tunnel (two congestion
-controllers, TCP head-of-line blocking). n0's free relays are for
-development, rate-limited, and measured by a third party at about 1 MiB/s;
-volume needs a relay podssh's operator runs (a VPS `iroh-relay`, or n0's paid
-tier at 5 MB/s). The operator's own Cloudflare relay could also host the iroh
-relay protocol: at least three independent projects implement it on Workers
-and Durable Objects (READ, unverified), with billing per incoming message.
+What speed it gives **in the sandbox is unmeasured**. There, every byte is
+relayed, as QUIC inside a WebSocket inside TLS inside a CONNECT tunnel (two
+congestion controllers, TCP head-of-line blocking), so the relay sets the
+ceiling. The figures known on 2026-10-08:
+
+- the operator measured **30–50 MiB/s with `sendme`** (iroh's file transfer)
+  on ordinary networks — most likely a direct path, which a sandbox without
+  UDP cannot use;
+- a third party measured a **browser** (wasm) client, relay-only, at
+  1.0–1.3 MiB/s through n0's relays with 290–378 ms round trips, and
+  12.5 MiB/s through a local relay — a worst case, not a measure of native
+  relay throughput;
+- n0 publishes no relay throughput figures; its free relays are "for
+  development and hobby use", rate-limited by an unpublished amount (its paid
+  tier states 5 MB/s).
+
+So the number that matters — native, relay-only, through a CONNECT proxy, on
+each candidate relay — is measured in M6 before any default depends on it.
+The operator's own Cloudflare relay could host the iroh relay protocol: at
+least three independent projects implement it on Workers and Durable Objects
+(READ, unverified), billed per incoming message.
 
 dumbpipe ("netcat over iroh"), pigeons (`pigeons roost` next to sshd, `pigeons
 fly --stdio` as a ProxyCommand — the closest existing match to "iroh when
@@ -378,8 +391,10 @@ M0–M2 are done. Proposed from here, each with commands as exit criteria:
 - The iroh road as the cargo feature `iroh` (`>= 1.1`, aws-lc-rs, `Minimal`
   preset, own relay, proxy, no UDP unless probed), dialled by ticket, raced
   with the reverse road.
-- An iroh relay the operator runs (on the Cloudflare relay or a VPS), with
-  n0's public relays as the last fallback.
+- iroh relays are configurable (a list, by flag, environment and config).
+  Until the operator's own iroh relay exists on his Cloudflare account, the
+  default is n0's public relays; after, his relay first and n0's as the
+  fallback.
 - Exit: a session survives the relay host being killed, the client's
   address changing, and a 3-minute stall, on both roads; measured
   throughput on each road, in and out of a sandbox.
@@ -393,6 +408,12 @@ missing reconnect first), `ssh_config`, `-R`, and relay-side resumption for
 stock sshd if the operator builds it.
 
 ## 8. Decisions for the operator
+
+**Decided 2026-10-08:** the beta waits for M3 (1); M4, M5, M6 in that order
+(2); iroh as an opt-in road with configurable relays — n0's public relays by
+default until the operator's own iroh relay exists on his Cloudflare account,
+then his first (3, 4); both resumable layers, each the other's fallback (5).
+Items 6–8 follow the recommendations below until the operator says otherwise.
 
 1. **Cut the beta now, or after M3?** The client works today; what makes it
    "hardcoded" is one relay host, no failover and no liveness. Recommended:

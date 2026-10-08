@@ -118,47 +118,139 @@ The command line follows OpenSSH; [cli.md](cli.md) has the measured details.
       `/dev/ptmx` (`-tt` over pipes: Ctrl-C and `vi`).
 - [ ] The same from the operator's real sandbox, and on Windows.
 
-## M3 — Public beta
+## M3 — Beta: nothing single-point, nothing assumed
 
-**Re-scope proposed 2026-10-08** in [design.md](design.md) section 7, pending
-the operator's decisions in its section 8: the beta waits for relay-host
-failover, liveness checks, a no-proxy/no-DNS fallback, `doctor`, `keygen` and
-a run in a real sandbox, so nothing in it is single-point or assumed. The
-items below are the publication part.
+Decided 2026-10-08 ([design.md](design.md) sections 3, 7 and 8): the first
+beta waits for these, so no single relay host, missing DNS or silent stall can
+take podssh down.
 
-- [ ] Static release binaries (x86_64 and aarch64 Linux musl; Windows) with
-      checksums, built by CI from a tag. The workflow
-      (`.github/workflows/release.yml`) and the notes
-      (`docs/releases/v0.1.0-beta.1.md`) are written; no tag is cut. Checks for each artefact: a musl
-      static-PIE binary reports `Type: DYN`, so the proof that it is static is
-      no `NEEDED` entries and no `PT_INTERP` segment; `readelf` reads only ELF,
-      so Windows uses `dumpbin /dependents` (and an MSVC build needs
-      `+crt-static` to avoid the VC runtime DLL); check `ldd`'s printed text,
-      not its exit code, which varies.
+- [ ] **Relay hosts with failover.** `--relay-host` and `PODSSH_RELAY` take an
+      ordered list; the pool from `/relays.json` is fetched and cached; a dial
+      error, a proxy 5xx or a refused upgrade moves to the next host; jittered
+      exponential backoff; one overall deadline per attempt;
+      `ConnectionAttempts` honoured. The token cache works across hosts
+      (tokens are valid on every pool host).
+- [ ] **Liveness.** WebSocket pings with a miss count, so a dead link is found
+      in seconds instead of at the 90 s idle limit.
+- [ ] **No proxy and no DNS.** DNS over HTTPS to an IP literal (repair and wire
+      the unused DoH code, or replace it), and `--relay-addr HOST=IP` to pin an
+      address.
+- [ ] **`podssh doctor`**: proxy and its allowlist (which ports and names it
+      lets through), AF_INET and AF_UNIX bind, `/dev/ptmx`, a passwd entry,
+      which directories can execute, `/proc`, the CA bundle, each relay
+      host, the token. Each check is `ok`, `FAIL` or `????`; unknowns are
+      counted separately and never fail the run; a check that did not run is
+      never `ok`; it prints what was actually opened; servers are identified
+      by equality (the expected host key), never by the shape of a banner (a
+      banner-shape check once graded the wrong server as good).
+- [ ] **`podssh keygen`** for hosts with no `ssh-keygen` (Ed25519 by default;
+      OpenSSH format; never prints the private key).
+- [ ] **A fault-injection harness** in the gate: a killed relay host, a proxy
+      answering 5xx, a stalled link past each timeout, a WebSocket closed
+      mid-transfer; run against real OpenSSH like the interop harness.
+- [ ] **Measured where it is meant to run**: the operator's real sandbox, and
+      interactive use on Windows.
+- [ ] **Publication**: tag `v0.1.0-beta.1`; the release workflow
+      (`.github/workflows/release.yml`) builds static musl binaries for
+      x86_64 and aarch64 and a Windows binary with checksums, and the notes
+      (`docs/releases/v0.1.0-beta.1.md`) are written. Checks per artefact: a
+      musl static-PIE binary reports `Type: DYN`, so the proof that it is
+      static is no `NEEDED` entries and no `PT_INTERP` segment; `readelf` reads
+      only ELF, so Windows uses `dumpbin /dependents` (an MSVC build needs
+      `+crt-static`). README usage verified on a clean machine.
 - [x] Git history cleaned before the repository went public (2026-10-08: one
       fresh commit; the old history kept only in a local bundle).
 - [x] Repository made public; CI runs on every push (2026-10-08, green).
-- [ ] README usage verified on a clean machine; known limitations listed.
 - Open: how the compiled-in `webpki-roots` certificates get updated in
   released binaries.
 
-## After the beta (order to be confirmed by the operator)
+**Exit criteria**
+- The interop and fault-injection harnesses pass in the gate.
+- `podssh ssh` and `podssh proxy` work from the operator's real sandbox,
+  including with one relay host made unreachable.
 
-- **M4 — reverse mode** (`podssh node` / `podssh operator`): reach a host whose
-  only egress is the relay. Rules so far: [reverse.md](reverse.md).
-- **M5 — chat** (`podssh chat`): IRC between two constrained users. The current
-  client hangs at registration on IRCv3 servers and sends plaintext through the
-  relay; both must be fixed first. Which servers work: [irc.md](irc.md).
-- **M6 — Tailscale** (`podssh ts`, feature `ts`): finish the DERP-over-relay
-  node and the two-node acceptance tests ([tailscale.md](tailscale.md)).
-- **M7 — the rest**:
-  - `cp`/`mv`: write to a temporary name and rename only after verifying;
-    across hosts `mv` is copy, verify, delete the source, and podssh says up
-    front that it is not atomic; prefer `exec` (sandbox servers may have no
-    sftp) and assume no POSIX tools or interactive-shell environment remotely.
-  - `doctor`: each check is `ok`, `FAIL` or `????`; unknowns are counted
-    separately and never fail the run; a check that did not run is never `ok`;
-    print what was actually opened; identify servers by equality (the expected
-    host key), never by the shape of a banner (a banner-shape check once graded
-    the wrong server as good).
-  - `status`, and `ssh_config` compatibility ([cli.md](cli.md)).
+## M4 — `podssh-relay`, the reverse road, and podbox
+
+- [ ] A C-free library crate `podssh-relay` ([design.md](design.md) section
+      1): relay selection and the pool, tokens, pairing (`pair`, `stop`,
+      `status`), the forward opener, the reverse node and operator runners
+      ported from podbox's live-proven loops with podssh-transport's codecs
+      folded in (one writer, `ready` before data, late bytes dropped, a capped
+      pre-`ready` queue, close-code actions, liveness, jittered backoff), and a
+      blocking facade for podbox. Rules so far: [reverse.md](reverse.md).
+- [ ] `podssh-ws`: a caller-supplied `rustls::ClientConfig` (podbox keeps
+      `ring` and TLS 1.2 for intercepting proxies), plain `ws://` on loopback
+      for fake-relay tests, typed session errors, `probe::PrintChain` behind a
+      feature.
+- [ ] `podssh node NAME TARGET` (expose a local TCP service through the
+      reverse road) and `podssh ssh NODE` / `podssh operator NAME`.
+
+**Exit criteria**
+- Two concurrent sessions through the live relay, from a sandbox whose only
+  egress is a CONNECT proxy, to a node in another such sandbox.
+- podbox builds against `podssh-relay` through its blocking facade and passes
+  its own two-client test.
+
+## M5 — `podssh serve`: into the cage
+
+- [ ] russh's server inside the node: runs as whatever user the sandbox gives,
+      with no passwd entry, setgroups, chroot, `/etc/shells` or `/var`; host
+      key in a state file; authorized keys from a flag or file; exec;
+      direct-tcpip into the cage.
+- [ ] The terminal: a real pty when `/dev/ptmx` exists; otherwise an in-process
+      line discipline (`podssh-terminal`, its inverted mode selection fixed)
+      that signals the child's process group on Ctrl-C
+      ([terminal.md](terminal.md)).
+- [ ] SFTP in-process (`russh-sftp`, client and server).
+- [ ] `podssh cp`/`mv`: SFTP, falling back to an exec transfer against minimal
+      servers; write to a temporary name and rename only after verifying the
+      digest; resumable by offset; rolling over to a new relay session before
+      the relay's 64 MiB and 12 h caps. Across hosts `mv` is copy, verify,
+      delete, and podssh says up front that it is not atomic; assume no POSIX
+      tools or interactive-shell environment remotely.
+
+**Exit criteria**
+- From a sealed sandbox (no ptmx, no passwd, no bind), an operator gets a
+  shell where `vi`, `less` and Ctrl-C work, and copies 200 MiB in and out with
+  matching digests.
+
+## M6 — Sessions that survive
+
+- [ ] podssh's own resumable stream layer over the reverse road: per-direction
+      byte offsets and acknowledgements, a bounded replay buffer with
+      backpressure, a session id and resume secret, heartbeats that also keep
+      the relay's idle cut away, rollover before the relay's caps, reconnect
+      through any relay host.
+- [ ] The iroh road, cargo feature `iroh` (`>= 1.1`, aws-lc-rs, the `Minimal`
+      preset, podssh's proxy resolution, no UDP unless probed, dialled by
+      ticket), raced with the reverse road. iroh relays are configurable; the
+      default is n0's public relays until the operator runs his own iroh relay
+      on his Cloudflare account, then his first and n0's as the fallback.
+- [ ] Throughput measured on each road and relay, inside and outside a
+      sandbox, before any default depends on it.
+
+**Exit criteria**
+- A session survives the relay host being killed, the client's address
+  changing and a 3-minute stall, on both the resumable layer and the iroh
+  road.
+
+## M7 — `podssh pipe`, and `--persist`
+
+- [ ] `podssh pipe A B`, listener-free: `stdio`, `fd:N`, `exec:CMD`
+      (socketpair, pipes as the fallback), `unix-connect:PATH`,
+      `relay:HOST:PORT`, `ssh:BASTION,HOST:PORT`, `node:NAME`, `iroh:TICKET`;
+      local listening only after a probe shows it is allowed
+      ([design.md](design.md) section 4).
+- [ ] `--persist` for interactive sessions against stock sshd: reconnect and
+      reattach `tmux` when the server has it (probed, never assumed).
+
+## M8 — The rest
+
+- Chat: redesigned on the two-podssh roads (end-to-end encrypted), or IRC as
+  before ([irc.md](irc.md)); the operator decides when it starts.
+- Tailscale (`podssh ts`, feature `ts`): first fix its DERP dial that ignores
+  the proxy and its missing reconnect, then the two-node acceptance tests
+  ([tailscale.md](tailscale.md)).
+- `ssh_config` compatibility ([cli.md](cli.md)), `-R`, `status`.
+- Relay-side resumption for stock sshd (a Durable Object owning the target
+  socket across reconnects): not now; revisit after M6.

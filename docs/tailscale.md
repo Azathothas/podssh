@@ -1,4 +1,4 @@
-# Tailscale (milestone 6)
+# Tailscale (milestone 8)
 
 `podssh ts` (cargo feature `ts`) joins a tailnet through a vendored fork of
 tailscale-rs (`vendor/tailscale-rs`, local patches in `vendor/patches/`), with

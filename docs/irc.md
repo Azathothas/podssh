@@ -1,4 +1,4 @@
-# Chat over IRC (milestone 5)
+# Chat over IRC (milestone 8)
 
 `podssh chat` lets two users on constrained hosts talk and exchange files.
 podssh speaks IRC itself and the relay carries the bytes, as for SSH. The
