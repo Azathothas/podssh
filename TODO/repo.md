@@ -1568,7 +1568,7 @@ Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
 
 Read: `libc` (line 44) is used only in code under `cfg(unix)`
 (`crates/podssh-cli/src/ssh/tokens.rs:119`, `crates/podssh-cli/src/ssh/tokens.rs:136`,
-`crates/podssh-cli/src/ssh/resolve.rs:80`,
+`crates/podssh-cli/src/ssh/resolve.rs:83`,
 the module of `crates/podssh-cli/src/doctor/unix.rs`). T-060 decides whether a
 command uses `podssh-probe`.
 

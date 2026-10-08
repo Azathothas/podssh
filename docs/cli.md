@@ -59,7 +59,12 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `Bad configuration option` for an unknown `-o` keyword, before it connects.
   `podssh --help COMMAND` prints the help of COMMAND; each other word after
   `--help` or `--version` is refused (exit 64).
-- **Destinations.** `-J a,b` makes a chain of hops; `-J a -J b` is an error.
+- **Destinations.** `node://[user@]NAME` is the node of the pair under the
+  label NAME (T-084), reached through the relay, with its host key recorded
+  under `node://NAME`, which no DNS name can be; `node:22` is still the host
+  `node` on port 22. A node has no port, and `-J`, `-W` and `--direct` do
+  not go with it yet (exit 64). `-J a,b` makes a chain of hops; `-J a -J b`
+  is an error.
   `ssh host:2222` connects to a host named `host:2222` on port 22. The port
   form of OpenSSH is `ssh://user@host:2222`. podssh also accepts `host:PORT`,
   because its own "did you mean" message gives that form. A host name cannot
@@ -192,10 +197,10 @@ before anything else; `podssh doctor` is the report that measures.
 - DSA is refused, because OpenSSH 10 removed it.
 - The comment comes from the environment, never from the user database.
 
-## `podssh node` and `podssh relay`
+## `podssh node`, `podssh operator` and `podssh relay`
 
-`podssh man node` and `podssh man relay` give the commands. The rules
-behind them:
+`podssh man node`, `podssh man operator` and `podssh man relay` give the
+commands. The rules behind them:
 
 - **A pair has a label.** The relay names a pair, and the name changes with
   each new pair. NAME is the user's label for the pair in the cache
@@ -227,7 +232,12 @@ behind them:
   (`1003`, `1009`).
 - **`--pair-file FILE`** uses a pair of the store's form, which must be a
   regular file of the user that nobody else can read, as ssh reads a key.
-  The store is not used.
+  The store is not used. For `operator` and `ssh node://NAME`, the operator's
+  file of `relay pair --operator-file` will do.
+- **`operator` is a byte pipe**, as `proxy` is: stdout carries the node's
+  bytes and nothing else, and it exits 0 only when the node took the
+  session. Its codes are those of `node`. `ssh node://NAME` runs the SSH
+  client over the same leg, and keeps the codes of OpenSSH (255).
 
 ## Exit codes
 

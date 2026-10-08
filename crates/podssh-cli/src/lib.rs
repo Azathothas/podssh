@@ -34,6 +34,7 @@ pub mod keygen;
 pub mod man;
 pub mod node;
 pub mod non_interactive;
+pub mod operator;
 pub mod pager;
 mod pairs;
 pub mod parsed;

@@ -182,7 +182,7 @@ covers it.
 
 Recommendation: refuse; never remove characters and never split. The module's rule is "a refusal,
 never a truncation" (`crates/podssh-core/src/irc/session_send.rs:8-11`), and `--sendfile` already
-sends each line as one message (`crates/podssh-cli/src/flags.rs:262-263`). The alternative, remove
+sends each line as one message (`crates/podssh-cli/src/flags.rs:264-265`). The alternative, remove
 CR and LF, lost because it changes the user's text with no message.
 
 ## Prove
@@ -550,14 +550,14 @@ done." Read: podssh executes nothing that it receives and takes no file on
 its own (`docs/decisions.md:41`). The roads exist after M6: the reverse road
 (T-078, T-083, T-084), the iroh road (T-162), and end-to-end encryption
 between two podssh ends (T-088). No flag of `chat` names a peer or a server
-today (`crates/podssh-cli/src/flags.rs:259-271`,
+today (`crates/podssh-cli/src/flags.rs:261-273`,
 `crates/podssh-cli/src/positionals.rs:31-33`).
 
 ## Approach
 
 1. The command line: `podssh chat PEER`, where PEER is a node name (the
    reverse road) or an iroh ticket. T-252 adds `--irc SERVER CHANNEL`. Change
-   `crates/podssh-cli/src/flags.rs:259-271`, the positionals and the manual in
+   `crates/podssh-cli/src/flags.rs:261-273`, the positionals and the manual in
    the same commit.
 2. The protocol, over the encrypted channel of T-088: lines of text, and
    files in chunks with digests, as T-097 does for IRC. A line that the peer

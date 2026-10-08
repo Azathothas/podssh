@@ -116,3 +116,46 @@ pub(crate) fn online() -> Result<(), Refusal> {
     }
     Ok(())
 }
+
+/// The operator's part for `label`: from `--pair-file` (a pair, or its
+/// operator's part), else from the pair stored under `label`. Refused when it
+/// has expired.
+pub(crate) fn operator_part(label: &str, pair_file: Option<&str>) -> Result<pair::OperatorPart, Refusal> {
+    let part = match pair_file {
+        Some(path) => pair::read_operator_file(Path::new(path))
+            .map_err(|e| Refusal::config(format!("--pair-file {path}: {e}")))?,
+        None => match pair::load(label) {
+            Ok(Some(found)) => pair::OperatorPart::of(&found),
+            Ok(None) => {
+                return Err(Refusal::config(format!(
+                    "no pair is stored under {label:?}; make one with `podssh relay pair {label}`, or give its \
+                     operator's file with --pair-file FILE"
+                )))
+            }
+            Err(e) => return Err(refusal(&e)),
+        },
+    };
+    if part.expires_ms <= now_ms() {
+        return Err(Refusal {
+            message: format!(
+                "the pair under {label:?} expired at {}; make a new one with `podssh relay pair {label}`",
+                utc(part.expires_ms)
+            ),
+            code: Fault::PairExpired.code(),
+        });
+    }
+    Ok(part)
+}
+
+/// A connection to the relay that failed for a pair: its code, and for a
+/// refused token the remedy.
+pub(crate) fn connect_refusal(e: &ConnectError, label: &str) -> Refusal {
+    let message = match e {
+        ConnectError::Refused { status: 403, .. } => format!(
+            "the relay refused the pair (403): it was stopped, or has expired; make a new one with \
+             `podssh relay pair {label}`"
+        ),
+        other => other.to_string(),
+    };
+    Refusal { message, code: connect_code(e) }
+}

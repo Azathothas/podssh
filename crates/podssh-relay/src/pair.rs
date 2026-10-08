@@ -306,14 +306,78 @@ struct Stored {
     expires: i64,
 }
 
-/// The operator's part of a pair: what an operator needs to connect, and no
-/// token of the node's or of the stop.
+/// The operator's part of a pair, as its file holds it: what an operator
+/// needs to connect, and no token of the node's or of the stop.
 #[derive(Serialize)]
-struct OperatorPart<'a> {
+struct OperatorPartRef<'a> {
     relay: String,
     name: &'a str,
     connect_token: &'a str,
     expires: i64,
+}
+
+/// The operator's part, as it is read back; a whole pair has these fields too.
+#[derive(Deserialize)]
+struct OperatorStored {
+    relay: String,
+    name: String,
+    connect_token: String,
+    expires: i64,
+}
+
+/// The operator's part of a pair: the relay, the pair's name and the connect
+/// token, for `/v1/connect/<name>` and the status. No token of the node's or
+/// of the stop.
+pub struct OperatorPart {
+    pub relay: Relay,
+    pub name: String,
+    connect_token: Zeroizing<String>,
+    pub expires_ms: i64,
+}
+
+impl OperatorPart {
+    /// The operator's part of `pair`.
+    pub fn of(pair: &Pair) -> OperatorPart {
+        OperatorPart {
+            relay: pair.relay.clone(),
+            name: pair.name.clone(),
+            connect_token: pair.connect_token.clone(),
+            expires_ms: pair.expires_ms,
+        }
+    }
+
+    pub fn connect_token(&self) -> &str {
+        &self.connect_token
+    }
+}
+
+impl std::fmt::Debug for OperatorPart {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OperatorPart")
+            .field("relay", &self.relay)
+            .field("name", &self.name)
+            .field("connect_token", &"<redacted>")
+            .field("expires_ms", &self.expires_ms)
+            .finish()
+    }
+}
+
+/// The operator's part in a file: one that `write_operator_file` wrote, or a
+/// whole pair, whose connect token alone is taken. A private file, as for
+/// [`read_file`].
+pub fn read_operator_file(path: &Path) -> Result<OperatorPart, PairError> {
+    let text = Zeroizing::new(cache::read_private(path).map_err(PairError::Store)?);
+    let what = format!("the file {}", path.display());
+    let stored: OperatorStored =
+        serde_json::from_str(&text).map_err(|_| PairError::Store(format!("{what} holds no operator's part of a pair")))?;
+    let OperatorStored { relay, name, connect_token, expires } = stored;
+    let connect_token = Zeroizing::new(connect_token);
+    check_node_name(&name).map_err(|_| PairError::Store(format!("{what} names no pair")))?;
+    if !valid_token(&connect_token) {
+        return Err(PairError::Store(format!("{what} holds no usable connect token")));
+    }
+    let relay = parse_relay(&relay).map_err(|_| PairError::Store(format!("{what} names no relay")))?;
+    Ok(OperatorPart { relay, name, connect_token, expires_ms: expires })
 }
 
 /// `pair-<label>.json`. A label is the user's name for a pair (T-083); it must
@@ -411,7 +475,7 @@ pub fn remove_from(dirs: &[PathBuf], label: &str) -> Result<(), PairError> {
 /// Write the operator's part of `pair` to `path`, a new file that only its
 /// owner can read (mode 0600). An existing file is never replaced.
 pub fn write_operator_file(path: &Path, pair: &Pair) -> std::io::Result<()> {
-    let part = OperatorPart {
+    let part = OperatorPartRef {
         relay: relay_name(&pair.relay),
         name: &pair.name,
         connect_token: pair.connect_token(),

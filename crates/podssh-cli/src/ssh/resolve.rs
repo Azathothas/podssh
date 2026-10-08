@@ -24,6 +24,9 @@ pub enum Transport {
     Relay { relays: RelayList, trust: Trust, family: Option<u8> },
     /// A TCP connection, through `HTTPS_PROXY` when one is set (`--direct`).
     Direct,
+    /// The node of a pair, through the operator's leg of the reverse road
+    /// (`node://NAME`, T-084).
+    Node { label: String, pair_file: Option<String>, trust: Trust },
 }
 
 /// A command line, resolved.
@@ -106,7 +109,11 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         settings.apply(raw)?;
     }
     let destination = args.destination.as_deref().ok_or("missing destination: podssh ssh [user@]host [command]")?;
-    let target = parse_hop(destination)?;
+    let node = super::node::destination(destination)?;
+    let target = match &node {
+        Some((user, label)) => Hop { user: user.clone(), host: label.clone(), port: 22 },
+        None => parse_hop(destination)?,
+    };
     let host = match settings.host_name.clone() {
         Some(name) => {
             host_rule(&format!("HostName={name}"), &name)?;
@@ -128,7 +135,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     let proxy_jump = args.jump.as_deref().or(settings.proxy_jump.as_deref());
     let jump: Vec<Hop> = match proxy_jump {
         None | Some("none") => Vec::new(),
-        Some(list) => list.split(',').map(|h| parse_hop(h.trim())).collect::<Result<_, _>>()?,
+        Some(list) => list.split(',').map(|h| jump_hop(h.trim())).collect::<Result<_, _>>()?,
     };
 
     // The `%` tokens, with OpenSSH's values for this connection.
@@ -218,7 +225,18 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         _ => None,
     };
     let first = jump.first().map(|h| h.host.clone()).unwrap_or_else(|| host.clone());
-    let transport = if args.direct {
+    let transport = if let Some((_, label)) = &node {
+        let ask = super::node::Ask {
+            label,
+            args,
+            host_name: settings.host_name.is_some(),
+            port: args.port.is_some() || settings.port.is_some(),
+            jumps: jump.len(),
+            family,
+            forward: matches!(request, Request::StdioForward { .. }),
+        };
+        super::node::transport(&ask, env)?
+    } else if args.direct {
         if family.is_some() {
             return Err("-4/-6 select the address family the relay dials; with --direct they are not supported yet".into());
         }
@@ -252,7 +270,9 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     let notes: Vec<String> = settings.ignored.iter().map(|k| format!("-o {k} has no effect in podssh")).collect();
     let mut warnings = Vec::new();
     let idle = relay::RELAY_IDLE_SECS;
-    if matches!(transport, Transport::Relay { .. }) && keepalive_interval.is_none_or(|d| d.as_secs() >= idle) {
+    if matches!(transport, Transport::Relay { .. } | Transport::Node { .. })
+        && keepalive_interval.is_none_or(|d| d.as_secs() >= idle)
+    {
         warnings.push(format!(
             "ServerAliveInterval is off or at least {idle} s: the relay closes a connection after {idle} s without traffic"
         ));
@@ -260,7 +280,12 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
 
     // OpenSSH opens -E FILE with the name as typed.
     let log_file = args.log_file.as_deref().map(PathBuf::from);
-    let mut options = Options::new(Hop { user: None, host: host.clone(), port }, user.clone());
+    // A node is named `node://NAME` in the messages and the known hosts.
+    let shown = match &node {
+        Some((_, label)) => format!("{}{label}", super::node::SCHEME),
+        None => host.clone(),
+    };
+    let mut options = Options::new(Hop { user: None, host: shown, port }, user.clone());
     options.host_key_alias = settings.host_key_alias.clone();
     options.jump = jump;
     options.identity_files = identity_files;
@@ -371,6 +396,14 @@ pub fn parse_hop(text: &str) -> Result<Hop, String> {
     };
     host_rule(original, &host)?;
     Ok(Hop { user, host, port })
+}
+
+/// A `-J` hop, which a node cannot be yet.
+fn jump_hop(text: &str) -> Result<Hop, String> {
+    if text.starts_with(super::node::SCHEME) {
+        return Err(format!("-J {text}: a node cannot be a -J hop yet"));
+    }
+    parse_hop(text)
 }
 
 /// A host that a word names: not empty, and not starting with `-`, which a

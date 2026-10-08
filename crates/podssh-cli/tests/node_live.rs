@@ -53,7 +53,8 @@ fn run(home: &Path, args: &[&str]) -> (i32, String, String) {
     (out.status.code().unwrap_or(-1), text(&out.stdout), text(&out.stderr))
 }
 
-/// Kills the node, and stops the pair, if a test ends early.
+/// Kills the node and stops the pair, if a test ends early, and deletes the
+/// scratch directory, with its throwaway key, in each case.
 struct Cleanup<'a> {
     home: &'a Path,
     node: Option<Child>,
@@ -68,6 +69,7 @@ impl Drop for Cleanup<'_> {
         if self.home.join("cache").join("podssh").join("pair-lab.json").exists() {
             let _ = run(self.home, &["relay", "revoke", "lab"]);
         }
+        let _ = std::fs::remove_dir_all(self.home);
     }
 }
 
@@ -150,4 +152,96 @@ fn node_command_serves_a_tcp_target() {
     assert!(out.starts_with("lab: stopped"), "{out}");
     assert!(!home.join("cache").join("podssh").join("pair-lab.json").exists(), "the stored copy is gone");
     eprintln!("{}", out.trim_end());
+}
+
+/// The node's stderr, a line at a time.
+fn lines_of(node: &mut Child) -> mpsc::Receiver<String> {
+    let stderr = node.stderr.take().unwrap();
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
+            let _ = tx.send(line);
+        }
+    });
+    rx
+}
+
+/// `podssh ssh node://NAME` and `podssh operator NAME` (T-084) through a node
+/// in front of railway.new's SSH service, which takes any key: a throwaway
+/// one, deleted with the scratch directory. No output of the session is
+/// printed: railway.new's holds a claim URL.
+#[test]
+#[ignore = "the live relay: run with --ignored"]
+fn ssh_to_a_node() {
+    let home = scratch("ssh");
+    let operator_file = home.join("lab-operator.json");
+    let op = operator_file.to_str().unwrap();
+    let (rc, _, err) = run(&home, &["relay", "pair", "lab", "--operator-file", op]);
+    assert_eq!(rc, 0, "{err}");
+    let mut cleanup = Cleanup { home: &home, node: None };
+    let mut node = command(&home, &["node", "lab", "railway.new:22"])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the node runs");
+    let lines = lines_of(&mut node);
+    cleanup.node = Some(node);
+    let first = lines.recv_timeout(LIMIT).expect("the node says what it serves");
+    assert!(first.contains("serving railway.new:22"), "{first}");
+    std::thread::sleep(Duration::from_secs(2));
+
+    let key = home.join("throwaway_key");
+    let (rc, _, err) = run(&home, &["keygen", "-t", "ed25519", "-N", "", "-f", key.to_str().unwrap()]);
+    assert_eq!(rc, 0, "{err}");
+    let known = home.join("known_hosts");
+    let known_option = format!("UserKnownHostsFile={}", known.display());
+    let (rc, out, err) = run(
+        &home,
+        &[
+            "ssh", "-T", "-i", key.to_str().unwrap(), "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new",
+            "-o", &known_option, "-o", "BatchMode=yes", "--pair-file", op, "node://test@lab", "exit 3",
+        ],
+    );
+    // Withheld: railway.new's words hold a claim URL.
+    assert_eq!(rc, 3, "the remote status through the node ({} bytes out, {} bytes err)", out.len(), err.len());
+    let recorded = std::fs::read_to_string(&known).expect("a host key recorded");
+    assert!(recorded.starts_with("node://lab "), "the host key is recorded under node://lab");
+    eprintln!("podssh ssh node://test@lab 'exit 3': exit {rc}; the host key is recorded under node://lab");
+
+    let mut pipe = command(&home, &["operator", "lab", "--pair-file", op])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("the operator runs");
+    let mut stdout = pipe.stdout.take().unwrap();
+    let (tx, rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut got = Vec::new();
+        let mut byte = [0u8; 1];
+        while !got.ends_with(b"\r\n") && got.len() < 256 && std::io::Read::read_exact(&mut stdout, &mut byte).is_ok() {
+            got.push(byte[0]);
+        }
+        let _ = tx.send(got);
+    });
+    let banner = rx.recv_timeout(LIMIT).expect("the node's TARGET answers through the pipe");
+    assert!(banner.starts_with(b"SSH-2.0-"), "the banner of railway.new's SSH server");
+    drop(pipe.stdin.take());
+    let deadline = Instant::now() + LIMIT;
+    let status = loop {
+        if let Some(status) = pipe.try_wait().unwrap() {
+            break status;
+        }
+        assert!(Instant::now() < deadline, "the operator ends with its stdin");
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    assert_eq!(status.code(), Some(0), "the node took the session, and it ended normally");
+    eprintln!("podssh operator lab: the SSH banner came through, then exit 0 at the end of stdin");
+
+    let mut node = cleanup.node.take().unwrap();
+    let _ = node.kill();
+    let _ = node.wait();
+    let (rc, _, err) = run(&home, &["relay", "revoke", "lab"]);
+    assert_eq!(rc, 0, "{err}");
 }

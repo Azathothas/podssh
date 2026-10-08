@@ -44,6 +44,14 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh relay pair lab --operator-file lab-operator.json".into(),
         ),
         ("then the node: each operator's session reaches this host's SSH server", "podssh node lab 127.0.0.1:22".into()),
+        (
+            "from outside, log in to the node's SSH server with the operator's file",
+            "podssh ssh --pair-file lab-operator.json node://user@lab".into(),
+        ),
+        (
+            "or with OpenSSH, with podssh as its way to the node",
+            "ssh -o ProxyCommand='podssh operator lab --pair-file lab-operator.json' user@lab".into(),
+        ),
         ("whether the node is online; then stop the pair", "podssh relay status lab && podssh relay revoke lab".into()),
         ("make a key where ssh-keygen does not work", "podssh keygen -t ed25519 -f ~/.ssh/id_ed25519".into()),
         ("a key with no passphrase, for a script", "podssh keygen -N '' -f ./deploy_key".into()),
@@ -71,7 +79,7 @@ pub fn section() -> Section {
 
 /// The first steps, for the start of the manual: three of the examples.
 pub fn start_here() -> Vec<Block> {
-    let first = |c: &str| c == "podssh doctor" || c == "podssh ssh user@example.org" || c.starts_with("ssh -o ProxyCommand=");
+    let first = |c: &str| c == "podssh doctor" || c == "podssh ssh user@example.org" || c.starts_with("ssh -o ProxyCommand='podssh proxy");
     examples().into_iter().filter(|(_, c)| first(c)).map(block).collect()
 }
 
@@ -182,6 +190,7 @@ mod tests {
                     Parsed::Man { .. } => "man",
                     Parsed::Node(_) => "node",
                     Parsed::Relay(_) => "relay",
+                    Parsed::Operator(_) => "operator",
                     other => panic!("{command}: {other:?}"),
                 };
                 let v = crate::flags::verb_for(verb).unwrap();

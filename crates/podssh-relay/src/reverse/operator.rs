@@ -92,10 +92,34 @@ pub async fn run<IO>(config: &OperatorConfig<'_>, io: IO) -> Result<Outcome, Con
 where
     IO: AsyncRead + AsyncWrite + Send + Unpin + 'static,
 {
+    Ok(match wire::open(config.wire, &socket_config(config)?, config.connect_token).await? {
+        Socket::Tls(session) => exchange(session, io, config.limits).await,
+        #[cfg(feature = "plain-ws")]
+        Socket::Plain(session) => exchange(session, io, config.limits).await,
+    })
+}
+
+/// Connect, then carry `io` in a task of its own: a connection that fails is
+/// known before anything uses `io` (an SSH client over it, for one), and the
+/// task gives the outcome. Inside a tokio runtime.
+pub async fn start<IO>(config: &OperatorConfig<'_>, io: IO) -> Result<JoinHandle<Outcome>, ConnectError>
+where
+    IO: AsyncRead + AsyncWrite + Send + Unpin + 'static,
+{
+    let limits = config.limits;
+    Ok(match wire::open(config.wire, &socket_config(config)?, config.connect_token).await? {
+        Socket::Tls(session) => tokio::spawn(exchange(session, io, limits)),
+        #[cfg(feature = "plain-ws")]
+        Socket::Plain(session) => tokio::spawn(exchange(session, io, limits)),
+    })
+}
+
+/// The socket to `/v1/connect/<name>`.
+fn socket_config(config: &OperatorConfig<'_>) -> Result<WsClientConfig, ConnectError> {
     let path = (LegTarget::ReverseOperator { name: config.name.to_string() })
         .path()
         .map_err(|e| ConnectError::Config(e.to_string()))?;
-    let ws = WsClientConfig {
+    Ok(WsClientConfig {
         endpoint: Endpoint { host: config.relay.host.clone(), port: config.relay.port, path },
         trust: config.trust.clone(),
         server_name: config.relay.host.clone(),
@@ -104,11 +128,6 @@ where
         // dead one instead of an idle read limit.
         idle_timeout: None,
         proxy: config.proxy.clone(),
-    };
-    Ok(match wire::open(config.wire, &ws, config.connect_token).await? {
-        Socket::Tls(session) => exchange(session, io, config.limits).await,
-        #[cfg(feature = "plain-ws")]
-        Socket::Plain(session) => exchange(session, io, config.limits).await,
     })
 }
 

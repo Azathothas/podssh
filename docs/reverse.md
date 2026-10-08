@@ -79,6 +79,14 @@ reason of a `reject` or a `close`, cut only to fit the 4 KiB control frame.
 A Close of the relay that crosses the operator's own, with a code other than
 `1000`, is a failure too.
 
+`podssh operator NAME` (T-084) runs this operator on stdin and stdout, a
+byte pipe as `podssh proxy` is, and `podssh ssh node://[user@]NAME` runs the
+SSH client over it, with the node's host key under `node://NAME`. Measured
+against the live relay on 2026-10-09: `podssh ssh node://test@lab 'exit 3'`
+gave 3 through a node in front of railway.new's SSH service, and
+`podssh operator lab` carried that server's banner (`cargo test -p
+podssh-cli --test node_live -- --ignored`).
+
 Synchronous code (podbox) runs the node and the operator through
 `podssh_relay::blocking` (feature `blocking`, T-081): a handler opens each
 session of the node as a reader and a writer, and an operator session runs

@@ -188,3 +188,29 @@ fn the_labels_of_the_store_are_listed_in_order() {
     assert_eq!(pair::labels_from(&dirs), vec!["lab".to_string()]);
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+#[test]
+fn the_operator_part_is_read_from_its_file_or_from_a_whole_pair() {
+    let dir = scratch("operator-part");
+    let operator = dir.join("operator.json");
+    pair::write_operator_file(&operator, &good()).unwrap();
+    let whole = pair::store_in_first(&[dir.clone()], "lab", &good()).unwrap();
+    for path in [&operator, &whole] {
+        let part = pair::read_operator_file(path).expect("an operator's part");
+        assert_eq!((part.name.as_str(), part.connect_token(), part.expires_ms), (NAME, CONNECT, NOW + HOURS_72));
+        assert_eq!(part.relay, relay());
+        no_token(&format!("{part:?}"));
+    }
+    let junk = dir.join("junk.json");
+    std::fs::write(&junk, br#"{"name":"x"}"#).unwrap();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&junk, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    let error = pair::read_operator_file(&junk).expect_err("no operator's part");
+    assert!(error.to_string().contains("no operator's part"), "{error}");
+    let part = pair::OperatorPart::of(&good());
+    assert_eq!(part.connect_token(), CONNECT);
+    std::fs::remove_dir_all(&dir).unwrap();
+}

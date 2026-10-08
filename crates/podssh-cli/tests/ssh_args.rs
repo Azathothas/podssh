@@ -307,3 +307,39 @@ fn stdio_forward_form_is_host_and_port() {
     let r = resolve(&ssh(&["-J", "jump.example", "-W", "db:5432", "host"]), &env()).unwrap();
     assert_eq!(r.options.jump[0].port, 22);
 }
+
+/// `node://[user@]NAME` is a node of the reverse road (T-084); `node:22` stays
+/// the host `node` on port 22, and `node:lab` a bad port, as before.
+#[test]
+fn node_destinations() {
+    for (dest, user) in [("node://lab", "envuser"), ("node://u@lab", "u"), ("node://lab/", "envuser")] {
+        let r = resolve(&ssh(&[dest]), &env()).unwrap_or_else(|e| panic!("{dest}: {e}"));
+        assert_eq!(r.options.destination.host, "node://lab", "{dest}: messages and known hosts name the node so");
+        assert_eq!(r.options.user, user, "{dest}");
+        match &r.transport {
+            Transport::Node { label, pair_file, .. } => assert_eq!((label.as_str(), pair_file), ("lab", &None), "{dest}"),
+            other => panic!("{dest}: {other:?}"),
+        }
+    }
+    let r = resolve(&ssh(&["--pair-file", "op.json", "node://lab"]), &env()).unwrap();
+    assert!(matches!(&r.transport, Transport::Node { pair_file: Some(f), .. } if f == "op.json"));
+    let r = resolve(&ssh(&["node:22"]), &env()).unwrap();
+    assert_eq!((r.options.destination.host.as_str(), r.options.destination.port), ("node", 22));
+    assert!(matches!(r.transport, Transport::Relay { .. }));
+    assert!(resolve(&ssh(&["node:lab"]), &env()).unwrap_err().contains("not a port"));
+    for (words, says) in [
+        (vec!["node://lab:22"], "no port"),
+        (vec!["node://"], "no NAME"),
+        (vec!["node://../x"], "not a pair name"),
+        (vec!["--direct", "node://lab"], "--direct"),
+        (vec!["-J", "jump", "node://lab"], "-J"),
+        (vec!["-J", "node://x", "host"], "-J hop"),
+        (vec!["-W", "h:1", "node://lab"], "-W"),
+        (vec!["-p", "2222", "node://lab"], "no port"),
+        (vec!["-o", "HostName=x", "node://lab"], "HostName"),
+        (vec!["-4", "node://lab"], "-4"),
+    ] {
+        let err = resolve(&ssh(&words), &env()).expect_err(&format!("{words:?}"));
+        assert!(err.contains(says), "{words:?}: {err}");
+    }
+}

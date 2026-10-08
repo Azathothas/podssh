@@ -160,8 +160,8 @@ token header (`crates/podssh-ws/src/client.rs:278-289`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags.rs:313-322`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:209-224` stops
+(`crates/podssh-cli/src/flags.rs:315-324`), and bound each request in the code, as `doctor`
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:211-226` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -355,7 +355,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:96-105`).
+   and above all not the `stop_token` (`docs/reverse.md:104-113`).
 5. Answer the question in `docs/relay.md:189-195`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md:24-29` if the result differs.
 
@@ -489,8 +489,8 @@ listener" (lines 86-88), and the ruling on Q10 allows more than one for a moment
    (line 186) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
-   (`crates/podssh-cli/src/flags.rs:112-233`, 323-343) and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:53-59`); the variable to VARIABLES and the modes to THE
+   (`crates/podssh-cli/src/flags.rs:112-235`, 323-343) and to `ONCE`
+   (`crates/podssh-cli/src/ssh/args.rs:55-62`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:45-90`, 170-183); both to `docs/relay.md:23-41`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
@@ -566,7 +566,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:76`,
    108-113, 122-132), the test of lines 365-377, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:98-117`).
+   notes (`crates/podssh-cli/src/man/notes.rs:113-132`).
 
 ## Decision
 

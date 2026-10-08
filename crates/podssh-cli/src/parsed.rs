@@ -81,6 +81,8 @@ pub enum Parsed {
     },
     /// `podssh node NAME TARGET` (T-083).
     Node(Box<crate::node::NodeArgs>),
+    /// `podssh operator NAME` (T-084).
+    Operator(Box<crate::operator::OperatorArgs>),
     /// `podssh relay SUBCOMMAND NAME` (T-083).
     Relay(Box<crate::relay_cmd::RelayArgs>),
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
@@ -150,6 +152,7 @@ impl Parsed {
             Parsed::Doctor { refused, .. } => !refused.is_empty(),
             Parsed::Status { refused, .. } => !refused.is_empty(),
             Parsed::Node(args) => !args.refused.is_empty(),
+            Parsed::Operator(args) => !args.refused.is_empty(),
             Parsed::Relay(args) => !args.refused.is_empty(),
             Parsed::Ts { refused, .. } => !refused.is_empty(),
             other => other.is_error(),

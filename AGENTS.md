@@ -11,9 +11,9 @@ through a WebSocket relay on port 443. It is for hosts whose only way out is
 HTTPS, often through an HTTP CONNECT proxy.
 
 These commands work: `podssh ssh`, `podssh proxy`, `podssh doctor`,
-`podssh keygen`, `podssh man`, `podssh status`, `podssh node` and
-`podssh relay` (`pair`, `revoke` and `status NAME`). The other commands
-refuse with exit code 70.
+`podssh keygen`, `podssh man`, `podssh status`, `podssh node`,
+`podssh operator` and `podssh relay` (`pair`, `revoke` and `status NAME`).
+The other commands refuse with exit code 70.
 
 ## 2. How a session works
 

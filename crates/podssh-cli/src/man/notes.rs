@@ -9,6 +9,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "ssh" => SSH,
         "proxy" => PROXY,
         "node" => NODE,
+        "operator" => OPERATOR,
         "relay" => RELAY,
         "doctor" => DOCTOR,
         "status" => STATUS,
@@ -22,6 +23,9 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
 const SSH: &[&str] = &[
     "podssh ssh reaches the host through the relay (see THE RELAY), or over TCP with --direct. It needs \
      no installed ssh, no pty and no user database entry.",
+    "node://[user@]NAME reaches the node of the pair under the label NAME (see podssh node), through the \
+     relay. Its host key is recorded and checked under the name node://NAME. --pair-file gives the pair, \
+     or its operator's part, in a file. A node has no port, and -J, -W and --direct cannot go with it yet.",
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \
@@ -79,6 +83,17 @@ const NODE: &[&str] = &[
      stderr.",
     "With --pair-file, the pair comes from FILE, in the form of the store, and the store is not used. \
      FILE must be a regular file of the user that nobody else can read.",
+];
+
+const OPERATOR: &[&str] = &[
+    "podssh operator NAME carries stdin to the node of the pair under the label NAME, and the bytes of \
+     the node's TARGET to stdout, as podssh proxy carries a forward session. It is the ProxyCommand of \
+     OpenSSH for a node: ssh -o ProxyCommand='podssh operator NAME' user@NAME.",
+    "Before the node takes the session, up to 1 MiB of stdin is kept, and sent then. The session ends \
+     when stdin ends or the node's TARGET closes; it exits 0 only when the node took the session. An \
+     error is one line on stderr; the codes are in EXIT STATUS.",
+    "With --pair-file, the pair comes from FILE, or its operator's part alone, as podssh relay pair \
+     writes it for the operator, and the store is not used.",
 ];
 
 const RELAY: &[&str] = &[

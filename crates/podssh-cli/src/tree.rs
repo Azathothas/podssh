@@ -295,6 +295,17 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         }));
     }
 
+    if verb.name == "operator" {
+        let get = |id: &str| matches.get_one::<String>(id).cloned();
+        return Parsed::Operator(Box::new(crate::operator::OperatorArgs {
+            name: get("name"),
+            relay_addr: get("relay-addr"),
+            ca_file: get("ca-file"),
+            pair_file: get("pair-file"),
+            refused,
+        }));
+    }
+
     if verb.name == "relay" {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Relay(Box::new(crate::relay_cmd::RelayArgs {

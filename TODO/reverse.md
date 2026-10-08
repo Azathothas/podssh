@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:230`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:92-94`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:100-102`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:60-94`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:60-102`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:89-94`).
+   the code and the reason (`docs/reverse.md:97-102`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -673,7 +673,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:246`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:256`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:195`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -681,7 +681,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:95`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:96` there), examples in
-   `crates/podssh-cli/src/man/examples.rs:8-49`; update `docs/cli.md`, `docs/reverse.md` and
+   `crates/podssh-cli/src/man/examples.rs:8-57`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
    T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:38`), so keep the two apart. Never
@@ -784,13 +784,13 @@ measurements of the Premise hold for the binary of `af0a163`.
 
 # T-084: `podssh operator NAME` and `podssh ssh NODE`
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:164-165`); `crates/podssh-cli/src/flags.rs:418-419`. Measured
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:164-165`); `crates/podssh-cli/src/flags.rs` lines 418-419 at `3cbf215`. Measured
 here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -804,14 +804,14 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 `podssh ssh -T node:22 true` reaches the connect step for host `node`, port 22 (exit 255 from
 `PODSSH_OFFLINE`); `podssh ssh -T node://lab true` gives `"//lab" is not a port` and exit 64.
 
-Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/resolve.rs:347-388`).
-`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:19-27`, chosen at `:220-245`).
-`connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs:72-119`), and
+Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/resolve.rs:372-421`).
+`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:19-30`, chosen at `:227-263`).
+`connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs:73-120`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:131-137`); the
 operator leg receives text frames (`docs/relay.md:221-224`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:53-58`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:264`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:242-246`).
+(`crates/podssh-cli/src/ssh/resolve.rs:289`). `podssh ssh` uses the exit codes of OpenSSH, and
+`podssh proxy` sysexits (`docs/cli.md:252-256`).
 
 ## Approach
 
@@ -819,23 +819,42 @@ host, never the relay's name (`SECURITY.md:53-58`); `HostKeyAlias` exists
    `operator::run` (T-080) on stdin and stdout: a byte pipe as `podssh proxy`
    (`crates/podssh-cli/src/proxy.rs:180-275`). stdout carries data only; never 0 without `ready`.
 2. `podssh ssh node://[user@]NAME`: `parse_hop` reads `node://` as it reads `ssh://`; add
-   `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:19-27`).
+   `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:19-30`).
 3. For a node, `connect_and_run` opens the operator leg and waits for `ready` (T-080), then gives
    russh the raw stream. Do not give the leg to `relay_stream::spawn` as it is: reuse its pump after
    `ready`, with text frames read as control.
 4. Host keys: record and check the node's key under the name `node://NAME`, which no DNS name can be;
    `-o HostKeyAlias` still wins.
 5. Refuse by name a node as a `-J` hop, and `-W` through a node; record them for later.
-6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-233`,
-   `:418-419`). Update the manual's examples and notes, `docs/cli.md:62-75` and `docs/reverse.md`.
+6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-235`,
+   lines 418-419 at `3cbf215`). Update the manual's examples and notes, `docs/cli.md` (lines 62-75 at `3cbf215`) and `docs/reverse.md`.
 
 ## Decision
 
-Recommendation: `node://[user@]NAME`, read as `ssh://` is (`crates/podssh-cli/src/ssh/resolve.rs:352`),
+Recommendation: `node://[user@]NAME`, read as `ssh://` is (`crates/podssh-cli/src/ssh/resolve.rs:377`),
 because it changes no destination that works today (measured above). The alternative `node:NAME`, the
 address form of `podssh pipe` (`docs/design.md:266`), lost: `podssh ssh node:22` already means host
 `node`, port 22. A flag such as `--node NAME` lost: `podssh ssh` takes its destination as a word, as
 OpenSSH does.
+
+2026-10-09:
+
+1. `node://[user@]NAME`, as recommended. The destination's host is `node://NAME`, so the messages
+   and the known hosts name the node so, with no alias; the `%` tokens keep NAME.
+2. The SSH client runs over a pipe whose other end is the operator of T-080, which waits for
+   `ready`, keeps the early bytes and reads the text frames. `operator::start` (new) connects first,
+   so a refused connection is reported before the SSH client starts. Lost: the pump of
+   `relay_stream` with text frames read as control (step 3), which would copy the operator's rules.
+3. `ssh` takes `--pair-file FILE`, as `operator` does: a pair, or its operator's part
+   (`pair::read_operator_file`, `pair::OperatorPart`, new). The operator's file of `relay pair` is
+   all that an operator outside needs.
+4. With a node, `-p`, `-o Port`, `-o HostName`, `-4`, `-6`, `--direct`, `-J` (either way) and `-W`
+   are refused by name (64).
+5. `operator` exits by the faults of E24, as `node` does: 0 only after `ready` and a normal end;
+   69, 77, 70 and 78 else. `ssh node://` keeps the codes of OpenSSH (255), and adds a line with the
+   node's reason when the leg gives one.
+6. The live test is in podssh-cli (`tests/node_live.rs`, `ssh_to_a_node`), as for T-083; the
+   offline tests of both entries share `crates/podssh-cli/tests/pair_harness/mod.rs`.
 
 ## Prove
 
@@ -844,7 +863,7 @@ export CARGO_BUILD_JOBS=4
 cargo test -p podssh-cli --test ssh_args -- node_destinations
 cargo test -p podssh-cli --test operator
 XDG_CACHE_HOME=$(mktemp -d) timeout 20 target/debug/podssh ssh -T node://lab true </dev/null; echo "exit=$?"
-cargo test -p podssh-relay --features pair --test reverse_live -- --ignored ssh_to_a_node
+cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 ```
 
 `node_destinations` checks `node://lab` and `node://u@lab`, and that `node:22` stays host `node`, port
@@ -853,6 +872,37 @@ that stdout stays empty. The binary line must exit 255, name `podssh relay pair 
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
 `railway.new:22` (an anonymous SSH service, `docs/STATUS.md:66`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
+
+## Done
+
+2026-10-09, in the commit "The operator, and ssh to a node".
+
+- `podssh operator NAME` (`crates/podssh-cli/src/operator.rs`, new): the operator's part of the pair
+  under NAME, or of `--pair-file`; `operator::run` over stdin and stdout; flags `--relay-addr`,
+  `--ca-file` and `--pair-file` (the table `PAIR_FLAGS`, shared with `node`).
+- `podssh ssh node://[user@]NAME` (`crates/podssh-cli/src/ssh/node.rs`, new): `Transport::Node`, the
+  refusals of Decision 4, and the SSH client over `operator::start` (new in
+  `crates/podssh-relay/src/reverse/operator.rs`); `--pair-file` for `ssh`.
+- podssh-relay: `pair::OperatorPart` and `pair::read_operator_file`, which reads an operator's file
+  or a whole pair.
+- The manual: the notes of `operator` and of `node://` for `ssh`, the exit rows, two examples; the
+  start of the manual picks the `proxy` example by name. `docs/cli.md`, `docs/reverse.md`,
+  `docs/STATUS.md` and the first lines of `AGENTS.md` say so.
+- Prove: `cargo test -p podssh-cli --test ssh_args -- node_destinations`: 1 passed (`node://lab`,
+  `node://u@lab` and `node://lab/` are the node `lab`, named `node://lab`; `--pair-file`; `node:22`
+  stays host `node`, port 22, and `node:lab` a bad port; ten refusals). `cargo test -p podssh-cli
+  --test operator`: 5 passed (no stored pair: 78 for `operator`, 255 for `ssh`, each naming `podssh
+  relay pair lab`, and no connection; an expired pair; a stored pair gets as far as the network, with
+  stdout empty and no token in the output; a pair file of either form; the parse). The binary line:
+  exit 255, `node://lab: no pair is stored under "lab"; make one with podssh relay pair lab, ...`,
+  with no `PODSSH_OFFLINE` and no connection. `cargo test -p podssh-cli --test node_live --
+  --ignored`: 2 passed; `ssh_to_a_node`: `podssh ssh node://test@lab 'exit 3'` exited 3 through a
+  node in front of `railway.new:22` (a throwaway key, deleted with the scratch directory), the host
+  key recorded under `node://lab`, and `podssh operator lab` carried that server's banner, then
+  exited 0 at the end of stdin. `cargo test -p podssh-relay --features pair --test pair`: 11 passed.
+  `cargo test --no-fail-fast`: 850 passed, 0 failed, 12 ignored.
+- Plant, restored: `node:` read as a node with no slashes: `node_destinations` failed (`node:22`
+  became `node://22`).
 
 # T-085: M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox
 

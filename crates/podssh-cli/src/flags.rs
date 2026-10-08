@@ -174,6 +174,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE for the relay (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     row(None, "direct", None, FlagKind::Supported,
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
+    row(None, "pair-file", Some("FILE"), FlagKind::Supported,
+        "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),
     // These two disable things podssh never does, so they need no work.
     row(Some('x'), "no-x11", None, FlagKind::Supported,
         "no X11 forwarding (podssh never forwards X11)", None),
@@ -321,14 +323,15 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "pair: write the operator's part of the pair to FILE, a new file that only its owner can read", None),
 ];
 
-/// `node` (T-083), a service: no `--timeout`.
-pub const NODE_FLAGS: &[FlagRow] = &[
+/// `node` and `operator` (T-083, T-084): a service and a pipe, with no
+/// `--timeout`.
+pub const PAIR_FLAGS: &[FlagRow] = &[
     row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
         "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
-        "use the pair in FILE, a private file of the store's form, not the one stored under NAME", None),
+        "use the pair in FILE, a private file, not the one stored under NAME (operator: its operator's part will do)", None),
 ];
 
 /// ⛔ **`proxy`, E08.** ⛔ `06-cli.md`:19 says it is **not an alias** of `ssh`
@@ -413,9 +416,9 @@ pub const VERBS: &[Verb] = &[
         about: "the OpenSSH-compatible client, over the relay" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
         about: "ProxyCommand form: a byte pipe, not an SSH client" },
-    Verb { name: "node", aliases: &["node"], flags: NODE_FLAGS,
+    Verb { name: "node", aliases: &["node"], flags: PAIR_FLAGS,
         about: "reverse mode: expose a local service to operators" },
-    Verb { name: "operator", aliases: &["operator"], flags: &[],
+    Verb { name: "operator", aliases: &["operator"], flags: PAIR_FLAGS,
         about: "reverse mode, operator side: raw bytes to a named node" },
     Verb { name: "chat", aliases: &["chat", "irc"], flags: CHAT_FLAGS,
         about: "the IRC client" },
@@ -447,7 +450,6 @@ pub const VERBS: &[Verb] = &[
 /// `tests/flag_table.rs`; dispatch treats a verb with neither an arm nor a row
 /// as an internal error, never as success.
 pub const VERB_OWNER: &[(&str, &str)] = &[
-    ("operator", "M4"),
     ("chat", "M8"),
     ("cp", "M5"),
     ("mv", "M5"),

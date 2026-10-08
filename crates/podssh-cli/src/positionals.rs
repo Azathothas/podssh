@@ -50,7 +50,11 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .value_name("TARGET")
                     .help("the TCP service that each session reaches: HOST:PORT, or [IPV6]:PORT"),
             ),
-        "operator" => cmd.arg(Arg::new("name").value_name("NAME").help("node name")),
+        "operator" => cmd.arg(
+            Arg::new("name")
+                .value_name("NAME")
+                .help("the label of a pair: stored here, or named for the --pair-file"),
+        ),
         "proxy" => cmd
             .arg(
                 Arg::new("target")

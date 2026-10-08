@@ -9,6 +9,7 @@
 
 pub mod args;
 pub mod keywords;
+pub mod node;
 pub mod options;
 pub mod resolve;
 pub mod tokens;
@@ -116,6 +117,9 @@ async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
                     EXIT_FAILURE
                 }
             }
+        }
+        Transport::Node { label, pair_file, trust } => {
+            node::connect(label, pair_file.as_deref(), trust, opts, log).await
         }
         Transport::Direct => {
             if podssh_relay::open::offline() {

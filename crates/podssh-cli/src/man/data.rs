@@ -28,26 +28,26 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             sysexits::EX_UNAVAILABLE,
             "podssh proxy: no relay host could be reached, or the relay ended the session abnormally. \
-             podssh node and relay: the relay or TARGET could not be reached, the pair was stopped, or \
-             another node serves it.",
+             podssh node, operator and relay: the relay or TARGET could not be reached, the node did not take \
+             the session, the pair was stopped, or another node serves it.",
         ),
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,
-            "The command is not implemented yet, or podssh failed inside. podssh node: the relay closed \
-             the node for a fault of the node (1003 or 1009).",
+            "The command is not implemented yet, or podssh failed inside. podssh node and operator: the \
+             relay closed the node or the session for a fault (1003, 1008 or 1009).",
         ),
         row(
             sysexits::EX_NOPERM,
             "podssh proxy: the relay or the proxy refused (a token, a blocked address, a proxy's 403 or 407). \
-             podssh node and relay: the relay refused the pair, or the pair expired.",
+             podssh node, operator and relay: the relay refused the pair, or the pair expired.",
         ),
         row(
             sysexits::EX_CONFIG,
             "A setting of the environment cannot be used: PODSSH_RELAY or PODSSH_RELAY_ADDR (podssh ssh, \
              proxy and doctor). For podssh proxy also a proxy URL that is not http://, or a \
              PODSSH_RELAY_TOKEN that is not a token. The same value as a flag is a usage error (64). \
-             podssh node and relay: no pair is stored under the label, the pair cannot be read or \
-             stored, or a node cannot connect as it is set up.",
+             podssh node, operator and relay: no pair is stored under the label, the pair cannot be read \
+             or stored, or a node cannot connect as it is set up.",
         ),
         row(
             podssh_ssh::EXIT_FAILURE,
