@@ -4,10 +4,14 @@
 //! that verifies nowhere, and the only error a caller sees is `BadSignature`
 //! or `BadEncoding`, neither of which names the field.
 
+// Shared test support; this file uses part of it.
+#[allow(dead_code)]
 mod cert {
     include!("common/cert_for_test.rs");
 }
 
+// Shared test support; this file uses part of it.
+#[allow(dead_code)]
 mod walk {
     include!("common/spki_walk.rs");
 }

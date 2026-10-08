@@ -10,6 +10,9 @@
 //! so a no-op waker cannot deadlock them. ⛔ That is why a hand-rolled executor is
 //! safe here and would **not** be safe behind a socket.
 
+// Each test binary uses part of these helpers.
+#![allow(dead_code)]
+
 use std::future::Future;
 use std::sync::Arc;
 use std::task::{Context, Poll, Wake, Waker};

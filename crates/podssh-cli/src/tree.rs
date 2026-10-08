@@ -28,7 +28,13 @@ use clap::{Arg, ArgAction, ArgMatches, Command};
 /// row is a value, a switch, or a refusal — and a refusal is refused on its
 /// first occurrence.
 fn counted(long: &str) -> bool {
-    matches!(long, "verbose" | "quiet")
+    // `-tt` is how OpenSSH forces a pty without a local terminal.
+    matches!(long, "verbose" | "quiet" | "force-tty")
+}
+
+/// Value flags a user may give more than once, each value kept, in order.
+fn appended(long: &str) -> bool {
+    matches!(long, "option" | "identity-file")
 }
 
 /// A pod name in the parser's grammar. ⛔ `ssh`/`cp` take their own so that a
@@ -52,6 +58,7 @@ fn add_flag(cmd: Command, row: &'static FlagRow) -> Command {
     // are the two rows with `arg: None` and a counted spelling), and the `None`
     // arm below is where they are matched.
     arg = match row.arg {
+        Some(a) if appended(row.long) => arg.value_name(a).num_args(1).action(ArgAction::Append),
         Some(a) => arg.value_name(a).num_args(1).action(ArgAction::Set),
         None if counted(row.long) => arg.action(ArgAction::Count),
         None => arg.action(ArgAction::SetTrue),
@@ -86,12 +93,18 @@ pub fn verb_command(verb: &'static Verb) -> Command {
     // Positionals. `ssh` is `[user@]host [command...]`; `cp`/`mv` are
     // `SRC... DST`.
     cmd = match verb.name {
+        // As OpenSSH: options may follow the destination, and the first word
+        // after it starts the command, which takes everything after it
+        // (`podssh ssh host ls -la` runs `ls -la`). Repeating a flag is
+        // allowed; the last value wins, as in OpenSSH's own parser.
         "ssh" => cmd
+            .args_override_self(true)
             .arg(Arg::new("destination").help("[user@]host"))
             .arg(
                 Arg::new("remote-command")
-                    .num_args(0..)
-                    .last(true)
+                    .num_args(1..)
+                    .trailing_var_arg(true)
+                    .allow_hyphen_values(true)
                     .help("command to run on the remote host"),
             ),
         "cp" | "mv" => cmd.arg(Arg::new("paths").num_args(2..).help("SRC... DST")),
@@ -158,6 +171,8 @@ pub enum Parsed {
         /// `--jsonl`. Verbs without the row never set it; `proxy` never
         /// carries it because `proxy --jsonl` is refused at parse (below).
         jsonl: bool,
+        /// `ssh`'s whole command line; `None` for every other verb.
+        ssh: Option<Box<crate::ssh::args::SshArgs>>,
     },
     /// A usage error. ⛔ The message never contains a usage block.
     Usage(String),
@@ -430,7 +445,8 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         .flatten();
     let jsonl = verb.flags.iter().any(|r| r.long == "jsonl") && matches.get_flag("jsonl");
 
-    Parsed::Command { verb: verb.name, refused, tag, timeout, jsonl }
+    let ssh = (verb.name == "ssh").then(|| Box::new(crate::ssh::args::SshArgs::from_matches(&matches)));
+    Parsed::Command { verb: verb.name, refused, tag, timeout, jsonl, ssh }
 }
 
 /// Whether an argument id was actually supplied, under either spelling.

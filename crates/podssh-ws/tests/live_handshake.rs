@@ -235,7 +235,6 @@ async fn the_negotiated_parameters_are_ones_this_provider_implements() {
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 use std::net::ToSocketAddrs as _;
-use std::sync::Arc;
 
 /// ⛔ **One place builds the connector, and it is the same one the library
 /// uses.** Each test building its own would be four chances to prove a

@@ -2,9 +2,13 @@
 
 ## Requirements
 
-- Rust 1.88 or newer for the default build (1.92 with the `ts` feature).
-- No C compiler for the default build. The `ts` feature needs `cc`, `cmake`
-  and `perl` (for `aws-lc-sys` in the vendored tailscale-rs fork).
+- Rust 1.89 or newer for the binary (the library crates build with 1.88;
+  1.92 with the `ts` feature).
+- A C compiler for the binary: the SSH client's crypto is aws-lc
+  (`aws-lc-sys`, through `russh`); on Windows also NASM, or aws-lc falls back
+  to prebuilt objects. The library crates (`podssh-ws`, `podssh-transport`,
+  `podssh-core`, `podssh-terminal`, `podssh-probe`) need none, and the gate
+  checks that. The `ts` feature also needs `cmake` and `perl`.
 - Python 3 for the repository checks.
 - For the container gate on Windows: Git Bash, PowerShell and the operator's
   `wsl-toolkit` (rootless Podman in a dedicated WSL distribution).
@@ -22,7 +26,7 @@ cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts   # its tests
 
 A bare `cargo build`/`cargo test` at the root uses the workspace's
 `default-members`, which leave out `crates/podssh-ts`; `--workspace` brings it
-back (and needs a C toolchain).
+back.
 
 The whole workspace builds and tests natively on Windows (MSVC) and Linux.
 The static Linux release binary needs the musl target and is built in the
@@ -72,11 +76,17 @@ sh scripts/dev.sh help
 
 `scripts/gate.sh` is the gate; CI runs the same file in the same image. It
 checks that:
-1. the default members build with `CC=/nonexistent`;
-2. their tests pass;
+1. the library crates build and pass their tests with `CC=/nonexistent`;
+2. the SSH client and the CLI pass their tests;
 3. the `ts` feature's tests pass;
 4. the static musl release binary has no dynamic dependencies and no program
-   interpreter.
+   interpreter;
+5. that binary works against real servers: `scripts/interop.sh` installs
+   OpenSSH and Dropbear in the throwaway container, starts them on 127.0.0.1
+   and runs `podssh ssh --direct` against them (exit statuses and signals,
+   streams and digests, every authentication method, host keys, `-W`, `-J`,
+   `-s`, ptys through pipes, and an interactive pty driven by
+   `scripts/interop-pty.py`: resize, Ctrl-C, `vi`, `less`, `top`, `~.`).
 
 Containers are ephemeral, and `.git`, `target/`, `.env/`, `.work/`, `.tmp/` and
 `.codegraph/` are not copied into them.
@@ -97,6 +107,11 @@ because the test built its input with the same assumptions as the code (see
   (dropssh once read a data frame as close code 33319);
 - use `cargo test --no-fail-fast`: without it, cargo stops at the first test
   target that fails and the rest never run.
+
+Tests never use the network. The integration tests that run the binary set
+`PODSSH_OFFLINE=1`, which makes any attempt to connect fail at once with a
+message; in-process tests use a destination the relay cannot take, which is
+refused before anything connects.
 
 The live check of the whole proxy path (network; mints and caches a token
 like the binary does):
@@ -126,5 +141,11 @@ not bulk-convert line endings in files a change does not otherwise touch.
 
 The shipped binary is `podssh-cli` built for `x86_64-unknown-linux-musl` with
 `RUSTFLAGS=-Ctarget-feature=+crt-static` and the `release` profile (size-optimised,
-fat LTO). `scripts/gate.sh` builds it and CI uploads it. Tagged releases with
-checksums for more targets are milestone 3 in [ROADMAP.md](ROADMAP.md).
+fat LTO). `scripts/gate.sh` builds it and CI uploads it.
+
+A tag `vX.Y.Z[-pre]` runs `.github/workflows/release.yml`: static musl
+binaries for x86_64 and aarch64 (each built in `rust:1-alpine` on a native
+runner and checked for dynamic dependencies), a Windows binary with a static C
+runtime, `SHA256SUMS`, and a GitHub release whose notes are
+`docs/releases/<tag>.md` (the workflow fails without that file). A tag with a
+suffix (`-beta.1`) is published as a prerelease.

@@ -39,7 +39,9 @@ pub mod pager;
 pub mod proxy;
 pub mod refuse;
 pub mod relay;
+pub mod relay_open;
 pub mod relay_token;
+pub mod ssh;
 pub mod suggest;
 pub mod token_cache;
 pub mod tree;
@@ -48,15 +50,6 @@ pub mod tree;
 #[cfg(feature = "ts")]
 pub mod ts;
 
-// ⛔ **E12 and E13's credential paths live under this crate and nowhere else**,
-// and `security/mod.rs` explains why: a token type that cannot be rendered and
-// a trust store that refuses a wrong key are only worth having if every caller
-// goes through them. ⛔ That module was written with `#[path = "..."]` so E31
-// could own this file while it was being edited, and its own header says the
-// `#[path]` attributes come out the moment this line exists — ⛔ leaving one in
-// place after it stops being necessary is a second read path for the same
-// code, and two read paths drift.
-pub mod security;
 
 pub use flags::{FlagKind, FlagRow, Verb, VERBS};
 pub use tree::{parse, Parsed};

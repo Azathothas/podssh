@@ -12,21 +12,15 @@
 
 use std::io::Write;
 use std::sync::Arc;
-use std::time::Duration;
 
-use podssh_ws::dial::DialError;
 use podssh_ws::frame;
 use podssh_ws::session::close_code_and_reason;
-use podssh_ws::{connect, ConnectError, Endpoint, ProxyChoice, RelaySession, Trust, WsClientConfig};
+use podssh_ws::{RelaySession, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
-use crate::exitmap::sysexits::{EX_CONFIG, EX_NOPERM, EX_UNAVAILABLE};
+use crate::exitmap::sysexits::EX_UNAVAILABLE;
 use crate::relay::{self, Relay};
-use crate::relay_token::{self, MintContext, Origin, TokenError};
-
-/// Bound on reaching the relay: proxy, TCP, TLS, upgrade, and minting.
-const CONNECT_TIMEOUT: Duration = Duration::from_secs(20);
 
 /// What `podssh proxy` was asked to do.
 #[derive(Debug, Clone, Default)]
@@ -100,89 +94,19 @@ pub fn parse_target(target: Option<&str>, port: Option<&str>) -> Result<(String,
 }
 
 async fn session(relay: &Relay, path: &str, trust: &Trust, target: &str, err: &mut dyn Write) -> i32 {
-    let proxy = ProxyChoice::FromEnvironment;
-    let ctx = MintContext { relay, trust, proxy: &proxy, timeout: CONNECT_TIMEOUT };
-    let mut token = match relay_token::obtain(&ctx, false).await {
-        Ok(t) => t,
-        Err(e) => return token_failure(&e, err),
-    };
-    if let Some(why) = token.cache_warning.take() {
-        let _ = writeln!(err, "podssh: the relay token could not be cached, so one is minted per run: {why}");
+    let mut notes = Vec::new();
+    let opened = crate::relay_open::open(relay, path, trust, target, &mut |note: &str| notes.push(note.to_string())).await;
+    for note in notes {
+        let _ = writeln!(err, "podssh: {note}");
     }
-    let config = WsClientConfig {
-        endpoint: Endpoint { host: relay.host.clone(), port: relay.port, path: path.to_string() },
-        trust: trust.clone(),
-        server_name: relay.host.clone(),
-        timeout: CONNECT_TIMEOUT,
-        idle_timeout: Some(podssh_ws::DEFAULT_IDLE_TIMEOUT),
-        proxy: proxy.clone(),
-    };
-    let mut result = connect(&config, token.secret()).await;
-    // A cached token the relay no longer accepts: forget it and mint once.
-    // Not for a policy refusal, which a new token cannot fix.
-    if let Err(ConnectError::Refused { status: 403, body }) = &result {
-        if token.origin == Origin::Cache && !is_policy_refusal(body) {
-            crate::token_cache::remove(&relay.host);
-            token = match relay_token::obtain(&ctx, true).await {
-                Ok(t) => t,
-                Err(e) => return token_failure(&e, err),
-            };
-            result = connect(&config, token.secret()).await;
-        }
-    }
-    let origin = token.origin;
-    drop(token);
-    match result {
+    match opened {
         Ok(session) => pump(session, err).await,
-        Err(e) => connect_failure(&e, origin, target, err),
-    }
-}
-
-/// The relay's wording for a policy refusal (spec: "not in the ALLOW list").
-fn is_policy_refusal(body: &str) -> bool {
-    let body = body.to_ascii_lowercase();
-    body.contains("allow list") || body.contains("not allowed") || body.contains("blocked")
-}
-
-fn token_failure(e: &TokenError, err: &mut dyn Write) -> i32 {
-    let _ = writeln!(err, "podssh: {e}");
-    match e {
-        TokenError::BadEnvironment => EX_CONFIG,
-        TokenError::Connect(c) => exit_for(c),
-        _ => EX_UNAVAILABLE,
-    }
-}
-
-fn connect_failure(e: &ConnectError, origin: Origin, target: &str, err: &mut dyn Write) -> i32 {
-    let _ = writeln!(err, "podssh: {e}");
-    let hint = match e {
-        ConnectError::Refused { status: 400 | 403, body } if is_policy_refusal(body) => {
-            Some(format!("the relay's policy does not allow {target}"))
+        Err(e) => {
+            for line in e.lines() {
+                let _ = writeln!(err, "podssh: {line}");
+            }
+            e.sysexit()
         }
-        ConnectError::Refused { status: 403, .. } if origin == Origin::Environment => {
-            Some(format!("the token in {} was rejected", relay_token::TOKEN_ENV))
-        }
-        ConnectError::Refused { status: 502, .. } => Some(format!("the relay could not reach {target}")),
-        ConnectError::Dial(DialError::ProxyRefused { .. }) => {
-            Some("the HTTP proxy does not allow connections to the relay".to_string())
-        }
-        _ => None,
-    };
-    if let Some(hint) = hint {
-        let _ = writeln!(err, "podssh: {hint}");
-    }
-    exit_for(e)
-}
-
-/// The exit code for a connection failure (sysexits).
-fn exit_for(e: &ConnectError) -> i32 {
-    match e {
-        ConnectError::Config(_) | ConnectError::Dial(DialError::BadProxy(_)) => EX_CONFIG,
-        ConnectError::Refused { status: 401 | 403, .. } => EX_NOPERM,
-        // The relay answers 400 for a target in a blocked address range.
-        ConnectError::Refused { status: 400, body } if is_policy_refusal(body) => EX_NOPERM,
-        ConnectError::Dial(DialError::ProxyRefused { status: 403 | 407, .. }) => EX_NOPERM,
-        _ => EX_UNAVAILABLE,
     }
 }
 

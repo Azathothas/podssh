@@ -32,6 +32,7 @@ pub mod server {
     include!("cert_server.rs");
 }
 
+#[allow(unused_imports)]
 pub use encoding::self_signed;
 #[allow(unused_imports)]
 pub use server::server_for;

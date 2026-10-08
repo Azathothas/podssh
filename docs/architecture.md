@@ -1,8 +1,8 @@
 # Architecture
 
-How podssh is meant to fit together. [STATUS.md](STATUS.md) says how much of
-it works today: the `proxy` flow below works; the native SSH flow and reverse
-mode do not exist yet.
+How podssh fits together. [STATUS.md](STATUS.md) says how much of it works
+today: the `proxy` and `ssh` flows below work; reverse mode does not exist
+yet.
 
 ## Data flow
 
@@ -16,15 +16,22 @@ stdin/stdout ⇄ pump ⇄ relay session ⇄ relay ⇄ HOST:PORT
                           → TLS 1.3 → WebSocket upgrade with X-Relay-Token
 ```
 
-**`podssh ssh user@host`** — milestone 2. podssh is the SSH client.
+**`podssh ssh user@host`** — milestone 2. podssh is the SSH client: the
+protocol is `russh`, and everything around it is podssh's.
 
 ```
-terminal ⇄ terminal layer ⇄ SSH client ⇄ relay session ⇄ relay ⇄ sshd
-           (raw mode, or the             (keys, host-key
-            in-process line               check, channels)
-            discipline when
-            there is no pty)
+terminal ⇄ session loop ⇄ russh ⇄ byte pipe ⇄ relay session ⇄ relay ⇄ sshd
+           (raw mode,      (KEX,    (frames ⇄
+            resize, ~.,     auth,    bytes; keeps
+            exit status)    channels) the relay's
+                                      close reason)
+            host keys: podssh's known_hosts reader; auth: agent, key files,
+            keyboard-interactive and password through /dev/tty or SSH_ASKPASS
 ```
+
+`--direct` replaces the relay with a TCP connection (through `HTTPS_PROXY`
+when one is set); `-J` runs each next hop inside the previous hop's
+`direct-tcpip` channel; `-W` connects stdin/stdout to such a channel.
 
 **Reverse mode** (`podssh node` / `podssh operator`) uses the same relay
 session with the reverse legs' framing: the node multiplexes sessions by a
@@ -34,10 +41,11 @@ session with the reverse legs' framing: the node multiplexes sessions by a
 
 | crate | role | internal dependencies |
 | --- | --- | --- |
-| `podssh-cli` | the `podssh` binary: argument parsing, `--help`, the generated man page, dispatch; it will own each verb's event loop | all of the below (Tailscale only with feature `ts`) |
+| `podssh-cli` | the `podssh` binary: argument parsing, `--help`, the generated man page, dispatch, relay selection and tokens, the `proxy` pump, `ssh` option resolution | all of the below (Tailscale only with feature `ts`) |
+| `podssh-ssh` | the native SSH client: russh (aws-lc-rs) over any byte stream, the relay-to-stream pipe, `known_hosts`, the authentication chain, prompts, the terminal (raw mode, size, escapes), exit codes | `podssh-ws` |
 | `podssh-ws` | dialing the relay: TCP, TLS (rustls with podssh's own pure-Rust crypto provider), the WebSocket client | — |
 | `podssh-transport` | the relay protocol: framing for the forward, node and operator legs, control messages, close codes | `podssh-ws` |
-| `podssh-core` | protocol state machines with no I/O: `ssh/` and `irc/` | — |
+| `podssh-core` | protocol state machines with no I/O: `irc/`, and the retired hand-written `ssh/` (to be removed) | — |
 | `podssh-terminal` | terminal handling and the in-process line discipline | — |
 | `podssh-probe` | the relay document's structural facts (tests only today) | — |
 | `podssh-ts` | Tailscale adapter over `vendor/tailscale-rs` (feature `ts`) | the vendored fork |
@@ -57,9 +65,11 @@ These hold for every change. The reasons are in
    move bytes and never learn whether they carry SSH, IRC or anything else.
 3. **One outbound connection, never a listener.** No `bind`, no `listen`, no
    loopback helpers.
-4. **No C in the default build.** rustls with podssh's own provider and
-   RustCrypto crates; enforced by `CC=/nonexistent` in the gate. Tailscale is
-   the opt-in exception (feature `ts`).
+4. **No C in the library crates.** `podssh-ws`, `podssh-transport`,
+   `podssh-core`, `podssh-terminal` and `podssh-probe` use rustls with
+   podssh's own provider and RustCrypto crates; enforced by `CC=/nonexistent`
+   in the gate. The binary links aws-lc through `russh` for SSH (operator
+   decision, 2026-10-08), and the Tailscale fork (feature `ts`).
 5. **No LD_PRELOAD, no helper processes.** Anything the host cannot provide
    (a pty, a terminal discipline) podssh does in-process.
 6. **Credentials never reach output.** Tokens and keys never appear in stdout,
@@ -68,7 +78,8 @@ These hold for every change. The reasons are in
 7. **stdout is data.** Diagnostics go to stderr, so podssh can sit in a pipe
    or be an OpenSSH `ProxyCommand`.
 8. **Errors are actionable.** One line saying what failed and what to do,
-   and a stable exit code (usage 64, configuration 78, unavailable 69,
-   not implemented 70).
+   and a stable exit code: usage 64, configuration 78, unavailable 69, not
+   implemented 70; `podssh ssh` follows OpenSSH instead (the remote status,
+   128 + a signal, 255 for its own failures).
 9. **Files stay under 500 lines.** Split by responsibility; never trim
    comments to fit.

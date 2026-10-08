@@ -38,6 +38,8 @@ use std::process::{Command, Stdio};
 fn podssh(args: &[&str]) -> (i32, Vec<u8>, Vec<u8>) {
     let out = Command::new(env!("CARGO_BIN_EXE_podssh"))
         .args(args)
+        // No test may reach the network: a verb that would connect stops here.
+        .env("PODSSH_OFFLINE", "1")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -73,8 +75,8 @@ fn a_refusal_writes_nothing_to_stdout() {
     for c in cases {
         let (rc, out, err) = podssh(&c);
         // ⛔ **Not `assert_eq!(rc, 2)`.** ⛔ `ssh -P 22 host` is in this list and
-        // it exits **70**, ⛔ because `-P` is accepted and it is `ssh` that has
-        // no behaviour yet — ⛔ and 70 is E24's `SessionFault`/`EX_SOFTWARE`.
+        // it exits **255**, ⛔ because `-P` is accepted and the connection is
+        // what fails (here at `PODSSH_OFFLINE`, before any network).
         // ⛔ The first version of this test asserted 2 for every case and
         // failed on that row, ⛔ **because the test conflated "writes nothing to
         // stdout" with "is a usage error"**, ⛔ and the two are different
@@ -157,7 +159,8 @@ fn the_entrys_control_lines_exit_as_documented() {
 }
 
 /// ⛔ **The `-P` split, against the binary.** ⛔ `ssh -P` exits non-zero ⛔
-/// because `ssh` has no behaviour yet, ⛔ **not** because `-P` was refused ⛔
+/// because the connection fails (the suite runs offline), ⛔ **not** because
+/// `-P` was refused ⛔
 /// and the notice must be on stderr either way. ⛔ `cp -P 2222 a b` exits
 /// non-zero for the same reason ⛔ and **must not print a notice**, because
 /// there `-P` is the port and there is nothing surprising to say.

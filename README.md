@@ -2,20 +2,19 @@
 
 SSH from machines whose only way out is HTTPS.
 
-podssh is a single static binary that carries an SSH session — or any TCP
-stream — through a WebSocket-to-TCP relay on port 443. It is meant for
+podssh is a single static binary that is an SSH client — and can carry any
+TCP stream — through a WebSocket-to-TCP relay on port 443. It is meant for
 locked-down sandboxes (CI runners, AI-agent containers, hosted notebooks) that
 have no inbound ports, no direct outbound TCP, often no working DNS, and reach
-the internet only through an HTTP proxy. It needs no root, no `LD_PRELOAD`, and
-no system SSH, TLS or C libraries.
+the internet only through an HTTP proxy. It needs no root, no `LD_PRELOAD`, no
+installed `ssh`, and no system TLS or crypto libraries.
 
 > [!WARNING]
-> **Status: early.** `podssh proxy` works: it carries a TCP stream through the
-> relay, directly or through an HTTP proxy, and is a drop-in OpenSSH
-> `ProxyCommand` (verified live on 2026-10-08). The native SSH client and the
-> other subcommands are not implemented yet, and a review on 2026-10-08 found
-> wire-level bugs in that code. [docs/STATUS.md](docs/STATUS.md) has the
-> measured state; [docs/ROADMAP.md](docs/ROADMAP.md) has the plan to a beta.
+> **Status: beta.** `podssh ssh` (the native client) and `podssh proxy` (an
+> OpenSSH `ProxyCommand`) work and are tested against OpenSSH and Dropbear
+> servers and through the live relay. Reverse mode, chat and file copy are not
+> implemented yet. [docs/STATUS.md](docs/STATUS.md) has the measured state;
+> [docs/ROADMAP.md](docs/ROADMAP.md) the plan.
 
 ## How it works
 
@@ -36,12 +35,33 @@ podssh ──TLS 1.3 + WebSocket, port 443──▶ relay ──TCP──▶ ssh
   middle safe ([SECURITY.md](SECURITY.md)).
 - **Outbound only.** podssh opens one outbound TCP connection (to the relay,
   or to the proxy named in `HTTPS_PROXY`) and never listens on a port.
-- **No pty needed.** On hosts without `/dev/ptmx`, podssh is meant to supply
-  line editing, echo and history itself.
+- **No local pty needed.** A remote pty (`-tt`) works with stdin and stdout
+  as plain pipes, so full-screen programs and Ctrl-C work from a host with no
+  `/dev/ptmx`.
 
 ## Usage
 
-With an `ssh` client on the host (milestone 1, works today):
+Without an `ssh` client — podssh is the client, and takes OpenSSH's options:
+
+```sh
+podssh ssh user@example.org                  # interactive shell
+podssh ssh user@example.org 'uname -a'       # a command; its exit status is podssh's
+podssh ssh -i key -o StrictHostKeyChecking=accept-new user@example.org true
+podssh ssh -J user@bastion user@inner        # through a jump host
+podssh ssh -W db.internal:5432 user@bastion  # stdin/stdout to a TCP port; nothing listens
+podssh ssh -tt user@example.org < script.txt # a remote pty, local stdin a pipe
+```
+
+On a host with no terminal (an agent's sandbox), podssh never waits for input
+that cannot arrive: an unknown host key is refused with its fingerprint and
+`-o StrictHostKeyChecking=accept-new` as the remedy, and passwords and key
+passphrases come from `SSH_ASKPASS` (with `SSH_ASKPASS_REQUIRE=force`) or are
+skipped with a note. Keepalives are on (every 60 s), because the relay closes a
+connection after 180 s without traffic. `--direct` connects without the relay.
+Exit codes follow OpenSSH: the remote status, 128 + a signal number, 255 for
+podssh's own failures. Details: [docs/cli.md](docs/cli.md).
+
+With an `ssh` client on the host, podssh can be its `ProxyCommand`:
 
 ```sh
 ssh -o ProxyCommand='podssh proxy %h %p' -o ServerAliveInterval=60 user@example.org
@@ -77,12 +97,6 @@ It honours:
 A relay token is minted on first use (`POST /v1/mint`, no account) and cached
 for its lifetime in the user's cache directory, readable by its owner only.
 
-Without an `ssh` client (milestone 2, not implemented yet):
-
-```sh
-podssh ssh user@example.org
-```
-
 ### Relay limits you will hit
 
 | limit | value | what to do |
@@ -95,8 +109,9 @@ podssh ssh user@example.org
 
 ## Building
 
-podssh is a Rust workspace (`crates/`). The default build is pure Rust and
-needs no C compiler; Rust 1.88 or newer.
+podssh is a Rust workspace (`crates/`). Rust 1.89 or newer, and a C compiler:
+the SSH client's crypto is aws-lc (through `russh`). The library crates below
+it are pure Rust and are checked to build without one.
 
 ```sh
 cargo build --release -p podssh-cli   # target/release/podssh
@@ -120,6 +135,8 @@ Builds are memory-hungry; on small machines and VMs cap parallelism with
 | [docs/ROADMAP.md](docs/ROADMAP.md) | milestones to a first beta |
 | [docs/architecture.md](docs/architecture.md) | crates, data flow, design rules |
 | [docs/relay.md](docs/relay.md) | the relay protocol and its limits |
+| [docs/cli.md](docs/cli.md) | the command line, OpenSSH parity, exit codes, prompts |
+| [docs/terminal.md](docs/terminal.md) | ptys, raw mode, and the line discipline |
 | [docs/target-environment.md](docs/target-environment.md) | what a constrained host allows, and the rules that follow |
 | [docs/decisions.md](docs/decisions.md) | decisions in force |
 | [docs/development.md](docs/development.md) | building, testing, checks, releases |

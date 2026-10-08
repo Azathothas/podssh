@@ -6,18 +6,20 @@ whenever the state changes, with the date and the command that measured it.
 
 ## Summary
 
-**`podssh proxy` works; nothing else does yet.** `podssh proxy HOST PORT`
-carries a TCP stream through the relay, directly or through an HTTP CONNECT
-proxy, and works as an OpenSSH `ProxyCommand`. That was verified live on
-2026-10-08: OpenSSH reached GitHub's authentication step and pinned GitHub's
-published host key, from Windows, from the static Linux binary, and through a
-proxy that only allows port 443.
+**`podssh ssh` and `podssh proxy` work; nothing else does yet.**
 
-The native SSH client, reverse mode, chat and the other subcommands are not
-implemented. A review found wire-level bugs in the SSH and IRC code that the
-unit tests did not catch: many tests check the code against itself, and some
-encode the bugs as expected behaviour. Details, with file and line, are in
-[audit-2026-10-08.md](audit-2026-10-08.md); the plan is in
+- `podssh ssh` is a native SSH client (on `russh`) with OpenSSH's command
+  line. On 2026-10-08 it passed 60 of 61 checks against real OpenSSH and
+  Dropbear servers in the container gate (the one failure was the test, fixed
+  the same day), ran through the live relay to `railway.new`, and ran
+  `--direct` against a Tailscale SSH server.
+- `podssh proxy HOST PORT` carries a TCP stream through the relay, directly or
+  through an HTTP CONNECT proxy, and works as an OpenSSH `ProxyCommand`
+  (verified live 2026-10-08, including a 10-minute idle session).
+
+Reverse mode, chat, file copy and the other subcommands are not implemented.
+The IRC code has wire-level bugs found by review
+([audit-2026-10-08.md](audit-2026-10-08.md)); the plan is in
 [ROADMAP.md](ROADMAP.md).
 
 ## Subcommands
@@ -25,13 +27,25 @@ encode the bugs as expected behaviour. Details, with file and line, are in
 | subcommand | state |
 | --- | --- |
 | `podssh proxy HOST PORT` | **works** (2026-10-08): byte pipe through the relay; `HTTPS_PROXY`/`NO_PROXY`; token minted and cached; trust-root fallbacks; one-line errors with sysexits codes |
-| `podssh ssh` | not implemented (exits 70) — milestone 2 |
+| `podssh ssh` | **works** (2026-10-08): through the relay or `--direct`; OpenSSH options; host keys, agent/keys/password/keyboard-interactive; exec, shell, subsystem, `-W`, `-J`, `-N`; ptys with raw mode, resize and `~.`; OpenSSH exit codes |
 | `podssh node`, `podssh operator` | not implemented (exits 70) |
 | `podssh chat` | not implemented (exits 70) |
 | `podssh cp`, `podssh mv` | not implemented (exits 70) |
 | `podssh relay`, `status`, `doctor` | not implemented (exits 70) |
 | `podssh man` | works: the manual page, generated from the flag tables |
 | `podssh ts` | only with the `ts` cargo feature: status line and a `-W` byte pipe over a tailnet; the live two-node test has never run |
+
+### `podssh ssh`, measured
+
+| check | result |
+| --- | --- |
+| `scripts/interop.sh` in `rust:1-alpine`: the static binary against OpenSSH (Alpine `openssh-server`, with and without `PermitTTY`, and with PAM) and Dropbear on 127.0.0.1 | **60 of 61 passed**: exit statuses 3, 0, 1, 127 and 143 (a signal) on both servers; stdout/stderr apart; 262144, 262145 and 5,000,000 bytes up and round trip with equal digests, both servers; Ed25519, RSA, ECDSA, an encrypted key via `SSH_ASKPASS`, password via `SSH_ASKPASS` (both servers), wrong password, `BatchMode` refusals with notes, PAM keyboard-interactive; accept-new, strict, a changed key refused even with `StrictHostKeyChecking=no`; `-W` to Dropbear through OpenSSH; `-J` OpenSSH to Dropbear (exit 5); `SetEnv`; `-N`; `-tt` over pipes (remote pty, the `PermitTTY=no` fallback, Ctrl-C as a byte); a local pty (`interop-pty.py`): size, resize, Ctrl-C, `vi`, `less`, `top`, exit status, `~.`, terminal restored |
+| the failure | `-s sftp` returned nothing: the test closed stdin at once, and OpenSSH's `sftp-server` exits on end of input without replying (reproduced on a Debian host without podssh). With stdin held open, `podssh ssh -s HOST sftp` returns `SSH_FXP_VERSION` (measured against a Tailscale SSH server). Test fixed; gate re-run pending |
+| through the relay to `railway.new` (anonymous SSH service, throwaway key), Windows build | `exit 3` gives 3; host key recorded with accept-new; stdout/stderr apart; 300 KB up and 5 MB down with equal digests; changed, revoked, strict-unknown and batch-unknown host keys all refused (255) with the fingerprints; `-W` refused by that server, reported, 255 |
+| `--direct` to a Tailscale SSH server over the tailnet, Windows build | a command and exit status 4 passed through; `-s sftp` |
+| a remote command killed by a signal, on `railway.new` | 255, as OpenSSH: that server reports exit status -1 instead of an exit signal |
+| interactive sessions on Windows | **not yet run** |
+| from a real constrained sandbox | **not yet run** |
 
 ### `podssh proxy`, measured live
 
@@ -55,10 +69,10 @@ encode the bugs as expected behaviour. Details, with file and line, are in
 | --- | --- | --- | --- |
 | `podssh-ws` | 3.6k / 3.7k | TLS 1.3 through rustls with podssh's own pure-Rust crypto provider; certificate and hostname checks with no bypass; full-duplex session; HTTP CONNECT proxies; trust fallbacks; bounded connect, TLS and upgrade | no RSA signature verification (a relay chain with an RSA certificate would fail); control frames not size-checked on receive; `probe::PrintChain` (accepts any certificate) still a public export |
 | `podssh-transport` | 5.6k / 3.9k | forward-path framing; reverse-path session-id codec and close-code table | about 600 lines are used outside tests; the reverse node leg sends control frames as binary and cannot work live; the 2.3k-line DNS/DoH stack is unused and cannot resolve anything; the backpressure module is unused |
-| `podssh-core` (`ssh/`) | 2.2k / 0.9k | RFC 4251 codec, exchange hash, AEAD primitive wiring, ed25519 host-key verification | no session driver; against OpenSSH it fails at the first encrypted packet, at publickey auth, at channel open and at pty-req; a peer-triggerable panic; no strict-kex (Terrapin) countermeasure |
-| `podssh-core` (`irc/`) | 3.8k / 1.9k | sans-IO client, message grammar, IRCv3 tags | registration hangs on IRCv3 servers (CAP END order); CRLF injection through message text; plaintext through the relay; file transfer never run live and broken for short final chunks |
+| `podssh-ssh` | 3.0k / 0.2k | the native client: russh 0.64.1 (aws-lc-rs; strict key exchange and the ML-KEM hybrid key exchange in its defaults); a relay-to-stream pipe that keeps the relay's close reason; a `known_hosts` reader (hashed entries, wildcards, negation, markers); the auth chain; prompts via `/dev/tty`, `CONIN$` or `SSH_ASKPASS`; raw mode, resize, escapes; OpenSSH exit codes | no `ssh_config`; no `-L`/`-R`/`-D`/`-A`/X11; host certificates checked as plain keys; Windows interactive use not tested; no reconnect when the connection drops |
+| `podssh-core` (`irc/`; the hand-written `ssh/` was removed 2026-10-08) | 3.8k / 1.9k | sans-IO client, message grammar, IRCv3 tags | registration hangs on IRCv3 servers (CAP END order); CRLF injection through message text; plaintext through the relay; file transfer never run live and broken for short final chunks |
 | `podssh-terminal` | 2.5k / 1.2k | line-editing state machine | used by nothing; **mode selection inverted** (with no remote pty it refuses all input); no raw mode; cursor counts bytes, not characters |
-| `podssh-cli` | 7.2k / 3.8k | parsing, help, generated man page, refusals; `proxy` with relay selection, token minting and caching | 10 of 12 subcommands unimplemented; the old `security/` module (known_hosts, a token cache) is unreachable and has latent bugs; `proxy` uses the new `token_cache.rs` instead |
+| `podssh-cli` | 6.0k / 2.5k | parsing, help, generated man page, refusals; relay selection, token minting and caching, a shared relay opener; `proxy`; `ssh` option resolution (`-o`, destinations, defaults, transport) | 9 of 12 subcommands unimplemented; relay and token code lives in the binary crate, not a library (the unreachable `security/` module was removed 2026-10-08) |
 | `podssh-ts` + `vendor/tailscale-rs` | 0.5k / 0.4k + 68k vendored | DERP over WebSocket (fork patches) | behind the `ts` feature; auto mode always picks `tcp`; live acceptance not run |
 | `podssh-probe` | 0.4k / 0.3k | checks the relay document's structure against a pinned copy | used by nothing; duplicates `scripts/check-relay-spec.py` |
 
@@ -66,14 +80,14 @@ encode the bugs as expected behaviour. Details, with file and line, are in
 
 | what | result | how |
 | --- | --- | --- |
-| default build (6 crates, no Tailscale) | builds; its dependency graph has no `cc`, `ring` or `aws-lc` | `cargo build`; `cargo tree -e normal,dev,build` |
-| default tests | **651 passed, 0 failed, 1 ignored** (the live proxy test) | `cargo test --no-fail-fast` |
+| library crates (`podssh-ws`, `-transport`, `-core`, `-terminal`, `-probe`) | build and pass their tests with `CC=/nonexistent` | `scripts/gate.sh` |
+| default tests | **601 passed, 0 failed, 1 ignored** (the live proxy test); fewer than before because the removed `security/` and hand-written SSH modules took their tests with them | `cargo test --no-fail-fast` |
 | Tailscale feature tests | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | repository checks | pass | `python scripts/check-repo.py` |
-| static release binary | **1,622,944 bytes**, static PIE, no `NEEDED` entries, no interpreter, built with no C compiler. It was 598,776 bytes before `proxy` linked the TLS and WebSocket client, and 7,403,072 while the Tailscale fork was linked | `scripts/gate.sh` |
-| container gate | **green** (every step exit 0, about 4 min at 4 jobs; WSL VM peaked near 7 GB) | `sh scripts/dev.sh check` |
+| static release binary | **3,586,496 bytes** with the SSH client (aws-lc and russh), static PIE, no `NEEDED` entries, no interpreter. It was 1,622,944 with `proxy` only, and 7,403,072 while the Tailscale fork was linked | `scripts/gate.sh` |
+| container gate | every build and test step green; interop 60 of 61 (see above) | `sh scripts/dev.sh check` |
 | no-C plant | fires twice for the right reason (a planted `ring` fails because no C compiler exists), control passes | `sh scripts/dev.sh plant` |
-| CI | failed on 25 of the 27 pushes since 2026-10-05, always the same cause (a test fixture lost its CRLFs on checkout; fixed 2026-10-08). CI runs once the repository is public | `gh run list` |
+| CI | the repository is public since 2026-10-08; the first run on it (commit `9a03102`) passed | `gh run list` |
 
 ## The relay
 

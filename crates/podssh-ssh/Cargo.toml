@@ -1,0 +1,33 @@
+[package]
+name = "podssh-ssh"
+description = "The native SSH client behind `podssh ssh`: russh over a relay or TCP stream, with podssh's host-key, authentication and terminal handling."
+version.workspace = true
+edition.workspace = true
+# russh 0.64.1 declares 1.89 (read from its Cargo.toml); the library crates
+# keep the workspace minimum.
+rust-version = "1.89"
+license.workspace = true
+publish.workspace = true
+
+# This crate needs a C compiler: russh's crypto backend is aws-lc-rs
+# (aws-lc-sys). Operator decision 2026-10-08; the no-C rule covers the
+# library crates below it, not this one. `default-features = false` keeps the
+# backend choice explicit: `aws-lc-rs`, plus RSA keys and zlib compression
+# (flate2's default backend is pure Rust).
+[dependencies]
+russh = { version = "0.64.1", default-features = false, features = ["aws-lc-rs", "rsa", "flate2"] }
+podssh-ws = { path = "../podssh-ws" }
+tokio = { workspace = true, features = ["signal", "process"] }
+zeroize = { workspace = true }
+base64 = { workspace = true }
+hmac = { workspace = true }
+sha1 = { version = "0.10.7", default-features = false }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "signal", "process"] }

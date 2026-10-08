@@ -3,7 +3,9 @@ name = "podssh-cli"
 description = "Argument parsing, subcommand dispatch, --doctor."
 version.workspace = true
 edition.workspace = true
-rust-version.workspace = true
+# russh 0.64.1 declares 1.89 (read from its Cargo.toml); the library crates
+# keep the workspace minimum.
+rust-version = "1.89"
 license.workspace = true
 publish.workspace = true
 
@@ -30,44 +32,16 @@ podssh-ts = { path = "../podssh-ts", optional = true }
 podssh-terminal = { path = "../podssh-terminal" }
 podssh-transport = { path = "../podssh-transport" }
 podssh-ws = { path = "../podssh-ws" }
+# The native SSH client. It needs a C compiler (russh with aws-lc-rs); the
+# operator accepted that for the binary on 2026-10-08.
+podssh-ssh = { path = "../podssh-ssh" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 libc = { workspace = true }
 
-# ⛔ E12 and E13's dependencies. Every version below was MEASURED 2026-10-02 on
-# this machine with `curl -sS https://crates.io/api/v1/crates/<name>`, and
-# every one is pure Rust. See `src/security/README.md` for the per-crate
-# measurement, including the one crate that was measured and REJECTED.
-#
-# ⛔ `sha1` is here for exactly one thing: OpenSSH's `known_hosts` hashed-host
-# form, `|1|<base64 salt>|<base64 HMAC-SHA1>`. ⛔ **It is the one primitive this
-# workspace did not already have, and E13 cannot hash a host name without it.**
-# It is pure Rust — MEASURED, `Cargo.lock` shows `sha1 v0.10.7` depending only on
-# `cfg-if`, `cpufeatures` and `digest` — and it is a *hash*, used for a lookup
-# key, never for a security decision of its own.
-sha1 = { version = "0.10.7", default-features = false }
-
-# ⛔ E13's fingerprint is SHA-256 over the RFC 4253 blob — the form
-# `ssh-keygen -lf` prints since 6.8 and the one an operator pastes into a bug
-# report. Already a workspace dependency, and pure Rust.
-sha2 = { workspace = true }
-# ⛔ E13's hashed-`known_hosts` check: HMAC-SHA1, keyed by the file's salt, over
-# the host name. `hmac` is the `CryptoProvider`'s HMAC as well
-# (`crates/podssh-ws/src/crypto/hmac.rs`), so this is ⛔ the same primitive
-# E03's TLS key schedule already uses and not a second one.
-hmac = { workspace = true }
-
-# ⛔ E12's redaction needs to recognise a token in an arbitrary log line, which
-# is a regular expression over prose rather than a fixed offset. `regex` is
-# already a workspace dependency and is pure Rust.
-regex = { workspace = true }
-
-# ⛔ E12: the secret wrapper zeroizes its own bytes on drop, and the cache file
-# is written 0600. Both are already workspace dependencies.
+# The relay token is wiped from memory when dropped.
 zeroize = { workspace = true }
-hex = { workspace = true }
-base64 = { workspace = true }
 
 # ⛔ MEASURED 2026-10-02, this machine (Git Bash on Windows) and in
 # `rust:1-alpine` via `sh scripts/dev.sh run`:

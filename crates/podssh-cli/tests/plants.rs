@@ -337,8 +337,10 @@ fn plant_a_usage_dump_is_not_printed_to_any_stream() {
 /// covers whichever one the author remembered.
 #[test]
 fn plant_a_usage_dump_is_not_printed_on_the_p_path_either() {
+    // `invalid!host` cannot be reached through the relay, so `ssh` stops with
+    // a usage error before any network; the notice is printed before that.
     for input in [
-        vec!["ssh", "-P", "22", "host"],
+        vec!["ssh", "-P", "22", "invalid!host"],
         vec!["ssh", "-L", "8080:db:5432", "host"],
         vec!["ssh", "--StrictHostKeyChekcing=no", "host"],
     ] {

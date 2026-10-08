@@ -155,7 +155,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 tty,
             )
         }
-        Parsed::Command { verb, refused, tag, timeout, jsonl } => {
+        Parsed::Command { verb, refused, tag, timeout, jsonl, ssh } => {
             // ⛔ `-P TAG` on ssh: accepted, ignored, and it says so on stderr so
             // a user who meant a port learns before the connection fails.
             if let Some(t) = tag {
@@ -184,6 +184,9 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             // happens, so nothing is half-done.
             if refusals(verb, refused, s.err) {
                 return EXIT_USAGE;
+            }
+            if let Some(args) = ssh {
+                return crate::ssh::run_ssh(args, s.err);
             }
             // A verb that parses and has no behaviour is refused, never a stub
             // that exits 0. A verb with neither a handler above nor a
@@ -317,7 +320,8 @@ mod tests {
 
     #[test]
     fn minus_p_on_ssh_prints_a_notice_and_still_refuses_the_missing_behaviour() {
-        let p = crate::tree::parse(vec!["ssh", "-P", "mytag", "host"]);
+        // A destination the relay cannot take: ssh stops before any network.
+        let p = crate::tree::parse(vec!["ssh", "-P", "mytag", "invalid!host"]);
         let mut out: Vec<u8> = Vec::new();
         let mut err: Vec<u8> = Vec::new();
         let rc = run(&p, &mut Streams { out: &mut out, err: &mut err });
@@ -412,15 +416,18 @@ mod tests {
     }
 
     /// ⛔ **Enforcement follows the flag's existence.** `ssh` has no
-    /// `--timeout` row (adding one needs a spec row first), so a piped
-    /// `ssh` run reaches the unimplemented refusal exactly as before — the
+    /// `--timeout` row, so a piped `ssh` run reaches ssh itself (here it stops
+    /// on a destination the relay cannot take, before any network) — the
     /// gate must not invent a requirement the tree cannot satisfy.
     #[test]
     fn ssh_without_a_timeout_row_is_unaffected_by_the_gate() {
-        let p = crate::tree::parse(vec!["ssh", "host", "--", "true"]);
+        let p = crate::tree::parse(vec!["ssh", "-l", "test", "invalid!host", "--", "true"]);
         let mut out: Vec<u8> = Vec::new();
         let mut err: Vec<u8> = Vec::new();
         let rc = run(&p, &mut Streams { out: &mut out, err: &mut err });
-        assert_eq!(rc, EXIT_NOT_IMPLEMENTED);
+        let text = String::from_utf8(err).unwrap();
+        assert_eq!(rc, EXIT_USAGE, "{text}");
+        assert!(text.contains("invalid!host"), "ssh itself refused the destination: {text}");
+        assert!(!text.contains("--timeout"), "the timeout gate must not apply to ssh: {text}");
     }
 }

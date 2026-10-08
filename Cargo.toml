@@ -8,6 +8,7 @@ members = [
   "crates/podssh-terminal",
   "crates/podssh-probe",
   "crates/podssh-ts",
+  "crates/podssh-ssh",
 ]
 
 # What a bare `cargo build` / `cargo test` at the root compiles: everything
@@ -22,6 +23,7 @@ default-members = [
   "crates/podssh-ws",
   "crates/podssh-terminal",
   "crates/podssh-probe",
+  "crates/podssh-ssh",
 ]
 
 # ⛔ The vendored fork keeps its own `[workspace]` (it builds standalone with

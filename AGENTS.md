@@ -7,9 +7,9 @@ details live in `docs/`.
 
 podssh is a static Rust binary that carries SSH — or any TCP stream — through a
 WebSocket-to-TCP relay on port 443, for sandboxes whose only egress is HTTPS,
-often only through an HTTP proxy. It is **early: `podssh proxy` (an OpenSSH
-`ProxyCommand` through the relay) works; the native client and the other
-subcommands do not yet.**
+often only through an HTTP proxy. `podssh ssh` (the native client, on
+`russh`) and `podssh proxy` (an OpenSSH `ProxyCommand` through the relay)
+work; reverse mode, chat and file copy do not yet.
 
 ## Read first, in this order
 
@@ -91,13 +91,14 @@ From [docs/decisions.md](docs/decisions.md):
 
 | path | what it holds |
 | --- | --- |
-| `crates/podssh-cli` | the `podssh` binary: parsing, help, man page, dispatch |
+| `crates/podssh-cli` | the `podssh` binary: parsing, help, man page, dispatch, relay tokens, `proxy`, `ssh` option resolution |
+| `crates/podssh-ssh` | the native SSH client: russh over the relay stream, known_hosts, auth chain, prompts, terminal, exit codes |
 | `crates/podssh-ws` | TLS (own pure-Rust rustls provider) and the WebSocket client |
 | `crates/podssh-transport` | relay protocol framing for the forward, node and operator legs |
-| `crates/podssh-core` | sans-IO protocol code: `ssh/`, `irc/` |
+| `crates/podssh-core` | sans-IO protocol code: `irc/` |
 | `crates/podssh-terminal` | line discipline and terminal handling |
 | `crates/podssh-probe` | relay document facts (tests only) |
 | `crates/podssh-ts` | Tailscale adapter (feature `ts`) |
 | `vendor/tailscale-rs` | vendored fork with local patches (`vendor/patches/`); outside the workspace and the 500-line rule |
-| `scripts/` | `dev.sh` (container runs), `gate.sh` (the build gate), `plant.sh`, `check-*.py` |
+| `scripts/` | `dev.sh` (container runs), `gate.sh` (the build gate), `interop.sh` and `interop-pty.py` (against OpenSSH and Dropbear), `plant.sh`, `check-*.py` |
 | `docs/` | the documentation: STATUS, ROADMAP, decisions and topic pages |

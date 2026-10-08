@@ -16,6 +16,8 @@
 //! *peer* accepts the right name and rejects the wrong one. Together they are
 //! E03's sentence; neither alone is.
 
+// Shared test support; this file uses part of it.
+#[allow(dead_code)]
 mod cert {
     include!("common/cert_for_test.rs");
 }

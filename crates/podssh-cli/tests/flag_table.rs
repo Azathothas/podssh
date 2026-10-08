@@ -12,7 +12,7 @@ use podssh_cli::flags::{FlagKind, VERBS};
 
 /// Every short flag `podssh ssh` accepts or refuses by name, as reviewed on
 /// 2026-10-08. Order does not matter.
-const SSH_SHORT_FLAGS: &str = "piJNtT46WBbEFvqoPLRD";
+const SSH_SHORT_FLAGS: &str = "plinJNstTeC46WEFvqVoxaPLRDABb";
 
 #[test]
 fn the_ssh_short_flags_are_exactly_the_reviewed_set() {
@@ -83,7 +83,7 @@ fn every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub() {
     // with their own dispatch arm (`ts`) are listed in DISPATCHED. Dispatch
     // also treats a verb with no row as an internal error (non-zero), so this
     // test is the first line of defence, not the only one.
-    const DISPATCHED: &[&str] = &["ts", "proxy"];
+    const DISPATCHED: &[&str] = &["ts", "proxy", "ssh"];
     let owner_names: Vec<&str> =
         podssh_cli::flags::VERB_OWNER.iter().map(|(n, _)| *n).collect();
     for v in VERBS {

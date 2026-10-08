@@ -52,24 +52,31 @@ rustc --version
 cargo --version
 echo "CARGO_BUILD_JOBS=$CARGO_BUILD_JOBS"
 
-# The default members (everything except the Tailscale adapter) must build
-# with no C compiler. The image ships a working `cc`, so `CC=/nonexistent` is
-# what enforces the rule; `scripts/plant.sh` proves it is load-bearing.
-run "default members build with no C compiler" \
-    env CC=/nonexistent cargo build --locked
+# The library crates must build with no C compiler. The image ships a working
+# `cc`, so `CC=/nonexistent` is what enforces the rule; `scripts/plant.sh`
+# proves it is load-bearing. The binary itself needs cc since 2026-10-08: the
+# native SSH client is russh with aws-lc-rs (operator decision).
+LIBS="-p podssh-ws -p podssh-transport -p podssh-core -p podssh-terminal -p podssh-probe"
 
-run "default members: tests" \
-    env CC=/nonexistent cargo test --locked --no-fail-fast
+# shellcheck disable=SC2086  # $LIBS is a list of flags
+run "library crates build with no C compiler" \
+    env CC=/nonexistent cargo build --locked $LIBS
+
+# shellcheck disable=SC2086
+run "library crates: tests, no C compiler" \
+    env CC=/nonexistent cargo test --locked --no-fail-fast $LIBS
+
+run "the SSH client and the CLI (need cc): tests" \
+    cargo test --locked --no-fail-fast -p podssh-ssh -p podssh-cli
 
 # The Tailscale adapter (feature `ts`) links the vendored tailscale-rs fork,
 # which needs cc and cmake (aws-lc-sys). Built and tested on its own.
 run "Tailscale adapter (feature ts, needs cc): tests" \
     cargo test --locked --no-fail-fast -p podssh-ts -p podssh-cli --features podssh-cli/ts
 
-# The shipped artefact: a static musl binary from the default (pure-Rust)
-# build.
-run "static musl release, no C compiler" \
-    env CC=/nonexistent RUSTFLAGS=-Ctarget-feature=+crt-static \
+# The shipped artefact: a static musl binary.
+run "static musl release" \
+    env RUSTFLAGS=-Ctarget-feature=+crt-static \
         cargo build --locked --release --target "$TARGET" -p podssh-cli
 
 echo
@@ -103,6 +110,13 @@ else
         echo "static: no NEEDED entries and no program interpreter"
         readelf -h "$B" | grep -E 'Type:'
     fi
+fi
+
+# The binary against real OpenSSH and Dropbear servers (installed with apk
+# into this throwaway container).
+if [ -f "$B" ]; then
+    run "interop: OpenSSH and Dropbear" sh scripts/interop.sh "$B"
+    cat /tmp/podssh-step.out | grep -E '^(ok|FAIL|skip) |^interop:' | tail -80
 fi
 
 echo

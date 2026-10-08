@@ -8,7 +8,6 @@
 //! were removed is not a split.
 
 use podssh_ws::crypto::sign::{ECDSA_P256_SHA256, ECDSA_P384_SHA384, ED25519};
-use rustls_pki_types::SignatureVerificationAlgorithm;
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
@@ -77,7 +76,7 @@ fn ecdsa_p256_sha256_verifies_a_real_signature_and_rejects_a_tampered_one() {
 /// with itself.
 #[test]
 fn ed25519_matches_rfc8032_vector_1() {
-    use ed25519_dalek::{Signer, VerifyingKey};
+    use ed25519_dalek::Signer;
 
     let secret: [u8; 32] = [
         0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec,

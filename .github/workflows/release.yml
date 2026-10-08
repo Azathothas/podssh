@@ -1,0 +1,116 @@
+name: release
+
+# A tag `vX.Y.Z[-pre]` builds the release binaries and publishes them, with
+# checksums, as a GitHub release (a prerelease when the tag has a suffix).
+# The notes come from docs/releases/<tag>.md, which must exist.
+#
+# Linux binaries are static musl, built in the same image as the gate
+# (rust:1-alpine) on a native runner for each architecture, and checked for
+# dynamic dependencies before they are published. The Windows binary is
+# linked with a static C runtime.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  BUILD_IMAGE: docker.io/library/rust:1-alpine
+
+jobs:
+  linux:
+    name: linux ${{ matrix.target }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - name: build (static musl, in the gate's image)
+        run: |
+          docker run --rm -v "$PWD:/work" -w /work \
+            -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static \
+            "$BUILD_IMAGE" \
+            cargo build --locked --release --target ${{ matrix.target }} -p podssh-cli
+      - name: the binary is static
+        run: |
+          set -eu
+          B=target/${{ matrix.target }}/release/podssh
+          if readelf -d "$B" | grep -q NEEDED; then echo "dynamic dependencies:"; readelf -d "$B"; exit 1; fi
+          if readelf -l "$B" | grep -q INTERP; then echo "asks for a program interpreter"; exit 1; fi
+          file "$B"
+          "$B" --version
+      - name: package
+        run: |
+          set -eu
+          mkdir -p dist
+          cp target/${{ matrix.target }}/release/podssh dist/podssh-${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: podssh-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  windows:
+    name: windows x86_64
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: 4
+      RUSTFLAGS: -Ctarget-feature=+crt-static
+    steps:
+      - uses: actions/checkout@v5
+      # aws-lc's build wants NASM on Windows; it falls back to prebuilt
+      # objects without it, but the release does not depend on the fallback.
+      - uses: ilammy/setup-nasm@v1
+      - name: build
+        run: cargo build --locked --release -p podssh-cli
+      - name: package
+        shell: bash
+        run: |
+          set -eu
+          mkdir -p dist
+          cp target/release/podssh.exe dist/podssh-x86_64-pc-windows-msvc.exe
+          dist/podssh-x86_64-pc-windows-msvc.exe --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: podssh-x86_64-pc-windows-msvc
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: checksums
+        run: |
+          set -eu
+          cd dist
+          sha256sum podssh-* > SHA256SUMS
+          cat SHA256SUMS
+      - name: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          notes="docs/releases/$TAG.md"
+          if [ ! -f "$notes" ]; then echo "missing release notes: $notes"; exit 1; fi
+          pre=""
+          case "$TAG" in *-*) pre="--prerelease" ;; esac
+          gh release create "$TAG" $pre --title "podssh $TAG" --notes-file "$notes" dist/*

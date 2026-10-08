@@ -2,8 +2,9 @@
 # Proves the gate's no-C-compiler rule is load-bearing.
 #
 # The build image ships a working `cc`, so the rule is enforced only by the
-# `CC=/nonexistent` in scripts/gate.sh. This script plants a dependency that
-# genuinely needs a C compiler (`ring`) into a default-member crate and checks
+# `CC=/nonexistent` in scripts/gate.sh, over the library crates (the binary
+# links aws-lc for SSH and needs cc). This script plants a dependency that
+# genuinely needs a C compiler (`ring`) into a library crate and checks
 # that the build fails *because cc is missing*, twice, then that the tree
 # builds again once the plant is removed. A guard nobody has seen fail is not
 # a guard.
@@ -34,11 +35,15 @@ restore() {
 trap restore EXIT
 trap 'exit 130' INT TERM
 
+# The crates the rule covers; the same list as scripts/gate.sh.
+LIBS="-p podssh-ws -p podssh-transport -p podssh-core -p podssh-terminal -p podssh-probe"
+
 build() {
-    CC=/nonexistent cargo build "$@" >/tmp/plant-build.out 2>&1
+    # shellcheck disable=SC2086  # $LIBS is a list of flags
+    CC=/nonexistent cargo build $LIBS "$@" >/tmp/plant-build.out 2>&1
 }
 
-echo "== baseline: the default members build with no C compiler"
+echo "== baseline: the library crates build with no C compiler"
 build --locked
 rc=$?
 echo "exit=$rc"

@@ -79,34 +79,43 @@ default build.** The no-C rule now covers the library crates (`podssh-ws`,
 hand-written client in `podssh-core/src/ssh` is removed once `podssh ssh`
 passes its exit criteria.
 
-Then:
-1. An interop harness: OpenSSH and Dropbear servers in a container, run
-   against every change. No SSH change lands on self-consistency tests alone.
-   Exit cases 7, 0, 1, 143 (a signal), 127, and a channel with no exit status;
-   payloads of 262144 and 262145 bytes checked by digest; a clean close (a
-   sibling's transport exited 1 on every clean close); the no-pty paths forced
-   (`sshd -o PermitTTY=no`, a server that never answers `pty-req`, no local
-   terminal) and a shell-only server that refuses `exec`.
-2. Host keys: `known_hosts` lookup, trust-on-first-use prompt,
-   `-o StrictHostKeyChecking=accept-new`, refusal with both fingerprints on a
-   mismatch ([SECURITY.md](../SECURITY.md) lists the parsing traps).
-3. Auth: publickey (ed25519, ecdsa, rsa-sha2), encrypted key files, agent if
-   available; password and keyboard-interactive when a terminal or askpass
-   exists.
-4. Sessions: exec (`podssh ssh host cmd`) with stdout/stderr split and the
-   remote exit status; interactive shell with a pty and raw local terminal;
-   window size and resize ([terminal.md](terminal.md)). Keepalives are on by
-   default (OpenSSH's default is off), every 60 s, below the relay's 180 s idle
-   cut, and unanswered ones are counted.
-5. Hosts with no local pty: the in-process line discipline
-   (`podssh-terminal`), after fixing its inverted mode selection.
+Done 2026-10-08 ([STATUS.md](STATUS.md) has the measurements):
+
+1. [x] An interop harness, run by the gate on every change
+   (`scripts/interop.sh`, `scripts/interop-pty.py`): OpenSSH (with and without
+   `PermitTTY`, and with PAM) and Dropbear on 127.0.0.1; exit statuses 3, 0,
+   1, 127 and 143; payloads of 262144, 262145 and 5,000,000 bytes by digest;
+   every authentication method; host-key refusals; `-W`, `-J`, `-s`, `-N`;
+   ptys through pipes and through a real local pty. Not covered yet: a server
+   that never answers `pty-req`, a shell-only server that refuses `exec`, a
+   channel that closes with no exit status.
+2. [x] Host keys: `known_hosts` lookup (hashed entries, wildcards, negation,
+   `@revoked`), the trust-on-first-use prompt, accept-new, refusal with both
+   fingerprints on a changed key, under every policy.
+3. [x] Auth: agent, key files (Ed25519, ECDSA, RSA with SHA-2), encrypted keys,
+   keyboard-interactive and password, from the terminal or `SSH_ASKPASS`;
+   refusals that say what was skipped and why.
+4. [x] Sessions: exec with stdout/stderr apart and the remote exit status;
+   shell with a pty and raw local terminal; window size and resize; `~.`;
+   keepalives on by default every 60 s.
+5. [ ] The in-process line discipline (`podssh-terminal`) for the one case
+   nothing else covers: a person typing through a frontend that is not a
+   terminal, to a server with no pty and no line discipline of its own. The
+   no-`/dev/ptmx` client is covered without it: `-tt` gives a remote pty over
+   plain pipes (measured: Ctrl-C and `vi` through pipes). Still open: fix its
+   inverted mode selection and wire it behind an explicit flag.
+6. [x] The hand-written client in `podssh-core/src/ssh` and the unreachable
+   `podssh-cli/src/security` module are removed.
 
 The command line follows OpenSSH; [cli.md](cli.md) has the measured details.
 
 **Exit criteria**
-- `podssh ssh user@host 'exit 3'` exits 3, against OpenSSH and Dropbear.
-- An interactive session (`vi`, `less`, `top`, Ctrl-C) works from a normal
-  terminal and from a host with no `/dev/ptmx`.
+- [x] `podssh ssh user@host 'exit 3'` exits 3 against OpenSSH and Dropbear
+      (interop, 2026-10-08), and through the relay (`railway.new`).
+- [x] An interactive session (`vi`, `less`, `top`, Ctrl-C) works from a normal
+      terminal (a local pty, `interop-pty.py`) and from a host with no
+      `/dev/ptmx` (`-tt` over pipes: Ctrl-C and `vi`).
+- [ ] The same from the operator's real sandbox, and on Windows.
 
 ## M3 — Public beta
 
