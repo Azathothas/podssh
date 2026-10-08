@@ -70,6 +70,8 @@ pub async fn authenticate(
         "the server accepts: {}",
         allowed.iter().map(kind_name).collect::<Vec<_>>().join(",")
     ));
+    // The first list, for the refusal: `allowed` changes in the loop.
+    let first_allowed = allowed.clone();
     let mut keys = PublicKeys::new(opts, log.clone());
     let mut exhausted: Vec<Method> = Vec::new();
     let mut kbd_rounds = 0u32;
@@ -112,7 +114,7 @@ pub async fn authenticate(
             Step::Exhausted => exhausted.push(method),
         }
     }
-    notes.extend(keys.notes());
+    notes.extend(key_notes(&opts.methods, &first_allowed, opts.publickey_off.as_deref(), keys.notes()));
     let mut message = format!(
         "{user}@{host}: Permission denied ({}).",
         allowed.iter().map(kind_name).collect::<Vec<_>>().join(",")
@@ -122,6 +124,20 @@ pub async fn authenticate(
         message.push_str(&note);
     }
     Err(message)
+}
+
+/// The notes about keys for a refusal. They name keys only when publickey was
+/// among the methods and the server accepted it at first: else `-i FILE`
+/// cannot help (GitHub #7). A method that the user turned off gets one true
+/// note instead.
+pub(crate) fn key_notes(methods: &[Method], server: &[MethodKind], off: Option<&str>, keys: Vec<String>) -> Vec<String> {
+    if !methods.contains(&Method::PublicKey) {
+        return off.map(|why| vec![format!("publickey was not tried: {why}")]).unwrap_or_default();
+    }
+    if !server.contains(&MethodKind::PublicKey) {
+        return Vec::new();
+    }
+    keys
 }
 
 /// Ask on a blocking thread, so the relay is still read while the user types.
@@ -204,5 +220,27 @@ async fn password(
             notes.push(format!("password authentication was abandoned: {e}"));
             Ok(Step::Exhausted)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn keys() -> Vec<String> {
+        vec!["no key was offered: no agent answered and none of these could be used: id; use -i FILE".into()]
+    }
+
+    #[test]
+    fn denial_notes_name_keys_only_when_keys_were_tried() {
+        let all = [Method::PublicKey, Method::KeyboardInteractive, Method::Password];
+        let server = [MethodKind::PublicKey, MethodKind::Password];
+        // Keys were tried and failed: the note about them stays.
+        assert_eq!(key_notes(&all, &server, None, keys()), keys());
+        // The user turned keys off: one true note, no -i FILE.
+        let off = key_notes(&all[1..], &server, Some("-o PubkeyAuthentication=no"), keys());
+        assert_eq!(off, vec!["publickey was not tried: -o PubkeyAuthentication=no".to_string()]);
+        // The server does not take keys: nothing about them.
+        assert!(key_notes(&all, &[MethodKind::Password], None, keys()).is_empty());
     }
 }

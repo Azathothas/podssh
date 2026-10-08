@@ -190,6 +190,9 @@ pub struct Options {
     /// `PubkeyAuthentication`/`PasswordAuthentication`/
     /// `KbdInteractiveAuthentication` already removed.
     pub methods: Vec<Method>,
+    /// Why `publickey` is not among `methods`, for a refusal: the option that
+    /// removed it. `None` when it is there.
+    pub publickey_off: Option<String>,
     /// `NumberOfPasswordPrompts`.
     pub password_prompts: u32,
     /// `ServerAliveInterval`; `None` turns keepalives off.
@@ -230,6 +233,7 @@ impl Options {
             global_known_hosts: Vec::new(),
             batch_mode: false,
             methods: vec![Method::PublicKey, Method::KeyboardInteractive, Method::Password],
+            publickey_off: None,
             password_prompts: 3,
             keepalive_interval: Some(Duration::from_secs(60)),
             keepalive_max: 3,

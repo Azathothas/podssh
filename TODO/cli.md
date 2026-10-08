@@ -35,9 +35,9 @@ OpenSSH 10.3p1 (`ssh -G -F none`, offline) gives `hostname 2001:db8::1` for
 `[2001:db8::1]:8079`: it reads no port there.
 
 Read: `parse_hop` already removes the brackets
-(`crates/podssh-cli/src/ssh/resolve.rs:274-314`). The refusal is `check_host`
+(`crates/podssh-cli/src/ssh/resolve.rs:280-320`). The refusal is `check_host`
 (`crates/podssh-relay/src/relay.rs:158-174`), called at
-`crates/podssh-cli/src/ssh/resolve.rs:179`, `crates/podssh-cli/src/proxy.rs:112`
+`crates/podssh-cli/src/ssh/resolve.rs:184`, `crates/podssh-cli/src/proxy.rs:112`
 and in `forward_path` (`crates/podssh-relay/src/relay.rs:116-129`); since this
 entry, each calls `check_target` there. Tests assert the refusal:
 `crates/podssh-relay/src/relay.rs:222`, and `crates/podssh-cli/tests/proxy.rs`
@@ -62,7 +62,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
    relay hosts, which are TLS names (`crates/podssh-relay/src/relay.rs:98-114`,
    `crates/podssh-relay/src/pool.rs:79`).
 3. `forward_path` writes the literal in the measured form. `podssh ssh` uses
-   the new check at `crates/podssh-cli/src/ssh/resolve.rs:179`, and refuses
+   the new check at `crates/podssh-cli/src/ssh/resolve.rs:184`, and refuses
    `-4` with an IPv6 literal (64).
 4. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:101-114`): `HOST PORT` takes
    a bare literal (the `%h %p` form) or `[V6]`. One word takes `[V6]:PORT` and
@@ -473,7 +473,7 @@ Measured offline (`PODSSH_OFFLINE=1`):
   name cannot start with '-'". `--relay-host=evil.example` there sets the relay.
 - `podssh proxy --relay-host=evil.example 22` is 64, `missing PORT`.
 - Exit 64: `ssh -- -oProxyCommand=x`, `ssh -- user@-x true`, `ssh -J=-x host`
-  (`crates/podssh-cli/src/ssh/resolve.rs:310-312`); `ssh --relay-host=-x host`,
+  (`crates/podssh-cli/src/ssh/resolve.rs:316-318`); `ssh --relay-host=-x host`,
   `proxy -- -oX 22`, `proxy - 22` (`crates/podssh-relay/src/relay.rs:167-169`).
   `ssh -- host -x` runs the command `-x`: `--` ends the options.
 - `ssh --direct -oHostName=-x host true` reaches the offline stop: `HostName`
@@ -500,7 +500,7 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
 4. Check `HostName` with the rule of the destination: one function for the
-   checks at `crates/podssh-cli/src/ssh/resolve.rs:307-312`, also called at
+   checks at `crates/podssh-cli/src/ssh/resolve.rs:313-318`, also called at
    `crates/podssh-cli/src/ssh/resolve.rs:92-98`.
 5. Same commit: `docs/cli.md:53-66` (the `--` rule, and a host that starts
    with `-` is refused, as OpenSSH refuses it), `docs/STATUS.md`.
@@ -1427,7 +1427,7 @@ Read: `select_relays` (`crates/podssh-relay/src/relay.rs:55-75`) and
 `pins::apply` (`crates/podssh-cli/src/pins.rs:10-20`) give one error for the
 flag and for the variable. Each caller maps it to 64:
 `crates/podssh-cli/src/proxy.rs:60-71`, `crates/podssh-cli/src/ssh/mod.rs:33-43`
-(through `crates/podssh-cli/src/ssh/resolve.rs:178`), and
+(through `crates/podssh-cli/src/ssh/resolve.rs:183`), and
 `crates/podssh-cli/src/doctor/mod.rs:47-56` (read, not run). The code 78
 exists (`crates/podssh-cli/src/exitmap.rs:54`), and `podssh proxy` gives it for
 a bad proxy URL or token (`crates/podssh-cli/src/proxy.rs:162-175`).
@@ -1496,7 +1496,7 @@ texts: `--accept-new` at `crates/podssh-cli/src/non_interactive.rs:245-246`,
 flag (`crates/podssh-cli/tests/non_interactive.rs:225`).
 
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:78`), called at
-`crates/podssh-ssh/src/auth.rs:141`, `crates/podssh-ssh/src/auth.rs:193`,
+`crates/podssh-ssh/src/auth.rs:157`, `crates/podssh-ssh/src/auth.rs:209`,
 `crates/podssh-ssh/src/keys.rs:190` and `crates/podssh-cli/src/keygen.rs:169`.
 Its refusals name the real remedies (`docs/cli.md:163-165`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,

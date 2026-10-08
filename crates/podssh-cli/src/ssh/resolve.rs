@@ -128,6 +128,11 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
         Method::Password => settings.password != Some(false),
         Method::KeyboardInteractive => settings.kbd_interactive != Some(false),
     });
+    let publickey_off = match (methods.contains(&Method::PublicKey), settings.pubkey) {
+        (true, _) => None,
+        (false, Some(false)) => Some("-o PubkeyAuthentication=no".to_string()),
+        (false, _) => Some("PreferredAuthentications does not list publickey".to_string()),
+    };
 
     let request = request(args, &settings)?;
     let request_tty = if matches!(request, Request::StdioForward { .. } | Request::Nothing) || args.no_tty {
@@ -221,6 +226,7 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
     options.global_known_hosts = global_known_hosts;
     options.batch_mode = settings.batch_mode.unwrap_or(false);
     options.methods = methods;
+    options.publickey_off = publickey_off;
     options.password_prompts = settings.password_prompts.unwrap_or(3);
     options.keepalive_interval = keepalive_interval;
     options.keepalive_max = settings.alive_count.unwrap_or(3);

@@ -241,7 +241,7 @@ refused. ... podssh reads no ssh_config, so it has no configuration to print."
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:77-244`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:77-250`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41), holds the settings in effect, the defaults included.
 
 ## Approach
@@ -371,7 +371,7 @@ command, or edits a shell profile. No file states them once.
 
 Read: each command resolves the same settings in its own copy. Relay hosts (`--relay-host`,
 then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:55-75`)
-in `crates/podssh-cli/src/ssh/resolve.rs:177-178`, `crates/podssh-cli/src/doctor/mod.rs:51-58`
+in `crates/podssh-cli/src/ssh/resolve.rs:182-183`, `crates/podssh-cli/src/doctor/mod.rs:51-58`
 and `crates/podssh-cli/src/proxy.rs:64-71`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
 `resolve.rs:174-177`, `doctor/mod.rs:59-64` and `proxy.rs:73-77`. The pins of the flag and of
 the variable add up (`crates/podssh-cli/src/pins.rs:10-20`). The token cache uses the user's

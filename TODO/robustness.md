@@ -112,10 +112,10 @@ counted and typed by hand.
 ## Premise
 
 Read: `scripts/interop.sh:22-24` defines `ok`, `bad` and `skipped`, and
-`scripts/interop.sh:265-266` fails only when a check failed. With no
+`scripts/interop.sh:268-269` fails only when a check failed. With no
 `sshd.pam` in the image, the PAM check becomes `skip` and the gate stays
-green (`scripts/interop.sh:168-174`). A name carries values of the run (the
-seconds at `scripts/interop.sh:214`, the tty at line 221), so it is not a
+green (`scripts/interop.sh:171-177`). A name carries values of the run (the
+seconds at `scripts/interop.sh:217`, the tty at line 221), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
@@ -436,9 +436,9 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 71-136 (`docs/STATUS.md:168-184`, 11 of 11).
+  checks are at lines 73-151 (`docs/STATUS.md:169-186`, 12 of 12 since T-057).
 - The time limits that latency meets today: the SSH handshake, 60 s
-  (`crates/podssh-ssh/src/options.rs:236`, enforced at
+  (`crates/podssh-ssh/src/options.rs:240`, enforced at
   `crates/podssh-ssh/src/run.rs:109-114`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).

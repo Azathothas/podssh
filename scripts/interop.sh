@@ -165,6 +165,9 @@ grep -q "Permission denied" "$W/err" && ok "a wrong password says Permission den
 p 2201 -o PubkeyAuthentication=no -o BatchMode=yes "$T" true </dev/null >"$W/out" 2>"$W/err"
 expect_rc "password with BatchMode" 255 $? "$W/err"
 grep -q "password authentication was skipped" "$W/err" && ok "BatchMode names the skipped password" || bad "no note" "$W/err"
+# Keys were turned off, so the refusal does not send the user to -i FILE (GitHub #7).
+grep -q "publickey was not tried: -o PubkeyAuthentication=no" "$W/err" && ! grep -q "no key was offered" "$W/err" \
+    && ok "keys turned off: the refusal says so and does not name -i" || bad "keys turned off: the wrong note" "$W/err"
 if [ -n "$PAM_SSHD" ]; then
     SSH_ASKPASS="$W/askpass-password" SSH_ASKPASS_REQUIRE=force \
         p 2204 -o PubkeyAuthentication=no "$T" 'exit 6' </dev/null >"$W/out" 2>"$W/err"

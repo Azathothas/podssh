@@ -16,7 +16,7 @@ These commands work: `podssh ssh`, `podssh proxy`, `podssh doctor`,
 code 70.
 
 - `podssh ssh` is an SSH client on `russh`, with the command line of
-  OpenSSH. It passes 62 of 62 checks against OpenSSH and Dropbear servers in
+  OpenSSH. It passes 63 of 63 checks against OpenSSH and Dropbear servers in
   the gate, 14 of 14 interactive checks in a Windows console, and real
   logins through the live relay.
 - `podssh proxy HOST PORT` carries a TCP stream through the relay, directly
@@ -56,7 +56,7 @@ in [ROADMAP.md](ROADMAP.md).
 
 | Check | Result |
 | --- | --- |
-| `scripts/interop.sh` in the gate: the static binary against OpenSSH (with and without `PermitTTY`, and with PAM) and Dropbear on 127.0.0.1 | **62 of 62.** Exit statuses 3, 0, 1, 127 and 143 (a signal) on both servers. stdout and stderr stay apart. 262144, 262145 and 5,000,000 bytes up and back with equal digests. Ed25519, RSA and ECDSA keys; an encrypted key and a password through `SSH_ASKPASS`; a wrong password; `BatchMode` refusals; PAM keyboard-interactive. accept-new and strict host keys; a changed key refused even with `StrictHostKeyChecking=no`. `-W`, `-J`, `SetEnv`, `-N`, `-s sftp`. `-tt` over pipes (Ctrl-C, `vi`, the `PermitTTY=no` fallback). A local pty (`interop-pty.py`): size, resize, Ctrl-C, `vi`, `less`, `top`, exit status, `~.`, the terminal restored. |
+| `scripts/interop.sh` in the gate: the static binary against OpenSSH (with and without `PermitTTY`, and with PAM) and Dropbear on 127.0.0.1 | **63 of 63** (gate run of 2026-10-08, after T-023). Exit statuses 3, 0, 1, 127 and 143 (a signal) on both servers. stdout and stderr stay apart. 262144, 262145 and 5,000,000 bytes up and back with equal digests. Ed25519, RSA and ECDSA keys; an encrypted key and a password through `SSH_ASKPASS`; a wrong password; `BatchMode` refusals; PAM keyboard-interactive. accept-new and strict host keys; a changed key refused even with `StrictHostKeyChecking=no`. `-W`, `-J`, `SetEnv`, `-N`, `-s sftp`. `-tt` over pipes (Ctrl-C, `vi`, the `PermitTTY=no` fallback). A local pty (`interop-pty.py`): size, resize, Ctrl-C, `vi`, `less`, `top`, exit status, `~.`, the terminal restored. |
 | Through the relay to `railway.new` (an anonymous SSH service, a throwaway key), Windows build | `exit 3` gives 3. The host key is recorded with accept-new. 300 KB up and 5 MB down with equal digests. Changed, revoked, strict-unknown and batch-unknown host keys are refused (255) with the fingerprints. That server refuses `-W`; podssh reports it and exits 255. |
 | A remote command killed by a signal, on `railway.new` | 255, as with OpenSSH: that server sends exit status -1, not an exit signal. |
 | `--direct` to a Tailscale SSH server, Windows build | A command and its exit status 4; `-s sftp`. |
@@ -66,6 +66,7 @@ in [ROADMAP.md](ROADMAP.md).
 | A flag with no value (T-009, GitHub #8), offline | `podssh ssh -p` says `podssh ssh: -p (--port) needs a value: PORT.`, exit 64; the same for `ssh -o`, `keygen -f`, `proxy --relay-host`, `doctor --ca-file` and `ssh -l -x host`. `ssh -L` with no value refuses as with one. Before, each said `unknown flag '--port <PORT>'`. |
 | A word after `podssh --help` or `--version` (T-010, GitHub #10), offline | `podssh --help ssh` prints the help of `ssh`. `--help --json`, `--help ssh extra`, `--help --help`, `--version --json` and `-V example.org` exit 64 and name the word, with nothing on stdout. Before, each printed the top-level help or the version and exited 0. |
 | A host or target that starts with `-` (T-011), offline | Exit 64 before any connection for `ssh -- -oProxyCommand=x`, `ssh -- user@-x`, `ssh -J=-x`, `ssh --relay-host=-x`, `-o HostName=-x` (which had reached the connection), `proxy -- -oX 22` and `proxy - 22`. `proxy --relay-host=evil.example 22` names `--` as the remedy. The help, the manual (a note for `ssh` and `proxy`, an example) and `docs/cli.md` show `[--]` before the host. |
+| Keys turned off, against OpenSSH in the gate (T-023, GitHub #7) | With `-o PubkeyAuthentication=no` and `BatchMode`, the refusal says `publickey was not tried: -o PubkeyAuthentication=no`, and no longer `no key was offered ... use -i FILE`; the gate's binary of `3cd368b` still printed that note. A server that does not take keys gets no note about keys. |
 | IPv6 addresses (T-007, GitHub #2), offline and through the live relay | `u@V6`, `u@[V6]:PORT`, `ssh://u@[V6]:PORT`, and the same in `-J` and `-W`, pass each check of the client (`cargo test -p podssh-cli --test ssh_args -- ipv6`); `-4` with an IPv6 address and `-6` with an IPv4 address exit 64. Through the relay, the session to `[2001:4860:4860::8888]:853` opened and the relay closed it at once with 1011 "target closed before sending anything"; podssh adds a note on the relay's IPv6 route and names `--direct` (T-253). |
 | A `/dev/tty` that is not the controlling terminal, or a terminal that nobody watches (`cargo test -p podssh-ssh`, Linux; the box) | The terminal is used only when the kernel names it (`isatty`, the same session, `tty_nr` not 0). With stdin, stdout and stderr all redirected, a prompt waits 60 s at most, then refuses with the remedy. A sandbox had measured a silent hang: `/dev/tty` opened with no controlling terminal, and the read never returned. In the box, with such a `/dev/tty`, `keygen` and the host-key prompt refuse within 1 s ("In a box like the target sandbox"). |
 | In two real sandboxes, 2026-10-08 (T-001) | `ssh -T` and `ssh -tt` to `github.com` reach `Permission denied (publickey)` through the relay. In one run, the relay closed the session with `1011 write failed: Network connection lost` (T-024). Interactive programs over `-tt` were not run (T-004). See "In the operator's real sandboxes, measured". |
@@ -161,11 +162,11 @@ Not measured in a real sandbox yet: interactive programs over `-tt`
 | The binary: `podssh man`, `--no-pager`, `--roff`, a section, an unknown section | The same bytes as the library, nothing on stderr. An unknown section exits 64 and lists the sections. The bytes are the same with an empty environment and with a token, proxy credentials and other settings set; none of them is shown. With no terminal, `PAGER` is not started. |
 | A real Windows console (ConPTY, 20 rows), debug build | 8 of 8: the built-in pager shows one screen and its prompt; Enter shows the next; `q` and the end of input stop it with exit 0; `--no-pager` writes to the end with no prompt. |
 | groff 1.23.0 and mandoc, Alpine 3.22 | The former `Fl` macro (`\$*`) printed blank flag names in both. The new page shows each flag in both. |
-| `scripts/interop-man.sh` in the container gate, the static binary | 48 flag spellings from the `--help` of `ssh`, `proxy`, `man`, `doctor` and `keygen`: groff and mandoc show each one. groff `-ww` gives no warning; `mandoc -Tlint` gives no error. The planted page (one flag's term removed) fails. |
+| `scripts/interop-man.sh` in the container gate, the static binary | 64 flag spellings from the `--help` of `ssh`, `proxy`, `man`, `doctor` and `keygen` (gate run of 2026-10-08, after T-023): groff and mandoc show each one. groff `-ww` gives no warning; `mandoc -Tlint` gives no error. The planted page fails (2 spellings missing). |
 
 ## Faults between podssh and the relay, measured
 
-`scripts/interop-faults.sh` in the gate, 2026-10-08, **11 of 11**. A
+`scripts/interop-faults.sh` in the gate, 2026-10-08, **12 of 12** (after T-023). A
 stand-in relay and a stand-in proxy fail in one way each, with OpenSSH
 behind them.
 
@@ -204,12 +205,12 @@ behind them.
 | What | Result | Command |
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
-| The default tests | **739 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
+| The default tests | **740 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
 | The work record | `TODO/` agrees with itself. The checker's tests pass: 12 unit tests, 32 plant tests (the control, and 31 planted disagreements, each found), 10 tests of the remap, 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 8 of its 10 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |
-| The static release binary | **4,008,448 bytes**: a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
-| The container gate | **Green**: each build and test step; interop 98 of 98 (62 SSH checks, 25 keygen checks, 11 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
+| The static release binary | **4,086,272 bytes** (gate run of 2026-10-08, after T-023): a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
+| The container gate | **Green** (run of 2026-10-08, after T-023): each build and test step; interop 100 of 100 (63 SSH checks, 25 keygen checks, 12 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
 | The no-C plant | Fails for the right reason when `ring` is planted (no C compiler), twice, and when a crate that compiles C++ is planted (it stops at `CXX=/nonexistent`). With `CC=/nonexistent` alone, the C++ build is not stopped there, so `CXX` is load-bearing. The control passes. Measured 2026-10-08 in `rust:1-alpine`. | `sh scripts/dev.sh plant` |
 | CI | Runs the gate on each push. Each run from `9b806fe` to `e275d36` passed. | `gh run list` |
 | The release workflow, run by hand | Linux x86_64 and aarch64 static, Windows with no C runtime DLL; publish skipped | `gh workflow run release.yml --ref main` |
