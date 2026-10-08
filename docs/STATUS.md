@@ -9,10 +9,9 @@ whenever the state changes, with the date and the command that measured it.
 **`podssh ssh` and `podssh proxy` work; nothing else does yet.**
 
 - `podssh ssh` is a native SSH client (on `russh`) with OpenSSH's command
-  line. On 2026-10-08 it passed 60 of 61 checks against real OpenSSH and
-  Dropbear servers in the container gate (the one failure was the test, fixed
-  the same day), ran through the live relay to `railway.new`, and ran
-  `--direct` against a Tailscale SSH server.
+  line. On 2026-10-08 it passed all 62 checks against real OpenSSH and
+  Dropbear servers in the container gate, ran through the live relay to
+  `railway.new`, and ran `--direct` against a Tailscale SSH server.
 - `podssh proxy HOST PORT` carries a TCP stream through the relay, directly or
   through an HTTP CONNECT proxy, and works as an OpenSSH `ProxyCommand`
   (verified live 2026-10-08, including a 10-minute idle session).
@@ -39,8 +38,8 @@ The IRC code has wire-level bugs found by review
 
 | check | result |
 | --- | --- |
-| `scripts/interop.sh` in `rust:1-alpine`: the static binary against OpenSSH (Alpine `openssh-server`, with and without `PermitTTY`, and with PAM) and Dropbear on 127.0.0.1 | **60 of 61 passed**: exit statuses 3, 0, 1, 127 and 143 (a signal) on both servers; stdout/stderr apart; 262144, 262145 and 5,000,000 bytes up and round trip with equal digests, both servers; Ed25519, RSA, ECDSA, an encrypted key via `SSH_ASKPASS`, password via `SSH_ASKPASS` (both servers), wrong password, `BatchMode` refusals with notes, PAM keyboard-interactive; accept-new, strict, a changed key refused even with `StrictHostKeyChecking=no`; `-W` to Dropbear through OpenSSH; `-J` OpenSSH to Dropbear (exit 5); `SetEnv`; `-N`; `-tt` over pipes (remote pty, the `PermitTTY=no` fallback, Ctrl-C as a byte); a local pty (`interop-pty.py`): size, resize, Ctrl-C, `vi`, `less`, `top`, exit status, `~.`, terminal restored |
-| the failure | `-s sftp` returned nothing: the test closed stdin at once, and OpenSSH's `sftp-server` exits on end of input without replying (reproduced on a Debian host without podssh). With stdin held open, `podssh ssh -s HOST sftp` returns `SSH_FXP_VERSION` (measured against a Tailscale SSH server). Test fixed; gate re-run pending |
+| `scripts/interop.sh` in `rust:1-alpine`: the static binary against OpenSSH (Alpine `openssh-server`, with and without `PermitTTY`, and with PAM) and Dropbear on 127.0.0.1 | **62 of 62 passed** (second run; the first passed 60 of 61, see below): exit statuses 3, 0, 1, 127 and 143 (a signal) on both servers; stdout/stderr apart; 262144, 262145 and 5,000,000 bytes up and round trip with equal digests, both servers; Ed25519, RSA, ECDSA, an encrypted key via `SSH_ASKPASS`, password via `SSH_ASKPASS` (both servers), wrong password, `BatchMode` refusals with notes, PAM keyboard-interactive; accept-new, strict, a changed key refused even with `StrictHostKeyChecking=no`; `-W` to Dropbear through OpenSSH; `-J` OpenSSH to Dropbear (exit 5); `SetEnv`; `-N`; `-tt` over pipes (remote pty, the `PermitTTY=no` fallback, Ctrl-C as a byte); `vi` through pipes; `-s sftp` answering `SSH_FXP_VERSION`; a local pty (`interop-pty.py`): size, resize, Ctrl-C, `vi`, `less`, `top`, exit status, `~.`, terminal restored |
+| the first run's failure | `-s sftp` returned nothing: the test closed stdin at once, and OpenSSH's `sftp-server` exits on end of input without replying (reproduced on a Debian host without podssh). With stdin held open, `podssh ssh -s HOST sftp` returns `SSH_FXP_VERSION`; the test now holds it open |
 | through the relay to `railway.new` (anonymous SSH service, throwaway key), Windows build | `exit 3` gives 3; host key recorded with accept-new; stdout/stderr apart; 300 KB up and 5 MB down with equal digests; changed, revoked, strict-unknown and batch-unknown host keys all refused (255) with the fingerprints; `-W` refused by that server, reported, 255 |
 | `--direct` to a Tailscale SSH server over the tailnet, Windows build | a command and exit status 4 passed through; `-s sftp` |
 | a remote command killed by a signal, on `railway.new` | 255, as OpenSSH: that server reports exit status -1 instead of an exit signal |
@@ -85,7 +84,7 @@ The IRC code has wire-level bugs found by review
 | Tailscale feature tests | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | repository checks | pass | `python scripts/check-repo.py` |
 | static release binary | **3,586,496 bytes** with the SSH client (aws-lc and russh), static PIE, no `NEEDED` entries, no interpreter. It was 1,622,944 with `proxy` only, and 7,403,072 while the Tailscale fork was linked | `scripts/gate.sh` |
-| container gate | every build and test step green; interop 60 of 61 (see above) | `sh scripts/dev.sh check` |
+| container gate | **green**: every build and test step, and interop 62 of 62 | `sh scripts/dev.sh check` |
 | no-C plant | fires twice for the right reason (a planted `ring` fails because no C compiler exists), control passes | `sh scripts/dev.sh plant` |
 | CI | the repository is public since 2026-10-08; the first run on it (commit `9a03102`) passed | `gh run list` |
 

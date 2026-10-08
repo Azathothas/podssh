@@ -82,11 +82,12 @@ passes its exit criteria.
 Done 2026-10-08 ([STATUS.md](STATUS.md) has the measurements):
 
 1. [x] An interop harness, run by the gate on every change
-   (`scripts/interop.sh`, `scripts/interop-pty.py`): OpenSSH (with and without
-   `PermitTTY`, and with PAM) and Dropbear on 127.0.0.1; exit statuses 3, 0,
-   1, 127 and 143; payloads of 262144, 262145 and 5,000,000 bytes by digest;
-   every authentication method; host-key refusals; `-W`, `-J`, `-s`, `-N`;
-   ptys through pipes and through a real local pty. Not covered yet: a server
+   (`scripts/interop.sh`, `scripts/interop-pty.py`; 62 checks, all passing):
+   OpenSSH (with and without `PermitTTY`, and with PAM) and Dropbear on
+   127.0.0.1; exit statuses 3, 0, 1, 127 and 143; payloads of 262144, 262145
+   and 5,000,000 bytes by digest; every authentication method; host-key
+   refusals; `-W`, `-J`, `-s`, `-N`; ptys through pipes and through a real
+   local pty. Not covered yet: a server
    that never answers `pty-req`, a shell-only server that refuses `exec`, a
    channel that closes with no exit status.
 2. [x] Host keys: `known_hosts` lookup (hashed entries, wildcards, negation,
