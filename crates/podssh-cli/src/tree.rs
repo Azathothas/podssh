@@ -40,7 +40,7 @@ fn appended(long: &str) -> bool {
 /// A pod name in the parser's grammar. ⛔ `ssh`/`cp` take their own so that a
 /// token the top level did not consume is reported against the verb the user
 /// actually typed, naming that verb's flags.
-fn add_flag(cmd: Command, row: &'static FlagRow) -> Command {
+fn add_flag(cmd: Command, row: &'static FlagRow, keep_each: bool) -> Command {
     let mut arg = Arg::new(row.long).long(row.long).help(row.help);
     // ⛔ A row that takes an argument is `Set`; a boolean is `SetTrue`; `-v` and
     // `-q` are **counts**.
@@ -58,7 +58,9 @@ fn add_flag(cmd: Command, row: &'static FlagRow) -> Command {
     // are the two rows with `arg: None` and a counted spelling), and the `None`
     // arm below is where they are matched.
     arg = match row.arg {
-        Some(a) if appended(row.long) => arg.value_name(a).num_args(1).action(ArgAction::Append),
+        // `ssh` keeps each value of a repeated flag, and `ssh::args` picks one
+        // the way OpenSSH does, or refuses the repeat.
+        Some(a) if keep_each || appended(row.long) => arg.value_name(a).num_args(1).action(ArgAction::Append),
         Some(a) => arg.value_name(a).num_args(1).action(ArgAction::Set),
         None if counted(row.long) => arg.action(ArgAction::Count),
         None => arg.action(ArgAction::SetTrue),
@@ -88,7 +90,7 @@ pub fn verb_command(verb: &'static Verb) -> Command {
                 .help(crate::flags::HELP_FLAG.help),
         );
     for row in verb.flags {
-        cmd = add_flag(cmd, row);
+        cmd = add_flag(cmd, row, verb.name == "ssh");
     }
     cmd = crate::positionals::add(cmd, verb.name);
     for alias in verb.aliases {
@@ -424,6 +426,11 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         .flatten();
     let jsonl = verb.flags.iter().any(|r| r.long == "jsonl") && matches.get_flag("jsonl");
 
+    if verb.name == "ssh" {
+        if let Some(refusal) = crate::ssh::args::repeated(&matches) {
+            return Parsed::Usage(refusal);
+        }
+    }
     let ssh = (verb.name == "ssh").then(|| Box::new(crate::ssh::args::SshArgs::from_matches(&matches)));
     let keygen = (verb.name == "keygen").then(|| Box::new(crate::keygen::KeygenArgs::from_matches(&matches)));
     Parsed::Command { verb: verb.name, refused, tag, timeout, jsonl, ssh, keygen }

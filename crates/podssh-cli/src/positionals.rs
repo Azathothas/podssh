@@ -10,8 +10,8 @@ pub fn add(cmd: Command, name: &str) -> Command {
     match name {
         // As OpenSSH: options may follow the destination, and the first word
         // after it starts the command, which takes everything after it
-        // (`podssh ssh host ls -la` runs `ls -la`). Repeating a flag is
-        // allowed; the last value wins, as in OpenSSH's own parser.
+        // (`podssh ssh host ls -la` runs `ls -la`). A repeated switch is
+        // allowed; for a repeated value, `ssh::args` follows OpenSSH.
         "ssh" => cmd
             .args_override_self(true)
             .arg(

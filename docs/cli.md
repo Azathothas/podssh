@@ -54,6 +54,12 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   contain `:`, and an IPv6 literal needs brackets.
 - `-N` alone is valid. `-W HOST:PORT` is a stdio forward: no session, and
   exit when the forward fails. `-V` prints the version and does not connect.
+- **A repeated value follows OpenSSH** (measured with `ssh -G`): the first
+  `-p` and `-l`, the last `-e`, `-E` and `-F`, and the first value of each
+  `-o` keyword. A second `-J` or `-W` is an error, as in OpenSSH. podssh's
+  own `--relay-host`, `--relay-addr` and `--ca-file` may be given once: a
+  comma list gives several hosts or addresses, and no relay or trust store
+  is chosen by its place on the command line.
 - Each flag in the usage of OpenSSH 10.3p1 has a row: supported, accepted
   with no effect (`-P`, `-g`), or refused by name with what to use instead.
   `tests/flag_table.rs` holds the reviewed set. A refusal with nothing to use

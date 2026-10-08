@@ -46,12 +46,48 @@ pub struct SshArgs {
 /// The long-only rows that are spellings of `-o NAME=VALUE`.
 pub const OPTION_FLAGS: &[&str] = &["StrictHostKeyChecking", "UserKnownHostsFile", "LogLevel", "ConnectTimeout"];
 
+/// The flags that may be given once, and how to give several values instead.
+/// OpenSSH refuses a second `-J` ("Only a single -J option is permitted") and
+/// a second `-W`. podssh's own relay and trust flags are here too, so that no
+/// relay host or trust store is chosen by its place on the command line.
+pub const ONCE: &[(&str, &str)] = &[
+    ("jump-host", "give the hops as one comma list, as in -J a,b"),
+    ("stdio-forward", "give one HOST:PORT"),
+    ("relay-host", "give the hosts as one comma list"),
+    ("relay-addr", "give the addresses as one comma list"),
+    ("ca-file", "give one file"),
+];
+
+/// The refusal for a flag of [`ONCE`] given more than once, if there is one.
+pub fn repeated(m: &ArgMatches) -> Option<String> {
+    ONCE.iter().find_map(|(id, how)| {
+        let n = m.try_get_many::<String>(id).ok().flatten().map_or(0, |v| v.len());
+        (n > 1).then(|| {
+            let spelling = crate::flags::SSH_FLAGS
+                .iter()
+                .find(|r| r.long == *id)
+                .map_or_else(|| format!("--{id}"), |r| r.spelling());
+            format!("podssh ssh: {spelling} was given {n} times; {how}.\n  Nothing has been attempted.")
+        })
+    })
+}
+
 impl SshArgs {
     /// Read the values out of `ssh`'s matches. Only ids the table declares
     /// are read, so this never panics on a missing id.
     pub fn from_matches(m: &ArgMatches) -> Self {
         let has = |id: &str| m.try_contains_id(id).unwrap_or(false);
+        // A repeated value: OpenSSH keeps the first `-p` and `-l` (and the
+        // first value of each `-o` keyword), but the last `-e`, `-E` and `-F`.
+        // The flags of [`ONCE`] are refused before this when repeated.
         let one = |id: &str| if has(id) { m.get_one::<String>(id).cloned() } else { None };
+        let last = |id: &str| {
+            if has(id) {
+                m.get_many::<String>(id).and_then(|v| v.last()).cloned()
+            } else {
+                None
+            }
+        };
         let many = |id: &str| -> Vec<String> {
             if has(id) {
                 m.get_many::<String>(id).map(|v| v.cloned().collect()).unwrap_or_default()
@@ -63,7 +99,7 @@ impl SshArgs {
         let count = |id: &str| if has(id) { m.try_get_one::<u8>(id).ok().flatten().copied().unwrap_or(0) } else { 0 };
         let long_options = OPTION_FLAGS
             .iter()
-            .filter_map(|name| one(name).map(|v| format!("{name}={v}")))
+            .flat_map(|name| many(name).into_iter().map(move |v| format!("{name}={v}")))
             .collect();
         SshArgs {
             destination: one("destination"),
@@ -78,15 +114,15 @@ impl SshArgs {
             ipv4: flag("ipv4-only"),
             ipv6: flag("ipv6-only"),
             stdio_forward: one("stdio-forward"),
-            log_file: one("log-file"),
-            config: one("config"),
+            log_file: last("log-file"),
+            config: last("config"),
             verbose: count("verbose"),
             quiet: count("quiet"),
             options: many("option"),
             long_options,
             stdin_null: flag("stdin-null"),
             subsystem: flag("subsystem"),
-            escape_char: one("escape-char"),
+            escape_char: last("escape-char"),
             compression: flag("compress"),
             version: flag("version"),
             relay_host: one("relay-host"),

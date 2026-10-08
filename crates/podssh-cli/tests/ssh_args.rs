@@ -53,6 +53,50 @@ fn attached_values_counts_and_repeats() {
     assert!(a.no_tty && a.stdin_null);
 }
 
+/// A repeated value follows OpenSSH 10.3p1 (measured with `ssh -G`): the
+/// first `-p` and `-l`, the last `-e`, `-E` and `-F`, and the first value
+/// of each keyword, also in its long spelling.
+#[test]
+fn a_repeated_value_follows_openssh() {
+    let a = ssh(&["-p", "2222", "-p", "22", "-l", "alice", "-l", "bob", "host"]);
+    assert_eq!(a.port.as_deref(), Some("2222"));
+    assert_eq!(a.login.as_deref(), Some("alice"));
+    let a = ssh(&["-e", "~", "-e", "%", "-E", "a.log", "-E", "b.log", "-F", "x", "-F", "none", "host"]);
+    assert_eq!(a.escape_char.as_deref(), Some("%"));
+    assert_eq!(a.log_file.as_deref(), Some("b.log"));
+    assert_eq!(a.config.as_deref(), Some("none"));
+    let a = ssh(&["--StrictHostKeyChecking", "yes", "--StrictHostKeyChecking", "no", "host"]);
+    let r = resolve(&a, &env()).unwrap();
+    assert_eq!(r.options.strict_host_key_checking, StrictHostKeyChecking::Yes);
+    assert_eq!(r.options.destination.port, 22);
+    let r = resolve(&ssh(&["-p", "2222", "-p", "22", "host"]), &env()).unwrap();
+    assert_eq!(r.options.destination.port, 2222);
+}
+
+/// A second `-J` or `-W` is refused, as OpenSSH refuses it, and so is a
+/// second relay or trust flag: no hop or trust store is dropped silently.
+#[test]
+fn a_flag_that_may_be_given_once_is_refused_when_repeated() {
+    for words in [
+        vec!["ssh", "-J", "a.invalid", "-J", "b.invalid", "host"],
+        vec!["ssh", "-W", "a:1", "-W", "b:2", "host"],
+        vec!["ssh", "--relay-host", "r1", "--relay-host", "r2", "host"],
+        vec!["ssh", "--relay-addr", "r=1.1.1.1", "--relay-addr", "r=2.2.2.2", "host"],
+        vec!["ssh", "--ca-file", "a.pem", "--ca-file", "b.pem", "host"],
+    ] {
+        match parse(words.clone()) {
+            Parsed::Usage(m) => {
+                assert!(m.contains("was given 2 times"), "{words:?}: {m}");
+                assert!(m.contains(words[1]), "{words:?}: the refusal does not name {}: {m}", words[1]);
+            }
+            other => panic!("{words:?} was not refused: {other:?}"),
+        }
+    }
+    // The control: one -J with two hops is a chain.
+    let r = resolve(&ssh(&["-J", "a.invalid,b.invalid", "host"]), &env()).unwrap();
+    assert_eq!(r.options.jump.len(), 2);
+}
+
 #[test]
 fn the_long_spellings_of_options_become_options() {
     let a = ssh(&["--StrictHostKeyChecking", "accept-new", "--ConnectTimeout", "5", "host"]);

@@ -32,6 +32,9 @@ const SSH: &[&str] = &[
      one connection over the session.",
     "-P is the tag of OpenSSH on ssh, not a port, and podssh ignores it. On scp and sftp, -P is the port. \
      Use -p for the port of ssh.",
+    "A repeated value follows OpenSSH: the first -p and -l, the last -e, -E and -F, and the first value \
+     of each -o keyword. A second -J or -W is refused, and so is a second --relay-host, --relay-addr or \
+     --ca-file: give several hops, hosts or addresses as one comma list.",
     "podssh sends keepalives (ServerAliveInterval), so the relay does not close an idle session.",
 ];
 
