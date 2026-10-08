@@ -178,9 +178,17 @@ async fn relay_to_stdout(session: Arc<RelaySession>) -> Result<Ended, String> {
 
 async fn finish(ended: Result<Ended, String>, session: &RelaySession, err: &mut dyn Write) -> i32 {
     match ended {
-        Ok(Ended::Closed { code: None | Some(1000) | Some(1001), .. }) => 0,
+        // 1000 is a normal end (the target closed). The relay uses 1001 for its
+        // own limits ("idle timeout", "session time cap"), which are not.
+        Ok(Ended::Closed { code: None | Some(1000), .. }) => 0,
         Ok(Ended::Closed { code: Some(code), reason }) => {
             let _ = writeln!(err, "podssh: the relay closed the session: {code} {reason}");
+            if reason.contains("idle") {
+                let _ = writeln!(
+                    err,
+                    "podssh: the relay closes a session after 180 s without traffic; set ServerAliveInterval below 180"
+                );
+            }
             EX_UNAVAILABLE
         }
         Ok(Ended::OutputGone) => {

@@ -48,6 +48,9 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
     for note in &resolved.notes {
         log.verbose(note);
     }
+    for warning in &resolved.warnings {
+        log.info(warning);
+    }
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
         Err(e) => {

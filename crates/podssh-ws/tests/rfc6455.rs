@@ -456,3 +456,31 @@ fn the_status_code_survives_into_the_error() {
         }
     }
 }
+
+/// The relay's connect knobs are the one exception: `-4`/`-6` add
+/// `?family=`, and `?dial=lazy`, `?path=` and `?precheck=` are documented
+/// knobs. None can carry a secret; anything else is still refused.
+#[test]
+fn only_the_relays_connect_knobs_may_ride_in_the_path() {
+    let config = |path: &str| podssh_ws::WsClientConfig {
+        endpoint: podssh_ws::Endpoint { host: "relay.example".into(), port: 443, path: path.into() },
+        trust: podssh_ws::Trust::File("/nonexistent/podssh-ca.pem".into()),
+        server_name: "relay.example".into(),
+        timeout: std::time::Duration::from_secs(1),
+        idle_timeout: None,
+        proxy: podssh_ws::ProxyChoice::Direct,
+    };
+    for ok in ["/connect/h/22?family=4", "/connect/h/22?family=6", "/connect/h/22?dial=lazy&precheck=0", "/connect/h/22?path=vpc"] {
+        assert!(config(ok).validate().is_ok(), "{ok} must be accepted");
+    }
+    for bad in [
+        "/connect/h/22?family=5",
+        "/connect/h/22?family=4&token=SECRET",
+        "/connect/h/22?",
+        "/connect/h/22?precheck=12345678",
+        "/connect/h/22?dial=eager",
+    ] {
+        let err = config(bad).validate().expect_err(bad);
+        assert!(!err.contains("SECRET"), "the error leaked a value: {err}");
+    }
+}

@@ -82,15 +82,28 @@ when the target speaks first; a non-numeric value is silently treated as `0`.
   authentication failure is `403 reverse: forbidden` (measured 2026-10-01).
 - `/trace` alone is public; `/trace?target=…&banner=1` and `?egress=1` need a
   forward token (`403 trace: missing or wrong token` without one).
-- **The forward path has no published close-code table.** The contract's table
-  is for the reverse path only; reading a forward close through it is how a
-  first-pass report invented a `1009`. podssh reports an unknown code verbatim,
-  with control characters removed from the reason.
-- `1011 relay backpressure` (more than 1 MiB queued for a slow receiver) drops
-  the frame; the contract lists it only for the reverse path. A dropped frame
-  inside SSH is a MAC failure, so the answer is pacing, never a retry. If it
-  appears on the forward path, the SSH window podssh advertises should stay
-  under 1 MiB (russh's default is 2 MiB; not yet measured).
+- **The forward path's close codes are not in the contract**; its published
+  table is for the reverse path only (reading a forward close through it is how
+  a first-pass report invented a `1009`). Read from the relay's source
+  (`worker/src/relay.js`, version 2026-10-03-r2), they are:
+
+  | code | reasons |
+  | --- | --- |
+  | `1000` | `target closed`; `client half-closed, target idle for 15s`; `client closed before the target was dialed` |
+  | `1001` | `idle timeout` (180 s with no payload); `session time cap` (12 h) |
+  | `1009` | `session byte cap` (64 MiB, **both directions counted together**); `frame larger than 262144 bytes` |
+  | `1011` | `connect failed: …`; `target closed before sending anything`; `wrong target banner …`; `client send failed: …`; `write failed: …`; `client error` |
+  | `1013` | `client receive backlog`; `target write backlog` (2 MiB queued) |
+
+  Only `1000` is a normal end; `podssh proxy` exits non-zero and prints the
+  reason for every other code, and `podssh ssh` prints it when the connection
+  drops. Codes not in this table are reported verbatim, with control
+  characters removed from the reason.
+- Backpressure closes the session (`1013`, at 2 MiB queued) rather than
+  dropping a frame. podssh advertises a 512 KiB SSH window, so a server cannot
+  have more than that in flight towards a slow podssh. Whether the relay's
+  check fires at all is unverified: it reads `bufferedAmount`, which Workers
+  may not expose.
 - The upgrade is HTTP/1.1 only; podssh never offers h2 through ALPN.
 
 ### Choosing a relay
@@ -107,8 +120,6 @@ Measured 2026-10-01:
 
 ### Open questions
 
-- Is the 64 MiB cap per direction or combined? Budget it as combined; the
-  deciding test is 40 MiB up and 40 MiB down in one session.
 - Does the 180 s idle cut apply to reverse sockets? (On the forward path it is
   measured: see [STATUS.md](STATUS.md).)
 - The short index `/llms.txt` (r2) carried facts the full document lacks:

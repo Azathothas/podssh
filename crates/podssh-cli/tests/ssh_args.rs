@@ -174,5 +174,5 @@ fn quiet_and_verbose_set_the_log_level() {
 fn keepalives_off_over_the_relay_earn_a_note() {
     let r = resolve(&ssh(&["-o", "ServerAliveInterval=0", "host"]), &env()).unwrap();
     assert_eq!(r.options.keepalive_interval, None);
-    assert!(r.notes.iter().any(|n| n.contains("180")), "{:?}", r.notes);
+    assert!(r.warnings.iter().any(|n| n.contains("180")), "{:?}", r.warnings);
 }

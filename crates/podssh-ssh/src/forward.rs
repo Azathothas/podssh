@@ -65,10 +65,17 @@ pub async fn stdio(handle: &Handle<Client>, host: &str, port: u16, log: &Log) ->
     tokio::pin!(up);
     tokio::pin!(down);
     let mut sending = true;
-    loop {
+    let code = loop {
         tokio::select! {
             _ = &mut up, if sending => sending = false,
-            code = &mut down => return code,
+            code = &mut down => break code,
         }
+    };
+    // russh ends a channel's stream the same way whether the far side closed
+    // it or the whole connection died; only the second is a failure.
+    if code == 0 && handle.is_closed() {
+        log.error(&format!("the connection was lost while forwarding to {host}:{port}"));
+        return crate::run::EXIT_FAILURE;
     }
+    code
 }

@@ -28,8 +28,11 @@ pub struct Resolved {
     pub options: Options,
     pub transport: Transport,
     pub log_file: Option<PathBuf>,
-    /// Notes for the log once it exists (ignored options and the like).
+    /// Notes for the log once it exists (ignored options and the like),
+    /// shown with -v.
     pub notes: Vec<String>,
+    /// Warnings the user should see without -v.
+    pub warnings: Vec<String>,
 }
 
 /// What the process environment contributes, gathered once so it can be
@@ -174,9 +177,10 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
         Some(s) => Some(Duration::from_secs(s)),
         None => Some(Duration::from_secs(60)),
     };
-    let mut notes: Vec<String> = settings.ignored.iter().map(|k| format!("-o {k} has no effect in podssh")).collect();
+    let notes: Vec<String> = settings.ignored.iter().map(|k| format!("-o {k} has no effect in podssh")).collect();
+    let mut warnings = Vec::new();
     if matches!(transport, Transport::Relay { .. }) && keepalive_interval.is_none_or(|d| d.as_secs() >= 180) {
-        notes.push("ServerAliveInterval is off or at least 180 s: the relay closes a connection after 180 s without traffic".into());
+        warnings.push("ServerAliveInterval is off or at least 180 s: the relay closes a connection after 180 s without traffic".into());
     }
 
     let log_file = args.log_file.as_deref().map(|f| expand(f));
@@ -208,6 +212,7 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
         transport,
         log_file,
         notes,
+        warnings,
     })
 }
 

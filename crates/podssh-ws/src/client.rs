@@ -54,16 +54,20 @@ pub struct WsClientConfig {
 }
 
 impl WsClientConfig {
-    /// Refuses a path with a query string: the token travels in a header, and
-    /// a query string ends up in proxy and access logs. The path is not echoed,
-    /// in case a token is what it carries.
+    /// Refuses a path whose query string is anything but the relay's connect
+    /// knobs: the token travels in a header, and a query string ends up in
+    /// proxy and access logs. The path is not echoed, in case a token is what
+    /// it carries.
     pub fn validate(&self) -> Result<(), String> {
-        if self.endpoint.path.contains('?') {
-            return Err(
-                "the WebSocket path carries a query string; the token belongs in the \
-                 X-Relay-Token header, and a query string ends up in proxy access logs"
-                    .to_string(),
-            );
+        if let Some((_, query)) = self.endpoint.path.split_once('?') {
+            if !relay_knobs_only(query) {
+                return Err(
+                    "the WebSocket path carries a query string other than the relay's connect \
+                     knobs; the token belongs in the X-Relay-Token header, and a query string \
+                     ends up in proxy access logs"
+                        .to_string(),
+                );
+            }
         }
         if !self.endpoint.path.starts_with('/') {
             return Err(format!("the WebSocket path must begin with '/': {:?}", self.endpoint.path));
@@ -76,6 +80,20 @@ impl WsClientConfig {
         }
         Ok(())
     }
+}
+
+/// Whether `query` holds only the relay's documented connect knobs
+/// (`family=4|6`, `dial=lazy`, `path=vpc|direct`, `precheck=<ms>`), none of
+/// which can carry a secret.
+pub fn relay_knobs_only(query: &str) -> bool {
+    !query.is_empty()
+        && query.split('&').all(|pair| match pair.split_once('=') {
+            Some(("family", v)) => v == "4" || v == "6",
+            Some(("dial", v)) => v == "lazy",
+            Some(("path", v)) => v == "vpc" || v == "direct",
+            Some(("precheck", v)) => !v.is_empty() && v.len() <= 7 && v.bytes().all(|b| b.is_ascii_digit()),
+            _ => false,
+        })
 }
 
 /// Why [`connect`] failed.
