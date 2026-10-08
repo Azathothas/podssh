@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**251 entries: 198 open, 0 partial, 7 blocked, 46 done.**
+**251 entries: 197 open, 0 partial, 7 blocked, 47 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 105 | 0 | 3 | 36 | 144 |
+| P2 | 104 | 0 | 3 | 37 | 144 |
 | P3 | 91 | 0 | 4 | 2 | 97 |
-| **All** | 198 | 0 | 7 | 46 | 251 |
+| **All** | 197 | 0 | 7 | 47 | 251 |
 
 ## Entries
 
@@ -152,7 +152,7 @@ repository and CI).
 | [T-076](transport.md) | P2 | S | M4 | defect | done | T9: host and node names are not validated or escaped |
 | [T-077](transport.md) | P3 | S | M4 | chore | open | T10: the `Transport` trait has no implementation, and `Backoff` is used only by tests |
 | [T-078](reverse.md) | P2 | M | M4 | feature | done | Pairing in `podssh-relay`: pair, stop and status |
-| [T-079](reverse.md) | P2 | L | M4 | feature | open | The node runner |
+| [T-079](reverse.md) | P2 | L | M4 | feature | done | The node runner |
 | [T-080](reverse.md) | P2 | M | M4 | feature | open | The operator runner |
 | [T-081](reverse.md) | P2 | M | M4 | feature | open | A blocking facade of `podssh-relay`, for podbox |
 | [T-082](reverse.md) | P2 | M | M4 | chore | open | Move the codecs of `podssh-transport` into `podssh-relay` |

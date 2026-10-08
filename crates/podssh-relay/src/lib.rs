@@ -17,6 +17,8 @@ pub mod cache;
 pub mod open;
 #[cfg(feature = "pair")]
 pub mod pair;
+#[cfg(feature = "pair")]
+pub mod reverse;
 pub mod pool;
 pub mod relay;
 pub mod token;

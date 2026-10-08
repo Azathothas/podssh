@@ -206,7 +206,10 @@ command uses it yet.
 - The **node** keeps a WebSocket open to `/v1/node/<name>` with
   `node_token`. It receives JSON **text** frames `hello`, `open {id}` and
   `close {id}`, and answers `ready {id}` or `reject {id, reason}`, also in
-  text frames. Each **binary** frame of the node is the 32 lowercase hex
+  text frames. Measured 2026-10-09 (`python scripts/capture-reverse.py`):
+  `hello` comes first, with `maxSessions` 64 and `maxFrameBytes` 65536; the
+  operator's `ready` carries the session's id; the relay answers a Ping on
+  the node's socket. Each **binary** frame of the node is the 32 lowercase hex
   characters of the session id, then up to 64 KiB of payload (65568 bytes on
   the wire at most). Control frames are limited to 4 KiB.
 - The **operator** connects to `/v1/connect/<name>` with `connect_token`,

@@ -242,7 +242,13 @@ memory and never prints:
 
 ```sh
 python scripts/capture-close.py              # github.com:22: 1000 target closed
+python scripts/capture-reverse.py            # one session of the reverse road, frame by frame
 ```
+
+`scripts/capture-reverse.py` makes a pair, opens the node's and an
+operator's socket, and records each frame of one session (`hello`, `open`,
+`ready`, data both ways, `close`) and whether the relay answers a Ping on the
+node's socket; it stops the pair at the end and prints no token.
 
 WARNING: Some older examples read a token from the environment. Mint the
 token, use it and remove it in one shell. Do not print it.

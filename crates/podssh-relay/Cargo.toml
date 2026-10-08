@@ -16,11 +16,14 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 zeroize = { workspace = true }
 rand = { workspace = true }
+# The codecs of the reverse road, until T-082 moves them here.
+podssh-transport = { path = "../podssh-transport", optional = true }
 
 [features]
 # Pairs of the reverse road: `POST /v1/pair`, the status of a pair and
-# `POST /v1/stop/<name>` (T-078). No C either; the gate builds it.
-pair = []
+# `POST /v1/stop/<name>` (T-078), and the node runner (T-079). No C either;
+# the gate builds it.
+pair = ["dep:podssh-transport"]
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

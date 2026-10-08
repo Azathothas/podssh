@@ -41,7 +41,7 @@ show this defect.
 
 Read: the contract sends control as text, and data as binary frames that start with 32 hex
 characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141`,
-`docs/relay.md:206-211`). A prefix that is not hex closes the node with `1003 bad multiplex id`
+`docs/relay.md:206-214`). A prefix that is not hex closes the node with `1003 bad multiplex id`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:176`).
 
 ## Approach
@@ -144,7 +144,7 @@ Read, a related gap that the former defects page did not list: `Classified::mess
 for a matched row, never the received reason (`crates/podssh-transport/src/closes.rs` lines
 119-150). The test that says the reason survives only checks that the message is not empty
 (`crates/podssh-transport/tests/closes.rs` lines 255-258). The rules want the code and the reason
-(`docs/relay.md:155-163`, `docs/reverse.md:42-44`).
+(`docs/relay.md:155-163`, `docs/reverse.md:62-64`).
 
 ## Approach
 
@@ -378,7 +378,7 @@ flow control that podssh uses (`docs/relay.md:165-166`).
 1. Delete `crates/podssh-transport/src/backpressure/mod.rs`, `ledger.rs`, both test files, and the
    lines `crates/podssh-transport/src/lib.rs:34` and `:52`.
 2. Keep no part of it. The runners of T-079 and T-080 bound their queues with bounded channels
-   and the relay's caps (`docs/reverse.md:30-35`), not with a ledger.
+   and the relay's caps (`docs/reverse.md:50-55`), not with a ledger.
 3. Check with `git grep` that no script or test still names the deleted files.
 4. Update the line counts of the crate in `docs/STATUS.md:213`, and close this entry in place.
 5. T-082 can do these steps in the move; then this entry closes with the commit of T-082.
@@ -434,7 +434,7 @@ Read: the contract: `403 missing or wrong token` needs a new token; a `403` that
 is a policy refusal; `503` means that the relay does not issue or check tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:104-107`). On
 the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:137-139`),
-also after `POST /v1/stop` (`docs/reverse.md:51-53`). A `409` from `/v1/pair` means "pair again"
+also after `POST /v1/stop` (`docs/reverse.md:71-73`). A `409` from `/v1/pair` means "pair again"
 (`docs/relay.md:188-190`); a `409` on `/v1/node/<name>` means "exit" (`docs/reverse.md:19`).
 
 Read: the forward path already follows the contract in `podssh-relay`. It mints once again after a
@@ -645,7 +645,7 @@ Read: `Backoff` doubles from 1 s to 30 s with no jitter (`crates/podssh-transpor
 `:15-17`, `:51-55`). It is exported at `crates/podssh-transport/src/lib.rs:51` and used only by
 `crates/podssh-transport/tests/closes.rs:354-391`.
 
-Read: a node connects again "with a jittered backoff" (`docs/reverse.md:22-24`,
+Read: a node connects again "with a jittered backoff" (`docs/reverse.md:24-29`,
 `docs/ROADMAP.md:150-158`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
 by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:261-275`); `podssh ssh` uses
 it (`crates/podssh-cli/src/ssh/mod.rs:125-131`).

@@ -110,7 +110,7 @@ that minted it".
 # T-058: `podssh relay status`, `info`, `spec` and `trace`
 
 **Source:** `crates/podssh-cli/src/positionals.rs:39-41` (the subcommands that the parser
-declares); `docs/relay.md:225-231`; the tester of sandbox A, who used `curl` and a minted token
+declares); `docs/relay.md:228-234`; the tester of sandbox A, who used `curl` and a minted token
 on `/trace` (`report-podssh-sandbox-KTM-2026-10-08.txt`, outside the repository).
 **Category:** feature
 **Milestone:** backlog
@@ -154,7 +154,7 @@ token header (`crates/podssh-ws/src/client.rs:278-289`); `https_request` takes h
    (T-049). Each request has the 10 s limit of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs:27`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs:442`); change `DISPATCHED`, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:254`), the notes, `docs/relay.md:225-231` and
+   (`crates/podssh-cli/src/help.rs:254`), the notes, `docs/relay.md:228-234` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
 ## Decision
@@ -331,7 +331,7 @@ every 60 s keep a session for 602 s (`docs/STATUS.md`, "`podssh proxy`, measured
 pinned contract lists "idle sessions (180000 ms of payload inactivity; transport keepalives do
 not reset this)" among its guards
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-234`), and says that the
-reverse relay "hibernates idle sockets" (line 241). `docs/reverse.md:22-24`, from dropssh: the
+reverse relay "hibernates idle sockets" (line 241). `docs/reverse.md:24-29`, from dropssh: the
 relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant.
 
 ## Approach
@@ -346,9 +346,9 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:46-55`).
+   and above all not the `stop_token` (`docs/reverse.md:66-75`).
 5. Answer the question in `docs/relay.md:184-190`, record the result in `docs/STATUS.md` with
-   the date and the command, and correct `docs/reverse.md:22-24` if the result differs.
+   the date and the command, and correct `docs/reverse.md:24-29` if the result differs.
 
 ## Prove
 

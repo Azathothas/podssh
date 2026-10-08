@@ -127,17 +127,17 @@ impl Sessions {
     }
 
     /// The relay sent `open {id}`.
-    pub(crate) fn opened(&mut self, id: SessionId) {
+    pub fn opened(&mut self, id: SessionId) {
         self.by_id.insert(id, SessionState::Opened);
     }
 
     /// The node's `ready {id}` went out.
-    pub(crate) fn readied(&mut self, id: SessionId) {
+    pub fn readied(&mut self, id: SessionId) {
         self.by_id.insert(id, SessionState::Readied);
     }
 
     /// The relay sent `close {id}`, or the node's `close` or `reject` went out.
-    pub(crate) fn closed(&mut self, id: &SessionId) {
+    pub fn closed(&mut self, id: &SessionId) {
         self.by_id.remove(id);
     }
 }

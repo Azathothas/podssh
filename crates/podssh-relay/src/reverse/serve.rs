@@ -1,0 +1,274 @@
+//! One node socket: the sessions on it, until the socket ends.
+//!
+//! One task, the writer, owns the write half and the state of each session,
+//! so no frame goes out without its id, before its `ready`, or after its
+//! `close` (`docs/reverse.md`, "Node"). The reader routes data by id to the
+//! local side of each session; an opener task per `open` asks the handler,
+//! and only its answer queues `ready` or `reject`.
+
+use std::collections::HashMap;
+use std::future::Future;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+use podssh_transport::control::{self, NodeInbound, NodeLimits};
+use podssh_transport::framing::legs::{chunk_for_node, decode_node_frame, CHUNK_BYTES};
+use podssh_transport::sessions::Sessions;
+use podssh_transport::{RelayClose, SessionId};
+use podssh_ws::frame;
+use podssh_ws::session::{close_code_and_reason, RelaySession};
+use podssh_ws::SessionError;
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::sync::mpsc;
+
+use super::node::Handler;
+
+/// How one socket ended.
+#[derive(Debug)]
+pub enum End {
+    /// The relay closed the socket, with its code and reason.
+    Closed(RelayClose),
+    /// The socket failed with no Close: a broken link, or unanswered pings.
+    Failed(SessionError),
+    /// The caller stopped the node: each session got `close`, the socket a
+    /// Close 1000.
+    Stopped,
+}
+
+/// What a node needs for one socket.
+#[derive(Debug, Clone, Copy)]
+pub struct Settings {
+    /// How long the handler may take to open the local side: under the 15 s
+    /// after which the relay ends the session itself.
+    pub open_limit: Duration,
+    /// How often to ping the relay, and how many silent intervals mean the
+    /// socket is dead. The relay answers a Ping on a node socket (measured
+    /// 2026-10-09).
+    pub ping_every: Duration,
+    pub pings_allowed: u32,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings {
+            open_limit: Duration::from_secs(10),
+            ping_every: podssh_ws::LIVENESS_EVERY,
+            pings_allowed: podssh_ws::LIVENESS_ALLOWED,
+        }
+    }
+}
+
+/// A request to the writer, the only task that writes to the socket.
+enum Out {
+    Opened(SessionId),
+    Ready(SessionId),
+    Reject(SessionId, String),
+    Data(SessionId, Vec<u8>),
+    /// The relay closed the session.
+    Closed(SessionId),
+    /// The local side ended: the relay is told with `close {id}`.
+    LocalEnd(SessionId),
+    Stop,
+}
+
+/// The local side of each session that has one, by id.
+type Routes = Arc<Mutex<HashMap<SessionId, mpsc::Sender<Vec<u8>>>>>;
+
+/// Serve the sessions of `session` until the socket ends or `stop` fires.
+pub async fn serve<S, H, F>(session: RelaySession<S>, handler: Arc<H>, settings: Settings, stop: &mut F) -> End
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+    H: Handler,
+    F: Future<Output = ()> + Unpin,
+{
+    let session = Arc::new(session);
+    let (tx, rx) = mpsc::channel(256);
+    let writer = tokio::spawn(write(session.clone(), rx));
+    let routes: Routes = Arc::default();
+    let opening = Arc::new(AtomicUsize::new(0));
+    let mut limits = NodeLimits::conservative();
+    let liveness = session.watch_liveness(settings.ping_every, settings.pings_allowed);
+    tokio::pin!(liveness);
+    let end = loop {
+        let frame = tokio::select! {
+            frame = session.read_frame() => frame,
+            dead = &mut liveness => break End::Failed(dead),
+            () = &mut *stop => {
+                let _ = tx.send(Out::Stop).await;
+                break End::Stopped;
+            }
+        };
+        match frame {
+            Ok(f) if f.opcode == frame::OPCODE_TEXT => match control::parse_inbound(&f.payload) {
+                Ok(NodeInbound::Hello(hello)) => limits.apply(&hello),
+                Ok(NodeInbound::Open { id }) => {
+                    let Ok(id) = SessionId::parse(id.as_bytes()) else { continue };
+                    let live = routes_len(&routes) + opening.load(Ordering::SeqCst);
+                    if live >= limits.max_sessions as usize {
+                        let reason = format!("the node has its {} sessions", limits.max_sessions);
+                        let _ = tx.send(Out::Reject(id, reason)).await;
+                        continue;
+                    }
+                    let _ = tx.send(Out::Opened(id)).await;
+                    opening.fetch_add(1, Ordering::SeqCst);
+                    tokio::spawn(open(id, handler.clone(), settings.open_limit, tx.clone(), routes.clone(), opening.clone()));
+                }
+                Ok(NodeInbound::Close { id, .. }) => {
+                    let Ok(id) = SessionId::parse(id.as_bytes()) else { continue };
+                    // Dropping the route ends the local writer, which shuts the
+                    // local side; its late bytes find no session and are dropped.
+                    routes.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
+                    let _ = tx.send(Out::Closed(id)).await;
+                }
+                // Not a message that a node answers.
+                Ok(NodeInbound::Unknown) | Err(_) => {}
+            },
+            Ok(f) if f.opcode == frame::OPCODE_BINARY => {
+                let Ok((id, payload)) = decode_node_frame(&f.payload) else { continue };
+                let route = routes.lock().unwrap_or_else(|e| e.into_inner()).get(&id).cloned();
+                // Data for no live session (a late frame of a closed one) is
+                // dropped; the socket and the other sessions go on.
+                if let Some(route) = route {
+                    let _ = route.send(payload.to_vec()).await;
+                }
+            }
+            Ok(f) if f.opcode == frame::OPCODE_CLOSE => {
+                let (code, reason) = close_code_and_reason(&f.payload);
+                break End::Closed(RelayClose { code: code.unwrap_or(1005), reason, clean: true });
+            }
+            Ok(_) => {}
+            Err(e) => break End::Failed(e),
+        }
+    };
+    routes.lock().unwrap_or_else(|e| e.into_inner()).clear();
+    drop(tx);
+    let _ = tokio::time::timeout(Duration::from_secs(5), writer).await;
+    end
+}
+
+fn routes_len(routes: &Routes) -> usize {
+    routes.lock().unwrap_or_else(|e| e.into_inner()).len()
+}
+
+/// Open the local side of `id`, and only then queue `ready`; on a refusal or
+/// after `limit`, `reject` with the reason. Then copy between the local side
+/// and the socket until either ends.
+async fn open<H: Handler>(
+    id: SessionId,
+    handler: Arc<H>,
+    limit: Duration,
+    tx: mpsc::Sender<Out>,
+    routes: Routes,
+    opening: Arc<AtomicUsize>,
+) {
+    let opened = tokio::time::timeout(limit, handler.open(id)).await;
+    let stream = match opened {
+        Ok(Ok(stream)) => stream,
+        Ok(Err(reason)) => {
+            opening.fetch_sub(1, Ordering::SeqCst);
+            let _ = tx.send(Out::Reject(id, reason)).await;
+            return;
+        }
+        Err(_) => {
+            opening.fetch_sub(1, Ordering::SeqCst);
+            let reason = format!("the local side did not open within {} s", limit.as_secs());
+            let _ = tx.send(Out::Reject(id, reason)).await;
+            return;
+        }
+    };
+    let (mut local_read, mut local_write) = tokio::io::split(stream);
+    let (in_tx, mut in_rx) = mpsc::channel::<Vec<u8>>(32);
+    // The route exists before `ready`, so the first bytes after it find it.
+    routes.lock().unwrap_or_else(|e| e.into_inner()).insert(id, in_tx);
+    opening.fetch_sub(1, Ordering::SeqCst);
+    let _ = tx.send(Out::Ready(id)).await;
+    tokio::spawn(async move {
+        while let Some(bytes) = in_rx.recv().await {
+            if local_write.write_all(&bytes).await.is_err() {
+                break;
+            }
+        }
+        let _ = local_write.shutdown().await;
+    });
+    let mut buf = vec![0u8; CHUNK_BYTES];
+    loop {
+        match local_read.read(&mut buf).await {
+            Ok(0) | Err(_) => break,
+            Ok(n) => {
+                if tx.send(Out::Data(id, buf[..n].to_vec())).await.is_err() {
+                    break;
+                }
+            }
+        }
+    }
+    routes.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
+    let _ = tx.send(Out::LocalEnd(id)).await;
+}
+
+/// The writer: the one task that writes to the socket. It owns the state of
+/// each session, so a frame for an id that is not readied, or is closed,
+/// never goes out: it is dropped here.
+async fn write<S>(session: Arc<RelaySession<S>>, mut rx: mpsc::Receiver<Out>) -> Result<(), SessionError>
+where
+    S: AsyncRead + AsyncWrite + Send + 'static,
+{
+    let mut sessions = Sessions::new();
+    while let Some(out) = rx.recv().await {
+        match out {
+            Out::Opened(id) => sessions.opened(id),
+            Out::Ready(id) => {
+                if sessions.may_send_ready(&id).is_ok() {
+                    if let Some(text) = json(control::ready(&id)) {
+                        session.send_text(&text).await?;
+                        sessions.readied(id);
+                    }
+                }
+            }
+            Out::Reject(id, reason) => {
+                // A refusal over the session limit answers an id the writer
+                // was never told of; the relay waits for an answer to it.
+                if let Some(text) = json(control::reject(&id, &reason)) {
+                    session.send_text(&text).await?;
+                }
+                sessions.closed(&id);
+            }
+            Out::Data(id, bytes) => {
+                if sessions.may_send_data(&id).is_err() {
+                    continue;
+                }
+                let Ok(frames) = chunk_for_node(&id, &bytes) else { continue };
+                for frame in frames {
+                    session.send_binary(&frame).await?;
+                }
+            }
+            Out::Closed(id) => sessions.closed(&id),
+            Out::LocalEnd(id) => {
+                if sessions.state(&id).is_some() {
+                    if let Some(text) = json(control::close(&id, None)) {
+                        session.send_text(&text).await?;
+                    }
+                    sessions.closed(&id);
+                }
+            }
+            Out::Stop => {
+                let live: Vec<SessionId> = sessions.live().map(|(id, _)| *id).collect();
+                for id in live {
+                    if let Some(text) = json(control::close(&id, Some("the node is stopping"))) {
+                        let _ = session.send_text(&text).await;
+                    }
+                }
+                let _ = session.send_close(1000, "").await;
+                return Ok(());
+            }
+        }
+    }
+    Ok(())
+}
+
+/// A control message as the text of a frame, or `None` when the codec could
+/// not build it: nothing goes out then, because a frame that the relay
+/// refuses closes the whole socket.
+fn json(built: Result<Vec<u8>, control::ControlError>) -> Option<String> {
+    built.ok().and_then(|bytes| String::from_utf8(bytes).ok())
+}

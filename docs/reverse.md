@@ -17,15 +17,35 @@ come from dropssh, a sibling project that implemented both sides.
 5. Route by id, never by the order of arrival. Validate the hex before you
    look up the id.
 6. On `409` (a second socket for the same name), exit. Do not retry.
-7. Do not depend on `hello`. Its direction is disputed, and the value of
-   `maxSessions` seen on the wire (`64`) is in no published document.
+7. Do not depend on `hello`. Its value of `maxSessions` is in no published
+   document. Measured 2026-10-09: the relay sends the node
+   `{"type":"hello","version":1,"maxFrameBytes":65536,"maxSessions":64}`
+   first; podssh's node takes its limit, and 16 sessions when none comes.
 8. The relay sends no keepalives on reverse sockets, and a quiet socket
    becomes dormant. Count the probes that get no answer (dropssh probes every
-   20 s and stops after 3). Connect again with a jittered backoff.
+   20 s and stops after 3). Connect again with a jittered backoff. The relay
+   answers a Ping on a node socket with a Pong of the same payload (measured
+   2026-10-09), so podssh's node pings every 10 s and drops the socket after 3
+   silent intervals.
 9. Serve SSH in the process. A standard server behind a node in a sandbox
    fails: `dropbear -i` on a socketpair stops because `getnameinfo` of musl
    refuses `AF_UNIX`; `initgroups` fails under seccomp; and the sshd of
    OpenSSH cannot start where `chroot` is refused.
+
+podssh's node (`podssh_relay::reverse`, feature `pair`, T-079) keeps these
+rules. One task writes to the socket and holds the state of each session, so
+no frame goes out without its id, before its `ready` or after its `close`; a
+late byte of a closed session is dropped, and the other sessions go on. A
+session over the limit gets `reject` at once, and the handler has 10 s to
+open the local side. It acts on each end by its code and reason: `409`,
+exit; `1001 operator stopped reverse relay`, exit and delete the stored pair;
+`1001 pair expired` (or a `403` after the expiry), a re-pair hook, off by
+default; `1003` and `1009`, exit; anything else, connect again with the
+jittered backoff. A stop closes each session with `close {id}`, then the
+socket with `1000`. Measured against the live relay on 2026-10-09: two
+sessions at once, 1 MiB each way through an echo node, came back whole
+(`cargo test -p podssh-relay --features pair --test reverse_live --
+--ignored`).
 
 ## Operator
 
