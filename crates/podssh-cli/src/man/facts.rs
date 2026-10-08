@@ -255,8 +255,9 @@ fn exit_status() -> Vec<Block> {
         ),
         item(
             code(sysexits::EX_CONFIG),
-            "podssh proxy: a setting cannot be used, such as a proxy URL that is not http://, or a \
-             PODSSH_RELAY_TOKEN that is not a token.",
+            "A setting of the environment cannot be used: PODSSH_RELAY or PODSSH_RELAY_ADDR (podssh ssh, \
+             proxy and doctor). For podssh proxy also a proxy URL that is not http://, or a \
+             PODSSH_RELAY_TOKEN that is not a token. The same value as a flag is a usage error (64).",
         ),
         item(
             code(podssh_ssh::EXIT_FAILURE),

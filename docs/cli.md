@@ -143,9 +143,11 @@ The edit distance alone suggests `doctor` for `example.org` and `cp` for
 `podssh man exit-status` gives each code. The rules behind them:
 
 - A usage error is 64 (`EX_USAGE`) for each command, before podssh does
-  anything. A configuration error is 78 (`EX_CONFIG`). The shell statuses 1
-  and 2 are not used for these, because a script cannot tell them from other
-  programs' failures.
+  anything. A configuration error is 78 (`EX_CONFIG`): a variable of the
+  environment that cannot be used, such as `PODSSH_RELAY` or
+  `PODSSH_RELAY_ADDR` (also for `podssh ssh`). The same value as a flag is a
+  usage error. The shell statuses 1 and 2 are not used for these, because a
+  script cannot tell them from other programs' failures.
 - `podssh ssh` uses the codes of OpenSSH, so it can replace `ssh` in
   scripts: the remote status unchanged (0 and 127 included), and 255 for a
   failure of podssh. A remote command stopped by a signal gives 128 plus the

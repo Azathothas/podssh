@@ -112,3 +112,53 @@ fn the_help_lists_the_relay_and_trust_options() {
         assert!(line.contains("  "), "flag and description run together: {line:?}");
     }
 }
+
+/// Run the binary with `vars` and no other relay or proxy setting; the code
+/// and stderr. A refusal comes before any network use, so 30 s is plenty.
+fn podssh_with(argv: &[&str], vars: &[(&str, &str)]) -> (i32, String) {
+    use std::io::Read;
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(argv).env("PODSSH_OFFLINE", "1");
+    for name in ["PODSSH_RELAY", "PODSSH_RELAY_ADDR", "PODSSH_RELAY_TOKEN", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"] {
+        cmd.env_remove(name);
+    }
+    cmd.envs(vars.iter().copied());
+    let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped()).spawn().expect("podssh runs");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    let status = loop {
+        if let Some(status) = child.try_wait().expect("wait for podssh") {
+            break status;
+        }
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            panic!("{argv:?} with {vars:?} did not end within 30 s");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let mut err = String::new();
+    child.stderr.take().expect("stderr").read_to_string(&mut err).expect("stderr is text");
+    (status.code().unwrap_or(-1), err)
+}
+
+/// A bad PODSSH_RELAY or PODSSH_RELAY_ADDR is a configuration error (78),
+/// and the message names the variable; the command line is right. The same
+/// value as a flag stays a usage error (64).
+#[test]
+fn a_bad_variable_is_a_configuration_error() {
+    let commands: [&[&str]; 3] = [&["proxy", "example.org", "22"], &["ssh", "-l", "u", "host", "true"], &["doctor"]];
+    for (var, value) in [("PODSSH_RELAY", "bad host!"), ("PODSSH_RELAY_ADDR", "nonsense")] {
+        for argv in commands {
+            let (rc, err) = podssh_with(argv, &[(var, value)]);
+            assert_eq!(rc, 78, "{var} {argv:?}: {err}");
+            assert!(err.contains(&format!("{var}: ")), "{var} {argv:?}: {err}");
+        }
+    }
+    for flag in [["--relay-host", "bad host!"], ["--relay-addr", "nonsense"]] {
+        let argv = ["proxy", flag[0], flag[1], "example.org", "22"];
+        let (rc, err) = podssh_with(&argv, &[]);
+        assert_eq!(rc, 64, "{argv:?}: {err}");
+        assert!(err.contains(&format!("{}: ", flag[0])), "{argv:?}: {err}");
+    }
+}

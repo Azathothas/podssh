@@ -265,7 +265,7 @@ sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:219-239`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:209-215`, and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:215-221`, and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -279,7 +279,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:209-215`.
+   `crates/podssh-cli/src/ssh/resolve.rs:215-221`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:191-201`,
    `crates/podssh-cli/src/man/facts.rs:220-227`), the note at

@@ -58,7 +58,7 @@ server listens, and the client connects out for each connection.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
-   `--direct` does (`crates/podssh-cli/src/ssh/mod.rs:136-141`), with the
+   `--direct` does (`crates/podssh-cli/src/ssh/mod.rs:132-137`), with the
    limit of 20 s (`crates/podssh-relay/src/open.rs:23-25`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
@@ -466,8 +466,8 @@ Measured, offline, with `MSYS_NO_PATHCONV=1` and `PODSSH_OFFLINE=1`:
 Read:
 
 - `request` parses the value of `-W` with `parse_hop`
-  (`crates/podssh-cli/src/ssh/resolve.rs:252-261`), which reads a value with
-  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/resolve.rs:291-304`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:258-267`), which reads a value with
+  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/resolve.rs:297-310`).
 - russh 0.64.1 has `Handle::channel_open_direct_streamlocal` (the channel
   `direct-streamlocal@openssh.com`). podssh opens only `direct-tcpip`
   (`crates/podssh-ssh/src/forward.rs:11-18`).
@@ -656,9 +656,9 @@ at the connection step (exit 255), after the parse:
 | `db.internal:5432`, `[::1]:5432` | accepted | accepted |
 
 Read: `request` parses the value with `parse_hop`
-(`crates/podssh-cli/src/ssh/resolve.rs:252-261`), which reads a value with no
+(`crates/podssh-cli/src/ssh/resolve.rs:258-267`), which reads a value with no
 `:` as a host on port 22, and splits a value at its one `:`
-(`crates/podssh-cli/src/ssh/resolve.rs:291-304`). `forward::open` opens
+(`crates/podssh-cli/src/ssh/resolve.rs:297-310`). `forward::open` opens
 `direct-tcpip` only (`crates/podssh-ssh/src/forward.rs:11-18`).
 
 ## Approach

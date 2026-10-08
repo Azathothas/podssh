@@ -38,6 +38,7 @@ pub mod pins;
 pub mod positionals;
 pub mod proxy;
 pub mod refuse;
+pub mod relay_settings;
 pub mod ssh;
 pub mod suggest;
 pub mod tree;

@@ -20,8 +20,6 @@ use std::io::Write;
 use podssh_relay::relay::{self, RelayList};
 use podssh_ws::{Trust, Verdict};
 
-use crate::exit_codes::EXIT_USAGE;
-
 mod clock;
 mod host;
 mod net;
@@ -42,19 +40,14 @@ pub struct DoctorArgs {
 }
 
 /// Run every check; returns the exit code. The report goes to `out`; only a
-/// usage error goes to `err`.
+/// bad setting (64 for a flag, 78 for a variable) goes to `err`.
 pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    if let Err(why) = crate::pins::apply(args.relay_addr.as_deref()) {
-        let _ = writeln!(err, "podssh doctor: {why}");
-        return EXIT_USAGE;
+    if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
+        return refusal.report("doctor", err);
     }
-    let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
-    let relays = match relay::select_relays(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok(), &pool) {
+    let relays = match crate::relay_settings::relays(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok()) {
         Ok(r) => r,
-        Err(why) => {
-            let _ = writeln!(err, "podssh doctor: {why}");
-            return EXIT_USAGE;
-        }
+        Err(refusal) => return refusal.report("doctor", err),
     };
     let cert_env = std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty());
     let (trust, trust_from) = match (&args.ca_file, cert_env) {

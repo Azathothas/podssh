@@ -27,13 +27,13 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
   row (`crates/podssh-cli/src/flags.rs:384-411`).
-- Read: the only pump is `crates/podssh-cli/src/proxy.rs:188-280`. At the end
+- Read: the only pump is `crates/podssh-cli/src/proxy.rs:183-275`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:135`).
+  do not run programs (`docs/STATUS.md:136`).
 
 ## Approach
 
@@ -47,13 +47,13 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    An unknown kind exits 64 and lists the kinds. `-` is `stdio`; `stdio` on
    both sides exits 64. Invariant: both addresses are valid before anything
    starts.
-3. Move the pump of `crates/podssh-cli/src/proxy.rs:188-252` to
+3. Move the pump of `crates/podssh-cli/src/proxy.rs:183-247` to
    crates/podssh-cli/src/pipe/pump.rs, over two duplex ends, with its rules:
    reads of 32 KiB; an end of input half-closes the other side (a shutdown
    of the write side, never a drop, or the reply is lost), and the other
    direction goes on; a reader that is gone ends the pipe with 0
-   (`crates/podssh-cli/src/proxy.rs:271-274`). Keep
-   `runtime.shutdown_background()` (`crates/podssh-cli/src/proxy.rs:94-96`).
+   (`crates/podssh-cli/src/proxy.rs:266-269`). Keep
+   `runtime.shutdown_background()` (`crates/podssh-cli/src/proxy.rs:89-91`).
    This is the one path: T-175 moves `podssh proxy` onto it.
 4. `fd:N` (Unix): `fcntl(F_GETFD)` first. A closed N, or N below 3, exits 64.
    On Windows, `fd:` exits 64.
@@ -121,17 +121,17 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 - Read: `podssh proxy` is the `relay:` address today. It opens the session
   with `crates/podssh-relay/src/open.rs:177-213` and pumps it
-  (`crates/podssh-cli/src/proxy.rs:45-98`).
+  (`crates/podssh-cli/src/proxy.rs:45-93`).
 - Read: `crates/podssh-ssh/src/relay_stream.rs:88-92` sends Close 1000 when
   its write side ends. That is right for SSH and wrong for a pipe: the relay
   has no half-close (`docs/relay.md:67-68`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
-  (`docs/STATUS.md:83`).
+  (`docs/STATUS.md:84`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:12-18`
   after the hops of `crates/podssh-ssh/src/run.rs:82-91`, but that code is
   private and gives only an exit code.
 - Read: `TODO/issues.md` (#26) says that a binary protocol through `-W` is
-  measured. Only exec is measured with digests (`docs/STATUS.md:59`); `-W`
+  measured. Only exec is measured with digests (`docs/STATUS.md:60`); `-W`
   was checked with a banner of 16 bytes (`scripts/interop.sh:195-196`).
 - Read: `node:` needs T-084 (M4) and `iroh:` needs T-163 (M6); both are done
   before M7 starts.
@@ -141,19 +141,19 @@ local program to a target, and `podssh proxy` stays a second pump.
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
    pump does not know the road (`docs/architecture.md:83-85`).
-2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:102-115` does;
+2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:97-110` does;
    open with `crates/podssh-relay/src/open.rs:177-213`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
-   (`crates/podssh-cli/src/proxy.rs:192-197`), empty frames dropped. IPv6
+   (`crates/podssh-cli/src/proxy.rs:187-192`), empty frames dropped. IPv6
    literals follow T-007.
 3. Move `podssh proxy` onto the pipe: `run_proxy`
-   (`crates/podssh-cli/src/proxy.rs:45-98`) runs `stdio` and `relay:`. Keep
-   its exit codes and messages (`crates/podssh-cli/src/proxy.rs:163-176`,
-   `crates/podssh-cli/src/proxy.rs:254-280`).
+   (`crates/podssh-cli/src/proxy.rs:45-93`) runs `stdio` and `relay:`. Keep
+   its exit codes and messages (`crates/podssh-cli/src/proxy.rs:158-171`,
+   `crates/podssh-cli/src/proxy.rs:249-275`).
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it
-   (`crates/podssh-cli/src/ssh/resolve.rs:151-154`,
-   `crates/podssh-cli/src/ssh/resolve.rs:280-320`). Make
+   (`crates/podssh-cli/src/ssh/resolve.rs:158-161`,
+   `crates/podssh-cli/src/ssh/resolve.rs:286-326`). Make
    `crates/podssh-ssh/src/run.rs:82-91` a public `connect_chain` that `-W`
    and the pipe both use; keep each handle alive until the pipe ends. The
    options: `-i`, `-o NAME=VALUE` through
@@ -163,7 +163,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:153`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:155`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:115-163` a typed error, so that 77 is not
    guessed from a message.
@@ -223,7 +223,7 @@ not a listener, so `docs/target-environment.md:74-78` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:189-198`,
   `crates/podssh-cli/src/doctor/unix.rs:210-212`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:135`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:136`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -285,7 +285,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:252-254`).
   `AGENTS.md:177-182`, `docs/architecture.md:86-93`,
   `docs/target-environment.md:74-78`, `SECURITY.md:56-59`, `README.md:35-36`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:135`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:136`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs:137-231`). A bind that works does
@@ -382,7 +382,7 @@ running on the server (`docs/design.md:207-209`).
   each session (`crates/podssh-ssh/src/session.rs:82-98`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:147-153`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:143-144`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:144-145`).
 - Read: tmux is never assumed (`docs/target-environment.md:90-92`).
 
 ## Approach
@@ -395,7 +395,7 @@ running on the server (`docs/design.md:207-209`).
    uses the same function.
 3. The session runs `tmux new-session -A -s NAME` with a pty, as `-tt` does.
    `-A` attaches when the session exists; that makes a second run safe.
-4. A loop around `crates/podssh-cli/src/ssh/mod.rs:75-154`. Connect again
+4. A loop around `crates/podssh-cli/src/ssh/mod.rs:71-150`. Connect again
    only for a lost link: `End::Lost`, the ping watcher, or the relay's 1001,
    1006, 1009 or 1011. Never after an exit status, `~.`, a detach of tmux
    (exit 0), or a failure of the host key or the authentication.
@@ -405,7 +405,7 @@ running on the server (`docs/design.md:207-209`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:163-165`). After the attach, send the window size again.
+   (`docs/cli.md:165-167`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes.rs:19-47`), `docs/design.md:207-209`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -462,7 +462,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:115`), then Close 1009 (`docs/relay.md:151`); public
   targets only (`docs/relay.md:117`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:142`).
+  0.7 MB/s (`docs/STATUS.md:143`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 
@@ -650,7 +650,7 @@ and with which limits.
 - Read in the report (not verified here): USBoverSSH carries USB/IP over an
   SSH exec channel, and says that USB/IP needs kernel modules on the server.
 - Read: an exec channel carries binary data with equal digests
-  (`docs/STATUS.md:59`), and `pipe` carries a TCP stream (T-174, T-175).
+  (`docs/STATUS.md:60`), and `pipe` carries a TCP stream (T-174, T-175).
 - Read: through the relay, a session ends at 64 MiB (`docs/relay.md:115`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a

@@ -99,7 +99,7 @@ and `EphemeralSecret::random` for P-256 (line 66).
    range), and compute the shared secret with the `diffie_hellman` function of `elliptic-curve`
    0.13. Check the API of `p256` 0.13.2 first. No generator that can panic goes in.
 4. Make the source a parameter in the tests, so a failing source can be planted.
-5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:285-304`
+5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:286-305`
    does, and fails on `fill_bytes(` or `OsRng` outside `random.rs`.
 
 ## Prove
@@ -153,7 +153,7 @@ alone.
    (`crates/podssh-ws/examples/inspect_peer_chain.rs`), and remove `pub mod probe;`. Keep each
    file under 500 lines.
 2. Add the test that `probe.rs:9-12` promised: a scan of the source of `podssh-ws`,
-   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:285-304`
+   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:286-305`
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
@@ -382,7 +382,7 @@ Read: `send_binary` and `send_text` (`crates/podssh-ws/src/session.rs:86-94`), `
 (104-109), `read_frame` (170-221) and `write` (223-228) return `Result<_, String>`;
 `watch_liveness` returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs:95-96` and 138-140 put it in `RelayEnd::Failed`;
-`crates/podssh-cli/src/proxy.rs:217-252` prints it; `podssh-transport` makes it
+`crates/podssh-cli/src/proxy.rs:212-247` prints it; `podssh-transport` makes it
 `TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs:75-80`, 109, 115, 136).
 Tests and the gate match the text: `crates/podssh-ws/tests/session.rs:108` ("continuation") and
 172 ("without a WebSocket Close"), and `scripts/interop-faults.sh:148` ("pings unanswered").
@@ -438,7 +438,7 @@ supported; podssh speaks HTTP CONNECT to an http:// proxy"
 `all_proxy` and `ALL_PROXY` (line 153), and parses the first that is set (line 161). `dial`
 makes the error `DialError::BadProxy` (line 217), which stops the failover at once
 (`crates/podssh-relay/src/open.rs:62`) and gives exit 78 in `podssh proxy`
-(`crates/podssh-cli/src/proxy.rs:167`). `doctor` reports it as `FAIL`
+(`crates/podssh-cli/src/proxy.rs:162`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs:67-73`). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs:120-129` and `crates/podssh-ws/tests/dial.rs:34-42`.
 
@@ -456,7 +456,7 @@ makes the error `DialError::BadProxy` (line 217), which stops the failover at on
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
    (`crates/podssh-relay/src/open.rs:54-76`) and the exit codes of `podssh proxy`
-   (`crates/podssh-cli/src/proxy.rs:163-176`) already treat: a refused user or password as 407
+   (`crates/podssh-cli/src/proxy.rs:158-171`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (`dial.rs:39-44`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks

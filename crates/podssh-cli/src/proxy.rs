@@ -57,17 +57,12 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             return EXIT_USAGE;
         }
     };
-    if let Err(why) = crate::pins::apply(args.relay_addr.as_deref()) {
-        let _ = writeln!(err, "podssh proxy: {why}");
-        return EXIT_USAGE;
+    if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
+        return refusal.report("proxy", err);
     }
-    let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
-    let relays = match relay::select_relays(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok(), &pool) {
+    let relays = match crate::relay_settings::relays(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok()) {
         Ok(r) => r,
-        Err(why) => {
-            let _ = writeln!(err, "podssh proxy: {why}");
-            return EXIT_USAGE;
-        }
+        Err(refusal) => return refusal.report("proxy", err),
     };
     let path = match relay::forward_path(&host, port) {
         Ok(p) => p,

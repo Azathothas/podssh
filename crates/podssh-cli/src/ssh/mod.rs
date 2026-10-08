@@ -5,7 +5,7 @@
 //!
 //! Exit codes follow OpenSSH: the remote command's status, 128 + a signal
 //! number when it was killed, 255 for podssh's own failures. A usage error is
-//! 64, before anything is attempted.
+//! 64, and a bad relay variable 78, before anything is attempted.
 
 pub mod args;
 pub mod keywords;
@@ -30,16 +30,12 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh {} (SSH: russh, aws-lc-rs)", env!("CARGO_PKG_VERSION"));
         return 0;
     }
-    if let Err(why) = crate::pins::apply(args.relay_addr.as_deref()) {
-        let _ = writeln!(err, "podssh ssh: {why}");
-        return EXIT_USAGE;
+    if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
+        return refusal.report("ssh", err);
     }
-    let resolved = match resolve::resolve(args, &Env::from_process()) {
+    let resolved = match resolve::resolve_or_refuse(args, &Env::from_process()) {
         Ok(r) => r,
-        Err(why) => {
-            let _ = writeln!(err, "podssh ssh: {why}");
-            return EXIT_USAGE;
-        }
+        Err(refusal) => return refusal.report("ssh", err),
     };
     let log = match &resolved.log_file {
         Some(path) => match Log::to_file(resolved.options.log_level, path) {

@@ -12,6 +12,7 @@ use podssh_ws::Trust;
 use podssh_relay::relay::{self, RelayList};
 
 use super::args::SshArgs;
+use crate::relay_settings::Refusal;
 use super::options::{parse_port, Settings};
 
 /// How the first hop is reached.
@@ -73,14 +74,20 @@ fn uid_zero_is_root() -> Option<String> {
     None
 }
 
-/// Resolve `args`; `Err` is a usage error to print.
+/// Resolve `args`; `Err` is the message of a refusal.
 pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
+    resolve_or_refuse(args, env).map_err(|refusal| refusal.message)
+}
+
+/// Resolve `args`; `Err` is a refusal with its exit code: 64 for the command
+/// line, 78 for a bad `PODSSH_RELAY`.
+pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal> {
     match args.config.as_deref() {
         None | Some("none") | Some("/dev/null") | Some("NUL") => {}
         Some(file) => {
-            return Err(format!(
+            return Err(Refusal::usage(format!(
                 "-F {file}: reading ssh_config files is not implemented yet; pass the settings with -o NAME=VALUE (-F none is accepted)"
-            ))
+            )))
         }
     }
     let mut settings = Settings::default();
@@ -179,17 +186,16 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
         }
         Transport::Direct
     } else {
-        let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
-        let relays = relay::select_relays(args.relay_host.as_deref(), env.relay.clone(), &pool)?;
+        let relays = crate::relay_settings::relays(args.relay_host.as_deref(), env.relay.clone())?;
         relay::check_target(&first).map_err(|why| format!("cannot reach {first} through the relay: {why}"))?;
         // The relay dials a literal as it is; a family of the other kind
         // cannot apply to it.
         match family {
             Some(4) if relay::is_ipv6_literal(&first) => {
-                return Err(format!("-4 asks the relay for IPv4, but {first} is an IPv6 address"))
+                return Err(format!("-4 asks the relay for IPv4, but {first} is an IPv6 address").into())
             }
             Some(6) if first.parse::<std::net::Ipv4Addr>().is_ok() => {
-                return Err(format!("-6 asks the relay for IPv6, but {first} is an IPv4 address"))
+                return Err(format!("-6 asks the relay for IPv6, but {first} is an IPv4 address").into())
             }
             _ => {}
         }
