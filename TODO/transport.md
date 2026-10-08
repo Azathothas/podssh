@@ -41,7 +41,7 @@ show this defect.
 
 Read: the contract sends control as text, and data as binary frames that start with 32 hex
 characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141`,
-`docs/relay.md:199-204`). A prefix that is not hex closes the node with `1003 bad multiplex id`
+`docs/relay.md:206-211`). A prefix that is not hex closes the node with `1003 bad multiplex id`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:176`).
 
 ## Approach
@@ -434,7 +434,7 @@ Read: the contract: `403 missing or wrong token` needs a new token; a `403` that
 is a policy refusal; `503` means that the relay does not issue or check tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:104-107`). On
 the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:137-139`),
-also after `POST /v1/stop` (`docs/reverse.md:51-52`). A `409` from `/v1/pair` means "pair again"
+also after `POST /v1/stop` (`docs/reverse.md:51-53`). A `409` from `/v1/pair` means "pair again"
 (`docs/relay.md:188-190`); a `409` on `/v1/node/<name>` means "exit" (`docs/reverse.md:19`).
 
 Read: the forward path already follows the contract in `podssh-relay`. It mints once again after a

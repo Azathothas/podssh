@@ -737,7 +737,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (lines 80-88). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:108-137`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:377-386`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:401-410`). The stand-in relay writes the minimal form
 (`scripts/fake-relay.py:54-62`); the frames of the real relay were not checked for it.
 
 ## Approach

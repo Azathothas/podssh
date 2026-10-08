@@ -62,11 +62,11 @@ LIBS="-p podssh-ws -p podssh-relay -p podssh-transport -p podssh-core -p podssh-
 
 # shellcheck disable=SC2086  # $LIBS is a list of flags
 run "library crates build with no C compiler" \
-    env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS
+    env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS --features podssh-relay/pair
 
 # shellcheck disable=SC2086
 run "library crates: tests, no C compiler" \
-    env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast $LIBS
+    env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast $LIBS --features podssh-relay/pair
 
 # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
 # its test runs with the feature, and the binary must never enable it.

@@ -288,6 +288,30 @@ pub async fn https_get(
         .await
 }
 
+/// A request over HTTPS with a relay token in its `X-Relay-Token` header, as
+/// the pairing calls need (`/v1/status/<name>`, `/v1/stop/<name>`), through
+/// the same proxy-aware, verified path as [`connect`]. The token goes into the
+/// header and nowhere else: no error of this path quotes a header.
+#[allow(clippy::too_many_arguments)]
+pub async fn https_with_token(
+    method: &str,
+    host: &str,
+    port: u16,
+    path: &str,
+    body: &[u8],
+    token: &str,
+    max_body: usize,
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+) -> Result<http::Response, ConnectError> {
+    if token.contains(['\r', '\n']) {
+        return Err(ConnectError::Config("the relay token contains a line break".into()));
+    }
+    let headers = [("Content-Type", "application/json"), ("Accept", "application/json"), ("X-Relay-Token", token)];
+    https_request(method, host, port, path, &headers, body, max_body, trust, proxy, timeout).await
+}
+
 #[allow(clippy::too_many_arguments)]
 async fn https_request(
     method: &str,

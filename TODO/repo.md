@@ -751,7 +751,7 @@ Read:
   `stty`, `vi`, `less`, `top`, `seq` and `/tmp`.
 - The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
   `crates/podssh-ssh/src/prompt.rs:95`, and the `cfg(not(unix))` branches of
-  `crates/podssh-relay/src/cache.rs:248-303`.
+  `crates/podssh-relay/src/cache.rs:253-312`.
 
 ## Approach
 
@@ -815,7 +815,7 @@ Read:
 
 - `scripts/gate.sh:55-142` has no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
-- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:291`).
+- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:315`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
   `crates/podssh-transport/src/socket.rs` (458),
   `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
@@ -1570,7 +1570,7 @@ command uses `podssh-probe`.
 2. Move `podssh-core` and `podssh-transport` to the dev-dependencies: an
    example can use a dev-dependency, and the binary does not declare them.
 3. Move `libc` to the dependencies for Unix only, as
-   `crates/podssh-relay/Cargo.toml:20` does; else the lint of step 4 fails on
+   `crates/podssh-relay/Cargo.toml:25` does; else the lint of step 4 fails on
    Windows.
 4. The check: `#![cfg_attr(not(test), deny(unused_crate_dependencies))]` in
    `crates/podssh-cli/src/lib.rs`. rustc then refuses a dependency that the

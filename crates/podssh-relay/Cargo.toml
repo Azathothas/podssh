@@ -17,6 +17,11 @@ serde_json = { workspace = true }
 zeroize = { workspace = true }
 rand = { workspace = true }
 
+[features]
+# Pairs of the reverse road: `POST /v1/pair`, the status of a pair and
+# `POST /v1/stop/<name>` (T-078). No C either; the gate builds it.
+pair = []
+
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
 

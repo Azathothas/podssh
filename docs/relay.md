@@ -192,10 +192,17 @@ Measured 2026-10-01:
 ## The reverse path: a host whose only egress is the relay
 
 podssh does not implement this path yet (milestone M4). The rules found so
-far are in [reverse.md](reverse.md).
+far are in [reverse.md](reverse.md). Pairing is in `podssh-relay`, behind
+the feature `pair` (`pair::create`, `status`, `stop`; T-078), and no
+command uses it yet.
 
 - `POST /v1/pair` (body `{}`) gives `{name, node_token, connect_token,
-  stop_token, expires}` (72 h or less).
+  stop_token, expires}` (72 h or less). Measured 2026-10-09: each token is
+  64 characters of `[0-9a-z]`, the name 34 characters of `[-0-9a-z]`, and
+  `expires` is in milliseconds, 72 h ahead.
+- `GET /v1/status/<name>` accepts `connect_token` only, and answers
+  `{"online": false, "sessions": 0}`; `node_token`, `stop_token` and no
+  token get `403 reverse: forbidden` (measured 2026-10-09).
 - The **node** keeps a WebSocket open to `/v1/node/<name>` with
   `node_token`. It receives JSON **text** frames `hello`, `open {id}` and
   `close {id}`, and answers `ready {id}` or `reject {id, reason}`, also in
@@ -209,7 +216,9 @@ far are in [reverse.md](reverse.md).
 - One node socket for each name; a second one gets `409`.
   `POST /v1/stop/<name>` stops the node and its sessions. It was seen to
   answer `{"stopped": false}` and still destroy the credentials, so treat
-  local copies as revoked, whatever the answer.
+  local copies as revoked, whatever the answer. Measured again 2026-10-09:
+  `{"stopped": false, "sessions": 0}` with no node online, then `403` for
+  each token and for a second stop.
 - The full table of reverse close codes (1000 to 1013, with reasons and
   actions) is in the contract, "Reverse close codes".
 

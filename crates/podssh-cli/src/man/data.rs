@@ -91,11 +91,13 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             format!(
                 "The cache: the first of these directories that podssh can use. It holds one relay token for \
                  each relay deployment, with the host that minted it ({} for the default relay), and the \
-                 relay's list of hosts ({}). Each file has mode 0600. \
+                 relay's list of hosts ({}). It will hold each pair of the reverse road under its label ({}), \
+                 which no command writes yet (milestone M4). Each file has mode 0600. \
                  podssh ignores a cache file that is a symbolic link, that belongs to another user, or that \
                  others can read.",
                 podssh_relay::cache::file_name(podssh_relay::DEFAULT_RELAY_HOST),
-                podssh_relay::pool::file_name(podssh_relay::DEFAULT_RELAY_HOST)
+                podssh_relay::pool::file_name(podssh_relay::DEFAULT_RELAY_HOST),
+                podssh_relay::pair::file_name("LABEL").unwrap_or_default()
             ),
         ),
         (

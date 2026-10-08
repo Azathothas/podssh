@@ -110,7 +110,7 @@ that minted it".
 # T-058: `podssh relay status`, `info`, `spec` and `trace`
 
 **Source:** `crates/podssh-cli/src/positionals.rs:39-41` (the subcommands that the parser
-declares); `docs/relay.md:216-222`; the tester of sandbox A, who used `curl` and a minted token
+declares); `docs/relay.md:225-231`; the tester of sandbox A, who used `curl` and a minted token
 on `/trace` (`report-podssh-sandbox-KTM-2026-10-08.txt`, outside the repository).
 **Category:** feature
 **Milestone:** backlog
@@ -154,7 +154,7 @@ token header (`crates/podssh-ws/src/client.rs:278-289`); `https_request` takes h
    (T-049). Each request has the 10 s limit of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs:27`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs:442`); change `DISPATCHED`, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:254`), the notes, `docs/relay.md:216-222` and
+   (`crates/podssh-cli/src/help.rs:254`), the notes, `docs/relay.md:225-231` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
 ## Decision
@@ -346,7 +346,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:46-53`).
+   and above all not the `stop_token` (`docs/reverse.md:46-55`).
 5. Answer the question in `docs/relay.md:184-190`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md:22-24` if the result differs.
 
@@ -548,7 +548,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    then the platform's temporary directory (`std::env::temp_dir`) with the user's tag; then the
    working directory. No path literal stays in `cache.rs`.
 3. Probe each as now: a missing directory is made with mode 0700
-   (`crates/podssh-relay/src/cache.rs:272-289`), and one that refuses a write is skipped. When the
+   (`crates/podssh-relay/src/cache.rs:281-298`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
    (`crates/podssh-ws/src/dial.rs:141-162`), so that the tests can set it.

@@ -6,13 +6,17 @@
 //! - [`token`] and [`cache`]: tokens from the environment, the cache or a
 //!   fresh mint, kept between runs in a private file, never printed;
 //! - [`open`]: a forward session, failing over from host to host with backoff,
-//!   one bounded attempt per host.
+//!   one bounded attempt per host;
+//! - `pair` (feature `pair`): the pairs of the reverse road, made, asked
+//!   about and stopped on the relay's control host, kept in a private file.
 //!
 //! No C compiler is needed (the gate builds this crate with
 //! `CC=/nonexistent`), so other projects can depend on it.
 
 pub mod cache;
 pub mod open;
+#[cfg(feature = "pair")]
+pub mod pair;
 pub mod pool;
 pub mod relay;
 pub mod token;

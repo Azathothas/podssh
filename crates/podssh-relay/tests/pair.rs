@@ -1,0 +1,137 @@
+//! Pairs of the reverse road (feature `pair`, T-078), offline. The answer has
+//! the shape that the live relay gave on 2026-10-09 (each token 64 characters
+//! of `[0-9a-z]`, the name 34 of `[-0-9a-z]`, `expires` in milliseconds),
+//! with test strings in place of the tokens.
+#![cfg(feature = "pair")]
+
+use std::path::PathBuf;
+
+use podssh_relay::pair::{self, PairError};
+use podssh_relay::relay::Relay;
+
+const NAME: &str = "podssh-test-pair-0123456789abcdef0";
+const NODE: &str = "testonlynode0000000000000000000000000000000000000000000000000000";
+const CONNECT: &str = "testonlyconnect0000000000000000000000000000000000000000000000000";
+const STOP: &str = "testonlystop0000000000000000000000000000000000000000000000000000";
+const NOW: i64 = 1_791_500_000_000;
+const HOURS_72: i64 = 72 * 3600 * 1000;
+
+fn relay() -> Relay {
+    Relay { host: "tcp.ssh.relay.ajam.dev".into(), port: 443 }
+}
+
+fn body(name: &str, node: &str, expires: i64) -> Vec<u8> {
+    format!(
+        r#"{{"name":"{name}","node_token":"{node}","connect_token":"{CONNECT}","stop_token":"{STOP}","expires":{expires}}}"#
+    )
+    .into_bytes()
+}
+
+fn good() -> pair::Pair {
+    pair::parse(&relay(), &body(NAME, NODE, NOW + HOURS_72), NOW).expect("a pair")
+}
+
+/// No token, in any text of a pair or of its errors.
+fn no_token(text: &str) {
+    for token in [NODE, CONNECT, STOP] {
+        assert!(!text.contains(token), "a token is in {text:?}");
+    }
+}
+
+fn scratch(tag: &str) -> PathBuf {
+    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
+    let dir = std::env::temp_dir().join(format!("podssh-pair-{tag}-{}-{nanos}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+#[test]
+fn the_tokens_were_test_strings_of_the_measured_shape() {
+    for token in [NODE, CONNECT, STOP] {
+        assert_eq!(token.len(), 64);
+        assert!(token.bytes().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()));
+    }
+    assert_eq!(NAME.len(), 34);
+}
+
+#[test]
+fn an_answer_of_the_relay_is_read() {
+    let pair = good();
+    assert_eq!((pair.name.as_str(), pair.expires_ms), (NAME, NOW + HOURS_72));
+    assert_eq!((pair.node_token(), pair.connect_token(), pair.stop_token()), (NODE, CONNECT, STOP));
+    assert_eq!(pair.relay, relay());
+}
+
+#[test]
+fn an_answer_that_is_not_a_usable_pair_is_refused() {
+    let cases: Vec<Vec<u8>> = vec![
+        body("../etc", NODE, NOW + HOURS_72),
+        body("a/b", NODE, NOW + HOURS_72),
+        body("-x", NODE, NOW + HOURS_72),
+        body(NAME, "has space in it, not a token", NOW + HOURS_72),
+        body(NAME, "short", NOW + HOURS_72),
+        br#"{"name":"x"}"#.to_vec(),
+        b"not json".to_vec(),
+    ];
+    for case in cases {
+        let error = pair::parse(&relay(), &case, NOW).expect_err(&String::from_utf8_lossy(&case));
+        assert!(matches!(error, PairError::BadAnswer(_)), "{error:?}");
+        no_token(&format!("{error} {error:?}"));
+    }
+}
+
+#[test]
+fn a_pair_with_less_than_ten_minutes_left_is_refused() {
+    let error = pair::parse(&relay(), &body(NAME, NODE, NOW + 9 * 60 * 1000), NOW).expect_err("9 minutes");
+    assert!(matches!(error, PairError::ShortLived { .. }), "{error:?}");
+    assert!(pair::parse(&relay(), &body(NAME, NODE, NOW + 11 * 60 * 1000), NOW).is_ok(), "11 minutes");
+}
+
+#[test]
+fn no_token_is_in_debug_or_in_an_error() {
+    let pair = good();
+    let debug = format!("{pair:?}");
+    no_token(&debug);
+    assert!(debug.contains(NAME) && debug.contains("<redacted>"), "{debug}");
+    for error in [PairError::Forbidden, PairError::NotIssued, PairError::BadAnswer("x"), PairError::ShortLived { left_ms: 1 }] {
+        no_token(&format!("{error} {error:?}"));
+    }
+}
+
+#[test]
+fn a_pair_is_kept_in_a_private_file_under_its_label() {
+    let dir = scratch("store");
+    let dirs = vec![dir.clone()];
+    let path = pair::store_in_first(&dirs, "lab", &good()).expect("stored");
+    assert_eq!(path.file_name().unwrap(), "pair-lab.json");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+    let back = pair::load_from(&dirs, "lab").expect("readable").expect("stored");
+    assert_eq!((back.node_token(), back.connect_token(), back.stop_token()), (NODE, CONNECT, STOP));
+    assert_eq!((back.name.as_str(), back.expires_ms, &back.relay), (NAME, NOW + HOURS_72, &relay()));
+    assert!(matches!(pair::store_in_first(&dirs, "../x", &good()), Err(PairError::BadLabel(_))));
+    pair::remove_from(&dirs, "lab").unwrap();
+    assert!(pair::load_from(&dirs, "lab").unwrap().is_none());
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn the_operator_file_is_new_private_and_has_the_connect_token_only() {
+    let dir = scratch("operator");
+    let path = dir.join("operator.json");
+    pair::write_operator_file(&path, &good()).expect("written");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains(CONNECT) && text.contains(NAME), "{text}");
+    assert!(!text.contains(NODE) && !text.contains(STOP), "only the operator's part: {text}");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+    }
+    let again = pair::write_operator_file(&path, &good()).expect_err("an existing file is never replaced");
+    assert_eq!(again.kind(), std::io::ErrorKind::AlreadyExists);
+    std::fs::remove_dir_all(&dir).unwrap();
+}

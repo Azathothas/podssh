@@ -182,9 +182,14 @@ pub fn remove(relay_host: &str) {
 
 /// [`remove`] over explicit directories (for tests).
 pub fn remove_from(dirs: &[PathBuf], relay_host: &str) {
-    let name = file_name(relay_host);
+    remove_named_from(dirs, &file_name(relay_host));
+}
+
+/// Delete the private file `name` from each directory where it is ours: a
+/// file that another user owns, or that others can read, is not touched.
+pub fn remove_named_from(dirs: &[PathBuf], name: &str) {
     for dir in dirs {
-        let path = dir.join(&name);
+        let path = dir.join(name);
         if read_trusted(&path).is_some() {
             let _ = std::fs::remove_file(&path);
         }
@@ -254,7 +259,9 @@ fn open_no_follow(path: &Path) -> std::io::Result<std::fs::File> {
 }
 
 #[cfg(unix)]
-fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
+/// A new file that only its owner can read (mode 0600), never one that exists
+/// and never through a symlink.
+pub fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
     use std::os::unix::fs::OpenOptionsExt;
     std::fs::OpenOptions::new()
         .write(true)
@@ -264,8 +271,10 @@ fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
         .open(path)
 }
 
+/// A new file; on Windows the access control list of the profile directory
+/// keeps it private (`SECURITY.md`).
 #[cfg(not(unix))]
-fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
+pub fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
     std::fs::OpenOptions::new().write(true).create_new(true).open(path)
 }
 

@@ -48,7 +48,7 @@ them too, which is wrong. An unknown `%` token stays as text (`resolve.rs:303-30
    (`crates/podssh-cli/src/ssh/keywords.rs:78-84`), but accept a `ProxyCommand` that runs
    podssh itself (`proxy %h %p`: the path of `podssh ssh` anyway). Honour `IgnoreUnknown`.
 6. Refuse a file that another user owns or can write, as OpenSSH does, on the opened file
-   (`crates/podssh-relay/src/cache.rs:207-219`). An unknown `%` token is an error.
+   (`crates/podssh-relay/src/cache.rs:212-224`). An unknown `%` token is an error.
 7. In the same commit: the `-F` row (`crates/podssh-cli/src/flags.rs:143-144`), VARIABLES and
    FILES (`crates/podssh-cli/src/man/facts.rs:45-90`, 98-142), the `ssh` notes,
    `docs/cli.md:247-268` and `docs/STATUS.md`.
@@ -131,7 +131,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:247-268`, FILES (`crates/podssh-cli/src/man/data.rs:64-110`) and the
+7. Change `docs/cli.md:247-268`, FILES (`crates/podssh-cli/src/man/data.rs:64-112`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -377,7 +377,7 @@ go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:62
 `crates/podssh-cli/src/ssh/resolve.rs:240-243`, `crates/podssh-cli/src/doctor/mod.rs:57-62` and
 `crates/podssh-cli/src/proxy.rs:74-78`. The pins of the flag and of the variable add up
 (`crates/podssh-cli/src/pins.rs:13-27`). The token cache uses the user's
-cache directory first (`crates/podssh-relay/src/cache.rs:329-342`). The decision named the
+cache directory first (`crates/podssh-relay/src/cache.rs:338-351`). The decision named the
 configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:45`, T-243).
 
 ## Approach
@@ -395,7 +395,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
    (`crates/podssh-ws/src/bundle.rs:32-39`). Never the working directory or `/tmp`: a file that
    names relay hosts decides where tokens go.
 4. Refuse a file that is a symbolic link, or that another user owns or can write, with an error
-   that names it. Check the opened file, as `crates/podssh-relay/src/cache.rs:207-219` does.
+   that names it. Check the opened file, as `crates/podssh-relay/src/cache.rs:212-224` does.
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and

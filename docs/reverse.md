@@ -49,5 +49,7 @@ WARNING: Never print the `stop_token`. The relay's reference client puts
 tokens in URLs. podssh does not do that.
 
 - After `POST /v1/stop`, the relay answered both remaining tokens with
-  `403 reverse: forbidden` (measured 2026-10-01).
-- It is not known which token `/v1/status` accepts.
+  `403 reverse: forbidden` (measured 2026-10-01; again on 2026-10-09, for
+  each token and for a second stop).
+- `/v1/status` accepts `connect_token` only; `node_token` and `stop_token`
+  get `403` (measured 2026-10-09, T-078).
