@@ -526,7 +526,7 @@ so a key with limits cannot be used at all.
 - Read: the patterns of `from=` are those of `known_hosts`, which
   `crates/podssh-ssh/src/known_hosts.rs:145-168` matches (negation included).
 - Read: on the reverse road, serve does not know the client's address: the
-  stream comes from the relay (`docs/relay.md:187-199`).
+  stream comes from the relay (`docs/relay.md:192-204`).
 - Read in the reports of GitHub #21 and #18, not verified here: agent-ssh-cli
   checks regex lists before exec; sandhole limits local forwarding.
 
@@ -770,9 +770,11 @@ must slow the child down, and a client that is gone must end the session.
   not the program read it (`Eugeny/russh:russh/src/session.rs`, lines
   305-330). A child that does not read its stdin is held only by the channel
   buffer of 100 messages (T-108).
-- Read: the comment of `crates/podssh-ssh/src/run.rs:25-29` says that the
-  relay drops a frame past 1 MiB with 1011; `docs/relay.md:159-163` says
-  that it closes with 1013 at 2 MiB (T-024 checks this).
+- Read: the comment on the SSH window said that the relay drops a frame
+  past 1 MiB with 1011 (`crates/podssh-ssh/src/run.rs` lines 25-29 at
+  `80f20bf`); `docs/relay.md:164-168` says that it closes with 1013 at
+  2 MiB. T-024 corrected the comment; T-062 measures whether the relay's
+  check operates.
 
 ## Approach
 
@@ -828,7 +830,7 @@ example, a notice that the host is a sandbox that expires.
 - Read: a cage may have no `/etc/motd` and no `/var`
   (`docs/target-environment.md:16-29`); serve reads only what exists.
 - Read: podssh already makes server text safe for a terminal:
-  `crates/podssh-ssh/src/handler.rs:55-58` uses `podssh_ws::text::multi_line`.
+  `crates/podssh-ssh/src/handler.rs:68-71` uses `podssh_ws::text::multi_line`.
 - Read in the report of GitHub #19, not verified here: ssh-obi prints the
   MOTD before the login shell and honours `~/.hushlogin`.
 
@@ -1046,7 +1048,7 @@ default of russh refuses each `tcpip-forward` with no reason.
   allows a listener only when the user asks and a probe allows the bind.
 - Read: `docs/design.md:252-254` allows a listener on the far side. The relay
   is a listener that podssh does not run: a node name takes operator
-  sessions (`docs/relay.md:187-199`).
+  sessions (`docs/relay.md:192-204`).
 - Read in the report of GitHub #18, not verified here: sandhole publishes
   services through a stock `ssh -R`.
 

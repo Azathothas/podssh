@@ -152,10 +152,15 @@ is not a number as `0`, with no message.
   | `1011` | `connect failed: ...`; `target closed before sending anything`; `wrong target banner ...`; `client send failed: ...`; `write failed: ...`; `client error` |
   | `1013` | `client receive backlog`; `target write backlog` (2 MiB queued) |
 
-  Only `1000` is a normal end. `podssh proxy` exits with a code that is not
-  zero and prints the reason for each other code. `podssh ssh` prints the
-  reason when the connection drops. podssh reports a code that is not in
-  this table as it is, with control characters removed from the reason.
+  Only `1000` is a normal end. For each other code, `podssh ssh` and
+  `podssh proxy` name the part that broke (the relay's link to the target,
+  the link between podssh and the relay, or a limit of the relay), keep the
+  code and the reason as the relay wrote them, and say what may help in a
+  second line (T-024): `podssh: 127.0.0.1:2201: the relay lost its
+  connection to 127.0.0.1:2201 (relay close 1011: write failed: ...)`. A
+  connection that ends with no Close is the link between podssh and the
+  relay. podssh reports a code that is not in this table as it is, with
+  control characters removed from the reason.
 - Backpressure closes the session (`1013`, at 2 MiB queued); the relay does
   not drop a frame. podssh advertises an SSH window of 512 KiB, so a server
   cannot have more than that in flight to a slow podssh. It is not verified

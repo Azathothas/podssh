@@ -8,7 +8,7 @@ echo
 echo "== faults (a stand-in relay and proxy, OpenSSH behind them)"
 FK="$W/faults"
 mkdir -p "$FK"
-NAMES="relay-a relay-r503 relay-silent relay-hole relay-dead relay-stall relay-close relay-cap relay-kill"
+NAMES="relay-a relay-r503 relay-silent relay-hole relay-dead relay-stall relay-close relay-cap relay-kill relay-hshake"
 SAN=$(for n in $NAMES; do printf 'DNS:%s.test,' "$n"; done)
 PINS=$(for n in $NAMES; do printf '%s.test=127.0.0.1,' "$n"; done)
 SAN=${SAN%,}
@@ -31,7 +31,7 @@ else
 fi
 
 for spec in a:normal r503:refuse:503 silent:silent hole:blackhole dead:normal stall:stall:12 \
-        close:close:300000:1011 cap:close:1:1009 kill:normal; do
+        close:close:300000:1011 cap:close:1:1009 kill:normal hshake:close:1:1011; do
     name=${spec%%:*}
     python3 "$HERE/fake-relay.py" --cert "$FK/relay.pem" --key "$FK/relay.key" --keepalive 2 \
         --port-file "$FK/$name.port" --mode "${spec#*:}" >"$FK/$name.log" 2>&1 &
@@ -41,7 +41,7 @@ port() { cat "$FK/$1.port" 2>/dev/null; }
 tries=0
 while [ "$tries" -lt 30 ]; do
     missing=0
-    for n in a r503 silent hole dead stall close cap kill; do [ -s "$FK/$n.port" ] || missing=1; done
+    for n in a r503 silent hole dead stall close cap kill hshake; do [ -s "$FK/$n.port" ] || missing=1; done
     [ "$missing" = 0 ] && break
     sleep 1
     tries=$((tries + 1))
@@ -122,6 +122,17 @@ got=$(wc -c <"$FK/out")
     && [ "$got" -lt 5000000 ] \
     && ok "faults: closed mid-transfer with 1011: exit 255 with the relay's reason ($got of 5000000 bytes arrived)" \
     || bad "faults: closed mid-transfer: exit $rc, $got bytes" "$FK/err"
+
+# A drop during the SSH handshake (GitHub #17): the first line names the hop
+# that broke, and keeps the relay's code and reason as the relay wrote them.
+r "relay-hshake.test:$(port hshake)" "$T" true >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+first=$(head -n 1 "$FK/err")
+want="the relay lost its connection to 127.0.0.1:2201 (relay close 1011: write failed: fault injection)"
+case $first in *"$want"*) named=yes ;; *) named=no ;; esac
+[ "$rc" = 255 ] && [ "$named" = yes ] && ! grep -q "closed unexpectedly" "$FK/err" \
+    && ok "faults: closed with 1011 during the handshake: the first line names the relay's link to the target" \
+    || bad "faults: closed during the handshake: exit $rc; first line: $first" "$FK/err"
 
 env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY HOME="$W" "$BIN" proxy --relay-host "relay-cap.test:$(port cap)" \
     --relay-addr "$PINS" --ca-file "$FK/ca.pem" 127.0.0.1 2201 </dev/null >"$FK/out" 2>"$FK/err"

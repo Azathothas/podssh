@@ -36,7 +36,7 @@ server listens, and the client connects out for each connection.
   `docs/cli.md:87-89` says that the refusal of `-R` must not say that.
 - Read: russh 0.64.1 has `Handle::tcpip_forward`, and its default handler
   accepts each `forwarded-tcpip` channel that a server opens. podssh's handler
-  does not override it (`crates/podssh-ssh/src/handler.rs:31-59`).
+  does not override it (`crates/podssh-ssh/src/handler.rs:44-88`).
 - Read: `dial` goes through `HTTPS_PROXY`, but never for a loopback target
   (`crates/podssh-ws/src/dial.rs:138-147`,
   `crates/podssh-ws/src/dial.rs:204-227`). On the measured sandbox, a direct
@@ -128,7 +128,7 @@ remote host that must use the key, such as `git` on a build host.
 - Read: russh 0.64.1 has `Channel::agent_forward`
   (`auth-agent-req@openssh.com`), and its default handler accepts an
   `auth-agent@openssh.com` channel from the server. podssh's handler does not
-  override it (`crates/podssh-ssh/src/handler.rs:31-59`). No agent is
+  override it (`crates/podssh-ssh/src/handler.rs:44-88`). No agent is
   connected to such a channel today, so nothing leaks; OpenSSH refuses such
   a channel and warns.
 - Read: `docs/cli.md` (section "Forwarding") said that `-A` is not in the
@@ -195,7 +195,7 @@ X11 channel.
   `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:60-73`).
 - Read: russh 0.64.1 has `Channel::request_x11` (`x11-req`), and its default
   handler accepts each `x11` channel. podssh's handler does not override it
-  (`crates/podssh-ssh/src/handler.rs:31-59`).
+  (`crates/podssh-ssh/src/handler.rs:44-88`).
 - The X server's address comes from `DISPLAY`: `:N` is the socket
   `/tmp/.X11-unix/XN` (on Linux, also an abstract socket), and `HOST:N` is
   TCP port 6000+N. The cookie is in the file that `XAUTHORITY` names, else
@@ -575,8 +575,8 @@ sessions (GitHub #17).
 
 ## Premise
 
-Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:38-46`,
-`crates/podssh-ssh/src/run.rs:69-77`). `podssh_relay::open` fails over and
+Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:38-47`,
+`crates/podssh-ssh/src/run.rs:97-105`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:174-213`,
 `crates/podssh-relay/src/open.rs:263-277`). With `-N`, no command runs, so a
@@ -610,7 +610,7 @@ In the fault harness (`scripts/interop-faults.sh`), a run with the new flag,
 `--relay-host` set to `relay-kill` then `relay-a`, and
 `-N -R 127.0.0.1:2291:127.0.0.1:2203` carries a connection to port 2291.
 Then the stand-in relay `relay-kill` stops, as at
-`scripts/interop-faults.sh:141-151`. Within 60 s, a new connection to port
+`scripts/interop-faults.sh:152-162`. Within 60 s, a new connection to port
 2291 reads Dropbear's banner again. Planted defect: no new connection, and
 the second read fails.
 

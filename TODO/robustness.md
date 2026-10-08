@@ -284,27 +284,28 @@ Read, the bounds today:
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:29`). The relay pipe:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:22-25`). Pump buffers: 32 KiB
-  (`crates/podssh-cli/src/proxy.rs:217`).
+  (`crates/podssh-cli/src/proxy.rs:219`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
   `crates/podssh-relay/src/open.rs:25-29`, `crates/podssh-ssh/src/session.rs:21`.
 - No limit: a `known_hosts` file is read whole
   (`crates/podssh-ssh/src/known_hosts.rs:104-109`); the IRC buffer (T-096).
-- Two texts disagree. The comment at `crates/podssh-ssh/src/run.rs:25-28` says
-  that the relay drops a frame when more than 1 MiB waits (`1011 relay
-  backpressure`). That is the row of the reverse path in the relay's document
-  (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). For the
-  forward path, `docs/relay.md:159-163` says that backpressure closes with
-  `1013` at 2 MiB and drops no frame. T-062 measures whether that check
-  operates.
+- Two texts disagreed until T-024. The comment on the SSH window
+  (`crates/podssh-ssh/src/run.rs` lines 25-28 at `80f20bf`) said that the
+  relay drops a frame when more than 1 MiB waits (`1011 relay
+  backpressure`): the row of the reverse path in the relay's document
+  (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
+  now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:25-28`):
+  `docs/relay.md:164-168` says that backpressure closes with `1013` at
+  2 MiB and drops no frame. T-062 measures whether that check operates.
 
 ## Approach
 
 1. A section "Limits" in docs/architecture.md: one row for each bound, with
    its value, its file, and what podssh does at the bound (the error and its
    exit code). Name the two missing limits as missing.
-2. T-244 corrects the comment at `crates/podssh-ssh/src/run.rs:25-28`; the
-   table states the forward path's bound, and the result of T-062 when it
-   exists.
+2. The table states the forward path's bound, as the comment at
+   `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
+   T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
    (`docs/development.md:204-207`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
@@ -436,10 +437,10 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 73-151 (`docs/STATUS.md:169-186`, 12 of 12 since T-057).
+  checks are at lines 73-162 (`docs/STATUS.md:169-187`, 13 of 13 since T-024).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:240`, enforced at
-  `crates/podssh-ssh/src/run.rs:109-114`); a reply, 30 s
+  `crates/podssh-ssh/src/run.rs:138-143`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability

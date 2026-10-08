@@ -107,7 +107,7 @@ reporter used the static release binary. Read here on `3ee70dc`.
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -128,16 +128,16 @@ sends with its disconnect is not shown at all.
 Read:
 
 - `describe` maps `Disconnect`, `HUP`, `RecvError`, `SendError` and an
-  unexpected EOF to one sentence (`crates/podssh-ssh/src/run.rs:187-193`).
+  unexpected EOF to one sentence (`crates/podssh-ssh/src/run.rs:224-230`).
   `run` prints it first, and the relay's reason second
-  (`crates/podssh-ssh/src/run.rs:38-46`,
+  (`crates/podssh-ssh/src/run.rs` lines 38-46 at `80f20bf`,
   `crates/podssh-ssh/src/relay_stream.rs:36-52`).
 - The form `HOST: the connection closed unexpectedly` comes only from the
-  handshake (`crates/podssh-ssh/src/run.rs:108-122`). Thus both reported
-  drops happened before the first key exchange ended.
+  handshake (`crates/podssh-ssh/src/run.rs` lines 108-122 at `80f20bf`).
+  Thus both reported drops happened before the first key exchange ended.
 - The handler keeps no SSH_MSG_DISCONNECT: it has no `disconnected` callback
-  (`crates/podssh-ssh/src/handler.rs:31-59`), and the default of russh 0.64.1
-  drops the reason.
+  (`crates/podssh-ssh/src/handler.rs` lines 31-59 at `80f20bf`), and the
+  default of russh 0.64.1 drops the reason.
 - The relay's contract gives no close codes for the forward path;
   `docs/relay.md:142-154` lists them, read from the relay's source.
   `1011 write failed: ...` means that the relay could not write to the
@@ -148,8 +148,9 @@ Read:
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:160-166`, row
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). On the
   forward path, backpressure closes with `1013` at 2 MiB (`docs/relay.md:153`,
-  `docs/relay.md:159-163`). The comment at `crates/podssh-ssh/src/run.rs:25-29`
-  also cites the reverse row.
+  `docs/relay.md:164-168`). The comment on the SSH window
+  (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`) also cites the
+  reverse row.
 
 ## Approach
 
@@ -166,7 +167,7 @@ Read:
    `crates/podssh-ssh/src/handler.rs`. Store the reason code and the text,
    made safe with `podssh_ws::text::one_line`, as the handler stores
    `refusal` (`crates/podssh-ssh/src/handler.rs:15-17`).
-3. In `run` (`crates/podssh-ssh/src/run.rs:34-48`), write one first line from
+3. In `run` (`crates/podssh-ssh/src/run.rs` lines 34-48 at `80f20bf`), write one first line from
    three sources, in this order: a relay close other than 1000, the server's
    disconnect, then `describe`. Example: "railway.new: the relay lost its
    connection to railway.new:22 (relay close 1011: write failed: Network
@@ -176,11 +177,11 @@ Read:
    the target: another relay host (`--relay-host`), and
    `podssh relay trace HOST:PORT` when T-058 exists.
 5. Use the same classification in `podssh proxy`
-   (`crates/podssh-cli/src/proxy.rs:252-280`). Keep `CODE REASON` in its line:
-   `scripts/interop-faults.sh:129` looks for `1009 session byte cap`.
-6. Correct the comment at `crates/podssh-ssh/src/run.rs:25-29`. The window of
-   512 KiB stays: it is below both limits.
-7. Update `docs/relay.md:155-158` and `docs/STATUS.md:182`. T-025 uses the
+   (`crates/podssh-cli/src/proxy.rs` lines 252-280 at `80f20bf`). Keep `CODE REASON` in its line:
+   `scripts/interop-faults.sh:140` looks for `1009 session byte cap`.
+6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
+   25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:182`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -202,6 +203,33 @@ the session during the handshake. The first line must name the relay's link
 to the target and keep `write failed: fault injection`, and must not be the
 generic sentence. Planted defect: return `describe` alone, and that check
 fails.
+
+## Done
+
+2026-10-08, in the commit "A dropped session names the hop that broke".
+
+- `forward_close` in `crates/podssh-ws/src/session.rs` maps each code and
+  reason of the forward path to a part: the relay's link to the target, the
+  link between podssh and the relay, a limit of the relay, a normal end, or
+  an unknown code. Each part has a sentence and a remedy (`--relay-host`,
+  `podssh doctor`, and the idle cut, the byte cap and the time cap).
+- `podssh ssh`: `failure_lines` in `crates/podssh-ssh/src/run.rs` writes
+  the first line from a relay close other than 1000 (or a link that broke
+  with no Close), else from the server's disconnect, which the handler now
+  keeps, else from `describe`. The code and the reason stay as the relay
+  wrote them. `podssh proxy` uses the same parts.
+- The comment on the SSH window cites the forward path: `1013` at 2 MiB.
+- `docs/relay.md` (the close codes) says what podssh prints.
+- Prove: `cargo test -p podssh-ws -- forward_close` (each row of the table
+  and an unknown code) and `cargo test -p podssh-ssh -- first_line` passed.
+  `sh scripts/dev.sh check`: green; interop 101 of 101, and the new check
+  "closed with 1011 during the handshake: the first line names the relay's
+  link to the target" passed.
+- Plant: the gate's binary of `475aea9` (before this entry), run in the
+  container with `scripts/interop.sh`. The new check failed, as it must:
+  "first line: podssh: 127.0.0.1:2201: the connection closed unexpectedly".
+- Left for T-058: the remedy names `podssh relay trace HOST:PORT` when that
+  command exists.
 
 # T-025: Try a dropped forward session again when it is safe, by the relay's close reason (GitHub #17)
 
@@ -230,14 +258,14 @@ Read:
 - `podssh_relay::open` fails over and repeats rounds only until the
   WebSocket upgrade succeeds (`crates/podssh-relay/src/open.rs:174-213`).
   After the upgrade, a relay close ends the run
-  (`crates/podssh-ssh/src/run.rs:38-46`).
+  (`crates/podssh-ssh/src/run.rs:38-47`).
 - Both reported drops printed `HOST: the connection closed unexpectedly`,
-  which only the SSH handshake prints (`crates/podssh-ssh/src/run.rs:108-122`).
+  which only the SSH handshake prints (`crates/podssh-ssh/src/run.rs:137-159`).
   At that point no request has reached the server.
 - The command starts with the exec, shell or subsystem request
   (`crates/podssh-ssh/src/session.rs:61-78`). `-W` reads stdin only after its
   channel opens (`crates/podssh-ssh/src/forward.rs:22-46`). `-N` never reads
-  stdin (`crates/podssh-ssh/src/run.rs:69-77`).
+  stdin (`crates/podssh-ssh/src/run.rs:97-105`).
 - Measured by the reporter (read in the reports, not verified here): on one
   target the drop came back 3 times in 3, while other targets worked in the
   same minute, also with a client that shares no code with podssh. A blind
@@ -247,7 +275,7 @@ Read:
 
 ## Approach
 
-1. Make `run_inner` (`crates/podssh-ssh/src/run.rs:50-84`) report the phase
+1. Make `run_inner` (`crates/podssh-ssh/src/run.rs:78-112`) report the phase
    that a failure reached: the handshake, the authentication, the session
    request sent, or data moved. Keep the exit codes of OpenSSH.
 2. In `connect_and_run` (`crates/podssh-cli/src/ssh/mod.rs:75-122`), open a
@@ -322,7 +350,7 @@ Read:
 - A closed stdout (EPIPE) gives the status so far, or 0 when none came
   (`crates/podssh-ssh/src/io.rs:106-110`).
 - `-N` gives 0 when the connection ends with no error
-  (`crates/podssh-ssh/src/run.rs:69-77`). russh 0.64.1 ends the session with
+  (`crates/podssh-ssh/src/run.rs:97-105`). russh 0.64.1 ends the session with
   no error when the server sends SSH_MSG_DISCONNECT.
 - `-W` gives 0 when the far end closes and when stdout closes
   (`crates/podssh-ssh/src/forward.rs:52-56`), and 255 when the connection
@@ -378,7 +406,7 @@ logs each `exit-status` request, and correct the row.
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
 lablup/bssh report in GitHub #18, #20 and #22 (item 8, "`@cert-authority`
-rejection"); the known gap in `docs/STATUS.md:194` and `SECURITY.md:66-68`.
+rejection"); the known gap in `docs/STATUS.md:195` and `SECURITY.md:66-68`.
 Each claim read again here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog
@@ -404,8 +432,8 @@ Read:
   (`crates/podssh-ssh/src/known_hosts.rs:62-85`). `CertAuthority` has two
   hits in `crates/` and `docs/`: the definition and the parse.
 - The check takes the plain key of what russh gives
-  (`crates/podssh-ssh/src/handler.rs:38`). The comment at
-  `crates/podssh-ssh/src/handler.rs:35-37` says that OpenSSH falls back the
+  (`crates/podssh-ssh/src/handler.rs:51`). The comment at
+  `crates/podssh-ssh/src/handler.rs:48-50` says that OpenSSH falls back the
   same way when no CA line matches; podssh never looks for a CA line.
 - The refusal comes from the policy: `crates/podssh-ssh/src/hostkey.rs:66-70`
   (`yes`), `crates/podssh-ssh/src/hostkey.rs:75-79` (BatchMode),
@@ -424,13 +452,13 @@ back to the plain key only when no CA line matches.
 
 1. Ask for certificates: when a `@cert-authority` line matches the name of a
    hop, set `host_key_certificates` in `client_config`
-   (`crates/podssh-ssh/src/run.rs:128-174`) to the algorithms of
+   (`crates/podssh-ssh/src/run.rs:165-211`) to the algorithms of
    `preferred.key`. A host with no CA line keeps today's negotiation.
 2. Add a lookup of CA keys in `crates/podssh-ssh/src/known_hosts.rs`, beside
    the `@revoked` arm (`crates/podssh-ssh/src/known_hosts.rs:66-71`). Match CA
    lines with the name `host` or `[host]:port`
    (`crates/podssh-ssh/src/known_hosts.rs:53-60`).
-3. In `check_server_key` (`crates/podssh-ssh/src/handler.rs:34-53`), branch on
+3. In `check_server_key` (`crates/podssh-ssh/src/handler.rs:47-66`), branch on
    `PublicKeyOrCertificate`. For a certificate: `validate_at` with the clock
    and the fingerprints of the matching CA keys; the type must be `host`; a
    principal must equal the host name or `HostKeyAlias`, with no port;
@@ -443,8 +471,8 @@ back to the plain key only when no CA line matches.
 5. In an expiry refusal, name the clock: a sandbox clock can be wrong
    (`crates/podssh-cli/src/doctor/clock.rs`).
 6. Keep the test `a_cert_authority_line_does_not_make_a_key_known`: a CA line
-   never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:35-37`.
-   When certificates work, change `docs/STATUS.md:194` and `SECURITY.md:66-68`.
+   never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:48-50`.
+   When certificates work, change `docs/STATUS.md:195` and `SECURITY.md:66-68`.
 
 GitHub #29 notes that the bssh report in #18, #20 and #22 asks podssh to
 keep refusing a certificate that no trusted CA signed. Verification keeps
@@ -474,7 +502,7 @@ Planted defect: accept each certificate, and the wrong-principal test fails.
 GitHub #29 says that podssh drops a certificate that russh gives. In fact no
 certificate comes: russh 0.64.1 offers certificate algorithms only from
 `Preferred::host_key_certificates`, which is empty by default, and
-`client_config` does not set it (`crates/podssh-ssh/src/run.rs:128-174`). So
+`client_config` does not set it (`crates/podssh-ssh/src/run.rs:165-211`). So
 a server always presents its plain key. The words "checked as plain keys"
 in `docs/STATUS.md` and `SECURITY.md` were not exact either: podssh never
 asks for a certificate. They were corrected in the change that wrote this
@@ -642,11 +670,11 @@ accepted for the wrong host.
 ## Premise
 
 Read: each hop gets its own name for the check, its host and its port, as
-`host` or `[host]:port` (`crates/podssh-ssh/src/run.rs:91-102`,
+`host` or `[host]:port` (`crates/podssh-ssh/src/run.rs:119-130`,
 `crates/podssh-ssh/src/known_hosts.rs:53-60`). `HostKeyAlias` applies to the
-destination only (`crates/podssh-ssh/src/run.rs:92-95`). The order of
+destination only (`crates/podssh-ssh/src/run.rs:120-123`). The order of
 host-key algorithms comes from the keys recorded for that hop
-(`crates/podssh-ssh/src/run.rs:133-156`). The gate's check "-J through
+(`crates/podssh-ssh/src/run.rs:170-193`). The gate's check "-J through
 OpenSSH to Dropbear" (`scripts/interop.sh:198-199`) passes only when this
 holds: both hops are 127.0.0.1, both keys are Ed25519 and differ, and each
 is recorded under its own port.
@@ -656,7 +684,7 @@ is recorded under its own port.
 The code is correct (see the Correction). The work is a direct regression
 test, and a documented difference from OpenSSH.
 
-1. Move the name of a hop (`crates/podssh-ssh/src/run.rs:91-97`) into a
+1. Move the name of a hop (`crates/podssh-ssh/src/run.rs:119-125`) into a
    function. Test it: a jump hop on port 22, a jump hop on port 2222, and the
    destination with and without `HostKeyAlias`.
 2. In `scripts/interop.sh`, after the `-J` check, start from an empty file
@@ -729,7 +757,7 @@ and no other.
    exit 64 before anything connects.
 2. Carry it in `Options` (`crates/podssh-ssh/src/options.rs:163-217`) and
    `Policy` (`crates/podssh-ssh/src/hostkey.rs:17-27`), for the destination
-   only, as `HostKeyAlias` (`crates/podssh-ssh/src/run.rs:92-95`).
+   only, as `HostKeyAlias` (`crates/podssh-ssh/src/run.rs:120-123`).
 3. In `Policy::check`, refuse a revoked key and a changed key first, as today
    (`crates/podssh-ssh/src/hostkey.rs:50-57`). Then accept a key whose SHA-256
    fingerprint (`crates/podssh-ssh/src/known_hosts.rs:257-260`) is in the
@@ -1025,7 +1053,7 @@ no road.
 Read:
 
 - `client_config` sets `inactivity_timeout: None`
-  (`crates/podssh-ssh/src/run.rs:168`). russh 0.64.1 races each write against
+  (`crates/podssh-ssh/src/run.rs:205`). russh 0.64.1 races each write against
   that timer in `flush_or_timeout`; with `None`, the timer never fires, so
   only the write can end the wait.
 - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
@@ -1063,7 +1091,7 @@ Read:
    `crates/podssh-cli/src/ssh/mod.rs:123-152` changes, and both roads behave
    the same.
 3. The other change: set `inactivity_timeout` at
-   `crates/podssh-ssh/src/run.rs:168`. russh resets that timer only in a loop
+   `crates/podssh-ssh/src/run.rs:205`. russh resets that timer only in a loop
    round that sent no keepalive, podssh's keepalive interval is also 60 s
    (`crates/podssh-ssh/src/options.rs:238`), and the timer also ends a
    session that is only idle. Measure an idle session with
@@ -1276,8 +1304,8 @@ Read:
   handshake" only (`crates/podssh-cli/src/ssh/keywords.rs:28`,
   `crates/podssh-cli/src/flags.rs:167-168`).
 - `connect` limits `connect_stream` only
-  (`crates/podssh-ssh/src/run.rs:108-122`); `auth::authenticate` runs with no
-  limit (`crates/podssh-ssh/src/run.rs:123`).
+  (`crates/podssh-ssh/src/run.rs:137-159`); `auth::authenticate` runs with no
+  limit (`crates/podssh-ssh/src/run.rs:160`).
 - In russh 0.64.1, an authentication request waits for its reply with no
   limit (`wait_recv_reply`), and keepalives start only after the
   authentication succeeds. So nothing ends the wait on the direct road.
@@ -1358,8 +1386,9 @@ with no end.
 
 Read:
 
-- podssh's handler implements only `check_server_key` and `auth_banner`
-  (`crates/podssh-ssh/src/handler.rs:31-59`).
+- podssh's handler implements `check_server_key`, `auth_banner` and (since
+  T-024) `disconnected`, and no callback for a channel
+  (`crates/podssh-ssh/src/handler.rs:44-88`).
 - In russh 0.64.1, the default callbacks for the seven kinds above accept
   the channel. A channel of an unknown kind is refused
   (`should_accept_unknown_server_channel` returns false by default).

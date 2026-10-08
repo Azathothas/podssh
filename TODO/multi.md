@@ -48,7 +48,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
    open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:75-154`,
-   `crates/podssh-ssh/src/run.rs:34-48`). Invariant: no second SSH client.
+   `crates/podssh-ssh/src/run.rs:34-49`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:32-150` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
    (`crates/podssh-ssh/src/log.rs:12-15`). Each line gets `HOST: `. With

@@ -27,7 +27,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
   row (`crates/podssh-cli/src/flags.rs:384-411`).
-- Read: the only pump is `crates/podssh-cli/src/proxy.rs:186-280`. At the end
+- Read: the only pump is `crates/podssh-cli/src/proxy.rs:188-280`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
@@ -47,13 +47,13 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    An unknown kind exits 64 and lists the kinds. `-` is `stdio`; `stdio` on
    both sides exits 64. Invariant: both addresses are valid before anything
    starts.
-3. Move the pump of `crates/podssh-cli/src/proxy.rs:186-250` to
+3. Move the pump of `crates/podssh-cli/src/proxy.rs:188-252` to
    crates/podssh-cli/src/pipe/pump.rs, over two duplex ends, with its rules:
    reads of 32 KiB; an end of input half-closes the other side (a shutdown
    of the write side, never a drop, or the reply is lost), and the other
    direction goes on; a reader that is gone ends the pipe with 0
    (`crates/podssh-cli/src/proxy.rs:271-274`). Keep
-   `runtime.shutdown_background()` (`crates/podssh-cli/src/proxy.rs:93-95`).
+   `runtime.shutdown_background()` (`crates/podssh-cli/src/proxy.rs:94-96`).
    This is the one path: T-175 moves `podssh proxy` onto it.
 4. `fd:N` (Unix): `fcntl(F_GETFD)` first. A closed N, or N below 3, exits 64.
    On Windows, `fd:` exits 64.
@@ -121,14 +121,14 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 - Read: `podssh proxy` is the `relay:` address today. It opens the session
   with `crates/podssh-relay/src/open.rs:177-213` and pumps it
-  (`crates/podssh-cli/src/proxy.rs:45-97`).
+  (`crates/podssh-cli/src/proxy.rs:45-98`).
 - Read: `crates/podssh-ssh/src/relay_stream.rs:88-92` sends Close 1000 when
   its write side ends. That is right for SSH and wrong for a pipe: the relay
   has no half-close (`docs/relay.md:67-68`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
   (`docs/STATUS.md:82`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:12-18`
-  after the hops of `crates/podssh-ssh/src/run.rs:54-63`, but that code is
+  after the hops of `crates/podssh-ssh/src/run.rs:82-91`, but that code is
   private and gives only an exit code.
 - Read: `TODO/issues.md` (#26) says that a binary protocol through `-W` is
   measured. Only exec is measured with digests (`docs/STATUS.md:59`); `-W`
@@ -141,20 +141,20 @@ local program to a target, and `podssh proxy` stays a second pump.
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
    pump does not know the road (`docs/architecture.md:83-85`).
-2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:101-114` does;
+2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:102-115` does;
    open with `crates/podssh-relay/src/open.rs:177-213`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
-   (`crates/podssh-cli/src/proxy.rs:190-195`), empty frames dropped. IPv6
+   (`crates/podssh-cli/src/proxy.rs:192-197`), empty frames dropped. IPv6
    literals follow T-007.
 3. Move `podssh proxy` onto the pipe: `run_proxy`
-   (`crates/podssh-cli/src/proxy.rs:45-97`) runs `stdio` and `relay:`. Keep
-   its exit codes and messages (`crates/podssh-cli/src/proxy.rs:162-175`,
-   `crates/podssh-cli/src/proxy.rs:252-280`).
+   (`crates/podssh-cli/src/proxy.rs:45-98`) runs `stdio` and `relay:`. Keep
+   its exit codes and messages (`crates/podssh-cli/src/proxy.rs:163-176`,
+   `crates/podssh-cli/src/proxy.rs:254-280`).
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it
    (`crates/podssh-cli/src/ssh/resolve.rs:151-154`,
    `crates/podssh-cli/src/ssh/resolve.rs:280-320`). Make
-   `crates/podssh-ssh/src/run.rs:54-63` a public `connect_chain` that `-W`
+   `crates/podssh-ssh/src/run.rs:82-91` a public `connect_chain` that `-W`
    and the pipe both use; keep each handle alive until the pipe ends. The
    options: `-i`, `-o NAME=VALUE` through
    `crates/podssh-cli/src/ssh/options.rs:55-160` (a keyword of a session,
@@ -165,7 +165,7 @@ local program to a target, and `podssh proxy` stays a second pump.
    (`iroh:@FILE`), never from argv.
 6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:153`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
-   `crates/podssh-ssh/src/run.rs:87-126` a typed error, so that 77 is not
+   `crates/podssh-ssh/src/run.rs:115-163` a typed error, so that 77 is not
    guessed from a message.
 7. In the same commit: `docs/cli.md`, `docs/design.md:242-250`, the notes,
    the examples, `docs/STATUS.md`.
@@ -429,7 +429,7 @@ sh scripts/dev.sh check                               # interop-faults.sh: the d
 
 In `scripts/interop-faults.sh`, `--persist -tt` goes through two stand-in
 relays. The input sets `MARK=kept`; the harness kills the first stand-in, as
-`scripts/interop-faults.sh:141-151` does; the input then runs `echo M=$MARK`
+`scripts/interop-faults.sh:152-162` does; the input then runs `echo M=$MARK`
 and `tmux kill-session`. The output has `M=kept`, and the exit is 0. With
 tmux moved off `PATH`, the exit is 255 and names tmux. Plant: start tmux
 without `-A`; the second attach fails, and the check must fail.
@@ -520,14 +520,14 @@ and sandhole. Read in the reports, not verified here.
 
 A developer in a sandbox runs a web application and wants a URL for it. The
 relay carries TCP to public targets and reverse sessions to named nodes
-(`docs/relay.md:187-209`). It has no endpoint that takes public HTTPS for a
+(`docs/relay.md:192-214`). It has no endpoint that takes public HTTPS for a
 name, and podssh alone cannot add one.
 
 ## Premise
 
 - Read: the relay is the operator's Cloudflare Worker, another project, and
   its document is the contract (`docs/relay.md:3-16`). It has no publish
-  endpoint (`docs/relay.md:51-73`, `docs/relay.md:187-217`).
+  endpoint (`docs/relay.md:51-73`, `docs/relay.md:192-222`).
 - Read: on the measured sandbox, `connect()` to loopback fails with EACCES
   (`docs/target-environment.md:22`). A node there cannot reach a server on
   127.0.0.1; it can reach a Unix socket (T-176) or a program (`exec:`,
@@ -543,7 +543,7 @@ When the relay's operator adds the endpoint:
 
 1. The relay's operator publishes it in the contract first: a name, a public
    host name, and each incoming connection as a reverse session
-   (`open {id}`, `ready {id}`; `docs/relay.md:192-203`).
+   (`open {id}`, `ready {id}`; `docs/relay.md:197-208`).
 2. podssh uses the node runner (T-079) and `podssh node` (T-083):
    `podssh node NAME TARGET --publish`, TARGET each address of T-174 to
    T-176. podssh parses no HTTP: the bytes pass, WebSocket upgrades too.

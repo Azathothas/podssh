@@ -743,7 +743,7 @@ Read:
 - `.github/workflows/release.yml:65-106`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
-- `docs/STATUS.md:208`: 660 tests pass on Windows, run by hand.
+- `docs/STATUS.md:209`: the default tests pass on Windows, run by hand.
   `docs/STATUS.md:63`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
@@ -1091,7 +1091,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:92-94` states the rule with `CXX`, and
-  `docs/STATUS.md:214` records the measurement. Rule 4 of
+  `docs/STATUS.md:215` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:67-73` runs the plant on each push.
@@ -1122,7 +1122,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:214`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:215`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1329,11 +1329,12 @@ Read, wrong facts:
   relay's document by line, each 35 lower than the row in the pinned copy
   (line 135 there is line 170 of
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
-- `crates/podssh-ssh/src/run.rs:25-28` and
-  `crates/podssh-transport/src/backpressure/mod.rs:4-22` give the reverse
+- `crates/podssh-transport/src/backpressure/mod.rs:4-22` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:159-163` says
-  1013 at 2 MiB, with no frame dropped.
+  as the forward path's. For the forward path, `docs/relay.md:164-168` says
+  1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
+  the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
+  25-28 at `80f20bf`); T-024 corrected it.
 - The comment "THE BUILD RULE" in `Cargo.toml` lists the no-C crates without
   `podssh-relay`; `crates/podssh-cli/Cargo.toml:3` names a `--doctor` flag.
 

@@ -162,11 +162,11 @@ Not measured in a real sandbox yet: interactive programs over `-tt`
 | The binary: `podssh man`, `--no-pager`, `--roff`, a section, an unknown section | The same bytes as the library, nothing on stderr. An unknown section exits 64 and lists the sections. The bytes are the same with an empty environment and with a token, proxy credentials and other settings set; none of them is shown. With no terminal, `PAGER` is not started. |
 | A real Windows console (ConPTY, 20 rows), debug build | 8 of 8: the built-in pager shows one screen and its prompt; Enter shows the next; `q` and the end of input stop it with exit 0; `--no-pager` writes to the end with no prompt. |
 | groff 1.23.0 and mandoc, Alpine 3.22 | The former `Fl` macro (`\$*`) printed blank flag names in both. The new page shows each flag in both. |
-| `scripts/interop-man.sh` in the container gate, the static binary | 64 flag spellings from the `--help` of `ssh`, `proxy`, `man`, `doctor` and `keygen` (gate run of 2026-10-08, after T-023): groff and mandoc show each one. groff `-ww` gives no warning; `mandoc -Tlint` gives no error. The planted page fails (2 spellings missing). |
+| `scripts/interop-man.sh` in the container gate, the static binary | 64 flag spellings from the `--help` of `ssh`, `proxy`, `man`, `doctor` and `keygen` (gate run of 2026-10-08, after T-024): groff and mandoc show each one. groff `-ww` gives no warning; `mandoc -Tlint` gives no error. The planted page fails (2 spellings missing). |
 
 ## Faults between podssh and the relay, measured
 
-`scripts/interop-faults.sh` in the gate, 2026-10-08, **12 of 12** (after T-023). A
+`scripts/interop-faults.sh` in the gate, 2026-10-08, **13 of 13** (after T-024). A
 stand-in relay and a stand-in proxy fail in one way each, with OpenSSH
 behind them.
 
@@ -180,6 +180,7 @@ behind them.
 | The proxy answers 502 for the first host | Failed over to the next host through the proxy. |
 | The proxy answers 502 for each host | Exit 255; the proxy's answer is shown. |
 | A Close with 1011 during a 5 MB transfer | `ssh` exits 255 with the relay's reason; 351,575 bytes had arrived. |
+| A Close with 1011 during the SSH handshake (T-024, GitHub #17) | `ssh` exits 255, and its first line is `127.0.0.1:2201: the relay lost its connection to 127.0.0.1:2201 (relay close 1011: write failed: fault injection)`, then what may help. The gate's binary of `475aea9`, before T-024, said `the connection closed unexpectedly` first. |
 | A Close with 1009 (`session byte cap`) | `proxy` exits 69 with the relay's reason. |
 | The relay stops: no frames, no pongs, the connection open | The ping watcher declares it dead at 50 s (38 s after the stop). |
 | The relay host stops during a session | `ssh` exits 255 after 5 s and names the relay. |
@@ -205,12 +206,12 @@ behind them.
 | What | Result | Command |
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
-| The default tests | **740 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
+| The default tests | **742 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
 | The work record | `TODO/` agrees with itself. The checker's tests pass: 12 unit tests, 32 plant tests (the control, and 31 planted disagreements, each found), 10 tests of the remap, 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 8 of its 10 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |
-| The static release binary | **4,086,272 bytes** (gate run of 2026-10-08, after T-023): a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
-| The container gate | **Green** (run of 2026-10-08, after T-023): each build and test step; interop 100 of 100 (63 SSH checks, 25 keygen checks, 12 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
+| The static release binary | **4,094,464 bytes** (gate run of 2026-10-08, after T-024): a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
+| The container gate | **Green** (run of 2026-10-08, after T-024): each build and test step; interop 101 of 101 (63 SSH checks, 25 keygen checks, 13 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
 | The no-C plant | Fails for the right reason when `ring` is planted (no C compiler), twice, and when a crate that compiles C++ is planted (it stops at `CXX=/nonexistent`). With `CC=/nonexistent` alone, the C++ build is not stopped there, so `CXX` is load-bearing. The control passes. Measured 2026-10-08 in `rust:1-alpine`. | `sh scripts/dev.sh plant` |
 | CI | Runs the gate on each push. Each run from `9b806fe` to `e275d36` passed. | `gh run list` |
 | The release workflow, run by hand | Linux x86_64 and aarch64 static, Windows with no C runtime DLL; publish skipped | `gh workflow run release.yml --ref main` |

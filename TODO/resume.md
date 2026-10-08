@@ -398,7 +398,7 @@ a stall of 3 minutes. Today each of these faults ends the session.
 
 Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
-killed in a session gives exit 255 (`scripts/interop-faults.sh:133-151`).
+killed in a session gives exit 255 (`scripts/interop-faults.sh:144-162`).
 These checks stay, for the forward road, which has no resumption. Read: the
 stand-in relay serves the forward path only (`scripts/fake-relay.py:98-110`),
 and its `stall` mode never ends (`scripts/fake-relay.py:147-150`). The
@@ -484,7 +484,7 @@ together (`docs/relay.md:115`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:140-141`, `docs/relay.md:211-217`). Skip a
+   needs a token (`docs/relay.md:140-141`, `docs/relay.md:216-222`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.

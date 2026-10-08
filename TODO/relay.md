@@ -110,7 +110,7 @@ that minted it".
 # T-058: `podssh relay status`, `info`, `spec` and `trace`
 
 **Source:** `crates/podssh-cli/src/positionals.rs:39-41` (the subcommands that the parser
-declares); `docs/relay.md:211-217`; the tester of sandbox A, who used `curl` and a minted token
+declares); `docs/relay.md:216-222`; the tester of sandbox A, who used `curl` and a minted token
 on `/trace` (`report-podssh-sandbox-KTM-2026-10-08.txt`, outside the repository).
 **Category:** feature
 **Milestone:** backlog
@@ -154,7 +154,7 @@ token header (`crates/podssh-ws/src/client.rs:268-279`); `https_request` takes h
    (T-049). Each request has the 10 s limit of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs:24`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs:428`); change `DISPATCHED`, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:226`), the notes, `docs/relay.md:211-217` and
+   (`crates/podssh-cli/src/help.rs:226`), the notes, `docs/relay.md:216-222` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
 ## Decision
@@ -311,7 +311,7 @@ The pinned copy exits 0. A copy with the node path renamed (the plant of
 
 # T-061: Measure whether the relay's idle cut applies to reverse sockets
 
-**Source:** `docs/relay.md:179-185` ("Open questions"); ROADMAP M4.
+**Source:** `docs/relay.md:184-190` ("Open questions"); ROADMAP M4.
 **Category:** measurement
 **Milestone:** M4
 **Priority:** P3
@@ -347,7 +347,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
    and above all not the `stop_token` (`docs/reverse.md:46-53`).
-5. Answer the question in `docs/relay.md:179-185`, record the result in `docs/STATUS.md` with
+5. Answer the question in `docs/relay.md:184-190`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md:22-24` if the result differs.
 
 ## Prove
@@ -363,9 +363,9 @@ is wrong, not the relay.
 
 # T-062: Measure whether the relay's backpressure close (1013) operates
 
-**Source:** `docs/relay.md:159-163`; the reverse close table of the pinned contract
-(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the comment at
-`crates/podssh-ssh/src/run.rs:25-29`.
+**Source:** `docs/relay.md:164-168`; the reverse close table of the pinned contract
+(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the comment on the SSH
+window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`).
 **Category:** measurement
 **Milestone:** backlog
 **Priority:** P3
@@ -382,13 +382,13 @@ rule is true.
 ## Premise
 
 Not measured. Read: `docs/relay.md:153` gives the forward codes `1013` `client receive backlog`
-and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:159-163`
+and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:164-168`
 says that no frame is dropped, and that the check reads `bufferedAmount`, which Workers may not
-supply. `crates/podssh-ssh/src/run.rs:25-29` says that the relay drops a frame when more than 1
-MiB waits (`1011 relay backpressure`). That is the reverse path's row of the contract ("Over 1
-MiB queued for a slow receiver. Slow down; the undelivered frame is dropped.",
-`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`), so the comment applies a
-rule of the reverse path to the forward path.
+supply. The comment on the SSH window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`)
+said that the relay drops a frame when more than 1 MiB waits (`1011 relay backpressure`). That is
+the reverse path's row of the contract ("Over 1 MiB queued for a slow receiver. Slow down; the
+undelivered frame is dropped.", `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`),
+so the comment applied a rule of the reverse path to the forward path.
 
 ## Approach
 
@@ -404,8 +404,8 @@ rule of the reverse path to the forward path.
    operator approves.
 4. The other direction (`target write backlog`) needs a slow target; record it as not measured
    when none is at hand.
-5. Correct `crates/podssh-ssh/src/run.rs:25-29` and `docs/relay.md:159-163` with the result.
-   Change the window (512 KiB) only if the result asks for it.
+5. Write the result into the comment on the window (`crates/podssh-ssh/src/run.rs:25-29`) and
+   into `docs/relay.md:164-168`. Change the window (512 KiB) only if the result asks for it.
 
 ## Prove
 
@@ -417,6 +417,14 @@ cargo test -p podssh-relay --test live_backpressure -- --ignored --nocapture   #
 The control: the same target, read at full speed, ends with 1000 `target closed` and the full
 size, which shows that the target and the path work. The slow run then gives the answer, and
 `docs/STATUS.md` records it with the date.
+
+## Correction
+
+2026-10-08, T-024: the comment on the SSH window now gives the forward path's rule that
+`docs/relay.md:153` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
+(`crates/podssh-ssh/src/run.rs:25-28`). The two texts agree now. The question of this entry
+stays: whether the relay's check operates at all (it reads `bufferedAmount`,
+`docs/relay.md:164-168`).
 
 # T-220: A silent first relay host costs a full dial before the next host is tried (GitHub #30)
 

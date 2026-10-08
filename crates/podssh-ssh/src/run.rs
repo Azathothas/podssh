@@ -15,17 +15,17 @@ use crate::hostkey::Policy;
 use crate::known_hosts;
 use crate::log::Log;
 use crate::options::{Hop, Options, Request};
-use crate::relay_stream::RelayStatus;
+use crate::relay_stream::{RelayEnd, RelayStatus};
 use crate::{auth, forward, session};
 
 /// podssh's own failures, as OpenSSH's: connection, host key, authentication,
 /// and a session that ends without an exit status.
 pub const EXIT_FAILURE: i32 = 255;
 
-/// The SSH window advertised to the server. The relay drops a frame when more
-/// than 1 MiB waits for a slow receiver (`1011 relay backpressure`), and a
-/// dropped frame is a broken SSH connection; a window under 1 MiB keeps the
-/// server from ever having that much in flight (russh's default is 2 MiB).
+/// The SSH window advertised to the server. On the forward path the relay
+/// closes a session when 2 MiB wait for a slow receiver (`1013 client receive
+/// backlog`); a window of 512 KiB keeps the server from ever having that much
+/// in flight (russh's default is 2 MiB).
 const WINDOW: u32 = 512 * 1024;
 
 /// Run `opts` over `stream`, which reaches the first `-J` hop or, without one,
@@ -38,13 +38,41 @@ where
     match run_inner(stream, opts, &log).await {
         Ok(code) => code,
         Err(message) => {
-            log.error(&message);
-            if let Some(why) = relay.and_then(|r| r.get()).and_then(|end| end.explain()) {
-                log.error(&why);
+            let first = opts.jump.first().unwrap_or(&opts.destination);
+            let target = podssh_ws::dial::authority(&first.host, first.port);
+            for line in failure_lines(&message, relay.and_then(|r| r.get()).as_ref(), &target) {
+                log.error(&line);
             }
             EXIT_FAILURE
         }
     }
+}
+
+/// The lines of a failed run. When the relay ended the session abnormally,
+/// that is the cause, whatever the SSH client saw after it: the first line
+/// names the hop that broke and keeps the relay's code and reason as they
+/// are, and a second line says what may help. Else the message, and the
+/// relay's own words when it closed with a reason.
+pub fn failure_lines(message: &str, relay: Option<&RelayEnd>, target: &str) -> Vec<String> {
+    let label = message.split_once(": ").map_or(message, |(label, _)| label);
+    let (leg, why) = match relay {
+        Some(RelayEnd::Closed { code: Some(code), reason }) if *code != 1000 => {
+            (podssh_ws::session::forward_close(Some(*code), reason), format!("relay close {code}: {reason}"))
+        }
+        Some(RelayEnd::Failed(why)) => (podssh_ws::session::ForwardClose::Client, why.clone()),
+        _ => {
+            let mut lines = vec![message.to_string()];
+            lines.extend(relay.and_then(RelayEnd::explain));
+            return lines;
+        }
+    };
+    let mut lines = vec![format!("{label}: {} ({why})", leg.what(target))];
+    let reason = match relay {
+        Some(RelayEnd::Closed { reason, .. }) => reason.as_str(),
+        _ => "",
+    };
+    lines.extend(leg.remedy(reason).map(str::to_string));
+    lines
 }
 
 async fn run_inner<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Result<i32, String>
@@ -103,6 +131,7 @@ where
     let config = Arc::new(client_config(opts, &policy));
     let client = Client::new(policy, log.clone());
     let refusal = client.refusal();
+    let disconnect = client.disconnect();
     let label = display(hop);
     log.verbose(&format!("SSH handshake with {label}"));
     let handshake = russh::client::connect_stream(config, stream, client);
@@ -117,7 +146,15 @@ where
             let why = refusal.lock().unwrap_or_else(|e| e.into_inner()).take();
             return Err(why.unwrap_or_else(|| "host key verification failed.".into()));
         }
-        Ok(Err(e)) => return Err(format!("{label}: {}", describe(&e))),
+        Ok(Err(e)) => {
+            // The server's own words, when it sent a disconnect, name the
+            // cause better than the closed stream does.
+            let said = disconnect.lock().unwrap_or_else(|e| e.into_inner()).take();
+            return Err(match said {
+                Some(said) => format!("{label}: the server ended the connection: {said}"),
+                None => format!("{label}: {}", describe(&e)),
+            });
+        }
         Ok(Ok(handle)) => handle,
     };
     auth::authenticate(&mut handle, &user, &hop.host, opts, log).await?;
@@ -203,5 +240,40 @@ pub fn describe(e: &russh::Error) -> String {
             format!("{e} (the connection was tampered with, or the server is broken)")
         }
         other => other.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DROP: &str = "railway.new: the connection closed unexpectedly";
+
+    /// The first line from each kind of relay end, from a server disconnect
+    /// and from a bare error (GitHub #17).
+    #[test]
+    fn first_line_names_the_hop_that_broke() {
+        let lost = RelayEnd::Closed { code: Some(1011), reason: "write failed: Network connection lost.".into() };
+        let lines = failure_lines(DROP, Some(&lost), "railway.new:22");
+        assert_eq!(
+            lines[0],
+            "railway.new: the relay lost its connection to railway.new:22 (relay close 1011: write failed: Network connection lost.)"
+        );
+        assert!(lines[1].contains("--relay-host"), "{lines:?}");
+        let cap = RelayEnd::Closed { code: Some(1009), reason: "session byte cap".into() };
+        let lines = failure_lines(DROP, Some(&cap), "railway.new:22");
+        assert!(lines[0].contains("at one of its limits (relay close 1009: session byte cap)"), "{lines:?}");
+        assert!(lines[1].contains("64 MiB"), "{lines:?}");
+        let gone = RelayEnd::Failed("the relay sent nothing for 40 s".into());
+        let lines = failure_lines(DROP, Some(&gone), "railway.new:22");
+        assert!(lines[0].starts_with("railway.new: the connection between podssh and the relay broke"), "{lines:?}");
+        // A normal close of the relay: the message, then the relay's words.
+        let done = RelayEnd::Closed { code: Some(1000), reason: "target closed".into() };
+        let server = "railway.new: the server ended the connection: too many sessions (TooManyConnections)";
+        let lines = failure_lines(server, Some(&done), "railway.new:22");
+        assert_eq!(lines[0], server);
+        assert!(lines[1].contains("target closed"), "{lines:?}");
+        // No relay (--direct): the message as it is.
+        assert_eq!(failure_lines(DROP, None, "railway.new:22"), vec![DROP.to_string()]);
     }
 }

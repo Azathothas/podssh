@@ -89,7 +89,8 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         }
     };
     let v6 = relay::is_ipv6_literal(&host);
-    let code = runtime.block_on(session(&relays, &path, &trust, &podssh_ws::dial::authority(&host, port), v6, err));
+    let target = podssh_ws::dial::authority(&host, port);
+    let code = runtime.block_on(session(&relays, &path, &trust, &target, v6, err));
     // A read on stdin may still be blocked in a helper thread; do not wait
     // for it, or podssh would hang after the session has ended.
     runtime.shutdown_background();
@@ -148,7 +149,7 @@ async fn session(relays: &RelayList, path: &str, trust: &Trust, target: &str, v6
     })
     .await;
     match opened {
-        Ok(opened) => pump(opened.session, v6, err).await,
+        Ok(opened) => pump(opened.session, target, v6, err).await,
         Err(failure) => {
             for line in failure.lines(target) {
                 let _ = writeln!(err, "podssh: {line}");
@@ -182,8 +183,9 @@ enum Ended {
 }
 
 /// Copy both directions until the relay ends the session.
-/// `v6`: the target is an IPv6 address, for the note on how its session ended.
-async fn pump(session: RelaySession, v6: bool, err: &mut dyn Write) -> i32 {
+/// `target` (`host:port`) and `v6` (an IPv6 address) are for the note on how
+/// its session ended.
+async fn pump(session: RelaySession, target: &str, v6: bool, err: &mut dyn Write) -> i32 {
     let session = Arc::new(session);
     let upstream = stdin_to_relay(session.clone());
     let downstream = relay_to_stdout(session.clone());
@@ -207,7 +209,7 @@ async fn pump(session: RelaySession, v6: bool, err: &mut dyn Write) -> i32 {
                     return EX_UNAVAILABLE;
                 }
             },
-            ended = &mut downstream => return finish(ended, &session, v6, err).await,
+            ended = &mut downstream => return finish(ended, &session, target, v6, err).await,
         }
     }
 }
@@ -249,19 +251,17 @@ async fn relay_to_stdout(session: Arc<RelaySession>) -> Result<Ended, String> {
     }
 }
 
-async fn finish(ended: Result<Ended, String>, session: &RelaySession, v6: bool, err: &mut dyn Write) -> i32 {
+async fn finish(ended: Result<Ended, String>, session: &RelaySession, target: &str, v6: bool, err: &mut dyn Write) -> i32 {
     match ended {
         // 1000 is a normal end (the target closed). The relay uses 1001 for its
         // own limits ("idle timeout", "session time cap"), which are not.
         Ok(Ended::Closed { code: None | Some(1000), .. }) => 0,
         Ok(Ended::Closed { code: Some(code), reason }) => {
-            let _ = writeln!(err, "podssh: the relay closed the session: {code} {reason}");
-            if reason.contains("idle") {
-                let idle = podssh_relay::relay::RELAY_IDLE_SECS;
-                let _ = writeln!(
-                    err,
-                    "podssh: the relay closes a session after {idle} s without traffic; set ServerAliveInterval below {idle}"
-                );
+            // The hop first; `CODE REASON` stays as the relay wrote it.
+            let leg = podssh_ws::session::forward_close(Some(code), &reason);
+            let _ = writeln!(err, "podssh: {}: {code} {reason}", leg.what(target));
+            if let Some(remedy) = leg.remedy(&reason) {
+                let _ = writeln!(err, "podssh: {remedy}");
             }
             if let Some(note) = relay::ipv6_note(v6, &reason) {
                 let _ = writeln!(err, "podssh: {note}");

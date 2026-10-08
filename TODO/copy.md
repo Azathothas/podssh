@@ -29,8 +29,8 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
 - Read: the subsystem request exists
   (`crates/podssh-ssh/src/session.rs:70-73`); `wait_reply` counts 30 s of
   silence as a refusal (`crates/podssh-ssh/src/session.rs:113-125`). The
-  handshake has a limit (`crates/podssh-ssh/src/run.rs:109-115`); the
-  authentication after it has none (`crates/podssh-ssh/src/run.rs:123`).
+  handshake has a limit (`crates/podssh-ssh/src/run.rs:138-144`); the
+  authentication after it has none (`crates/podssh-ssh/src/run.rs:160`).
 - Measured on 2026-10-08, offline: the `sftp-server` of OpenSSH 10.3p1 (Git
   for Windows), driven over its stdin and stdout, answers version 3 with the
   `@openssh.com` extensions posix-rename, statvfs, fstatvfs, hardlink,
@@ -50,7 +50,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
    a session channel, `subsystem sftp` through `wait_reply` (made
    `pub(crate)`), then SFTP on the channel's stream. A refused subsystem is
    the typed error `NoSftp`, the only error that T-135 falls back on.
-3. Move the hop chain of `crates/podssh-ssh/src/run.rs:50-63` into one
+3. Move the hop chain of `crates/podssh-ssh/src/run.rs:78-91` into one
    function that returns the handles, for `session::run` and for SFTP.
 4. Invariant: no request and no step of the open waits without a limit.
    Three named constants, shown by the manual: 30 s for a metadata reply (as
@@ -303,7 +303,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
 2. Within a run: after a relay close, a lost connection or a failed
    request, open a new session (T-137's path) and continue at the offset.
    Check first that the host key is the one of the first session (pin it in
-   memory, `crates/podssh-ssh/src/handler.rs:34-53`), and that the source's
+   memory, `crates/podssh-ssh/src/handler.rs:47-66`), and that the source's
    size and mtime are the same; else start over and say so.
 3. Invariant: the attempts are bounded. At most 5 in a row with no new
    acknowledged byte, with `podssh_relay::open::backoff`
@@ -604,11 +604,13 @@ trip is long, so such a copy uses a small part of what the path carries.
 - Read: podssh gives the server an SSH window of 512 KiB
   (`crates/podssh-ssh/src/run.rs:29`), so a download has 512 KiB in flight
   at most, whatever the number of requests: two reads of 255 KiB fill it.
-- Read: the comment at `crates/podssh-ssh/src/run.rs:25-28` quotes a row of
-  the reverse close codes (1 MiB queued, `1011`, a dropped frame;
-  `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); for
-  the forward path, `docs/relay.md:159-163` gives 2 MiB, `1013` and no drop.
-  The window can grow only after that is settled; T-062 measures the `1013`.
+- Read: the comment on the window quoted a row of the reverse close codes
+  (1 MiB queued, `1011`, a dropped frame;
+  `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). T-024
+  corrected it to the forward path's rule
+  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:164-168` gives
+  2 MiB, `1013` and no drop. The window can grow only after that is
+  settled; T-062 measures the `1013`.
 - Measured in two sandboxes (`docs/STATUS.md:141`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
