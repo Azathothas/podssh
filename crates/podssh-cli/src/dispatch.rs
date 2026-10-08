@@ -231,10 +231,11 @@ fn refusals(verb: &str, refused: &[(String, &'static str, &'static str)], err: &
         return false;
     }
     for (given, instead, reason) in refused {
-        let _ = writeln!(
-            err,
-            "podssh {verb}: {given} is refused.\n  Use {instead} instead.\n  {reason}."
-        );
+        let _ = if *instead == "no flag" {
+            writeln!(err, "podssh {verb}: {given} is refused. Leave it out.\n  {reason}.")
+        } else {
+            writeln!(err, "podssh {verb}: {given} is refused.\n  Use {instead} instead.\n  {reason}.")
+        };
     }
     true
 }

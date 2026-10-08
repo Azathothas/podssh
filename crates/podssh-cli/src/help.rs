@@ -97,11 +97,10 @@ pub fn help_text(row: &crate::flags::FlagRow) -> String {
     match row.kind {
         FlagKind::Supported => row.help.to_string(),
         FlagKind::Accepted => format!("{} (accepted and ignored)", row.help),
-        FlagKind::Refused => format!(
-            "{} (refused: use {})",
-            row.help,
-            row.instead.unwrap_or("a supported flag")
-        ),
+        FlagKind::Refused => match row.instead {
+            Some("no flag") => format!("{} (refused)", row.help),
+            instead => format!("{} (refused: use {})", row.help, instead.unwrap_or("a supported flag")),
+        },
         FlagKind::NotInFirstRelease => format!("{} (not in this release)", row.help),
     }
 }

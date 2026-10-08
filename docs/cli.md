@@ -54,10 +54,10 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   contain `:`, and an IPv6 literal needs brackets.
 - `-N` alone is valid. `-W HOST:PORT` is a stdio forward: no session, and
   exit when the forward fails. `-V` prints the version and does not connect.
-- Each flag of OpenSSH must be supported or refused by name. Sixteen flags
-  of OpenSSH 10.3p1 have no row yet: `-c`, `-f`, `-G`, `-g`, `-I`, `-K`,
-  `-k`, `-M`, `-m`, `-O`, `-Q`, `-S`, `-w`, `-X`, `-Y` and `-y`. podssh
-  reports them as unknown flags (defect C10).
+- Each flag in the usage of OpenSSH 10.3p1 has a row: supported, accepted
+  with no effect (`-P`, `-g`), or refused by name with what to use instead.
+  `tests/flag_table.rs` holds the reviewed set. A refusal with nothing to use
+  instead says "Leave it out."
 
 ## Forwarding
 

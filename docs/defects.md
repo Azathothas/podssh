@@ -71,7 +71,6 @@ No command uses this crate yet.
 | --- | --- | --- | --- |
 | C2 | `crates/podssh-cli/src/ts.rs` | The status query and the peer lookup are outside the `--timeout` limit. A missing netmap makes `podssh ts` wait forever. | high |
 | C3 | `crates/podssh-ts/src/pipe.rs` | A local end of input cancels the remote-to-stdout direction, so a reply that comes after it is lost. A test asserts this behaviour. | high |
-| C10 | `crates/podssh-cli/src/flags.rs` | 16 flags of OpenSSH 10.3p1 have no row (`-c -f -G -g -I -K -k -M -m -O -Q -S -w -X -Y -y`), so `podssh ssh` reports them as unknown flags instead of refusing them by name. | low |
 | C9 | `crates/podssh-ts/` | The automatic mode always selects `tcp`: its probe only checks that a key exists. Ephemeral nodes are not logged out. The live test with two nodes was never run. | medium |
 
 ## podssh-probe

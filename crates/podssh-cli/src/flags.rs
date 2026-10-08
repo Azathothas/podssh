@@ -179,6 +179,11 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "no X11 forwarding (podssh never forwards X11)", None),
     row(Some('a'), "no-agent-forwarding", None, FlagKind::Supported,
         "no agent forwarding (podssh never forwards the agent)", None),
+    row(Some('k'), "no-gssapi-delegation", None, FlagKind::Supported,
+        "no GSSAPI delegation (podssh never delegates credentials)", None),
+    // OpenSSH accepts -g with no -L; with no local listener it changes nothing.
+    row(Some('g'), "gateway-ports", None, FlagKind::Accepted,
+        "remote hosts may connect to local forwarded ports; podssh has none", None),
     // ⛔ Accepted and ignored. `ssh -G` proves it is a Tag and not a port, and
     // a user who has memorised `-P` must not be taught a second way to spell it.
     row(Some('P'), "tag", Some("TAG"), FlagKind::Accepted,
@@ -196,6 +201,35 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "podssh never binds; the relay chooses the source address", Some("no flag")),
     row(Some('b'), "bind-address", Some("ADDR"), FlagKind::Refused,
         "podssh never binds; the relay chooses the source address", Some("no flag")),
+    // The rest of OpenSSH 10.3p1's flags, so that each one refuses by name.
+    row(Some('c'), "cipher", Some("CIPHERS"), FlagKind::Refused,
+        "podssh negotiates its own modern ciphers", Some("no flag")),
+    row(Some('m'), "mac", Some("MACS"), FlagKind::Refused,
+        "podssh negotiates its own modern MACs", Some("no flag")),
+    row(Some('f'), "background", None, FlagKind::Refused,
+        "going to the background after authentication is not supported", Some("& in the shell")),
+    row(Some('G'), "print-config", None, FlagKind::Refused,
+        "podssh reads no ssh_config, so it has no configuration to print", Some("podssh man ssh")),
+    row(Some('I'), "pkcs11", Some("LIBRARY"), FlagKind::Refused,
+        "PKCS#11 keys are not supported", Some("-i FILE")),
+    row(Some('K'), "gssapi", None, FlagKind::Refused,
+        "GSSAPI authentication is not supported", Some("-i FILE or a password")),
+    row(Some('M'), "control-master", None, FlagKind::Refused,
+        "podssh keeps no control master: each run is one connection", Some("no flag")),
+    row(Some('O'), "control-command", Some("CMD"), FlagKind::Refused,
+        "podssh keeps no control master: each run is one connection", Some("no flag")),
+    row(Some('S'), "control-path", Some("PATH"), FlagKind::Refused,
+        "podssh keeps no control master: each run is one connection", Some("no flag")),
+    row(Some('Q'), "query", Some("QUERY"), FlagKind::Refused,
+        "podssh has no list of algorithms to query", Some("no flag")),
+    row(Some('w'), "tunnel", Some("TUN"), FlagKind::Refused,
+        "a tunnel device needs privileges that podssh never assumes", Some("-W HOST:PORT")),
+    row(Some('X'), "forward-x11", None, FlagKind::Refused,
+        "X11 forwarding is not supported", Some("no flag")),
+    row(Some('Y'), "forward-x11-trusted", None, FlagKind::Refused,
+        "X11 forwarding is not supported", Some("no flag")),
+    row(Some('y'), "syslog", None, FlagKind::Refused,
+        "podssh does not write to syslog", Some("-E LOGFILE")),
 ];
 
 /// ⛔ **`cp` / `mv` and their `scp` / `sftp` aliases (E36).** The flags are

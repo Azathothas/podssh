@@ -10,9 +10,9 @@
 
 use podssh_cli::flags::{FlagKind, VERBS};
 
-/// Every short flag `podssh ssh` accepts or refuses by name, as reviewed on
-/// 2026-10-08. Order does not matter.
-const SSH_SHORT_FLAGS: &str = "plinJNstTeC46WEFvqVoxaPLRDABb";
+/// Every short flag `podssh ssh` accepts or refuses by name: each flag of
+/// OpenSSH 10.3p1's usage, as reviewed on 2026-10-08. Order does not matter.
+const SSH_SHORT_FLAGS: &str = "plinJNstTeC46WEFvqVoxaPLRDABbkgcmfGIKMOSQwXYy";
 
 #[test]
 fn the_ssh_short_flags_are_exactly_the_reviewed_set() {
