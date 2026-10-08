@@ -78,7 +78,7 @@ Read each exit code directly. `cmd | tail` gives the exit code of `tail`.
 
 ```sh
 sh scripts/dev.sh check    # the host checks, then scripts/gate.sh in rust:1-alpine
-sh scripts/dev.sh plant    # shows that the check for "no C compiler" works
+sh scripts/dev.sh plant    # shows that the checks for "no C or C++ compiler" work
 sh scripts/dev.sh test -p podssh-core
 sh scripts/dev.sh run -- 'uname -a'
 sh scripts/dev.sh help
@@ -87,7 +87,9 @@ sh scripts/dev.sh help
 `scripts/gate.sh` is the gate. CI runs the same file in the same image. The
 gate makes sure that:
 
-1. The library crates build and pass their tests with `CC=/nonexistent`.
+1. The library crates build and pass their tests with `CC=/nonexistent`
+   and `CXX=/nonexistent`. The `cc` crate reads `CXX` for C++, so `CC` alone
+   does not stop a C++ dependency on a host that has `c++`.
 2. The SSH client and the command line pass their tests.
 3. The tests of the `ts` feature pass.
 4. The static musl binary has no dynamic dependencies and no program

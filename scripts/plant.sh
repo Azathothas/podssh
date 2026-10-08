@@ -40,7 +40,7 @@ LIBS="-p podssh-ws -p podssh-relay -p podssh-transport -p podssh-core -p podssh-
 
 build() {
     # shellcheck disable=SC2086  # $LIBS is a list of flags
-    CC=/nonexistent cargo build $LIBS "$@" >/tmp/plant-build.out 2>&1
+    CC=/nonexistent CXX=/nonexistent cargo build $LIBS "$@" >/tmp/plant-build.out 2>&1
 }
 
 echo "== baseline: the library crates build with no C compiler"
@@ -97,5 +97,52 @@ if [ "$rc" -ne 0 ]; then
     exit 1
 fi
 
+# The C++ plant: a crate whose build script compiles one C++ file with the
+# `cc` crate, which reads CXX for C++. The build must fail and name
+# /nonexistent, which proves CXX was read; the control, with CC alone, must
+# not name it, which proves CXX is what stopped it.
+P=/tmp/podssh-plant-cxx
+rm -rf "$P"
+mkdir -p "$P/src"
+printf '[package]\nname = "podssh-plant-cxx"\nversion = "0.0.0"\nedition = "2021"\npublish = false\n\n[build-dependencies]\ncc = "1"\n' >"$P/Cargo.toml"
+: >"$P/src/lib.rs"
+printf 'fn main() {\n    cc::Build::new().cpp(true).file("plant.cpp").compile("plant");\n}\n' >"$P/build.rs"
+printf 'int podssh_plant() { return 1; }\n' >"$P/plant.cpp"
 echo
-echo "VERDICT: the gate fails on a C dependency and passes without one, twice."
+echo "== plant: a C++ dependency added to [dependencies] of $F"
+sed -e "/^\[dependencies\]\r\{0,1\}\$/a podssh-plant-cxx = { path = \"$P\" }" "$F.orig" > "$F"
+if ! grep -q '^podssh-plant-cxx = ' "$F"; then
+    echo "THE PLANT DID NOT PLANT: no podssh-plant-cxx line in $F; this run proves nothing."
+    exit 1
+fi
+build
+rc=$?
+echo "exit=$rc"
+if [ "$rc" -eq 0 ]; then
+    echo "THE GATE IS VACUOUS: a C++ dependency built with CXX=/nonexistent."
+    exit 1
+fi
+if ! grep -q '/nonexistent' /tmp/plant-build.out; then
+    echo "The build failed, but not at CXX=/nonexistent; this run proves nothing:"
+    tail -30 /tmp/plant-build.out
+    exit 1
+fi
+echo "failed at CXX=/nonexistent, as intended"
+echo
+echo "== control: the same plant with CC=/nonexistent alone"
+# shellcheck disable=SC2086
+CC=/nonexistent cargo build $LIBS >/tmp/plant-build.out 2>&1
+rc=$?
+echo "exit=$rc"
+if grep -q '/nonexistent' /tmp/plant-build.out; then
+    echo "CONTROL FAILED: with CC alone the C++ build still named /nonexistent, so CXX is not what stopped it."
+    tail -30 /tmp/plant-build.out
+    exit 1
+fi
+echo "with CC alone, the C++ build did not reach /nonexistent: CXX is load-bearing"
+cp "$F.orig" "$F"
+cp Cargo.lock.orig Cargo.lock
+rm -rf "$P"
+
+echo
+echo "VERDICT: the gate fails on a C dependency (twice) and on a C++ dependency, and passes without them."

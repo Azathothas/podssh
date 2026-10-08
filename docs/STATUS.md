@@ -163,13 +163,13 @@ behind them.
 
 | What | Result | Command |
 | --- | --- | --- |
-| The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` | `scripts/gate.sh` |
+| The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
 | The default tests | **660 passed, 0 failed, 5 ignored** (the live tests), Windows | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
 | The static release binary | **4,008,448 bytes**: a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
 | The container gate | **Green**: each build and test step; interop 98 of 98 (62 SSH checks, 25 keygen checks, 11 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
-| The no-C plant | Fails for the right reason when `ring` is planted (no C compiler); the control passes | `sh scripts/dev.sh plant` |
+| The no-C plant | Fails for the right reason when `ring` is planted (no C compiler), twice, and when a crate that compiles C++ is planted (it stops at `CXX=/nonexistent`). With `CC=/nonexistent` alone, the C++ build is not stopped there, so `CXX` is load-bearing. The control passes. Measured 2026-10-08 in `rust:1-alpine`. | `sh scripts/dev.sh plant` |
 | CI | Runs the gate on each push. Each run from `9b806fe` to `4853e6c` passed. | `gh run list` |
 | The release workflow, run by hand | Linux x86_64 and aarch64 static, Windows with no C runtime DLL; publish skipped | `gh workflow run release.yml --ref main` |
 

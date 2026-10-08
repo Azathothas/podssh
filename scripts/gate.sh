@@ -53,18 +53,20 @@ cargo --version
 echo "CARGO_BUILD_JOBS=$CARGO_BUILD_JOBS"
 
 # The library crates must build with no C compiler. The image ships a working
-# `cc`, so `CC=/nonexistent` is what enforces the rule; `scripts/plant.sh`
-# proves it is load-bearing. The binary itself needs cc since 2026-10-08: the
+# `cc`, so `CC=/nonexistent` is what enforces the rule, and `CXX=/nonexistent`
+# does the same for C++ (the `cc` crate reads CXX for C++ files, so CC alone
+# lets a C++ dependency through on a host with `c++`). `scripts/plant.sh`
+# proves both are load-bearing. The binary itself needs cc since 2026-10-08: the
 # native SSH client is russh with aws-lc-rs (operator decision).
 LIBS="-p podssh-ws -p podssh-relay -p podssh-transport -p podssh-core -p podssh-terminal -p podssh-probe"
 
 # shellcheck disable=SC2086  # $LIBS is a list of flags
 run "library crates build with no C compiler" \
-    env CC=/nonexistent cargo build --locked $LIBS
+    env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS
 
 # shellcheck disable=SC2086
 run "library crates: tests, no C compiler" \
-    env CC=/nonexistent cargo test --locked --no-fail-fast $LIBS
+    env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast $LIBS
 
 run "the SSH client and the CLI (need cc): tests" \
     cargo test --locked --no-fail-fast -p podssh-ssh -p podssh-cli

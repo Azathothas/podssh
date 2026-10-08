@@ -51,7 +51,8 @@ repository = "https://github.com/Azathothas/podssh"
 # THE BUILD RULE: the library crates need no C compiler.
 #
 # podssh-ws, podssh-transport, podssh-core, podssh-terminal and podssh-probe
-# must build with `CC=/nonexistent`, so other projects (podbox) can use them
+# must build with `CC=/nonexistent` and `CXX=/nonexistent` (the `cc` crate
+# reads CXX for C++), so other projects (podbox) can use them
 # anywhere a Rust toolchain exists. `scripts/gate.sh` enforces it and
 # `scripts/plant.sh` proves the check fires.
 #
