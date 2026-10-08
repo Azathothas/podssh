@@ -20,7 +20,7 @@ Triage of 2026-10-08: issues #1 to #36.
 | #7 | `PubkeyAuthentication=no` still advises `-i` | open | T-023 |
 | #8 | A missing value reads as an unknown flag | closed | T-009 (the commit "A flag with no value names the flag and its value") |
 | #9 | `podssh doctor --json` | open | T-049 |
-| #10 | A machine-readable flag table | open | T-050, and T-010 (`--help --json` drops `--json`) |
+| #10 | A machine-readable flag table | open | T-050, and T-010 (`--help --json` drops `--json`; done in the commit "podssh --help and --version drop no word"). The issue closes with T-050 |
 | #11 | `podssh status` | open | T-051 |
 | #12 | `PODSSH_TIMEOUT` | open | T-012 |
 | #13 | `podssh doctor --full` | open | T-052 |

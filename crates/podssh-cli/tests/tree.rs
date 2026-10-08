@@ -238,3 +238,30 @@ fn a_missing_value_names_the_flag() {
     let Parsed::Usage(m) = parse(args(&["ssh", "--no-such-flag"])) else { panic!("control") };
     assert!(m.contains("unknown flag '--no-such-flag'"), "{m}");
 }
+
+/// `podssh --help` and `--version` answer or refuse each word after them;
+/// `--help VERB` is the help of that verb (GitHub #10).
+#[test]
+fn the_top_level_help_drops_no_word() {
+    assert_eq!(parse(args(&["--help"])), Parsed::Help(""));
+    assert_eq!(parse(args(&["-h"])), Parsed::Help(""));
+    assert_eq!(parse(args(&["--help", "ssh"])), Parsed::Help("ssh"));
+    assert_eq!(parse(args(&["-h", "scp"])), Parsed::Help("cp"));
+    assert_eq!(parse(args(&["--version"])), Parsed::Version);
+    let refused: [&[&str]; 5] = [
+        &["--help", "--json"],
+        &["--help", "ssh", "extra"],
+        &["--help", "--help"],
+        &["--version", "--json"],
+        &["-V", "example.org"],
+    ];
+    for argv in refused {
+        let p = parse(args(argv));
+        let Parsed::Usage(m) = &p else { panic!("{argv:?}: {p:?}") };
+        let last = argv.last().unwrap();
+        assert!(m.contains(&format!("takes no word '{last}'")), "{argv:?}: {m}");
+    }
+    let p = parse(args(&["--help", "sssh"]));
+    let Parsed::UnknownVerb(m) = &p else { panic!("{p:?}") };
+    assert!(m.contains("sssh"), "{m}");
+}

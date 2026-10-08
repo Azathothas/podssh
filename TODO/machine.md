@@ -49,7 +49,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:108-136`).
 6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:58-69`) and
-   `docs/cli.md:101-119` in the same commit.
+   `docs/cli.md:103-121` in the same commit.
 
 ## Decision
 
@@ -123,7 +123,7 @@ manual do not keep the kind and the `instead` of a flag.
 5. The JSON is the same on each host: no path from `HOME` (`docs/cli.md:33-34`).
 6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:302-307`), the field to
    `man::Request` (`crates/podssh-cli/src/man/mod.rs:24-30`), and the parse
-   (`crates/podssh-cli/src/tree.rs:363-370`). JSON for `--help` stays with T-010.
+   (`crates/podssh-cli/src/tree.rs:387-394`). JSON for `--help` stays with T-010.
 
 ## Prove
 
@@ -257,7 +257,7 @@ and `crates/podssh-ssh/src/keys.rs:73-75` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:336-343`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:58-69`) and `docs/cli.md:101-119` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:58-69`) and `docs/cli.md:103-121` in the same commit.
 
 ## Decision
 
@@ -432,7 +432,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:153-169`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:155-171`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:140-150`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:86-93`), and stdio needs no listener.

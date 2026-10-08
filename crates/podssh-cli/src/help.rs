@@ -284,7 +284,7 @@ mod tests {
     fn no_top_level_option_runs_into_its_description() {
         let h = top_level_help();
         for (left, right) in
-            [("  -h, --help", "Print help"), ("  -V, --version", "Print version")]
+            [("  -h, --help", "Print help; --help COMMAND prints the help of one command"), ("  -V, --version", "Print version")]
         {
             let line = h
                 .lines()

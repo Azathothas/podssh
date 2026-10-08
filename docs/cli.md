@@ -48,6 +48,8 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   in both spellings, and the value that it needs (exit 64). A dropped option
   can disable a security check without a message. OpenSSH exits 255 with
   `Bad configuration option` for an unknown `-o` keyword, before it connects.
+  `podssh --help COMMAND` prints the help of COMMAND; each other word after
+  `--help` or `--version` is refused (exit 64).
 - **Destinations.** `-J a,b` makes a chain of hops; `-J a -J b` is an error.
   `ssh host:2222` connects to a host named `host:2222` on port 22. The port
   form of OpenSSH is `ssh://user@host:2222`. podssh also accepts `host:PORT`,

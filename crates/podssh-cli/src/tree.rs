@@ -264,10 +264,16 @@ where
     };
 
     // ⛔ The global flags, read before any subcommand is selected, so
-    // `podssh --help` never needs a verb.
+    // `podssh --help` never needs a verb. A word after them is answered or
+    // refused, never dropped (GitHub #10).
     match first.as_str() {
-        "-h" | "--help" => return Parsed::Help(""),
-        "-V" | "--version" => return Parsed::Version,
+        "-h" | "--help" => return top_help(&first, &argv[1..]),
+        "-V" | "--version" => {
+            return match argv.get(1) {
+                None => Parsed::Version,
+                Some(word) => Parsed::Usage(crate::refuse::extra_word(&first, &word.to_string_lossy())),
+            }
+        }
         _ => {}
     }
 
@@ -284,6 +290,24 @@ where
     };
 
     parse_verb(verb, &argv[1..])
+}
+
+/// `podssh --help` alone, or with one word that names a verb: that verb's
+/// help, as `podssh VERB --help` gives it. Any other word is refused.
+fn top_help(flag: &str, rest: &[std::ffi::OsString]) -> Parsed {
+    let mut words = rest.iter().map(|w| w.to_string_lossy().into_owned());
+    let Some(word) = words.next() else { return Parsed::Help("") };
+    let Some(verb) = crate::flags::verb_for(&word) else {
+        if word.starts_with('-') {
+            return Parsed::Usage(crate::refuse::extra_word(flag, &word));
+        }
+        let verdict = crate::suggest::diagnose_no_subcommand(&word);
+        return Parsed::UnknownVerb(crate::refuse::unknown_verb(&word, &verdict));
+    };
+    match words.next() {
+        None => Parsed::Help(verb.name),
+        Some(extra) => Parsed::Usage(crate::refuse::extra_word(&format!("{flag} {}", verb.name), &extra)),
+    }
 }
 
 /// ⛔ **The per-verb half.** ⛔ This is where `-P` means port on `cp` and a Tag

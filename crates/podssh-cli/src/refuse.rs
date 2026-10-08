@@ -57,6 +57,17 @@ pub fn refused(verb: &str, given: &str, instead: &str, reason: &str) -> String {
     }
 }
 
+/// A word after `podssh --help` or `--version` that it does not take: named,
+/// never dropped (GitHub #10).
+pub fn extra_word(given: &str, word: &str) -> String {
+    let hint = if given == "-V" || given == "--version" {
+        "Run 'podssh --version' alone."
+    } else {
+        "Run 'podssh --help' alone, or 'podssh --help COMMAND' for one command."
+    };
+    format!("podssh: {given} takes no word '{word}'.\n  {hint}")
+}
+
 /// A known flag given with no value. `clap` writes the long spelling also
 /// when the short one was typed, so the message names both.
 pub fn missing_value(verb: &str, row: &FlagRow) -> String {

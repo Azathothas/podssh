@@ -453,7 +453,7 @@ pub fn availability(verb: &Verb) -> Availability {
 /// The options read before any verb (`tree::parse`), for `--help` and the
 /// manual.
 pub const TOP_OPTIONS: &[(&str, &str, &str)] = &[
-    ("-h", "--help", "Print help"),
+    ("-h", "--help", "Print help; --help COMMAND prints the help of one command"),
     ("-V", "--version", "Print version"),
 ];
 
