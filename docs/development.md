@@ -1,169 +1,198 @@
 # Development
 
+This page tells how to build podssh, test it, measure it in a box like the
+target sandbox, and release it.
+
 ## Requirements
 
-- Rust 1.89 or newer for the binary (the library crates build with 1.88;
-  1.92 with the `ts` feature).
-- A C compiler for the binary: the SSH client's crypto is aws-lc
-  (`aws-lc-sys`, through `russh`); on Windows also NASM, or aws-lc falls back
-  to prebuilt objects. The library crates (`podssh-ws`, `podssh-transport`,
-  `podssh-core`, `podssh-terminal`, `podssh-probe`) need none, and the gate
-  checks that. The `ts` feature also needs `cmake` and `perl`.
+- Rust 1.89 or later for the binary. The library crates build with Rust
+  1.88. The `ts` feature needs Rust 1.92.
+- A C compiler for the binary. The SSH client uses aws-lc (`aws-lc-sys`,
+  through `russh`). On Windows, also NASM; without it, aws-lc uses prebuilt
+  objects.
+- No C compiler for the library crates (`podssh-ws`, `podssh-relay`,
+  `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`). The
+  gate makes sure of this.
+- `cmake` and `perl` for the `ts` feature only.
 - Python 3 for the repository checks.
-- For the container gate on Windows: Git Bash, PowerShell and the operator's
-  `wsl-toolkit` (rootless Podman in a dedicated WSL distribution).
+- For the container gate on Windows: Git Bash, PowerShell, and the
+  operator's `wsl-toolkit`.
+- For the box like the target sandbox: Podman. On Windows, the Podman
+  machine.
 
 ## Build and test natively
 
+CAUTION: Set the job limit first. See "Memory".
+
 ```sh
-export CARGO_BUILD_JOBS=4          # see "Memory" below
-cargo build                        # default members; target/debug/podssh
-cargo test                         # default members
+export CARGO_BUILD_JOBS=4
+cargo build                        # target/debug/podssh
+cargo test --no-fail-fast          # the default members
 cargo test -p podssh-core          # one crate
 cargo build -p podssh-cli --features ts                          # with Tailscale
 cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts   # its tests
 ```
 
-A bare `cargo build`/`cargo test` at the root uses the workspace's
-`default-members`, which leave out `crates/podssh-ts`; `--workspace` brings it
-back.
-
-The whole workspace builds and tests natively on Windows (MSVC) and Linux.
-The static Linux release binary needs the musl target and is built in the
-container (below).
+- A `cargo build` or `cargo test` at the root uses `default-members`. These
+  do not include `crates/podssh-ts`. Use `--workspace` to include it.
+- Use `--no-fail-fast`. Without it, cargo stops at the first test target
+  that fails, and the remaining targets do not run.
+- The workspace builds and tests natively on Windows (MSVC) and Linux. The
+  static Linux binary needs the musl target. The container gate builds it.
 
 ## Memory
 
-Cargo runs one job per CPU by default. On a 20-thread machine that is 20
-compiler and linker processes at once. On 2026-10-07, three such builds ran
-together, two of them in containers in an uncapped WSL VM, and nearly exhausted
-a 64 GB Windows machine.
+Cargo runs one job for each CPU. On a machine with 20 threads, that is 20
+compilers and linkers at the same time.
 
-- Native builds: set `CARGO_BUILD_JOBS` (4 is comfortable on 32–64 GB), or put
-  `jobs = 4` under `[build]` in `~/.cargo/config.toml`.
-- Container builds: `scripts/dev.sh` passes `PODSSH_JOBS` (default 4), and
-  `scripts/gate.sh` caps itself at one job per 3 GiB of available memory.
-- Never run two container builds at once. `scripts/dev.sh` holds a lock in
-  `.work/dev.lock` and refuses a second run.
-- Container memory limits are **not** a protection here: the wsl-toolkit base
-  has no cgroup delegation for its Podman account, so a memory or CPU limit is
-  accepted and not enforced (`wsl-toolkit base ensure` reports this,
-  2026-10-08). The job cap and the lock are what bound memory.
-- WSL itself (operator's machine, not changed by any script): set a ceiling in
-  `%USERPROFILE%\.wslconfig`, for example `memory=24GB` and `swap=8GB` under
-  `[wsl2]`, then restart WSL yourself.
+CAUTION: On 2026-10-07, three uncapped builds at the same time almost used
+all the memory of a 64 GB machine.
+
+1. For native builds, set `CARGO_BUILD_JOBS=4`. You can also put `jobs = 4`
+   under `[build]` in `~/.cargo/config.toml`.
+2. For container builds, `scripts/dev.sh` gives `PODSSH_JOBS` (default 4).
+   `scripts/gate.sh` limits itself to one job for each 3 GiB of free memory.
+3. Do not run two container builds at the same time. `scripts/dev.sh` holds
+   a lock in `.work/dev.lock` and refuses a second run.
+
+NOTE: A memory limit on a container does not protect the machine here. The
+wsl-toolkit base gives no cgroup delegation to its Podman account, so it
+accepts a memory or CPU limit and does not enforce it. The job limit and the
+lock are the protection.
+
+NOTE: To limit WSL itself, the operator can set `memory=24GB` and
+`swap=8GB` under `[wsl2]` in `%USERPROFILE%\.wslconfig`, and restart WSL.
+No script changes this file.
 
 ## Checks
 
 ```sh
-python scripts/check-repo.py      # 500-line rule, doc links, no credentials, LF shell scripts
-python scripts/check-scripts.py   # shell scripts parse under dash
-python scripts/check-relay-spec.py  # the live relay still matches what podssh depends on
+python scripts/check-repo.py        # 500-line rule, doc links, credentials, LF in shell scripts
+python scripts/check-scripts.py     # shell scripts parse under dash
+python scripts/check-relay-spec.py  # the live relay still matches what podssh uses
 ```
 
-Read exit codes directly, not through a pipe (`cmd | tail` reports `tail`'s
-status).
+Read each exit code directly. `cmd | tail` gives the exit code of `tail`.
 
 ## The container gate
 
 ```sh
-sh scripts/dev.sh check    # host checks, then scripts/gate.sh in rust:1-alpine
-sh scripts/dev.sh plant    # proves the no-C-compiler check actually fires
+sh scripts/dev.sh check    # the host checks, then scripts/gate.sh in rust:1-alpine
+sh scripts/dev.sh plant    # shows that the check for "no C compiler" works
 sh scripts/dev.sh test -p podssh-core
 sh scripts/dev.sh run -- 'uname -a'
 sh scripts/dev.sh help
 ```
 
-`scripts/gate.sh` is the gate; CI runs the same file in the same image. It
-checks that:
-1. the library crates build and pass their tests with `CC=/nonexistent`;
-2. the SSH client and the CLI pass their tests;
-3. the `ts` feature's tests pass;
-4. the static musl release binary has no dynamic dependencies and no program
-   interpreter;
-5. that binary works against real servers: `scripts/interop.sh` installs
-   OpenSSH and Dropbear in the throwaway container, starts them on 127.0.0.1
-   and runs `podssh ssh --direct` against them (exit statuses and signals,
-   streams and digests, every authentication method, host keys, `-W`, `-J`,
-   `-s`, ptys through pipes, and an interactive pty driven by
-   `scripts/interop-pty.py`: resize, Ctrl-C, `vi`, `less`, `top`, `~.`);
-   `scripts/interop-keygen.sh` checks the keys `podssh keygen` makes with
-   OpenSSH's own `ssh-keygen` and `sshd`;
-6. podssh survives the relay failing: `scripts/interop-faults.sh` puts a
-   stand-in relay (`scripts/fake-relay.py`, TLS from a CA made for the run)
-   and a stand-in CONNECT proxy (`scripts/fake-proxy.py`) between podssh and
-   OpenSSH, and has them fail one way each: a host that is down, one that
-   answers 503, one that never answers after TLS, one that never starts TLS,
-   a proxy answering 502, a Close mid-transfer (1011) and at the byte cap
-   (1009), a stall (no frames, no Pongs), and a host killed mid-session. The
-   stand-ins are written here, so they test podssh's handling of each fault;
-   that podssh works with the real relay is what the live tests show.
+`scripts/gate.sh` is the gate. CI runs the same file in the same image. The
+gate makes sure that:
 
-Containers are ephemeral, and `.git`, `target/`, `.env/`, `.work/`, `.tmp/` and
-`.codegraph/` are not copied into them.
+1. The library crates build and pass their tests with `CC=/nonexistent`.
+2. The SSH client and the command line pass their tests.
+3. The tests of the `ts` feature pass.
+4. The static musl binary has no dynamic dependencies and no program
+   interpreter.
+5. The binary works against real servers. `scripts/interop.sh` installs
+   OpenSSH and Dropbear in the container, starts them on 127.0.0.1, and runs
+   `podssh ssh --direct` against them: exit statuses and signals, streams
+   and digests, each authentication method, host keys, `-W`, `-J`, `-s`,
+   ptys through pipes, and a real pty (`scripts/interop-pty.py`: resize,
+   Ctrl-C, `vi`, `less`, `top`, `~.`).
+6. OpenSSH accepts the keys of `podssh keygen` (`scripts/interop-keygen.sh`):
+   its `ssh-keygen` reads them and its `sshd` accepts them for login.
+7. podssh handles a relay that fails (`scripts/interop-faults.sh`). A
+   stand-in relay (`scripts/fake-relay.py`, with TLS from a CA made for the
+   run) and a stand-in proxy (`scripts/fake-proxy.py`) fail in one way each:
+   a host that is down, a 503, a host that does not answer after TLS, a host
+   that does not start TLS, a proxy 502, a Close during a transfer (1011)
+   and at the byte limit (1009), a stall, and a host that stops during a
+   session.
+
+NOTE: The stand-ins are part of this repository. They test how podssh
+handles each fault. The live tests show that podssh works with the real
+relay.
+
+The containers are temporary. `.git`, `target/`, `.env/`, `.work/`, `.tmp/`
+and `.codegraph/` are not copied into them.
 
 ## A box like the target sandbox
 
-`scripts/test_in_box.sh` builds, with Podman, a box with the properties the
-operator's sandprobe report measured on the target sandbox, and measures
-podssh in it:
+`scripts/test_in_box.sh` uses Podman to build a box with the properties of
+the target sandbox, and measures podssh in the box.
+
+1. Get a static Linux binary of podssh. Use the release workflow's artifact
+   or the gate's build.
+2. On Windows, start the Podman machine: `podman machine start`.
+3. Run the script:
+
+   ```sh
+   sh scripts/test_in_box.sh path/to/podssh-x86_64-unknown-linux-musl
+   ```
+
+The box has these properties:
+
+- No route out. The only way out is a CONNECT proxy
+  (`scripts/box/proxy.py`). It allows ports 443, 80 and 8443 to public
+  hosts, and refuses other ports and private addresses with the texts of the
+  sandbox's proxy.
+- A resolver that does not answer, no capabilities, `no_new_privs`, and a
+  seccomp filter that refuses `bind` and UDP (`scripts/box/seccomp.json`).
+- No `/dev/ptmx`, and uid 0 with no name.
+
+`scripts/box/probe.sh` compares the box with the operator's sandprobe report
+of the target sandbox. If a required property is different, the script stops
+and does not run podssh. Then `scripts/sandbox-check.sh` runs `doctor`,
+`proxy`, `keygen`, `ssh`, and OpenSSH with podssh as its `ProxyCommand`.
+
+NOTE: The box does not give EACCES for `connect()` to loopback and to some
+ports, as the sandbox does.
+
+NOTE: The sandprobe report is `.work/sandprobe-run1.txt`. It is not in the
+repository, because it describes the operator's own sandbox.
+
+To measure a real sandbox, run `sh scripts/sandbox-check.sh` in it. With no
+argument, the script builds podssh first.
+
+## Rules for tests
+
+These rules are necessary because tests here passed while the code was
+wrong: the tests built their input with the same assumptions as the code.
+
+1. Test protocol code against software that podssh did not write: an
+   OpenSSH or Dropbear server, a real IRC server, the live relay, or bytes
+   captured from one.
+2. Trust a new check only after it fails on a planted defect and passes on
+   correct input.
+3. Run the real binary with stdout and stderr on different pipes. A stray
+   `println!` passes every test that runs in memory.
+4. In a live test that expects a failure, send nothing after the trigger.
+   Extra bytes can arrive in place of the close code.
+5. Do not use the network in a test. The tests that run the binary set
+   `PODSSH_OFFLINE=1`, which makes each connection attempt fail at once
+   with a message. The tests that run in the process use a destination that
+   the relay cannot take, so podssh refuses it before it connects.
+
+## Live tests
+
+These tests use the network. Run them only on request.
 
 ```sh
-sh scripts/test_in_box.sh path/to/podssh-x86_64-unknown-linux-musl
+cargo test -p podssh-cli --test proxy_live -- --ignored   # the proxy path, with a token
+cargo test -p podssh-cli --test doctor -- --ignored       # doctor, end to end
+cargo test -p podssh-ws --test live_doh -- --ignored      # DNS over HTTPS
+cargo test -p podssh-relay --test live -- --ignored       # the relay answers pings
 ```
 
-1. The box has no route out. Its only way out is a CONNECT proxy
-   (`scripts/box/proxy.py`) that allows ports 443, 80 and 8443 to public
-   hosts, with the sandbox proxy's refusal texts.
-2. The box has a resolver that never answers, no capabilities,
-   `no_new_privs`, a seccomp filter that refuses `bind` and UDP
-   (`scripts/box/seccomp.json`), no `/dev/ptmx`, and uid 0 with no name.
-3. `scripts/box/probe.sh` compares the box with the report. If a required
-   property differs, the script stops and does not run podssh.
-4. `scripts/sandbox-check.sh` then runs `doctor`, `proxy`, `keygen`, `ssh`
-   and OpenSSH with podssh as its `ProxyCommand`.
-
-The box does not reproduce the sandbox's EACCES on `connect()` to loopback
-and to some ports. The report is `.work/sandprobe-run1.txt`, which is not in
-the repository: it describes the operator's own sandbox. On Windows, start
-the Podman machine first (`podman machine start`).
-
-## Tests that count
-
-Unit tests in this repository have repeatedly passed while the code was wrong,
-because the test built its input with the same assumptions as the code (see
-[audit-2026-10-08.md](audit-2026-10-08.md)). For protocol code:
-
-- test against something podssh did not write: a real OpenSSH/Dropbear
-  server, a real ircd, the live relay, or bytes captured from one;
-- a new check is trusted only after it has been seen to fail on a planted
-  defect and pass on correct input;
-- run the real binary with stdout and stderr on separate pipes: a stray
-  `println!` once passed every in-memory test suite;
-- in a live test that expects a failure, send nothing after triggering it
-  (dropssh once read a data frame as close code 33319);
-- use `cargo test --no-fail-fast`: without it, cargo stops at the first test
-  target that fails and the rest never run.
-
-Interactive use on Windows is checked by `scripts/interop-conpty.py`, the
-counterpart of `interop-pty.py`: it runs `podssh ssh -t` in a real pseudo
-console against an SSH server you name, for example
-`python scripts/interop-conpty.py target/debug/podssh.exe root@HOST --direct`.
-
-Tests never use the network. The integration tests that run the binary set
-`PODSSH_OFFLINE=1`, which makes any attempt to connect fail at once with a
-message; in-process tests use a destination the relay cannot take, which is
-refused before anything connects.
-
-The live check of the whole proxy path (network; mints and caches a token
-like the binary does):
+For interactive use on Windows, `scripts/interop-conpty.py` runs
+`podssh ssh -t` in a real pseudo console against an SSH server that you
+give:
 
 ```sh
-cargo test -p podssh-cli --test proxy_live -- --ignored
+python scripts/interop-conpty.py target/debug/podssh.exe root@HOST --direct
 ```
 
-Older live examples take a token from the environment. Mint it, use it and
-discard it in one shell, and never print it:
+WARNING: Some older examples read a token from the environment. Mint the
+token, use it and remove it in one shell. Do not print it.
 
 ```sh
 export PODSSH_RELAY_TOKEN="$(curl -sS -X POST https://tcp.ssh.relay.ajam.dev/v1/mint \
@@ -174,20 +203,37 @@ unset PODSSH_RELAY_TOKEN
 
 ## Line endings
 
-`.gitattributes` stores sources as LF. Shell scripts must be LF (dash rejects
-CRLF). The IRC wire fixtures under `crates/podssh-core/tests/fixtures/` are
-stored byte-for-byte (`-text`) because CRLF is the protocol's terminator. Do
-not bulk-convert line endings in files a change does not otherwise touch.
+- `.gitattributes` stores the sources with LF.
+- Shell scripts must use LF. dash refuses CRLF.
+- The IRC wire fixtures in `crates/podssh-core/tests/fixtures/` are stored
+  byte for byte (`-text`), because CRLF ends each IRC line.
+- Do not change the line endings of a file that a change does not otherwise
+  touch.
 
 ## Release builds
 
-The shipped binary is `podssh-cli` built for `x86_64-unknown-linux-musl` with
-`RUSTFLAGS=-Ctarget-feature=+crt-static` and the `release` profile (size-optimised,
-fat LTO). `scripts/gate.sh` builds it and CI uploads it.
+The released Linux binary is `podssh-cli` for `x86_64-unknown-linux-musl`,
+built with `RUSTFLAGS=-Ctarget-feature=+crt-static` and the `release`
+profile (optimized for size, fat LTO). `scripts/gate.sh` builds it, and CI
+uploads it.
 
-A tag `vX.Y.Z[-pre]` runs `.github/workflows/release.yml`: static musl
-binaries for x86_64 and aarch64 (each built in `rust:1-alpine` on a native
-runner and checked for dynamic dependencies), a Windows binary with a static C
-runtime, `SHA256SUMS`, and a GitHub release whose notes are
-`docs/releases/<tag>.md` (the workflow fails without that file). A tag with a
-suffix (`-beta.1`) is published as a prerelease.
+`.github/workflows/release.yml` makes the release binaries:
+
+- static musl binaries for x86_64 and aarch64, each built in
+  `rust:1-alpine` on a native runner, with a check for dynamic dependencies;
+- a Windows binary with a static C runtime, with a check (`dumpbin
+  /dependents`) that it needs no C runtime DLL.
+
+To build and check the binaries without a release, run the workflow by hand:
+
+```sh
+gh workflow run release.yml --ref main
+```
+
+To publish a release:
+
+1. Write the notes in `docs/releases/<tag>.md`. The workflow fails without
+   this file.
+2. Push the tag `vX.Y.Z` or `vX.Y.Z-pre`. A tag with a suffix (`-beta.1`)
+   becomes a prerelease.
+3. The workflow adds `SHA256SUMS` and publishes the release.

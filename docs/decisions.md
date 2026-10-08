@@ -1,50 +1,55 @@
 # Decisions
 
-Decisions the operator (the project owner) has made, newest first within each
-section. They are not re-argued without the operator. When one changes, edit
-it here and say what replaced it; do not leave two versions standing.
+This page lists the decisions of the operator (the owner of the project).
+The newest decision is first in each section.
+
+- Do not change a decision without the operator.
+- When a decision changes, edit its row and move the old text to
+  "Superseded". Do not keep two versions as current.
 
 ## Product
 
-| date | decision |
+| Date | Decision |
 | --- | --- |
-| 2026-10-08 | **The way to a finished podssh** ([design.md](design.md)): the first beta waits for M3 (relay failover, liveness, a no-proxy/no-DNS fallback, `doctor`, `keygen`, a run in a real sandbox); then into the cage (M4 `podssh-relay` + reverse road + podbox, M5 `podssh serve`), then sessions that survive drops (M6). Both resumable layers are built, each the other's fallback: podssh's own over the WebSocket relay, and iroh. |
-| 2026-10-08 | **iroh is an opt-in road** for podssh-to-podssh connections, its relays configurable; n0's public relays by default until the operator runs his own iroh relay on his Cloudflare account, then his first and n0's as the fallback. |
-| 2026-10-08 | **Native SSH is `russh` with the `aws-lc-rs` backend, in the default build.** The no-C rule now covers the library crates only (`podssh-ws`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`); the `podssh` binary links aws-lc. The hand-written SSH code is retired once `podssh ssh` works. |
-| 2026-10-08 | **Going public:** the git history is replaced by one fresh commit (the old history kept in a local bundle), old CI runs deleted, the repository made public. After that, verified milestones are pushed without asking, and `v0.1.0-beta.1` is tagged and released with static Linux binaries and checksums once `podssh ssh` passes its exit criteria. |
-| 2026-10-08 | **Milestone 1 ships a usable default:** the relay `tcp.ssh.relay.ajam.dev` is compiled in (overridable), and Mozilla's root store (`webpki-roots`) is embedded as the last-resort trust fallback after an explicit CA file and the system bundle. This reverses two earlier agent-made rules ("no default relay", "no compiled-in roots"). |
-| 2026-10-08 | **Tailscale is opt-in.** `podssh ts` is the `ts` cargo feature, because the vendored fork dominates build time, memory and binary size. |
-| 2026-10-05 | **Never assume the client has any privilege, tool or setup.** In the operator's words: *"NEVER ASSUME OUR CLIENT HAS ANY PRIVS, TOOLS, SETUP."* Everything the host offers is probed at runtime; presence differs between sessions and images. |
-| 2026-10-05 | **Tailscale support** (`podssh ts`, alias `tailscale`): "vanilla" means a TUN device; the auto chain is tun → socks → tcp → relay; `podssh ssh` does not route through the tailnet automatically in the first release; waiting for the relay allowlist is opt-in (fail fast by default); a client-side DERP home pin lives in the fork. |
-| 2026-10-05 | **Exit codes:** usage errors 64, configuration errors 78 (sysexits). Applied. |
-| 2026-10-04 | **IRC safety:** podssh never executes anything received over chat and never fetches a peer's files on its own. |
-| 2026-10-01 | **No `LD_PRELOAD`, no out-of-process shims.** A preload shim fails silently against a static binary and looks like an authentication failure. podssh does what the host lacks in-process. |
-| 2026-10-01 | **The terminal must be usable once connected.** Where nothing provides echo, editing and history (no pty on either side and no line discipline on the server), podssh supplies the line discipline itself. A server without a pty may still run its own (podbox does), so the mode is chosen from three inputs; see [terminal.md](terminal.md). |
-| 2026-10-01 | **IRC is required:** two users in constrained environments must be able to chat and share files. podssh implements the protocol and the relay carries the bytes, like SSH. Open: the code today talks to public IRC servers in plaintext, and the "no third-party server" topology has no design yet. |
-| 2026-10-01 | **Tokens:** one machine, one cached token; the cache lives in the first writable of the config directory, `$TMPDIR`, `/dev/shm`, the working directory; mode 0600, and a failed `chmod` does not stop podssh. |
-| 2026-10-01 | **CLI:** `podssh` with no subcommand never connects anywhere; `chat` is the IRC subcommand; the man page is generated from the code. |
+| 2026-10-08 | **The way to a finished podssh** ([design.md](design.md)). The first beta waits for milestone M3: relay failover, liveness, a fallback for no proxy and no DNS, `doctor`, `keygen`, and a run in a real sandbox. Then M4 (`podssh-relay`, the reverse road, podbox), M5 (`podssh serve`), and M6 (sessions that survive a drop). M6 builds two resumable layers, each the fallback of the other: podssh's own layer over the WebSocket relay, and iroh. |
+| 2026-10-08 | **iroh is a road that the user must select**, for connections between two podssh binaries. Its relays are configurable. The default is n0's public relays until the operator runs an iroh relay on the operator's own Cloudflare account. Then the operator's relay is first and n0's relays are the fallback. |
+| 2026-10-08 | **The SSH client is `russh` with the `aws-lc-rs` backend, in the default build.** The rule "no C" applies to the library crates only: `podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`. The `podssh` binary links aws-lc. |
+| 2026-10-08 | **The repository is public.** The git history was replaced by one commit (the old history is in a local bundle), and the old CI runs were deleted. Verified milestones are pushed without a question. `v0.1.0-beta.1` is tagged and released, with static Linux binaries and checksums, when M3 is complete. |
+| 2026-10-08 | **Milestone 1 gives a usable default.** The relay `tcp.ssh.relay.ajam.dev` is compiled in, and the user can override it. Mozilla's root store (`webpki-roots`) is the last trust fallback, after an explicit CA file and the system bundle. |
+| 2026-10-08 | **Tailscale is a feature that the user must select.** `podssh ts` is the `ts` cargo feature, because the fork uses most of the build time, the memory and the binary size. |
+| 2026-10-05 | **Do not assume that the client has a privilege, a tool or a setup.** The operator's words: *"NEVER ASSUME OUR CLIENT HAS ANY PRIVS, TOOLS, SETUP."* podssh probes what the host gives at runtime. What a host gives changes between sessions and images. |
+| 2026-10-05 | **Tailscale support** (`podssh ts`, alias `tailscale`). "Vanilla" means a TUN device. The automatic chain is tun, then socks, then tcp, then relay. `podssh ssh` does not use the tailnet automatically in the first release. A wait for the relay's allowlist is used only on request; the default is to fail fast. A client-side DERP home pin is in the fork. |
+| 2026-10-05 | **Exit codes:** 64 for a usage error, 78 for a configuration error (sysexits). |
+| 2026-10-04 | **IRC safety:** podssh never executes something that it receives over chat, and never gets a peer's files on its own. |
+| 2026-10-01 | **No `LD_PRELOAD`, and no shims in other processes.** A preload shim fails silently against a static binary and looks like an authentication failure. podssh supplies in its own process what the host does not have. |
+| 2026-10-01 | **The terminal must be usable after the connection.** When no part gives echo, editing and history (no pty on either side, and no line discipline on the server), podssh supplies the line discipline. A server with no pty can have its own line discipline (podbox has one), so three inputs select the mode. See [terminal.md](terminal.md). |
+| 2026-10-01 | **IRC is necessary.** Two users in constrained hosts must be able to chat and share files. podssh supplies the protocol and the relay carries the bytes, as for SSH. Open items: the client sends plain text to public IRC servers, and the topology with no third-party server has no design yet. |
+| 2026-10-01 | **Tokens:** one machine has one cached token. The cache is in the first writable directory of: the configuration directory, `$TMPDIR`, `/dev/shm`, the working directory. The mode is 0600. If `chmod` fails, podssh continues. |
+| 2026-10-01 | **Command line:** `podssh` with no subcommand never connects. `chat` is the IRC subcommand. The code generates the man page. |
 
-## Working on the repository
+## Work on the repository
 
-| date | decision |
+| Date | Decision |
 | --- | --- |
-| 2026-10-08 | **Lightweight tracking:** [STATUS.md](STATUS.md) (measured state), [ROADMAP.md](ROADMAP.md) (ordered milestones), a short `AGENTS.md`, and topic pages. The previous record (spec, 39 TODO entries, research, reviews, plans) was read for anything still useful, which was moved into the topic pages, and then deleted; it survives only in the pre-publication history bundle. |
-| 2026-10-08 | **CI only runs once the repository is public.** Until then the gate is local: native tests plus `sh scripts/dev.sh check`. |
-| 2026-10-07 | **Fix what is found broken on the spot,** in the same session; never defer it or call it someone else's. |
-| 2026-10-07 | **Redundancy and fallbacks from day one** beat "minimal code": design for the first contact with a hostile host. |
-| 2026-10-07 | **Leave existing line endings alone.** Never bulk-convert files a change does not otherwise touch. |
-| 2026-10-01 | **No source file over 500 lines.** Split it; never delete comments to fit. Documentation is exempt. `scripts/check-repo.py` enforces it for Rust under `crates/`; `scripts/dev.sh` (about 600 lines, mostly comments) is the known exception to split. |
-| standing | **Commits are attributed to the operator alone.** No co-author lines. |
-| standing | **Agents never call `wsl.exe`**, and never `wsl --shutdown`, `--terminate` or `--unregister`: they affect every distribution on the machine. Linux work goes through `sh scripts/dev.sh`. |
-| standing | **`.tmp/` holds read-only clones of sibling projects.** Never modify, commit or rebase inside them, and check the directory exists before concluding anything from it. |
+| 2026-10-08 | **The documents use ASD-STE100 (Simplified Technical English).** They give the current state and procedures, not history; git keeps the history. The documents for agents send the reader to the exact document for each task ([AGENTS.md](../AGENTS.md)). |
+| 2026-10-08 | **The box like the target sandbox uses Podman directly** (`scripts/test_in_box.sh`). The build gate continues to use `scripts/dev.sh`. |
+| 2026-10-08 | **Light records:** [STATUS.md](STATUS.md) for the measured state, [ROADMAP.md](ROADMAP.md) for the milestones in order, [defects.md](defects.md) for the open defects, a short [AGENTS.md](../AGENTS.md), and topic pages. |
+| 2026-10-07 | **Repair a defect in the session that finds it.** Do not defer it, and do not call it the work of another person. |
+| 2026-10-07 | **Redundancy and fallbacks from the first day** are better than minimal code. Design for the first contact with a hostile host. |
+| 2026-10-07 | **Do not change the line endings** of a file that a change does not otherwise touch. |
+| 2026-10-01 | **No source file has more than 500 lines.** Split a longer file. Do not delete comments to make it fit. Documents are exempt. `scripts/check-repo.py` checks the Rust files under `crates/`. `scripts/dev.sh` (about 600 lines) is a known exception that must be split ([defects.md](defects.md), B8). |
+| standing | **Commits are attributed to the operator only.** No co-author lines. |
+| standing | **Agents never call `wsl.exe`**, and never `wsl --shutdown`, `--terminate` or `--unregister`. These commands act on each distribution of the machine. Linux builds use `sh scripts/dev.sh`. |
+| standing | **`.tmp/` holds read-only copies of other projects.** Do not change, commit or rebase in them. Make sure that the directory exists before you use it. |
 
 ## Superseded
 
-| date | decision | replaced by |
+| Date | Decision | Replaced by |
 | --- | --- | --- |
-| 2026-10-01 | "There is no `ssh` on the sandbox." | The 2026-10-04 probe found `/usr/bin/ssh`; the 2026-10-05 rule: probe, never assume. |
-| 2026-10-01 | "Use wsl-toolkit directly for testing." | All Linux work goes through `scripts/dev.sh`. |
-| 2026-10-04, 2026-10-05 | Work orders (relay → IRC chat → … → SSH; E33 → relay C1/C3/C4 → E39 → live IRC → E01). | [ROADMAP.md](ROADMAP.md), 2026-10-08. |
-| 2026-10-05 | "Drop the no-C gate when the Tailscale adapter joins the workspace." | Tailscale became the opt-in `ts` feature (2026-10-08); the same day the no-C rule was narrowed to the library crates for `russh`. |
-| 2026-10-08 | "Native SSH: evaluate `russh` first; the engine choice is open." | `russh` with `aws-lc-rs` in the default build (2026-10-08). |
-| 2026-10-05 | Session authorizations for the previous agent (minting tokens unattended, using operator credentials and test machines, commit and push per change). | Not standing permissions; ask in the session that needs them. |
+| 2026-10-08 | "CI runs only when the repository is public; until then the gate is local." | The repository became public on 2026-10-08. CI runs the gate on each push. |
+| 2026-10-08 | "Native SSH: evaluate `russh` first; the engine is open." | `russh` with `aws-lc-rs` in the default build (2026-10-08). |
+| 2026-10-05 | "Drop the no-C gate when the Tailscale adapter joins the workspace." | Tailscale became the `ts` feature (2026-10-08). The same day, the no-C rule was limited to the library crates. |
+| 2026-10-05 | Permissions for an earlier agent (unattended token mints, the operator's credentials and test machines, a commit and push for each change). | Not standing permissions. Ask in the session that needs them. |
+| 2026-10-04, 2026-10-05 | Work orders (relay, IRC chat, then SSH; E33, relay C1/C3/C4, E39, live IRC, E01). | [ROADMAP.md](ROADMAP.md), 2026-10-08. |
+| 2026-10-01 | "There is no `ssh` on the sandbox." | The probe of 2026-10-04 found `/usr/bin/ssh`. The rule of 2026-10-05: probe, never assume. |
+| 2026-10-01 | "Use wsl-toolkit directly for testing." | Linux builds use `scripts/dev.sh`; the sandbox box uses Podman directly (2026-10-08). |

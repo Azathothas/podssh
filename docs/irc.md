@@ -2,7 +2,7 @@
 
 `podssh chat` lets two users on constrained hosts talk and exchange files.
 podssh speaks IRC itself and the relay carries the bytes, as for SSH. The
-current client has known defects (see [audit-2026-10-08.md](audit-2026-10-08.md)):
+current client has known defects (see [defects.md](defects.md), I1 to I8):
 it hangs at registration on IRCv3 servers and sends plaintext through the
 relay.
 

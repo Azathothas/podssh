@@ -2,72 +2,91 @@
 
 SSH from machines whose only way out is HTTPS.
 
-podssh is a single static binary that is an SSH client — and can carry any
-TCP stream — through a WebSocket-to-TCP relay on port 443. It is meant for
-locked-down sandboxes (CI runners, AI-agent containers, hosted notebooks) that
-have no inbound ports, no direct outbound TCP, often no working DNS, and reach
-the internet only through an HTTP proxy. It needs no root, no `LD_PRELOAD`, no
-installed `ssh`, and no system TLS or crypto libraries.
+podssh is one static binary. It is an SSH client, and it can carry any TCP
+stream, through a WebSocket relay on port 443. It is for closed sandboxes:
+CI runners, containers of AI agents, hosted notebooks. Such hosts have no
+inbound ports and no direct outbound TCP. Often they have no working DNS, and
+an HTTP proxy is their only way out. podssh needs no root, no `LD_PRELOAD`,
+no installed `ssh`, and no TLS or crypto library of the system.
 
 > [!WARNING]
-> **Status: beta.** `podssh ssh` (the native client) and `podssh proxy` (an
-> OpenSSH `ProxyCommand`) work and are tested against OpenSSH and Dropbear
-> servers and through the live relay. Reverse mode, chat and file copy are not
-> implemented yet. [docs/STATUS.md](docs/STATUS.md) has the measured state;
-> [docs/ROADMAP.md](docs/ROADMAP.md) the plan.
+> **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh doctor` and
+> `podssh keygen` work. Tests run them against OpenSSH and Dropbear servers,
+> through the live relay, and in a box like the target sandbox. Reverse mode,
+> chat and file copy are not available yet. The measured state is in
+> [docs/STATUS.md](docs/STATUS.md). The plan is in
+> [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## How it works
 
 ```
-podssh ──TLS 1.3 + WebSocket, port 443──▶ relay ──TCP──▶ sshd (or any TCP service)
-   └── through HTTPS_PROXY (HTTP CONNECT) when the host has one
+podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP service)
+   `-- through HTTPS_PROXY (HTTP CONNECT) when the host has one
 ```
 
 - **The relay** ([`tcp.ssh.relay.ajam.dev`](https://tcp.ssh.relay.ajam.dev/),
   a Cloudflare Worker) copies bytes between a WebSocket and a TCP socket. Its
-  contract is published at
-  [`/llms-full.txt`](https://tcp.ssh.relay.ajam.dev/llms-full.txt) and
-  summarised in [docs/relay.md](docs/relay.md).
-- **End-to-end encryption.** The SSH session is encrypted between your SSH
-  client and the server. The relay still sees the target, the timing and
-  volume, and the unencrypted start of the SSH handshake, and it could tamper
-  with frames; verifying the server's host key is what makes a relay in the
-  middle safe ([SECURITY.md](SECURITY.md)).
-- **Outbound only.** podssh opens one outbound TCP connection (to the relay,
-  or to the proxy named in `HTTPS_PROXY`) and never listens on a port.
-- **No local pty needed.** A remote pty (`-tt`) works with stdin and stdout
-  as plain pipes, so full-screen programs and Ctrl-C work from a host with no
+  contract is at [`/llms-full.txt`](https://tcp.ssh.relay.ajam.dev/llms-full.txt).
+  [docs/relay.md](docs/relay.md) gives the parts that podssh uses.
+- **Encryption.** SSH encrypts the session between podssh and the server.
+  The relay can see the target, the time and volume of the traffic, and the
+  start of the SSH handshake. The host-key check makes a relay in the middle
+  safe. See [SECURITY.md](SECURITY.md).
+- **Outbound only.** podssh opens outbound connections only (to the relay,
+  or to the proxy that `HTTPS_PROXY` names). It never listens on a port.
+- **Fallbacks.** If one relay host fails, podssh tries the next one. If DNS
+  fails, podssh uses pinned addresses or DNS over HTTPS. If the relay goes
+  silent, podssh finds it in 30 to 40 s.
+- **No local pty needed.** A remote pty (`-tt`) works when stdin and stdout
+  are pipes. Full-screen programs and Ctrl-C work on a host that has no
   `/dev/ptmx`.
+
+## First steps on a new host
+
+1. Get a static binary for the host: from the releases page when a release
+   exists, or build one (see "Build"). Make it executable.
+2. Run `podssh doctor`. It tells what the host allows and whether the full
+   path works: one `ok`, `FAIL` or `????` line for each check (`????` is a
+   check that could not run). It exits 1 if a check failed. See
+   [docs/cli.md](docs/cli.md#podssh-doctor).
+3. If the host has no working `ssh-keygen`, make a key with podssh:
+
+   ```sh
+   podssh keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519   # -N '' for no passphrase
+   podssh keygen -l -f ~/.ssh/id_ed25519.pub             # its fingerprint
+   ```
 
 ## Usage
 
-Without an `ssh` client — podssh is the client, and takes OpenSSH's options:
+podssh is the SSH client, with the options of OpenSSH:
 
 ```sh
-podssh ssh user@example.org                  # interactive shell
+podssh ssh user@example.org                  # an interactive shell
 podssh ssh user@example.org 'uname -a'       # a command; its exit status is podssh's
 podssh ssh -i key -o StrictHostKeyChecking=accept-new user@example.org true
 podssh ssh -J user@bastion user@inner        # through a jump host
-podssh ssh -W db.internal:5432 user@bastion  # stdin/stdout to a TCP port; nothing listens
-podssh ssh -tt user@example.org < script.txt # a remote pty, local stdin a pipe
+podssh ssh -W db.internal:5432 user@bastion  # stdin and stdout to a TCP port; nothing listens
+podssh ssh -tt user@example.org < script.txt # a remote pty; local stdin is a pipe
 ```
 
-On a host with no terminal (an agent's sandbox), podssh never waits for input
-that cannot arrive: an unknown host key is refused with its fingerprint and
-`-o StrictHostKeyChecking=accept-new` as the remedy, and passwords and key
-passphrases come from `SSH_ASKPASS` (with `SSH_ASKPASS_REQUIRE=force`) or are
-skipped with a note. Keepalives are on (every 60 s), because the relay closes a
-connection after 180 s without traffic. `--direct` connects without the relay.
-Exit codes follow OpenSSH: the remote status, 128 + a signal number, 255 for
-podssh's own failures. Details: [docs/cli.md](docs/cli.md).
+- On a host with no terminal (the sandbox of an agent), podssh never waits
+  for input that cannot come. It refuses an unknown host key, gives its
+  fingerprint, and gives `-o StrictHostKeyChecking=accept-new` as the
+  remedy. Passwords and passphrases come from `SSH_ASKPASS` (with
+  `SSH_ASKPASS_REQUIRE=force`), or podssh skips them with a note.
+- Keepalives are on (every 60 s), because the relay closes a connection
+  after 180 s with no traffic.
+- `--direct` connects without the relay.
+- The exit codes are those of OpenSSH: the remote status, 128 plus a signal
+  number, or 255 for a failure of podssh. See [docs/cli.md](docs/cli.md).
 
-With an `ssh` client on the host, podssh can be its `ProxyCommand`:
+If the host has an `ssh` client, podssh can be its `ProxyCommand`:
 
 ```sh
 ssh -o ProxyCommand='podssh proxy %h %p' -o ServerAliveInterval=60 user@example.org
 ```
 
-or in `~/.ssh/config`:
+Or put it in `~/.ssh/config`:
 
 ```
 Host example
@@ -77,88 +96,77 @@ Host example
     ServerAliveInterval 60
 ```
 
-`podssh proxy HOST PORT` is a plain byte pipe, so it also works for other TCP
+`podssh proxy HOST PORT` is a byte pipe, so it also works for other TCP
 protocols:
 
 ```sh
 printf 'HEAD / HTTP/1.0\r\nHost: example.com\r\n\r\n' | podssh proxy example.com 80
 ```
 
-It honours:
+podssh reads these variables:
 
-| variable | effect |
+| Variable | Effect |
 | --- | --- |
-| `HTTPS_PROXY`, `https_proxy`, `ALL_PROXY` | reach the relay through this HTTP proxy (`CONNECT`, by name, so no local DNS is needed) |
-| `NO_PROXY`, `no_proxy` | names that bypass the proxy |
-| `PODSSH_RELAY` | relay hosts to try in order (`host[:port][,...]`); also `--relay-host` |
-| `PODSSH_RELAY_ADDR` | addresses to use instead of DNS (`host=ip[,...]`); also `--relay-addr` |
-| `PODSSH_RELAY_TOKEN` | use this token instead of minting one |
-| `SSL_CERT_FILE` | trust only these CA certificates; also `--ca-file` |
+| `HTTPS_PROXY`, `https_proxy`, `ALL_PROXY` | Use this HTTP proxy to reach the relay (`CONNECT` with the name, so no local DNS is necessary) |
+| `NO_PROXY`, `no_proxy` | Names that do not use the proxy |
+| `PODSSH_RELAY` | Relay hosts to try in order (`host[:port][,...]`); also `--relay-host` |
+| `PODSSH_RELAY_ADDR` | Addresses to use in place of DNS (`host=ip[,...]`); also `--relay-addr` |
+| `PODSSH_RELAY_TOKEN` | Use this token; do not mint one |
+| `SSL_CERT_FILE` | Trust only these CA certificates; also `--ca-file` |
 
-A relay token is minted on first use (`POST /v1/mint`, no account) and cached
-for its lifetime in the user's cache directory, readable by its owner only.
+podssh mints a relay token when it first needs one (`POST /v1/mint`, no
+account), and caches it for its lifetime in the user's cache directory. Only
+the owner can read the cache.
 
-On a new host, `podssh doctor` says what the host allows and whether the
-whole path works: one line per check (`ok`, `FAIL`, or `????` for a check
-that could not run), and exit 1 if a check failed. Details:
-[docs/cli.md](docs/cli.md#podssh-doctor).
+### Relay limits
 
-A host with no working `ssh-keygen` can make a key with podssh, in
-OpenSSH's format:
-
-```sh
-podssh keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519   # -N '' for no passphrase
-podssh keygen -l -f ~/.ssh/id_ed25519.pub             # its fingerprint
-```
-
-### Relay limits you will hit
-
-| limit | value | what to do |
+| Limit | Value | What to do |
 | --- | --- | --- |
-| idle cut | 180 s with no payload (relay keepalives do not count) | keep `ServerAliveInterval` under 180 |
-| session length | 12 h | reconnect |
-| session volume | 64 MiB | use a new session for large transfers |
-| token lifetime | at most 72 h, self-minted with `POST /v1/mint` | podssh will mint and cache tokens |
-| targets | public hosts only; private, link-local and internal addresses are refused | — |
+| Idle cut | 180 s with no payload (the relay's keepalives do not count) | Keep `ServerAliveInterval` below 180 |
+| Session length | 12 h | Connect again |
+| Session volume | 64 MiB, both directions together | Use a new session for large transfers |
+| Token lifetime | 72 h or less, minted with `POST /v1/mint` | podssh mints and caches tokens |
+| Targets | Public hosts only; the relay refuses private, link-local and internal addresses | None |
 
-## Building
+## Build
 
-podssh is a Rust workspace (`crates/`). Rust 1.89 or newer, and a C compiler:
-the SSH client's crypto is aws-lc (through `russh`). The library crates below
-it are pure Rust and are checked to build without one.
+podssh is a Rust workspace (`crates/`). It needs Rust 1.89 or later and a C
+compiler: the SSH client uses aws-lc (through `russh`). The library crates
+are pure Rust. The gate makes sure that they build without a C compiler.
 
 ```sh
+export CARGO_BUILD_JOBS=4
 cargo build --release -p podssh-cli   # target/release/podssh
-cargo test                            # default members
+cargo test --no-fail-fast             # the default members
 ```
 
-The Tailscale mode (`podssh ts`) links a vendored fork of
+The Tailscale mode (`podssh ts`) links a fork of
 [tailscale-rs](https://github.com/tailscale/tailscale-rs) that needs a C
-compiler and cmake, so it is behind a feature:
-`cargo build -p podssh-cli --features ts`.
+compiler and cmake. It is a feature: `cargo build -p podssh-cli --features ts`.
 
-Builds are memory-hungry; on small machines and VMs cap parallelism with
-`CARGO_BUILD_JOBS=4`. The static Linux release binary is built in a
-`rust:1-alpine` container — see [docs/development.md](docs/development.md).
+CAUTION: Builds use much memory. On a small machine or a VM, set
+`CARGO_BUILD_JOBS=4`. The static Linux binary is built in a `rust:1-alpine`
+container. See [docs/development.md](docs/development.md).
 
-## Documentation
+## Documents
 
-| document | what it covers |
+| Document | Contents |
 | --- | --- |
-| [docs/STATUS.md](docs/STATUS.md) | what works and what is broken, measured |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | milestones to a first beta |
-| [docs/design.md](docs/design.md) | what a finished podssh is: library use, constrained hosts, reliability, socat, iroh |
-| [docs/architecture.md](docs/architecture.md) | crates, data flow, design rules |
-| [docs/relay.md](docs/relay.md) | the relay protocol and its limits |
-| [docs/cli.md](docs/cli.md) | the command line, OpenSSH parity, exit codes, prompts |
-| [docs/terminal.md](docs/terminal.md) | ptys, raw mode, and the line discipline |
-| [docs/target-environment.md](docs/target-environment.md) | what a constrained host allows, and the rules that follow |
-| [docs/decisions.md](docs/decisions.md) | decisions in force |
-| [docs/development.md](docs/development.md) | building, testing, checks, releases |
-| [docs/audit-2026-10-08.md](docs/audit-2026-10-08.md) | known defects, by crate, with file and line |
-| [SECURITY.md](SECURITY.md) | reporting a vulnerability; what podssh guarantees |
+| [AGENTS.md](AGENTS.md) | The start procedure and the rules for work on the repository |
+| [docs/STATUS.md](docs/STATUS.md) | What works and what does not, as measured |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | The milestones, in order |
+| [docs/design.md](docs/design.md) | What a finished podssh is, and why |
+| [docs/architecture.md](docs/architecture.md) | The crates, the data flow, the design rules |
+| [docs/relay.md](docs/relay.md) | The relay protocol and its limits |
+| [docs/cli.md](docs/cli.md) | The command line, parity with OpenSSH, exit codes, prompts |
+| [docs/terminal.md](docs/terminal.md) | Ptys, raw mode, and the line discipline |
+| [docs/target-environment.md](docs/target-environment.md) | What a constrained host allows, and the rules that follow |
+| [docs/decisions.md](docs/decisions.md) | The decisions of the operator |
+| [docs/defects.md](docs/defects.md) | The open defects, with their files |
+| [docs/development.md](docs/development.md) | Build, test, checks, the sandbox box, releases |
+| [SECURITY.md](SECURITY.md) | How to report a vulnerability; what podssh guarantees |
 
 ## License
 
-[0BSD](LICENSE). The vendored tailscale-rs fork under `vendor/` keeps its own
-BSD-3-Clause license.
+[0BSD](LICENSE). The tailscale-rs fork in `vendor/` keeps its BSD-3-Clause
+license.

@@ -21,8 +21,7 @@ nothing else does yet.**
   container, and through a CONNECT proxy that allows only port 443).
 
 Reverse mode, chat, file copy and the other subcommands are not implemented.
-The IRC code has wire-level bugs found by review
-([audit-2026-10-08.md](audit-2026-10-08.md)); the plan is in
+The IRC code has wire-level defects ([defects.md](defects.md)); the plan is in
 [ROADMAP.md](ROADMAP.md).
 
 ## Subcommands
