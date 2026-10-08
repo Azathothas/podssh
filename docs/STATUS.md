@@ -1,186 +1,190 @@
 # Status
 
-Measured on 2026-10-08 (Windows 11 host, native `cargo 1.98.0`,
-`CARGO_BUILD_JOBS=4`, and the `rust:1-alpine` container gate). Update this page
-whenever the state changes, with the date and the command that measured it.
+This page gives the measured state of podssh. Each result has its date and
+the command that measured it.
+
+When the state changes, update this page in the same commit as the change.
+
+Measured on 2026-10-08: a Windows 11 host with native `cargo 1.98.0` and
+`CARGO_BUILD_JOBS=4`, the `rust:1-alpine` container gate, CI, a Podman box,
+and two Linux hosts on a tailnet.
 
 ## Summary
 
-**`podssh ssh`, `podssh proxy`, `podssh doctor` and `podssh keygen` work;
-nothing else does yet.**
+These commands work: `podssh ssh`, `podssh proxy`, `podssh doctor`,
+`podssh keygen` and `podssh man`. The other commands refuse with exit
+code 70.
 
-- `podssh ssh` is a native SSH client (on `russh`) with OpenSSH's command
-  line. On 2026-10-08 it passed all 62 checks against real OpenSSH and
-  Dropbear servers in the container gate, ran through the live relay to
-  `railway.new`, and ran `--direct` against a Tailscale SSH server.
-- `podssh proxy HOST PORT` carries a TCP stream through the relay, directly or
-  through an HTTP CONNECT proxy, and works as an OpenSSH `ProxyCommand`
-  (verified live 2026-10-08, including a 10-minute idle session).
-- `podssh doctor` reports what a host allows and whether the relay path
-  works, one `ok`/`FAIL`/`????` line per check (2026-10-08: Windows, the Linux
-  container, and through a CONNECT proxy that allows only port 443).
+- `podssh ssh` is an SSH client on `russh`, with the command line of
+  OpenSSH. It passes 62 of 62 checks against OpenSSH and Dropbear servers in
+  the gate, 14 of 14 interactive checks in a Windows console, and real
+  logins through the live relay.
+- `podssh proxy HOST PORT` carries a TCP stream through the relay, directly
+  or through an HTTP CONNECT proxy. It works as the `ProxyCommand` of
+  OpenSSH.
+- `podssh doctor` tells what a host allows and whether the path works.
+- `podssh keygen` makes keys that OpenSSH reads and accepts.
+- podssh fails over between relay hosts, and finds a silent relay in 30 to
+  40 s. It works with no DNS.
+- Not done in M3: a run in the operator's real sandbox. A Podman box built
+  to that sandbox's profile passes all checks.
 
-Reverse mode, chat, file copy and the other subcommands are not implemented.
-The IRC code has wire-level defects ([defects.md](defects.md)); the plan is in
+The open defects are in [defects.md](defects.md). The plan is in
 [ROADMAP.md](ROADMAP.md).
 
-## Subcommands
+## Commands
 
-| subcommand | state |
+| Command | State |
 | --- | --- |
-| `podssh proxy HOST PORT` | **works** (2026-10-08): byte pipe through the relay; `HTTPS_PROXY`/`NO_PROXY`; token minted and cached; trust-root fallbacks; one-line errors with sysexits codes |
-| `podssh ssh` | **works** (2026-10-08): through the relay or `--direct`; OpenSSH options; host keys, agent/keys/password/keyboard-interactive; exec, shell, subsystem, `-W`, `-J`, `-N`; ptys with raw mode, resize and `~.`; OpenSSH exit codes |
-| `podssh node`, `podssh operator` | not implemented (exits 70) |
-| `podssh chat` | not implemented (exits 70) |
-| `podssh cp`, `podssh mv` | not implemented (exits 70) |
-| `podssh doctor` | **works** (2026-10-08): host, egress and relay checks; exit 0, or 1 when a check failed |
-| `podssh keygen` | **works** (2026-10-08): Ed25519, ECDSA and RSA key pairs in OpenSSH's format; `-y`, `-l`; passphrases asked for, never taken from argv |
-| `podssh relay`, `status` | not implemented (exits 70) |
-| `podssh man` | works: the manual page, generated from the flag tables |
-| `podssh ts` | only with the `ts` cargo feature: status line and a `-W` byte pipe over a tailnet; the live two-node test has never run |
+| `podssh ssh` | **Works.** Through the relay or `--direct`. Options of OpenSSH. Host keys; agent, keys, password and keyboard-interactive authentication; exec, shell, subsystem, `-W`, `-J`, `-N`; ptys with raw mode, resize and `~.`; the exit codes of OpenSSH. |
+| `podssh proxy HOST PORT` | **Works.** A byte pipe through the relay; `HTTPS_PROXY` and `NO_PROXY`; a token minted and cached; trust fallbacks; failover; one-line errors with sysexits codes. |
+| `podssh doctor` | **Works.** Checks of the host, the egress and the relay. Exit 0, or 1 when a check failed. |
+| `podssh keygen` | **Works.** Ed25519, ECDSA and RSA keys in the format of OpenSSH; `-y`, `-l`. It asks for a passphrase, and never takes one from argv. |
+| `podssh man` | **Works.** The manual page, generated from the flag tables. |
+| `podssh node`, `podssh operator` | Not implemented (exit 70). Milestone M4. |
+| `podssh cp`, `podssh mv` | Not implemented (exit 70). Milestone M5. |
+| `podssh relay` | Not implemented (exit 70). Milestone M4. |
+| `podssh chat`, `podssh status` | Not implemented (exit 70). Milestone M8. |
+| `podssh ts` | Only with the `ts` cargo feature: a status line and a `-W` byte pipe over a tailnet. The live test with two nodes was never run. |
 
-### `podssh ssh`, measured
+## `podssh ssh`, measured
 
-| check | result |
+| Check | Result |
 | --- | --- |
-| `scripts/interop.sh` in `rust:1-alpine`: the static binary against OpenSSH (Alpine `openssh-server`, with and without `PermitTTY`, and with PAM) and Dropbear on 127.0.0.1 | **62 of 62 passed** (second run; the first passed 60 of 61, see below): exit statuses 3, 0, 1, 127 and 143 (a signal) on both servers; stdout/stderr apart; 262144, 262145 and 5,000,000 bytes up and round trip with equal digests, both servers; Ed25519, RSA, ECDSA, an encrypted key via `SSH_ASKPASS`, password via `SSH_ASKPASS` (both servers), wrong password, `BatchMode` refusals with notes, PAM keyboard-interactive; accept-new, strict, a changed key refused even with `StrictHostKeyChecking=no`; `-W` to Dropbear through OpenSSH; `-J` OpenSSH to Dropbear (exit 5); `SetEnv`; `-N`; `-tt` over pipes (remote pty, the `PermitTTY=no` fallback, Ctrl-C as a byte); `vi` through pipes; `-s sftp` answering `SSH_FXP_VERSION`; a local pty (`interop-pty.py`): size, resize, Ctrl-C, `vi`, `less`, `top`, exit status, `~.`, terminal restored |
-| the first run's failure | `-s sftp` returned nothing: the test closed stdin at once, and OpenSSH's `sftp-server` exits on end of input without replying (reproduced on a Debian host without podssh). With stdin held open, `podssh ssh -s HOST sftp` returns `SSH_FXP_VERSION`; the test now holds it open |
-| through the relay to `railway.new` (anonymous SSH service, throwaway key), Windows build | `exit 3` gives 3; host key recorded with accept-new; stdout/stderr apart; 300 KB up and 5 MB down with equal digests; changed, revoked, strict-unknown and batch-unknown host keys all refused (255) with the fingerprints; `-W` refused by that server, reported, 255 |
-| `--direct` to a Tailscale SSH server over the tailnet, Windows build | a command and exit status 4 passed through; `-s sftp` |
-| a remote command killed by a signal, on `railway.new` | 255, as OpenSSH: that server reports exit status -1 instead of an exit signal |
-| interactive sessions on Windows: `scripts/interop-conpty.py`, a real pseudo console (ConPTY), `--direct` to a Tailscale SSH server | **14 of 14** with the debug build and with the release workflow's binary: window size, resize, Ctrl-C to the remote command, `vi`, `less`, `top`, a command's exit status through a pty, `~.`, and the console's input mode restored after every session (a planted podssh that never restored it failed those three checks) |
-| an interactive login shell's exit status on Tailscale SSH | 0 for `exit 7`, with OpenSSH 10.3's own client too: that server reports no status for an interactive login shell; a command's status (`-t ... 'exit 7'`) comes back as 7 with both clients |
-| from a real constrained sandbox | **not yet run** |
+| `scripts/interop.sh` in the gate: the static binary against OpenSSH (with and without `PermitTTY`, and with PAM) and Dropbear on 127.0.0.1 | **62 of 62.** Exit statuses 3, 0, 1, 127 and 143 (a signal) on both servers. stdout and stderr stay apart. 262144, 262145 and 5,000,000 bytes up and back with equal digests. Ed25519, RSA and ECDSA keys; an encrypted key and a password through `SSH_ASKPASS`; a wrong password; `BatchMode` refusals; PAM keyboard-interactive. accept-new and strict host keys; a changed key refused even with `StrictHostKeyChecking=no`. `-W`, `-J`, `SetEnv`, `-N`, `-s sftp`. `-tt` over pipes (Ctrl-C, `vi`, the `PermitTTY=no` fallback). A local pty (`interop-pty.py`): size, resize, Ctrl-C, `vi`, `less`, `top`, exit status, `~.`, the terminal restored. |
+| Through the relay to `railway.new` (an anonymous SSH service, a throwaway key), Windows build | `exit 3` gives 3. The host key is recorded with accept-new. 300 KB up and 5 MB down with equal digests. Changed, revoked, strict-unknown and batch-unknown host keys are refused (255) with the fingerprints. That server refuses `-W`; podssh reports it and exits 255. |
+| A remote command killed by a signal, on `railway.new` | 255, as with OpenSSH: that server sends exit status -1, not an exit signal. |
+| `--direct` to a Tailscale SSH server, Windows build | A command and its exit status 4; `-s sftp`. |
+| Interactive use in a Windows console: `scripts/interop-conpty.py` (a real ConPTY), `--direct` to a Tailscale SSH server | **14 of 14,** with the debug build and with the release workflow's binary: window size, resize, Ctrl-C to the remote command, `vi`, `less`, `top`, a command's exit status through a pty, `~.`, and the console's input mode restored after each session. A planted podssh that does not restore the console fails the three restore checks. |
+| The exit status of an interactive login shell on Tailscale SSH | 0 for `exit 7`, also with the client of OpenSSH 10.3: that server sends no status for an interactive login shell. A command's status (`-t ... 'exit 7'`) is 7 with both clients. |
+| In the operator's real sandbox | **Not run yet.** |
 
-### `podssh proxy`, measured live
+## `podssh proxy`, measured live
 
-| check | result |
+| Check | Result |
 | --- | --- |
-| Windows OpenSSH 10.3 → `podssh proxy` → relay → `github.com:22` | auth step reached (`Permission denied (publickey)` with a throwaway key); host key `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU` = GitHub's published Ed25519 key; 2.9 s including minting |
-| same, through a local CONNECT proxy allowing only port 443 | the proxy saw exactly two `CONNECT tcp.ssh.relay.ajam.dev:443` (mint, session); no client-side DNS |
-| a proxy that refuses the relay's port | `the proxy … refused CONNECT …: 403 not on the egress allowlist`, exit 77 |
-| Alpine OpenSSH + the static musl binary, in the container | same auth step and host key |
-| HTTP to `example.com:80` with stdin closed before the reply | full reply, exit 0 |
-| unknown host / private address | relay's reason passed through (`does not resolve`, `blocked address range`), exit 69 / 77 |
-| `cargo test -p podssh-cli --test proxy_live -- --ignored` | GitHub's SSH banner through the relay |
-| a real login: Windows OpenSSH → `podssh proxy` → relay → `railway.new` (anonymous SSH service, throwaway key) | shell and `exit 3` work; `ssh` exits 3 |
-| idle session, `ServerAliveInterval=60`, remote `sleep 600` | survived: 602 s, exit 0 |
-| the same with `ServerAliveInterval=0` (control) | cut by the relay after 184 s (its 180 s idle cut), `ssh` exit 255 |
-| relay failover: `--relay-host "tcp.ssh.relay.ajam.dev:9,tcp-eu-west-3.ssh.relay.ajam.dev"` to `github.com:22` | the first host timed out after 20 s and was named; the second, a pool host, accepted the token cached for the default host and delivered GitHub's banner (2026-10-08) |
-| liveness: the relay answers WebSocket pings | 3 pongs for 3 pings (`cargo test -p podssh-relay --test live -- --ignored`) |
-| a 50 s idle session through `podssh proxy` with `ServerAliveInterval=0` | stayed up under the 10 s ping watcher, exit 0 |
-| DNS over HTTPS: `github.com` through each of 1.1.1.1, 8.8.8.8, 1.0.0.1, 8.8.4.4 alone | all answer through verified TLS (`cargo test -p podssh-ws --test live_doh -- --ignored`); Google's needed RSA verification, added that day |
-| `--relay-addr tcp.ssh.relay.ajam.dev=104.21.39.2` (the relay's real address) | GitHub's banner through the relay |
-| `--relay-addr tcp.ssh.relay.ajam.dev=1.1.1.1` (a wrong address) | Cloudflare's edge there holds a valid certificate for the name and refuses the request (its error 1034); podssh failed over to a pool host and the session opened |
-| from a real constrained sandbox | **not yet run** |
+| OpenSSH 10.3 on Windows, then `podssh proxy`, the relay and `github.com:22` | The authentication step is reached (`Permission denied (publickey)` with a throwaway key). The host key is GitHub's published Ed25519 key `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`. 2.9 s, with the token mint. |
+| The same, through a local CONNECT proxy that allows only port 443 | The proxy saw two `CONNECT tcp.ssh.relay.ajam.dev:443` (the mint and the session). No DNS on the client. |
+| A proxy that refuses the relay's port | `the proxy ... refused CONNECT ...: 403 not on the egress allowlist`, exit 77. |
+| OpenSSH on Alpine with the static musl binary, in the container | The same authentication step and host key. |
+| HTTP to `example.com:80`, stdin closed before the reply | The full reply, exit 0. |
+| An unknown host; a private address | The relay's reason (`does not resolve`, `blocked address range`), exit 69 and 77. |
+| A real login: OpenSSH on Windows, then `podssh proxy` and the relay to `railway.new` | The shell and `exit 3` work; `ssh` exits 3. |
+| An idle session: `ServerAliveInterval=60`, remote `sleep 600` | It stays up: 602 s, exit 0. |
+| The same with `ServerAliveInterval=0` (the control) | The relay cuts it after 184 s (its idle limit is 180 s); `ssh` exits 255. |
+| Failover: `--relay-host "tcp.ssh.relay.ajam.dev:9,tcp-eu-west-3.ssh.relay.ajam.dev"` to `github.com:22` | The first host times out after 20 s and is named. The second host, from the pool, accepts the token cached for the default host and gives GitHub's banner. |
+| Liveness: the relay answers WebSocket pings | 3 pongs for 3 pings (`cargo test -p podssh-relay --test live -- --ignored`). |
+| A 50 s idle session through `podssh proxy` with `ServerAliveInterval=0` | It stays up under the ping watcher (10 s), exit 0. |
+| DNS over HTTPS: `github.com` through each of 1.1.1.1, 8.8.8.8, 1.0.0.1 and 8.8.4.4 | Each answers through verified TLS (`cargo test -p podssh-ws --test live_doh -- --ignored`). A name that does not exist stops the lookup at the first answer (NXDOMAIN). |
+| `--relay-addr tcp.ssh.relay.ajam.dev=104.21.39.2` (the relay's real address) | GitHub's banner through the relay. |
+| `--relay-addr tcp.ssh.relay.ajam.dev=1.1.1.1` (a wrong address) | Cloudflare's edge there has a valid certificate for the name and refuses the request (its error 1034). podssh fails over to a pool host, and the session opens. |
 
-### `podssh doctor`, measured
+## `podssh doctor`, measured
 
-| where | result |
+| Where | Result |
 | --- | --- |
-| Windows 11, native debug build, no proxy | 16 ok, 0 FAIL, 0 ????; exit 0 in about 4 s. Four relay hosts answered `/health` (`tcp-ssh-relay 2026-10-03-r2`) over TLS 1.3 with verified certificates, each line naming the address opened; the forward session to `github.com:22` met GitHub's published Ed25519 key `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`; clock within 2 s |
-| the same, through a local CONNECT proxy that allows only port 443 | 17 ok; `CONNECT` lines: the relay and `github.com:443` allowed, `github.com:22` refused with the proxy's `403 not on the egress allowlist`; every relay line says `opened CONNECT … through` the proxy. The proxy's log listed exactly the connections the report named |
-| `--relay-host dead-host.invalid,tcp.ssh.relay.ajam.dev` | exit 1, 2 FAIL: DNS over HTTPS (`1.1.1.1 answered that dead-host.invalid does not exist`) and that relay host; the token and the forward session went through the second host (`after dead-host.invalid failed`) |
-| a studio host on the tailnet (Ubuntu 22.04), the release workflow's static x86_64 binary | 25 ok, exit 0, 3.9 s: open egress (`github.com:22` reachable directly), the system trust store added to the compiled-in roots, every relay host answering |
-| `rust:1-alpine` container, as root | 26 ok, exit 0: a passwd entry, `/proc`, a pty (`/dev/pts/0`), AF_INET and AF_UNIX bind (file and abstract) allowed; a copy of podssh ran from `/tmp`, `/var/tmp`, `/root` and `/work`, and was refused in `/dev/shm`, which the report named as a noexec mount; trust store from `SSL_CERT_FILE` |
-| `cargo test -p podssh-cli --test doctor` | offline: network checks reported as one `????`, never `ok`; planted failures (no `HOME`, an unusable proxy setting) give `FAIL` and exit 1; proxy credentials and a token in the environment never appear in the output |
-| `cargo test -p podssh-cli --test doctor -- --ignored` | the live path end to end, exit 0 (3.6 s) |
+| Windows 11, debug build, no proxy | 16 ok, 0 FAIL, 0 ????, exit 0, about 4 s. Four relay hosts answer `/health` (`tcp-ssh-relay 2026-10-03-r2`) over TLS 1.3 with verified certificates; each line names the address opened. The forward session to `github.com:22` meets GitHub's published Ed25519 key. The clock is within 2 s. |
+| The same, through a local CONNECT proxy that allows only port 443 | 17 ok. The proxy allows the relay and `github.com:443`, and refuses `github.com:22` with `403 not on the egress allowlist`. Each relay line says `opened CONNECT ... through` the proxy. The proxy's log lists the same connections as the report. |
+| `--relay-host dead-host.invalid,tcp.ssh.relay.ajam.dev` | Exit 1, 2 FAIL: DNS over HTTPS (`1.1.1.1 answered that dead-host.invalid does not exist`) and that relay host. The token and the forward session use the second host. |
+| A Linux host on the tailnet (Ubuntu 22.04), the release workflow's static binary | 25 ok, exit 0, 3.9 s. Open egress; the system trust store added to the compiled-in roots. |
+| The `rust:1-alpine` container, as root | 26 ok, exit 0. A copy of podssh runs from `/tmp`, `/var/tmp`, `/root` and `/work`, and is refused in `/dev/shm`, a noexec mount. |
+| `cargo test -p podssh-cli --test doctor` | Offline, the network checks are one `????` line, never `ok`. Planted failures (no `HOME`; a proxy setting that cannot be used) give `FAIL` and exit 1. Proxy credentials and a token in the environment do not appear in the output. |
+| `cargo test -p podssh-cli --test doctor -- --ignored` | The live path, end to end, exit 0 (3.6 s). |
 
-### Faults between podssh and the relay, measured
+## In a box like the target sandbox, measured
 
-`scripts/interop-faults.sh` in the container gate: a stand-in relay
-(`scripts/fake-relay.py`, verified TLS from a CA made for the run) and proxy
-(`scripts/fake-proxy.py`) between podssh and OpenSSH, each failing one way.
-The stand-ins are written here, so they show podssh's handling of each
-fault; the live tests show it works with the real relay. 2026-10-08, 11 of
-11:
-
-| fault | what podssh did |
-| --- | --- |
-| none (the control) | the stand-in carried a session |
-| first relay host down (connection refused) | failed over to the next host at once |
-| first host answers the upgrade with 503 | failed over at once |
-| first host completes TLS, then never answers | failed over after the 20 s bound |
-| first host accepts TCP and never starts TLS | failed over after the 20 s bound |
-| the proxy answers 502 for the first host | failed over to the next host through the proxy |
-| the proxy answers 502 for every host | exit 255, the proxy's answer shown |
-| a Close with 1011 in the middle of a 5 MB transfer | `ssh` exit 255 with the relay's reason; 351,575 bytes had arrived |
-| a Close with 1009 (`session byte cap`) | `proxy` exit 69 with the relay's reason |
-| the relay stalls: no frames, no Pongs, connection open | declared dead by the ping watcher at 50 s (38 s after the stall) |
-| the relay host killed mid-session | `ssh` exit 255 after 5 s, the relay named |
-
-### In a box like the target sandbox, measured
-
-`sh scripts/test_in_box.sh` (Podman 5.8.6 machine on Windows), with the
+`sh scripts/test_in_box.sh` on a Podman 5.8.6 machine on Windows, with the
 release workflow's static x86_64 binary of `aa9cfaa`, 2026-10-08:
 
-| check | result |
+| Check | Result |
 | --- | --- |
-| the box against the sandprobe report (`scripts/box/probe.sh`) | 17 of 17 required properties match: no name for uid 0; no capabilities, `NoNewPrivs=1`, seccomp; no `/dev/ptmx`; no DNS; no direct TCP; UDP and `bind` refused; the proxy answers `200` for ports 443, 80 and 8443, `403 not on the egress allowlist` for 22, 25 and `127.0.0.1:22`, and `403 not a public host` for metadata and private addresses |
-| the probe, planted: the same image with an open network and no filter | fails all 9 of its required checks, exit 1 |
-| `podssh doctor` in the box | 27 ok, 0 FAIL, 0 ????: no passwd entry, no pty, `bind` refused, `/dev/shm` noexec, DNS refused; the four relay hosts reached through the proxy; a token minted; `github.com:22` met GitHub's Ed25519 key |
-| `podssh proxy github.com 22` | GitHub's banner, exit 0 |
-| `podssh keygen`, then `podssh ssh` and `ssh -tt` to `github.com` with that key | exit 255, `Permission denied (publickey)`: the handshake and the host-key check passed through the proxy and the relay |
-| OpenSSH's `ssh` with podssh as its `ProxyCommand` | `No user exists for uid 0`, exit 255: OpenSSH's client cannot run where the user database has no entry, which is why `podssh ssh` exists |
+| The box against the sandprobe report (`scripts/box/probe.sh`) | 17 of 17 required properties match: uid 0 has no name; no capabilities, `NoNewPrivs=1`, seccomp; no `/dev/ptmx`; no DNS; no direct TCP; UDP and `bind` refused; the proxy answers `200` for ports 443, 80 and 8443, `403 not on the egress allowlist` for ports 22 and 25 and for `127.0.0.1:22`, and `403 not a public host` for metadata and private addresses. |
+| The probe, planted: the same image with an open network and no filter | All 9 required checks fail, exit 1. |
+| `podssh doctor` in the box | 27 ok, 0 FAIL, 0 ????. No passwd entry, no pty, `bind` refused, `/dev/shm` noexec, DNS refused. The four relay hosts are reached through the proxy; a token is minted; `github.com:22` meets GitHub's Ed25519 key. |
+| `podssh proxy github.com 22` | GitHub's banner, exit 0. |
+| `podssh keygen`, then `podssh ssh` and `ssh -tt` to `github.com` with that key | Exit 255, `Permission denied (publickey)`: the handshake and the host-key check pass through the proxy and the relay. |
+| The `ssh` of OpenSSH with podssh as its `ProxyCommand` | `No user exists for uid 0`, exit 255: the client of OpenSSH cannot run when the user database has no entry. |
 
-### `podssh keygen`, measured
+## `podssh keygen`, measured
 
-| check | result |
+| Check | Result |
 | --- | --- |
-| `scripts/interop-keygen.sh` in the container gate, against Alpine's OpenSSH | **25 of 25**: for Ed25519, ECDSA P-384 and RSA 3072, OpenSSH's `ssh-keygen -y` reads the private key and derives the `.pub` key, `ssh-keygen -l` prints the same line as `podssh keygen -l`, `podssh keygen -y` agrees, and `sshd` accepts the key for login; modes 600 and 644; a key encrypted with a passphrase from `SSH_ASKPASS` decrypts with OpenSSH, a wrong passphrase is refused, and it logs in; overwriting a key is refused (exit 1, the key unchanged); `-N 'secret words'` is refused (exit 64, nothing written) |
-| Windows, against OpenSSH 10.3p1's `ssh-keygen` | the same `-y` and `-l` agreement for all three types |
-| `cargo test -p podssh-cli --test keygen` | the private key never appears in any output; no way to ask for a passphrase (no terminal: the test detaches from it) refuses and names `-N ''` |
+| `scripts/interop-keygen.sh` in the gate, against the OpenSSH of Alpine | **25 of 25.** For Ed25519, ECDSA P-384 and RSA 3072: `ssh-keygen -y` reads the private key and gives the `.pub` key; `ssh-keygen -l` prints the same line as `podssh keygen -l`; `podssh keygen -y` agrees; `sshd` accepts the key for login. Modes 600 and 644. A key encrypted with a passphrase from `SSH_ASKPASS` decrypts with OpenSSH; a wrong passphrase is refused; the key logs in. An overwrite is refused (exit 1, the key unchanged). `-N 'secret words'` is refused (exit 64, nothing written). |
+| Windows, against the `ssh-keygen` of OpenSSH 10.3p1 | The same `-y` and `-l` results for the three key types. |
+| `cargo test -p podssh-cli --test keygen` | The private key does not appear in any output. With no terminal and no `SSH_ASKPASS`, podssh refuses and names `-N ''`. |
+
+## Faults between podssh and the relay, measured
+
+`scripts/interop-faults.sh` in the gate, 2026-10-08, **11 of 11**. A
+stand-in relay and a stand-in proxy fail in one way each, with OpenSSH
+behind them.
+
+| Fault | What podssh did |
+| --- | --- |
+| None (the control) | The stand-in carried a session. |
+| The first relay host is down (connection refused) | Failed over to the next host at once. |
+| The first host answers the upgrade with 503 | Failed over at once. |
+| The first host completes TLS, then does not answer | Failed over after the 20 s limit. |
+| The first host accepts TCP and does not start TLS | Failed over after the 20 s limit. |
+| The proxy answers 502 for the first host | Failed over to the next host through the proxy. |
+| The proxy answers 502 for each host | Exit 255; the proxy's answer is shown. |
+| A Close with 1011 during a 5 MB transfer | `ssh` exits 255 with the relay's reason; 351,575 bytes had arrived. |
+| A Close with 1009 (`session byte cap`) | `proxy` exits 69 with the relay's reason. |
+| The relay stops: no frames, no pongs, the connection open | The ping watcher declares it dead at 50 s (38 s after the stop). |
+| The relay host stops during a session | `ssh` exits 255 after 5 s and names the relay. |
 
 ## Components
 
-| crate | size (src / tests, lines) | what holds | what is broken or missing |
+| Crate | Lines (src / tests) | What works | What is missing |
 | --- | --- | --- | --- |
-| `podssh-ws` | 4.2k / 4.0k | TLS 1.3 through rustls with podssh's own pure-Rust crypto provider (ECDSA P-256/P-384, Ed25519, RSA PKCS #1 and PSS); certificate and hostname checks with no bypass; full-duplex session with ping liveness; HTTP CONNECT proxies (never for loopback); trust fallbacks; bounded connect, TLS and upgrade; pinned addresses and DNS over HTTPS when the system resolver fails (a name that does not exist ends the lookup at the first answer) | no TLS 1.2 (some intercepting proxies need it); control frames not size-checked on receive; `probe::PrintChain` (accepts any certificate) still a public export |
-| `podssh-relay` | 1.2k / 0.2k | relay host lists, the cached pool and failover; tokens minted, cached and re-minted; the forward opener (moved out of `podssh-cli` 2026-10-08; no C) | no reverse node/operator legs or pairing yet (M4) |
-| `podssh-transport` | 2.8k / 2.2k | forward-path framing; reverse-path session-id codec and close-code table | about 600 lines are used outside tests; the reverse node leg sends control frames as binary and cannot work live; the backpressure module is unused (the unused DNS/DoH stack was removed 2026-10-08) |
-| `podssh-ssh` | 3.1k / 0.1k | the native client: russh 0.64.1 (aws-lc-rs; strict key exchange and the ML-KEM hybrid key exchange in its defaults); a relay-to-stream pipe that keeps the relay's close reason; a `known_hosts` reader (hashed entries, wildcards, negation, markers); the auth chain; prompts via `/dev/tty`, `CONIN$` or `SSH_ASKPASS`; raw mode, resize, escapes; OpenSSH exit codes; a host-key probe that never authenticates (for `doctor`) | no `ssh_config`; no `-L`/`-R`/`-D`/`-A`/X11; host certificates checked as plain keys; Windows interactive use not tested; no reconnect when the connection drops |
-| `podssh-core` (`irc/`; the hand-written `ssh/` was removed 2026-10-08) | 3.8k / 1.9k | sans-IO client, message grammar, IRCv3 tags | registration hangs on IRCv3 servers (CAP END order); CRLF injection through message text; plaintext through the relay; file transfer never run live and broken for short final chunks |
-| `podssh-terminal` | 2.5k / 1.2k | line-editing state machine | used by nothing; **mode selection inverted** (with no remote pty it refuses all input); no raw mode; cursor counts bytes, not characters |
-| `podssh-cli` | 7.0k / 2.9k | parsing, help, generated man page, refusals; `proxy`; `ssh` option resolution (`-o`, destinations, defaults, transport); `doctor` | 7 of 12 subcommands unimplemented (`node`, `operator`, `chat`, `cp`, `mv`, `relay`, `status`) |
-| `podssh-ts` + `vendor/tailscale-rs` | 0.5k / 0.4k + 68k vendored | DERP over WebSocket (fork patches) | behind the `ts` feature; auto mode always picks `tcp`; live acceptance not run |
-| `podssh-probe` | 0.4k / 0.3k | checks the relay document's structure against a pinned copy | used by nothing; duplicates `scripts/check-relay-spec.py` |
+| `podssh-ws` | 4.2k / 4.0k | TLS 1.3 through rustls with podssh's own pure-Rust provider (ECDSA P-256 and P-384, Ed25519, RSA PKCS #1 and PSS); certificate and host-name checks with no bypass; a full-duplex session with ping liveness; HTTP CONNECT proxies (never for loopback); trust fallbacks; limits on connect, TLS and upgrade; pinned addresses and DNS over HTTPS | No TLS 1.2 (some intercepting proxies need it). Defects W10, W13, W14. |
+| `podssh-relay` | 1.2k / 0.2k | Relay host lists, the cached pool, failover; tokens minted, cached and minted again; the forward opener. No C. | No reverse legs or pairing (M4). |
+| `podssh-ssh` | 3.1k / 0.1k | The client on russh 0.64.1 (aws-lc-rs; strict key exchange and the ML-KEM hybrid key exchange in its defaults); a relay stream that keeps the relay's close reason; a `known_hosts` reader (hashed entries, wildcards, negation, markers); the authentication chain; prompts through `/dev/tty`, `CONIN$` or `SSH_ASKPASS`; raw mode, resize, escapes; the exit codes of OpenSSH; a host-key probe; key generation | No `ssh_config`. No `-L`, `-R`, `-D`, `-A` or X11. Host certificates are checked as plain keys. No reconnect after a drop (M6). |
+| `podssh-cli` | 7.0k / 2.9k | Arguments, help, the generated man page, refusals; `proxy`; the options of `ssh`; `doctor`; `keygen` | 7 of 13 commands are not implemented. Defects C2, C7. |
+| `podssh-transport` | 2.8k / 2.2k | Forward framing; the session-id codec of the reverse path; the close-code table | About 600 lines are used outside the tests. Defects T1, T2, T5, T7 to T10. |
+| `podssh-core` (`irc/`) | 3.8k / 1.9k | A sans-IO IRC client: the message grammar and IRCv3 tags | No command uses it. Defects I1 to I8. |
+| `podssh-terminal` | 2.5k / 1.2k | A line-editing state machine | No command uses it. Defects L1 to L5. |
+| `podssh-ts` and `vendor/tailscale-rs` | 0.5k / 0.4k and a 68k fork | DERP over WebSocket (patches in the fork) | Behind the `ts` feature. Defects C3, C9. |
+| `podssh-probe` | 0.4k / 0.3k | Checks the structure of the relay's document against a pinned copy | No command uses it. Defect P1. |
 
 ## Build, tests, CI
 
-| what | result | how |
+| What | Result | Command |
 | --- | --- | --- |
-| library crates (`podssh-ws`, `-transport`, `-core`, `-terminal`, `-probe`) | build and pass their tests with `CC=/nonexistent` | `scripts/gate.sh` |
-| default tests | **624 passed, 0 failed, 5 ignored** (the live tests: proxy, doctor, relay pings, DNS over HTTPS twice), Windows, 2026-10-08; fewer than the day's 647 because the unused DNS code in `podssh-transport` was removed with its tests | `cargo test --no-fail-fast` |
-| Tailscale feature tests | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
-| repository checks | pass | `python scripts/check-repo.py` |
-| static release binary | **4,008,448 bytes** with the SSH client (aws-lc and russh), `doctor` and `keygen`, static PIE, no `NEEDED` entries, no interpreter. It was 3,848,704 before `keygen`, 3,586,496 before `doctor`, 1,622,944 with `proxy` only, and 7,403,072 while the Tailscale fork was linked | `scripts/gate.sh` |
-| container gate | **green** (2026-10-08, with `doctor`, `keygen` and the fault harness): every build and test step, and interop 98 of 98 (62 SSH checks, 25 keygen checks, 11 faults) | `sh scripts/dev.sh check` |
-| no-C plant | fires twice for the right reason (a planted `ring` fails because no C compiler exists), control passes | `sh scripts/dev.sh plant` |
-| CI | the repository is public since 2026-10-08; the first run on it (commit `9a03102`) passed | `gh run list` |
+| The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` | `scripts/gate.sh` |
+| The default tests | **624 passed, 0 failed, 5 ignored** (the live tests), Windows | `cargo test --no-fail-fast` |
+| The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
+| The repository checks | Pass | `python scripts/check-repo.py` |
+| The static release binary | **4,008,448 bytes**: a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
+| The container gate | **Green**: each build and test step; interop 98 of 98 (62 SSH checks, 25 keygen checks, 11 faults) | `sh scripts/dev.sh check` |
+| The no-C plant | Fails for the right reason when `ring` is planted (no C compiler); the control passes | `sh scripts/dev.sh plant` |
+| CI | Runs the gate on each push. Each run from `9b806fe` to `4853e6c` passed. | `gh run list` |
+| The release workflow, run by hand | Linux x86_64 and aarch64 static, Windows with no C runtime DLL; publish skipped | `gh workflow run release.yml --ref main` |
 
 ## The relay
 
-`tcp.ssh.relay.ajam.dev` reports version `2026-10-03-r2`; its published
-document is byte-identical to the pinned copy
-(SHA-256 `88eb1b0b8571b829daab17614ea2e27966ba5611951ea28db84660fc41cfa5a8`),
-and `python scripts/check-relay-spec.py` passes against it. Limits from
-`/relays.json`: 262144-byte frames, 180 s idle cut, 12 h and 64 MiB per session.
-See [relay.md](relay.md).
+`tcp.ssh.relay.ajam.dev` reports version `2026-10-03-r2`. Its published
+document is the same, byte for byte, as the pinned copy (SHA-256
+`88eb1b0b8571b829daab17614ea2e27966ba5611951ea28db84660fc41cfa5a8`).
+`python scripts/check-relay-spec.py` passes against it. The limits from
+`/relays.json`: frames of 262144 bytes, an idle cut at 180 s, and 12 h and
+64 MiB for each session. See [relay.md](relay.md).
 
-## Re-measuring
+## Measure again
+
+CAUTION: On a machine with less than 32 GB of memory, set
+`CARGO_BUILD_JOBS=4` or lower first. See [development.md](development.md).
 
 ```sh
-cargo test                                   # default members
+cargo test --no-fail-fast                                 # the default members
 cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts
-cargo test -p podssh-cli --test proxy_live -- --ignored   # network: live relay
-cargo test -p podssh-cli --test doctor -- --ignored       # network: live relay
-target/debug/podssh doctor                   # this host, its egress, the relay
-sh scripts/sandbox-check.sh target/debug/podssh   # the sandbox record: doctor, proxy, keygen, ssh
+cargo test -p podssh-cli --test proxy_live -- --ignored   # the network: the live relay
+cargo test -p podssh-cli --test doctor -- --ignored       # the network: the live relay
+target/debug/podssh doctor                                # this host, its egress, the relay
+sh scripts/sandbox-check.sh target/debug/podssh           # the sandbox record
+sh scripts/test_in_box.sh path/to/static/podssh           # the Podman box
 python scripts/check-repo.py
-python scripts/check-relay-spec.py           # live relay
+python scripts/check-relay-spec.py                        # the live relay
 ssh -o ProxyCommand='target/debug/podssh proxy %h %p' -T git@github.com
-sh scripts/dev.sh check                      # Linux gate and static binary
+sh scripts/dev.sh check                                   # the Linux gate and the static binary
 ```
-
-Set `CARGO_BUILD_JOBS=4` (or lower) first on machines with less than 32 GB of
-memory; see [development.md](development.md).
