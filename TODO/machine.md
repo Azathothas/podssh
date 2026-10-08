@@ -326,7 +326,7 @@ and `crates/podssh-ssh/src/keys.rs:81-84` offers a key to the server.
    `keygen::generate`. The key stays in memory and is never written.
 2. Verdicts: a refused key is `ok` ("the handshake, the host key and the authentication path
    work through the relay"); another host key is `FAIL`; a transport failure is `FAIL`, with
-   the relay's reason (`crates/podssh-ssh/src/relay_stream.rs:36-52`); no relay host is `????`.
+   the relay's reason (`crates/podssh-ssh/src/relay_stream.rs:37-53`); no relay host is `????`.
 3. Bound each step with the doctor's limit (`crates/podssh-cli/src/doctor/relay_checks.rs:27`),
    and the whole check too.
 4. No `-tt` line: with GitHub, authentication fails before a channel, so a pty request cannot
@@ -478,7 +478,7 @@ signal are read in `handle_msg` (lines 115-131). The output goes straight to the
 stdout and stderr in `write_out` (lines 140-150), so nothing counts bytes. `session::run` maps
 the end to the exit code (`crates/podssh-ssh/src/session.rs:102-106`). The relay host is known
 at `crates/podssh-cli/src/ssh/mod.rs:101`, and the relay's close reason is in `RelayStatus`
-(`crates/podssh-ssh/src/relay_stream.rs:54-70`).
+(`crates/podssh-ssh/src/relay_stream.rs:55-71`).
 
 ## Approach
 

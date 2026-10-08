@@ -93,7 +93,8 @@ async fn a_fragmented_ping_gets_no_pong_and_ends_the_read() {
             .await
             .expect("the read ends")
             .expect_err("a forbidden control frame is an error");
-        assert!(error.contains("RFC 6455 5.5"), "{error}");
+        assert!(matches!(error, podssh_ws::SessionError::Protocol(_)), "{error:?}");
+        assert!(error.to_string().contains("RFC 6455 5.5"), "{error}");
         let mut buf = Vec::new();
         let sent = next_from_client(&mut peer, &mut buf).await;
         assert_eq!(sent.opcode, frame::OPCODE_CLOSE, "a Pong or nothing was sent: {sent:?}");
@@ -107,7 +108,7 @@ async fn a_continuation_with_no_message_fails_the_connection_with_1002() {
     let (client, mut peer) = tokio::io::duplex(64 * 1024);
     let session = Arc::new(RelaySession::new(client, Vec::new(), None, Duration::from_secs(5)));
     peer.write_all(&whole(FIN | frame::OPCODE_CONTINUATION, 3)).await.unwrap();
-    assert!(session.read_frame().await.unwrap_err().contains("continuation"));
+    assert!(session.read_frame().await.unwrap_err().to_string().contains("continuation"));
     let mut buf = Vec::new();
     let sent = next_from_client(&mut peer, &mut buf).await;
     assert_eq!((sent.opcode, close_code_and_reason(&sent.payload).0), (frame::OPCODE_CLOSE, Some(1002)));

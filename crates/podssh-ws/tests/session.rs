@@ -6,6 +6,7 @@ use std::time::Duration;
 
 use podssh_ws::frame::{self, Frame, Role};
 use podssh_ws::session::{close_code_and_reason, close_payload, RelaySession};
+use podssh_ws::SessionError;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
 /// A frame as the relay (the server) sends it: unmasked.
@@ -105,7 +106,9 @@ async fn a_continuation_with_nothing_to_continue_is_an_error() {
     let (client, mut peer) = tokio::io::duplex(1024);
     let s = session(client, None);
     peer.write_all(&from_server(frame::OPCODE_CONTINUATION, true, b"x")).await.unwrap();
-    assert!(s.read_frame().await.unwrap_err().contains("continuation"));
+    let err = s.read_frame().await.unwrap_err();
+    assert!(matches!(err, SessionError::Protocol(_)), "{err:?}");
+    assert!(err.to_string().contains("continuation"), "{err}");
 }
 
 #[tokio::test]
@@ -160,7 +163,8 @@ async fn an_idle_link_times_out_instead_of_hanging() {
     let s = session(client, Some(Duration::from_millis(100)));
     let started = std::time::Instant::now();
     let err = s.read_frame().await.unwrap_err();
-    assert!(err.contains("no data from the relay"), "{err}");
+    assert!(matches!(err, SessionError::Idle(_)), "{err:?}");
+    assert!(err.to_string().contains("no data from the relay"), "{err}");
     assert!(started.elapsed() < Duration::from_secs(2));
 }
 
@@ -169,7 +173,22 @@ async fn end_of_stream_without_a_close_is_an_error() {
     let (client, peer) = tokio::io::duplex(1024);
     let s = session(client, None);
     drop(peer);
-    assert!(s.read_frame().await.unwrap_err().contains("without a WebSocket Close"));
+    let err = s.read_frame().await.unwrap_err();
+    assert!(matches!(err, SessionError::ClosedWithoutClose(_)), "{err:?}");
+    assert!(err.to_string().contains("without a WebSocket Close"), "{err}");
+}
+
+/// A peer that never reads: the write stalls, and its limit ends it.
+#[tokio::test]
+async fn a_write_to_a_peer_that_never_reads_stalls_and_ends() {
+    let (client, _peer) = tokio::io::duplex(64);
+    let s = RelaySession::new(client, Vec::new(), None, Duration::from_millis(100));
+    let err = tokio::time::timeout(Duration::from_secs(5), s.send_binary(&[0u8; 4096]))
+        .await
+        .expect("the write limit ends the write")
+        .unwrap_err();
+    assert!(matches!(err, SessionError::WriteStalled(_)), "{err:?}");
+    assert!(err.to_string().contains("stalled"), "{err}");
 }
 
 /// A close reason is the peer's text and is printed; controls are removed.
@@ -240,7 +259,8 @@ async fn a_link_that_goes_silent_is_found_dead_by_pinging() {
     let reason = tokio::time::timeout(Duration::from_secs(2), s.watch_liveness(Duration::from_millis(50), 3))
         .await
         .expect("a silent link must be declared dead");
-    assert!(reason.contains("dead"), "{reason}");
+    assert!(matches!(reason, SessionError::Dead(_)), "{reason:?}");
+    assert!(reason.to_string().contains("dead"), "{reason}");
     assert_eq!(s.pongs_received(), 1);
 }
 

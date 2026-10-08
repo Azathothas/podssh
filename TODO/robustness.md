@@ -30,7 +30,7 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/http.rs:113`, line 179); the upgrade answer
 (`crates/podssh-ws/src/handshake.rs:188`); proxy URLs, `NO_PROXY` and the
 CONNECT status (`crates/podssh-ws/src/dial.rs:49`, lines 178 and 334); close
-reasons (`crates/podssh-ws/src/session.rs:288`); PEM bundles
+reasons (`crates/podssh-ws/src/session.rs:299`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:80`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:81`, `crates/podssh-relay/src/pool.rs:92`);
 `known_hosts` lines, in a private function
@@ -86,7 +86,7 @@ sh scripts/dev.sh check                                   # the gate does not ch
 
 The list names each target, and each run ends with no crash (`ws_frame`
 after T-063). Planted defect: remove the length guard of
-`close_code_and_reason` (`crates/podssh-ws/src/session.rs:289-291`);
+`close_code_and_reason` (`crates/podssh-ws/src/session.rs:300-302`);
 `close_reason` must crash within its 120 s.
 
 # T-199: A scored interop harness
@@ -275,7 +275,7 @@ Read, the bounds today:
 
 - A frame: 262144 bytes (`crates/podssh-ws/src/frame.rs:30`, refused at lines
   180-194). A message in fragments: 16 MiB
-  (`crates/podssh-ws/src/session.rs:28`, checked at lines 240-242).
+  (`crates/podssh-ws/src/session.rs:29`, checked at lines 240-242).
 - A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:8`), for the
   proxy (`crates/podssh-ws/src/dial.rs:18`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:137`).
@@ -332,7 +332,7 @@ Each command exits 0. Planted defect: set `WINDOW`
 (`crates/podssh-ssh/src/run.rs:29`) to 64 MiB; the slow-reader check must
 fail. If it does not, the bound is somewhere else: find it before anybody
 trusts the check. A second plant: remove the check at
-`crates/podssh-ws/src/session.rs:253-255`; the fragment test must fail.
+`crates/podssh-ws/src/session.rs:264-266`; the fragment test must fail.
 
 # T-202: Property tests for the state machines
 
@@ -358,8 +358,8 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 
 - WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:67`,
   `crates/podssh-ws/src/frame.rs:113`).
-- The joining of fragments (`crates/podssh-ws/src/session.rs:247-271`). It is
-  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:68`) takes
+- The joining of fragments (`crates/podssh-ws/src/session.rs:258-282`). It is
+  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:69`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:81-147`, `crates/podssh-ws/src/names.rs:8-57`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:148-204`).

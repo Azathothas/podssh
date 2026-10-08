@@ -10,6 +10,7 @@
 //! proven against [`FrameQueue`], and the socket half against `podssh-ws`'s own
 //! suite.**
 
+use crate::adapt::SessionError;
 use crate::closes::RelayClose;
 use crate::control;
 use crate::endpoint::{AddressFamily, EgressRoad, Knobs, LegTarget, RelayConfig, TOKEN_HEADER};
@@ -58,15 +59,29 @@ pub struct WsSocket<S> {
 #[derive(Debug, Clone)]
 enum Ended {
     Closed(RelayClose),
-    Aborted(String),
+    Failed(SessionError),
 }
 
 impl Ended {
     fn error(&self) -> TransportError {
         match self {
             Ended::Closed(c) => closed(c.code, &c.reason, c.clean),
-            Ended::Aborted(detail) => TransportError::Aborted { clean: false, detail: detail.clone() },
+            Ended::Failed(e) => lost(e),
         }
+    }
+}
+
+/// A failure of the session, by its class (T-069). A frame or a message that
+/// RFC 6455 forbids is not repaired by sending the same way again:
+/// `Unexpected`, never retried. Each other class is a link that broke (a
+/// socket error, no data, a stalled write, unanswered pings, an end with no
+/// Close): `Aborted`, after which a caller may reconnect. The text is kept,
+/// safe to print, because it is what a user can act on.
+pub fn lost(e: &SessionError) -> TransportError {
+    let detail = crate::adapt::one_line(&e.to_string());
+    match e {
+        SessionError::Protocol(_) | SessionError::TooLarge(_) => TransportError::Unexpected(detail),
+        _ => TransportError::Aborted { clean: false, detail },
     }
 }
 
@@ -101,16 +116,16 @@ impl<S: WsSession> WsSocket<S> {
 /// read path, one write path.
 #[allow(async_fn_in_trait)]
 pub trait WsSession {
-    async fn send(&mut self, payload: &[u8]) -> Result<(), String>;
+    async fn send(&mut self, payload: &[u8]) -> Result<(), SessionError>;
     /// ⛔ **A Pong, in answer to a Ping** (RFC 6455 §5.5.2). It is a separate
     /// method because a Pong is a control frame and not data: a session that
     /// could only send binary could not answer a Ping at all.
-    async fn send_pong(&mut self, payload: &[u8]) -> Result<(), String>;
+    async fn send_pong(&mut self, payload: &[u8]) -> Result<(), SessionError>;
     /// A text frame: the node leg's JSON control. It takes `&str` because
     /// RFC 6455 allows only UTF-8 in a text frame; the relay reads a binary
     /// node frame as a session id and closes `1003 bad multiplex id`.
-    async fn send_text(&mut self, text: &str) -> Result<(), String>;
-    async fn read(&mut self) -> Result<WsFrame, String>;
+    async fn send_text(&mut self, text: &str) -> Result<(), SessionError>;
+    async fn read(&mut self) -> Result<WsFrame, SessionError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -140,7 +155,7 @@ impl<S: WsSession> Socket for WsSocket<S> {
                 },
             ));
         }
-        self.session.send(payload).await.map_err(TransportError::Unexpected)?;
+        self.session.send(payload).await.map_err(|e| lost(&e))?;
         self.sent += 1;
         Ok(())
     }
@@ -158,7 +173,7 @@ impl<S: WsSession> Socket for WsSocket<S> {
         let text = std::str::from_utf8(text).map_err(|e| {
             TransportError::Codec(crate::framing::CodecError::ControlNotUtf8 { valid_up_to: e.valid_up_to() })
         })?;
-        self.session.send_text(text).await.map_err(TransportError::Unexpected)?;
+        self.session.send_text(text).await.map_err(|e| lost(&e))?;
         self.sent += 1;
         Ok(())
     }
@@ -182,7 +197,7 @@ impl<S: WsSession> Socket for WsSocket<S> {
                     self.session
                         .send_pong(&frame.payload)
                         .await
-                        .map_err(TransportError::Unexpected)?;
+                        .map_err(|e| lost(&e))?;
                     self.sent += 1;
                 }
                 // ⛔ **A Pong is neither data nor an error**, so it is skipped
@@ -205,9 +220,8 @@ impl<S: WsSession> Socket for WsSocket<S> {
                         frame.opcode
                     )))
                 }
-                // The text of the failure is kept, safe to print: it is what a
-                // user can act on, and it may quote a peer.
-                Err(detail) => return Err(self.end(Ended::Aborted(crate::adapt::one_line(&detail)))),
+                // The class decides what the caller may do; `lost` keeps the text.
+                Err(e) => return Err(self.end(Ended::Failed(e))),
             }
         }
     }

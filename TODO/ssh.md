@@ -131,7 +131,7 @@ Read:
   unexpected EOF to one sentence (`crates/podssh-ssh/src/run.rs:224-230`).
   `run` prints it first, and the relay's reason second
   (`crates/podssh-ssh/src/run.rs` lines 38-46 at `80f20bf`,
-  `crates/podssh-ssh/src/relay_stream.rs:36-52`).
+  `crates/podssh-ssh/src/relay_stream.rs:37-53`).
 - The form `HOST: the connection closed unexpectedly` comes only from the
   handshake (`crates/podssh-ssh/src/run.rs` lines 108-122 at `80f20bf`).
   Thus both reported drops happened before the first key exchange ended.
@@ -155,7 +155,7 @@ Read:
 ## Approach
 
 1. Classify a forward-path close in one place, next to
-   `close_code_and_reason` (`crates/podssh-ws/src/session.rs:287-295`), which
+   `close_code_and_reason` (`crates/podssh-ws/src/session.rs:298-306`), which
    `podssh ssh` and `podssh proxy` both use. Map the code and the reason of
    `docs/relay.md:147-154` to a hop. Relay to target: `1011` with
    `connect failed`, `write failed`, `target closed before sending anything`
@@ -1059,10 +1059,10 @@ Read:
 - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
   (`crates/podssh-ws/src/client.rs:34-35`, given to the session at
   `crates/podssh-ws/src/client.rs:183`), and `write` applies it
-  (`crates/podssh-ws/src/session.rs:235-240`). Then the copy task stops
-  (`crates/podssh-ssh/src/relay_stream.rs:94-99`), the next ping meets the
-  same limit and ends the read task (`crates/podssh-ws/src/session.rs:161-164`,
-  `crates/podssh-ssh/src/relay_stream.rs:105-116`), and russh's next write
+  (`crates/podssh-ws/src/session.rs:241-251`). Then the copy task stops
+  (`crates/podssh-ssh/src/relay_stream.rs:95-100`), the next ping meets the
+  same limit and ends the read task (`crates/podssh-ws/src/session.rs:162-165`,
+  `crates/podssh-ssh/src/relay_stream.rs:106-117`), and russh's next write
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set
   (`crates/podssh-cli/src/ssh/mod.rs:140-143`,

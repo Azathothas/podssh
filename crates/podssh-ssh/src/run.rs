@@ -59,7 +59,7 @@ pub fn failure_lines(message: &str, relay: Option<&RelayEnd>, target: &str) -> V
         Some(RelayEnd::Closed { code: Some(code), reason }) if *code != 1000 => {
             (podssh_ws::session::forward_close(Some(*code), reason), format!("relay close {code}: {reason}"))
         }
-        Some(RelayEnd::Failed(why)) => (podssh_ws::session::ForwardClose::Client, why.clone()),
+        Some(RelayEnd::Failed(why)) => (podssh_ws::session::ForwardClose::Client, why.to_string()),
         _ => {
             let mut lines = vec![message.to_string()];
             lines.extend(relay.and_then(RelayEnd::explain));
@@ -264,7 +264,7 @@ mod tests {
         let lines = failure_lines(DROP, Some(&cap), "railway.new:22");
         assert!(lines[0].contains("at one of its limits (relay close 1009: session byte cap)"), "{lines:?}");
         assert!(lines[1].contains("64 MiB"), "{lines:?}");
-        let gone = RelayEnd::Failed("the relay sent nothing for 40 s".into());
+        let gone = RelayEnd::Failed(podssh_ws::SessionError::Idle("the relay sent nothing for 40 s".into()));
         let lines = failure_lines(DROP, Some(&gone), "railway.new:22");
         assert!(lines[0].starts_with("railway.new: the connection between podssh and the relay broke"), "{lines:?}");
         // A normal close of the relay: the message, then the relay's words.

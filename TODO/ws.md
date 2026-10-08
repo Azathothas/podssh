@@ -40,7 +40,7 @@ byte is read as a Close with no code (`session.rs` lines 275-278); RFC 6455 sect
    `WsError::Frame` when `fin` is clear or the length is over 125. Name the rule in the message.
 2. Refuse a Close payload of 1 byte in the same place.
 3. The read then fails (`crates/podssh-ws/src/session.rs` line 176 at `3b60753`). Today a failed
-   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:138-140`): send 1002 (protocol
+   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:139-141`): send 1002 (protocol
    error) there, as lines 130-137 do for an unexpected frame. `podssh proxy` exits as for a
    broken session.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the new tests in a new file,
@@ -471,10 +471,10 @@ TCP on the loopback. `podssh-ws` always does TLS, so each such test needs a CA a
 
 Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs:162-184`), and the
 upgrade takes the TLS stream type (`crates/podssh-ws/src/client.rs:212-256`). `RelaySession` is
-generic over its stream (`crates/podssh-ws/src/session.rs:32`), so a session over `TcpStream`
+generic over its stream (`crates/podssh-ws/src/session.rs:33`), so a session over `TcpStream`
 is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:137-142`). The tests use in-memory streams
-(`crates/podssh-ws/tests/session.rs:33-35`) or local TLS servers
+(`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
 (`crates/podssh-ws/tests/hostname_verification.rs:63`). `dial::is_loopback` exists
 (`crates/podssh-ws/src/dial.rs:164-172`).
 
@@ -516,7 +516,7 @@ the feature. Planted defect: remove the loopback check; the refusal test fails.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -526,15 +526,16 @@ runners and the retry rules (T-025) need these classes.
 
 ## Premise
 
-Read: `send_binary` and `send_text` (`crates/podssh-ws/src/session.rs:86-94`), `send_close`
-(104-109), `read_frame` (170-221) and `write` (223-228) return `Result<_, String>`;
-`watch_liveness` returns a `String` (142-166). The callers keep or pass the text:
-`crates/podssh-ssh/src/relay_stream.rs:95-96` and 138-140 put it in `RelayEnd::Failed`;
+Read; the lines of the files that this entry changed are those of `723d90b`. `send_binary` and
+`send_text` (`crates/podssh-ws/src/session.rs` lines 86-94), `send_close` (104-109),
+`read_frame` (170-221) and `write` (223-228) return `Result<_, String>`; `watch_liveness`
+returns a `String` (142-166). The callers keep or pass the text:
+`crates/podssh-ssh/src/relay_stream.rs` lines 95-96 and 138-140 put it in `RelayEnd::Failed`;
 `crates/podssh-cli/src/proxy.rs:212-247` prints it; `podssh-transport` makes a write error
-`TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs:104-113`, 143, 161, 185),
-and, since T-072, a read error `Aborted` with its text.
-Tests and the gate match the text: `crates/podssh-ws/tests/session.rs:108` ("continuation") and
-172 ("without a WebSocket Close"), and `scripts/interop-faults.sh:148` ("pings unanswered").
+`TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs` lines 104-113, 143, 161
+and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
+text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
+WebSocket Close"), and `scripts/interop-faults.sh:148` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:50-70`), but the session does not use it.
 
 ## Approach
@@ -547,8 +548,26 @@ Tests and the gate match the text: `crates/podssh-ws/tests/session.rs:108` ("con
 3. `Display` gives the same text as now, so the tests and the gate still match.
 4. The callers keep their behaviour: `RelayEnd::Failed` takes the error; `podssh proxy` keeps
    its exit codes; `podssh-transport` maps each class (T-073 uses them later). T-072, done
-   first, keeps the text of a read error in `Aborted { detail }`; the class replaces the text.
+   first, keeps the text of a read error in `Aborted { detail }`; the class decides between
+   `Aborted` and `Unexpected` (see Decision).
 5. Record the change in `docs/STATUS.md` (Components) in the same commit.
+
+## Decision
+
+2026-10-09:
+
+1. Each class keeps the text that the session gave before, and `Display` prints it: a message and
+   the checks that read it do not change. `From<SessionError> for String` lets a caller that
+   reports text keep its `?`, so `podssh proxy` needed no change.
+2. `podssh-transport` maps each class to its retry rule (`socket::lost`): a frame or a message
+   that RFC 6455 forbids, and a message over the limit, are `Unexpected` (never retried); each
+   other class is a link that broke, `Aborted` (reconnect). The class is not carried in
+   `TransportError`: its `retry` is what a runner needs, and the text is kept. Lost: a second
+   error type inside `TransportError`.
+3. A write that has no bytes for its masking key is `Io` (kind `Other`); a ping that cannot be
+   sent keeps the class of that write, with its context; only unanswered pings are `Dead`.
+4. `read_frame_over`, the reader of one stream that the tests script, keeps its `String`: it is
+   not a method of a session.
 
 ## Prove
 
@@ -563,6 +582,27 @@ New tests make each class with a scripted peer on an in-memory stream: a peer th
 (`Idle`), a peer that never reads (`WriteStalled`), a fragment with no start (`Protocol`), an end
 of stream with no Close, and a peer that stops answering pings (`Dead`). The tests that match
 the text still pass. Planted defect: map each error to `Io`; the class tests fail.
+
+## Done
+
+2026-10-09, in the commit "A session's failure has a class".
+
+- `crates/podssh-ws/src/error.rs`: `SessionError` (`Io` with the kind, `Idle`, `WriteStalled`,
+  `Protocol`, `TooLarge`, `Dead`, `ClosedWithoutClose`), each with its text; `context` adds a
+  prefix and keeps the class. Each method of `RelaySession` returns it, and `watch_liveness`
+  returns `Dead`.
+- `RelayEnd::Failed` takes the error (`crates/podssh-ssh/src/relay_stream.rs`); an unexpected
+  frame on the forward path is `Protocol`. `podssh-transport`: the seam `WsSession` takes the
+  class (`adapt::SessionError`), and `WsSocket` maps it (see Decision).
+- Tests: the tests of `crates/podssh-ws/tests/session.rs` that read the text assert the class too
+  (`Protocol`, `Idle`, `ClosedWithoutClose`, `Dead`), and a new one: a write to a peer that never
+  reads is `WriteStalled`. `crates/podssh-transport/tests/socket.rs`: each class has its retry.
+- Prove: `CC=/nonexistent CXX=/nonexistent cargo test -p podssh-ws -p podssh-transport`: 240
+  passed, 0 failed. `cargo test --no-fail-fast` (`podssh-ssh` and `podssh-cli` among them):
+  810 passed, 0 failed, 7 ignored. The gate of the commit (CI) runs `interop-faults.sh`,
+  whose check still reads "pings unanswered".
+- Plant: each class of `session.rs` made `Io`: five tests of `session.rs` and one of
+  `control_frames.rs` failed.
 
 # T-070: A SOCKS5 proxy for the egress
 
@@ -674,7 +714,7 @@ minimal. The only caller in the code is `next_event`, for the frames of the rela
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
    connection. Since T-063 the session sends that Close for each error of the decoder
-   (`crates/podssh-ws/src/session.rs:226-233`), so this entry needs no new path.
+   (`crates/podssh-ws/src/session.rs:232-239`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,

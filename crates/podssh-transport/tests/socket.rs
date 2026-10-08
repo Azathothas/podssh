@@ -23,6 +23,7 @@ use podssh_transport::sessions::{
     UNKNOWN_CONTROL_TYPE, UNKNOWN_SESSION_ID, WAIT_FOR_READY,
 };
 use podssh_transport::transport::{Control, Inbound, LegShape, Limits};
+use podssh_transport::adapt::SessionError;
 use podssh_transport::{CodecError, Retry, SessionAction, SessionId, TransportError};
 
 mod common;
@@ -35,9 +36,9 @@ use common::block_on;
 struct FakeSession {
     inbound: VecDeque<WsFrame>,
     sent: Vec<(u8, Vec<u8>)>,
-    fail: Option<String>,
+    fail: Option<SessionError>,
     /// The next write fails with this, as a dropped socket would.
-    refuse: Option<String>,
+    refuse: Option<SessionError>,
 }
 
 impl FakeSession {
@@ -49,7 +50,7 @@ impl FakeSession {
         WsFrame { opcode, payload: payload.to_vec() }
     }
 
-    fn record(&mut self, opcode: u8, payload: &[u8]) -> Result<(), String> {
+    fn record(&mut self, opcode: u8, payload: &[u8]) -> Result<(), SessionError> {
         if let Some(detail) = self.refuse.take() {
             return Err(detail);
         }
@@ -59,23 +60,23 @@ impl FakeSession {
 }
 
 impl WsSession for FakeSession {
-    async fn send(&mut self, payload: &[u8]) -> Result<(), String> {
+    async fn send(&mut self, payload: &[u8]) -> Result<(), SessionError> {
         self.record(OPCODE_BINARY, payload)
     }
 
-    async fn send_pong(&mut self, payload: &[u8]) -> Result<(), String> {
+    async fn send_pong(&mut self, payload: &[u8]) -> Result<(), SessionError> {
         self.record(OPCODE_PONG, payload)
     }
 
-    async fn send_text(&mut self, text: &str) -> Result<(), String> {
+    async fn send_text(&mut self, text: &str) -> Result<(), SessionError> {
         self.record(OPCODE_TEXT, text.as_bytes())
     }
 
-    async fn read(&mut self) -> Result<WsFrame, String> {
-        if let Some(detail) = self.fail.take() {
-            return Err(detail);
+    async fn read(&mut self) -> Result<WsFrame, SessionError> {
+        if let Some(error) = self.fail.take() {
+            return Err(error);
         }
-        self.inbound.pop_front().ok_or_else(|| "the session ended".to_string())
+        self.inbound.pop_front().ok_or_else(|| SessionError::ClosedWithoutClose("the session ended".to_string()))
     }
 }
 
@@ -200,11 +201,11 @@ fn a_text_frame_that_is_not_utf8_or_over_the_cap_never_leaves() {
 #[test]
 fn a_text_frame_the_session_failed_is_not_counted() {
     let mut socket = WsSocket::new(
-        FakeSession { refuse: Some("the socket ended".into()), ..FakeSession::default() },
+        FakeSession { refuse: Some(io("the socket ended")), ..FakeSession::default() },
         Limits::reverse_node(),
     );
     let err = block_on(socket.send_text(br#"{"type":"close"}"#)).unwrap_err();
-    assert!(matches!(err, TransportError::Unexpected(ref d) if d == "the socket ended"), "{err:?}");
+    assert!(matches!(err, TransportError::Aborted { ref detail, .. } if detail == "the socket ended"), "{err:?}");
     assert_eq!(socket.sent_frames(), 0);
     block_on(socket.send_text(br#"{"type":"close"}"#)).expect("the next write goes out");
     assert_eq!(socket.sent_frames(), 1);
@@ -291,7 +292,7 @@ fn a_read_error_keeps_its_text() {
     let mut socket = WsSocket::new(
         FakeSession {
             inbound: vec![FakeSession::frame(OPCODE_BINARY, b"never read")].into(),
-            fail: Some("tls: connection reset by peer".into()),
+            fail: Some(io("tls: connection reset by peer")),
             ..FakeSession::default()
         },
         Limits::reverse_node(),
@@ -437,4 +438,33 @@ fn a_control_frame_the_relay_would_refuse_never_leaves() {
     }
     assert_eq!(leg.sent_frames(), 0);
     assert_eq!(leg.sessions().state(&id), Some(SessionState::Opened), "a refusal changes nothing");
+}
+
+/// A socket error, as the session gives one.
+fn io(text: &str) -> SessionError {
+    SessionError::Io { kind: std::io::ErrorKind::ConnectionReset, text: text.into() }
+}
+
+/// Each class of a session's failure has its retry (T-069): a frame that RFC
+/// 6455 forbids, or a message over the limit, is never retried; a link that
+/// broke may be reconnected. The text is kept.
+#[test]
+fn each_class_of_a_session_failure_has_its_retry() {
+    let cases = [
+        (SessionError::Protocol("a continuation with no message".into()), Retry::Never),
+        (SessionError::TooLarge("a fragmented message exceeded 16777216 bytes".into()), Retry::Never),
+        (io("connection reset"), Retry::Reconnect),
+        (SessionError::Idle("no data from the relay for 90s".into()), Retry::Reconnect),
+        (SessionError::WriteStalled("sending to the relay stalled for 60s".into()), Retry::Reconnect),
+        (SessionError::Dead("pings unanswered: the connection is dead".into()), Retry::Reconnect),
+        (SessionError::ClosedWithoutClose("the relay closed the connection".into()), Retry::Reconnect),
+    ];
+    for (class, retry) in cases {
+        let text = class.to_string();
+        let mut socket =
+            WsSocket::new(FakeSession { fail: Some(class.clone()), ..FakeSession::default() }, Limits::reverse_node());
+        let error = block_on(socket.recv()).unwrap_err();
+        assert_eq!(error.retry(), retry, "{class:?}");
+        assert!(error.to_string().contains(&text), "{error}");
+    }
 }

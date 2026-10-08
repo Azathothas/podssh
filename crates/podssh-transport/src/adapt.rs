@@ -39,6 +39,9 @@ use podssh_ws::client::RelaySession;
 
 use crate::socket::{WsFrame, WsSession};
 
+/// The class of a session's failure, as `podssh-ws` gives it (T-069).
+pub use podssh_ws::error::SessionError;
+
 /// The status code and reason of a Close payload; the reason is already safe
 /// to print.
 pub(crate) fn close_code_and_reason(payload: &[u8]) -> (Option<u16>, String) {
@@ -80,19 +83,19 @@ pub fn refused(error: &podssh_ws::client::ConnectError, asked: crate::error::Ask
 /// session's signatures drift, this file — not a caller — is what fails to
 /// compile, and `tests/adapt.rs` turns that into a red suite.
 impl WsSession for RelaySession {
-    async fn send(&mut self, payload: &[u8]) -> Result<(), String> {
+    async fn send(&mut self, payload: &[u8]) -> Result<(), SessionError> {
         RelaySession::send_binary(self, payload).await
     }
 
-    async fn send_pong(&mut self, payload: &[u8]) -> Result<(), String> {
+    async fn send_pong(&mut self, payload: &[u8]) -> Result<(), SessionError> {
         RelaySession::send_pong(self, payload).await
     }
 
-    async fn send_text(&mut self, text: &str) -> Result<(), String> {
+    async fn send_text(&mut self, text: &str) -> Result<(), SessionError> {
         RelaySession::send_text(self, text).await
     }
 
-    async fn read(&mut self) -> Result<WsFrame, String> {
+    async fn read(&mut self) -> Result<WsFrame, SessionError> {
         RelaySession::read_frame(self)
             .await
             .map(|frame| WsFrame { opcode: frame.opcode, payload: frame.payload })

@@ -384,18 +384,25 @@ pub fn next_event(buf: &mut Vec<u8>) -> Result<Option<Event>, WsError> {
 
 /// Write one frame, masked with a fresh key (RFC 6455 §5.3 requires a new key
 /// per frame). Client frames are always masked; there is no unmasked path.
-pub(crate) async fn write_frame_over<S>(stream: &mut S, opcode: u8, payload: &[u8]) -> Result<(), String>
+pub(crate) async fn write_frame_over<S>(
+    stream: &mut S,
+    opcode: u8,
+    payload: &[u8],
+) -> Result<(), crate::error::SessionError>
 where
     S: tokio::io::AsyncWrite + Unpin,
 {
-    let key = handshake::masking_key().map_err(|e| format!("{e}"))?;
+    use crate::error::SessionError;
+    // No bytes for a masking key: the frame cannot be sent (RFC 6455 5.3).
+    let key = handshake::masking_key()
+        .map_err(|e| SessionError::Io { kind: std::io::ErrorKind::Other, text: e.to_string() })?;
     let bytes = frame::encode(
         &Frame { fin: true, opcode, payload: payload.to_vec() },
         frame::Role::Client,
         key,
     );
-    stream.write_all(&bytes).await.map_err(|e| format!("{e}"))?;
-    stream.flush().await.map_err(|e| format!("{e}"))
+    stream.write_all(&bytes).await.map_err(|e| SessionError::io(&e))?;
+    stream.flush().await.map_err(|e| SessionError::io(&e))
 }
 
 /// What can be checked without a token: the crypto provider and the trust

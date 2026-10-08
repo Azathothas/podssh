@@ -94,3 +94,74 @@ impl From<std::io::Error> for WsError {
         WsError::Io(e.to_string())
     }
 }
+
+/// Why a relay session failed, by class: a caller chooses by the class
+/// (reconnect after a dead link, never after a protocol fault) and not by
+/// matching text. `Display` gives the text that the session gave before the
+/// classes, so a message and a check that read it do not change.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SessionError {
+    /// A read or a write of the socket failed: its kind, and the text.
+    Io { kind: std::io::ErrorKind, text: String },
+    /// No data from the relay within the read limit.
+    Idle(String),
+    /// A write did not finish within the write limit.
+    WriteStalled(String),
+    /// A frame or a message that RFC 6455 forbids; a Close 1002 went out.
+    Protocol(String),
+    /// A message over the size limit; a Close 1009 went out.
+    TooLarge(String),
+    /// Pings went unanswered: the link is dead ([`crate::RelaySession::watch_liveness`]).
+    Dead(String),
+    /// The stream ended with no WebSocket Close.
+    ClosedWithoutClose(String),
+}
+
+impl SessionError {
+    /// The text, as `Display` gives it.
+    pub fn text(&self) -> &str {
+        match self {
+            SessionError::Io { text, .. } => text,
+            SessionError::Idle(text)
+            | SessionError::WriteStalled(text)
+            | SessionError::Protocol(text)
+            | SessionError::TooLarge(text)
+            | SessionError::Dead(text)
+            | SessionError::ClosedWithoutClose(text) => text,
+        }
+    }
+
+    /// The same class, with `what` in front of the text.
+    pub fn context(self, what: &str) -> SessionError {
+        let text = |t: String| format!("{what}: {t}");
+        match self {
+            SessionError::Io { kind, text: t } => SessionError::Io { kind, text: text(t) },
+            SessionError::Idle(t) => SessionError::Idle(text(t)),
+            SessionError::WriteStalled(t) => SessionError::WriteStalled(text(t)),
+            SessionError::Protocol(t) => SessionError::Protocol(text(t)),
+            SessionError::TooLarge(t) => SessionError::TooLarge(text(t)),
+            SessionError::Dead(t) => SessionError::Dead(text(t)),
+            SessionError::ClosedWithoutClose(t) => SessionError::ClosedWithoutClose(text(t)),
+        }
+    }
+
+    /// A failed read or write of the socket.
+    pub fn io(e: &std::io::Error) -> SessionError {
+        SessionError::Io { kind: e.kind(), text: e.to_string() }
+    }
+}
+
+impl fmt::Display for SessionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.text())
+    }
+}
+
+impl std::error::Error for SessionError {}
+
+/// For a caller that reports text: the same text as before the classes.
+impl From<SessionError> for String {
+    fn from(e: SessionError) -> String {
+        e.to_string()
+    }
+}

@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 
 use podssh_ws::frame;
 use podssh_ws::session::close_code_and_reason;
-use podssh_ws::RelaySession;
+use podssh_ws::{RelaySession, SessionError};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
 
 /// Size of the in-memory pipe in each direction.
@@ -29,8 +29,9 @@ const CHUNK: usize = 64 * 1024;
 pub enum RelayEnd {
     /// The relay (or this side) sent a WebSocket Close.
     Closed { code: Option<u16>, reason: String },
-    /// The connection failed without a Close.
-    Failed(String),
+    /// The connection failed without a Close, by the class of the failure;
+    /// it prints the same text as before the classes.
+    Failed(SessionError),
 }
 
 impl RelayEnd {
@@ -93,7 +94,7 @@ where
                 }
                 Ok(n) => {
                     if let Err(e) = up_session.send_binary(&buf[..n]).await {
-                        up_status.set_once(RelayEnd::Failed(format!("sending failed: {e}")));
+                        up_status.set_once(RelayEnd::Failed(e.context("sending failed")));
                         break;
                     }
                 }
@@ -128,10 +129,10 @@ where
                     break;
                 }
                 Ok(f) => {
-                    down_status.set_once(RelayEnd::Failed(format!(
+                    down_status.set_once(RelayEnd::Failed(SessionError::Protocol(format!(
                         "unexpected frame (opcode {:#x}) on the forward path",
                         f.opcode
-                    )));
+                    ))));
                     let _ = session.send_close(1002, "").await;
                     break;
                 }
@@ -158,6 +159,7 @@ mod tests {
         assert_eq!(RelayEnd::Closed { code: None, reason: String::new() }.explain(), None);
         let idle = RelayEnd::Closed { code: Some(1001), reason: "idle".into() };
         assert_eq!(idle.explain().unwrap(), "the relay closed the connection (code 1001): idle");
-        assert!(RelayEnd::Failed("reset".into()).explain().unwrap().contains("reset"));
+        let reset = SessionError::Io { kind: std::io::ErrorKind::ConnectionReset, text: "reset".into() };
+        assert!(RelayEnd::Failed(reset).explain().unwrap().contains("reset"));
     }
 }

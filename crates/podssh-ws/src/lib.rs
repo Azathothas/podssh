@@ -30,7 +30,7 @@ pub use client::{
     DEFAULT_TIMEOUT,
 };
 pub use dial::{DialError, HttpProxy, ProxyChoice};
-pub use error::{Verdict, WsError};
+pub use error::{SessionError, Verdict, WsError};
 pub use frame::Frame;
 pub use session::RelaySession;
 pub use tls::Trust;

@@ -31,7 +31,7 @@ Read, at `692b3b0`: `WsSocket::send_text` calls `self.session.send(text)`
 `send_pong` and `read`, and no text method (the same file, lines 74-81). The live adapter maps
 `send` to `RelaySession::send_binary` (`crates/podssh-transport/src/adapt.rs` lines 37-39).
 `Leg::send_control` reaches the wire only through `send_text` (`socket.rs` lines 247-263).
-`podssh-ws` already has `RelaySession::send_text` (`crates/podssh-ws/src/session.rs:91-94`).
+`podssh-ws` already has `RelaySession::send_text` (`crates/podssh-ws/src/session.rs:92-95`).
 
 Read, at `692b3b0`: the test double records each `send` as `OPCODE_BINARY`
 (`crates/podssh-transport/tests/socket.rs` lines 43-47). The one `send_text` test counts frames
@@ -126,7 +126,7 @@ same. The text of a read error is lost too.
 The lines of `crates/podssh-transport` below are those of `3d4785a`.
 
 Read: `RelaySession::read_frame` echoes a Close and returns it to its caller
-(`crates/podssh-ws/src/session.rs:194-202`). `WsSocket::recv` handles the opcodes of text, binary,
+(`crates/podssh-ws/src/session.rs:195-203`). `WsSocket::recv` handles the opcodes of text, binary,
 Ping and Pong, and maps each other opcode, Close included, to `TransportError::Unexpected`
 (`crates/podssh-transport/src/socket.rs` lines 136-164). A read error becomes
 `Aborted { clean: false }` and its text is dropped (the same file, lines 165-168). The adapter
@@ -136,7 +136,7 @@ states the gap (`crates/podssh-transport/src/adapt.rs` lines 25-29). `Unexpected
 
 Read: the helper `closed(code, reason, clean)` exists and has no caller (`socket.rs` lines
 478-481). `podssh-ws` parses a Close payload in `close_code_and_reason`
-(`crates/podssh-ws/src/session.rs:287-295`), and `podssh proxy` uses it
+(`crates/podssh-ws/src/session.rs:298-306`), and `podssh proxy` uses it
 (`crates/podssh-cli/src/proxy.rs:239-242`).
 
 Read, a related gap that the former defects page did not list: `Classified::message` prints

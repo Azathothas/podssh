@@ -18,6 +18,7 @@ use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 
 use crate::client::{next_event, write_frame_over, Event};
+use crate::error::SessionError;
 use crate::frame::{self, Frame};
 
 /// The stream a live session runs over.
@@ -84,24 +85,24 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     }
 
     /// Send one binary frame.
-    pub async fn send_binary(&self, payload: &[u8]) -> Result<(), String> {
+    pub async fn send_binary(&self, payload: &[u8]) -> Result<(), SessionError> {
         self.write(frame::OPCODE_BINARY, payload).await
     }
 
     /// Send one text frame.
-    pub async fn send_text(&self, text: &str) -> Result<(), String> {
+    pub async fn send_text(&self, text: &str) -> Result<(), SessionError> {
         self.write(frame::OPCODE_TEXT, text.as_bytes()).await
     }
 
     /// Send a Pong. The reader already answers Pings; this exists for callers
     /// that manage control frames themselves.
-    pub async fn send_pong(&self, payload: &[u8]) -> Result<(), String> {
+    pub async fn send_pong(&self, payload: &[u8]) -> Result<(), SessionError> {
         self.write(frame::OPCODE_PONG, payload).await
     }
 
     /// Start (or answer) the closing handshake. Sends at most one Close per
     /// session; later calls do nothing. `reason` is cut to fit a control frame.
-    pub async fn send_close(&self, code: u16, reason: &str) -> Result<(), String> {
+    pub async fn send_close(&self, code: u16, reason: &str) -> Result<(), SessionError> {
         if self.close_sent.swap(true, Ordering::SeqCst) {
             return Ok(());
         }
@@ -115,7 +116,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
 
     /// Send a Ping; its Pong is counted by [`RelaySession::read_frame`], which
     /// must be running for liveness to be seen.
-    pub async fn send_ping(&self, payload: &[u8]) -> Result<(), String> {
+    pub async fn send_ping(&self, payload: &[u8]) -> Result<(), SessionError> {
         self.write(frame::OPCODE_PING, payload).await
     }
 
@@ -139,7 +140,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     /// not mistaken for a dead one (the idle read limit still covers it). Runs
     /// until it returns; the caller races it with its pumps, and
     /// [`RelaySession::read_frame`] must be running for anything to be heard.
-    pub async fn watch_liveness(&self, every: Duration, allowed: u32) -> String {
+    pub async fn watch_liveness(&self, every: Duration, allowed: u32) -> SessionError {
         let mut sent: u64 = 0;
         let mut heard = self.frames_received();
         let mut missed: u32 = 0;
@@ -153,21 +154,21 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                 missed += 1;
             }
             if self.pongs_received() > 0 && missed >= allowed {
-                return format!(
+                return SessionError::Dead(format!(
                     "nothing from the relay for {} s, pings unanswered: the connection is dead",
                     every.as_secs() * u64::from(allowed)
-                );
+                ));
             }
             sent += 1;
             if let Err(e) = self.send_ping(&sent.to_be_bytes()).await {
-                return format!("sending a ping to the relay failed: {e}");
+                return e.context("sending a ping to the relay failed");
             }
         }
     }
 
     /// The next data message (binary or text, reassembled) or the Close.
     /// Pings are answered and Pongs skipped along the way.
-    pub async fn read_frame(&self) -> Result<Frame, String> {
+    pub async fn read_frame(&self) -> Result<Frame, SessionError> {
         let mut guard = self.reader.lock().await;
         // A plain `&mut` so the fields can be borrowed separately below.
         let reader = &mut *guard;
@@ -175,7 +176,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
         loop {
             let event = match next_event(&mut reader.pending) {
                 Ok(event) => event,
-                Err(e) => return Err(self.fail(1002, e.to_string()).await),
+                Err(e) => return Err(self.fail(1002, SessionError::Protocol(e.to_string())).await),
             };
             if event.is_some() {
                 self.heard.fetch_add(1, Ordering::SeqCst);
@@ -203,19 +204,24 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                 Some(Event::Frame(f)) => match reader.assemble(f) {
                     Ok(Some(message)) => return Ok(message),
                     Ok(None) => {}
-                    Err((code, why)) => return Err(self.fail(code, why).await),
+                    Err((code, why)) => {
+                        let error = if code == 1009 { SessionError::TooLarge(why) } else { SessionError::Protocol(why) };
+                        return Err(self.fail(code, error).await);
+                    }
                 },
                 None => {
                     let read = reader.half.read(&mut chunk);
                     let n = match reader.idle {
                         Some(limit) => tokio::time::timeout(limit, read).await.map_err(|_| {
-                            format!("no data from the relay for {}s", limit.as_secs())
+                            SessionError::Idle(format!("no data from the relay for {}s", limit.as_secs()))
                         })?,
                         None => read.await,
                     }
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| SessionError::io(&e))?;
                     if n == 0 {
-                        return Err("the relay closed the connection without a WebSocket Close".into());
+                        return Err(SessionError::ClosedWithoutClose(
+                            "the relay closed the connection without a WebSocket Close".into(),
+                        ));
                     }
                     reader.pending.extend_from_slice(&chunk[..n]);
                 }
@@ -227,16 +233,21 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     /// a Close with `code` goes first (section 7.1.7), then the error is
     /// returned. A broken socket or an end of stream sends nothing: there is
     /// no peer left to tell.
-    async fn fail(&self, code: u16, why: String) -> String {
+    async fn fail(&self, code: u16, error: SessionError) -> SessionError {
         let _ = self.send_close(code, "").await;
-        why
+        error
     }
 
-    async fn write(&self, opcode: u8, payload: &[u8]) -> Result<(), String> {
+    async fn write(&self, opcode: u8, payload: &[u8]) -> Result<(), SessionError> {
         let mut writer = self.writer.lock().await;
         tokio::time::timeout(self.write_timeout, write_frame_over(&mut *writer, opcode, payload))
             .await
-            .map_err(|_| format!("sending to the relay stalled for {}s", self.write_timeout.as_secs()))?
+            .map_err(|_| {
+                SessionError::WriteStalled(format!(
+                    "sending to the relay stalled for {}s",
+                    self.write_timeout.as_secs()
+                ))
+            })?
     }
 }
 

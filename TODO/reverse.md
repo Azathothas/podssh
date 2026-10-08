@@ -112,7 +112,7 @@ no `hello` comes (`crates/podssh-transport/src/control.rs:111-137`), and the clo
 T-075 and T-076 (each repaired 2026-10-09).
 
 Read: `RelaySession` has text, binary, Ping and Close writes and a liveness watcher
-(`crates/podssh-ws/src/session.rs:86-166`); `podssh_relay::open::backoff` has a jitter
+(`crates/podssh-ws/src/session.rs:87-167`); `podssh_relay::open::backoff` has a jitter
 (`crates/podssh-relay/src/open.rs:261-275`). Not measured: whether the relay answers a Ping on a reverse socket
 (`docs/relay.md:71-73` is the forward path), and its idle cut there (`docs/relay.md:186-187`, T-061). A node
 that connects again ends each operator session on it (`docs/design.md:175-178`).
@@ -159,7 +159,7 @@ cargo test -p podssh-relay --features pair --test reverse_live -- --ignored node
 ```
 
 Offline: the runner runs over an in-memory stream, against a scripted relay that writes real WebSocket frames
-(`RelaySession::new` takes any stream: `crates/podssh-ws/src/session.rs:64-68`). The cases: two mixed sessions
+(`RelaySession::new` takes any stream: `crates/podssh-ws/src/session.rs:65-69`). The cases: two mixed sessions
 with exact bytes; late bytes after `close` dropped, the socket kept; no data before `ready`; one exit on `409`;
 the hook on `1001 pair expired`; exit and a deleted pair on `1001 operator stopped reverse relay`. Plant: send
 `ready` before the handler returns; that test must fail. Live: pair (T-078), run an echo node, open two
@@ -477,7 +477,7 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/resolve.rs:347-388`).
 `Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:19-27`, chosen at `:220-245`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs:72-119`), and
-`relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:130-136`); the
+`relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:131-137`); the
 operator leg receives text frames (`docs/relay.md:205-208`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:53-58`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:264`). `podssh ssh` uses the exit codes of OpenSSH, and
