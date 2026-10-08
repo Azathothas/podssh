@@ -28,20 +28,20 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## Baseline
 
-Measured at the end of the session of 2026-10-08, on Windows 11 with native
-cargo 1.98.0 and `CARGO_BUILD_JOBS=4`:
+Measured on 2026-10-08 after T-249, on Windows 11 with native cargo 1.98.0
+and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`: 707 passed, 0 failed, 5 ignored (the live
+- `cargo test --no-fail-fast`: 722 passed, 0 failed, 5 ignored (the live
   tests).
-- `cargo test -p podssh-todo`: 45 passed: 7 unit tests, 30 plant tests (29
-  planted disagreements and the control), 7 tests of the writer, and the
-  test of this record.
+- `cargo test -p podssh-todo`: 60 passed: 11 unit tests, 32 plant tests (31
+  planted disagreements and the control), 9 tests of the remap, 7 tests of
+  the writer, and the test of this record.
 - `cargo todo check`: the record agrees. `python scripts/check-repo.py`: ok.
 - `cargo clippy -p podssh-todo --all-targets -- -D warnings`: no warning.
 
 ## Counts
 
-`TODO/INDEX.md` holds 249 entries: 235 open, 0 partial, 6 blocked, 8 done.
+`TODO/INDEX.md` holds 249 entries: 234 open, 0 partial, 6 blocked, 9 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

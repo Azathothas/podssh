@@ -188,17 +188,17 @@ behind them.
 | `podssh-terminal` | 2.5k / 1.2k | A line-editing state machine | No command uses it. Defects T-125 to T-129. |
 | `podssh-ts` and `vendor/tailscale-rs` | 0.5k / 0.4k and a 68k fork | DERP over WebSocket (patches in the fork) | Behind the `ts` feature. Defects T-101, T-102. |
 | `podssh-probe` | 0.4k / 0.3k | Checks the structure of the relay's document against a pinned copy | No command uses it (T-060). |
-| `podssh-todo` | 1.2k / 0.5k | The checker of the work record in `TODO/`: `cargo todo check` compares the counts with the rows, each row with its entry, each id that a document names with the entries, each cited path and line with the tree, and the roadmap with the milestones. It fails when it finds nothing to check. `cargo todo set`, `counts` and `next` write the record. No dependencies. | Not a part of the `podssh` binary. |
+| `podssh-todo` | 1.7k / 0.7k | The checker of the work record in `TODO/`: `cargo todo check` compares the counts with the rows, each row with its entry, each id that a document names with the entries, each cited path and line with the tree, each quoted line with its text, and the roadmap with the milestones. It fails when it finds nothing to check. `cargo todo set`, `counts` and `next` write the record. `cargo todo remap FILE` moves the citations of an edited file by a line diff against `HEAD`, and lists for review each citation of a changed line. No dependencies. | Not a part of the `podssh` binary. `remap` needs `git`; `check` does not. |
 
 ## Build, tests, CI
 
 | What | Result | Command |
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
-| The default tests | **707 passed, 0 failed, 5 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
+| The default tests | **722 passed, 0 failed, 5 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
-| The work record | `TODO/` agrees with itself. The checker's tests pass: 7 unit tests, 30 plant tests (29 planted disagreements, each found, and the control), 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. | `cargo todo check`, `cargo test -p podssh-todo` |
+| The work record | `TODO/` agrees with itself. The checker's tests pass: 11 unit tests, 32 plant tests (the control, and 31 planted disagreements, each found), 9 tests of the remap, 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 7 of its 9 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |
 | The static release binary | **4,008,448 bytes**: a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
 | The container gate | **Green**: each build and test step; interop 98 of 98 (62 SSH checks, 25 keygen checks, 11 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
 | The no-C plant | Fails for the right reason when `ring` is planted (no C compiler), twice, and when a crate that compiles C++ is planted (it stops at `CXX=/nonexistent`). With `CC=/nonexistent` alone, the C++ build is not stopped there, so `CXX` is load-bearing. The control passes. Measured 2026-10-08 in `rust:1-alpine`. | `sh scripts/dev.sh plant` |

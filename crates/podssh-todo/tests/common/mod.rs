@@ -52,7 +52,7 @@ on two lines.
 
 ## Problem
 
-It fails.
+It fails; `crates/x/src/lib.rs:4` says \"line 4\".
 
 ## Premise
 

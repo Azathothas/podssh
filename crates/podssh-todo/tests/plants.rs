@@ -174,6 +174,22 @@ fn a_cited_line_must_exist() {
 }
 
 #[test]
+fn a_quote_that_the_cited_line_does_not_hold_is_found() {
+    let t = Tree::new("quote");
+    t.plant("TODO/area.md", "says \"line 4\"", "says \"line 9\"");
+    assert_found(&t, "`crates/x/src/lib.rs:4` says \"line 9\", but the cited lines do not hold that text");
+}
+
+#[test]
+fn a_quote_over_two_lines_of_a_range_holds() {
+    let t = Tree::new("quote-wrapped");
+    t.plant("TODO/area.md", "It fails; `crates/x/src/lib.rs:4` says \"line 4\".", "It fails; `crates/x/src/lib.rs:3-4` says \"line 3\nline 4\".");
+    assert_eq!(t.problems(), Vec::<String>::new());
+    t.plant("TODO/area.md", "says \"line 3\nline 4\"", "says \"line 3\nline 5\"");
+    assert_found(&t, "says \"line 3 line 5\", but the cited lines do not hold that text");
+}
+
+#[test]
 fn a_cited_path_must_have_its_exact_case() {
     let t = Tree::new("case");
     t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/X/src/lib.rs:3`.");

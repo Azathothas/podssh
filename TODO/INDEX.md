@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**249 entries: 235 open, 0 partial, 6 blocked, 8 done.**
+**249 entries: 234 open, 0 partial, 6 blocked, 9 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 5 | 0 | 0 | 4 | 9 |
-| P2 | 137 | 0 | 2 | 3 | 142 |
+| P2 | 136 | 0 | 2 | 4 | 142 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 235 | 0 | 6 | 8 | 249 |
+| **All** | 234 | 0 | 6 | 9 | 249 |
 
 ## Entries
 
@@ -320,7 +320,7 @@ repository and CI).
 | [T-246](repo.md) | P3 | S | none | chore | open | `scripts/dev.sh` excludes each file named `agents.md` from the container copy, with no reason given |
 | [T-247](repo.md) | P3 | S | none | chore | open | `podssh-cli` declares dependencies that it does not use |
 | [T-248](serve.md) | P2 | M | M5 | research | open | A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space |
-| [T-249](repo.md) | P2 | M | none | chore | open | A cited line that moved still exists, so the checker does not see a stale citation |
+| [T-249](repo.md) | P2 | M | none | chore | done | A cited line that moved still exists, so the checker does not see a stale citation |
 | [T-250](release.md) | P1 | M | M9 | release | open | Publish v1.0.0, the first stable release |
 | [T-251](release.md) | P1 | M | M9 | measurement | open | The check of a release from end to end, with no human |
 | [T-252](irc.md) | P2 | M | M8 | feature | open | `podssh chat --irc`: IRC as a second transport for chat |

@@ -37,8 +37,9 @@ pub fn check(root: &Path, r: &Record, p: &mut Vec<Problem>) {
     roadmap(root, r, p);
 }
 
-/// The Markdown files whose `T-NNN` references must resolve.
-fn documents(root: &Path) -> Vec<String> {
+/// The Markdown files whose `T-NNN` references must resolve, and whose
+/// citations `remap` moves.
+pub fn documents(root: &Path) -> Vec<String> {
     let mut out: Vec<String> = ["README.md", "AGENTS.md", "SECURITY.md"].iter().map(|s| s.to_string()).collect();
     for dir in ["TODO", "docs"] {
         walk(root, dir, &mut out);
@@ -86,9 +87,11 @@ pub fn citation(span: &str) -> Option<(&str, Option<usize>)> {
 }
 
 /// Each repository path in a code span of a record file exists, with the
-/// exact case of each name, and has the line that it names.
+/// exact case of each name, and has the line that it names. A citation that
+/// quotes its line (`` `FILE:N` says "TEXT" ``) holds that text there.
 fn citations(root: &Path, rel: &str, text: &str, p: &mut Vec<Problem>) {
-    for (no, line, fenced) in lines_with_fences(text) {
+    let lines = lines_with_fences(text);
+    for (k, &(no, line, fenced)) in lines.iter().enumerate() {
         if fenced {
             continue;
         }
@@ -98,14 +101,43 @@ fn citations(root: &Path, rel: &str, text: &str, p: &mut Vec<Problem>) {
                 p.push(Problem::new(rel, no, format!("`{path}` does not exist in this repository")));
                 continue;
             }
-            if let Some(n) = last {
-                let lines = fs::read_to_string(root.join(path)).map(|t| t.lines().count()).unwrap_or(0);
-                if n > lines {
-                    p.push(Problem::new(rel, no, format!("`{span}`: {path} has {lines} lines")));
-                }
+            let Some(n) = last else { continue };
+            let cited = fs::read_to_string(root.join(path)).unwrap_or_default();
+            let count = cited.lines().count();
+            if n > count {
+                p.push(Problem::new(rel, no, format!("`{span}`: {path} has {count} lines")));
+                continue;
+            }
+            let Some(quote) = quote_after(line, span, &lines[k + 1..]) else { continue };
+            let first: usize = span.rsplit(':').next().and_then(|s| s.split('-').next()).and_then(|s| s.parse().ok()).unwrap_or(n);
+            let (a, b) = (first.max(1), n.max(1));
+            let held: Vec<&str> = cited.lines().skip(a - 1).take(b.saturating_sub(a) + 1).collect();
+            if !squash(&held.join(" ")).contains(&squash(&quote)) {
+                p.push(Problem::new(rel, no, format!("`{span}` says \"{quote}\", but the cited lines do not hold that text")));
             }
         }
     }
+}
+
+/// The text that a citation quotes: `` `SPAN` says "TEXT" ``, where TEXT
+/// can go on over the next two lines of the paragraph.
+fn quote_after(line: &str, span: &str, next: &[(usize, &str, bool)]) -> Option<String> {
+    let at = line.find(&format!("`{span}` says \""))? + span.len() + 9;
+    let mut quote = line[at..].to_string();
+    for &(_, more, fenced) in next.iter().take(2) {
+        if quote.contains('"') || fenced || more.trim().is_empty() {
+            break;
+        }
+        quote.push(' ');
+        quote.push_str(more.trim());
+    }
+    let end = quote.find('"')?;
+    Some(quote[..end].to_string())
+}
+
+/// A text with each run of white space made one space.
+fn squash(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// True when each part of `rel` exists with exactly that name, so that a

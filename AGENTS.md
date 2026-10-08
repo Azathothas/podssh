@@ -220,7 +220,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 10. Do not change the files in `.tmp/`. They are read-only copies of other
     projects. Make sure that a copy exists before you use it.
 11. When you edit a document or a file that entries of `TODO/` cite at a
-    line, move those citations in the same change
+    line, move those citations in the same change: `cargo todo remap FILE`
     ([TODO/RULES.md](TODO/RULES.md)).
 
 ## 7. Map

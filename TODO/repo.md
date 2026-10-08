@@ -337,7 +337,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:230-256`): the
+5. docs/development.md, "Release builds" (`docs/development.md:231-257`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -908,7 +908,7 @@ Read:
    with all features (the fork comes with `ts`).
 3. Notices: make a file of third-party licenses for each release (cargo-about,
    a Rust tool), publish it with the binaries, and name it in the notes.
-4. docs/development.md, "Checks" (`docs/development.md:67-76`): the command.
+4. docs/development.md, "Checks" (`docs/development.md:67-77`): the command.
    `SECURITY.md`: how an advisory is handled.
 
 ## Decision
@@ -1090,7 +1090,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:91-93` states the rule with `CXX`, and
+- `docs/development.md:92-94` states the rule with `CXX`, and
   `docs/STATUS.md:204` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -1485,7 +1485,7 @@ Read:
 - `.gitignore` (lines 16-18) keeps a root `/agents.md` out of git, as "a
   lowercase duplicate of AGENTS.md created by the filesystem".
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
-  with no word (`crates/podssh-todo/src/refs.rs:41-46`). It accepts
+  with no word (`crates/podssh-todo/src/refs.rs:42-47`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
   container (`scripts/gate.sh:74-77`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
@@ -1504,7 +1504,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:126-127` lists what the containers do not get; name
+5. `docs/development.md:127-128` lists what the containers do not get; name
    each excluded pattern there.
 
 ## Prove
@@ -1594,7 +1594,7 @@ failure.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1605,7 +1605,7 @@ starts the work from a false premise.
 
 ## Premise
 
-- Read: `citations` (`crates/podssh-todo/src/refs.rs:90-111`) tests that the
+- Read: `citations` (`crates/podssh-todo/src/refs.rs:92-120`) tests that the
   path exists with its exact case, and that the last line is not past the end
   of the file. It does not test what the line says.
 - Measured on 2026-10-08: a script outside the repository moved the
@@ -1635,6 +1635,26 @@ work by hand that left the 12 citations stale; the quote check guards the
 claims that matter. A hash of each cited line, written into the entry, lost:
 it makes the entries hard to read and to write.
 
+The session that built it (2026-10-08) made these calls:
+
+- **When.** Done after T-005 and before the other entries of M3: the work
+  order puts the `none` entries between milestone entries, and each later
+  change needs its citations moved. T-005 alone moved 69 by hand, and a
+  second edit after a first remap moved some of them twice.
+- **A second run is safe.** A line of a document is rebuilt from the same
+  line in `HEAD` (the same text with the numbers of each citation set aside,
+  also of the files that the run does not move), so a run after a second
+  edit starts from `HEAD`'s numbers, not from the numbers of the first run. Moving from the numbers in the working tree lost: it moves a citation
+  again on each run. A citation that cannot move keeps the numbers that it
+  has now, so a citation that a person moved by hand stays.
+- **All documents, and the bare `:N`.** The remap moves citations in `docs/`
+  and the root documents too, and a bare `:N` that follows a citation of the
+  file in its paragraph (the record writes `` `FILE:12` and `:40` ``). Only
+  `TODO/`, as the Approach says, lost: a stale citation in `docs/` misleads
+  as much.
+- **A line diff of its own** (`crates/podssh-todo/src/diff.rs`): the longest
+  common subsequence after the common head and tail, with no dependency.
+
 ## Prove
 
 ```sh
@@ -1645,3 +1665,27 @@ cargo todo remap docs/ROADMAP.md         # on a clean tree: nothing moves
 
 Planted defects: add a line above a cited line and skip the remap, then
 change a quoted line; each test that guards it fails.
+
+## Done
+
+2026-10-08, in the commit "podssh-todo: remap moves the citations of an
+edited file; a quote must hold". Measured on Windows:
+
+- `cargo test -p podssh-todo`: 60 passed: 11 unit tests (4 of the line
+  diff), 32 plant tests (the control and 31 plants, among them a quote that
+  its line does not hold, and a quote over two lines), 9 tests of the
+  remap, 7 tests of the writer, and the test of this record.
+  `cargo clippy -p podssh-todo --all-targets -- -D warnings`: no warning.
+- Planted: a remap that never moves fails 7 of the 9 remap tests (the two
+  that pass expect no move); a quote check that never fires fails both quote
+  tests; a key that sets aside only the numbers of the moved file fails the
+  test of a line that cites two files.
+- On the real edits of `d272ebb`, in a worktree at its parent with only the
+  edited files taken from it, one run of `cargo todo remap` with the six
+  files moved 67 citations and listed 11 for review. The result is the same
+  as the citations of `d272ebb` except for those 11, where `d272ebb` has the
+  moves made by hand. (One run moves each file of a line at once, so this
+  measurement does not depend on the key of the two-file test.)
+- `cargo todo remap docs/ROADMAP.md`: "moved 0 citations; 0 to review".
+- `TODO/RULES.md`, `AGENTS.md` (rule 11) and `docs/development.md` name the
+  command.

@@ -1,4 +1,5 @@
 # `cargo todo check` reads the work record in TODO/; `cargo todo set T-NNN STATUS`
-# moves a status and derives the counts (see TODO/RULES.md).
+# moves a status and derives the counts; `cargo todo remap FILE` moves the
+# citations of an edited file (see TODO/RULES.md).
 [alias]
 todo = "run -q -p podssh-todo --"

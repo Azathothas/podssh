@@ -1,6 +1,6 @@
 [package]
 name = "podssh-todo"
-description = "The checker of the work record in TODO/: a reader that the gate runs, and a writer that moves a status and derives the counts."
+description = "The checker of the work record in TODO/: a reader that the gate runs, and a writer that moves a status, derives the counts and moves the citations of an edited file."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

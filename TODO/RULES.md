@@ -101,9 +101,16 @@ entry that large is two entries.
 
 ### Citations move with their documents
 
-When you edit a document or a file that entries cite at a line, move those
-citations in the same change. The checker tests only that the line exists
-(T-249).
+When you edit a document or a file that entries cite at a line, run
+`cargo todo remap FILE...` on it in the same change. It moves each citation
+of FILE in the documents by a line diff against `HEAD`, also a bare `:N`
+after a citation of FILE. It does not move a citation of a line that the
+change removed or changed: it lists it for review, and you move it by hand.
+It starts from `HEAD` each time, so run it again after each later edit.
+
+The checker tests that each cited line exists, and that a citation which
+quotes its line (`` `FILE:N` says "TEXT" ``) holds that text there. Quote the
+lines that a claim depends on.
 
 ## 3. Decisions that are not discussed again
 

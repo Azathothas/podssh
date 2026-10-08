@@ -4,12 +4,15 @@
 //! work order (`TODO/PROGRESS.md`) and the entries (`TODO/<area>.md`).
 //! Closing one entry moves several numbers in two files, so no number is
 //! typed by hand: the writer moves a status and derives the counts, and the
-//! reader, which the gate runs, checks that the files agree.
+//! reader, which the gate runs, checks that the files agree. When a cited
+//! file changes, `remap` moves its citations by a line diff against `HEAD`.
 
 pub mod check;
+pub mod diff;
 pub mod model;
 pub mod parse;
 pub mod refs;
+pub mod remap;
 pub mod write;
 
 use std::path::{Path, PathBuf};
@@ -18,6 +21,7 @@ pub const USAGE: &str = "usage: podssh-todo check
        podssh-todo set T-NNN open|partial|blocked|done
        podssh-todo counts
        podssh-todo next
+       podssh-todo remap [--dry-run] FILE...   (after an edit of FILE: move its citations by a diff against HEAD)
 Options: --root DIR (default: the nearest directory above the current one with TODO/INDEX.md)";
 
 /// The nearest directory at or above `start` that has `TODO/INDEX.md`.
@@ -74,7 +78,53 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
                 1
             }
         },
+        ["remap", rest @ ..] => {
+            let dry = rest.iter().any(|w| *w == "--dry-run" || *w == "-n");
+            let files: Vec<String> = rest.iter().filter(|w| !w.starts_with('-')).map(|w| w.to_string()).collect();
+            if files.is_empty() || rest.iter().any(|w| w.starts_with('-') && *w != "--dry-run" && *w != "-n") {
+                return usage(err, "remap needs one FILE or more, and takes only --dry-run");
+            }
+            remap_command(&root, &files, dry, out, err)
+        }
         _ => usage(err, "unknown command"),
+    }
+}
+
+/// Move the citations of `files`, print what moved and what a person must
+/// read, then check the record (unless nothing was written).
+fn remap_command(root: &Path, files: &[String], dry: bool, out: &mut dyn std::io::Write, err: &mut dyn std::io::Write) -> i32 {
+    let head = |rel: &str| remap::git_head(root, rel);
+    let r = match remap::remap(root, files, &head, !dry) {
+        Ok(r) => r,
+        Err(e) => {
+            let _ = writeln!(err, "podssh-todo: remap: {e}");
+            return 1;
+        }
+    };
+    for line in &r.notes {
+        let _ = writeln!(out, "note: {line}");
+    }
+    for line in &r.moved {
+        let _ = writeln!(out, "moved: {line}");
+    }
+    for line in &r.kept {
+        let _ = writeln!(out, "kept (new in this change): {line}");
+    }
+    for line in &r.review {
+        let _ = writeln!(out, "REVIEW: {line}");
+    }
+    let verb = if dry { "would move" } else { "moved" };
+    let _ = writeln!(
+        out,
+        "podssh-todo: remap: {verb} {} citations; {} to review; {} on new lines kept",
+        r.moved.len(),
+        r.review.len(),
+        r.kept.len()
+    );
+    if dry {
+        0
+    } else {
+        report(root, out, err)
     }
 }
 
