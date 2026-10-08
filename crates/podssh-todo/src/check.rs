@@ -74,8 +74,17 @@ pub fn load(root: &Path, problems: &mut Vec<Problem>) -> Option<Record> {
     Some(Record { rows, entries, index, progress })
 }
 
-/// Run every check of the reader on the tree at `root`.
+/// Run every check of the reader on the tree at `root`, and, when git can
+/// say which files changed since `HEAD`, the check that no citation of them
+/// was left behind by a forgotten `remap`.
 pub fn check(root: &Path) -> Report {
+    let head = |rel: &str| crate::remap::git_head(root, rel);
+    check_with(root, crate::remap::changed_since_head(root), &head)
+}
+
+/// [`check`], given the files changed since `HEAD` (`None`: unknown) and
+/// their texts in `HEAD`, so a test needs no git.
+pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap::Head) -> Report {
     let mut problems = Vec::new();
     let Some(record) = load(root, &mut problems) else {
         return Report { problems, counts: Counts::default() };
@@ -90,7 +99,27 @@ pub fn check(root: &Path) -> Report {
     }
     check_counts(&record, &mut problems);
     crate::refs::check(root, &record, &mut problems);
+    if let Some(files) = changed.filter(|f| !f.is_empty()) {
+        unmoved(root, &files, head, &mut problems);
+    }
     Report { problems, counts: Counts::of(&record.rows, None) }
+}
+
+/// A citation of a file that changed since `HEAD` which a remap would still
+/// move: the file was edited and its citations were not moved, so they name
+/// other lines now. The check of a cited line cannot see this, because the
+/// line still exists. A citation that a person must read is not counted:
+/// only `remap` decides those, and it lists them.
+fn unmoved(root: &Path, files: &[String], head: &crate::remap::Head, p: &mut Vec<Problem>) {
+    let Ok(r) = crate::remap::remap(root, files, head, false) else { return };
+    for moved in r.moved {
+        let Some((at, rest)) = moved.split_once(": ") else { continue };
+        let path = rest.split(' ').next().unwrap_or(rest);
+        p.push(Problem {
+            at: at.to_string(),
+            what: format!("cites {rest}, as {path} changed since HEAD: run `cargo todo remap {path}`"),
+        });
+    }
 }
 
 fn check_rows(rows: &[Row], p: &mut Vec<Problem>) {

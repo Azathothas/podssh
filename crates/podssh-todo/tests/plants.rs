@@ -249,3 +249,18 @@ fn a_blocker_on_an_open_entry_is_found() {
     t.plant("TODO/INDEX.md", "**3 entries: 1 open, 0 partial, 1 blocked", "**3 entries: 2 open, 0 partial, 0 blocked");
     assert_found(&t, "a `## Blocker` on an entry that is open");
 }
+
+#[test]
+fn a_range_that_ends_before_it_starts_is_found() {
+    // A remap that moved only the start of a range left `155-154` once (T-254).
+    let t = Tree::new("range-backwards");
+    t.plant("TODO/area.md", "`crates/x/src/lib.rs:2-4`", "`crates/x/src/lib.rs:4-2`");
+    assert_found(&t, "`crates/x/src/lib.rs:4-2`: a range runs from line 1 or later");
+}
+
+#[test]
+fn a_line_0_is_found() {
+    let t = Tree::new("line-zero");
+    t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/x/src/lib.rs:0`.");
+    assert_found(&t, "`crates/x/src/lib.rs:0`: a range runs from line 1 or later");
+}

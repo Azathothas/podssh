@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 204 open, 0 partial, 7 blocked, 39 done.**
+**251 entries: 204 open, 0 partial, 7 blocked, 40 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 109 | 0 | 3 | 31 | 143 |
+| P2 | 109 | 0 | 3 | 32 | 144 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 204 | 0 | 7 | 39 | 250 |
+| **All** | 204 | 0 | 7 | 40 | 251 |
 
 ## Entries
 
@@ -325,3 +325,4 @@ repository and CI).
 | [T-251](release.md) | P1 | M | M9 | measurement | open | The check of a release from end to end, with no human |
 | [T-252](irc.md) | P2 | M | M8 | feature | open | `podssh chat --irc`: IRC as a second transport for chat |
 | [T-253](relay.md) | P2 | M | backlog | defect | blocked | The relay's egress reaches no IPv6 host |
+| [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |

@@ -6,6 +6,7 @@ mod common;
 use std::collections::HashMap;
 
 use common::{Tree, SOURCE};
+use podssh_todo::check::check_with;
 use podssh_todo::remap::{remap, Report};
 
 const LIB: &str = "crates/x/src/lib.rs";
@@ -193,4 +194,31 @@ line 0
     let notes = t.read("docs/notes.md");
     assert!(notes.contains("`crates/x/src/lib.rs:3` and `crates/x/src/two.rs:5`"), "{notes}");
     assert!(r.kept.is_empty(), "{r:#?}");
+}
+
+/// A cited file edited with no remap: the check names each citation that
+/// would move, with the command. After the remap it agrees, and with no git
+/// (`None`) it says nothing of the kind.
+#[test]
+fn an_edit_with_no_remap_is_found_by_the_check() {
+    let t = Tree::new("remap-forgotten");
+    let head = snapshot(&t);
+    t.write(LIB, &format!("line 0\n{SOURCE}"));
+    let get = |rel: &str| Ok::<_, String>(head.get(rel).cloned());
+    let forgotten = |changed: Option<Vec<String>>| -> Vec<String> {
+        check_with(t.path(), changed, &get)
+            .problems
+            .iter()
+            .map(|p| p.to_string())
+            .filter(|p| p.contains("cargo todo remap"))
+            .collect()
+    };
+    let found = forgotten(Some(vec![LIB.to_string()]));
+    assert_eq!(found.len(), 3, "{found:#?}");
+    assert!(found[0].starts_with("TODO/area.md:"), "{found:#?}");
+    assert!(found.iter().all(|p| p.contains("run `cargo todo remap crates/x/src/lib.rs`")), "{found:#?}");
+    assert!(forgotten(None).is_empty(), "no git: nothing to say");
+
+    remap(t.path(), &[LIB.to_string()], &get, true).unwrap();
+    assert!(forgotten(Some(vec![LIB.to_string(), "TODO/area.md".to_string()])).is_empty());
 }

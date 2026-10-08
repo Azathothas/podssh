@@ -102,6 +102,13 @@ fn citations(root: &Path, rel: &str, text: &str, p: &mut Vec<Problem>) {
                 continue;
             }
             let Some(n) = last else { continue };
+            let first: usize = span.rsplit(':').next().and_then(|s| s.split('-').next()).and_then(|s| s.parse().ok()).unwrap_or(n);
+            // A range that ends before it starts, or a line 0, names no line:
+            // a half-moved range looks like this.
+            if first == 0 || first > n {
+                p.push(Problem::new(rel, no, format!("`{span}`: a range runs from line 1 or later to a line at or after its start")));
+                continue;
+            }
             let cited = fs::read_to_string(root.join(path)).unwrap_or_default();
             let count = cited.lines().count();
             if n > count {
@@ -109,7 +116,6 @@ fn citations(root: &Path, rel: &str, text: &str, p: &mut Vec<Problem>) {
                 continue;
             }
             let Some(quote) = quote_after(line, span, &lines[k + 1..]) else { continue };
-            let first: usize = span.rsplit(':').next().and_then(|s| s.split('-').next()).and_then(|s| s.parse().ok()).unwrap_or(n);
             let (a, b) = (first.max(1), n.max(1));
             let held: Vec<&str> = cited.lines().skip(a - 1).take(b.saturating_sub(a) + 1).collect();
             if !squash(&held.join(" ")).contains(&squash(&quote)) {

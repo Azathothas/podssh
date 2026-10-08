@@ -1617,7 +1617,7 @@ starts the work from a false premise.
 
 ## Premise
 
-- Read: `citations` (`crates/podssh-todo/src/refs.rs:92-120`) tests that the
+- Read: `citations` (`crates/podssh-todo/src/refs.rs:92-126`) tests that the
   path exists with its exact case, and that the last line is not past the end
   of the file. It does not test what the line says.
 - Measured on 2026-10-08: a script outside the repository moved the
@@ -1710,3 +1710,85 @@ edited file; a quote must hold". Measured on Windows:
   now takes the earliest place that the same text allows. Each repair has a
   test that fails on the old code (`cargo test -p podssh-todo`: 12 unit
   tests, 10 remap tests).
+
+# T-254: `cargo todo check` passes when a cited file was edited and `remap` was not run
+
+**Source:** the session of 2026-10-09 (T-063). 45 citations of `docs/STATUS.md` named the wrong
+rows, one or two lines off, with no failure.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+T-249 gave the record `cargo todo remap`, which moves the citations of an edited file. It runs
+only when the writer remembers it. When it is forgotten, each citation of the file still names a
+line that exists, so `cargo todo check` passes, and the citations name other lines from then on.
+
+## Premise
+
+Measured on 2026-10-09: rows were inserted into `docs/STATUS.md` by earlier changes (the command
+table, then a row of the doctor) without a remap of that file. 45 citations of it named a
+neighbouring row: the entries of IRC named the row of `podssh-cli` instead of `podssh-core`, and
+those of Tailscale the row of `podssh-core`. Each one was found by tracing its line through the
+history of its file to the row that it named when it was written. The check of a cited line
+(`crates/podssh-todo/src/refs.rs`) tests that the line exists; a quote is checked only where an
+entry quotes.
+
+## Approach
+
+1. `cargo todo check` asks git for the files that differ from `HEAD` (`git diff --name-only
+   HEAD`), runs `remap` on them without writing, and reports each citation that would still move,
+   with the command that moves it.
+2. A citation that `remap` lists for review is not a failure: only a person can decide it, and
+   `remap` lists it already.
+3. With no git, no repository or no `HEAD`, the check is skipped, and the rest of `check` needs no
+   git, as before.
+4. A test with the texts of `HEAD` given, as the tests of `remap` do; a plant on this repository.
+5. Refuse a range that ends before it starts, and a line 0: the repair of this entry once left
+   `155-154`, which the check of a cited line passed.
+
+## Decision
+
+2026-10-09: `check` uses git when it can, which T-249 kept out of `check`. A check that runs only
+when a writer remembers to run it is the defect itself, and `check` is what the procedure runs
+before each commit. Lost: a hook before each commit, which a fresh clone does not install; a
+second command, which is as easy to forget as `remap`. In CI the committed tree equals `HEAD`, so
+the check finds nothing there; it guards the change before its commit.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-todo --test remap -- an_edit_with_no_remap_is_found_by_the_check
+cargo test -p podssh-todo
+cargo clippy -p podssh-todo --all-targets -- -D warnings
+```
+
+Plant on this repository: one line added at the top of a cited file, with no remap; `cargo todo
+check` must exit 1 and name each citation of it, and exit 0 again when the file is restored.
+
+## Done
+
+2026-10-09, in the commit "cargo todo check finds a citation that a forgotten remap left".
+
+- `crates/podssh-todo/src/remap.rs`: `changed_since_head` (the files that differ from `HEAD` and
+  exist; `None` when git cannot say). `crates/podssh-todo/src/check.rs`: `check` passes them to
+  `check_with`, which runs `remap` without writing and reports each citation that would move:
+  "cites FILE N -> M, as FILE changed since HEAD: run `cargo todo remap FILE`".
+- `crates/podssh-todo/src/refs.rs`: a citation whose range ends before it starts, or that names
+  line 0, is a problem; two plant tests.
+- `TODO/RULES.md` (citations), `docs/development.md` (checks) and the rows of `podssh-todo` and of
+  the work record in `docs/STATUS.md` say so.
+- Prove: `cargo test -p podssh-todo --test remap -- an_edit_with_no_remap_is_found_by_the_check`:
+  1 passed (three citations found with the command; none with no git; none after the remap).
+  `cargo test -p podssh-todo`: 65 passed. `cargo clippy -p podssh-todo --all-targets -- -D
+  warnings`: no warning. `cargo test --no-fail-fast`: 795 passed, 0 failed, 7 ignored.
+- Plants: a range `4-2` and a line `0`, planted in the record of
+  `crates/podssh-todo/tests/plants.rs`, are found.
+  `// planted` added at the top of `crates/podssh-ws/src/names.rs` with no remap: `cargo
+  todo check` exited 1 with 6 problems, one for each citation of the file, each naming `cargo todo
+  remap crates/podssh-ws/src/names.rs`; restored, it exited 0. While this entry was written, the
+  check found its own missing remap of `crates/podssh-todo/src/refs.rs`.

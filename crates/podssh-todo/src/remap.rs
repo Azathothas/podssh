@@ -66,6 +66,23 @@ pub fn git_head(root: &Path, rel: &str) -> Result<Option<String>, String> {
     }
 }
 
+/// The files of the tree that differ from `HEAD` and still exist, by
+/// `git diff --name-only HEAD`; `None` when git cannot say (no git, no
+/// repository, no `HEAD`).
+pub fn changed_since_head(root: &Path) -> Option<Vec<String>> {
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(root)
+        .args(["diff", "--name-only", "HEAD", "--"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(out.stdout).ok()?;
+    Some(text.lines().filter(|l| !l.is_empty() && root.join(l).is_file()).map(str::to_string).collect())
+}
+
 /// Move the citations of `files` in each document. With `write` false,
 /// only report what would move.
 pub fn remap(root: &Path, files: &[String], head: &Head, write: bool) -> Result<Report, String> {

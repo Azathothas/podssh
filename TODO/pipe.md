@@ -382,7 +382,7 @@ running on the server (`docs/design.md:207-209`).
   each session (`crates/podssh-ssh/src/session.rs:82-98`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:147-153`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:155-154`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:155-156`).
 - Read: tmux is never assumed (`docs/target-environment.md:90-92`).
 
 ## Approach

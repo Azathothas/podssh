@@ -70,7 +70,7 @@ No script changes this file.
 python scripts/check-repo.py        # 500-line rule, doc links, credentials, LF in shell scripts
 python scripts/check-scripts.py     # shell scripts parse under dash
 python scripts/check-relay-spec.py  # the live relay still matches what podssh uses
-cargo todo check                    # the work record in TODO/ agrees: counts, statuses, cited paths and lines
+cargo todo check                    # the work record in TODO/ agrees: counts, statuses, cited paths and lines, no citation left unmoved
 cargo todo remap FILE...            # after an edit of FILE: move its citations by a diff against HEAD
 ```
 
