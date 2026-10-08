@@ -304,6 +304,8 @@ pub const MAN_FLAGS: &[FlagRow] = &[
         "write the whole manual to stdout; never page, even on a terminal", None),
     row(None, "roff", None, FlagKind::Supported,
         "write the manual as a man(7) page instead of text, for man -l; never paged", None),
+    row(None, "json", None, FlagKind::Supported,
+        "write the tables (commands, flags, keywords, variables, files, exit codes) as JSON; never paged", None),
 ];
 
 /// ⛔ **`relay` (E35).**

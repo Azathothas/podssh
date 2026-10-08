@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:386-413`).
+  row (`crates/podssh-cli/src/flags.rs:388-415`).
 - Read: the only pump is `crates/podssh-cli/src/proxy.rs:183-275`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,12 +37,12 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:386-413`, two
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:388-415`, two
    required positionals (`crates/podssh-cli/src/positionals.rs:7-64`), a
-   `Parsed::Pipe` variant (`crates/podssh-cli/src/tree.rs:104-210`), a
+   `Parsed::Pipe` variant (`crates/podssh-cli/src/tree.rs:104-212`), a
    dispatch arm, and `pipe` in `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:95`). No `--timeout` row: the
-   gate at `crates/podssh-cli/src/dispatch.rs:192-205` would require it.
+   gate at `crates/podssh-cli/src/dispatch.rs:193-206` would require it.
 2. The grammar, in a new crates/podssh-cli/src/pipe/address.rs: `KIND:REST`.
    An unknown kind exits 64 and lists the kinds. `-` is `stdio`; `stdio` on
    both sides exits 64. Invariant: both addresses are valid before anything
@@ -163,7 +163,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:177`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:185`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:115-163` a typed error, so that 77 is not
    guessed from a message.
@@ -300,7 +300,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:252-254`).
 2. podssh listens only for a `-listen:` address that the user gives.
    `PODSSH_LISTEN=no` turns listening off: each such address then exits 78
    before any bind. Add the variable to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:48-90`); the settings file of T-048
+   (`crates/podssh-cli/src/man/facts.rs:45-87`); the settings file of T-048
    can set the same.
 3. The attempt is the probe: socket, bind, listen. EACCES or EPERM exits 77
    with the errno and an address that needs no listener; another error exits
@@ -405,7 +405,7 @@ running on the server (`docs/design.md:207-209`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:187-189`). After the attach, send the window size again.
+   (`docs/cli.md:195-197`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes.rs:19-51`), `docs/design.md:207-209`,
    `docs/STATUS.md`, and tmux in the interop image

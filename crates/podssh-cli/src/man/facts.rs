@@ -3,10 +3,7 @@
 //! check the variables against the source, and the exit codes against the
 //! constants that the commands return.
 
-use std::path::Path;
-
 use super::model::{Block, Section, Span};
-use crate::exitmap::sysexits;
 
 fn lit(t: impl Into<String>) -> Span {
     Span::Lit(t.into())
@@ -93,55 +90,11 @@ fn environment() -> Vec<Block> {
     VARIABLES.iter().map(|(n, what)| item(names(n), *what)).collect()
 }
 
-fn path_text(p: &Path) -> String {
-    p.display().to_string()
-}
-
 fn files() -> Vec<Block> {
-    let home = Path::new("~");
-    let ids: Vec<String> = podssh_ssh::options::default_identity_files(home).iter().map(|p| path_text(p)).collect();
-    let user_kh: Vec<String> = podssh_ssh::options::default_user_known_hosts(home).iter().map(|p| path_text(p)).collect();
-    let global_kh: Vec<String> = if cfg!(windows) {
-        vec![r"%ProgramData%\ssh\ssh_known_hosts".to_string()]
-    } else {
-        podssh_ssh::options::default_global_known_hosts().iter().map(|p| path_text(p)).collect()
-    };
-    let as_refs = |v: &[String]| -> Vec<Span> { names(&v.iter().map(String::as_str).collect::<Vec<_>>()) };
-    let cache = if cfg!(windows) {
-        r"%LOCALAPPDATA%\podssh, else podssh-USER in the temporary directory, else .podssh in the working directory"
-    } else {
-        "$XDG_CACHE_HOME/podssh (else ~/.cache/podssh), else $TMPDIR/podssh-UID (else /tmp), else \
-         /dev/shm/podssh-UID, else ./.podssh"
-    };
-    vec![
-        item(as_refs(&ids), "The identity files tried, in this order, when no -i or IdentityFile is given."),
-        item(
-            as_refs(&user_kh),
-            "The user's known hosts. podssh records a new host key in the first file (mode 0600, in a \
-             directory of mode 0700). With no home directory, a new key is accepted but not recorded.",
-        ),
-        item(as_refs(&global_kh), "The system's known hosts. podssh only reads them."),
-        item(
-            vec![lit(cache)],
-            format!(
-                "The cache: the first of these directories that podssh can use. It holds one relay token for \
-                 each relay deployment, with the host that minted it ({} for the default relay), and the \
-                 relay's list of hosts ({}). Each file has mode 0600. \
-                 podssh ignores a cache file that is a symbolic link, that belongs to another user, or that \
-                 others can read.",
-                podssh_relay::cache::file_name(podssh_relay::DEFAULT_RELAY_HOST),
-                podssh_relay::pool::file_name(podssh_relay::DEFAULT_RELAY_HOST)
-            ),
-        ),
-        item(
-            vec![lit(podssh_ws::bundle::BUNDLE_FILE_NAME)],
-            "CA certificates in the directory of the podssh binary, added to the trust store.",
-        ),
-        item(
-            names(podssh_ws::tls::SYSTEM_BUNDLES),
-            "The system CA bundles. The first one that podssh can read is added to the trust store.",
-        ),
-    ]
+    super::data::files()
+        .into_iter()
+        .map(|(list, what)| item(names(&list.iter().map(String::as_str).collect::<Vec<_>>()), what))
+        .collect()
 }
 
 fn relay() -> Vec<Block> {
@@ -237,52 +190,22 @@ fn relay() -> Vec<Block> {
 
 /// The exit codes, from the constants that the commands return.
 fn exit_status() -> Vec<Block> {
-    let code = |n: i32| vec![lit(n.to_string())];
-    vec![
-        item(code(0), "Success. For podssh ssh: the remote command exited 0."),
-        item(
-            code(crate::doctor::EXIT_FAILED),
-            "podssh doctor: a check failed. podssh keygen: a key could not be made or read.",
-        ),
-        item(
-            code(crate::exit_codes::EXIT_USAGE),
-            "A usage error: an unknown command or flag, a bad value, a missing argument. podssh did nothing.",
-        ),
-        item(
-            code(sysexits::EX_UNAVAILABLE),
-            "podssh proxy: no relay host could be reached, or the relay ended the session abnormally.",
-        ),
-        item(
-            code(crate::exit_codes::EXIT_NOT_IMPLEMENTED),
-            "The command is not implemented yet, or podssh failed inside.",
-        ),
-        item(
-            code(sysexits::EX_NOPERM),
-            "podssh proxy: the relay or the proxy refused (a token, a blocked address, a proxy's 403 or 407).",
-        ),
-        item(
-            code(sysexits::EX_CONFIG),
-            "A setting of the environment cannot be used: PODSSH_RELAY or PODSSH_RELAY_ADDR (podssh ssh, \
-             proxy and doctor). For podssh proxy also a proxy URL that is not http://, or a \
-             PODSSH_RELAY_TOKEN that is not a token. The same value as a flag is a usage error (64).",
-        ),
-        item(
-            code(podssh_ssh::EXIT_FAILURE),
-            "podssh ssh: the connection, the host key or the authentication failed, or the session ended \
-             with no exit status. OpenSSH uses the same code.",
-        ),
-        item(
-            vec![Span::Var("N".into())],
-            "podssh ssh: the exit status of the remote command, unchanged. When signal N stopped the \
-             command, 128 + N.",
-        ),
-    ]
+    super::data::exit_codes()
+        .into_iter()
+        .map(|(code, what)| {
+            let term = match code {
+                super::data::Code::Value(n) => vec![lit(n.to_string())],
+                super::data::Code::Remote => vec![Span::Var("N".into())],
+            };
+            item(term, what)
+        })
+        .collect()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
 
     fn crate_dir(name: &str) -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join(name).join("src")

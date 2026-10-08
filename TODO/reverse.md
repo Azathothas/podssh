@@ -65,7 +65,7 @@ sends fixed headers, and `https_request`, which takes headers, is private
 8. Use the control host only (`tcp.ssh.relay.ajam.dev`, or one host that the user names). No failover
    to pool hosts until a measurement shows that they serve `/v1/*`.
 9. In the same commit: `docs/relay.md:192-214`, `docs/reverse.md:46-53`, and the FILES section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:100`).
+   manual (`crates/podssh-cli/src/man/facts.rs:93`).
 
 ## Prove
 
@@ -316,7 +316,7 @@ unused. Two crates for one protocol drift: they already disagree on the backoff 
 ## Premise
 
 Read: about 600 lines of `podssh-transport` are used outside its tests (the former defects page),
-and `docs/STATUS.md:208` gives 2.8k source and 2.2k test lines. Only examples use it:
+and `docs/STATUS.md:209` gives 2.8k source and 2.2k test lines. Only examples use it:
 `crates/podssh-cli/examples/live_irc.rs:20-22`, `crates/podssh-cli/examples/live_irc/support.rs:11-16`
 and `crates/podssh-transport/examples/live_forward.rs:23-25`; `podssh-cli` depends on it
 (`crates/podssh-cli/Cargo.toml:34`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
@@ -344,7 +344,7 @@ and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs
    the crate: `Cargo.toml:6`, `Cargo.toml:24`, `Cargo.toml:55-58`, `crates/podssh-cli/Cargo.toml:34`,
    `scripts/gate.sh:61`, `scripts/plant.sh:39`.
 6. Update in the same commit: `AGENTS.md:188-190` and `AGENTS.md:234`, `docs/architecture.md:75` and
-   `:92-102`, `docs/development.md:13-14` and `:240`, `docs/STATUS.md:205`, `:207` and `:217`. The list
+   `:92-102`, `docs/development.md:13-14` and `:240`, `docs/STATUS.md:206`, `:208` and `:218`. The list
    of library crates in `docs/decisions.md:34` is a fact of a decision row: correct it, and move the
    old text to Superseded (the operator's ruling of 2026-10-08).
 
@@ -392,10 +392,10 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, stdin from `/dev/null`):
 `podssh node --help` shows `podssh node NAME` and only `--help`; `podssh relay pair` gives the `--timeout`
 refusal of T-008 (exit 64), and `podssh relay --timeout 5s pair` exit 70.
 
-Read: `node` has no flags (`crates/podssh-cli/src/flags.rs:391-392`) and one positional, `NAME`
+Read: `node` has no flags (`crates/podssh-cli/src/flags.rs:393-394`) and one positional, `NAME`
 (`crates/podssh-cli/src/positionals.rs:42`). `relay` lists `pair` and `revoke` (`:39-41` there), and its
-`--relay-host` takes a URL, not the `HOSTS` list of the other verbs (`crates/podssh-cli/src/flags.rs:309-317`).
-Both are rows of `VERB_OWNER` (`crates/podssh-cli/src/flags.rs:424-432`).
+`--relay-host` takes a URL, not the `HOSTS` list of the other verbs (`crates/podssh-cli/src/flags.rs:311-319`).
+Both are rows of `VERB_OWNER` (`crates/podssh-cli/src/flags.rs:426-434`).
 
 Read: the relay names an agent-created pair; only an admitted name is chosen, by the relay's operator
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:90-91`, `:130-134`). In the measured sandbox
@@ -406,7 +406,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
 ## Approach
 
 1. Parse `podssh node NAME TARGET`: NAME is a local label, TARGET is `HOST:PORT`
-   (`crates/podssh-cli/src/positionals.rs:42`). Flags (`crates/podssh-cli/src/flags.rs:391-392`):
+   (`crates/podssh-cli/src/positionals.rs:42`). Flags (`crates/podssh-cli/src/flags.rs:393-394`):
    `--relay-host HOST` (one host, T-078), `--relay-addr`, `--ca-file`, and `--pair-file FILE` to import a pair.
    No `--timeout`: a node is a service.
 2. Load the pair stored under NAME (T-078); refuse an expired one with the remedy; then run `node::run` (T-079)
@@ -415,18 +415,18 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:177`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:185`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
-   `crates/podssh-cli/src/man/facts.rs:239`.
+   `crates/podssh-cli/src/man/facts.rs:192`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
    `crates/podssh-cli/src/doctor/relay_checks.rs:39-64` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:95`). New variables go in `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:48`), files in FILES (`:100` there), examples in
+   (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:93` there), examples in
    `crates/podssh-cli/src/man/examples.rs:8-42`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md:48-50`.
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
-   T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:41`), so keep the two apart. Never
+   T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:38`), so keep the two apart. Never
    print a token: a test runs the binary with tokens in the
    environment and in the store, and searches stdout and stderr.
 
@@ -454,7 +454,7 @@ node in front of a public TCP service and reaches it through T-080. Plant: print
 
 # T-084: `podssh operator NAME` and `podssh ssh NODE`
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:163-164`); `crates/podssh-cli/src/flags.rs:393-394`. Measured
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:163-164`); `crates/podssh-cli/src/flags.rs:395-396`. Measured
 here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -481,7 +481,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:205-208`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:50-55`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:264`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:173-177`).
+`podssh proxy` sysexits (`docs/cli.md:181-185`).
 
 ## Approach
 
@@ -497,7 +497,7 @@ host, never the relay's name (`SECURITY.md:50-55`); `HostKeyAlias` exists
    `-o HostKeyAlias` still wins.
 5. Refuse by name a node as a `-J` hop, and `-W` through a node; record them for later.
 6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-233`,
-   `:393-394`). Update the manual's examples and notes, `docs/cli.md:54-67` and `docs/reverse.md`.
+   `:395-396`). Update the manual's examples and notes, `docs/cli.md:62-75` and `docs/reverse.md`.
 
 ## Decision
 

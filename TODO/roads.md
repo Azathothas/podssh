@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:445-453`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:447-455`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -131,8 +131,8 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:285-286`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:250`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/facts.rs:100-144`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:48-90`).
+   (`crates/podssh-cli/src/man/data.rs:64-110`), and each new variable to
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-87`).
 
 ## Decision
 
@@ -272,11 +272,11 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:48-90`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-87`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:146-236`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:99-189`). The tests compare
    `VARIABLES` with the source in both directions
-   (`crates/podssh-cli/src/man/facts.rs:46-47`), so a variable that only the
+   (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
 
 ## Prove

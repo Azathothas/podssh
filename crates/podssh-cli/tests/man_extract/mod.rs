@@ -83,37 +83,55 @@ pub fn descriptions_for(verb: Option<&'static Verb>) -> Vec<String> {
 /// usage and description can be one space, so the boundary is found from the
 /// row's own description, which is known exactly, never from the spaces.
 pub fn option_usages(block: &str, descriptions: &[String]) -> Vec<String> {
+    option_rows(block, descriptions).into_iter().map(|(usage, _)| usage).collect()
+}
+
+/// Each row of an `OPTIONS:` block: its usage and its description.
+pub fn option_rows(block: &str, descriptions: &[String]) -> Vec<(String, String)> {
     let lines: Vec<&str> = block.lines().map(str::trim).collect();
     let mut out = Vec::new();
     for (i, line) in lines.iter().enumerate() {
         if line.is_empty() {
             continue;
         }
-        let usage = descriptions
+        let found = descriptions
             .iter()
-            .filter_map(|d| line.strip_suffix(d.as_str()).map(|u| u.trim_end()))
-            .filter(|u| !u.is_empty())
-            .find(|u| {
+            .filter_map(|d| line.strip_suffix(d.as_str()).map(|u| (u.trim_end(), d)))
+            .filter(|(u, _)| !u.is_empty())
+            .find(|(u, _)| {
                 u.split_whitespace()
                     .next()
                     .map(|t| looks_like_flag(t.trim_end_matches(',')))
                     .unwrap_or(false)
             });
-        let usage = match usage {
-            Some(u) => u.to_string(),
+        let row = match found {
+            Some((u, d)) => (u.to_string(), d.clone()),
             // A row too wide for the column has its description on the next
             // line, so its usage is the line above the description.
             None => {
-                let alone = descriptions.iter().any(|d| *line == d.as_str());
+                let alone = descriptions.iter().find(|d| *line == d.as_str());
                 match (alone, i) {
-                    (true, 1..) => lines[i - 1].to_string(),
+                    (Some(d), 1..) => (lines[i - 1].to_string(), d.clone()),
                     _ => continue,
                 }
             }
         };
-        out.push(usage);
+        out.push(row);
     }
     out
+}
+
+/// Each flag in a rendered `OPTIONS:` block, with the description that
+/// `--help` gives it.
+pub fn help_descriptions(block: &str, verb: Option<&'static Verb>) -> BTreeMap<String, String> {
+    let mut map = BTreeMap::new();
+    for (usage, description) in option_rows(block, &descriptions_for(verb)) {
+        let (names, _) = flags_and_value(&usage);
+        for name in names {
+            map.insert(canonical(verb, &name), description.clone());
+        }
+    }
+    map
 }
 
 /// The flags and the value name of one usage: `-p, --port PORT`.

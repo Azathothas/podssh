@@ -10,10 +10,13 @@
 //! - `podssh man` pages the text on a terminal, else writes it to stdout.
 //! - `--no-pager` writes it to stdout, also on a terminal.
 //! - `--roff` writes a man(7) page instead, for `man -l` or a man directory.
+//! - `--json` writes the tables as one JSON object, for a program.
 //! - `podssh man SECTION` writes one section: a command, or a topic.
 
+pub mod data;
 pub mod examples;
 pub mod facts;
+pub mod json;
 pub mod model;
 pub mod notes;
 pub mod roff;
@@ -27,6 +30,7 @@ pub struct Request<'a> {
     pub section: Option<&'a str>,
     pub no_pager: bool,
     pub roff: bool,
+    pub json: bool,
 }
 
 /// The whole manual as text, as `podssh man --no-pager` writes it.
@@ -41,6 +45,16 @@ pub fn roff_page() -> String {
 
 /// The bytes for `req`, or the refusal for a section that does not exist.
 pub fn body(req: &Request<'_>) -> Result<String, String> {
+    if req.json {
+        if req.roff {
+            return Err("podssh man: --json and --roff are two forms of the manual; give one".into());
+        }
+        let doc = match req.section {
+            None => json::document(),
+            Some(name) => json::section(name)?,
+        };
+        return Ok(serde_json::to_string_pretty(&doc).unwrap_or_default() + "\n");
+    }
     let manual = model::manual();
     match req.section {
         None if req.roff => Ok(roff::render(&manual)),
@@ -70,7 +84,7 @@ pub fn run(
             return crate::exit_codes::EXIT_USAGE;
         }
     };
-    if req.no_pager || req.roff || !tty.can_page() {
+    if req.no_pager || req.roff || req.json || !tty.can_page() {
         // A reader that went away (`podssh man | head`) is not a failure.
         let _ = out.write_all(body.as_bytes());
         let _ = out.flush();

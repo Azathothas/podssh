@@ -459,7 +459,7 @@ Read:
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
-- `crates/podssh-cli/src/man/facts.rs:349-365`: the drift test of the manual
+- `crates/podssh-cli/src/man/facts.rs:272-288`: the drift test of the manual
   counts each quoted upper-case name with `_` in the sources as a variable
   (except `CARGO_` names).
 
@@ -744,7 +744,7 @@ Read:
 - `.github/workflows/release.yml:65-106`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
-- `docs/STATUS.md:220`: the default tests pass on Windows, run by hand.
+- `docs/STATUS.md:221`: the default tests pass on Windows, run by hand.
   `docs/STATUS.md:65`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
@@ -1092,7 +1092,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:92-94` states the rule with `CXX`, and
-  `docs/STATUS.md:226` records the measurement. Rule 4 of
+  `docs/STATUS.md:227` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:67-73` runs the plant on each push.
@@ -1123,7 +1123,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:226`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:227`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 

@@ -30,6 +30,14 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   renderers: an `Fl` macro that used `\$*` printed blank flag names under
   groff and mandoc. The gate renders the page with both
   (`scripts/interop-man.sh`).
+- **Data third.** `podssh man --json` writes the tables as one JSON object
+  for a program (GitHub #10): the commands with their availability,
+  arguments and flags, each flag with its kind and what to type instead;
+  the `-o` keywords; the variables; the files; the exit codes. It reads the
+  tables, not the text, so it keeps what the text drops. `--json SECTION`
+  gives one command, or the table of `environment`, `files` or
+  `exit-status`; a prose topic has no JSON form (exit 64), and neither has
+  `--json --roff`.
 - **No setting of the host.** The manual is the same bytes in each
   environment. It never shows a token or a credential.
 - **A command that does not work says so.** `--help` and the manual mark a

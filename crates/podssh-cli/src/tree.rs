@@ -151,6 +151,8 @@ pub enum Parsed {
         no_pager: bool,
         /// `--roff`: the man(7) page instead of text.
         roff: bool,
+        /// `--json`: the tables as JSON.
+        json: bool,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh proxy`: the positionals and options the byte pipe needs.
@@ -390,6 +392,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             section: matches.get_one::<String>("section").cloned(),
             no_pager: matches.get_flag("no-pager"),
             roff: matches.get_flag("roff"),
+            json: matches.get_flag("json"),
             refused,
         };
     }

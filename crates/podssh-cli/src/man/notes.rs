@@ -98,6 +98,10 @@ const MAN: &[&str] = &[
      page, q: quit). With --no-pager or --roff, or when stdin or stdout is not a terminal, the manual \
      goes to stdout with no pager.",
     "podssh man --roff > podssh.1 makes a man page; man -l podssh.1 shows it.",
+    "podssh man --json writes the tables as one JSON object, for a program: the options, each command \
+     (its availability, arguments and flags, each flag with its kind: supported, accepted, refused, and \
+     what to type instead), the -o keywords, the variables, the files and the exit codes. --json SECTION \
+     gives one command, or the table of environment, files or exit-status. It is never paged.",
     "The manual is the same in each environment: it shows no setting of this host.",
 ];
 

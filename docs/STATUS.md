@@ -170,9 +170,10 @@ Not measured in a real sandbox yet: interactive programs over `-tt`
 | `cargo test -p podssh-cli`, Windows | The manual has each flag of each working command with the sentence that `--help` prints, and the same flags as `--help` and the table in both directions. Each `-o` keyword is applied, ignored or refused as the parser does it, and its stated default is the one that `resolve` uses. The variables match the ones that the source reads, in both directions. The exit codes are the constants. The parser accepts each example. Each note names only real flags, keywords and variables. A planted page without one flag fails 6 tests. |
 | The binary: `podssh man`, `--no-pager`, `--roff`, a section, an unknown section | The same bytes as the library, nothing on stderr. An unknown section exits 64 and lists the sections. The bytes are the same with an empty environment and with a token, proxy credentials and other settings set; none of them is shown. With no terminal, `PAGER` is not started. |
 | A name selects one section (T-234), offline | `podssh man relay-facts` shows THE RELAY, and `podssh man relay` the command, which points to the topic. The list of an unknown section names each section once. |
+| `podssh man --json` (T-050, GitHub #10), offline | One object with the options, the commands (availability, arguments, flags with kind and `instead`), the `-o` keywords, the variables, the files and the exit codes; each flag of each working command's `--help` is in it with the same value name, kind and replacement; the bytes are the same with an empty environment (`cargo test -p podssh-cli --test man_json`). |
 | A real Windows console (ConPTY, 20 rows), debug build | 8 of 8: the built-in pager shows one screen and its prompt; Enter shows the next; `q` and the end of input stop it with exit 0; `--no-pager` writes to the end with no prompt. |
 | groff 1.23.0 and mandoc, Alpine 3.22 | The former `Fl` macro (`\$*`) printed blank flag names in both. The new page shows each flag in both. |
-| `scripts/interop-man.sh` in the container gate, the static binary | 65 flag spellings from the `--help` of `ssh`, `proxy`, `man`, `doctor` and `keygen` (gate run of 2026-10-09, after T-049): groff and mandoc show each one. groff `-ww` gives no warning; `mandoc -Tlint` gives no error. The planted page fails (2 spellings missing). |
+| `scripts/interop-man.sh` in the container gate, the static binary | 65 flag spellings from the `--help` of `ssh`, `proxy`, `man`, `doctor` and `keygen` (gate run of 2026-10-09, after T-050): groff and mandoc show each one. groff `-ww` gives no warning; `mandoc -Tlint` gives no error. The planted page fails (2 spellings missing). |
 
 ## Faults between podssh and the relay, measured
 
@@ -217,12 +218,12 @@ behind them.
 | What | Result | Command |
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
-| The default tests | **758 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-09 | `cargo test --no-fail-fast` |
+| The default tests | **762 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-09 | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
 | The work record | `TODO/` agrees with itself. The checker's tests pass: 12 unit tests, 32 plant tests (the control, and 31 planted disagreements, each found), 10 tests of the remap, 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 8 of its 10 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |
-| The static release binary | **4,135,424 bytes** (gate run of 2026-10-09, after T-049): a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
-| The container gate | **Green** (run of 2026-10-08, after T-238): each build and test step; interop 103 of 103 (64 SSH checks, 25 keygen checks, 14 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
+| The static release binary | **4,151,808 bytes** (gate run of 2026-10-09, after T-050): a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
+| The container gate | **Green** (run of 2026-10-09, after T-050): each build and test step; interop 103 of 103 (64 SSH checks, 25 keygen checks, 14 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
 | The no-C plant | Fails for the right reason when `ring` is planted (no C compiler), twice, and when a crate that compiles C++ is planted (it stops at `CXX=/nonexistent`). With `CC=/nonexistent` alone, the C++ build is not stopped there, so `CXX` is load-bearing. The control passes. Measured 2026-10-08 in `rust:1-alpine`. | `sh scripts/dev.sh plant` |
 | CI | Runs the gate on each push. Each run from `9b806fe` to `e275d36` passed. | `gh run list` |
 | The release workflow, run by hand | Linux x86_64 and aarch64 static, Windows with no C runtime DLL; publish skipped | `gh workflow run release.yml --ref main` |

@@ -115,8 +115,8 @@ leave a short or wrong file under the destination's name.
   path, `podssh cp --timeout 30s` also exits 70, where 64 is right.
 - Read: `crates/podssh-cli/src/flags.rs:238-257` marks `-P`, `-p`, `-i`,
   `-r`, `-F`, `--jsonl` and `--timeout` as supported; the parser keeps only
-  `--timeout` and `--jsonl` (`crates/podssh-cli/src/tree.rs:446-462`), and
-  dispatch drops the duration (`crates/podssh-cli/src/dispatch.rs:194-202`).
+  `--timeout` and `--jsonl` (`crates/podssh-cli/src/tree.rs:449-465`), and
+  dispatch drops the duration (`crates/podssh-cli/src/dispatch.rs:195-203`).
 - Measured (T-133's offline probe): `SSH_FXP_RENAME` onto an existing file
   fails with status 4; `posix-rename@openssh.com` replaces the file.
 
@@ -147,13 +147,13 @@ leave a short or wrong file under the destination's name.
 7. Invariant: the destination's name never holds an unverified file. A
    failure removes the temporary file (T-136 keeps it) and exits non-zero.
 8. `-r` and `-p` refuse by name until T-143 and T-146 (no option is dropped
-   silently, `docs/cli.md:47-51`). `--jsonl` gives one `done` (bytes,
+   silently, `docs/cli.md:55-59`). `--jsonl` gives one `done` (bytes,
    SHA-256) or `error` object for each file.
 9. Exit codes as `proxy`: 64, then the faults of
    `crates/podssh-cli/src/exitmap.rs:103-118`; a digest that differs is 70
    and names both digests.
 10. Same commit: the `cp` row of `VERB_OWNER`
-    (`crates/podssh-cli/src/flags.rs:428`) goes and `DISPATCHED`
+    (`crates/podssh-cli/src/flags.rs:430`) goes and `DISPATCHED`
     (`crates/podssh-cli/tests/flag_table.rs:95`) gets `cp`; update
     `crates/podssh-cli/tests/binary_streams.rs:179-193`, the manual,
     `docs/cli.md` and `docs/STATUS.md:49`.
@@ -387,7 +387,7 @@ old writer can race the new one.
    ways; 11 h 30 min) go in `crates/podssh-relay/src/relay.rs`, beside
    `RELAY_IDLE_SECS`. A variable `PODSSH_SESSION_BUDGET` can lower the byte
    budget (a relay with smaller caps, the tests), never raise it; add it to
-   `crates/podssh-cli/src/man/facts.rs:48-90`.
+   `crates/podssh-cli/src/man/facts.rs:45-87`.
 2. Count the payload bytes both ways in the relay stream (an atomic counter
    beside `RelayStatus`), and keep the session's start time.
 3. Invariant: no session passes a budget. Before a data request that would
@@ -400,7 +400,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:147-236`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:100-189`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -431,7 +431,7 @@ more. Plant: count one direction only; the upload then meets `1009`.
 
 **Source:** ROADMAP M5 ("Across hosts, `mv` is copy, verify, delete; podssh
 says first that it is not atomic"); the description of `mv` in
-`crates/podssh-cli/src/flags.rs:399-400`.
+`crates/podssh-cli/src/flags.rs:401-402`.
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -449,7 +449,7 @@ user must know this before the move starts.
 
 - Measured on `3ee70dc`, offline: `podssh mv --timeout 30s a b` exits 70
   (`'mv' is not implemented yet; nothing was done.`).
-- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:399-400`),
+- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:401-402`),
   so the operands and options of T-134 apply.
 - Measured (T-133's offline probe): `posix-rename@openssh.com` replaces in
   one step; `SSH_FXP_RENAME` refuses an existing target.
@@ -475,7 +475,7 @@ user must know this before the move starts.
    two places, never in none.
 6. Directories wait for T-143 (exit 64); two local paths exit 64 (T-134).
 7. Same commit: the `mv` row of `VERB_OWNER`
-   (`crates/podssh-cli/src/flags.rs:429`), the manual, `docs/cli.md` and
+   (`crates/podssh-cli/src/flags.rs:431`), the manual, `docs/cli.md` and
    `docs/STATUS.md:49`.
 
 ## Prove
@@ -494,7 +494,7 @@ T-134 that flips a byte, the source is then lost and the test fails.
 
 # T-139: `podssh scp` and `podssh sftp` with the command lines of OpenSSH
 
-**Source:** `docs/cli.md:42-46` (`-P` is the port for `scp` and `sftp`);
+**Source:** `docs/cli.md:50-54` (`-P` is the port for `scp` and `sftp`);
 GitHub #23 (cubic's `scp` command) and GitHub #22 (the port forms of copy
 tools), read in the issues; the usage of OpenSSH 10.3p1, measured here.
 **Category:** feature
@@ -559,8 +559,8 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 ## Decision
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
-the gate of `crates/podssh-cli/src/dispatch.rs:192-205` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:167-170`)
+the gate of `crates/podssh-cli/src/dispatch.rs:193-206` skips them; T-133's
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:175-178`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -786,7 +786,7 @@ this entry, so that it is never a flag that does nothing.
 ## Premise
 
 - Read: `-r` is supported in `crates/podssh-cli/src/flags.rs:249-250`, and
-  nothing reads it (`crates/podssh-cli/src/tree.rs:446-462`).
+  nothing reads it (`crates/podssh-cli/src/tree.rs:449-465`).
 - Read: SFTP version 3 has `OPENDIR`, `READDIR`, `MKDIR`, `LSTAT`,
   `READLINK` and `SYMLINK`.
 - Not verified here: OpenSSH's `scp` once wrote files that a malicious
@@ -967,7 +967,7 @@ owner, hard links, the holes of sparse files) is lost with no word.
 ## Premise
 
 - Read: `-p` is supported in `crates/podssh-cli/src/flags.rs:245-246`, and
-  nothing reads it (`crates/podssh-cli/src/tree.rs:446-462`).
+  nothing reads it (`crates/podssh-cli/src/tree.rs:449-465`).
 - Read: the attributes of SFTP version 3 carry the size, uid, gid,
   permissions, atime and mtime; no ctime.
 - Measured (T-133's offline probe): OpenSSH's server offers
@@ -1145,13 +1145,13 @@ host, and the copy back then destroys that change with no word.
   probe (`crates/podssh-cli/src/pager.rs:96`) and runs it with
   `run_program` (`crates/podssh-cli/src/pager.rs:137`).
 - Read: `VISUAL` and `EDITOR` are not in the manual's variables
-  (`crates/podssh-cli/src/man/facts.rs:48-90`).
+  (`crates/podssh-cli/src/man/facts.rs:45-87`).
 - Read: the relay cuts a session after 180 s with no payload
   (`crates/podssh-relay/src/relay.rs:19-21`); an editor stays open longer.
 
 ## Approach
 
-1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:386-413`),
+1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:388-415`),
    with the connection flags that T-134 gives `cp`. It needs a terminal on
    stdin and stdout; else exit 64.
 2. Download with T-134 into a new directory of mode 0700 in the cache
