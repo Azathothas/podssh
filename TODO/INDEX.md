@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 205 open, 0 partial, 7 blocked, 38 done.**
+**250 entries: 204 open, 0 partial, 7 blocked, 39 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 110 | 0 | 3 | 30 | 143 |
+| P2 | 109 | 0 | 3 | 31 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 205 | 0 | 7 | 38 | 250 |
+| **All** | 204 | 0 | 7 | 39 | 250 |
 
 ## Entries
 
@@ -136,7 +136,7 @@ repository and CI).
 | [T-060](relay.md) | P3 | S | none | chore | open | P1: no command uses `podssh-probe` |
 | [T-061](relay.md) | P3 | S | M4 | measurement | open | Measure whether the relay's idle cut applies to reverse sockets |
 | [T-062](relay.md) | P3 | S | backlog | measurement | open | Measure whether the relay's backpressure close (1013) operates |
-| [T-063](ws.md) | P2 | S | M4 | defect | open | W10: the frame decoder does not check a received control frame |
+| [T-063](ws.md) | P2 | S | M4 | defect | done | W10: the frame decoder does not check a received control frame |
 | [T-064](ws.md) | P3 | S | M4 | defect | open | W13: `OsRng::fill_bytes` panics when the system gives no random bytes |
 | [T-065](ws.md) | P2 | S | M4 | defect | open | W14: `probe::PrintChain` accepts each certificate, and is a public export |
 | [T-066](ws.md) | P2 | M | M4 | feature | open | A `rustls::ClientConfig` that the caller supplies, for podbox |

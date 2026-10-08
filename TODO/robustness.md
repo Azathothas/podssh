@@ -30,7 +30,7 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/http.rs:113`, line 179); the upgrade answer
 (`crates/podssh-ws/src/handshake.rs:183`); proxy URLs, `NO_PROXY` and the
 CONNECT status (`crates/podssh-ws/src/dial.rs:49`, lines 178 and 334); close
-reasons (`crates/podssh-ws/src/session.rs:275`); PEM bundles
+reasons (`crates/podssh-ws/src/session.rs:288`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:80`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:81`, `crates/podssh-relay/src/pool.rs:92`);
 `known_hosts` lines, in a private function
@@ -86,7 +86,7 @@ sh scripts/dev.sh check                                   # the gate does not ch
 
 The list names each target, and each run ends with no crash (`ws_frame`
 after T-063). Planted defect: remove the length guard of
-`close_code_and_reason` (`crates/podssh-ws/src/session.rs:276-278`);
+`close_code_and_reason` (`crates/podssh-ws/src/session.rs:289-291`);
 `close_reason` must crash within its 120 s.
 
 # T-199: A scored interop harness
@@ -332,7 +332,7 @@ Each command exits 0. Planted defect: set `WINDOW`
 (`crates/podssh-ssh/src/run.rs:29`) to 64 MiB; the slow-reader check must
 fail. If it does not, the bound is somewhere else: find it before anybody
 trusts the check. A second plant: remove the check at
-`crates/podssh-ws/src/session.rs:240-242`; the fragment test must fail.
+`crates/podssh-ws/src/session.rs:253-255`; the fragment test must fail.
 
 # T-202: Property tests for the state machines
 
@@ -358,7 +358,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 
 - WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:67`,
   `crates/podssh-ws/src/frame.rs:113`).
-- The joining of fragments (`crates/podssh-ws/src/session.rs:234-258`). It is
+- The joining of fragments (`crates/podssh-ws/src/session.rs:247-271`). It is
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:68`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:81-147`, `crates/podssh-ws/src/names.rs:8-57`).
@@ -437,7 +437,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 73-182 (`docs/STATUS.md:182-201`, 14 of 14 since T-236).
+  checks are at lines 73-182 (`docs/STATUS.md:184-201`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:241`, enforced at
   `crates/podssh-ssh/src/run.rs:138-143`); a reply, 30 s

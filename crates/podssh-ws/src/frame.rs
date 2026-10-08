@@ -193,6 +193,28 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
         )));
     }
 
+    // Checked as soon as the length is known, before the payload arrives.
+    // RFC 6455 section 5.5: a control frame (Close, Ping, Pong) is never
+    // fragmented and carries 125 bytes or less. Section 5.5.1: a Close carries
+    // nothing, or a 2-byte code and a reason; 1 byte is half a code.
+    if opcode >= OPCODE_CLOSE {
+        if !fin {
+            return Err(WsError::Frame(format!(
+                "control frame 0x{opcode:x} is fragmented; RFC 6455 5.5 forbids it"
+            )));
+        }
+        if payload_len > MAX_CONTROL_PAYLOAD {
+            return Err(WsError::Frame(format!(
+                "control frame 0x{opcode:x} carries {payload_len} bytes; RFC 6455 5.5 allows {MAX_CONTROL_PAYLOAD}"
+            )));
+        }
+        if opcode == OPCODE_CLOSE && payload_len == 1 {
+            return Err(WsError::Frame(
+                "a Close frame of 1 byte holds half a status code; RFC 6455 5.5.1 forbids it".into(),
+            ));
+        }
+    }
+
     let masking_key = if masked {
         if input.len() < cursor + 4 {
             return Ok(None);

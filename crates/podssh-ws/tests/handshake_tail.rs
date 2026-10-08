@@ -233,22 +233,39 @@ async fn read_frame_answers_a_ping_with_a_masked_pong() {
     assert_eq!(pong.payload, b"keepalive", "§5.5.3: the payload comes back");
 }
 
-/// ⛔ **The two silences.** ⛔ §5.5 caps a control frame at 125 bytes, so a
-/// 126-byte Ping is the peer's violation and answering it would put podssh on
-/// the wrong side of the same rule; ⛔ and §5.5.2's MUST is excused once a
-/// Close has been received, so a later Ping is not answered either.
+/// ⛔ §5.5 caps a control frame at 125 bytes, so a 126-byte Ping is the
+/// peer's violation and answering it would put podssh on the wrong side of
+/// the same rule. The decoder refuses it: the read fails, and the only frame
+/// written is a Close 1002 (§7.1.7), never a Pong.
 #[tokio::test]
-async fn read_frame_does_not_answer_an_oversized_ping_or_one_after_a_close() {
-    let mut bytes = frame::encode(
+async fn read_frame_refuses_an_oversized_ping_with_a_close_1002() {
+    let bytes = frame::encode(
         &Frame { fin: true, opcode: frame::OPCODE_PING, payload: vec![0x5a; 126] },
         Role::Server,
         [0; 4],
     );
-    bytes.extend_from_slice(&frame::encode(
+    let mut stream = Scripted::chunks(vec![bytes]);
+    let mut pending = Vec::new();
+    let mut close_received = false;
+    let error = read_frame_over(&mut stream, &mut pending, &mut close_received, DEFAULT_TIMEOUT)
+        .await
+        .expect_err("a Ping of 126 bytes is refused");
+    assert!(error.contains("RFC 6455 5.5"), "{error}");
+    let (sent, used) = frame::decode(&stream.written, Role::Client).unwrap().expect("one frame was written");
+    assert_eq!(used, stream.written.len(), "one frame only: {:02x?}", stream.written);
+    assert_eq!(sent.opcode, frame::OPCODE_CLOSE);
+    assert_eq!(sent.payload, 1002u16.to_be_bytes());
+}
+
+/// ⛔ §5.5.2's MUST is excused once a Close has been received, so a later
+/// Ping is not answered.
+#[tokio::test]
+async fn read_frame_does_not_answer_a_ping_after_a_close() {
+    let mut bytes = frame::encode(
         &Frame { fin: true, opcode: frame::OPCODE_CLOSE, payload: Vec::new() },
         Role::Server,
         [0; 4],
-    ));
+    );
     bytes.extend_from_slice(&frame::encode(
         &Frame { fin: true, opcode: frame::OPCODE_PING, payload: b"again".to_vec() },
         Role::Server,
@@ -271,7 +288,7 @@ async fn read_frame_does_not_answer_an_oversized_ping_or_one_after_a_close() {
     assert_eq!(frame.payload, b"after");
     assert!(
         stream.written.is_empty(),
-        "neither Ping may be answered: {:02x?}",
+        "a Ping after a Close may not be answered: {:02x?}",
         stream.written
     );
 }

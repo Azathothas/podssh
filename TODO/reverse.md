@@ -316,7 +316,7 @@ unused. Two crates for one protocol drift: they already disagree on the backoff 
 ## Premise
 
 Read: about 600 lines of `podssh-transport` are used outside its tests (the former defects page),
-and `docs/STATUS.md:211` gives 2.8k source and 2.2k test lines. Only examples use it:
+and `docs/STATUS.md:213` gives 2.8k source and 2.2k test lines. Only examples use it:
 `crates/podssh-cli/examples/live_irc.rs:20-22`, `crates/podssh-cli/examples/live_irc/support.rs:11-16`
 and `crates/podssh-transport/examples/live_forward.rs:23-25`; `podssh-cli` depends on it
 (`crates/podssh-cli/Cargo.toml:34`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
@@ -344,7 +344,7 @@ and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs
    the crate: `Cargo.toml:6`, `Cargo.toml:24`, `Cargo.toml:55-58`, `crates/podssh-cli/Cargo.toml:34`,
    `scripts/gate.sh:61`, `scripts/plant.sh:39`.
 6. Update in the same commit: `AGENTS.md:188-190` and `AGENTS.md:234`, `docs/architecture.md:75` and
-   `:92-102`, `docs/development.md:13-14` and `:250`, `docs/STATUS.md:208`, `:210` and `:220`. The list
+   `:92-102`, `docs/development.md:13-14` and `:250`, `docs/STATUS.md:210`, `:213` and `:224`. The list
    of library crates in `docs/decisions.md:34` is a fact of a decision row: correct it, and move the
    old text to Superseded (the operator's ruling of 2026-10-08).
 

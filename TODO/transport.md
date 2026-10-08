@@ -126,7 +126,7 @@ same. The text of a read error is lost too.
 The lines of `crates/podssh-transport` below are those of `3d4785a`.
 
 Read: `RelaySession::read_frame` echoes a Close and returns it to its caller
-(`crates/podssh-ws/src/session.rs:191-199`). `WsSocket::recv` handles the opcodes of text, binary,
+(`crates/podssh-ws/src/session.rs:194-202`). `WsSocket::recv` handles the opcodes of text, binary,
 Ping and Pong, and maps each other opcode, Close included, to `TransportError::Unexpected`
 (`crates/podssh-transport/src/socket.rs` lines 136-164). A read error becomes
 `Aborted { clean: false }` and its text is dropped (the same file, lines 165-168). The adapter
@@ -136,7 +136,7 @@ states the gap (`crates/podssh-transport/src/adapt.rs` lines 25-29). `Unexpected
 
 Read: the helper `closed(code, reason, clean)` exists and has no caller (`socket.rs` lines
 478-481). `podssh-ws` parses a Close payload in `close_code_and_reason`
-(`crates/podssh-ws/src/session.rs:274-282`), and `podssh proxy` uses it
+(`crates/podssh-ws/src/session.rs:287-295`), and `podssh proxy` uses it
 (`crates/podssh-cli/src/proxy.rs:239-242`).
 
 Read, a related gap that the former defects page did not list: `Classified::message` prints
@@ -380,7 +380,7 @@ flow control that podssh uses (`docs/relay.md:165-166`).
 2. Keep no part of it. The runners of T-079 and T-080 bound their queues with bounded channels
    and the relay's caps (`docs/reverse.md:30-35`), not with a ledger.
 3. Check with `git grep` that no script or test still names the deleted files.
-4. Update the line counts of the crate in `docs/STATUS.md:211`, and close this entry in place.
+4. Update the line counts of the crate in `docs/STATUS.md:213`, and close this entry in place.
 5. T-082 can do these steps in the move; then this entry closes with the commit of T-082.
 
 ## Decision

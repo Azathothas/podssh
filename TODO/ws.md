@@ -12,7 +12,7 @@ RFC 6455 section 5.5. Confirmed here on `3ee70dc` by reading the code.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -22,28 +22,41 @@ oversized Close as a normal end of the session.
 
 ## Premise
 
-Read on `3ee70dc`, the defect holds. `frame::decode` (`crates/podssh-ws/src/frame.rs:113-225`)
-checks the reserved bits (lines 124-128), the opcode (129-135), the mask direction (141-150) and
-the length caps (152-194). It never compares `fin` or the length with `MAX_CONTROL_PAYLOAD`
-(lines 33-37) for the opcodes 0x8 to 0xA. The constant only stops the answer to a large Ping,
-and the session goes on (`crates/podssh-ws/src/session.rs:181-187`;
-`crates/podssh-ws/src/client.rs:331-335`). A Ping with FIN clear becomes `Event::Pong` and gets
-an answer (`crates/podssh-ws/src/client.rs:371-373`). A Close or a Pong of any size is accepted
-(`crates/podssh-ws/src/session.rs:188-199`). A Close of 1 byte is read as a Close with no code
-(lines 275-278); RFC 6455 section 5.5.1 allows 0 bytes, or 2 and more.
+Read on `3ee70dc`, the defect holds; the lines below are those of `3b60753`. `frame::decode`
+(`crates/podssh-ws/src/frame.rs` lines 113-225) checks the reserved bits (lines 124-128), the
+opcode (129-135), the mask direction (141-150) and the length caps (152-194). It never compares
+`fin` or the length with `MAX_CONTROL_PAYLOAD` (lines 33-37) for the opcodes 0x8 to 0xA. The
+constant only stops the answer to a large Ping, and the session goes on
+(`crates/podssh-ws/src/session.rs` lines 181-187; `crates/podssh-ws/src/client.rs` lines
+331-335). A Ping with FIN clear becomes `Event::Pong` and gets an answer (`client.rs` lines
+371-373). A Close or a Pong of any size is accepted (`session.rs` lines 188-199). A Close of 1
+byte is read as a Close with no code (`session.rs` lines 275-278); RFC 6455 section 5.5.1 allows
+0 bytes, or 2 and more.
 
 ## Approach
 
 1. In `frame::decode`, when the length is known and before the payload is copied
-   (`crates/podssh-ws/src/frame.rs:208`): for an opcode of 0x8 or more, return `WsError::Frame`
-   when `fin` is clear or the length is over 125. Name the rule in the message.
+   (`crates/podssh-ws/src/frame.rs` line 208 at `3b60753`): for an opcode of 0x8 or more, return
+   `WsError::Frame` when `fin` is clear or the length is over 125. Name the rule in the message.
 2. Refuse a Close payload of 1 byte in the same place.
-3. The read then fails (`crates/podssh-ws/src/session.rs:176`). Today a failed read sends no
-   Close (`crates/podssh-ssh/src/relay_stream.rs:138-140`): send 1002 (protocol error) there, as
-   lines 130-137 do for an unexpected frame. `podssh proxy` exits as for a broken session.
+3. The read then fails (`crates/podssh-ws/src/session.rs` line 176 at `3b60753`). Today a failed
+   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:138-140`): send 1002 (protocol
+   error) there, as lines 130-137 do for an unexpected frame. `podssh proxy` exits as for a
+   broken session.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the new tests in a new file,
    crates/podssh-ws/tests/control_frames.rs.
 5. Record the repair in `docs/STATUS.md` (Components, `podssh-ws`) in the same commit.
+
+## Decision
+
+2026-10-09: the Close 1002 of step 3 is sent by the session, not by `relay_stream.rs`.
+`RelaySession::read_frame` fails the connection (`fail`, RFC 6455 section 7.1.7) for each error
+of the decoder (1002) and of the reassembly of a message (1002, or 1009 for a message over 16
+MiB); a broken socket or an end of stream sends nothing, because no peer is left to tell.
+`read_frame_over`, the reader of one stream that the tests script, does the same. Lost: the Close
+in the error arm of `relay_stream.rs`, which cannot tell a protocol error from a broken socket,
+and which `podssh proxy`, on the same session, would not have had. The size guard before a Pong
+stays as a second line.
 
 ## Prove
 
@@ -58,6 +71,29 @@ a Ping and a Close of 126 bytes (the 16-bit length form), and a Close of 1 byte,
 the controls of 0 and 125 bytes, each accepted. A session test: a fragmented Ping gets no Pong,
 and the read ends with an error. Planted defect: remove the check; the four refusal tests fail,
 and the two controls pass.
+
+## Done
+
+2026-10-09, in the commit "A control frame that RFC 6455 forbids fails the connection".
+
+- `frame::decode` refuses, as soon as the length is known, a Close, Ping or Pong that is
+  fragmented or carries more than 125 bytes (RFC 6455 section 5.5), and a Close of 1 byte
+  (section 5.5.1); each message names the rule.
+- The session fails the connection with a Close 1002 after such a frame, and after a reassembly
+  error (1009 for a message over 16 MiB); see Decision. `podssh ssh` and `podssh proxy` then end
+  as for a broken session.
+- `crates/podssh-ws/tests/control_frames.rs` (new): the four refusals, each a test on bytes written
+  from the RFC; the controls of 0 and 125 bytes for each control opcode; a fragmented Ping and a
+  Close of 126 bytes on a session (no Pong, the read ends, a Close 1002 goes out); a continuation
+  with no message (a Close 1002). `read_frame_does_not_answer_an_oversized_ping_or_one_after_a_close`
+  of `handshake_tail.rs` became two tests: the oversized Ping is refused with a Close 1002, and a
+  Ping after a Close gets no answer.
+- Prove: `cargo test -p podssh-ws --test control_frames`: 7 passed. `CC=/nonexistent
+  CXX=/nonexistent cargo test -p podssh-ws`: 142 passed, 0 failed. `cargo test --no-fail-fast`:
+  792 passed, 0 failed, 7 ignored.
+- Plants, each restored: the check removed: the four refusal tests and the session test failed,
+  and the two controls passed; the Close of `fail` removed: both session tests of
+  `control_frames.rs` failed.
 
 # T-064: W13: `OsRng::fill_bytes` panics when the system gives no random bytes
 
@@ -515,7 +551,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (lines 80-88). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:108-137`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:366-375`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:375-384`). The stand-in relay writes the minimal form
 (`scripts/fake-relay.py:54-62`); the frames of the real relay were not checked for it.
 
 ## Approach
@@ -525,9 +561,8 @@ minimal. The only caller in the code is `next_event`, for the frames of the rela
    payload is copied.
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
-   connection. Today a failed read sends no Close
-   (`crates/podssh-ssh/src/relay_stream.rs:138-140`); T-063 adds that Close for each decoder
-   error, so this entry uses the same path.
+   connection. Since T-063 the session sends that Close for each error of the decoder
+   (`crates/podssh-ws/src/session.rs:226-233`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,

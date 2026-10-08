@@ -314,8 +314,10 @@ async fn https_request(
 /// answering Pings on it. The session uses split halves instead; this
 /// single-stream form is kept for tests that script the peer's bytes.
 ///
-/// A Ping larger than the 125-byte control limit is the peer's violation and
-/// is not echoed, and no Pong is sent once a Close has been received.
+/// A control frame that RFC 6455 section 5.5 forbids (fragmented, or over 125
+/// bytes) is refused by the decoder: the read fails after a Close 1002, as
+/// the session's does, and nothing is echoed. No Pong is sent once a Close
+/// has been received.
 pub async fn read_frame_over<S>(
     stream: &mut S,
     pending: &mut Vec<u8>,
@@ -327,7 +329,14 @@ where
 {
     let mut chunk = [0u8; 4096];
     loop {
-        match next_event(pending).map_err(|e| format!("{e}"))? {
+        let event = match next_event(pending) {
+            Ok(event) => event,
+            Err(e) => {
+                let _ = write_frame_over(stream, frame::OPCODE_CLOSE, &crate::session::close_payload(Some(1002), "")).await;
+                return Err(format!("{e}"));
+            }
+        };
+        match event {
             Some(Event::Pong(payload)) => {
                 if payload.len() <= frame::MAX_CONTROL_PAYLOAD && !*close_received {
                     write_frame_over(stream, frame::OPCODE_PONG, &payload).await?;

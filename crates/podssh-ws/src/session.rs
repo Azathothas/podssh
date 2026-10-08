@@ -173,7 +173,10 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
         let reader = &mut *guard;
         let mut chunk = vec![0u8; 16 * 1024];
         loop {
-            let event = next_event(&mut reader.pending).map_err(|e| e.to_string())?;
+            let event = match next_event(&mut reader.pending) {
+                Ok(event) => event,
+                Err(e) => return Err(self.fail(1002, e.to_string()).await),
+            };
             if event.is_some() {
                 self.heard.fetch_add(1, Ordering::SeqCst);
             }
@@ -197,11 +200,11 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                     }
                     return Ok(f);
                 }
-                Some(Event::Frame(f)) => {
-                    if let Some(message) = reader.assemble(f)? {
-                        return Ok(message);
-                    }
-                }
+                Some(Event::Frame(f)) => match reader.assemble(f) {
+                    Ok(Some(message)) => return Ok(message),
+                    Ok(None) => {}
+                    Err((code, why)) => return Err(self.fail(code, why).await),
+                },
                 None => {
                     let read = reader.half.read(&mut chunk);
                     let n = match reader.idle {
@@ -220,6 +223,15 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
         }
     }
 
+    /// Fail the connection after a frame or a message that RFC 6455 forbids:
+    /// a Close with `code` goes first (section 7.1.7), then the error is
+    /// returned. A broken socket or an end of stream sends nothing: there is
+    /// no peer left to tell.
+    async fn fail(&self, code: u16, why: String) -> String {
+        let _ = self.send_close(code, "").await;
+        why
+    }
+
     async fn write(&self, opcode: u8, payload: &[u8]) -> Result<(), String> {
         let mut writer = self.writer.lock().await;
         tokio::time::timeout(self.write_timeout, write_frame_over(&mut *writer, opcode, payload))
@@ -230,15 +242,16 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
 
 impl<S> Reader<S> {
     /// Feed one data or continuation frame; returns a whole message when one
-    /// is complete.
-    fn assemble(&mut self, f: Frame) -> Result<Option<Frame>, String> {
+    /// is complete. An error carries the close code that it fails the
+    /// connection with: 1002 for a protocol error, 1009 for a message too big.
+    fn assemble(&mut self, f: Frame) -> Result<Option<Frame>, (u16, String)> {
         match (f.opcode, self.partial.take()) {
             (frame::OPCODE_CONTINUATION, None) => {
-                Err("the relay sent a continuation frame with no message to continue".into())
+                Err((1002, "the relay sent a continuation frame with no message to continue".into()))
             }
             (frame::OPCODE_CONTINUATION, Some((opcode, mut payload))) => {
                 if payload.len() + f.payload.len() > MAX_MESSAGE {
-                    return Err(format!("a fragmented message exceeded {MAX_MESSAGE} bytes"));
+                    return Err((1009, format!("a fragmented message exceeded {MAX_MESSAGE} bytes")));
                 }
                 payload.extend_from_slice(&f.payload);
                 if f.fin {
@@ -248,7 +261,7 @@ impl<S> Reader<S> {
                     Ok(None)
                 }
             }
-            (_, Some(_)) => Err("the relay started a new message inside a fragmented one".into()),
+            (_, Some(_)) => Err((1002, "the relay started a new message inside a fragmented one".into())),
             (opcode, None) if !f.fin => {
                 self.partial = Some((opcode, f.payload));
                 Ok(None)
