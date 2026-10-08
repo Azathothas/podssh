@@ -57,15 +57,15 @@ repository and CI).
 
 ## Counts
 
-**246 entries: 235 open, 1 partial, 3 blocked, 7 done.**
+**247 entries: 236 open, 1 partial, 3 blocked, 7 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 4 | 1 | 0 | 3 | 8 |
-| P2 | 135 | 0 | 1 | 3 | 139 |
+| P2 | 136 | 0 | 1 | 3 | 140 |
 | P3 | 96 | 0 | 2 | 0 | 98 |
-| **All** | 235 | 1 | 3 | 7 | 246 |
+| **All** | 236 | 1 | 3 | 7 | 247 |
 
 ## Entries
 
@@ -317,3 +317,4 @@ repository and CI).
 | [T-246](repo.md) | P3 | S | none | chore | open | `scripts/dev.sh` excludes each file named `agents.md` from the container copy, with no reason given |
 | [T-247](repo.md) | P3 | S | none | chore | open | `podssh-cli` declares dependencies that it does not use |
 | [T-248](serve.md) | P2 | M | M5 | research | open | A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space |
+| [T-249](repo.md) | P2 | M | none | chore | open | A cited line that moved still exists, so the checker does not see a stale citation |

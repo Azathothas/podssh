@@ -1563,3 +1563,65 @@ cargo tree -p podssh-cli -e normal --depth 1    # none of the four crates is a n
 Each command exits 0, also on Windows. Planted defect: add `podssh-terminal`
 back to the dependencies; the first build must fail with
 `unused_crate_dependencies`.
+
+# T-249: A cited line that moved still exists, so the checker does not see a stale citation
+
+**Source:** the session of 2026-10-08 that wrote this record (T-204). One
+pass of edits to ten documents moved 255 citations of `TODO/`, and 12
+citations of `docs/ROADMAP.md` were already one or two lines off, with no
+failure.
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+An entry cites a document or a source file at a line. When a line is added
+above the cited line, the citation names another line, and
+`cargo todo check` still passes. A reader then reads the wrong lines, and
+starts the work from a false premise.
+
+## Premise
+
+- Read: `citations` (`crates/podssh-todo/src/refs.rs:90-111`) tests that the
+  path exists with its exact case, and that the last line is not past the end
+  of the file. It does not test what the line says.
+- Measured on 2026-10-08: a script outside the repository moved the
+  citations of `TODO/` after edits to ten documents, by a line diff of each
+  document. It moved 255 citations, and listed the ones inside a changed
+  block for review. Before that pass, 12 citations of the roadmap were stale
+  from an earlier insertion; only a reading of each cited line found them.
+
+## Approach
+
+1. `cargo todo remap FILE...`: compare each file with its version in `HEAD`
+   (`git show HEAD:FILE`), make a line diff with no new dependency, and move
+   each `FILE:N` and `FILE:N-M` in `TODO/` by it. List a citation inside a
+   changed block for review, and do not move it. Say so when `git` is
+   missing; `check` does not need `git`.
+2. A quote check in `check`: when an entry quotes the cited line in the same
+   sentence (`` `FILE:N` says "TEXT" ``), the text must occur in the cited
+   lines. Writers quote the lines that a claim depends on.
+3. `TODO/RULES.md`: after an edit of a document or a file that entries cite,
+   run `cargo todo remap` on it in the same change.
+4. Plants for both in `crates/podssh-todo/tests/`, as for each other check.
+
+## Decision
+
+Recommendation: the remap writer and the quote check. The remap removes the
+work by hand that left the 12 citations stale; the quote check guards the
+claims that matter. A hash of each cited line, written into the entry, lost:
+it makes the entries hard to read and to write.
+
+## Prove
+
+```sh
+cargo test -p podssh-todo --test remap   # a line added above a cited line moves the citation; a change inside a cited range is listed
+cargo test -p podssh-todo --test plants  # a quote that the cited line does not hold is found
+cargo todo remap docs/ROADMAP.md         # on a clean tree: nothing moves
+```
+
+Planted defects: add a line above a cited line and skip the remap, then
+change a quoted line; each test that guards it fails.
