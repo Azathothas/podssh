@@ -169,7 +169,23 @@ NOTE: The sandprobe report is `.work/sandprobe-run1.txt`. It is not in the
 repository, because it describes the operator's own sandbox.
 
 To measure a real sandbox, run `sh scripts/sandbox-check.sh` in it. With no
-argument, the script builds podssh first.
+argument, the script builds podssh first, and finds the binary where cargo
+put it: `CARGO_TARGET_DIR`, the `target_directory` of `cargo metadata`, or
+`target/`. It runs the binary once before the steps. Each step prints `ok`
+or `FAIL` against its expected result, or `skip` with the reason when it
+cannot run on that host (no `ssh`, or an OpenSSH that needs a user database
+entry). The script exits 1 when a step failed.
+
+In a sandbox where `/tmp` or `$HOME` is mounted `noexec`, `CARGO_HOME`
+cannot be written, or `/tmp` is small, give cargo a directory where programs
+can run. `podssh doctor` names such directories in its `exec` lines; with no
+binary yet, copy `/bin/true` into a directory and run it from there.
+
+```sh
+export CARGO_HOME=/work/cargo CARGO_TARGET_DIR=/work/target TMPDIR=/work/tmp
+mkdir -p "$TMPDIR"
+sh scripts/sandbox-check.sh
+```
 
 ## Rules for tests
 

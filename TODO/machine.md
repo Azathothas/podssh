@@ -229,9 +229,10 @@ check work through the relay.
 Measured: `podssh doctor --full` exits 64 (unknown flag); `podssh selftest` exits 64 (unknown
 subcommand).
 
-Read: the script runs `doctor` (`scripts/sandbox-check.sh:45-47`), a banner exchange through
-`podssh proxy` (lines 49-57), `keygen` with `podssh ssh -T` and `-tt` to GitHub (lines 59-68),
-and OpenSSH with podssh as its `ProxyCommand` (lines 70-75). `doctor` already opens a forward
+Read: the script runs `doctor` (`scripts/sandbox-check.sh:93-97`), a banner exchange through
+`podssh proxy` (lines 99-109), `keygen` with `podssh ssh -T` and `-tt` to GitHub (lines 111-132),
+two prompts with nobody to answer them (lines 134-170), and OpenSSH with podssh as its
+`ProxyCommand` (lines 172-185); each step has a verdict since T-006. `doctor` already opens a forward
 session to `github.com:22` and checks the host key against GitHub's published keys
 (`crates/podssh-cli/src/doctor/relay_checks.rs:170-207`, keys at lines 30-34): that covers the
 banner step. The script's `ssh` steps trust the key on first use (`accept-new`, line 65), not by

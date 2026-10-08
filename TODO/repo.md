@@ -337,7 +337,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:231-257`): the
+5. docs/development.md, "Release builds" (`docs/development.md:247-273`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -652,10 +652,10 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:100-115`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:100-116`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:144-146`: the box runs `probe.sh`, then
   `sandbox-check.sh`, and the script exits with the code of the second.
-  `scripts/sandbox-check.sh:45-108` prints the exit code of each step and does
+  `scripts/sandbox-check.sh:85-186` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:107`).
@@ -685,7 +685,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:134`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:135`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -713,7 +713,7 @@ probe had 16 required properties, not 17, until the commit "The box has the
 sandbox's dead /dev/tty; T-005 measured there". That commit added the 17th
 (`/dev/tty`), so the count of 17 holds from then on. Since that commit, the
 step "a prompt with nobody to answer it" fails the run of
-`scripts/sandbox-check.sh`; its other steps still do not (T-006). The dead
+`scripts/sandbox-check.sh`; since T-006, each step does. The dead
 tty needs Python 3 and `setsid` on the Podman host (`scripts/box/deadtty.py`),
 so the job of this entry must have both; nobody measured a runner for them.
 
@@ -743,7 +743,7 @@ Read:
 - `.github/workflows/release.yml:65-106`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
-- `docs/STATUS.md:198`: 660 tests pass on Windows, run by hand.
+- `docs/STATUS.md:199`: 660 tests pass on Windows, run by hand.
   `docs/STATUS.md:62`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
@@ -1091,7 +1091,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:92-94` states the rule with `CXX`, and
-  `docs/STATUS.md:204` records the measurement. Rule 4 of
+  `docs/STATUS.md:205` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:67-73` runs the plant on each push.
@@ -1122,7 +1122,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:204`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:205`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1398,7 +1398,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:125`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:126`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.

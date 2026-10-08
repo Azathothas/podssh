@@ -41,7 +41,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 249 entries: 234 open, 0 partial, 6 blocked, 9 done.
+`TODO/INDEX.md` holds 249 entries: 233 open, 0 partial, 6 blocked, 10 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -53,16 +53,14 @@ then take the next one. Each session runs unattended until the goal of
 
 **M3:**
 
-1. T-006: make `scripts/sandbox-check.sh` report what it measured, so the
-   next sandbox run is a record.
-2. The P1 defects: T-007 (bracketed IPv6 literals, which `docs/cli.md`
+1. The P1 defects: T-007 (bracketed IPv6 literals, which `docs/cli.md`
    documents) and T-057 (a token can go to a relay host that did not mint
    it).
-3. The small defects that a user meets first: T-008, T-009, T-010,
+2. The small defects that a user meets first: T-008, T-009, T-010,
    T-011, T-023, T-024, T-230, T-231, T-233, T-234, T-236, T-237, T-238 and
    T-239.
-4. T-003: the decision about the compiled-in roots.
-5. T-004, measured in the box (the operator's ruling of 2026-10-08).
+3. T-003: the decision about the compiled-in roots.
+4. T-004, measured in the box (the operator's ruling of 2026-10-08).
 
 **After M3 and before M4 (the operator's ruling of 2026-10-08):**
 the surface for agents: T-049, T-050, T-012, T-052 and T-051.

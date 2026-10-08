@@ -273,7 +273,7 @@ T-001 (its notes N1 and N3).
 **Milestone:** M3
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -286,9 +286,10 @@ with no user database entry, the OpenSSH step prints `No user exists for uid
 
 ## Premise
 
-Read: the path of the built binary is fixed (`scripts/sandbox-check.sh:41`);
-each step prints its exit code and goes on; the OpenSSH step runs only when
-`ssh` exists (`scripts/sandbox-check.sh:103`); the last line is `exit 0`.
+Read: the path of the built binary is fixed (`scripts/sandbox-check.sh`
+line 41 at `4bf0c26`); each step prints its exit code and goes on; the
+OpenSSH step runs only when `ssh` exists (line 70 at `4bf0c26`); the last
+line is `exit 0`.
 `scripts/test_in_box.sh` runs this script in the box, so the box's result has
 the same defect. Measured by the reporter, with eleven `exit=127` lines in a
 run that exited 0.
@@ -325,3 +326,31 @@ The first exits 1 (the binary does not run). The second builds into
 `/tmp/podssh-target`, finds the binary, and exits 0 on a host where the steps
 pass. In the box, the run exits 0, and a planted step failure (a binary that
 exits 3 for `doctor`) makes it exit 1.
+
+## Correction
+
+2026-10-08, read at `4bf0c26`: the script had no `exit 0` line. It ended with
+the OpenSSH step, so it exited with the status of its last command, which was
+0 in each run. The defect of the Problem holds.
+
+## Done
+
+2026-10-08, in the commit "sandbox-check.sh: each step has a verdict, and a
+failed step fails the run". Each step prints `ok` or `FAIL` against its
+expected result, or `skip` with the reason (no `ssh`; OpenSSH with no user
+entry; the prompt steps on Windows, where podssh asks on the console). The
+binary runs once (`--version`) before the steps. A last line counts the
+verdicts, and the script exits 1 when a step failed.
+
+- `sh scripts/sandbox-check.sh /bin/false`: "FAIL the binary: /bin/false
+  --version exits 1", exit 1, before any step.
+- `CARGO_TARGET_DIR=/tmp/podssh-target sh scripts/sandbox-check.sh` on
+  Windows (Git Bash, native cargo 1.98.0): the release build went into that
+  directory, the script found the binary there, and printed 6 ok, 0 FAIL,
+  2 skip (the two prompt steps), exit 0.
+- `sh scripts/test_in_box.sh` with the gate's binary of `4bf0c26`: 7 ok,
+  0 FAIL, 1 skip (OpenSSH: "No user exists for uid 0"), exit 0.
+- Planted, in the box: the same binary behind a wrapper whose `doctor`
+  exits 3: "FAIL doctor: exit 3", 6 ok, 1 skip, and the box exits 1.
+- `docs/development.md` says how to build in a sandbox where `/tmp` or
+  `$HOME` is `noexec`, `CARGO_HOME` cannot be written, or `/tmp` is small.

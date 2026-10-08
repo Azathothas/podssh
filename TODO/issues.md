@@ -29,7 +29,7 @@ Triage of 2026-10-08: issues #1 to #36.
 | #16 | A repeated flag keeps the last value | closed | T-017 |
 | #17 | Relay drops (1011): a generic message, no retry | open | T-024, T-025; T-062 (the backpressure close) |
 | #27 | Repository health | open | T-205, T-206, T-207, T-208, T-209, T-210, T-211, T-212, T-213, T-214, T-215, T-216, T-217, T-218 |
-| #28 | `sandbox-check.sh` exits 0 on failure | open | T-006 |
+| #28 | `sandbox-check.sh` exits 0 on failure | closed | T-006 (the commit "sandbox-check.sh: each step has a verdict, and a failed step fails the run") |
 
 ## Feature requests with reports (#18 to #26)
 

@@ -112,7 +112,8 @@ gate's static x86_64 binary of `4bf0c26` (CI run 37783671123), 2026-10-08:
 | `podssh keygen`, then `podssh ssh` and `ssh -tt` to `github.com` with that key | Exit 255, `Permission denied (publickey)`: the handshake and the host-key check pass through the proxy and the relay. |
 | A prompt with nobody to answer it, on the `/dev/tty` that never answers (T-005, GitHub #15) | `podssh keygen` with no `-N` and no `SSH_ASKPASS`: exit 1 after 0 s; it names `-N ''` and writes no key. `podssh ssh -o StrictHostKeyChecking=ask` to `github.com` with no `known_hosts`: exit 255 after 1 s, with GitHub's fingerprint and `accept-new`. The run exits 0. |
 | The same, planted: the gate's binary of `d0b16a3`, before `eacd94e` | `keygen` waits until `timeout` stops it at 90 s (exit 143); `ssh` waits until its 60 s handshake limit. Both steps print `FAIL`, and the run exits 1. |
-| The `ssh` of OpenSSH with podssh as its `ProxyCommand` | `No user exists for uid 0`, exit 255: the client of OpenSSH cannot run when the user database has no entry. |
+| The `ssh` of OpenSSH with podssh as its `ProxyCommand` | `No user exists for uid 0`, exit 255: the client of OpenSSH cannot run when the user database has no entry. `scripts/sandbox-check.sh` prints `skip` for it, with that reason. |
+| The verdicts of `scripts/sandbox-check.sh` (T-006) | 7 ok, 0 FAIL, 1 skip, exit 0. Planted: the same binary behind a wrapper whose `doctor` exits 3 gives `FAIL doctor`, and the box exits 1. A binary that does not run (`/bin/false`) stops the script with exit 1 before any step. |
 
 ## In the operator's real sandboxes, measured
 
