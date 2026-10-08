@@ -1,85 +1,106 @@
 # Architecture
 
-How podssh fits together. [STATUS.md](STATUS.md) says how much of it works
-today: the `proxy` and `ssh` flows below work; reverse mode does not exist
-yet.
+This page tells how the parts of podssh fit together. [STATUS.md](STATUS.md)
+tells which parts work: the `proxy` and `ssh` flows below work, and reverse
+mode does not exist yet.
 
 ## Data flow
 
-**`podssh proxy HOST PORT`** — milestone 1, working. OpenSSH (or any tool)
-talks to podssh over stdin/stdout; podssh carries the bytes.
+**`podssh proxy HOST PORT`.** OpenSSH, or another tool, talks to podssh over
+stdin and stdout. podssh carries the bytes.
 
 ```
-stdin/stdout ⇄ pump ⇄ relay session ⇄ relay ⇄ HOST:PORT
-                       │
-                       └─ TCP to the relay, or to HTTPS_PROXY then CONNECT
-                          → TLS 1.3 → WebSocket upgrade with X-Relay-Token
+stdin/stdout <-> pump <-> relay session <-> relay <-> HOST:PORT
+                            |
+                            `- TCP to the relay, or to HTTPS_PROXY then CONNECT
+                               -> TLS 1.3 -> WebSocket upgrade with X-Relay-Token
 ```
 
-**`podssh ssh user@host`** — milestone 2. podssh is the SSH client: the
-protocol is `russh`, and everything around it is podssh's.
+**`podssh ssh user@host`.** podssh is the SSH client. `russh` does the SSH
+protocol. podssh does each part around it.
 
 ```
-terminal ⇄ session loop ⇄ russh ⇄ byte pipe ⇄ relay session ⇄ relay ⇄ sshd
-           (raw mode,      (KEX,    (frames ⇄
-            resize, ~.,     auth,    bytes; keeps
-            exit status)    channels) the relay's
-                                      close reason)
-            host keys: podssh's known_hosts reader; auth: agent, key files,
-            keyboard-interactive and password through /dev/tty or SSH_ASKPASS
+terminal <-> session loop <-> russh <-> byte pipe <-> relay session <-> relay <-> sshd
+             (raw mode,       (KEX,     (frames <->
+              resize, ~.,      auth,     bytes; keeps
+              exit status)     channels)  the close reason)
 ```
 
-`--direct` replaces the relay with a TCP connection (through `HTTPS_PROXY`
-when one is set); `-J` runs each next hop inside the previous hop's
-`direct-tcpip` channel; `-W` connects stdin/stdout to such a channel.
+- Host keys: podssh's `known_hosts` reader.
+- Authentication: agent, key files, keyboard-interactive and password,
+  through `/dev/tty`, `CONIN$` or `SSH_ASKPASS`.
+- `--direct` uses a TCP connection in place of the relay (through
+  `HTTPS_PROXY` when it is set).
+- `-J` runs each next hop in the `direct-tcpip` channel of the hop before
+  it. `-W` connects stdin and stdout to such a channel.
 
-**Reverse mode** (`podssh node` / `podssh operator`) uses the same relay
-session with the reverse legs' framing: the node multiplexes sessions by a
-32-character id; the operator leg is bare bytes. See [relay.md](relay.md).
+**The way to the relay.** `podssh-relay` gives an ordered list of relay
+hosts: the default host and up to three hosts of the pool, or the list that
+the user gives. For each host, `podssh-ws` connects:
+
+1. Through `HTTPS_PROXY` when it is set: `CONNECT` with the host name, so
+   the proxy resolves the name.
+2. Else directly. The address comes from, in order: an IP literal, a pinned
+   address (`--relay-addr`), the system resolver, DNS over HTTPS by IP
+   literal.
+3. TLS 1.3 with a verified certificate for the relay's name, then the
+   WebSocket upgrade.
+
+If a host fails with an error that another host can repair, `podssh-relay`
+tries the next host. During the session, a ping every 10 s finds a silent
+relay in 30 to 40 s. See [relay.md](relay.md).
+
+**Reverse mode** (`podssh node`, `podssh operator`; milestone M4) uses the
+same relay session with the framing of the reverse legs: the node
+multiplexes sessions by a 32-character id, and the operator leg carries bare
+bytes. See [reverse.md](reverse.md).
 
 ## Crates
 
-| crate | role | internal dependencies |
+| Crate | Role | Internal dependencies |
 | --- | --- | --- |
-| `podssh-cli` | the `podssh` binary: argument parsing, `--help`, the generated man page, dispatch, relay selection and tokens, the `proxy` pump, `ssh` option resolution | all of the below (Tailscale only with feature `ts`) |
-| `podssh-ssh` | the native SSH client: russh (aws-lc-rs) over any byte stream, the relay-to-stream pipe, `known_hosts`, the authentication chain, prompts, the terminal (raw mode, size, escapes), exit codes | `podssh-ws` |
-| `podssh-ws` | dialing the relay: TCP, TLS (rustls with podssh's own pure-Rust crypto provider), the WebSocket client | — |
-| `podssh-transport` | the relay protocol: framing for the forward, node and operator legs, control messages, close codes | `podssh-ws` |
-| `podssh-core` | protocol state machines with no I/O: `irc/`, and the retired hand-written `ssh/` (to be removed) | — |
-| `podssh-terminal` | terminal handling and the in-process line discipline | — |
-| `podssh-probe` | the relay document's structural facts (tests only today) | — |
-| `podssh-ts` | Tailscale adapter over `vendor/tailscale-rs` (feature `ts`) | the vendored fork |
+| `podssh-cli` | The `podssh` binary: arguments, `--help`, the generated man page, dispatch, the `proxy` pump, the options of `ssh`, `doctor`, `keygen` | each crate below (`podssh-ts` only with the feature `ts`) |
+| `podssh-ssh` | The SSH client: russh (aws-lc-rs) over a byte stream, the relay stream, `known_hosts`, the authentication chain, prompts, the terminal (raw mode, size, escapes), exit codes, a host-key probe, key generation | `podssh-ws` |
+| `podssh-relay` | Relay hosts, the pool and failover, tokens (mint, cache, mint again), the forward opener. No C. | `podssh-ws` |
+| `podssh-ws` | The connection to the relay: TCP, proxies, the DNS fallbacks, TLS (rustls with podssh's own pure-Rust provider), the WebSocket client | none |
+| `podssh-transport` | The relay protocol: framing for the forward, node and operator legs, control messages, close codes | `podssh-ws` |
+| `podssh-core` | Protocol state machines with no I/O: `irc/` | none |
+| `podssh-terminal` | A line discipline in the process (not used yet) | none |
+| `podssh-probe` | Facts about the structure of the relay's document (tests only) | none |
+| `podssh-ts` | The Tailscale adapter over `vendor/tailscale-rs` (feature `ts`) | the fork in `vendor/` |
 
 ## Design rules
 
-These hold for every change. The reasons are in
+These rules apply to each change. The reasons are in
 [target-environment.md](target-environment.md) and
 [decisions.md](decisions.md).
 
-1. **Protocols are sans-IO.** `podssh-core` takes bytes and returns bytes and
-   events; it owns no socket and no clock. That is what makes the protocol
-   code testable — but only when it is also tested against real peers
-   (captured transcripts, OpenSSH and Dropbear servers, real ircds). A test
-   that builds its own input with the same code it checks proves nothing.
-2. **The transport is protocol-agnostic.** `podssh-transport` and `podssh-ws`
-   move bytes and never learn whether they carry SSH, IRC or anything else.
+1. **Protocols are sans-IO.** `podssh-core` takes bytes and gives bytes and
+   events. It has no socket and no clock. This makes the protocol code
+   testable. Also test it against real peers: captured transcripts, OpenSSH
+   and Dropbear servers, real IRC servers. A test that makes its input with
+   the code that it checks proves nothing.
+2. **The transport does not know the protocol.** `podssh-transport`,
+   `podssh-relay` and `podssh-ws` move bytes. They do not know whether the
+   bytes are SSH, IRC or another protocol.
 3. **One outbound connection, never a listener.** No `bind`, no `listen`, no
-   loopback helpers.
-4. **No C in the library crates.** `podssh-ws`, `podssh-transport`,
-   `podssh-core`, `podssh-terminal` and `podssh-probe` use rustls with
-   podssh's own provider and RustCrypto crates; enforced by `CC=/nonexistent`
-   in the gate. The binary links aws-lc through `russh` for SSH (operator
-   decision, 2026-10-08), and the Tailscale fork (feature `ts`).
-5. **No LD_PRELOAD, no helper processes.** Anything the host cannot provide
-   (a pty, a terminal discipline) podssh does in-process.
-6. **Credentials never reach output.** Tokens and keys never appear in stdout,
-   stderr, logs, URLs or argv; they travel in headers, files with tight
-   permissions, or the environment.
-7. **stdout is data.** Diagnostics go to stderr, so podssh can sit in a pipe
-   or be an OpenSSH `ProxyCommand`.
-8. **Errors are actionable.** One line saying what failed and what to do,
-   and a stable exit code: usage 64, configuration 78, unavailable 69, not
-   implemented 70; `podssh ssh` follows OpenSSH instead (the remote status,
-   128 + a signal, 255 for its own failures).
-9. **Files stay under 500 lines.** Split by responsibility; never trim
-   comments to fit.
+   loopback helpers. `podssh doctor` is the only exception: it binds a
+   socket to test the host and closes it without listening.
+4. **No C in the library crates.** `podssh-ws`, `podssh-relay`,
+   `podssh-transport`, `podssh-core`, `podssh-terminal` and `podssh-probe`
+   use rustls with podssh's own provider and RustCrypto crates. The gate
+   makes sure of this with `CC=/nonexistent`. The binary links aws-lc
+   through `russh` for SSH, and the Tailscale fork with the feature `ts`.
+5. **No `LD_PRELOAD`, no helper processes.** podssh does in its own process
+   what the host cannot supply (a pty, a line discipline).
+6. **Credentials never go to output.** Tokens and keys never appear in
+   stdout, stderr, logs, URLs or argv. They go in headers, in files with
+   tight permissions, or in the environment.
+7. **stdout is data.** Diagnostics go to stderr, so podssh can be in a pipe
+   or be the `ProxyCommand` of OpenSSH.
+8. **Errors tell what to do.** One line says what failed and what to do,
+   with a stable exit code: usage 64, configuration 78, unavailable 69, not
+   implemented 70. `podssh ssh` uses the exit codes of OpenSSH: the remote
+   status, 128 plus a signal number, or 255 for its own failures.
+9. **Files have 500 lines or fewer.** Split a file by responsibility. Do not
+   remove comments to make it fit.
