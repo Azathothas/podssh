@@ -185,6 +185,13 @@ fn command_section(verb: &'static Verb) -> Section {
         text(" "),
         text(crate::help::usage_tail(verb)),
     ]));
+    // The command and the topic share a word; point from one to the other.
+    if verb.name == "relay" {
+        blocks.push(para(
+            "The relay that podssh uses (hosts, failover, tokens, limits) is in THE RELAY: podssh man \
+             relay-facts.",
+        ));
+    }
     // The sentence of --help, in place of the options.
     if let Some(sentence) = crate::help::availability_sentence(verb) {
         blocks.push(para(sentence));
@@ -356,6 +363,26 @@ mod tests {
         assert!(items.iter().any(|(t, _)| t == "PORT"), "{items:?}");
         let ssh = all_items(m.find("ssh").unwrap());
         assert!(ssh.iter().any(|(t, _)| t == "COMMAND..."), "{ssh:?}");
+    }
+
+    /// A name selects one section: no two sections share a key or an alias,
+    /// and each topic's key finds that topic.
+    #[test]
+    fn each_name_selects_one_section() {
+        let m = manual();
+        let mut seen: Vec<String> = Vec::new();
+        for s in &m.sections {
+            for name in std::iter::once(s.key).chain(s.aliases.iter().copied()) {
+                let name = name.to_ascii_lowercase();
+                assert!(!seen.contains(&name), "{name:?} names two sections");
+                seen.push(name);
+            }
+        }
+        for s in m.sections.iter().filter(|s| !s.command) {
+            assert_eq!(m.find(s.key).map(|f| f.heading.as_str()), Some(s.heading.as_str()), "{}", s.key);
+        }
+        assert_eq!(m.find("relay-facts").map(|s| s.heading.as_str()), Some("THE RELAY"));
+        assert!(m.find("relay").is_some_and(|s| s.command), "relay is the command");
     }
 
     /// The help of the `man` section argument names each section there is.

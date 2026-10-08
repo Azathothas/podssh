@@ -300,7 +300,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:252-254`).
 2. podssh listens only for a `-listen:` address that the user gives.
    `PODSSH_LISTEN=no` turns listening off: each such address then exits 78
    before any bind. Add the variable to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:46-88`); the settings file of T-048
+   (`crates/podssh-cli/src/man/facts.rs:48-90`); the settings file of T-048
    can set the same.
 3. The attempt is the probe: socket, bind, listen. EACCES or EPERM exits 77
    with the errno and an address that needs no listener; another error exits

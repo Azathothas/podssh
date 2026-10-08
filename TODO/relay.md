@@ -50,7 +50,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
    serde default for old files. `doctor` says "a cached token minted at HOST (not shown)". Use
    an old entry only under the default key, where it was right.
 4. Change in the same commit: `docs/relay.md` (lines 43-45 at `2da855f`), the comments at `relay.rs:36-37` and
-   `token.rs:84-86`, the FILES text (`crates/podssh-cli/src/man/facts.rs:122-133`), and
+   `token.rs:84-86`, the FILES text (`crates/podssh-cli/src/man/facts.rs:124-135`), and
    `docs/STATUS.md`.
 
 ## Decision
@@ -219,7 +219,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 4. Print one note for each moved host: "trying HOST last: it failed N s ago (REASON)".
 5. Ignore a record with a time in the future (a clock that moved).
 6. `doctor` and `status` (T-051) show the records. State the window in THE RELAY section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:171-184`) and in `docs/relay.md:23-41`.
+   manual (`crates/podssh-cli/src/man/facts.rs:173-186`) and in `docs/relay.md:23-41`.
 7. This is retry policy across runs. T-220 shortens the wait inside one run; the two work
    together.
 
@@ -482,7 +482,7 @@ listener" (lines 86-88), and the ruling on Q10 allows more than one for a moment
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:112-233`, 323-343) and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:53-59`); the variable to VARIABLES and the modes to THE
-   RELAY (`crates/podssh-cli/src/man/facts.rs:46-88`, 170-183); both to `docs/relay.md:23-41`.
+   RELAY (`crates/podssh-cli/src/man/facts.rs:48-90`, 170-183); both to `docs/relay.md:23-41`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
 
@@ -535,7 +535,7 @@ the fixed `/dev/shm` on Unix (lines 59-61), then `.podssh` in the working direct
 62-64). A store falls through each directory that refuses it (lines 103-112). No variable or
 flag names a directory. `doctor` probes the same list and names the first that can be written
 (`crates/podssh-cli/src/doctor/host.rs:96-125`). VARIABLES and FILES give the list
-(`crates/podssh-cli/src/man/facts.rs:74`, 108-113), a test fixes its shape (lines 365-377), and
+(`crates/podssh-cli/src/man/facts.rs:76`, 108-113), a test fixes its shape (lines 365-377), and
 the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
 
 ## Approach
@@ -555,7 +555,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
 5. `doctor` names the directory in use and the variable that chose it; `status` (T-051) shows
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
-6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:74`,
+6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:76`,
    108-113, 122-132), the test of lines 365-377, the comment of `cache.rs`, and the `doctor`
    notes (`crates/podssh-cli/src/man/notes.rs:64-75`).
 
@@ -579,7 +579,7 @@ sh scripts/dev.sh check                   # interop-faults: a token in PODSSH_CA
 
 With a set environment: `PODSSH_CACHE_DIR` comes first, `none` gives no candidate, and
 `XDG_RUNTIME_DIR` comes before the temporary directory. A scan of `cache.rs`, as
-`crates/podssh-cli/src/man/facts.rs:286-305` scans source, finds no absolute path literal. In
+`crates/podssh-cli/src/man/facts.rs:288-307` scans source, finds no absolute path literal. In
 the gate, the token file goes into a new `PODSSH_CACHE_DIR`; with a plain file there, the run
 still exits 0 and names the refusal. Planted defect: put `/dev/shm` back; the scan fails.
 

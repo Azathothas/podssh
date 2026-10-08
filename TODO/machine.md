@@ -100,17 +100,17 @@ and prints the text help, so it drops `--json` silently (T-010).
 Read: the data is in tables already. Commands and flags: `VERBS`
 (`crates/podssh-cli/src/flags.rs:384-411`), each row with its kind and `instead` (lines 19-47),
 and the availability (lines 443-451). Arguments: the parser
-(`crates/podssh-cli/src/man/model.rs:194-201`). Keywords:
+(`crates/podssh-cli/src/man/model.rs:201-208`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:23-87`, with the stated defaults (lines 99-104).
-Variables: `crates/podssh-cli/src/man/facts.rs:46-88`. The files and the exit codes are text
-blocks only (`crates/podssh-cli/src/man/facts.rs:98-143`, 231-271), and the blocks of the
+Variables: `crates/podssh-cli/src/man/facts.rs:48-90`. The files and the exit codes are text
+blocks only (`crates/podssh-cli/src/man/facts.rs:100-145`, 231-271), and the blocks of the
 manual do not keep the kind and the `instead` of a flag.
 
 ## Approach
 
 1. A third renderer (new: crates/podssh-cli/src/man/json.rs) walks the tables, not the blocks.
 2. Move the exit codes into a table that both `exit_status`
-   (`crates/podssh-cli/src/man/facts.rs:232-273`) and the JSON read; the test at lines 379-393
+   (`crates/podssh-cli/src/man/facts.rs:234-275`) and the JSON read; the test at lines 379-393
    keeps checking the constants. Do the same for FILES.
 3. The shape: `schema`, `podssh`, `commands` (name, aliases, about, availability "works",
    "not-implemented" or "not-in-build", arguments, and flags with short, long, value, kind
@@ -510,7 +510,7 @@ replaces a whole file (lines 178-197), and no function appends to one.
    two processes do not mix their lines.
 5. A size limit: at 1 MiB, rename the file to `sessions.1.jsonl`, and start a new one.
 6. `podssh status` (T-051) shows the last line in short form.
-7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-88`; the tests require
+7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:48-90`; the tests require
    it) and the file to FILES, in the same commit.
 
 ## Prove

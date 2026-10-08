@@ -36,7 +36,9 @@ pub fn sections() -> Vec<Section> {
     vec![
         topic("environment", vec!["env"], "ENVIRONMENT", environment()),
         topic("files", vec![], "FILES", files()),
-        topic("relay", vec![], "THE RELAY", relay()),
+        // Not "relay": that is the command's name, and a name selects one
+        // section.
+        topic("relay-facts", vec![], "THE RELAY", relay()),
         topic("exit-status", vec!["exit"], "EXIT STATUS", exit_status()),
     ]
 }

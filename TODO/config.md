@@ -50,7 +50,7 @@ them too, which is wrong. An unknown `%` token stays as text (`resolve.rs:303-30
 6. Refuse a file that another user owns or can write, as OpenSSH does, on the opened file
    (`crates/podssh-relay/src/cache.rs:173-185`). An unknown `%` token is an error.
 7. In the same commit: the `-F` row (`crates/podssh-cli/src/flags.rs:143-144`), VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:46-88`, 98-142), the `ssh` notes,
+   FILES (`crates/podssh-cli/src/man/facts.rs:48-90`, 98-142), the `ssh` notes,
    `docs/cli.md:184-205` and `docs/STATUS.md`.
 
 ## Decision
@@ -131,7 +131,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:184-205`, FILES (`crates/podssh-cli/src/man/facts.rs:98-143`) and the
+7. Change `docs/cli.md:184-205`, FILES (`crates/podssh-cli/src/man/facts.rs:100-145`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -399,7 +399,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:46-88`, 98-142), `docs/relay.md:23-49` and
+   FILES (`crates/podssh-cli/src/man/facts.rs:48-90`, 98-142), `docs/relay.md:23-49` and
    `docs/cli.md`. The cache directory is the work of T-243.
 
 ## Decision

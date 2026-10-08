@@ -99,7 +99,7 @@ and `EphemeralSecret::random` for P-256 (line 66).
    range), and compute the shared secret with the `diffie_hellman` function of `elliptic-curve`
    0.13. Check the API of `p256` 0.13.2 first. No generator that can panic goes in.
 4. Make the source a parameter in the tests, so a failing source can be planted.
-5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:286-305`
+5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:288-307`
    does, and fails on `fill_bytes(` or `OsRng` outside `random.rs`.
 
 ## Prove
@@ -153,7 +153,7 @@ alone.
    (`crates/podssh-ws/examples/inspect_peer_chain.rs`), and remove `pub mod probe;`. Keep each
    file under 500 lines.
 2. Add the test that `probe.rs:9-12` promised: a scan of the source of `podssh-ws`,
-   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:286-305`
+   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:288-307`
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
@@ -282,7 +282,7 @@ requires TLS 1.3 (`scripts/fake-relay.py:232-233`).
    (`crates/podssh-cli/src/doctor/relay_checks.rs:79-82`); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md:46`, the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:211-219`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:213-221`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -462,7 +462,7 @@ makes the error `DialError::BadProxy` (line 217), which stops the failover at on
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
    (`crates/podssh-cli/src/doctor/net.rs:126-149`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
-7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:47-50`),
+7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:49-52`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
 
 ## Decision

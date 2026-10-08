@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 222 open, 0 partial, 7 blocked, 21 done.**
+**250 entries: 221 open, 0 partial, 7 blocked, 22 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 127 | 0 | 3 | 13 | 143 |
+| P2 | 126 | 0 | 3 | 14 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 222 | 0 | 7 | 21 | 250 |
+| **All** | 221 | 0 | 7 | 22 | 250 |
 
 ## Entries
 
@@ -305,7 +305,7 @@ repository and CI).
 | [T-231](cli.md) | P2 | S | M3 | defect | done | A bad `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` exits 64, not 78 |
 | [T-232](cli.md) | P3 | S | backlog | chore | open | `gate_prompt` and `PromptSite` are used only by tests, and name flags that do not exist |
 | [T-233](cli.md) | P2 | S | M3 | defect | done | The help of a command that is not implemented does not say so |
-| [T-234](cli.md) | P2 | S | M3 | defect | open | `podssh man relay` shows the command and not the topic THE RELAY, and the list of sections names `relay` twice |
+| [T-234](cli.md) | P2 | S | M3 | defect | done | `podssh man relay` shows the command and not the topic THE RELAY, and the list of sections names `relay` twice |
 | [T-235](cli.md) | P3 | S | backlog | defect | open | The help puts `--help` at a different indent from the other options |
 | [T-236](ssh.md) | P2 | S | M3 | defect | open | Authentication has no time limit, but the comment of `connect_timeout` says that it has |
 | [T-237](ssh.md) | P2 | S | M3 | defect | open | The client accepts each channel that the server opens; OpenSSH refuses a channel that it did not ask for |

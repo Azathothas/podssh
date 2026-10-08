@@ -600,9 +600,9 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
 3. A malformed value names its source: `--timeout` (exit 64), or
    `PODSSH_TIMEOUT` (exit 78, see Decision). The variable never bounds `ssh`
    or `proxy`.
-4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-88`),
+4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:48-90`),
    which `each_variable_in_the_source_is_documented` requires
-   (`crates/podssh-cli/src/man/facts.rs:325-338`); "default: env
+   (`crates/podssh-cli/src/man/facts.rs:327-340`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
    it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:180-182`;
    `docs/STATUS.md`.
@@ -1078,7 +1078,7 @@ Read: podssh matches hashed lines with HMAC-SHA1
 with their numbers (`crates/podssh-ssh/src/known_hosts.rs:100-119`), and
 appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs:206-241`).
 The default files are the ones of `podssh ssh`
-(`crates/podssh-cli/src/man/facts.rs:101`).
+(`crates/podssh-cli/src/man/facts.rs:103`).
 
 ## Approach
 
@@ -1464,7 +1464,7 @@ a bad proxy URL or token (`crates/podssh-cli/src/proxy.rs:158-171`).
 2. A bad flag stays 64. A bad variable is 78 in `proxy`, `ssh` and `doctor`;
    the message names the variable, as it does now.
 3. Same commit: the 78 row of EXIT STATUS
-   (`crates/podssh-cli/src/man/facts.rs:256-261`) names `PODSSH_RELAY`,
+   (`crates/podssh-cli/src/man/facts.rs:258-263`) names `PODSSH_RELAY`,
    `PODSSH_RELAY_ADDR` and each command; `docs/STATUS.md`. T-012 gives
    `PODSSH_TIMEOUT` the same rule.
 
@@ -1682,7 +1682,7 @@ measured again here on `3ee70dc`.
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1699,12 +1699,14 @@ heading `RELAY` and "Not implemented yet. ...". `podssh man nonsense` exits
 64, and its list has `relay` twice. The whole manual has the heading THE RELAY
 (`podssh man --no-pager`).
 
-Read: the key of the topic is `relay` (`crates/podssh-cli/src/man/facts.rs:39`).
+Read: the key of the topic is `relay` (`crates/podssh-cli/src/man/facts.rs`
+line 39 at `02e4e1f`).
 The commands come before the topics (`crates/podssh-cli/src/man/model.rs:75-81`),
 and `find` takes the first match (`crates/podssh-cli/src/man/model.rs:61-67`).
-The SECTION help names `relay` (`crates/podssh-cli/src/positionals.rs:37`).
+The SECTION help names `relay` (`crates/podssh-cli/src/positionals.rs` line
+37 at `02e4e1f`).
 `each_verb_and_alias_finds_its_section` passes, because the command wins
-(`crates/podssh-cli/src/man/model.rs:314-323`).
+(`crates/podssh-cli/src/man/model.rs:321-330`).
 
 ## Approach
 
@@ -1715,7 +1717,7 @@ The SECTION help names `relay` (`crates/podssh-cli/src/positionals.rs:37`).
    finds its own section.
 4. Change the SECTION help (`crates/podssh-cli/src/positionals.rs:37`):
    `the_section_argument_names_each_topic` requires each topic key in it
-   (`crates/podssh-cli/src/man/model.rs:361-372`). Same commit: `docs/STATUS.md`.
+   (`crates/podssh-cli/src/man/model.rs:388-399`). Same commit: `docs/STATUS.md`.
 
 ## Decision
 
@@ -1736,6 +1738,24 @@ PODSSH_OFFLINE=1 timeout 20 target/debug/podssh man nonsense </dev/null 2>/tmp/t
 The new test fails when two sections share a name. The binary runs select the
 topic by its new key, and find `relay` once in the list. Plant: give the topic
 the key `relay` again; the new test fails.
+
+## Done
+
+2026-10-08, in the commit "podssh man relay-facts selects THE RELAY".
+
+- The topic THE RELAY has the key `relay-facts`, the term of
+  `docs/cli.md`; `relay` selects the command. The section of the command
+  points to the topic in one sentence. The help of SECTION names
+  `relay-facts`.
+- A new test, `each_name_selects_one_section`: no two sections share a key
+  or an alias, and each topic's key finds that topic.
+- Prove: `cargo test -p podssh-cli --lib -- man::model` (8 passed, with the
+  new test) and `cargo test -p podssh-cli --test man_page` (8 passed).
+  `podssh man relay-facts --no-pager` exits 0 and its first line is
+  `THE RELAY`; `podssh man nonsense` exits 64, and its list names `relay`
+  once and `relay-facts` once.
+- Plant: the key `relay` again. The new test failed: "\"relay\" names two
+  sections".
 
 # T-235: The help puts `--help` at a different indent from the other options
 
