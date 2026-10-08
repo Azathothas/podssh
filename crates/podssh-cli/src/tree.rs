@@ -200,6 +200,8 @@ pub enum Parsed {
         port: Option<String>,
         /// `--relay-host`.
         relay_host: Option<String>,
+        /// `--relay-addr`.
+        relay_addr: Option<String>,
         /// `--ca-file`.
         ca_file: Option<String>,
         refused: Vec<(String, &'static str, &'static str)>,
@@ -405,6 +407,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             target: get("target"),
             port: get("port"),
             relay_host: get("relay-host"),
+            relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
             refused,
         };

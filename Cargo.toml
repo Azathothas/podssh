@@ -142,6 +142,8 @@ p256 = { version = "0.13", default-features = false, features = ["ecdsa", "arith
 # offers only P-256/SHA-256 cannot verify the chain the relay actually
 # presents, so it is not a provider.
 p384 = { version = "0.13", default-features = false, features = ["ecdsa", "arithmetic"] }
+# RSA signature verification in podssh's TLS provider (public keys only).
+rsa = { version = "0.9", default-features = false, features = ["std"] }
 
 # rand's default `getrandom` backend reads the OS, not a C library. `small_rng`
 # is deliberately off: podssh's protocol randomness is OS-sourced on every

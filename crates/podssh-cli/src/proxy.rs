@@ -35,6 +35,8 @@ pub struct ProxyArgs {
     pub port: Option<String>,
     /// `--relay-host`.
     pub relay_host: Option<String>,
+    /// `--relay-addr`.
+    pub relay_addr: Option<String>,
     /// `--ca-file`.
     pub ca_file: Option<String>,
 }
@@ -49,6 +51,10 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             return EXIT_USAGE;
         }
     };
+    if let Err(why) = crate::pins::apply(args.relay_addr.as_deref()) {
+        let _ = writeln!(err, "podssh proxy: {why}");
+        return EXIT_USAGE;
+    }
     let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
     let relays = match relay::select_relays(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok(), &pool) {
         Ok(r) => r,

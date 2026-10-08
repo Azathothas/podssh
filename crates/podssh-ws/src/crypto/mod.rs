@@ -19,6 +19,7 @@ pub mod hkdf;
 pub mod hmac;
 pub mod kx;
 pub mod random;
+pub mod rsa_sig;
 pub mod sign;
 pub mod suites;
 

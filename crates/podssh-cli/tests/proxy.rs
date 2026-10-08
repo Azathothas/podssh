@@ -26,6 +26,7 @@ fn the_positionals_and_options_reach_the_verb() {
             target: Some("host.example".into()),
             port: Some("22".into()),
             relay_host: Some("relay.example:8443".into()),
+            relay_addr: None,
             ca_file: Some("ca.pem".into()),
             refused: vec![],
         }

@@ -16,6 +16,8 @@ use rustls::SignatureScheme;
 use rustls_pki_types::alg_id;
 use rustls_pki_types::{AlgorithmIdentifier, InvalidSignature, SignatureVerificationAlgorithm};
 
+use super::rsa_sig;
+
 /// ⛔ Only three algorithms, and **each one is here because the live relay's
 /// certificate chain required it.** An algorithm nobody has exchanged a
 /// certificate with is a claim.
@@ -31,12 +33,21 @@ pub static ECDSA_P256_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP256Sh
 pub static ECDSA_P384_SHA384: &dyn SignatureVerificationAlgorithm = &EcdsaP384Sha384;
 pub static ED25519: &dyn SignatureVerificationAlgorithm = &Ed25519Verify;
 
-/// ⛔ RSA is deliberately absent. `rsa` is in the workspace and builds clean
-/// under `CC=/nonexistent`, so it could be added — but nothing in the measured
-/// chain used it, and offering a verification algorithm podssh has never
-/// exercised is exactly the "offer what you can complete" rule's other side.
+/// RSA joined on 2026-10-08, when a measurement needed it (see
+/// [`super::rsa_sig`]): Google's DNS-over-HTTPS resolvers refuse a client
+/// that cannot verify RSA, and TLS-intercepting proxies often use RSA.
 static SUPPORTED_SIG_ALGS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms {
-    all: &[ECDSA_P384_SHA384, ECDSA_P256_SHA256, ED25519],
+    all: &[
+        ECDSA_P384_SHA384,
+        ECDSA_P256_SHA256,
+        ED25519,
+        rsa_sig::RSA_PKCS1_SHA256,
+        rsa_sig::RSA_PKCS1_SHA384,
+        rsa_sig::RSA_PKCS1_SHA512,
+        rsa_sig::RSA_PSS_SHA256,
+        rsa_sig::RSA_PSS_SHA384,
+        rsa_sig::RSA_PSS_SHA512,
+    ],
     // ⛔ **The order is the preference sent to the peer, and it came from the
     // measurement rather than from taste.** P-384 is first because the chain
     // is signed with SHA-384. P-256 stays because the leaf and the first
@@ -52,6 +63,10 @@ static SUPPORTED_SIG_ALGS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms
             &[ECDSA_P256_SHA256, ECDSA_P384_SHA384],
         ),
         (SignatureScheme::ED25519, &[ED25519]),
+        // TLS 1.3 signs the handshake with RSA-PSS only (RFC 8446 4.2.3).
+        (SignatureScheme::RSA_PSS_SHA256, &[rsa_sig::RSA_PSS_SHA256]),
+        (SignatureScheme::RSA_PSS_SHA384, &[rsa_sig::RSA_PSS_SHA384]),
+        (SignatureScheme::RSA_PSS_SHA512, &[rsa_sig::RSA_PSS_SHA512]),
     ],
 };
 

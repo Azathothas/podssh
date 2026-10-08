@@ -48,3 +48,8 @@ crates/podssh-core/tests/fixtures/*.txt -text
 *.png binary
 *.jpg binary
 *.gz binary
+
+# RSA signature vectors made by OpenSSL: bytes, never text.
+crates/podssh-ws/tests/fixtures/rsa/*.der binary
+crates/podssh-ws/tests/fixtures/rsa/*.sig binary
+crates/podssh-ws/tests/fixtures/rsa/msg -text

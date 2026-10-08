@@ -36,6 +36,7 @@ pub mod help;
 pub mod man;
 pub mod non_interactive;
 pub mod pager;
+pub mod pins;
 pub mod proxy;
 pub mod refuse;
 pub mod ssh;

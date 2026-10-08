@@ -28,6 +28,10 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh {} (SSH: russh, aws-lc-rs)", env!("CARGO_PKG_VERSION"));
         return 0;
     }
+    if let Err(why) = crate::pins::apply(args.relay_addr.as_deref()) {
+        let _ = writeln!(err, "podssh ssh: {why}");
+        return EXIT_USAGE;
+    }
     let resolved = match resolve::resolve(args, &Env::from_process()) {
         Ok(r) => r,
         Err(why) => {

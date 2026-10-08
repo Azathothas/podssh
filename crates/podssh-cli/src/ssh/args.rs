@@ -38,6 +38,7 @@ pub struct SshArgs {
     pub compression: bool,
     pub version: bool,
     pub relay_host: Option<String>,
+    pub relay_addr: Option<String>,
     pub ca_file: Option<String>,
     pub direct: bool,
 }
@@ -89,6 +90,7 @@ impl SshArgs {
             compression: flag("compress"),
             version: flag("version"),
             relay_host: one("relay-host"),
+            relay_addr: one("relay-addr"),
             ca_file: one("ca-file"),
             direct: flag("direct"),
         }

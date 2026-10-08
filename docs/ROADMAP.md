@@ -138,9 +138,14 @@ take podssh down.
       frame counts, so a slow upload cannot fake a death), enforced only once
       the relay has answered a ping. Measured: the relay answers pings (3 of
       3); a 50 s idle session with SSH keepalives off stayed up.
-- [ ] **No proxy and no DNS.** DNS over HTTPS to an IP literal (repair and wire
-      the unused DoH code, or replace it), and `--relay-addr HOST=IP` to pin an
-      address.
+- [x] **No proxy and no DNS** (2026-10-08). The dialer resolves in order:
+      an IP literal; a pinned address (`--relay-addr HOST=IP`,
+      `PODSSH_RELAY_ADDR`); the system resolver; DNS over HTTPS to Cloudflare
+      and Google by IP literal, certificates verified against those IPs. TLS
+      always checks the relay's name. This needed RSA verification in the TLS
+      provider, which Google's resolvers require (measured: all four
+      resolvers answer, each on its own). The unused DoH stack in
+      `podssh-transport` is still to be removed.
 - [ ] **`podssh doctor`**: proxy and its allowlist (which ports and names it
       lets through), AF_INET and AF_UNIX bind, `/dev/ptmx`, a passwd entry,
       which directories can execute, `/proc`, the CA bundle, each relay

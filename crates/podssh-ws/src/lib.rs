@@ -19,6 +19,7 @@ pub mod frame;
 pub mod handshake;
 pub mod http;
 pub mod probe;
+pub mod resolve;
 pub mod session;
 pub mod text;
 pub mod tls;

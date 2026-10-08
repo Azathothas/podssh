@@ -371,10 +371,16 @@ fn the_provider_offers_only_what_it_implements() {
     // was implemented in response and the handshake completed, so the count
     // here is three and the count is the *result* of a measurement rather than
     // a preference.
+    //
+    // Six more on 2026-10-08, for the same reason: Google's DNS-over-HTTPS
+    // resolvers (8.8.8.8, 8.8.4.4) ended the handshake with a
+    // `HandshakeFailure` alert until RSA could be verified (MEASURED,
+    // `tests/live_doh.rs`), so RSA PKCS #1 v1.5 and PSS with SHA-256, -384 and
+    // -512 joined; `tests/rsa.rs` checks them against OpenSSL's signatures.
     assert_eq!(
         p.signature_verification_algorithms.all.len(),
-        3,
-        "ECDSA P-256/SHA-256, ECDSA P-384/SHA-384 and Ed25519"
+        9,
+        "ECDSA P-256/SHA-256, ECDSA P-384/SHA-384, Ed25519, and RSA PKCS #1 and PSS with three hashes"
     );
     assert!(podssh_ws::crypto::suites::self_check().is_ok());
 }
@@ -400,13 +406,15 @@ fn the_signature_mapping_covers_every_algorithm_it_lists() {
             );
         }
     }
-    // ⛔ **Three mapped schemes**, one per algorithm. ⛔ The third is
-    // ECDSA_NISTP384_SHA384, added after the live handshake named
-    // `ecdsa-with-SHA384` as the algorithm it could not verify; see
-    // `the_provider_offers_only_it_implements` for the measurement.
+    // ⛔ **Six mapped schemes.** ⛔ The third is ECDSA_NISTP384_SHA384, added
+    // after the live handshake named `ecdsa-with-SHA384` as the algorithm it
+    // could not verify; see `the_provider_offers_only_what_it_implements` for
+    // the measurement. The other three are RSA-PSS with SHA-256, -384 and
+    // -512: TLS 1.3 signs its handshake with RSA-PSS only (RFC 8446 4.2.3),
+    // while PKCS #1 v1.5 is for certificate chains and needs no scheme.
     assert_eq!(
         algs.mapping.len(),
-        3,
-        "ECDSA P-256, ECDSA P-384 and Ed25519"
+        6,
+        "ECDSA P-256, ECDSA P-384, Ed25519, and RSA-PSS with three hashes"
     );
 }

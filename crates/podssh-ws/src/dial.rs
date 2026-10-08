@@ -234,13 +234,13 @@ async fn connect_direct(
     budget: Duration,
 ) -> Result<TcpStream, DialError> {
     let target = authority(host, port);
-    let addrs: Vec<_> = tokio::time::timeout_at(deadline, tokio::net::lookup_host((host, port)))
+    // Pinned addresses, the system resolver, then DNS over HTTPS: a host with
+    // a broken resolver but working TCP egress still gets there.
+    let addrs = crate::resolve::resolve(host, port, deadline)
         .await
-        .map_err(|_| DialError::Timeout { step: format!("resolving {host}"), after: budget })?
-        .map_err(|e| DialError::Resolve { host: host.to_string(), detail: e.to_string() })?
-        .collect();
-    if addrs.is_empty() {
-        return Err(DialError::Resolve { host: host.to_string(), detail: "no addresses".into() });
+        .map_err(|detail| DialError::Resolve { host: host.to_string(), detail })?;
+    if Instant::now() >= deadline {
+        return Err(DialError::Timeout { step: format!("resolving {host}"), after: budget });
     }
     let mut last = String::new();
     for addr in addrs {

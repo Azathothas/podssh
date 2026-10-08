@@ -83,7 +83,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             let mut keys = stdin.lock();
             crate::man::run(section.as_deref(), *no_pager, tty, &mut keys, s.out, s.err)
         }
-        Parsed::Proxy { target, port, relay_host, ca_file, refused } => {
+        Parsed::Proxy { target, port, relay_host, relay_addr, ca_file, refused } => {
             if refusals("proxy", refused, s.err) {
                 return EXIT_USAGE;
             }
@@ -92,6 +92,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     target: target.clone(),
                     port: port.clone(),
                     relay_host: relay_host.clone(),
+                    relay_addr: relay_addr.clone(),
                     ca_file: ca_file.clone(),
                 },
                 s.err,

@@ -170,6 +170,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "bound on the SSH handshake, as -o ConnectTimeout", None),
     row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
         "relay hosts to try in order, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
+    row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
+        "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
         "trust only the CA certificates in FILE for the relay (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     row(None, "direct", None, FlagKind::Supported,
@@ -290,6 +292,8 @@ pub const PROXY_FLAGS: &[FlagRow] = &[
         "a byte pipe on stdin/stdout; not an SSH client", None),
     row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
         "relay hosts to try in order, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
+    row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
+        "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
 ];
