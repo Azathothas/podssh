@@ -23,6 +23,10 @@ struct Entry {
     token: String,
     /// Expiry in milliseconds since the epoch, as the relay reports it.
     expires: i64,
+    /// The relay that minted the token: `host`, or `host:port`. An entry
+    /// written before podssh recorded it has none.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    minted_at: Option<String>,
 }
 
 /// A token found in the cache. Its `Debug` never shows the token.
@@ -30,6 +34,8 @@ pub struct Cached {
     pub token: String,
     pub expires_ms: i64,
     pub path: PathBuf,
+    /// The relay that minted it, when the entry says so.
+    pub minted_at: Option<String>,
 }
 
 impl std::fmt::Debug for Cached {
@@ -38,6 +44,7 @@ impl std::fmt::Debug for Cached {
             .field("token", &"<redacted>")
             .field("expires_ms", &self.expires_ms)
             .field("path", &self.path)
+            .field("minted_at", &self.minted_at)
             .finish()
     }
 }
@@ -78,7 +85,7 @@ pub fn load_from(dirs: &[PathBuf], relay_host: &str, now_ms: i64) -> Option<Cach
         let path = dir.join(&name);
         let entry: Entry = serde_json::from_str(&read_trusted(&path)?).ok()?;
         (entry.expires.saturating_sub(now_ms) >= MIN_REMAINING_MS && valid_token(&entry.token))
-            .then(|| Cached { token: entry.token, expires_ms: entry.expires, path })
+            .then(|| Cached { token: entry.token, expires_ms: entry.expires, path, minted_at: entry.minted_at })
     })
 }
 
@@ -111,25 +118,27 @@ pub fn store_file_in_first(dirs: &[PathBuf], name: &str, body: &[u8]) -> Result<
     Err(format!("no directory would take {name} ({})", reasons.join("; ")))
 }
 
-/// Save a token, in the first directory that accepts it. Returns where it
-/// went, or every directory's reason for refusing.
-pub fn store(relay_host: &str, token: &str, expires_ms: i64) -> Result<PathBuf, String> {
-    store_in_first(&candidate_dirs(), relay_host, token, expires_ms)
+/// Save a token under `key` (see `token::token_key`), with the relay that
+/// minted it, in the first directory that accepts it. Returns where it went,
+/// or every directory's reason for refusing.
+pub fn store(key: &str, token: &str, expires_ms: i64, minted_at: &str) -> Result<PathBuf, String> {
+    store_in_first(&candidate_dirs(), key, token, expires_ms, minted_at)
 }
 
 /// [`store`] over explicit directories (for tests).
 pub fn store_in_first(
     dirs: &[PathBuf],
-    relay_host: &str,
+    key: &str,
     token: &str,
     expires_ms: i64,
+    minted_at: &str,
 ) -> Result<PathBuf, String> {
     if !valid_token(token) {
         return Err("refusing to cache something that is not a relay token".into());
     }
-    let body = serde_json::to_vec(&Entry { token: token.to_string(), expires: expires_ms })
-        .map_err(|e| e.to_string())?;
-    store_file_in_first(dirs, &file_name(relay_host), &body)
+    let entry = Entry { token: token.to_string(), expires: expires_ms, minted_at: Some(minted_at.to_string()) };
+    let body = serde_json::to_vec(&entry).map_err(|e| e.to_string())?;
+    store_file_in_first(dirs, &file_name(key), &body)
 }
 
 /// Forget the cached token for `relay_host` everywhere it is ours to delete.

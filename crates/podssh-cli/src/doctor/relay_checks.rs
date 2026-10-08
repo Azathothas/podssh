@@ -55,7 +55,7 @@ pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &T
         }
         return;
     };
-    if token_check(report, relays, relay, trust).await {
+    if token_check(report, relay, trust).await {
         forward(report, relays, trust).await;
     } else {
         report.unknown("forward", "not attempted: there is no relay token");
@@ -139,15 +139,15 @@ fn now() -> i64 {
 
 /// A token from the environment, the cache or a fresh mint at a host that
 /// answered. It is never shown.
-async fn token_check(report: &mut Report<'_>, relays: &RelayList, at: &Relay, trust: &Trust) -> bool {
+async fn token_check(report: &mut Report<'_>, at: &Relay, trust: &Trust) -> bool {
     let proxy = ProxyChoice::FromEnvironment;
-    let primary = relays.primary().host.as_str();
-    let ctx = MintContext { relay: at, cache_key: primary, trust, proxy: &proxy, timeout: TIMEOUT };
+    let ctx = MintContext { relay: at, trust, proxy: &proxy, timeout: TIMEOUT };
     match token::obtain(&ctx, false).await {
         Ok(token) => {
+            let minted = token.minted_at.clone().unwrap_or_default();
             let detail = match (token.origin, &token.cache_warning) {
                 (Origin::Environment, _) => format!("from {} (not shown)", token::TOKEN_ENV),
-                (Origin::Cache, _) => format!("a cached token for {primary} (not shown)"),
+                (Origin::Cache, _) => format!("a cached token minted at {minted} (not shown)"),
                 (Origin::Minted, None) => format!("minted at {} and cached (not shown)", at.host),
                 (Origin::Minted, Some(why)) => {
                     format!("minted at {} (not shown), but it could not be cached: {why}", at.host)

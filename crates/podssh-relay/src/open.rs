@@ -216,7 +216,7 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
 async fn try_host(relay: &Relay, req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<RelaySession, OpenError> {
     let proxy = ProxyChoice::FromEnvironment;
     let primary = req.relays.primary().host.as_str();
-    let ctx = MintContext { relay, cache_key: primary, trust: req.trust, proxy: &proxy, timeout: CONNECT_TIMEOUT };
+    let ctx = MintContext { relay, trust: req.trust, proxy: &proxy, timeout: CONNECT_TIMEOUT };
     let mut token = token::obtain(&ctx, false).await.map_err(OpenError::Token)?;
     if let Some(why) = token.cache_warning.take() {
         notes(&format!("the relay token could not be cached, so one is minted per run: {why}"));
@@ -237,7 +237,7 @@ async fn try_host(relay: &Relay, req: &Request<'_>, notes: &mut dyn FnMut(&str))
     // Not for a policy refusal, which a new token cannot fix.
     if let Err(ConnectError::Refused { status: 403, body }) = &result {
         if token.origin == Origin::Cache && !is_policy_refusal(body) {
-            crate::cache::remove(primary);
+            crate::cache::remove(&token::token_key(relay));
             token = token::obtain(&ctx, true).await.map_err(OpenError::Token)?;
             result = connect(&config, token.secret()).await;
         }

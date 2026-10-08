@@ -504,7 +504,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    or `proxy`.
 4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:46-88`),
    which `each_variable_in_the_source_is_documented` requires
-   (`crates/podssh-cli/src/man/facts.rs:323-336`); "default: env
+   (`crates/podssh-cli/src/man/facts.rs:324-337`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
    it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:170-172`;
    `docs/STATUS.md`.
@@ -1342,7 +1342,7 @@ a bad proxy URL or token (`crates/podssh-cli/src/proxy.rs:156-169`).
 2. A bad flag stays 64. A bad variable is 78 in `proxy`, `ssh` and `doctor`;
    the message names the variable, as it does now.
 3. Same commit: the 78 row of EXIT STATUS
-   (`crates/podssh-cli/src/man/facts.rs:255-259`) names `PODSSH_RELAY`,
+   (`crates/podssh-cli/src/man/facts.rs:256-260`) names `PODSSH_RELAY`,
    `PODSSH_RELAY_ADDR` and each command; `docs/STATUS.md`. T-012 gives
    `PODSSH_TIMEOUT` the same rule.
 

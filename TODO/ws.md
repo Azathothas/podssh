@@ -99,7 +99,7 @@ and `EphemeralSecret::random` for P-256 (line 66).
    range), and compute the shared secret with the `diffie_hellman` function of `elliptic-curve`
    0.13. Check the API of `p256` 0.13.2 first. No generator that can panic goes in.
 4. Make the source a parameter in the tests, so a failing source can be planted.
-5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:284-303`
+5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:285-304`
    does, and fails on `fill_bytes(` or `OsRng` outside `random.rs`.
 
 ## Prove
@@ -153,7 +153,7 @@ alone.
    (`crates/podssh-ws/examples/inspect_peer_chain.rs`), and remove `pub mod probe;`. Keep each
    file under 500 lines.
 2. Add the test that `probe.rs:9-12` promised: a scan of the source of `podssh-ws`,
-   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:284-303`
+   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:285-304`
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
@@ -200,11 +200,11 @@ Read: `open_tls` builds the trust anchors and the configuration on each call
 (`crates/podssh-ws/src/client.rs:179-199`, through `crates/podssh-ws/src/tls.rs:143-163`).
 `WsClientConfig` carries only a `Trust` (`crates/podssh-ws/src/client.rs:47-61`). The same
 `Trust` goes through `podssh-relay`: `Request` (`crates/podssh-relay/src/open.rs:127-137`),
-`MintContext` (`crates/podssh-relay/src/token.rs:87-93`), the pool refresh
+`MintContext` (`crates/podssh-relay/src/token.rs:92-97`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:109-118`), and the `https_*` functions
 (`crates/podssh-ws/src/client.rs:253-279`). podssh's configuration offers no ALPN
 (`crates/podssh-ws/src/tls.rs:157-160`), because the upgrade is HTTP/1.1 only
-(`docs/relay.md:160`). The `tls12` feature of `rustls` is on in the workspace
+(`docs/relay.md:164`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -282,7 +282,7 @@ requires TLS 1.3 (`scripts/fake-relay.py:232-233`).
    (`crates/podssh-cli/src/doctor/relay_checks.rs:79-82`); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md:46`, the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:210-218`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:211-219`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -385,7 +385,7 @@ Read: `send_binary` and `send_text` (`crates/podssh-ws/src/session.rs:86-94`), `
 `crates/podssh-cli/src/proxy.rs:209-244` prints it; `podssh-transport` makes it
 `TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs:75-80`, 109, 115, 136).
 Tests and the gate match the text: `crates/podssh-ws/tests/session.rs:108` ("continuation") and
-172 ("without a WebSocket Close"), and `scripts/interop-faults.sh:122` ("pings unanswered").
+172 ("without a WebSocket Close"), and `scripts/interop-faults.sh:137` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:50-70`), but the session does not use it.
 
 ## Approach

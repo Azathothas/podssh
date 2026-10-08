@@ -36,8 +36,8 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   work. `known_hosts` is appended with no lock
   (`crates/podssh-ssh/src/known_hosts.rs:209-241`).
 - Read: with no cached token, each session mints one
-  (`crates/podssh-relay/src/token.rs:97-112`); the relay allows 120 attempts
-  with no token for each minute and address (`docs/relay.md:112`).
+  (`crates/podssh-relay/src/token.rs:132-151`); the relay allows 120 attempts
+  with no token for each minute and address (`docs/relay.md:116`).
 
 ## Approach
 
@@ -627,7 +627,7 @@ of the command.
    changed.
 3. Then one exec on the same SSH connection: `cd DIR && COMMAND`, with DIR
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
-   (`docs/relay.md:111`), run the exec on a new session (T-137).
+   (`docs/relay.md:115`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
    (`docs/cli.md:142-145`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
@@ -732,7 +732,7 @@ a ticket, or a tool that asks an AI.
   its first line read back (`crates/podssh-ssh/src/prompt.rs:100-117`).
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:105-107`). The token type never shows itself
-  (`crates/podssh-relay/src/token.rs:27-47`), and doctor never shows proxy
+  (`crates/podssh-relay/src/token.rs:27-53`), and doctor never shows proxy
   credentials or tokens (`docs/cli.md:116-118`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
@@ -819,7 +819,7 @@ queue, no wait for a result, and no way to get the output back.
   queue on the client dies with it, and a client that waits must not need a
   listener (`docs/target-environment.md:74-78`).
 - Read: the output comes back with `cp` (T-134), within 64 MiB for each
-  relay session (`docs/relay.md:111`); T-137 opens a new session.
+  relay session (`docs/relay.md:115`); T-137 opens a new session.
 - Read in the report: GPU-Share places jobs by idle time and free VRAM. No
   such logic here: a count of slots is the only limit.
 
@@ -839,7 +839,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/facts.rs:231-271`.
+   exits 75; add the code to `crates/podssh-cli/src/man/facts.rs:232-272`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest

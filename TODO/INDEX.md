@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 232 open, 0 partial, 7 blocked, 11 done.**
+**250 entries: 231 open, 0 partial, 7 blocked, 12 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 3 | 0 | 0 | 6 | 9 |
+| P1 | 2 | 0 | 0 | 7 | 9 |
 | P2 | 136 | 0 | 3 | 4 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 232 | 0 | 7 | 11 | 250 |
+| **All** | 231 | 0 | 7 | 12 | 250 |
 
 ## Entries
 
@@ -130,7 +130,7 @@ repository and CI).
 | [T-054](machine.md) | P3 | M | backlog | feature | open | A machine-readable result for `podssh ssh`: exit status, signal and byte counts |
 | [T-055](machine.md) | P3 | M | backlog | feature | open | `podssh mcp`: the commands as tools for an agent, over stdin and stdout |
 | [T-056](machine.md) | P3 | S | backlog | feature | open | A log of the sessions of this host, when the user asks for it |
-| [T-057](relay.md) | P1 | S | M3 | defect | open | The relay token is cached under the first configured host, not the host that minted it (GitHub #3) |
+| [T-057](relay.md) | P1 | S | M3 | defect | done | The relay token is cached under the first configured host, not the host that minted it (GitHub #3) |
 | [T-058](relay.md) | P2 | M | backlog | feature | open | `podssh relay status`, `info`, `spec` and `trace` |
 | [T-059](relay.md) | P3 | S | backlog | feature | open | A relay host that failed recently is tried last, also in the next run |
 | [T-060](relay.md) | P3 | S | none | chore | open | P1: no command uses `podssh-probe` |

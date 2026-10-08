@@ -40,9 +40,13 @@ The code is in `crates/podssh-relay/`.
 5. `ConnectionAttempts` repeats the whole list, with a backoff of 1 s that
    doubles up to 30 s, scaled by a random factor from 0.5 to 1.5.
 
-A token is cached under the name of the first host of the list. A token is
-valid on each host of one relay deployment, so a pool host accepts the token
-of the default host (measured 2026-10-08).
+A token is cached for its relay deployment, with the host that minted it.
+The hosts of the default deployment share one token: a pool host accepts the
+token of the default host (measured 2026-10-08). Any other host has its own
+token, under its name and its port when that is not 443. So podssh never
+sends a cached token to a deployment that did not mint it (T-057). A cache
+entry that does not name the host that minted it (written before
+2026-10-08) is not used.
 
 ## The forward path: what `podssh proxy` and `podssh ssh` use
 

@@ -103,14 +103,14 @@ and the availability (lines 443-451). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:203-210`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:23-87`, with the stated defaults (lines 99-104).
 Variables: `crates/podssh-cli/src/man/facts.rs:46-88`. The files and the exit codes are text
-blocks only (`crates/podssh-cli/src/man/facts.rs:98-142`, 231-271), and the blocks of the
+blocks only (`crates/podssh-cli/src/man/facts.rs:98-143`, 231-271), and the blocks of the
 manual do not keep the kind and the `instead` of a flag.
 
 ## Approach
 
 1. A third renderer (new: crates/podssh-cli/src/man/json.rs) walks the tables, not the blocks.
 2. Move the exit codes into a table that both `exit_status`
-   (`crates/podssh-cli/src/man/facts.rs:231-271`) and the JSON read; the test at lines 379-393
+   (`crates/podssh-cli/src/man/facts.rs:232-272`) and the JSON read; the test at lines 379-393
    keeps checking the constants. Do the same for FILES.
 3. The shape: `schema`, `podssh`, `commands` (name, aliases, about, availability "works",
    "not-implemented" or "not-in-build", arguments, and flags with short, long, value, kind
@@ -168,7 +168,7 @@ Read: the verb has no flags (`crates/podssh-cli/src/flags.rs:403-404`), an owner
 and no arguments (`crates/podssh-cli/src/positionals.rs:50`). Each fact has a local source that
 opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:55-75`,
 `crates/podssh-relay/src/pool.rs:48-61`); the token cache
-(`crates/podssh-relay/src/cache.rs:68-83`, which returns the token itself in `Cached`, lines
+(`crates/podssh-relay/src/cache.rs:75-90`, which returns the token itself in `Cached`, lines
 29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:54-60`, 90-98); the attachment
 (`crates/podssh-cli/src/non_interactive.rs:74-76`); the proxy, shown with no credentials
 (`crates/podssh-ws/src/dial.rs:39-44`, 131-134).
@@ -307,7 +307,7 @@ Read: the session pings the relay every 10 s and counts the pongs, but it measur
 trip (`crates/podssh-ws/src/session.rs:142-166`; the payload is a counter, line 162). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs:115-117`). The relay counts both directions
-against 64 MiB for each session (`docs/relay.md:111`). The stand-in relay answers pings
+against 64 MiB for each session (`docs/relay.md:115`). The stand-in relay answers pings
 (`scripts/fake-relay.py:167-169`).
 
 ## Approach
@@ -493,7 +493,7 @@ host, and how they ended. Each of these facts is lost when the process ends.
 
 Read: podssh keeps no record of a session. `-E LOGFILE` appends podssh's own messages, which is
 another purpose (`crates/podssh-cli/src/flags.rs:141-142`). The cache directories and the rules
-for private files are in `crates/podssh-relay/src/cache.rs:51-66` and 164-262. `write_private`
+for private files are in `crates/podssh-relay/src/cache.rs:58-73` and 164-262. `write_private`
 replaces a whole file (lines 178-197), and no function appends to one.
 
 ## Approach

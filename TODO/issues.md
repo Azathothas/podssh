@@ -13,7 +13,7 @@ Triage of 2026-10-08: issues #1 to #36.
 | --- | --- | --- | --- |
 | #1 | `podssh man` writes the whole manual | closed | T-014 |
 | #2 | Bracketed IPv6 literals refused | closed | T-007 (the commit "IPv6 addresses as targets: podssh sends the bare literal to the relay"); T-253 waits for the relay's operator |
-| #3 | The token cache key is the first host | open | T-057 |
+| #3 | The token cache key is the first host | closed | T-057 (the commit "Relay tokens: one cache entry for each deployment, with the host that minted it") |
 | #4 | Blank flag names under groff | closed | T-015 |
 | #5 | `-c`, `-m`, `-X`, `-Y`, `-O`: "unknown flag" | closed | T-016 |
 | #6 | `cp`, `mv`, `relay` print the `chat` example | open | T-008 |

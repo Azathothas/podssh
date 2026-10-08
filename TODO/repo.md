@@ -459,7 +459,7 @@ Read:
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
-- `crates/podssh-cli/src/man/facts.rs:340-356`: the drift test of the manual
+- `crates/podssh-cli/src/man/facts.rs:341-357`: the drift test of the manual
   counts each quoted upper-case name with `_` in the sources as a variable
   (except `CARGO_` names).
 
@@ -652,13 +652,13 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:102-118`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:103-119`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:144-146`: the box runs `probe.sh`, then
   `sandbox-check.sh`, and the script exits with the code of the second.
   `scripts/sandbox-check.sh:85-186` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:109`).
+  in a required property (17 properties, `docs/STATUS.md:110`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:94-98`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:90`) and a mask on
@@ -685,7 +685,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:137`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:138`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -703,7 +703,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:110`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:111`,
 and the job must fail.
 
 ## Correction
@@ -743,14 +743,14 @@ Read:
 - `.github/workflows/release.yml:65-106`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
-- `docs/STATUS.md:201`: 660 tests pass on Windows, run by hand.
+- `docs/STATUS.md:203`: 660 tests pass on Windows, run by hand.
   `docs/STATUS.md:62`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
   `stty`, `vi`, `less`, `top`, `seq` and `/tmp`.
 - The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
   `crates/podssh-ssh/src/prompt.rs:95`, and the `cfg(not(unix))` branches of
-  `crates/podssh-relay/src/cache.rs:205-260`.
+  `crates/podssh-relay/src/cache.rs:214-269`.
 
 ## Approach
 
@@ -1091,7 +1091,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:92-94` states the rule with `CXX`, and
-  `docs/STATUS.md:207` records the measurement. Rule 4 of
+  `docs/STATUS.md:209` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:67-73` runs the plant on each push.
@@ -1122,7 +1122,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:207`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:209`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1332,7 +1332,7 @@ Read, wrong facts:
 - `crates/podssh-ssh/src/run.rs:25-28` and
   `crates/podssh-transport/src/backpressure/mod.rs:4-22` give the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:155-159` says
+  as the forward path's. For the forward path, `docs/relay.md:159-163` says
   1013 at 2 MiB, with no frame dropped.
 - The comment "THE BUILD RULE" in `Cargo.toml` lists the no-C crates without
   `podssh-relay`; `crates/podssh-cli/Cargo.toml:3` names a `--doctor` flag.
@@ -1398,7 +1398,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:128`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:129`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.

@@ -4,13 +4,13 @@ operator runners and a blocking facade in `podssh-relay`, the move of the codecs
 backlog work on that road: pairing by a code, node identity, end-to-end encryption, routes,
 finding a node, and signed grants. M4 starts after M3 is complete (`docs/ROADMAP.md:7-9`); in M4,
 the defects of `TODO/transport.md` come first, in the work order of `TODO/PROGRESS.md`. The rules
-for the node and the operator are in `docs/reverse.md`; the wire format is in `docs/relay.md:183-205`
+for the node and the operator are in `docs/reverse.md`; the wire format is in `docs/relay.md:187-209`
 and in the pinned contract (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:123-193`).
 
 # T-078: Pairing in `podssh-relay`: pair, stop and status
 
 **Source:** ROADMAP M4 (`docs/ROADMAP.md:148-150`); `docs/design.md:89-100` (`pair`, cargo feature
-`pair`); `docs/relay.md:183-205`. Read here on `3ee70dc`.
+`pair`); `docs/relay.md:187-209`. Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P2
@@ -32,15 +32,15 @@ Pair creation shares the brake of 120 attempts per minute per address with mint 
 These endpoints are on the "control host only" (`:23-24`, `:130`); no pool host was measured for them.
 
 Read: `/v1/pair` can answer `409` (pair again), and a new mint secret ends each token at once
-(`docs/relay.md:179-181`). `/v1/stop` once answered `{"stopped": false}` and still destroyed the
-credentials (`docs/relay.md:200-203`); then the other tokens get `403 reverse: forbidden`
+(`docs/relay.md:183-185`). `/v1/stop` once answered `{"stopped": false}` and still destroyed the
+credentials (`docs/relay.md:204-207`); then the other tokens get `403 reverse: forbidden`
 (`docs/reverse.md:51-52`). Which token `/v1/status` accepts is not known (`docs/reverse.md:53`); a local
 copy of podbox at `5bd8cb0` says `connect_token` only (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`).
 
 Read: `podssh-relay` has no pairing code (`crates/podssh-relay/src/lib.rs:14-21`). `https_post_json`
 sends fixed headers, and `https_request`, which takes headers, is private
 (`crates/podssh-ws/src/client.rs:251-303`). The private files of the token cache can hold a pair
-(`crates/podssh-relay/src/cache.rs:85-112`, `:178-197`).
+(`crates/podssh-relay/src/cache.rs:92-119`, `:187-206`).
 
 ## Approach
 
@@ -48,9 +48,9 @@ sends fixed headers, and `https_request`, which takes headers, is private
    `crates/podssh-relay/Cargo.toml:10-21`, enable it in `podssh-cli`, and build it in the library step
    of the gate (`scripts/gate.sh:61`), so the no-C check covers it.
 2. `pair::create` returns a `Pair`: relay host, name, the three tokens, expiry. Keep each token in
-   `Zeroizing` with a redacted `Debug`, as `token::Token` does (`crates/podssh-relay/src/token.rs:27-47`).
+   `Zeroizing` with a redacted `Debug`, as `token::Token` does (`crates/podssh-relay/src/token.rs:27-53`).
    Check the name with T-076, and each token with `cache::valid_token`
-   (`crates/podssh-relay/src/cache.rs:45-49`). Never quote a 2xx body (`crates/podssh-relay/src/token.rs:136`).
+   (`crates/podssh-relay/src/cache.rs:52-56`). Never quote a 2xx body (`crates/podssh-relay/src/token.rs:175`).
 3. Answers: `409`, pair again once; `429`, report `Retry-After`; `503`, stop. Refuse a pair with less
    than 10 min left, as the token cache does (`crates/podssh-relay/src/cache.rs:15-16`).
 4. `pair::stop` sends `stop_token` to `/v1/stop/<name>`, then deletes the local copy whatever the
@@ -64,7 +64,7 @@ sends fixed headers, and `https_request`, which takes headers, is private
    (create-new, mode 0600), never to stdout.
 8. Use the control host only (`tcp.ssh.relay.ajam.dev`, or one host that the user names). No failover
    to pool hosts until a measurement shows that they serve `/v1/*`.
-9. In the same commit: `docs/relay.md:183-205`, `docs/reverse.md:46-53`, and the FILES section of the
+9. In the same commit: `docs/relay.md:187-209`, `docs/reverse.md:46-53`, and the FILES section of the
    manual (`crates/podssh-cli/src/man/facts.rs:98`).
 
 ## Prove
@@ -114,7 +114,7 @@ T-075 and T-076.
 Read: `RelaySession` has text, binary, Ping and Close writes and a liveness watcher
 (`crates/podssh-ws/src/session.rs:86-166`); `podssh_relay::open::backoff` has a jitter
 (`crates/podssh-relay/src/open.rs:263-277`). Not measured: whether the relay answers a Ping on a reverse socket
-(`docs/relay.md:67-69` is the forward path), and its idle cut there (`docs/relay.md:177-178`, T-061). A node
+(`docs/relay.md:71-73` is the forward path), and its idle cut there (`docs/relay.md:181-182`, T-061). A node
 that connects again ends each operator session on it (`docs/design.md:174-177`).
 
 Read in a local copy of podbox at `5bd8cb0` (`docs/design.md:66` names `452d792`): `run_node` owns the socket in
@@ -316,7 +316,7 @@ unused. Two crates for one protocol drift: they already disagree on the backoff 
 ## Premise
 
 Read: about 600 lines of `podssh-transport` are used outside its tests (the former defects page),
-and `docs/STATUS.md:189` gives 2.8k source and 2.2k test lines. Only examples use it:
+and `docs/STATUS.md:191` gives 2.8k source and 2.2k test lines. Only examples use it:
 `crates/podssh-cli/examples/live_irc.rs:20-22`, `crates/podssh-cli/examples/live_irc/support.rs:11-16`
 and `crates/podssh-transport/examples/live_forward.rs:23-25`; `podssh-cli` depends on it
 (`crates/podssh-cli/Cargo.toml:34`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
@@ -344,7 +344,7 @@ and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs
    the crate: `Cargo.toml:6`, `Cargo.toml:24`, `Cargo.toml:55-58`, `crates/podssh-cli/Cargo.toml:34`,
    `scripts/gate.sh:61`, `scripts/plant.sh:39`.
 6. Update in the same commit: `AGENTS.md:188-190` and `AGENTS.md:234`, `docs/architecture.md:66` and
-   `:83-93`, `docs/development.md:13-14` and `:234`, `docs/STATUS.md:186`, `:188` and `:198`. The list
+   `:83-93`, `docs/development.md:13-14` and `:234`, `docs/STATUS.md:188`, `:190` and `:200`. The list
    of library crates in `docs/decisions.md:34` is a fact of a decision row: correct it, and move the
    old text to Superseded (the operator's ruling of 2026-10-08).
 
@@ -417,7 +417,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    has no NAME.
 4. Exit codes as `podssh proxy` (`docs/cli.md:146`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
-   `crates/podssh-cli/src/man/facts.rs:231`.
+   `crates/podssh-cli/src/man/facts.rs:232`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
    `crates/podssh-cli/src/doctor/relay_checks.rs:39-64` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
@@ -477,7 +477,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 `Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:17-25`, chosen at `:164-190`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs:75-122`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:130-136`); the
-operator leg receives text frames (`docs/relay.md:196-199`). A host key is recorded under the target
+operator leg receives text frames (`docs/relay.md:200-203`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:50-55`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:208`). `podssh ssh` uses the exit codes of OpenSSH, and
 `podssh proxy` sysexits (`docs/cli.md:142-146`).
@@ -695,7 +695,7 @@ first sight, has `trust NAME --expect FINGERPRINT` and revocation, and exits 7 o
 ## Approach
 
 1. Node key: Ed25519, made on the first run, in a private state file of the chain of
-   `crates/podssh-relay/src/cache.rs:51-66`. One key for each road, shared with T-163, so the
+   `crates/podssh-relay/src/cache.rs:58-73`. One key for each road, shared with T-163, so the
    identity does not depend on the road.
 2. Operator key: the same form, on the operator's side.
 3. Proof: both ends prove their keys at the start of each session, inside the channel of T-088
@@ -944,11 +944,11 @@ replay. A token that leaks from a log, a shell history or a copied file stays va
 ## Premise
 
 Read: `POST /v1/mint` gives `{token, expires, scope}` as `ephm1.<expiry-ms>.forward.<mac>`, checked at each
-upgrade, 72 h at most (`docs/relay.md:92-96`); `POST /v1/pair` gives the three tokens of a pair, 72 h at most
-(`docs/relay.md:188-189`). The contract scopes reverse tokens to a name and a role, and states no single use and
+upgrade, 72 h at most (`docs/relay.md:96-100`); `POST /v1/pair` gives the three tokens of a pair, 72 h at most
+(`docs/relay.md:192-193`). The contract scopes reverse tokens to a name and a role, and states no single use and
 no binding to a peer (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:128-129`). A new mint secret
-ends each token at once (`docs/relay.md:179-181`). A text frame from the operator closes its socket with
-`1003`, and the operator leg carries no framing (`docs/relay.md:196-199`, `docs/reverse.md:32`).
+ends each token at once (`docs/relay.md:183-185`). A text frame from the operator closes its socket with
+`1003`, and the operator leg carries no framing (`docs/relay.md:200-203`, `docs/reverse.md:32`).
 
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:138-175`,
@@ -963,7 +963,7 @@ Read, what a leaked token gives today. `connect_token`: sessions to the node; an
 authentication still stands, but a raw TCP TARGET (T-083) has no other gate. `node_token`: an impersonated node
 while the real one is away (one socket for each name, and a new node gets the new sessions: `:152-156` of the
 contract); for SSH, the operator's host-key check finds it (`SECURITY.md:28-32`). `stop_token`: a denial of
-service; the node, its sessions and the pair end (`docs/relay.md:200-203`).
+service; the node, its sessions and the pair end (`docs/relay.md:204-207`).
 
 ## Approach
 
@@ -972,13 +972,13 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
 1. On the relay: an endpoint in place of `POST /v1/pair` that returns a signed grant naming the node, the
    principals that may use it (key fingerprints, T-087), an expiry and a nonce. The relay records the nonce as
    spent and refuses a second use. podssh caches the grant and sends it in a header or a 0600 file, never in
-   a URL (`docs/relay.md:97-99`, `docs/architecture.md:105-107`).
+   a URL (`docs/relay.md:101-103`, `docs/architecture.md:105-107`).
 2. On the client: keep the pair's tokens, and add a signed grant inside the operator leg, which the relay has
    authenticated. A text frame closes that leg with `1003`, so the grant needs a typed binary header at the
    start of the session: a change of the framing in `crates/podssh-transport/src/framing/legs.rs:60-76`. The
    node checks the grant before it dials the TARGET, so the dial moves after `ready` (`docs/reverse.md:16`):
    the seam of T-088 and T-089. Spent nonces are create-new private files
-   (`crates/podssh-relay/src/cache.rs:213-227`).
+   (`crates/podssh-relay/src/cache.rs:222-236`).
 3. Both shapes: an SSHSIG signature in a fixed podssh namespace, which `ssh-keygen -Y verify` can check
    (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:188-190`).
 4. Relations: T-078 makes the pair that a grant protects; T-086 can deliver a grant in place of the

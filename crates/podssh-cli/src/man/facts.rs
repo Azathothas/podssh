@@ -122,8 +122,9 @@ fn files() -> Vec<Block> {
         item(
             vec![lit(cache)],
             format!(
-                "The cache: the first of these directories that podssh can use. For the default relay, it \
-                 holds the relay token ({}) and the relay's list of hosts ({}). Each file has mode 0600. \
+                "The cache: the first of these directories that podssh can use. It holds one relay token for \
+                 each relay deployment, with the host that minted it ({} for the default relay), and the \
+                 relay's list of hosts ({}). Each file has mode 0600. \
                  podssh ignores a cache file that is a symbolic link, that belongs to another user, or that \
                  others can read.",
                 podssh_relay::cache::file_name(podssh_relay::DEFAULT_RELAY_HOST),

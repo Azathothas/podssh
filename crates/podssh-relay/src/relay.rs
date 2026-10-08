@@ -33,8 +33,8 @@ pub struct Relay {
     pub port: u16,
 }
 
-/// The hosts to try, in order. The first is also the key the token cache is
-/// kept under: tokens from one relay deployment are valid on all its hosts.
+/// The hosts to try, in order. The first is also the key of the cached pool
+/// of hosts; a token is cached for each deployment (`token::token_key`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelayList {
     pub hosts: Vec<Relay>,
@@ -43,7 +43,7 @@ pub struct RelayList {
 }
 
 impl RelayList {
-    /// The host the token cache is keyed by.
+    /// The first host: the key of the cached pool.
     pub fn primary(&self) -> &Relay {
         &self.hosts[0]
     }

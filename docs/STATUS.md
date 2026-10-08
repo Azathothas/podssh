@@ -98,6 +98,7 @@ in [ROADMAP.md](ROADMAP.md).
 | The `rust:1-alpine` container, as root | 26 ok, exit 0. A copy of podssh runs from `/tmp`, `/var/tmp`, `/root` and `/work`, and is refused in `/dev/shm`, a noexec mount. |
 | `cargo test -p podssh-cli --test doctor` | Offline, the network checks are one `????` line, never `ok`. Planted failures (no `HOME`; a proxy setting that cannot be used) give `FAIL` and exit 1. Proxy credentials and a token in the environment do not appear in the output. |
 | `cargo test -p podssh-cli --test doctor -- --ignored` | The live path, end to end, exit 0 (3.6 s). |
+| The token line, Windows, after T-057 | A cache entry written before T-057 names no minting host and is not used: the first run says `minted at tcp.ssh.relay.ajam.dev and cached`, the next `a cached token minted at tcp.ssh.relay.ajam.dev (not shown)`. An entry that an earlier failover run had filed under `dead-host.invalid` (GitHub #3) is never used. |
 
 ## In a box like the target sandbox, measured
 
@@ -177,13 +178,14 @@ behind them.
 | A Close with 1009 (`session byte cap`) | `proxy` exits 69 with the relay's reason. |
 | The relay stops: no frames, no pongs, the connection open | The ping watcher declares it dead at 50 s (38 s after the stop). |
 | The relay host stops during a session | `ssh` exits 255 after 5 s and names the relay. |
+| The first relay host is down, and the second mints the token (T-057, GitHub #3) | The token is cached for the second host; nothing is filed under the first. The gate's binary of `eaf9822`, before T-057, filed it under the dead host: `1 for the dead host, 0 for relay-a.test`. |
 
 ## Components
 
 | Crate | Lines (src / tests) | What works | What is missing |
 | --- | --- | --- | --- |
 | `podssh-ws` | 4.2k / 4.0k | TLS 1.3 through rustls with podssh's own pure-Rust provider (ECDSA P-256 and P-384, Ed25519, RSA PKCS #1 and PSS); certificate and host-name checks with no bypass; a full-duplex session with ping liveness; HTTP CONNECT proxies (never for loopback); trust fallbacks; limits on connect, TLS and upgrade; pinned addresses and DNS over HTTPS | No TLS 1.2 (some intercepting proxies need it; T-067). Defects T-063, T-064, T-065. |
-| `podssh-relay` | 1.2k / 0.2k | Relay host lists, the cached pool, failover; tokens minted, cached and minted again; the forward opener. No C. | No reverse legs or pairing (M4). |
+| `podssh-relay` | 1.2k / 0.2k | Relay host lists, the cached pool, failover; tokens minted, cached for each deployment with the host that minted them, and minted again; the forward opener. No C. | No reverse legs or pairing (M4). |
 | `podssh-ssh` | 3.1k / 0.1k | The client on russh 0.64.1 (aws-lc-rs; strict key exchange and the ML-KEM hybrid key exchange in its defaults); a relay stream that keeps the relay's close reason; a `known_hosts` reader (hashed entries, wildcards, negation, markers); the authentication chain; prompts through `/dev/tty`, `CONIN$` or `SSH_ASKPASS`; raw mode, resize, escapes; the exit codes of OpenSSH; a host-key probe; key generation | No `ssh_config` (T-043). No `-L`, `-R`, `-D`, `-A` or X11 (T-035 to T-038). podssh offers no host certificate algorithm, and does not use `@cert-authority` lines (T-027). No reconnect after a drop (M6). |
 | `podssh-cli` | 8.9k / 2.9k | Arguments, help, the generated manual (text and roff) and its pager, refusals; `proxy`; the options of `ssh`; `doctor`; `keygen` | 7 of 13 commands are not implemented. Defect T-100 (`podssh ts`). |
 | `podssh-transport` | 2.8k / 2.2k | Forward framing; the session-id codec of the reverse path; the close-code table | About 600 lines are used outside the tests. Defects T-071 to T-077. |
@@ -198,7 +200,7 @@ behind them.
 | What | Result | Command |
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
-| The default tests | **728 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
+| The default tests | **732 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
 | The work record | `TODO/` agrees with itself. The checker's tests pass: 12 unit tests, 32 plant tests (the control, and 31 planted disagreements, each found), 10 tests of the remap, 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 8 of its 10 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |

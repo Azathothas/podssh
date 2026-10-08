@@ -11,7 +11,7 @@ and again on `3a88e1d`. Read again here on `3ee70dc`.
 **Milestone:** M3
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -23,12 +23,13 @@ run sends that token to the first host, also when that host is of another relay 
 ## Premise
 
 The file name and the `doctor` line are the reporter's measurement (GitHub #3); not measured
-here, because they need the network. Read on `3ee70dc`: `try_host` passes the first host as the
-cache key (`crates/podssh-relay/src/open.rs:218-219`); `token::obtain` loads and stores by it
-(`crates/podssh-relay/src/token.rs:105`, 110); a 403 removes the entry under it
-(`crates/podssh-relay/src/open.rs:238-243`). `doctor` uses and names the same key
-(`crates/podssh-cli/src/doctor/relay_checks.rs:144-150`). `docs/relay.md:43-45` and
-`crates/podssh-relay/src/relay.rs:36-37` make the first host the key on purpose. A pool host
+here, because they need the network. Read on `3ee70dc` (the line numbers are those of
+`2da855f`): `try_host` passes the first host as the cache key (`crates/podssh-relay/src/open.rs`
+lines 218-219); `token::obtain` loads and stores by it (`crates/podssh-relay/src/token.rs` lines
+105 and 110); a 403 removes the entry under it (`crates/podssh-relay/src/open.rs` lines
+238-243). `doctor` uses and names the same key (`crates/podssh-cli/src/doctor/relay_checks.rs`
+lines 144-150). `docs/relay.md` lines 43-45 and `crates/podssh-relay/src/relay.rs` lines 36-37
+make the first host the key on purpose. A pool host
 gets a token only under the parent domain of the primary host, "because the token is sent to
 them" (`crates/podssh-relay/src/pool.rs:7-8`, 75-80); a list from `--relay-host` or
 `PODSSH_RELAY` has no such check. So, read and not measured: hosts A and B; A fails, B mints,
@@ -42,14 +43,14 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
    with the port when it is not 443. `same_deployment` (`crates/podssh-relay/src/pool.rs:75-80`)
    is the one rule that already decides where a token may go.
 2. Use the key of the host in use at each place: the load and the store through `MintContext`
-   (`crates/podssh-relay/src/token.rs:84-112`), the removal after a 403
+   (`crates/podssh-relay/src/token.rs` lines 84-112 at `2da855f`), the removal after a 403
    (`crates/podssh-relay/src/open.rs:238-243`), and the token check of `doctor`
-   (`crates/podssh-cli/src/doctor/relay_checks.rs:142-165`).
-3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:21-26`), with a
+   (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 142-165 at `2da855f`).
+3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:21-30`), with a
    serde default for old files. `doctor` says "a cached token minted at HOST (not shown)". Use
    an old entry only under the default key, where it was right.
-4. Change in the same commit: `docs/relay.md:43-45`, the comments at `relay.rs:36-37` and
-   `token.rs:84-86`, the FILES text (`crates/podssh-cli/src/man/facts.rs:122-132`), and
+4. Change in the same commit: `docs/relay.md` (lines 43-45 at `2da855f`), the comments at `relay.rs:36-37` and
+   `token.rs:84-86`, the FILES text (`crates/podssh-cli/src/man/facts.rs:122-133`), and
    `docs/STATUS.md`.
 
 ## Decision
@@ -57,9 +58,15 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
 Recommendation: key by deployment. One token serves the hosts of the default deployment (a
 pool host accepted the token of the default host: `docs/STATUS.md`, "`podssh proxy`, measured
 live"), and no token goes to another deployment. The exact minting host lost: each pool host
-would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:112`).
+would mint its own token, against the brake of 120 attempts a minute (`docs/relay.md:116`).
 The decision said "one machine has one cached token"; on 2026-10-08 the operator ruled
 "one for each relay deployment" (`docs/decisions.md:45`).
+
+The session that did it (2026-10-08) made one call stricter than step 3: an old entry, with
+no minting host, is not used at all, also under the default key. An old list that put the
+default host first and failed over to another deployment cached that deployment's token under
+the default key, so the default relay would get it. One more mint on each machine costs less.
+Keeping old entries under the default key lost for that reason.
 
 ## Prove
 
@@ -74,10 +81,36 @@ A unit test: `token_key` of a pool host is the default host; of another host, th
 new `XDG_CACHE_HOME`: no `relay-token-relay-dead.test*` file, and one
 `relay-token-relay-a.test*` file. Today's code is the planted defect: the check fails.
 
+## Done
+
+2026-10-08, in the commit "Relay tokens: one cache entry for each deployment, with the host
+that minted it".
+
+- `podssh_relay::token::token_key`: the default host for each host of the default
+  deployment, else the host (with its port when it is not 443). `obtain` loads, stores and
+  (in `try_host`, after a 403) removes under the key of the host in use; `MintContext` has no
+  cache key any more.
+- Each cache entry names the relay that minted it (`minted_at`); `usable` sends a cached
+  token only under the key of that relay, and an old entry with no minting relay is not used
+  (the Decision).
+- `doctor` says "a cached token minted at HOST (not shown)". Live, on Windows: with an old
+  entry in the cache, the first run said "minted at tcp.ssh.relay.ajam.dev and cached", the
+  next "a cached token minted at tcp.ssh.relay.ajam.dev (not shown)". The same cache held a
+  `relay-token-dead-host.invalid.json` from an earlier failover run (GitHub #3); it is never
+  used now.
+- `cargo test -p podssh-relay --test cache`: 12 passed, 4 of them new (the key for each kind
+  of host; the rule for using a cached token; an old entry; the failover of GitHub #3).
+- `scripts/interop-faults.sh` has the file check. Planted, with the gate's binary of
+  `eaf9822` (before T-057): "token files after the failover: 1 for the dead host, 0 for
+  relay-a.test", interop 98 passed and 1 failed. With this change, `sh scripts/dev.sh check`:
+  green, interop 99 of 99 (12 faults).
+- `cargo test --no-fail-fast` on Windows: 732 passed, 0 failed, 6 ignored.
+- `docs/relay.md`, the FILES text of the manual and `docs/STATUS.md` say the same.
+
 # T-058: `podssh relay status`, `info`, `spec` and `trace`
 
 **Source:** `crates/podssh-cli/src/positionals.rs:39-41` (the subcommands that the parser
-declares); `docs/relay.md:207-213`; the tester of sandbox A, who used `curl` and a minted token
+declares); `docs/relay.md:211-217`; the tester of sandbox A, who used `curl` and a minted token
 on `/trace` (`report-podssh-sandbox-KTM-2026-10-08.txt`, outside the repository).
 **Category:** feature
 **Milestone:** backlog
@@ -98,7 +131,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 ("'relay' is not implemented yet; nothing was done."). Its help shows `--relay-host URL`
 (`crates/podssh-cli/src/flags.rs:313-314`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
-(`docs/relay.md:136-137`). The `health` function of `doctor`
+(`docs/relay.md:140-141`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:68-123`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:109-127` fetches `/relays.json`. `https_get` sends no
 token header (`crates/podssh-ws/src/client.rs:268-279`); `https_request` takes headers (lines
@@ -114,14 +147,14 @@ token header (`crates/podssh-ws/src/client.rs:268-279`); `https_request` takes h
    `verdict_from` (`crates/podssh-probe/src/relay_facts.rs:295-309`), or `--document FILE`.
    This is T-060.
 4. `relay trace HOST PORT`: `/trace` with `banner=1`, the token in the header and never in the
-   URL (`docs/relay.md:97-99`). Check HOST with `relay::check_host`
+   URL (`docs/relay.md:101-103`). Check HOST with `relay::check_host`
    (`crates/podssh-relay/src/relay.rs:160-174`), so no text can add a query parameter.
 5. `pair` and `revoke`: refuse by name, and name M4 (T-078, T-083).
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
    (T-049). Each request has the 10 s limit of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs:24`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs:428`); change `DISPATCHED`, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:226`), the notes, `docs/relay.md:207-213` and
+   (`crates/podssh-cli/src/help.rs:226`), the notes, `docs/relay.md:211-217` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
 ## Decision
@@ -177,7 +210,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 1. After a host fails with an error that another host can repair (`another_host_may_help`,
    `crates/podssh-relay/src/open.rs:54-76`), write a record (host, time, class) into a private
    file `relay-failures-KEY.json` with `cache::store_file`
-   (`crates/podssh-relay/src/cache.rs:96-112`). Remove the record when the host succeeds.
+   (`crates/podssh-relay/src/cache.rs:103-119`). Remove the record when the host succeeds.
 2. At the start of `open` (`crates/podssh-relay/src/open.rs:177-213`), move each host whose
    record is younger than a fixed window (10 min) to the end of the list, in its old order.
    Never remove a host: each host is still tried.
@@ -186,7 +219,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 4. Print one note for each moved host: "trying HOST last: it failed N s ago (REASON)".
 5. Ignore a record with a time in the future (a clock that moved).
 6. `doctor` and `status` (T-051) show the records. State the window in THE RELAY section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:170-183`) and in `docs/relay.md:23-41`.
+   manual (`crates/podssh-cli/src/man/facts.rs:171-184`) and in `docs/relay.md:23-41`.
 7. This is retry policy across runs. T-220 shortens the wait inside one run; the two work
    together.
 
@@ -278,7 +311,7 @@ The pinned copy exits 0. A copy with the node path renamed (the plant of
 
 # T-061: Measure whether the relay's idle cut applies to reverse sockets
 
-**Source:** `docs/relay.md:175-181` ("Open questions"); ROADMAP M4.
+**Source:** `docs/relay.md:179-185` ("Open questions"); ROADMAP M4.
 **Category:** measurement
 **Milestone:** M4
 **Priority:** P3
@@ -314,7 +347,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
    and above all not the `stop_token` (`docs/reverse.md:46-53`).
-5. Answer the question in `docs/relay.md:175-181`, record the result in `docs/STATUS.md` with
+5. Answer the question in `docs/relay.md:179-185`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md:22-24` if the result differs.
 
 ## Prove
@@ -330,7 +363,7 @@ is wrong, not the relay.
 
 # T-062: Measure whether the relay's backpressure close (1013) operates
 
-**Source:** `docs/relay.md:155-159`; the reverse close table of the pinned contract
+**Source:** `docs/relay.md:159-163`; the reverse close table of the pinned contract
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the comment at
 `crates/podssh-ssh/src/run.rs:25-29`.
 **Category:** measurement
@@ -348,8 +381,8 @@ rule is true.
 
 ## Premise
 
-Not measured. Read: `docs/relay.md:149` gives the forward codes `1013` `client receive backlog`
-and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:155-159`
+Not measured. Read: `docs/relay.md:153` gives the forward codes `1013` `client receive backlog`
+and `target write backlog` (2 MiB queued), read from the relay's source; `docs/relay.md:159-163`
 says that no frame is dropped, and that the check reads `bufferedAmount`, which Workers may not
 supply. `crates/podssh-ssh/src/run.rs:25-29` says that the relay drops a frame when more than 1
 MiB waits (`1011 relay backpressure`). That is the reverse path's row of the contract ("Over 1
@@ -371,7 +404,7 @@ rule of the reverse path to the forward path.
    operator approves.
 4. The other direction (`target write backlog`) needs a slow target; record it as not measured
    when none is at hand.
-5. Correct `crates/podssh-ssh/src/run.rs:25-29` and `docs/relay.md:155-159` with the result.
+5. Correct `crates/podssh-ssh/src/run.rs:25-29` and `docs/relay.md:159-163` with the result.
    Change the window (512 KiB) only if the result asks for it.
 
 ## Prove
@@ -424,14 +457,14 @@ listener" (lines 86-88), and the ruling on Q10 allows more than one for a moment
    that opens waits at most D for each earlier host that still runs, then the earliest opened
    host wins. `serial`: one at a time, as now, with a 5 s step limit for a host that has a
    successor, and the full limit for the last host.
-2. D starts at 2 s. An open includes the relay's dial of the target (`docs/relay.md:58-60`), so
+2. D starts at 2 s. An open includes the relay's dial of the target (`docs/relay.md:62-64`), so
    a slow target also starts the next host. Measure the open times through a proxy in the box,
    and record D in `docs/STATUS.md`.
 3. Send a Close to each attempt that is not kept, at once. The relay then frees the target
-   socket within 15 s (`docs/design.md:174-176`, `docs/relay.md:145`); the target still sees one
+   socket within 15 s (`docs/design.md:174-176`, `docs/relay.md:149`); the target still sees one
    short connection, because the relay dials it before the upgrade.
 4. One mint at a time for each relay deployment (single flight, keyed as T-057 keys the cache),
-   against the brake of `docs/relay.md:112`. When the minting attempt is the silent one, the next
+   against the brake of `docs/relay.md:116`. When the minting attempt is the silent one, the next
    attempt mints at its own host after D.
 5. An error that each host would give (`crates/podssh-relay/src/open.rs:54-76`) still stops the
    run, and stops the other attempts.
@@ -487,7 +520,7 @@ another place.
 
 ## Premise
 
-Read on `3ee70dc`: `candidate_dirs` (`crates/podssh-relay/src/cache.rs:51-66`) gives the user's
+Read on `3ee70dc`: `candidate_dirs` (`crates/podssh-relay/src/cache.rs:58-73`) gives the user's
 cache directory (`LOCALAPPDATA` on Windows, else `XDG_CACHE_HOME`, else `HOME/.cache`, absolute
 paths only: lines 286-299), then `std::env::temp_dir()` with the user's tag (lines 57-58), then
 the fixed `/dev/shm` on Unix (lines 59-61), then `.podssh` in the working directory (lines
@@ -507,7 +540,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    then the platform's temporary directory (`std::env::temp_dir`) with the user's tag; then the
    working directory. No path literal stays in `cache.rs`.
 3. Probe each as now: a missing directory is made with mode 0700
-   (`crates/podssh-relay/src/cache.rs:229-246`), and one that refuses a write is skipped. When the
+   (`crates/podssh-relay/src/cache.rs:238-255`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
    (`crates/podssh-ws/src/dial.rs:141-162`), so that the tests can set it.
@@ -538,7 +571,7 @@ sh scripts/dev.sh check                   # interop-faults: a token in PODSSH_CA
 
 With a set environment: `PODSSH_CACHE_DIR` comes first, `none` gives no candidate, and
 `XDG_RUNTIME_DIR` comes before the temporary directory. A scan of `cache.rs`, as
-`crates/podssh-cli/src/man/facts.rs:284-303` scans source, finds no absolute path literal. In
+`crates/podssh-cli/src/man/facts.rs:285-304` scans source, finds no absolute path literal. In
 the gate, the token file goes into a new `PODSSH_CACHE_DIR`; with a plain file there, the run
 still exits 0 and names the refusal. Planted defect: put `/dev/shm` back; the scan fails.
 

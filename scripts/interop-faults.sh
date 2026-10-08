@@ -58,11 +58,13 @@ while [ ! -s "$FK/proxy.port" ] && [ "$tries" -lt 30 ]; do sleep 1; tries=$((tri
 # r RELAYS [ssh arguments...]: podssh ssh through the stand-ins to the
 # OpenSSH server on port 2201; $RP, when set, is the proxy to go through.
 RP=
+RC=
 r() {
     _relays=$1
     shift
     # shellcheck disable=SC2086
     env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY -u all_proxy -u ALL_PROXY ${RP:+https_proxy=$RP} \
+        ${RC:+XDG_CACHE_HOME=$RC} \
         HOME="$W" "$BIN" ssh --relay-host "$_relays" --relay-addr "$PINS" --ca-file "$FK/ca.pem" -p 2201 \
         -o UserKnownHostsFile="$KH" -o StrictHostKeyChecking=accept-new \
         -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes "$@"
@@ -74,9 +76,14 @@ rc=$?
 [ "$rc" = 0 ] && [ "$(cat "$FK/out")" = through-the-stand-in ] \
     && ok "faults: the stand-in relay carries a session (control)" || bad "faults: the control: exit $rc" "$FK/err"
 
+files() { n=0; for f in "$@"; do [ -e "$f" ] && n=$((n + 1)); done; echo "$n"; }
 for spec in "dead:a relay host that is down" "r503:a relay host answering 503" \
         "silent:a relay host that never answers after TLS" "hole:a relay host that never starts TLS"; do
     name=${spec%%:*}
+    # After the dead host, relay-a.test mints the token; a cache of its own
+    # shows where the token is filed (GitHub #3).
+    RC=
+    if [ "$name" = dead ]; then RC="$FK/cache-dead"; fi
     start=$(date +%s)
     r "relay-$name.test:$(port "$name"),relay-a.test:$(port a)" "$T" 'echo failed-over' >"$FK/out" 2>"$FK/err" </dev/null
     rc=$?
@@ -84,7 +91,15 @@ for spec in "dead:a relay host that is down" "r503:a relay host answering 503" \
     [ "$rc" = 0 ] && [ "$(cat "$FK/out")" = failed-over ] && [ "$took" -lt 60 ] \
         && ok "faults: ${spec#*:}: failed over to the next host (${took}s)" \
         || bad "faults: ${spec#*:}: exit $rc after ${took}s" "$FK/err"
+    if [ "$name" = dead ]; then
+        on_dead=$(files "$RC/podssh"/relay-token-relay-dead.test*)
+        on_a=$(files "$RC/podssh"/relay-token-relay-a.test*)
+        [ "$on_dead" = 0 ] && [ "$on_a" = 1 ] \
+            && ok "faults: the token minted by the second host is cached for that host, not the first" \
+            || bad "faults: token files after the failover: $on_dead for the dead host, $on_a for relay-a.test" "$FK/err"
+    fi
 done
+RC=
 
 RP="http://127.0.0.1:$(port proxy)"
 r "relay-bad.test:443,relay-a.test:$(port a)" "$T" 'echo via-the-proxy' >"$FK/out" 2>"$FK/err" </dev/null

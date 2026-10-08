@@ -293,7 +293,7 @@ Read, the bounds today:
   that the relay drops a frame when more than 1 MiB waits (`1011 relay
   backpressure`). That is the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). For the
-  forward path, `docs/relay.md:155-159` says that backpressure closes with
+  forward path, `docs/relay.md:159-163` says that backpressure closes with
   `1013` at 2 MiB and drops no frame. T-062 measures whether that check
   operates.
 
@@ -436,7 +436,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 71-136 (`docs/STATUS.md:163-179`, 11 of 11).
+  checks are at lines 71-136 (`docs/STATUS.md:164-180`, 11 of 11).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:236`, enforced at
   `crates/podssh-ssh/src/run.rs:109-114`); a reply, 30 s

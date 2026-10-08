@@ -29,7 +29,7 @@ in a `session` module of `podssh-relay` (`docs/design.md:92-100`), a crate
 with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
 (`crates/podssh-ssh/src/relay_stream.rs:72-149`). Frame boundaries mean nothing
-on the relay (`docs/relay.md:54-57`), and the relay reads each record and can
+on the relay (`docs/relay.md:58-61`), and the relay reads each record and can
 drop or add frames (`SECURITY.md:23-26`).
 
 ## Approach
@@ -210,7 +210,7 @@ the node then exits (`docs/reverse.md:19`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:143-228`).
+   (`crates/podssh-cli/src/man/facts.rs:144-229`).
 
 ## Decision
 
@@ -251,7 +251,7 @@ maps each close row to resume or stop; a planted policy that resumes on
 ## Problem
 
 The relay cuts a connection after 180 s with no payload, and its empty
-keepalive frames do not count (`docs/relay.md:61-62`, `docs/relay.md:109`). A
+keepalive frames do not count (`docs/relay.md:65-66`, `docs/relay.md:113`). A
 reverse socket gets no keepalive at all (`docs/reverse.md:22-24`). SSH's own
 keepalives must not end a session that the layer would resume.
 
@@ -281,8 +281,8 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:198-204`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:190-200`,
-   `crates/podssh-cli/src/man/facts.rs:219-226`), the note at
+   (`crates/podssh-cli/src/man/facts.rs:191-201`,
+   `crates/podssh-cli/src/man/facts.rs:220-227`), the note at
    `crates/podssh-cli/src/man/notes.rs:38`, `docs/relay.md`, `README.md`.
 
 ## Decision
@@ -323,7 +323,7 @@ close at the volume cap).
 ## Problem
 
 The relay ends a WebSocket session after 64 MiB, both directions together, or
-after 12 h (`docs/relay.md:110-111`). A long or large session on the layer
+after 12 h (`docs/relay.md:114-115`). A long or large session on the layer
 meets these limits, and an end at a limit costs a resume and its delay.
 
 ## Premise
@@ -355,7 +355,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:143-228`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:144-229`).
 
 ## Decision
 
@@ -398,7 +398,7 @@ a stall of 3 minutes. Today each of these faults ends the session.
 
 Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
-killed in a session gives exit 255 (`scripts/interop-faults.sh:118-136`).
+killed in a session gives exit 255 (`scripts/interop-faults.sh:133-151`).
 These checks stay, for the forward road, which has no resumption. Read: the
 stand-in relay serves the forward path only (`scripts/fake-relay.py:98-110`),
 and its `stall` mode never ends (`scripts/fake-relay.py:147-150`). The
@@ -469,7 +469,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
 (`docs/design.md:302-322`). A session carries 64 MiB at most, both directions
-together (`docs/relay.md:111`).
+together (`docs/relay.md:115`).
 
 ## Approach
 
@@ -484,7 +484,7 @@ together (`docs/relay.md:111`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:136-137`, `docs/relay.md:207-213`). Skip a
+   needs a token (`docs/relay.md:140-141`, `docs/relay.md:211-217`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.
