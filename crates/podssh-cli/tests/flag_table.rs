@@ -65,14 +65,23 @@ fn a_flag_refuses_only_when_its_row_says_so() {
 }
 
 #[test]
-fn the_forwarding_rows_all_name_w() {
-    // Local, remote and dynamic forwarding are refused in the first release,
-    // and each refusal must point at `-W` so no single row loses it.
+fn the_forwarding_rows_name_w_only_where_it_helps() {
+    // -L and -D need a local listener, so they are refused, and -W carries one
+    // connection in the same direction. -R needs no local listener (the
+    // server listens), and -W carries the other direction: its refusal names
+    // neither.
     let ssh = VERBS.iter().find(|v| v.name == "ssh").unwrap();
-    for name in ["forward-local", "forward-remote", "dynamic-forward"] {
+    for name in ["forward-local", "dynamic-forward"] {
         let row = ssh.flags.iter().find(|r| r.long == name).unwrap();
         assert_eq!(row.kind, FlagKind::Refused, "{name}");
         assert_eq!(row.instead, Some("-W HOST:PORT"), "{name} must name -W");
+    }
+    let r = ssh.flags.iter().find(|r| r.long == "forward-remote").unwrap();
+    assert_eq!(r.kind, FlagKind::Refused);
+    assert_eq!(r.instead, Some("no flag"), "-R has nothing to use instead");
+    assert!(r.help.contains("not implemented yet"), "{}", r.help);
+    for word in ["-W", "never", "listen", "bind"] {
+        assert!(!r.help.contains(word), "-R must not say {word}: {}", r.help);
     }
 }
 

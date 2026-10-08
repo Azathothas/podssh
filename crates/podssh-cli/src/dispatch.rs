@@ -229,11 +229,8 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
 /// Print every refused flag, and say whether there was one. ⛔ One function so
 /// `man` and every other verb refuse in the same words.
 ///
-/// ⛔ **The third line is the row's own reason.** It used to be `-L`'s
-/// sentence — "podssh never binds a listener, so it cannot forward" — for
-/// **every** refused row, which is wrong for `-R` (its reason is *"remote
-/// forwarding is not in the first release"*) and read as a contradiction beside
-/// the `-W HOST:PORT` the same message recommends.
+/// The third line is the row's own reason, because the causes differ: `-L`
+/// needs a local listener, and `-R`, which needs none, is not implemented yet.
 fn refusals(verb: &str, refused: &[(String, &'static str, &'static str)], err: &mut dyn Write) -> bool {
     if refused.is_empty() {
         return false;

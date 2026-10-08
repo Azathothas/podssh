@@ -38,7 +38,7 @@ reasons (`crates/podssh-ws/src/session.rs:275`); PEM bundles
 (`crates/podssh-ssh/src/escape.rs:30`); IRC lines and frames
 (`crates/podssh-core/src/irc/encode.rs:17`,
 `crates/podssh-core/src/irc/framing.rs:92`); the command line
-(`crates/podssh-cli/src/tree.rs:243`). No fuzz target exists. libFuzzer is
+(`crates/podssh-cli/src/tree.rs:242`). No fuzz target exists. libFuzzer is
 C++, and the message of commit `a378863` says that `rust:1-alpine` has no C++
 compiler.
 
@@ -437,7 +437,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 73-162 (`docs/STATUS.md:169-187`, 13 of 13 since T-024).
+  checks are at lines 73-162 (`docs/STATUS.md:170-188`, 13 of 13 since T-024).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:240`, enforced at
   `crates/podssh-ssh/src/run.rs:138-143`); a reply, 30 s

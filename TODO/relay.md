@@ -154,7 +154,7 @@ token header (`crates/podssh-ws/src/client.rs:268-279`); `https_request` takes h
    (T-049). Each request has the 10 s limit of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs:24`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs:428`); change `DISPATCHED`, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:226`), the notes, `docs/relay.md:216-222` and
+   (`crates/podssh-cli/src/help.rs:227`), the notes, `docs/relay.md:216-222` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
 ## Decision
@@ -557,7 +557,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:74`,
    108-113, 122-132), the test of lines 365-377, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:63-74`).
+   notes (`crates/podssh-cli/src/man/notes.rs:64-75`).
 
 ## Decision
 

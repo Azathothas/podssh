@@ -28,8 +28,9 @@ const SSH: &[&str] = &[
     "-t asks for a pty when there is a local terminal. -tt asks for one also when there is none, so \
      interactive programs work from a host with no pty. In a session with a pty, ~. at the start of a \
      line ends the session (see -e).",
-    "-L, -R and -D are refused by name: podssh never listens on a port. Use -W HOST:PORT, which carries \
-     one connection over the session.",
+    "-L and -D are refused by name: each needs a local listener, and podssh never listens on a port. \
+     Use -W HOST:PORT, which carries one connection over the session. -R is refused by name too: \
+     remote forwarding is not implemented yet.",
     "-P is the tag of OpenSSH on ssh, not a port, and podssh ignores it. On scp and sftp, -P is the port. \
      Use -p for the port of ssh.",
     "A repeated value follows OpenSSH: the first -p and -l, the last -e, -E and -F, and the first value \
@@ -160,6 +161,19 @@ mod tests {
             }
         }
         out
+    }
+
+    /// -R needs no local listener: the server listens. Its sentence must not
+    /// borrow the cause of -L and -D.
+    #[test]
+    fn the_note_about_r_names_no_listener() {
+        let sentences: Vec<&str> =
+            for_verb("ssh").iter().flat_map(|n| n.split(". ")).filter(|s| s.contains("-R")).collect();
+        assert_eq!(sentences.len(), 1, "{sentences:#?}");
+        assert!(sentences[0].contains("not implemented yet"), "{}", sentences[0]);
+        for word in ["never", "listen", "bind", "-W"] {
+            assert!(!sentences[0].contains(word), "{word}: {}", sentences[0]);
+        }
     }
 
     #[test]

@@ -32,8 +32,9 @@ server listens, and the client connects out for each connection.
   `crates/podssh-cli/src/ssh/keywords.rs:80`. `-W` is not a substitute: it
   carries the other direction.
 - Read: the manual's note says "-L, -R and -D are refused by name: podssh
-  never listens on a port" (`crates/podssh-cli/src/man/notes.rs:31-32`), but
-  `docs/cli.md:87-89` says that the refusal of `-R` must not say that.
+  never listens on a port" (`crates/podssh-cli/src/man/notes.rs` lines 31-32
+  at `25ab0e7`), but `docs/cli.md:87-89` says that the refusal of `-R` must
+  not say that.
 - Read: russh 0.64.1 has `Handle::tcpip_forward`, and its default handler
   accepts each `forwarded-tcpip` channel that a server opens. podssh's handler
   does not override it (`crates/podssh-ssh/src/handler.rs:44-88`).
@@ -64,9 +65,9 @@ server listens, and the client connects out for each connection.
 5. A failed dial closes that channel only, and says why on stderr: the
    proxy's answer, or the error of a refused loopback connection.
 6. Change the `-R` row to supported and the keyword to honoured. T-230
-   corrects the texts of the `-R` refusal now (the help and the manual's
-   note at `crates/podssh-cli/src/man/notes.rs:31-32`). Change the test that
-   asserts the refusal (`crates/podssh-cli/tests/flag_table.rs:67-77`).
+   corrected the texts of the `-R` refusal (the help and the manual's note
+   at `crates/podssh-cli/src/man/notes.rs:31-33`). Change the test that
+   asserts the refusal (`crates/podssh-cli/tests/flag_table.rs:67-86`).
    Update `docs/cli.md:80-94` (correct line 78) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
    under the proxy rule of `AGENTS.md:177-182`; say so in the help. The relay's
@@ -91,6 +92,15 @@ reads Dropbear's banner from port 2290. With `-o ExitOnForwardFailure=yes`
 and `-R 22:127.0.0.1:2203`, OpenSSH refuses the port (podtest is not root):
 exit 255, and the message names the forward. Planted defect: accept a
 channel for any port, and the second test fails.
+
+## Correction
+
+2026-10-08, T-230: the texts that the Premise measured changed. Now
+`podssh ssh -R 8080:localhost:80 example.invalid` gives "-R SPEC is
+refused. Leave it out." and "remote forwarding is not implemented yet.",
+exit 64, as `-o RemoteForward` does; it names no `-W`. The manual's note
+gives `-R` a sentence of its own (`crates/podssh-cli/src/man/notes.rs:31-33`).
+The rest of the Premise holds.
 
 # T-036: `-A`: agent forwarding, off by default as in OpenSSH
 
@@ -319,8 +329,8 @@ AF_UNIX.
    variable that refuses each local listener (`-L`, `-D`, T-039, T-034). Add
    it to `VARIABLES` in `crates/podssh-cli/src/man/facts.rs`.
 6. In the same commit, change the rows, the keywords, the note at
-   `crates/podssh-cli/src/man/notes.rs:31-32`, the test at
-   `crates/podssh-cli/tests/flag_table.rs:67-77`, and the documents that the
+   `crates/podssh-cli/src/man/notes.rs:31-33`, the test at
+   `crates/podssh-cli/tests/flag_table.rs:67-86`, and the documents that the
    Premise quotes.
 
 ## Prove

@@ -192,7 +192,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(Some('L'), "forward-local", Some("SPEC"), FlagKind::Refused,
         "podssh never binds a listener, so -L is refused", Some("-W HOST:PORT")),
     row(Some('R'), "forward-remote", Some("SPEC"), FlagKind::Refused,
-        "remote forwarding is not in the first release", Some("-W HOST:PORT")),
+        "remote forwarding is not implemented yet", Some("no flag")),
     row(Some('D'), "dynamic-forward", Some("SPEC"), FlagKind::Refused,
         "podssh never binds a listener, so -D is refused", Some("-W HOST:PORT")),
     row(Some('A'), "forward-agent", None, FlagKind::Refused,

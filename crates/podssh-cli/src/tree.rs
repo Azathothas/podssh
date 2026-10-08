@@ -115,10 +115,9 @@ pub enum Parsed {
         /// `(flag as written, what to use instead, why)`. ⛔ Owned because
         /// `FlagRow::usage_form` builds a `String`: the spelling carries the
         /// metavariable, and the table is `&'static` data that must not be
-        /// copied per parse. ⛔ The third element is the row's own reason, so
-        /// `-R` is refused *"remote forwarding is not in the first release"*
-        /// rather than with `-L`'s listener sentence, which contradicted the
-        /// `-W` this message recommends beside it.
+        /// copied per parse. The third element is the row's own reason, so
+        /// `-R` is refused with "remote forwarding is not implemented yet",
+        /// not with `-L`'s listener sentence.
         refused: Vec<(String, &'static str, &'static str)>,
         /// `-P TAG` on `ssh`: accepted, ignored, and it says so.
         tag: Option<String>,

@@ -66,7 +66,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    summary on stderr gives each host and its status.
 7. In the same commit: `crates/podssh-cli/src/flags.rs:384-411`,
    `crates/podssh-cli/src/positionals.rs:7-64`, a `Parsed` variant,
-   `crates/podssh-cli/tests/flag_table.rs:86`, the notes, an example,
+   `crates/podssh-cli/tests/flag_table.rs:95`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
@@ -738,7 +738,7 @@ a ticket, or a tool that asks an AI.
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:250-269`.
+  `crates/podssh-cli/src/dispatch.rs:247-266`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
   status (`docs/cli.md:149-152`), which is not a failure of podssh.
 

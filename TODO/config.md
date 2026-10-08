@@ -258,7 +258,7 @@ result, `Resolved` (lines 27-41), holds the settings in effect, the defaults inc
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:113`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:19-46`) and `docs/cli.md:39-78`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:19-47`) and `docs/cli.md:39-78`
    in the same commit.
 
 ## Decision
@@ -327,8 +327,8 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
    (`crates/podssh-cli/src/flags.rs:384-430`), the arguments, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:220-231`), the manual's notes and examples, and
-   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:86`).
+   (`crates/podssh-cli/src/help.rs:221-232`), the manual's notes and examples, and
+   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:95`).
 
 ## Decision
 

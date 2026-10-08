@@ -202,8 +202,9 @@ pub fn verb_help(verb: &'static Verb) -> String {
 
     if verb.name == "ssh" {
         s.push('\n');
-        s.push_str("-L, -R and -D are refused by name: podssh never binds a listener.\n");
-        s.push_str("  Use -W HOST:PORT, which forwards over an existing connection.\n");
+        s.push_str("-L and -D are refused by name: each needs a local listener, and podssh\n");
+        s.push_str("  never binds one. Use -W HOST:PORT, which carries one connection.\n");
+        s.push_str("-R is refused by name: remote forwarding is not implemented yet.\n");
         s.push_str("-P on ssh is OpenSSH's Tag, not a port, and is ignored. On scp and\n");
         s.push_str("  sftp, -P is the port. The meaning is per-verb.\n");
     }
@@ -319,6 +320,21 @@ mod tests {
         assert!(ssh.contains("-L, --forward-local SPEC"), "{ssh}");
         assert!(ssh.contains("refused"), "{ssh}");
         assert!(ssh.contains("-W HOST:PORT"), "{ssh}");
+    }
+
+    /// -R needs no local listener: the server listens. So no line about -R
+    /// may give the listener as its cause, or offer -W in its place.
+    #[test]
+    fn the_lines_about_r_name_no_listener() {
+        let ssh = verb_help(VERBS.iter().find(|v| v.name == "ssh").unwrap());
+        let lines: Vec<&str> = ssh.lines().filter(|l| l.contains("-R")).collect();
+        assert_eq!(lines.len(), 2, "the row and the note: {lines:#?}");
+        for line in lines {
+            assert!(line.contains("not implemented yet"), "{line}");
+            for word in ["never", "listen", "bind", "-W"] {
+                assert!(!line.contains(word), "{word}: {line}");
+            }
+        }
     }
 
     /// ⛔ **Every flag row is separated from its description.** ⛔ This is the

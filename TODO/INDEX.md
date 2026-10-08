@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 225 open, 0 partial, 7 blocked, 18 done.**
+**250 entries: 224 open, 0 partial, 7 blocked, 19 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 130 | 0 | 3 | 10 | 143 |
+| P2 | 129 | 0 | 3 | 11 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 225 | 0 | 7 | 18 | 250 |
+| **All** | 224 | 0 | 7 | 19 | 250 |
 
 ## Entries
 
@@ -301,7 +301,7 @@ repository and CI).
 | [T-227](ssh.md) | P2 | S | backlog | defect | open | `--direct` has no limit on a stuck write, but the relay leg fails after 60 s (GitHub #36) |
 | [T-228](ssh.md) | P2 | M | backlog | feature | open | A credential helper inside podssh, for passphrases and passwords |
 | [T-229](ssh.md) | P3 | L | backlog | feature | open | Hardware keys (FIDO2 `sk-` keys) in `podssh keygen`, the client and `podssh agent` |
-| [T-230](cli.md) | P2 | S | M3 | defect | open | The help and the manual say that `-R` is refused because podssh never binds |
+| [T-230](cli.md) | P2 | S | M3 | defect | done | The help and the manual say that `-R` is refused because podssh never binds |
 | [T-231](cli.md) | P2 | S | M3 | defect | open | A bad `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` exits 64, not 78 |
 | [T-232](cli.md) | P3 | S | backlog | chore | open | `gate_prompt` and `PromptSite` are used only by tests, and name flags that do not exist |
 | [T-233](cli.md) | P2 | S | M3 | defect | open | The help of a command that is not implemented does not say so |
