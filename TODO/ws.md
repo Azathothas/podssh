@@ -135,7 +135,7 @@ mistake and turn TLS verification off, with no flag and no warning.
 
 ## Premise
 
-Read on `3ee70dc`, the defect holds: `pub mod probe;` (`crates/podssh-ws/src/lib.rs:21`).
+Read on `3ee70dc`, the defect holds: `pub mod probe;` (`crates/podssh-ws/src/lib.rs:22`).
 `verify_server_cert` prints the chain and returns `ServerCertVerified::assertion()`
 (`crates/podssh-ws/src/probe.rs:24-39`); both signature checks accept (lines 41-57); a library
 prints to stdout (lines 32-37). Its only user is the example

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 206 open, 0 partial, 7 blocked, 37 done.**
+**250 entries: 205 open, 0 partial, 7 blocked, 38 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 111 | 0 | 3 | 29 | 143 |
+| P2 | 110 | 0 | 3 | 30 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 206 | 0 | 7 | 37 | 250 |
+| **All** | 205 | 0 | 7 | 38 | 250 |
 
 ## Entries
 
@@ -149,7 +149,7 @@ repository and CI).
 | [T-073](transport.md) | P2 | S | M4 | defect | done | T5: the `ready` gate is not enforced |
 | [T-074](transport.md) | P3 | S | M4 | chore | open | T7: the backpressure module is not used |
 | [T-075](transport.md) | P2 | S | M4 | defect | done | T8: a 403 is not retried with a new token, and a 503 is retried |
-| [T-076](transport.md) | P2 | S | M4 | defect | open | T9: host and node names are not validated or escaped |
+| [T-076](transport.md) | P2 | S | M4 | defect | done | T9: host and node names are not validated or escaped |
 | [T-077](transport.md) | P3 | S | M4 | chore | open | T10: the `Transport` trait has no implementation, and `Backoff` is used only by tests |
 | [T-078](reverse.md) | P2 | M | M4 | feature | open | Pairing in `podssh-relay`: pair, stop and status |
 | [T-079](reverse.md) | P2 | L | M4 | feature | open | The node runner |

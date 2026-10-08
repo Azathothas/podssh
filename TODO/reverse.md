@@ -109,7 +109,7 @@ Read: the codecs exist, with tests: node frames and chunks (`crates/podssh-trans
 `:113-123`), control messages (`crates/podssh-transport/src/control.rs:155-238`), a limit of 16 sessions when
 no `hello` comes (`crates/podssh-transport/src/control.rs:111-137`), and the close table
 (`crates/podssh-transport/src/closes.rs:60-88`, `:156-229`). They carry the defects of T-071, T-072, T-073,
-T-075 and T-076 (T-071, T-072, T-073 and T-075 repaired 2026-10-09).
+T-075 and T-076 (each repaired 2026-10-09).
 
 Read: `RelaySession` has text, binary, Ping and Close writes and a liveness watcher
 (`crates/podssh-ws/src/session.rs:86-166`); `podssh_relay::open::backoff` has a jitter

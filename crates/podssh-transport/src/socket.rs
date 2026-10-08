@@ -430,7 +430,7 @@ pub fn build(
     config: &RelayConfig,
     target: &LegTarget,
     token: &str,
-) -> crate::endpoint::Endpoint {
+) -> Result<crate::endpoint::Endpoint, TransportError> {
     let _ = (
         AddressFamily::V4,
         EgressRoad::Vpc,

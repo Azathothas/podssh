@@ -128,18 +128,9 @@ pub fn forward_path(host: &str, port: u16) -> Result<String, String> {
     Ok(format!("/connect/{host}/{port}"))
 }
 
-/// A host for the relay to dial: what [`check_host`] accepts, or an IPv6
-/// literal with no brackets. A zone id (`%eth0`) does not parse, and a zone
-/// names a link-local address, which the relay refuses anyway.
-pub fn check_target(host: &str) -> Result<(), String> {
-    if host.contains(':') {
-        return match host.parse::<std::net::Ipv6Addr>() {
-            Ok(_) => Ok(()),
-            Err(_) => Err(format!("{host:?} is not a host name or an IPv6 address")),
-        };
-    }
-    check_host(host)
-}
+/// The checks of a host, a target and a pair name, defined once in
+/// `podssh-ws` for each crate that builds a relay path.
+pub use podssh_ws::names::{check_host, check_node_name, check_target};
 
 /// Whether `host` is an IPv6 literal (with no brackets).
 pub fn is_ipv6_literal(host: &str) -> bool {
@@ -153,24 +144,6 @@ pub fn is_ipv6_literal(host: &str) -> bool {
 pub fn ipv6_note(ipv6_target: bool, reason: &str) -> Option<&'static str> {
     (ipv6_target && reason.contains("target closed before sending anything"))
         .then_some("an IPv6 target that closes at once usually means that the relay has no IPv6 route out")
-}
-
-/// A host name or IPv4 literal: letters, digits, `.`, `-` and `_`, not
-/// starting with `-` or `.`, at most 253 characters.
-pub fn check_host(host: &str) -> Result<(), String> {
-    if host.is_empty() {
-        return Err("the host is empty".into());
-    }
-    if host.len() > 253 {
-        return Err("the host name is longer than 253 characters".into());
-    }
-    if host.starts_with(['-', '.']) {
-        return Err(format!("{host:?} is not a host name"));
-    }
-    if let Some(bad) = host.chars().find(|c| !(c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))) {
-        return Err(format!("{host:?} is not a host name ({bad:?} is not allowed)"));
-    }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -223,6 +196,19 @@ mod tests {
             assert!(forward_path(bad, 22).is_err(), "{bad:?}");
         }
         assert!(forward_path("github.com", 0).is_err());
+    }
+
+    /// A pair name goes into `/v1/node/<name>` and `/v1/connect/<name>`:
+    /// refused, never encoded, when it could change the path.
+    #[test]
+    fn node_names_cannot_bend_the_path() {
+        for good in ["podssh", "a.b_c-1", "A9", &"n".repeat(128)] {
+            assert!(check_node_name(good).is_ok(), "{good:?}");
+        }
+        let long = "n".repeat(129);
+        for bad in ["", "a/b", "a?b", "a#b", "..", ".", "-x", ".x", "a b", "a\r\nX: y", "a%2fb", "a:b", "é", &long] {
+            assert!(check_node_name(bad).is_err(), "{bad:?}");
+        }
     }
 
     /// The relay takes the bare literal (measured 2026-10-08); brackets are

@@ -148,7 +148,7 @@ token header (`crates/podssh-ws/src/client.rs:276-287`); `https_request` takes h
    This is T-060.
 4. `relay trace HOST PORT`: `/trace` with `banner=1`, the token in the header and never in the
    URL (`docs/relay.md:101-103`). Check HOST with `relay::check_host`
-   (`crates/podssh-relay/src/relay.rs:160-174`), so no text can add a query parameter.
+   (`crates/podssh-ws/src/names.rs:10-24`), so no text can add a query parameter.
 5. `pair` and `revoke`: refuse by name, and name M4 (T-078, T-083).
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
    (T-049). Each request has the 10 s limit of `doctor`

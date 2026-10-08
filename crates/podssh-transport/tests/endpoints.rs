@@ -28,7 +28,7 @@ fn every_leg_puts_the_token_in_a_header_and_nowhere_else() {
         LegTarget::ReverseOperator { name: "podssh".into() },
     ];
     for target in cases {
-        let built = endpoint(&config, &target, TOKEN);
+        let built = endpoint(&config, &target, TOKEN).expect("good names");
         assert!(
             built.token_positions_in_url().is_empty(),
             "⛔ a credential reached the URL {:?}: {:?}",
@@ -80,7 +80,7 @@ fn the_paths_are_the_published_ones() {
         (LegTarget::ReverseOperator { name: "podssh".into() }, "/v1/connect/podssh"),
     ];
     for (target, path) in cases {
-        assert_eq!(target.path(), path);
+        assert_eq!(target.path().unwrap(), path);
     }
 }
 
@@ -124,7 +124,8 @@ fn the_knobs_are_off_until_something_measured_turns_them_on() {
         &config,
         &LegTarget::Forward { host: "github.com".into(), port: 22 },
         TOKEN,
-    );
+    )
+    .expect("a good target");
     assert_eq!(
         built.url,
         "wss://relay.invalid/connect/github.com/22?family=4&path=vpc&dial=lazy&precheck=500",
@@ -176,4 +177,42 @@ fn each_leg_shape_names_its_own_token_role_and_framing() {
     assert!(LegShape::ReverseNode.inbound_carries_id());
     assert!(!LegShape::ReverseOperator.inbound_carries_id());
     assert!(!LegShape::Forward.inbound_carries_id());
+}
+
+/// A host or a pair name that could change the request is refused before a
+/// URL exists, on each leg: another path, a query string, a fragment, or a
+/// broken request line. Nothing is percent-encoded.
+#[test]
+fn names_cannot_bend_the_path() {
+    let config = RelayConfig { origin: "wss://relay.invalid".into(), knobs: Knobs::default() };
+    let legs: [fn(&str) -> LegTarget; 3] = [
+        |name| LegTarget::Forward { host: name.into(), port: 22 },
+        |name| LegTarget::ReverseNode { name: name.into() },
+        |name| LegTarget::ReverseOperator { name: name.into() },
+    ];
+    let long_name = "n".repeat(129);
+    let long_host = "h".repeat(254);
+    for leg in legs {
+        let long = match leg("x") {
+            LegTarget::Forward { .. } => long_host.as_str(),
+            _ => long_name.as_str(),
+        };
+        for bad in ["a/b", "a?b", "a#b", "..", ".", "-x", "a b", "a\r\nX-Injected: 1", "", long] {
+            let target = leg(bad);
+            let error = target.path().expect_err(bad);
+            assert!(matches!(error, TransportError::BadTarget(_)), "{bad:?}: {error:?}");
+            assert!(endpoint(&config, &target, TOKEN).is_err(), "{bad:?}: a URL exists");
+        }
+    }
+    for (target, path) in [
+        (LegTarget::ReverseNode { name: "podssh".into() }, "/v1/node/podssh"),
+        (LegTarget::ReverseNode { name: "a.b_c-1".into() }, "/v1/node/a.b_c-1"),
+        (LegTarget::ReverseOperator { name: "a.b_c-1".into() }, "/v1/connect/a.b_c-1"),
+        (LegTarget::Forward { host: "github.com".into(), port: 22 }, "/connect/github.com/22"),
+        (LegTarget::Forward { host: "2001:db8::1".into(), port: 22 }, "/connect/2001:db8::1/22"),
+    ] {
+        assert_eq!(target.path().unwrap(), path);
+    }
+    let port_zero = LegTarget::Forward { host: "github.com".into(), port: 0 };
+    assert!(matches!(port_zero.path(), Err(TransportError::BadTarget(_))));
 }

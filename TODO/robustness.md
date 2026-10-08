@@ -361,7 +361,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 - The joining of fragments (`crates/podssh-ws/src/session.rs:234-258`). It is
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:68`) takes
   any stream, so a test can drive it.
-- Relay lists and paths (`crates/podssh-relay/src/relay.rs:81-174`).
+- Relay lists and paths (`crates/podssh-relay/src/relay.rs:81-147`, `crates/podssh-ws/src/names.rs:8-57`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:148-204`).
 - The escape filter, which keeps its state from one read to the next
   (`crates/podssh-ssh/src/escape.rs:30-70`).

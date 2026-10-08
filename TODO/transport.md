@@ -518,7 +518,7 @@ Confirmed here on `3ee70dc` by reading the code.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -529,18 +529,20 @@ so each one is input.
 
 ## Premise
 
+The lines of the files that this entry changed are those of `4b6e917`.
+
 Read: `LegTarget::path` formats `/connect/{host}/{port}`, `/v1/node/{name}` and
-`/v1/connect/{name}` with no check (`crates/podssh-transport/src/endpoint.rs:34-43`). `endpoint`
-appends it to the origin as it is (`crates/podssh-transport/src/endpoint.rs:134-162`). The tests use
-only `github.com` and `podssh` (`crates/podssh-transport/tests/endpoints.rs:70-85`).
+`/v1/connect/{name}` with no check (`crates/podssh-transport/src/endpoint.rs` lines 34-43).
+`endpoint` appends it to the origin as it is (the same file, lines 134-162). The tests use only
+`github.com` and `podssh` (`crates/podssh-transport/tests/endpoints.rs` lines 70-85).
 
 Read: `WsClientConfig::validate` refuses whitespace and a query string that is not a connect knob,
 but not `#`, `/` or `..` in a segment (`crates/podssh-ws/src/client.rs:68-89`).
 
 Read: the commands already check the forward path. `podssh_relay::relay::forward_path` calls
 `check_host`: letters, digits, `.`, `-` and `_`, no leading `-` or `.`, at most 253 characters
-(`crates/podssh-relay/src/relay.rs:158-174`), with a test of bad hosts
-(`crates/podssh-relay/src/relay.rs:218-226`). Nothing checks a node name.
+(`crates/podssh-relay/src/relay.rs` lines 158-174), with a test of bad hosts (lines 218-226).
+Nothing checks a node name.
 
 Read in a local copy of podbox at `5bd8cb0` (`docs/design.md:66` names `452d792`): `validate_name`
 accepts 1 to 128 characters of `[A-Za-z0-9._-]` and refuses anything else, with no encoding
@@ -550,17 +552,36 @@ that one `POST /v1/pair` returns (T-078).
 
 ## Approach
 
-1. Add `check_node_name` beside `check_host` in `crates/podssh-relay/src/relay.rs:158-174`: 1 to
-   128 bytes of `[A-Za-z0-9._-]`, not `.` or `..`, no leading `-` or `.`. Refuse; never
-   percent-encode, because an encoded `/` hides a different path.
+The lines below are those of `4b6e917`.
+
+1. Add `check_node_name` beside `check_host` in `crates/podssh-relay/src/relay.rs` (lines
+   158-174): 1 to 128 bytes of `[A-Za-z0-9._-]`, not `.` or `..`, no leading `-` or `.`. Refuse;
+   never percent-encode, because an encoded `/` hides a different path.
 2. Make `LegTarget::path` return a `Result` and call `check_host` and `check_node_name`
-   (`crates/podssh-transport/src/endpoint.rs:34-43`). Reuse the one `check_host`; do not copy it.
-3. Refuse port 0, as `forward_path` does (`crates/podssh-relay/src/relay.rs:125-127`).
+   (`crates/podssh-transport/src/endpoint.rs` lines 34-43). Reuse the one `check_host`; do not
+   copy it.
+3. Refuse port 0, as `forward_path` does (`relay.rs` lines 125-127).
 4. Check the name that `/v1/pair` returns with the same function, before podssh stores or uses it
    (T-078). A bad name from the relay gives a clear error and no request.
 5. Close this entry in place in the same commit.
 6. Pitfall: T-007 changes `check_host` for bracketed IPv6 literals. Keep one function, and keep the
    cases of both entries in its tests.
+
+## Decision
+
+2026-10-09:
+
+1. `check_host`, `check_target` and the new `check_node_name` live in `podssh-ws`
+   (`crates/podssh-ws/src/names.rs`), and `podssh_relay::relay` re-exports them, so each caller
+   keeps its name for them; `podssh-transport` reaches them through `adapt.rs`. Lost: the check
+   in `podssh-relay` with `podssh-transport` depending on it, which is a cycle once the runners
+   of T-079 and T-080 in `podssh-relay` use `podssh-transport` (the reason of T-075's Decision).
+2. The forward leg calls `check_target`, which also takes a bare IPv6 literal, as `forward_path`
+   does since T-007: one rule for the forward path in both crates. Lost: `check_host` alone,
+   which refuses an IPv6 target that the commands accept.
+3. A refusal is `TransportError::BadTarget(why)`, never retried.
+4. Step 4 belongs to T-078, which pairs: its Approach (step 2) checks the name "with T-076", with
+   `podssh_relay::relay::check_node_name`.
 
 ## Prove
 
@@ -575,6 +596,26 @@ The new tests try `a/b`, `a?b`, `a#b`, `..`, `.`, `-x`, `a b`, a CR LF header, a
 129 characters on each leg, and assert an error before a URL exists. The controls `podssh`,
 `a.b_c-1` and `github.com` pass. Plant: remove the call to `check_node_name`; the node and the
 operator cases must fail.
+
+## Done
+
+2026-10-09, in the commit "A host or a pair name cannot change the relay path".
+
+- `crates/podssh-ws/src/names.rs` (new): `check_host` and `check_target`, moved unchanged from
+  `podssh-relay`, and `check_node_name` (1 to 128 bytes of `[A-Za-z0-9._-]`, no leading `-` or
+  `.`). `podssh_relay::relay` re-exports the three.
+- `LegTarget::path` returns a `Result`: the forward leg checks its host with `check_target` and
+  refuses port 0; the node and the operator legs check the name with `check_node_name`. `endpoint`
+  and `socket::build` return a `Result`, so a refused target gives no URL. Nothing is encoded.
+- Prove: `cargo test -p podssh-transport --test endpoints -- names_cannot_bend_the_path`: 1 passed
+  (`a/b`, `a?b`, `a#b`, `..`, `.`, `-x`, `a b`, a CR LF header, an empty name and an overlong one
+  on each leg; port 0; the controls, an IPv6 target among them). `cargo test -p podssh-relay --lib
+  -- node_names`: 1 passed. `cargo test -p podssh-relay --lib`: 14 passed (the cases of
+  T-007 and of `forward_paths_cannot_be_bent_by_the_target` kept). `cargo test -p podssh-transport
+  --no-fail-fast`: 83 passed, 0 failed. `cargo test --no-fail-fast`: 784 passed, 0
+  failed, 7 ignored.
+- Plants, each restored: both calls to `check_node_name` removed: the test failed with `a/b` as
+  `/v1/node/a/b`; the operator's call alone removed: it failed with `/v1/connect/a/b`.
 
 # T-077: T10: the `Transport` trait has no implementation, and `Backoff` is used only by tests
 

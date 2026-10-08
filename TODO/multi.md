@@ -114,7 +114,7 @@ is not a shell. A set of hosts has no name.
   `{` and a leading `@` are free.
 - Read: each host is checked before a connection
   (`crates/podssh-cli/src/ssh/resolve.rs:347-387`,
-  `crates/podssh-relay/src/relay.rs:160-174`).
+  `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
   (`docs/cli.md:247-264`); they cannot define a group.
 

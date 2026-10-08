@@ -250,6 +250,9 @@ pub enum TransportError {
     /// **not** fall back to a name that may be gone (`relay-transport.md:52`,
     /// `01-relay-protocol.md:76-77`).
     NoRelayConfigured,
+    /// A host or a pair name that would change the relay path: refused
+    /// before a URL exists.
+    BadTarget(String),
     /// The relay answered with an HTTP status instead of upgrading. `body` is
     /// the start of its explanation, safe to print.
     Http { failure: HttpFailure, body: String },
@@ -278,6 +281,7 @@ impl TransportError {
     pub fn retry(&self) -> Retry {
         match self {
             TransportError::NoRelayConfigured => Retry::Never,
+            TransportError::BadTarget(_) => Retry::Never,
             TransportError::Http { failure, .. } => failure.retry(),
             TransportError::Codec(_) | TransportError::Control(_) => Retry::Never,
             TransportError::Closed(close) => crate::closes::classify(close).retry,
@@ -313,6 +317,7 @@ impl std::fmt::Display for TransportError {
                  relay currently publishes none, and a client that falls back to a name \
                  that no longer exists dials a gateway that is gone. Set one explicitly."
             ),
+            TransportError::BadTarget(why) => write!(f, "the relay path cannot be built: {why}"),
             TransportError::Http { failure, body } if body.is_empty() => write!(f, "{}", failure.explain()),
             TransportError::Http { failure, body } => {
                 write!(f, "{} (the relay said: {body})", failure.explain())

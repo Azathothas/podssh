@@ -17,6 +17,8 @@
 //! available on every path it takes and `01-relay-protocol.md:146-149` says
 //! plainly: *"podssh must never put a token in a URL when a header is available."*
 
+use crate::error::TransportError;
+
 /// ⛔ **The token header.** Spec lines 94 and 96 both name it.
 pub const TOKEN_HEADER: &str = "X-Relay-Token";
 
@@ -33,11 +35,27 @@ pub enum LegTarget {
 
 impl LegTarget {
     /// ⛔ **The path, and nothing else.** ⛔ **No query string, no token, ever.**
-    pub fn path(&self) -> String {
+    /// A host or a name that could change the path (`/`, `?`, `#`, `..`, a
+    /// space, a line break) is refused before a path exists; nothing is
+    /// percent-encoded, because an encoded `/` hides a different path.
+    pub fn path(&self) -> Result<String, TransportError> {
+        let bad = TransportError::BadTarget;
         match self {
-            LegTarget::Forward { host, port } => format!("/connect/{host}/{port}"),
-            LegTarget::ReverseNode { name } => format!("/v1/node/{name}"),
-            LegTarget::ReverseOperator { name } => format!("/v1/connect/{name}"),
+            LegTarget::Forward { host, port } => {
+                crate::adapt::check_target(host).map_err(bad)?;
+                if *port == 0 {
+                    return Err(bad("port 0 is not a port".into()));
+                }
+                Ok(format!("/connect/{host}/{port}"))
+            }
+            LegTarget::ReverseNode { name } => {
+                crate::adapt::check_node_name(name).map_err(bad)?;
+                Ok(format!("/v1/node/{name}"))
+            }
+            LegTarget::ReverseOperator { name } => {
+                crate::adapt::check_node_name(name).map_err(bad)?;
+                Ok(format!("/v1/connect/{name}"))
+            }
         }
     }
 }
@@ -130,12 +148,13 @@ impl Endpoint {
 }
 
 /// ⛔ **Build the request for a leg.** ⛔ **Takes the token by value and puts it
-/// in a header, always.**
-pub fn endpoint(config: &RelayConfig, target: &LegTarget, token: &str) -> Endpoint {
+/// in a header, always.** A target that [`LegTarget::path`] refuses gives no
+/// URL at all.
+pub fn endpoint(config: &RelayConfig, target: &LegTarget, token: &str) -> Result<Endpoint, TransportError> {
     let mut url = format!(
         "{}{}",
         config.origin.trim_end_matches('/'),
-        target.path()
+        target.path()?
     );
     let mut query: Vec<String> = Vec::new();
     if let Some(family) = config.knobs.family {
@@ -155,10 +174,10 @@ pub fn endpoint(config: &RelayConfig, target: &LegTarget, token: &str) -> Endpoi
         url.push_str(&query.join("&"));
     }
     // ⛔ **The token goes here and nowhere else.**
-    Endpoint {
+    Ok(Endpoint {
         url,
         headers: vec![(TOKEN_HEADER.to_string(), token.to_string())],
-    }
+    })
 }
 
 /// ⛔ **The forward frame cap, read from `/relays.json`.** ⛔ **This is a runtime

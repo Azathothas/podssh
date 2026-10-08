@@ -22,10 +22,11 @@
 //!   `payload` cross: `fin` is always true on the frames this client reads,
 //!   and carrying it would invite a caller to branch on it.
 //!
-//! * `close_code_and_reason`, `one_line` and `is_policy_refusal`: the Close
-//!   parser, the one definition of text that is safe to print, and the one
-//!   reading of a policy refusal, lent from `podssh-ws`, so neither crate has
-//!   a second copy and no other module names `podssh-ws`. `refused` keeps the
+//! * `close_code_and_reason`, `one_line`, `is_policy_refusal`, `check_target`
+//!   and `check_node_name`: the Close parser, the one definition of text that
+//!   is safe to print, the one reading of a policy refusal, and the checks of
+//!   the names in a relay path, lent from `podssh-ws`, so neither crate has a
+//!   second copy and no other module names `podssh-ws`. `refused` keeps the
 //!   status and the body of a refused upgrade.
 //!
 //! ⛔ **What this file does NOT do.** It does not construct a session
@@ -52,6 +53,16 @@ pub(crate) fn one_line(text: &str) -> String {
 /// Whether a refused upgrade's body is a policy refusal, by the one parser.
 pub(crate) fn is_policy_refusal(body: &str) -> bool {
     podssh_ws::client::is_policy_refusal(body)
+}
+
+/// A host for the forward path, by the one check of `podssh-ws`.
+pub(crate) fn check_target(host: &str) -> Result<(), String> {
+    podssh_ws::names::check_target(host)
+}
+
+/// A pair name for the reverse paths, by the one check of `podssh-ws`.
+pub(crate) fn check_node_name(name: &str) -> Result<(), String> {
+    podssh_ws::names::check_node_name(name)
 }
 
 /// A refused upgrade as this crate's error, with its status and its body;

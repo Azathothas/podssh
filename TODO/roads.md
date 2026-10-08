@@ -264,7 +264,7 @@ in iroh's source at the pinned version.
    `--relay-host` and `PODSSH_RELAY` replace the relay list
    (`crates/podssh-relay/src/relay.rs:52-75`). The flag wins.
 3. Accept `https://` URLs only, with a host that passes `check_host`
-   (`crates/podssh-relay/src/relay.rs:158-174`), and with no user information
+   (`crates/podssh-ws/src/names.rs:8-24`), and with no user information
    and no query.
 4. The order is a failover: the first relay that answers `/ping` through the
    proxy, within a time limit, is the home relay.

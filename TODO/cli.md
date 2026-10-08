@@ -36,11 +36,11 @@ OpenSSH 10.3p1 (`ssh -G -F none`, offline) gives `hostname 2001:db8::1` for
 
 Read: `parse_hop` already removes the brackets
 (`crates/podssh-cli/src/ssh/resolve.rs:347-387`). The refusal is `check_host`
-(`crates/podssh-relay/src/relay.rs:158-174`), called at
+(`crates/podssh-ws/src/names.rs:8-24`, re-exported by `podssh_relay::relay`), called at
 `crates/podssh-cli/src/ssh/resolve.rs:228`, `crates/podssh-cli/src/proxy.rs:108`
 and in `forward_path` (`crates/podssh-relay/src/relay.rs:116-129`); since this
 entry, each calls `check_target` there. Tests assert the refusal:
-`crates/podssh-relay/src/relay.rs:222`, and `crates/podssh-cli/tests/proxy.rs`
+`crates/podssh-relay/src/relay.rs:195`, and `crates/podssh-cli/tests/proxy.rs`
 (lines 49-50 at `eaf9822`).
 
 Not known: how `/connect/<host>/<port>` takes a literal. The contract does not
@@ -474,7 +474,7 @@ Measured offline (`PODSSH_OFFLINE=1`):
 - `podssh proxy --relay-host=evil.example 22` is 64, `missing PORT`.
 - Exit 64: `ssh -- -oProxyCommand=x`, `ssh -- user@-x true`, `ssh -J=-x host`
   (`crates/podssh-cli/src/ssh/resolve.rs:383-385`); `ssh --relay-host=-x host`,
-  `proxy -- -oX 22`, `proxy - 22` (`crates/podssh-relay/src/relay.rs:167-169`).
+  `proxy -- -oX 22`, `proxy - 22` (`crates/podssh-ws/src/names.rs:17-19`).
   `ssh -- host -x` runs the command `-x`: `--` ends the options.
 - `ssh --direct -oHostName=-x host true` reaches the offline stop: `HostName`
   replaces the host (`crates/podssh-cli/src/ssh/resolve.rs` line 92 at `4bceef6`) with no check.
