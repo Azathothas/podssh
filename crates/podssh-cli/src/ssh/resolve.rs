@@ -89,7 +89,13 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
     }
     let destination = args.destination.as_deref().ok_or("missing destination: podssh ssh [user@]host [command]")?;
     let target = parse_hop(destination)?;
-    let host = settings.host_name.clone().unwrap_or_else(|| target.host.clone());
+    let host = match settings.host_name.clone() {
+        Some(name) => {
+            host_rule(&format!("HostName={name}"), &name)?;
+            name
+        }
+        None => target.host.clone(),
+    };
     let port = match &args.port {
         Some(p) => parse_port(p).ok_or_else(|| format!("-p {p}: not a port"))?,
         None => settings.port.or(Some(target.port).filter(|p| *p != 22)).unwrap_or(22),
@@ -290,13 +296,21 @@ pub fn parse_hop(text: &str) -> Result<Hop, String> {
     } else {
         (rest.to_string(), 22)
     };
+    host_rule(original, &host)?;
+    Ok(Hop { user, host, port })
+}
+
+/// A host that a word names: not empty, and not starting with `-`, which a
+/// program would read as a flag (OpenSSH refuses it too). The same rule for a
+/// destination, a `-J` hop, a `-W` target and `-o HostName`.
+fn host_rule(original: &str, host: &str) -> Result<(), String> {
     if host.is_empty() {
         return Err(format!("{original:?}: no host"));
     }
     if host.starts_with('-') {
         return Err(format!("{original:?}: a host name cannot start with '-'"));
     }
-    Ok(Hop { user, host, port })
+    Ok(())
 }
 
 /// `~/` and the `%d %h %r %u %%` tokens OpenSSH expands in file names.

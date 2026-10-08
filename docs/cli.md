@@ -59,7 +59,11 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `user@[2001:db8::1]:2222` as it reads `host:PORT` (OpenSSH reads a port
   there only in the `ssh://` form). `-4` or `-6` with an address of the
   other family is refused. `podssh proxy` takes the bare address that
-  OpenSSH gives for `%h`.
+  OpenSSH gives for `%h`. A host that starts with `-` is refused (exit 64),
+  also as `-o HostName=`, as OpenSSH refuses it. podssh reads options before
+  and after the destination, as OpenSSH does, so a script that passes a host
+  that it did not write puts `--` before it: `podssh ssh -- "$HOST" COMMAND`,
+  `podssh proxy -- "$HOST" PORT`.
 - `-N` alone is valid. `-W HOST:PORT` is a stdio forward: no session, and
   exit when the forward fails. `-V` prints the version and does not connect.
 - **A repeated value follows OpenSSH** (measured with `ssh -G`): the first

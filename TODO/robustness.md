@@ -284,7 +284,7 @@ Read, the bounds today:
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:29`). The relay pipe:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:22-25`). Pump buffers: 32 KiB
-  (`crates/podssh-cli/src/proxy.rs:211`).
+  (`crates/podssh-cli/src/proxy.rs:217`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
   `crates/podssh-relay/src/open.rs:25-29`, `crates/podssh-ssh/src/session.rs:21`.
 - No limit: a `known_hosts` file is read whole
@@ -436,7 +436,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 71-136 (`docs/STATUS.md:167-183`, 11 of 11).
+  checks are at lines 71-136 (`docs/STATUS.md:168-184`, 11 of 11).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:236`, enforced at
   `crates/podssh-ssh/src/run.rs:109-114`); a reply, 30 s
@@ -522,7 +522,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:59`, `docs/STATUS.md:61`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:147-148` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:151-152` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -539,14 +539,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:147-148`). A difference that the table does not name fails,
+   `docs/cli.md:151-152`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:147-148` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:151-152` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed

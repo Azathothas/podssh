@@ -201,7 +201,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:19-43`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:19-46`).
 
 ## Decision
 

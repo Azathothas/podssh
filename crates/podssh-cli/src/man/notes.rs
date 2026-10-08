@@ -36,6 +36,9 @@ const SSH: &[&str] = &[
      of each -o keyword. A second -J or -W is refused, and so is a second --relay-host, --relay-addr or \
      --ca-file: give several hops, hosts or addresses as one comma list.",
     "podssh sends keepalives (ServerAliveInterval), so the relay does not close an idle session.",
+    "podssh reads options before and after the host, as OpenSSH does, so a host that a script did not \
+     write can be read as a flag. Put -- before it: podssh ssh -- \"$HOST\" uptime. A host, or a \
+     -o HostName=VALUE, that starts with - is refused (exit 64), as OpenSSH refuses it.",
     "An IPv6 address needs brackets only before a port: user@2001:db8::1 is port 22, and \
      user@[2001:db8::1]:2222 or -p 2222 gives another port. -4 or -6 with an address of the other family \
      is refused. The relay takes an IPv6 address, but when this version was measured, its way out \
@@ -53,6 +56,8 @@ const PROXY: &[&str] = &[
      An error is one line on stderr; the codes are in EXIT STATUS.",
     "HOST can be an IPv6 address, bare (as OpenSSH gives %h) or in brackets. In one word, the form is \
      [ADDRESS]:PORT. Through the relay, see the IPv6 note of ssh.",
+    "Put -- before a HOST that a script did not write: podssh proxy -- \"$HOST\" 22. Else a HOST that \
+     starts with - is read as a flag.",
 ];
 
 const DOCTOR: &[&str] = &[
@@ -118,6 +123,7 @@ mod tests {
         // A note may also name a flag of ssh (OpenSSH's), and -tt is -t twice.
         flag == "-tt"
             || flag == "--help"
+            || flag == "--"
             || rows(verb).iter().chain(rows("ssh")).any(|r| names(r).iter().any(|n| n == flag))
     }
 

@@ -47,7 +47,13 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         Ok(t) => t,
         Err(why) => {
             let _ = writeln!(err, "podssh proxy: {why}");
-            let _ = writeln!(err, "usage: podssh proxy HOST PORT   (as an OpenSSH ProxyCommand: podssh proxy %h %p)");
+            // `--relay-host=-x 22` takes the HOST for its value: say how a
+            // HOST that starts with - gets through.
+            let flags = args.relay_host.is_some() || args.relay_addr.is_some() || args.ca_file.is_some();
+            if flags && (args.target.is_none() || args.port.is_none()) {
+                let _ = writeln!(err, "podssh proxy: a HOST that starts with - is read as a flag; put -- before it");
+            }
+            let _ = writeln!(err, "usage: podssh proxy [OPTIONS] [--] HOST PORT   (as an OpenSSH ProxyCommand: podssh proxy %h %p)");
             return EXIT_USAGE;
         }
     };

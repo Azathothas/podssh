@@ -219,13 +219,13 @@ pub fn verb_help(verb: &'static Verb) -> String {
 /// page carries the string `--help` prints rather than a second copy of it.
 pub fn usage_tail(verb: &Verb) -> &'static str {
     match verb.name {
-        "ssh" => "[OPTIONS] [user@]host [COMMAND...]",
+        "ssh" => "[OPTIONS] [--] [user@]host [COMMAND...]",
         "cp" | "mv" => "[OPTIONS] SRC... DST",
         "chat" => "[OPTIONS] [CHANNEL] [MESSAGE]",
         "man" => "[OPTIONS] [SECTION]",
         "relay" => "[OPTIONS] SUBCOMMAND [ARGS...]",
         "node" | "operator" => "NAME",
-        "proxy" => "[OPTIONS] HOST PORT",
+        "proxy" => "[OPTIONS] [--] HOST PORT",
         _ => "[OPTIONS]",
     }
 }

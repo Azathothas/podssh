@@ -549,7 +549,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:74`,
    108-113, 122-132), the test of lines 365-377, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:58-69`).
+   notes (`crates/podssh-cli/src/man/notes.rs:63-74`).
 
 ## Decision
 

@@ -18,6 +18,7 @@ fn examples() -> Vec<(&'static str, String)> {
         ),
         ("an interactive program, from a host with no terminal", "podssh ssh -tt user@example.org top".into()),
         ("through a jump host", "podssh ssh -J user@bastion.example.org user@inner.example.org".into()),
+        ("a host from a script: -- before it, so it is never read as a flag", "podssh ssh -- user@example.org uptime".into()),
         ("an IPv6 address with a port, with no relay", "podssh ssh --direct 'user@[2001:db8::1]:2222'".into()),
         ("send a file with no scp", "podssh ssh user@example.org 'cat > notes.txt' < notes.txt".into()),
         (
