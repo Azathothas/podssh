@@ -119,6 +119,11 @@ because the test built its input with the same assumptions as the code (see
 - use `cargo test --no-fail-fast`: without it, cargo stops at the first test
   target that fails and the rest never run.
 
+Interactive use on Windows is checked by `scripts/interop-conpty.py`, the
+counterpart of `interop-pty.py`: it runs `podssh ssh -t` in a real pseudo
+console against an SSH server you name, for example
+`python scripts/interop-conpty.py target/debug/podssh.exe root@HOST --direct`.
+
 Tests never use the network. The integration tests that run the binary set
 `PODSSH_OFFLINE=1`, which makes any attempt to connect fail at once with a
 message; in-process tests use a destination the relay cannot take, which is

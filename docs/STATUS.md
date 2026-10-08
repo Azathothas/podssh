@@ -49,7 +49,8 @@ The IRC code has wire-level bugs found by review
 | through the relay to `railway.new` (anonymous SSH service, throwaway key), Windows build | `exit 3` gives 3; host key recorded with accept-new; stdout/stderr apart; 300 KB up and 5 MB down with equal digests; changed, revoked, strict-unknown and batch-unknown host keys all refused (255) with the fingerprints; `-W` refused by that server, reported, 255 |
 | `--direct` to a Tailscale SSH server over the tailnet, Windows build | a command and exit status 4 passed through; `-s sftp` |
 | a remote command killed by a signal, on `railway.new` | 255, as OpenSSH: that server reports exit status -1 instead of an exit signal |
-| interactive sessions on Windows | **not yet run** |
+| interactive sessions on Windows: `scripts/interop-conpty.py`, a real pseudo console (ConPTY), `--direct` to a Tailscale SSH server | **14 of 14** with the debug build and with the release workflow's binary: window size, resize, Ctrl-C to the remote command, `vi`, `less`, `top`, a command's exit status through a pty, `~.`, and the console's input mode restored after every session (a planted podssh that never restored it failed those three checks) |
+| an interactive login shell's exit status on Tailscale SSH | 0 for `exit 7`, with OpenSSH 10.3's own client too: that server reports no status for an interactive login shell; a command's status (`-t ... 'exit 7'`) comes back as 7 with both clients |
 | from a real constrained sandbox | **not yet run** |
 
 ### `podssh proxy`, measured live

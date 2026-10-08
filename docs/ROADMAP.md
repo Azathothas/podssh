@@ -116,7 +116,8 @@ The command line follows OpenSSH; [cli.md](cli.md) has the measured details.
 - [x] An interactive session (`vi`, `less`, `top`, Ctrl-C) works from a normal
       terminal (a local pty, `interop-pty.py`) and from a host with no
       `/dev/ptmx` (`-tt` over pipes: Ctrl-C and `vi`).
-- [ ] The same from the operator's real sandbox, and on Windows.
+- [x] The same on Windows (2026-10-08): see M3, interactive use on Windows.
+- [ ] The same from the operator's real sandbox.
 
 ## M3 — Beta: nothing single-point, nothing assumed
 
@@ -180,8 +181,18 @@ take podssh down.
       ends `proxy` with 69 and its reason; a stall (no frames, no Pongs) is
       declared dead at 50 s; a host killed mid-session ends the session in
       5 s, naming the relay.
-- [ ] **Measured where it is meant to run**: the operator's real sandbox, and
-      interactive use on Windows.
+- [x] **Interactive use on Windows**, measured (2026-10-08):
+      `scripts/interop-conpty.py` runs `podssh ssh -t` in a real Windows
+      pseudo console (ConPTY, what Windows Terminal uses) against a
+      Tailscale SSH server: window size, a resize, Ctrl-C (it reaches the
+      remote command and leaves podssh running), `vi`, `less`, `top`, a
+      command's exit status through a pty, `~.`, and the console's input
+      mode restored after each session, read with `GetConsoleMode` before
+      and after: 14 of 14, with the debug build and with the release
+      workflow's binary. Planted: a podssh that never restores the console
+      fails the three restore checks (mode 0x1f7 before, 0x3f0 after).
+- [ ] **Measured in the operator's real sandbox**: `podssh doctor`, then
+      `podssh ssh` and `podssh proxy` through the sandbox's proxy.
 - [ ] **Publication**: tag `v0.1.0-beta.1`; the release workflow
       (`.github/workflows/release.yml`) builds static musl binaries for
       x86_64 and aarch64 and a Windows binary with checksums, and the notes
