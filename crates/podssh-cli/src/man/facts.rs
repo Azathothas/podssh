@@ -214,8 +214,13 @@ fn relay() -> Vec<Block> {
             vec![lit("Trust")],
             format!(
                 "TLS is always verified, and no option turns the check off. With --ca-file or SSL_CERT_FILE, \
-                 only that file is trusted. Else the trust store is the Mozilla roots in the binary, {} next \
-                 to the binary, and the first system bundle.",
+                 only that file is trusted. Else the trust store is the Mozilla roots in the binary \
+                 (webpki-roots {} of {}), {} next to the binary, and the first system bundle. A system \
+                 bundle adds roots and removes none: to stop trusting a root that Mozilla removed after this \
+                 binary was built, give --ca-file or SSL_CERT_FILE with a current bundle, or use a newer \
+                 podssh. podssh doctor says when the roots in the binary are older than 12 months.",
+                podssh_ws::tls::ROOTS_VERSION,
+                podssh_ws::tls::ROOTS_PUBLISHED,
                 podssh_ws::bundle::BUNDLE_FILE_NAME
             ),
         ),

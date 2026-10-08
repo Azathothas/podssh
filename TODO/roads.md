@@ -274,7 +274,7 @@ in iroh's source at the pinned version.
    relay.
 7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:48-90`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:146-231`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:146-236`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:46-47`), so a variable that only the
    feature reads is in the manual only with the feature.

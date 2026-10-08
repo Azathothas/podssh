@@ -99,7 +99,7 @@ and `EphemeralSecret::random` for P-256 (line 66).
    range), and compute the shared secret with the `diffie_hellman` function of `elliptic-curve`
    0.13. Check the API of `p256` 0.13.2 first. No generator that can panic goes in.
 4. Make the source a parameter in the tests, so a failing source can be planted.
-5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:288-307`
+5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:293-312`
    does, and fails on `fill_bytes(` or `OsRng` outside `random.rs`.
 
 ## Prove
@@ -144,7 +144,7 @@ suite asserts that the shipped configuration does not use it (`probe.rs:9-12`), 
 names `PrintChain`: a search finds it only in `probe.rs`, the example and the documents. Also,
 lines 134 and 178 of `probe.rs` index the certificate with no bound check, so a short
 certificate panics the probe. The shipped configuration calls `.dangerous()` to install the
-WebPKI verifier (`crates/podssh-ws/src/tls.rs:152-156`), so a scan cannot look for that word
+WebPKI verifier (`crates/podssh-ws/src/tls.rs:162-166`), so a scan cannot look for that word
 alone.
 
 ## Approach
@@ -153,7 +153,7 @@ alone.
    (`crates/podssh-ws/examples/inspect_peer_chain.rs`), and remove `pub mod probe;`. Keep each
    file under 500 lines.
 2. Add the test that `probe.rs:9-12` promised: a scan of the source of `podssh-ws`,
-   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:288-307`
+   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:293-312`
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
@@ -197,13 +197,13 @@ provider, so podbox cannot.
 ## Premise
 
 Read: `open_tls` builds the trust anchors and the configuration on each call
-(`crates/podssh-ws/src/client.rs:179-199`, through `crates/podssh-ws/src/tls.rs:143-163`).
+(`crates/podssh-ws/src/client.rs:179-199`, through `crates/podssh-ws/src/tls.rs:153-173`).
 `WsClientConfig` carries only a `Trust` (`crates/podssh-ws/src/client.rs:47-61`). The same
 `Trust` goes through `podssh-relay`: `Request` (`crates/podssh-relay/src/open.rs:127-137`),
 `MintContext` (`crates/podssh-relay/src/token.rs:92-97`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:109-118`), and the `https_*` functions
 (`crates/podssh-ws/src/client.rs:253-279`). podssh's configuration offers no ALPN
-(`crates/podssh-ws/src/tls.rs:157-160`), because the upgrade is HTTP/1.1 only
+(`crates/podssh-ws/src/tls.rs:167-170`), because the upgrade is HTTP/1.1 only
 (`docs/relay.md:169`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
@@ -257,7 +257,7 @@ the system bundle).
 
 Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs:55-56`),
 and its comment says that TLS 1.2 suites are absent on purpose (lines 7-11). The configuration
-enables both versions (`crates/podssh-ws/src/tls.rs:152-154`); rustls accepts that, because one
+enables both versions (`crates/podssh-ws/src/tls.rs:162-164`); rustls accepts that, because one
 suite is usable, and then offers no TLS 1.2 suite (rustls 0.23.45, `with_protocol_versions` in
 its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustls` and
 `tokio-rustls` is on (`Cargo.toml`). The provider has HMAC
@@ -282,7 +282,7 @@ requires TLS 1.3 (`scripts/fake-relay.py:232-233`).
    (`crates/podssh-cli/src/doctor/relay_checks.rs:79-82`); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md:46`, the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:213-221`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:213-226`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -439,8 +439,8 @@ supported; podssh speaks HTTP CONNECT to an http:// proxy"
 makes the error `DialError::BadProxy` (line 217), which stops the failover at once
 (`crates/podssh-relay/src/open.rs:62`) and gives exit 78 in `podssh proxy`
 (`crates/podssh-cli/src/proxy.rs:162`). `doctor` reports it as `FAIL`
-(`crates/podssh-cli/src/doctor/net.rs:67-73`). Two tests assert the refusal:
-`crates/podssh-cli/tests/doctor.rs:120-129` and `crates/podssh-ws/tests/dial.rs:34-42`.
+(`crates/podssh-cli/src/doctor/net.rs:103-109`). Two tests assert the refusal:
+`crates/podssh-cli/tests/doctor.rs:123-132` and `crates/podssh-ws/tests/dial.rs:34-42`.
 
 ## Approach
 
@@ -460,7 +460,7 @@ makes the error `DialError::BadProxy` (line 217), which stops the failover at on
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (`dial.rs:39-44`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:126-149`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:162-185`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
 7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:49-52`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.

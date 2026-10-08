@@ -46,6 +46,15 @@ the user gives. For each host, `podssh-ws` connects:
 3. TLS 1.3 with a verified certificate for the relay's name, then the
    WebSocket upgrade.
 
+The trust store is `--ca-file` or `SSL_CERT_FILE` alone, else the Mozilla
+roots compiled into the binary (`webpki-roots`), a `podssh-ca.pem` next to
+the binary, and the first readable system bundle. A binary keeps the roots
+that it was built with: an update of the roots makes a release (Dependabot,
+T-205; after `v1.0.0`, a patch release), and `podssh doctor` says when the
+compiled-in roots are older than 12 months. A system bundle adds roots and
+removes none, so to stop trusting a root that Mozilla removed after the
+build, give `--ca-file` or `SSL_CERT_FILE` with a current bundle.
+
 If a host fails with an error that another host can repair, `podssh-relay`
 tries the next host. During the session, a ping every 10 s finds a silent
 relay in 30 to 40 s. See [relay.md](relay.md).

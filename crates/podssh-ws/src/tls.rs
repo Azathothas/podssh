@@ -17,6 +17,13 @@ use rustls::{ClientConfig, RootCertStore};
 use crate::bundle;
 use crate::error::WsError;
 
+/// The version of the compiled-in Mozilla roots (`webpki-roots`), and the day
+/// that crates.io published it: the crate holds no date of its own. A test
+/// reads Cargo.lock, so an update of the crate must update both. A binary
+/// keeps the roots that it was built with; `podssh doctor` gives their age.
+pub const ROOTS_VERSION: &str = "1.0.9";
+pub const ROOTS_PUBLISHED: &str = "2026-07-18";
+
 /// Where the trust anchors for the relay's certificate come from.
 ///
 /// An explicit file (`--ca-file`, `SSL_CERT_FILE`) is used alone and never
@@ -57,7 +64,10 @@ pub fn roots_for(trust: &Trust) -> Result<TlsRoots, WsError> {
 /// there, so this cannot come back empty.
 pub fn default_roots() -> TlsRoots {
     let mut roots = RootCertStore { roots: webpki_roots::TLS_SERVER_ROOTS.to_vec() };
-    let mut sources = vec![format!("{} compiled-in roots", webpki_roots::TLS_SERVER_ROOTS.len())];
+    let mut sources = vec![format!(
+        "{} compiled-in roots (webpki-roots {ROOTS_VERSION} of {ROOTS_PUBLISHED})",
+        webpki_roots::TLS_SERVER_ROOTS.len()
+    )];
     if let Ok(path) = bundle::default_bundle_path() {
         add_extra(&mut roots, &mut sources, &path);
     }

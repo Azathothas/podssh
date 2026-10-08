@@ -1,7 +1,7 @@
 This file holds the work that makes podssh usable by programs and agents: JSON forms of `doctor`,
 `man` and the result of `ssh`, `podssh status`, the end-to-end check in the binary, `podssh
 ping`, an MCP server, and a log of sessions. stdout carries the answer and nothing else
-(`docs/architecture.md:108-109`). `serde` and `serde_json` are already dependencies of the binary
+(`docs/architecture.md:117-118`). `serde` and `serde_json` are already dependencies of the binary
 (`crates/podssh-cli/Cargo.toml:42-43`), so no entry here needs a new crate for JSON.
 
 # T-049: `podssh doctor --json` (GitHub #9)
@@ -47,7 +47,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    `crates/podssh-cli/src/dispatch.rs:100-113`. `tree.rs` has 454 lines and `dispatch.rs` 448:
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
-   tokens today (`crates/podssh-cli/tests/doctor.rs:108-136`).
+   tokens today (`crates/podssh-cli/tests/doctor.rs:111-139`).
 6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:68-79`) and
    `docs/cli.md:124-142` in the same commit.
 
@@ -71,7 +71,7 @@ echo "exit=$?"
 cargo test -p podssh-cli --test doctor -- --ignored  # the live relay, on request
 ```
 
-The new tests run the binary offline, as `crates/podssh-cli/tests/doctor.rs:75-97` does: stdout
+The new tests run the binary offline, as `crates/podssh-cli/tests/doctor.rs:75-100` does: stdout
 is one JSON object; each text line has an item with the same check, status and detail; the
 counts agree; a planted proxy password and a planted token do not appear. Planted defect: leave
 the last check out of the JSON; the parity test fails.
@@ -110,7 +110,7 @@ manual do not keep the kind and the `instead` of a flag.
 
 1. A third renderer (new: crates/podssh-cli/src/man/json.rs) walks the tables, not the blocks.
 2. Move the exit codes into a table that both `exit_status`
-   (`crates/podssh-cli/src/man/facts.rs:234-275`) and the JSON read; the test at lines 379-393
+   (`crates/podssh-cli/src/man/facts.rs:239-280`) and the JSON read; the test at lines 379-393
    keeps checking the constants. Do the same for FILES.
 3. The shape: `schema`, `podssh`, `commands` (name, aliases, about, availability "works",
    "not-implemented" or "not-in-build", arguments, and flags with short, long, value, kind
@@ -435,7 +435,7 @@ Measured: `podssh mcp` exits 64 (unknown subcommand).
 Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:178-194`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:140-150`), which an MCP server over stdio uses for
-its protocol. podssh never listens (`docs/architecture.md:86-93`), and stdio needs no listener.
+its protocol. podssh never listens (`docs/architecture.md:95-102`), and stdio needs no listener.
 
 ## Approach
 

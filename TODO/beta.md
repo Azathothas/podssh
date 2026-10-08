@@ -87,7 +87,7 @@ sandboxes".
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -98,7 +98,7 @@ certificate chain needs is missing from them.
 ## Premise
 
 Read: the trust store starts with the compiled-in roots and adds the system
-bundles (`crates/podssh-ws/src/tls.rs:37`, `crates/podssh-ws/src/tls.rs:59-64`).
+bundles (`crates/podssh-ws/src/tls.rs:44`, `crates/podssh-ws/src/tls.rs:66-74`).
 `--ca-file` or `SSL_CERT_FILE` replaces them, and a `podssh-ca.pem` next to the
 binary is read (`crates/podssh-ws/src/bundle.rs:22-38`). The roots come from
 the crate `webpki-roots` (`Cargo.toml:95`). `podssh doctor` prints the number
@@ -130,6 +130,39 @@ target/debug/podssh doctor | grep 'compiled-in roots'
 
 The doctor line names the roots' version, and a test plants an old date and
 expects the warning.
+
+## Done
+
+2026-10-08, in the commit "podssh doctor gives the version and the age of
+the compiled-in roots".
+
+- `podssh_ws::tls::ROOTS_VERSION` and `ROOTS_PUBLISHED` record the version
+  of `webpki-roots` (1.0.9) and the day that crates.io published it
+  (2026-07-18, from the crates.io API): the crate holds no date. A new test,
+  `crates/podssh-ws/tests/roots_version.rs`, compares the version with
+  `Cargo.lock`, so an update of the crate must update the date too. The
+  trust store line names them: "121 compiled-in roots (webpki-roots 1.0.9 of
+  2026-07-18)".
+- `podssh doctor` has a line "roots age" for the default trust store (a
+  file chosen by `--ca-file` or `SSL_CERT_FILE` replaces the roots). Older
+  than 12 months, the line says so and names the remedy. It stays `ok`, not
+  `FAIL`: podssh still works with old roots (the doctor's own meaning of
+  ok), and a `FAIL` would fail each doctor run of an old binary, and each
+  doctor test a year after the last update. A clock before the publication
+  day gives `????`.
+- Step 1 is T-205's: its `cargo` entry of Dependabot covers `webpki-roots`,
+  and the test above makes such an update also update the date. The rule
+  is in `docs/architecture.md` and in the manual (THE RELAY, "Trust"): a
+  system bundle adds roots and removes none, so `--ca-file` or
+  `SSL_CERT_FILE` with a current bundle drops a root that Mozilla removed.
+- Prove: `cargo test -p podssh-cli --test doctor` passed (6, and the
+  offline run names the roots with their version and age);
+  `target/debug/podssh doctor | grep 'compiled-in roots'` printed both lines
+  (live: 17 ok, 0 FAIL). The planted dates: `roots_age_says_when_they_are_
+  older_than_12_months` checks 82 days (ok), 400 days ("13 months old: older
+  than 12 months") and a clock before the day (`????`).
+- Plants: `ROOTS_VERSION` set to 1.0.8, and the version test failed; the
+  warning made unreachable, and the age test failed at 400 days.
 
 # T-004: Interactive use over `-tt` from a box like the sandbox: vi, less, top and Ctrl-C
 

@@ -89,6 +89,9 @@ fn offline_the_network_is_not_attempted_and_never_reported_ok() {
     let (ok, failed, unknown) = counts(&run.out);
     assert_eq!(failed, 0, "{}", run.out);
     assert!(ok >= 5 && unknown >= 1, "{}", run.out);
+    // The compiled-in roots are named with their version and age.
+    let roots = run.out.lines().find(|l| l.contains("roots age")).unwrap_or_else(|| panic!("{}", run.out));
+    assert!(roots.starts_with("  ok") && roots.contains("compiled-in roots are webpki-roots"), "{roots}");
     // Every check line carries one of the three labels and nothing else.
     for line in run.out.lines().filter(|l| l.starts_with("  ")) {
         let label = line.split_whitespace().next().unwrap();

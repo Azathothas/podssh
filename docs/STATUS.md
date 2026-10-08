@@ -105,6 +105,7 @@ in [ROADMAP.md](ROADMAP.md).
 | Windows 11, debug build, no proxy | 16 ok, 0 FAIL, 0 ????, exit 0, about 4 s. Four relay hosts answer `/health` (`tcp-ssh-relay 2026-10-03-r2`) over TLS 1.3 with verified certificates; each line names the address opened. The forward session to `github.com:22` meets GitHub's published Ed25519 key. The clock is within 2 s. |
 | The same, through a local CONNECT proxy that allows only port 443 | 17 ok. The proxy allows the relay and `github.com:443`, and refuses `github.com:22` with `403 not on the egress allowlist`. Each relay line says `opened CONNECT ... through` the proxy. The proxy's log lists the same connections as the report. |
 | `--relay-host dead-host.invalid,tcp.ssh.relay.ajam.dev` | Exit 1, 2 FAIL: DNS over HTTPS (`1.1.1.1 answered that dead-host.invalid does not exist`) and that relay host. The token and the forward session use the second host. |
+| The compiled-in roots (T-003), Windows 11, debug build, live | The trust store line names `webpki-roots 1.0.9 of 2026-07-18`, and the line "roots age" says 82 days; 17 ok, 0 FAIL. Older than 12 months, the line says so and names `--ca-file` or `SSL_CERT_FILE` (`cargo test -p podssh-cli --lib -- roots_age`). |
 | A Linux host on the tailnet (Ubuntu 22.04), the release workflow's static binary | 25 ok, exit 0, 3.9 s. Open egress; the system trust store added to the compiled-in roots. |
 | The `rust:1-alpine` container, as root | 26 ok, exit 0. A copy of podssh runs from `/tmp`, `/var/tmp`, `/root` and `/work`, and is refused in `/dev/shm`, a noexec mount. |
 | `cargo test -p podssh-cli --test doctor` | Offline, the network checks are one `????` line, never `ok`. Planted failures (no `HOME`; a proxy setting that cannot be used) give `FAIL` and exit 1. Proxy credentials and a token in the environment do not appear in the output. |
@@ -214,7 +215,7 @@ behind them.
 | What | Result | Command |
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
-| The default tests | **753 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
+| The default tests | **756 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
 | The work record | `TODO/` agrees with itself. The checker's tests pass: 12 unit tests, 32 plant tests (the control, and 31 planted disagreements, each found), 10 tests of the remap, 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 8 of its 10 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |

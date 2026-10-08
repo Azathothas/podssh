@@ -34,7 +34,7 @@ drop or add frames (`SECURITY.md:23-26`).
 
 ## Approach
 
-1. A sans-IO codec (`docs/architecture.md:78-82`) in a new module
+1. A sans-IO codec (`docs/architecture.md:87-91`) in a new module
    crates/podssh-relay/src/session/, with each file under 500 lines. A record
    is a type byte, a 32-bit length and a body of 64 KiB or less: `GREETING`
    and `ACCEPT` (far end), `OPEN` and `PROOF` (client), `REFUSE`, `DATA` (its
@@ -210,7 +210,7 @@ the node then exits (`docs/reverse.md:19`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:146-231`).
+   (`crates/podssh-cli/src/man/facts.rs:146-236`).
 
 ## Decision
 
@@ -282,7 +282,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
    `crates/podssh-cli/src/ssh/resolve.rs:253-259`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:193-203`,
-   `crates/podssh-cli/src/man/facts.rs:222-229`), the note at
+   `crates/podssh-cli/src/man/facts.rs:227-234`), the note at
    `crates/podssh-cli/src/man/notes.rs:43`, `docs/relay.md`, `README.md`.
 
 ## Decision
@@ -355,7 +355,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:146-231`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:146-236`).
 
 ## Decision
 
@@ -806,7 +806,7 @@ that invariant. Bytes are dropped only where a client attaches after output
 that it never received: T-158, T-159 and T-161. The report puts the tracker
 in `podssh-transport`; it cannot work there. The layer runs under SSH and
 sees only ciphertext (`docs/design.md:186-187`), and the transport crates do
-not know the protocol that they carry (`docs/architecture.md:83-85`). The
+not know the protocol that they carry (`docs/architecture.md:92-94`). The
 plaintext of a pty exists only on the far end that keeps the shell. Read in
 the report, not verified here: tty7 drops bytes from its ring until a tracker
 says that it is at a boundary

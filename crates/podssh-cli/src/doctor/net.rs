@@ -60,6 +60,42 @@ pub(super) fn check_local(report: &mut Report<'_>, relays: &RelayList, trust: &T
         }
         Err(e) => report.fail("trust store", format!("{e} (chosen by {trust_from})")),
     }
+    // A file chosen by the user replaces the compiled-in roots.
+    if *trust == Trust::Default {
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+        roots_age(report, podssh_ws::tls::ROOTS_PUBLISHED, now);
+    }
+}
+
+/// How old the compiled-in roots are, at `now` (seconds since the epoch). A
+/// binary keeps the roots that it was built with, so a root that Mozilla
+/// removed later stays trusted in it; a system bundle adds roots and removes
+/// none. Old roots are said, not failed: podssh still works with them, and
+/// a FAIL would fail every doctor run of an old binary.
+fn roots_age(report: &mut Report<'_>, published: &str, now: i64) {
+    let what = format!("the compiled-in roots are webpki-roots {} of {published}", podssh_ws::tls::ROOTS_VERSION);
+    let Some(day) = super::clock::parse_day(published) else {
+        report.unknown("roots age", format!("{what}, a date that cannot be read"));
+        return;
+    };
+    let days = now.div_euclid(86_400) - day;
+    if days < 0 {
+        report.unknown("roots age", format!("{what}, and this host's clock is before that day"));
+    } else if days > 365 {
+        report.ok(
+            "roots age",
+            format!(
+                "{what}, {} months old: older than 12 months. A newer podssh has newer roots; until \
+                 then, --ca-file or SSL_CERT_FILE with a current bundle replaces them",
+                days / 30
+            ),
+        );
+    } else {
+        report.ok("roots age", format!("{what}, {days} days old"));
+    }
 }
 
 /// Which proxy podssh would use for the relay, named by its variable and
@@ -285,6 +321,27 @@ mod tests {
         assert!(!has_credentials("http://proxy.example:3128"));
         let shown = HttpProxy::parse("http://user:secret@proxy.example:3128").unwrap().to_string();
         assert_eq!(shown, "proxy.example:3128");
+    }
+
+    /// The planted dates: the roots of today, of 400 days ago, and of a day
+    /// after this host's clock.
+    #[test]
+    fn roots_age_says_when_they_are_older_than_12_months() {
+        let published = "2026-07-18";
+        let start = super::super::clock::parse_day(published).unwrap() * 86_400;
+        let run = |now: i64| {
+            let mut out: Vec<u8> = Vec::new();
+            roots_age(&mut Report::new(&mut out), published, now);
+            String::from_utf8(out).unwrap()
+        };
+        let fresh = run(start + 82 * 86_400);
+        assert!(fresh.contains("ok") && fresh.contains("82 days old"), "{fresh}");
+        assert!(fresh.contains("webpki-roots"), "{fresh}");
+        let old = run(start + 400 * 86_400);
+        assert!(old.contains("13 months old: older than 12 months"), "{old}");
+        assert!(old.contains("--ca-file or SSL_CERT_FILE"), "{old}");
+        let early = run(start - 86_400);
+        assert!(early.contains("????") && early.contains("clock is before"), "{early}");
     }
 
     #[test]

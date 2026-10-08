@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:140`).
+  do not run programs (`docs/STATUS.md:141`).
 
 ## Approach
 
@@ -140,7 +140,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:83-85`).
+   pump does not know the road (`docs/architecture.md:92-94`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:97-110` does;
    open with `crates/podssh-relay/src/open.rs:177-213`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -223,7 +223,7 @@ not a listener, so `docs/target-environment.md:74-78` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:189-198`,
   `crates/podssh-cli/src/doctor/unix.rs:210-212`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:140`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:141`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -282,10 +282,10 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:252-254`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:177-182`, `docs/architecture.md:86-93`,
+  `AGENTS.md:177-182`, `docs/architecture.md:95-102`,
   `docs/target-environment.md:74-78`, `SECURITY.md:56-59`, `README.md:35-36`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:140`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:141`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs:137-231`). A bind that works does
@@ -382,7 +382,7 @@ running on the server (`docs/design.md:207-209`).
   each session (`crates/podssh-ssh/src/session.rs:82-98`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:147-153`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:148-149`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:149-150`).
 - Read: tmux is never assumed (`docs/target-environment.md:90-92`).
 
 ## Approach
@@ -462,7 +462,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:115`), then Close 1009 (`docs/relay.md:151`); public
   targets only (`docs/relay.md:117`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:147`).
+  0.7 MB/s (`docs/STATUS.md:148`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 

@@ -23,6 +23,16 @@ pub(super) fn parse_http_date(text: &str) -> Option<i64> {
     Some(days_from_civil(year, month, day) * 86_400 + h * 3600 + m * 60 + s)
 }
 
+/// Days since the Unix epoch for a day written `YYYY-MM-DD`.
+pub(super) fn parse_day(text: &str) -> Option<i64> {
+    let mut parts = text.split('-').map(|n| n.parse::<i64>().ok());
+    let (y, m, d) = (parts.next()??, parts.next()??, parts.next()??);
+    if parts.next().is_some() || !(1..=12).contains(&m) || !(1..=31).contains(&d) || y < 1970 {
+        return None;
+    }
+    Some(days_from_civil(y, m, d))
+}
+
 /// An IMF-fixdate for seconds since the Unix epoch.
 pub(super) fn format_http_date(secs: i64) -> String {
     let days = secs.div_euclid(86_400);
@@ -66,6 +76,16 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_day_parses_to_the_days_python_gives() {
+        // date(2026, 7, 18) - date(1970, 1, 1) in Python.
+        assert_eq!(parse_day("2026-07-18"), Some(20_652));
+        assert_eq!(parse_day("1970-01-01"), Some(0));
+        for bad in ["", "2026-07", "2026-13-01", "2026-07-18-1", "26-07-18x"] {
+            assert_eq!(parse_day(bad), None, "{bad:?}");
+        }
+    }
 
     // Expected values from Python's email.utils.parsedate and calendar.timegm.
     #[test]
