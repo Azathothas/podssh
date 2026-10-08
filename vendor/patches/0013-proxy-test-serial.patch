@@ -1,0 +1,62 @@
+diff --git a/ts_http_util/tests/proxy.rs b/ts_http_util/tests/proxy.rs
+index 0e70704..5668b05 100644
+--- a/ts_http_util/tests/proxy.rs
++++ b/ts_http_util/tests/proxy.rs
+@@ -1,12 +1,23 @@
+ //! Increment 2 (E39): the CONNECT proxy dialer, against a fake proxy.
+ //!
+-//! Each test scopes the global: configure, use, reset in the same test, so
+-//! no configuration leaks into a neighbour running on another thread.
++//! `configure` is process-global, so the async tests serialize on `SERIAL`:
++//! two tests configuring concurrently dial each other's fake proxy (RST on
++//! Windows loopback). Each async test also resets the global on exit.
+ 
+ use tokio::io::{AsyncReadExt, AsyncWriteExt};
+ use tokio::net::TcpListener;
+ use ts_http_util::proxy::{ProxyConfig, configure, connect};
+ 
++/// ⛔ The four async tests hold this for their whole body. `configure` sets
++/// one global dialer; without the guard, neighbours interleave configure and
++/// `connect` and read each other's listeners. Poison-tolerant: a panicking
++/// test must not wedge the rest of the suite.
++static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
++
++fn serial() -> std::sync::MutexGuard<'static, ()> {
++    SERIAL.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
++}
++
+ /// A fake proxy: records CONNECT authorities, answers per `respond`, then
+ /// echoes bytes both ways. Returns the port and the seen-authorities log.
+ async fn fake_proxy(
+@@ -66,6 +77,7 @@ fn config(port: u16) -> ProxyConfig {
+ /// never happens: the assertion on the count fails, and so does the echo.
+ #[tokio::test]
+ async fn connect_issues_one_connect_and_echoes_bytes() {
++    let _serial = serial();
+     let (port, seen) = fake_proxy("HTTP/1.1 200 Connection Established\r\n\r\n", None).await;
+     configure(Some(config(port)));
+     let _reset = ResetOnDrop;
+@@ -83,6 +95,7 @@ async fn connect_issues_one_connect_and_echoes_bytes() {
+ /// fallback dial follows it (the fallback would hang where direct is dropped).
+ #[tokio::test]
+ async fn a_proxy_refusal_is_a_named_error_not_a_fallback() {
++    let _serial = serial();
+     let (port, seen) =
+         fake_proxy("HTTP/1.1 403 Forbidden\r\n\r\n", None).await;
+     configure(Some(config(port)));
+@@ -99,6 +112,7 @@ async fn a_proxy_refusal_is_a_named_error_not_a_fallback() {
+ /// Without credentials the proxy answers 407; with them, 200.
+ #[tokio::test]
+ async fn proxy_authorization_is_sent_when_configured() {
++    let _serial = serial();
+     let (port, _) = fake_proxy(
+         "HTTP/1.1 200 Connection Established\r\n\r\n",
+         Some("Basic dXNlcjpwYXNz"),
+@@ -130,6 +144,7 @@ async fn proxy_authorization_is_sent_when_configured() {
+ /// allocation: the 16 KiB bound fires.
+ #[tokio::test]
+ async fn an_endless_response_head_is_refused_at_the_bound() {
++    let _serial = serial();
+     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+     let port = listener.local_addr().unwrap().port();
+     tokio::spawn(async move {

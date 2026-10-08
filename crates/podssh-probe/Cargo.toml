@@ -1,0 +1,20 @@
+[package]
+name = "podssh-probe"
+description = "Capability detection. Probes; never assumes."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+libc = { workspace = true }
+# ⛔ E06's facts are data, and both are pure Rust with no C compiler.
+# `sha2` is here for the SHA-256 the pin is compared against.
+sha2 = { workspace = true }
+serde = { workspace = true }
+toml = { workspace = true }
+regex = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -1,0 +1,98 @@
+name: build
+
+# CI runs the same gate a developer runs (`sh scripts/dev.sh check` runs
+# scripts/gate.sh in the same image). Nothing is re-implemented here; CI adds
+# the live relay check and uploads the static binary the gate built.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # Must equal PODSSH_BUILD_IMAGE in scripts/dev.sh.
+  BUILD_IMAGE: docker.io/library/rust:1-alpine
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      # Resolve python by running it: a name that prints no version is not an
+      # interpreter, and a check that did not run is not a pass.
+      - name: resolve the interpreter
+        run: |
+          set -eu
+          for cand in python3 python; do
+            if command -v "$cand" >/dev/null 2>&1; then
+              ver=$("$cand" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || true)
+              case "$ver" in
+                3.*)
+                  echo "PY=$cand" >> "$GITHUB_ENV"
+                  echo "podssh: interpreter $cand ($ver)"
+                  exit 0 ;;
+              esac
+            fi
+          done
+          echo "podssh: no working python 3 on PATH" >&2
+          exit 1
+
+      - name: repository checks
+        run: '"$PY" scripts/check-repo.py'
+
+      - name: shell scripts are LF and parse under dash
+        run: |
+          set -eu
+          "$PY" scripts/check-scripts.py
+          for f in scripts/*.sh; do
+            dash -n "$f"
+          done
+
+      # gate.sh caps cargo jobs from the runner's available memory.
+      - name: the gate
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" -w /work \
+            -e PODSSH_TARGET=x86_64-unknown-linux-musl \
+            "$BUILD_IMAGE" \
+            sh scripts/gate.sh
+
+      # Proves the gate's no-C-compiler rule actually fires.
+      - name: the no-C rule is load-bearing
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" -w /work \
+            "$BUILD_IMAGE" \
+            sh scripts/plant.sh
+
+      # The relay's published contract, checked live. Exit 1 means the relay
+      # changed something podssh depends on: read the diff, update
+      # crates/podssh-probe/facts/relay-facts.toml and docs/relay.md together.
+      # Exit 2 means the relay could not be read, which is not a pass either.
+      # The plants prove the check can fail.
+      - name: the relay's structural facts, live
+        run: |
+          set -eu
+          "$PY" scripts/check-relay-spec.py
+          for plant in --plant-bad-path --plant-bad-timeout --plant-bad-cap; do
+            rc=0
+            "$PY" scripts/check-relay-spec.py $plant || rc=$?
+            if [ "$rc" -ne 1 ]; then
+              echo "the fact check is vacuous: $plant exited $rc, not 1"
+              exit 1
+            fi
+            echo "$plant exited 1, as it must"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: podssh-x86_64-unknown-linux-musl
+          path: target/x86_64-unknown-linux-musl/release/podssh
+          if-no-files-found: error

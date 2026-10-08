@@ -1,0 +1,10 @@
+--- a/ts_derp/src/lib.rs
++++ b/ts_derp/src/lib.rs
+@@ -12,6 +12,7 @@
+ pub mod dial;
+ mod error;
+ pub mod frame;
++pub mod ws;
+ 
+ pub use client::{Client, DefaultClient};
+ pub use error::Error;

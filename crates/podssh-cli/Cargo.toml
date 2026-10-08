@@ -1,0 +1,88 @@
+[package]
+name = "podssh-cli"
+description = "Argument parsing, subcommand dispatch, --doctor."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "podssh"
+path = "src/main.rs"
+
+[lib]
+name = "podssh_cli"
+path = "src/lib.rs"
+
+[features]
+default = []
+# `podssh ts`: the Tailscale adapter over the vendored tailscale-rs fork.
+# Off by default because the fork needs a C compiler and cmake (aws-lc-sys)
+# and dominates build time, memory and binary size. Without it, `podssh ts`
+# still parses and refuses with a message naming this feature.
+ts = ["dep:podssh-ts"]
+
+[dependencies]
+podssh-core = { path = "../podssh-core" }
+podssh-probe = { path = "../podssh-probe" }
+podssh-ts = { path = "../podssh-ts", optional = true }
+podssh-terminal = { path = "../podssh-terminal" }
+podssh-transport = { path = "../podssh-transport" }
+podssh-ws = { path = "../podssh-ws" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+libc = { workspace = true }
+
+# ⛔ E12 and E13's dependencies. Every version below was MEASURED 2026-10-02 on
+# this machine with `curl -sS https://crates.io/api/v1/crates/<name>`, and
+# every one is pure Rust. See `src/security/README.md` for the per-crate
+# measurement, including the one crate that was measured and REJECTED.
+#
+# ⛔ `sha1` is here for exactly one thing: OpenSSH's `known_hosts` hashed-host
+# form, `|1|<base64 salt>|<base64 HMAC-SHA1>`. ⛔ **It is the one primitive this
+# workspace did not already have, and E13 cannot hash a host name without it.**
+# It is pure Rust — MEASURED, `Cargo.lock` shows `sha1 v0.10.7` depending only on
+# `cfg-if`, `cpufeatures` and `digest` — and it is a *hash*, used for a lookup
+# key, never for a security decision of its own.
+sha1 = { version = "0.10.7", default-features = false }
+
+# ⛔ E13's fingerprint is SHA-256 over the RFC 4253 blob — the form
+# `ssh-keygen -lf` prints since 6.8 and the one an operator pastes into a bug
+# report. Already a workspace dependency, and pure Rust.
+sha2 = { workspace = true }
+# ⛔ E13's hashed-`known_hosts` check: HMAC-SHA1, keyed by the file's salt, over
+# the host name. `hmac` is the `CryptoProvider`'s HMAC as well
+# (`crates/podssh-ws/src/crypto/hmac.rs`), so this is ⛔ the same primitive
+# E03's TLS key schedule already uses and not a second one.
+hmac = { workspace = true }
+
+# ⛔ E12's redaction needs to recognise a token in an arbitrary log line, which
+# is a regular expression over prose rather than a fixed offset. `regex` is
+# already a workspace dependency and is pure Rust.
+regex = { workspace = true }
+
+# ⛔ E12: the secret wrapper zeroizes its own bytes on drop, and the cache file
+# is written 0600. Both are already workspace dependencies.
+zeroize = { workspace = true }
+hex = { workspace = true }
+base64 = { workspace = true }
+
+# ⛔ MEASURED 2026-10-02, this machine (Git Bash on Windows) and in
+# `rust:1-alpine` via `sh scripts/dev.sh run`:
+#   curl -sS 'https://crates.io/api/v1/crates/clap'            -> max_version 4.6.7
+#   curl -sS 'https://index.crates.io/cl/ap/clap'              -> 4.6.7, rust_version 1.85
+#   CC=/nonexistent cargo build -p podssh-cli                  -> exit 0
+# `suggestions` is ON and it is the reason for the dependency: it is what pulls
+# `strsim` in, and `strsim` is a Damerau-Levenshtein implementation. E31's entry
+# measured a hand-rolled edit distance to be wrong for `example.org`; this is
+# the library doing it instead.
+#
+# ⛔ `wrap_help` is OFF on purpose. It pulls `terminal_size`, which is a
+# terminal probe — and `RULES.md` forbids depending on a capability that has not
+# been probed. Podssh renders `--help` at a fixed 100 columns, which is what
+# makes the man/help parity check a string comparison rather than a guess.
+clap = { version = "4.6.7", default-features = false, features = [
+  "std", "help", "usage", "error-context", "suggestions", "derive",
+] }

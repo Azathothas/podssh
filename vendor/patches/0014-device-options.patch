@@ -1,0 +1,42 @@
+diff --git a/src/config.rs b/src/config.rs
+index 6a820de..2f9aa77 100644
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -41,6 +41,12 @@ pub struct Config {
+     ///
+     /// [KB article on ephemeral nodes]: https://tailscale.com/docs/features/ephemeral-nodes
+     pub ephemeral: bool,
++
++    /// ⛔ Runtime options; default is stock behavior. `no_udp` gates the UDP
++    /// actors, `derp` selects the transport and the lab pin, `proxy` routes
++    /// every outbound TCP path through CONNECT. podssh-ts feeds this from
++    /// `TsConfig`; a device that names no options runs exactly as before.
++    pub options: ts_runtime::options::RuntimeOptions,
+ }
+ 
+ impl Config {
+@@ -131,6 +137,7 @@ impl Default for Config {
+             requested_hostname: None,
+             requested_tags: vec![],
+             ephemeral: false,
++            options: Default::default(),
+         }
+     }
+ }
+diff --git a/src/lib.rs b/src/lib.rs
+index b620edc..c79cbcd 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -194,9 +194,9 @@ impl Device {
+             control_config: config.into(),
+             auth_key,
+             keys,
+-            // ⛔ Stock behavior until `tailscale::Config` exposes options
+-            // (the podssh-ts increment): no gating, TCP dial, no proxy.
+-            options: Default::default(),
++            // ⛔ Fed from `tailscale::Config::options` (patch 0014): stock
++            // behavior until podssh-ts feeds non-default options.
++            options: config.options.clone(),
+         });
+ 
+         rt.wait_for_startup_result()

@@ -1,0 +1,26 @@
+--- a/ts_derp/src/client.rs
++++ b/ts_derp/src/client.rs
+@@ -34,7 +34,9 @@
+ pub async fn connect<'c>(
+     region: impl IntoIterator<Item = &'c ServerConnInfo>,
+ ) -> Result<Option<DefaultIo>, Error> {
+-    let Some((conn, _, addr)) = crate::dial::dial_region_tls(region).await.unwrap() else {
++    // Upstream #439: this used to unwrap the dial result and panic on a dial
++    // error. Dial errors are returned now.
++    let Some((conn, _, addr)) = crate::dial::dial_region_tls(region).await? else {
+         return Ok(None);
+     };
+ 
+@@ -214,7 +216,11 @@
+         region: impl IntoIterator<Item = &'c ServerConnInfo>,
+         node_keypair: &NodeKeyPair,
+     ) -> Result<Self, Error> {
+-        let conn = connect(region).await?.unwrap();
++        // Upstream #439: this used to unwrap the un-reachable-region case and
++        // panic. An unreachable region is an error now.
++        let Some(conn) = connect(region).await? else {
++            return Err(Error::NoServerReachable);
++        };
+ 
+         Client::handshake(conn, node_keypair).await
+     }

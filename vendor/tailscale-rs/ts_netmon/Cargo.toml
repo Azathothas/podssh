@@ -1,0 +1,57 @@
+[package]
+name = "ts_netmon"
+version.workspace = true
+description = "tailscale network interface monitor"
+categories = ["network-programming"]
+keywords = ["tailscale", "network", "monitor", "netmon"]
+
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+bytes.workspace = true
+cfg-if.workspace = true
+flume.workspace = true
+futures-util.workspace = true
+ipnet.workspace = true
+pin-project-lite.workspace = true
+regex = "1.13"
+smallvec.workspace = true
+static_assertions.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tracing.workspace = true
+
+ts_util.workspace = true
+
+[dev-dependencies]
+ts_cli_util.workspace = true
+
+bstr = "1.13"
+clap.workspace = true
+proptest.workspace = true
+tracing-test = { version = "0.2", features = ["no-env-filter"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+    "Win32_NetworkManagement_IpHelper",
+    "Win32_NetworkManagement_Ndis",
+    "Win32_Networking_WinSock",
+] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+rtnetlink = "0.21"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+bitflags = "2.13"
+libc = "0.2"
+nom = "8.0"
+socket2 = "0.6"
+tokio = { workspace = true, features = ["net"] }
+zerocopy.workspace = true
+ts_util = { workspace = true, features = ["futures", "tokio"] }
+
+[lints]
+workspace = true

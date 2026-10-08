@@ -1,0 +1,177 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/podssh-cli",
+  "crates/podssh-core",
+  "crates/podssh-transport",
+  "crates/podssh-ws",
+  "crates/podssh-terminal",
+  "crates/podssh-probe",
+  "crates/podssh-ts",
+]
+
+# What a bare `cargo build` / `cargo test` at the root compiles: everything
+# except the Tailscale adapter, which links the vendored tailscale-rs fork and
+# needs a C compiler and cmake (aws-lc-sys). Build it explicitly with
+# `cargo build -p podssh-cli --features ts` or `cargo test -p podssh-ts`.
+# `--workspace` still includes it.
+default-members = [
+  "crates/podssh-cli",
+  "crates/podssh-core",
+  "crates/podssh-transport",
+  "crates/podssh-ws",
+  "crates/podssh-terminal",
+  "crates/podssh-probe",
+]
+
+# ⛔ The vendored fork keeps its own `[workspace]` (it builds standalone with
+# its own lockfile), so it is excluded here: otherwise cargo finds two
+# workspace roots in one tree and refuses (`multiple workspace roots`).
+# Exclusion does not block the path dependency — `podssh-ts` still reaches
+# the fork's `tailscale` package by path.
+exclude = ["vendor/tailscale-rs"]
+
+# Versions below were resolved on 2026-10-01, not recalled. Before loosening a
+# range, re-run the no-C build of the default members:
+# `CC=/nonexistent cargo build` (see scripts/gate.sh).
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+# MEASURED 2026-10-08: the default members pass `cargo check --all-targets`
+# on Rust 1.88.0. podssh-ts declares its own (higher) minimum.
+rust-version = "1.88"
+license = "0BSD"
+publish = false
+
+# THE BUILD RULE: the default build needs no C compiler.
+#
+# Everything a default `cargo build` compiles (the default members, without
+# the `ts` feature) must build with `CC=/nonexistent`, so podssh can be built
+# anywhere a Rust toolchain exists and the shipped static binary contains no C.
+# `scripts/gate.sh` enforces it and `scripts/plant.sh` proves the check fires.
+#
+# `ring` and `aws-lc-sys` both fail under `CC=/nonexistent` (measured
+# 2026-10-01: "failed to run custom build command ... failed to find tool"),
+# so `rustls` below carries no default crypto provider; podssh supplies its own
+# pure-Rust one in crates/podssh-ws/src/crypto/.
+#
+# The one exception is opt-in: the `ts` feature of podssh-cli links
+# crates/podssh-ts and the vendored tailscale-rs fork (outside this workspace),
+# which pull `aws-lc-sys` and need cc and cmake. The operator accepted a
+# build-time C dependency for Tailscale on 2026-10-05; on 2026-10-08 it was
+# made a feature so the default build stays C-free.
+[workspace.dependencies]
+tokio = { version = "1", default-features = false, features = [
+  "rt", "rt-multi-thread", "net", "io-util", "io-std", "time", "sync", "macros",
+] }
+tokio-tungstenite = { version = "0.24", default-features = false, features = [
+  "connect", "handshake",
+] }
+futures-util = { version = "0.3", default-features = false, features = [
+  "std", "sink",
+] }
+
+# ⛔ default-features = false and NO crypto provider feature. See the note above.
+rustls = { version = "0.23", default-features = false, features = [
+  "std", "tls12", "logging",
+] }
+# ⛔ The async wrapper around `rustls`. `default-features = false` because its
+# default is `aws_lc_rs`, which would pull in `aws-lc-sys` and a C compiler —
+# the exact dependency this workspace exists to avoid. With the default off it
+# depends on `rustls` (no provider) and `tokio` only.
+# ⛔ MEASURED 2026-10-02 in rust:1-alpine: builds under `CC=/nonexistent`.
+#
+# ⛔ **This is why E03's connector is short.** The first version hand-rolled an
+# `AsyncRead`/`AsyncWrite` adapter over `rustls::ClientConnection`, and it was
+# wrong in a way only the type system caught: `read_tls` takes
+# `&mut dyn std::io::Read` and a `tokio::net::TcpStream` implements
+# `AsyncRead`, not `Read`. Bridging the two by hand means owning the
+# non-blocking handshake, the plaintext-pending check and the partial-write
+# outbox — three places each of which can deadlock. This crate exists.
+tokio-rustls = { version = "0.26", default-features = false, features = [
+  "logging", "tls12",
+] }
+rustls-pki-types = "1"
+webpki-roots = "1"
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# ⛔ E06's facts file. Pure Rust, and it must stay that way: the build image
+# has no C compiler, so a TOML parser that wanted `cc` would fail the gate.
+toml = { version = "0.9", default-features = false, features = ["parse", "serde"] }
+# ⛔ The structural facts are asserted with patterns, not with prose parsing.
+# `regex` is pure Rust; `fancy-regex` is not, and neither is a C toolchain.
+#
+# ⛔ `unicode-perl` is ON and it is not optional: `default-features = false`
+# leaves `\d` uncompilable, and the error names the missing feature rather than
+# the pattern. MEASURED 2026-10-02 in rust:1-alpine: two of E06's facts failed
+# with "Unicode-aware Perl class not found (make sure the unicode-perl feature
+# is enabled)". A pattern that cannot compile must redden the gate, and it does
+# ⛔ but it would have reddened it for the wrong reason, which is worse.
+regex = { version = "1", default-features = false, features = ["unicode-perl"] }
+
+# Pure-Rust crypto. Every one of these was MEASURED OK under CC=/nonexistent on
+# 2026-10-01, individually and together, on this host.
+sha2 = { version = "0.10", default-features = false, features = ["oid"] }
+hmac = { version = "0.12", default-features = false }
+hkdf = { version = "0.12", default-features = false }
+aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
+chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
+# ⛔ E01 Task 3 wires the SSH AEADs by hand (`ssh/cipher.rs`): OpenSSH's
+# chacha layout needs the 64-bit-nonce primitive plus seeking (poly-key block
+# then payload from block 1) and a standalone Poly1305. All three are pure
+# Rust and already in the lockfile as transitive deps — these lines only name
+# the same versions directly. CC-cleanliness is proved by the container gate.
+chacha20 = { version = "0.9", default-features = false }
+cipher = { version = "0.4", default-features = false }
+poly1305 = { version = "0.8", default-features = false }
+x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
+ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
+# ⛔ `ecdh` is on because E03's key exchange needs P-256 ECDH, and it is
+# MEASURED 2026-10-02 in rust:1-alpine to build under `CC=/nonexistent` with
+# it: `p256` and `elliptic-curve` are pure Rust, and `arithmetic` alone does
+# NOT expose `p256::ecdh::EphemeralSecret` — the error is
+# "could not find `ecdh` in `p256` ... found an item that was configured out".
+p256 = { version = "0.13", default-features = false, features = ["ecdsa", "arithmetic", "ecdh"] }
+# ⛔ `p384` is here because E03's live handshake FAILED without it, and the
+# failure named the algorithm exactly.
+# ⛔ **MEASURED 2026-10-02, in `rust:1-alpine`, against the live relay:** the
+# presented chain is three certificates — leaf and first intermediate on
+# secp256r1, the second intermediate on secp384r1 — and the handshake was
+# refused with
+#   `UnsupportedSignatureAlgorithmContext {
+#      signature_algorithm_id: [6, 8, 42, 134, 72, 206, 61, 4, 3, 3],
+#      supported_algorithms: [0x06082a8648ce3d040302, 0x06032b6570] }`
+# and that OID is `ecdsa-with-SHA384` (1.2.840.10045.4.3.3). A provider that
+# offers only P-256/SHA-256 cannot verify the chain the relay actually
+# presents, so it is not a provider.
+p384 = { version = "0.13", default-features = false, features = ["ecdsa", "arithmetic"] }
+rsa = { version = "0.9", default-features = false, features = ["std"] }
+
+# rand's default `getrandom` backend reads the OS, not a C library. `small_rng`
+# is deliberately off: podssh's protocol randomness is OS-sourced on every
+# platform, and a deterministic RNG in a protocol path is a defect.
+rand = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+
+# podssh's own. No crates.io equivalent is acceptable for these.
+crc32fast = "1"
+base64 = "0.22"
+hex = "0.4"
+libc = "0.2"
+zeroize = "1"
+
+# Debug builds keep line tables for podssh's own crates and no debug info for
+# dependencies: test binaries link with far less memory and `target/` stays
+# smaller, while backtraces still name files and lines.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

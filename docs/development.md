@@ -1,0 +1,130 @@
+# Development
+
+## Requirements
+
+- Rust 1.88 or newer for the default build (1.92 with the `ts` feature).
+- No C compiler for the default build. The `ts` feature needs `cc`, `cmake`
+  and `perl` (for `aws-lc-sys` in the vendored tailscale-rs fork).
+- Python 3 for the repository checks.
+- For the container gate on Windows: Git Bash, PowerShell and the operator's
+  `wsl-toolkit` (rootless Podman in a dedicated WSL distribution).
+
+## Build and test natively
+
+```sh
+export CARGO_BUILD_JOBS=4          # see "Memory" below
+cargo build                        # default members; target/debug/podssh
+cargo test                         # default members
+cargo test -p podssh-core          # one crate
+cargo build -p podssh-cli --features ts                          # with Tailscale
+cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts   # its tests
+```
+
+A bare `cargo build`/`cargo test` at the root uses the workspace's
+`default-members`, which leave out `crates/podssh-ts`; `--workspace` brings it
+back (and needs a C toolchain).
+
+The whole workspace builds and tests natively on Windows (MSVC) and Linux.
+The static Linux release binary needs the musl target and is built in the
+container (below).
+
+## Memory
+
+Cargo runs one job per CPU by default. On a 20-thread machine that is 20
+compiler and linker processes at once. On 2026-10-07, three such builds ran
+together, two of them in containers in an uncapped WSL VM, and nearly exhausted
+a 64 GB Windows machine.
+
+- Native builds: set `CARGO_BUILD_JOBS` (4 is comfortable on 32–64 GB), or put
+  `jobs = 4` under `[build]` in `~/.cargo/config.toml`.
+- Container builds: `scripts/dev.sh` passes `PODSSH_JOBS` (default 4), and
+  `scripts/gate.sh` caps itself at one job per 3 GiB of available memory.
+- Never run two container builds at once. `scripts/dev.sh` holds a lock in
+  `.work/dev.lock` and refuses a second run.
+- Container memory limits are **not** a protection here: the wsl-toolkit base
+  has no cgroup delegation for its Podman account, so a memory or CPU limit is
+  accepted and not enforced (`wsl-toolkit base ensure` reports this,
+  2026-10-08). The job cap and the lock are what bound memory.
+- WSL itself (operator's machine, not changed by any script): set a ceiling in
+  `%USERPROFILE%\.wslconfig`, for example `memory=24GB` and `swap=8GB` under
+  `[wsl2]`, then restart WSL yourself.
+
+## Checks
+
+```sh
+python scripts/check-repo.py      # 500-line rule, doc links, no credentials, LF shell scripts
+python scripts/check-scripts.py   # shell scripts parse under dash
+python scripts/check-relay-spec.py  # the live relay still matches what podssh depends on
+```
+
+Read exit codes directly, not through a pipe (`cmd | tail` reports `tail`'s
+status).
+
+## The container gate
+
+```sh
+sh scripts/dev.sh check    # host checks, then scripts/gate.sh in rust:1-alpine
+sh scripts/dev.sh plant    # proves the no-C-compiler check actually fires
+sh scripts/dev.sh test -p podssh-core
+sh scripts/dev.sh run -- 'uname -a'
+sh scripts/dev.sh help
+```
+
+`scripts/gate.sh` is the gate; CI runs the same file in the same image. It
+checks that:
+1. the default members build with `CC=/nonexistent`;
+2. their tests pass;
+3. the `ts` feature's tests pass;
+4. the static musl release binary has no dynamic dependencies and no program
+   interpreter.
+
+Containers are ephemeral, and `.git`, `target/`, `.env/`, `.work/`, `.tmp/` and
+`.codegraph/` are not copied into them.
+
+## Tests that count
+
+Unit tests in this repository have repeatedly passed while the code was wrong,
+because the test built its input with the same assumptions as the code (see
+[audit-2026-10-08.md](audit-2026-10-08.md)). For protocol code:
+
+- test against something podssh did not write: a real OpenSSH/Dropbear
+  server, a real ircd, the live relay, or bytes captured from one;
+- a new check is trusted only after it has been seen to fail on a planted
+  defect and pass on correct input;
+- run the real binary with stdout and stderr on separate pipes: a stray
+  `println!` once passed every in-memory test suite;
+- in a live test that expects a failure, send nothing after triggering it
+  (dropssh once read a data frame as close code 33319);
+- use `cargo test --no-fail-fast`: without it, cargo stops at the first test
+  target that fails and the rest never run.
+
+The live check of the whole proxy path (network; mints and caches a token
+like the binary does):
+
+```sh
+cargo test -p podssh-cli --test proxy_live -- --ignored
+```
+
+Older live examples take a token from the environment. Mint it, use it and
+discard it in one shell, and never print it:
+
+```sh
+export PODSSH_RELAY_TOKEN="$(curl -sS -X POST https://tcp.ssh.relay.ajam.dev/v1/mint \
+  -H 'content-type: application/json' -d '{}' | python -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
+cargo run -p podssh-transport --example live_forward -- --bundle /path/to/ca-bundle.pem
+unset PODSSH_RELAY_TOKEN
+```
+
+## Line endings
+
+`.gitattributes` stores sources as LF. Shell scripts must be LF (dash rejects
+CRLF). The IRC wire fixtures under `crates/podssh-core/tests/fixtures/` are
+stored byte-for-byte (`-text`) because CRLF is the protocol's terminator. Do
+not bulk-convert line endings in files a change does not otherwise touch.
+
+## Release builds
+
+The shipped binary is `podssh-cli` built for `x86_64-unknown-linux-musl` with
+`RUSTFLAGS=-Ctarget-feature=+crt-static` and the `release` profile (size-optimised,
+fat LTO). `scripts/gate.sh` builds it and CI uploads it. Tagged releases with
+checksums for more targets are milestone 3 in [ROADMAP.md](ROADMAP.md).

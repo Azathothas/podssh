@@ -1,0 +1,12 @@
+--- a/ts_derp/Cargo.toml
++++ b/ts_derp/Cargo.toml
+@@ -29,6 +29,9 @@
+ thiserror.workspace = true
+ tokio.workspace = true
+ tokio-util.workspace = true
++# WebSocket transport (src/ws.rs). Framing only: TLS stays in ts_tls_util, and
++# no TLS backend of tungstenite is enabled.
++tokio-tungstenite = { version = "0.24", default-features = false, features = ["handshake"] }
+ tracing.workspace = true
+ url.workspace = true
+ yoke = { workspace = true, features = ["alloc", "derive"] }

@@ -1,0 +1,30 @@
+diff --git a/ts_derp/examples/listen.rs b/ts_derp/examples/listen.rs
+index 551eac0..f5c31f2 100644
+--- a/ts_derp/examples/listen.rs
++++ b/ts_derp/examples/listen.rs
+@@ -15,7 +15,9 @@ async fn main() -> ts_cli_util::Result<()> {
+ 
+     let keypair = NodeKeyPair::random();
+ 
+-    let client = ts_derp::Client::connect(region, &keypair).await?;
++    // ⛔ Increment 1 added the mode argument; examples keep stock behavior.
++    let client =
++        ts_derp::Client::connect(region, &keypair, ts_derp::ConnectMode::TcpUpgrade).await?;
+     tracing::info!("derp handshake done");
+ 
+     loop {
+diff --git a/ts_derp/examples/ping.rs b/ts_derp/examples/ping.rs
+index 1cfc7a3..dddcc30 100644
+--- a/ts_derp/examples/ping.rs
++++ b/ts_derp/examples/ping.rs
+@@ -16,7 +16,9 @@ async fn main() -> ts_cli_util::Result<()> {
+ 
+     let keypair = NodeKeyPair::random();
+ 
+-    let client = ts_derp::Client::connect(region, &keypair).await?;
++    // ⛔ Increment 1 added the mode argument; examples keep stock behavior.
++    let client =
++        ts_derp::Client::connect(region, &keypair, ts_derp::ConnectMode::TcpUpgrade).await?;
+     tracing::info!("derp handshake done");
+ 
+     let client = Arc::new(client);

@@ -1,0 +1,21 @@
+--- a/ts_derp/src/error.rs
++++ b/ts_derp/src/error.rs
+@@ -17,6 +17,18 @@
+     #[error(transparent)]
+     IoFailure(#[from] std::io::Error),
+ 
++    /// Dialling a derp server failed.
++    #[error(transparent)]
++    Dial(#[from] crate::dial::Error),
++
++    /// No derp server in the region was reachable.
++    #[error("no reachable DERP server in the region")]
++    NoServerReachable,
++
++    /// The WebSocket transport failed.
++    #[error(transparent)]
++    WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
++
+     /// Unsupported derp protocol version.
+     #[error("unsupported DERP protocol version {0}, only supported version is {1}")]
+     UnsupportedProtocolVersion(usize, usize),

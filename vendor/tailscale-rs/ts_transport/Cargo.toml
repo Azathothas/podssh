@@ -1,0 +1,25 @@
+[package]
+name = "ts_transport"
+version.workspace = true
+description = "packet transport traits and types for tailscale"
+categories = ["network-programming", "asynchronous"]
+keywords = ["tailscale", "packet", "network", "transport"]
+
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Our crates.
+ts_keys.workspace = true
+ts_packet.workspace = true
+ts_util.workspace = true
+
+smallbox = { version = "0.8", default-features = false }
+dyn-hash = "1.0"
+dyn-eq = "0.1"
+zerocopy.workspace = true
+
+[lints]
+workspace = true

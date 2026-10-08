@@ -1,0 +1,27 @@
+/target
+**/*.rs.bk
+*.pdb
+*.exe
+
+# Scratch clones of reference repositories used for research. Never committed.
+/.tmp/
+
+# Scratch produced by agents and probes during research.
+.work/
+
+# Python bytecode from the gate.
+__pycache__/
+*.pyc
+
+# A lowercase duplicate of AGENTS.md created by the filesystem. Two files that
+# say the same thing are two sources of truth, and one of them will drift.
+/agents.md
+
+# The operator's live credentials for acceptance runs (e.g. a preauth tailscale
+# key). Never committed, never printed. The build container copies the
+# workspace, so kept job dirs hold a local copy — `sh scripts/dev.sh clean`
+# removes the containers.
+/.env/
+
+# CodeGraph index: local to each machine.
+/.codegraph/

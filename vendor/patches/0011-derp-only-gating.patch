@@ -1,0 +1,510 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 751ee7a..27237b9 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -6316,6 +6316,7 @@ dependencies = [
+  "ts_dataplane",
+  "ts_derp",
+  "ts_disco_protocol",
++ "ts_http_util",
+  "ts_keys",
+  "ts_netcheck",
+  "ts_netmon",
+diff --git a/src/lib.rs b/src/lib.rs
+index 94935a8..b620edc 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -194,6 +194,9 @@ impl Device {
+             control_config: config.into(),
+             auth_key,
+             keys,
++            // ⛔ Stock behavior until `tailscale::Config` exposes options
++            // (the podssh-ts increment): no gating, TCP dial, no proxy.
++            options: Default::default(),
+         });
+ 
+         rt.wait_for_startup_result()
+diff --git a/ts_runtime/Cargo.toml b/ts_runtime/Cargo.toml
+index bae7f04..2ebd138 100644
+--- a/ts_runtime/Cargo.toml
++++ b/ts_runtime/Cargo.toml
+@@ -26,6 +26,7 @@ ts_packetfilter = { workspace = true, features = ["checking-filter"] }
+ ts_packetfilter_state.workspace = true
+ ts_transport.workspace = true
+ ts_derp.workspace = true
++ts_http_util.workspace = true
+ ts_tunnel.workspace = true
+ ts_util.workspace = true
+ 
+diff --git a/ts_runtime/src/direct.rs b/ts_runtime/src/direct.rs
+index 63398b2..65a8e0b 100644
+--- a/ts_runtime/src/direct.rs
++++ b/ts_runtime/src/direct.rs
+@@ -112,7 +112,19 @@ impl kameo::Actor for DirectActor {
+             .ask::<DataplaneActor, _>(None, crate::dataplane::NewUnderlayTransport, true)
+             .await?;
+ 
+-        let sock4 = UdpSocket::bind("0.0.0.0:0").await.unwrap();
++        let sock4 = UdpSocket::bind("0.0.0.0:0").await.map_err(|e| {
++            // ⛔ Was `.unwrap()`: a panic on a reachable path. A sandboxed
++            // host denies the bind, and the actor error below is a supervised
++            // death rather than a process abort. The kind is the nearest of a
++            // closed set (`ActorGone`: this actor cannot proceed); the log
++            // line above carries the real cause.
++            tracing::error!(error = %e, "binding direct udp4 socket");
++            crate::Error {
++                kind: crate::ErrorKind::ActorGone,
++                message_ty: None,
++                target_actor: None,
++            }
++        })?;
+         let sock4 = Arc::new(sock4);
+         tracing::debug!(transport_id = ?id, local_addr = %sock4.local_addr().unwrap(), "direct udp4 socket bound");
+ 
+@@ -328,7 +340,11 @@ impl Message<Arc<netmon::State>> for DirectActor {
+             self.reachable.insert(addr, ());
+         }
+ 
+-        self.publish_endpoints().await.unwrap()
++        // ⛔ Was `.unwrap()`: a STUN publish failure killed the actor on a
++        // path that only reports reachability. Logged and kept.
++        if let Err(e) = self.publish_endpoints().await {
++            tracing::warn!(error = %e, "publishing direct endpoints");
++        }
+     }
+ }
+ 
+@@ -337,7 +353,10 @@ impl Message<StunAddress> for DirectActor {
+ 
+     async fn handle(&mut self, msg: StunAddress, _ctx: &mut Context<Self, Self::Reply>) {
+         self.stun_addr = Some(msg.addr);
+-        self.publish_endpoints().await.unwrap()
++        // ⛔ Was `.unwrap()`: same reachability-only path, same treatment.
++        if let Err(e) = self.publish_endpoints().await {
++            tracing::warn!(error = %e, "publishing direct endpoints");
++        }
+     }
+ }
+ 
+diff --git a/ts_runtime/src/env.rs b/ts_runtime/src/env.rs
+index 037876e..aa60861 100644
+--- a/ts_runtime/src/env.rs
++++ b/ts_runtime/src/env.rs
+@@ -1,3 +1,9 @@
++//! The shared actor environment: bus, scheduler, registry, keys, options.
++//!
++//! Built once at startup from [`Config`](crate::Config); every actor that
++//! branches on the runtime options reads them from here rather than a second
++//! copy.
++
+ use core::any::Any;
+ use std::sync::Arc;
+ 
+@@ -19,25 +25,41 @@ use crate::{
+     retained_bus::RetainedBus,
+ };
+ 
++/// Shared handles every actor uses: bus, scheduler, registry, keys, options.
+ #[derive(Clone)]
+ pub struct Env {
++    /// Retained message bus shared by all actors.
+     pub bus: ActorRef<RetainedBus>,
++    /// Task scheduler shared by all actors.
+     pub scheduler: ActorRef<Scheduler>,
++    /// Actor registry shared by all actors.
+     pub registry: ActorRef<Registry>,
+ 
++    /// Device keys this instance runs with.
+     pub keys: Arc<ts_keys::NodeState>,
++
++    /// ⛔ **The one copy of the runtime options.** Built once from `Config`
++    /// at startup; every actor that branches on `no_udp`, the DERP mode, the
++    /// pin or the proxy reads this value rather than a second copy.
++    pub options: Arc<crate::options::RuntimeOptions>,
+ }
+ 
+ impl Env {
+-    pub fn new(keys: ts_keys::NodeState) -> Self {
++    /// Spawn the bus, scheduler and registry, and carry `keys` and `options`.
++    ///
++    /// Requires a Tokio runtime context: the actor spawns panic outside one
++    /// (the options test runs under `#[tokio::test]` for exactly this reason).
++    pub fn new(keys: ts_keys::NodeState, options: crate::options::RuntimeOptions) -> Self {
+         Self {
+             bus: RetainedBus::spawn_default(),
+             scheduler: Scheduler::spawn_default(),
+             registry: Registry::spawn_default(),
+             keys: Arc::new(keys),
++            options: Arc::new(options),
+         }
+     }
+ 
++    /// Subscribe `slf` to retained messages of type `M` on the shared bus.
+     pub async fn subscribe<M>(&self, slf: &ActorRef<impl Message<M>>) -> Result<(), Error>
+     where
+         M: Clone + Send + 'static,
+@@ -50,6 +72,7 @@ impl Env {
+         Ok(())
+     }
+ 
++    /// Publish a retained message of type `M` on the shared bus.
+     pub async fn publish<M>(&self, msg: M) -> Result<(), Error>
+     where
+         M: Clone + Send + 'static,
+@@ -62,6 +85,7 @@ impl Env {
+         Ok(())
+     }
+ 
++    /// Publish an unretained message of type `M` on the shared bus.
+     pub async fn publish_noretain<M>(&self, msg: M) -> Result<(), Error>
+     where
+         M: Clone + Send + 'static,
+@@ -256,5 +280,6 @@ impl Env {
+     }
+ }
+ 
++/// A message forwarded to an actor through the registry.
+ pub type RegForwarded<A, M> =
+     ForwardedReply<Forward<A, M>, registry::RegistryForward<M, <A as Message<M>>::Reply>>;
+diff --git a/ts_runtime/src/lib.rs b/ts_runtime/src/lib.rs
+index d483a66..c80b9b1 100644
+--- a/ts_runtime/src/lib.rs
++++ b/ts_runtime/src/lib.rs
+@@ -18,11 +18,12 @@ mod dataplane;
+ mod derp_latency;
+ mod direct;
+ mod disco;
+-mod env;
++pub mod env;
+ mod error;
+ mod multiderp;
+ mod netmon;
+ mod netstack_actor;
++pub mod options;
+ mod packetfilter;
+ mod path_discoverer;
+ pub mod peer_tracker;
+@@ -53,6 +54,10 @@ pub struct Config {
+     pub auth_key: Option<String>,
+     /// The keys to use.
+     pub keys: ts_keys::NodeState,
++    /// ⛔ **Runtime options; default is stock behavior.** `no_udp` gates the
++    /// UDP actors, `derp` selects the transport and the lab pin, `proxy`
++    /// routes every outbound TCP path through CONNECT.
++    pub options: options::RuntimeOptions,
+ }
+ 
+ impl kameo::Actor for Runtime {
+@@ -60,7 +65,11 @@ impl kameo::Actor for Runtime {
+     type Args = Config;
+ 
+     async fn on_start(config: Config, slf: ActorRef<Self>) -> Result<Self, Self::Error> {
+-        let env = Env::new(config.keys);
++        // ⛔ The proxy feeds the shared CONNECT dialer before any actor dials:
++        // control, DERP and latency all route through it when set.
++        config.options.apply_proxy();
++        let env = Env::new(config.keys, config.options.clone());
++        let no_udp = config.options.no_udp;
+ 
+         env.bus.link(&slf).await;
+         env.scheduler.link(&slf).await;
+@@ -85,9 +94,15 @@ impl kameo::Actor for Runtime {
+         disco::Disco::supervise(&slf, env.clone()).spawn().await;
+ 
+         Multiderp::supervise(&slf, env.clone()).spawn().await;
+-        direct::DirectActor::supervise(&slf, env.clone())
+-            .spawn()
+-            .await;
++        // ⛔ Gated on `!no_udp`: on the target there is no UDP and no TUN, so
++        // a UDP bind is a failure at best and a panic at worst — and the
++        // DERP-only path needs none of these actors (see the stage-2 report:
++        // the transport map builds from the netmap's DERP map alone).
++        if !no_udp {
++            direct::DirectActor::supervise(&slf, env.clone())
++                .spawn()
++                .await;
++        }
+ 
+         route_updater::RouteUpdater::supervise(&slf, (env.clone(), netstack_id))
+             .spawn()
+@@ -98,15 +113,25 @@ impl kameo::Actor for Runtime {
+         src_filter::SourceFilterUpdater::supervise(&slf, env.clone())
+             .spawn()
+             .await;
+-        stunner::Stunner::supervise(&slf, env.clone()).spawn().await;
++        // ⛔ Gated with the UDP set: with no DirectActor there is nothing to
++        // discover paths for, and STUN has no servers to ask. PathDiscoverer
++        // stays: it is inert without `NewEndpoints` and the report keeps it.
++        if !no_udp {
++            stunner::Stunner::supervise(&slf, env.clone()).spawn().await;
++        }
+         path_discoverer::PathDiscoverer::supervise(&slf, env.clone())
+             .spawn()
+             .await;
+ 
+-        if let Some(mon) = ts_netmon::platform_mon() {
+-            netmon::NetmonActor::supervise(&slf, (env.clone(), Arc::new(mon)))
+-                .spawn()
+-                .await;
++        // ⛔ netmon binds AF_NETLINK, whose permissibility on the target is
++        // UNKNOWN (the sandprobe never tried it). Gated with the UDP set:
++        // DERP-only needs no interface watcher.
++        if !no_udp {
++            if let Some(mon) = ts_netmon::platform_mon() {
++                netmon::NetmonActor::supervise(&slf, (env.clone(), Arc::new(mon)))
++                    .spawn()
++                    .await;
++            }
+         }
+ 
+         PeerTracker::supervise(&slf, env.clone()).spawn().await;
+diff --git a/ts_runtime/src/multiderp/uniderp.rs b/ts_runtime/src/multiderp/uniderp.rs
+index 7dacb19..ba8437c 100644
+--- a/ts_runtime/src/multiderp/uniderp.rs
++++ b/ts_runtime/src/multiderp/uniderp.rs
+@@ -104,7 +104,10 @@ impl kameo::Actor for Uniderp {
+             to_dataplane,
+             keys: args.env.keys.node_keys.clone(),
+             from_dataplane: Arc::new(Mutex::new(from_dataplane)),
+-            connect_mode: ConnectMode::TcpUpgrade,
++            // ⛔ Fed from the one `Env` copy: the mode and the pin are
++            // `RuntimeOptions`, not a second default kept in step by hand.
++            connect_mode: args.env.options.derp_mode(),
++            derp_pin: args.env.options.derp_pin(),
+         };
+ 
+         let task = Task::spawn_link(&slf, start_runner(runner.clone()).boxed()).await;
+@@ -228,11 +231,14 @@ struct Runner {
+     from_dataplane: Arc<Mutex<Rx<ToUnderlay>>>,
+     peer_db: Arc<RwLock<Option<Arc<PeerDb>>>>,
+     keys: NodeKeyPair,
+-    /// ⛔ **How this region dials.** `TcpUpgrade` today — the runtime names no
+-    /// mode yet, so the default (upstream behavior) holds. The DERP-only
+-    /// increment feeds `RuntimeOptions` here; until then this field is the
+-    /// seam, not a second default.
++    /// ⛔ **How this region dials, from the one `Env` copy.** `derp_mode()`
++    /// selects TCP vs WebSocket; `derp_pin` pins the transport to the lab
++    /// relay (region identity stays the netmap's, and a pin implies WS —
++    /// the pinned relay speaks nothing else).
+     connect_mode: ConnectMode,
++    /// Pinned `(host, port)` for the DERP socket, or `None` to dial the
++    /// region's servers.
++    derp_pin: Option<(String, u16)>,
+ }
+ 
+ impl Runner {
+@@ -276,9 +282,19 @@ impl Runner {
+     ) -> Result<impl UnderlayTransport<Error = ts_derp::Error> + 'static, ts_derp::Error> {
+         tracing::trace!("establishing derp connection");
+ 
+-        let transport =
+-            ts_derp::DefaultClient::connect(&self.region.servers, &self.keys, self.connect_mode)
+-                .await?;
++        // ⛔ The pin bypasses the region's servers for the socket — but both
++        // arms return `Client<DefaultIo>`, so the runner cannot tell which
++        // transport it holds, and neither can a caller mistake one for the
++        // other. A pin implies WS: the pinned relay speaks nothing else.
++        let transport = match &self.derp_pin {
++            Some((host, port)) => {
++                ts_derp::DefaultClient::connect_ws(host, *port, &self.keys).await?
++            }
++            None => {
++                ts_derp::DefaultClient::connect(&self.region.servers, &self.keys, self.connect_mode)
++                    .await?
++            }
++        };
+ 
+         if let Some((info, pending)) = pending {
+             tracing::trace!("sending queued packet");
+diff --git a/ts_runtime/src/options.rs b/ts_runtime/src/options.rs
+new file mode 100644
+index 0000000..bd7d44c
+--- /dev/null
++++ b/ts_runtime/src/options.rs
+@@ -0,0 +1,66 @@
++//! Runtime options: DERP-only gating, transport selection, proxy, pin.
++//!
++//! ⛔ **Everything here defaults to stock behavior.** A device that names no
++//! options runs UDP actors, dials TCP, configures no proxy and pins nothing —
++//! exactly as before this module existed. Each deviation is selected, never
++//! assumed, and [`RuntimeOptions::default`] pins that (see
++//! `tests/options.rs`).
++//!
++//! The options travel on [`crate::env::Env`] so every actor branches on the
++//! same value: `Runtime::on_start` builds the `Env` once from `Config`, and
++//! `Uniderp` reads the mode and the pin from it. No second copy, no global
++//! except the proxy dialer's own (which `apply_proxy` feeds explicitly).
++
++use ts_derp::ConnectMode;
++
++/// Which actors may spawn and how the transports dial.
++#[derive(Debug, Clone, Default)]
++pub struct RuntimeOptions {
++    /// Skip UDP entirely: no `DirectActor`, no `Stunner`, no netmon. The
++    /// sandbox has no UDP and no `/dev/net/tun`; on it these actors are a
++    /// bind Gua partial failure at best and a panic at worst.
++    pub no_udp: bool,
++    /// DERP transport selection and the lab pin.
++    pub derp: DerpOptions,
++    /// CONNECT proxy for every outbound TCP path, or `None` for direct.
++    /// Applied to the proxy dialer by [`RuntimeOptions::apply_proxy`].
++    pub proxy: Option<ts_http_util::proxy::ProxyConfig>,
++}
++
++/// DERP transport selection and the lab pin.
++#[derive(Debug, Clone, Default)]
++pub struct DerpOptions {
++    /// Dial DERP over WebSocket instead of TCP + `Upgrade: DERP`. The only
++    /// mode that crosses an HTTP/443-only egress.
++    pub ws: bool,
++    /// Pin the DERP transport to this host (the lab relay), ignoring the
++    /// region's servers for the socket. Region identity stays the netmap's.
++    /// A pin implies the WebSocket transport: the pinned relay speaks WS.
++    pub override_host: Option<String>,
++    /// Pin port, defaulting to 443 when the host is pinned without one.
++    pub override_port: Option<u16>,
++}
++
++impl RuntimeOptions {
++    /// The DERP dial mode this configuration selects.
++    pub fn derp_mode(&self) -> ConnectMode {
++        if self.derp.ws {
++            ConnectMode::WebSocket
++        } else {
++            ConnectMode::TcpUpgrade
++        }
++    }
++
++    /// The pinned transport `(host, port)`, or `None` when unpinned.
++    pub fn derp_pin(&self) -> Option<(String, u16)> {
++        let host = self.derp.override_host.clone()?;
++        let port = self.derp.override_port.unwrap_or(443);
++        Some((host, port))
++    }
++
++    /// Feed the proxy selection to the shared CONNECT dialer. Called once at
++    /// startup; `None` leaves direct dialing in place.
++    pub fn apply_proxy(&self) {
++        ts_http_util::proxy::configure(self.proxy.clone());
++    }
++}
+diff --git a/ts_runtime/src/stunner.rs b/ts_runtime/src/stunner.rs
+index e0f4d00..1d9065c 100644
+--- a/ts_runtime/src/stunner.rs
++++ b/ts_runtime/src/stunner.rs
+@@ -35,13 +35,18 @@ impl Stunner {
+             {
+                 tracing::debug!(stun_addr = %x);
+ 
+-                self.env
++                // ⛔ Was `.unwrap()`: a bus hiccup killed the STUN loop on a
++                // path that only reports an address. Logged and kept.
++                if let Err(e) = self
++                    .env
+                     .publish(StunAddress {
+                         addr: x,
+                         measured: Instant::now(),
+                     })
+                     .await
+-                    .unwrap();
++                {
++                    tracing::warn!(error = %e, "publishing stun address");
++                }
+ 
+                 return;
+             }
+diff --git a/ts_runtime/tests/options.rs b/ts_runtime/tests/options.rs
+new file mode 100644
+index 0000000..d0b0686
+--- /dev/null
++++ b/ts_runtime/tests/options.rs
+@@ -0,0 +1,89 @@
++//! Increment 3 (E39): DERP-only runtime options, off by default.
++//!
++//! `RuntimeOptions::default()` is stock behavior — UDP actors spawn, TCP
++//! dial, no proxy, no pin — so a device that names no options runs exactly
++//! as before. Every deviation is selected, never assumed, and the pure
++//! selections below are pinned here so the actor wiring cannot drift from
++//! them unwitnessed.
++
++use ts_runtime::options::{DerpOptions, RuntimeOptions};
++
++/// ⛔ **The default is the old behavior.** Anything else would turn every
++/// existing device DERP-only by upgrade.
++#[test]
++fn defaults_are_stock_behavior() {
++    let options = RuntimeOptions::default();
++    assert!(!options.no_udp);
++    assert!(!options.derp.ws);
++    assert_eq!(options.derp.override_host, None);
++    assert_eq!(options.derp.override_port, None);
++    assert_eq!(options.proxy, None);
++}
++
++/// `ws` selects the WebSocket DERP transport; unset selects TCP.
++#[test]
++fn ws_selects_the_websocket_mode() {
++    use ts_derp::ConnectMode;
++    assert_eq!(RuntimeOptions::default().derp_mode(), ConnectMode::TcpUpgrade);
++    let ws = RuntimeOptions {
++        derp: DerpOptions { ws: true, ..Default::default() },
++        ..Default::default()
++    };
++    assert_eq!(ws.derp_mode(), ConnectMode::WebSocket);
++}
++
++/// The pin splits host and port, defaulting the port to 443.
++#[test]
++fn the_pin_splits_host_and_port() {
++    let options = RuntimeOptions::default();
++    assert_eq!(options.derp_pin(), None);
++
++    let pinned = RuntimeOptions {
++        derp: DerpOptions {
++            override_host: Some("tcp.ts.relay.ajam.dev".to_string()),
++            ..Default::default()
++        },
++        ..Default::default()
++    };
++    assert_eq!(pinned.derp_pin(), Some(("tcp.ts.relay.ajam.dev".to_string(), 443)));
++
++    let pinned_port = RuntimeOptions {
++        derp: DerpOptions {
++            override_host: Some("relay.example".to_string()),
++            override_port: Some(8443),
++            ..Default::default()
++        },
++        ..Default::default()
++    };
++    assert_eq!(pinned_port.derp_pin(), Some(("relay.example".to_string(), 8443)));
++}
++
++/// The environment carries the options to every actor that branches on them.
++#[tokio::test]
++async fn the_env_carries_the_options() {
++    let keys = ts_keys::NodeState::generate();
++    let options = RuntimeOptions {
++        no_udp: true,
++        ..Default::default()
++    };
++    let env = ts_runtime::env::Env::new(keys, options);
++    assert!(env.options.no_udp);
++    assert!(!env.options.derp.ws);
++}
++
++/// Applying the options feeds the proxy dialer: configured while set,
++// cleared afterwards, so no test leaks a proxy into its neighbour.
++#[test]
++fn applying_options_feeds_the_proxy_dialer() {
++    use ts_http_util::proxy::{configure, is_configured, ProxyConfig};
++    let options = RuntimeOptions {
++        proxy: Some(
++            ProxyConfig::from_url("http://127.0.0.1:3128").unwrap(),
++        ),
++        ..Default::default()
++    };
++    options.apply_proxy();
++    assert!(is_configured());
++    configure(None);
++    assert!(!is_configured());
++}

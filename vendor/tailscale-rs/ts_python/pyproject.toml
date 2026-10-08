@@ -1,0 +1,56 @@
+[project]
+name = "tailscale-py"
+version = "0.6.1"
+description = "Work-in-progress Tailscale library written in Rust."
+license = "BSD-3-Clause"
+readme = "README.md"
+keywords = ["tailscale-py", "tailscale-rs", "tailscale", "vpn", "wireguard"]
+requires-python = ">=3.12"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Networking",
+]
+
+[project.urls]
+Documentation = "https://github.com/tailscale/tailscale-rs/tree/main/ts_python"
+Homepage = "https://github.com/tailscale/tailscale-rs"
+Repository = "https://github.com/tailscale/tailscale-rs"
+
+[build-system]
+requires = ["maturin>=1.13.1,<2.0"]
+build-backend = "maturin"
+
+[dependency-groups]
+dev = [
+    # Install maturin as a dev dependency for generating type stubs.
+    "maturin>=1.13.1,<2.0"
+]
+
+[tool.maturin]
+python-source = "python"
+module-name = "tailscale._internal"
+
+[tool.uv]
+# Rebuild/reinstall on a "uv sync" if the Rust source changed.
+cache-keys = [{ file = "pyproject.toml" }, { file = "Cargo.toml" }, { file = "**/*.rs" }]
+# Don't require '--preview-features format' on 'uv format'.
+preview-features = ["format"]
+
+[[tool.uv.index]]
+name = "pypi.org"
+url = "https://pypi.org/simple/"
+publish-url = "https://upload.pypi.org/legacy/"
+explicit = true
+
+[[tool.uv.index]]
+name = "test.pypi.org"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true

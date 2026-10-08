@@ -1,0 +1,44 @@
+# Grammar fixture: one real IRC line per case, byte-exact, CRLF in the file.
+#
+# ⛔ **Each line after the `#` header is `<wire line> ||| <what podssh must
+# believe about it>`.** ⛔ The split is three pipes because a wire line may
+# contain any character except CRLF, and a one-pipe split would break on a
+# message that quotes one.
+#
+# ⛔ **These are recorded lines, not invented ones.** ⛔ They are the shapes
+# RFC 2812 §2.3, §3 and §6 specify and that public ircds emit; ⛔ **nothing here
+# is a measurement of a real ircd**, because this machine cannot reach one
+# without a relay token and a CLI, and that limit is named on the entry.
+#
+# ⛔ **`grammar.txt` proves the parser against a table. It does not prove the
+# session** — ⛔ a frame boundary landing mid-message cannot be written in this
+# format at all, ⛔ which is why `reassembly.rs` splits the bytes itself.
+
+:irc.example.org 001 alice :Welcome to the Example IRC Network alice!u@h ||| a server prefix with a text that itself contains `alice!u@h`; the prefix is irc.example.org
+:irc.example.org 005 alice CHANTYPES=# PREFIX=(ov)@+ NETWORK=Example CHANMODES=eIbq,k,flj,CFLMPQScgimnprstz CHANNELLEN=64 NICKLEN=12 MAXTARGETS=4 CASEMAPPING=ascii :are supported by this server ||| 005 with six tokens; the first parameter is the nick and is not a token
+:alice!u@host PRIVMSG #ops :hello there world ||| a trailing is one parameter even with spaces in it
+:alice!u@host PRIVMSG bob :see 12:30 for the handover ||| a colon inside the trailing is content
+:alice!u@host PRIVMSG #c : ||| an empty trailing is a message, not a missing one
+:bob!u@h.example NOTICE alice :you are being tested ||| a NOTICE carries a target and a trailing like a PRIVMSG
+:alice!u@host JOIN #one,#two ||| two channels in one JOIN
+:alice!u@host PART #one :bye now ||| PART with a reason
+:alice!u@host TOPIC #one :the new topic ||| TOPIC with a topic
+:alice!u@host NAMES #one ||| NAMES with one channel
+:alice!u@host LIST ||| LIST with no parameters at all
+:alice!u@host MODE #one +nt ||| MODE target plus a flag string
+:alice!u@host QUIT :Client Quit ||| QUIT with a reason
+PING :aBcD1234 ||| a PING token introduced by a colon
+PING 12345 ||| a PING token with no colon
+PONG :aBcD1234 ||| the PONG that answers the PING above, byte for byte
+:alice!u@host NICK alicia ||| a nick change
+USER alice 0 * :Alice Example ||| USER has five parameters and the third is <unused>
+CAP * LS :multi-prefix sasl znc.in/self-message ||| a server CAP LS with capabilities in the trailing
+CAP * ACK :znc.in/self-message ||| the server granting one capability
+CAP * NAK :multi-prefix ||| the server refusing one capability
+@+draft/shield=please;room :alice!u@host PRIVMSG #c :tagged ||| two tags, one with a value and one without
+@room :alice!u@host PRIVMSG #c :valueless tag ||| a valueless tag
+:alice!u@host AWAY :gone for lunch ||| an unknown command, kept whole
+:alice!u@host ACCOUNT alice ||| an unknown command with a middle parameter
+@time=2026-10-02T00:00:00.000Z :irc.example.org 376 alice :End of /MOTD command. ||| a tag before a server prefix before a numeric
+:irc.example.org 433 * alice :Nickname is already in use ||| 433 during registration
+:alice!u@host PRIVMSG #c :PODSSH1|offer|t1|file.bin|1000|4 ||| a file-transfer offer is an ordinary PRIVMSG

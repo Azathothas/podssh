@@ -1,0 +1,654 @@
+diff --git a/ts_control/src/control_dialer.rs b/ts_control/src/control_dialer.rs
+index 13a2b44..7234672 100644
+--- a/ts_control/src/control_dialer.rs
++++ b/ts_control/src/control_dialer.rs
+@@ -79,6 +79,12 @@ impl Debug for ControlTcpDialer<'_> {
+ 
+ impl TcpDialer for ControlTcpDialer<'_> {
+     async fn dial(self, host: &str, port: u16) -> tokio::io::Result<TcpStream> {
++        // ⛔ Under proxy the dial plan is skipped altogether: CONNECT by
++        // hostname, and the proxy resolves. A plan that names IPs is a plan
++        // for a network this host does not have.
++        if ts_http_util::proxy::is_configured() {
++            return ts_http_util::proxy::connect(host, port).await;
++        }
+         match self {
+             ControlTcpDialer::UseDns => TcpStream::connect(format!("{host}:{port}")).await,
+             ControlTcpDialer::Planned {
+@@ -95,7 +101,11 @@ impl TcpDialer for ControlTcpDialer<'_> {
+                             .await?
+                     }
+                     DialMode::Ace { .. } => {
+-                        unimplemented!()
++                        // ⛔ Was `unimplemented!()`: a panic on a reachable
++                        // path. An error the caller can log and move past.
++                        Err(tokio::io::Error::other(
++                            "DialMode::Ace is not supported by this client",
++                        ))
+                     }
+                 }
+             }
+diff --git a/ts_derp/src/dial.rs b/ts_derp/src/dial.rs
+index 94ff2f8..272cf6d 100644
+--- a/ts_derp/src/dial.rs
++++ b/ts_derp/src/dial.rs
+@@ -194,6 +194,14 @@ async fn dial_by_ipusage(
+     hostname: String,
+     port: u16,
+ ) -> io::Result<Option<TcpStream>> {
++    // ⛔ Under proxy the dial plan is ignored: CONNECT by hostname, port =
++    // `https_port`, and `FixedAddr` is never consulted. Falling through to a
++    // direct dial would hang where direct is dropped.
++    if ts_http_util::proxy::is_configured() {
++        return ts_http_util::proxy::connect(&hostname, port)
++            .await
++            .map(Some);
++    }
+     match ip {
+         IpUsage::Disable => Ok(None),
+         IpUsage::FixedAddr(ip) => {
+diff --git a/ts_derp/tests/proxy_dial.rs b/ts_derp/tests/proxy_dial.rs
+new file mode 100644
+index 0000000..9da356b
+--- /dev/null
++++ b/ts_derp/tests/proxy_dial.rs
+@@ -0,0 +1,67 @@
++//! Increment 2 (E39): the DERP dial path routes through the proxy.
++//!
++//! `dial_server` takes a `ServerConnInfo`; under proxy the CONNECT authority
++//! is its hostname, and `FixedAddr` is never consulted. The fake proxy below
++//! records the authority: if the dial went direct, nothing connects to the
++//! fake (unroutable hostname) and the dial fails — so this test is the plant
++//! for the rewire, not just its proof.
++
++use tokio::io::{AsyncReadExt, AsyncWriteExt};
++use ts_derp::dial::dial_server;
++use ts_derp::ServerConnInfo;
++use ts_http_util::proxy::{ProxyConfig, configure};
++
++/// ⛔ **The rewire, as a test.** Remove the proxy branch in `dial_by_ipusage`
++/// and this dials `relay.invalid` direct, which cannot resolve — the dial
++/// fails, and the fake records zero CONNECTs.
++#[tokio::test]
++async fn dial_server_connects_by_hostname_through_the_proxy() {
++    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
++    let port = listener.local_addr().unwrap().port();
++    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
++    let seen_task = seen.clone();
++    tokio::spawn(async move {
++        let (mut stream, _) = listener.accept().await.unwrap();
++        let mut head = Vec::new();
++        let mut byte = [0u8; 1];
++        while !head.ends_with(b"\r\n\r\n") {
++            stream.read_exact(&mut byte).await.unwrap();
++            head.push(byte[0]);
++        }
++        let authority = String::from_utf8_lossy(&head)
++            .lines()
++            .next()
++            .unwrap_or("")
++            .strip_prefix("CONNECT ")
++            .unwrap_or("")
++            .split_whitespace()
++            .next()
++            .unwrap_or("")
++            .to_string();
++        seen_task.lock().unwrap().push(authority);
++        stream
++            .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
++            .await
++            .unwrap();
++    });
++
++    configure(Some(
++        ProxyConfig::from_url(&format!("http://127.0.0.1:{port}")).unwrap(),
++    ));
++    struct ResetOnDrop;
++    impl Drop for ResetOnDrop {
++        fn drop(&mut self) {
++            configure(None);
++        }
++    }
++    let _reset = ResetOnDrop;
++
++    // `.invalid` never resolves: success is only possible via the tunnel.
++    let server = ServerConnInfo::default_from_url(
++        &url::Url::parse("https://relay.invalid:443").unwrap(),
++    )
++    .unwrap();
++    let stream = dial_server(&server).await.expect("dial via the fake proxy");
++    assert!(stream.is_some());
++    assert_eq!(*seen.lock().unwrap(), vec!["relay.invalid:443".to_string()]);
++}
+diff --git a/ts_http_util/Cargo.toml b/ts_http_util/Cargo.toml
+index 6f24436..84482fa 100644
+--- a/ts_http_util/Cargo.toml
++++ b/ts_http_util/Cargo.toml
+@@ -15,6 +15,7 @@ rust-version.workspace = true
+ ts_tls_util.workspace = true
+ 
+ # Unconditionally required dependencies.
++base64.workspace = true
+ bytes.workspace = true
+ futures.workspace = true
+ http.workspace = true
+@@ -23,7 +24,7 @@ http-body-util.workspace = true
+ hyper = { workspace = true, features = ["http1", "client"] }
+ hyper-util = { workspace = true, features = ["tokio"] }
+ thiserror.workspace = true
+-tokio = { workspace = true, features = ["net", "io-util"] }
++tokio = { workspace = true, features = ["net", "io-util", "time", "macros", "rt"] }
+ tokio-util = { workspace = true, features = ["io"] }
+ tracing.workspace = true
+ url.workspace = true
+diff --git a/ts_http_util/src/lib.rs b/ts_http_util/src/lib.rs
+index 7945f12..492d09c 100644
+--- a/ts_http_util/src/lib.rs
++++ b/ts_http_util/src/lib.rs
+@@ -13,6 +13,7 @@ mod client;
+ mod error;
+ pub mod http1;
+ pub mod http2;
++pub mod proxy;
+ 
+ pub use client::{Client, ClientExt};
+ pub use error::Error;
+@@ -123,14 +124,23 @@ pub fn host_header(u: &url::Url) -> Option<(HeaderName, HeaderValue)> {
+ }
+ 
+ async fn dial_tcp(url: &url::Url) -> Result<TcpStream, Error> {
+-    let conn = TcpStream::connect((
+-        url.host_str().ok_or(Error::InvalidInput)?,
+-        url.port_or_known_default()
+-            .ok_or(Error::InvalidInput)
+-            .inspect_err(|_err| tracing::error!("unknown url port"))?,
+-    ))
+-    .await
+-    .map_err(|e| {
++    let host = url.host_str().ok_or(Error::InvalidInput)?;
++    let port = url
++        .port_or_known_default()
++        .ok_or(Error::InvalidInput)
++        .inspect_err(|_err| tracing::error!("unknown url port"))?;
++
++    // ⛔ Under proxy the CONNECT authority is the hostname: the proxy resolves,
++    // and the local resolver is dead on the target. No fallback to direct —
++    // direct is dropped there, so a fallback is a hang wearing a retry loop.
++    if crate::proxy::is_configured() {
++        return crate::proxy::connect(host, port).await.map_err(|e| {
++            tracing::error!(error = %e, %url, "dialing tcp via proxy");
++            Error::Io
++        });
++    }
++
++    let conn = TcpStream::connect((host, port)).await.map_err(|e| {
+         tracing::error!(error = %e, %url, "dialing tcp");
+         Error::Io
+     })?;
+@@ -159,3 +169,61 @@ async fn dial_tls(
+             Error::Io
+         })
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use tokio::io::{AsyncReadExt, AsyncWriteExt};
++
++    /// ⛔ **`dial_tcp` routes through the proxy when one is configured.** If the
++    /// branch is removed, this dials `target.invalid` direct, which fails —
++    /// and the fake proxy records zero CONNECTs, which fails the count.
++    #[tokio::test]
++    async fn dial_tcp_uses_the_proxy_when_configured() {
++        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
++        let port = listener.local_addr().unwrap().port();
++        let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
++        let seen_task = seen.clone();
++        tokio::spawn(async move {
++            let (mut stream, _) = listener.accept().await.unwrap();
++            let mut head = Vec::new();
++            let mut byte = [0u8; 1];
++            while !head.ends_with(b"\r\n\r\n") {
++                stream.read_exact(&mut byte).await.unwrap();
++                head.push(byte[0]);
++            }
++            let authority = String::from_utf8_lossy(&head)
++                .lines()
++                .next()
++                .unwrap_or("")
++                .strip_prefix("CONNECT ")
++                .unwrap_or("")
++                .split_whitespace()
++                .next()
++                .unwrap_or("")
++                .to_string();
++            seen_task.lock().unwrap().push(authority);
++            stream
++                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
++                .await
++                .unwrap();
++        });
++
++        crate::proxy::configure(Some(
++            crate::proxy::ProxyConfig::from_url(&format!("http://127.0.0.1:{port}")).unwrap(),
++        ));
++        struct ResetOnDrop;
++        impl Drop for ResetOnDrop {
++            fn drop(&mut self) {
++                crate::proxy::configure(None);
++            }
++        }
++        let _reset = ResetOnDrop;
++        let url: url::Url = "https://target.invalid:443".parse().unwrap();
++        let _stream = dial_tcp(&url).await.expect("dial_tcp via the fake proxy");
++
++        // `target.invalid` never resolves: the only way this succeeded is the
++        // CONNECT tunnel, and the authority names the URL host, not an IP.
++        assert_eq!(*seen.lock().unwrap(), vec!["target.invalid:443".to_string()]);
++    }
++}
+diff --git a/ts_http_util/src/proxy.rs b/ts_http_util/src/proxy.rs
+new file mode 100644
+index 0000000..5f76992
+--- /dev/null
++++ b/ts_http_util/src/proxy.rs
+@@ -0,0 +1,202 @@
++//! HTTP CONNECT proxy dialer: the sandbox's only egress.
++//!
++//! On the target host there is no `/dev/net/tun`, no capability, no UDP, and
++//! direct 443 is dropped; DNS is broken. The only way out is an HTTP CONNECT
++//! proxy, and the proxy resolves — so under proxy the CONNECT authority is
++//! always the **hostname** (never a dial-plan IP, never `FixedAddr`), and the
++//! local resolver is never consulted.
++//!
++//! ⛔ **One dialer for all three sites.** Control (`ControlTcpDialer`), DERP
++//! (`dial_by_ipusage`) and `dial_tcp` all route through [`connect`] when a
++//! proxy is configured. A fourth dial path that goes direct is how a sandbox
++//! node silently keeps the one route that cannot work.
++//!
++//! ⛔ **No silent fallback to direct.** If the proxy refuses (403, like the
++//! sandbox's port-22 refusal) or is unreachable, [`connect`] returns the
++//! error. Falling back to a direct dial would hang on a host whose direct
++//! route is dropped — the hang wearing a retry loop.
++//!
++//! Configuration is process-global ([`configure`]) because the three call
++//! sites have fixed signatures (`TcpDialer::dial`, `dial_tcp`,
++//! `dial_by_ipusage`) owned by three crates. Tests scope it: configure, use,
++//! reset in the same test.
++
++use std::io;
++use std::sync::{Mutex, OnceLock};
++
++use base64::Engine as _;
++use tokio::io::{AsyncReadExt, AsyncWriteExt};
++use tokio::net::TcpStream;
++
++/// Bound on a CONNECT response head: 16 KiB. A proxy that sends more without
++/// a blank line is not answering, and an unbounded read is the hang with a
++/// bigger buffer.
++pub const MAX_RESPONSE_HEAD: usize = 16 * 1024;
++
++/// Bound on the whole CONNECT exchange (dial + request + response).
++pub const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(20);
++
++/// Default proxy port when the URL names none. Convention, documented here
++/// rather than guessed at the call site.
++pub const DEFAULT_PORT: u16 = 8080;
++
++/// A configured proxy: where it is, and what it answers to.
++#[derive(Debug, Clone, PartialEq, Eq)]
++pub struct ProxyConfig {
++    /// Proxy hostname. Dialed by name — never resolved locally first, because
++    /// on the target there is nothing to resolve with.
++    pub host: String,
++    /// Proxy port.
++    pub port: u16,
++    /// `Proxy-Authorization` value (`Basic …`), if the proxy needs one.
++    /// Stored encoded so the password is never re-derived per connection.
++    auth_header: Option<String>,
++}
++
++impl ProxyConfig {
++    /// Parse `http://[user:pass@]host[:port]`. Only the `http` scheme names a
++    /// CONNECT proxy; anything else is refused rather than reinterpreted.
++    pub fn from_url(url: &str) -> Result<Self, String> {
++        let parsed =
++            url::Url::parse(url).map_err(|e| format!("proxy URL {url:?} does not parse: {e}"))?;
++        if parsed.scheme() != "http" {
++            return Err(format!(
++                "proxy URL {url:?} is not http: only http:// names a CONNECT proxy"
++            ));
++        }
++        let host = parsed
++            .host_str()
++            .ok_or_else(|| format!("proxy URL {url:?} names no host"))?
++            .to_string();
++        if host.is_empty() {
++            return Err(format!("proxy URL {url:?} names no host"));
++        }
++        let port = parsed.port().unwrap_or(DEFAULT_PORT);
++        let auth_header = match (parsed.username(), parsed.password()) {
++            ("", _) => None,
++            (user, pass) => {
++                let credentials = format!("{user}:{}", pass.unwrap_or(""));
++                Some(format!(
++                    "Basic {}",
++                    base64::engine::general_purpose::STANDARD.encode(credentials)
++                ))
++            }
++        };
++        Ok(Self { host, port, auth_header })
++    }
++
++    /// The first of `HTTPS_PROXY` / `https_proxy` / `HTTP_PROXY` / `http_proxy`
++    /// that parses, or `None` when none is set. A set-but-broken variable is
++    /// reported, not skipped: silently ignoring it dials direct on a host
++    /// whose direct route is dropped.
++    pub fn from_env() -> Result<Option<Self>, String> {
++        for name in ["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"] {
++            if let Ok(value) = std::env::var(name) {
++                if value.trim().is_empty() {
++                    continue;
++                }
++                return Self::from_url(&value).map(Some).map_err(|e| format!("{name}: {e}"));
++            }
++        }
++        Ok(None)
++    }
++}
++
++fn slot() -> &'static Mutex<Option<ProxyConfig>> {
++    static PROXY: OnceLock<Mutex<Option<ProxyConfig>>> = OnceLock::new();
++    PROXY.get_or_init(|| Mutex::new(None))
++}
++
++/// Configure (or clear, with `None`) the process proxy. The runtime feeds
++/// `RuntimeOptions` here at startup; tests scope it per test and reset it
++/// before returning.
++pub fn configure(config: Option<ProxyConfig>) {
++    *slot().lock().expect("proxy slot poisoned") = config;
++}
++
++/// Whether a proxy is configured. The three dial sites branch on this.
++pub fn is_configured() -> bool {
++    slot().lock().expect("proxy slot poisoned").is_some()
++}
++
++/// Dial `host:port` through the configured proxy. `host` is a hostname —
++/// the proxy resolves it — and must not be a dial-plan IP the proxy was
++/// never asked about.
++///
++/// Fails when no proxy is configured (a caller that did not check
++/// [`is_configured`] is a caller guessing), when the proxy is unreachable,
++/// when the response head exceeds [`MAX_RESPONSE_HEAD`], when the exchange
++/// exceeds [`CONNECT_TIMEOUT`], and when the status is not 2xx — the status
++/// and any reason travel in the error, because a 403 names the policy and a
++/// timeout names nothing.
++pub async fn connect(host: &str, port: u16) -> io::Result<TcpStream> {
++    let config = slot()
++        .lock()
++        .expect("proxy slot poisoned")
++        .clone()
++        .ok_or_else(|| {
++            io::Error::new(io::ErrorKind::NotConnected, "no proxy configured")
++        })?;
++
++    tokio::time::timeout(CONNECT_TIMEOUT, connect_via(&config, host, port))
++        .await
++        .map_err(|_| {
++            io::Error::new(
++                io::ErrorKind::TimedOut,
++                format!("CONNECT {host}:{port} via {}:{} timed out", config.host, config.port),
++            )
++        })?
++}
++
++async fn connect_via(config: &ProxyConfig, host: &str, port: u16) -> io::Result<TcpStream> {
++    let mut stream = TcpStream::connect((config.host.as_str(), config.port)).await?;
++
++    let mut request = format!("CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n");
++    if let Some(auth) = &config.auth_header {
++        request.push_str(&format!("Proxy-Authorization: {auth}\r\n"));
++    }
++    request.push_str("\r\n");
++    stream.write_all(request.as_bytes()).await?;
++
++    let mut head = Vec::with_capacity(512);
++    let mut byte = [0u8; 1];
++    loop {
++        if head.len() >= MAX_RESPONSE_HEAD {
++            return Err(io::Error::new(
++                io::ErrorKind::InvalidData,
++                format!(
++                    "proxy {}:{} sent {MAX_RESPONSE_HEAD} bytes with no complete response head",
++                    config.host, config.port
++                ),
++            ));
++        }
++        stream.read_exact(&mut byte).await?;
++        head.push(byte[0]);
++        if head.len() >= 4 && &head[head.len() - 4..] == b"\r\n\r\n" {
++            break;
++        }
++    }
++
++    let mut headers = [httparse::EMPTY_HEADER; 16];
++    let mut response = httparse::Response::new(&mut headers);
++    let status = match response.parse(&head).map_err(|e| {
++        io::Error::new(io::ErrorKind::InvalidData, format!("proxy response does not parse: {e}"))
++    })? {
++        httparse::Status::Complete(_) => response.code.unwrap_or(0),
++        httparse::Status::Partial => {
++            return Err(io::Error::new(
++                io::ErrorKind::InvalidData,
++                "proxy response head is partial",
++            ))
++        }
++    };
++    if !(200..300).contains(&status) {
++        let reason = response.reason.unwrap_or("");
++        return Err(io::Error::new(
++            io::ErrorKind::ConnectionRefused,
++            format!("proxy refused CONNECT {host}:{port}: {status} {reason}"),
++        ));
++    }
++
++    Ok(stream)
++}
+diff --git a/ts_http_util/tests/proxy.rs b/ts_http_util/tests/proxy.rs
+new file mode 100644
+index 0000000..0e70704
+--- /dev/null
++++ b/ts_http_util/tests/proxy.rs
+@@ -0,0 +1,179 @@
++//! Increment 2 (E39): the CONNECT proxy dialer, against a fake proxy.
++//!
++//! Each test scopes the global: configure, use, reset in the same test, so
++//! no configuration leaks into a neighbour running on another thread.
++
++use tokio::io::{AsyncReadExt, AsyncWriteExt};
++use tokio::net::TcpListener;
++use ts_http_util::proxy::{ProxyConfig, configure, connect};
++
++/// A fake proxy: records CONNECT authorities, answers per `respond`, then
++/// echoes bytes both ways. Returns the port and the seen-authorities log.
++async fn fake_proxy(
++    respond: &'static str,
++    require_auth: Option<&'static str>,
++) -> (u16, std::sync::Arc<std::sync::Mutex<Vec<String>>>) {
++    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
++    let port = listener.local_addr().unwrap().port();
++    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
++    let seen_task = seen.clone();
++    tokio::spawn(async move {
++        let (mut stream, _) = listener.accept().await.unwrap();
++        let mut head = Vec::new();
++        let mut byte = [0u8; 1];
++        while !head.ends_with(b"\r\n\r\n") {
++            stream.read_exact(&mut byte).await.unwrap();
++            head.push(byte[0]);
++        }
++        let text = String::from_utf8_lossy(&head).into_owned();
++        let authority = text
++            .lines()
++            .next()
++            .unwrap_or("")
++            .strip_prefix("CONNECT ")
++            .unwrap_or("")
++            .split_whitespace()
++            .next()
++            .unwrap_or("")
++            .to_string();
++        seen_task.lock().unwrap().push(authority);
++        if let Some(want) = require_auth {
++            let ok = text.contains(&format!("Proxy-Authorization: {want}"));
++            let reply = if ok { respond } else { "HTTP/1.1 407 Proxy Auth Required\r\n\r\n" };
++            stream.write_all(reply.as_bytes()).await.unwrap();
++            if !ok {
++                return;
++            }
++        } else {
++            stream.write_all(respond.as_bytes()).await.unwrap();
++        }
++        if !respond.starts_with("HTTP/1.1 2") {
++            return;
++        }
++        // Echo: whatever the client sends after the handshake comes back.
++        let (mut reader, mut writer) = stream.split();
++        tokio::io::copy(&mut reader, &mut writer).await.unwrap();
++    });
++    (port, seen)
++}
++
++fn config(port: u16) -> ProxyConfig {
++    ProxyConfig::from_url(&format!("http://127.0.0.1:{port}")).unwrap()
++}
++
++/// ⛔ **The plant is the shape of this test.** If `connect` dialled direct
++/// instead of CONNECTing, the fake records zero authorities and the echo
++/// never happens: the assertion on the count fails, and so does the echo.
++#[tokio::test]
++async fn connect_issues_one_connect_and_echoes_bytes() {
++    let (port, seen) = fake_proxy("HTTP/1.1 200 Connection Established\r\n\r\n", None).await;
++    configure(Some(config(port)));
++    let _reset = ResetOnDrop;
++
++    let mut stream = connect("relay.example", 443).await.unwrap();
++    stream.write_all(b"ping").await.unwrap();
++    let mut back = [0u8; 4];
++    stream.read_exact(&mut back).await.unwrap();
++    assert_eq!(&back, b"ping");
++
++    assert_eq!(*seen.lock().unwrap(), vec!["relay.example:443".to_string()]);
++}
++
++/// A 403 names the policy: status and reason travel in the error, and no
++/// fallback dial follows it (the fallback would hang where direct is dropped).
++#[tokio::test]
++async fn a_proxy_refusal_is_a_named_error_not_a_fallback() {
++    let (port, seen) =
++        fake_proxy("HTTP/1.1 403 Forbidden\r\n\r\n", None).await;
++    configure(Some(config(port)));
++    let _reset = ResetOnDrop;
++
++    let err = connect("example.com", 22).await.unwrap_err();
++    let text = err.to_string();
++    assert!(text.contains("403"), "{text}");
++    assert!(text.contains("example.com:22"), "{text}");
++    // Exactly one attempt: no silent direct fallback after the refusal.
++    assert_eq!(seen.lock().unwrap().len(), 1);
++}
++
++/// Without credentials the proxy answers 407; with them, 200.
++#[tokio::test]
++async fn proxy_authorization_is_sent_when_configured() {
++    let (port, _) = fake_proxy(
++        "HTTP/1.1 200 Connection Established\r\n\r\n",
++        Some("Basic dXNlcjpwYXNz"),
++    )
++    .await;
++    // No credentials: 407.
++    configure(Some(config(port)));
++    let err = connect("relay.example", 443).await.unwrap_err();
++    assert!(err.to_string().contains("407"), "{err}");
++
++    // With credentials: 200 and an echo.
++    let (port, _) = fake_proxy(
++        "HTTP/1.1 200 Connection Established\r\n\r\n",
++        Some("Basic dXNlcjpwYXNz"),
++    )
++    .await;
++    configure(Some(
++        ProxyConfig::from_url(&format!("http://user:pass@127.0.0.1:{port}")).unwrap(),
++    ));
++    let mut stream = connect("relay.example", 443).await.unwrap();
++    stream.write_all(b"ok").await.unwrap();
++    let mut back = [0u8; 2];
++    stream.read_exact(&mut back).await.unwrap();
++    assert_eq!(&back, b"ok");
++    configure(None);
++}
++
++/// A proxy that never finishes its head is an error, not a hang and not an
++/// allocation: the 16 KiB bound fires.
++#[tokio::test]
++async fn an_endless_response_head_is_refused_at_the_bound() {
++    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
++    let port = listener.local_addr().unwrap().port();
++    tokio::spawn(async move {
++        let (mut stream, _) = listener.accept().await.unwrap();
++        let mut head = Vec::new();
++        let mut byte = [0u8; 1];
++        while !head.ends_with(b"\r\n\r\n") {
++            stream.read_exact(&mut byte).await.unwrap();
++            head.push(byte[0]);
++        }
++        // 32 KiB of headers, no blank line, then silence.
++        let filler = vec![b'X'; 32 * 1024];
++        stream.write_all(b"HTTP/1.1 200 OK\r\nX-Filler: ").await.unwrap();
++        stream.write_all(&filler).await.unwrap();
++        futures::future::pending::<()>().await;
++    });
++    configure(Some(config(port)));
++    let _reset = ResetOnDrop;
++
++    let err = connect("relay.example", 443).await.unwrap_err();
++    assert!(err.to_string().contains("16"), "{err}");
++}
++
++/// URL parsing: credentials, default port, and refusals.
++#[test]
++fn proxy_urls_parse_and_bad_ones_are_refused() {
++    let config =
++        ProxyConfig::from_url("http://user:pass@proxy.example:3128").unwrap();
++    assert_eq!(config.host, "proxy.example");
++    assert_eq!(config.port, 3128);
++
++    let config = ProxyConfig::from_url("http://proxy.example").unwrap();
++    assert_eq!(config.port, 8080);
++
++    assert!(ProxyConfig::from_url("socks5://proxy.example:1080").is_err());
++    assert!(ProxyConfig::from_url("http://:3128").is_err());
++    assert!(ProxyConfig::from_url("not a url").is_err());
++}
++
++/// Resets the global when the test returns, pass or fail, so no proxy leaks
++/// into a neighbour test on another thread.
++struct ResetOnDrop;
++impl Drop for ResetOnDrop {
++    fn drop(&mut self) {
++        configure(None);
++    }
++}
+diff --git a/Cargo.lock b/Cargo.lock
+index 9308892..751ee7a 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -6075,6 +6075,7 @@ dependencies = [
+ name = "ts_http_util"
+ version = "0.6.1"
+ dependencies = [
++ "base64 0.22.1",
+  "bytes",
+  "futures",
+  "http",

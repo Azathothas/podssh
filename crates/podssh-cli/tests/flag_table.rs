@@ -1,0 +1,126 @@
+//! The flag tables in `src/flags.rs` are the CLI contract: `--help` and
+//! `podssh man` are both rendered from them, so there is no second document to
+//! keep in step.
+//!
+//! The expected `ssh` short-flag set is written out below on purpose. Adding or
+//! removing an `ssh` flag must be a deliberate edit to that list, reviewed with
+//! the code change. (This file used to parse a line range of the old
+//! specification document, `docs/spec/06-cli.md`, which broke the test build
+//! whenever the document was edited; the document is now archived.)
+
+use podssh_cli::flags::{FlagKind, VERBS};
+
+/// Every short flag `podssh ssh` accepts or refuses by name, as reviewed on
+/// 2026-10-08. Order does not matter.
+const SSH_SHORT_FLAGS: &str = "piJNtT46WBbEFvqoPLRD";
+
+#[test]
+fn the_ssh_short_flags_are_exactly_the_reviewed_set() {
+    let ssh = VERBS.iter().find(|v| v.name == "ssh").unwrap();
+    let mut in_tree: Vec<char> = ssh.flags.iter().filter_map(|r| r.short).collect();
+    let mut expected: Vec<char> = SSH_SHORT_FLAGS.chars().collect();
+    in_tree.sort_unstable();
+    expected.sort_unstable();
+    assert_eq!(
+        in_tree, expected,
+        "the ssh short flags changed; if that is intended, update SSH_SHORT_FLAGS \
+         in this file in the same change"
+    );
+}
+
+#[test]
+fn no_short_flag_is_listed_twice_for_one_verb() {
+    for v in VERBS {
+        let mut seen: Vec<char> = Vec::new();
+        for c in v.flags.iter().filter_map(|r| r.short) {
+            assert!(!seen.contains(&c), "{}: -{c} appears twice", v.name);
+            seen.push(c);
+        }
+    }
+}
+
+#[test]
+fn a_flag_refuses_only_when_its_row_says_so() {
+    // `FlagKind` alone decides refusal, so a row whose kind was flipped by
+    // accident changes behaviour and this catches it. A refusal must also say
+    // what to use instead; one that only says "no" is not actionable.
+    for v in VERBS {
+        for row in v.flags {
+            match row.kind {
+                FlagKind::Supported | FlagKind::Accepted => assert!(
+                    row.instead.is_none(),
+                    "{}/{} is usable but names a replacement",
+                    v.name,
+                    row.long
+                ),
+                FlagKind::Refused | FlagKind::NotInFirstRelease => assert!(
+                    row.instead.is_some(),
+                    "{}/{} is refused and must say what to use instead",
+                    v.name,
+                    row.long
+                ),
+            }
+        }
+    }
+}
+
+#[test]
+fn the_forwarding_rows_all_name_w() {
+    // Local, remote and dynamic forwarding are refused in the first release,
+    // and each refusal must point at `-W` so no single row loses it.
+    let ssh = VERBS.iter().find(|v| v.name == "ssh").unwrap();
+    for name in ["forward-local", "forward-remote", "dynamic-forward"] {
+        let row = ssh.flags.iter().find(|r| r.long == name).unwrap();
+        assert_eq!(row.kind, FlagKind::Refused, "{name}");
+        assert_eq!(row.instead, Some("-W HOST:PORT"), "{name} must name -W");
+    }
+}
+
+#[test]
+fn every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub() {
+    // An unimplemented subcommand is a refusal naming it, never a stub that
+    // exits 0. Dispatch refuses by looking the verb up in `VERB_OWNER`; verbs
+    // with their own dispatch arm (`ts`) are listed in DISPATCHED. Dispatch
+    // also treats a verb with no row as an internal error (non-zero), so this
+    // test is the first line of defence, not the only one.
+    const DISPATCHED: &[&str] = &["ts", "proxy"];
+    let owner_names: Vec<&str> =
+        podssh_cli::flags::VERB_OWNER.iter().map(|(n, _)| *n).collect();
+    for v in VERBS {
+        if DISPATCHED.contains(&v.name) {
+            continue;
+        }
+        assert!(
+            owner_names.contains(&v.name),
+            "{} has no owner, so podssh would refuse it as an internal error",
+            v.name
+        );
+    }
+    // The reverse: an owner row for a verb that does not exist is dead code.
+    for (name, _) in podssh_cli::flags::VERB_OWNER {
+        assert!(
+            VERBS.iter().any(|v| v.name == *name),
+            "{name} has an owner but is not a verb"
+        );
+    }
+}
+
+#[test]
+fn every_alias_resolves_and_every_verb_has_at_least_its_own_name() {
+    for v in VERBS {
+        assert!(
+            v.aliases.contains(&v.name),
+            "{} does not list itself as an alias, so `podssh {}` would not resolve",
+            v.name,
+            v.name
+        );
+        for a in v.aliases {
+            assert_eq!(
+                podssh_cli::flags::verb_for(a).map(|x| x.name),
+                Some(v.name),
+                "alias {a} does not resolve to {}",
+                v.name
+            );
+        }
+    }
+}

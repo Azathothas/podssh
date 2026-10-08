@@ -1,0 +1,28 @@
+[package]
+name = "podssh-core"
+description = "The SSH state machine, and the IRC state machine beside it. Owns no I/O policy."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+hmac = { workspace = true }
+aes-gcm = { workspace = true }
+chacha20poly1305 = { workspace = true }
+chacha20 = { workspace = true }
+cipher = { workspace = true }
+poly1305 = { workspace = true }
+x25519-dalek = { workspace = true }
+ed25519-dalek = { workspace = true }
+p256 = { workspace = true }
+rsa = { workspace = true }
+rand = { workspace = true }
+crc32fast = { workspace = true }
+hex = { workspace = true }
+zeroize = { workspace = true }
+base64 = { workspace = true }
