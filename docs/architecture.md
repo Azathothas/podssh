@@ -55,6 +55,13 @@ compiled-in roots are older than 12 months. A system bundle adds roots and
 removes none, so to stop trusting a root that Mozilla removed after the
 build, give `--ca-file` or `SSL_CERT_FILE` with a current bundle.
 
+A library that embeds `podssh-ws` or `podssh-relay` can bring its own
+`rustls::ClientConfig` (`Trust::caller`, T-066): podbox keeps `ring` and
+TLS 1.2 for proxies that intercept TLS. It is used as it is, for each
+connection and each HTTPS request, and refused when it offers ALPN, because
+the upgrade is HTTP/1.1 only. Its verifier is the caller's, which podssh
+cannot check; the binary never takes this form, and a test keeps it out.
+
 If a host fails with an error that another host can repair, `podssh-relay`
 tries the next host. During the session, a ping every 10 s finds a silent
 relay in 30 to 40 s. See [relay.md](relay.md).

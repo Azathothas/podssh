@@ -192,12 +192,11 @@ pub async fn open_tls(
     proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<RelayStream, ConnectError> {
-    let roots = tls::roots_for(trust).map_err(|e| ConnectError::Config(e.to_string()))?;
-    let tls_config = tls::client_config(&roots).map_err(|e| ConnectError::Config(e.to_string()))?;
+    let tls_config = tls::config_for(trust).map_err(|e| ConnectError::Config(e.to_string()))?;
     let name = rustls_pki_types::ServerName::try_from(server_name.to_string())
         .map_err(|e| ConnectError::Config(format!("{server_name:?} is not a valid server name: {e}")))?;
     let tcp = dial::dial(host, port, proxy, timeout).await.map_err(ConnectError::Dial)?;
-    // The connector gets podssh's config explicitly, never a process default.
+    // The connector gets its config explicitly, never a process default.
     let connector = tokio_rustls::TlsConnector::from(tls_config);
     tokio::time::timeout(timeout, connector.connect(name, tcp))
         .await
@@ -412,6 +411,14 @@ pub async fn doctor(config: &WsClientConfig) -> Vec<(String, Verdict)> {
         },
     ));
     match tls::roots_for(&config.trust) {
+        Err(_) if matches!(config.trust, Trust::Caller(_)) => out.push((
+            "trust store".to_string(),
+            Verdict::Unknown {
+                why: "the caller's own TLS configuration: its roots and its verifier are the \
+                      caller's, and podssh cannot check them"
+                    .into(),
+            },
+        )),
         Ok(r) => out.push((
             "trust store".to_string(),
             Verdict::Ok { detail: format!("{} trust anchors: {}", r.count, r.source) },

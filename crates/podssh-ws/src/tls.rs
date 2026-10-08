@@ -7,7 +7,13 @@
 //! type's `verify_server_cert` calls `verify_server_name` unconditionally
 //! (read in `rustls-0.23.45/src/webpki/server_verifier.rs:276`). A flag
 //! would be a bypass someone sets in a hurry.
+//!
+//! A library that embeds podssh can bring its own `rustls::ClientConfig`
+//! instead ([`Trust::caller`]): podbox keeps `ring` and TLS 1.2 for proxies
+//! that intercept TLS. Its verifier is then the caller's, which podssh cannot
+//! check; podssh's binary never takes that form, and a test keeps it out.
 
+use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -37,6 +43,55 @@ pub enum Trust {
     File(PathBuf),
     /// The bundle next to the binary, a system bundle, and the compiled-in roots.
     Default,
+    /// The caller's own configuration, with its provider, roots, verifier and
+    /// protocol versions, used as it is. Built only by [`Trust::caller`].
+    Caller(CallerConfig),
+}
+
+/// A caller's `rustls::ClientConfig` that [`Trust::caller`] accepted.
+#[derive(Clone)]
+pub struct CallerConfig(Arc<ClientConfig>);
+
+impl CallerConfig {
+    pub fn config(&self) -> &Arc<ClientConfig> {
+        &self.0
+    }
+}
+
+impl fmt::Debug for CallerConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("CallerConfig(the caller's rustls::ClientConfig)")
+    }
+}
+
+/// The same configuration, not an equal one: a `ClientConfig` has no
+/// equality, and two of them can differ in a verifier that no field shows.
+impl PartialEq for CallerConfig {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for CallerConfig {}
+
+impl Trust {
+    /// The caller's own TLS configuration, for each connection and each HTTPS
+    /// request. Refused when it offers ALPN: the relay's WebSocket upgrade is
+    /// HTTP/1.1 only, and a server that chose `h2` would not answer it. The
+    /// configuration is never changed to fit; its verifier is the caller's,
+    /// and podssh cannot check it.
+    pub fn caller(config: Arc<ClientConfig>) -> Result<Trust, WsError> {
+        if !config.alpn_protocols.is_empty() {
+            let offered: Vec<String> =
+                config.alpn_protocols.iter().map(|p| String::from_utf8_lossy(p).into_owned()).collect();
+            return Err(WsError::Config(format!(
+                "the caller's TLS configuration offers ALPN ({}); the relay's WebSocket upgrade is \
+                 HTTP/1.1 only. Give a configuration with no ALPN: podssh does not change it",
+                offered.join(", ")
+            )));
+        }
+        Ok(Trust::Caller(CallerConfig(config)))
+    }
 }
 
 /// System CA bundle locations, most common first. They are often the same
@@ -50,11 +105,24 @@ pub const SYSTEM_BUNDLES: &[&str] = &[
     "/usr/local/share/certs/ca-root-nss.crt",
 ];
 
-/// The trust anchors for `trust`.
+/// The trust anchors for `trust`. A caller's configuration holds its own,
+/// which podssh cannot list.
 pub fn roots_for(trust: &Trust) -> Result<TlsRoots, WsError> {
     match trust {
         Trust::File(path) => roots_from_bundle(path),
         Trust::Default => Ok(default_roots()),
+        Trust::Caller(_) => Err(WsError::Config(
+            "the caller's TLS configuration holds its own roots; podssh cannot list them".into(),
+        )),
+    }
+}
+
+/// The rustls configuration for `trust`: the caller's as it is, or podssh's
+/// own over the roots of `trust`.
+pub fn config_for(trust: &Trust) -> Result<Arc<ClientConfig>, WsError> {
+    match trust {
+        Trust::Caller(caller) => Ok(caller.config().clone()),
+        own => client_config(&roots_for(own)?),
     }
 }
 

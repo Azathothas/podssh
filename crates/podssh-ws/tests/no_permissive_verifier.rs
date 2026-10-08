@@ -53,3 +53,23 @@ fn no_crate_accepts_each_certificate() {
     assert!(files > 100, "the scan read {files} files: is it reading the workspace?");
     assert!(found.is_empty(), "a permissive verifier in the source: {found:#?}");
 }
+
+/// podssh's binary never takes a caller's TLS configuration (T-066): its
+/// verifier would be one that podssh cannot check.
+#[test]
+fn the_binary_never_takes_a_callers_configuration() {
+    let cli = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().join("podssh-cli").join("src");
+    let mut files = Vec::new();
+    rust_files(&cli, &mut files);
+    // 42 files on 2026-10-09; a scan that reads nothing passes on any tree.
+    assert!(files.len() > 30, "the scan read {} files of podssh-cli", files.len());
+    let found: Vec<String> = files
+        .iter()
+        .filter(|f| {
+            let text = std::fs::read_to_string(f).unwrap();
+            text.contains("Trust::caller") || text.contains("Trust::Caller") || text.contains("CallerConfig")
+        })
+        .map(|f| f.strip_prefix(&cli).unwrap_or(f).display().to_string())
+        .collect();
+    assert!(found.is_empty(), "podssh-cli takes a caller's TLS configuration: {found:#?}");
+}

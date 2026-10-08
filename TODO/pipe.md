@@ -140,7 +140,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:92-94`).
+   pump does not know the road (`docs/architecture.md:99-101`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:97-110` does;
    open with `crates/podssh-relay/src/open.rs:175-211`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -282,7 +282,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:253-255`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:177-182`, `docs/architecture.md:95-102`,
+  `AGENTS.md:177-182`, `docs/architecture.md:102-109`,
   `docs/target-environment.md:74-78`, `SECURITY.md:59-62`, `README.md:35-36`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:147`). The box refuses each `bind`, AF_UNIX too

@@ -815,7 +815,7 @@ Read:
 
 - `scripts/gate.sh:55-136` has no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
-- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:289`).
+- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:288`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
   `crates/podssh-transport/src/socket.rs` (458),
   `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
@@ -1224,7 +1224,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:95-102` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:102-109` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:74-78`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local

@@ -126,7 +126,7 @@ writes over the rows above it.
 ## Decision
 
 Recommendation: the crate stays sans-IO and takes the size as input
-(`docs/architecture.md:87-91`); raw mode stays in `podssh-ssh`. The two
+(`docs/architecture.md:94-98`); raw mode stays in `podssh-ssh`. The two
 callers differ: the client measures its own terminal, and serve (T-111) has
 no terminal and gets the size from `pty-req` and `window-change`. Raw mode in
 the crate lost: serve has nothing to make raw, and the client's working code

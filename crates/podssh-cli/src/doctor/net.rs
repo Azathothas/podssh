@@ -52,9 +52,10 @@ pub(super) fn check_local(report: &mut Report<'_>, relays: &RelayList, trust: &T
                 Trust::File(path) => {
                     format!("{} anchors from {} ({trust_from}); nothing else is trusted", roots.count, path.display())
                 }
-                // The default store names its counts per source.
-                Trust::Default if roots.source.contains(" + ") => format!("{} anchors: {}", roots.count, roots.source),
-                Trust::Default => roots.source,
+                // The default store names its counts per source. (No other
+                // form gets here: a caller's configuration has no roots to list.)
+                _ if roots.source.contains(" + ") => format!("{} anchors: {}", roots.count, roots.source),
+                _ => roots.source,
             };
             report.ok("trust store", detail);
         }

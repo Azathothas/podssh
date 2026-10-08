@@ -98,7 +98,7 @@ certificate chain needs is missing from them.
 ## Premise
 
 Read: the trust store starts with the compiled-in roots and adds the system
-bundles (`crates/podssh-ws/src/tls.rs:44`, `crates/podssh-ws/src/tls.rs:66-74`).
+bundles (`crates/podssh-ws/src/tls.rs:99`, `crates/podssh-ws/src/tls.rs:134-142`).
 `--ca-file` or `SSL_CERT_FILE` replaces them, and a `podssh-ca.pem` next to the
 binary is read (`crates/podssh-ws/src/bundle.rs:22-38`). The roots come from
 the crate `webpki-roots` (`Cargo.toml:95`). `podssh doctor` prints the number

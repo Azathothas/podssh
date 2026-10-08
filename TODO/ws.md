@@ -223,7 +223,7 @@ module comment says that the test suite asserts that the shipped configuration d
 (`probe.rs` lines 9-12), but no test names `PrintChain`: a search finds it only in `probe.rs`,
 the example and the documents. Also, lines 134 and 178 of `probe.rs` index the certificate with
 no bound check, so a short certificate panics the probe. The shipped configuration calls
-`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:169-173`), so a scan
+`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:237-241`), so a scan
 cannot look for that word alone.
 
 ## Approach
@@ -293,7 +293,7 @@ on `3ee70dc`.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -303,15 +303,15 @@ provider, so podbox cannot.
 
 ## Premise
 
-Read: `open_tls` builds the trust anchors and the configuration on each call
-(`crates/podssh-ws/src/client.rs:187-207`, through `crates/podssh-ws/src/tls.rs:153-180`).
-`WsClientConfig` carries only a `Trust` (`crates/podssh-ws/src/client.rs:47-61`). The same
-`Trust` goes through `podssh-relay`: `Request` (`crates/podssh-relay/src/open.rs:125-135`),
-`MintContext` (`crates/podssh-relay/src/token.rs:92-97`), the pool refresh
-(`crates/podssh-relay/src/pool.rs:117-126`), and the `https_*` functions
-(`crates/podssh-ws/src/client.rs:261-287`). podssh's configuration offers no ALPN
-(`crates/podssh-ws/src/tls.rs:174-177`), because the upgrade is HTTP/1.1 only
-(`docs/relay.md:169`). The `tls12` feature of `rustls` is on in the workspace
+Read; the lines of `podssh-ws` are those of `c56792f`. `open_tls` builds the trust anchors and
+the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207, through
+`crates/podssh-ws/src/tls.rs` lines 153-180). `WsClientConfig` carries only a `Trust`
+(`client.rs` lines 47-61). The same `Trust` goes through `podssh-relay`: `Request`
+(`crates/podssh-relay/src/open.rs:125-135`), `MintContext`
+(`crates/podssh-relay/src/token.rs:92-97`), the pool refresh
+(`crates/podssh-relay/src/pool.rs:117-126`), and the `https_*` functions (`client.rs` lines
+261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177), because the upgrade is
+HTTP/1.1 only (`docs/relay.md:169`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -330,6 +330,25 @@ Read: `open_tls` builds the trust anchors and the configuration on each call
 6. The default stays `Trust`, so the binary does not change.
 7. Change `docs/design.md:102-105` and `docs/architecture.md` in the same commit.
 
+## Decision
+
+2026-10-09:
+
+1. The type of step 1 is `Trust` itself, with a third variant `Trust::Caller(CallerConfig)`, made
+   only by `Trust::caller`, which refuses ALPN. Each place that carries a `Trust` for a
+   connection (`WsClientConfig`, `open_tls`, the `https_*` functions, and in `podssh-relay`
+   `Request`, `MintContext` and the pool refresh) then carries the caller's choice with no new
+   parameter, which is step 2 with no change there. Lost: a new type beside `Trust`, which
+   changes about 60 places for the same result.
+2. `CallerConfig` equals itself only (the same `Arc`): a `ClientConfig` has no equality, and two
+   can differ in a verifier that no field shows.
+3. The doctor of `podssh-ws` reports a caller's configuration as `????`: podssh cannot check its
+   roots or its verifier. The doctor of `podssh-cli` matches the forms with a wildcard, so the
+   binary names no caller form, as the scan of step 4 requires.
+4. The tests reach the server by `open_tls`, which `connect` and the `https_*` functions call:
+   those take the server name from the host, and a loopback server for a test name cannot be
+   reached by that name on each host.
+
 ## Prove
 
 ```sh
@@ -343,6 +362,28 @@ whose only root is the test CA, which the default store does not hold. A configu
 ALPN `h2` is refused. podbox's own test with two clients is the exit check of M4 (T-085).
 Planted defect: ignore the caller's configuration and build podssh's; the test CA is then
 unknown, and the test fails.
+
+## Done
+
+2026-10-09, in the commit "A library can bring its own rustls configuration".
+
+- `crates/podssh-ws/src/tls.rs`: `Trust::Caller(CallerConfig)` and `Trust::caller(config)`,
+  which refuses a configuration that offers ALPN and says why; `tls::config_for(trust)`, the
+  caller's configuration as it is or podssh's own. `open_tls` uses it, so `connect` and the
+  `https_*` functions do too. `roots_for` refuses a caller's configuration (podssh cannot list
+  its roots).
+- `crates/podssh-ws/tests/caller_tls.rs` (new): through the caller form, `open_tls` reaches a
+  loopback TLS server whose only root is a test CA, and reads what it sends; the control, the
+  default store, fails on the unknown issuer; a configuration with `h2` and `http/1.1` is
+  refused; the configuration is used as it is. `tests/no_permissive_verifier.rs`: the source of
+  `podssh-cli` names no caller form.
+- `docs/architecture.md` (the trust store) and `docs/design.md` say so.
+- Prove: `CC=/nonexistent CXX=/nonexistent cargo test -p podssh-ws -p podssh-relay`: 182
+  passed, 0 failed, 4 ignored (155 of `podssh-ws`). `cargo test --no-fail-fast`: 808 passed,
+  0 failed, 7 ignored.
+- Plants, each restored: `config_for` building podssh's own for a caller: the server test failed
+  (the test CA was unknown) and so did the test of the same configuration; a line naming
+  `Trust::caller` in `crates/podssh-cli/src/proxy.rs`: the scan failed and named that file.
 
 # T-067: TLS 1.2, for intercepting proxies
 
@@ -364,7 +405,7 @@ the system bundle).
 
 Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs:55-56`),
 and its comment says that TLS 1.2 suites are absent on purpose (lines 7-11). The configuration
-enables both versions (`crates/podssh-ws/src/tls.rs:169-171`); rustls accepts that, because one
+enables both versions (`crates/podssh-ws/src/tls.rs:237-239`); rustls accepts that, because one
 suite is usable, and then offers no TLS 1.2 suite (rustls 0.23.45, `with_protocol_versions` in
 its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustls` and
 `tokio-rustls` is on (`Cargo.toml`). The provider has HMAC
@@ -414,7 +455,7 @@ from the list; its OpenSSL check fails.
 
 # T-068: Plain `ws://` to loopback, for tests only
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:103`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:103-104`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P3
@@ -429,7 +470,7 @@ TCP on the loopback. `podssh-ws` always does TLS, so each such test needs a CA a
 ## Premise
 
 Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs:162-184`), and the
-upgrade takes the TLS stream type (`crates/podssh-ws/src/client.rs:213-257`). `RelaySession` is
+upgrade takes the TLS stream type (`crates/podssh-ws/src/client.rs:212-256`). `RelaySession` is
 generic over its stream (`crates/podssh-ws/src/session.rs:32`), so a session over `TcpStream`
 is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:137-142`). The tests use in-memory streams
@@ -447,7 +488,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 4. The runners of `podssh-relay` (T-079, T-081) must take any stream type, so that podbox's
    tests can use them.
 5. The binary never enables the feature; a check in the gate proves it.
-6. Change `docs/design.md:103` in the same commit.
+6. Change `docs/design.md:103-104` in the same commit.
 
 ## Decision
 
@@ -470,7 +511,7 @@ the feature. Planted defect: remove the loopback check; the refusal test fails.
 
 # T-069: Typed session errors in `podssh-ws`
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:103`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:104`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P2
@@ -548,7 +589,7 @@ supported; podssh speaks HTTP CONNECT to an http:// proxy"
 makes the error `DialError::BadProxy` (line 217), which stops the failover at once
 (`crates/podssh-relay/src/open.rs:62`) and gives exit 78 in `podssh proxy`
 (`crates/podssh-cli/src/proxy.rs:162`). `doctor` reports it as `FAIL`
-(`crates/podssh-cli/src/doctor/net.rs:103-109`). Two tests assert the refusal:
+(`crates/podssh-cli/src/doctor/net.rs:104-110`). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs:129-138` and `crates/podssh-ws/tests/dial.rs:34-42`.
 
 ## Approach
@@ -569,7 +610,7 @@ makes the error `DialError::BadProxy` (line 217), which stops the failover at on
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (`dial.rs:39-44`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:162-185`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:163-186`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
 7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-49`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
@@ -622,7 +663,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (lines 80-88). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:108-137`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:375-384`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:374-383`). The stand-in relay writes the minimal form
 (`scripts/fake-relay.py:54-62`); the frames of the real relay were not checked for it.
 
 ## Approach

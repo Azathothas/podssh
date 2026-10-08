@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**251 entries: 202 open, 0 partial, 7 blocked, 42 done.**
+**251 entries: 201 open, 0 partial, 7 blocked, 43 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 108 | 0 | 3 | 33 | 144 |
+| P2 | 107 | 0 | 3 | 34 | 144 |
 | P3 | 92 | 0 | 4 | 1 | 97 |
-| **All** | 202 | 0 | 7 | 42 | 251 |
+| **All** | 201 | 0 | 7 | 43 | 251 |
 
 ## Entries
 
@@ -139,7 +139,7 @@ repository and CI).
 | [T-063](ws.md) | P2 | S | M4 | defect | done | W10: the frame decoder does not check a received control frame |
 | [T-064](ws.md) | P3 | S | M4 | defect | done | W13: `OsRng::fill_bytes` panics when the system gives no random bytes |
 | [T-065](ws.md) | P2 | S | M4 | defect | done | W14: `probe::PrintChain` accepts each certificate, and is a public export |
-| [T-066](ws.md) | P2 | M | M4 | feature | open | A `rustls::ClientConfig` that the caller supplies, for podbox |
+| [T-066](ws.md) | P2 | M | M4 | feature | done | A `rustls::ClientConfig` that the caller supplies, for podbox |
 | [T-067](ws.md) | P2 | M | backlog | feature | open | TLS 1.2, for intercepting proxies |
 | [T-068](ws.md) | P3 | S | M4 | feature | open | Plain `ws://` to loopback, for tests only |
 | [T-069](ws.md) | P2 | S | M4 | feature | open | Typed session errors in `podssh-ws` |
