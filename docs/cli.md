@@ -77,6 +77,18 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   with no effect (`-P`, `-g`), or refused by name with what to use instead.
   `tests/flag_table.rs` holds the reviewed set. A refusal with nothing to use
   instead says "Leave it out."
+- **`%` tokens are OpenSSH's** (ssh_config(5); the values of
+  `DEFAULT_CLIENT_PERCENT_EXPAND_ARGS` in OpenSSH 10.3p1). In `-i`,
+  `IdentityFile`, `UserKnownHostsFile`, `GlobalKnownHostsFile` and
+  `IdentityAgent`: `%%`, `%C` (the SHA-1 of `%l%h%p%r%j`), `%d`, `%h` (the
+  host, lowercased unless it is an address), `%i` (the user id), `%j` (the
+  host of the last jump), `%k` (`HostKeyAlias`, else `%n`), `%L`, `%l`
+  (the local host name, and its first label for `%L`), `%n` (the host as
+  typed), `%p`, `%r` (the remote user) and `%u` (the local user, from
+  `USER`, `LOGNAME` or `USERNAME`). An unknown token, or one whose value
+  podssh does not know, is refused (exit 64); OpenSSH refuses an unknown one
+  too. `-E FILE` is opened with the name as typed, as OpenSSH opens it. The
+  gate compares the tokens with `ssh -G`.
 
 ## Forwarding
 

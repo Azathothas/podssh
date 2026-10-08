@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use podssh_cli::ssh::args::SshArgs;
-use podssh_cli::ssh::resolve::{parse_hop, resolve, Env, Transport};
+use podssh_cli::ssh::resolve::{parse_hop, resolve, resolve_or_refuse, Env, Transport};
 use podssh_cli::tree::{parse, Parsed};
 use podssh_ssh::{Agent, LogLevel, Method, Request, RequestTty, StrictHostKeyChecking};
 
@@ -20,7 +20,14 @@ fn ssh(words: &[&str]) -> SshArgs {
 }
 
 fn env() -> Env {
-    Env { home: Some(PathBuf::from("/home/u")), user: Some("envuser".into()), relay: None, ssl_cert_file: None }
+    Env {
+        home: Some(PathBuf::from("/home/u")),
+        user: Some("envuser".into()),
+        relay: None,
+        ssl_cert_file: None,
+        local_host: Some("box.example.org".into()),
+        uid: Some(1000),
+    }
 }
 
 #[test]
@@ -241,4 +248,34 @@ fn keepalives_off_over_the_relay_earn_a_note() {
     let r = resolve(&ssh(&["-o", "ServerAliveInterval=0", "host"]), &env()).unwrap();
     assert_eq!(r.options.keepalive_interval, None);
     assert!(r.warnings.iter().any(|n| n.contains("180")), "{:?}", r.warnings);
+}
+
+/// Each `%` token as OpenSSH 10.3p1 expands it (`sshconnect.h`): `%u` is the
+/// local user and `%r` the remote one, `%h` the host lowercased and `%n` as
+/// typed, `%k` the alias, `%j` the last jump host, `%C` the SHA-1 of
+/// `%l%h%p%r%j`. The gate compares the same tokens with `ssh -G`.
+#[test]
+fn percent_tokens_follow_openssh() {
+    let spec = "IdentityFile=/k/%%-%C-%d-%h-%i-%j-%k-%L-%l-%n-%p-%r-%u";
+    let w = ["-l", "remoteuser", "-p", "2222", "-o", "HostKeyAlias=Alias.Example", "-J", "jumper@hop1,hop2:2200", "-o", spec];
+    let r = resolve(&ssh(&[&w[..], &["Example.ORG"]].concat()), &env()).unwrap();
+    let want = "/k/%-9c9441f6660e716bc6dd049d1527c271ae5761c4-/home/u-example.org-1000-hop2-alias.example-box-\
+                box.example.org-Example.ORG-2222-remoteuser-envuser";
+    assert_eq!(r.options.identity_files, vec![PathBuf::from(want)]);
+    // The same tokens in the other paths.
+    let r = resolve(&ssh(&["-o", "UserKnownHostsFile=/kh/%u-%r", "-o", "IdentityAgent=/a/%i", "bob@host"]), &env()).unwrap();
+    assert_eq!(r.options.user_known_hosts, vec![PathBuf::from("/kh/envuser-bob")]);
+    assert_eq!(r.options.agent, Agent::Path(PathBuf::from("/a/1000")));
+    // An unknown token is refused before anything connects, with exit 64.
+    let err = resolve_or_refuse(&ssh(&["-o", "IdentityFile=/x/%Q", "host"]), &env()).unwrap_err();
+    assert_eq!(err.code, 64);
+    assert_eq!(err.message, "-o IdentityFile=/x/%Q: %Q is not a token; the tokens are %%, %C, %d, %h, %i, %j, %k, %L, %l, %n, %p, %r and %u");
+    let err = resolve(&ssh(&["-i", "/x/id%", "host"]), &env()).unwrap_err();
+    assert!(err.contains("a % at the end"), "{err}");
+    // A token whose value podssh does not know is refused, never empty.
+    let err = resolve(&ssh(&["-l", "r", "-i", "/x/%u", "host"]), &Env { user: None, ..env() }).unwrap_err();
+    assert!(err.contains("%u needs the local user name"), "{err}");
+    // -E is opened with the name as typed, as OpenSSH does.
+    let r = resolve(&ssh(&["-E", "/log/p%p-%h.log", "host"]), &env()).unwrap();
+    assert_eq!(r.log_file, Some(PathBuf::from("/log/p%p-%h.log")));
 }

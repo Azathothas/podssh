@@ -112,10 +112,10 @@ counted and typed by hand.
 ## Premise
 
 Read: `scripts/interop.sh:22-24` defines `ok`, `bad` and `skipped`, and
-`scripts/interop.sh:268-269` fails only when a check failed. With no
+`scripts/interop.sh:288-289` fails only when a check failed. With no
 `sshd.pam` in the image, the PAM check becomes `skip` and the gate stays
-green (`scripts/interop.sh:171-177`). A name carries values of the run (the
-seconds at `scripts/interop.sh:217`, the tty at line 221), so it is not a
+green (`scripts/interop.sh:172-178`). A name carries values of the run (the
+seconds at `scripts/interop.sh:237`, the tty at line 221), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
@@ -437,7 +437,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 73-182 (`docs/STATUS.md:174-193`, 14 of 14 since T-236).
+  checks are at lines 73-182 (`docs/STATUS.md:175-194`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:241`, enforced at
   `crates/podssh-ssh/src/run.rs:138-143`); a reply, 30 s
@@ -510,20 +510,20 @@ nobody measures again.
 
 Read, each claim of GitHub #34 at the lines as they are now:
 
-- The matrix is at `scripts/interop.sh:112-121`. It expects 3, 0, 1, 127 and
+- The matrix is at `scripts/interop.sh:113-122`. It expects 3, 0, 1, 127 and
   143, against OpenSSH (port 2201) and Dropbear (port 2203). `grep -c` gives
   13 lines with `expect_rc`: the comment, the definition
   (`scripts/interop.sh:25-28`) and 11 calls. `scripts/interop-keygen.sh` has 6
   more, for `podssh keygen`.
-- `scripts/interop.sh:31-32` installs `openssh-server`, `openssh-keygen` and
-  others, but no client package. No harness runs the stock `ssh`; only
+- `scripts/interop.sh` (lines 31-32 at `5c7a1ad`) installed `openssh-server`,
+  `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
   `scripts/sandbox-check.sh:172-185` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
 - `crates/podssh-ssh/src/io.rs:115-120` maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:61`, `docs/STATUS.md:63`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:154-155` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:166-167` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -532,7 +532,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 
 1. Settle the client first: in the gate's container, run `command -v ssh`
    before the package line. If it is missing, add the client package to
-   `scripts/interop.sh:31`, and print its version (as line 96 does for the
+   `scripts/interop.sh:32`, and print its version (as line 96 does for the
    servers).
 2. For each call of `podssh ssh` in the matrix and in the refusals (lines
    146-196), run the stock `ssh` first, with the same server, port, key,
@@ -540,14 +540,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:154-155`). A difference that the table does not name fails,
+   `docs/cli.md:166-167`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:154-155` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:166-167` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed

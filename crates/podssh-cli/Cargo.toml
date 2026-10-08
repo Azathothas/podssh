@@ -42,6 +42,9 @@ tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 libc = { workspace = true }
+# %C of the ssh_config tokens is SHA-1, as OpenSSH computes it; the version
+# podssh-ssh already builds.
+sha1 = { version = "0.10.7", default-features = false }
 
 # The relay token is wiped from memory when dropped.
 zeroize = { workspace = true }

@@ -5,7 +5,7 @@ of the forwards of a session.
 
 # T-035: `-R`: remote forwarding, each connection made out through the proxy
 
-**Source:** `docs/ROADMAP.md:244-245` (M8) and `docs/cli.md:88-93`; the
+**Source:** `docs/ROADMAP.md:244-245` (M8) and `docs/cli.md:100-105`; the
 VLOD-ZDOV/quic-ssh report in GitHub #22 (item 7) and the cubic-vm/cubic
 report in GitHub #23 (item 7). Read and measured here on `3ee70dc`.
 **Category:** feature
@@ -33,7 +33,7 @@ server listens, and the client connects out for each connection.
   carries the other direction.
 - Read: the manual's note says "-L, -R and -D are refused by name: podssh
   never listens on a port" (`crates/podssh-cli/src/man/notes.rs` lines 31-32
-  at `25ab0e7`), but `docs/cli.md:88-90` says that the refusal of `-R` must
+  at `25ab0e7`), but `docs/cli.md:100-102` says that the refusal of `-R` must
   not say that.
 - Read: russh 0.64.1 has `Handle::tcpip_forward`, and its default handler
   accepts each `forwarded-tcpip` channel that a server opens. podssh's handler
@@ -44,7 +44,7 @@ server listens, and the client connects out for each connection.
   `crates/podssh-ws/src/dial.rs:204-227`). On the measured sandbox, a direct
   connection to loopback is refused (`docs/target-environment.md:22`).
 - Read: a refused `tcpip-forward` gets SSH_MSG_REQUEST_FAILURE, which has no
-  reason field (RFC 4254, section 4). So `docs/cli.md:93` ("podssh gives the
+  reason field (RFC 4254, section 4). So `docs/cli.md:105` ("podssh gives the
   server's reason") cannot hold as written.
 
 ## Approach
@@ -59,7 +59,7 @@ server listens, and the client connects out for each connection.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
-   `--direct` does (`crates/podssh-cli/src/ssh/mod.rs:132-137`), with the
+   `--direct` does (`crates/podssh-cli/src/ssh/mod.rs:133-138`), with the
    limit of 20 s (`crates/podssh-relay/src/open.rs:23-25`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
@@ -69,7 +69,7 @@ server listens, and the client connects out for each connection.
    corrected the texts of the `-R` refusal (the help and the manual's note
    at `crates/podssh-cli/src/man/notes.rs:31-33`). Change the test that
    asserts the refusal (`crates/podssh-cli/tests/flag_table.rs:67-86`).
-   Update `docs/cli.md:81-95` (correct line 78) and `docs/STATUS.md`.
+   Update `docs/cli.md:93-107` (correct line 78) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
    under the proxy rule of `AGENTS.md:177-182`; say so in the help. The relay's
    64 MiB and 12 h cover all the forwarded connections of a session
@@ -292,7 +292,7 @@ it (`SECURITY.md`, "Design rules").
 a local listener when the user asks for it and a probe at run time allows
 the bind; loopback and AF_UNIX by default; an address that the user sets;
 listening that the user can turn off; the same refusal where the probe
-fails. Also `docs/cli.md:83-87`; the totoshko88/RustConn report in GitHub
+fails. Also `docs/cli.md:95-99`; the totoshko88/RustConn report in GitHub
 #24 (item 3) and the OthmaneBlial/MobaRust report in GitHub #21 (item 3);
 sandbox A of T-001 (`bind` refused for AF_INET, allowed for AF_UNIX).
 **Category:** feature
@@ -489,8 +489,8 @@ Measured, offline, with `MSYS_NO_PATHCONV=1` and `PODSSH_OFFLINE=1`:
 Read:
 
 - `request` parses the value of `-W` with `parse_hop`
-  (`crates/podssh-cli/src/ssh/resolve.rs:258-267`), which reads a value with
-  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/resolve.rs:297-310`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:297-306`), which reads a value with
+  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/resolve.rs:336-349`).
 - russh 0.64.1 has `Handle::channel_open_direct_streamlocal` (the channel
   `direct-streamlocal@openssh.com`). podssh opens only `direct-tcpip`
   (`crates/podssh-ssh/src/forward.rs:11-18`).
@@ -679,9 +679,9 @@ at the connection step (exit 255), after the parse:
 | `db.internal:5432`, `[::1]:5432` | accepted | accepted |
 
 Read: `request` parses the value with `parse_hop`
-(`crates/podssh-cli/src/ssh/resolve.rs:258-267`), which reads a value with no
+(`crates/podssh-cli/src/ssh/resolve.rs:297-306`), which reads a value with no
 `:` as a host on port 22, and splits a value at its one `:`
-(`crates/podssh-cli/src/ssh/resolve.rs:297-310`). `forward::open` opens
+(`crates/podssh-cli/src/ssh/resolve.rs:336-349`). `forward::open` opens
 `direct-tcpip` only (`crates/podssh-ssh/src/forward.rs:11-18`).
 
 ## Approach

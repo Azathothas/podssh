@@ -14,6 +14,7 @@ use podssh_relay::relay::{self, RelayList};
 use super::args::SshArgs;
 use crate::relay_settings::Refusal;
 use super::options::{parse_port, Settings};
+use super::tokens::{lower_host, Tokens};
 
 /// How the first hop is reached.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,6 +50,9 @@ pub struct Env {
     pub user: Option<String>,
     pub relay: Option<String>,
     pub ssl_cert_file: Option<String>,
+    /// The local host name and user id, for the `%` tokens.
+    pub local_host: Option<String>,
+    pub uid: Option<u32>,
 }
 
 impl Env {
@@ -56,7 +60,14 @@ impl Env {
         let var = |name: &str| std::env::var(name).ok().filter(|v| !v.trim().is_empty());
         let home = var("HOME").or_else(|| if cfg!(windows) { var("USERPROFILE") } else { None }).map(PathBuf::from);
         let user = var("USER").or_else(|| var("LOGNAME")).or_else(|| var("USERNAME")).or_else(uid_zero_is_root);
-        Env { home, user, relay: var(relay::RELAY_ENV), ssl_cert_file: var("SSL_CERT_FILE") }
+        Env {
+            home,
+            user,
+            relay: var(relay::RELAY_ENV),
+            ssl_cert_file: var("SSL_CERT_FILE"),
+            local_host: super::tokens::local_host_name(),
+            uid: super::tokens::local_uid(),
+        }
     }
 }
 
@@ -114,20 +125,51 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         .or_else(|| target.user.clone())
         .or_else(|| env.user.clone())
         .ok_or("no user name: give one with user@host or -l USER")?;
+    let proxy_jump = args.jump.as_deref().or(settings.proxy_jump.as_deref());
+    let jump: Vec<Hop> = match proxy_jump {
+        None | Some("none") => Vec::new(),
+        Some(list) => list.split(',').map(|h| parse_hop(h.trim())).collect::<Result<_, _>>()?,
+    };
 
-    let expand = |p: &str| expand_path(p, env.home.as_deref(), &user, &host);
-    let mut identity_files: Vec<PathBuf> =
-        args.identity_files.iter().chain(&settings.identity_files).map(|p| expand(p)).collect();
+    // The `%` tokens, with OpenSSH's values for this connection.
+    let tokens = Tokens {
+        home: env.home.clone(),
+        host: lower_host(&host),
+        original: target.host.clone(),
+        port,
+        remote_user: user.clone(),
+        local_user: env.user.clone(),
+        local_host: env.local_host.clone(),
+        uid: env.uid,
+        alias: settings.host_key_alias.as_deref().map(str::to_ascii_lowercase).unwrap_or_else(|| target.host.clone()),
+        jump: match proxy_jump {
+            Some("none") => "none".into(),
+            _ => jump.last().map(|h| h.host.clone()).unwrap_or_default(),
+        },
+    };
+    let expand = |setting: &str, p: &str| tokens.expand(setting, p);
+    let mut identity_files: Vec<PathBuf> = args
+        .identity_files
+        .iter()
+        .map(|p| expand("-i ", p))
+        .chain(settings.identity_files.iter().map(|p| expand("-o IdentityFile=", p)))
+        .collect::<Result<_, _>>()?;
     if identity_files.is_empty() {
         identity_files = env.home.as_deref().map(default_identity_files).unwrap_or_default();
     }
-    let known = |list: &Option<Vec<String>>, default: Vec<PathBuf>| match list {
-        Some(files) if files.iter().any(|f| f.eq_ignore_ascii_case("none")) => Vec::new(),
-        Some(files) => files.iter().map(|f| expand(f)).collect(),
-        None => default,
+    let known = |setting: &str, list: &Option<Vec<String>>, default: Vec<PathBuf>| -> Result<Vec<PathBuf>, String> {
+        Ok(match list {
+            Some(files) if files.iter().any(|f| f.eq_ignore_ascii_case("none")) => Vec::new(),
+            Some(files) => files.iter().map(|f| expand(setting, f)).collect::<Result<_, _>>()?,
+            None => default,
+        })
     };
-    let user_known_hosts = known(&settings.user_known_hosts, env.home.as_deref().map(default_user_known_hosts).unwrap_or_default());
-    let global_known_hosts = known(&settings.global_known_hosts, default_global_known_hosts());
+    let user_known_hosts = known(
+        "-o UserKnownHostsFile=",
+        &settings.user_known_hosts,
+        env.home.as_deref().map(default_user_known_hosts).unwrap_or_default(),
+    )?;
+    let global_known_hosts = known("-o GlobalKnownHostsFile=", &settings.global_known_hosts, default_global_known_hosts())?;
 
     let mut methods = settings.preferred_auth.clone().unwrap_or_else(|| vec![Method::PublicKey, Method::KeyboardInteractive, Method::Password]);
     methods.retain(|m| match m {
@@ -155,14 +197,10 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         Some(e) => podssh_ssh::escape::parse_escape_char(e).ok_or_else(|| format!("-e {e}: expected none, a character or ^X"))?,
         None => settings.escape_char.unwrap_or(Some(b'~')),
     };
-    let jump = match args.jump.as_deref().or(settings.proxy_jump.as_deref()) {
-        None | Some("none") => Vec::new(),
-        Some(list) => list.split(',').map(|h| parse_hop(h.trim())).collect::<Result<_, _>>()?,
-    };
     let agent = match settings.identity_agent.as_deref() {
         None | Some("SSH_AUTH_SOCK") => Agent::FromEnvironment,
         Some(v) if v.eq_ignore_ascii_case("none") => Agent::Off,
-        Some(path) => Agent::Path(expand(path)),
+        Some(path) => Agent::Path(expand("-o IdentityAgent=", path)?),
     };
     let mut log_level = settings.log_level.unwrap_or(LogLevel::Info);
     if args.quiet > 0 {
@@ -220,7 +258,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         ));
     }
 
-    let log_file = args.log_file.as_deref().map(|f| expand(f));
+    // OpenSSH opens -E FILE with the name as typed.
+    let log_file = args.log_file.as_deref().map(PathBuf::from);
     let mut options = Options::new(Hop { user: None, host: host.clone(), port }, user.clone());
     options.host_key_alias = settings.host_key_alias.clone();
     options.jump = jump;
@@ -325,31 +364,3 @@ fn host_rule(original: &str, host: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// `~/` and the `%d %h %r %u %%` tokens OpenSSH expands in file names.
-fn expand_path(path: &str, home: Option<&std::path::Path>, user: &str, host: &str) -> PathBuf {
-    let home_text = home.map(|h| h.display().to_string()).unwrap_or_default();
-    let mut out = String::new();
-    let mut chars = path.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '%' {
-            match chars.next() {
-                Some('d') => out.push_str(&home_text),
-                Some('h') => out.push_str(host),
-                Some('r') | Some('u') => out.push_str(user),
-                Some('%') => out.push('%'),
-                Some(other) => {
-                    out.push('%');
-                    out.push(other);
-                }
-                None => out.push('%'),
-            }
-        } else {
-            out.push(c);
-        }
-    }
-    match (out.strip_prefix("~/").or_else(|| out.strip_prefix("~\\")), home) {
-        (Some(rest), Some(h)) => h.join(rest),
-        _ if out == "~" => home.map(PathBuf::from).unwrap_or_else(|| PathBuf::from(out)),
-        _ => PathBuf::from(out),
-    }
-}

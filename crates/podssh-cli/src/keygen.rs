@@ -246,7 +246,7 @@ fn print_fingerprint(path: &Path, out: &mut dyn Write, err: &mut dyn Write) -> i
 /// `user@host`, as `ssh-keygen` names a key, from the environment (never the
 /// user database, which some hosts lack).
 fn default_comment() -> String {
-    match (crate::ssh::resolve::Env::from_process().user, hostname()) {
+    match (crate::ssh::resolve::Env::from_process().user, crate::ssh::tokens::local_host_name()) {
         (Some(user), Some(host)) => format!("{user}@{host}"),
         (Some(user), None) => user,
         (None, Some(host)) => host,
@@ -254,19 +254,3 @@ fn default_comment() -> String {
     }
 }
 
-#[cfg(unix)]
-fn hostname() -> Option<String> {
-    let mut buf = [0u8; 256];
-    // SAFETY: the buffer's length is passed with it.
-    if unsafe { libc::gethostname(buf.as_mut_ptr().cast(), buf.len()) } != 0 {
-        return None;
-    }
-    let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
-    let name = String::from_utf8_lossy(&buf[..end]).trim().to_string();
-    (!name.is_empty()).then_some(name)
-}
-
-#[cfg(not(unix))]
-fn hostname() -> Option<String> {
-    std::env::var("COMPUTERNAME").ok().filter(|h| !h.trim().is_empty())
-}

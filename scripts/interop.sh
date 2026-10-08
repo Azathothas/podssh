@@ -28,7 +28,8 @@ expect_rc() {
 }
 
 echo "== servers"
-apk add --no-cache openssh-server openssh-server-pam openssh-keygen openssh-sftp-server \
+# openssh-client-default is ssh itself, for the % tokens of `ssh -G`.
+apk add --no-cache openssh-server openssh-server-pam openssh-keygen openssh-sftp-server openssh-client-default \
     dropbear python3 linux-pam openssl >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
 PW=$(head -c 18 /dev/urandom | base64 | tr -d '/+=')
 adduser -D -s /bin/sh podtest >/dev/null 2>&1 || true
@@ -188,6 +189,25 @@ env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile
     -o StrictHostKeyChecking=no -o IdentityAgent=none $K "$T" true </dev/null >"$W/out" 2>"$W/err"
 expect_rc "a changed key is refused even with StrictHostKeyChecking=no" 255 $? "$W/err"
 grep -q "HAS CHANGED" "$W/err" && ok "the changed-key warning is shown" || bad "no warning" "$W/err"
+
+echo
+echo "== % tokens, against OpenSSH's own expansion (ssh -G)"
+# podssh records the host key in the file that UserKnownHostsFile names, so
+# the file's name is podssh's expansion; ssh -G prints OpenSSH's for the same
+# tokens in ControlPath. %u is the local user, %r the remote one (T-238).
+TOK="$W/tok"
+mkdir -p "$TOK"
+spec='%C-%L-%l-%i-%u-%r-%h-%p-%n-%j-%k'
+want=$(ssh -F /dev/null -G -o ControlPath="$TOK/$spec" -p 2201 "$T" </dev/null 2>/dev/null | sed -n 's/^controlpath //p')
+# shellcheck disable=SC2086
+env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile="$TOK/$spec" \
+    -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes "$T" true \
+    </dev/null >"$W/out" 2>"$W/err"
+rc=$?
+got=$(ls -d "$TOK"/* 2>/dev/null)
+[ "$rc" = 0 ] && [ -n "$want" ] && [ "$got" = "$want" ] \
+    && ok "% tokens: podssh expands %C %L %l %i %u %r %h %p %n %j %k as ssh -G does" \
+    || bad "% tokens: exit $rc; podssh wrote ${got:-nothing}; ssh -G gives ${want:-nothing}" "$W/err"
 
 echo
 echo "== forwarding, jump hosts, subsystems, environment"
