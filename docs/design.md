@@ -101,7 +101,8 @@ podssh-relay
 
 - `podssh-ws`: a `rustls::ClientConfig` that the caller supplies (so podbox
   can keep `ring` and TLS 1.2), plain `ws://` on loopback for tests, typed
-  session errors, and `probe::PrintChain` behind a feature.
+  session errors, and no verifier that accepts each certificate (T-065
+  moved `PrintChain` to an example).
 - `podssh-transport` moves into `podssh-relay`. Its unused backpressure
   module goes.
 - podbox then pins `podssh-relay` by git revision and removes its own

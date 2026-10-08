@@ -36,7 +36,10 @@ The host-key check makes a relay in the middle safe:
 Each rule is implemented.
 
 - **TLS to the relay is verified** against trusted roots and against the
-  relay's host name. There is no option that skips the verification.
+  relay's host name. There is no option that skips the verification, and no
+  crate carries a verifier that accepts each certificate: a test scans the
+  source of each one (T-065). The verifier that prints a chain for a
+  diagnosis lives in an example of `podssh-ws`, outside each library.
 - **Credentials are not shown.** A relay token or a key never goes into
   output, logs, URLs or command lines. The types that hold a token do not
   print it, and a redaction removes the whole token. `podssh keygen` refuses
@@ -75,6 +78,3 @@ security:
   key. podssh does not use `@cert-authority` lines: a host that only such a
   line trusts is an unknown host (T-027, [TODO/ssh.md](TODO/ssh.md)).
 - The IRC client sends plain text through the relay. No command uses it yet.
-- `PrintChain` in `podssh-ws`, a certificate verifier that accepts every
-  certificate, is a public export of the library (T-065, [TODO/ws.md](TODO/ws.md)).
-  No command uses it.

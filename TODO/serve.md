@@ -1,12 +1,12 @@
 This file holds the work for `podssh serve`: the SSH server in the process for
-a host whose only egress is the relay (milestone M5, `docs/ROADMAP.md:174-201`),
+a host whose only egress is the relay (milestone M5, `docs/ROADMAP.md:175-202`),
 and the server features in the backlog. No server code exists yet. T-107
 decides where it goes, and each later entry builds on it. T-222 finds the
 shell that T-108 runs.
 
 # T-107: `podssh serve`: the russh server, its host key in a state file, and authorized keys
 
-**Source:** `docs/ROADMAP.md:176-181` (M5), `docs/design.md:134-138`; GitHub #20
+**Source:** `docs/ROADMAP.md:177-182` (M5), `docs/design.md:135-139`; GitHub #20
 (Nemo-010, 2026-10-08: bssh-server and tty7 as references).
 **Category:** feature
 **Milestone:** M5
@@ -84,7 +84,7 @@ accepts each key fails. With no key, the static binary (`$BIN`) exits 78.
 
 # T-108: `podssh serve`: exec, a shell and the environment, as the sandbox's user
 
-**Source:** `docs/ROADMAP.md:176-181` ("It supplies exec"),
+**Source:** `docs/ROADMAP.md:177-182` ("It supplies exec"),
 `docs/target-environment.md:37-44`; GitHub #20 (Nemo-010, 2026-10-08).
 **Category:** feature
 **Milestone:** M5
@@ -158,7 +158,7 @@ it; a planted serve that passes its whole environment fails that check.
 
 # T-109: `podssh serve`: direct-tcpip into the cage
 
-**Source:** `docs/ROADMAP.md:176-181` ("direct-tcpip into the cage").
+**Source:** `docs/ROADMAP.md:177-182` ("direct-tcpip into the cage").
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -223,7 +223,7 @@ planted rejection with no reason fails that last check.
 
 # T-110: `podssh serve`: a real pty when `/dev/ptmx` exists
 
-**Source:** `docs/ROADMAP.md:182-187`, `docs/design.md:139-143`,
+**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:140-144`,
 `docs/terminal.md:45-55`; GitHub #20 (bound every PTY wait).
 **Category:** feature
 **Milestone:** M5
@@ -293,7 +293,7 @@ serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 
 # T-111: `podssh serve` with no `/dev/ptmx`: the line discipline, and Ctrl-C to the child's process group
 
-**Source:** `docs/ROADMAP.md:182-187`, `docs/design.md:139-143`,
+**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:140-144`,
 `docs/decisions.md:43`; GitHub #20 (fux line-discipline notes).
 **Category:** feature
 **Milestone:** M5
@@ -306,7 +306,7 @@ serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 The measured cage has no `/dev/ptmx` (`docs/target-environment.md:26`). There
 a shell on pipes gives no echo, no editing and no prompt, and Ctrl-C reaches
 nothing. Only the server side can turn Ctrl-C into a signal for the child's
-process group (`docs/design.md:139-143`). Without it, a user cannot stop a
+process group (`docs/design.md:140-144`). Without it, a user cannot stop a
 command, and the session must end.
 
 ## Premise
@@ -366,7 +366,7 @@ shell's pid and not its group fails the 15 s check.
 
 # T-112: An SFTP server in `podssh serve`
 
-**Source:** `docs/ROADMAP.md:188`, `docs/design.md:144-148`; GitHub #20
+**Source:** `docs/ROADMAP.md:189`, `docs/design.md:145-149`; GitHub #20
 (tty7 issue #1126: bound every SFTP wait); GitHub #21 (bssh pipelined SFTP).
 **Category:** feature
 **Milestone:** M5
@@ -384,7 +384,7 @@ default since OpenSSH 9.0), need an SFTP subsystem on the server.
 ## Premise
 
 - Read: no SFTP code exists, and `Cargo.lock` has no `russh-sftp`.
-  `docs/ROADMAP.md:188` names `russh-sftp` for the client and the server.
+  `docs/ROADMAP.md:189` names `russh-sftp` for the client and the server.
 - Read: russh gives a channel as a byte stream (`Channel::into_stream`), and
   `subsystem_request` must answer (`Eugeny/russh:russh/src/server/mod.rs`,
   lines 686-696).
@@ -430,7 +430,7 @@ A planted write handler that drops the last byte fails the digest check.
 
 # T-113: M5 exit: a usable shell and 200 MiB each way from a sealed sandbox
 
-**Source:** `docs/ROADMAP.md:197-201` (the exit criteria of M5).
+**Source:** `docs/ROADMAP.md:198-202` (the exit criteria of M5).
 **Category:** measurement
 **Milestone:** M5
 **Priority:** P2
@@ -700,7 +700,7 @@ lifecycle); GitHub #22 (Petyok/SSHub: hot reload).
 
 A node that stops must not leave shells behind, and must not cut sessions
 with no word. An operator who adds a key must not have to restart the node:
-a restart ends each session on it (`docs/design.md:174-177`).
+a restart ends each session on it (`docs/design.md:175-178`).
 
 ## Premise
 
@@ -1046,7 +1046,7 @@ default of russh refuses each `tcpip-forward` with no reason.
 - Read: the cage refuses `bind` (`docs/target-environment.md:25`; the box:
   `scripts/box/probe.sh:86-91`). The operator's ruling on Q1 (2026-10-08)
   allows a listener only when the user asks and a probe allows the bind.
-- Read: `docs/design.md:252-254` allows a listener on the far side. The relay
+- Read: `docs/design.md:253-255` allows a listener on the far side. The relay
   is a listener that podssh does not run: a node name takes operator
   sessions (`docs/relay.md:192-204`).
 - Read in the report of GitHub #18, not verified here: sandhole publishes
@@ -1163,7 +1163,7 @@ of 2026-10-08 (code at `3ee70dc`).
 ## Problem
 
 `podssh serve` runs with no passwd entry and no `/etc/shells`
-(`docs/ROADMAP.md:176-181`), so no user database names a shell. A shell that
+(`docs/ROADMAP.md:177-182`), so no user database names a shell. A shell that
 does not exist lets the login succeed, then ends the session at once, with
 no reason (`docs/target-environment.md:63-64`).
 

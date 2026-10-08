@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**251 entries: 204 open, 0 partial, 7 blocked, 40 done.**
+**251 entries: 203 open, 0 partial, 7 blocked, 41 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 109 | 0 | 3 | 32 | 144 |
+| P2 | 108 | 0 | 3 | 33 | 144 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 204 | 0 | 7 | 40 | 251 |
+| **All** | 203 | 0 | 7 | 41 | 251 |
 
 ## Entries
 
@@ -138,7 +138,7 @@ repository and CI).
 | [T-062](relay.md) | P3 | S | backlog | measurement | open | Measure whether the relay's backpressure close (1013) operates |
 | [T-063](ws.md) | P2 | S | M4 | defect | done | W10: the frame decoder does not check a received control frame |
 | [T-064](ws.md) | P3 | S | M4 | defect | open | W13: `OsRng::fill_bytes` panics when the system gives no random bytes |
-| [T-065](ws.md) | P2 | S | M4 | defect | open | W14: `probe::PrintChain` accepts each certificate, and is a public export |
+| [T-065](ws.md) | P2 | S | M4 | defect | done | W14: `probe::PrintChain` accepts each certificate, and is a public export |
 | [T-066](ws.md) | P2 | M | M4 | feature | open | A `rustls::ClientConfig` that the caller supplies, for podbox |
 | [T-067](ws.md) | P2 | M | backlog | feature | open | TLS 1.2, for intercepting proxies |
 | [T-068](ws.md) | P3 | S | M4 | feature | open | Plain `ws://` to loopback, for tests only |

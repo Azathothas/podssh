@@ -1,7 +1,7 @@
 This file holds the work on `podssh ts`: the command in `crates/podssh-cli/src/ts.rs`, the adapter
 crate crates/podssh-ts/, and the fork vendor/tailscale-rs with its patches in vendor/patches/
 (`vendor/tailscale-rs/LOCAL-PATCHES.md`). It has the rows C2, C3 and C9 of the former defects page
-(`git show 3ee70dc:docs/defects.md`) and the Tailscale item of M8 (`docs/ROADMAP.md:242-245`). All
+(`git show 3ee70dc:docs/defects.md`) and the Tailscale item of M8 (`docs/ROADMAP.md:243-246`). All
 of it is behind the cargo feature `ts`: the default binary refuses `podssh ts` with exit 70. The
 fork builds aws-lc and uses much memory, so run one build at a time with `CARGO_BUILD_JOBS=4`
 (`AGENTS.md`, section 4). The fork's own tests run in the build image through
@@ -207,7 +207,7 @@ exits, the node must leave the device list of the tailnet in 60 s.
 
 # T-103: The DERP dial of the Tailscale fork does not use the proxy
 
-**Source:** `docs/ROADMAP.md:242-245` ("first repair its DERP dial, which does not use the proxy").
+**Source:** `docs/ROADMAP.md:243-246` ("first repair its DERP dial, which does not use the proxy").
 Confirmed here on `3ee70dc` by reading the fork and the command.
 **Category:** defect
 **Milestone:** M8
@@ -235,7 +235,7 @@ WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:135-141`)
 
 Read: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs:200-213`),
 against the manual (`crates/podssh-cli/src/man/facts.rs:45-49`), the rule at
-`docs/target-environment.md:68-71` and `SECURITY.md:40-43`. A URL with no port means 80 in podssh
+`docs/target-environment.md:68-71` and `SECURITY.md:43-46`. A URL with no port means 80 in podssh
 (`crates/podssh-ws/src/dial.rs:66`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:39-41`).
 Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:25-26`).
 
@@ -273,7 +273,7 @@ the order of `crates/podssh-ws/src/dial.rs:153`. Live: with `HTTPS_PROXY` naming
 
 # T-104: `podssh ts` connects again after a drop
 
-**Source:** `docs/ROADMAP.md:242-245` ("and its missing reconnection"). Read here on `3ee70dc` in
+**Source:** `docs/ROADMAP.md:243-246` ("and its missing reconnection"). Read here on `3ee70dc` in
 the fork, and in kameo 0.21.1, the fork's actor crate, in the local cargo registry.
 **Category:** feature
 **Milestone:** M8
@@ -405,7 +405,7 @@ refusal. Live, with a `ts` build: an ephemeral node with a new state file exits 
 
 # T-106: The live test of `podssh ts` with two nodes
 
-**Source:** `docs/ROADMAP.md:242-245` ("then the tests with two nodes"), `docs/tailscale.md:17`.
+**Source:** `docs/ROADMAP.md:243-246` ("then the tests with two nodes"), `docs/tailscale.md:17`.
 Read here on `3ee70dc`.
 **Category:** measurement
 **Milestone:** M8
@@ -437,7 +437,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 
 ## Approach
 
-1. Start after T-103, T-104 and T-105 (`docs/ROADMAP.md:242-245`).
+1. Start after T-103, T-104 and T-105 (`docs/ROADMAP.md:243-246`).
 2. Make two state files once, outside the repository, and keep them. For the allowlist, print only
    the node key prefix of each (`crates/podssh-ts/src/status.rs:7-22`).
 3. Node A: a new example, crates/podssh-ts/examples/ts_echo.rs, in `relay` mode: an echo on the
@@ -590,7 +590,7 @@ model file that no longer exists.
 4. In the fork, hold the key as `Zeroizing<String>` in `Config` and in `Params`, as a new patch
    with its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`.
 5. Correct the comment at `crates/podssh-ts/src/secret.rs:3-5`, and name the tailnet key in the
-   rule at `SECURITY.md:40-43`, in the same commit.
+   rule at `SECURITY.md:43-46`, in the same commit.
 
 Pitfall: `Device::new` takes the key by value (`crates/podssh-ts/src/node.rs:70`), so only the fork
 can clear its copy (step 4).

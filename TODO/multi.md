@@ -266,7 +266,7 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:56-59` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:59-62` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
 
@@ -665,7 +665,7 @@ outlives the session, show it later, or stop it.
 
 ## Premise
 
-- Read: a session ends with its connection (`docs/design.md:171`), and `-f`
+- Read: a session ends with its connection (`docs/design.md:172`), and `-f`
   is refused (`crates/podssh-cli/src/flags.rs:209-210`).
 - Read: tmux is never assumed; T-178 probes it with `command -v tmux`.
 - Read: `podssh serve` (T-107, M5) runs on the far end only where the user
@@ -767,7 +767,7 @@ a ticket, or a tool that asks an AI.
 6. podssh calls no AI service and no network address for this: the program
    decides what to do with the report.
 7. In the same commit: `docs/cli.md` (the hook), the notes of the manual,
-   `SECURITY.md:40-43` (what the report holds), `docs/STATUS.md`.
+   `SECURITY.md:43-46` (what the report holds), `docs/STATUS.md`.
 
 ## Decision
 

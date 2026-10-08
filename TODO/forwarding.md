@@ -5,7 +5,7 @@ of the forwards of a session.
 
 # T-035: `-R`: remote forwarding, each connection made out through the proxy
 
-**Source:** `docs/ROADMAP.md:246-247` (M8) and `docs/cli.md:112-117`; the
+**Source:** `docs/ROADMAP.md:247-248` (M8) and `docs/cli.md:112-117`; the
 VLOD-ZDOV/quic-ssh report in GitHub #22 (item 7) and the cubic-vm/cubic
 report in GitHub #23 (item 7). Read and measured here on `3ee70dc`.
 **Category:** feature
@@ -315,9 +315,9 @@ AF_UNIX.
   (`crates/podssh-cli/src/flags.rs:192-197`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs:145-147`).
 - Read: `AGENTS.md:177-182` (no bind, no listen),
-  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:56-59` ("Nothing
+  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:59-62` ("Nothing
   listens") and `README.md:36` state the rule from before the ruling.
-  `docs/design.md:252-254` already allows a local listener for `pipe` after
+  `docs/design.md:253-255` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.
@@ -614,7 +614,7 @@ Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:38-47`,
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:172-211`,
 `crates/podssh-relay/src/open.rs:261-275`). With `-N`, no command runs, so a
-new connection has no side effect on the server. `docs/design.md:204-209`
+new connection has no side effect on the server. `docs/design.md:205-210`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.
 

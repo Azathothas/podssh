@@ -370,7 +370,7 @@ never pushed on that path (`crates/podssh-transport/src/backpressure/ledger.rs:1
 (`crates/podssh-transport/src/backpressure/ledger.rs:240-252`, compare `:193-204`), so a session
 can pass the 32 MiB budget.
 
-Read: the design removes the module (`docs/design.md:105-106`). The SSH window of 512 KiB is the
+Read: the design removes the module (`docs/design.md:106-107`). The SSH window of 512 KiB is the
 flow control that podssh uses (`docs/relay.md:165-166`).
 
 ## Approach
@@ -385,7 +385,7 @@ flow control that podssh uses (`docs/relay.md:165-166`).
 
 ## Decision
 
-Recommendation: delete the module, because the design already says so (`docs/design.md:105-106`),
+Recommendation: delete the module, because the design already says so (`docs/design.md:106-107`),
 nothing uses it, and its premise contradicts the measured forward path. The alternative, repair
 the two ledger defects and keep it for the reverse legs, lost: the ledger measures local write
 completions, which do not show the relay's queue, so a repaired ledger still paces on the wrong
@@ -456,7 +456,7 @@ lines 53-76, and the test at line 300).
 4. Update `crates/podssh-transport/tests/closes.rs` (lines 129-149) and the texts of
    `crates/podssh-transport/src/error.rs` (lines 170-184). Close this entry in place.
 5. Pitfall: the body comes from the network. Keep it out of format strings and remove control
-   characters before it reaches a terminal (`SECURITY.md:46-49`).
+   characters before it reaches a terminal (`SECURITY.md:49-52`).
 
 ## Decision
 

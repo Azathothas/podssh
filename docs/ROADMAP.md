@@ -158,8 +158,9 @@ podssh. M3 has no release: the one release is `v1.0.0`, in M9
   T-076 (and T-074, T-077). The rules so far: [reverse.md](reverse.md).
 - `podssh-ws`: a `rustls::ClientConfig` that the caller supplies (podbox
   keeps `ring` and TLS 1.2 for intercepting proxies), plain `ws://` on
-  loopback for tests, typed session errors, and `probe::PrintChain` behind a
-  feature: T-066, T-068, T-069, T-065. Also T-063 and T-064.
+  loopback for tests, typed session errors, and `PrintChain` out of the
+  library, in an example, rather than behind a feature: T-066, T-068,
+  T-069, T-065. Also T-063 and T-064.
 - `podssh node NAME TARGET` (a local TCP service through the reverse road),
   and `podssh ssh NODE` and `podssh operator NAME`: T-083, T-084.
 - The idle cut on reverse sockets: T-061.

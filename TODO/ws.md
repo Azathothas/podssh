@@ -1,7 +1,7 @@
 This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP and proxies, TLS
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
-`podssh-ws` item of ROADMAP M4 and `docs/design.md:102-104`, and from GitHub issues. The crate
+`podssh-ws` item of ROADMAP M4 and `docs/design.md:102-105`, and from GitHub issues. The crate
 must build with no C compiler (`scripts/gate.sh:61-69`).
 
 # T-063: W10: the frame decoder does not check a received control frame
@@ -155,13 +155,13 @@ only P-256 (`openssl s_server -groups P-256` in the container gate). Planted def
 # T-065: W14: `probe::PrintChain` accepts each certificate, and is a public export
 
 **Source:** the former defects page (`git show 3ee70dc:docs/defects.md`), row W14 (medium);
-`SECURITY.md:78-80`; the `podssh-ws` item of ROADMAP M4 and `docs/design.md:104` ("behind a
-feature"). Confirmed here on `3ee70dc` by reading the code.
+`SECURITY.md` lines 78-80 at `4e817d7`; the `podssh-ws` item of ROADMAP M4 and `docs/design.md`
+line 104 at `4e817d7` ("behind a feature"). Confirmed here on `3ee70dc` by reading the code.
 **Category:** defect
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -171,30 +171,30 @@ mistake and turn TLS verification off, with no flag and no warning.
 
 ## Premise
 
-Read on `3ee70dc`, the defect holds: `pub mod probe;` (`crates/podssh-ws/src/lib.rs:22`).
-`verify_server_cert` prints the chain and returns `ServerCertVerified::assertion()`
-(`crates/podssh-ws/src/probe.rs:24-39`); both signature checks accept (lines 41-57); a library
-prints to stdout (lines 32-37). Its only user is the example
-`crates/podssh-ws/examples/inspect_peer_chain.rs:25-29`. The module comment says that the test
-suite asserts that the shipped configuration does not use it (`probe.rs:9-12`), but no test
-names `PrintChain`: a search finds it only in `probe.rs`, the example and the documents. Also,
-lines 134 and 178 of `probe.rs` index the certificate with no bound check, so a short
-certificate panics the probe. The shipped configuration calls `.dangerous()` to install the
-WebPKI verifier (`crates/podssh-ws/src/tls.rs:162-166`), so a scan cannot look for that word
-alone.
+Read on `3ee70dc`, the defect holds; the lines below are those of `4e817d7`. `pub mod probe;`
+(`crates/podssh-ws/src/lib.rs` line 22). `verify_server_cert` prints the chain and returns
+`ServerCertVerified::assertion()` (crates/podssh-ws/src/probe.rs, gone since this entry, lines
+24-39); both signature checks accept (lines 41-57); a library prints to stdout (lines 32-37). Its
+only user is the example (`crates/podssh-ws/examples/inspect_peer_chain.rs` lines 25-29). The
+module comment says that the test suite asserts that the shipped configuration does not use it
+(`probe.rs` lines 9-12), but no test names `PrintChain`: a search finds it only in `probe.rs`,
+the example and the documents. Also, lines 134 and 178 of `probe.rs` index the certificate with
+no bound check, so a short certificate panics the probe. The shipped configuration calls
+`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:162-166`), so a scan
+cannot look for that word alone.
 
 ## Approach
 
 1. Move `PrintChain` and its DER helpers into the example
    (`crates/podssh-ws/examples/inspect_peer_chain.rs`), and remove `pub mod probe;`. Keep each
    file under 500 lines.
-2. Add the test that `probe.rs:9-12` promised: a scan of the source of `podssh-ws`,
+2. Add the test that `probe.rs` (lines 9-12) promised: a scan of the source of `podssh-ws`,
    `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:219-238`
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
-4. Change in the same commit: `SECURITY.md:78-80` (the gap is closed), `docs/design.md:104`,
-   and `docs/STATUS.md` (Components, `podssh-ws`).
+4. Change in the same commit: `SECURITY.md` (lines 78-80 at `4e817d7`: the gap is closed),
+   `docs/design.md` (line 104 at `4e817d7`), and `docs/STATUS.md` (Components, `podssh-ws`).
 
 ## Decision
 
@@ -213,6 +213,34 @@ cargo build -p podssh-ws --examples
 
 The scan passes on the tree, and the example still builds. Planted defect: add an
 `impl ServerCertVerifier` to `crates/podssh-ws/src/tls.rs`; the scan fails and names the file.
+
+## Done
+
+2026-10-09, in the commit "No crate carries a verifier that accepts each certificate".
+
+- `PrintChain` and its DER helpers moved into `crates/podssh-ws/examples/inspect_peer_chain.rs`;
+  crates/podssh-ws/src/probe.rs and `pub mod probe;` are gone, so no build of the library
+  contains them.
+- `crates/podssh-ws/tests/no_permissive_verifier.rs` (new) scans the `src` of each crate of the
+  workspace (166 files; it fails when it reads 100 or fewer) for `ServerCertVerifier for` (an
+  impl, however the trait is named), `set_certificate_verifier` and
+  `ServerCertVerified::assertion`, and names each file. The shipped configuration installs its
+  WebPKI verifier with `with_custom_certificate_verifier`, which the scan allows.
+- In the example: the two unchecked indexes use `get`, and a field that a short certificate does
+  not hold prints "cannot read". A defect found while moving it is repaired too: the walk to the
+  `signatureAlgorithm` began at offset `0x30` (the tag) instead of 0, so it read whatever
+  SEQUENCE sat at byte 48. Three tests in the example (`cargo test -p podssh-ws --example
+  inspect_peer_chain`). Against the live relay it read the chain of three certificates:
+  ecdsa-with-SHA256, ecdsa-with-SHA384 and sha256WithRSAEncryption.
+- `SECURITY.md` (the design rule on TLS says so; the gap is gone), `docs/design.md`,
+  `docs/ROADMAP.md` (M4: out of the library, not behind a feature) and `docs/STATUS.md`.
+- Prove: `CC=/nonexistent CXX=/nonexistent cargo test -p podssh-ws`: 143 passed, 0 failed, 2
+  ignored. `cargo build -p podssh-ws --examples`: no warning. `grep -rn PrintChain
+  crates/podssh-ws/src`: exit 1, no line. `cargo test --no-fail-fast`: 796 passed, 0 failed,
+  7 ignored.
+- Plant: `// impl rustls::client::danger::ServerCertVerifier for Planted {}` added to
+  `crates/podssh-ws/src/tls.rs`: the scan failed and named that file; restored, it passed. The
+  first form of the scan looked for `impl ServerCertVerifier` and would have missed that path.
 
 # T-066: A `rustls::ClientConfig` that the caller supplies, for podbox
 
@@ -257,7 +285,7 @@ Read: `open_tls` builds the trust anchors and the configuration on each call
 5. `podssh-ws` must not depend on `ring`, also not in its tests: the gate builds the tests with
    no C compiler. The tests make the caller's configuration with podssh's own provider.
 6. The default stays `Trust`, so the binary does not change.
-7. Change `docs/design.md:102-104` and `docs/architecture.md` in the same commit.
+7. Change `docs/design.md:102-105` and `docs/architecture.md` in the same commit.
 
 ## Prove
 

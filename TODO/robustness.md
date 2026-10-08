@@ -53,7 +53,7 @@ compiler.
    consumes at most its input, and a control frame has FIN and 125 bytes or
    fewer (fails until T-063); `forward_path` after `parse_relay_list` has the
    form `/connect/HOST/PORT`; `one_line` leaves no control character
-   (`SECURITY.md:46-49`); `Reassembler::push` stays under a stated limit
+   (`SECURITY.md:49-52`); `Reassembler::push` stays under a stated limit
    (fails until T-096); the command line target calls `parse`, never the
    dispatch, so no target reaches the network.
 3. Reach a private parser through a wrapper under `#[cfg(fuzzing)]`, which
@@ -199,7 +199,7 @@ Read:
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
-  peer (`SECURITY.md:46-49`).
+  peer (`SECURITY.md:49-52`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
   discipline (`docs/terminal.md:78-121`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
@@ -317,7 +317,7 @@ Read, the bounds today:
    plus a margin; the check fails above it.
 5. Give `known_hosts` a read limit (16 MiB, far above a real file) with a
    message that names the file, or state in the table that it has none.
-6. In M6, the replay buffer (4 to 16 MiB, `docs/design.md:189-190`; T-152)
+6. In M6, the replay buffer (4 to 16 MiB, `docs/design.md:190-191`; T-152)
    joins the table.
 
 ## Prove
@@ -411,7 +411,7 @@ trip of frames must fail and print the smallest frame that fails.
 
 # T-203: The fault-injection harness: latency, jitter, bandwidth, a new address
 
-**Source:** `docs/design.md:219-221` (layers 2 and 3 need the harness
+**Source:** `docs/design.md:220-222` (layers 2 and 3 need the harness
 extended), and the exit criteria of M6 (`docs/ROADMAP.md`, M6; T-156).
 **Category:** chore
 **Milestone:** M6
