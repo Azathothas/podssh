@@ -144,7 +144,7 @@ rows; the test fails.
 # T-051: `podssh status`: one line of JSON about the state of this host (GitHub #11)
 
 **Source:** GitHub #11 (Nemo-010, 2026-10-08); GitHub #23 ("machine-readable config and
-state"). The operator's ruling on Q8 (2026-10-08): after the beta and before M4, with T-049,
+state"). The operator's ruling on Q8 (2026-10-08): after M3 and before M4, with T-049,
 T-050, T-012 and T-052. Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog

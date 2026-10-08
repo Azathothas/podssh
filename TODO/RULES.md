@@ -107,7 +107,7 @@ citations in the same change. The checker tests only that the line exists
 
 ## 3. Decisions that are not discussed again
 
-- The milestone order: M3 (the beta), then M4, M5 and M6
+- The milestone order: M3, then M4, M5 and M6
   (`docs/decisions.md`, 2026-10-08).
 - The work record is this todo model, and its checker is Rust code in the
   gate, with no shell scripts for it (the operator, 2026-10-08).

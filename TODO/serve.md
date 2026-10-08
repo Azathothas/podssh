@@ -1,12 +1,12 @@
 This file holds the work for `podssh serve`: the SSH server in the process for
-a host whose only egress is the relay (milestone M5, `docs/ROADMAP.md:177-204`),
+a host whose only egress is the relay (milestone M5, `docs/ROADMAP.md:172-199`),
 and the server features in the backlog. No server code exists yet. T-107
 decides where it goes, and each later entry builds on it. T-222 finds the
 shell that T-108 runs.
 
 # T-107: `podssh serve`: the russh server, its host key in a state file, and authorized keys
 
-**Source:** `docs/ROADMAP.md:179-184` (M5), `docs/design.md:134-138`; GitHub #20
+**Source:** `docs/ROADMAP.md:174-179` (M5), `docs/design.md:134-138`; GitHub #20
 (Nemo-010, 2026-10-08: bssh-server and tty7 as references).
 **Category:** feature
 **Milestone:** M5
@@ -84,7 +84,7 @@ accepts each key fails. With no key, the static binary (`$BIN`) exits 78.
 
 # T-108: `podssh serve`: exec, a shell and the environment, as the sandbox's user
 
-**Source:** `docs/ROADMAP.md:179-184` ("It supplies exec"),
+**Source:** `docs/ROADMAP.md:174-179` ("It supplies exec"),
 `docs/target-environment.md:37-44`; GitHub #20 (Nemo-010, 2026-10-08).
 **Category:** feature
 **Milestone:** M5
@@ -158,7 +158,7 @@ it; a planted serve that passes its whole environment fails that check.
 
 # T-109: `podssh serve`: direct-tcpip into the cage
 
-**Source:** `docs/ROADMAP.md:179-184` ("direct-tcpip into the cage").
+**Source:** `docs/ROADMAP.md:174-179` ("direct-tcpip into the cage").
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -223,7 +223,7 @@ planted rejection with no reason fails that last check.
 
 # T-110: `podssh serve`: a real pty when `/dev/ptmx` exists
 
-**Source:** `docs/ROADMAP.md:185-190`, `docs/design.md:139-143`,
+**Source:** `docs/ROADMAP.md:180-185`, `docs/design.md:139-143`,
 `docs/terminal.md:45-55`; GitHub #20 (bound every PTY wait).
 **Category:** feature
 **Milestone:** M5
@@ -293,7 +293,7 @@ serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 
 # T-111: `podssh serve` with no `/dev/ptmx`: the line discipline, and Ctrl-C to the child's process group
 
-**Source:** `docs/ROADMAP.md:185-190`, `docs/design.md:139-143`,
+**Source:** `docs/ROADMAP.md:180-185`, `docs/design.md:139-143`,
 `docs/decisions.md:43`; GitHub #20 (fux line-discipline notes).
 **Category:** feature
 **Milestone:** M5
@@ -366,7 +366,7 @@ shell's pid and not its group fails the 15 s check.
 
 # T-112: An SFTP server in `podssh serve`
 
-**Source:** `docs/ROADMAP.md:191`, `docs/design.md:144-148`; GitHub #20
+**Source:** `docs/ROADMAP.md:186`, `docs/design.md:144-148`; GitHub #20
 (tty7 issue #1126: bound every SFTP wait); GitHub #21 (bssh pipelined SFTP).
 **Category:** feature
 **Milestone:** M5
@@ -384,7 +384,7 @@ default since OpenSSH 9.0), need an SFTP subsystem on the server.
 ## Premise
 
 - Read: no SFTP code exists, and `Cargo.lock` has no `russh-sftp`.
-  `docs/ROADMAP.md:191` names `russh-sftp` for the client and the server.
+  `docs/ROADMAP.md:186` names `russh-sftp` for the client and the server.
 - Read: russh gives a channel as a byte stream (`Channel::into_stream`), and
   `subsystem_request` must answer (`Eugeny/russh:russh/src/server/mod.rs`,
   lines 686-696).
@@ -430,7 +430,7 @@ A planted write handler that drops the last byte fails the digest check.
 
 # T-113: M5 exit: a usable shell and 200 MiB each way from a sealed sandbox
 
-**Source:** `docs/ROADMAP.md:200-204` (the exit criteria of M5).
+**Source:** `docs/ROADMAP.md:195-199` (the exit criteria of M5).
 **Category:** measurement
 **Milestone:** M5
 **Priority:** P2
@@ -450,10 +450,10 @@ out with matching digests.
   T-079), and the operator connects through the relay (T-084).
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:112-116`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
-  `docs/STATUS.md:121`). With no pty device, no podssh code can give the child
+  `docs/STATUS.md:122`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:42`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:128`; measured: `docs/STATUS.md:129`). 200 MiB each way
+  (`docs/relay.md:128`; measured: `docs/STATUS.md:130`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:13-19`).
@@ -929,8 +929,8 @@ with no privileges needs a way that the host allows, found by a probe.
 ## Premise
 
 - Read: podssh never assumes a tool or a privilege; it starts a program only
-  when a probe found it (`AGENTS.md:170-182`).
-- Read: a credential never goes on argv or into output (`AGENTS.md:147-150`).
+  when a probe found it (`AGENTS.md:175-187`).
+- Read: a credential never goes on argv or into output (`AGENTS.md:152-155`).
   The command line of a unit file is argv, so it must hold no token.
 - Read in the reports of GitHub #20 and #18, not verified here: tty7, zuko
   and iroh-ssh install services, and iroh-ssh adds a firewall rule (which
@@ -986,7 +986,7 @@ own scope; serve does nothing like it.
 ## Premise
 
 - Read: podssh must not assume systemd, and starts a program only when a probe
-  found it (`AGENTS.md:170-182`, `docs/target-environment.md:90-92`).
+  found it (`AGENTS.md:175-187`, `docs/target-environment.md:90-92`).
 - Read: T-110 and T-111 start each child with `setsid`, in serve's cgroup.
 - Read in the report of GitHub #19, not verified here: ssh-obi moves its pty
   children into a transient scope when systemd is there, and works without
@@ -1104,7 +1104,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:172-177`, `docs/architecture.md:86-93`).
+  (`AGENTS.md:177-182`, `docs/architecture.md:86-93`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010). doctor binds a
   TCP and an AF_UNIX socket to test the host, and closes them at once
@@ -1130,7 +1130,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:172-177` and `docs/architecture.md:86-93`, which then name this
+   `AGENTS.md:177-182` and `docs/architecture.md:86-93`, which then name this
    exception and the ruling.
 
 ## Prove
@@ -1161,7 +1161,7 @@ of 2026-10-08 (code at `3ee70dc`).
 ## Problem
 
 `podssh serve` runs with no passwd entry and no `/etc/shells`
-(`docs/ROADMAP.md:179-184`), so no user database names a shell. A shell that
+(`docs/ROADMAP.md:174-179`), so no user database names a shell. A shell that
 does not exist lets the login succeed, then ends the session at once, with
 no reason (`docs/target-environment.md:63-64`).
 
@@ -1172,7 +1172,7 @@ no reason (`docs/target-environment.md:63-64`).
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
-- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:121`):
+- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:122`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
   (`crates/podssh-cli/src/doctor/host.rs:162-164`).
@@ -1223,7 +1223,7 @@ crates/podssh-ssh/tests/serve_shell.rs gives the function a directory `sh`,
 a data file `dash` (mode 0644), a data file with mode 0755 (the spawn fails),
 a link to a missing file and a good shell: each failure is named, and the
 good shell wins. A planted `exists()` test fails the directory case. In the
-gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:95`) is
+gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:96`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
 # T-248: A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space
@@ -1250,10 +1250,10 @@ criterion of M5 (T-113) needs them.
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
   (`crates/podssh-cli/src/doctor/unix.rs:78-93`). Both real sandboxes have no
-  `/dev/ptmx` (`docs/STATUS.md:121`), and the target has no `/dev/pts`
+  `/dev/ptmx` (`docs/STATUS.md:122`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp
-  filter (`docs/STATUS.md:106`). With `NoNewPrivs=1`, a process can add a
+  filter (`docs/STATUS.md:107`). With `NoNewPrivs=1`, a process can add a
   filter of its own; a filter is inherited by each child.
 - Read, not measured here: for a program, a tty is the success of the tty
   `ioctl` calls on its descriptors. musl's `isatty` calls `TIOCGWINSZ`;

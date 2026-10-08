@@ -11,9 +11,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   of one. `TODO/issues.md` maps the GitHub issues. The writers of the
   entries read the code at each cited line, and found more defects; each is
   an entry (T-230 to T-248).
-- **The beta (M3).** Measured in two real sandboxes on 2026-10-08 (T-001,
-  done). The sandbox runs found defects in podssh and in the measurement
-  script. The work order below does them before the tag (T-002).
+- **M3.** Measured in two real sandboxes on 2026-10-08 (T-001, done). The
+  sandbox runs found defects in podssh and in the measurement script; the
+  work order below does them first. There is one release only: `v1.0.0`, at
+  the end (T-250).
 - **GitHub.** 36 issues on 2026-10-08. #1, #4, #5 and #16 are closed by their
   commits (T-014, T-015, T-016, T-017). #15 is repaired in `eacd94e` and waits
   for a measurement in a sandbox (T-005). The feature requests #18 to #26 are
@@ -40,7 +41,7 @@ cargo 1.98.0 and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 250 entries: 236 open, 1 partial, 6 blocked, 7 done.
+`TODO/INDEX.md` holds 249 entries: 235 open, 1 partial, 6 blocked, 7 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -50,22 +51,21 @@ Finish each entry, close it in place, update this page in the same commit,
 then take the next one. Each session runs unattended until the goal of
 `AGENTS.md` (section 2) is reached or the operator interrupts it.
 
-**M3, then the beta:**
+**M3:**
 
 1. T-006: make `scripts/sandbox-check.sh` report what it measured, so the
    next sandbox run is a record.
 2. The P1 defects: T-007 (bracketed IPv6 literals, which `docs/cli.md`
    documents) and T-057 (a token can go to a relay host that did not mint
    it).
-3. The small defects that a beta user meets first: T-008, T-009, T-010,
+3. The small defects that a user meets first: T-008, T-009, T-010,
    T-011, T-023, T-024, T-230, T-231, T-233, T-234, T-236, T-237, T-238 and
    T-239.
 4. T-003: the decision about the compiled-in roots.
 5. T-005 and T-004, measured in the box (the operator's ruling of
    2026-10-08).
-6. T-002: the beta. The session publishes it.
 
-**After the beta and before M4 (the operator's ruling of 2026-10-08):**
+**After M3 and before M4 (the operator's ruling of 2026-10-08):**
 the surface for agents: T-049, T-050, T-012, T-052 and T-051.
 
 **M4, in this order:** T-071, T-072, T-073, T-075, T-076 (the transport
@@ -75,9 +75,9 @@ T-085 (the exit measurement).
 
 **Then** M5, M6, M7 and M8, each in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"); then each `backlog` entry, in the order
-of the index; then M9: T-218, T-210, T-211, T-250 and T-251. Between
-milestone entries: the `none` entries of `TODO/repo.md`, the highest
-priority first.
+of the index; then M9: T-218, T-210 and T-211, then T-251 (the check, and
+its run before the tag), and last T-250 (the one release). Between milestone
+entries: the `none` entries of `TODO/repo.md`, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180 and T-226.
@@ -89,11 +89,10 @@ it can start.
 
 | Entry | Start condition |
 | --- | --- |
-| T-002 | The M3 entries above are done, and the checks of the beta pass |
 | T-085 | M3 is done, and T-078 to T-084 are done |
 | T-150 | T-112 is done: `podssh serve` has an SFTP server |
 | T-250 | Each entry is done, except the relay's, and the gate is green |
-| T-251 | T-250 has published a release candidate |
+| T-251 | Each entry is done, except the relay's; it runs before the tag of T-250 |
 
 ## Questions for the operator
 

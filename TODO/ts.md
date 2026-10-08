@@ -1,7 +1,7 @@
 This file holds the work on `podssh ts`: the command in `crates/podssh-cli/src/ts.rs`, the adapter
 crate crates/podssh-ts/, and the fork vendor/tailscale-rs with its patches in vendor/patches/
 (`vendor/tailscale-rs/LOCAL-PATCHES.md`). It has the rows C2, C3 and C9 of the former defects page
-(`git show 3ee70dc:docs/defects.md`) and the Tailscale item of M8 (`docs/ROADMAP.md:245-248`). All
+(`git show 3ee70dc:docs/defects.md`) and the Tailscale item of M8 (`docs/ROADMAP.md:240-243`). All
 of it is behind the cargo feature `ts`: the default binary refuses `podssh ts` with exit 70. The
 fork builds aws-lc and uses much memory, so run one build at a time with `CARGO_BUILD_JOBS=4`
 (`AGENTS.md`, section 4). The fork's own tests run in the build image through
@@ -54,7 +54,7 @@ a self node with no home region (`crates/podssh-cli/src/ts.rs:294-327`).
    `crates/podssh-cli/src/ts.rs:305-308`. The default stays fail-fast (`docs/decisions.md:39`).
 4. Apply the same limit to the address wait in `Device::tcp_connect`
    (`vendor/tailscale-rs/src/lib.rs:272-276`). Keep one message and exit 78 for "no map in time".
-5. Correct the two comments, and update `docs/STATUS.md:180` in the same commit.
+5. Correct the two comments, and update `docs/STATUS.md:181` in the same commit.
 
 ## Prove
 
@@ -70,7 +70,7 @@ The new file crates/podssh-ts/tests/netmap_wait.rs gives the limit a future that
 wait. Plant: await with no limit; an outer `tokio::time::timeout` must then fail the test. An
 offline test cannot reach the fork's queue: with a silent control server, the start itself waits
 (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:79-89`). The second command is the feature
-suite (226 passed, `docs/STATUS.md:194`). The third is live, with a `ts` build, while no map comes
+suite (226 passed, `docs/STATUS.md:195`). The third is live, with a `ts` build, while no map comes
 (`docs/tailscale.md:10-11`): it must print `exit=78` after about 20 s, not `exit=124`.
 
 # T-101: C3: a local end of input cuts the reply in the `podssh-ts` pipe
@@ -114,7 +114,7 @@ The relay closes a half-closed forward session after 15 s with no bytes from the
    stream. Name the 15 s as a constant: the value of the relay's rule.
 3. Report exact counts in both directions (`crates/podssh-ts/src/pipe.rs:37-52`). A closed stdout is
    a clean end with exit 0 (`crates/podssh-cli/src/ts.rs:384-401`).
-4. Rewrite the two tests, and update `docs/STATUS.md:184` in the same commit.
+4. Rewrite the two tests, and update `docs/STATUS.md:185` in the same commit.
 
 ## Decision
 
@@ -181,7 +181,7 @@ type says that a register request with an expiry in the past expires the current
 3. `TsNode::shutdown` logs out first when the node is ephemeral, in 5 s at most. `podssh ts` calls
    it at the end of each form, also after an error (`crates/podssh-cli/src/ts.rs:228-235`). Never
    log out a node that is not ephemeral: its allowlist entry is lost (`docs/tailscale.md:23-24`).
-4. Update `docs/tailscale.md` and `docs/STATUS.md:184` in the same commit.
+4. Update `docs/tailscale.md` and `docs/STATUS.md:185` in the same commit.
 
 ## Decision
 
@@ -207,7 +207,7 @@ exits, the node must leave the device list of the tailnet in 60 s.
 
 # T-103: The DERP dial of the Tailscale fork does not use the proxy
 
-**Source:** `docs/ROADMAP.md:245-248` ("first repair its DERP dial, which does not use the proxy").
+**Source:** `docs/ROADMAP.md:240-243` ("first repair its DERP dial, which does not use the proxy").
 Confirmed here on `3ee70dc` by reading the fork and the command.
 **Category:** defect
 **Milestone:** M8
@@ -252,7 +252,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:105-120`), so apply `NO_PROXY` for each host in
    the new function.
 4. Update `crates/podssh-cli/src/flags.rs:281-282`, `docs/tailscale.md:25-26` and
-   `docs/STATUS.md:184` in the same commit.
+   `docs/STATUS.md:185` in the same commit.
 
 ## Prove
 
@@ -273,7 +273,7 @@ the order of `crates/podssh-ws/src/dial.rs:153`. Live: with `HTTPS_PROXY` naming
 
 # T-104: `podssh ts` connects again after a drop
 
-**Source:** `docs/ROADMAP.md:245-248` ("and its missing reconnection"). Read here on `3ee70dc` in
+**Source:** `docs/ROADMAP.md:240-243` ("and its missing reconnection"). Read here on `3ee70dc` in
 the fork, and in kameo 0.21.1, the fork's actor crate, in the local cargo registry.
 **Category:** feature
 **Milestone:** M8
@@ -319,7 +319,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:68-70`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:184` and `crates/podssh-cli/src/man/notes.rs:84-87`.
+   `docs/tailscale.md`, `docs/STATUS.md:185` and `crates/podssh-cli/src/man/notes.rs:84-87`.
 
 ## Decision
 
@@ -387,7 +387,7 @@ the relay. So a refused node can still print a status line and exit 0. This wide
    first, and `relay` mode prints a status line only with a connected home region.
 4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs:269-281`),
    and remove the old comment at `crates/podssh-cli/src/ts.rs:312-316`.
-5. Add the patch and its row, and update `docs/tailscale.md:12-14` and `docs/STATUS.md:184`.
+5. Add the patch and its row, and update `docs/tailscale.md:12-14` and `docs/STATUS.md:185`.
 
 ## Prove
 
@@ -405,7 +405,7 @@ refusal. Live, with a `ts` build: an ephemeral node with a new state file exits 
 
 # T-106: The live test of `podssh ts` with two nodes
 
-**Source:** `docs/ROADMAP.md:245-248` ("then the tests with two nodes"), `docs/tailscale.md:17`.
+**Source:** `docs/ROADMAP.md:240-243` ("then the tests with two nodes"), `docs/tailscale.md:17`.
 Read here on `3ee70dc`.
 **Category:** measurement
 **Milestone:** M8
@@ -437,7 +437,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 
 ## Approach
 
-1. Start after T-103, T-104 and T-105 (`docs/ROADMAP.md:245-248`).
+1. Start after T-103, T-104 and T-105 (`docs/ROADMAP.md:240-243`).
 2. Make two state files once, outside the repository, and keep them. For the allowlist, print only
    the node key prefix of each (`crates/podssh-ts/src/status.rs:7-22`).
 3. Node A: a new example, crates/podssh-ts/examples/ts_echo.rs, in `relay` mode: an echo on the
@@ -448,7 +448,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    same port. The pipe must go on, and stderr must show the drop and the new connection.
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
-6. Record each result with its date in `docs/STATUS.md:51`, `docs/tailscale.md:8-19` and
+6. Record each result with its date in `docs/STATUS.md:52`, `docs/tailscale.md:8-19` and
    `crates/podssh-cli/src/man/notes.rs:84-87`.
 
 ## Prove

@@ -156,7 +156,7 @@ leave a short or wrong file under the destination's name.
     (`crates/podssh-cli/src/flags.rs:426`) goes and `DISPATCHED`
     (`crates/podssh-cli/tests/flag_table.rs:86`) gets `cp`; update
     `crates/podssh-cli/tests/binary_streams.rs:179-195`, the manual,
-    `docs/cli.md` and `docs/STATUS.md:48`.
+    `docs/cli.md` and `docs/STATUS.md:49`.
 
 ## Decision
 
@@ -205,8 +205,8 @@ a script expects, and its login shell may not be a POSIX shell.
 
 - Read: an exec with no pty carries bytes unchanged: 262144, 262145 and
   5,000,000 bytes up and back with equal digests on OpenSSH and Dropbear
-  (`docs/STATUS.md:57`, `scripts/interop.sh:130-142`), and 300 KB up and
-  5 MB down through the relay (`docs/STATUS.md:58`).
+  (`docs/STATUS.md:58`, `scripts/interop.sh:130-142`), and 300 KB up and
+  5 MB down through the relay (`docs/STATUS.md:59`).
 - Read: a command goes as one string, never as a shell request
   (`crates/podssh-ssh/src/options.rs:63-64`), with no pty when stdin is not
   a terminal (`crates/podssh-ssh/src/session.rs:35-45`).
@@ -280,7 +280,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:130`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:131`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -367,7 +367,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:129`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:130`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -476,7 +476,7 @@ user must know this before the move starts.
 6. Directories wait for T-143 (exit 64); two local paths exit 64 (T-134).
 7. Same commit: the `mv` row of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs:427`), the manual, `docs/cli.md` and
-   `docs/STATUS.md:48`.
+   `docs/STATUS.md:49`.
 
 ## Prove
 
@@ -609,7 +609,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); for
   the forward path, `docs/relay.md:136-140` gives 2 MiB, `1013` and no drop.
   The window can grow only after that is settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:128`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:129`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -715,7 +715,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:128`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:129`).
 
 ## Premise
 
@@ -894,7 +894,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:128`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:129`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 

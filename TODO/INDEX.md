@@ -40,7 +40,7 @@ repository and CI).
 
 ## The order, and the argument for it
 
-1. The milestones go in the decided order: M3 (the beta), then M4, M5 and
+1. The milestones go in the decided order: M3, then M4, M5 and
    M6 (`docs/decisions.md`). M7 and M8 come after them, then the `backlog`
    entries, then M9 (`v1.0.0`).
 2. In a milestone: P0, then P1, then P2, then P3. At one priority, an S entry
@@ -49,7 +49,7 @@ repository and CI).
    T-071 to T-076 before the node runner T-079, and the line discipline
    defects T-125 to T-129 before T-111.
 4. The operator scheduled each `backlog` entry after M8, and the surface
-   for agents (T-049, T-050, T-012, T-052 and T-051) after the beta and
+   for agents (T-049, T-050, T-012, T-052 and T-051) after M3 and
    before M4 (`docs/decisions.md`, 2026-10-08): those entries are small, and
    the testers asked for them.
 5. `none` entries (the repository and CI) go between milestone entries, the
@@ -61,22 +61,21 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 236 open, 1 partial, 6 blocked, 7 done.**
+**249 entries: 235 open, 1 partial, 6 blocked, 7 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 6 | 1 | 0 | 3 | 10 |
+| P1 | 5 | 1 | 0 | 3 | 9 |
 | P2 | 137 | 0 | 2 | 3 | 142 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 236 | 1 | 6 | 7 | 250 |
+| **All** | 235 | 1 | 6 | 7 | 249 |
 
 ## Entries
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
 | [T-001](beta.md) | P1 | M | M3 | measurement | done | Measure podssh in the operator's real sandbox |
-| [T-002](beta.md) | P1 | M | M3 | release | open | Publish v0.1.0-beta.1 |
 | [T-003](beta.md) | P2 | S | M3 | research | open | Decide how the compiled-in root certificates get updates in released binaries |
 | [T-004](beta.md) | P2 | S | M3 | measurement | open | Interactive use over `-tt` from a box like the sandbox: vi, less, top and Ctrl-C |
 | [T-005](beta.md) | P1 | S | M3 | defect | partial | A prompt never waits for ever on a `/dev/tty` with nobody behind it (GitHub #15) |

@@ -88,10 +88,11 @@ The client is `russh` with the `aws-lc-rs` backend
       Windows.
 - The same from the operator's real sandbox: T-004 (M3).
 
-## M3: Beta, with nothing single-point and nothing assumed
+## M3: Nothing single-point and nothing assumed
 
-The first beta waits for M3 ([decisions.md](decisions.md)). After M3, no
-single relay host, missing DNS or silent stop can stop podssh.
+After M3, no single relay host, missing DNS or silent stop can stop
+podssh. M3 has no release: the one release is `v1.0.0`, in M9
+([decisions.md](decisions.md)).
 
 - [x] **Relay hosts with failover** (`podssh-relay`). `--relay-host` and
       `PODSSH_RELAY` take an ordered list. By default, the main host comes
@@ -126,13 +127,7 @@ single relay host, missing DNS or silent stop can stop podssh.
 - [x] **Measured in the operator's real sandbox** (T-001): two sandboxes
       on 2026-10-08, with `sh scripts/sandbox-check.sh`, failover and
       throughput. See STATUS.
-- **Publication**: T-002. Tag `v0.1.0-beta.1`. The release workflow builds
-  the static musl binaries for x86_64 and aarch64 and the Windows binary,
-  checks them, and publishes them with `SHA256SUMS` and the notes in
-  `docs/releases/v0.1.0-beta.1.md`. Before the tag: update the notes with
-  the sandbox result, and run the commands of the README on a clean host
-  with the release workflow's binary.
-- **Before the tag**, the entries that the sandbox runs found: T-005, T-006,
+- The entries that the sandbox runs found: T-005, T-006,
   T-007, T-008, T-009, T-010, T-011, T-023, T-024 and T-057; and T-004
   (interactive use from a sandbox).
 - [x] The git history was replaced by one commit before the repository went
@@ -264,7 +259,8 @@ skipped.
 - More release targets: macOS x86_64 and aarch64, Linux armv7 and riscv64
   (static), and Windows aarch64, each built and run in CI: T-218.
 - Provenance and signed checksums for each binary: T-210, T-211.
-- A release candidate, then `v1.0.0`: T-250.
+- The check from end to end before the tag (T-251), then `v1.0.0`, tagged
+  once: T-250.
 
 **Exit criteria** (T-251)
 

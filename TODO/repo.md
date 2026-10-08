@@ -206,10 +206,11 @@ Read:
 python scripts/check-repo.py               # the image is pinned, in one place
 sh scripts/dev.sh images                   # the pinned image runs and prints its rustc
 sh scripts/dev.sh check                    # the gate is green in the pinned image
-gh workflow run release.yml --ref main     # x86_64 and aarch64 build from the same pin
 ```
 
-Each command exits 0, and the run of the release workflow passes. Planted
+Each command exits 0. The release workflow reads the same pin; its build is
+checked once, in the run by hand of M9 before the tag (T-251), not before:
+a release run takes CI from the work (the operator, 2026-10-08). Planted
 defect: write the literal `rust:1-alpine` back into
 `.github/workflows/release.yml`; `check-repo.py` must exit 1 and name the
 file.
@@ -309,7 +310,9 @@ Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
   them (`.github/workflows/release.yml:126-136`).
-  `docs/releases/v0.1.0-beta.1.md` is the only notes file.
+  No notes file exists yet; T-250 writes the first. The notes drafted for a
+  beta that the operator dropped are in git:
+  `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
 - `actions/checkout@v5` fetches one commit by default
   (`.github/workflows/release.yml:115`), which hides the history from a
   generator.
@@ -353,10 +356,11 @@ two reasons.
 ```sh
 git cliff --config cliff.toml --unreleased --strip all > /tmp/changes.md
 test "$(grep -c '^- ' /tmp/changes.md)" -eq "$(git rev-list --count HEAD)"   # no commit dropped
-gh workflow run release.yml --ref main     # the artifact holds the same list
 ```
 
-The count test exits 0. After the first tag, compare with
+The count test exits 0. The release workflow's artifact is checked once, in
+the run by hand of M9 before the tag (T-251), not before: a release run
+takes CI from the work (the operator, 2026-10-08). After the first tag, compare with
 `git rev-list --count TAG..HEAD` instead. Planted defect: give the
 "Documents" parser `skip = true`; the count test must fail.
 
@@ -473,7 +477,7 @@ Read:
    the manual, or teach the drift test about names read at compile time.
 4. One paragraph in the release notes on the Windows binary, which is not
    signed (SmartScreen warns about it).
-5. Do this before T-002, if the operator wants the first beta attested.
+5. Do this before T-250, so that the one release is attested.
 
 ## Prove
 
@@ -511,8 +515,8 @@ Read:
 - `.github/workflows/release.yml:120-125` writes `SHA256SUMS` with
   `sha256sum`, and `.github/workflows/release.yml:126-136` publishes it with
   the binaries. No signature is published.
-- `docs/releases/v0.1.0-beta.1.md:81` tells the user that `SHA256SUMS` holds
-  the sums. `README.md:46-47` gives no step to check a download.
+- The notes drafted for the dropped beta told the user that `SHA256SUMS`
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81). `README.md:46-47` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -648,13 +652,13 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:99-111`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:100-112`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:101-103`: the box runs `probe.sh`, then
   `sandbox-check.sh`, and the script exits with the code of the second.
   `scripts/sandbox-check.sh:45-75` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:104-109` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:106`).
+  in a required property (17 properties, `docs/STATUS.md:107`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:94-98`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:68`) and a mask on
@@ -681,7 +685,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:130`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:131`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -699,7 +703,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:107`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:108`,
 and the job must fail.
 
 # T-214: CI on Windows
@@ -728,8 +732,8 @@ Read:
 - `.github/workflows/release.yml:65-106`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
-- `docs/STATUS.md:193`: 660 tests pass on Windows, run by hand.
-  `docs/STATUS.md:61`: `scripts/interop-conpty.py` passes 14 of 14 against a
+- `docs/STATUS.md:194`: 660 tests pass on Windows, run by hand.
+  `docs/STATUS.md:62`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
   `stty`, `vi`, `less`, `top`, `seq` and `/tmp`.
@@ -747,7 +751,7 @@ Read:
    deletes (see Decision). Run the script with `--direct`; 14 of 14 must pass.
 3. With T-199: score the output with the Windows part of the baseline.
 4. The plant: a podssh that does not restore the mode of the console must
-   fail the three restore checks (as measured by hand, `docs/STATUS.md:61`).
+   fail the three restore checks (as measured by hand, `docs/STATUS.md:62`).
    Run it once in CI, and record it.
 5. docs/STATUS.md cites the CI run for the rows of Windows;
    docs/development.md names the job.
@@ -1024,9 +1028,9 @@ of the binary:
    aws-lc on Windows for ARM64, to measure.
 4. `riscv64gc-unknown-linux-musl`, where the gate's image family builds it.
    `x86_64-unknown-freebsd` stays for later.
-5. For each target: a row in the table of binaries of the release notes (as
-   `docs/releases/v0.1.0-beta.1.md:73-81`), the README, and the attestation of
-   T-210.
+5. For each target: a row in the table of binaries of the release notes,
+   the README, and the attestation of T-210. The draft notes of the dropped
+   beta have such a table (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`).
 
 Invariant: no target ships that no run executed.
 
@@ -1076,7 +1080,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:91-93` states the rule with `CXX`, and
-  `docs/STATUS.md:199` records the measurement. Rule 4 of
+  `docs/STATUS.md:200` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:67-73` runs the plant on each push.
@@ -1107,7 +1111,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:199`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:200`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1383,7 +1387,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:121`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:122`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.

@@ -1,4 +1,4 @@
-This file holds milestone M4, the reverse road (`docs/ROADMAP.md:151-175`): pairing, the node and
+This file holds milestone M4, the reverse road (`docs/ROADMAP.md:146-170`): pairing, the node and
 operator runners and a blocking facade in `podssh-relay`, the move of the codecs, the commands
 `podssh node`, `podssh operator` and `podssh ssh NODE`, and the exit measurement. It also holds the
 backlog work on that road: pairing by a code, node identity, end-to-end encryption, routes,
@@ -9,7 +9,7 @@ and in the pinned contract (`crates/podssh-probe/tests/spec/relay-spec-2026-10-0
 
 # T-078: Pairing in `podssh-relay`: pair, stop and status
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:153-155`); `docs/design.md:89-100` (`pair`, cargo feature
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:148-150`); `docs/design.md:89-100` (`pair`, cargo feature
 `pair`); `docs/relay.md:164-186`. Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -84,7 +84,7 @@ tokens, in one run that prints no token. The gate shows that the feature adds no
 
 # T-079: The node runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:153-161`); `docs/design.md:94-97`; `docs/reverse.md:8-28`; GitHub #19
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:148-156`); `docs/design.md:94-97`; `docs/reverse.md:8-28`; GitHub #19
 (a design input). Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -167,7 +167,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:153-161`); `docs/design.md:94-97`; `docs/reverse.md:30-44`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:148-156`); `docs/design.md:94-97`; `docs/reverse.md:30-44`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -237,7 +237,7 @@ operator's outcome holds all 200 bytes.
 
 # T-081: A blocking facade of `podssh-relay`, for podbox
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:153-155`, `:174-175`); `docs/design.md:98-108`. Read here
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:148-150`, `:174-175`); `docs/design.md:98-108`. Read here
 on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -298,7 +298,7 @@ gate shows the feature adds no C. The podbox side is proved in T-085.
 
 # T-082: Move the codecs of `podssh-transport` into `podssh-relay`
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:156-157`); `docs/design.md:105-106`; the former defects
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:151-152`); `docs/design.md:105-106`; the former defects
 page (`git show 3ee70dc:docs/defects.md`), section "podssh-transport". Read here on `3ee70dc`.
 **Category:** chore
 **Milestone:** M4
@@ -316,13 +316,13 @@ unused. Two crates for one protocol drift: they already disagree on the backoff 
 ## Premise
 
 Read: about 600 lines of `podssh-transport` are used outside its tests (the former defects page),
-and `docs/STATUS.md:181` gives 2.8k source and 2.2k test lines. Only examples use it:
+and `docs/STATUS.md:182` gives 2.8k source and 2.2k test lines. Only examples use it:
 `crates/podssh-cli/examples/live_irc.rs:20-22`, `crates/podssh-cli/examples/live_irc/support.rs:11-16`
 and `crates/podssh-transport/examples/live_forward.rs:23-25`; `podssh-cli` depends on it
 (`crates/podssh-cli/Cargo.toml:34`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
 unused backpressure module goes." (`docs/design.md:105-106`).
 
-Read: the comments of the crate break rule 6 of `AGENTS.md:188-189`: they carry the stop-sign marker,
+Read: the comments of the crate break rule 6 of `AGENTS.md:193-194`: they carry the stop-sign marker,
 session history and line numbers of documents, for example `crates/podssh-transport/src/socket.rs:1-11`
 and `crates/podssh-transport/src/control.rs:3-14`. The close rows cite lines of the pinned contract,
 and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs:45-59`).
@@ -333,18 +333,18 @@ and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs
    and T-080 use the repaired codecs as a dependency until then.
 2. Move into crates/podssh-relay/src/reverse/: `framing.rs` and `framing/legs.rs`, `control.rs`,
    `closes.rs`, the retry parts of `error.rs`, and the name check of T-076, with their tests. Keep
-   each file at 500 lines or fewer (`AGENTS.md:186-187`).
+   each file at 500 lines or fewer (`AGENTS.md:191-192`).
 3. Delete, do not move: the backpressure module (T-074), the `Transport` trait and `backoff.rs`
    (T-077), and `RelayConfig` (`podssh-relay` has `Relay` and `RelayList`,
    `crates/podssh-relay/src/relay.rs:28-50`).
-4. Rewrite the comments of the moved code to `AGENTS.md:188-189`: why, in few words; no markers, no
+4. Rewrite the comments of the moved code to `AGENTS.md:193-194`: why, in few words; no markers, no
    history, no line numbers. Keep the check of the close rows against the pinned copy as a test
    (T-060 decides where the copy lives).
 5. Move the examples to `podssh_relay::open`, the forward path that the commands use. Then remove
    the crate: `Cargo.toml:6`, `Cargo.toml:24`, `Cargo.toml:55-58`, `crates/podssh-cli/Cargo.toml:34`,
    `scripts/gate.sh:61`, `scripts/plant.sh:39`.
-6. Update in the same commit: `AGENTS.md:183-185` and `AGENTS.md:229`, `docs/architecture.md:66` and
-   `:83-93`, `docs/development.md:13-14` and `:211`, `docs/STATUS.md:178`, `:181` and `:191`. The list
+6. Update in the same commit: `AGENTS.md:188-190` and `AGENTS.md:234`, `docs/architecture.md:66` and
+   `:83-93`, `docs/development.md:13-14` and `:211`, `docs/STATUS.md:179`, `:181` and `:191`. The list
    of library crates in `docs/decisions.md:34` is a fact of a decision row: correct it, and move the
    old text to Superseded (the operator's ruling of 2026-10-08).
 
@@ -371,7 +371,7 @@ compiler. Plant: leave one `use podssh_transport` in an example; the build must 
 
 # T-083: `podssh node NAME TARGET`
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:166-167`); `crates/podssh-cli/src/positionals.rs:42`; GitHub #19, and
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:161-162`); `crates/podssh-cli/src/positionals.rs:42`; GitHub #19, and
 GitHub #18 for zuko's doctor (read in the reports, not verified here). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -424,7 +424,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    (`crates/podssh-cli/tests/flag_table.rs:86`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:46`), files in FILES (`:98` there), examples in
    `crates/podssh-cli/src/man/examples.rs:8-40`; update `docs/cli.md`, `docs/reverse.md` and
-   `docs/STATUS.md:47-49`.
+   `docs/STATUS.md:48-50`.
 7. Pitfalls: `podssh man relay` shows the command, and the topic THE RELAY has the same key
    (`crates/podssh-cli/src/man/facts.rs:39`). Never print a token: a test runs the binary with tokens in the
    environment and in the store, and searches stdout and stderr.
@@ -453,7 +453,7 @@ node in front of a public TCP service and reaches it through T-080. Plant: print
 
 # T-084: `podssh operator NAME` and `podssh ssh NODE`
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:166-167`); `crates/podssh-cli/src/flags.rs:391-392`. Measured
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:161-162`); `crates/podssh-cli/src/flags.rs:391-392`. Measured
 here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -520,12 +520,12 @@ cargo test -p podssh-relay --features pair --test reverse_live -- --ignored ssh_
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:58`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:59`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 # T-085: M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox
 
-**Source:** the exit criteria of M4 (`docs/ROADMAP.md:170-175`). Read here on `3ee70dc`.
+**Source:** the exit criteria of M4 (`docs/ROADMAP.md:165-170`). Read here on `3ee70dc`.
 **Category:** measurement
 **Milestone:** M4
 **Priority:** P2
@@ -567,7 +567,7 @@ not here.
 5. The facade of T-081: a test in this repository with two clients that use the blocking facade at
    once, each through the box's proxy. podbox runs its own test when the operator pins the facade.
 6. Record the commands and the results in `docs/STATUS.md` (a section "The reverse road, measured"),
-   and update `docs/ROADMAP.md:170-175`.
+   and update `docs/ROADMAP.md:165-170`.
 
 ## Prove
 
@@ -628,7 +628,7 @@ short code safe.
 3. A meeting point that both reach with no pair: see the Decision.
 4. The code: three words from a fixed list and a number, used once, valid for 10 min. The node shows
    it only on its terminal, never in stdout, a log or argv; the operator types it at a prompt.
-5. A pure-Rust SPAKE2 crate, built under `CC=/nonexistent` before it is chosen (`AGENTS.md:183-185`).
+5. A pure-Rust SPAKE2 crate, built under `CC=/nonexistent` before it is chosen (`AGENTS.md:188-190`).
 6. Pitfalls: limit the attempts at the meeting point; one failed exchange ends the code; check the
    received part as T-076 and T-078 check a pair.
 
@@ -683,7 +683,7 @@ over a trusted channel (`:137-138`); the node chooses what to expose (`:245-246`
 
 Read: `podssh ssh` checks host keys with `known_hosts`, and never records one under the relay's name
 (`SECURITY.md:28-32`, `:50-55`). `podssh serve` keeps its host key in a state file and takes
-authorized keys from a flag or a file (`docs/ROADMAP.md:179-184`, T-107).
+authorized keys from a flag or a file (`docs/ROADMAP.md:174-179`, T-107).
 
 Read in the reports (not verified here): iroh-ssh warns about an ephemeral node key
 (`rustonbsd/iroh-ssh:src/ssh.rs`); GPU-Share keeps an Ed25519 identity in a state directory and a
@@ -759,7 +759,7 @@ The resumable layer of M6 runs under SSH (`docs/design.md:186-198`).
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
 so that the relay cannot read a stream (`willykeenan/warren:src/noise.rs`).
 
-Read: the library crates must build with no C compiler (`AGENTS.md:183-185`, `scripts/gate.sh:61`).
+Read: the library crates must build with no C compiler (`AGENTS.md:188-190`, `scripts/gate.sh:61`).
 
 ## Approach
 
@@ -888,7 +888,7 @@ workloads (`arjun988/GPU-Share`); iroh-ssh has an open request for local discove
 56 of `rustonbsd/iroh-ssh`); cubic names and lists remote state (`cubic-vm/cubic:docs/howto/snapshots.rst`).
 
 Read: the measured sandbox refuses UDP (`docs/target-environment.md:23`), so mDNS cannot work there,
-and podssh must probe before it uses UDP (`AGENTS.md:170-171`).
+and podssh must probe before it uses UDP (`AGENTS.md:175-176`).
 
 ## Approach
 
@@ -980,7 +980,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
    the seam of T-088 and T-089. Spent nonces are create-new private files
    (`crates/podssh-relay/src/cache.rs:213-227`).
 3. Both shapes: an SSHSIG signature in a fixed podssh namespace, which `ssh-keygen -Y verify` can check
-   (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:183-185`).
+   (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:188-190`).
 4. Relations: T-078 makes the pair that a grant protects; T-086 can deliver a grant in place of the
    `connect_token`; T-087 gives the keys that a grant names.
 

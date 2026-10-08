@@ -29,7 +29,8 @@ code 70.
 - podssh fails over between relay hosts, and finds a silent relay in 30 to
   40 s. It works with no DNS.
 - podssh was measured in two real sandboxes on 2026-10-08 (below). Not done
-  in M3: the release (T-002), and the entries that the sandbox runs found.
+  in M3: the entries that the sandbox runs found. The one release is
+  `v1.0.0`, at the end (T-250).
 
 The open work, the defects included, is in [TODO/INDEX.md](../TODO/INDEX.md),
 and its order in [TODO/PROGRESS.md](../TODO/PROGRESS.md). The milestones are

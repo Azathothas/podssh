@@ -1,5 +1,5 @@
-The work of milestone M3, the beta: the run in a real sandbox, the release,
-and the defects that the sandbox run found in its own tools.
+The work of milestone M3: the run in a real sandbox, and the defects that
+the sandbox runs found in podssh and in its own tools.
 
 # T-001: Measure podssh in the operator's real sandbox
 
@@ -80,65 +80,6 @@ sandboxes".
 - Not run there: interactive programs over `-tt` (T-004), the prompt fix of
   `eacd94e` (T-005), and `podssh ts`.
 
-# T-002: Publish v0.1.0-beta.1
-
-**Source:** ROADMAP M3 ("Publication"); `docs/decisions.md` (2026-10-08: the
-beta is tagged and released when M3 is complete).
-**Category:** release
-**Milestone:** M3
-**Priority:** P1
-**Effort:** M
-**Status:** open
-
-## Problem
-
-No release exists. A user can get podssh only as a CI artifact, which expires
-and has no checksums or notes.
-
-## Premise
-
-Read: the release workflow `.github/workflows/release.yml` builds the static
-musl binaries for x86_64 and aarch64 and the Windows binary, checks that the
-Linux ones are static, and publishes them with `SHA256SUMS` and the notes in
-`docs/releases/v0.1.0-beta.1.md`. The notes still say "not yet" for the real
-sandbox (`docs/releases/v0.1.0-beta.1.md:70-71`). The workspace version is
-`0.1.0` (`Cargo.toml:43`), so the binary prints `podssh 0.1.0`, not the tag.
-
-## Approach
-
-1. Do the M3 entries of the work order in `TODO/PROGRESS.md` first.
-2. Update the release notes: the sandbox results (T-001), and the open
-   defects that a beta user can meet, each with its id.
-3. Set the version to `0.1.0-beta.1` in `Cargo.toml`, so that `podssh
-   --version` names the release.
-4. Run the release workflow by hand (`gh workflow run release.yml --ref
-   main`). Run the commands of `README.md` on a clean host with its binary.
-5. Tag `v0.1.0-beta.1` and push the tag. The session gives the go itself
-   (the operator's ruling of 2026-10-08, `docs/decisions.md`).
-6. Check the release: three binaries, `SHA256SUMS`, a prerelease.
-
-## Decision
-
-Recommendation: set the crate version to `0.1.0-beta.1` before the tag,
-because a binary that names another version than its release confuses a bug
-report. The alternative (keep `0.1.0` until the final release) lost because
-the notes and the binary would disagree.
-
-## Prove
-
-```sh
-gh release view v0.1.0-beta.1 --json isPrerelease,assets --jq '.isPrerelease, [.assets[].name]'
-sha256sum -c SHA256SUMS
-./podssh-x86_64-unknown-linux-musl --version
-```
-
-The release is a prerelease with the three binaries and `SHA256SUMS`, each
-checksum matches, and the binary prints `podssh 0.1.0-beta.1`.
-
-## Start condition
-
-The M3 entries of the work order are done, and steps 2 to 4 pass.
-
 # T-003: Decide how the compiled-in root certificates get updates in released binaries
 
 **Source:** ROADMAP M3, open question.
@@ -165,8 +106,9 @@ of compiled-in roots, not their date.
 
 ## Approach
 
-1. Add `webpki-roots` to the Dependabot configuration (T-205), and make a
-   release after each change of the roots.
+1. Add `webpki-roots` to the Dependabot configuration (T-205). Before
+   `v1.0.0`, new roots go into the one release (T-250); after it, a change
+   of the roots makes a patch release (the operator, 2026-10-08).
 2. Make `podssh doctor` print the version of the compiled-in roots, and say
    when they are older than 12 months.
 3. State the rule in `docs/architecture.md` and in the manual's notes: a

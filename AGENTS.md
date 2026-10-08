@@ -28,8 +28,8 @@ interrupts you, or when the goal is reached.
 **The goal.** Each entry of `TODO/` is done, except the entries that wait
 for the relay's operator. Each test passes, and the gate is green in CI.
 `v1.0.0`, the first stable release, is published and verified from end to
-end (T-250, T-251). On the way, publish the beta `v0.1.0-beta.1` when the M3
-entries are done (T-002).
+end (T-250, T-251). It is the one release: no beta, and no release between
+entries.
 
 ### At the start of a session
 
@@ -90,11 +90,16 @@ After a compaction of your context, read this file again, then
 
 ### Releases
 
-- The beta: when the M3 entries of the work order are done, publish
-  `v0.1.0-beta.1` as T-002 says. You give the go.
-- `v1.0.0`: when each other entry is done, except the relay's, publish a
-  release candidate, check it from end to end with no human (T-251), then
-  publish `v1.0.0` (T-250).
+- One release only, at the end: `v1.0.0`, when each other entry is done,
+  except the relay's (T-250). Make no release before it: a release run
+  takes CI from the work.
+- Check it from end to end with no human (T-251): before the tag, on the
+  gate's artifact of the last push and a local build; then tag `v1.0.0`
+  once; then check the published files. A defect found after the tag goes
+  into `v1.0.1`.
+- Run the release workflow only in M9: once by hand before the tag, and once
+  for the tag. An entry before M9 leaves its check of that workflow to the
+  run by hand.
 - [docs/development.md](docs/development.md) (section "Release builds")
   tells how to build and publish.
 
@@ -111,7 +116,7 @@ current.
 | Look up a command, flag, `-o` keyword, variable, file or exit code | `podssh man` (in the repository: `cargo run -q -p podssh-cli -- man --no-pager`) |
 | Build, test, or run the gate | [docs/development.md](docs/development.md) |
 | Measure podssh in a sandbox, or in a box like one | [docs/development.md](docs/development.md) (section "A box like the target sandbox"), [docs/target-environment.md](docs/target-environment.md) |
-| Make a release | [docs/development.md](docs/development.md) (section "Release builds"), [docs/releases/](docs/releases/), T-002 (the beta), T-250 and T-251 (`v1.0.0`) |
+| Make a release | [docs/development.md](docs/development.md) (section "Release builds"), [docs/releases/](docs/releases/), T-250 and T-251 (`v1.0.0`) |
 | Change the command line, `doctor`, `keygen` or the manual | [docs/cli.md](docs/cli.md) (section "The manual"), `crates/podssh-cli/src/flags.rs`, `crates/podssh-cli/src/man/` |
 | Change the SSH client | [docs/cli.md](docs/cli.md), `crates/podssh-ssh/` |
 | Change the terminal behaviour | [docs/terminal.md](docs/terminal.md) |
