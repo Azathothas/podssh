@@ -111,6 +111,10 @@ single relay host, missing DNS or silent stop can stop podssh.
       11 faults).
 - [x] **Interactive use on Windows** (`scripts/interop-conpty.py`, 14
       checks in a real pseudo console).
+- [x] **`podssh man`, the whole manual from the binary.** Text that the
+      binary generates from its own tables, paged on a terminal, with
+      `--no-pager`, `--roff` and one section at a time. Tests check it
+      against the code; the gate renders it with groff and mandoc.
 - [x] **A box like the target sandbox** (`scripts/test_in_box.sh`): a Podman
       box that matches the sandprobe report of the target sandbox. podssh
       passes all its checks in the box.

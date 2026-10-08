@@ -10,11 +10,11 @@ an HTTP proxy is their only way out. podssh needs no root, no `LD_PRELOAD`,
 no installed `ssh`, and no TLS or crypto library of the system.
 
 > [!WARNING]
-> **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh doctor` and
-> `podssh keygen` work. Tests run them against OpenSSH and Dropbear servers,
-> through the live relay, and in a box like the target sandbox. Reverse mode,
-> chat and file copy are not available yet. The measured state is in
-> [docs/STATUS.md](docs/STATUS.md). The plan is in
+> **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh doctor`,
+> `podssh keygen` and `podssh man` work. Tests run them against OpenSSH and
+> Dropbear servers, through the live relay, and in a box like the target
+> sandbox. Reverse mode, chat and file copy are not available yet. The
+> measured state is in [docs/STATUS.md](docs/STATUS.md). The plan is in
 > [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## How it works
@@ -47,9 +47,12 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
    exists, or build one (see "Build"). Make it executable.
 2. Run `podssh doctor`. It tells what the host allows and whether the full
    path works: one `ok`, `FAIL` or `????` line for each check (`????` is a
-   check that could not run). It exits 1 if a check failed. See
-   [docs/cli.md](docs/cli.md#podssh-doctor).
-3. If the host has no working `ssh-keygen`, make a key with podssh:
+   check that could not run). It exits 1 if a check failed.
+3. Run `podssh man`. It is the whole manual: each command, flag, `-o`
+   keyword, variable, file and exit code, with examples. The binary makes it
+   from its own tables and needs nothing else. `podssh man ssh` gives one
+   section; `podssh man --no-pager` writes it all to stdout.
+4. If the host has no working `ssh-keygen`, make a key with podssh:
 
    ```sh
    podssh keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519   # -N '' for no passphrase
@@ -78,7 +81,7 @@ podssh ssh -tt user@example.org < script.txt # a remote pty; local stdin is a pi
   after 180 s with no traffic.
 - `--direct` connects without the relay.
 - The exit codes are those of OpenSSH: the remote status, 128 plus a signal
-  number, or 255 for a failure of podssh. See [docs/cli.md](docs/cli.md).
+  number, or 255 for a failure of podssh. See `podssh man exit-status`.
 
 If the host has an `ssh` client, podssh can be its `ProxyCommand`:
 
@@ -103,16 +106,9 @@ protocols:
 printf 'HEAD / HTTP/1.0\r\nHost: example.com\r\n\r\n' | podssh proxy example.com 80
 ```
 
-podssh reads these variables:
-
-| Variable | Effect |
-| --- | --- |
-| `HTTPS_PROXY`, `https_proxy`, `ALL_PROXY` | Use this HTTP proxy to reach the relay (`CONNECT` with the name, so no local DNS is necessary) |
-| `NO_PROXY`, `no_proxy` | Names that do not use the proxy |
-| `PODSSH_RELAY` | Relay hosts to try in order (`host[:port][,...]`); also `--relay-host` |
-| `PODSSH_RELAY_ADDR` | Addresses to use in place of DNS (`host=ip[,...]`); also `--relay-addr` |
-| `PODSSH_RELAY_TOKEN` | Use this token; do not mint one |
-| `SSL_CERT_FILE` | Trust only these CA certificates; also `--ca-file` |
+`podssh man environment` lists each variable that podssh reads. The usual
+one is `HTTPS_PROXY`: podssh sends the relay's name in `CONNECT`, so it
+needs no DNS through a proxy.
 
 podssh mints a relay token when it first needs one (`POST /v1/mint`, no
 account), and caches it for its lifetime in the user's cache directory. Only
@@ -158,7 +154,7 @@ container. See [docs/development.md](docs/development.md).
 | [docs/design.md](docs/design.md) | What a finished podssh is, and why |
 | [docs/architecture.md](docs/architecture.md) | The crates, the data flow, the design rules |
 | [docs/relay.md](docs/relay.md) | The relay protocol and its limits |
-| [docs/cli.md](docs/cli.md) | The command line, parity with OpenSSH, exit codes, prompts |
+| [docs/cli.md](docs/cli.md) | The rules behind the command line and the manual: parity with OpenSSH, exit codes, prompts |
 | [docs/terminal.md](docs/terminal.md) | Ptys, raw mode, and the line discipline |
 | [docs/target-environment.md](docs/target-environment.md) | What a constrained host allows, and the rules that follow |
 | [docs/decisions.md](docs/decisions.md) | The decisions of the operator |

@@ -1,27 +1,22 @@
-//! The extractors E32's parity gate reads the two renderings with.
-//!
-//! ⛔ **Their own file, because the gate outgrew one.** ⛔ `RULES.md`:80-91:
-//! *"No source file may exceed 500 lines ... split it into modules with names
-//! that say what they hold."* ⛔ This module holds the reading half and
-//! `man_flag_parity.rs` holds the five claims, ⛔ so a reader looking for the
-//! *rule* does not have to walk a parser to find it.
-//!
-//! ⛔ **Nothing here is compiled into the binary.** ⛔ The gate parses the text a
-//! user sees; ⛔ a parser that shipped in `podssh-cli` would be one more thing
-//! that can be wrong in the same place as the emitter.
-#![allow(dead_code)] // each claim below uses a subset.
+//! The readers that the parity gate (`man_flag_parity.rs`) reads the two
+//! renderings with: the `OPTIONS:` blocks of `--help`, and the `Options:`
+//! lists of the text manual. They read the text a user sees, not the tables,
+//! so a renderer that drops or changes a row fails the gate.
+#![allow(dead_code)] // each test uses a subset.
 
 use crate::UNIVERSAL;
-use podssh_cli::flags::{FlagRow, Verb, VERBS};
+use podssh_cli::flags::{availability, Availability, FlagRow, Verb, VERBS};
 use podssh_cli::help;
 use std::collections::BTreeMap;
 
 // ---------------------------------------------------------------- the sections
 
-/// ⛔ `""` is the top level, and every verb follows in `--help` order.
+/// `""` is the top level, then each verb that works in this binary, in the
+/// order of `--help`. A verb that does not work has no option list in the
+/// manual: its section says that it exits 70.
 pub fn sections() -> Vec<(String, Option<&'static Verb>)> {
     let mut out: Vec<(String, Option<&'static Verb>)> = vec![(String::new(), None)];
-    for v in VERBS {
+    for v in VERBS.iter().filter(|v| availability(v) == Availability::Works) {
         out.push((v.name.to_string(), Some(v)));
     }
     out
@@ -35,10 +30,8 @@ pub fn help_text(verb: Option<&'static Verb>) -> String {
     }
 }
 
-/// ⛔ **The flags inside an `OPTIONS:` block, and only there.** ⛔ Scoping it
-/// matters: `verb_help` prints a footer that *mentions* `-L`, `-R`, `-D`, `-W`,
-/// `-P` and `-p` in prose, and an unscoped scan would read a sentence as a
-/// flag. ⛔ The block ends at the first blank line.
+/// The lines inside the `OPTIONS:` block of a help text. The block ends at
+/// the first blank line; the footer after it mentions flags in prose.
 pub fn options_block(text: &str) -> String {
     let mut out = String::new();
     let mut inside = false;
@@ -63,8 +56,7 @@ pub fn options_block(text: &str) -> String {
 /// A single-character or long option spelling, as a user types it.
 pub fn looks_like_flag(token: &str) -> bool {
     if let Some(rest) = token.strip_prefix("--") {
-        !rest.is_empty()
-            && rest.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+        !rest.is_empty() && rest.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
     } else if let Some(rest) = token.strip_prefix('-') {
         rest.chars().count() == 1 && rest.chars().all(|c| c.is_ascii_alphanumeric())
     } else {
@@ -72,33 +64,24 @@ pub fn looks_like_flag(token: &str) -> bool {
     }
 }
 
-/// The descriptions a section's `OPTIONS:` block can end a line with.
+/// The descriptions that a section's `OPTIONS:` block can end a line with,
+/// longest first, so that a description that ends another one cannot cut a
+/// line in the wrong place.
 pub fn descriptions_for(verb: Option<&'static Verb>) -> Vec<String> {
     match verb {
         Some(v) => {
             let mut d: Vec<String> = v.flags.iter().map(help::help_text).collect();
             d.push(podssh_cli::flags::HELP_FLAG.help.to_string());
-            // ⛔ Longest first: a description that is the tail of another would
-            // otherwise cut a usage line in the middle of its own sentence.
             d.sort_by_key(|s| std::cmp::Reverse(s.len()));
             d
         }
-        // ⛔ The top level is not a verb, so its two descriptions are the
-        // literals `help::top_level_help` writes — ⛔ and the page has its own
-        // copies, which `every_description_in_the_page_is_the_one_help_prints`
-        // compares.
-        None => vec!["Print help".to_string(), "Print version".to_string()],
+        None => podssh_cli::flags::TOP_OPTIONS.iter().map(|(_, _, about)| about.to_string()).collect(),
     }
 }
 
-/// ⛔ **Where a usage ends and a description begins cannot be read off the
-/// spaces.** ⛔ `help::flag_line` pads to `flag_column`, which is *the widest
-/// row plus two*, so a row one character short of the column gets a **single
-/// space** — measured on `--sendfile FILE`, and on `--StrictHostKeyChecking`,
-/// whose description also *contains* `--insecure`. ⛔ A scan that guessed the
-/// boundary reported `--insecure` as a flag, which is the false-defect failure
-/// E31's `flag_table_matches_spec.rs`:44-48 records. ⛔ So the boundary is the
-/// row's own description, which is the one thing that is exactly known.
+/// The usage part of each line of an `OPTIONS:` block. The padding between
+/// usage and description can be one space, so the boundary is found from the
+/// row's own description, which is known exactly, never from the spaces.
 pub fn option_usages(block: &str, descriptions: &[String]) -> Vec<String> {
     let lines: Vec<&str> = block.lines().map(str::trim).collect();
     let mut out = Vec::new();
@@ -109,10 +92,7 @@ pub fn option_usages(block: &str, descriptions: &[String]) -> Vec<String> {
         let usage = descriptions
             .iter()
             .filter_map(|d| line.strip_suffix(d.as_str()).map(|u| u.trim_end()))
-            // ⛔ Not the wrapped form: that one leaves nothing before the
-            // description.
             .filter(|u| !u.is_empty())
-            // ⛔ And it must still begin with a flag.
             .find(|u| {
                 u.split_whitespace()
                     .next()
@@ -121,9 +101,8 @@ pub fn option_usages(block: &str, descriptions: &[String]) -> Vec<String> {
             });
         let usage = match usage {
             Some(u) => u.to_string(),
-            // ⛔ The wrapped form: `flag_line` puts a row too wide for the
-            // column on its own line, so the usage is the line above the
-            // description.
+            // A row too wide for the column has its description on the next
+            // line, so its usage is the line above the description.
             None => {
                 let alone = descriptions.iter().any(|d| *line == d.as_str());
                 match (alone, i) {
@@ -137,115 +116,64 @@ pub fn option_usages(block: &str, descriptions: &[String]) -> Vec<String> {
     out
 }
 
-/// Every flag in a rendered `OPTIONS:` block, with its metavariable.
-///
-/// ⛔ **A parser that reads half its input is worse than none** — E31's
-/// `flag_table_matches_spec.rs`:44-48 — so this one takes every spelling on the
-/// line: rows group them (`-p, --port PORT`), and ⛔ a first-token-only scan
-/// would report seven false defects.
-///
-/// ⛔ The metavariable is what remains after the usage's leading flag run, and
-/// `None` when nothing remains: `-N, --no-remote-command` takes no argument,
-/// ⛔ and the description has already been cut away, so a leftover word cannot
-/// be prose.
+/// The flags and the value name of one usage: `-p, --port PORT`.
+fn flags_and_value(usage: &str) -> (Vec<String>, Option<String>) {
+    let tokens: Vec<&str> = usage.split_whitespace().collect();
+    let mut names = Vec::new();
+    let mut i = 0;
+    while i < tokens.len() {
+        let token = tokens[i].trim_end_matches(',');
+        if !looks_like_flag(token) {
+            break;
+        }
+        names.push(token.to_string());
+        i += 1;
+    }
+    let value = (i < tokens.len()).then(|| tokens[i..].join(" "));
+    (names, value)
+}
+
+/// Each flag in a rendered `OPTIONS:` block, with its value name.
 pub fn help_map(block: &str, verb: Option<&'static Verb>) -> BTreeMap<String, Option<String>> {
     let mut map = BTreeMap::new();
     for usage in option_usages(block, &descriptions_for(verb)) {
-        let tokens: Vec<&str> = usage.split_whitespace().collect();
-        let mut names: Vec<String> = Vec::new();
-        let mut i = 0;
-        while i < tokens.len() {
-            let token = tokens[i].trim_end_matches(',');
-            if !looks_like_flag(token) {
-                break;
-            }
-            names.push(token.to_string());
-            i += 1;
-        }
-        if names.is_empty() {
-            continue;
-        }
-        let metavar = if i < tokens.len() {
-            Some(tokens[i..].join(" "))
-        } else {
-            None
-        };
+        let (names, value) = flags_and_value(&usage);
         for name in names {
-            map.insert(canonical(verb, &name), metavar.clone());
+            map.insert(canonical(verb, &name), value.clone());
         }
     }
     map
 }
 
-// -------------------------------------------------------------- the man side
+// ------------------------------------------------------------- the manual side
 
-/// One `.Fl` line of the page: the flags it names and their metavariable.
-#[derive(Debug)]
+/// One option of the text manual: its flags, value name and description.
+#[derive(Debug, Clone)]
 pub struct Item {
     pub flags: Vec<String>,
-    pub metavar: Option<String>,
+    pub value: Option<String>,
+    pub text: String,
 }
 
-/// Undo the emitter's escaping for one token: `\-` is `-`, `\&` is nothing.
-pub fn unescape(token: &str) -> String {
-    let mut out = String::new();
-    let mut chars = token.chars();
-    while let Some(c) = chars.next() {
-        if c != '\\' {
-            out.push(c);
-            continue;
-        }
-        match chars.next() {
-            Some('-') => out.push('-'),
-            Some('&') => {}
-            Some(other) => out.push(other),
-            None => {}
-        }
-    }
-    out
-}
-
-/// Every `.It`/`.Fl` item in a page region — `06-cli.md`:163's extraction.
-pub fn man_items(region: &str) -> Vec<Item> {
-    let mut items = Vec::new();
-    for line in region.lines() {
-        let Some(args) = line.strip_prefix(".Fl ") else { continue };
-        let mut flags = Vec::new();
-        let mut metavar = None;
-        for token in args.split_whitespace() {
-            let token = unescape(token);
-            if looks_like_flag(&token) {
-                flags.push(token);
-            } else if metavar.is_none() {
-                metavar = Some(token);
-            }
-        }
-        items.push(Item { flags, metavar });
-    }
-    items
-}
-
-/// The page split into one region per section: `""` is the top-level
-/// `OPTIONS:` block, and a verb's region runs from its `.SS` to the next
-/// heading.
+/// The manual split into regions: `""` is the list of options before a
+/// command, and each command's region runs from its heading to the next
+/// heading (a line that starts in column 0).
 pub fn man_regions(page: &str) -> BTreeMap<String, String> {
     let mut regions: BTreeMap<String, String> = BTreeMap::new();
     let mut current: Option<String> = None;
     for line in page.lines() {
-        if let Some(name) = line.strip_prefix(".SS ") {
-            let name = name.trim().to_string();
-            regions.entry(name.clone()).or_default();
-            current = Some(name);
+        let heading = !line.is_empty() && !line.starts_with(' ');
+        if heading {
+            let name = line.trim().to_ascii_lowercase();
+            current = VERBS.iter().any(|v| v.name == name).then_some(name);
+            if let Some(n) = &current {
+                regions.entry(n.clone()).or_default();
+            }
             continue;
         }
-        if line.starts_with(".SH") {
-            current = if line.trim_end() == ".SH OPTIONS" {
-                regions.entry(String::new()).or_default();
-                Some(String::new())
-            } else {
-                None
-            };
-            continue;
+        if line == "  Options before a command:" {
+            current = Some(String::new());
+            regions.entry(String::new()).or_default();
         }
         if let Some(name) = &current {
             let region = regions.get_mut(name).expect("the region was inserted above");
@@ -256,12 +184,50 @@ pub fn man_regions(page: &str) -> BTreeMap<String, String> {
     regions
 }
 
-/// Every flag in a page region, with its metavariable.
+/// The options of a region. In a command's section, the `Options:` list has
+/// each term at four spaces and its description at eight. The options before
+/// a command are a table: the term and the description on one line.
+pub fn man_items(region: &str) -> Vec<Item> {
+    let mut items: Vec<Item> = Vec::new();
+    let mut table: Option<bool> = None;
+    for line in region.lines() {
+        match line {
+            "  Options:" => {
+                table = Some(false);
+                continue;
+            }
+            "  Options before a command:" => {
+                table = Some(true);
+                continue;
+            }
+            _ => {}
+        }
+        let Some(table) = table else { continue };
+        if !line.starts_with("    ") {
+            break;
+        }
+        if let Some(text) = line.strip_prefix("        ").filter(|_| !table) {
+            if let Some(last) = items.last_mut() {
+                if !last.text.is_empty() {
+                    last.text.push(' ');
+                }
+                last.text.push_str(text.trim());
+            }
+            continue;
+        }
+        let (flags, rest) = flags_and_value(line.trim());
+        let (value, text) = if table { (None, rest.unwrap_or_default()) } else { (rest, String::new()) };
+        items.push(Item { flags, value, text });
+    }
+    items
+}
+
+/// Each flag in a region of the manual, with its value name.
 pub fn man_map(region: &str, verb: Option<&Verb>) -> BTreeMap<String, Option<String>> {
     let mut map = BTreeMap::new();
     for item in man_items(region) {
         for flag in &item.flags {
-            map.insert(canonical(verb, flag), item.metavar.clone());
+            map.insert(canonical(verb, flag), item.value.clone());
         }
     }
     map
@@ -269,13 +235,9 @@ pub fn man_map(region: &str, verb: Option<&Verb>) -> BTreeMap<String, Option<Str
 
 // ------------------------------------------------------------- one spelling
 
-/// ⛔ **`--flag`, `-f` and the aliases, normalised to one name** — the row's
-/// long spelling, which is the only name both renderers carry.
-///
-/// ⛔ A token the tree does not know is kept **verbatim** rather than dropped:
-/// ⛔ that is how a flag that exists in the page and not in the binary is
-/// reported *by name*, which is plant 2 and the whole point of the extra
-/// direction.
+/// `--flag`, `-f` and the aliases, as one name: the row's long spelling. A
+/// token the table does not know is kept as it is, so that a flag in one
+/// rendering and not in the binary is reported by name.
 pub fn canonical(verb: Option<&Verb>, token: &str) -> String {
     match verb {
         Some(v) => {
@@ -291,20 +253,16 @@ pub fn canonical(verb: Option<&Verb>, token: &str) -> String {
             }
             token.to_string()
         }
-        // ⛔ The top level is not a verb, so its two options have no table row
-        // to resolve against; the short spellings are mapped to the long ones
-        // here, which is the alising `06-cli.md`:163 asks for.
-        None => match token {
-            "-h" => "--help".to_string(),
-            "-V" => "--version".to_string(),
-            other => other.to_string(),
-        },
+        None => podssh_cli::flags::TOP_OPTIONS
+            .iter()
+            .find(|(short, _, _)| *short == token)
+            .map(|(_, long, _)| long.to_string())
+            .unwrap_or_else(|| token.to_string()),
     }
 }
 
-/// ⛔ **The table itself, as the third reading.** ⛔ Both renderings agreeing on
-/// a flag the tree does not have is still a failure: the page would document
-/// something the binary refuses.
+/// The table itself, as the third reading: both renderings agreeing on a
+/// flag that the table does not have is still a failure.
 pub fn tree_map(verb: Option<&Verb>) -> BTreeMap<String, Option<String>> {
     let mut map = BTreeMap::new();
     match verb {
@@ -314,8 +272,9 @@ pub fn tree_map(verb: Option<&Verb>) -> BTreeMap<String, Option<String>> {
             }
         }
         None => {
-            map.insert("--help".to_string(), None);
-            map.insert("--version".to_string(), None);
+            for (_, long, _) in podssh_cli::flags::TOP_OPTIONS {
+                map.insert(long.to_string(), None);
+            }
         }
     }
     map.insert(UNIVERSAL.to_string(), None);
@@ -327,4 +286,3 @@ pub fn row_for(verb: Option<&'static Verb>, canonical: &str) -> Option<&'static 
     let v = verb?;
     v.flags.iter().find(|r| format!("--{}", r.long) == canonical)
 }
-

@@ -260,10 +260,18 @@ fn spawn_pool_refresh(relay: Relay, primary: String, trust: Trust) {
     });
 }
 
+/// The first wait between rounds, before the random factor.
+pub const BACKOFF_FIRST: Duration = Duration::from_secs(1);
+
+/// The longest wait between rounds, before the random factor.
+pub const BACKOFF_MAX: Duration = Duration::from_secs(30);
+
 /// 1 s, 2 s, 4 s … capped at 30 s, each scaled by a random factor in
 /// [0.5, 1.5) so many clients retrying at once do not stay in step.
 pub fn backoff(retry: u32) -> Duration {
-    let base = 1000u64.saturating_mul(1u64 << retry.saturating_sub(1).min(5)).min(30_000);
+    let first = BACKOFF_FIRST.as_millis() as u64;
+    let max = BACKOFF_MAX.as_millis() as u64;
+    let base = first.saturating_mul(1u64 << retry.saturating_sub(1).min(5)).min(max);
     let factor: f64 = rand::thread_rng().gen_range(0.5..1.5);
     Duration::from_millis((base as f64 * factor) as u64)
 }

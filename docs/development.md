@@ -107,6 +107,9 @@ gate makes sure that:
    that does not start TLS, a proxy 502, a Close during a transfer (1011)
    and at the byte limit (1009), a stall, and a host that stops during a
    session.
+8. The man page renders (`scripts/interop-man.sh`): groff and mandoc show
+   each flag that `--help` shows, groff gives no warning, and `mandoc -Tlint`
+   gives no error. A planted page, with one flag's term removed, must fail.
 
 NOTE: The stand-ins are part of this repository. They test how podssh
 handles each fault. The live tests show that podssh works with the real

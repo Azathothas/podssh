@@ -6,8 +6,7 @@
 //! exactly one list here and two renderers walk it:
 //!
 //! * `--help` renders it, via [`crate::help`].
-//! * `podssh man` renders it, via `man.rs` — E32, which owns the roff emitter
-//!   and the parity gate and does **not** grow a second table.
+//! * `podssh man` renders it, via [`crate::man`], as text and as roff.
 //!
 //! ⛔ A flag defined here and unimplemented is a refusal naming itself. It is
 //! never a stub that exits 0 (`06-cli.md`:244-245), and `refused_because` is
@@ -265,11 +264,12 @@ pub const TS_FLAGS: &[FlagRow] = &[
         "bound the run; required when stdin is not a TTY", None),
 ];
 
-/// ⛔ **`man` (E32).** `--no-pager` is defined here so it parses; E32 owns the
-/// emitter and the pager.
+/// `man`: the manual of this binary, generated from these tables.
 pub const MAN_FLAGS: &[FlagRow] = &[
     row(None, "no-pager", None, FlagKind::Supported,
-        "write to stdout and exit instead of paging", None),
+        "write the whole manual to stdout; never page, even on a terminal", None),
+    row(None, "roff", None, FlagKind::Supported,
+        "write the manual as a man(7) page instead of text, for man -l; never paged", None),
 ];
 
 /// ⛔ **`relay` (E35).**
@@ -363,7 +363,7 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "mv", aliases: &["mv"], flags: CP_FLAGS,
         about: "move files; across hosts this is a copy and a delete" },
     Verb { name: "man", aliases: &["man"], flags: MAN_FLAGS,
-        about: "the manual page, generated from this tree" },
+        about: "this manual: each command, flag, variable, file and exit code" },
     Verb { name: "relay", aliases: &["relay"], flags: RELAY_FLAGS,
         about: "relay status, facts, and pair management" },
     Verb { name: "status", aliases: &["status"], flags: &[],
@@ -380,19 +380,47 @@ pub const VERBS: &[Verb] = &[
 /// milestone (docs/ROADMAP.md) that builds it. The milestone is for
 /// maintainers; users only see that the verb is not implemented.
 ///
-/// A verb with its own dispatch arm (`man`, `ts`) is handled before this table
-/// is consulted. When a verb gets its own arm, remove its row here and add it
-/// to `DISPATCHED` in `tests/flag_table.rs`; dispatch treats a verb with
-/// neither an arm nor a row as an internal error, never as success.
+/// A verb with its own dispatch arm (`ssh`, `proxy`, `doctor`, `keygen`,
+/// `man`, `ts`) is handled before this table is consulted. When a verb gets
+/// its own arm, remove its row here and add it to `DISPATCHED` in
+/// `tests/flag_table.rs`; dispatch treats a verb with neither an arm nor a row
+/// as an internal error, never as success.
 pub const VERB_OWNER: &[(&str, &str)] = &[
     ("node", "M4"),
     ("operator", "M4"),
     ("chat", "M8"),
     ("cp", "M5"),
     ("mv", "M5"),
-    ("man", "built"),
     ("relay", "M4"),
     ("status", "M8"),
+];
+
+/// Whether a verb does something in this binary. `--help` and the manual
+/// both show it, so neither can offer a command that only refuses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Availability {
+    Works,
+    /// Parses, and refuses with exit 70 (a row of [`VERB_OWNER`]).
+    NotYet,
+    /// Needs a cargo feature this binary was built without (`ts`).
+    NotInBuild,
+}
+
+pub fn availability(verb: &Verb) -> Availability {
+    if verb.name == "ts" && !cfg!(feature = "ts") {
+        Availability::NotInBuild
+    } else if VERB_OWNER.iter().any(|(name, _)| *name == verb.name) {
+        Availability::NotYet
+    } else {
+        Availability::Works
+    }
+}
+
+/// The options read before any verb (`tree::parse`), for `--help` and the
+/// manual.
+pub const TOP_OPTIONS: &[(&str, &str, &str)] = &[
+    ("-h", "--help", "Print help"),
+    ("-V", "--version", "Print version"),
 ];
 
 /// Find a verb by any of its spellings. Returns `None` for anything else —

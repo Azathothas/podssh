@@ -185,8 +185,11 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
     };
     let notes: Vec<String> = settings.ignored.iter().map(|k| format!("-o {k} has no effect in podssh")).collect();
     let mut warnings = Vec::new();
-    if matches!(transport, Transport::Relay { .. }) && keepalive_interval.is_none_or(|d| d.as_secs() >= 180) {
-        warnings.push("ServerAliveInterval is off or at least 180 s: the relay closes a connection after 180 s without traffic".into());
+    let idle = relay::RELAY_IDLE_SECS;
+    if matches!(transport, Transport::Relay { .. }) && keepalive_interval.is_none_or(|d| d.as_secs() >= idle) {
+        warnings.push(format!(
+            "ServerAliveInterval is off or at least {idle} s: the relay closes a connection after {idle} s without traffic"
+        ));
     }
 
     let log_file = args.log_file.as_deref().map(|f| expand(f));

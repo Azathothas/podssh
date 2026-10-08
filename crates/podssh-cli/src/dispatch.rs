@@ -71,17 +71,16 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             let _ = writeln!(s.err, "{m}");
             EXIT_USAGE
         }
-        // ⛔ `man` is handled **above** the `VERB_OWNER` refusal, because it is
-        // the one verb with behaviour in this release (E32). ⛔ Its refusals
-        // are still read first, so a `Refused` row added to `MAN_FLAGS` later
-        // refuses rather than being silently dropped.
-        Parsed::Man { section, no_pager, refused } => {
+        // Refusals are read first, so a `Refused` row added to `MAN_FLAGS`
+        // later refuses rather than being dropped.
+        Parsed::Man { section, no_pager, roff, refused } => {
             if refusals("man", refused, s.err) {
                 return EXIT_USAGE;
             }
             let stdin = std::io::stdin();
             let mut keys = stdin.lock();
-            crate::man::run(section.as_deref(), *no_pager, tty, &mut keys, s.out, s.err)
+            let request = crate::man::Request { section: section.as_deref(), no_pager: *no_pager, roff: *roff };
+            crate::man::run(&request, tty, &mut keys, s.out, s.err)
         }
         Parsed::Proxy { target, port, relay_host, relay_addr, ca_file, refused } => {
             if refusals("proxy", refused, s.err) {
@@ -363,10 +362,8 @@ mod tests {
         assert!(!text.contains("For more information"), "no clap trailer: {text}");
     }
 
-    /// ⛔ **`man` is dispatched, not refused.** ⛔ `VERB_OWNER` still names E32
-    /// for the verb, so this is the test that the dispatch reads the `Man`
-    /// variant *above* that lookup — ⛔ without it, `podssh man` would exit 70
-    /// having printed a refusal while the emitter sat unused beside it.
+    /// `man` is dispatched, not refused: with no terminal it writes the
+    /// whole manual to stdout and exits 0.
     #[test]
     fn man_writes_the_page_to_stdout_and_exits_zero() {
         let p = crate::tree::parse(vec!["man"]);

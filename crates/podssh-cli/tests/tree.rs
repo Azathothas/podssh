@@ -177,33 +177,36 @@ fn proxy_jsonl_is_the_specific_refusal() {
     assert!(m.contains("SSH"), "{m}");
 }
 
-/// ⛔ **E32's two facts survive the parse.** ⛔ `podssh man` is the one verb
-/// with behaviour in this release, so the tree must hand the renderer which
-/// section was asked for and whether the user turned the pager off — ⛔ and
-/// `man` must not arrive as a refusal, because a page that refuses is
-/// exactly the stub `06-cli.md`:244-245 forbids in the other direction.
+/// The three facts of `podssh man` survive the parse: the section, the pager
+/// choice and the format. `man` must not arrive as a refusal.
 #[test]
-fn man_carries_its_section_and_its_pager_choice() {
+fn man_carries_its_section_its_pager_choice_and_its_format() {
     let bare = parse(args(&["man"]));
     assert_eq!(
         bare,
-        Parsed::Man { section: None, no_pager: false, refused: vec![] }
+        Parsed::Man { section: None, no_pager: false, roff: false, refused: vec![] }
     );
     assert!(!bare.needs_refusal(), "man has behaviour and must not refuse");
 
     let paged_off = parse(args(&["man", "--no-pager"]));
     assert_eq!(
         paged_off,
-        Parsed::Man { section: None, no_pager: true, refused: vec![] }
+        Parsed::Man { section: None, no_pager: true, roff: false, refused: vec![] }
     );
 
     let section = parse(args(&["man", "ssh"]));
     assert_eq!(
         section,
-        Parsed::Man { section: Some("ssh".to_string()), no_pager: false, refused: vec![] }
+        Parsed::Man { section: Some("ssh".to_string()), no_pager: false, roff: false, refused: vec![] }
     );
 
-    // ⛔ And `podssh man --help` is still help, not a page: the flag is
-    // checked before the positional, exactly as for every other verb.
+    let roff = parse(args(&["man", "--roff", "proxy"]));
+    assert_eq!(
+        roff,
+        Parsed::Man { section: Some("proxy".to_string()), no_pager: false, roff: true, refused: vec![] }
+    );
+
+    // `podssh man --help` is still help, not a page: the flag is checked
+    // before the positional, as for every other verb.
     assert_eq!(parse(args(&["man", "--help"])), Parsed::Help("man"));
 }

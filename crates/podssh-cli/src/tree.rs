@@ -90,49 +90,7 @@ pub fn verb_command(verb: &'static Verb) -> Command {
     for row in verb.flags {
         cmd = add_flag(cmd, row);
     }
-    // Positionals. `ssh` is `[user@]host [command...]`; `cp`/`mv` are
-    // `SRC... DST`.
-    cmd = match verb.name {
-        // As OpenSSH: options may follow the destination, and the first word
-        // after it starts the command, which takes everything after it
-        // (`podssh ssh host ls -la` runs `ls -la`). Repeating a flag is
-        // allowed; the last value wins, as in OpenSSH's own parser.
-        "ssh" => cmd
-            .args_override_self(true)
-            .arg(Arg::new("destination").help("[user@]host"))
-            .arg(
-                Arg::new("remote-command")
-                    .num_args(1..)
-                    .trailing_var_arg(true)
-                    .allow_hyphen_values(true)
-                    .help("command to run on the remote host"),
-            ),
-        "cp" | "mv" => cmd.arg(Arg::new("paths").num_args(2..).help("SRC... DST")),
-        "chat" => cmd
-            .arg(Arg::new("channel").help("channel to join"))
-            .arg(Arg::new("message").num_args(0..).help("message to send")),
-        "man" => cmd.arg(Arg::new("section").help("section to render, or none")),
-        "relay" => cmd
-            .arg(Arg::new("subcommand").help("status, info, spec, trace, pair, revoke"))
-            .arg(Arg::new("args").num_args(0..).help("arguments for the subcommand")),
-        "node" | "operator" => cmd.arg(Arg::new("name").help("node name")),
-        "proxy" => cmd
-            .arg(Arg::new("target").help("destination"))
-            .arg(Arg::new("port").help("port")),
-        "status" | "doctor" | "keygen" => cmd,
-        // ⛔ `ts` takes all three 4b forms already in 4a so the parse is stable
-        // while behaviour lands: bare (status), `[user@]host` (E01 session),
-        // `-W` (byte pipe). Every form refuses naming E39 until then.
-        "ts" => cmd
-            .arg(Arg::new("destination").help("[user@]host"))
-            .arg(
-                Arg::new("args")
-                    .num_args(0..)
-                    .last(true)
-                    .help("command to run on the remote host"),
-            ),
-        _ => cmd.arg(Arg::new("args").num_args(0..)),
-    };
+    cmd = crate::positionals::add(cmd, verb.name);
     for alias in verb.aliases {
         cmd = cmd.alias(*alias);
     }
@@ -182,17 +140,16 @@ pub enum Parsed {
     NoArguments(String),
     /// `podssh <token>` where `<token>` is not a verb.
     UnknownVerb(String),
-    /// ⛔ **`podssh man`, and it is its own variant because it is the one verb
-    /// with behaviour in this release** (E32). ⛔ It carries the two facts the
-    /// tree must hand the renderer — which section, and whether the user asked
-    /// for `--no-pager` — and ⛔ `refused` so that a `Refused` row added to
-    /// `MAN_FLAGS` later refuses instead of being silently dropped, which is
-    /// the security bug `06-cli.md`:84-85 names.
+    /// `podssh man`: which section, how to write it, and the refusals, so
+    /// that a `Refused` row added to `MAN_FLAGS` later refuses instead of
+    /// being dropped.
     Man {
-        /// The section named on the command line, or `None` for the whole page.
+        /// The section named on the command line, or `None` for the whole manual.
         section: Option<String>,
-        /// `--no-pager`: write to stdout and exit rather than paging.
+        /// `--no-pager`: write to stdout, never through a pager.
         no_pager: bool,
+        /// `--roff`: the man(7) page instead of text.
+        roff: bool,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// `podssh proxy`: the positionals and options the byte pipe needs.
@@ -398,15 +355,14 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         None
     };
 
-    // ⛔ **`man` is the one verb with behaviour in this release, so it gets its
-    // own variant** (E32). ⛔ The refusal list is carried over rather than
-    // dropped: `MAN_FLAGS` has no `Refused` row today, and a flag that refuses
-    // must refuse rather than be a field nothing reads — which is the sibling's
-    // `--json` failure the entry records in `src/main.c:283-287`.
+    // The refusal list is carried over rather than dropped: `MAN_FLAGS` has no
+    // `Refused` row today, and a flag that refuses must refuse rather than be
+    // a field nothing reads.
     if verb.name == "man" {
         return Parsed::Man {
             section: matches.get_one::<String>("section").cloned(),
             no_pager: matches.get_flag("no-pager"),
+            roff: matches.get_flag("roff"),
             refused,
         };
     }

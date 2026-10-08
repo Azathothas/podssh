@@ -119,6 +119,12 @@ if [ -f "$B" ]; then
     cat /tmp/podssh-step.out | grep -E '^(ok|FAIL|skip) |^interop:' | tail -80
 fi
 
+# The man page against groff and mandoc (installed with apk the same way).
+if [ -f "$B" ]; then
+    run "man page: groff and mandoc" sh scripts/interop-man.sh "$B"
+    grep -E '^(ok|FAIL) ' /tmp/podssh-step.out
+fi
+
 echo
 if [ "$failed" -eq 0 ]; then
     echo "podssh: gate green."

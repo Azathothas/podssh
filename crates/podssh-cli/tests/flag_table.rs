@@ -80,10 +80,10 @@ fn the_forwarding_rows_all_name_w() {
 fn every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub() {
     // An unimplemented subcommand is a refusal naming it, never a stub that
     // exits 0. Dispatch refuses by looking the verb up in `VERB_OWNER`; verbs
-    // with their own dispatch arm (`ts`) are listed in DISPATCHED. Dispatch
+    // with their own dispatch arm are listed in DISPATCHED. Dispatch
     // also treats a verb with no row as an internal error (non-zero), so this
     // test is the first line of defence, not the only one.
-    const DISPATCHED: &[&str] = &["ts", "proxy", "ssh", "doctor", "keygen"];
+    const DISPATCHED: &[&str] = &["ts", "proxy", "ssh", "doctor", "keygen", "man"];
     let owner_names: Vec<&str> =
         podssh_cli::flags::VERB_OWNER.iter().map(|(n, _)| *n).collect();
     for v in VERBS {

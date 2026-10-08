@@ -1,10 +1,40 @@
 # Command line
 
-This page tells how the commands of podssh read their arguments, what they
-print, and their exit codes. `podssh ssh` takes the command line of OpenSSH,
-so it can replace `ssh` in scripts. The facts about OpenSSH on this page were
-measured with OpenSSH 10.3p1 and `ssh -G`, unless a line gives another
-source.
+`podssh man` is the reference for each command, argument, flag, `-o`
+keyword, variable, file and exit code. The binary makes it from its own
+tables, so it describes that binary and no other version. This page gives
+the rules behind those tables, for people and agents who change them.
+
+`podssh ssh` takes the command line of OpenSSH, so it can replace `ssh` in
+scripts. The facts about OpenSSH on this page were measured with OpenSSH
+10.3p1 and `ssh -G`, unless a line gives another source.
+
+## The manual
+
+- **The tables.** The flags of each command are in
+  `crates/podssh-cli/src/flags.rs`, their arguments in `src/positionals.rs`,
+  the `-o` keywords in `src/ssh/keywords.rs`, and the variables, files, relay
+  facts, exit codes, notes and examples in `src/man/`. `--help` and
+  `podssh man` read the same tables.
+- **Change the table with the code, in the same commit.** The tests fail
+  when the manual and the code disagree: a variable that the code reads and
+  the manual does not name (or the reverse), a default that `resolve` does
+  not use, an `-o` keyword that the parser handles differently, an example
+  that the parser refuses, or a note that names a flag that is gone.
+- **Text first.** `podssh man` writes plain text, so it needs no `man`,
+  groff or pager. On a terminal it pages: `PAGER`, else `less` when `PATH`
+  has it and `TERM` names a terminal (not on Windows), else its own pager.
+  `--no-pager` writes to stdout; with no terminal there is no pager.
+- **Roff second.** `podssh man --roff` writes a man(7) page with standard
+  macros only. A macro defined in the page is read differently by different
+  renderers: an `Fl` macro that used `\$*` printed blank flag names under
+  groff and mandoc. The gate renders the page with both
+  (`scripts/interop-man.sh`).
+- **No setting of the host.** The manual is the same bytes in each
+  environment. It never shows a token or a credential.
+- **A command that does not work says so.** `--help` and the manual mark a
+  command that is not implemented, or not in this build, and the manual
+  shows no options for it.
 
 ## Options of `podssh ssh`
 
@@ -24,8 +54,10 @@ source.
   contain `:`, and an IPv6 literal needs brackets.
 - `-N` alone is valid. `-W HOST:PORT` is a stdio forward: no session, and
   exit when the forward fails. `-V` prints the version and does not connect.
-- Each flag of OpenSSH is supported or refused by name, including `-l`,
-  `-A`, `-C`, `-B` and `-b`, `-e`, `-c`, `-m`, `-X` and `-Y`, `-O` and `-E`.
+- Each flag of OpenSSH must be supported or refused by name. Sixteen flags
+  of OpenSSH 10.3p1 have no row yet: `-c`, `-f`, `-G`, `-g`, `-I`, `-K`,
+  `-k`, `-M`, `-m`, `-O`, `-Q`, `-S`, `-w`, `-X`, `-Y` and `-y`. podssh
+  reports them as unknown flags (defect C10).
 
 ## Forwarding
 
@@ -53,27 +85,11 @@ The edit distance alone suggests `doctor` for `example.org` and `cp` for
 
 ## `podssh doctor`
 
-`podssh doctor` tells what this host allows and whether the relay path
-works. It takes the relay settings of `ssh` and `proxy` (`--relay-host`,
-`--relay-addr`, `--ca-file` and their environment variables), so it checks
-the path that they use. Each line has `ok`, `FAIL` or `????`, the thing
-checked, and what was found or opened.
+`podssh man doctor` gives the checks. The rules behind them:
 
-- **This host:** the user database entry, where host keys are recorded, the
-  token cache, `/proc`, a pty, a bind of AF_INET and AF_UNIX sockets (closed
-  at once, never listening), which directories can run programs (a copy of
-  podssh runs from each), and the terminal.
-- **Egress:** the proxy setting (credentials never shown), the TLS provider
-  and the trust store, what the proxy allows (`CONNECT` to the relay and to
-  `github.com` on ports 443 and 22) or, with no proxy, whether port 22 is
-  open directly, the system resolver, and DNS over HTTPS.
-- **Relay:** the `/health` of each relay host over verified TLS, with the
-  address opened; a token (never shown); a forward session to
-  `github.com:22`, identified by GitHub's published host key; and the clock
-  of this host against the relay's.
-
-The results:
-
+- `doctor` takes the relay settings of `ssh` and `proxy` (`--relay-host`,
+  `--relay-addr`, `--ca-file` and their variables), so it checks the path
+  that they use.
 - `ok`: the check ran and podssh can work with the result. A condition that
   podssh is made for (no listener, no pty, no user database entry, no DNS)
   is a fact and gives `ok`.
@@ -83,52 +99,39 @@ The results:
   meets the wrong host key, or a clock more than one hour wrong.
 - `????`: the check could not run. It never counts as `ok`, and it never
   makes the run fail.
-
-The report goes to stdout. The exit code is 0 when no check failed, 1 when a
-check failed, and 64 for a usage error. When `PODSSH_OFFLINE` is set, nothing
-connects, and the network checks are one `????` line.
+- Servers are identified by equality (GitHub's published host key), never
+  by the form of a banner. A socket bind is closed at once and never
+  listens. Proxy credentials and tokens are never shown.
 
 ## `podssh keygen`
 
-`podssh keygen` (also `podssh ssh-keygen`) makes a key pair on a host that
-has no `ssh-keygen`, or a `ssh-keygen` that does not run. The `ssh-keygen` of
-OpenSSH does not run without a user database entry.
+`podssh man keygen` gives the flags. The rules behind them:
 
-- Flags: `-t ed25519|ecdsa|rsa`, `-b`, `-f`, `-C`, `-N ''` and `-q`.
-  `-y -f FILE` prints the public key of a private key. `-l -f FILE` prints
-  the line that `ssh-keygen -l` prints.
-- The output is in the formats of OpenSSH. The private key has mode 0600 and
-  is never written over an existing file. The public key goes to `FILE.pub`.
-  The command prints the SHA-256 fingerprint.
-- The default is Ed25519 in `~/.ssh/id_ed25519`. ECDSA is P-256 unless `-b`
-  gives 384 or 521. RSA is 3072 bits unless `-b` gives 2048 to 16384. DSA is
-  refused, because OpenSSH 10 removed it.
-- podssh asks for a passphrase two times, on the terminal or through
-  `SSH_ASKPASS`. `-N ''` makes a key with no passphrase.
-- A passphrase given with `-N` is refused (exit 64), because each process on
-  the host can read a command line.
-- With no terminal and no `SSH_ASKPASS`, podssh refuses at once and names
-  `-N ''`. It does not wait.
-- The comment is `USER@HOST` from the environment, never from the user
-  database.
-
-The exit code is 0, 1 when a key cannot be made or read (as `ssh-keygen`),
-and 64 for a usage error.
+- The `ssh-keygen` of OpenSSH does not run without a user database entry,
+  so podssh makes keys itself, in the formats of OpenSSH.
+- A private key is never written over an existing file.
+- A passphrase given with `-N` is refused (exit 64), because each process
+  on the host can read a command line. `-N ''` is accepted. With no
+  terminal and no `SSH_ASKPASS`, podssh refuses at once and names `-N ''`;
+  it does not wait.
+- DSA is refused, because OpenSSH 10 removed it.
+- The comment comes from the environment, never from the user database.
 
 ## Exit codes
 
-| Command | Exit code | Meaning |
-| --- | --- | --- |
-| `podssh ssh` | the remote status | The remote command's exit status, unchanged (0 and 127 included) |
-| `podssh ssh` | 128 + the signal number | A signal stopped the remote command (`kill -TERM $$` gives 143). OpenSSH gives 255; podssh names the signal on stderr. |
-| `podssh ssh` | 255 | A failure of podssh, as with OpenSSH: the connection, the host key, the authentication, or a session that ends with no exit status |
-| each command | 64 | A usage error, before podssh does anything |
-| `podssh proxy` | sysexits (64 to 78) | A failure of podssh. `proxy` is not an SSH client. |
-| `podssh doctor` | 0 or 1 | 1 when a check failed |
-| `podssh keygen` | 0 or 1 | 1 when a key cannot be made or read |
-| a command that is not implemented | 70 | The command refuses |
+`podssh man exit-status` gives each code. The rules behind them:
 
-A closed stdout (EPIPE) ends the session cleanly.
+- A usage error is 64 (`EX_USAGE`) for each command, before podssh does
+  anything. A configuration error is 78 (`EX_CONFIG`). The shell statuses 1
+  and 2 are not used for these, because a script cannot tell them from other
+  programs' failures.
+- `podssh ssh` uses the codes of OpenSSH, so it can replace `ssh` in
+  scripts: the remote status unchanged (0 and 127 included), and 255 for a
+  failure of podssh. A remote command stopped by a signal gives 128 plus the
+  signal number (OpenSSH gives 255), and podssh names the signal on stderr.
+- `podssh proxy` is not an SSH client: its failures use sysexits (64 to 78).
+- A command that is not implemented exits 70. It never exits 0.
+- A closed stdout (EPIPE) ends the session cleanly.
 
 ## Prompts and time limits
 

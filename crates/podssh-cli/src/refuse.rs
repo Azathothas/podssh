@@ -112,23 +112,16 @@ pub fn not_implemented(what: &str) -> String {
     format!("podssh: '{what}' is not implemented yet; nothing was done.")
 }
 
-/// ⛔ **The refusal for `podssh man <SECTION>` where the section is not a
-/// verb**, and it exits **64** rather than 0 (`docs/TODO/cli/man.md`:150-153):
-/// `06-cli.md`:244-245 makes a subcommand that does not exist a refusal naming
-/// it, never a stub — ⛔ and a section is a name a user can type, so the same
-/// rule applies to it.
-///
-/// ⛔ The answer is the list of sections, because that is what the user wanted
-/// and it is what they can type next. ⛔ The whole page is one word away, so
-/// there is no guess and no distance function here: `podssh man` with no
-/// section prints everything.
-pub fn unknown_man_section(token: &str) -> String {
+/// The refusal for `podssh man SECTION` when there is no such section. It
+/// exits 64 and lists the sections, because the list is what the user can
+/// type next; `podssh man` with no section writes the whole manual.
+pub fn unknown_man_section(token: &str, sections: &[&str]) -> String {
     let mut m = format!("podssh man: there is no '{token}' section.\n");
     m.push_str("Sections:\n");
-    for v in VERBS {
-        m.push_str(&format!("  {}\n", v.name));
+    for name in sections {
+        m.push_str(&format!("  {name}\n"));
     }
-    m.push_str("Run 'podssh man' for the whole page.");
+    m.push_str("Run 'podssh man' for the whole manual.");
     m
 }
 

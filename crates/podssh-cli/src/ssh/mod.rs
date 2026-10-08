@@ -8,6 +8,7 @@
 //! 64, before anything is attempted.
 
 pub mod args;
+pub mod keywords;
 pub mod options;
 pub mod resolve;
 

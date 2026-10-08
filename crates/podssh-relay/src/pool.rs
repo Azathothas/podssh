@@ -38,7 +38,8 @@ struct CachedPool {
     hosts: Vec<String>,
 }
 
-fn file_name(primary: &str) -> String {
+/// The cache file of the pool of `primary`.
+pub fn file_name(primary: &str) -> String {
     format!("relay-pool-{}.json", cache::safe_name(primary))
 }
 

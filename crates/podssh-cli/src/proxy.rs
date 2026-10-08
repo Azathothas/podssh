@@ -220,9 +220,10 @@ async fn finish(ended: Result<Ended, String>, session: &RelaySession, err: &mut 
         Ok(Ended::Closed { code: Some(code), reason }) => {
             let _ = writeln!(err, "podssh: the relay closed the session: {code} {reason}");
             if reason.contains("idle") {
+                let idle = podssh_relay::relay::RELAY_IDLE_SECS;
                 let _ = writeln!(
                     err,
-                    "podssh: the relay closes a session after 180 s without traffic; set ServerAliveInterval below 180"
+                    "podssh: the relay closes a session after {idle} s without traffic; set ServerAliveInterval below {idle}"
                 );
             }
             EX_UNAVAILABLE

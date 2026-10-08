@@ -127,8 +127,10 @@ pub fn top_level_help() -> String {
     // its widest row is a separator that disappears. ⛔ E32's parity gate reads
     // this block, and it read `--helpPrint` as a flag — which is what a user
     // reading it would conclude too.
-    let rows: [(&str, &str); 2] =
-        [("  -h, --help", "Print help"), ("  -V, --version", "Print version")];
+    let rows: Vec<(String, &str)> = crate::flags::TOP_OPTIONS
+        .iter()
+        .map(|(short, long, about)| (format!("  {short}, {long}"), *about))
+        .collect();
     let column = rows.iter().map(|(l, _)| l.chars().count()).max().unwrap_or(0) + 2;
     for (left, right) in rows {
         s.push_str(&format!("{left:<column$}{right}\n"));
@@ -140,7 +142,7 @@ pub fn top_level_help() -> String {
         w = w.max(v.name.len());
     }
     for v in VERBS {
-        s.push_str(&format!("    {:w$}  {}\n", v.name, v.about));
+        s.push_str(&format!("    {:w$}  {}{}\n", v.name, v.about, availability_note(v)));
         // ⛔ Aliases are printed beside the verb they resolve to, because a user
         // who types `podssh irc` and gets help for `chat` deserves to know
         // they are the same command.
@@ -160,8 +162,17 @@ pub fn top_level_help() -> String {
     }
     s.push('\n');
     s.push_str("Run 'podssh <SUBCOMMAND> --help' for that subcommand's flags.\n");
-    s.push_str("Run 'podssh man' for the full page.\n");
+    s.push_str("Run 'podssh man' for the whole manual.\n");
     s
+}
+
+/// What `--help` and the manual add to a verb that does not work here.
+pub fn availability_note(verb: &Verb) -> &'static str {
+    match crate::flags::availability(verb) {
+        crate::flags::Availability::Works => "",
+        crate::flags::Availability::NotYet => " (not implemented yet)",
+        crate::flags::Availability::NotInBuild => " (not in this build)",
+    }
 }
 
 /// Render one verb's help, from the same rows the parser was built from.
@@ -215,7 +226,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "man" => "[OPTIONS] [SECTION]",
         "relay" => "[OPTIONS] SUBCOMMAND [ARGS...]",
         "node" | "operator" => "NAME",
-        "proxy" => "[OPTIONS] DESTINATION PORT",
+        "proxy" => "[OPTIONS] HOST PORT",
         _ => "[OPTIONS]",
     }
 }

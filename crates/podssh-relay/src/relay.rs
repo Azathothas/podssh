@@ -16,6 +16,10 @@ pub const DEFAULT_RELAY_HOST: &str = "tcp.ssh.relay.ajam.dev";
 /// ordered list of them separated by commas.
 pub const RELAY_ENV: &str = "PODSSH_RELAY";
 
+/// The relay closes a session after this many seconds with no traffic (its
+/// `/relays.json`, version 2026-10-03-r2), so keepalives must come sooner.
+pub const RELAY_IDLE_SECS: u64 = 180;
+
 /// How many pool hosts follow the default host when no list is given. Each
 /// failed host costs one bounded attempt; a handful covers a dead host or a
 /// proxy that refuses one name without making a hopeless run slow.

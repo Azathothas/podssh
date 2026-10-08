@@ -32,10 +32,11 @@ only record. Do these steps at the start of each session.
 
 | Task | Read |
 | --- | --- |
+| Look up a command, flag, `-o` keyword, variable, file or exit code | `podssh man` (in the repository: `cargo run -q -p podssh-cli -- man --no-pager`) |
 | Build, test, or run the gate | [docs/development.md](docs/development.md) |
 | Measure podssh in a sandbox, or in a box like one | [docs/development.md](docs/development.md) (section "A box like the target sandbox"), [docs/target-environment.md](docs/target-environment.md) |
 | Make a release | [docs/development.md](docs/development.md) (section "Release builds"), [docs/releases/](docs/releases/) |
-| Change the command line, `doctor` or `keygen` | [docs/cli.md](docs/cli.md), `crates/podssh-cli/src/flags.rs` |
+| Change the command line, `doctor`, `keygen` or the manual | [docs/cli.md](docs/cli.md) (section "The manual"), `crates/podssh-cli/src/flags.rs`, `crates/podssh-cli/src/man/` |
 | Change the SSH client | [docs/cli.md](docs/cli.md), `crates/podssh-ssh/` |
 | Change the terminal behaviour | [docs/terminal.md](docs/terminal.md) |
 | Change the relay selection, tokens or failover | [docs/relay.md](docs/relay.md), `crates/podssh-relay/` |
@@ -79,7 +80,9 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 2. Make one outbound connection, through `HTTPS_PROXY` when it is set. Do
    not bind, listen, or use loopback helpers. (`podssh doctor` binds a
    socket to test the host, and closes it without listening.)
-3. Do not use `LD_PRELOAD` or helper processes.
+3. Do not use `LD_PRELOAD` or shims in other processes. Start another
+   program only when the user names it (`SSH_ASKPASS`, `PAGER`) or a probe
+   found it (`less` for `podssh man` on a terminal).
 4. Do not put C code in the library crates: `podssh-ws`, `podssh-relay`,
    `podssh-transport`, `podssh-core`, `podssh-terminal` and `podssh-probe`.
    The binary links aws-lc for SSH (`russh`).
@@ -117,7 +120,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 
 | Path | Contents |
 | --- | --- |
-| `crates/podssh-cli` | The `podssh` binary: arguments, help, man page, dispatch, `proxy`, `ssh` options, `doctor`, `keygen` |
+| `crates/podssh-cli` | The `podssh` binary: arguments, help, the manual and its tables (`src/man/`), the pager, dispatch, `proxy`, `ssh` options, `doctor`, `keygen` |
 | `crates/podssh-ssh` | The SSH client on `russh`: the relay stream, `known_hosts`, authentication, prompts, terminal, exit codes, key generation |
 | `crates/podssh-relay` | Relay hosts, the pool, failover, tokens, the forward opener |
 | `crates/podssh-ws` | TLS (podssh's own pure-Rust rustls provider), proxies, DNS fallbacks, the WebSocket client |
@@ -128,7 +131,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | `crates/podssh-ts` | The Tailscale adapter (feature `ts`) |
 | `vendor/tailscale-rs` | A fork with local patches (`vendor/patches/`). It is outside the workspace and the 500-line rule. |
 | `scripts/dev.sh`, `scripts/gate.sh` | Container runs, and the build gate that CI also runs |
-| `scripts/interop*.sh`, `scripts/interop-pty.py`, `scripts/interop-conpty.py` | Tests against OpenSSH and Dropbear, faults, and terminals on Linux and Windows |
+| `scripts/interop*.sh`, `scripts/interop-pty.py`, `scripts/interop-conpty.py` | Tests against OpenSSH and Dropbear, faults, groff and mandoc (`interop-man.sh`), and terminals on Linux and Windows |
 | `scripts/test_in_box.sh`, `scripts/box/`, `scripts/sandbox-check.sh` | The Podman box like the target sandbox, and the measurement for a sandbox |
 | `scripts/check-*.py`, `scripts/plant.sh` | Repository checks, and the planted-defect check of the gate |
 | `docs/` | The documents: STATUS, ROADMAP, decisions, defects and topic pages |

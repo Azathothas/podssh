@@ -12,10 +12,10 @@
 //! why `podssh example.org` says `Try: podssh ssh example.org` and never says
 //! `doctor`.
 //!
-//! ⛔ **E32 (`man.rs`) owns the roff emitter and the parity gate and renders
-//! [`flags::VERBS`] rather than growing a second table.** The flags of `chat`,
-//! `cp`, `mv`, `relay` and `man` are defined here so they parse and are
-//! refused correctly; their behaviour is E33, E36, E35 and E32's.
+//! `podssh man` ([`man`]) renders the same tables as `--help`, with the
+//! facts, notes and examples beside them, as text or as roff. The flags of
+//! `chat`, `cp`, `mv` and `relay` are defined so they parse and are refused
+//! correctly; those commands are not implemented yet.
 
 pub mod clap_error;
 pub mod dispatch;
@@ -30,15 +30,12 @@ pub mod exitmap;
 pub mod flags;
 pub mod help;
 pub mod keygen;
-// ⛔ **E32's two modules, and they are separate because they are separate
-// concerns**: `man.rs` emits roff from the tree and never reads a file,
-// `pager.rs` shows the emitted bytes a screenful at a time and is a function
-// rather than a `Command` — ⛔ there is no child process on `podssh man` at
-// all, and `docs/spec/02-architecture.md`:108-121 is why that matters.
+// The manual (`man/`) and the pager that shows it on a terminal.
 pub mod man;
 pub mod non_interactive;
 pub mod pager;
 pub mod pins;
+pub mod positionals;
 pub mod proxy;
 pub mod refuse;
 pub mod ssh;

@@ -1,10 +1,12 @@
 //! `-o NAME=VALUE`: the OpenSSH keywords podssh honours, those it accepts and
-//! ignores (they would change nothing podssh does, or only algorithm lists it
-//! keeps modern anyway), and those it refuses by name. An unknown keyword is
-//! an error before anything connects, as in OpenSSH: a silently dropped
-//! `-o StrictHostKeyChecking=…` would be a security bug.
+//! ignores, and those it refuses by name. The lists are in `keywords.rs`,
+//! which the manual also reads. An unknown keyword is an error before anything
+//! connects, as in OpenSSH: a silently dropped `-o StrictHostKeyChecking=…`
+//! would be a security bug.
 
 use podssh_ssh::{LogLevel, Method, RequestTty, StrictHostKeyChecking};
+
+use super::keywords;
 
 /// What `-o` set, before defaults. For single values the first one given
 /// wins, as in OpenSSH; lists accumulate.
@@ -48,34 +50,6 @@ pub struct Settings {
     pub ignored: Vec<String>,
 }
 
-/// Keywords accepted and ignored: they ask for nothing podssh does
-/// differently, or restrict algorithm lists podssh keeps modern itself.
-const IGNORED: &[&str] = &[
-    "addkeystoagent", "bindaddress", "bindinterface", "canonicaldomains", "canonicalizefallbacklocal",
-    "canonicalizehostname", "canonicalizemaxdots", "canonicalizepermittedcnames", "casignaturealgorithms",
-    "certificatefile", "channeltimeout", "checkhostip", "ciphers", "clearallforwardings",
-    "controlmaster", "controlpath", "controlpersist", "enableescapecommandline", "enablesshkeysign",
-    "exitonforwardfailure", "fingerprinthash", "forwardagent", "forwardx11", "forwardx11timeout",
-    "forwardx11trusted", "gatewayports", "gssapiauthentication", "gssapidelegatecredentials", "hashknownhosts",
-    "hostbasedacceptedalgorithms", "hostbasedauthentication", "hostkeyalgorithms", "ipqos", "kexalgorithms",
-    "localcommand", "logverbose", "macs", "nohostauthenticationforlocalhost", "obscurekeystroketiming",
-    "permitlocalcommand", "pubkeyacceptedalgorithms", "pubkeyacceptedkeytypes", "rekeylimit",
-    "requiredrsasize", "securitykeyprovider", "streamlocalbindmask", "streamlocalbindunlink",
-    "syslogfacility", "tag", "tcpkeepalive", "tunnel", "tunneldevice", "updatehostkeys", "verifyhostkeydns",
-    "versionaddendum", "visualhostkey", "warnweakcrypto", "xauthlocation",
-];
-
-/// Keywords podssh honours (for suggestions; the match below is the truth).
-const HONOURED: &[&str] = &[
-    "AddressFamily", "BatchMode", "ChallengeResponseAuthentication", "Compression", "ConnectTimeout", "ConnectionAttempts",
-    "EscapeChar", "GlobalKnownHostsFile", "HostKeyAlias", "HostName", "IdentitiesOnly", "IdentityAgent",
-    "IdentityFile", "KbdInteractiveAuthentication", "LogLevel", "NumberOfPasswordPrompts",
-    "PasswordAuthentication", "Port", "PreferredAuthentications", "ProxyCommand", "ProxyJump",
-    "PubkeyAuthentication", "RemoteCommand", "RequestTTY", "SendEnv", "ServerAliveCountMax",
-    "ServerAliveInterval", "SessionType", "SetEnv", "StdinNull", "StrictHostKeyChecking", "User",
-    "UserKnownHostsFile",
-];
-
 impl Settings {
     /// Apply one `-o` argument: `Name=Value`, `Name Value` or `Name = Value`.
     pub fn apply(&mut self, raw: &str) -> Result<(), String> {
@@ -87,7 +61,7 @@ impl Settings {
             return Err(format!("-o {raw:?}: expected NAME=VALUE"));
         }
         let key = name.to_ascii_lowercase();
-        if value.is_empty() && !IGNORED.contains(&key.as_str()) {
+        if value.is_empty() && !keywords::is_ignored(&key) {
             return Err(format!("-o {name}: missing value"));
         }
         let bad = |what: &str| format!("-o {name}={value}: {what}");
@@ -184,7 +158,7 @@ impl Settings {
             "include" | "match" | "host" => {
                 return Err(format!("-o {name}: an ssh_config block keyword, not an option"))
             }
-            k if IGNORED.contains(&k) => self.ignored.push(name.to_string()),
+            k if keywords::is_ignored(k) => self.ignored.push(name.to_string()),
             _ => return Err(unknown(name)),
         }
         Ok(())
@@ -229,9 +203,8 @@ fn unquote(value: &str) -> String {
 /// "unknown option", naming the nearest known keyword when one is close.
 fn unknown(name: &str) -> String {
     let lower = name.to_ascii_lowercase();
-    let best = HONOURED
-        .iter()
-        .map(|k| (distance(&lower, &k.to_ascii_lowercase()), *k))
+    let best = keywords::known_names()
+        .map(|k| (distance(&lower, &k.to_ascii_lowercase()), k))
         .min_by_key(|(d, _)| *d)
         .filter(|(d, _)| *d <= 3);
     match best {
