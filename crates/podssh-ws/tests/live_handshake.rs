@@ -232,6 +232,37 @@ async fn the_negotiated_parameters_are_ones_this_provider_implements() {
     );
 }
 
+/// Each key exchange group alone completes a handshake with the relay, so
+/// each one meets a TLS stack that podssh did not write. T-064 changed how
+/// each draws its secret. The configuration is the library's own, built with
+/// a provider that offers the one group.
+#[tokio::test]
+async fn each_group_alone_completes_a_handshake_with_the_relay() {
+    if !live_enabled() {
+        eprintln!("???? the groups were not tried: PODSSH_LIVE=0");
+        return;
+    }
+    let addr: SocketAddr = format!("{RELAY_HOST}:{RELAY_PORT}").to_socket_addrs_first().expect("resolve");
+    for group in [podssh_ws::crypto::kx::X25519, podssh_ws::crypto::kx::SECP256R1] {
+        let mut provider = podssh_ws::crypto::provider();
+        provider.kx_groups = vec![group];
+        let config = tls::client_config_with(&tls::roots_from_compiled_set(), provider).expect("a config");
+        let connector = tokio_rustls::TlsConnector::from(config);
+        let name = rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a name");
+        let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
+            .await
+            .expect("connect in time")
+            .expect("connect");
+        let tls = tokio::time::timeout(TIMEOUT, connector.connect(name, tcp))
+            .await
+            .expect("a handshake in time")
+            .unwrap_or_else(|e| panic!("{:?} alone: {e}", group.name()));
+        let negotiated = tls.get_ref().1.negotiated_key_exchange_group().expect("a group").name();
+        eprintln!("{:?} alone: the handshake completed", group.name());
+        assert_eq!(negotiated, group.name());
+    }
+}
+
 // ── helpers ─────────────────────────────────────────────────────────────────
 
 use std::net::ToSocketAddrs as _;

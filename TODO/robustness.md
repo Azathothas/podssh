@@ -28,7 +28,7 @@ acceptance on rare input stays hidden. The release build aborts on a panic
 Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/frame.rs:113`); HTTP heads and chunked bodies
 (`crates/podssh-ws/src/http.rs:113`, line 179); the upgrade answer
-(`crates/podssh-ws/src/handshake.rs:183`); proxy URLs, `NO_PROXY` and the
+(`crates/podssh-ws/src/handshake.rs:188`); proxy URLs, `NO_PROXY` and the
 CONNECT status (`crates/podssh-ws/src/dial.rs:49`, lines 178 and 334); close
 reasons (`crates/podssh-ws/src/session.rs:288`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:80`); relay lists and the pool document
@@ -278,7 +278,7 @@ Read, the bounds today:
   (`crates/podssh-ws/src/session.rs:28`, checked at lines 240-242).
 - A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:8`), for the
   proxy (`crates/podssh-ws/src/dial.rs:18`) and for the upgrade
-  (`crates/podssh-ws/src/handshake.rs:132`).
+  (`crates/podssh-ws/src/handshake.rs:137`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:33`). A cache
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:19`).
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:29`). The relay pipe:

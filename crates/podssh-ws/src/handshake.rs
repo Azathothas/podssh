@@ -13,7 +13,7 @@
 //! that compares strings would see the empty one.
 
 use base64::Engine as _;
-use rustls::crypto::SecureRandom as _;
+use rustls::crypto::SecureRandom;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use crate::error::WsError;
@@ -21,8 +21,13 @@ use crate::error::WsError;
 /// ⛔ RFC 6455 §4.1: 16 random bytes, base64-encoded. The value exists only to
 /// prove the response is not a cached file, and it is checked on the way back.
 pub fn generate_key() -> Result<String, WsError> {
+    generate_key_from(&crate::crypto::random::OsRandom)
+}
+
+/// [`generate_key`] from `random`, so that a test can plant a source that fails.
+pub fn generate_key_from(random: &dyn SecureRandom) -> Result<String, WsError> {
     let mut bytes = [0u8; 16];
-    crate::crypto::random::OsRandom
+    random
         .fill(&mut bytes)
         .map_err(|e| WsError::Handshake(format!("no entropy for Sec-WebSocket-Key: {e:?}")))?;
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
@@ -263,8 +268,13 @@ where
 /// condition the caller could have diagnosed. This is the same rule as the
 /// third plant: a clean error, never a panic.
 pub fn masking_key() -> Result<[u8; 4], WsError> {
+    masking_key_from(&crate::crypto::random::OsRandom)
+}
+
+/// [`masking_key`] from `random`, so that a test can plant a source that fails.
+pub fn masking_key_from(random: &dyn SecureRandom) -> Result<[u8; 4], WsError> {
     let mut key = [0u8; 4];
-    crate::crypto::random::OsRandom
+    random
         .fill(&mut key)
         .map_err(|e| WsError::Frame(format!("no OS entropy for a masking key: {e:?}")))?;
     Ok(key)

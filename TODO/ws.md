@@ -103,7 +103,7 @@ Confirmed here on `3ee70dc` by reading the code; two more call sites found.
 **Milestone:** M4
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -113,22 +113,24 @@ returning an error. Its callers expect an error: the comment of the masking key 
 
 ## Premise
 
-Read on `3ee70dc`, the defect holds. `OsRandom::fill` calls `rand::rngs::OsRng.fill_bytes` and
-always returns `Ok` (`crates/podssh-ws/src/crypto/random.rs:13-23`), and its comment (lines
-15-19) says that this cannot fail. It can: `Cargo.lock` gives `podssh-ws` `rand` 0.8, whose
-`rand_core` 0.6.4 implements `fill_bytes` for `OsRng` as `try_fill_bytes` and a panic on an
-error (read in the cargo registry copy, `rust-random/rand:rand_core/src/os.rs`, lines 61-64 of
-that release). `generate_key` and `masking_key` map an error that never comes
-(`crates/podssh-ws/src/handshake.rs:23-29`, 256-271). Two more sites, not in the W13 row, panic
-the same way: `rng.fill_bytes` for the X25519 secret (`crates/podssh-ws/src/crypto/kx.rs:52-56`)
-and `EphemeralSecret::random` for P-256 (line 66).
+Read on `3ee70dc`, the defect holds; the lines below are those of `510d86f`. `OsRandom::fill`
+calls `rand::rngs::OsRng.fill_bytes` and always returns `Ok`
+(`crates/podssh-ws/src/crypto/random.rs` lines 13-23), and its comment (lines 15-19) says that
+this cannot fail. It can: `Cargo.lock` gives `podssh-ws` `rand` 0.8, whose `rand_core` 0.6.4
+implements `fill_bytes` for `OsRng` as `try_fill_bytes` and a panic on an error (read in the
+cargo registry copy, `rust-random/rand:rand_core/src/os.rs`, lines 61-64 of that release).
+`generate_key` and `masking_key` map an error that never comes
+(`crates/podssh-ws/src/handshake.rs` lines 23-29 and 256-271). Two more sites, not in the W13
+row, panic the same way: `rng.fill_bytes` for the X25519 secret
+(`crates/podssh-ws/src/crypto/kx.rs` lines 52-56) and `EphemeralSecret::random` for P-256 (line
+66).
 
 ## Approach
 
 1. In `random.rs`, call `OsRng.try_fill_bytes`, and map an error to
    `rustls::crypto::GetRandomFailed`; rustls 0.23.45 turns it into
    `Error::FailedToGetRandomBytes` (read in its `src/error.rs`). Correct the comment.
-2. X25519 (`crates/podssh-ws/src/crypto/kx.rs:52-56`): fill the 32 bytes through
+2. X25519 (`crates/podssh-ws/src/crypto/kx.rs` lines 52-56 at `510d86f`): fill the 32 bytes through
    `OsRandom::fill`, and return `Error::FailedToGetRandomBytes` on a failure.
 3. P-256 (line 66): draw 32 bytes the same way, make the secret with
    `p256::SecretKey::from_slice` (draw again, a few times at most, when it is zero or out of
@@ -137,6 +139,25 @@ and `EphemeralSecret::random` for P-256 (line 66).
 4. Make the source a parameter in the tests, so a failing source can be planted.
 5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:219-238`
    does, and fails on `fill_bytes(` or `OsRng` outside `random.rs`.
+
+## Decision
+
+2026-10-09:
+
+1. P-256 is proven against a TLS stack that podssh did not write by the live relay, not by an
+   `openssl s_server` in the container gate: `each_group_alone_completes_a_handshake_with_the_relay`
+   offers one group at a time with the configuration that ships (`tls::client_config_with`, new)
+   and asserts the group that the relay chose. The live tests are in the default suite, so the
+   gate and CI run it. Lost: an OpenSSL server in the gate, a second peer for the same proof, and
+   its setup in the image.
+2. The source is a parameter as `&dyn SecureRandom` (`kx::start_with`,
+   `handshake::masking_key_from`, `handshake::generate_key_from`) and as `&mut impl RngCore`
+   (`random::fill_from`, under `OsRandom`): the first plants a source that fails, the second plants
+   an `RngCore` whose `fill_bytes` panics, as that of `OsRng` does.
+3. P-256 draws eight times at most; a source that gives only zero or out-of-range draws is
+   `FailedToGetRandomBytes`, as one that gives none.
+4. The scan also refuses `::random(&mut`, a generator that takes an RNG, beside `fill_bytes(` and
+   `OsRng` outside `crypto/random.rs`.
 
 ## Prove
 
@@ -151,6 +172,28 @@ New tests: with a failing source, `fill` returns `GetRandomFailed` and `masking_
 completes with each group: X25519 against the live relay, and P-256 against a server that offers
 only P-256 (`openssl s_server -groups P-256` in the container gate). Planted defect: call
 `fill_bytes` again; the failing-source test panics, and fails.
+
+## Done
+
+2026-10-09, in the commit "No draw of random bytes can panic".
+
+- `random::fill_from` reads with `try_fill_bytes` and maps a failure to `GetRandomFailed`;
+  `OsRandom::fill` calls it with `OsRng`. Its comment says why.
+- `kx::start_with(group, random)`: X25519 fills its 32 bytes through the source (and wipes the
+  copy on the stack); P-256 makes its secret with `p256::SecretKey::from_slice` from 32 drawn
+  bytes (see Decision) and computes the shared secret with `p256::ecdh::diffie_hellman`. No
+  generator that can panic is left; `KxGroup::start` calls `start_with` with `OsRandom`.
+- `handshake::generate_key_from` and `masking_key_from`; `tls::client_config_with`.
+- `crates/podssh-ws/tests/random_source.rs` (new): a source that gives no bytes is an error for
+  `fill_from`, both WebSocket keys and both groups; P-256 draws again after out-of-range draws;
+  P-256 agrees with `p256`'s own `EphemeralSecret` on the shared secret; X25519 agrees with
+  itself; the source scan. `live_handshake.rs`: each group alone completes a handshake with the
+  relay.
+- Prove: `CC=/nonexistent CXX=/nonexistent cargo test -p podssh-ws`: 151 passed, 0 failed, 2
+  ignored; among them the live handshakes, X25519 alone and P-256 alone. `cargo test
+  --no-fail-fast`: 804 passed, 0 failed, 7 ignored.
+- Plant: `fill_from` calls `fill_bytes` again: `a_source_that_gives_no_bytes_is_an_error`
+  panicked ("fill_bytes was called"), and the scan named `crypto/random.rs`.
 
 # T-065: W14: `probe::PrintChain` accepts each certificate, and is a public export
 
@@ -180,7 +223,7 @@ module comment says that the test suite asserts that the shipped configuration d
 (`probe.rs` lines 9-12), but no test names `PrintChain`: a search finds it only in `probe.rs`,
 the example and the documents. Also, lines 134 and 178 of `probe.rs` index the certificate with
 no bound check, so a short certificate panics the probe. The shipped configuration calls
-`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:162-166`), so a scan
+`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:169-173`), so a scan
 cannot look for that word alone.
 
 ## Approach
@@ -261,13 +304,13 @@ provider, so podbox cannot.
 ## Premise
 
 Read: `open_tls` builds the trust anchors and the configuration on each call
-(`crates/podssh-ws/src/client.rs:187-207`, through `crates/podssh-ws/src/tls.rs:153-173`).
+(`crates/podssh-ws/src/client.rs:187-207`, through `crates/podssh-ws/src/tls.rs:153-180`).
 `WsClientConfig` carries only a `Trust` (`crates/podssh-ws/src/client.rs:47-61`). The same
 `Trust` goes through `podssh-relay`: `Request` (`crates/podssh-relay/src/open.rs:125-135`),
 `MintContext` (`crates/podssh-relay/src/token.rs:92-97`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:117-126`), and the `https_*` functions
 (`crates/podssh-ws/src/client.rs:261-287`). podssh's configuration offers no ALPN
-(`crates/podssh-ws/src/tls.rs:167-170`), because the upgrade is HTTP/1.1 only
+(`crates/podssh-ws/src/tls.rs:174-177`), because the upgrade is HTTP/1.1 only
 (`docs/relay.md:169`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
@@ -321,7 +364,7 @@ the system bundle).
 
 Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs:55-56`),
 and its comment says that TLS 1.2 suites are absent on purpose (lines 7-11). The configuration
-enables both versions (`crates/podssh-ws/src/tls.rs:162-164`); rustls accepts that, because one
+enables both versions (`crates/podssh-ws/src/tls.rs:169-171`); rustls accepts that, because one
 suite is usable, and then offers no TLS 1.2 suite (rustls 0.23.45, `with_protocol_versions` in
 its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustls` and
 `tokio-rustls` is on (`Cargo.toml`). The provider has HMAC

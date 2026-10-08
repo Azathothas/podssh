@@ -8,11 +8,10 @@ use std::fmt;
 
 use p256::elliptic_curve::sec1::ToEncodedPoint;
 use p256::PublicKey;
-use p256::ecdh::EphemeralSecret;
-use rand::RngCore as _;
-use rustls::crypto::{ActiveKeyExchange, SharedSecret, SupportedKxGroup};
+use rustls::crypto::{ActiveKeyExchange, GetRandomFailed, SecureRandom, SharedSecret, SupportedKxGroup};
 use rustls::{Error, NamedGroup, PeerMisbehaved};
 use x25519_dalek::{PublicKey as XPublicKey, StaticSecret};
+use zeroize::Zeroize as _;
 
 
 /// ⛔ `x25519-dalek` 2.0's `StaticSecret` clamps on construction, which is what
@@ -49,36 +48,7 @@ impl Drop for SecretBytes {
 
 impl SupportedKxGroup for KxGroup {
     fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, Error> {
-        let mut rng = rand::rngs::OsRng;
-        match self.name {
-            NamedGroup::X25519 => {
-                let mut bytes = [0u8; 32];
-                rng.fill_bytes(&mut bytes);
-                let secret = StaticSecret::from(bytes);
-                let public = x25519_dalek::PublicKey::from(&secret);
-                Ok(Box::new(X25519Exchange {
-                    secret,
-                    public: public.to_bytes().to_vec(),
-                    _wipe: SecretBytes(bytes.to_vec()),
-                }))
-            }
-            NamedGroup::secp256r1 => {
-                let secret = EphemeralSecret::random(&mut rng);
-                let public = secret.public_key();
-                Ok(Box::new(P256Exchange {
-                    secret,
-                    public: PublicKey::from(public).to_encoded_point(false).as_bytes().to_vec(),
-                }))
-            }
-            // ⛔ Unreachable: the only two values of this type are the statics
-            // above. This is a *local* configuration fault, not a peer fault,
-            // so it is a `General` error and deliberately not one of the
-            // `PeerMisbehaved` variants — blaming the relay for a bug in
-            // podssh's own provider is how a real fault gets misdiagnosed.
-            _ => Err(Error::General(
-                "podssh: a key exchange group with no implementation was constructed".into(),
-            )),
-        }
+        start_with(self.name, &crate::crypto::random::OsRandom)
     }
 
     fn ffdhe_group(&self) -> Option<rustls::ffdhe_groups::FfdheGroup<'static>> {
@@ -91,6 +61,56 @@ impl SupportedKxGroup for KxGroup {
     fn name(&self) -> NamedGroup {
         self.name
     }
+}
+
+/// Start a key exchange of `group`, its secret drawn from `random`. A source
+/// that gives no bytes is `Error::FailedToGetRandomBytes`, never a panic: no
+/// generator here can panic. The source is a parameter so that a test can
+/// plant one that fails.
+pub fn start_with(group: NamedGroup, random: &dyn SecureRandom) -> Result<Box<dyn ActiveKeyExchange>, Error> {
+    match group {
+        NamedGroup::X25519 => {
+            let mut bytes = [0u8; 32];
+            random.fill(&mut bytes)?;
+            let secret = StaticSecret::from(bytes);
+            let public = x25519_dalek::PublicKey::from(&secret);
+            let exchange = X25519Exchange {
+                secret,
+                public: public.to_bytes().to_vec(),
+                _wipe: SecretBytes(bytes.to_vec()),
+            };
+            bytes.zeroize();
+            Ok(Box::new(exchange))
+        }
+        NamedGroup::secp256r1 => {
+            let secret = p256_secret(random)?;
+            let public = secret.public_key().to_encoded_point(false).as_bytes().to_vec();
+            Ok(Box::new(P256Exchange { secret, public }))
+        }
+        // ⛔ Unreachable: the only two values of this type are the statics
+        // above. This is a *local* configuration fault, not a peer fault,
+        // so it is a `General` error and deliberately not one of the
+        // `PeerMisbehaved` variants — blaming the relay for a bug in
+        // podssh's own provider is how a real fault gets misdiagnosed.
+        _ => Err(Error::General(
+            "podssh: a key exchange group with no implementation was constructed".into(),
+        )),
+    }
+}
+
+/// A P-256 secret from 32 drawn bytes. A draw that is zero or not below the
+/// order of the group (about one in 2^32) is drawn again, eight times at
+/// most; a source that gives only such draws is as broken as one that gives
+/// none. `EphemeralSecret::random` would panic where the source fails.
+fn p256_secret(random: &dyn SecureRandom) -> Result<p256::SecretKey, Error> {
+    for _ in 0..8 {
+        let mut bytes = zeroize::Zeroizing::new([0u8; 32]);
+        random.fill(&mut bytes[..])?;
+        if let Ok(secret) = p256::SecretKey::from_slice(&bytes[..]) {
+            return Ok(secret);
+        }
+    }
+    Err(GetRandomFailed.into())
 }
 
 struct X25519Exchange {
@@ -140,7 +160,8 @@ impl ActiveKeyExchange for X25519Exchange {
 }
 
 struct P256Exchange {
-    secret: EphemeralSecret,
+    /// Zeroized on drop by `p256`.
+    secret: p256::SecretKey,
     public: Vec<u8>,
 }
 
@@ -154,7 +175,7 @@ impl ActiveKeyExchange for P256Exchange {
         }
         let peer_key = PublicKey::from_sec1_bytes(peer)
             .map_err(|_| PeerMisbehaved::InvalidKeyShare)?;
-        let shared = self.secret.diffie_hellman(&peer_key);
+        let shared = p256::ecdh::diffie_hellman(self.secret.to_nonzero_scalar(), peer_key.as_affine());
         Ok(SharedSecret::from(shared.raw_secret_bytes().to_vec()))
     }
 

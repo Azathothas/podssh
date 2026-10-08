@@ -151,7 +151,14 @@ pub fn roots_from_compiled_set() -> TlsRoots {
 /// embeds podssh, and a second call would return an error that reads like a
 /// bug in the caller.
 pub fn client_config(roots: &TlsRoots) -> Result<Arc<ClientConfig>, WsError> {
-    let provider: Arc<CryptoProvider> = Arc::new(crate::crypto::provider());
+    client_config_with(roots, crate::crypto::provider())
+}
+
+/// [`client_config`] with a provider that the caller gives: the same
+/// verifier and the same protocol versions, so that a test can offer one key
+/// exchange group alone and still prove the configuration that ships.
+pub fn client_config_with(roots: &TlsRoots, provider: CryptoProvider) -> Result<Arc<ClientConfig>, WsError> {
+    let provider: Arc<CryptoProvider> = Arc::new(provider);
     let verifier = rustls::client::WebPkiServerVerifier::builder_with_provider(
         Arc::new(roots.roots.clone()),
         provider.clone(),

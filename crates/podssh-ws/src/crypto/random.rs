@@ -12,13 +12,17 @@ pub struct OsRandom;
 
 impl rustls::crypto::SecureRandom for OsRandom {
     fn fill(&self, buf: &mut [u8]) -> Result<(), GetRandomFailed> {
-        // ⛔ `rand_core 0.6`'s `RngCore` is implemented for `OsRng` directly —
-        // it is infallible by construction, because it reads the OS and there
-        // is no fallback. A `try_fill` that could fail would have to invent a
-        // degraded path, and this is the one place in the crate where a
-        // degraded path must not exist.
-        use rand::RngCore as _;
-        rand::rngs::OsRng.fill_bytes(buf);
-        Ok(())
+        fill_from(&mut rand::rngs::OsRng, buf)
     }
+}
+
+/// Fill `buf` from `source`, or report that it gave no bytes. Reading the OS
+/// can fail (no `getrandom`, a seccomp filter, an exhausted descriptor
+/// table), and `fill_bytes` of `rand_core` 0.6 then panics, which ends the
+/// whole process where an error ends one session; `try_fill_bytes` returns
+/// the error. There is still no degraded path: a failure is reported, never
+/// answered with weaker bytes. The source is a parameter so that a test can
+/// plant one that fails.
+pub fn fill_from(source: &mut impl rand::RngCore, buf: &mut [u8]) -> Result<(), GetRandomFailed> {
+    source.try_fill_bytes(buf).map_err(|_| GetRandomFailed)
 }
