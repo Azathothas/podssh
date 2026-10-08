@@ -57,6 +57,14 @@ Each rule is implemented.
   executes something that it receives over chat. `podssh doctor` is the only
   part that binds a socket: it tests whether the host allows a bind, and
   closes the socket without listening.
+- **A channel that podssh did not ask for is refused.** A server can open
+  channels toward the client (`forwarded-tcpip`, agent, X11, `session`,
+  `direct-tcpip` and the two streamlocal kinds). podssh asks for none, so
+  it refuses each with "administratively prohibited", as OpenSSH does, and
+  warns about an agent or X11 channel. A feature that asks for one kind
+  (`-R`, `-A`, `-X`) accepts only that kind, for its own requests, and reads
+  an accepted channel at once or closes it: a channel kept unread would stop
+  the whole session.
 
 ## Known gaps
 

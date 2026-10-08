@@ -1,10 +1,12 @@
-//! The russh client handler: where the host key is checked and the server's
-//! banner shown. Everything else russh handles itself.
+//! The russh client handler: where the host key is checked, the server's
+//! banner shown, its disconnect kept, and each channel that it opens unasked
+//! refused. Everything else russh handles itself.
 
 use std::sync::{Arc, Mutex};
 
-use russh::client::{DisconnectReason, Handler, Session};
+use russh::client::{ChannelOpenHandle, DisconnectReason, Handler, Msg, Session};
 use russh::keys::PublicKeyOrCertificate;
+use russh::{Channel, ChannelOpenFailure};
 
 use crate::hostkey::{Policy, Verdict};
 use crate::log::Log;
@@ -38,6 +40,24 @@ impl Client {
     /// A handle on the refusal message, to read after the handshake fails.
     pub fn refusal(&self) -> Arc<Mutex<Option<String>>> {
         self.refusal.clone()
+    }
+
+    /// The one place that decides on a channel that the server opens. podssh
+    /// asks for none yet, so each is refused, as OpenSSH refuses a channel
+    /// that it did not ask for; russh would accept it, and read and drop its
+    /// data with no end. -R, -A and -X (T-035, T-036, T-037) will each accept
+    /// their own kind here, only for their own requests, and must read an
+    /// accepted channel at once or close it: a channel kept unread stops the
+    /// whole session.
+    async fn unasked(&self, kind: &str, reply: ChannelOpenHandle) {
+        match kind {
+            "auth-agent@openssh.com" => {
+                self.log.info("Warning: the server tried agent forwarding, which podssh did not ask for; refused.")
+            }
+            "x11" => self.log.info("Warning: the server tried X11 forwarding, which podssh did not ask for; refused."),
+            _ => self.log.verbose(&format!("refused a {kind} channel that the server opened unasked")),
+        }
+        reply.reject(ChannelOpenFailure::AdministrativelyProhibited).await;
     }
 }
 
@@ -85,4 +105,90 @@ impl Handler for Client {
             DisconnectReason::Error(e) => Err(e),
         }
     }
+
+    async fn server_channel_open_forwarded_tcpip(
+        &mut self,
+        _channel: Channel<Msg>,
+        _connected_address: &str,
+        _connected_port: u32,
+        _originator_address: &str,
+        _originator_port: u32,
+        reply: ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.unasked("forwarded-tcpip", reply).await;
+        Ok(())
+    }
+
+    async fn server_channel_open_forwarded_streamlocal(
+        &mut self,
+        _channel: Channel<Msg>,
+        _socket_path: &str,
+        reply: ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.unasked("forwarded-streamlocal@openssh.com", reply).await;
+        Ok(())
+    }
+
+    async fn server_channel_open_agent_forward(
+        &mut self,
+        _channel: Channel<Msg>,
+        reply: ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.unasked("auth-agent@openssh.com", reply).await;
+        Ok(())
+    }
+
+    async fn server_channel_open_session(
+        &mut self,
+        _channel: Channel<Msg>,
+        reply: ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.unasked("session", reply).await;
+        Ok(())
+    }
+
+    async fn server_channel_open_direct_tcpip(
+        &mut self,
+        _channel: Channel<Msg>,
+        _host_to_connect: &str,
+        _port_to_connect: u32,
+        _originator_address: &str,
+        _originator_port: u32,
+        reply: ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.unasked("direct-tcpip", reply).await;
+        Ok(())
+    }
+
+    async fn server_channel_open_direct_streamlocal(
+        &mut self,
+        _channel: Channel<Msg>,
+        _socket_path: &str,
+        reply: ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.unasked("direct-streamlocal@openssh.com", reply).await;
+        Ok(())
+    }
+
+    async fn server_channel_open_x11(
+        &mut self,
+        _channel: Channel<Msg>,
+        _originator_address: &str,
+        _originator_port: u32,
+        reply: ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.unasked("x11", reply).await;
+        Ok(())
+    }
 }
+
+#[cfg(test)]
+#[path = "handler_tests.rs"]
+mod tests;

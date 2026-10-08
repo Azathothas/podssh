@@ -166,7 +166,7 @@ Read:
 2. Keep the server's SSH_MSG_DISCONNECT: implement `Handler::disconnected` in
    `crates/podssh-ssh/src/handler.rs`. Store the reason code and the text,
    made safe with `podssh_ws::text::one_line`, as the handler stores
-   `refusal` (`crates/podssh-ssh/src/handler.rs:15-17`).
+   `refusal` (`crates/podssh-ssh/src/handler.rs:17-19`).
 3. In `run` (`crates/podssh-ssh/src/run.rs` lines 34-48 at `80f20bf`), write one first line from
    three sources, in this order: a relay close other than 1000, the server's
    disconnect, then `describe`. Example: "railway.new: the relay lost its
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:140` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:186`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:187`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -406,7 +406,7 @@ logs each `exit-status` request, and correct the row.
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
 lablup/bssh report in GitHub #18, #20 and #22 (item 8, "`@cert-authority`
-rejection"); the known gap in `docs/STATUS.md:200` and `SECURITY.md:66-68`.
+rejection"); the known gap in `docs/STATUS.md:201` and `SECURITY.md:74-76`.
 Each claim read again here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog
@@ -432,8 +432,8 @@ Read:
   (`crates/podssh-ssh/src/known_hosts.rs:62-85`). `CertAuthority` has two
   hits in `crates/` and `docs/`: the definition and the parse.
 - The check takes the plain key of what russh gives
-  (`crates/podssh-ssh/src/handler.rs:51`). The comment at
-  `crates/podssh-ssh/src/handler.rs:48-50` says that OpenSSH falls back the
+  (`crates/podssh-ssh/src/handler.rs:71`). The comment at
+  `crates/podssh-ssh/src/handler.rs:68-70` says that OpenSSH falls back the
   same way when no CA line matches; podssh never looks for a CA line.
 - The refusal comes from the policy: `crates/podssh-ssh/src/hostkey.rs:66-70`
   (`yes`), `crates/podssh-ssh/src/hostkey.rs:75-79` (BatchMode),
@@ -458,7 +458,7 @@ back to the plain key only when no CA line matches.
    the `@revoked` arm (`crates/podssh-ssh/src/known_hosts.rs:66-71`). Match CA
    lines with the name `host` or `[host]:port`
    (`crates/podssh-ssh/src/known_hosts.rs:53-60`).
-3. In `check_server_key` (`crates/podssh-ssh/src/handler.rs:47-66`), branch on
+3. In `check_server_key` (`crates/podssh-ssh/src/handler.rs:67-86`), branch on
    `PublicKeyOrCertificate`. For a certificate: `validate_at` with the clock
    and the fingerprints of the matching CA keys; the type must be `host`; a
    principal must equal the host name or `HostKeyAlias`, with no port;
@@ -471,8 +471,8 @@ back to the plain key only when no CA line matches.
 5. In an expiry refusal, name the clock: a sandbox clock can be wrong
    (`crates/podssh-cli/src/doctor/clock.rs`).
 6. Keep the test `a_cert_authority_line_does_not_make_a_key_known`: a CA line
-   never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:48-50`.
-   When certificates work, change `docs/STATUS.md:200` and `SECURITY.md:66-68`.
+   never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:68-70`.
+   When certificates work, change `docs/STATUS.md:201` and `SECURITY.md:74-76`.
 
 GitHub #29 notes that the bssh report in #18, #20 and #22 asks podssh to
 keep refusing a certificate that no trusted CA signed. Verification keeps
@@ -1401,7 +1401,7 @@ here on `3ee70dc`, and in russh 0.64.1 in the local cargo registry.
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1418,7 +1418,7 @@ Read:
 
 - podssh's handler implements `check_server_key`, `auth_banner` and (since
   T-024) `disconnected`, and no callback for a channel
-  (`crates/podssh-ssh/src/handler.rs:44-88`).
+  (`crates/podssh-ssh/src/handler.rs` lines 44-88 at `8d668b7`).
 - In russh 0.64.1, the default callbacks for the seven kinds above accept
   the channel. A channel of an unknown kind is refused
   (`should_accept_unknown_server_channel` returns false by default).
@@ -1463,6 +1463,28 @@ for each): each open fails with `AdministrativelyProhibited`, and an exec on
 a session channel still returns its exit status. For the agent and X11
 kinds, the log has the warning. Planted defect: remove the callback for
 `forwarded-tcpip`, and its open succeeds, so the test fails.
+
+## Done
+
+2026-10-08, in the commit "A channel that podssh did not ask for is
+refused".
+
+- `crates/podssh-ssh/src/handler.rs`: the seven callbacks for a channel
+  that the server opens (`forwarded-tcpip`, `forwarded-streamlocal`, the
+  agent, `session`, `direct-tcpip`, `direct-streamlocal`, X11) go to one
+  method, `unasked`, the one place that decides. It refuses with
+  "administratively prohibited", and warns at INFO for an agent or X11
+  channel, as OpenSSH does. Its comment gives the rule for T-035, T-036 and
+  T-037: accept only the kind asked for, and read an accepted channel at
+  once or close it.
+- `SECURITY.md` (section "Design rules") has the rule.
+- Prove: `cargo test -p podssh-ssh -- unrequested_channels` passed. A russh
+  server in the process, after the login, opens each of the seven kinds
+  through its `Handle`: each open fails with `AdministrativelyProhibited`,
+  an exec on a session channel that podssh opens still returns exit status
+  0, and the log has both warnings.
+- Plant: the callback for `forwarded-tcpip` removed. The test failed:
+  "forwarded-tcpip: the client accepted a channel that it did not ask for".
 
 # T-238: `%` tokens differ from OpenSSH: some stay literal, `%u` gives the remote user, and an unknown token is kept
 

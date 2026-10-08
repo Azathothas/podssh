@@ -49,7 +49,7 @@ used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:75-77`). The claim is n
 4. Correct the comments at `crates/podssh-core/src/irc/cap.rs:9-28` and
    `crates/podssh-core/src/irc/session.rs:22-24`, and remove the test at
    `crates/podssh-core/tests/session.rs:217-247`. Record the new network results in
-   `docs/irc.md:12-24`, and update `docs/STATUS.md:203`, in the same commit.
+   `docs/irc.md:12-24`, and update `docs/STATUS.md:204`, in the same commit.
 
 ## Prove
 
@@ -110,7 +110,7 @@ trailing is not the last.
 3. On `ACK`, enable only the names asked for; a `-` prefix turns one off
    (`crates/podssh-core/src/irc/cap.rs:128-137`). Read `NEW` and `DEL` only with `cap-notify`, and
    correct the comment at `crates/podssh-core/src/irc/cap.rs:148-152`, which says `LS`.
-4. Update `docs/STATUS.md:203` in the same commit.
+4. Update `docs/STATUS.md:204` in the same commit.
 
 ## Decision
 
@@ -176,7 +176,7 @@ covers it.
 3. Refuse a transfer name or reason with `|`, CR, LF or NUL. On receive, give the caller a base
    name only (`crates/podssh-core/src/irc/transfer/recv.rs:89-91`).
 4. Update the callers (`crates/podssh-cli/examples/live_irc/support.rs:146-158`) and
-   `docs/STATUS.md:203` in the same commit.
+   `docs/STATUS.md:204` in the same commit.
 
 ## Decision
 
@@ -241,7 +241,7 @@ measured here.
 3. `CAP`: when the second parameter is a verb, the first is the target, `*` or a nick.
 4. Capture these forms from real servers into the fixture, with the server, version and date. Add
    the capture option to `crates/podssh-cli/examples/live_irc/support.rs`, because the probe's main
-   file has 473 lines. Update `docs/STATUS.md:203`. T-198 fuzzes this parser later.
+   file has 473 lines. Update `docs/STATUS.md:204`. T-198 fuzzes this parser later.
 
 ## Decision
 
@@ -311,7 +311,7 @@ its comment (`crates/podssh-core/src/irc/session.rs:43-47`). A test asserts the 
    new `Reassembler`, `pending_pongs` and `Isupport`. Keep `ChannelMemory`.
 6. On a `433` before `001`, send `NICK` with a suffix that fits `NICKLEN`, three times at most, and
    then report `Refused`. After `001`, a `433` is an event.
-7. Rewrite the two tests, remove the work-around, and update `docs/STATUS.md:203`, in one commit.
+7. Rewrite the two tests, remove the work-around, and update `docs/STATUS.md:204`, in one commit.
 
 ## Prove
 
@@ -370,7 +370,7 @@ network that took the relay is undernet (`docs/irc.md:20`); its use of Latin-1 i
 4. In `Session::on_bytes`, turn each line error into `Event::Protocol`, and go on
    (`crates/podssh-core/src/irc/session.rs:262-277`).
 5. Correct the comments at `crates/podssh-core/src/irc/framing.rs:28-33` (the quote is about case
-   mapping) and `crates/podssh-core/src/irc/framing.rs:121-126`. Update `docs/STATUS.md:203`.
+   mapping) and `crates/podssh-core/src/irc/framing.rs:121-126`. Update `docs/STATUS.md:204`.
 
 ## Decision
 
@@ -437,7 +437,7 @@ whole file in memory, for any total that the offer gives (`crates/podssh-core/sr
 3. In `accept`, check the index before the bytes go into the file.
 4. Limit the receiver's memory: a size limit from the caller, or a sink that the caller owns. A
    file is taken only when the user accepts it (`docs/decisions.md:41`).
-5. Update `docs/irc.md:26-32` and `docs/STATUS.md:203` in the same commit.
+5. Update `docs/irc.md:26-32` and `docs/STATUS.md:204` in the same commit.
 
 ## Decision
 
@@ -490,7 +490,7 @@ empty frames every 25 s (`docs/relay.md:65-66`, `docs/relay.md:113`). An IRC `PI
 are bytes of the stream, so they are payload.
 
 Measured on SSH, not on IRC: payload keepalives every 60 s kept a relay session for 602 s; with
-none, the relay cut it after 184 s (`docs/STATUS.md:89-90`).
+none, the relay cut it after 184 s (`docs/STATUS.md:90-91`).
 
 ## Approach
 
@@ -504,7 +504,7 @@ none, the relay cut it after 184 s (`docs/STATUS.md:89-90`).
 4. Rewrite the test at `crates/podssh-core/tests/session.rs:355-381`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs:5-29` and the test name at
    `crates/podssh-core/tests/transfer.rs:386-408`.
-5. Update `docs/STATUS.md:203` in the same commit.
+5. Update `docs/STATUS.md:204` in the same commit.
 
 Pitfall: a server can limit the rate of `PING` lines. One `PING` in 60 s is far below the usual
 limits (not measured).
@@ -570,7 +570,7 @@ today (`crates/podssh-cli/src/flags.rs:259-271`,
 5. A test in two boxes through the live relay, built like the script of
    T-085: text, and files of 0, 1 and 5,000,000 bytes with equal digests.
 6. Docs in the same commit: `docs/irc.md` (a section on chat), `docs/cli.md`,
-   `docs/STATUS.md`, and the gap of plain text in `SECURITY.md:69`, which the
+   `docs/STATUS.md`, and the gap of plain text in `SECURITY.md:77`, which the
    roads do not have.
 
 ## Decision
@@ -612,7 +612,7 @@ run podssh, or who wants a public channel, has no chat.
 Read: the client is sans-IO, and T-091 to T-098 repair its defects. Measured
 on 2026-10-05: of seven public networks, only `irc.undernet.org:6667`
 accepted the relay's addresses (`docs/irc.md:12-24`). On port 6667 the relay
-and each server read the text (`SECURITY.md:69`).
+and each server read the text (`SECURITY.md:77`).
 
 ## Approach
 

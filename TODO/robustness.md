@@ -437,7 +437,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 73-182 (`docs/STATUS.md:173-192`, 14 of 14 since T-236).
+  checks are at lines 73-182 (`docs/STATUS.md:174-193`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:241`, enforced at
   `crates/podssh-ssh/src/run.rs:138-143`); a reply, 30 s

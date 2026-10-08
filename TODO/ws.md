@@ -119,7 +119,7 @@ only P-256 (`openssl s_server -groups P-256` in the container gate). Planted def
 # T-065: W14: `probe::PrintChain` accepts each certificate, and is a public export
 
 **Source:** the former defects page (`git show 3ee70dc:docs/defects.md`), row W14 (medium);
-`SECURITY.md:70-72`; the `podssh-ws` item of ROADMAP M4 and `docs/design.md:104` ("behind a
+`SECURITY.md:78-80`; the `podssh-ws` item of ROADMAP M4 and `docs/design.md:104` ("behind a
 feature"). Confirmed here on `3ee70dc` by reading the code.
 **Category:** defect
 **Milestone:** M4
@@ -157,7 +157,7 @@ alone.
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
-4. Change in the same commit: `SECURITY.md:70-72` (the gap is closed), `docs/design.md:104`,
+4. Change in the same commit: `SECURITY.md:78-80` (the gap is closed), `docs/design.md:104`,
    and `docs/STATUS.md` (Components, `podssh-ws`).
 
 ## Decision

@@ -37,7 +37,8 @@ server listens, and the client connects out for each connection.
   not say that.
 - Read: russh 0.64.1 has `Handle::tcpip_forward`, and its default handler
   accepts each `forwarded-tcpip` channel that a server opens. podssh's handler
-  does not override it (`crates/podssh-ssh/src/handler.rs:44-88`).
+  does not override it (`crates/podssh-ssh/src/handler.rs` lines 44-88 at
+  `8d668b7`).
 - Read: `dial` goes through `HTTPS_PROXY`, but never for a loopback target
   (`crates/podssh-ws/src/dial.rs:138-147`,
   `crates/podssh-ws/src/dial.rs:204-227`). On the measured sandbox, a direct
@@ -102,6 +103,12 @@ exit 64, as `-o RemoteForward` does; it names no `-W`. The manual's note
 gives `-R` a sentence of its own (`crates/podssh-cli/src/man/notes.rs:31-33`).
 The rest of the Premise holds.
 
+2026-10-08, T-237: podssh's handler now refuses each channel that the
+server opens, as administratively prohibited, in one place: `unasked` in
+`crates/podssh-ssh/src/handler.rs`. This entry accepts its own kind there,
+only for its own requests, and reads an accepted channel at once or closes
+it (`SECURITY.md`, "Design rules").
+
 # T-036: `-A`: agent forwarding, off by default as in OpenSSH
 
 **Source:** the operator's ruling of 2026-10-08 on Q2: implement `-A`, off by
@@ -138,7 +145,7 @@ remote host that must use the key, such as `git` on a build host.
 - Read: russh 0.64.1 has `Channel::agent_forward`
   (`auth-agent-req@openssh.com`), and its default handler accepts an
   `auth-agent@openssh.com` channel from the server. podssh's handler does not
-  override it (`crates/podssh-ssh/src/handler.rs:44-88`). No agent is
+  override it (`crates/podssh-ssh/src/handler.rs` lines 44-88 at `8d668b7`). No agent is
   connected to such a channel today, so nothing leaks; OpenSSH refuses such
   a channel and warns.
 - Read: `docs/cli.md` (section "Forwarding") said that `-A` is not in the
@@ -178,6 +185,14 @@ The unit test runs a russh server in the process: an agent channel without
 Without `-A`, `ssh-add -l` exits 2. Planted defect: accept the channel
 without `-A`, and the unit test fails.
 
+## Correction
+
+2026-10-08, T-237: podssh's handler now refuses each channel that the
+server opens, as administratively prohibited, in one place: `unasked` in
+`crates/podssh-ssh/src/handler.rs`. This entry accepts its own kind there,
+only for its own requests, and reads an accepted channel at once or closes
+it (`SECURITY.md`, "Design rules").
+
 # T-037: `-X` and `-Y`: X11 forwarding to the display that `DISPLAY` names
 
 **Source:** the refusal by name since `0c93a7c` (T-016, GitHub #5). Read and
@@ -205,7 +220,7 @@ X11 channel.
   `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:61-74`).
 - Read: russh 0.64.1 has `Channel::request_x11` (`x11-req`), and its default
   handler accepts each `x11` channel. podssh's handler does not override it
-  (`crates/podssh-ssh/src/handler.rs:44-88`).
+  (`crates/podssh-ssh/src/handler.rs` lines 44-88 at `8d668b7`).
 - The X server's address comes from `DISPLAY`: `:N` is the socket
   `/tmp/.X11-unix/XN` (on Linux, also an abstract socket), and `HOST:N` is
   TCP port 6000+N. The cookie is in the file that `XAUTHORITY` names, else
@@ -262,6 +277,14 @@ cookie in a first packet, and rejects an `x11` channel that nobody asked for
 `DISPLAY=:9`: the output is `x11-ok`, exit 0. With `DISPLAY` unset: the
 refusal, exit 255. Planted defect: send the real cookie in `x11-req`, and a
 check that the server's `xauth list` holds the spoofed cookie fails.
+
+## Correction
+
+2026-10-08, T-237: podssh's handler now refuses each channel that the
+server opens, as administratively prohibited, in one place: `unasked` in
+`crates/podssh-ssh/src/handler.rs`. This entry accepts its own kind there,
+only for its own requests, and reads an accepted channel at once or closes
+it (`SECURITY.md`, "Design rules").
 
 # T-038: `-L` and `-D` when a probe shows that a local bind is allowed
 
