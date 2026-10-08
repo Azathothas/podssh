@@ -162,6 +162,7 @@ cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts
 cargo test -p podssh-cli --test proxy_live -- --ignored   # network: live relay
 cargo test -p podssh-cli --test doctor -- --ignored       # network: live relay
 target/debug/podssh doctor                   # this host, its egress, the relay
+sh scripts/sandbox-check.sh target/debug/podssh   # the sandbox record: doctor, proxy, keygen, ssh
 python scripts/check-repo.py
 python scripts/check-relay-spec.py           # live relay
 ssh -o ProxyCommand='target/debug/podssh proxy %h %p' -T git@github.com

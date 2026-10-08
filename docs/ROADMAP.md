@@ -191,8 +191,10 @@ take podssh down.
       and after: 14 of 14, with the debug build and with the release
       workflow's binary. Planted: a podssh that never restores the console
       fails the three restore checks (mode 0x1f7 before, 0x3f0 after).
-- [ ] **Measured in the operator's real sandbox**: `podssh doctor`, then
-      `podssh ssh` and `podssh proxy` through the sandbox's proxy.
+- [ ] **Measured in the operator's real sandbox**: run
+      `sh scripts/sandbox-check.sh` there (it builds podssh if no binary is
+      given, then runs `doctor`, `proxy`, `keygen`, `ssh`, and OpenSSH with
+      podssh as its `ProxyCommand`) and record the output in STATUS.
 - [ ] **Publication**: tag `v0.1.0-beta.1`; the release workflow
       (`.github/workflows/release.yml`) builds static musl binaries for
       x86_64 and aarch64 and a Windows binary with checksums, and the notes
