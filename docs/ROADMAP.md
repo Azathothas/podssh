@@ -124,14 +124,20 @@ Decided 2026-10-08 ([design.md](design.md) sections 3, 7 and 8): the first
 beta waits for these, so no single relay host, missing DNS or silent stall can
 take podssh down.
 
-- [ ] **Relay hosts with failover.** `--relay-host` and `PODSSH_RELAY` take an
-      ordered list; the pool from `/relays.json` is fetched and cached; a dial
-      error, a proxy 5xx or a refused upgrade moves to the next host; jittered
-      exponential backoff; one overall deadline per attempt;
-      `ConnectionAttempts` honoured. The token cache works across hosts
-      (tokens are valid on every pool host).
-- [ ] **Liveness.** WebSocket pings with a miss count, so a dead link is found
-      in seconds instead of at the 90 s idle limit.
+- [x] **Relay hosts with failover** (2026-10-08, crate `podssh-relay`).
+      `--relay-host` and `PODSSH_RELAY` take an ordered comma-separated list;
+      by default the default host is followed by up to three pool hosts (the
+      pool read from `/relays.json` at each mint and cached; six measured
+      hosts seed it); one attempt per host bounded at 45 s; errors another
+      host could fix move on, errors every host would repeat stop at once;
+      `ConnectionAttempts` rounds with jittered backoff. Measured: a dead
+      first host failed over to `tcp-eu-west-3`, which accepted the token
+      cached for the default host.
+- [x] **Liveness** (2026-10-08). The session pings the relay every 10 s and
+      declares the link dead after 30 s with nothing at all from it (any
+      frame counts, so a slow upload cannot fake a death), enforced only once
+      the relay has answered a ping. Measured: the relay answers pings (3 of
+      3); a 50 s idle session with SSH keepalives off stayed up.
 - [ ] **No proxy and no DNS.** DNS over HTTPS to an IP literal (repair and wire
       the unused DoH code, or replace it), and `--relay-addr HOST=IP` to pin an
       address.

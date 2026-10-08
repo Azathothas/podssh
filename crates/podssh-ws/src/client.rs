@@ -24,6 +24,13 @@ pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(20);
 /// every 25 s, so this only fires when the link is dead.
 pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(90);
 
+/// How often a session pings the relay, and how many silent intervals in a
+/// row mean the link is dead ([`crate::RelaySession::watch_liveness`]): 30 s
+/// of nothing at all, while a healthy relay sends at least a keepalive every
+/// 25 s (the relay answered every Ping, measured 2026-10-08).
+pub const LIVENESS_EVERY: Duration = Duration::from_secs(10);
+pub const LIVENESS_ALLOWED: u32 = 3;
+
 /// Bound on one write to an open session.
 pub const WRITE_TIMEOUT: Duration = Duration::from_secs(60);
 

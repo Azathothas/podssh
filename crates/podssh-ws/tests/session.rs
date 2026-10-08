@@ -179,3 +179,91 @@ fn a_close_reason_cannot_carry_terminal_controls() {
     payload.extend_from_slice(b"bye\x1b]0;owned\x07\rnow");
     assert_eq!(close_code_and_reason(&payload), (Some(1000), "bye]0;owned now".to_string()));
 }
+
+/// A scripted relay for the liveness tests: answers the first `pongs` Pings,
+/// ignores the rest, and sends a data frame every `chatter` if one is given.
+fn scripted_relay(peer: DuplexStream, pongs: usize, chatter: Option<Duration>) {
+    let (mut rd, mut wr) = tokio::io::split(peer);
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Vec<u8>>();
+    let tx_chatter = tx.clone();
+    tokio::spawn(async move {
+        while let Some(bytes) = rx.recv().await {
+            if wr.write_all(&bytes).await.is_err() {
+                break;
+            }
+        }
+    });
+    if let Some(every) = chatter {
+        tokio::spawn(async move {
+            loop {
+                tokio::time::sleep(every).await;
+                if tx_chatter.send(from_server(frame::OPCODE_BINARY, true, b"data")).is_err() {
+                    break;
+                }
+            }
+        });
+    }
+    tokio::spawn(async move {
+        let mut buf = Vec::new();
+        let mut answered = 0;
+        loop {
+            if let Some((f, used)) = frame::decode(&buf, Role::Client).expect("a valid client frame") {
+                buf.drain(..used);
+                if f.opcode == frame::OPCODE_PING && answered < pongs {
+                    answered += 1;
+                    let _ = tx.send(from_server(frame::OPCODE_PONG, true, &f.payload));
+                }
+                continue;
+            }
+            let mut chunk = [0u8; 4096];
+            match rd.read(&mut chunk).await {
+                Ok(0) | Err(_) => break,
+                Ok(n) => buf.extend_from_slice(&chunk[..n]),
+            }
+        }
+    });
+}
+
+fn keep_reading(s: &Arc<RelaySession<DuplexStream>>) {
+    let reader = s.clone();
+    tokio::spawn(async move { while reader.read_frame().await.is_ok() {} });
+}
+
+/// A link that answers a ping and then goes silent is declared dead after the
+/// allowed silent intervals, long before any idle read limit.
+#[tokio::test]
+async fn a_link_that_goes_silent_is_found_dead_by_pinging() {
+    let (client, peer) = tokio::io::duplex(64 * 1024);
+    scripted_relay(peer, 1, None);
+    let s = session(client, None);
+    keep_reading(&s);
+    let reason = tokio::time::timeout(Duration::from_secs(2), s.watch_liveness(Duration::from_millis(50), 3))
+        .await
+        .expect("a silent link must be declared dead");
+    assert!(reason.contains("dead"), "{reason}");
+    assert_eq!(s.pongs_received(), 1);
+}
+
+/// A relay that never answers pings is not mistaken for a dead one.
+#[tokio::test]
+async fn a_relay_that_never_answers_pings_is_not_declared_dead() {
+    let (client, peer) = tokio::io::duplex(64 * 1024);
+    scripted_relay(peer, 0, None);
+    let s = session(client, None);
+    keep_reading(&s);
+    let outcome = tokio::time::timeout(Duration::from_millis(600), s.watch_liveness(Duration::from_millis(50), 3)).await;
+    assert!(outcome.is_err(), "declared dead without ever seeing a pong: {outcome:?}");
+}
+
+/// Pongs can wait behind a large upload; data still arriving means the link
+/// is alive.
+#[tokio::test]
+async fn data_arriving_keeps_a_link_alive_when_pongs_stop() {
+    let (client, peer) = tokio::io::duplex(64 * 1024);
+    scripted_relay(peer, 1, Some(Duration::from_millis(30)));
+    let s = session(client, None);
+    keep_reading(&s);
+    let outcome = tokio::time::timeout(Duration::from_millis(600), s.watch_liveness(Duration::from_millis(50), 3)).await;
+    assert!(outcome.is_err(), "declared dead while data was arriving: {outcome:?}");
+    assert!(s.frames_received() > 3);
+}

@@ -144,11 +144,19 @@ async fn pump(session: RelaySession, err: &mut dyn Write) -> i32 {
     let session = Arc::new(session);
     let upstream = stdin_to_relay(session.clone());
     let downstream = relay_to_stdout(session.clone());
+    // A link that dies without a word is found by pinging, in about 30 s
+    // instead of at the 90 s idle read limit.
+    let liveness = session.watch_liveness(podssh_ws::LIVENESS_EVERY, podssh_ws::LIVENESS_ALLOWED);
     tokio::pin!(upstream);
     tokio::pin!(downstream);
+    tokio::pin!(liveness);
     let mut sending = true;
     loop {
         tokio::select! {
+            reason = &mut liveness => {
+                let _ = writeln!(err, "podssh: {reason}");
+                return EX_UNAVAILABLE;
+            }
             sent = &mut upstream, if sending => match sent {
                 Ok(()) => sending = false,
                 Err(e) => {

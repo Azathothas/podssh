@@ -60,6 +60,9 @@ The IRC code has wire-level bugs found by review
 | a real login: Windows OpenSSH → `podssh proxy` → relay → `railway.new` (anonymous SSH service, throwaway key) | shell and `exit 3` work; `ssh` exits 3 |
 | idle session, `ServerAliveInterval=60`, remote `sleep 600` | survived: 602 s, exit 0 |
 | the same with `ServerAliveInterval=0` (control) | cut by the relay after 184 s (its 180 s idle cut), `ssh` exit 255 |
+| relay failover: `--relay-host "tcp.ssh.relay.ajam.dev:9,tcp-eu-west-3.ssh.relay.ajam.dev"` to `github.com:22` | the first host timed out after 20 s and was named; the second, a pool host, accepted the token cached for the default host and delivered GitHub's banner (2026-10-08) |
+| liveness: the relay answers WebSocket pings | 3 pongs for 3 pings (`cargo test -p podssh-relay --test live -- --ignored`) |
+| a 50 s idle session through `podssh proxy` with `ServerAliveInterval=0` | stayed up under the 10 s ping watcher, exit 0 |
 | from a real constrained sandbox | **not yet run** |
 
 ## Components

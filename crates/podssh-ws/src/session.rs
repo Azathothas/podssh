@@ -10,7 +10,7 @@
 //! messages, and echoes a Close it did not start (RFC 6455 §5.5.1). It
 //! returns data frames and the Close; nothing else reaches the caller.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, ReadHalf, WriteHalf};
@@ -33,6 +33,10 @@ pub struct RelaySession<S = RelayStream> {
     reader: Mutex<Reader<S>>,
     writer: Mutex<WriteHalf<S>>,
     close_sent: AtomicBool,
+    /// Pongs received, and frames of any kind received, for
+    /// [`RelaySession::watch_liveness`].
+    pongs: AtomicU64,
+    heard: AtomicU64,
     /// Bound on one write.
     write_timeout: Duration,
 }
@@ -73,6 +77,8 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             }),
             writer: Mutex::new(write),
             close_sent: AtomicBool::new(false),
+            pongs: AtomicU64::new(0),
+            heard: AtomicU64::new(0),
             write_timeout,
         }
     }
@@ -107,6 +113,58 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
         self.close_sent.load(Ordering::SeqCst)
     }
 
+    /// Send a Ping; its Pong is counted by [`RelaySession::read_frame`], which
+    /// must be running for liveness to be seen.
+    pub async fn send_ping(&self, payload: &[u8]) -> Result<(), String> {
+        self.write(frame::OPCODE_PING, payload).await
+    }
+
+    /// How many Pongs have arrived.
+    pub fn pongs_received(&self) -> u64 {
+        self.pongs.load(Ordering::SeqCst)
+    }
+
+    /// Frames of any kind received so far.
+    pub fn frames_received(&self) -> u64 {
+        self.heard.load(Ordering::SeqCst)
+    }
+
+    /// Ping the relay every `every`; return (with the reason) once `allowed`
+    /// intervals in a row pass with nothing at all from the relay. Any frame
+    /// counts, not only a Pong: a Ping can wait behind a large upload on a slow
+    /// link, but a healthy relay always sends something (data, a Pong, or its
+    /// own keepalive every 25 s). A link that dies silently is found in about
+    /// `every * allowed` instead of at the idle read limit. Enforced only after
+    /// the relay has answered a Ping, so a relay that never answers Pings is
+    /// not mistaken for a dead one (the idle read limit still covers it). Runs
+    /// until it returns; the caller races it with its pumps, and
+    /// [`RelaySession::read_frame`] must be running for anything to be heard.
+    pub async fn watch_liveness(&self, every: Duration, allowed: u32) -> String {
+        let mut sent: u64 = 0;
+        let mut heard = self.frames_received();
+        let mut missed: u32 = 0;
+        loop {
+            tokio::time::sleep(every).await;
+            let now = self.frames_received();
+            if now > heard {
+                heard = now;
+                missed = 0;
+            } else if sent > 0 {
+                missed += 1;
+            }
+            if self.pongs_received() > 0 && missed >= allowed {
+                return format!(
+                    "nothing from the relay for {} s, pings unanswered: the connection is dead",
+                    every.as_secs() * u64::from(allowed)
+                );
+            }
+            sent += 1;
+            if let Err(e) = self.send_ping(&sent.to_be_bytes()).await {
+                return format!("sending a ping to the relay failed: {e}");
+            }
+        }
+    }
+
     /// The next data message (binary or text, reassembled) or the Close.
     /// Pings are answered and Pongs skipped along the way.
     pub async fn read_frame(&self) -> Result<Frame, String> {
@@ -115,7 +173,11 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
         let reader = &mut *guard;
         let mut chunk = vec![0u8; 16 * 1024];
         loop {
-            match next_event(&mut reader.pending).map_err(|e| e.to_string())? {
+            let event = next_event(&mut reader.pending).map_err(|e| e.to_string())?;
+            if event.is_some() {
+                self.heard.fetch_add(1, Ordering::SeqCst);
+            }
+            match event {
                 Some(Event::Pong(payload)) => {
                     // A Ping: answered unless a Close already arrived, and never
                     // echoed when it breaks the control-frame size limit.
@@ -123,7 +185,9 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                         self.write(frame::OPCODE_PONG, &payload).await?;
                     }
                 }
-                Some(Event::Frame(f)) if f.opcode == frame::OPCODE_PONG => {}
+                Some(Event::Frame(f)) if f.opcode == frame::OPCODE_PONG => {
+                    self.pongs.fetch_add(1, Ordering::SeqCst);
+                }
                 Some(Event::Frame(f)) if f.opcode == frame::OPCODE_CLOSE => {
                     reader.close_received = true;
                     if !self.close_sent.swap(true, Ordering::SeqCst) {

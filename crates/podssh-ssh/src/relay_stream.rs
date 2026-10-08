@@ -103,8 +103,19 @@ where
 
     let down_status = status.clone();
     tokio::spawn(async move {
+        // A link that dies without a word is found by pinging, in about 30 s
+        // instead of at the 90 s idle read limit.
+        let liveness = session.watch_liveness(podssh_ws::LIVENESS_EVERY, podssh_ws::LIVENESS_ALLOWED);
+        tokio::pin!(liveness);
         loop {
-            match session.read_frame().await {
+            let frame = tokio::select! {
+                frame = session.read_frame() => frame,
+                reason = &mut liveness => {
+                    down_status.set_once(RelayEnd::Failed(reason));
+                    break;
+                }
+            };
+            match frame {
                 Ok(f) if f.opcode == frame::OPCODE_BINARY => {
                     // An empty frame is the relay's keepalive, not data.
                     if !f.payload.is_empty() && to_ssh.write_all(&f.payload).await.is_err() {
