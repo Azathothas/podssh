@@ -261,7 +261,7 @@ fn the_pair_normalises_the_name_and_keeps_the_port_a_parameter() {
 
 /// The default relay is compiled in (operator decision 2026-10-08) and its
 /// name appears as a string literal in exactly one place in library code,
-/// `podssh-cli/src/relay.rs`, so that changing it is a one-line edit. Tests,
+/// `podssh-relay/src/relay.rs`, so that changing it is a one-line edit. Tests,
 /// examples and documentation may name it freely.
 ///
 /// (This replaced a sweep asserting there was no default relay at all; that
@@ -269,8 +269,8 @@ fn the_pair_normalises_the_name_and_keeps_the_port_a_parameter() {
 #[test]
 fn the_default_relay_is_named_in_exactly_one_place() {
     let hits = default_relay_literals_in_library_code();
-    assert_eq!(hits.len(), 1, "expected one definition, in podssh-cli/src/relay.rs; found {hits:?}");
-    assert!(hits[0].starts_with("crates/podssh-cli/src/relay.rs:"), "{hits:?}");
+    assert_eq!(hits.len(), 1, "expected one definition, in podssh-relay/src/relay.rs; found {hits:?}");
+    assert!(hits[0].starts_with("crates/podssh-relay/src/relay.rs:"), "{hits:?}");
 }
 
 /// Every non-comment line outside test modules, in `crates/*/src/**/*.rs`,

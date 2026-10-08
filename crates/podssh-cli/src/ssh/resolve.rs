@@ -9,15 +9,17 @@ use podssh_ssh::options::{default_global_known_hosts, default_identity_files, de
 use podssh_ssh::{Agent, Hop, LogLevel, Method, Options, Request, RequestTty, StrictHostKeyChecking};
 use podssh_ws::Trust;
 
+use podssh_relay::relay::{self, RelayList};
+
 use super::args::SshArgs;
 use super::options::{parse_port, Settings};
-use crate::relay::{self, Relay};
 
 /// How the first hop is reached.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Transport {
-    /// Through the relay; `family` is 4 or 6 when one was asked for.
-    Relay { relay: Relay, trust: Trust, family: Option<u8> },
+    /// Through the relay hosts, in order; `family` is 4 or 6 when one was
+    /// asked for.
+    Relay { relays: RelayList, trust: Trust, family: Option<u8> },
     /// A TCP connection, through `HTTPS_PROXY` when one is set (`--direct`).
     Direct,
 }
@@ -28,6 +30,9 @@ pub struct Resolved {
     pub options: Options,
     pub transport: Transport,
     pub log_file: Option<PathBuf>,
+    /// Rounds over the relay hosts, or dials with `--direct`
+    /// (`ConnectionAttempts`, 1 by default as in OpenSSH).
+    pub connection_attempts: u32,
     /// Notes for the log once it exists (ignored options and the like),
     /// shown with -v.
     pub notes: Vec<String>,
@@ -163,13 +168,14 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
         }
         Transport::Direct
     } else {
-        let relay = relay::select_relay(args.relay_host.as_deref(), env.relay.clone())?;
+        let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
+        let relays = relay::select_relays(args.relay_host.as_deref(), env.relay.clone(), &pool)?;
         relay::check_host(&first).map_err(|why| format!("cannot reach {first} through the relay: {why}"))?;
         let trust = match args.ca_file.clone().or_else(|| env.ssl_cert_file.clone()) {
             Some(file) => Trust::File(file.into()),
             None => Trust::Default,
         };
-        Transport::Relay { relay, trust, family }
+        Transport::Relay { relays, trust, family }
     };
 
     let keepalive_interval = match settings.alive_interval {
@@ -211,6 +217,7 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
         options,
         transport,
         log_file,
+        connection_attempts: settings.connection_attempts.unwrap_or(1),
         notes,
         warnings,
     })

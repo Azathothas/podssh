@@ -36,7 +36,7 @@ trap restore EXIT
 trap 'exit 130' INT TERM
 
 # The crates the rule covers; the same list as scripts/gate.sh.
-LIBS="-p podssh-ws -p podssh-transport -p podssh-core -p podssh-terminal -p podssh-probe"
+LIBS="-p podssh-ws -p podssh-relay -p podssh-transport -p podssh-core -p podssh-terminal -p podssh-probe"
 
 build() {
     # shellcheck disable=SC2086  # $LIBS is a list of flags

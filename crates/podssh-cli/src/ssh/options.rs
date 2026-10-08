@@ -29,6 +29,8 @@ pub struct Settings {
     pub alive_interval: Option<u64>,
     pub alive_count: Option<usize>,
     pub connect_timeout: Option<u64>,
+    /// `ConnectionAttempts`: rounds over the relay hosts (or dials, direct).
+    pub connection_attempts: Option<u32>,
     pub request_tty: Option<RequestTty>,
     pub escape_char: Option<Option<u8>>,
     pub set_env: Vec<(String, String)>,
@@ -51,7 +53,7 @@ pub struct Settings {
 const IGNORED: &[&str] = &[
     "addkeystoagent", "bindaddress", "bindinterface", "canonicaldomains", "canonicalizefallbacklocal",
     "canonicalizehostname", "canonicalizemaxdots", "canonicalizepermittedcnames", "casignaturealgorithms",
-    "certificatefile", "channeltimeout", "checkhostip", "ciphers", "clearallforwardings", "connectionattempts",
+    "certificatefile", "channeltimeout", "checkhostip", "ciphers", "clearallforwardings",
     "controlmaster", "controlpath", "controlpersist", "enableescapecommandline", "enablesshkeysign",
     "exitonforwardfailure", "fingerprinthash", "forwardagent", "forwardx11", "forwardx11timeout",
     "forwardx11trusted", "gatewayports", "gssapiauthentication", "gssapidelegatecredentials", "hashknownhosts",
@@ -65,7 +67,7 @@ const IGNORED: &[&str] = &[
 
 /// Keywords podssh honours (for suggestions; the match below is the truth).
 const HONOURED: &[&str] = &[
-    "AddressFamily", "BatchMode", "ChallengeResponseAuthentication", "Compression", "ConnectTimeout",
+    "AddressFamily", "BatchMode", "ChallengeResponseAuthentication", "Compression", "ConnectTimeout", "ConnectionAttempts",
     "EscapeChar", "GlobalKnownHostsFile", "HostKeyAlias", "HostName", "IdentitiesOnly", "IdentityAgent",
     "IdentityFile", "KbdInteractiveAuthentication", "LogLevel", "NumberOfPasswordPrompts",
     "PasswordAuthentication", "Port", "PreferredAuthentications", "ProxyCommand", "ProxyJump",
@@ -122,6 +124,10 @@ impl Settings {
             "connecttimeout" => set(
                 &mut self.connect_timeout,
                 parse_seconds(value).filter(|s| *s > 0).ok_or_else(|| bad("not a number of seconds"))?,
+            ),
+            "connectionattempts" => set(
+                &mut self.connection_attempts,
+                value.parse().ok().filter(|n| (1..=100).contains(n)).ok_or_else(|| bad("a number from 1 to 100"))?,
             ),
             "requesttty" => set(&mut self.request_tty, RequestTty::parse(value).ok_or_else(|| bad("expected auto, yes, force or no"))?),
             "escapechar" => set(

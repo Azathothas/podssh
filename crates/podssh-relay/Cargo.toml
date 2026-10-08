@@ -1,0 +1,24 @@
+[package]
+name = "podssh-relay"
+description = "Reaching podssh's WebSocket-to-TCP relay: relay hosts and failover, tokens, forward sessions. No C compiler needed."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+# A library other projects (podbox) use, so it stays C-free: the gate builds
+# it with CC=/nonexistent with the other library crates.
+[dependencies]
+podssh-ws = { path = "../podssh-ws" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+zeroize = { workspace = true }
+rand = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt"] }

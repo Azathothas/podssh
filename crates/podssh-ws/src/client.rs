@@ -252,12 +252,43 @@ pub async fn https_post_json(
     proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<http::Response, ConnectError> {
+    let headers = [("Content-Type", "application/json"), ("Accept", "application/json")];
+    https_request("POST", host, port, path, &headers, body, 64 * 1024, trust, proxy, timeout).await
+}
+
+/// GET over HTTPS, through the same path as everything else (proxy, TLS
+/// verification, bounded waits). The body is capped at `max_body` bytes.
+pub async fn https_get(
+    host: &str,
+    port: u16,
+    path: &str,
+    max_body: usize,
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+) -> Result<http::Response, ConnectError> {
+    https_request("GET", host, port, path, &[("Accept", "application/json")], b"", max_body, trust, proxy, timeout)
+        .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn https_request(
+    method: &str,
+    host: &str,
+    port: u16,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: &[u8],
+    max_body: usize,
+    trust: &Trust,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+) -> Result<http::Response, ConnectError> {
     let mut tls = open_tls(host, port, host, trust, proxy, timeout).await?;
     let host_header = if port == 443 { host.to_string() } else { dial::authority(host, port) };
-    let headers = [("Content-Type", "application/json"), ("Accept", "application/json")];
     tokio::time::timeout(
         timeout,
-        http::exchange(&mut tls, "POST", &host_header, path, &headers, body, 64 * 1024),
+        http::exchange(&mut tls, method, &host_header, path, headers, body, max_body),
     )
     .await
     .map_err(|_| ConnectError::Timeout { step: "the HTTPS request", after: timeout })?

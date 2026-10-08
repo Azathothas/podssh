@@ -9,8 +9,8 @@ use podssh_ws::{https_post_json, ConnectError, ProxyChoice, Trust};
 use serde::Deserialize;
 use zeroize::Zeroizing;
 
+use crate::cache as token_cache;
 use crate::relay::Relay;
-use crate::token_cache;
 
 /// Environment variable carrying a token to use instead of minting.
 pub const TOKEN_ENV: &str = "PODSSH_RELAY_TOKEN";
@@ -81,9 +81,12 @@ impl std::fmt::Display for TokenError {
     }
 }
 
-/// What minting needs: the relay, and how to reach it.
+/// What minting needs: the relay host to mint at, how to reach it, and the
+/// name the token is cached under (the primary host of the relay list: a token
+/// is valid on every host of one relay deployment).
 pub struct MintContext<'a> {
     pub relay: &'a Relay,
+    pub cache_key: &'a str,
     pub trust: &'a Trust,
     pub proxy: &'a ProxyChoice,
     pub timeout: Duration,
@@ -99,12 +102,12 @@ pub async fn obtain(ctx: &MintContext<'_>, fresh: bool) -> Result<Token, TokenEr
             }
             return Ok(Token { secret: Zeroizing::new(value), origin: Origin::Environment, cache_warning: None });
         }
-        if let Some(cached) = token_cache::load(&ctx.relay.host, now_ms()) {
+        if let Some(cached) = token_cache::load(ctx.cache_key, now_ms()) {
             return Ok(Token { secret: Zeroizing::new(cached.token), origin: Origin::Cache, cache_warning: None });
         }
     }
     let (token, expires) = mint(ctx).await?;
-    let cache_warning = token_cache::store(&ctx.relay.host, &token, expires).err();
+    let cache_warning = token_cache::store(ctx.cache_key, &token, expires).err();
     Ok(Token { secret: Zeroizing::new(token), origin: Origin::Minted, cache_warning })
 }
 

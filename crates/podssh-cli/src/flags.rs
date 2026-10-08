@@ -168,8 +168,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "quiet, fatal, error, info, verbose, debug", None),
     row(None, "ConnectTimeout", Some("SECONDS"), FlagKind::Supported,
         "bound on the SSH handshake, as -o ConnectTimeout", None),
-    row(None, "relay-host", Some("HOST"), FlagKind::Supported,
-        "the relay to use, HOST or HOST:PORT (default: env PODSSH_RELAY, else the built-in relay)", None),
+    row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
+        "relay hosts to try in order, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
         "trust only the CA certificates in FILE for the relay (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     row(None, "direct", None, FlagKind::Supported,
@@ -288,8 +288,8 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
 pub const PROXY_FLAGS: &[FlagRow] = &[
     row(None, "stdin-stdout", None, FlagKind::Supported,
         "a byte pipe on stdin/stdout; not an SSH client", None),
-    row(None, "relay-host", Some("HOST"), FlagKind::Supported,
-        "the relay to use, HOST or HOST:PORT (default: env PODSSH_RELAY, else the built-in relay)", None),
+    row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
+        "relay hosts to try in order, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
 ];

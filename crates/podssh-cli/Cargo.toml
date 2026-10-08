@@ -32,6 +32,8 @@ podssh-ts = { path = "../podssh-ts", optional = true }
 podssh-terminal = { path = "../podssh-terminal" }
 podssh-transport = { path = "../podssh-transport" }
 podssh-ws = { path = "../podssh-ws" }
+# Relay hosts and failover, tokens, forward sessions (C-free, shared with podbox).
+podssh-relay = { path = "../podssh-relay" }
 # The native SSH client. It needs a C compiler (russh with aws-lc-rs); the
 # operator accepted that for the binary on 2026-10-08.
 podssh-ssh = { path = "../podssh-ssh" }

@@ -15,6 +15,7 @@ use std::io::Write;
 use std::sync::Arc;
 
 use podssh_ssh::{Log, EXIT_FAILURE};
+use podssh_relay::open::Request;
 use podssh_ws::ProxyChoice;
 
 use crate::exit_codes::EXIT_USAGE;
@@ -70,8 +71,8 @@ async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
     let first = opts.jump.first().unwrap_or(&opts.destination).clone();
     let target = format!("{}:{}", first.host, first.port);
     match &resolved.transport {
-        Transport::Relay { relay, trust, family } => {
-            let mut path = match crate::relay::forward_path(&first.host, first.port) {
+        Transport::Relay { relays, trust, family } => {
+            let mut path = match podssh_relay::relay::forward_path(&first.host, first.port) {
                 Ok(p) => p,
                 Err(why) => {
                     log.error(&why);
@@ -81,19 +82,25 @@ async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
             if let Some(f) = family {
                 path.push_str(&format!("?family={f}"));
             }
-            log.verbose(&format!("connecting to {target} through the relay {}", relay.host));
-            let mut notes = Vec::new();
-            let opened = crate::relay_open::open(relay, &path, trust, &target, &mut |n: &str| notes.push(n.to_string())).await;
-            for note in notes {
-                log.info(&note);
-            }
+            let hosts: Vec<&str> = relays.hosts.iter().map(|r| r.host.as_str()).collect();
+            log.verbose(&format!("connecting to {target} through the relay ({})", hosts.join(", ")));
+            let request = Request {
+                relays,
+                path: &path,
+                trust,
+                target: &target,
+                rounds: resolved.connection_attempts,
+            };
+            let note_log = log.clone();
+            let opened = podssh_relay::open(&request, &mut |note: &str| note_log.info(note)).await;
             match opened {
-                Ok(session) => {
-                    let (stream, status) = podssh_ssh::relay_stream::spawn(session);
+                Ok(opened) => {
+                    log.verbose(&format!("the relay host {} opened the session", opened.relay.host));
+                    let (stream, status) = podssh_ssh::relay_stream::spawn(opened.session);
                     podssh_ssh::run(stream, opts, Some(status), log).await
                 }
-                Err(e) => {
-                    for line in e.lines() {
+                Err(failure) => {
+                    for line in failure.lines(&target) {
                         log.error(&line);
                     }
                     EXIT_FAILURE
@@ -101,28 +108,34 @@ async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
             }
         }
         Transport::Direct => {
-            if crate::relay_open::offline() {
-                log.error(&format!("{} is set, so podssh does not connect anywhere", crate::relay_open::OFFLINE_ENV));
+            if podssh_relay::open::offline() {
+                log.error(&format!("{} is set, so podssh does not connect anywhere", podssh_relay::open::OFFLINE_ENV));
                 return EXIT_FAILURE;
             }
-            log.verbose(&format!("connecting to {target} directly"));
-            let dialled = podssh_ws::dial::dial(
-                &first.host,
-                first.port,
-                &ProxyChoice::FromEnvironment,
-                crate::relay_open::CONNECT_TIMEOUT,
-            )
-            .await;
-            match dialled {
-                Ok(tcp) => {
-                    let _ = tcp.set_nodelay(true);
-                    podssh_ssh::run(tcp, opts, None, log).await
+            let rounds = resolved.connection_attempts.max(1);
+            for round in 1..=rounds {
+                if round > 1 {
+                    let wait = podssh_relay::open::backoff(round - 1);
+                    log.info(&format!("retrying in {:.1} s (attempt {round} of {rounds})", wait.as_secs_f32()));
+                    tokio::time::sleep(wait).await;
                 }
-                Err(e) => {
-                    log.error(&format!("could not connect to {target}: {e}"));
-                    EXIT_FAILURE
+                log.verbose(&format!("connecting to {target} directly"));
+                let dialled = podssh_ws::dial::dial(
+                    &first.host,
+                    first.port,
+                    &ProxyChoice::FromEnvironment,
+                    podssh_relay::open::CONNECT_TIMEOUT,
+                )
+                .await;
+                match dialled {
+                    Ok(tcp) => {
+                        let _ = tcp.set_nodelay(true);
+                        return podssh_ssh::run(tcp, opts, None, log).await;
+                    }
+                    Err(e) => log.error(&format!("could not connect to {target}: {e}")),
                 }
             }
+            EXIT_FAILURE
         }
     }
 }

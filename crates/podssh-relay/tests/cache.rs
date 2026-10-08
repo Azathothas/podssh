@@ -3,7 +3,7 @@
 
 use std::path::PathBuf;
 
-use podssh_cli::token_cache::{
+use podssh_relay::cache::{
     file_name, load_from, remove_from, store_in_first, valid_token, MIN_REMAINING_MS,
 };
 

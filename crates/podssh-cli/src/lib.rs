@@ -38,12 +38,8 @@ pub mod non_interactive;
 pub mod pager;
 pub mod proxy;
 pub mod refuse;
-pub mod relay;
-pub mod relay_open;
-pub mod relay_token;
 pub mod ssh;
 pub mod suggest;
-pub mod token_cache;
 pub mod tree;
 // `podssh ts` links the vendored tailscale-rs fork, which needs a C toolchain,
 // so it is compiled only with the `ts` feature (see Cargo.toml).

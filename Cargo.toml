@@ -7,6 +7,7 @@ members = [
   "crates/podssh-ws",
   "crates/podssh-terminal",
   "crates/podssh-probe",
+  "crates/podssh-relay",
   "crates/podssh-ts",
   "crates/podssh-ssh",
 ]
@@ -23,6 +24,7 @@ default-members = [
   "crates/podssh-ws",
   "crates/podssh-terminal",
   "crates/podssh-probe",
+  "crates/podssh-relay",
   "crates/podssh-ssh",
 ]
 

@@ -1,11 +1,11 @@
-//! Where a minted relay token is kept between runs.
+//! Small private files podssh keeps between runs: a minted relay token, and
+//! the relay's pool of hosts.
 //!
 //! Operator decision (2026-10-01): the cache lives in the first usable of the
 //! user's cache directory, the temporary directory, `/dev/shm`, and the
-//! working directory. One small JSON file per relay, readable by its owner
-//! only. A cached file that is a symlink, belongs to another user, or is
-//! readable by anyone else is ignored rather than trusted. Nothing here ever
-//! prints a token.
+//! working directory. Each file is readable by its owner only. A cached file
+//! that is a symlink, belongs to another user, or is readable by anyone else
+//! is ignored rather than trusted. Nothing here ever prints a token.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 /// A cached token is reused only while it has at least this long left.
 pub const MIN_REMAINING_MS: i64 = 10 * 60 * 1000;
 
-/// The largest cache file read.
-const MAX_FILE: u64 = 16 * 1024;
+/// The largest cache file read (a pool of a few hundred host names fits).
+const MAX_FILE: u64 = 64 * 1024;
 
 #[derive(Serialize, Deserialize)]
 struct Entry {
@@ -76,10 +76,39 @@ pub fn load_from(dirs: &[PathBuf], relay_host: &str, now_ms: i64) -> Option<Cach
     let name = file_name(relay_host);
     dirs.iter().find_map(|dir| {
         let path = dir.join(&name);
-        let entry = read_trusted(&path)?;
+        let entry: Entry = serde_json::from_str(&read_trusted(&path)?).ok()?;
         (entry.expires.saturating_sub(now_ms) >= MIN_REMAINING_MS && valid_token(&entry.token))
             .then(|| Cached { token: entry.token, expires_ms: entry.expires, path })
     })
+}
+
+/// The contents of the private file `name`, from the first directory that has
+/// a trusted one.
+pub fn load_file(name: &str) -> Option<String> {
+    load_file_from(&candidate_dirs(), name)
+}
+
+/// [`load_file`] over explicit directories (for tests).
+pub fn load_file_from(dirs: &[PathBuf], name: &str) -> Option<String> {
+    dirs.iter().find_map(|dir| read_trusted(&dir.join(name)))
+}
+
+/// Save `body` as the private file `name` in the first directory that accepts
+/// it.
+pub fn store_file(name: &str, body: &[u8]) -> Result<PathBuf, String> {
+    store_file_in_first(&candidate_dirs(), name, body)
+}
+
+/// [`store_file`] over explicit directories (for tests).
+pub fn store_file_in_first(dirs: &[PathBuf], name: &str, body: &[u8]) -> Result<PathBuf, String> {
+    let mut reasons = Vec::new();
+    for dir in dirs {
+        match write_private(dir, name, body) {
+            Ok(path) => return Ok(path),
+            Err(e) => reasons.push(format!("{}: {e}", dir.display())),
+        }
+    }
+    Err(format!("no directory would take {name} ({})", reasons.join("; ")))
 }
 
 /// Save a token, in the first directory that accepts it. Returns where it
@@ -100,14 +129,7 @@ pub fn store_in_first(
     }
     let body = serde_json::to_vec(&Entry { token: token.to_string(), expires: expires_ms })
         .map_err(|e| e.to_string())?;
-    let mut reasons = Vec::new();
-    for dir in dirs {
-        match write_private(dir, &file_name(relay_host), &body) {
-            Ok(path) => return Ok(path),
-            Err(e) => reasons.push(format!("{}: {e}", dir.display())),
-        }
-    }
-    Err(format!("no directory would take the token cache ({})", reasons.join("; ")))
+    store_file_in_first(dirs, &file_name(relay_host), &body)
 }
 
 /// Forget the cached token for `relay_host` everywhere it is ours to delete.
@@ -128,18 +150,21 @@ pub fn remove_from(dirs: &[PathBuf], relay_host: &str) {
 
 /// `relay-token-<host>.json`, with anything but `[a-z0-9.-]` replaced.
 pub fn file_name(relay_host: &str) -> String {
-    let safe: String = relay_host
-        .to_ascii_lowercase()
+    format!("relay-token-{}.json", safe_name(relay_host))
+}
+
+/// `host` lower-cased, with anything but `[a-z0-9.-]` replaced, for file names.
+pub fn safe_name(host: &str) -> String {
+    host.to_ascii_lowercase()
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() || c == '.' || c == '-' { c } else { '_' })
-        .collect();
-    format!("relay-token-{safe}.json")
+        .collect()
 }
 
 /// Read a cache file only if it is a regular file of ours that nobody else can
 /// read. On Unix the checks are made on the opened file, so a symlink swapped
 /// in between the check and the read cannot be followed.
-fn read_trusted(path: &Path) -> Option<Entry> {
+fn read_trusted(path: &Path) -> Option<String> {
     let file = open_no_follow(path).ok()?;
     let meta = file.metadata().ok()?;
     if !meta.is_file() || meta.len() > MAX_FILE || !owned_and_private(&meta) {
@@ -147,7 +172,7 @@ fn read_trusted(path: &Path) -> Option<Entry> {
     }
     let mut text = String::new();
     std::io::Read::read_to_string(&mut &file, &mut text).ok()?;
-    serde_json::from_str(&text).ok()
+    Some(text)
 }
 
 /// Write `body` to `dir/name` via a private temporary file and a rename, so a

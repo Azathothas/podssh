@@ -18,9 +18,14 @@ use podssh_ws::session::close_code_and_reason;
 use podssh_ws::{RelaySession, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use podssh_relay::open::{OpenError, Request};
+use podssh_relay::relay::{self, RelayList};
+use podssh_relay::token::TokenError;
+use podssh_ws::dial::DialError;
+use podssh_ws::ConnectError;
+
 use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
-use crate::exitmap::sysexits::EX_UNAVAILABLE;
-use crate::relay::{self, Relay};
+use crate::exitmap::sysexits::{EX_CONFIG, EX_NOPERM, EX_UNAVAILABLE};
 
 /// What `podssh proxy` was asked to do.
 #[derive(Debug, Clone, Default)]
@@ -44,7 +49,8 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             return EXIT_USAGE;
         }
     };
-    let relay = match relay::select_relay(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok()) {
+    let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
+    let relays = match relay::select_relays(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok(), &pool) {
         Ok(r) => r,
         Err(why) => {
             let _ = writeln!(err, "podssh proxy: {why}");
@@ -70,7 +76,7 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             return EXIT_NOT_IMPLEMENTED;
         }
     };
-    let code = runtime.block_on(session(&relay, &path, &trust, &format!("{host}:{port}"), err));
+    let code = runtime.block_on(session(&relays, &path, &trust, &format!("{host}:{port}"), err));
     // A read on stdin may still be blocked in a helper thread; do not wait
     // for it, or podssh would hang after the session has ended.
     runtime.shutdown_background();
@@ -93,20 +99,36 @@ pub fn parse_target(target: Option<&str>, port: Option<&str>) -> Result<(String,
     Ok((host.to_string(), port))
 }
 
-async fn session(relay: &Relay, path: &str, trust: &Trust, target: &str, err: &mut dyn Write) -> i32 {
-    let mut notes = Vec::new();
-    let opened = crate::relay_open::open(relay, path, trust, target, &mut |note: &str| notes.push(note.to_string())).await;
-    for note in notes {
+async fn session(relays: &RelayList, path: &str, trust: &Trust, target: &str, err: &mut dyn Write) -> i32 {
+    let request = Request { relays, path, trust, target, rounds: 1 };
+    let opened = podssh_relay::open(&request, &mut |note: &str| {
         let _ = writeln!(err, "podssh: {note}");
-    }
+    })
+    .await;
     match opened {
-        Ok(session) => pump(session, err).await,
-        Err(e) => {
-            for line in e.lines() {
+        Ok(opened) => pump(opened.session, err).await,
+        Err(failure) => {
+            for line in failure.lines(target) {
                 let _ = writeln!(err, "podssh: {line}");
             }
-            e.sysexit()
+            sysexit(failure.last())
         }
+    }
+}
+
+/// The sysexits code `podssh proxy` exits with when no session opened.
+pub fn sysexit(e: &OpenError) -> i32 {
+    match e {
+        OpenError::Token(TokenError::BadEnvironment) => EX_CONFIG,
+        OpenError::Token(TokenError::Connect(c)) | OpenError::Connect { error: c, .. } => match c {
+            ConnectError::Config(_) | ConnectError::Dial(DialError::BadProxy(_)) => EX_CONFIG,
+            ConnectError::Refused { status: 401 | 403, .. } => EX_NOPERM,
+            // The relay answers 400 for a target in a blocked address range.
+            ConnectError::Refused { status: 400, body } if podssh_relay::open::is_policy_refusal(body) => EX_NOPERM,
+            ConnectError::Dial(DialError::ProxyRefused { status: 403 | 407, .. }) => EX_NOPERM,
+            _ => EX_UNAVAILABLE,
+        },
+        _ => EX_UNAVAILABLE,
     }
 }
 

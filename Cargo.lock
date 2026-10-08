@@ -2450,6 +2450,7 @@ dependencies = [
  "libc",
  "podssh-core",
  "podssh-probe",
+ "podssh-relay",
  "podssh-ssh",
  "podssh-terminal",
  "podssh-transport",
@@ -2479,6 +2480,19 @@ dependencies = [
  "sha2 0.10.9",
  "tokio",
  "toml",
+]
+
+[[package]]
+name = "podssh-relay"
+version = "0.1.0"
+dependencies = [
+ "libc",
+ "podssh-ws",
+ "rand 0.8.8",
+ "serde",
+ "serde_json",
+ "tokio",
+ "zeroize",
 ]
 
 [[package]]

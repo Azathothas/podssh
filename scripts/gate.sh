@@ -56,7 +56,7 @@ echo "CARGO_BUILD_JOBS=$CARGO_BUILD_JOBS"
 # `cc`, so `CC=/nonexistent` is what enforces the rule; `scripts/plant.sh`
 # proves it is load-bearing. The binary itself needs cc since 2026-10-08: the
 # native SSH client is russh with aws-lc-rs (operator decision).
-LIBS="-p podssh-ws -p podssh-transport -p podssh-core -p podssh-terminal -p podssh-probe"
+LIBS="-p podssh-ws -p podssh-relay -p podssh-transport -p podssh-core -p podssh-terminal -p podssh-probe"
 
 # shellcheck disable=SC2086  # $LIBS is a list of flags
 run "library crates build with no C compiler" \
