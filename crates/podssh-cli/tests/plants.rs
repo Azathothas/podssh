@@ -390,6 +390,7 @@ fn the_control_every_documented_alias_still_resolves() {
         ("scp", "cp"), ("sftp", "cp"), ("cp", "cp"), ("mv", "mv"),
         ("connect", "ssh"), ("ssh", "ssh"),
         ("man", "man"), ("relay", "relay"), ("status", "status"), ("doctor", "doctor"),
+        ("keygen", "keygen"), ("ssh-keygen", "keygen"),
         ("proxy", "proxy"), ("node", "node"), ("operator", "operator"),
     ] {
         let p = parse(args(&[spelling, "--help"]));

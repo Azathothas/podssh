@@ -158,8 +158,14 @@ take podssh down.
       (exit 0, or 1 when a check failed). Measured on Windows, in the Linux
       container (it found `/dev/shm` mounted noexec), and through a CONNECT
       proxy that allows only port 443 (the proxy's log matched every line).
-- [ ] **`podssh keygen`** for hosts with no `ssh-keygen` (Ed25519 by default;
-      OpenSSH format; never prints the private key).
+- [x] **`podssh keygen`** (2026-10-08) for hosts with no `ssh-keygen`:
+      Ed25519 by default, ECDSA and RSA, OpenSSH format, `-y` and `-l`; a
+      passphrase is asked for (terminal or `SSH_ASKPASS`) and refused on the
+      command line; never prints a private key, never overwrites one.
+      Measured against OpenSSH in the interop harness (`ssh-keygen -y` and
+      `-l` agree, `sshd` accepts the keys, an encrypted key decrypts with
+      OpenSSH), and on Windows against OpenSSH 10.3's `ssh-keygen`. The
+      repository check now refuses a committed private key.
 - [ ] **A fault-injection harness** in the gate: a killed relay host, a proxy
       answering 5xx, a stalled link past each timeout, a WebSocket closed
       mid-transfer; run against real OpenSSH like the interop harness.

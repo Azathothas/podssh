@@ -2550,6 +2550,7 @@ dependencies = [
  "hmac 0.12.1",
  "libc",
  "podssh-ws",
+ "rand 0.10.3",
  "russh",
  "sha1 0.10.7",
  "tokio",

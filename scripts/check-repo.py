@@ -5,7 +5,8 @@
      operator's rule: split the file, never trim its comments to fit).
   2. Every relative link in the live Markdown docs resolves.
   3. No tracked file outside vendor/ carries something shaped like a live
-     credential (a relay token or a Tailscale key with a real-looking secret).
+     credential (a relay token or a Tailscale key with a real-looking secret,
+     or a private key block with a body).
   4. Shell scripts use LF line endings (dash rejects CRLF; bash -n does not).
 
 Run it from anywhere: `python scripts/check-repo.py`. Read the exit code
@@ -35,6 +36,13 @@ FENCE = re.compile(r"^(```|~~~)")
 RELAY_TOKEN = re.compile(r"ephm1\.\d{10,}\.[a-z_]+\.(?P<mac>[A-Za-z0-9+=_-]{16,})")
 # A Tailscale key is `tskey-<kind>-<id>-<secret>`. Fixtures are short words.
 TS_KEY = re.compile(r"tskey-(?:auth|client|api)-[A-Za-z0-9]{6,}-[A-Za-z0-9]{16,}")
+# A private key block: the header, then at least three full lines of base64.
+# A header alone (in code that recognises one) or a one-line fragment (in a
+# test that feeds a parser a truncated block) is not a key. `podssh keygen`
+# writes such blocks, which is why this is checked.
+PRIVATE_KEY = re.compile(
+    r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----\r?\n(?:[A-Za-z0-9+/=:\-]*\r?\n)?(?:[A-Za-z0-9+/=]{60,}\r?\n){3}"
+)
 
 
 def git_files() -> list[Path]:
@@ -107,6 +115,9 @@ def check_secrets() -> list[str]:
         for match in TS_KEY.finditer(text):
             line_no = text.count("\n", 0, match.start()) + 1
             problems.append(f"{rel.as_posix()}:{line_no}: looks like a Tailscale key")
+        for match in PRIVATE_KEY.finditer(text):
+            line_no = text.count("\n", 0, match.start()) + 1
+            problems.append(f"{rel.as_posix()}:{line_no}: a private key")
     return problems
 
 

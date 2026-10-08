@@ -6,8 +6,8 @@ whenever the state changes, with the date and the command that measured it.
 
 ## Summary
 
-**`podssh ssh`, `podssh proxy` and `podssh doctor` work; nothing else does
-yet.**
+**`podssh ssh`, `podssh proxy`, `podssh doctor` and `podssh keygen` work;
+nothing else does yet.**
 
 - `podssh ssh` is a native SSH client (on `russh`) with OpenSSH's command
   line. On 2026-10-08 it passed all 62 checks against real OpenSSH and
@@ -35,6 +35,7 @@ The IRC code has wire-level bugs found by review
 | `podssh chat` | not implemented (exits 70) |
 | `podssh cp`, `podssh mv` | not implemented (exits 70) |
 | `podssh doctor` | **works** (2026-10-08): host, egress and relay checks; exit 0, or 1 when a check failed |
+| `podssh keygen` | **works** (2026-10-08): Ed25519, ECDSA and RSA key pairs in OpenSSH's format; `-y`, `-l`; passphrases asked for, never taken from argv |
 | `podssh relay`, `status` | not implemented (exits 70) |
 | `podssh man` | works: the manual page, generated from the flag tables |
 | `podssh ts` | only with the `ts` cargo feature: status line and a `-W` byte pipe over a tailnet; the live two-node test has never run |
@@ -80,9 +81,18 @@ The IRC code has wire-level bugs found by review
 | Windows 11, native debug build, no proxy | 16 ok, 0 FAIL, 0 ????; exit 0 in about 4 s. Four relay hosts answered `/health` (`tcp-ssh-relay 2026-10-03-r2`) over TLS 1.3 with verified certificates, each line naming the address opened; the forward session to `github.com:22` met GitHub's published Ed25519 key `SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`; clock within 2 s |
 | the same, through a local CONNECT proxy that allows only port 443 | 17 ok; `CONNECT` lines: the relay and `github.com:443` allowed, `github.com:22` refused with the proxy's `403 not on the egress allowlist`; every relay line says `opened CONNECT … through` the proxy. The proxy's log listed exactly the connections the report named |
 | `--relay-host dead-host.invalid,tcp.ssh.relay.ajam.dev` | exit 1, 2 FAIL: DNS over HTTPS (`1.1.1.1 answered that dead-host.invalid does not exist`) and that relay host; the token and the forward session went through the second host (`after dead-host.invalid failed`) |
+| a studio host on the tailnet (Ubuntu 22.04), the release workflow's static x86_64 binary | 25 ok, exit 0, 3.9 s: open egress (`github.com:22` reachable directly), the system trust store added to the compiled-in roots, every relay host answering |
 | `rust:1-alpine` container, as root | 26 ok, exit 0: a passwd entry, `/proc`, a pty (`/dev/pts/0`), AF_INET and AF_UNIX bind (file and abstract) allowed; a copy of podssh ran from `/tmp`, `/var/tmp`, `/root` and `/work`, and was refused in `/dev/shm`, which the report named as a noexec mount; trust store from `SSL_CERT_FILE` |
 | `cargo test -p podssh-cli --test doctor` | offline: network checks reported as one `????`, never `ok`; planted failures (no `HOME`, an unusable proxy setting) give `FAIL` and exit 1; proxy credentials and a token in the environment never appear in the output |
 | `cargo test -p podssh-cli --test doctor -- --ignored` | the live path end to end, exit 0 (3.6 s) |
+
+### `podssh keygen`, measured
+
+| check | result |
+| --- | --- |
+| `scripts/interop-keygen.sh` in the container gate, against Alpine's OpenSSH | **25 of 25**: for Ed25519, ECDSA P-384 and RSA 3072, OpenSSH's `ssh-keygen -y` reads the private key and derives the `.pub` key, `ssh-keygen -l` prints the same line as `podssh keygen -l`, `podssh keygen -y` agrees, and `sshd` accepts the key for login; modes 600 and 644; a key encrypted with a passphrase from `SSH_ASKPASS` decrypts with OpenSSH, a wrong passphrase is refused, and it logs in; overwriting a key is refused (exit 1, the key unchanged); `-N 'secret words'` is refused (exit 64, nothing written) |
+| Windows, against OpenSSH 10.3p1's `ssh-keygen` | the same `-y` and `-l` agreement for all three types |
+| `cargo test -p podssh-cli --test keygen` | the private key never appears in any output; no way to ask for a passphrase (no terminal: the test detaches from it) refuses and names `-N ''` |
 
 ## Components
 
@@ -103,11 +113,11 @@ The IRC code has wire-level bugs found by review
 | what | result | how |
 | --- | --- | --- |
 | library crates (`podssh-ws`, `-transport`, `-core`, `-terminal`, `-probe`) | build and pass their tests with `CC=/nonexistent` | `scripts/gate.sh` |
-| default tests | **637 passed, 0 failed, 5 ignored** (the live tests: proxy, doctor, relay pings, DNS over HTTPS twice), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
+| default tests | **647 passed, 0 failed, 5 ignored** (the live tests: proxy, doctor, relay pings, DNS over HTTPS twice), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
 | Tailscale feature tests | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | repository checks | pass | `python scripts/check-repo.py` |
-| static release binary | **3,848,704 bytes** with the SSH client (aws-lc and russh) and `doctor`, static PIE, no `NEEDED` entries, no interpreter. It was 3,586,496 before `doctor`, 1,622,944 with `proxy` only, and 7,403,072 while the Tailscale fork was linked | `scripts/gate.sh` |
-| container gate | **green** (2026-10-08, with `doctor`): every build and test step, and interop 62 of 62 | `sh scripts/dev.sh check` |
+| static release binary | **4,008,448 bytes** with the SSH client (aws-lc and russh), `doctor` and `keygen`, static PIE, no `NEEDED` entries, no interpreter. It was 3,848,704 before `keygen`, 3,586,496 before `doctor`, 1,622,944 with `proxy` only, and 7,403,072 while the Tailscale fork was linked | `scripts/gate.sh` |
+| container gate | **green** (2026-10-08, with `doctor` and `keygen`): every build and test step, and interop 87 of 87 (62 SSH checks, 25 keygen checks) | `sh scripts/dev.sh check` |
 | no-C plant | fires twice for the right reason (a planted `ring` fails because no C compiler exists), control passes | `sh scripts/dev.sh plant` |
 | CI | the repository is public since 2026-10-08; the first run on it (commit `9a03102`) passed | `gh run list` |
 

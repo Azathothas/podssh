@@ -13,10 +13,9 @@
 //! never a stub that exits 0 (`06-cli.md`:244-245), and `refused_because` is
 //! where the refusal text comes from.
 //!
-//! ⛔ **Every row here is checked against `docs/spec/06-cli.md`'s table by
-//! `tests/flag_table_matches_spec.rs`.** A flag added to this file with no
-//! matching row in the spec fails the build — that is E31's plant 5, and it is
-//! a test rather than a note because a note is not a check.
+//! The rows are checked by `tests/flag_table.rs` (the `ssh` short flags are a
+//! reviewed list there) and by the help and man page parity tests. The
+//! specification they were once matched against is archived.
 
 /// What a flag does, in enough words for a man page and short enough for help.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -309,6 +308,28 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
 ];
 
+/// `keygen` takes the `ssh-keygen` flags scripts use. `-N` exists so that
+/// `-N ''` works; a non-empty passphrase there is refused, because every
+/// process on the host can read a command line.
+pub const KEYGEN_FLAGS: &[FlagRow] = &[
+    row(Some('t'), "type", Some("TYPE"), FlagKind::Supported,
+        "key type: ed25519 (the default), ecdsa or rsa", None),
+    row(Some('b'), "bits", Some("BITS"), FlagKind::Supported,
+        "key size: ecdsa 256 (the default), 384 or 521; rsa 2048 to 16384 (default 3072)", None),
+    row(Some('f'), "file", Some("FILE"), FlagKind::Supported,
+        "the private key's file; the public key goes to FILE.pub (default ~/.ssh/id_TYPE)", None),
+    row(Some('N'), "new-passphrase", Some("PHRASE"), FlagKind::Supported,
+        "-N '' for a key with no passphrase; without -N, podssh asks (terminal or SSH_ASKPASS)", None),
+    row(Some('C'), "comment", Some("COMMENT"), FlagKind::Supported,
+        "the key's comment (default USER@HOST)", None),
+    row(Some('q'), "quiet", None, FlagKind::Supported,
+        "print nothing but errors", None),
+    row(Some('y'), "print-public", None, FlagKind::Supported,
+        "print the public key of the private key in -f FILE", None),
+    row(Some('l'), "fingerprint", None, FlagKind::Supported,
+        "print the fingerprint of the key in -f FILE", None),
+];
+
 /// One verb: its names, its flags, and the flag table its `-P` belongs to.
 #[derive(Clone, Copy)]
 pub struct Verb {
@@ -349,6 +370,8 @@ pub const VERBS: &[Verb] = &[
         about: "one-shot state, one line, machine-readable" },
     Verb { name: "doctor", aliases: &["doctor"], flags: DOCTOR_FLAGS,
         about: "what this host allows and whether the relay works: ok, FAIL or ???? per check" },
+    Verb { name: "keygen", aliases: &["keygen", "ssh-keygen"], flags: KEYGEN_FLAGS,
+        about: "make an SSH key pair, or print a key's public key or fingerprint" },
     Verb { name: "ts", aliases: &["ts", "tailscale"], flags: TS_FLAGS,
         about: "the tailnet node and byte pipe, over DERP" },
 ];

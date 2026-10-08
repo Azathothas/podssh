@@ -119,7 +119,7 @@ pub fn verb_command(verb: &'static Verb) -> Command {
         "proxy" => cmd
             .arg(Arg::new("target").help("destination"))
             .arg(Arg::new("port").help("port")),
-        "status" | "doctor" => cmd,
+        "status" | "doctor" | "keygen" => cmd,
         // ⛔ `ts` takes all three 4b forms already in 4a so the parse is stable
         // while behaviour lands: bare (status), `[user@]host` (E01 session),
         // `-W` (byte pipe). Every form refuses naming E39 until then.
@@ -173,6 +173,8 @@ pub enum Parsed {
         jsonl: bool,
         /// `ssh`'s whole command line; `None` for every other verb.
         ssh: Option<Box<crate::ssh::args::SshArgs>>,
+        /// `keygen`'s; `None` for every other verb.
+        keygen: Option<Box<crate::keygen::KeygenArgs>>,
     },
     /// A usage error. ⛔ The message never contains a usage block.
     Usage(String),
@@ -467,7 +469,8 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     let jsonl = verb.flags.iter().any(|r| r.long == "jsonl") && matches.get_flag("jsonl");
 
     let ssh = (verb.name == "ssh").then(|| Box::new(crate::ssh::args::SshArgs::from_matches(&matches)));
-    Parsed::Command { verb: verb.name, refused, tag, timeout, jsonl, ssh }
+    let keygen = (verb.name == "keygen").then(|| Box::new(crate::keygen::KeygenArgs::from_matches(&matches)));
+    Parsed::Command { verb: verb.name, refused, tag, timeout, jsonl, ssh, keygen }
 }
 
 /// Whether an argument id was actually supplied, under either spelling.

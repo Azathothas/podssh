@@ -103,6 +103,14 @@ whole path works: one line per check (`ok`, `FAIL`, or `????` for a check
 that could not run), and exit 1 if a check failed. Details:
 [docs/cli.md](docs/cli.md#podssh-doctor).
 
+A host with no working `ssh-keygen` can make a key with podssh, in
+OpenSSH's format:
+
+```sh
+podssh keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519   # -N '' for no passphrase
+podssh keygen -l -f ~/.ssh/id_ed25519.pub             # its fingerprint
+```
+
 ### Relay limits you will hit
 
 | limit | value | what to do |

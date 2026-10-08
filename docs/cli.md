@@ -79,6 +79,33 @@ The report goes to stdout. Exit status: 0 when no check failed, 1 when one
 did, 64 for a usage error. With `PODSSH_OFFLINE` set nothing connects, and
 the network checks are one `????` line.
 
+## `podssh keygen`
+
+`podssh keygen` (also spelled `podssh ssh-keygen`) makes a key pair on a host
+with no `ssh-keygen`, or none that runs: OpenSSH's refuses to run without a
+user database entry. It takes the flags scripts use, `-t ed25519|ecdsa|rsa`,
+`-b`, `-f`, `-C`, `-N ''` and `-q`, writes OpenSSH's own formats (the private
+key mode 0600 and never over an existing file, the public key to `FILE.pub`),
+and prints the SHA-256 fingerprint. `-y -f FILE` prints a private key's public
+key and `-l -f FILE` the line `ssh-keygen -l` prints.
+
+- The default is Ed25519 in `~/.ssh/id_ed25519`; ECDSA is P-256 unless `-b`
+  says 384 or 521; RSA is 3072 bits unless `-b` says 2048 to 16384. DSA is
+  refused (OpenSSH 10 removed it).
+- A passphrase is asked for, twice, on the terminal or through
+  `SSH_ASKPASS`. `-N ''` makes a key without one. A passphrase given with
+  `-N` is refused (exit 64), because every process on the host can read a
+  command line; with no terminal and no `SSH_ASKPASS`, podssh refuses and
+  names `-N ''` rather than wait.
+- The comment defaults to `USER@HOST` from the environment, never from the
+  user database.
+
+Exit status: 0, 1 when a key could not be made or read (as `ssh-keygen`), 64
+for a usage error. Measured against OpenSSH in the interop harness: its
+`ssh-keygen -y` reads every key podssh makes (Ed25519, ECDSA P-384, RSA 3072,
+and one encrypted with a passphrase), its `ssh-keygen -l` prints the same
+line, and `sshd` accepts each for login.
+
 ## Exit status
 
 `podssh ssh`:

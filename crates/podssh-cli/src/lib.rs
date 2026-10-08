@@ -29,6 +29,7 @@ pub mod exit_codes;
 pub mod exitmap;
 pub mod flags;
 pub mod help;
+pub mod keygen;
 // ⛔ **E32's two modules, and they are separate because they are separate
 // concerns**: `man.rs` emits roff from the tree and never reads a file,
 // `pager.rs` shows the emitted bytes a screenful at a time and is a function

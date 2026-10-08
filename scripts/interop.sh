@@ -244,6 +244,9 @@ saved=$(p 2201 $K -o BatchMode=yes "$T" 'cat /tmp/pipe-vi' </dev/null 2>/dev/nul
 [ "$rc" = 0 ] && [ "$saved" = "through a pipe" ] && ok "vi through pipes edits and saves a file" \
     || bad "vi through pipes: exit $rc, file holds '$saved'" "$W/out"
 
+# shellcheck source=scripts/interop-keygen.sh
+. "$HERE/interop-keygen.sh"
+
 echo
 echo "== an interactive terminal (a local pty, driven by scripts/interop-pty.py)"
 env -u SSH_AUTH_SOCK HOME="$W" python3 "$HERE/interop-pty.py" "$BIN" "$KH" "$W/id_ed25519" >"$W/pty.log" 2>&1
