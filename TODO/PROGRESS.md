@@ -28,7 +28,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## Baseline
 
-Measured on 2026-10-08 after T-231, on Windows 11 with native cargo 1.98.0
+Measured on 2026-10-08 after T-233, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
 - `cargo test --no-fail-fast`: 746 passed, 0 failed, 6 ignored (the live
@@ -42,7 +42,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 250 entries: 223 open, 0 partial, 7 blocked, 20 done.
+`TODO/INDEX.md` holds 250 entries: 222 open, 0 partial, 7 blocked, 21 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -54,8 +54,8 @@ then take the next one. Each session runs unattended until the goal of
 
 **M3:**
 
-1. The small defects that a user meets first: T-233, T-234, T-236,
-   T-237, T-238 and T-239.
+1. The small defects that a user meets first: T-234, T-236, T-237,
+   T-238 and T-239.
 2. T-003: the decision about the compiled-in roots.
 3. T-004, measured in the box (the operator's ruling of 2026-10-08).
 

@@ -4,7 +4,7 @@
 //! this directory. Two renderers walk the result (`text.rs` and `roff.rs`),
 //! so the text and the man page cannot describe different programs.
 
-use crate::flags::{Availability, FlagRow, Verb, VERBS};
+use crate::flags::{FlagRow, Verb, VERBS};
 use crate::ssh::keywords;
 
 /// Part of a term: what a user types, a value to put in its place, or text.
@@ -185,19 +185,10 @@ fn command_section(verb: &'static Verb) -> Section {
         text(" "),
         text(crate::help::usage_tail(verb)),
     ]));
-    match crate::flags::availability(verb) {
-        Availability::Works => {}
-        Availability::NotYet => {
-            blocks.push(para("Not implemented yet. The command exits 70 and does nothing."));
-            return section_of(verb, blocks);
-        }
-        Availability::NotInBuild => {
-            blocks.push(para(
-                "Not in this build: this binary was built without the cargo feature ts. The command \
-                 exits 70 and does nothing.",
-            ));
-            return section_of(verb, blocks);
-        }
+    // The sentence of --help, in place of the options.
+    if let Some(sentence) = crate::help::availability_sentence(verb) {
+        blocks.push(para(sentence));
+        return section_of(verb, blocks);
     }
 
     let command = crate::tree::verb_command(verb);
@@ -283,6 +274,7 @@ fn see_also() -> Section {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::flags::Availability;
 
     fn all_items(s: &Section) -> Vec<(String, String)> {
         s.blocks

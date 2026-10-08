@@ -5,7 +5,7 @@ of the forwards of a session.
 
 # T-035: `-R`: remote forwarding, each connection made out through the proxy
 
-**Source:** `docs/ROADMAP.md:244-245` (M8) and `docs/cli.md:87-92`; the
+**Source:** `docs/ROADMAP.md:244-245` (M8) and `docs/cli.md:88-93`; the
 VLOD-ZDOV/quic-ssh report in GitHub #22 (item 7) and the cubic-vm/cubic
 report in GitHub #23 (item 7). Read and measured here on `3ee70dc`.
 **Category:** feature
@@ -33,7 +33,7 @@ server listens, and the client connects out for each connection.
   carries the other direction.
 - Read: the manual's note says "-L, -R and -D are refused by name: podssh
   never listens on a port" (`crates/podssh-cli/src/man/notes.rs` lines 31-32
-  at `25ab0e7`), but `docs/cli.md:87-89` says that the refusal of `-R` must
+  at `25ab0e7`), but `docs/cli.md:88-90` says that the refusal of `-R` must
   not say that.
 - Read: russh 0.64.1 has `Handle::tcpip_forward`, and its default handler
   accepts each `forwarded-tcpip` channel that a server opens. podssh's handler
@@ -43,7 +43,7 @@ server listens, and the client connects out for each connection.
   `crates/podssh-ws/src/dial.rs:204-227`). On the measured sandbox, a direct
   connection to loopback is refused (`docs/target-environment.md:22`).
 - Read: a refused `tcpip-forward` gets SSH_MSG_REQUEST_FAILURE, which has no
-  reason field (RFC 4254, section 4). So `docs/cli.md:92` ("podssh gives the
+  reason field (RFC 4254, section 4). So `docs/cli.md:93` ("podssh gives the
   server's reason") cannot hold as written.
 
 ## Approach
@@ -68,7 +68,7 @@ server listens, and the client connects out for each connection.
    corrected the texts of the `-R` refusal (the help and the manual's note
    at `crates/podssh-cli/src/man/notes.rs:31-33`). Change the test that
    asserts the refusal (`crates/podssh-cli/tests/flag_table.rs:67-86`).
-   Update `docs/cli.md:80-94` (correct line 78) and `docs/STATUS.md`.
+   Update `docs/cli.md:81-95` (correct line 78) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
    under the proxy rule of `AGENTS.md:177-182`; say so in the help. The relay's
    64 MiB and 12 h cover all the forwarded connections of a session
@@ -269,7 +269,7 @@ check that the server's `xauth list` holds the spoofed cookie fails.
 a local listener when the user asks for it and a probe at run time allows
 the bind; loopback and AF_UNIX by default; an address that the user sets;
 listening that the user can turn off; the same refusal where the probe
-fails. Also `docs/cli.md:82-86`; the totoshko88/RustConn report in GitHub
+fails. Also `docs/cli.md:83-87`; the totoshko88/RustConn report in GitHub
 #24 (item 3) and the OthmaneBlial/MobaRust report in GitHub #21 (item 3);
 sandbox A of T-001 (`bind` refused for AF_INET, allowed for AF_UNIX).
 **Category:** feature
@@ -483,7 +483,7 @@ Read:
 3. A server that refuses the channel (OpenSSH with
    `AllowStreamLocalForwarding no`) gives its reason, and 255, as for TCP.
 4. Change the help of the `-W` row (`crates/podssh-cli/src/flags.rs:139-140`)
-   and `docs/cli.md:67-68`, and add an example to the manual. A local socket
+   and `docs/cli.md:68-69`, and add an example to the manual. A local socket
    is the work of T-176 (`pipe`).
 
 ## Decision
@@ -671,7 +671,7 @@ Read: `request` parses the value with `parse_hop`
    refuses `-W 5432`, whose meaning in OpenSSH is not known here.
 3. Keep `HOST:PORT` and `[v6]:PORT`. A `-J` hop keeps its own parse, where a
    host alone means port 22, as in OpenSSH.
-4. Add the rule to `docs/cli.md:67-68`. The help of the `-W` row
+4. Add the rule to `docs/cli.md:68-69`. The help of the `-W` row
    (`crates/podssh-cli/src/flags.rs:139-140`) already says `HOST:PORT`.
 
 ## Prove

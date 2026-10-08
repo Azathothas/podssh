@@ -174,11 +174,32 @@ pub fn availability_note(verb: &Verb) -> &'static str {
     }
 }
 
+/// The sentence that `--help` and the manual give a verb that does not work
+/// here, in place of its options. One copy, so the two cannot differ.
+pub fn availability_sentence(verb: &Verb) -> Option<&'static str> {
+    match crate::flags::availability(verb) {
+        crate::flags::Availability::Works => None,
+        crate::flags::Availability::NotYet => Some("Not implemented yet. The command exits 70 and does nothing."),
+        crate::flags::Availability::NotInBuild => Some(
+            "Not in this build: this binary was built without the cargo feature ts. The command exits 70 \
+             and does nothing.",
+        ),
+    }
+}
+
 /// Render one verb's help, from the same rows the parser was built from.
 pub fn verb_help(verb: &'static Verb) -> String {
     let mut s = String::new();
-    s.push_str(&format!("podssh {} - {}\n\n", verb.name, verb.about));
+    s.push_str(&format!("podssh {} - {}{}\n\n", verb.name, verb.about, availability_note(verb)));
     s.push_str(&format!("USAGE:\n    podssh {} {}\n\n", verb.name, usage_tail(verb)));
+    // A command that does nothing shows no option but --help, as the manual
+    // does: its options cannot be used.
+    if let Some(sentence) = availability_sentence(verb) {
+        s.push_str(&wrap(sentence));
+        s.push_str("\n\nOPTIONS:\n");
+        s.push_str(&format!("{:<12}{}\n", "    --help", crate::flags::HELP_FLAG.help));
+        return s;
+    }
 
     // ⛔ **The `OPTIONS:` header is printed even for a verb with no flags of
     // its own**, because `--help` is one of its options and ⛔ a headerless
@@ -199,7 +220,13 @@ pub fn verb_help(verb: &'static Verb) -> String {
         crate::flags::HELP_FLAG.help
     ));
     s.push('\n');
+    s.push_str(&verb_notes(verb));
+    s
+}
 
+/// The notes under a verb's options: what its flags cannot say.
+pub fn verb_notes(verb: &Verb) -> String {
+    let mut s = String::new();
     if verb.name == "ssh" {
         s.push('\n');
         s.push_str("-L and -D are refused by name: each needs a local listener, and podssh\n");
@@ -383,7 +410,8 @@ mod tests {
     #[test]
     fn ssh_help_says_p_is_a_tag_here_and_a_port_on_scp() {
         let ssh = verb_help(VERBS.iter().find(|v| v.name == "ssh").unwrap());
-        let cp = verb_help(VERBS.iter().find(|v| v.name == "cp").unwrap());
+        // The notes of cp, which its help shows once cp works.
+        let cp = verb_notes(VERBS.iter().find(|v| v.name == "cp").unwrap());
         assert!(ssh.contains("-P on ssh is OpenSSH's Tag"), "{ssh}");
         assert!(cp.contains("-P here is the port"), "{cp}");
     }

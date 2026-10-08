@@ -51,6 +51,7 @@ in [ROADMAP.md](ROADMAP.md).
 | `podssh chat`, `podssh status` | Not implemented (exit 70). Milestone M8. |
 | A command that is not implemented, with no terminal (T-008) | Exit 70, "not implemented yet", before the `--timeout` check: `cp`, `mv`, `relay` and `chat` with stdin from `/dev/null` (`PODSSH_OFFLINE=1`, 2026-10-08). A `--timeout` that does not parse is still 64. |
 | A relay variable that cannot be used (T-231), offline | `PODSSH_RELAY='bad host!'` and `PODSSH_RELAY_ADDR=nonsense` give exit 78 and the variable's name, for `proxy`, `ssh` and `doctor`. `--relay-host 'bad host!'` and `--relay-addr nonsense` stay 64 (`cargo test -p podssh-cli --test proxy -- a_bad_variable_is_a_configuration_error`, 2026-10-08). |
+| The help of a command that does not work (T-233), offline | `podssh cp --help` (and `node`, `operator`, `chat`, `mv`, `relay`, `status`, and `ts` in the default build) exits 0, marks the title `(not implemented yet)` or `(not in this build)`, gives the manual's sentence, and shows no option but `--help`. |
 | `podssh ts` | Only with the `ts` cargo feature: a status line and a `-W` byte pipe over a tailnet. The live test with two nodes was never run. |
 
 ## `podssh ssh`, measured

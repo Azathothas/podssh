@@ -108,17 +108,31 @@ fn each_description_is_the_one_help_prints() {
 }
 
 /// A command that does not work in this binary says so in both renderings,
-/// and the manual shows no options for it.
+/// in its own help too, and neither shows an option of it.
 #[test]
 fn a_command_that_does_not_work_says_so_in_both() {
     let page = man::page();
     let regions = man_regions(&page);
     let top = help::top_level_help();
-    for v in VERBS.iter().filter(|v| podssh_cli::flags::availability(v) != Availability::Works) {
+    let squeeze = |t: &str| t.split_whitespace().collect::<Vec<_>>().join(" ");
+    let broken: Vec<_> = VERBS.iter().filter(|v| podssh_cli::flags::availability(v) != Availability::Works).collect();
+    assert!(!broken.is_empty(), "no command to check");
+    for v in broken {
         let region = regions.get(v.name).unwrap_or_else(|| panic!("no section for {}", v.name));
         assert!(man_items(region).is_empty(), "{}: the manual shows options", v.name);
         assert!(region.contains("exits 70"), "{}: the manual does not say that it exits 70", v.name);
         let line = top.lines().find(|l| l.trim_start().starts_with(&format!("{} ", v.name))).unwrap();
         assert!(line.contains("(not "), "{}: --help does not mark it: {line:?}", v.name);
+        // Its own help: the mark in the title, the manual's sentence, and no
+        // option but --help.
+        let own = help::verb_help(v);
+        let sentence = help::availability_sentence(v).expect("a sentence");
+        assert!(own.lines().next().unwrap_or("").contains("(not "), "{}: the title is not marked:\n{own}", v.name);
+        assert!(squeeze(&own).contains(&squeeze(sentence)), "{}: its help lacks the sentence:\n{own}", v.name);
+        assert!(squeeze(region).contains(&squeeze(sentence)), "{}: the manual lacks the sentence", v.name);
+        let block = options_block(&own);
+        let options: Vec<&str> = block.lines().filter(|l| !l.trim().is_empty()).collect();
+        assert_eq!(options.len(), 1, "{}: options other than --help:\n{own}", v.name);
+        assert!(options[0].trim_start().starts_with(UNIVERSAL), "{}: {options:?}", v.name);
     }
 }

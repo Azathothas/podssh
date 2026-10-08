@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 223 open, 0 partial, 7 blocked, 20 done.**
+**250 entries: 222 open, 0 partial, 7 blocked, 21 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 128 | 0 | 3 | 12 | 143 |
+| P2 | 127 | 0 | 3 | 13 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 223 | 0 | 7 | 20 | 250 |
+| **All** | 222 | 0 | 7 | 21 | 250 |
 
 ## Entries
 
@@ -304,7 +304,7 @@ repository and CI).
 | [T-230](cli.md) | P2 | S | M3 | defect | done | The help and the manual say that `-R` is refused because podssh never binds |
 | [T-231](cli.md) | P2 | S | M3 | defect | done | A bad `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` exits 64, not 78 |
 | [T-232](cli.md) | P3 | S | backlog | chore | open | `gate_prompt` and `PromptSite` are used only by tests, and name flags that do not exist |
-| [T-233](cli.md) | P2 | S | M3 | defect | open | The help of a command that is not implemented does not say so |
+| [T-233](cli.md) | P2 | S | M3 | defect | done | The help of a command that is not implemented does not say so |
 | [T-234](cli.md) | P2 | S | M3 | defect | open | `podssh man relay` shows the command and not the topic THE RELAY, and the list of sections names `relay` twice |
 | [T-235](cli.md) | P3 | S | backlog | defect | open | The help puts `--help` at a different indent from the other options |
 | [T-236](ssh.md) | P2 | S | M3 | defect | open | Authentication has no time limit, but the comment of `connect_timeout` says that it has |

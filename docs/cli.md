@@ -33,8 +33,9 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
 - **No setting of the host.** The manual is the same bytes in each
   environment. It never shows a token or a credential.
 - **A command that does not work says so.** `--help` and the manual mark a
-  command that is not implemented, or not in this build, and the manual
-  shows no options for it.
+  command that is not implemented, or not in this build. Its own `--help`
+  and its section of the manual give the same sentence, and no option but
+  `--help`: the options of a command that does nothing cannot be used.
 
 ## Options of `podssh ssh`
 
