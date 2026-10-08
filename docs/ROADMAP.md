@@ -171,8 +171,8 @@ in released binaries? T-003.
 
 - Two sessions at the same time through the live relay, from a sandbox whose
   only egress is a CONNECT proxy, to a node in another such sandbox.
-- podbox builds against `podssh-relay` through its blocking facade and passes
-  its own test with two clients.
+- The blocking facade for podbox passes a test with two clients here. podbox
+  pins it later, as an operator action ([decisions.md](decisions.md)).
 
 ## M5: `podssh serve`, into the cage
 
@@ -239,9 +239,9 @@ in released binaries? T-003.
 
 ## M8: The rest
 
-- Chat: a new design on the roads between two podssh binaries (end-to-end
-  encrypted), or IRC as before ([irc.md](irc.md)). The operator decides when
-  it starts: T-099. The defects of the IRC client: T-091 to T-098.
+- Chat on the roads between two podssh binaries, end-to-end encrypted
+  (T-099), and IRC as a second transport ([irc.md](irc.md), T-252), after
+  M6. The defects of the IRC client: T-091 to T-098.
 - Tailscale (`podssh ts`, feature `ts`): first repair its DERP dial, which
   does not use the proxy, and its missing reconnection; then the tests with
   two nodes ([tailscale.md](tailscale.md)): T-103, T-104, T-106, and the
@@ -255,4 +255,24 @@ in released binaries? T-003.
 ## After M8
 
 The entries with the milestone `backlog` in [TODO/INDEX.md](../TODO/INDEX.md)
-are features in no milestone yet. The operator schedules them.
+come after M8, in the order of the index: the operator scheduled each of
+them on 2026-10-08. The entries that wait for the relay's operator are
+skipped.
+
+## M9: `v1.0.0`, the first stable release
+
+- More release targets: macOS x86_64 and aarch64, Linux armv7 and riscv64
+  (static), and Windows aarch64, each built and run in CI: T-218.
+- Provenance and signed checksums for each binary: T-210, T-211.
+- A release candidate, then `v1.0.0`: T-250.
+
+**Exit criteria** (T-251)
+
+- Each entry of `TODO/` is done, except the entries that wait for the
+  relay's operator. Each test passes, and the gate is green.
+- The published assets of `v1.0.0`, on clean hosts (Windows, a fresh Linux
+  container, and the box like the target sandbox), pass the check from end
+  to end with no human: checksums and signatures; the commands of the
+  README; `doctor`; `proxy` and `ssh` through the live relay; the reverse
+  road; `serve` with `vi`, `less` and Ctrl-C in the box; `cp` of 200 MiB
+  each way; a session that survives a killed relay connection; `pipe`.

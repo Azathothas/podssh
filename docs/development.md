@@ -248,3 +248,11 @@ To publish a release:
 2. Push the tag `vX.Y.Z` or `vX.Y.Z-pre`. A tag with a suffix (`-beta.1`)
    becomes a prerelease.
 3. The workflow adds `SHA256SUMS` and publishes the release.
+
+The plan of releases (the operator, 2026-10-08): a session publishes
+`v0.1.0-beta.1` when the M3 entries are done (T-002), and `v1.0.0` when each
+other entry is done, except the relay's. First a release candidate
+(`v1.0.0-rc.N`, a prerelease), then the check from end to end with no human
+on its published assets (T-251), then `v1.0.0` from the same commit (T-250).
+From T-210 and T-211 on, each release also has provenance and Sigstore
+signatures.

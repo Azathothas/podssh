@@ -14,22 +14,95 @@ These commands work: `podssh ssh`, `podssh proxy`, `podssh doctor`,
 `podssh keygen` and `podssh man`. The other commands refuse with exit
 code 70.
 
-## 2. Start procedure
+## 2. How a session works
 
 You have no memory of earlier sessions. The files in this repository are the
-only record. Do these steps at the start of each session.
+only record. A session can start with the prompt "Read AGENTS.md in full and
+follow it" and nothing more: this file is then your whole instruction.
 
-1. Read [README.md](README.md).
-2. Read [docs/STATUS.md](docs/STATUS.md). It gives the measured state.
-3. Read [TODO/PROGRESS.md](TODO/PROGRESS.md). Its work order gives your
-   task, unless the operator gives you a different task. Each task is an
-   entry in `TODO/`: read the entry. [docs/ROADMAP.md](docs/ROADMAP.md)
-   gives the milestones and their exit criteria.
-4. Read [docs/decisions.md](docs/decisions.md). Do not change a decision. If
-   a decision seems wrong, ask the operator.
-5. Find your task in section 3. Read the documents in its row.
-6. Before you change the record in `TODO/`, read
-   [TODO/RULES.md](TODO/RULES.md).
+**Work unattended.** The operator's standing instruction (2026-10-08,
+[docs/decisions.md](docs/decisions.md)): work for as long as you can. Do not
+stop to ask, and do not wait for a reply. Stop only when the operator
+interrupts you, or when the goal is reached.
+
+**The goal.** Each entry of `TODO/` is done, except the entries that wait
+for the relay's operator. Each test passes, and the gate is green in CI.
+`v1.0.0`, the first stable release, is published and verified from end to
+end (T-250, T-251). On the way, publish the beta `v0.1.0-beta.1` when the M3
+entries are done (T-002).
+
+### At the start of a session
+
+1. Read [README.md](README.md), [docs/STATUS.md](docs/STATUS.md) (the
+   measured state) and [docs/decisions.md](docs/decisions.md) (the
+   operator's decisions).
+2. Read [TODO/PROGRESS.md](TODO/PROGRESS.md) (the state, the baseline and
+   the only work order) and [TODO/RULES.md](TODO/RULES.md) (how the record
+   is kept). [docs/ROADMAP.md](docs/ROADMAP.md) gives the milestones and
+   their exit criteria.
+3. Measure the baseline again: `cargo todo check`,
+   `python scripts/check-repo.py` and the tests
+   ([docs/development.md](docs/development.md)). Read the last CI run
+   (`gh run list`). A failure that the record does not know is your first
+   task.
+4. Read the GitHub issues and comments that are newer than
+   [TODO/issues.md](TODO/issues.md), and make each new request an entry
+   ([TODO/RULES.md](TODO/RULES.md)).
+5. If an entry is `partial`, continue it first. Its notes say what is done.
+
+### The loop
+
+Take the first entry of the work order that is not done and not blocked.
+
+1. Read the entry, and the documents of its area (section 3). Verify its
+   Premise at the cited lines. If the Premise is wrong, write a
+   `## Correction`, and change the Approach to match.
+2. Before a long step, set the entry to `partial`, and write in it what is
+   done. A compaction of your context, or a crash, then loses nothing.
+3. Do the work as section 6 says, and run the entry's Prove.
+4. Close the entry in place, record the result in
+   [docs/STATUS.md](docs/STATUS.md), then commit and push (section 6).
+5. When each entry of a GitHub issue is done, comment on the issue with the
+   commits and a short summary, and close it
+   ([TODO/RULES.md](TODO/RULES.md)).
+6. Read the result of the last CI run, and the new GitHub issues and
+   comments. A failed run is the next task; a new request becomes an entry.
+7. Take the next entry.
+
+After a compaction of your context, read this file again, then
+`TODO/PROGRESS.md` and the entry that is `partial`.
+
+### When you need a decision
+
+- Look in [docs/decisions.md](docs/decisions.md) and in the entry's
+  `## Decision`, and follow them.
+- Else make a defensible call. Write it in the entry's `## Decision`, with
+  each alternative that lost and why. Then continue.
+- A change of a policy in `docs/decisions.md` belongs to the operator. Write
+  a question with a recommendation in `TODO/PROGRESS.md`, set the entry to
+  `blocked`, and take the next entry. A row whose facts your own work
+  changed (a list of crates, an exception that your work removes) you
+  correct yourself; move the old text to "Superseded".
+- When somebody outside must act, set the entry to `blocked`, write a
+  `## Blocker` that names who, and take the next entry. Do not work on the
+  entries that wait for the relay's operator (`TODO/PROGRESS.md`).
+- Never close an entry as out of scope or as "won't fix".
+
+### Releases
+
+- The beta: when the M3 entries of the work order are done, publish
+  `v0.1.0-beta.1` as T-002 says. You give the go.
+- `v1.0.0`: when each other entry is done, except the relay's, publish a
+  release candidate, check it from end to end with no human (T-251), then
+  publish `v1.0.0` (T-250).
+- [docs/development.md](docs/development.md) (section "Release builds")
+  tells how to build and publish.
+
+### The end
+
+When the goal is reached, print a summary of the session (what was done,
+the commits, the checks, the releases) and stop. The record is already
+current.
 
 ## 3. Documents for each task
 
@@ -38,7 +111,7 @@ only record. Do these steps at the start of each session.
 | Look up a command, flag, `-o` keyword, variable, file or exit code | `podssh man` (in the repository: `cargo run -q -p podssh-cli -- man --no-pager`) |
 | Build, test, or run the gate | [docs/development.md](docs/development.md) |
 | Measure podssh in a sandbox, or in a box like one | [docs/development.md](docs/development.md) (section "A box like the target sandbox"), [docs/target-environment.md](docs/target-environment.md) |
-| Make a release | [docs/development.md](docs/development.md) (section "Release builds"), [docs/releases/](docs/releases/) |
+| Make a release | [docs/development.md](docs/development.md) (section "Release builds"), [docs/releases/](docs/releases/), T-002 (the beta), T-250 and T-251 (`v1.0.0`) |
 | Change the command line, `doctor`, `keygen` or the manual | [docs/cli.md](docs/cli.md) (section "The manual"), `crates/podssh-cli/src/flags.rs`, `crates/podssh-cli/src/man/` |
 | Change the SSH client | [docs/cli.md](docs/cli.md), `crates/podssh-ssh/` |
 | Change the terminal behaviour | [docs/terminal.md](docs/terminal.md) |
@@ -59,7 +132,8 @@ builds at the same time almost stopped it.
 
 1. Set `CARGO_BUILD_JOBS=4` before each cargo command.
 2. Run one build at a time. Do not start a container build while another
-   build runs.
+   build runs. This holds for subagents too: at most one of them builds at a
+   time.
 3. For daily work, build natively: `cargo build`, `cargo test`.
 4. For the Linux gate and the static binary, use `sh scripts/dev.sh check`.
    It limits its jobs and runs one at a time.
@@ -74,6 +148,20 @@ WARNING: A relay token and a private key are credentials. Do not put a
 credential in output, logs, URLs, argv, commits or issues. Mint a relay
 token, use it and discard it in one shell. Do not read or print the `.env/`
 directory.
+
+WARNING: GitHub is public. Push only verified work to `main`. Publish the
+releases that section 2 names, and comment on and close issues as
+[TODO/RULES.md](TODO/RULES.md) says. Do not force-push, and do not delete a
+tag or a release. Do not write a local user name, host name or path of the
+operator's machine into a file of the repository.
+
+Test targets that a session may use (the operator, 2026-10-08): the live
+relay, railway.new, GitHub's SSH endpoint, the two tailnet hosts of
+[docs/STATUS.md](docs/STATUS.md) (with `--direct`), the Podman box
+(`scripts/test_in_box.sh`) and GitHub Actions. Use throwaway keys, and
+delete them after the test. Keep keys and scratch files in `.work/`, which
+git ignores, or outside the repository. Never print the claim URL of
+railway.new.
 
 ## 5. Rules for the code
 
@@ -126,6 +214,9 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    change.
 10. Do not change the files in `.tmp/`. They are read-only copies of other
     projects. Make sure that a copy exists before you use it.
+11. When you edit a document or a file that entries of `TODO/` cite at a
+    line, move those citations in the same change
+    ([TODO/RULES.md](TODO/RULES.md)).
 
 ## 7. Map
 

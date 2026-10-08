@@ -376,7 +376,7 @@ and `crates/podssh-cli/src/proxy.rs:58-65`. Trust (`--ca-file`, then `SSL_CERT_F
 `resolve.rs:174-177`, `doctor/mod.rs:59-64` and `proxy.rs:73-77`. The pins of the flag and of
 the variable add up (`crates/podssh-cli/src/pins.rs:10-20`). The token cache uses the user's
 cache directory first (`crates/podssh-relay/src/cache.rs:286-299`). The decision named the
-configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:37`, T-243).
+configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:45`, T-243).
 
 ## Approach
 

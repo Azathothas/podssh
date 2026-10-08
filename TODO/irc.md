@@ -436,7 +436,7 @@ whole file in memory, for any total that the offer gives (`crates/podssh-core/sr
 2. `ack(target)`: name the chunk just accepted, by count, and send it to the transfer's target.
 3. In `accept`, check the index before the bytes go into the file.
 4. Limit the receiver's memory: a size limit from the caller, or a sink that the caller owns. A
-   file is taken only when the user accepts it (`docs/decisions.md:33`).
+   file is taken only when the user accepts it (`docs/decisions.md:41`).
 5. Update `docs/irc.md:26-32` and `docs/STATUS.md:182` in the same commit.
 
 ## Decision
@@ -523,11 +523,80 @@ must fail. Live: give the probe an idle mode. An idle session on undernet must s
 with no channel message. With the keepalive off (the control), the relay must close it at about
 180 s with `1001 idle timeout` (`docs/relay.md:127`).
 
-# T-099: Chat: IRC, or the roads between two podssh ends
+# T-099: `podssh chat` on the roads between two podssh ends, end-to-end encrypted
 
-**Source:** `docs/ROADMAP.md:242-244`, `docs/design.md:355-358` (open question 3),
-`docs/decisions.md:36`. Measured here on `3ee70dc`.
-**Category:** research
+**Source:** `docs/ROADMAP.md:242-244`; the operator's ruling of 2026-10-08 on
+chat (`docs/decisions.md`): the roads first, after M6, and IRC as a second
+transport (T-252); the decision of 2026-10-01 that two users on constrained
+hosts chat and share files (`docs/decisions.md:44`).
+**Category:** feature
+**Milestone:** M8
+**Priority:** P2
+**Effort:** L
+**Status:** open
+
+## Problem
+
+Two users on constrained hosts must chat and share files. `podssh chat` does
+not exist: it exits 70. The IRC client sends plain text that the relay and
+the IRC server read, and most public networks refused the relay
+(`docs/irc.md:12-24`).
+
+## Premise
+
+Measured on `3ee70dc`: `podssh chat --timeout 5s </dev/null`, and the same
+with `podssh irc`, exit 70 with "'chat' is not implemented yet; nothing was
+done." Read: podssh executes nothing that it receives and takes no file on
+its own (`docs/decisions.md:41`). The roads exist after M6: the reverse road
+(T-078, T-083, T-084), the iroh road (T-162), and end-to-end encryption
+between two podssh ends (T-088). No flag of `chat` names a peer or a server
+today (`crates/podssh-cli/src/flags.rs:259-271`,
+`crates/podssh-cli/src/positionals.rs:31-33`).
+
+## Approach
+
+1. The command line: `podssh chat PEER`, where PEER is a node name (the
+   reverse road) or an iroh ticket. T-252 adds `--irc SERVER CHANNEL`. Change
+   `crates/podssh-cli/src/flags.rs:259-271`, the positionals and the manual in
+   the same commit.
+2. The protocol, over the encrypted channel of T-088: lines of text, and
+   files in chunks with digests, as T-097 does for IRC. A line that the peer
+   does not acknowledge shows as not delivered. Invariant: podssh executes
+   nothing that it receives, and writes a file only when the user accepts it.
+3. A peer that is offline: the sender keeps the lines in memory up to a
+   limit, and says so. Nothing goes to disk unasked.
+4. The terminal: plain lines on stdin and stdout, so that a script or an
+   agent can use it. No TUI: podssh is a CLI (`docs/decisions.md`).
+5. A test in two boxes through the live relay, built like the script of
+   T-085: text, and files of 0, 1 and 5,000,000 bytes with equal digests.
+6. Docs in the same commit: `docs/irc.md` (a section on chat), `docs/cli.md`,
+   `docs/STATUS.md`, and the gap of plain text in `SECURITY.md:69`, which the
+   roads do not have.
+
+## Decision
+
+The operator ruled on 2026-10-08: the roads first, end to end encrypted, and
+IRC as a second transport (T-252). The roads won because both users run
+podssh, and no third party reads the text.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test chat_cli     # the command line and the manual
+sh scripts/chat-in-boxes.sh path/to/podssh   # two boxes, the live relay, text and files
+```
+
+The script exits 0 when each line and each file arrives once, with equal
+digests, and a file that the user did not accept is not written. Planted
+defect: write a file with no accept; the script must fail.
+
+# T-252: `podssh chat --irc`: IRC as a second transport for chat
+
+**Source:** the operator's ruling of 2026-10-08 on chat (`docs/decisions.md`):
+IRC through public servers as a second transport, after the roads (T-099).
+The IRC client in `crates/podssh-core/src/irc/` and its defects T-091 to
+T-098.
+**Category:** feature
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
@@ -535,60 +604,44 @@ with no channel message. With the keepalive off (the control), the relay must cl
 
 ## Problem
 
-Two users on constrained hosts must chat and share files (the decision of 2026-10-01).
-`podssh chat` does not exist, and its design is open. The IRC client sends plain text that the
-relay and the IRC server can read, and one of seven public networks accepted the relay. The
-operator must choose IRC or a chat on the roads between two podssh ends, and decides when the work
-starts.
+The IRC client exists, and no command uses it. A user whose peer does not
+run podssh, or who wants a public channel, has no chat.
 
 ## Premise
 
-Measured: `podssh chat --timeout 5s </dev/null`, and the same with `podssh irc`, exit 70 with
-"'chat' is not implemented yet; nothing was done." Read: the decision "IRC is necessary" names two
-open items: plain text to public servers, and no design without a third-party server
-(`docs/decisions.md:36`). For both options, podssh executes nothing that it receives and takes no
-file on its own (`docs/decisions.md:33`). Only `irc.undernet.org:6667` worked (`docs/irc.md:12-24`);
-the other results can come from T-091. The design recommends the roads after M6
-(`docs/design.md:355-358`): the reverse road of M4 (T-078, T-083, T-084), the iroh road of M6
-(T-162), and end-to-end encryption (T-088). No flag of `chat` names a server
-(`crates/podssh-cli/src/flags.rs:259-271`, `crates/podssh-cli/src/positionals.rs:31-33`).
-`SECURITY.md:69` lists the plain text as a known gap.
+Read: the client is sans-IO, and T-091 to T-098 repair its defects. Measured
+on 2026-10-05: of seven public networks, only `irc.undernet.org:6667`
+accepted the relay's addresses (`docs/irc.md:12-24`). On port 6667 the relay
+and each server read the text (`SECURITY.md:69`).
 
 ## Approach
 
-1. After T-091 and T-092, measure the networks again through the relay, on port 6667, and on 6697
-   with TLS inside the relay stream (hidden from the relay, not from the server). Record each
+1. After T-091 and T-092: measure the networks again through the relay, on
+   port 6667, and on 6697 with TLS inside the relay stream. Record each
    answer with its date in `docs/irc.md:12-24`.
-2. Write one table in `docs/irc.md` that compares the options: who reads the text; the reach from
-   the target sandbox (`docs/target-environment.md:20-24`); third-party networks and their bans;
-   files (chunks with digests, T-097, or streams); a peer that is offline; the milestone that each
-   waits for; the work left. Label each fact MEASURED, READ or INFERRED (`docs/design.md:10-14`).
-3. Give the table, the command line of `podssh chat` for each option (its change to
-   `crates/podssh-cli/src/flags.rs:259-271` and the manual), and a recommendation to the operator.
-   The ruling goes into `docs/decisions.md` and `docs/ROADMAP.md:242-244`, and it decides what
-   happens to T-091 to T-098.
+2. `podssh chat --irc SERVER[:PORT] CHANNEL`: TLS inside the relay stream by
+   default (port 6697). Plain text on 6667 only with a flag that names the
+   risk, and one line about it on stderr. The nick comes from a flag or a
+   variable.
+3. Files: the chunks with digests of T-097, each only when the user accepts
+   it.
+4. The same lines on stdin and stdout as T-099, so that a script uses both
+   alike.
+5. A test against a real IRC server in the gate (a container with an IRC
+   daemon), and an ignored live test against one public network.
 
 ## Decision
 
-Recommendation today (`docs/design.md:355-358`): the roads, after M6, with end-to-end encryption
-(T-088). Both users run podssh, so no third party needs the text. IRC lost so far because the
-relay and the server read each word, and most networks refused the relay. Check this again after
-step 1: if the repaired client reaches most networks over TLS, IRC can come first.
+Recommendation: TLS by default, so that the relay sees only TLS. Plain text
+by default lost: the relay and each hop would read each line.
 
 ## Prove
 
 ```sh
-grep -n '6697' docs/irc.md
-grep -n '\*\*Chat' docs/decisions.md
-python scripts/check-repo.py
-cargo todo check
+cargo test -p podssh-core
+cargo test -p podssh-cli --test chat_irc
+sh scripts/dev.sh check      # the gate's IRC server: text and one file with equal digests
 ```
 
-The first command shows the measurement on port 6697, which `docs/irc.md` does not have today. The
-second shows the operator's ruling as a bold title in a dated row. The last two check the links,
-the line rule and the work record. This entry changes no code.
-
-## Start condition
-
-The operator starts chat (`docs/ROADMAP.md:242-244`: "The operator decides when it starts").
-Until then, step 1 runs only as part of T-091 and T-092.
+Planted defect: connect to port 6697 without TLS; the test against the
+gate's server must fail at the handshake.

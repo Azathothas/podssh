@@ -122,8 +122,9 @@ Read:
 2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
    the live check. The no-C steps of the gate (`scripts/gate.sh:63-69`) judge
    each update of a library crate's dependencies.
-3. Ask the operator to turn on Dependabot alerts and security updates. This
-   is a setting of the repository, not a file.
+3. Dependabot alerts and security updates: on since 2026-10-08, turned on
+   with `gh api` and the operator's approval (`gh api
+   repos/Azathothas/podssh/automated-security-fixes` gives `enabled: true`).
 4. An update can need a newer Rust than a declared minimum: the job of T-217
    refuses it.
 5. docs/development.md: how an update is judged and merged.
@@ -266,8 +267,9 @@ Read:
    (`scripts/gate.sh:55-136`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
-5. Ask the operator to drop the sentence on the exception from
-   `docs/decisions.md`; the decision itself stays.
+5. Drop the sentence on the exception from `docs/decisions.md`, and move it
+   to Superseded: this work changes that fact (the operator's ruling of 2026-10-08).
+   The decision itself stays.
 
 Pitfalls: keep the new file directly in `scripts/`, so the dash loop of CI
 reads it. `.gitattributes` gives it LF. The lock and its trap stay in
@@ -428,7 +430,7 @@ released binaries; the csshw report in GitHub #24
 (`whme/csshw:.github/workflows/release.yml`), read in the report, not
 verified here.
 **Category:** release
-**Milestone:** none
+**Milestone:** M9
 **Priority:** P2
 **Effort:** S
 **Status:** open
@@ -491,7 +493,7 @@ the commit of the tag. Planted defect: change one byte of a copy of a binary;
 **Source:** GitHub #25 (Nemo-010, 2026-10-08), the request for provenance of
 released binaries (checksums).
 **Category:** release
-**Milestone:** none
+**Milestone:** M9
 **Priority:** P2
 **Effort:** S
 **Status:** open
@@ -954,7 +956,7 @@ Read:
    in the workflow.
 3. Build in `rust:1.88-alpine` and the same family for each version, so that
    the C toolchain for aws-lc is the gate's.
-4. With the operator: `incompatible-rust-versions = "fallback"` in the
+4. `incompatible-rust-versions = "fallback"` in the
    resolver table of `.cargo/config.toml`, so that `cargo update` prefers
    versions that keep the minimums. The updates of T-205 then fail less often.
 5. docs/STATUS.md, "Build, tests, CI": one row for each version, with the date
@@ -972,13 +974,15 @@ Each command exits 0, and the job runs the same three. Planted defect: call
 `std::fs::File::lock` (stable since Rust 1.89; confirm in its release notes)
 in a library crate; the check with 1.88 must fail.
 
-# T-218: More release targets
+# T-218: More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64
 
 **Source:** the iroh-ssh report in GitHub #18 (static musl binaries for more
 architectures; its issues 51 and 57), read in the report, not verified here.
+The operator's ruling of 2026-10-08: v1.0.0 ships these targets
+(`docs/decisions.md`).
 **Category:** release
-**Milestone:** none
-**Priority:** P3
+**Milestone:** M9
+**Priority:** P2
 **Effort:** M
 **Status:** open
 
@@ -1014,11 +1018,12 @@ of the binary:
 1. `armv7-unknown-linux-musleabihf` (a Raspberry Pi with 32 bits): static, the
    `readelf` check, and a run under QEMU (`--version`, `man --no-pager`,
    `keygen`, then `keygen -y`).
-2. `aarch64-apple-darwin` on a macOS runner: `otool -L` lists system
-   libraries only. Run the default tests there first.
+2. `aarch64-apple-darwin` and `x86_64-apple-darwin` on macOS runners:
+   `otool -L` lists system libraries only. Run the default tests there first.
 3. `aarch64-pc-windows-msvc` on a Windows runner for ARM: the `dumpbin` check;
    aws-lc on Windows for ARM64, to measure.
-4. Later: `riscv64gc-unknown-linux-musl` and `x86_64-unknown-freebsd`.
+4. `riscv64gc-unknown-linux-musl`, where the gate's image family builds it.
+   `x86_64-unknown-freebsd` stays for later.
 5. For each target: a row in the table of binaries of the release notes (as
    `docs/releases/v0.1.0-beta.1.md:73-81`), the README, and the attestation of
    T-210.

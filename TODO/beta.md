@@ -113,7 +113,8 @@ sandbox (`docs/releases/v0.1.0-beta.1.md:70-71`). The workspace version is
    --version` names the release.
 4. Run the release workflow by hand (`gh workflow run release.yml --ref
    main`). Run the commands of `README.md` on a clean host with its binary.
-5. With the operator's go, tag `v0.1.0-beta.1` and push the tag.
+5. Tag `v0.1.0-beta.1` and push the tag. The session gives the go itself
+   (the operator's ruling of 2026-10-08, `docs/decisions.md`).
 6. Check the release: three binaries, `SHA256SUMS`, a prerelease.
 
 ## Decision
@@ -136,7 +137,7 @@ checksum matches, and the binary prints `podssh 0.1.0-beta.1`.
 
 ## Start condition
 
-The operator's go for the tag, after the M3 entries of the work order.
+The M3 entries of the work order are done, and steps 2 to 4 pass.
 
 # T-003: Decide how the compiled-in root certificates get updates in released binaries
 
@@ -188,10 +189,12 @@ target/debug/podssh doctor | grep 'compiled-in roots'
 The doctor line names the roots' version, and a test plants an old date and
 expects the warning.
 
-# T-004: Interactive use over `-tt` from the real sandbox: vi, less, top and Ctrl-C
+# T-004: Interactive use over `-tt` from a box like the sandbox: vi, less, top and Ctrl-C
 
 **Source:** ROADMAP M2, exit criterion "The same from the operator's real
-sandbox". The sandbox report of 2026-10-08 says that it was not run.
+sandbox". The sandbox report of 2026-10-08 says that it was not run. The
+operator's ruling of 2026-10-08: measure it in the box; a run in a real
+sandbox follows the release (`docs/decisions.md`).
 **Category:** measurement
 **Milestone:** M3
 **Priority:** P2
@@ -213,8 +216,10 @@ Read: `-tt` asks the server for a pty and needs nothing local
 
 ## Approach
 
-1. In the sandbox, with a server that grants a pty and has `vi`, `less` and
-   `top`, write keys to `podssh ssh -tt` through a pipe with pauses.
+1. In the box (`scripts/test_in_box.sh`), with a server that grants a pty
+   and has `vi`, `less` and `top` (railway.new through the live relay, with
+   a throwaway key), write keys to `podssh ssh -tt` through a pipe with
+   pauses.
 2. Edit and save a file in `vi`; page a file in `less` and quit; run `top`
    and quit; stop `sleep 30` with Ctrl-C; end with `exit 7`.
 3. Record the output markers and the exit status in `docs/STATUS.md`.
@@ -231,11 +236,6 @@ grep -c hello /tmp/tt.out
 
 The exit status is 7, the file holds `hello`, and Ctrl-C stopped `sleep`
 before 30 s.
-
-## Start condition
-
-The next session in the operator's sandbox, with a server account that grants
-a pty (the operator names it).
 
 # T-005: A prompt never waits for ever on a `/dev/tty` with nobody behind it (GitHub #15)
 
@@ -273,8 +273,10 @@ Done in `eacd94e`:
    waits 60 s at most (`crates/podssh-ssh/src/terminal/mod.rs:62-68`), then
    refuses with the remedy (`crates/podssh-ssh/src/terminal/unix.rs:163-229`).
 
-Owed: the measurement in a sandbox where `/dev/tty` opens with no controlling
-terminal, with a binary built at or after `eacd94e`. Then close GitHub #15.
+Owed: the measurement in the box, with a `/dev/tty` that opens with no
+controlling terminal (a pty of the host bound to `/dev/tty` in the
+container), with a binary built at or after `eacd94e` (the operator's ruling of 2026-10-08).
+Then close GitHub #15. A run in a real sandbox follows the release.
 
 ## Prove
 
@@ -284,7 +286,7 @@ env -u SSH_ASKPASS -u SSH_ASKPASS_REQUIRE timeout 90 podssh keygen -t ed25519 -f
 ls /tmp/k
 ```
 
-On Linux, the tests of `ctty` and of the deadline pass. In the sandbox, the
+On Linux, the tests of `ctty` and of the deadline pass. In the box, the
 keygen command exits 1 at once with the refusal that names `-N ''`, and
 `/tmp/k` does not exist.
 

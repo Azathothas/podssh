@@ -278,7 +278,7 @@ Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it s
 4. Errors are plain types with the relay's code and reason; no tokio type in the public API.
 5. Accept the caller's `rustls::ClientConfig` through T-066; else use podssh's own provider.
 6. MSRV: measure whether `podssh-relay` with these features builds on Rust 1.85. If it does not,
-   record that podbox moves to 1.88. Decide with the operator of podbox, and write the result in
+   it needs 1.88, and podbox follows (the operator's ruling of 2026-10-08). Write the result in
    `docs/design.md` (section 3).
 7. Document the facade in `docs/design.md:89-108` and in the crate's header
    (`crates/podssh-relay/src/lib.rs:1-12`); add the feature to the gate (`scripts/gate.sh:61`).
@@ -322,7 +322,7 @@ and `crates/podssh-transport/examples/live_forward.rs:23-25`; `podssh-cli` depen
 (`crates/podssh-cli/Cargo.toml:34`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
 unused backpressure module goes." (`docs/design.md:105-106`).
 
-Read: the comments of the crate break rule 6 of `AGENTS.md:100-101`: they carry the stop-sign marker,
+Read: the comments of the crate break rule 6 of `AGENTS.md:188-189`: they carry the stop-sign marker,
 session history and line numbers of documents, for example `crates/podssh-transport/src/socket.rs:1-11`
 and `crates/podssh-transport/src/control.rs:3-14`. The close rows cite lines of the pinned contract,
 and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs:45-59`).
@@ -333,19 +333,20 @@ and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs
    and T-080 use the repaired codecs as a dependency until then.
 2. Move into crates/podssh-relay/src/reverse/: `framing.rs` and `framing/legs.rs`, `control.rs`,
    `closes.rs`, the retry parts of `error.rs`, and the name check of T-076, with their tests. Keep
-   each file at 500 lines or fewer (`AGENTS.md:98-99`).
+   each file at 500 lines or fewer (`AGENTS.md:186-187`).
 3. Delete, do not move: the backpressure module (T-074), the `Transport` trait and `backoff.rs`
    (T-077), and `RelayConfig` (`podssh-relay` has `Relay` and `RelayList`,
    `crates/podssh-relay/src/relay.rs:28-50`).
-4. Rewrite the comments of the moved code to `AGENTS.md:100-101`: why, in few words; no markers, no
+4. Rewrite the comments of the moved code to `AGENTS.md:188-189`: why, in few words; no markers, no
    history, no line numbers. Keep the check of the close rows against the pinned copy as a test
    (T-060 decides where the copy lives).
 5. Move the examples to `podssh_relay::open`, the forward path that the commands use. Then remove
    the crate: `Cargo.toml:6`, `Cargo.toml:24`, `Cargo.toml:55-58`, `crates/podssh-cli/Cargo.toml:34`,
    `scripts/gate.sh:61`, `scripts/plant.sh:39`.
-6. Update in the same commit: `AGENTS.md:95-97` and `AGENTS.md:138`, `docs/architecture.md:66` and
+6. Update in the same commit: `AGENTS.md:183-185` and `AGENTS.md:229`, `docs/architecture.md:66` and
    `:83-93`, `docs/development.md:13-14` and `:211`, `docs/STATUS.md:178`, `:181` and `:191`. The list
-   of library crates in `docs/decisions.md:26` is a decision row: ask the operator before you edit it.
+   of library crates in `docs/decisions.md:34` is a fact of a decision row: correct it, and move the
+   old text to Superseded (the operator's ruling of 2026-10-08).
 
 ## Decision
 
@@ -522,7 +523,7 @@ connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node w
 `railway.new:22` (an anonymous SSH service, `docs/STATUS.md:58`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
-# T-085: M4 exit: two sessions at once into a node in another sandbox, and podbox on `podssh-relay`
+# T-085: M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox
 
 **Source:** the exit criteria of M4 (`docs/ROADMAP.md:170-175`). Read here on `3ee70dc`.
 **Category:** measurement
@@ -534,8 +535,9 @@ with no slashes as a node; `node_destinations` must fail.
 ## Problem
 
 M4 ends with two measurements: two sessions at the same time through the live relay, from a sandbox
-whose only egress is a CONNECT proxy, to a node in another such sandbox; and podbox built on
-`podssh-relay` through its facade, passing its own test with two clients. Neither can run yet.
+whose only egress is a CONNECT proxy, to a node in another such sandbox; and the blocking facade for
+podbox, passing a test with two clients in this repository. Neither can run yet. podbox pins the
+facade later, as an operator action (the operator's ruling of 2026-10-08).
 
 ## Premise
 
@@ -561,9 +563,9 @@ not here.
    file from B to A, as a user would over a trusted channel.
 3. Box A: start two `podssh operator m4` at the same time. Each sends a fixed request and saves the
    reply. Record both replies with digests, the start and end times, and the close codes.
-4. Run it once more from the operator's real sandbox when the operator does it (as T-001 did).
-5. podbox: at a commit that pins `podssh-relay` by git revision and uses the facade of T-081, run
-   podbox's test with two clients; record the commit and the output.
+4. A run from the operator's real sandbox follows the release, as an operator action.
+5. The facade of T-081: a test in this repository with two clients that use the blocking facade at
+   once, each through the box's proxy. podbox runs its own test when the operator pins the facade.
 6. Record the commands and the results in `docs/STATUS.md` (a section "The reverse road, measured"),
    and update `docs/ROADMAP.md:170-175`.
 
@@ -575,13 +577,12 @@ sh scripts/reverse-in-boxes.sh path/to/podssh-x86_64-unknown-linux-musl; echo "e
 
 The script exits 0 only when both sessions return the expected bytes with equal digests, their
 times overlap, the relay closed each with `1000`, and the pair was stopped at the end. Plant: start
-the second operator after the first ends; the overlap check must fail. The podbox half is the output
-of its own test at the recorded commit, kept in `docs/STATUS.md`.
+the second operator after the first ends; the overlap check must fail. The facade half is the test of
+step 5.
 
 ## Start condition
 
-M3 is complete and T-078 to T-084 are done. The operator of podbox agrees to pin `podssh-relay`
-(T-081).
+M3 is complete and T-078 to T-084 are done.
 
 # T-086: Pairing by a short one-time code, given out of band
 
@@ -591,7 +592,7 @@ slingshot); read in the reports, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -627,7 +628,7 @@ short code safe.
 3. A meeting point that both reach with no pair: see the Decision.
 4. The code: three words from a fixed list and a number, used once, valid for 10 min. The node shows
    it only on its terminal, never in stdout, a log or argv; the operator types it at a prompt.
-5. A pure-Rust SPAKE2 crate, built under `CC=/nonexistent` before it is chosen (`AGENTS.md:95-97`).
+5. A pure-Rust SPAKE2 crate, built under `CC=/nonexistent` before it is chosen (`AGENTS.md:183-185`).
 6. Pitfalls: limit the attempts at the meeting point; one failed exchange ends the code; check the
    received part as T-076 and T-078 check a pair.
 
@@ -653,10 +654,10 @@ code fails both sides and ends the code; a second use fails; a code older than 1
 code is in no output. Plant: accept a second use; the single-use test must fail. Live: a node and an
 operator on two hosts pair by code through the mailbox, then `podssh operator` reaches the node.
 
-## Start condition
+## Blocker
 
-The relay's operator adds a mailbox endpoint (the relay is a separate project: `docs/decisions.md`),
-or the operator chooses the fallback mailbox of the Decision.
+The relay's operator: a mailbox endpoint for the pairing (the relay is a separate project:
+`docs/decisions.md`). The operator ruled on 2026-10-08 that sessions skip this entry until then.
 
 # T-087: Node identity and access: a node key, an allowlist, an expected fingerprint, revocation
 
@@ -752,13 +753,13 @@ connection; after the key exchange it sees only ciphertext (`SECURITY.md:11-21`)
 or add frames (`SECURITY.md:23-26`).
 
 Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:334-340`);
-for chat, the recommendation is the roads, end to end encrypted, after M6 (`docs/design.md:354-358`).
+for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:356-358`).
 The resumable layer of M6 runs under SSH (`docs/design.md:186-198`).
 
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
 so that the relay cannot read a stream (`willykeenan/warren:src/noise.rs`).
 
-Read: the library crates must build with no C compiler (`AGENTS.md:95-97`, `scripts/gate.sh:61`).
+Read: the library crates must build with no C compiler (`AGENTS.md:183-185`, `scripts/gate.sh:61`).
 
 ## Approach
 
@@ -887,7 +888,7 @@ workloads (`arjun988/GPU-Share`); iroh-ssh has an open request for local discove
 56 of `rustonbsd/iroh-ssh`); cubic names and lists remote state (`cubic-vm/cubic:docs/howto/snapshots.rst`).
 
 Read: the measured sandbox refuses UDP (`docs/target-environment.md:23`), so mDNS cannot work there,
-and podssh must probe before it uses UDP (`AGENTS.md:82-83`).
+and podssh must probe before it uses UDP (`AGENTS.md:170-171`).
 
 ## Approach
 
@@ -979,7 +980,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
    the seam of T-088 and T-089. Spent nonces are create-new private files
    (`crates/podssh-relay/src/cache.rs:213-227`).
 3. Both shapes: an SSHSIG signature in a fixed podssh namespace, which `ssh-keygen -Y verify` can check
-   (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:95-97`).
+   (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:183-185`).
 4. Relations: T-078 makes the pair that a grant protects; T-086 can deliver a grant in place of the
    `connect_token`; T-087 gives the keys that a grant names.
 

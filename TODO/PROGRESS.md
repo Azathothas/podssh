@@ -20,8 +20,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   split into entries. The requests #29 to #36 came later the same day; each
   is an entry (T-027, and T-220 to T-227). The operator ruled on the
   twelve questions of scope and design the same day (`docs/decisions.md`).
-- **The branch.** `main` at `3ee70dc` was pushed on 2026-10-08, and CI passed
-  (run 37759061384). The commit that adds this record comes after it.
+- **The mode of work.** Since 2026-10-08, each session runs unattended
+  toward `v1.0.0` (`AGENTS.md`, section 2; `docs/decisions.md`).
+- **The branch.** The record was added in `22c3b88` and `e275d36` on
+  2026-10-08, and CI passed for both (runs 37777359030 and 37777669130).
 
 ## Baseline
 
@@ -38,16 +40,17 @@ cargo 1.98.0 and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 247 entries: 236 open, 1 partial, 3 blocked, 7 done.
+`TODO/INDEX.md` holds 250 entries: 236 open, 1 partial, 6 blocked, 7 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
 ## Work order
 
 Finish each entry, close it in place, update this page in the same commit,
-then take the next one.
+then take the next one. Each session runs unattended until the goal of
+`AGENTS.md` (section 2) is reached or the operator interrupts it.
 
-**M3, before the tag:**
+**M3, then the beta:**
 
 1. T-006: make `scripts/sandbox-check.sh` report what it measured, so the
    next sandbox run is a record.
@@ -58,9 +61,9 @@ then take the next one.
    T-011, T-023, T-024, T-230, T-231, T-233, T-234, T-236, T-237, T-238 and
    T-239.
 4. T-003: the decision about the compiled-in roots.
-5. One session in a real sandbox for T-005 and T-004 (see "Parked open
-   work").
-6. T-002: the release, with the operator's go.
+5. T-005 and T-004, measured in the box (the operator's ruling of
+   2026-10-08).
+6. T-002: the beta. The session publishes it.
 
 **After the beta and before M4 (the operator's ruling of 2026-10-08):**
 the surface for agents: T-049, T-050, T-012, T-052 and T-051.
@@ -71,8 +74,13 @@ T-068; T-078, T-079, T-080, T-081; T-083, T-084; T-082, T-074, T-077; T-061;
 T-085 (the exit measurement).
 
 **Then** M5, M6, M7 and M8, each in the order of `TODO/INDEX.md` ("The
-order, and the argument for it"). Between milestone entries: the `none`
-entries of `TODO/repo.md`, the highest priority first.
+order, and the argument for it"); then each `backlog` entry, in the order
+of the index; then M9: T-218, T-210, T-211, T-250 and T-251. Between
+milestone entries: the `none` entries of `TODO/repo.md`, the highest
+priority first.
+
+**Skip** the entries that wait for the relay's operator (status
+`blocked`): T-086, T-106, T-169, T-173, T-180 and T-226.
 
 ## Parked open work
 
@@ -81,30 +89,29 @@ it can start.
 
 | Entry | Start condition |
 | --- | --- |
-| T-002 | The operator's go for the tag, after the M3 entries above |
-| T-004, T-005 | A session in a real sandbox, with a server account that grants a pty |
-| T-085 | M3 is done, T-078 to T-084 are done, and the operator of podbox agrees to pin `podssh-relay` |
-| T-086 | The relay's operator adds a mailbox endpoint, or the operator chooses the fallback of the entry |
-| T-099 | The operator starts chat |
-| T-106 | The operator adds the node keys to the relay's allowlist |
+| T-002 | The M3 entries above are done, and the checks of the beta pass |
+| T-085 | M3 is done, and T-078 to T-084 are done |
 | T-150 | T-112 is done: `podssh serve` has an SFTP server |
-| T-173 | M6 is done (T-156) |
+| T-250 | Each entry is done, except the relay's, and the gate is green |
+| T-251 | T-250 has published a release candidate |
 
 ## Questions for the operator
 
-None is open. The operator ruled on the twelve questions of the triage (Q1
-to Q12) on 2026-10-08; the rulings are in `docs/decisions.md`. A new question
-goes here, with its number, the entries that it blocks (status `blocked`)
-and a recommendation. Nothing is closed as out of scope until the operator
+None is open. The operator ruled on the questions of the triage (Q1 to Q12)
+and of the unattended session (Q13 to Q28) on 2026-10-08; the rulings are in
+`docs/decisions.md`. A new question goes here, with its number, the entries
+that it blocks (status `blocked`) and a recommendation; the session then
+takes the next entry. Nothing is closed as out of scope until the operator
 rules.
 
 ## Operator actions
 
-- The tag of the beta (T-002).
-- A session in a real sandbox for T-004 and T-005.
-- The allowlist entries for the Tailscale test (T-106).
-- Comments on the GitHub issues that name their entries, and the closure of
-  #15 after T-005 (`TODO/issues.md`).
-- As the relay's operator: a self-hosted relay (T-169), an endpoint that
-  publishes a local HTTP service (T-180), and signed pairing grants that are
-  used once (T-226). These entries wait for the relay project.
+None blocks a session. After the release:
+
+- A run of T-004 and T-005 in a real sandbox, with the brief of
+  `scripts/sandbox-check.sh`.
+- Pinning the facade of `podssh-relay` in podbox (T-081, T-085).
+
+As the relay's operator: a mailbox for pairing (T-086), the node keys of
+the Tailscale test (T-106), a self-hosted relay (T-169), resumption in the
+relay (T-173), a publish endpoint (T-180), and signed pairing grants (T-226).

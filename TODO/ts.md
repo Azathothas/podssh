@@ -51,7 +51,7 @@ a self node with no home region (`crates/podssh-cli/src/ts.rs:294-327`).
    a later send must not panic.
 3. With no `--timeout` (a terminal), limit the first map wait by `--ts-wait-allowlist`, else by a
    named constant of 20 s, "a design constant, not a measurement", as at
-   `crates/podssh-cli/src/ts.rs:305-308`. The default stays fail-fast (`docs/decisions.md:31`).
+   `crates/podssh-cli/src/ts.rs:305-308`. The default stays fail-fast (`docs/decisions.md:39`).
 4. Apply the same limit to the address wait in `Device::tcp_connect`
    (`vendor/tailscale-rs/src/lib.rs:272-276`). Keep one message and exit 78 for "no map in time".
 5. Correct the two comments, and update `docs/STATUS.md:180` in the same commit.
@@ -160,7 +160,7 @@ Read: `probe` returns `Ok` for `Tcp` and `Relay` when `has_key` is true
 (`crates/podssh-ts/src/chain.rs:44-61`), which `podssh ts` always sets
 (`crates/podssh-cli/src/ts.rs:129-133`). The first ready mode of `tcp`, `relay` wins
 (`crates/podssh-ts/src/chain.rs:63-76`), and a test asserts it (`crates/podssh-ts/tests/chain.rs:32-37`).
-The decided chain is tun, socks, tcp, relay (`docs/decisions.md:31`), and the rule is to probe
+The decided chain is tun, socks, tcp, relay (`docs/decisions.md:39`), and the rule is to probe
 before use (`docs/target-environment.md:90-92`).
 
 Read: `ephemeral` goes into the register request (`crates/podssh-ts/src/node.rs:66`). The fork has
@@ -313,7 +313,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:68-70`).
 2. Wait with podssh's backoff, passed in `RuntimeOptions`; count from 1 after a link of 60 s. With
    a pin, each region dials the relay with one key (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:285-292`):
    two sockets must not replace each other for ever (`crates/podssh-ts/src/classify.rs:3-6`).
-3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:31`);
+3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:39`);
    it goes to the state of T-105. The inactivity close of a region that is not home is no error
    (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:351-356`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
@@ -411,7 +411,7 @@ Read here on `3ee70dc`.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -465,11 +465,12 @@ The new test crates/podssh-cli/tests/ts_two_nodes.rs runs node A in the process 
 is the repaired status test. The new script scripts/ts-two-nodes.sh runs node B in the box, with a
 static binary built with `--features ts`. Each command must exit 0 with the two kept state files.
 
-## Start condition
+## Blocker
 
-The operator adds the node keys of the two kept state files to the relay's allowlist, with a
+The relay's operator: the node keys of the two kept state files on the relay's allowlist, with a
 Tailscale admin token and the relay's deployment credential that only the operator has
-(`docs/tailscale.md:15-16`). T-103, T-104 and T-105 are done first.
+(`docs/tailscale.md:15-16`). T-103, T-104 and T-105 are done first. Sessions skip this entry until
+then (the operator's ruling of 2026-10-08).
 
 # T-240: `podssh ts --jsonl` writes no JSON
 

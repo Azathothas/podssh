@@ -30,8 +30,9 @@ an entry of that size is two entries.
 who must act, and what unblocks it. Parked work stays `open`; its start
 condition is in the entry and in `TODO/PROGRESS.md`.
 
-**Milestone.** `M3` to `M8`, as in `docs/ROADMAP.md`. `backlog`: in no
-milestone yet; the operator schedules it. `none`: not milestone work (the
+**Milestone.** `M3` to `M9`, as in `docs/ROADMAP.md`; M9 is `v1.0.0`.
+`backlog`: in no milestone; the operator scheduled each one after M8
+(2026-10-08). `none`: not milestone work (the
 repository and CI).
 
 **Category.** `defect`, `feature`, `measurement`, `release`, `chore`,
@@ -40,32 +41,35 @@ repository and CI).
 ## The order, and the argument for it
 
 1. The milestones go in the decided order: M3 (the beta), then M4, M5 and
-   M6 (`docs/decisions.md`). M7 and M8 come after them.
+   M6 (`docs/decisions.md`). M7 and M8 come after them, then the `backlog`
+   entries, then M9 (`v1.0.0`).
 2. In a milestone: P0, then P1, then P2, then P3. At one priority, an S entry
    goes first when it does not depend on a larger one.
 3. An entry that another entry depends on goes first: the transport defects
    T-071 to T-076 before the node runner T-079, and the line discipline
    defects T-125 to T-129 before T-111.
-4. `backlog` entries wait until the operator schedules them. The operator
-   scheduled the surface for agents (T-049, T-050, T-012, T-052 and T-051)
-   after the beta and before M4 (`docs/decisions.md`, 2026-10-08): the
-   entries are small, and the testers asked for them.
+4. The operator scheduled each `backlog` entry after M8, and the surface
+   for agents (T-049, T-050, T-012, T-052 and T-051) after the beta and
+   before M4 (`docs/decisions.md`, 2026-10-08): those entries are small, and
+   the testers asked for them.
 5. `none` entries (the repository and CI) go between milestone entries, the
    highest priority first. They do not wait for a milestone.
 6. An entry that waits for a measurement in a real sandbox is done in one
    session with the other entries of that kind.
+7. The entries that wait for the relay's operator are skipped: T-086,
+   T-106, T-169, T-173, T-180 and T-226.
 
 ## Counts
 
-**247 entries: 236 open, 1 partial, 3 blocked, 7 done.**
+**250 entries: 236 open, 1 partial, 6 blocked, 7 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 4 | 1 | 0 | 3 | 8 |
-| P2 | 136 | 0 | 1 | 3 | 140 |
-| P3 | 96 | 0 | 2 | 0 | 98 |
-| **All** | 236 | 1 | 3 | 7 | 247 |
+| P1 | 6 | 1 | 0 | 3 | 10 |
+| P2 | 137 | 0 | 2 | 3 | 142 |
+| P3 | 93 | 0 | 4 | 0 | 97 |
+| **All** | 236 | 1 | 6 | 7 | 250 |
 
 ## Entries
 
@@ -74,7 +78,7 @@ repository and CI).
 | [T-001](beta.md) | P1 | M | M3 | measurement | done | Measure podssh in the operator's real sandbox |
 | [T-002](beta.md) | P1 | M | M3 | release | open | Publish v0.1.0-beta.1 |
 | [T-003](beta.md) | P2 | S | M3 | research | open | Decide how the compiled-in root certificates get updates in released binaries |
-| [T-004](beta.md) | P2 | S | M3 | measurement | open | Interactive use over `-tt` from the real sandbox: vi, less, top and Ctrl-C |
+| [T-004](beta.md) | P2 | S | M3 | measurement | open | Interactive use over `-tt` from a box like the sandbox: vi, less, top and Ctrl-C |
 | [T-005](beta.md) | P1 | S | M3 | defect | partial | A prompt never waits for ever on a `/dev/tty` with nobody behind it (GitHub #15) |
 | [T-006](beta.md) | P1 | S | M3 | defect | open | `scripts/sandbox-check.sh` exits 0 when its steps fail, and ignores `CARGO_TARGET_DIR` (GitHub #28) |
 | [T-007](cli.md) | P1 | S | M3 | defect | open | Bracketed IPv6 literal destinations are refused (GitHub #2) |
@@ -155,8 +159,8 @@ repository and CI).
 | [T-082](reverse.md) | P2 | M | M4 | chore | open | Move the codecs of `podssh-transport` into `podssh-relay` |
 | [T-083](reverse.md) | P2 | M | M4 | feature | open | `podssh node NAME TARGET` |
 | [T-084](reverse.md) | P2 | M | M4 | feature | open | `podssh operator NAME` and `podssh ssh NODE` |
-| [T-085](reverse.md) | P2 | M | M4 | measurement | open | M4 exit: two sessions at once into a node in another sandbox, and podbox on `podssh-relay` |
-| [T-086](reverse.md) | P3 | M | backlog | feature | open | Pairing by a short one-time code, given out of band |
+| [T-085](reverse.md) | P2 | M | M4 | measurement | open | M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox |
+| [T-086](reverse.md) | P3 | M | backlog | feature | blocked | Pairing by a short one-time code, given out of band |
 | [T-087](reverse.md) | P2 | M | backlog | feature | open | Node identity and access: a node key, an allowlist, an expected fingerprint, revocation |
 | [T-088](reverse.md) | P2 | L | backlog | feature | open | End-to-end encryption between two podssh ends |
 | [T-089](reverse.md) | P3 | M | backlog | feature | open | A node offers several named targets, each with its own grant |
@@ -169,14 +173,14 @@ repository and CI).
 | [T-096](irc.md) | P2 | S | M8 | defect | open | I6: the line framing loses lines, and its buffer has no limit |
 | [T-097](irc.md) | P2 | M | M8 | defect | open | I7: file chunks are too long with the server's prefix, and the last acknowledgement is wrong |
 | [T-098](irc.md) | P3 | S | M8 | defect | open | I8: the keepalive sends a visible channel message |
-| [T-099](irc.md) | P2 | M | M8 | research | open | Chat: IRC, or the roads between two podssh ends |
+| [T-099](irc.md) | P2 | L | M8 | feature | open | `podssh chat` on the roads between two podssh ends, end-to-end encrypted |
 | [T-100](ts.md) | P2 | S | M8 | defect | open | C2: `podssh ts` waits for ever when no network map arrives |
 | [T-101](ts.md) | P2 | S | M8 | defect | open | C3: a local end of input cuts the reply in the `podssh-ts` pipe |
 | [T-102](ts.md) | P2 | M | M8 | defect | open | C9: the automatic mode always selects tcp, and ephemeral nodes are not logged out |
 | [T-103](ts.md) | P2 | M | M8 | defect | open | The DERP dial of the Tailscale fork does not use the proxy |
 | [T-104](ts.md) | P2 | M | M8 | feature | open | `podssh ts` connects again after a drop |
 | [T-105](ts.md) | P2 | M | M8 | defect | open | The fork shows the relay's `1008 not authorized` as a missing network map |
-| [T-106](ts.md) | P2 | M | M8 | measurement | open | The live test of `podssh ts` with two nodes |
+| [T-106](ts.md) | P2 | M | M8 | measurement | blocked | The live test of `podssh ts` with two nodes |
 | [T-107](serve.md) | P2 | M | M5 | feature | open | `podssh serve`: the russh server, its host key in a state file, and authorized keys |
 | [T-108](serve.md) | P2 | M | M5 | feature | open | `podssh serve`: exec, a shell and the environment, as the sandbox's user |
 | [T-109](serve.md) | P2 | S | M5 | feature | open | `podssh serve`: direct-tcpip into the cage |
@@ -243,7 +247,7 @@ repository and CI).
 | [T-170](roads.md) | P3 | M | backlog | research | open | A Cloudflare quick tunnel made by podssh itself, with no `cloudflared`: the protocol and its ports |
 | [T-171](roads.md) | P3 | M | backlog | research | open | The functions of Mosh that M6 and T-160 do not give, made in podssh itself |
 | [T-172](roads.md) | P3 | S | backlog | research | open | Multipath TCP on the direct road |
-| [T-173](roads.md) | P3 | L | M8 | feature | open | Resumption in the relay for a standard sshd |
+| [T-173](roads.md) | P3 | L | M8 | feature | blocked | Resumption in the relay for a standard sshd |
 | [T-174](pipe.md) | P2 | M | M7 | feature | open | `podssh pipe A B` with local addresses |
 | [T-175](pipe.md) | P2 | M | M7 | feature | open | `podssh pipe` with remote addresses |
 | [T-176](pipe.md) | P2 | S | M7 | feature | open | `podssh pipe` with `unix-connect:PATH` |
@@ -278,15 +282,15 @@ repository and CI).
 | [T-207](repo.md) | P3 | S | none | chore | open | B8: `scripts/dev.sh` has about 600 lines |
 | [T-208](repo.md) | P2 | S | none | chore | open | A changelog from the commits, and release notes from it (GitHub #27) |
 | [T-209](repo.md) | P2 | S | none | chore | open | Secret scanning with TruffleHog in CI (GitHub #27) |
-| [T-210](repo.md) | P2 | S | none | release | open | Build provenance for each release binary |
-| [T-211](repo.md) | P2 | S | none | release | open | Signed checksums for each release |
+| [T-210](repo.md) | P2 | S | M9 | release | open | Build provenance for each release binary |
+| [T-211](repo.md) | P2 | S | M9 | release | open | Signed checksums for each release |
 | [T-212](repo.md) | P2 | M | none | chore | open | Parallel CI, with the gate as the one source |
 | [T-213](repo.md) | P2 | M | none | chore | open | CI runs the box like the target sandbox |
 | [T-214](repo.md) | P2 | M | none | chore | open | CI on Windows |
 | [T-215](repo.md) | P2 | M | none | chore | open | rustfmt and clippy in the gate |
 | [T-216](repo.md) | P2 | S | none | chore | open | Advisories and licenses of the dependencies, checked in CI |
 | [T-217](repo.md) | P3 | S | none | chore | open | The declared minimum Rust versions, checked in CI |
-| [T-218](repo.md) | P3 | M | none | release | open | More release targets |
+| [T-218](repo.md) | P2 | M | M9 | release | open | More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64 |
 | [T-219](repo.md) | P2 | S | none | chore | done | The no-C gate also stops C++ |
 | [T-220](relay.md) | P2 | M | backlog | feature | open | A silent first relay host costs a full dial before the next host is tried (GitHub #30) |
 | [T-221](resume.md) | P3 | M | backlog | feature | open | Replayed output after dropped bytes starts at a boundary of the terminal grammar (GitHub #31) |
@@ -318,3 +322,6 @@ repository and CI).
 | [T-247](repo.md) | P3 | S | none | chore | open | `podssh-cli` declares dependencies that it does not use |
 | [T-248](serve.md) | P2 | M | M5 | research | open | A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space |
 | [T-249](repo.md) | P2 | M | none | chore | open | A cited line that moved still exists, so the checker does not see a stale citation |
+| [T-250](release.md) | P1 | M | M9 | release | open | Publish v1.0.0, the first stable release |
+| [T-251](release.md) | P1 | M | M9 | measurement | open | The check of a release from end to end, with no human |
+| [T-252](irc.md) | P2 | M | M8 | feature | open | `podssh chat --irc`: IRC as a second transport for chat |

@@ -747,7 +747,7 @@ section 8).
 **Milestone:** M8
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -798,7 +798,8 @@ relay: the link drops at random points, the digests are equal, and no URL
 holds the token. The live test does the same against the relay, when the
 relay offers the feature.
 
-## Start condition
+## Blocker
 
-M6 is done (T-156). Then the operator and the relay's operator decide
-question 1 of `docs/design.md` section 8.
+The relay's operator: resumption in the relay is work of the relay project. After M6 (T-156), the
+operator and the relay's operator decide question 1 of `docs/design.md` section 8. Sessions skip
+this entry (the operator's ruling of 2026-10-08).

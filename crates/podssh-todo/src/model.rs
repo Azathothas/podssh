@@ -8,7 +8,7 @@ pub const STATUSES: [&str; 4] = ["open", "partial", "blocked", "done"];
 pub const PRIORITIES: [&str; 4] = ["P0", "P1", "P2", "P3"];
 /// No `XL`: an entry that big is two entries.
 pub const EFFORTS: [&str; 3] = ["S", "M", "L"];
-pub const MILESTONES: [&str; 8] = ["M3", "M4", "M5", "M6", "M7", "M8", "backlog", "none"];
+pub const MILESTONES: [&str; 9] = ["M3", "M4", "M5", "M6", "M7", "M8", "M9", "backlog", "none"];
 pub const CATEGORIES: [&str; 7] = ["defect", "feature", "measurement", "release", "chore", "research", "docs"];
 
 /// The header fields of an entry, each given once.

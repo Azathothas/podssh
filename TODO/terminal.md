@@ -55,7 +55,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    `docs/terminal.md:27-32`, `docs/STATUS.md:183`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-53`,
    `crates/podssh-terminal/src/lib.rs:18-31`). Remove the warning markers
-   from the lines that you change (`AGENTS.md:100-101`).
+   from the lines that you change (`AGENTS.md:188-189`).
 
 ## Prove
 

@@ -31,9 +31,8 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
-- Read: `exec:` starts the user's own program. `docs/design.md:353-354`
-  recommends to accept it, and the work follows the recommendation until the
-  operator rules (`docs/design.md:344-347`). On sandbox A, `/tmp` and `$HOME`
+- Read: `exec:` starts the user's own program. The operator accepted it on
+  2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
   do not run programs (`docs/STATUS.md:121`).
 
 ## Approach
@@ -73,12 +72,12 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    (`crates/podssh-cli/src/man/examples.rs:8-47`; its test at
    `crates/podssh-cli/src/man/examples.rs:168-174` learns the new variant),
    `docs/design.md:242-250`, `docs/STATUS.md`. Each file stays under 500
-   lines (`AGENTS.md:98-99`).
+   lines (`AGENTS.md:186-187`).
 
 ## Decision
 
 Recommendation: `exec:` splits the words itself and starts no shell, because
-podssh must not assume a shell (`AGENTS.md:82-83`), and the user can name one
+podssh must not assume a shell (`AGENTS.md:170-171`), and the user can name one
 (`exec:sh -c 'CMD'`). The alternative, a `system:` address through
 `/bin/sh -c` as in socat, lost: Windows and some images have no `/bin/sh`.
 
@@ -237,8 +236,9 @@ not a listener, so `docs/target-environment.md:74-78` allows it.
    the path and the errno.
 3. At the end of input, shut down the write side, so that a server that
    answers after the end of input still answers.
-4. On Windows, exit 64 with the reason, until the operator asks for AF_UNIX
-   or named pipes there.
+4. On Windows: AF_UNIX (Windows 10 1803 and later) and named pipes, each
+   after a probe at run time; where one fails, exit 69 with the reason
+   (the operator's ruling of 2026-10-08).
 5. T-040 gives the remote form: a socket on the server, through `-W`.
 6. In the same commit: `docs/cli.md`, `docs/design.md:246`, the notes,
    `docs/STATUS.md`. With T-174 and T-175 done, the first item of ROADMAP M7
@@ -282,7 +282,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:252-254`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:84-89`, `docs/architecture.md:86-93`,
+  `AGENTS.md:172-177`, `docs/architecture.md:86-93`,
   `docs/target-environment.md:74-78`, `SECURITY.md:56-59`, `README.md:35-36`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:121`). The box refuses each `bind`, AF_UNIX too
@@ -654,7 +654,7 @@ and with which limits.
 - Read: through the relay, a session ends at 64 MiB (`docs/relay.md:92`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
-  privilege (`AGENTS.md:82-83`). The recipe uses the user's own `usbip` and
+  privilege (`AGENTS.md:170-171`). The recipe uses the user's own `usbip` and
   its privileges.
 
 ## Approach

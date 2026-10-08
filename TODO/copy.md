@@ -662,7 +662,8 @@ stream.
 - Read: `AGENTS.md` rule 2 allows one outbound connection. Several channels
   in one SSH connection keep the rule; several relay sessions at once do
   not. The operator accepted more than one outbound connection for the iroh
-  road only (`docs/design.md:329-332`).
+  road (`docs/design.md:329-332`), and on 2026-10-08 for one copy when the
+  user asks (`docs/decisions.md`).
 - Read: the cap of 64 MiB is for each session (`docs/relay.md:92`).
 - Not measured: whether one relay session, or the path itself, limits the
   rate. T-157 measures it.
@@ -685,11 +686,9 @@ stream.
 ## Decision
 
 Recommendation: parallel channels in one connection first. Several relay
-sessions at once need the operator to accept more than one outbound
-connection, as for the iroh road: ask under "Questions for the operator" in
-`TODO/PROGRESS.md`, with a measurement that shows the gain, before that
-step. Several sessions now lost: it breaks a rule of the code with no
-ruling.
+sessions at once are allowed when the user asks (the operator's ruling of 2026-10-08): a
+flag sets the number, and the default is 1. Add that flag after a
+measurement (T-157) shows the gain of the channels.
 
 ## Prove
 

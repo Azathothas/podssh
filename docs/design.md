@@ -339,20 +339,20 @@ real sandbox can block what iroh needs (the `/ping` probe, netlink, or the
 relay name in the proxy's allowlist). Both roads carry the same SSH, `cp`,
 `pipe` and chat, so a session does not depend on its road.
 
-## 8. Open questions for the operator
+## 8. Questions for the operator
 
 The operator decided the questions about the beta, the order of M4 to M6,
-iroh, and the resumable layers ([decisions.md](decisions.md)). These
-questions are open. Until the operator decides, the work follows the
-recommendation.
+iroh, the resumable layers, `podssh pipe exec:` and chat
+([decisions.md](decisions.md)). One question stays open, for the relay's
+operator.
 
 1. **Resumption in the relay for a standard sshd** (a Durable Object that
    keeps the target socket across client reconnections; a protocol change;
    billing for its time). Recommendation: not now; look at it again after
-   M6.
-2. **`podssh pipe exec:`** runs the user's own program. Recommendation:
-   accept it; the rule "no helper processes" is about podssh's own shims.
-3. **Chat**: keep IRC through public servers (plain text through the relay,
-   and most networks refuse the relay's addresses), or move chat onto the
-   roads between two podssh ends (end-to-end encrypted, iroh-gossip or a
-   stream). Recommendation: the roads, after M6.
+   M6 (T-173).
+2. **`podssh pipe exec:`** runs the user's own program. Decided on
+   2026-10-08: accepted; the rule "no helper processes" is about podssh's
+   own shims (T-174).
+3. **Chat**: decided on 2026-10-08: on the roads between two podssh ends,
+   end-to-end encrypted, after M6 (T-099), and IRC through public servers
+   as a second transport (T-252).
