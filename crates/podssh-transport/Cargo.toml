@@ -10,7 +10,6 @@ publish.workspace = true
 [dependencies]
 podssh-ws = { path = "../podssh-ws" }
 tokio = { workspace = true }
-futures-util = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 rustls-pki-types = { workspace = true }

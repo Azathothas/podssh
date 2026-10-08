@@ -205,3 +205,17 @@ fn a_proxy_reason_phrase_cannot_carry_terminal_controls() {
     assert_eq!(status, 403);
     assert_eq!(reason, "not[31m allowed");
 }
+
+/// A loopback target never goes through the proxy: the proxy's loopback is
+/// not this host's (a proxy answered 405 to `CONNECT 127.0.0.1`, measured by
+/// podbox). Anything else still does.
+#[test]
+fn loopback_targets_bypass_the_proxy() {
+    let vars = |name: &str| (name == "https_proxy").then(|| "http://proxy.example:3128".to_string());
+    for host in ["localhost", "LOCALHOST", "api.localhost", "127.0.0.1", "127.8.9.10", "::1", "[::1]"] {
+        assert!(proxy_from_vars(host, vars).unwrap().is_none(), "{host} must not be proxied");
+    }
+    for host in ["example.org", "10.0.0.1", "localhost.example.org", "128.0.0.1"] {
+        assert!(proxy_from_vars(host, vars).unwrap().is_some(), "{host} must be proxied");
+    }
+}

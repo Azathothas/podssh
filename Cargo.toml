@@ -34,43 +34,35 @@ default-members = [
 exclude = ["vendor/tailscale-rs"]
 
 # Versions below were resolved on 2026-10-01, not recalled. Before loosening a
-# range, re-run the no-C build of the default members:
-# `CC=/nonexistent cargo build` (see scripts/gate.sh).
+# range, re-run the no-C build of the library crates (see scripts/gate.sh).
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-# MEASURED 2026-10-08: the default members pass `cargo check --all-targets`
-# on Rust 1.88.0. podssh-ts declares its own (higher) minimum.
+# MEASURED 2026-10-08: the library crates pass `cargo check --all-targets` on
+# Rust 1.88.0. podssh-ssh and podssh-cli declare 1.89 (russh's minimum) and
+# podssh-ts its own.
 rust-version = "1.88"
 license = "0BSD"
 publish = false
 
-# THE BUILD RULE: the default build needs no C compiler.
+# THE BUILD RULE: the library crates need no C compiler.
 #
-# Everything a default `cargo build` compiles (the default members, without
-# the `ts` feature) must build with `CC=/nonexistent`, so podssh can be built
-# anywhere a Rust toolchain exists and the shipped static binary contains no C.
-# `scripts/gate.sh` enforces it and `scripts/plant.sh` proves the check fires.
+# podssh-ws, podssh-transport, podssh-core, podssh-terminal and podssh-probe
+# must build with `CC=/nonexistent`, so other projects (podbox) can use them
+# anywhere a Rust toolchain exists. `scripts/gate.sh` enforces it and
+# `scripts/plant.sh` proves the check fires.
 #
 # `ring` and `aws-lc-sys` both fail under `CC=/nonexistent` (measured
 # 2026-10-01: "failed to run custom build command ... failed to find tool"),
 # so `rustls` below carries no default crypto provider; podssh supplies its own
 # pure-Rust one in crates/podssh-ws/src/crypto/.
 #
-# The one exception is opt-in: the `ts` feature of podssh-cli links
-# crates/podssh-ts and the vendored tailscale-rs fork (outside this workspace),
-# which pull `aws-lc-sys` and need cc and cmake. The operator accepted a
-# build-time C dependency for Tailscale on 2026-10-05; on 2026-10-08 it was
-# made a feature so the default build stays C-free.
+# The binary is the exception: podssh-ssh uses russh with aws-lc-rs (operator
+# decision 2026-10-08), and the opt-in `ts` feature links the vendored
+# tailscale-rs fork, which also needs cc and cmake.
 [workspace.dependencies]
 tokio = { version = "1", default-features = false, features = [
   "rt", "rt-multi-thread", "net", "io-util", "io-std", "time", "sync", "macros",
-] }
-tokio-tungstenite = { version = "0.24", default-features = false, features = [
-  "connect", "handshake",
-] }
-futures-util = { version = "0.3", default-features = false, features = [
-  "std", "sink",
 ] }
 
 # ⛔ default-features = false and NO crypto provider feature. See the note above.
@@ -148,7 +140,6 @@ p256 = { version = "0.13", default-features = false, features = ["ecdsa", "arith
 # offers only P-256/SHA-256 cannot verify the chain the relay actually
 # presents, so it is not a provider.
 p384 = { version = "0.13", default-features = false, features = ["ecdsa", "arithmetic"] }
-rsa = { version = "0.9", default-features = false, features = ["std"] }
 
 # rand's default `getrandom` backend reads the OS, not a C library. `small_rng`
 # is deliberately off: podssh's protocol randomness is OS-sourced on every

@@ -135,10 +135,16 @@ pub fn proxy_from_env(target_host: &str) -> Result<Option<HttpProxy>, String> {
 
 /// [`proxy_from_env`] with the variables supplied by the caller. Lower-case
 /// names win over upper-case ones, as in curl; an empty value counts as unset.
+/// A loopback target never goes through a proxy (as in Go's net/http): the
+/// proxy's loopback is not this host's, and podbox measured a proxy answering
+/// 405 to `CONNECT 127.0.0.1`.
 pub fn proxy_from_vars(
     target_host: &str,
     var: impl Fn(&str) -> Option<String>,
 ) -> Result<Option<HttpProxy>, String> {
+    if is_loopback(target_host) {
+        return Ok(None);
+    }
     let get = |names: &[&str]| {
         names
             .iter()
@@ -153,6 +159,16 @@ pub fn proxy_from_vars(
         }
     }
     HttpProxy::parse(&url).map(Some)
+}
+
+/// `localhost`, `*.localhost`, `127.0.0.0/8` and `::1`, with or without
+/// brackets.
+pub fn is_loopback(host: &str) -> bool {
+    let h = host.trim_start_matches('[').trim_end_matches(']').trim_end_matches('.').to_ascii_lowercase();
+    if h == "localhost" || h.ends_with(".localhost") {
+        return true;
+    }
+    h.parse::<std::net::IpAddr>().is_ok_and(|ip| ip.is_loopback())
 }
 
 /// Whether a `no_proxy` list excludes `host`. Entries are separated by commas
