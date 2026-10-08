@@ -210,3 +210,31 @@ fn man_carries_its_section_its_pager_choice_and_its_format() {
     // before the positional, as for every other verb.
     assert_eq!(parse(args(&["man", "--help"])), Parsed::Help("man"));
 }
+
+/// A known flag with no value names the flag in both spellings and the value
+/// that it needs; a refused flag refuses as with a value (GitHub #8).
+#[test]
+fn a_missing_value_names_the_flag() {
+    let cases: [(&[&str], &str); 8] = [
+        (&["ssh", "--port"], "podssh ssh: -p (--port) needs a value: PORT."),
+        (&["ssh", "-p"], "podssh ssh: -p (--port) needs a value: PORT."),
+        (&["ssh", "host", "-p"], "podssh ssh: -p (--port) needs a value: PORT."),
+        (&["ssh", "-o"], "podssh ssh: -o (--option) needs a value: NAME=VALUE."),
+        (&["keygen", "-t", "ed25519", "-f"], "podssh keygen: -f (--file) needs a value: FILE."),
+        (&["proxy", "--relay-host"], "podssh proxy: --relay-host needs a value: HOSTS."),
+        (&["doctor", "--ca-file"], "podssh doctor: --ca-file needs a value: FILE."),
+        // clap takes -x for a flag, so -l has no value: say so, and guess nothing.
+        (&["ssh", "-l", "-x", "host"], "podssh ssh: -l (--login-name) needs a value: USER."),
+    ];
+    for (argv, want) in cases {
+        let p = parse(args(argv));
+        let Parsed::Usage(m) = &p else { panic!("{argv:?}: {p:?}") };
+        assert!(m.starts_with(want), "{argv:?}: {m}");
+        assert!(!m.contains("unknown flag"), "{argv:?}: {m}");
+    }
+    let Parsed::Usage(m) = parse(args(&["ssh", "-L"])) else { panic!("-L") };
+    assert!(m.contains("-L SPEC is refused") && m.contains("Use -W HOST:PORT instead"), "{m}");
+    // The control: a flag that does not exist is still an unknown flag.
+    let Parsed::Usage(m) = parse(args(&["ssh", "--no-such-flag"])) else { panic!("control") };
+    assert!(m.contains("unknown flag '--no-such-flag'"), "{m}");
+}

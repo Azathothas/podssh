@@ -44,9 +44,10 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `podssh ssh -P TAG` accepts the tag, ignores it, and says on stderr that
   `-p` is the port. For `cp`, `mv`, `scp` and `sftp`, `-P` is the port.
 - **No option is dropped silently.** An unknown flag is an error that names
-  the nearest real flag (exit 64). A dropped option can disable a security
-  check without a message. OpenSSH exits 255 with `Bad configuration
-  option` for an unknown `-o` keyword, before it connects.
+  the nearest real flag (exit 64). A known flag with no value names the flag,
+  in both spellings, and the value that it needs (exit 64). A dropped option
+  can disable a security check without a message. OpenSSH exits 255 with
+  `Bad configuration option` for an unknown `-o` keyword, before it connects.
 - **Destinations.** `-J a,b` makes a chain of hops; `-J a -J b` is an error.
   `ssh host:2222` connects to a host named `host:2222` on port 22. The port
   form of OpenSSH is `ssh://user@host:2222`. podssh also accepts `host:PORT`,

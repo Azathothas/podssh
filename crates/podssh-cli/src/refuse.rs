@@ -46,16 +46,28 @@ pub fn unknown_flag(token: &str, suggestion: Option<&str>) -> String {
 
 /// The message for a flag that parses but is refused, and it **must** name the
 /// replacement. ⛔ A refusal that does not say what to type instead is the
-/// sibling's `unknown option %s`.
-pub fn refused_flag(row: &FlagRow, verb: &str) -> String {
-    let mut m = format!(
-        "podssh {verb}: {} is refused.",
-        row.usage_form()
-    );
-    if let Some(instead) = row.instead {
-        m.push_str(&format!("\n  Use {instead} instead."));
+/// sibling's `unknown option %s`. One function, so that each verb, and a
+/// refused flag given with no value, refuse in the same words; the third line
+/// is the row's own reason.
+pub fn refused(verb: &str, given: &str, instead: &str, reason: &str) -> String {
+    if instead.is_empty() || instead == "no flag" {
+        format!("podssh {verb}: {given} is refused. Leave it out.\n  {reason}.")
+    } else {
+        format!("podssh {verb}: {given} is refused.\n  Use {instead} instead.\n  {reason}.")
     }
-    m
+}
+
+/// A known flag given with no value. `clap` writes the long spelling also
+/// when the short one was typed, so the message names both.
+pub fn missing_value(verb: &str, row: &FlagRow) -> String {
+    let both = match row.short {
+        Some(c) => format!("-{c} (--{})", row.long),
+        None => format!("--{}", row.long),
+    };
+    format!(
+        "podssh {verb}: {both} needs a value: {}.\n  Run 'podssh {verb} --help' for each flag and its value.",
+        row.arg.unwrap_or("VALUE")
+    )
 }
 
 /// ⛔ The message for `-P` on `ssh`, which is **accepted and ignored**, so it

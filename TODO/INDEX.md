@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 230 open, 0 partial, 7 blocked, 13 done.**
+**250 entries: 229 open, 0 partial, 7 blocked, 14 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 135 | 0 | 3 | 5 | 143 |
+| P2 | 134 | 0 | 3 | 6 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 230 | 0 | 7 | 13 | 250 |
+| **All** | 229 | 0 | 7 | 14 | 250 |
 
 ## Entries
 
@@ -82,7 +82,7 @@ repository and CI).
 | [T-006](beta.md) | P1 | S | M3 | defect | done | `scripts/sandbox-check.sh` exits 0 when its steps fail, and ignores `CARGO_TARGET_DIR` (GitHub #28) |
 | [T-007](cli.md) | P1 | S | M3 | defect | done | Bracketed IPv6 literal destinations are refused (GitHub #2) |
 | [T-008](cli.md) | P2 | S | M3 | defect | done | The `--timeout` refusal with no terminal names `chat` for each command, and contradicts itself (GitHub #6) |
-| [T-009](cli.md) | P2 | S | M3 | defect | open | A missing flag value is reported as an unknown flag (GitHub #8) |
+| [T-009](cli.md) | P2 | S | M3 | defect | done | A missing flag value is reported as an unknown flag (GitHub #8) |
 | [T-010](cli.md) | P2 | S | M3 | defect | open | `podssh --help` with other words prints the help and drops the words silently (GitHub #10) |
 | [T-011](cli.md) | P2 | S | M3 | defect | open | A host or target that starts with `-` can be read as a flag |
 | [T-012](cli.md) | P2 | S | backlog | feature | open | `PODSSH_TIMEOUT` gives the default of `--timeout` (GitHub #12) |

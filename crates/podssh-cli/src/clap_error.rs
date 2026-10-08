@@ -18,6 +18,7 @@
 //! error, and moving it here would be a module boundary drawn by line count
 //! rather than by what the code is about.
 
+use crate::flags::FlagKind;
 use crate::tree::Parsed;
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 
@@ -67,15 +68,34 @@ pub fn rebuild_error(verb: &str, e: &clap::Error) -> Parsed {
             let suggestion = string_ctx_opt(e, ContextKind::SuggestedArg);
             Parsed::Usage(crate::refuse::unknown_flag(&given, suggestion.as_deref()))
         }
-        _ => {
+        // A known flag with no value: an invalid value that is empty, with
+        // `InvalidArg` as `--long <VALUE>`, also when `-p` was typed (measured
+        // with the `probe_clap` example, clap 4.6.7, 2026-10-08; GitHub #8).
+        // A refused flag refuses as with a value, which would change nothing.
+        ErrorKind::InvalidValue if matches!(e.get(ContextKind::InvalidValue), Some(ContextValue::String(v)) if v.is_empty()) => {
             let given = string_ctx(e, ContextKind::InvalidArg);
-            if !flag_shaped(&given) {
-                return Parsed::Usage(crate::refuse::bad_invocation(verb, e.kind(), &given));
+            let long = given.strip_prefix("--").and_then(|s| s.split(' ').next()).unwrap_or_default();
+            let row = crate::flags::verb_for(verb).and_then(|v| v.flags.iter().find(|r| r.long == long));
+            match row {
+                Some(r) if r.kind == FlagKind::Refused => {
+                    Parsed::Usage(crate::refuse::refused(verb, &r.usage_form(), r.instead.unwrap_or(""), r.help))
+                }
+                Some(r) => Parsed::Usage(crate::refuse::missing_value(verb, r)),
+                None => unknown(verb, e, &given),
             }
-            let suggestion = string_ctx_opt(e, ContextKind::SuggestedArg);
-            Parsed::Usage(crate::refuse::unknown_flag(&given, suggestion.as_deref()))
         }
+        _ => unknown(verb, e, &string_ctx(e, ContextKind::InvalidArg)),
     }
+}
+
+/// Today's message for any other error: an unknown flag when the token was
+/// written as a flag, else a bad invocation.
+fn unknown(verb: &str, e: &clap::Error, given: &str) -> Parsed {
+    if !flag_shaped(given) {
+        return Parsed::Usage(crate::refuse::bad_invocation(verb, e.kind(), given));
+    }
+    let suggestion = string_ctx_opt(e, ContextKind::SuggestedArg);
+    Parsed::Usage(crate::refuse::unknown_flag(given, suggestion.as_deref()))
 }
 
 /// ⛔ **Whether a token was written as a flag.**
