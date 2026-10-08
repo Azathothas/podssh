@@ -265,7 +265,7 @@ VLOD-ZDOV/quic-ssh (GitHub #22; read in the reports, not verified here). Measure
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -332,9 +332,8 @@ wrong-key test fails.
 
 ## Done
 
-Not yet done: the run in the Podman box waits for the gate's static binary of this change, from
-CI. Done so far, in the commit "podssh doctor --full logs in to GitHub with a key made for the
-check", 2026-10-09:
+2026-10-09, in the commits "podssh doctor --full logs in to GitHub with a key made for the
+check" (the code) and "T-052 measured in the box: login ok" (this record):
 
 - `podssh_ssh::probe::login` (`crates/podssh-ssh/src/probe.rs`): the key exchange, a host key
   that must have one of the named fingerprints, then public-key authentication with an Ed25519
@@ -353,6 +352,11 @@ check", 2026-10-09:
   named, no key is offered. The verdicts have a unit test (`full_login_verdicts`).
 - Plant: the probe's handshake accepts any host key; `login_stops_at_a_host_key_that_was_not_named`
   failed (it got `Refused`).
+- The box: `sh scripts/test_in_box.sh` with the gate's binary of `d98d77e` (its CI run): the box
+  matched the sandbox on each required property; `sandbox-check.sh` ran `doctor --full`: "ok
+  login github.com:22 through tcp.ssh.relay.ajam.dev: ... GitHub refused a key made for this
+  check, as it must", 29 ok, 0 FAIL; the script: 7 ok, 0 FAIL, 1 skip (OpenSSH needs a user
+  database entry).
 
 # T-053: `podssh ping`: a short check of the path, with latency and throughput
 

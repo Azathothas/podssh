@@ -23,7 +23,7 @@ Triage of 2026-10-08: issues #1 to #36.
 | #10 | A machine-readable flag table | closed | T-050 (the commit "podssh man --json"), and T-010 (`--help --json` drops `--json`; done in the commit "podssh --help and --version drop no word") |
 | #11 | `podssh status` | open | T-051 |
 | #12 | `PODSSH_TIMEOUT` | closed | T-012 (the commit "PODSSH_TIMEOUT gives the default of --timeout") |
-| #13 | `podssh doctor --full` | open | T-052 |
+| #13 | `podssh doctor --full` | closed | T-052 (the commit "podssh doctor --full logs in to GitHub with a key made for the check") |
 | #14 | `ssh_config`, `-F` and `-G` | open | T-043, T-044, T-045, T-046 |
 | #15 | `keygen` waits for ever on a dead `/dev/tty` | closed | T-005 (repaired in `eacd94e`; measured in the box in the commit "The box has the sandbox's dead /dev/tty; T-005 measured there") |
 | #16 | A repeated flag keeps the last value | closed | T-017 |
