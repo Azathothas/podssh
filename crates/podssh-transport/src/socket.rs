@@ -13,7 +13,7 @@
 use crate::closes::RelayClose;
 use crate::control;
 use crate::endpoint::{AddressFamily, EgressRoad, Knobs, LegTarget, RelayConfig, TOKEN_HEADER};
-use crate::error::{HttpFailure, TransportError};
+use crate::error::{Asked, HttpFailure, TransportError};
 use crate::framing::legs::{encode_forward_frame, encode_node_frame, encode_operator_frame};
 use crate::framing::SessionId;
 use crate::sessions::{
@@ -442,8 +442,11 @@ pub fn build(
 
 /// ⛔ **The HTTP statuses a relay answers instead of upgrading**, named so a
 /// caller can branch without parsing a string.
-pub fn http_failure(status: u16) -> TransportError {
-    TransportError::Http(HttpFailure::from_status(status))
+pub fn http_failure(status: u16, body: &str, asked: Asked) -> TransportError {
+    // The body comes from the network: printed only through the one
+    // definition of safe text, and cut on a character boundary.
+    let printable = crate::control::truncate_reason(&crate::adapt::one_line(body));
+    TransportError::Http { failure: HttpFailure::from_answer(status, body, asked), body: printable }
 }
 
 /// ⛔ **A close, as `podssh-ws` hands one over.**

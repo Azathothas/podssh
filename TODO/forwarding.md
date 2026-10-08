@@ -612,8 +612,8 @@ sessions (GitHub #17).
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:38-47`,
 `crates/podssh-ssh/src/run.rs:97-105`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
-(`crates/podssh-relay/src/open.rs:174-213`,
-`crates/podssh-relay/src/open.rs:263-277`). With `-N`, no command runs, so a
+(`crates/podssh-relay/src/open.rs:172-211`,
+`crates/podssh-relay/src/open.rs:261-275`). With `-N`, no command runs, so a
 new connection has no side effect on the server. `docs/design.md:204-209`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.

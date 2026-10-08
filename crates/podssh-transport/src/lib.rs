@@ -53,7 +53,7 @@ pub use backpressure::{Direction, FrameDrop, Ledger, Permit, SessionBudgetRefuse
 pub use closes::{classify, Classified, CloseRow, RelayClose, CLOSE_ROWS};
 pub use control::{ControlError, Hello, NodeLimits};
 pub use endpoint::{endpoint, Endpoint, Knobs, LegTarget, RelayConfig, TOKEN_HEADER};
-pub use error::{HttpFailure, Retry, SessionAction, TransportError};
+pub use error::{Asked, HttpFailure, Retry, SessionAction, TransportError};
 pub use framing::{CodecError, SessionId};
 pub use socket::{FrameQueue, Leg, Socket};
 pub use transport::{Control, Inbound, LegShape, Limits, Transport};

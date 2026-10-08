@@ -179,7 +179,7 @@ GitHub #19 reports. Some closes mean "do not come back".
 ## Premise
 
 Read: the failover across relay hosts serves the first connection only
-(`crates/podssh-relay/src/open.rs:174-213`). `classify` maps each reverse close
+(`crates/podssh-relay/src/open.rs:172-211`). `classify` maps each reverse close
 to a retry class (`crates/podssh-transport/src/closes.rs:154-229`), with
 `relay backpressure` as `Retry::Never`
 (`crates/podssh-transport/src/closes.rs:202`); a received Close lost its code
@@ -195,7 +195,7 @@ the node then exits (`docs/reverse.md:19`).
    the roads of T-164 and each host of the `RelayList`
    (`crates/podssh-relay/src/relay.rs:36-50`), each within `HOST_DEADLINE`
    (`crates/podssh-relay/src/open.rs:27-29`), with `open::backoff` between
-   rounds (`crates/podssh-relay/src/open.rs:263-277`). Do not fork it (T-077).
+   rounds (`crates/podssh-relay/src/open.rs:261-275`). Do not fork it (T-077).
 2. A `CLOSE` record never reconnects; each other loss reconnects first
    (ssh-obi's rule, read in GitHub #19, not verified here). Print one stderr
    line for each loss and each resume, and never a secret or a token.
@@ -258,7 +258,7 @@ keepalives must not end a session that the layer would resume.
 ## Premise
 
 Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
-`crates/podssh-relay/src/open.rs:232`), a limit that counts on the relay's
+`crates/podssh-relay/src/open.rs:230`), a limit that counts on the relay's
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:132-166`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends

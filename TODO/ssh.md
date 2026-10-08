@@ -256,7 +256,7 @@ after it.
 Read:
 
 - `podssh_relay::open` fails over and repeats rounds only until the
-  WebSocket upgrade succeeds (`crates/podssh-relay/src/open.rs:174-213`).
+  WebSocket upgrade succeeds (`crates/podssh-relay/src/open.rs:172-211`).
   After the upgrade, a relay close ends the run
   (`crates/podssh-ssh/src/run.rs:38-47`).
 - Both reported drops printed `HOST: the connection closed unexpectedly`,
@@ -287,7 +287,7 @@ Read:
    link from the relay to the target: try once more, then stop. Never retry
    `1001`, `1009` or `1013`.
 4. Wait with the jittered backoff that exists
-   (`crates/podssh-relay/src/open.rs:263-277`). Bound the whole by the rounds
+   (`crates/podssh-relay/src/open.rs:261-275`). Bound the whole by the rounds
    of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:291`) and
    the deadline of each host.
 5. Never prompt again without a person: under `BatchMode`, or with no
@@ -1058,7 +1058,7 @@ Read:
   only the write can end the wait.
 - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
   (`crates/podssh-ws/src/client.rs:34-35`, given to the session at
-  `crates/podssh-ws/src/client.rs:175`), and `write` applies it
+  `crates/podssh-ws/src/client.rs:183`), and `write` applies it
   (`crates/podssh-ws/src/session.rs:223-228`). Then the copy task stops
   (`crates/podssh-ssh/src/relay_stream.rs:94-99`), the next ping meets the
   same limit and ends the read task (`crates/podssh-ws/src/session.rs:161-164`,

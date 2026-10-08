@@ -411,7 +411,7 @@ Confirmed here on `3ee70dc` by reading the code.
 **Milestone:** M4
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -422,11 +422,13 @@ expired.
 
 ## Premise
 
+The lines of the files that this entry changed are those of `1a00ba2`.
+
 Read: `HttpFailure::retry` maps `Forbidden` (403) to `Retry::Never` and `Unavailable` (503) to
-`Retry::Reconnect` (`crates/podssh-transport/src/error.rs:151-168`). `HttpFailure` keeps the status
-and not the body (`crates/podssh-transport/src/error.rs:122-146`, `:186-196`), so it cannot tell
+`Retry::Reconnect` (`crates/podssh-transport/src/error.rs` lines 151-168). `HttpFailure` keeps
+the status and not the body (the same file, lines 122-146 and 186-196), so it cannot tell
 `missing or wrong token` from a policy refusal. A test asserts the current rule
-(`crates/podssh-transport/tests/closes.rs:129-149`).
+(`crates/podssh-transport/tests/closes.rs` lines 129-149).
 
 Read: the contract: `403 missing or wrong token` needs a new token; a `403` that names the target
 is a policy refusal; `503` means that the relay does not issue or check tokens
@@ -436,25 +438,39 @@ also after `POST /v1/stop` (`docs/reverse.md:51-52`). A `409` from `/v1/pair` me
 (`docs/relay.md:188-190`); a `409` on `/v1/node/<name>` means "exit" (`docs/reverse.md:19`).
 
 Read: the forward path already follows the contract in `podssh-relay`. It mints once again after a
-`403` for a cached token that is not a policy refusal (`crates/podssh-relay/src/open.rs:236-244`,
-`:113-117`). It sends a `503` to the next host, never to the same one
-(`crates/podssh-relay/src/open.rs:53-76`, test at `:300`).
+`403` for a cached token that is not a policy refusal (`crates/podssh-relay/src/open.rs` lines
+236-244 and 113-117). It sends a `503` to the next host, never to the same one (the same file,
+lines 53-76, and the test at line 300).
 
 ## Approach
 
 1. Keep the body: build `HttpFailure` from `ConnectError::Refused { status, body }`
-   (`crates/podssh-ws/src/client.rs:117-120`). Reuse `podssh_relay::open::is_policy_refusal`; do
-   not parse the body a second way.
+   (`crates/podssh-ws/src/client.rs` lines 117-120). Reuse `podssh_relay::open::is_policy_refusal`;
+   do not parse the body a second way.
 2. Make the rule depend on the leg (`crates/podssh-transport/src/transport.rs:117-127`):
    forward `403` that is not a policy refusal: a new `Retry::NewToken` (mint once, then stop);
    forward `403` policy: `Never`; reverse `403`: `ReverseForbidden`, and the runner of T-079 picks
    `NewPair` when the stored `expires` has passed (T-078), else `Never`; `503`: `Never` on this
    host, and failover stays the caller's rule.
 3. Make `409` depend on the endpoint: `/v1/node/<name>` gives `Never`; `/v1/pair` pairs again once.
-4. Update `crates/podssh-transport/tests/closes.rs:129-149` and the texts at
-   `crates/podssh-transport/src/error.rs:170-184`. Close this entry in place.
+4. Update `crates/podssh-transport/tests/closes.rs` (lines 129-149) and the texts of
+   `crates/podssh-transport/src/error.rs` (lines 170-184). Close this entry in place.
 5. Pitfall: the body comes from the network. Keep it out of format strings and remove control
    characters before it reaches a terminal (`SECURITY.md:46-49`).
+
+## Decision
+
+2026-10-09: the one parser of a policy refusal moves to `podssh-ws`
+(`podssh_ws::client::is_policy_refusal`, beside `ConnectError`); `podssh_relay::open` re-exports
+it, so `podssh proxy` and the forward opener keep their name for it, and `podssh-transport`
+reaches it through `adapt.rs`. Lost: a dependency of `podssh-transport` on `podssh-relay`, as step
+1 says. It becomes a cycle when the runners of T-079 and T-080, in `podssh-relay`, use the codecs
+of `podssh-transport` (T-082, step 1), and Cargo refuses a cycle.
+
+Also: `HttpFailure::from_answer(status, body, Asked)` takes what was asked, `Asked::Upgrade(leg)`
+or `Asked::Pair`, because a `409` and a `403` mean different things on each. A `403` on
+`/v1/pair`, which takes no token, is `Other(403)` and `Never`. `Retry::ReverseForbidden` is not
+`is_retryable`: only the runner knows `expires`.
 
 ## Prove
 
@@ -469,8 +485,30 @@ The new test gives the relay's own bodies (`missing or wrong token`,
 `forward: github.com:25 not in the ALLOW list`, `reverse: forbidden`,
 `forward relay authentication is not configured`) with `403` and `503` for each leg, and asserts
 the action. The bodies come from the contract and from the tests of
-`crates/podssh-relay/src/open.rs:283-301`. Plant: map `503` back to `Reconnect`; the test must
+`crates/podssh-relay/src/open.rs:281-299`. Plant: map `503` back to `Reconnect`; the test must
 fail.
+
+## Done
+
+2026-10-09, in the commit "An HTTP answer to an upgrade keeps its body and follows the contract".
+
+- `HttpFailure::from_answer` replaces `from_status`. A forward `403` is `TokenRefused`
+  (`Retry::NewToken`, new: mint once, then stop) unless its body names the target
+  (`PolicyRefused`, `Never`; a `400` with such a body too); a reverse `403` is
+  `ReverseForbidden` (`Retry::ReverseForbidden`, new); a `503` is `Never` on this host; a `409`
+  is `NameInUse` (`Never`) on an upgrade and `PairAgain` (`NewPair`) on `/v1/pair`.
+- `TransportError::Http { failure, body }` keeps the body, through `one_line` and the cap of a
+  close reason, and prints it after the explanation. `socket::http_failure(status, body, asked)`
+  and `adapt::refused(&ConnectError, asked)` build it.
+- `is_policy_refusal` is in `podssh-ws` now (see Decision); `podssh-relay` re-exports it.
+- Prove: `cargo test -p podssh-transport --test closes -- http_answers_follow_the_contract`: 1
+  passed (14 answers, the four bodies of the contract on each leg, `409` on a node and on
+  `/v1/pair`, and a body with ESC printed with no control character). `cargo test -p
+  podssh-transport --no-fail-fast`: 82 passed, 0 failed. `cargo test -p podssh-relay
+  --no-fail-fast`: 26 passed, 0 failed, 2 ignored. `cargo test --no-fail-fast`: 782
+  passed, 0 failed, 7 ignored.
+- Plants, each restored: `503` mapped back to `Reconnect`: the test failed on the `503` row of the
+  forward leg; the policy check removed: the test failed on the policy row.
 
 # T-076: T9: host and node names are not validated or escaped
 
@@ -564,11 +602,11 @@ workspace (a search for `impl ... Transport for` finds none). It is exported at
 
 Read: `Backoff` doubles from 1 s to 30 s with no jitter (`crates/podssh-transport/src/backoff.rs:1-8`,
 `:15-17`, `:51-55`). It is exported at `crates/podssh-transport/src/lib.rs:51` and used only by
-`crates/podssh-transport/tests/closes.rs:329-366`.
+`crates/podssh-transport/tests/closes.rs:354-391`.
 
 Read: a node connects again "with a jittered backoff" (`docs/reverse.md:22-24`,
 `docs/ROADMAP.md:150-158`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
-by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:263-277`); `podssh ssh` uses
+by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:261-275`); `podssh ssh` uses
 it (`crates/podssh-cli/src/ssh/mod.rs:125-131`).
 
 ## Approach
@@ -576,7 +614,7 @@ it (`crates/podssh-cli/src/ssh/mod.rs:125-131`).
 1. Delete the `Transport` trait and `target_for`. Keep `Control`, `LegShape` and `Limits`, which
    `socket.rs` uses; T-082 moves them with the codecs.
 2. Delete `crates/podssh-transport/src/backoff.rs`, its export, and its two tests
-   (`crates/podssh-transport/tests/closes.rs:329-366`).
+   (`crates/podssh-transport/tests/closes.rs:354-391`).
 3. The node runner of T-079 uses `podssh_relay::open::backoff`. If a reset after a good connection
    is necessary, add it there, not as a second schedule.
 4. Close this entry in place in the same commit.

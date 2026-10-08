@@ -183,7 +183,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 (`docs/design.md:334-340`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:55-62`). The relay opener tries one host at a time
-(`crates/podssh-relay/src/open.rs:174-213`), and no code races two roads.
+(`crates/podssh-relay/src/open.rs:172-211`), and no code races two roads.
 
 ## Approach
 
@@ -584,7 +584,7 @@ on TCP, and registers with Cap'n Proto RPC. Read: the measured proxy allows
 and the sandbox refuses UDP (`docs/target-environment.md:23`). If the edge
 needs port 7844, a cage cannot publish a tunnel. A client in a cage can still
 reach the tunnel's name on port 443 with `podssh-ws`
-(`crates/podssh-ws/src/client.rs:150-176`).
+(`crates/podssh-ws/src/client.rs:158-184`).
 
 ## Approach
 

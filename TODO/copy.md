@@ -307,7 +307,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
    size and mtime are the same; else start over and say so.
 3. Invariant: the attempts are bounded. At most 5 in a row with no new
    acknowledged byte, with `podssh_relay::open::backoff`
-   (`crates/podssh-relay/src/open.rs:269-277`). Stop at once on a refused
+   (`crates/podssh-relay/src/open.rs:267-275`). Stop at once on a refused
    authentication, a changed host key, a policy refusal or the `--timeout`
    deadline.
 4. Across runs: the same command continues when the side file matches the

@@ -15,7 +15,8 @@
 //! a guess wearing a label.
 
 use podssh_transport::closes::{classify, Classified, Leg, CLOSE_ROWS};
-use podssh_transport::error::{HttpFailure, Retry, SessionAction};
+use podssh_transport::error::{Asked, HttpFailure, Retry, SessionAction};
+use podssh_transport::LegShape;
 use podssh_transport::RelayClose;
 
 /// ⛔ **The document the `spec_line` values are read out of.** The same file
@@ -125,27 +126,51 @@ fn a_1001_is_never_retried_and_the_two_rows_are_never_confused() {
     assert_eq!(blank.session, SessionAction::Unknown);
 }
 
+/// The relay's own bodies (the contract, spec lines 97-103, and the tests of
+/// `podssh_relay::open`), for each leg: a forward `403` is repaired by a new
+/// token unless it names the target; a reverse `403` waits for the runner's
+/// reading of `expires`; a `503` is not retried on this host; a `409` exits on
+/// a node upgrade and pairs again on `/v1/pair`.
 #[test]
-fn a_403_is_never_retried_and_says_why() {
-    // ⛔ **READ**, live spec lines 97-99: *"A `403` that names the target
-    // (`not in the ALLOW list`) is a policy denial — minting a fresh token will
-    // not fix it."*
-    for status in [403u16] {
-        let failure = HttpFailure::from_status(status);
-        assert_eq!(failure, HttpFailure::Forbidden);
-        assert_eq!(failure.retry(), Retry::Never, "⛔ spec line 99");
-        assert!(failure.explain().contains("Never retry"));
+fn http_answers_follow_the_contract() {
+    const WRONG_TOKEN: &str = "missing or wrong token";
+    const POLICY: &str = "forward: github.com:25 not in the ALLOW list";
+    const REVERSE: &str = "reverse: forbidden";
+    const NO_TOKENS: &str = "forward relay authentication is not configured";
+    let forward = Asked::Upgrade(LegShape::Forward);
+    let node = Asked::Upgrade(LegShape::ReverseNode);
+    let operator = Asked::Upgrade(LegShape::ReverseOperator);
+
+    let cases = [
+        (403, WRONG_TOKEN, forward, HttpFailure::TokenRefused, Retry::NewToken),
+        (403, POLICY, forward, HttpFailure::PolicyRefused, Retry::Never),
+        (400, "blocked address range", forward, HttpFailure::PolicyRefused, Retry::Never),
+        (403, REVERSE, node, HttpFailure::ReverseForbidden, Retry::ReverseForbidden),
+        (403, REVERSE, operator, HttpFailure::ReverseForbidden, Retry::ReverseForbidden),
+        (503, NO_TOKENS, forward, HttpFailure::Unavailable, Retry::Never),
+        (503, NO_TOKENS, node, HttpFailure::Unavailable, Retry::Never),
+        (503, NO_TOKENS, operator, HttpFailure::Unavailable, Retry::Never),
+        (409, "", node, HttpFailure::NameInUse, Retry::Never),
+        (409, "", Asked::Pair, HttpFailure::PairAgain, Retry::NewPair),
+        (426, "", node, HttpFailure::UpgradeRequired, Retry::Never),
+        (502, "relay: connect failed: timed out", forward, HttpFailure::BadGateway, Retry::Reconnect),
+        (429, "slow down", forward, HttpFailure::RateLimited, Retry::Reconnect),
+        (418, "", forward, HttpFailure::Other(418), Retry::Never),
+    ];
+    for (status, body, asked, failure, retry) in cases {
+        let got = HttpFailure::from_answer(status, body, asked);
+        assert_eq!(got, failure, "{status} {body:?} on {asked:?}");
+        assert_eq!(got.retry(), retry, "{status} {body:?} on {asked:?}");
     }
-    // ⛔ **And 409 is not retried either** — live spec lines 152-153: a second
-    // node is refused *"before accept, so the live node and its sessions are
-    // undisturbed"*, so retrying is a loop against a name that is already taken.
-    assert_eq!(HttpFailure::from_status(409).retry(), Retry::Never);
-    // ⛔ **And 426 is not a transport failure at all** — live spec line 154 says
-    // the endpoint speaks WebSocket only, and E03's measurement showed a *valid*
-    // token with no upgrade answers 426, which proves the token was accepted.
-    assert_eq!(HttpFailure::from_status(426).retry(), Retry::Never);
-    assert_eq!(HttpFailure::from_status(502).retry(), Retry::Reconnect);
-    assert_eq!(HttpFailure::from_status(429).retry(), Retry::Reconnect);
+    assert!(Retry::NewToken.is_retryable());
+    assert!(!Retry::ReverseForbidden.is_retryable(), "only the runner knows expires");
+
+    // The error keeps the body for the user, made safe to print.
+    let error = podssh_transport::socket::http_failure(403, "forward: x:25 not in the ALLOW list\u{1b}[2J", forward);
+    let text = error.to_string();
+    assert!(text.contains("policy") && text.contains("not in the ALLOW list"), "{text}");
+    assert!(!text.chars().any(char::is_control), "{text:?}");
+    assert_eq!(error.retry(), Retry::Never);
 }
 
 #[test]

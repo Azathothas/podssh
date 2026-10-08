@@ -302,7 +302,7 @@ Read: `ControlRunner` stops when the map stream ends
 (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:409-412`), under the default supervision
 (`vendor/tailscale-rs/ts_runtime/src/lib.rs:160-169`): five restarts in 5 s at most, with no wait
 (`tqwewe/kameo:src/supervision.rs`). podssh's relay client has the rules to copy: a capped backoff
-with jitter (`crates/podssh-relay/src/open.rs:263-277`), and a ping every 10 s with three silent
+with jitter (`crates/podssh-relay/src/open.rs:261-275`), and a ping every 10 s with three silent
 checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:72-74`).
 
 ## Approach

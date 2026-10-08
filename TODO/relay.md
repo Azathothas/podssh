@@ -44,7 +44,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
    is the one rule that already decides where a token may go.
 2. Use the key of the host in use at each place: the load and the store through `MintContext`
    (`crates/podssh-relay/src/token.rs` lines 84-112 at `2da855f`), the removal after a 403
-   (`crates/podssh-relay/src/open.rs:238-243`), and the token check of `doctor`
+   (`crates/podssh-relay/src/open.rs:236-241`), and the token check of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 142-165 at `2da855f`).
 3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:21-30`), with a
    serde default for old files. `doctor` says "a cached token minted at HOST (not shown)". Use
@@ -134,7 +134,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`docs/relay.md:140-141`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:82-137`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:117-135` fetches `/relays.json`. `https_get` sends no
-token header (`crates/podssh-ws/src/client.rs:268-279`); `https_request` takes headers (lines
+token header (`crates/podssh-ws/src/client.rs:276-287`); `https_request` takes headers (lines
 282-303).
 
 ## Approach
@@ -200,7 +200,7 @@ as a `ProxyCommand` for each connection, pays this wait in each run.
 ## Premise
 
 Read: `open` tries the hosts in the order of the list in each round
-(`crates/podssh-relay/src/open.rs:189-210`), and keeps nothing between runs: a failure is a
+(`crates/podssh-relay/src/open.rs:187-208`), and keeps nothing between runs: a failure is a
 note, and an entry of `Failure`. The limits are 20 s for each step and 45 s for each host (lines
 25-29). Measured in the gate (`docs/STATUS.md`): a host that completes TLS and then says
 nothing, and a host that does not start TLS, each cost the 20 s limit before the failover.
@@ -211,7 +211,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
    `crates/podssh-relay/src/open.rs:54-76`), write a record (host, time, class) into a private
    file `relay-failures-KEY.json` with `cache::store_file`
    (`crates/podssh-relay/src/cache.rs:137-153`). Remove the record when the host succeeds.
-2. At the start of `open` (`crates/podssh-relay/src/open.rs:177-213`), move each host whose
+2. At the start of `open` (`crates/podssh-relay/src/open.rs:175-211`), move each host whose
    record is younger than a fixed window (10 min) to the end of the list, in its old order.
    Never remove a host: each host is still tried.
 3. Record no error that each host would give (a policy refusal, a bad token in the
@@ -446,7 +446,7 @@ user sees nothing.
 ## Premise
 
 Read on `3ee70dc`, as the issue says: a plain `for` loop over the hosts
-(`crates/podssh-relay/src/open.rs:189-191`); `HOST_DEADLINE` 45 s (line 29), `CONNECT_TIMEOUT`
+(`crates/podssh-relay/src/open.rs:187-189`); `HOST_DEADLINE` 45 s (line 29), `CONNECT_TIMEOUT`
 20 s (line 25). `notes` is declared at lines 177 and 216; its four call sites are 186 (the round
 notice), 190 (into `try_host`), 198 (a failed host) and 222 (the token cache). The session
 returns with its host at line 194 (the issue says 192). The order of preference is built in

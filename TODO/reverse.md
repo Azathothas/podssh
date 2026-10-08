@@ -39,7 +39,7 @@ copy of podbox at `5bd8cb0` says `connect_token` only (`Azathothas/podbox:crates
 
 Read: `podssh-relay` has no pairing code (`crates/podssh-relay/src/lib.rs:14-21`). `https_post_json`
 sends fixed headers, and `https_request`, which takes headers, is private
-(`crates/podssh-ws/src/client.rs:251-303`). The private files of the token cache can hold a pair
+(`crates/podssh-ws/src/client.rs:259-311`). The private files of the token cache can hold a pair
 (`crates/podssh-relay/src/cache.rs:126-153`, `:221-240`).
 
 ## Approach
@@ -57,7 +57,7 @@ sends fixed headers, and `https_request`, which takes headers, is private
    answer. Never print the `stop_token` (`docs/reverse.md:48-49`).
 5. `pair::status` tries `connect_token`, then `node_token`; record the one that works in
    `docs/reverse.md:53`.
-6. Add to `podssh-ws` a public request with one token header (`crates/podssh-ws/src/client.rs:281-303`).
+6. Add to `podssh-ws` a public request with one token header (`crates/podssh-ws/src/client.rs:289-311`).
    Invariant: the header value never reaches an error.
 7. Store a pair as one private file (`cache::store_file`) under the local label of T-083. The
    operator's part (relay host, name, `connect_token`, expiry) goes to a file that the user names
@@ -109,11 +109,11 @@ Read: the codecs exist, with tests: node frames and chunks (`crates/podssh-trans
 `:113-123`), control messages (`crates/podssh-transport/src/control.rs:155-238`), a limit of 16 sessions when
 no `hello` comes (`crates/podssh-transport/src/control.rs:111-137`), and the close table
 (`crates/podssh-transport/src/closes.rs:60-88`, `:156-229`). They carry the defects of T-071, T-072, T-073,
-T-075 and T-076 (T-071 and T-072 repaired 2026-10-09).
+T-075 and T-076 (T-071, T-072, T-073 and T-075 repaired 2026-10-09).
 
 Read: `RelaySession` has text, binary, Ping and Close writes and a liveness watcher
 (`crates/podssh-ws/src/session.rs:86-166`); `podssh_relay::open::backoff` has a jitter
-(`crates/podssh-relay/src/open.rs:263-277`). Not measured: whether the relay answers a Ping on a reverse socket
+(`crates/podssh-relay/src/open.rs:261-275`). Not measured: whether the relay answers a Ping on a reverse socket
 (`docs/relay.md:71-73` is the forward path), and its idle cut there (`docs/relay.md:186-187`, T-061). A node
 that connects again ends each operator session on it (`docs/design.md:174-177`).
 
@@ -140,7 +140,7 @@ verified here).
 5. Liveness: measure whether the relay answers a Ping on a node socket; if it does, use `watch_liveness`. Never
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
-   (`crates/podssh-relay/src/open.rs:232`), and a quiet socket would reconnect.
+   (`crates/podssh-relay/src/open.rs:230`), and a quiet socket would reconnect.
 6. Close actions, by code and reason (`docs/reverse.md:42-44`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
@@ -311,7 +311,7 @@ page (`git show 3ee70dc:docs/defects.md`), section "podssh-transport". Read here
 The relay protocol lives in two crates. `podssh-relay` opens forward sessions and handles tokens;
 `podssh-transport` holds the reverse framing, the control messages and the close table, mostly
 unused. Two crates for one protocol drift: they already disagree on the backoff (T-077) and on
-`403` and `503` (T-075).
+`403` and `503` (T-075, repaired 2026-10-09).
 
 ## Premise
 

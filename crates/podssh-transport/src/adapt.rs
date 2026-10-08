@@ -22,10 +22,11 @@
 //!   `payload` cross: `fin` is always true on the frames this client reads,
 //!   and carrying it would invite a caller to branch on it.
 //!
-//! * `close_code_and_reason` and `one_line`: the Close parser and the one
-//!   definition of text that is safe to print, lent from `podssh-ws` to
-//!   `WsSocket::recv` and to the close table, so neither crate has a second
-//!   copy and no other module names `podssh-ws`.
+//! * `close_code_and_reason`, `one_line` and `is_policy_refusal`: the Close
+//!   parser, the one definition of text that is safe to print, and the one
+//!   reading of a policy refusal, lent from `podssh-ws`, so neither crate has
+//!   a second copy and no other module names `podssh-ws`. `refused` keeps the
+//!   status and the body of a refused upgrade.
 //!
 //! ⛔ **What this file does NOT do.** It does not construct a session
 //! (`connect` dials; C4 owns the runner), it does not map Close frames to
@@ -46,6 +47,22 @@ pub(crate) fn close_code_and_reason(payload: &[u8]) -> (Option<u16>, String) {
 /// Text from the network, made safe to print on one line.
 pub(crate) fn one_line(text: &str) -> String {
     podssh_ws::text::one_line(text)
+}
+
+/// Whether a refused upgrade's body is a policy refusal, by the one parser.
+pub(crate) fn is_policy_refusal(body: &str) -> bool {
+    podssh_ws::client::is_policy_refusal(body)
+}
+
+/// A refused upgrade as this crate's error, with its status and its body;
+/// `None` for a connect error that is not an HTTP answer.
+pub fn refused(error: &podssh_ws::client::ConnectError, asked: crate::error::Asked) -> Option<crate::error::TransportError> {
+    match error {
+        podssh_ws::client::ConnectError::Refused { status, body } => {
+            Some(crate::socket::http_failure(*status, body, asked))
+        }
+        _ => None,
+    }
 }
 
 /// ⛔ **C1, as an impl.** Four forwards and the opcode mapping. If the live

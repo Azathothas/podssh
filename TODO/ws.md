@@ -27,8 +27,8 @@ checks the reserved bits (lines 124-128), the opcode (129-135), the mask directi
 the length caps (152-194). It never compares `fin` or the length with `MAX_CONTROL_PAYLOAD`
 (lines 33-37) for the opcodes 0x8 to 0xA. The constant only stops the answer to a large Ping,
 and the session goes on (`crates/podssh-ws/src/session.rs:181-187`;
-`crates/podssh-ws/src/client.rs:323-327`). A Ping with FIN clear becomes `Event::Pong` and gets
-an answer (`crates/podssh-ws/src/client.rs:363-365`). A Close or a Pong of any size is accepted
+`crates/podssh-ws/src/client.rs:331-335`). A Ping with FIN clear becomes `Event::Pong` and gets
+an answer (`crates/podssh-ws/src/client.rs:371-373`). A Close or a Pong of any size is accepted
 (`crates/podssh-ws/src/session.rs:188-199`). A Close of 1 byte is read as a Close with no code
 (lines 275-278); RFC 6455 section 5.5.1 allows 0 bytes, or 2 and more.
 
@@ -197,12 +197,12 @@ provider, so podbox cannot.
 ## Premise
 
 Read: `open_tls` builds the trust anchors and the configuration on each call
-(`crates/podssh-ws/src/client.rs:179-199`, through `crates/podssh-ws/src/tls.rs:153-173`).
+(`crates/podssh-ws/src/client.rs:187-207`, through `crates/podssh-ws/src/tls.rs:153-173`).
 `WsClientConfig` carries only a `Trust` (`crates/podssh-ws/src/client.rs:47-61`). The same
-`Trust` goes through `podssh-relay`: `Request` (`crates/podssh-relay/src/open.rs:127-137`),
+`Trust` goes through `podssh-relay`: `Request` (`crates/podssh-relay/src/open.rs:125-135`),
 `MintContext` (`crates/podssh-relay/src/token.rs:92-97`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:117-126`), and the `https_*` functions
-(`crates/podssh-ws/src/client.rs:253-279`). podssh's configuration offers no ALPN
+(`crates/podssh-ws/src/client.rs:261-287`). podssh's configuration offers no ALPN
 (`crates/podssh-ws/src/tls.rs:167-170`), because the upgrade is HTTP/1.1 only
 (`docs/relay.md:169`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
@@ -321,11 +321,11 @@ TCP on the loopback. `podssh-ws` always does TLS, so each such test needs a CA a
 
 ## Premise
 
-Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs:154-176`), and the
-upgrade takes the TLS stream type (`crates/podssh-ws/src/client.rs:205-249`). `RelaySession` is
+Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs:162-184`), and the
+upgrade takes the TLS stream type (`crates/podssh-ws/src/client.rs:213-257`). `RelaySession` is
 generic over its stream (`crates/podssh-ws/src/session.rs:32`), so a session over `TcpStream`
 is possible. `podssh-relay` gives the TLS type back (`Opened`,
-`crates/podssh-relay/src/open.rs:139-144`). The tests use in-memory streams
+`crates/podssh-relay/src/open.rs:137-142`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:33-35`) or local TLS servers
 (`crates/podssh-ws/tests/hostname_verification.rs:63`). `dial::is_loopback` exists
 (`crates/podssh-ws/src/dial.rs:164-172`).
@@ -515,7 +515,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (lines 80-88). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:108-137`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:358-367`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:366-375`). The stand-in relay writes the minimal form
 (`scripts/fake-relay.py:54-62`); the frames of the real relay were not checked for it.
 
 ## Approach

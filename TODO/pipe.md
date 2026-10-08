@@ -120,7 +120,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 ## Premise
 
 - Read: `podssh proxy` is the `relay:` address today. It opens the session
-  with `crates/podssh-relay/src/open.rs:177-213` and pumps it
+  with `crates/podssh-relay/src/open.rs:175-211` and pumps it
   (`crates/podssh-cli/src/proxy.rs:45-93`).
 - Read: `crates/podssh-ssh/src/relay_stream.rs:88-92` sends Close 1000 when
   its write side ends. That is right for SSH and wrong for a pipe: the relay
@@ -142,7 +142,7 @@ local program to a target, and `podssh proxy` stays a second pump.
    its road and gives a duplex stream and, at the end, a close reason. The
    pump does not know the road (`docs/architecture.md:92-94`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:97-110` does;
-   open with `crates/podssh-relay/src/open.rs:177-213`. Keep the rules of
+   open with `crates/podssh-relay/src/open.rs:175-211`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
    (`crates/podssh-cli/src/proxy.rs:187-192`), empty frames dropped. IPv6
    literals follow T-007.
@@ -400,7 +400,7 @@ running on the server (`docs/design.md:207-209`).
    1006, 1009 or 1011. Never after an exit status, `~.`, a detach of tmux
    (exit 0), or a failure of the host key or the authentication.
 5. Between attempts: leave raw mode, print one line for each attempt, and
-   wait with `crates/podssh-relay/src/open.rs:271-277` (jittered, 30 s at
+   wait with `crates/podssh-relay/src/open.rs:269-275` (jittered, 30 s at
    most); 10 attempts or 5 minutes at most. Ctrl-C stops the wait with 255.
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the

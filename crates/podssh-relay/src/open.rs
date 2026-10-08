@@ -110,11 +110,9 @@ impl OpenError {
     }
 }
 
-/// The relay's wording for a policy refusal (spec: "not in the ALLOW list").
-pub fn is_policy_refusal(body: &str) -> bool {
-    let body = body.to_ascii_lowercase();
-    body.contains("allow list") || body.contains("not allowed") || body.contains("blocked")
-}
+/// The relay's wording for a policy refusal (spec: "not in the ALLOW list"),
+/// defined once in `podssh-ws`.
+pub use podssh_ws::client::is_policy_refusal;
 
 /// A `502` whose reason is the target's name or address, which no other host
 /// will resolve differently.

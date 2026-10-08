@@ -815,7 +815,7 @@ Read:
 
 - `scripts/gate.sh:55-136` has no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
-- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:281`).
+- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:289`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
   `crates/podssh-transport/src/socket.rs` (458),
   `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
@@ -1335,7 +1335,7 @@ files); docs/TODO/cli/surface.md (`crates/podssh-cli/src/flags.rs:103`,
 
 Read, wrong facts:
 
-- `crates/podssh-transport/src/error.rs:17-24` and lines 38-78 cite rows of the
+- `crates/podssh-transport/src/error.rs:18-25` and lines 38-78 cite rows of the
   relay's document by line, each 35 lower than the row in the pinned copy
   (line 135 there is line 170 of
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
