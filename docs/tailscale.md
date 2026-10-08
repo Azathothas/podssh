@@ -1,26 +1,28 @@
-# Tailscale (milestone 8)
+# Tailscale (milestone M8)
 
-`podssh ts` (cargo feature `ts`) joins a tailnet through a vendored fork of
-tailscale-rs (`vendor/tailscale-rs`, local patches in `vendor/patches/`), with
-DERP carried over a WebSocket relay so it works on hosts whose only egress is
-HTTPS. It is built only with `--features ts`; see [development.md](development.md).
+`podssh ts` (cargo feature `ts`) joins a tailnet through a fork of
+tailscale-rs (`vendor/tailscale-rs`, with local patches in `vendor/patches/`).
+DERP goes over a WebSocket relay, so it works on hosts whose only egress is
+HTTPS. Build it only with `--features ts`; see [development.md](development.md).
 
-## State on 2026-10-07
+## State (measured 2026-10-07)
 
-- Probe nodes registered with the tailnet (the control login works) but got
-  no network map within 60 s.
-- The fork does not pass the relay's `1008 "not authorized"` up through its
-  `Device` API, so a node key missing from the relay's allowlist looks like a
-  network map that has not arrived yet. Surfacing that close is the first fix.
-- Adding node keys to the allowlist is the operator's job (it needs a Tailscale
-  admin token and a deployment credential for the relay).
-- The two-node live acceptance test has never passed.
+- Probe nodes registered with the tailnet (the control login works), but no
+  network map arrived within 60 s.
+- The fork does not give the relay's `1008 "not authorized"` to its `Device`
+  API. Thus a node key that is not in the relay's allowlist looks like a
+  network map that has not arrived yet. Repair this first.
+- The operator adds node keys to the allowlist. This needs a Tailscale admin
+  token and a deployment credential for the relay.
+- The live test with two nodes has never passed.
+- More open defects: C2, C3 and C9 in [defects.md](defects.md).
 
-## Things to know
+## Rules
 
-- A new `--ts-state` file means a new node key, which is a new device and a new
-  allowlist entry. Reuse one state file.
-- Whether a sandbox's proxy allows `tcp.ts.relay.ajam.dev:443` is not measured.
-- The relay's `derpMap` runbook is still open.
-- Dropping a split write half did not reliably signal end of stream; call
-  `shutdown()` explicitly.
+- A new `--ts-state` file makes a new node key: a new device and a new
+  allowlist entry. Use one state file again and again.
+- It is not measured whether the proxy of a sandbox allows
+  `tcp.ts.relay.ajam.dev:443`.
+- The `derpMap` runbook of the relay is still open.
+- To signal the end of a stream, call `shutdown()`. Dropping a split write
+  half did not always signal it.
