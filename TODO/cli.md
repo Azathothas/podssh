@@ -482,7 +482,7 @@ Measured offline (`PODSSH_OFFLINE=1`):
   `-J -x host` (255), so it never gives such a `%h` to `podssh proxy`.
 
 Read: no option makes podssh start a program: `ProxyCommand` is refused and
-`LocalCommand` is ignored (`crates/podssh-cli/src/ssh/keywords.rs:68-77`). The
+`LocalCommand` is ignored (`crates/podssh-cli/src/ssh/keywords.rs:69-78`). The
 risk is a changed option (a host, a relay, a trust store), not a command.
 
 ## Approach
@@ -1003,7 +1003,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    (`NewPassphrase`, `crates/podssh-cli/src/keygen.rs:24-32`).
 2. Read the key with each format that `podssh ssh -i` reads:
    `russh::keys::decode_secret_key`, the reader behind `load_secret_key`
-   (`crates/podssh-ssh/src/keys.rs:179`). Ask for the old passphrase on the
+   (`crates/podssh-ssh/src/keys.rs:190`). Ask for the old passphrase on the
    terminal or through `SSH_ASKPASS`, as `-y` does. With neither, refuse at
    once and name `-P ''` and `-N ''` (as `crates/podssh-cli/src/keygen.rs:168-172`).
 3. `-p`: ask for the new passphrase twice (or take `-N ''`), and encrypt with
@@ -1205,7 +1205,7 @@ Read: `ssh-key` 0.7.0-rc.11 (`Cargo.lock`) has a certificate builder: a random
 nonce, the serial, the type, the key id, the principals, critical options,
 extensions, and `sign` (its certificate/builder.rs, read in the local cargo
 registry). `podssh ssh` uses no certificate: it ignores `CertificateFile`
-(`crates/podssh-cli/src/ssh/keywords.rs:63`), and it checks host certificates
+(`crates/podssh-cli/src/ssh/keywords.rs:64`), and it checks host certificates
 as plain keys (`docs/STATUS.md`, section "Components"). T-027 covers that side.
 
 ## Approach
@@ -1275,7 +1275,7 @@ with `-p`.
 
 Read: `read_key_file` takes only an OpenSSH private key or a public key line
 (`crates/podssh-ssh/src/keygen.rs:151-172`). `podssh ssh -i` loads a key with
-`russh::keys::load_secret_key` (`crates/podssh-ssh/src/keys.rs:179`), which
+`russh::keys::load_secret_key` (`crates/podssh-ssh/src/keys.rs:190`), which
 calls `decode_secret_key`: OpenSSH, PKCS#1 RSA, PKCS#8 (also encrypted), SEC1
 EC and PuTTY PPK. russh also has `encode_pkcs8_pem` and
 `encode_pkcs8_pem_encrypted` (russh 0.64.1, `Cargo.lock`; its
@@ -1545,8 +1545,8 @@ texts: `--accept-new` at `crates/podssh-cli/src/non_interactive.rs:245-246`,
 flag (`crates/podssh-cli/tests/non_interactive.rs:225`).
 
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:78`), called at
-`crates/podssh-ssh/src/auth.rs:157`, `crates/podssh-ssh/src/auth.rs:209`,
-`crates/podssh-ssh/src/keys.rs:190` and `crates/podssh-cli/src/keygen.rs:169`.
+`crates/podssh-ssh/src/auth.rs:161`, `crates/podssh-ssh/src/auth.rs:215`,
+`crates/podssh-ssh/src/keys.rs:201` and `crates/podssh-cli/src/keygen.rs:169`.
 Its refusals name the real remedies (`docs/cli.md:166-168`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:191-204`,

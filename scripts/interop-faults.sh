@@ -161,6 +161,26 @@ took=$(( $(date +%s) - start ))
     && ok "faults: the relay host killed mid-session: exit 255 after ${took}s, and the relay is named" \
     || bad "faults: a relay killed mid-session: exit $rc after ${took}s" "$FK/err"
 
+# A server that stalls after the key exchange (T-236): the stand-in passes
+# OpenSSH's bytes up to its NEWKEYS, then drops them. On --direct nothing
+# else ends the wait: each answer during the login has the ConnectTimeout
+# limit. `timeout 90` ends a podssh that has none.
+python3 "$HERE/fake-stall.py" --target 127.0.0.1:2201 --port-file "$FK/kexstall.port" \
+    >"$FK/kexstall.log" 2>&1 &
+echo $! >"$FK/kexstall.pid"
+tries=0
+while [ ! -s "$FK/kexstall.port" ] && [ "$tries" -lt 30 ]; do sleep 1; tries=$((tries + 1)); done
+start=$(date +%s)
+# shellcheck disable=SC2086
+timeout 90 env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p "$(port kexstall)" \
+    -o UserKnownHostsFile="$KH" -o StrictHostKeyChecking=accept-new -o IdentityAgent=none \
+    -o IdentitiesOnly=yes $K -o BatchMode=yes -o ConnectTimeout=10 "$T" true >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+took=$(( $(date +%s) - start ))
+[ "$rc" = 255 ] && [ "$took" -lt 60 ] && grep -q "did not answer the first request to log in within 10 s" "$FK/err" \
+    && ok "faults: a server that stalls after the key exchange: exit 255 after ${took}s, and the wait is named" \
+    || bad "faults: a server that stalls after the key exchange: exit $rc after ${took}s" "$FK/err"
+
 for f in "$FK"/*.pid; do
     kill "$(cat "$f")" 2>/dev/null
 done

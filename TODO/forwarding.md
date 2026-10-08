@@ -29,7 +29,7 @@ server listens, and the client connects out for each connection.
   forwarding is not implemented yet", exit 64.
 - Read: the row and the refusals are `crates/podssh-cli/src/flags.rs:194-195`,
   `crates/podssh-cli/src/ssh/options.rs:148` and
-  `crates/podssh-cli/src/ssh/keywords.rs:80`. `-W` is not a substitute: it
+  `crates/podssh-cli/src/ssh/keywords.rs:81`. `-W` is not a substitute: it
   carries the other direction.
 - Read: the manual's note says "-L, -R and -D are refused by name: podssh
   never listens on a port" (`crates/podssh-cli/src/man/notes.rs` lines 31-32
@@ -53,7 +53,7 @@ server listens, and the client connects out for each connection.
    the remote SOCKS form (`-R [bind:]port`) until a later step.
 2. After the login, send `tcpip-forward` for each spec. Print a port that the
    server chose, as OpenSSH does. Honour `ExitOnForwardFailure`, which is
-   ignored today (`crates/podssh-cli/src/ssh/keywords.rs:65`): a refused
+   ignored today (`crates/podssh-cli/src/ssh/keywords.rs:66`): a refused
    forward then ends the run with 255.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
@@ -129,11 +129,11 @@ remote host that must use the key, such as `git` on a build host.
   (`crates/podssh-cli/src/flags.rs:198-199`).
 - Measured, offline: `-o ForwardAgent=yes` is accepted with no effect; only
   `-v` says so ("-o ForwardAgent has no effect in podssh"). The keyword is
-  in `IGNORED` (`crates/podssh-cli/src/ssh/keywords.rs:65`). So the flag
+  in `IGNORED` (`crates/podssh-cli/src/ssh/keywords.rs:66`). So the flag
   refuses, and the keyword is silent.
 - Read: podssh already connects to the local agent to log in: `SSH_AUTH_SOCK`
   on Unix; the named pipe of the OpenSSH agent, then Pageant, on Windows
-  (`crates/podssh-ssh/src/keys.rs:248-279`). That is a connection, not a
+  (`crates/podssh-ssh/src/keys.rs:259-290`). That is a connection, not a
   listener.
 - Read: russh 0.64.1 has `Channel::agent_forward`
   (`auth-agent-req@openssh.com`), and its default handler accepts an
@@ -148,14 +148,14 @@ remote host that must use the key, such as `git` on a build host.
 
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
-   (`crates/podssh-cli/src/ssh/keywords.rs:23-73`). Change the help of `-a`
+   (`crates/podssh-cli/src/ssh/keywords.rs:23-74`). Change the help of `-a`
    (`crates/podssh-cli/src/flags.rs:180-181`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
    before the shell or exec request (`crates/podssh-ssh/src/session.rs:61-75`).
    Never to a jump hop.
 3. In the handler, accept `auth-agent@openssh.com` only when `-A` was given
    for this connection. For each such channel, connect to the agent with the
-   code of `crates/podssh-ssh/src/keys.rs:248-279`, then copy bytes. Reject
+   code of `crates/podssh-ssh/src/keys.rs:259-290`, then copy bytes. Reject
    the channel without `-A`, and warn, as OpenSSH does.
 4. Write the rule and the risk in the manual's notes and in `docs/cli.md`
    (section "Forwarding"): while the session lasts, root on the server can
@@ -202,7 +202,7 @@ X11 channel.
   the same (`crates/podssh-cli/src/flags.rs:227-230`).
 - Measured, offline: `-o ForwardX11=yes` is accepted with no effect, as
   `ForwardAgent` is. Read: `ForwardX11Trusted`, `ForwardX11Timeout` and
-  `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:60-73`).
+  `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:61-74`).
 - Read: russh 0.64.1 has `Channel::request_x11` (`x11-req`), and its default
   handler accepts each `x11` channel. podssh's handler does not override it
   (`crates/podssh-ssh/src/handler.rs:44-88`).
@@ -232,7 +232,7 @@ X11 channel.
    (`crates/podssh-cli/src/flags.rs:178-179`).
 6. On Windows, a `DISPLAY` such as `localhost:0` (VcXsrv, X410) is TCP port
    6000. The X server's connection is local and named by the user, as the
-   agent's connection is (`crates/podssh-ssh/src/keys.rs:248-279`).
+   agent's connection is (`crates/podssh-ssh/src/keys.rs:259-290`).
 
 ## Decision
 
@@ -321,11 +321,11 @@ AF_UNIX.
 4. The user sets the address as in OpenSSH: the `bind_address` of the spec,
    and a wildcard address only with `-g` or `GatewayPorts yes`, which have no
    effect today (`crates/podssh-cli/src/flags.rs:185-186`,
-   `crates/podssh-cli/src/ssh/keywords.rs:66`). Remove an AF_UNIX socket at
+   `crates/podssh-cli/src/ssh/keywords.rs:67`). Remove an AF_UNIX socket at
    exit; with `StreamLocalBindUnlink`, remove a stale one first.
 5. The user turns listening off: `-o ClearAllForwardings=yes` for one run
    (OpenSSH's keyword, ignored today,
-   `crates/podssh-cli/src/ssh/keywords.rs:63`), and for a whole host a
+   `crates/podssh-cli/src/ssh/keywords.rs:64`), and for a whole host a
    variable that refuses each local listener (`-L`, `-D`, T-039, T-034). Add
    it to `VARIABLES` in `crates/podssh-cli/src/man/facts.rs`.
 6. In the same commit, change the rows, the keywords, the note at
@@ -381,7 +381,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   (`crates/podssh-cli/src/flags.rs:217-222`).
 - Measured, offline: `-o ControlMaster=auto -o ControlPath=/tmp/c` is
   accepted with no effect; only `-v` says so
-  (`crates/podssh-cli/src/ssh/keywords.rs:64`). A script that sets them still
+  (`crates/podssh-cli/src/ssh/keywords.rs:65`). A script that sets them still
   works, with one connection for each run.
 - Read: a control socket is a listener. `AGENTS.md:177-182` forbids it in the
   words from before the ruling. Sandbox A allowed a bind for AF_UNIX

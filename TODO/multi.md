@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/resolve.rs:286-326`,
   `crates/podssh-relay/src/relay.rs:160-174`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:184-201`); they cannot define a group.
+  (`docs/cli.md:189-206`); they cannot define a group.
 
 ## Approach
 
@@ -244,7 +244,7 @@ and read the screen, over several of its own calls. Each run of
   the address and can turn listening off.
 - Read: `-M`, `-O` and `-S` are refused by name
   (`crates/podssh-cli/src/flags.rs:217-222`); `ControlMaster` is ignored
-  (`crates/podssh-cli/src/ssh/keywords.rs:64`).
+  (`crates/podssh-cli/src/ssh/keywords.rs:65`).
 - Read: with no listener, T-055 (`podssh mcp` over stdin and stdout) gives
   an agent tools for the life of one process.
 
@@ -540,7 +540,7 @@ expect rule.
 
 - Measured: `podssh ssh -o LocalCommand=true -o PermitLocalCommand=yes -v user@host.invalid true`
   prints `-o LocalCommand has no effect in podssh`, and the same for
-  `PermitLocalCommand` (`crates/podssh-cli/src/ssh/keywords.rs:68-69`).
+  `PermitLocalCommand` (`crates/podssh-cli/src/ssh/keywords.rs:69-70`).
 - Read: remote output arrives at `crates/podssh-ssh/src/io.rs:104-111`, and
   input leaves at `crates/podssh-ssh/src/io.rs:58-82`. An expect rule goes
   between them.
@@ -551,7 +551,7 @@ expect rule.
 ## Approach
 
 1. `LocalCommand`: move it and `PermitLocalCommand` from IGNORED to
-   HONOURED (`crates/podssh-cli/src/ssh/keywords.rs:23-56`), with fields in
+   HONOURED (`crates/podssh-cli/src/ssh/keywords.rs:23-57`), with fields in
    `crates/podssh-cli/src/ssh/options.rs:13-51`. Run it when OpenSSH runs it
    (check the order in the container). Expand the tokens with
    `crates/podssh-cli/src/ssh/resolve.rs:328-355`, and add `%p` and `%n`.

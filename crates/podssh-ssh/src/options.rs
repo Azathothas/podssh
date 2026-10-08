@@ -199,7 +199,8 @@ pub struct Options {
     pub keepalive_interval: Option<Duration>,
     /// `ServerAliveCountMax`.
     pub keepalive_max: usize,
-    /// Bound on the SSH handshake and authentication (`ConnectTimeout`).
+    /// `ConnectTimeout`: the limit on the SSH handshake, and on each answer of
+    /// the server during the authentication.
     pub connect_timeout: Duration,
     pub request: Request,
     pub request_tty: RequestTty,

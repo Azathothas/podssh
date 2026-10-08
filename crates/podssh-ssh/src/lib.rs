@@ -19,6 +19,7 @@
 //!   `ssh-keygen` ([`keygen`]), and a host-key probe that never logs in
 //!   ([`probe`]).
 
+mod answer;
 pub mod auth;
 pub mod escape;
 pub mod forward;

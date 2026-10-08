@@ -593,8 +593,8 @@ one-time code (TOTP) needs only a shared secret and a clock.
   partial success, then `auth_keyboard_interactive`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 175-208 and 309-318).
 - Read: podssh's client answers keyboard-interactive after a partial success
-  (`crates/podssh-ssh/src/auth.rs:106-113`,
-  `crates/podssh-ssh/src/auth.rs:150-200`), through the terminal or
+  (`crates/podssh-ssh/src/auth.rs:109-116`,
+  `crates/podssh-ssh/src/auth.rs:153-206`), through the terminal or
   `SSH_ASKPASS`.
 - Read: HMAC and SHA-1 are dependencies already
   (`crates/podssh-ssh/Cargo.toml:23-24`).

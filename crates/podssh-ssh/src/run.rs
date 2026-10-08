@@ -112,7 +112,7 @@ where
 }
 
 /// The SSH handshake and login for one hop.
-async fn connect<S>(stream: S, hop: &Hop, is_destination: bool, opts: &Options, log: &Arc<Log>) -> Result<Handle<Client>, String>
+pub(crate) async fn connect<S>(stream: S, hop: &Hop, is_destination: bool, opts: &Options, log: &Arc<Log>) -> Result<Handle<Client>, String>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {

@@ -27,10 +27,10 @@ Read:
 
 - `resolve` removes `publickey` from the methods when `PubkeyAuthentication`
   is `no` (`crates/podssh-cli/src/ssh/resolve.rs:132-137`). The chain then
-  never offers a key (`crates/podssh-ssh/src/auth.rs:80-86`).
+  never offers a key (`crates/podssh-ssh/src/auth.rs:83-89`).
 - The denial adds the notes of the keys with no condition
   (`crates/podssh-ssh/src/auth.rs` line 115 at `475aea9`). `PublicKeys::notes` writes "no key
-  was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:83-96`).
+  was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:91-104`).
 - The reporter's output (GitHub #7): the line
   `Permission denied (publickey,keyboard-interactive).`, the note about
   keyboard-interactive, then the wrong note.
@@ -42,7 +42,7 @@ Read:
 
 1. In `authenticate`, add the notes of `PublicKeys` only when `publickey` is
    in `opts.methods` and in the server's first answer
-   (`crates/podssh-ssh/src/auth.rs:64-68`). Keep that first list: `allowed`
+   (`crates/podssh-ssh/src/auth.rs` lines 64-68 at `9fefff2`). Keep that first list: `allowed`
    changes in the loop.
 2. When the user turned `publickey` off, write one true note instead:
    "publickey was not tried: -o PubkeyAuthentication=no", or
@@ -52,8 +52,8 @@ Read:
 3. When the server does not accept `publickey`, say nothing about keys:
    `-i FILE` cannot help.
 4. Give the note about skipped encrypted keys
-   (`crates/podssh-ssh/src/keys.rs:97-103`) the same condition as step 1.
-5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:75`),
+   (`crates/podssh-ssh/src/keys.rs:105-111`) the same condition as step 1.
+5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:78`),
    so that only the notes change. No document changes: `docs/cli.md:160-182`
    already says that a refusal names the remedy.
 
@@ -406,7 +406,7 @@ logs each `exit-status` request, and correct the row.
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
 lablup/bssh report in GitHub #18, #20 and #22 (item 8, "`@cert-authority`
-rejection"); the known gap in `docs/STATUS.md:199` and `SECURITY.md:66-68`.
+rejection"); the known gap in `docs/STATUS.md:200` and `SECURITY.md:66-68`.
 Each claim read again here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog
@@ -472,7 +472,7 @@ back to the plain key only when no CA line matches.
    (`crates/podssh-cli/src/doctor/clock.rs`).
 6. Keep the test `a_cert_authority_line_does_not_make_a_key_known`: a CA line
    never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:48-50`.
-   When certificates work, change `docs/STATUS.md:199` and `SECURITY.md:66-68`.
+   When certificates work, change `docs/STATUS.md:200` and `SECURITY.md:66-68`.
 
 GitHub #29 notes that the bssh report in #18, #20 and #22 asks podssh to
 keep refusing a certificate that no trusted CA signed. Verification keeps
@@ -744,7 +744,7 @@ and no other.
   refuse.
 - Read: OpenSSH has no keyword for this. podssh refuses
   `KnownHostsCommand` (`crates/podssh-cli/src/ssh/options.rs:153-157`,
-  `crates/podssh-cli/src/ssh/keywords.rs:83`).
+  `crates/podssh-cli/src/ssh/keywords.rs:84`).
 - Measured, offline (`PODSSH_OFFLINE=1`):
   `podssh ssh --host-key-fingerprint SHA256:abc example.invalid true` gives
   `unknown flag '--host-key-fingerprint'`, exit 64.
@@ -755,7 +755,7 @@ and no other.
    `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-233`), and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:53-59`). Refuse a malformed value with
    exit 64 before anything connects.
-2. Carry it in `Options` (`crates/podssh-ssh/src/options.rs:163-217`) and
+2. Carry it in `Options` (`crates/podssh-ssh/src/options.rs:163-218`) and
    `Policy` (`crates/podssh-ssh/src/hostkey.rs:17-27`), for the destination
    only, as `HostKeyAlias` (`crates/podssh-ssh/src/run.rs:120-123`).
 3. In `Policy::check`, refuse a revoked key and a changed key first, as today
@@ -962,9 +962,9 @@ runs: with no user database entry, OpenSSH's programs stop at once
 - Read: podssh uses an agent that `SSH_AUTH_SOCK` names, today. On Unix it
   connects to that socket, or to `IdentityAgent PATH`; on Windows it tries
   the named pipe of `SSH_AUTH_SOCK`, then the pipe of the OpenSSH agent, then
-  Pageant (`crates/podssh-ssh/src/keys.rs:248-279`). It offers the agent's
-  keys first (`crates/podssh-ssh/src/keys.rs:107-156`), and skips the agent's
-  certificates (`crates/podssh-ssh/src/keys.rs:115-118`).
+  Pageant (`crates/podssh-ssh/src/keys.rs:259-290`). It offers the agent's
+  keys first (`crates/podssh-ssh/src/keys.rs:115-167`), and skips the agent's
+  certificates (`crates/podssh-ssh/src/keys.rs:123-126`).
 - Read: russh 0.64.1, which the binary links, has an agent server
   (`russh::keys::agent::server::serve`): identities, signatures, add and
   remove, lock, and the lifetime and confirm constraints. It has no handler
@@ -1093,7 +1093,7 @@ Read:
 3. The other change: set `inactivity_timeout` at
    `crates/podssh-ssh/src/run.rs:205`. russh resets that timer only in a loop
    round that sent no keepalive, podssh's keepalive interval is also 60 s
-   (`crates/podssh-ssh/src/options.rs:238`), and the timer also ends a
+   (`crates/podssh-ssh/src/options.rs:239`), and the timer also ends a
    session that is only idle. Measure an idle session with
    `ServerAliveInterval=0` before this choice.
 4. Keep the forwarder as a fault in `scripts/interop-faults.sh`, with the
@@ -1154,9 +1154,9 @@ Read:
   The askpass program's answer is zeroized
   (`crates/podssh-ssh/src/prompt.rs:100-117`).
 - The prompts for a credential: the passphrase of a key file
-  (`crates/podssh-ssh/src/keys.rs:189-209`), the password
-  (`crates/podssh-ssh/src/auth.rs:202-224`), and the answers of
-  keyboard-interactive (`crates/podssh-ssh/src/auth.rs:150-200`).
+  (`crates/podssh-ssh/src/keys.rs:200-220`), the password
+  (`crates/podssh-ssh/src/auth.rs:208-229`), and the answers of
+  keyboard-interactive (`crates/podssh-ssh/src/auth.rs:153-206`).
 - podssh stores no credential but the relay token cache, readable by the
   owner only (`crates/podssh-relay/src/cache.rs:1-8`).
 - russh's agent server has no handler for the extension message (27), so a
@@ -1233,11 +1233,11 @@ with the key file of one, and has no agent to hold one.
   `unknown key type "ed25519-sk": ed25519 (the default), ecdsa or rsa`,
   exit 64, and writes nothing.
 - Read: the default key files leave out the types of security keys
-  (`crates/podssh-ssh/src/options.rs:253-260`). `known_hosts::key_type` names
+  (`crates/podssh-ssh/src/options.rs:254-261`). `known_hosts::key_type` names
   them (`crates/podssh-ssh/src/known_hosts.rs:251-252`), and `ssh-key`
   0.7.0-rc.11 has their algorithms.
 - Read: podssh offers each key that an agent lists
-  (`crates/podssh-ssh/src/keys.rs:107-156`), so an `sk-` key in OpenSSH's
+  (`crates/podssh-ssh/src/keys.rs:115-167`), so an `sk-` key in OpenSSH's
   `ssh-agent`, with its device present, can work today. Not measured.
 - Read: `-I` (PKCS#11) is refused by name
   (`crates/podssh-cli/src/flags.rs:213-214`).
@@ -1285,7 +1285,7 @@ probe, and the refusal check fails with an error of the device layer.
 **Milestone:** M3
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1297,15 +1297,15 @@ comment of the field says that the limit covers the authentication too.
 
 ## Premise
 
-Read:
+Read, at `9fefff2`:
 
 - The comment says "Bound on the SSH handshake and authentication"
-  (`crates/podssh-ssh/src/options.rs:202-203`). The manual says "the SSH
-  handshake" only (`crates/podssh-cli/src/ssh/keywords.rs:28`,
-  `crates/podssh-cli/src/flags.rs:167-168`).
+  (`crates/podssh-ssh/src/options.rs` lines 202-203). The manual says "the
+  SSH handshake" only (`crates/podssh-cli/src/ssh/keywords.rs` line 28,
+  `crates/podssh-cli/src/flags.rs` lines 167-168).
 - `connect` limits `connect_stream` only
-  (`crates/podssh-ssh/src/run.rs:137-159`); `auth::authenticate` runs with no
-  limit (`crates/podssh-ssh/src/run.rs:160`).
+  (`crates/podssh-ssh/src/run.rs` lines 137-159); `auth::authenticate` runs
+  with no limit (line 160 there).
 - In russh 0.64.1, an authentication request waits for its reply with no
   limit (`wait_recv_reply`), and keepalives start only after the
   authentication succeeds. So nothing ends the wait on the direct road.
@@ -1324,20 +1324,19 @@ Not measured: it needs a server that stalls.
    pass the key exchange, then to hold the server's replies. Run
    `timeout 300 podssh ssh --direct ... true`: the reading predicts the time
    limit (exit 124).
-2. Limit each wait for an answer of the server with `ConnectTimeout`: the
-   `none` request (`crates/podssh-ssh/src/auth.rs:64-68`), a key
-   (`crates/podssh-ssh/src/keys.rs:73-76`), an agent key
-   (`crates/podssh-ssh/src/keys.rs:148`), keyboard-interactive
-   (`crates/podssh-ssh/src/auth.rs:162-165`,
-   `crates/podssh-ssh/src/auth.rs:194`) and the password
-   (`crates/podssh-ssh/src/auth.rs:214-218`).
+2. Limit each wait for an answer of the server with `ConnectTimeout`, at
+   `9fefff2`: the `none` request (`crates/podssh-ssh/src/auth.rs` lines
+   64-68), a key (`crates/podssh-ssh/src/keys.rs` lines 73-76), an agent key
+   (line 148 there), keyboard-interactive (`crates/podssh-ssh/src/auth.rs`
+   lines 162-165 and 194) and the password (lines 214-218 there).
 3. Do not count a local prompt: each prompt runs before its request
-   (`crates/podssh-ssh/src/auth.rs:143-148`). Pitfall: an agent that asks its
+   (`crates/podssh-ssh/src/auth.rs:146-151`). Pitfall: an agent that asks its
    user to confirm a signature (`ssh-add -c`) runs inside the agent request.
 4. On expiry, end with 255, and name the step, as "HOST did not answer the
    publickey request within 60 s".
-5. Make the comment and the manual (`keywords.rs:28`, `flags.rs:167-168`)
-   say the same: the handshake, and each answer during the authentication.
+5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:28-29`,
+   `crates/podssh-cli/src/flags.rs:167-168`) say the same: the handshake, and
+   each answer during the authentication.
    `docs/cli.md:180-182` asks for a limit on the whole operation.
 
 ## Decision
@@ -1362,6 +1361,37 @@ answers a request to log in. With a limit of 2 s, under tokio's paused clock,
 podssh ends with the new message. In the gate, the fault of step 1 exits 255
 within 90 s. Planted defect: remove the limit around the publickey request,
 and the unit test reaches its own time limit.
+
+## Done
+
+2026-10-08, in the commit "Each answer of the server while logging in has a
+time limit".
+
+- `crates/podssh-ssh/src/answer.rs` (new): `within` limits one wait for the
+  server with `ConnectTimeout`, and names the request: "HOST did not answer
+  the first request to log in within 60 s". `within_signing` does the same
+  for an agent key, but leaves out the time that the agent spends signing
+  (`Timed` wraps the agent and records it), and never ends a wait while the
+  agent signs.
+- The limit is on the `none` request, each key, each agent key, the
+  keyboard-interactive request and its answers, and the password. Each
+  prompt runs before its request, so a person who types slowly never meets
+  it. The comment of `connect_timeout`, the manual (`-o ConnectTimeout` and
+  `--ConnectTimeout`) and `docs/cli.md` say the same.
+- Step 1 was measured in the gate rather than first: `scripts/fake-stall.py`
+  (new) forwards to OpenSSH and drops the server's bytes after its
+  NEWKEYS, so the client waits for the answer to its first request to log
+  in. T-227 has no forwarder yet.
+- Prove: `cargo test -p podssh-ssh -- auth_answer_limit`: 3 passed. A russh
+  server in the process stops answering the first request, then (in the
+  second test) the publickey request: each ends with the message, at 2 s.
+  The third shows that 3 s in the agent do not count against 2 s, and its
+  control ends at the limit. `sh scripts/dev.sh check`: green; interop 102 of
+  102; the new fault exits 255 after 10 s with `-o ConnectTimeout=10`.
+- Plant: no limit around the publickey request; the unit test reached its
+  own limit ("nothing ended the wait within 30 s"). The gate's binary of
+  `02e4e1f`, before this entry, in the container: the new fault check
+  failed, "exit 143 after 90s" (`timeout 90` ended it).
 
 # T-237: The client accepts each channel that the server opens; OpenSSH refuses a channel that it did not ask for
 

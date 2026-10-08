@@ -101,7 +101,7 @@ Read: the data is in tables already. Commands and flags: `VERBS`
 (`crates/podssh-cli/src/flags.rs:384-411`), each row with its kind and `instead` (lines 19-47),
 and the availability (lines 443-451). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:201-208`). Keywords:
-`crates/podssh-cli/src/ssh/keywords.rs:23-87`, with the stated defaults (lines 99-104).
+`crates/podssh-cli/src/ssh/keywords.rs:23-88`, with the stated defaults (lines 99-104).
 Variables: `crates/podssh-cli/src/man/facts.rs:48-90`. The files and the exit codes are text
 blocks only (`crates/podssh-cli/src/man/facts.rs:100-145`, 231-271), and the blocks of the
 manual do not keep the kind and the `instead` of a flag.
@@ -238,7 +238,7 @@ session to `github.com:22` and checks the host key against GitHub's published ke
 banner step. The script's `ssh` steps trust the key on first use (`accept-new`, line 65), not by
 equality, and its `-tt` step never reaches a pty request: GitHub refuses the key before a
 channel opens. `keygen::generate` makes a key in memory (`crates/podssh-ssh/src/keygen.rs:64-74`),
-and `crates/podssh-ssh/src/keys.rs:73-75` offers a key to the server.
+and `crates/podssh-ssh/src/keys.rs:81-84` offers a key to the server.
 
 ## Approach
 

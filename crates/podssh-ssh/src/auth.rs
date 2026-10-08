@@ -13,6 +13,7 @@ use std::sync::Arc;
 use russh::client::{AuthResult, Handle, KeyboardInteractiveAuthResponse};
 use russh::MethodKind;
 
+use crate::answer::within;
 use crate::handler::Client;
 use crate::keys::PublicKeys;
 use crate::log::Log;
@@ -61,7 +62,9 @@ pub async fn authenticate(
     opts: &Options,
     log: &Arc<Log>,
 ) -> Result<(), String> {
-    let mut allowed: Vec<MethodKind> = match handle.authenticate_none(user).await {
+    let limit = opts.connect_timeout;
+    let none = within(limit, host, "the first request to log in", handle.authenticate_none(user)).await?;
+    let mut allowed: Vec<MethodKind> = match none {
         Ok(AuthResult::Success) => return Ok(()),
         Ok(AuthResult::Failure { remaining_methods, .. }) => remaining_methods.iter().copied().collect(),
         Err(e) => return Err(format!("authentication failed before it started: {e}")),
@@ -72,7 +75,7 @@ pub async fn authenticate(
     ));
     // The first list, for the refusal: `allowed` changes in the loop.
     let first_allowed = allowed.clone();
-    let mut keys = PublicKeys::new(opts, log.clone());
+    let mut keys = PublicKeys::new(opts, host, log.clone());
     let mut exhausted: Vec<Method> = Vec::new();
     let mut kbd_rounds = 0u32;
     let mut password_tries = 0u32;
@@ -91,7 +94,7 @@ pub async fn authenticate(
                 if kbd_rounds > opts.password_prompts.max(1) {
                     Step::Exhausted
                 } else {
-                    keyboard_interactive(handle, user, opts, log, &mut notes).await?
+                    keyboard_interactive(handle, user, host, opts, log, &mut notes).await?
                 }
             }
             Method::Password => {
@@ -150,6 +153,7 @@ async fn ask(text: String, echo: bool) -> Result<zeroize::Zeroizing<String>, Pro
 async fn keyboard_interactive(
     handle: &mut Handle<Client>,
     user: &str,
+    host: &str,
     opts: &Options,
     log: &Log,
     notes: &mut Vec<String>,
@@ -159,10 +163,9 @@ async fn keyboard_interactive(
         return Ok(Step::Exhausted);
     }
     let fail = |e: russh::Error| format!("keyboard-interactive authentication failed: {e}");
-    let mut response = handle
-        .authenticate_keyboard_interactive_start(user, None::<String>)
-        .await
-        .map_err(fail)?;
+    let limit = opts.connect_timeout;
+    let start = handle.authenticate_keyboard_interactive_start(user, None::<String>);
+    let mut response = within(limit, host, "the keyboard-interactive request", start).await?.map_err(fail)?;
     // A server may send any number of rounds; bound them.
     for _ in 0..16 {
         match response {
@@ -191,7 +194,10 @@ async fn keyboard_interactive(
                         }
                     }
                 }
-                response = handle.authenticate_keyboard_interactive_respond(answers).await.map_err(fail)?;
+                // The answers were typed before this request, so the limit
+                // is the server's time only.
+                let respond = handle.authenticate_keyboard_interactive_respond(answers);
+                response = within(limit, host, "the keyboard-interactive answers", respond).await?.map_err(fail)?;
             }
         }
     }
@@ -211,9 +217,8 @@ async fn password(
         return Ok(Step::Exhausted);
     }
     match ask(format!("{user}@{host}'s password: "), false).await {
-        Ok(pw) => handle
-            .authenticate_password(user, pw.as_str())
-            .await
+        Ok(pw) => within(opts.connect_timeout, host, "the password", handle.authenticate_password(user, pw.as_str()))
+            .await?
             .map(Step::from)
             .map_err(|e| format!("password authentication failed: {e}")),
         Err(e) => {

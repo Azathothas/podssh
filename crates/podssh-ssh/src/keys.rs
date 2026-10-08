@@ -5,13 +5,15 @@
 
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use russh::client::Handle;
 use russh::keys::agent::client::{AgentClient, AgentStream};
 use russh::keys::agent::AgentIdentity;
 use russh::keys::{HashAlg, PrivateKey, PrivateKeyWithHashAlg, PublicKey};
 
+use crate::answer::{within, within_signing, AgentTime, Timed};
 use crate::auth::Step;
 use crate::handler::Client;
 use crate::log::Log;
@@ -38,10 +40,14 @@ pub(crate) struct PublicKeys {
     offered: Vec<PublicKey>,
     rsa_hash: Option<Option<HashAlg>>,
     skipped_encrypted: Vec<PathBuf>,
+    /// The limit on each answer of the server (`ConnectTimeout`), and the
+    /// host's name for its message.
+    limit: Duration,
+    host: String,
 }
 
 impl PublicKeys {
-    pub fn new(opts: &Options, log: Arc<Log>) -> Self {
+    pub fn new(opts: &Options, host: &str, log: Arc<Log>) -> Self {
         PublicKeys {
             files: opts.identity_files.iter().cloned().collect(),
             all_files: opts.identity_files.clone(),
@@ -54,6 +60,8 @@ impl PublicKeys {
             offered: Vec::new(),
             rsa_hash: None,
             skipped_encrypted: Vec::new(),
+            limit: opts.connect_timeout,
+            host: host.to_string(),
         }
     }
 
@@ -70,9 +78,9 @@ impl PublicKeys {
             }
             let hash = self.hash_for(handle, &public).await;
             self.log.debug(&format!("offering {} key {}", crate::known_hosts::key_type(&public), path.display()));
-            let result = handle
-                .authenticate_publickey(user, PrivateKeyWithHashAlg::new(Arc::new(key), hash))
-                .await
+            let call = handle.authenticate_publickey(user, PrivateKeyWithHashAlg::new(Arc::new(key), hash));
+            let result = within(self.limit, &self.host, "the publickey request", call)
+                .await?
                 .map_err(|e| format!("public key authentication failed: {e}"))?;
             self.offered.push(public);
             return Ok(Step::from(result));
@@ -145,7 +153,10 @@ impl PublicKeys {
             let hash = self.hash_for(handle, &key).await;
             let AgentState::Ready(agent, _) = &mut self.agent else { return Ok(None) };
             self.log.debug(&format!("offering agent key {}", crate::known_hosts::fingerprint(&key)));
-            match handle.authenticate_publickey_with(user, key.clone(), hash, agent).await {
+            let time = Arc::new(Mutex::new(AgentTime::default()));
+            let mut timed = Timed { inner: agent, time: time.clone() };
+            let call = handle.authenticate_publickey_with(user, key.clone(), hash, &mut timed);
+            match within_signing(self.limit, &self.host, "the publickey request", &time, call).await? {
                 Ok(result) => {
                     self.offered.push(key);
                     return Ok(Some(Step::from(result)));

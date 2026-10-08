@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**250 entries: 221 open, 0 partial, 7 blocked, 22 done.**
+**250 entries: 220 open, 0 partial, 7 blocked, 23 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 126 | 0 | 3 | 14 | 143 |
+| P2 | 125 | 0 | 3 | 15 | 143 |
 | P3 | 93 | 0 | 4 | 0 | 97 |
-| **All** | 221 | 0 | 7 | 22 | 250 |
+| **All** | 220 | 0 | 7 | 23 | 250 |
 
 ## Entries
 
@@ -307,7 +307,7 @@ repository and CI).
 | [T-233](cli.md) | P2 | S | M3 | defect | done | The help of a command that is not implemented does not say so |
 | [T-234](cli.md) | P2 | S | M3 | defect | done | `podssh man relay` shows the command and not the topic THE RELAY, and the list of sections names `relay` twice |
 | [T-235](cli.md) | P3 | S | backlog | defect | open | The help puts `--help` at a different indent from the other options |
-| [T-236](ssh.md) | P2 | S | M3 | defect | open | Authentication has no time limit, but the comment of `connect_timeout` says that it has |
+| [T-236](ssh.md) | P2 | S | M3 | defect | done | Authentication has no time limit, but the comment of `connect_timeout` says that it has |
 | [T-237](ssh.md) | P2 | S | M3 | defect | open | The client accepts each channel that the server opens; OpenSSH refuses a channel that it did not ask for |
 | [T-238](ssh.md) | P2 | S | M3 | defect | open | `%` tokens differ from OpenSSH: some stay literal, `%u` gives the remote user, and an unknown token is kept |
 | [T-239](forwarding.md) | P2 | S | M3 | defect | open | `-W` with a path, or with no port, is read as a TCP host on port 22 |

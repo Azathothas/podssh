@@ -180,6 +180,11 @@ The edit distance alone suggests `doctor` for `example.org` and `cp` for
 - A duration is parsed as a whole string. A malformed duration is an error,
   never zero. A time limit applies to the whole operation, not only to the
   dial.
+- `ConnectTimeout` (60 s by default) limits the SSH handshake, and each
+  answer of the server while podssh logs in: a server that stalls after the
+  key exchange ends the run with 255 and names the request that it did not
+  answer. A prompt runs before its request, and the time that the agent
+  spends signing (`ssh-add -c`) does not count.
 
 ## `ssh_config` (milestone M8)
 

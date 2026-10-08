@@ -218,8 +218,8 @@ not a listener, so `docs/target-environment.md:74-78` allows it.
 - Measured: `podssh proxy unix-connect:/tmp/x.sock 1` exits 64
   (`':' is not allowed`): no command takes a socket path.
 - Read: podssh connects to a Unix socket only for the agent
-  (`crates/podssh-ssh/src/keys.rs:248-259`); on Windows the agent is a
-  named pipe (`crates/podssh-ssh/src/keys.rs:260-277`).
+  (`crates/podssh-ssh/src/keys.rs:259-270`); on Windows the agent is a
+  named pipe (`crates/podssh-ssh/src/keys.rs:271-288`).
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:189-198`,
   `crates/podssh-cli/src/doctor/unix.rs:210-212`).
@@ -322,7 +322,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:252-254`).
    `crates/podssh-cli/src/man/notes.rs:31-33`, the reasons of the `-L` and
    `-D` rows (`crates/podssh-cli/src/flags.rs:192-197`; keep `-W HOST:PORT`
    as what to use, which `crates/podssh-cli/tests/flag_table.rs:67-86`
-   asserts), `crates/podssh-cli/src/ssh/keywords.rs:78-79`,
+   asserts), `crates/podssh-cli/src/ssh/keywords.rs:79-80`,
    `crates/podssh-cli/src/ssh/options.rs:145-147`,
    `crates/podssh-cli/src/doctor/unix.rs:164` and
    `crates/podssh-cli/src/doctor/unix.rs:186`.

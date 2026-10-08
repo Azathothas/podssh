@@ -165,7 +165,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(None, "LogLevel", Some("LEVEL"), FlagKind::Supported,
         "quiet, fatal, error, info, verbose, debug", None),
     row(None, "ConnectTimeout", Some("SECONDS"), FlagKind::Supported,
-        "bound on the SSH handshake, as -o ConnectTimeout", None),
+        "bound on the SSH handshake and on each answer while logging in, as -o ConnectTimeout", None),
     row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
         "relay hosts to try in order, HOST[:PORT][,...] (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
     row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
