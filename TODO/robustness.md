@@ -38,7 +38,7 @@ reasons (`crates/podssh-ws/src/session.rs:275`); PEM bundles
 (`crates/podssh-ssh/src/escape.rs:30`); IRC lines and frames
 (`crates/podssh-core/src/irc/encode.rs:17`,
 `crates/podssh-core/src/irc/framing.rs:92`); the command line
-(`crates/podssh-cli/src/tree.rs:246`). No fuzz target exists. libFuzzer is
+(`crates/podssh-cli/src/tree.rs:248`). No fuzz target exists. libFuzzer is
 C++, and the message of commit `a378863` says that `rust:1-alpine` has no C++
 compiler.
 
@@ -517,13 +517,13 @@ Read, each claim of GitHub #34 at the lines as they are now:
   more, for `podssh keygen`.
 - `scripts/interop.sh` (lines 31-32 at `5c7a1ad`) installed `openssh-server`,
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
-  `scripts/sandbox-check.sh:172-185` does, in a sandbox. Nobody knows whether
+  `scripts/sandbox-check.sh:174-187` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
 - `crates/podssh-ssh/src/io.rs:115-120` maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:62`, `docs/STATUS.md:64`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:183-184` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:191-192` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -540,14 +540,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:183-184`). A difference that the table does not name fails,
+   `docs/cli.md:191-192`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:183-184` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:191-192` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed

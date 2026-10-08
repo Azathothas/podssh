@@ -30,7 +30,7 @@ Read, at `bc13eee`: each check goes through `Report::line` with a name and a `Ve
 with `podssh_ws::text::one_line` (line 138). `finish` prints the counts and exits 1 when a check
 failed (lines 156-168). The sections are "this host", "egress" and "relay" (lines 76-100).
 `doctor` already parses JSON with `serde_json`
-(`crates/podssh-cli/src/doctor/relay_checks.rs:104`).
+(`crates/podssh-cli/src/doctor/relay_checks.rs:118`).
 
 ## Approach
 
@@ -42,13 +42,13 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    and `detail`) and `counts` (`ok`, `fail`, `unknown`). `status` is "ok", "FAIL" or "unknown",
    the shape of GitHub #9. The exit code does not change.
 3. One model and two renderers, as `podssh man` has (`crates/podssh-cli/src/man/model.rs`).
-4. Add the row to `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:338-347`), read it into
-   `Parsed::Doctor` (`crates/podssh-cli/src/tree.rs:172-179`, 384-392), and pass it on in
-   `crates/podssh-cli/src/dispatch.rs:101-115`. `tree.rs` has 454 lines and `dispatch.rs` 448:
+4. Add the row to `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:338-349`), read it into
+   `Parsed::Doctor` (`crates/podssh-cli/src/tree.rs:172-181`, 384-392), and pass it on in
+   `crates/podssh-cli/src/dispatch.rs:101-116`. `tree.rs` has 454 lines and `dispatch.rs` 448:
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:117-145`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:68-83`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:68-87`) and
    `docs/cli.md:132-150` in the same commit.
 
 ## Decision
@@ -121,7 +121,7 @@ Measured: `podssh man --json` exits 64 ("unknown flag '--json'"). `podssh --help
 and prints the text help, so it drops `--json` silently (T-010).
 
 Read: the data is in tables already. Commands and flags: `VERBS`
-(`crates/podssh-cli/src/flags.rs:388-415`), each row with its kind and `instead` (lines 19-47),
+(`crates/podssh-cli/src/flags.rs:390-417`), each row with its kind and `instead` (lines 19-47),
 and the availability (lines 443-451). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:201-208`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:23-88`, with the stated defaults (lines 99-104).
@@ -146,7 +146,7 @@ manual do not keep the kind and the `instead` of a flag.
 5. The JSON is the same on each host: no path from `HOME` (`docs/cli.md:41-42`).
 6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:302-309`), the field to
    `man::Request` (`crates/podssh-cli/src/man/mod.rs:27-34`), and the parse
-   (`crates/podssh-cli/src/tree.rs:390-398`). JSON for `--help` stays with T-010.
+   (`crates/podssh-cli/src/tree.rs:392-400`). JSON for `--help` stays with T-010.
 
 ## Prove
 
@@ -213,7 +213,7 @@ terminal.
 Measured: `podssh status` exits 70 with "'status' is not implemented yet; nothing was done.";
 `podssh status --json` exits 64 (unknown flag).
 
-Read: the verb has no flags (`crates/podssh-cli/src/flags.rs:407-408`), an owner row (line 429)
+Read: the verb has no flags (`crates/podssh-cli/src/flags.rs:409-410`), an owner row (line 429)
 and no arguments (`crates/podssh-cli/src/positionals.rs:50`). Each fact has a local source that
 opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:55-75`,
 `crates/podssh-relay/src/pool.rs:48-61`); the token cache
@@ -225,7 +225,7 @@ opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:55-75`,
 ## Approach
 
 1. The syntax: `podssh status [OPTIONS] [[user@]host[:port]]`, with the relay flags of `doctor`
-   (`crates/podssh-cli/src/flags.rs:338-347`). Remove the owner row, and add "status" to
+   (`crates/podssh-cli/src/flags.rs:338-349`). Remove the owner row, and add "status" to
    `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:95`).
 2. Write one line of JSON to stdout and exit 0 (64 for a usage error). No text form: `doctor`
    is the report for people.
@@ -265,7 +265,7 @@ VLOD-ZDOV/quic-ssh (GitHub #22; read in the reports, not verified here). Measure
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -278,12 +278,12 @@ check work through the relay.
 Measured: `podssh doctor --full` exits 64 (unknown flag); `podssh selftest` exits 64 (unknown
 subcommand).
 
-Read: the script runs `doctor` (`scripts/sandbox-check.sh:93-97`), a banner exchange through
+Read, at `bd626c7`: the script runs `doctor` (`scripts/sandbox-check.sh` lines 93-97), a banner exchange through
 `podssh proxy` (lines 99-109), `keygen` with `podssh ssh -T` and `-tt` to GitHub (lines 111-132),
 two prompts with nobody to answer them (lines 134-170), and OpenSSH with podssh as its
 `ProxyCommand` (lines 172-185); each step has a verdict since T-006. `doctor` already opens a forward
 session to `github.com:22` and checks the host key against GitHub's published keys
-(`crates/podssh-cli/src/doctor/relay_checks.rs:170-207`, keys at lines 30-34): that covers the
+(`crates/podssh-cli/src/doctor/relay_checks.rs` lines 170-207 at `bd626c7`, keys at lines 30-34): that covers the
 banner step. The script's `ssh` steps trust the key on first use (`accept-new`, line 65), not by
 equality, and its `-tt` step never reaches a pty request: GitHub refuses the key before a
 channel opens. `keygen::generate` makes a key in memory (`crates/podssh-ssh/src/keygen.rs:64-74`),
@@ -292,21 +292,21 @@ and `crates/podssh-ssh/src/keys.rs:81-84` offers a key to the server.
 ## Approach
 
 1. `--full` adds the check `login` after `forward`: a new forward session (as
-   `crates/podssh-cli/src/doctor/relay_checks.rs:176-190`), an SSH handshake that accepts only a
-   key of `GITHUB_KEYS` (equality; the probe `crates/podssh-ssh/src/probe.rs:13-23` records a
+   `crates/podssh-cli/src/doctor/relay_checks.rs:184-204`), an SSH handshake that accepts only a
+   key of `GITHUB_KEYS` (equality; the probe `crates/podssh-ssh/src/probe.rs:16-26` records a
    key the same way), then public-key authentication as `git` with a throwaway Ed25519 key from
    `keygen::generate`. The key stays in memory and is never written.
 2. Verdicts: a refused key is `ok` ("the handshake, the host key and the authentication path
    work through the relay"); another host key is `FAIL`; a transport failure is `FAIL`, with
    the relay's reason (`crates/podssh-ssh/src/relay_stream.rs:36-52`); no relay host is `????`.
-3. Bound each step with the doctor's limit (`crates/podssh-cli/src/doctor/relay_checks.rs:24`),
+3. Bound each step with the doctor's limit (`crates/podssh-cli/src/doctor/relay_checks.rs:27`),
    and the whole check too.
 4. No `-tt` line: with GitHub, authentication fails before a channel, so a pty request cannot
    be tested; the notes say so. No OpenSSH step (Decision).
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
-6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:338-347`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:68-83`) and `docs/cli.md:132-150` in the same commit.
+6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:338-349`), the `doctor` notes
+   (`crates/podssh-cli/src/man/notes.rs:68-87`) and `docs/cli.md:132-150` in the same commit.
 
 ## Decision
 
@@ -326,9 +326,33 @@ sh scripts/test_in_box.sh path/to/static/podssh            # the Podman box: log
 ```
 
 Offline, `--full` adds one `????` line and no `FAIL`. A unit test of the verdict, as
-`crates/podssh-cli/src/doctor/relay_checks.rs:279-295` tests the keys: a refused key gives `ok`,
+`crates/podssh-cli/src/doctor/relay_checks.rs:355-371` tests the keys: a refused key gives `ok`,
 another host key gives `FAIL`. Planted defect: a handshake that accepts any host key; the
 wrong-key test fails.
+
+## Done
+
+Not yet done: the run in the Podman box waits for the gate's static binary of this change, from
+CI. Done so far, in the commit "podssh doctor --full logs in to GitHub with a key made for the
+check", 2026-10-09:
+
+- `podssh_ssh::probe::login` (`crates/podssh-ssh/src/probe.rs`): the key exchange, a host key
+  that must have one of the named fingerprints, then public-key authentication with an Ed25519
+  key from `keygen::generate`, kept in memory; the whole login is bounded. Its outcome is
+  `Refused`, `Accepted` or `WrongHostKey`.
+- `--full` (a row of `DOCTOR_FLAGS`, read into `Parsed::Doctor` and `DoctorArgs`) adds `login`
+  after `forward`, through the same relay path (`open_github`, shared with `forward`), with the
+  host key that `forward` identified. A refused key is `ok`; another host key or a broken link
+  is `FAIL` (with the relay's reason); no relay host, no token, or offline is `????`. The doctor
+  notes, `docs/cli.md` and `scripts/sandbox-check.sh` (now `doctor --full`) say the same.
+- Prove so far: `cargo test -p podssh-cli --test doctor -- full` passed (offline, one more
+  `????` line and no `FAIL`); `cargo test -p podssh-cli --test doctor -- --ignored full`
+  passed (live: "ok login github.com:22 through tcp.ssh.relay.ajam.dev: ... GitHub refused a key
+  made for this check, as it must"; 18 ok, 0 FAIL). The probe's tests run a russh server in the
+  process: with its host key named, the key is refused (`publickey` still listed); with another
+  named, no key is offered. The verdicts have a unit test (`full_login_verdicts`).
+- Plant: the probe's handshake accepts any host key; `login_stops_at_a_host_key_that_was_not_named`
+  failed (it got `Refused`).
 
 # T-053: `podssh ping`: a short check of the path, with latency and throughput
 
@@ -355,7 +379,7 @@ so none is guessed.").
 Read: the session pings the relay every 10 s and counts the pongs, but it measures no round
 trip (`crates/podssh-ws/src/session.rs:142-166`; the payload is a counter, line 162). `doctor`
 prints the milliseconds of each `/health` request
-(`crates/podssh-cli/src/doctor/relay_checks.rs:115-117`). The relay counts both directions
+(`crates/podssh-cli/src/doctor/relay_checks.rs:129-131`). The relay counts both directions
 against 64 MiB for each session (`docs/relay.md:115`). The stand-in relay answers pings
 (`scripts/fake-relay.py:167-169`).
 
@@ -373,7 +397,7 @@ against 64 MiB for each session (`docs/relay.md:115`). The stand-in relay answer
 4. `--size SIZE`: 8 MiB in each direction by default. Refuse more than 30 MiB (exit 64), so both
    directions stay under the relay's 64 MiB.
 5. A time limit on each step and on the whole run. `--json` as T-049 decides.
-6. Add the verb to the tables (`crates/podssh-cli/src/flags.rs:388-415`), to the help and the
+6. Add the verb to the tables (`crates/podssh-cli/src/flags.rs:390-417`), to the help and the
    manual, and to `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:95`).
 
 ## Decision
@@ -481,7 +505,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:191-207`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:199-215`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:140-150`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:95-102`), and stdio needs no listener.

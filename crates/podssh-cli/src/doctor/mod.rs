@@ -39,6 +39,9 @@ pub struct DoctorArgs {
     pub ca_file: Option<String>,
     /// `--json`: one JSON object on stdout when every check has run.
     pub json: bool,
+    /// `--full`: also log in to GitHub through the relay with a key made
+    /// for the check (`login`).
+    pub full: bool,
 }
 
 /// Run every check; returns the exit code. The report goes to `out`; only a
@@ -78,11 +81,14 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     net::check_local(&mut report, &relays, &trust, trust_from);
     if podssh_relay::open::offline() {
         report.unknown("network", "not attempted: PODSSH_OFFLINE is set");
+        if args.full {
+            report.unknown("login", "not attempted: PODSSH_OFFLINE is set");
+        }
         return report.finish();
     }
     match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(runtime) => {
-            runtime.block_on(network(&mut report, &relays, &trust));
+            runtime.block_on(network(&mut report, &relays, &trust, args.full));
             // A probe may have left a task behind (a relay leg still closing);
             // the report is done, so none is waited for.
             runtime.shutdown_background();
@@ -92,10 +98,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     report.finish()
 }
 
-async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust) {
+async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, full: bool) {
     net::check_network(report, relays).await;
     report.section("relay");
-    relay_checks::check(report, relays, trust).await;
+    relay_checks::check(report, relays, trust, full).await;
 }
 
 /// One check, as the report keeps it for `--json`.

@@ -90,8 +90,10 @@ if [ "$rc" != 0 ]; then
     finish
 fi
 
-say "podssh doctor"
-timeout 300 "$B" doctor
+say "podssh doctor --full"
+# --full adds the check login: GitHub refuses a key made for the check, which
+# shows that the handshake, the host key and the authentication path work.
+timeout 300 "$B" doctor --full
 rc=$?
 if [ "$rc" = 0 ]; then ok=yes; else ok=no; fi
 verdict doctor "$ok" "exit $rc (want 0: no check failed)"

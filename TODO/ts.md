@@ -31,7 +31,7 @@ the rest is read. `bound` wraps only `TsNode::start` and `tcp_connect`
 (`crates/podssh-cli/src/ts.rs:215-229`, `crates/podssh-cli/src/ts.rs:367-378`), not `node.status()`
 or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs:297`, `crates/podssh-cli/src/ts.rs:358`). The
 module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs:9-14`),
-and `docs/cli.md:209-211` makes that a rule.
+and `docs/cli.md:217-219` makes that a rule.
 
 Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs:81-84`), whose reply
 waits in a queue until a map with the self node arrives
@@ -101,7 +101,7 @@ of an OpenSSH `ProxyCommand` (`crates/podssh-ts/src/pipe.rs:54-64`). The test
 
 Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/src/proxy.rs:193-209`),
 and a closed stdout is a clean end there (`crates/podssh-cli/src/proxy.rs:266-269`) and in the rules
-(`docs/cli.md:187`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:399-402`).
+(`docs/cli.md:195`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:399-402`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
 (`docs/relay.md:149`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs:84-88`).
@@ -319,7 +319,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:72-74`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:213` and `crates/podssh-cli/src/man/notes.rs:108-111`.
+   `docs/tailscale.md`, `docs/STATUS.md:213` and `crates/podssh-cli/src/man/notes.rs:112-115`.
 
 ## Decision
 
@@ -449,7 +449,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:56`, `docs/tailscale.md:8-19` and
-   `crates/podssh-cli/src/man/notes.rs:108-111`.
+   `crates/podssh-cli/src/man/notes.rs:112-115`.
 
 ## Prove
 
@@ -502,19 +502,19 @@ Read: the row is at `crates/podssh-cli/src/flags.rs:295-296`. `podssh ts` reads 
 (`crates/podssh-cli/src/non_interactive.rs:61-76`). The status form writes plain text
 (`crates/podssh-cli/src/ts.rs:298-300`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
 stream (`crates/podssh-cli/src/ts.rs:386-388`). `proxy --jsonl` is refused at parse, with the reason
-(`crates/podssh-cli/src/tree.rs:319-327`, `crates/podssh-cli/src/non_interactive.rs:324-335`).
+(`crates/podssh-cli/src/tree.rs:321-329`, `crates/podssh-cli/src/non_interactive.rs:324-335`).
 `serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:43`).
 
 ## Approach
 
 1. Refuse `--jsonl` with `-W` at parse, with exit 64 and the reason, next to the `proxy` refusal
-   (`crates/podssh-cli/src/tree.rs:319-327`): stdout carries the stream. Refuse `--jsonl=` too.
+   (`crates/podssh-cli/src/tree.rs:321-329`): stdout carries the stream. Refuse `--jsonl=` too.
 2. In the status form, write the status as one JSON object on one line, with `serde_json`:
    `{"event":"status","nodekey_prefix":...,"tailnet_ip":...,"home_region":...}`. Never the key.
 3. Keep errors on stderr as text; the exit code stays the result. T-104 and T-105 add events (a
    drop, a new connection, a refusal) to this form when their states exist.
 4. Change the help text of the row (`crates/podssh-cli/src/flags.rs:295-296`) and the notes of the
-   manual (`crates/podssh-cli/src/man/notes.rs:108-111`) in the same commit. The tests of the manual
+   manual (`crates/podssh-cli/src/man/notes.rs:112-115`) in the same commit. The tests of the manual
    compare the row with the help.
 
 ## Decision

@@ -148,6 +148,14 @@ The edit distance alone suggests `doctor` for `example.org` and `cp` for
 - Servers are identified by equality (GitHub's published host key), never
   by the form of a banner. A socket bind is closed at once and never
   listens. Proxy credentials and tokens are never shown.
+- `--full` adds the check `login` (GitHub #13): a login to `github.com` as
+  `git` through the relay, with an Ed25519 key made for the check, kept in
+  memory and never written. GitHub refuses it, which is `ok`: the handshake,
+  the host key (equal to the one that `forward` identified) and the
+  authentication path work. Another host key, or a broken link, is `FAIL`.
+  No pty request is tested (GitHub refuses the key before a channel), and
+  the binary runs no OpenSSH: `scripts/sandbox-check.sh` keeps that step,
+  and calls `doctor --full`.
 - `--json` writes the same report as one JSON object, when every check has
   run (GitHub #9): `schema` (1), `podssh`, `os`, `arch`, `checks` (each
   with `section`, `check`, `status` and `detail`; `status` is `ok`, `FAIL`

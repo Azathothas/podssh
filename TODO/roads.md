@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:447-455`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:449-457`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -522,7 +522,7 @@ the part of podssh:
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
    262144 bytes), the close codes of `docs/relay.md:142-163`, and `/health`
    with the service name that `doctor` checks
-   (`crates/podssh-cli/src/doctor/relay_checks.rs:19-21`).
+   (`crates/podssh-cli/src/doctor/relay_checks.rs:22-24`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.

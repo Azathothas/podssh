@@ -392,10 +392,10 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, stdin from `/dev/null`):
 `podssh node --help` shows `podssh node NAME` and only `--help`; `podssh relay pair` gives the `--timeout`
 refusal of T-008 (exit 64), and `podssh relay --timeout 5s pair` exit 70.
 
-Read: `node` has no flags (`crates/podssh-cli/src/flags.rs:393-394`) and one positional, `NAME`
+Read: `node` has no flags (`crates/podssh-cli/src/flags.rs:395-396`) and one positional, `NAME`
 (`crates/podssh-cli/src/positionals.rs:42`). `relay` lists `pair` and `revoke` (`:39-41` there), and its
 `--relay-host` takes a URL, not the `HOSTS` list of the other verbs (`crates/podssh-cli/src/flags.rs:311-319`).
-Both are rows of `VERB_OWNER` (`crates/podssh-cli/src/flags.rs:426-434`).
+Both are rows of `VERB_OWNER` (`crates/podssh-cli/src/flags.rs:428-436`).
 
 Read: the relay names an agent-created pair; only an admitted name is chosen, by the relay's operator
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:90-91`, `:130-134`). In the measured sandbox
@@ -406,7 +406,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
 ## Approach
 
 1. Parse `podssh node NAME TARGET`: NAME is a local label, TARGET is `HOST:PORT`
-   (`crates/podssh-cli/src/positionals.rs:42`). Flags (`crates/podssh-cli/src/flags.rs:393-394`):
+   (`crates/podssh-cli/src/positionals.rs:42`). Flags (`crates/podssh-cli/src/flags.rs:395-396`):
    `--relay-host HOST` (one host, T-078), `--relay-addr`, `--ca-file`, and `--pair-file FILE` to import a pair.
    No `--timeout`: a node is a service.
 2. Load the pair stored under NAME (T-078); refuse an expired one with the remedy; then run `node::run` (T-079)
@@ -415,11 +415,11 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:185`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:193`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:195`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
-   `crates/podssh-cli/src/doctor/relay_checks.rs:39-64` (zuko's doctor checks its ticket and state).
+   `crates/podssh-cli/src/doctor/relay_checks.rs:42-78` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:95`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:96` there), examples in
@@ -454,7 +454,7 @@ node in front of a public TCP service and reaches it through T-080. Plant: print
 
 # T-084: `podssh operator NAME` and `podssh ssh NODE`
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:163-164`); `crates/podssh-cli/src/flags.rs:395-396`. Measured
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:163-164`); `crates/podssh-cli/src/flags.rs:397-398`. Measured
 here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -481,7 +481,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:205-208`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:50-55`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:264`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:181-185`).
+`podssh proxy` sysexits (`docs/cli.md:189-193`).
 
 ## Approach
 
@@ -497,7 +497,7 @@ host, never the relay's name (`SECURITY.md:50-55`); `HostKeyAlias` exists
    `-o HostKeyAlias` still wins.
 5. Refuse by name a node as a `-J` hop, and `-W` through a node; record them for later.
 6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-233`,
-   `:395-396`). Update the manual's examples and notes, `docs/cli.md:62-75` and `docs/reverse.md`.
+   `:397-398`). Update the manual's examples and notes, `docs/cli.md:62-75` and `docs/reverse.md`.
 
 ## Decision
 

@@ -28,10 +28,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## Baseline
 
-Measured on 2026-10-09 after T-012, on Windows 11 with native cargo 1.98.0
+Measured on 2026-10-09 after T-052 (partial), on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`: 763 passed, 0 failed, 6 ignored (the live
+- `cargo test --no-fail-fast`: 767 passed, 0 failed, 7 ignored (the live
   tests).
 - `sh scripts/dev.sh check` (after T-050): green; interop 103 of 103.
 - `cargo test -p podssh-todo`: 62 passed: 12 unit tests, 32 plant tests (31
@@ -42,7 +42,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 250 entries: 212 open, 0 partial, 7 blocked, 31 done.
+`TODO/INDEX.md` holds 250 entries: 211 open, 1 partial, 7 blocked, 31 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

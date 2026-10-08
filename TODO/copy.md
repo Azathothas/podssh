@@ -115,8 +115,8 @@ leave a short or wrong file under the destination's name.
   path, `podssh cp --timeout 30s` also exits 70, where 64 is right.
 - Read: `crates/podssh-cli/src/flags.rs:238-257` marks `-P`, `-p`, `-i`,
   `-r`, `-F`, `--jsonl` and `--timeout` as supported; the parser keeps only
-  `--timeout` and `--jsonl` (`crates/podssh-cli/src/tree.rs:449-465`), and
-  dispatch drops the duration (`crates/podssh-cli/src/dispatch.rs:195-205`).
+  `--timeout` and `--jsonl` (`crates/podssh-cli/src/tree.rs:452-468`), and
+  dispatch drops the duration (`crates/podssh-cli/src/dispatch.rs:196-206`).
 - Measured (T-133's offline probe): `SSH_FXP_RENAME` onto an existing file
   fails with status 4; `posix-rename@openssh.com` replaces the file.
 
@@ -153,7 +153,7 @@ leave a short or wrong file under the destination's name.
    `crates/podssh-cli/src/exitmap.rs:103-118`; a digest that differs is 70
    and names both digests.
 10. Same commit: the `cp` row of `VERB_OWNER`
-    (`crates/podssh-cli/src/flags.rs:430`) goes and `DISPATCHED`
+    (`crates/podssh-cli/src/flags.rs:432`) goes and `DISPATCHED`
     (`crates/podssh-cli/tests/flag_table.rs:95`) gets `cp`; update
     `crates/podssh-cli/tests/binary_streams.rs:179-193`, the manual,
     `docs/cli.md` and `docs/STATUS.md:49`.
@@ -431,7 +431,7 @@ more. Plant: count one direction only; the upload then meets `1009`.
 
 **Source:** ROADMAP M5 ("Across hosts, `mv` is copy, verify, delete; podssh
 says first that it is not atomic"); the description of `mv` in
-`crates/podssh-cli/src/flags.rs:401-402`.
+`crates/podssh-cli/src/flags.rs:403-404`.
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -449,7 +449,7 @@ user must know this before the move starts.
 
 - Measured on `3ee70dc`, offline: `podssh mv --timeout 30s a b` exits 70
   (`'mv' is not implemented yet; nothing was done.`).
-- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:401-402`),
+- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:403-404`),
   so the operands and options of T-134 apply.
 - Measured (T-133's offline probe): `posix-rename@openssh.com` replaces in
   one step; `SSH_FXP_RENAME` refuses an existing target.
@@ -475,7 +475,7 @@ user must know this before the move starts.
    two places, never in none.
 6. Directories wait for T-143 (exit 64); two local paths exit 64 (T-134).
 7. Same commit: the `mv` row of `VERB_OWNER`
-   (`crates/podssh-cli/src/flags.rs:431`), the manual, `docs/cli.md` and
+   (`crates/podssh-cli/src/flags.rs:433`), the manual, `docs/cli.md` and
    `docs/STATUS.md:49`.
 
 ## Prove
@@ -559,8 +559,8 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 ## Decision
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
-the gate of `crates/podssh-cli/src/dispatch.rs:193-208` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:175-178`)
+the gate of `crates/podssh-cli/src/dispatch.rs:194-209` skips them; T-133's
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:183-186`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -786,7 +786,7 @@ this entry, so that it is never a flag that does nothing.
 ## Premise
 
 - Read: `-r` is supported in `crates/podssh-cli/src/flags.rs:249-250`, and
-  nothing reads it (`crates/podssh-cli/src/tree.rs:449-465`).
+  nothing reads it (`crates/podssh-cli/src/tree.rs:452-468`).
 - Read: SFTP version 3 has `OPENDIR`, `READDIR`, `MKDIR`, `LSTAT`,
   `READLINK` and `SYMLINK`.
 - Not verified here: OpenSSH's `scp` once wrote files that a malicious
@@ -967,7 +967,7 @@ owner, hard links, the holes of sparse files) is lost with no word.
 ## Premise
 
 - Read: `-p` is supported in `crates/podssh-cli/src/flags.rs:245-246`, and
-  nothing reads it (`crates/podssh-cli/src/tree.rs:449-465`).
+  nothing reads it (`crates/podssh-cli/src/tree.rs:452-468`).
 - Read: the attributes of SFTP version 3 carry the size, uid, gid,
   permissions, atime and mtime; no ctime.
 - Measured (T-133's offline probe): OpenSSH's server offers
@@ -1151,7 +1151,7 @@ host, and the copy back then destroys that change with no word.
 
 ## Approach
 
-1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:388-415`),
+1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:390-417`),
    with the connection flags that T-134 gives `cp`. It needs a terminal on
    stdin and stdout; else exit 64.
 2. Download with T-134 into a new directory of mode 0700 in the cache

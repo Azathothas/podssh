@@ -1,11 +1,14 @@
 //! The relay: each host's `/health` over verified TLS, a token, a forward
 //! session to an SSH server identified by its published host key, and this
-//! host's clock against the relay's.
+//! host's clock against the relay's. With `--full`, also a login to that
+//! server with a key made for the check (`login`).
 
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use podssh_relay::open::Request;
 use podssh_relay::relay::{Relay, RelayList};
+use podssh_ssh::probe::Login;
+use podssh_ssh::relay_stream::RelayStatus;
 use podssh_relay::token::{self, MintContext, Origin};
 use podssh_ws::dial::{self, ProxyChoice};
 use podssh_ws::{http, Trust, Verdict};
@@ -36,7 +39,7 @@ const GITHUB_KEYS: [&str; 3] = [
 /// Skew beyond which this host's clock is called wrong.
 const CLOCK_LIMIT: i64 = 3600;
 
-pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &Trust) {
+pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, full: bool) {
     let mut answered: Option<(&Relay, Option<String>)> = None;
     for relay in &relays.hosts {
         match health(relay, trust).await {
@@ -50,15 +53,26 @@ pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &T
         }
     }
     let Some((relay, date)) = answered else {
-        for name in ["token", "forward", "clock"] {
-            report.unknown(name, "not attempted: no relay host answered");
+        for name in ["token", "forward", "login", "clock"] {
+            if name != "login" || full {
+                report.unknown(name, "not attempted: no relay host answered");
+            }
         }
         return;
     };
     if token_check(report, relay, trust).await {
-        forward(report, relays, trust).await;
+        let host_key = forward(report, relays, trust).await;
+        if full {
+            match host_key {
+                Some(key) => login(report, relays, trust, &key).await,
+                None => report.unknown("login", "not attempted: the forward check found no host key of GitHub's"),
+            }
+        }
     } else {
         report.unknown("forward", "not attempted: there is no relay token");
+        if full {
+            report.unknown("login", "not attempted: there is no relay token");
+        }
     }
     clock(report, date.as_deref());
 }
@@ -164,21 +178,20 @@ async fn token_check(report: &mut Report<'_>, at: &Relay, trust: &Trust) -> bool
     }
 }
 
-/// A forward session to GitHub's SSH port. The server must present one of
-/// GitHub's published host keys: then the relay path works end to end and
-/// nothing in between answered in GitHub's place.
-async fn forward(report: &mut Report<'_>, relays: &RelayList, trust: &Trust) {
+/// A forward session to GitHub's SSH port, as `podssh ssh` opens one: the
+/// stream, the relay's status, and the host it went through (named with the
+/// hosts that failed before it).
+async fn open_github(
+    relays: &RelayList,
+    trust: &Trust,
+) -> Result<(tokio::io::DuplexStream, RelayStatus, String), String> {
     let target = dial::authority(FORWARD_HOST, 22);
-    let path = match podssh_relay::relay::forward_path(FORWARD_HOST, 22) {
-        Ok(p) => p,
-        Err(why) => return report.fail("forward", why),
-    };
+    let path = podssh_relay::relay::forward_path(FORWARD_HOST, 22)?;
     let request = Request { relays, path: &path, trust, target: &target, rounds: 1 };
     // Its progress notes repeat what the relay lines above already say.
-    let opened = match podssh_relay::open(&request, &mut |_: &str| {}).await {
-        Ok(opened) => opened,
-        Err(failure) => return report.fail("forward", format!("{target}: {}", failure.lines(&target).join("; "))),
-    };
+    let opened = podssh_relay::open(&request, &mut |_: &str| {})
+        .await
+        .map_err(|failure| format!("{target}: {}", failure.lines(&target).join("; ")))?;
     let skipped: Vec<&str> =
         relays.hosts.iter().map(|r| r.host.as_str()).take_while(|h| *h != opened.relay.host).collect();
     let via = if skipped.is_empty() {
@@ -187,23 +200,86 @@ async fn forward(report: &mut Report<'_>, relays: &RelayList, trust: &Trust) {
         format!("{} (after {} failed)", opened.relay.host, skipped.join(", "))
     };
     let (stream, status) = podssh_ssh::relay_stream::spawn(opened.session);
+    Ok((stream, status, via))
+}
+
+/// A forward session to GitHub's SSH port. The server must present one of
+/// GitHub's published host keys: then the relay path works end to end and
+/// nothing in between answered in GitHub's place. Gives the fingerprint
+/// that passed.
+async fn forward(report: &mut Report<'_>, relays: &RelayList, trust: &Trust) -> Option<String> {
+    let target = dial::authority(FORWARD_HOST, 22);
+    let (stream, status, via) = match open_github(relays, trust).await {
+        Ok(opened) => opened,
+        Err(why) => {
+            report.fail("forward", why);
+            return None;
+        }
+    };
     let key = match podssh_ssh::probe::host_key(stream, TIMEOUT).await {
         Ok(key) => key,
         Err(why) => {
             let relay = status.get().and_then(|end| end.explain()).map(|e| format!(" ({e})")).unwrap_or_default();
-            return report.fail("forward", format!("{target} through {via}: {why}{relay}"));
+            report.fail("forward", format!("{target} through {via}: {why}{relay}"));
+            return None;
         }
     };
     let fingerprint = podssh_ssh::known_hosts::fingerprint(&key);
     let kind = podssh_ssh::known_hosts::key_type(&key);
     let shown = format!("{target} through {via}: {kind} host key {fingerprint}");
     if GITHUB_KEYS.contains(&fingerprint.as_str()) {
-        return report.ok("forward", format!("{shown}, one of GitHub's published keys"));
+        report.ok("forward", format!("{shown}, one of GitHub's published keys"));
+        return Some(fingerprint);
     }
     // GitHub may have rotated a key since this list was written: ask it,
     // over verified TLS, before calling the answer wrong.
     let current = github_keys(trust).await;
-    report.line("forward", judge_unlisted(&shown, &fingerprint, current));
+    let verdict = judge_unlisted(&shown, &fingerprint, current);
+    let passed = matches!(verdict, Verdict::Ok { .. });
+    report.line("forward", verdict);
+    passed.then_some(fingerprint)
+}
+
+/// `--full`: a login to GitHub through the relay, as `git`, with a key made
+/// for the check and never written, which GitHub refuses. The host key must
+/// be the one that `forward` identified. Then the handshake, the host key
+/// and the authentication path work end to end, with no account.
+async fn login(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, host_key: &str) {
+    let target = dial::authority(FORWARD_HOST, 22);
+    let (stream, status, via) = match open_github(relays, trust).await {
+        Ok(opened) => opened,
+        Err(why) => return report.fail("login", why),
+    };
+    let outcome = podssh_ssh::probe::login(stream, "git", &[host_key.to_string()], TIMEOUT * 2).await;
+    let relay = status.get().and_then(|end| end.explain());
+    report.line("login", judge_login(&format!("{target} through {via}"), outcome, relay));
+}
+
+/// The verdict on a login with a key that no account has: a refusal is the
+/// expected answer; a host key other than the one identified, or a broken
+/// link, fails.
+fn judge_login(shown: &str, outcome: Result<Login, String>, relay: Option<String>) -> Verdict {
+    match outcome {
+        Ok(Login::Refused { .. }) => Verdict::Ok {
+            detail: format!(
+                "{shown}: the handshake, GitHub's host key and the authentication path work; GitHub refused a \
+                 key made for this check, as it must"
+            ),
+        },
+        Ok(Login::Accepted { .. }) => Verdict::Ok {
+            detail: format!("{shown}: the handshake and GitHub's host key work, and the server let in a key made for this check"),
+        },
+        Ok(Login::WrongHostKey { key }) => Verdict::Failed {
+            detail: format!(
+                "{shown}: the host key {} is not the one that the forward check identified: something in \
+                 between answered",
+                podssh_ssh::known_hosts::fingerprint(&key)
+            ),
+        },
+        Err(why) => Verdict::Failed {
+            detail: format!("{shown}: {why}{}", relay.map(|r| format!(" ({r})")).unwrap_or_default()),
+        },
+    }
 }
 
 /// The verdict on a key that is not in [`GITHUB_KEYS`], given what
@@ -292,6 +368,20 @@ mod tests {
         assert!(matches!(&unasked, Verdict::Failed { detail } if detail.contains("HTTP 403")), "{unasked:?}");
         // The key measured through the relay on 2026-10-08 is in the list.
         assert!(GITHUB_KEYS.contains(&theirs.as_str()));
+    }
+
+    /// A refused key passes; another host key, or a broken link, fails.
+    #[test]
+    fn full_login_verdicts() {
+        let key = || {
+            podssh_ssh::keygen::generate(podssh_ssh::keygen::KeyKind::Ed25519, "t").unwrap().public_key().clone()
+        };
+        let refused = judge_login("g", Ok(Login::Refused { key: key(), methods: vec!["publickey".into()] }), None);
+        assert!(matches!(&refused, Verdict::Ok { detail } if detail.contains("refused a key made for this check")));
+        let wrong = judge_login("g", Ok(Login::WrongHostKey { key: key() }), None);
+        assert!(matches!(&wrong, Verdict::Failed { detail } if detail.contains("something in between")), "{wrong:?}");
+        let broken = judge_login("g", Err("no answer within 20 s".into()), Some("the relay closed".into()));
+        assert!(matches!(&broken, Verdict::Failed { detail } if detail.contains("(the relay closed)")), "{broken:?}");
     }
 
     #[test]

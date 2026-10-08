@@ -244,3 +244,25 @@ fn json_shows_no_proxy_password_and_no_token() {
     });
     assert!(named, "{}", run.out);
 }
+
+/// `--full` offline: the login check is one more `????` line, and nothing
+/// fails.
+#[test]
+fn full_offline_adds_one_unknown_line() {
+    let plain = doctor(&[], &[], &[], true);
+    let full = doctor(&["--full"], &[], &[], true);
+    assert_eq!(full.code, 0, "{}", full.out);
+    let (ok, failed, unknown) = counts(&plain.out);
+    assert_eq!(counts(&full.out), (ok, failed, unknown + 1), "{}", full.out);
+    assert!(full.out.contains("  ????  login          not attempted: PODSSH_OFFLINE is set"), "{}", full.out);
+}
+
+/// The live relay and GitHub: `--full` logs in as git with a key made for
+/// the check, and GitHub refuses it.
+#[test]
+#[ignore = "network: logs in to github.com through the live relay"]
+fn full_live_logs_in_to_github() {
+    let run = doctor(&["--full"], &[], &[], false);
+    let line = run.out.lines().find(|l| l.contains(" login ")).unwrap_or_else(|| panic!("{}", run.out));
+    assert!(line.starts_with("  ok") && line.contains("GitHub refused a key made for this check"), "{line}");
+}

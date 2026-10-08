@@ -656,7 +656,7 @@ Read:
 - `scripts/test_in_box.sh:179-182`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
-  `scripts/sandbox-check.sh:85-186` prints the exit code of each step and does
+  `scripts/sandbox-check.sh:85-188` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:124`).

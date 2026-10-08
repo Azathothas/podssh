@@ -279,7 +279,7 @@ requires TLS 1.3 (`scripts/fake-relay.py:232-233`).
    one suite at a time in the container gate, and `scripts/fake-relay.py` with an option for TLS
    1.2 only.
 5. The relay line of `doctor` names the version
-   (`crates/podssh-cli/src/doctor/relay_checks.rs:79-82`); the live relay must still give TLS
+   (`crates/podssh-cli/src/doctor/relay_checks.rs:93-96`); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md:46`, the Trust item of the manual
    (`crates/podssh-cli/src/man/facts.rs:169-182`) and `docs/STATUS.md` in the same commit.

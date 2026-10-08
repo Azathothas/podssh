@@ -344,6 +344,8 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     row(None, "json", None, FlagKind::Supported,
         "write the report as one JSON object on stdout, when every check has run", None),
+    row(None, "full", None, FlagKind::Supported,
+        "also log in to github.com through the relay with a key made for the check, which GitHub refuses", None),
 ];
 
 /// `keygen` takes the `ssh-keygen` flags scripts use. `-N` exists so that

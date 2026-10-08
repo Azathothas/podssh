@@ -132,7 +132,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`crates/podssh-cli/src/flags.rs:315-316`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
 (`docs/relay.md:140-141`). The `health` function of `doctor`
-(`crates/podssh-cli/src/doctor/relay_checks.rs:68-123`) already makes a verified `/health`
+(`crates/podssh-cli/src/doctor/relay_checks.rs:82-137`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:109-127` fetches `/relays.json`. `https_get` sends no
 token header (`crates/podssh-ws/src/client.rs:268-279`); `https_request` takes headers (lines
 282-303).
@@ -152,8 +152,8 @@ token header (`crates/podssh-ws/src/client.rs:268-279`); `https_request` takes h
 5. `pair` and `revoke`: refuse by name, and name M4 (T-078, T-083).
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
    (T-049). Each request has the 10 s limit of `doctor`
-   (`crates/podssh-cli/src/doctor/relay_checks.rs:24`), and the run has a limit too.
-7. Remove the owner row (`crates/podssh-cli/src/flags.rs:432`); change `DISPATCHED`, `usage_tail`
+   (`crates/podssh-cli/src/doctor/relay_checks.rs:27`), and the run has a limit too.
+7. Remove the owner row (`crates/podssh-cli/src/flags.rs:434`); change `DISPATCHED`, `usage_tail`
    (`crates/podssh-cli/src/help.rs:254`), the notes, `docs/relay.md:216-222` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
@@ -161,7 +161,7 @@ token header (`crates/podssh-ws/src/client.rs:268-279`); `https_request` takes h
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
 (`crates/podssh-cli/src/flags.rs:312-319`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:193-208` stops
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:194-209` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -557,7 +557,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:76`,
    108-113, 122-132), the test of lines 365-377, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:68-83`).
+   notes (`crates/podssh-cli/src/man/notes.rs:68-87`).
 
 ## Decision
 

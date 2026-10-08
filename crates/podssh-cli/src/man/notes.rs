@@ -76,6 +76,10 @@ const DOCTOR: &[&str] = &[
      show the published host key of GitHub, and the clock).",
     "podssh doctor connects to the relay hosts and, through the relay, to github.com. The report goes to \
      stdout; the exit codes are in EXIT STATUS.",
+    "With --full, the relay section adds login: podssh logs in to github.com through the relay as git, \
+     with an Ed25519 key made for the check and never written, and GitHub refuses it. That shows that the \
+     handshake, the host key (the one that forward identified) and the authentication path work. No pty \
+     is asked for: GitHub refuses the key before a channel opens.",
     "With --json, the report is one JSON object on stdout when every check has run: schema (1), podssh, \
      os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown) and \
      counts (ok, fail, unknown). The details are the text's, the exit code is the same, and nothing is \
