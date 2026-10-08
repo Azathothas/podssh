@@ -140,6 +140,11 @@ The edit distance alone suggests `doctor` for `example.org` and `cp` for
 - Servers are identified by equality (GitHub's published host key), never
   by the form of a banner. A socket bind is closed at once and never
   listens. Proxy credentials and tokens are never shown.
+- `--json` writes the same report as one JSON object, when every check has
+  run (GitHub #9): `schema` (1), `podssh`, `os`, `arch`, `checks` (each
+  with `section`, `check`, `status` and `detail`; `status` is `ok`, `FAIL`
+  or `unknown`) and `counts`. The exit code does not change. `--json` is
+  for a report that ends; `--jsonl` stays for the events of a long run.
 
 ## `podssh keygen`
 

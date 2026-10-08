@@ -97,7 +97,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 s.err,
             )
         }
-        Parsed::Doctor { relay_host, relay_addr, ca_file, refused } => {
+        Parsed::Doctor { relay_host, relay_addr, ca_file, json, refused } => {
             if refusals("doctor", refused, s.err) {
                 return EXIT_USAGE;
             }
@@ -106,6 +106,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                     relay_host: relay_host.clone(),
                     relay_addr: relay_addr.clone(),
                     ca_file: ca_file.clone(),
+                    json: *json,
                 },
                 s.out,
                 s.err,

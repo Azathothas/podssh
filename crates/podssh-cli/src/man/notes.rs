@@ -76,6 +76,10 @@ const DOCTOR: &[&str] = &[
      show the published host key of GitHub, and the clock).",
     "podssh doctor connects to the relay hosts and, through the relay, to github.com. The report goes to \
      stdout; the exit codes are in EXIT STATUS.",
+    "With --json, the report is one JSON object on stdout when every check has run: schema (1), podssh, \
+     os, arch, checks (each with section, check, status and detail; status is ok, FAIL or unknown) and \
+     counts (ok, fail, unknown). The details are the text's, the exit code is the same, and nothing is \
+     printed before the object.",
 ];
 
 const KEYGEN: &[&str] = &[

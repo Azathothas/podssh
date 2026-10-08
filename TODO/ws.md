@@ -440,7 +440,7 @@ makes the error `DialError::BadProxy` (line 217), which stops the failover at on
 (`crates/podssh-relay/src/open.rs:62`) and gives exit 78 in `podssh proxy`
 (`crates/podssh-cli/src/proxy.rs:162`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs:103-109`). Two tests assert the refusal:
-`crates/podssh-cli/tests/doctor.rs:123-132` and `crates/podssh-ws/tests/dial.rs:34-42`.
+`crates/podssh-cli/tests/doctor.rs:129-138` and `crates/podssh-ws/tests/dial.rs:34-42`.
 
 ## Approach
 

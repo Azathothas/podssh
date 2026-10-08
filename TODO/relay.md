@@ -153,7 +153,7 @@ token header (`crates/podssh-ws/src/client.rs:268-279`); `https_request` takes h
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
    (T-049). Each request has the 10 s limit of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs:24`), and the run has a limit too.
-7. Remove the owner row (`crates/podssh-cli/src/flags.rs:428`); change `DISPATCHED`, `usage_tail`
+7. Remove the owner row (`crates/podssh-cli/src/flags.rs:430`); change `DISPATCHED`, `usage_tail`
    (`crates/podssh-cli/src/help.rs:254`), the notes, `docs/relay.md:216-222` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
@@ -161,7 +161,7 @@ token header (`crates/podssh-ws/src/client.rs:268-279`); `https_request` takes h
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
 (`crates/podssh-cli/src/flags.rs:310-317`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:191-204` stops
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:192-205` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -557,7 +557,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:76`,
    108-113, 122-132), the test of lines 365-377, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:68-79`).
+   notes (`crates/podssh-cli/src/man/notes.rs:68-83`).
 
 ## Decision
 

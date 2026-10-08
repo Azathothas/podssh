@@ -37,6 +37,8 @@ pub struct DoctorArgs {
     pub relay_host: Option<String>,
     pub relay_addr: Option<String>,
     pub ca_file: Option<String>,
+    /// `--json`: one JSON object on stdout when every check has run.
+    pub json: bool,
 }
 
 /// Run every check; returns the exit code. The report goes to `out`; only a
@@ -57,14 +59,17 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     };
 
     let mut report = Report::new(out);
-    let _ = writeln!(report.out, "podssh doctor: what this host allows, measured rather than assumed");
-    let _ = writeln!(
-        report.out,
-        "podssh {}, {} {}",
-        crate::help::version(),
-        std::env::consts::OS,
-        std::env::consts::ARCH
-    );
+    report.json = args.json;
+    if !report.json {
+        let _ = writeln!(report.out, "podssh doctor: what this host allows, measured rather than assumed");
+        let _ = writeln!(
+            report.out,
+            "podssh {}, {} {}",
+            crate::help::version(),
+            std::env::consts::OS,
+            std::env::consts::ARCH
+        );
+    }
 
     report.section("this host");
     host::check(&mut report);
@@ -93,9 +98,22 @@ async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust) {
     relay_checks::check(report, relays, trust).await;
 }
 
-/// The lines printed so far, and their counts.
+/// One check, as the report keeps it for `--json`.
+struct Line {
+    section: String,
+    check: String,
+    status: &'static str,
+    detail: String,
+}
+
+/// The lines so far, and their counts. The text is printed as each check
+/// ends; with `json`, the lines are kept and written as one object at the
+/// end. One model and two renderers, as for `podssh man`.
 pub(crate) struct Report<'a> {
     out: &'a mut dyn Write,
+    json: bool,
+    section: String,
+    lines: Vec<Line>,
     ok: usize,
     failed: usize,
     unknown: usize,
@@ -103,11 +121,14 @@ pub(crate) struct Report<'a> {
 
 impl<'a> Report<'a> {
     fn new(out: &'a mut dyn Write) -> Self {
-        Report { out, ok: 0, failed: 0, unknown: 0 }
+        Report { out, json: false, section: String::new(), lines: Vec::new(), ok: 0, failed: 0, unknown: 0 }
     }
 
     fn section(&mut self, title: &str) {
-        let _ = writeln!(self.out, "\n{title}");
+        self.section = title.to_string();
+        if !self.json {
+            let _ = writeln!(self.out, "\n{title}");
+        }
     }
 
     /// One check. The detail is made safe for a terminal here, once, because
@@ -129,9 +150,17 @@ impl<'a> Report<'a> {
             }
         };
         let detail = podssh_ws::text::one_line(detail);
-        let _ = writeln!(self.out, "  {label:<4}  {name:<14} {detail}");
-        // Network checks take seconds each: show every line as it is known.
-        let _ = self.out.flush();
+        let status = match verdict {
+            Verdict::Ok { .. } => "ok",
+            Verdict::Failed { .. } => "FAIL",
+            Verdict::Unknown { .. } => "unknown",
+        };
+        if !self.json {
+            let _ = writeln!(self.out, "  {label:<4}  {name:<14} {detail}");
+            // Network checks take seconds each: show every line as it is known.
+            let _ = self.out.flush();
+        }
+        self.lines.push(Line { section: self.section.clone(), check: name.to_string(), status, detail });
     }
 
     pub(crate) fn ok(&mut self, name: &str, detail: impl Into<String>) {
@@ -147,17 +176,47 @@ impl<'a> Report<'a> {
     }
 
     fn finish(self) -> i32 {
-        let _ = writeln!(
-            self.out,
-            "\n{} ok, {} FAIL, {} ???? (could not be checked)",
-            self.ok, self.failed, self.unknown
-        );
+        if self.json {
+            let _ = writeln!(self.out, "{}", self.to_json());
+        } else {
+            let _ = writeln!(
+                self.out,
+                "\n{} ok, {} FAIL, {} ???? (could not be checked)",
+                self.ok, self.failed, self.unknown
+            );
+        }
         let _ = self.out.flush();
         if self.failed > 0 {
             EXIT_FAILED
         } else {
             0
         }
+    }
+}
+
+impl Report<'_> {
+    /// The report as one JSON object: the version and the platform, each
+    /// check with its section, and the counts. The details are the text's,
+    /// so they hide credentials and tokens in the same way.
+    fn to_json(&self) -> String {
+        let checks: Vec<serde_json::Value> = self
+            .lines
+            .iter()
+            .map(|l| {
+                serde_json::json!({
+                    "section": l.section, "check": l.check, "status": l.status, "detail": l.detail,
+                })
+            })
+            .collect();
+        let doc = serde_json::json!({
+            "schema": 1,
+            "podssh": crate::help::version(),
+            "os": std::env::consts::OS,
+            "arch": std::env::consts::ARCH,
+            "checks": checks,
+            "counts": { "ok": self.ok, "fail": self.failed, "unknown": self.unknown },
+        });
+        serde_json::to_string_pretty(&doc).unwrap_or_default()
     }
 }
 

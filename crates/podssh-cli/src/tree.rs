@@ -171,6 +171,8 @@ pub enum Parsed {
         relay_host: Option<String>,
         relay_addr: Option<String>,
         ca_file: Option<String>,
+        /// `--json`: one JSON object at the end, in place of the text.
+        json: bool,
         refused: Vec<(String, &'static str, &'static str)>,
     },
     /// ⛔ **`podssh ts`, and it is its own variant because it carries behaviour
@@ -410,6 +412,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             relay_host: get("relay-host"),
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
+            json: matches.get_flag("json"),
             refused,
         };
     }

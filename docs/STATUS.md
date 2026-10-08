@@ -106,6 +106,7 @@ in [ROADMAP.md](ROADMAP.md).
 | The same, through a local CONNECT proxy that allows only port 443 | 17 ok. The proxy allows the relay and `github.com:443`, and refuses `github.com:22` with `403 not on the egress allowlist`. Each relay line says `opened CONNECT ... through` the proxy. The proxy's log lists the same connections as the report. |
 | `--relay-host dead-host.invalid,tcp.ssh.relay.ajam.dev` | Exit 1, 2 FAIL: DNS over HTTPS (`1.1.1.1 answered that dead-host.invalid does not exist`) and that relay host. The token and the forward session use the second host. |
 | The compiled-in roots (T-003), Windows 11, debug build, live | The trust store line names `webpki-roots 1.0.9 of 2026-07-18`, and the line "roots age" says 82 days; 17 ok, 0 FAIL. Older than 12 months, the line says so and names `--ca-file` or `SSL_CERT_FILE` (`cargo test -p podssh-cli --lib -- roots_age`). |
+| `podssh doctor --json` (T-049, GitHub #9), offline | One JSON object: `schema`, `podssh`, `os`, `arch`, `checks` and `counts`; each text line has an item with the same section, check, status and detail; proxy credentials and a token do not appear (`cargo test -p podssh-cli --test doctor -- json`). |
 | A Linux host on the tailnet (Ubuntu 22.04), the release workflow's static binary | 25 ok, exit 0, 3.9 s. Open egress; the system trust store added to the compiled-in roots. |
 | The `rust:1-alpine` container, as root | 26 ok, exit 0. A copy of podssh runs from `/tmp`, `/var/tmp`, `/root` and `/work`, and is refused in `/dev/shm`, a noexec mount. |
 | `cargo test -p podssh-cli --test doctor` | Offline, the network checks are one `????` line, never `ok`. Planted failures (no `HOME`; a proxy setting that cannot be used) give `FAIL` and exit 1. Proxy credentials and a token in the environment do not appear in the output. |
@@ -171,7 +172,7 @@ Not measured in a real sandbox yet: interactive programs over `-tt`
 | A name selects one section (T-234), offline | `podssh man relay-facts` shows THE RELAY, and `podssh man relay` the command, which points to the topic. The list of an unknown section names each section once. |
 | A real Windows console (ConPTY, 20 rows), debug build | 8 of 8: the built-in pager shows one screen and its prompt; Enter shows the next; `q` and the end of input stop it with exit 0; `--no-pager` writes to the end with no prompt. |
 | groff 1.23.0 and mandoc, Alpine 3.22 | The former `Fl` macro (`\$*`) printed blank flag names in both. The new page shows each flag in both. |
-| `scripts/interop-man.sh` in the container gate, the static binary | 64 flag spellings from the `--help` of `ssh`, `proxy`, `man`, `doctor` and `keygen` (gate run of 2026-10-08, after T-236): groff and mandoc show each one. groff `-ww` gives no warning; `mandoc -Tlint` gives no error. The planted page fails (2 spellings missing). |
+| `scripts/interop-man.sh` in the container gate, the static binary | 65 flag spellings from the `--help` of `ssh`, `proxy`, `man`, `doctor` and `keygen` (gate run of 2026-10-09, after T-049): groff and mandoc show each one. groff `-ww` gives no warning; `mandoc -Tlint` gives no error. The planted page fails (2 spellings missing). |
 
 ## Faults between podssh and the relay, measured
 
@@ -216,11 +217,11 @@ behind them.
 | What | Result | Command |
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
-| The default tests | **756 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-08 | `cargo test --no-fail-fast` |
+| The default tests | **758 passed, 0 failed, 6 ignored** (the live tests), Windows, 2026-10-09 | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
 | The work record | `TODO/` agrees with itself. The checker's tests pass: 12 unit tests, 32 plant tests (the control, and 31 planted disagreements, each found), 10 tests of the remap, 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 8 of its 10 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |
-| The static release binary | **4,127,232 bytes** (gate run of 2026-10-08, after T-238): a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
+| The static release binary | **4,135,424 bytes** (gate run of 2026-10-09, after T-049): a static PIE with no `NEEDED` entries and no interpreter | `scripts/gate.sh` |
 | The container gate | **Green** (run of 2026-10-08, after T-238): each build and test step; interop 103 of 103 (64 SSH checks, 25 keygen checks, 14 faults); the man page in groff and mandoc, 6 of 6 | `sh scripts/dev.sh check` |
 | The no-C plant | Fails for the right reason when `ring` is planted (no C compiler), twice, and when a crate that compiles C++ is planted (it stops at `CXX=/nonexistent`). With `CC=/nonexistent` alone, the C++ build is not stopped there, so `CXX` is load-bearing. The control passes. Measured 2026-10-08 in `rust:1-alpine`. | `sh scripts/dev.sh plant` |
 | CI | Runs the gate on each push. Each run from `9b806fe` to `e275d36` passed. | `gh run list` |

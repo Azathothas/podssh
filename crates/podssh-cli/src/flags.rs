@@ -340,6 +340,8 @@ pub const DOCTOR_FLAGS: &[FlagRow] = &[
         "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
+    row(None, "json", None, FlagKind::Supported,
+        "write the report as one JSON object on stdout, when every check has run", None),
 ];
 
 /// `keygen` takes the `ssh-keygen` flags scripts use. `-N` exists so that
