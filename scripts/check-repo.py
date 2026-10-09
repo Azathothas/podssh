@@ -16,6 +16,11 @@
      time allows the bind" (AGENTS.md, section 5). Each crate's tests/ may,
      for servers on the loopback. A planted listener must be found first.
 
+Each check counts the files that it read, and fails below a floor, so a
+scan that read nothing never passes. `--plant-empty` runs each check on an
+empty repository, where each must fail: it exits 1 when they all fail, as
+they must, and 0 when one passed, which shows a floor gone.
+
 Run it from anywhere: `python scripts/check-repo.py`. Read the exit code
 directly, not through a pipe.
 """
@@ -54,7 +59,6 @@ PRIVATE_KEY = re.compile(
 
 
 # The one place of each image: one FROM line, pinned to an @sha256: digest.
-IMAGES = ROOT / ".github" / "images"
 PINNED_FROM = re.compile(r"^FROM\s+\S+@sha256:[0-9a-f]{64}\s*$")
 # An image of these, named by a tag, as a workflow or a script would pull it.
 IMAGE_BY_TAG = re.compile(r"\b(?:rust|alpine|python):[0-9][\w.-]*")
@@ -73,8 +77,17 @@ LISTENERS = {
     "listen(": [],
     "socket2": [],
 }
-# Fewer Rust files than this means that the scan read too little to pass.
+# The least files that each scan must read: a scan of fewer read too little
+# to pass, so an empty tree passes no check. Each is far below today's count.
 MIN_RUST_FILES = 100
+MIN_MARKDOWN_FILES = 10
+MIN_TRACKED_FILES = 150
+MIN_SHELL_SCRIPTS = 5
+
+
+def too_few(what: str, count: int, floor: int) -> list[str]:
+    """The problem of a scan that read fewer files than its floor."""
+    return [f"{count} {what} read, fewer than {floor}: the scan read too little to pass"] if count < floor else []
 
 
 def git_files() -> list[Path]:
@@ -85,10 +98,10 @@ def git_files() -> list[Path]:
 
 
 def check_file_size() -> list[str]:
-    problems = []
-    for path in sorted((ROOT / "crates").rglob("*.rs")):
-        if "target" in path.relative_to(ROOT).parts:
-            continue
+    files = [p for p in sorted((ROOT / "crates").rglob("*.rs")) if "target" not in p.relative_to(ROOT).parts]
+    problems = too_few("Rust files under crates/", len(files), MIN_RUST_FILES)
+    check_file_size.note = f"{len(files)} Rust files under crates/ read"
+    for path in files:
         lines = len(path.read_text(encoding="utf-8", errors="replace").splitlines())
         if lines > MAX_SOURCE_LINES:
             problems.append(
@@ -109,8 +122,10 @@ def live_markdown() -> list[Path]:
 
 
 def check_links() -> list[str]:
-    problems = []
-    for path in live_markdown():
+    files = live_markdown()
+    problems = too_few("Markdown files", len(files), MIN_MARKDOWN_FILES)
+    check_links.note = f"{len(files)} Markdown files read"
+    for path in files:
         in_fence = False
         for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             if FENCE.match(line.strip()):
@@ -130,11 +145,11 @@ def check_links() -> list[str]:
 
 
 def check_secrets() -> list[str]:
-    problems = []
-    for path in git_files():
+    files = [p for p in git_files() if p.relative_to(ROOT).parts[0] != "vendor" and p.is_file()]
+    problems = too_few("tracked files", len(files), MIN_TRACKED_FILES)
+    check_secrets.note = f"{len(files)} tracked files read, vendor/ aside"
+    for path in files:
         rel = path.relative_to(ROOT)
-        if rel.parts[0] == "vendor" or not path.is_file():
-            continue
         try:
             text = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
@@ -154,15 +169,17 @@ def check_secrets() -> list[str]:
 
 
 def check_shell_line_endings() -> list[str]:
-    problems = []
-    for path in git_files():
-        if path.suffix == ".sh" and path.is_file() and b"\r" in path.read_bytes():
+    scripts = [p for p in git_files() if p.suffix == ".sh" and p.is_file()]
+    problems = too_few("shell scripts", len(scripts), MIN_SHELL_SCRIPTS)
+    check_shell_line_endings.note = f"{len(scripts)} shell scripts read"
+    for path in scripts:
+        if b"\r" in path.read_bytes():
             problems.append(f"{path.relative_to(ROOT).as_posix()}: CR in a shell script; use LF")
     return problems
 
 
 def check_images() -> list[str]:
-    dockerfiles = sorted(IMAGES.glob("*/Dockerfile"))
+    dockerfiles = sorted((ROOT / ".github" / "images").glob("*/Dockerfile"))
     # A check that finds nothing to check does not pass.
     if not dockerfiles:
         return [".github/images/: no Dockerfile, so no image is pinned"]
@@ -212,7 +229,7 @@ def check_listeners() -> list[str]:
     count, hits = listener_hits(ROOT)
     # A check that reads too little does not pass.
     if count < MIN_RUST_FILES:
-        return [f"crates/: {count} Rust files read, fewer than {MIN_RUST_FILES}"]
+        return too_few("Rust files under crates/", count, MIN_RUST_FILES)
     problems = [f"{rel}:{n}: `{p}`: {LISTENER_RULE}" for rel, n, p in outside_allowance(hits)]
     # The plant: one listener in a library crate's src/ must be found, or
     # the scan proves nothing.
@@ -227,17 +244,43 @@ def check_listeners() -> list[str]:
     return problems
 
 
-def main() -> int:
-    checks = [
-        ("source files at most 500 lines", check_file_size),
-        ("doc links resolve", check_links),
-        ("no credential-shaped strings", check_secrets),
-        ("shell scripts are LF", check_shell_line_endings),
-        ("each image is pinned, in one place", check_images),
-        ("no listener outside its allowance", check_listeners),
-    ]
+def main(argv: list[str]) -> int:
+    global ROOT
+    if argv == ["--plant-empty"]:
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(["git", "init", "-q", tmp], check=True)
+            ROOT = Path(tmp)
+            return plant_empty()
+    if argv:
+        print("usage: python scripts/check-repo.py [--plant-empty]", file=sys.stderr)
+        return 2
+    return run_checks()
+
+
+CHECKS = [
+    ("source files at most 500 lines", check_file_size),
+    ("doc links resolve", check_links),
+    ("no credential-shaped strings", check_secrets),
+    ("shell scripts are LF", check_shell_line_endings),
+    ("each image is pinned, in one place", check_images),
+    ("no listener outside its allowance", check_listeners),
+]
+
+
+def plant_empty() -> int:
+    """Each check on an empty repository: 1 when each failed, as it must."""
+    passed = [name for name, check in CHECKS if not check()]
+    for name in passed:
+        print(f"FAIL {name}: it passed on an empty tree, so its floor is gone")
+    if passed:
+        return 0
+    print(f"ok   each of the {len(CHECKS)} checks failed on an empty tree")
+    return 1
+
+
+def run_checks() -> int:
     failed = False
-    for name, check in checks:
+    for name, check in CHECKS:
         problems = check()
         print(f"{'ok  ' if not problems else 'FAIL'} {name}")
         note = getattr(check, "note", None)
@@ -250,4 +293,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

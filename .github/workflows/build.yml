@@ -53,6 +53,17 @@ jobs:
       - name: repository checks
         run: '"$PY" scripts/check-repo.py'
 
+      # Each check must fail on an empty repository: a check that passes there
+      # has lost its floor, and would pass a scan that read nothing.
+      - name: each repository check fails on an empty tree
+        run: |
+          rc=0
+          "$PY" scripts/check-repo.py --plant-empty || rc=$?
+          if [ "$rc" -ne 1 ]; then
+            echo "a check passed on an empty tree, or the plant did not run (exit $rc)"
+            exit 1
+          fi
+
       # Dependabot's configuration, against its published schema. A copy with
       # a wrong ecosystem must fail, or the check proves nothing.
       - name: dependabot's configuration is valid
@@ -115,3 +126,21 @@ jobs:
           name: podssh-x86_64-unknown-linux-musl
           path: target/x86_64-unknown-linux-musl/release/podssh
           if-no-files-found: error
+
+  # Windows is a released platform: each default test runs on it here, as the
+  # gate runs them in Linux. The console code of Windows and the branches of
+  # the token cache that are not Unix are tested nowhere else.
+  windows:
+    name: windows
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      CARGO_BUILD_JOBS: 4
+    steps:
+      - uses: actions/checkout@v5
+      # aws-lc's build wants NASM on Windows, as in the release.
+      - uses: ilammy/setup-nasm@v1
+      - name: the default tests
+        run: cargo test --locked --no-fail-fast
+      - name: repository checks
+        run: python scripts/check-repo.py

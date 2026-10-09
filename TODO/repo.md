@@ -98,7 +98,7 @@ Read:
   from crates.io, and no git source.
 - The workflows use four actions, each by a major tag:
   `actions/checkout@v5` (`.github/workflows/build.yml:22`),
-  `actions/upload-artifact@v7` (`.github/workflows/build.yml:113`),
+  `actions/upload-artifact@v7` (`.github/workflows/build.yml:124`),
   `actions/download-artifact@v8` (`.github/workflows/release.yml:125`) and
   `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:82`).
 - The build image is a variable in two workflows and in a shell script
@@ -322,7 +322,7 @@ Measured: `wc -l scripts/dev.sh` gives 592.
 
 Read:
 
-- `scripts/check-repo.py:87-97` checks only the Rust files under `crates/`.
+- `scripts/check-repo.py:100-110` checks only the Rust files under `crates/`.
 - `scripts/dev.sh:318-329` defines `step`, which nothing calls.
 - The help (`scripts/dev.sh:331-366`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
@@ -333,7 +333,7 @@ Read:
 - Stale comments: `scripts/dev.sh:69-73` ("the default build"),
   `scripts/dev.sh:397-404` ("links the fork since 4b", "steps 4-5"),
   `scripts/dev.sh:462`.
-- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:69-75`);
+- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:80-86`);
   `scripts/check-scripts.py:45-49` finds the scripts under `scripts/` at any
   depth.
 
@@ -420,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:359-404`): the
+5. docs/development.md, "Release builds" (`docs/development.md:365-410`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -501,8 +501,8 @@ credential that a later commit removed, is not found.
 
 Read:
 
-- `scripts/check-repo.py:40-53` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:132-153` scans the tracked
+- `scripts/check-repo.py:45-58` defines the shapes (a relay token, a Tailscale
+  key, a private key block); `scripts/check-repo.py:147-168` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -756,7 +756,7 @@ and the job takes the sum of all the steps.
 
 Read:
 
-- `.github/workflows/build.yml:16-117`: one job, `gate`, with a limit of
+- `.github/workflows/build.yml:16-128`: one job, `gate`, with a limit of
   45 min (line 24). The gate is one `docker run` (lines 58-65); the plant
   (lines 67-73) and the live check (lines 75-92) follow it.
 - `.github/workflows/build.yml:3-5`: CI implements nothing of the gate again.
@@ -840,7 +840,7 @@ Read:
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:129`).
 - The box needs a static binary; CI uploads one
-  (`.github/workflows/build.yml:113-117`).
+  (`.github/workflows/build.yml:124-128`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
   `/dev/pts` (`scripts/test_in_box.sh:180`). Nobody measured the Podman of a
   GitHub runner with them.
@@ -860,7 +860,7 @@ Read:
 4. Pin the images of the box with the build image (T-206).
 5. Credentials: the box mints a token and never prints it
    (`scripts/sandbox-check.sh:2-4`). Before the job is required, scan its
-   first log with the token pattern of `scripts/check-repo.py:44`.
+   first log with the token pattern of `scripts/check-repo.py:49`.
 6. docs/STATUS.md (the box section) cites the CI run; docs/development.md says
    that CI runs the box.
 
@@ -905,7 +905,7 @@ platform (`.github/workflows/release.yml:71-112`).
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -966,6 +966,18 @@ python scripts/interop-conpty.py target/debug/podssh.exe podtest@127.0.0.1 --dir
 
 The tests pass, and the console script prints 14 `ok` lines and exits 0. The
 plant of step 4 must fail the three restore checks.
+
+## Correction
+
+2026-10-09: the job is a second job of `.github/workflows/build.yml`, beside
+the gate, so that each push and each pull request runs it. The release's
+Windows job still runs on `windows-latest`; this one is pinned to
+`windows-2025`, as step 1 says.
+
+The state (partial), 2026-10-09: step 1 is written (the default tests and
+`python scripts/check-repo.py` on `windows-2025`, with NASM as in the
+release). Next: its first run in CI, then the SSH server of MSYS2 for
+`scripts/interop-conpty.py` (step 2) and its plant (step 4).
 
 # T-215: rustfmt and clippy in the gate
 
@@ -1405,11 +1417,11 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:148-150` states the rule with `CXX`, and
+- `docs/development.md:154-156` states the rule with `CXX`, and
   `docs/STATUS.md:238` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
-- `.github/workflows/build.yml:86-92` runs the plant on each push.
+- `.github/workflows/build.yml:97-103` runs the plant on each push.
 
 ## Approach
 
@@ -1448,7 +1460,7 @@ load-bearing".
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1469,10 +1481,9 @@ Read:
 - `scripts/check-repo.py:89`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56; the walk is at 57
   now.)
-- `scripts/check-repo.py:100-129`, `scripts/check-repo.py:132-153` and
-  `scripts/check-repo.py:156-161`: the links, the credentials and the line
+- `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
   endings have no floor either.
-- `scripts/check-repo.py:230-249`: `main` passes when each list of problems is
+- `scripts/check-repo.py` lines 230-249 at `e892b0f`: `main` passes when each list of problems is
   empty.
 - The model of a floor: `crates/podssh-relay/tests/default_relay.rs:54`
   asserts that the sweep read more than 20 files.
@@ -1492,7 +1503,7 @@ Read:
 3. A plant in the same script: a mode `--plant-empty` runs the checks on an
    empty temporary directory and must exit 1. The control is the real tree,
    which must exit 0. CI runs both, as it does for the relay check
-   (`.github/workflows/build.yml:99-111`).
+   (`.github/workflows/build.yml:110-122`).
 4. With T-207: the size check also reads `scripts/`, with its own floor.
 5. The checker of `TODO/` gets its own floor in its own change; this entry
    does not plan it.
@@ -1508,6 +1519,32 @@ python scripts/check-repo.py --plant-empty    # an empty tree: exit 1, each chec
 The first command exits 0 and prints each count; the second must exit 1.
 Planted defect: set one floor to 0; `--plant-empty` then exits 0, and the CI
 step must fail on that.
+
+## Correction
+
+2026-10-09: the credential check reads the tracked files outside `vendor/`,
+377 of them today, not the 827 of the whole tree: a floor of 300 would be
+close to the count, so it is 150. Since T-206 and T-224 the script has two
+more checks, the pinned images (at least one Dockerfile) and the listeners
+(at least 100 Rust files); each has its floor too.
+
+## Done
+
+2026-10-09, in the commit "Each repository check has a floor, and fails on
+an empty tree".
+
+- `scripts/check-repo.py`: each check counts the files that it read, judges
+  its floor before its problems (100 Rust files, 10 Markdown files, 150
+  tracked files, 5 shell scripts), and prints the count. `--plant-empty` runs
+  the six checks on an empty git repository: it exits 1 when each failed, and
+  0, naming the check, when one passed.
+- `.github/workflows/build.yml`: a step after the checks, which fails unless
+  `--plant-empty` exits 1. `docs/development.md`, "Checks": the floors.
+- Prove: `python scripts/check-repo.py`: exit 0, with 265 Rust files, 43
+  Markdown files, 377 tracked files and 13 shell scripts read.
+  `python scripts/check-repo.py --plant-empty`: "each of the 6 checks failed
+  on an empty tree", exit 1. Plant, restored: `MIN_SHELL_SCRIPTS = 0`:
+  `--plant-empty` exited 0 and named "shell scripts are LF".
 
 # T-224: The gate finds a listener in the source: a scan with an allow-list (GitHub #33)
 
@@ -1537,7 +1574,7 @@ listener when the user asks for it and a probe at run time allows the bind
 (T-038, T-039, T-124, T-186, and `podssh agent` in T-034); Q10 allows a race
 of relay hosts (T-220), more than one outbound connection for a moment, which
 is not a listener.
-`scripts/check-repo.py:230-238` has four checks, and none reads a socket
+`scripts/check-repo.py` lines 133-138 at `e1ba5ba` has four checks, and none reads a socket
 call; `scripts/plant.sh` plants C and C++ only.
 
 Measured with grep over `git ls-files 'crates/*'`: three files hold a
@@ -1850,7 +1887,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:186-187` lists what the containers do not get; name
+5. `docs/development.md:192-193` lists what the containers do not get; name
    each excluded pattern there.
 
 ## Prove

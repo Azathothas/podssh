@@ -104,6 +104,12 @@ binaries with their texts (`about.toml`, `about.hbs`, made by cargo-about).
 
 Read each exit code directly. `cmd | tail` gives the exit code of `tail`.
 
+Each check of `check-repo.py` counts the files that it read, and fails below
+a floor (100 Rust files, 10 Markdown files, 150 tracked files, 5 shell
+scripts, one image, 100 files for the listeners), so a scan that read nothing
+never passes. `python scripts/check-repo.py --plant-empty` runs each check on
+an empty repository and must exit 1; CI runs both.
+
 CI also scans each commit of the history for credentials, on each push, each
 pull request and each week (`.github/workflows/secrets.yml`): TruffleHog,
 pinned in `.github/images/trufflehog/Dockerfile`, in its git mode only, as
