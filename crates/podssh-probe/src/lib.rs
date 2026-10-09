@@ -6,7 +6,7 @@
 //! never reported as a pass — that is the defect four sibling projects shipped
 //! and the one this repository shipped itself.
 //!
-//! It currently owns **E06**, the relay's structural facts, because the relay
+//! It currently owns **the relay's structural facts**, because the relay
 //! moves under its clients and a client that discovers it mid-session reports it
 //! as a mysterious close code.
 

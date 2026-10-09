@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:422-467`): the
+5. docs/development.md, "Release builds" (`docs/development.md:431-476`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -538,8 +538,8 @@ credential that a later commit removed, is not found.
 
 Read:
 
-- `scripts/check-repo.py:46-59` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:152-173` scans the tracked
+- `scripts/check-repo.py:50-63` defines the shapes (a relay token, a Tailscale
+  key, a private key block); `scripts/check-repo.py:171-192` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -959,7 +959,7 @@ Read:
 4. Pin the images of the box with the build image (T-206).
 5. Credentials: the box mints a token and never prints it
    (`scripts/sandbox-check.sh:2-4`). Before the job is required, scan its
-   first log with the token pattern of `scripts/check-repo.py:50`.
+   first log with the token pattern of `scripts/check-repo.py:54`.
 6. docs/STATUS.md (the box section) cites the CI run; docs/development.md says
    that CI runs the box.
 
@@ -1605,7 +1605,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:191-193` states the rule with `CXX`, and
+- `docs/development.md:200-202` states the rule with `CXX`, and
   `docs/STATUS.md:242` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -1666,7 +1666,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:91`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:110`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -1856,7 +1856,7 @@ again here; rule 6 of AGENTS.md, section 5.
 **Milestone:** none
 **Priority:** P3
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1882,16 +1882,16 @@ Measured with Python over the tracked files outside `vendor/`:
 - 266 lines in 42 code files hold a line number of a document; 188 lines in
   63 files name a work item of an earlier session (E02, E16).
 
-Read, names of files that do not exist: docs/spec/06-cli.md
-(`crates/podssh-cli/src/flags.rs:3`, `:12` and `:404-406`, and four more
-files); docs/TODO/cli/surface.md (`crates/podssh-cli/src/flags.rs:103`,
-`crates/podssh-cli/src/suggest.rs:9`); docs/TODO/protocol/ssh-core.md
-(`crates/podssh-terminal/src/window.rs:42-44`); docs/spec/01-relay-protocol.md
-(`crates/podssh-core/src/irc/limits.rs:8`,
-`crates/podssh-probe/facts/relay-facts.toml:3-5`); a root RULES.md with lines
+Read, names of files that do not exist, at `f32334c`: docs/spec/06-cli.md
+(`crates/podssh-cli/src/flags.rs` lines 3, 12 and 404-406, and four more
+files); docs/TODO/cli/surface.md (`crates/podssh-cli/src/flags.rs` line 103,
+`crates/podssh-cli/src/suggest.rs` line 9); docs/TODO/protocol/ssh-core.md
+(`crates/podssh-terminal/src/window.rs` lines 42-44); docs/spec/01-relay-protocol.md
+(`crates/podssh-core/src/irc/limits.rs` line 8,
+`crates/podssh-probe/facts/relay-facts.toml` lines 3-5); a root RULES.md with lines
 138-142 (crates/podssh-transport/src/lib.rs line 4 at `e8bbd4d`); check-todo.py
-(`scripts/check-scripts.py:12`, line 25). The link to `SCP_FLAGS`
-(`crates/podssh-cli/src/flags.rs:110`) names a constant that does not exist.
+(`scripts/check-scripts.py` lines 12 and 25). The link to `SCP_FLAGS`
+(`crates/podssh-cli/src/flags.rs` line 110) names a constant that does not exist.
 
 Read, wrong facts:
 
@@ -1906,7 +1906,7 @@ Read, wrong facts:
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.
 - The comment "THE BUILD RULE" in `Cargo.toml` lists the no-C crates without
-  `podssh-relay`; `crates/podssh-cli/Cargo.toml:3` names a `--doctor` flag.
+  `podssh-relay`; `crates/podssh-cli/Cargo.toml` line 3 at `f32334c` names a `--doctor` flag.
 
 ## Approach
 
@@ -1954,13 +1954,56 @@ U+26A0 markers went with `podssh-transport`. The tests of the record's
 checker (`crates/podssh-todo`) hold Markdown locations such as
 "TODO/INDEX.md:3" as data: the check of step 5 leaves that crate out.
 
-The state (partial), 2026-10-09: step 1 is done, in the commit "The code
-carries no stop-sign markers": each of the 3,301 markers is gone with one
-space beside it, no line and no word with it, and each file keeps its line
-endings (the IRC fixture its CRLF). rustfmt joined seven assertions whose
-messages became shorter; `remap` moved the eight citations that they shifted.
-Next: steps 2 to 4 (the 201 lines, and the wrong facts), then the check of
-step 5.
+"THE BUILD RULE" of `Cargo.toml` names `podssh-relay` already. Three
+declarations of `[workspace.dependencies]`, `chacha20`, `cipher` and
+`poly1305`, served the SSH client that was written by hand before russh, and
+no crate uses them: they went with their comment, which named a file that is
+gone.
+
+## Done
+
+2026-10-09, in the commits "The code carries no stop-sign markers" (step 1)
+and "Code comments name what they mean, and a check keeps the rule"
+(steps 2 to 5).
+
+- Step 1: the 3,301 markers, as the state above says.
+- Steps 2 and 3: 291 lines of 59 files. In `podssh-cli`, 207 lines: 200
+  drafted by a helper that read the code and the documents, each draft checked
+  against the current line and each cited section and quote against the
+  document, and 7 more here; 84 lines of the other crates and the scripts were
+  written here. A line number of a document became its section (`docs/cli.md`,
+  "Exit codes"; `docs/architecture.md`, "Design rules"; `docs/development.md`,
+  "Rules for tests"; `docs/decisions.md`, "Product"), or the fact; each name
+  of an earlier work item became what it meant (the exit codes, the relay's
+  facts, the TLS connector, the manual, the `--timeout` gate, IRC,
+  Tailscale...); each missing file became the document that holds the fact
+  now. No line of a comment was added or removed.
+- Step 4: the forward path's backpressure went with `podssh-transport`
+  (T-082); `podssh-cli`'s description names the command `doctor`, and the
+  comments that named `--doctor` and `doctor --exit-codes`, neither of which
+  exists, name `Fault::name` and the table; `SCP_FLAGS` is plain text; the
+  three unused declarations of `Cargo.toml` are gone. The review found more:
+  the remedies of two prompts named `--accept-new` and `--relay`, which are
+  not flags of podssh (now `-o StrictHostKeyChecking=accept-new`, and
+  `--relay-host` or `PODSSH_RELAY`); `podssh ts HOST` said that the SSH
+  client is not built (it is; an SSH session over the tailnet is not); and
+  the Prove's `cargo doc` found eight intra-doc links to items that do not
+  exist or are ambiguous, in `podssh-core`, `podssh-relay`, `podssh-ssh` and
+  `podssh-terminal`, two of them stating wrong facts (`Replies::Unknown`,
+  `PayloadPlan::due`).
+- Step 5: `scripts/check-repo.py`, check 7: no code file holds a marker, a
+  line number of a document, or a path under docs/spec/ or docs/TODO/; the
+  record's checker, one test of `podssh-probe` and `check-repo.py` itself may
+  name the last two. 334 code files read (floor 100); three planted lines,
+  one of each kind, must be found at each run.
+- `docs/development.md`: the check. `docs/STATUS.md`: the repository checks.
+- Prove: `python scripts/check-repo.py`: exit 0, "334 code files read; 3
+  planted lines found". Plant, removed: one U+26D4 in a comment of
+  `crates/podssh-ws/src/frame.rs`: exit 1, naming the file and the line.
+  `RUSTDOCFLAGS='-D rustdoc::broken_intra_doc_links' cargo doc --no-deps
+  --locked`: no broken link. `sh scripts/dev.sh check`: green in 18 min, each
+  of the nine steps, interop 103 of 103. `cargo test --no-fail-fast`: 823
+  passed before the remap of the record.
 
 # T-245: The box refuses each bind, but sandbox A allows an AF_UNIX bind
 

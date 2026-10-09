@@ -1,5 +1,5 @@
 //! The command tree. **This is the single definition both renderers walk**:
-//! `--help` is [`crate::help`]'s projection of it and `podssh man` is E32's.
+//! `--help` is [`crate::help`]'s projection of it and `podssh man` is `crate::man`'s.
 //!
 //! **Why this is a table of [`Verb`]s and not a `clap` derive tree.** Two
 //! reasons, and both are in the entry:
@@ -10,9 +10,9 @@
 //!    `#[derive(Parser)]` struct cannot express that, because `clap` resolves a
 //!    short flag per command — so `ssh` and `cp` genuinely need separate
 //!    builders, which is what [`verb_command`] returns.
-//! 2. **E32 must render the tree without editing it.** A `derive` tree is
+//! 2. **The manual must render the tree without editing it.** A `derive` tree is
 //!    Rust syntax; a sibling module cannot walk it without a macro. [`Verb`] is
-//!    data, so `man.rs` walks [`crate::flags::VERBS`] and gets every flag,
+//!    data, so `src/man/` walks [`crate::flags::VERBS`] and gets every flag,
 //!    alias and help string with no second list to keep in step.
 //!
 //! **The tree is built for parsing, not for help.** Help is rendered by
@@ -45,8 +45,8 @@ fn add_flag(cmd: Command, row: &'static FlagRow, keep_each: bool) -> Command {
     // A row that takes an argument is `Set`; a boolean is `SetTrue`; `-v` and
     // `-q` are **counts**.
     //
-    // **A count is not decoration.** `06-cli.md`:65 makes `-v`/`-q` parity
-    // flags, `ssh -v -v -v` is how a user raises verbosity, and OpenSSH's own
+    // **A count is not decoration.** `podssh ssh` takes OpenSSH's command line (`docs/cli.md`):
+    // `-v`/`-q` are parity flags, `ssh -v -v -v` is how a user raises verbosity, and OpenSSH's own
     // words for `-q` are *"Multiple -q options increase the quietness"*. The
     // first version of this function had a `Count` arm guarded on
     // `row.arg.is_some()`, and **neither row declares an argument value** — so
@@ -325,7 +325,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         };
     }
 
-    // **`ts` carries its behaviour inputs** (E39): every flag value the
+    // **`ts` carries its behaviour inputs** (Tailscale): every flag value the
     // dispatch needs, read here where `clap` owns them. `--ts-mode` was
     // validated above, so absence here means `auto` — the default, not a
     // guess. Only rows `TS_FLAGS` declares are read.
@@ -348,7 +348,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         };
     }
 
-    // E33's carried values: only rows the verb's table declares are read,
+    // The carried `--timeout` and `--jsonl`: only rows the verb's table declares are read,
     // so `matches.get_flag` never panics on a verb that lacks the row and no
     // verb invents a flag the flag-table gate has not seen in the spec.
     let has_timeout = verb.flags.iter().any(|r| r.long == "timeout");

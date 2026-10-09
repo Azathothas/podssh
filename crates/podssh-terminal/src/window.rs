@@ -39,9 +39,9 @@
 //! crate depend on a file descriptor it does not have. **It never sends
 //! anything.** `Window` decides *when* a size change is safe to emit and hands
 //! the caller the value; the caller turns it into the SSH channel request, which
-//! [`../protocol/ssh-core`] and not this crate owns.
+//! `podssh-ssh` and not this crate owns.
 //!
-//! [`../protocol/ssh-core`]: ../../docs/TODO/protocol/ssh-core.md
+//! `docs/terminal.md`, "`pty-req` (RFC 4254, section 6.2)", says when it is sent.
 
 /// A window size in rows and columns, as `TIOCGWINSZ` names them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

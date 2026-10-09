@@ -1,4 +1,4 @@
-//! **The CA bundle, its resolution, and E03's first two plants.**
+//! **The CA bundle, its resolution, and the first two plants of the TLS connector.**
 //!
 //! **A plant that has never failed is indistinguishable from a plant that
 //! always passes.** Each of the two below asserts the *specific* failure, not
@@ -102,7 +102,7 @@ fn non_base64_inside_a_block_is_an_error() {
 
 // ── PLANT 1: a CA bundle path that does not exist ───────────────────────────
 
-/// **E03's first plant: a CA bundle path that does not exist must `FAIL`,
+/// **The first plant: a CA bundle path that does not exist must `FAIL`,
 /// with the path it tried.**
 #[test]
 fn plant_a_missing_ca_bundle_fails_and_names_the_path() {
@@ -210,7 +210,7 @@ fn the_three_valued_type_holds_its_contract() {
 /// `argv[0]` is where the binary was launched from, not where it is: a binary
 /// started through `PATH` or through a symlink resolves a different bundle
 /// each way. The sibling project made exactly this mistake, and
-/// `docs/decisions/toolchain-contract.md:82-93` names three tools it broke.
+/// its own record of the toolchain names three tools that it broke.
 #[test]
 fn the_default_bundle_path_is_beside_the_executable_and_absolute() {
     let exe = std::env::current_exe().expect("this test binary has a path");

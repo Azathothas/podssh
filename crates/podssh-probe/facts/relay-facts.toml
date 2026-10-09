@@ -2,7 +2,7 @@ origin = "https://tcp.ssh.relay.ajam.dev"
 
 # The pin. This is what the live document is compared against, and it moves.
 # NEVER re-pin silently: when the live version changes, read the diff, then
-# update this file and docs/spec/01-relay-protocol.md in the same change.
+# update this file and docs/relay.md in the same change.
 [pin]
 version = "2026-10-03-r2"
 spec-sha256 = "88eb1b0b8571b829daab17614ea2e27966ba5611951ea28db84660fc41cfa5a8"

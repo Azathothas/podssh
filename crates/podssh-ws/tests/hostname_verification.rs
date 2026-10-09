@@ -1,7 +1,7 @@
-//! **E03's second plant, proven against podssh's own verifier, with no
+//! **The TLS connector's second plant, proven against podssh's own verifier, with no
 //! relay involved.**
 //!
-//! **Why this file exists, and the measurement that forced it.** E03's plant
+//! **Why this file exists, and the measurement that forced it.** The plant
 //! is "a certificate for the wrong hostname must be rejected". MEASURED
 //! 2026-10-02 in `rust:1-alpine`: the *live* plant does **not** discriminate.
 //! Replacing `tls::client_config`'s verifier with one that accepts everything
@@ -14,7 +14,7 @@
 //! So the proof lives here: a server podssh controls, serving a certificate
 //! for one name, asked for by another. The live test keeps its own claim — the
 //! *peer* accepts the right name and rejects the wrong one. Together they are
-//! E03's sentence; neither alone is.
+//! the plant's sentence; neither alone is.
 
 // Shared test support; this file uses part of it.
 #[allow(dead_code)]

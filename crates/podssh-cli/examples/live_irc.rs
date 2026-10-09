@@ -1,4 +1,4 @@
-//! **E30 live proof: real IRC registration over the real forward path.**
+//! **IRC live proof: real IRC registration over the real forward path.**
 //!
 //! Register (CAP LS / NICK / USER → 001), drain trailing numerics, watch for
 //! mid-line payload ends (live frame splits), echo two self `PRIVMSG`s
@@ -37,7 +37,7 @@ const ECHO_WAIT: Duration = Duration::from_secs(10);
 /// 005/MOTD arrive WITH 001: drain briefly so CAP/ISUPPORT are complete.
 const DRAIN_001: Duration = Duration::from_secs(5);
 
-/// Unblocked 6667 (spec :249-251). First full proof wins. Small networks lead.
+/// Port 6667, which the relay passes (`docs/irc.md`). First full proof wins. Small networks lead.
 const FALLBACK_TARGETS: &[(&str, u16)] = &[
     ("irc.tilde.chat", 6667),
     ("irc.hackint.org", 6667),

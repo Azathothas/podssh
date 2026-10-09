@@ -12,7 +12,7 @@ use crate::irc::tag::{parse_tags, render_tags};
 
 impl Message {
     /// Parse one line, **without** its `\r\n`. A line that still carries
-    /// its terminator parses, because [`Reassembler`] strips it and a caller
+    /// its terminator parses, because [`crate::irc::framing::Reassembler`] strips it and a caller
     /// that forgot would otherwise fail on a correct message.
     pub fn parse(line: &str) -> Result<Self, ParseError> {
         let mut rest = line;

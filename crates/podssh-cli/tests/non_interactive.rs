@@ -1,4 +1,4 @@
-//! **E33's audit table as tests, against the public API.**
+//! **The audit table of prompts as tests, against the public API.**
 //!
 //! These exercise `podssh_cli::non_interactive` the way a caller does —
 //! [`resolve`], [`parse_timeout`], [`require_timeout`], [`gate_prompt`] —
@@ -85,7 +85,7 @@ fn parse_timeout_rejects_zero_and_overflow() {
 }
 
 /// **A missing `--timeout` in a pipe is a USAGE error, not a hang.**
-/// E33 Prove check 6: exit 64 naming `--timeout`.
+/// The gate's own check: exit 64 naming `--timeout`.
 #[test]
 fn missing_timeout_outside_a_terminal_is_usage_64() {
     for attachment in [Attachment::Pipe, Attachment::Forced, Attachment::ForcedInteractive] {
@@ -118,10 +118,10 @@ fn a_provided_timeout_is_always_parsed() {
 #[test]
 fn every_prompt_site_refuses_outside_a_terminal_and_names_its_remedy() {
     let sites: Vec<(PromptSite, &str)> = vec![
-        (PromptSite::UnknownHostKey { fingerprint: "SHA256:abc".into() }, "--accept-new"),
+        (PromptSite::UnknownHostKey { fingerprint: "SHA256:abc".into() }, "StrictHostKeyChecking=accept-new"),
         (PromptSite::ChangedHostKey { fingerprint: "SHA256:abc".into() }, "SHA256:abc"),
         (PromptSite::TokenAbsent, "token"),
-        (PromptSite::NoRelay, "--relay"),
+        (PromptSite::NoRelay, "--relay-host"),
         (PromptSite::Passphrase, "passphrase"),
         (PromptSite::KnownHostsUnreadable { path: "/nonexistent".into() }, "/nonexistent"),
         (PromptSite::ChannelKey { channel: "#chan".into() }, "#chan"),
@@ -141,8 +141,8 @@ fn every_prompt_site_refuses_outside_a_terminal_and_names_its_remedy() {
     }
 }
 
-/// **Row 2 refuses always — never even on a TTY.** E13 never
-/// auto-replaces; a prompt offers the operator an accident.
+/// **Row 2 refuses always — never even on a TTY** (`docs/cli.md`, "Prompts and time limits").
+/// podssh never auto-replaces a key; a prompt offers the operator an accident.
 #[test]
 fn a_changed_host_key_refuses_even_on_a_terminal() {
     let site = PromptSite::ChangedHostKey { fingerprint: "SHA256:abc".into() };
@@ -182,7 +182,7 @@ fn a_refusal_names_the_site_and_the_remedy() {
         gate_prompt(Attachment::Pipe, &PromptSite::UnknownHostKey { fingerprint: "SHA256:abc".into() }).unwrap_err();
     assert!(refusal.message.contains("podssh"), "{}", refusal.message);
     assert!(refusal.message.contains("SHA256:abc"), "{}", refusal.message);
-    assert!(refusal.message.contains("--accept-new"), "{}", refusal.message);
+    assert!(refusal.message.contains("StrictHostKeyChecking=accept-new"), "{}", refusal.message);
 }
 
 // ─────────── the binary half: pipes, exit codes, both streams ───────────
@@ -244,8 +244,8 @@ fn garbage_timeout_is_64_immediately() {
     assert!(String::from_utf8(err).unwrap().contains("--timeout"));
 }
 
-/// A valid `--timeout` passes the gate. `chat` itself is still E33's to
-/// build, so the run lands on the unimplemented refusal (70) — **not** on
+/// A valid `--timeout` passes the gate. `chat` itself is not built yet (M8),
+/// so the run lands on the unimplemented refusal (70) — **not** on
 /// 64, and never on 0, and never a hang.
 #[test]
 fn valid_timeout_passes_the_gate_and_reaches_the_unbuilt_verb() {

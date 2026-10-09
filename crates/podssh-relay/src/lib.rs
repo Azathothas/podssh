@@ -5,7 +5,7 @@
 //! - [`pool`]: the pool, as the relay publishes it, cached between runs;
 //! - [`token`] and [`cache`]: tokens from the environment, the cache or a
 //!   fresh mint, kept between runs in a private file, never printed;
-//! - [`open`]: a forward session, failing over from host to host with backoff,
+//! - [`mod@open`]: a forward session, failing over from host to host with backoff,
 //!   one bounded attempt per host;
 //! - `pair` (feature `pair`): the pairs of the reverse road, made, asked
 //!   about and stopped on the relay's control host, kept in a private file;

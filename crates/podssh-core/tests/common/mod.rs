@@ -1,4 +1,4 @@
-//! Shared helpers for E30's suites. One place, so the four suites cannot
+//! Shared helpers for the IRC suites. One place, so the four suites cannot
 //! drift on what a "line" is.
 
 #![allow(dead_code)]

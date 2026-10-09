@@ -1,7 +1,7 @@
 //! `clap`'s errors, rebuilt as podssh's own messages — and **never rendered**.
 //!
-//! `docs/spec/06-cli.md`:82-85 asks for an unknown flag to be *"an error
-//! naming the nearest known flag"*, and the sibling prints a full usage
+//! `docs/cli.md`, "Options of `podssh ssh`", asks for an unknown flag to be *"an error
+//! that names the nearest real flag"*, and the sibling prints a full usage
 //! block instead (`src/main.c:277`), which buries the one line the user needs.
 //! `clap`'s own renderer adds a `Usage:` header and a
 //! `For more information, try '--help'` trailer, so **nothing here calls
@@ -10,9 +10,9 @@
 //!
 //! **Its own module because it is a different question from parsing.** The
 //! tree decides what a command line means; this decides how a refusal reads.
-//! `RULES.md`:80-91 is the reason the two are not one file: it puts a hard
-//! 500-line cap on source, *"split it into modules with names that say what
-//! they hold"* — and `tree.rs` reached it.
+//! `docs/architecture.md`, "Design rules", is the reason the two are not one file: it
+//! puts a hard 500-line cap on source, *"Split a file by responsibility"* — and
+//! `tree.rs` reached it.
 //!
 //! `was_given` stayed in [`crate::tree`]: it reads `ArgMatches`, not an
 //! error, and moving it here would be a module boundary drawn by line count

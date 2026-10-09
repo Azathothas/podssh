@@ -2,7 +2,7 @@
 //! chain.** It is NOT a test: it prints, it asserts nothing, and it is
 //! excluded from the suite by living in `examples/`. The question it answers
 //! is "which curve and which signature algorithm does the relay actually
-//! present", and the answer decides whether E03's provider is complete.
+//! present", and the answer decides whether podssh's TLS provider is complete.
 //!
 //! The verifier below prints the chain and accepts it, because the question
 //! comes up exactly when podssh's own verifier refuses the chain. It lives in

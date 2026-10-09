@@ -1,10 +1,10 @@
-//! `ts` behaviour tests (E39 increment 4b): dispatch maps every failure to
+//! `ts` behaviour tests (Tailscale): dispatch maps every failure to
 //! a non-zero exit with empty stdout, and the VERB_OWNER row is gone.
 //!
 //! The plant for this suite is deleting the `Parsed::Ts` arm in
 //! `dispatch.rs`: every test below must fail, because the arm — not the
 //! removed owner row — does the work. `run` uses `Tty::none` (a pipe), so
-//! every case carries `--timeout` past E33's gate except the gate test.
+//! every case carries `--timeout` past the `--timeout` gate except the gate test.
 //!
 //! Shapes that would attempt a live start (valid key + state) are absent
 //! here: they would dial the control plane from a unit test. The live proof

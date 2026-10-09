@@ -1,14 +1,14 @@
 //! `TsConfig`: everything `TsNode` needs, and the mapping to fork selections.
 //!
 //! This module never names fork types. `podssh-ts` owns `RuntimeSelection`
-//! and `node.rs` converts it at the boundary in 4b, so no fork-version
+//! and `node.rs` converts it at the boundary, so no fork-version
 //! coupling leaks into these signatures.
 
 use std::path::PathBuf;
 
-/// Which tailnet route this node uses. 4a carries `Tcp` and `Relay`; `Tun`
-/// and `Socks` (an existing daemon's kernel route / localhost proxy) arrive
-/// with the chain selection in 4b.
+/// Which tailnet route this node uses: `Tcp` or `Relay`. `Tun` and `Socks`
+/// (an existing daemon's kernel route / localhost proxy) would come with a
+/// selection of the chain, which is not built.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TsMode {
     /// In-process netstack on the stock tailnet: TCP dial, no pin, UDP kept.
@@ -69,7 +69,7 @@ pub struct RuntimeSelection {
 /// Everything `TsNode` needs: state path, control plane, identity, mode.
 #[derive(Clone, Debug)]
 pub struct TsConfig {
-    /// Node key-state file. No default: podssh picks one (E23), and the file
+    /// Node key-state file. No default: the caller names one, and the file
     /// must persist or the node key — and its allowlist entry — rotates.
     pub state_file: PathBuf,
     /// Control plane URL, or `None` for the fork's compiled default.

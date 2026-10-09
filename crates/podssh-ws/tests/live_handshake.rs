@@ -1,7 +1,7 @@
-//! **E03's acceptance: a real TLS handshake against the live relay, with a
+//! **The TLS connector's acceptance: a real TLS handshake against the live relay, with a
 //! verified chain and a verified hostname.**
 //!
-//! **This is the test that makes E03 an entry rather than a proposal.** A
+//! **This is the test that makes the provider real rather than a proposal.** A
 //! `CryptoProvider` that has never completed a handshake is a struct with
 //! plausible contents. Everything in `crypto/` was a design until this ran.
 //!
@@ -41,7 +41,7 @@ async fn a_real_handshake_with_the_live_relay_verifies_chain_and_hostname() {
     if !live_enabled() {
         eprintln!(
             "???? live handshake not attempted: PODSSH_LIVE=0. \
-             This is NOT a pass; E03's acceptance requires it to run."
+             This is NOT a pass; the TLS connector's acceptance requires it to run."
         );
         return;
     }
@@ -54,7 +54,7 @@ async fn a_real_handshake_with_the_live_relay_verifies_chain_and_hostname() {
 
     // **The name is the relay's, and it is the name that gets verified.**
     // A test that connected by IP would prove the chain and not the hostname,
-    // which is the half of E03 the entry says has no bypass.
+    // which is the half of the TLS check that has no bypass.
     let name = rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a valid DNS name");
     let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
         .await
@@ -75,7 +75,7 @@ async fn a_real_handshake_with_the_live_relay_verifies_chain_and_hostname() {
         }
         Err(e) => panic!(
             "FAIL the live handshake was rejected: {e}\n\
-             E03 is NOT done. A provider nobody has exchanged a certificate \
+             The TLS provider is NOT proven. A provider nobody has exchanged a certificate \
              with is not a provider."
         ),
     }

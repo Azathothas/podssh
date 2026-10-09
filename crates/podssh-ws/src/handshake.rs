@@ -166,8 +166,8 @@ fn find_header_end(buf: &[u8]) -> Option<usize> {
 
 /// **Every check below is one whose absence the relay can observe.**
 ///
-/// **The `426` and `403` distinction is load-bearing.** E03's `Decision`
-/// section records that a verifier measured a valid token with no upgrade
+/// **The `426` and `403` distinction is load-bearing.** The TLS connector's
+/// measurements record that a verifier measured a valid token with no upgrade
 /// returning `426` while the same path with no token returned `403` — so
 /// authentication is checked *before* the upgrade, and the two failures are
 /// distinguishable. That is only true if the status is reported rather than

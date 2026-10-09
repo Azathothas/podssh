@@ -1,7 +1,7 @@
-//! E33: non-interactive operation — one value computed once at startup.
+//! Non-interactive operation — one value computed once at startup.
 //!
 //! **The detection is the default; no flag is needed to avoid hanging.**
-//! `docs/TODO/cli/non-interactive.md`:104-111 — requiring *both* fds is the
+//! Requiring *both* fds to be terminals is the
 //! stdout rule applied to input: stdin a terminal while stdout is a file is
 //! exactly where a prompt lands in a script's output. A script that must pass
 //! a flag to avoid hanging is a script that will hang.
@@ -9,7 +9,7 @@
 //! **One function gates every prompt; nothing else may ask.**
 //! [`gate_prompt`] is the only path from "wants a secret" to "asks the user",
 //! and outside [`Attachment::Terminal`] it returns [`Refusal`] instead. The
-//! nine [`PromptSite`] rows are E33's audit table as code — an enumerated
+//! nine [`PromptSite`] rows are the audit table of prompts, as code — an enumerated
 //! list, not a review — so a tenth prompt cannot be added without a row here.
 //!
 //! **`--timeout` is parsed whole-string or not at all.** The sibling parses
@@ -18,10 +18,10 @@
 //! `30x`, rejects `0`, and rejects overflow, naming `--timeout` every time.
 //!
 //! **Provisional fault mapping, owned elsewhere.** `--timeout` problems are
-//! [`Fault::Usage`] (E33's own Prove check 6: a missing `--timeout` is a USAGE
+//! [`Fault::Usage`] (the gate's own check: a missing `--timeout` is a USAGE
 //! error). Every prompt-gate refusal is [`Fault::SessionFault`] **until the
-//! owning entry names its value** — E13 for host keys, E12/E23 for token and
-//! relay, E30 for channel and nick, E01 for the passphrase. A refused prompt
+//! owning entry names its value** — host keys, the token and the state files (token and
+//! relay), IRC (channel and nick), SSH authentication (the passphrase). A refused prompt
 //! is not a usage error (the command line was fine), and 70 reads "the session
 //! did not deliver what was asked for", which is the least-wrong bucket while
 //! the owners decide. The stderr text always names the site and the remedy, so
@@ -109,18 +109,18 @@ pub struct Refusal {
     pub message: String,
 }
 
-/// One row of E33's audit table: every place podssh could ever prompt.
+/// One row of the audit table: every place podssh could ever prompt.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum PromptSite {
-    /// An unknown host key. Remedy: fingerprint + `--accept-new`.
+    /// An unknown host key. Remedy: fingerprint + `-o StrictHostKeyChecking=accept-new`.
     UnknownHostKey { fingerprint: String },
     /// A changed host key. Refused **always** — never even on a TTY.
     ChangedHostKey { fingerprint: String },
     /// No relay token and none mintable here. Remedy names the knob.
     TokenAbsent,
-    /// No relay configured. Remedy names `--relay`; never prompts.
+    /// No relay configured. Remedy names `--relay-host`; never prompts.
     NoRelay,
-    /// A key passphrase. **Unowned**: E01 has not named the auth surface,
+    /// A key passphrase. **Unowned**: the SSH client has not named the auth surface,
     /// so the remedy says so instead of inventing a flag.
     Passphrase,
     /// `known_hosts` unreadable. Remedy names the path tried.
@@ -270,7 +270,7 @@ pub fn gate_prompt(attachment: Attachment, site: &PromptSite) -> Result<(), Refu
             site,
             format!(
                 "The host key changed (now {fingerprint}): remove the old key; \
-                 podssh never auto-replaces one, on a TTY or anywhere else (E13)."
+                 podssh never auto-replaces one, on a TTY or anywhere else."
             ),
         )),
         _ if !attachment.is_non_interactive() => Ok(()),
@@ -278,19 +278,19 @@ pub fn gate_prompt(attachment: Attachment, site: &PromptSite) -> Result<(), Refu
             site,
             format!(
                 "Unknown host key {fingerprint}: re-run on a terminal or pass \
-                 --accept-new (E13)."
+                 -o StrictHostKeyChecking=accept-new."
             ),
         )),
         PromptSite::TokenAbsent => {
             Err(refused(site, "No relay token: mint one in memory or set the token knob.".into()))
         }
         PromptSite::NoRelay => {
-            Err(refused(site, "No relay configured: pass --relay URL. podssh never prompts for one.".into()))
+            Err(refused(site, "No relay configured: pass --relay-host HOST, or set PODSSH_RELAY.".into()))
         }
         PromptSite::Passphrase => Err(refused(
             site,
-            "A passphrase is needed and there is no TTY: E01 has not named the \
-             auth surface yet, so no flag can carry it (E33 row 5 stays open)."
+            "A passphrase is needed and there is no TTY: the SSH client has not named the \
+             auth surface yet, so no flag can carry it (the passphrase row stays open)."
                 .into(),
         )),
         PromptSite::KnownHostsUnreadable { path } => Err(refused(site, format!("known_hosts unreadable at {path}."))),

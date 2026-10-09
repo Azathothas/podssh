@@ -134,7 +134,7 @@ fn the_control_correct_payloads_are_still_accepted() {
 #[test]
 fn the_error_names_the_byte_and_not_only_that_it_failed() {
     // **An error a user cannot act on is half an error.** `BadEncoding` on
-    // every path is the defect E03 found in its own certificates and three
+    // every path is a defect of the TLS connector's first certificates, and three
     // sibling projects shipped a doctor that reported green over a broken
     // environment.
     let err = b64::decode("Zm9!").expect_err("must fail");

@@ -11,7 +11,7 @@
 //! **The mask is `transformed[i] = original[i] XOR key[i % 4]`, in that
 //! order**, and getting the order wrong produces frames a server decodes
 //! without error and a proxy decodes into something else — the failure mode
-//! E02's byte-exact framing tests exist to catch.
+//! the byte-exact framing tests of `tests/rfc6455.rs` exist to catch.
 
 use crate::error::WsError;
 
@@ -108,8 +108,8 @@ pub fn encode(frame: &Frame, role: Role, masking_key: [u8; 4]) -> Vec<u8> {
 ///
 /// A short input is `Ok(None)`, not an error: a stream arrives in pieces and a
 /// decoder that errored on a partial frame would break every read. A frame
-/// that is *malformed* is `Err`, and that is the distinction E03's third plant
-/// turns on.
+/// that is *malformed* is `Err`, and that is the distinction the third plant
+/// of `tests/rfc6455.rs` turns on.
 pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsError> {
     if input.len() < 2 {
         return Ok(None);

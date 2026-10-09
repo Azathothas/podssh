@@ -28,7 +28,7 @@
 //! **idle pair of users** is the case that needs the heartbeat, and a busy
 //! one does not. The plan is therefore computed from **both** directions.
 //!
-//! **No clock is read here.** [`PayloadPlan::due`] takes `now_ms` from the
+//! **No clock is read here.** [`ReapPolicy::plan`] takes `now_ms` from the
 //! caller, because a module that read a clock would make its own behaviour
 //! untestable and this repository's rule is that a check is a plant plus a
 //! control.

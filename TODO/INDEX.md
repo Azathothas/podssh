@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**256 entries: 175 open, 1 partial, 8 blocked, 72 done.**
+**256 entries: 175 open, 0 partial, 8 blocked, 73 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
 | P2 | 92 | 0 | 4 | 52 | 148 |
-| P3 | 81 | 1 | 4 | 12 | 98 |
-| **All** | 175 | 1 | 8 | 72 | 256 |
+| P3 | 81 | 0 | 4 | 13 | 98 |
+| **All** | 175 | 0 | 8 | 73 | 256 |
 
 ## Entries
 
@@ -315,7 +315,7 @@ repository and CI).
 | [T-241](ts.md) | P2 | S | M8 | defect | open | The tailnet auth key is not cleared from memory |
 | [T-242](ws.md) | P3 | S | backlog | defect | open | The frame decoder accepts a length that is not in the minimal form |
 | [T-243](relay.md) | P2 | S | backlog | feature | open | The user can choose the cache directory, and no directory is fixed in the code |
-| [T-244](repo.md) | P3 | M | none | chore | partial | Code comments break `AGENTS.md` rule 6, and some name files and facts that are wrong |
+| [T-244](repo.md) | P3 | M | none | chore | done | Code comments break `AGENTS.md` rule 6, and some name files and facts that are wrong |
 | [T-245](repo.md) | P2 | S | none | chore | open | The box refuses each bind, but sandbox A allows an AF_UNIX bind |
 | [T-246](repo.md) | P3 | S | none | chore | done | `scripts/dev.sh` excludes each file named `agents.md` from the container copy, with no reason given |
 | [T-247](repo.md) | P3 | S | none | chore | done | `podssh-cli` declares dependencies that it does not use |

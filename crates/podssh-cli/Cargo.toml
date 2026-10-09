@@ -1,6 +1,6 @@
 [package]
 name = "podssh-cli"
-description = "Argument parsing, subcommand dispatch, --doctor."
+description = "Argument parsing, subcommand dispatch, the doctor command."
 version.workspace = true
 edition.workspace = true
 # russh 0.64.1 declares 1.89 (read from its Cargo.toml); the library crates
@@ -53,13 +53,13 @@ zeroize = { workspace = true }
 #   curl -sS 'https://index.crates.io/cl/ap/clap'              -> 4.6.7, rust_version 1.85
 #   CC=/nonexistent cargo build -p podssh-cli                  -> exit 0
 # `suggestions` is ON and it is the reason for the dependency: it is what pulls
-# `strsim` in, and `strsim` is a Damerau-Levenshtein implementation. E31's entry
-# measured a hand-rolled edit distance to be wrong for `example.org`; this is
+# `strsim` in, and `strsim` is a Damerau-Levenshtein implementation. A hand-rolled
+# edit distance was measured to be wrong for `example.org`; this is
 # the library doing it instead.
 #
 # `wrap_help` is OFF on purpose. It pulls `terminal_size`, which is a
-# terminal probe — and `RULES.md` forbids depending on a capability that has not
-# been probed. Podssh renders `--help` at a fixed 100 columns, which is what
+# terminal probe — and `AGENTS.md` (section 5, rule 1) forbids depending on a capability
+# that has not been probed. Podssh renders `--help` at a fixed 100 columns, which is what
 # makes the man/help parity check a string comparison rather than a guess.
 clap = { version = "4.6.7", default-features = false, features = [
   "std", "help", "usage", "error-context", "suggestions", "derive",

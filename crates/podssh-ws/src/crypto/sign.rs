@@ -115,7 +115,7 @@ impl SignatureVerificationAlgorithm for EcdsaP256Sha256 {
         // `der.rs:344` builds that by `read_byte()` for the unused-bit count
         // and then `read_bytes_to_end()`. So the live relay's certificate
         // chain verified because its `0x04` happened to sit one position before
-        // `from_sec1_bytes` found a point it accepted, while E03's own
+        // `from_sec1_bytes` found a point it accepted, while podssh's own
         // hand-minted certificate — whose point also starts `04` — was refused
         // with `BadSignature` in every one of the three hostname tests.
         // Two forms are accepted, and both are a real encoding: the SEC1

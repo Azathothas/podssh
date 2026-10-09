@@ -30,7 +30,7 @@
 //! ## What is refused, and loudly
 //!
 //! **The refusals survive the mode change.** Ctrl-Z, Ctrl-S and Ctrl-Q
-//! ring the bell here from [`crate::echo::refuses`], the same list the cooked
+//! ring the bell here from [`crate::refusal::refuses`], the same list the cooked
 //! mode uses, because a refused operation that answers differently in two modes
 //! is a refusal a user cannot learn.
 
@@ -80,7 +80,7 @@ impl Passthrough {
     ///   A program that owns the screen still needs the interrupt, and
     ///   swallowing it would make Ctrl-C do nothing at all inside `vi`.
     /// - **Refusals** — Ctrl-Z, Ctrl-S, Ctrl-Q — ring the bell, from the same
-    ///   [`crate::echo::refuses`] list the cooked mode uses. Silence here
+    ///   [`crate::refusal::refuses`] list the cooked mode uses. Silence here
     ///   would read as acceptance, and a user who cannot tell "not supported"
     ///   from "did nothing" files it in the wrong place.
     ///

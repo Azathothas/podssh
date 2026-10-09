@@ -1,11 +1,11 @@
 //! The relay's limits, as this crate holds them.
 //!
-//! **Exactly one number here is read from the file E06 owns; five are
+//! **Exactly one number here is read from the relay's facts file; five are
 //! transcriptions, and the table below says which is which.** The read one is
 //! `forward-max-frame-bytes`, taken at compile time from
 //! `crates/podssh-probe/facts/relay-facts.toml` — the same file
 //! `podssh-probe`'s Rust gate, its Python counterpart and
-//! `docs/spec/01-relay-protocol.md` read — so a re-measured forward cap cannot
+//! `docs/relay.md` follow — so a re-measured forward cap cannot
 //! leave this module agreeing with a stale number.
 //!
 //! **This header used to say that every number in the module came from the
@@ -26,12 +26,12 @@
 //! | --- | --- | --- |
 //! | forward max frame **262144** | `relay-facts.toml`, key `forward-max-frame-bytes` | read at compile time and compared against the constant |
 //! | operator frame payload **65536** | spec line 184 | transcribed; `tests/transfer.rs` asserts the value |
-//! | node frame total **65568** (32-byte id + 65536 payload) | spec line 182 | transcribed; 182 is a line E06's fact gate asserts |
+//! | node frame total **65568** (32-byte id + 65536 payload) | spec line 182 | transcribed; 182 is a line that the relay's facts check asserts |
 //! | session, both directions **64 MiB** | spec line 183 | transcribed; asserted in `tests/transfer.rs` |
 //! | idle reaper **180000 ms** | spec line 233 | transcribed; asserted in `tests/transfer.rs` |
 //! | session wall clock **720 min** | spec line 234 | transcribed |
 //!
-//! **E06's fact gate checks lines 23, 24, 182, 190, 207 and 210 of the
+//! **The relay's facts check reads lines 23, 24, 182, 190, 207 and 210 of the
 //! peer's document, and line 182 is the only row here it touches.** A line that
 //! moves without the fact moving is therefore *not* a red build: this table is
 //! a citation, and the tests assert the numbers rather than the lines, which is
@@ -50,8 +50,8 @@ pub const FACTS_TOML: &str = include_str!("../../../podssh-probe/facts/relay-fac
 
 /// The operator frame's payload cap. **This is the number `frame byte cap`
 /// is about**, and it is *not* the node frame's total: a reverse node frame is
-/// capped at 65568 including a 32-byte id. E06 records the first version of
-/// its own gate taking one for the other and reporting the relay as
+/// capped at 65568 including a 32-byte id. The first version of the facts
+/// check took one for the other and reported the relay as
 /// self-contradictory, so the distinction is written here rather than left to a
 /// reader who already knows it.
 pub const OPERATOR_FRAME_PAYLOAD_BYTES: usize = 65536;
@@ -115,7 +115,7 @@ impl TransferLimits {
     /// `forward-max-frame-bytes = 262144` and not any other digits in the
     /// file. **A fact that has been renamed or reworded fails the build**
     /// rather than leaving podssh with a default it never measured — and
-    /// that is the point: E37's rule is that a capability is `MEASURED` or the
+    /// that is the point: the rule is that a capability is `MEASURED` or the
     /// client does not depend on it, and a default here would be a dependency
     /// on a number nobody checked.
     pub fn from_facts_text(text: &str) -> Result<Self, String> {

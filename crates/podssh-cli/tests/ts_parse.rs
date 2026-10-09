@@ -1,4 +1,4 @@
-//! `ts` parse tests (E39): all three forms parse to `Parsed::Ts` carrying
+//! `ts` parse tests (Tailscale): all three forms parse to `Parsed::Ts` carrying
 //! every behaviour input, and a bad `--ts-mode` is usage 64 at parse.
 
 use podssh_cli::tree::{parse, Parsed};

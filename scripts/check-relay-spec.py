@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""E06 - assert the relay's structural facts, and report version drift.
+"""Assert the relay's structural facts, and report version drift.
 
 Background: docs/relay.md (the relay contract and how drift is handled).
 

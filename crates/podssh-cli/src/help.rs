@@ -1,13 +1,13 @@
 //! `--help`, rendered from [`crate::flags::VERBS`].
 //!
-//! **Renderer one of two, and the tree is shared.** `podssh man` is E32's
+//! **Renderer one of two, and the tree is shared.** `podssh man` is the other
 //! and walks the same [`crate::flags::VERBS`]; nothing here and nothing there
-//! writes a flag down, so `06-cli.md`:154-161's three obligations hold by
+//! writes a flag down, so the manual's three obligations (`docs/cli.md`, "The manual") hold by
 //! having one list rather than by being checked afterwards.
 //!
 //! **The width is fixed at 100 columns and is not probed.** `clap`'s
 //! `wrap_help` feature is deliberately off in `Cargo.toml`: it pulls
-//! `terminal_size`, which is a capability probe, and `RULES.md` forbids
+//! `terminal_size`, which is a capability probe, and `AGENTS.md` (section 5, rule 1) forbids
 //! depending on a capability that has not been probed. A fixed width is
 //! also what makes the man/help parity check a string comparison rather than a
 //! measurement of somebody's terminal.
@@ -49,7 +49,7 @@ const MAX_FLAG_COLUMN: usize = 38;
 
 /// One rendered flag line: `-p, --port PORT  port to connect to`.
 ///
-/// **The spelling here is the contract with E32.** `man.rs` extracts flag
+/// **The spelling here is the contract with the manual.** The parity gate extracts flag
 /// names out of the man page and the help output and compares the two sets, so
 /// what is printed has to be what a user would type and not a decoration. A
 /// long-only flag has no short form and says so by omission.
@@ -84,7 +84,7 @@ pub fn flag_line(row: &crate::flags::FlagRow, column: usize) -> String {
 /// and refuses must not read like a flag that works, and a flag that is
 /// accepted and ignored must say so in `--help` and not only when used.
 ///
-/// **Public because there are two renderers and one sentence.** E32's page
+/// **Public because there are two renderers and one sentence.** The manual
 /// prints this text verbatim, **and the parity gate asserts the page carries
 /// it** — a description that stopped being true is not caught by a set
 /// comparison, so the two renderings are compared on their words as well as
@@ -105,7 +105,7 @@ pub fn help_text(row: &crate::flags::FlagRow) -> String {
 pub fn top_level_help() -> String {
     let mut s = String::new();
     // The banner's sentence is [`crate::flags::ABOUT`] and not a copy of it:
-    // E32's page writes the same sentence in its `.SH NAME`, and a sentence
+    // The manual page writes the same sentence in its `.SH NAME`, and a sentence
     // with two copies in two renderers is exactly the drift this crate's tree
     // exists to prevent.
     s.push_str(&format!("podssh - {}\n\n", crate::flags::ABOUT));
@@ -117,9 +117,9 @@ pub fn top_level_help() -> String {
     // `format!("{:<12}{}", "  -h, --help", "Print help")` produced
     // `  -h, --helpPrint help` — the left part is **exactly twelve
     // characters**, and `{:<12}` pads without separating, so there was no gap
-    // at all. This is the same defect E31's `no_flag_runs_into_its_description`
+    // at all. This is the same defect the test `no_flag_runs_into_its_description`
     // records for `flag_line`, one layer up: a constant that happens to equal
-    // its widest row is a separator that disappears. E32's parity gate reads
+    // its widest row is a separator that disappears. The parity gate reads
     // this block, and it read `--helpPrint` as a flag — which is what a user
     // reading it would conclude too.
     let rows: Vec<(String, &str)> =
@@ -188,7 +188,7 @@ pub fn verb_help(verb: &'static Verb) -> String {
 
     // **The `OPTIONS:` header is printed even for a verb with no flags of
     // its own**, because `--help` is one of its options and a headerless
-    // option line is not a block: E32's parity gate reads the flags inside an
+    // option line is not a block: the parity gate reads the flags inside an
     // `OPTIONS:` block, so a line outside one is a flag the gate cannot see.
     // The output for `ssh` and `cp` is unchanged; the flagless verbs gain
     // the two-line block they always should have had.
@@ -224,7 +224,7 @@ pub fn verb_notes(verb: &Verb) -> String {
 }
 
 /// **The usage tail, and it is public for the same reason [`help_text`] is:**
-/// E32's page prints `podssh <verb> <this>`, and the parity gate asserts the
+/// The manual page prints `podssh <verb> <this>`, and the parity gate asserts the
 /// page carries the string `--help` prints rather than a second copy of it.
 pub fn usage_tail(verb: &Verb) -> &'static str {
     match verb.name {
@@ -286,7 +286,7 @@ mod tests {
     /// **The top-level block, and the defect that was in it.**
     /// `format!("{:<12}{}", "  -h, --help", "Print help")` printed
     /// `  -h, --helpPrint help`: the left part is exactly twelve characters and
-    /// `{:<12}` pads without separating. The parser E32's gate uses read
+    /// `{:<12}` pads without separating. The parser the parity gate uses read
     /// `--helpPrint` as a flag name, and so would a user. This is the same
     /// failure as `no_flag_runs_into_its_description` below, in the block that
     /// test does not cover.

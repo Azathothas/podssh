@@ -4,9 +4,9 @@
 //!
 //! The expected `ssh` short-flag set is written out below on purpose. Adding or
 //! removing an `ssh` flag must be a deliberate edit to that list, reviewed with
-//! the code change. (This file used to parse a line range of the old
-//! specification document, `docs/spec/06-cli.md`, which broke the test build
-//! whenever the document was edited; the document is now archived.)
+//! the code change. (A test that parses a line range of a document breaks
+//! the test build whenever the document is edited, so this file reads no
+//! document.)
 
 use podssh_cli::flags::{FlagKind, VERBS};
 

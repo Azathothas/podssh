@@ -97,7 +97,7 @@ fn each_certificate_verifies_under_the_key_that_signed_it() {
 /// podssh's own ECDSA verifier is asked to check a signature made by the
 /// `p256` crate directly, over a plain message. If that passes, the verifier
 /// hashes and encodes correctly and any failure above is in the certificate
-/// builder; if it fails, the verifier is the thing that is wrong, and E03's
+/// builder; if it fails, the verifier is the thing that is wrong, and the
 /// live handshake would be a false positive.
 #[test]
 fn podsshs_ecdsa_verifier_accepts_a_directly_made_signature() {

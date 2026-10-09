@@ -1,8 +1,8 @@
 //! Refusals. Every one of them names a real flag, and **none of them prints
 //! a usage block**.
 //!
-//! `docs/spec/06-cli.md`:82-85 requires an unknown flag to be *"an error
-//! naming the nearest known flag"*, and the sibling half-meets that: **READ**,
+//! `docs/cli.md`, "Options of `podssh ssh`", requires an unknown flag to be *"an error that
+//! names the nearest real flag"*, and the sibling half-meets that: **READ**,
 //! `.tmp/dropssh/src/main.c:276-278` refuses and exits 2, **but the message
 //! is only `unknown option %s`, with no nearest match**, and
 //! **READ**, `src/main.c:283-287` records the class in its own words — `--json`
@@ -146,7 +146,7 @@ pub fn unknown_man_section(token: &str, sections: &[&str]) -> String {
 }
 
 /// The message for `podssh` with no arguments at all. Never an implicit
-/// `ssh` — `06-cli.md`:17.
+/// `ssh` — `docs/decisions.md`, "Product" (2026-10-01).
 pub fn no_arguments() -> String {
     let mut m = String::from(
         "podssh: no subcommand given.\n\
@@ -251,7 +251,7 @@ mod tests {
     }
 
     /// **`podssh` with no arguments says it will not guess a destination**, which
-    /// is the sentence `06-cli.md`:17 turns into behaviour.
+    /// is the sentence that `docs/decisions.md` ("Product", 2026-10-01) turns into behaviour.
     #[test]
     fn no_arguments_says_it_will_not_connect() {
         let m = no_arguments();

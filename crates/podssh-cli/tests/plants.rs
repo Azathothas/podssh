@@ -1,7 +1,7 @@
 //! **The six plants, kept as tests.**
 //!
-//! `RULES.md`:94-96 — *"A check with no failure test is not a check. Plant
-//! the defect, run it, read the exit code. Then prove it accepts correct
+//! `docs/development.md`, "Rules for tests" — *"Trust a new check only after it fails on a
+//! planted defect and passes on correct
 //! input."* Each of these **is** a defect, planted as a test: delete the
 //! arm, remove the stage, restore the `usage()` dump — and if the arm comes
 //! back, **this test fails**, which is the guard being live rather than
@@ -31,10 +31,10 @@ fn message(p: &Parsed) -> &str {
 //
 // Delete the unknown-flag arm so a typo'd `-o` falls through.
 //
-// **`exit 0` on this input IS the specification's security bug.** `06-cli.md`:
-// 83-84: *"A silently-dropped `-o StrictHostKeyChecking=no` is a security bug
-// that reports success."* The entry's plant 1 says the run must read **64**
-// (E24 decided, applied 2026-10-06).
+// **`exit 0` on this input IS the security bug.** `docs/cli.md`, "Options of `podssh ssh`":
+// *"A dropped option can disable a security check without a message."*
+// The entry's plant 1 says the run must read **64**
+// (64 for a usage error: `docs/decisions.md`, "Product").
 //
 // **A different mutation also fails here**, and that is the point of keeping
 // it: returning `Parsed::Command` with an empty `refused` — the "just let it
@@ -47,7 +47,7 @@ fn plant_a_dropped_unknown_flag_is_a_refusal_not_a_silent_success() {
     assert!(p.needs_refusal(), "a typo'd -o fell through and would exit 0, which is the spec's security bug");
     assert_eq!(
         EXIT_USAGE, 64,
-        "the exit code is the contract and it is 64 (E24 decided, operator 2026-10-05, applied 2026-10-06)"
+        "the exit code is the contract and it is 64 (the operator's decision, docs/decisions.md)"
     );
     let m = message(&p);
     assert!(m.contains("StrictHostKeyChekcing"), "must name what was given: {m}");
@@ -91,8 +91,8 @@ fn plant_a_missing_shape_stage_would_say_doctor_and_must_not() {
     assert!(!tries.iter().any(|t| t.contains("doctor")), "the distance stage won: {m}");
 }
 
-/// **`host:port` is the third shape**, named at `06-cli.md`:47, and it is the
-/// one a user types most often. It contains `:` and no `@` or `.`, so a
+/// **`host:port` is the third shape** of `docs/cli.md`, "A word with no subcommand",
+/// and the one a user types most often. It contains `:` and no `@` or `.`, so a
 /// handler that only checked for `@` would miss it.
 #[test]
 fn plant_a_missing_shape_stage_would_also_miss_a_host_port() {
@@ -129,7 +129,7 @@ fn a_bare_hostname_gets_no_suggestion_rather_than_a_wrong_one() {
 /// **The current shape of `-P` on `ssh`, which is NOT a refusal.**
 ///
 /// The entry's premise said `-P` is not an OpenSSH flag and must be refused
-/// by name. **That premise has since been disproved and `06-cli.md`:64 now
+/// by name. **That premise has since been disproved: `docs/cli.md`, "Options of `podssh ssh`",
 /// says the opposite.** MEASURED 2026-10-02, this machine, OpenSSH_10.3p1:
 /// `ssh -G -P mytag example.org` emits `tag mytag`, `ssh -G -P2222 example.org`
 /// emits `port 22` and `tag 2222`, and `ssh` usage prints `[-P tag]`.
@@ -145,7 +145,7 @@ fn plant_a_usage_dump_on_ssh_p_would_bury_the_answer() {
     let Parsed::Command { verb, refused, tag, .. } = &p else { panic!("{p:?}") };
     assert_eq!(*verb, "ssh");
     assert_eq!(tag.as_deref(), Some("22"), "-P on ssh is a Tag and is accepted, not refused");
-    assert!(refused.is_empty(), "-P is a real OpenSSH ssh flag; refusing it breaks parity (06-cli.md:64)");
+    assert!(refused.is_empty(), "-P is a real OpenSSH ssh flag; refusing it breaks parity (docs/cli.md)");
 }
 
 /// **And the notice must be built here, not taken from clap.** If someone
@@ -164,7 +164,7 @@ fn plant_a_usage_dump_would_be_a_header_and_a_trailer() {
 }
 
 /// **The refusal that is still a refusal: `-L` names `-W` and prints no
-/// usage block.** `06-cli.md`:63 and E25 make this a refusal, and the
+/// usage block.** `docs/cli.md`, "Forwarding", makes this a refusal, and the
 /// reason it is here as a plant is that it is the path a future edit to the
 /// error handling would break first.
 #[test]
@@ -193,8 +193,8 @@ fn plant_a_usage_dump_on_a_refused_flag_would_bury_the_replacement() {
 // per-verb**, and that is the part MEASURED on three programs at once.
 //
 // A global rule — one meaning of `-P` for the whole binary — is the defect
-// this test exists to catch, and it is the defect `06-cli.md`:64 warns about
-// in as many words: *"the meaning is per-verb and a global rule is wrong."*
+// this test exists to catch, and it is the defect `docs/cli.md` warns about
+// in "Options of `podssh ssh`": *"`-P` has a different meaning for each command."*
 
 #[test]
 fn plant_a_global_p_rule_would_break_one_verb_or_the_other() {
@@ -239,7 +239,7 @@ fn the_two_p_meanings_are_different_rows_in_the_table() {
 /// **`-p` on `cp` is `preserve`, not `port`,** because that is what `scp`
 /// means and a global rule would get it wrong in the other direction. The
 /// assertion is that `cp -p` parses **not** that it sets a port — the
-/// behaviour is E36's and is not built.
+/// behaviour of `cp` is not built yet (milestone M5).
 #[test]
 fn a_global_lowercase_p_rule_would_break_cp() {
     let p = parse(args(&["cp", "-p", "a", "b"]));
@@ -330,8 +330,8 @@ fn plant_a_usage_dump_is_not_printed_on_the_p_path_either() {
 // ─────────────── the control: correct input must still work ───────────────
 //
 // **"Then the correct input, or none of that proves anything"** — the
-// entry's own words, and `RULES.md`:98-100's rule behind them. A guard that
-// refuses everything is indistinguishable from a working one until it blocks
+// entry's own words, and `docs/development.md` ("Rules for tests") behind them. A guard
+// that refuses everything is indistinguishable from a working one until it blocks
 // real work.
 
 #[test]

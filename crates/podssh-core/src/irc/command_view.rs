@@ -5,7 +5,7 @@
 //! where four defects were caught on the first run, and deleting it would
 //! delete the reason they cannot recur.
 //!
-//! **`Command::Numeric`'s parameters live on its [`Replies`]**, so this
+//! **`Command::Numeric`'s parameters live on its [`crate::irc::numeric::Replies`]**, so this
 //! file asks the reply rather than enumerating reply shapes. MEASURED
 //! 2026-10-02: with a bare `Numeric(u16)` the fixture round-trip re-encoded
 //! `:irc.example.org 001 alice :Welcome` as `:irc.example.org 1`.
@@ -15,7 +15,7 @@ use crate::irc::message::{Command, Middle, Trailing};
 impl Command {
     /// **The parameters of a message, in wire order, for encoding.**
     ///
-    /// **A numeric's parameters come from its [`Replies`], not from a match
+    /// **A numeric's parameters come from its [`crate::irc::numeric::Replies`], not from a match
     /// arm that enumerates reply shapes** — `001 <me> :Welcome` and
     /// `353 <me> = #chan :nick nick2` have different shapes and the same
     /// grammar, so the shape is data on the reply and not code here.

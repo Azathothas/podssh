@@ -1,4 +1,4 @@
-//! **The acceptance of E06, and its plants in one place.**
+//! **The acceptance of the relay's facts check, and its plants in one place.**
 //!
 //! Every test here runs against a **local copy of the relay's published
 //! document**, committed under `tests/`, so the gate is provable on a host with
@@ -6,8 +6,8 @@
 //! invented: its SHA-256 is the one in `relay-facts.toml`, and
 //! `spec_copy_matches_the_pin` fails if it is edited without re-pinning.
 //!
-//! **The plants are tests, not comments.** E06's `Prove` block requires the
-//! gate to be seen failing, so the failures are asserted here rather than
+//! **The plants are tests, not comments.** The check must be seen to fail, so the
+//! failures of the gate are asserted here rather than
 //! described. A gate that has never failed is indistinguishable from one that
 //! always passes.
 
@@ -150,7 +150,7 @@ fn plant_reworded_prose_does_not_fail() {
     // Reflowing a sentence, changing the surrounding table's wording, or
     // reordering prose must leave the gate green. A gate that asserts prose is
     // a conformance suite that has to be re-maintained every time the peer
-    // rewords a sentence, which is what E06's Decision section forbids.
+    // rewords a sentence, which this check's rule forbids: the prose is never asserted.
     let reworded = SPEC_COPY.replace('\n', " \n").replace("  \n", "\n");
     match assert_facts(&reworded, &facts(), None) {
         Verdict::Ok { .. } => {}
@@ -195,7 +195,7 @@ fn an_unreadable_relay_is_unknown_and_never_ok() {
 #[test]
 fn a_readable_document_is_checked_whatever_health_said_and_the_move_is_visible() {
     // **The version the relay served is reported, and the pin is not
-    // substituted for it.** E06's subject is a version that moves: a verdict
+    // substituted for it.** This check's subject is a version that moves: a verdict
     // that echoed the pin back would tell an operator, after the relay
     // upgraded, that they had run against the version they pinned — which is
     // the one answer that is certainly wrong.

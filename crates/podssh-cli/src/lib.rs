@@ -7,9 +7,9 @@
 //! renderer or a table, so there is exactly one place where a wrong command
 //! line can be mistaken for a right one.
 //!
-//! **`podssh` with no subcommand never connects.** `06-cli.md`:17 makes it
-//! an error that explains itself, and the two-stage handler in [`refuse`] is
-//! why `podssh example.org` says `Try: podssh ssh example.org` and never says
+//! **`podssh` with no subcommand never connects.** `docs/cli.md` makes it
+//! an error that explains itself ("A word with no subcommand"): the two-stage handler in
+//! [`refuse`] is why `podssh example.org` says `Try: podssh ssh example.org` and never says
 //! `doctor`.
 //!
 //! `podssh man` ([`man`]) renders the same tables as `--help`, with the
@@ -24,7 +24,7 @@ pub mod clap_error;
 pub mod dispatch;
 pub mod doctor;
 pub mod exit_codes;
-// **E24's fault table, as code.** `exit_codes.rs` holds the two
+// **The fault table of the exit codes, as code.** `exit_codes.rs` holds the two
 // candidate usage constants and names the fork; `exitmap.rs` holds the whole
 // table, the collision guard, and the tests that decide `2` versus `64`.
 // Two modules because they answer different questions: `exit_codes.rs` is

@@ -1,5 +1,5 @@
 #!/bin/sh
-# E39's M1 + M3 acceptance. Run it in the build image, through the wrapper:
+# The acceptance of the Tailscale adapter over DERP. Run it in the build image, through the wrapper:
 #   sh scripts/dev.sh run -- 'sh /work/scripts/ts-derp-prove.sh'
 #
 # Run it through the wrapper rather than directly. The example bounds its own

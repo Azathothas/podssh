@@ -1,9 +1,9 @@
 //! Dispatch: the parse result becomes bytes on two streams and an exit code.
 //!
-//! **stdout carries the answer and nothing else.** `06-cli.md`:251-252:
-//! *"stdout is protocol data or the answer, and nothing else. Diagnostics go to
-//! stderr, always, in every subcommand."* This module is where that is
-//! enforced, and it is the module E31's plant 6 targets: one `println!` on the
+//! **stdout carries the answer and nothing else.** `docs/architecture.md`, "Design rules":
+//! *"stdout is data. Diagnostics go to stderr, so podssh can be in a pipe or be the
+//! `ProxyCommand` of OpenSSH."* This module is where that is
+//! enforced, and the target of plant 6 (`tests/binary_streams.rs`): one `println!` on the
 //! wrong path and `podssh example.org 2>/dev/null | wc -c` stops reading 0.
 //!
 //! **The terminal state is a parameter, not a probe.** [`run`] — the entry
@@ -31,8 +31,8 @@ pub struct Streams<'a> {
 /// Run a parsed command line **with no terminal**. Returns the process exit
 /// code.
 ///
-/// This is the entry point tests use, and it cannot page — `RULES.md`:101
-/// puts it as *"nothing blocks on a terminal"*, and a test that could page
+/// This is the entry point tests use, and it cannot page — nothing in a test
+/// may block on a terminal, and a test that could page
 /// would block on a key nobody presses.
 pub fn run(p: &Parsed, s: &mut Streams<'_>) -> i32 {
     run_with(p, s, Tty::none())
@@ -147,7 +147,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             EXIT_NOT_IMPLEMENTED
         }
         // `ts` is dispatched, not refused: `ts.rs` owns the verb the way
-        // `man.rs` owns `man`. The VERB_OWNER row is gone — and
+        // `src/man/` owns `man`. The VERB_OWNER row is gone — and
         // `tests/ts_behave.rs` proves no `ts` shape exits 0 having done
         // nothing, which is what the row used to guarantee.
         #[cfg(feature = "ts")]
@@ -195,7 +195,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             if let Some(t) = tag {
                 let _ = writeln!(s.err, "{}", crate::refuse::accepted_tag_notice(t));
             }
-            // E33's gate, computed once and passed down: the attachment from
+            // The `--timeout` gate, computed once and passed down: the attachment from
             // the probed TTY and `--jsonl`, then the required `--timeout`.
             // Only verbs whose table declares `--timeout` enter the gate, so
             // enforcement follows the flag's existence and never invents a
@@ -410,7 +410,7 @@ mod tests {
         assert!(String::from_utf8(err).unwrap().contains("nonsense"));
     }
 
-    /// **E33 Prove check 6, as a unit test.** `run` uses `Tty::none`, which
+    /// **The `--timeout` gate's check, as a unit test.** `run` uses `Tty::none`, which
     /// is a pipe: `chat --send` with no `--timeout` is refused as a verb that
     /// is not implemented (70), not as a usage error that asks for a flag
     /// that would change nothing (GitHub #6).
@@ -442,8 +442,8 @@ mod tests {
         assert!(m.contains("when --jsonl was given"), "{m}");
     }
 
-    /// A valid `--timeout` passes the gate; `chat` itself is still E33's to
-    /// build, so it lands on the unimplemented refusal, not on 64.
+    /// A valid `--timeout` passes the gate; `chat` itself is not built yet (M8),
+    /// so it lands on the unimplemented refusal, not on 64.
     #[test]
     fn chat_with_a_valid_timeout_passes_the_gate() {
         let p = crate::tree::parse(vec!["chat", "--send", "#chan hi", "--timeout", "30s"]);

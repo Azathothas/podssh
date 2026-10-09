@@ -3,7 +3,7 @@
 //! These are the entry's remaining three plants. **None of them needs a
 //! socket**, because `Session` takes bytes and returns messages and the
 //! relay's own contribution — what the bytes are carried in — is
-//! E02's and already proven. **What these tests cannot prove is named at
+//! the WebSocket client's, and already proven. **What these tests cannot prove is named at
 //! the bottom of this file.**
 
 use podssh_core::irc::cap::Stage;
@@ -287,7 +287,7 @@ fn a_late_registration_numeric_does_not_unregister_a_working_session() {
 
 #[test]
 fn isupport_is_read_from_005_and_not_assumed() {
-    // **E37's rule: a capability is MEASURED or the client does not depend on
+    // **The rule: a capability is MEASURED or the client does not depend on
     // it.** `NICKLEN` decides whether an offer fits, so it is read.
     let mut s = Session::new(server(), ReapPolicy::default());
     assert_eq!(s.isupport().nicklen(), 9, "RFC 1459 §2.6's default before any 005");

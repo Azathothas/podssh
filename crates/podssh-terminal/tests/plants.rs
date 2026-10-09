@@ -1,4 +1,4 @@
-//! **E07's five plants, and the controls that prove they are not guards that
+//! **The line discipline's five plants, and the controls that prove they are not guards that
 //! refuse everything.**
 //!
 //! The entry's `Prove` block names these five defects:
@@ -30,8 +30,8 @@
 //!
 //! **Two of the five cannot be run as the entry wrote them, and the reason is
 //! in the test bodies.** Plants A and B name `less` on a constrained host, and
-//! E names a real command dying against a real shell. **The CLI is E31 and
-//! does not exist, and there is no constrained host on this machine**, so what
+//! E names a real command dying against a real shell. **No command uses this crate yet,
+//! and there is no constrained host on this machine**, so what
 //! is asserted here is the **unit-level** form of each defect — and that
 //! substitution is named rather than glossed over: the real run is named on the
 //! entry as a clause that cannot execute from here, with the command and the
@@ -158,8 +158,8 @@ fn plant_a_term_unset() {
     // specific.`"* — **READ**, `sandhome` `shell/faketty:82-93`.
     //
     // **What is asserted here, and what is not.** **`less` is NOT run.**
-    // There is no constrained host on this machine and the CLI is E31 and does
-    // not exist, so **the real command cannot execute and the entry keeps
+    // There is no constrained host on this machine and no command uses this crate yet,
+    // so **the real command cannot execute and the entry keeps
     // that clause open with the reason.** What is asserted is the mechanism the
     // real run depends on: **the name that would reach the `pty-req` is one a
     // terminfo database can resolve.**
@@ -315,7 +315,7 @@ fn plant_e_ctrl_c_kills_the_command_and_not_the_session() {
     // this plant.** **No process is killed and no shell exits, because this
     // crate never spawns one**: the process that must die is the *remote*
     // side's, reached over a channel, and **this machine has no remote
-    // shell and the CLI is E31 and does not exist.** The entry keeps that
+    // shell and no command uses this crate yet (T-111).** The entry keeps that
     // clause open with the command that cannot run.
     //
     // **What IS asserted is all three halves of the claim, at the boundary

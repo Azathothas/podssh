@@ -16,9 +16,9 @@
 //! So the test asserted on a channel the defect never touched, and it
 //! passed while the binary was broken.
 //!
-//! That is [`RULES.md`](../../../RULES.md):96's rule reached from the other
-//! direction: *"A guard that exercises the wrong program is not a guard on that
-//! program."* And it is the **second** time in this entry that a green suite
+//! That is rule 3 of `docs/development.md`, "Rules for tests": *"Run the real binary with
+//! stdout and stderr on different pipes. A stray `println!` passes every test that runs in
+//! memory."* And it is the **second** time in this entry that a green suite
 //! was reading a planted defect without noticing (plant 3 did the same, in
 //! `plants.rs`), so this test runs the actual executable through
 //! [`std::process::Command`] and reads the real file descriptors.
@@ -49,7 +49,7 @@ fn podssh(args: &[&str]) -> (i32, Vec<u8>, Vec<u8>) {
 }
 
 /// **Plant 6.** Every refusal writes to stderr and **nothing at all** to
-/// stdout. `06-cli.md`:251-252 requires it, and the acceptance is the byte
+/// stdout. `docs/architecture.md`, "Design rules", requires it, and the acceptance is the byte
 /// count `podssh example.org 2>/dev/null | wc -c`.
 #[test]
 fn a_refusal_writes_nothing_to_stdout() {
@@ -173,7 +173,7 @@ fn the_p_split_is_visible_in_the_binarys_output() {
     assert!(text.contains("not implemented yet") && !text.contains("--timeout"), "{text}");
 
     let (rc, out, err) = podssh(&["cp", "-P", "2222", "a", "b", "--timeout", "30s"]);
-    assert_ne!(rc, 0, "cp is not built, so it refuses; that is E36's clause");
+    assert_ne!(rc, 0, "cp is not built, so it refuses; milestone M5 builds it");
     assert!(out.is_empty(), "cp -P wrote to stdout: {out:?}");
     let err = String::from_utf8_lossy(&err);
     assert!(!err.contains("accepted and ignored"), "on cp, -P is the port and there is nothing to warn about: {err}");

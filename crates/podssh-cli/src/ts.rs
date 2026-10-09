@@ -1,4 +1,4 @@
-//! `podssh ts` behaviour (E39 increment 4b): status, `-W` pipe, exits.
+//! `podssh ts` behaviour (Tailscale): status, `-W` pipe, exits.
 //!
 //! stdout carries the answer and nothing else — the status line for the
 //! bare form, the byte stream for `-W`. Every other path writes stderr only,
@@ -8,7 +8,7 @@
 //!
 //! This module is the first sync→async bridge in the CLI: dispatch is
 //! synchronous, `TsNode` is async, so a current-thread runtime is built per
-//! invocation and driven with `block_on`. The E33 `--timeout` bound (required
+//! invocation and driven with `block_on`. The `--timeout` bound (required
 //! with no TTY) caps the whole operation; on a terminal with no `--timeout`
 //! the start attempt is unbounded — a human can interrupt — while the netmap
 //! wait still defaults to fail-fast.
@@ -38,7 +38,7 @@ pub struct TsArgs {
 
 /// Run the `ts` verb: gate, then behaviour. Returns the process exit code.
 pub fn run_ts(a: &TsArgs, out: &mut dyn Write, err: &mut dyn Write, tty: Tty) -> i32 {
-    // E33's gate, same as every other verb with a `--timeout` row: required
+    // The `--timeout` gate, same as every other verb with a `--timeout` row: required
     // with no TTY, parsed always. The bound caps the whole operation below.
     let attachment = crate::non_interactive::resolve_tty(tty, a.jsonl);
     let bound = match crate::non_interactive::require_timeout_or_env("ts", attachment, a.timeout.as_deref(), |n| {
@@ -50,7 +50,7 @@ pub fn run_ts(a: &TsArgs, out: &mut dyn Write, err: &mut dyn Write, tty: Tty) ->
             return refusal.fault.code();
         }
     };
-    // `--ts-wait-allowlist` parses with E33's parser; the refusal names the
+    // `--ts-wait-allowlist` parses with the `--timeout` parser; the refusal names the
     // ts flag, not `--timeout`, so the message is re-pointed (the fault stays).
     let wait = match a.wait_allowlist.as_deref() {
         None => None,
@@ -81,12 +81,12 @@ async fn ts_async(
     bound: Option<Duration>,
     wait: Option<Duration>,
 ) -> i32 {
-    // The host form needs the session engine, which does not exist (E01).
-    // It names E01 rather than E39: the node may be fine; the SSH side is not.
+    // The host form needs an SSH session over the tailnet, which is not built yet.
+    // It names the session rather than the tailnet: the node may be fine.
     if a.destination.is_some() && a.w_target.is_none() {
         let _ = writeln!(
             err,
-            "podssh ts: connecting to a host needs the SSH client, which is not implemented yet;\nnothing was done. For a byte pipe to a tailnet peer, use -W HOST:PORT."
+            "podssh ts: an SSH session over the tailnet is not implemented yet;\nnothing was done. For a byte pipe to a tailnet peer, use -W HOST:PORT."
         );
         return EXIT_NOT_IMPLEMENTED;
     }
@@ -169,7 +169,7 @@ async fn ts_async(
             return crate::exitmap::Fault::Auth.code();
         }
     };
-    // State file: required in v1 (E23 owns the default path, not yet built);
+    // State file: required in v1 (a default path for state files is not yet built);
     // its parent must exist — the fork creates the file, not directories.
     let state_path = match a.state.as_deref() {
         None => {

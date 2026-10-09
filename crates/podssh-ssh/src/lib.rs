@@ -14,7 +14,7 @@
 //! - the local terminal: raw mode, window size, `~` escapes ([`terminal`],
 //!   [`escape`], [`session`]);
 //! - exit codes that follow OpenSSH: the remote status, 128 + a signal, and 255
-//!   for podssh's own failures ([`run`]);
+//!   for podssh's own failures ([`mod@run`]);
 //! - keys made and read in OpenSSH's formats, for hosts with no working
 //!   `ssh-keygen` ([`keygen`]), and a host-key probe that never logs in
 //!   ([`probe`]).

@@ -4,7 +4,7 @@
 //! A binary started through `PATH`, through a symlink in `/usr/bin`, or by an
 //! absolute path from another directory resolves a different bundle in each
 //! case. The sibling project made exactly this mistake, and
-//! `docs/decisions/toolchain-contract.md:82-93` names three tools it broke —
+//! its own record of the toolchain names three tools that it broke —
 //! `ld.lld`, `zig`, `node`/`bun` — because of it.
 //!
 //! **A missing bundle is `Failed`, with the path in the message.** It is

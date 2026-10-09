@@ -1,4 +1,4 @@
-//! E06 — the relay's structural facts, and the pin against them.
+//! The relay's structural facts, and the pin against them.
 //!
 //! **One file, read by `podssh relay spec`, the tests, the record gate and
 //! `scripts/check-relay-spec.py`.** A second hand-written copy of these numbers

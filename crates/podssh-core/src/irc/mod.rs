@@ -29,7 +29,7 @@
 //!   number nothing measured. `include_str!`s
 //!   `podssh-probe/facts/relay-facts.toml` — **the same file
 //!   `podssh-probe`'s Rust gate, `scripts/check-relay-spec.py` and
-//!   `docs/spec/01-relay-protocol.md` all read**, so **one copy of the
+//!   `docs/relay.md` all follow**, so **one copy of the
 //!   numbers and four readers over it**.
 //! * [`transfer`] — a file, as bytes over sessions, chunked at those limits,
 //!   resumable from the chunk boundary.

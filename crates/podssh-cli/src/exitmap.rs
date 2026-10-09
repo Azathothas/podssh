@@ -1,6 +1,6 @@
-//! E24's fault table as code, and the `2` versus `64` decision.
+//! The fault table of the exit codes as code, and the `2` versus `64` decision.
 //!
-//! **One read path for the contract.** [`docs/TODO/modes/exit-codes.md`]
+//! **One read path for the contract.** `docs/cli.md` ("Exit codes")
 //! writes the table in prose; a second reader of that table types the number
 //! again, and two places holding one number is where a contract stops being a
 //! contract. Every condition podssh reports goes through [`code`], and a script
@@ -12,30 +12,30 @@
 //!
 //! | source | said |
 //! | --- | --- |
-//! | `docs/spec/06-cli.md`:32, :40, :84 | **64** |
-//! | E24's own table, `exit-codes.md`:97 | **`Usage` = 64**; **`Config` = 78**
-//! (`EX_CONFIG`) since the 2026-10-05 decision applied 2026-10-06 |
-//! | E31 [`surface.md`](surface.md), E32 [`man.md`](man.md), E36 [`cp-mv.md`](cp-mv.md) | **2** |
-//! | E34 [`ssh-config.md`](ssh-config.md):113-114, :133 | **2** |
-//! | E35 [`relay-cmd.md`](relay-cmd.md):169 | **2 for "no relay target"** — E24's `Config` row |
+//! | `docs/cli.md`, "Exit codes" | **64** |
+//! | the fault table below, [`TABLE`] | **`Usage` = 64**; **`Config` = 78**
+//! (`EX_CONFIG`) since the operator's decision of 2026-10-05 (`docs/decisions.md`) |
+//! | the old entries of the command line, the manual and `cp`/`mv` | **2** |
+//! | the old entry of `ssh_config` | **2** |
+//! | the old entry of `podssh relay` | **2 for "no relay target"** — the `Config` row |
 //!
 //! **The collision is the whole of the argument, and it is worse than one
-//! collision.** E31 chose `2` because a usage error and a config error must not
+//! collision.** An old entry chose `2` because a usage error and a config error must not
 //! share a code. That reasoning is right and it is why **`Config` is the row
 //! that moves.** `2` is a *shell* status before it is anything else — it is
 //! what a bare `test`, a `grep` miss and a `diff` disagreement all return — so
 //! `2` as a podssh fault collides with ordinary command output as well as with
 //! `Config`. `64` collides with nothing, and it is `EX_USAGE` in the same
-//! header `06-cli.md`:253-256 already ruled podssh's own failures come from.
+//! header that `docs/cli.md`, "Exit codes", already takes podssh's own failures from.
 //!
-//! **`2` is not a `sysexits.h` value at all.** E24's own Approach says its
+//! **`2` is not a `sysexits.h` value at all.** The table says its
 //! values are POSIX `sysexits.h`, and `2` is absent from that header while
 //! `EX_CONFIG` — 78 — is in it, for exactly the row `2` was standing in for.
 //!
 //! **What this file does NOT do.** It does not edit a document and it does
-//! not silently flip the binary. The documents that still say `2` are listed
-//! in E24's `Decision` with the exact line each changes, and the operator
-//! owns `docs/spec/` and the entries that are not E24's.
+//! not silently flip the binary. The documents that give the codes now agree on
+//! 64 (`docs/cli.md`, "Exit codes"), and a change of a code is the operator's
+//! decision (`docs/decisions.md`).
 
 use crate::exit_codes::EXIT_USAGE;
 
@@ -54,13 +54,13 @@ pub mod sysexits {
     pub const EX_CONFIG: i32 = 78;
 }
 
-/// One row of E24's table.
+/// One row of the fault table.
 ///
 /// **`Fault` carries a reason and not a number**, so a fault cannot exist
-/// without something `--doctor` can name, and `doctor --exit-codes` can render.
+/// without a name: [`Fault::name`] gives one for each variant.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Fault {
-    /// Bad flags, an unknown verb, a missing host. `06-cli.md`:84.
+    /// Bad flags, an unknown verb, a missing host. `docs/cli.md`, "Exit codes".
     Usage,
     /// TCP, TLS, the WebSocket upgrade, or a pre-`101` HTTP status.
     RelayUnreachable,
@@ -81,7 +81,7 @@ pub enum Fault {
     /// **The session ran and then ended without a delivered `exit-status`.**
     ///
     /// **This is NOT "a clean close", and the correction is load-bearing.**
-    /// E24's table calls this row `ChannelClosed` and describes it as *"a
+    /// The old exit-code table calls this row `ChannelClosed` and describes it as *"a
     /// clean close with none"*, then two paragraphs later says a
     /// `ChannelClosed` that never saw `exit-status` **and never reached a
     /// clean `1000`** is a truncation and exits **70**.
@@ -102,12 +102,12 @@ impl Fault {
     /// the remote said so.**
     pub fn code(self) -> i32 {
         match self {
-            // 64: the value `06-cli.md`:32, :40 and :84 print, and the one
-            // E24's own table gave `Usage`. See the module header for why `2`
+            // 64: the value of a usage error in `docs/cli.md` ("Exit codes"), and the one
+            // the exit-code table gave `Usage`. See the module header for why `2`
             // lost and why `Config` is the row that moves instead.
             Fault::Usage => sysexits::EX_USAGE,
             // 69: there is no relay to talk to. `Revoked` shares it on
-            // purpose — see SHARED_CODES — and `--doctor` names which.
+            // purpose — see SHARED_CODES — and `Fault::name` names which.
             Fault::RelayUnreachable | Fault::Revoked => sysexits::EX_UNAVAILABLE,
             // 77: the peer refused us. The two `1001` rows land apart from
             // each other because the REASON decides, not the code.
@@ -119,7 +119,7 @@ impl Fault {
         }
     }
 
-    /// The name `--doctor` prints. **No variant returns an empty string**,
+    /// The fault's name, as `SHARED_CODES` lists it. **No variant returns an empty string**,
     /// so a fault with nothing to say is unrepresentable.
     pub fn name(self) -> &'static str {
         match self {
@@ -137,7 +137,7 @@ impl Fault {
     }
 
     /// Whether this fault's MEANING depends on whether the session reached
-    /// `ready`, rather than on the close code. **This is the predicate E24's
+    /// `ready`, rather than on the close code. **This is the predicate the exit-code rule
     /// *"does the close code alone decide? No — `established` decides first"*
     /// needs**, and it is deliberately **not** implemented as a code match:
     /// a `1000` before `ready` is a session that never existed and a `1000`
@@ -153,13 +153,13 @@ impl Fault {
     /// (`dropssh` `src/connect.c:455-461`), so a `1009` returns 0.
     ///
     /// **The two `1000` rows are the load-bearing ones** and they are why
-    /// this takes `established`: E24, *"Does the close code alone decide? No
+    /// this takes `established`: the exit-code rule, *"Does the close code alone decide? No
     /// — `established` decides first"* — *"A `1000` before `established` is a
     /// failed session and a `1009` after it is a truncated one. Both are
     /// faults."*
     pub fn from_close(code: u16, reason: &str, established: bool) -> Fault {
         match code {
-            // Parse the REASON, not the code. Spec lines 135-136 give two
+            // Parse the REASON, not the code. The relay's table "Reverse close codes" gives two
             // `1001` reasons that demand opposite actions: re-pair, or accept
             // that the pair is gone. The code alone cannot tell them apart.
             1001 => {
@@ -187,8 +187,8 @@ pub fn code(fault: Fault) -> i32 {
     fault.code()
 }
 
-/// **The table, as data.** This is what `podssh doctor --exit-codes` prints
-/// and what a script reads instead of parsing prose. `Remote` is absent
+/// **The table, as data.** This is what the checks below read, and what code
+/// reads instead of parsing prose. `Remote` is absent
 /// because its value is whatever the remote said.
 pub const TABLE: &[(Fault, i32)] = &[
     (Fault::Usage, sysexits::EX_USAGE),
@@ -218,7 +218,7 @@ pub const SHARED_CODES: &[(i32, &[&str])] = &[
     (sysexits::EX_SOFTWARE, &["SessionFault", "ChannelClosed"]),
 ];
 /// **The fork, as a function of what the binary actually does.** Returns
-/// `Some((the table's value, what the binary emits))` while E24's decision and
+/// `Some((the table's value, what the binary emits))` while the decision on 64 and
 /// `exit_codes::EXIT_USAGE` disagree, and `None` once they agree.
 ///
 /// **It reads `EXIT_USAGE` rather than hard-coding 2**, so the moment the
@@ -270,7 +270,7 @@ mod tests {
     }
 
     /// **`TABLE` and [`code`] cannot disagree.** A row edited without the
-    /// match arm is a table that lies to `doctor --exit-codes`.
+    /// match arm is a table that lies to each reader of it.
     #[test]
     fn table_agrees_with_code() {
         for (fault, expected) in TABLE {
@@ -309,7 +309,7 @@ mod tests {
         }
     }
 
-    /// **A fault cannot exist without a name.** `--doctor` renders
+    /// **A fault cannot exist without a name.** Each variant has one in
     /// [`Fault::name`], and no variant returns an empty string.
     #[test]
     fn every_fault_has_a_name() {
@@ -319,7 +319,7 @@ mod tests {
     }
 
     /// **The two `1001` rows demand opposite actions, so the REASON decides.**
-    /// Spec lines 135-136: `operator stopped reverse relay` against `pair
+    /// The relay's table "Reverse close codes": `operator stopped reverse relay` against `pair
     /// expired`. A new pair, against a pair that is gone.
     #[test]
     fn a_1001_is_split_by_its_reason_not_its_code() {
@@ -368,7 +368,7 @@ mod tests {
         assert_eq!(code(after), sysexits::EX_SOFTWARE);
     }
 
-    /// **The clean close that is a FAULT, which is E24's first trap.** A
+    /// **The clean close that is a FAULT, which is the exit-code table's first trap.** A
     /// `1000` before `ready` reads as a normal closure and the session never
     /// worked. It must not be 0, and it must not be the clean-close row.
     #[test]
@@ -442,7 +442,7 @@ mod tests {
             usage_fork(),
             None,
             "the fork reopened: EXIT_USAGE in exit_codes.rs disagrees with \
-             sysexits::EX_USAGE (64); see E24's decision"
+             sysexits::EX_USAGE (64); see docs/decisions.md (exit codes)"
         );
     }
 }

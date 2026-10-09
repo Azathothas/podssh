@@ -1,4 +1,4 @@
-//! E07 — the userspace line discipline, for a host with no pty.
+//! The userspace line discipline, for a host with no pty.
 //!
 //! **This crate never touches the network.** It owns echo, line editing,
 //! history, signal characters, `TERM` selection, and window size. The bytes

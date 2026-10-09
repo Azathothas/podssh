@@ -1,4 +1,4 @@
-//! E06 — assert the relay's structural facts against its published document.
+//! Assert the relay's structural facts against its published document.
 //!
 //! **The prose is never asserted. The structure is.** This module reads the
 //! peer's live `llms-full.txt` and checks six structural facts and one
@@ -36,7 +36,7 @@ impl std::fmt::Display for Disagreement {
 pub enum Verdict {
     /// **`version` is what `/health` served, and `pinned` is what this
     /// repository's facts were pinned against.** They are two different
-    /// measurements and both are carried: E06's subject is a version that
+    /// measurements and both are carried: this check's subject is a version that
     /// moves, and a verdict that reported only the pin would state the version
     /// podssh *expected* as the version it ran against. `version` is `None`
     /// when `/health` was not read, which is not the same as a matching one.
@@ -66,7 +66,7 @@ impl Verdict {
     /// **Reported, never fatal**: the protocol did not necessarily move, and
     /// the structural facts are what decide that. But a client that cannot
     /// tell "the document I checked is the pinned one" from "the relay has
-    /// moved since" has not diagnosed anything, which is the whole of E06.
+    /// moved since" has not diagnosed anything, which is the whole of this check.
     pub fn version_moved(&self) -> bool {
         matches!(self, Verdict::Ok { version: Some(served), pinned, .. } if served != pinned)
     }
@@ -147,7 +147,7 @@ fn evaluate(expression: &str, left: &[(String, i64)], right: &[(String, i64)]) -
     }
 }
 
-/// **The whole of E06's assertion.** Pure: it reads a document it was handed
+/// **The whole of the assertion.** Pure: it reads a document it was handed
 /// and decides. It never fetches. A function that both decides and reaches
 /// the network cannot be tested against a planted document without a network.
 ///

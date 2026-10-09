@@ -1,6 +1,6 @@
 //! **The tree's parse contract, from outside.**
 //!
-//! Moved out of `src/tree.rs` when the E33 wiring (carried `--timeout` and
+//! Moved out of `src/tree.rs` when the `--timeout` gate's wiring (carried `--timeout` and
 //! `--jsonl`, the proxy pre-check) would have pushed that file over the
 //! 500-line gate. Same assertions, one level further from the code —
 //! `parse` and `Parsed` are the whole of what these touch.
@@ -77,8 +77,8 @@ fn a_refused_flag_names_its_replacement() {
 
 #[test]
 fn an_unknown_flag_is_never_silently_dropped() {
-    // **The spec's security bug, at `06-cli.md`:84-85: "A silently-dropped
-    // `-o StrictHostKeyChecking=no` is a security bug that reports success."**
+    // **The security bug of `docs/cli.md`, "Options of `podssh ssh`": "A dropped option
+    // can disable a security check without a message."**
     // Exit 0 on this input would be exactly that.
     let p = parse(args(&["ssh", "--StrictHostKeyChekcing=no", "host"]));
     assert!(p.needs_refusal(), "{p:?}");
@@ -86,7 +86,7 @@ fn an_unknown_flag_is_never_silently_dropped() {
     // Names what was given…
     assert!(m.contains("StrictHostKeyChekcing"), "{m}");
     // …and names the nearest real flag, which `strsim` found at
-    // distance 2. This is the requirement at `06-cli.md`:84-85.
+    // distance 2. This is the requirement of `docs/cli.md`, "Options of `podssh ssh`".
     assert!(m.contains("Did you mean"), "{m}");
     assert!(m.contains("StrictHostKeyChecking"), "must name the real flag: {m}");
     // And no usage dump, which is the sibling's failure (`src/main.c:277`).
@@ -98,8 +98,8 @@ fn an_unknown_flag_is_never_silently_dropped() {
 
 /// **`-v` and `-q` are repeatable, in both spellings.**
 ///
-/// This is OpenSSH parity and not a preference: `06-cli.md`:65 lists
-/// `-v`/`-q` as parity flags, the `-v` row's own help says *"repeatable"*,
+/// This is OpenSSH parity and not a preference: `podssh ssh` takes OpenSSH's command line
+/// (`docs/cli.md`), the `-v` row's own help says *"repeatable"*,
 /// and OpenSSH's manual says *"Multiple -q options increase the
 /// quietness"*. A second `-v` used to be refused as
 /// `unknown flag '--verbose'` — a flag that is not unknown, only repeated —
@@ -135,7 +135,7 @@ fn a_correct_command_line_parses_and_is_not_a_refusal() {
     assert!(!p.needs_refusal());
 }
 
-/// **E33's carried values.** Verbs with `--timeout`/`--jsonl` rows hand
+/// **The `--timeout` gate's carried values.** Verbs with `--timeout`/`--jsonl` rows hand
 /// them to dispatch; verbs without the rows carry nothing, and the gate
 /// enforces only where the tree could have supplied the flag.
 #[test]

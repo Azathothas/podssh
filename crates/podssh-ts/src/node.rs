@@ -116,7 +116,7 @@ pub enum NodeError {
     /// The netmap has not arrived yet: no home region to report. The caller
     /// retries under `--ts-wait-allowlist` or fails fast — never invents one.
     NetmapPending,
-    /// 4a scaffold remnant, kept until M5 proves `start` live: no caller
-    /// constructs it, and removing it is part of the M5 landing.
+    /// Kept until M5 proves `start` live, though no caller constructs it:
+    /// removing it is part of the M5 landing.
     NotYet(&'static str),
 }

@@ -9,7 +9,7 @@ Two defects, both measured on 2026-10-01, and both of which shipped here:
    repository, most recently because a local edit rewrote all three scripts.
    The first CI step that checked this grepped all of `scripts/` rather than
    `scripts/*.sh`, and was RED ON MAIN from the moment it was pushed, because
-   `check-todo.py` is Windows-authored and has CRLF on every line. A guard
+   a Windows-authored Python script there had CRLF on every line. A guard
    that fires on correct input is not a strict guard, it is a broken one.
 
 2. **Bashisms.** `arr+=(one two)` parses under `bash -n` and fails under dash.
@@ -22,7 +22,7 @@ Two defects, both measured on 2026-10-01, and both of which shipped here:
    `sh`, so a bashism fails there at RUNTIME, after a local `check` has
    reported green.
 
-`check-todo.py` has a CRLF half of this and no parse half. This file has both,
+The line endings and the parse are two halves of one check. This file has both,
 and it is one file so the two halves cannot drift apart.
 
 3. **A step of the gate that runs nowhere.** CI makes one job for each name

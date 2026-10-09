@@ -16,6 +16,10 @@
      the rule "no listener unless the user asks for it and a probe at run
      time allows the bind" (AGENTS.md, section 5). Each crate's tests/ may,
      for servers on the loopback. A planted listener must be found first.
+  7. No code file (each tracked file but the documents and vendor/) holds a
+     stop-sign marker, a line number of a document (NAME.md:N), or a path of
+     the documents that moved (under docs/spec/ or docs/TODO/): rule 6 of
+     AGENTS.md, section 5. Planted copies of each must be found first.
 
 Each check counts the files that it read, and fails below a floor, so a
 scan that read nothing never passes. `--plant-empty` runs each check on an
@@ -78,6 +82,20 @@ LISTENERS = {
     "listen(": [],
     "socket2": [],
 }
+# Rule 6 of AGENTS.md in the code: the four markers (written here as escapes,
+# so that this file holds none), a line number of a document, and a path of
+# the documents that moved.
+MARKERS = ("\u26d4", "\u26a0", "\u2b50", "\U0001f6d8")
+DOC_LINE = re.compile(r"[\w./-]+\.md`?:\d")
+OLD_DOCS = re.compile(r"docs/(?:sp" + r"ec|TO" + r"DO)/")
+# Where a document's line, or an old path, is data rather than a citation.
+# A marker is refused in each code file.
+CODE_TEXT_ALLOWED = {
+    "crates/podssh-todo/": "the record's checker: Markdown locations are its data",
+    "crates/podssh-probe/tests/relay_facts.rs": "it checks that an old copy of the facts stays gone",
+    "scripts/check-repo.py": "the check names what it refuses",
+}
+
 # The least files that each scan must read: a scan of fewer read too little
 # to pass, so an empty tree passes no check. Each is far below today's count.
 MIN_RUST_FILES = 100
@@ -85,6 +103,7 @@ MIN_MARKDOWN_FILES = 10
 MIN_TRACKED_FILES = 150
 MIN_SHELL_SCRIPTS = 5
 MIN_SCRIPT_FILES = 15
+MIN_CODE_FILES = 100
 
 
 def too_few(what: str, count: int, floor: int) -> list[str]:
@@ -249,6 +268,48 @@ def check_listeners() -> list[str]:
     return problems
 
 
+def code_text_hits(items) -> list[str]:
+    """Each line of each (path, text) of the code that holds a marker, or,
+    outside the allowance, a line number of a document or an old path."""
+    problems = []
+    for rel, text in items:
+        allowed = any(rel == a or (a.endswith("/") and rel.startswith(a)) for a in CODE_TEXT_ALLOWED)
+        for n, line in enumerate(text.splitlines(), 1):
+            for marker in MARKERS:
+                if marker in line:
+                    problems.append(f"{rel}:{n}: the marker U+{ord(marker):04X} (AGENTS.md, rule 6)")
+            if allowed:
+                continue
+            if DOC_LINE.search(line):
+                problems.append(f"{rel}:{n}: a line number of a document; name its section, or the fact")
+            if OLD_DOCS.search(line):
+                problems.append(f"{rel}:{n}: a path of the documents that moved; name the one that holds the fact")
+    return problems
+
+
+def check_code_text() -> list[str]:
+    items = []
+    for path in git_files():
+        rel = path.relative_to(ROOT).as_posix()
+        if rel.startswith(("docs/", "TODO/", "vendor/", ".tmp/")) or rel.endswith(".md") or not path.is_file():
+            continue
+        try:
+            items.append((rel, path.read_bytes().decode("utf-8")))
+        except UnicodeDecodeError:
+            continue
+    problems = too_few("code files", len(items), MIN_CODE_FILES)
+    problems += code_text_hits(items)
+    # The plants: each kind, in a code file outside the allowance, must be found.
+    plants = [("crates/podssh-ws/src/frame.rs", "// " + MARKERS[0] + " planted\n"),
+              ("crates/podssh-ws/src/frame.rs", "// see docs/cli" + ".md:12\n"),
+              ("crates/podssh-ws/src/frame.rs", "// see docs/" + "spec/x.md\n")]
+    for plant in plants:
+        if not code_text_hits([plant]):
+            problems.append(f"the scan of the code's text is vacuous: it did not find {plant[1].strip()!r}")
+    check_code_text.note = f"{len(items)} code files read; 3 planted lines found"
+    return problems
+
+
 def main(argv: list[str]) -> int:
     global ROOT
     if argv == ["--plant-empty"]:
@@ -269,6 +330,7 @@ CHECKS = [
     ("shell scripts are LF", check_shell_line_endings),
     ("each image is pinned, in one place", check_images),
     ("no listener outside its allowance", check_listeners),
+    ("no marker, document line or old path in the code", check_code_text),
 ]
 
 

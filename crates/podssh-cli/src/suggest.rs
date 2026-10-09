@@ -2,12 +2,12 @@
 //!
 //! **This module is the decision half of the no-subcommand handler**, split
 //! out of `refuse.rs` because that file crossed 500 lines **and the rule is
-//! to split, not to delete comments** ([`RULES.md`](../../RULES.md):88-91).
+//! to split, not to delete comments** (`docs/architecture.md`, "Design rules").
 //! The seam is the one the design already had: `refuse.rs` is *what a
 //! refusal says*, this is *whether there is a refusal to make*.
 //!
-//! **Two stages, and the order is the design** `docs/TODO/cli/surface.md`
-//! lines 99-106:
+//! **Two stages, and the order is the design**, as `docs/cli.md` gives them
+//! ("A word with no subcommand"):
 //!
 //! 1. **Shape.** `@`, `.` or `:` means *network destination* → `Try: podssh ssh
 //!    <token>`. Lexical, not a guess.
@@ -22,7 +22,7 @@ use crate::flags::{canonical_name, VERBS};
 
 /// **The absolute distance threshold, and the reason it is absolute.**
 ///
-/// E31's entry records the measurement that makes a *relative* gate wrong:
+/// The measurement that makes a *relative* gate wrong:
 /// MEASURED 2026-10-01, this machine, the nearest verb to `example.org` is
 /// `doctor` at distance 9 and to `user@example.org` is `operator` at 11. A gate
 /// of `len/3` scales with the token, so a longer token gets a wider gate and a
@@ -155,7 +155,7 @@ fn shares_prefix(a: &str, b: &str) -> bool {
 /// Prefer a canonical verb name over an alias at equal distance.
 ///
 /// `sttau` is 3 from both `status` and `sftp`. `status` is the name
-/// `06-cli.md`:25 lists and `sftp` is `cp`'s alias, so a canonical name is the
+/// `VERBS` lists and `sftp` is `cp`'s alias, so a canonical name is the
 /// better answer even though `sftp` shares one more character of prefix.
 fn canonical_preference(candidate: &str, current: &str) -> bool {
     let cand_canonical = VERBS.iter().any(|v| v.name == candidate);
@@ -170,9 +170,9 @@ fn canonical_preference(candidate: &str, current: &str) -> bool {
 /// **Shape, stage one. A token that looks like a network destination is a
 /// host, and no verb is near enough to outvote that.**
 ///
-/// `06-cli.md`:43-49: *"Recognise `@`, a dotted name, and `host:port` as
-/// host-shaped **before** consulting the verb list, and only then compare names
-/// behind an absolute distance threshold."* The reason is the one the entry
+/// `docs/cli.md`, "A word with no subcommand": the form of the word (`@`, `.` or `:`)
+/// gives `Try: podssh ssh <word>` **before** the verb list is consulted, and only then
+/// the edit distance, with an absolute limit. The reason is the one it also
 /// records — a distance-only rule makes `doctor` the nearest verb to
 /// `example.org`, and **a wrong suggestion is worse than none**.
 pub fn is_destination_shaped(token: &str) -> bool {

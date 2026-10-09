@@ -3,7 +3,7 @@
 //!
 //! **One limit is read from the facts file and five are transcriptions**,
 //! see [`podssh_core::irc::limits`]: `forward-max-frame-bytes` comes from
-//! `crates/podssh-probe/facts/relay-facts.toml`, the file E06's gate and the
+//! `crates/podssh-probe/facts/relay-facts.toml`, the file that podssh-probe and the
 //! Python script read too, and the rest are records in code with the peer's
 //! line beside them. **The tests below assert the numbers against the pinned
 //! document; nothing here asserts a line number**, and the header of the module
@@ -49,7 +49,7 @@ fn the_facts_file_is_read_and_the_transcribed_numbers_match_it() {
 fn a_renamed_fact_is_a_build_failure_and_not_a_default() {
     // **THE PLANT, for the limits.** If the facts file stops carrying
     // the number, podssh must fail to build rather than fall back to a
-    // constant nobody measured. E37's rule: a capability is `MEASURED` or the
+    // constant nobody measured. The rule: a capability is `MEASURED` or the
     // client does not depend on it.
     let relaid = TransferLimits::from_facts_text("origin = \"https://example\"\n");
     let err = relaid.expect_err("a facts file with no forward-max-frame-bytes must be refused");

@@ -9,8 +9,8 @@
 //! numerics, the `JOIN`-family and the error codes are the ones a client must
 //! understand; the rest of RFC 2812 §6 is a long tail, and a client that
 //! switches on an enum it can name behaves better than one that switches on a
-//! number it recalled. **An unnamed code still arrives**, as
-//! [`Replies::Unknown`], because a server that invents `999` is a server whose
+//! number it recalled. **An unnamed code still arrives**, as a [`Replies`]
+//! whose `code` names no [`Numeric`], because a server that invents `999` is a server whose
 //! `999` podssh must be able to log.
 
 use crate::irc::message::{Middle, Trailing};
@@ -131,7 +131,7 @@ impl Numeric {
 /// is thrown away doing it.**
 ///
 /// **This type is where a numeric's parameters live, and the encoder reads
-/// them from here.** An earlier draft gave [`Command::Numeric`] no
+/// them from here.** An earlier draft gave [`crate::irc::message::Command::Numeric`] no
 /// parameters at all, on the grounds that a numeric's shape varies — and
 /// **the fixture round-trip caught it on the first run**:
 /// `:irc.example.org 001 alice :Welcome` re-encoded as

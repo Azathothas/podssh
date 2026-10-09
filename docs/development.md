@@ -70,7 +70,7 @@ No script changes this file.
 ## Checks
 
 ```sh
-python scripts/check-repo.py        # 500-line rule, doc links, credentials, LF, pinned images, no listener
+python scripts/check-repo.py        # 500-line rule, doc links, credentials, LF, pinned images, no listener, rule 6 in the code
 python scripts/check-scripts.py     # shell scripts parse under dash
 python scripts/check-relay-spec.py  # the live relay still matches what podssh uses
 python scripts/relay-spec-agree.py target/debug/podssh   # podssh relay spec and the script agree
@@ -107,6 +107,14 @@ may. A listener that the user asks for and a probe allows joins the table
 in the commit that adds it. The scan fails when it reads fewer than 100
 files, and when a listener that it plants in a temporary tree is not found.
 
+It reads each code file too (each tracked file but the documents and
+`vendor/`) for rule 6 of `AGENTS.md`: a stop-sign marker, a line number of a
+document (`NAME.md` and a line), or a path of the documents that moved
+(under `docs/spec/` or `docs/TODO/`). A comment names a document's section, or
+states the fact. The tests of the record's checker, which hold Markdown
+locations as data, and one test of `podssh-probe` are allowed the last two;
+no file is allowed a marker. Three planted lines must be found at each run.
+
 `deny.toml` allows each license that a crate of the graph needs, by name,
 and crates.io as the only source; an advisory is ignored only with its
 reason and the date it was read. CI runs both commands on each push, each
@@ -118,7 +126,8 @@ Read each exit code directly. `cmd | tail` gives the exit code of `tail`.
 
 Each check of `check-repo.py` counts the files that it read, and fails below
 a floor (100 Rust files, 10 Markdown files, 150 tracked files, 5 shell
-scripts, one image, 100 files for the listeners), so a scan that read nothing
+scripts, one image, 100 files for the listeners, 100 code files for rule 6),
+so a scan that read nothing
 never passes. `python scripts/check-repo.py --plant-empty` runs each check on
 an empty repository and must exit 1; CI runs both.
 

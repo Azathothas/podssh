@@ -1,6 +1,6 @@
-//! **RFC 6455, byte-exact, and E03's three plants as tests.**
+//! **RFC 6455, byte-exact, and the WebSocket client's three plants as tests.**
 //!
-//! **The plants here are tests, not comments.** E03's `Prove` block requires
+//! **The plants here are tests, not comments.** The WebSocket client's check requires
 //! each of them to be *seen to fail*, and a plant described in prose is a
 //! plant nobody runs. Each one asserts **which** check fired, so a defect that
 //! reddened the suite for an unrelated reason cannot pass a plant that only
@@ -167,13 +167,13 @@ fn a_short_buffer_is_incomplete_not_an_error() {
 
 // ── PLANT 3: an unparseable frame mid-stream ────────────────────────────────
 
-/// **E03's third plant: an unparseable frame must produce a clean error, not
+/// **The third plant: an unparseable frame must produce a clean error, not
 /// a panic.**
 ///
 /// The frame below has a reserved bit set (`0x40` in the first byte) with no
 /// extension negotiated. A decoder that ignored RSV bits would hand a
 /// compressed payload to the SSH layer as if it were raw bytes — and that is
-/// exactly what E02's byte-exact framing tests exist to catch one layer up.
+/// exactly what the byte-exact framing tests exist to catch one layer up.
 #[test]
 fn plant_unparseable_frame_mid_stream_is_a_clean_error_not_a_panic() {
     let mut stream = vec![0x82u8, 0x80, 1, 2, 3, 4, 0]; // 0x42 => RSV1 set
@@ -218,7 +218,7 @@ fn an_undefined_opcode_is_an_error() {
 
 /// **Direction is enforced.** A client-to-server frame MUST be masked
 /// (RFC 6455 §5.3) and a server-to-client frame MUST NOT be (§5.1). These two
-/// tests are the wire-level form of E03's masking requirement: the encoder
+/// tests are the wire-level form of the masking requirement: the encoder
 /// sets the bit, and the decoder refuses a frame that is wrong for its
 /// direction.
 #[test]
@@ -374,7 +374,7 @@ fn a_101_without_the_upgrade_header_is_rejected() {
     assert!(handshake::check_response(&head, key).is_err());
 }
 
-/// **The `426` and `403` distinction survives.** E03's `Decision` records
+/// **The `426` and `403` distinction survives.** The TLS connector's measurements record
 /// that a verifier measured `426` for a valid token with no upgrade and `403`
 /// for no token — so authentication is checked before the upgrade and the two
 /// failures are distinguishable. That is only true if the status is reported

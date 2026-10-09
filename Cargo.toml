@@ -81,7 +81,7 @@ rustls = { version = "0.23", default-features = false, features = [
 # depends on `rustls` (no provider) and `tokio` only.
 # MEASURED 2026-10-02 in rust:1-alpine: builds under `CC=/nonexistent`.
 #
-# **This is why E03's connector is short.** The first version hand-rolled an
+# **This is why the TLS connector is short.** The first version hand-rolled an
 # `AsyncRead`/`AsyncWrite` adapter over `rustls::ClientConnection`, and it was
 # wrong in a way only the type system caught: `read_tls` takes
 # `&mut dyn std::io::Read` and a `tokio::net::TcpStream` implements
@@ -96,7 +96,7 @@ webpki-roots = "1"
 
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# E06's facts file. Pure Rust, and it must stay that way: the build image
+# The relay's facts file (podssh-probe). Pure Rust, and it must stay so: the build image
 # has no C compiler, so a TOML parser that wanted `cc` would fail the gate.
 toml = { version = "0.9", default-features = false, features = ["parse", "serde"] }
 # The structural facts are asserted with patterns, not with prose parsing.
@@ -104,7 +104,7 @@ toml = { version = "0.9", default-features = false, features = ["parse", "serde"
 #
 # `unicode-perl` is ON and it is not optional: `default-features = false`
 # leaves `\d` uncompilable, and the error names the missing feature rather than
-# the pattern. MEASURED 2026-10-02 in rust:1-alpine: two of E06's facts failed
+# the pattern. MEASURED 2026-10-02 in rust:1-alpine: two of the relay's facts failed
 # with "Unicode-aware Perl class not found (make sure the unicode-perl feature
 # is enabled)". A pattern that cannot compile must redden the gate, and it does
 # but it would have reddened it for the wrong reason, which is worse.
@@ -117,23 +117,15 @@ hmac = { version = "0.12", default-features = false }
 hkdf = { version = "0.12", default-features = false }
 aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
 chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
-# E01 Task 3 wires the SSH AEADs by hand (`ssh/cipher.rs`): OpenSSH's
-# chacha layout needs the 64-bit-nonce primitive plus seeking (poly-key block
-# then payload from block 1) and a standalone Poly1305. All three are pure
-# Rust and already in the lockfile as transitive deps — these lines only name
-# the same versions directly. CC-cleanliness is proved by the container gate.
-chacha20 = { version = "0.9", default-features = false }
-cipher = { version = "0.4", default-features = false }
-poly1305 = { version = "0.8", default-features = false }
 x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
 ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
-# `ecdh` is on because E03's key exchange needs P-256 ECDH, and it is
+# `ecdh` is on because the TLS key exchange needs P-256 ECDH, and it is
 # MEASURED 2026-10-02 in rust:1-alpine to build under `CC=/nonexistent` with
 # it: `p256` and `elliptic-curve` are pure Rust, and `arithmetic` alone does
 # NOT expose `p256::ecdh::EphemeralSecret` — the error is
 # "could not find `ecdh` in `p256` ... found an item that was configured out".
 p256 = { version = "0.13", default-features = false, features = ["ecdsa", "arithmetic", "ecdh"] }
-# `p384` is here because E03's live handshake FAILED without it, and the
+# `p384` is here because the live TLS handshake FAILED without it, and the
 # failure named the algorithm exactly.
 # **MEASURED 2026-10-02, in `rust:1-alpine`, against the live relay:** the
 # presented chain is three certificates — leaf and first intermediate on
