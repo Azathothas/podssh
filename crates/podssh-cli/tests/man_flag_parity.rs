@@ -25,7 +25,12 @@ fn the_readers_are_not_vacuous() {
         let h = help_map(&options_block(&help_text(verb)), verb);
         let m = man_map(regions.get(&name).unwrap_or_else(|| panic!("no region {name:?}")), verb);
         assert!(h.len() >= expected.len(), "{name:?}: help gave {} flags, the table has {}", h.len(), expected.len());
-        assert!(m.len() >= expected.len(), "{name:?}: the manual gave {} flags, the table has {}", m.len(), expected.len());
+        assert!(
+            m.len() >= expected.len(),
+            "{name:?}: the manual gave {} flags, the table has {}",
+            m.len(),
+            expected.len()
+        );
     }
     // The flags that a careless reader loses: digits, a long-only flag, and
     // a row whose meaning differs between verbs.

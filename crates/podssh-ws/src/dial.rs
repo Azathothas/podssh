@@ -138,18 +138,11 @@ pub fn proxy_from_env(target_host: &str) -> Result<Option<HttpProxy>, String> {
 /// A loopback target never goes through a proxy (as in Go's net/http): the
 /// proxy's loopback is not this host's, and podbox measured a proxy answering
 /// 405 to `CONNECT 127.0.0.1`.
-pub fn proxy_from_vars(
-    target_host: &str,
-    var: impl Fn(&str) -> Option<String>,
-) -> Result<Option<HttpProxy>, String> {
+pub fn proxy_from_vars(target_host: &str, var: impl Fn(&str) -> Option<String>) -> Result<Option<HttpProxy>, String> {
     if is_loopback(target_host) {
         return Ok(None);
     }
-    let get = |names: &[&str]| {
-        names
-            .iter()
-            .find_map(|n| var(n).filter(|v| !v.trim().is_empty()))
-    };
+    let get = |names: &[&str]| names.iter().find_map(|n| var(n).filter(|v| !v.trim().is_empty()));
     let Some(url) = get(&["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"]) else {
         return Ok(None);
     };
@@ -176,40 +169,24 @@ pub fn is_loopback(host: &str) -> bool {
 /// `*.example.com` all match `example.com` and its subdomains; a `:port`
 /// suffix on an entry is ignored. Matching is case-insensitive.
 pub fn no_proxy_matches(list: &str, host: &str) -> bool {
-    let host = host
-        .trim_start_matches('[')
-        .trim_end_matches(']')
-        .trim_end_matches('.')
-        .to_ascii_lowercase();
-    list.split(|c: char| c == ',' || c.is_whitespace())
-        .map(str::trim)
-        .filter(|e| !e.is_empty())
-        .any(|entry| {
-            if entry == "*" {
-                return true;
-            }
-            let entry = match split_host_port(entry) {
-                Ok((h, _)) => h,
-                Err(_) => entry.to_string(),
-            };
-            let entry = entry
-                .trim_start_matches("*.")
-                .trim_start_matches('.')
-                .trim_end_matches('.')
-                .to_ascii_lowercase();
-            !entry.is_empty() && (host == entry || host.ends_with(&format!(".{entry}")))
-        })
+    let host = host.trim_start_matches('[').trim_end_matches(']').trim_end_matches('.').to_ascii_lowercase();
+    list.split(|c: char| c == ',' || c.is_whitespace()).map(str::trim).filter(|e| !e.is_empty()).any(|entry| {
+        if entry == "*" {
+            return true;
+        }
+        let entry = match split_host_port(entry) {
+            Ok((h, _)) => h,
+            Err(_) => entry.to_string(),
+        };
+        let entry = entry.trim_start_matches("*.").trim_start_matches('.').trim_end_matches('.').to_ascii_lowercase();
+        !entry.is_empty() && (host == entry || host.ends_with(&format!(".{entry}")))
+    })
 }
 
 /// Open a TCP connection to `host:port`, through the proxy `proxy` selects.
 /// The whole operation (resolution, connect, and the CONNECT exchange) is
 /// bounded by `timeout`.
-pub async fn dial(
-    host: &str,
-    port: u16,
-    proxy: &ProxyChoice,
-    timeout: Duration,
-) -> Result<TcpStream, DialError> {
+pub async fn dial(host: &str, port: u16, proxy: &ProxyChoice, timeout: Duration) -> Result<TcpStream, DialError> {
     check_name(host)?;
     let proxy = match proxy {
         ProxyChoice::Direct => None,
@@ -227,12 +204,7 @@ pub async fn dial(
 }
 
 /// Resolve and connect, trying every address in turn until one answers.
-async fn connect_direct(
-    host: &str,
-    port: u16,
-    deadline: Instant,
-    budget: Duration,
-) -> Result<TcpStream, DialError> {
+async fn connect_direct(host: &str, port: u16, deadline: Instant, budget: Duration) -> Result<TcpStream, DialError> {
     let target = authority(host, port);
     // Pinned addresses, the system resolver, then DNS over HTTPS: a host with
     // a broken resolver but working TCP egress still gets there.
@@ -247,9 +219,7 @@ async fn connect_direct(
         match tokio::time::timeout_at(deadline, TcpStream::connect(addr)).await {
             Ok(Ok(stream)) => return Ok(stream),
             Ok(Err(e)) => last = format!("{addr}: {e}"),
-            Err(_) => {
-                return Err(DialError::Timeout { step: format!("connecting to {target}"), after: budget })
-            }
+            Err(_) => return Err(DialError::Timeout { step: format!("connecting to {target}"), after: budget }),
         }
     }
     Err(DialError::Connect { target, detail: last })
@@ -266,20 +236,15 @@ async fn connect_via(
     check_name(&proxy.host)?;
     let proxy_name = proxy.to_string();
     let target = authority(host, port);
-    let mut stream = connect_direct(&proxy.host, proxy.port, deadline, budget)
-        .await
-        .map_err(|e| match e {
-            DialError::Timeout { .. } => DialError::Timeout {
-                step: format!("connecting to the proxy {proxy_name}"),
-                after: budget,
-            },
-            other => DialError::ProxyUnreachable { proxy: proxy_name.clone(), detail: other.to_string() },
-        })?;
+    let mut stream = connect_direct(&proxy.host, proxy.port, deadline, budget).await.map_err(|e| match e {
+        DialError::Timeout { .. } => {
+            DialError::Timeout { step: format!("connecting to the proxy {proxy_name}"), after: budget }
+        }
+        other => DialError::ProxyUnreachable { proxy: proxy_name.clone(), detail: other.to_string() },
+    })?;
 
-    let mut request = format!(
-        "CONNECT {target} HTTP/1.1\r\nHost: {target}\r\nUser-Agent: podssh/{}\r\n",
-        env!("CARGO_PKG_VERSION")
-    );
+    let mut request =
+        format!("CONNECT {target} HTTP/1.1\r\nHost: {target}\r\nUser-Agent: podssh/{}\r\n", env!("CARGO_PKG_VERSION"));
     if let Some(credentials) = &proxy.credentials {
         let encoded = base64::engine::general_purpose::STANDARD.encode(credentials.as_bytes());
         request.push_str(&format!("Proxy-Authorization: Basic {encoded}\r\n"));
@@ -296,8 +261,8 @@ async fn connect_via(
         .map_err(|_| DialError::Timeout { step: format!("the CONNECT exchange with {proxy_name}"), after: budget })?
         .map_err(|e| DialError::ProxyProtocol { proxy: proxy_name.clone(), detail: e.to_string() })?;
 
-    let (status, reason) = parse_status_line(&head)
-        .map_err(|detail| DialError::ProxyProtocol { proxy: proxy_name.clone(), detail })?;
+    let (status, reason) =
+        parse_status_line(&head).map_err(|detail| DialError::ProxyProtocol { proxy: proxy_name.clone(), detail })?;
     if (200..300).contains(&status) {
         Ok(stream)
     } else {
@@ -338,10 +303,8 @@ pub fn parse_status_line(head: &str) -> Result<(u16, String), String> {
     if !version.starts_with("HTTP/") {
         return Err(format!("not an HTTP status line: {line:?}"));
     }
-    let status = parts
-        .next()
-        .and_then(|s| s.parse::<u16>().ok())
-        .ok_or_else(|| format!("no status code in {line:?}"))?;
+    let status =
+        parts.next().and_then(|s| s.parse::<u16>().ok()).ok_or_else(|| format!("no status code in {line:?}"))?;
     // The reason phrase is the proxy's text and ends up on the user's terminal.
     Ok((status, crate::text::one_line(parts.next().unwrap_or_default())))
 }
@@ -370,9 +333,7 @@ fn check_name(host: &str) -> Result<(), DialError> {
 /// no brackets is returned whole, with no port.
 fn split_host_port(s: &str) -> Result<(String, Option<u16>), String> {
     if let Some(rest) = s.strip_prefix('[') {
-        let (host, after) = rest
-            .split_once(']')
-            .ok_or_else(|| format!("unterminated [ in {s:?}"))?;
+        let (host, after) = rest.split_once(']').ok_or_else(|| format!("unterminated [ in {s:?}"))?;
         let port = match after.strip_prefix(':') {
             Some(p) => Some(p.parse::<u16>().map_err(|_| format!("bad port in {s:?}"))?),
             None if after.is_empty() => None,

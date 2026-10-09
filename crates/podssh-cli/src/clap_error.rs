@@ -72,7 +72,8 @@ pub fn rebuild_error(verb: &str, e: &clap::Error) -> Parsed {
         // `InvalidArg` as `--long <VALUE>`, also when `-p` was typed (measured
         // with the `probe_clap` example, clap 4.6.7, 2026-10-08; GitHub #8).
         // A refused flag refuses as with a value, which would change nothing.
-        ErrorKind::InvalidValue if matches!(e.get(ContextKind::InvalidValue), Some(ContextValue::String(v)) if v.is_empty()) => {
+        ErrorKind::InvalidValue if matches!(e.get(ContextKind::InvalidValue), Some(ContextValue::String(v)) if v.is_empty()) =>
+        {
             let given = string_ctx(e, ContextKind::InvalidArg);
             let long = given.strip_prefix("--").and_then(|s| s.split(' ').next()).unwrap_or_default();
             let row = crate::flags::verb_for(verb).and_then(|v| v.flags.iter().find(|r| r.long == long));
@@ -139,5 +140,9 @@ fn string_ctx_opt(e: &clap::Error, kind: ContextKind) -> Option<String> {
 
 fn non_empty(s: String) -> Option<String> {
     let t = s.trim().to_string();
-    if t.is_empty() { None } else { Some(t) }
+    if t.is_empty() {
+        None
+    } else {
+        Some(t)
+    }
 }

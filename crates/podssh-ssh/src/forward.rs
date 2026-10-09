@@ -9,12 +9,14 @@ use crate::handler::Client;
 use crate::log::Log;
 
 /// Open `host:port` from the server; the caller wraps the channel in a stream.
-pub async fn open(handle: &Handle<Client>, host: &str, port: u16) -> Result<russh::ChannelStream<russh::client::Msg>, String> {
-    handle
-        .channel_open_direct_tcpip(host, u32::from(port), "127.0.0.1", 0)
-        .await
-        .map(|c| c.into_stream())
-        .map_err(|e| format!("the server could not open a connection to {}: {e}", podssh_ws::dial::authority(host, port)))
+pub async fn open(
+    handle: &Handle<Client>,
+    host: &str,
+    port: u16,
+) -> Result<russh::ChannelStream<russh::client::Msg>, String> {
+    handle.channel_open_direct_tcpip(host, u32::from(port), "127.0.0.1", 0).await.map(|c| c.into_stream()).map_err(
+        |e| format!("the server could not open a connection to {}: {e}", podssh_ws::dial::authority(host, port)),
+    )
 }
 
 /// Copy stdin to the stream and the stream to stdout until the far side

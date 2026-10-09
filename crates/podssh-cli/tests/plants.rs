@@ -44,20 +44,14 @@ fn message(p: &Parsed) -> &str {
 #[test]
 fn plant_a_dropped_unknown_flag_is_a_refusal_not_a_silent_success() {
     let p = parse(args(&["ssh", "--StrictHostKeyChekcing=no", "host"]));
-    assert!(
-        p.needs_refusal(),
-        "a typo'd -o fell through and would exit 0, which is the spec's security bug"
-    );
+    assert!(p.needs_refusal(), "a typo'd -o fell through and would exit 0, which is the spec's security bug");
     assert_eq!(
         EXIT_USAGE, 64,
         "the exit code is the contract and it is 64 (E24 decided, operator 2026-10-05, applied 2026-10-06)"
     );
     let m = message(&p);
     assert!(m.contains("StrictHostKeyChekcing"), "must name what was given: {m}");
-    assert!(
-        m.contains("StrictHostKeyChecking"),
-        "must name the nearest real flag: {m}"
-    );
+    assert!(m.contains("StrictHostKeyChecking"), "must name the nearest real flag: {m}");
 }
 
 /// ⛔ The same defect reached through a **short** flag, because the two go
@@ -85,14 +79,8 @@ fn plant_a_missing_shape_stage_would_say_doctor_and_must_not() {
     // ⛔ The measurement itself, as an assertion. If a future verb list makes
     // `ssh` the nearest verb to `example.org`, this test would silently stop
     // testing anything, so it pins the shape stage as the reason.
-    assert_eq!(
-        diagnose_no_subcommand("example.org"),
-        NoSubcommand::Destination
-    );
-    assert_eq!(
-        diagnose_no_subcommand("user@example.org"),
-        NoSubcommand::Destination
-    );
+    assert_eq!(diagnose_no_subcommand("example.org"), NoSubcommand::Destination);
+    assert_eq!(diagnose_no_subcommand("user@example.org"), NoSubcommand::Destination);
 
     let p = parse(args(&["example.org"]));
     let m = message(&p);
@@ -100,10 +88,7 @@ fn plant_a_missing_shape_stage_would_say_doctor_and_must_not() {
     assert_eq!(tries, vec!["Try: podssh ssh example.org"], "{m}");
     // ⛔ `doctor` appears in the printed list, so the claim is about what is
     // suggested, never about substring presence.
-    assert!(
-        !tries.iter().any(|t| t.contains("doctor")),
-        "the distance stage won: {m}"
-    );
+    assert!(!tries.iter().any(|t| t.contains("doctor")), "the distance stage won: {m}");
 }
 
 /// ⛔ **`host:port` is the third shape**, named at `06-cli.md`:47, and it is the
@@ -159,15 +144,8 @@ fn plant_a_usage_dump_on_ssh_p_would_bury_the_answer() {
     let p = parse(args(&["ssh", "-P", "22", "host"]));
     let Parsed::Command { verb, refused, tag, .. } = &p else { panic!("{p:?}") };
     assert_eq!(*verb, "ssh");
-    assert_eq!(
-        tag.as_deref(),
-        Some("22"),
-        "-P on ssh is a Tag and is accepted, not refused"
-    );
-    assert!(
-        refused.is_empty(),
-        "-P is a real OpenSSH ssh flag; refusing it breaks parity (06-cli.md:64)"
-    );
+    assert_eq!(tag.as_deref(), Some("22"), "-P on ssh is a Tag and is accepted, not refused");
+    assert!(refused.is_empty(), "-P is a real OpenSSH ssh flag; refusing it breaks parity (06-cli.md:64)");
 }
 
 /// ⛔ **And the notice must be built here, not taken from clap.** ⛔ If someone
@@ -233,10 +211,7 @@ fn plant_a_global_p_rule_would_break_one_verb_or_the_other() {
         let Parsed::Command { refused, tag, .. } = &p else { panic!("{spelling}: {p:?}") };
         assert!(refused.is_empty(), "{spelling}: -P is the port and must be honoured");
         assert_eq!(tag, &None, "{spelling}: -P is a port here, not a Tag");
-        assert!(
-            !p.needs_refusal(),
-            "{spelling} -P 2222 must parse cleanly"
-        );
+        assert!(!p.needs_refusal(), "{spelling} -P 2222 must parse cleanly");
     }
 }
 
@@ -246,7 +221,7 @@ fn plant_a_global_p_rule_would_break_one_verb_or_the_other() {
 /// the one that notices.
 #[test]
 fn the_two_p_meanings_are_different_rows_in_the_table() {
-    use podssh_cli::flags::{FlagKind, SSH_FLAGS, CP_FLAGS};
+    use podssh_cli::flags::{FlagKind, CP_FLAGS, SSH_FLAGS};
     let ssh = SSH_FLAGS.iter().find(|r| r.short == Some('P')).unwrap();
     let cp = CP_FLAGS.iter().find(|r| r.short == Some('P')).unwrap();
 
@@ -307,20 +282,14 @@ fn plant_a_usage_dump_is_not_printed_to_any_stream() {
     let p = parse(args(&["ssh", "--StrictHostKeyChekcing=no", "host"]));
     let mut out: Vec<u8> = Vec::new();
     let mut err: Vec<u8> = Vec::new();
-    let rc = podssh_cli::dispatch::run(
-        &p,
-        &mut podssh_cli::dispatch::Streams { out: &mut out, err: &mut err },
-    );
+    let rc = podssh_cli::dispatch::run(&p, &mut podssh_cli::dispatch::Streams { out: &mut out, err: &mut err });
     assert_eq!(rc, 64, "the exit code survives; it is not what detects this defect");
     let text = String::from_utf8(err).unwrap();
     let all = format!("{}{}", String::from_utf8_lossy(&out), text);
 
     // ⛔ The two strings clap's renderer adds and podssh's must never contain.
     assert!(!all.contains("Usage:"), "a usage block was printed:\n{all}");
-    assert!(
-        !all.contains("For more information"),
-        "clap's trailer was printed:\n{all}"
-    );
+    assert!(!all.contains("For more information"), "clap's trailer was printed:\n{all}");
     // ⛔ And the two the user needs must survive, ⛔ because a test that only
     // forbids the usage block would also pass on a refusal that says nothing.
     assert!(all.contains("StrictHostKeyChekcing"), "{all}");
@@ -347,10 +316,7 @@ fn plant_a_usage_dump_is_not_printed_on_the_p_path_either() {
         let p = parse(args(&input));
         let mut out: Vec<u8> = Vec::new();
         let mut err: Vec<u8> = Vec::new();
-        podssh_cli::dispatch::run(
-            &p,
-            &mut podssh_cli::dispatch::Streams { out: &mut out, err: &mut err },
-        );
+        podssh_cli::dispatch::run(&p, &mut podssh_cli::dispatch::Streams { out: &mut out, err: &mut err });
         let text = String::from_utf8_lossy(&err).into_owned();
         assert!(!text.contains("Usage:"), "{input:?} printed a usage block:\n{text}");
         assert!(!text.contains("For more information"), "{input:?}:\n{text}");
@@ -371,9 +337,7 @@ fn plant_a_usage_dump_is_not_printed_on_the_p_path_either() {
 #[test]
 fn the_control_a_real_command_line_still_parses() {
     // ⛔ The entry's acceptance line, verbatim.
-    let p = parse(args(&[
-        "ssh", "-p", "2222", "-i", "~/.ssh/id_ed25519", "-4", "-T", "host", "--", "true",
-    ]));
+    let p = parse(args(&["ssh", "-p", "2222", "-i", "~/.ssh/id_ed25519", "-4", "-T", "host", "--", "true"]));
     let Parsed::Command { verb, refused, tag, .. } = &p else { panic!("{p:?}") };
     assert_eq!(*verb, "ssh");
     assert!(refused.is_empty(), "{p:?}");
@@ -386,12 +350,23 @@ fn the_control_every_documented_alias_still_resolves() {
     // ⛔ `podssh irc --help` must exit 0, and so must every other spelling a
     // user has in their fingers.
     for (spelling, want) in [
-        ("irc", "chat"), ("chat", "chat"),
-        ("scp", "cp"), ("sftp", "cp"), ("cp", "cp"), ("mv", "mv"),
-        ("connect", "ssh"), ("ssh", "ssh"),
-        ("man", "man"), ("relay", "relay"), ("status", "status"), ("doctor", "doctor"),
-        ("keygen", "keygen"), ("ssh-keygen", "keygen"),
-        ("proxy", "proxy"), ("node", "node"), ("operator", "operator"),
+        ("irc", "chat"),
+        ("chat", "chat"),
+        ("scp", "cp"),
+        ("sftp", "cp"),
+        ("cp", "cp"),
+        ("mv", "mv"),
+        ("connect", "ssh"),
+        ("ssh", "ssh"),
+        ("man", "man"),
+        ("relay", "relay"),
+        ("status", "status"),
+        ("doctor", "doctor"),
+        ("keygen", "keygen"),
+        ("ssh-keygen", "keygen"),
+        ("proxy", "proxy"),
+        ("node", "node"),
+        ("operator", "operator"),
     ] {
         let p = parse(args(&[spelling, "--help"]));
         assert_eq!(p, Parsed::Help(want), "`podssh {spelling} --help` must render {want}'s help");

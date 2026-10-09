@@ -107,20 +107,12 @@ fn an_unknown_flag_is_never_silently_dropped() {
 /// rows has.
 #[test]
 fn verbose_and_quiet_are_repeatable_in_every_spelling() {
-    for spelling in [
-        vec!["-v", "-v", "-v"],
-        vec!["-vvv"],
-        vec!["-v", "-vv"],
-        vec!["-vv"],
-    ] {
+    for spelling in [vec!["-v", "-v", "-v"], vec!["-vvv"], vec!["-v", "-vv"], vec!["-vv"]] {
         let mut argv = vec!["ssh"];
         argv.extend(spelling.iter().copied());
         argv.push("host");
         let p = parse(args(&argv));
-        assert!(
-            !p.is_error(),
-            "{spelling:?} must parse: a repeated flag is not an unknown one: {p:?}"
-        );
+        assert!(!p.is_error(), "{spelling:?} must parse: a repeated flag is not an unknown one: {p:?}");
     }
     for spelling in [vec!["-q", "-q"], vec!["-qq"], vec!["-q", "-v", "-q"]] {
         let mut argv = vec!["ssh"];
@@ -136,9 +128,7 @@ fn verbose_and_quiet_are_repeatable_in_every_spelling() {
 
 #[test]
 fn a_correct_command_line_parses_and_is_not_a_refusal() {
-    let p = parse(args(&[
-        "ssh", "-p", "2222", "-i", "~/.ssh/id_ed25519", "-4", "-T", "host", "--", "true",
-    ]));
+    let p = parse(args(&["ssh", "-p", "2222", "-i", "~/.ssh/id_ed25519", "-4", "-T", "host", "--", "true"]));
     let Parsed::Command { verb, refused, .. } = &p else { panic!("{p:?}") };
     assert_eq!(*verb, "ssh");
     assert!(refused.is_empty());
@@ -182,17 +172,11 @@ fn proxy_jsonl_is_the_specific_refusal() {
 #[test]
 fn man_carries_its_section_its_pager_choice_and_its_format() {
     let bare = parse(args(&["man"]));
-    assert_eq!(
-        bare,
-        Parsed::Man { section: None, no_pager: false, roff: false, json: false, refused: vec![] }
-    );
+    assert_eq!(bare, Parsed::Man { section: None, no_pager: false, roff: false, json: false, refused: vec![] });
     assert!(!bare.needs_refusal(), "man has behaviour and must not refuse");
 
     let paged_off = parse(args(&["man", "--no-pager"]));
-    assert_eq!(
-        paged_off,
-        Parsed::Man { section: None, no_pager: true, roff: false, json: false, refused: vec![] }
-    );
+    assert_eq!(paged_off, Parsed::Man { section: None, no_pager: true, roff: false, json: false, refused: vec![] });
 
     let section = parse(args(&["man", "ssh"]));
     assert_eq!(

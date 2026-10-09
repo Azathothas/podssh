@@ -1,7 +1,7 @@
 //! `ts` parse tests (E39): all three forms parse to `Parsed::Ts` carrying
 //! every behaviour input, and a bad `--ts-mode` is usage 64 at parse.
 
-use podssh_cli::tree::{Parsed, parse};
+use podssh_cli::tree::{parse, Parsed};
 
 #[test]
 fn ts_alias_parses_to_ts_with_auto_mode() {
@@ -28,10 +28,9 @@ fn ts_good_modes_parse_with_empty_refusals() {
 
 #[test]
 fn ts_bad_mode_is_usage_naming_the_values() {
-    for argv in [
-        vec!["ts", "--ts-mode", "bogus", "--timeout", "30s"],
-        vec!["ts", "--ts-mode=bogus", "--timeout", "30s"],
-    ] {
+    for argv in
+        [vec!["ts", "--ts-mode", "bogus", "--timeout", "30s"], vec!["ts", "--ts-mode=bogus", "--timeout", "30s"]]
+    {
         let owned: Vec<String> = argv.iter().map(|s| s.to_string()).collect();
         match parse(owned) {
             Parsed::Usage(m) => {
@@ -55,8 +54,7 @@ fn ts_forms_carry_their_positionals() {
         other => panic!("expected Ts, got {other:?}"),
     }
     // Host form: destination plus trailing command words.
-    let owned: Vec<String> =
-        ["ts", "peer", "--", "uptime"].iter().map(|s| s.to_string()).collect();
+    let owned: Vec<String> = ["ts", "peer", "--", "uptime"].iter().map(|s| s.to_string()).collect();
     match parse(owned) {
         Parsed::Ts { destination, args, .. } => {
             assert_eq!(destination.as_deref(), Some("peer"));
@@ -65,8 +63,7 @@ fn ts_forms_carry_their_positionals() {
         other => panic!("expected Ts, got {other:?}"),
     }
     // Pipe form: the -W target rides along.
-    let owned: Vec<String> =
-        ["ts", "-W", "peer:22"].iter().map(|s| s.to_string()).collect();
+    let owned: Vec<String> = ["ts", "-W", "peer:22"].iter().map(|s| s.to_string()).collect();
     match parse(owned) {
         Parsed::Ts { w_target, .. } => assert_eq!(w_target.as_deref(), Some("peer:22")),
         other => panic!("expected Ts, got {other:?}"),
@@ -96,17 +93,7 @@ fn ts_flags_ride_along_verbatim() {
     .map(|s| s.to_string())
     .collect();
     match parse(owned) {
-        Parsed::Ts {
-            auth_key_file,
-            state,
-            ephemeral,
-            relay,
-            wait_allowlist,
-            proxy,
-            timeout,
-            jsonl,
-            ..
-        } => {
+        Parsed::Ts { auth_key_file, state, ephemeral, relay, wait_allowlist, proxy, timeout, jsonl, .. } => {
             assert_eq!(auth_key_file.as_deref(), Some("k.key"));
             assert_eq!(state.as_deref(), Some("s.json"));
             assert!(ephemeral);

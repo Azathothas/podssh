@@ -10,8 +10,7 @@
 //! says so rather than leaving a claim of provenance to be believed.
 
 use podssh_core::irc::limits::{
-    TransferLimits, FORWARD_MAX_FRAME_BYTES, IDLE_REAPER_MS, OPERATOR_FRAME_PAYLOAD_BYTES,
-    SESSION_BYTES,
+    TransferLimits, FORWARD_MAX_FRAME_BYTES, IDLE_REAPER_MS, OPERATOR_FRAME_PAYLOAD_BYTES, SESSION_BYTES,
 };
 use podssh_core::irc::message::Message;
 use podssh_core::irc::reap::{payload_plan_for, ReapPolicy, HEARTBEAT_PERIOD_MS};
@@ -54,10 +53,7 @@ fn a_renamed_fact_is_a_build_failure_and_not_a_default() {
     // client does not depend on it.
     let relaid = TransferLimits::from_facts_text("origin = \"https://example\"\n");
     let err = relaid.expect_err("⛔ a facts file with no forward-max-frame-bytes must be refused");
-    assert!(
-        err.contains("forward-max-frame-bytes"),
-        "⛔ the error must name the fact it could not read: {err}"
-    );
+    assert!(err.contains("forward-max-frame-bytes"), "⛔ the error must name the fact it could not read: {err}");
 
     // ⛔ **And a fact whose value moved is refused too**, ⛔ because this crate
     // was written against a number and a changed number is a changed protocol.
@@ -75,10 +71,7 @@ fn a_chunk_line_fits_the_rfc_limit_and_that_is_proved_not_assumed() {
     // caps a message at 512 including the terminator.
     let limits = TransferLimits::default();
     let length = podssh_core::irc::transfer::chunk_line_length(&limits, "transfer-id", 99, 999_999);
-    assert!(
-        length <= 512,
-        "⛔ a chunk line is {length} bytes; the RFC's limit is 512"
-    );
+    assert!(length <= 512, "⛔ a chunk line is {length} bytes; the RFC's limit is 512");
     // ⛔ **And raising the chunk size must break it**, ⛔ because a test that
     // passes at any size is not a test.
     let greedy = TransferLimits { chunk_bytes: 512, ..limits };
@@ -150,18 +143,16 @@ fn a_chunk_sent_twice_is_refused_rather_than_written_out_of_place() {
     let data: Vec<u8> = (0..1000u32).map(|i| (i % 251) as u8).collect();
     let mut sender = Sender::new("t1", "file.bin", data.len() as u64, limits);
 
-    let mut receiver = Receiver::from_offer(&the_offer(&sender))
-        .expect("a well-formed offer is accepted");
+    let mut receiver = Receiver::from_offer(&the_offer(&sender)).expect("a well-formed offer is accepted");
 
     let mut delivered: Vec<u8> = Vec::new();
     let mut index = 0u64;
     while let Some((offset, len)) = sender.next_range() {
-        let message = sender.next_chunk_message("#c", &data[offset as usize..offset as usize + len])
+        let message = sender
+            .next_chunk_message("#c", &data[offset as usize..offset as usize + len])
             .expect("the right number of bytes");
         let line = offer_text(&message).expect("a chunk line");
-        let Line::Chunk(chunk) = line else {
-            panic!("expected a chunk, got {line:?}")
-        };
+        let Line::Chunk(chunk) = line else { panic!("expected a chunk, got {line:?}") };
         receiver.accept(&chunk).expect("in order");
         delivered.extend_from_slice(&data[offset as usize..offset as usize + len]);
         // ⛔ **Now send chunk 0 again**, ⛔ after everything. ⛔ It must be
@@ -173,9 +164,7 @@ fn a_chunk_sent_twice_is_refused_rather_than_written_out_of_place() {
                 offset: 0,
                 payload: podssh_core::irc::transfer::b64::encode(&data[..limits.chunk_bytes]),
             };
-            let err = receiver
-                .accept(&duplicate)
-                .expect_err("⛔ a duplicate chunk must be refused, not written twice");
+            let err = receiver.accept(&duplicate).expect_err("⛔ a duplicate chunk must be refused, not written twice");
             assert!(err.contains("expects"), "⛔ the refusal must name the expectation: {err}");
             assert_eq!(
                 receiver.bytes_received(),
@@ -364,11 +353,7 @@ fn every_transfer_line_round_trips_byte_exactly() {
         Line::Deny(podssh_core::irc::transfer::Deny { transfer_id: "t1".into(), reason: "too big".into() }),
     ] {
         let rendered = line.render();
-        assert_eq!(
-            Line::parse(&rendered).as_ref(),
-            Some(&line),
-            "⛔ {rendered:?} did not round trip"
-        );
+        assert_eq!(Line::parse(&rendered).as_ref(), Some(&line), "⛔ {rendered:?} did not round trip");
     }
 }
 
@@ -435,19 +420,13 @@ fn the_plan_reports_a_reception_so_a_one_sided_link_is_visible() {
 
     let quiet_both = payload_plan_for(0, period, period, false, period);
     assert!(quiet_both.send_heartbeat);
-    assert!(
-        !quiet_both.received_since_last_beat,
-        "⛔ nothing arrived, so no reception may be claimed"
-    );
+    assert!(!quiet_both.received_since_last_beat, "⛔ nothing arrived, so no reception may be claimed");
     assert!(
         quiet_both.both_ends_quiet,
         "⛔ both ends quiet is the state closest to being reaped, and the caller \
          must be able to tell it apart"
     );
-    assert!(
-        !quiet_send.both_ends_quiet,
-        "⛔ only one end quiet is a different state"
-    );
+    assert!(!quiet_send.both_ends_quiet, "⛔ only one end quiet is a different state");
 
     let receiving = payload_plan_for(0, period, 5, true, period);
     assert!(receiving.send_heartbeat, "⛔ the client's own side is still quiet");
@@ -459,10 +438,7 @@ fn the_plan_reports_a_reception_so_a_one_sided_link_is_visible() {
 fn a_policy_built_from_a_measured_reaper_window_divides_it_and_refuses_zero() {
     // ⛔ **`/relays.json` publishes `idle_timeout_ms`** ⛔ and ⛔ the honest
     // thing is to use what the peer says ⛔ rather than a hardcoded third.
-    assert_eq!(
-        ReapPolicy::from_reaper_ms(180_000).expect("a sane window").heartbeat_period_ms,
-        60_000
-    );
+    assert_eq!(ReapPolicy::from_reaper_ms(180_000).expect("a sane window").heartbeat_period_ms, 60_000);
     assert_eq!(
         ReapPolicy::from_reaper_ms(300_000).expect("a moved window").heartbeat_period_ms,
         100_000,

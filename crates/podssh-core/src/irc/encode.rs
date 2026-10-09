@@ -94,5 +94,3 @@ impl Message {
         format!("{}\r\n", self.to_line())
     }
 }
-
-

@@ -43,7 +43,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    for `ts`. The default build and the releases stay without the feature.
 2. The endpoint: the `Minimal` preset, no pkarr or DNS discovery, and the
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
-   (`crates/podssh-ws/src/dial.rs:131-162`), so `ALL_PROXY` and `NO_PROXY` act
+   (`crates/podssh-ws/src/dial.rs:131-155`), so `ALL_PROXY` and `NO_PROXY` act
    as on the other roads; iroh's own selection ignores both
    (`docs/design.md:303`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
@@ -109,7 +109,7 @@ Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
 the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:287-288`,
-`crates/podssh-cli/src/ts.rs:183`). Credentials never go on argv
+`crates/podssh-cli/src/ts.rs:178`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
 ## Approach
@@ -118,7 +118,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:287-288`,
    file. `--iroh-key FILE` names the file, as `--ts-state` does; with no flag,
    it goes to the first usable directory of the cache chain
    (`crates/podssh-relay/src/cache.rs:58-73`). Reuse the private-file code of
-   the token cache (`crates/podssh-relay/src/cache.rs:252-285`: mode 0600, no
+   the token cache (`crates/podssh-relay/src/cache.rs:256-289`: mode 0600, no
    symbolic link, the owner checked); do not write a second copy.
 2. Print the fingerprint of the public key, never the secret key. A node key
    persists, and a node warns when it makes a new one, because its ticket
@@ -131,8 +131,8 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:287-288`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:267`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:73-121`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-90`).
+   (`crates/podssh-cli/src/man/data.rs:76-124`), and each new variable to
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-109`).
 
 ## Decision
 
@@ -183,7 +183,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 (`docs/design.md:351-357`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:55-62`). The relay opener tries one host at a time
-(`crates/podssh-relay/src/open.rs:172-211`), and no code races two roads.
+(`crates/podssh-relay/src/open.rs:177-212`), and no code races two roads.
 
 ## Approach
 
@@ -262,7 +262,7 @@ in iroh's source at the pinned version.
    of one line, with its measurement (T-157).
 2. `--iroh-relay URL[,URL...]` and `PODSSH_IROH_RELAY` replace the table, as
    `--relay-host` and `PODSSH_RELAY` replace the relay list
-   (`crates/podssh-relay/src/relay.rs:52-75`). The flag wins.
+   (`crates/podssh-relay/src/relay.rs:52-73`). The flag wins.
 3. Accept `https://` URLs only, with a host that passes `check_host`
    (`crates/podssh-ws/src/names.rs:8-24`), and with no user information
    and no query.
@@ -272,9 +272,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-90`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-109`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:102-192`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:121-211`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -341,7 +341,7 @@ not verified here: iroh-ssh checks that a local sshd answers before it accepts
 Recommendation: the client records the host key of sshd under the name that
 the user gives to `podssh ssh` (the roost's name), as OpenSSH does for a host
 with a `ProxyCommand`. `podssh ssh` names a host this way today
-(`crates/podssh-ssh/src/run.rs:119-130`). The alternative, the address of sshd
+(`crates/podssh-ssh/src/run.rs:125-136`). The alternative, the address of sshd
 behind the roost (`127.0.0.1`), lost: each roost would share one name, and one
 key would replace another.
 
@@ -589,7 +589,7 @@ on TCP, and registers with Cap'n Proto RPC. Read: the measured proxy allows
 and the sandbox refuses UDP (`docs/target-environment.md:23`). If the edge
 needs port 7844, a cage cannot publish a tunnel. A client in a cage can still
 reach the tunnel's name on port 443 with `podssh-ws`
-(`crates/podssh-ws/src/client.rs:158-184`).
+(`crates/podssh-ws/src/client.rs:156-179`).
 
 ## Approach
 
@@ -709,8 +709,8 @@ whether MPTCP helps podssh on any road.
 ## Premise
 
 Read: `--direct` connects with a plain `TcpStream::connect`
-(`crates/podssh-ws/src/dial.rs:229-256`, the call at
-`crates/podssh-ws/src/dial.rs:247`). Through a proxy, MPTCP can reach only the
+(`crates/podssh-ws/src/dial.rs:206-226`, the call at
+`crates/podssh-ws/src/dial.rs:219`). Through a proxy, MPTCP can reach only the
 proxy. `podssh-ws` has no `libc` dependency (`crates/podssh-ws/Cargo.toml`).
 Read in the report, not verified here: RustConn uses MPTCP. Not known:
 whether the relay's edge or a target server accepts MPTCP. Linux offers it

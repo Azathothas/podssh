@@ -25,14 +25,10 @@
 
 use crate::irc::cap::Negotiation;
 use crate::irc::isupport::Isupport;
-use crate::irc::message::{
-    Command, Message, Prefix, Trailing,
-};
+use crate::irc::message::{Command, Message, Prefix, Trailing};
 use crate::irc::numeric::Numeric as Code;
 use crate::irc::reap::ReapPolicy;
-use crate::irc::session_parts::{
-    join_message, nick_message, user_message, ChannelMemory,
-};
+use crate::irc::session_parts::{join_message, nick_message, user_message, ChannelMemory};
 use crate::irc::transfer::Line as TransferLine;
 
 /// ⛔ Who podssh is on the far side.
@@ -252,10 +248,7 @@ impl Session {
         match self.reassembler.take_rest() {
             None if pending == 0 => None,
             Some(partial) => Some(SessionError::TruncatedMidLine { partial, pending_bytes: pending }),
-            None => Some(SessionError::TruncatedMidLine {
-                partial: String::new(),
-                pending_bytes: pending,
-            }),
+            None => Some(SessionError::TruncatedMidLine { partial: String::new(), pending_bytes: pending }),
         }
     }
 
@@ -314,8 +307,7 @@ impl Session {
             Command::Numeric(reply) => {
                 let code = reply.code;
                 if code == Code::RplIsupport as u16 {
-                    let params: Vec<String> =
-                        message.command.params().iter().map(|p| p.0.clone()).collect();
+                    let params: Vec<String> = message.command.params().iter().map(|p| p.0.clone()).collect();
                     self.isupport = Isupport::parse(&params);
                 }
                 // ⛔ Registration-time numerics only count while Pending: a
@@ -338,10 +330,7 @@ impl Session {
                         out.push(end);
                     }
                 }
-                events.push(Event::Numeric {
-                    code,
-                    text: message.command.trailing().map(|t| t.as_str().to_string()),
-                });
+                events.push(Event::Numeric { code, text: message.command.trailing().map(|t| t.as_str().to_string()) });
             }
             Command::Join { channels, .. } => {
                 for channel in channels {
@@ -370,11 +359,7 @@ impl Session {
                     events.push(Event::Heartbeat { generation });
                     return;
                 }
-                events.push(Event::Privmsg {
-                    from,
-                    target: target.0.clone(),
-                    text: text.as_str().to_string(),
-                });
+                events.push(Event::Privmsg { from, target: target.0.clone(), text: text.as_str().to_string() });
             }
             Command::Notice { target, text } => {
                 events.push(Event::Notice {

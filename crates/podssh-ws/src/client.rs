@@ -68,12 +68,10 @@ impl WsClientConfig {
     pub fn validate(&self) -> Result<(), String> {
         if let Some((_, query)) = self.endpoint.path.split_once('?') {
             if !relay_knobs_only(query) {
-                return Err(
-                    "the WebSocket path carries a query string other than the relay's connect \
+                return Err("the WebSocket path carries a query string other than the relay's connect \
                      knobs; the token belongs in the X-Relay-Token header, and a query string \
                      ends up in proxy access logs"
-                        .to_string(),
-                );
+                    .to_string());
             }
         }
         if !self.endpoint.path.starts_with('/') {
@@ -174,12 +172,9 @@ pub async fn connect(config: &WsClientConfig, token: &str) -> Result<RelaySessio
     )
     .await?;
     let host_header = dial::authority(&config.endpoint.host, config.endpoint.port);
-    let (tls, pending) = tokio::time::timeout(
-        config.timeout,
-        upgrade(tls, &host_header, &config.endpoint.path, token),
-    )
-    .await
-    .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: config.timeout })??;
+    let (tls, pending) = tokio::time::timeout(config.timeout, upgrade(tls, &host_header, &config.endpoint.path, token))
+        .await
+        .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: config.timeout })??;
     Ok(RelaySession::new(tls, pending, config.idle_timeout, WRITE_TIMEOUT))
 }
 
@@ -234,9 +229,7 @@ where
         }
         let n = tls.read(&mut chunk).await.map_err(io)?;
         if n == 0 {
-            return Err(ConnectError::Upgrade(
-                "the relay closed the connection before answering the upgrade".into(),
-            ));
+            return Err(ConnectError::Upgrade("the relay closed the connection before answering the upgrade".into()));
         }
         buf.extend_from_slice(&chunk[..n]);
     };
@@ -327,13 +320,10 @@ async fn https_request(
 ) -> Result<http::Response, ConnectError> {
     let mut tls = open_tls(host, port, host, trust, proxy, timeout).await?;
     let host_header = if port == 443 { host.to_string() } else { dial::authority(host, port) };
-    tokio::time::timeout(
-        timeout,
-        http::exchange(&mut tls, method, &host_header, path, headers, body, max_body),
-    )
-    .await
-    .map_err(|_| ConnectError::Timeout { step: "the HTTPS request", after: timeout })?
-    .map_err(|e| ConnectError::Http(e.to_string()))
+    tokio::time::timeout(timeout, http::exchange(&mut tls, method, &host_header, path, headers, body, max_body))
+        .await
+        .map_err(|_| ConnectError::Timeout { step: "the HTTPS request", after: timeout })?
+        .map_err(|e| ConnectError::Http(e.to_string()))
 }
 
 /// Read one frame from a stream that is both the read and the write side,
@@ -358,7 +348,8 @@ where
         let event = match next_event(pending) {
             Ok(event) => event,
             Err(e) => {
-                let _ = write_frame_over(stream, frame::OPCODE_CLOSE, &crate::session::close_payload(Some(1002), "")).await;
+                let _ =
+                    write_frame_over(stream, frame::OPCODE_CLOSE, &crate::session::close_payload(Some(1002), "")).await;
                 return Err(format!("{e}"));
             }
         };
@@ -423,11 +414,7 @@ where
     // No bytes for a masking key: the frame cannot be sent (RFC 6455 5.3).
     let key = handshake::masking_key()
         .map_err(|e| SessionError::Io { kind: std::io::ErrorKind::Other, text: e.to_string() })?;
-    let bytes = frame::encode(
-        &Frame { fin: true, opcode, payload: payload.to_vec() },
-        frame::Role::Client,
-        key,
-    );
+    let bytes = frame::encode(&Frame { fin: true, opcode, payload: payload.to_vec() }, frame::Role::Client, key);
     stream.write_all(&bytes).await.map_err(|e| SessionError::io(&e))?;
     stream.flush().await.map_err(|e| SessionError::io(&e))
 }
@@ -472,9 +459,7 @@ pub async fn doctor(config: &WsClientConfig) -> Vec<(String, Verdict)> {
     }
     out.push((
         "TLS handshake".to_string(),
-        Verdict::Unknown {
-            why: "not attempted here: a session needs a minted relay token".into(),
-        },
+        Verdict::Unknown { why: "not attempted here: a session needs a minted relay token".into() },
     ));
     out
 }

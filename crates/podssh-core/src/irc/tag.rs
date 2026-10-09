@@ -24,9 +24,7 @@ pub fn parse_tags(text: &str) -> Vec<Tag> {
             continue;
         }
         match item.split_once('=') {
-            Some((key, value)) => {
-                tags.push(Tag { key: key.to_string(), value: Some(unescape(value)) })
-            }
+            Some((key, value)) => tags.push(Tag { key: key.to_string(), value: Some(unescape(value)) }),
             None => tags.push(Tag { key: item.to_string(), value: None }),
         }
     }

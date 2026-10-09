@@ -50,10 +50,7 @@ pub async fn exchange<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    for part in [method, host, path]
-        .into_iter()
-        .chain(extra_headers.iter().flat_map(|(n, v)| [*n, *v]))
-    {
+    for part in [method, host, path].into_iter().chain(extra_headers.iter().flat_map(|(n, v)| [*n, *v])) {
         if part.contains(['\r', '\n']) {
             return Err(invalid("a request line or header contains CR or LF"));
         }
@@ -76,11 +73,7 @@ where
 }
 
 /// Read a response whose first bytes may already be in `buffered`.
-pub async fn read_response<S>(
-    stream: &mut S,
-    mut buffered: Vec<u8>,
-    max_body: usize,
-) -> std::io::Result<Response>
+pub async fn read_response<S>(stream: &mut S, mut buffered: Vec<u8>, max_body: usize) -> std::io::Result<Response>
 where
     S: AsyncRead + Unpin,
 {
@@ -121,12 +114,7 @@ pub fn parse_head(head: &str) -> Result<(u16, String, Vec<(String, String)>), St
     Ok((status, reason, headers))
 }
 
-async fn read_body<S>(
-    stream: &mut S,
-    head: &Response,
-    mut have: Vec<u8>,
-    max_body: usize,
-) -> std::io::Result<Vec<u8>>
+async fn read_body<S>(stream: &mut S, head: &Response, mut have: Vec<u8>, max_body: usize) -> std::io::Result<Vec<u8>>
 where
     S: AsyncRead + Unpin,
 {
@@ -134,9 +122,7 @@ where
     if head.status < 200 || head.status == 204 || head.status == 304 {
         return Ok(Vec::new());
     }
-    let chunked = head
-        .header("transfer-encoding")
-        .is_some_and(|v| v.to_ascii_lowercase().contains("chunked"));
+    let chunked = head.header("transfer-encoding").is_some_and(|v| v.to_ascii_lowercase().contains("chunked"));
     let length = head.header("content-length").and_then(|v| v.parse::<usize>().ok());
     let mut chunk = [0u8; 4096];
     loop {
@@ -181,11 +167,10 @@ pub fn decode_chunked(raw: &[u8], max_body: usize) -> Result<Option<Vec<u8>>, St
     let mut at = 0;
     loop {
         let Some(line_end) = find(&raw[at..], b"\r\n") else { return Ok(None) };
-        let size_line = std::str::from_utf8(&raw[at..at + line_end])
-            .map_err(|_| "a chunk size line is not text".to_string())?;
+        let size_line =
+            std::str::from_utf8(&raw[at..at + line_end]).map_err(|_| "a chunk size line is not text".to_string())?;
         let size_hex = size_line.split(';').next().unwrap_or_default().trim();
-        let size = usize::from_str_radix(size_hex, 16)
-            .map_err(|_| format!("bad chunk size {size_hex:?}"))?;
+        let size = usize::from_str_radix(size_hex, 16).map_err(|_| format!("bad chunk size {size_hex:?}"))?;
         at += line_end + 2;
         if size == 0 {
             // Optional trailers, then the final CRLF.

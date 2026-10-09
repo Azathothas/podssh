@@ -154,7 +154,11 @@ fn plant_operator_invents_an_id() {
         "THE DEFECT IS VISIBLE HERE: the node reads the invented id as the first \
          32 bytes of session data, ahead of the SSH version string"
     );
-    assert_eq!(&at_node[64..], version, "and the SSH version string arrives 32 bytes late, so the handshake dies reading garbage");
+    assert_eq!(
+        &at_node[64..],
+        version,
+        "and the SSH version string arrives 32 bytes late, so the handshake dies reading garbage"
+    );
 
     // The control: the operator's frame is bare, and the node reads the version
     // right after the real id.

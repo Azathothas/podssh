@@ -122,15 +122,10 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
     // refused rather than ignored — ignoring it is how a compressed frame is
     // read as raw bytes.
     if first & 0x70 != 0 {
-        return Err(WsError::Frame(format!(
-            "reserved bits set (0x{first:02x}) with no extension negotiated"
-        )));
+        return Err(WsError::Frame(format!("reserved bits set (0x{first:02x}) with no extension negotiated")));
     }
     let opcode = first & 0x0f;
-    if !matches!(
-        opcode,
-        OPCODE_CONTINUATION | OPCODE_TEXT | OPCODE_BINARY | OPCODE_CLOSE | OPCODE_PING | OPCODE_PONG
-    ) {
+    if !matches!(opcode, OPCODE_CONTINUATION | OPCODE_TEXT | OPCODE_BINARY | OPCODE_CLOSE | OPCODE_PING | OPCODE_PONG) {
         return Err(WsError::Frame(format!("opcode 0x{opcode:x} is not defined")));
     }
     let masked = second & 0x80 != 0;
@@ -139,14 +134,10 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
     // check that makes "every client frame is masked" a property of the wire
     // rather than a claim about the encoder.
     if role == Role::Client && !masked {
-        return Err(WsError::Frame(
-            "client-to-server frame is not masked (RFC 6455 5.3)".into(),
-        ));
+        return Err(WsError::Frame("client-to-server frame is not masked (RFC 6455 5.3)".into()));
     }
     if role == Role::Server && masked {
-        return Err(WsError::Frame(
-            "server-to-client frame is masked (RFC 6455 5.1)".into(),
-        ));
+        return Err(WsError::Frame("server-to-client frame is masked (RFC 6455 5.1)".into()));
     }
 
     let mut cursor = 2usize;
@@ -178,9 +169,7 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
                 return Err(WsError::Frame(format!("frame length {v} exceeds this platform")));
             }
             if v > FORWARD_MAX_FRAME as u64 {
-                return Err(WsError::Frame(format!(
-                    "frame length {v} exceeds the forward cap of {FORWARD_MAX_FRAME}"
-                )));
+                return Err(WsError::Frame(format!("frame length {v} exceeds the forward cap of {FORWARD_MAX_FRAME}")));
             }
             v as usize
         }
@@ -199,9 +188,7 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
     // nothing, or a 2-byte code and a reason; 1 byte is half a code.
     if opcode >= OPCODE_CLOSE {
         if !fin {
-            return Err(WsError::Frame(format!(
-                "control frame 0x{opcode:x} is fragmented; RFC 6455 5.5 forbids it"
-            )));
+            return Err(WsError::Frame(format!("control frame 0x{opcode:x} is fragmented; RFC 6455 5.5 forbids it")));
         }
         if payload_len > MAX_CONTROL_PAYLOAD {
             return Err(WsError::Frame(format!(
@@ -236,14 +223,7 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
             *byte ^= key[i % 4];
         }
     }
-    Ok(Some((
-        Frame {
-            fin,
-            opcode,
-            payload,
-        },
-        cursor + payload_len,
-    )))
+    Ok(Some((Frame { fin, opcode, payload }, cursor + payload_len)))
 }
 
 /// ⛔ **The mask is a bijection, so encode-then-decode is the identity.** This

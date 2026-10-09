@@ -31,7 +31,7 @@
 //! a client that advertises a mechanism it cannot complete gets a server that
 //! waits for credentials it will never receive.
 
-use crate::irc::message::{CapVerb, Command, Middle, Message, Trailing};
+use crate::irc::message::{CapVerb, Command, Message, Middle, Trailing};
 
 /// ⛔ What negotiation is currently doing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -117,10 +117,7 @@ impl Negotiation {
                 // built by [`Negotiation::request_message`] after the caller has
                 // decided what it wants, so a negotiation that changes its mind
                 // mid-stream cannot leave a half-built request behind.
-                self.offered = names
-                    .into_iter()
-                    .filter(|n| !n.eq_ignore_ascii_case("sasl"))
-                    .collect();
+                self.offered = names.into_iter().filter(|n| !n.eq_ignore_ascii_case("sasl")).collect();
                 self.offered.sort();
                 self.offered.dedup();
                 Some(self.request_message())
@@ -176,12 +173,8 @@ impl Negotiation {
     /// already refused — which is the second half of why
     /// [`Negotiation::observe`] records a `NAK`.
     fn request_message(&mut self) -> Message {
-        let wanted: Vec<String> = self
-            .offered
-            .iter()
-            .filter(|o| !self.refused.iter().any(|r| r.eq_ignore_ascii_case(o)))
-            .cloned()
-            .collect();
+        let wanted: Vec<String> =
+            self.offered.iter().filter(|o| !self.refused.iter().any(|r| r.eq_ignore_ascii_case(o))).cloned().collect();
         self.requested = wanted.clone();
         self.stage = Stage::ReqSent;
         cap_message(CapVerb::Req, &[], Some(Trailing::new(wanted.join(" "))))

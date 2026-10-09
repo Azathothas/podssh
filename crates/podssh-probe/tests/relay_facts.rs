@@ -13,9 +13,7 @@
 
 use std::path::Path;
 
-use podssh_probe::relay_facts::{
-    assert_facts, line_count, read_operand, sha256_hex, verdict_from, Observed, Verdict,
-};
+use podssh_probe::relay_facts::{assert_facts, line_count, read_operand, sha256_hex, verdict_from, Observed, Verdict};
 use podssh_probe::Facts;
 
 const SPEC_COPY: &str = include_str!("spec/relay-spec-2026-10-03-r2.txt");
@@ -57,10 +55,7 @@ fn spec_copy_matches_the_pin() {
 #[test]
 fn every_structural_fact_holds_on_the_pinned_document() {
     let facts = facts();
-    assert!(
-        !facts.facts.is_empty(),
-        "a gate with no facts asserts nothing"
-    );
+    assert!(!facts.facts.is_empty(), "a gate with no facts asserts nothing");
     match assert_facts(SPEC_COPY, &facts, Some("2026-10-03-r2")) {
         Verdict::Ok { version, pinned, lines, .. } => {
             assert_eq!(version.as_deref(), Some("2026-10-03-r2"));
@@ -128,15 +123,18 @@ fn plant_changed_node_open_timeout_fails() {
 
 #[test]
 fn plant_changed_node_frame_cap_fails() {
-    let planted = mutate(SPEC_COPY, "over 65568 (32-byte id plus 65536 payload)",
-                         "over 32768 (32-byte id plus 65536 payload)");
+    let planted =
+        mutate(SPEC_COPY, "over 65568 (32-byte id plus 65536 payload)", "over 32768 (32-byte id plus 65536 payload)");
     assert_fact_fired(&planted, "reverse-node-frame-cap");
 }
 
 #[test]
 fn plant_text_frames_instead_of_binary_fails() {
-    let planted = mutate(SPEC_COPY, "**binary** frames carry raw TCP bytes verbatim",
-                         "**text** frames carry raw TCP bytes verbatim");
+    let planted = mutate(
+        SPEC_COPY,
+        "**binary** frames carry raw TCP bytes verbatim",
+        "**text** frames carry raw TCP bytes verbatim",
+    );
     assert_fact_fired(&planted, "binary-frames-required");
 }
 
@@ -184,10 +182,9 @@ fn an_unreadable_relay_is_unknown_and_never_ok() {
     // ⛔ **The defect this repository has shipped three times.** A relay that
     // could not be read must not produce `ok`, and must not produce `Failed`
     // either — those are different facts with different remedies.
-    for observed in [
-        Observed { version: None, document: None },
-        Observed { version: Some("2026-10-03-r2".into()), document: None },
-    ] {
+    for observed in
+        [Observed { version: None, document: None }, Observed { version: Some("2026-10-03-r2".into()), document: None }]
+    {
         match verdict_from(&observed, &facts()) {
             Verdict::Unknown { why } => assert!(!why.is_empty(), "???? must say why"),
             other => panic!("an unreadable relay must be Unknown, got {other:?}"),
@@ -202,10 +199,7 @@ fn a_readable_document_is_checked_whatever_health_said_and_the_move_is_visible()
     // that echoed the pin back would tell an operator, after the relay
     // upgraded, that they had run against the version they pinned — which is
     // the one answer that is certainly wrong.
-    let observed = Observed {
-        version: Some("2026-10-01-r9".into()),
-        document: Some(SPEC_COPY.to_string()),
-    };
+    let observed = Observed { version: Some("2026-10-01-r9".into()), document: Some(SPEC_COPY.to_string()) };
     match verdict_from(&observed, &facts()) {
         Verdict::Ok { version, pinned, .. } => {
             assert_eq!(version.as_deref(), Some("2026-10-01-r9"), "the served version");
@@ -214,10 +208,7 @@ fn a_readable_document_is_checked_whatever_health_said_and_the_move_is_visible()
         other => panic!("a readable document is checked, whatever /health said: {other:?}"),
     }
     assert!(verdict_from(&observed, &facts()).version_moved(), "the move is visible");
-    let same = Observed {
-        version: Some(facts().pin.version.clone()),
-        document: Some(SPEC_COPY.to_string()),
-    };
+    let same = Observed { version: Some(facts().pin.version.clone()), document: Some(SPEC_COPY.to_string()) };
     assert!(!verdict_from(&same, &facts()).version_moved());
     // ⛔ A document read with no `/health` reports NO served version rather
     // than the pin: "not read" and "matches" must not print the same way.
@@ -232,10 +223,7 @@ fn a_readable_document_is_checked_whatever_health_said_and_the_move_is_visible()
 #[test]
 fn the_facts_file_is_one_file_and_there_is_only_one() {
     // ⛔ A second copy of these numbers is the drift this exists to catch.
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .and_then(Path::parent)
-        .expect("a workspace root");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().and_then(Path::parent).expect("a workspace root");
     let mut found = Vec::new();
     for candidate in ["docs/spec/relay-structural-facts.json"] {
         if root.join(candidate).is_file() {

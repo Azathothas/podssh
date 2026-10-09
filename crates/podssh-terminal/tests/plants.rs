@@ -145,10 +145,7 @@ fn control_e_a_signal_that_is_not_pressed_changes_nothing() {
     // key would pass plant E and be unusable.
     let mut s = Session::new(true, true);
     let events = s.on_local_bytes(b"echo hello\n");
-    assert!(
-        !events.iter().any(|e| matches!(e, Event::Signal(_))),
-        "no signal for ordinary input: {events:?}"
-    );
+    assert!(!events.iter().any(|e| matches!(e, Event::Signal(_))), "no signal for ordinary input: {events:?}");
     assert!(!s.ended(), "and the session lives");
 }
 
@@ -180,10 +177,7 @@ fn plant_a_term_unset() {
         panic!("THE PLANT FIRED: an unset TERM was not substituted");
     }
 
-    assert_eq!(
-        term, "xterm-256color",
-        "⛔ an unset TERM must reach the pty-req as a resolvable name"
-    );
+    assert_eq!(term, "xterm-256color", "⛔ an unset TERM must reach the pty-req as a resolvable name");
     assert_eq!(choice, TermChoice::SubstitutedWithFallback);
     assert!(choice.replaced());
 }
@@ -201,7 +195,8 @@ fn plant_b_term_xterm_256color_is_left_alone() {
         // ⛔ **The defect arm.** ⛔ The substitution is unconditional here, which
         // is the defect a substitution-only test cannot see.
         assert_eq!(
-            term, "xterm-256color",
+            term,
+            "xterm-256color",
             "the DEFECT arm is reached: PODSSH_TERM={:?} overrode a TERM the \
              user set deliberately, and a caller who named a real terminal \
              would have been overridden by a client pretending to help.",
@@ -210,10 +205,7 @@ fn plant_b_term_xterm_256color_is_left_alone() {
         panic!("THE PLANT FIRED: a good TERM was overridden");
     }
 
-    assert_eq!(
-        term, "xterm-256color",
-        "⛔ xterm-256color must reach the pty-req unchanged"
-    );
+    assert_eq!(term, "xterm-256color", "⛔ xterm-256color must reach the pty-req unchanged");
     assert_eq!(choice, TermChoice::Kept, "and the session must report it as kept");
     assert!(!choice.replaced(), "⛔ a value the user set must not be replaced");
 }
@@ -295,11 +287,7 @@ fn plant_d_an_unknown_escape() {
         panic!("THE PLANT FIRED: an unknown escape was silently swallowed");
     }
 
-    assert_eq!(
-        events,
-        vec![Event::ToLocal(BELL.to_vec())],
-        "⛔ one bell and nothing else"
-    );
+    assert_eq!(events, vec![Event::ToLocal(BELL.to_vec())], "⛔ one bell and nothing else");
 
     // ⛔ **The state change that must not have happened.** ⛔ `1` and `~` must
     // not have become part of the line — a guard that consumed the sequence as
@@ -370,11 +358,7 @@ fn plant_e_ctrl_c_kills_the_command_and_not_the_session() {
 
     // ── half 3: the interrupted line never ran, and the session still works
     let cooked = s.cooked().expect("a cooked session has a discipline");
-    assert_eq!(
-        cooked.line(),
-        b"",
-        "⛔ the interrupted line was dropped"
-    );
+    assert_eq!(cooked.line(), b"", "⛔ the interrupted line was dropped");
     assert!(
         cooked.history().is_empty(),
         "⛔ and it never reached history, so it can never be recalled as a \
@@ -390,10 +374,7 @@ fn plant_e_ctrl_c_kills_the_command_and_not_the_session() {
         })
         .flatten()
         .collect();
-    assert_eq!(
-        remote, b"echo alive\n",
-        "⛔ and the session still runs the next command"
-    );
+    assert_eq!(remote, b"echo alive\n", "⛔ and the session still runs the next command");
 }
 
 // ─────────────────────────── the redraw sequence the whole suite rests on
@@ -424,10 +405,7 @@ fn the_redraw_is_the_transcribed_shape() {
     expected.extend_from_slice(b"\r$ abc");
     expected.extend_from_slice(EL);
     expected.extend_from_slice(b"\r$ ab");
-    assert_eq!(
-        local, expected,
-        "⛔ the redraw is \\r, prompt, line, EL, \\r, prompt, line-to-cursor"
-    );
+    assert_eq!(local, expected, "⛔ the redraw is \\r, prompt, line, EL, \\r, prompt, line-to-cursor");
 }
 
 #[test]

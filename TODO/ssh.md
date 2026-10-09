@@ -26,8 +26,8 @@ wrong remedy. The same note comes when `PreferredAuthentications` leaves out
 Read:
 
 - `resolve` removes `publickey` from the methods when `PubkeyAuthentication`
-  is `no` (`crates/podssh-cli/src/ssh/resolve.rs:181-186`). The chain then
-  never offers a key (`crates/podssh-ssh/src/auth.rs:83-89`).
+  is `no` (`crates/podssh-cli/src/ssh/resolve.rs:182-190`). The chain then
+  never offers a key (`crates/podssh-ssh/src/auth.rs:82-84`).
 - The denial adds the notes of the keys with no condition
   (`crates/podssh-ssh/src/auth.rs` line 115 at `475aea9`). `PublicKeys::notes` writes "no key
   was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:91-104`).
@@ -53,7 +53,7 @@ Read:
    `-i FILE` cannot help.
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:105-111`) the same condition as step 1.
-5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:78`),
+5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:77`),
    so that only the notes change. No document changes: `docs/cli.md:265-287`
    already says that a refusal names the remedy.
 
@@ -128,7 +128,7 @@ sends with its disconnect is not shown at all.
 Read:
 
 - `describe` maps `Disconnect`, `HUP`, `RecvError`, `SendError` and an
-  unexpected EOF to one sentence (`crates/podssh-ssh/src/run.rs:224-230`).
+  unexpected EOF to one sentence (`crates/podssh-ssh/src/run.rs:226-232`).
   `run` prints it first, and the relay's reason second
   (`crates/podssh-ssh/src/run.rs` lines 38-46 at `80f20bf`,
   `crates/podssh-ssh/src/relay_stream.rs:37-53`).
@@ -155,7 +155,7 @@ Read:
 ## Approach
 
 1. Classify a forward-path close in one place, next to
-   `close_code_and_reason` (`crates/podssh-ws/src/session.rs:311-319`), which
+   `close_code_and_reason` (`crates/podssh-ws/src/session.rs:306-314`), which
    `podssh ssh` and `podssh proxy` both use. Map the code and the reason of
    `docs/relay.md:152-159` to a hop. Relay to target: `1011` with
    `connect failed`, `write failed`, `target closed before sending anything`
@@ -256,15 +256,15 @@ after it.
 Read:
 
 - `podssh_relay::open` fails over and repeats rounds only until the
-  WebSocket upgrade succeeds (`crates/podssh-relay/src/open.rs:172-211`).
+  WebSocket upgrade succeeds (`crates/podssh-relay/src/open.rs:177-212`).
   After the upgrade, a relay close ends the run
   (`crates/podssh-ssh/src/run.rs:38-47`).
 - Both reported drops printed `HOST: the connection closed unexpectedly`,
-  which only the SSH handshake prints (`crates/podssh-ssh/src/run.rs:137-159`).
+  which only the SSH handshake prints (`crates/podssh-ssh/src/run.rs:143-165`).
   At that point no request has reached the server.
 - The command starts with the exec, shell or subsystem request
-  (`crates/podssh-ssh/src/session.rs:61-78`). `-W` reads stdin only after its
-  channel opens (`crates/podssh-ssh/src/forward.rs:22-46`). `-N` never reads
+  (`crates/podssh-ssh/src/session.rs:59-76`). `-W` reads stdin only after its
+  channel opens (`crates/podssh-ssh/src/forward.rs:24-48`). `-N` never reads
   stdin (`crates/podssh-ssh/src/run.rs:97-105`).
 - Measured by the reporter (read in the reports, not verified here): on one
   target the drop came back 3 times in 3, while other targets worked in the
@@ -278,17 +278,17 @@ Read:
 1. Make `run_inner` (`crates/podssh-ssh/src/run.rs:78-112`) report the phase
    that a failure reached: the handshake, the authentication, the session
    request sent, or data moved. Keep the exit codes of OpenSSH.
-2. In `connect_and_run` (`crates/podssh-cli/src/ssh/mod.rs:73-120`), open a
+2. In `connect_and_run` (`crates/podssh-cli/src/ssh/mod.rs:73-116`), open a
    new relay session and run again only when the failure came before the
    session request, and before `-W` read a byte of stdin.
 3. Decide by the close, with the classification of T-024. The link from the
    client to the relay, or no Close: go to the next relay host, as `open`
-   does for a failed upgrade (`crates/podssh-relay/src/open.rs:52-76`). The
+   does for a failed upgrade (`crates/podssh-relay/src/open.rs:55-79`). The
    link from the relay to the target: try once more, then stop. Never retry
    `1001`, `1009` or `1013`.
 4. Wait with the jittered backoff that exists
-   (`crates/podssh-relay/src/open.rs:261-275`). Bound the whole by the rounds
-   of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:316`) and
+   (`crates/podssh-relay/src/open.rs:262-276`). Bound the whole by the rounds
+   of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:323`) and
    the deadline of each host.
 5. Never prompt again without a person: under `BatchMode`, or with no
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
@@ -344,17 +344,17 @@ Read:
 
 - A channel that closes with no `exit-status` and no `exit-signal` gives 255
   (`crates/podssh-ssh/src/io.rs:132`, `crates/podssh-ssh/src/session.rs:18-19`,
-  `crates/podssh-ssh/src/session.rs:104`). A channel that ends with no Close
+  `crates/podssh-ssh/src/session.rs:102`). A channel that ends with no Close
   is `Lost`: an error, and 255 (`crates/podssh-ssh/src/io.rs:94`,
-  `crates/podssh-ssh/src/session.rs:105`).
+  `crates/podssh-ssh/src/session.rs:103`).
 - A closed stdout (EPIPE) gives the status so far, or 0 when none came
   (`crates/podssh-ssh/src/io.rs:106-110`).
 - `-N` gives 0 when the connection ends with no error
   (`crates/podssh-ssh/src/run.rs:97-105`). russh 0.64.1 ends the session with
   no error when the server sends SSH_MSG_DISCONNECT.
 - `-W` gives 0 when the far end closes and when stdout closes
-  (`crates/podssh-ssh/src/forward.rs:52-56`), and 255 when the connection
-  died (`crates/podssh-ssh/src/forward.rs:74-80`).
+  (`crates/podssh-ssh/src/forward.rs:54-58`), and 255 when the connection
+  died (`crates/podssh-ssh/src/forward.rs:76-82`).
 - An exit status above 255 gives 255 (`crates/podssh-ssh/src/io.rs:115-117`).
   OpenSSH passes the value to `exit()`, so 256 reads as 0 there. podssh's
   rule is safer, and stays.
@@ -398,7 +398,7 @@ The title is a goal that podssh already meets on its main path: a Close or a
 lost channel with no status gives 255. The open work is `-N`, a closed
 stdout, and `-W`. Also, `docs/STATUS.md:70` says that Tailscale SSH sends no
 status for a login shell, and that both clients exit 0. With no status,
-podssh gives 255 (`crates/podssh-ssh/src/session.rs:104`), so that server
+podssh gives 255 (`crates/podssh-ssh/src/session.rs:102`), so that server
 probably sends an exit status of 0. Check it with `ssh -v` of OpenSSH, which
 logs each `exit-status` request, and correct the row.
 
@@ -427,9 +427,9 @@ ends up with pinned keys where the CA was the intent.
 Read:
 
 - `known_hosts` parses the marker (`crates/podssh-ssh/src/known_hosts.rs:21-27`,
-  `crates/podssh-ssh/src/known_hosts.rs:131`), and the lookup uses only lines
+  `crates/podssh-ssh/src/known_hosts.rs:128`), and the lookup uses only lines
   with no marker, besides `@revoked`
-  (`crates/podssh-ssh/src/known_hosts.rs:62-85`). `CertAuthority` has two
+  (`crates/podssh-ssh/src/known_hosts.rs:62-82`). `CertAuthority` has two
   hits in `crates/` and `docs/`: the definition and the parse.
 - The check takes the plain key of what russh gives
   (`crates/podssh-ssh/src/handler.rs:71`). The comment at
@@ -452,10 +452,10 @@ back to the plain key only when no CA line matches.
 
 1. Ask for certificates: when a `@cert-authority` line matches the name of a
    hop, set `host_key_certificates` in `client_config`
-   (`crates/podssh-ssh/src/run.rs:165-211`) to the algorithms of
+   (`crates/podssh-ssh/src/run.rs:171-213`) to the algorithms of
    `preferred.key`. A host with no CA line keeps today's negotiation.
 2. Add a lookup of CA keys in `crates/podssh-ssh/src/known_hosts.rs`, beside
-   the `@revoked` arm (`crates/podssh-ssh/src/known_hosts.rs:66-71`). Match CA
+   the `@revoked` arm (`crates/podssh-ssh/src/known_hosts.rs:66-68`). Match CA
    lines with the name `host` or `[host]:port`
    (`crates/podssh-ssh/src/known_hosts.rs:53-60`).
 3. In `check_server_key` (`crates/podssh-ssh/src/handler.rs:67-86`), branch on
@@ -502,7 +502,7 @@ Planted defect: accept each certificate, and the wrong-principal test fails.
 GitHub #29 says that podssh drops a certificate that russh gives. In fact no
 certificate comes: russh 0.64.1 offers certificate algorithms only from
 `Preferred::host_key_certificates`, which is empty by default, and
-`client_config` does not set it (`crates/podssh-ssh/src/run.rs:165-211`). So
+`client_config` does not set it (`crates/podssh-ssh/src/run.rs:171-213`). So
 a server always presents its plain key. The words "checked as plain keys"
 in `docs/STATUS.md` and `SECURITY.md` were not exact either: podssh never
 asks for a certificate. They were corrected in the change that wrote this
@@ -536,9 +536,9 @@ Read:
   (`crates/podssh-cli/src/ssh/resolve.rs:174-178`). `record` then says "no
   known_hosts file is configured" (`crates/podssh-ssh/src/hostkey.rs:122-128`).
 - A failed write logs "it will be checked again next time", and the key is
-  accepted (`crates/podssh-ssh/src/hostkey.rs:129-139`).
+  accepted (`crates/podssh-ssh/src/hostkey.rs:129-138`).
 - The lookup skips a file that it cannot open or read, as if it were missing
-  (`crates/podssh-ssh/src/known_hosts.rs:103-108`). A key recorded in an
+  (`crates/podssh-ssh/src/known_hosts.rs:100-105`). A key recorded in an
   unreadable file never makes a key "changed".
 - The lookup runs before `record`, so a changed or revoked key in a readable
   file is still refused (`crates/podssh-ssh/src/hostkey.rs:42-61`).
@@ -549,14 +549,14 @@ Not measured here: each case needs a server.
 
 ## Approach
 
-1. In `entries_for` (`crates/podssh-ssh/src/known_hosts.rs:100-119`), tell a
+1. In `entries_for` (`crates/podssh-ssh/src/known_hosts.rs:97-116`), tell a
    missing file (NotFound) from a file that cannot be read (another error,
    or not a regular file). Give the unreadable files to the policy.
 2. In `Policy::check` (`crates/podssh-ssh/src/hostkey.rs:42-61`), refuse an
    unknown key under `accept-new` and `no` when a user file exists and cannot
    be read: podssh cannot verify. Name the file, the error, and the remedy
    (`-o UserKnownHostsFile=FILE`, or the fingerprint of T-031).
-3. Reword `record` (`crates/podssh-ssh/src/hostkey.rs:121-140`), at INFO: the
+3. Reword `record` (`crates/podssh-ssh/src/hostkey.rs:121-139`), at INFO: the
    key is accepted for this connection only; it was not recorded, and why
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
@@ -613,17 +613,17 @@ recorded, and later each is accepted as known.
 
 Read: the check reads the files, then `record` appends; nothing between them
 sees another process (`crates/podssh-ssh/src/hostkey.rs:42-61`,
-`crates/podssh-ssh/src/hostkey.rs:121-140`). `append` opens the file for
-appending and writes one line (`crates/podssh-ssh/src/known_hosts.rs:206-241`),
+`crates/podssh-ssh/src/hostkey.rs:121-139`). `append` opens the file for
+appending and writes one line (`crates/podssh-ssh/src/known_hosts.rs:203-236`),
 so two lines do not mix, but nothing stops the second record. A lookup
 accepts a key that any plain line of the host holds
-(`crates/podssh-ssh/src/known_hosts.rs:72-75`), so two recorded keys of one
+(`crates/podssh-ssh/src/known_hosts.rs:69-72`), so two recorded keys of one
 type are both "known". OpenSSH appends the same way (not measured here). Not
 measured: a race needs two processes; the test below makes it certain.
 
 ## Approach
 
-1. In `append` (`crates/podssh-ssh/src/known_hosts.rs:206-241`), lock the open
+1. In `append` (`crates/podssh-ssh/src/known_hosts.rs:203-236`), lock the open
    file with `std::fs::File::try_lock`. It is stable since Rust 1.89, the
    minimum that `crates/podssh-ssh/Cargo.toml:8` declares, and it needs no new
    dependency (`flock` on Unix, `LockFileEx` on Windows). Try again for 5 s at
@@ -631,7 +631,7 @@ measured: a race needs two processes; the test below makes it certain.
 2. Under the lock, read the file again and look the name up. The same key:
    write nothing. Another key of the same type: return a new result, and let
    `record` refuse with the changed-key message
-   (`crates/podssh-ssh/src/hostkey.rs:143-160`). Else append.
+   (`crates/podssh-ssh/src/hostkey.rs:142-166`). Else append.
 3. Hold the lock only for the read and the write, never across a prompt.
 4. When the file system refuses locks, append as today, with a verbose note
    (a fallback that says so, `AGENTS.md:196`).
@@ -670,11 +670,11 @@ accepted for the wrong host.
 ## Premise
 
 Read: each hop gets its own name for the check, its host and its port, as
-`host` or `[host]:port` (`crates/podssh-ssh/src/run.rs:119-130`,
+`host` or `[host]:port` (`crates/podssh-ssh/src/run.rs:125-136`,
 `crates/podssh-ssh/src/known_hosts.rs:53-60`). `HostKeyAlias` applies to the
-destination only (`crates/podssh-ssh/src/run.rs:120-123`). The order of
+destination only (`crates/podssh-ssh/src/run.rs:126-129`). The order of
 host-key algorithms comes from the keys recorded for that hop
-(`crates/podssh-ssh/src/run.rs:170-193`). The gate's check "-J through
+(`crates/podssh-ssh/src/run.rs:176-198`). The gate's check "-J through
 OpenSSH to Dropbear" (`scripts/interop.sh:218-219`) passes only when this
 holds: both hops are 127.0.0.1, both keys are Ed25519 and differ, and each
 is recorded under its own port.
@@ -684,7 +684,7 @@ is recorded under its own port.
 The code is correct (see the Correction). The work is a direct regression
 test, and a documented difference from OpenSSH.
 
-1. Move the name of a hop (`crates/podssh-ssh/src/run.rs:119-125`) into a
+1. Move the name of a hop (`crates/podssh-ssh/src/run.rs:125-131`) into a
    function. Test it: a jump hop on port 22, a jump hop on port 2222, and the
    destination with and without `HostKeyAlias`.
 2. In `scripts/interop.sh`, after the `-J` check, start from an empty file
@@ -739,12 +739,12 @@ and no other.
 
 - Read: the host-key question accepts a typed fingerprint
   (`crates/podssh-ssh/src/hostkey.rs:95-112`), and an `SSH_ASKPASS` program
-  can answer it (`crates/podssh-ssh/src/prompt.rs:49-74`). A script then
+  can answer it (`crates/podssh-ssh/src/prompt.rs:47-70`). A script then
   needs an askpass program that it can run, which a noexec sandbox can
   refuse.
 - Read: OpenSSH has no keyword for this. podssh refuses
-  `KnownHostsCommand` (`crates/podssh-cli/src/ssh/options.rs:153-157`,
-  `crates/podssh-cli/src/ssh/keywords.rs:84`).
+  `KnownHostsCommand` (`crates/podssh-cli/src/ssh/options.rs:165-169`,
+  `crates/podssh-cli/src/ssh/keywords.rs:88`).
 - Measured, offline (`PODSSH_OFFLINE=1`):
   `podssh ssh --host-key-fingerprint SHA256:abc example.invalid true` gives
   `unknown flag '--host-key-fingerprint'`, exit 64.
@@ -757,10 +757,10 @@ and no other.
    exit 64 before anything connects.
 2. Carry it in `Options` (`crates/podssh-ssh/src/options.rs:163-218`) and
    `Policy` (`crates/podssh-ssh/src/hostkey.rs:17-27`), for the destination
-   only, as `HostKeyAlias` (`crates/podssh-ssh/src/run.rs:120-123`).
+   only, as `HostKeyAlias` (`crates/podssh-ssh/src/run.rs:126-129`).
 3. In `Policy::check`, refuse a revoked key and a changed key first, as today
    (`crates/podssh-ssh/src/hostkey.rs:50-57`). Then accept a key whose SHA-256
-   fingerprint (`crates/podssh-ssh/src/known_hosts.rs:257-260`) is in the
+   fingerprint (`crates/podssh-ssh/src/known_hosts.rs:252-255`) is in the
    list, and record nothing. Refuse any other key, also under `accept-new`
    and `no`, with the fingerprint seen and the ones expected.
 4. Jump hops keep the normal policy; say so in the help.
@@ -814,9 +814,9 @@ acceptable.
 ## Premise
 
 - Read: podssh asks for passwords on the terminal or through `SSH_ASKPASS`
-  (`crates/podssh-ssh/src/prompt.rs:49-74`), and refuses when nobody can
-  answer (`crates/podssh-ssh/src/prompt.rs:76-88`). A remote command is one
-  string for the remote shell (`crates/podssh-ssh/src/session.rs:66-69`).
+  (`crates/podssh-ssh/src/prompt.rs:47-70`), and refuses when nobody can
+  answer (`crates/podssh-ssh/src/prompt.rs:72-82`). A remote command is one
+  string for the remote shell (`crates/podssh-ssh/src/session.rs:64-67`).
   Local stdin goes to the channel only after the exec request
   (`crates/podssh-ssh/src/io.rs:48-53`).
 - Measured, offline: `podssh ssh --sudo example.invalid id` gives
@@ -916,7 +916,7 @@ and no player.
    suggestion step would mix them (`docs/cli.md:126-135`). Add it to `VERBS`
    (`crates/podssh-cli/src/flags.rs:414-441`), to
    `crates/podssh-cli/src/positionals.rs`, to dispatch, and to `DISPATCHED`
-   (`crates/podssh-cli/tests/flag_table.rs:95`).
+   (`crates/podssh-cli/tests/flag_table.rs:92-93`).
 5. Refuse a file whose header is not version 2. Skip unknown event types.
 6. Write the risks in the manual: the output can hold secrets (a printed
    key, a password that a remote program echoes); a recording sends control
@@ -962,7 +962,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
 - Read: podssh uses an agent that `SSH_AUTH_SOCK` names, today. On Unix it
   connects to that socket, or to `IdentityAgent PATH`; on Windows it tries
   the named pipe of `SSH_AUTH_SOCK`, then the pipe of the OpenSSH agent, then
-  Pageant (`crates/podssh-ssh/src/keys.rs:259-290`). It offers the agent's
+  Pageant (`crates/podssh-ssh/src/keys.rs:259-289`). It offers the agent's
   keys first (`crates/podssh-ssh/src/keys.rs:115-167`), and skips the agent's
   certificates (`crates/podssh-ssh/src/keys.rs:123-126`).
 - Read: russh 0.64.1, which the binary links, has an agent server
@@ -999,7 +999,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
 7. In the same commit: the verb in `VERBS`
    (`crates/podssh-cli/src/flags.rs:414-441`), in
    `crates/podssh-cli/src/positionals.rs` and in `DISPATCHED`
-   (`crates/podssh-cli/tests/flag_table.rs:95`); `docs/cli.md`;
+   (`crates/podssh-cli/tests/flag_table.rs:92-93`); `docs/cli.md`;
    "Nothing listens" in `SECURITY.md:69-72`; `docs/STATUS.md`.
 
 ## Decision
@@ -1053,20 +1053,20 @@ no road.
 Read:
 
 - `client_config` sets `inactivity_timeout: None`
-  (`crates/podssh-ssh/src/run.rs:205`). russh 0.64.1 races each write against
+  (`crates/podssh-ssh/src/run.rs:207`). russh 0.64.1 races each write against
   that timer in `flush_or_timeout`; with `None`, the timer never fires, so
   only the write can end the wait.
 - The relay leg limits each write: `WRITE_TIMEOUT` is 60 s
   (`crates/podssh-ws/src/client.rs:34-35`, given to the session at
-  `crates/podssh-ws/src/client.rs:183`), and `write` applies it
-  (`crates/podssh-ws/src/session.rs:254-264`). Then the copy task stops
+  `crates/podssh-ws/src/client.rs:178`), and `write` applies it
+  (`crates/podssh-ws/src/session.rs:249-259`). Then the copy task stops
   (`crates/podssh-ssh/src/relay_stream.rs:95-100`), the next ping meets the
-  same limit and ends the read task (`crates/podssh-ws/src/session.rs:175-178`,
+  same limit and ends the read task (`crates/podssh-ws/src/session.rs:169-172`,
   `crates/podssh-ssh/src/relay_stream.rs:106-117`), and russh's next write
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set
-  (`crates/podssh-cli/src/ssh/mod.rs:144-147`,
-  `crates/podssh-ws/src/dial.rs:224-226`).
+  (`crates/podssh-cli/src/ssh/mod.rs:140-143`,
+  `crates/podssh-ws/src/dial.rs:201-203`).
 - russh takes SSH window credit before it writes, so a remote program that
   stops reading makes the session idle, not stuck (GitHub #36). Only a stall
   below SSH causes the hang.
@@ -1088,10 +1088,10 @@ Read:
 2. Preferred change: wrap the direct stream in a writer that fails a write
    that makes no progress for 60 s, with the constant of the relay leg
    (`crates/podssh-ws/src/client.rs:34-35`). Only
-   `crates/podssh-cli/src/ssh/mod.rs:124-153` changes, and both roads behave
+   `crates/podssh-cli/src/ssh/mod.rs:120-149` changes, and both roads behave
    the same.
 3. The other change: set `inactivity_timeout` at
-   `crates/podssh-ssh/src/run.rs:205`. russh resets that timer only in a loop
+   `crates/podssh-ssh/src/run.rs:207`. russh resets that timer only in a loop
    round that sent no keepalive, podssh's keepalive interval is also 60 s
    (`crates/podssh-ssh/src/options.rs:239`), and the timer also ends a
    session that is only idle. Measure an idle session with
@@ -1150,13 +1150,13 @@ clients store credentials; podssh stores none.
 Read:
 
 - A prompt goes to `SSH_ASKPASS` or to the terminal; with neither, podssh
-  refuses and names the remedy (`crates/podssh-ssh/src/prompt.rs:49-88`).
+  refuses and names the remedy (`crates/podssh-ssh/src/prompt.rs:47-82`).
   The askpass program's answer is zeroized
-  (`crates/podssh-ssh/src/prompt.rs:100-117`).
+  (`crates/podssh-ssh/src/prompt.rs:94-111`).
 - The prompts for a credential: the passphrase of a key file
   (`crates/podssh-ssh/src/keys.rs:200-220`), the password
-  (`crates/podssh-ssh/src/auth.rs:208-229`), and the answers of
-  keyboard-interactive (`crates/podssh-ssh/src/auth.rs:153-206`).
+  (`crates/podssh-ssh/src/auth.rs:206-227`), and the answers of
+  keyboard-interactive (`crates/podssh-ssh/src/auth.rs:151-204`).
 - podssh stores no credential but the relay token cache, readable by the
   owner only (`crates/podssh-relay/src/cache.rs:1-8`).
 - russh's agent server has no handler for the extension message (27), so a
@@ -1233,8 +1233,8 @@ with the key file of one, and has no agent to hold one.
   `unknown key type "ed25519-sk": ed25519 (the default), ecdsa or rsa`,
   exit 64, and writes nothing.
 - Read: the default key files leave out the types of security keys
-  (`crates/podssh-ssh/src/options.rs:254-261`). `known_hosts::key_type` names
-  them (`crates/podssh-ssh/src/known_hosts.rs:251-252`), and `ssh-key`
+  (`crates/podssh-ssh/src/options.rs:254-258`). `known_hosts::key_type` names
+  them (`crates/podssh-ssh/src/known_hosts.rs:246-247`), and `ssh-key`
   0.7.0-rc.11 has their algorithms.
 - Read: podssh offers each key that an agent lists
   (`crates/podssh-ssh/src/keys.rs:115-167`), so an `sk-` key in OpenSSH's
@@ -1330,11 +1330,11 @@ Not measured: it needs a server that stalls.
    (line 148 there), keyboard-interactive (`crates/podssh-ssh/src/auth.rs`
    lines 162-165 and 194) and the password (lines 214-218 there).
 3. Do not count a local prompt: each prompt runs before its request
-   (`crates/podssh-ssh/src/auth.rs:146-151`). Pitfall: an agent that asks its
+   (`crates/podssh-ssh/src/auth.rs:144-149`). Pitfall: an agent that asks its
    user to confirm a signature (`ssh-add -c`) runs inside the agent request.
 4. On expiry, end with 255, and name the step, as "HOST did not answer the
    publickey request within 60 s".
-5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:28-29`,
+5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:30-31`,
    `crates/podssh-cli/src/flags.rs:167-168`) say the same: the handshake, and
    each answer during the authentication.
    `docs/cli.md:285-287` asks for a limit on the whole operation.
@@ -1615,8 +1615,8 @@ makes its keys with the same crate.
 
 Read: `rsa` 0.10.0-rc.18 comes into `podssh-ssh` through russh 0.64.1 and
 ssh-key 0.7.0-rc.11 (`cargo tree -i rsa@0.10.0-rc.18`); `podssh keygen` makes
-an RSA key with `RsaKeypair::random` (`crates/podssh-ssh/src/keygen.rs:69`),
-and its default is Ed25519 (`crates/podssh-ssh/src/keygen.rs:36`). `rsa`
+an RSA key with `RsaKeypair::random` (`crates/podssh-ssh/src/keygen.rs:67`),
+and its default is Ed25519 (`crates/podssh-ssh/src/keygen.rs:34`). `rsa`
 0.9.10 comes into `podssh-ws`, which only verifies signatures with public keys
 (`crates/podssh-ws/src/crypto/rsa_sig.rs:10-12`): the attack needs the private
 key. The binary already links aws-lc-rs, whose RSA is constant-time, for the

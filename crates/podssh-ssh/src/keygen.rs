@@ -29,9 +29,7 @@ impl KeyKind {
     pub fn parse(kind: Option<&str>, bits: Option<&str>) -> Result<KeyKind, String> {
         let bits = match bits {
             None => None,
-            Some(text) => {
-                Some(text.trim().parse::<u32>().map_err(|_| format!("-b {text:?} is not a number of bits"))?)
-            }
+            Some(text) => Some(text.trim().parse::<u32>().map_err(|_| format!("-b {text:?} is not a number of bits"))?),
         };
         let kind = kind.unwrap_or("ed25519").to_ascii_lowercase();
         match (kind.as_str(), bits) {
@@ -107,7 +105,10 @@ pub fn write_pair(key: &PrivateKey, path: &Path) -> Result<PathBuf, String> {
     std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
     let mut file = options.open(path).map_err(|e| match e.kind() {
         std::io::ErrorKind::AlreadyExists => {
-            format!("{} already exists; podssh keygen never overwrites a key (remove it, or choose another -f)", path.display())
+            format!(
+                "{} already exists; podssh keygen never overwrites a key (remove it, or choose another -f)",
+                path.display()
+            )
         }
         _ => format!("could not create {}: {e}", path.display()),
     })?;
@@ -122,10 +123,9 @@ pub fn write_pair(key: &PrivateKey, path: &Path) -> Result<PathBuf, String> {
     options.write(true).create(true).truncate(true);
     #[cfg(unix)]
     std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o644);
-    options
-        .open(&public)
-        .and_then(|mut f| f.write_all(format!("{line}\n").as_bytes()))
-        .map_err(|e| format!("the private key is in {}, but {} could not be written: {e}", path.display(), public.display()))?;
+    options.open(&public).and_then(|mut f| f.write_all(format!("{line}\n").as_bytes())).map_err(|e| {
+        format!("the private key is in {}, but {} could not be written: {e}", path.display(), public.display())
+    })?;
     Ok(public)
 }
 
@@ -237,7 +237,8 @@ mod tests {
         assert_eq!(KeyKind::parse(Some("ECDSA"), Some("384")).unwrap(), KeyKind::Ecdsa(EcdsaCurve::NistP384));
         assert_eq!(KeyKind::parse(Some("rsa"), None).unwrap(), KeyKind::Rsa(3072));
         assert_eq!(KeyKind::parse(Some("rsa"), Some("4096")).unwrap(), KeyKind::Rsa(4096));
-        for (t, b) in [("ed25519", "255"), ("ecdsa", "300"), ("rsa", "1024"), ("dsa", "1024"), ("x", "1"), ("rsa", "z")] {
+        for (t, b) in [("ed25519", "255"), ("ecdsa", "300"), ("rsa", "1024"), ("dsa", "1024"), ("x", "1"), ("rsa", "z")]
+        {
             assert!(KeyKind::parse(Some(t), Some(b)).is_err(), "{t} {b}");
         }
     }

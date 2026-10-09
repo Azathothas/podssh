@@ -23,11 +23,7 @@ use rustls::{DigitallySignedStruct, Error, SignatureScheme};
 #[tokio::main]
 async fn main() {
     let host = "tcp.ssh.relay.ajam.dev";
-    let addr = format!("{host}:443")
-        .to_socket_addrs()
-        .expect("resolve")
-        .next()
-        .expect("an address");
+    let addr = format!("{host}:443").to_socket_addrs().expect("resolve").next().expect("an address");
 
     let roots = podssh_ws::tls::roots_from_compiled_set();
     let config = podssh_ws::tls::client_config(&roots).expect("a config");

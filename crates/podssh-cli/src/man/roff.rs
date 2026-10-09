@@ -63,11 +63,7 @@ fn spans(list: &[Span]) -> String {
 /// which a header shows as they are.
 fn header(out: &mut String, title: &str) {
     debug_assert!(title.chars().all(|c| c.is_ascii_uppercase() || c == '-'), "{title}");
-    let _ = writeln!(
-        out,
-        ".TH {title} 1 \"\" \"podssh {}\" \"podssh manual\"",
-        escape(&crate::help::version())
-    );
+    let _ = writeln!(out, ".TH {title} 1 \"\" \"podssh {}\" \"podssh manual\"", escape(&crate::help::version()));
     // No hyphenation, and a ragged right margin: a flag broken at a line
     // end, or spread with extra spaces, cannot be copied.
     out.push_str(".nh\n.ad l\n");

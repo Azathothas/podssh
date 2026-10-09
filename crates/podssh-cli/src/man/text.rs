@@ -46,10 +46,7 @@ fn blocks(out: &mut String, list: &[Block]) {
     let mut indent = 2;
     let mut previous: Option<&Block> = None;
     for b in list {
-        let tight = matches!(
-            (previous, b),
-            (Some(Block::Sub(_)), _) | (Some(Block::Item { .. }), Block::Item { .. })
-        );
+        let tight = matches!((previous, b), (Some(Block::Sub(_)), _) | (Some(Block::Item { .. }), Block::Item { .. }));
         if previous.is_some() && !tight {
             out.push('\n');
         }

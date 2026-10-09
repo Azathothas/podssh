@@ -147,4 +147,3 @@ pub(crate) fn trailing_of(command: &Command) -> Option<&Trailing> {
         _ => None,
     }
 }
-

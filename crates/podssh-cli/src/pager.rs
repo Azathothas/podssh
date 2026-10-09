@@ -111,10 +111,7 @@ fn runnable(p: &Path) -> bool {
 
 /// Show `text` on the terminal, with the pager that [`choose`] selects.
 pub fn show(text: &str, env: &PagerEnv, keys: &mut dyn BufRead, out: &mut dyn Write, err: &mut dyn Write) {
-    let rows = podssh_ssh::terminal::size()
-        .map(|s| s.rows as usize)
-        .filter(|r| *r > 2)
-        .unwrap_or(PAGE_LINES);
+    let rows = podssh_ssh::terminal::size().map(|s| s.rows as usize).filter(|r| *r > 2).unwrap_or(PAGE_LINES);
     match choose(env) {
         Choice::Direct => {
             let _ = out.write_all(text.as_bytes());
@@ -167,7 +164,8 @@ impl Interrupts {
         {
             // SAFETY: setting SIG_IGN has no preconditions; Drop restores the
             // handlers that were there.
-            let previous = unsafe { [libc::signal(libc::SIGINT, libc::SIG_IGN), libc::signal(libc::SIGQUIT, libc::SIG_IGN)] };
+            let previous =
+                unsafe { [libc::signal(libc::SIGINT, libc::SIG_IGN), libc::signal(libc::SIGQUIT, libc::SIG_IGN)] };
             Interrupts { previous }
         }
         #[cfg(not(unix))]
@@ -356,11 +354,8 @@ mod tests {
     /// with more text than a pipe holds.
     #[test]
     fn a_pager_that_quits_at_once_is_not_an_error() {
-        let cmd: Vec<OsString> = if cfg!(windows) {
-            vec!["cmd".into(), "/C".into(), "exit 0".into()]
-        } else {
-            vec!["true".into()]
-        };
+        let cmd: Vec<OsString> =
+            if cfg!(windows) { vec!["cmd".into(), "/C".into(), "exit 0".into()] } else { vec!["true".into()] };
         run_program(&cmd, &lines(100_000)).unwrap();
     }
 

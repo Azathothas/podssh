@@ -4,8 +4,8 @@
 //! bytes are what is pinned, not the transport.
 
 use podssh_ts::pipe::copy_bidirectional;
-use podssh_ts::pipe::{FirstEnd, pipe_streams};
-use tokio::io::{AsyncReadExt, AsyncWriteExt, split};
+use podssh_ts::pipe::{pipe_streams, FirstEnd};
+use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
 
 #[tokio::test]
 async fn bytes_survive_both_directions_exactly() {

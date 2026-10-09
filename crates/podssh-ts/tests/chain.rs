@@ -1,6 +1,6 @@
 //! Chain tests: readiness rules, order preference, forced mode, empty set.
 
-use podssh_ts::chain::{ChainInputs, Verdict, default_chain, probe, select_chain};
+use podssh_ts::chain::{default_chain, probe, select_chain, ChainInputs, Verdict};
 use podssh_ts::config::TsMode;
 
 fn keyed() -> ChainInputs {
@@ -19,14 +19,8 @@ fn keyed_tcp_and_relay_are_ready() {
 
 #[test]
 fn keyless_tcp_and_relay_fail_naming_the_key() {
-    assert_eq!(
-        probe(&TsMode::Tcp, &keyless()),
-        Verdict::Fail("no auth key".to_string())
-    );
-    assert_eq!(
-        probe(&TsMode::default_relay(), &keyless()),
-        Verdict::Fail("no auth key".to_string())
-    );
+    assert_eq!(probe(&TsMode::Tcp, &keyless()), Verdict::Fail("no auth key".to_string()));
+    assert_eq!(probe(&TsMode::default_relay(), &keyless()), Verdict::Fail("no auth key".to_string()));
 }
 
 #[test]

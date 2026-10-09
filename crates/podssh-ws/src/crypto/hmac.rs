@@ -67,12 +67,12 @@ impl AnyMac {
 
 fn new_mac(id: HashAlgorithmId, key: &[u8]) -> AnyMac {
     match id {
-        HashAlgorithmId::Sha256 => AnyMac::S256(Box::new(
-            Hmac::<Sha256>::new_from_slice(key).expect("HMAC accepts any key length"),
-        )),
-        HashAlgorithmId::Sha384 => AnyMac::S384(Box::new(
-            Hmac::<Sha384>::new_from_slice(key).expect("HMAC accepts any key length"),
-        )),
+        HashAlgorithmId::Sha256 => {
+            AnyMac::S256(Box::new(Hmac::<Sha256>::new_from_slice(key).expect("HMAC accepts any key length")))
+        }
+        HashAlgorithmId::Sha384 => {
+            AnyMac::S384(Box::new(Hmac::<Sha384>::new_from_slice(key).expect("HMAC accepts any key length")))
+        }
     }
 }
 

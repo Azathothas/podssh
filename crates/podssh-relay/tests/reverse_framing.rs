@@ -83,7 +83,8 @@ fn a_node_frame_at_the_wire_cap_is_exactly_65568_bytes() {
 fn a_node_payload_one_byte_over_the_cap_is_refused_not_truncated() {
     // Refused, never cut: a cut drops the tail of an SSH message, and the
     // session fails later with an error that names nothing useful.
-    let err = encode_node_frame(&id(), &vec![b'x'; NODE_PAYLOAD_MAX + 1]).expect_err("one byte over the cap must be refused");
+    let err =
+        encode_node_frame(&id(), &vec![b'x'; NODE_PAYLOAD_MAX + 1]).expect_err("one byte over the cap must be refused");
     match err {
         CodecError::FrameTooLong { got, max } => {
             assert_eq!(got, SESSION_ID_LEN + NODE_PAYLOAD_MAX + 1);
@@ -240,7 +241,9 @@ fn a_control_frame_over_4_kib_is_refused_with_the_control_cap() {
     let built = control::reject(&id(), &long).expect("200 bytes fit");
     assert!(String::from_utf8(built).unwrap().contains(&long), "the whole reason");
     let huge = "é".repeat(CONTROL_FRAME_MAX);
-    for built in [control::reject(&id(), &huge).expect("cut to fit"), control::close(&id(), Some(&huge)).expect("cut to fit")] {
+    for built in
+        [control::reject(&id(), &huge).expect("cut to fit"), control::close(&id(), Some(&huge)).expect("cut to fit")]
+    {
         assert!(built.len() <= CONTROL_FRAME_MAX, "{} bytes", built.len());
         assert!(std::str::from_utf8(&built).is_ok(), "no code point was split");
     }

@@ -104,9 +104,7 @@ where
             Err(e) => Err(format!("the authentication failed: {}", crate::run::describe(&e))),
         }
     };
-    tokio::time::timeout(within, attempt)
-        .await
-        .map_err(|_| format!("no answer within {} s", within.as_secs()))?
+    tokio::time::timeout(within, attempt).await.map_err(|_| format!("no answer within {} s", within.as_secs()))?
 }
 
 #[cfg(test)]

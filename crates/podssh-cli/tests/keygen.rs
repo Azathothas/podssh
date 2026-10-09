@@ -86,7 +86,11 @@ fn a_key_pair_is_made_and_read_back_and_the_private_key_is_never_printed() {
 
     let line = podssh(&["keygen", "-l", "-f", &format!("{key}.pub")]);
     assert_eq!(line.code, 0, "{}", line.err);
-    assert!(line.out.starts_with("256 SHA256:") && line.out.trim_end().ends_with(" test@podssh (ED25519)"), "{}", line.out);
+    assert!(
+        line.out.starts_with("256 SHA256:") && line.out.trim_end().ends_with(" test@podssh (ED25519)"),
+        "{}",
+        line.out
+    );
 
     for run in [&made, &printed, &line] {
         assert!(!run.out.contains("PRIVATE KEY") && !run.out.contains(body), "a private key was printed");

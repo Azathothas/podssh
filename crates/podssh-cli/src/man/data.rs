@@ -20,7 +20,10 @@ pub fn exit_codes() -> Vec<(Code, String)> {
     let row = |code: i32, what: &str| (Code::Value(code), what.to_string());
     vec![
         row(0, "Success. For podssh ssh: the remote command exited 0."),
-        row(crate::doctor::EXIT_FAILED, "podssh doctor: a check failed. podssh keygen: a key could not be made or read."),
+        row(
+            crate::doctor::EXIT_FAILED,
+            "podssh doctor: a check failed. podssh keygen: a key could not be made or read.",
+        ),
         row(
             crate::exit_codes::EXIT_USAGE,
             "A usage error: an unknown command or flag, a bad value, a missing argument. podssh did nothing.",

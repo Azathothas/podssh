@@ -175,12 +175,6 @@ impl ReapPolicy {
         since_recv_ms: u64,
         received_since_last_beat: bool,
     ) -> PayloadPlan {
-        payload_plan_for(
-            now_ms,
-            since_send_ms,
-            since_recv_ms,
-            received_since_last_beat,
-            self.heartbeat_period_ms,
-        )
+        payload_plan_for(now_ms, since_send_ms, since_recv_ms, received_since_last_beat, self.heartbeat_period_ms)
     }
 }

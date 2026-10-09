@@ -9,9 +9,7 @@
 use podssh_core::irc::cap::Stage;
 use podssh_core::irc::message::Command;
 use podssh_core::irc::reap::ReapPolicy;
-use podssh_core::irc::session::{
-    Event, Registered, RegistrationFailure, Server, Session, SessionError,
-};
+use podssh_core::irc::session::{Event, Registered, RegistrationFailure, Server, Session, SessionError};
 
 fn server() -> Server {
     Server {
@@ -43,7 +41,11 @@ fn plant_a_truncated_stream_emits_no_partial_line() {
     let keep = wire.len() - 20;
 
     let (out, events) = s.on_bytes(&wire[..keep]).expect("short");
-    assert!(out.is_empty(), "⛔ PLANT: a truncated push wrote {:?}", out.iter().map(|m| m.to_line()).collect::<Vec<_>>());
+    assert!(
+        out.is_empty(),
+        "⛔ PLANT: a truncated push wrote {:?}",
+        out.iter().map(|m| m.to_line()).collect::<Vec<_>>()
+    );
     assert!(
         !events.iter().any(|e| matches!(e, Event::Privmsg { .. })),
         "⛔ PLANT: a truncated push emitted a PRIVMSG event: {events:?}"
@@ -133,11 +135,7 @@ fn a_reconnect_is_the_first_burst_plus_the_rejoins_and_nothing_else() {
         first[..],
         "⛔ the reconnect must start with exactly the first-connection burst"
     );
-    assert_eq!(
-        reconnect.len(),
-        first.len() + 2,
-        "⛔ the reconnect must add exactly one JOIN per remembered channel"
-    );
+    assert_eq!(reconnect.len(), first.len() + 2, "⛔ the reconnect must add exactly one JOIN per remembered channel");
 }
 
 #[test]
@@ -149,10 +147,7 @@ fn a_reconnect_does_not_send_quit() {
     let mut s = registered();
     let _ = s.send_join("#one", None);
     let lines: Vec<String> = s.reconnect_burst().iter().map(|m| m.to_line()).collect();
-    assert!(
-        !lines.iter().any(|l| l.starts_with("QUIT")),
-        "⛔ an idle reconnect sent a QUIT: {lines:?}"
-    );
+    assert!(!lines.iter().any(|l| l.starts_with("QUIT")), "⛔ an idle reconnect sent a QUIT: {lines:?}");
     // ⛔ **And `QUIT` exists for the deliberate case**, ⛔ which is a different
     // operation with a different meaning.
     assert_eq!(Session::quit("leaving").to_line(), "QUIT :leaving");
@@ -204,11 +199,7 @@ fn the_initial_burst_is_cap_nick_user_in_that_order() {
     let lines: Vec<String> = s.initial_burst().iter().map(|m| m.to_line()).collect();
     assert_eq!(
         lines,
-        vec![
-            "CAP LS 302".to_string(),
-            "NICK alice".to_string(),
-            "USER alice 0 * :Alice Example".to_string(),
-        ],
+        vec!["CAP LS 302".to_string(), "NICK alice".to_string(), "USER alice 0 * :Alice Example".to_string(),],
         "⛔ CAP LS must precede NICK/USER so the capability list arrives before \
          registration, and CAP END must not be among them"
     );
@@ -224,10 +215,7 @@ fn cap_end_is_not_written_until_001_arrives() {
     let _ = s.initial_burst();
     let (out, _) = s.on_bytes(b"CAP * LS :multi-prefix\r\n").expect("short");
     let lines: Vec<String> = out.iter().map(|m| m.to_line()).collect();
-    assert!(
-        !lines.iter().any(|l| l.starts_with("CAP END")),
-        "⛔ CAP END was written before 001: {lines:?}"
-    );
+    assert!(!lines.iter().any(|l| l.starts_with("CAP END")), "⛔ CAP END was written before 001: {lines:?}");
     assert_eq!(s.negotiation().stage(), Stage::ReqSent);
 
     let (out, _) = s.on_bytes(b"CAP * ACK :multi-prefix\r\n").expect("short");
@@ -238,11 +226,7 @@ fn cap_end_is_not_written_until_001_arrives() {
 
     let (out, _) = s.on_bytes(b":irc.example.org 001 alice :Welcome\r\n").expect("short");
     let lines: Vec<String> = out.iter().map(|m| m.to_line()).collect();
-    assert_eq!(
-        lines,
-        vec!["CAP END".to_string()],
-        "⛔ 001 must be what unlocks CAP END, and nothing else"
-    );
+    assert_eq!(lines, vec!["CAP END".to_string()], "⛔ 001 must be what unlocks CAP END, and nothing else");
     assert_eq!(s.negotiation().stage(), Stage::Ended);
 }
 
@@ -253,13 +237,8 @@ fn sasl_is_never_requested() {
     // receive.
     let mut s = Session::new(server(), ReapPolicy::default());
     let _ = s.initial_burst();
-    let (out, _) = s
-        .on_bytes(b"CAP * LS :multi-prefix sasl znc.in/self-message\r\n")
-        .expect("short");
-    let req = out
-        .iter()
-        .find(|m| m.to_line().starts_with("CAP REQ"))
-        .expect("a REQ must follow an LS");
+    let (out, _) = s.on_bytes(b"CAP * LS :multi-prefix sasl znc.in/self-message\r\n").expect("short");
+    let req = out.iter().find(|m| m.to_line().starts_with("CAP REQ")).expect("a REQ must follow an LS");
     let text = req.to_line();
     assert!(!text.contains("sasl"), "⛔ sasl was requested: {text}");
     assert!(text.contains("multi-prefix"), "⛔ the wanted capability is missing: {text}");
@@ -277,11 +256,7 @@ fn a_nak_is_not_requested_again_after_a_reconnect() {
 
     let _ = s.initial_burst();
     let (out, _) = s.on_bytes(b"CAP * LS :multi-prefix\r\n").expect("short");
-    let req = out
-        .iter()
-        .find(|m| m.to_line().starts_with("CAP REQ"))
-        .map(|m| m.to_line())
-        .unwrap_or_default();
+    let req = out.iter().find(|m| m.to_line().starts_with("CAP REQ")).map(|m| m.to_line()).unwrap_or_default();
     assert!(!req.contains("multi-prefix"), "⛔ a refused capability was re-requested: {req}");
 }
 
@@ -361,21 +336,14 @@ fn a_heartbeat_is_consumed_and_never_shown() {
     let mut seen_as_text = 0;
     for generation in 1..=4u64 {
         let hb = s.heartbeat("#one", generation).expect("registered means a heartbeat");
-        assert!(
-            hb.to_line().starts_with("PRIVMSG #one :"),
-            "⛔ the heartbeat is not a PRIVMSG: {}",
-            hb.to_line()
-        );
+        assert!(hb.to_line().starts_with("PRIVMSG #one :"), "⛔ the heartbeat is not a PRIVMSG: {}", hb.to_line());
         let (_, events) = s.on_bytes(hb.to_wire().as_bytes()).expect("short");
         assert!(
             events.iter().all(|e| matches!(e, Event::Heartbeat { .. })),
             "⛔ generation {generation} produced {events:?}; a heartbeat must be \
              consumed before the display path"
         );
-        seen_as_text += events
-            .iter()
-            .filter(|e| matches!(e, Event::Privmsg { .. }))
-            .count();
+        seen_as_text += events.iter().filter(|e| matches!(e, Event::Privmsg { .. })).count();
     }
     assert_eq!(seen_as_text, 0, "⛔ a heartbeat reached the display path {seen_as_text} time(s)");
 }
@@ -386,9 +354,7 @@ fn a_transfer_line_is_consumed_and_never_shown_as_chat() {
     // consumed before the text is shown, ⛔ or a 64 MiB transfer fills a user's
     // terminal with `PODSSH1|chunk|…` lines.
     let mut s = registered();
-    let (_, events) = s
-        .on_bytes(b":alice!u@host PRIVMSG #c :PODSSH1|chunk|t1|0|0|QUJD\r\n")
-        .expect("short");
+    let (_, events) = s.on_bytes(b":alice!u@host PRIVMSG #c :PODSSH1|chunk|t1|0|0|QUJD\r\n").expect("short");
     assert!(!events.iter().any(|e| matches!(e, Event::Privmsg { .. })), "⛔ a chunk was shown as chat: {events:?}");
     assert!(
         matches!(events.first(), Some(Event::Transfer(_))),
@@ -406,10 +372,7 @@ fn an_unparseable_line_is_reported_and_does_not_end_the_conversation() {
     assert!(out.is_empty());
     assert!(events.iter().any(|e| matches!(e, Event::Protocol(_))), "got {events:?}");
     let (_, events) = s.on_bytes(b":bob!u@h PRIVMSG #c :still here\r\n").expect("short");
-    assert!(
-        matches!(events.first(), Some(Event::Privmsg { .. })),
-        "⛔ one bad line cost the conversation: {events:?}"
-    );
+    assert!(matches!(events.first(), Some(Event::Privmsg { .. })), "⛔ one bad line cost the conversation: {events:?}");
 }
 
 #[test]

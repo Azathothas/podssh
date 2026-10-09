@@ -69,13 +69,7 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     pub fn new(stream: S, pending: Vec<u8>, idle: Option<Duration>, write_timeout: Duration) -> Self {
         let (read, write) = tokio::io::split(stream);
         RelaySession {
-            reader: Mutex::new(Reader {
-                half: read,
-                pending,
-                close_received: false,
-                partial: None,
-                idle,
-            }),
+            reader: Mutex::new(Reader { half: read, pending, close_received: false, partial: None, idle }),
             writer: Mutex::new(write),
             close_sent: AtomicBool::new(false),
             pongs: AtomicU64::new(0),
@@ -218,7 +212,8 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                     Ok(Some(message)) => return Ok(message),
                     Ok(None) => {}
                     Err((code, why)) => {
-                        let error = if code == 1009 { SessionError::TooLarge(why) } else { SessionError::Protocol(why) };
+                        let error =
+                            if code == 1009 { SessionError::TooLarge(why) } else { SessionError::Protocol(why) };
                         return Err(self.fail(code, error).await);
                     }
                 },
@@ -253,14 +248,14 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
 
     async fn write(&self, opcode: u8, payload: &[u8]) -> Result<(), SessionError> {
         let mut writer = self.writer.lock().await;
-        tokio::time::timeout(self.write_timeout, write_frame_over(&mut *writer, opcode, payload))
-            .await
-            .map_err(|_| {
+        tokio::time::timeout(self.write_timeout, write_frame_over(&mut *writer, opcode, payload)).await.map_err(
+            |_| {
                 SessionError::WriteStalled(format!(
                     "sending to the relay stalled for {}s",
                     self.write_timeout.as_secs()
                 ))
-            })?
+            },
+        )?
     }
 }
 
@@ -338,7 +333,8 @@ pub enum ForwardClose {
 /// Classify a Close of the forward path; `None` is a connection that ended
 /// with no Close.
 pub fn forward_close(code: Option<u16>, reason: &str) -> ForwardClose {
-    const TARGET: [&str; 4] = ["connect failed", "target closed before sending anything", "wrong target banner", "write failed"];
+    const TARGET: [&str; 4] =
+        ["connect failed", "target closed before sending anything", "wrong target banner", "write failed"];
     match code {
         None => ForwardClose::Client,
         Some(1000) => ForwardClose::Normal,

@@ -28,11 +28,7 @@ fn the_rfc4648_vectors_round_trip() {
         ("foobar", "Zm9vYmFy"),
     ];
     for (plain, encoded) in VECTORS {
-        assert_eq!(
-            b64::encode(plain.as_bytes()),
-            *encoded,
-            "⛔ RFC 4648 says {plain:?} encodes as {encoded:?}"
-        );
+        assert_eq!(b64::encode(plain.as_bytes()), *encoded, "⛔ RFC 4648 says {plain:?} encodes as {encoded:?}");
         assert_eq!(
             b64::decode(encoded).unwrap_or_else(|e| panic!("{encoded:?}: {e}")),
             plain.as_bytes(),
@@ -127,10 +123,7 @@ fn the_control_correct_payloads_are_still_accepted() {
     // refuses every input is not strict, ⛔ it is broken, ⛔ and ⛔ it looks
     // identical to a strict one until somebody tries to send a file.
     for good in ["", "Zg==", "Zm8=", "Zm9v", "Zm9vYg==", "Zm9vYmE=", "Zm9vYmFy"] {
-        assert!(
-            b64::decode(good).is_ok(),
-            "⛔ a valid RFC 4648 payload was refused: {good:?}"
-        );
+        assert!(b64::decode(good).is_ok(), "⛔ a valid RFC 4648 payload was refused: {good:?}");
     }
     // ⛔ **And a long one**, ⛔ because a length check written for one group
     // fails on the hundredth.

@@ -77,9 +77,7 @@ impl AnyDigest {
 
 impl Hash for PureHash {
     fn start(&self) -> Box<dyn Context> {
-        Box::new(PureContext {
-            digest: AnyDigest::new(self.0),
-        })
+        Box::new(PureContext { digest: AnyDigest::new(self.0) })
     }
 
     fn hash(&self, data: &[u8]) -> Output {
@@ -115,9 +113,7 @@ impl Context for PureContext {
     }
 
     fn fork(&self) -> Box<dyn Context> {
-        Box::new(PureContext {
-            digest: self.digest.clone(),
-        })
+        Box::new(PureContext { digest: self.digest.clone() })
     }
 
     fn finish(self: Box<Self>) -> Output {

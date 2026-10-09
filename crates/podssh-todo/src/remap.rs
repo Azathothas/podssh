@@ -190,7 +190,8 @@ fn same_line(
 ) -> Option<usize> {
     let lo = from[..i].iter().rev().find_map(|o| *o).map_or(0, |o| o + 1);
     let hi = from[i + 1..].iter().find_map(|o| *o).unwrap_or(old_lines.len());
-    let found = (lo..hi).find(|&o| !used.contains(&o) && !old_cites[o].is_empty() && key(old_lines[o], &old_cites[o]) == want)?;
+    let found = (lo..hi)
+        .find(|&o| !used.contains(&o) && !old_cites[o].is_empty() && key(old_lines[o], &old_cites[o]) == want)?;
     used.insert(found);
     Some(found)
 }

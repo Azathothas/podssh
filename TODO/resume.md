@@ -179,7 +179,7 @@ GitHub #19 reports. Some closes mean "do not come back".
 ## Premise
 
 Read: the failover across relay hosts serves the first connection only
-(`crates/podssh-relay/src/open.rs:172-211`). `classify` maps each reverse close
+(`crates/podssh-relay/src/open.rs:177-212`). `classify` maps each reverse close
 to a retry class (crates/podssh-transport/src/closes.rs lines 154-229 at `e8bbd4d`), with
 `relay backpressure` as `Retry::Never`
 (crates/podssh-transport/src/closes.rs line 202 at `e8bbd4d`); a received Close lost its code
@@ -195,7 +195,7 @@ the node then exits (`docs/reverse.md:19`).
    the roads of T-164 and each host of the `RelayList`
    (`crates/podssh-relay/src/relay.rs:36-50`), each within `HOST_DEADLINE`
    (`crates/podssh-relay/src/open.rs:27-29`), with `open::backoff` between
-   rounds (`crates/podssh-relay/src/open.rs:261-275`). Do not fork it (T-077).
+   rounds (`crates/podssh-relay/src/open.rs:262-276`). Do not fork it (T-077).
 2. A `CLOSE` record never reconnects; each other loss reconnects first
    (ssh-obi's rule, read in GitHub #19, not verified here). Print one stderr
    line for each loss and each resume, and never a secret or a token.
@@ -210,7 +210,7 @@ the node then exits (`docs/reverse.md:19`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:102-192`).
+   (`crates/podssh-cli/src/man/facts.rs:121-211`).
 
 ## Decision
 
@@ -258,14 +258,14 @@ keepalives must not end a session that the layer would resume.
 ## Premise
 
 Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
-`crates/podssh-relay/src/open.rs:230`), a limit that counts on the relay's
+`crates/podssh-relay/src/open.rs:231`), a limit that counts on the relay's
 frame each 25 s. The ping watcher acts only after a first Pong
-(`crates/podssh-ws/src/session.rs:146-180`); Pongs and the idle cut on reverse
+(`crates/podssh-ws/src/session.rs:140-174`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:220-240`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:271-279`, and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:278-286`, and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -273,16 +273,16 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
    answers `PONG`. A record is payload, so it resets the relay's idle cut on
    each road.
 2. Any record counts as life, as for the ping watcher
-   (`crates/podssh-ws/src/session.rs:146-155`). After 3 silent intervals the
+   (`crates/podssh-ws/src/session.rs:140-149`). After 3 silent intervals the
    link is dead, and T-153 resumes: 30 to 40 s. Both ends send, so the read
    limit of 90 s also holds on reverse sockets.
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:271-279`.
+   `crates/podssh-cli/src/ssh/resolve.rs:278-286`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:149-159`,
-   `crates/podssh-cli/src/man/facts.rs:183-190`), the note at
+   (`crates/podssh-cli/src/man/facts.rs:168-178`,
+   `crates/podssh-cli/src/man/facts.rs:202-209`), the note at
    `crates/podssh-cli/src/man/notes.rs:50`, `docs/relay.md`, `README.md`.
 
 ## Decision
@@ -355,7 +355,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:102-192`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:121-211`).
 
 ## Decision
 

@@ -17,7 +17,6 @@
 use crate::flags::{FlagKind, FlagRow, VERBS};
 use crate::suggest::NoSubcommand;
 
-
 /// The message for an unknown flag: the flag given, and the nearest known one.
 ///
 /// ⛔ `nearest_flag` is `clap`'s own suggestion engine (the `suggestions`
@@ -107,9 +106,7 @@ pub fn unknown_verb(token: &str, verdict: &NoSubcommand) -> String {
     let mut m = String::new();
     match verdict {
         NoSubcommand::Destination => {
-            m.push_str(&format!(
-                "podssh: '{token}' looks like a host, not a subcommand.\n"
-            ));
+            m.push_str(&format!("podssh: '{token}' looks like a host, not a subcommand.\n"));
             m.push_str(&format!("Try: podssh ssh {token}\n"));
         }
         NoSubcommand::Typo(name) => {
@@ -234,21 +231,12 @@ mod tests {
     #[test]
     fn a_refusal_is_a_line_not_a_usage_dump() {
         for token in ["example.org", "user@example.org", "sttaus", "chatr", "nonsense"] {
-            let m = unknown_verb(
-                token,
-                &crate::suggest::diagnose_no_subcommand(token),
-            );
+            let m = unknown_verb(token, &crate::suggest::diagnose_no_subcommand(token));
             assert!(!m.contains("Usage:"), "{token} printed a usage header: {m}");
-            assert!(
-                !m.contains("For more information"),
-                "{token} printed clap's trailer: {m}"
-            );
+            assert!(!m.contains("For more information"), "{token} printed clap's trailer: {m}");
             let lines = m.lines().count();
             assert!(lines <= 18, "{token} produced {lines} lines: {m}");
-            assert!(
-                m.contains("Try:") || m.contains("Run 'podssh --help'"),
-                "{token} gave no next step: {m}"
-            );
+            assert!(m.contains("Try:") || m.contains("Run 'podssh --help'"), "{token} gave no next step: {m}");
         }
     }
 

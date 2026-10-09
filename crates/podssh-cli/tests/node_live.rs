@@ -199,8 +199,22 @@ fn ssh_to_a_node() {
     let (rc, out, err) = run(
         &home,
         &[
-            "ssh", "-T", "-i", key.to_str().unwrap(), "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new",
-            "-o", &known_option, "-o", "BatchMode=yes", "--pair-file", op, "node://test@lab", "exit 3",
+            "ssh",
+            "-T",
+            "-i",
+            key.to_str().unwrap(),
+            "-o",
+            "IdentitiesOnly=yes",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            &known_option,
+            "-o",
+            "BatchMode=yes",
+            "--pair-file",
+            op,
+            "node://test@lab",
+            "exit 3",
         ],
     );
     // Withheld: railway.new's words hold a claim URL.

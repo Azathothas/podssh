@@ -30,7 +30,7 @@ Read, at `692b3b0`: `WsSocket::send_text` calls `self.session.send(text)`
 `send_pong` and `read`, and no text method (the same file, lines 74-81). The live adapter maps
 `send` to `RelaySession::send_binary` (crates/podssh-transport/src/adapt.rs at `e8bbd4d` lines 37-39).
 `Leg::send_control` reaches the wire only through `send_text` (`socket.rs` lines 247-263).
-`podssh-ws` already has `RelaySession::send_text` (`crates/podssh-ws/src/session.rs:93-97`).
+`podssh-ws` already has `RelaySession::send_text` (`crates/podssh-ws/src/session.rs:87-91`).
 
 Read, at `692b3b0`: the test double records each `send` as `OPCODE_BINARY`
 (crates/podssh-transport/tests/socket.rs at `e8bbd4d` lines 43-47). The one `send_text` test counts frames
@@ -125,7 +125,7 @@ same. The text of a read error is lost too.
 The lines of crates/podssh-transport below are those of `3d4785a`.
 
 Read: `RelaySession::read_frame` echoes a Close and returns it to its caller
-(`crates/podssh-ws/src/session.rs:208-216`). `WsSocket::recv` handles the opcodes of text, binary,
+(`crates/podssh-ws/src/session.rs:202-210`). `WsSocket::recv` handles the opcodes of text, binary,
 Ping and Pong, and maps each other opcode, Close included, to `TransportError::Unexpected`
 (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 136-164). A read error becomes
 `Aborted { clean: false }` and its text is dropped (the same file, lines 165-168). The adapter
@@ -135,7 +135,7 @@ states the gap (crates/podssh-transport/src/adapt.rs at `e8bbd4d` lines 25-29). 
 
 Read: the helper `closed(code, reason, clean)` exists and has no caller (`socket.rs` lines
 478-481). `podssh-ws` parses a Close payload in `close_code_and_reason`
-(`crates/podssh-ws/src/session.rs:311-319`), and `podssh proxy` uses it
+(`crates/podssh-ws/src/session.rs:306-314`), and `podssh proxy` uses it
 (`crates/podssh-cli/src/proxy.rs:239-242`).
 
 Read, a related gap that the former defects page did not list: `Classified::message` prints
@@ -498,7 +498,7 @@ The new test gives the relay's own bodies (`missing or wrong token`,
 `forward: github.com:25 not in the ALLOW list`, `reverse: forbidden`,
 `forward relay authentication is not configured`) with `403` and `503` for each leg, and asserts
 the action. The bodies come from the contract and from the tests of
-`crates/podssh-relay/src/open.rs:281-299`. Plant: map `503` back to `Reconnect`; the test must
+`crates/podssh-relay/src/open.rs:282-300`. Plant: map `503` back to `Reconnect`; the test must
 fail.
 
 ## Done
@@ -550,7 +550,7 @@ Read: `LegTarget::path` formats `/connect/{host}/{port}`, `/v1/node/{name}` and
 `github.com` and `podssh` (crates/podssh-transport/tests/endpoints.rs at `e8bbd4d` lines 70-85).
 
 Read: `WsClientConfig::validate` refuses whitespace and a query string that is not a connect knob,
-but not `#`, `/` or `..` in a segment (`crates/podssh-ws/src/client.rs:68-89`).
+but not `#`, `/` or `..` in a segment (`crates/podssh-ws/src/client.rs:68-87`).
 
 Read: the commands already check the forward path. `podssh_relay::relay::forward_path` calls
 `check_host`: letters, digits, `.`, `-` and `_`, no leading `-` or `.`, at most 253 characters
@@ -660,8 +660,8 @@ crates/podssh-transport/tests/closes.rs lines 354-391 at `e8bbd4d`.
 
 Read: a node connects again "with a jittered backoff" (`docs/reverse.md:24-32`,
 `docs/ROADMAP.md:150-158`). `podssh_relay::open::backoff` doubles from 1 s to 30 s and multiplies
-by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:261-275`); `podssh ssh` uses
-it (`crates/podssh-cli/src/ssh/mod.rs:129-135`).
+by a random factor from 0.5 to 1.5 (`crates/podssh-relay/src/open.rs:262-276`); `podssh ssh` uses
+it (`crates/podssh-cli/src/ssh/mod.rs:125-131`).
 
 ## Approach
 
@@ -697,7 +697,7 @@ cargo test -p podssh-relay --no-fail-fast
 2026-10-09, with T-082, in the commit "The codecs of the reverse road in podssh-relay".
 
 - The trait `Transport`, `target_for`, `backoff.rs` and its two tests went with the crate. The
-  node runner waits with `podssh_relay::open::backoff` (`crates/podssh-relay/src/reverse/node.rs:158-164`).
+  node runner waits with `podssh_relay::open::backoff` (`crates/podssh-relay/src/reverse/node.rs:159-165`).
 - Step 1 said to keep `Control`, `LegShape` and `Limits` for `socket.rs`. They went with it: no runner
   used that layer (T-082, Decision 2). The runners read `control::NodeInbound` and keep
   `control::NodeLimits`.

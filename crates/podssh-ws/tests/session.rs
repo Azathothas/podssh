@@ -115,9 +115,7 @@ async fn a_continuation_with_nothing_to_continue_is_an_error() {
 async fn a_close_from_the_relay_is_returned_and_echoed_once() {
     let (client, mut peer) = tokio::io::duplex(64 * 1024);
     let s = session(client, None);
-    peer.write_all(&from_server(frame::OPCODE_CLOSE, true, &close_payload(Some(1000), "session ended")))
-        .await
-        .unwrap();
+    peer.write_all(&from_server(frame::OPCODE_CLOSE, true, &close_payload(Some(1000), "session ended"))).await.unwrap();
 
     let close = s.read_frame().await.unwrap();
     assert_eq!(close.opcode, frame::OPCODE_CLOSE);
@@ -271,7 +269,8 @@ async fn a_relay_that_never_answers_pings_is_not_declared_dead() {
     scripted_relay(peer, 0, None);
     let s = session(client, None);
     keep_reading(&s);
-    let outcome = tokio::time::timeout(Duration::from_millis(600), s.watch_liveness(Duration::from_millis(50), 3)).await;
+    let outcome =
+        tokio::time::timeout(Duration::from_millis(600), s.watch_liveness(Duration::from_millis(50), 3)).await;
     assert!(outcome.is_err(), "declared dead without ever seeing a pong: {outcome:?}");
 }
 
@@ -283,7 +282,8 @@ async fn data_arriving_keeps_a_link_alive_when_pongs_stop() {
     scripted_relay(peer, 1, Some(Duration::from_millis(30)));
     let s = session(client, None);
     keep_reading(&s);
-    let outcome = tokio::time::timeout(Duration::from_millis(600), s.watch_liveness(Duration::from_millis(50), 3)).await;
+    let outcome =
+        tokio::time::timeout(Duration::from_millis(600), s.watch_liveness(Duration::from_millis(50), 3)).await;
     assert!(outcome.is_err(), "declared dead while data was arriving: {outcome:?}");
     assert!(s.frames_received() > 3);
 }

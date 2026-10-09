@@ -20,8 +20,7 @@ pub const MARKER: &str = "PODSSH1";
 /// padded form is what every other implementation emits, ⛔ so a peer that is
 /// not podssh and a file produced elsewhere both decode.
 pub mod b64 {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     pub fn encode(input: &[u8]) -> String {
         let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
@@ -32,16 +31,8 @@ pub mod b64 {
             let triple = (b0 << 16) | (b1 << 8) | b2;
             out.push(ALPHABET[(triple >> 18 & 0x3f) as usize] as char);
             out.push(ALPHABET[(triple >> 12 & 0x3f) as usize] as char);
-            out.push(if chunk.len() > 1 {
-                ALPHABET[(triple >> 6 & 0x3f) as usize] as char
-            } else {
-                '='
-            });
-            out.push(if chunk.len() > 2 {
-                ALPHABET[(triple & 0x3f) as usize] as char
-            } else {
-                '='
-            });
+            out.push(if chunk.len() > 1 { ALPHABET[(triple >> 6 & 0x3f) as usize] as char } else { '=' });
+            out.push(if chunk.len() > 2 { ALPHABET[(triple & 0x3f) as usize] as char } else { '=' });
         }
         out
     }
@@ -52,10 +43,7 @@ pub mod b64 {
     /// and the file that arrives is short by one with no word to anyone.
     pub fn decode(input: &str) -> Result<Vec<u8>, String> {
         if input.len() % 4 != 0 {
-            return Err(format!(
-                "base64 payload is {} bytes, which is not a multiple of four",
-                input.len()
-            ));
+            return Err(format!("base64 payload is {} bytes, which is not a multiple of four", input.len()));
         }
         let bytes = input.as_bytes();
         let mut out = Vec::with_capacity(input.len() / 4 * 3);
@@ -112,51 +100,51 @@ pub mod b64 {
 /// compile.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Offer {
-pub transfer_id: String,
-pub name: String,
-pub total: u64,
-pub chunks: u64,
+    pub transfer_id: String,
+    pub name: String,
+    pub total: u64,
+    pub chunks: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Accept {
-pub transfer_id: String,
-pub from_chunk: u64,
+    pub transfer_id: String,
+    pub from_chunk: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Chunk {
-pub transfer_id: String,
-pub index: u64,
-/// ⛔ **The byte offset in the file, and it is the resume key.** ⛔ Not
-/// an index into a session: ⛔ chunk `i` is always bytes
-/// `[i*320, i*320+320)` of the *file*, ⛔ so a session boundary changes
-/// which chunks are sent and never what a chunk means.
-pub offset: u64,
-pub payload: String,
+    pub transfer_id: String,
+    pub index: u64,
+    /// ⛔ **The byte offset in the file, and it is the resume key.** ⛔ Not
+    /// an index into a session: ⛔ chunk `i` is always bytes
+    /// `[i*320, i*320+320)` of the *file*, ⛔ so a session boundary changes
+    /// which chunks are sent and never what a chunk means.
+    pub offset: u64,
+    pub payload: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ack {
-pub transfer_id: String,
-pub index: u64,
+    pub transfer_id: String,
+    pub index: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Digest {
-pub transfer_id: String,
-pub sha256: String,
+    pub transfer_id: String,
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Done {
-pub transfer_id: String,
+    pub transfer_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Deny {
-pub transfer_id: String,
-pub reason: String,
+    pub transfer_id: String,
+    pub reason: String,
 }
 
 /// ⛔ **What one transfer line means.** ⛔ Parsed once, at the edge, ⛔ so no
@@ -182,7 +170,7 @@ pub enum Line {
 }
 
 impl Line {
-/// ⛔ Split a `PRIVMSG`'s text into a transfer line. ⛔ **`None` for a
+    /// ⛔ Split a `PRIVMSG`'s text into a transfer line. ⛔ **`None` for a
     /// message that is not a transfer at all**, ⛔ which is the overwhelming
     /// majority of `PRIVMSG`s in a channel and must cost nothing.
     pub fn parse(text: &str) -> Option<Self> {
@@ -203,10 +191,7 @@ impl Line {
             }
             "ACCEPT" => {
                 let mut f = rest.split('|');
-                Line::Accept(Accept {
-                    transfer_id: f.next()?.to_string(),
-                    from_chunk: f.next()?.parse().ok()?,
-                })
+                Line::Accept(Accept { transfer_id: f.next()?.to_string(), from_chunk: f.next()?.parse().ok()? })
             }
             "CHUNK" => {
                 let mut f = rest.split('|');
@@ -219,25 +204,16 @@ impl Line {
             }
             "ACK" => {
                 let mut f = rest.split('|');
-                Line::Ack(Ack {
-                    transfer_id: f.next()?.to_string(),
-                    index: f.next()?.parse().ok()?,
-                })
+                Line::Ack(Ack { transfer_id: f.next()?.to_string(), index: f.next()?.parse().ok()? })
             }
             "DIGEST" => {
                 let mut f = rest.split('|');
-                Line::Digest(Digest {
-                    transfer_id: f.next()?.to_string(),
-                    sha256: f.next()?.to_string(),
-                })
+                Line::Digest(Digest { transfer_id: f.next()?.to_string(), sha256: f.next()?.to_string() })
             }
             "DONE" => Line::Done(Done { transfer_id: rest.trim().to_string() }),
             "DENY" => {
                 let mut f = rest.split('|');
-                Line::Deny(Deny {
-                    transfer_id: f.next()?.to_string(),
-                    reason: f.next().unwrap_or("").to_string(),
-                })
+                Line::Deny(Deny { transfer_id: f.next()?.to_string(), reason: f.next().unwrap_or("").to_string() })
             }
             _ => Line::Unknown { verb, rest: rest.to_string() },
         })
@@ -277,10 +253,7 @@ pub fn as_privmsg(target: &str, line: &Line) -> Message {
     Message {
         tags: Vec::new(),
         prefix: None,
-        command: Command::Privmsg {
-            target: Middle(target.to_string()),
-            text: Trailing::new(line.render()),
-        },
+        command: Command::Privmsg { target: Middle(target.to_string()), text: Trailing::new(line.render()) },
     }
 }
 
@@ -291,22 +264,14 @@ pub fn as_privmsg(target: &str, line: &Line) -> Message {
 /// [`Message::to_wire`] rather than against arithmetic on paper.
 pub fn chunk_line_length(limits: &TransferLimits, transfer_id: &str, index: u64, offset: u64) -> usize {
     let payload_len = (limits.chunk_bytes + 2) / 3 * 4;
-    let line = Line::Chunk(Chunk {
-        transfer_id: transfer_id.to_string(),
-        index,
-        offset,
-        payload: "A".repeat(payload_len),
-    });
+    let line =
+        Line::Chunk(Chunk { transfer_id: transfer_id.to_string(), index, offset, payload: "A".repeat(payload_len) });
     as_privmsg("#x", &line).to_wire().len()
 }
-
 
 /// ⛔ The refusal a peer sends, and ⛔ **the reason string is the only part
 /// of this protocol a human reads**, ⛔ so a machine-generated reason reads
 /// as a machine having no reason.
 pub fn deny(target: &str, transfer_id: &str, reason: &str) -> Message {
-    as_privmsg(
-        target,
-        &Line::Deny(Deny { transfer_id: transfer_id.to_string(), reason: reason.to_string() }),
-    )
+    as_privmsg(target, &Line::Deny(Deny { transfer_id: transfer_id.to_string(), reason: reason.to_string() }))
 }

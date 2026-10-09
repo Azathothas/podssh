@@ -100,9 +100,7 @@ impl Refusal {
         match self {
             Refusal::Suspend => "suspend is refused: no job control without a terminal",
             Refusal::FlowControl => "flow control is refused: there is no IXON to stop",
-            Refusal::CursorAddressing => {
-                "this escape sequence is refused: it is not a key podssh interprets"
-            }
+            Refusal::CursorAddressing => "this escape sequence is refused: it is not a key podssh interprets",
             Refusal::NothingToErase => "there is nothing to erase here",
             Refusal::NoMoreHistory => "history does not go further in that direction",
             Refusal::AtLineBound => "the cursor is already at that end of the line",
@@ -170,11 +168,7 @@ mod tests {
         // refactor made `NothingToDelete` ring, a user pressing Ctrl-D at the
         // end of a line would start hearing a bell that the tested reference
         // never rang — ⛔ a behaviour change hidden inside a tidy-up.
-        let silent: Vec<&str> = REFUSALS
-            .iter()
-            .filter(|r| !r.rings())
-            .map(|r| r.reason())
-            .collect();
+        let silent: Vec<&str> = REFUSALS.iter().filter(|r| !r.rings()).map(|r| r.reason()).collect();
         assert_eq!(silent, ["there is nothing to delete here"]);
         assert!(!Refusal::NothingToDelete.rings());
         for refusal in REFUSALS.iter().filter(|r| **r != Refusal::NothingToDelete) {

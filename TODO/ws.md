@@ -137,7 +137,7 @@ row, panic the same way: `rng.fill_bytes` for the X25519 secret
    range), and compute the shared secret with the `diffie_hellman` function of `elliptic-curve`
    0.13. Check the API of `p256` 0.13.2 first. No generator that can panic goes in.
 4. Make the source a parameter in the tests, so a failing source can be planted.
-5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:219-238`
+5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:238-258`
    does, and fails on `fill_bytes(` or `OsRng` outside `random.rs`.
 
 ## Decision
@@ -223,7 +223,7 @@ module comment says that the test suite asserts that the shipped configuration d
 (`probe.rs` lines 9-12), but no test names `PrintChain`: a search finds it only in `probe.rs`,
 the example and the documents. Also, lines 134 and 178 of `probe.rs` index the certificate with
 no bound check, so a short certificate panics the probe. The shipped configuration calls
-`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:237-241`), so a scan
+`.dangerous()` to install the WebPKI verifier (`crates/podssh-ws/src/tls.rs:226-230`), so a scan
 cannot look for that word alone.
 
 ## Approach
@@ -232,7 +232,7 @@ cannot look for that word alone.
    (`crates/podssh-ws/examples/inspect_peer_chain.rs`), and remove `pub mod probe;`. Keep each
    file under 500 lines.
 2. Add the test that `probe.rs` (lines 9-12) promised: a scan of the source of `podssh-ws`,
-   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:219-238`
+   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:238-258`
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
@@ -307,8 +307,8 @@ Read; the lines of `podssh-ws` are those of `c56792f`. `open_tls` builds the tru
 the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207, through
 `crates/podssh-ws/src/tls.rs` lines 153-180). `WsClientConfig` carries only a `Trust`
 (`client.rs` lines 47-61). The same `Trust` goes through `podssh-relay`: `Request`
-(`crates/podssh-relay/src/open.rs:125-135`), `MintContext`
-(`crates/podssh-relay/src/token.rs:92-97`), the pool refresh
+(`crates/podssh-relay/src/open.rs:130-140`), `MintContext`
+(`crates/podssh-relay/src/token.rs:91-96`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:117-126`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177), because the upgrade is
 HTTP/1.1 only (`docs/relay.md:174`). The `tls12` feature of `rustls` is on in the workspace
@@ -357,7 +357,7 @@ CC=/nonexistent CXX=/nonexistent cargo test -p podssh-ws -p podssh-relay
 ```
 
 A new test connects through the caller form to a local TLS test server (as
-`crates/podssh-ws/tests/hostname_verification.rs:63` starts one), with a caller configuration
+`crates/podssh-ws/tests/hostname_verification.rs:55` starts one), with a caller configuration
 whose only root is the test CA, which the default store does not hold. A configuration with the
 ALPN `h2` is refused. podbox's own test with two clients is the exit check of M4 (T-085).
 Planted defect: ignore the caller's configuration and build podssh's; the test CA is then
@@ -403,9 +403,9 @@ the system bundle).
 
 ## Premise
 
-Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs:55-56`),
+Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs:55`),
 and its comment says that TLS 1.2 suites are absent on purpose (lines 7-11). The configuration
-enables both versions (`crates/podssh-ws/src/tls.rs:237-239`); rustls accepts that, because one
+enables both versions (`crates/podssh-ws/src/tls.rs:226-228`); rustls accepts that, because one
 suite is usable, and then offers no TLS 1.2 suite (rustls 0.23.45, `with_protocol_versions` in
 its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustls` and
 `tokio-rustls` is on (`Cargo.toml`). The provider has HMAC
@@ -421,7 +421,7 @@ requires TLS 1.3 (`scripts/fake-relay.py:232-233`).
    AEAD: GCM with a 4-byte implicit salt and an 8-byte explicit nonce; ChaCha20-Poly1305 with
    the nonce of RFC 7905.
 2. The TLS 1.3 suites stay first in `ALL_CIPHER_SUITES`, and `self_check`
-   (`crates/podssh-ws/src/crypto/suites.rs:77-104`) checks the new suites too.
+   (`crates/podssh-ws/src/crypto/suites.rs:76-100`) checks the new suites too.
 3. No CBC suite, no RSA key exchange, no SHA-1 suite.
 4. Test each suite against software that podssh did not write: `openssl s_server -tls1_2` with
    one suite at a time in the container gate, and `scripts/fake-relay.py` with an option for TLS
@@ -430,7 +430,7 @@ requires TLS 1.3 (`scripts/fake-relay.py:232-233`).
    (`crates/podssh-cli/src/doctor/relay_checks.rs:93-96`); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md:46`, the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:169-182`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:188-201`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -474,10 +474,10 @@ Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs` lines 
 `23b5d82`). `RelaySession` is
 generic over its stream (`crates/podssh-ws/src/session.rs:33`), so a session over `TcpStream`
 is possible. `podssh-relay` gives the TLS type back (`Opened`,
-`crates/podssh-relay/src/open.rs:137-142`). The tests use in-memory streams
+`crates/podssh-relay/src/open.rs:142-147`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
-(`crates/podssh-ws/tests/hostname_verification.rs:63`). `dial::is_loopback` exists
-(`crates/podssh-ws/src/dial.rs:164-172`).
+(`crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
+(`crates/podssh-ws/src/dial.rs:157-165`).
 
 ## Approach
 
@@ -565,12 +565,12 @@ Read; the lines of the files that this entry changed are those of `723d90b`. `se
 `read_frame` (170-221) and `write` (223-228) return `Result<_, String>`; `watch_liveness`
 returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs` lines 95-96 and 138-140 put it in `RelayEnd::Failed`;
-`crates/podssh-cli/src/proxy.rs:212-247` prints it; `podssh-transport` makes a write error
+`crates/podssh-cli/src/proxy.rs:215-247` prints it; `podssh-transport` makes a write error
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
 WebSocket Close"), and `scripts/interop-faults.sh:148` ("pings unanswered").
-`WsError` exists (`crates/podssh-ws/src/error.rs:50-70`), but the session does not use it.
+`WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach
 
@@ -661,10 +661,10 @@ supported; podssh speaks HTTP CONNECT to an http:// proxy"
 (`crates/podssh-ws/src/dial.rs:49-59`). `proxy_from_vars` reads `https_proxy`, `HTTPS_PROXY`,
 `all_proxy` and `ALL_PROXY` (line 153), and parses the first that is set (line 161). `dial`
 makes the error `DialError::BadProxy` (line 217), which stops the failover at once
-(`crates/podssh-relay/src/open.rs:62`) and gives exit 78 in `podssh proxy`
+(`crates/podssh-relay/src/open.rs:65`) and gives exit 78 in `podssh proxy`
 (`crates/podssh-cli/src/proxy.rs:162`). `doctor` reports it as `FAIL`
-(`crates/podssh-cli/src/doctor/net.rs:104-110`). Two tests assert the refusal:
-`crates/podssh-cli/tests/doctor.rs:129-138` and `crates/podssh-ws/tests/dial.rs:34-42`.
+(`crates/podssh-cli/src/doctor/net.rs:102-108`). Two tests assert the refusal:
+`crates/podssh-cli/tests/doctor.rs:133-140` and `crates/podssh-ws/tests/dial.rs:34-42`.
 
 ## Approach
 
@@ -679,14 +679,14 @@ makes the error `DialError::BadProxy` (line 217), which stops the failover at on
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
-   (`crates/podssh-relay/src/open.rs:54-76`) and the exit codes of `podssh proxy`
+   (`crates/podssh-relay/src/open.rs:57-79`) and the exit codes of `podssh proxy`
    (`crates/podssh-cli/src/proxy.rs:158-171`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (`dial.rs:39-44`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:163-186`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:161-185`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
-7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-49`),
+7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-51`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
 
 ## Decision
@@ -731,24 +731,24 @@ peer that sends one breaks the protocol, and podssh reads the frame as valid.
 ## Premise
 
 Read on `3ee70dc`, the defect holds. `frame::decode` reads the 16-bit length with no lower
-bound (`crates/podssh-ws/src/frame.rs:158-165`). It reads the 64-bit length and checks only the
+bound (`crates/podssh-ws/src/frame.rs:149-156`). It reads the 64-bit length and checks only the
 size of the platform and the forward cap of 262144 bytes (lines 166-186); that cap also refuses
 a value with its top bit set, which section 5.2 forbids too. `frame::encode` writes the minimal
 form (lines 80-88). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
-(`crates/podssh-ws/tests/rfc6455.rs:108-137`), and no test decodes a length that is not
+(`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:401-410`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:392-401`). The stand-in relay writes the minimal form
 (`scripts/fake-relay.py:54-62`); the frames of the real relay were not checked for it.
 
 ## Approach
 
 1. In `frame::decode`, refuse a 16-bit length below 126 and a 64-bit length below 65536 with a
-   `WsError::Frame` that names the rule (`crates/podssh-ws/src/frame.rs:158-186`), before the
+   `WsError::Frame` that names the rule (`crates/podssh-ws/src/frame.rs:149-175`), before the
    payload is copied.
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
    connection. Since T-063 the session sends that Close for each error of the decoder
-   (`crates/podssh-ws/src/session.rs:245-252`), so this entry needs no new path.
+   (`crates/podssh-ws/src/session.rs:240-247`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,

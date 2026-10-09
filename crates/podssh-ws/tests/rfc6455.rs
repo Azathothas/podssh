@@ -57,29 +57,17 @@ fn every_encoded_client_frame_is_masked() {
     for len in [0usize, 1, 125, 126, 127, 200, 65_535, 65_536] {
         let payload = vec![0x5Au8; len];
         let encoded = frame::encode(
-            &Frame {
-                fin: true,
-                opcode: frame::OPCODE_BINARY,
-                payload: payload.clone(),
-            },
+            &Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: payload.clone() },
             Role::Client,
             [1, 2, 3, 4],
         );
-        assert_eq!(
-            encoded[1] & 0x80,
-            0x80,
-            "the mask bit is clear at length {len}"
-        );
+        assert_eq!(encoded[1] & 0x80, 0x80, "the mask bit is clear at length {len}");
         // ⛔ **The payload on the wire must not be the payload**, or the mask
         // bit was set without transforming anything. ⛔ Skipped at length 0,
         // where masking changes nothing and the assertion would be vacuous.
         if len > 0 {
             let header = 2 + header_extra(encoded[1] & 0x7f) + 4;
-            assert_ne!(
-                &encoded[header..],
-                payload.as_slice(),
-                "unmasked at length {len}"
-            );
+            assert_ne!(&encoded[header..], payload.as_slice(), "unmasked at length {len}");
         }
     }
 }
@@ -91,11 +79,7 @@ fn every_encoded_client_frame_is_masked() {
 fn a_server_frame_is_never_masked() {
     let payload = b"the relay copies bytes".to_vec();
     let encoded = frame::encode(
-        &Frame {
-            fin: true,
-            opcode: frame::OPCODE_BINARY,
-            payload: payload.clone(),
-        },
+        &Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: payload.clone() },
         Role::Server,
         // ⛔ A key is passed and must be IGNORED, or a caller could produce a
         // masked server frame by supplying one.
@@ -117,11 +101,7 @@ fn the_three_length_encodings_appear_at_their_boundaries() {
     let cases: &[usize] = &[125, 126, 65_535, 65_536];
     for len in cases {
         let encoded = frame::encode(
-            &Frame {
-                fin: true,
-                opcode: frame::OPCODE_BINARY,
-                payload: vec![0u8; *len],
-            },
+            &Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: vec![0u8; *len] },
             Role::Client,
             [0, 0, 0, 0],
         );
@@ -148,24 +128,19 @@ fn header_extra(marker: u8) -> usize {
 
 #[test]
 fn a_decoded_frame_is_the_frame_that_was_encoded() {
-    let original = Frame {
-        fin: true,
-        opcode: frame::OPCODE_BINARY,
-        payload: b"\x00\x00\x00\x15SSH-2.0-podssh".to_vec(),
-    };
+    let original =
+        Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: b"\x00\x00\x00\x15SSH-2.0-podssh".to_vec() };
     // ⛔ **Client to client**: encoded masked, decoded with the same role. This
     // is the path podssh's own frames take, and it is the one that proves the
     // mask is reversible.
     let encoded = frame::encode(&original, Role::Client, [0xDE, 0xAD, 0xBE, 0xEF]);
-    let (decoded, used) =
-        frame::decode(&encoded, Role::Client).expect("decode").expect("a frame");
+    let (decoded, used) = frame::decode(&encoded, Role::Client).expect("decode").expect("a frame");
     assert_eq!(decoded, original);
     assert_eq!(used, encoded.len());
 
     // ⛔ And the relay's direction: a server frame round-trips unmasked.
     let from_server = frame::encode(&original, Role::Server, [0, 0, 0, 0]);
-    let (back, used) =
-        frame::decode(&from_server, Role::Server).expect("decode").expect("a frame");
+    let (back, used) = frame::decode(&from_server, Role::Server).expect("decode").expect("a frame");
     assert_eq!(back, original);
     assert_eq!(used, from_server.len());
 }
@@ -173,11 +148,7 @@ fn a_decoded_frame_is_the_frame_that_was_encoded() {
 #[test]
 fn a_short_buffer_is_incomplete_not_an_error() {
     let encoded = frame::encode(
-        &Frame {
-            fin: true,
-            opcode: frame::OPCODE_BINARY,
-            payload: vec![1, 2, 3, 4, 5],
-        },
+        &Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: vec![1, 2, 3, 4, 5] },
         Role::Client,
         [9, 8, 7, 6],
     );
@@ -211,10 +182,7 @@ fn plant_unparseable_frame_mid_stream_is_a_clean_error_not_a_panic() {
     let result = frame::decode(&stream, Role::Server);
     match result {
         Err(podssh_ws::WsError::Frame(why)) => {
-            assert!(
-                why.contains("reserved"),
-                "the error must name the actual fault, got: {why}"
-            );
+            assert!(why.contains("reserved"), "the error must name the actual fault, got: {why}");
         }
         other => panic!("a reserved bit must be an error, got {other:?}"),
     }
@@ -227,11 +195,7 @@ fn plant_unparseable_frame_mid_stream_is_a_clean_error_not_a_panic() {
 #[test]
 fn plant_an_unparseable_frame_after_a_good_one_keeps_the_good_one() {
     let good = frame::encode(
-        &Frame {
-            fin: true,
-            opcode: frame::OPCODE_BINARY,
-            payload: b"first".to_vec(),
-        },
+        &Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: b"first".to_vec() },
         Role::Server,
         [1, 1, 1, 1],
     );
@@ -242,10 +206,7 @@ fn plant_an_unparseable_frame_after_a_good_one_keeps_the_good_one() {
     let (first, used) = frame::decode(&stream, Role::Server).expect("decode").expect("a frame");
     assert_eq!(first.payload, b"first");
     let rest = &stream[used..];
-    assert!(
-        frame::decode(rest, Role::Server).is_err(),
-        "the malformed second frame was accepted"
-    );
+    assert!(frame::decode(rest, Role::Server).is_err(), "the malformed second frame was accepted");
 }
 
 #[test]
@@ -303,20 +264,12 @@ fn the_accept_value_matches_rfc6455_section_1_3() {
 /// so the function is written here and asserted rather than pulled in.
 #[test]
 fn the_sha1_used_for_the_accept_value_is_correct() {
-    assert_eq!(
-        hex(&handshake::sha1(b"abc")),
-        "a9993e364706816aba3e25717850c26c9cd0d89d"
-    );
-    assert_eq!(
-        hex(&handshake::sha1(b"")),
-        "da39a3ee5e6b4b0d3255bfef95601890afd80709"
-    );
+    assert_eq!(hex(&handshake::sha1(b"abc")), "a9993e364706816aba3e25717850c26c9cd0d89d");
+    assert_eq!(hex(&handshake::sha1(b"")), "da39a3ee5e6b4b0d3255bfef95601890afd80709");
     // ⛔ **A message that crosses the 64-byte block boundary**, which is where
     // a padding bug hides.
     assert_eq!(
-        hex(&handshake::sha1(
-            b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
-        )),
+        hex(&handshake::sha1(b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq")),
         "84983e441c3bd26ebaae4aa1f95129e5e54670f1"
     );
 }
@@ -335,18 +288,9 @@ fn the_token_travels_in_a_header_and_never_in_the_url() {
 
     let request_line = request.lines().next().expect("a request line");
     assert_eq!(request_line, "GET /v1/connect/railway HTTP/1.1");
-    assert!(
-        !request_line.contains('?'),
-        "⛔ the request line carries a query string: {request_line}"
-    );
-    assert!(
-        !request_line.contains("tok-abc123"),
-        "⛔ the token is in the request line"
-    );
-    assert!(
-        request.contains("X-Relay-Token: tok-abc123\r\n"),
-        "the token is not in the X-Relay-Token header"
-    );
+    assert!(!request_line.contains('?'), "⛔ the request line carries a query string: {request_line}");
+    assert!(!request_line.contains("tok-abc123"), "⛔ the token is in the request line");
+    assert!(request.contains("X-Relay-Token: tok-abc123\r\n"), "the token is not in the X-Relay-Token header");
     assert!(request.ends_with("\r\n\r\n"), "no header terminator");
     assert!(request.contains("Sec-WebSocket-Version: 13\r\n"));
     assert!(request.contains("Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"));
@@ -392,11 +336,7 @@ fn a_path_with_a_query_string_is_refused() {
 #[test]
 fn a_valid_configuration_passes_validation() {
     let config = podssh_ws::WsClientConfig {
-        endpoint: podssh_ws::Endpoint {
-            host: "relay.example".into(),
-            port: 443,
-            path: "/v1/connect/railway".into(),
-        },
+        endpoint: podssh_ws::Endpoint { host: "relay.example".into(), port: 443, path: "/v1/connect/railway".into() },
         trust: podssh_ws::Trust::Default,
         server_name: "relay.example".into(),
         timeout: std::time::Duration::from_secs(20),
@@ -425,18 +365,15 @@ fn a_101_with_the_wrong_accept_value_is_rejected() {
     let head = "HTTP/1.1 101 Switching Protocols\r\n\
                 Upgrade: websocket\r\n\
                 Sec-WebSocket-Accept: AAAAAAAAAAAAAAAAAAAAAAAAAAA=\r\n\r\n";
-    let err = handshake::check_response(head, "dGhlIHNhbXBsZSBub25jZQ==")
-        .expect_err("a wrong accept value");
+    let err = handshake::check_response(head, "dGhlIHNhbXBsZSBub25jZQ==").expect_err("a wrong accept value");
     assert!(format!("{err}").contains("Sec-WebSocket-Accept"), "got {err}");
 }
 
 #[test]
 fn a_101_without_the_upgrade_header_is_rejected() {
     let key = "dGhlIHNhbXBsZSBub25jZQ==";
-    let head = format!(
-        "HTTP/1.1 101 Switching Protocols\r\nSec-WebSocket-Accept: {}\r\n\r\n",
-        handshake::accept_key(key)
-    );
+    let head =
+        format!("HTTP/1.1 101 Switching Protocols\r\nSec-WebSocket-Accept: {}\r\n\r\n", handshake::accept_key(key));
     assert!(handshake::check_response(&head, key).is_err());
 }
 
@@ -470,7 +407,12 @@ fn only_the_relays_connect_knobs_may_ride_in_the_path() {
         idle_timeout: None,
         proxy: podssh_ws::ProxyChoice::Direct,
     };
-    for ok in ["/connect/h/22?family=4", "/connect/h/22?family=6", "/connect/h/22?dial=lazy&precheck=0", "/connect/h/22?path=vpc"] {
+    for ok in [
+        "/connect/h/22?family=4",
+        "/connect/h/22?family=6",
+        "/connect/h/22?dial=lazy&precheck=0",
+        "/connect/h/22?path=vpc",
+    ] {
         assert!(config(ok).validate().is_ok(), "{ok} must be accepted");
     }
     for bad in [

@@ -128,7 +128,11 @@ fn podssh(args: &[&str], set: &[(&str, &str)], clear: bool) -> (i32, String, Str
     }
     cmd.envs(set.iter().copied());
     let out = cmd.stdin(Stdio::null()).output().expect("podssh runs");
-    (out.status.code().unwrap_or(-1), String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
+    (
+        out.status.code().unwrap_or(-1),
+        String::from_utf8_lossy(&out.stdout).into_owned(),
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+    )
 }
 
 #[test]
@@ -154,7 +158,9 @@ fn a_section_gives_one_command_or_one_table() {
     let (rc, out, _) = podssh(&["man", "--json", "exit-status"], &[], false);
     assert_eq!(rc, 0);
     assert!(serde_json::from_str::<Value>(&out).unwrap()["exit_codes"].is_array());
-    for args in [&["man", "--json", "relay-facts"][..], &["man", "--json", "--roff"][..], &["man", "--json", "nonsense"][..]] {
+    for args in
+        [&["man", "--json", "relay-facts"][..], &["man", "--json", "--roff"][..], &["man", "--json", "nonsense"][..]]
+    {
         let (rc, out, err) = podssh(args, &[], false);
         assert_eq!(rc, 64, "{args:?}: {err}");
         assert!(out.is_empty(), "{args:?}: {out}");

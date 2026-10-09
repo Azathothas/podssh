@@ -13,8 +13,18 @@ use std::process::{Command, Stdio};
 /// Every variable that could steer the doctor somewhere this test did not
 /// choose.
 const STEERING: &[&str] = &[
-    "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY", "http_proxy", "HTTP_PROXY", "no_proxy", "NO_PROXY",
-    "PODSSH_RELAY", "PODSSH_RELAY_ADDR", "PODSSH_RELAY_TOKEN", "SSL_CERT_FILE",
+    "https_proxy",
+    "HTTPS_PROXY",
+    "all_proxy",
+    "ALL_PROXY",
+    "http_proxy",
+    "HTTP_PROXY",
+    "no_proxy",
+    "NO_PROXY",
+    "PODSSH_RELAY",
+    "PODSSH_RELAY_ADDR",
+    "PODSSH_RELAY_TOKEN",
+    "SSL_CERT_FILE",
 ];
 
 struct Run {
@@ -92,11 +102,7 @@ fn offline_the_network_is_not_attempted_and_never_reported_ok() {
     for section in ["this host", "egress"] {
         assert!(run.out.lines().any(|l| l == section), "no {section} section:\n{}", run.out);
     }
-    assert!(
-        run.out.contains("  ????  network        not attempted: PODSSH_OFFLINE is set"),
-        "{}",
-        run.out
-    );
+    assert!(run.out.contains("  ????  network        not attempted: PODSSH_OFFLINE is set"), "{}", run.out);
     assert!(!run.out.contains("\nrelay\n"), "the relay section ran offline:\n{}", run.out);
     let (ok, failed, unknown) = counts(&run.out);
     assert_eq!(failed, 0, "{}", run.out);
@@ -124,11 +130,7 @@ fn without_home_host_keys_cannot_be_recorded_and_the_run_fails() {
 fn a_proxy_is_named_and_its_credentials_never_appear() {
     let run = doctor(&[], &[("https_proxy", "http://alice:s3cr3t-pass@proxy.example:3128")], &[], true);
     assert_eq!(run.code, 0, "{}", run.out);
-    assert!(
-        run.out.contains("https_proxy names proxy.example:3128 with credentials (not shown)"),
-        "{}",
-        run.out
-    );
+    assert!(run.out.contains("https_proxy names proxy.example:3128 with credentials (not shown)"), "{}", run.out);
     assert!(!run.out.contains("s3cr3t") && !run.out.contains("alice"), "{}", run.out);
 }
 
@@ -239,9 +241,10 @@ fn json_shows_no_proxy_password_and_no_token() {
     for secret in ["s3cr3t", "alice", token] {
         assert!(!run.out.contains(secret) && !run.err.contains(secret), "{secret}: {}{}", run.out, run.err);
     }
-    let named = doc["checks"].as_array().unwrap().iter().any(|c| {
-        c["check"] == "proxy" && c["detail"].as_str().unwrap_or_default().contains("credentials (not shown)")
-    });
+    let named =
+        doc["checks"].as_array().unwrap().iter().any(|c| {
+            c["check"] == "proxy" && c["detail"].as_str().unwrap_or_default().contains("credentials (not shown)")
+        });
     assert!(named, "{}", run.out);
 }
 

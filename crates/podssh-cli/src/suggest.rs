@@ -213,10 +213,7 @@ mod tests {
         // example.org and operator at 11 from user@example.org, so a
         // distance-only handler names the wrong verb for both.
         assert_eq!(diagnose_no_subcommand("example.org"), NoSubcommand::Destination);
-        assert_eq!(
-            diagnose_no_subcommand("user@example.org"),
-            NoSubcommand::Destination
-        );
+        assert_eq!(diagnose_no_subcommand("user@example.org"), NoSubcommand::Destination);
         assert_eq!(diagnose_no_subcommand("host:2222"), NoSubcommand::Destination);
         assert_eq!(nearest_verb("example.org"), None);
     }
@@ -280,11 +277,7 @@ mod tests {
     #[test]
     fn a_token_sharing_no_prefix_is_never_guessed() {
         for token in ["xz", "qzxwv", "zzz", "vvv"] {
-            assert_eq!(
-                nearest_verb(token),
-                None,
-                "{token} won a guess without sharing a prefix with anything"
-            );
+            assert_eq!(nearest_verb(token), None, "{token} won a guess without sharing a prefix with anything");
         }
         // ⛔ The shape stage is not what stopped these: none contains `@`, `.`
         // or `:`, so they reach the distance stage and are stopped there.

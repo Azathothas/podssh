@@ -27,10 +27,9 @@ pub fn selection_to_options(
         },
         proxy: match &sel.proxy_url {
             None => None,
-            Some(u) => Some(
-                ts_http_util::proxy::ProxyConfig::from_url(u)
-                    .map_err(|_| ConfigError::BadProxyUrl(u.clone()))?,
-            ),
+            Some(u) => {
+                Some(ts_http_util::proxy::ProxyConfig::from_url(u).map_err(|_| ConfigError::BadProxyUrl(u.clone()))?)
+            }
         },
     })
 }
@@ -58,18 +57,14 @@ impl TsNode {
             .await
             .map_err(|e| NodeError::Fork(e.to_string()))?;
         if let Some(url) = &cfg.control_url {
-            fork_cfg.control_server_url = url
-                .parse()
-                .map_err(|_| NodeError::Config(ConfigError::BadControlUrl(url.clone())))?;
+            fork_cfg.control_server_url =
+                url.parse().map_err(|_| NodeError::Config(ConfigError::BadControlUrl(url.clone())))?;
         }
         fork_cfg.requested_hostname = cfg.hostname.clone();
         fork_cfg.ephemeral = cfg.ephemeral;
         fork_cfg.options =
-            selection_to_options(&cfg.mode.runtime_selection(cfg.proxy_url.as_deref()))
-                .map_err(NodeError::Config)?;
-        let device = tailscale::Device::new(&fork_cfg, Some(auth))
-            .await
-            .map_err(|e| NodeError::Fork(e.to_string()))?;
+            selection_to_options(&cfg.mode.runtime_selection(cfg.proxy_url.as_deref())).map_err(NodeError::Config)?;
+        let device = tailscale::Device::new(&fork_cfg, Some(auth)).await.map_err(|e| NodeError::Fork(e.to_string()))?;
         Ok(Self { device, state_file: cfg.state_file.clone() })
     }
 
@@ -88,10 +83,7 @@ impl TsNode {
     }
 
     /// Open a TCP stream to a tailnet peer through the in-process netstack.
-    pub async fn tcp_connect(
-        &self,
-        remote: SocketAddr,
-    ) -> Result<tailscale::netstack::TcpStream, NodeError> {
+    pub async fn tcp_connect(&self, remote: SocketAddr) -> Result<tailscale::netstack::TcpStream, NodeError> {
         self.device.tcp_connect(remote).await.map_err(|e| NodeError::Fork(e.to_string()))
     }
 
@@ -99,11 +91,7 @@ impl TsNode {
     /// the netmap has no such peer — a route error for the caller, never a
     /// dial attempt and never a hang.
     pub async fn peer_ip(&self, name: &str) -> Result<Option<std::net::IpAddr>, NodeError> {
-        let peer = self
-            .device
-            .peer_by_name(name)
-            .await
-            .map_err(|e| NodeError::Fork(e.to_string()))?;
+        let peer = self.device.peer_by_name(name).await.map_err(|e| NodeError::Fork(e.to_string()))?;
         Ok(peer.map(|p| std::net::IpAddr::V4(p.tailnet_address.ipv4.addr())))
     }
 

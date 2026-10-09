@@ -255,7 +255,8 @@ fn a_stop_before_the_node_runs_ends_it_at_once() {
     let stopper = Stopper::new();
     stopper.stop();
     let started = Instant::now();
-    let exit = in_time(move || client().run_node(&mut test_pair(&relay, NAME, 0), echo, &NodeOptions::default(), &stopper));
+    let exit =
+        in_time(move || client().run_node(&mut test_pair(&relay, NAME, 0), echo, &NodeOptions::default(), &stopper));
     assert!(matches!(exit, Ok(Exit::Stopped)), "{exit:?}");
     assert!(started.elapsed() < LIMIT, "at once: {:?}", started.elapsed());
 }
@@ -265,7 +266,9 @@ fn a_stop_before_the_node_runs_ends_it_at_once() {
 #[test]
 fn a_node_that_cannot_connect_as_set_up_exits() {
     let relay = podssh_relay::relay::Relay { host: "relay.example.org".into(), port: 443 };
-    let exit = in_time(move || client().run_node(&mut test_pair(&relay, NAME, 0), echo, &NodeOptions::default(), &Stopper::new()));
+    let exit = in_time(move || {
+        client().run_node(&mut test_pair(&relay, NAME, 0), echo, &NodeOptions::default(), &Stopper::new())
+    });
     assert!(matches!(&exit, Ok(Exit::Unusable(why)) if why.contains("loopback")), "{exit:?}");
 }
 

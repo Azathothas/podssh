@@ -121,7 +121,15 @@ fn podssh_with(argv: &[&str], vars: &[(&str, &str)]) -> (i32, String) {
     use std::time::{Duration, Instant};
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     cmd.args(argv).env("PODSSH_OFFLINE", "1");
-    for name in ["PODSSH_RELAY", "PODSSH_RELAY_ADDR", "PODSSH_RELAY_TOKEN", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"] {
+    for name in [
+        "PODSSH_RELAY",
+        "PODSSH_RELAY_ADDR",
+        "PODSSH_RELAY_TOKEN",
+        "HTTPS_PROXY",
+        "https_proxy",
+        "ALL_PROXY",
+        "all_proxy",
+    ] {
         cmd.env_remove(name);
     }
     cmd.envs(vars.iter().copied());

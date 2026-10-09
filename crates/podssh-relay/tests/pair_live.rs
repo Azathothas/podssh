@@ -14,7 +14,12 @@ use podssh_ws::{ProxyChoice, Trust};
 #[ignore = "the live relay: run with --ignored"]
 async fn a_pair_is_made_asked_about_and_stopped() {
     let relay = Relay { host: DEFAULT_RELAY_HOST.into(), port: 443 };
-    let ctx = PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: Duration::from_secs(20) };
+    let ctx = PairContext {
+        relay: &relay,
+        trust: &Trust::Default,
+        proxy: &ProxyChoice::FromEnvironment,
+        timeout: Duration::from_secs(20),
+    };
     let made = pair::create(&ctx).await.expect("a pair");
     eprintln!("made a pair: {made:?}");
     let left_h = (made.expires_ms - now_ms()) / 3_600_000;

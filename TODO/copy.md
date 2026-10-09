@@ -27,10 +27,10 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
 - Read: no line of `Cargo.lock` contains `sftp`; `podssh-ssh` has `russh`
   0.64.1 only (`crates/podssh-ssh/Cargo.toml:18`, `Cargo.lock:3023-3025`).
 - Read: the subsystem request exists
-  (`crates/podssh-ssh/src/session.rs:70-73`); `wait_reply` counts 30 s of
-  silence as a refusal (`crates/podssh-ssh/src/session.rs:113-125`). The
-  handshake has a limit (`crates/podssh-ssh/src/run.rs:138-144`); the
-  authentication after it has none (`crates/podssh-ssh/src/run.rs:160`).
+  (`crates/podssh-ssh/src/session.rs:68-71`); `wait_reply` counts 30 s of
+  silence as a refusal (`crates/podssh-ssh/src/session.rs:111-123`). The
+  handshake has a limit (`crates/podssh-ssh/src/run.rs:144-150`); the
+  authentication after it has none (`crates/podssh-ssh/src/run.rs:166`).
 - Measured on 2026-10-08, offline: the `sftp-server` of OpenSSH 10.3p1 (Git
   for Windows), driven over its stdin and stdout, answers version 3 with the
   `@openssh.com` extensions posix-rename, statvfs, fstatvfs, hardlink,
@@ -115,7 +115,7 @@ leave a short or wrong file under the destination's name.
   path, `podssh cp --timeout 30s` also exits 70, where 64 is right.
 - Read: `crates/podssh-cli/src/flags.rs:240-259` marks `-P`, `-p`, `-i`,
   `-r`, `-F`, `--jsonl` and `--timeout` as supported; the parser keeps only
-  `--timeout` and `--jsonl` (`crates/podssh-cli/src/tree.rs:360-376`), and
+  `--timeout` and `--jsonl` (`crates/podssh-cli/src/tree.rs:350-364`), and
   dispatch drops the duration (`crates/podssh-cli/src/dispatch.rs:213-223`).
 - Measured (T-133's offline probe): `SSH_FXP_RENAME` onto an existing file
   fails with status 4; `posix-rename@openssh.com` replaces the file.
@@ -123,15 +123,15 @@ leave a short or wrong file under the destination's name.
 ## Approach
 
 1. `CpArgs` in a new module crates/podssh-cli/src/cp/, read as `SshArgs` is
-   (`crates/podssh-cli/src/ssh/args.rs:81-137`). An operand is remote when a
+   (`crates/podssh-cli/src/ssh/args.rs:81-135`). An operand is remote when a
    `:` comes before any `/`; on Windows, `C:\x` is local. Fewer than two
    operands, or none remote, exit 64.
 2. Build an `SshArgs` (host, `-P` as the port, `-i`, `-o`) for
    `crate::ssh::resolve::resolve`
-   (`crates/podssh-cli/src/ssh/resolve.rs:92-320`), so `-F` follows the rule
+   (`crates/podssh-cli/src/ssh/resolve.rs:92-327`), so `-F` follows the rule
    of `ssh`. Add `-o`, `-J`, `-v`, `-q` and the relay rows of `ssh`
    (`--relay-host`, `--relay-addr`, `--ca-file`, `--direct`) to `CP_FLAGS`.
-3. Split `crates/podssh-cli/src/ssh/mod.rs:73-155` so that the relay (with
+3. Split `crates/podssh-cli/src/ssh/mod.rs:73-151` so that the relay (with
    failover) or `--direct` gives T-133 a stream. The parsed `--timeout` is
    the deadline of the whole copy.
 4. Upload: write `.NAME.podssh-RANDOM.part` beside the destination, created
@@ -154,8 +154,8 @@ leave a short or wrong file under the destination's name.
    and names both digests.
 10. Same commit: the `cp` row of `VERB_OWNER`
     (`crates/podssh-cli/src/flags.rs:454`) goes and `DISPATCHED`
-    (`crates/podssh-cli/tests/flag_table.rs:95`) gets `cp`; update
-    `crates/podssh-cli/tests/binary_streams.rs:179-193`, the manual,
+    (`crates/podssh-cli/tests/flag_table.rs:92-93`) gets `cp`; update
+    `crates/podssh-cli/tests/binary_streams.rs:169-180`, the manual,
     `docs/cli.md` and `docs/STATUS.md:51`.
 
 ## Decision
@@ -209,7 +209,7 @@ a script expects, and its login shell may not be a POSIX shell.
   5 MB down through the relay (`docs/STATUS.md:66`).
 - Read: a command goes as one string, never as a shell request
   (`crates/podssh-ssh/src/options.rs:63-64`), with no pty when stdin is not
-  a terminal (`crates/podssh-ssh/src/session.rs:35-45`).
+  a terminal (`crates/podssh-ssh/src/session.rs:33-43`).
 - Read: the gate's Dropbear has no SFTP setting (`scripts/interop.sh:82-84`);
   whether it finds an `sftp-server` is not measured.
 - Not measured: the login shell runs the command, so a start-up file that
@@ -291,7 +291,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
   (T-140), a later write can land while an earlier one fails.
 - Read: the cache directories keep private files of mode 0600
   (`crates/podssh-relay/src/cache.rs:59-73`,
-  `crates/podssh-relay/src/cache.rs:128-154`).
+  `crates/podssh-relay/src/cache.rs:132-158`).
 - Read: after a drop, the relay closes the target's TCP connection within
   15 s (`docs/design.md:191-194`), so a far `cat` can write for a while.
 
@@ -307,7 +307,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
    size and mtime are the same; else start over and say so.
 3. Invariant: the attempts are bounded. At most 5 in a row with no new
    acknowledged byte, with `podssh_relay::open::backoff`
-   (`crates/podssh-relay/src/open.rs:267-275`). Stop at once on a refused
+   (`crates/podssh-relay/src/open.rs:268-276`). Stop at once on a refused
    authentication, a changed host key, a policy refusal or the `--timeout`
    deadline.
 4. Across runs: the same command continues when the side file matches the
@@ -379,7 +379,7 @@ old writer can race the new one.
   `crates/podssh-ssh/src/relay_stream.rs:120-124`). Each new SSH
   connection asks again for a passphrase or a password
   (`crates/podssh-ssh/src/keys.rs:184-220`,
-  `crates/podssh-ssh/src/auth.rs:208-229`).
+  `crates/podssh-ssh/src/auth.rs:206-227`).
 
 ## Approach
 
@@ -387,7 +387,7 @@ old writer can race the new one.
    ways; 11 h 30 min) go in `crates/podssh-relay/src/relay.rs`, beside
    `RELAY_IDLE_SECS`. A variable `PODSSH_SESSION_BUDGET` can lower the byte
    budget (a relay with smaller caps, the tests), never raise it; add it to
-   `crates/podssh-cli/src/man/facts.rs:45-90`.
+   `crates/podssh-cli/src/man/facts.rs:45-109`.
 2. Count the payload bytes both ways in the relay stream (an atomic counter
    beside `RelayStatus`), and keep the session's start time.
 3. Invariant: no session passes a budget. Before a data request that would
@@ -400,7 +400,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:103-192`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:122-211`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -527,8 +527,8 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
   `sftp`; one table cannot hold both, as `-P` showed for `ssh` and `cp`
   (`crates/podssh-cli/src/tree.rs:7-12`). Tests pin the names
   (`crates/podssh-cli/tests/tree.rs:48`,
-  `crates/podssh-cli/tests/plants.rs:231-241`,
-  `crates/podssh-cli/src/suggest.rs:317-318`).
+  `crates/podssh-cli/tests/plants.rs:209-216`,
+  `crates/podssh-cli/src/suggest.rs:310-311`).
 
 ## Approach
 
@@ -553,7 +553,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
    `rm`, `mkdir`, `rmdir`, `ls`, `cd`, `lcd`, `pwd`, `lpwd`, `chmod`, `df`,
    `bye`; a leading `-` goes on after an error. The same commands at a
    prompt on a terminal; with no terminal and no `-b`, exit 64.
-6. Same commit: `crates/podssh-cli/src/help.rs:221-260`, the manual and its
+6. Same commit: `crates/podssh-cli/src/help.rs:202-241`, the manual and its
    examples, `docs/cli.md`.
 
 ## Decision
@@ -786,7 +786,7 @@ this entry, so that it is never a flag that does nothing.
 ## Premise
 
 - Read: `-r` is supported in `crates/podssh-cli/src/flags.rs:251-252`, and
-  nothing reads it (`crates/podssh-cli/src/tree.rs:360-376`).
+  nothing reads it (`crates/podssh-cli/src/tree.rs:350-364`).
 - Read: SFTP version 3 has `OPENDIR`, `READDIR`, `MKDIR`, `LSTAT`,
   `READLINK` and `SYMLINK`.
 - Not verified here: OpenSSH's `scp` once wrote files that a malicious
@@ -907,7 +907,7 @@ uplink of a shared host.
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
   (`crates/podssh-cli/src/flags.rs:255-256`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
-  (`crates/podssh-ssh/src/io.rs:229-265`); no copy code exists yet.
+  (`crates/podssh-ssh/src/io.rs:229-262`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
   `-l limit`. OpenSSH's manual gives the unit as Kbit/s (not read here).
 
@@ -967,7 +967,7 @@ owner, hard links, the holes of sparse files) is lost with no word.
 ## Premise
 
 - Read: `-p` is supported in `crates/podssh-cli/src/flags.rs:247-248`, and
-  nothing reads it (`crates/podssh-cli/src/tree.rs:360-376`).
+  nothing reads it (`crates/podssh-cli/src/tree.rs:350-364`).
 - Read: the attributes of SFTP version 3 carry the size, uid, gid,
   permissions, atime and mtime; no ctime.
 - Measured (T-133's offline probe): OpenSSH's server offers
@@ -1143,9 +1143,9 @@ host, and the copy back then destroys that change with no word.
 - Read: podssh starts another program only when the user names it or a
   probe found it (`AGENTS.md` rule 3). `podssh man` finds `less` with a
   probe (`crates/podssh-cli/src/pager.rs:96`) and runs it with
-  `run_program` (`crates/podssh-cli/src/pager.rs:137`).
+  `run_program` (`crates/podssh-cli/src/pager.rs:134`).
 - Read: `VISUAL` and `EDITOR` are not in the manual's variables
-  (`crates/podssh-cli/src/man/facts.rs:45-90`).
+  (`crates/podssh-cli/src/man/facts.rs:45-109`).
 - Read: the relay cuts a session after 180 s with no payload
   (`crates/podssh-relay/src/relay.rs:19-21`); an editor stays open longer.
 

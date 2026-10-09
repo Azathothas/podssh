@@ -28,8 +28,7 @@ pub mod tls;
 
 pub use client::{
     connect, doctor, https_get, https_post_json, ConnectError, Endpoint, WsClientConfig, DEFAULT_IDLE_TIMEOUT,
-    LIVENESS_ALLOWED, LIVENESS_EVERY,
-    DEFAULT_TIMEOUT,
+    DEFAULT_TIMEOUT, LIVENESS_ALLOWED, LIVENESS_EVERY,
 };
 pub use dial::{DialError, HttpProxy, ProxyChoice};
 pub use error::{SessionError, Verdict, WsError};

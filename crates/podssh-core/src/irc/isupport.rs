@@ -113,10 +113,7 @@ impl Isupport {
         let raw = self.get("CHANMODES")?;
         let mut parts = raw.split(',');
         let list = |part: Option<&str>| -> Vec<char> {
-            part.unwrap_or("")
-                .chars()
-                .filter(|c| !c.is_ascii_whitespace())
-                .collect()
+            part.unwrap_or("").chars().filter(|c| !c.is_ascii_whitespace()).collect()
         };
         Some(ChanModes {
             address: list(parts.next()),
@@ -242,9 +239,7 @@ impl PrefixModes {
     /// examined — `bo+b` is a nick, not an op.
     pub fn split_prefix<'a>(&self, entry: &'a str) -> (Option<char>, &'a str) {
         match entry.chars().next() {
-            Some(c) if self.prefixes.contains(&c) => {
-                (Some(c), &entry[c.len_utf8()..])
-            }
+            Some(c) if self.prefixes.contains(&c) => (Some(c), &entry[c.len_utf8()..]),
             _ => (None, entry),
         }
     }

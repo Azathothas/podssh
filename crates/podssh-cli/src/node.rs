@@ -123,10 +123,9 @@ fn finish(label: &str, exit: Exit, err: &mut dyn Write) -> i32 {
             let _ = writeln!(err, "podssh node: {label}: stopped");
             return 0;
         }
-        Exit::NameInUse => (
-            Fault::RelayUnreachable,
-            "another node serves this pair (409); a pair has one node at a time".to_string(),
-        ),
+        Exit::NameInUse => {
+            (Fault::RelayUnreachable, "another node serves this pair (409); a pair has one node at a time".to_string())
+        }
         Exit::PairStopped => (Fault::Revoked, format!("the pair was stopped on the relay; {remedy}")),
         Exit::PairExpired => (Fault::PairExpired, format!("the pair expired; {remedy}")),
         Exit::Forbidden => {

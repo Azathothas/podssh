@@ -106,7 +106,9 @@ async fn input_before_ready_is_kept_then_sent_in_order() {
 
 #[tokio::test]
 async fn each_close_after_ready_but_1000_is_a_failure_with_its_code_and_reason() {
-    for (code, reason) in [(1008, "wait for ready"), (1003, "binary frames required"), (1009, "frame byte cap"), (1000, "session ended")] {
+    for (code, reason) in
+        [(1008, "wait for ready"), (1003, "binary frames required"), (1009, "frame byte cap"), (1000, "session ended")]
+    {
         let (mut relay, _local, task) = start(limits());
         relay.send(frame::OPCODE_TEXT, ready().as_bytes()).await;
         relay.close(code, reason).await;
@@ -148,7 +150,10 @@ async fn more_input_than_the_queue_before_ready_fails() {
         local
     });
     let got = outcome(task).await;
-    assert!(matches!(&got, Outcome::NeverReady { reason, .. } if reason.contains("before the node was ready")), "{got:?}");
+    assert!(
+        matches!(&got, Outcome::NeverReady { reason, .. } if reason.contains("before the node was ready")),
+        "{got:?}"
+    );
     drop(writer);
 }
 

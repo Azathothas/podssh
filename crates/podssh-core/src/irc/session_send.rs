@@ -29,10 +29,7 @@ impl Session {
         let message = Message {
             tags: Vec::new(),
             prefix: None,
-            command: Command::Privmsg {
-                target: Middle(target.to_string()),
-                text: Trailing::new(text),
-            },
+            command: Command::Privmsg { target: Middle(target.to_string()), text: Trailing::new(text) },
         };
         let bytes = message.to_wire().len();
         if !fits_in_allowed_line(&message) {
@@ -58,10 +55,7 @@ impl Session {
         vec![Message {
             tags: Vec::new(),
             prefix: None,
-            command: Command::Part {
-                channels: vec![Middle(channel.to_string())],
-                reason: reason.map(Trailing::new),
-            },
+            command: Command::Part { channels: vec![Middle(channel.to_string())], reason: reason.map(Trailing::new) },
         }]
     }
 
@@ -97,11 +91,6 @@ impl Session {
     /// removes it from every channel, so the rejoin is a race the user wins
     /// only sometimes.
     pub fn quit(reason: &str) -> Message {
-        Message {
-            tags: Vec::new(),
-            prefix: None,
-            command: Command::Quit { reason: Some(Trailing::new(reason)) },
-        }
+        Message { tags: Vec::new(), prefix: None, command: Command::Quit { reason: Some(Trailing::new(reason)) } }
     }
 }
-

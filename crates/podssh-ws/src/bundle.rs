@@ -32,9 +32,8 @@ pub fn executable_path() -> Result<PathBuf, String> {
 /// The default bundle path: beside the executable, named [`BUNDLE_FILE_NAME`].
 pub fn default_bundle_path() -> Result<PathBuf, String> {
     let exe = executable_path()?;
-    let dir = exe.parent().ok_or_else(|| {
-        format!("{} has no parent directory to hold {BUNDLE_FILE_NAME}", exe.display())
-    })?;
+    let dir =
+        exe.parent().ok_or_else(|| format!("{} has no parent directory to hold {BUNDLE_FILE_NAME}", exe.display()))?;
     Ok(dir.join(BUNDLE_FILE_NAME))
 }
 
@@ -52,17 +51,10 @@ pub fn load_bundle(path: &Path) -> Result<Vec<CertificateDer<'static>>, String> 
 /// to nothing is a configuration error that must never read as a loaded
 /// bundle — an empty `RootCertStore` would reject every chain with a message
 /// that looks like a network fault.
-pub fn parse_bundle(
-    path: &Path,
-    bytes: &[u8],
-) -> Result<Vec<CertificateDer<'static>>, String> {
-    let certs = pem_certificates(bytes)
-        .map_err(|why| format!("{}: {why}", path.display()))?;
+pub fn parse_bundle(path: &Path, bytes: &[u8]) -> Result<Vec<CertificateDer<'static>>, String> {
+    let certs = pem_certificates(bytes).map_err(|why| format!("{}: {why}", path.display()))?;
     if certs.is_empty() {
-        return Err(format!(
-            "{}: parsed as PEM but held no CERTIFICATE block",
-            path.display()
-        ));
+        return Err(format!("{}: parsed as PEM but held no CERTIFICATE block", path.display()));
     }
     Ok(certs)
 }
@@ -118,10 +110,7 @@ pub fn pem_certificates(bytes: &[u8]) -> Result<Vec<CertificateDer<'static>>, St
 /// which would also treat a non-ASCII byte as whitespace and let a mangled
 /// bundle decode to something plausible.
 fn strip_whitespace(input: &str) -> String {
-    input
-        .chars()
-        .filter(|c| !matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0b' | '\x0c'))
-        .collect()
+    input.chars().filter(|c| !matches!(c, ' ' | '\t' | '\r' | '\n' | '\x0b' | '\x0c')).collect()
 }
 
 /// ⛔ Standard base64 with padding, rejecting anything else. A trust bundle is

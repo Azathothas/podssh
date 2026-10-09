@@ -120,11 +120,7 @@ impl Session {
     /// changes. ⛔ A session that re-derived it per keypress would report a
     /// different answer the moment the environment did, and the `pty-req` it was
     /// sent is not the one it would then be describing.
-    pub fn with_term(
-        pty_granted: bool,
-        remote_is_shell: bool,
-        term: (String, TermChoice),
-    ) -> Session {
+    pub fn with_term(pty_granted: bool, remote_is_shell: bool, term: (String, TermChoice)) -> Session {
         Session {
             mode: Mode::from_grant(pty_granted, remote_is_shell),
             cooked: Discipline::new(),

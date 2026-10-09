@@ -8,7 +8,6 @@
 use std::fmt;
 use std::sync::Arc;
 
-
 use p256::ecdsa::signature::Verifier;
 use p256::ecdsa::{Signature, VerifyingKey};
 use rustls::crypto::WebPkiSupportedAlgorithms;
@@ -54,14 +53,8 @@ static SUPPORTED_SIG_ALGS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms
     // intermediate are on it — a client that dropped it would fail on the
     // next certificate the edge serves.
     mapping: &[
-        (
-            SignatureScheme::ECDSA_NISTP384_SHA384,
-            &[ECDSA_P384_SHA384, ECDSA_P256_SHA256],
-        ),
-        (
-            SignatureScheme::ECDSA_NISTP256_SHA256,
-            &[ECDSA_P256_SHA256, ECDSA_P384_SHA384],
-        ),
+        (SignatureScheme::ECDSA_NISTP384_SHA384, &[ECDSA_P384_SHA384, ECDSA_P256_SHA256]),
+        (SignatureScheme::ECDSA_NISTP256_SHA256, &[ECDSA_P256_SHA256, ECDSA_P384_SHA384]),
         (SignatureScheme::ED25519, &[ED25519]),
         // TLS 1.3 signs the handshake with RSA-PSS only (RFC 8446 4.2.3).
         (SignatureScheme::RSA_PSS_SHA256, &[rsa_sig::RSA_PSS_SHA256]),
@@ -80,19 +73,12 @@ pub fn signature_algorithms() -> WebPkiSupportedAlgorithms {
 pub struct EcdsaP384Sha384;
 
 impl SignatureVerificationAlgorithm for EcdsaP384Sha384 {
-    fn verify_signature(
-        &self,
-        public_key: &[u8],
-        message: &[u8],
-        signature: &[u8],
-    ) -> Result<(), InvalidSignature> {
+    fn verify_signature(&self, public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
         // ⛔ **The same key shape rule as P-256, and it is repeated rather than
         // shared because each names a different crate type.** A generic helper
         // over "an EC curve" would need a trait these two crates do not share.
-        let key = p384::ecdsa::VerifyingKey::from_sec1_bytes(public_key)
-            .map_err(|_| InvalidSignature)?;
-        let sig = p384::ecdsa::Signature::from_der(signature)
-            .map_err(|_| InvalidSignature)?;
+        let key = p384::ecdsa::VerifyingKey::from_sec1_bytes(public_key).map_err(|_| InvalidSignature)?;
+        let sig = p384::ecdsa::Signature::from_der(signature).map_err(|_| InvalidSignature)?;
         use p384::ecdsa::signature::Verifier as _;
         // ⛔ `Verifier` hashes with P-384's default digest, SHA-384, which is
         // exactly the `ecdsa-with-SHA384` this algorithm declares. Pairing
@@ -116,12 +102,7 @@ impl SignatureVerificationAlgorithm for EcdsaP384Sha384 {
 pub struct EcdsaP256Sha256;
 
 impl SignatureVerificationAlgorithm for EcdsaP256Sha256 {
-    fn verify_signature(
-        &self,
-        public_key: &[u8],
-        message: &[u8],
-        signature: &[u8],
-    ) -> Result<(), InvalidSignature> {
+    fn verify_signature(&self, public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
         // ⛔ **The EC point, with its SEC1 `0x04` tag.** ⛔ `from_sec1_bytes`
         // parses the whole `ECPoint`, tag included, so a bare 64-byte
         // coordinate pair is refused and the refusal is indistinguishable from
@@ -172,12 +153,7 @@ impl SignatureVerificationAlgorithm for EcdsaP256Sha256 {
 pub struct Ed25519Verify;
 
 impl SignatureVerificationAlgorithm for Ed25519Verify {
-    fn verify_signature(
-        &self,
-        public_key: &[u8],
-        message: &[u8],
-        signature: &[u8],
-    ) -> Result<(), InvalidSignature> {
+    fn verify_signature(&self, public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
         use ed25519_dalek::Verifier as _;
         // ⛔ `from_bytes` takes the 32-byte raw key, and the signature is the
         // raw 64-byte `R || s`, not a DER SEQUENCE. DER-wrapping either is the
@@ -185,12 +161,9 @@ impl SignatureVerificationAlgorithm for Ed25519Verify {
         // lengths are checked rather than converted, because a `try_into` that
         // pads a short key would turn a malformed SPKI into a valid-looking
         // verification attempt.
-        let key_bytes: &[u8; 32] = public_key
-            .try_into()
-            .map_err(|_| InvalidSignature)?;
+        let key_bytes: &[u8; 32] = public_key.try_into().map_err(|_| InvalidSignature)?;
         let key = ed25519_dalek::VerifyingKey::from_bytes(key_bytes).map_err(|_| InvalidSignature)?;
-        let sig = ed25519_dalek::Signature::from_slice(signature)
-            .map_err(|_| InvalidSignature)?;
+        let sig = ed25519_dalek::Signature::from_slice(signature).map_err(|_| InvalidSignature)?;
         key.verify(message, &sig).map_err(|_| InvalidSignature)
     }
 
@@ -222,8 +195,6 @@ impl rustls::crypto::KeyProvider for NoClientKeys {
         &self,
         _key_der: rustls_pki_types::PrivateKeyDer<'static>,
     ) -> Result<Arc<dyn rustls::sign::SigningKey>, rustls::Error> {
-        Err(rustls::Error::General(
-            "podssh is a client and holds no private keys".into(),
-        ))
+        Err(rustls::Error::General("podssh is a client and holds no private keys".into()))
     }
 }

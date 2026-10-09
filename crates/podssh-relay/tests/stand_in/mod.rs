@@ -135,12 +135,7 @@ impl StandIn {
     /// Answer the next upgrade with 101: its head, and the session.
     pub fn accept(&self) -> (String, Peer) {
         let (head, mut tcp) = self.head();
-        let key = head
-            .lines()
-            .find_map(|l| l.strip_prefix("Sec-WebSocket-Key: "))
-            .expect("a key")
-            .trim()
-            .to_string();
+        let key = head.lines().find_map(|l| l.strip_prefix("Sec-WebSocket-Key: ")).expect("a key").trim().to_string();
         let accept = podssh_ws::handshake::accept_key(&key);
         write!(
             tcp,
@@ -153,7 +148,8 @@ impl StandIn {
     /// Answer the next upgrade with `status` and `body`, as the relay refuses.
     pub fn refuse(&self, status: u16, body: &str) {
         let (_, mut tcp) = self.head();
-        write!(tcp, "HTTP/1.1 {status} Refused\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+        write!(tcp, "HTTP/1.1 {status} Refused\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len())
+            .unwrap();
     }
 }
 

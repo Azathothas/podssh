@@ -210,7 +210,12 @@ fn jump_hosts_transport_and_family() {
 /// address of the other family is refused (GitHub #2).
 #[test]
 fn ipv6_literals_resolve_through_the_relay_in_every_form() {
-    for (dest, port) in [("u@[2001:db8::1]:8079", 8079), ("u@2001:db8::1", 22), ("ssh://u@[2001:db8::1]:8079", 8079), ("[2001:db8::1]", 22)] {
+    for (dest, port) in [
+        ("u@[2001:db8::1]:8079", 8079),
+        ("u@2001:db8::1", 22),
+        ("ssh://u@[2001:db8::1]:8079", 8079),
+        ("[2001:db8::1]", 22),
+    ] {
         let r = resolve(&ssh(&[dest]), &env()).unwrap_or_else(|e| panic!("{dest}: {e}"));
         assert_eq!((r.options.destination.host.as_str(), r.options.destination.port), ("2001:db8::1", port), "{dest}");
         assert!(matches!(r.transport, Transport::Relay { .. }), "{dest}");
@@ -257,13 +262,25 @@ fn keepalives_off_over_the_relay_earn_a_note() {
 #[test]
 fn percent_tokens_follow_openssh() {
     let spec = "IdentityFile=/k/%%-%C-%d-%h-%i-%j-%k-%L-%l-%n-%p-%r-%u";
-    let w = ["-l", "remoteuser", "-p", "2222", "-o", "HostKeyAlias=Alias.Example", "-J", "jumper@hop1,hop2:2200", "-o", spec];
+    let w = [
+        "-l",
+        "remoteuser",
+        "-p",
+        "2222",
+        "-o",
+        "HostKeyAlias=Alias.Example",
+        "-J",
+        "jumper@hop1,hop2:2200",
+        "-o",
+        spec,
+    ];
     let r = resolve(&ssh(&[&w[..], &["Example.ORG"]].concat()), &env()).unwrap();
     let want = "/k/%-9c9441f6660e716bc6dd049d1527c271ae5761c4-/home/u-example.org-1000-hop2-alias.example-box-\
                 box.example.org-Example.ORG-2222-remoteuser-envuser";
     assert_eq!(r.options.identity_files, vec![PathBuf::from(want)]);
     // The same tokens in the other paths.
-    let r = resolve(&ssh(&["-o", "UserKnownHostsFile=/kh/%u-%r", "-o", "IdentityAgent=/a/%i", "bob@host"]), &env()).unwrap();
+    let r = resolve(&ssh(&["-o", "UserKnownHostsFile=/kh/%u-%r", "-o", "IdentityAgent=/a/%i", "bob@host"]), &env())
+        .unwrap();
     assert_eq!(r.options.user_known_hosts, vec![PathBuf::from("/kh/envuser-bob")]);
     assert_eq!(r.options.agent, Agent::Path(PathBuf::from("/a/1000")));
     // An unknown token is refused before anything connects, with exit 64.
@@ -317,7 +334,9 @@ fn node_destinations() {
         assert_eq!(r.options.destination.host, "node://lab", "{dest}: messages and known hosts name the node so");
         assert_eq!(r.options.user, user, "{dest}");
         match &r.transport {
-            Transport::Node { label, pair_file, .. } => assert_eq!((label.as_str(), pair_file), ("lab", &None), "{dest}"),
+            Transport::Node { label, pair_file, .. } => {
+                assert_eq!((label.as_str(), pair_file), ("lab", &None), "{dest}")
+            }
             other => panic!("{dest}: {other:?}"),
         }
     }

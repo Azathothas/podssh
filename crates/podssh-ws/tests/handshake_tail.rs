@@ -32,11 +32,7 @@ fn response_for(key: &str) -> String {
 
 /// ⛔ A server frame, unmasked, so it is exactly what the relay writes.
 fn server_frame(payload: &[u8]) -> Vec<u8> {
-    frame::encode(
-        &Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: payload.to_vec() },
-        Role::Server,
-        [0; 4],
-    )
+    frame::encode(&Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: payload.to_vec() }, Role::Server, [0; 4])
 }
 
 /// ⛔ **A stream whose reads are scripted, and which records its writes.** When
@@ -113,9 +109,7 @@ async fn a_frame_coalesced_with_the_101_is_returned_and_not_dropped() {
     let tail = read_response(&mut stream, KEY).await.expect("a valid 101");
 
     assert_eq!(tail, first, "the frame behind the header terminator is the caller's");
-    let (decoded, used) = frame::decode(&tail, Role::Server)
-        .expect("it is a whole frame")
-        .expect("and it is complete");
+    let (decoded, used) = frame::decode(&tail, Role::Server).expect("it is a whole frame").expect("and it is complete");
     assert_eq!(decoded.payload, b"first");
     assert_eq!(used, tail.len(), "nothing is left over here");
 }
@@ -147,9 +141,8 @@ async fn the_handshake_hands_the_tail_to_its_caller() {
     // ⛔ The real entry point, with the real request: the tail has to survive
     // `handshake` as well as `read_response`, or `connect` has nothing to store.
     let mut stream = Scripted::answering(server_frame(b"behind"));
-    let (_, tail) = handshake::handshake(&mut stream, "relay.example:443", "/connect/h/p", "tok")
-        .await
-        .expect("a valid 101");
+    let (_, tail) =
+        handshake::handshake(&mut stream, "relay.example:443", "/connect/h/p", "tok").await.expect("a valid 101");
     assert_eq!(tail, server_frame(b"behind"));
 }
 
@@ -191,10 +184,7 @@ fn a_ping_becomes_a_pong_that_echoes_its_payload() {
     let mut buf = ping;
     buf.extend_from_slice(&server_frame(b"after"));
 
-    assert_eq!(
-        next_event(&mut buf).expect("a decodable ping"),
-        Some(Event::Pong(b"keepalive".to_vec()))
-    );
+    assert_eq!(next_event(&mut buf).expect("a decodable ping"), Some(Event::Pong(b"keepalive".to_vec())));
     let Some(Event::Frame(frame)) = next_event(&mut buf).expect("the data still follows") else {
         panic!("the frame after a Ping must still arrive");
     };
@@ -239,11 +229,8 @@ async fn read_frame_answers_a_ping_with_a_masked_pong() {
 /// written is a Close 1002 (§7.1.7), never a Pong.
 #[tokio::test]
 async fn read_frame_refuses_an_oversized_ping_with_a_close_1002() {
-    let bytes = frame::encode(
-        &Frame { fin: true, opcode: frame::OPCODE_PING, payload: vec![0x5a; 126] },
-        Role::Server,
-        [0; 4],
-    );
+    let bytes =
+        frame::encode(&Frame { fin: true, opcode: frame::OPCODE_PING, payload: vec![0x5a; 126] }, Role::Server, [0; 4]);
     let mut stream = Scripted::chunks(vec![bytes]);
     let mut pending = Vec::new();
     let mut close_received = false;
@@ -261,11 +248,8 @@ async fn read_frame_refuses_an_oversized_ping_with_a_close_1002() {
 /// Ping is not answered.
 #[tokio::test]
 async fn read_frame_does_not_answer_a_ping_after_a_close() {
-    let mut bytes = frame::encode(
-        &Frame { fin: true, opcode: frame::OPCODE_CLOSE, payload: Vec::new() },
-        Role::Server,
-        [0; 4],
-    );
+    let mut bytes =
+        frame::encode(&Frame { fin: true, opcode: frame::OPCODE_CLOSE, payload: Vec::new() }, Role::Server, [0; 4]);
     bytes.extend_from_slice(&frame::encode(
         &Frame { fin: true, opcode: frame::OPCODE_PING, payload: b"again".to_vec() },
         Role::Server,
@@ -286,9 +270,5 @@ async fn read_frame_does_not_answer_a_ping_after_a_close() {
         .await
         .expect("the data frame still arrives");
     assert_eq!(frame.payload, b"after");
-    assert!(
-        stream.written.is_empty(),
-        "a Ping after a Close may not be answered: {:02x?}",
-        stream.written
-    );
+    assert!(stream.written.is_empty(), "a Ping after a Close may not be answered: {:02x?}", stream.written);
 }

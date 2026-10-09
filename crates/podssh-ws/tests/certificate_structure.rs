@@ -16,7 +16,7 @@ mod walk {
     include!("common/spki_walk.rs");
 }
 
-use walk::{sec1_point, spki_point, signature_of, tbs_tlv_of};
+use walk::{sec1_point, signature_of, spki_point, tbs_tlv_of};
 
 use cert::encoding::{der_length_covers_the_certificate, self_signed};
 
@@ -60,11 +60,7 @@ fn each_certificate_verifies_under_the_key_that_signed_it() {
         let sig = signature_of(&cert.der);
         // The key the builder used: for an anchor, its own; for a leaf, the
         // anchor's, which is `key_scalar("{name}-anchor", true)`.
-        let signer = if is_ca {
-            role_key(name, true)
-        } else {
-            role_key(&format!("{name}-anchor"), true)
-        };
+        let signer = if is_ca { role_key(name, true) } else { role_key(&format!("{name}-anchor"), true) };
         let point = signer.verifying_key().to_encoded_point(false);
         let spki_published = &spki_point(&cert.der)[1..];
         eprintln!(
@@ -81,16 +77,12 @@ fn each_certificate_verifies_under_the_key_that_signed_it() {
             podssh_ws::crypto::sign::ECDSA_P256_SHA256
                 .verify_signature(point.as_bytes(), &tbs, fresh.to_der().as_bytes())
                 .is_ok(),
-            podssh_ws::crypto::sign::ECDSA_P256_SHA256
-                .verify_signature(point.as_bytes(), &tbs, &sig)
-                .is_ok(),
+            podssh_ws::crypto::sign::ECDSA_P256_SHA256.verify_signature(point.as_bytes(), &tbs, &sig).is_ok(),
             p256::ecdsa::Signature::from_der(&sig).is_ok()
         );
 
         assert!(
-            podssh_ws::crypto::sign::ECDSA_P256_SHA256
-                .verify_signature(point.as_bytes(), &tbs, &sig)
-                .is_ok(),
+            podssh_ws::crypto::sign::ECDSA_P256_SHA256.verify_signature(point.as_bytes(), &tbs, &sig).is_ok(),
             "⛔ {name}: does not verify. tbs {} bytes head {}, signature {} bytes \
              head {}",
             tbs.len(),
@@ -116,9 +108,7 @@ fn podsshs_ecdsa_verifier_accepts_a_directly_made_signature() {
 
     let der = sig.to_der();
     assert!(
-        podssh_ws::crypto::sign::ECDSA_P256_SHA256
-            .verify_signature(point.as_bytes(), message, der.as_bytes())
-            .is_ok(),
+        podssh_ws::crypto::sign::ECDSA_P256_SHA256.verify_signature(point.as_bytes(), message, der.as_bytes()).is_ok(),
         "⛔ podssh's ECDSA verifier rejects a valid signature from the p256 crate: \
          the verifier, not the certificate builder, is what is broken"
     );
@@ -167,9 +157,7 @@ fn signing_the_tbs_as_a_message_verifies_and_prehashing_it_does_not() {
     let prehashed_digest_info = digest_info(&tbs);
     let double: Signature = key.sign(&prehashed_digest_info);
     assert!(
-        podssh_ws::crypto::sign::ECDSA_P256_SHA256
-            .verify_signature(&point, &tbs, double.to_der().as_bytes())
-            .is_err(),
+        podssh_ws::crypto::sign::ECDSA_P256_SHA256.verify_signature(&point, &tbs, double.to_der().as_bytes()).is_err(),
         "⛔ a signature made over a pre-wrapped DigestInfo should NOT verify \
          against the raw tbs; if it does, this test proves nothing"
     );
@@ -187,9 +175,7 @@ fn signing_the_tbs_as_a_message_verifies_and_prehashing_it_does_not() {
 fn the_anchor_spkis_own_key_is_the_key_that_signed_it() {
     for name in ["right.example", "wrong.example"] {
         let anchor = cert::encoding::self_signed_inner(&format!("{name}-anchor"), true);
-        let expected = role_key(&format!("{name}-anchor"), true)
-            .verifying_key()
-            .to_encoded_point(false);
+        let expected = role_key(&format!("{name}-anchor"), true).verifying_key().to_encoded_point(false);
         assert_eq!(
             hex(&spki_point(&anchor.der)[1..]),
             hex(expected.as_bytes()),
@@ -212,10 +198,7 @@ fn the_leaf_publishes_its_own_key_while_its_issuer_signs_it() {
 
         assert_eq!(
             hex(&spki_point(&leaf.der)[1..]),
-            hex(role_key(name, false)
-                .verifying_key()
-                .to_encoded_point(false)
-                .as_bytes()),
+            hex(role_key(name, false).verifying_key().to_encoded_point(false).as_bytes()),
             "⛔ {name}: the leaf's SPKI is not the leaf's own key"
         );
         assert_ne!(

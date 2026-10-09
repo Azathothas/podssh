@@ -341,7 +341,8 @@ impl Client {
             idle_timeout: Some(podssh_ws::client::DEFAULT_IDLE_TIMEOUT),
             proxy: ProxyChoice::Direct,
         };
-        let socket = self.block_on(reverse::wire::open(Wire::PlainLoopback, &config, token))?.map_err(Error::Connect)?;
+        let socket =
+            self.block_on(reverse::wire::open(Wire::PlainLoopback, &config, token))?.map_err(Error::Connect)?;
         Ok(Forward::new(self, socket, relay.clone(), Vec::new()))
     }
 }

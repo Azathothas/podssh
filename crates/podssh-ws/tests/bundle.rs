@@ -42,8 +42,7 @@ fn hex(bytes: &[u8]) -> String {
 /// like an untrusted issuer — cannot pass.
 #[test]
 fn plant_pem_decoding_is_byte_exact() {
-    let certs = bundle::pem_certificates(DIGICERT_ECC_ROOT_G5.as_bytes())
-        .expect("a single PEM certificate");
+    let certs = bundle::pem_certificates(DIGICERT_ECC_ROOT_G5.as_bytes()).expect("a single PEM certificate");
     assert_eq!(certs.len(), 1);
     // ⛔ A DER SEQUENCE, tag 0x30. The whole length follows; the point is that
     // the first byte is right, which a shifted decoder gets wrong.
@@ -82,7 +81,8 @@ fn text_between_blocks_is_ignored() {
 /// silently would hide that.
 #[test]
 fn a_private_key_block_is_not_read_as_a_certificate() {
-    let pem = "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg\n-----END PRIVATE KEY-----\n";
+    let pem =
+        "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg\n-----END PRIVATE KEY-----\n";
     let certs = bundle::pem_certificates(pem.as_bytes()).expect("an empty list is not an error");
     assert!(certs.is_empty(), "a private key was read as a certificate");
 }
@@ -116,8 +116,7 @@ fn plant_a_missing_ca_bundle_fails_and_names_the_path() {
             // naming the path is the whole point of this plant.
             assert_eq!(path, missing.display().to_string());
             assert!(
-                why.to_lowercase().contains("no such file")
-                    || why.to_lowercase().contains("cannot find"),
+                why.to_lowercase().contains("no such file") || why.to_lowercase().contains("cannot find"),
                 "the reason must name the OS error, got: {why}"
             );
         }
@@ -131,11 +130,7 @@ fn plant_a_missing_ca_bundle_fails_and_names_the_path() {
 #[tokio::test]
 async fn plant_a_missing_bundle_is_fail_in_the_doctor() {
     let config = WsClientConfig {
-        endpoint: Endpoint {
-            host: "relay.invalid".into(),
-            port: 443,
-            path: "/v1/connect/x".into(),
-        },
+        endpoint: Endpoint { host: "relay.invalid".into(), port: 443, path: "/v1/connect/x".into() },
         trust: podssh_ws::Trust::File(PathBuf::from("/nonexistent/podssh-ca.pem")),
         server_name: "relay.invalid".into(),
         timeout: std::time::Duration::from_millis(50),
@@ -143,23 +138,14 @@ async fn plant_a_missing_bundle_is_fail_in_the_doctor() {
         proxy: podssh_ws::ProxyChoice::Direct,
     };
     let report = podssh_ws::doctor(&config).await;
-    let bundle_line = report
-        .iter()
-        .find(|(name, _)| name == "trust store")
-        .expect("the doctor reports the bundle");
+    let bundle_line = report.iter().find(|(name, _)| name == "trust store").expect("the doctor reports the bundle");
 
     match &bundle_line.1 {
         Verdict::Failed { detail } => {
-            assert!(
-                detail.contains("podssh-ca.pem"),
-                "⛔ the failure must name the path it tried, got: {detail}"
-            );
+            assert!(detail.contains("podssh-ca.pem"), "⛔ the failure must name the path it tried, got: {detail}");
             assert_eq!(bundle_line.1.label(), "FAIL");
         }
-        other => panic!(
-            "a bundle that could not be read is FAIL, not {}: {other:?}",
-            other.label()
-        ),
+        other => panic!("a bundle that could not be read is FAIL, not {}: {other:?}", other.label()),
     }
 }
 
@@ -172,11 +158,7 @@ async fn plant_a_missing_bundle_is_fail_in_the_doctor() {
 #[tokio::test]
 async fn an_unattempted_handshake_is_unknown_never_ok() {
     let config = WsClientConfig {
-        endpoint: Endpoint {
-            host: "relay.invalid".into(),
-            port: 443,
-            path: "/v1/connect/x".into(),
-        },
+        endpoint: Endpoint { host: "relay.invalid".into(), port: 443, path: "/v1/connect/x".into() },
         trust: podssh_ws::Trust::File(PathBuf::from("/nonexistent/podssh-ca.pem")),
         server_name: "relay.invalid".into(),
         timeout: std::time::Duration::from_millis(50),
@@ -184,16 +166,10 @@ async fn an_unattempted_handshake_is_unknown_never_ok() {
         proxy: podssh_ws::ProxyChoice::Direct,
     };
     let report = podssh_ws::doctor(&config).await;
-    let handshake = report
-        .iter()
-        .find(|(name, _)| name == "TLS handshake")
-        .expect("the doctor reports the handshake");
+    let handshake = report.iter().find(|(name, _)| name == "TLS handshake").expect("the doctor reports the handshake");
 
     assert_eq!(handshake.1.label(), "????");
-    assert!(
-        !handshake.1.is_success(),
-        "⛔ a handshake that never ran must never count as a success"
-    );
+    assert!(!handshake.1.is_success(), "⛔ a handshake that never ran must never count as a success");
     match &handshake.1 {
         Verdict::Unknown { why } => {
             assert!(!why.is_empty(), "???? must say why");
@@ -241,11 +217,7 @@ fn the_default_bundle_path_is_beside_the_executable_and_absolute() {
     let bundle = bundle::default_bundle_path().expect("a bundle path");
 
     assert!(bundle.is_absolute(), "the bundle path must be absolute: {bundle:?}");
-    assert_eq!(
-        bundle.parent(),
-        exe.parent(),
-        "⛔ the bundle must sit beside the executable"
-    );
+    assert_eq!(bundle.parent(), exe.parent(), "⛔ the bundle must sit beside the executable");
     assert_eq!(bundle.file_name().unwrap(), bundle::BUNDLE_FILE_NAME);
 }
 
@@ -256,18 +228,11 @@ fn the_default_bundle_path_is_beside_the_executable_and_absolute() {
 #[tokio::test]
 async fn the_default_path_is_what_the_doctor_reports_when_it_is_absent() {
     let exe = std::env::current_exe().expect("a path");
-    let bundle = exe
-        .parent()
-        .expect("a parent")
-        .join("podssh-ca-not-installed-for-this-test.pem");
+    let bundle = exe.parent().expect("a parent").join("podssh-ca-not-installed-for-this-test.pem");
     assert!(!bundle.exists(), "the planted path must not exist");
 
     let config = WsClientConfig {
-        endpoint: Endpoint {
-            host: "relay.invalid".into(),
-            port: 443,
-            path: "/v1/connect/x".into(),
-        },
+        endpoint: Endpoint { host: "relay.invalid".into(), port: 443, path: "/v1/connect/x".into() },
         trust: podssh_ws::Trust::File(bundle.clone()),
         server_name: "relay.invalid".into(),
         timeout: std::time::Duration::from_millis(50),
@@ -275,10 +240,7 @@ async fn the_default_path_is_what_the_doctor_reports_when_it_is_absent() {
         proxy: podssh_ws::ProxyChoice::Direct,
     };
     let report = podssh_ws::doctor(&config).await;
-    let line = report
-        .iter()
-        .find(|(n, _)| n == "trust store")
-        .expect("a bundle line");
+    let line = report.iter().find(|(n, _)| n == "trust store").expect("a bundle line");
     assert_eq!(line.1.label(), "FAIL");
     match &line.1 {
         Verdict::Failed { detail } => {
@@ -296,12 +258,8 @@ async fn the_default_path_is_what_the_doctor_reports_when_it_is_absent() {
 #[test]
 fn a_pem_file_with_no_certificate_is_an_error() {
     let path = Path::new("/tmp/podssh-empty-bundle.pem");
-    let err = bundle::parse_bundle(path, b"# nothing but a comment\n")
-        .expect_err("a bundle with no certificate");
-    assert!(
-        err.contains("no CERTIFICATE block"),
-        "the message must say what was wrong, got: {err}"
-    );
+    let err = bundle::parse_bundle(path, b"# nothing but a comment\n").expect_err("a bundle with no certificate");
+    assert!(err.contains("no CERTIFICATE block"), "the message must say what was wrong, got: {err}");
 }
 
 /// ⛔ **A file that is not UTF-8 is an error.** A binary trust store is a
@@ -309,8 +267,7 @@ fn a_pem_file_with_no_certificate_is_an_error() {
 /// chain error forty seconds later.
 #[test]
 fn a_binary_file_is_not_a_bundle() {
-    let err = bundle::parse_bundle(Path::new("/tmp/x.pem"), &[0xff, 0xfe, 0x00, 0x01])
-        .expect_err("binary is not PEM");
+    let err = bundle::parse_bundle(Path::new("/tmp/x.pem"), &[0xff, 0xfe, 0x00, 0x01]).expect_err("binary is not PEM");
     assert!(err.contains("UTF-8"), "got {err}");
 }
 

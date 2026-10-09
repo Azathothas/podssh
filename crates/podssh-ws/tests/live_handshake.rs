@@ -28,9 +28,7 @@ const RELAY_PORT: u16 = 443;
 const TIMEOUT: Duration = Duration::from_secs(20);
 
 fn live_enabled() -> bool {
-    std::env::var("PODSSH_LIVE")
-        .map(|v| v != "0")
-        .unwrap_or(true)
+    std::env::var("PODSSH_LIVE").map(|v| v != "0").unwrap_or(true)
 }
 
 /// ⛔ **THE acceptance.** `podssh-ws`'s own pure-Rust `CryptoProvider` drives a
@@ -57,15 +55,11 @@ async fn a_real_handshake_with_the_live_relay_verifies_chain_and_hostname() {
     // ⛔ **The name is the relay's, and it is the name that gets verified.**
     // A test that connected by IP would prove the chain and not the hostname,
     // which is the half of E03 the entry says has no bypass.
-    let name = rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string())
-        .expect("a valid DNS name");
-    let tcp = tokio::time::timeout(
-        TIMEOUT,
-        tokio::net::TcpStream::connect(addr),
-    )
-    .await
-    .expect("???? the connect timed out — the container may have no egress")
-    .expect("???? the connect failed");
+    let name = rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a valid DNS name");
+    let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
+        .await
+        .expect("???? the connect timed out — the container may have no egress")
+        .expect("???? the connect failed");
 
     let stream = config.connect(name, tcp).await;
 
@@ -77,10 +71,7 @@ async fn a_real_handshake_with_the_live_relay_verifies_chain_and_hostname() {
             // hostname in that certificate matched. Each of those is a step
             // that fails loudly rather than silently succeeding.
             let (_, session) = tls.get_ref();
-            assert!(
-                !session.is_handshaking(),
-                "the handshake did not complete"
-            );
+            assert!(!session.is_handshaking(), "the handshake did not complete");
         }
         Err(e) => panic!(
             "FAIL the live handshake was rejected: {e}\n\
@@ -111,8 +102,7 @@ async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
     // reserved by RFC 2606 and is guaranteed never to appear in a public
     // certificate, so a successful handshake here would mean the name check
     // was not performed at all.
-    let wrong_name = rustls_pki_types::ServerName::try_from("podssh.invalid".to_string())
-        .expect("a valid DNS name");
+    let wrong_name = rustls_pki_types::ServerName::try_from("podssh.invalid".to_string()).expect("a valid DNS name");
     let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
         .await
         .expect("???? the connect timed out")
@@ -134,10 +124,7 @@ async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
             // ⛔ **What is asserted is the property that matters: the handshake
             // did not complete.** A warning, a log line, or a session that
             // opened under the wrong name all pass a text check and fail this.
-            assert!(
-                !text.is_empty(),
-                "a rejection must carry a reason, got an empty error"
-            );
+            assert!(!text.is_empty(), "a rejection must carry a reason, got an empty error");
         }
         Ok(_) => panic!(
             "⛔ PLANT FAILED TO FIRE: a handshake for podssh.invalid SUCCEEDED \
@@ -156,16 +143,11 @@ async fn the_control_the_right_hostname_is_accepted() {
         eprintln!("???? control not attempted: PODSSH_LIVE=0");
         return;
     }
-    let addr: SocketAddr = format!("{RELAY_HOST}:{RELAY_PORT}")
-        .to_socket_addrs_first()
-        .expect("resolve");
+    let addr: SocketAddr = format!("{RELAY_HOST}:{RELAY_PORT}").to_socket_addrs_first().expect("resolve");
     let config = Connector::new();
-    let name =
-        rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a name");
-    let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
-        .await
-        .expect("connect")
-        .expect("connect");
+    let name = rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a name");
+    let tcp =
+        tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr)).await.expect("connect").expect("connect");
     config
         .connect(name, tcp)
         .await
@@ -182,33 +164,25 @@ async fn the_negotiated_parameters_are_ones_this_provider_implements() {
         eprintln!("???? negotiation not observed: PODSSH_LIVE=0");
         return;
     }
-    let addr: SocketAddr = format!("{RELAY_HOST}:{RELAY_PORT}")
-        .to_socket_addrs_first()
-        .expect("resolve");
+    let addr: SocketAddr = format!("{RELAY_HOST}:{RELAY_PORT}").to_socket_addrs_first().expect("resolve");
     let config = Connector::new();
-    let name =
-        rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a name");
-    let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
-        .await
-        .expect("connect")
-        .expect("connect");
+    let name = rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a name");
+    let tcp =
+        tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr)).await.expect("connect").expect("connect");
     let tls = config.connect(name, tcp).await.expect("handshake");
     let (_, session) = tls.get_ref();
 
     // ⛔ `negotiated_cipher_suite` returns `Option<SupportedCipherSuite>`, and
     // `None` before the handshake completes is a different fact from a suite
     // this provider does not implement.
-    let suite = session
-        .negotiated_cipher_suite()
-        .expect("a completed TLS 1.3 handshake names a suite");
+    let suite = session.negotiated_cipher_suite().expect("a completed TLS 1.3 handshake names a suite");
     eprintln!("negotiated cipher suite: {:?}", suite.suite());
     // ⛔ **Only the two suites this provider offers.** Anything else means the
     // relay selected something `crypto/suites.rs` does not implement.
     assert!(
         matches!(
             suite.suite(),
-            rustls::CipherSuite::TLS13_AES_256_GCM_SHA384
-                | rustls::CipherSuite::TLS13_AES_128_GCM_SHA256
+            rustls::CipherSuite::TLS13_AES_256_GCM_SHA384 | rustls::CipherSuite::TLS13_AES_128_GCM_SHA256
         ),
         "⛔ the relay negotiated a suite this provider does not implement: {:?}",
         suite.suite()
@@ -217,19 +191,14 @@ async fn the_negotiated_parameters_are_ones_this_provider_implements() {
     // provider handed over**, not a name from the wire. That is the stronger
     // assertion: the relay chose one of the two objects in `crypto/kx.rs`, so
     // a group podssh cannot complete cannot appear here.
-    let group = session
-        .negotiated_key_exchange_group()
-        .expect("a TLS 1.3 handshake always names a group");
+    let group = session.negotiated_key_exchange_group().expect("a TLS 1.3 handshake always names a group");
     eprintln!("negotiated key exchange group: {:?}", group.name());
     assert!(
         matches!(group.name(), rustls::NamedGroup::X25519 | rustls::NamedGroup::secp256r1),
         "⛔ the relay negotiated a group this provider does not implement: {:?}",
         group.name()
     );
-    assert!(
-        session.peer_certificates().is_some(),
-        "⛔ no peer certificate: the chain was not verified"
-    );
+    assert!(session.peer_certificates().is_some(), "⛔ no peer certificate: the chain was not verified");
 }
 
 /// Each key exchange group alone completes a handshake with the relay, so
@@ -287,8 +256,7 @@ impl Connector {
     /// `tls::client_config` left this suite at 4 passed, exit 0.
     fn new() -> Self {
         let roots = tls::roots_from_compiled_set();
-        let config = podssh_ws::tls::client_config(&roots)
-            .expect("a config from a non-empty root store");
+        let config = podssh_ws::tls::client_config(&roots).expect("a config from a non-empty root store");
         Connector(tokio_rustls::TlsConnector::from(config))
     }
 

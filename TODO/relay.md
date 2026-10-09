@@ -44,7 +44,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
    is the one rule that already decides where a token may go.
 2. Use the key of the host in use at each place: the load and the store through `MintContext`
    (`crates/podssh-relay/src/token.rs` lines 84-112 at `2da855f`), the removal after a 403
-   (`crates/podssh-relay/src/open.rs:236-241`), and the token check of `doctor`
+   (`crates/podssh-relay/src/open.rs:237-242`), and the token check of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 142-165 at `2da855f`).
 3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:21-30`), with a
    serde default for old files. `doctor` says "a cached token minted at HOST (not shown)". Use
@@ -132,9 +132,9 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`crates/podssh-cli/src/flags.rs` lines 315-316 at `af0a163`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
 (`docs/relay.md:145-146`). The `health` function of `doctor`
-(`crates/podssh-cli/src/doctor/relay_checks.rs:82-137`) already makes a verified `/health`
+(`crates/podssh-cli/src/doctor/relay_checks.rs:82-138`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:117-135` fetches `/relays.json`. `https_get` sends no
-token header (`crates/podssh-ws/src/client.rs:278-289`); `https_request` takes headers (lines
+token header (`crates/podssh-ws/src/client.rs:271-282`); `https_request` takes headers (lines
 282-303).
 
 ## Approach
@@ -144,7 +144,7 @@ token header (`crates/podssh-ws/src/client.rs:278-289`); `https_request` takes h
 2. `relay info [HOST PORT]`: `/relays.json?host=&port=`, the pool and the limits, read with
    `crates/podssh-relay/src/pool.rs:92-113`.
 3. `relay spec`: the `/health` version and `/llms-full.txt`, checked against the pinned facts by
-   `verdict_from` (`crates/podssh-probe/src/relay_facts.rs:295-309`), or `--document FILE`.
+   `verdict_from` (`crates/podssh-probe/src/relay_facts.rs:275-289`), or `--document FILE`.
    This is T-060.
 4. `relay trace HOST PORT`: `/trace` with `banner=1`, the token in the header and never in the
    URL (`docs/relay.md:106-108`). Check HOST with `relay::check_host`
@@ -154,7 +154,7 @@ token header (`crates/podssh-ws/src/client.rs:278-289`); `https_request` takes h
    (T-049). Each request has the 10 s limit of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs:27`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs` line 442 at `af0a163`); change `DISPATCHED`, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:254`), the notes, `docs/relay.md:248-254` and
+   (`crates/podssh-cli/src/help.rs:235`), the notes, `docs/relay.md:248-254` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
 ## Decision
@@ -209,7 +209,7 @@ as a `ProxyCommand` for each connection, pays this wait in each run.
 ## Premise
 
 Read: `open` tries the hosts in the order of the list in each round
-(`crates/podssh-relay/src/open.rs:187-208`), and keeps nothing between runs: a failure is a
+(`crates/podssh-relay/src/open.rs:192-209`), and keeps nothing between runs: a failure is a
 note, and an entry of `Failure`. The limits are 20 s for each step and 45 s for each host (lines
 25-29). Measured in the gate (`docs/STATUS.md`): a host that completes TLS and then says
 nothing, and a host that does not start TLS, each cost the 20 s limit before the failover.
@@ -217,10 +217,10 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 ## Approach
 
 1. After a host fails with an error that another host can repair (`another_host_may_help`,
-   `crates/podssh-relay/src/open.rs:54-76`), write a record (host, time, class) into a private
+   `crates/podssh-relay/src/open.rs:57-79`), write a record (host, time, class) into a private
    file `relay-failures-KEY.json` with `cache::store_file`
-   (`crates/podssh-relay/src/cache.rs:137-153`). Remove the record when the host succeeds.
-2. At the start of `open` (`crates/podssh-relay/src/open.rs:175-211`), move each host whose
+   (`crates/podssh-relay/src/cache.rs:141-157`). Remove the record when the host succeeds.
+2. At the start of `open` (`crates/podssh-relay/src/open.rs:180-212`), move each host whose
    record is younger than a fixed window (10 min) to the end of the list, in its old order.
    Never remove a host: each host is still tried.
 3. Record no error that each host would give (a policy refusal, a bad token in the
@@ -228,7 +228,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 4. Print one note for each moved host: "trying HOST last: it failed N s ago (REASON)".
 5. Ignore a record with a time in the future (a clock that moved).
 6. `doctor` and `status` (T-051) show the records. State the window in THE RELAY section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:129-142`) and in `docs/relay.md:23-41`.
+   manual (`crates/podssh-cli/src/man/facts.rs:148-161`) and in `docs/relay.md:23-41`.
 7. This is retry policy across runs. T-220 shortens the wait inside one run; the two work
    together.
 
@@ -274,7 +274,7 @@ Read on `3ee70dc`, the defect holds. No source, test or example of `podssh-cli` 
 `podssh_probe`, although `crates/podssh-cli/Cargo.toml:31` declares the dependency. The crate
 declares `libc` (`crates/podssh-probe/Cargo.toml:11`), which none of its sources uses.
 `crates/podssh-probe/src/facts.rs:3-6` names a "startup assertion" that no command runs;
-`crates/podssh-probe/src/relay_facts.rs:281-309` is that unused startup part. CI runs
+`crates/podssh-probe/src/relay_facts.rs:261-289` is that unused startup part. CI runs
 `scripts/check-relay-spec.py` live, with three plants (`.github/workflows/build.yml:94-111`).
 The gate runs the crate's tests with no C compiler (`scripts/gate.sh:61-71`). The build image
 has no Python (`crates/podssh-probe/src/facts.rs:14-19`), so the crate is the only form of the
@@ -315,7 +315,7 @@ echo "exit=$?"
 ```
 
 The pinned copy exits 0. A copy with the node path renamed (the plant of
-`crates/podssh-probe/tests/relay_facts.rs:111-115`) exits 1 and names the fact
+`crates/podssh-probe/tests/relay_facts.rs:106-110`) exits 1 and names the fact
 `reverse-node-path`. `grep -rn podssh_probe crates/podssh-cli/src` finds the use.
 
 # T-061: Measure whether the relay's idle cut applies to reverse sockets
@@ -348,7 +348,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
 1. A live test, ignored by default, in a new file crates/podssh-relay/tests/live_reverse.rs:
    `POST /v1/pair`; a node socket to `/v1/node/NAME`; an operator socket to `/v1/connect/NAME`;
    the node answers `open` with `ready`. Send `ready` with `RelaySession::send_text`
-   (`crates/podssh-ws/src/session.rs:93-97`), which sends a real text frame; since T-071,
+   (`crates/podssh-ws/src/session.rs:87-91`), which sends a real text frame; since T-071,
    `Leg::send_control` over `WsSocket` sends one too.
 2. Three runs of 240 s: (a) no payload and no pings; (b) WebSocket pings every 20 s from both
    ends; (c) one byte of payload every 60 s. For each socket, record the time, the code and the
@@ -508,11 +508,11 @@ user sees nothing.
 ## Premise
 
 Read on `3ee70dc`, as the issue says: a plain `for` loop over the hosts
-(`crates/podssh-relay/src/open.rs:187-189`); `HOST_DEADLINE` 45 s (line 29), `CONNECT_TIMEOUT`
+(`crates/podssh-relay/src/open.rs:192-194`); `HOST_DEADLINE` 45 s (line 29), `CONNECT_TIMEOUT`
 20 s (line 25). `notes` is declared at lines 177 and 216; its four call sites are 186 (the round
 notice), 190 (into `try_host`), 198 (a failed host) and 222 (the token cache). The session
 returns with its host at line 194 (the issue says 192). The order of preference is built in
-`crates/podssh-relay/src/relay.rs:55-75`. No `FuturesUnordered`, `JoinSet` or `join_all` is in
+`crates/podssh-relay/src/relay.rs:55-73`. No `FuturesUnordered`, `JoinSet` or `join_all` is in
 `podssh-relay` or `podssh-ws`. Measured in the gate (`docs/STATUS.md`, "Faults between podssh
 and the relay, measured"): each silent-host fault costs 20 s. The issue calls rule 3 of
 `docs/architecture.md` "no option dropped silently"; it is "One outbound connection, never a
@@ -536,7 +536,7 @@ listener" (lines 86-88), and the ruling on Q10 allows more than one for a moment
 4. One mint at a time for each relay deployment (single flight, keyed as T-057 keys the cache),
    against the brake of `docs/relay.md:121`. When the minting attempt is the silent one, the next
    attempt mints at its own host after D.
-5. An error that each host would give (`crates/podssh-relay/src/open.rs:54-76`) still stops the
+5. An error that each host would give (`crates/podssh-relay/src/open.rs:57-79`) still stops the
    run, and stops the other attempts.
 6. Each attempt keeps its own notes, given to `notes` in the order of the list; the round notice
    (line 186) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
@@ -544,7 +544,7 @@ listener" (lines 86-88), and the ruling on Q10 allows more than one for a moment
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:112-235`, 323-343) and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:55-62`); the variable to VARIABLES and the modes to THE
-   RELAY (`crates/podssh-cli/src/man/facts.rs:45-90`, 170-183); both to `docs/relay.md:23-41`.
+   RELAY (`crates/podssh-cli/src/man/facts.rs:45-109`, 170-183); both to `docs/relay.md:23-41`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
 
@@ -596,8 +596,8 @@ paths only: lines 286-299), then `std::env::temp_dir()` with the user's tag (lin
 the fixed `/dev/shm` on Unix (lines 59-61), then `.podssh` in the working directory (lines
 62-64). A store falls through each directory that refuses it (lines 103-112). No variable or
 flag names a directory. `doctor` probes the same list and names the first that can be written
-(`crates/podssh-cli/src/doctor/host.rs:96-125`). VARIABLES and FILES give the list
-(`crates/podssh-cli/src/man/facts.rs:76`, 108-113), a test fixes its shape (lines 365-377), and
+(`crates/podssh-cli/src/doctor/host.rs:94-120`). VARIABLES and FILES give the list
+(`crates/podssh-cli/src/man/facts.rs:92`, 108-113), a test fixes its shape (lines 365-377), and
 the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
 
 ## Approach
@@ -610,14 +610,14 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    then the platform's temporary directory (`std::env::temp_dir`) with the user's tag; then the
    working directory. No path literal stays in `cache.rs`.
 3. Probe each as now: a missing directory is made with mode 0700
-   (`crates/podssh-relay/src/cache.rs:321-338`), and one that refuses a write is skipped. When the
+   (`crates/podssh-relay/src/cache.rs:320-337`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
-   (`crates/podssh-ws/src/dial.rs:141-162`), so that the tests can set it.
+   (`crates/podssh-ws/src/dial.rs:141-155`), so that the tests can set it.
 5. `doctor` names the directory in use and the variable that chose it; `status` (T-051) shows
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
-6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:76`,
+6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:92`,
    108-113, 122-132), the test of lines 365-377, the comment of `cache.rs`, and the `doctor`
    notes (`crates/podssh-cli/src/man/notes.rs:113-132`).
 
@@ -641,7 +641,7 @@ sh scripts/dev.sh check                   # interop-faults: a token in PODSSH_CA
 
 With a set environment: `PODSSH_CACHE_DIR` comes first, `none` gives no candidate, and
 `XDG_RUNTIME_DIR` comes before the temporary directory. A scan of `cache.rs`, as
-`crates/podssh-cli/src/man/facts.rs:219-238` scans source, finds no absolute path literal. In
+`crates/podssh-cli/src/man/facts.rs:238-258` scans source, finds no absolute path literal. In
 the gate, the token file goes into a new `PODSSH_CACHE_DIR`; with a plain file there, the run
 still exits 0 and names the refusal. Planted defect: put `/dev/shm` back; the scan fails.
 

@@ -127,7 +127,9 @@ pub fn reject(id: &SessionId, reason: &str) -> Result<Vec<u8>, ControlError> {
 pub fn close(id: &SessionId, reason: Option<&str>) -> Result<Vec<u8>, ControlError> {
     match reason {
         None => encode(&NodeOutbound::Close { id: id.as_str().to_string(), reason: None }),
-        Some(reason) => fitted(|reason| NodeOutbound::Close { id: id.as_str().to_string(), reason: Some(reason) }, reason),
+        Some(reason) => {
+            fitted(|reason| NodeOutbound::Close { id: id.as_str().to_string(), reason: Some(reason) }, reason)
+        }
     }
 }
 

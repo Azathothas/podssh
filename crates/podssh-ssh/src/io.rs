@@ -238,11 +238,8 @@ impl Termination {
         #[cfg(unix)]
         {
             use tokio::signal::unix::{signal, SignalKind};
-            let signals = if active {
-                signal(SignalKind::terminate()).ok().zip(signal(SignalKind::hangup()).ok())
-            } else {
-                None
-            };
+            let signals =
+                if active { signal(SignalKind::terminate()).ok().zip(signal(SignalKind::hangup()).ok()) } else { None };
             Termination { signals }
         }
         #[cfg(not(unix))]

@@ -63,10 +63,7 @@ pub fn host_name(host: &str, port: u16) -> String {
 /// Missing or unreadable files are skipped: having no `known_hosts` is normal.
 pub fn lookup(files: &[PathBuf], name: &str, key: &PublicKey) -> Lookup {
     let entries = entries_for(files, name);
-    if let Some(e) = entries
-        .iter()
-        .find(|e| e.marker == Some(Marker::Revoked) && e.key.key_data() == key.key_data())
-    {
+    if let Some(e) = entries.iter().find(|e| e.marker == Some(Marker::Revoked) && e.key.key_data() == key.key_data()) {
         return Lookup::Revoked { path: e.path.clone(), line: e.line };
     }
     let plain: Vec<&Entry> = entries.iter().filter(|e| e.marker.is_none()).collect();
@@ -220,9 +217,7 @@ pub fn append(path: &Path, name: &str, key: &PublicKey) -> std::io::Result<()> {
     std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
     let mut file = options.open(path)?;
     let bare = PublicKey::new(key.key_data().clone(), "");
-    let encoded = bare
-        .to_openssh()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
+    let encoded = bare.to_openssh().map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
     let mut line = String::new();
     if file.seek(SeekFrom::End(0))? > 0 {
         file.seek(SeekFrom::End(-1))?;

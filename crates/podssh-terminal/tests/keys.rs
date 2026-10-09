@@ -72,10 +72,7 @@ fn history_forgets_past_the_cap_and_the_oldest_goes_first() {
         let got = feed(&mut d, b"\x1b[A");
         let expected = format!("cmd{}", 104 - step);
         assert_ne!(got.local, BELL, "press {step} must reach {expected}");
-        assert!(
-            got.local.ends_with(expected.as_bytes()),
-            "press {step} must reach {expected}"
-        );
+        assert!(got.local.ends_with(expected.as_bytes()), "press {step} must reach {expected}");
     }
     assert_eq!(feed(&mut d, b"\x1b[A").local, BELL, "and then the bell");
 }

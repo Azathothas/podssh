@@ -167,12 +167,7 @@ impl Replies {
     /// are the same reply, and only one of them had a trailing on the wire.
     pub fn new(code: u16, params: &[Middle], text: Option<&Trailing>) -> Self {
         let mut iter = params.iter();
-        Replies {
-            code,
-            target: iter.next().cloned(),
-            params: iter.cloned().collect(),
-            text: text.cloned(),
-        }
+        Replies { code, target: iter.next().cloned(), params: iter.cloned().collect(), text: text.cloned() }
     }
 
     /// ⛔ The named code, **derived from the code and never passed**, so a

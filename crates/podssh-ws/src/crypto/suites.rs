@@ -14,9 +14,9 @@ use rustls::crypto::CryptoProvider;
 use rustls::{CipherSuite, SupportedCipherSuite};
 
 use super::aead::{AeadId, PureAead};
+use super::hash::HashAlgorithmId;
 use super::hkdf::PureHkdf;
 use super::kx::{SECP256R1, X25519};
-use super::hash::HashAlgorithmId;
 use super::random::OsRandom;
 use super::sign::{signature_algorithms, NoClientKeys};
 
@@ -52,8 +52,7 @@ pub static TLS13_AES_128_GCM_SHA256: SupportedCipherSuite = SupportedCipherSuite
 /// ⛔ **Preference order is this order**, and the first entry is also the
 /// default key share in the `ClientHello`. AES-256-GCM first because that is
 /// what the live relay has been measured negotiating.
-static ALL_CIPHER_SUITES: &[SupportedCipherSuite] =
-    &[TLS13_AES_256_GCM_SHA384, TLS13_AES_128_GCM_SHA256];
+static ALL_CIPHER_SUITES: &[SupportedCipherSuite] = &[TLS13_AES_256_GCM_SHA384, TLS13_AES_128_GCM_SHA256];
 
 static ALL_KX_GROUPS: &[&'static dyn rustls::crypto::SupportedKxGroup] = &[X25519, SECP256R1];
 
@@ -90,11 +89,8 @@ pub fn self_check() -> Result<(), String> {
     for suite in &p.cipher_suites {
         if let SupportedCipherSuite::Tls13(s) = suite {
             let h = s.common.hash_provider.algorithm();
-            let ok = matches!(
-                h,
-                rustls::crypto::hash::HashAlgorithm::SHA256
-                    | rustls::crypto::hash::HashAlgorithm::SHA384
-            );
+            let ok =
+                matches!(h, rustls::crypto::hash::HashAlgorithm::SHA256 | rustls::crypto::hash::HashAlgorithm::SHA384);
             if !ok {
                 return Err(format!("suite {:?} names a hash with no HKDF", s.common.suite));
             }

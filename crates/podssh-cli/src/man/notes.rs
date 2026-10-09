@@ -166,10 +166,9 @@ const MAN: &[&str] = &[
     "The manual is the same in each environment: it shows no setting of this host.",
 ];
 
-const TS: &[&str] = &[
-    "Experimental. podssh ts joins a tailnet, with DERP over a WebSocket relay. The live test with two \
-     nodes has not passed yet.",
-];
+const TS: &[&str] =
+    &["Experimental. podssh ts joins a tailnet, with DERP over a WebSocket relay. The live test with two \
+     nodes has not passed yet."];
 
 #[cfg(test)]
 mod tests {
@@ -180,9 +179,7 @@ mod tests {
     /// The words of a note, split at spaces and at the punctuation around
     /// names (but not at `-`, `_` or `=`).
     fn words(note: &str) -> Vec<&str> {
-        note.split(|c: char| c.is_whitespace() || "(),;:.'".contains(c))
-            .filter(|w| !w.is_empty())
-            .collect()
+        note.split(|c: char| c.is_whitespace() || "(),;:.'".contains(c)).filter(|w| !w.is_empty()).collect()
     }
 
     fn flag_exists(verb: &str, flag: &str) -> bool {
@@ -219,7 +216,9 @@ mod tests {
     fn problems_in(verb: &str, note: &str, variables: &[&str]) -> Vec<String> {
         let mut out = Vec::new();
         for w in words(note) {
-            let flag_shaped = w.starts_with('-') && w.len() > 1 && w.chars().nth(1).is_some_and(|c| c.is_ascii_alphanumeric() || c == '-');
+            let flag_shaped = w.starts_with('-')
+                && w.len() > 1
+                && w.chars().nth(1).is_some_and(|c| c.is_ascii_alphanumeric() || c == '-');
             if flag_shaped && !w.contains('=') && !flag_exists(verb, w) {
                 out.push(format!("{verb}: the flag {w} does not exist"));
             }

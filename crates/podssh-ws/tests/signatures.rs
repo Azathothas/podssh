@@ -33,18 +33,14 @@ fn ecdsa_p256_sha256_verifies_a_real_signature_and_rejects_a_tampered_one() {
     assert_eq!(raw[0], 0x04, "webpki is handed the raw point, uncompressed");
 
     assert!(
-        ECDSA_P256_SHA256
-            .verify_signature(raw, message, signature.to_der().as_bytes())
-            .is_ok(),
+        ECDSA_P256_SHA256.verify_signature(raw, message, signature.to_der().as_bytes()).is_ok(),
         "a valid ECDSA signature did not verify"
     );
 
     // ⛔ **The message is authenticated.** A signature that verified over a
     // different message would accept a replayed handshake signature.
     assert!(
-        ECDSA_P256_SHA256
-            .verify_signature(raw, b"a different message", signature.to_der().as_bytes())
-            .is_err(),
+        ECDSA_P256_SHA256.verify_signature(raw, b"a different message", signature.to_der().as_bytes()).is_err(),
         "ECDSA verified a signature over the wrong message"
     );
     // ⛔ **So is the key.** A signature verified under any other key would make
@@ -64,9 +60,7 @@ fn ecdsa_p256_sha256_verifies_a_real_signature_and_rejects_a_tampered_one() {
     // that happens to succeed.
     let der = signature.to_der();
     assert!(
-        ECDSA_P256_SHA256
-            .verify_signature(raw, message, &der.as_bytes()[..der.len() - 1])
-            .is_err(),
+        ECDSA_P256_SHA256.verify_signature(raw, message, &der.as_bytes()[..der.len() - 1]).is_err(),
         "ECDSA accepted a truncated signature"
     );
 }
@@ -79,14 +73,12 @@ fn ed25519_matches_rfc8032_vector_1() {
     use ed25519_dalek::Signer;
 
     let secret: [u8; 32] = [
-        0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec,
-        0x2c, 0xc4, 0x44, 0x49, 0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19, 0x70, 0x3b, 0xac, 0x03,
-        0x1c, 0xae, 0x7f, 0x60,
+        0x9d, 0x61, 0xb1, 0x9d, 0xef, 0xfd, 0x5a, 0x60, 0xba, 0x84, 0x4a, 0xf4, 0x92, 0xec, 0x2c, 0xc4, 0x44, 0x49,
+        0xc5, 0x69, 0x7b, 0x32, 0x69, 0x19, 0x70, 0x3b, 0xac, 0x03, 0x1c, 0xae, 0x7f, 0x60,
     ];
     let expected_public: [u8; 32] = [
-        0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7, 0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64,
-        0x07, 0x3a, 0x0e, 0xe1, 0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25, 0xaf, 0x02, 0x1a, 0x68,
-        0xf7, 0x07, 0x51, 0x1a,
+        0xd7, 0x5a, 0x98, 0x01, 0x82, 0xb1, 0x0a, 0xb7, 0xd5, 0x4b, 0xfe, 0xd3, 0xc9, 0x64, 0x07, 0x3a, 0x0e, 0xe1,
+        0x72, 0xf3, 0xda, 0xa6, 0x23, 0x25, 0xaf, 0x02, 0x1a, 0x68, 0xf7, 0x07, 0x51, 0x1a,
     ];
     let message: &[u8] = b"";
 
@@ -96,26 +88,17 @@ fn ed25519_matches_rfc8032_vector_1() {
         hex(&signature.to_bytes()),
         "e5564300c360ac729086e2cc806e828a84877f1eb8e5d974d873e065224901555fb8821590a33bacc61e39701cf9b46bd25bf5f0595bbe24655141438e7a100b"
     );
-    assert_eq!(
-        hex(signing_key.verifying_key().as_bytes()),
-        hex(&expected_public)
-    );
+    assert_eq!(hex(signing_key.verifying_key().as_bytes()), hex(&expected_public));
 
     assert!(
-        ED25519
-            .verify_signature(&expected_public, message, &signature.to_bytes())
-            .is_ok(),
+        ED25519.verify_signature(&expected_public, message, &signature.to_bytes()).is_ok(),
         "the RFC 8032 signature did not verify"
     );
     // ⛔ **A public key of the wrong length is rejected.** ⛔ The `try_into` in
     // `Ed25519Verify` is what stops a 33-byte "Ed25519 key" from being
     // zero-extended into a valid-looking one.
-    assert!(ED25519
-        .verify_signature(&[0u8; 31], message, &signature.to_bytes())
-        .is_err());
-    assert!(ED25519
-        .verify_signature(&[0u8; 33], message, &signature.to_bytes())
-        .is_err());
+    assert!(ED25519.verify_signature(&[0u8; 31], message, &signature.to_bytes()).is_err());
+    assert!(ED25519.verify_signature(&[0u8; 33], message, &signature.to_bytes()).is_err());
 }
 
 // ── ECDSA P-384 with SHA-384 ────────────────────────────────────────────────
@@ -147,33 +130,21 @@ fn ecdsa_p384_sha384_verifies_and_rejects_the_same_three_ways() {
     assert_eq!(raw.len(), 97, "an uncompressed P-384 point is 97 bytes");
 
     assert!(
-        ECDSA_P384_SHA384
-            .verify_signature(raw, message, der.as_bytes())
-            .is_ok(),
+        ECDSA_P384_SHA384.verify_signature(raw, message, der.as_bytes()).is_ok(),
         "a valid P-384 signature did not verify"
     );
     assert!(
-        ECDSA_P384_SHA384
-            .verify_signature(raw, b"a different message", der.as_bytes())
-            .is_err(),
+        ECDSA_P384_SHA384.verify_signature(raw, b"a different message", der.as_bytes()).is_err(),
         "⛔ P-384 verified a signature over the wrong message"
     );
     let other = SigningKey::from_bytes(&[0x52u8; 48].into()).expect("a scalar");
     let other_point = other.verifying_key().to_encoded_point(false);
     assert!(
-        ECDSA_P384_SHA384
-            .verify_signature(
-                other_point.as_bytes(),
-                message,
-                der.as_bytes()
-            )
-            .is_err(),
+        ECDSA_P384_SHA384.verify_signature(other_point.as_bytes(), message, der.as_bytes()).is_err(),
         "⛔ P-384 verified under the wrong key"
     );
     assert!(
-        ECDSA_P384_SHA384
-            .verify_signature(raw, message, &der.as_bytes()[..der.len() - 1])
-            .is_err(),
+        ECDSA_P384_SHA384.verify_signature(raw, message, &der.as_bytes()[..der.len() - 1]).is_err(),
         "⛔ P-384 accepted a truncated signature"
     );
 }
@@ -193,7 +164,5 @@ fn a_p256_signature_does_not_verify_as_p384() {
     let point = key.verifying_key().to_encoded_point(false);
 
     // A 65-byte point cannot be a P-384 key: the length is 97.
-    assert!(ECDSA_P384_SHA384
-        .verify_signature(point.as_bytes(), message, sig.to_der().as_bytes())
-        .is_err());
+    assert!(ECDSA_P384_SHA384.verify_signature(point.as_bytes(), message, sig.to_der().as_bytes()).is_err());
 }

@@ -35,11 +35,9 @@ impl std::fmt::Display for PromptError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             PromptError::NoTerminal => f.write_str("there is no terminal to ask on (and no SSH_ASKPASS)"),
-            PromptError::NoAnswer => write!(
-                f,
-                "nobody answered on the terminal within {} s",
-                crate::terminal::UNWATCHED_PROMPT.as_secs()
-            ),
+            PromptError::NoAnswer => {
+                write!(f, "nobody answered on the terminal within {} s", crate::terminal::UNWATCHED_PROMPT.as_secs())
+            }
             PromptError::Cancelled => f.write_str("cancelled"),
             PromptError::Failed(why) => write!(f, "SSH_ASKPASS failed: {why}"),
         }
@@ -50,9 +48,7 @@ impl std::fmt::Display for PromptError {
 pub fn ask(prompt: &str, echo: bool) -> Result<Zeroizing<String>, PromptError> {
     let askpass = std::env::var_os("SSH_ASKPASS").filter(|v| !v.is_empty());
     let require = std::env::var("SSH_ASKPASS_REQUIRE").unwrap_or_default().to_ascii_lowercase();
-    let display = ["DISPLAY", "WAYLAND_DISPLAY"]
-        .iter()
-        .any(|v| std::env::var_os(v).is_some_and(|s| !s.is_empty()));
+    let display = ["DISPLAY", "WAYLAND_DISPLAY"].iter().any(|v| std::env::var_os(v).is_some_and(|s| !s.is_empty()));
     let (allowed, preferred) = match require.as_str() {
         "force" => (askpass.is_some(), true),
         "prefer" => (askpass.is_some() && display, true),
@@ -81,9 +77,7 @@ pub fn can_ask() -> bool {
     if askpass && require == "force" {
         return true;
     }
-    let display = ["DISPLAY", "WAYLAND_DISPLAY"]
-        .iter()
-        .any(|v| std::env::var_os(v).is_some_and(|s| !s.is_empty()));
+    let display = ["DISPLAY", "WAYLAND_DISPLAY"].iter().any(|v| std::env::var_os(v).is_some_and(|s| !s.is_empty()));
     controlling_terminal_exists() || (askpass && display && require != "never")
 }
 

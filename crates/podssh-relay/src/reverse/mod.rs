@@ -16,7 +16,7 @@ pub use closes::RelayClose;
 pub use framing::SessionId;
 
 pub use node::{after_close, run, Exit, Handler, Next, NodeConfig, Opening, RepairHook};
-pub use serve::{serve, End, Settings};
 pub use operator::{OperatorConfig, OperatorLimits, Outcome};
+pub use serve::{serve, End, Settings};
 pub use tcp::TcpHandler;
 pub use wire::Wire;

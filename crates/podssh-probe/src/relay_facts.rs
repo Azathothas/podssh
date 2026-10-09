@@ -40,9 +40,19 @@ pub enum Verdict {
     /// moves, and a verdict that reported only the pin would state the version
     /// podssh *expected* as the version it ran against. ⛔ `version` is `None`
     /// when `/health` was not read, which is not the same as a matching one.
-    Ok { version: Option<String>, pinned: String, sha256: String, lines: usize },
-    Failed { version: Option<String>, disagreements: Vec<Disagreement> },
-    Unknown { why: String },
+    Ok {
+        version: Option<String>,
+        pinned: String,
+        sha256: String,
+        lines: usize,
+    },
+    Failed {
+        version: Option<String>,
+        disagreements: Vec<Disagreement>,
+    },
+    Unknown {
+        why: String,
+    },
 }
 
 impl Verdict {
@@ -82,19 +92,19 @@ fn line_of<'a>(spec: &'a str, number: usize) -> Result<&'a str, String> {
 /// first version of `scripts/check-relay-spec.py` shipped.
 pub fn read_operand(operand: &Operand, spec: &str) -> Result<Vec<(String, i64)>, String> {
     let line = line_of(spec, operand.line)?;
-    let captures = regex::Regex::new(&operand.pattern)
-        .map_err(|e| format!("fact file has an uncompilable pattern: {e}"))?;
+    let captures =
+        regex::Regex::new(&operand.pattern).map_err(|e| format!("fact file has an uncompilable pattern: {e}"))?;
     let found = captures
         .captures(line)
         .ok_or_else(|| format!("spec line {} carries no match for the pattern", operand.line))?;
     let mut values = Vec::with_capacity(operand.names.len());
     for (index, name) in operand.names.iter().enumerate() {
-        let group = found
-            .get(index + 1)
-            .ok_or_else(|| format!("spec line {} has no capture group {index}", operand.line))?;
-        let value: i64 = group.as_str().parse().map_err(|_| {
-            format!("spec line {}: group {index} is not an integer", operand.line)
-        })?;
+        let group =
+            found.get(index + 1).ok_or_else(|| format!("spec line {} has no capture group {index}", operand.line))?;
+        let value: i64 = group
+            .as_str()
+            .parse()
+            .map_err(|_| format!("spec line {}: group {index} is not an integer", operand.line))?;
         values.push((name.clone(), value));
     }
     Ok(values)
@@ -106,18 +116,12 @@ pub fn read_operand(operand: &Operand, spec: &str) -> Result<Vec<(String, i64)>,
 /// anything else is an error naming the expression. An evaluator that silently
 /// ignored an expression it did not understand would turn every future relation
 /// into a check that passes.
-fn evaluate(
-    expression: &str,
-    left: &[(String, i64)],
-    right: &[(String, i64)],
-) -> Result<i64, String> {
+fn evaluate(expression: &str, left: &[(String, i64)], right: &[(String, i64)]) -> Result<i64, String> {
     let operand = |side: &[(String, i64)], name: &str| -> Result<i64, String> {
         side.iter()
             .find(|(n, _)| n == name)
             .map(|(_, v)| *v)
-            .ok_or_else(|| {
-                format!("expression {expression:?} names `{name}`, which this side does not publish")
-            })
+            .ok_or_else(|| format!("expression {expression:?} names `{name}`, which this side does not publish"))
     };
     match expression {
         "id + payload == cap" => {
@@ -133,9 +137,7 @@ fn evaluate(
             if sum == cap {
                 Ok(sum)
             } else {
-                Err(format!(
-                    "{ID_BYTES} + {payload} = {sum}, but the published cap is {cap}"
-                ))
+                Err(format!("{ID_BYTES} + {payload} = {sum}, but the published cap is {cap}"))
             }
         }
         other => Err(format!(
@@ -160,10 +162,7 @@ pub fn assert_facts(spec: &str, facts: &Facts, observed: Option<&str>) -> Verdic
         let line = match line_of(spec, fact.line) {
             Ok(line) => line,
             Err(why) => {
-                disagreements.push(Disagreement {
-                    fact_id: fact.id.clone(),
-                    detail: why,
-                });
+                disagreements.push(Disagreement { fact_id: fact.id.clone(), detail: why });
                 continue;
             }
         };
@@ -204,10 +203,7 @@ pub fn assert_facts(spec: &str, facts: &Facts, observed: Option<&str>) -> Verdic
                         Ok(got) if got == *value => {}
                         Ok(got) => disagreements.push(Disagreement {
                             fact_id: fact.id.clone(),
-                            detail: format!(
-                                "spec line {} says {got}; this repository says {value}",
-                                fact.line
-                            ),
+                            detail: format!("spec line {} says {got}; this repository says {value}", fact.line),
                         }),
                     },
                 }
@@ -219,28 +215,19 @@ pub fn assert_facts(spec: &str, facts: &Facts, observed: Option<&str>) -> Verdic
         let left = match read_operand(&relation.src, spec) {
             Ok(v) => v,
             Err(why) => {
-                disagreements.push(Disagreement {
-                    fact_id: relation.id.clone(),
-                    detail: why,
-                });
+                disagreements.push(Disagreement { fact_id: relation.id.clone(), detail: why });
                 continue;
             }
         };
         let right = match read_operand(&relation.dst, spec) {
             Ok(v) => v,
             Err(why) => {
-                disagreements.push(Disagreement {
-                    fact_id: relation.id.clone(),
-                    detail: why,
-                });
+                disagreements.push(Disagreement { fact_id: relation.id.clone(), detail: why });
                 continue;
             }
         };
         if let Err(why) = evaluate(&relation.expression, &left, &right) {
-            disagreements.push(Disagreement {
-                fact_id: relation.id.clone(),
-                detail: why,
-            });
+            disagreements.push(Disagreement { fact_id: relation.id.clone(), detail: why });
         }
     }
 
@@ -252,10 +239,7 @@ pub fn assert_facts(spec: &str, facts: &Facts, observed: Option<&str>) -> Verdic
             lines: line_count(spec),
         }
     } else {
-        Verdict::Failed {
-            version: None,
-            disagreements,
-        }
+        Verdict::Failed { version: None, disagreements }
     }
 }
 
@@ -271,11 +255,7 @@ pub fn line_count(spec: &str) -> usize {
 pub fn sha256_hex(bytes: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(bytes);
-    hasher
-        .finalize()
-        .iter()
-        .map(|byte| format!("{byte:02x}"))
-        .collect()
+    hasher.finalize().iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 /// ⛔ **The startup half.** Read `/health` and the published document, assert

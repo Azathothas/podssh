@@ -47,12 +47,9 @@ fn a_flag_refuses_only_when_its_row_says_so() {
     for v in VERBS {
         for row in v.flags {
             match row.kind {
-                FlagKind::Supported | FlagKind::Accepted => assert!(
-                    row.instead.is_none(),
-                    "{}/{} is usable but names a replacement",
-                    v.name,
-                    row.long
-                ),
+                FlagKind::Supported | FlagKind::Accepted => {
+                    assert!(row.instead.is_none(), "{}/{} is usable but names a replacement", v.name, row.long)
+                }
                 FlagKind::Refused | FlagKind::NotInFirstRelease => assert!(
                     row.instead.is_some(),
                     "{}/{} is refused and must say what to use instead",
@@ -92,9 +89,9 @@ fn every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub() {
     // with their own dispatch arm are listed in DISPATCHED. Dispatch
     // also treats a verb with no row as an internal error (non-zero), so this
     // test is the first line of defence, not the only one.
-    const DISPATCHED: &[&str] = &["ts", "proxy", "ssh", "doctor", "keygen", "man", "status", "node", "relay", "operator"];
-    let owner_names: Vec<&str> =
-        podssh_cli::flags::VERB_OWNER.iter().map(|(n, _)| *n).collect();
+    const DISPATCHED: &[&str] =
+        &["ts", "proxy", "ssh", "doctor", "keygen", "man", "status", "node", "relay", "operator"];
+    let owner_names: Vec<&str> = podssh_cli::flags::VERB_OWNER.iter().map(|(n, _)| *n).collect();
     for v in VERBS {
         if DISPATCHED.contains(&v.name) {
             continue;
@@ -107,10 +104,7 @@ fn every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub() {
     }
     // The reverse: an owner row for a verb that does not exist is dead code.
     for (name, _) in podssh_cli::flags::VERB_OWNER {
-        assert!(
-            VERBS.iter().any(|v| v.name == *name),
-            "{name} has an owner but is not a verb"
-        );
+        assert!(VERBS.iter().any(|v| v.name == *name), "{name} has an owner but is not a verb");
     }
 }
 

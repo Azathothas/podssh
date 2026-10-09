@@ -65,7 +65,8 @@ fn walk(root: &Path, rel: &str, out: &mut Vec<String>) {
 /// A code span that cites a path of this repository: the path, and the last
 /// line it names (`path:N` or `path:N-M`).
 pub fn citation(span: &str) -> Option<(&str, Option<usize>)> {
-    if span.is_empty() || span.contains(char::is_whitespace) || span.contains(['*', '{', '}', '<', '>', '?', '[', '|']) {
+    if span.is_empty() || span.contains(char::is_whitespace) || span.contains(['*', '{', '}', '<', '>', '?', '[', '|'])
+    {
         return None;
     }
     let (path, suffix) = match span.split_once(':') {
@@ -102,11 +103,16 @@ fn citations(root: &Path, rel: &str, text: &str, p: &mut Vec<Problem>) {
                 continue;
             }
             let Some(n) = last else { continue };
-            let first: usize = span.rsplit(':').next().and_then(|s| s.split('-').next()).and_then(|s| s.parse().ok()).unwrap_or(n);
+            let first: usize =
+                span.rsplit(':').next().and_then(|s| s.split('-').next()).and_then(|s| s.parse().ok()).unwrap_or(n);
             // A range that ends before it starts, or a line 0, names no line:
             // a half-moved range looks like this.
             if first == 0 || first > n {
-                p.push(Problem::new(rel, no, format!("`{span}`: a range runs from line 1 or later to a line at or after its start")));
+                p.push(Problem::new(
+                    rel,
+                    no,
+                    format!("`{span}`: a range runs from line 1 or later to a line at or after its start"),
+                ));
                 continue;
             }
             let cited = fs::read_to_string(root.join(path)).unwrap_or_default();
@@ -119,7 +125,11 @@ fn citations(root: &Path, rel: &str, text: &str, p: &mut Vec<Problem>) {
             let (a, b) = (first.max(1), n.max(1));
             let held: Vec<&str> = cited.lines().skip(a - 1).take(b.saturating_sub(a) + 1).collect();
             if !squash(&held.join(" ")).contains(&squash(&quote)) {
-                p.push(Problem::new(rel, no, format!("`{span}` says \"{quote}\", but the cited lines do not hold that text")));
+                p.push(Problem::new(
+                    rel,
+                    no,
+                    format!("`{span}` says \"{quote}\", but the cited lines do not hold that text"),
+                ));
             }
         }
     }
@@ -193,7 +203,10 @@ fn questions(r: &Record, p: &mut Vec<Problem>) {
                 p.push(Problem::new(
                     &format!("TODO/{}", e.file),
                     b.line,
-                    format!("{}: the blocker names {q}, which is not in {PROGRESS}, `## Questions for the operator`", e.id),
+                    format!(
+                        "{}: the blocker names {q}, which is not in {PROGRESS}, `## Questions for the operator`",
+                        e.id
+                    ),
                 ));
             }
         }
@@ -213,7 +226,11 @@ fn q_tokens(text: &str) -> Vec<String> {
 fn roadmap(root: &Path, r: &Record, p: &mut Vec<Problem>) {
     // A missing roadmap must not pass as a roadmap with nothing wrong in it.
     let Some(text) = read(root, ROADMAP) else {
-        p.push(Problem::new(ROADMAP, 0, "the roadmap is missing; the milestones of the entries are checked against it"));
+        p.push(Problem::new(
+            ROADMAP,
+            0,
+            "the roadmap is missing; the milestones of the entries are checked against it",
+        ));
         return;
     };
     let milestone: HashMap<&str, &str> = r.rows.iter().map(|row| (row.id.as_str(), row.milestone.as_str())).collect();
@@ -230,7 +247,11 @@ fn roadmap(root: &Path, r: &Record, p: &mut Vec<Problem>) {
             continue;
         }
         if line.trim_start().starts_with("- [ ]") {
-            p.push(Problem::new(ROADMAP, no, "an open item `- [ ]`: open work is an entry in TODO/, named here by its id"));
+            p.push(Problem::new(
+                ROADMAP,
+                no,
+                "an open item `- [ ]`: open work is an entry in TODO/, named here by its id",
+            ));
         }
         let Some(m) = &current else { continue };
         for (id, _) in ids_in(line) {

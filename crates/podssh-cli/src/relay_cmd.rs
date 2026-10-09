@@ -46,9 +46,9 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         (Some("pair"), Some(label)) => make(args, label, out, err),
         (Some("revoke"), Some(label)) => revoke(args, label, out, err),
         (Some("status"), Some(label)) => status(args, label, out),
-        (Some(sub @ ("pair" | "revoke")), None) => Err(Refusal::usage(format!(
-            "missing NAME: `podssh relay {sub} NAME`, where NAME is the label of a pair"
-        ))),
+        (Some(sub @ ("pair" | "revoke")), None) => {
+            Err(Refusal::usage(format!("missing NAME: `podssh relay {sub} NAME`, where NAME is the label of a pair")))
+        }
         (Some("status"), None) => {
             let _ = writeln!(
                 err,
@@ -74,10 +74,10 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
 
 /// A current-thread runtime for one call.
 fn block_on<T>(work: impl std::future::Future<Output = T>) -> Result<T, Refusal> {
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .map_err(|e| Refusal { message: format!("could not start the async runtime: {e}"), code: Fault::SessionFault.code() })?;
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| Refusal {
+        message: format!("could not start the async runtime: {e}"),
+        code: Fault::SessionFault.code(),
+    })?;
     let done = runtime.block_on(work);
     runtime.shutdown_background();
     Ok(done)
@@ -129,7 +129,8 @@ fn make(args: &RelayArgs, label: &str, out: &mut dyn Write, err: &mut dyn Write)
 fn keep(label: &str, pair: &Pair, operator_file: Option<&str>) -> Result<(), String> {
     pair::store(label, pair).map_err(|e| e.to_string())?;
     if let Some(file) = operator_file {
-        pair::write_operator_file(std::path::Path::new(file), pair).map_err(|e| format!("--operator-file {file}: {e}"))?;
+        pair::write_operator_file(std::path::Path::new(file), pair)
+            .map_err(|e| format!("--operator-file {file}: {e}"))?;
     }
     Ok(())
 }

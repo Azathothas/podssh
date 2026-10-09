@@ -24,7 +24,10 @@ use crate::prompt::{self, PromptError};
 pub(crate) enum Step {
     Success,
     /// Refused; the server lists what may continue.
-    Failure { remaining: Vec<MethodKind>, partial: bool },
+    Failure {
+        remaining: Vec<MethodKind>,
+        partial: bool,
+    },
     /// This method has nothing left to try.
     Exhausted,
 }
@@ -33,10 +36,9 @@ impl From<AuthResult> for Step {
     fn from(r: AuthResult) -> Self {
         match r {
             AuthResult::Success => Step::Success,
-            AuthResult::Failure { remaining_methods, partial_success } => Step::Failure {
-                remaining: remaining_methods.iter().copied().collect(),
-                partial: partial_success,
-            },
+            AuthResult::Failure { remaining_methods, partial_success } => {
+                Step::Failure { remaining: remaining_methods.iter().copied().collect(), partial: partial_success }
+            }
         }
     }
 }
@@ -69,10 +71,7 @@ pub async fn authenticate(
         Ok(AuthResult::Failure { remaining_methods, .. }) => remaining_methods.iter().copied().collect(),
         Err(e) => return Err(format!("authentication failed before it started: {e}")),
     };
-    log.debug(&format!(
-        "the server accepts: {}",
-        allowed.iter().map(kind_name).collect::<Vec<_>>().join(",")
-    ));
+    log.debug(&format!("the server accepts: {}", allowed.iter().map(kind_name).collect::<Vec<_>>().join(",")));
     // The first list, for the refusal: `allowed` changes in the loop.
     let first_allowed = allowed.clone();
     let mut keys = PublicKeys::new(opts, host, log.clone());
@@ -81,11 +80,7 @@ pub async fn authenticate(
     let mut password_tries = 0u32;
     let mut notes: Vec<String> = Vec::new();
     loop {
-        let next = opts
-            .methods
-            .iter()
-            .copied()
-            .find(|m| allowed.contains(&kind(*m)) && !exhausted.contains(m));
+        let next = opts.methods.iter().copied().find(|m| allowed.contains(&kind(*m)) && !exhausted.contains(m));
         let Some(method) = next else { break };
         let step = match method {
             Method::PublicKey => keys.try_next(handle, user).await?,
@@ -118,10 +113,8 @@ pub async fn authenticate(
         }
     }
     notes.extend(key_notes(&opts.methods, &first_allowed, opts.publickey_off.as_deref(), keys.notes()));
-    let mut message = format!(
-        "{user}@{host}: Permission denied ({}).",
-        allowed.iter().map(kind_name).collect::<Vec<_>>().join(",")
-    );
+    let mut message =
+        format!("{user}@{host}: Permission denied ({}).", allowed.iter().map(kind_name).collect::<Vec<_>>().join(","));
     for note in notes {
         message.push_str("\n  ");
         message.push_str(&note);
@@ -133,7 +126,12 @@ pub async fn authenticate(
 /// among the methods and the server accepted it at first: else `-i FILE`
 /// cannot help (GitHub #7). A method that the user turned off gets one true
 /// note instead.
-pub(crate) fn key_notes(methods: &[Method], server: &[MethodKind], off: Option<&str>, keys: Vec<String>) -> Vec<String> {
+pub(crate) fn key_notes(
+    methods: &[Method],
+    server: &[MethodKind],
+    off: Option<&str>,
+    keys: Vec<String>,
+) -> Vec<String> {
     if !methods.contains(&Method::PublicKey) {
         return off.map(|why| vec![format!("publickey was not tried: {why}")]).unwrap_or_default();
     }

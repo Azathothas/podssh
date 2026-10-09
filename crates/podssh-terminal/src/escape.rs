@@ -182,10 +182,7 @@ mod tests {
         // what tells the discipline "this is the key, not a parameterised
         // motion", and it is the only thing that keeps the refusal narrow.
         let steps = run(b"\x1b[C");
-        assert_eq!(
-            steps,
-            vec![Step::Continue, Step::Continue, Step::Final { final_byte: b'C', bare: true }]
-        );
+        assert_eq!(steps, vec![Step::Continue, Step::Continue, Step::Final { final_byte: b'C', bare: true }]);
         assert_eq!(Esc::None, Esc::None);
     }
 
@@ -272,16 +269,10 @@ mod tests {
         }
 
         let inserted = reference(b"\x1b[1~");
-        assert_eq!(
-            inserted, vec![b'~'],
-            "⛔ MEASURED on the reference's own parser: '~' reaches the line"
-        );
+        assert_eq!(inserted, vec![b'~'], "⛔ MEASURED on the reference's own parser: '~' reaches the line");
 
         let inserted = reference(b"\x1b[15~");
-        assert_eq!(
-            inserted, vec![b'5', b'~'],
-            "⛔ and for the entry's own ESC [ 1 5 ~, '5' and '~' reach the line"
-        );
+        assert_eq!(inserted, vec![b'5', b'~'], "⛔ and for the entry's own ESC [ 1 5 ~, '5' and '~' reach the line");
 
         // ⛔ **And what this parser does instead.** ⛔ Nothing is inserted: every
         // byte after `ESC [` belongs to the sequence.
@@ -293,10 +284,7 @@ mod tests {
                 Step::Refused | Step::Continue | Step::Final { .. } => {}
             }
         }
-        assert!(
-            inserted.is_empty(),
-            "⛔ MEASURED on this parser: nothing reaches the line"
-        );
+        assert!(inserted.is_empty(), "⛔ MEASURED on this parser: nothing reaches the line");
     }
 
     #[test]
@@ -361,10 +349,7 @@ mod tests {
         }
         // ⛔ And it still ends at a final byte, with `bare: false` because the
         // parameters are there — so the sequence is refused.
-        assert_eq!(
-            esc.step(b'~'),
-            Step::Final { final_byte: b'~', bare: false }
-        );
+        assert_eq!(esc.step(b'~'), Step::Final { final_byte: b'~', bare: false });
     }
 
     #[test]

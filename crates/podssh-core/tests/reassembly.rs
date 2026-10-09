@@ -49,18 +49,17 @@ fn every_split_of_one_message_reassembles() {
     // ⛔ **This is the test the entry's plant clause asks for**, ⛔ and the
     // cost is len(line) runs — ⛔ cheap, and ⛔ it is the difference
     // between a proof and an anecdote.
-    let wire = format!("{LONG}
-");
+    let wire = format!(
+        "{LONG}
+"
+    );
     let bytes = wire.as_bytes();
     let mut checked = 0usize;
     for at in 1..bytes.len() {
         let mut r = Reassembler::new();
         let mut out = r.push(&bytes[..at]).unwrap_or_else(|e| panic!("split at {at}: {e}"));
         if at < bytes.len() - 2 {
-            assert!(
-                out.is_empty(),
-                "a split at byte {at} produced {out:?} from the first half"
-            );
+            assert!(out.is_empty(), "a split at byte {at} produced {out:?} from the first half");
         }
         out.extend(r.push(&bytes[at..]).unwrap_or_else(|e| panic!("split at {at}: {e}")));
         assert_eq!(out, vec![LONG.to_string()], "a split at byte {at} did not reassemble");
@@ -79,11 +78,7 @@ fn a_message_split_into_three_frames_still_reassembles() {
     // ⛔ **Three ordered cut points, derived from the message boundaries** ⛔ and
     // ⛔ every one of them lands *inside* a message ⛔ — ⛔ which is the point,
     // ⛔ because a cut between two complete messages proves nothing.
-    let cuts = [
-        (10, 30),
-        (20, first_len - 1),
-        (first_len - 2, first_len + 6),
-    ];
+    let cuts = [(10, 30), (20, first_len - 1), (first_len - 2, first_len + 6)];
     for (a, b) in cuts {
         assert!(a < b && b < bytes.len(), "cut points must be ordered: {a} {b}");
         let mut r = Reassembler::new();
@@ -111,11 +106,7 @@ fn a_crlf_split_across_two_frames_is_still_one_terminator() {
         let mut out = Vec::new();
         out.extend(r.push(&wire[..at]).expect("short"));
         out.extend(r.push(&wire[at..]).expect("short"));
-        assert_eq!(
-            out,
-            vec!["PING :tok".to_string()],
-            "⛔ a split at byte {at} did not produce exactly one line"
-        );
+        assert_eq!(out, vec!["PING :tok".to_string()], "⛔ a split at byte {at} did not produce exactly one line");
     }
 }
 
@@ -215,9 +206,7 @@ fn a_truncated_line_does_not_parse_as_a_message_even_if_it_is_handed_over() {
     // reports it rather than parsing it.
     let partial = ":alice!u@host PRIVMSG #ops :hel";
     let m = Message::parse(partial).expect("it IS syntactically valid");
-    let Command::Privmsg { text, .. } = &m.command else {
-        panic!("expected a PRIVMSG")
-    };
+    let Command::Privmsg { text, .. } = &m.command else { panic!("expected a PRIVMSG") };
     // ⛔ **The defect this names**: a truncated stream handed to a parser yields
     // ⛔ a *complete-looking* message whose text happens to be short.
     assert_eq!(text.as_str(), "hel");
@@ -281,11 +270,7 @@ fn a_line_at_exactly_the_limit_is_accepted() {
     let err = r.push(format!("{line}\r\n").as_bytes()).expect_err("one over must fail");
     match err {
         FrameError::Overlong { bytes, max_line } => {
-            assert_eq!(
-                (bytes, max_line),
-                (10, 11),
-                "⛔ the error must name the line and the limit"
-            );
+            assert_eq!((bytes, max_line), (10, 11), "⛔ the error must name the line and the limit");
         }
         other => panic!("expected Overlong, got {other:?}"),
     }
@@ -317,10 +302,7 @@ fn the_default_limit_is_far_enough_for_the_largest_line_the_entry_writes() {
     // fails if `TransferLimits::chunk_bytes` is ever raised past it.
     let limits = podssh_core::irc::TransferLimits::default();
     let length = podssh_core::irc::transfer::chunk_line_length(&limits, "t", 0, 0);
-    assert!(
-        length <= 512,
-        "⛔ a chunk line is {length} bytes; RFC 2812 §2.3 caps a message at 512"
-    );
+    assert!(length <= 512, "⛔ a chunk line is {length} bytes; RFC 2812 §2.3 caps a message at 512");
     assert!(
         DEFAULT_MAX_LINE >= 512,
         "⛔ the reassembler's default limit must be at least the RFC's 512, or a \

@@ -53,9 +53,7 @@ impl RelayList {
 /// by up to [`MAX_ALTERNATES`] of `pool` (hosts of the default relay's own
 /// pool, best first).
 pub fn select_relays(flag: Option<&str>, env: Option<String>, pool: &[String]) -> Result<RelayList, String> {
-    let chosen = flag
-        .map(str::to_string)
-        .or_else(|| env.filter(|v| !v.trim().is_empty()));
+    let chosen = flag.map(str::to_string).or_else(|| env.filter(|v| !v.trim().is_empty()));
     if let Some(value) = chosen {
         let hosts = parse_relay_list(&value)?;
         return Ok(RelayList { hosts, explicit: true });
@@ -97,11 +95,8 @@ pub fn parse_relay_list(value: &str) -> Result<Vec<Relay>, String> {
 /// documents write it.
 pub fn parse_relay(value: &str) -> Result<Relay, String> {
     let trimmed = value.trim();
-    let without_scheme = ["https://", "wss://"]
-        .iter()
-        .find_map(|s| trimmed.strip_prefix(s))
-        .unwrap_or(trimmed)
-        .trim_end_matches('/');
+    let without_scheme =
+        ["https://", "wss://"].iter().find_map(|s| trimmed.strip_prefix(s)).unwrap_or(trimmed).trim_end_matches('/');
     let (host, port) = match without_scheme.rsplit_once(':') {
         Some((h, p)) => (h, p.parse::<u16>().map_err(|_| format!("bad relay port in {value:?}"))?),
         None => (without_scheme, 443),
@@ -183,7 +178,9 @@ mod tests {
         let list = select_relays(Some("flag.example"), Some("env.example".into()), &["pool.example".into()]).unwrap();
         assert!(list.explicit);
         assert_eq!(list.hosts, vec![Relay { host: "flag.example".into(), port: 443 }]);
-        let list = select_relays(None, Some("one.example:8443, two.example ,three.example,one.example:8443".into()), &[]).unwrap();
+        let list =
+            select_relays(None, Some("one.example:8443, two.example ,three.example,one.example:8443".into()), &[])
+                .unwrap();
         let hosts: Vec<(&str, u16)> = list.hosts.iter().map(|r| (r.host.as_str(), r.port)).collect();
         assert_eq!(hosts, vec![("one.example", 8443), ("two.example", 443), ("three.example", 443)]);
         assert!(select_relays(Some(", ,"), None, &[]).is_err());
@@ -260,7 +257,16 @@ mod tests {
         // Eight groups: one address, not an address and a port.
         assert_eq!(forward_path("2001:db8::1:22", 22).unwrap(), "/connect/2001:db8::1:22/22");
         assert_eq!(forward_path("::ffff:192.0.2.1", 22).unwrap(), "/connect/::ffff:192.0.2.1/22");
-        for bad in ["[2001:db8::1]", "fe80::1%eth0", "fe80::1%25eth0", "2001:db8::1/64", "2001:db8:::1", "a:b", "host:22", ":::"] {
+        for bad in [
+            "[2001:db8::1]",
+            "fe80::1%eth0",
+            "fe80::1%25eth0",
+            "2001:db8::1/64",
+            "2001:db8:::1",
+            "a:b",
+            "host:22",
+            ":::",
+        ] {
             assert!(forward_path(bad, 22).is_err(), "{bad:?}");
             assert!(check_target(bad).is_err(), "{bad:?}");
         }

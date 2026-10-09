@@ -93,7 +93,12 @@ fn no_token_is_in_debug_or_in_an_error() {
     let debug = format!("{pair:?}");
     no_token(&debug);
     assert!(debug.contains(NAME) && debug.contains("<redacted>"), "{debug}");
-    for error in [PairError::Forbidden, PairError::NotIssued { detail: String::new() }, PairError::BadAnswer("x"), PairError::ShortLived { left_ms: 1 }] {
+    for error in [
+        PairError::Forbidden,
+        PairError::NotIssued { detail: String::new() },
+        PairError::BadAnswer("x"),
+        PairError::ShortLived { left_ms: 1 },
+    ] {
         no_token(&format!("{error} {error:?}"));
     }
 }

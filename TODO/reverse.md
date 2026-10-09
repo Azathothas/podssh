@@ -55,7 +55,7 @@ pair (`crates/podssh-relay/src/cache.rs` lines 126-153 and 221-240).
    `Zeroizing` with a redacted `Debug`, as `token::Token` does (`crates/podssh-relay/src/token.rs:27-53`).
    Check the name with T-076, and each token with `cache::valid_token`
    (`crates/podssh-relay/src/cache.rs` lines 52-56 at `3632dcb`). Never quote a 2xx body
-   (`crates/podssh-relay/src/token.rs:175`).
+   (`crates/podssh-relay/src/token.rs:167`).
 3. Answers: `409`, pair again once; `429`, report `Retry-After`; `503`, stop. Refuse a pair with less
    than 10 min left, as the token cache does (`cache.rs` lines 15-16 at `3632dcb`).
 4. `pair::stop` sends `stop_token` to `/v1/stop/<name>`, then deletes the local copy whatever the
@@ -70,7 +70,7 @@ pair (`crates/podssh-relay/src/cache.rs` lines 126-153 and 221-240).
 8. Use the control host only (`tcp.ssh.relay.ajam.dev`, or one host that the user names). No failover
    to pool hosts until a measurement shows that they serve `/v1/*`.
 9. In the same commit: `docs/relay.md` (lines 192-214 at `3632dcb`), `docs/reverse.md` (lines 46-53 at
-   `3632dcb`), and the FILES section of the manual (`crates/podssh-cli/src/man/facts.rs:96`).
+   `3632dcb`), and the FILES section of the manual (`crates/podssh-cli/src/man/facts.rs:115`).
 
 ## Decision
 
@@ -162,8 +162,8 @@ no `hello` comes (crates/podssh-transport/src/control.rs lines 111-137 at `e8bbd
 T-075 and T-076 (each repaired 2026-10-09).
 
 Read: `RelaySession` has text, binary, Ping and Close writes and a liveness watcher
-(`crates/podssh-ws/src/session.rs:87-180`); `podssh_relay::open::backoff` has a jitter
-(`crates/podssh-relay/src/open.rs:261-275`). Not measured: whether the relay answers a Ping on a reverse socket
+(`crates/podssh-ws/src/session.rs:81-174`); `podssh_relay::open::backoff` has a jitter
+(`crates/podssh-relay/src/open.rs:262-276`). Not measured: whether the relay answers a Ping on a reverse socket
 (`docs/relay.md:76-78` is the forward path), and its idle cut there (`docs/relay.md` lines 191-192 at `cd75137`, T-061). A node
 that connects again ends each operator session on it (`docs/design.md:191-194`).
 
@@ -190,14 +190,14 @@ verified here).
 5. Liveness: measure whether the relay answers a Ping on a node socket; if it does, use `watch_liveness`. Never
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
-   (`crates/podssh-relay/src/open.rs:230`), and a quiet socket would reconnect.
+   (`crates/podssh-relay/src/open.rs:231`), and a quiet socket would reconnect.
 6. Close actions, by code and reason (`docs/reverse.md:103-105`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
 7. A clean stop (SIGTERM or Ctrl-C): `close {id}` with a reason for each session, a Close `1000`, then exit 0.
-8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:207`), which keeps loopback
-   off the proxy (`crates/podssh-ws/src/dial.rs:138-145`).
+8. A TCP handler dials with `podssh_ws::dial::dial` (`crates/podssh-ws/src/dial.rs:189`), which keeps loopback
+   off the proxy (`crates/podssh-ws/src/dial.rs:138-142`).
 9. Record each rule in `docs/reverse.md`, and each measurement in `docs/STATUS.md`.
 10. The runner takes a `RelaySession` over any stream, not only TLS, so that the tests of podbox
     run it over a plain `ws://` session to the loopback (`podssh_ws::plain`, T-068).
@@ -300,7 +300,7 @@ The relay sends no keepalives on reverse sockets (`docs/reverse.md:24-32`).
 Read: the codecs: `encode_operator_frame` and `chunk_for_bare`
 (crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`, lines 125-133), and `parse_operator_control`
 (crates/podssh-transport/src/control.rs lines 223-230 at `e8bbd4d`). `podssh proxy` has the pump to follow: stdin and
-stdout, liveness, the close reason (`crates/podssh-cli/src/proxy.rs:180-275`).
+stdout, liveness, the close reason (`crates/podssh-cli/src/proxy.rs:183-281`).
 
 Read in a local copy of podbox at `5bd8cb0`: `run_operator` waits 20 s for `ready`, queues at most
 1 MiB of input before it, sends a Close after the end of input and waits 10 s for the answer, and
@@ -425,7 +425,7 @@ through `curl` (`docs/design.md:124-125`).
 
 Read: `podssh-relay` declares the workspace minimum, Rust 1.88 (`crates/podssh-relay/Cargo.toml:5-6`,
 `Cargo.toml` lines 45-48 at `0d92eef`), above podbox's 1.85. `podssh proxy` already runs async code from sync code with
-a current-thread runtime and `shutdown_background` (`crates/podssh-cli/src/proxy.rs:79-92`).
+a current-thread runtime and `shutdown_background` (`crates/podssh-cli/src/proxy.rs:82-95`).
 
 Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it supplies
 (`docs/design.md:117-121`); that is T-066, not this entry.
@@ -629,9 +629,9 @@ types and two retry tables for one protocol, which is how `403` and `503` alread
 3. The relay paths of the reverse legs are `relay::node_path` and `relay::operator_path`, beside the
    forward path, with the name checks of `podssh_ws::names` (T-076).
 4. The rules of T-075 hold where the answers are read. The forward opener mints a new token once for
-   a refused cached one, and never after a policy refusal (`crates/podssh-relay/src/open.rs:234-242`).
+   a refused cached one, and never after a policy refusal (`crates/podssh-relay/src/open.rs:235-243`).
    A node exits on a `409`, pairs again on a `403` after the expiry, and stops on a `403` before it
-   (`crates/podssh-relay/src/reverse/node.rs:147-150`). A node connects again after a `503`, as
+   (`crates/podssh-relay/src/reverse/node.rs:148-151`). A node connects again after a `503`, as
    after each other failure: the contract's rules for a `503` name the forward leg's authentication
    and the mint (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:99-103`), and a node
    outlives a restart of the relay. The deleted table said "never on this host" for each leg, but
@@ -675,11 +675,11 @@ compiler. Plant: leave one `use podssh_transport` in an example; the build must 
   with the code that they tested: 7 of the backpressure module, 2 of the backoff, 1 of the HTTP
   table, 6 of the endpoint builder, 7 of the forward framing, 2 of the adapter and 15 of the socket
   layer. What the runners need of that layer, their tests check: a control leaves as a text frame
-  (`crates/podssh-relay/tests/reverse_node.rs:129-132`), data waits for `ready`
+  (`crates/podssh-relay/tests/reverse_node.rs:132-135`), data waits for `ready`
   (`ready_waits_for_the_handler_and_comes_before_data`, `plant_data_before_ready`,
   `input_before_ready_is_kept_then_sent_in_order`), a Close keeps its code and reason
   (`a_close_of_the_relay_ends_the_socket_with_its_code_and_reason`), and the token travels in its
-  header (`crates/podssh-ws/tests/rfc6455.rs:327`).
+  header (`crates/podssh-ws/tests/rfc6455.rs:280`).
 - Deleted: crates/podssh-transport, its lines in `Cargo.toml`, `Cargo.lock` and
   `crates/podssh-cli/Cargo.toml`, and its name in the library lists of `scripts/gate.sh` and
   `scripts/plant.sh`. The comments that named it in `podssh-core`, `podssh-ws` and a test of
@@ -751,13 +751,13 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    has no NAME.
 4. Exit codes as `podssh proxy` (`docs/cli.md:261`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
-   `crates/podssh-cli/src/man/facts.rs:195`.
+   `crates/podssh-cli/src/man/facts.rs:214`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
    `crates/podssh-cli/src/doctor/relay_checks.rs:42-78` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
-   (`crates/podssh-cli/tests/flag_table.rs:95`). New variables go in `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:96` there), examples in
-   `crates/podssh-cli/src/man/examples.rs:8-57`; update `docs/cli.md`, `docs/reverse.md` and
+   (`crates/podssh-cli/tests/flag_table.rs:92-93`). New variables go in `VARIABLES`
+   (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:115` there), examples in
+   `crates/podssh-cli/src/man/examples.rs:8-66`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
    T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:38`), so keep the two apart. Never
@@ -880,20 +880,20 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 `podssh ssh -T node:22 true` reaches the connect step for host `node`, port 22 (exit 255 from
 `PODSSH_OFFLINE`); `podssh ssh -T node://lab true` gives `"//lab" is not a port` and exit 64.
 
-Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/resolve.rs:372-421`).
-`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:19-30`, chosen at `:227-263`).
-`connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs:73-120`), and
+Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/resolve.rs:379-427`).
+`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:19-30`, chosen at `:232-270`).
+`connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs:73-116`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:131-137`); the
 operator leg receives text frames (`docs/relay.md:227-230`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:63-68`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:289`). `podssh ssh` uses the exit codes of OpenSSH, and
+(`crates/podssh-cli/src/ssh/resolve.rs:296`). `podssh ssh` uses the exit codes of OpenSSH, and
 `podssh proxy` sysexits (`docs/cli.md:257-261`).
 
 ## Approach
 
 1. `podssh operator NAME`: load the operator's part of the pair under NAME (T-078, T-083), and run
    `operator::run` (T-080) on stdin and stdout: a byte pipe as `podssh proxy`
-   (`crates/podssh-cli/src/proxy.rs:180-275`). stdout carries data only; never 0 without `ready`.
+   (`crates/podssh-cli/src/proxy.rs:183-281`). stdout carries data only; never 0 without `ready`.
 2. `podssh ssh node://[user@]NAME`: `parse_hop` reads `node://` as it reads `ssh://`; add
    `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:19-30`).
 3. For a node, `connect_and_run` opens the operator leg and waits for `ready` (T-080), then gives
@@ -907,7 +907,7 @@ host, never the relay's name (`SECURITY.md:63-68`); `HostKeyAlias` exists
 
 ## Decision
 
-Recommendation: `node://[user@]NAME`, read as `ssh://` is (`crates/podssh-cli/src/ssh/resolve.rs:377`),
+Recommendation: `node://[user@]NAME`, read as `ssh://` is (`crates/podssh-cli/src/ssh/resolve.rs:384`),
 because it changes no destination that works today (measured above). The alternative `node:NAME`, the
 address form of `podssh pipe` (`docs/design.md:266`), lost: `podssh ssh node:22` already means host
 `node`, port 22. A flag such as `--node NAME` lost: `podssh ssh` takes its destination as a word, as
@@ -1408,8 +1408,8 @@ ends each token at once (`docs/relay.md:198-200`). A text frame from the operato
 `1003`, and the operator leg carries no framing (`docs/relay.md:227-230`, `docs/reverse.md:65`).
 
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
-tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:138-175`,
-`crates/podssh-ws/tests/signatures.rs:29-192`); the comment's `crypto_vectors.rs:192` is not one. Read: the
+tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
+`crates/podssh-ws/tests/signatures.rs:29-163`); the comment's `crypto_vectors.rs:192` is not one. Read: the
 issue's "rule 8" is rule 6 (`docs/architecture.md:120-122`), and its "section 2" sentence about an allowlist of
 keys is in section 7 (`docs/design.md:314-315`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 and
@@ -1435,7 +1435,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
    start of the session: a change of the framing in crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`. The
    node checks the grant before it dials the TARGET, so the dial moves after `ready` (`docs/reverse.md:16`):
    the seam of T-088 and T-089. Spent nonces are create-new private files
-   (`crates/podssh-relay/src/cache.rs:301-319`).
+   (`crates/podssh-relay/src/cache.rs:305-318`).
 3. Both shapes: an SSHSIG signature in a fixed podssh namespace, which `ssh-keygen -Y verify` can check
    (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:189-191`).
 4. Relations: T-078 makes the pair that a grant protects; T-086 can deliver a grant in place of the

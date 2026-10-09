@@ -27,6 +27,8 @@ pub mod exit_codes;
 // ⛔ Two modules because they answer different questions: `exit_codes.rs` is
 // "what does this crate emit today", `exitmap.rs` is "what the contract says".
 pub mod exitmap;
+// Tables, one flag to a row: rustfmt would spread each row over many lines.
+#[rustfmt::skip]
 pub mod flags;
 pub mod help;
 pub mod keygen;
@@ -52,7 +54,6 @@ pub mod tree;
 // so it is compiled only with the `ts` feature (see Cargo.toml).
 #[cfg(feature = "ts")]
 pub mod ts;
-
 
 pub use flags::{FlagKind, FlagRow, Verb, VERBS};
 pub use tree::{parse, Parsed};

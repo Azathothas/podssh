@@ -80,8 +80,7 @@ impl Attempt {
 
     /// ⛔ Registration outranks echo: closer to the proof wins.
     pub fn score(&self) -> u8 {
-        (self.registered as u8) * 4 + ((self.echo_short || self.echo_chan_short) as u8) * 2
-            + (self.connected as u8)
+        (self.registered as u8) * 4 + ((self.echo_short || self.echo_chan_short) as u8) * 2 + (self.connected as u8)
     }
 
     /// ⛔ Counts, codes, capability names, our probe id. The token never appears.
@@ -112,12 +111,7 @@ pub enum PumpOut {
     Closed(&'static str, String),
 }
 
-pub async fn pump_once(
-    runner: &mut LiveRunner,
-    irc: &mut Session,
-    a: &mut Attempt,
-    step: Instant,
-) -> PumpOut {
+pub async fn pump_once(runner: &mut LiveRunner, irc: &mut Session, a: &mut Attempt, step: Instant) -> PumpOut {
     let payload = match tokio::time::timeout_at(step.into(), runner.recv_bytes()).await {
         Ok(Ok(p)) => p,
         // A Close names its code and reason: who ended the session.
@@ -154,10 +148,7 @@ pub fn burst_for(irc: &mut Session, no_cap: bool) -> Vec<podssh_core::irc::Messa
         return irc.initial_burst();
     }
     let server = irc.server().clone();
-    vec![
-        podssh_core::irc::nick_message(&server.nick),
-        podssh_core::irc::user_message(&server),
-    ]
+    vec![podssh_core::irc::nick_message(&server.nick), podssh_core::irc::user_message(&server)]
 }
 
 /// One fresh session: the initial burst and the nick-retry rebuild share it.
@@ -175,11 +166,7 @@ pub fn new_session(host: &str, port: u16, nick: String, policy: ReapPolicy) -> S
 }
 
 /// Write every message's wire bytes, counting frames.
-pub async fn send_all(
-    runner: &mut LiveRunner,
-    msgs: &[podssh_core::irc::Message],
-    a: &mut Attempt,
-) -> Result<(), ()> {
+pub async fn send_all(runner: &mut LiveRunner, msgs: &[podssh_core::irc::Message], a: &mut Attempt) -> Result<(), ()> {
     for m in msgs {
         let wire = m.to_wire();
         runner.send_bytes(wire.as_bytes()).await.map_err(|_| ())?;

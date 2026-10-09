@@ -42,16 +42,10 @@ fn callers_config(roots: rustls::RootCertStore) -> std::sync::Arc<rustls::Client
 }
 
 async fn open(addr: std::net::SocketAddr, trust: &Trust) -> Result<String, String> {
-    let mut stream = podssh_ws::client::open_tls(
-        &addr.ip().to_string(),
-        addr.port(),
-        NAME,
-        trust,
-        &ProxyChoice::Direct,
-        TIMEOUT,
-    )
-    .await
-    .map_err(|e| e.to_string())?;
+    let mut stream =
+        podssh_ws::client::open_tls(&addr.ip().to_string(), addr.port(), NAME, trust, &ProxyChoice::Direct, TIMEOUT)
+            .await
+            .map_err(|e| e.to_string())?;
     let mut got = String::new();
     stream.read_to_string(&mut got).await.map_err(|e| e.to_string())?;
     Ok(got)

@@ -10,8 +10,10 @@ use std::time::Duration;
 
 use podssh_relay::pair::{self, Pair, PairContext};
 use podssh_relay::relay::{Relay, DEFAULT_RELAY_HOST};
-use podssh_relay::reverse::{operator, run, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, Outcome, Settings, Wire};
 use podssh_relay::reverse::SessionId;
+use podssh_relay::reverse::{
+    operator, run, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, Outcome, Settings, Wire,
+};
 use podssh_ws::{ProxyChoice, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::Notify;
@@ -111,14 +113,11 @@ async fn operator_echo(pair: &Pair, payload: Vec<u8>) -> (Vec<u8>, Outcome) {
     });
     let (mut from_user, mut to_user) = tokio::io::split(&mut user);
     let sent = payload.len();
-    let (_, back) = tokio::join!(
-        async move { to_user.write_all(&payload).await.unwrap() },
-        async move {
-            let mut back = vec![0u8; sent];
-            tokio::time::timeout(LIMIT, from_user.read_exact(&mut back)).await.expect("the echo in time").unwrap();
-            back
-        }
-    );
+    let (_, back) = tokio::join!(async move { to_user.write_all(&payload).await.unwrap() }, async move {
+        let mut back = vec![0u8; sent];
+        tokio::time::timeout(LIMIT, from_user.read_exact(&mut back)).await.expect("the echo in time").unwrap();
+        back
+    });
     user.shutdown().await.unwrap();
     let outcome = tokio::time::timeout(LIMIT, session).await.expect("an outcome").unwrap();
     (back, outcome)
@@ -136,7 +135,8 @@ async fn node_serves_two_sessions_at_once() {
     let (task, stop) = node(made, Echo);
     tokio::time::sleep(Duration::from_secs(2)).await;
 
-    let ((one, first), (two, second)) = tokio::join!(operator_echo(&copy, pattern(1)), operator_echo(&copy, pattern(2)));
+    let ((one, first), (two, second)) =
+        tokio::join!(operator_echo(&copy, pattern(1)), operator_echo(&copy, pattern(2)));
     assert!(one == pattern(1), "the first session's bytes came back changed");
     assert!(two == pattern(2), "the second session's bytes came back changed");
     assert!(first.is_success() && second.is_success(), "{first:?} {second:?}");

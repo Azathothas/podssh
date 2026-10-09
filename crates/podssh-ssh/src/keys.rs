@@ -282,9 +282,8 @@ async fn connect_agent(choice: &Agent) -> Result<Option<DynAgent>, String> {
             }
         }
         #[cfg(windows)]
-        Agent::Path(path) => AgentClient::connect_named_pipe(path)
-            .await
-            .map(|a| Some(a.dynamic()))
-            .map_err(|e| e.to_string()),
+        Agent::Path(path) => {
+            AgentClient::connect_named_pipe(path).await.map(|a| Some(a.dynamic())).map_err(|e| e.to_string())
+        }
     }
 }

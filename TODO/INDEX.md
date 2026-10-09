@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**254 entries: 184 open, 0 partial, 8 blocked, 62 done.**
+**254 entries: 183 open, 1 partial, 8 blocked, 62 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 94 | 0 | 4 | 49 | 147 |
+| P2 | 93 | 1 | 4 | 49 | 147 |
 | P3 | 88 | 0 | 4 | 5 | 97 |
-| **All** | 184 | 0 | 8 | 62 | 254 |
+| **All** | 183 | 1 | 8 | 62 | 254 |
 
 ## Entries
 
@@ -286,7 +286,7 @@ repository and CI).
 | [T-212](repo.md) | P2 | M | none | chore | open | Parallel CI, with the gate as the one source |
 | [T-213](repo.md) | P2 | M | none | chore | open | CI runs the box like the target sandbox |
 | [T-214](repo.md) | P2 | M | none | chore | open | CI on Windows |
-| [T-215](repo.md) | P2 | M | none | chore | open | rustfmt and clippy in the gate |
+| [T-215](repo.md) | P2 | M | none | chore | partial | rustfmt and clippy in the gate |
 | [T-216](repo.md) | P2 | S | none | chore | done | Advisories and licenses of the dependencies, checked in CI |
 | [T-217](repo.md) | P3 | S | none | chore | open | The declared minimum Rust versions, checked in CI |
 | [T-218](repo.md) | P2 | M | M9 | release | open | More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64 |

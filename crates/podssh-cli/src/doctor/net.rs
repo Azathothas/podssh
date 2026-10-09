@@ -63,10 +63,8 @@ pub(super) fn check_local(report: &mut Report<'_>, relays: &RelayList, trust: &T
     }
     // A file chosen by the user replaces the compiled-in roots.
     if *trust == Trust::Default {
-        let now = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs() as i64)
-            .unwrap_or(0);
+        let now =
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0);
         roots_age(report, podssh_ws::tls::ROOTS_PUBLISHED, now);
     }
 }
@@ -178,7 +176,8 @@ async fn through_proxy(report: &mut Report<'_>, proxy: &HttpProxy, relay_host: &
                 format!("{target}: {e}; another relay host may be allowed (--relay-host or PODSSH_RELAY)"),
             ),
             Err(e) => {
-                let meaning = if port == 22 { "; plain ssh cannot leave this way, which is what the relay is for" } else { "" };
+                let meaning =
+                    if port == 22 { "; plain ssh cannot leave this way, which is what the relay is for" } else { "" };
                 report.ok("CONNECT", format!("{target}: {e}{meaning}"));
             }
         }
@@ -198,10 +197,9 @@ async fn direct(report: &mut Report<'_>) {
                 format!("{target}: connected to {peer}, {} ms; plain ssh can leave this host too", ms(started)),
             );
         }
-        Err(e) => report.ok(
-            "direct TCP",
-            format!("{e}; plain ssh cannot leave this host, which is what the relay is for"),
-        ),
+        Err(e) => {
+            report.ok("direct TCP", format!("{e}; plain ssh cannot leave this host, which is what the relay is for"))
+        }
     }
 }
 
@@ -223,16 +221,18 @@ async fn names_direct(report: &mut Report<'_>, host: &str) {
         let ips: Vec<String> = pinned.iter().map(|ip| ip.to_string()).collect();
         report.ok(
             "pinned",
-            format!("{host} is pinned to {} (--relay-addr or PODSSH_RELAY_ADDR); used before any resolver", ips.join(", ")),
+            format!(
+                "{host} is pinned to {} (--relay-addr or PODSSH_RELAY_ADDR); used before any resolver",
+                ips.join(", ")
+            ),
         );
     }
     let system = system_lookup(host).await;
     match &system {
         Ok(ips) => report.ok("DNS", format!("{host} is {ips} (system resolver)")),
-        Err(e) => report.ok(
-            "DNS",
-            format!("the system resolver fails for {host} ({e}); podssh falls back to DNS over HTTPS"),
-        ),
+        Err(e) => {
+            report.ok("DNS", format!("the system resolver fails for {host} ({e}); podssh falls back to DNS over HTTPS"))
+        }
     }
     doh(report, host, system.is_ok() || !pinned.is_empty()).await;
 }

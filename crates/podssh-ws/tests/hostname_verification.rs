@@ -36,19 +36,11 @@ async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
     let mut only_leaf = rustls::RootCertStore::empty();
     let _ = only_leaf.add(rustls_pki_types::CertificateDer::from(leaf.der.clone()));
     let mut only_anchor = rustls::RootCertStore::empty();
-    let anchor_added = only_anchor
-        .add(rustls_pki_types::CertificateDer::from(anchor.der.clone()))
-        .is_ok();
-    eprintln!(
-        "ANCHOR-ACCEPTED-AS-TRUST-ANCHOR: {anchor_added} leaf={} anchor={}",
-        leaf.der.len(),
-        anchor.der.len()
-    );
+    let anchor_added = only_anchor.add(rustls_pki_types::CertificateDer::from(anchor.der.clone())).is_ok();
+    eprintln!("ANCHOR-ACCEPTED-AS-TRUST-ANCHOR: {anchor_added} leaf={} anchor={}", leaf.der.len(), anchor.der.len());
     let leaf_as_anchor = {
         let mut store = rustls::RootCertStore::empty();
-        store
-            .add(rustls_pki_types::CertificateDer::from(leaf.der.clone()))
-            .is_ok()
+        store.add(rustls_pki_types::CertificateDer::from(leaf.der.clone())).is_ok()
     };
     eprintln!("LEAF-ACCEPTED-AS-TRUST-ANCHOR: {leaf_as_anchor}");
     let client = tokio_rustls::TlsConnector::from(
@@ -60,9 +52,7 @@ async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
         .expect("a config from a non-empty store"),
     );
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let addr = listener.local_addr().expect("an address");
     let server = tokio::spawn(async move {
         if let Ok((stream, _)) = listener.accept().await {
@@ -71,8 +61,7 @@ async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
     });
 
     let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
-    let name =
-        rustls_pki_types::ServerName::try_from("podssh.invalid").expect("a valid name");
+    let name = rustls_pki_types::ServerName::try_from("podssh.invalid").expect("a valid name");
 
     let result = client.connect(name, tcp).await;
     let _ = server.await;
@@ -85,9 +74,7 @@ async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
             // other reason would pass this assertion and leave the entry
             // unproven — which is exactly what the live-only plant did.
             assert!(
-                text.contains("not valid for")
-                    || text.contains("NotValidForName")
-                    || text.contains("name"),
+                text.contains("not valid for") || text.contains("NotValidForName") || text.contains("name"),
                 "⛔ the rejection must name the certificate's name mismatch, got: {text}"
             );
         }
@@ -115,9 +102,7 @@ async fn the_control_the_right_hostname_is_accepted() {
         .expect("a config"),
     );
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("bind");
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind");
     let addr = listener.local_addr().expect("an address");
     let server = tokio::spawn(async move {
         if let Ok((stream, _)) = listener.accept().await {
@@ -126,18 +111,14 @@ async fn the_control_the_right_hostname_is_accepted() {
     });
 
     let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
-    let name =
-        rustls_pki_types::ServerName::try_from("wrong.example").expect("a valid name");
+    let name = rustls_pki_types::ServerName::try_from("wrong.example").expect("a valid name");
 
     let tls = client
         .connect(name, tcp)
         .await
         .expect("⛔ the control must succeed: a guard proven one way only is not a guard");
     let (_, session) = tls.get_ref();
-    assert!(
-        !session.is_handshaking(),
-        "the control handshake did not finish"
-    );
+    assert!(!session.is_handshaking(), "the control handshake did not finish");
     let _ = server.await;
 }
 
@@ -176,9 +157,7 @@ async fn a_permissive_verifier_could_not_satisfy_both() {
         }
     });
     let tcp = tokio::net::TcpStream::connect(a_addr).await.expect("connect");
-    let ok_result = tokio_rustls::TlsConnector::from(ok_config)
-        .connect(right, tcp)
-        .await;
+    let ok_result = tokio_rustls::TlsConnector::from(ok_config).connect(right, tcp).await;
     eprintln!("RIGHT-NAME RESULT: {:?}", ok_result.as_ref().err().map(|e| e.to_string()));
     let _ = a_server.await;
     match &ok_result {
@@ -194,9 +173,7 @@ async fn a_permissive_verifier_could_not_satisfy_both() {
         }
     });
     let tcp = tokio::net::TcpStream::connect(b_addr).await.expect("connect");
-    let bad_result = tokio_rustls::TlsConnector::from(bad_config)
-        .connect(wrong, tcp)
-        .await;
+    let bad_result = tokio_rustls::TlsConnector::from(bad_config).connect(wrong, tcp).await;
     let _ = b_server.await;
     assert!(
         bad_result.is_err(),

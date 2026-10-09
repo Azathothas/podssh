@@ -32,20 +32,33 @@ fn cache_dir(home: &Path) -> PathBuf {
 fn status(home: &Path, args: &[&str], set: &[(&str, &str)]) -> (i32, String, String) {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     cmd.arg("status").args(args);
-    for name in ["PODSSH_RELAY", "PODSSH_RELAY_ADDR", "PODSSH_RELAY_TOKEN", "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"] {
+    for name in [
+        "PODSSH_RELAY",
+        "PODSSH_RELAY_ADDR",
+        "PODSSH_RELAY_TOKEN",
+        "https_proxy",
+        "HTTPS_PROXY",
+        "all_proxy",
+        "ALL_PROXY",
+    ] {
         cmd.env_remove(name);
     }
     cmd.env("HOME", home).env("USERPROFILE", home).env("PODSSH_OFFLINE", "1");
     cmd.env("XDG_CACHE_HOME", home.join("cache")).env("LOCALAPPDATA", home.join("cache"));
     cmd.envs(set.iter().copied());
-    let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("podssh runs");
+    let mut child =
+        cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("podssh runs");
     let deadline = Instant::now() + Duration::from_secs(30);
     while child.try_wait().expect("wait").is_none() {
         assert!(Instant::now() < deadline, "podssh status did not end within 30 s");
         std::thread::sleep(Duration::from_millis(20));
     }
     let out = child.wait_with_output().expect("output");
-    (out.status.code().unwrap_or(-1), String::from_utf8_lossy(&out.stdout).into_owned(), String::from_utf8_lossy(&out.stderr).into_owned())
+    (
+        out.status.code().unwrap_or(-1),
+        String::from_utf8_lossy(&out.stdout).into_owned(),
+        String::from_utf8_lossy(&out.stderr).into_owned(),
+    )
 }
 
 fn one_line(out: &str) -> Value {
@@ -68,7 +81,10 @@ fn the_line_names_the_relays_and_where_they_came_from() {
     let (_, out, _) = status(&home, &["--relay-host", "a.example,b.example:8443"], &[]);
     let doc = one_line(&out);
     assert_eq!(doc["relays_from"], "--relay-host");
-    assert_eq!(doc["relays"], serde_json::json!([{ "host": "a.example", "port": 443 }, { "host": "b.example", "port": 8443 }]));
+    assert_eq!(
+        doc["relays"],
+        serde_json::json!([{ "host": "a.example", "port": 443 }, { "host": "b.example", "port": 8443 }])
+    );
     let (_, out, _) = status(&home, &[], &[("PODSSH_RELAY", "c.example")]);
     assert_eq!(one_line(&out)["relays_from"], "PODSSH_RELAY");
     let (rc, out, err) = status(&home, &["bad host!"], &[]);

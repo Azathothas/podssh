@@ -111,9 +111,9 @@ pub fn roots_for(trust: &Trust) -> Result<TlsRoots, WsError> {
     match trust {
         Trust::File(path) => roots_from_bundle(path),
         Trust::Default => Ok(default_roots()),
-        Trust::Caller(_) => Err(WsError::Config(
-            "the caller's TLS configuration holds its own roots; podssh cannot list them".into(),
-        )),
+        Trust::Caller(_) => {
+            Err(WsError::Config("the caller's TLS configuration holds its own roots; podssh cannot list them".into()))
+        }
     }
 }
 
@@ -169,10 +169,7 @@ pub struct TlsRoots {
 }
 
 pub fn roots_from_bundle(path: &Path) -> Result<TlsRoots, WsError> {
-    let certs = bundle::load_bundle(path).map_err(|why| WsError::Bundle {
-        path: path.display().to_string(),
-        why,
-    })?;
+    let certs = bundle::load_bundle(path).map_err(|why| WsError::Bundle { path: path.display().to_string(), why })?;
     let offered = certs.len();
     let mut roots = RootCertStore::empty();
     // ⛔ `add_parsable_certificates` returns `(valid, invalid)` counts. A
@@ -192,20 +189,14 @@ pub fn roots_from_bundle(path: &Path) -> Result<TlsRoots, WsError> {
             why: "the bundle produced no usable trust anchors".into(),
         });
     }
-    Ok(TlsRoots {
-        roots,
-        source: path.display().to_string(),
-        count: added,
-    })
+    Ok(TlsRoots { roots, source: path.display().to_string(), count: added })
 }
 
 /// Only the compiled-in Mozilla roots (`webpki-roots`), with no extras.
 pub fn roots_from_compiled_set() -> TlsRoots {
     TlsRoots {
         count: webpki_roots::TLS_SERVER_ROOTS.len(),
-        roots: RootCertStore {
-            roots: webpki_roots::TLS_SERVER_ROOTS.to_vec(),
-        },
+        roots: RootCertStore { roots: webpki_roots::TLS_SERVER_ROOTS.to_vec() },
         source: format!(
             "the compiled-in webpki-roots set ({} anchors) — NOT a file",
             webpki_roots::TLS_SERVER_ROOTS.len()
@@ -227,12 +218,10 @@ pub fn client_config(roots: &TlsRoots) -> Result<Arc<ClientConfig>, WsError> {
 /// exchange group alone and still prove the configuration that ships.
 pub fn client_config_with(roots: &TlsRoots, provider: CryptoProvider) -> Result<Arc<ClientConfig>, WsError> {
     let provider: Arc<CryptoProvider> = Arc::new(provider);
-    let verifier = rustls::client::WebPkiServerVerifier::builder_with_provider(
-        Arc::new(roots.roots.clone()),
-        provider.clone(),
-    )
-    .build()
-    .map_err(|e| WsError::Config(format!("server certificate verifier: {e}")))?;
+    let verifier =
+        rustls::client::WebPkiServerVerifier::builder_with_provider(Arc::new(roots.roots.clone()), provider.clone())
+            .build()
+            .map_err(|e| WsError::Config(format!("server certificate verifier: {e}")))?;
 
     let config = ClientConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()

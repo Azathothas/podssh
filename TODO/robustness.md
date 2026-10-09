@@ -27,18 +27,18 @@ acceptance on rare input stays hidden. The release build aborts on a panic
 
 Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/frame.rs:113`); HTTP heads and chunked bodies
-(`crates/podssh-ws/src/http.rs:113`, line 179); the upgrade answer
-(`crates/podssh-ws/src/handshake.rs:188`); proxy URLs, `NO_PROXY` and the
+(`crates/podssh-ws/src/http.rs:106`, line 179); the upgrade answer
+(`crates/podssh-ws/src/handshake.rs:175`); proxy URLs, `NO_PROXY` and the
 CONNECT status (`crates/podssh-ws/src/dial.rs:49`, lines 178 and 334); close
-reasons (`crates/podssh-ws/src/session.rs:312`); PEM bundles
-(`crates/podssh-ws/src/bundle.rs:80`); relay lists and the pool document
-(`crates/podssh-relay/src/relay.rs:81`, `crates/podssh-relay/src/pool.rs:92`);
+reasons (`crates/podssh-ws/src/session.rs:307`); PEM bundles
+(`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
+(`crates/podssh-relay/src/relay.rs:79`, `crates/podssh-relay/src/pool.rs:92`);
 `known_hosts` lines, in a private function
-(`crates/podssh-ssh/src/known_hosts.rs:123`); the escape filter
+(`crates/podssh-ssh/src/known_hosts.rs:120`); the escape filter
 (`crates/podssh-ssh/src/escape.rs:30`); IRC lines and frames
 (`crates/podssh-core/src/irc/encode.rs:17`,
 `crates/podssh-core/src/irc/framing.rs:92`); the command line
-(`crates/podssh-cli/src/tree.rs:110`). No fuzz target exists. libFuzzer is
+(`crates/podssh-cli/src/tree.rs:106`). No fuzz target exists. libFuzzer is
 C++, and the message of commit `a378863` says that `rust:1-alpine` has no C++
 compiler.
 
@@ -86,7 +86,7 @@ sh scripts/dev.sh check                                   # the gate does not ch
 
 The list names each target, and each run ends with no crash (`ws_frame`
 after T-063). Planted defect: remove the length guard of
-`close_code_and_reason` (`crates/podssh-ws/src/session.rs:313-315`);
+`close_code_and_reason` (`crates/podssh-ws/src/session.rs:308-310`);
 `close_reason` must crash within its 120 s.
 
 # T-199: A scored interop harness
@@ -278,17 +278,17 @@ Read, the bounds today:
   (`crates/podssh-ws/src/session.rs:29`, checked at lines 240-242).
 - A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:8`), for the
   proxy (`crates/podssh-ws/src/dial.rs:18`) and for the upgrade
-  (`crates/podssh-ws/src/handshake.rs:137`).
+  (`crates/podssh-ws/src/handshake.rs:124`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:33`). A cache
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:19`).
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:29`). The relay pipe:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:22-25`). Pump buffers: 32 KiB
-  (`crates/podssh-cli/src/proxy.rs:214`).
+  (`crates/podssh-cli/src/proxy.rs:217`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
   `crates/podssh-relay/src/open.rs:25-29`, `crates/podssh-ssh/src/session.rs:21`.
 - No limit: a `known_hosts` file is read whole
-  (`crates/podssh-ssh/src/known_hosts.rs:104-109`); the IRC buffer (T-096).
+  (`crates/podssh-ssh/src/known_hosts.rs:101-106`); the IRC buffer (T-096).
 - Two texts disagreed until T-024. The comment on the SSH window
   (`crates/podssh-ssh/src/run.rs` lines 25-28 at `80f20bf`) said that the
   relay drops a frame when more than 1 MiB waits (`1011 relay
@@ -332,7 +332,7 @@ Each command exits 0. Planted defect: set `WINDOW`
 (`crates/podssh-ssh/src/run.rs:29`) to 64 MiB; the slow-reader check must
 fail. If it does not, the bound is somewhere else: find it before anybody
 trusts the check. A second plant: remove the check at
-`crates/podssh-ws/src/session.rs:277-279`; the fragment test must fail.
+`crates/podssh-ws/src/session.rs:272-274`; the fragment test must fail.
 
 # T-202: Property tests for the state machines
 
@@ -358,11 +358,11 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 
 - WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:67`,
   `crates/podssh-ws/src/frame.rs:113`).
-- The joining of fragments (`crates/podssh-ws/src/session.rs:271-295`). It is
+- The joining of fragments (`crates/podssh-ws/src/session.rs:266-290`). It is
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:69`) takes
   any stream, so a test can drive it.
-- Relay lists and paths (`crates/podssh-relay/src/relay.rs:81-160`, `crates/podssh-ws/src/names.rs:8-57`).
-- `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:148-204`).
+- Relay lists and paths (`crates/podssh-relay/src/relay.rs:79-155`, `crates/podssh-ws/src/names.rs:8-57`).
+- `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:145-201`).
 - The escape filter, which keeps its state from one read to the next
   (`crates/podssh-ssh/src/escape.rs:30-70`).
 - The sanitizer (`crates/podssh-ws/src/text.rs:12-57`).
@@ -440,7 +440,7 @@ Read:
   checks are at lines 73-182 (`docs/STATUS.md:187-204`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:241`, enforced at
-  `crates/podssh-ssh/src/run.rs:138-143`); a reply, 30 s
+  `crates/podssh-ssh/src/run.rs:144-149`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability

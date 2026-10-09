@@ -104,9 +104,8 @@ async fn stand_in_proxy(reply: &'static str) -> (HttpProxy, tokio::task::JoinHan
 async fn connect_tunnels_by_name_without_resolving_the_target() {
     let (proxy, seen) = stand_in_proxy("HTTP/1.1 200 Connection Established\r\n\r\n").await;
     // `relay.invalid` cannot resolve: the name must reach the proxy as text.
-    let mut stream = dial("relay.invalid", 443, &ProxyChoice::Via(proxy), Duration::from_secs(5))
-        .await
-        .expect("a tunnel");
+    let mut stream =
+        dial("relay.invalid", 443, &ProxyChoice::Via(proxy), Duration::from_secs(5)).await.expect("a tunnel");
     stream.write_all(b"ping").await.unwrap();
     let mut back = [0u8; 4];
     stream.read_exact(&mut back).await.unwrap();
@@ -122,9 +121,7 @@ async fn connect_tunnels_by_name_without_resolving_the_target() {
 async fn credentials_go_in_a_basic_proxy_authorization_header() {
     let (proxy, seen) = stand_in_proxy("HTTP/1.1 200 OK\r\n\r\n").await;
     let with_auth = HttpProxy::parse(&format!("http://user:pass@{proxy}")).unwrap();
-    let mut s = dial("relay.invalid", 443, &ProxyChoice::Via(with_auth), Duration::from_secs(5))
-        .await
-        .unwrap();
+    let mut s = dial("relay.invalid", 443, &ProxyChoice::Via(with_auth), Duration::from_secs(5)).await.unwrap();
     s.write_all(b"x").await.unwrap();
     let head = seen.await.unwrap();
     // base64("user:pass")
@@ -134,9 +131,7 @@ async fn credentials_go_in_a_basic_proxy_authorization_header() {
 #[tokio::test]
 async fn a_refusal_carries_the_status_and_the_proxys_reason() {
     let (proxy, _seen) = stand_in_proxy("HTTP/1.1 403 not on the egress allowlist\r\n\r\n").await;
-    let err = dial("example.com", 22, &ProxyChoice::Via(proxy), Duration::from_secs(5))
-        .await
-        .unwrap_err();
+    let err = dial("example.com", 22, &ProxyChoice::Via(proxy), Duration::from_secs(5)).await.unwrap_err();
     match &err {
         DialError::ProxyRefused { status, reason, target, .. } => {
             assert_eq!(*status, 403);
@@ -153,9 +148,7 @@ async fn an_unreachable_proxy_is_named() {
     // Bind and drop a listener to find a port with nothing on it.
     let port = TcpListener::bind("127.0.0.1:0").await.unwrap().local_addr().unwrap().port();
     let proxy = HttpProxy::parse(&format!("http://127.0.0.1:{port}")).unwrap();
-    let err = dial("relay.invalid", 443, &ProxyChoice::Via(proxy), Duration::from_secs(5))
-        .await
-        .unwrap_err();
+    let err = dial("relay.invalid", 443, &ProxyChoice::Via(proxy), Duration::from_secs(5)).await.unwrap_err();
     assert!(matches!(err, DialError::ProxyUnreachable { .. }), "{err:?}");
 }
 
@@ -170,9 +163,7 @@ async fn a_silent_proxy_times_out_within_the_budget() {
     });
     let proxy = HttpProxy::parse(&format!("http://127.0.0.1:{port}")).unwrap();
     let started = std::time::Instant::now();
-    let err = dial("relay.invalid", 443, &ProxyChoice::Via(proxy), Duration::from_millis(300))
-        .await
-        .unwrap_err();
+    let err = dial("relay.invalid", 443, &ProxyChoice::Via(proxy), Duration::from_millis(300)).await.unwrap_err();
     assert!(matches!(err, DialError::Timeout { .. }), "{err:?}");
     assert!(started.elapsed() < Duration::from_secs(3), "took {:?}", started.elapsed());
 }
@@ -182,9 +173,8 @@ async fn direct_connections_ignore_the_environment() {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let accept = tokio::spawn(async move { listener.accept().await.map(|_| ()) });
-    let stream: TcpStream = dial("127.0.0.1", port, &ProxyChoice::Direct, Duration::from_secs(5))
-        .await
-        .expect("a direct connection");
+    let stream: TcpStream =
+        dial("127.0.0.1", port, &ProxyChoice::Direct, Duration::from_secs(5)).await.expect("a direct connection");
     drop(stream);
     accept.await.unwrap().unwrap();
 }
@@ -200,8 +190,7 @@ async fn names_that_would_break_a_request_are_refused() {
 /// A proxy's reason phrase ends up in the refusal message.
 #[test]
 fn a_proxy_reason_phrase_cannot_carry_terminal_controls() {
-    let (status, reason) =
-        podssh_ws::dial::parse_status_line("HTTP/1.1 403 not\x1b[31m allowed\x07\r\n\r\n").unwrap();
+    let (status, reason) = podssh_ws::dial::parse_status_line("HTTP/1.1 403 not\x1b[31m allowed\x07\r\n\r\n").unwrap();
     assert_eq!(status, 403);
     assert_eq!(reason, "not[31m allowed");
 }

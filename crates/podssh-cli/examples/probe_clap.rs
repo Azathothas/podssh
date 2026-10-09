@@ -22,10 +22,7 @@ fn main() {
     } else {
         given
     };
-    let verb = VERBS
-        .iter()
-        .find(|v| v.aliases.contains(&argv[0].as_str()))
-        .expect("the first argument is a verb");
+    let verb = VERBS.iter().find(|v| v.aliases.contains(&argv[0].as_str())).expect("the first argument is a verb");
     let err = match verb_command(verb).try_get_matches_from(&argv) {
         Ok(_) => {
             println!("{argv:?} parses with no error");

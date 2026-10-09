@@ -9,7 +9,6 @@ mod common;
 
 use common::session::registered;
 
-
 #[test]
 fn plant_a_ping_with_a_token_gets_a_pong_that_echoes_it_byte_for_byte() {
     // ⛔ **THE PLANT.** ⛔ "a server that does not receive its own token drops
@@ -47,7 +46,11 @@ fn plant_the_control_a_pong_is_not_sent_when_nothing_pinged() {
     // infinite echo between two such clients.
     let mut s = registered();
     let (out, events) = s.on_bytes(b":bob!u@h PRIVMSG #c :hello\r\n").expect("short");
-    assert!(out.is_empty(), "⛔ a PRIVMSG needs no reply; got {:?}", out.iter().map(|m| m.to_line()).collect::<Vec<_>>());
+    assert!(
+        out.is_empty(),
+        "⛔ a PRIVMSG needs no reply; got {:?}",
+        out.iter().map(|m| m.to_line()).collect::<Vec<_>>()
+    );
     assert_eq!(events.len(), 1, "⛔ the PRIVMSG is the only event");
 }
 
@@ -87,4 +90,3 @@ fn a_pong_echoed_back_by_the_server_is_not_answered_again() {
     let (out, _) = s.on_bytes(b"PONG :aBcD1234\r\n").expect("short");
     assert!(out.is_empty(), "⛔ a PONG must never be answered");
 }
-

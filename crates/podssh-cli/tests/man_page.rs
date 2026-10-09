@@ -51,7 +51,13 @@ fn with_no_terminal_the_whole_manual_is_written() {
 /// stdout carries the answer and nothing else, on each path of `man`.
 #[test]
 fn the_answer_is_the_only_thing_on_stdout() {
-    for args in [vec!["man"], vec!["man", "ssh"], vec!["man", "--roff"], vec!["man", "environment"], vec!["man", "--roff", "exit"]] {
+    for args in [
+        vec!["man"],
+        vec!["man", "ssh"],
+        vec!["man", "--roff"],
+        vec!["man", "environment"],
+        vec!["man", "--roff", "exit"],
+    ] {
         let (rc, out, err) = podssh(&args, None);
         assert_eq!(rc, 0, "{args:?}: {err}");
         assert!(err.is_empty(), "{args:?} wrote to stderr: {err}");
@@ -89,7 +95,9 @@ fn the_manual_shows_no_setting_and_no_secret() {
         let (rc, set, err) = podssh(&args, Some(&env));
         assert_eq!(rc, 0, "{err}");
         assert_eq!(set, clean, "{args:?}: the environment changed the manual");
-        for value in [token, password, "relay-from-env.invalid", "manual-test-home", "manual-test-user", "manual-test-pager"] {
+        for value in
+            [token, password, "relay-from-env.invalid", "manual-test-home", "manual-test-user", "manual-test-pager"]
+        {
             assert!(!set.contains(value), "{args:?}: the manual shows {value:?}");
         }
     }

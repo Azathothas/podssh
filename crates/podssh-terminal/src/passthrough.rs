@@ -142,9 +142,7 @@ impl std::fmt::Debug for Passthrough {
     /// ⛔ A `Debug` that prints the frame state and nothing else, because a
     /// `Passthrough` holds no line and printing one would suggest it does.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Passthrough")
-            .field("in_frame", &self.window.in_frame())
-            .finish()
+        f.debug_struct("Passthrough").field("in_frame", &self.window.in_frame()).finish()
     }
 }
 

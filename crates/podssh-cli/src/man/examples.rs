@@ -10,7 +10,10 @@ fn examples() -> Vec<(&'static str, String)> {
     let other = podssh_relay::pool::SEED[0];
     vec![
         ("what works on this host, one line for each check", "podssh doctor".into()),
-        ("the state of this host as one line of JSON, and whether a host's key is known", "podssh status github.com".into()),
+        (
+            "the state of this host as one line of JSON, and whether a host's key is known",
+            "podssh status github.com".into(),
+        ),
         ("log in to a host, through the relay", "podssh ssh user@example.org".into()),
         ("run one command; podssh exits with its exit status", "podssh ssh user@example.org 'uname -a'".into()),
         (
@@ -19,7 +22,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ),
         ("an interactive program, from a host with no terminal", "podssh ssh -tt user@example.org top".into()),
         ("through a jump host", "podssh ssh -J user@bastion.example.org user@inner.example.org".into()),
-        ("a host from a script: -- before it, so it is never read as a flag", "podssh ssh -- user@example.org uptime".into()),
+        (
+            "a host from a script: -- before it, so it is never read as a flag",
+            "podssh ssh -- user@example.org uptime".into(),
+        ),
         ("an IPv6 address with a port, with no relay", "podssh ssh --direct 'user@[2001:db8::1]:2222'".into()),
         ("send a file with no scp", "podssh ssh user@example.org 'cat > notes.txt' < notes.txt".into()),
         (
@@ -43,7 +49,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "offer a service of this host to an operator outside: a pair, with its operator's part in a file",
             "podssh relay pair lab --operator-file lab-operator.json".into(),
         ),
-        ("then the node: each operator's session reaches this host's SSH server", "podssh node lab 127.0.0.1:22".into()),
+        (
+            "then the node: each operator's session reaches this host's SSH server",
+            "podssh node lab 127.0.0.1:22".into(),
+        ),
         (
             "from outside, log in to the node's SSH server with the operator's file",
             "podssh ssh --pair-file lab-operator.json node://user@lab".into(),
@@ -79,7 +88,9 @@ pub fn section() -> Section {
 
 /// The first steps, for the start of the manual: three of the examples.
 pub fn start_here() -> Vec<Block> {
-    let first = |c: &str| c == "podssh doctor" || c == "podssh ssh user@example.org" || c.starts_with("ssh -o ProxyCommand='podssh proxy");
+    let first = |c: &str| {
+        c == "podssh doctor" || c == "podssh ssh user@example.org" || c.starts_with("ssh -o ProxyCommand='podssh proxy")
+    };
     examples().into_iter().filter(|(_, c)| first(c)).map(block).collect()
 }
 

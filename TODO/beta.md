@@ -100,7 +100,7 @@ certificate chain needs is missing from them.
 Read: the trust store starts with the compiled-in roots and adds the system
 bundles (`crates/podssh-ws/src/tls.rs:99`, `crates/podssh-ws/src/tls.rs:134-142`).
 `--ca-file` or `SSL_CERT_FILE` replaces them, and a `podssh-ca.pem` next to the
-binary is read (`crates/podssh-ws/src/bundle.rs:22-38`). The roots come from
+binary is read (`crates/podssh-ws/src/bundle.rs:22-37`). The roots come from
 the crate `webpki-roots` (`Cargo.toml:95`). `podssh doctor` prints the number
 of compiled-in roots, not their date.
 
@@ -291,13 +291,13 @@ Read: before `eacd94e`, the prompt trusted `/dev/tty` when it could open it.
 
 Done in `eacd94e`:
 
-1. `crates/podssh-ssh/src/terminal/ctty.rs:17-47` trusts `/dev/tty` only when
+1. `crates/podssh-ssh/src/terminal/ctty.rs:17-44` trusts `/dev/tty` only when
    the kernel names it: `isatty`, the same session (`tcgetsid` equal to
    `getsid(0)`), and `tty_nr` not 0 in `/proc/self/stat`.
-2. `crates/podssh-ssh/src/prompt.rs:78-92` asks only on that terminal.
+2. `crates/podssh-ssh/src/prompt.rs:74-86` asks only on that terminal.
 3. With stdin, stdout and stderr all redirected, a prompt on the terminal
    waits 60 s at most (`crates/podssh-ssh/src/terminal/mod.rs:62-68`), then
-   refuses with the remedy (`crates/podssh-ssh/src/terminal/unix.rs:163-229`).
+   refuses with the remedy (`crates/podssh-ssh/src/terminal/unix.rs:163-227`).
 
 Owed: the measurement in the box, with a `/dev/tty` that opens with no
 controlling terminal (a pty of the host bound to `/dev/tty` in the

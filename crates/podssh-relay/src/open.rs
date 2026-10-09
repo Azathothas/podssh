@@ -44,7 +44,10 @@ pub enum OpenError {
     /// [`OFFLINE_ENV`] is set.
     Offline,
     Token(TokenError),
-    Connect { error: ConnectError, origin: Origin },
+    Connect {
+        error: ConnectError,
+        origin: Origin,
+    },
     /// The attempt ran past [`HOST_DEADLINE`].
     Deadline,
 }
@@ -118,7 +121,9 @@ pub use podssh_ws::client::is_policy_refusal;
 /// will resolve differently.
 fn target_name_fails(body: &str) -> bool {
     let body = body.to_ascii_lowercase();
-    body.contains("does not resolve") || body.contains("no aaaa address") || body.contains("no a address")
+    body.contains("does not resolve")
+        || body.contains("no aaaa address")
+        || body.contains("no a address")
         || is_policy_refusal(&body)
 }
 
@@ -193,11 +198,7 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
                 Err(e) => {
                     let stop = !e.another_host_may_help();
                     if !stop && req.relays.hosts.len() > 1 {
-                        notes(&format!(
-                            "{}: {}",
-                            relay.host,
-                            e.lines(req.target).first().cloned().unwrap_or_default()
-                        ));
+                        notes(&format!("{}: {}", relay.host, e.lines(req.target).first().cloned().unwrap_or_default()));
                     }
                     attempts.push((relay.host.clone(), e));
                     if stop {

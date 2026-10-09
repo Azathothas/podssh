@@ -20,6 +20,8 @@ const fn kw(name: &'static str, value: &'static str, help: &'static str, sample:
 
 /// The keywords podssh applies. A default given here is checked against what
 /// `resolve` really uses, by `the_documented_defaults_are_the_real_ones`.
+// One keyword to a row, in each of these tables.
+#[rustfmt::skip]
 pub const HONOURED: &[Keyword] = &[
     kw("AddressFamily", "any|inet|inet6", "inet is -4 and inet6 is -6", "inet"),
     kw("BatchMode", "yes|no", "yes: never prompt; a prompt becomes an error", "yes"),
@@ -58,6 +60,7 @@ pub const HONOURED: &[Keyword] = &[
 
 /// Keywords accepted with no effect: they ask for nothing podssh does
 /// differently, or limit algorithm lists that podssh keeps modern itself.
+#[rustfmt::skip]
 pub const IGNORED: &[&str] = &[
     "AddKeysToAgent", "BindAddress", "BindInterface", "CanonicalDomains", "CanonicalizeFallbackLocal",
     "CanonicalizeHostname", "CanonicalizeMaxDots", "CanonicalizePermittedCNAMEs", "CASignatureAlgorithms",
@@ -74,6 +77,7 @@ pub const IGNORED: &[&str] = &[
 ];
 
 /// Keywords refused by name, and why. `options.rs` gives the same reasons.
+#[rustfmt::skip]
 pub const REFUSED: &[(&str, &str)] = &[
     ("ProxyCommand", "podssh ssh reaches the host through the relay itself (ProxyCommand=none is accepted); to use OpenSSH, give it ProxyCommand='podssh proxy %h %p'"),
     ("LocalForward", "needs a local listener, and podssh never listens; use -W HOST:PORT"),
@@ -113,8 +117,7 @@ mod tests {
     fn each_honoured_keyword_is_applied_and_not_ignored() {
         for k in HONOURED {
             let mut s = Settings::default();
-            s.apply(&format!("{}={}", k.name, k.sample))
-                .unwrap_or_else(|e| panic!("{}={}: {e}", k.name, k.sample));
+            s.apply(&format!("{}={}", k.name, k.sample)).unwrap_or_else(|e| panic!("{}={}: {e}", k.name, k.sample));
             assert!(s.ignored.is_empty(), "{} is in HONOURED but the parser ignores it", k.name);
         }
     }

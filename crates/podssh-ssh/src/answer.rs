@@ -18,7 +18,12 @@ fn late(host: &str, what: &str, limit: Duration) -> String {
 }
 
 /// Wait for `call`, which waits for an answer of the server, at most `limit`.
-pub(crate) async fn within<T>(limit: Duration, host: &str, what: &str, call: impl Future<Output = T>) -> Result<T, String> {
+pub(crate) async fn within<T>(
+    limit: Duration,
+    host: &str,
+    what: &str,
+    call: impl Future<Output = T>,
+) -> Result<T, String> {
     tokio::time::timeout(limit, call).await.map_err(|_| late(host, what, limit))
 }
 

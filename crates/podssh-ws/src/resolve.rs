@@ -27,12 +27,8 @@ use crate::tls::{self, Trust};
 /// Public DNS-over-HTTPS resolvers, by IP literal (a resolver needs no
 /// resolver), with the JSON API path each one serves. Two operators, two
 /// addresses each.
-pub const DOH_RESOLVERS: &[(&str, &str)] = &[
-    ("1.1.1.1", "/dns-query"),
-    ("8.8.8.8", "/resolve"),
-    ("1.0.0.1", "/dns-query"),
-    ("8.8.4.4", "/resolve"),
-];
+pub const DOH_RESOLVERS: &[(&str, &str)] =
+    &[("1.1.1.1", "/dns-query"), ("8.8.8.8", "/resolve"), ("1.0.0.1", "/dns-query"), ("8.8.4.4", "/resolve")];
 
 /// The bound on one resolver's answer, inside the caller's overall deadline.
 const DOH_EACH: Duration = Duration::from_secs(5);
@@ -72,12 +68,7 @@ pub fn set_pins(pins: Vec<(String, IpAddr)>) {
 /// The addresses pinned for `host`, in the order given.
 pub fn pinned(host: &str) -> Vec<IpAddr> {
     let host = host.trim_end_matches('.').to_ascii_lowercase();
-    PINS.read()
-        .unwrap_or_else(|e| e.into_inner())
-        .iter()
-        .filter(|(h, _)| *h == host)
-        .map(|(_, ip)| *ip)
-        .collect()
+    PINS.read().unwrap_or_else(|e| e.into_inner()).iter().filter(|(h, _)| *h == host).map(|(_, ip)| *ip).collect()
 }
 
 /// The addresses to try for `host:port`, by the order in the module comment.
@@ -155,14 +146,13 @@ async fn query(ip: &str, path: &str, host: &str, kind: &str) -> Result<Vec<IpAdd
     let name = rustls_pki_types::ServerName::try_from(ip.to_string()).map_err(|e| e.to_string())?;
     let addr: IpAddr = ip.parse().map_err(|_| format!("{ip} is not an IP"))?;
     let tcp = TcpStream::connect(SocketAddr::new(addr, 443)).await.map_err(|e| e.to_string())?;
-    let mut stream = tokio_rustls::TlsConnector::from(config)
-        .connect(name, tcp)
-        .await
-        .map_err(|e| format!("TLS: {e}"))?;
+    let mut stream =
+        tokio_rustls::TlsConnector::from(config).connect(name, tcp).await.map_err(|e| format!("TLS: {e}"))?;
     let target = format!("{path}?name={host}&type={kind}");
-    let response = http::exchange(&mut stream, "GET", ip, &target, &[("Accept", "application/dns-json")], b"", 64 * 1024)
-        .await
-        .map_err(|e| e.to_string())?;
+    let response =
+        http::exchange(&mut stream, "GET", ip, &target, &[("Accept", "application/dns-json")], b"", 64 * 1024)
+            .await
+            .map_err(|e| e.to_string())?;
     if response.status != 200 {
         return Err(format!("HTTP {}", response.status));
     }
@@ -176,7 +166,9 @@ pub fn parse_answer(body: &[u8], kind: &str) -> Result<Vec<IpAddr>, String> {
     match doc.get("Status").and_then(|s| s.as_u64()) {
         Some(0) => {}
         Some(3) => return Err(NXDOMAIN.to_string()),
-        other => return Err(format!("DNS status {}", other.map(|s| s.to_string()).unwrap_or_else(|| "missing".into()))),
+        other => {
+            return Err(format!("DNS status {}", other.map(|s| s.to_string()).unwrap_or_else(|| "missing".into())))
+        }
     }
     Ok(doc
         .get("Answer")

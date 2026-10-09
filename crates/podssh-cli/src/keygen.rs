@@ -112,7 +112,8 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
         None => match crate::ssh::resolve::Env::from_process().home {
             Some(home) => home.join(".ssh").join(format!("id_{}", kind.name())),
             None => {
-                let _ = writeln!(err, "podssh keygen: HOME is not set, so there is no ~/.ssh: give a file with -f FILE");
+                let _ =
+                    writeln!(err, "podssh keygen: HOME is not set, so there is no ~/.ssh: give a file with -f FILE");
                 return EXIT_USAGE;
             }
         },
@@ -167,8 +168,9 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
 /// A new passphrase, asked twice. Empty means none.
 fn ask_new_passphrase() -> Result<Zeroizing<String>, String> {
     if !prompt::can_ask() {
-        return Err("there is no terminal and no SSH_ASKPASS to ask for a passphrase; use -N '' for a key without one"
-            .into());
+        return Err(
+            "there is no terminal and no SSH_ASKPASS to ask for a passphrase; use -N '' for a key without one".into()
+        );
     }
     let why = |e: prompt::PromptError| match e {
         prompt::PromptError::NoTerminal | prompt::PromptError::NoAnswer => {
@@ -253,4 +255,3 @@ fn default_comment() -> String {
         (None, None) => String::new(),
     }
 }
-

@@ -53,7 +53,10 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             if flags && (args.target.is_none() || args.port.is_none()) {
                 let _ = writeln!(err, "podssh proxy: a HOST that starts with - is read as a flag; put -- before it");
             }
-            let _ = writeln!(err, "usage: podssh proxy [OPTIONS] [--] HOST PORT   (as an OpenSSH ProxyCommand: podssh proxy %h %p)");
+            let _ = writeln!(
+                err,
+                "usage: podssh proxy [OPTIONS] [--] HOST PORT   (as an OpenSSH ProxyCommand: podssh proxy %h %p)"
+            );
             return EXIT_USAGE;
         }
     };
@@ -100,11 +103,8 @@ pub fn parse_target(target: Option<&str>, port: Option<&str>) -> Result<(String,
         Some(p) => (unbracket(target)?, p.to_string()),
         None => one_word(target)?,
     };
-    let port = port_text
-        .parse::<u16>()
-        .ok()
-        .filter(|p| *p != 0)
-        .ok_or_else(|| format!("{port_text:?} is not a port"))?;
+    let port =
+        port_text.parse::<u16>().ok().filter(|p| *p != 0).ok_or_else(|| format!("{port_text:?} is not a port"))?;
     relay::check_target(&host)?;
     Ok((host, port))
 }
@@ -172,7 +172,10 @@ pub fn sysexit(e: &OpenError) -> i32 {
 
 /// How the relay-to-stdout direction ended.
 enum Ended {
-    Closed { code: Option<u16>, reason: String },
+    Closed {
+        code: Option<u16>,
+        reason: String,
+    },
     /// stdout went away (the consumer, e.g. ssh, exited).
     OutputGone,
 }
@@ -218,10 +221,7 @@ async fn stdin_to_relay(session: Arc<RelaySession>) -> Result<(), String> {
         if n == 0 {
             return Ok(());
         }
-        session
-            .send_binary(&buf[..n])
-            .await
-            .map_err(|e| format!("sending to the relay failed: {e}"))?;
+        session.send_binary(&buf[..n]).await.map_err(|e| format!("sending to the relay failed: {e}"))?;
     }
 }
 
@@ -246,7 +246,13 @@ async fn relay_to_stdout(session: Arc<RelaySession>) -> Result<Ended, String> {
     }
 }
 
-async fn finish(ended: Result<Ended, String>, session: &RelaySession, target: &str, v6: bool, err: &mut dyn Write) -> i32 {
+async fn finish(
+    ended: Result<Ended, String>,
+    session: &RelaySession,
+    target: &str,
+    v6: bool,
+    err: &mut dyn Write,
+) -> i32 {
     match ended {
         // 1000 is a normal end (the target closed). The relay uses 1001 for its
         // own limits ("idle timeout", "session time cap"), which are not.

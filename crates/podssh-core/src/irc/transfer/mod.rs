@@ -32,15 +32,10 @@
 //! kept going would lose everything it had sent. ⛔ [`Sender`] therefore counts
 //! sessions and says so before the first byte of session 2.
 
-
-
 pub mod recv;
 pub mod send;
 pub mod wire;
 
 pub use recv::Receiver;
 pub use send::Sender;
-pub use wire::{
-    as_privmsg, b64, chunk_line_length, deny, Accept, Ack, Chunk, Deny, Digest, Done, Line,
-    Offer, MARKER,
-};
+pub use wire::{as_privmsg, b64, chunk_line_length, deny, Accept, Ack, Chunk, Deny, Digest, Done, Line, Offer, MARKER};

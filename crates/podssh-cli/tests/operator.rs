@@ -58,9 +58,14 @@ fn a_pair_file_of_either_form_gives_the_operator_its_part() {
     let whole = pair::store_in_first(&[home.join("elsewhere")], "carried", &test_pair(0)).unwrap();
     for file in [&operator_file, &whole] {
         let path = file.to_str().unwrap();
-        for args in [vec!["operator", "lab", "--pair-file", path], vec!["ssh", "-T", "--pair-file", path, "node://lab", "true"]] {
+        for args in
+            [vec!["operator", "lab", "--pair-file", path], vec!["ssh", "-T", "--pair-file", path, "node://lab", "true"]]
+        {
             let (rc, out, err) = podssh(&home, &args, &[]);
-            assert!(err.contains("PODSSH_OFFLINE"), "{args:?}: the part was read, and only the network stopped it: {err}");
+            assert!(
+                err.contains("PODSSH_OFFLINE"),
+                "{args:?}: the part was read, and only the network stopped it: {err}"
+            );
             assert!(rc == 69 || rc == 255, "{args:?}: {rc}");
             no_token(&out);
             no_token(&err);

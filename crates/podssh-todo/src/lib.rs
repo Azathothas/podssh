@@ -92,7 +92,13 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
 
 /// Move the citations of `files`, print what moved and what a person must
 /// read, then check the record (unless nothing was written).
-fn remap_command(root: &Path, files: &[String], dry: bool, out: &mut dyn std::io::Write, err: &mut dyn std::io::Write) -> i32 {
+fn remap_command(
+    root: &Path,
+    files: &[String],
+    dry: bool,
+    out: &mut dyn std::io::Write,
+    err: &mut dyn std::io::Write,
+) -> i32 {
     let head = |rel: &str| remap::git_head(root, rel);
     let r = match remap::remap(root, files, &head, !dry) {
         Ok(r) => r,

@@ -57,8 +57,7 @@ pub fn run_ts(a: &TsArgs, out: &mut dyn Write, err: &mut dyn Write, tty: Tty) ->
         Some(raw) => match crate::non_interactive::parse_timeout(raw) {
             Ok(d) => Some(d),
             Err(r) => {
-                let _ =
-                    writeln!(err, "{}", r.message.replace("--timeout", "--ts-wait-allowlist"));
+                let _ = writeln!(err, "{}", r.message.replace("--timeout", "--ts-wait-allowlist"));
                 return r.fault.code();
             }
         },
@@ -128,11 +127,7 @@ async fn ts_async(
         }
         Some(p) => p,
     };
-    let inputs = podssh_ts::chain::ChainInputs {
-        addrs: vec![],
-        socks_endpoint: None,
-        has_key: true,
-    };
+    let inputs = podssh_ts::chain::ChainInputs { addrs: vec![], socks_endpoint: None, has_key: true };
     let modes = match &forced {
         Some(m) => vec![m.clone()],
         None => podssh_ts::chain::default_chain(relay_mode),
@@ -188,10 +183,7 @@ async fn ts_async(
     };
     if let Some(parent) = std::path::Path::new(state_path).parent() {
         if !parent.as_os_str().is_empty() && !parent.is_dir() {
-            let _ = writeln!(
-                err,
-                "podssh ts: --ts-state {state_path}: directory {parent:?} does not exist."
-            );
+            let _ = writeln!(err, "podssh ts: --ts-state {state_path}: directory {parent:?} does not exist.");
             return EXIT_USAGE;
         }
     }
@@ -300,8 +292,7 @@ async fn status_form(
                 return 0;
             }
             Err(podssh_ts::node::NodeError::NetmapPending) => {
-                let left =
-                    deadline.map(|d| d.saturating_duration_since(tokio::time::Instant::now()));
+                let left = deadline.map(|d| d.saturating_duration_since(tokio::time::Instant::now()));
                 match left {
                     Some(d) if !d.is_zero() => {
                         // ⛔ 2 s poll cadence: a v1 design constant, not a
@@ -332,12 +323,7 @@ async fn status_form(
 /// `podssh ts -W HOST:PORT`: stdio becomes the stream. HOST is a tailnet IP
 /// literal or a peer name from the netmap; anything else is a route error
 /// (78), never a hang.
-async fn pipe_form(
-    node: &podssh_ts::node::TsNode,
-    target: &str,
-    err: &mut dyn Write,
-    bound: Option<Duration>,
-) -> i32 {
+async fn pipe_form(node: &podssh_ts::node::TsNode, target: &str, err: &mut dyn Write, bound: Option<Duration>) -> i32 {
     let (host, port) = match target.rsplit_once(':') {
         Some((h, p)) if !h.is_empty() => (h, p),
         _ => {
@@ -368,8 +354,7 @@ async fn pipe_form(
         match tokio::time::timeout(b, node.tcp_connect(SocketAddr::new(ip, port))).await {
             Ok(r) => r,
             Err(_) => {
-                let _ =
-                    writeln!(err, "podssh ts: connect to {target} did not finish within the bound.");
+                let _ = writeln!(err, "podssh ts: connect to {target} did not finish within the bound.");
                 return crate::exitmap::Fault::Capability.code();
             }
         }

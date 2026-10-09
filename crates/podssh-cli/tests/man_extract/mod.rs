@@ -99,10 +99,7 @@ pub fn option_rows(block: &str, descriptions: &[String]) -> Vec<(String, String)
             .filter_map(|d| line.strip_suffix(d.as_str()).map(|u| (u.trim_end(), d)))
             .filter(|(u, _)| !u.is_empty())
             .find(|(u, _)| {
-                u.split_whitespace()
-                    .next()
-                    .map(|t| looks_like_flag(t.trim_end_matches(',')))
-                    .unwrap_or(false)
+                u.split_whitespace().next().map(|t| looks_like_flag(t.trim_end_matches(','))).unwrap_or(false)
             });
         let row = match found {
             Some((u, d)) => (u.to_string(), d.clone()),

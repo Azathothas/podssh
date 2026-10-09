@@ -51,7 +51,9 @@ enum End {
 impl End {
     fn text(&self) -> String {
         match self {
-            End::Close(code, reason) => format!("a Close {} {:?}", code.map_or("none".into(), |c| c.to_string()), short(reason)),
+            End::Close(code, reason) => {
+                format!("a Close {} {:?}", code.map_or("none".into(), |c| c.to_string()), short(reason))
+            }
             End::SessionClosed(reason) => format!("the relay's close of the session {:?}", short(reason)),
             End::Dropped(why) => format!("a DROP: {}", short(why)),
             End::RunOver => "the end of the run".into(),
@@ -179,7 +181,9 @@ async fn watch(session: Arc<RelaySession>, node_of: Option<SessionId>) -> End {
                 return End::Close(code, reason);
             }
             Ok(f) if f.opcode == OPCODE_TEXT => {
-                if let (Some(id), Ok(NodeInbound::Close { id: got, reason })) = (node_of, control::parse_inbound(&f.payload)) {
+                if let (Some(id), Ok(NodeInbound::Close { id: got, reason })) =
+                    (node_of, control::parse_inbound(&f.payload))
+                {
                     if got == id.as_str() {
                         return End::SessionClosed(reason.unwrap_or_default());
                     }
@@ -194,7 +198,14 @@ async fn watch(session: Arc<RelaySession>, node_of: Option<SessionId>) -> End {
 /// Ping both ends every 10 s until one of them ends or the run is over;
 /// then give the other end a moment to show what the relay did. A drop is
 /// counted for each end that saw one, whichever end saw its end first.
-async fn hold(who: &str, node: Arc<RelaySession>, operator: Arc<RelaySession>, id: SessionId, until: Instant, tally: &mut Tally) {
+async fn hold(
+    who: &str,
+    node: Arc<RelaySession>,
+    operator: Arc<RelaySession>,
+    id: SessionId,
+    until: Instant,
+    tally: &mut Tally,
+) {
     let started = Instant::now();
     let lost = || End::Dropped("the reader stopped".into());
     let mut node_end = tokio::spawn(watch(node.clone(), Some(id)));
@@ -231,11 +242,14 @@ async fn hold(who: &str, node: Arc<RelaySession>, operator: Arc<RelaySession>, i
         tally.other_ends += u32::from(!node_dropped && !operator_dropped);
         let text = |saw: Option<&End>| saw.map_or(format!("nothing within {} s", AFTERMATH.as_secs()), End::text);
         let which = if node_first { "node" } else { "operator" };
-        say(who, &format!(
-            "ended after {held:.1} s, first on the {which}'s socket: the node saw {}; the operator saw {}",
-            text(node_saw),
-            text(operator_saw)
-        ));
+        say(
+            who,
+            &format!(
+                "ended after {held:.1} s, first on the {which}'s socket: the node saw {}; the operator saw {}",
+                text(node_saw),
+                text(operator_saw)
+            ),
+        );
     } else {
         say(who, &format!("held to the end of the run: {held:.1} s"));
     }
@@ -252,7 +266,8 @@ async fn hold(who: &str, node: Arc<RelaySession>, operator: Arc<RelaySession>, i
 async fn pair_holder(index: usize, until: Instant) -> (Tally, Option<bool>) {
     let who = format!("pair {index}");
     let relay = relay();
-    let ctx = PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: STEP };
+    let ctx =
+        PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: STEP };
     let mut tally = Tally::default();
     let made = match pair::create(&ctx).await {
         Ok(made) => made,
@@ -274,10 +289,16 @@ async fn pair_holder(index: usize, until: Instant) -> (Tally, Option<bool>) {
                     let node = Arc::new(node);
                     let seen = tokio::time::timeout(STEP, watch(node.clone(), Some(id))).await;
                     let ok = matches!(seen, Ok(End::SessionClosed(_)));
-                    say(&who, &format!("the planted drop of the operator's socket: the node saw {}", match seen {
-                        Ok(end) => end.text(),
-                        Err(_) => format!("nothing within {} s", STEP.as_secs()),
-                    }));
+                    say(
+                        &who,
+                        &format!(
+                            "the planted drop of the operator's socket: the node saw {}",
+                            match seen {
+                                Ok(end) => end.text(),
+                                Err(_) => format!("nothing within {} s", STEP.as_secs()),
+                            }
+                        ),
+                    );
                     planted = Some(ok);
                     let _ = node.send_close(1000, "").await;
                 } else {
@@ -319,7 +340,10 @@ async fn forward_holder(until: Instant) -> Tally {
                 // limit for a login ends the session in time.
                 let _ = session.send_binary(b"SSH-2.0-podssh_t255\r\n").await;
                 let mut end = tokio::spawn(watch(session.clone(), None));
-                let mut ticker = tokio::time::interval_at(tokio::time::Instant::now() + podssh_ws::LIVENESS_EVERY, podssh_ws::LIVENESS_EVERY);
+                let mut ticker = tokio::time::interval_at(
+                    tokio::time::Instant::now() + podssh_ws::LIVENESS_EVERY,
+                    podssh_ws::LIVENESS_EVERY,
+                );
                 let seen = loop {
                     tokio::select! {
                         seen = &mut end => break seen.unwrap_or_else(|_| End::Dropped("the reader stopped".into())),
@@ -355,7 +379,13 @@ async fn forward_holder(until: Instant) -> Tally {
 #[ignore = "live: 15 minutes or until PODSSH_DROPS_UNTIL, against the relay"]
 async fn the_drops_of_reverse_sockets_and_of_a_forward_session() {
     let until = deadline();
-    say("run", &format!("{PAIRS} pairs and a forward session, for {:.0} s", until.saturating_duration_since(Instant::now()).as_secs_f64()));
+    say(
+        "run",
+        &format!(
+            "{PAIRS} pairs and a forward session, for {:.0} s",
+            until.saturating_duration_since(Instant::now()).as_secs_f64()
+        ),
+    );
     let pairs: Vec<_> = (0..PAIRS).map(|i| tokio::spawn(pair_holder(i, until))).collect();
     // On this task: the forward opener's notes are not `Send`.
     let forward = forward_holder(until).await;

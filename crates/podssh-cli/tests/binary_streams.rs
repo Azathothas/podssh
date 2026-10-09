@@ -89,10 +89,7 @@ fn a_refusal_writes_nothing_to_stdout() {
             out.len(),
             String::from_utf8_lossy(&out)
         );
-        assert!(
-            !err.is_empty(),
-            "podssh {c:?} wrote nothing at all; the user is told nothing"
-        );
+        assert!(!err.is_empty(), "podssh {c:?} wrote nothing at all; the user is told nothing");
     }
 }
 
@@ -103,11 +100,7 @@ fn a_refusal_writes_nothing_to_stdout() {
 #[test]
 fn the_acceptance_byte_count_is_zero() {
     let (_, out, _) = podssh(&["example.org"]);
-    assert_eq!(
-        out.len(),
-        0,
-        "the acceptance asserts `podssh example.org 2>/dev/null | wc -c` is 0"
-    );
+    assert_eq!(out.len(), 0, "the acceptance asserts `podssh example.org 2>/dev/null | wc -c` is 0");
 }
 
 /// ⛔ **And the control: help and version are the answer, so they DO go to
@@ -119,10 +112,7 @@ fn the_control_help_and_version_do_reach_stdout() {
     for c in [vec!["--help"], vec!["-h"], vec!["--version"], vec!["ssh", "--help"], vec!["irc", "--help"]] {
         let (rc, out, _) = podssh(&c);
         assert_eq!(rc, 0, "podssh {c:?} should succeed");
-        assert!(
-            !out.is_empty(),
-            "podssh {c:?} wrote nothing to stdout; help and version are the answer"
-        );
+        assert!(!out.is_empty(), "podssh {c:?} wrote nothing to stdout; help and version are the answer");
     }
 }
 
@@ -186,10 +176,7 @@ fn the_p_split_is_visible_in_the_binarys_output() {
     assert_ne!(rc, 0, "cp is not built, so it refuses; that is E36's clause");
     assert!(out.is_empty(), "cp -P wrote to stdout: {out:?}");
     let err = String::from_utf8_lossy(&err);
-    assert!(
-        !err.contains("accepted and ignored"),
-        "on cp, -P is the port and there is nothing to warn about: {err}"
-    );
+    assert!(!err.contains("accepted and ignored"), "on cp, -P is the port and there is nothing to warn about: {err}");
     assert!(err.contains("not implemented yet"), "{err}");
 }
 
@@ -210,16 +197,9 @@ fn no_invocation_prints_a_usage_block() {
     ];
     for c in cases {
         let (rc, out, err) = podssh(&c);
-        let all = format!(
-            "{}{}",
-            String::from_utf8_lossy(&out),
-            String::from_utf8_lossy(&err)
-        );
+        let all = format!("{}{}", String::from_utf8_lossy(&out), String::from_utf8_lossy(&err));
         assert!(!all.contains("Usage:"), "podssh {c:?} printed a usage block:\n{all}");
-        assert!(
-            !all.contains("For more information"),
-            "podssh {c:?} printed clap's trailer:\n{all}"
-        );
+        assert!(!all.contains("For more information"), "podssh {c:?} printed clap's trailer:\n{all}");
         assert_ne!(rc, 0, "podssh {c:?} must be a refusal");
     }
 }
@@ -240,13 +220,7 @@ fn a_positional_that_does_not_fit_is_not_reported_as_an_unknown_flag() {
         let text = String::from_utf8_lossy(&err);
         assert_eq!(rc, 64, "podssh {case:?}: {text}");
         assert!(out.is_empty(), "podssh {case:?} wrote to stdout: {out:?}");
-        assert!(
-            text.contains(want),
-            "podssh {case:?} must say what was wrong: {text}"
-        );
-        assert!(
-            !text.contains("unknown flag"),
-            "podssh {case:?} blamed a flag nobody typed: {text}"
-        );
+        assert!(text.contains(want), "podssh {case:?} must say what was wrong: {text}");
+        assert!(!text.contains("unknown flag"), "podssh {case:?} blamed a flag nobody typed: {text}");
     }
 }

@@ -266,9 +266,7 @@ async fn run_target(
             return a;
         }
         let echo_end = std::cmp::min(deadline, Instant::now() + ECHO_WAIT);
-        let ok =
-            await_echo(&mut runner, &mut irc, &mut a, text, echo_end, &format!("{host}:{port} self"))
-                .await;
+        let ok = await_echo(&mut runner, &mut irc, &mut a, text, echo_end, &format!("{host}:{port} self")).await;
         if slot == 0 {
             a.echo_short = ok;
         } else {

@@ -23,10 +23,7 @@ fn hex(bytes: &[u8]) -> String {
 }
 
 fn unhex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).expect("hex"))
-        .collect()
+    (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).expect("hex")).collect()
 }
 
 /// ⛔ **Fixed-size keys are converted with a checked `try_into`, never
@@ -41,10 +38,7 @@ fn unhex32(s: &str) -> [u8; 32] {
 /// ⛔ FIPS 180-4 / NIST CAVP: SHA-256 of "abc".
 #[test]
 fn sha256_matches_the_published_vector() {
-    assert_eq!(
-        hex(SHA256.hash(b"abc").as_ref()),
-        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-    );
+    assert_eq!(hex(SHA256.hash(b"abc").as_ref()), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     assert_eq!(SHA256.output_len(), 32);
     assert_eq!(SHA256.algorithm(), rustls::crypto::hash::HashAlgorithm::SHA256);
 }
@@ -65,10 +59,7 @@ fn sha384_matches_the_published_vector() {
 /// constant and it is the one every implementation gets wrong first.
 #[test]
 fn hashes_handle_the_empty_input() {
-    assert_eq!(
-        hex(SHA256.hash(b"").as_ref()),
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    );
+    assert_eq!(hex(SHA256.hash(b"").as_ref()), "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
     assert_eq!(
         hex(SHA384.hash(b"").as_ref()),
         "38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da\
@@ -87,11 +78,7 @@ fn incremental_and_one_shot_hashing_agree() {
         let mut ctx = SHA256.start();
         ctx.update(&data[..split]);
         ctx.update(&data[split..]);
-        assert_eq!(
-            hex(ctx.finish().as_ref()),
-            hex(SHA256.hash(&data).as_ref()),
-            "SHA-256 diverged at split {split}"
-        );
+        assert_eq!(hex(ctx.finish().as_ref()), hex(SHA256.hash(&data).as_ref()), "SHA-256 diverged at split {split}");
     }
 }
 
@@ -136,10 +123,7 @@ impl UpdateBoxed for Box<dyn rustls::crypto::hash::Context> {
 fn hmac_sha256_matches_rfc4231_case_1() {
     let key = [0x0bu8; 20];
     let tag = HMAC_SHA256.with_key(&key).sign(&[b"Hi There"]);
-    assert_eq!(
-        hex(tag.as_ref()),
-        "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7"
-    );
+    assert_eq!(hex(tag.as_ref()), "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7");
     assert_eq!(HMAC_SHA256.hash_output_len(), 32);
 }
 
@@ -227,10 +211,7 @@ fn every_aead_round_trips_and_rejects_a_flipped_bit() {
         // ⛔ **A modified ciphertext must be rejected, not returned as garbage.**
         let mut tampered = sealed.clone();
         tampered[0] ^= 0x01;
-        assert!(
-            aead.open_in_place(&nonce, aad, &mut tampered).is_none(),
-            "{id:?} accepted a tampered ciphertext"
-        );
+        assert!(aead.open_in_place(&nonce, aad, &mut tampered).is_none(), "{id:?} accepted a tampered ciphertext");
 
         // ⛔ **The AAD is authenticated too**, or a peer could move bytes
         // between records without the tag noticing.
@@ -270,19 +251,10 @@ fn x25519_matches_rfc7748_section_6_1() {
 
     // ⛔ The public keys are the values the RFC publishes, which checks the
     // scalar multiplication and not merely that both sides agree.
-    assert_eq!(
-        hex(&alice_pub),
-        "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a"
-    );
-    assert_eq!(
-        hex(&bob_pub),
-        "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f"
-    );
+    assert_eq!(hex(&alice_pub), "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a");
+    assert_eq!(hex(&bob_pub), "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f");
     let shared = hex(alice.diffie_hellman(&PublicKey::from(bob_pub)).as_bytes());
-    assert_eq!(
-        shared,
-        "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742"
-    );
+    assert_eq!(shared, "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742");
 }
 
 /// ⛔ **Two key exchanges must complete against each other.** This is the
@@ -297,12 +269,7 @@ fn both_key_exchange_groups_agree_with_themselves() {
         let b_pub = b.pub_key().to_vec();
         let a_secret = a.complete(&b_pub).expect("complete");
         let b_secret = b.complete(&a_pub).expect("complete");
-        assert_eq!(
-            a_secret.secret_bytes(),
-            b_secret.secret_bytes(),
-            "{:?} did not agree",
-            group.name()
-        );
+        assert_eq!(a_secret.secret_bytes(), b_secret.secret_bytes(), "{:?} did not agree", group.name());
     }
 }
 
@@ -331,11 +298,7 @@ fn a_malformed_peer_key_share_is_an_error_not_a_panic() {
         vec![0u8; 32],
     ] {
         let x = X25519.start().expect("start");
-        assert!(
-            x.complete(&bad).is_err(),
-            "X25519 accepted a {}-byte share",
-            bad.len()
-        );
+        assert!(x.complete(&bad).is_err(), "X25519 accepted a {}-byte share", bad.len());
     }
     for bad in [vec![], vec![0x02, 0x00], vec![0u8; 65]] {
         let p = SECP256R1.start().expect("start");
@@ -353,10 +316,7 @@ fn the_provider_offers_only_what_it_implements() {
     // podssh cannot complete.
     assert_eq!(p.cipher_suites.len(), 2);
     for suite in &p.cipher_suites {
-        assert!(
-            matches!(suite, rustls::SupportedCipherSuite::Tls13(_)),
-            "a TLS 1.2 suite is offered"
-        );
+        assert!(matches!(suite, rustls::SupportedCipherSuite::Tls13(_)), "a TLS 1.2 suite is offered");
     }
     assert_eq!(p.kx_groups.len(), 2);
     // ⛔ **THREE signature algorithms, and the third was added because a
@@ -412,9 +372,5 @@ fn the_signature_mapping_covers_every_algorithm_it_lists() {
     // the measurement. The other three are RSA-PSS with SHA-256, -384 and
     // -512: TLS 1.3 signs its handshake with RSA-PSS only (RFC 8446 4.2.3),
     // while PKCS #1 v1.5 is for certificate chains and needs no scheme.
-    assert_eq!(
-        algs.mapping.len(),
-        6,
-        "ECDSA P-256, ECDSA P-384, Ed25519, and RSA-PSS with three hashes"
-    );
+    assert_eq!(algs.mapping.len(), 6, "ECDSA P-256, ECDSA P-384, Ed25519, and RSA-PSS with three hashes");
 }

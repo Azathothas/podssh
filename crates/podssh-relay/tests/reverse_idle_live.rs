@@ -55,7 +55,10 @@ enum Seen {
     Control(String),
     /// The relay's `close` for the session, on the node's socket.
     SessionClosed(String),
-    Closed { code: Option<u16>, reason: String },
+    Closed {
+        code: Option<u16>,
+        reason: String,
+    },
     Failed(String),
 }
 
@@ -214,7 +217,13 @@ async fn next_text(session: &RelaySession, what: &str) -> Result<String, String>
 }
 
 /// Read one socket until it ends, and pass on what it saw.
-fn reader(side: Side, session: Arc<RelaySession>, id: SessionId, start: Instant, tx: mpsc::UnboundedSender<Event>) -> tokio::task::JoinHandle<()> {
+fn reader(
+    side: Side,
+    session: Arc<RelaySession>,
+    id: SessionId,
+    start: Instant,
+    tx: mpsc::UnboundedSender<Event>,
+) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
         loop {
             let seen = match session.read_frame().await {
@@ -248,7 +257,12 @@ fn reader(side: Side, session: Arc<RelaySession>, id: SessionId, start: Instant,
 }
 
 /// Take events until `done` holds, or `limit` passes.
-async fn pump(rx: &mut mpsc::UnboundedReceiver<Event>, state: &mut State, limit: Duration, done: impl Fn(&State) -> bool) {
+async fn pump(
+    rx: &mut mpsc::UnboundedReceiver<Event>,
+    state: &mut State,
+    limit: Duration,
+    done: impl Fn(&State) -> bool,
+) {
     let deadline = tokio::time::Instant::now() + limit;
     while !done(state) {
         match tokio::time::timeout_at(deadline, rx.recv()).await {
@@ -358,7 +372,8 @@ async fn session(relay: &Relay, made: &Pair, keep: Keep, label: &'static str) ->
     let (node_before, operator_before) = (state.to_node.len(), state.to_operator.len());
     let last_sent = send_byte(&node, &operator, &id, b'z', &mut state).await;
     if last_sent {
-        pump(&mut rx, &mut state, STEP, |s| s.to_node.len() > node_before && s.to_operator.len() > operator_before).await;
+        pump(&mut rx, &mut state, STEP, |s| s.to_node.len() > node_before && s.to_operator.len() > operator_before)
+            .await;
     }
     let outcome = Outcome {
         label,
@@ -381,7 +396,8 @@ async fn session(relay: &Relay, made: &Pair, keep: Keep, label: &'static str) ->
 /// Make a pair, measure one run, and stop the pair whatever happened.
 async fn measure(keep: Keep, label: &'static str) -> Outcome {
     let relay = relay();
-    let ctx = PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: STEP };
+    let ctx =
+        PairContext { relay: &relay, trust: &Trust::Default, proxy: &ProxyChoice::FromEnvironment, timeout: STEP };
     let made = pair::create(&ctx).await.expect("a pair from the live relay");
     let run = tokio::time::timeout(RUN_LIMIT, session(&relay, &made, keep, label)).await;
     let stopped = pair::stop(&ctx, &made).await;

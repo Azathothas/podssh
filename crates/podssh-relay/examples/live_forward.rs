@@ -50,12 +50,13 @@ async fn main() {
     });
     let shown = podssh_ws::dial::authority(&target, port);
     let request = Request { relays: &relays, path: &path, trust: &trust, target: &shown, rounds: 1 };
-    let opened = podssh_relay::open(&request, &mut |note: &str| eprintln!("podssh: {note}")).await.unwrap_or_else(|failure| {
-        for line in failure.lines(&shown) {
-            eprintln!("podssh: {line}");
-        }
-        std::process::exit(69);
-    });
+    let opened =
+        podssh_relay::open(&request, &mut |note: &str| eprintln!("podssh: {note}")).await.unwrap_or_else(|failure| {
+            for line in failure.lines(&shown) {
+                eprintln!("podssh: {line}");
+            }
+            std::process::exit(69);
+        });
 
     // The first bytes; the relay's empty keepalive frames carry none.
     let banner = loop {

@@ -14,10 +14,7 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 /// ⛔ A leg here must be both readable AND writable, which stdin is not —
 /// so `-W` does not use this function. It uses [`pipe_streams`] below, and
 /// this one stays for duplex-shaped ends (its tests pin the byte equality).
-pub async fn copy_bidirectional<A, B>(
-    a: &mut A,
-    b: &mut B,
-) -> std::io::Result<(u64, u64)>
+pub async fn copy_bidirectional<A, B>(a: &mut A, b: &mut B) -> std::io::Result<(u64, u64)>
 where
     A: AsyncRead + AsyncWrite + Unpin,
     B: AsyncRead + AsyncWrite + Unpin,
@@ -62,11 +59,7 @@ pub struct PipeEnds {
 /// the pipe — `ssh` kills its ProxyCommand on session end, so the
 /// supervisor bounds it, and that bound is named here rather than hidden
 /// behind a grace constant nobody measured.
-pub async fn pipe_streams<LR, LW, S>(
-    local_r: &mut LR,
-    local_w: &mut LW,
-    stream: S,
-) -> std::io::Result<PipeEnds>
+pub async fn pipe_streams<LR, LW, S>(local_r: &mut LR, local_w: &mut LW, stream: S) -> std::io::Result<PipeEnds>
 where
     LR: AsyncRead + Unpin,
     LW: AsyncWrite + Unpin,

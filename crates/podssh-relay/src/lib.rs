@@ -23,10 +23,10 @@ pub mod cache;
 pub mod open;
 #[cfg(feature = "pair")]
 pub mod pair;
-#[cfg(feature = "pair")]
-pub mod reverse;
 pub mod pool;
 pub mod relay;
+#[cfg(feature = "pair")]
+pub mod reverse;
 pub mod token;
 
 pub use open::{open, Failure, OpenError, Opened, Request};

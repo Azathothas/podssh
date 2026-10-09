@@ -15,11 +15,8 @@ use std::os::unix::fs::OpenOptionsExt;
 /// `/dev/tty` for reading and writing, when it is this process's controlling
 /// terminal; else an error that says why it is not used.
 pub fn open() -> std::io::Result<File> {
-    let tty = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .custom_flags(libc::O_NOCTTY | libc::O_CLOEXEC)
-        .open("/dev/tty")?;
+    let tty =
+        OpenOptions::new().read(true).write(true).custom_flags(libc::O_NOCTTY | libc::O_CLOEXEC).open("/dev/tty")?;
     let fd = tty.as_raw_fd();
     // SAFETY: queries with no preconditions, on a descriptor held open here.
     let is_tty = unsafe { libc::isatty(fd) } == 1;

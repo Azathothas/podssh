@@ -33,12 +33,18 @@ pub struct RsaVerify {
     padding: Padding,
 }
 
-pub static RSA_PKCS1_SHA256: &dyn SignatureVerificationAlgorithm = &RsaVerify { hash: Hash::Sha256, padding: Padding::Pkcs1 };
-pub static RSA_PKCS1_SHA384: &dyn SignatureVerificationAlgorithm = &RsaVerify { hash: Hash::Sha384, padding: Padding::Pkcs1 };
-pub static RSA_PKCS1_SHA512: &dyn SignatureVerificationAlgorithm = &RsaVerify { hash: Hash::Sha512, padding: Padding::Pkcs1 };
-pub static RSA_PSS_SHA256: &dyn SignatureVerificationAlgorithm = &RsaVerify { hash: Hash::Sha256, padding: Padding::Pss };
-pub static RSA_PSS_SHA384: &dyn SignatureVerificationAlgorithm = &RsaVerify { hash: Hash::Sha384, padding: Padding::Pss };
-pub static RSA_PSS_SHA512: &dyn SignatureVerificationAlgorithm = &RsaVerify { hash: Hash::Sha512, padding: Padding::Pss };
+pub static RSA_PKCS1_SHA256: &dyn SignatureVerificationAlgorithm =
+    &RsaVerify { hash: Hash::Sha256, padding: Padding::Pkcs1 };
+pub static RSA_PKCS1_SHA384: &dyn SignatureVerificationAlgorithm =
+    &RsaVerify { hash: Hash::Sha384, padding: Padding::Pkcs1 };
+pub static RSA_PKCS1_SHA512: &dyn SignatureVerificationAlgorithm =
+    &RsaVerify { hash: Hash::Sha512, padding: Padding::Pkcs1 };
+pub static RSA_PSS_SHA256: &dyn SignatureVerificationAlgorithm =
+    &RsaVerify { hash: Hash::Sha256, padding: Padding::Pss };
+pub static RSA_PSS_SHA384: &dyn SignatureVerificationAlgorithm =
+    &RsaVerify { hash: Hash::Sha384, padding: Padding::Pss };
+pub static RSA_PSS_SHA512: &dyn SignatureVerificationAlgorithm =
+    &RsaVerify { hash: Hash::Sha512, padding: Padding::Pss };
 
 /// The smallest key accepted, as webpki's own backends require.
 const MIN_BITS: usize = 2048;
@@ -53,12 +59,23 @@ fn public_key(der: &[u8]) -> Result<RsaPublicKey, InvalidSignature> {
 }
 
 impl SignatureVerificationAlgorithm for RsaVerify {
-    fn verify_signature(&self, public_key_der: &[u8], message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+    fn verify_signature(
+        &self,
+        public_key_der: &[u8],
+        message: &[u8],
+        signature: &[u8],
+    ) -> Result<(), InvalidSignature> {
         let key = public_key(public_key_der)?;
         let result = match (self.hash, self.padding) {
-            (Hash::Sha256, Padding::Pkcs1) => key.verify(Pkcs1v15Sign::new::<Sha256>(), &Sha256::digest(message), signature),
-            (Hash::Sha384, Padding::Pkcs1) => key.verify(Pkcs1v15Sign::new::<Sha384>(), &Sha384::digest(message), signature),
-            (Hash::Sha512, Padding::Pkcs1) => key.verify(Pkcs1v15Sign::new::<Sha512>(), &Sha512::digest(message), signature),
+            (Hash::Sha256, Padding::Pkcs1) => {
+                key.verify(Pkcs1v15Sign::new::<Sha256>(), &Sha256::digest(message), signature)
+            }
+            (Hash::Sha384, Padding::Pkcs1) => {
+                key.verify(Pkcs1v15Sign::new::<Sha384>(), &Sha384::digest(message), signature)
+            }
+            (Hash::Sha512, Padding::Pkcs1) => {
+                key.verify(Pkcs1v15Sign::new::<Sha512>(), &Sha512::digest(message), signature)
+            }
             // Salt length = digest length, as TLS 1.3 and X.509 require.
             (Hash::Sha256, Padding::Pss) => key.verify(Pss::new::<Sha256>(), &Sha256::digest(message), signature),
             (Hash::Sha384, Padding::Pss) => key.verify(Pss::new::<Sha384>(), &Sha384::digest(message), signature),

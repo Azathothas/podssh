@@ -34,11 +34,7 @@ pub fn flag_column(rows: &[crate::flags::FlagRow]) -> usize {
     // Measured on the text `flag_line` prints, prefix included: measuring
     // `usage_form` left out the `-c,` / three-space prefix, so verbs whose
     // flags have no short form got a column too narrow to separate the two.
-    rows.iter()
-        .map(|r| flag_left(r).chars().count() + 2)
-        .max()
-        .unwrap_or(0)
-        .min(MAX_FLAG_COLUMN)
+    rows.iter().map(|r| flag_left(r).chars().count() + 2).max().unwrap_or(0).min(MAX_FLAG_COLUMN)
 }
 
 /// ⛔ The widest the flag column may get before the help wraps under it.
@@ -126,10 +122,8 @@ pub fn top_level_help() -> String {
     // its widest row is a separator that disappears. ⛔ E32's parity gate reads
     // this block, and it read `--helpPrint` as a flag — which is what a user
     // reading it would conclude too.
-    let rows: Vec<(String, &str)> = crate::flags::TOP_OPTIONS
-        .iter()
-        .map(|(short, long, about)| (format!("  {short}, {long}"), *about))
-        .collect();
+    let rows: Vec<(String, &str)> =
+        crate::flags::TOP_OPTIONS.iter().map(|(short, long, about)| (format!("  {short}, {long}"), *about)).collect();
     let column = rows.iter().map(|(l, _)| l.chars().count()).max().unwrap_or(0) + 2;
     for (left, right) in rows {
         s.push_str(&format!("{left:<column$}{right}\n"));
@@ -146,17 +140,8 @@ pub fn top_level_help() -> String {
         // who types `podssh irc` and gets help for `chat` deserves to know
         // they are the same command.
         if v.aliases.len() > 1 {
-            let others: Vec<&str> = v
-                .aliases
-                .iter()
-                .copied()
-                .filter(|a| *a != v.name)
-                .collect();
-            s.push_str(&format!(
-                "    {:w$}  aliases: {}\n",
-                "",
-                others.join(", ")
-            ));
+            let others: Vec<&str> = v.aliases.iter().copied().filter(|a| *a != v.name).collect();
+            s.push_str(&format!("    {:w$}  aliases: {}\n", "", others.join(", ")));
         }
     }
     s.push('\n');
@@ -214,11 +199,7 @@ pub fn verb_help(verb: &'static Verb) -> String {
             s.push_str(&format!("    {}\n", flag_line(row, column)));
         }
     }
-    s.push_str(&format!(
-        "{:<12}{}\n",
-        "    --help",
-        crate::flags::HELP_FLAG.help
-    ));
+    s.push_str(&format!("{:<12}{}\n", "    --help", crate::flags::HELP_FLAG.help));
     s.push('\n');
     s.push_str(&verb_notes(verb));
     s
@@ -312,18 +293,16 @@ mod tests {
     #[test]
     fn no_top_level_option_runs_into_its_description() {
         let h = top_level_help();
-        for (left, right) in
-            [("  -h, --help", "Print help; --help COMMAND prints the help of one command"), ("  -V, --version", "Print version")]
-        {
+        for (left, right) in [
+            ("  -h, --help", "Print help; --help COMMAND prints the help of one command"),
+            ("  -V, --version", "Print version"),
+        ] {
             let line = h
                 .lines()
                 .find(|l| l.starts_with(left))
                 .unwrap_or_else(|| panic!("{left:?} is not in the top-level help"));
             let rest = &line[left.len()..];
-            assert!(
-                rest.starts_with(char::is_whitespace),
-                "{left:?} runs straight into {rest:?}"
-            );
+            assert!(rest.starts_with(char::is_whitespace), "{left:?} runs straight into {rest:?}");
             assert_eq!(rest.trim(), right, "{line:?}");
         }
     }
@@ -392,9 +371,9 @@ mod tests {
                     (None, Some(a)) => format!("--{} {a}", row.long),
                     (None, None) => format!("--{}", row.long),
                 };
-                let idx = line.rfind(&needle).unwrap_or_else(|| {
-                    panic!("{}/{}: {needle:?} absent from {line:?}", v.name, row.long)
-                });
+                let idx = line
+                    .rfind(&needle)
+                    .unwrap_or_else(|| panic!("{}/{}: {needle:?} absent from {line:?}", v.name, row.long));
                 let rest = &line[idx + needle.len()..];
                 assert!(
                     rest.is_empty() || rest.starts_with(char::is_whitespace),
@@ -425,14 +404,7 @@ mod tests {
     #[test]
     fn an_accepted_flag_says_it_once() {
         let ssh = verb_help(VERBS.iter().find(|v| v.name == "ssh").unwrap());
-        let line = ssh
-            .lines()
-            .find(|l| l.contains("--tag"))
-            .expect("-P, --tag is in the ssh help");
-        assert_eq!(
-            line.matches("accepted and ignored").count(),
-            1,
-            "the sentence must appear once: {line:?}"
-        );
+        let line = ssh.lines().find(|l| l.contains("--tag")).expect("-P, --tag is in the ssh help");
+        assert_eq!(line.matches("accepted and ignored").count(), 1, "the sentence must appear once: {line:?}");
     }
 }

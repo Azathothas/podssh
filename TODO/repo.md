@@ -638,7 +638,7 @@ Read:
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
-- `crates/podssh-cli/src/man/facts.rs:275-291`: the drift test of the manual
+- `crates/podssh-cli/src/man/facts.rs:295-311`: the drift test of the manual
   counts each quoted upper-case name with `_` in the sources as a variable
   (except `CARGO_` names).
 
@@ -929,8 +929,8 @@ Read:
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
   `stty`, `vi`, `less`, `top`, `seq` and `/tmp`.
 - The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
-  `crates/podssh-ssh/src/prompt.rs:95`, and the `cfg(not(unix))` branches of
-  `crates/podssh-relay/src/cache.rs:293-352`.
+  `crates/podssh-ssh/src/prompt.rs:89`, and the `cfg(not(unix))` branches of
+  `crates/podssh-relay/src/cache.rs:297-351`.
 
 ## Approach
 
@@ -974,7 +974,7 @@ plant of step 4 must fail the three restore checks.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -994,7 +994,7 @@ Read:
 
 - `scripts/gate.sh:55-166` has no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
-- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:315`).
+- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:308`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
   crates/podssh-transport/src/socket.rs at `e8bbd4d` (458),
   `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
@@ -1026,6 +1026,38 @@ Recommendation: the `max_width` with the smallest measured change that keeps
 each file at 500 lines or fewer, written in rustfmt.toml. The default style
 lost if it rewrites most files or pushes files over 500 lines; the
 measurement of step 1 decides.
+
+2026-10-09, measured with `cargo fmt` on the packages of the workspace (not
+`--all`, which would also format the fork in `vendor/`), each run on a
+clean tree and then undone:
+
+| Style | Files changed | Lines added / removed | Files over 500 lines |
+| --- | --- | --- | --- |
+| the default (`max_width = 100`) | 242 | 12,460 / 3,197 | 14 |
+| `max_width = 120` | 235 | 8,040 / 2,530 | 7 |
+| `max_width = 140` | 228 | 5,897 / 2,585 | 4 |
+| `max_width = 160` | 219 | 4,232 / 2,955 | 3 |
+| 120, `use_small_heuristics = "Max"` | 202 | 2,265 / 2,718 | 1 (`flags.rs`, 684) |
+| 140, the same | 195 | 1,886 / 3,924 | 1 (`flags.rs`, 672) |
+| 160, the same | 211 | 1,802 / 4,800 | 1 (`flags.rs`, 510) |
+
+Chosen: `max_width = 120` with `use_small_heuristics = "Max"`, the smallest
+change in all (lines added and removed). `flags.rs` is tables, one flag to a
+row, which rustfmt spreads over many lines: its module is skipped
+(`#[rustfmt::skip]` on `pub mod flags;`), and so are the table of closes
+and the tables of `-o` keywords, each at its constant. After that: 201 files
+(1,678 lines added, 2,540 removed), and no file over 500 lines (`pair.rs`
+has 500). Lost: a wider line, which joins more lines (more removed than
+added) for long lines to read; the default style, which puts 14 files over
+500 lines.
+
+The state (partial), 2026-10-09: the format is one commit. Of the citations
+of the formatted files in the record, `cargo todo remap` moved 555 and moved
+167 more by their ends (only lines inside them were reflowed); the 44 that
+named a reflowed line were moved by their tokens (the characters other than
+whitespace of each file before and after, aligned), and four of them read
+again by hand. `cargo test --no-fail-fast`: 814 passed, 0 failed, as before.
+Next: clippy, then the two steps of the gate.
 
 ## Prove
 
@@ -1276,8 +1308,8 @@ Read:
 - The binary needs a C compiler for aws-lc (`docs/development.md:11-13`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
-  `/proc/self/stat` when it can (`crates/podssh-ssh/src/terminal/ctty.rs:27`),
-  and does without it when it cannot (`crates/podssh-ssh/src/terminal/ctty.rs:40-41`).
+  `/proc/self/stat` when it can (`crates/podssh-ssh/src/terminal/ctty.rs:24`),
+  and does without it when it cannot (`crates/podssh-ssh/src/terminal/ctty.rs:37-38`).
   `doctor` reads `/proc` too. These need a run on each new system.
 
 ## Approach
@@ -1346,7 +1378,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:139-141` states the rule with `CXX`, and
-  `docs/STATUS.md:237` records the measurement. Rule 4 of
+  `docs/STATUS.md:238` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:86-92` runs the plant on each push.
@@ -1377,7 +1409,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:237`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:238`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1485,7 +1517,7 @@ listener or a bind. `crates/podssh-cli/src/doctor/unix.rs:151` and line 226
 are the bind probes of `doctor`, which close at once and never listen
 (`crates/podssh-cli/src/doctor/mod.rs:15-16`). The test servers are in
 `crates/podssh-ws/tests/dial.rs:80` and
-`crates/podssh-ws/tests/hostname_verification.rs:63`. No file uses
+`crates/podssh-ws/tests/hostname_verification.rs:55`. No file uses
 `UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
 that skips comments and test modules is
 `crates/podssh-relay/tests/default_relay.rs:21-56`.
@@ -1833,7 +1865,7 @@ Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
   unused dependencies.
 
 Read: `libc` (line 44) is used only in code under `cfg(unix)`
-(`crates/podssh-cli/src/ssh/tokens.rs:119`, `crates/podssh-cli/src/ssh/tokens.rs:136`,
+(`crates/podssh-cli/src/ssh/tokens.rs:127`, `crates/podssh-cli/src/ssh/tokens.rs:144`,
 `crates/podssh-cli/src/ssh/resolve.rs:83`,
 the module of `crates/podssh-cli/src/doctor/unix.rs`). T-060 decides whether a
 command uses `podssh-probe`.
@@ -1892,7 +1924,7 @@ starts the work from a false premise.
 
 ## Premise
 
-- Read: `citations` (`crates/podssh-todo/src/refs.rs:92-126`) tests that the
+- Read: `citations` (`crates/podssh-todo/src/refs.rs:93-136`) tests that the
   path exists with its exact case, and that the last line is not past the end
   of the file. It does not test what the line says.
 - Measured on 2026-10-08: a script outside the repository moved the

@@ -183,10 +183,8 @@ mod tests {
 
     #[test]
     fn ids_are_found_as_words_only() {
-        let found: Vec<String> = ids_in("T-001 and (T-012), not XT-003, not T-04, T-1234.")
-            .into_iter()
-            .map(|(id, _)| id)
-            .collect();
+        let found: Vec<String> =
+            ids_in("T-001 and (T-012), not XT-003, not T-04, T-1234.").into_iter().map(|(id, _)| id).collect();
         assert_eq!(found, ["T-001", "T-012", "T-1234"]);
     }
 

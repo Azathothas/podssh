@@ -134,9 +134,7 @@ fn intro() -> Vec<Block> {
     blocks.push(Block::Sub("Start here".into()));
     blocks.extend(super::examples::start_here());
     blocks.push(Block::Sub("Conventions".into()));
-    blocks.push(para(
-        "Answers go to stdout. Diagnostics go to stderr, so stdout can carry a protocol.",
-    ));
+    blocks.push(para("Answers go to stdout. Diagnostics go to stderr, so stdout can carry a protocol."));
     blocks.push(para(format!(
         "A question (a host key, a password, a passphrase) goes to the controlling terminal or to \
          SSH_ASKPASS. With neither, podssh refuses at once and names the remedy. When stdin, stdout and \
@@ -201,10 +199,7 @@ fn command_section(verb: &'static Verb) -> Section {
     let command = crate::tree::verb_command(verb);
     let arguments: Vec<Block> = command
         .get_positionals()
-        .map(|a| Block::Item {
-            term: argument_term(a),
-            text: a.get_help().map(|h| h.to_string()).unwrap_or_default(),
-        })
+        .map(|a| Block::Item { term: argument_term(a), text: a.get_help().map(|h| h.to_string()).unwrap_or_default() })
         .collect();
     if !arguments.is_empty() {
         blocks.push(Block::Sub("Arguments".into()));
@@ -244,10 +239,7 @@ fn keyword_blocks() -> Vec<Block> {
          podssh connects.",
     ));
     for k in keywords::HONOURED {
-        blocks.push(Block::Item {
-            term: vec![lit(k.name), text("="), var(k.value)],
-            text: k.help.to_string(),
-        });
+        blocks.push(Block::Item { term: vec![lit(k.name), text("="), var(k.value)], text: k.help.to_string() });
     }
     for (name, why) in keywords::REFUSED {
         blocks.push(Block::Item { term: vec![lit(*name)], text: format!("refused: {why}") });
@@ -266,10 +258,19 @@ fn see_also() -> Section {
         heading: "SEE ALSO".into(),
         command: false,
         blocks: vec![
-            Block::Item { term: vec![lit("podssh"), text(" "), var("COMMAND"), text(" "), lit("--help")], text: "the options of one command".into() },
-            Block::Item { term: vec![lit("podssh man"), text(" "), var("SECTION")], text: "one section of this manual".into() },
+            Block::Item {
+                term: vec![lit("podssh"), text(" "), var("COMMAND"), text(" "), lit("--help")],
+                text: "the options of one command".into(),
+            },
+            Block::Item {
+                term: vec![lit("podssh man"), text(" "), var("SECTION")],
+                text: "one section of this manual".into(),
+            },
             Block::Item { term: vec![lit("podssh man --roff")], text: "this manual as a man(7) page".into() },
-            Block::Item { term: vec![lit("podssh doctor")], text: "what this host allows, and whether the relay works".into() },
+            Block::Item {
+                term: vec![lit("podssh doctor")],
+                text: "what this host allows, and whether the relay works".into(),
+            },
             Block::Item {
                 term: vec![text(env!("CARGO_PKG_REPOSITORY"))],
                 text: "the source, the releases and the issues".into(),

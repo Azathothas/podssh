@@ -12,9 +12,9 @@ use podssh_ws::Trust;
 use podssh_relay::relay::{self, RelayList};
 
 use super::args::SshArgs;
-use crate::relay_settings::Refusal;
 use super::options::{parse_port, Settings};
 use super::tokens::{lower_host, Tokens};
+use crate::relay_settings::Refusal;
 
 /// How the first hop is reached.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -176,9 +176,13 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         &settings.user_known_hosts,
         env.home.as_deref().map(default_user_known_hosts).unwrap_or_default(),
     )?;
-    let global_known_hosts = known("-o GlobalKnownHostsFile=", &settings.global_known_hosts, default_global_known_hosts())?;
+    let global_known_hosts =
+        known("-o GlobalKnownHostsFile=", &settings.global_known_hosts, default_global_known_hosts())?;
 
-    let mut methods = settings.preferred_auth.clone().unwrap_or_else(|| vec![Method::PublicKey, Method::KeyboardInteractive, Method::Password]);
+    let mut methods = settings
+        .preferred_auth
+        .clone()
+        .unwrap_or_else(|| vec![Method::PublicKey, Method::KeyboardInteractive, Method::Password]);
     methods.retain(|m| match m {
         Method::PublicKey => settings.pubkey != Some(false),
         Method::Password => settings.password != Some(false),
@@ -201,7 +205,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         }
     };
     let escape_char = match &args.escape_char {
-        Some(e) => podssh_ssh::escape::parse_escape_char(e).ok_or_else(|| format!("-e {e}: expected none, a character or ^X"))?,
+        Some(e) => podssh_ssh::escape::parse_escape_char(e)
+            .ok_or_else(|| format!("-e {e}: expected none, a character or ^X"))?,
         None => settings.escape_char.unwrap_or(Some(b'~')),
     };
     let agent = match settings.identity_agent.as_deref() {
@@ -238,7 +243,9 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         super::node::transport(&ask, env)?
     } else if args.direct {
         if family.is_some() {
-            return Err("-4/-6 select the address family the relay dials; with --direct they are not supported yet".into());
+            return Err(
+                "-4/-6 select the address family the relay dials; with --direct they are not supported yet".into()
+            );
         }
         Transport::Direct
     } else {
@@ -418,4 +425,3 @@ fn host_rule(original: &str, host: &str) -> Result<(), String> {
     }
     Ok(())
 }
-

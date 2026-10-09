@@ -27,9 +27,7 @@ pub fn generate_key() -> Result<String, WsError> {
 /// [`generate_key`] from `random`, so that a test can plant a source that fails.
 pub fn generate_key_from(random: &dyn SecureRandom) -> Result<String, WsError> {
     let mut bytes = [0u8; 16];
-    random
-        .fill(&mut bytes)
-        .map_err(|e| WsError::Handshake(format!("no entropy for Sec-WebSocket-Key: {e:?}")))?;
+    random.fill(&mut bytes).map_err(|e| WsError::Handshake(format!("no entropy for Sec-WebSocket-Key: {e:?}")))?;
     Ok(base64::engine::general_purpose::STANDARD.encode(bytes))
 }
 
@@ -72,13 +70,7 @@ pub fn accept_key(client_key: &str) -> String {
 /// ⛔ **A SHA-1 that is only ever used for `accept_key`.** It is named for what
 /// it is so that no other caller can reach it by accident.
 pub fn sha1(data: &[u8]) -> [u8; 20] {
-    let mut h: [u32; 5] = [
-        0x6745_2301,
-        0xefcd_ab89,
-        0x98ba_dcfe,
-        0x1032_5476,
-        0xc3d2_e1f0,
-    ];
+    let mut h: [u32; 5] = [0x6745_2301, 0xefcd_ab89, 0x98ba_dcfe, 0x1032_5476, 0xc3d2_e1f0];
     let bit_len = (data.len() as u64).wrapping_mul(8);
 
     let mut padded = data.to_vec();
@@ -105,12 +97,7 @@ pub fn sha1(data: &[u8]) -> [u8; 20] {
                 40..=59 => ((b & c) | (b & d) | (c & d), 0x8f1b_bcdc),
                 _ => (b ^ c ^ d, 0xca62_c1d6),
             };
-            let temp = a
-                .rotate_left(5)
-                .wrapping_add(f)
-                .wrapping_add(e)
-                .wrapping_add(k)
-                .wrapping_add(wi);
+            let temp = a.rotate_left(5).wrapping_add(f).wrapping_add(e).wrapping_add(k).wrapping_add(wi);
             e = d;
             d = c;
             c = b.rotate_left(30);
@@ -193,10 +180,7 @@ pub fn check_response(head: &str, expected_key: &str) -> Result<(), WsError> {
     let status: u16 = parts
         .next()
         .and_then(|s| s.parse().ok())
-        .ok_or_else(|| WsError::Upgrade {
-            status: 0,
-            why: format!("no status code in {status_line:?}"),
-        })?;
+        .ok_or_else(|| WsError::Upgrade { status: 0, why: format!("no status code in {status_line:?}") })?;
 
     if status != 101 {
         return Err(WsError::Upgrade { status, why: head.to_string() });
@@ -215,24 +199,17 @@ pub fn check_response(head: &str, expected_key: &str) -> Result<(), WsError> {
         }
     }
     if !upgrade_ok {
-        return Err(WsError::Upgrade {
-            status,
-            why: "101 without Upgrade: websocket".into(),
-        });
+        return Err(WsError::Upgrade { status, why: "101 without Upgrade: websocket".into() });
     }
     // ⛔ **The accept value is compared, not merely present.** Checking that
     // the header exists proves nothing: any cache can echo it.
     let expected = accept_key(expected_key);
     match accept {
         Some(v) if v == expected => Ok(()),
-        Some(v) => Err(WsError::Upgrade {
-            status,
-            why: format!("Sec-WebSocket-Accept was {v:?}, expected {expected:?}"),
-        }),
-        None => Err(WsError::Upgrade {
-            status,
-            why: "101 without Sec-WebSocket-Accept".into(),
-        }),
+        Some(v) => {
+            Err(WsError::Upgrade { status, why: format!("Sec-WebSocket-Accept was {v:?}, expected {expected:?}") })
+        }
+        None => Err(WsError::Upgrade { status, why: "101 without Sec-WebSocket-Accept".into() }),
     }
 }
 
@@ -274,8 +251,6 @@ pub fn masking_key() -> Result<[u8; 4], WsError> {
 /// [`masking_key`] from `random`, so that a test can plant a source that fails.
 pub fn masking_key_from(random: &dyn SecureRandom) -> Result<[u8; 4], WsError> {
     let mut key = [0u8; 4];
-    random
-        .fill(&mut key)
-        .map_err(|e| WsError::Frame(format!("no OS entropy for a masking key: {e:?}")))?;
+    random.fill(&mut key).map_err(|e| WsError::Frame(format!("no OS entropy for a masking key: {e:?}")))?;
     Ok(key)
 }

@@ -41,7 +41,6 @@
 //! the SSH server's, and the signal characters are channel bytes here, resolved
 //! into `SIGINT`/`SIGQUIT` by the core that owns the connection.
 
-
 //! ## The module split
 //!
 //! ⛔ **The reference is one 1132-line file and this is not.** ⛔ A source file
@@ -170,7 +169,6 @@ pub struct Discipline {
 }
 
 impl Discipline {
-
     pub fn new() -> Self {
         Discipline::default()
     }
@@ -313,5 +311,4 @@ impl Discipline {
             _ => self.insert(b),
         }
     }
-
 }

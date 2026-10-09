@@ -135,10 +135,7 @@ impl Parsed {
     /// `println!` in the dispatch, and the assertion is that no byte reaches
     /// stdout on any of these paths.
     pub fn is_error(&self) -> bool {
-        matches!(
-            self,
-            Parsed::Usage(_) | Parsed::NoArguments(_) | Parsed::UnknownVerb(_)
-        )
+        matches!(self, Parsed::Usage(_) | Parsed::NoArguments(_) | Parsed::UnknownVerb(_))
     }
 
     /// ⛔ Whether this outcome requires a refusal rather than dispatch. ⛔ A

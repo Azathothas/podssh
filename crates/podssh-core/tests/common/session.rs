@@ -4,7 +4,6 @@
 
 #![allow(dead_code)]
 
-
 use podssh_core::irc::reap::ReapPolicy;
 use podssh_core::irc::session::{Server, Session};
 

@@ -127,10 +127,9 @@ impl Policy {
             return;
         };
         match known_hosts::append(path, &self.name, key) {
-            Ok(()) => log.info(&format!(
-                "Warning: Permanently added '{}' ({kind}) to the list of known hosts.",
-                self.name
-            )),
+            Ok(()) => {
+                log.info(&format!("Warning: Permanently added '{}' ({kind}) to the list of known hosts.", self.name))
+            }
             Err(e) => log.error(&format!(
                 "could not record the host key for '{}' in {}: {e}; it will be checked again next time",
                 self.name,
@@ -140,7 +139,14 @@ impl Policy {
     }
 }
 
-fn changed_message(name: &str, kind: &str, fp: &str, recorded: &PublicKey, path: &std::path::Path, line: usize) -> String {
+fn changed_message(
+    name: &str,
+    kind: &str,
+    fp: &str,
+    recorded: &PublicKey,
+    path: &std::path::Path,
+    line: usize,
+) -> String {
     format!(
         "the host key for '{name}' has changed.\n\
          @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@\n\

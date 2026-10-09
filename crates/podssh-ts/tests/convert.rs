@@ -47,8 +47,5 @@ fn a_bad_proxy_url_is_named_not_swallowed() {
         derp_port: Some(443),
         proxy_url: Some("socks5://proxy.example:1080".to_string()),
     };
-    assert!(matches!(
-        selection_to_options(&sel),
-        Err(ConfigError::BadProxyUrl(_))
-    ));
+    assert!(matches!(selection_to_options(&sel), Err(ConfigError::BadProxyUrl(_))));
 }

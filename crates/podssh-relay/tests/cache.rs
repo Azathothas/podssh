@@ -3,9 +3,7 @@
 
 use std::path::PathBuf;
 
-use podssh_relay::cache::{
-    file_name, load_from, remove_from, store_in_first, valid_token, MIN_REMAINING_MS,
-};
+use podssh_relay::cache::{file_name, load_from, remove_from, store_in_first, valid_token, MIN_REMAINING_MS};
 use podssh_relay::relay::{parse_relay, DEFAULT_RELAY_HOST};
 use podssh_relay::token::{relay_name, token_key, usable};
 
@@ -23,7 +21,8 @@ fn scratch(name: &str) -> PathBuf {
 #[test]
 fn a_stored_token_is_loaded_back_while_it_has_time_left() {
     let dir = scratch("roundtrip").join("cache");
-    let path = store_in_first(&[dir.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS + 1, "relay.example").unwrap();
+    let path =
+        store_in_first(&[dir.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS + 1, "relay.example").unwrap();
     assert_eq!(path, dir.join(file_name("relay.example")));
     let cached = load_from(&[dir.clone()], "relay.example", NOW).expect("a cached token");
     assert_eq!(cached.token, TOKEN);
@@ -47,8 +46,14 @@ fn the_first_usable_directory_wins_and_unusable_ones_are_skipped() {
     let blocked = root.join("blocked");
     std::fs::write(&blocked, b"not a directory").unwrap();
     let usable = root.join("usable");
-    let path = store_in_first(&[blocked.join("sub"), usable.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example")
-        .unwrap();
+    let path = store_in_first(
+        &[blocked.join("sub"), usable.clone()],
+        "relay.example",
+        TOKEN,
+        NOW + MIN_REMAINING_MS * 2,
+        "relay.example",
+    )
+    .unwrap();
     assert!(path.starts_with(&usable), "{}", path.display());
     assert!(load_from(&[blocked.join("sub"), usable], "relay.example", NOW).is_some());
 }
@@ -58,7 +63,8 @@ fn when_no_directory_works_the_error_names_each_one() {
     let root = scratch("nowhere");
     let blocked = root.join("blocked");
     std::fs::write(&blocked, b"file").unwrap();
-    let err = store_in_first(&[blocked.join("a")], "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example").unwrap_err();
+    let err = store_in_first(&[blocked.join("a")], "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example")
+        .unwrap_err();
     assert!(err.contains("blocked"), "{err}");
     assert!(!err.contains(TOKEN), "the error must not contain the token");
 }
@@ -100,7 +106,8 @@ fn cache_file_names_cannot_escape_the_directory() {
 fn files_others_could_read_or_symlinks_are_not_trusted() {
     use std::os::unix::fs::PermissionsExt;
     let dir = scratch("unix-perms");
-    let path = store_in_first(&[dir.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example").unwrap();
+    let path =
+        store_in_first(&[dir.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example").unwrap();
     assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
     assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777, 0o700);
 
@@ -108,7 +115,8 @@ fn files_others_could_read_or_symlinks_are_not_trusted() {
     assert!(load_from(&[dir.clone()], "relay.example", NOW).is_none(), "a world-readable file is ignored");
 
     let other = scratch("unix-link");
-    let real = store_in_first(&[other.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example").unwrap();
+    let real =
+        store_in_first(&[other.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example").unwrap();
     let linked_dir = scratch("unix-linked");
     std::os::unix::fs::symlink(&real, linked_dir.join(file_name("relay.example"))).unwrap();
     assert!(load_from(&[linked_dir], "relay.example", NOW).is_none(), "a symlink is ignored");
@@ -153,7 +161,8 @@ fn an_old_entry_with_no_minting_relay_loads_but_is_not_usable() {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(dir.join(file_name(DEFAULT_RELAY_HOST)), std::fs::Permissions::from_mode(0o600)).unwrap();
+        std::fs::set_permissions(dir.join(file_name(DEFAULT_RELAY_HOST)), std::fs::Permissions::from_mode(0o600))
+            .unwrap();
     }
     let cached = load_from(&[dir], DEFAULT_RELAY_HOST, NOW).expect("the old entry parses");
     assert_eq!(cached.minted_at, None);
@@ -166,7 +175,8 @@ fn an_old_entry_with_no_minting_relay_loads_but_is_not_usable() {
 fn a_failover_files_the_token_under_the_host_that_minted_it() {
     let dir = scratch("failover");
     let (dead, live) = (parse_relay("dead.invalid").unwrap(), parse_relay(DEFAULT_RELAY_HOST).unwrap());
-    let path = store_in_first(&[dir.clone()], &token_key(&live), TOKEN, NOW + MIN_REMAINING_MS * 2, &relay_name(&live)).unwrap();
+    let path = store_in_first(&[dir.clone()], &token_key(&live), TOKEN, NOW + MIN_REMAINING_MS * 2, &relay_name(&live))
+        .unwrap();
     assert!(path.ends_with(file_name(DEFAULT_RELAY_HOST)), "{}", path.display());
     assert!(load_from(&[dir.clone()], &token_key(&dead), NOW).is_none(), "nothing is filed under the dead host");
     let cached = load_from(&[dir], &token_key(&live), NOW).unwrap();

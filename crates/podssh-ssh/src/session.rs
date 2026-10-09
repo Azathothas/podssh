@@ -22,10 +22,8 @@ const REPLY_WAIT: Duration = Duration::from_secs(30);
 
 /// Run `opts.request` on a new session channel.
 pub async fn run(handle: &Handle<Client>, opts: &Options, host: &str, log: &Arc<Log>) -> Result<i32, String> {
-    let mut channel = handle
-        .channel_open_session()
-        .await
-        .map_err(|e| format!("the server refused to open a session: {e}"))?;
+    let mut channel =
+        handle.channel_open_session().await.map_err(|e| format!("the server refused to open a session: {e}"))?;
     for (name, value) in environment(opts) {
         // No reply asked for: servers refuse unlisted variables silently.
         let _ = channel.set_env(false, name, value).await;

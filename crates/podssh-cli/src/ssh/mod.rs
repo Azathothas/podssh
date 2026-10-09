@@ -17,9 +17,9 @@ pub mod tokens;
 use std::io::Write;
 use std::sync::Arc;
 
+use podssh_relay::open::Request;
 use podssh_ssh::relay_stream::RelayEnd;
 use podssh_ssh::{Log, EXIT_FAILURE};
-use podssh_relay::open::Request;
 use podssh_ws::ProxyChoice;
 
 use crate::exit_codes::EXIT_USAGE;
@@ -88,13 +88,7 @@ async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
             }
             let hosts: Vec<&str> = relays.hosts.iter().map(|r| r.host.as_str()).collect();
             log.verbose(&format!("connecting to {target} through the relay ({})", hosts.join(", ")));
-            let request = Request {
-                relays,
-                path: &path,
-                trust,
-                target: &target,
-                rounds: resolved.connection_attempts,
-            };
+            let request = Request { relays, path: &path, trust, target: &target, rounds: resolved.connection_attempts };
             let note_log = log.clone();
             let opened = podssh_relay::open(&request, &mut |note: &str| note_log.info(note)).await;
             match opened {
@@ -105,7 +99,9 @@ async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
                     let v6 = *family == Some(6) || podssh_relay::relay::is_ipv6_literal(&first.host);
                     if let (true, Some(RelayEnd::Closed { reason, .. })) = (code != 0, status.get()) {
                         if let Some(note) = podssh_relay::relay::ipv6_note(v6, &reason) {
-                            log.error(&format!("{note}; where this host has IPv6, --direct connects without the relay"));
+                            log.error(&format!(
+                                "{note}; where this host has IPv6, --direct connects without the relay"
+                            ));
                         }
                     }
                     code

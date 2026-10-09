@@ -42,12 +42,12 @@ pub struct Receiver {
     /// that is shorter than the rest floors, so the division undercounts.
     ///
     /// ⛔ **MEASURED 2026-10-02**, with 320-byte chunks:
-///
+    ///
     /// ⛔ | file | chunks | `total / 320` | right answer |
     /// ⛔ | --- | --- | --- | --- |
     /// ⛔ | 1000 | 4 | 3 | 4 |
     /// ⛔ | 1281 | 5 | 4 | 5 |
-///
+    ///
     /// ⛔ **Every file whose size is not a multiple of 320 is reported
     /// incomplete forever** — which is the case that *always* finishes, ⛔ so
     /// the bug is ⛔ **exactly backwards on every short file**.
@@ -162,10 +162,7 @@ impl Receiver {
     /// ⛔ The acknowledgement for the chunk just accepted.
     pub fn ack(&self) -> Message {
         let index = self.bytes_received / self.limits.chunk_bytes as u64;
-        let line = Line::Ack(Ack {
-            transfer_id: self.transfer_id.clone(),
-            index: index.saturating_sub(1),
-        });
+        let line = Line::Ack(Ack { transfer_id: self.transfer_id.clone(), index: index.saturating_sub(1) });
         as_privmsg("#transfer", &line)
     }
 
@@ -203,10 +200,7 @@ impl Receiver {
         if self.is_complete() {
             Ok(&self.sink)
         } else {
-            Err(format!(
-                "{} of {} bytes received; the file is not finished",
-                self.bytes_received, self.total
-            ))
+            Err(format!("{} of {} bytes received; the file is not finished", self.bytes_received, self.total))
         }
     }
 

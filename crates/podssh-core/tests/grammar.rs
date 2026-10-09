@@ -44,8 +44,7 @@ fn cases() -> Vec<(String, String)> {
 #[test]
 fn every_fixture_line_parses_and_re_encodes_to_itself() {
     for (wire, belief) in cases() {
-        let message = Message::parse(&wire)
-            .unwrap_or_else(|e| panic!("{}: {wire:?} did not parse: {e}", belief));
+        let message = Message::parse(&wire).unwrap_or_else(|e| panic!("{}: {wire:?} did not parse: {e}", belief));
         // ⛔ **Two lines normalise and every other one is byte-exact.**
         // ⛔ Both are a `PING` with a colonless token, and ⛔ **the encoder
         // always writes the `:`** — see `a_ping_token_survives_the_round_trip_exactly`.
@@ -56,16 +55,8 @@ fn every_fixture_line_parses_and_re_encodes_to_itself() {
             assert_eq!(message.to_wire(), "PING :12345\r\n");
             continue;
         }
-        assert_eq!(
-            message.to_line(),
-            wire,
-            "⛔ {belief}: re-encoding produced a different line than the wire"
-        );
-        assert_eq!(
-            message.to_wire(),
-            format!("{wire}\r\n"),
-            "⛔ {belief}: the wire form must be the line plus CRLF"
-        );
+        assert_eq!(message.to_line(), wire, "⛔ {belief}: re-encoding produced a different line than the wire");
+        assert_eq!(message.to_wire(), format!("{wire}\r\n"), "⛔ {belief}: the wire form must be the line plus CRLF");
     }
 }
 
@@ -74,16 +65,12 @@ fn the_trailing_keeps_spaces_and_the_colons_inside_it() {
     // ⛔ The two halves of the trailing rule, separately, ⛔ because a parser that
     // gets one right often gets the other wrong.
     let m = Message::parse(":alice!u@host PRIVMSG #ops :hello there world").unwrap();
-    let Command::Privmsg { target, text } = &m.command else {
-        panic!("expected a PRIVMSG")
-    };
+    let Command::Privmsg { target, text } = &m.command else { panic!("expected a PRIVMSG") };
     assert_eq!(target.as_str(), "#ops");
     assert_eq!(text.as_str(), "hello there world");
 
     let m = Message::parse(":alice!u@host PRIVMSG bob :see 12:30 for the handover").unwrap();
-    let Command::Privmsg { text, .. } = &m.command else {
-        panic!("expected a PRIVMSG")
-    };
+    let Command::Privmsg { text, .. } = &m.command else { panic!("expected a PRIVMSG") };
     // ⛔ **The second colon is content.** ⛔ A parser that split on every colon
     // turns one parameter into three and delivers `12` to the user.
     assert_eq!(text.as_str(), "see 12:30 for the handover");
@@ -95,9 +82,7 @@ fn an_empty_trailing_is_a_message_and_not_a_missing_one() {
     // drops the empty trailing loses the message entirely, ⛔ and the sender was
     // entitled to send it.
     let m = Message::parse(":alice!u@host PRIVMSG #c :").unwrap();
-    let Command::Privmsg { text, .. } = &m.command else {
-        panic!("expected a PRIVMSG")
-    };
+    let Command::Privmsg { text, .. } = &m.command else { panic!("expected a PRIVMSG") };
     assert_eq!(text.as_str(), "");
     assert!(text.is_empty());
     assert_eq!(m.to_line(), ":alice!u@host PRIVMSG #c :");
@@ -113,19 +98,10 @@ fn a_ping_token_survives_the_round_trip_exactly() {
     // way, ⛔ which is what the `PONG` must echo.
     for (wire, token) in [("PING :aBcD1234", "aBcD1234"), ("PING 12345", "12345")] {
         let m = Message::parse(wire).unwrap();
-        let Command::Ping { token: t } = &m.command else {
-            panic!("expected a PING")
-        };
-        assert_eq!(
-            t.as_str(),
-            token,
-            "⛔ the token of {wire:?} must be exactly {token:?}, byte for byte"
-        );
+        let Command::Ping { token: t } = &m.command else { panic!("expected a PING") };
+        assert_eq!(t.as_str(), token, "⛔ the token of {wire:?} must be exactly {token:?}, byte for byte");
     }
-    assert_eq!(
-        Message::parse("PING :aBcD1234").unwrap().to_line(),
-        "PING :aBcD1234"
-    );
+    assert_eq!(Message::parse("PING :aBcD1234").unwrap().to_line(), "PING :aBcD1234");
     assert_eq!(Message::parse("PING 12345").unwrap().to_line(), "PING :12345");
     // ⛔ **A token with spaces and punctuation**, ⛔ because a PONG that is
     // trimmed or re-quoted is not the token the server sent ⛔ and the entry's
@@ -157,9 +133,7 @@ fn a_user_message_keeps_its_unused_parameter() {
     // `<unused>` ⛔ and a client that drops it is answered `461`.
     let m = Message::parse("USER alice 0 * :Alice Example").unwrap();
     assert_eq!(m.to_line(), "USER alice 0 * :Alice Example");
-    let Command::User { user, mode, unused, realname } = &m.command else {
-        panic!("expected a USER")
-    };
+    let Command::User { user, mode, unused, realname } = &m.command else { panic!("expected a USER") };
     assert_eq!(user.as_str(), "alice");
     assert_eq!(mode.as_str(), "0");
     assert_eq!(unused.as_str(), "*");
@@ -169,9 +143,7 @@ fn a_user_message_keeps_its_unused_parameter() {
 #[test]
 fn a_join_of_two_channels_is_one_message() {
     let m = Message::parse(":alice!u@host JOIN #one,#two").unwrap();
-    let Command::Join { channels, key } = &m.command else {
-        panic!("expected a JOIN")
-    };
+    let Command::Join { channels, key } = &m.command else { panic!("expected a JOIN") };
     assert_eq!(channels.len(), 2);
     assert_eq!(channels[0].as_str(), "#one");
     assert_eq!(channels[1].as_str(), "#two");
@@ -245,20 +217,12 @@ fn a_numeric_is_a_number_and_not_a_string() {
     // ⛔ **The defect this test exists for**: `"100"` == `"001"` as text, ⛔ so
     // a client that compared reply codes as strings fires on the wrong reply.
     let hundred = Message::parse(":irc.example.org 100 alice :Welcome").unwrap();
-    let Command::Numeric(ref r100) = hundred.command else {
-        panic!("expected a numeric")
-    };
+    let Command::Numeric(ref r100) = hundred.command else { panic!("expected a numeric") };
     assert_eq!(r100.code, 100);
     let one = Message::parse(":irc.example.org 001 alice :Welcome").unwrap();
-    let Command::Numeric(ref r1) = one.command else {
-        panic!("expected a numeric")
-    };
+    let Command::Numeric(ref r1) = one.command else { panic!("expected a numeric") };
     assert_eq!(r1.code, 1);
-    assert_ne!(
-        r100.code.to_string(),
-        r1.code.to_string(),
-        "⛔ “100” and “001” must not compare equal as text"
-    );
+    assert_ne!(r100.code.to_string(), r1.code.to_string(), "⛔ “100” and “001” must not compare equal as text");
     // ⛔ **The name is derived from the code**, ⛔ so a reply cannot be
     // labelled `RPL_WELCOME` while carrying `433`.
     assert_eq!(r1.named(), Some(podssh_core::irc::numeric::Numeric::RplWelcome));

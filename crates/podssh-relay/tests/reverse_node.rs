@@ -112,12 +112,15 @@ impl Relay {
 
 /// A node on one end of a pipe, the scripted relay on the other; `stop` ends
 /// the node when it is notified.
-fn start(handler: Local) -> (Relay, Arc<Notify>, tokio::task::JoinHandle<End>, Arc<Mutex<HashMap<SessionId, DuplexStream>>>) {
+fn start(
+    handler: Local,
+) -> (Relay, Arc<Notify>, tokio::task::JoinHandle<End>, Arc<Mutex<HashMap<SessionId, DuplexStream>>>) {
     let (client, peer) = tokio::io::duplex(256 * 1024);
     let ends = handler.ends.clone();
     let stop = Arc::new(Notify::new());
     let stopper = stop.clone();
-    let settings = Settings { open_limit: Duration::from_secs(3), ping_every: Duration::from_secs(60), pings_allowed: 3 };
+    let settings =
+        Settings { open_limit: Duration::from_secs(3), ping_every: Duration::from_secs(60), pings_allowed: 3 };
     let task = tokio::spawn(async move {
         let session = RelaySession::new(client, Vec::new(), None, LIMIT);
         let mut stop = Box::pin(async move { stopper.notified().await });
@@ -246,7 +249,11 @@ async fn late_bytes_after_close_are_dropped_and_the_socket_stays() {
     assert_eq!(&got, b"still", "the socket and the other session go on");
     b.write_all(b"b-out").await.unwrap();
     let f = relay.expect().await;
-    assert_eq!((f.opcode, &f.payload[..32], &f.payload[32..]), (frame::OPCODE_BINARY, B.as_bytes(), &b"b-out"[..]), "no frame of the closed session came first");
+    assert_eq!(
+        (f.opcode, &f.payload[..32], &f.payload[32..]),
+        (frame::OPCODE_BINARY, B.as_bytes(), &b"b-out"[..]),
+        "no frame of the closed session came first"
+    );
 }
 
 /// `ready` goes out only after the handler returned, and before any data.
@@ -266,7 +273,8 @@ async fn ready_waits_for_the_handler_and_comes_before_data() {
 
 #[tokio::test]
 async fn a_refusal_and_a_session_over_the_limit_get_reject() {
-    let (mut relay, _stop, _task, _ends) = start(Local { refuse: Some("connection refused".into()), ..Local::default() });
+    let (mut relay, _stop, _task, _ends) =
+        start(Local { refuse: Some("connection refused".into()), ..Local::default() });
     relay.text(&open(A)).await;
     let text = text_of(&relay.expect().await);
     assert_eq!(text, format!(r#"{{"type":"reject","id":"{A}","reason":"connection refused"}}"#));

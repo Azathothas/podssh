@@ -7,9 +7,9 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use podssh_relay::open::Request;
 use podssh_relay::relay::{Relay, RelayList};
+use podssh_relay::token::{self, MintContext, Origin};
 use podssh_ssh::probe::Login;
 use podssh_ssh::relay_stream::RelayStatus;
-use podssh_relay::token::{self, MintContext, Origin};
 use podssh_ws::dial::{self, ProxyChoice};
 use podssh_ws::{http, Trust, Verdict};
 
@@ -103,7 +103,8 @@ async fn health(relay: &Relay, trust: &Trust) -> Result<(String, Option<String>)
         _ => format!("TCP {peer}"),
     };
     let host_header = if relay.port == 443 { host.clone() } else { dial::authority(host, relay.port) };
-    let exchange = http::exchange(&mut tls, "GET", &host_header, "/health", &[("Accept", "application/json")], b"", 64 * 1024);
+    let exchange =
+        http::exchange(&mut tls, "GET", &host_header, "/health", &[("Accept", "application/json")], b"", 64 * 1024);
     let response = tokio::time::timeout(TIMEOUT, exchange)
         .await
         .map_err(|_| format!("{host}: /health did not answer within {} s (opened {opened})", TIMEOUT.as_secs()))?
@@ -267,7 +268,9 @@ fn judge_login(shown: &str, outcome: Result<Login, String>, relay: Option<String
             ),
         },
         Ok(Login::Accepted { .. }) => Verdict::Ok {
-            detail: format!("{shown}: the handshake and GitHub's host key work, and the server let in a key made for this check"),
+            detail: format!(
+                "{shown}: the handshake and GitHub's host key work, and the server let in a key made for this check"
+            ),
         },
         Ok(Login::WrongHostKey { key }) => Verdict::Failed {
             detail: format!(
@@ -293,9 +296,7 @@ fn judge_unlisted(shown: &str, fingerprint: &str, current: Result<Vec<String>, S
             ),
         },
         Ok(_) => Verdict::Failed {
-            detail: format!(
-                "{shown}, which is none of GitHub's keys: something in between answered in its place"
-            ),
+            detail: format!("{shown}, which is none of GitHub's keys: something in between answered in its place"),
         },
         Err(why) => Verdict::Failed {
             detail: format!(
@@ -308,10 +309,17 @@ fn judge_unlisted(shown: &str, fingerprint: &str, current: Result<Vec<String>, S
 
 /// The fingerprints `api.github.com/meta` publishes now.
 async fn github_keys(trust: &Trust) -> Result<Vec<String>, String> {
-    let response =
-        podssh_ws::https_get("api.github.com", 443, "/meta", 1024 * 1024, trust, &ProxyChoice::FromEnvironment, TIMEOUT)
-            .await
-            .map_err(|e| e.to_string())?;
+    let response = podssh_ws::https_get(
+        "api.github.com",
+        443,
+        "/meta",
+        1024 * 1024,
+        trust,
+        &ProxyChoice::FromEnvironment,
+        TIMEOUT,
+    )
+    .await
+    .map_err(|e| e.to_string())?;
     if response.status != 200 {
         return Err(format!("HTTP {}", response.status));
     }
@@ -373,9 +381,8 @@ mod tests {
     /// A refused key passes; another host key, or a broken link, fails.
     #[test]
     fn full_login_verdicts() {
-        let key = || {
-            podssh_ssh::keygen::generate(podssh_ssh::keygen::KeyKind::Ed25519, "t").unwrap().public_key().clone()
-        };
+        let key =
+            || podssh_ssh::keygen::generate(podssh_ssh::keygen::KeyKind::Ed25519, "t").unwrap().public_key().clone();
         let refused = judge_login("g", Ok(Login::Refused { key: key(), methods: vec!["publickey".into()] }), None);
         assert!(matches!(&refused, Verdict::Ok { detail } if detail.contains("refused a key made for this check")));
         let wrong = judge_login("g", Ok(Login::WrongHostKey { key: key() }), None);

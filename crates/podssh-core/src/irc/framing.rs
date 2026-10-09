@@ -179,10 +179,7 @@ impl Reassembler {
                         // how a caller learns the stream dropped something ⛔
                         // after it has already handled the error.
                         self.overflowed = true;
-                        return Err(FrameError::Overlong {
-                            bytes: line.len(),
-                            max_line: self.max_line,
-                        });
+                        return Err(FrameError::Overlong { bytes: line.len(), max_line: self.max_line });
                     }
                     match finish(line) {
                         Ok(Some(text)) => out.push(text),

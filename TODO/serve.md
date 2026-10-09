@@ -29,8 +29,8 @@ core: the handshake, a host key that does not change, and key authentication.
   (`Eugeny/russh:russh/src/lib_inner.rs`, lines 69-70), so
   `crates/podssh-ssh/Cargo.toml:18` has it. `run_stream` serves one
   connection over any stream, as `crates/podssh-ssh/src/run.rs:31-36` does.
-  To reuse: `crates/podssh-ssh/src/keygen.rs:62-130` (a key, mode 0600, never
-  over a file), `crates/podssh-ssh/src/known_hosts.rs:139-142` (a key line),
+  To reuse: `crates/podssh-ssh/src/keygen.rs:60-130` (a key, mode 0600, never
+  over a file), `crates/podssh-ssh/src/known_hosts.rs:136-139` (a key line),
   `crates/podssh-relay/src/cache.rs:58-73` (the directories).
 
 ## Approach
@@ -63,7 +63,7 @@ Recommendation: the server goes in crates/podssh-ssh/src/server/, and only
 the command line in crates/podssh-cli/src/serve.rs. `docs/design.md:28-30`
 gives `podssh-ssh` the "russh client and server"; the crate links aws-lc
 already (`crates/podssh-ssh/Cargo.toml:12-18`), holds the helpers to reuse,
-and is read by the variable test (`crates/podssh-cli/src/man/facts.rs:221`).
+and is read by the variable test (`crates/podssh-cli/src/man/facts.rs:240-241`).
 A new crate lost: it repeats the russh dependency and its C exception, and
 makes the helpers public. `podssh-cli` lost: it is the command line.
 
@@ -120,7 +120,7 @@ and stderr apart, and an environment that a cage can give.
    `pre_exec`); the working directory `HOME` when it exists, else `/`.
 4. Environment: see Decision. `env` requests: only names that match
    `--accept-env PATTERN` (default `LANG`, `LC_*`), with the wildcard of
-   `crates/podssh-ssh/src/known_hosts.rs:181-204`. Never `LD_*`, `PATH`,
+   `crates/podssh-ssh/src/known_hosts.rs:178-201`. Never `LD_*`, `PATH`,
    `HOME`, `SHELL`, `ENV`, `BASH_ENV` or `IFS`, whatever the pattern.
 5. Output: stdout as data and stderr as extended data 1, through each
    channel's writer (T-118). After the child exits, read its pipes to their
@@ -178,11 +178,11 @@ tells the user nothing.
   handle sends `AdministrativelyProhibited`
   (`Eugeny/russh:russh/src/lib_inner.rs`, lines 570-620). A refusal can carry
   a reason with `ChannelOpenFailure::Other`.
-- Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs:204-227` (a time
+- Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs:186-204` (a time
   limit; `HTTPS_PROXY` when it is set) and
-  `crates/podssh-ws/src/dial.rs:138-147` (loopback never through a proxy).
+  `crates/podssh-ws/src/dial.rs:138-144` (loopback never through a proxy).
   The client copies a forward with half-close in
-  `crates/podssh-ssh/src/forward.rs:20-81`.
+  `crates/podssh-ssh/src/forward.rs:22-83`.
 - Read: in the measured sandbox, `connect()` to loopback failed with `EACCES`
   (`docs/target-environment.md:22`). Such a refusal must reach the client
   with its reason.
@@ -194,7 +194,7 @@ tells the user nothing.
    Do not add a second dialer.
 2. On success, accept, then copy between `channel.into_stream()` and the TCP
    stream in both directions. An EOF in one direction keeps the other open,
-   as `crates/podssh-ssh/src/forward.rs:20-81` does.
+   as `crates/podssh-ssh/src/forward.rs:22-83` does.
 3. On failure, reject with code 2 (connect failed) and the dial error in
    words: the errno, or the proxy's status and reason.
 4. Limits: 20 s for the dial; a stated maximum of open forwards for each
@@ -204,7 +204,7 @@ tells the user nothing.
 
 Pitfalls: `direct-streamlocal@openssh.com` (AF_UNIX) stays refused here; T-040
 is the client side. A host name that `check_name` refuses
-(`crates/podssh-ws/src/dial.rs:358-367`) gets that reason, not a generic one.
+(`crates/podssh-ws/src/dial.rs:321-330`) gets that reason, not a generic one.
 
 ## Prove
 
@@ -248,7 +248,7 @@ it there.
   read in reverse on the server; a second table would drift.
 - Read: doctor already opens a pty to test the host
   (`crates/podssh-cli/src/doctor/unix.rs:78-134`). The client continues
-  without a pty when the server refuses (`crates/podssh-ssh/src/session.rs:46-59`).
+  without a pty when the server refuses (`crates/podssh-ssh/src/session.rs:44-57`).
 - Read: the measured sandbox has no `/dev/ptmx` and no `/dev/pts`
   (`docs/target-environment.md:26`); there, T-111 applies.
 
@@ -313,7 +313,7 @@ command, and the session must end.
 
 - Read: `crates/podssh-terminal` holds podbox's echo, editing and history
   rules (`docs/terminal.md:78-91`), and reports Ctrl-C and Ctrl-\ as
-  `Event::Signal` (`crates/podssh-terminal/src/echo.rs:287-289`). No command
+  `Event::Signal` (`crates/podssh-terminal/src/echo.rs:285-287`). No command
   uses it, and it has the defects T-125 to T-129, which come first.
 - Read: the crate refuses to add `\r` before `\n`
   (`crates/podssh-terminal/src/echo.rs:31-37`,
@@ -524,7 +524,7 @@ so a key with limits cannot be used at all.
   OpenSSH's `authorized_keys` options are the format that users know
   (sshd(8), section "AUTHORIZED_KEYS FILE FORMAT").
 - Read: the patterns of `from=` are those of `known_hosts`, which
-  `crates/podssh-ssh/src/known_hosts.rs:145-168` matches (negation included).
+  `crates/podssh-ssh/src/known_hosts.rs:142-165` matches (negation included).
 - Read: on the reverse road, serve does not know the client's address: the
   stream comes from the relay (`docs/relay.md:202-226`).
 - Read in the reports of GitHub #21 and #18, not verified here: agent-ssh-cli
@@ -593,8 +593,8 @@ one-time code (TOTP) needs only a shared secret and a clock.
   partial success, then `auth_keyboard_interactive`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 175-208 and 309-318).
 - Read: podssh's client answers keyboard-interactive after a partial success
-  (`crates/podssh-ssh/src/auth.rs:109-116`,
-  `crates/podssh-ssh/src/auth.rs:153-206`), through the terminal or
+  (`crates/podssh-ssh/src/auth.rs:104-111`,
+  `crates/podssh-ssh/src/auth.rs:151-204`), through the terminal or
   `SSH_ASKPASS`.
 - Read: HMAC and SHA-1 are dependencies already
   (`crates/podssh-ssh/Cargo.toml:23-24`).
@@ -705,7 +705,7 @@ a restart ends each session on it (`docs/design.md:191-194`).
 ## Premise
 
 - Read: the client ends its session properly on SIGTERM and SIGHUP
-  (`crates/podssh-ssh/src/io.rs:229-265`). The server has no such handling.
+  (`crates/podssh-ssh/src/io.rs:229-262`). The server has no such handling.
 - Read: russh can end a connection with a reason: `Handle::disconnect`
   (`Eugeny/russh:russh/src/server/session.rs`, line 457).
 - Read: in `--stdio` mode one process serves one connection. The node mode
@@ -877,7 +877,7 @@ files add them, and many cage images have none.
 ## Premise
 
 - Read: in the line discipline mode (T-111), serve prints the prompt and
-  sees each submitted line (`crates/podssh-terminal/src/echo.rs:235-245`),
+  sees each submitted line (`crates/podssh-terminal/src/echo.rs:233-243`),
   so it knows where each mark goes.
 - Read: with a real pty (T-110), only the shell knows; it needs hooks in its
   start files.
@@ -1177,7 +1177,7 @@ no reason (`docs/target-environment.md:63-64`).
 - Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:150`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
-  (`crates/podssh-cli/src/doctor/host.rs:162-164`).
+  (`crates/podssh-cli/src/doctor/host.rs:157-159`).
 - Read in the report, not verified here: `rssh-org/rssh:src-tauri/src/terminal/pty.rs`
   checks the exec bit; a directory `sh` and a data file `dash` pass `exists()`.
 
@@ -1200,7 +1200,7 @@ no reason (`docs/target-environment.md:63-64`).
    (`crates/podssh-cli/src/doctor/host.rs:10-25`) from the same function.
 6. T-108 runs the result. Never call `getpwuid`. Same commit: `--shell` in
    `crates/podssh-cli/src/flags.rs`, `SHELL` in
-   `crates/podssh-cli/src/man/facts.rs:45-90`, `docs/cli.md`.
+   `crates/podssh-cli/src/man/facts.rs:45-109`, `docs/cli.md`.
 
 ## Decision
 

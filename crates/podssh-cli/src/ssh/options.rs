@@ -87,13 +87,22 @@ impl Settings {
                 }
                 set(&mut self.preferred_auth, methods)
             }
-            "pubkeyauthentication" => set(&mut self.pubkey, yes_no(value).or((value == "unbound").then_some(true)).ok_or_else(|| bad("expected yes or no"))?),
-            "passwordauthentication" => set(&mut self.password, yes_no(value).ok_or_else(|| bad("expected yes or no"))?),
+            "pubkeyauthentication" => set(
+                &mut self.pubkey,
+                yes_no(value).or((value == "unbound").then_some(true)).ok_or_else(|| bad("expected yes or no"))?,
+            ),
+            "passwordauthentication" => {
+                set(&mut self.password, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
+            }
             "kbdinteractiveauthentication" | "challengeresponseauthentication" => {
                 set(&mut self.kbd_interactive, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
             }
-            "numberofpasswordprompts" => set(&mut self.password_prompts, value.parse().map_err(|_| bad("not a number"))?),
-            "serveraliveinterval" => set(&mut self.alive_interval, parse_seconds(value).ok_or_else(|| bad("not a number of seconds"))?),
+            "numberofpasswordprompts" => {
+                set(&mut self.password_prompts, value.parse().map_err(|_| bad("not a number"))?)
+            }
+            "serveraliveinterval" => {
+                set(&mut self.alive_interval, parse_seconds(value).ok_or_else(|| bad("not a number of seconds"))?)
+            }
             "serveralivecountmax" => set(&mut self.alive_count, value.parse().map_err(|_| bad("not a number"))?),
             "connecttimeout" => set(
                 &mut self.connect_timeout,
@@ -103,7 +112,10 @@ impl Settings {
                 &mut self.connection_attempts,
                 value.parse().ok().filter(|n| (1..=100).contains(n)).ok_or_else(|| bad("a number from 1 to 100"))?,
             ),
-            "requesttty" => set(&mut self.request_tty, RequestTty::parse(value).ok_or_else(|| bad("expected auto, yes, force or no"))?),
+            "requesttty" => set(
+                &mut self.request_tty,
+                RequestTty::parse(value).ok_or_else(|| bad("expected auto, yes, force or no"))?,
+            ),
             "escapechar" => set(
                 &mut self.escape_char,
                 podssh_ssh::escape::parse_escape_char(value).ok_or_else(|| bad("expected none, a character or ^X"))?,

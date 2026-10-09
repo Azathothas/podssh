@@ -132,7 +132,8 @@ fn doctor_has_a_line_for_each_stored_pair() {
     store(&home, "old", EXPIRED);
     let (rc, out, err) = podssh(&home, &["doctor"], &[]);
     assert_eq!(rc, 1, "an expired pair is a FAIL: {out}{err}");
-    let line = |label: &str| out.lines().find(|l| l.contains(&format!("pair {label} "))).unwrap_or_default().to_string();
+    let line =
+        |label: &str| out.lines().find(|l| l.contains(&format!("pair {label} "))).unwrap_or_default().to_string();
     assert!(line("lab").starts_with("  ????") && line("lab").contains("expires"), "{out}");
     assert!(line("old").starts_with("  FAIL") && line("old").contains("podssh relay pair old"), "{out}");
     no_token(&out);

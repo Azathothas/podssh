@@ -10,8 +10,8 @@ use std::time::Duration;
 
 use podssh_cli::exitmap::Fault;
 use podssh_cli::non_interactive::{
-    force_interactive, gate_prompt, parse_timeout, refuse_jsonl_in_proxy, require_timeout,
-    resolve, Attachment, PromptSite,
+    force_interactive, gate_prompt, parse_timeout, refuse_jsonl_in_proxy, require_timeout, resolve, Attachment,
+    PromptSite,
 };
 
 /// ⛔ **Both fds, not stdin alone.** `podssh chat '#c' < /dev/null >
@@ -39,18 +39,11 @@ fn jsonl_forces_non_interactive_even_on_a_terminal() {
 /// the refusal names the fd that is not a TTY.
 #[test]
 fn forced_interactive_is_refused_unless_both_fds_are_ttys() {
-    assert_eq!(
-        force_interactive(true, true),
-        Ok(Attachment::ForcedInteractive)
-    );
+    assert_eq!(force_interactive(true, true), Ok(Attachment::ForcedInteractive));
     for (stdin, stdout) in [(true, false), (false, true), (false, false)] {
         let refusal = force_interactive(stdin, stdout).unwrap_err();
         assert_eq!(refusal.fault, Fault::Usage);
-        assert!(
-            refusal.message.contains("--interactive"),
-            "must name the flag: {}",
-            refusal.message
-        );
+        assert!(refusal.message.contains("--interactive"), "must name the flag: {}", refusal.message);
     }
 }
 
@@ -74,11 +67,7 @@ fn parse_timeout_rejects_trailing_garbage_and_empty_and_signs() {
     for raw in ["30x", "10sec", "s", "", "1.5s", "-5", "+30", "30 s", " 30", "ms"] {
         let refusal = parse_timeout(raw).unwrap_err();
         assert_eq!(refusal.fault, Fault::Usage, "{raw:?}");
-        assert!(
-            refusal.message.contains("--timeout"),
-            "{raw:?} must name the flag: {}",
-            refusal.message
-        );
+        assert!(refusal.message.contains("--timeout"), "{raw:?} must name the flag: {}", refusal.message);
     }
 }
 
@@ -99,19 +88,11 @@ fn parse_timeout_rejects_zero_and_overflow() {
 /// E33 Prove check 6: exit 64 naming `--timeout`.
 #[test]
 fn missing_timeout_outside_a_terminal_is_usage_64() {
-    for attachment in [
-        Attachment::Pipe,
-        Attachment::Forced,
-        Attachment::ForcedInteractive,
-    ] {
+    for attachment in [Attachment::Pipe, Attachment::Forced, Attachment::ForcedInteractive] {
         let refusal = require_timeout("ts", attachment, None).unwrap_err();
         assert_eq!(refusal.fault, Fault::Usage, "{attachment:?}");
         assert_eq!(refusal.fault.code(), 64, "{attachment:?}");
-        assert!(
-            refusal.message.contains("--timeout"),
-            "{attachment:?} must name the flag: {}",
-            refusal.message
-        );
+        assert!(refusal.message.contains("--timeout"), "{attachment:?} must name the flag: {}", refusal.message);
     }
 }
 
@@ -124,14 +105,8 @@ fn terminal_without_timeout_is_unbounded() {
 /// A provided value is parsed everywhere, even on a terminal.
 #[test]
 fn a_provided_timeout_is_always_parsed() {
-    assert_eq!(
-        require_timeout("ts", Attachment::Pipe, Some("30s")).unwrap(),
-        Some(Duration::from_secs(30))
-    );
-    assert_eq!(
-        require_timeout("ts", Attachment::Terminal, Some("2m")).unwrap(),
-        Some(Duration::from_secs(120))
-    );
+    assert_eq!(require_timeout("ts", Attachment::Pipe, Some("30s")).unwrap(), Some(Duration::from_secs(30)));
+    assert_eq!(require_timeout("ts", Attachment::Terminal, Some("2m")).unwrap(), Some(Duration::from_secs(120)));
     let refusal = require_timeout("ts", Attachment::Terminal, Some("30x")).unwrap_err();
     assert_eq!(refusal.fault, Fault::Usage);
 }
@@ -143,27 +118,15 @@ fn a_provided_timeout_is_always_parsed() {
 #[test]
 fn every_prompt_site_refuses_outside_a_terminal_and_names_its_remedy() {
     let sites: Vec<(PromptSite, &str)> = vec![
-        (
-            PromptSite::UnknownHostKey { fingerprint: "SHA256:abc".into() },
-            "--accept-new",
-        ),
-        (
-            PromptSite::ChangedHostKey { fingerprint: "SHA256:abc".into() },
-            "SHA256:abc",
-        ),
+        (PromptSite::UnknownHostKey { fingerprint: "SHA256:abc".into() }, "--accept-new"),
+        (PromptSite::ChangedHostKey { fingerprint: "SHA256:abc".into() }, "SHA256:abc"),
         (PromptSite::TokenAbsent, "token"),
         (PromptSite::NoRelay, "--relay"),
         (PromptSite::Passphrase, "passphrase"),
-        (
-            PromptSite::KnownHostsUnreadable { path: "/nonexistent".into() },
-            "/nonexistent",
-        ),
+        (PromptSite::KnownHostsUnreadable { path: "/nonexistent".into() }, "/nonexistent"),
         (PromptSite::ChannelKey { channel: "#chan".into() }, "#chan"),
         (PromptSite::NickInUse { nick: "podssh".into() }, "podssh"),
-        (
-            PromptSite::SendfileUnreadable { path: "./messages.txt".into(), errno: "ENOENT".into() },
-            "./messages.txt",
-        ),
+        (PromptSite::SendfileUnreadable { path: "./messages.txt".into(), errno: "ENOENT".into() }, "./messages.txt"),
     ];
     for attachment in [Attachment::Pipe, Attachment::Forced] {
         for (site, remedy) in &sites {
@@ -215,11 +178,8 @@ fn jsonl_is_refused_in_proxy_mode() {
 /// never a bare "refused", never a secret.
 #[test]
 fn a_refusal_names_the_site_and_the_remedy() {
-    let refusal = gate_prompt(
-        Attachment::Pipe,
-        &PromptSite::UnknownHostKey { fingerprint: "SHA256:abc".into() },
-    )
-    .unwrap_err();
+    let refusal =
+        gate_prompt(Attachment::Pipe, &PromptSite::UnknownHostKey { fingerprint: "SHA256:abc".into() }).unwrap_err();
     assert!(refusal.message.contains("podssh"), "{}", refusal.message);
     assert!(refusal.message.contains("SHA256:abc"), "{}", refusal.message);
     assert!(refusal.message.contains("--accept-new"), "{}", refusal.message);
@@ -289,8 +249,7 @@ fn garbage_timeout_is_64_immediately() {
 /// 64, and never on 0, and never a hang.
 #[test]
 fn valid_timeout_passes_the_gate_and_reaches_the_unbuilt_verb() {
-    let (rc, out, err) =
-        podssh(&["chat", "--send", "#chan hi", "--timeout", "30s"]);
+    let (rc, out, err) = podssh(&["chat", "--send", "#chan hi", "--timeout", "30s"]);
     assert_eq!(rc, 70, "chat parses but is not implemented yet");
     assert!(out.is_empty());
     assert!(String::from_utf8(err).unwrap().contains("not implemented yet"));

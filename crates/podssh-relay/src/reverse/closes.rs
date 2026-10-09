@@ -133,6 +133,8 @@ pub struct CloseRow {
 
 /// The table, in the order of the contract; a test checks each row against
 /// its line of the pinned copy.
+// One close to a row, as the contract's table has it.
+#[rustfmt::skip]
 pub const CLOSE_ROWS: &[CloseRow] = &[
     CloseRow { code: 1001, reason: "operator stopped reverse relay", observed_by: Leg::Either, action: SessionAction::Stop, spec_line: 170 },
     CloseRow { code: 1001, reason: "pair expired", observed_by: Leg::Either, action: SessionAction::MintNewPair, spec_line: 171 },

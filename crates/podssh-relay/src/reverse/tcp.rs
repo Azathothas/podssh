@@ -25,9 +25,7 @@ impl Handler for TcpHandler {
     fn open(&self, _id: SessionId) -> Opening<TcpStream> {
         let (host, port, timeout) = (self.host.clone(), self.port, self.timeout);
         Box::pin(async move {
-            podssh_ws::dial::dial(&host, port, &ProxyChoice::FromEnvironment, timeout)
-                .await
-                .map_err(|e| e.to_string())
+            podssh_ws::dial::dial(&host, port, &ProxyChoice::FromEnvironment, timeout).await.map_err(|e| e.to_string())
         })
     }
 }

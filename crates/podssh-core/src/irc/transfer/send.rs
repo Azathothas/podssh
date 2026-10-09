@@ -23,12 +23,7 @@ pub struct Sender {
 }
 
 impl Sender {
-    pub fn new(
-        transfer_id: impl Into<String>,
-        name: impl Into<String>,
-        total: u64,
-        limits: TransferLimits,
-    ) -> Self {
+    pub fn new(transfer_id: impl Into<String>, name: impl Into<String>, total: u64, limits: TransferLimits) -> Self {
         let chunks = limits.chunk_count(total);
         Sender {
             transfer_id: transfer_id.into(),
@@ -108,14 +103,8 @@ impl Sender {
     /// a thing to hold. ⛔ The length check is `Err`, not a truncation: a caller
     /// that reads short would otherwise ship a file with a silent hole and a
     /// digest computed over the hole.
-    pub fn next_chunk_message(
-        &mut self,
-        target: &str,
-        bytes: &[u8],
-    ) -> Result<Message, String> {
-        let (offset, expected_len) = self
-            .next_range()
-            .ok_or_else(|| "the file is already finished".to_string())?;
+    pub fn next_chunk_message(&mut self, target: &str, bytes: &[u8]) -> Result<Message, String> {
+        let (offset, expected_len) = self.next_range().ok_or_else(|| "the file is already finished".to_string())?;
         if bytes.len() != expected_len {
             return Err(format!(
                 "chunk {} needs {expected_len} bytes and the caller supplied {}",
@@ -174,10 +163,7 @@ impl Sender {
     /// digested internally would have to keep the whole file, ⛔ and a 60 MiB
     /// session is not a thing to hold in memory.
     pub fn digest(&self, target: &str, sha256_hex: &str) -> Message {
-        let line = Line::Digest(Digest {
-            transfer_id: self.transfer_id.clone(),
-            sha256: sha256_hex.to_string(),
-        });
+        let line = Line::Digest(Digest { transfer_id: self.transfer_id.clone(), sha256: sha256_hex.to_string() });
         as_privmsg(target, &line)
     }
 
@@ -185,4 +171,3 @@ impl Sender {
         self.next_chunk >= self.chunks
     }
 }
-

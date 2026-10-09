@@ -73,10 +73,7 @@ async fn exchange_writes_a_well_formed_request_and_reads_the_reply() {
             assert!(n > 0);
             seen.extend_from_slice(&chunk[..n]);
         }
-        server
-            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\n{\"token\":\"t\"}")
-            .await
-            .unwrap();
+        server.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\n{\"token\":\"t\"}").await.unwrap();
         String::from_utf8(seen).unwrap()
     });
     let r = exchange(
@@ -103,9 +100,7 @@ async fn exchange_writes_a_well_formed_request_and_reads_the_reply() {
 #[tokio::test]
 async fn a_header_with_a_line_break_is_refused_before_anything_is_sent() {
     let (mut client, _server) = tokio::io::duplex(1024);
-    let err = exchange(&mut client, "POST", "h", "/", &[("X", "a\r\nInjected: 1")], b"", 1024)
-        .await
-        .unwrap_err();
+    let err = exchange(&mut client, "POST", "h", "/", &[("X", "a\r\nInjected: 1")], b"", 1024).await.unwrap_err();
     assert!(err.to_string().contains("CR or LF"), "{err}");
 }
 

@@ -72,8 +72,14 @@ fn a_change_inside_a_cited_range_is_listed_and_not_moved() {
 fn a_range_moves_by_its_ends_when_a_line_inside_changed() {
     let t = Tree::new("remap-range-ends");
     let head = snapshot(&t);
-    t.write(LIB, &format!("line 0
-{}", SOURCE.replace("line 3", "line three")));
+    t.write(
+        LIB,
+        &format!(
+            "line 0
+{}",
+            SOURCE.replace("line 3", "line three")
+        ),
+    );
     let r = run(&t, &head, true);
     let area = t.read("TODO/area.md");
     assert!(area.contains("`crates/x/src/lib.rs:3-5`"), "{area}");
@@ -82,8 +88,14 @@ fn a_range_moves_by_its_ends_when_a_line_inside_changed() {
     // An end that changed keeps the range where it was.
     let t = Tree::new("remap-range-end-changed");
     let head = snapshot(&t);
-    t.write(LIB, &format!("line 0
-{}", SOURCE.replace("line 4", "line four")));
+    t.write(
+        LIB,
+        &format!(
+            "line 0
+{}",
+            SOURCE.replace("line 4", "line four")
+        ),
+    );
     let r = run(&t, &head, true);
     assert!(t.read("TODO/area.md").contains("`crates/x/src/lib.rs:2-4`"));
     assert!(r.review.iter().any(|l| l.contains("lib.rs 2-4:") && l.contains("by hand")), "{r:#?}");
@@ -176,20 +188,33 @@ fn a_file_that_is_not_in_head_moves_nothing() {
 fn a_line_that_cites_two_files_moves_in_a_run_for_each() {
     let t = Tree::new("remap-two-files");
     t.write(TWO, SOURCE);
-    t.write("docs/notes.md", "# Notes
+    t.write(
+        "docs/notes.md",
+        "# Notes
 
 See `crates/x/src/lib.rs:2` and `crates/x/src/two.rs:3`.
-");
+",
+    );
     let head = snapshot(&t);
-    t.write(LIB, &format!("line 0
-{SOURCE}"));
+    t.write(
+        LIB,
+        &format!(
+            "line 0
+{SOURCE}"
+        ),
+    );
     run_on(&t, &head, LIB, true);
     assert!(t.read("docs/notes.md").contains("`crates/x/src/lib.rs:3` and `crates/x/src/two.rs:3`"));
     // The line differs from HEAD now; the run for the second file still
     // finds it, and keeps what the first run did.
-    t.write(TWO, &format!("line -1
+    t.write(
+        TWO,
+        &format!(
+            "line -1
 line 0
-{SOURCE}"));
+{SOURCE}"
+        ),
+    );
     let r = run_on(&t, &head, TWO, true);
     let notes = t.read("docs/notes.md");
     assert!(notes.contains("`crates/x/src/lib.rs:3` and `crates/x/src/two.rs:5`"), "{notes}");

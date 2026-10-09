@@ -126,7 +126,10 @@ impl Read for &Forward<'_> {
                     });
                 }
                 frame::OPCODE_TEXT => {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, "the relay sent a text frame on the forward path"))
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "the relay sent a text frame on the forward path",
+                    ))
                 }
                 _ => {}
             }

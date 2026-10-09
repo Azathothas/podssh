@@ -19,10 +19,7 @@ pub(crate) const REQUEST_LIMIT: std::time::Duration = std::time::Duration::from_
 
 /// Milliseconds since the Unix epoch, now.
 pub(crate) fn now_ms() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 
 /// `2026-10-12T08:10:00Z`, for milliseconds since the epoch.
@@ -92,9 +89,8 @@ fn connect_code(e: &ConnectError) -> i32 {
 /// `--ca-file`, else `SSL_CERT_FILE`, else podssh's own roots, as for
 /// `podssh proxy`.
 pub(crate) fn trust(ca_file: Option<&str>) -> Trust {
-    let file = ca_file
-        .map(str::to_string)
-        .or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
+    let file =
+        ca_file.map(str::to_string).or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
     match file {
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,
@@ -192,7 +188,10 @@ mod tests {
     fn a_node_that_lost_its_link_is_named_and_may_work_again() {
         for reason in ["node disconnected", " Node Disconnected "] {
             let text = session_end(1011, reason);
-            assert!(text.starts_with("the node's link to the relay ended (relay close 1011: node disconnected)"), "{text}");
+            assert!(
+                text.starts_with("the node's link to the relay ended (relay close 1011: node disconnected)"),
+                "{text}"
+            );
             assert!(text.ends_with("so a new session may work"), "{text}");
         }
     }

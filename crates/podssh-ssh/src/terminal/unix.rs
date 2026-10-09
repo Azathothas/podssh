@@ -200,9 +200,7 @@ fn read_keys(
             Ok(0) => break,
             Ok(_) => match byte[0] {
                 b'\n' | b'\r' => break,
-                0x03 if keywise => {
-                    return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "cancelled"))
-                }
+                0x03 if keywise => return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "cancelled")),
                 0x04 if keywise && line.is_empty() => {
                     return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "cancelled"))
                 }

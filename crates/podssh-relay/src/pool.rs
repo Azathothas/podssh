@@ -128,17 +128,14 @@ pub async fn refresh(
         return Err(format!("the pool request answered HTTP {}", response.status));
     }
     let hosts = parse_pool(&response.body, primary)?;
-    let body = serde_json::to_vec(&CachedPool { fetched_ms: now_ms(), hosts: hosts.clone() })
-        .map_err(|e| e.to_string())?;
+    let body =
+        serde_json::to_vec(&CachedPool { fetched_ms: now_ms(), hosts: hosts.clone() }).map_err(|e| e.to_string())?;
     cache::store_file(&file_name(primary), &body)?;
     Ok(hosts.len())
 }
 
 pub(crate) fn now_ms() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 
 #[cfg(test)]

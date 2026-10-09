@@ -39,17 +39,11 @@ impl Hkdf for PureHkdf {
         // every other implementation's and fails at the first Finished.
         let default_salt = [0u8; 64];
         let salt: &[u8] = salt.unwrap_or(&default_salt[..hash_len]);
-        Box::new(Expander {
-            id: self.0,
-            prk: self.extract_prk(salt, secret),
-        })
+        Box::new(Expander { id: self.0, prk: self.extract_prk(salt, secret) })
     }
 
     fn expander_for_okm(&self, okm: &OkmBlock) -> Box<dyn HkdfExpander> {
-        Box::new(Expander {
-            id: self.0,
-            prk: okm.as_ref().to_vec(),
-        })
+        Box::new(Expander { id: self.0, prk: okm.as_ref().to_vec() })
     }
 
     fn hmac_sign(&self, key: &OkmBlock, message: &[u8]) -> Tag {
@@ -75,12 +69,8 @@ impl PureHkdf {
         // match does not typecheck — which is the compiler refusing to let the
         // two hashes' PRKs be confused.
         match self.0 {
-            HashAlgorithmId::Sha256 => {
-                hkdf::Hkdf::<Sha256>::extract(Some(salt), ikm).0.to_vec()
-            }
-            HashAlgorithmId::Sha384 => {
-                hkdf::Hkdf::<sha2::Sha384>::extract(Some(salt), ikm).0.to_vec()
-            }
+            HashAlgorithmId::Sha256 => hkdf::Hkdf::<Sha256>::extract(Some(salt), ikm).0.to_vec(),
+            HashAlgorithmId::Sha384 => hkdf::Hkdf::<sha2::Sha384>::extract(Some(salt), ikm).0.to_vec(),
         }
     }
 
@@ -135,8 +125,7 @@ impl HkdfExpander for Expander {
 
     fn expand_block(&self, info: &[&[u8]]) -> OkmBlock {
         let mut out = vec![0u8; self.id.output_len()];
-        self.expand(info, &mut out)
-            .expect("a block of HashLen bytes cannot exceed 255 * HashLen");
+        self.expand(info, &mut out).expect("a block of HashLen bytes cannot exceed 255 * HashLen");
         OkmBlock::new(&out)
     }
 

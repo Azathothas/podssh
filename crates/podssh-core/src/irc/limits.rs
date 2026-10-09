@@ -103,11 +103,7 @@ pub struct TransferLimits {
 
 impl Default for TransferLimits {
     fn default() -> Self {
-        TransferLimits {
-            chunk_bytes: 320,
-            session_bytes: 60 * 1024 * 1024,
-            frame_bytes: OPERATOR_FRAME_PAYLOAD_BYTES,
-        }
+        TransferLimits { chunk_bytes: 320, session_bytes: 60 * 1024 * 1024, frame_bytes: OPERATOR_FRAME_PAYLOAD_BYTES }
     }
 }
 
@@ -190,14 +186,10 @@ fn anchored_usize(text: &str, key: &str) -> Result<usize, String> {
             None => continue,
         };
         let rest = rest.trim_start();
-        let value = rest.strip_prefix('=').ok_or_else(|| {
-            format!("crates/podssh-probe/facts/relay-facts.toml: `{key}` has no `=` after it")
-        })?;
-        let digits: String = value
-            .trim()
-            .chars()
-            .take_while(|c| c.is_ascii_digit())
-            .collect();
+        let value = rest
+            .strip_prefix('=')
+            .ok_or_else(|| format!("crates/podssh-probe/facts/relay-facts.toml: `{key}` has no `=` after it"))?;
+        let digits: String = value.trim().chars().take_while(|c| c.is_ascii_digit()).collect();
         return digits.parse().map_err(|_| {
             format!(
                 "crates/podssh-probe/facts/relay-facts.toml: `{key}` does not \

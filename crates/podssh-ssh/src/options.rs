@@ -254,10 +254,7 @@ impl Options {
 /// OpenSSH's default key files under `home`, in its order, for the key types
 /// podssh can use (security-key types need hardware and are left out).
 pub fn default_identity_files(home: &Path) -> Vec<PathBuf> {
-    ["id_rsa", "id_ecdsa", "id_ed25519"]
-        .iter()
-        .map(|name| home.join(".ssh").join(name))
-        .collect()
+    ["id_rsa", "id_ecdsa", "id_ed25519"].iter().map(|name| home.join(".ssh").join(name)).collect()
 }
 
 /// OpenSSH's default `UserKnownHostsFile` under `home`.
@@ -268,7 +265,8 @@ pub fn default_user_known_hosts(home: &Path) -> Vec<PathBuf> {
 /// OpenSSH's default `GlobalKnownHostsFile`.
 pub fn default_global_known_hosts() -> Vec<PathBuf> {
     if cfg!(windows) {
-        let base = std::env::var_os("ProgramData").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\ProgramData"));
+        let base =
+            std::env::var_os("ProgramData").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\ProgramData"));
         vec![base.join("ssh").join("ssh_known_hosts")]
     } else {
         vec![PathBuf::from("/etc/ssh/ssh_known_hosts"), PathBuf::from("/etc/ssh/ssh_known_hosts2")]

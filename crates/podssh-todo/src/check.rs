@@ -148,7 +148,11 @@ fn check_rows(rows: &[Row], p: &mut Vec<Problem>) {
         allowed("the category", &r.category, &CATEGORIES, r.line, p);
         allowed("the status", &r.status, &STATUSES, r.line, p);
         if RECORD_FILES.contains(&r.file.as_str()) || r.file.contains('/') || !r.file.ends_with(".md") {
-            p.push(Problem::new(INDEX, r.line, format!("{} links `{}`, which is not an area file of TODO/", r.id, r.file)));
+            p.push(Problem::new(
+                INDEX,
+                r.line,
+                format!("{} links `{}`, which is not an area file of TODO/", r.id, r.file),
+            ));
         }
         if r.title.is_empty() {
             p.push(Problem::new(INDEX, r.line, format!("{} has no title", r.id)));
@@ -176,7 +180,11 @@ fn check_agreement(rows: &[Row], entries: &[Entry], p: &mut Vec<Problem>) {
         };
         let at = format!("TODO/{}", e.file);
         if e.file != r.file {
-            p.push(Problem::new(&at, e.line, format!("{} is in TODO/{}, but its row links TODO/{}", r.id, e.file, r.file)));
+            p.push(Problem::new(
+                &at,
+                e.line,
+                format!("{} is in TODO/{}, but its row links TODO/{}", r.id, e.file, r.file),
+            ));
         }
         if e.title != r.title {
             p.push(Problem::new(&at, e.line, format!("{}: the title differs from the row's: \"{}\"", r.id, r.title)));
@@ -190,7 +198,11 @@ fn check_agreement(rows: &[Row], entries: &[Entry], p: &mut Vec<Problem>) {
         ] {
             if let Some(have) = e.field(name) {
                 if have != want {
-                    p.push(Problem::new(&at, e.line, format!("{}: the entry says {name} {have}, the index says {want}", r.id)));
+                    p.push(Problem::new(
+                        &at,
+                        e.line,
+                        format!("{}: the entry says {name} {have}, the index says {want}", r.id),
+                    ));
                 }
             }
         }
@@ -224,7 +236,11 @@ fn check_entry(e: &Entry, p: &mut Vec<Problem>) {
             _ => continue,
         };
         if !set.contains(&f.value.as_str()) {
-            p.push(Problem::new(&at, f.line, format!("{}: {} `{}` is not one of {}", e.id, f.name, f.value, set.join(", "))));
+            p.push(Problem::new(
+                &at,
+                f.line,
+                format!("{}: {} `{}` is not one of {}", e.id, f.name, f.value, set.join(", ")),
+            ));
         }
     }
     if e.field("Source").is_some_and(str::is_empty) {
@@ -297,14 +313,17 @@ fn check_counts(r: &Record, p: &mut Vec<Problem>) {
     }
     for label in PRIORITIES.iter().copied().chain(["All"]) {
         let want = Counts::of(&r.rows, (label != "All").then_some(label));
-        let found = parse::lines_with_fences(&r.index)
-            .into_iter()
-            .find_map(|(no, line, fenced)| (!fenced).then(|| parse::counts_row(line)).flatten().filter(|(l, ..)| l == label).map(|x| (no, x)));
+        let found = parse::lines_with_fences(&r.index).into_iter().find_map(|(no, line, fenced)| {
+            (!fenced).then(|| parse::counts_row(line)).flatten().filter(|(l, ..)| l == label).map(|x| (no, x))
+        });
         match found {
             Some((no, (_, c, total))) if c != want || total != want.total() => p.push(Problem::new(
                 INDEX,
                 no,
-                format!("the {label} row of the counts table disagrees with the rows; it reads: {}", want.table_row(label)),
+                format!(
+                    "the {label} row of the counts table disagrees with the rows; it reads: {}",
+                    want.table_row(label)
+                ),
             )),
             Some(_) => {}
             None => p.push(Problem::new(INDEX, 0, format!("the counts table has no {label} row"))),

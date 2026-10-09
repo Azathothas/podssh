@@ -84,7 +84,9 @@ fn finish(label: &str, outcome: &Outcome, err: &mut dyn Write) -> i32 {
             Fault::PairExpired,
             format!("the pair expired (relay close 1001); make a new one with `podssh relay pair {label}`"),
         ),
-        Outcome::Ended { code: 1001, reason } if reason.trim().eq_ignore_ascii_case("operator stopped reverse relay") => {
+        Outcome::Ended { code: 1001, reason }
+            if reason.trim().eq_ignore_ascii_case("operator stopped reverse relay") =>
+        {
             (Fault::Revoked, "the pair was stopped (relay close 1001)".to_string())
         }
         Outcome::Ended { code: code @ (1003 | 1008 | 1009), reason } => {

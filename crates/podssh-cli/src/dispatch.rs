@@ -277,11 +277,7 @@ where
     // tokio's stdout, which locks from a helper thread.
     let mut out = std::io::stdout();
     let mut err = std::io::stderr();
-    let rc = run_with(
-        &parsed,
-        &mut Streams { out: &mut out, err: &mut err },
-        Tty::probed(),
-    );
+    let rc = run_with(&parsed, &mut Streams { out: &mut out, err: &mut err }, Tty::probed());
     let _ = out.flush();
     let _ = err.flush();
     rc

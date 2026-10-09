@@ -97,9 +97,7 @@ pub enum ConfigError {
 /// `http://host[:port]`, default port 8080, credentials allowed.
 /// Anything else is a named `BadProxyUrl`, before anything dials.
 pub fn parse_proxy_url(url: &str) -> Result<String, ConfigError> {
-    let rest = url
-        .strip_prefix("http://")
-        .ok_or_else(|| ConfigError::BadProxyUrl(url.to_string()))?;
+    let rest = url.strip_prefix("http://").ok_or_else(|| ConfigError::BadProxyUrl(url.to_string()))?;
     let (authority, _) = match rest.find('/') {
         Some(i) => (&rest[..i], &rest[i..]),
         None => (rest, ""),
@@ -113,8 +111,7 @@ pub fn parse_proxy_url(url: &str) -> Result<String, ConfigError> {
     }
     let (host, port) = match hostport.rfind(':') {
         Some(i) if !hostport[..i].is_empty() && hostport[i + 1..].chars().all(|c| c.is_ascii_digit()) => {
-            let port: u16 =
-                hostport[i + 1..].parse().map_err(|_| ConfigError::BadProxyUrl(url.to_string()))?;
+            let port: u16 = hostport[i + 1..].parse().map_err(|_| ConfigError::BadProxyUrl(url.to_string()))?;
             (&hostport[..i], port)
         }
         _ => (hostport, 8080),

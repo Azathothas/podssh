@@ -100,10 +100,8 @@ impl SshArgs {
         };
         let flag = |id: &str| has(id) && m.try_get_one::<bool>(id).ok().flatten().copied().unwrap_or(false);
         let count = |id: &str| if has(id) { m.try_get_one::<u8>(id).ok().flatten().copied().unwrap_or(0) } else { 0 };
-        let long_options = OPTION_FLAGS
-            .iter()
-            .flat_map(|name| many(name).into_iter().map(move |v| format!("{name}={v}")))
-            .collect();
+        let long_options =
+            OPTION_FLAGS.iter().flat_map(|name| many(name).into_iter().map(move |v| format!("{name}={v}"))).collect();
         SshArgs {
             destination: one("destination"),
             command: many("remote-command"),

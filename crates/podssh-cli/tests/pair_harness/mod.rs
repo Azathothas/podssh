@@ -55,13 +55,22 @@ pub const EXPIRED: i64 = 80 * 3600 * 1000;
 pub fn podssh(home: &Path, args: &[&str], set: &[(&str, &str)]) -> (i32, String, String) {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     cmd.args(args);
-    for name in ["PODSSH_RELAY", "PODSSH_RELAY_ADDR", "PODSSH_RELAY_TOKEN", "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"] {
+    for name in [
+        "PODSSH_RELAY",
+        "PODSSH_RELAY_ADDR",
+        "PODSSH_RELAY_TOKEN",
+        "https_proxy",
+        "HTTPS_PROXY",
+        "all_proxy",
+        "ALL_PROXY",
+    ] {
         cmd.env_remove(name);
     }
     cmd.env("HOME", home).env("USERPROFILE", home).env("PODSSH_OFFLINE", "1");
     cmd.env("XDG_CACHE_HOME", home.join("cache")).env("LOCALAPPDATA", home.join("cache"));
     cmd.envs(set.iter().copied());
-    let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("podssh runs");
+    let mut child =
+        cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().expect("podssh runs");
     let deadline = Instant::now() + Duration::from_secs(30);
     while child.try_wait().expect("wait").is_none() {
         assert!(Instant::now() < deadline, "podssh {args:?} did not end within 30 s");

@@ -14,7 +14,7 @@
 //! build, where `ts` parses and refuses.
 #![cfg(feature = "ts")]
 
-use podssh_cli::dispatch::{Streams, run};
+use podssh_cli::dispatch::{run, Streams};
 use podssh_cli::tree::parse;
 
 fn run_case(argv: &[&str]) -> (i32, String, String) {
@@ -28,18 +28,14 @@ fn run_case(argv: &[&str]) -> (i32, String, String) {
 
 /// A scratch key file with test-only bytes. Removed by the caller.
 fn scratch_key(name: &str) -> std::path::PathBuf {
-    let path =
-        std::env::temp_dir().join(format!("podssh-ts-behave-{name}-{}", std::process::id()));
+    let path = std::env::temp_dir().join(format!("podssh-ts-behave-{name}-{}", std::process::id()));
     std::fs::write(&path, b"tskey-auth-test-not-a-secret").unwrap();
     path
 }
 
 #[test]
 fn ts_without_a_key_file_is_77_naming_the_flag() {
-    for argv in [
-        vec!["ts", "--timeout", "30s"],
-        vec!["ts", "-W", "peer:22", "--timeout", "30s"],
-    ] {
+    for argv in [vec!["ts", "--timeout", "30s"], vec!["ts", "-W", "peer:22", "--timeout", "30s"]] {
         let (rc, out, err) = run_case(&argv);
         assert_eq!(rc, 77, "{argv:?}");
         assert!(out.is_empty(), "{argv:?}");
@@ -70,8 +66,7 @@ fn ts_with_an_unreadable_key_file_is_64_naming_the_path() {
 
 #[test]
 fn ts_with_an_empty_key_file_is_77() {
-    let path =
-        std::env::temp_dir().join(format!("podssh-ts-behave-empty-{}", std::process::id()));
+    let path = std::env::temp_dir().join(format!("podssh-ts-behave-empty-{}", std::process::id()));
     std::fs::write(&path, b"\n").unwrap();
     let argv = vec![
         "ts".to_string(),
@@ -233,9 +228,7 @@ fn ts_live_status_prints_the_node_line() {
         "--timeout".to_string(),
         "120s".to_string(),
     ];
-    let (rc, out, err) = run_case(
-        &argv.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
-    );
+    let (rc, out, err) = run_case(&argv.iter().map(|s| s.as_str()).collect::<Vec<_>>());
     std::fs::remove_file(&state).ok();
     assert_eq!(rc, 0, "{err}");
     assert!(out.starts_with("node "), "{out}");

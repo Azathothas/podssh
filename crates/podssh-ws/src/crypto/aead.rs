@@ -11,9 +11,8 @@ use aes_gcm::aead::{Aead as AeadTrait, KeyInit, Payload};
 use aes_gcm::{Aes128Gcm, Aes256Gcm};
 use chacha20poly1305::ChaCha20Poly1305;
 use rustls::crypto::cipher::{
-    make_tls13_aad, AeadKey, InboundOpaqueMessage, InboundPlainMessage, Iv, MessageDecrypter,
-    MessageEncrypter, Nonce, OutboundOpaqueMessage, OutboundPlainMessage, PrefixedPayload,
-    Tls13AeadAlgorithm, UnsupportedOperationError,
+    make_tls13_aad, AeadKey, InboundOpaqueMessage, InboundPlainMessage, Iv, MessageDecrypter, MessageEncrypter, Nonce,
+    OutboundOpaqueMessage, OutboundPlainMessage, PrefixedPayload, Tls13AeadAlgorithm, UnsupportedOperationError,
 };
 use rustls::{ContentType, Error, ProtocolVersion};
 
@@ -75,15 +74,15 @@ impl Aead {
             return Err(UnsupportedOperationError);
         }
         let inner = match id {
-            AeadId::Aes128Gcm => Inner::Aes128(Box::new(
-                Aes128Gcm::new_from_slice(key).map_err(|_| UnsupportedOperationError)?,
-            )),
-            AeadId::Aes256Gcm => Inner::Aes256(Box::new(
-                Aes256Gcm::new_from_slice(key).map_err(|_| UnsupportedOperationError)?,
-            )),
-            AeadId::ChaCha20Poly1305 => Inner::ChaCha(Box::new(
-                ChaCha20Poly1305::new_from_slice(key).map_err(|_| UnsupportedOperationError)?,
-            )),
+            AeadId::Aes128Gcm => {
+                Inner::Aes128(Box::new(Aes128Gcm::new_from_slice(key).map_err(|_| UnsupportedOperationError)?))
+            }
+            AeadId::Aes256Gcm => {
+                Inner::Aes256(Box::new(Aes256Gcm::new_from_slice(key).map_err(|_| UnsupportedOperationError)?))
+            }
+            AeadId::ChaCha20Poly1305 => {
+                Inner::ChaCha(Box::new(ChaCha20Poly1305::new_from_slice(key).map_err(|_| UnsupportedOperationError)?))
+            }
         };
         Ok(Aead { id, inner })
     }
@@ -101,22 +100,15 @@ impl Aead {
         *aes_gcm::Nonce::from_slice(n)
     }
 
-    pub fn seal_in_place(
-        &self,
-        nonce: &[u8; NONCE_LEN],
-        aad: &[u8],
-        buffer: &mut Vec<u8>,
-    ) -> Option<()> {
+    pub fn seal_in_place(&self, nonce: &[u8; NONCE_LEN], aad: &[u8], buffer: &mut Vec<u8>) -> Option<()> {
         let payload = Payload { msg: &*buffer, aad };
         let sealed = match &self.inner {
             Inner::Aes128(k) => k.encrypt(&Self::nonce(nonce), payload).ok()?,
             Inner::Aes256(k) => k.encrypt(&Self::nonce(nonce), payload).ok()?,
-            Inner::ChaCha(k) => chacha20poly1305::ChaCha20Poly1305::encrypt(
-                k,
-                chacha20poly1305::Nonce::from_slice(nonce),
-                payload,
-            )
-            .ok()?,
+            Inner::ChaCha(k) => {
+                chacha20poly1305::ChaCha20Poly1305::encrypt(k, chacha20poly1305::Nonce::from_slice(nonce), payload)
+                    .ok()?
+            }
         };
         *buffer = sealed;
         Some(())
@@ -127,22 +119,15 @@ impl Aead {
     /// lifetime `'a`. A decrypter that allocated a fresh `Vec` would have to
     /// either leak it or shorten the borrow, so the plaintext is written back
     /// over the ciphertext exactly as the reference providers do.
-    pub fn open_in_place(
-        &self,
-        nonce: &[u8; NONCE_LEN],
-        aad: &[u8],
-        buffer: &mut [u8],
-    ) -> Option<usize> {
+    pub fn open_in_place(&self, nonce: &[u8; NONCE_LEN], aad: &[u8], buffer: &mut [u8]) -> Option<usize> {
         let payload = Payload { msg: buffer, aad };
         let plain = match &self.inner {
             Inner::Aes128(k) => k.decrypt(&Self::nonce(nonce), payload).ok()?,
             Inner::Aes256(k) => k.decrypt(&Self::nonce(nonce), payload).ok()?,
-            Inner::ChaCha(k) => chacha20poly1305::ChaCha20Poly1305::decrypt(
-                k,
-                chacha20poly1305::Nonce::from_slice(nonce),
-                payload,
-            )
-            .ok()?,
+            Inner::ChaCha(k) => {
+                chacha20poly1305::ChaCha20Poly1305::decrypt(k, chacha20poly1305::Nonce::from_slice(nonce), payload)
+                    .ok()?
+            }
         };
         // ⛔ The AEAD crates return a `Vec` that may be a fresh allocation, so
         // it is copied back rather than returned. The length is returned
@@ -184,11 +169,7 @@ impl Tls13AeadAlgorithm for PureAead {
         self.0.key_len()
     }
 
-    fn extract_keys(
-        &self,
-        key: AeadKey,
-        iv: Iv,
-    ) -> Result<ConnectionTrafficSecrets, UnsupportedOperationError> {
+    fn extract_keys(&self, key: AeadKey, iv: Iv) -> Result<ConnectionTrafficSecrets, UnsupportedOperationError> {
         // ⛔ QUIC is not something podssh offers: it speaks TLS over TCP to a
         // relay, not QUIC. Refusing here is what makes `quic: None` on the
         // suites consistent with this implementation rather than a claim.
@@ -203,11 +184,7 @@ struct Encrypter {
 }
 
 impl MessageEncrypter for Encrypter {
-    fn encrypt(
-        &mut self,
-        msg: OutboundPlainMessage<'_>,
-        seq: u64,
-    ) -> Result<OutboundOpaqueMessage, Error> {
+    fn encrypt(&mut self, msg: OutboundPlainMessage<'_>, seq: u64) -> Result<OutboundOpaqueMessage, Error> {
         let total_len = self.encrypted_payload_len(msg.payload.len());
         // ⛔ RFC 8446 §5.2: the real content type is appended INSIDE the AEAD
         // plaintext and the outer record type is always `application_data`.
@@ -224,9 +201,7 @@ impl MessageEncrypter for Encrypter {
         // checked rather than assumed: a sealed payload of the wrong size is a
         // record that would be rejected by the peer with no local clue.
         let mut sealed = payload.as_ref().to_vec();
-        self.aead
-            .seal_in_place(&nonce.0, &aad, &mut sealed)
-            .ok_or(Error::EncryptError)?;
+        self.aead.seal_in_place(&nonce.0, &aad, &mut sealed).ok_or(Error::EncryptError)?;
         if sealed.len() != total_len {
             return Err(Error::EncryptError);
         }
@@ -251,21 +226,14 @@ struct Decrypter {
 }
 
 impl MessageDecrypter for Decrypter {
-    fn decrypt<'a>(
-        &mut self,
-        mut msg: InboundOpaqueMessage<'a>,
-        seq: u64,
-    ) -> Result<InboundPlainMessage<'a>, Error> {
+    fn decrypt<'a>(&mut self, mut msg: InboundOpaqueMessage<'a>, seq: u64) -> Result<InboundPlainMessage<'a>, Error> {
         let payload = &mut msg.payload;
         if payload.len() < TAG_LEN {
             return Err(Error::DecryptError);
         }
         let nonce = Nonce::new(&self.iv, seq);
         let aad = make_tls13_aad(payload.len());
-        let plain_len = self
-            .aead
-            .open_in_place(&nonce.0, &aad, payload.as_mut())
-            .ok_or(Error::DecryptError)?;
+        let plain_len = self.aead.open_in_place(&nonce.0, &aad, payload.as_mut()).ok_or(Error::DecryptError)?;
         payload.truncate(plain_len);
 
         // ⛔ `into_tls13_unpadded_message` reads the trailing content type,
@@ -279,11 +247,7 @@ impl MessageDecrypter for Decrypter {
 struct Unsupported;
 
 impl MessageEncrypter for Unsupported {
-    fn encrypt(
-        &mut self,
-        _m: OutboundPlainMessage<'_>,
-        _seq: u64,
-    ) -> Result<OutboundOpaqueMessage, Error> {
+    fn encrypt(&mut self, _m: OutboundPlainMessage<'_>, _seq: u64) -> Result<OutboundOpaqueMessage, Error> {
         Err(Error::EncryptError)
     }
     fn encrypted_payload_len(&self, payload_len: usize) -> usize {
@@ -292,11 +256,7 @@ impl MessageEncrypter for Unsupported {
 }
 
 impl MessageDecrypter for Unsupported {
-    fn decrypt<'a>(
-        &mut self,
-        _m: InboundOpaqueMessage<'a>,
-        _seq: u64,
-    ) -> Result<InboundPlainMessage<'a>, Error> {
+    fn decrypt<'a>(&mut self, _m: InboundOpaqueMessage<'a>, _seq: u64) -> Result<InboundPlainMessage<'a>, Error> {
         Err(Error::DecryptError)
     }
 }

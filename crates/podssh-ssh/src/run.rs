@@ -112,7 +112,13 @@ where
 }
 
 /// The SSH handshake and login for one hop.
-pub(crate) async fn connect<S>(stream: S, hop: &Hop, is_destination: bool, opts: &Options, log: &Arc<Log>) -> Result<Handle<Client>, String>
+pub(crate) async fn connect<S>(
+    stream: S,
+    hop: &Hop,
+    is_destination: bool,
+    opts: &Options,
+    log: &Arc<Log>,
+) -> Result<Handle<Client>, String>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -171,10 +177,9 @@ fn client_config(opts: &Options, policy: &Policy) -> Config {
     let mut order: Vec<Algorithm> = Vec::new();
     for algorithm in known_hosts::recorded_algorithms(&files, &policy.name) {
         let wanted = match algorithm {
-            Algorithm::Rsa { .. } => vec![
-                Algorithm::Rsa { hash: Some(HashAlg::Sha512) },
-                Algorithm::Rsa { hash: Some(HashAlg::Sha256) },
-            ],
+            Algorithm::Rsa { .. } => {
+                vec![Algorithm::Rsa { hash: Some(HashAlg::Sha512) }, Algorithm::Rsa { hash: Some(HashAlg::Sha256) }]
+            }
             other => vec![other],
         };
         for a in wanted {
@@ -192,11 +197,8 @@ fn client_config(opts: &Options, policy: &Policy) -> Config {
         preferred.key = Cow::Owned(order);
     }
     if opts.compression {
-        preferred.compression = Cow::Owned(vec![
-            russh::compression::ZLIB_LEGACY,
-            russh::compression::ZLIB,
-            russh::compression::NONE,
-        ]);
+        preferred.compression =
+            Cow::Owned(vec![russh::compression::ZLIB_LEGACY, russh::compression::ZLIB, russh::compression::NONE]);
     }
     Config {
         client_id: SshId::Standard(Cow::Owned(format!("SSH-2.0-podssh_{}", env!("CARGO_PKG_VERSION")))),

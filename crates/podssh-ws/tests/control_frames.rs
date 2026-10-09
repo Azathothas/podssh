@@ -153,7 +153,10 @@ async fn a_close_captured_from_the_live_relay_is_read_as_sent() {
     bytes.extend_from_slice(&payload);
     peer.write_all(&bytes).await.unwrap();
     let got = session.read_frame().await.expect("the Close");
-    assert_eq!((got.opcode, close_code_and_reason(&got.payload)), (frame::OPCODE_CLOSE, (Some(1000), "target closed".into())));
+    assert_eq!(
+        (got.opcode, close_code_and_reason(&got.payload)),
+        (frame::OPCODE_CLOSE, (Some(1000), "target closed".into()))
+    );
 }
 
 /// A Close with no status code has none (callers read 1005, RFC 6455

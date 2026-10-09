@@ -84,8 +84,12 @@ pub fn load_from(dirs: &[PathBuf], relay_host: &str, now_ms: i64) -> Option<Cach
     dirs.iter().find_map(|dir| {
         let path = dir.join(&name);
         let entry: Entry = serde_json::from_str(&read_trusted(&path)?).ok()?;
-        (entry.expires.saturating_sub(now_ms) >= MIN_REMAINING_MS && valid_token(&entry.token))
-            .then(|| Cached { token: entry.token, expires_ms: entry.expires, path, minted_at: entry.minted_at })
+        (entry.expires.saturating_sub(now_ms) >= MIN_REMAINING_MS && valid_token(&entry.token)).then(|| Cached {
+            token: entry.token,
+            expires_ms: entry.expires,
+            path,
+            minted_at: entry.minted_at,
+        })
     })
 }
 
@@ -303,12 +307,7 @@ fn open_no_follow(path: &Path) -> std::io::Result<std::fs::File> {
 /// and never through a symlink.
 pub fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
     use std::os::unix::fs::OpenOptionsExt;
-    std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .custom_flags(libc::O_NOFOLLOW)
-        .open(path)
+    std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).custom_flags(libc::O_NOFOLLOW).open(path)
 }
 
 /// A new file; on Windows the access control list of the profile directory
@@ -378,11 +377,7 @@ fn user_tag() -> String {
 /// The per-user cache directory: `%LOCALAPPDATA%` on Windows, else
 /// `$XDG_CACHE_HOME` or `$HOME/.cache`. Only absolute paths count.
 fn user_cache_dir() -> Option<PathBuf> {
-    let absolute = |name: &str| {
-        std::env::var_os(name)
-            .map(PathBuf::from)
-            .filter(|p| p.is_absolute())
-    };
+    let absolute = |name: &str| std::env::var_os(name).map(PathBuf::from).filter(|p| p.is_absolute());
     if cfg!(windows) {
         absolute("LOCALAPPDATA")
     } else {

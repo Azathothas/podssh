@@ -27,12 +27,12 @@ a local echo to the echo of the remote pty, so each key shows two times.
 - Read: `Mode::from_grant` gives `NoPty` for no pty, `Cooked` for a pty and a
   shell, and `Passthrough` for a pty and another program
   (`crates/podssh-terminal/src/session.rs:79-85`). In `NoPty`, each local byte
-  sets `ended` and returns a bell (`crates/podssh-terminal/src/session.rs:173-178`).
+  sets `ended` and returns a bell (`crates/podssh-terminal/src/session.rs:169-174`).
   In `Cooked`, the discipline echoes each byte
   (`crates/podssh-terminal/src/echo/editing.rs:166-178`).
-- Read: tests pin the wrong table (`crates/podssh-terminal/tests/keys.rs:318-329`,
-  `crates/podssh-terminal/tests/keys.rs:331-349`), and plant E builds
-  `Session::new(true, true)` (`crates/podssh-terminal/tests/plants.rs:343`).
+- Read: tests pin the wrong table (`crates/podssh-terminal/tests/keys.rs:315-326`,
+  `crates/podssh-terminal/tests/keys.rs:328-346`), and plant E builds
+  `Session::new(true, true)` (`crates/podssh-terminal/tests/plants.rs:331`).
 - Read: the rule: three inputs select the mode, the user selects the
   discipline, and the absence of a pty alone never selects it
   (`docs/terminal.md:10-18`, `docs/terminal.md:27-32`). On the server side,
@@ -97,17 +97,17 @@ writes over the rows above it.
   (`crates/podssh-terminal/Cargo.toml:10-11`). The notes say that the crate
   never reads the size and never sends (`crates/podssh-terminal/src/window.rs:37-42`).
 - Read: the redraw is `\r`, the prompt, the line, `ESC [ K`, `\r`, the prompt
-  and the line up to the cursor (`crates/podssh-terminal/src/echo.rs:185-195`):
+  and the line up to the cursor (`crates/podssh-terminal/src/echo.rs:183-193`):
   one row. `Session::on_resize` gives the size to `Window` only
-  (`crates/podssh-terminal/src/session.rs:235-241`).
+  (`crates/podssh-terminal/src/session.rs:231-237`).
 - Read: `podssh-ssh` has a raw mode and a size that work, and the gate checks
   them (`crates/podssh-ssh/src/terminal/unix.rs:12-76`,
-  `crates/podssh-ssh/src/terminal/windows.rs:32-112`, `docs/STATUS.md:65`).
+  `crates/podssh-ssh/src/terminal/windows.rs:31-111`, `docs/STATUS.md:65`).
 - Read: the crate has its own `TERM` rule: it replaces `dumb` and `unknown`,
   and reads `PODSSH_TERM` (`crates/podssh-terminal/src/term.rs:47-53`). The
   documented rule sends `TERM` unchanged (`docs/terminal.md:57-62`). The
   manual does not name `PODSSH_TERM`, and its variable test does not read
-  this crate (`crates/podssh-cli/src/man/facts.rs:221`).
+  this crate (`crates/podssh-cli/src/man/facts.rs:240-241`).
 
 ## Approach
 
@@ -171,9 +171,9 @@ character takes two cells and counts as one.
   (`crates/podssh-terminal/src/echo/editing.rs:64-77`). The arrows move one
   byte and echo one cell (`crates/podssh-terminal/src/echo/editing.rs:143-150`).
   The redraw writes `line[..cursor]`, which can end inside a character
-  (`crates/podssh-terminal/src/echo.rs:185-195`).
+  (`crates/podssh-terminal/src/echo.rs:183-193`).
 - Read: the history keeps `String::from_utf8_lossy` copies
-  (`crates/podssh-terminal/src/echo.rs:215-227`), so a line that is not UTF-8
+  (`crates/podssh-terminal/src/echo.rs:213-225`), so a line that is not UTF-8
   comes back changed when it is recalled.
 - Read: the client sends `IUTF8` in its pty modes
   (`crates/podssh-ssh/src/terminal/unix.rs:145-151`), so serve (T-111) knows
@@ -236,17 +236,17 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
 - Read: after `ESC`, each byte that is not `[` is refused and consumed
   (`crates/podssh-terminal/src/escape.rs:128-138`). So `O` is consumed, and
   the byte after it (`P`, `A`) is a fresh key that is inserted
-  (`crates/podssh-terminal/src/echo.rs:269-279`,
-  `crates/podssh-terminal/src/echo.rs:313`).
+  (`crates/podssh-terminal/src/echo.rs:267-277`,
+  `crates/podssh-terminal/src/echo.rs:311`).
 - Read: the path that gives a control byte back to the key handling
   (`Restart`) exists only in the CSI state
   (`crates/podssh-terminal/src/escape.rs:157-161`). So `ESC` then Ctrl-C
   loses the Ctrl-C, against the module's own note
   (`crates/podssh-terminal/src/escape.rs:40-45`). Its test covers `ESC [ 1`
-  then Ctrl-C only (`crates/podssh-terminal/src/escape.rs:302-318`).
+  then Ctrl-C only (`crates/podssh-terminal/src/escape.rs:290-306`).
 - Read: tests pin the loss: `ESC x a` gives a bell and `a`
-  (`crates/podssh-terminal/tests/keys.rs:256-264`,
-  `crates/podssh-terminal/src/escape.rs:320-329`). The rule says that
+  (`crates/podssh-terminal/tests/keys.rs:253-261`,
+  `crates/podssh-terminal/src/escape.rs:308-317`). The rule says that
   `ESC O x` is a sequence (`docs/terminal.md:97`).
 
 ## Approach
@@ -308,14 +308,14 @@ that arrives during an edit is written over the edited line.
   parameter is refused (`crates/podssh-terminal/src/echo/editing.rs:136-139`).
 - Read: `ESC [ H` and `ESC [ F` move the cursor and send nothing
   (`crates/podssh-terminal/src/echo/editing.rs:151-158`); Ctrl-A and Ctrl-E
-  do the same (`crates/podssh-terminal/src/echo.rs:305-312`). Tests pin the
+  do the same (`crates/podssh-terminal/src/echo.rs:303-310`). Tests pin the
   silence (`crates/podssh-terminal/tests/discipline.rs:175-203`).
 - Read: passthrough refuses `0x1a`, `0x11` and `0x13`
   (`crates/podssh-terminal/src/passthrough.rs:89-95`,
   `crates/podssh-terminal/src/refusal.rs:33-35`), and a test pins it
-  (`crates/podssh-terminal/src/passthrough.rs:225-238`).
+  (`crates/podssh-terminal/src/passthrough.rs:223-236`).
 - Read: in the cooked mode, remote bytes go out as they come, and the edited
-  line is not drawn again (`crates/podssh-terminal/src/session.rs:211-216`,
+  line is not drawn again (`crates/podssh-terminal/src/session.rs:207-212`,
   `crates/podssh-terminal/src/passthrough.rs:68-74`).
 
 ## Approach
@@ -475,10 +475,10 @@ find a case that the 14 console checks of podssh do not cover.
 
 ## Premise
 
-- Read: the console code: `crates/podssh-ssh/src/terminal/windows.rs:69-112`
+- Read: the console code: `crates/podssh-ssh/src/terminal/windows.rs:68-111`
   (raw mode, restored on drop and on panic),
-  `crates/podssh-ssh/src/terminal/windows.rs:116-139` (pty modes),
-  `crates/podssh-ssh/src/terminal/windows.rs:143-182` (prompts), and the size
+  `crates/podssh-ssh/src/terminal/windows.rs:115-138` (pty modes),
+  `crates/podssh-ssh/src/terminal/windows.rs:142-181` (prompts), and the size
   poll every 500 ms (`crates/podssh-ssh/src/io.rs:179-227`). The checks of
   `scripts/interop-conpty.py` pass 14 of 14 (`docs/STATUS.md:69`).
 - Read: podssh sets no console code page, and remote output goes through

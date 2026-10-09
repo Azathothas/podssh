@@ -13,16 +13,11 @@ use rustls::{Error, NamedGroup, PeerMisbehaved};
 use x25519_dalek::{PublicKey as XPublicKey, StaticSecret};
 use zeroize::Zeroize as _;
 
-
 /// ⛔ `x25519-dalek` 2.0's `StaticSecret` clamps on construction, which is what
 /// RFC 7748 requires; it is generated from 32 OS bytes and re-clamped.
-pub static X25519: &dyn SupportedKxGroup = &KxGroup {
-    name: NamedGroup::X25519,
-};
+pub static X25519: &dyn SupportedKxGroup = &KxGroup { name: NamedGroup::X25519 };
 
-pub static SECP256R1: &dyn SupportedKxGroup = &KxGroup {
-    name: NamedGroup::secp256r1,
-};
+pub static SECP256R1: &dyn SupportedKxGroup = &KxGroup { name: NamedGroup::secp256r1 };
 
 struct KxGroup {
     name: NamedGroup,
@@ -74,11 +69,8 @@ pub fn start_with(group: NamedGroup, random: &dyn SecureRandom) -> Result<Box<dy
             random.fill(&mut bytes)?;
             let secret = StaticSecret::from(bytes);
             let public = x25519_dalek::PublicKey::from(&secret);
-            let exchange = X25519Exchange {
-                secret,
-                public: public.to_bytes().to_vec(),
-                _wipe: SecretBytes(bytes.to_vec()),
-            };
+            let exchange =
+                X25519Exchange { secret, public: public.to_bytes().to_vec(), _wipe: SecretBytes(bytes.to_vec()) };
             bytes.zeroize();
             Ok(Box::new(exchange))
         }
@@ -92,9 +84,7 @@ pub fn start_with(group: NamedGroup, random: &dyn SecureRandom) -> Result<Box<dy
         // so it is a `General` error and deliberately not one of the
         // `PeerMisbehaved` variants — blaming the relay for a bug in
         // podssh's own provider is how a real fault gets misdiagnosed.
-        _ => Err(Error::General(
-            "podssh: a key exchange group with no implementation was constructed".into(),
-        )),
+        _ => Err(Error::General("podssh: a key exchange group with no implementation was constructed".into())),
     }
 }
 
@@ -173,8 +163,7 @@ impl ActiveKeyExchange for P256Exchange {
         if peer.first() != Some(&0x04) {
             return Err(PeerMisbehaved::InvalidKeyShare.into());
         }
-        let peer_key = PublicKey::from_sec1_bytes(peer)
-            .map_err(|_| PeerMisbehaved::InvalidKeyShare)?;
+        let peer_key = PublicKey::from_sec1_bytes(peer).map_err(|_| PeerMisbehaved::InvalidKeyShare)?;
         let shared = p256::ecdh::diffie_hellman(self.secret.to_nonzero_scalar(), peer_key.as_affine());
         Ok(SharedSecret::from(shared.raw_secret_bytes().to_vec()))
     }

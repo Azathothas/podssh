@@ -33,7 +33,7 @@ use crate::exitmap::Fault;
 
 /// How podssh is attached, computed once at startup and passed down.
 ///
- /// ⛔ **Four variants because the dangerous override exists.** `Forced` is
+/// ⛔ **Four variants because the dangerous override exists.** `Forced` is
 /// `--non-interactive` or `--jsonl`; `ForcedInteractive` is `--interactive`,
 /// which is refused unless both fds are TTYs — a flag promising interaction
 /// podssh cannot deliver is a flag that hangs. Neither flag is in the tree
@@ -206,18 +206,15 @@ pub fn parse_duration(name: &str, raw: &str) -> Result<Duration, Refusal> {
         "ms" => Unit::Millis,
         _ => return Err(refuse(raw, "the unit is not one of ms, s, m, h")),
     };
-    let value: u64 = digits
-        .parse()
-        .map_err(|_| refuse(raw, "the number does not fit"))?;
+    let value: u64 = digits.parse().map_err(|_| refuse(raw, "the number does not fit"))?;
     if value == 0 {
         return Err(refuse(raw, "it must be greater than zero"));
     }
     match unit {
         Unit::Millis => Ok(Duration::from_millis(value)),
-        Unit::Secs(mult) => value
-            .checked_mul(mult)
-            .map(Duration::from_secs)
-            .ok_or_else(|| refuse(raw, "the duration overflows")),
+        Unit::Secs(mult) => {
+            value.checked_mul(mult).map(Duration::from_secs).ok_or_else(|| refuse(raw, "the duration overflows"))
+        }
     }
 }
 
@@ -228,11 +225,7 @@ pub fn parse_duration(name: &str, raw: &str) -> Result<Duration, Refusal> {
 /// else with none is [`Fault::Usage`]: the message names the verb, the reason
 /// and an example of that verb. A provided value is always parsed, even on a
 /// terminal: `30x` on a TTY is still a typo.
-pub fn require_timeout(
-    verb: &str,
-    attachment: Attachment,
-    raw: Option<&str>,
-) -> Result<Option<Duration>, Refusal> {
+pub fn require_timeout(verb: &str, attachment: Attachment, raw: Option<&str>) -> Result<Option<Duration>, Refusal> {
     match (attachment, raw) {
         (_, Some(text)) => parse_timeout(text).map(Some),
         (Attachment::Terminal, None) => Ok(None),
@@ -288,36 +281,28 @@ pub fn gate_prompt(attachment: Attachment, site: &PromptSite) -> Result<(), Refu
                  --accept-new (E13)."
             ),
         )),
-        PromptSite::TokenAbsent => Err(refused(
-            site,
-            "No relay token: mint one in memory or set the token knob.".into(),
-        )),
-        PromptSite::NoRelay => Err(refused(
-            site,
-            "No relay configured: pass --relay URL. podssh never prompts for one.".into(),
-        )),
+        PromptSite::TokenAbsent => {
+            Err(refused(site, "No relay token: mint one in memory or set the token knob.".into()))
+        }
+        PromptSite::NoRelay => {
+            Err(refused(site, "No relay configured: pass --relay URL. podssh never prompts for one.".into()))
+        }
         PromptSite::Passphrase => Err(refused(
             site,
             "A passphrase is needed and there is no TTY: E01 has not named the \
              auth surface yet, so no flag can carry it (E33 row 5 stays open)."
                 .into(),
         )),
-        PromptSite::KnownHostsUnreadable { path } => Err(refused(
-            site,
-            format!("known_hosts unreadable at {path}."),
-        )),
-        PromptSite::ChannelKey { channel } => Err(refused(
-            site,
-            format!("Joining {channel} needs its KEY: pass it, podssh never asks."),
-        )),
-        PromptSite::NickInUse { nick } => Err(refused(
-            site,
-            format!("Nick {nick} is in use: pick another with --nick."),
-        )),
-        PromptSite::SendfileUnreadable { path, errno } => Err(refused(
-            site,
-            format!("--sendfile unreadable: {path}: {errno}."),
-        )),
+        PromptSite::KnownHostsUnreadable { path } => Err(refused(site, format!("known_hosts unreadable at {path}."))),
+        PromptSite::ChannelKey { channel } => {
+            Err(refused(site, format!("Joining {channel} needs its KEY: pass it, podssh never asks.")))
+        }
+        PromptSite::NickInUse { nick } => {
+            Err(refused(site, format!("Nick {nick} is in use: pick another with --nick.")))
+        }
+        PromptSite::SendfileUnreadable { path, errno } => {
+            Err(refused(site, format!("--sendfile unreadable: {path}: {errno}.")))
+        }
     }
 }
 

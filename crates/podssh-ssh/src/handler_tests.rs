@@ -40,7 +40,12 @@ impl server::Handler for Opener {
         Ok(())
     }
 
-    async fn exec_request(&mut self, channel: ChannelId, _data: &[u8], session: &mut ServerSession) -> Result<(), Self::Error> {
+    async fn exec_request(
+        &mut self,
+        channel: ChannelId,
+        _data: &[u8],
+        session: &mut ServerSession,
+    ) -> Result<(), Self::Error> {
         session.channel_success(channel)?;
         session.exit_status_request(channel, 0)?;
         session.eof(channel)?;

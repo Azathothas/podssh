@@ -79,10 +79,8 @@ fn writable(file: &Path) -> Result<String, String> {
 
 /// A name no other run uses at the same time.
 pub(super) fn unique(prefix: &str) -> String {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.subsec_nanos())
-        .unwrap_or(0);
+    let nanos =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(0);
     format!("{prefix}-{}-{nanos}", std::process::id())
 }
 
@@ -107,11 +105,8 @@ fn token_cache(report: &mut Report<'_>) {
         }
         match result {
             Ok(()) => {
-                let skipped = if refused.is_empty() {
-                    String::new()
-                } else {
-                    format!(" (before it: {})", refused.join("; "))
-                };
+                let skipped =
+                    if refused.is_empty() { String::new() } else { format!(" (before it: {})", refused.join("; ")) };
                 report.ok("token cache", format!("{} can be written{skipped}", dir.display()));
                 return;
             }

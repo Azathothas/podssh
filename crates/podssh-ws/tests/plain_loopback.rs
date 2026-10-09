@@ -28,19 +28,18 @@ async fn relay() -> (u16, tokio::task::JoinHandle<(String, Frame)>) {
             head.push(byte[0]);
         }
         let head = String::from_utf8(head).expect("text");
-        let key = head
-            .lines()
-            .find_map(|l| l.strip_prefix("Sec-WebSocket-Key: "))
-            .expect("a key")
-            .trim()
-            .to_string();
+        let key = head.lines().find_map(|l| l.strip_prefix("Sec-WebSocket-Key: ")).expect("a key").trim().to_string();
         let accept = podssh_ws::handshake::accept_key(&key);
         let answer = format!(
             "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\
              Sec-WebSocket-Accept: {accept}\r\n\r\n"
         );
         tcp.write_all(answer.as_bytes()).await.unwrap();
-        let hello = frame::encode(&Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: b"hello".to_vec() }, Role::Server, [0; 4]);
+        let hello = frame::encode(
+            &Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: b"hello".to_vec() },
+            Role::Server,
+            [0; 4],
+        );
         tcp.write_all(&hello).await.unwrap();
         let mut buf = Vec::new();
         let mut chunk = [0u8; 1024];

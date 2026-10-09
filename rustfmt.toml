@@ -1,0 +1,5 @@
+# The style of the code: lines up to 120 characters, and short items on one
+# line. Of the styles measured, it changed the fewest lines, and it keeps each
+# file at 500 lines or fewer. Tables keep one row to a line (rustfmt::skip).
+max_width = 120
+use_small_heuristics = "Max"

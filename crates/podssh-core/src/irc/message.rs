@@ -59,16 +59,8 @@ impl Prefix {
         Prefix { nick: name.into(), user: None, host: None }
     }
 
-    pub fn client(
-        nick: impl Into<String>,
-        user: impl Into<String>,
-        host: impl Into<String>,
-    ) -> Self {
-        Prefix {
-            nick: nick.into(),
-            user: Some(user.into()),
-            host: Some(host.into()),
-        }
+    pub fn client(nick: impl Into<String>, user: impl Into<String>, host: impl Into<String>) -> Self {
+        Prefix { nick: nick.into(), user: Some(user.into()), host: Some(host.into()) }
     }
 
     /// ⛔ True when the prefix carries a `!` or an `@`, which is the only
@@ -129,18 +121,48 @@ pub enum Command {
     /// round-trip test re-encoded `:irc.example.org 001 alice :Welcome` as
     /// `:irc.example.org 1`.
     Numeric(crate::irc::numeric::Replies),
-    Privmsg { target: Middle, text: Trailing },
-    Notice { target: Middle, text: Trailing },
-    Join { channels: Vec<Middle>, key: Option<String> },
-    Part { channels: Vec<Middle>, reason: Option<Trailing> },
-    Topic { channel: Middle, topic: Option<Trailing> },
-    Names { channels: Vec<Middle> },
-    List { channels: Vec<Middle> },
-    Mode { target: Middle, flags: Vec<Middle> },
-    Quit { reason: Option<Trailing> },
-    Ping { token: Trailing },
-    Pong { token: Option<Trailing> },
-    Nick { nickname: Middle },
+    Privmsg {
+        target: Middle,
+        text: Trailing,
+    },
+    Notice {
+        target: Middle,
+        text: Trailing,
+    },
+    Join {
+        channels: Vec<Middle>,
+        key: Option<String>,
+    },
+    Part {
+        channels: Vec<Middle>,
+        reason: Option<Trailing>,
+    },
+    Topic {
+        channel: Middle,
+        topic: Option<Trailing>,
+    },
+    Names {
+        channels: Vec<Middle>,
+    },
+    List {
+        channels: Vec<Middle>,
+    },
+    Mode {
+        target: Middle,
+        flags: Vec<Middle>,
+    },
+    Quit {
+        reason: Option<Trailing>,
+    },
+    Ping {
+        token: Trailing,
+    },
+    Pong {
+        token: Option<Trailing>,
+    },
+    Nick {
+        nickname: Middle,
+    },
     User {
         user: Middle,
         mode: Middle,
@@ -162,7 +184,11 @@ pub enum Command {
     /// vendor extension has a client that breaks when the peer adds a command.
     /// The unknown command keeps its spelling and its parameters, so it can be
     /// forwarded or logged byte-exactly.
-    Unknown { name: String, params: Vec<Middle>, trailing: Option<Trailing> },
+    Unknown {
+        name: String,
+        params: Vec<Middle>,
+        trailing: Option<Trailing>,
+    },
 }
 
 /// ⛔ The `CAP` subcommand. ⛔ **`Ls`/`Req`/`Ack`/`Nak`/`List`/`Del`/`New`/`End`
@@ -305,10 +331,9 @@ impl fmt::Display for ParseError {
             ParseError::MissingCommand { line } => {
                 write!(f, "IRC line has no command: {line:?}")
             }
-            ParseError::TooFewParams { command, need, got } => write!(
-                f,
-                "{command} needs {need} parameter(s) and arrived with {got}"
-            ),
+            ParseError::TooFewParams { command, need, got } => {
+                write!(f, "{command} needs {need} parameter(s) and arrived with {got}")
+            }
             ParseError::MissingTrailing { command } => {
                 write!(f, "{command} requires a trailing parameter introduced by ':'")
             }
@@ -387,11 +412,7 @@ pub(crate) fn parse_prefix(text: &str) -> Prefix {
             Prefix { nick: nick.to_string(), user: Some(user), host }
         }
         None => match text.split_once('@') {
-            Some((nick, host)) => Prefix {
-                nick: nick.to_string(),
-                user: None,
-                host: Some(host.to_string()),
-            },
+            Some((nick, host)) => Prefix { nick: nick.to_string(), user: None, host: Some(host.to_string()) },
             None => Prefix::server(text),
         },
     }

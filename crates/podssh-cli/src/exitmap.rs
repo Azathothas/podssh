@@ -292,16 +292,10 @@ mod tests {
                 if ca != cb {
                     continue;
                 }
-                let declared = SHARED_CODES.iter().any(|(c, names)| {
-                    *c == ca && names.contains(&a.name()) && names.contains(&b.name())
-                });
-                assert!(
-                    declared,
-                    "{} and {} both exit {} and SHARED_CODES does not say why",
-                    a.name(),
-                    b.name(),
-                    ca
-                );
+                let declared = SHARED_CODES
+                    .iter()
+                    .any(|(c, names)| *c == ca && names.contains(&a.name()) && names.contains(&b.name()));
+                assert!(declared, "{} and {} both exit {} and SHARED_CODES does not say why", a.name(), b.name(), ca);
             }
         }
         for (code_value, names) in SHARED_CODES {
@@ -309,7 +303,8 @@ mod tests {
                 let row = TABLE.iter().find(|(f, _)| f.name() == *name);
                 assert!(row.is_some(), "SHARED_CODES names {name}, which TABLE does not");
                 assert_eq!(
-                    row.unwrap().1, *code_value,
+                    row.unwrap().1,
+                    *code_value,
                     "SHARED_CODES claims {name} exits {code_value}, TABLE disagrees"
                 );
             }
@@ -409,17 +404,11 @@ mod tests {
     fn both_rows_of_the_1000_split_depend_on_established() {
         for established in [false, true] {
             let f = Fault::from_close(1000, "", established);
-            assert!(
-                f.established_sensitive(),
-                "{f:?} at established={established} does not depend on established"
-            );
+            assert!(f.established_sensitive(), "{f:?} at established={established} does not depend on established");
         }
         // ⛔ And a fault that happens before any session exists does not.
         for f in [Fault::Usage, Fault::Auth, Fault::Revoked, Fault::Config] {
-            assert!(
-                !f.established_sensitive(),
-                "{f:?} cannot depend on a session that never opened"
-            );
+            assert!(!f.established_sensitive(), "{f:?} cannot depend on a session that never opened");
         }
     }
 

@@ -89,23 +89,32 @@ pub struct PairContext<'a> {
 pub enum PairError {
     Connect(ConnectError),
     /// `429`: the brake that pairs share with mints.
-    RateLimited { retry_after: Option<String> },
+    RateLimited {
+        retry_after: Option<String>,
+    },
     /// `503`: the relay makes no pairs, with what it said (an answer that is
     /// not a 2xx holds no token). Seen once on 2026-10-09 and gone at the
     /// next request.
-    NotIssued { detail: String },
+    NotIssued {
+        detail: String,
+    },
     /// `403 reverse: forbidden`: a wrong token, an expired pair or a stopped
     /// one look the same.
     Forbidden,
     /// The pair has less than 10 minutes left.
-    ShortLived { left_ms: i64 },
+    ShortLived {
+        left_ms: i64,
+    },
     /// A 2xx answer that is not a usable pair, with what is wrong with it.
     BadAnswer(&'static str),
     /// A label that cannot be a file name, or no pair under a label.
     BadLabel(String),
     /// The pair could not be kept or read in a private file.
     Store(String),
-    Failed { status: u16, detail: String },
+    Failed {
+        status: u16,
+        detail: String,
+    },
 }
 
 impl std::fmt::Display for PairError {
@@ -115,7 +124,9 @@ impl std::fmt::Display for PairError {
             PairError::RateLimited { retry_after: Some(s) } => {
                 write!(f, "the relay is limiting new pairs; try again in {s} s")
             }
-            PairError::RateLimited { retry_after: None } => write!(f, "the relay is limiting new pairs; try again later"),
+            PairError::RateLimited { retry_after: None } => {
+                write!(f, "the relay is limiting new pairs; try again later")
+            }
             PairError::NotIssued { detail } => write!(f, "the relay makes no pairs (503){detail}"),
             PairError::Forbidden => {
                 write!(f, "the relay refused the token (403 reverse: forbidden): the pair is stopped or has expired")
@@ -196,7 +207,9 @@ pub async fn status(ctx: &PairContext<'_>, pair: &Pair) -> Result<Presence, Pair
     let path = format!("/v1/status/{}", checked(&pair.name)?);
     let response = with_token(ctx, "GET", &path, pair.connect_token()).await?;
     match response.status {
-        200..=299 => serde_json::from_slice(&response.body).map_err(|_| PairError::BadAnswer("not the expected status")),
+        200..=299 => {
+            serde_json::from_slice(&response.body).map_err(|_| PairError::BadAnswer("not the expected status"))
+        }
         status => Err(refused(status, &response)),
     }
 }
@@ -216,7 +229,9 @@ pub async fn stop(ctx: &PairContext<'_>, pair: &Pair) -> Result<Stopped, PairErr
     let path = format!("/v1/stop/{}", checked(&pair.name)?);
     let response = with_token(ctx, "POST", &path, pair.stop_token()).await?;
     match response.status {
-        200..=299 => serde_json::from_slice(&response.body).map_err(|_| PairError::BadAnswer("not the expected answer to stop")),
+        200..=299 => {
+            serde_json::from_slice(&response.body).map_err(|_| PairError::BadAnswer("not the expected answer to stop"))
+        }
         status => Err(refused(status, &response)),
     }
 }
@@ -278,10 +293,7 @@ fn checked(name: &str) -> Result<&str, PairError> {
 }
 
 fn now_ms() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }
 
 /// A pair as it is written: borrowed, so the tokens are not copied.
@@ -368,8 +380,8 @@ impl std::fmt::Debug for OperatorPart {
 pub fn read_operator_file(path: &Path) -> Result<OperatorPart, PairError> {
     let text = Zeroizing::new(cache::read_private(path).map_err(PairError::Store)?);
     let what = format!("the file {}", path.display());
-    let stored: OperatorStored =
-        serde_json::from_str(&text).map_err(|_| PairError::Store(format!("{what} holds no operator's part of a pair")))?;
+    let stored: OperatorStored = serde_json::from_str(&text)
+        .map_err(|_| PairError::Store(format!("{what} holds no operator's part of a pair")))?;
     let OperatorStored { relay, name, connect_token, expires } = stored;
     let connect_token = Zeroizing::new(connect_token);
     check_node_name(&name).map_err(|_| PairError::Store(format!("{what} names no pair")))?;

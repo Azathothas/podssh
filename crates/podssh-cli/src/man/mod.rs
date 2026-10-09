@@ -127,7 +127,9 @@ mod tests {
 
     #[test]
     fn a_section_is_found_by_its_name_or_an_alias() {
-        for (name, heading) in [("ssh", "SSH\n"), ("connect", "SSH\n"), ("env", "ENVIRONMENT\n"), ("EXIT", "EXIT STATUS\n")] {
+        for (name, heading) in
+            [("ssh", "SSH\n"), ("connect", "SSH\n"), ("env", "ENVIRONMENT\n"), ("EXIT", "EXIT STATUS\n")]
+        {
             let (rc, out, _) = run_with(Request { section: Some(name), ..Default::default() }, Tty::none());
             assert_eq!(rc, 0, "{name}");
             assert!(out.starts_with(heading), "{name}: {out}");

@@ -35,11 +35,8 @@ pub fn line_map(old: &[&str], new: &[&str]) -> Vec<Option<usize>> {
     let mut lcs = vec![0u32; (a.len() + 1) * w];
     for i in (0..a.len()).rev() {
         for j in (0..b.len()).rev() {
-            lcs[i * w + j] = if a[i] == b[j] {
-                lcs[(i + 1) * w + j + 1] + 1
-            } else {
-                lcs[(i + 1) * w + j].max(lcs[i * w + j + 1])
-            };
+            lcs[i * w + j] =
+                if a[i] == b[j] { lcs[(i + 1) * w + j + 1] + 1 } else { lcs[(i + 1) * w + j].max(lcs[i * w + j + 1]) };
         }
     }
     // Two equal lines can always be matched: some longest subsequence does.

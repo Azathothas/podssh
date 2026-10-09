@@ -128,7 +128,14 @@ where
                     }
                     let _ = tx.send(Out::Opened(id)).await;
                     opening.fetch_add(1, Ordering::SeqCst);
-                    tokio::spawn(open(id, handler.clone(), settings.open_limit, tx.clone(), routes.clone(), opening.clone()));
+                    tokio::spawn(open(
+                        id,
+                        handler.clone(),
+                        settings.open_limit,
+                        tx.clone(),
+                        routes.clone(),
+                        opening.clone(),
+                    ));
                 }
                 Ok(NodeInbound::Close { id, .. }) => {
                     let Ok(id) = SessionId::parse(id.as_bytes()) else { continue };

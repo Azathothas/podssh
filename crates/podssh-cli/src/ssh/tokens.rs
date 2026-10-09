@@ -73,27 +73,35 @@ impl Tokens {
             };
             match token {
                 '%' => out.push('%'),
-                'C' => out.push_str(&self.hash().ok_or_else(|| missing("%C", "the local host name, which is unknown"))?),
+                'C' => {
+                    out.push_str(&self.hash().ok_or_else(|| missing("%C", "the local host name, which is unknown"))?)
+                }
                 'd' => {
-                    let home = self.home.as_deref().ok_or_else(|| missing("%d", "the home directory, and HOME is not set"))?;
+                    let home =
+                        self.home.as_deref().ok_or_else(|| missing("%d", "the home directory, and HOME is not set"))?;
                     out.push_str(&home.display().to_string());
                 }
                 'h' => out.push_str(&self.host),
-                'i' => out.push_str(&self.uid.ok_or_else(|| missing("%i", "a user id, which this system has not"))?.to_string()),
+                'i' => out.push_str(
+                    &self.uid.ok_or_else(|| missing("%i", "a user id, which this system has not"))?.to_string(),
+                ),
                 'j' => out.push_str(&self.jump),
                 'k' => out.push_str(&self.alias),
                 'L' | 'l' => {
-                    let host = self.local_host.as_deref().ok_or_else(|| missing("%l", "the local host name, which is unknown"))?;
+                    let host = self
+                        .local_host
+                        .as_deref()
+                        .ok_or_else(|| missing("%l", "the local host name, which is unknown"))?;
                     out.push_str(if token == 'L' { host.split('.').next().unwrap_or(host) } else { host });
                 }
                 'n' => out.push_str(&self.original),
                 'p' => out.push_str(&self.port.to_string()),
                 'r' => out.push_str(&self.remote_user),
-                'u' => out.push_str(
-                    self.local_user
-                        .as_deref()
-                        .ok_or_else(|| missing("%u", "the local user name, and USER, LOGNAME and USERNAME are not set"))?,
-                ),
+                'u' => {
+                    out.push_str(self.local_user.as_deref().ok_or_else(|| {
+                        missing("%u", "the local user name, and USER, LOGNAME and USERNAME are not set")
+                    })?)
+                }
                 other => return Err(refuse(format!("%{other} is not a token; the tokens are {TOKENS}"))),
             }
         }

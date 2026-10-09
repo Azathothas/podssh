@@ -76,19 +76,15 @@ fn add_flag(cmd: Command, row: &'static FlagRow, keep_each: bool) -> Command {
 
 /// Build one verb's parser from its flag rows.
 pub fn verb_command(verb: &'static Verb) -> Command {
-    let mut cmd = Command::new(verb.name)
-        .about(verb.about)
-        .disable_help_flag(true)
-        .disable_version_flag(true)
-        .arg(
-            // ⛔ The universal option's spelling and sentence come from
-            // [`crate::flags::HELP_FLAG`], so the parser, `--help` and the man
-            // page cannot describe it differently.
-            Arg::new(crate::flags::HELP_FLAG.long)
-                .long(crate::flags::HELP_FLAG.long)
-                .action(ArgAction::SetTrue)
-                .help(crate::flags::HELP_FLAG.help),
-        );
+    let mut cmd = Command::new(verb.name).about(verb.about).disable_help_flag(true).disable_version_flag(true).arg(
+        // ⛔ The universal option's spelling and sentence come from
+        // [`crate::flags::HELP_FLAG`], so the parser, `--help` and the man
+        // page cannot describe it differently.
+        Arg::new(crate::flags::HELP_FLAG.long)
+            .long(crate::flags::HELP_FLAG.long)
+            .action(ArgAction::SetTrue)
+            .help(crate::flags::HELP_FLAG.help),
+    );
     for row in verb.flags {
         cmd = add_flag(cmd, row, verb.name == "ssh");
     }
@@ -220,9 +216,9 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         }
     }
 
-    let matches = match verb_command(verb).try_get_matches_from(
-        std::iter::once(std::ffi::OsString::from(verb.name)).chain(rest.iter().cloned()),
-    ) {
+    let matches = match verb_command(verb)
+        .try_get_matches_from(std::iter::once(std::ffi::OsString::from(verb.name)).chain(rest.iter().cloned()))
+    {
         Ok(m) => m,
         Err(e) => return crate::clap_error::rebuild_error(verb.name, &e),
     };
@@ -242,11 +238,8 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
 
     // ⛔ `-P` on `ssh` is a Tag: accepted, ignored, and it says so rather than
     // failing silently. On `cp`/`mv` it is the port and needs no notice.
-    let tag = if verb.name == "ssh" {
-        matches.get_one::<String>("tag").filter(|t| !t.is_empty()).cloned()
-    } else {
-        None
-    };
+    let tag =
+        if verb.name == "ssh" { matches.get_one::<String>("tag").filter(|t| !t.is_empty()).cloned() } else { None };
 
     // The refusal list is carried over rather than dropped: `MAN_FLAGS` has no
     // `Refused` row today, and a flag that refuses must refuse rather than be
@@ -339,10 +332,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Ts {
             destination: get("destination"),
-            args: matches
-                .get_many::<String>("args")
-                .map(|v| v.cloned().collect())
-                .unwrap_or_default(),
+            args: matches.get_many::<String>("args").map(|v| v.cloned().collect()).unwrap_or_default(),
             w_target: get("stdio-forward"),
             mode: get("ts-mode").unwrap_or_else(|| "auto".to_string()),
             proxy: get("ts-proxy"),
@@ -361,9 +351,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     // so `matches.get_flag` never panics on a verb that lacks the row and no
     // verb invents a flag the flag-table gate has not seen in the spec.
     let has_timeout = verb.flags.iter().any(|r| r.long == "timeout");
-    let timeout = has_timeout
-        .then(|| matches.get_one::<String>("timeout").cloned())
-        .flatten();
+    let timeout = has_timeout.then(|| matches.get_one::<String>("timeout").cloned()).flatten();
     let jsonl = verb.flags.iter().any(|r| r.long == "jsonl") && matches.get_flag("jsonl");
 
     if verb.name == "ssh" {

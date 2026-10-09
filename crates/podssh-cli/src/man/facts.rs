@@ -43,50 +43,69 @@ pub fn sections() -> Vec<Section> {
 /// Every variable podssh reads, as `(names, what it does)`. The tests check
 /// this list against the source in both directions.
 pub const VARIABLES: &[(&[&str], &str)] = &[
-    (&["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"],
-     "The HTTP CONNECT proxy for each connection, as http://[USER:PASSWORD@]HOST:PORT. The first one \
+    (
+        &["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"],
+        "The HTTP CONNECT proxy for each connection, as http://[USER:PASSWORD@]HOST:PORT. The first one \
       that is set is used, in this order. podssh sends host names to the proxy, so it needs no DNS, and \
-      it never shows the proxy's credentials."),
-    (&["http_proxy", "HTTP_PROXY"],
-     "Not used: they are for http:// URLs. podssh doctor says so when one of them is set and no \
-      variable above is."),
-    (&["no_proxy", "NO_PROXY"],
-     "Hosts to reach without the proxy, separated by commas: example.com also matches its subdomains, \
-      and * matches each host. A loopback address never goes through a proxy."),
+      it never shows the proxy's credentials.",
+    ),
+    (
+        &["http_proxy", "HTTP_PROXY"],
+        "Not used: they are for http:// URLs. podssh doctor says so when one of them is set and no \
+      variable above is.",
+    ),
+    (
+        &["no_proxy", "NO_PROXY"],
+        "Hosts to reach without the proxy, separated by commas: example.com also matches its subdomains, \
+      and * matches each host. A loopback address never goes through a proxy.",
+    ),
     (&["PODSSH_RELAY"], "The relay hosts, as --relay-host. The flag wins."),
     (&["PODSSH_RELAY_ADDR"], "Addresses to use in place of DNS, as --relay-addr, after the flag's addresses."),
-    (&["PODSSH_TIMEOUT"],
-     "The default of --timeout for each command that has the flag, as a whole duration such as 30s; the \
-      flag wins, and an empty value is no value. A bad value is a configuration error (78)."),
+    (
+        &["PODSSH_TIMEOUT"],
+        "The default of --timeout for each command that has the flag, as a whole duration such as 30s; the \
+      flag wins, and an empty value is no value. A bad value is a configuration error (78).",
+    ),
     (&["PODSSH_RELAY_TOKEN"], "A relay token to use in place of one podssh mints. podssh never prints it."),
     (&["SSL_CERT_FILE"], "Trust only the CA certificates in this file, as --ca-file. The flag wins."),
-    (&["SSH_AUTH_SOCK"],
-     "The SSH agent's socket. On Windows, a named pipe; with none set, podssh tries the pipe of the \
-      OpenSSH agent, then Pageant."),
-    (&["SSH_ASKPASS", "SSH_ASKPASS_REQUIRE", "DISPLAY", "WAYLAND_DISPLAY"],
-     "A program that asks for passwords and passphrases, chosen as OpenSSH chooses: \
+    (
+        &["SSH_AUTH_SOCK"],
+        "The SSH agent's socket. On Windows, a named pipe; with none set, podssh tries the pipe of the \
+      OpenSSH agent, then Pageant.",
+    ),
+    (
+        &["SSH_ASKPASS", "SSH_ASKPASS_REQUIRE", "DISPLAY", "WAYLAND_DISPLAY"],
+        "A program that asks for passwords and passphrases, chosen as OpenSSH chooses: \
       SSH_ASKPASS_REQUIRE=force always uses it; prefer uses it when DISPLAY or WAYLAND_DISPLAY is set; \
       never does not use it. When SSH_ASKPASS_REQUIRE is not set, podssh asks on the terminal, and uses \
-      the program only when there is no terminal and DISPLAY or WAYLAND_DISPLAY is set."),
-    (&["HOME", "USERPROFILE"],
-     "The home directory, for ~ in file names (USERPROFILE on Windows when HOME is not set)."),
-    (&["USER", "LOGNAME", "USERNAME"],
-     "The login name when none is given. With none of them set, uid 0 is root. podssh never reads \
-      the user database."),
+      the program only when there is no terminal and DISPLAY or WAYLAND_DISPLAY is set.",
+    ),
+    (
+        &["HOME", "USERPROFILE"],
+        "The home directory, for ~ in file names (USERPROFILE on Windows when HOME is not set).",
+    ),
+    (
+        &["USER", "LOGNAME", "USERNAME"],
+        "The login name when none is given. With none of them set, uid 0 is root. podssh never reads \
+      the user database.",
+    ),
     (&["XDG_CACHE_HOME", "LOCALAPPDATA", "TMPDIR"], "Where podssh keeps its cache (see FILES)."),
     (&["TERM"], "Sent to the server with a pty request; xterm-256color when it is not set."),
-    (&["COLUMNS", "LINES"],
-     "The window size sent with a pty request when there is no terminal to measure (80 and 24 when \
-      they are not set)."),
+    (
+        &["COLUMNS", "LINES"],
+        "The window size sent with a pty request when there is no terminal to measure (80 and 24 when \
+      they are not set).",
+    ),
     (&["COMPUTERNAME"], "On Windows, the host name in the default comment of podssh keygen."),
     (&["ProgramData"], "On Windows, the directory of the system known_hosts file."),
-    (&["PAGER"],
-     "The pager of podssh man on a terminal. Empty, or cat, writes the manual with no pager."),
+    (&["PAGER"], "The pager of podssh man on a terminal. Empty, or cat, writes the manual with no pager."),
     (&["LESS"], "Options for less. podssh man sets FRX when it starts less and LESS is not set."),
     (&["PATH"], "Where podssh man looks for less, and where podssh doctor looks for directories that run programs."),
-    (&["PODSSH_OFFLINE"],
-     "Forbid each network connection. Test suites set it. podssh doctor then shows the network \
-      checks as one ???? line."),
+    (
+        &["PODSSH_OFFLINE"],
+        "Forbid each network connection. Test suites set it. podssh doctor then shows the network \
+      checks as one ???? line.",
+    ),
 ];
 
 fn environment() -> Vec<Block> {
@@ -218,7 +237,8 @@ mod tests {
     /// manual itself (which names each variable).
     fn sources() -> Vec<(PathBuf, String)> {
         let mut out = Vec::new();
-        let mut dirs: Vec<PathBuf> = ["podssh-cli", "podssh-ssh", "podssh-relay", "podssh-ws"].iter().map(|c| crate_dir(c)).collect();
+        let mut dirs: Vec<PathBuf> =
+            ["podssh-cli", "podssh-ssh", "podssh-relay", "podssh-ws"].iter().map(|c| crate_dir(c)).collect();
         while let Some(dir) = dirs.pop() {
             for entry in std::fs::read_dir(&dir).unwrap().flatten() {
                 let path = entry.path();
@@ -303,8 +323,7 @@ mod tests {
     #[test]
     fn the_cache_directories_are_the_ones_described() {
         let dirs = podssh_relay::cache::candidate_dirs();
-        let last: Vec<String> =
-            dirs.iter().map(|d| d.file_name().unwrap().to_string_lossy().into_owned()).collect();
+        let last: Vec<String> = dirs.iter().map(|d| d.file_name().unwrap().to_string_lossy().into_owned()).collect();
         assert_eq!(last.last().map(String::as_str), Some(".podssh"), "{last:?}");
         let tagged = last.iter().filter(|n| n.starts_with("podssh-")).count();
         assert_eq!(tagged, if cfg!(unix) { 2 } else { 1 }, "{last:?}");

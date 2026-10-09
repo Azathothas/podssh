@@ -141,9 +141,10 @@ where
                     },
                 }
             }
-            Err(ConnectError::Config(why) | ConnectError::Dial(DialError::BadProxy(why) | DialError::InvalidTarget(why))) => {
-                return Exit::Unusable(why)
-            }
+            Err(
+                ConnectError::Config(why)
+                | ConnectError::Dial(DialError::BadProxy(why) | DialError::InvalidTarget(why)),
+            ) => return Exit::Unusable(why),
             Err(ConnectError::Refused { status: 409, .. }) => return Exit::NameInUse,
             Err(ConnectError::Refused { status: 403, .. }) if expired(&config.pair) => Next::Repair,
             Err(ConnectError::Refused { status: 403, .. }) => return Exit::Forbidden,
@@ -168,9 +169,7 @@ where
 }
 
 fn expired(pair: &Pair) -> bool {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0);
+    let now =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0);
     pair.expires_ms <= now
 }

@@ -15,25 +15,18 @@
 //!   parameters as a list. ⛔ Flattening those into a tuple would mean picking
 //!   an arity, and the arity belongs to the peer, not to podssh.
 
-use crate::irc::message::{
-    CapVerb, Command, Middle, ParseError, Trailing,
-};
+use crate::irc::message::{CapVerb, Command, Middle, ParseError, Trailing};
 
 /// ⛔ Parse the command half of a message, **given its parameters already split**
 /// by [`crate::irc::message::split_params`].
 /// ⛔ **`trailing` is `(value, colon)`**, ⛔ because whether the wire wrote
 /// the introducing `:` is a property of the line and ⛔ both spellings occur on
 /// a real server — see [`crate::irc::message::Trailing`].
-pub fn parse_command(
-    params: Vec<String>,
-    trailing: Option<(String, bool)>,
-) -> Result<Command, ParseError> {
+pub fn parse_command(params: Vec<String>, trailing: Option<(String, bool)>) -> Result<Command, ParseError> {
     let name = params.first().cloned().unwrap_or_default();
     let middles: Vec<Middle> = params[1..].iter().map(|p| Middle(p.clone())).collect();
     let trail = trailing.map(|(value, colon)| Trailing::as_written(value, colon));
-    let take_middle = |i: usize| -> Middle {
-        middles.get(i).cloned().unwrap_or_else(|| Middle(String::new()))
-    };
+    let take_middle = |i: usize| -> Middle { middles.get(i).cloned().unwrap_or_else(|| Middle(String::new())) };
     let arity = |need: usize| -> Result<(), ParseError> {
         if middles.len() < need {
             Err(ParseError::TooFewParams { command: name.clone(), need, got: middles.len() })
@@ -134,14 +127,8 @@ pub fn parse_command(
             // grammar needs five, which some servers answer with
             // `ERR_NEEDMOREPARAMS` during registration and nothing else.
             arity(3)?;
-            let realname =
-                trail.ok_or_else(|| ParseError::MissingTrailing { command: name.clone() })?;
-            Command::User {
-                user: take_middle(0),
-                mode: take_middle(1),
-                unused: take_middle(2),
-                realname,
-            }
+            let realname = trail.ok_or_else(|| ParseError::MissingTrailing { command: name.clone() })?;
+            Command::User { user: take_middle(0), mode: take_middle(1), unused: take_middle(2), realname }
         }
         "CAP" => {
             // ⛔ **`CAP * <verb>` keeps its `*`, and that is a fact about the
@@ -175,20 +162,13 @@ pub fn parse_command(
                 // that invents a subcommand must not make the client silent.
                 _ => CapVerb::Unknown,
             };
-            Command::Cap {
-                target,
-                subcommand: sub,
-                args: rest[1.min(rest.len())..].to_vec(),
-                trailing: trail,
-            }
+            Command::Cap { target, subcommand: sub, args: rest[1.min(rest.len())..].to_vec(), trailing: trail }
         }
         // ⛔ **Three digits, and only digits.** ⛔ `numeric` is checked as a
         // number rather than as a string because `"100"` and `"001"` are equal
         // as text and are different replies.
         _ if name.len() == 3 && name.bytes().all(|b| b.is_ascii_digit()) => {
-            let code = name
-                .parse::<u16>()
-                .map_err(|_| ParseError::MissingCommand { line: name.clone() })?;
+            let code = name.parse::<u16>().map_err(|_| ParseError::MissingCommand { line: name.clone() })?;
             Command::Numeric(crate::irc::numeric::Replies::new(code, &middles, trail.as_ref()))
         }
         // ⛔ Anything else is kept whole. An IRC client that errors on `AWAY`, on

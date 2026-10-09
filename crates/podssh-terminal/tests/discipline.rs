@@ -233,7 +233,6 @@ fn an_arrow_at_its_bound_bells_and_the_line_survives() {
 
     let mut d = Discipline::new();
     let got = feed(&mut d, b"a\x1b[C");
-    assert_eq!(got.local, b"a\x07", "the echo stands, then the bell", );
+    assert_eq!(got.local, b"a\x07", "the echo stands, then the bell",);
     assert_eq!(feed(&mut d, b"\n").remote, b"a\n", "and the line survived");
 }
-

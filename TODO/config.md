@@ -25,7 +25,7 @@ Measured on `3ee70dc` (`target/debug/podssh.exe`, `PODSSH_OFFLINE=1`): with
 `-o Match=all` exits 64 ("an ssh_config block keyword, not an option"). Read: each `-F` but
 `none`, `/dev/null` and `NUL` is refused (`crates/podssh-cli/src/ssh/resolve.rs:99-106`).
 `Settings::apply` keeps the first value of a keyword
-(`crates/podssh-cli/src/ssh/options.rs:168-172`), the rule of `docs/cli.md:304-305`. A
+(`crates/podssh-cli/src/ssh/options.rs:180-184`), the rule of `docs/cli.md:304-305`. A
 `-o User` or `-o Port` beats `user@host` and `host:PORT`
 (`crates/podssh-cli/src/ssh/resolve.rs:124-134`), so a file value in that `Settings` would beat
 them too, which is wrong. An unknown `%` token stays as text (`resolve.rs:303-306`).
@@ -42,15 +42,15 @@ them too, which is wrong. An unknown `%` token stays as text (`resolve.rs:303-30
    `USERPROFILE` (`crates/podssh-cli/src/ssh/resolve.rs:62-74`). Only a missing `-F` file is an
    error (`docs/cli.md:315-316`).
 4. `Host` patterns through `known_hosts::wildcard`
-   (`crates/podssh-ssh/src/known_hosts.rs:182-204`); not `matches`, which accepts `|1|` hashes.
+   (`crates/podssh-ssh/src/known_hosts.rs:179-201`); not `matches`, which accepts `|1|` hashes.
 5. Refuse `Match`, and `Include` until T-044, by name with FILE:LINE (`docs/cli.md:312-314`).
    In a block that applies, refuse each option that `-o` refuses
-   (`crates/podssh-cli/src/ssh/keywords.rs:78-84`), but accept a `ProxyCommand` that runs
+   (`crates/podssh-cli/src/ssh/keywords.rs:82-88`), but accept a `ProxyCommand` that runs
    podssh itself (`proxy %h %p`: the path of `podssh ssh` anyway). Honour `IgnoreUnknown`.
 6. Refuse a file that another user owns or can write, as OpenSSH does, on the opened file
-   (`crates/podssh-relay/src/cache.rs:252-264`). An unknown `%` token is an error.
+   (`crates/podssh-relay/src/cache.rs:256-268`). An unknown `%` token is an error.
 7. In the same commit: the `-F` row (`crates/podssh-cli/src/flags.rs:143-144`), VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:45-90`, 98-142), the `ssh` notes,
+   FILES (`crates/podssh-cli/src/man/facts.rs:45-109`, 98-142), the `ssh` notes,
    `docs/cli.md:299-320` and `docs/STATUS.md`.
 
 ## Decision
@@ -113,7 +113,7 @@ Measured here with `ssh -G -F FILE x` (OpenSSH_10.3p1 of Git for Windows, no net
   of `Host x`.
 
 No glob code exists in podssh. `known_hosts::wildcard`
-(`crates/podssh-ssh/src/known_hosts.rs:182-204`) matches `*` and `?`.
+(`crates/podssh-ssh/src/known_hosts.rs:179-201`) matches `*` and `?`.
 
 ## Approach
 
@@ -131,7 +131,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:299-320`, FILES (`crates/podssh-cli/src/man/data.rs:73-121`) and the
+7. Change `docs/cli.md:299-320`, FILES (`crates/podssh-cli/src/man/data.rs:76-124`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -173,14 +173,14 @@ it by name, not skip it. `-P TAG` is accepted and ignored today
 The login name comes from the environment, never from the user database
 (`crates/podssh-cli/src/ssh/resolve.rs:65-84`); `Match localuser` needs it. podssh does no
 canonical pass: `CanonicalizeHostname` is accepted and ignored
-(`crates/podssh-cli/src/ssh/keywords.rs:61-74`). Measured with OpenSSH_10.3p1 (T-044):
+(`crates/podssh-cli/src/ssh/keywords.rs:64-77`). Measured with OpenSSH_10.3p1 (T-044):
 `Match all` applies where it stands, and `Match final all` fills only unset values.
 
 ## Approach
 
 1. Evaluate the criteria `all`, `host`, `originalhost`, `user`, `localuser`, `tagged`,
    `canonical` and `final`, each with `!` negation and with comma lists of patterns, through
-   `known_hosts::wildcard` (`crates/podssh-ssh/src/known_hosts.rs:182-204`).
+   `known_hosts::wildcard` (`crates/podssh-ssh/src/known_hosts.rs:179-201`).
 2. `originalhost` matches the name as typed. `host` matches the name after a `HostName` of an
    earlier block. Measure each order with `ssh -G`, and keep the case of sshping PR #212 (a
    `Match` that sets `HostName`) as a test.
@@ -189,7 +189,7 @@ canonical pass: `CanonicalizeHostname` is accepted and ignored
 4. Keep `exec` and `localnetwork` refused by name (Decision). Refuse by name each other criterion
    of the installed ssh_config(5) that this entry does not evaluate.
 5. A value from a `Match` block follows the first-value rule
-   (`crates/podssh-cli/src/ssh/options.rs:168-172`).
+   (`crates/podssh-cli/src/ssh/options.rs:180-184`).
 6. `-G` (T-046) evaluates the same blocks and prints the result.
 7. Change `docs/cli.md:312-314` and the `ssh` notes in the same commit.
 
@@ -241,18 +241,18 @@ refused. ... podssh reads no ssh_config, so it has no configuration to print."
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:92-320`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:92-327`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41), holds the settings in effect, the defaults included.
 
 ## Approach
 
-1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:42-65`
+1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:42-62`
    requires that pair. The reviewed set of short flags does not change.
 2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:30-71`), after `resolve` (lines 36-42): with
    `-G`, print the settings and exit 0. Open nothing: no relay, no token, no pool refresh.
 3. Print from `Resolved` and its `Options`, not from `Settings`, so the defaults are shown.
 4. Print only keywords of OpenSSH that podssh applies
-   (`crates/podssh-cli/src/ssh/keywords.rs:23-57`), and `host`, `hostname`, `user`, `port`,
+   (`crates/podssh-cli/src/ssh/keywords.rs:25-59`), and `host`, `hostname`, `user`, `port`,
    `identityfile` and `proxyjump`. Spell each value as `ssh -G` does (`true` or `yes`).
 5. Keep a list in the test of the values that differ on purpose, each with its reason:
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:118`) and `connecttimeout 60`.
@@ -327,8 +327,8 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
    (`crates/podssh-cli/src/flags.rs:414-456`), the arguments, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:248-260`), the manual's notes and examples, and
-   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:95`).
+   (`crates/podssh-cli/src/help.rs:229-241`), the manual's notes and examples, and
+   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:92-93`).
 
 ## Decision
 
@@ -370,14 +370,14 @@ command, or edits a shell profile. No file states them once.
 ## Premise
 
 Read: each command resolves the same settings in its own copy. Relay hosts (`--relay-host`,
-then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:55-75`)
+then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:55-73`)
 go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:62-74`), called in
-`crates/podssh-cli/src/ssh/resolve.rs:245`, `crates/podssh-cli/src/doctor/mod.rs:54-57` and
-`crates/podssh-cli/src/proxy.rs:63-66`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
-`crates/podssh-cli/src/ssh/resolve.rs:258-261`, `crates/podssh-cli/src/doctor/mod.rs:58-63` and
-`crates/podssh-cli/src/proxy.rs:74-78`. The pins of the flag and of the variable add up
-(`crates/podssh-cli/src/pins.rs:13-27`). The token cache uses the user's
-cache directory first (`crates/podssh-relay/src/cache.rs:378-391`). The decision named the
+`crates/podssh-cli/src/ssh/resolve.rs:252`, `crates/podssh-cli/src/doctor/mod.rs:54-57` and
+`crates/podssh-cli/src/proxy.rs:66-69`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
+`crates/podssh-cli/src/ssh/resolve.rs:265-268`, `crates/podssh-cli/src/doctor/mod.rs:58-63` and
+`crates/podssh-cli/src/proxy.rs:77-81`. The pins of the flag and of the variable add up
+(`crates/podssh-cli/src/pins.rs:13-23`). The token cache uses the user's
+cache directory first (`crates/podssh-relay/src/cache.rs:377-386`). The decision named the
 configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:45`, T-243).
 
 ## Approach
@@ -392,14 +392,14 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
    variable, apart from the `PODSSH_SSH_CONFIG` of T-043), `$XDG_CONFIG_HOME/podssh/settings`
    (else `~/.config/podssh/settings`, and `%APPDATA%\podssh\settings` on Windows), then
    `podssh.settings` next to the binary, found as `podssh-ca.pem` is
-   (`crates/podssh-ws/src/bundle.rs:32-39`). Never the working directory or `/tmp`: a file that
+   (`crates/podssh-ws/src/bundle.rs:32-38`). Never the working directory or `/tmp`: a file that
    names relay hosts decides where tokens go.
 4. Refuse a file that is a symbolic link, or that another user owns or can write, with an error
-   that names it. Check the opened file, as `crates/podssh-relay/src/cache.rs:252-264` does.
+   that names it. Check the opened file, as `crates/podssh-relay/src/cache.rs:256-268` does.
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:45-90`, 98-142), `docs/relay.md:23-49` and
+   FILES (`crates/podssh-cli/src/man/facts.rs:45-109`, 98-142), `docs/relay.md:23-49` and
    `docs/cli.md`. The cache directory is the work of T-243.
 
 ## Decision

@@ -78,10 +78,9 @@ impl std::fmt::Display for TokenError {
             TokenError::RateLimited { retry_after: None } => {
                 write!(f, "the relay is rate-limiting token minting; retry shortly")
             }
-            TokenError::NotIssued => write!(
-                f,
-                "this relay does not issue tokens (HTTP 503); ask its operator for one and set {TOKEN_ENV}"
-            ),
+            TokenError::NotIssued => {
+                write!(f, "this relay does not issue tokens (HTTP 503); ask its operator for one and set {TOKEN_ENV}")
+            }
             TokenError::Failed { status, detail } => write!(f, "minting a relay token failed: HTTP {status}{detail}"),
         }
     }
@@ -159,17 +158,10 @@ struct MintResponse {
 
 /// `POST /v1/mint` with `{}`; the relay answers `{token, expires, scope}`.
 async fn mint(ctx: &MintContext<'_>) -> Result<(String, i64), TokenError> {
-    let response = https_post_json(
-        &ctx.relay.host,
-        ctx.relay.port,
-        "/v1/mint",
-        b"{}",
-        ctx.trust,
-        ctx.proxy,
-        ctx.timeout,
-    )
-    .await
-    .map_err(TokenError::Connect)?;
+    let response =
+        https_post_json(&ctx.relay.host, ctx.relay.port, "/v1/mint", b"{}", ctx.trust, ctx.proxy, ctx.timeout)
+            .await
+            .map_err(TokenError::Connect)?;
     match response.status {
         200..=299 => {
             // Never quote a 2xx body in an error: it may hold a token.
@@ -189,14 +181,14 @@ async fn mint(ctx: &MintContext<'_>) -> Result<(String, i64), TokenError> {
         503 => Err(TokenError::NotIssued),
         status => {
             let body = response.body_text(200);
-            Err(TokenError::Failed { status, detail: if body.is_empty() { String::new() } else { format!(": {body}") } })
+            Err(TokenError::Failed {
+                status,
+                detail: if body.is_empty() { String::new() } else { format!(": {body}") },
+            })
         }
     }
 }
 
 fn now_ms() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or(0)
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or(0)
 }

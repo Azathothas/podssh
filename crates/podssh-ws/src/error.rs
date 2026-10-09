@@ -11,12 +11,18 @@ use std::fmt;
 /// The three-valued result the doctor reports. `Unknown` is not optional.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Verdict {
-    Ok { detail: String },
-    Failed { detail: String },
+    Ok {
+        detail: String,
+    },
+    Failed {
+        detail: String,
+    },
     /// ⛔ **A check that could not run.** Never collapsed into `Ok` — four
     /// sibling projects shipped a doctor that reported green over a broken
     /// environment, and the defect recurs three times independently.
-    Unknown { why: String },
+    Unknown {
+        why: String,
+    },
 }
 
 impl Verdict {
