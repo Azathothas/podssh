@@ -420,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:329-374`): the
+5. docs/development.md, "Release builds" (`docs/development.md:333-378`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -552,6 +552,13 @@ Read:
    proves the scan once and not after each update of the image.
 5. The scan does not run on this machine: the scanner's container would
    have the working tree, with `.env/`, mounted.
+6. The first scan found 9 values that its URI detector could not verify:
+   proxy URLs with a made-up user and password, at `proxy.example` or the
+   loopback, in tests of the proxy parsers and in the fork. They are listed
+   in `.github/secrets-allow.txt`, each by detector, file and line, and the
+   commit that added it, with the reason; the same value in another commit
+   is a new finding. Lost: no verification for the URI detector, or no scan
+   of the tests, which would let a real proxy password through.
 
 ## Prove
 
@@ -1261,7 +1268,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:118-120` states the rule with `CXX`, and
+- `docs/development.md:122-124` states the rule with `CXX`, and
   `docs/STATUS.md:237` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -1676,7 +1683,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:156-157` lists what the containers do not get; name
+5. `docs/development.md:160-161` lists what the containers do not get; name
    each excluded pattern there.
 
 ## Prove
