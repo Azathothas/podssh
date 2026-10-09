@@ -247,6 +247,20 @@ behind them.
 | The first relay host is down, and the second mints the token (T-057, GitHub #3) | The token is cached for the second host; nothing is filed under the first. The gate's binary of `eaf9822`, before T-057, filed it under the dead host: `1 for the dead host, 0 for relay-a.test`. |
 | A server that stalls after the key exchange, with `--direct` (T-236): `scripts/fake-stall.py` drops OpenSSH's bytes after its NEWKEYS | `ssh -o ConnectTimeout=10` exits 255 after 10 s: `127.0.0.1 did not answer the first request to log in within 10 s`. The gate's binary of `02e4e1f`, before T-236, waited until `timeout 90` ended it. |
 
+The shapes of T-203, measured natively on Windows, 2026-10-10 (`cargo test
+-p podssh-cli --test faults -- --ignored --test-threads 1`, with the tests'
+SSH server; the same checks in `scripts/interop-faults.sh`, with OpenSSH,
+wait for T-251):
+
+| Fault | What podssh did |
+| --- | --- |
+| 2 s each way | `greet` and its exit status came back; with `-o ConnectTimeout=5`, exit 255, `did not finish within 5 s` (the planted control) |
+| A jitter of 0 to 1.5 s, each chunk in order | 5,000,000 bytes up and back, unchanged |
+| 64 KiB/s | 2,000,000 bytes within 0.9 to 1.5 times the 30.5 s computed |
+| The connection to the relay ended after 1,000,000 bytes, with no Close | Exit 255: `the connection between podssh and the relay broke` |
+| Each byte held 3 s from the start (`pause`) | `greet` came back after the pause |
+| The client's address changes (`--move`): the old tunnel goes silent | The forward road, with no resumable layer, ended with 255 by its ping watcher; a new session left from 127.0.0.2 and worked |
+
 ## Components
 
 The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082;

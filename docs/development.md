@@ -235,7 +235,13 @@ dependencies that these minimums allow. The other steps make sure that:
    a host that is down, a 503, a host that does not answer after TLS, a host
    that does not start TLS, a proxy 502, a Close during a transfer (1011)
    and at the byte limit (1009), a stall, and a host that stops during a
-   session.
+   session. Since T-203, the stand-in relay also shapes the traffic: 2 s
+   each way (with a planted control: a `ConnectTimeout` of 5 s must fail), a
+   jitter of 0 to 1.5 s (5,000,000 bytes up and back, unchanged), 64 KiB/s
+   (2,000,000 bytes near the time computed), and a cut with no Close. Its
+   `pause` mode and the stand-in proxy's `--move` are for the checks of
+   T-156. The same checks run natively in an ignored test, `cargo test -p
+   podssh-cli --test faults -- --ignored --test-threads 1`.
 9. The man page renders (`scripts/interop-man.sh`): groff and mandoc show
    each flag that `--help` shows, groff gives no warning, and `mandoc -Tlint`
    gives no error. A planted page, with one flag's term removed, must fail.

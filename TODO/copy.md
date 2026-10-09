@@ -553,7 +553,7 @@ sh scripts/dev.sh check                     # interop-cp.sh through scripts/fake
 ```
 
 The stand-in relay's `close:BYTES:CODE` mode
-(`scripts/fake-relay.py:199-221`) ends each session after 1,500,000 bytes
+(`scripts/fake-relay.py:294-313`) ends each session after 1,500,000 bytes
 from the target with `1011`. A 5,000,000-byte download must finish over 4
 sessions or more with equal digests, and `-v` names each offset. A new mode
 that counts both directions does the same for an upload. A run stopped with

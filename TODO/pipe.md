@@ -450,7 +450,7 @@ sh scripts/dev.sh check                               # interop-faults.sh: the d
 
 In `scripts/interop-faults.sh`, `--persist -tt` goes through two stand-in
 relays. The input sets `MARK=kept`; the harness kills the first stand-in, as
-`scripts/interop-faults.sh:152-162` does; the input then runs `echo M=$MARK`
+`scripts/interop-faults.sh:158-168` does; the input then runs `echo M=$MARK`
 and `tmux kill-session`. The output has `M=kept`, and the exit is 0. With
 tmux moved off `PATH`, the exit is 255 and names tmux. Plant: start tmux
 without `-A`; the second attach fails, and the check must fail.

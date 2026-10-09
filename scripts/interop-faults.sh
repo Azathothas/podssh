@@ -8,7 +8,8 @@ echo
 echo "== faults (a stand-in relay and proxy, OpenSSH behind them)"
 FK="$W/faults"
 mkdir -p "$FK"
-NAMES="relay-a relay-r503 relay-silent relay-hole relay-dead relay-stall relay-close relay-cap relay-kill relay-hshake"
+NAMES="relay-a relay-r503 relay-silent relay-hole relay-dead relay-stall relay-close relay-cap relay-kill relay-hshake
+relay-delay relay-jitter relay-rate relay-cut"
 SAN=$(for n in $NAMES; do printf 'DNS:%s.test,' "$n"; done)
 PINS=$(for n in $NAMES; do printf '%s.test=127.0.0.1,' "$n"; done)
 SAN=${SAN%,}
@@ -30,8 +31,11 @@ else
     bad "faults: the test certificates could not be made" "$FK/openssl.log"
 fi
 
+# The shapes of T-203: 2 s each way, a jitter of 0 to 1.5 s, 64 KiB/s, and
+# the connection ended with no Close after 1,000,000 bytes.
 for spec in a:normal r503:refuse:503 silent:silent hole:blackhole dead:normal stall:stall:12 \
-        close:close:300000:1011 cap:close:1:1009 kill:normal hshake:close:1:1011; do
+        close:close:300000:1011 cap:close:1:1009 kill:normal hshake:close:1:1011 \
+        delay:delay:2000 jitter:jitter:0:1500:7 rate:rate:65536 cut:cut:1000000; do
     name=${spec%%:*}
     python3 "$HERE/fake-relay.py" --cert "$FK/relay.pem" --key "$FK/relay.key" --keepalive 2 \
         --port-file "$FK/$name.port" --mode "${spec#*:}" >"$FK/$name.log" 2>&1 &
@@ -41,7 +45,9 @@ port() { cat "$FK/$1.port" 2>/dev/null; }
 tries=0
 while [ "$tries" -lt 30 ]; do
     missing=0
-    for n in a r503 silent hole dead stall close cap kill hshake; do [ -s "$FK/$n.port" ] || missing=1; done
+    for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut; do
+        [ -s "$FK/$n.port" ] || missing=1
+    done
     [ "$missing" = 0 ] && break
     sleep 1
     tries=$((tries + 1))
@@ -180,6 +186,44 @@ took=$(( $(date +%s) - start ))
 [ "$rc" = 255 ] && [ "$took" -lt 60 ] && grep -q "did not answer the first request to log in within 10 s" "$FK/err" \
     && ok "faults: a server that stalls after the key exchange: exit 255 after ${took}s, and the wait is named" \
     || bad "faults: a server that stalls after the key exchange: exit $rc after ${took}s" "$FK/err"
+
+# The shapes of the traffic (T-203). Each check shows that its fault was
+# there: the planted control of the delay fails with a limit of 5 s, the
+# rate takes near the time computed, and the cut ends the session.
+r "relay-delay.test:$(port delay)" "$T" 'echo late' >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+[ "$rc" = 0 ] && [ "$(cat "$FK/out")" = late ] \
+    && ok "faults: 2 s each way: a command and its exit status come back" \
+    || bad "faults: 2 s each way: exit $rc" "$FK/err"
+r "relay-delay.test:$(port delay)" -o ConnectTimeout=5 "$T" 'echo late' >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+[ "$rc" = 255 ] && grep -q "did not finish within 5 s" "$FK/err" \
+    && ok "faults: the planted control: with a limit of 5 s, the delayed handshake does not finish" \
+    || bad "faults: the planted control of the delay: exit $rc" "$FK/err"
+
+head -c 5000000 /dev/urandom >"$FK/sent"
+r "relay-jitter.test:$(port jitter)" "$T" 'cat' >"$FK/out" 2>"$FK/err" <"$FK/sent"
+rc=$?
+[ "$rc" = 0 ] && cmp -s "$FK/sent" "$FK/out" \
+    && ok "faults: a jitter of 0 to 1.5 s: 5,000,000 bytes up and back, unchanged" \
+    || bad "faults: a jitter of 0 to 1.5 s: exit $rc, $(wc -c <"$FK/out") bytes back" "$FK/err"
+
+start=$(date +%s)
+r "relay-rate.test:$(port rate)" "$T" 'head -c 2000000 /dev/zero' >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+took=$(( $(date +%s) - start ))
+got=$(wc -c <"$FK/out")
+# 2,000,000 bytes at 65,536 a second: 30.5 s, and 46 s with half again.
+[ "$rc" = 0 ] && [ "$got" = 2000000 ] && [ "$took" -ge 27 ] && [ "$took" -le 46 ] \
+    && ok "faults: at 64 KiB/s, 2,000,000 bytes in ${took}s, where 30.5 s is computed" \
+    || bad "faults: at 64 KiB/s: exit $rc, $got bytes in ${took}s" "$FK/err"
+
+r "relay-cut.test:$(port cut)" "$T" 'head -c 5000000 /dev/zero' >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+got=$(wc -c <"$FK/out")
+[ "$rc" = 255 ] && [ "$got" -lt 5000000 ] && grep -q "relay" "$FK/err" \
+    && ok "faults: the connection to the relay ended with no Close: exit 255, and the relay is named" \
+    || bad "faults: a cut: exit $rc, $got bytes" "$FK/err"
 
 for f in "$FK"/*.pid; do
     kill "$(cat "$f")" 2>/dev/null

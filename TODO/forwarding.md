@@ -644,7 +644,7 @@ In the fault harness (`scripts/interop-faults.sh`), a run with the new flag,
 `--relay-host` set to `relay-kill` then `relay-a`, and
 `-N -R 127.0.0.1:2291:127.0.0.1:2203` carries a connection to port 2291.
 Then the stand-in relay `relay-kill` stops, as at
-`scripts/interop-faults.sh:152-162`. Within 60 s, a new connection to port
+`scripts/interop-faults.sh:158-168`. Within 60 s, a new connection to port
 2291 reads Dropbear's banner again. Planted defect: no new connection, and
 the second read fails.
 

@@ -1,8 +1,9 @@
-//! An SSH server on the loopback for the tests of the roads (T-157, T-165):
-//! a russh server in the test process that lets anyone in and runs three
-//! commands: `greet` prints [`GREETING`]; `source N` sends N bytes; `sink`
-//! prints `R` as it starts to read, reads stdin to its end, then prints the
-//! count, as `sh -c 'echo R; wc -c'` does on a POSIX server. Each exits 0.
+//! An SSH server on the loopback for the tests of the roads (T-157, T-165,
+//! T-203): a russh server in the test process that lets anyone in and runs
+//! four commands: `greet` prints [`GREETING`]; `source N` sends N bytes;
+//! `sink` prints `R` as it starts to read, reads stdin to its end, then
+//! prints the count, as `sh -c 'echo R; wc -c'` does on a POSIX server;
+//! `echo` sends stdin back as it comes. Each exits 0.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -22,10 +23,11 @@ pub const GREETING: &str = "hello over the iroh road\n";
 const BLOCK: usize = 32 * 1024;
 
 /// One connection's handler: the bytes that `sink` has read on each of its
-/// channels.
+/// channels, and the channels of `echo`.
 #[derive(Default)]
 struct Far {
     sinks: HashMap<ChannelId, u64>,
+    echoes: Vec<ChannelId>,
 }
 
 impl server::Handler for Far {
@@ -78,6 +80,7 @@ impl server::Handler for Far {
                 self.sinks.insert(channel, 0);
                 session.data(channel, b"R\n".as_slice())?;
             }
+            (Some("echo"), _) => self.echoes.push(channel),
             _ => {
                 session.data(channel, GREETING.as_bytes())?;
                 session.exit_status_request(channel, 0)?;
@@ -88,14 +91,23 @@ impl server::Handler for Far {
         Ok(())
     }
 
-    async fn data(&mut self, channel: ChannelId, data: &[u8], _session: &mut Session) -> Result<(), Self::Error> {
+    async fn data(&mut self, channel: ChannelId, data: &[u8], session: &mut Session) -> Result<(), Self::Error> {
         if let Some(bytes) = self.sinks.get_mut(&channel) {
             *bytes += data.len() as u64;
+        }
+        if self.echoes.contains(&channel) {
+            session.data(channel, data.to_vec())?;
         }
         Ok(())
     }
 
     async fn channel_eof(&mut self, channel: ChannelId, session: &mut Session) -> Result<(), Self::Error> {
+        let echoed = self.echoes.iter().position(|c| *c == channel).map(|at| self.echoes.remove(at)).is_some();
+        if echoed {
+            session.exit_status_request(channel, 0)?;
+            session.eof(channel)?;
+            session.close(channel)?;
+        }
         if let Some(bytes) = self.sinks.remove(&channel) {
             session.data(channel, format!("{bytes}\n").into_bytes())?;
             session.exit_status_request(channel, 0)?;

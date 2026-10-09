@@ -22,6 +22,17 @@ Modes:
   closeall:BYTES:CODE
                    the same after BYTES both ways together, as the relay
                    counts its session byte cap
+  delay:MS         each byte, each way, MS milliseconds late
+  jitter:MIN:MAX:SEED
+                   each chunk, each way, late by MIN to MAX milliseconds,
+                   from a generator seeded with SEED, so that a run repeats;
+                   a chunk never passes the one before it
+  rate:BYTES       each way, BYTES a second at most
+  cut:BYTES        after BYTES both ways together, the TCP connection to the
+                   client ends, with no Close frame: a host that stops
+  pause:AFTER:FOR  AFTER seconds after the upgrade, each byte both ways,
+                   Pongs and keepalives too, is held for FOR seconds, then
+                   let through: a stall that ends
 """
 
 import argparse
@@ -29,6 +40,7 @@ import asyncio
 import base64
 import hashlib
 import json
+import random
 import ssl
 import struct
 import time
@@ -143,9 +155,94 @@ async def connect(reader, writer, path, headers):
     await pump(reader, writer, t_reader, t_writer)
 
 
+class Shaper:
+    """One direction's bytes, sent in order, late or slow as the mode says.
+    A bounded queue keeps the sender's flow control."""
+
+    def __init__(self, send, mode, started, seed_offset):
+        self.send, self.started = send, started
+        self.delay, self.jitter, self.rate, self.pause = 0.0, None, None, None
+        kind, _, rest = mode.partition(":")
+        if kind == "delay":
+            self.delay = int(rest) / 1000
+        elif kind == "jitter":
+            low, high, seed = rest.split(":")
+            self.jitter = (int(low) / 1000, int(high) / 1000, random.Random(int(seed) + seed_offset))
+        elif kind == "rate":
+            self.rate = int(rest)
+        elif kind == "pause":
+            after, held = rest.split(":")
+            self.pause = (started + float(after), started + float(after) + float(held))
+        self.queue = asyncio.Queue(maxsize=64)
+        self.last = 0.0
+        self.task = asyncio.ensure_future(self.run())
+
+    async def put(self, data):
+        await self.queue.put((time.monotonic(), data))
+
+    async def run(self):
+        while True:
+            arrived, data = await self.queue.get()
+            if data is None:
+                return
+            wait = self.delay
+            if self.jitter is not None:
+                low, high, rng = self.jitter
+                wait = rng.uniform(low, high)
+            due = max(arrived + wait, self.last)
+            if self.pause is not None and self.pause[0] <= due < self.pause[1]:
+                due = self.pause[1]
+            self.last = due
+            now = time.monotonic()
+            if due > now:
+                await asyncio.sleep(due - now)
+            if self.rate is not None:
+                await asyncio.sleep(len(data) / self.rate)
+            await self.send(data)
+
+    async def flush(self):
+        """Each byte queued, sent: before a Close, or the end."""
+        await self.queue.put((time.monotonic(), None))
+        await self.task
+
+
+SHAPED = ("delay:", "jitter:", "rate:", "pause:")
+
+
 async def pump(reader, writer, t_reader, t_writer):
     stalled = asyncio.Event()
     done = asyncio.Event()
+    started = time.monotonic()
+
+    async def write_client(data):
+        writer.write(data)
+        await writer.drain()
+
+    async def write_target(data):
+        t_writer.write(data)
+        await t_writer.drain()
+
+    shaped = args.mode.startswith(SHAPED)
+    to_client = Shaper(write_client, args.mode, started, 0) if shaped else None
+    to_target = Shaper(write_target, args.mode, started, 1) if shaped else None
+
+    async def send_client(data, last=False):
+        """A frame to the client, through the shaper when there is one."""
+        if to_client is None:
+            await write_client(data)
+            return
+        await to_client.put(data)
+        if last:
+            await to_client.flush()
+
+    async def send_target(data):
+        if to_target is None:
+            await write_target(data)
+        else:
+            await to_target.put(data)
+
+    # cut: the connection to the client ends, with no Close frame.
+    cut = int(args.mode.split(":")[1]) if args.mode.startswith("cut:") else None
     # closeall: the bytes of both directions together, as the relay counts
     # its session byte cap.
     both = {"limit": None, "code": None, "count": 0}
@@ -154,11 +251,14 @@ async def pump(reader, writer, t_reader, t_writer):
         both["limit"], both["code"] = int(limit), int(code)
 
     async def counted(n):
-        """Count n payload bytes; at the limit, close as the relay would."""
+        """Count n payload bytes; at the limit, close as the relay would,
+        or end the connection with no Close."""
         both["count"] += n
+        if cut is not None and both["count"] >= cut:
+            writer.transport.abort()
+            return True
         if both["limit"] is not None and both["count"] >= both["limit"]:
-            writer.write(close_frame(both["code"], REASONS.get(both["code"], "fault injection")))
-            await writer.drain()
+            await send_client(close_frame(both["code"], REASONS.get(both["code"], "fault injection")), last=True)
             return True
         return False
 
@@ -171,8 +271,7 @@ async def pump(reader, writer, t_reader, t_writer):
         while not done.is_set():
             await asyncio.sleep(args.keepalive)
             if not stalled.is_set() and not done.is_set():
-                writer.write(frame(0x2))
-                await writer.drain()
+                await send_client(frame(0x2))
 
     async def up():  # client to target
         while True:
@@ -180,20 +279,16 @@ async def pump(reader, writer, t_reader, t_writer):
             if stalled.is_set():
                 continue  # swallowed: a stalled relay answers nothing
             if opcode in (0x0, 0x2):  # binary, or its continuation
-                t_writer.write(data)
-                await t_writer.drain()
+                await send_target(data)
                 if await counted(len(data)):
                     return
             elif opcode == 0x9:
-                writer.write(frame(0xA, data))
-                await writer.drain()
+                await send_client(frame(0xA, data))
             elif opcode == 0x8:
-                writer.write(close_frame(1000, "client closed"))
-                await writer.drain()
+                await send_client(close_frame(1000, "client closed"), last=True)
                 return
             elif opcode == 0x1:
-                writer.write(close_frame(1003, "text frames are not accepted"))
-                await writer.drain()
+                await send_client(close_frame(1003, "text frames are not accepted"), last=True)
                 return
 
     async def down():  # target to client
@@ -207,17 +302,14 @@ async def pump(reader, writer, t_reader, t_writer):
             if stalled.is_set():
                 await asyncio.Event().wait()  # hold the connection open, silent
             if not data:
-                writer.write(close_frame(1000, "target closed"))
-                await writer.drain()
+                await send_client(close_frame(1000, "target closed"), last=True)
                 return
-            writer.write(frame(0x2, data))
-            await writer.drain()
+            await send_client(frame(0x2, data))
             if await counted(len(data)):
                 return
             sent += len(data)
             if limit is not None and sent >= limit:
-                writer.write(close_frame(code, REASONS.get(code, "fault injection")))
-                await writer.drain()
+                await send_client(close_frame(code, REASONS.get(code, "fault injection")), last=True)
                 return
 
     tasks = [asyncio.ensure_future(t()) for t in (up, down)]
@@ -229,6 +321,14 @@ async def pump(reader, writer, t_reader, t_writer):
     done.set()
     for t in tasks + extras:
         t.cancel()
+    # The bytes for the target that the shaper still holds, then the end.
+    if to_target is not None:
+        try:
+            await asyncio.wait_for(to_target.flush(), 30)
+        except (asyncio.TimeoutError, OSError):
+            pass
+    if to_client is not None:
+        to_client.task.cancel()
     t_writer.close()
 
 

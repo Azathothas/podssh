@@ -309,7 +309,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:334-337`): a proxy head that never ends stops at
+   (`docs/development.md:340-343`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -423,7 +423,7 @@ extended), and the exit criteria of M6 (`docs/ROADMAP.md`, M6; T-156).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -440,9 +440,9 @@ Read:
 
 - The modes of the stand-in relay: `normal`, `refuse`, `blackhole`, `silent`,
   `stall` and `close` (`scripts/fake-relay.py:14-21`). The stand-in proxy maps
-  names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
+  names and answers a status (`scripts/fake-proxy.py:1-19`). Neither shapes
   the traffic.
-- `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
+- `scripts/interop-faults.sh:36-43` starts one stand-in for each fault; its
   checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:229-246`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:248`, enforced at
@@ -454,7 +454,7 @@ Read:
 
 ## Approach
 
-1. New modes in `scripts/fake-relay.py`, applied in `pump` (`:146-232`), in
+1. New modes in `scripts/fake-relay.py`, applied in `pump` (`:212-332`), in
    each direction: `delay:MS`; `jitter:MIN:MAX:SEED`, from a seeded generator,
    so that a run repeats; `rate:BYTES_PER_SECOND`, a token bucket;
    `cut:BYTES`, the TCP connection closed with no Close frame.
@@ -471,7 +471,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate,
-   `docs/development.md:232-238`) and the faults table of docs/STATUS.md.
+   `docs/development.md:232-244`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 
@@ -481,6 +481,22 @@ Recommendation: shape the traffic in the stand-ins. They need no privilege,
 and they run the same in the gate's container, in CI and on Windows. Linux
 `tc netem` lost: it needs `CAP_NET_ADMIN`, which the gate's container does not
 get, and it shapes all loopback traffic, the OpenSSH servers too.
+
+2026-10-10, before the work:
+
+- The new modes shape each direction in the stand-in relay's pump with a
+  queue and a sender, so that order is kept: a jittered chunk waits for the
+  one before it, as a TCP stream does. `rate` is a token bucket over each
+  direction alone, as a link's capacity is.
+- One more mode for T-156, which needs a stall that ends: `pause:AFTER:FOR`,
+  each byte held both ways after AFTER seconds for FOR seconds, then let
+  through. And the stand-in proxy's `--move SECONDS:ADDRESS`: SECONDS after
+  the first tunnel, the open tunnels go silent with no RST, and each new
+  tunnel leaves from ADDRESS (127.0.0.2), as a client whose address changed.
+- The checks of item 3 also run natively, in an ignored Rust test that
+  drives `podssh ssh` through the stand-in relay to the tests' SSH server
+  (`crates/podssh-cli/tests/faults.rs`): a Windows run measures the modes now,
+  where the gate's run waits for T-251.
 
 ## Prove
 
@@ -493,6 +509,39 @@ the harness as a control: the delay check of 2 s runs again with
 `-o ConnectTimeout=5`, and it must fail with "did not finish within 5 s".
 This shows that the delay was injected. After M6, the checks of T-156 must
 fail when the resume layer is off.
+
+## Correction
+
+Item 4 needs the reverse road in the stand-in relay, which serves the
+forward road only (`scripts/fake-relay.py:110-111`). T-156 builds it (its
+item 1) and makes those checks its measurement (its items 2 to 5). T-203
+gives T-156 the faults that those checks need: `pause:AFTER:FOR` for the
+stall that ends, `cut` for a host stopped mid-session, and `--move` for the
+new address.
+
+## Done
+
+2026-10-10.
+
+- `scripts/fake-relay.py`: the modes `delay:MS`, `jitter:MIN:MAX:SEED`,
+  `rate:BYTES`, `cut:BYTES` and `pause:AFTER:FOR`. Each direction has a
+  shaper, a bounded queue in order: each frame to the client (data, Pongs,
+  keepalives, Closes) and each chunk to the target goes through it, so a
+  pause holds the Pongs too, and a Close waits for the bytes before it.
+- `scripts/fake-proxy.py`: `--from ADDRESS` and `--move SECONDS:ADDRESS`;
+  the log names the address of each tunnel.
+- `scripts/interop-faults.sh`: four stand-ins more, and the checks of item
+  3 with the planted control of the delay.
+- `crates/podssh-cli/tests/faults.rs`, ignored: the same checks natively,
+  through the tests' SSH server (which gained `echo`), and checks of `pause`
+  and `--move`; the harness of T-157 starts a stand-in relay of any mode.
+- Prove, native, Windows: `cargo test -p podssh-cli --test faults --
+  --ignored --test-threads 1`: 6 passed, in about 3.5 minutes; the table is
+  in `docs/STATUS.md`. `sh -n` and `scripts/check-scripts.py` (dash): the
+  script parses. `cargo test --no-fail-fast`: 1014 passed, 0 failed, 30 ignored.
+- Waits for T-251: `sh scripts/dev.sh check`, whose step of the faults runs
+  the new checks with OpenSSH in the build image. The checks of item 4 are
+  T-156's (the Correction).
 
 # T-225: The interop gate takes each expected exit code from stock OpenSSH, beside the literal (GitHub #34)
 

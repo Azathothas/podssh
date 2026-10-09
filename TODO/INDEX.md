@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**263 entries: 140 open, 0 partial, 22 blocked, 101 done.**
+**263 entries: 139 open, 0 partial, 22 blocked, 102 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 10 | 12 |
-| P2 | 56 | 0 | 18 | 76 | 150 |
+| P2 | 55 | 0 | 18 | 77 | 150 |
 | P3 | 82 | 0 | 4 | 14 | 100 |
-| **All** | 140 | 0 | 22 | 101 | 263 |
+| **All** | 139 | 0 | 22 | 102 | 263 |
 
 ## Entries
 
@@ -274,7 +274,7 @@ repository and CI).
 | [T-200](robustness.md) | P3 | M | backlog | chore | open | A terminal oracle |
 | [T-201](robustness.md) | P2 | M | backlog | chore | open | Resource limits, stated and tested |
 | [T-202](robustness.md) | P3 | S | backlog | chore | open | Property tests for the state machines |
-| [T-203](robustness.md) | P2 | M | M6 | chore | open | The fault-injection harness: latency, jitter, bandwidth, a new address |
+| [T-203](robustness.md) | P2 | M | M6 | chore | done | The fault-injection harness: latency, jitter, bandwidth, a new address |
 | [T-204](repo.md) | P2 | M | none | chore | done | Adopt the todo model, with a Rust checker in the gate |
 | [T-205](repo.md) | P2 | S | none | chore | done | Dependabot for cargo, GitHub Actions and the build image (GitHub #27) |
 | [T-206](repo.md) | P2 | S | none | chore | done | B7: the build image is not pinned to a digest |

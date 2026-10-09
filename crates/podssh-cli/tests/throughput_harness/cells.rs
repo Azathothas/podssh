@@ -28,16 +28,24 @@ impl Cell {
     /// The forward road through `scripts/fake-relay.py` on the loopback: the
     /// control of the relay, when Python and `openssl` are found here.
     pub fn fake_relay(s: &Session) -> Result<Cell, Skipped> {
-        let name = "forward road, the stand-in relay on the loopback (the control)".to_string();
+        Cell::fake_relay_mode(s, "normal", "forward road, the stand-in relay on the loopback (the control)")
+    }
+
+    /// The forward road through a stand-in relay of `mode` (T-203), its own
+    /// process; the certificates are made once for the session.
+    pub fn fake_relay_mode(s: &Session, mode: &str, name: &str) -> Result<Cell, Skipped> {
+        let name = name.to_string();
         let python = ["python3", "python"].into_iter().find(|p| found(p, &["--version"]));
         let Some(python) = python else { return Err((name, "no Python here".into())) };
         if !found("openssl", &["version"]) {
             return Err((name, "no openssl here, to make the stand-in's certificate".into()));
         }
         let dir = s.home.join("fake-relay");
-        std::fs::create_dir_all(&dir).map_err(|e| (name.clone(), e.to_string()))?;
-        certificates(&dir).map_err(|why| (name.clone(), why))?;
-        let port_file = dir.join("port");
+        if !dir.join("relay.pem").exists() {
+            std::fs::create_dir_all(&dir).map_err(|e| (name.clone(), e.to_string()))?;
+            certificates(&dir).map_err(|why| (name.clone(), why))?;
+        }
+        let port_file = dir.join(format!("port-{}", mode.replace(':', "-")));
         let child = Command::new(python)
             .arg(scripts().join("fake-relay.py"))
             .arg("--cert")
@@ -46,6 +54,8 @@ impl Cell {
             .arg(dir.join("relay.key"))
             .arg("--port-file")
             .arg(&port_file)
+            .arg("--mode")
+            .arg(mode)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())

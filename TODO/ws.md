@@ -412,7 +412,7 @@ its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustl
 (`crates/podssh-ws/src/crypto/hmac.rs`), AES-GCM and ChaCha20-Poly1305
 (`crates/podssh-ws/src/crypto/aead.rs`), the ECDHE groups (`crates/podssh-ws/src/crypto/kx.rs`),
 and RSA and ECDSA verification (`crates/podssh-ws/src/crypto/sign.rs`). The stand-in relay
-requires TLS 1.3 (`scripts/fake-relay.py:254-255`).
+requires TLS 1.3 (`scripts/fake-relay.py:354-355`).
 
 ## Approach
 
@@ -569,7 +569,7 @@ returns a `String` (142-166). The callers keep or pass the text:
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
-WebSocket Close"), and `scripts/interop-faults.sh:148` ("pings unanswered").
+WebSocket Close"), and `scripts/interop-faults.sh:154` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach
@@ -738,7 +738,7 @@ form (`:80-88`). The tests check the encoder at the boundaries 125, 126, 65535 a
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
 (`crates/podssh-ws/src/client.rs:392-401`). The stand-in relay writes the minimal form
-(`scripts/fake-relay.py:57-65`); the frames of the real relay were not checked for it.
+(`scripts/fake-relay.py:69-77`); the frames of the real relay were not checked for it.
 
 ## Approach
 

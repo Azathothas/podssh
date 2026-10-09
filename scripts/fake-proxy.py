@@ -5,17 +5,26 @@ interop harness. It resolves names itself, as the measured egress proxy does
 
 Usage: fake-proxy.py --port-file FILE --log FILE
                      [--map NAME=HOST:PORT ...] [--answer NAME=STATUS ...]
+                     [--from ADDRESS] [--move SECONDS:ADDRESS]
 
 `--map` sends `CONNECT NAME:any-port` to HOST:PORT; `--answer` makes the
 proxy answer CONNECT to NAME with STATUS (a 5xx, say) instead. Any other name
 gets `403 not on the egress allowlist`, and anything but CONNECT gets 405.
 Each request is logged as one line: the status, then the request line.
+
+`--from` makes each tunnel leave from ADDRESS (127.0.0.2, say), so the far
+end sees the client at another address. `--move` is a client whose address
+changes: SECONDS after the first tunnel, each open tunnel goes silent, with
+no RST, and each new one leaves from ADDRESS.
 """
 
 import argparse
 import asyncio
+import time
 
 args = None
+# When the first tunnel opened, for --move.
+first_tunnel = None
 REASONS = {403: "not on the egress allowlist", 502: "Bad Gateway", 503: "Service Unavailable",
            504: "Gateway Timeout"}
 
@@ -25,9 +34,20 @@ def log(line):
         f.write(line + "\n")
 
 
-async def pipe(reader, writer):
+def moved():
+    """Whether the client's address has changed (--move)."""
+    if args.move is None or first_tunnel is None:
+        return False
+    return time.monotonic() >= first_tunnel + args.move[0]
+
+
+async def pipe(reader, writer, old):
     try:
         while data := await reader.read(65536):
+            if old and moved():
+                # The old address is gone: its bytes go nowhere, and nothing
+                # tells either end.
+                await asyncio.Event().wait()
             writer.write(data)
             await writer.drain()
     except OSError:
@@ -65,15 +85,24 @@ async def handle(reader, writer):
         await refuse(writer, 403, request_line)
         return
     host, port = args.maps[name]
+    global first_tunnel
+    old = not moved()
+    source = args.move[1] if not old else args.source
     try:
-        up_reader, up_writer = await asyncio.wait_for(asyncio.open_connection(host, port), 10)
+        local = (source, 0) if source else None
+        opening = asyncio.open_connection(host, port, local_addr=local)
+        up_reader, up_writer = await asyncio.wait_for(opening, 10)
     except (OSError, asyncio.TimeoutError):
         await refuse(writer, 502, request_line)
         return
-    log(f"200 {request_line}")
+    if first_tunnel is None:
+        first_tunnel = time.monotonic()
+    log(f"200 {request_line} from {source or 'the default address'}")
     writer.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
     await writer.drain()
-    await asyncio.gather(pipe(reader, up_writer), pipe(up_reader, writer))
+    # A tunnel opened after the move is from the new address, and stays.
+    old = old and args.move is not None
+    await asyncio.gather(pipe(reader, up_writer, old), pipe(up_reader, writer, old))
 
 
 async def main():
@@ -83,7 +112,12 @@ async def main():
     parser.add_argument("--log", required=True)
     parser.add_argument("--map", action="append", default=[])
     parser.add_argument("--answer", action="append", default=[])
+    parser.add_argument("--from", dest="source", default=None)
+    parser.add_argument("--move", default=None)
     args = parser.parse_args()
+    if args.move is not None:
+        seconds, address = args.move.split(":", 1)
+        args.move = (float(seconds), address)
     args.maps = {}
     for item in args.map:
         name, target = item.split("=", 1)
