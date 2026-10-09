@@ -6,6 +6,7 @@
 //! only when the policy or the user says so, and is then recorded.
 
 use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
 
 use russh::keys::ssh_key::PublicKey;
 
@@ -24,6 +25,34 @@ pub struct Policy {
     pub user_files: Vec<PathBuf>,
     pub global_files: Vec<PathBuf>,
     pub batch_mode: bool,
+    /// The key of the first connection of this run, which each later one
+    /// must meet; `None` checks `known_hosts` alone.
+    pub pin: Option<Pin>,
+}
+
+/// The destination's host key for one run of podssh, so that each new
+/// connection of the run (a copy that continues after a drop) meets the key
+/// of the first or fails: `known_hosts` alone takes any key that it lists.
+#[derive(Debug, Clone, Default)]
+pub struct Pin(Arc<Mutex<Option<String>>>);
+
+impl Pin {
+    /// Keep `fingerprint` when nothing is kept yet; else it must be the kept
+    /// one.
+    pub fn admit(&self, fingerprint: &str) -> Result<(), String> {
+        let mut kept = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        match kept.as_deref() {
+            None => {
+                *kept = Some(fingerprint.to_string());
+                Ok(())
+            }
+            Some(first) if first == fingerprint => Ok(()),
+            Some(first) => Err(format!(
+                "the host key changed during this run: {first} at the first connection, {fingerprint} now. \
+                 Refusing to connect."
+            )),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,7 +68,19 @@ impl Policy {
     }
 
     /// Check `key`; may prompt (blocking), may append to the first user file.
+    /// A key that passes must also meet the run's pin.
     pub fn check(&self, key: &PublicKey, log: &Log) -> Verdict {
+        let verdict = self.check_known(key, log);
+        match (&verdict, &self.pin) {
+            (Verdict::Accept, Some(pin)) => match pin.admit(&known_hosts::fingerprint(key)) {
+                Ok(()) => verdict,
+                Err(why) => Verdict::Reject(why),
+            },
+            _ => verdict,
+        }
+    }
+
+    fn check_known(&self, key: &PublicKey, log: &Log) -> Verdict {
         let kind = known_hosts::key_type(key);
         let fp = known_hosts::fingerprint(key);
         match known_hosts::lookup(&self.files(), &self.name, key) {
@@ -163,4 +204,18 @@ fn changed_message(
         path.display(),
         known_hosts::fingerprint(recorded),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Pin;
+
+    #[test]
+    fn a_pin_keeps_the_first_key_and_refuses_another() {
+        let pin = Pin::default();
+        assert_eq!(pin.admit("SHA256:first"), Ok(()));
+        assert_eq!(pin.clone().admit("SHA256:first"), Ok(()), "a clone shares the pin");
+        let refused = pin.admit("SHA256:other").expect_err("another key");
+        assert!(refused.contains("SHA256:first") && refused.contains("SHA256:other"), "{refused}");
+    }
 }

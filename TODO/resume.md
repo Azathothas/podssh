@@ -262,7 +262,7 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:140-174`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:220-240`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:224-244`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
 `crates/podssh-cli/src/ssh/resolve.rs:278-286`, and `podssh ssh` exits 255.
@@ -400,8 +400,8 @@ Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
 killed in a session gives exit 255 (`scripts/interop-faults.sh:144-162`).
 These checks stay, for the forward road, which has no resumption. Read: the
-stand-in relay serves the forward path only (`scripts/fake-relay.py:98-110`),
-and its `stall` mode never ends (`scripts/fake-relay.py:147-150`). The
+stand-in relay serves the forward path only (`scripts/fake-relay.py:101-113`),
+and its `stall` mode never ends (`scripts/fake-relay.py:165-168`). The
 harness cannot change an address or end a stall yet (T-203). The checks need
 T-151 to T-155, the iroh road (T-162 to T-165), the reverse runners (T-079,
 T-080) and a far end (`podssh serve`, T-107).

@@ -473,14 +473,14 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:170`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:171`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -528,6 +528,23 @@ the final digest catches a wrong continue. A flag for it (as `sftp -a`)
 lost for `cp`: a script that runs the same copy again after a drop would
 start from zero each time. `podssh sftp -a` keeps OpenSSH's meaning (T-139).
 
+2026-10-09, the rest of it. **A break** is what a new connection can mend:
+an SFTP request whose channel closed or that got no reply, an exec channel
+that ended with neither its close nor an exit status, or one with no
+message within its limit. A status, a protocol error and digests that
+differ are answers, and end the copy as before. **A new connection that
+fails** for the network (69) counts as an attempt; a refused login or a
+host key other than the first one (77) ends the copy. The first connection
+is not tried again: the relay opener already fails over between hosts.
+**The side file** is written at the start, each 4 MiB and at each break,
+each time with an `fsync`; each 1 MiB lost on the cost of so many. It lives
+with the relay tokens, private. **By exec**, the offset after a break is
+the far file's size once it stands still, never what was sent: a far `cat`
+may have taken less. **A copy within one server** by `copy-data` starts
+over after a break: one request has no offset to give. **A copy that runs
+out of attempts** keeps its temporary file, which the side file names, for
+the next run; each other failure removes it, as T-134 says.
+
 ## Prove
 
 ```sh
@@ -536,12 +553,65 @@ sh scripts/dev.sh check                     # interop-cp.sh through scripts/fake
 ```
 
 The stand-in relay's `close:BYTES:CODE` mode
-(`scripts/fake-relay.py:179-199`) ends each session after 1,500,000 bytes
+(`scripts/fake-relay.py:199-221`) ends each session after 1,500,000 bytes
 from the target with `1011`. A 5,000,000-byte download must finish over 4
 sessions or more with equal digests, and `-v` names each offset. A new mode
 that counts both directions does the same for an upload. A run stopped with
 SIGINT and started again continues at an offset above 0. Plant: continue
 one byte late; the digest check must fail the copy.
+
+## Correction
+
+2026-10-09. **"T-137's path"** (step 2) is `link::connect`
+(`crates/podssh-cli/src/cp/link.rs`), which T-138 made; T-137 has not run.
+**The host key pin** is `podssh_ssh::hostkey::Pin`, through
+`Options::host_key_pin`, for the destination only. **Two defects of
+podssh-ssh hid a break**, found through the stand-in relay that cuts: a
+channel that ended with no exit status was a normal end
+(`crates/podssh-ssh/src/exec.rs`), and russh-sftp's "sender dropped" was a
+protocol error (`crates/podssh-ssh/src/sftp/error.rs`); both are a lost
+connection now. **A defect of T-138**: a message of `mv` held 14 spaces
+where a line continuation was lost; repaired here. **The Prove's
+`--test cp_resume`** is the unit tests of
+`crates/podssh-cli/src/cp/resume.rs`, run by
+`cargo test -p podssh-cli --lib resume`: the module is private to `cp`.
+**The new mode** of the stand-in
+relay is `closeall:BYTES:CODE`. **The SIGINT case** starts podssh through
+`python3`, which puts back SIGINT's default: a job that `sh` starts in the
+background ignores SIGINT. **`transfer.rs` would pass 500 lines**: the SFTP
+road's up and down are in `crates/podssh-cli/src/cp/bysftp.rs`, and the
+session in `crates/podssh-cli/src/cp/session.rs`.
+
+## Done
+
+2026-10-09, in the commit "podssh cp goes on after a broken connection, at
+the offset of the copy, in this run or the next".
+
+- `crates/podssh-cli/src/cp/resume.rs`: the source's state, the progress
+  of a copy and its side file, and the local temporary file of a copy down.
+  `crates/podssh-cli/src/cp/session.rs`: the attempts at each file, with a
+  new connection after each break. `crates/podssh-cli/src/cp/bysftp.rs`:
+  the SFTP road's up and down, which write on at an offset; by exec, the
+  far file's size once it stands still, `cat >>` and `tail -c`.
+- `podssh-ssh`: `hostkey::Pin` through `Options::host_key_pin`; `exec.rs`
+  and `sftp/error.rs` name a connection that was lost.
+- `scripts/fake-relay.py` (`closeall:`) and `scripts/interop-resume.sh`.
+- `docs/cli.md`, `docs/design.md`, the manual (the notes of `cp`, FILES).
+- Prove, native: `cargo test -p podssh-cli --lib resume`: 6 passed (the
+  side file of the same source, of a changed one and of another file; its
+  writes each 4 MiB; the prefix in the digest; podssh's temporary names);
+  the tests of the pin and of the errors of a session that ended;
+  `cargo test --no-fail-fast`: 914 passed, 0 failed, 20 ignored. In the
+  build image, before the operator's decision of 2026-10-09: a first run of
+  `gate.sh lint msrv_ssh ssh release` found the two defects of `podssh-ssh`
+  that the Correction names, and the exec road went on through both relays
+  that cut, 3 times each way, with equal digests. The second run, after
+  the repairs: green, interop 184 passed, 0 failed; each road went on 3
+  times each way with equal digests, a copy that SIGINT stopped (exit 130)
+  went on at an offset when run again, and no temporary or side file
+  stayed.
+- Waits for T-251 (the decision of 2026-10-09): the plant of the Prove
+  (continue one byte late; the digest must fail it).
 
 # T-137: `podssh cp` opens a new relay session before the relay's limits
 
@@ -567,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:169`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:170`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -834,7 +904,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:211-229` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:335-338`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:349-352`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -886,7 +956,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:176-180` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:168`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:169`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -992,7 +1062,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:168`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:169`).
 
 ## Premise
 
@@ -1179,7 +1249,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:168`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:169`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 

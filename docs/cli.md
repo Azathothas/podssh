@@ -185,6 +185,20 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   `{"event":"error", "source", "message", "code"}`.
 - Each SFTP reply with no file data waits 30 s at most, each read or write
   60 s (T-133); `--timeout` bounds the whole copy, the login included.
+- **A copy goes on after a broken connection**
+  (`crates/podssh-cli/src/cp/resume.rs`): a relay close, a lost link or a
+  step with no reply keeps the temporary file, and a new connection writes
+  on at the offset below which each byte is in it; by exec, once the far
+  file stands still (two sizes 2 s apart), up with `cat >>` and down with
+  `tail -c`. At most 5 attempts in a row with no new byte, with the relay
+  opener's backoff between them; a refused login, a host key other than
+  the first connection's, or another answer ends it at once.
+- The offset is kept across runs too, in a private side file of the cache
+  directories (`podssh-cp-*.resume`, never a byte of the file): the same
+  command, run again, goes on while the source is as it was; else it
+  starts over and says so. The digest covers the whole file: a continued
+  copy whose digests differ starts once more from the first byte, then
+  fails.
 
 ## `podssh mv`
 

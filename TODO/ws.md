@@ -412,7 +412,7 @@ its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustl
 (`crates/podssh-ws/src/crypto/hmac.rs`), AES-GCM and ChaCha20-Poly1305
 (`crates/podssh-ws/src/crypto/aead.rs`), the ECDHE groups (`crates/podssh-ws/src/crypto/kx.rs`),
 and RSA and ECDSA verification (`crates/podssh-ws/src/crypto/sign.rs`). The stand-in relay
-requires TLS 1.3 (`scripts/fake-relay.py:232-233`).
+requires TLS 1.3 (`scripts/fake-relay.py:254-255`).
 
 ## Approach
 
@@ -738,7 +738,7 @@ form (`:80-88`). The tests check the encoder at the boundaries 125, 126, 65535 a
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
 (`crates/podssh-ws/src/client.rs:392-401`). The stand-in relay writes the minimal form
-(`scripts/fake-relay.py:54-62`); the frames of the real relay were not checked for it.
+(`scripts/fake-relay.py:57-65`); the frames of the real relay were not checked for it.
 
 ## Approach
 

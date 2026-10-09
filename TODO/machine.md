@@ -48,8 +48,8 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:123-147`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:163-182`) and
-   `docs/cli.md:216-234` in the same commit.
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:168-187`) and
+   `docs/cli.md:230-248` in the same commit.
 
 ## Decision
 
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:81-84` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:336-347`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:163-182`) and `docs/cli.md:216-234` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:168-187`) and `docs/cli.md:230-248` in the same commit.
 
 ## Decision
 
@@ -414,7 +414,7 @@ trip (`crates/podssh-ws/src/session.rs:149-173`; the payload is a counter, `:170
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs:130-132`). The relay counts both directions
 against 64 MiB for each session (`docs/relay.md:127`). The stand-in relay answers pings
-(`scripts/fake-relay.py:167-169`).
+(`scripts/fake-relay.py:187-189`).
 
 ## Approach
 
@@ -538,7 +538,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:358-374`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:372-388`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:140-150`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:101-108`), and stdio needs no listener.

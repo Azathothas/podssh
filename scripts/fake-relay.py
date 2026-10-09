@@ -19,6 +19,9 @@ Modes:
   stall:SECONDS    SECONDS after the upgrade, stop: no frames, no Pongs
   close:BYTES:CODE after BYTES from the target, Close with CODE and the
                    relay's reason for it
+  closeall:BYTES:CODE
+                   the same after BYTES both ways together, as the relay
+                   counts its session byte cap
 """
 
 import argparse
@@ -143,6 +146,21 @@ async def connect(reader, writer, path, headers):
 async def pump(reader, writer, t_reader, t_writer):
     stalled = asyncio.Event()
     done = asyncio.Event()
+    # closeall: the bytes of both directions together, as the relay counts
+    # its session byte cap.
+    both = {"limit": None, "code": None, "count": 0}
+    if args.mode.startswith("closeall:"):
+        _, limit, code = args.mode.split(":")
+        both["limit"], both["code"] = int(limit), int(code)
+
+    async def counted(n):
+        """Count n payload bytes; at the limit, close as the relay would."""
+        both["count"] += n
+        if both["limit"] is not None and both["count"] >= both["limit"]:
+            writer.write(close_frame(both["code"], REASONS.get(both["code"], "fault injection")))
+            await writer.drain()
+            return True
+        return False
 
     async def stall_clock():
         if args.mode.startswith("stall:"):
@@ -164,6 +182,8 @@ async def pump(reader, writer, t_reader, t_writer):
             if opcode in (0x0, 0x2):  # binary, or its continuation
                 t_writer.write(data)
                 await t_writer.drain()
+                if await counted(len(data)):
+                    return
             elif opcode == 0x9:
                 writer.write(frame(0xA, data))
                 await writer.drain()
@@ -192,6 +212,8 @@ async def pump(reader, writer, t_reader, t_writer):
                 return
             writer.write(frame(0x2, data))
             await writer.drain()
+            if await counted(len(data)):
+                return
             sent += len(data)
             if limit is not None and sent >= limit:
                 writer.write(close_frame(code, REASONS.get(code, "fault injection")))

@@ -51,7 +51,7 @@ impl Link {
 pub async fn connect(resolved: &Resolved, log: &Arc<Log>) -> Result<Link, Failed> {
     match open(resolved, log, true).await? {
         Some(link) => Ok(link),
-        None => Err(Failed { fault: Fault::RelayUnreachable, message: "the server has no SFTP".into() }),
+        None => Err(Failed::new(Fault::RelayUnreachable, "the server has no SFTP".into())),
     }
 }
 
@@ -66,7 +66,7 @@ pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Opt
                 log.error(line);
             }
             let message = format!("{}: no connection to the server", resolved.options.destination.host);
-            return Err(Failed { fault: fault_of(not.code), message });
+            return Err(Failed::new(fault_of(not.code), message));
         }
     };
     let handles = podssh_ssh::run::connect_hops(reached.stream, &resolved.options, log).await.map_err(hop_failure)?;
@@ -91,7 +91,7 @@ pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Opt
         }
         Err(e) => {
             podssh_ssh::run::disconnect_all(&handles).await;
-            return Err(Failed { fault: Fault::RelayUnreachable, message: format!("{host}: {e}") });
+            return Err(Failed::new(Fault::RelayUnreachable, format!("{host}: {e}")));
         }
     };
     Ok(Some(Link { handles, road }))
@@ -108,5 +108,5 @@ fn hop_failure(e: HopError) -> Failed {
         HopError::Unreachable(_) => Fault::RelayUnreachable,
         HopError::HostKey(_) | HopError::Auth(_) => Fault::Auth,
     };
-    Failed { fault, message: e.to_string() }
+    Failed::new(fault, e.to_string())
 }

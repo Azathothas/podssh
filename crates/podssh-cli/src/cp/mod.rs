@@ -1,6 +1,8 @@
 //! `podssh cp` and `podssh mv`: files between this host and a server, over
 //! SFTP (T-133), or by exec when the server has no SFTP ([`byexec`]); `mv`
-//! removes each source once its copy is verified ([`moving`], T-138).
+//! removes each source once its copy is verified ([`moving`], T-138). A copy
+//! whose connection breaks goes on over a new one, at its offset
+//! ([`resume`], T-136).
 //!
 //! **The destination's name never holds a file that was not verified**
 //! ([`transfer`]): the bytes go to a temporary name beside it, the SHA-256 of
@@ -18,11 +20,14 @@
 //! environment. With several files, the first failure's code.
 
 pub mod byexec;
+mod bysftp;
 mod digest;
 mod link;
 mod moving;
 pub mod operand;
 pub mod plan;
+mod resume;
+mod session;
 mod transfer;
 
 use std::io::Write;
@@ -35,10 +40,11 @@ use podssh_ssh::Log;
 use crate::exitmap::Fault;
 use crate::ssh::args::SshArgs;
 use crate::ssh::resolve::{self, Env, Resolved};
-use link::{Link, Road};
-use moving::{After, Before};
+use moving::After;
 use operand::{Operand, Remote};
 use plan::{Direction, Plan};
+use resume::Before;
+use session::session;
 use transfer::{Done, Failed};
 
 /// `cp`'s or `mv`'s command line as parsed.
@@ -103,7 +109,12 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     let mut resolved = Vec::new();
     for server in &servers {
         match resolve_for(server) {
-            Ok(r) => resolved.push(r),
+            Ok(mut r) => {
+                // Each new connection of this run meets the first one's host
+                // key (T-136).
+                r.options.host_key_pin = Some(podssh_ssh::hostkey::Pin::default());
+                resolved.push(r);
+            }
             Err(refusal) => return refusal.report(verb, err),
         }
     }
@@ -134,10 +145,7 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
             Some(limit) => tokio::time::timeout(limit, run).await.unwrap_or_else(|_| Outcome {
                 failed: Some((
                     String::new(),
-                    Failed {
-                        fault: Fault::TimedOut,
-                        message: format!("the --timeout of {} s passed", limit.as_secs()),
-                    },
+                    Failed::new(Fault::TimedOut, format!("the --timeout of {} s passed", limit.as_secs())),
                 )),
                 ..Outcome::default()
             }),
@@ -231,7 +239,7 @@ async fn across(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>, after: After
     let name = from.path.trim_end_matches('/').rsplit('/').next().unwrap_or("").to_string();
     let dir = std::env::temp_dir().join(format!("podssh-cp-{:016x}", rand::random::<u64>()));
     if let Err(e) = std::fs::create_dir(&dir) {
-        let failed = Failed { fault: Fault::CantCreate, message: format!("{}: {e}", dir.display()) };
+        let failed = Failed::new(Fault::CantCreate, format!("{}: {e}", dir.display()));
         return Outcome { failed: Some((from.path.clone(), failed)), ..Outcome::default() };
     }
     let local = dir.join(if name.is_empty() { "file" } else { &name });
@@ -296,113 +304,4 @@ async fn remove_session(
     let removed = moving::remove_far(&link, &from.path, before, done).await;
     link.close().await;
     removed
-}
-
-/// One connection, and each file of `plan` over it; `after` says what
-/// becomes of each source. `named` replaces the source's name in the report
-/// (a copy across). A copy within one server is `None` when the server has
-/// no `copy-data`.
-async fn session(
-    plan: &Plan,
-    resolved: &Resolved,
-    log: &Arc<Log>,
-    named: Option<String>,
-    after: After,
-) -> Option<Outcome> {
-    let mut outcome = Outcome::default();
-    let within = plan.direction == Direction::Across;
-    // Within one server with no SFTP, the copy goes through this host, in
-    // two sessions that each probe and say so.
-    let link = match link::open(resolved, log, !within).await {
-        Ok(Some(link)) => link,
-        Ok(None) => return None,
-        Err(failed) => {
-            outcome.failed = Some((shown(&plan.sources[0]), failed));
-            return Some(outcome);
-        }
-    };
-    // Within one server, only copy-data spares this host the bytes.
-    if within && !link.copies_within() {
-        link.close().await;
-        return None;
-    }
-    let many = plan.sources.len() > 1;
-    for source in &plan.sources {
-        let name = named.clone().unwrap_or_else(|| shown(source));
-        let before = match after {
-            After::Keep => None,
-            After::Remove | After::Record => match moving::before(&link, source).await {
-                Ok(before) => Some(before),
-                Err(failed) => {
-                    outcome.failed.get_or_insert((name, failed));
-                    continue;
-                }
-            },
-        };
-        match copy(&link, source, &plan.destination, many, log).await {
-            Ok(mut done) => {
-                if let Some(n) = &named {
-                    done.source = n.clone();
-                }
-                let mut kept = None;
-                match (after, before) {
-                    (After::Remove, Some(before)) => {
-                        let removed = moving::finish(&link, source, &before, &done).await;
-                        done.removed = Some(removed.is_ok());
-                        kept = removed.err();
-                    }
-                    (After::Record, Some(before)) => outcome.recorded.push(before),
-                    _ => {}
-                }
-                outcome.done.push(done);
-                if let Some(failed) = kept {
-                    outcome.failed.get_or_insert((name, failed));
-                }
-            }
-            Err(failed) => {
-                // A session that broke serves no further file.
-                let session_gone = failed.fault == Fault::SessionFault;
-                outcome.failed.get_or_insert((name, failed));
-                if session_gone {
-                    break;
-                }
-            }
-        }
-    }
-    link.close().await;
-    Some(outcome)
-}
-
-/// Copy one file over `link`, by its road.
-async fn copy(link: &Link, source: &Operand, dest: &Operand, many: bool, log: &Log) -> Result<Done, Failed> {
-    let handle = link.handle();
-    match (&link.road, source, dest) {
-        (Road::Sftp(sftp), Operand::Local(path), Operand::Remote(dest)) => {
-            transfer::up(sftp, handle, path, &dest.path, many, log).await
-        }
-        (Road::Sftp(sftp), Operand::Remote(src), Operand::Local(dest)) => {
-            transfer::down(sftp, handle, &src.path, dest, many, log).await
-        }
-        (Road::Sftp(sftp), Operand::Remote(src), Operand::Remote(dest)) => {
-            transfer::within(sftp, handle, &src.path, &dest.path, log).await
-        }
-        (Road::Exec(far), Operand::Local(path), Operand::Remote(dest)) => {
-            far.up(handle, path, &dest.path, many, log).await
-        }
-        (Road::Exec(far), Operand::Remote(src), Operand::Local(dest)) => {
-            far.down(handle, &src.path, dest, many, log).await
-        }
-        (Road::Exec(_), Operand::Remote(_), Operand::Remote(_)) => {
-            unreachable!("a copy within one server by exec goes through this host")
-        }
-        (_, Operand::Local(_), Operand::Local(_)) => unreachable!("a plan has a server"),
-    }
-}
-
-/// An operand as the report names it.
-fn shown(operand: &Operand) -> String {
-    match operand {
-        Operand::Local(p) => p.clone(),
-        Operand::Remote(r) => r.path.clone(),
-    }
 }

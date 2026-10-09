@@ -87,6 +87,11 @@ const CP: &[&str] = &[
     "Each SFTP reply that carries no file data is waited for 30 s at most, and each read or write 60 s. \
      --timeout bounds the whole copy, the login included. The exit codes are the sysexits of \
      EXIT STATUS, as for podssh proxy.",
+    "A copy goes on after a broken connection: the temporary file stays, and a new connection writes on \
+     at the offset below which each byte is in it, 5 times in a row at most with no new byte, with a \
+     backoff between them. A refused login, or a host key other than the first connection's, ends it. \
+     The same command run again goes on too while the source is as it was: a private side file in the \
+     cache directories keeps the offset, never a byte of the file. The digest covers the whole file.",
 ];
 
 const MV: &[&str] = &[

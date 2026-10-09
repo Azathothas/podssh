@@ -38,6 +38,11 @@ pub enum SftpError {
     Closed(String),
 }
 
+/// How russh-sftp 3.0.1 says that its session ended: a receive or a send on
+/// a closed channel, a closed session, or a reply whose sender was dropped
+/// (`src/client/error.rs`, `src/client/rawsession.rs` of the crate).
+const GONE: &[&str] = &["RecvError", "SendError", "session closed", "sender dropped"];
+
 impl SftpError {
     /// The error of a step from the library's error.
     pub(crate) fn from_raw(what: &str, raw: Raw, limit: Duration) -> SftpError {
@@ -51,9 +56,10 @@ impl SftpError {
             Raw::IO(why) => SftpError::Closed(format!("{what}: {why}")),
             Raw::Limited(why) => SftpError::Protocol(format!("{what}: over the server's limits ({why})")),
             Raw::UnexpectedPacket => SftpError::Protocol(format!("{what}: a reply of the wrong type")),
-            // The library's reader stopped, or its channel to the writer
-            // closed: the session is gone.
-            Raw::UnexpectedBehavior(why) if why.contains("RecvError") || why.contains("session closed") => {
+            // The library's reader stopped, its channel to the writer closed,
+            // or a request's reply can no longer come: the session is gone,
+            // and a copy can go on over a new one (T-136).
+            Raw::UnexpectedBehavior(why) if GONE.iter().any(|said| why.contains(said)) => {
                 SftpError::Closed(format!("{what}: the server closed the SFTP session"))
             }
             Raw::UnexpectedBehavior(why) => SftpError::Protocol(format!("{what}: {}", podssh_ws::text::one_line(&why))),
@@ -127,5 +133,13 @@ mod tests {
         let e =
             SftpError::from_raw("stat /x", Raw::UnexpectedBehavior("RecvError: channel closed".into()), Duration::ZERO);
         assert_eq!(e, SftpError::Closed("stat /x: the server closed the SFTP session".into()));
+        // A request in flight when the connection broke (measured through a
+        // stand-in relay that cuts, T-136), and a send after it.
+        for said in ["sender dropped", "SendError: channel closed", "session closed"] {
+            let e = SftpError::from_raw("read /x", Raw::UnexpectedBehavior(said.into()), Duration::ZERO);
+            assert_eq!(e, SftpError::Closed("read /x: the server closed the SFTP session".into()), "{said}");
+        }
+        let e = SftpError::from_raw("read /x", Raw::UnexpectedBehavior("Duplicate version".into()), Duration::ZERO);
+        assert!(matches!(e, SftpError::Protocol(_)), "{e:?}");
     }
 }

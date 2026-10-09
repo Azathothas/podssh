@@ -92,7 +92,9 @@ async fn open(handle: &Handle<Client>, command: &str, limit: Duration) -> Result
 }
 
 /// Each message until the channel closes: stdout to `sink`, stderr kept up to
-/// `cap`, and the exit status; each wait `progress` at most.
+/// `cap`, and the exit status; each wait `progress` at most. A channel that
+/// ends with neither its close nor an exit status lost its connection: the
+/// command's end was never seen.
 async fn finish(
     channel: &mut Channel<Msg>,
     progress: Duration,
@@ -100,10 +102,13 @@ async fn finish(
     sink: &mut dyn FnMut(&[u8]) -> std::io::Result<()>,
 ) -> Result<Captured, ExecError> {
     let mut out = Captured::default();
+    let mut closed = false;
     loop {
         match tokio::time::timeout(progress, channel.wait()).await {
             Err(_) => return Err(ExecError::Timeout(progress)),
-            Ok(None) => return Ok(out),
+            Ok(None) if closed || out.status.is_some() => return Ok(out),
+            Ok(None) => return Err(ExecError::Lost("the connection ended before the command did".into())),
+            Ok(Some(ChannelMsg::Close)) => closed = true,
             Ok(Some(ChannelMsg::Failure)) => return Err(ExecError::Refused("exec".into())),
             Ok(Some(ChannelMsg::Data { data })) => {
                 sink(&data).map_err(|e| ExecError::Lost(format!("the local copy: {e}")))?;

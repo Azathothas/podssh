@@ -1,9 +1,10 @@
 //! The steps of a copy by exec that move a file, up and down. Each writes
-//! under a temporary name, compares the digests, then renames; a failure
-//! removes the temporary file.
+//! under a temporary name, compares the digests, then renames. A failure
+//! removes the temporary file, except a broken connection's: the next
+//! attempt writes on in it (T-136), up with `cat >>`, down with `tail -c`.
 
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use podssh_ssh::exec;
@@ -13,7 +14,8 @@ use sha2::{Digest, Sha256};
 
 use super::{command, failed, step_failed, Far, Kind};
 use crate::cp::digest::{self, Sum};
-use crate::cp::transfer::{self, Done, Failed};
+use crate::cp::resume::{self, Progress};
+use crate::cp::transfer::{self, Cause, Done, Failed};
 use crate::exitmap::Fault;
 
 /// A piece of a copy up: a multiple of 3, so that base64 pads only the last.
@@ -32,7 +34,8 @@ fn read_full(reader: &mut impl Read, buf: &mut [u8]) -> std::io::Result<usize> {
 }
 
 impl Far {
-    /// Copy the local file `source` to `dest` on the server.
+    /// Copy the local file `source` to `dest` on the server, or write on in
+    /// the copy that `progress` holds.
     pub async fn up(
         &self,
         handle: &Connection,
@@ -40,6 +43,7 @@ impl Far {
         dest: &str,
         many: bool,
         log: &Log,
+        progress: &mut Progress,
     ) -> Result<Done, Failed> {
         let local = Path::new(source);
         let before = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
@@ -50,26 +54,55 @@ impl Far {
             .file_name()
             .and_then(|n| n.to_str())
             .ok_or_else(|| failed(Fault::NoInput, format!("{source}: the name is not UTF-8")))?;
-        let target = self.target(handle, dest, name, many).await?;
-        let (dir, leaf) = transfer::split_remote(&target);
-        let temp = format!("{dir}{}", transfer::temp_name(leaf));
-        let script = if self.raw {
-            "umask 077; set -C; exec cat > \"$1\""
-        } else {
-            "umask 077; set -C; exec base64 -d > \"$1\""
+        let target = match &progress.target {
+            Some(target) => target.clone(),
+            None => self.target(handle, dest, name, many).await?,
+        };
+        // What came before the break is what the far file holds once its
+        // writer, which the break may have left running, stops adding to it.
+        let mut kept = None;
+        if let Some(temp) = progress.temp.clone() {
+            match self.settled(handle, &temp).await? {
+                Some(size) if size <= before.len() => kept = Some((temp, size)),
+                _ => self.remove(handle, &temp).await,
+            }
+        }
+        let (temp, start) = match kept {
+            Some((temp, size)) => {
+                progress.offset = size;
+                log.verbose(&format!("{source}: continuing {temp} at byte {size} by exec"));
+                (temp, size)
+            }
+            None => {
+                let (dir, leaf) = transfer::split_remote(&target);
+                let temp = format!("{dir}{}", transfer::temp_name(leaf));
+                progress.begin(&target, &temp);
+                log.verbose(&format!("{source}: writing {temp} by exec"));
+                (temp, 0)
+            }
+        };
+        let script = match (start, self.raw) {
+            (0, true) => "umask 077; set -C; exec cat > \"$1\"",
+            (0, false) => "umask 077; set -C; exec base64 -d > \"$1\"",
+            (_, true) => "exec cat >> \"$1\"",
+            (_, false) => "exec base64 -d >> \"$1\"",
         };
         let cmd = command(script, &[&temp]).map_err(|why| failed(Fault::Usage, why))?;
-        log.verbose(&format!("{source}: writing {temp} by exec"));
         let copied = async {
             let mut file = std::fs::File::open(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
             let mut hasher = Sha256::new();
-            let mut sent = 0u64;
+            resume::hash_prefix(&mut file, &mut hasher, start)
+                .map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
+            let mut sent = start;
             let raw = self.raw;
             let mut fill = |piece: &mut Vec<u8>| {
                 let mut buf = vec![0u8; PIECE];
                 let n = read_full(&mut file, &mut buf)?;
                 hasher.update(&buf[..n]);
                 sent += n as u64;
+                // Sent, not yet known to be written: a break counts the far
+                // file again before it goes on.
+                progress.advance(sent);
                 if raw {
                     piece.extend_from_slice(&buf[..n]);
                 } else if n > 0 {
@@ -106,13 +139,24 @@ impl Far {
             })
         }
         .await;
-        if copied.is_err() {
-            self.remove(handle, &temp).await;
+        match &copied {
+            // Only what the far file held at the start is known to be there;
+            // the next attempt counts it again.
+            Err(f) if f.cause == Cause::Broke => {
+                progress.offset = start;
+                progress.save();
+            }
+            Err(_) => {
+                self.remove(handle, &temp).await;
+                progress.clear();
+            }
+            Ok(_) => progress.clear(),
         }
         copied
     }
 
-    /// Copy `source` on the server to the local `dest`.
+    /// Copy `source` on the server to the local `dest`, or write on in the
+    /// copy that `progress` holds.
     pub async fn down(
         &self,
         handle: &Connection,
@@ -120,6 +164,7 @@ impl Far {
         dest: &str,
         many: bool,
         log: &Log,
+        progress: &mut Progress,
     ) -> Result<Done, Failed> {
         let size = match self.kind(handle, source).await? {
             Kind::File(n) => n,
@@ -133,21 +178,36 @@ impl Far {
         if name.is_empty() || name == "." || name == ".." {
             return Err(failed(Fault::NoInput, format!("{source}: names no file")));
         }
-        let target = transfer::local_target(dest, name, many)?;
-        let leaf = target.file_name().and_then(|n| n.to_str()).unwrap_or(name).to_string();
-        let temp = target.with_file_name(transfer::temp_name(&leaf));
+        let target = match &progress.target {
+            Some(target) => PathBuf::from(target),
+            None => transfer::local_target(dest, name, many)?,
+        };
+        // Without `tail` no read starts past the first byte: start over.
+        if !self.tools.contains("tail") {
+            progress.offset = 0;
+        }
+        let (temp, file, start) = resume::local_temp(&target, size, progress)?;
         let shown = temp.display().to_string();
-        let mut out =
-            Some(transfer::create_private(&temp).map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?);
-        log.verbose(&format!("{source}: writing {shown} by exec"));
+        log.verbose(&match start {
+            0 => format!("{source}: writing {shown} by exec"),
+            n => format!("{source}: continuing {shown} at byte {n} by exec"),
+        });
+        let mut out = Some(file);
         let copied = async {
             let mut hasher = Sha256::new();
-            let came = self
-                .read(handle, source, &mut |bytes| {
-                    hasher.update(bytes);
-                    out.as_mut().map_or(Ok(()), |f| f.write_all(bytes))
-                })
-                .await?;
+            if let Some(f) = out.as_mut() {
+                resume::hash_prefix(f, &mut hasher, start)
+                    .map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
+            }
+            let mut came = start;
+            self.read(handle, source, start, &mut |bytes| {
+                hasher.update(bytes);
+                out.as_mut().map_or(Ok(()), |f| f.write_all(bytes))?;
+                came += bytes.len() as u64;
+                progress.advance(came);
+                Ok(())
+            })
+            .await?;
             if came != size {
                 return Err(failed(Fault::SessionFault, format!("{source}: {came} bytes came, and wc -c gave {size}")));
             }
@@ -172,9 +232,14 @@ impl Far {
             })
         }
         .await;
-        if copied.is_err() {
-            drop(out);
-            let _ = std::fs::remove_file(&temp);
+        drop(out);
+        match &copied {
+            Err(f) if f.cause == Cause::Broke => progress.save(),
+            Err(_) => {
+                let _ = std::fs::remove_file(&temp);
+                progress.clear();
+            }
+            Ok(_) => progress.clear(),
         }
         copied
     }

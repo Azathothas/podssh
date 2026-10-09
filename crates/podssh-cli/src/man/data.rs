@@ -119,7 +119,9 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                 "The cache: the first of these directories that podssh can use. It holds one relay token for \
                  each relay deployment, with the host that minted it ({} for the default relay), and the \
                  relay's list of hosts ({}). It holds each pair of the reverse road under its label ({}), \
-                 as podssh relay pair writes it. Each file has mode 0600. \
+                 as podssh relay pair writes it, and, until a copy that broke is done, its side file \
+                 (podssh-cp-*.resume: the offset, the temporary file's name and the source's state, never a \
+                 byte of the file). Each file has mode 0600. \
                  podssh ignores a cache file that is a symbolic link, that belongs to another user, or that \
                  others can read.",
                 podssh_relay::cache::file_name(podssh_relay::DEFAULT_RELAY_HOST),

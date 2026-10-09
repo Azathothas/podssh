@@ -460,10 +460,10 @@ out with matching digests.
   T-079), and the operator connects through the relay (T-084).
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:160-164`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
-  `docs/STATUS.md:161`). With no pty device, no podssh code can give the child
+  `docs/STATUS.md:162`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:42`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:163`; measured: `docs/STATUS.md:169`). 200 MiB each way
+  (`docs/relay.md:163`; measured: `docs/STATUS.md:170`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:19-26`).
@@ -1184,7 +1184,7 @@ no reason (`docs/target-environment.md:63-64`).
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
-- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:161`):
+- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:162`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
   (`crates/podssh-cli/src/doctor/host.rs:157-159`).
@@ -1235,7 +1235,7 @@ crates/podssh-ssh/tests/serve_shell.rs gives the function a directory `sh`,
 a data file `dash` (mode 0644), a data file with mode 0755 (the spawn fails),
 a link to a missing file and a good shell: each failure is named, and the
 good shell wins. A planted `exists()` test fails the directory case. In the
-gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:128`) is
+gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:129`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
 # T-248: A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space
@@ -1262,10 +1262,10 @@ criterion of M5 (T-113) needs them.
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
   (`crates/podssh-cli/src/doctor/unix.rs:78-93`). Both real sandboxes have no
-  `/dev/ptmx` (`docs/STATUS.md:161`), and the target has no `/dev/pts`
+  `/dev/ptmx` (`docs/STATUS.md:162`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp
-  filter (`docs/STATUS.md:140`). With `NoNewPrivs=1`, a process can add a
+  filter (`docs/STATUS.md:141`). With `NoNewPrivs=1`, a process can add a
   filter of its own; a filter is inherited by each child.
 - Read, not measured here: for a program, a tty is the success of the tty
   `ioctl` calls on its descriptors. musl's `isatty` calls `TIOCGWINSZ`;

@@ -29,7 +29,7 @@ use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
 use super::digest::{self, Sum};
-use super::transfer::Failed;
+use super::transfer::{Cause, Failed};
 use crate::exitmap::Fault;
 
 mod files;
@@ -46,18 +46,23 @@ const NEEDED: &[&str] = &["cat", "wc", "mv", "rm"];
 /// The most that a login may print before the marker.
 const BEFORE_MARKER: usize = 64 * 1024;
 
+/// Between two reads of the size of a far file that a broken connection's
+/// writer may still be adding to, and the longest wait for it to stand still.
+const SETTLE_STEP: Duration = Duration::from_secs(2);
+const SETTLE_MAX: Duration = Duration::from_secs(30);
+
 fn failed(fault: Fault, message: String) -> Failed {
-    Failed { fault, message }
+    Failed::new(fault, message)
 }
 
 /// The failure of a step: a refused command means no exec at all; else the
-/// session broke.
+/// connection broke, and a new one can go on (T-136).
 fn step_failed(what: &str, e: ExecError) -> Failed {
-    let fault = match e {
-        ExecError::Refused(_) => Fault::RelayUnreachable,
-        ExecError::Timeout(_) | ExecError::Lost(_) => Fault::SessionFault,
+    let (fault, cause) = match e {
+        ExecError::Refused(_) => (Fault::RelayUnreachable, Cause::Answer),
+        ExecError::Timeout(_) | ExecError::Lost(_) => (Fault::SessionFault, Cause::Broke),
     };
-    failed(fault, format!("{what}: {e}"))
+    Failed { fault, message: format!("{what}: {e}"), cause }
 }
 
 /// The command for the login shell: `sh -c 'SCRIPT' sh` and each argument
@@ -297,7 +302,7 @@ impl Far {
             return Ok(found);
         }
         let mut hasher = Sha256::new();
-        self.read(handle, path, &mut |bytes| {
+        self.read(handle, path, 0, &mut |bytes| {
             hasher.update(bytes);
             Ok(())
         })
@@ -305,15 +310,23 @@ impl Far {
         Ok((hasher.finalize().into(), digest::READ_AGAIN.to_string()))
     }
 
-    /// The bytes of `path`, after the marker, given to `sink`; their count.
+    /// The bytes of `path` from `offset` on, after the marker, given to
+    /// `sink`; their count. Past the first byte, `tail` reads them.
     async fn read(
         &self,
         handle: &Connection,
         path: &str,
+        offset: u64,
         sink: &mut dyn FnMut(&[u8]) -> std::io::Result<()>,
     ) -> Result<u64, Failed> {
-        let script = if self.raw { "exec cat -- \"$1\"" } else { "exec base64 < \"$1\"" };
-        let cmd = command(&self.marked(script), &[path]).map_err(|why| failed(Fault::Usage, why))?;
+        let from = (offset + 1).to_string();
+        let (script, args) = match (offset, self.raw) {
+            (0, true) => ("exec cat -- \"$1\"", vec![path]),
+            (0, false) => ("exec base64 < \"$1\"", vec![path]),
+            (_, true) => ("exec tail -c \"+$2\" -- \"$1\"", vec![path, from.as_str()]),
+            (_, false) => ("tail -c \"+$2\" -- \"$1\" | base64", vec![path, from.as_str()]),
+        };
+        let cmd = command(&self.marked(script), &args).map_err(|why| failed(Fault::Usage, why))?;
         let raw = self.raw;
         let mut strip = Strip::new(&self.marker);
         let mut text = Unbase64::default();
@@ -370,8 +383,31 @@ impl Far {
         Ok(())
     }
 
+    /// The size of the far file `path` once it stands still: a writer that a
+    /// broken connection left may still add to it. Two reads [`SETTLE_STEP`]
+    /// apart agree, [`SETTLE_MAX`] at most; `None` when the file is gone or
+    /// never stands still.
+    pub(super) async fn settled(&self, handle: &Connection, path: &str) -> Result<Option<u64>, Failed> {
+        let started = std::time::Instant::now();
+        let mut last = None;
+        loop {
+            let size = match self.kind(handle, path).await? {
+                Kind::File(n) => n,
+                _ => return Ok(None),
+            };
+            if last == Some(size) {
+                return Ok(Some(size));
+            }
+            if started.elapsed() >= SETTLE_MAX {
+                return Ok(None);
+            }
+            last = Some(size);
+            tokio::time::sleep(SETTLE_STEP).await;
+        }
+    }
+
     /// Remove `path`, as well as the server lets it.
-    async fn remove(&self, handle: &Connection, path: &str) {
+    pub(super) async fn remove(&self, handle: &Connection, path: &str) {
         if let Ok(cmd) = command("exec rm -f -- \"$1\"", &[path]) {
             let _ = exec::capture(handle, &cmd, STEP_WAIT, 4096).await;
         }

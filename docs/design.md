@@ -185,7 +185,7 @@ usable shell through `podssh serve`.
 | A stuck write | Fails after 60 s |
 | The relay's idle cut | Keepalives every 60 s keep the session (MEASURED: 602 s with keepalives; cut at 184 s without) |
 | The relay's limits (12 h, 64 MiB) | The session ends, with the reason |
-| A dropped connection | The session ends; `ssh` prints the relay's reason and exits 255 |
+| A dropped connection | The session ends; `ssh` prints the relay's reason and exits 255. `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136) |
 | A changed client address | The session is lost |
 
 The relay has no resumption on either path (READ, in the relay's source and

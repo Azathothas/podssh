@@ -12,8 +12,6 @@
 //! side can tell, and the same bytes where a digest command runs there. A
 //! delete that fails leaves the data in two places, never in none.
 
-use std::time::SystemTime;
-
 use podssh_ssh::sftp::SftpError;
 use podssh_ssh::Log;
 
@@ -22,6 +20,7 @@ use super::digest;
 use super::link::{Link, Road};
 use super::operand::Operand;
 use super::plan::Plan;
+use super::resume::{far, local, Before};
 use super::transfer::{self, Done, Failed, Side};
 use crate::exitmap::Fault;
 
@@ -35,19 +34,6 @@ pub enum After {
     /// The first leg of a move between servers: keep what the source was, for
     /// the session that removes it after the second leg.
     Record,
-}
-
-/// A source as it was before its copy.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Before {
-    /// A local file: its size, its time of change, and which file it is
-    /// (the device and inode; on Windows, when it was made).
-    Local { len: u64, modified: Option<SystemTime>, id: Option<(u64, u64)> },
-    /// A far file over SFTP: its size and time of change, in seconds;
-    /// version 3 names no inode.
-    Sftp { size: Option<u64>, mtime: Option<u32> },
-    /// A far file by exec: what `ls -lnid` says of it, its inode first.
-    Exec(String),
 }
 
 /// The line that says, before any byte moves, that a move between hosts is
@@ -78,53 +64,6 @@ pub fn same_text(plan: &Plan) -> Option<String> {
     let plain = |p: &str| p.trim_start_matches("./").trim_end_matches('/').to_string();
     (a.same_server(b) && plain(&a.path) == plain(&b.path))
         .then(|| format!("{} and {} name one file on {}", a.path, b.path, a.destination()))
-}
-
-/// What a local source is now.
-pub fn local(path: &str) -> Result<Before, Failed> {
-    let meta =
-        std::fs::metadata(path).map_err(|e| Failed { fault: Fault::NoInput, message: format!("{path}: {e}") })?;
-    Ok(Before::Local { len: meta.len(), modified: meta.modified().ok(), id: file_id(&meta) })
-}
-
-/// Which file a local path names: the device and inode, or on Windows the
-/// time the file was made, which a file renamed into its place does not
-/// share.
-fn file_id(meta: &std::fs::Metadata) -> Option<(u64, u64)> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        Some((meta.dev(), meta.ino()))
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        Some((meta.creation_time(), 0))
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        let _ = meta;
-        None
-    }
-}
-
-/// What a far source is now, by the link's road.
-pub async fn far(link: &Link, path: &str) -> Result<Before, Failed> {
-    match &link.road {
-        Road::Sftp(sftp) => {
-            let attrs = sftp.stat(path).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
-            Ok(Before::Sftp { size: attrs.size, mtime: attrs.mtime })
-        }
-        Road::Exec(far) => far.listing(link.handle(), path).await.map(Before::Exec),
-    }
-}
-
-/// What `source` is now, on its side.
-pub async fn before(link: &Link, source: &Operand) -> Result<Before, Failed> {
-    match source {
-        Operand::Local(path) => local(path),
-        Operand::Remote(r) => far(link, &r.path).await,
-    }
 }
 
 /// Remove the source of a copy that is done, when it is still what was
@@ -202,10 +141,7 @@ pub async fn rename(link: &Link, source: &str, dest: &str, log: &Log) -> Result<
                 // A rename reads nothing.
                 Kind::Unreadable => 0,
                 Kind::Missing => {
-                    return Err(Failed {
-                        fault: Fault::NoInput,
-                        message: format!("{source}: no such file or directory"),
-                    })
+                    return Err(Failed::new(Fault::NoInput, format!("{source}: no such file or directory")))
                 }
                 Kind::Dir | Kind::Other => return Err(not_a_file(source)),
             };
@@ -235,36 +171,34 @@ fn renamed(source: &str, target: &str, bytes: u64, not_atomic: bool) -> Done {
 }
 
 fn not_a_file(source: &str) -> Failed {
-    Failed { fault: Fault::NoInput, message: format!("{source}: not a regular file; podssh mv moves files") }
+    Failed::new(Fault::NoInput, format!("{source}: not a regular file; podssh mv moves files"))
 }
 
 fn one_file(source: &str, target: &str) -> Failed {
-    Failed { fault: Fault::Usage, message: format!("{source} and {target} name one file; nothing was done") }
+    Failed::new(Fault::Usage, format!("{source} and {target} name one file; nothing was done"))
 }
 
 /// The source could not be looked at again: podssh leaves it as it is.
 fn unchecked(path: &str, why: &str) -> Failed {
-    Failed {
-        fault: Fault::NoInput,
-        message: format!(
-            "{path} could not be checked after the copy ({why}), so podssh did not remove it; the copy holds it              as it was read"
+    Failed::new(
+        Fault::NoInput,
+        format!(
+            "{path} could not be checked after the copy ({why}), so podssh did not remove it; the copy holds it \
+             as it was read"
         ),
-    }
+    )
 }
 
 fn changed(path: &str, why: &str) -> Failed {
-    Failed {
-        fault: Fault::NoInput,
-        message: format!("{path} changed during the move ({why}), so it was kept; the copy holds it as it was read"),
-    }
+    Failed::new(
+        Fault::NoInput,
+        format!("{path} changed during the move ({why}), so it was kept; the copy holds it as it was read"),
+    )
 }
 
 /// The copy is there and verified; the source stays too.
 pub fn not_removed(path: &str, why: &str) -> Failed {
-    Failed {
-        fault: Fault::SessionFault,
-        message: format!("the copy is complete and verified; {path} was not removed: {why}"),
-    }
+    Failed::new(Fault::SessionFault, format!("the copy is complete and verified; {path} was not removed: {why}"))
 }
 
 #[cfg(test)]

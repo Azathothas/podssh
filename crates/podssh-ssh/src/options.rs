@@ -215,6 +215,10 @@ pub struct Options {
     pub log_level: LogLevel,
     /// `-n`: send end-of-file at once instead of reading stdin.
     pub stdin_null: bool,
+    /// The destination's host key for the whole run, shared by each
+    /// connection that a run opens again (`cp`, T-136); `None` for one
+    /// connection.
+    pub host_key_pin: Option<crate::hostkey::Pin>,
 }
 
 impl Options {
@@ -247,6 +251,7 @@ impl Options {
             compression: false,
             log_level: LogLevel::Info,
             stdin_null: false,
+            host_key_pin: None,
         }
     }
 }
