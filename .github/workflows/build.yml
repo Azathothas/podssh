@@ -69,11 +69,13 @@ jobs:
         env:
           BUILD_IMAGE: ${{ needs.plan.outputs.image }}
           STEP: ${{ matrix.step }}
+        # A mirror serves the same digest when Docker Hub refuses the pull.
         run: |
+          image=$(sh scripts/pull-image.sh "$BUILD_IMAGE")
           docker run --rm \
             -v "$PWD:/work" -w /work \
             -e PODSSH_TARGET=x86_64-unknown-linux-musl \
-            "$BUILD_IMAGE" \
+            "$image" \
             sh scripts/gate.sh "$STEP"
 
       # The two forms of the check of the relay's facts, the binary's and the
@@ -102,9 +104,10 @@ jobs:
         env:
           BUILD_IMAGE: ${{ needs.plan.outputs.image }}
         run: |
+          image=$(sh scripts/pull-image.sh "$BUILD_IMAGE")
           docker run --rm \
             -v "$PWD:/work" -w /work \
-            "$BUILD_IMAGE" \
+            "$image" \
             sh scripts/plant.sh
 
   checks:

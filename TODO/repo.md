@@ -98,9 +98,9 @@ Read:
   from crates.io, and no git source.
 - The workflows use four actions, each by a major tag:
   `actions/checkout@v5` (`.github/workflows/build.yml` line 30 at `7c70aa7`),
-  `actions/upload-artifact@v7` (`.github/workflows/build.yml:87`),
-  `actions/download-artifact@v8` (`.github/workflows/release.yml:125`) and
-  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:82`).
+  `actions/upload-artifact@v7` (`.github/workflows/build.yml:89`),
+  `actions/download-artifact@v8` (`.github/workflows/release.yml:127`) and
+  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:84`).
 - The build image is a variable in two workflows and in a shell script
   (`.github/workflows/build.yml` line 15 at `19ca632`, `.github/workflows/release.yml` line 23 at `19ca632` and
   `scripts/dev.sh` line 60 at `e1ba5ba`). Dependabot's docker ecosystem reads the `FROM` lines
@@ -333,7 +333,7 @@ Read:
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
   462.
-- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:163-169`);
+- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:166-172`);
   `scripts/check-scripts.py:53-57` finds the scripts under `scripts/` at any
   depth.
 
@@ -429,7 +429,7 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:143-153`).
+  them (`.github/workflows/release.yml:145-155`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:447-492`): the
+5. docs/development.md, "Release builds" (`docs/development.md:453-498`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -669,9 +669,9 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:23-169`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:23-171`).
   The workflow has `contents: read` (`:19-20`); `publish` adds
-  `contents: write` (`:118-119`).
+  `contents: write` (`:120-121`).
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
@@ -728,11 +728,11 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:140-145` writes `SHA256SUMS` with
-  `sha256sum`, and `.github/workflows/release.yml:153-169` publishes it with
+- `.github/workflows/release.yml:142-147` writes `SHA256SUMS` with
+  `sha256sum`, and `.github/workflows/release.yml:155-171` publishes it with
   the binaries. No signature is published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:87`). `README.md:50-51` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:89`). `README.md:50-51` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -939,7 +939,7 @@ Read:
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:146`).
 - The box needs a static binary; CI uploads one
-  (`.github/workflows/build.yml:86-91`).
+  (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
   `/dev/pts` (`scripts/test_in_box.sh:180`). Nobody measured the Podman of a
   GitHub runner with them.
@@ -1004,7 +1004,7 @@ so the job of this entry must have both; nobody measured a runner for them.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
-platform (`.github/workflows/release.yml:71-112`).
+platform (`.github/workflows/release.yml:73-114`).
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1024,7 +1024,7 @@ machine.
 Read:
 
 - `.github/workflows/build.yml` lines 17-19 at `e892b0f`: one job, on `ubuntu-latest`.
-- `.github/workflows/release.yml:71-112`: the Windows job installs NASM
+- `.github/workflows/release.yml:73-114`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
@@ -1307,7 +1307,7 @@ Read:
   CDLA-Permissive-2.0; russh 0.64.1 Apache-2.0.
 - BSD-3-Clause and Apache-2.0 ask that a binary copy carries the notices. The
   release publishes the binaries and `SHA256SUMS` only
-  (`.github/workflows/release.yml:140-169`).
+  (`.github/workflows/release.yml:142-171`).
 - The fork already has a configuration for cargo-deny
   (`vendor/tailscale-rs/deny.toml:1-35`): an allow list of licenses, one
   ignored advisory with its reason, crates.io only.
@@ -1533,11 +1533,11 @@ with a C toolchain for aws-lc.
 Read:
 
 - `.github/workflows/release.yml:28-32`: x86_64 and aarch64 musl, each on a
-  native runner in `rust:1-alpine`. `.github/workflows/release.yml:71-112`:
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:73-114`:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
-  (`.github/workflows/release.yml:52-59`), `dumpbin /dependents` on Windows
-  (`:92-107`).
+  (`.github/workflows/release.yml:54-61`), `dumpbin /dependents` on Windows
+  (`:94-109`).
 - The binary needs a C compiler for aws-lc (`docs/development.md:12-14`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
@@ -1610,11 +1610,11 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:205-207` states the rule with `CXX`, and
-  `docs/STATUS.md:301` records the measurement. Rule 4 of
+- `docs/development.md:211-213` states the rule with `CXX`, and
+  `docs/STATUS.md:302` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
-- `.github/workflows/build.yml:101-108` runs the plant on each push.
+- `.github/workflows/build.yml:103-111` runs the plant on each push.
 
 ## Approach
 
@@ -1642,7 +1642,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:301`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:302`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1696,7 +1696,7 @@ Read:
 3. A plant in the same script: a mode `--plant-empty` runs the checks on an
    empty temporary directory and must exit 1. The control is the real tree,
    which must exit 0. CI runs both, as it does for the relay check
-   (`.github/workflows/build.yml:176-188`).
+   (`.github/workflows/build.yml:179-191`).
 4. With T-207: the size check also reads `scripts/`, with its own floor.
 5. The checker of `TODO/` gets its own floor in its own change; this entry
    does not plan it.
@@ -2747,3 +2747,86 @@ the pushes after it, recorded in `docs/STATUS.md`.
   its planted podssh fails the three restore checks and no other; the whole
   run passed.
 
+
+# T-268: A pull that Docker Hub refuses fails a job of CI before its check
+
+**Source:** CI, the runs of `a6ef7ba` and `b932993` (2026-10-09): the
+workflow `secrets` failed before its scan, also when run again, as Docker
+Hub refused the pull of the scanner: "toomanyrequests: You have reached
+your unauthenticated pull rate limit".
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Each job of CI that runs an image pulls it from Docker Hub with no account:
+the scanner of `secrets`, and the build image of each step of the gate, of
+`plant` and of the release. Docker Hub limits such pulls for each address,
+and a runner shares its address with others: past the limit, the job fails
+before its check runs, and the run is red for a reason that is not in the
+code. A run of the release can fail in the same way.
+
+## Premise
+
+Read: each image is pinned to a digest in its Dockerfile
+(`.github/images/trufflehog/Dockerfile:3`,
+`.github/images/build/Dockerfile:6`), and at `b932993` each workflow gave
+the reference to `docker run`, which pulls from Docker Hub (now
+`.github/workflows/secrets.yml:70`, `.github/workflows/secrets.yml:84`,
+`.github/workflows/build.yml:75-79`, `.github/workflows/build.yml:108-111`
+and `.github/workflows/release.yml:50-53`). Measured on 2026-10-09, each
+manifest asked for by its digest: Google's mirror of Docker Hub
+(`mirror.gcr.io`) serves both images, the GitHub registry serves the
+scanner, and Amazon's gallery of the official images
+(`public.ecr.aws/docker/library`) serves the build image (HTTP 200 each).
+
+## Approach
+
+1. `scripts/pull-image.sh REF`: pull REF from its registry; else the same
+   digest from `mirror.gcr.io`; else from `public.ecr.aws/docker/library`
+   (an official image) or `ghcr.io` (another); two rounds, 30 s apart, each
+   pull within 15 minutes; print the reference that served it.
+2. Each workflow pulls through it, and gives the printed reference to
+   `docker run`.
+3. `secrets` shows that the mirrors work before they are needed: the
+   scanner's digest, asked of a registry that does not exist, must come from
+   a mirror.
+
+## Decision
+
+A mirror is safe: a pull by digest checks the digest of the manifest and of
+each layer, so another registry gives the same bytes or none. Lost: an
+account for Docker Hub (a secret in CI, and one more account to keep);
+copies of the images in this repository's registry (a second place that
+names each image, and work at each new digest); retries alone (the limit
+lasts longer than a job, and a retry meets it again).
+
+## Prove
+
+```sh
+PULL_DRY=1 sh scripts/pull-image.sh "$(sed -n 's/^FROM //p' .github/images/build/Dockerfile)"
+shellcheck -s sh scripts/pull-image.sh
+python scripts/check-repo.py
+```
+
+The dry run prints the three references in order. At the push of the
+repair, `secrets` passes its check of the mirrors and its scan, and each job
+of `build` pulls its image.
+
+## Done
+
+2026-10-10. `scripts/pull-image.sh` pulls a pinned image from its registry,
+else the same digest from `mirror.gcr.io`, else from
+`public.ecr.aws/docker/library` (an official image) or `ghcr.io`, and
+prints the reference that served it. The steps of the gate, `plant`, the
+builds of the release and `secrets` pull through it, and run that
+reference; `secrets` asks a registry that does not exist for the scanner,
+and a mirror must serve it.
+- Native: the dry run of each pinned image prints its three references in
+  order, a bare name goes to `docker.io/library`, and a reference with no
+  digest exits 64; `shellcheck -s sh scripts/pull-image.sh` and
+  `python scripts/check-repo.py` pass.
+- CI: the run of the push of the repair, recorded in `docs/STATUS.md`.

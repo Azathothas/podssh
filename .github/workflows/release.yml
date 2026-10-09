@@ -44,10 +44,12 @@ jobs:
             *) echo ".github/images/build/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
           esac
       - name: build (static musl, in the gate's image)
+        # A mirror serves the same digest when Docker Hub refuses the pull.
         run: |
+          image=$(sh scripts/pull-image.sh "$BUILD_IMAGE")
           docker run --rm -v "$PWD:/work" -w /work \
             -e CARGO_BUILD_JOBS=4 -e RUSTFLAGS=-Ctarget-feature=+crt-static \
-            "$BUILD_IMAGE" \
+            "$image" \
             cargo build --locked --release --target ${{ matrix.target }} -p podssh-cli
       - name: the binary is static
         run: |

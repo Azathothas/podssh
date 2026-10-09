@@ -174,7 +174,13 @@ and the release), `.github/images/box/Dockerfile` (`alpine:3.20`, the box and
 its SSH server) and `.github/images/box-proxy/Dockerfile`
 (`python:3.12-alpine`, the box's proxy). The scripts and the workflows read
 their `FROM` line, so two runs of one commit use one compiler, and
-`python scripts/check-repo.py` fails on a second name. To move to a newer
+`python scripts/check-repo.py` fails on a second name. CI pulls each through
+`scripts/pull-image.sh`: when Docker Hub refuses a pull with no account,
+past its limit for the runner's address, the same digest comes from a
+mirror (`mirror.gcr.io`, then `public.ecr.aws/docker/library` or
+`ghcr.io`), and a pull by digest gives the same bytes or none. `secrets`
+asks a registry that does not exist for the scanner, and a mirror must
+serve it. To move to a newer
 image, read the digest of its index (`docker buildx imagetools inspect REF`;
 the index must list linux/amd64 and linux/arm64, which the release builds),
 write it into the Dockerfile, and run the gate.
