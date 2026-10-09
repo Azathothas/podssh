@@ -1,0 +1,172 @@
+//! A link that carries its session, record by record: `DATA` both ways, and
+//! `ACK`, `PING`, `PONG`, `REFUSE` and `CLOSE`. Sans-IO: records in, events
+//! and records out.
+
+use std::fmt;
+
+use super::decode::DecodeError;
+use super::offset::{Inbound, OffsetError, Outbound};
+use super::record::{Record, RefuseCode, MAX_DATA};
+
+/// What a record from the peer gives.
+#[derive(Debug, PartialEq, Eq)]
+pub enum Event {
+    /// New bytes of the session, in order.
+    Deliver(Vec<u8>),
+    /// Send this record back (a `PONG`).
+    Reply(Record),
+    /// The peer ended the session, with its reason.
+    Closed(String),
+    /// Nothing for the application: an old `DATA`, an `ACK`, a `PONG`.
+    Nothing,
+}
+
+/// Why a link can carry the session no further. Each but `Refused` ends the
+/// link only: a resume (T-153) can carry the session on a new one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LinkError {
+    /// Bytes that are not records of the layer.
+    Decode(DecodeError),
+    /// An offset that the session cannot take, a gap first of all.
+    Offset(OffsetError),
+    /// A record of the handshake on a link past it.
+    Unexpected(&'static str),
+    /// The peer refused the session, with its code and its reason.
+    Refused { code: RefuseCode, reason: String },
+}
+
+impl fmt::Display for LinkError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LinkError::Decode(e) => write!(f, "the link carried {e}"),
+            LinkError::Offset(e) => e.fmt(f),
+            LinkError::Unexpected(what) => write!(f, "{what} after the handshake"),
+            LinkError::Refused { code, reason } if reason.is_empty() => {
+                write!(f, "the far end refused the session ({code})")
+            }
+            LinkError::Refused { code, reason } => {
+                write!(f, "the far end refused the session ({code}): {}", podssh_ws::text::one_line(reason))
+            }
+        }
+    }
+}
+
+impl std::error::Error for LinkError {}
+
+impl From<DecodeError> for LinkError {
+    fn from(e: DecodeError) -> Self {
+        LinkError::Decode(e)
+    }
+}
+
+impl From<OffsetError> for LinkError {
+    fn from(e: OffsetError) -> Self {
+        LinkError::Offset(e)
+    }
+}
+
+/// The offsets of a session on one link. After an error the link takes no
+/// record: nothing after a gap is ever delivered.
+#[derive(Debug)]
+pub struct Link {
+    inbound: Inbound,
+    outbound: Outbound,
+    failed: Option<LinkError>,
+}
+
+impl Link {
+    /// A link whose side has each byte below `received` and sends from
+    /// `send_from` (0 and 0 for a new session).
+    pub fn new(received: u64, send_from: u64) -> Link {
+        Link { inbound: Inbound::new(received), outbound: Outbound::new(send_from), failed: None }
+    }
+
+    pub fn received(&self) -> u64 {
+        self.inbound.received()
+    }
+
+    pub fn sent(&self) -> u64 {
+        self.outbound.sent()
+    }
+
+    /// The highest offset that the peer acknowledged.
+    pub fn acknowledged(&self) -> u64 {
+        self.outbound.acknowledged()
+    }
+
+    /// The error that ended the link, if one did.
+    pub fn failed(&self) -> Option<&LinkError> {
+        self.failed.as_ref()
+    }
+
+    /// Take a record from the peer.
+    pub fn on_record(&mut self, record: Record) -> Result<Event, LinkError> {
+        if let Some(failed) = &self.failed {
+            return Err(failed.clone());
+        }
+        let event = self.event(record);
+        if let Err(e) = &event {
+            self.failed = Some(e.clone());
+        }
+        event
+    }
+
+    /// Mark the link as ended by an error found outside it (the decoder's).
+    pub fn fail(&mut self, error: LinkError) -> LinkError {
+        self.failed.get_or_insert(error).clone()
+    }
+
+    fn event(&mut self, record: Record) -> Result<Event, LinkError> {
+        match record {
+            Record::Data { offset, mut bytes } => {
+                let fresh = self.inbound.accept(offset, &bytes)?.len();
+                if fresh == 0 {
+                    return Ok(Event::Nothing);
+                }
+                bytes.drain(..bytes.len() - fresh);
+                Ok(Event::Deliver(bytes))
+            }
+            Record::Ack { offset } => {
+                self.outbound.acknowledge(offset)?;
+                Ok(Event::Nothing)
+            }
+            Record::Ping { value } => Ok(Event::Reply(Record::Pong { value, offset: self.inbound.received() })),
+            Record::Pong { offset, .. } => {
+                self.outbound.acknowledge(offset)?;
+                Ok(Event::Nothing)
+            }
+            Record::Close { reason } => Ok(Event::Closed(reason)),
+            Record::Refuse { code, reason } => Err(LinkError::Refused { code, reason }),
+            other => Err(LinkError::Unexpected(other.name())),
+        }
+    }
+
+    /// Append `DATA` records for `bytes` to `out`, each of [`MAX_DATA`]
+    /// bytes at most.
+    pub fn send(&mut self, bytes: &[u8], out: &mut Vec<u8>) -> Result<(), LinkError> {
+        if let Some(failed) = &self.failed {
+            return Err(failed.clone());
+        }
+        for chunk in bytes.chunks(MAX_DATA) {
+            let offset = self.outbound.take(chunk.len())?;
+            // `DATA` of up to MAX_DATA bytes always fits the table, so the
+            // encoder cannot refuse it.
+            push_data(out, offset, chunk);
+        }
+        Ok(())
+    }
+
+    /// An `ACK` of each byte received so far.
+    pub fn ack(&self) -> Record {
+        Record::Ack { offset: self.inbound.received() }
+    }
+}
+
+/// A `DATA` record written straight into `out`, with no copy of the bytes
+/// into a `Record` first.
+fn push_data(out: &mut Vec<u8>, offset: u64, bytes: &[u8]) {
+    out.push(super::record::kind::DATA);
+    out.extend_from_slice(&((8 + bytes.len()) as u32).to_be_bytes());
+    out.extend_from_slice(&offset.to_be_bytes());
+    out.extend_from_slice(bytes);
+}

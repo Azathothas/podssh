@@ -13,7 +13,7 @@ and fux reports) and GitHub #20 (a handshake with a version and a role).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -70,6 +70,22 @@ relay, so a passive reader of its logs cannot take the session; an active
 relay can still break it, as today. The alternative, a secret sent in
 `ACCEPT`, lost: the relay terminates TLS, so its logs would hold the secret.
 
+Taken (2026-10-09): in this entry only the client of `podssh ssh node://`
+runs the layer, and no far end runs it outside the tests. The alternatives
+that lost: the node speaks the layer now, which gives each session the
+layer's cost and none of its gain until T-152 and T-153, and shows a
+`GREETING` to an SSH client with no layer behind `podssh operator` (T-153
+decides that with the resume); the client waits for the first byte on the
+forward road too, where a standard sshd never greets, so each session would
+pay the wait for nothing.
+
+Taken: the client waits 30 s at most for the far end's first byte, more
+than the operator leg's 20 s wait for `ready`, after which the node's first
+byte comes. 10 s lost: a slow `ready` would make the client choose no layer
+before a `GREETING` came. Taken: the `ACCEPT` of a new session carries no
+proof, since only an active relay could change the exchange, and it could
+make the proof too.
+
 ## Prove
 
 ```sh
@@ -82,6 +98,66 @@ The codec test decodes golden vectors written by hand from the table, not
 made by the encoder; a planted decoder that delivers bytes after a gap fails
 it. The handshake test refuses a wrong secret, a replayed `PROOF` and an
 unknown session. The gate builds `podssh-relay` with `CC=/nonexistent`.
+
+## Correction
+
+Step 7 cites the pipe of the forward road
+(`crates/podssh-ssh/src/relay_stream.rs:58-100`), whose far end is the
+relay itself: it never speaks the layer, so that pipe keeps no layer and its
+`RelayStatus` is unchanged. The client's pipe to a node is in
+`crates/podssh-cli/src/ssh/node.rs`, between SSH and the operator's leg,
+which has no `RelayStatus`; the layer goes there. The far end in
+`podssh node` comes with T-153, which keeps a node's sessions across links.
+By the operator's decision of 2026-10-09 (`docs/decisions.md`), the gate run
+and the planted decoder wait for the checks of the release (T-251).
+
+## Done
+
+2026-10-09.
+
+- `crates/podssh-relay/src/session/`: the records and their decoder
+  (`record.rs`, `decode.rs`), the offsets (`offset.rs`), the id, the
+  nonces, the secret and the proofs (`secret.rs`), the handshakes and the
+  sessions that a far end keeps (`handshake.rs`), a link past its handshake
+  (`link.rs`), and the two ends over tokio streams (`client.rs`, `far.rs`,
+  `pump.rs`); each file under 500 lines, with `sha2`, `hmac`, `hkdf` and
+  `x25519-dalek` of the workspace. The table, the derivation and what the
+  layer defends against are in `docs/design.md`, section 5.
+- `podssh ssh node://` runs the client's end (`crates/podssh-cli/src/ssh/node.rs`):
+  it sends nothing until the node's first byte, takes a `GREETING` as the
+  layer, and else passes the bytes as they are; `-v` says which (the
+  manual's note of `node://`, `docs/cli.md`).
+- In passing: x25519-dalek's `zeroize` feature is on in the workspace.
+  podssh-ws's TLS key exchange wiped a copy of its X25519 scalar, not the
+  scalar inside `StaticSecret`; it now wipes itself, and a function that
+  does not compile without the feature guards that. And CI's lint failed at
+  `9841fa5` on the form of the manual's scp note, now two paragraphs.
+- Prove, native: `cargo test -p podssh-relay --test session_codec --test
+  session_handshake --test session_link`: 31 passed (15, 12 and 4). The
+  codec decodes 14 vectors written by hand, whole and one byte at a time,
+  and refuses 11 bodies that are not their record; a link delivers nothing
+  after a gap. The handshake gives the secret `8a41f649…` and the proofs
+  `44f2167e…` and `3faedde0…`, computed apart with an X25519 written from
+  the pseudo-code of RFC 7748 (checked against its section 6.1), and HKDF
+  (checked against RFC 5869, A.1) and HMAC of Python's standard library. It
+  refuses a wrong secret, a replayed `PROOF`, an unknown and a removed
+  session, a reflected proof and a key of low order. The two ends carried
+  1 MiB each way with equal SHA-256.
+- Live, once: `cargo test -p podssh-cli --test node_live -- --ignored
+  ssh_to_a_node` passed (`exit 3` through a node in front of railway.new,
+  with `-v` showing "the far end offers no resumable layer"). Its first run
+  failed: railway.new answered with 262 bytes on stdout and another exit
+  status, after a login that worked (stderr held only the warning of the
+  recorded host key); the next two runs gave 3.
+- `cargo test --no-fail-fast`: 963 passed, 0 failed, 20 ignored (the live
+  tests). `python scripts/check-repo.py`: ok.
+  `cargo todo check`: the record agrees.
+- Waits for T-251, by the decision of 2026-10-09: the gate
+  (`sh scripts/dev.sh check`, with `CC=/nonexistent` and Rust 1.85), and the
+  planted decoder: `Inbound::accept` that returns the bytes of a record past
+  a gap must fail `a_gap_delivers_nothing_and_the_offset_stays`,
+  `a_link_delivers_nothing_after_a_gap` and
+  `a_gap_ends_the_link_and_nothing_after_it_is_delivered`.
 
 # T-152: The replay buffer, limited, with backpressure
 
@@ -283,7 +359,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:174-184`,
    `crates/podssh-cli/src/man/facts.rs:208-215`), the note at
-   `crates/podssh-cli/src/man/notes.rs:54`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes.rs:56`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -444,7 +520,7 @@ live session that survives a stall of 3 minutes.
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:319-339`; the two
+sandbox, before a default depends on it); `docs/design.md:385-405`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -468,7 +544,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:319-339`). A session carries 64 MiB at most, both directions
+(`docs/design.md:385-405`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:127`).
 
 ## Approach

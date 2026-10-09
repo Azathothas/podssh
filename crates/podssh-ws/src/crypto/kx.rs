@@ -29,16 +29,13 @@ impl fmt::Debug for KxGroup {
     }
 }
 
-/// A `Vec` of secrets zeroized on drop, rather than trusting every
-/// constructor to remember. A private scalar left on the heap after a dropped
-/// key exchange is a key that outlives the session it belonged to.
-struct SecretBytes(Vec<u8>);
-
-impl Drop for SecretBytes {
-    fn drop(&mut self) {
-        use zeroize::Zeroize;
-        self.0.zeroize();
-    }
+/// A private scalar left in memory after a dropped key exchange is a key that
+/// outlives the session it belonged to. `StaticSecret` wipes itself on drop
+/// with x25519-dalek's `zeroize` feature, which the workspace turns on; this
+/// does not compile without it. (A wiped copy of the bytes, the earlier
+/// guard, left the scalar inside `StaticSecret` as it was.)
+fn _static_secret_wipes(secret: &mut StaticSecret) {
+    secret.zeroize();
 }
 
 impl SupportedKxGroup for KxGroup {
@@ -69,8 +66,7 @@ pub fn start_with(group: NamedGroup, random: &dyn SecureRandom) -> Result<Box<dy
             random.fill(&mut bytes)?;
             let secret = StaticSecret::from(bytes);
             let public = x25519_dalek::PublicKey::from(&secret);
-            let exchange =
-                X25519Exchange { secret, public: public.to_bytes().to_vec(), _wipe: SecretBytes(bytes.to_vec()) };
+            let exchange = X25519Exchange { secret, public: public.to_bytes().to_vec() };
             bytes.zeroize();
             Ok(Box::new(exchange))
         }
@@ -104,11 +100,8 @@ fn p256_secret(random: &dyn SecureRandom) -> Result<p256::SecretKey, Error> {
 }
 
 struct X25519Exchange {
+    /// Wiped when the exchange is dropped (see `_static_secret_wipes`).
     secret: StaticSecret,
-    /// Held only so the scalar bytes are wiped when the exchange is dropped.
-    /// `StaticSecret`'s own `Drop` is not in its API contract, so relying on it
-    /// would be relying on an implementation detail for key material.
-    _wipe: SecretBytes,
     public: Vec<u8>,
 }
 

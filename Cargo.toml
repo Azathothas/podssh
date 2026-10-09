@@ -120,7 +120,9 @@ hmac = { version = "0.12", default-features = false }
 hkdf = { version = "0.12", default-features = false }
 aes-gcm = { version = "0.10", default-features = false, features = ["aes", "alloc"] }
 chacha20poly1305 = { version = "0.10", default-features = false, features = ["alloc"] }
-x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
+# `zeroize` makes `StaticSecret` wipe its scalar when it is dropped; without
+# it, a TLS key exchange and a session's X25519 key outlive their use.
+x25519-dalek = { version = "2", default-features = false, features = ["static_secrets", "zeroize"] }
 ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
 # `ecdh` is on because the TLS key exchange needs P-256 ECDH, and it is
 # MEASURED 2026-10-02 in rust:1-alpine to build under `CC=/nonexistent` with

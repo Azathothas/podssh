@@ -237,6 +237,72 @@ The fault-injection harness in the gate (`scripts/interop-faults.sh`) tests
 layer 1. Layers 2 and 3 need it extended: latency, jitter, limited
 bandwidth, a changed address.
 
+### The records and the handshake of layer 2 (T-151)
+
+The layer is the `session` module of `podssh-relay`: sans-IO, but for its
+two ends over tokio streams. A record is a type byte, a 32-bit length and a
+body of at most 64 KiB. Numbers are big-endian, and offsets and values have
+64 bits.
+
+| Type | Record | Sent by | Body |
+| --- | --- | --- | --- |
+| 0x01 | `GREETING` | far end | magic, version, role, nonce, features |
+| 0x02 | `OPEN` | client | magic, version, role, nonce; then 0x00 and a public key (new), or 0x01 and a session id (resume); then features |
+| 0x03 | `ACCEPT` | far end | 0x00, a session id and a public key (new); or 0x01, an offset and a proof (resume) |
+| 0x04 | `PROOF` | client | an offset and a proof |
+| 0x05 | `REFUSE` | either | a code byte and a reason |
+| 0x06 | `DATA` | either | the offset of its first byte, then the bytes |
+| 0x07 | `ACK` | either | an offset |
+| 0x08 | `PING` | either | a value |
+| 0x09 | `PONG` | either | the value of the `PING`, then an offset |
+| 0x0a | `CLOSE` | either | a reason: the session ends, not only the link |
+
+The magic is the 14 bytes `podssh-session`, and the version is 1; each side
+names the highest version that it speaks, and the session speaks the lower.
+The roles are 1 (a client), 2 (`podssh node`) and 3 (`podssh serve`). A
+nonce, a public key and a proof have 32 bytes, and a session id 16. Features
+are a count byte (16 at most), then each name as a length byte and 1 to 32
+bytes of `a-z`, `0-9`, `.`, `-` and `_`; a side ignores a name that it does
+not know (`replay.v1`, `heartbeat.v1` and `move.v1` come with T-152 to
+T-155). A reason is UTF-8, 1024 bytes at most. The codes of `REFUSE`: 1 an
+unknown session, 2 a wrong proof, 3 an offset no longer kept, 4 the
+version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
+
+- **Offsets.** Each side numbers the bytes that it sends from 0, across
+  each link of the session. A `DATA` record below the next offset expected
+  loses its overlap. One above it is a gap: the link ends, and nothing after
+  a gap is ever delivered.
+- **A new session.** The far end sends `GREETING` and the client `OPEN`
+  with its X25519 public key; neither record waits for the other. `ACCEPT`
+  gives the session's id and the far end's public key. The secret is
+  HKDF-SHA256 with both nonces as the salt (the far end's first), the X25519
+  value as the input, and as the info `podssh-session v1 secret`, a 0 byte,
+  the id and both public keys (the client's first): 32 bytes.
+- **A resume.** `OPEN` names the session. Once the client has the far end's
+  nonce, its `PROOF` carries its received offset and the HMAC-SHA256 under
+  the secret of `podssh-session v1 client proof`, a 0 byte, the id, both
+  nonces of this link and that offset. The far end checks it, and answers
+  `ACCEPT` with its own received offset and the same HMAC of
+  `podssh-session v1 far proof`, which the client checks. Each side then
+  sends from the other's offset.
+- **What the layer defends against.** The relay terminates TLS, so it can
+  read and log each byte. The secret never crosses it, and a proof names the
+  nonces of its own link: a reader of the relay's logs cannot take a
+  session, and a replayed `PROOF` fails. An active relay can still put itself
+  in the middle of a new session's exchange and break the session, as it can
+  break any session today; SSH, above the layer, keeps the bytes secret and
+  whole either way. A public key of low order is refused at both ends.
+- **A far end with no layer.** No type byte is printable, and an SSH server
+  sends a line of text first (RFC 4253, section 4.2). On the reverse road the
+  client sends nothing until the far end's first byte, 30 s at most (longer
+  than the operator leg's wait for `ready`): a `GREETING` starts the layer,
+  and any other byte, or none, means no layer. The bytes then pass as they
+  are, and `-v` says so.
+
+Measured 2026-10-09: `podssh ssh node://` runs the client's end. No node
+speaks the layer yet (T-153 makes the node a far end that keeps its
+sessions), so each session to a node runs with no layer, as before.
+
 ## 6. socat and tailcat
 
 **tailcat** ([tailscale/tailcat](https://github.com/tailscale/tailcat), Go,

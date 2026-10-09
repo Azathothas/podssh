@@ -6,9 +6,12 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome, Wire};
+use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome as LegOutcome, Wire};
+use podssh_relay::session::client::Outcome;
+use podssh_relay::session::{self, End, OsEntropy};
 use podssh_ssh::{Log, EXIT_FAILURE};
 use podssh_ws::{ProxyChoice, Trust};
+use tokio::io::DuplexStream;
 
 use super::args::SshArgs;
 use super::resolve::{Env, Transport};
@@ -111,7 +114,9 @@ pub(super) async fn connect(
         wire: Wire::Tls,
     };
     log.verbose(&format!("connecting to {shown} through the relay {}", part.relay.host));
-    let (ssh_end, leg_end) = tokio::io::duplex(PIPE);
+    // SSH <-> the resumable layer <-> the operator's leg.
+    let (ssh_end, layer_end) = tokio::io::duplex(PIPE);
+    let (link_end, leg_end) = tokio::io::duplex(PIPE);
     let leg = match operator::start(&config, leg_end).await {
         Ok(leg) => leg,
         Err(e) => {
@@ -119,28 +124,56 @@ pub(super) async fn connect(
             return EXIT_FAILURE;
         }
     };
+    let layer = tokio::spawn(layer(link_end, layer_end, log.clone(), shown.clone()));
     let code = podssh_ssh::run(ssh_end, opts, None, log.clone()).await;
     // The client has closed its end; the leg sends its Close and waits for
     // the answer, so the relay ends the session cleanly.
-    let ended = tokio::time::timeout(LEG_END, leg).await;
+    let (layer, ended) = tokio::join!(tokio::time::timeout(LEG_END, layer), tokio::time::timeout(LEG_END, leg));
     if code == EXIT_FAILURE {
-        if let Ok(Ok(outcome)) = ended {
-            if let Some(why) = explain(&outcome) {
-                log.error(&format!("{shown}: {why}"));
-            }
+        let why = match (layer, ended) {
+            (Ok(Ok(Some(why))), _) => Some(why),
+            (_, Ok(Ok(outcome))) => explain(&outcome),
+            _ => None,
+        };
+        if let Some(why) = why {
+            log.error(&format!("{shown}: {why}"));
         }
     }
     code
 }
 
+/// The resumable layer between the SSH client and the leg (T-151). The
+/// client sends nothing until the node's first byte: a node that greets
+/// with the layer gets it, and any other far end gets the bytes as they
+/// are. What it says of a session that failed, when the leg cannot say it
+/// better.
+async fn layer(link: DuplexStream, ssh: DuplexStream, log: Arc<Log>, shown: String) -> Option<String> {
+    let client = match session::client::start(link, session::Ask::New, &[], &mut OsEntropy).await {
+        Ok(client) => client,
+        Err(e) => return Some(e.to_string()),
+    };
+    log.verbose(&format!("{shown}: {}", client.found()));
+    match client.run(ssh).await {
+        Outcome::Plain(_) => None,
+        Outcome::Layer(ended) => match ended.end {
+            End::Closed(reason) if !reason.is_empty() => {
+                Some(format!("the far end ended the session: {}", podssh_ws::text::one_line(&reason)))
+            }
+            End::Broken(e) => Some(e.to_string()),
+            // The leg's close code and reason say more of a lost link.
+            End::Closed(_) | End::LocalEnd | End::Lost(_) => None,
+        },
+    }
+}
+
 /// What the leg says of a session that failed; nothing for a normal end.
-fn explain(outcome: &Outcome) -> Option<String> {
+fn explain(outcome: &LegOutcome) -> Option<String> {
     match outcome {
-        Outcome::NeverReady { code: Some(code), reason } => {
+        LegOutcome::NeverReady { code: Some(code), reason } => {
             Some(format!("the node did not take the session (relay close {code}): {reason}"))
         }
-        Outcome::NeverReady { code: None, reason } => Some(format!("the node did not take the session: {reason}")),
-        Outcome::Ended { code: 1000, .. } | Outcome::LocalEnd => None,
-        Outcome::Ended { code, reason } => Some(crate::pairs::session_end(*code, reason)),
+        LegOutcome::NeverReady { code: None, reason } => Some(format!("the node did not take the session: {reason}")),
+        LegOutcome::Ended { code: 1000, .. } | LegOutcome::LocalEnd => None,
+        LegOutcome::Ended { code, reason } => Some(crate::pairs::session_end(*code, reason)),
     }
 }

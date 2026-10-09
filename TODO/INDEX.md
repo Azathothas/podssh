@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**257 entries: 162 open, 0 partial, 8 blocked, 87 done.**
+**257 entries: 161 open, 0 partial, 8 blocked, 88 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 79 | 0 | 4 | 65 | 148 |
+| P2 | 78 | 0 | 4 | 66 | 148 |
 | P3 | 81 | 0 | 4 | 14 | 99 |
-| **All** | 162 | 0 | 8 | 87 | 257 |
+| **All** | 161 | 0 | 8 | 88 | 257 |
 
 ## Entries
 
@@ -224,7 +224,7 @@ repository and CI).
 | [T-148](copy.md) | P3 | M | backlog | feature | open | ZMODEM in a terminal session |
 | [T-149](copy.md) | P3 | M | backlog | feature | open | `podssh edit HOST:PATH` |
 | [T-150](copy.md) | P3 | M | backlog | feature | open | A copy protocol between two podssh ends |
-| [T-151](resume.md) | P2 | L | M6 | feature | open | The resumable layer: its handshake and the byte offsets |
+| [T-151](resume.md) | P2 | L | M6 | feature | done | The resumable layer: its handshake and the byte offsets |
 | [T-152](resume.md) | P2 | M | M6 | feature | open | The replay buffer, limited, with backpressure |
 | [T-153](resume.md) | P2 | L | M6 | feature | open | Resume through any road and relay host, with a session secret and a capped backoff |
 | [T-154](resume.md) | P2 | S | M6 | feature | open | Heartbeats that also prevent the relay's idle cut |

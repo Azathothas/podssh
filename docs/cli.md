@@ -63,7 +63,10 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   label NAME (T-084), reached through the relay, with its host key recorded
   under `node://NAME`, which no DNS name can be; `node:22` is still the host
   `node` on port 22. A node has no port, and `-J`, `-W` and `--direct` do
-  not go with it yet (exit 64). `-J a,b` makes a chain of hops; `-J a -J b`
+  not go with it yet (exit 64). To a node, podssh sends nothing until the
+  node's first bytes, 30 s at most: a node that offers the resumable layer
+  greets with its first record, and `-v` says whether it did (T-151,
+  `docs/design.md` section 5). `-J a,b` makes a chain of hops; `-J a -J b`
   is an error.
   `ssh host:2222` connects to a host named `host:2222` on port 22. The port
   form of OpenSSH is `ssh://user@host:2222`. podssh also accepts `host:PORT`,

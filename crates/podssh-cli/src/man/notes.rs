@@ -29,7 +29,9 @@ const SSH: &[&str] = &[
      no installed ssh, no pty and no user database entry.",
     "node://[user@]NAME reaches the node of the pair under the label NAME (see podssh node), through the \
      relay. Its host key is recorded and checked under the name node://NAME. --pair-file gives the pair, \
-     or its operator's part, in a file. A node has no port, and -J, -W and --direct cannot go with it yet.",
+     or its operator's part, in a file. A node has no port, and -J, -W and --direct cannot go with it yet. \
+     podssh sends nothing until the node's first bytes (30 s at most), to learn whether the node offers \
+     the resumable layer; -v says whether it does.",
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \
@@ -98,8 +100,8 @@ const CP: &[&str] = &[
 
 const SCP: &[&str] = &[
     "podssh scp takes the command line of OpenSSH's scp, and copies as podssh cp does: over SFTP, or by \
-     exec when the server has no SFTP; under a temporary name, verified by its digest, then renamed. Each \
-     letter of OpenSSH's usage parses: -B is BatchMode=yes, -3, -s and -T are accepted and change \
+     exec when the server has no SFTP; under a temporary name, verified by its digest, then renamed.",
+    "Each letter of OpenSSH's usage parses: -B is BatchMode=yes, -3, -s and -T are accepted and change \
      nothing, and the others that podssh does not carry are refused by name. An operand can be a URI, \
      scp://[user@]host[:port][/path]: its path is under the login directory, and // makes it absolute. \
      podssh scp takes no flag for a time limit, as OpenSSH's takes none; each wait of a copy has its own.",

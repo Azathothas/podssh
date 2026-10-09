@@ -10,6 +10,8 @@
 //! - `pair` (feature `pair`): the pairs of the reverse road, made, asked
 //!   about and stopped on the relay's control host, kept in a private file;
 //! - `reverse` (feature `pair`): the node and the operator of the reverse road;
+//! - [`session`]: the resumable layer between two podssh ends: its records,
+//!   offsets and handshake, and its client and far end over tokio streams;
 //! - `blocking` (feature `blocking`): a synchronous facade over all of these,
 //!   for a caller with no async runtime: it owns a runtime on the current
 //!   thread, and refuses a call from inside a tokio runtime.
@@ -27,6 +29,7 @@ pub mod pool;
 pub mod relay;
 #[cfg(feature = "pair")]
 pub mod reverse;
+pub mod session;
 pub mod token;
 
 pub use open::{open, Failure, OpenError, Opened, Request};

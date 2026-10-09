@@ -16,6 +16,13 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 zeroize = { workspace = true }
 rand = { workspace = true }
+# The resumable layer (src/session/): X25519 gives a new session its secret
+# through HKDF-SHA256, and HMAC-SHA256 proves it on a resume. Pure Rust, as
+# in podssh-ws.
+sha2 = { workspace = true }
+hmac = { workspace = true }
+hkdf = { workspace = true }
+x25519-dalek = { workspace = true }
 
 [features]
 # Pairs of the reverse road: `POST /v1/pair`, the status of a pair and

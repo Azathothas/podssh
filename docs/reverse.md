@@ -88,7 +88,10 @@ SSH client over it, with the node's host key under `node://NAME`. Measured
 against the live relay on 2026-10-09: `podssh ssh node://test@lab 'exit 3'`
 gave 3 through a node in front of railway.new's SSH service, and
 `podssh operator lab` carried that server's banner (`cargo test -p
-podssh-cli --test node_live -- --ignored`).
+podssh-cli --test node_live -- --ignored`). Since T-151, `podssh ssh
+node://` sends nothing until the node's first byte, to learn whether the
+node offers the resumable layer ([design.md](design.md), section 5); no
+node offers it yet, and `exit 3` still gave 3 (the same test, 2026-10-09).
 
 Synchronous code (podbox) runs the node and the operator through
 `podssh_relay::blocking` (feature `blocking`, T-081): a handler opens each
