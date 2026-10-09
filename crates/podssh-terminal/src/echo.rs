@@ -99,10 +99,10 @@ pub enum Sig {
     Quit,
 }
 
-/// ⛔ **The byte-level refusals live in [`crate::refusal`]**, not here, ⛔ and
-/// that placement is load-bearing: the pass-through discipline must refuse the
-/// same three bytes as this module, and a list written twice is a list that
-/// drifts. ⛔ The `key` dispatch below calls [`crate::refusal::refuses`].
+// The byte-level refusals live in `crate::refusal`, not here, and that
+// placement is load-bearing: the pass-through discipline must refuse the same
+// three bytes as this module, and a list written twice is a list that drifts.
+// The `key` dispatch below calls `crate::refusal::refuses`.
 
 /// One consequence of one client byte.
 ///

@@ -102,10 +102,12 @@ async fn auth_answer_limit_leaves_out_the_agents_time() {
     let call = async {
         time.lock().unwrap().since = Some(Instant::now());
         tokio::time::sleep(Duration::from_secs(3)).await;
-        let mut t = time.lock().unwrap();
-        let start = t.since.take().unwrap();
-        t.spent += start.elapsed();
-        drop(t);
+        // The guard ends before the next wait, as the signer's does.
+        {
+            let mut t = time.lock().unwrap();
+            let start = t.since.take().unwrap();
+            t.spent += start.elapsed();
+        }
         tokio::time::sleep(Duration::from_millis(500)).await;
         "answered"
     };

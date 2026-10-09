@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**254 entries: 183 open, 1 partial, 8 blocked, 62 done.**
+**255 entries: 184 open, 0 partial, 8 blocked, 63 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 93 | 1 | 4 | 49 | 147 |
-| P3 | 88 | 0 | 4 | 5 | 97 |
-| **All** | 183 | 1 | 8 | 62 | 254 |
+| P2 | 93 | 0 | 4 | 50 | 147 |
+| P3 | 89 | 0 | 4 | 5 | 98 |
+| **All** | 184 | 0 | 8 | 63 | 255 |
 
 ## Entries
 
@@ -286,7 +286,7 @@ repository and CI).
 | [T-212](repo.md) | P2 | M | none | chore | open | Parallel CI, with the gate as the one source |
 | [T-213](repo.md) | P2 | M | none | chore | open | CI runs the box like the target sandbox |
 | [T-214](repo.md) | P2 | M | none | chore | open | CI on Windows |
-| [T-215](repo.md) | P2 | M | none | chore | partial | rustfmt and clippy in the gate |
+| [T-215](repo.md) | P2 | M | none | chore | done | rustfmt and clippy in the gate |
 | [T-216](repo.md) | P2 | S | none | chore | done | Advisories and licenses of the dependencies, checked in CI |
 | [T-217](repo.md) | P3 | S | none | chore | open | The declared minimum Rust versions, checked in CI |
 | [T-218](repo.md) | P2 | M | M9 | release | open | More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64 |
@@ -329,3 +329,4 @@ repository and CI).
 | [T-255](relay.md) | P2 | M | M4 | measurement | blocked | The relay's side drops reverse sockets at random, with no Close |
 | [T-256](reverse.md) | P2 | S | M4 | defect | done | A local side that does not read stops every session of the node |
 | [T-257](ssh.md) | P2 | M | backlog | defect | open | An RSA user key signs through the `rsa` crate, which is open to a timing attack |
+| [T-258](repo.md) | P3 | S | none | defect | open | Line numbers written as plain text in the record are not moved |

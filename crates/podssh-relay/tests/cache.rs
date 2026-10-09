@@ -22,9 +22,10 @@ fn scratch(name: &str) -> PathBuf {
 fn a_stored_token_is_loaded_back_while_it_has_time_left() {
     let dir = scratch("roundtrip").join("cache");
     let path =
-        store_in_first(&[dir.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS + 1, "relay.example").unwrap();
+        store_in_first(std::slice::from_ref(&dir), "relay.example", TOKEN, NOW + MIN_REMAINING_MS + 1, "relay.example")
+            .unwrap();
     assert_eq!(path, dir.join(file_name("relay.example")));
-    let cached = load_from(&[dir.clone()], "relay.example", NOW).expect("a cached token");
+    let cached = load_from(std::slice::from_ref(&dir), "relay.example", NOW).expect("a cached token");
     assert_eq!(cached.token, TOKEN);
     assert!(!format!("{cached:?}").contains(TOKEN), "Debug must not show the token");
 
@@ -35,7 +36,8 @@ fn a_stored_token_is_loaded_back_while_it_has_time_left() {
 #[test]
 fn a_token_close_to_expiry_is_not_reused() {
     let dir = scratch("expiry");
-    store_in_first(&[dir.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS - 1, "relay.example").unwrap();
+    store_in_first(std::slice::from_ref(&dir), "relay.example", TOKEN, NOW + MIN_REMAINING_MS - 1, "relay.example")
+        .unwrap();
     assert!(load_from(&[dir], "relay.example", NOW).is_none());
 }
 
@@ -72,8 +74,9 @@ fn when_no_directory_works_the_error_names_each_one() {
 #[test]
 fn remove_forgets_the_token() {
     let dir = scratch("remove");
-    store_in_first(&[dir.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example").unwrap();
-    remove_from(&[dir.clone()], "relay.example");
+    store_in_first(std::slice::from_ref(&dir), "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example")
+        .unwrap();
+    remove_from(std::slice::from_ref(&dir), "relay.example");
     assert!(load_from(&[dir], "relay.example", NOW).is_none());
 }
 
@@ -81,7 +84,7 @@ fn remove_forgets_the_token() {
 fn garbage_in_the_cache_is_ignored() {
     let dir = scratch("garbage");
     std::fs::write(dir.join(file_name("relay.example")), b"{not json").unwrap();
-    assert!(load_from(&[dir.clone()], "relay.example", NOW).is_none());
+    assert!(load_from(std::slice::from_ref(&dir), "relay.example", NOW).is_none());
     std::fs::write(dir.join(file_name("relay.example")), br#"{"token":"has space","expires":9999999999999}"#).unwrap();
     assert!(load_from(&[dir], "relay.example", NOW).is_none(), "a malformed token is not reused");
 }
@@ -175,10 +178,19 @@ fn an_old_entry_with_no_minting_relay_loads_but_is_not_usable() {
 fn a_failover_files_the_token_under_the_host_that_minted_it() {
     let dir = scratch("failover");
     let (dead, live) = (parse_relay("dead.invalid").unwrap(), parse_relay(DEFAULT_RELAY_HOST).unwrap());
-    let path = store_in_first(&[dir.clone()], &token_key(&live), TOKEN, NOW + MIN_REMAINING_MS * 2, &relay_name(&live))
-        .unwrap();
+    let path = store_in_first(
+        std::slice::from_ref(&dir),
+        &token_key(&live),
+        TOKEN,
+        NOW + MIN_REMAINING_MS * 2,
+        &relay_name(&live),
+    )
+    .unwrap();
     assert!(path.ends_with(file_name(DEFAULT_RELAY_HOST)), "{}", path.display());
-    assert!(load_from(&[dir.clone()], &token_key(&dead), NOW).is_none(), "nothing is filed under the dead host");
+    assert!(
+        load_from(std::slice::from_ref(&dir), &token_key(&dead), NOW).is_none(),
+        "nothing is filed under the dead host"
+    );
     let cached = load_from(&[dir], &token_key(&live), NOW).unwrap();
     assert_eq!(cached.minted_at.as_deref(), Some(DEFAULT_RELAY_HOST));
     assert!(usable(&token_key(&live), cached.minted_at.as_deref()));

@@ -189,7 +189,7 @@ mod tests {
     #[test]
     fn the_five_recognised_keys_are_bare_finals() {
         // ⛔ **Exactly `A B C D H F`, and every one of them bare.**
-        for final_byte in [b'A', b'B', b'C', b'D', b'H', b'F'] {
+        for final_byte in *b"ABCDHF" {
             assert_eq!(
                 run(&[0x1b, b'[', final_byte]).last(),
                 Some(&Step::Final { final_byte, bare: true }),

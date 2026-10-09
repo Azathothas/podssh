@@ -377,8 +377,8 @@ async fn session(relay: &Relay, made: &Pair, keep: Keep, label: &'static str) ->
     }
     let outcome = Outcome {
         label,
-        last_to_node: last_sent.then(|| state.to_node.len() > node_before),
-        last_to_operator: last_sent.then(|| state.to_operator.len() > operator_before),
+        last_to_node: last_sent.then_some(state.to_node.len() > node_before),
+        last_to_operator: last_sent.then_some(state.to_operator.len() > operator_before),
         sent_each_way: sent,
         before: (node_before, operator_before),
         pongs: (node.pongs_received(), operator.pongs_received()),

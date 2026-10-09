@@ -149,6 +149,8 @@ async fn main() {
     std::process::exit(69);
 }
 
+// Each knob of the live probe is its own argument, as main reads it.
+#[allow(clippy::too_many_arguments)]
 async fn run_target(
     relays: &RelayList,
     trust: &Trust,
@@ -338,6 +340,8 @@ async fn join_channel(
 /// Pair rendezvous: both sides in one channel; send writes both texts, listen
 /// awaits them byte-exact. The sender's flags mean "flushed"; the listener's
 /// mean "received" — the listener's report is the proof, read by the caller.
+// Each knob of the live probe is its own argument, as main reads it.
+#[allow(clippy::too_many_arguments)]
 async fn pair_exchange(
     runner: &mut LiveRunner,
     irc: &mut Session,
@@ -351,7 +355,7 @@ async fn pair_exchange(
     let target = format!("{host}:{port}");
     let channel = format!("#podssh-{}", &probe_id[..4.min(probe_id.len())]);
     if !join_channel(runner, irc, a, &channel, deadline, &target).await {
-        return std::mem::replace(a, Attempt::default());
+        return std::mem::take(a);
     }
     let short = format!("podssh live probe {probe_id}");
     let long = format!("podssh live probe {probe_id} {}", "A".repeat(360));
@@ -361,11 +365,11 @@ async fn pair_exchange(
                 Ok(m) => m,
                 Err(e) => {
                     eprintln!("podssh: pair send refused: {e}");
-                    return std::mem::replace(a, Attempt::default());
+                    return std::mem::take(a);
                 }
             };
             if send_all(runner, &[msg], a).await.is_err() {
-                return std::mem::replace(a, Attempt::default());
+                return std::mem::take(a);
             }
             eprintln!("podssh: pair sent {slot}.");
             if slot == 0 {
@@ -389,7 +393,7 @@ async fn pair_exchange(
         }
     }
     leave(runner, a).await;
-    std::mem::replace(a, Attempt::default())
+    std::mem::take(a)
 }
 
 /// JOIN a throwaway channel, two echo-waited messages, PART.

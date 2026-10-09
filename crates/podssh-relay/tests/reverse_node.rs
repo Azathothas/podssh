@@ -32,11 +32,14 @@ fn close(id: &str) -> String {
     format!(r#"{{"type":"close","id":"{id}"}}"#)
 }
 
+/// The test's end of each session's pipe, by id.
+type Ends = Arc<Mutex<HashMap<SessionId, DuplexStream>>>;
+
 /// The local side of each session: the handler keeps one end of a pipe for
 /// the node, and gives the test the other.
 #[derive(Default)]
 struct Local {
-    ends: Arc<Mutex<HashMap<SessionId, DuplexStream>>>,
+    ends: Ends,
     /// When set, `open` waits for this before it returns.
     wait: Option<Arc<Notify>>,
     refuse: Option<String>,
@@ -112,9 +115,7 @@ impl Relay {
 
 /// A node on one end of a pipe, the scripted relay on the other; `stop` ends
 /// the node when it is notified.
-fn start(
-    handler: Local,
-) -> (Relay, Arc<Notify>, tokio::task::JoinHandle<End>, Arc<Mutex<HashMap<SessionId, DuplexStream>>>) {
+fn start(handler: Local) -> (Relay, Arc<Notify>, tokio::task::JoinHandle<End>, Ends) {
     let (client, peer) = tokio::io::duplex(256 * 1024);
     let ends = handler.ends.clone();
     let stop = Arc::new(Notify::new());
@@ -134,7 +135,7 @@ fn text_of(f: &Frame) -> String {
     String::from_utf8(f.payload.clone()).unwrap()
 }
 
-async fn local(ends: &Arc<Mutex<HashMap<SessionId, DuplexStream>>>, id_text: &str) -> DuplexStream {
+async fn local(ends: &Ends, id_text: &str) -> DuplexStream {
     for _ in 0..100 {
         if let Some(end) = ends.lock().unwrap().remove(&id(id_text)) {
             return end;

@@ -52,6 +52,21 @@ rustc --version
 cargo --version
 echo "CARGO_BUILD_JOBS=$CARGO_BUILD_JOBS"
 
+# Each package of the workspace, by name: `cargo fmt --all` would also format
+# the fork in vendor/, which keeps its own format and its patches.
+PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-todo"
+
+# The format of the code (rustfmt.toml) and clippy's lints, first: the format
+# needs no build. The image has the minimal profile of rustup, so the two
+# components are added at each run.
+run "rustfmt and clippy: the components" rustup component add rustfmt clippy
+# shellcheck disable=SC2086  # $PKGS is a list of flags
+run "the format of the code" cargo fmt $PKGS -- --check
+# shellcheck disable=SC2086
+run "clippy: no warning in any target" cargo clippy --locked --all-targets $PKGS -- -D warnings
+run "clippy: no warning with the Tailscale feature" \
+    cargo clippy --locked --all-targets -p podssh-cli -p podssh-ts --features podssh-cli/ts -- -D warnings
+
 # The library crates must build with no C compiler. The image ships a working
 # `cc`, so `CC=/nonexistent` is what enforces the rule, and `CXX=/nonexistent`
 # does the same for C++ (the `cc` crate reads CXX for C++ files, so CC alone

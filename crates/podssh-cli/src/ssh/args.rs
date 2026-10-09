@@ -86,7 +86,7 @@ impl SshArgs {
         let one = |id: &str| if has(id) { m.get_one::<String>(id).cloned() } else { None };
         let last = |id: &str| {
             if has(id) {
-                m.get_many::<String>(id).and_then(|v| v.last()).cloned()
+                m.get_many::<String>(id).and_then(|mut v| v.next_back()).cloned()
             } else {
                 None
             }

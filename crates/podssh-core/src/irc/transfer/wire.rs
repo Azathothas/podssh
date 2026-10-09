@@ -23,7 +23,7 @@ pub mod b64 {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     pub fn encode(input: &[u8]) -> String {
-        let mut out = String::with_capacity((input.len() + 2) / 3 * 4);
+        let mut out = String::with_capacity(input.len().div_ceil(3) * 4);
         for chunk in input.chunks(3) {
             let b0 = chunk[0] as u32;
             let b1 = *chunk.get(1).unwrap_or(&0) as u32;
@@ -263,7 +263,7 @@ pub fn as_privmsg(target: &str, line: &Line) -> Message {
 /// and this function is what makes that number checkable against the real
 /// [`Message::to_wire`] rather than against arithmetic on paper.
 pub fn chunk_line_length(limits: &TransferLimits, transfer_id: &str, index: u64, offset: u64) -> usize {
-    let payload_len = (limits.chunk_bytes + 2) / 3 * 4;
+    let payload_len = limits.chunk_bytes.div_ceil(3) * 4;
     let line =
         Line::Chunk(Chunk { transfer_id: transfer_id.to_string(), index, offset, payload: "A".repeat(payload_len) });
     as_privmsg("#x", &line).to_wire().len()

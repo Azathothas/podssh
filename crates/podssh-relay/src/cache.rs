@@ -84,7 +84,7 @@ pub fn load_from(dirs: &[PathBuf], relay_host: &str, now_ms: i64) -> Option<Cach
     dirs.iter().find_map(|dir| {
         let path = dir.join(&name);
         let entry: Entry = serde_json::from_str(&read_trusted(&path)?).ok()?;
-        (entry.expires.saturating_sub(now_ms) >= MIN_REMAINING_MS && valid_token(&entry.token)).then(|| Cached {
+        (entry.expires.saturating_sub(now_ms) >= MIN_REMAINING_MS && valid_token(&entry.token)).then_some(Cached {
             token: entry.token,
             expires_ms: entry.expires,
             path,

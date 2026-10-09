@@ -75,8 +75,17 @@ python scripts/check-relay-spec.py  # the live relay still matches what podssh u
 cargo todo check                    # the work record in TODO/ agrees: counts, statuses, cited paths and lines, no citation left unmoved
 cargo todo remap FILE...            # after an edit of FILE: move its citations by a diff against HEAD
 cargo deny --locked check advisories licenses bans sources   # the dependencies (deny.toml)
+cargo fmt -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-todo -- --check
+cargo clippy --locked --all-targets -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-todo -- -D warnings
 cargo deny --locked --all-features check licenses sources    # the same, with the Tailscale fork
 ```
+
+The code has the format of `rustfmt.toml`, and clippy gives no warning; the
+gate checks both first (`scripts/gate.sh`). Name the packages: `cargo fmt
+--all` also formats the fork in `vendor/`, which keeps its own format and its
+patches. A table keeps one row to a line (`#[rustfmt::skip]`, with a comment
+that says so). A lint is repaired, or allowed at its item with a comment that
+says why; never for a whole crate.
 
 `check-repo.py` also reads each Rust file under `crates/` for a listener:
 `TcpListener`, `UnixListener`, `UdpSocket`, `bind(`, `listen(` and

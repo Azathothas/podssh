@@ -285,10 +285,8 @@ mod tests {
     /// nor a stale justification passes.
     #[test]
     fn no_undeclared_code_collisions() {
-        for i in 0..TABLE.len() {
-            for j in (i + 1)..TABLE.len() {
-                let (a, ca) = TABLE[i];
-                let (b, cb) = TABLE[j];
+        for (i, &(a, ca)) in TABLE.iter().enumerate() {
+            for &(b, cb) in &TABLE[i + 1..] {
                 if ca != cb {
                     continue;
                 }

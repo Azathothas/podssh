@@ -2,7 +2,7 @@ This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP a
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
 `podssh-ws` item of ROADMAP M4 and `docs/design.md:117-121`, and from GitHub issues. The crate
-must build with no C compiler (`scripts/gate.sh:61-71`).
+must build with no C compiler (`scripts/gate.sh:76-86`).
 
 # T-063: W10: the frame decoder does not check a received control frame
 

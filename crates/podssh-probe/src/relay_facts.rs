@@ -72,7 +72,7 @@ impl Verdict {
     }
 }
 
-fn line_of<'a>(spec: &'a str, number: usize) -> Result<&'a str, String> {
+fn line_of(spec: &str, number: usize) -> Result<&str, String> {
     let total = spec.split('\n').count();
     // ⛔ `split('\n')` on a document ending in a newline yields a trailing empty
     // element, so this is one more than a reader's `wc -l`. Subtract it rather

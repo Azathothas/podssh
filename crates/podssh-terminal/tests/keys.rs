@@ -233,7 +233,7 @@ fn the_same_guard_accepts_the_sequences_it_must() {
 
     // ⛔ Each recognised final is consumed whole: none of them leaks a byte into
     // the line. ⛔ A, B, C, D, H, F — and `X` is the negative case, above.
-    for final_byte in [b'A', b'B', b'C', b'D', b'H', b'F', b'X'] {
+    for final_byte in *b"ABCDHFX" {
         let mut d = Discipline::new();
         feed(&mut d, b"one\n");
         let got = feed(&mut d, &[0x1b, b'[', final_byte]);
@@ -336,7 +336,7 @@ fn a_refused_pty_emulates_nothing_and_says_so() {
     assert_eq!(s.mode(), Mode::NoPty);
     assert_eq!(s.term(), None, "no TERM on a refused pty-req");
     assert_eq!(s.term_choice(), None, "and nothing to have replaced");
-    for b in [b'a', b'\r', b'\x03'] {
+    for b in *b"a\r\x03" {
         let got = s.on_local_byte(b);
         assert_eq!(got, vec![Event::ToLocal(BELL.to_vec())], "byte {b:#x}");
     }

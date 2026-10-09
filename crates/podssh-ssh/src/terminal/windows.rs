@@ -38,7 +38,7 @@ pub fn size() -> Option<Size> {
     }
     let cols = i32::from(info.srWindow.Right) - i32::from(info.srWindow.Left) + 1;
     let rows = i32::from(info.srWindow.Bottom) - i32::from(info.srWindow.Top) + 1;
-    (cols > 0 && rows > 0).then(|| Size { cols: cols as u32, rows: rows as u32, px_width: 0, px_height: 0 })
+    (cols > 0 && rows > 0).then_some(Size { cols: cols as u32, rows: rows as u32, px_width: 0, px_height: 0 })
 }
 
 /// Console modes to put back: (input handle, mode), (output handle, mode).

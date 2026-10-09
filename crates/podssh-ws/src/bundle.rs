@@ -84,8 +84,7 @@ pub fn pem_certificates(bytes: &[u8]) -> Result<Vec<CertificateDer<'static>>, St
     let normalised = text.replace("\r\n", "\n");
     let mut rest = normalised.as_str();
 
-    loop {
-        let Some(after_begin) = rest.find(BEGIN) else { break };
+    while let Some(after_begin) = rest.find(BEGIN) {
         let body_start = after_begin + BEGIN.len();
         let Some(rel_end) = rest[body_start..].find(END) else {
             return Err("a BEGIN CERTIFICATE block has no matching END".into());

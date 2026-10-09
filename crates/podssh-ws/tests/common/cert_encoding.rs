@@ -220,7 +220,7 @@ pub(crate) fn self_signed_inner(dns_name: &str, is_ca: bool) -> TestCert {
 
     let mut tbs_body = vec![0xa0, 0x03, 0x02, 0x01, 0x02]; // [0] { INTEGER 2 } = v3
     tbs_body.extend_from_slice(&[0x02, 0x01, 0x01]); // serialNumber 1
-    tbs_body.extend_from_slice(&seq(&[sig_alg.clone()])); // signature
+    tbs_body.extend_from_slice(&seq(std::slice::from_ref(&sig_alg))); // signature
     tbs_body.extend_from_slice(&issuer_name); // issuer
     tbs_body.extend_from_slice(&seq(&[
         // ⛔ **Both dates are UTCTime, and the year width follows the tag.**

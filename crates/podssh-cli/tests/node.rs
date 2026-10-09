@@ -109,7 +109,7 @@ fn the_other_relay_subcommands_are_not_implemented() {
 fn a_pair_file_is_used_in_place_of_the_store() {
     let home = scratch("pairfile");
     let elsewhere = home.join("elsewhere");
-    let file = pair::store_in_first(&[elsewhere.clone()], "carried", &test_pair(0)).unwrap();
+    let file = pair::store_in_first(std::slice::from_ref(&elsewhere), "carried", &test_pair(0)).unwrap();
     let path = file.to_str().unwrap();
     let (rc, out, err) = podssh(&home, &["node", "lab", "127.0.0.1:22", "--pair-file", path], &[]);
     assert_eq!(rc, 69, "the pair was read, and only the network stopped it: {err}");

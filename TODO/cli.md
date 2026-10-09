@@ -1008,7 +1008,7 @@ comment of a key: the `ssh-keygen` of OpenSSH does not run without a user
 database entry (`docs/cli.md:190-191`). `podssh keygen -p` and `-c` exit 64
 with "unknown flag", not a refusal by name. podssh's own message for a PEM key
 names `ssh-keygen -p -f FILE` as the remedy
-(`crates/podssh-ssh/src/keygen.rs:161-164`), a program that may not run there.
+(`crates/podssh-ssh/src/keygen.rs:163-166`), a program that may not run there.
 
 ## Premise
 
@@ -1042,7 +1042,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    back, decrypt it with the new passphrase, compare its public key with the
    original, then rename it over the original. Never write a different key
    over the file. For `-c`, write `FILE.pub` again.
-5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:161-164`
+5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:163-166`
    names `podssh keygen -p`; `docs/cli.md:186-198`, the notes of `keygen`
    (`crates/podssh-cli/src/man/notes.rs:146-154`), `docs/STATUS.md`.
 
@@ -1288,7 +1288,7 @@ the `sshd` login check fails.
 
 `podssh keygen -y` and `-l` refuse a PEM or PKCS#8 private key, and the
 message names `ssh-keygen -p -f FILE`
-(`crates/podssh-ssh/src/keygen.rs:161-164`), which does not run without a user
+(`crates/podssh-ssh/src/keygen.rs:163-166`), which does not run without a user
 database entry. `podssh ssh -i` reads the same file. A host with only podssh
 cannot export a public key for another system (RFC 4716, PKCS#8), or import
 one.
@@ -1302,7 +1302,7 @@ Measured offline: `podssh keygen -e -f k.pub`, `-i -f k.pub` and
 with `-p`.
 
 Read: `read_key_file` takes only an OpenSSH private key or a public key line
-(`crates/podssh-ssh/src/keygen.rs:151-172`). `podssh ssh -i` loads a key with
+(`crates/podssh-ssh/src/keygen.rs:153-174`). `podssh ssh -i` loads a key with
 `russh::keys::load_secret_key` (`crates/podssh-ssh/src/keys.rs:190`), which
 calls `decode_secret_key`: OpenSSH, PKCS#1 RSA, PKCS#8 (also encrypted), SEC1
 EC and PuTTY PPK. russh also has `encode_pkcs8_pem` and

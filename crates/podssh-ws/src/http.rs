@@ -102,8 +102,12 @@ where
     Ok(response)
 }
 
+/// A response head: the status, the reason, and the headers, names in lower
+/// case.
+pub type Head = (u16, String, Vec<(String, String)>);
+
 /// Parse a response head into status, reason and lower-cased headers.
-pub fn parse_head(head: &str) -> Result<(u16, String, Vec<(String, String)>), String> {
+pub fn parse_head(head: &str) -> Result<Head, String> {
     let (status, reason) = crate::dial::parse_status_line(head)?;
     let headers = head
         .split("\r\n")

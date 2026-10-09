@@ -130,6 +130,8 @@ pub fn write_pair(key: &PrivateKey, path: &Path) -> Result<PathBuf, String> {
 }
 
 /// What a key file holds.
+// A file is read once for each run: boxing the large variant would buy nothing.
+#[allow(clippy::large_enum_variant)]
 pub enum KeyFile {
     /// An OpenSSH private key, perhaps encrypted (its public half is readable
     /// either way).

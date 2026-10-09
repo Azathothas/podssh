@@ -120,7 +120,7 @@ Read:
      image. Do this item after T-206;
    - no entry for `vendor/tailscale-rs`.
 2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
-   the live check. The no-C steps of the gate (`scripts/gate.sh:63-71`) judge
+   the live check. The no-C steps of the gate (`scripts/gate.sh:78-86`) judge
    each update of a library crate's dependencies.
 3. Dependabot alerts and security updates: on since 2026-10-08, turned on
    with `gh api` and the operator's approval (`gh api
@@ -327,8 +327,8 @@ Read:
 - The help (`scripts/dev.sh:331-366`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
-  and the release with neither (`scripts/gate.sh:63-71`,
-  `scripts/gate.sh:117-120`). The help omits the work record, interop, the man
+  and the release with neither (`scripts/gate.sh:78-86`,
+  `scripts/gate.sh:132-135`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (`scripts/dev.sh:602`).
 - Stale comments: `scripts/dev.sh:69-73` ("the default build"),
   `scripts/dev.sh:397-404` ("links the fork since 4b", "steps 4-5"),
@@ -348,7 +348,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:55-166`).
+   (`scripts/gate.sh:70-181`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -420,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:350-395`): the
+5. docs/development.md, "Release builds" (`docs/development.md:359-404`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -761,7 +761,7 @@ Read:
   (lines 67-73) and the live check (lines 75-92) follow it.
 - `.github/workflows/build.yml:3-5`: CI implements nothing of the gate again.
 - `scripts/gate.sh:5-6`: the gate takes no argument. Its steps are at
-  `scripts/gate.sh:65-166`.
+  `scripts/gate.sh:80-181`.
 - `scripts/gate.sh:18-29`: one cargo job for each 3 GiB of free memory.
 - AGENTS.md, section 4: on the operator's machine, one build at a time
   (`scripts/dev.sh:556-575` holds a lock).
@@ -974,7 +974,7 @@ plant of step 4 must fail the three restore checks.
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -992,7 +992,7 @@ code is not in the default style of rustfmt.
 
 Read:
 
-- `scripts/gate.sh:55-166` has no step for rustfmt or clippy. There is no
+- `scripts/gate.sh:70-181` has no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
 - One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:308`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
@@ -1079,6 +1079,34 @@ read. `crates/podssh-cli/src/tree.rs` is 358 lines (T-051 moved `Parsed` to
 crates/podssh-transport/src/socket.rs at `e8bbd4d` is 480 (T-071);
 `crates/podssh-cli/src/dispatch.rs` is 480; `crates/podssh-ws/tests/rfc6455.rs`
 is 486. Measure again before the format.
+
+## Done
+
+2026-10-09, in the commits "The code in one format: rustfmt, 120
+characters, short items on one line" (the format alone) and "clippy gives no
+warning, and the gate checks the format and the lints".
+
+- clippy, measured on each target of the packages of the workspace: 47
+  warnings. `cargo clippy --fix` repaired 32 (copies of a slice, `mem::take`,
+  `div_ceil`, `then_some` on cheap values, a byte string, an elided
+  lifetime); by hand: a loop over pairs, a `while let`, two type aliases, a
+  guard that a test held across an `await` (now in a block of its own), an
+  `async fn` for the timed signer, a doc comment that was a plain comment,
+  and three assertions on constants, which a `const` block now checks when
+  the tests compile. Allowed at the item, with the reason: `KeyFile`, read
+  once for each run (`large_enum_variant`), and two functions of the live
+  IRC example, whose arguments are its knobs (`too_many_arguments`). With
+  the feature `ts`: no warning.
+- `scripts/gate.sh`: the components rustfmt and clippy, then `cargo fmt
+  -- --check` for each package, then clippy with `-D warnings`, for each
+  target and with the feature `ts`, before the builds.
+- Prove: `cargo fmt -- --check` (each package): exit 0. `cargo clippy
+  --locked --all-targets -- -D warnings`: exit 0; with `--features
+  podssh-cli/ts`: exit 0. `python scripts/check-repo.py`: exit 0, no file
+  over 500 lines. `cargo test --no-fail-fast`: 814 passed, 0 failed, 19
+  ignored. Plants, restored: `if v.len() == 0 {}` in a test of
+  `podssh-probe`: clippy exits 101 (`len_zero`); `PLANTED  : u8` with two
+  spaces: the format check exits 1. The gate's run is in CI, on the push.
 
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
@@ -1371,13 +1399,13 @@ the gate on any host that has a C++ compiler. The no-C rule held only because
 
 Read, in the tree as it is now:
 
-- `scripts/gate.sh:55-71`: the library crates build and test with
+- `scripts/gate.sh:70-86`: the library crates build and test with
   `CC=/nonexistent` and `CXX=/nonexistent`.
 - `scripts/plant.sh:100-145`: a crate in a temporary path whose build script
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:139-141` states the rule with `CXX`, and
+- `docs/development.md:148-150` states the rule with `CXX`, and
   `docs/STATUS.md:238` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -1805,7 +1833,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:42-47`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:104-107`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:119-122`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -1822,7 +1850,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:177-178` lists what the containers do not get; name
+5. `docs/development.md:186-187` lists what the containers do not get; name
    each excluded pattern there.
 
 ## Prove
@@ -2099,3 +2127,49 @@ check` must exit 1 and name each citation of it, and exit 0 again when the file 
   todo check` exited 1 with 6 problems, one for each citation of the file, each naming `cargo todo
   remap crates/podssh-ws/src/names.rs`; restored, it exited 0. While this entry was written, the
   check found its own missing remap of `crates/podssh-todo/src/refs.rs`.
+
+# T-258: Line numbers written as plain text in the record are not moved
+
+**Source:** the format of the code in T-215 (2026-10-09): `cargo todo remap`
+moved each citation in backticks, and none written as plain text.
+**Category:** defect
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The record moves a citation `FILE:N` and a bare `:N` after one when FILE
+changes (`TODO/RULES.md`, "Citations move with their documents"). A line
+number written as plain text after a citation ("line 179", "lines 178 and
+334") is neither moved nor checked, so it can name a line that holds other
+code. Some of them are readings at a commit that the entry names, and are
+right for that commit only.
+
+## Premise
+
+Measured on 2026-10-09 with a scan of `TODO/` and `docs/`: 42 numbers
+written as plain text follow a citation of a Rust file that the format of
+T-215 changed. `crates/podssh-todo/src/refs.rs` reads citations in backticks
+only.
+
+## Approach
+
+1. A check in `cargo todo check`: a plain "line N" or "lines N-M" after a
+   citation of a file of the tree, with no "at `COMMIT`" after it, is a
+   problem that asks for the bare `:N` form, which `remap` moves and `check`
+   reads.
+2. Rewrite the 42 and any others that the check finds: a reading at a named
+   commit becomes a history form ("lines N-M at `COMMIT`"); a reference to
+   the current tree becomes a bare `:N`, its number read again at the line.
+3. A plant: a plain "line 3" after a citation must be found.
+
+## Prove
+
+```sh
+cargo test -p podssh-todo
+cargo todo check
+```
+
+Both pass, and the plant is found.

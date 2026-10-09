@@ -293,5 +293,5 @@ fn is_a_node_refusal(reason: &str) -> bool {
         "eof",
         "session closed",
     ];
-    REFUSALS.iter().any(|needle| reason == *needle)
+    REFUSALS.contains(&reason)
 }

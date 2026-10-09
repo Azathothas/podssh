@@ -3,7 +3,7 @@ to I8 of the former defects page (`git show 3ee70dc:docs/defects.md`), and the r
 decides how `podssh chat` works (T-099). No command uses the client, and `podssh chat` exits 70.
 The client is sans-IO, so its unit tests need no network. The live probe
 `crates/podssh-cli/examples/live_irc.rs` reaches real servers through the relay, with a token from
-the environment, the cache or a mint, never printed (`docs/development.md:305-312`). Each defect was read
+the environment, the cache or a mint, never printed (`docs/development.md:314-321`). Each defect was read
 again on `3ee70dc`.
 
 # T-091: I1: `CAP END` is sent only after 001
@@ -32,7 +32,7 @@ wait for `001` (`crates/podssh-core/src/irc/cap.rs:22-28`). Only `on_registratio
 (`crates/podssh-core/src/irc/cap.rs:125-144`). A test asserts the wrong order
 (`crates/podssh-core/tests/session.rs:208-231`). A `421` for `CAP` before `001` sets `Refused`
 (`crates/podssh-core/src/irc/session.rs:318-322`), and the live probe can then drop the server
-(`crates/podssh-cli/examples/live_irc.rs:226-229`).
+(`crates/podssh-cli/examples/live_irc.rs:228-231`).
 
 Read: `docs/irc.md:18` says that libera, OFTC and tilde refuse the relay's addresses. They support
 `CAP`, so this defect alone explains "closed before `001`". The record does not say if that run
@@ -131,7 +131,7 @@ cargo test -p podssh-core --no-fail-fast
 The new file crates/podssh-core/tests/cap_list.rs holds `only_listed_capabilities_are_requested`,
 `a_value_is_never_sent_back`, `a_list_on_several_lines_gives_one_request` and
 `the_continuation_marker_is_not_a_capability`. Its input is a `CAP LS 302` reply captured from a
-real server, kept byte for byte with the server, version and date (`docs/development.md:318-319`).
+real server, kept byte for byte with the server, version and date (`docs/development.md:327-328`).
 Plant: remove the list filter; the first test must fail with `sasl=PLAIN` in the `REQ`. Then repeat
 the live runs of T-091; the probe prints the offered and enabled capabilities.
 
@@ -296,7 +296,7 @@ tokens. `Negotiation::reconnect` has no caller (`crates/podssh-core/src/irc/cap.
 `433` sets `Refused` and sends nothing (`crates/podssh-core/src/irc/session.rs:318-322`), against
 its comment (`crates/podssh-core/src/irc/session.rs:39-43`). A test asserts the refusal
 (`crates/podssh-core/tests/session.rs:263-272`), and the live probe works around it
-(`crates/podssh-cli/examples/live_irc.rs:218-225`).
+(`crates/podssh-cli/examples/live_irc.rs:220-227`).
 
 ## Approach
 
@@ -504,7 +504,7 @@ none, the relay cut it after 184 s (`docs/STATUS.md:96-97`).
    `crates/podssh-core/src/irc/session.rs:354-361`). No released podssh sends it.
 4. Rewrite the test at `crates/podssh-core/tests/session.rs:330-349`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs:5-29` and the test name at
-   `crates/podssh-core/tests/transfer.rs:371-393`.
+   `crates/podssh-core/tests/transfer.rs:371-396`.
 5. Update `docs/STATUS.md:218` in the same commit.
 
 Pitfall: a server can limit the rate of `PING` lines. One `PING` in 60 s is far below the usual

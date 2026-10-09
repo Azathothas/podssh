@@ -101,7 +101,8 @@ fn no_token_appears_and_the_cache_is_unchanged() {
     let dir = cache_dir(&home);
     let key = podssh_relay::DEFAULT_RELAY_HOST;
     let far = 9_999_999_999_999;
-    podssh_relay::cache::store_in_first(&[dir.clone()], key, SECRET_CACHED, far, key).expect("a cache entry");
+    podssh_relay::cache::store_in_first(std::slice::from_ref(&dir), key, SECRET_CACHED, far, key)
+        .expect("a cache entry");
     let listing = |d: &Path| -> Vec<(String, u64, std::time::SystemTime)> {
         let mut v: Vec<_> = std::fs::read_dir(d)
             .unwrap()

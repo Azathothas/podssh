@@ -303,11 +303,14 @@ fn the_default_limit_is_far_enough_for_the_largest_line_the_entry_writes() {
     let limits = podssh_core::irc::TransferLimits::default();
     let length = podssh_core::irc::transfer::chunk_line_length(&limits, "t", 0, 0);
     assert!(length <= 512, "⛔ a chunk line is {length} bytes; RFC 2812 §2.3 caps a message at 512");
-    assert!(
-        DEFAULT_MAX_LINE >= 512,
-        "⛔ the reassembler's default limit must be at least the RFC's 512, or a \
-         legal message is refused"
-    );
+    // Two constants: checked when the test compiles.
+    const {
+        assert!(
+            DEFAULT_MAX_LINE >= 512,
+            "⛔ the reassembler's default limit must be at least the RFC's 512, or a \
+             legal message is refused"
+        )
+    };
 }
 
 #[test]

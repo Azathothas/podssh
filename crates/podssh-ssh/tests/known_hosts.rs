@@ -33,9 +33,12 @@ fn file(name: &str, content: &str) -> PathBuf {
 #[test]
 fn hashed_entries_written_by_ssh_keygen_match() {
     let f = file("hashed", HASHED);
-    assert!(matches!(lookup(&[f.clone()], "example.org", &key(A)), Lookup::Known { line: 1, .. }));
-    assert!(matches!(lookup(&[f.clone()], &host_name("example.org", 2222), &key(A)), Lookup::Known { line: 2, .. }));
-    assert!(matches!(lookup(&[f.clone()], "other.org", &key(A)), Lookup::Unknown));
+    assert!(matches!(lookup(std::slice::from_ref(&f), "example.org", &key(A)), Lookup::Known { line: 1, .. }));
+    assert!(matches!(
+        lookup(std::slice::from_ref(&f), &host_name("example.org", 2222), &key(A)),
+        Lookup::Known { line: 2, .. }
+    ));
+    assert!(matches!(lookup(std::slice::from_ref(&f), "other.org", &key(A)), Lookup::Unknown));
     assert!(matches!(lookup(&[f], "example.org", &key(B)), Lookup::Changed { line: 1, .. }));
 }
 
@@ -66,7 +69,7 @@ fn bad_lines_are_skipped_and_line_numbers_kept() {
 #[test]
 fn other_key_types_are_reported_and_ordered_first() {
     let f = file("types", &format!("example.org {C}\n"));
-    match lookup(&[f.clone()], "example.org", &key(A)) {
+    match lookup(std::slice::from_ref(&f), "example.org", &key(A)) {
         Lookup::OtherTypes(types) => assert_eq!(types, vec!["ECDSA".to_string()]),
         other => panic!("{other:?}"),
     }

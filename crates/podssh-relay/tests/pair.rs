@@ -199,7 +199,7 @@ fn the_operator_part_is_read_from_its_file_or_from_a_whole_pair() {
     let dir = scratch("operator-part");
     let operator = dir.join("operator.json");
     pair::write_operator_file(&operator, &good()).unwrap();
-    let whole = pair::store_in_first(&[dir.clone()], "lab", &good()).unwrap();
+    let whole = pair::store_in_first(std::slice::from_ref(&dir), "lab", &good()).unwrap();
     for path in [&operator, &whole] {
         let part = pair::read_operator_file(path).expect("an operator's part");
         assert_eq!((part.name.as_str(), part.connect_token(), part.expires_ms), (NAME, CONNECT, NOW + HOURS_72));

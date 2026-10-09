@@ -47,21 +47,19 @@ where
 {
     type Error = S::Error;
 
-    fn auth_sign(
+    async fn auth_sign(
         &mut self,
         key: &AgentIdentity,
         hash_alg: Option<HashAlg>,
         to_sign: Vec<u8>,
-    ) -> impl Future<Output = Result<Vec<u8>, Self::Error>> + Send {
-        async move {
-            self.time.lock().unwrap_or_else(|e| e.into_inner()).since = Some(Instant::now());
-            let signed = self.inner.auth_sign(key, hash_alg, to_sign).await;
-            let mut time = self.time.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(start) = time.since.take() {
-                time.spent += start.elapsed();
-            }
-            signed
+    ) -> Result<Vec<u8>, Self::Error> {
+        self.time.lock().unwrap_or_else(|e| e.into_inner()).since = Some(Instant::now());
+        let signed = self.inner.auth_sign(key, hash_alg, to_sign).await;
+        let mut time = self.time.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some(start) = time.since.take() {
+            time.spent += start.elapsed();
         }
+        signed
     }
 }
 

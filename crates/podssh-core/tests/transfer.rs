@@ -104,7 +104,7 @@ fn a_file_over_the_session_cap_is_chunked_across_sessions_and_never_through_one(
     // ⛔ **And nothing is ever streamed through one session.**
     for total in [1u64, 1000, 1 << 20, limits.session_bytes as u64, big, 1 << 34] {
         let sessions = limits.session_count(total);
-        let bytes_per_session = (total + sessions - 1) / sessions;
+        let bytes_per_session = total.div_ceil(sessions);
         assert!(
             bytes_per_session <= limits.session_bytes as u64,
             "⛔ {total} bytes over {sessions} sessions needs {bytes_per_session} \
@@ -385,11 +385,14 @@ fn a_client_that_only_answers_pings_still_loses_to_the_reaper() {
     // the session is reaped. ⛔ **MEASURED 2026-10-02**: an earlier version
     // of this test asserted `3 * PERIOD < IDLE_REAPER_MS` ⛔ and the assertion
     // is what the numbers contradicted ⛔ 180 000 is not less than 180 000.
-    assert!(2 * HEARTBEAT_PERIOD_MS < IDLE_REAPER_MS, "⛔ ONE missed beat must be survivable");
-    assert!(
-        3 * HEARTBEAT_PERIOD_MS >= IDLE_REAPER_MS,
-        "⛔ TWO missed beats must not be survivable; the margin is one beat, not two"
-    );
+    // Constants only: checked when the test compiles.
+    const {
+        assert!(2 * HEARTBEAT_PERIOD_MS < IDLE_REAPER_MS, "⛔ ONE missed beat must be survivable");
+        assert!(
+            3 * HEARTBEAT_PERIOD_MS >= IDLE_REAPER_MS,
+            "⛔ TWO missed beats must not be survivable; the margin is one beat, not two"
+        );
+    };
 }
 
 #[test]

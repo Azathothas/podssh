@@ -276,7 +276,7 @@ declares `libc` (`crates/podssh-probe/Cargo.toml:11`), which none of its sources
 `crates/podssh-probe/src/facts.rs:3-6` names a "startup assertion" that no command runs;
 `crates/podssh-probe/src/relay_facts.rs:261-289` is that unused startup part. CI runs
 `scripts/check-relay-spec.py` live, with three plants (`.github/workflows/build.yml:94-111`).
-The gate runs the crate's tests with no C compiler (`scripts/gate.sh:61-71`). The build image
+The gate runs the crate's tests with no C compiler (`scripts/gate.sh:76-86`). The build image
 has no Python (`crates/podssh-probe/src/facts.rs:14-19`), so the crate is the only form of the
 check that the container gate can run.
 
