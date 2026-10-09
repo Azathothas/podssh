@@ -3,8 +3,9 @@
 //! One task, the writer, owns the write half and the state of each session,
 //! so no frame goes out without its id, before its `ready`, or after its
 //! `close` (`docs/reverse.md`, "Node"). The reader routes data by id to the
-//! local side of each session; an opener task per `open` asks the handler,
-//! and only its answer queues `ready` or `reject`.
+//! local side of each session, and never waits for one: a local side that
+//! reads no more ends its own session. An opener task per `open` asks the
+//! handler, and only its answer queues `ready` or `reject`.
 
 use std::collections::HashMap;
 use std::future::Future;
@@ -17,6 +18,8 @@ use podssh_ws::session::{close_code_and_reason, RelaySession};
 use podssh_ws::SessionError;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
+use tokio::sync::mpsc::error::TrySendError;
+use tokio::sync::oneshot;
 
 use super::closes::RelayClose;
 use super::control::{self, NodeInbound, NodeLimits};
@@ -70,11 +73,23 @@ enum Out {
     Closed(SessionId),
     /// The local side ended: the relay is told with `close {id}`.
     LocalEnd(SessionId),
+    /// The local side reads no more: `close {id}`, with the reason.
+    Stalled(SessionId),
     Stop,
 }
 
+/// Why a node ends a session whose local side reads no more.
+const STALLED: &str = "the node's local side does not read";
+
+/// The local side of a session: where its data goes, and its two copies,
+/// which stop at once when it stalls.
+struct Route {
+    data: mpsc::Sender<Vec<u8>>,
+    copies: [tokio::task::AbortHandle; 2],
+}
+
 /// The local side of each session that has one, by id.
-type Routes = Arc<Mutex<HashMap<SessionId, mpsc::Sender<Vec<u8>>>>>;
+type Routes = Arc<Mutex<HashMap<SessionId, Route>>>;
 
 /// Serve the sessions of `session` until the socket ends or `stop` fires.
 pub async fn serve<S, H, F>(session: RelaySession<S>, handler: Arc<H>, settings: Settings, stop: &mut F) -> End
@@ -127,11 +142,10 @@ where
             },
             Ok(f) if f.opcode == frame::OPCODE_BINARY => {
                 let Ok((id, payload)) = decode_node_frame(&f.payload) else { continue };
-                let route = routes.lock().unwrap_or_else(|e| e.into_inner()).get(&id).cloned();
                 // Data for no live session (a late frame of a closed one) is
                 // dropped; the socket and the other sessions go on.
-                if let Some(route) = route {
-                    let _ = route.send(payload.to_vec()).await;
+                if offer(&routes, id, payload) {
+                    let _ = tx.send(Out::Stalled(id)).await;
                 }
             }
             Ok(f) if f.opcode == frame::OPCODE_CLOSE => {
@@ -150,6 +164,28 @@ where
 
 fn routes_len(routes: &Routes) -> usize {
     routes.lock().unwrap_or_else(|e| e.into_inner()).len()
+}
+
+/// Give a frame's payload to its session without waiting. A full queue means
+/// that the local side reads no more; waiting for it would stop every session
+/// of the socket, as the relay has no flow control for one session. So that
+/// session ends here: true when it did.
+fn offer(routes: &Routes, id: SessionId, payload: &[u8]) -> bool {
+    let mut routes = routes.lock().unwrap_or_else(|e| e.into_inner());
+    let Some(route) = routes.get(&id) else { return false };
+    match route.data.try_send(payload.to_vec()) {
+        Err(TrySendError::Full(_)) => {
+            if let Some(route) = routes.remove(&id) {
+                for copy in route.copies {
+                    copy.abort();
+                }
+            }
+            true
+        }
+        // Sent; or the local writer is gone, and the session's own end tells
+        // the relay.
+        Ok(()) | Err(TrySendError::Closed(_)) => false,
+    }
 }
 
 /// Open the local side of `id`, and only then queue `ready`; on a refusal or
@@ -180,11 +216,7 @@ async fn open<H: Handler>(
     };
     let (mut local_read, mut local_write) = tokio::io::split(stream);
     let (in_tx, mut in_rx) = mpsc::channel::<Vec<u8>>(32);
-    // The route exists before `ready`, so the first bytes after it find it.
-    routes.lock().unwrap_or_else(|e| e.into_inner()).insert(id, in_tx);
-    opening.fetch_sub(1, Ordering::SeqCst);
-    let _ = tx.send(Out::Ready(id)).await;
-    tokio::spawn(async move {
+    let to_local = tokio::spawn(async move {
         while let Some(bytes) = in_rx.recv().await {
             if local_write.write_all(&bytes).await.is_err() {
                 break;
@@ -192,19 +224,36 @@ async fn open<H: Handler>(
         }
         let _ = local_write.shutdown().await;
     });
-    let mut buf = vec![0u8; CHUNK_BYTES];
-    loop {
-        match local_read.read(&mut buf).await {
-            Ok(0) | Err(_) => break,
-            Ok(n) => {
-                if tx.send(Out::Data(id, buf[..n].to_vec())).await.is_err() {
-                    break;
+    // The local reader starts once `ready` is queued: the writer drops data
+    // of a session that is not readied.
+    let (go, readied) = oneshot::channel::<()>();
+    let from_local = tokio::spawn({
+        let (tx, routes) = (tx.clone(), routes.clone());
+        async move {
+            if readied.await.is_err() {
+                return;
+            }
+            let mut buf = vec![0u8; CHUNK_BYTES];
+            loop {
+                match local_read.read(&mut buf).await {
+                    Ok(0) | Err(_) => break,
+                    Ok(n) => {
+                        if tx.send(Out::Data(id, buf[..n].to_vec())).await.is_err() {
+                            break;
+                        }
+                    }
                 }
             }
+            routes.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
+            let _ = tx.send(Out::LocalEnd(id)).await;
         }
-    }
-    routes.lock().unwrap_or_else(|e| e.into_inner()).remove(&id);
-    let _ = tx.send(Out::LocalEnd(id)).await;
+    });
+    // The route exists before `ready`, so the first bytes after it find it.
+    let route = Route { data: in_tx, copies: [to_local.abort_handle(), from_local.abort_handle()] };
+    routes.lock().unwrap_or_else(|e| e.into_inner()).insert(id, route);
+    opening.fetch_sub(1, Ordering::SeqCst);
+    let _ = tx.send(Out::Ready(id)).await;
+    let _ = go.send(());
 }
 
 /// The writer: the one task that writes to the socket. It owns the state of
@@ -247,6 +296,14 @@ where
             Out::LocalEnd(id) => {
                 if sessions.state(&id).is_some() {
                     if let Some(text) = json(control::close(&id, None)) {
+                        session.send_text(&text).await?;
+                    }
+                    sessions.closed(&id);
+                }
+            }
+            Out::Stalled(id) => {
+                if sessions.state(&id).is_some() {
+                    if let Some(text) = json(control::close(&id, Some(STALLED))) {
                         session.send_text(&text).await?;
                     }
                     sessions.closed(&id);

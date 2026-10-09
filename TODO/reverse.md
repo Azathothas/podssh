@@ -1464,3 +1464,76 @@ check; the replay test must fail. Live, the relay's shape only: a second use of 
 
 The relay's operator: an endpoint that gives a signed grant, used once. The operator ruled on 2026-10-08 that
 M4 keeps the relay's tokens (`docs/decisions.md`).
+
+# T-256: A local side that does not read stops every session of the node
+
+**Source:** a reading of `crates/podssh-relay/src/reverse/serve.rs` on
+2026-10-09, while T-118 was planned.
+**Category:** defect
+**Milestone:** M4
+**Priority:** P2
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The node's socket reader gives each data frame to its session's queue, and
+waits while that queue is full. A local side that reads nothing (a stuck
+target, a program that does not read its input) fills its queue, and then the
+reader waits on it: no frame of any session is read, controls included, until
+the liveness watcher finds the socket silent and the node connects again,
+which ends every session.
+
+## Premise
+
+Read: the reader awaits the queue of the session
+(`crates/podssh-relay/src/reverse/serve.rs` lines 133-134 at `1f89a82`), which
+holds 32 chunks (line 182 there). The relay has no flow
+control for one session of a socket: it closes a leg with `1011 relay
+backpressure` when more than 1 MiB waits for a slow receiver
+(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`).
+
+## Approach
+
+1. The reader offers the data with `try_send`. On a full queue that session
+   ends: its two copies stop, its route goes, and the writer sends
+   `close {id}` with the reason "the local side does not read". The other
+   sessions go on.
+2. The local reader starts only after `ready` is queued, as now, so that its
+   first bytes are not dropped.
+3. A test against the scripted relay (`crates/podssh-relay/tests/reverse_node.rs`):
+   session A's local side reads nothing while the relay sends it 40 frames of
+   64 KiB; session B still carries bytes both ways, and A gets the `close` with
+   the reason.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair --test reverse_node
+```
+
+Plant: the reader awaits the full queue again. The test must fail at its time
+limit, not hang.
+
+## Done
+
+2026-10-09, in the commit "A stalled local side ends its own session, not the
+node's".
+
+- `crates/podssh-relay/src/reverse/serve.rs`: the reader gives a frame to its
+  session with `try_send` (`offer`). On a full queue the session ends: its two
+  copies stop (each route keeps their abort handles), its route goes, and the
+  writer sends `close {id}` with the reason "the node's local side does not
+  read". The local reader starts once `ready` is queued, as before.
+- Test: `a_local_side_that_does_not_read_ends_its_session_and_not_the_others`
+  in `crates/podssh-relay/tests/reverse_node.rs`: A's local side reads
+  nothing while the relay sends it 40 frames of 64 KiB; B carries bytes both
+  ways, A gets the `close` with its reason, and at the stop only B is closed.
+- Prove: `cargo test -p podssh-relay --features pair --test reverse_node`:
+  7 passed, 0 failed. Plant, restored: the reader awaits the full queue
+  again; the test failed at its limit of 20 s ("a stalled session stopped
+  the socket"), exit 101.
+- Also, from T-255's commit: the doc comment of `connect_refusal` in
+  `crates/podssh-cli/src/pairs.rs` is above its function again
+  (`session_end` had gone in between).

@@ -147,8 +147,6 @@ pub(crate) fn operator_part(label: &str, pair_file: Option<&str>) -> Result<pair
     Ok(part)
 }
 
-/// A connection to the relay that failed for a pair: its code, and for a
-/// refused token the remedy.
 /// How a session of the reverse road ended after `ready`, in words, the same
 /// for `podssh operator` and `podssh ssh node://NAME`. With no Close (`1006`)
 /// the link broke, and the relay drops links at random (T-255); a node that
@@ -165,6 +163,8 @@ pub(crate) fn session_end(code: u16, reason: &str) -> String {
     }
 }
 
+/// A connection to the relay that failed for a pair: its code, and for a
+/// refused token the remedy.
 pub(crate) fn connect_refusal(e: &ConnectError, label: &str) -> Refusal {
     let message = match e {
         ConnectError::Refused { status: 403, .. } => format!(

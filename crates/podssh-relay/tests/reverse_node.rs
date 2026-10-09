@@ -179,6 +179,52 @@ async fn two_sessions_carry_their_own_bytes_both_ways() {
     assert!(matches!(task.await.unwrap(), End::Stopped));
 }
 
+/// A local side that reads nothing ends its own session, with the reason. The
+/// reader never waits on it, so the other sessions of the socket go on.
+#[tokio::test]
+async fn a_local_side_that_does_not_read_ends_its_session_and_not_the_others() {
+    let (mut relay, stop, task, ends) = start(Local::default());
+    relay.text(HELLO).await;
+    relay.text(&open(A)).await;
+    relay.text(&open(B)).await;
+    relay.expect().await;
+    relay.expect().await;
+    // A's local side is held, and never read.
+    let (_a, mut b) = (local(&ends, A).await, local(&ends, B).await);
+
+    // More than A's pipe and queue hold. A reader that waited on A would take
+    // no more frames, and these writes would never end.
+    let chunk = vec![b'a'; 65536];
+    let flood = async {
+        for _ in 0..40 {
+            relay.data(A, &chunk).await;
+        }
+        relay.data(B, b"to b").await;
+    };
+    tokio::time::timeout(Duration::from_secs(20), flood)
+        .await
+        .expect("the node took each frame; a stalled session stopped the socket");
+    let mut got = [0u8; 4];
+    tokio::time::timeout(LIMIT, b.read_exact(&mut got)).await.expect("B's bytes in time").unwrap();
+    assert_eq!(&got, b"to b");
+
+    let closed = text_of(&relay.expect().await);
+    assert!(closed.contains(A) && closed.contains(r#""type":"close""#), "{closed}");
+    assert!(closed.contains("local side does not read"), "the close names why: {closed}");
+
+    b.write_all(b"from b").await.unwrap();
+    let f = relay.expect().await;
+    assert_eq!(f.opcode, frame::OPCODE_BINARY);
+    assert_eq!(&f.payload[..32], B.as_bytes());
+    assert_eq!(&f.payload[32..], b"from b", "B goes on, both ways");
+
+    stop.notify_one();
+    let last = text_of(&relay.expect().await);
+    assert!(last.contains(B) && !last.contains(A), "only B was still live: {last}");
+    assert_eq!(relay.expect().await.opcode, frame::OPCODE_CLOSE);
+    assert!(matches!(task.await.unwrap(), End::Stopped));
+}
+
 #[tokio::test]
 async fn late_bytes_after_close_are_dropped_and_the_socket_stays() {
     let (mut relay, _stop, _task, ends) = start(Local::default());

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**252 entries: 187 open, 1 partial, 8 blocked, 56 done.**
+**253 entries: 187 open, 1 partial, 8 blocked, 57 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 97 | 1 | 4 | 43 | 145 |
+| P2 | 97 | 1 | 4 | 44 | 146 |
 | P3 | 88 | 0 | 4 | 5 | 97 |
-| **All** | 187 | 1 | 8 | 56 | 252 |
+| **All** | 187 | 1 | 8 | 57 | 253 |
 
 ## Entries
 
@@ -327,3 +327,4 @@ repository and CI).
 | [T-253](relay.md) | P2 | M | backlog | defect | blocked | The relay's egress reaches no IPv6 host |
 | [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |
 | [T-255](relay.md) | P2 | M | M4 | measurement | blocked | The relay's side drops reverse sockets at random, with no Close |
+| [T-256](reverse.md) | P2 | S | M4 | defect | done | A local side that does not read stops every session of the node |
