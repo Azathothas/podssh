@@ -566,7 +566,7 @@ Read; the lines of the files that this entry changed are those of `723d90b`. `se
 returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs` lines 95-96 and 138-140 put it in `RelayEnd::Failed`;
 `crates/podssh-cli/src/proxy.rs:212-247` prints it; `podssh-transport` makes a write error
-`TransportError::Unexpected` (`crates/podssh-transport/src/socket.rs` lines 104-113, 143, 161
+`TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
 WebSocket Close"), and `scripts/interop-faults.sh:148` ("pings unanswered").
@@ -630,7 +630,7 @@ the text still pass. Planted defect: map each error to `Io`; the class tests fai
   class (`adapt::SessionError`), and `WsSocket` maps it (see Decision).
 - Tests: the tests of `crates/podssh-ws/tests/session.rs` that read the text assert the class too
   (`Protocol`, `Idle`, `ClosedWithoutClose`, `Dead`), and a new one: a write to a peer that never
-  reads is `WriteStalled`. `crates/podssh-transport/tests/socket.rs`: each class has its retry.
+  reads is `WriteStalled`. crates/podssh-transport/tests/socket.rs at `e8bbd4d`: each class has its retry.
 - Prove: `CC=/nonexistent CXX=/nonexistent cargo test -p podssh-ws -p podssh-transport`: 240
   passed, 0 failed. `cargo test --no-fail-fast` (`podssh-ssh` and `podssh-cli` among them):
   810 passed, 0 failed, 7 ignored. The gate of the commit (CI) runs `interop-faults.sh`,

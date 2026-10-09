@@ -63,7 +63,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    ENOSYS), two pipes; Windows uses pipes. stderr is shared. When the other
    side ends, the child gets the end of input, and podssh waits for it as a
    shell waits. Add the `process` feature of tokio to podssh-cli
-   (`Cargo.toml:72-74` lacks it; `crates/podssh-ssh/Cargo.toml:20` has it).
+   (`Cargo.toml:70-72` lacks it; `crates/podssh-ssh/Cargo.toml:20` has it).
 6. The exit status: the child's, and 128 + N for a signal; with two children,
    B's. A program that is not found gives 127, one that cannot run 126, as a
    shell gives. With no child, a clean end gives 0.
@@ -140,7 +140,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:99-101`).
+   pump does not know the road (`docs/architecture.md:98-100`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:97-110` does;
    open with `crates/podssh-relay/src/open.rs:175-211`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -292,7 +292,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:269-271`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:178-183`, `docs/architecture.md:102-109`,
+  `AGENTS.md:178-183`, `docs/architecture.md:101-108`,
   `docs/target-environment.md:74-78`, `SECURITY.md:59-62`, `README.md:35-36`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:149`). The box refuses each `bind`, AF_UNIX too

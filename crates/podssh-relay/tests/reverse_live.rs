@@ -11,7 +11,7 @@ use std::time::Duration;
 use podssh_relay::pair::{self, Pair, PairContext};
 use podssh_relay::relay::{Relay, DEFAULT_RELAY_HOST};
 use podssh_relay::reverse::{operator, run, Exit, Handler, NodeConfig, Opening, OperatorConfig, OperatorLimits, Outcome, Settings, Wire};
-use podssh_transport::SessionId;
+use podssh_relay::reverse::SessionId;
 use podssh_ws::{ProxyChoice, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::Notify;

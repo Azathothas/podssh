@@ -1,7 +1,6 @@
 //! The default relay's name is a string literal in exactly one place in
 //! library code, `podssh-relay/src/relay.rs`, so changing relays is a one-line
-//! edit. (Moved here from podssh-transport's tests when its unused DNS code,
-//! which those tests also covered, was removed on 2026-10-08.)
+//! edit.
 
 /// The default relay is compiled in (operator decision 2026-10-08) and its
 /// name appears as a string literal in exactly one place in library code,

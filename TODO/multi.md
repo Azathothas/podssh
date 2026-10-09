@@ -562,7 +562,7 @@ expect rule.
    reads `\r`, `\n`, `\t` and `\xNN`. Each rule waits `--expect-timeout`
    (default 30 s); a miss ends the session with 255 and names the rule.
 3. No secrets: `--send` is on the command line, which each process can read
-   (`docs/architecture.md:121-123`). The manual says so; passwords come
+   (`docs/architecture.md:120-122`). The manual says so; passwords come
    through `SSH_ASKPASS`.
 4. Tasks before and after the connection: the shell does them
    (`cmd && podssh ssh host; cmd`). Only `LocalCommand` needs podssh,
@@ -732,7 +732,7 @@ a ticket, or a tool that asks an AI.
   (`AGENTS.md:184-188`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:100-117`).
 - Read: credentials never go to output, logs, URLs or argv
-  (`docs/architecture.md:121-123`). The token type never shows itself
+  (`docs/architecture.md:120-122`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-53`), and doctor never shows proxy
   credentials or tokens (`docs/cli.md:153-155`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the

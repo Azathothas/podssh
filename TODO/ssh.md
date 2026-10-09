@@ -406,7 +406,7 @@ logs each `exit-status` request, and correct the row.
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
 lablup/bssh report in GitHub #18, #20 and #22 (item 8, "`@cert-authority`
-rejection"); the known gap in `docs/STATUS.md:213` and `SECURITY.md:77-79`.
+rejection"); the known gap in `docs/STATUS.md:215` and `SECURITY.md:77-79`.
 Each claim read again here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog
@@ -440,7 +440,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:99-106` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:71-73`). GitHub #29
   cites line 91, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:3622`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:3610`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -472,7 +472,7 @@ back to the plain key only when no CA line matches.
    (`crates/podssh-cli/src/doctor/clock.rs`).
 6. Keep the test `a_cert_authority_line_does_not_make_a_key_known`: a CA line
    never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:68-70`.
-   When certificates work, change `docs/STATUS.md:213` and `SECURITY.md:77-79`.
+   When certificates work, change `docs/STATUS.md:215` and `SECURITY.md:77-79`.
 
 GitHub #29 notes that the bssh report in #18, #20 and #22 asks podssh to
 keep refusing a certificate that no trusted CA signed. Verification keeps

@@ -119,8 +119,8 @@ podssh-relay
   loopback for tests (feature `plain-ws`, T-068), typed session errors
   (`SessionError`, T-069), and no verifier that accepts each certificate
   (T-065 moved `PrintChain` to an example).
-- `podssh-transport` moves into `podssh-relay`. Its unused backpressure
-  module goes.
+- `podssh-transport` moved into `podssh-relay`, and its unused backpressure
+  module went (T-082, 2026-10-09).
 - podbox then pins `podssh-relay` by git revision and removes its own
   `ws.rs`, `tls.rs`, its direct dial and its pairing through curl.
 

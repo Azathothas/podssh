@@ -34,7 +34,7 @@ drop or add frames (`SECURITY.md:23-26`).
 
 ## Approach
 
-1. A sans-IO codec (`docs/architecture.md:94-98`) in a new module
+1. A sans-IO codec (`docs/architecture.md:93-97`) in a new module
    crates/podssh-relay/src/session/, with each file under 500 lines. A record
    is a type byte, a 32-bit length and a body of 64 KiB or less: `GREETING`
    and `ACCEPT` (far end), `OPEN` and `PROOF` (client), `REFUSE`, `DATA` (its
@@ -108,8 +108,8 @@ an escape sequence of GitHub #31 needs dropped bytes (T-221). The reverse road
 drops a frame and closes with `1011 relay backpressure` above 1 MiB queued
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the buffer
 turns that close into a resume. The SSH window is 512 KiB for each channel
-(`crates/podssh-ssh/src/run.rs:25-29`). Do not reuse the backpressure module of
-`podssh-transport`, which the design removes (T-074, `docs/design.md:122-123`).
+(`crates/podssh-ssh/src/run.rs:25-29`). Do not bring back the backpressure module of
+`podssh-transport`, which T-074 removed (`docs/design.md:122-123`).
 
 ## Approach
 
@@ -139,7 +139,7 @@ state matters only when a new client attaches to a kept shell (T-161).
 
 Recommendation: 4 MiB by default. The relay holds at most 1 MiB for a slow
 receiver and the SSH window is 512 KiB, so 4 MiB keeps the bytes of a lost
-link. A node with 16 sessions (`crates/podssh-transport/src/control.rs:111-120`)
+link. A node with 16 sessions (crates/podssh-transport/src/control.rs lines 111-120 at `e8bbd4d`)
 then holds 64 MiB at most. The alternative, 16 MiB, lost: four times the
 memory in a cage, for no measured gain.
 
@@ -180,9 +180,9 @@ GitHub #19 reports. Some closes mean "do not come back".
 
 Read: the failover across relay hosts serves the first connection only
 (`crates/podssh-relay/src/open.rs:172-211`). `classify` maps each reverse close
-to a retry class (`crates/podssh-transport/src/closes.rs:154-229`), with
+to a retry class (crates/podssh-transport/src/closes.rs lines 154-229 at `e8bbd4d`), with
 `relay backpressure` as `Retry::Never`
-(`crates/podssh-transport/src/closes.rs:202`); a received Close lost its code
+(crates/podssh-transport/src/closes.rs line 202 at `e8bbd4d`); a received Close lost its code
 until T-072 (repaired 2026-10-09). Read, not measured: `/v1/node` and `/v1/connect` are on the
 control host only (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:23-24`).
 A second node socket for one name gets `409`
@@ -331,7 +331,7 @@ meets these limits, and an end at a limit costs a resume and its delay.
 Read: the reverse road has the same cap, `1009 session byte cap`, "Open a new
 session" (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:183`),
 which `classify` maps to `Retry::NewSession`
-(`crates/podssh-transport/src/closes.rs:203-205`), and a session lives 720
+(crates/podssh-transport/src/closes.rs lines 203-205 at `e8bbd4d`), and a session lives 720
 minutes at most (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
 Measured in sandbox A (T-001; `docs/STATUS.md`, "In the operator's real
 sandboxes, measured"): 67,107,943 bytes, then `1009 session byte cap`. A pair
@@ -806,7 +806,7 @@ that invariant. Bytes are dropped only where a client attaches after output
 that it never received: T-158, T-159 and T-161. The report puts the tracker
 in `podssh-transport`; it cannot work there. The layer runs under SSH and
 sees only ciphertext (`docs/design.md:203-204`), and the transport crates do
-not know the protocol that they carry (`docs/architecture.md:99-101`). The
+not know the protocol that they carry (`docs/architecture.md:98-100`). The
 plaintext of a pty exists only on the far end that keeps the shell. Read in
 the report, not verified here: tty7 drops bytes from its ring until a tracker
 says that it is at a boundary

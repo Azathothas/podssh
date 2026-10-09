@@ -12,17 +12,18 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use podssh_transport::control::{self, NodeInbound, NodeLimits};
-use podssh_transport::framing::legs::{chunk_for_node, decode_node_frame, CHUNK_BYTES};
-use podssh_transport::sessions::Sessions;
-use podssh_transport::{RelayClose, SessionId};
 use podssh_ws::frame;
 use podssh_ws::session::{close_code_and_reason, RelaySession};
 use podssh_ws::SessionError;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
 
+use super::closes::RelayClose;
+use super::control::{self, NodeInbound, NodeLimits};
+use super::framing::legs::{chunk_for_node, decode_node_frame, CHUNK_BYTES};
+use super::framing::SessionId;
 use super::node::Handler;
+use super::sessions::Sessions;
 
 /// How one socket ended.
 #[derive(Debug)]

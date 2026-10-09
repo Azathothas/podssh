@@ -28,12 +28,14 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## Baseline
 
-Measured on 2026-10-09 after T-084, on Windows 11 with native cargo 1.98.0
+Measured on 2026-10-09 after T-082, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`: 850 passed, 0 failed, 12 ignored (the live
+- `cargo test --no-fail-fast`: 810 passed, 0 failed, 12 ignored (the live
   tests).
-- `sh scripts/dev.sh check` (after T-051): green; interop 103 of 103.
+- `cargo test -p podssh-relay --all-features --no-fail-fast`: 109 passed, 0
+  failed, 7 ignored (the live tests).
+- `sh scripts/dev.sh check` (after T-082): green; interop 103 of 103.
 - `cargo test -p podssh-todo`: 65 passed: 12 unit tests, 34 plant tests (33
   planted disagreements and the control), 11 tests of the remap, 7 tests of
   the writer, and the test of this record.
@@ -42,7 +44,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 251 entries: 193 open, 0 partial, 7 blocked, 51 done.
+`TODO/INDEX.md` holds 251 entries: 190 open, 0 partial, 7 blocked, 54 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -55,7 +57,7 @@ then take the next one. Each session runs unattended until the goal of
 **After M3 and before M4 (the operator's ruling of 2026-10-08):**
 the surface for agents: done.
 
-**M4, in this order:** T-082, T-074, T-077; T-061; T-085 (the exit measurement).
+**M4, in this order:** T-061; T-085 (the exit measurement).
 
 **Then** M5, M6, M7 and M8, each in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"); then each `backlog` entry, in the order

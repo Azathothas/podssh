@@ -1,13 +1,10 @@
 //! The IRC state machine — RFC 1459 / RFC 2812 — and nothing else.
 //!
-//! ⛔ **Why this module exists and no crate does.** The relay moves bytes and
-//! ⛔ `podssh-transport` must never learn the word IRC: *"our ssh is not real
-//! ssh either, so its the same way."* One transport, N protocols; podssh
-//! implements the protocol on both ends and the relay carries the bytes without
-//! knowing which. So **IRC takes no dependency on `podssh-transport`** and
-//! needs no change to it, and no DNS work either: `podssh-transport` owns that.
-//! E37's Decision put DNS in the transport and IRC here, because adding a
-//! crate is not free and a seam has to be kept coherent.
+//! Why a module and no crate: the relay moves bytes, and the code that carries
+//! them (`podssh-relay`, `podssh-ws`) never learns the word IRC. One road, many
+//! protocols: podssh speaks the protocol at the ends, and the relay carries
+//! the bytes without knowing which. So IRC depends on neither, and needs no
+//! change to them.
 //!
 //! ⛔ **This module owns no I/O policy and no clock.** Everything here is a
 //! pure function of bytes, a caller's push buffer, and an injected clock. That

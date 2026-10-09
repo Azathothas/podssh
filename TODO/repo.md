@@ -337,7 +337,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:278-304`): the
+5. docs/development.md, "Release builds" (`docs/development.md:277-303`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -744,7 +744,7 @@ Read:
 - `.github/workflows/release.yml:65-106`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
-- `docs/STATUS.md:228`: the default tests pass on Windows, run by hand.
+- `docs/STATUS.md:229`: the default tests pass on Windows, run by hand.
   `docs/STATUS.md:69`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
@@ -817,7 +817,7 @@ Read:
   rustfmt.toml and no clippy.toml.
 - One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:315`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
-  `crates/podssh-transport/src/socket.rs` (458),
+  crates/podssh-transport/src/socket.rs at `e8bbd4d` (458),
   `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
 
 Not measured (no build here): the changes of rustfmt, the warnings of clippy,
@@ -865,7 +865,7 @@ fail clippy (`len_zero`); two spaces before an `=` must fail the fmt step.
 2026-10-09, `wc -l`: the files near 500 lines changed after the Premise was
 read. `crates/podssh-cli/src/tree.rs` is 358 lines (T-051 moved `Parsed` to
 `parsed.rs`); `crates/podssh-cli/src/flags.rs` is 482;
-`crates/podssh-transport/src/socket.rs` is 480 (T-071);
+crates/podssh-transport/src/socket.rs at `e8bbd4d` is 480 (T-071);
 `crates/podssh-cli/src/dispatch.rs` is 480; `crates/podssh-ws/tests/rfc6455.rs`
 is 486. Measure again before the format.
 
@@ -1110,7 +1110,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:93-95` states the rule with `CXX`, and
-  `docs/STATUS.md:234` records the measurement. Rule 4 of
+  `docs/STATUS.md:235` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:67-73` runs the plant on each push.
@@ -1141,7 +1141,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:234`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:235`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1178,7 +1178,7 @@ Read:
   endings have no floor either.
 - `scripts/check-repo.py:132-146`: `main` passes when each list of problems is
   empty.
-- The model of a floor: `crates/podssh-relay/tests/default_relay.rs:55`
+- The model of a floor: `crates/podssh-relay/tests/default_relay.rs:54`
   asserts that the sweep read more than 20 files.
   `scripts/check-scripts.py:112-115` already fails when it finds no script.
 - The counts today: 216 tracked Rust files under `crates/`, 24 live Markdown
@@ -1233,7 +1233,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:102-109` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:101-108` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:74-78`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
@@ -1252,7 +1252,7 @@ are the bind probes of `doctor`, which close at once and never listen
 `crates/podssh-ws/tests/hostname_verification.rs:63`. No file uses
 `UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
 that skips comments and test modules is
-`crates/podssh-relay/tests/default_relay.rs:22-57`.
+`crates/podssh-relay/tests/default_relay.rs:21-56`.
 
 ## Approach
 
@@ -1327,7 +1327,7 @@ Measured with Python over the tracked files outside `vendor/`:
   U+26A0 (7, in podssh-transport), U+2B50 (3, in podssh-terminal), U+1F6D8
   (`scripts/dev.sh:179-189`).
 - 340 markers are in string literals: 326 in tests, 14 in `src`, one of them
-  in a message for users (`crates/podssh-transport/src/backpressure/mod.rs:157`).
+  in a message for users (crates/podssh-transport/src/backpressure/mod.rs line 157 at `e8bbd4d`).
 - 266 lines in 42 code files hold a line number of a document; 188 lines in
   63 files name a work item of an earlier session (E02, E16).
 
@@ -1338,17 +1338,17 @@ files); docs/TODO/cli/surface.md (`crates/podssh-cli/src/flags.rs:103`,
 (`crates/podssh-terminal/src/window.rs:42-44`); docs/spec/01-relay-protocol.md
 (`crates/podssh-core/src/irc/limits.rs:8`,
 `crates/podssh-probe/facts/relay-facts.toml:3-5`); a root RULES.md with lines
-138-142 (`crates/podssh-transport/src/lib.rs:4`); check-todo.py
+138-142 (crates/podssh-transport/src/lib.rs line 4 at `e8bbd4d`); check-todo.py
 (`scripts/check-scripts.py:12`, line 25). The link to `SCP_FLAGS`
 (`crates/podssh-cli/src/flags.rs:110`) names a constant that does not exist.
 
 Read, wrong facts:
 
-- `crates/podssh-transport/src/error.rs:18-25` and lines 38-78 cite rows of the
+- crates/podssh-transport/src/error.rs lines 18-25 at `e8bbd4d` and lines 38-78 cite rows of the
   relay's document by line, each 35 lower than the row in the pinned copy
   (line 135 there is line 170 of
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
-- `crates/podssh-transport/src/backpressure/mod.rs:4-22` gives the reverse
+- crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
   as the forward path's. For the forward path, `docs/relay.md:169-173` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
@@ -1579,7 +1579,7 @@ command uses `podssh-probe`.
 2. Move `podssh-core` and `podssh-transport` to the dev-dependencies: an
    example can use a dev-dependency, and the binary does not declare them.
 3. Move `libc` to the dependencies for Unix only, as
-   `crates/podssh-relay/Cargo.toml:34` does; else the lint of step 4 fails on
+   `crates/podssh-relay/Cargo.toml:32` does; else the lint of step 4 fails on
    Windows.
 4. The check: `#![cfg_attr(not(test), deny(unused_crate_dependencies))]` in
    `crates/podssh-cli/src/lib.rs`. rustc then refuses a dependency that the

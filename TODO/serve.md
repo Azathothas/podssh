@@ -650,7 +650,7 @@ syslog and no `/var`. A record must not leak secrets or session data.
 
 - Read: podssh's log goes to stderr or to a file
   (`crates/podssh-ssh/src/log.rs:23-33`), as lines with no structure.
-- Read: `serde_json` is a workspace dependency (`Cargo.toml:100`), but not a
+- Read: `serde_json` is a workspace dependency (`Cargo.toml:98`), but not a
   dependency of `podssh-ssh` yet.
 - Read in the report of GitHub #25, not verified here: USBoverSSH writes an
   audit log of connection events.
@@ -1106,7 +1106,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:178-183`, `docs/architecture.md:102-109`).
+  (`AGENTS.md:178-183`, `docs/architecture.md:101-108`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010). doctor binds a
   TCP and an AF_UNIX socket to test the host, and closes them at once
@@ -1132,7 +1132,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:178-183` and `docs/architecture.md:102-109`, which then name this
+   `AGENTS.md:178-183` and `docs/architecture.md:101-108`, which then name this
    exception and the ruling.
 
 ## Prove

@@ -10,11 +10,10 @@ use std::sync::{mpsc, Arc};
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use podssh_transport::SessionId;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf};
 use tokio::runtime::Handle;
 
-use crate::reverse::{Handler, Opening};
+use crate::reverse::{Handler, Opening, SessionId};
 
 /// The bytes that each direction of a session holds in memory.
 const PIPE_BYTES: usize = 64 * 1024;

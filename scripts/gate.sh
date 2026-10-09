@@ -58,7 +58,7 @@ echo "CARGO_BUILD_JOBS=$CARGO_BUILD_JOBS"
 # lets a C++ dependency through on a host with `c++`). `scripts/plant.sh`
 # proves both are load-bearing. The binary itself needs cc since 2026-10-08: the
 # native SSH client is russh with aws-lc-rs (operator decision).
-LIBS="-p podssh-ws -p podssh-relay -p podssh-transport -p podssh-core -p podssh-terminal -p podssh-probe"
+LIBS="-p podssh-ws -p podssh-relay -p podssh-core -p podssh-terminal -p podssh-probe"
 
 # The feature `blocking` of podssh-relay (the facade for podbox, T-081) brings
 # `pair` and the runners of the reverse road.

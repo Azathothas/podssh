@@ -187,7 +187,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    a child of `podssh serve` is not a shim: podssh answers the child's tty
    system calls from its own process (decision of 2026-10-08, T-248).
 4. Do not put C code in the library crates: `podssh-ws`, `podssh-relay`,
-   `podssh-transport`, `podssh-core`, `podssh-terminal` and `podssh-probe`.
+   `podssh-core`, `podssh-terminal` and `podssh-probe`.
    The binary links aws-lc for SSH (`russh`).
 5. Keep each source file at 500 lines or fewer. Split a longer file. Do not
    remove comments to make a file shorter.
@@ -230,9 +230,8 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | --- | --- |
 | `crates/podssh-cli` | The `podssh` binary: arguments, help, the manual and its tables (`src/man/`), the pager, dispatch, `proxy`, `ssh` options, `doctor`, `keygen` |
 | `crates/podssh-ssh` | The SSH client on `russh`: the relay stream, `known_hosts`, authentication, prompts, terminal, exit codes, key generation |
-| `crates/podssh-relay` | Relay hosts, the pool, failover, tokens, the forward opener |
+| `crates/podssh-relay` | Relay hosts, the pool, failover, tokens, the forward opener; the pairs, the codecs and the runners of the reverse road; the blocking facade for podbox |
 | `crates/podssh-ws` | TLS (podssh's own pure-Rust rustls provider), proxies, DNS fallbacks, the WebSocket client |
-| `crates/podssh-transport` | Relay framing for the forward, node and operator legs |
 | `crates/podssh-core` | Sans-IO protocol code: `irc/` |
 | `crates/podssh-terminal` | A line discipline (not used yet) |
 | `crates/podssh-probe` | Facts about the relay document (tests only) |

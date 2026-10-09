@@ -8,19 +8,52 @@ use std::hash::{Hash, Hasher};
 use std::time::Instant;
 
 use podssh_core::irc::{Event, ReapPolicy, Server, Session};
-use podssh_transport::forward::ForwardRunner;
-use podssh_transport::socket::WsSocket;
 use podssh_ws::client::RelaySession;
+use podssh_ws::frame;
+use podssh_ws::session::close_code_and_reason;
 
-/// The runner type every signature below shares.
-pub type LiveRunner = ForwardRunner<WsSocket<RelaySession>>;
+/// A forward session as bytes in and bytes out, as `podssh proxy` carries
+/// it: the relay's empty keepalive frames skipped, a Close as the end.
+pub struct LiveRunner {
+    session: RelaySession,
+    sent: usize,
+}
 
-/// ⛔ The trust store is E05's unprobed UNKNOWN: named files, never assumed.
-pub const FALLBACK_BUNDLES: &[&str] = &[
-    "/etc/ssl/certs/ca-certificates.crt",
-    "/etc/pki/tls/certs/ca-bundle.crt",
-    "/etc/ssl/cert.pem",
-];
+impl LiveRunner {
+    pub fn new(session: RelaySession) -> Self {
+        LiveRunner { session, sent: 0 }
+    }
+
+    /// The next bytes of the target; an error at a Close, with its code and
+    /// its reason.
+    pub async fn recv_bytes(&mut self) -> Result<Vec<u8>, String> {
+        loop {
+            let f = self.session.read_frame().await.map_err(|e| e.to_string())?;
+            match f.opcode {
+                frame::OPCODE_BINARY if f.payload.is_empty() => {}
+                frame::OPCODE_BINARY => return Ok(f.payload),
+                frame::OPCODE_CLOSE => {
+                    let (code, reason) = close_code_and_reason(&f.payload);
+                    return Err(format!("relay close {} {reason}", code.unwrap_or(1005)));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Send `bytes` in frames of at most 32 KiB, as `podssh proxy` does.
+    pub async fn send_bytes(&mut self, bytes: &[u8]) -> Result<(), String> {
+        for chunk in bytes.chunks(32 * 1024) {
+            self.session.send_binary(chunk).await.map_err(|e| e.to_string())?;
+            self.sent += 1;
+        }
+        Ok(())
+    }
+
+    pub fn sent_frames(&self) -> usize {
+        self.sent
+    }
+}
 
 /// What one target attempt established. Best-wins across targets.
 #[derive(Default)]
@@ -87,10 +120,8 @@ pub async fn pump_once(
 ) -> PumpOut {
     let payload = match tokio::time::timeout_at(step.into(), runner.recv_bytes()).await {
         Ok(Ok(p)) => p,
-        // ⛔ The error Debug, not just its arm: `Unexpected("opcode 0x8")`
-        // means the far side hung up (a close frame arrived), while
-        // `Aborted` means the relay side dropped — different owners.
-        Ok(Err(e)) => return PumpOut::Closed("recv", format!("{e:?}")),
+        // A Close names its code and reason: who ended the session.
+        Ok(Err(e)) => return PumpOut::Closed("recv", e),
         Err(_) => return PumpOut::Timeout,
     };
     a.payloads += 1;
@@ -158,7 +189,7 @@ pub async fn send_all(
 }
 
 pub fn usage() -> ! {
-    eprintln!("usage: live_irc [--bundle <ca-pem>] [--target <host>] [--port <n>] [--nick <nick>] [--no-cap]\n  token arrives by env PODSSH_RELAY_TOKEN, never by argv.");
+    eprintln!("usage: live_irc [--bundle <ca-pem>] [--target <host>] [--port <n>] [--nick <nick>] [--no-cap]");
     std::process::exit(64);
 }
 
@@ -166,18 +197,4 @@ pub fn random_hex6() -> String {
     let mut h = DefaultHasher::new();
     (std::process::id(), std::time::SystemTime::now()).hash(&mut h);
     format!("{:06x}", h.finish() & 0xffffff)
-}
-
-pub fn find_bundle(arg: Option<String>) -> String {
-    if let Some(b) = arg {
-        return b;
-    }
-    FALLBACK_BUNDLES
-        .iter()
-        .find(|p| std::path::Path::new(p).is_file())
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| {
-            eprintln!("podssh: no CA bundle found; pass --bundle <ca-pem> naming the file.");
-            std::process::exit(64);
-        })
 }

@@ -31,7 +31,6 @@ podssh-core = { path = "../podssh-core" }
 podssh-probe = { path = "../podssh-probe" }
 podssh-ts = { path = "../podssh-ts", optional = true }
 podssh-terminal = { path = "../podssh-terminal" }
-podssh-transport = { path = "../podssh-transport" }
 podssh-ws = { path = "../podssh-ws" }
 # Relay hosts and failover, tokens, forward sessions (C-free, shared with podbox).
 podssh-relay = { path = "../podssh-relay", features = ["pair"] }

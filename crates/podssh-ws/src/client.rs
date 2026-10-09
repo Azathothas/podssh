@@ -149,7 +149,7 @@ impl std::error::Error for ConnectError {}
 
 /// Whether the body of a refused upgrade is the relay's wording for a policy
 /// refusal (spec: "not in the ALLOW list"), which a fresh token does not
-/// repair. The one definition: `podssh-relay` and `podssh-transport` use it.
+/// repair. The one definition, which `podssh-relay` uses.
 pub fn is_policy_refusal(body: &str) -> bool {
     let body = body.to_ascii_lowercase();
     body.contains("allow list") || body.contains("not allowed") || body.contains("blocked")

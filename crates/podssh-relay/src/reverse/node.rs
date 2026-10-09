@@ -6,12 +6,12 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_transport::closes::RelayClose;
-use podssh_transport::{LegTarget, SessionId};
 use podssh_ws::client::{ConnectError, Endpoint, WsClientConfig};
 use podssh_ws::{DialError, ProxyChoice, Trust};
 use tokio::io::{AsyncRead, AsyncWrite};
 
+use super::closes::RelayClose;
+use super::framing::SessionId;
 use super::serve::{serve, End, Settings};
 use super::wire::{self, Socket, Wire};
 use crate::pair::Pair;
@@ -101,7 +101,7 @@ where
     let mut stop = Box::pin(stop);
     let mut retry: u32 = 0;
     loop {
-        let path = match (LegTarget::ReverseNode { name: config.pair.name.clone() }).path() {
+        let path = match crate::relay::node_path(&config.pair.name) {
             Ok(path) => path,
             Err(_) => return Exit::Forbidden,
         };

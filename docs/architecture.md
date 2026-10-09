@@ -77,9 +77,8 @@ bytes. See [reverse.md](reverse.md).
 | --- | --- | --- |
 | `podssh-cli` | The `podssh` binary: arguments, `--help`, the generated man page, dispatch, the `proxy` pump, the options of `ssh`, `doctor`, `keygen` | each crate below (`podssh-ts` only with the feature `ts`) |
 | `podssh-ssh` | The SSH client: russh (aws-lc-rs) over a byte stream, the relay stream, `known_hosts`, the authentication chain, prompts, the terminal (raw mode, size, escapes), exit codes, a host-key probe, key generation | `podssh-ws` |
-| `podssh-relay` | Relay hosts, the pool and failover, tokens (mint, cache, mint again), the forward opener. No C. | `podssh-ws` |
+| `podssh-relay` | Relay hosts, the pool and failover, tokens (mint, cache, mint again), the forward opener; the pairs, the codecs (the framing of the node and operator legs, the control messages, the close table) and the runners of the reverse road (feature `pair`); the blocking facade for podbox (feature `blocking`). No C. | `podssh-ws` |
 | `podssh-ws` | The connection to the relay: TCP, proxies, the DNS fallbacks, TLS (rustls with podssh's own pure-Rust provider), the WebSocket client | none |
-| `podssh-transport` | The relay protocol: framing for the forward, node and operator legs, control messages, close codes | `podssh-ws` |
 | `podssh-core` | Protocol state machines with no I/O: `irc/` | none |
 | `podssh-terminal` | A line discipline in the process (not used yet) | none |
 | `podssh-probe` | Facts about the structure of the relay's document (tests only) | none |
@@ -96,9 +95,9 @@ These rules apply to each change. The reasons are in
    testable. Also test it against real peers: captured transcripts, OpenSSH
    and Dropbear servers, real IRC servers. A test that makes its input with
    the code that it checks proves nothing.
-2. **The transport does not know the protocol.** `podssh-transport`,
-   `podssh-relay` and `podssh-ws` move bytes. They do not know whether the
-   bytes are SSH, IRC or another protocol.
+2. **The transport does not know the protocol.** `podssh-relay` and
+   `podssh-ws` move bytes. They do not know whether the bytes are SSH, IRC
+   or another protocol.
 3. **One outbound connection, and no listener that the user did not ask
    for.** No `bind`, no `listen`, no loopback helpers. `podssh doctor` binds
    a socket to test the host and closes it without listening. A listener
@@ -108,8 +107,8 @@ These rules apply to each change. The reasons are in
    open a second connection for a short time ([decisions.md](decisions.md),
    2026-10-08).
 4. **No C in the library crates.** `podssh-ws`, `podssh-relay`,
-   `podssh-transport`, `podssh-core`, `podssh-terminal` and `podssh-probe`
-   use rustls with podssh's own provider and RustCrypto crates. The gate
+   `podssh-core`, `podssh-terminal` and `podssh-probe` use rustls with
+   podssh's own provider and RustCrypto crates. The gate
    makes sure of this with `CC=/nonexistent` and `CXX=/nonexistent`. The
    binary links aws-lc through `russh` for SSH, and the Tailscale fork with
    the feature `ts`.

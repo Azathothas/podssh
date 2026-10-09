@@ -2500,7 +2500,6 @@ dependencies = [
  "podssh-relay",
  "podssh-ssh",
  "podssh-terminal",
- "podssh-transport",
  "podssh-ts",
  "podssh-ws",
  "serde",
@@ -2535,7 +2534,6 @@ name = "podssh-relay"
 version = "0.1.0"
 dependencies = [
  "libc",
- "podssh-transport",
  "podssh-ws",
  "rand 0.8.8",
  "serde",
@@ -2570,16 +2568,6 @@ dependencies = [
 [[package]]
 name = "podssh-todo"
 version = "0.1.0"
-
-[[package]]
-name = "podssh-transport"
-version = "0.1.0"
-dependencies = [
- "podssh-ws",
- "serde",
- "serde_json",
- "tokio",
-]
 
 [[package]]
 name = "podssh-ts"

@@ -3,7 +3,6 @@ resolver = "2"
 members = [
   "crates/podssh-cli",
   "crates/podssh-core",
-  "crates/podssh-transport",
   "crates/podssh-ws",
   "crates/podssh-terminal",
   "crates/podssh-probe",
@@ -21,7 +20,6 @@ members = [
 default-members = [
   "crates/podssh-cli",
   "crates/podssh-core",
-  "crates/podssh-transport",
   "crates/podssh-ws",
   "crates/podssh-terminal",
   "crates/podssh-probe",
@@ -54,7 +52,7 @@ repository = "https://github.com/Azathothas/podssh"
 
 # THE BUILD RULE: the library crates need no C compiler.
 #
-# podssh-ws, podssh-transport, podssh-core, podssh-terminal and podssh-probe
+# podssh-ws, podssh-relay, podssh-core, podssh-terminal and podssh-probe
 # must build with `CC=/nonexistent` and `CXX=/nonexistent` (the `cc` crate
 # reads CXX for C++), so other projects (podbox) can use them
 # anywhere a Rust toolchain exists. `scripts/gate.sh` enforces it and

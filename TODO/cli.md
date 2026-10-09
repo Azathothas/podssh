@@ -40,7 +40,7 @@ Read: `parse_hop` already removes the brackets
 `crates/podssh-cli/src/ssh/resolve.rs:246`, `crates/podssh-cli/src/proxy.rs:108`
 and in `forward_path` (`crates/podssh-relay/src/relay.rs:116-129`); since this
 entry, each calls `check_target` there. Tests assert the refusal:
-`crates/podssh-relay/src/relay.rs:195`, and `crates/podssh-cli/tests/proxy.rs`
+`crates/podssh-relay/src/relay.rs:208`, and `crates/podssh-cli/tests/proxy.rs`
 (lines 49-50 at `eaf9822`).
 
 Not known: how `/connect/<host>/<port>` takes a literal. The contract does not

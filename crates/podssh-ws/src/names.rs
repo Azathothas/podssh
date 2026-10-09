@@ -2,8 +2,8 @@
 //! name of a reverse pair. Each one is checked, never encoded: a `/`, `?`,
 //! `#`, `..`, a space or a line break would change the request (another path,
 //! a query string, a fragment, a broken request line), and a percent-encoded
-//! `/` hides a different path. One definition for `podssh-relay` and
-//! `podssh-transport`, which both build relay paths.
+//! `/` hides a different path. One definition, for `podssh-relay`, which
+//! builds the relay paths.
 
 /// A host name or IPv4 literal: letters, digits, `.`, `-` and `_`, not
 /// starting with `-` or `.`, at most 253 characters.

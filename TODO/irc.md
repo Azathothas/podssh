@@ -2,8 +2,8 @@ This file holds the work on the IRC client in crates/podssh-core/src/irc/: one e
 to I8 of the former defects page (`git show 3ee70dc:docs/defects.md`), and the research that
 decides how `podssh chat` works (T-099). No command uses the client, and `podssh chat` exits 70.
 The client is sans-IO, so its unit tests need no network. The live probe
-`crates/podssh-cli/examples/live_irc.rs` reaches real servers through the relay, with a token that
-is minted, used and removed in one shell (`docs/development.md:259-267`). Each defect was read
+`crates/podssh-cli/examples/live_irc.rs` reaches real servers through the relay, with a token from
+the environment, the cache or a mint, never printed (`docs/development.md:259-266`). Each defect was read
 again on `3ee70dc`.
 
 # T-091: I1: `CAP END` is sent only after 001
@@ -32,11 +32,11 @@ wait for `001` (`crates/podssh-core/src/irc/cap.rs:22-28`). Only `on_registratio
 (`crates/podssh-core/src/irc/cap.rs:128-147`). A test asserts the wrong order
 (`crates/podssh-core/tests/session.rs:217-247`). A `421` for `CAP` before `001` sets `Refused`
 (`crates/podssh-core/src/irc/session.rs:326-330`), and the live probe can then drop the server
-(`crates/podssh-cli/examples/live_irc.rs:232-235`).
+(`crates/podssh-cli/examples/live_irc.rs:226-229`).
 
 Read: `docs/irc.md:18` says that libera, OFTC and tilde refuse the relay's addresses. They support
 `CAP`, so this defect alone explains "closed before `001`". The record does not say if that run
-used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:75-77`). The claim is not proven.
+used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is not proven.
 
 ## Approach
 
@@ -49,7 +49,7 @@ used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:75-77`). The claim is n
 4. Correct the comments at `crates/podssh-core/src/irc/cap.rs:9-28` and
    `crates/podssh-core/src/irc/session.rs:22-24`, and remove the test at
    `crates/podssh-core/tests/session.rs:217-247`. Record the new network results in
-   `docs/irc.md:12-24`, and update `docs/STATUS.md:216`, in the same commit.
+   `docs/irc.md:12-24`, and update `docs/STATUS.md:217`, in the same commit.
 
 ## Prove
 
@@ -63,8 +63,9 @@ cargo run -q -p podssh-cli --example live_irc -- --target irc.undernet.org
 The new file crates/podssh-core/tests/cap_end.rs holds `cap_end_follows_the_answer_to_the_request`
 (`ACK` and `NAK`), `cap_end_is_sent_at_once_when_nothing_is_wanted` and
 `cap_end_is_not_sent_after_a_421_for_cap`. Plant: put the `001` gate back; the first test must
-fail. The last command is live, with a token in that shell only, and must print `LIVE-IRC-OK`.
-Give `--bundle FILE` when no bundle is at `crates/podssh-cli/examples/live_irc/support.rs:19-23`.
+fail. The last command is live; it takes a token as `podssh ssh` does, never prints it, and must print
+`LIVE-IRC-OK`. With no `--bundle FILE`, it uses podssh's own trust
+(`crates/podssh-cli/examples/live_irc.rs:86-91`).
 Then run it with `--target irc.libera.chat` and `--target irc.oftc.net`, and record the results.
 
 # T-092: I2: the client asks for each offered capability
@@ -92,7 +93,7 @@ a `REQ` for each `LS` line (`crates/podssh-core/src/irc/cap.rs:114-127`). `reque
 each offered token (`crates/podssh-core/src/irc/cap.rs:178-188`). `cap_parts` reads the middle
 parameters as names (`crates/podssh-core/src/irc/cap.rs:249-258`), so in `CAP * LS * :a b` the
 second `*` is a name. podssh needs only `znc.in/self-message`
-(`crates/podssh-core/src/irc/mod.rs:66-74`). With `extended-join`, the real name in a `JOIN` echo is
+(`crates/podssh-core/src/irc/mod.rs:63-71`). With `extended-join`, the real name in a `JOIN` echo is
 read as keys (`crates/podssh-core/src/irc/command.rs:67-71`). The one test of the filter uses one
 line with no values (`crates/podssh-core/tests/session.rs:249-266`).
 
@@ -105,12 +106,12 @@ trailing is not the last.
 1. Parse each token as `name[=value]` (`crates/podssh-core/src/irc/cap.rs:249-258`). Add up the
    lines while a line has the `*` marker, and answer only after the last line.
 2. Ask only for names in a constant list of capabilities that podssh implements, next to
-   `CAP_SELF_MESSAGE` (`crates/podssh-core/src/irc/mod.rs:66-74`). Never send a value. With no
+   `CAP_SELF_MESSAGE` (`crates/podssh-core/src/irc/mod.rs:63-71`). Never send a value. With no
    wanted name, end at once (T-091).
 3. On `ACK`, enable only the names asked for; a `-` prefix turns one off
    (`crates/podssh-core/src/irc/cap.rs:128-137`). Read `NEW` and `DEL` only with `cap-notify`, and
    correct the comment at `crates/podssh-core/src/irc/cap.rs:148-152`, which says `LS`.
-4. Update `docs/STATUS.md:216` in the same commit.
+4. Update `docs/STATUS.md:217` in the same commit.
 
 ## Decision
 
@@ -130,7 +131,7 @@ cargo test -p podssh-core --no-fail-fast
 The new file crates/podssh-core/tests/cap_list.rs holds `only_listed_capabilities_are_requested`,
 `a_value_is_never_sent_back`, `a_list_on_several_lines_gives_one_request` and
 `the_continuation_marker_is_not_a_capability`. Its input is a `CAP LS 302` reply captured from a
-real server, kept byte for byte with the server, version and date (`docs/development.md:273-274`).
+real server, kept byte for byte with the server, version and date (`docs/development.md:272-273`).
 Plant: remove the list filter; the first test must fail with `sasl=PLAIN` in the `REQ`. Then repeat
 the live runs of T-091; the probe prints the offered and enabled capabilities.
 
@@ -175,8 +176,8 @@ covers it.
    character, escaped.
 3. Refuse a transfer name or reason with `|`, CR, LF or NUL. On receive, give the caller a base
    name only (`crates/podssh-core/src/irc/transfer/recv.rs:89-91`).
-4. Update the callers (`crates/podssh-cli/examples/live_irc/support.rs:146-158`) and
-   `docs/STATUS.md:216` in the same commit.
+4. Update the callers (`crates/podssh-cli/examples/live_irc/support.rs:177-189`) and
+   `docs/STATUS.md:217` in the same commit.
 
 ## Decision
 
@@ -241,7 +242,7 @@ measured here.
 3. `CAP`: when the second parameter is a verb, the first is the target, `*` or a nick.
 4. Capture these forms from real servers into the fixture, with the server, version and date. Add
    the capture option to `crates/podssh-cli/examples/live_irc/support.rs`, because the probe's main
-   file has 473 lines. Update `docs/STATUS.md:216`. T-198 fuzzes this parser later.
+   file has 473 lines. Update `docs/STATUS.md:217`. T-198 fuzzes this parser later.
 
 ## Decision
 
@@ -295,7 +296,7 @@ tokens. `Negotiation::reconnect` has no caller (`crates/podssh-core/src/irc/cap.
 `433` sets `Refused` and sends nothing (`crates/podssh-core/src/irc/session.rs:326-330`), against
 its comment (`crates/podssh-core/src/irc/session.rs:43-47`). A test asserts the refusal
 (`crates/podssh-core/tests/session.rs:288-297`), and the live probe works around it
-(`crates/podssh-cli/examples/live_irc.rs:224-231`).
+(`crates/podssh-cli/examples/live_irc.rs:218-225`).
 
 ## Approach
 
@@ -311,7 +312,7 @@ its comment (`crates/podssh-core/src/irc/session.rs:43-47`). A test asserts the 
    new `Reassembler`, `pending_pongs` and `Isupport`. Keep `ChannelMemory`.
 6. On a `433` before `001`, send `NICK` with a suffix that fits `NICKLEN`, three times at most, and
    then report `Refused`. After `001`, a `433` is an event.
-7. Rewrite the two tests, remove the work-around, and update `docs/STATUS.md:216`, in one commit.
+7. Rewrite the two tests, remove the work-around, and update `docs/STATUS.md:217`, in one commit.
 
 ## Prove
 
@@ -358,7 +359,7 @@ comes out (`crates/podssh-core/tests/reassembly.rs:242-258`). With no LF, the by
 
 Read: a non-UTF-8 line is an error (`crates/podssh-core/src/irc/framing.rs:215-229`), which
 `Session::on_bytes` returns with `?` (`crates/podssh-core/src/irc/session.rs:265-266`). The live
-probe then ends the attempt (`crates/podssh-cli/examples/live_irc/support.rs:101-104`). The only
+probe then ends the attempt (`crates/podssh-cli/examples/live_irc/support.rs:132-135`). The only
 network that took the relay is undernet (`docs/irc.md:20`); its use of Latin-1 is not measured.
 
 ## Approach
@@ -370,7 +371,7 @@ network that took the relay is undernet (`docs/irc.md:20`); its use of Latin-1 i
 4. In `Session::on_bytes`, turn each line error into `Event::Protocol`, and go on
    (`crates/podssh-core/src/irc/session.rs:262-277`).
 5. Correct the comments at `crates/podssh-core/src/irc/framing.rs:28-33` (the quote is about case
-   mapping) and `crates/podssh-core/src/irc/framing.rs:121-126`. Update `docs/STATUS.md:216`.
+   mapping) and `crates/podssh-core/src/irc/framing.rs:121-126`. Update `docs/STATUS.md:217`.
 
 ## Decision
 
@@ -437,7 +438,7 @@ whole file in memory, for any total that the offer gives (`crates/podssh-core/sr
 3. In `accept`, check the index before the bytes go into the file.
 4. Limit the receiver's memory: a size limit from the caller, or a sink that the caller owns. A
    file is taken only when the user accepts it (`docs/decisions.md:41`).
-5. Update `docs/irc.md:26-32` and `docs/STATUS.md:216` in the same commit.
+5. Update `docs/irc.md:26-32` and `docs/STATUS.md:217` in the same commit.
 
 ## Decision
 
@@ -504,7 +505,7 @@ none, the relay cut it after 184 s (`docs/STATUS.md:96-97`).
 4. Rewrite the test at `crates/podssh-core/tests/session.rs:355-381`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs:5-29` and the test name at
    `crates/podssh-core/tests/transfer.rs:386-408`.
-5. Update `docs/STATUS.md:216` in the same commit.
+5. Update `docs/STATUS.md:217` in the same commit.
 
 Pitfall: a server can limit the rate of `PING` lines. One `PING` in 60 s is far below the usual
 limits (not measured).

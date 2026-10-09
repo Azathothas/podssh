@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use podssh_relay::reverse::{after_close, serve, End, Handler, Next, Opening, Settings};
-use podssh_transport::{RelayClose, SessionId};
+use podssh_relay::reverse::{RelayClose, SessionId};
 use podssh_ws::frame::{self, Frame, Role};
 use podssh_ws::session::RelaySession;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};

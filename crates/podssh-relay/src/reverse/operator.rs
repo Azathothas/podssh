@@ -6,9 +6,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_transport::control::{self, NodeOutbound};
-use podssh_transport::framing::legs::chunk_for_bare;
-use podssh_transport::LegTarget;
 use podssh_ws::client::{ConnectError, Endpoint, WsClientConfig};
 use podssh_ws::frame;
 use podssh_ws::session::{close_code_and_reason, RelaySession};
@@ -18,6 +15,8 @@ use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 
+use super::control::{self, NodeOutbound};
+use super::framing::legs::chunk_for_bare;
 use super::wire::{self, Socket, Wire};
 use crate::relay::Relay;
 
@@ -116,9 +115,7 @@ where
 
 /// The socket to `/v1/connect/<name>`.
 fn socket_config(config: &OperatorConfig<'_>) -> Result<WsClientConfig, ConnectError> {
-    let path = (LegTarget::ReverseOperator { name: config.name.to_string() })
-        .path()
-        .map_err(|e| ConnectError::Config(e.to_string()))?;
+    let path = crate::relay::operator_path(config.name).map_err(ConnectError::Config)?;
     Ok(WsClientConfig {
         endpoint: Endpoint { host: config.relay.host.clone(), port: config.relay.port, path },
         trust: config.trust.clone(),

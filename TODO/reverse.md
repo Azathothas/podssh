@@ -155,10 +155,10 @@ of a session at its `close`; never close the socket for one session; `ready` onl
 accepts; route by id after a check of the hex; exit on `409`; do not depend on `hello`; no keepalives come on
 reverse sockets; connect again with a jitter.
 
-Read: the codecs exist, with tests: node frames and chunks (`crates/podssh-transport/src/framing/legs.rs:26-58`,
-`:113-123`), control messages (`crates/podssh-transport/src/control.rs:155-254`), a limit of 16 sessions when
-no `hello` comes (`crates/podssh-transport/src/control.rs:111-137`), and the close table
-(`crates/podssh-transport/src/closes.rs:60-88`, `:156-229`). They carry the defects of T-071, T-072, T-073,
+Read: the codecs exist, with tests: node frames and chunks (crates/podssh-transport/src/framing/legs.rs lines 26-58 at `e8bbd4d`,
+lines 113-123), control messages (crates/podssh-transport/src/control.rs lines 155-254 at `e8bbd4d`), a limit of 16 sessions when
+no `hello` comes (crates/podssh-transport/src/control.rs lines 111-137 at `e8bbd4d`), and the close table
+(crates/podssh-transport/src/closes.rs lines 60-88 at `e8bbd4d`, lines 156-229). They carry the defects of T-071, T-072, T-073,
 T-075 and T-076 (each repaired 2026-10-09).
 
 Read: `RelaySession` has text, binary, Ping and Close writes and a liveness watcher
@@ -179,7 +179,7 @@ verified here).
 
 1. crates/podssh-relay/src/reverse/node.rs: `node::run(config, handler)`; `handler.open(id)` gives a byte stream
    or a reason to reject. It uses the codecs of `podssh-transport` until T-082. Invariant: no protocol above
-   bytes (`docs/architecture.md:99-101`).
+   bytes (`docs/architecture.md:98-100`).
 2. One task owns the write half; sessions send `(id, bytes)` through one bounded channel, cut by
    `chunk_for_node`. Invariant: no frame without its id; none for an id not readied, or closed.
 3. On `open`: call the handler with a limit under 15 s
@@ -298,8 +298,8 @@ operator closes it with `1003`, a frame carries at most 65536 bytes, and a sessi
 The relay sends no keepalives on reverse sockets (`docs/reverse.md:24-29`).
 
 Read: the codecs: `encode_operator_frame` and `chunk_for_bare`
-(`crates/podssh-transport/src/framing/legs.rs:60-76`, `:125-133`), and `parse_operator_control`
-(`crates/podssh-transport/src/control.rs:223-230`). `podssh proxy` has the pump to follow: stdin and
+(crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`, lines 125-133), and `parse_operator_control`
+(crates/podssh-transport/src/control.rs lines 223-230 at `e8bbd4d`). `podssh proxy` has the pump to follow: stdin and
 stdout, liveness, the close reason (`crates/podssh-cli/src/proxy.rs:180-275`).
 
 Read in a local copy of podbox at `5bd8cb0`: `run_operator` waits 20 s for `ready`, queues at most
@@ -377,8 +377,8 @@ operator's outcome holds all 200 bytes.
   the end of its input it sends a Close `1000` and waits 10 s for the answer. The outcome is
   `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`; `is_success` holds only for
   `Ended` with `1000`, and for `LocalEnd`.
-- `crates/podssh-transport/src/control.rs`: `reject` and `close` keep the whole reason (Decision 1);
-  `crates/podssh-transport/tests/framing.rs` asserts 200 bytes whole and a cut on a character
+- crates/podssh-transport/src/control.rs at `e8bbd4d`: `reject` and `close` keep the whole reason (Decision 1);
+  crates/podssh-transport/tests/framing.rs at `e8bbd4d` asserts 200 bytes whole and a cut on a character
   boundary for a reason over 4 KiB.
 - Measured with `python scripts/capture-reverse.py`, which now pings the operator's socket too: the
   relay answers it, before `ready` as well. Live: a node's reason of 200 bytes reached the operator
@@ -556,13 +556,13 @@ gate shows the feature adds no C. The podbox side is proved in T-085.
 
 # T-082: Move the codecs of `podssh-transport` into `podssh-relay`
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:153-154`); `docs/design.md:122-123`; the former defects
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:153-154`); `docs/design.md` lines 122-123 at `e8bbd4d`; the former defects
 page (`git show 3ee70dc:docs/defects.md`), section "podssh-transport". Read here on `3ee70dc`.
 **Category:** chore
 **Milestone:** M4
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -574,16 +574,17 @@ unused. Two crates for one protocol drift: they already disagree on the backoff 
 ## Premise
 
 Read: about 600 lines of `podssh-transport` are used outside its tests (the former defects page),
-and `docs/STATUS.md:215` gives 2.8k source and 2.2k test lines. Only examples use it:
-`crates/podssh-cli/examples/live_irc.rs:20-22`, `crates/podssh-cli/examples/live_irc/support.rs:11-16`
-and `crates/podssh-transport/examples/live_forward.rs:23-25`; `podssh-cli` depends on it
-(`crates/podssh-cli/Cargo.toml:34`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
-unused backpressure module goes." (`docs/design.md:122-123`).
+and `docs/STATUS.md` line 158 at `3ee70dc` gives 2.8k source and 2.2k test lines. Only examples use it:
+`crates/podssh-cli/examples/live_irc.rs` lines 20-22 at `e8bbd4d`, `crates/podssh-cli/examples/live_irc/support.rs`
+lines 11-16 at `e8bbd4d`
+and crates/podssh-transport/examples/live_forward.rs lines 23-25 at `e8bbd4d`; `podssh-cli` depends on it
+(`crates/podssh-cli/Cargo.toml` line 34 at `e8bbd4d`). The plan: "`podssh-transport` moves into `podssh-relay`. Its
+unused backpressure module goes." (`docs/design.md` lines 122-123 at `e8bbd4d`).
 
 Read: the comments of the crate break rule 6 of `AGENTS.md:194-195`: they carry the stop-sign marker,
-session history and line numbers of documents, for example `crates/podssh-transport/src/socket.rs:1-11`
-and `crates/podssh-transport/src/control.rs:3-14`. The close rows cite lines of the pinned contract,
-and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs:45-59`).
+session history and line numbers of documents, for example crates/podssh-transport/src/socket.rs lines 1-11 at `e8bbd4d`
+and crates/podssh-transport/src/control.rs lines 3-14 at `e8bbd4d`. The close rows cite lines of the pinned contract,
+and a test reads that copy to check them (crates/podssh-transport/src/closes.rs lines 45-59 at `e8bbd4d`).
 
 ## Approach
 
@@ -599,18 +600,52 @@ and a test reads that copy to check them (`crates/podssh-transport/src/closes.rs
    history, no line numbers. Keep the check of the close rows against the pinned copy as a test
    (T-060 decides where the copy lives).
 5. Move the examples to `podssh_relay::open`, the forward path that the commands use. Then remove
-   the crate: `Cargo.toml:6`, `Cargo.toml:24`, `Cargo.toml:57-60`, `crates/podssh-cli/Cargo.toml:34`,
-   `scripts/gate.sh:61`, `scripts/plant.sh:39`.
-6. Update in the same commit: `AGENTS.md:189-191` and `AGENTS.md:235`, `docs/architecture.md:82` and
-   `:99-109`, `docs/development.md:14-15` and `:265`, `docs/STATUS.md:212`, `:215` and `:226`. The list
-   of library crates in `docs/decisions.md:34` is a fact of a decision row: correct it, and move the
+   the crate: `Cargo.toml` lines 6, 24 and 57-60, `crates/podssh-cli/Cargo.toml` line 34, `scripts/gate.sh`
+   line 61 and `scripts/plant.sh` line 39, all at `e8bbd4d`.
+6. Update in the same commit, at the lines of `e8bbd4d`: `AGENTS.md` lines 189-191 and 235,
+   `docs/architecture.md` lines 82 and 99-109, `docs/development.md` lines 14-15 and 265, `docs/STATUS.md`
+   lines 212, 215 and 226. The list of library crates in `docs/decisions.md` line 34 is a fact of a
+   decision row: correct it, and move the
    old text to Superseded (the operator's ruling of 2026-10-08).
 
 ## Decision
 
-Recommendation: move the codecs and delete the crate, as `docs/design.md:122-123` plans. The
+Recommendation: move the codecs and delete the crate, as `docs/design.md` lines 122-123 at `e8bbd4d` plan. The
 alternative, keep `podssh-transport` as a codec crate under `podssh-relay`, lost: it keeps two error
 types and two retry tables for one protocol, which is how `403` and `503` already diverged (T-075).
+
+2026-10-09, in the work:
+
+1. Moved, as the runners use them: the session id and the frames of the node and operator legs, the
+   control messages, the close table with `Retry` and `SessionAction`, and the state of each session
+   (`Sessions`), each in its own file under `crates/podssh-relay/src/reverse/`.
+2. Deleted with the crate, beside T-074 and T-077, as no runner used them: the socket layer
+   (`WsSocket`, `Leg`, `FrameQueue`, the trait `WsSession` and its adapter, and with them
+   `Control`, `LegShape` and `Limits`, which T-077 meant to keep for that layer), the forward
+   framing (the forward path is `podssh_relay::open` and `RelaySession`), the endpoint builder and
+   `RelayConfig`, and `TransportError` with its table of HTTP answers (`HttpFailure`, `Asked`,
+   `Retry::NewToken`, `Retry::ReverseForbidden`). Lost: move the socket layer too. The runners read
+   and write `RelaySession` themselves, so it would be a second road to the same socket.
+3. The relay paths of the reverse legs are `relay::node_path` and `relay::operator_path`, beside the
+   forward path, with the name checks of `podssh_ws::names` (T-076).
+4. The rules of T-075 hold where the answers are read. The forward opener mints a new token once for
+   a refused cached one, and never after a policy refusal (`crates/podssh-relay/src/open.rs:234-242`).
+   A node exits on a `409`, pairs again on a `403` after the expiry, and stops on a `403` before it
+   (`crates/podssh-relay/src/reverse/node.rs:147-150`). A node connects again after a `503`, as
+   after each other failure: the contract's rules for a `503` name the forward leg's authentication
+   and the mint (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:99-103`), and a node
+   outlives a restart of the relay. The deleted table said "never on this host" for each leg, but
+   no caller read it.
+5. The comments follow rule 6 of `AGENTS.md`. The rows of the close table keep their line of the
+   pinned contract (`spec_line`), and a codec error names its row: these are data, which
+   `crates/podssh-relay/tests/reverse_closes.rs` checks against the pinned copy (Approach, step 4).
+   The copy stays in `crates/podssh-probe/tests/spec/` until T-060 decides.
+6. The Close captured from the live relay is a fixture of `podssh-ws`, which reads the Close
+   (`crates/podssh-ws/tests/control_frames.rs`).
+7. The examples open their session through `podssh_relay::open`, as the commands do, and take a
+   token from the environment, the cache or a mint: `crates/podssh-relay/examples/live_forward.rs`
+   replaces the crate's example, and `crates/podssh-cli/examples/live_irc.rs` uses podssh's own
+   trust when no `--bundle FILE` is given, in place of its list of bundle paths.
 
 ## Prove
 
@@ -626,6 +661,47 @@ python scripts/check-repo.py
 The moved tests pass in `podssh-relay` with their names. `git grep` exits 1 when no code, script or
 workflow names the old crate. The gate shows that the library crates still build with no C
 compiler. Plant: leave one `use podssh_transport` in an example; the build must fail.
+
+## Done
+
+2026-10-09, in the commit "The codecs of the reverse road in podssh-relay". T-074 and T-077 closed in it.
+
+- Moved: `crates/podssh-relay/src/reverse/framing.rs`, `crates/podssh-relay/src/reverse/framing/legs.rs`,
+  `crates/podssh-relay/src/reverse/control.rs`, `crates/podssh-relay/src/reverse/closes.rs` and
+  `crates/podssh-relay/src/reverse/sessions.rs` (86 to 295 lines each), with their tests in
+  `crates/podssh-relay/tests/reverse_framing.rs`, `crates/podssh-relay/tests/reverse_closes.rs` and
+  `crates/podssh-relay/tests/reverse_plants.rs`. Of the crate's 84 tests, 43 moved with their names,
+  one with a new name (`podssh-ws` reads a Close with no code as `None`, not `1005`), and 40 went
+  with the code that they tested: 7 of the backpressure module, 2 of the backoff, 1 of the HTTP
+  table, 6 of the endpoint builder, 7 of the forward framing, 2 of the adapter and 15 of the socket
+  layer. What the runners need of that layer, their tests check: a control leaves as a text frame
+  (`crates/podssh-relay/tests/reverse_node.rs:129-132`), data waits for `ready`
+  (`ready_waits_for_the_handler_and_comes_before_data`, `plant_data_before_ready`,
+  `input_before_ready_is_kept_then_sent_in_order`), a Close keeps its code and reason
+  (`a_close_of_the_relay_ends_the_socket_with_its_code_and_reason`), and the token travels in its
+  header (`crates/podssh-ws/tests/rfc6455.rs:327`).
+- Deleted: crates/podssh-transport, its lines in `Cargo.toml`, `Cargo.lock` and
+  `crates/podssh-cli/Cargo.toml`, and its name in the library lists of `scripts/gate.sh` and
+  `scripts/plant.sh`. The comments that named it in `podssh-core`, `podssh-ws` and a test of
+  `podssh-relay` name the crates that remain.
+- The documents: `AGENTS.md` (rule 4, the map), `docs/architecture.md` (the table of crates, rules 2
+  and 4), `docs/development.md` (the library list, the fixture, the examples), `docs/design.md` (the
+  plan, done), `docs/decisions.md` (the library list in the row of the SSH client; the old text in
+  Superseded) and `docs/STATUS.md` (the row of the crate merged into that of `podssh-relay`, each
+  count of lines measured again, the library list). The row of `podssh-relay` said that no command
+  used the reverse road, which T-083 and T-084 had made false; it names T-061 now.
+- The 84 citations of the crate's files in `TODO/` are history forms at `e8bbd4d`, with the paths
+  out of backticks, as the files are gone (`TODO/RULES.md`, "Citations are checked"). Of the other
+  citations of the changed files, `cargo todo remap` moved 59 and left 47 for review: each was read,
+  and moved by hand or written as a history form where its lines are gone.
+- Prove: `cargo test -p podssh-relay --all-features --no-fail-fast`: 109 passed, 0 failed, 7
+  ignored (the live tests). `cargo build --examples -p podssh-cli`: exit 0. The `git grep` of the
+  Prove: exit 1. `sh scripts/dev.sh check`: green, each build and test step (the library crates
+  with no C compiler, the blocking facade, the check on Rust 1.85, the work record); interop 103 of
+  103; the man page 6 of 6; a static binary of 4,442,624 bytes. `python scripts/check-repo.py`: ok. `cargo test --no-fail-fast`: 810
+  passed, 0 failed, 12 ignored (850 before: the crate's 84 tests went, and 44 came).
+- Plant: `use podssh_transport;` at the end of `crates/podssh-cli/examples/live_irc.rs`: the build
+  failed with `E0432` (exit 101). Restored, it builds (exit 0).
 
 # T-083: `podssh node NAME TARGET`
 
@@ -1334,7 +1410,7 @@ ends each token at once (`docs/relay.md:193-195`). A text frame from the operato
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:138-175`,
 `crates/podssh-ws/tests/signatures.rs:29-192`); the comment's `crypto_vectors.rs:192` is not one. Read: the
-issue's "rule 8" is rule 6 (`docs/architecture.md:121-123`), and its "section 2" sentence about an allowlist of
+issue's "rule 8" is rule 6 (`docs/architecture.md:120-122`), and its "section 2" sentence about an allowlist of
 keys is in section 7 (`docs/design.md:314-315`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 and
 1416-1492 of `greaber/syq:src/delegation.rs`). The reporter's correction: a signed grant leaks as a token does
@@ -1353,10 +1429,10 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
 1. On the relay: an endpoint in place of `POST /v1/pair` that returns a signed grant naming the node, the
    principals that may use it (key fingerprints, T-087), an expiry and a nonce. The relay records the nonce as
    spent and refuses a second use. podssh caches the grant and sends it in a header or a 0600 file, never in
-   a URL (`docs/relay.md:106-108`, `docs/architecture.md:121-123`).
+   a URL (`docs/relay.md:106-108`, `docs/architecture.md:120-122`).
 2. On the client: keep the pair's tokens, and add a signed grant inside the operator leg, which the relay has
    authenticated. A text frame closes that leg with `1003`, so the grant needs a typed binary header at the
-   start of the session: a change of the framing in `crates/podssh-transport/src/framing/legs.rs:60-76`. The
+   start of the session: a change of the framing in crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`. The
    node checks the grant before it dials the TARGET, so the dial moves after `ready` (`docs/reverse.md:16`):
    the seam of T-088 and T-089. Spent nonces are create-new private files
    (`crates/podssh-relay/src/cache.rs:301-319`).

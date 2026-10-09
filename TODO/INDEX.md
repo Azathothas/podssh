@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**251 entries: 193 open, 0 partial, 7 blocked, 51 done.**
+**251 entries: 190 open, 0 partial, 7 blocked, 54 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 100 | 0 | 3 | 41 | 144 |
-| P3 | 91 | 0 | 4 | 2 | 97 |
-| **All** | 193 | 0 | 7 | 51 | 251 |
+| P2 | 99 | 0 | 3 | 42 | 144 |
+| P3 | 89 | 0 | 4 | 4 | 97 |
+| **All** | 190 | 0 | 7 | 54 | 251 |
 
 ## Entries
 
@@ -147,15 +147,15 @@ repository and CI).
 | [T-071](transport.md) | P2 | S | M4 | defect | done | T1: `send_text` sends a binary frame, so the node leg cannot work |
 | [T-072](transport.md) | P2 | S | M4 | defect | done | T2: a received Close frame loses its code and reason |
 | [T-073](transport.md) | P2 | S | M4 | defect | done | T5: the `ready` gate is not enforced |
-| [T-074](transport.md) | P3 | S | M4 | chore | open | T7: the backpressure module is not used |
+| [T-074](transport.md) | P3 | S | M4 | chore | done | T7: the backpressure module is not used |
 | [T-075](transport.md) | P2 | S | M4 | defect | done | T8: a 403 is not retried with a new token, and a 503 is retried |
 | [T-076](transport.md) | P2 | S | M4 | defect | done | T9: host and node names are not validated or escaped |
-| [T-077](transport.md) | P3 | S | M4 | chore | open | T10: the `Transport` trait has no implementation, and `Backoff` is used only by tests |
+| [T-077](transport.md) | P3 | S | M4 | chore | done | T10: the `Transport` trait has no implementation, and `Backoff` is used only by tests |
 | [T-078](reverse.md) | P2 | M | M4 | feature | done | Pairing in `podssh-relay`: pair, stop and status |
 | [T-079](reverse.md) | P2 | L | M4 | feature | done | The node runner |
 | [T-080](reverse.md) | P2 | M | M4 | feature | done | The operator runner |
 | [T-081](reverse.md) | P2 | M | M4 | feature | done | A blocking facade of `podssh-relay`, for podbox |
-| [T-082](reverse.md) | P2 | M | M4 | chore | open | Move the codecs of `podssh-transport` into `podssh-relay` |
+| [T-082](reverse.md) | P2 | M | M4 | chore | done | Move the codecs of `podssh-transport` into `podssh-relay` |
 | [T-083](reverse.md) | P2 | M | M4 | feature | done | `podssh node NAME TARGET` |
 | [T-084](reverse.md) | P2 | M | M4 | feature | done | `podssh operator NAME` and `podssh ssh NODE` |
 | [T-085](reverse.md) | P2 | M | M4 | measurement | open | M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox |

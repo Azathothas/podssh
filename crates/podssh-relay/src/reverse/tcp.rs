@@ -3,10 +3,10 @@
 
 use std::time::Duration;
 
-use podssh_transport::SessionId;
 use podssh_ws::ProxyChoice;
 use tokio::net::TcpStream;
 
+use super::framing::SessionId;
 use super::node::{Handler, Opening};
 
 /// Each session dials `host:port`, with `podssh_ws::dial::dial`, which keeps a

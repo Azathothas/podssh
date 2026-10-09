@@ -12,8 +12,8 @@ target sandbox, and release it.
   through `russh`). On Windows, also NASM; without it, aws-lc uses prebuilt
   objects.
 - No C compiler for the library crates (`podssh-ws`, `podssh-relay`,
-  `podssh-transport`, `podssh-core`, `podssh-terminal`, `podssh-probe`). The
-  gate makes sure of this.
+  `podssh-core`, `podssh-terminal`, `podssh-probe`). The gate makes sure of
+  this.
 - `cmake` and `perl` for the `ts` feature only.
 - Python 3 for the repository checks.
 - For the container gate on Windows: Git Bash, PowerShell, and the
@@ -241,8 +241,8 @@ python scripts/interop-conpty.py target/debug/podssh.exe root@HOST --direct
 `scripts/capture-close.py` captures the payload of a Close that the live
 relay sends, with a client of the Python standard library: bytes that podssh
 did not make, for a fixture of the Close parser
-(`crates/podssh-transport/tests/socket.rs`). It mints a token that it keeps in
-memory and never prints:
+(`crates/podssh-ws/tests/control_frames.rs`). It mints a token that it keeps
+in memory and never prints:
 
 ```sh
 python scripts/capture-close.py              # github.com:22: 1000 target closed
@@ -256,14 +256,13 @@ operator's socket, and records each frame of one session (`hello`, `open`,
 node's socket and on the operator's; it stops the pair at the end and prints
 no token.
 
-WARNING: Some older examples read a token from the environment. Mint the
-token, use it and remove it in one shell. Do not print it.
+The examples open a forward session as `podssh ssh` does
+(`podssh_relay::open`): a token from the environment, the cache or a mint,
+never printed.
 
 ```sh
-export PODSSH_RELAY_TOKEN="$(curl -sS -X POST https://tcp.ssh.relay.ajam.dev/v1/mint \
-  -H 'content-type: application/json' -d '{}' | python -c 'import json,sys; print(json.load(sys.stdin)["token"])')"
-cargo run -p podssh-transport --example live_forward -- --bundle /path/to/ca-bundle.pem
-unset PODSSH_RELAY_TOKEN
+cargo run -p podssh-relay --example live_forward          # github.com:22: its SSH banner
+cargo run -p podssh-cli --example live_irc                 # an IRC registration through the relay
 ```
 
 ## Line endings

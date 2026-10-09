@@ -134,3 +134,35 @@ async fn no_data_frame_follows_this_sides_close() {
     peer.read_to_end(&mut rest).await.unwrap();
     assert!(buf.is_empty() && rest.is_empty(), "nothing after the Close");
 }
+
+/// The payload of a Close that the live relay sent (version 2026-10-03-r2),
+/// captured on 2026-10-09 by `python scripts/capture-close.py`, a client of
+/// the Python standard library: github.com:22 closed the connection after a
+/// line that is not SSH. Bytes that podssh did not make.
+const LIVE_CLOSE: &str = "03e874617267657420636c6f736564";
+
+#[tokio::test]
+async fn a_close_captured_from_the_live_relay_is_read_as_sent() {
+    let payload: Vec<u8> =
+        (0..LIVE_CLOSE.len()).step_by(2).map(|i| u8::from_str_radix(&LIVE_CLOSE[i..i + 2], 16).unwrap()).collect();
+    assert_eq!(close_code_and_reason(&payload), (Some(1000), "target closed".to_string()));
+    // Through a session too: the frame is read whole, and answered.
+    let (client, mut peer) = tokio::io::duplex(64 * 1024);
+    let session = RelaySession::new(client, Vec::new(), None, Duration::from_secs(5));
+    let mut bytes = vec![FIN | frame::OPCODE_CLOSE, payload.len() as u8];
+    bytes.extend_from_slice(&payload);
+    peer.write_all(&bytes).await.unwrap();
+    let got = session.read_frame().await.expect("the Close");
+    assert_eq!((got.opcode, close_code_and_reason(&got.payload)), (frame::OPCODE_CLOSE, (Some(1000), "target closed".into())));
+}
+
+/// A Close with no status code has none (callers read 1005, RFC 6455
+/// section 7.1.5), and a reason loses its control characters before anyone
+/// prints it.
+#[test]
+fn a_close_with_no_code_has_none_and_a_reason_loses_its_control_characters() {
+    assert_eq!(close_code_and_reason(b""), (None, String::new()));
+    let mut payload = 4000u16.to_be_bytes().to_vec();
+    payload.extend_from_slice("bad\u{1b}[2J\u{7}news".as_bytes());
+    assert_eq!(close_code_and_reason(&payload), (Some(4000), "bad[2Jnews".to_string()));
+}

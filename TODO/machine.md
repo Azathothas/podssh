@@ -1,8 +1,8 @@
 This file holds the work that makes podssh usable by programs and agents: JSON forms of `doctor`,
 `man` and the result of `ssh`, `podssh status`, the end-to-end check in the binary, `podssh
 ping`, an MCP server, and a log of sessions. stdout carries the answer and nothing else
-(`docs/architecture.md:124-125`). `serde` and `serde_json` are already dependencies of the binary
-(`crates/podssh-cli/Cargo.toml:43-44`), so no entry here needs a new crate for JSON.
+(`docs/architecture.md:123-124`). `serde` and `serde_json` are already dependencies of the binary
+(`crates/podssh-cli/Cargo.toml:42-43`), so no entry here needs a new crate for JSON.
 
 # T-049: `podssh doctor --json` (GitHub #9)
 
@@ -540,7 +540,7 @@ Measured: `podssh mcp` exits 64 (unknown subcommand).
 Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:262-278`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:140-150`), which an MCP server over stdio uses for
-its protocol. podssh never listens (`docs/architecture.md:102-109`), and stdio needs no listener.
+its protocol. podssh never listens (`docs/architecture.md:101-108`), and stdio needs no listener.
 
 ## Approach
 

@@ -128,6 +128,19 @@ pub fn forward_path(host: &str, port: u16) -> Result<String, String> {
     Ok(format!("/connect/{host}/{port}"))
 }
 
+/// The path of a node's socket, `/v1/node/<name>`, for a name that cannot
+/// change the path ([`check_node_name`]).
+pub fn node_path(name: &str) -> Result<String, String> {
+    check_node_name(name)?;
+    Ok(format!("/v1/node/{name}"))
+}
+
+/// The path of an operator's socket, `/v1/connect/<name>`.
+pub fn operator_path(name: &str) -> Result<String, String> {
+    check_node_name(name)?;
+    Ok(format!("/v1/connect/{name}"))
+}
+
 /// The checks of a host, a target and a pair name, defined once in
 /// `podssh-ws` for each crate that builds a relay path.
 pub use podssh_ws::names::{check_host, check_node_name, check_target};
@@ -195,6 +208,33 @@ mod tests {
         for bad in ["", "a/b", "a?b", "a#b", "a b", "a\r\nX: y", "-oProxy", ".hidden", "[::1]", "a@b"] {
             assert!(forward_path(bad, 22).is_err(), "{bad:?}");
         }
+        assert!(forward_path("github.com", 0).is_err());
+    }
+
+    /// The paths of the contract's table of addresses.
+    #[test]
+    fn the_paths_are_the_published_ones() {
+        assert_eq!(forward_path("github.com", 22).unwrap(), "/connect/github.com/22");
+        assert_eq!(node_path("podssh").unwrap(), "/v1/node/podssh");
+        assert_eq!(operator_path("podssh").unwrap(), "/v1/connect/podssh");
+    }
+
+    /// No name or host bends a path: each that could is refused before a path
+    /// exists, and never encoded, as an encoded `/` hides another path.
+    #[test]
+    fn names_cannot_bend_the_path() {
+        let long_name = "n".repeat(129);
+        let long_host = "h".repeat(254);
+        for bad in ["a/b", "a?b", "a#b", "..", ".", "-x", "a b", "a\r\nX-Injected: 1", ""] {
+            assert!(forward_path(bad, 22).is_err(), "{bad:?}");
+            assert!(node_path(bad).is_err(), "{bad:?}");
+            assert!(operator_path(bad).is_err(), "{bad:?}");
+        }
+        assert!(forward_path(&long_host, 22).is_err());
+        assert!(node_path(&long_name).is_err() && operator_path(&long_name).is_err());
+        assert_eq!(node_path("a.b_c-1").unwrap(), "/v1/node/a.b_c-1");
+        assert_eq!(operator_path("a.b_c-1").unwrap(), "/v1/connect/a.b_c-1");
+        assert_eq!(forward_path("2001:db8::1", 22).unwrap(), "/connect/2001:db8::1/22");
         assert!(forward_path("github.com", 0).is_err());
     }
 

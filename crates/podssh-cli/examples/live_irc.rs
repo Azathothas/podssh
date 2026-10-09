@@ -2,10 +2,11 @@
 //!
 //! Register (CAP LS / NICK / USER → 001), drain trailing numerics, watch for
 //! mid-line payload ends (live frame splits), echo two self `PRIVMSG`s
-//! byte-exact, then QUIT. Mint/use/discard per `live_forward.rs` (token by
-//! env, never argv/printed). Stdout: counts, codes, caps, probe id.
+//! byte-exact, then QUIT. The session opens as `podssh ssh` opens one
+//! (`podssh_relay::open`): the token comes from the environment, the cache or
+//! a mint, and is never printed. Stdout: counts, codes, caps, probe id.
 //!
-//! ⛔ **Fallbacks**: seven ircds, three bundles, one nick retry,
+//! ⛔ **Fallbacks**: seven ircds, `--bundle` or podssh's own trust, one nick retry,
 //! throwaway-channel echo when self-messages never reflect (70 partial).
 //!
 //! Exits: 0 full proof; 70 registered but echo missed; 69 no registration;
@@ -17,17 +18,13 @@ mod support;
 use std::time::{Duration, Instant};
 
 use podssh_core::irc::{Event, ReapPolicy, Registered, Session};
-use podssh_transport::forward::ForwardRunner;
-use podssh_transport::socket::WsSocket;
-use podssh_transport::transport::Limits;
-use podssh_ws::client::{Endpoint, WsClientConfig};
+use podssh_relay::open::Request;
+use podssh_relay::relay::{self, RelayList};
+use podssh_ws::Trust;
 use support::{Attempt, LiveRunner, PumpOut};
 
-use support::{burst_for, find_bundle, log_numerics, new_session, pump_once, random_hex6, send_all, usage};
+use support::{burst_for, log_numerics, new_session, pump_once, random_hex6, send_all, usage};
 
-const RELAY_HOST: &str = "tcp.ssh.relay.ajam.dev";
-const RELAY_PORT: u16 = 443;
-const FORWARD_CAP: usize = 262144;
 const REAPER_MS: u64 = 180_000;
 
 /// Whole-operation wall clock: a bound, not a dial timeout.
@@ -86,17 +83,17 @@ async fn main() {
         eprintln!("podssh: --pair needs --role send|listen.");
         usage();
     }
-    let bundle = find_bundle(bundle_arg);
-
-    // ⛔ The token is read, never displayed: mint, use, discard in one shell.
-    let token = std::env::var("PODSSH_RELAY_TOKEN").unwrap_or_else(|_| {
-        eprintln!("podssh: live_irc needs PODSSH_RELAY_TOKEN in the environment.");
+    // A named bundle, else podssh's own trust: the system's bundle and the
+    // compiled-in roots.
+    let trust = match bundle_arg {
+        Some(file) => Trust::File(file.into()),
+        None => Trust::Default,
+    };
+    let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
+    let relays = relay::select_relays(None, std::env::var(relay::RELAY_ENV).ok(), &pool).unwrap_or_else(|why| {
+        eprintln!("podssh: {}: {why}", relay::RELAY_ENV);
         std::process::exit(64);
     });
-    if token.is_empty() {
-        eprintln!("podssh: PODSSH_RELAY_TOKEN is empty.");
-        std::process::exit(64);
-    }
 
     let targets: Vec<(String, u16)> = match target_arg {
         Some(h) => vec![(h, port_arg.unwrap_or(6667))],
@@ -114,8 +111,8 @@ async fn main() {
         }
         let attempt_deadline = std::cmp::min(deadline, Instant::now() + PER_TARGET);
         let a = run_target(
-            &bundle,
-            &token,
+            &relays,
+            &trust,
             host,
             *port,
             &nick_base,
@@ -153,8 +150,8 @@ async fn main() {
 }
 
 async fn run_target(
-    bundle: &str,
-    token: &str,
+    relays: &RelayList,
+    trust: &Trust,
     host: &str,
     port: u16,
     nick_base: &str,
@@ -164,27 +161,24 @@ async fn run_target(
     role: Option<&str>,
 ) -> Attempt {
     let mut a = Attempt { target: format!("{host}:{port}"), ..Attempt::default() };
-    let config = WsClientConfig {
-        endpoint: Endpoint {
-            host: RELAY_HOST.to_string(),
-            port: RELAY_PORT,
-            path: format!("/connect/{host}/{port}"),
-        },
-        trust: podssh_ws::Trust::File(std::path::PathBuf::from(bundle)),
-        server_name: RELAY_HOST.to_string(),
-        timeout: Duration::from_secs(20),
-        idle_timeout: Some(podssh_ws::DEFAULT_IDLE_TIMEOUT),
-        proxy: podssh_ws::ProxyChoice::FromEnvironment,
-    };
-    let session = match podssh_ws::client::connect(&config, token).await {
-        Ok(s) => s,
-        Err(e) => {
-            eprintln!("podssh: {host}:{port}: forward upgrade failed: {e}");
+    let path = match relay::forward_path(host, port) {
+        Ok(path) => path,
+        Err(why) => {
+            eprintln!("podssh: {host}:{port}: {why}");
             return a;
         }
     };
-    let socket = WsSocket::new(session, Limits::forward(FORWARD_CAP));
-    let mut runner = ForwardRunner::new(socket, Limits::forward(FORWARD_CAP));
+    let request = Request { relays, path: &path, trust, target: &a.target, rounds: 1 };
+    let opened = match podssh_relay::open(&request, &mut |note: &str| eprintln!("podssh: {note}")).await {
+        Ok(opened) => opened,
+        Err(failure) => {
+            for line in failure.lines(&a.target) {
+                eprintln!("podssh: {host}:{port}: {line}");
+            }
+            return a;
+        }
+    };
+    let mut runner = LiveRunner::new(opened.session);
     a.connected = true;
 
     let policy = match ReapPolicy::from_reaper_ms(REAPER_MS) {
