@@ -283,8 +283,8 @@ proxy makes each fault; the node's makes only the stopped relay host.
 | A new address of the client: its connections go silent, and new ones leave from 127.0.0.2 | Each byte back in 40 s; one loss and its resume | Each byte back in 17 s; no loss of the layer | Exit 255 in 62 s (the write limit of 60 s) |
 | A stall of 3 minutes: each byte of the client's connections waits 180 s | Each byte back in 208 s; one loss and its resume | Each byte back in 200 s; one loss of the layer and its resume | Exit 255 in 62 s |
 
-The gate's step `m6` runs the same checks in the build image at each push.
-The live run from the box, through the live relay, comes with the checks of
+The gate's step `m6` runs the same checks in the build image at each push:
+11 of 11 in 692 s at `94e3e6a` (run 38001904475). The live run from the box, through the live relay, comes with the checks of
 the release (T-251).
 
 ## Components

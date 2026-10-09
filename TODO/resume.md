@@ -1087,6 +1087,8 @@ road, and the same faults end a session of the forward road with 255
 - Waits for T-251: the live run from the box through the live relay, with
   the stall at the box's proxy ("a session that survives a killed relay
   connection").
+- CI, the run of `94e3e6a` (38001904475): the gate's step `m6` in the build
+  image, 11 of 11 in 692 s; each job passed.
 
 # T-157: Throughput on each road and relay, by a committed method
 
