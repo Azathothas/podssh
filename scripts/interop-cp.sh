@@ -253,6 +253,10 @@ for port in 2201 2207; do
 done
 no_part "cp by exec"
 
+# podssh mv, while these servers run (T-138).
+# shellcheck source=scripts/interop-mv.sh
+. "$HERE/interop-mv.sh"
+
 for port in 2205 2206 2207 2208 2209; do
     [ -f "$W/sshd-$port.pid" ] && kill "$(cat "$W/sshd-$port.pid")" 2>/dev/null
 done

@@ -186,6 +186,33 @@ SFTP, through the relay or with `--direct`, with the connection flags of
 - Each SFTP reply with no file data waits 30 s at most, each read or write
   60 s (T-133); `--timeout` bounds the whole copy, the login included.
 
+## `podssh mv`
+
+`podssh mv SRC... DST` moves files, with the operands and the flags of `cp`
+(`crates/podssh-cli/src/cp/moving.rs`).
+
+- **Within one server, the server renames**, and no byte moves:
+  `posix-rename@openssh.com` (else the rule of `cp`: remove, then rename,
+  said), or `mv -f` by exec. When the server fails the rename for a reason
+  of its own (two file systems), the move is a copy and a delete, said
+  first.
+- **Between hosts a move is not atomic**, and podssh says so on stderr
+  before any byte moves: the copy of `cp`, its digest check, then a delete
+  of the source. Between two servers, a third connection removes it.
+- **The source goes last**: after the digests matched and the rename onto
+  the destination succeeded, and only while it is still the file that was
+  copied: the same size and time of change; here the same file (the device
+  and inode, or on Windows when it was made); by exec the same line of
+  `ls -lnid`; and where a digest command runs on its side, the same bytes.
+  A source that changed stays, and the move exits 66. A delete that fails
+  exits 70 and says that the copy is complete and verified: the data is
+  then in two places, never in none.
+- One file named twice is refused (64): as typed, before anything connects
+  (`host:a host:./a`), or by the server's answer (`realpath`, or `test -ef`
+  by exec).
+- `--jsonl` adds `"source_removed"` to each `done` object; a rename has no
+  digest (`"sha256": null`) and `"verified_by": "rename"`.
+
 ## `podssh doctor`
 
 `podssh man doctor` gives the checks. The rules behind them:
@@ -316,12 +343,13 @@ commands. The rules behind them:
   failure of podssh. A remote command stopped by a signal gives 128 plus the
   signal number (OpenSSH gives 255), and podssh names the signal on stderr.
 - `podssh proxy` is not an SSH client: its failures use sysexits (64 to 78).
-- `podssh cp` uses sysexits too: 64 a usage error, 66 a source that is
-  missing or cannot be read, 69 no connection, or neither SFTP nor a copy
-  by exec, 70 digests that differ or a session that broke (the destination
-  is unchanged), 73 a destination that cannot be written, 75 the
-  `--timeout` passed, 77 a login or a host key refused, 78 a setting of the
-  environment.
+- `podssh cp` and `podssh mv` use sysexits too: 64 a usage error, 66 a
+  source that is missing or cannot be read (for `mv`, also one that changed
+  during the move), 69 no connection, or neither SFTP nor a copy by exec,
+  70 digests that differ or a session that broke (the destination is
+  unchanged), or a verified move whose source could not be removed, 73 a
+  destination that cannot be written, 75 the `--timeout` passed, 77 a login
+  or a host key refused, 78 a setting of the environment.
 - A command that is not implemented exits 70. It never exits 0.
 - A closed stdout (EPIPE) ends the session cleanly.
 

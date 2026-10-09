@@ -8,6 +8,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
     match name {
         "ssh" => SSH,
         "cp" => CP,
+        "mv" => MV,
         "proxy" => PROXY,
         "node" => NODE,
         "operator" => OPERATOR,
@@ -86,6 +87,19 @@ const CP: &[&str] = &[
     "Each SFTP reply that carries no file data is waited for 30 s at most, and each read or write 60 s. \
      --timeout bounds the whole copy, the login included. The exit codes are the sysexits of \
      EXIT STATUS, as for podssh proxy.",
+];
+
+const MV: &[&str] = &[
+    "podssh mv moves files, with the operands and the flags of podssh cp. Within one server the server \
+     renames, with posix-rename or by exec with mv -f, and no byte moves; a rename that the server fails \
+     for a reason of its own, such as two file systems, becomes a copy and a delete, said first.",
+    "Between hosts a move is not atomic, and podssh says so on stderr before any byte moves: the copy of \
+     podssh cp, its digest check, then a delete of the source; between two servers a third connection \
+     removes it. The source goes last, and only while it is still the file that was copied: the same \
+     size and time of change, the same file, and the same bytes where a digest command runs there.",
+    "A source that changed stays (exit 66). A delete that fails exits 70 and says that the copy is \
+     complete and verified: the data is then in two places, never in none. One file named twice is \
+     refused (exit 64). With --jsonl each done object says whether the source is gone: source_removed.",
 ];
 
 const PROXY: &[&str] = &[

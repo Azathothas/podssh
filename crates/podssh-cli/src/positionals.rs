@@ -27,11 +27,9 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .allow_hyphen_values(true)
                     .help("the command to run on the host, its words joined with spaces as OpenSSH joins them; without one, the host starts a shell"),
             ),
-        // Any count parses for `cp`: it says itself what a short list lacks,
-        // in words clap's count error does not have. `mv` keeps the count
-        // until it runs (T-138).
-        "cp" => cmd.arg(Arg::new("paths").value_name("PATH").num_args(1..).help("SRC... DST")),
-        "mv" => cmd.arg(Arg::new("paths").value_name("PATH").num_args(2..).help("SRC... DST")),
+        // Any count parses for `cp` and `mv`: each says itself what a short
+        // list lacks, in words clap's count error does not have.
+        "cp" | "mv" => cmd.arg(Arg::new("paths").value_name("PATH").num_args(1..).help("SRC... DST")),
         "chat" => cmd
             .arg(Arg::new("channel").value_name("CHANNEL").help("channel to join"))
             .arg(Arg::new("message").value_name("MESSAGE").num_args(0..).help("message to send")),

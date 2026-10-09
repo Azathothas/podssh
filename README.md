@@ -10,13 +10,13 @@ an HTTP proxy is their only way out. podssh needs no root, no `LD_PRELOAD`,
 no installed `ssh`, and no TLS or crypto library of the system.
 
 > [!WARNING]
-> **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh cp` (files),
-> `podssh doctor`, `podssh keygen`, `podssh man`, `podssh status` and the
-> reverse road (`podssh node`, `podssh operator`, `podssh relay`) work.
-> Tests run them against OpenSSH and Dropbear servers, through the live
-> relay, and in a box like the target sandbox. Chat, `podssh mv` and the
-> copy of directories are not available yet. The measured state is in
-> [docs/STATUS.md](docs/STATUS.md). The plan is in
+> **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh cp` and
+> `podssh mv` (files), `podssh doctor`, `podssh keygen`, `podssh man`,
+> `podssh status` and the reverse road (`podssh node`, `podssh operator`,
+> `podssh relay`) work. Tests run them against OpenSSH and Dropbear
+> servers, through the live relay, and in a box like the target sandbox.
+> Chat and the copy of directories are not available yet. The measured
+> state is in [docs/STATUS.md](docs/STATUS.md). The plan is in
 > [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## How it works
@@ -75,11 +75,13 @@ podssh ssh -tt user@example.org < script.txt # a remote pty; local stdin is a pi
 ```
 
 Files go over SFTP, or by exec where the server has no SFTP, verified by
-SHA-256 before they take the destination's name:
+SHA-256 before they take the destination's name; `mv` then removes the
+source:
 
 ```sh
 podssh cp report.pdf user@example.org:docs/  # up, into a directory
 podssh cp user@example.org:logs/app.log .    # down
+podssh mv user@example.org:inbox/a.csv .     # down, then the far file goes
 ```
 
 - On a host with no terminal (the sandbox of an agent), podssh never waits

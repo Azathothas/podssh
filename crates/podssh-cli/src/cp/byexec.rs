@@ -159,7 +159,7 @@ impl Unbase64 {
 
 /// What a path is on the server.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Kind {
+pub(super) enum Kind {
     Dir,
     File(u64),
     /// A regular file that the login cannot read: it has no size to give.
@@ -244,7 +244,7 @@ impl Far {
     }
 
     /// What `path` is, and a file's size.
-    async fn kind(&self, handle: &Connection, path: &str) -> Result<Kind, Failed> {
+    pub(super) async fn kind(&self, handle: &Connection, path: &str) -> Result<Kind, Failed> {
         let script = self.marked(
             "if [ -d \"$1\" ]; then echo dir; elif [ -f \"$1\" ] && [ ! -r \"$1\" ]; then echo unreadable; \
              elif [ -f \"$1\" ]; then wc -c < \"$1\"; elif [ -e \"$1\" ]; then echo other; else echo missing; fi",
@@ -267,7 +267,13 @@ impl Far {
     }
 
     /// Where a file named `name` goes on the server, as the SFTP road says.
-    async fn target(&self, handle: &Connection, dest: &str, name: &str, many: bool) -> Result<String, Failed> {
+    pub(super) async fn target(
+        &self,
+        handle: &Connection,
+        dest: &str,
+        name: &str,
+        many: bool,
+    ) -> Result<String, Failed> {
         if dest.is_empty() {
             return Ok(name.to_string());
         }
@@ -333,7 +339,13 @@ impl Far {
     /// Give `temp` the mode `mode` when the server has `chmod`, then rename
     /// it onto `target`. A directory of that name is refused: `mv` would put
     /// the file inside it, where the SFTP road's rename fails.
-    async fn rename(&self, handle: &Connection, temp: &str, target: &str, mode: Option<u32>) -> Result<(), Failed> {
+    pub(super) async fn rename(
+        &self,
+        handle: &Connection,
+        temp: &str,
+        target: &str,
+        mode: Option<u32>,
+    ) -> Result<(), Failed> {
         let octal = mode.map(|m| format!("{m:o}"));
         // `--` before the mode: a strict POSIX chmod takes a later `--` as a
         // file.
@@ -363,5 +375,41 @@ impl Far {
         if let Ok(cmd) = command("exec rm -f -- \"$1\"", &[path]) {
             let _ = exec::capture(handle, &cmd, STEP_WAIT, 4096).await;
         }
+    }
+
+    /// What `ls -lnid` says of `path`: its inode, mode, links, owner, size
+    /// and time of change, to tell later whether it is still the same file.
+    pub(super) async fn listing(&self, handle: &Connection, path: &str) -> Result<String, Failed> {
+        let cmd = command(&self.marked("exec ls -lnid -- \"$1\""), &[path]).map_err(|why| failed(Fault::Usage, why))?;
+        let got = exec::capture(handle, &cmd, STEP_WAIT, 64 * 1024).await.map_err(|e| step_failed(path, e))?;
+        let line = after_marker(&got.stdout, &self.marker)
+            .map(|at| String::from_utf8_lossy(&got.stdout[at..]).trim().to_string())
+            .unwrap_or_default();
+        if got.status != Some(0) || line.is_empty() {
+            let why = String::from_utf8_lossy(&got.stderr);
+            return Err(failed(Fault::NoInput, format!("{path}: {}", why.trim())));
+        }
+        Ok(line)
+    }
+
+    /// Whether `a` and `b` name one file (`test -ef`). A `test` with no
+    /// `-ef` says no, and `mv` then judges the rename.
+    pub(super) async fn same_file(&self, handle: &Connection, a: &str, b: &str) -> Result<bool, Failed> {
+        let script = self.marked("if [ \"$1\" -ef \"$2\" ]; then echo same; else echo other; fi");
+        let cmd = command(&script, &[a, b]).map_err(|why| failed(Fault::Usage, why))?;
+        let got = exec::capture(handle, &cmd, STEP_WAIT, 4096).await.map_err(|e| step_failed(a, e))?;
+        let at = after_marker(&got.stdout, &self.marker);
+        Ok(at.is_some_and(|at| String::from_utf8_lossy(&got.stdout[at..]).trim() == "same"))
+    }
+
+    /// Remove `path`, and say why when the server does not.
+    pub(super) async fn delete(&self, handle: &Connection, path: &str) -> Result<(), String> {
+        let cmd = command("exec rm -- \"$1\"", &[path])?;
+        let got = exec::capture(handle, &cmd, STEP_WAIT, 4096).await.map_err(|e| e.to_string())?;
+        if got.status == Some(0) {
+            return Ok(());
+        }
+        let why = String::from_utf8_lossy(&got.stderr).trim().to_string();
+        Err(if why.is_empty() { format!("rm ended with {:?}", got.status) } else { why })
     }
 }

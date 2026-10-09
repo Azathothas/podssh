@@ -431,10 +431,7 @@ pub const VERBS: &[Verb] = &[
 /// its own arm, remove its row here and add it to `DISPATCHED` in
 /// `tests/flag_table.rs`; dispatch treats a verb with neither an arm nor a row
 /// as an internal error, never as success.
-pub const VERB_OWNER: &[(&str, &str)] = &[
-    ("chat", "M8"),
-    ("mv", "M5"),
-];
+pub const VERB_OWNER: &[(&str, &str)] = &[("chat", "M8")];
 
 /// Whether a verb does something in this binary. `--help` and the manual
 /// both show it, so neither can offer a command that only refuses.

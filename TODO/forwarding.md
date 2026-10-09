@@ -67,11 +67,11 @@ server listens, and the client connects out for each connection.
    proxy's answer, or the error of a refused loopback connection.
 6. Change the `-R` row to supported and the keyword to honoured. T-230
    corrected the texts of the `-R` refusal (the help and the manual's note
-   at `crates/podssh-cli/src/man/notes.rs:39-41`). Change the test that
+   at `crates/podssh-cli/src/man/notes.rs:40-42`). Change the test that
    asserts the refusal (`crates/podssh-cli/tests/flag_table.rs:64-83`).
    Update `docs/cli.md:110-124` (correct line 78 at `e8bbd4d`) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
-   under the proxy rule of `AGENTS.md:178-183`; say so in the help. The relay's
+   under the proxy rule of `AGENTS.md:179-184`; say so in the help. The relay's
    64 MiB and 12 h cover all the forwarded connections of a session
    together.
 
@@ -100,7 +100,7 @@ channel for any port, and the second test fails.
 `podssh ssh -R 8080:localhost:80 example.invalid` gives "-R SPEC is
 refused. Leave it out." and "remote forwarding is not implemented yet.",
 exit 64, as `-o RemoteForward` does; it names no `-W`. The manual's note
-gives `-R` a sentence of its own (`crates/podssh-cli/src/man/notes.rs:39-41`).
+gives `-R` a sentence of its own (`crates/podssh-cli/src/man/notes.rs:40-42`).
 The rest of the Premise holds.
 
 2026-10-08, T-237: podssh's handler now refuses each channel that the
@@ -240,7 +240,7 @@ X11 channel.
    spoofed cookie, put the real cookie in its place, then copy bytes.
 4. `-Y` (trusted) uses the real cookie. `-X` (untrusted) needs a cookie that
    the X server makes (`xauth generate ... untrusted`): run `xauth` only when
-   a probe finds it (`XAuthLocation`, or `PATH`), as `AGENTS.md:184-188`
+   a probe finds it (`XAuthLocation`, or `PATH`), as `AGENTS.md:185-189`
    allows. Else refuse `-X`, and name `-Y`.
 5. Move `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` and
    `XAuthLocation` to `HONOURED`. Change the help of `-x`
@@ -314,7 +314,7 @@ AF_UNIX.
   "podssh never binds a listener", exit 64
   (`crates/podssh-cli/src/flags.rs:194-199`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs:157-159`).
-- Read: `AGENTS.md:178-183` (no bind, no listen),
+- Read: `AGENTS.md:179-184` (no bind, no listen),
   `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:69-72` ("Nothing
   listens") and `README.md:38` state the rule from before the ruling.
   `docs/design.md:269-271` already allows a local listener for `pipe` after
@@ -352,7 +352,7 @@ AF_UNIX.
    variable that refuses each local listener (`-L`, `-D`, T-039, T-034). Add
    it to `VARIABLES` in `crates/podssh-cli/src/man/facts.rs`.
 6. In the same commit, change the rows, the keywords, the note at
-   `crates/podssh-cli/src/man/notes.rs:39-41`, the test at
+   `crates/podssh-cli/src/man/notes.rs:40-42`, the test at
    `crates/podssh-cli/tests/flag_table.rs:64-83`, and the documents that the
    Premise quotes.
 
@@ -406,7 +406,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   accepted with no effect; only `-v` says so
   (`crates/podssh-cli/src/ssh/keywords.rs:68`). A script that sets them still
   works, with one connection for each run.
-- Read: a control socket is a listener. `AGENTS.md:178-183` forbids it in the
+- Read: a control socket is a listener. `AGENTS.md:179-184` forbids it in the
   words from before the ruling. Sandbox A allowed a bind for AF_UNIX
   (T-001); the Podman box refuses each `bind`
   (`scripts/box/seccomp.json:5-10`).

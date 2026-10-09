@@ -1,5 +1,6 @@
-//! `podssh cp`: files between this host and a server, over SFTP (T-133), or
-//! by exec when the server has no SFTP ([`byexec`]).
+//! `podssh cp` and `podssh mv`: files between this host and a server, over
+//! SFTP (T-133), or by exec when the server has no SFTP ([`byexec`]); `mv`
+//! removes each source once its copy is verified ([`moving`], T-138).
 //!
 //! **The destination's name never holds a file that was not verified**
 //! ([`transfer`]): the bytes go to a temporary name beside it, the SHA-256 of
@@ -8,15 +9,18 @@
 //! `--timeout` deadline.
 //!
 //! **Exit codes are sysexits**, as `proxy`'s: 64 a usage error; 66 a source
-//! that is missing or cannot be read; 69 no server to copy with (the relay or
-//! the host cannot be reached, or the server has neither SFTP nor a copy by
-//! exec); 70 a copy that went wrong (the digests differ, the session broke);
-//! 73 a destination that cannot be written; 75 the `--timeout` passed; 77 a
-//! login or a host key refused; 78 a setting of the environment. With several
-//! files, the first failure's code.
+//! that is missing or cannot be read, or that changed during a move; 69 no
+//! server to copy with (the relay or the host cannot be reached, or the
+//! server has neither SFTP nor a copy by exec); 70 a copy that went wrong
+//! (the digests differ, the session broke), or a verified move whose source
+//! could not be removed; 73 a destination that cannot be written; 75 the
+//! `--timeout` passed; 77 a login or a host key refused; 78 a setting of the
+//! environment. With several files, the first failure's code.
 
 pub mod byexec;
 mod digest;
+mod link;
+mod moving;
 pub mod operand;
 pub mod plan;
 mod transfer;
@@ -26,18 +30,18 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use clap::ArgMatches;
-use podssh_ssh::run::HopError;
-use podssh_ssh::sftp::{Limits, Sftp, SftpError};
 use podssh_ssh::Log;
 
 use crate::exitmap::Fault;
 use crate::ssh::args::SshArgs;
 use crate::ssh::resolve::{self, Env, Resolved};
-use operand::Operand;
+use link::{Link, Road};
+use moving::{After, Before};
+use operand::{Operand, Remote};
 use plan::{Direction, Plan};
 use transfer::{Done, Failed};
 
-/// `cp`'s command line as parsed.
+/// `cp`'s or `mv`'s command line as parsed.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct CpArgs {
     /// SRC... DST, as typed.
@@ -45,44 +49,54 @@ pub struct CpArgs {
     /// The connection flags, read as `ssh` reads them: `cp`'s rows share
     /// their ids. The destination comes from the operands.
     pub ssh: SshArgs,
+    /// `mv`: each source goes once its copy is verified.
+    pub moving: bool,
 }
 
 impl CpArgs {
-    /// Read the values out of `cp`'s matches.
-    pub fn from_matches(m: &ArgMatches) -> Self {
+    /// Read the values out of `cp`'s or `mv`'s matches.
+    pub fn from_matches(m: &ArgMatches, moving: bool) -> Self {
         let paths = if m.try_contains_id("paths").unwrap_or(false) {
             m.get_many::<String>("paths").map(|v| v.cloned().collect()).unwrap_or_default()
         } else {
             Vec::new()
         };
-        CpArgs { paths, ssh: SshArgs::from_matches(m) }
+        CpArgs { paths, ssh: SshArgs::from_matches(m), moving }
     }
 }
 
 /// What a run ended with: each file done, and the first failure.
+#[derive(Default)]
 struct Outcome {
     done: Vec<Done>,
     failed: Option<(String, Failed)>,
+    /// The first leg of a move between servers: each source as it was.
+    recorded: Vec<Before>,
 }
 
-/// Run `podssh cp`; returns the process exit code.
+/// Run `podssh cp` or `podssh mv`; returns the process exit code.
 pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    let verb = if args.moving { "mv" } else { "cp" };
     let plan = match plan::plan(&args.paths, cfg!(windows)) {
         Ok(plan) => plan,
         Err(why) => {
-            let _ = writeln!(err, "podssh cp: {why}.\n  Nothing has been attempted.");
+            let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
             return Fault::Usage.code();
         }
     };
-    if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
-        return refusal.report("cp", err);
+    if let Some(why) = args.moving.then(|| moving::same_text(&plan)).flatten() {
+        let _ = writeln!(err, "podssh mv: {why}.\n  Nothing has been attempted.");
+        return Fault::Usage.code();
     }
-    let resolve_for = |server: &operand::Remote| {
+    if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
+        return refusal.report(verb, err);
+    }
+    let resolve_for = |server: &Remote| {
         let mut ssh = args.ssh.clone();
         ssh.destination = Some(server.destination());
         resolve::resolve_or_refuse(&ssh, &Env::from_process())
     };
-    let servers: Vec<operand::Remote> = match (&plan.sources[0], &plan.destination) {
+    let servers: Vec<Remote> = match (&plan.sources[0], &plan.destination) {
         (Operand::Remote(a), Operand::Remote(b)) => vec![a.clone(), b.clone()],
         _ => plan.server().cloned().into_iter().collect(),
     };
@@ -90,10 +104,14 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     for server in &servers {
         match resolve_for(server) {
             Ok(r) => resolved.push(r),
-            Err(refusal) => return refusal.report("cp", err),
+            Err(refusal) => return refusal.report(verb, err),
         }
     }
     let log = Arc::new(Log::new(resolved[0].options.log_level));
+    // Before any byte moves, and before the first line of -v.
+    if let Some(text) = args.moving.then(|| moving::notice(&args.paths, &plan)).flatten() {
+        log.info(&text);
+    }
     for r in &resolved {
         for note in &r.notes {
             log.verbose(note);
@@ -109,11 +127,11 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
             return Fault::SessionFault.code();
         }
     };
-    let run = run_plan(&plan, &resolved, &log);
+    let after = if args.moving { After::Remove } else { After::Keep };
+    let run = run_plan(&plan, &resolved, &log, after);
     let outcome = runtime.block_on(async {
         match deadline {
             Some(limit) => tokio::time::timeout(limit, run).await.unwrap_or_else(|_| Outcome {
-                done: Vec::new(),
                 failed: Some((
                     String::new(),
                     Failed {
@@ -121,6 +139,7 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
                         message: format!("the --timeout of {} s passed", limit.as_secs()),
                     },
                 )),
+                ..Outcome::default()
             }),
             None => run.await,
         }
@@ -132,26 +151,32 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
 /// Print each file done and the failure; the exit code.
 fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &Log) -> i32 {
     for done in &outcome.done {
+        let sha256 = done.sum.as_ref().map(digest::hex);
         if jsonl {
-            let line = serde_json::json!({
+            let mut line = serde_json::json!({
                 "event": "done",
                 "source": done.source,
                 "destination": done.destination,
                 "bytes": done.bytes,
-                "sha256": digest::hex(&done.sum),
+                "sha256": sha256,
                 "verified_by": done.verified_by,
                 "atomic": !done.not_atomic,
             });
+            if let Some(removed) = done.removed {
+                line["source_removed"] = removed.into();
+            }
             let _ = writeln!(out, "{line}");
         } else {
-            log.verbose(&format!(
-                "{} -> {}: {} bytes, SHA-256 {} (far side: {})",
-                done.source,
-                done.destination,
-                done.bytes,
-                digest::hex(&done.sum),
-                done.verified_by
-            ));
+            let how = match &sha256 {
+                Some(hex) => format!("{} bytes, SHA-256 {hex} (far side: {})", done.bytes, done.verified_by),
+                None => format!("{} bytes, renamed on the server", done.bytes),
+            };
+            let source = match done.removed {
+                Some(true) => "; the source is gone",
+                Some(false) => "; the source stays",
+                None => "",
+            };
+            log.verbose(&format!("{} -> {}: {how}{source}", done.source, done.destination));
         }
     }
     let Some((source, failed)) = &outcome.failed else { return 0 };
@@ -168,39 +193,37 @@ fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &Log) -> i32
     failed.fault.code()
 }
 
-/// The fault of a sysexits code that `transport::reach` gave.
-fn fault_of(code: i32) -> Fault {
-    [Fault::Usage, Fault::Auth, Fault::Config].into_iter().find(|f| f.code() == code).unwrap_or(Fault::RelayUnreachable)
-}
-
-/// A connection that failed, as the fault of `cp`.
-fn hop_failure(e: HopError) -> Failed {
-    let fault = match e {
-        HopError::Unreachable(_) => Fault::RelayUnreachable,
-        HopError::HostKey(_) | HopError::Auth(_) => Fault::Auth,
-    };
-    Failed { fault, message: e.to_string() }
-}
-
-/// Run each copy of the plan.
-async fn run_plan(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>) -> Outcome {
+/// Run each copy of the plan; `after` says what becomes of each source.
+async fn run_plan(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>, after: After) -> Outcome {
     match plan.direction {
         Direction::Up | Direction::Down => {
-            session(plan, &resolved[0], log, None).await.expect("up and down need no copy-data")
+            session(plan, &resolved[0], log, None, after).await.expect("up and down need no copy-data")
         }
-        Direction::Across => across(plan, resolved, log).await,
+        Direction::Across => across(plan, resolved, log, after).await,
     }
 }
 
-/// Server to server. On one server that has `copy-data`, the server copies;
-/// else down to a local temporary file, then up from it, one connection at
-/// a time (`AGENTS.md`, rule 2), each copy verified.
-async fn across(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>) -> Outcome {
+/// Server to server. Within one server, a move is the server's rename, and a
+/// copy on a server with `copy-data` stays there; else down to a local
+/// temporary file, then up from it, one connection at a time (`AGENTS.md`,
+/// rule 2), each copy verified; a move then removes the source in a third.
+async fn across(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>, after: After) -> Outcome {
     let (Operand::Remote(from), Operand::Remote(to)) = (&plan.sources[0], &plan.destination) else {
         unreachable!("a copy across has a remote source and a remote destination")
     };
+    let moving = after == After::Remove;
     if from.same_server(to) {
-        if let Some(outcome) = session(plan, &resolved[0], log, None).await {
+        if moving {
+            if let Some(outcome) = rename_session(from, to, &resolved[0], log).await {
+                return outcome;
+            }
+            log.info(&format!(
+                "{}: the server could not rename it, so this is a copy, a digest check, then a delete; \
+                 it is not atomic",
+                from.path
+            ));
+        }
+        if let Some(outcome) = session(plan, &resolved[0], log, None, after).await {
             return outcome;
         }
         log.verbose("the server has no copy-data: the copy goes through this host");
@@ -209,139 +232,177 @@ async fn across(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>) -> Outcome {
     let dir = std::env::temp_dir().join(format!("podssh-cp-{:016x}", rand::random::<u64>()));
     if let Err(e) = std::fs::create_dir(&dir) {
         let failed = Failed { fault: Fault::CantCreate, message: format!("{}: {e}", dir.display()) };
-        return Outcome { done: Vec::new(), failed: Some((from.path.clone(), failed)) };
+        return Outcome { failed: Some((from.path.clone(), failed)), ..Outcome::default() };
     }
     let local = dir.join(if name.is_empty() { "file" } else { &name });
     let leg = |source: Operand, destination: Operand, direction| Plan { direction, sources: vec![source], destination };
     let down = leg(Operand::Remote(from.clone()), Operand::Local(local.display().to_string()), Direction::Down);
-    let mut outcome = session(&down, &resolved[0], log, None).await.expect("a copy down needs no copy-data");
+    let first = if moving { After::Record } else { After::Keep };
+    let mut outcome = session(&down, &resolved[0], log, None, first).await.expect("a copy down needs no copy-data");
+    let recorded = std::mem::take(&mut outcome.recorded);
     if outcome.failed.is_none() {
         // The local copy has the source's name, so a directory or an empty
         // path on the far side takes that name, as a copy up does.
         let up = leg(Operand::Local(local.display().to_string()), Operand::Remote(to.clone()), Direction::Up);
-        outcome = session(&up, &resolved[1], log, Some(from.path.clone())).await.expect("a copy up needs no copy-data");
+        outcome = session(&up, &resolved[1], log, Some(from.path.clone()), After::Keep)
+            .await
+            .expect("a copy up needs no copy-data");
     }
     let _ = std::fs::remove_dir_all(&dir);
+    let copied = outcome.done.last().cloned();
+    if let (true, true, Some(before), Some(copied)) = (moving, outcome.failed.is_none(), recorded.first(), copied) {
+        let removed = remove_session(from, before, &copied, &resolved[0], log).await;
+        if let Some(done) = outcome.done.last_mut() {
+            done.removed = Some(removed.is_ok());
+        }
+        if let Err(failed) = removed {
+            outcome.failed = Some((from.path.clone(), failed));
+        }
+    }
     outcome
 }
 
-/// One connection, one SFTP session, and each file of `plan` over it.
-/// `named` replaces the source's name in the report (a copy across). A copy
-/// within one server is `None` when the server has no `copy-data`.
-async fn session(plan: &Plan, resolved: &Resolved, log: &Arc<Log>, named: Option<String>) -> Option<Outcome> {
-    let mut outcome = Outcome { done: Vec::new(), failed: None };
-    let first = match &plan.sources[0] {
-        Operand::Local(p) => p.clone(),
-        Operand::Remote(r) => r.path.clone(),
-    };
-    let reached = match crate::ssh::transport::reach(resolved, log).await {
-        Ok(reached) => reached,
-        Err(not) => {
-            for line in &not.lines {
-                log.error(line);
-            }
-            let fault = fault_of(not.code);
-            let message = format!("{}: no connection to the server", resolved.options.destination.host);
-            outcome.failed = Some((first, Failed { fault, message }));
+/// A move within one server: the server renames. `None` when it could not,
+/// for a copy and a delete instead.
+async fn rename_session(from: &Remote, to: &Remote, resolved: &Resolved, log: &Arc<Log>) -> Option<Outcome> {
+    let mut outcome = Outcome::default();
+    let link = match link::connect(resolved, log).await {
+        Ok(link) => link,
+        Err(failed) => {
+            outcome.failed = Some((from.path.clone(), failed));
             return Some(outcome);
         }
     };
-    let handles = match podssh_ssh::run::connect_hops(reached.stream, &resolved.options, log).await {
-        Ok(handles) => handles,
-        Err(e) => {
-            outcome.failed = Some((first, hop_failure(e)));
-            return Some(outcome);
-        }
-    };
-    let handle = handles.last().expect("the destination's connection");
-    let host = &resolved.options.destination.host;
-    let road = match Sftp::open(handle, Limits::default()).await {
-        Ok(sftp) => Road::Sftp(sftp),
-        // Within one server with no SFTP, the copy goes through this host,
-        // in two sessions that each probe and say so.
-        Err(SftpError::NoSftp) if plan.direction == Direction::Across => {
-            podssh_ssh::run::disconnect_all(&handles).await;
-            return None;
-        }
-        // No SFTP: each step a command (T-135), said once.
-        Err(SftpError::NoSftp) => {
-            log.info(&format!("{host} has no SFTP subsystem: the copy goes by exec"));
-            match byexec::Far::probe(handle, log).await {
-                Ok(far) => Road::Exec(far),
-                Err(failed) => {
-                    outcome.failed = Some((first, failed));
-                    podssh_ssh::run::disconnect_all(&handles).await;
-                    return Some(outcome);
-                }
-            }
-        }
-        Err(e) => {
-            let failed = Failed { fault: Fault::RelayUnreachable, message: format!("{host}: {e}") };
-            outcome.failed = Some((first, failed));
+    let result = moving::rename(&link, &from.path, &to.path, log).await;
+    link.close().await;
+    match result {
+        Ok(Some(done)) => outcome.done.push(done),
+        Ok(None) => return None,
+        Err(failed) => outcome.failed = Some((from.path.clone(), failed)),
+    }
+    Some(outcome)
+}
+
+/// The last step of a move between servers: remove the source on its
+/// server, when it is still what was copied.
+async fn remove_session(
+    from: &Remote,
+    before: &Before,
+    done: &Done,
+    resolved: &Resolved,
+    log: &Arc<Log>,
+) -> Result<(), Failed> {
+    let link = link::connect(resolved, log).await.map_err(|f| moving::not_removed(&from.path, &f.message))?;
+    let removed = moving::remove_far(&link, &from.path, before, done).await;
+    link.close().await;
+    removed
+}
+
+/// One connection, and each file of `plan` over it; `after` says what
+/// becomes of each source. `named` replaces the source's name in the report
+/// (a copy across). A copy within one server is `None` when the server has
+/// no `copy-data`.
+async fn session(
+    plan: &Plan,
+    resolved: &Resolved,
+    log: &Arc<Log>,
+    named: Option<String>,
+    after: After,
+) -> Option<Outcome> {
+    let mut outcome = Outcome::default();
+    let within = plan.direction == Direction::Across;
+    // Within one server with no SFTP, the copy goes through this host, in
+    // two sessions that each probe and say so.
+    let link = match link::open(resolved, log, !within).await {
+        Ok(Some(link)) => link,
+        Ok(None) => return None,
+        Err(failed) => {
+            outcome.failed = Some((shown(&plan.sources[0]), failed));
             return Some(outcome);
         }
     };
     // Within one server, only copy-data spares this host the bytes.
-    if plan.direction == Direction::Across && !matches!(&road, Road::Sftp(sftp) if sftp.has("copy-data")) {
-        if let Road::Sftp(sftp) = road {
-            let _ = sftp.close_session();
-        }
-        podssh_ssh::run::disconnect_all(&handles).await;
+    if within && !link.copies_within() {
+        link.close().await;
         return None;
     }
     let many = plan.sources.len() > 1;
     for source in &plan.sources {
-        let result = match (&road, source, &plan.destination) {
-            (Road::Sftp(sftp), Operand::Local(path), Operand::Remote(dest)) => {
-                transfer::up(sftp, handle, path, &dest.path, many, log).await
-            }
-            (Road::Sftp(sftp), Operand::Remote(src), Operand::Local(dest)) => {
-                transfer::down(sftp, handle, &src.path, dest, many, log).await
-            }
-            (Road::Sftp(sftp), Operand::Remote(src), Operand::Remote(dest)) => {
-                transfer::within(sftp, handle, &src.path, &dest.path, log).await
-            }
-            (Road::Exec(far), Operand::Local(path), Operand::Remote(dest)) => {
-                far.up(handle, path, &dest.path, many, log).await
-            }
-            (Road::Exec(far), Operand::Remote(src), Operand::Local(dest)) => {
-                far.down(handle, &src.path, dest, many, log).await
-            }
-            (Road::Exec(_), Operand::Remote(_), Operand::Remote(_)) => {
-                unreachable!("a copy within one server by exec goes through this host")
-            }
-            (_, Operand::Local(_), Operand::Local(_)) => unreachable!("a plan has a server"),
+        let name = named.clone().unwrap_or_else(|| shown(source));
+        let before = match after {
+            After::Keep => None,
+            After::Remove | After::Record => match moving::before(&link, source).await {
+                Ok(before) => Some(before),
+                Err(failed) => {
+                    outcome.failed.get_or_insert((name, failed));
+                    continue;
+                }
+            },
         };
-        match result {
+        match copy(&link, source, &plan.destination, many, log).await {
             Ok(mut done) => {
-                if let Some(name) = &named {
-                    done.source = name.clone();
+                if let Some(n) = &named {
+                    done.source = n.clone();
+                }
+                let mut kept = None;
+                match (after, before) {
+                    (After::Remove, Some(before)) => {
+                        let removed = moving::finish(&link, source, &before, &done).await;
+                        done.removed = Some(removed.is_ok());
+                        kept = removed.err();
+                    }
+                    (After::Record, Some(before)) => outcome.recorded.push(before),
+                    _ => {}
                 }
                 outcome.done.push(done);
+                if let Some(failed) = kept {
+                    outcome.failed.get_or_insert((name, failed));
+                }
             }
             Err(failed) => {
-                let name = match source {
-                    Operand::Local(p) => p.clone(),
-                    Operand::Remote(r) => r.path.clone(),
-                };
                 // A session that broke serves no further file.
                 let session_gone = failed.fault == Fault::SessionFault;
-                outcome.failed.get_or_insert((named.clone().unwrap_or(name), failed));
+                outcome.failed.get_or_insert((name, failed));
                 if session_gone {
                     break;
                 }
             }
         }
     }
-    if let Road::Sftp(sftp) = road {
-        let _ = sftp.close_session();
-    }
-    podssh_ssh::run::disconnect_all(&handles).await;
+    link.close().await;
     Some(outcome)
 }
 
-/// How the files of one session go: SFTP, or a command for each step.
-enum Road {
-    Sftp(Sftp),
-    Exec(byexec::Far),
+/// Copy one file over `link`, by its road.
+async fn copy(link: &Link, source: &Operand, dest: &Operand, many: bool, log: &Log) -> Result<Done, Failed> {
+    let handle = link.handle();
+    match (&link.road, source, dest) {
+        (Road::Sftp(sftp), Operand::Local(path), Operand::Remote(dest)) => {
+            transfer::up(sftp, handle, path, &dest.path, many, log).await
+        }
+        (Road::Sftp(sftp), Operand::Remote(src), Operand::Local(dest)) => {
+            transfer::down(sftp, handle, &src.path, dest, many, log).await
+        }
+        (Road::Sftp(sftp), Operand::Remote(src), Operand::Remote(dest)) => {
+            transfer::within(sftp, handle, &src.path, &dest.path, log).await
+        }
+        (Road::Exec(far), Operand::Local(path), Operand::Remote(dest)) => {
+            far.up(handle, path, &dest.path, many, log).await
+        }
+        (Road::Exec(far), Operand::Remote(src), Operand::Local(dest)) => {
+            far.down(handle, &src.path, dest, many, log).await
+        }
+        (Road::Exec(_), Operand::Remote(_), Operand::Remote(_)) => {
+            unreachable!("a copy within one server by exec goes through this host")
+        }
+        (_, Operand::Local(_), Operand::Local(_)) => unreachable!("a plan has a server"),
+    }
+}
+
+/// An operand as the report names it.
+fn shown(operand: &Operand) -> String {
+    match operand {
+        Operand::Local(p) => p.clone(),
+        Operand::Remote(r) => r.path.clone(),
+    }
 }

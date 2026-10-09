@@ -53,7 +53,7 @@ pub fn plan(paths: &[String], windows: bool) -> Result<Plan, String> {
     }
     let direction = match (remote_sources > 0, &destination) {
         (false, Operand::Local(_)) => {
-            return Err("both sides are local paths; podssh cp copies to or from a server ([user@]host:path)".into())
+            return Err("both sides are local paths; one side must be a server, [user@]host:path".into())
         }
         (false, Operand::Remote(_)) => Direction::Up,
         (true, Operand::Local(_)) => Direction::Down,

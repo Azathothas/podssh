@@ -18,18 +18,23 @@ use sha2::{Digest, Sha256};
 use super::digest::{self, Sum};
 use crate::exitmap::Fault;
 
-/// One file copied and verified.
+/// One file copied and verified, or moved.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Done {
     pub source: String,
     pub destination: String,
     pub bytes: u64,
-    pub sum: Sum,
-    /// How the far digest was taken: a tool's name, or "read again".
+    /// The SHA-256 of what was sent; none for a move that the server made
+    /// by a rename, as no byte moved.
+    pub sum: Option<Sum>,
+    /// How the far digest was taken: a tool's name, "read again", or
+    /// "rename".
     pub verified_by: String,
     /// An existing destination was removed before the rename: the server has
     /// no `posix-rename@openssh.com`.
     pub not_atomic: bool,
+    /// For `mv`: whether the source is gone. `None` for `cp`.
+    pub removed: Option<bool>,
 }
 
 /// A failure, and the fault that sets the exit code.
@@ -46,14 +51,14 @@ fn failed(fault: Fault, message: String) -> Failed {
 /// Which side a failure is on: a source that cannot be read, or a
 /// destination that cannot be written.
 #[derive(Clone, Copy)]
-enum Side {
+pub(super) enum Side {
     Source,
     Destination,
 }
 
 /// The failure of an SFTP step: a status on a path names the side; a step
 /// with no answer, or a session that broke, is a fault of the session.
-fn from_sftp(e: SftpError, side: Side) -> Failed {
+pub(super) fn from_sftp(e: SftpError, side: Side) -> Failed {
     let fault = match (&e, side) {
         (SftpError::Status { .. }, Side::Source) => Fault::NoInput,
         (SftpError::Status { .. }, Side::Destination) => Fault::CantCreate,
@@ -103,7 +108,7 @@ pub(super) fn compare(sent: &Sum, far: &Sum, how: &str, what: &str) -> Result<()
 /// Where a file named `name` goes on the server, for the destination
 /// `dest`: into it when it is a directory (or is empty, the login
 /// directory), else onto it.
-async fn remote_target(sftp: &Sftp, dest: &str, name: &str, many: bool) -> Result<String, Failed> {
+pub(super) async fn remote_target(sftp: &Sftp, dest: &str, name: &str, many: bool) -> Result<String, Failed> {
     if dest.is_empty() {
         return Ok(name.to_string());
     }
@@ -200,9 +205,10 @@ pub async fn up(
             source: source.into(),
             destination: target.clone(),
             bytes: offset,
-            sum,
+            sum: Some(sum),
             verified_by: how,
             not_atomic,
+            removed: None,
         })
     }
     .await;
@@ -217,18 +223,23 @@ pub async fn up(
 /// `posix-rename@openssh.com` the rename of version 3 refuses an existing
 /// name: it is removed first, which is said. Whether it was.
 async fn rename_onto(sftp: &Sftp, temp: &str, target: &str, log: &Log) -> Result<bool, Failed> {
-    let first = match sftp.rename(temp, target).await {
+    rename_raw(sftp, temp, target, log).await.map_err(|e| from_sftp(e, Side::Destination))
+}
+
+/// [`rename_onto`] with the server's own error, for `mv` to read its code.
+pub(super) async fn rename_raw(sftp: &Sftp, from: &str, target: &str, log: &Log) -> Result<bool, SftpError> {
+    let first = match sftp.rename(from, target).await {
         Ok(()) => return Ok(false),
         Err(e) => e,
     };
     if sftp.has("posix-rename@openssh.com") || sftp.stat(target).await.is_err() {
-        return Err(from_sftp(first, Side::Destination));
+        return Err(first);
     }
     log.info(&format!(
         "{target}: the server has no posix-rename, so the old file is removed first; the replace is not atomic"
     ));
-    sftp.remove(target).await.map_err(|e| from_sftp(e, Side::Destination))?;
-    sftp.rename(temp, target).await.map_err(|e| from_sftp(e, Side::Destination))?;
+    sftp.remove(target).await?;
+    sftp.rename(from, target).await?;
     Ok(true)
 }
 
@@ -269,7 +280,15 @@ pub async fn within(sftp: &Sftp, handle: &Connection, source: &str, dest: &str, 
         let mode = FileAttributes { permissions: attrs.permissions.map(|p| p & 0o777), ..FileAttributes::default() };
         sftp.setstat(&temp, mode).await.map_err(|e| from_sftp(e, Side::Destination))?;
         let not_atomic = rename_onto(sftp, &temp, &target, log).await?;
-        Ok(Done { source: source.into(), destination: target.clone(), bytes: size, sum, verified_by: how, not_atomic })
+        Ok(Done {
+            source: source.into(),
+            destination: target.clone(),
+            bytes: size,
+            sum: Some(sum),
+            verified_by: how,
+            not_atomic,
+            removed: None,
+        })
     }
     .await;
     let _ = sftp.close(&from).await;
@@ -366,9 +385,10 @@ pub async fn down(
             source: source.into(),
             destination: target.display().to_string(),
             bytes: offset,
-            sum,
+            sum: Some(sum),
             verified_by: how,
             not_atomic: false,
+            removed: None,
         })
     }
     .await;

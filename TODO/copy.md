@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:169`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:170`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -567,7 +567,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:168`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:169`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -636,7 +636,7 @@ says first that it is not atomic"); the description of `mv` in
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -675,8 +675,26 @@ user must know this before the move starts.
    two places, never in none.
 6. Directories wait for T-143 (exit 64); two local paths exit 64 (T-134).
 7. Same commit: the `mv` row of `VERB_OWNER`
-   (`crates/podssh-cli/src/flags.rs:436`), the manual, `docs/cli.md` and
-   `docs/STATUS.md:52`.
+   (`crates/podssh-cli/src/flags.rs` line 436 at `8848781`), the manual,
+   `docs/cli.md` and `docs/STATUS.md:52`.
+
+## Decision
+
+2026-10-09. **Exit codes**: a source that changed during the move is 66,
+the code that T-134 gives a file that changed while it was read; a delete
+that fails after a verified copy is 70, as step 5 says. **The notice** goes
+through the log at its normal level, so `-q` silences it as it silences
+each message of podssh; a line that `-q` cannot silence lost, as `-q` says
+"no messages from podssh itself". Within one server there is no notice,
+unless the server could not rename. **One file named twice** is found as
+typed before anything connects, then by the server's own answer
+(`realpath`, or `test -ef` by exec); `std::fs::canonicalize` has no use
+here, as no move has both operands on this host. **Within one server by
+exec**, `mv -f` renames, and moves across two file systems by itself; a
+copy through this host lost, as it carries bytes that the server can move
+alone. **A rename that SFTP fails with `SSH_FX_FAILURE`** (two file
+systems) becomes a copy and a delete, said first; the other statuses (no
+such file, permission denied) are the move's answer.
 
 ## Prove
 
@@ -691,6 +709,62 @@ transfer. `mv host:a host:./a` exits 64 and `a` stays as it was. A source
 that grows during a 50 MB move through the stand-in relay stays, and the
 exit is not zero. Plant: delete before the digest check; with the server of
 T-134 that flips a byte, the source is then lost and the test fails.
+
+## Correction
+
+2026-10-09. **Step 3's stat** is more than the size and the time of
+change: here the same file (the device and inode; on Windows, when it was
+made), by exec the same line of `ls -lnid` (its time has minutes only, so
+the inode is in it), and the same bytes where a digest command runs on the
+source's side. **Step 6**: a directory exits 66, as for `cp` ("not a
+regular file"): a far path is known only after the connection, and 64 says
+that podssh did nothing. **A move between two servers** removes the source
+in a third connection, after the copy up. **`--jsonl`** adds
+`source_removed` to each `done` object, and a rename has no digest. **The
+Prove's growing source** needs no stand-in relay: a writer that appends
+while the move runs, over `--direct` to the gate's OpenSSH, meets T-134's
+check of the size and time after the read. **The Prove's plant** is the
+digest comparison that always agrees (`crates/podssh-cli/src/cp/transfer.rs`),
+which removes the source with no verified copy, as a delete before the
+check would. **`binary_streams.rs`** used `mv a` for clap's count error;
+since `mv` takes any count, as `cp` does, no verb has one, and
+`crates/podssh-cli/src/refuse.rs` tests that message.
+
+## Done
+
+2026-10-09, in the commit "podssh mv moves files: a rename within one
+server, else a verified copy and then the delete".
+
+- `crates/podssh-cli/src/cp/moving.rs`: the notice, one file named twice
+  (as typed, then by the server), the state of a source before its copy,
+  its removal only while it is still that file, and the rename within one
+  server, with the fallback to a copy and a delete.
+- `crates/podssh-cli/src/cp/link.rs`: the connection and its road, out of
+  the session, so that a rename or a delete opens its own. `mod.rs`:
+  `run_cp` for both verbs, `source_removed` in `--jsonl`, and the sessions
+  that copy, rename and remove. `transfer.rs`: `Done` has `removed` and a
+  digest that a rename has not; `byexec.rs`: `listing`, `same_file` and
+  `delete`.
+- `mv` takes any count of paths, as `cp` does; `VERB_OWNER` keeps `chat`.
+- Tests: `cp_args.rs` (each refusal, one file named twice, the notice as
+  the first line, and none with `-q` or within one server), 3 unit tests of
+  `moving.rs` and one of `refuse.rs`; `non_interactive.rs`, `flag_table.rs`
+  and `binary_streams.rs` as `mv` works. `scripts/interop-mv.sh`, sourced
+  by `scripts/interop-cp.sh`.
+- `docs/cli.md` (a section of `mv`, its exit codes), the manual (`MV`, the
+  exit rows), `README.md`, `AGENTS.md` and `docs/STATUS.md`.
+- Prove: `cargo test -p podssh-cli --test cp_args -- mv`: 2 passed. In the
+  build image, `sh scripts/gate.sh lint msrv_ssh ssh release`: green;
+  interop 178 passed, 0 failed, the 18 cases of `mv` among them: up and
+  down on SFTP and by exec, each source gone after equal digests and the
+  notice first on stderr; a rename within one server, with no notice; one
+  file named twice, 64; through the flipping server, 70 each way and the
+  source stays; a source that grows, 66 and it stays; a source that cannot
+  be removed, 70 and the data in both places; server to server; `--jsonl`.
+  Planted on the image's copy of the tree, the digest comparison that
+  always agrees: the move up through the flipping server exits 0 and its
+  source is lost, and that case fails; the move down exits 66, because the
+  far source's bytes, read again before the delete, differ from the copy's.
 
 # T-139: `podssh scp` and `podssh sftp` with the command lines of OpenSSH
 
@@ -760,7 +834,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:211-229` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:308-311`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:335-338`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -812,7 +886,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:176-180` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:167`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:168`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -918,7 +992,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:167`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:168`).
 
 ## Premise
 
@@ -967,7 +1041,7 @@ the final digest check must fail the copy.
 
 # T-143: Copy directories: `-r`, `--exclude`, an ignore file, `--dry-run`
 
-**Source:** the `-r` row (`crates/podssh-cli/src/flags/copy.rs:22-23`);
+**Source:** the `-r` row (`crates/podssh-cli/src/flags/copy.rs:23-24`);
 GitHub #21 (syq's `--dry-run`, parsync's `--exclude`, slingshot's copy with
 no build output) and GitHub #18 (quic-ssh's `qsh cp -r`), read in the
 issues.
@@ -1039,7 +1113,7 @@ drop the name check; that case must then fail.
 ## Correction
 
 2026-10-09 (T-134): `-r` is refused by name now
-(`crates/podssh-cli/src/flags/copy.rs:22-23`), and `podssh cp` copies files
+(`crates/podssh-cli/src/flags/copy.rs:23-24`), and `podssh cp` copies files
 (`crates/podssh-cli/src/cp/`): this entry builds on its temporary name, its
 digest check and its rename for each file of a tree.
 
@@ -1105,7 +1179,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:167`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:168`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -1113,7 +1187,7 @@ uplink of a shared host.
 
 - Read: stdout carries answers only, and messages go to stderr
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
-  (`crates/podssh-cli/src/flags/copy.rs:26-27`).
+  (`crates/podssh-cli/src/flags/copy.rs:27-28`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
   (`crates/podssh-ssh/src/io.rs:229-262`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
@@ -1163,7 +1237,7 @@ progress to stdout; the pipe case must then fail.
 
 # T-146: Keep the metadata of a copy
 
-**Source:** the `-p` row (`crates/podssh-cli/src/flags/copy.rs:18-19`);
+**Source:** the `-p` row (`crates/podssh-cli/src/flags/copy.rs:19-20`);
 GitHub #21 (syq's metadata: hard links, ACLs, extended attributes, sparse
 files, ownership, its pull requests 777 and 778; read in the issue).
 **Category:** feature
@@ -1229,7 +1303,7 @@ the `stat` check must then fail.
 ## Correction
 
 2026-10-09 (T-134): `-p` is refused by name now
-(`crates/podssh-cli/src/flags/copy.rs:18-19`); a copy keeps the source's
+(`crates/podssh-cli/src/flags/copy.rs:19-20`); a copy keeps the source's
 permission bits already, and this entry adds the times and the rest.
 
 # T-147: `podssh cp --inplace`

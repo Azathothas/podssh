@@ -211,25 +211,26 @@ fn podssh(args: &[&str]) -> (i32, Vec<u8>, Vec<u8>) {
 
 /// A verb that is not implemented says so before the `--timeout` gate (70),
 /// with no example of another verb (GitHub #6); a `--timeout` that does not
-/// parse stays a usage error (64) for each verb. `cp` works (T-134), so the
-/// gate asks it for a `--timeout` (64), and with one a missing operand is 64.
+/// parse stays a usage error (64) for each verb. `cp` and `mv` work (T-134,
+/// T-138), so the gate asks each for a `--timeout` (64), and with one a
+/// missing operand is 64.
 #[test]
 fn not_implemented_before_the_timeout() {
-    let (rc, out, err) = podssh(&["cp"]);
-    let err = String::from_utf8(err).unwrap();
-    assert_eq!(rc, 64, "cp: {err}");
-    assert!(out.is_empty() && err.contains("--timeout"), "cp: {err}");
-    let (rc, _, err) = podssh(&["cp", "--timeout", "30s"]);
-    let err = String::from_utf8(err).unwrap();
-    assert_eq!(rc, 64, "cp with no operand: {err}");
-    assert!(err.contains("give a source and a destination"), "{err}");
-    for verb in ["mv", "chat"] {
+    for verb in ["cp", "mv"] {
         let (rc, out, err) = podssh(&[verb]);
         let err = String::from_utf8(err).unwrap();
-        assert_eq!(rc, 70, "{verb}: {err}");
-        assert!(out.is_empty(), "{verb}: a refusal writes nothing to stdout");
-        assert!(err.contains("not implemented yet") && !err.contains("--send"), "{verb}: {err}");
+        assert_eq!(rc, 64, "{verb}: {err}");
+        assert!(out.is_empty() && err.contains("--timeout"), "{verb}: {err}");
+        let (rc, _, err) = podssh(&[verb, "--timeout", "30s"]);
+        let err = String::from_utf8(err).unwrap();
+        assert_eq!(rc, 64, "{verb} with no operand: {err}");
+        assert!(err.contains(&format!("podssh {verb}: give a source and a destination")), "{err}");
     }
+    let (rc, out, err) = podssh(&["chat"]);
+    let err = String::from_utf8(err).unwrap();
+    assert_eq!(rc, 70, "chat: {err}");
+    assert!(out.is_empty(), "chat: a refusal writes nothing to stdout");
+    assert!(err.contains("not implemented yet") && !err.contains("--send"), "chat: {err}");
     let (rc, _, err) = podssh(&["cp", "--timeout", "30x"]);
     assert_eq!(rc, 64, "{}", String::from_utf8_lossy(&err));
 }

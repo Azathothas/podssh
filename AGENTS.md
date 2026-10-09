@@ -10,10 +10,11 @@ podssh is one static Rust binary. It carries SSH, or another TCP stream,
 through a WebSocket relay on port 443. It is for hosts whose only way out is
 HTTPS, often through an HTTP CONNECT proxy.
 
-These commands work: `podssh ssh`, `podssh proxy`, `podssh cp` (files),
-`podssh doctor`, `podssh keygen`, `podssh man`, `podssh status`,
-`podssh node`, `podssh operator` and `podssh relay` (`pair`, `revoke`,
-`status NAME` and `spec`). The other commands refuse with exit code 70.
+These commands work: `podssh ssh`, `podssh proxy`, `podssh cp` and
+`podssh mv` (files), `podssh doctor`, `podssh keygen`, `podssh man`,
+`podssh status`, `podssh node`, `podssh operator` and `podssh relay`
+(`pair`, `revoke`, `status NAME` and `spec`). The other commands refuse
+with exit code 70.
 
 ## 2. How a session works
 

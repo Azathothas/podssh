@@ -362,7 +362,8 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     }
     let ssh = (verb.name == "ssh").then(|| Box::new(crate::ssh::args::SshArgs::from_matches(&matches)));
     let keygen = (verb.name == "keygen").then(|| Box::new(crate::keygen::KeygenArgs::from_matches(&matches)));
-    let cp = (verb.name == "cp").then(|| Box::new(crate::cp::CpArgs::from_matches(&matches)));
+    let cp = matches!(verb.name, "cp" | "mv")
+        .then(|| Box::new(crate::cp::CpArgs::from_matches(&matches, verb.name == "mv")));
     Parsed::Command { verb: verb.name, refused, tag, timeout, jsonl, ssh, keygen, cp }
 }
 

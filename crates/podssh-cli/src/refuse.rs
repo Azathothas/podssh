@@ -278,4 +278,20 @@ mod tests {
         // Four lines: the flag, the next step, the reassurance, and nothing else.
         assert!(without.lines().count() <= 4, "{without}");
     }
+
+    /// **A count that clap refuses is a count, never a flag.** No verb has a
+    /// count for clap to refuse since `mv` takes any (T-138), so the binary
+    /// cannot show this message; a verb that gains one would.
+    #[test]
+    fn a_wrong_count_is_named_as_one() {
+        for kind in [
+            clap::error::ErrorKind::TooFewValues,
+            clap::error::ErrorKind::TooManyValues,
+            clap::error::ErrorKind::WrongNumberOfValues,
+        ] {
+            let m = bad_invocation("mv", kind, "");
+            assert_eq!(m.lines().next(), Some("podssh mv: the right number of arguments was not given."), "{m}");
+            assert!(!m.contains("unknown flag"), "{m}");
+        }
+    }
 }

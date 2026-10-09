@@ -208,11 +208,13 @@ fn no_invocation_prints_a_usage_block() {
 /// an unknown flag's name in, so the fallback arm turned a missing argument into
 /// `podssh: unknown flag '[paths] [paths]...'` — a message about a flag the user
 /// never typed. The two refusals are different and the user's next move
-/// depends on which one it is: add the argument, or stop passing one.
+/// depends on which one it is: add the argument, or stop passing one. Since
+/// `mv` takes any count, as `cp` does (T-138), no verb has a count for clap
+/// to refuse; `refuse.rs` tests that message.
 #[test]
 fn a_positional_that_does_not_fit_is_not_reported_as_an_unknown_flag() {
     for (case, want) in [
-        (vec!["mv", "a"], "the right number of arguments was not given"),
+        (vec!["mv", "--timeout", "5s", "a"], "podssh mv: give a source and a destination"),
         (vec!["man", "ssh", "extra"], "'extra' is not an argument this verb takes"),
     ] {
         let (rc, out, err) = podssh(&case);

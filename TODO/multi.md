@@ -65,14 +65,14 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
 7. In the same commit: `crates/podssh-cli/src/flags.rs:396-423`,
-   `crates/podssh-cli/src/positionals.rs:7-88`, a `Parsed` variant,
+   `crates/podssh-cli/src/positionals.rs:7-86`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:92-93`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:314-317`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:341-344`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/resolve.rs:379-427`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:362-379`); they cannot define a group.
+  (`docs/cli.md:390-407`); they cannot define a group.
 
 ## Approach
 
@@ -475,7 +475,7 @@ name is copied by hand.
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:198-206`,
   `crates/podssh-cli/src/ssh/resolve.rs:362-376`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:184-188`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:185-189`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -631,7 +631,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:127`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:314-317`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:341-344`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -735,19 +735,19 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:184-188`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:185-189`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:94-111`).
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:120-122`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-53`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:205-207`).
+  credentials or tokens (`docs/cli.md:232-234`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:275-290`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:314-317`), which is not a failure of podssh.
+  status (`docs/cli.md:341-344`), which is not a failure of podssh.
 
 ## Approach
 
@@ -846,7 +846,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-74`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-82`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -879,5 +879,5 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-74`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-82`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.

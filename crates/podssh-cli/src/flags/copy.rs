@@ -4,8 +4,9 @@
 
 use super::{row, FlagKind, FlagRow};
 
-/// **`cp` / `mv` and their `scp` / `sftp` aliases.** `cp` copies one file
-/// over SFTP (T-134); `mv` parses and refuses until T-138.
+/// **`cp` / `mv` and their `scp` / `sftp` aliases.** `cp` copies files over
+/// SFTP or by exec (T-134, T-135); `mv` copies, then removes each source
+/// (T-138).
 pub const CP_FLAGS: &[FlagRow] = &[
     // **The `-P` fork, and it is measured rather than remembered.**
     // MEASURED 2026-10-02, this machine, OpenSSH_10.3p1:
@@ -20,7 +21,7 @@ pub const CP_FLAGS: &[FlagRow] = &[
     row(Some('i'), "identity-file", Some("FILE"), FlagKind::Supported,
         "identity file, repeatable; also -oIdentityFile=", None),
     row(Some('r'), "recursive", None, FlagKind::Refused,
-        "copying a directory is not implemented yet", Some("one podssh cp for each file")),
+        "copying a directory is not implemented yet", Some("one command for each file")),
     row(Some('F'), "config", Some("CONFIG"), FlagKind::Supported,
         "an OpenSSH-format config, read for its shared keys", None),
     row(None, "jsonl", None, FlagKind::Supported,

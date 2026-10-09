@@ -99,9 +99,10 @@ impl Far {
                 source: source.into(),
                 destination: target.clone(),
                 bytes: sent,
-                sum,
+                sum: Some(sum),
                 verified_by: how,
                 not_atomic: false,
+                removed: None,
             })
         }
         .await;
@@ -164,9 +165,10 @@ impl Far {
                 source: source.into(),
                 destination: target.display().to_string(),
                 bytes: came,
-                sum,
+                sum: Some(sum),
                 verified_by: how,
                 not_atomic: false,
+                removed: None,
             })
         }
         .await;

@@ -1,6 +1,7 @@
-//! `podssh cp`'s command line, against the binary and offline: each refusal
-//! is a usage error (64) with nothing attempted, and each operand form that
-//! names a server goes on to connect, which offline cannot (69).
+//! `podssh cp`'s and `podssh mv`'s command line, against the binary and
+//! offline: each refusal is a usage error (64) with nothing attempted, and
+//! each operand form that names a server goes on to connect, which offline
+//! cannot (69).
 
 use std::process::{Command, Stdio};
 
@@ -22,6 +23,13 @@ fn podssh(args: &[&str]) -> (i32, Vec<u8>, String) {
 /// `cp --timeout 5s` and `words`.
 fn cp(words: &[&str]) -> (i32, Vec<u8>, String) {
     let mut args = vec!["cp", "--timeout", "5s"];
+    args.extend_from_slice(words);
+    podssh(&args)
+}
+
+/// `mv --timeout 5s` and `words`.
+fn mv(words: &[&str]) -> (i32, Vec<u8>, String) {
+    let mut args = vec!["mv", "--timeout", "5s"];
     args.extend_from_slice(words);
     podssh(&args)
 }
@@ -111,4 +119,38 @@ fn jsonl_reports_a_failure_as_one_object_on_stdout() {
     let event: serde_json::Value = serde_json::from_str(lines[0]).expect("one JSON object");
     assert_eq!(event["event"], "error");
     assert_eq!(event["code"], 69);
+}
+
+#[test]
+fn mv_refuses_as_cp_does_and_refuses_one_file_named_twice() {
+    for (words, says) in [
+        (&["a"][..], "podssh mv: give a source and a destination"),
+        (&["a", "b"][..], "podssh mv: both sides are local paths"),
+        (&["host:a", "host:a"][..], "name one file"),
+        (&["host:a", "host:./a"][..], "name one file"),
+    ] {
+        let (rc, out, err) = mv(words);
+        assert_eq!(rc, 64, "{words:?}: {err}");
+        assert!(out.is_empty(), "{words:?} wrote to stdout");
+        assert!(err.contains(says) && err.contains("Nothing has been attempted"), "{words:?}: {err}");
+    }
+}
+
+#[test]
+fn mv_between_hosts_says_first_that_it_is_not_atomic() {
+    // Offline it reaches nothing (69), and the notice came first.
+    for words in [&["a", "host:b"][..], &["host:a", "."][..], &["host:a", "other:b"][..]] {
+        let (rc, _, err) = mv(words);
+        assert_eq!(rc, 69, "{words:?}: {err}");
+        let first = err.lines().next().unwrap_or_default();
+        assert!(first.contains("are on different hosts") && first.ends_with("it is not atomic"), "{words:?}: {err}");
+    }
+    // Within one server the server renames: no notice.
+    let (rc, _, err) = mv(&["host:a", "host:b"]);
+    assert_eq!(rc, 69, "{err}");
+    assert!(!err.contains("different hosts"), "{err}");
+    // -q: no notice either.
+    let (rc, _, err) = mv(&["-q", "a", "host:b"]);
+    assert_eq!(rc, 69, "{err}");
+    assert!(!err.contains("different hosts"), "{err}");
 }
