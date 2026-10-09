@@ -46,6 +46,11 @@ fn examples() -> Vec<(&'static str, String)> {
             r"printf 'HEAD / HTTP/1.0\r\nHost: example.org\r\n\r\n' | podssh proxy example.org 80".into(),
         ),
         (
+            "a program at the other end of stdin and stdout, as socat joins them; its exit status is the pipe's",
+            r#"podssh pipe stdio "exec:sh -c 'tr a-z A-Z'""#.into(),
+        ),
+        ("a descriptor that the calling program opened for podssh, on Unix", "podssh pipe fd:3 stdio".into()),
+        (
             "offer a service of this host to an operator outside: a pair, with its operator's part in a file",
             "podssh relay pair lab --operator-file lab-operator.json".into(),
         ),
@@ -202,6 +207,7 @@ mod tests {
                     Parsed::Node(_) => "node",
                     Parsed::Relay(_) => "relay",
                     Parsed::Operator(_) => "operator",
+                    Parsed::Pipe(_) => "pipe",
                     other => panic!("{command}: {other:?}"),
                 };
                 let v = crate::flags::verb_for(verb).unwrap();

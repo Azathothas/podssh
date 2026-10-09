@@ -407,6 +407,31 @@ commands. The rules behind them:
   (`1011 node disconnected`), and that a new session may work: the node
   connects again by itself. `operator` exits 69.
 
+## `podssh pipe`
+
+`podssh man pipe` gives the command (T-174). The rules behind it:
+
+- **No listener.** `podssh pipe A B` joins two byte streams that exist
+  already: stdin and stdout (`-` or `stdio`), a descriptor that the caller
+  opened (`fd:N`, 3 or more, on Unix), or a program (`exec:CMD`). Both
+  addresses are checked before anything starts; an unknown kind is a usage
+  error (64) that lists the kinds, and a kind of a later entry (`relay:`,
+  `ssh:`, `node:`, `iroh:`, `unix-connect:`, `unix-listen:`, `tcp-listen:`,
+  `serial:`) exits 70.
+- **No shell.** `exec:` splits its words with single and double quotes
+  only, as podssh assumes no shell; `exec:sh -c 'CMD'` names one. The child
+  gets one end of a socketpair as its stdin and stdout, so that the end of
+  its input is a half-close, or two pipes where a socketpair is refused (a
+  sandbox's seccomp) and on Windows. Its stderr is podssh's.
+- **Half-close, as `podssh proxy` does.** When one side's input ends, the
+  other side's write half is shut, and the other direction goes on: a reply
+  still comes back. A writer whose reader is gone ends the pipe; a program
+  that exited after its output ended ends it too, as the other side's input
+  may never end. podssh waits for each program, as a shell does.
+- **The exit status of a shell.** The program's, B's when both are
+  programs, 128 + N for a signal, 127 for a program that is not found and 126
+  for one that cannot run; with no program, 0.
+
 ## Exit codes
 
 `podssh man exit-status` gives each code. The rules behind them:

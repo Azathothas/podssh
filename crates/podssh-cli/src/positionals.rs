@@ -62,6 +62,13 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .value_name("TARGET")
                     .help("the TCP service that each session reaches: HOST:PORT, or [IPV6]:PORT"),
             ),
+        "pipe" => cmd
+            .arg(
+                Arg::new("a")
+                    .value_name("A")
+                    .help("the first address: - or stdio, fd:N (Unix), or exec:CMD (a program, its words in one argument)"),
+            )
+            .arg(Arg::new("b").value_name("B").help("the second address, of the same kinds")),
         "operator" => cmd.arg(
             Arg::new("name")
                 .value_name("NAME")

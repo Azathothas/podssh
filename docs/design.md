@@ -413,6 +413,9 @@ needs `bind`, which the measured sandbox refuses for TCP.
 | `node:NAME[,PORT]` | A podssh node through the reverse road |
 | `iroh:TICKET` | A podssh peer over iroh (section 7) |
 
+Since T-174, `podssh pipe` has the local addresses: `-`, `stdio`, `fd:N`
+and `exec:CMD`. The others exit 70 until their entries (T-175 to T-177).
+
 A listener exists only where it is allowed: on the far side (a node, or SSH
 `-R`, where the server listens), or locally after a probe shows that an
 AF_UNIX or loopback bind works. Tools that start an ssh-like program

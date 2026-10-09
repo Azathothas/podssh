@@ -11,7 +11,7 @@ and two Linux hosts on a tailnet.
 
 ## Summary
 
-These commands work: `podssh ssh`, `podssh proxy`, `podssh cp`,
+These commands work: `podssh ssh`, `podssh proxy`, `podssh pipe`, `podssh cp`,
 `podssh mv`, `podssh scp` and `podssh sftp` (files), `podssh doctor`,
 `podssh keygen`, `podssh man`, `podssh status`, `podssh node`,
 `podssh operator` and `podssh relay` (`pair`, `revoke`, `status NAME` and
@@ -55,6 +55,7 @@ in [ROADMAP.md](ROADMAP.md).
 | `podssh sftp` | **Works** with the command line of OpenSSH's sftp: `-b FILE` (or `-`) runs a batch with OpenSSH's `-` and `@` prefixes, a terminal gets a prompt, and a destination that names a file fetches it. `get`, `put`, `rename`, `rm` (with patterns), `mkdir`, `rmdir`, `ls`, `cd`, `lcd`, `pwd`, `lpwd`, `chmod`, `df`, `bye` (T-139). |
 | `podssh relay` | **Works** for `pair NAME` (with `--operator-file`), `revoke NAME` and `status NAME`: a pair kept under a label, never a token in the output (T-083, `cargo test -p podssh-cli --test node`, offline, and the live test above, 2026-10-09). `status` with no NAME, `info`, `spec` and `trace`: exit 70 (T-058). |
 | `podssh status` | **Works.** One line of JSON about this host: the relays and where they came from, the pool, the token (never the token), the proxy (never its credentials), the terminal, and a destination's host key. No connection, no DNS, no write (T-051). |
+| `podssh pipe A B` | **Works**, with the local addresses (T-174): stdin and stdout (`-`, `stdio`), an inherited descriptor (`fd:N`, Unix) and a program (`exec:CMD`, words split with quotes and no shell, on a socketpair or, where one is refused and on Windows, two pipes). Each address is checked before anything starts; the end of one side's input half-closes the other side, and its reply still comes back; the exit status is the program's, B's of two, 127 and 126 as a shell gives them. Native, Windows: `cargo test -p podssh-cli pipe::` and `--test pipe` (podssh itself as the child: the manual through `exec:` and 0, `podssh man nonsense` and 64, a program not found and 127). The remote addresses and the listeners exit 70 (T-175 to T-177). |
 | `podssh chat` | Not implemented (exit 70). Milestone M8. |
 | A command that is not implemented, with no terminal (T-008) | Exit 70, "not implemented yet", before the `--timeout` check: `cp`, `mv`, `relay` and `chat` with stdin from `/dev/null` (`PODSSH_OFFLINE=1`, 2026-10-08). A `--timeout` that does not parse is still 64. Since T-134 and T-138, `cp` and `mv` work, and with no terminal they ask for `--timeout` (64); `chat` is still 70 (`cargo test -p podssh-cli --test non_interactive`, 2026-10-09). |
 | A relay variable that cannot be used (T-231), offline | `PODSSH_RELAY='bad host!'` and `PODSSH_RELAY_ADDR=nonsense` give exit 78 and the variable's name, for `proxy`, `ssh` and `doctor`. `--relay-host 'bad host!'` and `--relay-addr nonsense` stay 64 (`cargo test -p podssh-cli --test proxy -- a_bad_variable_is_a_configuration_error`, 2026-10-08). |

@@ -294,6 +294,11 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         }));
     }
 
+    if verb.name == "pipe" {
+        let get = |id: &str| matches.get_one::<String>(id).cloned();
+        return Parsed::Pipe(Box::new(crate::pipe::PipeArgs { a: get("a"), b: get("b"), refused }));
+    }
+
     if verb.name == "operator" {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Operator(Box::new(crate::operator::OperatorArgs {

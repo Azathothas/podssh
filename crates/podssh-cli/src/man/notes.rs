@@ -12,6 +12,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "scp" => SCP,
         "sftp" => SFTP,
         "proxy" => PROXY,
+        "pipe" => PIPE,
         "node" => NODE,
         "operator" => OPERATOR,
         "relay" => RELAY,
@@ -163,6 +164,25 @@ const PROXY: &[&str] = &[
      [ADDRESS]:PORT. Through the relay, see the IPv6 note of ssh.",
     "Put -- before a HOST that a script did not write: podssh proxy -- \"$HOST\" 22. Else a HOST that \
      starts with - is read as a flag.",
+];
+
+const PIPE: &[&str] = &[
+    "podssh pipe A B joins two byte streams, as socat does, with no listener: what A gives goes to B, \
+     and what B gives goes to A. Each address is KIND:REST: - or stdio (stdin and stdout), fd:N (a \
+     descriptor that podssh inherited, 3 or more, on Unix), or exec:CMD (a program). Both are checked \
+     before anything starts, and stdio on both sides is refused.",
+    "exec:CMD starts the program with no shell: its words split at blanks, with single and double \
+     quotes, and no variables, globs or escapes; exec:sh -c 'CMD' names a shell. The program gets one \
+     end of a socketpair as its stdin and stdout, or two pipes where a socketpair is refused and on \
+     Windows. Its stderr is podssh's.",
+    "When one side's input ends, the other side gets the end of its input, and the other direction goes \
+     on, so that a reply still comes back. The pipe ends when both have ended, when a side's reader is \
+     gone, or when a program has exited and its output has ended. podssh waits for each program, as a \
+     shell does.",
+    "The exit status is the program's (B's when both are programs), 128 + N for a signal, 127 for a \
+     program that is not found and 126 for one that cannot run; with no program, 0. The addresses \
+     relay:, ssh:, node:, iroh:, unix-connect:, unix-listen:, tcp-listen: and serial: are not built yet, \
+     and exit 70.",
 ];
 
 const NODE: &[&str] = &[

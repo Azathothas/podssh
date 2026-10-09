@@ -243,9 +243,11 @@ pub const SSH_FLAGS: &[FlagRow] = &[
 // `cp`, `mv` and their aliases: their table is in `flags/copy.rs`.
 mod copy;
 mod node;
+mod pipe;
 mod scp;
 pub use copy::CP_FLAGS;
 pub use node::NODE_FLAGS;
+pub use pipe::PIPE_FLAGS;
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
 
 /// **`chat` and its `irc` alias.** `--jsonl` and `--timeout` feed the gate of runs
@@ -408,6 +410,8 @@ pub const VERBS: &[Verb] = &[
         about: "the OpenSSH-compatible client, over the relay" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
         about: "ProxyCommand form: a byte pipe, not an SSH client" },
+    Verb { name: "pipe", aliases: &["pipe"], flags: PIPE_FLAGS,
+        about: "join two byte streams, as socat does, with no listener: stdio, fd:N, exec:CMD" },
     Verb { name: "node", aliases: &["node"], flags: NODE_FLAGS,
         about: "reverse mode: expose a local service to operators" },
     Verb { name: "operator", aliases: &["operator"], flags: PAIR_FLAGS,

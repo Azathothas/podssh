@@ -49,6 +49,7 @@ pub mod pager;
 mod pairs;
 pub mod parsed;
 pub mod pins;
+pub mod pipe;
 pub mod positionals;
 pub mod proxy;
 pub mod refuse;

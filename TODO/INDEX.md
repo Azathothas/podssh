@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**266 entries: 137 open, 0 partial, 22 blocked, 107 done.**
+**266 entries: 136 open, 0 partial, 22 blocked, 108 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 13 | 15 |
-| P2 | 54 | 0 | 18 | 78 | 150 |
+| P2 | 53 | 0 | 18 | 79 | 150 |
 | P3 | 81 | 0 | 4 | 15 | 100 |
-| **All** | 137 | 0 | 22 | 107 | 266 |
+| **All** | 136 | 0 | 22 | 108 | 266 |
 
 ## Entries
 
@@ -247,7 +247,7 @@ repository and CI).
 | [T-171](roads.md) | P3 | M | backlog | research | open | The functions of Mosh that M6 and T-160 do not give, made in podssh itself |
 | [T-172](roads.md) | P3 | S | backlog | research | open | Multipath TCP on the direct road |
 | [T-173](roads.md) | P3 | L | M8 | feature | blocked | Resumption in the relay for a standard sshd |
-| [T-174](pipe.md) | P2 | M | M7 | feature | open | `podssh pipe A B` with local addresses |
+| [T-174](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe A B` with local addresses |
 | [T-175](pipe.md) | P2 | M | M7 | feature | open | `podssh pipe` with remote addresses |
 | [T-176](pipe.md) | P2 | S | M7 | feature | open | `podssh pipe` with `unix-connect:PATH` |
 | [T-177](pipe.md) | P3 | M | M7 | feature | open | `podssh pipe` with a local listener after a probe |

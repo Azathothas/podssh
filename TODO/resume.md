@@ -721,6 +721,7 @@ always runs the layer. The flag's row, the manual's note of `node`,
   no layer at a plain node, the layer's features at the default node, and
   logs in and runs `greet` through each. Planted, a `--plain` that changes
   nothing fails the plain check, and the default check still passes.
+- CI, the run of `c982d27` (38002695390): each job passed.
 
 # T-154: Heartbeats that also prevent the relay's idle cut
 
@@ -767,7 +768,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:206-221`,
    `crates/podssh-cli/src/man/facts.rs:245-254`), the note at
-   `crates/podssh-cli/src/man/notes.rs:71`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes.rs:72`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1093,7 +1094,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:562-582`; the two
+sandbox, before a default depends on it); `docs/design.md:565-585`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1117,7 +1118,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:562-582`). A session carries 64 MiB at most, both directions
+(`docs/design.md:565-585`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:127`).
 
 ## Approach

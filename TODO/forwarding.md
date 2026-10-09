@@ -67,7 +67,7 @@ server listens, and the client connects out for each connection.
    proxy's answer, or the error of a refused loopback connection.
 6. Change the `-R` row to supported and the keyword to honoured. T-230
    corrected the texts of the `-R` refusal (the help and the manual's note
-   at `crates/podssh-cli/src/man/notes.rs:59-61`). Change the test that
+   at `crates/podssh-cli/src/man/notes.rs:60-62`). Change the test that
    asserts the refusal (`crates/podssh-cli/tests/flag_table.rs:82-101`).
    Update `docs/cli.md:115-129` (correct line 78 at `e8bbd4d`) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
@@ -100,7 +100,7 @@ channel for any port, and the second test fails.
 `podssh ssh -R 8080:localhost:80 example.invalid` gives "-R SPEC is
 refused. Leave it out." and "remote forwarding is not implemented yet.",
 exit 64, as `-o RemoteForward` does; it names no `-W`. The manual's note
-gives `-R` a sentence of its own (`crates/podssh-cli/src/man/notes.rs:59-61`).
+gives `-R` a sentence of its own (`crates/podssh-cli/src/man/notes.rs:60-62`).
 The rest of the Premise holds.
 
 2026-10-08, T-237: podssh's handler now refuses each channel that the
@@ -317,7 +317,7 @@ AF_UNIX.
 - Read: `AGENTS.md:184-189` (no bind, no listen),
   `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:69-75` ("Nothing
   listens") and `README.md:38` state the rule from before the ruling.
-  `docs/design.md:416-418` already allows a local listener for `pipe` after
+  `docs/design.md:419-421` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.
@@ -352,7 +352,7 @@ AF_UNIX.
    variable that refuses each local listener (`-L`, `-D`, T-039, T-034). Add
    it to `VARIABLES` in `crates/podssh-cli/src/man/facts.rs`.
 6. In the same commit, change the rows, the keywords, the note at
-   `crates/podssh-cli/src/man/notes.rs:59-61`, the test at
+   `crates/podssh-cli/src/man/notes.rs:60-62`, the test at
    `crates/podssh-cli/tests/flag_table.rs:82-101`, and the documents that the
    Premise quotes.
 

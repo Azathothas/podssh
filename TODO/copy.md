@@ -332,8 +332,8 @@ a script expects, and its login shell may not be a POSIX shell.
 
 - Read: an exec with no pty carries bytes unchanged: 262144, 262145 and
   5,000,000 bytes up and back with equal digests on OpenSSH and Dropbear
-  (`docs/STATUS.md:69`, `scripts/interop.sh:131-143`), and 300 KB up and
-  5 MB down through the relay (`docs/STATUS.md:70`).
+  (`docs/STATUS.md:70`, `scripts/interop.sh:131-143`), and 300 KB up and
+  5 MB down through the relay (`docs/STATUS.md:71`).
 - Read: a command goes as one string, never as a shell request
   (`crates/podssh-ssh/src/options.rs:63-64`), with no pty when stdin is not
   a terminal (`crates/podssh-ssh/src/session.rs:33-43`).
@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:176`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:177`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:175`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:176`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -755,7 +755,7 @@ relay's limits, and logs in as the first session did".
 
 **Source:** ROADMAP M5 ("Across hosts, `mv` is copy, verify, delete; podssh
 says first that it is not atomic"); the description of `mv` in
-`crates/podssh-cli/src/flags.rs:423-424`.
+`crates/podssh-cli/src/flags.rs:427-428`.
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -773,7 +773,7 @@ user must know this before the move starts.
 
 - Measured on `3ee70dc`, offline: `podssh mv --timeout 30s a b` exits 70
   (`'mv' is not implemented yet; nothing was done.`).
-- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:423-424`),
+- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:427-428`),
   so the operands and options of T-134 apply.
 - Measured (T-133's offline probe): `posix-rename@openssh.com` replaces in
   one step; `SSH_FXP_RENAME` refuses an existing target.
@@ -957,8 +957,8 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 ## Decision
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
-the gate of `crates/podssh-cli/src/dispatch.rs:211-229` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:414-417`)
+the gate of `crates/podssh-cli/src/dispatch.rs:213-231` skips them; T-133's
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:439-442`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1065,7 +1065,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:201-205` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:174`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:175`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1118,7 +1118,7 @@ stream.
 - Read: `AGENTS.md` rule 2 allows one outbound connection. Several channels
   in one SSH connection keep the rule; several relay sessions at once do
   not. The operator accepted more than one outbound connection for the iroh
-  road (`docs/design.md:589-592`), and on 2026-10-08 for one copy when the
+  road (`docs/design.md:592-595`), and on 2026-10-08 for one copy when the
   user asks (`docs/decisions.md`).
 - Read: the cap of 64 MiB is for each session (`docs/relay.md:127`).
 - Not measured: whether one relay session, or the path itself, limits the
@@ -1171,7 +1171,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:174`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:175`).
 
 ## Premise
 
@@ -1358,7 +1358,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:174`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:175`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -1634,7 +1634,7 @@ host, and the copy back then destroys that change with no word.
 
 ## Approach
 
-1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:406-437`),
+1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:408-441`),
    with the connection flags that T-134 gives `cp`. It needs a terminal on
    stdin and stdout; else exit 64.
 2. Download with T-134 into a new directory of mode 0700 in the cache
@@ -1676,7 +1676,7 @@ non-zero. Plant: skip the check of step 5; that case must then fail.
 **Source:** GitHub #18 (zuko's `files` server, `adonm/zuko:src/files.rs`)
 and GitHub #21 (parsync's internal helper,
 `AlpinDale/parsync:src/remote_helper.rs`), read in the issues;
-`docs/design.md:594-600`.
+`docs/design.md:597-603`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -1697,7 +1697,7 @@ can do better.
   request; it names its own requests `NAME@openssh.com`.
 - Read: `podssh serve` will have an SFTP server in the process (T-112).
 - Read: both roads between podssh ends carry the same `cp`
-  (`docs/design.md:594-600`).
+  (`docs/design.md:597-603`).
 
 ## Approach
 
