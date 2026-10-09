@@ -57,7 +57,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 263 entries: 142 open, 0 partial, 22 blocked, 99 done.
+`TODO/INDEX.md` holds 263 entries: 141 open, 0 partial, 22 blocked, 100 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -103,7 +103,21 @@ that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
 
-None is open: the operator settled Q31 to Q37 on 2026-10-09.
+The operator settled Q31 to Q37 on 2026-10-09.
+
+**Q38 (2026-10-10, T-157, for its live run in T-251).** Which targets may
+the throughput method reach? The test targets of `AGENTS.md` (section 4)
+are the live relay, railway.new, GitHub's SSH endpoint, the two tailnet
+hosts, the Podman box and GitHub Actions. T-157's cells also need (a) a
+public SSH server that runs `head` and `cat` for the forward road and the
+direct road, and (b) n0's public iroh relays, the iroh road's default
+(2026-10-08). Recommendation: allow (b), the road's own default, for runs of
+20 MiB each way, 5 runs a cell; for (a), a host of the operator's, named in
+`PODSSH_THROUGHPUT_SSH` where the run is made, as the tailnet hosts are
+named in `docs/STATUS.md`. Until the operator rules, the method runs those
+cells only when their variable is set, and none of them is set in a
+session: T-157 closes with its native tests, and its live run waits for
+T-251 and this answer.
 
 ## Operator actions
 

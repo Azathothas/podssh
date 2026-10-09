@@ -6,76 +6,17 @@
 //! start of the node, the same command logs in and runs.
 #![cfg(feature = "iroh-test")]
 
+mod ssh_harness;
+
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use russh::server::{self, Auth, Msg, Session};
-use russh::{Channel, ChannelId};
+use ssh_harness::GREETING;
 
 const LIMIT: Duration = Duration::from_secs(60);
-/// What the SSH server answers to each command.
-const GREETING: &str = "hello over the iroh road\n";
-
-/// Lets anyone in, and answers each command with [`GREETING`] and exit 0.
-struct Greeter;
-
-impl server::Handler for Greeter {
-    type Error = russh::Error;
-
-    async fn auth_none(&mut self, _user: &str) -> Result<Auth, Self::Error> {
-        Ok(Auth::Accept)
-    }
-
-    async fn channel_open_session(
-        &mut self,
-        _channel: Channel<Msg>,
-        reply: server::ChannelOpenHandle,
-        _session: &mut Session,
-    ) -> Result<(), Self::Error> {
-        reply.accept().await;
-        Ok(())
-    }
-
-    async fn exec_request(
-        &mut self,
-        channel: ChannelId,
-        _data: &[u8],
-        session: &mut Session,
-    ) -> Result<(), Self::Error> {
-        session.channel_success(channel)?;
-        session.data(channel, GREETING.as_bytes())?;
-        session.exit_status_request(channel, 0)?;
-        session.eof(channel)?;
-        session.close(channel)?;
-        Ok(())
-    }
-}
-
-/// The SSH server on the loopback, with the host key in `key`: its port.
-async fn ssh_server(key: &Path) -> u16 {
-    let mut config = server::Config::default();
-    config.keys.push(russh::keys::load_secret_key(key, None).expect("the host key"));
-    config.auth_rejection_time = Duration::from_millis(10);
-    config.auth_rejection_time_initial = Some(Duration::ZERO);
-    let config = Arc::new(config);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
-    let port = listener.local_addr().unwrap().port();
-    tokio::spawn(async move {
-        while let Ok((stream, _)) = listener.accept().await {
-            let config = config.clone();
-            tokio::spawn(async move {
-                if let Ok(session) = server::run_stream(config, stream, Greeter).await {
-                    let _ = session.await;
-                }
-            });
-        }
-    });
-    port
-}
 
 /// A fresh, empty scratch directory unique to one test.
 fn scratch(name: &str) -> PathBuf {
@@ -195,7 +136,7 @@ fn a_client_is_refused_then_let_in_and_runs_a_command_over_the_iroh_road() {
     let host_key_text = host_key.to_string_lossy().into_owned();
     let (rc, _, err) = run(&home, &["keygen", "-q", "-t", "ed25519", "-N", "", "-f", &host_key_text]);
     assert_eq!(rc, 0, "{err}");
-    let port = runtime.block_on(ssh_server(&host_key));
+    let port = runtime.block_on(ssh_harness::start(&host_key));
 
     let cert = relay.cert.to_string_lossy().into_owned();
     let url = relay.url.to_string();

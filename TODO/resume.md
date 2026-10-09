@@ -1006,14 +1006,14 @@ live session that survives a stall of 3 minutes.
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:540-560`; the two
+sandbox, before a default depends on it); `docs/design.md:545-565`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1030,7 +1030,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:540-560`). A session carries 64 MiB at most, both directions
+(`docs/design.md:545-565`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:127`).
 
 ## Approach
@@ -1061,6 +1061,28 @@ Recommendation: an ignored Rust test that runs the binary. It needs no
 alternative, a shell script around `curl`, lost: a sandbox may have no tools
 (`docs/decisions.md`, 2026-10-05: never assume a tool).
 
+2026-10-10, the far end and the cells:
+
+- The far end is an SSH server, as a user's session has one: a russh server
+  in the test, whose commands send N bytes (`source N`) or drain stdin and
+  say the count (`sink`). Each run is `podssh ssh ... source N` or `podssh
+  ssh ... sink` with N bytes on stdin, a new process and a new connection
+  each time. What podssh carries for a user (SSH, `cp`) is what is measured.
+  Lost: raw bytes through `podssh operator`, which has no form for the iroh
+  road, and would leave SSH out of the figure.
+- The cells that reach no target outside AGENTS.md's list run when nothing
+  is set: the loopback (the test's own SSH server, `--direct`), the reverse
+  road through the live relay (a pair, `podssh node` in front of the test's
+  server, `podssh ssh node://`), and, with the feature `iroh-test`, the iroh
+  road through iroh's relay server on the loopback. The others run only
+  when a variable names their target: `PODSSH_THROUGHPUT_SSH` (a public SSH
+  server, for the forward and the direct road) and
+  `PODSSH_THROUGHPUT_IROH_RELAY` (n0's relays, or the operator's). Neither
+  kind of target is on AGENTS.md's list of test targets: Q38.
+- The control of the forward road, through `scripts/fake-relay.py` on the
+  loopback, needs Python and a certificate; the test makes one with
+  `openssl` when a probe finds it, and else says that it skipped the cell.
+
 ## Prove
 
 ```sh
@@ -1073,6 +1095,46 @@ The first command runs the offline tests of the statistics; a planted p95
 that takes the maximum fails them. The second makes the measurement and
 prints the table, which goes into `docs/STATUS.md`, section "Throughput,
 measured".
+
+## Done
+
+2026-10-10.
+
+- `crates/podssh-cli/tests/throughput_live.rs`: the statistics (min, and
+  p50, p95 by nearest rank, and max), tested offline with a planted p95
+  that takes the maximum; one small run each way on the loopback, in each
+  test run; and two ignored measurements: `throughput_on_the_loopback` (the
+  cells that reach no network) and `throughput_on_each_road` (those and the
+  live ones). Each cell's table keeps the line of each run, then the
+  summary of each direction; a cell that cannot be set up, or a run that
+  fails, says why and is never counted as 0.
+- `tests/throughput_harness/`: the session (a scratch HOME, the test's SSH
+  server, what the cells start, stopped at the end, a pair revoked), one run
+  with its clock and its limit of 300 s (the process is killed), and the
+  cells: the loopback with `--direct`; the forward road through
+  `scripts/fake-relay.py`, with a test CA and certificate that `openssl`
+  makes, when a probe finds Python and `openssl`; the reverse road through
+  the live relay (a pair, `podssh node`); with `iroh-test`, the iroh road
+  through iroh's relay server on the loopback; and, when a variable names
+  their target (Q38), a public POSIX server (`PODSSH_THROUGHPUT_SSH`, by the
+  live relay and directly, with `head` and `sh -c 'echo R; wc -c'`) and the
+  iroh relays of `PODSSH_THROUGHPUT_IROH_RELAY`.
+- `tests/ssh_harness/`: the test's SSH server (russh), shared with
+  `tests/iroh_road.rs`: `greet`, `source N`, and `sink`, which says `R` as
+  it starts to read and the count at the end.
+- Prove, native, Windows: `cargo test -p podssh-cli --test throughput_live`:
+  3 passed, 2 ignored (the statistics; the planted p95 fails the check; the
+  method on the loopback). The loopback measurement, with `iroh-test`, 61 s:
+  the table is in `docs/STATUS.md`, "Throughput, measured": `--direct` p50
+  165.9 MiB/s up and 106.3 down; the stand-in relay 7.1 and 7.9, its own
+  limit (Python's asyncio); the iroh road through iroh's relay server 34.6
+  and 25.6. `cargo test --no-fail-fast`: 1006 passed, 0 failed, 24 ignored (the record's own test passed after its remaps). clippy in both builds and
+  with `iroh-test`: no warning.
+- Waits: the live run of `throughput_on_each_road` (the reverse road through
+  the live relay, 200 MiB a cell, is more than 100 MiB) for T-251, and for
+  Q38 the cells whose target is not on `AGENTS.md`'s list: a public SSH
+  server for the forward and the direct road, and n0's relays. The run in a
+  sandbox, or the Podman box, comes with T-251 too.
 
 # T-158: Detach and attach again
 
