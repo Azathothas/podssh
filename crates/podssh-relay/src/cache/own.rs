@@ -28,7 +28,11 @@ pub enum Others {
 pub fn read_own(path: &Path, others: Others) -> Result<Option<String>, String> {
     let shown = path.display();
     match std::fs::symlink_metadata(path) {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        // None, and none can be where a part of the path is not a directory
+        // (Linux says so; Windows says that the path is not found).
+        Err(e) if matches!(e.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::NotADirectory) => {
+            return Ok(None)
+        }
         Err(e) => return Err(format!("{shown}: {e}")),
         Ok(meta) if meta.file_type().is_symlink() => {
             return Err(format!("{shown} is a symbolic link, which podssh does not follow here"))

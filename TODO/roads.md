@@ -316,6 +316,13 @@ allowlist. A planted node that accepts each key fails it.
   the decision of 2026-10-09. The command line from end to end, a node and a
   client through a relay on the loopback, needs the relays as a setting, and
   comes with T-165.
+- CI, the run of `d01b9cd`: the gate's step `iroh`, on Linux, failed one
+  test, `a_key_in_the_cache_is_read_from_the_first_directory_that_has_it`.
+  Under a cache directory that is a file, Linux reports "Not a directory"
+  where Windows reports the path as not found, and `read_own` refused with
+  it. A path whose part is not a directory holds no file: `read_own` now
+  answers none for it, as for a path not found, and the search goes on to
+  the next directory.
 # T-164: Race the iroh road and the reverse road
 
 **Source:** `docs/design.md:45-53` (when two roads are possible, podssh races
