@@ -43,6 +43,12 @@ serde_json = { workspace = true }
 # %C of the ssh_config tokens is SHA-1, as OpenSSH computes it; the version
 # podssh-ssh already builds.
 sha1 = { version = "0.10.7", default-features = false }
+# `cp` compares the SHA-256 of both ends (T-134); the version the workspace
+# already builds.
+sha2 = { workspace = true }
+# The random part of `cp`'s temporary names: the same version and features as
+# podssh-ssh's, so nothing new is compiled.
+rand = { version = "0.10", features = ["thread_rng"] }
 
 # The relay token is wiped from memory when dropped.
 zeroize = { workspace = true }

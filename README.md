@@ -10,11 +10,13 @@ an HTTP proxy is their only way out. podssh needs no root, no `LD_PRELOAD`,
 no installed `ssh`, and no TLS or crypto library of the system.
 
 > [!WARNING]
-> **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh doctor`,
-> `podssh keygen`, `podssh man` and `podssh status` work. Tests run them against OpenSSH and
-> Dropbear servers, through the live relay, and in a box like the target
-> sandbox. Reverse mode, chat and file copy are not available yet. The
-> measured state is in [docs/STATUS.md](docs/STATUS.md). The plan is in
+> **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh cp` (files),
+> `podssh doctor`, `podssh keygen`, `podssh man`, `podssh status` and the
+> reverse road (`podssh node`, `podssh operator`, `podssh relay`) work.
+> Tests run them against OpenSSH and Dropbear servers, through the live
+> relay, and in a box like the target sandbox. Chat, `podssh mv` and the
+> copy of directories are not available yet. The measured state is in
+> [docs/STATUS.md](docs/STATUS.md). The plan is in
 > [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## How it works
@@ -70,6 +72,14 @@ podssh ssh -i key -o StrictHostKeyChecking=accept-new user@example.org true
 podssh ssh -J user@bastion user@inner        # through a jump host
 podssh ssh -W db.internal:5432 user@bastion  # stdin and stdout to a TCP port; nothing listens
 podssh ssh -tt user@example.org < script.txt # a remote pty; local stdin is a pipe
+```
+
+Files go over SFTP, verified by SHA-256 before they take the destination's
+name:
+
+```sh
+podssh cp report.pdf user@example.org:docs/  # up, into a directory
+podssh cp user@example.org:logs/app.log .    # down
 ```
 
 - On a host with no terminal (the sandbox of an agent), podssh never waits

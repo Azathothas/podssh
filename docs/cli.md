@@ -134,6 +134,41 @@ steps:
 The edit distance alone suggests `doctor` for `example.org` and `cp` for
 `xz`. The first step prevents this.
 
+## `podssh cp`
+
+`podssh cp SRC... DST` copies files between this host and a server over
+SFTP (`crates/podssh-ssh/src/sftp/`), through the relay or with
+`--direct`, with the connection flags of `ssh` (`-o`, `-J`, `-i`, `-v`,
+`-q`) and `-P` for the port.
+
+- An operand names a server when a `:` comes before any `/`, as scp reads
+  it: `[user@]host:path` or `[user@][IPV6]:path`. `./a:b` is a local file;
+  on Windows a drive letter (`C:\x`) is local. `host:` is the login
+  directory. Two local operands, sources from both sides, or remote
+  sources on two servers exit 64 before anything connects.
+- **The destination's name never holds a file that was not verified.**
+  The bytes go to `.NAME.podssh-RANDOM.part` beside the destination (a new
+  file of mode 0600). The SHA-256 of what was sent is compared with the far
+  side's; then the file takes the source's permission bits and is renamed
+  onto the destination, at once with `posix-rename@openssh.com`. Without it,
+  an existing destination is removed first, and podssh says that the
+  replace was not atomic. A failure removes the temporary file.
+- The far digest comes from `sha256sum`, `shasum -a 256` or
+  `openssl dgst -sha256` over exec, when the server runs one; else from a
+  second read over SFTP (`ForceCommand internal-sftp` runs no command).
+  The size and the MAC of SSH alone miss a wrong offset, a short write, and
+  a source that changed while it was read.
+- Several sources go into a directory. A copy from server to server goes
+  through a temporary file on this host, one connection at a time.
+- `-r` and `-p` are refused by name until a copy of a directory (T-143)
+  and the times (T-146) exist. A server with no SFTP exits 69; the copy by
+  exec is T-135.
+- `--jsonl` prints one object per file: `{"event":"done", "source",
+  "destination", "bytes", "sha256", "verified_by", "atomic"}`, or
+  `{"event":"error", "source", "message", "code"}`.
+- Each SFTP reply with no file data waits 30 s at most, each read or write
+  60 s (T-133); `--timeout` bounds the whole copy, the login included.
+
 ## `podssh doctor`
 
 `podssh man doctor` gives the checks. The rules behind them:
@@ -264,6 +299,11 @@ commands. The rules behind them:
   failure of podssh. A remote command stopped by a signal gives 128 plus the
   signal number (OpenSSH gives 255), and podssh names the signal on stderr.
 - `podssh proxy` is not an SSH client: its failures use sysexits (64 to 78).
+- `podssh cp` uses sysexits too: 64 a usage error, 66 a source that is
+  missing or cannot be read, 69 no connection or no SFTP, 70 digests that
+  differ or a session that broke (the destination is unchanged), 73 a
+  destination that cannot be written, 75 the `--timeout` passed, 77 a login
+  or a host key refused, 78 a setting of the environment.
 - A command that is not implemented exits 70. It never exits 0.
 - A closed stdout (EPIPE) ends the session cleanly.
 

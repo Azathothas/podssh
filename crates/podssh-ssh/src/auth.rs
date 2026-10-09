@@ -55,21 +55,46 @@ fn kind_name(k: &MethodKind) -> &'static str {
     k.into()
 }
 
+/// Why a login failed: the server refused each method, or the exchange
+/// broke (no answer in time, a closed connection). A script tells the two
+/// apart by the exit code of `cp` (77 and 69).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AuthError {
+    /// Each method that both sides have was refused.
+    Refused(String),
+    /// The exchange did not reach an answer.
+    Broke(String),
+}
+
+impl From<String> for AuthError {
+    fn from(message: String) -> Self {
+        AuthError::Broke(message)
+    }
+}
+
+impl std::fmt::Display for AuthError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AuthError::Refused(m) | AuthError::Broke(m) => write!(f, "{m}"),
+        }
+    }
+}
+
 /// Log in as `user` on the host called `host` in prompts. On failure, the
-/// message to print.
+/// message to print, and whether the server refused.
 pub async fn authenticate(
     handle: &mut Handle<Client>,
     user: &str,
     host: &str,
     opts: &Options,
     log: &Arc<Log>,
-) -> Result<(), String> {
+) -> Result<(), AuthError> {
     let limit = opts.connect_timeout;
     let none = within(limit, host, "the first request to log in", handle.authenticate_none(user)).await?;
     let mut allowed: Vec<MethodKind> = match none {
         Ok(AuthResult::Success) => return Ok(()),
         Ok(AuthResult::Failure { remaining_methods, .. }) => remaining_methods.iter().copied().collect(),
-        Err(e) => return Err(format!("authentication failed before it started: {e}")),
+        Err(e) => return Err(AuthError::Broke(format!("authentication failed before it started: {e}"))),
     };
     log.debug(&format!("the server accepts: {}", allowed.iter().map(kind_name).collect::<Vec<_>>().join(",")));
     // The first list, for the refusal: `allowed` changes in the loop.
@@ -119,7 +144,7 @@ pub async fn authenticate(
         message.push_str("\n  ");
         message.push_str(&note);
     }
-    Err(message)
+    Err(AuthError::Refused(message))
 }
 
 /// The notes about keys for a refusal. They name keys only when publickey was

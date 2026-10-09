@@ -7,6 +7,7 @@
 pub fn for_verb(name: &str) -> &'static [&'static str] {
     match name {
         "ssh" => SSH,
+        "cp" => CP,
         "proxy" => PROXY,
         "node" => NODE,
         "operator" => OPERATOR,
@@ -55,6 +56,30 @@ const SSH: &[&str] = &[
      user@[2001:db8::1]:2222 or -p 2222 gives another port. -4 or -6 with an address of the other family \
      is refused. The relay takes an IPv6 address, but when this version was measured, its way out \
      reached no IPv6 host: such a session ends at once, and podssh says so. --direct needs no relay.",
+];
+
+const CP: &[&str] = &[
+    "podssh cp copies files between this host and a server over SFTP, through the relay (see THE RELAY) \
+     or over TCP with --direct, with the connection flags of podssh ssh: -o, -J, -i, -v and -q, and -P \
+     for the port, as scp has it. An operand names a server when a : comes before any /: \
+     [user@]host:path or [user@][IPV6]:path. ./a:b is a local file, and on Windows so is C:\\x. An \
+     empty path, host:, is the login directory.",
+    "The destination's name never holds a file that was not verified. The bytes go to \
+     .NAME.podssh-RANDOM.part beside the destination, a new file of mode 0600. The SHA-256 of what was \
+     sent is compared with the far side's; then the file takes the source's permission bits and is \
+     renamed onto the destination, at once where the server has posix-rename. A failure removes the \
+     temporary file and leaves the destination as it was.",
+    "The far side's digest comes from sha256sum, shasum or openssl dgst on the server, when one runs \
+     there; else podssh reads the file again over SFTP, which counts again against the relay's limits. \
+     With --jsonl each file gives one JSON object: done, with the bytes, the SHA-256 and how the far \
+     side was checked, or error, with the exit code.",
+    "Several sources go into a directory. A copy from server to server goes through a temporary file on \
+     this host, one connection at a time. -r and -p are refused by name: copying a directory, and \
+     keeping the mode and the times, are not implemented yet. A server with no SFTP is refused \
+     (exit 69); a copy by exec comes later.",
+    "Each SFTP reply that carries no file data is waited for 30 s at most, and each read or write 60 s. \
+     --timeout bounds the whole copy, the login included. The exit codes are the sysexits of \
+     EXIT STATUS, as for podssh proxy.",
 ];
 
 const PROXY: &[&str] = &[

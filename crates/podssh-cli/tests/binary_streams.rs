@@ -151,7 +151,7 @@ fn the_entrys_control_lines_exit_as_documented() {
 /// **The `-P` split, against the binary.** `ssh -P` exits non-zero
 /// because the connection fails (the suite runs offline), **not** because
 /// `-P` was refused
-/// and the notice must be on stderr either way. `cp -P 2222 a b` exits
+/// and the notice must be on stderr either way. `cp -P 2222 a host:b` exits
 /// non-zero for the same reason and **must not print a notice**, because
 /// there `-P` is the port and there is nothing surprising to say.
 #[test]
@@ -163,21 +163,20 @@ fn the_p_split_is_visible_in_the_binarys_output() {
     assert!(err.contains("accepted and ignored"), "{err}");
     assert!(err.contains("For a port use -p"), "{err}");
 
-    // A verb that is not implemented says so before the `--timeout` gate
-    // (GitHub #6): a piped `cp` with no `--timeout` exits 70, not 64, and
-    // asks for no flag that would change nothing.
-    let (rc, out, err) = podssh(&["cp", "-P", "2222", "a", "b"]);
+    // `cp` works (T-134), so a piped `cp` with no `--timeout` meets the
+    // gate: 64, naming the flag, before anything is attempted.
+    let (rc, out, err) = podssh(&["cp", "-P", "2222", "a", "host:b"]);
     let text = String::from_utf8_lossy(&err);
-    assert_eq!(rc, 70, "cp is not implemented, also with no --timeout: {text}");
+    assert_eq!(rc, 64, "a piped cp needs a --timeout: {text}");
     assert!(out.is_empty(), "cp -P wrote to stdout: {out:?}");
-    assert!(text.contains("not implemented yet") && !text.contains("--timeout"), "{text}");
+    assert!(text.contains("--timeout"), "{text}");
 
-    let (rc, out, err) = podssh(&["cp", "-P", "2222", "a", "b", "--timeout", "30s"]);
-    assert_ne!(rc, 0, "cp is not built, so it refuses; milestone M5 builds it");
-    assert!(out.is_empty(), "cp -P wrote to stdout: {out:?}");
+    // With one, it connects; offline, nothing answers (69).
+    let (rc, out, err) = podssh(&["cp", "-P", "2222", "a", "host:b", "--timeout", "30s"]);
     let err = String::from_utf8_lossy(&err);
+    assert_eq!(rc, 69, "offline, no server answers: {err}");
+    assert!(out.is_empty(), "cp -P wrote to stdout: {out:?}");
     assert!(!err.contains("accepted and ignored"), "on cp, -P is the port and there is nothing to warn about: {err}");
-    assert!(err.contains("not implemented yet"), "{err}");
 }
 
 /// **No usage block, anywhere, from the real binary.** Plant 3 in its
@@ -213,7 +212,7 @@ fn no_invocation_prints_a_usage_block() {
 #[test]
 fn a_positional_that_does_not_fit_is_not_reported_as_an_unknown_flag() {
     for (case, want) in [
-        (vec!["cp", "a"], "the right number of arguments was not given"),
+        (vec!["mv", "a"], "the right number of arguments was not given"),
         (vec!["man", "ssh", "extra"], "'extra' is not an argument this verb takes"),
     ] {
         let (rc, out, err) = podssh(&case);

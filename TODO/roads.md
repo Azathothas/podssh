@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:471-479`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:450-458`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -108,7 +108,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:314-315`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:287-288`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:267-268`,
 `crates/podssh-cli/src/ts.rs:178`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -131,7 +131,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:287-288`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:267`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:77-125`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:83-131`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-109`).
 
 ## Decision
@@ -201,7 +201,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:23-58`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:24-59`).
 
 ## Decision
 
@@ -341,7 +341,7 @@ not verified here: iroh-ssh checks that a local sshd answers before it accepts
 Recommendation: the client records the host key of sshd under the name that
 the user gives to `podssh ssh` (the roost's name), as OpenSSH does for a host
 with a `ProxyCommand`. `podssh ssh` names a host this way today
-(`crates/podssh-ssh/src/run.rs:135-146`). The alternative, the address of sshd
+(`crates/podssh-ssh/src/run.rs:163-174`). The alternative, the address of sshd
 behind the roost (`127.0.0.1`), lost: each roost would share one name, and one
 key would replace another.
 
@@ -504,7 +504,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 ## Premise
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
-(`docs/relay.md:1-21`, `README.md:27-30`). The stand-in serves the forward
+(`docs/relay.md:1-21`, `README.md:29-32`). The stand-in serves the forward
 path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:98-110`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the

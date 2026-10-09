@@ -37,6 +37,8 @@ pub enum Parsed {
         ssh: Option<Box<crate::ssh::args::SshArgs>>,
         /// `keygen`'s; `None` for every other verb.
         keygen: Option<Box<crate::keygen::KeygenArgs>>,
+        /// `cp`'s; `None` for every other verb.
+        cp: Option<Box<crate::cp::CpArgs>>,
     },
     /// A usage error. The message never contains a usage block.
     Usage(String),

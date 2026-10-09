@@ -234,29 +234,9 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "podssh does not write to syslog", Some("-E LOGFILE")),
 ];
 
-/// **`cp` / `mv` and their `scp` / `sftp` aliases.** The flags are
-/// defined here so they parse and are refused correctly; milestone M5 builds the
-/// behaviour.
-pub const CP_FLAGS: &[FlagRow] = &[
-    // **The `-P` fork, and it is measured rather than remembered.**
-    // MEASURED 2026-10-02, this machine, OpenSSH_10.3p1:
-    //   `scp` usage prints `[-P port]`, `sftp -h` prints `[-P port]`, and
-    //   `ssh` usage prints `[-P tag]`. Three programs, one letter, two meanings.
-    row(Some('P'), "port", Some("PORT"), FlagKind::Supported,
-        "port to connect to; this is scp's -P", None),
-    row(Some('p'), "preserve", None, FlagKind::Supported,
-        "preserve mode and mtime where the filesystem allows", None),
-    row(Some('i'), "identity-file", Some("FILE"), FlagKind::Supported,
-        "identity file", None),
-    row(Some('r'), "recursive", None, FlagKind::Supported,
-        "copy directories", None),
-    row(Some('F'), "config", Some("CONFIG"), FlagKind::Supported,
-        "an OpenSSH-format config, read for its shared keys", None),
-    row(None, "jsonl", None, FlagKind::Supported,
-        "one JSON object per event on stdout", None),
-    row(None, "timeout", Some("DURATION"), FlagKind::Supported,
-        "bound the transfer; required with no TTY (default: env PODSSH_TIMEOUT)", None),
-];
+// `cp`, `mv` and their aliases: their table is in `flags/copy.rs`.
+mod copy;
+pub use copy::CP_FLAGS;
 
 /// **`chat` and its `irc` alias.** `--jsonl` and `--timeout` feed the gate of runs
 /// with no terminal, and appear in the tree because a flag that does not parse cannot be refused.
@@ -453,7 +433,6 @@ pub const VERBS: &[Verb] = &[
 /// as an internal error, never as success.
 pub const VERB_OWNER: &[(&str, &str)] = &[
     ("chat", "M8"),
-    ("cp", "M5"),
     ("mv", "M5"),
 ];
 

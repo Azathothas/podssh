@@ -247,6 +247,25 @@ impl Sftp {
         Ok(())
     }
 
+    /// Copy `from` from its start to `to` on the server (`copy-data`), so
+    /// that no byte comes through here; `limit` scales with the size, since
+    /// the one reply comes when the copy ends.
+    pub async fn copy_data(&self, from: &FileHandle, to: &FileHandle, limit: Duration) -> Result<(), SftpError> {
+        // string handle, uint64 from-offset, uint64 length (0: to the end),
+        // string handle, uint64 to-offset.
+        let mut data = ssh_strings(&[from.0.as_str()]);
+        data.extend_from_slice(&0u64.to_be_bytes());
+        data.extend_from_slice(&0u64.to_be_bytes());
+        data.extend_from_slice(&ssh_strings(&[to.0.as_str()]));
+        data.extend_from_slice(&0u64.to_be_bytes());
+        let what = "copy-data";
+        match within(limit, what, self.raw.extended("copy-data", data)).await? {
+            russh_sftp::protocol::Packet::Status(s) if s.status_code == StatusCode::Ok => Ok(()),
+            russh_sftp::protocol::Packet::Status(s) => Err(SftpError::from_raw(what, Raw::Status(s), limit)),
+            _ => Err(SftpError::Protocol(format!("{what}: a reply of the wrong type"))),
+        }
+    }
+
     /// Flush a file to the server's disk, when the server can
     /// (`fsync@openssh.com`). Whether it could.
     pub async fn fsync(&self, file: &FileHandle) -> Result<bool, SftpError> {
@@ -254,6 +273,18 @@ impl Sftp {
             return Ok(false);
         }
         within(self.limits.data, "fsync a file", self.raw.fsync(file.0.as_str())).await.map(|_| true)
+    }
+
+    /// Set what `attrs` names on `path`: the permission bits of a copy.
+    pub async fn setstat(&self, path: &str, attrs: FileAttributes) -> Result<(), SftpError> {
+        within(self.limits.metadata, &format!("set the attributes of {path}"), self.raw.setstat(path, attrs))
+            .await
+            .map(|_| ())
+    }
+
+    /// Whether the server names the extension `name`.
+    pub fn has(&self, name: &str) -> bool {
+        self.extensions.contains_key(name)
     }
 
     /// Remove a file.

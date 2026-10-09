@@ -71,7 +71,7 @@ async fn log_in(stall: Stall, key_file: Option<std::path::PathBuf>) -> String {
     let run = crate::run::connect(client_end, &hop, true, &opts, &log);
     match tokio::time::timeout(Duration::from_secs(30), run).await {
         Ok(Ok(_)) => panic!("logged in to a server that never answers"),
-        Ok(Err(message)) => message,
+        Ok(Err(e)) => e.to_string(),
         Err(_) => panic!("nothing ended the wait within 30 s"),
     }
 }

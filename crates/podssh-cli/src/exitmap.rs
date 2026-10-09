@@ -44,10 +44,16 @@ use crate::exit_codes::EXIT_USAGE;
 pub mod sysexits {
     /// The base every other `sysexits.h` value is offset from.
     pub const EX_USAGE: i32 = 64;
+    /// An input file did not exist or was not readable: a source of `cp`.
+    pub const EX_NOINPUT: i32 = 66;
     /// Nothing could answer: the peer is unreachable, or a pair was revoked.
     pub const EX_UNAVAILABLE: i32 = 69;
     /// podssh itself is at fault, or a session was truncated.
     pub const EX_SOFTWARE: i32 = 70;
+    /// An output file cannot be created: a destination of `cp`.
+    pub const EX_CANTCREAT: i32 = 73;
+    /// A temporary failure: the `--timeout` passed, and a later try can work.
+    pub const EX_TEMPFAIL: i32 = 75;
     /// The peer refused podssh's credentials, or the pair expired.
     pub const EX_NOPERM: i32 = 77;
     /// The machine is not set up the way this mode needs.
@@ -62,14 +68,23 @@ pub mod sysexits {
 pub enum Fault {
     /// Bad flags, an unknown verb, a missing host. `docs/cli.md`, "Exit codes".
     Usage,
-    /// TCP, TLS, the WebSocket upgrade, or a pre-`101` HTTP status.
+    /// TCP, TLS, the WebSocket upgrade, or a pre-`101` HTTP status; for
+    /// `cp` also an SSH server that cannot be reached, or has no SFTP.
     RelayUnreachable,
-    /// Relay `403`/`401`, or SSH authentication refused.
+    /// Relay `403`/`401`, or SSH authentication refused; for `cp` also a
+    /// host key that podssh did not accept.
     Auth,
     /// A probe returned `????` and the mode needed it.
     Capability,
-    /// Relay close `1003`/`1008`/`1009`/`1011`/`1013`, or a framing fault.
+    /// Relay close `1003`/`1008`/`1009`/`1011`/`1013`, or a framing fault;
+    /// for `cp` also a copy whose digests differ, or a session that broke.
     SessionFault,
+    /// A source of `cp` is missing or cannot be read.
+    NoInput,
+    /// A destination of `cp` cannot be written.
+    CantCreate,
+    /// The `--timeout` passed before the command ended.
+    TimedOut,
     /// Relay close `1001`, reason `operator stopped reverse relay`.
     Revoked,
     /// Relay close `1001`, reason `pair expired`.
@@ -113,6 +128,9 @@ impl Fault {
             // each other because the REASON decides, not the code.
             Fault::Auth | Fault::PairExpired => sysexits::EX_NOPERM,
             Fault::SessionFault | Fault::ChannelClosed => sysexits::EX_SOFTWARE,
+            Fault::NoInput => sysexits::EX_NOINPUT,
+            Fault::CantCreate => sysexits::EX_CANTCREAT,
+            Fault::TimedOut => sysexits::EX_TEMPFAIL,
             // 78: this machine is not set up for this mode. See SHARED_CODES.
             Fault::Capability | Fault::Config => sysexits::EX_CONFIG,
             Fault::Remote(status) => status as i32,
@@ -128,6 +146,9 @@ impl Fault {
             Fault::Auth => "Auth",
             Fault::Capability => "Capability",
             Fault::SessionFault => "SessionFault",
+            Fault::NoInput => "NoInput",
+            Fault::CantCreate => "CantCreate",
+            Fault::TimedOut => "TimedOut",
             Fault::Revoked => "Revoked",
             Fault::PairExpired => "PairExpired",
             Fault::Config => "Config",
@@ -200,6 +221,9 @@ pub const TABLE: &[(Fault, i32)] = &[
     (Fault::PairExpired, sysexits::EX_NOPERM),
     (Fault::Config, sysexits::EX_CONFIG),
     (Fault::ChannelClosed, sysexits::EX_SOFTWARE),
+    (Fault::NoInput, sysexits::EX_NOINPUT),
+    (Fault::CantCreate, sysexits::EX_CANTCREAT),
+    (Fault::TimedOut, sysexits::EX_TEMPFAIL),
 ];
 
 /// **Codes deliberately shared, and the reason each one is allowed.** Every

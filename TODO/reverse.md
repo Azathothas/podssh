@@ -749,7 +749,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:266`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:301`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:214`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -882,12 +882,12 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 
 Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/resolve.rs:379-427`).
 `Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:19-30`, chosen at `:232-270`).
-`connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs:73-116`), and
+`connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:131-137`); the
 operator leg receives text frames (`docs/relay.md:234-237`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:63-68`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:296`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:262-266`).
+`podssh proxy` sysexits (`docs/cli.md:297-301`).
 
 ## Approach
 
@@ -946,7 +946,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:66`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:67`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done

@@ -238,8 +238,8 @@ fn the_two_p_meanings_are_different_rows_in_the_table() {
 
 /// **`-p` on `cp` is `preserve`, not `port`,** because that is what `scp`
 /// means and a global rule would get it wrong in the other direction. The
-/// assertion is that `cp -p` parses **not** that it sets a port — the
-/// behaviour of `cp` is not built yet (milestone M5).
+/// assertion is that `cp -p` parses **not** that it sets a port; preserve
+/// itself is refused by name until T-146.
 #[test]
 fn a_global_lowercase_p_rule_would_break_cp() {
     let p = parse(args(&["cp", "-p", "a", "b"]));

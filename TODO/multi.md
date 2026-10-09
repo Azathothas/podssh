@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:73-151`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:72-100`,
    `crates/podssh-ssh/src/run.rs:34-49`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:32-150` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -64,15 +64,15 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:416-443`,
-   `crates/podssh-cli/src/positionals.rs:7-84`, a `Parsed` variant,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:396-423`,
+   `crates/podssh-cli/src/positionals.rs:7-88`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:92-93`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:262-265`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:297-300`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/resolve.rs:379-427`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:304-321`); they cannot define a group.
+  (`docs/cli.md:344-361`); they cannot define a group.
 
 ## Approach
 
@@ -360,7 +360,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:111`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:232-234`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:235-237`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -615,7 +615,8 @@ of the command.
 - Measured: `podssh run host -- true` exits 64 (`unknown subcommand 'run'`).
 - Read: the copy is work of M5: `cp` over SFTP (T-134), directories and an
   ignore file (T-143), and a new relay session before the limits (T-137).
-  `cp` exits 70 today (`crates/podssh-cli/src/flags.rs:454-458`).
+  `cp` exits 70 today (`crates/podssh-cli/src/flags.rs` lines 434-437 at
+  `6483366`).
 
 ## Approach
 
@@ -630,7 +631,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:127`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:262-265`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:297-300`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -645,6 +646,11 @@ In `scripts/interop.sh`, a fixture project holds `run.sh` (`exit 6`) and
 `target/big.bin`. `run` to the port 2201 exits 6; `target/` is not on the
 server; a second run copies no file. Plant: drop the default excludes; the
 check of `target/` must fail.
+
+## Correction
+
+2026-10-09 (T-134): `podssh cp` copies files now; it is no longer
+in `VERB_OWNER`, and this entry can call its engine.
 
 # T-193: Jobs on the far host: start, list, stop
 
@@ -734,14 +740,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:120-122`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-53`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:153-155`).
+  credentials or tokens (`docs/cli.md:188-190`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:269-284`.
+  `crates/podssh-cli/src/dispatch.rs:275-290`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:262-265`), which is not a failure of podssh.
+  status (`docs/cli.md:297-300`), which is not a failure of podssh.
 
 ## Approach
 
@@ -840,7 +846,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-68`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-74`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -869,3 +875,9 @@ then `exit 5`. Right after the submits, `list` shows one job running and
 two queued; `wait` on the last exits 5 within 30 s; `fetch` gets an `out`
 that holds `J`. Plant: the runner ignores the count of slots; the check of
 one running and two queued must fail.
+
+## Correction
+
+2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
+already (`crates/podssh-cli/src/man/data.rs:19-74`), for a `--timeout` of
+`cp` that passed; this entry adds its sentence for `job wait`.

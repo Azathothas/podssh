@@ -189,7 +189,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 tty,
             )
         }
-        Parsed::Command { verb, refused, tag, timeout, jsonl, ssh, keygen } => {
+        Parsed::Command { verb, refused, tag, timeout, jsonl, ssh, keygen, cp } => {
             // `-P TAG` on ssh: accepted, ignored, and it says so on stderr so
             // a user who meant a port learns before the connection fails.
             if let Some(t) = tag {
@@ -220,10 +220,13 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             } else {
                 Ok(None)
             };
-            if let Err(refusal) = checked {
-                let _ = writeln!(s.err, "{}", refusal.message);
-                return refusal.fault.code();
-            }
+            let deadline = match checked {
+                Ok(deadline) => deadline,
+                Err(refusal) => {
+                    let _ = writeln!(s.err, "{}", refusal.message);
+                    return refusal.fault.code();
+                }
+            };
             // Refused flags first, and they refuse before anything else
             // happens, so nothing is half-done.
             if refusals(verb, refused, s.err) {
@@ -234,6 +237,9 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             }
             if let Some(args) = keygen {
                 return crate::keygen::run_keygen(args, s.out, s.err);
+            }
+            if let Some(args) = cp {
+                return crate::cp::run_cp(args, deadline, *jsonl, s.out, s.err);
             }
             // A verb that parses and has no behaviour is refused, never a stub
             // that exits 0. A verb with neither a handler above nor a

@@ -75,11 +75,34 @@ pub fn failure_lines(message: &str, relay: Option<&RelayEnd>, target: &str) -> V
     lines
 }
 
+/// Why a hop could not be reached or logged in to: a command that maps
+/// failures to exit codes (`cp`) reads which.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HopError {
+    /// The connection, the forward to the hop, or the handshake failed, or
+    /// the login broke before an answer.
+    Unreachable(String),
+    /// podssh did not accept the host key.
+    HostKey(String),
+    /// The server refused each way of logging in.
+    Auth(String),
+}
+
+impl std::fmt::Display for HopError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HopError::Unreachable(m) | HopError::HostKey(m) | HopError::Auth(m) => write!(f, "{m}"),
+        }
+    }
+}
+
+impl std::error::Error for HopError {}
+
 /// The SSH connection to each `-J` hop in turn, the destination last, each
 /// authenticated: for a session (`ssh`) and for SFTP (`cp`). Every handle
 /// stays alive until the end, since each hop's channel runs inside the
 /// previous hop's connection.
-pub async fn connect_hops<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Result<Vec<Handle<Client>>, String>
+pub async fn connect_hops<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Result<Vec<Handle<Client>>, HopError>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -88,17 +111,24 @@ where
     let mut handles: Vec<Handle<Client>> = vec![connect(stream, hops[0], last == 0, opts, log).await?];
     for (i, hop) in hops.iter().enumerate().skip(1) {
         let previous = handles.last().expect("one handle per hop so far");
-        let channel = forward::open(previous, &hop.host, hop.port).await?;
+        let channel = forward::open(previous, &hop.host, hop.port).await.map_err(HopError::Unreachable)?;
         handles.push(connect(channel, hop, i == last, opts, log).await?);
     }
     Ok(handles)
+}
+
+/// Close each connection, the destination first.
+pub async fn disconnect_all(handles: &[Handle<Client>]) {
+    for handle in handles.iter().rev() {
+        let _ = handle.disconnect(Disconnect::ByApplication, "", "en").await;
+    }
 }
 
 async fn run_inner<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Result<i32, String>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let mut handles = connect_hops(stream, opts, log).await?;
+    let mut handles = connect_hops(stream, opts, log).await.map_err(|e| e.to_string())?;
     let host = display(&opts.destination);
     let result = match &opts.request {
         Request::StdioForward { host, port } => {
@@ -115,9 +145,7 @@ where
         }
         _ => session::run(handles.last().expect("the destination"), opts, &host, log).await,
     };
-    for handle in handles.iter().rev() {
-        let _ = handle.disconnect(Disconnect::ByApplication, "", "en").await;
-    }
+    disconnect_all(&handles).await;
     result
 }
 
@@ -128,7 +156,7 @@ pub(crate) async fn connect<S>(
     is_destination: bool,
     opts: &Options,
     log: &Arc<Log>,
-) -> Result<Handle<Client>, String>
+) -> Result<Handle<Client>, HopError>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
@@ -153,27 +181,30 @@ where
     let handshake = russh::client::connect_stream(config, stream, client);
     let mut handle = match tokio::time::timeout(opts.connect_timeout, handshake).await {
         Err(_) => {
-            return Err(format!(
+            return Err(HopError::Unreachable(format!(
                 "{label}: the SSH handshake did not finish within {} s",
                 opts.connect_timeout.as_secs()
-            ))
+            )))
         }
         Ok(Err(russh::Error::UnknownKey)) => {
             let why = refusal.lock().unwrap_or_else(|e| e.into_inner()).take();
-            return Err(why.unwrap_or_else(|| "host key verification failed.".into()));
+            return Err(HopError::HostKey(why.unwrap_or_else(|| "host key verification failed.".into())));
         }
         Ok(Err(e)) => {
             // The server's own words, when it sent a disconnect, name the
             // cause better than the closed stream does.
             let said = disconnect.lock().unwrap_or_else(|e| e.into_inner()).take();
-            return Err(match said {
+            return Err(HopError::Unreachable(match said {
                 Some(said) => format!("{label}: the server ended the connection: {said}"),
                 None => format!("{label}: {}", describe(&e)),
-            });
+            }));
         }
         Ok(Ok(handle)) => handle,
     };
-    auth::authenticate(&mut handle, &user, &hop.host, opts, log).await?;
+    auth::authenticate(&mut handle, &user, &hop.host, opts, log).await.map_err(|e| match e {
+        auth::AuthError::Refused(m) => HopError::Auth(m),
+        auth::AuthError::Broke(m) => HopError::Unreachable(m),
+    })?;
     log.verbose(&format!("authenticated to {label} as {user}"));
     Ok(handle)
 }

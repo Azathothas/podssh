@@ -21,6 +21,7 @@
 #![cfg_attr(not(test), deny(unused_crate_dependencies))]
 
 pub mod clap_error;
+pub mod cp;
 pub mod dispatch;
 pub mod doctor;
 pub mod exit_codes;

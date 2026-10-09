@@ -271,6 +271,8 @@ saved=$(p 2201 $K -o BatchMode=yes "$T" 'cat /tmp/pipe-vi' </dev/null 2>/dev/nul
 . "$HERE/interop-keygen.sh"
 # shellcheck source=scripts/interop-faults.sh
 . "$HERE/interop-faults.sh"
+# shellcheck source=scripts/interop-cp.sh
+. "$HERE/interop-cp.sh"
 
 echo
 echo "== an interactive terminal (a local pty, driven by scripts/interop-pty.py)"

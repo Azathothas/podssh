@@ -22,6 +22,7 @@
 mod answer;
 pub mod auth;
 pub mod escape;
+pub mod exec;
 pub mod forward;
 pub mod handler;
 pub mod hostkey;
@@ -39,6 +40,9 @@ pub mod session;
 pub mod sftp;
 pub mod signals;
 pub mod terminal;
+
+/// A connection to one hop, logged in.
+pub type Connection = russh::client::Handle<handler::Client>;
 
 pub use log::Log;
 pub use options::{Agent, Hop, LogLevel, Method, Options, Request, RequestTty, StrictHostKeyChecking};

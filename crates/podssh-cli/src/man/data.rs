@@ -29,26 +29,32 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             crate::exit_codes::EXIT_USAGE,
             "A usage error: an unknown command or flag, a bad value, a missing argument. podssh did nothing.",
         ),
+        row(sysexits::EX_NOINPUT, "podssh cp: a source is missing or cannot be read."),
         row(
             sysexits::EX_UNAVAILABLE,
             "podssh proxy: no relay host could be reached, or the relay ended the session abnormally. \
              podssh node, operator and relay: the relay or TARGET could not be reached, the node did not take \
-             the session, the pair was stopped, or another node serves it.",
+             the session, the pair was stopped, or another node serves it. podssh cp: no connection to the \
+             server, or the server has no SFTP.",
         ),
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,
             "The command is not implemented yet, or podssh failed inside. podssh node and operator: the \
-             relay closed the node or the session for a fault (1003, 1008 or 1009).",
+             relay closed the node or the session for a fault (1003, 1008 or 1009). podssh cp: the digests \
+             of a copy differ, or the session broke; the destination was not changed.",
         ),
+        row(sysexits::EX_CANTCREAT, "podssh cp: the destination cannot be written."),
+        row(sysexits::EX_TEMPFAIL, "podssh cp: the --timeout passed before the copy ended; a later try can work."),
         row(
             sysexits::EX_NOPERM,
             "podssh proxy: the relay or the proxy refused (a token, a blocked address, a proxy's 403 or 407). \
-             podssh node, operator and relay: the relay refused the pair, or the pair expired.",
+             podssh node, operator and relay: the relay refused the pair, or the pair expired. podssh cp: \
+             the server refused the login, or podssh did not accept its host key.",
         ),
         row(
             sysexits::EX_CONFIG,
             "A setting of the environment cannot be used: PODSSH_RELAY or PODSSH_RELAY_ADDR (podssh ssh, \
-             proxy and doctor). For podssh proxy also a proxy URL that is not http://, or a \
+             cp, proxy and doctor). For podssh proxy also a proxy URL that is not http://, or a \
              PODSSH_RELAY_TOKEN that is not a token. The same value as a flag is a usage error (64). \
              podssh node, operator and relay: no pair is stored under the label, the pair cannot be read \
              or stored, or a node cannot connect as it is set up.",

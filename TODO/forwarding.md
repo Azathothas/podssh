@@ -59,7 +59,7 @@ server listens, and the client connects out for each connection.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
-   `--direct` does (`crates/podssh-cli/src/ssh/mod.rs:133-138`), with the
+   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:87-93`), with the
    limit of 20 s (`crates/podssh-relay/src/open.rs:23-25`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
@@ -67,7 +67,7 @@ server listens, and the client connects out for each connection.
    proxy's answer, or the error of a refused loopback connection.
 6. Change the `-R` row to supported and the keyword to honoured. T-230
    corrected the texts of the `-R` refusal (the help and the manual's note
-   at `crates/podssh-cli/src/man/notes.rs:38-40`). Change the test that
+   at `crates/podssh-cli/src/man/notes.rs:39-41`). Change the test that
    asserts the refusal (`crates/podssh-cli/tests/flag_table.rs:64-83`).
    Update `docs/cli.md:110-124` (correct line 78 at `e8bbd4d`) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
@@ -100,7 +100,7 @@ channel for any port, and the second test fails.
 `podssh ssh -R 8080:localhost:80 example.invalid` gives "-R SPEC is
 refused. Leave it out." and "remote forwarding is not implemented yet.",
 exit 64, as `-o RemoteForward` does; it names no `-W`. The manual's note
-gives `-R` a sentence of its own (`crates/podssh-cli/src/man/notes.rs:38-40`).
+gives `-R` a sentence of its own (`crates/podssh-cli/src/man/notes.rs:39-41`).
 The rest of the Premise holds.
 
 2026-10-08, T-237: podssh's handler now refuses each channel that the
@@ -316,7 +316,7 @@ AF_UNIX.
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs:157-159`).
 - Read: `AGENTS.md:178-183` (no bind, no listen),
   `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:69-72` ("Nothing
-  listens") and `README.md:36` state the rule from before the ruling.
+  listens") and `README.md:38` state the rule from before the ruling.
   `docs/design.md:269-271` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
@@ -352,7 +352,7 @@ AF_UNIX.
    variable that refuses each local listener (`-L`, `-D`, T-039, T-034). Add
    it to `VARIABLES` in `crates/podssh-cli/src/man/facts.rs`.
 6. In the same commit, change the rows, the keywords, the note at
-   `crates/podssh-cli/src/man/notes.rs:38-40`, the test at
+   `crates/podssh-cli/src/man/notes.rs:39-41`, the test at
    `crates/podssh-cli/tests/flag_table.rs:64-83`, and the documents that the
    Premise quotes.
 
@@ -610,7 +610,7 @@ sessions (GitHub #17).
 ## Premise
 
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:38-47`,
-`crates/podssh-ssh/src/run.rs:107-115`). `podssh_relay::open` fails over and
+`crates/podssh-ssh/src/run.rs:137-145`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:177-212`,
 `crates/podssh-relay/src/open.rs:262-276`). With `-N`, no command runs, so a
