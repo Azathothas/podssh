@@ -271,7 +271,7 @@ forms of one check can drift apart, and the crate costs build time for no comman
 ## Premise
 
 Read on `3ee70dc`, the defect holds. No source, test or example of `podssh-cli` names
-`podssh_probe`, although `crates/podssh-cli/Cargo.toml:31` declares the dependency. The crate
+`podssh_probe`, although `crates/podssh-cli/Cargo.toml` line 31 at `cc386ce` declares the dependency. The crate
 declares `libc` (`crates/podssh-probe/Cargo.toml:11`), which none of its sources uses.
 `crates/podssh-probe/src/facts.rs:3-6` names a "startup assertion" that no command runs;
 `crates/podssh-probe/src/relay_facts.rs:261-289` is that unused startup part. CI runs
@@ -317,6 +317,13 @@ echo "exit=$?"
 The pinned copy exits 0. A copy with the node path renamed (the plant of
 `crates/podssh-probe/tests/relay_facts.rs:106-110`) exits 1 and names the fact
 `reverse-node-path`. `grep -rn podssh_probe crates/podssh-cli/src` finds the use.
+
+## Correction
+
+2026-10-09: T-247 removed `podssh-probe` from the dependencies of `podssh-cli`,
+as no code used it, and `unused_crate_dependencies` now fails the build on a
+dependency that no code uses. The command that uses `podssh-probe` adds it
+back in its own commit.
 
 # T-061: Measure whether the relay's idle cut applies to reverse sockets
 

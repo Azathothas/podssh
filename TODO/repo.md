@@ -1908,7 +1908,7 @@ again here.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1921,7 +1921,7 @@ it. Nothing stops the list from growing.
 
 Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
 
-- `podssh-terminal` (`crates/podssh-cli/Cargo.toml:33`) and `podssh-probe`
+- `podssh-terminal` (`crates/podssh-cli/Cargo.toml` line 33 at `cc386ce`) and `podssh-probe`
   (line 31): no use at all.
 - `podssh-core` (line 30) and `podssh-transport` (line 34): used only by the
   example `crates/podssh-cli/examples/live_irc.rs` and its module
@@ -1967,6 +1967,33 @@ cargo tree -p podssh-cli -e normal --depth 1    # none of the four crates is a n
 Each command exits 0, also on Windows. Planted defect: add `podssh-terminal`
 back to the dependencies; the first build must fail with
 `unused_crate_dependencies`.
+
+## Correction
+
+2026-10-09: `podssh-transport` went with T-082, and the IRC example uses
+`podssh-core`, `podssh-relay` and `podssh-ws`. Measured again over `src`:
+`podssh-probe`, `podssh-terminal` and `serde` have no use (`serde_json` needs
+no `serde` beside it), `podssh-core` serves the example only, and `libc`
+serves code for Unix only, also in `crates/podssh-cli/tests/keygen.rs`,
+under `cfg(unix)`.
+
+## Done
+
+2026-10-09, in the commit "podssh-cli declares only the dependencies that it
+uses".
+
+- `crates/podssh-cli/Cargo.toml`: `podssh-probe`, `podssh-terminal` and
+  `serde` removed; `podssh-core` a dev-dependency (the example); `libc` a
+  dependency for Unix only. `Cargo.lock`: three lines fewer.
+- `crates/podssh-cli/src/lib.rs`: `#![cfg_attr(not(test),
+  deny(unused_crate_dependencies))]`.
+- Prove: `cargo build --locked -p podssh-cli`: exit 0. `cargo build --locked
+  -p podssh-cli --examples`: exit 0. `cargo tree -p podssh-cli -e normal
+  --depth 1`: none of the removed crates. `cargo test --no-fail-fast`: 814
+  passed, 0 failed. `cargo clippy --all-targets -p podssh-cli -- -D
+  warnings`: exit 0. Plant, restored: `podssh-terminal` added back: the build
+  failed (exit 101) with "extern crate `podssh_terminal` is unused in crate
+  `podssh_cli`". Windows is this machine; the Windows job of CI builds it too.
 
 # T-249: A cited line that moved still exists, so the checker does not see a stale citation
 

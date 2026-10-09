@@ -26,11 +26,10 @@ default = []
 # still parses and refuses with a message naming this feature.
 ts = ["dep:podssh-ts"]
 
+# Each dependency is one that the library uses: `unused_crate_dependencies`
+# is denied in src/lib.rs, so a dependency that no code uses fails the build.
 [dependencies]
-podssh-core = { path = "../podssh-core" }
-podssh-probe = { path = "../podssh-probe" }
 podssh-ts = { path = "../podssh-ts", optional = true }
-podssh-terminal = { path = "../podssh-terminal" }
 podssh-ws = { path = "../podssh-ws" }
 # Relay hosts and failover, tokens, forward sessions (C-free, shared with podbox).
 podssh-relay = { path = "../podssh-relay", features = ["pair"] }
@@ -39,9 +38,7 @@ podssh-relay = { path = "../podssh-relay", features = ["pair"] }
 podssh-ssh = { path = "../podssh-ssh" }
 # `signal`: `podssh node` stops on Ctrl-C and SIGTERM.
 tokio = { workspace = true, features = ["signal"] }
-serde = { workspace = true }
 serde_json = { workspace = true }
-libc = { workspace = true }
 # %C of the ssh_config tokens is SHA-1, as OpenSSH computes it; the version
 # podssh-ssh already builds.
 sha1 = { version = "0.10.7", default-features = false }
@@ -66,3 +63,12 @@ zeroize = { workspace = true }
 clap = { version = "4.6.7", default-features = false, features = [
   "std", "help", "usage", "error-context", "suggestions", "derive",
 ] }
+
+# The calls into the C library are in code for Unix only (the probes of
+# doctor, the ids of the ssh_config tokens).
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+# The live IRC example only.
+[dev-dependencies]
+podssh-core = { path = "../podssh-core" }

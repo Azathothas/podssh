@@ -503,7 +503,7 @@ Read: the row is at `crates/podssh-cli/src/flags.rs:297-298`. `podssh ts` reads 
 (`crates/podssh-cli/src/ts.rs:290-292`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
 stream (`crates/podssh-cli/src/ts.rs:371-373`). `proxy --jsonl` is refused at parse, with the reason
 (`crates/podssh-cli/src/tree.rs:179-187`, `crates/podssh-cli/src/non_interactive.rs:309-320`).
-`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:43`).
+`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:41`).
 
 ## Approach
 

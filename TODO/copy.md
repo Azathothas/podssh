@@ -25,7 +25,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
 ## Premise
 
 - Read: no line of `Cargo.lock` contains `sftp`; `podssh-ssh` has `russh`
-  0.64.1 only (`crates/podssh-ssh/Cargo.toml:18`, `Cargo.lock:3023-3025`).
+  0.64.1 only (`crates/podssh-ssh/Cargo.toml:18`, `Cargo.lock:3020-3022`).
 - Read: the subsystem request exists
   (`crates/podssh-ssh/src/session.rs:68-71`); `wait_reply` counts 30 s of
   silence as a refusal (`crates/podssh-ssh/src/session.rs:111-123`). The

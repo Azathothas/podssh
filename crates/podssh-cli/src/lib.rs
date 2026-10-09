@@ -17,6 +17,9 @@
 //! `chat`, `cp`, `mv` and `relay` are defined so they parse and are refused
 //! correctly; those commands are not implemented yet.
 
+// A dependency that no code uses fails the build (the tests have their own).
+#![cfg_attr(not(test), deny(unused_crate_dependencies))]
+
 pub mod clap_error;
 pub mod dispatch;
 pub mod doctor;
