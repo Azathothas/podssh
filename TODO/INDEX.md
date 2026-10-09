@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**262 entries: 143 open, 0 partial, 22 blocked, 97 done.**
+**263 entries: 143 open, 0 partial, 22 blocked, 98 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 9 | 11 |
+| P1 | 2 | 0 | 0 | 10 | 12 |
 | P2 | 59 | 0 | 18 | 73 | 150 |
 | P3 | 82 | 0 | 4 | 14 | 100 |
-| **All** | 143 | 0 | 22 | 97 | 262 |
+| **All** | 143 | 0 | 22 | 98 | 263 |
 
 ## Entries
 
@@ -337,3 +337,4 @@ repository and CI).
 | [T-263](resume.md) | P3 | S | M6 | feature | open | A node in plain mode, for a client with no resumable layer |
 | [T-264](roads.md) | P2 | M | backlog | feature | open | Reach a service that `cloudflared` publishes, through `HTTPS_PROXY` |
 | [T-265](ws.md) | P1 | S | M6 | defect | done | A silent first address holds the whole of a direct dial |
+| [T-266](repo.md) | P1 | S | none | defect | done | The vi check of the Windows console job fails at random |

@@ -227,12 +227,16 @@ start = time.time()
 t.send(b"\x03")
 check("Ctrl-C interrupts the remote command, not podssh", marker(t, "INT", 3, 4) and time.time() - start < 10, t)
 t.send(b"rm -f /tmp/podssh-conpty-vi\r", 0.5)
-t.send(b"vi /tmp/podssh-conpty-vi\r", 2.0)
+t.send(b"vi /tmp/podssh-conpty-vi\r")
+# Keys typed before vi has drawn the new file reach the shell's line
+# discipline, or a vi that has not set its modes yet: wait for its status
+# line ("[New]", or "[New File]" in an older vim) first, as a person would.
+drawn = t.expect("[New", 30)
 t.send(b"ihello from a windows console", 0.5)
 t.send(b"\x1b", 1.0)
 t.send(b":wq\r", 1.0)
 t.send(b"cat /tmp/podssh-conpty-vi\r")
-check("vi edits and saves a file", t.expect("hello from a windows console") and marker(t, "VI", 5, 5), t)
+check("vi edits and saves a file", drawn and t.expect("hello from a windows console") and marker(t, "VI", 5, 5), t)
 t.send(b"seq 1 500 | less\r", 1.5)
 t.send(b"G", 0.5)
 t.send(b"q", 0.5)

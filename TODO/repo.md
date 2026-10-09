@@ -1031,7 +1031,7 @@ Read:
   run by hand.
   `docs/STATUS.md:73`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
-- `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
+- `scripts/interop-conpty.py:217-265` needs a server with a POSIX shell,
   `stty`, `vi`, `less`, `top`, `seq` and `/tmp`.
 - The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
   `crates/podssh-ssh/src/prompt.rs:89`, and the `cfg(not(unix))` branches of
@@ -2693,3 +2693,54 @@ checkout action".
 - Prove: `cargo test --no-fail-fast --locked`: 824 passed, 0 failed, 20
   ignored. The six pull requests are closed after the push, each with its
   reason; #37 and #38 name the commit that applied them.
+
+# T-266: The vi check of the Windows console job fails at random
+
+**Source:** CI, the run of `cce8dce` (2026-10-09): the job `windows` failed
+one check of `scripts/interop-conpty-msys2.py`, with a change that touched
+no code of the client.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The check "vi edits and saves a file" of `scripts/interop-conpty.py` failed
+once in CI (13 of 14 checks), and passed in the runs before and after with
+the same client. A check that fails at random hides a real failure.
+
+## Premise
+
+Read: the check sends `vi FILE`, waits a fixed 2 s, then types its text,
+Escape and `:wq` (`scripts/interop-conpty.py:229-235` at `cce8dce`). The
+failed run's screen shows the typed text on the line after the command, as a
+shell's echo shows it, and no output of the `cat` and the marker after it:
+vi was not ready when the keys came, on a runner where it started in more
+than 2 s.
+
+## Approach
+
+Wait for vi's own screen, its status line of a new file (`[New]`, or `[New
+File]` in an older vim), up to 30 s, before typing; and fail the check,
+with the screen, when it never comes.
+
+## Prove
+
+```sh
+python scripts/interop-conpty-msys2.py --install
+```
+
+CI's job `windows` passes the check at the push of the repair, and at the
+pushes after it.
+
+## Done
+
+2026-10-10. `scripts/interop-conpty.py`: the check waits for vi's status
+line of a new file, up to 30 s, before it types, and fails with the screen
+when the line never comes. The script runs only on Windows, in CI's job
+`windows` (`scripts/interop-conpty-msys2.py` installs MSYS2's sshd and vim
+on the runner), so the Prove is CI's: the run of the repair's push, and of
+the pushes after it, recorded in `docs/STATUS.md`.
+
