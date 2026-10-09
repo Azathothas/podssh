@@ -29,6 +29,31 @@ pub fn feed(d: &mut Discipline, bytes: &[u8]) -> Legs {
     legs
 }
 
+/// The events of a session, gathered into their legs, as `feed` gathers a
+/// discipline's.
+pub fn legs(events: Vec<Event>) -> Legs {
+    let mut legs = Legs::default();
+    for event in events {
+        match event {
+            Event::ToLocal(c) => legs.local.extend_from_slice(&c),
+            Event::ToRemote(r) => legs.remote.extend_from_slice(&r),
+            Event::Signal(s) => legs.signals.push(s),
+            Event::Eof => legs.eof = true,
+        }
+    }
+    legs
+}
+
+/// The facts of a session that selected the discipline, with nothing below.
+pub fn selected() -> podssh_terminal::session::Facts {
+    podssh_terminal::session::Facts { selected: true, ..Default::default() }
+}
+
+/// The facts of a session over a pty.
+pub fn over_a_pty() -> podssh_terminal::session::Facts {
+    podssh_terminal::session::Facts { pty_below: true, ..Default::default() }
+}
+
 /// What one input produced, one field per destination.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Legs {

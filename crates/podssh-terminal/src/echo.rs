@@ -28,13 +28,13 @@
 //!
 //! ## What is deliberately absent
 //!
-//! **No `onlcr` here.** The sibling expands lone `\n` to `\r\n` on the way out
-//! — **READ**, `session.rs:629-642` — because the shell below it runs on a pipe
-//! and its `OPOST`/`ONLCR` is absent. podssh has no such gap: the remote side
-//! is a real pty, so its own line discipline already did the translation and
-//! podssh forwarding an extra `\r` would stair-step every line. The expansion
-//! belongs to the case where there is no pty below, and this crate never sits
-//! above one.
+//! **No `onlcr` here, yet.** The sibling expands lone `\n` to `\r\n` on the way
+//! out — **READ**, `session.rs:629-642` — because the shell below it runs on a
+//! pipe and its `OPOST`/`ONLCR` is absent. The cooked mode runs in that same
+//! case, with nothing below (T-125), so a lone `\n` of the program's output
+//! needs its `\r`: T-111, which serves a child with no pty, adds it.
+//! Over a real pty, the transparent mode's case, the pty already translated,
+//! and an extra `\r` would stair-step every line.
 //!
 //! **No supervisor, no shell, no process group.** `session.rs:456-744` spawns
 //! and supervises a child. podssh has no child to spawn: the remote program is
@@ -99,10 +99,9 @@ pub enum Sig {
     Quit,
 }
 
-// The byte-level refusals live in `crate::refusal`, not here, and that
-// placement is load-bearing: the pass-through discipline must refuse the same
-// three bytes as this module, and a list written twice is a list that drifts.
-// The `key` dispatch below calls `crate::refusal::refuses`.
+// The byte-level refusals live in `crate::refusal`, not here: one list, which
+// the tests of the transparent mode read too, and a list written twice is a
+// list that drifts. The `key` dispatch below calls `crate::refusal::refuses`.
 
 /// One consequence of one client byte.
 ///
@@ -288,8 +287,8 @@ impl Discipline {
             // Refused, loudly. `session.rs:271` refuses `0x1a` (Ctrl-Z),
             // `0x11` (Ctrl-Q) and `0x13` (Ctrl-S) in one arm, and this crate
             // keeps that: one shape, one reason, one bell. The predicate is
-            // [`crate::refusal::refuses`] so the pass-through mode refuses the
-            // same bytes from the same source.
+            // [`crate::refusal::refuses`], the one list; the transparent mode
+            // refuses nothing.
             b if crate::refusal::refuses(b) => vec![Event::ToLocal(BELL.to_vec())],
             0x04 => self.eof_or_delete(),
             0x0d => {

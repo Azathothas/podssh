@@ -19,11 +19,11 @@
 
 use podssh_terminal::echo::{Discipline, Event, Sig, BELL, EL, HISTORY_CAP, LINE_CAP};
 use podssh_terminal::passthrough::Passthrough;
-use podssh_terminal::session::{Mode, Session};
+use podssh_terminal::session::{Facts, Mode, Session};
 use podssh_terminal::window::{Size, Window};
 
 mod common;
-use common::{feed, has, LocalBytes};
+use common::{feed, has, legs, over_a_pty, selected, LocalBytes};
 
 // ───────────────────────────────── history
 
@@ -286,7 +286,7 @@ fn the_two_modes_agree_where_they_must() {
     // thing to a user typing into a cooked shell and another to a program
     // drawing in pass-through, and **the same bytes must produce different
     // results** — otherwise one of the two modes has a bug in it.
-    let mut cooked = Session::new(true, true);
+    let mut cooked = Session::new(selected());
     let cooked_events = cooked.on_local_bytes(b"ls\r\n");
     let forward: Vec<u8> = cooked_events
         .iter()
@@ -298,7 +298,7 @@ fn the_two_modes_agree_where_they_must() {
         .collect();
     assert_eq!(forward, b"ls\n", "cooked: one Enter, one line");
 
-    let mut passed = Session::new(true, false);
+    let mut passed = Session::new(over_a_pty());
     let remote = passed.on_remote_bytes(b"ls\r\n");
     let local: Vec<u8> = remote
         .iter()
@@ -312,37 +312,64 @@ fn the_two_modes_agree_where_they_must() {
 }
 
 #[test]
-fn the_mode_is_decided_by_the_grant_and_by_nothing_else() {
-    // **All four combinations, including the two that answer alike.** A
-    // refused pty answers `NoPty` whatever the program is, because there is no
-    // terminal to run one in — and a mode chosen from one of the two facts is
-    // the bug this entry names.
-    assert_eq!(Mode::from_grant(true, true), Mode::Cooked);
-    assert_eq!(Mode::from_grant(true, false), Mode::Passthrough);
-    assert_eq!(Mode::from_grant(false, true), Mode::NoPty);
-    assert_eq!(Mode::from_grant(false, false), Mode::NoPty);
-    assert!(Mode::Cooked.has_pty() && Mode::Passthrough.has_pty());
-    assert!(!Mode::NoPty.has_pty());
+fn mode_a_granted_pty_adds_no_local_echo() {
+    // **A pty below echoes**, so an echo here shows each key twice; with the
+    // selection too, the pty wins. The plant: a selection that alone gives the
+    // cooked mode fails the second row on the echo.
+    for facts in [over_a_pty(), Facts { pty_below: true, selected: true, ..Facts::default() }] {
+        let mut s = Session::new(facts);
+        let got = legs(s.on_local_bytes(b"ab\x7f\r"));
+        assert!(got.local.is_empty(), "{facts:?}: no echo: {}", got.show());
+        assert_eq!(got.remote, b"ab\x7f\r", "{facts:?}: each byte once, as it came: {}", got.show());
+        assert_eq!(s.mode(), Mode::Transparent, "{facts:?}");
+    }
 }
 
 #[test]
-fn a_refused_pty_emulates_nothing_and_says_so() {
-    // **The refusal that must never become an emulation.** *"podssh says
-    // so and offers copy mode; it does not continue and pretend."* Bytes typed
-    // into such a session bell, nothing is forwarded to a shell that has no
-    // terminal to have a line, and **no `TERM` is offered** because the field
-    // on the `pty-req` does not exist.
-    let mut s = Session::new(false, true);
-    assert_eq!(s.mode(), Mode::NoPty);
-    assert_eq!(s.term(), None, "no TERM on a refused pty-req");
-    assert_eq!(s.term_choice(), None, "and nothing to have replaced");
-    for b in *b"a\r\x03" {
-        let got = s.on_local_byte(b);
-        assert_eq!(got, vec![Event::ToLocal(BELL.to_vec())], "byte {b:#x}");
+fn mode_no_pty_and_no_selection_is_transparent() {
+    // **A missing pty alone never selects the discipline**: no bell, and the
+    // session goes on.
+    let mut s = Session::new(Facts::default());
+    assert_eq!(s.mode(), Mode::Transparent);
+    let got = legs(s.on_local_bytes(b"a\r\x03\x1a"));
+    assert_eq!(got.remote, b"a\r\x03\x1a", "{}", got.show());
+    assert!(got.local.is_empty() && got.signals.is_empty(), "no bell, no signal: {}", got.show());
+    assert!(!s.ended(), "the session goes on");
+    assert_eq!(legs(s.on_remote_bytes(b"out\n")).local, b"out\n");
+}
+
+#[test]
+fn mode_the_selected_discipline_echoes_and_edits() {
+    let mut s = Session::new(selected());
+    assert_eq!(s.mode(), Mode::Cooked);
+    let got = legs(s.on_local_bytes(b"ab\x7fc\r"));
+    assert_eq!(got.remote, b"ac\n", "the edited line, once: {}", got.show());
+    assert!(has(&got.local, b"ab") && has(&got.local, b"c"), "each key echoed: {}", got.show());
+}
+
+#[test]
+fn mode_each_combination_of_the_three_facts() {
+    // **Eight rows, one of them cooked.** A rule that forgot one of the two
+    // facts below fails one of the rows that have it.
+    for pty_below in [false, true] {
+        for discipline_below in [false, true] {
+            for selected in [false, true] {
+                let facts = Facts { pty_below, discipline_below, selected };
+                let want = if selected && !pty_below && !discipline_below { Mode::Cooked } else { Mode::Transparent };
+                assert_eq!(Mode::select(facts), want, "{facts:?}");
+            }
+        }
     }
-    assert!(s.on_remote_bytes(b"anything").is_empty(), "nothing comes back either");
-    assert!(s.on_resize(Size::new(40, 120)).is_none(), "and no size is propagated");
-    assert!(s.ended(), "and the session is over");
+}
+
+#[test]
+fn mode_transparent_passes_ctrl_z_s_q() {
+    // **Job control and flow control belong to the pty below**, so the keys
+    // that the cooked mode refuses go on here, with no bell.
+    let mut s = Session::new(over_a_pty());
+    for b in [0x1au8, 0x11, 0x13] {
+        assert_eq!(s.on_local_byte(b), vec![Event::ToRemote(vec![b])], "byte {b:#x}");
+    }
 }
 
 // ───────────────────────────────── window size: the plant and its control
@@ -392,7 +419,7 @@ fn a_resize_while_idle_propagates_immediately() {
     assert!(!p.in_frame(), "and it did not open a frame");
 
     // **Through the driver too**, so the mode dispatch is covered.
-    let mut s = Session::new(true, false);
+    let mut s = Session::new(over_a_pty());
     assert_eq!(s.on_resize(Size::new(24, 80)), Some(Size::new(24, 80)));
 }
 

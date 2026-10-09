@@ -224,7 +224,7 @@ planted rejection with no reason fails that last check.
 # T-110: `podssh serve`: a real pty when `/dev/ptmx` exists
 
 **Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:156-160`,
-`docs/terminal.md:45-55`; GitHub #20 (bound every PTY wait).
+`docs/terminal.md:48-58`; GitHub #20 (bound every PTY wait).
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -262,7 +262,7 @@ it there.
    `crates/podssh-ssh/src/terminal/unix.rs:81-153` to a shared module and
    read it both ways. Skip a mode that the kernel refuses.
 3. Size: `TIOCSWINSZ` on the master from `pty-req` and each `window-change`.
-   A zero size becomes 80x24 (`docs/terminal.md:48-49`).
+   A zero size becomes 80x24 (`docs/terminal.md:51-52`).
 4. The child: `setsid`, `ioctl(TIOCSCTTY)`, the slave on descriptors 0 to 2,
    then exec, in `pre_exec`. The parent closes its copy of the slave, or the
    master never sees the end. `TERM` from the request (empty:
@@ -312,16 +312,16 @@ command, and the session must end.
 ## Premise
 
 - Read: `crates/podssh-terminal` holds podbox's echo, editing and history
-  rules (`docs/terminal.md:78-91`), and reports Ctrl-C and Ctrl-\ as
-  `Event::Signal` (`crates/podssh-terminal/src/echo.rs:285-287`). No command
+  rules (`docs/terminal.md:81-94`), and reports Ctrl-C and Ctrl-\ as
+  `Event::Signal` (`crates/podssh-terminal/src/echo.rs:284-286`). No command
   uses it, and it has the defects T-125 to T-129, which come first.
 - Read: the crate refuses to add `\r` before `\n`
   (`crates/podssh-terminal/src/echo.rs:31-37`,
   `crates/podssh-terminal/src/passthrough.rs:56-74`). Here the child writes
   to a pipe and the client's terminal is raw: the case where a lone `\n`
-  must become `\r\n` (`docs/terminal.md:118-121`).
+  must become `\r\n` (`docs/terminal.md:121-124`).
 - Read: a signal to the group also stops a shell that does not catch it
-  (`crates/podssh-terminal/src/session.rs:43-53`). Not measured yet: which
+  (`crates/podssh-terminal/src/session.rs:36-46`). Not measured yet: which
   shell mode survives.
 
 ## Approach
@@ -448,7 +448,7 @@ out with matching digests.
 
 - Read: `podssh serve` runs in the sandbox as a node (T-107 on the runner of
   T-079), and the operator connects through the relay (T-084).
-- Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:112-116`).
+- Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:115-119`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
   `docs/STATUS.md:151`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:42`).
@@ -877,7 +877,7 @@ files add them, and many cage images have none.
 ## Premise
 
 - Read: in the line discipline mode (T-111), serve prints the prompt and
-  sees each submitted line (`crates/podssh-terminal/src/echo.rs:233-243`),
+  sees each submitted line (`crates/podssh-terminal/src/echo.rs:232-242`),
   so it knows where each mark goes.
 - Read: with a real pty (T-110), only the shell knows; it needs hooks in its
   start files.

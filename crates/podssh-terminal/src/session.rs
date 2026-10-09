@@ -1,39 +1,32 @@
 //! The driver: which discipline a session runs, and how the two differ.
 //!
-//! **One binary, two disciplines, and the choice is made here.** The mode
-//! comes from what the server granted — `pty-req` accepted, and whether the
-//! remote program is a shell — and **never from guessing**. Guessing is how a
-//! session ends up half-way between two screen owners, which is the one state
-//! in which neither of them owns it.
+//! **Three facts choose the mode, and the absence of a pty is not one of
+//! them.** A pty below the session, or a line discipline below it (as in
+//! podbox's server), already echoes and edits; a second echo here shows each
+//! key twice. So the discipline runs only when the caller selected it and
+//! nothing below echoes: `podssh serve` with no `/dev/ptmx` selects it
+//! (T-111), and a client flag may later. **A missing pty alone never selects
+//! it**: it says nothing of what the program on the other side expects.
 //!
-//! ## The three modes, and the one that is not a terminal at all
+//! ## The two modes
 //!
 //! | Mode | When | What the caller gets |
 //! | --- | --- | --- |
-//! | [`Mode::Cooked`] | `pty-req` accepted, the remote program is a shell | echo, editing, history, a static prompt |
-//! | [`Mode::Passthrough`] | `pty-req` accepted, the remote program is not a shell | size and signals; every other byte untouched |
-//! | [`Mode::NoPty`] | `pty-req` **refused** | nothing is emulated |
-//!
-//! **`NoPty` is not a degraded mode and it is not a third screen owner.**
-//! A server that refuses `pty-req` offers no terminal, so podssh says so and
-//! offers copy mode: the entry's own words, *"podssh says so and offers copy
-//! mode; it does not continue and pretend"*. **A `Mode` that could only be
-//! one of two screen owners could not express that**, which is why this is a
-//! third variant rather than an `Option` a caller has to remember to check.
+//! | [`Mode::Cooked`] | selected, with no pty and no discipline below | echo, editing, history, a static prompt |
+//! | [`Mode::Transparent`] | each other case | each byte both ways as it came; the size held across a frame |
 //!
 //! ## Where the two modes agree, and that is worth knowing
 //!
-//! **The refusals are identical in both terminal modes**, from the one list in
-//! [`crate::refusal`]. **The reverse leg is byte-identical in both**, because a
-//! remote program that owns the screen and a shell that owns the line both
-//! simply emit bytes. **So what actually differs between the modes is the
-//! forward leg and the frames** — and one difference in the reverse leg that is
-//! the sharpest thing this entry has to say:
+//! **The reverse leg is byte-identical in both**, because a remote program
+//! that owns the screen and a shell that owns the line both simply emit bytes.
+//! **So what differs between the modes is the forward leg and the frames** —
+//! and one difference in the reverse leg that is the sharpest thing this entry
+//! has to say:
 //!
 //! > A `\r\n` pair means **two different things** in the two modes. In cooked it
 //! > is a user's Enter and its pair, and the `\n` is swallowed so a command does
-//! > not run twice. In pass-through it is a remote program's own `ONLCR`, and
-//! > swallowing the `\n` would delete a byte it wrote deliberately.
+//! > not run twice. In the transparent mode it is a remote program's own `ONLCR`,
+//! > and swallowing the `\n` would delete a byte it wrote deliberately.
 //!
 //! **One mode with a flag could not carry both answers**, because the flag
 //! would have to be "the last submit was mine", which is a guess about the peer's
@@ -54,40 +47,44 @@
 
 use crate::echo::{Discipline, Event};
 use crate::passthrough::Passthrough;
-use crate::term::{select_term_from_env, TermChoice};
 use crate::window::{Size, Window};
+
+/// What lies below the session, and what the caller asked for: the three
+/// facts that choose the mode.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Facts {
+    /// A pty is below: a kernel pty, or a tty that podssh answers for.
+    pub pty_below: bool,
+    /// A line discipline with no pty is below, as in podbox's server.
+    pub discipline_below: bool,
+    /// The caller selected this discipline: `podssh serve` with no
+    /// `/dev/ptmx`, or a flag.
+    pub selected: bool,
+}
 
 /// Which discipline a session runs.
 ///
 /// **Every variant is derived from the facts, never constructed by hand.**
-/// [`Mode::from_grant`] is the only way to name one, so a mode that the server
-/// did not justify cannot be written down.
+/// [`Mode::select`] is the one way to name one, so a mode that the facts did
+/// not justify cannot be written down.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
-    /// `pty-req` was **refused**. There is no terminal on the far side and
-    /// podssh does not emulate one.
-    NoPty,
-    /// `pty-req` accepted and the remote program is a shell.
+    /// Echo, editing, history and the prompt are done here.
     Cooked,
-    /// `pty-req` accepted and the remote program is not a shell: it owns the
-    /// screen.
-    Passthrough,
+    /// Each byte passes both ways unchanged, with no echo and no refusal.
+    Transparent,
 }
 
 impl Mode {
-    /// **The choice, and it is a total function of two facts.**
-    pub fn from_grant(pty_granted: bool, remote_is_shell: bool) -> Mode {
-        match (pty_granted, remote_is_shell) {
-            (false, _) => Mode::NoPty,
-            (true, true) => Mode::Cooked,
-            (true, false) => Mode::Passthrough,
+    /// Cooked only when selected with nothing below that echoes: a second
+    /// echo shows each key twice, and a missing pty alone says nothing about
+    /// the program.
+    pub fn select(facts: Facts) -> Mode {
+        if facts.selected && !facts.pty_below && !facts.discipline_below {
+            Mode::Cooked
+        } else {
+            Mode::Transparent
         }
-    }
-
-    /// Whether a terminal exists on the far side at all. The `NoPty` answer is
-    /// the only place a caller may offer copy mode.
-    pub fn has_pty(self) -> bool {
-        !matches!(self, Mode::NoPty)
     }
 }
 
@@ -102,57 +99,26 @@ pub struct Session {
     cooked: Discipline,
     pass: Passthrough,
     window: Window,
-    term: (String, TermChoice),
     ended: bool,
 }
 
 impl Session {
-    /// **The only constructor, and it takes the two facts.** There is no
-    /// way to build a `Session` without saying what the server granted, so a
+    /// **The only constructor, and it takes the three facts.** There is no
+    /// way to build a `Session` without saying what lies below it, so a
     /// caller cannot skip the decision and get a mode by accident.
-    pub fn new(pty_granted: bool, remote_is_shell: bool) -> Session {
-        Session::with_term(pty_granted, remote_is_shell, select_term_from_env())
-    }
-
-    /// [`Session::new`], with the `TERM` decision supplied rather than read.
-    ///
-    /// **The `TERM` decision is taken once, at construction**, and then never
-    /// changes. A session that re-derived it per keypress would report a
-    /// different answer the moment the environment did, and the `pty-req` it was
-    /// sent is not the one it would then be describing.
-    pub fn with_term(pty_granted: bool, remote_is_shell: bool, term: (String, TermChoice)) -> Session {
+    pub fn new(facts: Facts) -> Session {
         Session {
-            mode: Mode::from_grant(pty_granted, remote_is_shell),
+            mode: Mode::select(facts),
             cooked: Discipline::new(),
             pass: Passthrough::new(),
             window: Window::new(),
-            term,
             ended: false,
         }
     }
 
-    /// The mode, decided from what the server granted.
+    /// The mode, decided from the facts.
     pub fn mode(&self) -> Mode {
         self.mode
-    }
-
-    /// The `TERM` to send on the `pty-req`, and whether it replaced one.
-    ///
-    /// **`None` in [`Mode::NoPty`]**, because a refused `pty-req` carries no
-    /// terminal name: the field is where the name would go and there is no
-    /// field. Returning the name anyway would invite a caller to put it
-    /// somewhere it does not belong.
-    pub fn term(&self) -> Option<&str> {
-        self.mode.has_pty().then_some(self.term.0.as_str())
-    }
-
-    /// Whether the user's `TERM` was replaced, and why.
-    ///
-    /// **`None` in [`Mode::NoPty`]**, for the same reason. The reason is
-    /// carried because a session that reports only the value looks like it
-    /// ignored the user.
-    pub fn term_choice(&self) -> Option<TermChoice> {
-        self.mode.has_pty().then_some(self.term.1)
     }
 
     /// Whether input has ended.
@@ -163,17 +129,12 @@ impl Session {
     /// One local byte in, its consequences out.
     ///
     /// **The one entry point, and the mode decides which discipline runs.**
-    /// `NoPty` refuses every byte with a bell and forwards nothing: there is
-    /// no terminal on the far side to have a line, and emulating one here would
-    /// be pretending.
+    /// The transparent mode reads no byte: the pty or the discipline below
+    /// acts on each one, Ctrl-C and Ctrl-Z too.
     pub fn on_local_byte(&mut self, b: u8) -> Vec<Event> {
         match self.mode {
-            Mode::NoPty => {
-                self.ended = true;
-                vec![Event::ToLocal(crate::refusal::refusal_bytes())]
-            }
             Mode::Cooked => self.cooked.key(b),
-            Mode::Passthrough => self.pass.forward_local(b),
+            Mode::Transparent => self.pass.forward_local(b),
         }
     }
 
@@ -182,8 +143,12 @@ impl Session {
     /// **Events are accumulated, never dropped** — a caller that received only
     /// the last event would lose a submit that a redraw followed. And
     /// [`Event::Eof`] **stops the loop**, so the rest of a buffer that arrived
-    /// with an EOF is not interpreted as new lines.
+    /// with an EOF is not interpreted as new lines. The transparent mode sends
+    /// the chunk as one event.
     pub fn on_local_bytes(&mut self, bytes: &[u8]) -> Vec<Event> {
+        if self.mode == Mode::Transparent {
+            return self.pass.forward_local_bytes(bytes);
+        }
         let mut out = Vec::new();
         for b in bytes {
             for event in self.on_local_byte(*b) {
@@ -200,28 +165,22 @@ impl Session {
 
     /// Remote bytes in, their consequences out.
     ///
-    /// **Byte-identical in both terminal modes**, and that is deliberate: a
-    /// shell and a full-screen program both simply emit bytes, and a discipline
-    /// that edited them would be editing output it does not own. `NoPty`
-    /// forwards nothing at all.
+    /// **Byte-identical in both modes**, and that is deliberate: a shell and
+    /// a full-screen program both simply emit bytes, and a discipline that
+    /// edited them would be editing output it does not own.
     pub fn on_remote_bytes(&mut self, bytes: &[u8]) -> Vec<Event> {
-        match self.mode {
-            Mode::NoPty => vec![],
-            Mode::Cooked | Mode::Passthrough => self.pass.forward_remote(bytes),
-        }
+        self.pass.forward_remote(bytes)
     }
 
     /// Client EOF: submit a partial line, then end input.
     ///
-    /// **Transcribed**, `session.rs:530-536`. **And it is the same in both
-    /// terminal modes**: there is no line to submit in passthrough, so that list
-    /// carries only the end.
+    /// **Transcribed**, `session.rs:530-536`. There is no line to submit in
+    /// the transparent mode, so that list carries only the end.
     pub fn on_eof(&mut self) -> Vec<Event> {
         self.ended = true;
         match self.mode {
-            Mode::NoPty => vec![Event::Eof],
             Mode::Cooked => self.cooked.submit_and_end(),
-            Mode::Passthrough => vec![Event::Eof],
+            Mode::Transparent => vec![Event::Eof],
         }
     }
 
@@ -230,9 +189,8 @@ impl Session {
     /// between this and the sibling's refusal of window size.
     pub fn on_resize(&mut self, size: Size) -> Option<Size> {
         match self.mode {
-            Mode::NoPty => None,
             Mode::Cooked => self.window.on_resize(size),
-            Mode::Passthrough => self.pass.on_resize(size),
+            Mode::Transparent => self.pass.on_resize(size),
         }
     }
 
@@ -241,7 +199,7 @@ impl Session {
     /// frame. Treating one as the other would defer every resize of a session
     /// that never draws a frame.
     pub fn begin_frame(&mut self) {
-        if self.mode == Mode::Passthrough {
+        if self.mode == Mode::Transparent {
             self.pass.begin_frame();
         }
     }
@@ -249,9 +207,8 @@ impl Session {
     /// The full-screen frame ended. Returns a held size, if one.
     pub fn end_frame(&mut self) -> Option<Size> {
         match self.mode {
-            Mode::NoPty => None,
             Mode::Cooked => self.window.end_frame(),
-            Mode::Passthrough => self.pass.end_frame(),
+            Mode::Transparent => self.pass.end_frame(),
         }
     }
 
@@ -260,7 +217,7 @@ impl Session {
     /// session that could open a frame would defer every resize of a session
     /// that never draws one.
     pub fn in_frame(&self) -> bool {
-        matches!(self.mode, Mode::Passthrough) && self.pass.in_frame()
+        matches!(self.mode, Mode::Transparent) && self.pass.in_frame()
     }
 
     /// The cooked discipline, for a caller that needs its history or its line.
@@ -276,14 +233,13 @@ impl Session {
 }
 
 impl std::fmt::Debug for Session {
-    /// **Mode and `TERM`, and not the line buffer.** A `Debug` that printed
-    /// a live line would put whatever the user last typed into every log that
-    /// touches a session — and a session's line is exactly where a password
-    /// typed into a mistaken prompt would end up.
+    /// **The mode, and not the line buffer.** A `Debug` that printed a live
+    /// line would put whatever the user last typed into every log that touches
+    /// a session — and a session's line is exactly where a password typed into
+    /// a mistaken prompt would end up.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Session")
             .field("mode", &self.mode)
-            .field("term", &self.term)
             .field("ended", &self.ended)
             .field("in_frame", &self.in_frame())
             .finish_non_exhaustive()

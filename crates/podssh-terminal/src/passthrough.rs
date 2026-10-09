@@ -8,7 +8,7 @@
 //! passed `ESC[?1049h` to a client that is *not* full-screen would corrupt the
 //! scrollback; one that dropped it from a client that *is* would leave `vi`
 //! drawing over the scrollback. **There is no middle. Two modes, and the mode
-//! is chosen by what the server granted** — see [`crate::session::Session`].
+//! is chosen from what lies below the session** — see [`crate::session::Session`].
 //!
 //! ## What the local side still owns
 //!
@@ -27,15 +27,15 @@
 //! **`UNKNOWN`** and is recorded on the entry; it does not need to be settled
 //! for this mode, because **this mode never asks**.
 //!
-//! ## What is refused, and loudly
+//! ## Nothing is refused here
 //!
-//! **The refusals survive the mode change.** Ctrl-Z, Ctrl-S and Ctrl-Q
-//! ring the bell here from [`crate::refusal::refuses`], the same list the cooked
-//! mode uses, because a refused operation that answers differently in two modes
-//! is a refusal a user cannot learn.
+//! **Ctrl-Z, Ctrl-S and Ctrl-Q go on as bytes**, as each other key does. A pty
+//! or a line discipline below owns them: it suspends, or stops and starts the
+//! output, and a bell here would refuse what that program accepts. The cooked
+//! mode, which runs with nothing below, refuses them from
+//! [`crate::refusal::refuses`].
 
 use crate::echo::{Event, Sig};
-use crate::refusal::{refusal_bytes, refuses};
 use crate::window::{Size, Window};
 
 /// The pass-through discipline.
@@ -73,24 +73,22 @@ impl Passthrough {
         }
     }
 
-    /// **The whole of the forward leg, and the one thing this module
-    /// interprets.** Two classes and no others:
-    ///
-    /// - **Signal characters** — Ctrl-C, Ctrl-\ — travel forward as bytes.
-    ///   A program that owns the screen still needs the interrupt, and
-    ///   swallowing it would make Ctrl-C do nothing at all inside `vi`.
-    /// - **Refusals** — Ctrl-Z, Ctrl-S, Ctrl-Q — ring the bell, from the same
-    ///   [`crate::refusal::refuses`] list the cooked mode uses. Silence here
-    ///   would read as acceptance, and a user who cannot tell "not supported"
-    ///   from "did nothing" files it in the wrong place.
-    ///
-    /// **Everything else is forwarded verbatim**, which is the entire
-    /// contract of this mode: a key, an escape, a paste, a mouse report.
+    /// **The whole of the forward leg: each byte goes on as it came.** The
+    /// signal characters, Ctrl-C and Ctrl-\, and Ctrl-Z, Ctrl-S and Ctrl-Q
+    /// belong to the pty or the discipline below, which acts on them; a
+    /// program that owns the screen still needs the interrupt. A key, an
+    /// escape, a paste, a mouse report: each goes on verbatim, which is the
+    /// entire contract of this mode.
     pub fn forward_local(&mut self, b: u8) -> Vec<Event> {
-        if refuses(b) {
-            vec![Event::ToLocal(refusal_bytes())]
+        vec![Event::ToRemote(vec![b])]
+    }
+
+    /// The same for a chunk, as one event: nothing here reads a byte.
+    pub fn forward_local_bytes(&mut self, bytes: &[u8]) -> Vec<Event> {
+        if bytes.is_empty() {
+            vec![]
         } else {
-            vec![Event::ToRemote(vec![b])]
+            vec![Event::ToRemote(bytes.to_vec())]
         }
     }
 
@@ -150,7 +148,6 @@ impl std::fmt::Debug for Passthrough {
 mod tests {
     use super::*;
     use crate::bytes::quoted;
-    use crate::echo::BELL;
 
     // ─────────── the reverse leg is untouched
 
@@ -200,7 +197,7 @@ mod tests {
         assert_eq!(p.forward_remote(b"out\r\n"), vec![Event::ToLocal(b"out\r\n".to_vec())]);
     }
 
-    // ─────────── the forward leg: two classes and no others
+    // ─────────── the forward leg: each byte as it came
 
     #[test]
     fn ordinary_keys_travel_verbatim() {
@@ -221,18 +218,22 @@ mod tests {
     }
 
     #[test]
-    fn refusals_bell_from_the_shared_list() {
-        // **The control for the shared refusal list.** A guard that refuses
-        // everything looks exactly like a good guard, so the accepted cases are
-        // asserted against the same `refuses` the cooked mode uses.
+    fn the_keys_that_the_cooked_mode_refuses_go_on_here() {
+        // **The pty or the discipline below owns Ctrl-Z, Ctrl-S and Ctrl-Q**,
+        // so they go on as bytes; the cooked mode, with nothing below, refuses
+        // them from the shared list.
         let mut p = Passthrough::new();
         for b in [0x1au8, 0x11, 0x13] {
-            assert!(refuses(b), "byte {b:#x} must be refused in both modes");
-            assert_eq!(p.forward_local(b), vec![Event::ToLocal(BELL.to_vec())], "byte {b:#x}");
+            assert!(crate::refusal::refuses(b), "byte {b:#x}: the cooked mode refuses it");
+            assert_eq!(p.forward_local(b), vec![Event::ToRemote(vec![b])], "byte {b:#x}");
         }
-        for b in [b'a', 0x03, 0x1c, 0x1b, 0x7f] {
-            assert!(!refuses(b), "byte {b:#x} must not be refused");
-        }
+    }
+
+    #[test]
+    fn a_chunk_goes_on_as_one_event() {
+        let mut p = Passthrough::new();
+        assert_eq!(p.forward_local_bytes(b"a"), vec![Event::ToRemote(b"a".to_vec())]);
+        assert!(p.forward_local_bytes(b"").is_empty(), "no bytes, no event");
     }
 
     #[test]

@@ -13,7 +13,7 @@ items for the backlog follow.
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -26,16 +26,16 @@ a local echo to the echo of the remote pty, so each key shows two times.
 
 - Read: `Mode::from_grant` gives `NoPty` for no pty, `Cooked` for a pty and a
   shell, and `Passthrough` for a pty and another program
-  (`crates/podssh-terminal/src/session.rs:79-85`). In `NoPty`, each local byte
-  sets `ended` and returns a bell (`crates/podssh-terminal/src/session.rs:169-174`).
+  (`crates/podssh-terminal/src/session.rs` lines 79-85 at `6e77829`). In `NoPty`, each local byte
+  sets `ended` and returns a bell (`crates/podssh-terminal/src/session.rs` lines 169-174 at `6e77829`).
   In `Cooked`, the discipline echoes each byte
   (`crates/podssh-terminal/src/echo/editing.rs:166-178`).
-- Read: tests pin the wrong table (`crates/podssh-terminal/tests/keys.rs:315-326`,
-  `crates/podssh-terminal/tests/keys.rs:328-346`), and plant E builds
-  `Session::new(true, true)` (`crates/podssh-terminal/tests/plants.rs:327`).
+- Read, at `6e77829`: tests pin the wrong table (`crates/podssh-terminal/tests/keys.rs` lines 315-326,
+  `crates/podssh-terminal/tests/keys.rs` lines 328-346), and plant E builds
+  `Session::new(true, true)` (`crates/podssh-terminal/tests/plants.rs` line 327).
 - Read: the rule: three inputs select the mode, the user selects the
   discipline, and the absence of a pty alone never selects it
-  (`docs/terminal.md:10-18`, `docs/terminal.md:27-32`). On the server side,
+  (`docs/terminal.md:10-18`, and lines 27-32 at `6e77829`). On the server side,
   serve selects it when the cage has no `/dev/ptmx` (`docs/design.md:156-160`).
 
 ## Approach
@@ -52,10 +52,19 @@ a local echo to the echo of the remote pty, so each key shows two times.
    discipline (T-111); a client flag can select it later. Invariant: the
    absence of a pty alone never selects `Cooked`.
 5. Rewrite the tests above to the new table. Same commit:
-   `docs/terminal.md:27-32`, `docs/STATUS.md:220`, and the module notes
-   (`crates/podssh-terminal/src/session.rs:1-53`,
-   `crates/podssh-terminal/src/lib.rs:18-31`). Remove the warning markers
+   `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:220`, and the module notes
+   (`crates/podssh-terminal/src/session.rs:1-46`,
+   `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
    from the lines that you change (`AGENTS.md:194-195`).
+
+## Decision
+
+2026-10-09: `Session` no longer carries the `TERM` choice (`with_term`,
+`term`, `term_choice`): they answered only beside `has_pty`, which is gone,
+and no caller used them; `term.rs` stays for the work that needs it (T-126).
+Keeping them lost: an accessor whose guard is gone would always answer, for
+nobody. A selection over a pty gives `Transparent` with no error: the caller
+reads `mode()` and can say so.
 
 ## Prove
 
@@ -72,6 +81,34 @@ continues), and `mode_the_selected_discipline_echoes_and_edits`. Plant:
 restore `(true, true) => Mode::Cooked`; the first test fails on the echo. No
 command uses the crate, so no check of the binary applies; T-111 runs it
 through serve.
+
+## Done
+
+2026-10-09, in the commit "The line discipline runs only when it is selected
+and nothing below echoes".
+
+- `crates/podssh-terminal/src/session.rs`: `Facts` (`pty_below`,
+  `discipline_below`, `selected`) and `Mode::select`; `Mode` is `Cooked` or
+  `Transparent`; `NoPty`, `from_grant`, `has_pty` and the path that rang the
+  bell and ended the session are gone. The module notes state the rule.
+- `crates/podssh-terminal/src/passthrough.rs`: the transparent leg passes
+  each byte as it came, Ctrl-Z, Ctrl-S and Ctrl-Q too, and a chunk as one
+  event (`forward_local_bytes`); `refusal.rs`, `echo.rs` and `lib.rs` no
+  longer say that it refuses. T-129's step 3 is thereby done, and T-129
+  records the lone `\n` that the cooked mode now meets.
+- Tests: `mode_a_granted_pty_adds_no_local_echo`,
+  `mode_no_pty_and_no_selection_is_transparent`,
+  `mode_the_selected_discipline_echoes_and_edits`,
+  `mode_each_combination_of_the_three_facts` and
+  `mode_transparent_passes_ctrl_z_s_q` in place of the two that pinned the
+  old table; the other sessions of `keys.rs` and `plants.rs` built from the
+  facts; `legs`, `selected` and `over_a_pty` in the harness.
+- `docs/terminal.md`, "Select a mode", and `docs/STATUS.md`.
+- Prove: `cargo test -p podssh-terminal --test keys -- mode_`: 5 passed.
+  `cargo test -p podssh-terminal --no-fail-fast`: 100 passed. Plant,
+  restored: `Mode::select` cooked whenever selected: the first test failed
+  on the echo (the local leg held `ab`, the erase and a prompt), and the table of
+  eight rows failed too.
 
 # T-126: L2: the line discipline has no raw mode and no window size
 
@@ -97,15 +134,15 @@ writes over the rows above it.
   (`crates/podssh-terminal/Cargo.toml:10-11`). The notes say that the crate
   never reads the size and never sends (`crates/podssh-terminal/src/window.rs:37-42`).
 - Read: the redraw is `\r`, the prompt, the line, `ESC [ K`, `\r`, the prompt
-  and the line up to the cursor (`crates/podssh-terminal/src/echo.rs:183-193`):
+  and the line up to the cursor (`crates/podssh-terminal/src/echo.rs:182-192`):
   one row. `Session::on_resize` gives the size to `Window` only
-  (`crates/podssh-terminal/src/session.rs:231-237`).
+  (`crates/podssh-terminal/src/session.rs:190-195`).
 - Read: `podssh-ssh` has a raw mode and a size that work, and the gate checks
   them (`crates/podssh-ssh/src/terminal/unix.rs:12-76`,
   `crates/podssh-ssh/src/terminal/windows.rs:31-111`, `docs/STATUS.md:65`).
 - Read: the crate has its own `TERM` rule: it replaces `dumb` and `unknown`,
   and reads `PODSSH_TERM` (`crates/podssh-terminal/src/term.rs:47-53`). The
-  documented rule sends `TERM` unchanged (`docs/terminal.md:57-62`). The
+  documented rule sends `TERM` unchanged (`docs/terminal.md:60-65`). The
   manual does not name `PODSSH_TERM`, and its variable test does not read
   this crate (`crates/podssh-cli/src/man/facts.rs:240-241`).
 
@@ -171,9 +208,9 @@ character takes two cells and counts as one.
   (`crates/podssh-terminal/src/echo/editing.rs:64-77`). The arrows move one
   byte and echo one cell (`crates/podssh-terminal/src/echo/editing.rs:143-150`).
   The redraw writes `line[..cursor]`, which can end inside a character
-  (`crates/podssh-terminal/src/echo.rs:183-193`).
+  (`crates/podssh-terminal/src/echo.rs:182-192`).
 - Read: the history keeps `String::from_utf8_lossy` copies
-  (`crates/podssh-terminal/src/echo.rs:213-225`), so a line that is not UTF-8
+  (`crates/podssh-terminal/src/echo.rs:212-224`), so a line that is not UTF-8
   comes back changed when it is recalled.
 - Read: the client sends `IUTF8` in its pty modes
   (`crates/podssh-ssh/src/terminal/unix.rs:145-151`), so serve (T-111) knows
@@ -190,7 +227,7 @@ character takes two cells and counts as one.
 3. Backspace, Ctrl-W, Ctrl-D and the arrows act on whole characters; the
    rubout and the arrow echo use the cell count (`ESC [ n D`).
 4. The history keeps bytes (`Vec<u8>`), not lossy strings.
-5. Same commit: `docs/terminal.md:78-91` (the rules), `docs/STATUS.md:220`.
+5. Same commit: `docs/terminal.md:81-94` (the rules), `docs/STATUS.md:220`.
 
 ## Decision
 
@@ -236,8 +273,8 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
 - Read: after `ESC`, each byte that is not `[` is refused and consumed
   (`crates/podssh-terminal/src/escape.rs:128-138`). So `O` is consumed, and
   the byte after it (`P`, `A`) is a fresh key that is inserted
-  (`crates/podssh-terminal/src/echo.rs:267-277`,
-  `crates/podssh-terminal/src/echo.rs:311`).
+  (`crates/podssh-terminal/src/echo.rs:266-276`,
+  `crates/podssh-terminal/src/echo.rs:310`).
 - Read: the path that gives a control byte back to the key handling
   (`Restart`) exists only in the CSI state
   (`crates/podssh-terminal/src/escape.rs:157-161`). So `ESC` then Ctrl-C
@@ -247,7 +284,7 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
 - Read: tests pin the loss: `ESC x a` gives a bell and `a`
   (`crates/podssh-terminal/tests/keys.rs:253-261`,
   `crates/podssh-terminal/src/escape.rs:308-313`). The rule says that
-  `ESC O x` is a sequence (`docs/terminal.md:97`).
+  `ESC O x` is a sequence (`docs/terminal.md:100`).
 
 ## Approach
 
@@ -257,7 +294,7 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
 2. After a lone `ESC`, a control byte is a fresh key (`Restart`), as in the
    CSI state. Invariant: an escape never consumes Ctrl-C, Ctrl-D or Enter.
 3. A printable byte after a lone `ESC`: see Decision.
-4. Rewrite the tests that pin the loss. Same commit: `docs/terminal.md:93-100`,
+4. Rewrite the tests that pin the loss. Same commit: `docs/terminal.md:96-103`,
    `docs/STATUS.md:220`.
 
 ## Decision
@@ -308,14 +345,14 @@ that arrives during an edit is written over the edited line.
   parameter is refused (`crates/podssh-terminal/src/echo/editing.rs:136-139`).
 - Read: `ESC [ H` and `ESC [ F` move the cursor and send nothing
   (`crates/podssh-terminal/src/echo/editing.rs:151-158`); Ctrl-A and Ctrl-E
-  do the same (`crates/podssh-terminal/src/echo.rs:303-310`). Tests pin the
+  do the same (`crates/podssh-terminal/src/echo.rs:302-309`). Tests pin the
   silence (`crates/podssh-terminal/tests/discipline.rs:175-203`).
-- Read: passthrough refuses `0x1a`, `0x11` and `0x13`
-  (`crates/podssh-terminal/src/passthrough.rs:89-95`,
+- Read, at `6e77829`: passthrough refuses `0x1a`, `0x11` and `0x13`
+  (`crates/podssh-terminal/src/passthrough.rs` lines 89-95,
   `crates/podssh-terminal/src/refusal.rs:33-35`), and a test pins it
-  (`crates/podssh-terminal/src/passthrough.rs:223-236`).
+  (`crates/podssh-terminal/src/passthrough.rs` lines 223-236).
 - Read: in the cooked mode, remote bytes go out as they come, and the edited
-  line is not drawn again (`crates/podssh-terminal/src/session.rs:207-212`,
+  line is not drawn again (`crates/podssh-terminal/src/session.rs:171-173`,
   `crates/podssh-terminal/src/passthrough.rs:68-74`).
 
 ## Approach
@@ -326,12 +363,12 @@ that arrives during an edit is written over the edited line.
 2. Home, End, Ctrl-A and Ctrl-E send the motion: `ESC [ n D` or `ESC [ n C`
    by cells (T-127), or a redraw.
 3. The transparent mode of T-125 refuses nothing. Ctrl-Z, Ctrl-S and Ctrl-Q
-   stay refused in the cooked mode only (`docs/terminal.md:105-108`).
+   stay refused in the cooked mode only (`docs/terminal.md:108-111`).
 4. Output during an edit: `\r` and `ESC [ K` clear the edited line, the
    output is written, then the prompt and the line are drawn again with the
    cursor in place. Invariant: output never changes the line under edit.
 5. Rewrite the tests that pin the old behaviour. Same commit:
-   `docs/terminal.md:102-110`, `docs/STATUS.md:220`.
+   `docs/terminal.md:105-113`, `docs/STATUS.md:220`.
 
 ## Prove
 
@@ -349,11 +386,18 @@ typed: the bytes end with the prompt and `ab`, and Enter submits `ab`).
 Plants: restore the silent Home; restore the refusal in the transparent mode.
 Each makes its test fail.
 
+## Correction
+
+2026-10-09 (T-125): step 3 is done: the transparent mode refuses nothing.
+The cooked mode now runs only with nothing below, so the program's output
+reaches it from a pipe, with no `ONLCR`: T-111 adds the `\r` before a lone
+`\n` (its Premise), and step 4 draws that output over the edited line.
+
 # T-130: State which terminal sequences podssh reads and which it passes unchanged
 
 **Source:** GitHub #18 and GitHub #19 (nikhiljha/rose
 `nikhiljha/rose:doc/spec.md`, lines 19-42, "Terminal Feature Boundary");
-`docs/terminal.md:93-110`.
+`docs/terminal.md:96-113`.
 **Category:** docs
 **Milestone:** backlog
 **Priority:** P3
@@ -373,7 +417,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
   (`crates/podssh-ssh/src/escape.rs:1-13`, `crates/podssh-ssh/src/escape.rs:30-70`).
   Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:58-67`).
 - Read: the line discipline acts on the arrows, Home, End and its control
-  keys, and refuses other sequences (`docs/terminal.md:93-110`). T-128 and
+  keys, and refuses other sequences (`docs/terminal.md:96-113`). T-128 and
   T-129 change that list.
 - Read in the reports of GitHub #18 and #19, not verified here: rose states
   its terminal boundary in its spec. rose is GPL: read the spec, copy no code.
@@ -404,7 +448,7 @@ fails. The binary (`$BIN`) prints the note in its manual.
 
 # T-131: Which servers honour the `signal` request for Ctrl-C with no remote pty
 
-**Source:** `docs/terminal.md:123-127` (section "Open").
+**Source:** `docs/terminal.md:126-130` (section "Open").
 **Category:** measurement
 **Milestone:** backlog
 **Priority:** P3
@@ -420,7 +464,7 @@ on it. podssh cannot select a behaviour without that fact.
 
 ## Premise
 
-- Read: `docs/terminal.md:123-127` records the question as open.
+- Read: `docs/terminal.md:126-130` records the question as open.
 - Read: podssh's client never sends a `signal` request: no call in
   `crates/podssh-ssh/src`. With no remote pty, the local terminal stays in
   its normal mode (`docs/terminal.md:24`), so Ctrl-C stops podssh itself.
@@ -494,7 +538,7 @@ find a case that the 14 console checks of podssh do not cover.
 1. Read csshw at the commit of the report (`6dd773b`). List each console
    mode, code page and call that it sets, and each quirk that it handles.
 2. Write a table in the section "The Windows console" of `docs/terminal.md`
-   (`docs/terminal.md:64-76`): each item of csshw against podssh, with
+   (`docs/terminal.md:67-79`): each item of csshw against podssh, with
    "same", "podssh lacks it" or "not needed", and the reason.
 3. Measure the candidates in a real console with `scripts/interop-conpty.py`:
    output that is not UTF-8 (`printf '\377'` on the server), the code page,

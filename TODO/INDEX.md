@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**257 entries: 174 open, 0 partial, 8 blocked, 75 done.**
+**257 entries: 173 open, 0 partial, 8 blocked, 76 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 91 | 0 | 4 | 53 | 148 |
+| P2 | 90 | 0 | 4 | 54 | 148 |
 | P3 | 81 | 0 | 4 | 14 | 99 |
-| **All** | 174 | 0 | 8 | 75 | 257 |
+| **All** | 173 | 0 | 8 | 76 | 257 |
 
 ## Entries
 
@@ -198,7 +198,7 @@ repository and CI).
 | [T-122](serve.md) | P3 | S | backlog | feature | open | `podssh serve`: each pty child in its own transient scope when systemd is there |
 | [T-123](serve.md) | P3 | M | backlog | feature | open | `podssh serve` accepts `tcpip-forward` from a standard `ssh -R` |
 | [T-124](serve.md) | P3 | M | backlog | feature | open | `podssh serve --listen`: SSH on a TCP port on a host that allows it |
-| [T-125](terminal.md) | P2 | S | M5 | defect | open | L1: the mode selection of the line discipline is the wrong way round |
+| [T-125](terminal.md) | P2 | S | M5 | defect | done | L1: the mode selection of the line discipline is the wrong way round |
 | [T-126](terminal.md) | P2 | M | M5 | defect | open | L2: the line discipline has no raw mode and no window size |
 | [T-127](terminal.md) | P2 | S | M5 | defect | open | L3: the cursor counts bytes, not characters |
 | [T-128](terminal.md) | P2 | S | M5 | defect | open | L4: `ESC O x` keys ring the bell, and a single Escape removes the next key |

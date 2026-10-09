@@ -25,11 +25,14 @@ shows each key two times.
 | refused | not a terminal | A plain pipe, as for a command. |
 
 The line discipline in the process (`crates/podssh-terminal`) is for the
-case that remains: a person types through a front end that is not a
-terminal and sends raw keys, to a server with no pty and no line discipline.
-The user must select it explicitly. The absence of a pty alone must never
-select it (T-125 in [TODO/terminal.md](../TODO/terminal.md), formerly L1, is that wrong selection).
-No command uses the crate yet (milestone M5).
+case that remains: keys arrive raw, and nothing below edits them, neither a
+pty nor a line discipline. Three facts choose its mode (`Mode::select`):
+a pty below, a line discipline below, and the caller's selection. It
+echoes and edits only when it is selected and neither is below; `podssh
+serve` with no `/dev/ptmx` selects it (T-111), and a client flag may later.
+In each other case the session is transparent: each byte goes both ways as
+it came, with no echo and no refusal. The absence of a pty alone never
+selects it (T-125). No command uses the crate yet (milestone M5).
 
 ## `-t`, `-T` and `RequestTTY`
 

@@ -42,6 +42,8 @@ use podssh_terminal::session::{Mode, Session};
 use podssh_terminal::term::{select_term, TermChoice, TERM_OVERRIDE_ENV};
 use podssh_terminal::window::{Size, Window};
 
+mod common;
+
 /// **Is the named defect switched on?** An unset variable is the control,
 /// and **an unknown name is the control too** — a typo must not silently
 /// plant something.
@@ -143,7 +145,7 @@ fn control_d_the_accepted_escape_still_moves_the_cursor() {
 fn control_e_a_signal_that_is_not_pressed_changes_nothing() {
     // **The control for plant E.** A session that reported a signal on every
     // key would pass plant E and be unusable.
-    let mut s = Session::new(true, true);
+    let mut s = Session::new(common::selected());
     let events = s.on_local_bytes(b"echo hello\n");
     assert!(!events.iter().any(|e| matches!(e, Event::Signal(_))), "no signal for ordinary input: {events:?}");
     assert!(!s.ended(), "and the session lives");
@@ -324,7 +326,7 @@ fn plant_e_ctrl_c_kills_the_command_and_not_the_session() {
     // interrupted line never becomes a command, so **the exit status of the
     // command can never be confused with the exit status of the shell** and a
     // later command can still be submitted on the same session.
-    let mut s = Session::new(true, true);
+    let mut s = Session::new(common::selected());
     for b in b"sleep 100" {
         let _ = s.on_local_byte(*b);
     }
@@ -434,8 +436,8 @@ fn the_cooked_mode_has_no_alternate_screen_and_says_so() {
     // programs are a separate mode, not a richer cooked mode** — which is
     // why the check is not "does the cooked mode drop it" but "does the mode
     // that is *for* full-screen programs pass it through untouched."
-    let mut s = Session::new(true, false);
-    assert_eq!(s.mode(), Mode::Passthrough);
+    let mut s = Session::new(common::over_a_pty());
+    assert_eq!(s.mode(), Mode::Transparent);
     let out = s.on_remote_bytes(b"\x1b[?1049h");
     assert_eq!(out, vec![Event::ToLocal(b"\x1b[?1049h".to_vec())]);
 }

@@ -17,12 +17,15 @@
 //!
 //! ## Two disciplines, one binary
 //!
-//! The mode is **chosen by what the server granted**, never by guessing:
+//! The mode is **chosen from three facts**, never by guessing
+//! ([`session::Facts`]): a pty below, a line discipline below, and the
+//! caller's selection. The absence of a pty alone never selects the cooked
+//! mode:
 //!
 //! | Mode | When | Who owns the screen |
 //! | --- | --- | --- |
-//! | [`echo::Discipline`] | `pty-req` accepted, the remote program is a shell | podssh: echo, editing, history, a static prompt |
-//! | [`passthrough::Passthrough`] | `pty-req` accepted, the remote program is not a shell | the remote side, whole |
+//! | [`echo::Discipline`] | selected, with no pty and no discipline below | podssh: echo, editing, history, a static prompt |
+//! | [`passthrough::Passthrough`] | each other case | the program, the pty or the discipline below: each byte as it came |
 //!
 //! **A full-screen program is a separate mode, not a richer cooked mode.** The
 //! echo discipline **drops** cursor addressing, because a discipline that
@@ -61,7 +64,7 @@
 //! - [`term`] — `TERM` selection and the `''|dumb|unknown` predicate
 //! - [`window`] — window size, deferred while a frame is mid-draw
 //! - [`passthrough`] — the second discipline, for a program that owns the screen
-//! - [`refusal`] — the refusal catalogue both disciplines answer from
+//! - [`refusal`] — the refusal catalogue that the cooked discipline answers from
 //! - [`session`] — the driver that chooses between them
 //!
 //! [`podssh-core`]: https://docs.rs/podssh-core
@@ -78,6 +81,6 @@ pub mod window;
 pub use echo::{Discipline, Event, Sig, BELL, EL, HISTORY_CAP, LINE_CAP, PROMPT};
 pub use passthrough::Passthrough;
 pub use refusal::{Refusal, REFUSALS};
-pub use session::{Mode, Session};
+pub use session::{Facts, Mode, Session};
 pub use term::{TermChoice, TERM_ENV, TERM_OVERRIDE_ENV, TERM_PREDICATE_USABLE};
 pub use window::{Size, Window};

@@ -15,21 +15,21 @@
 //! not do before a key is pressed — which is what "the user can hear the
 //! refusal and can act on it" requires.
 //!
-//! ## One list, two modes
+//! ## One list, one mode
 //!
-//! **The byte-level refusals live in [`refuses`], and both disciplines use
-//! that one function.** Ctrl-Z, Ctrl-Q and Ctrl-S are refused in the cooked
-//! mode **and** in pass-through — **READ**, `session.rs:271`, which refuses
-//! `0x1a | 0x11 | 0x13` in a single match arm. A list written twice is a list
-//! that drifts, and a refusal that answers differently per mode is a refusal a
-//! user cannot learn.
+//! **The byte-level refusals live in [`refuses`].** Ctrl-Z, Ctrl-Q and Ctrl-S
+//! are refused in the cooked mode — **READ**, `session.rs:271`, which refuses
+//! `0x1a | 0x11 | 0x13` in a single match arm. The transparent mode refuses
+//! nothing: a pty or a line discipline below owns those keys, and there job
+//! control and flow control work (T-125). A list written twice is a list that
+//! drifts.
 
 use crate::echo::BELL;
 
 /// **The byte-level refusals, in one place.** Transcribed from
 /// `session.rs:271`. **A function and not a `const` array** so that a module
-/// which needs the test — both disciplines do — cannot hold a copy that has
-/// drifted from this one.
+/// which needs the test — the cooked discipline, and the tests of the other —
+/// cannot hold a copy that has drifted from this one.
 pub fn refuses(b: u8) -> bool {
     matches!(b, 0x1a | 0x11 | 0x13)
 }
