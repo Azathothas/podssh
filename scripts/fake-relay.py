@@ -4,7 +4,8 @@
 It serves the forward path the way the live relay does (docs/relay.md):
 TLS 1.3, `POST /v1/mint`, `GET /health`, and `GET /connect/<host>/<port>`
 upgraded to a WebSocket whose binary frames carry the TCP stream, with an
-empty binary frame as keepalive and Pings answered. Each instance can be told
+empty binary frame as keepalive and Pings answered. And the reverse road
+(scripts/fake_reverse.py, T-156): pairs, nodes and operators. Each instance can be told
 to fail in one way, so podssh's failover, liveness and close handling are
 tested against real OpenSSH without waiting for the real relay to fail.
 
@@ -37,17 +38,15 @@ Modes:
 
 import argparse
 import asyncio
-import base64
-import hashlib
 import json
 import random
 import ssl
-import struct
 import time
-from email.utils import formatdate
+
+import fake_reverse
+from fake_ws import close_frame, frame, read_frame, response, upgraded
 
 TOKEN = "fake-relay-token-for-the-interop-harness"
-GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 # The relay's own reasons for each code (docs/relay.md, forward path).
 REASONS = {
     1001: "idle timeout",
@@ -57,44 +56,6 @@ REASONS = {
 }
 
 args = None
-
-
-def response(status, reason, body=b"", headers=()):
-    head = [f"HTTP/1.1 {status} {reason}", f"Date: {formatdate(usegmt=True)}",
-            f"Content-Length: {len(body)}", "Connection: close"]
-    head += [f"{k}: {v}" for k, v in headers]
-    return ("\r\n".join(head) + "\r\n\r\n").encode() + body
-
-
-def frame(opcode, payload=b""):
-    n = len(payload)
-    if n < 126:
-        head = struct.pack("!BB", 0x80 | opcode, n)
-    elif n < 65536:
-        head = struct.pack("!BBH", 0x80 | opcode, 126, n)
-    else:
-        head = struct.pack("!BBQ", 0x80 | opcode, 127, n)
-    return head + payload
-
-
-def close_frame(code, reason=""):
-    return frame(0x8, struct.pack("!H", code) + reason.encode())
-
-
-async def read_frame(reader):
-    b0, b1 = await reader.readexactly(2)
-    opcode, n = b0 & 0x0F, b1 & 0x7F
-    if n == 126:
-        (n,) = struct.unpack("!H", await reader.readexactly(2))
-    elif n == 127:
-        (n,) = struct.unpack("!Q", await reader.readexactly(8))
-    if not b1 & 0x80:
-        raise ConnectionError("an unmasked client frame")
-    mask = await reader.readexactly(4)
-    data = bytearray(await reader.readexactly(n))
-    for i in range(n):
-        data[i] ^= mask[i % 4]
-    return opcode, bytes(data)
 
 
 async def handle(reader, writer):
@@ -110,7 +71,9 @@ async def handle(reader, writer):
             if ":" in line:
                 k, v = line.split(":", 1)
                 headers[k.strip().lower()] = v.strip()
-        if method == "POST" and path == "/v1/mint":
+        if await fake_reverse.handle(method, path, headers, reader, writer):
+            pass
+        elif method == "POST" and path == "/v1/mint":
             await reader.readexactly(int(headers.get("content-length", "0")))
             body = json.dumps({"token": TOKEN, "expires": int(time.time() * 1000) + 3600_000,
                                "scope": "forward"}).encode()
@@ -148,9 +111,7 @@ async def connect(reader, writer, path, headers):
     except (OSError, asyncio.TimeoutError) as e:
         writer.write(response(502, "Bad Gateway", f"relay: cannot reach {host}:{port}: {e}".encode()))
         return
-    accept = base64.b64encode(hashlib.sha1(headers["sec-websocket-key"].encode() + GUID).digest()).decode()
-    writer.write(("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n"
-                  f"Sec-WebSocket-Accept: {accept}\r\n\r\n").encode())
+    writer.write(upgraded(headers))
     await writer.drain()
     await pump(reader, writer, t_reader, t_writer)
 

@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:152-272`).
+   (`crates/podssh-cli/src/man/facts.rs:159-279`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -746,8 +746,8 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:306-320`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:199-214`,
-   `crates/podssh-cli/src/man/facts.rs:238-247`), the note at
+   (`crates/podssh-cli/src/man/facts.rs:206-221`,
+   `crates/podssh-cli/src/man/facts.rs:245-254`), the note at
    `crates/podssh-cli/src/man/notes.rs:71`, `docs/relay.md`, `README.md`.
 
 ## Decision
@@ -867,7 +867,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:152-272`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:159-279`).
 
 ## Decision
 
@@ -948,7 +948,7 @@ must grow for layer 2).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -962,8 +962,8 @@ Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
 killed in a session gives exit 255 (`scripts/interop-faults.sh:150-168`).
 These checks stay, for the forward road, which has no resumption. Read: the
-stand-in relay serves the forward path only (`scripts/fake-relay.py:113-125`),
-and its `stall` mode never ends (`scripts/fake-relay.py:265-268`). The
+stand-in relay serves the forward path only (`scripts/fake-relay.py:76-88`),
+and its `stall` mode never ends (`scripts/fake-relay.py:226-229`). The
 harness cannot change an address or end a stall yet (T-203). The checks need
 T-151 to T-155, the iroh road (T-162 to T-165), the reverse runners (T-079,
 T-080) and a far end (`podssh serve`, T-107).
@@ -1032,13 +1032,42 @@ The far end that the checks need is the layer's far end, which `podssh node`
 is, in front of an SSH server; `podssh serve` (T-107, held by the operator)
 is not needed for them.
 
+- The new address and the stall are the client's, as the exit names them:
+  the node has a proxy of its own, which makes a fault only when the relay
+  host stops. A node whose own link goes silent comes back only when the
+  relay lets its old socket go (`409`, T-261), and the stand-in relay, which
+  sends nothing on an idle socket, never does.
+- The gate runs the same checks in the build image (the step `m6`), with
+  the tests' SSH server, and not OpenSSH with a `-tt` shell: the layer is
+  below SSH, where a pty's bytes are bytes, and 20 MiB of `echo` checks each
+  of them. The live run from the box, with a pty, comes with T-251.
+
 ## Done
 
-Partial, 2026-10-10. Done: the decisions above. To do: the reverse road in
-`scripts/fake-relay.py`; `--stop-after` and `--pause` in
-`scripts/fake-proxy.py`; a test relay of iroh under a name; the native
-checks (three faults, two roads, and the forward road's controls); the
-gate's checks; `docs/STATUS.md` and the M6 exit in `docs/ROADMAP.md`.
+2026-10-10. The exit of M6 is met on this machine's loopback: a session
+survives a stopped relay host, a new address of its client and a stall of
+3 minutes, on the resumable layer over the reverse road and on the iroh
+road, and the same faults end a session of the forward road with 255
+(`docs/STATUS.md`, "Faults between podssh and the relay, measured").
+- The stand-ins: the reverse road in the stand-in relay
+  (`scripts/fake_reverse.py`, on the WebSocket parts of
+  `scripts/fake_ws.py`, which `scripts/fake-relay.py` imports);
+  `--stop-after`, `--pause` and `--start-file` in `scripts/fake-proxy.py`;
+  iroh's relay server under a name (`spawn_named` in
+  `crates/podssh-iroh/src/test_relay.rs`); and `PODSSH_IROH_UDP=off`, which
+  turns the iroh road's UDP off (`crates/podssh-iroh/src/endpoint.rs`, in
+  the manual).
+- The checks: 11 ignored tests in `crates/podssh-cli/tests/m6_exit.rs`, and
+  the gate's step `m6` (`scripts/gate.sh`), which CI runs at each push.
+  Native, Windows: 11 of 11 in 630 s, and the layer's check of a stopped
+  relay host 10 times more.
+- Found on the way: the stand-in relay gave the operator the node's first
+  bytes before its `ready` when the two came in one read, which the live
+  relay never does (repaired in the stand-in); and a session of the forward
+  road could wait for ever after its relay host stopped (T-269, repaired).
+- Waits for T-251: the live run from the box through the live relay, with
+  the stall at the box's proxy ("a session that survives a killed relay
+  connection").
 
 # T-157: Throughput on each road and relay, by a committed method
 

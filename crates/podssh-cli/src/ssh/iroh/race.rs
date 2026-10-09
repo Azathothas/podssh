@@ -113,7 +113,7 @@ impl Iroh<'_> {
             relays: home,
             proxy,
             trust: self.trust.clone(),
-            udp: Udp::Probe,
+            udp: Udp::from_environment(),
             secret: Some(key.secret.clone()),
             accepts: false,
             ..Options::default()

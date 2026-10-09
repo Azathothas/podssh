@@ -34,16 +34,21 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   than 5 minutes or 100 MiB wait for T-251. The operator settled Q31 to Q37 on 2026-10-09
   (`docs/decisions.md`). A copy of the tree before T-262 is at the local ref
   `refs/checkpoints/2026-10-09`, a backup only: never pushed, never merged.
+- **M6 (2026-10-10).** Its exit is met on the loopback (T-156): a session
+  survives a stopped relay host, a new address of its client and a stall of
+  3 minutes, on the resumable layer and on the iroh road; the gate's step
+  `m6` runs the checks at each push. T-263 is the last entry of M6.
 
 ## Baseline
 
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`, again after T-164 (2026-10-10):
-  1014 passed, 0 failed, 24 ignored (the live tests). With the feature `iroh` and the test
+- `cargo test --no-fail-fast`, again after T-156 (2026-10-10):
+  1069 passed, 0 failed, 37 ignored (the live tests, and the checks of
+  faults and of the exit of M6). With the feature `iroh` and the test
   relay, `cargo test -p podssh-iroh -p podssh-cli --features
-  podssh-cli/iroh-test`: 368 passed, 0 failed, 12 ignored. CI's gate passed at `a3b81d1`
+  podssh-cli/iroh-test`: 371 passed, 0 failed, 29 ignored. CI's gate passed at `a3b81d1`
   (T-262; run 37963246424).
 - `cargo test -p podssh-relay --all-features --no-fail-fast`, after T-261:
   173 passed, 0 failed, 14 ignored (the live tests).
@@ -57,7 +62,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 266 entries: 138 open, 1 partial, 22 blocked, 105 done.
+`TODO/INDEX.md` holds 266 entries: 138 open, 0 partial, 22 blocked, 106 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

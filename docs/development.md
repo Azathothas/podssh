@@ -187,7 +187,7 @@ write it into the Dockerfile, and run the gate.
 
 `scripts/gate.sh` is the gate. CI runs the same file in the same image. Its
 steps, in order: `lint`, `libs`, `msrv`, `msrv_ssh`, `msrv_ts`, `msrv_iroh`,
-`record`, `ssh`, `ts`, `iroh` and `release`; `sh scripts/gate.sh --list` prints them. With no argument, the
+`record`, `ssh`, `ts`, `iroh`, `m6` and `release`; `sh scripts/gate.sh --list` prints them. With no argument, the
 gate runs each step; with names, those steps, in the order given. CI runs
 each step in a job of its own, at the same time: its job `plan` reads the
 list, so CI cannot miss a step that the gate has. `python
@@ -225,17 +225,29 @@ dependencies that these minimums allow. The other steps make sure that:
    with `iroh-test` (the feature `iroh` and a relay server for the tests,
    never in a release), `podssh node --iroh` and `podssh ssh iroh:TICKET`
    from end to end, through iroh's relay server on the loopback.
-5. (`release`, with 6 to 9) The static musl binary has no dynamic dependencies
-   and no program interpreter.
-6. The binary works against real servers. `scripts/interop.sh` installs
+5. (`m6`) The exit of M6 (T-156): a session survives a stopped relay host,
+   a new address of its client and a stall of 3 minutes, with 20 MiB up and
+   back and the fault in their middle, on the resumable layer over the
+   reverse road and on the iroh road; the same faults end a session of the
+   forward road with 255. The stand-in relay serves the reverse road
+   (`scripts/fake_reverse.py`, on `scripts/fake_ws.py`) as the live relay
+   showed it, and iroh's relay server runs under a name that only the
+   stand-in proxies resolve, with no UDP (`PODSSH_IROH_UDP=off`). The proxies
+   make the faults: the client's makes each, the far end's only a stopped
+   relay host, which ends each connection to it. About 15 minutes;
+   natively, `cargo test -p podssh-cli --features iroh-test --test m6_exit
+   -- --ignored --test-threads 1`.
+6. (`release`, with 7 to 10) The static musl binary has no dynamic
+   dependencies and no program interpreter.
+7. The binary works against real servers. `scripts/interop.sh` installs
    OpenSSH and Dropbear in the container, starts them on 127.0.0.1, and runs
    `podssh ssh --direct` against them: exit statuses and signals, streams
    and digests, each authentication method, host keys, `-W`, `-J`, `-s`,
    ptys through pipes, and a real pty (`scripts/interop-pty.py`: resize,
    Ctrl-C, `vi`, `less`, `top`, `~.`).
-7. OpenSSH accepts the keys of `podssh keygen` (`scripts/interop-keygen.sh`):
+8. OpenSSH accepts the keys of `podssh keygen` (`scripts/interop-keygen.sh`):
    its `ssh-keygen` reads them and its `sshd` accepts them for login.
-8. podssh handles a relay that fails (`scripts/interop-faults.sh`). A
+9. podssh handles a relay that fails (`scripts/interop-faults.sh`). A
    stand-in relay (`scripts/fake-relay.py`, with TLS from a CA made for the
    run) and a stand-in proxy (`scripts/fake-proxy.py`) fail in one way each:
    a host that is down, a 503, a host that does not answer after TLS, a host
@@ -244,11 +256,11 @@ dependencies that these minimums allow. The other steps make sure that:
    session. Since T-203, the stand-in relay also shapes the traffic: 2 s
    each way (with a planted control: a `ConnectTimeout` of 5 s must fail), a
    jitter of 0 to 1.5 s (5,000,000 bytes up and back, unchanged), 64 KiB/s
-   (2,000,000 bytes near the time computed), and a cut with no Close. Its
-   `pause` mode and the stand-in proxy's `--move` are for the checks of
-   T-156. The same checks run natively in an ignored test, `cargo test -p
-   podssh-cli --test faults -- --ignored --test-threads 1`.
-9. The man page renders (`scripts/interop-man.sh`): groff and mandoc show
+   (2,000,000 bytes near the time computed), and a cut with no Close. The
+   stand-in proxy's `--move`, `--pause` and `--stop-after` make the faults of
+   the step `m6`. The same checks run natively in an ignored test, `cargo
+   test -p podssh-cli --test faults -- --ignored --test-threads 1`.
+10. The man page renders (`scripts/interop-man.sh`): groff and mandoc show
    each flag that `--help` shows, groff gives no warning, and `mandoc -Tlint`
    gives no error. A planted page, with one flag's term removed, must fail.
 

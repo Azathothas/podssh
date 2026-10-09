@@ -18,7 +18,7 @@ set -u
 
 # The steps, in the order of a full run. A step that is not in this list runs
 # nowhere: not here, and not in CI.
-STEPS="lint libs msrv msrv_ssh msrv_ts msrv_iroh record ssh ts iroh release"
+STEPS="lint libs msrv msrv_ssh msrv_ts msrv_iroh record ssh ts iroh m6 release"
 
 if [ "$#" -eq 1 ] && [ "$1" = --list ]; then
     for _s in $STEPS; do
@@ -235,6 +235,18 @@ step_iroh() {
     # (`tests/iroh_road.rs`) runs too.
     run "the iroh road (feature iroh, needs cc): tests" \
         cargo test --locked --no-fail-fast -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test
+}
+
+# The exit of M6 (T-156): a session survives a stopped relay host, a new
+# address of its client and a stall of 3 minutes, on the resumable layer over
+# the reverse road and on the iroh road, through the stand-in relay and
+# proxies; the same faults end a session of the forward road. About 10
+# minutes, most of them the two stalls.
+step_m6() {
+    run "Python and openssl, for the stand-ins" apk add --no-cache python3 openssl
+    run "the exit of M6 (feature iroh, needs cc)" \
+        cargo test --locked -p podssh-cli --features podssh-cli/iroh-test --test m6_exit -- --ignored --test-threads 1
+    grep -E '^test |^test result' /tmp/podssh-step.out
 }
 
 # The shipped artefact, a static musl binary; then the binary against real

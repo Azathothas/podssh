@@ -1,11 +1,11 @@
 The work of milestone M7, `podssh pipe` and `--persist`, and the backlog of
 streams that `pipe` can carry: desktop streams and Telnet, a published HTTP
 service, serial devices and USB/IP. The design is `docs/design.md:387-422`;
-the milestone is `docs/ROADMAP.md:227-236`.
+the milestone is `docs/ROADMAP.md:231-240`.
 
 # T-174: `podssh pipe A B` with local addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`), `docs/design.md:404-422`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:404-422`;
 GitHub #26 (Nemo-010, 2026-10-08). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M7
@@ -101,7 +101,7 @@ checks for 7 and 64 must fail.
 
 # T-175: `podssh pipe` with remote addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`), `docs/design.md:411-414`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:411-414`;
 GitHub #26 (Nemo-010, 2026-10-08); the RustConn report in GitHub #24 (one
 address model across roads; read in the report, not verified here).
 **Category:** feature
@@ -218,7 +218,7 @@ guessed from a message; `podssh cp` maps it so.
 
 # T-176: `podssh pipe` with `unix-connect:PATH`
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`); GitHub #26 ("a name for
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`); GitHub #26 ("a name for
 AF_UNIX streams"), from the USBoverSSH report in GitHub #25
 (`ImKKingshuk/USBoverSSH:usboverssh/src/tunnel.rs`; read in the report, not
 verified here).
@@ -280,7 +280,7 @@ never answers, and the test fails at its limit of 10 s.
 
 # T-177: `podssh pipe` with a local listener after a probe
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:232-233`), `docs/design.md:416-422`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:416-422`;
 GitHub #26 (a local-only mode, as the `--local` of bunflared; read in the
 report, not verified here); sandbox A of T-001.
 **Category:** feature
@@ -375,7 +375,7 @@ Plant: bind with no umask; the check of the mode must fail.
 
 # T-178: `--persist`: connect again and attach `tmux` again
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:234-236`), `docs/design.md:238-248`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:238-240`), `docs/design.md:238-248`;
 GitHub #19 (a lasting terminal through `tmux`, from the slingshot report:
 `ado11231/slingshot:crates/slingshot-agent/src/jobs.rs`; read in the
 report, not verified here).

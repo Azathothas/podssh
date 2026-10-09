@@ -76,7 +76,7 @@ pub(super) async fn connect(
         relays: home,
         proxy,
         trust: trust.clone(),
-        udp: Udp::Probe,
+        udp: Udp::from_environment(),
         secret: Some(key.secret.clone()),
         accepts: false,
         ..Options::default()

@@ -219,10 +219,14 @@ podssh. M3 has no release: the one release is `v1.0.0`, in M9
 - The fault-injection harness with latency, jitter, limited bandwidth and a
   changed address: T-203.
 
-**Exit criteria** (T-156)
+**Exit criteria** (T-156; met on 2026-10-10)
 
-- A session survives a stopped relay host, a change of the client's address
-  and a stall of 3 minutes, on the resumable layer and on the iroh road.
+- [x] A session survives a stopped relay host, a change of the client's
+      address and a stall of 3 minutes, on the resumable layer and on the
+      iroh road: through the stand-in relay and proxies on the loopback,
+      natively (`docs/STATUS.md`); the gate's step `m6` runs the same checks
+      at each push. The live run from the box, through the live relay, comes
+      with the checks of the release.
 
 ## M7: `podssh pipe`, and `--persist`
 

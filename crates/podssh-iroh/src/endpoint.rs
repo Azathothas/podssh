@@ -66,6 +66,21 @@ pub enum Udp {
     Off,
 }
 
+/// The variable that turns UDP off: `off` makes the relay carry each byte,
+/// as on a host whose UDP is refused further on than the probe sees, and as
+/// the checks of a sandbox need (T-156).
+pub const UDP_ENV: &str = "PODSSH_IROH_UDP";
+
+impl Udp {
+    /// [`Udp::Off`] when the variable says `off`; else [`Udp::Probe`].
+    pub fn from_environment() -> Udp {
+        match std::env::var(UDP_ENV) {
+            Ok(value) if value.trim().eq_ignore_ascii_case("off") => Udp::Off,
+            _ => Udp::Probe,
+        }
+    }
+}
+
 /// Why an endpoint could not be made.
 #[derive(Debug)]
 pub enum BindError {

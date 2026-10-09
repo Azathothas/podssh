@@ -33,13 +33,15 @@ base64 = { workspace = true }
 iroh-tickets = "1"
 # The secret key's bytes and text, wiped when they are dropped.
 zeroize = { workspace = true }
-# iroh's relay server, for the feature `test-relay` only.
+# iroh's relay server, and a certificate under any name, for the feature
+# `test-relay` only.
 iroh-relay = { version = "1", default-features = false, features = ["server", "test-utils"], optional = true }
+rcgen = { version = "0.14", optional = true }
 
 [features]
 # A relay server on the loopback for the tests of this crate and of the
 # command line (`podssh-cli`'s feature `iroh-test`); never in a release.
-test-relay = ["iroh/test-utils", "dep:iroh-relay"]
+test-relay = ["iroh/test-utils", "dep:iroh-relay", "dep:rcgen", "rustls/ring"]
 
 [dev-dependencies]
 # A relay server on the loopback, and the skip of its certificate check, for

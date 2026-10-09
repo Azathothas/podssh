@@ -316,7 +316,7 @@ sh scripts/dev.sh check
 The unit test checks the rule: which phases and which closes allow a retry.
 In the gate, `scripts/fake-relay.py` gets a mode that drops only its first
 session during the handshake, beside the modes at
-`scripts/fake-relay.py:14-21`. Through it, `exit 5` still gives 5, with one
+`scripts/fake-relay.py:15-22`. Through it, `exit 5` still gives 5, with one
 retry note. A second case drops after the exec request: exit 255, and a file
 that the command appends to has one line. Planted defect: retry in each
 phase, and that file has two lines.
@@ -407,7 +407,7 @@ logs each `exit-status` request, and correct the row.
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
 lablup/bssh report in GitHub #18, #20 and #22 (item 8, "`@cert-authority`
-rejection"); the known gap in `docs/STATUS.md:280` and `SECURITY.md:98-100`.
+rejection"); the known gap in `docs/STATUS.md:299` and `SECURITY.md:98-100`.
 Each claim read again here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog
@@ -441,7 +441,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:140-147` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:112-114`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5411`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5412`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -473,7 +473,7 @@ back to the plain key only when no CA line matches.
    (`crates/podssh-cli/src/doctor/clock.rs`).
 6. Keep the test `a_cert_authority_line_does_not_make_a_key_known`: a CA line
    never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:68-70`.
-   When certificates work, change `docs/STATUS.md:280` and `SECURITY.md:98-100`.
+   When certificates work, change `docs/STATUS.md:299` and `SECURITY.md:98-100`.
 
 GitHub #29 notes that the bssh report in #18, #20 and #22 asks podssh to
 keep refusing a certificate that no trusted CA signed. Verification keeps
@@ -1072,7 +1072,7 @@ Read:
   stops reading makes the session idle, not stuck (GitHub #36). Only a stall
   below SSH causes the hang.
 - The stand-in relay's `stall:` mode reads the client's frames and drops them
-  (`scripts/fake-relay.py:276-280`), so no fault tests a stuck write today.
+  (`scripts/fake-relay.py:237-241`), so no fault tests a stuck write today.
   GitHub #36 cites it as scripts/box/fake-relay.py, which does not exist.
 - The reporter measured a zero-window stall outside podssh: after 2.0 MiB,
   the write stayed blocked (read in the issue, not verified here).
@@ -1719,3 +1719,4 @@ relay stream each task's end with the link stops the other
   passed; they pass on the old loop too, as russh wakes a send that waits
   when a channel or a direct connection ends. `cargo test --workspace`:
   1069 passed, 0 failed, 30 ignored.
+- CI, the run of `3022d13` (37999580675): each job passed.

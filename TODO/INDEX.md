@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**266 entries: 138 open, 1 partial, 22 blocked, 105 done.**
+**266 entries: 138 open, 0 partial, 22 blocked, 106 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 13 | 15 |
-| P2 | 54 | 1 | 18 | 77 | 150 |
+| P2 | 54 | 0 | 18 | 78 | 150 |
 | P3 | 82 | 0 | 4 | 14 | 100 |
-| **All** | 138 | 1 | 22 | 105 | 266 |
+| **All** | 138 | 0 | 22 | 106 | 266 |
 
 ## Entries
 
@@ -229,7 +229,7 @@ repository and CI).
 | [T-153](resume.md) | P2 | L | M6 | feature | done | Resume through any road and relay host, with a session secret and a capped backoff |
 | [T-154](resume.md) | P2 | S | M6 | feature | done | Heartbeats that also prevent the relay's idle cut |
 | [T-155](resume.md) | P2 | S | M6 | feature | done | Move a session to a new relay connection before the relay's limits |
-| [T-156](resume.md) | P2 | M | M6 | measurement | partial | M6 exit: a session survives a stopped relay host, a new address and a stall of 3 minutes |
+| [T-156](resume.md) | P2 | M | M6 | measurement | done | M6 exit: a session survives a stopped relay host, a new address and a stall of 3 minutes |
 | [T-157](resume.md) | P2 | M | M6 | measurement | done | Throughput on each road and relay, by a committed method |
 | [T-158](resume.md) | P3 | M | backlog | feature | open | Detach and attach again |
 | [T-159](resume.md) | P3 | M | backlog | feature | open | Sessions on the far end that outlive the client |

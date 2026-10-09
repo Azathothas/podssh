@@ -124,11 +124,18 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
 /// The variables of the iroh road (T-165), which only a build with the
 /// feature `iroh` reads.
 #[cfg(feature = "iroh")]
-const FEATURE_VARIABLES: &[(&[&str], &str)] = &[(
-    &["PODSSH_IROH_RELAY"],
-    "The iroh relays, as --iroh-relay: https://HOST[:PORT], separated by commas, in order. The flag wins; \
-      an empty value is no value, and a bad one is a configuration error (78).",
-)];
+const FEATURE_VARIABLES: &[(&[&str], &str)] = &[
+    (
+        &["PODSSH_IROH_RELAY"],
+        "The iroh relays, as --iroh-relay: https://HOST[:PORT], separated by commas, in order. The flag \
+          wins; an empty value is no value, and a bad one is a configuration error (78).",
+    ),
+    (
+        &["PODSSH_IROH_UDP"],
+        "off: the iroh road takes no direct path, and its relay carries each byte, as where UDP is \
+          refused. Else UDP is used when a socket binds.",
+    ),
+];
 
 #[cfg(not(feature = "iroh"))]
 const FEATURE_VARIABLES: &[(&[&str], &str)] = &[];

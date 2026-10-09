@@ -119,7 +119,7 @@ seconds at `scripts/interop.sh:237`, the tty at `:221`), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
-(`scripts/gate.sh:284`). The totals are typed in `docs/STATUS.md:21`, line 57 at `3cbf215`
+(`scripts/gate.sh:296`). The totals are typed in `docs/STATUS.md:21`, line 57 at `3cbf215`
 and line 196 at `22c3b88`.
 
 ## Approach
@@ -309,7 +309,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:346-349`): a proxy head that never ends stops at
+   (`docs/development.md:358-361`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -439,8 +439,8 @@ minutes, and no harness can test that yet.
 Read:
 
 - The modes of the stand-in relay: `normal`, `refuse`, `blackhole`, `silent`,
-  `stall` and `close` (`scripts/fake-relay.py:14-21`). The stand-in proxy maps
-  names and answers a status (`scripts/fake-proxy.py:1-19`). Neither shapes
+  `stall` and `close` (`scripts/fake-relay.py:15-22`). The stand-in proxy maps
+  names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:36-43` starts one stand-in for each fault; its
   checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:230-247`, 14 of 14 since T-236).
@@ -454,7 +454,7 @@ Read:
 
 ## Approach
 
-1. New modes in `scripts/fake-relay.py`, applied in `pump` (`:212-332`), in
+1. New modes in `scripts/fake-relay.py`, applied in `pump` (`:173-293`), in
    each direction: `delay:MS`; `jitter:MIN:MAX:SEED`, from a seeded generator,
    so that a run repeats; `rate:BYTES_PER_SECOND`, a token bucket;
    `cut:BYTES`, the TCP connection closed with no Close frame.
@@ -470,8 +470,8 @@ Read:
 4. With T-151 to T-155: a stand-in relay host stopped during a session, the
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
-5. Update docs/development.md (item 8 of the gate,
-   `docs/development.md:238-250`) and the faults table of docs/STATUS.md.
+5. Update docs/development.md (item 8 of the gate, item 9 since T-156,
+   `docs/development.md:250-262`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 
@@ -513,7 +513,7 @@ fail when the resume layer is off.
 ## Correction
 
 Item 4 needs the reverse road in the stand-in relay, which serves the
-forward road only (`scripts/fake-relay.py:110-111`). T-156 builds it (its
+forward road only (`scripts/fake-relay.py:71-72`). T-156 builds it (its
 item 1) and makes those checks its measurement (its items 2 to 5). T-203
 gives T-156 the faults that those checks need: `pause:AFTER:FOR` for the
 stall that ends, `cut` for a host stopped mid-session, and `--move` for the

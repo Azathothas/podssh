@@ -132,7 +132,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         relays: home,
         proxy,
         trust,
-        udp: Udp::Probe,
+        udp: Udp::from_environment(),
         secret: Some(key.secret.clone()),
         accepts: true,
         ..Options::default()

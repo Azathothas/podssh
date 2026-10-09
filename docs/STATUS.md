@@ -268,6 +268,25 @@ relay host's connections end with RST at 8 MiB): `ssh` exits 255 in about
 4 s, in each of 110 runs. Before T-269, 7 of 54 runs never ended, and said
 nothing after the login.
 
+The exit of M6 (T-156), measured natively on Windows, 2026-10-10 (`cargo
+test -p podssh-cli --features iroh-test --test m6_exit -- --ignored
+--test-threads 1`, 11 of 11 in 630 s): 20 MiB up and back through `echo` of
+the tests' SSH server, with the fault at 8 MiB; the stand-in relay with the
+reverse road (`scripts/fake_reverse.py`), or iroh's relay server under a
+name that only the stand-in proxies resolve, with no UDP. The client's
+proxy makes each fault; the node's makes only the stopped relay host.
+
+| Fault | The resumable layer, over the reverse road | The iroh road | The forward road (the control) |
+| --- | --- | --- | --- |
+| None | Each byte back, no loss, in 8 s | Each byte back, no loss, in 2 s | (none) |
+| A stopped relay host: each open connection, the client's and the node's, ends with RST | Each byte back in 6 to 10 s; one loss and its resume, or two when the client resumes before the node's loss | Each byte back in 2 s; QUIC went on, with no loss of the layer | Exit 255 in 2 s |
+| A new address of the client: its connections go silent, and new ones leave from 127.0.0.2 | Each byte back in 40 s; one loss and its resume | Each byte back in 17 s; no loss of the layer | Exit 255 in 62 s (the write limit of 60 s) |
+| A stall of 3 minutes: each byte of the client's connections waits 180 s | Each byte back in 208 s; one loss and its resume | Each byte back in 200 s; one loss of the layer and its resume | Exit 255 in 62 s |
+
+The gate's step `m6` runs the same checks in the build image at each push.
+The live run from the box, through the live relay, comes with the checks of
+the release (T-251).
+
 ## Components
 
 The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082;
@@ -294,9 +313,9 @@ The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082;
 | The library crates and `podssh-todo` on their declared minimum, Rust 1.85 | Pass `cargo check --locked --all-targets` on 1.85.0 and 1.85.1, Windows, 2026-10-09 (T-081); a call stabilized in 1.86, planted, fails it (`E0658`) | `cargo +1.85 check --locked --all-targets ...` (`scripts/gate.sh`, the step `msrv`) |
 | `podssh-ssh` and `podssh-cli` on their declared minimum, Rust 1.89 (russh's) | Pass `cargo check --locked --all-targets` in the build image, 2026-10-09 (T-217), and again with `russh-sftp` 3.0.1, which declares no minimum (T-133); a call stable since 1.90 (`u32::checked_sub_signed`), planted, fails both (`E0658`) | `sh scripts/gate.sh msrv_ssh` |
 | `podssh-ts`, and `podssh-cli` with the feature `ts`, on their declared minimum, Rust 1.92 (the fork's) | Pass `cargo check --locked --all-targets` in the build image, 2026-10-09 (T-217); with 1.91 declared, planted, cargo refuses each crate of the fork, which requires 1.92.0 | `sh scripts/gate.sh msrv_ts` |
-| The default tests | **1066 passed, 0 failed, 30 ignored** (the live tests and the checks of faults), Windows, 2026-10-10, after T-267. The same in CI's job `windows` on `windows-2025` at each push (run 37882386744, T-214) | `cargo test --no-fail-fast` |
+| The default tests | **1069 passed, 0 failed, 37 ignored** (the live tests, the checks of faults and of the exit of M6), Windows, 2026-10-10, after T-156. The same in CI's job `windows` on `windows-2025` at each push (run 37882386744, T-214) | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
-| The tests of the iroh feature | **368 passed, 0 failed, 12 ignored** (the live tests), Windows, 2026-10-10 (T-164) | `cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test` |
+| The tests of the iroh feature | **371 passed, 0 failed, 29 ignored** (the live tests, and the checks of the exit of M6), Windows, 2026-10-10 (T-156) | `cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test` |
 | The repository checks | Pass. No Rust file under `crates/` (291 after T-138) and no shell or Python script under `scripts/` (31, read since T-207, 2026-10-09; `scripts/dev.sh` is split, 386 and 239 lines) has more than 500 lines; a script of 501 lines, planted, fails. No code file (356 after T-138) holds a stop-sign marker, a line number of a document or a path of the documents that moved (rule 6 of `AGENTS.md`, T-244, 2026-10-09); a planted marker in `crates/podssh-ws/src/frame.rs` fails, with its file and line | `python scripts/check-repo.py` |
 | The work record | `TODO/` agrees with itself. The checker's tests pass: 15 unit tests, 37 plant tests (two controls, and 35 planted disagreements, each found; since T-258, a line number in plain text after a citation, and a bare `:N` past the end of its file), 11 tests of the remap (one of them: a forgotten remap is found by `check`, T-254), 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 8 of its 10 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |
 | The format of the code | `cargo fmt --check` passes for each package of the workspace in the style of `rustfmt.toml` (`max_width = 120`, `use_small_heuristics = "Max"`; the tables of `flags.rs`, of closes and of `-o` keywords kept one row to a line), 2026-10-09 (T-215). The default style would change 242 files and put 14 over 500 lines. clippy gives no warning in any target, also with the feature `ts`: its 47 warnings were repaired, or allowed at their item with the reason (3 items). In the build image, clippy 1.99 found 4 more on the push of that change: a loop over one element, which clippy 1.98 passes, and three clones made into a slice in a test for Unix only, which clippy on Windows does not compile; repaired the same day, and clippy 1.99 with `--keep-going` over each target gives no warning | `cargo fmt -p PACKAGE -- --check`, `cargo clippy --all-targets -- -D warnings` (in the build image: `scripts/gate.sh`) |
