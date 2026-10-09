@@ -2561,7 +2561,7 @@ text after a citation, and reads each bare :N".
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2574,7 +2574,7 @@ test, the step `libs`, and the whole gate, for no defect of podssh.
 
 Measured on 2026-10-09: in `sh scripts/dev.sh check`, the test
 `the_negotiated_parameters_are_ones_this_provider_implements` failed with
-"tls handshake eof" (`crates/podssh-ws/tests/live_handshake.rs:172`); the
+"tls handshake eof" (`crates/podssh-ws/tests/live_handshake.rs` line 172 at `e3ea638`); the
 step `libs` alone, run again at once, passed. Each live test of the file
 opens its own connection, with no second attempt
 (`crates/podssh-ws/tests/live_handshake.rs:31`, `live_enabled`).
@@ -2600,3 +2600,24 @@ cargo test -p podssh-ws --test hostname_verification
 Each passes. Planted defect: a helper that retries a refused certificate
 must make the wrong-hostname plant pass on its third attempt; the test that
 counts the attempts on a verdict must fail.
+
+## Done
+
+2026-10-09, in the commit "A live TLS test tries a dropped connection again,
+and never a verdict".
+
+- `crates/podssh-ws/tests/live_handshake.rs`: `dial`, the one way that each
+  live test connects: TCP and the handshake, each bounded, in up to three
+  attempts (`with_attempts`), with a pause of 1 s; an attempt that ended in
+  EOF, a reset, an abort, a refusal of the connection, a broken pipe or a
+  time limit is printed and tried again; `InvalidData`, the form in which a
+  refused certificate or name arrives, is a verdict and is returned at once.
+- `only_an_attempt_that_broke_is_tried_again`, with no network: a verdict
+  is tried once, and each kind of break three times.
+- `docs/STATUS.md`: the row of `podssh-ws`.
+- Prove: `cargo test -p podssh-ws --test live_handshake`: 6 passed (the five
+  live tests against the relay, and the offline one). `cargo test -p
+  podssh-ws --test hostname_verification`: 3 passed. Plant, restored:
+  `InvalidData` made a break: the offline test failed ("InvalidData: 3
+  attempts"). In the build image, the steps `lint` and `libs`: green.
+

@@ -56,12 +56,7 @@ async fn a_real_handshake_with_the_live_relay_verifies_chain_and_hostname() {
     // A test that connected by IP would prove the chain and not the hostname,
     // which is the half of the TLS check that has no bypass.
     let name = rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a valid DNS name");
-    let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
-        .await
-        .expect("???? the connect timed out — the container may have no egress")
-        .expect("???? the connect failed");
-
-    let stream = config.connect(name, tcp).await;
+    let stream = config.dial(addr, name).await;
 
     match stream {
         Ok(tls) => {
@@ -103,12 +98,7 @@ async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
     // certificate, so a successful handshake here would mean the name check
     // was not performed at all.
     let wrong_name = rustls_pki_types::ServerName::try_from("podssh.invalid".to_string()).expect("a valid DNS name");
-    let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
-        .await
-        .expect("???? the connect timed out")
-        .expect("???? the connect failed");
-
-    let result = config.connect(wrong_name, tcp).await;
+    let result = config.dial(addr, wrong_name).await;
     match result {
         Err(e) => {
             let text = e.to_string();
@@ -146,10 +136,8 @@ async fn the_control_the_right_hostname_is_accepted() {
     let addr: SocketAddr = format!("{RELAY_HOST}:{RELAY_PORT}").to_socket_addrs_first().expect("resolve");
     let config = Connector::new();
     let name = rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a name");
-    let tcp =
-        tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr)).await.expect("connect").expect("connect");
     config
-        .connect(name, tcp)
+        .dial(addr, name)
         .await
         .expect("the control must succeed: a guard proven in one direction only is not a guard");
 }
@@ -167,9 +155,7 @@ async fn the_negotiated_parameters_are_ones_this_provider_implements() {
     let addr: SocketAddr = format!("{RELAY_HOST}:{RELAY_PORT}").to_socket_addrs_first().expect("resolve");
     let config = Connector::new();
     let name = rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a name");
-    let tcp =
-        tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr)).await.expect("connect").expect("connect");
-    let tls = config.connect(name, tcp).await.expect("handshake");
+    let tls = config.dial(addr, name).await.expect("handshake");
     let (_, session) = tls.get_ref();
 
     // `negotiated_cipher_suite` returns `Option<SupportedCipherSuite>`, and
@@ -218,17 +204,34 @@ async fn each_group_alone_completes_a_handshake_with_the_relay() {
         let config = tls::client_config_with(&tls::roots_from_compiled_set(), provider).expect("a config");
         let connector = tokio_rustls::TlsConnector::from(config);
         let name = rustls_pki_types::ServerName::try_from(RELAY_HOST.to_string()).expect("a name");
-        let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
-            .await
-            .expect("connect in time")
-            .expect("connect");
-        let tls = tokio::time::timeout(TIMEOUT, connector.connect(name, tcp))
-            .await
-            .expect("a handshake in time")
-            .unwrap_or_else(|e| panic!("{:?} alone: {e}", group.name()));
+        let tls = dial(&connector, addr, &name).await.unwrap_or_else(|e| panic!("{:?} alone: {e}", group.name()));
         let negotiated = tls.get_ref().1.negotiated_key_exchange_group().expect("a group").name();
         eprintln!("{:?} alone: the handshake completed", group.name());
         assert_eq!(negotiated, group.name());
+    }
+}
+
+/// **A verdict is never tried again; a connection that broke is.** No
+/// network: each attempt is counted, so that a retry of a refused
+/// certificate, which would let the wrong-hostname plant pass on a later
+/// attempt, fails here.
+#[tokio::test]
+async fn only_an_attempt_that_broke_is_tried_again() {
+    use std::io::{Error, ErrorKind};
+    for (kind, expected) in [
+        (ErrorKind::InvalidData, 1),
+        (ErrorKind::UnexpectedEof, ATTEMPTS),
+        (ErrorKind::ConnectionReset, ATTEMPTS),
+        (ErrorKind::TimedOut, ATTEMPTS),
+    ] {
+        let mut calls = 0;
+        let done = with_attempts(|| {
+            calls += 1;
+            async move { Err(Error::new(kind, "planted")) }
+        })
+        .await;
+        assert!(done.is_err());
+        assert_eq!(calls, expected, "{kind:?}: {calls} attempts");
     }
 }
 
@@ -247,6 +250,56 @@ struct Connector(tokio_rustls::TlsConnector);
 /// text and not on a variant.
 type TlsStream = tokio_rustls::client::TlsStream<tokio::net::TcpStream>;
 
+/// Attempts at one handshake. The relay's side drops connections at random
+/// (T-255), and one drop must not fail the gate; a handshake that reached a
+/// verdict is never tried again, so a plant fails at its first attempt.
+const ATTEMPTS: usize = 3;
+
+/// An attempt that ended before the handshake gave a verdict: the
+/// connection broke, or a time limit passed. A refused certificate or name
+/// arrives as `InvalidData`, which is a verdict.
+fn transient(e: &std::io::Error) -> bool {
+    use std::io::ErrorKind::*;
+    matches!(e.kind(), UnexpectedEof | ConnectionReset | ConnectionAborted | ConnectionRefused | BrokenPipe | TimedOut)
+}
+
+/// Run `attempt` until it gives a stream or a verdict, at most `ATTEMPTS`
+/// times; each attempt that broke is printed.
+async fn with_attempts<F, Fut>(mut attempt: F) -> Result<TlsStream, std::io::Error>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<TlsStream, std::io::Error>>,
+{
+    let mut tried = 0;
+    loop {
+        tried += 1;
+        match attempt().await {
+            Err(e) if transient(&e) && tried < ATTEMPTS => {
+                eprintln!("attempt {tried} of {ATTEMPTS} broke before a verdict: {e}; trying again");
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+            done => return done,
+        }
+    }
+}
+
+/// TCP to the relay, then a handshake under `name`, each bounded, in
+/// attempts.
+async fn dial(
+    connector: &tokio_rustls::TlsConnector,
+    addr: SocketAddr,
+    name: &rustls_pki_types::ServerName<'static>,
+) -> Result<TlsStream, std::io::Error> {
+    with_attempts(|| async {
+        let late = |what: &str| std::io::Error::new(std::io::ErrorKind::TimedOut, format!("{what} timed out"));
+        let tcp = tokio::time::timeout(TIMEOUT, tokio::net::TcpStream::connect(addr))
+            .await
+            .map_err(|_| late("the connect"))??;
+        tokio::time::timeout(TIMEOUT, connector.connect(name.clone(), tcp)).await.map_err(|_| late("the handshake"))?
+    })
+    .await
+}
+
 impl Connector {
     /// **`client_config` is the library's own, not a copy of it.** The
     /// first version of this file rebuilt the `ClientConfig` here, and a plant
@@ -260,12 +313,13 @@ impl Connector {
         Connector(tokio_rustls::TlsConnector::from(config))
     }
 
-    async fn connect(
+    /// The relay, under `name`, in attempts.
+    async fn dial(
         &self,
+        addr: SocketAddr,
         name: rustls_pki_types::ServerName<'static>,
-        tcp: tokio::net::TcpStream,
     ) -> Result<TlsStream, std::io::Error> {
-        self.0.connect(name, tcp).await
+        dial(&self.0, addr, &name).await
     }
 }
 

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**256 entries: 175 open, 0 partial, 8 blocked, 73 done.**
+**256 entries: 174 open, 0 partial, 8 blocked, 74 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 92 | 0 | 4 | 52 | 148 |
+| P2 | 91 | 0 | 4 | 53 | 148 |
 | P3 | 81 | 0 | 4 | 13 | 98 |
-| **All** | 175 | 0 | 8 | 73 | 256 |
+| **All** | 174 | 0 | 8 | 74 | 256 |
 
 ## Entries
 
@@ -330,4 +330,4 @@ repository and CI).
 | [T-256](reverse.md) | P2 | S | M4 | defect | done | A local side that does not read stops every session of the node |
 | [T-257](ssh.md) | P2 | M | backlog | defect | open | An RSA user key signs through the `rsa` crate, which is open to a timing attack |
 | [T-258](repo.md) | P3 | S | none | defect | done | Line numbers written as plain text in the record are not moved |
-| [T-259](repo.md) | P2 | S | none | defect | open | One dropped connection fails a live TLS test, and with it the gate |
+| [T-259](repo.md) | P2 | S | none | defect | done | One dropped connection fails a live TLS test, and with it the gate |
