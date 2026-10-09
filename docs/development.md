@@ -142,12 +142,17 @@ published history (`AGENTS.md`, section 6).
 
 ```sh
 sh scripts/dev.sh check    # the host checks, then scripts/gate.sh in the build image
+sh scripts/dev.sh gate     # scripts/gate.sh alone, in the build image
 sh scripts/dev.sh plant    # shows that the checks for "no C or C++ compiler" work
 sh scripts/dev.sh images   # the build image runs: its uname, rustc and cargo
 sh scripts/dev.sh test -p podssh-core
 sh scripts/dev.sh run -- 'uname -a'
 sh scripts/dev.sh help
 ```
+
+`scripts/dev.sh` reaches the container through `scripts/dev-wsl.sh`, which it
+sources: wsl-toolkit, called through PowerShell from Git Bash, with a copy
+of the tree.
 
 Each image is named in one place, pinned to the digest of its multi-platform
 index: `.github/images/build/Dockerfile` (`rust:1-alpine`, for the gate, CI
@@ -220,7 +225,7 @@ handles each fault. The live tests show that podssh works with the real
 relay.
 
 The containers are temporary. They get the tree as CI does, without these
-patterns of `scripts/dev.sh` (`EXCLUDES`): `target/**` and
+patterns of `scripts/dev-wsl.sh` (`EXCLUDES`): `target/**` and
 `vendor/tailscale-rs/target/**` (build output, which would pass the copy's
 limit of 1 GiB), `.git/**`, `.work/**`, `.tmp/**`, `.env/**` (live
 credentials) and `.codegraph/**` (a local index). A pattern matches a file of

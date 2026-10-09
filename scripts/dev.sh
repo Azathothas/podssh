@@ -5,18 +5,19 @@
 # nobody reads a manual to use it: the two facts about it that used to require
 # a manual are encoded below, once, with the reason next to each.
 #
-#   sh scripts/dev.sh check      the full gate: record, build, test, constraints
+#   sh scripts/dev.sh check      the host checks, then each step of the gate
+#   sh scripts/dev.sh gate       the gate only, in the container
 #   sh scripts/dev.sh test       cargo test only
 #   sh scripts/dev.sh build      cargo build only
-#   sh scripts/dev.sh plant      the planted-defect gate, both directions
+#   sh scripts/dev.sh plant      the plant of the no-C rule, both directions
 #   sh scripts/dev.sh run -- CMD run CMD in the build image, with the tree
 #   sh scripts/dev.sh images     report the build image and its toolchain
 #   sh scripts/dev.sh clean      list (not remove) leftover wsl-toolkit jobs
 #   sh scripts/dev.sh help       this text
 #
 # It builds inside a Linux container, because the artefact that ships is a
-# static Linux binary and the gate's checks (no C compiler for the default
-# build, static linkage) are Linux facts. Day-to-day `cargo test` runs fine
+# static Linux binary and the gate's checks (no C compiler for the library
+# crates, static linkage) are Linux facts. Day-to-day `cargo test` runs fine
 # natively; see docs/development.md.
 #
 # Container runs are serialized by a lock and capped at PODSSH_JOBS cargo jobs
@@ -45,12 +46,14 @@ done
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$script_src")" && pwd -P)
 REPO_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
 
+# The Windows transport: wsl-toolkit through PowerShell, the copy of the tree
+# and what it leaves out, the preflight (scripts/dev-wsl.sh).
+# shellcheck source=scripts/dev-wsl.sh
+. "$SCRIPT_DIR/dev-wsl.sh"
+
 # ------------------------------------------------------------------ configuration
-# Overridable, so a future session can point at a different tool or image
-# without reading this file first.
-PODSSH_TOOL=${PODSSH_TOOL:-wsl-toolkit}
-PODSSH_PS=${PODSSH_PS:-powershell.exe}
-PODSSH_PS_SCRIPT=${PODSSH_PS_SCRIPT:-powershell.exe}
+# Overridable, so a future session can point at a different image without
+# reading this file first. The tool's settings are in scripts/dev-wsl.sh.
 
 # The image that a Dockerfile of .github/images/ names on its FROM line: the
 # one place that names it, pinned to a digest. A CR is dropped, as a checkout
@@ -68,9 +71,10 @@ image_of() {
 
 # The build image, from .github/images/build/Dockerfile. podssh ships a static
 # musl binary, and `rust:1-alpine` is musl with rustc and cargo installed. The
-# image DOES carry a working `cc` (the Tailscale feature needs one), so the
-# no-C rule for the default build is enforced by `CC=/nonexistent` in
-# scripts/gate.sh, and scripts/plant.sh proves that setting is load-bearing.
+# image DOES carry a working `cc` (the binary and the Tailscale feature need
+# one), so the no-C rule of the library crates is enforced by
+# `CC=/nonexistent` in scripts/gate.sh, and scripts/plant.sh proves that
+# setting is load-bearing.
 if [ -z "${PODSSH_BUILD_IMAGE:-}" ]; then
     PODSSH_BUILD_IMAGE=$(image_of "$REPO_ROOT/.github/images/build/Dockerfile") || exit 78
 fi
@@ -79,138 +83,6 @@ PODSSH_TARGET=${PODSSH_TARGET:-x86_64-unknown-linux-musl}
 # for it (roughly 3 GB per job for this workspace).
 PODSSH_JOBS=${PODSSH_JOBS:-4}
 
-# ⛔ Why the tree is copied at all, and what is left out.
-#
-# wsl-toolkit copies the workspace into the container. That means the host's
-# `target/` goes with it, and a Windows `target/` is 848 MB against a 1 GiB
-# cap — so the run is refused for being too large rather than for any real
-# reason. Measured 2026-10-01: "workspace refused: the workspace passes
-# 1.0 GiB at target/...". Build output is not source, and is excluded.
-#
-# ⛔ The list is a single space-separated string and `exclude_args` turns it
-# into flags. ⛔ TWO things about that are load-bearing, and both were broken
-# before they were measured:
-#
-#   * It must not be expanded unquoted. `set -- $EXCLUDES` splits on spaces
-#     correctly AND THEN GLOBS each word, so `target/**` becomes every file
-#     under target. Measured 2026-10-01: 5 patterns became 84 arguments, and
-#     the run stalled for minutes instead of starting.
-#   * It must not be a single quoted word either. One word with newlines in it
-#     is passed whole, and the tool then reads the words after the first as
-#     positional arguments — measured: "run takes flags, not positional
-#     arguments, and "target/debug" is one".
-#
-# `set -f` disables globbing for the split and is the whole mechanism: a
-# mechanism that cannot glob is a mechanism that cannot break this way again.
-#
-# ⛔ `target/**` covers the workspace root only. The vendored fork builds on
-# the host too (its own workspace, its own `target/`), and a host-built
-# `librustls-*.rlib` alone passes 1.0 GiB — measured 2026-10-06:
-# "workspace refused: the workspace passes 1.0 GiB at
-# vendor/tailscale-rs/target/...". So the fork's build output is excluded by
-# its literal path beside the root one.
-#
-# `.env/` holds live credentials and never enters a build container (persistent
-# job directories used to keep a copy of it). `.codegraph/` is a local index.
-EXCLUDES="target/** vendor/tailscale-rs/target/** .git/** .work/** .tmp/** .env/** .codegraph/**"
-
-# ⛔ **The split lives in `run_in_image` and nowhere else.** The globbing has to
-# be disabled at BOTH places the words are split: once in the loop below, and
-# once where the loop's result is word-split into flags. Measured 2026-10-01
-# with only one of the two disabled: 5 patterns became 80 arguments, and the run
-# stalled for minutes instead of starting. ⛔ A second copy of the loop — as a
-# helper named for the job, called from nowhere — is exactly the drift this
-# warns about, and there is only one.
-
-# run_in_image <workspace|--no-workspace> <script-token|command> <is-script>
-# The one place a run is built. ⛔ Every argument is quoted here, so nothing
-# downstream can re-split a glob by accident.
-run_in_image() {
-    _ws=$1
-    _payload=$2
-    _as_script=$3
-    set -f
-    set -- $EXCLUDES
-    set +f
-    set -- "$@"
-    _args=
-    while [ $# -gt 0 ]; do
-        _args="$_args --exclude $1"
-        shift
-    done
-    set -f
-    # shellcheck disable=SC2086  # $_args is flags; split, do not glob
-    set -- $_args
-    set +f
-    if [ "$_ws" = ws ]; then
-        _w=$(win_path "$REPO_ROOT")
-        set -- --image "$PODSSH_BUILD_IMAGE" --workspace "$_w" "$@"
-    else
-        set -- --image "$PODSSH_BUILD_IMAGE" "$@"
-    fi
-    if [ "$_as_script" = script ]; then
-        set -- "$@" --script "$_payload"
-    else
-        set -- "$@" --command-base64 "$_payload"
-    fi
-    # Ephemeral: the container and its job directory (a copy of the tree) are
-    # removed when the run ends, instead of accumulating on the WSL disk.
-    wt run "$@" \
-        --env "CARGO_BUILD_JOBS=$PODSSH_JOBS" \
-        --env "PODSSH_TARGET=$PODSSH_TARGET" \
-        --container-lifecycle ephemeral \
-        --timeout 60m
-}
-
-# ⛔ Why arguments travel as base64 in one environment variable, twice.
-#
-# Git Bash rewrites a guest path that begins with `/` into a Windows path
-# before the program starts, and it rewrites the VALUE of a variable whose
-# name ends in a path-like suffix. Both are properties of MSYS, not of
-# wsl-toolkit, and both are silent. Three channels were measured: an argument
-# list after -Command is unusable (PowerShell re-parses and splits it), an
-# environment variable is unusable (MSYS rewrites the value), and base64 in
-# the environment is the one that arrives intact. The count of fields comes
-# from $# rather than from a number written at the call site, because a count
-# that is one too small silently drops its last argument — which for --dir or
-# --script is the argument that decides what runs.
-PODSSH_PS_BRIDGE='
-$ErrorActionPreference = "Continue"
-$fields = $env:PODSSH_ARGV -split ":"
-$count  = [int]$fields[0]
-$argv   = New-Object System.Collections.ArrayList
-for ($i = 1; $i -le $count; $i++) {
-    $tok = $fields[$i]
-    if (-not $tok.StartsWith("e")) { Write-Error "bad field $i"; exit 64 }
-    $null = $argv.Add([Text.Encoding]::UTF8.GetString(
-                [Convert]::FromBase64String($tok.Substring(1))))
-}
-$tool = $env:PODSSH_TOOL
-if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
-    Write-Error "podssh: $tool is not on PATH."
-    exit 127
-}
-& $tool @argv
-
-# 🛘 A NULL $LASTEXITCODE IS NOT A PASS. MEASURED 2026-10-01:
-# `$null -eq $LASTEXITCODE` is True before any native process has run, and
-# `exit $LASTEXITCODE` with a null value exits 0. 🛘 **So if the tool
-# terminated as a PowerShell error rather than a process, this bridge reported
-# success — and the whole verdict of `dev.sh check` is that bridge.** 🛘 This
-# is the preflight bug again with a different trigger: the preflight only sees
-# `command -v`, and a tool that exists and then fails this way slips past it.
-#
-# 🛘 The exit code is read from the PROCESS, which is the rule this whole
-# repository is built on. A null here means no process ran, and that is a
-# failure, not a zero.
-if ($null -eq $LASTEXITCODE) {
-    Write-Error "podssh: $tool ran but set no exit code; treating as failure."
-    exit 1
-}
-exit $LASTEXITCODE
-'
-
-b64() { printf '%s' "$1" | base64 | tr -d '\r\n'; }
 
 # ⛔ **The host interpreter, PROVED to run before its exit code is trusted.**
 #
@@ -251,91 +123,16 @@ no_arguments() {
     exit 64
 }
 
-# ⛔ The preflight. Measured 2026-10-01, and it is why this function exists.
-#
-# With `wsl-toolkit` off PATH, a subcommand printed
-#
-#     scripts/dev.sh: line 182: powershell.exe: command not found
-#
-# and **exited 0**. A gate that reports success when it did not run is worse
-# than no gate, and this is the same defect the repository already documents
-# twice: the `????` that means "a probe could not run" and the `del field,
-# value` that passed everything. ⛔ **A missing prerequisite must be a missing
-# prerequisite, loudly, with a non-zero exit and the command that installs it.**
-#
-# ⛔ It runs once per invocation, before anything expensive, and it is cheap:
-# three `command -v` calls and nothing else.
-PREFLIGHT_DONE=0
-preflight() {
-    [ "$PREFLIGHT_DONE" = 1 ] && return 0
-    PREFLIGHT_DONE=1
-    if ! command -v "$PODSSH_TOOL" >/dev/null 2>&1; then
-        cat >&2 <<EOF
-podssh: '$PODSSH_TOOL' is not on PATH, so the container gate cannot run here.
-
-  The gate builds in the image of .github/images/build/Dockerfile so that
-  its result does not depend on what this machine happens to have installed. On Windows this
-  script drives that container through wsl-toolkit, a single executable
-  kept on PATH (usually ~/bin). Anywhere else, run the gate in the image
-  directly, as CI does:
-
-    docker run --rm -v "\$PWD:/work" $PODSSH_BUILD_IMAGE sh /work/scripts/gate.sh
-
-  Override the tool with PODSSH_TOOL=/path/to/executable.
-EOF
-        return 127
-    fi
-    if ! command -v "$PODSSH_PS" >/dev/null 2>&1; then
-        cat >&2 <<EOF
-podssh: '$PODSSH_PS' is not on PATH.
-
-  Git Bash rewrites a guest path that begins with / into a Windows path
-  before the tool starts, and the tool refuses the rewrite, so every call
-  goes through PowerShell rather than around it. See scripts/dev.sh, the
-  comment on PODSSH_PS_BRIDGE.
-
-  Override it with PODSSH_PS=/path/to/powershell.
-EOF
-        return 127
-    fi
-    return 0
-}
-
-# wt <token>...   run wsl-toolkit with these arguments. Returns its own code.
-wt() {
-    preflight || return $?
-    _payload=$#
-    for _tok in "$@"; do
-        _payload=$_payload:e$(b64 "$_tok")
-    done
-    PODSSH_ARGV=$_payload \
-    PODSSH_TOOL=$PODSSH_TOOL \
-    MSYS2_ARG_CONV_EXCL='*' \
-    MSYS_NO_PATHCONV=1 \
-        "$PODSSH_PS" -NoProfile -Command "$PODSSH_PS_BRIDGE"
-}
-
-# step <label> <command...>   run it, keep its last lines, report its own code.
-# ⛔ Not a pipe: the output goes to a file and $? is read on its own line.
-step() {
-    _label=$1
-    shift
-    printf '\n--- %s\n' "$_label"
-    "$@" >"${TMPDIR:-/tmp}/podssh-step.out" 2>&1
-    _rc=$?
-    tail -6 "${TMPDIR:-/tmp}/podssh-step.out"
-    printf 'exit=%s\n' "$_rc"
-    return $_rc
-}
 
 set_usage() {
     cat <<'USAGE'
 podssh - build and check, in a container, with one command
 
-  sh scripts/dev.sh check    the full gate, in order
+  sh scripts/dev.sh check    the host checks, then each step of the gate
+  sh scripts/dev.sh gate     the gate only, in the container (scripts/gate.sh)
   sh scripts/dev.sh test     cargo test only
   sh scripts/dev.sh build    cargo build only
-  sh scripts/dev.sh plant    the planted-defect gate, both directions
+  sh scripts/dev.sh plant    the plant of the no-C rule, both directions
   sh scripts/dev.sh run -- CMD...   run CMD with the tree mounted at /work
   sh scripts/dev.sh images   the build image and its toolchain
   sh scripts/dev.sh clean    list leftover wsl-toolkit jobs (removes nothing)
@@ -347,59 +144,41 @@ set CC=/nonexistent, so `--features ts` (which needs cc) works too.
 
 `check` runs these on the host, and stops if one fails:
 
-  1  python scripts/check-repo.py     500-line rule, doc links, no credentials
-  2  python scripts/check-scripts.py  shell scripts are LF and parse under dash
+  1  python scripts/check-repo.py     the 500-line rule, doc links, no
+                                      credentials, LF, pinned images, no listener
+  2  python scripts/check-scripts.py  shell scripts are LF and parse under dash;
+                                      the gate's steps agree with its list
 
-then scripts/gate.sh in the container, where every step must exit 0:
+then scripts/gate.sh in the container: each of its steps, in order, where
+each command must exit 0 (docs/development.md, "The container gate", tells
+what each one checks). One step alone:
 
-  3  default members build with CC=/nonexistent (no C compiler)
-  4  default members: cargo test
-  5  Tailscale adapter: cargo test --features podssh-cli/ts (needs cc)
-  6  static musl release with CC=/nonexistent: no NEEDED, no interpreter
+  sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh STEP'
 
-`plant` proves step 3 is load-bearing: it plants a dependency that needs cc
-and checks the build fails for that reason, twice, then passes without it.
+`plant` proves that the no-C rule of the step libs is load-bearing: it plants
+a dependency that needs cc into a library crate and checks that the build
+fails for that reason, twice; that a crate that compiles C++ stops at
+CXX=/nonexistent; and that the tree builds again without them.
 
 Only one container run at a time (a lock in .work/), PODSSH_JOBS cargo jobs.
 Overrides: PODSSH_JOBS, PODSSH_TOOL, PODSSH_PS, PODSSH_BUILD_IMAGE, PODSSH_TARGET.
 USAGE
+    # The names come from the gate itself, so this text cannot name a step
+    # that the gate does not have.
+    _steps=$(sh "$SCRIPT_DIR/gate.sh" --list)
+    # shellcheck disable=SC2086  # one line of names
+    printf '\nThe steps of the gate: %s\n' "$(echo $_steps)"
 }
 
-# win_path <path>   the same path, in the spelling PowerShell understands.
-# ⛔ A DIRECTORY, never a file. `cd` into a file fails, and the error reads
-# "cd: /tmp/.../gate.sh: Not a directory" — which looks like a missing file and
-# is really a function that only worked for directories. Measured 2026-10-01.
-win_path() {
-    _abs=$(CDPATH= cd -- "${1%/*}" && pwd -W) || return 1
-    case $1 in
-        */*) printf '%s/%s
-' "$_abs" "${1##*/}" ;;
-        *)   printf '%s/%s
-' "$_abs" "$1" ;;
-    esac
-}
-
-# scratch_file <prefix>   a script file on this machine, with its Windows path on
-# stdout. ⛔ Never mktemp under /tmp and hand that path to the tool: /tmp is
-# Git Bash's, and PowerShell resolves it to C:\tmp, which does not exist.
-# Measured 2026-10-01: "cd: /tmp/podssh-gate-XXXX.sh: Not a directory".
-# --script sends this machine's file bytes, so the file must be somewhere
-# both of them can name.
-scratch_file() {
-    _d=$(mktemp -d "${TMPDIR:-/tmp}/$1-XXXXXX")
-    _f="$_d/$1.sh"
-    cat > "$_f"
-    win_path "$_f"
-}
 
 # One cargo subcommand, for `dev.sh build` and `dev.sh test`.
 #
 # ⛔ No CC override here: these are dev conveniences that must build and test
-# ANY crate the user names — including `podssh-cli`, which links the fork
-# since 4b and needs cc. The no-C constraint is not enforced per-invocation;
-# it is enforced by `scripts/gate.sh` steps 4–5 over the named pure-Rust
-# crates, which is the only place that can hold it without breaking the
-# crates that legitimately need a compiler. A `CC=/nonexistent` hardcoded
+# ANY crate the user names — including `podssh-cli`, which needs cc (aws-lc,
+# through russh). The no-C constraint is not enforced per-invocation; it is
+# enforced by the step `libs` of `scripts/gate.sh` over the library crates,
+# which is the only place that can hold it without breaking the crates that
+# legitimately need a compiler. A `CC=/nonexistent` hardcoded
 # here would make `dev.sh test -p podssh-cli` fail for a reason unrelated to
 # any defect — the exact failure mode the gate comments warn about.
 #
@@ -433,9 +212,8 @@ cmd_cargo() {
     run_in_image ws "$_gw" script
 }
 
-# The build and check script, as the container runs it. Written here rather
-# than kept as a separate file so there is one place that knows what the gate
-# is, and no chance of the two disagreeing.
+# The gate, as the container runs it: scripts/gate.sh, the one place that
+# knows what the gate is.
 #
 # ⛔ `run <label> <command...>` redirects to a file and reads $? on its own
 # line. A `cargo ... | tail -2` followed by `echo $?` reports TAIL's status,
@@ -459,7 +237,7 @@ cmd_images() {
 rustc --version
 cargo --version
 ldd --version 2>&1 | head -1
-if command -v cc >/dev/null 2>&1; then echo "cc present (expected: the gate uses CC=/nonexistent for the default build)"; else echo "no cc in the image: the ts feature lane will fail to build"; fi' \
+if command -v cc >/dev/null 2>&1; then echo "cc present (expected: the gate uses CC=/nonexistent for the library crates)"; else echo "no cc in the image: the binary and the ts feature will fail to build"; fi' \
         | base64 | tr -d '\r\n')
     wt run --image "$PODSSH_BUILD_IMAGE" --command-base64 "$_c" \
         --container-lifecycle ephemeral --timeout 10m
@@ -543,7 +321,7 @@ EOF
         return $rc
     fi
 
-    printf -- '\n--- 3-6. the container gate\n'
+    printf -- '\n--- 3. the container gate: each step of scripts/gate.sh\n'
     cmd_gate
     r=$?
     [ $r -ne 0 ] && rc=1

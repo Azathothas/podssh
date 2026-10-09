@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Cheap repository checks that need no build. Exit 0 when all pass.
 
-  1. No Rust source file under crates/ is longer than 500 lines (the
-     operator's rule: split the file, never trim its comments to fit).
+  1. No Rust source file under crates/, and no shell or Python script under
+     scripts/, is longer than 500 lines (the operator's rule: split the
+     file, never trim its comments to fit).
   2. Every relative link in the live Markdown docs resolves.
   3. No tracked file outside vendor/ carries something shaped like a live
      credential (a relay token or a Tailscale key with a real-looking secret,
@@ -83,6 +84,7 @@ MIN_RUST_FILES = 100
 MIN_MARKDOWN_FILES = 10
 MIN_TRACKED_FILES = 150
 MIN_SHELL_SCRIPTS = 5
+MIN_SCRIPT_FILES = 15
 
 
 def too_few(what: str, count: int, floor: int) -> list[str]:
@@ -99,9 +101,12 @@ def git_files() -> list[Path]:
 
 def check_file_size() -> list[str]:
     files = [p for p in sorted((ROOT / "crates").rglob("*.rs")) if "target" not in p.relative_to(ROOT).parts]
+    scripts = [p for p in sorted((ROOT / "scripts").rglob("*"))
+               if p.suffix in (".sh", ".py") and p.is_file() and "__pycache__" not in p.parts]
     problems = too_few("Rust files under crates/", len(files), MIN_RUST_FILES)
-    check_file_size.note = f"{len(files)} Rust files under crates/ read"
-    for path in files:
+    problems += too_few("shell and Python scripts under scripts/", len(scripts), MIN_SCRIPT_FILES)
+    check_file_size.note = f"{len(files)} Rust files under crates/ and {len(scripts)} scripts under scripts/ read"
+    for path in files + scripts:
         lines = len(path.read_text(encoding="utf-8", errors="replace").splitlines())
         if lines > MAX_SOURCE_LINES:
             problems.append(

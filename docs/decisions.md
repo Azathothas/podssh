@@ -55,7 +55,7 @@ The newest decision is first in each section.
 | 2026-10-07 | **Repair a defect in the session that finds it.** Do not defer it, and do not call it the work of another person. |
 | 2026-10-07 | **Redundancy and fallbacks from the first day** are better than minimal code. Design for the first contact with a hostile host. |
 | 2026-10-07 | **Do not change the line endings** of a file that a change does not otherwise touch. |
-| 2026-10-01 | **No source file has more than 500 lines.** Split a longer file. Do not delete comments to make it fit. Documents are exempt. `scripts/check-repo.py` checks the Rust files under `crates/`. `scripts/dev.sh` (about 600 lines) is a known exception that must be split (T-207 in [TODO/repo.md](../TODO/repo.md)). |
+| 2026-10-01 | **No source file has more than 500 lines.** Split a longer file. Do not delete comments to make it fit. Documents are exempt. `scripts/check-repo.py` checks the Rust files under `crates/` and the shell and Python scripts under `scripts/`. |
 | standing | **Commits are attributed to the operator only.** No co-author lines. |
 | standing | **Agents never call `wsl.exe`**, and never `wsl --shutdown`, `--terminate` or `--unregister`. These commands act on each distribution of the machine. Linux builds use `sh scripts/dev.sh`. |
 | standing | **`.tmp/` holds read-only copies of other projects.** Do not change, commit or rebase in them. Make sure that the directory exists before you use it. |
@@ -64,6 +64,7 @@ The newest decision is first in each section.
 
 | Date | Decision | Replaced by |
 | --- | --- | --- |
+| 2026-10-01 | In the row of the 500-line rule: "`scripts/dev.sh` (about 600 lines) is a known exception that must be split (T-207)." | `scripts/dev.sh` is split in two, `scripts/dev-wsl.sh` beside it, and the size check reads the scripts (T-207, 2026-10-09); the rule is the same. |
 | 2026-10-08 | The list of library crates in the row of the SSH client named `podssh-transport` too. | The crate moved into `podssh-relay`, and is gone (T-082, 2026-10-09); the rule is the same. |
 | 2026-10-08 | "The first beta waits for milestone M3", and a session publishes the beta `v0.1.0-beta.1` after M3; a release candidate before `v1.0.0`. | One release, `v1.0.0`, tagged once at the end (the operator, 2026-10-08: Q29, Q30). |
 | 2026-10-01 | "One machine has one cached token. The cache is in the first writable directory of: the configuration directory, `$TMPDIR`, `/dev/shm`, the working directory." The code used the user's cache directory first. | One cached token for each relay deployment (T-057), and the user's cache directory first, after a directory that the user names (the operator, 2026-10-08; T-243). |

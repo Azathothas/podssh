@@ -238,7 +238,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | `crates/podssh-ts` | The Tailscale adapter (feature `ts`) |
 | `crates/podssh-todo` | The checker of the work record: `cargo todo check` (the gate runs it), `cargo todo set`, `counts`, `next` |
 | `vendor/tailscale-rs` | A fork with local patches (`vendor/patches/`). It is outside the workspace and the 500-line rule. |
-| `scripts/dev.sh`, `scripts/gate.sh` | Container runs, and the build gate that CI also runs |
+| `scripts/dev.sh` (with `scripts/dev-wsl.sh`), `scripts/gate.sh` | Container runs, and the build gate that CI also runs |
 | `scripts/interop*.sh`, `scripts/interop-pty.py`, `scripts/interop-conpty.py` | Tests against OpenSSH and Dropbear, faults, groff and mandoc (`interop-man.sh`), and terminals on Linux and Windows |
 | `scripts/test_in_box.sh`, `scripts/box/`, `scripts/sandbox-check.sh` | The Podman box like the target sandbox, and the measurement for a sandbox |
 | `scripts/check-*.py`, `scripts/plant.sh` | Repository checks, and the planted-defect check of the gate |

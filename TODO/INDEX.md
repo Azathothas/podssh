@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**255 entries: 178 open, 0 partial, 8 blocked, 69 done.**
+**255 entries: 177 open, 0 partial, 8 blocked, 70 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
 | P2 | 91 | 0 | 4 | 52 | 147 |
-| P3 | 85 | 0 | 4 | 9 | 98 |
-| **All** | 178 | 0 | 8 | 69 | 255 |
+| P3 | 84 | 0 | 4 | 10 | 98 |
+| **All** | 177 | 0 | 8 | 70 | 255 |
 
 ## Entries
 
@@ -278,7 +278,7 @@ repository and CI).
 | [T-204](repo.md) | P2 | M | none | chore | done | Adopt the todo model, with a Rust checker in the gate |
 | [T-205](repo.md) | P2 | S | none | chore | done | Dependabot for cargo, GitHub Actions and the build image (GitHub #27) |
 | [T-206](repo.md) | P2 | S | none | chore | done | B7: the build image is not pinned to a digest |
-| [T-207](repo.md) | P3 | S | none | chore | open | B8: `scripts/dev.sh` has about 600 lines |
+| [T-207](repo.md) | P3 | S | none | chore | done | B8: `scripts/dev.sh` has about 600 lines |
 | [T-208](repo.md) | P2 | S | none | chore | done | A changelog from the commits, and release notes from it (GitHub #27) |
 | [T-209](repo.md) | P2 | S | none | chore | done | Secret scanning with TruffleHog in CI (GitHub #27) |
 | [T-210](repo.md) | P2 | S | M9 | release | open | Build provenance for each release binary |

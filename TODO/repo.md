@@ -231,7 +231,7 @@ Read:
    digits, and no workflow or script holds a second literal of the image.
 4. Pin the two images of the box the same way.
 5. Measure that wsl-toolkit takes a reference with a digest
-   (`scripts/dev.sh:147` passes it to `--image`): `sh scripts/dev.sh images`.
+   (`scripts/dev-wsl.sh:82` passes it to `--image`): `sh scripts/dev.sh images`.
 6. Record the pinned toolchain in docs/STATUS.md ("Build, tests, CI"), and
    name the file in docs/development.md.
 
@@ -307,7 +307,7 @@ one place".
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -322,17 +322,17 @@ Measured: `wc -l scripts/dev.sh` gives 592.
 
 Read:
 
-- `scripts/check-repo.py:100-110` checks only the Rust files under `crates/`.
-- `scripts/dev.sh:318-329` defines `step`, which nothing calls.
-- The help (`scripts/dev.sh:331-366`) says that the gate builds the default
+- `scripts/check-repo.py` lines 100-110 at `912acd0` check only the Rust files under `crates/`.
+- `scripts/dev.sh` lines 318-329 at `912acd0` define `step`, which nothing calls.
+- The help (`scripts/dev.sh` lines 331-366 at `912acd0`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
   and the release with neither (`scripts/gate.sh:113-120`,
   `scripts/gate.sh:216-218`). The help omits the work record, interop, the man
-  page, the C++ plant, and the subcommand `gate` (`scripts/dev.sh:602`).
-- Stale comments: `scripts/dev.sh:69-73` ("the default build"),
-  `scripts/dev.sh:397-404` ("links the fork since 4b", "steps 4-5"),
-  `scripts/dev.sh:462`.
+  page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
+- Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
+  build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
+  462.
 - CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:156-162`);
   `scripts/check-scripts.py:53-57` finds the scripts under `scripts/` at any
   depth.
@@ -371,6 +371,43 @@ sh scripts/dev.sh check                   # the whole gate through the split scr
 
 Each command exits 0. Planted defect: a copy of a script in `scripts/` with
 501 lines; `check-repo.py` must exit 1 and name it.
+
+## Correction
+
+2026-10-09: `wc -l scripts/dev.sh` gave 608, after T-206 and T-246. Like
+`step`, the setting `PODSSH_PS_SCRIPT` was set and read nowhere; it went
+too.
+
+## Done
+
+2026-10-09, in the commit "scripts/dev.sh in two files, each under 500
+lines, and the size check reads the scripts".
+
+- `scripts/dev-wsl.sh` (239 lines), which `scripts/dev.sh` sources after its
+  self-location: the tool's settings, `EXCLUDES` and its comments,
+  `run_in_image`, the PowerShell bridge, `b64`, the preflight, `wt`,
+  `win_path` and `scratch_file`, each with its comments. `cmp` of the
+  bridge's text, before and after: the same 1,438 bytes.
+- `scripts/dev.sh` (386 lines): `step` and `PODSSH_PS_SCRIPT` removed. The
+  help names each subcommand, `gate` too, says what `check` and `plant` run
+  now, and prints the gate's steps from `scripts/gate.sh --list`, so that it
+  cannot name a step that the gate does not have. The stale comments name
+  the library crates, the step `libs` and the gate's one file.
+- `scripts/check-repo.py`: the size check reads the shell and Python scripts
+  under `scripts/` (28 today), with a floor of 15.
+- `docs/decisions.md`: the exception moved to "Superseded". `docs/development.md`
+  and the map of `AGENTS.md` name `scripts/dev-wsl.sh`; `docs/STATUS.md`.
+- Prove: `wc -l`: 386 and 239. `python scripts/check-repo.py`: exit 0, "265
+  Rust files under crates/ and 28 scripts under scripts/ read". `python
+  scripts/check-scripts.py`: 14 scripts, LF, and each parses under dash. `sh
+  scripts/dev.sh help`: the subcommands, and "The steps of the gate: lint
+  libs msrv msrv_ssh msrv_ts record ssh ts release". `sh scripts/dev.sh
+  check` through the split script, in 18 min 34 s: each step passed but
+  `record`, whose checker found the four citations of `scripts/dev.sh`
+  that ran past its new end, before their remap; after it, `sh
+  scripts/dev.sh run -- 'sh /work/scripts/gate.sh record'`: green. Interop
+  103 of 103. Plant, removed: a script of 501 lines in `scripts/`:
+  `check-repo.py` exited 1 and named it.
 
 # T-208: A changelog from the commits, and release notes from it (GitHub #27)
 
@@ -420,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:416-461`): the
+5. docs/development.md, "Release builds" (`docs/development.md:421-466`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -501,8 +538,8 @@ credential that a later commit removed, is not found.
 
 Read:
 
-- `scripts/check-repo.py:45-58` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:147-168` scans the tracked
+- `scripts/check-repo.py:46-59` defines the shapes (a relay token, a Tailscale
+  key, a private key block); `scripts/check-repo.py:152-173` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -764,7 +801,7 @@ Read:
   steps are at lines 80-184 there.
 - `scripts/gate.sh:48-59`: one cargo job for each 3 GiB of free memory.
 - AGENTS.md, section 4: on the operator's machine, one build at a time
-  (`scripts/dev.sh:556-575` holds a lock).
+  (`scripts/dev.sh:334-353` holds a lock).
 
 Not measured: the wall time of a CI run. Measure it with `gh run list` before
 the change.
@@ -922,7 +959,7 @@ Read:
 4. Pin the images of the box with the build image (T-206).
 5. Credentials: the box mints a token and never prints it
    (`scripts/sandbox-check.sh:2-4`). Before the job is required, scan its
-   first log with the token pattern of `scripts/check-repo.py:49`.
+   first log with the token pattern of `scripts/check-repo.py:50`.
 6. docs/STATUS.md (the box section) cites the CI run; docs/development.md says
    that CI runs the box.
 
@@ -1568,7 +1605,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:185-187` states the rule with `CXX`, and
+- `docs/development.md:190-192` states the rule with `CXX`, and
   `docs/STATUS.md:241` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -1629,7 +1666,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:89`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:91`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -1839,7 +1876,7 @@ Measured with Python over the tracked files outside `vendor/`:
   `scripts/ts-derp-prove.sh` (4), `scripts/check-scripts.py` (7),
   `scripts/check-relay-spec.py` (2) and `.gitattributes` (6). Other markers:
   U+26A0 (7, in podssh-transport), U+2B50 (3, in podssh-terminal), U+1F6D8
-  (`scripts/dev.sh:195-205`).
+  (`scripts/dev-wsl.sh:130-139`).
 - 340 markers are in string literals: 326 in tests, 14 in `src`, one of them
   in a message for users (crates/podssh-transport/src/backpressure/mod.rs line 157 at `e8bbd4d`).
 - 266 lines in 42 code files hold a line number of a document; 188 lines in
