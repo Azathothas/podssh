@@ -216,3 +216,22 @@ fn render(program: &str, args: &[&str], input: &str) -> Option<String> {
     }
     Some(text)
 }
+
+/// The variable of the iroh relays, and their paragraph in THE RELAY, are in
+/// the manual of a build with the feature `iroh` only; the flag is in each
+/// build, as the road's other flags are, and names the feature (T-165).
+#[test]
+fn the_iroh_relays_are_in_the_manual_of_a_build_with_the_feature() {
+    let built = cfg!(feature = "iroh");
+    let (rc, environment, err) = podssh(&["man", "environment", "--no-pager"], None);
+    assert_eq!(rc, 0, "{err}");
+    assert_eq!(environment.contains("PODSSH_IROH_RELAY"), built, "{environment}");
+    let (rc, facts, err) = podssh(&["man", "relay-facts", "--no-pager"], None);
+    assert_eq!(rc, 0, "{err}");
+    assert_eq!(facts.contains("iroh relays"), built, "{facts}");
+    for verb in ["node", "ssh"] {
+        let (rc, page, err) = podssh(&["man", verb, "--no-pager"], None);
+        assert_eq!(rc, 0, "{err}");
+        assert!(page.contains("--iroh-relay"), "{verb}: {page}");
+    }
+}

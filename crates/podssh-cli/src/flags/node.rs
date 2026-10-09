@@ -21,4 +21,6 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "with --iroh: the client keys that may connect, one on each line, read again for each connection (default: none may)", None),
     row(None, "iroh-ephemeral", None, FlagKind::Supported,
         "with --iroh: a new key for this run only, kept in no file; the ticket lasts as long as the run", None),
+    row(None, "iroh-relay", Some("URLS"), FlagKind::Supported,
+        "with --iroh: the relays, https://HOST[:PORT][,...]; the first that answers is the home relay (default: env PODSSH_IROH_RELAY, else n0's)", None),
 ];

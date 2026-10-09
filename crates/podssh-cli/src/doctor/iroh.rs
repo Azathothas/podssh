@@ -1,17 +1,13 @@
-//! The iroh road, in a build with the feature `iroh` (T-162): whether a UDP
-//! socket binds here, so that the road may take direct paths, and whether its
-//! first relay answers `/ping` through the proxy. An endpoint with no UDP
-//! path gets its home relay from that probe alone, so a relay that does not
-//! answer it leaves the road with no way in.
+//! The iroh road, in a build with the feature `iroh` (T-162, T-165): whether
+//! a UDP socket binds here, so that the road may take direct paths, and
+//! whether each relay of the list answers `/ping` through the proxy. The
+//! first that answers is the home relay; an endpoint with no UDP path has no
+//! other way in, so with no relay that answers, the road has none.
 
-use std::time::{Duration, Instant};
-
-use podssh_ws::{dial, http, ProxyChoice, Trust};
+use podssh_iroh::relays::{self, Source};
+use podssh_ws::{ProxyChoice, Trust};
 
 use super::Report;
-
-/// The bound on the connection and the answer to `/ping`.
-const TIMEOUT: Duration = Duration::from_secs(15);
 
 pub(super) fn udp(report: &mut Report<'_>) {
     match podssh_iroh::probe::udp() {
@@ -22,38 +18,41 @@ pub(super) fn udp(report: &mut Report<'_>) {
     }
 }
 
+/// `/ping` of each relay, in the order of the list, with the limit that the
+/// road's own choice of a home relay gives each one; then the home relay.
 pub(super) async fn relay(report: &mut Report<'_>, trust: &Trust) {
-    let Some(url) = podssh_iroh::endpoint::default_relays().into_iter().next() else {
-        report.unknown("iroh relay", "this build knows no iroh relay");
-        return;
+    let (list, source) = match relays::from_environment(None) {
+        Ok(chosen) => chosen,
+        Err(why) => {
+            report.fail("iroh relays", why);
+            return;
+        }
     };
-    match ping(&url, trust).await {
-        Ok(line) => report.ok("iroh relay", line),
-        Err(why) => report.fail("iroh relay", why),
-    }
-}
-
-/// `GET /ping` on the relay, through the same proxy-aware, verified path as
-/// the relay's own checks.
-async fn ping(url: &iroh::RelayUrl, trust: &Trust) -> Result<String, String> {
-    let host = url.host_str().ok_or_else(|| format!("{url}: no host"))?;
-    let port = url.port_or_known_default().unwrap_or(443);
-    let started = Instant::now();
-    let mut tls = podssh_ws::client::open_tls(host, port, host, trust, &ProxyChoice::FromEnvironment, TIMEOUT)
-        .await
-        .map_err(|e| format!("{host}: {e}"))?;
-    let opened = match dial::proxy_from_env(host) {
-        Ok(Some(proxy)) => format!("CONNECT {} through {proxy}", dial::authority(host, port)),
-        _ => "directly".to_string(),
+    let from = match source {
+        Source::Table => "the built-in list".to_string(),
+        Source::Variable | Source::Flag => relays::ENV.to_string(),
     };
-    let host_header = if port == 443 { host.to_string() } else { dial::authority(host, port) };
-    let exchange = http::exchange(&mut tls, "GET", &host_header, "/ping", &[], b"", 4096);
-    let response = tokio::time::timeout(TIMEOUT, exchange)
-        .await
-        .map_err(|_| format!("{host}: /ping did not answer within {} s ({opened})", TIMEOUT.as_secs()))?
-        .map_err(|e| format!("{host}: /ping: {e} ({opened})"))?;
-    if response.status != 200 {
-        return Err(format!("{host}: /ping answered HTTP {} {} ({opened})", response.status, response.body_text(120)));
+    let mut home = None;
+    for relay in &list {
+        // The port too, when the URL gives one: two relays may share a host.
+        let host = relay.host_str().unwrap_or_default();
+        let label = match relay.port() {
+            Some(port) => format!("iroh relay {host}:{port}"),
+            None => format!("iroh relay {host}"),
+        };
+        match relays::ping(relay, trust, &ProxyChoice::FromEnvironment, relays::PING_LIMIT).await {
+            Ok(pong) => {
+                let ms = pong.elapsed.as_millis();
+                report.ok(&label, format!("/ping answered in {ms} ms, certificate verified ({})", pong.way));
+                home.get_or_insert_with(|| relay.clone());
+            }
+            // Each relay that does not answer is a fallback of the road that
+            // does not work here.
+            Err(why) => report.fail(&label, why),
+        }
     }
-    Ok(format!("{host}: /ping answered in {} ms, certificate verified ({opened})", started.elapsed().as_millis()))
+    match home {
+        Some(relay) => report.ok("iroh home relay", format!("{relay}: the first of {from} that answered")),
+        None => report.fail("iroh home relay", format!("no relay of {from} answered /ping")),
+    }
 }

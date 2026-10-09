@@ -34,7 +34,7 @@ cargo test -p podssh-core          # one crate
 cargo build -p podssh-cli --features ts                          # with Tailscale
 cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts   # its tests
 cargo build -p podssh-cli --features iroh                        # with the iroh road
-cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh   # its tests
+cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test   # its tests
 cargo test -p podssh-ws --features plain-ws --test plain_loopback   # plain ws:// to loopback, for tests
 ```
 
@@ -215,7 +215,10 @@ dependencies that these minimums allow. The other steps make sure that:
 3. (`ssh`) The SSH client and the command line pass their tests.
 4. (`ts`, `iroh`) The tests of the `ts` feature pass, and those of the
    `iroh` feature: two endpoints with no UDP, through a stand-in CONNECT
-   proxy and a relay on the loopback that only the proxy can name.
+   proxy and a relay on the loopback that only the proxy can name; and,
+   with `iroh-test` (the feature `iroh` and a relay server for the tests,
+   never in a release), `podssh node --iroh` and `podssh ssh iroh:TICKET`
+   from end to end, through iroh's relay server on the loopback.
 5. (`release`, with 6 to 9) The static musl binary has no dynamic dependencies
    and no program interpreter.
 6. The binary works against real servers. `scripts/interop.sh` installs

@@ -40,6 +40,8 @@ pub struct NodeArgs {
     pub iroh_allow: Option<String>,
     /// A key for this run only.
     pub iroh_ephemeral: bool,
+    /// The iroh relays, in place of the variable and the table.
+    pub iroh_relay: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -49,6 +51,7 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
         ("--iroh-key", args.iroh_key.is_some()),
         ("--iroh-allow", args.iroh_allow.is_some()),
         ("--iroh-ephemeral", args.iroh_ephemeral),
+        ("--iroh-relay", args.iroh_relay.is_some()),
     ];
     if let Some((flag, _)) = iroh_only.iter().find(|(_, given)| *given).filter(|_| !args.iroh) {
         return Refusal::usage(format!("{flag} is for the iroh road: add --iroh")).report("node", err);

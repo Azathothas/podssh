@@ -3,7 +3,7 @@ to I8 of the former defects page (`git show 3ee70dc:docs/defects.md`), and the r
 decides how `podssh chat` works (T-099). No command uses the client, and `podssh chat` exits 70.
 The client is sans-IO, so its unit tests need no network. The live probe
 `crates/podssh-cli/examples/live_irc.rs` reaches real servers through the relay, with a token from
-the environment, the cache or a mint, never printed (`docs/development.md:392-399`). Each defect was read
+the environment, the cache or a mint, never printed (`docs/development.md:395-402`). Each defect was read
 again on `3ee70dc`.
 
 # T-091: I1: `CAP END` is sent only after 001
@@ -131,7 +131,7 @@ cargo test -p podssh-core --no-fail-fast
 The new file crates/podssh-core/tests/cap_list.rs holds `only_listed_capabilities_are_requested`,
 `a_value_is_never_sent_back`, `a_list_on_several_lines_gives_one_request` and
 `the_continuation_marker_is_not_a_capability`. Its input is a `CAP LS 302` reply captured from a
-real server, kept byte for byte with the server, version and date (`docs/development.md:405-406`).
+real server, kept byte for byte with the server, version and date (`docs/development.md:408-409`).
 Plant: remove the list filter; the first test must fail with `sasl=PLAIN` in the `REQ`. Then repeat
 the live runs of T-091; the probe prints the offered and enabled capabilities.
 
@@ -183,7 +183,7 @@ covers it.
 
 Recommendation: refuse; never remove characters and never split. The module's rule is "a refusal,
 never a truncation" (`crates/podssh-core/src/irc/session_send.rs:8-11`), and `--sendfile` already
-sends each line as one message (`crates/podssh-cli/src/flags.rs:250-251`). The alternative, remove
+sends each line as one message (`crates/podssh-cli/src/flags.rs:252-253`). The alternative, remove
 CR and LF, lost because it changes the user's text with no message.
 
 ## Prove
@@ -551,14 +551,14 @@ done." Read: podssh executes nothing that it receives and takes no file on
 its own (`docs/decisions.md:44`). The roads exist after M6: the reverse road
 (T-078, T-083, T-084), the iroh road (T-162), and end-to-end encryption
 between two podssh ends (T-088). No flag of `chat` names a peer or a server
-today (`crates/podssh-cli/src/flags.rs:247-259`,
+today (`crates/podssh-cli/src/flags.rs:249-261`,
 `crates/podssh-cli/src/positionals.rs:39-41`).
 
 ## Approach
 
 1. The command line: `podssh chat PEER`, where PEER is a node name (the
    reverse road) or an iroh ticket. T-252 adds `--irc SERVER CHANNEL`. Change
-   `crates/podssh-cli/src/flags.rs:247-259`, the positionals and the manual in
+   `crates/podssh-cli/src/flags.rs:249-261`, the positionals and the manual in
    the same commit.
 2. The protocol, over the encrypted channel of T-088: lines of text, and
    files in chunks with digests, as T-097 does for IRC. A line that the peer

@@ -5,6 +5,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use iroh::RelayUrl;
 use podssh_iroh::keys::{self, Place};
 use podssh_iroh::{ticket, Dialer, Failure, Options, Udp};
 use podssh_relay::session::resume::Note;
@@ -22,6 +23,7 @@ const CLOSE_LIMIT: Duration = Duration::from_secs(3);
 pub(super) async fn connect(
     text: &str,
     key: Option<&str>,
+    relays: &[String],
     trust: &Trust,
     opts: &podssh_ssh::options::Options,
     log: Arc<Log>,
@@ -57,8 +59,22 @@ pub(super) async fn connect(
         ));
     }
     log.verbose(&format!("this client's iroh key: {fingerprint} ({kept})"));
+    // The ticket's relays first: this client's home relay is then the
+    // node's, when it answers (T-165).
+    let mut list: Vec<RelayUrl> = addr.relay_urls().cloned().collect();
+    for relay in relays.iter().filter_map(|text| podssh_iroh::relays::parse_url(text).ok()) {
+        if !list.contains(&relay) {
+            list.push(relay);
+        }
+    }
+    let proxy = ProxyChoice::FromEnvironment;
+    let (home, missed) = podssh_iroh::relays::home(&list, trust, &proxy).await;
+    for why in &missed {
+        log.verbose(&format!("{shown}: an iroh relay did not answer: {why}"));
+    }
     let options = Options {
-        proxy: ProxyChoice::FromEnvironment,
+        relays: home,
+        proxy,
         trust: trust.clone(),
         udp: Udp::Probe,
         secret: Some(key.secret.clone()),
@@ -72,8 +88,8 @@ pub(super) async fn connect(
             return EXIT_FAILURE;
         }
     };
-    let relays: Vec<String> = addr.relay_urls().map(ToString::to_string).collect();
-    log.verbose(&format!("connecting to {shown} over the iroh road, through {}", relays.join(", ")));
+    let through: Vec<String> = addr.relay_urls().map(ToString::to_string).collect();
+    log.verbose(&format!("connecting to {shown} over the iroh road, through {}", through.join(", ")));
     let dialer = Dialer::new(endpoint.clone(), addr);
     let (ssh_end, layer_end) = tokio::io::duplex(PIPE);
     let say = |line: Line| match line {

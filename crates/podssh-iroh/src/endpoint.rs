@@ -3,7 +3,8 @@
 //!
 //! - no address lookup (pkarr, DNS, mDNS): a peer is dialled by its key and
 //!   its relay;
-//! - the relays given, in order; n0's by default (T-165 makes them a setting);
+//! - the relays given; the table of [`crate::relays`] by default, whose
+//!   first relay that answers `/ping` the caller gives alone (T-165);
 //! - podssh's proxy for the relay's dial: iroh's own selection reads
 //!   `HTTP_PROXY` first and knows no `ALL_PROXY` or `NO_PROXY`;
 //! - podssh's name resolution ([`crate::resolve`]) and podssh's trust store
@@ -22,8 +23,10 @@ use podssh_ws::{ProxyChoice, Trust};
 /// The relays to use, and the endpoint's way out.
 #[derive(Debug, Clone)]
 pub struct Options {
-    /// The relays, in order: the first that answers is the home relay. Empty
-    /// is n0's public relays.
+    /// The relays: iroh takes the one with the least latency as the home
+    /// relay, so a caller that wants the first that answers gives that one
+    /// alone ([`crate::relays::home`]). Empty is the table of
+    /// [`crate::relays::DEFAULT`].
     pub relays: Vec<RelayUrl>,
     /// How the relay's connection goes out.
     pub proxy: ProxyChoice,
@@ -86,19 +89,16 @@ impl std::fmt::Display for BindError {
 
 impl std::error::Error for BindError {}
 
-/// The relays that an endpoint uses when it is given none: n0's public
-/// relays, until the operator runs one (T-165).
+/// The relays that an endpoint uses when it is given none: the table of
+/// [`crate::relays::DEFAULT`], n0's public relays until the operator runs one.
 pub fn default_relays() -> Vec<RelayUrl> {
-    RelayMode::Default.relay_map().urls()
+    crate::relays::defaults()
 }
 
-/// The relay map of `relays`, or n0's when it is empty.
+/// The relay map of `relays`, or of the table when it is empty.
 fn relay_mode(relays: &[RelayUrl]) -> RelayMode {
-    if relays.is_empty() {
-        RelayMode::Default
-    } else {
-        RelayMode::Custom(relays.iter().cloned().collect::<RelayMap>())
-    }
+    let relays = if relays.is_empty() { default_relays() } else { relays.to_vec() };
+    RelayMode::Custom(relays.into_iter().collect::<RelayMap>())
 }
 
 /// The proxy for the first relay, as podssh selects it, as the URL that iroh

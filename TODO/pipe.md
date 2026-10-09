@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:402-433`).
+  row (`crates/podssh-cli/src/flags.rs:404-435`).
 - Read: the only pump is `crates/podssh-cli/src/proxy.rs:186-281`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,7 +37,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:402-433`, two
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:404-435`, two
    required positionals (`crates/podssh-cli/src/positionals.rs:7-96`), a
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-135`), a
    dispatch arm, and `pipe` in `DISPATCHED`
@@ -152,8 +152,8 @@ local program to a target, and `podssh proxy` stays a second pump.
    `crates/podssh-cli/src/proxy.rs:249-281`).
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it
-   (`crates/podssh-cli/src/ssh/resolve.rs:143-147`,
-   `crates/podssh-cli/src/ssh/resolve.rs:406-454`). Make
+   (`crates/podssh-cli/src/ssh/resolve.rs:146-150`,
+   `crates/podssh-cli/src/ssh/resolve.rs:409-457`). Make
    `crates/podssh-ssh/src/run.rs:109-116` a public `connect_chain` that `-W`
    and the pipe both use; keep each handle alive until the pipe ends. The
    options: `-i`, `-o NAME=VALUE` through
@@ -340,8 +340,8 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:399-401`).
    module that doctor and pipe share; doctor stays bind-and-close. In the
    same commit, change each sentence that says podssh never listens: the
    five documents, `crates/podssh-cli/src/help.rs:213-214`,
-   `crates/podssh-cli/src/man/notes.rs:54-56`, the reasons of the `-L` and
-   `-D` rows (`crates/podssh-cli/src/flags.rs:196-201`; keep `-W HOST:PORT`
+   `crates/podssh-cli/src/man/notes.rs:55-57`, the reasons of the `-L` and
+   `-D` rows (`crates/podssh-cli/src/flags.rs:198-203`; keep `-W HOST:PORT`
    as what to use, which `crates/podssh-cli/tests/flag_table.rs:82-101`
    asserts), `crates/podssh-cli/src/ssh/keywords.rs:83-84`,
    `crates/podssh-cli/src/ssh/options.rs:157-159`,
@@ -409,7 +409,7 @@ running on the server (`docs/design.md:224-226`).
 ## Approach
 
 1. Flags `--persist` and `--persist-name NAME` (default `podssh`; letters,
-   digits, `_` and `-`, 32 at most) in `crates/podssh-cli/src/flags.rs:112-237`.
+   digits, `_` and `-`, 32 at most) in `crates/podssh-cli/src/flags.rs:112-239`.
    With a command, `-W`, `-N`, `-s` or `RemoteCommand`, exit 64.
 2. The probe, after the login: one exec runs `command -v tmux`. No tmux:
    exit 255 with "the server has no tmux on PATH; --persist needs it". T-193
@@ -428,7 +428,7 @@ running on the server (`docs/design.md:224-226`).
    cached token. A prompt with no terminal ends the loop
    (`docs/cli.md:431-433`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes.rs:27-77`), `docs/design.md:224-226`,
+   (`crates/podssh-cli/src/man/notes.rs:27-78`), `docs/design.md:224-226`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:32-33`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
@@ -477,7 +477,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
-  (`crates/podssh-cli/src/man/notes.rs:148-152`); a client that calls
+  (`crates/podssh-cli/src/man/notes.rs:149-153`); a client that calls
   `connect()` itself needs a listener (`docs/design.md:402-405`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together

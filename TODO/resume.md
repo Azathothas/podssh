@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:134-251`).
+   (`crates/podssh-cli/src/man/facts.rs:152-272`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -730,7 +730,7 @@ sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:227-247`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:297-311`, and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:300-314`, and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -744,11 +744,11 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:297-311`.
+   `crates/podssh-cli/src/ssh/resolve.rs:300-314`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:181-196`,
-   `crates/podssh-cli/src/man/facts.rs:220-229`), the note at
-   `crates/podssh-cli/src/man/notes.rs:66`, `docs/relay.md`, `README.md`.
+   (`crates/podssh-cli/src/man/facts.rs:199-214`,
+   `crates/podssh-cli/src/man/facts.rs:238-247`), the note at
+   `crates/podssh-cli/src/man/notes.rs:67`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -867,7 +867,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:134-251`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:152-272`).
 
 ## Decision
 
@@ -1006,7 +1006,7 @@ live session that survives a stall of 3 minutes.
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:517-537`; the two
+sandbox, before a default depends on it); `docs/design.md:540-560`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1030,7 +1030,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:517-537`). A session carries 64 MiB at most, both directions
+(`docs/design.md:540-560`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:127`).
 
 ## Approach
@@ -1100,7 +1100,7 @@ new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-5`,
 `crates/podssh-ssh/src/escape.rs:28-70`). The flag table has 469 lines, near
-the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-237`).
+the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-239`).
 
 ## Approach
 

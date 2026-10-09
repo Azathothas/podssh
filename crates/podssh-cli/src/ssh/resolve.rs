@@ -28,8 +28,9 @@ pub enum Transport {
     /// (`node://NAME`, T-084).
     Node { label: String, pair_file: Option<String>, trust: Trust },
     /// A node over the iroh road (`iroh:TICKET`, T-163), with this client's
-    /// key file when `--iroh-key` names one.
-    Iroh { ticket: String, key: Option<String>, trust: Trust },
+    /// key file when `--iroh-key` names one, and the relays to try after the
+    /// ticket's (T-165).
+    Iroh { ticket: String, key: Option<String>, relays: Vec<String>, trust: Trust },
 }
 
 /// A command line, resolved.
@@ -119,8 +120,10 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         (None, Some(dest)) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
         (None, None) => parse_hop(destination)?,
     };
-    if args.iroh_key.is_some() && iroh.is_none() {
-        return Err("--iroh-key is for an iroh:TICKET destination".into());
+    for (flag, given) in [("--iroh-key", args.iroh_key.is_some()), ("--iroh-relay", args.iroh_relay.is_some())] {
+        if given && iroh.is_none() {
+            return Err(format!("{flag} is for an iroh:TICKET destination").into());
+        }
     }
     let host = match settings.host_name.clone() {
         Some(name) => {

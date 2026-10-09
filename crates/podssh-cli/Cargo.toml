@@ -29,6 +29,9 @@ ts = ["dep:podssh-ts"]
 # about 200 crates, needs Rust 1.91 and a C compiler (aws-lc-rs, as russh),
 # and the road is one that the user selects.
 iroh = ["dep:podssh-iroh", "dep:iroh"]
+# The iroh road with a relay server on the loopback, for the test of the
+# command line from end to end (`tests/iroh_road.rs`); never in a release.
+iroh-test = ["iroh", "podssh-iroh/test-relay"]
 
 # Each dependency is one that the library uses: `unused_crate_dependencies`
 # is denied in src/lib.rs, so a dependency that no code uses fails the build.
@@ -90,3 +93,6 @@ libc = { workspace = true }
 # The live IRC example only.
 [dev-dependencies]
 podssh-core = { path = "../podssh-core" }
+# An SSH server for a node's TARGET in `tests/iroh_road.rs`; the version and
+# the features that podssh-ssh builds, so no crate is added.
+russh = { version = "0.64.1", default-features = false, features = ["aws-lc-rs", "rsa", "flate2"] }

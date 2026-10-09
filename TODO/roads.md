@@ -6,7 +6,7 @@ itself; Multipath TCP; and resumption in the relay (M8).
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
-**Source:** ROADMAP M6 (the iroh road); `docs/design.md:407-555`;
+**Source:** ROADMAP M6 (the iroh road); `docs/design.md:407-578`;
 `docs/decisions.md` (2026-10-08: iroh is a road that the user must select);
 GitHub #18 (Nemo-010, 2026-10-08: the iroh-ssh, zuko, GPU-Share and quic-ssh
 reports).
@@ -30,7 +30,7 @@ to 245 crates. In the target sandbox it runs only with no UDP transport (or a
 UDP bind after a probe), podssh's proxy in `proxy_url(...)`, the `Minimal`
 preset with no pkarr or DNS, peers dialled by ticket, and a home relay whose
 `/ping` passes the proxy. The operator accepted netlink sockets and extra
-connections for this road (`docs/design.md:544-547`). The sandbox refuses UDP
+connections for this road (`docs/design.md:567-570`). The sandbox refuses UDP
 (`docs/target-environment.md:23`). Measured on `3ee70dc`: `--iroh` is an
 unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 
@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:457-465`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:459-467`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -141,7 +141,7 @@ that uses iroh's own proxy selection fails with `ALL_PROXY` set.
 # T-163: iroh tickets and node keys
 
 **Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:434` and
-`docs/design.md:512-513`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
+`docs/design.md:535-536`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
 handoff; iroh-ssh's persistent and ephemeral keys).
 **Category:** feature
 **Milestone:** M6
@@ -158,11 +158,11 @@ no form for a ticket, no place for the keys, and no rule for who may connect.
 
 Read: with the `Minimal` preset nothing is discovered, so a ticket gives the
 key and the relay URL (`docs/design.md:434`). The key is the identity, and
-access is by an allowlist of keys or a relay token (`docs/design.md:512-513`).
+access is by an allowlist of keys or a relay token (`docs/design.md:535-536`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:273-274`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:275-276`,
 `crates/podssh-cli/src/ts.rs:178`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -348,7 +348,7 @@ limit of iroh to each connection.
 Read: for a podssh node, the iroh road is first and the reverse road with the
 resumable layer is second, raced (`docs/design.md:48-53`). The first real
 sandbox can block what iroh needs, so the fallback is necessary
-(`docs/design.md:549-555`). The user must select iroh (`docs/decisions.md`,
+(`docs/design.md:572-578`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:55-62`). The relay opener tries one host at a time
 (`crates/podssh-relay/src/open.rs:177-212`), and no code races two roads.
@@ -372,7 +372,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:27-77`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:27-78`).
 
 ## Decision
 
@@ -406,7 +406,7 @@ that relay first); GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh's own relays,
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -421,9 +421,9 @@ forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
 (`crates/podssh-relay/src/pool.rs:18-27`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
-published (`docs/design.md:529-531`). At least three projects run the iroh
+published (`docs/design.md:552-554`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
-`docs/design.md:535-537`). The URLs of n0's relays for iroh 1.x must be read
+`docs/design.md:558-560`). The URLs of n0's relays for iroh 1.x must be read
 in iroh's source at the pinned version.
 
 ## Approach
@@ -445,7 +445,7 @@ in iroh's source at the pinned version.
    relay.
 7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-122`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:134-251`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:152-272`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -453,6 +453,44 @@ in iroh's source at the pinned version.
    entry: `podssh node NAME TARGET --iroh` and `podssh ssh iroh:TICKET`,
    with the relay of the new flag on the loopback, an allowlist, and a
    client that is refused, then let in.
+
+## Decision
+
+2026-10-10, read in iroh 1.3.0 before the work:
+
+- iroh picks its home relay by latency among the relays of its map, with a
+  hysteresis (`net_report.rs`, `add_report_history_and_set_preferred_relay`),
+  and no order. So podssh asks `/ping` of each relay in the list's order,
+  through the proxy and with podssh's trust store, 5 s at most each, and
+  gives iroh the first that answers as its only relay: that relay is the home
+  relay, and a node's ticket stays the same for the run. Lost: the whole list
+  to iroh, which could take n0's relay over the operator's, against the
+  decision of 2026-10-08, and could change a node's ticket whenever the
+  latencies did. When no relay answers, iroh gets the whole list, and its
+  own probes are the fallback.
+- iroh's relay actor dials any relay URL that a peer needs, and reads its
+  map only for an auth token (`socket/transports/relay/actor.rs`,
+  `start_active_relay`). So the relay of a ticket is reached when it is in
+  no list. The client's list starts with the ticket's relays: its home relay
+  is the node's when that one answers.
+- The variable `PODSSH_IROH_RELAY` is read in `podssh-iroh`, so the manual's
+  check of variables against the source reads that crate, and lists the
+  variable, only in a build with the feature. The flag `--iroh-relay` is in
+  the tables of `node` and `ssh` in each build, as the other flags of the
+  road are.
+- A relay URL is `https://`, a host that `check_host` takes, an optional
+  port, and no user information, path, query or fragment: iroh puts its own
+  path after the origin.
+- The Prove's test of the manual finds the variable, and the relays'
+  paragraph of THE RELAY, in a build with the feature only; the flag is in
+  each build's table, by the decision above, and its help names the
+  feature.
+- The test of the command line from end to end needs a relay server, which
+  iroh has only behind its `test-utils`: `podssh-iroh` gets the feature
+  `test-relay` (iroh's relay server on the loopback, with its certificate in
+  a PEM file) and `podssh-cli` the feature `iroh-test`, which no release
+  builds. Lost: iroh's relay server as a dev-dependency of `podssh-cli`,
+  which each default test build would then compile.
 
 ## Prove
 
@@ -468,10 +506,57 @@ answer `/ping`; a planted list that ignores the flag fails it. The test of the
 manual finds the variable and the flag in a build with the feature, and in no
 other build.
 
+## Done
+
+2026-10-10.
+
+- `podssh-iroh::relays`: the table (n0's four relays, read in iroh 1.3.0),
+  the parse of a relay and of a list, `select` (the flag, the variable, the
+  table) and `from_environment`, `ping` (moved from `podssh doctor`), and
+  `home`: the first relay that answers `/ping`, 5 s at most each, alone, or
+  them all when none does. `endpoint`: an empty list is the table.
+  `test_relay` (feature `test-relay`): iroh's relay server on the loopback
+  with its certificate in a PEM file.
+- podssh-cli: `--iroh-relay` on `node` and `ssh` (a usage error without
+  `--iroh` or an iroh destination; a bad value is 64, a bad variable 78).
+  `podssh node --iroh` takes its home relay so, and says each relay that did
+  not answer; `podssh ssh iroh:TICKET` asks the ticket's relays first, then
+  the list. `podssh doctor`, with the feature: `/ping` of each relay of the
+  list, by host and port, then the home relay; each relay that does not
+  answer is a FAIL. The manual: `PODSSH_IROH_RELAY` in ENVIRONMENT and the
+  relays in THE RELAY, with the feature only (`variables()`, and the
+  variable test reads `podssh-iroh` with the feature); the notes of `ssh`
+  and `node`. The gate's step `iroh`, and its clippy line, run with
+  `podssh-cli/iroh-test`.
+- Prove, native, Windows: `cargo test -p podssh-iroh --test relays`: 6
+  passed: the flag before the variable before the table, and a planted
+  selection that ignores the flag fails that check; `http://`, user
+  information, a path, a query, a fragment and a bad host are refused; the
+  table is iroh's own list; a silent relay first and iroh's relay server
+  second: the second is the home relay, with its certificate checked by
+  podssh's trust store, and an endpoint given it has it as its home relay;
+  with no relay that answers, iroh gets them all, each with its reason.
+  `cargo test -p podssh-cli --features iroh --test man_page`, and without
+  the feature: 9 passed each. `cargo test -p podssh-cli --features iroh-test
+  --test iroh_road` (item 8): `podssh node --iroh` and `podssh ssh
+  iroh:TICKET` through iroh's relay server on the loopback, with
+  `--iroh-relay` and `--ca-file`: the client is refused and prints its key,
+  the node names the refused key; with the key added to the allowlist, the
+  same command runs on the node's SSH server (a russh server in the test)
+  and prints its line, exit 0, and the host key is kept under `iroh:` and
+  the node's key; 6.7 s. A planted node that admits each key failed it (run
+  once, then restored). The ignored live test of `doctor` (its other checks
+  reach the relay of the forward road): run once, passed. `cargo test
+  --no-fail-fast`: 1003 passed, 0 failed, 22 ignored; `cargo test -p podssh-iroh -p podssh-cli
+  --features podssh-cli/iroh-test`: 363 passed, 0 failed, 9 ignored. clippy in both builds and
+  with `iroh-test`: no warning. `cargo deny`, also with `--all-features`: ok.
+- Waits: `sh scripts/dev.sh check` for T-251. n0's relays were not reached
+  in this entry; a real sandbox, and the relay's throughput, are T-157's.
+
 # T-166: A roost: a podssh next to a standard sshd
 
 **Source:** `docs/design.md:52` (a standard sshd behind a podssh `roost`) and
-`docs/design.md:217-220`; the `roost` of pigeons (`docs/design.md:539-542`);
+`docs/design.md:217-220`; the `roost` of pigeons (`docs/design.md:562-565`);
 GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh reaches sshd by node id, and
 refuses early when no sshd answers).
 **Category:** feature
@@ -981,7 +1066,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:221-231` (layer 3) and `docs/design.md:564-567` (question 1 of
+`docs/design.md:221-231` (layer 3) and `docs/design.md:587-590` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -1004,7 +1089,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:227-231`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:564-567`). The relay is in another repository.
+(`docs/design.md:587-590`). The relay is in another repository.
 
 ## Approach
 

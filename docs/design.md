@@ -499,8 +499,31 @@ iroh's own ticket (the vector of iroh-tickets, written by another encoder)
 parses to its key, relay and address, and podssh writes it back the same; a
 node refuses a client whose key is not in its allowlist, opens no target
 for it, and lets the client in once its key is added; a planted node that
-admits each key fails that check. Not yet: the command line end to end,
-which needs the relays as a setting (T-165).
+admits each key fails that check. The command line end to end came with
+T-165.
+
+**Built (T-165, 2026-10-10):** the relays as a setting, the first that
+answers first. The table is n0's four public relays, read in iroh 1.3.0;
+`--iroh-relay` (on `node` and `ssh`) and `PODSSH_IROH_RELAY` replace it, the
+flag first. A relay is `https://HOST[:PORT]` and nothing more. iroh itself
+picks the relay with the least latency, in no order, and can change it
+during a run (READ: `net_report.rs`); so podssh asks `/ping` of each relay in
+the list's order, through the proxy and with its own trust store, 5 s at
+most each, and gives iroh the first that answers alone: the home relay, and
+the one that a node's ticket names for the run. With none that answers,
+iroh gets them all, and its own probes are the fallback. A client asks the
+ticket's relays first; iroh dials a peer's relay when it is in no list
+(READ: the relay actor reads its map only for a token). `podssh doctor`
+says the `/ping` of each relay, and the home relay.
+
+MEASURED offline (`cargo test -p podssh-iroh --test relays`, and
+`cargo test -p podssh-cli --features iroh-test --test iroh_road`): with a
+silent relay first and iroh's relay server on the loopback second, the
+second is the home relay, its certificate checked by podssh's trust store;
+`podssh node --iroh` and `podssh ssh iroh:TICKET` from end to end: the
+client is refused and prints its key, and once that key is in the
+allowlist, with no new start of the node, the command runs, and the host
+key is kept under `iroh:` and the node's key.
 
 What iroh then gives, when both ends run podssh:
 

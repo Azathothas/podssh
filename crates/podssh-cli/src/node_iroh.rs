@@ -11,7 +11,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use iroh::PublicKey;
+use iroh::{PublicKey, RelayUrl};
 use podssh_iroh::keys::{self, Place};
 use podssh_iroh::{ticket, Allowlist, Options, Udp};
 use podssh_relay::session::{OsEntropy, Settings};
@@ -55,6 +55,7 @@ struct Ready {
     port: u16,
     place: Place,
     allow: Option<PathBuf>,
+    relays: Vec<RelayUrl>,
     trust: Trust,
 }
 
@@ -75,14 +76,20 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         (None, true) => Place::Ephemeral,
         (None, false) => Place::Cache(keys::node_file(&label)),
     };
+    // A bad flag is a usage error, a bad variable a configuration error.
+    let relays = match podssh_iroh::relays::from_environment(args.iroh_relay.as_deref()) {
+        Ok((relays, _)) => relays,
+        Err(why) if args.iroh_relay.is_some() => return Err(Refusal::usage(why)),
+        Err(why) => return Err(Refusal::config(why)),
+    };
     crate::pins::apply(args.relay_addr.as_deref())?;
     crate::pairs::online()?;
     let trust = crate::pairs::trust(args.ca_file.as_deref());
-    Ok(Ready { label, host, port, place, allow: args.iroh_allow.as_ref().map(PathBuf::from), trust })
+    Ok(Ready { label, host, port, place, allow: args.iroh_allow.as_ref().map(PathBuf::from), relays, trust })
 }
 
 async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, host, port, place, allow, trust } = ready;
+    let Ready { label, host, port, place, allow, relays, trust } = ready;
     let target = podssh_ws::dial::authority(&host, port);
     let proxy = ProxyChoice::FromEnvironment;
     // TARGET first: a node that cannot reach it would serve no session.
@@ -97,7 +104,14 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         Ok(key) => key,
         Err(why) => return Refusal::config(format!("the node's key: {why}")).report("node", err),
     };
+    // The first relay of the list that answers `/ping` is the home relay,
+    // and the ticket names it for the run (T-165).
+    let (home, missed) = podssh_iroh::relays::home(&relays, &trust, &proxy).await;
+    for why in &missed {
+        let _ = writeln!(err, "podssh node: {label}: an iroh relay did not answer: {why}");
+    }
     let options = Options {
+        relays: home,
         proxy,
         trust,
         udp: Udp::Probe,
@@ -114,7 +128,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         Err(_) => None,
     };
     let Some(relay) = relay else {
-        let relays: Vec<String> = podssh_iroh::endpoint::default_relays().iter().map(ToString::to_string).collect();
+        let relays: Vec<String> = relays.iter().map(ToString::to_string).collect();
         let refusal = Refusal {
             message: format!(
                 "no iroh relay answered within {} s ({}); podssh doctor checks the way to them",

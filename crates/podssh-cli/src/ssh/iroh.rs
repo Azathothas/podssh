@@ -10,6 +10,7 @@ mod dial;
 
 use super::node::Ask;
 use super::resolve::Transport;
+use crate::relay_settings::Refusal;
 use podssh_ws::Trust;
 
 /// The form of an iroh destination: `iroh:TICKET`, or `USER@iroh:TICKET`.
@@ -69,8 +70,9 @@ fn shown(ticket: &str) -> Result<String, String> {
 }
 
 /// What reaches the node: the iroh road alone, with no `-J`, `-W`, `-p`,
-/// `HostName`, `-4`, `-6` or `--direct`, which a node has no use for yet.
-pub(super) fn transport(dest: &Destination, r: &Ask<'_>, trust: Trust) -> Result<Transport, String> {
+/// `HostName`, `-4`, `-6` or `--direct`, which a node has no use for yet;
+/// and the relays to try after the ticket's.
+pub(super) fn transport(dest: &Destination, r: &Ask<'_>, trust: Trust) -> Result<Transport, Refusal> {
     let why = if r.args.direct {
         Some("--direct cannot reach a node of the iroh road: only the road can")
     } else if r.jumps > 0 {
@@ -89,9 +91,27 @@ pub(super) fn transport(dest: &Destination, r: &Ask<'_>, trust: Trust) -> Result
         None
     };
     if let Some(why) = why {
-        return Err(format!("{}: {why}", dest.shown));
+        return Err(Refusal::usage(format!("{}: {why}", dest.shown)));
     }
-    Ok(Transport::Iroh { ticket: dest.ticket.clone(), key: r.args.iroh_key.clone(), trust })
+    let relays = relays(r.args.iroh_relay.as_deref())?;
+    Ok(Transport::Iroh { ticket: dest.ticket.clone(), key: r.args.iroh_key.clone(), relays, trust })
+}
+
+/// The relays of `--iroh-relay`, else of the variable, else of the table: a
+/// bad flag is a usage error (64), a bad variable a configuration error
+/// (78), as the relay's own flag and variable are.
+#[cfg(feature = "iroh")]
+fn relays(flag: Option<&str>) -> Result<Vec<String>, Refusal> {
+    match podssh_iroh::relays::from_environment(flag) {
+        Ok((list, _)) => Ok(list.iter().map(ToString::to_string).collect()),
+        Err(why) if flag.is_some() => Err(Refusal::usage(why)),
+        Err(why) => Err(Refusal::config(why)),
+    }
+}
+
+#[cfg(not(feature = "iroh"))]
+fn relays(_: Option<&str>) -> Result<Vec<String>, Refusal> {
+    Ok(Vec::new())
 }
 
 /// SSH over the iroh road to the node of `ticket`.
@@ -99,17 +119,19 @@ pub(super) fn transport(dest: &Destination, r: &Ask<'_>, trust: Trust) -> Result
 pub(super) async fn connect(
     ticket: &str,
     key: Option<&str>,
+    relays: &[String],
     trust: &Trust,
     opts: &podssh_ssh::options::Options,
     log: std::sync::Arc<podssh_ssh::Log>,
 ) -> i32 {
-    dial::connect(ticket, key, trust, opts, log).await
+    dial::connect(ticket, key, relays, trust, opts, log).await
 }
 
 #[cfg(not(feature = "iroh"))]
 pub(super) async fn connect(
     ticket: &str,
     _: Option<&str>,
+    _: &[String],
     _: &Trust,
     _: &podssh_ssh::options::Options,
     log: std::sync::Arc<podssh_ssh::Log>,

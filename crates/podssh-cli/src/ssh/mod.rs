@@ -80,8 +80,8 @@ async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
     if let Transport::Node { label, pair_file, trust } = &resolved.transport {
         return node::connect(label, pair_file.as_deref(), trust, opts, log).await;
     }
-    if let Transport::Iroh { ticket, key, trust } = &resolved.transport {
-        return iroh::connect(ticket, key.as_deref(), trust, opts, log).await;
+    if let Transport::Iroh { ticket, key, relays, trust } = &resolved.transport {
+        return iroh::connect(ticket, key.as_deref(), relays, trust, opts, log).await;
     }
     let reached = match transport::reach(&resolved, &log).await {
         Ok(reached) => reached,

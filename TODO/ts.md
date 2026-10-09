@@ -251,7 +251,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:105-120`), so apply `NO_PROXY` for each host in
    the new function.
-4. Update `crates/podssh-cli/src/flags.rs:269-270`, `docs/tailscale.md:25-26` and
+4. Update `crates/podssh-cli/src/flags.rs:271-272`, `docs/tailscale.md:25-26` and
    `docs/STATUS.md:237` in the same commit.
 
 ## Prove
@@ -319,7 +319,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:235` and `crates/podssh-cli/src/man/notes.rs:284-286`.
+   `docs/tailscale.md`, `docs/STATUS.md:235` and `crates/podssh-cli/src/man/notes.rs:286-288`.
 
 ## Decision
 
@@ -449,7 +449,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:63`, `docs/tailscale.md:8-19` and
-   `crates/podssh-cli/src/man/notes.rs:284-286`.
+   `crates/podssh-cli/src/man/notes.rs:286-288`.
 
 ## Prove
 
@@ -497,13 +497,13 @@ build ("'ts' is not available in this build"), so the parser accepts the flag. T
 `podssh proxy --jsonl example.invalid 22 </dev/null` exits 64: "--jsonl is refused in ProxyCommand
 mode."
 
-Read: the row is at `crates/podssh-cli/src/flags.rs:283-284`. `podssh ts` reads the flag once, in
+Read: the row is at `crates/podssh-cli/src/flags.rs:285-286`. `podssh ts` reads the flag once, in
 `resolve_tty` (`crates/podssh-cli/src/ts.rs:43`), which only makes the run non-interactive
 (`crates/podssh-cli/src/non_interactive.rs:61-76`). The status form writes plain text
 (`crates/podssh-cli/src/ts.rs:290-292`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
 stream (`crates/podssh-cli/src/ts.rs:371-373`). `proxy --jsonl` is refused at parse, with the reason
 (`crates/podssh-cli/src/tree.rs:179-187`, `crates/podssh-cli/src/non_interactive.rs:309-320`).
-`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:50`).
+`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:53`).
 
 ## Approach
 
@@ -513,8 +513,8 @@ stream (`crates/podssh-cli/src/ts.rs:371-373`). `proxy --jsonl` is refused at pa
    `{"event":"status","nodekey_prefix":...,"tailnet_ip":...,"home_region":...}`. Never the key.
 3. Keep errors on stderr as text; the exit code stays the result. T-104 and T-105 add events (a
    drop, a new connection, a refusal) to this form when their states exist.
-4. Change the help text of the row (`crates/podssh-cli/src/flags.rs:283-284`) and the notes of the
-   manual (`crates/podssh-cli/src/man/notes.rs:284-286`) in the same commit. The tests of the manual
+4. Change the help text of the row (`crates/podssh-cli/src/flags.rs:285-286`) and the notes of the
+   manual (`crates/podssh-cli/src/man/notes.rs:286-288`) in the same commit. The tests of the manual
    compare the row with the help.
 
 ## Decision

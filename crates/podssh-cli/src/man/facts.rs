@@ -121,8 +121,26 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
 ];
 
+/// The variables of the iroh road (T-165), which only a build with the
+/// feature `iroh` reads.
+#[cfg(feature = "iroh")]
+const FEATURE_VARIABLES: &[(&[&str], &str)] = &[(
+    &["PODSSH_IROH_RELAY"],
+    "The iroh relays, as --iroh-relay: https://HOST[:PORT], separated by commas, in order. The flag wins; \
+      an empty value is no value, and a bad one is a configuration error (78).",
+)];
+
+#[cfg(not(feature = "iroh"))]
+const FEATURE_VARIABLES: &[(&[&str], &str)] = &[];
+
+/// Each variable that this build reads: [`VARIABLES`], and those of its
+/// features.
+pub fn variables() -> impl Iterator<Item = &'static (&'static [&'static str], &'static str)> {
+    VARIABLES.iter().chain(FEATURE_VARIABLES)
+}
+
 fn environment() -> Vec<Block> {
-    VARIABLES.iter().map(|(n, what)| item(names(n), *what)).collect()
+    variables().map(|(n, what)| item(names(n), *what)).collect()
 }
 
 fn files() -> Vec<Block> {
@@ -248,6 +266,33 @@ fn relay() -> Vec<Block> {
             ),
         ),
     ]
+    .into_iter()
+    .chain(iroh_relays())
+    .collect()
+}
+
+/// The relays of the iroh road, in a build that has it.
+#[cfg(feature = "iroh")]
+fn iroh_relays() -> Vec<Block> {
+    use podssh_iroh::relays;
+    vec![item(
+        vec![lit("iroh relays")],
+        format!(
+            "The iroh road (podssh node --iroh, podssh ssh iroh:TICKET) has relays of its own: {}, or those of \
+             --iroh-relay or {}, the flag first. podssh asks /ping of each, in order, through the proxy, {} s \
+             at most each, and the first that answers is the home relay; a node's ticket names it. A client \
+             asks the relay of the ticket first. When none answers, iroh probes them all and takes the one \
+             that answers fastest.",
+            relays::DEFAULT.join(", "),
+            relays::ENV,
+            relays::PING_LIMIT.as_secs()
+        ),
+    )]
+}
+
+#[cfg(not(feature = "iroh"))]
+fn iroh_relays() -> Vec<Block> {
+    Vec::new()
 }
 
 /// The exit codes, from the constants that the commands return.
@@ -277,8 +322,12 @@ mod tests {
     /// manual itself (which names each variable).
     fn sources() -> Vec<(PathBuf, String)> {
         let mut out = Vec::new();
-        let mut dirs: Vec<PathBuf> =
-            ["podssh-cli", "podssh-ssh", "podssh-relay", "podssh-ws"].iter().map(|c| crate_dir(c)).collect();
+        let mut crates = vec!["podssh-cli", "podssh-ssh", "podssh-relay", "podssh-ws"];
+        // The iroh road's crate is in the binary with its feature only.
+        if cfg!(feature = "iroh") {
+            crates.push("podssh-iroh");
+        }
+        let mut dirs: Vec<PathBuf> = crates.iter().map(|c| crate_dir(c)).collect();
         while let Some(dir) = dirs.pop() {
             for entry in std::fs::read_dir(&dir).unwrap().flatten() {
                 let path = entry.path();
@@ -298,7 +347,7 @@ mod tests {
     }
 
     fn documented() -> Vec<&'static str> {
-        VARIABLES.iter().flat_map(|(n, _)| n.iter().copied()).collect()
+        variables().flat_map(|(n, _)| n.iter().copied()).collect()
     }
 
     /// Each documented variable is read somewhere: a removed variable fails.

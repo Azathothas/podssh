@@ -92,7 +92,7 @@ fn each_keyword_variable_and_exit_code_is_in_the_json() {
         .iter()
         .flat_map(|v| v["names"].as_array().unwrap().iter().map(|n| n.as_str().unwrap().to_string()))
         .collect();
-    for (list, _) in podssh_cli::man::facts::VARIABLES {
+    for (list, _) in podssh_cli::man::facts::variables() {
         for n in *list {
             assert!(variables.contains(&n.to_string()), "{n}");
         }

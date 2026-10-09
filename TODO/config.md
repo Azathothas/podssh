@@ -23,11 +23,11 @@ TeddyHuang-00/sshping (GitHub #22), whme/csshw and RustConn (GitHub #24); ROADMA
 Measured on `3ee70dc` (`target/debug/podssh.exe`, `PODSSH_OFFLINE=1`): with
 `-F ~/.ssh/config`, `podssh ssh` exits 64 ("reading ssh_config files is not implemented yet");
 `-o Match=all` exits 64 ("an ssh_config block keyword, not an option"). Read: each `-F` but
-`none`, `/dev/null` and `NUL` is refused (`crates/podssh-cli/src/ssh/resolve.rs:102-109`).
+`none`, `/dev/null` and `NUL` is refused (`crates/podssh-cli/src/ssh/resolve.rs:103-110`).
 `Settings::apply` keeps the first value of a keyword
 (`crates/podssh-cli/src/ssh/options.rs:180-184`), the rule of `docs/cli.md:464-465`. A
 `-o User` or `-o Port` beats `user@host` and `host:PORT`
-(`crates/podssh-cli/src/ssh/resolve.rs:132-142`), so a file value in that `Settings` would beat
+(`crates/podssh-cli/src/ssh/resolve.rs:135-145`), so a file value in that `Settings` would beat
 them too, which is wrong. An unknown `%` token stays as text (`resolve.rs:303-306`).
 
 ## Approach
@@ -39,7 +39,7 @@ them too, which is wrong. An unknown `%` token stays as text (`resolve.rs:303-30
    `user@host`, then the file; `-p`, `-o Port`, `host:PORT`, then the file. `IdentityFile` adds
    to `-i` (`docs/cli.md:467`).
 3. `-F FILE` alone; `-F none` nothing; else `~/.ssh/config`, with the home from `HOME` or
-   `USERPROFILE` (`crates/podssh-cli/src/ssh/resolve.rs:65-77`). Only a missing `-F` file is an
+   `USERPROFILE` (`crates/podssh-cli/src/ssh/resolve.rs:66-78`). Only a missing `-F` file is an
    error (`docs/cli.md:475-476`).
 4. `Host` patterns through `known_hosts::wildcard`
    (`crates/podssh-ssh/src/known_hosts.rs:179-201`); not `matches`, which accepts `|1|` hashes.
@@ -48,7 +48,7 @@ them too, which is wrong. An unknown `%` token stays as text (`resolve.rs:303-30
    (`crates/podssh-cli/src/ssh/keywords.rs:82-88`), but accept a `ProxyCommand` that runs
    podssh itself (`proxy %h %p`: the path of `podssh ssh` anyway). Honour `IgnoreUnknown`.
 6. Refuse a file that another user owns or can write, as OpenSSH does, on the opened file
-   (`crates/podssh-relay/src/cache/own.rs:22-58`, `Others::Read`, since T-163). An unknown `%`
+   (`crates/podssh-relay/src/cache/own.rs:22-62`, `Others::Read`, since T-163). An unknown `%`
    token is an error.
 7. In the same commit: the `-F` row (`crates/podssh-cli/src/flags.rs:143-144`), VARIABLES and
    FILES (`crates/podssh-cli/src/man/facts.rs:45-122`, 98-142), the `ssh` notes,
@@ -170,9 +170,9 @@ block is worse: a skipped `Match` can change the host that podssh connects to.
 
 Read: `docs/cli.md:472-474`: `Match` never overrides a value that is set, and podssh must refuse
 it by name, not skip it. `-P TAG` is accepted and ignored today
-(`crates/podssh-cli/src/flags.rs:193-194`), so `Match tagged` would give the tag its meaning.
+(`crates/podssh-cli/src/flags.rs:195-196`), so `Match tagged` would give the tag its meaning.
 The login name comes from the environment, never from the user database
-(`crates/podssh-cli/src/ssh/resolve.rs:68-87`); `Match localuser` needs it. podssh does no
+(`crates/podssh-cli/src/ssh/resolve.rs:69-88`); `Match localuser` needs it. podssh does no
 canonical pass: `CanonicalizeHostname` is accepted and ignored
 (`crates/podssh-cli/src/ssh/keywords.rs:64-77`). Measured with OpenSSH_10.3p1 (T-044):
 `Match all` applies where it stands, and `Match final all` fills only unset values.
@@ -237,12 +237,12 @@ podssh with those of OpenSSH.
 
 Measured on `3ee70dc` (`PODSSH_OFFLINE=1`): `podssh ssh -G example.org` exits 64 with "-G is
 refused. ... podssh reads no ssh_config, so it has no configuration to print."
-(`crates/podssh-cli/src/flags.rs:215-216`). Measured with OpenSSH_10.3p1 on this machine:
+(`crates/podssh-cli/src/flags.rs:217-218`). Measured with OpenSSH_10.3p1 on this machine:
 `ssh -G -F none -p 2222 -l alice -o ServerAliveInterval=30 example.org` exits 0 and prints 84
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:95-354`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:96-357`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the defaults included.
 
 ## Approach
@@ -259,7 +259,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:125`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:27-77`) and `docs/cli.md:48-101`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:27-78`) and `docs/cli.md:48-101`
    in the same commit.
 
 ## Decision
@@ -304,8 +304,8 @@ work.
 
 ## Premise
 
-Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:402-433`).
-`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:50`), so a JSON
+Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:404-435`).
+`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:53`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
 that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 2).
@@ -327,7 +327,7 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
    a comment line. Never drop it silently.
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
-   (`crates/podssh-cli/src/flags.rs:402-444`), the arguments, `usage_tail`
+   (`crates/podssh-cli/src/flags.rs:404-446`), the arguments, `usage_tail`
    (`crates/podssh-cli/src/help.rs:229-242`), the manual's notes and examples, and
    `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-113`).
 
@@ -373,9 +373,9 @@ command, or edits a shell profile. No file states them once.
 Read: each command resolves the same settings in its own copy. Relay hosts (`--relay-host`,
 then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:83-101`)
 go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:62-74`), called in
-`crates/podssh-cli/src/ssh/resolve.rs:266`, `crates/podssh-cli/src/doctor/mod.rs:56-59` and
+`crates/podssh-cli/src/ssh/resolve.rs:269`, `crates/podssh-cli/src/doctor/mod.rs:56-59` and
 `crates/podssh-cli/src/proxy.rs:66-69`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
-`crates/podssh-cli/src/ssh/resolve.rs:279-282`, `crates/podssh-cli/src/doctor/mod.rs:60-65` and
+`crates/podssh-cli/src/ssh/resolve.rs:282-285`, `crates/podssh-cli/src/doctor/mod.rs:60-65` and
 `crates/podssh-cli/src/proxy.rs:77-81`. The pins of the flag and of the variable add up
 (`crates/podssh-cli/src/pins.rs:13-23`). The token cache uses the user's
 cache directory first (`crates/podssh-relay/src/cache.rs:372-381`). The decision named the
@@ -397,7 +397,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
    names relay hosts decides where tokens go.
 4. Refuse a file that is a symbolic link, or that another user owns or can write, with an error
    that names it. Check the opened file, as `read_own` does with `Others::Read`
-   (`crates/podssh-relay/src/cache/own.rs:22-58`, since T-163).
+   (`crates/podssh-relay/src/cache/own.rs:22-62`, since T-163).
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and

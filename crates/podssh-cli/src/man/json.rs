@@ -91,7 +91,7 @@ fn ssh_keywords() -> Value {
 }
 
 fn variables() -> Value {
-    super::facts::VARIABLES.iter().map(|(names, what)| json!({ "names": names, "help": what })).collect()
+    super::facts::variables().map(|(names, what)| json!({ "names": names, "help": what })).collect()
 }
 
 fn files() -> Value {

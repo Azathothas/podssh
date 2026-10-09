@@ -165,7 +165,7 @@ mod tests {
             while words.first().is_some_and(|w| w.contains('=') && !w.starts_with('-')) {
                 let name = words.remove(0);
                 let name = name.split('=').next().unwrap().to_string();
-                let known = super::super::facts::VARIABLES.iter().any(|(n, _)| n.contains(&name.as_str()));
+                let known = super::super::facts::variables().any(|(n, _)| n.contains(&name.as_str()));
                 assert!(known, "{command}: {name} is not in ENVIRONMENT");
             }
             match words.first().map(String::as_str) {

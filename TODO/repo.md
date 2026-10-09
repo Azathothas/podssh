@@ -120,7 +120,7 @@ Read:
      image. Do this item after T-206;
    - no entry for `vendor/tailscale-rs`.
 2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
-   the live check. The no-C steps of the gate (`scripts/gate.sh:115-122`) judge
+   the live check. The no-C steps of the gate (`scripts/gate.sh:117-124`) judge
    each update of a library crate's dependencies.
 3. Dependabot alerts and security updates: on since 2026-10-08, turned on
    with `gh api` and the operator's approval (`gh api
@@ -327,8 +327,8 @@ Read:
 - The help (`scripts/dev.sh` lines 331-366 at `912acd0`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
-  and the release with neither (`scripts/gate.sh:115-122`,
-  `scripts/gate.sh:239-241`). The help omits the work record, interop, the man
+  and the release with neither (`scripts/gate.sh:117-124`,
+  `scripts/gate.sh:243-245`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
@@ -348,7 +348,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:98-288`).
+   (`scripts/gate.sh:98-292`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:438-483`): the
+5. docs/development.md, "Release builds" (`docs/development.md:441-486`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -675,7 +675,7 @@ Read:
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
-- `crates/podssh-cli/src/man/facts.rs:335-351`: the drift test of the manual
+- `crates/podssh-cli/src/man/facts.rs:384-400`: the drift test of the manual
   counts each quoted upper-case name with `_` in the sources as a variable
   (except `CARGO_` names).
 
@@ -1604,7 +1604,7 @@ the gate on any host that has a C++ compiler. The no-C rule held only because
 
 Read, in the tree as it is now:
 
-- `scripts/gate.sh:90-122`: the library crates build and test with
+- `scripts/gate.sh:90-124`: the library crates build and test with
   `CC=/nonexistent` and `CXX=/nonexistent`.
 - `scripts/plant.sh:100-145`: a crate in a temporary path whose build script
   compiles one C++ file with the `cc` crate. With both variables set, the
@@ -2129,7 +2129,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:204-211`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:206-213`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -2217,7 +2217,7 @@ Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
 
 Read: `libc` (line 44) is used only in code under `cfg(unix)`
 (`crates/podssh-cli/src/ssh/tokens.rs:127`, `crates/podssh-cli/src/ssh/tokens.rs:144`,
-`crates/podssh-cli/src/ssh/resolve.rs:86`,
+`crates/podssh-cli/src/ssh/resolve.rs:87`,
 the module of `crates/podssh-cli/src/doctor/unix.rs`). T-060 decides whether a
 command uses `podssh-probe`.
 
@@ -2743,4 +2743,7 @@ when the line never comes. The script runs only on Windows, in CI's job
 `windows` (`scripts/interop-conpty-msys2.py` installs MSYS2's sshd and vim
 on the runner), so the Prove is CI's: the run of the repair's push, and of
 the pushes after it, recorded in `docs/STATUS.md`.
+- CI, the run of `de847e1` (37979652921): the job `windows`, 14 of 14, and
+  its planted podssh fails the three restore checks and no other; the whole
+  run passed.
 

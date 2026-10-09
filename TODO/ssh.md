@@ -26,7 +26,7 @@ wrong remedy. The same note comes when `PreferredAuthentications` leaves out
 Read:
 
 - `resolve` removes `publickey` from the methods when `PubkeyAuthentication`
-  is `no` (`crates/podssh-cli/src/ssh/resolve.rs:190-198`). The chain then
+  is `no` (`crates/podssh-cli/src/ssh/resolve.rs:193-201`). The chain then
   never offers a key (`crates/podssh-ssh/src/auth.rs:107-109`).
 - The denial adds the notes of the keys with no condition
   (`crates/podssh-ssh/src/auth.rs` line 115 at `475aea9`). `PublicKeys::notes` writes "no key
@@ -289,7 +289,7 @@ Read:
    `1001`, `1009` or `1013`.
 4. Wait with the jittered backoff that exists
    (`crates/podssh-relay/src/open.rs:262-276`). Bound the whole by the rounds
-   of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:350`) and
+   of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:353`) and
    the deadline of each host.
 5. Never prompt again without a person: under `BatchMode`, or with no
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
@@ -441,7 +441,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:140-147` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:112-114`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5408`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5411`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -534,7 +534,7 @@ counts as empty, so `accept-new` accepts any key for that host.
 Read:
 
 - With no `HOME`, the list of user files is empty
-  (`crates/podssh-cli/src/ssh/resolve.rs:182-186`). `record` then says "no
+  (`crates/podssh-cli/src/ssh/resolve.rs:185-189`). `record` then says "no
   known_hosts file is configured" (`crates/podssh-ssh/src/hostkey.rs:163-169`).
 - A failed write logs "it will be checked again next time", and the key is
   accepted (`crates/podssh-ssh/src/hostkey.rs:170-179`).
@@ -563,7 +563,7 @@ Not measured here: each case needs a server.
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
 5. Update `docs/cli.md:425-447` (one line) and the manual's note on host keys
-   (`crates/podssh-cli/src/man/notes.rs:45-48`).
+   (`crates/podssh-cli/src/man/notes.rs:46-49`).
 
 ## Decision
 
@@ -753,8 +753,8 @@ and no other.
 ## Approach
 
 1. Add the long flag `--host-key-fingerprint SHA256:B64[,SHA256:B64...]` to
-   `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-237`), and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:57-65`). Refuse a malformed value with
+   `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-239`), and to `ONCE`
+   (`crates/podssh-cli/src/ssh/args.rs:59-68`). Refuse a malformed value with
    exit 64 before anything connects.
 2. Carry it in `Options` (`crates/podssh-ssh/src/options.rs:163-225`) and
    `Policy` (`crates/podssh-ssh/src/hostkey.rs:18-31`), for the destination
@@ -915,7 +915,7 @@ and no player.
 4. Playback: a new verb `podssh play FILE`, with `--speed` and
    `--idle-limit`. Not `replay`: it is one edit from `relay`, and the
    suggestion step would mix them (`docs/cli.md:131-140`). Add it to `VERBS`
-   (`crates/podssh-cli/src/flags.rs:402-433`), to
+   (`crates/podssh-cli/src/flags.rs:404-435`), to
    `crates/podssh-cli/src/positionals.rs`, to dispatch, and to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`).
 5. Refuse a file whose header is not version 2. Skip unknown event types.
@@ -998,7 +998,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
 6. When the probe fails, refuse with the reason and the other ways: key
    files with `-i`, and the helper of T-228.
 7. In the same commit: the verb in `VERBS`
-   (`crates/podssh-cli/src/flags.rs:402-433`), in
+   (`crates/podssh-cli/src/flags.rs:404-435`), in
    `crates/podssh-cli/src/positionals.rs` and in `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`); `docs/cli.md`;
    "Nothing listens" in `SECURITY.md:69-75`; `docs/STATUS.md`.
@@ -1007,7 +1007,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
 
 Recommendation: the agent stays in the foreground, and the user starts it
 with `&`. podssh refuses to go to the background (`-f`,
-`crates/podssh-cli/src/flags.rs:213-214`), and one life cycle is easier to
+`crates/podssh-cli/src/flags.rs:215-216`), and one life cycle is easier to
 test. The alternative, the fork of `ssh-agent`, lost: it works on Unix only,
 and it hides a failure that comes after the fork.
 
@@ -1241,7 +1241,7 @@ with the key file of one, and has no agent to hold one.
   (`crates/podssh-ssh/src/keys.rs:119-171`), so an `sk-` key in OpenSSH's
   `ssh-agent`, with its device present, can work today. Not measured.
 - Read: `-I` (PKCS#11) is refused by name
-  (`crates/podssh-cli/src/flags.rs:217-218`).
+  (`crates/podssh-cli/src/flags.rs:219-220`).
 - A device needs USB access (`/dev/hidraw*` on Linux) or the WebAuthn API of
   Windows. A sandbox has neither, so each use needs a probe.
 
@@ -1538,8 +1538,8 @@ files, the `known_hosts` files, `IdentityAgent` and `-E` (lines 118-130,
    local user, `%r` the remote user, `%n` the destination as typed, `%k` the
    `HostKeyAlias` or the host.
 2. Take the local user from `USER`, `LOGNAME` or `USERNAME`, as `Env` does
-   (`crates/podssh-cli/src/ssh/resolve.rs:65-77`), and the host name from the
-   system; never `getpwuid` (`crates/podssh-cli/src/ssh/resolve.rs:80-92`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:66-78`), and the host name from the
+   system; never `getpwuid` (`crates/podssh-cli/src/ssh/resolve.rs:81-93`).
 3. Compute `%C` as OpenSSH does, and check it against `ssh -G` (step 6).
 4. Refuse an unknown token with exit 64, before anything connects, and name
    it.

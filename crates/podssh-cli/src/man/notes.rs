@@ -41,7 +41,8 @@ const SSH: &[&str] = &[
      refuses it, as the line that the node's operator adds. The host key is recorded and checked under \
      the name iroh:KEY, the node's key, which stays when the ticket changes. A node has no port, and -J, \
      -W and --direct cannot go with it yet. The session runs the resumable layer: a lost link is \
-     replaced by a new one, for 10 minutes.",
+     replaced by a new one, for 10 minutes. podssh asks the ticket's relay first, then those of \
+     --iroh-relay (see THE RELAY).",
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \
@@ -180,8 +181,9 @@ const NODE: &[&str] = &[
     "With --pair-file, the pair comes from FILE, in the form of the store, and the store is not used. \
      FILE must be a regular file of the user that nobody else can read.",
     "With --iroh, in a build with the feature iroh, the node serves TARGET over the iroh road, with no \
-     pair: QUIC between keys, through an iroh relay (n0's public relays) and HTTPS_PROXY, and directly \
-     when UDP works. NAME labels the node's key, a private file in the cache (iroh-node-NAME.key), or the \
+     pair: QUIC between keys, through an iroh relay and HTTPS_PROXY, and directly when UDP works. The \
+     relays are n0's public ones, or those of --iroh-relay, and the first that answers is the node's \
+     (see THE RELAY). NAME labels the node's key, a private file in the cache (iroh-node-NAME.key), or the \
      file of --iroh-key, made when it is missing; --iroh-ephemeral makes a key for this run only. When it \
      starts, the node prints its key and its ticket (iroh:...) on stderr, and a new ticket when its home \
      relay changes; a client dials the ticket with podssh ssh iroh:TICKET.",
@@ -318,7 +320,7 @@ mod tests {
     }
 
     fn problems() -> Vec<String> {
-        let variables: Vec<&str> = super::super::facts::VARIABLES.iter().flat_map(|(n, _)| n.iter().copied()).collect();
+        let variables: Vec<&str> = super::super::facts::variables().flat_map(|(n, _)| n.iter().copied()).collect();
         let mut out = Vec::new();
         for verb in VERBS {
             for note in for_verb(verb.name) {

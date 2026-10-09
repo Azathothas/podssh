@@ -106,8 +106,10 @@ step_lint() {
     run "clippy: no warning in any target" cargo clippy --locked --all-targets $PKGS -- -D warnings
     run "clippy: no warning with the Tailscale feature" \
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-ts --features podssh-cli/ts -- -D warnings
+    # `iroh-test` is the feature `iroh` with the test relay: each target of
+    # the road, its end-to-end test included.
     run "clippy: no warning with the iroh feature" \
-        cargo clippy --locked --all-targets -p podssh-cli -p podssh-iroh --features podssh-cli/iroh -- -D warnings
+        cargo clippy --locked --all-targets -p podssh-cli -p podssh-iroh --features podssh-cli/iroh-test -- -D warnings
 }
 
 # The feature `blocking` of podssh-relay (the facade for podbox, T-081) brings
@@ -229,8 +231,10 @@ step_ts() {
 }
 
 step_iroh() {
+    # With the test relay, so that the command line's test from end to end
+    # (`tests/iroh_road.rs`) runs too.
     run "the iroh road (feature iroh, needs cc): tests" \
-        cargo test --locked --no-fail-fast -p podssh-iroh -p podssh-cli --features podssh-cli/iroh
+        cargo test --locked --no-fail-fast -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test
 }
 
 # The shipped artefact, a static musl binary; then the binary against real

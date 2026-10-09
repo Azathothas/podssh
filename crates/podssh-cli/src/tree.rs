@@ -288,6 +288,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             iroh_key: get("iroh-key"),
             iroh_allow: get("iroh-allow"),
             iroh_ephemeral: matches.get_flag("iroh-ephemeral"),
+            iroh_relay: get("iroh-relay"),
             refused,
         }));
     }
