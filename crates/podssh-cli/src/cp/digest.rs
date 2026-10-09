@@ -45,19 +45,24 @@ fn from_hex(text: &str) -> Option<Sum> {
     Some(sum)
 }
 
-/// The tool's name and the digest, from what [`SCRIPT`] printed.
+/// The tool's name and the digest, from what [`SCRIPT`] printed: the line
+/// that names a tool, and the digest on the line after it. Text that a login
+/// prints first (a `ForceCommand` banner) comes before them.
 fn read_answer(stdout: &[u8]) -> Option<(Sum, String)> {
-    let text = std::str::from_utf8(stdout).ok()?;
-    let mut lines = text.lines();
-    let tool = lines.next()?.trim();
-    // `sha256sum` and `shasum` print "HEX  NAME", `openssl -r` "HEX *NAME".
-    let sum = from_hex(lines.next()?.split_whitespace().next()?)?;
-    matches!(tool, "sha256sum" | "shasum" | "openssl").then(|| (sum, tool.to_string()))
+    let text = String::from_utf8_lossy(stdout);
+    let lines: Vec<&str> = text.lines().collect();
+    lines.windows(2).rev().find_map(|pair| {
+        let tool = pair[0].trim();
+        // `sha256sum` and `shasum` print "HEX  NAME", `openssl -r` "HEX *NAME".
+        let sum = from_hex(pair[1].split_whitespace().next()?)?;
+        matches!(tool, "sha256sum" | "shasum" | "openssl").then(|| (sum, tool.to_string()))
+    })
 }
 
-/// The digest of the absolute `path` by a command on the server, when the
-/// server runs commands, has a tool, and the path has a spelling for its
-/// shell. `None` when it cannot, for a second read instead.
+/// The digest of `path` by a command on the server, when the server runs
+/// commands, has a tool, and the path has a spelling for its shell. `None`
+/// when it cannot, for a second read instead. The path is absolute, or `./`
+/// and a relative one, so that no name reads as an option of the tool.
 pub async fn by_command(handle: &Connection, path: &str, size: u64) -> Option<(Sum, String)> {
     let word = podssh_ssh::exec::shell_word(path)?;
     let command = format!("sh -c '{SCRIPT}' sh {word}");
@@ -123,6 +128,13 @@ mod tests {
             assert_eq!(read_answer(out.as_bytes()), Some((want, tool.to_string())), "{out}");
         }
         assert_eq!(hex(&want), EMPTY);
+    }
+
+    #[test]
+    fn a_banner_before_the_answer_is_skipped() {
+        let want = from_hex(EMPTY).expect("hex");
+        let out = format!("Welcome to the box\nsha256sum\n{EMPTY}  ./a\n");
+        assert_eq!(read_answer(out.as_bytes()), Some((want, "sha256sum".to_string())));
     }
 
     #[test]

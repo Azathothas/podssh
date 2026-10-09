@@ -64,7 +64,7 @@ fn from_sftp(e: SftpError, side: Side) -> Failed {
 }
 
 /// `.NAME.podssh-RANDOM.part`: hidden, unique, and named for what it holds.
-fn temp_name(name: &str) -> String {
+pub(super) fn temp_name(name: &str) -> String {
     format!(".{name}.podssh-{:016x}.part", rand::random::<u64>())
 }
 
@@ -86,7 +86,7 @@ async fn far_digest(
 }
 
 /// Compare the digests; a difference names both.
-fn compare(sent: &Sum, far: &Sum, how: &str, what: &str) -> Result<(), Failed> {
+pub(super) fn compare(sent: &Sum, far: &Sum, how: &str, what: &str) -> Result<(), Failed> {
     if sent == far {
         return Ok(());
     }
@@ -122,7 +122,7 @@ async fn remote_target(sftp: &Sftp, dest: &str, name: &str, many: bool) -> Resul
 }
 
 /// `path` split into its directory, with its last `/`, and its name.
-fn split_remote(path: &str) -> (&str, &str) {
+pub(super) fn split_remote(path: &str) -> (&str, &str) {
     match path.rfind('/') {
         Some(i) => (&path[..=i], &path[i + 1..]),
         None => ("", path),
@@ -130,7 +130,7 @@ fn split_remote(path: &str) -> (&str, &str) {
 }
 
 /// The permission bits of a local file, for its copy.
-fn local_mode(meta: &std::fs::Metadata) -> u32 {
+pub(super) fn local_mode(meta: &std::fs::Metadata) -> u32 {
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -281,7 +281,7 @@ pub async fn within(sftp: &Sftp, handle: &Connection, source: &str, dest: &str, 
 }
 
 /// Where a file named `name` goes here, for the destination `dest`.
-fn local_target(dest: &str, name: &str, many: bool) -> Result<PathBuf, Failed> {
+pub(super) fn local_target(dest: &str, name: &str, many: bool) -> Result<PathBuf, Failed> {
     let path = PathBuf::from(dest);
     if path.is_dir() {
         return Ok(path.join(name));
@@ -293,7 +293,7 @@ fn local_target(dest: &str, name: &str, many: bool) -> Result<PathBuf, Failed> {
 }
 
 /// A new local file, readable by its owner only.
-fn create_private(path: &Path) -> std::io::Result<std::fs::File> {
+pub(super) fn create_private(path: &Path) -> std::io::Result<std::fs::File> {
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create_new(true);
     #[cfg(unix)]

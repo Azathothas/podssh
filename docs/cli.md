@@ -137,9 +137,9 @@ The edit distance alone suggests `doctor` for `example.org` and `cp` for
 ## `podssh cp`
 
 `podssh cp SRC... DST` copies files between this host and a server over
-SFTP (`crates/podssh-ssh/src/sftp/`), through the relay or with
-`--direct`, with the connection flags of `ssh` (`-o`, `-J`, `-i`, `-v`,
-`-q`) and `-P` for the port.
+SFTP (`crates/podssh-ssh/src/sftp/`), or by exec when the server has no
+SFTP, through the relay or with `--direct`, with the connection flags of
+`ssh` (`-o`, `-J`, `-i`, `-v`, `-q`) and `-P` for the port.
 
 - An operand names a server when a `:` comes before any `/`, as scp reads
   it: `[user@]host:path` or `[user@][IPV6]:path`. `./a:b` is a local file;
@@ -161,8 +161,25 @@ SFTP (`crates/podssh-ssh/src/sftp/`), through the relay or with
 - Several sources go into a directory. A copy from server to server goes
   through a temporary file on this host, one connection at a time.
 - `-r` and `-p` are refused by name until a copy of a directory (T-143)
-  and the times (T-146) exist. A server with no SFTP exits 69; the copy by
-  exec is T-135.
+  and the times (T-146) exist.
+- **A server with no SFTP subsystem gets a copy by exec**
+  (`crates/podssh-cli/src/cp/byexec.rs`), and podssh says so once. Each
+  step is one command on a channel with no pty, `sh -c 'SCRIPT' sh PATH...`:
+  the login shell, POSIX or not, only starts `sh`, and each path is one
+  quoted word. A path with a newline or a NUL has no such word and is
+  refused (64).
+- A probe finds the far tools first: `cat`, `wc`, `mv` and `rm` are needed;
+  `chmod`, `base64` and the digest tools are used when they are there. Then
+  the 256 byte values go through `cat`. When they come back unchanged, the
+  bytes go raw; else through `base64`, which adds a third to what counts
+  against the relay, or the copy is refused. With no POSIX `sh`, or a
+  needed tool missing, the copy exits 69 and names what is missing.
+- Each answer comes after a random marker, so text that a login prints
+  first (a start-up file, a `ForceCommand` banner) is never taken as data.
+  The temporary name, the digests and the rename (`mv -f`, atomic on one
+  file system) are those of the SFTP road. A copy down keeps mode 0600: no
+  portable command reads the far file's mode. A copy within one server
+  goes through this host. Each step with no file data waits 15 s at most.
 - `--jsonl` prints one object per file: `{"event":"done", "source",
   "destination", "bytes", "sha256", "verified_by", "atomic"}`, or
   `{"event":"error", "source", "message", "code"}`.
@@ -300,10 +317,11 @@ commands. The rules behind them:
   signal number (OpenSSH gives 255), and podssh names the signal on stderr.
 - `podssh proxy` is not an SSH client: its failures use sysexits (64 to 78).
 - `podssh cp` uses sysexits too: 64 a usage error, 66 a source that is
-  missing or cannot be read, 69 no connection or no SFTP, 70 digests that
-  differ or a session that broke (the destination is unchanged), 73 a
-  destination that cannot be written, 75 the `--timeout` passed, 77 a login
-  or a host key refused, 78 a setting of the environment.
+  missing or cannot be read, 69 no connection, or neither SFTP nor a copy
+  by exec, 70 digests that differ or a session that broke (the destination
+  is unchanged), 73 a destination that cannot be written, 75 the
+  `--timeout` passed, 77 a login or a host key refused, 78 a setting of the
+  environment.
 - A command that is not implemented exits 70. It never exits 0.
 - A closed stdout (EPIPE) ends the session cleanly.
 

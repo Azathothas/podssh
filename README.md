@@ -74,8 +74,8 @@ podssh ssh -W db.internal:5432 user@bastion  # stdin and stdout to a TCP port; n
 podssh ssh -tt user@example.org < script.txt # a remote pty; local stdin is a pipe
 ```
 
-Files go over SFTP, verified by SHA-256 before they take the destination's
-name:
+Files go over SFTP, or by exec where the server has no SFTP, verified by
+SHA-256 before they take the destination's name:
 
 ```sh
 podssh cp report.pdf user@example.org:docs/  # up, into a directory

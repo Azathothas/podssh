@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**257 entries: 167 open, 0 partial, 8 blocked, 82 done.**
+**257 entries: 166 open, 0 partial, 8 blocked, 83 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 84 | 0 | 4 | 60 | 148 |
+| P2 | 83 | 0 | 4 | 61 | 148 |
 | P3 | 81 | 0 | 4 | 14 | 99 |
-| **All** | 167 | 0 | 8 | 82 | 257 |
+| **All** | 166 | 0 | 8 | 83 | 257 |
 
 ## Entries
 
@@ -208,7 +208,7 @@ repository and CI).
 | [T-132](terminal.md) | P3 | S | backlog | research | open | Compare the Windows console handling with csshw's |
 | [T-133](copy.md) | P2 | M | M5 | feature | done | An SFTP client in the process, the base of `cp` |
 | [T-134](copy.md) | P2 | M | M5 | feature | done | `podssh cp` over SFTP: a temporary name, the digest, then a rename |
-| [T-135](copy.md) | P2 | M | M5 | feature | open | `podssh cp` by exec when the server has no SFTP |
+| [T-135](copy.md) | P2 | M | M5 | feature | done | `podssh cp` by exec when the server has no SFTP |
 | [T-136](copy.md) | P2 | M | M5 | feature | open | `podssh cp` continues from an offset after a drop |
 | [T-137](copy.md) | P2 | M | M5 | feature | open | `podssh cp` opens a new relay session before the relay's limits |
 | [T-138](copy.md) | P2 | S | M5 | feature | open | `podssh mv`: copy, verify, delete, and say first that it is not atomic |

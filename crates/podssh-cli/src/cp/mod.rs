@@ -1,4 +1,5 @@
-//! `podssh cp`: files between this host and a server, over SFTP (T-133).
+//! `podssh cp`: files between this host and a server, over SFTP (T-133), or
+//! by exec when the server has no SFTP ([`byexec`]).
 //!
 //! **The destination's name never holds a file that was not verified**
 //! ([`transfer`]): the bytes go to a temporary name beside it, the SHA-256 of
@@ -8,12 +9,13 @@
 //!
 //! **Exit codes are sysexits**, as `proxy`'s: 64 a usage error; 66 a source
 //! that is missing or cannot be read; 69 no server to copy with (the relay or
-//! the host cannot be reached, or the server has no SFTP); 70 a copy that
-//! went wrong (the digests differ, the session broke); 73 a destination that
-//! cannot be written; 75 the `--timeout` passed; 77 a login or a host key
-//! refused; 78 a setting of the environment. With several files, the first
-//! failure's code.
+//! the host cannot be reached, or the server has neither SFTP nor a copy by
+//! exec); 70 a copy that went wrong (the digests differ, the session broke);
+//! 73 a destination that cannot be written; 75 the `--timeout` passed; 77 a
+//! login or a host key refused; 78 a setting of the environment. With several
+//! files, the first failure's code.
 
+pub mod byexec;
 mod digest;
 pub mod operand;
 pub mod plan;
@@ -25,7 +27,7 @@ use std::time::Duration;
 
 use clap::ArgMatches;
 use podssh_ssh::run::HopError;
-use podssh_ssh::sftp::{Limits, Sftp};
+use podssh_ssh::sftp::{Limits, Sftp, SftpError};
 use podssh_ssh::Log;
 
 use crate::exitmap::Fault;
@@ -252,35 +254,63 @@ async fn session(plan: &Plan, resolved: &Resolved, log: &Arc<Log>, named: Option
         }
     };
     let handle = handles.last().expect("the destination's connection");
-    let sftp = match Sftp::open(handle, Limits::default()).await {
-        Ok(sftp) => sftp,
+    let host = &resolved.options.destination.host;
+    let road = match Sftp::open(handle, Limits::default()).await {
+        Ok(sftp) => Road::Sftp(sftp),
+        // Within one server with no SFTP, the copy goes through this host,
+        // in two sessions that each probe and say so.
+        Err(SftpError::NoSftp) if plan.direction == Direction::Across => {
+            podssh_ssh::run::disconnect_all(&handles).await;
+            return None;
+        }
+        // No SFTP: each step a command (T-135), said once.
+        Err(SftpError::NoSftp) => {
+            log.info(&format!("{host} has no SFTP subsystem: the copy goes by exec"));
+            match byexec::Far::probe(handle, log).await {
+                Ok(far) => Road::Exec(far),
+                Err(failed) => {
+                    outcome.failed = Some((first, failed));
+                    podssh_ssh::run::disconnect_all(&handles).await;
+                    return Some(outcome);
+                }
+            }
+        }
         Err(e) => {
-            let failed = Failed {
-                fault: Fault::RelayUnreachable,
-                message: format!("{}: {e}", resolved.options.destination.host),
-            };
+            let failed = Failed { fault: Fault::RelayUnreachable, message: format!("{host}: {e}") };
             outcome.failed = Some((first, failed));
             return Some(outcome);
         }
     };
-    if plan.direction == Direction::Across && !sftp.has("copy-data") {
-        let _ = sftp.close_session();
+    // Within one server, only copy-data spares this host the bytes.
+    if plan.direction == Direction::Across && !matches!(&road, Road::Sftp(sftp) if sftp.has("copy-data")) {
+        if let Road::Sftp(sftp) = road {
+            let _ = sftp.close_session();
+        }
         podssh_ssh::run::disconnect_all(&handles).await;
         return None;
     }
     let many = plan.sources.len() > 1;
     for source in &plan.sources {
-        let result = match (source, &plan.destination) {
-            (Operand::Local(path), Operand::Remote(dest)) => {
-                transfer::up(&sftp, handle, path, &dest.path, many, log).await
+        let result = match (&road, source, &plan.destination) {
+            (Road::Sftp(sftp), Operand::Local(path), Operand::Remote(dest)) => {
+                transfer::up(sftp, handle, path, &dest.path, many, log).await
             }
-            (Operand::Remote(src), Operand::Local(dest)) => {
-                transfer::down(&sftp, handle, &src.path, dest, many, log).await
+            (Road::Sftp(sftp), Operand::Remote(src), Operand::Local(dest)) => {
+                transfer::down(sftp, handle, &src.path, dest, many, log).await
             }
-            (Operand::Remote(src), Operand::Remote(dest)) => {
-                transfer::within(&sftp, handle, &src.path, &dest.path, log).await
+            (Road::Sftp(sftp), Operand::Remote(src), Operand::Remote(dest)) => {
+                transfer::within(sftp, handle, &src.path, &dest.path, log).await
             }
-            (Operand::Local(_), Operand::Local(_)) => unreachable!("a plan has a server"),
+            (Road::Exec(far), Operand::Local(path), Operand::Remote(dest)) => {
+                far.up(handle, path, &dest.path, many, log).await
+            }
+            (Road::Exec(far), Operand::Remote(src), Operand::Local(dest)) => {
+                far.down(handle, &src.path, dest, many, log).await
+            }
+            (Road::Exec(_), Operand::Remote(_), Operand::Remote(_)) => {
+                unreachable!("a copy within one server by exec goes through this host")
+            }
+            (_, Operand::Local(_), Operand::Local(_)) => unreachable!("a plan has a server"),
         };
         match result {
             Ok(mut done) => {
@@ -303,7 +333,15 @@ async fn session(plan: &Plan, resolved: &Resolved, log: &Arc<Log>, named: Option
             }
         }
     }
-    let _ = sftp.close_session();
+    if let Road::Sftp(sftp) = road {
+        let _ = sftp.close_session();
+    }
     podssh_ssh::run::disconnect_all(&handles).await;
     Some(outcome)
+}
+
+/// How the files of one session go: SFTP, or a command for each step.
+enum Road {
+    Sftp(Sftp),
+    Exec(byexec::Far),
 }

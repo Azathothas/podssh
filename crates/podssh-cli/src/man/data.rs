@@ -35,7 +35,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             "podssh proxy: no relay host could be reached, or the relay ended the session abnormally. \
              podssh node, operator and relay: the relay or TARGET could not be reached, the node did not take \
              the session, the pair was stopped, or another node serves it. podssh cp: no connection to the \
-             server, or the server has no SFTP.",
+             server, or it has neither SFTP nor the sh and the tools of a copy by exec.",
         ),
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,

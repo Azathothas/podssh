@@ -319,7 +319,7 @@ servers"; "Do not assume POSIX tools or an interactive shell"),
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -377,6 +377,17 @@ measured clean, and `base64` adds a third to the bytes that count against
 the relay's 64 MiB and needs a tool that not each host has. `base64` for
 each copy lost on both counts.
 
+2026-10-09, the rest of it. **The tools needed** are `cat`, `wc`, `mv` and
+`rm`; without one, the copy exits 69 and names it. Only `cat` lost: with no
+`mv` there is no rename, and T-134's invariant cannot hold. **A copy down
+keeps mode 0600**: no portable command gives a file's mode (`stat -c` is
+GNU's and BusyBox's, `stat -f` BSD's), and reading `ls -l` lost as fragile;
+T-146 (`-p`) may take it up. **A copy within one server** goes through this
+host, as the SFTP road does without `copy-data`; a far `cp` would need a
+check of its own. **The check of the bytes** runs once for each session,
+through the same `sh -c` and marker as the data; a check before each file
+lost: what a channel changes is the server's, not the file's.
+
 ## Prove
 
 ```sh
@@ -389,6 +400,68 @@ uploads and downloads of 0, 1 and 5,000,000 bytes with equal digests, and
 `-v` names the exec road. A server whose `ForceCommand` prints a line before
 it runs the command still gives equal digests. Plant: skip the marker; that
 case must then fail on its digest.
+
+## Correction
+
+2026-10-09. **The second Premise cites `session.rs`**, which the copy by
+exec never reaches: `podssh_ssh::exec` opens its own channels and asks for
+no pty, whatever stdin is. **T-134's `exec::capture` keeps the whole
+answer in memory**, which a file must not: `crates/podssh-ssh/src/exec.rs`
+gained `receive` (stdout to a sink, each piece within the data limit) and
+`send` (stdin in pieces, then EOF). **Step 2's refusal** names four tools,
+not `cat` alone (Decision); `tail` is probed for T-136 and not used yet.
+**Step 4's upload** adds `set -C`, so that the temporary name is created
+exclusive, as on the SFTP road. **Step 6's rename** is
+`chmod MODE -- TEMP && exec mv -f -- TEMP TARGET` when the server has
+`chmod`, for the source's permission bits. **The far digest command** gets
+`./NAME` for a relative path, so that a name with a leading `-` is no
+option of the tool. **T-134 read the digest command's answer from its
+first line**, which a `ForceCommand` banner takes:
+`crates/podssh-cli/src/cp/digest.rs` now reads the line that names a tool
+and the digest after it. **The Prove's servers with no SFTP** gained a
+third: one whose output goes through `tr '\r' '\n'`, so that the check of
+the bytes fails and the copy goes through `base64`; nothing else in the
+gate reaches that road. **`byexec.rs` passed 500 lines**: the steps that
+move a file are in `crates/podssh-cli/src/cp/byexec/files.rs`.
+
+## Done
+
+2026-10-09, in the commit "podssh cp copies by exec when the server has no
+SFTP, raw through cat or through base64".
+
+- `crates/podssh-cli/src/cp/byexec.rs`: the probe (a random marker, then
+  `command -v` for each tool), each step as `sh -c 'SCRIPT' sh ARGS` with
+  each argument one quoted word, `Strip` (what comes before the marker is
+  dropped), the check of the 256 byte values and `base64` when it fails,
+  the kind and size of a far path, the far digest (a command, else a second
+  read), the rename (`chmod`, then `mv -f`, never onto a directory) and the
+  removal of a temporary file. `crates/podssh-cli/src/cp/byexec/files.rs`:
+  up and down, with T-134's temporary name and digests.
+- `crates/podssh-cli/src/cp/mod.rs`: SFTP, or on `NoSftp` the exec road,
+  said once; within one server with no SFTP, the copy goes through this
+  host. `digest.rs` reads the digest command's answer after a banner.
+- `crates/podssh-ssh/src/exec.rs`: `receive` and `send`, each wait bounded;
+  `capture` has an overall limit.
+- Tests: `tests/cp_exec.rs` (6) and a unit test of `digest.rs`.
+  `scripts/interop-cp.sh`: three sshd with no SFTP (plain, a banner, output
+  through `tr`) and Dropbear, each size both ways; names with a space, a
+  quote and a leading `-`; a copy within one server; a directory at the
+  target's name (73) and a far file that cannot be read (66), on both
+  roads; a name that is not UTF-8 (64).
+- `docs/cli.md`, the manual (`notes.rs`, `data.rs`), `README.md`,
+  `docs/STATUS.md` (a section for `cp`, with T-134's results too); a
+  Correction in T-148, whose Premise this changes.
+- Prove: `cargo test -p podssh-cli --test cp_exec`: 6 passed. In the build
+  image, `sh scripts/gate.sh lint msrv_ssh ssh release`: green; interop
+  160 passed, 0 failed, each exec case among them; `-v` named raw `cat`
+  on the plain and banner servers and `base64` on the one through `tr`;
+  Dropbear found Alpine's `sftp-server`, and its cases went over SFTP.
+  Planted, each alone on the image's copy of the tree with
+  `gate.sh release`: with the bytes before the marker passed on as data,
+  each copy down by exec exits 70 before its rename (13 cases fail), and
+  no temporary file stays; with the check of the 256 byte values skipped,
+  the copy down of 5,000,000 bytes through `tr` exits 70 on its digest,
+  and the road checks of that server fail (4 cases).
 
 # T-136: `podssh cp` continues from an offset after a drop
 
@@ -407,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:162`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:169`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -494,7 +567,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:161`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:168`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -687,7 +760,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:211-229` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:291-294`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:308-311`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -739,7 +812,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:176-180` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:160`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:167`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -845,7 +918,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:160`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:167`).
 
 ## Premise
 
@@ -1032,7 +1105,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:160`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:167`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -1269,6 +1342,15 @@ drives one) runs `sz FILE`, answers yes, and the file arrives with an equal
 digest; `rz` gets a local file the same way; with no terminal, nothing is
 written. Plant: receive with no question; the no-terminal case must then
 fail.
+
+## Correction
+
+2026-10-09 (T-135). **The third Premise is too broad**: the exec road needs
+a POSIX `sh` that the login shell can start, and `cat`, `wc`, `mv` and `rm`
+on the server; without them it exits 69 and names what is missing. A
+server that runs commands in another shell, or lacks one of those tools,
+allows exec and still has neither road: such a server is the one that the
+Decision waits for.
 
 # T-149: `podssh edit HOST:PATH`
 

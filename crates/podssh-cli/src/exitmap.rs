@@ -69,7 +69,8 @@ pub enum Fault {
     /// Bad flags, an unknown verb, a missing host. `docs/cli.md`, "Exit codes".
     Usage,
     /// TCP, TLS, the WebSocket upgrade, or a pre-`101` HTTP status; for
-    /// `cp` also an SSH server that cannot be reached, or has no SFTP.
+    /// `cp` also an SSH server that cannot be reached, or has neither SFTP
+    /// nor a copy by exec.
     RelayUnreachable,
     /// Relay `403`/`401`, or SSH authentication refused; for `cp` also a
     /// host key that podssh did not accept.

@@ -1,11 +1,13 @@
-//! One command on a new session channel, its output read in full, within a
-//! limit: for the probes and the digest of `cp`, which read a short answer
-//! and never a terminal.
+//! One command on a new session channel with no pty, within limits: its
+//! output read in full for a short answer (`capture`: the probes and the
+//! digest of `cp`), or its input and output streamed (`send`, `receive`: the
+//! copy by exec, T-135), each wait bounded so that a far side that stops
+//! reading or writing fails the step and never hangs it.
 
 use std::time::Duration;
 
-use russh::client::Handle;
-use russh::ChannelMsg;
+use russh::client::{Handle, Msg};
+use russh::{Channel, ChannelMsg};
 
 use crate::handler::Client;
 
@@ -60,28 +62,104 @@ pub async fn capture(
     cap: usize,
 ) -> Result<Captured, ExecError> {
     let run = async {
-        let mut channel =
-            handle.channel_open_session().await.map_err(|e| ExecError::Refused(format!("no session channel: {e}")))?;
-        channel.exec(true, command.as_bytes()).await.map_err(|e| ExecError::Lost(e.to_string()))?;
-        // The command reads no input: the end of it at once, so a command
-        // that reads anyway does not wait.
-        let _ = channel.eof().await;
-        let mut out = Captured::default();
-        while let Some(message) = channel.wait().await {
-            match message {
-                ChannelMsg::Failure => return Err(ExecError::Refused("exec".into())),
-                ChannelMsg::Data { data } => keep(&mut out.stdout, &data, cap),
-                ChannelMsg::ExtendedData { data, ext: 1 } => keep(&mut out.stderr, &data, cap),
-                ChannelMsg::ExitStatus { exit_status } => out.status = Some(exit_status),
-                _ => {}
-            }
-        }
+        let mut stdout = Vec::new();
+        let mut sink = |data: &[u8]| {
+            keep(&mut stdout, data, cap);
+            Ok(())
+        };
+        let mut out = receive(handle, command, limit, cap, &mut sink).await?;
+        out.stdout = stdout;
         Ok(out)
     };
     match tokio::time::timeout(limit, run).await {
         Err(_) => Err(ExecError::Timeout(limit)),
         Ok(result) => result,
     }
+}
+
+/// A new session channel that runs `command`, each step within `limit`.
+async fn open(handle: &Handle<Client>, command: &str, limit: Duration) -> Result<Channel<Msg>, ExecError> {
+    let channel = match tokio::time::timeout(limit, handle.channel_open_session()).await {
+        Err(_) => return Err(ExecError::Timeout(limit)),
+        Ok(Err(e)) => return Err(ExecError::Refused(format!("no session channel: {e}"))),
+        Ok(Ok(channel)) => channel,
+    };
+    match tokio::time::timeout(limit, channel.exec(true, command.as_bytes())).await {
+        Err(_) => Err(ExecError::Timeout(limit)),
+        Ok(Err(e)) => Err(ExecError::Lost(e.to_string())),
+        Ok(Ok(())) => Ok(channel),
+    }
+}
+
+/// Each message until the channel closes: stdout to `sink`, stderr kept up to
+/// `cap`, and the exit status; each wait `progress` at most.
+async fn finish(
+    channel: &mut Channel<Msg>,
+    progress: Duration,
+    cap: usize,
+    sink: &mut dyn FnMut(&[u8]) -> std::io::Result<()>,
+) -> Result<Captured, ExecError> {
+    let mut out = Captured::default();
+    loop {
+        match tokio::time::timeout(progress, channel.wait()).await {
+            Err(_) => return Err(ExecError::Timeout(progress)),
+            Ok(None) => return Ok(out),
+            Ok(Some(ChannelMsg::Failure)) => return Err(ExecError::Refused("exec".into())),
+            Ok(Some(ChannelMsg::Data { data })) => {
+                sink(&data).map_err(|e| ExecError::Lost(format!("the local copy: {e}")))?;
+            }
+            Ok(Some(ChannelMsg::ExtendedData { data, ext: 1 })) => keep(&mut out.stderr, &data, cap),
+            Ok(Some(ChannelMsg::ExitStatus { exit_status })) => out.status = Some(exit_status),
+            Ok(Some(_)) => {}
+        }
+    }
+}
+
+/// Run `command` with no input, and give each piece of its stdout to `sink`,
+/// until the channel closes. Each wait for the next message is `progress` at
+/// most; the stdout of the result is empty.
+pub async fn receive(
+    handle: &Handle<Client>,
+    command: &str,
+    progress: Duration,
+    cap: usize,
+    sink: &mut dyn FnMut(&[u8]) -> std::io::Result<()>,
+) -> Result<Captured, ExecError> {
+    let mut channel = open(handle, command, progress).await?;
+    // The command reads no input: the end of it at once, so a command that
+    // reads anyway does not wait.
+    let _ = channel.eof().await;
+    finish(&mut channel, progress, cap, sink).await
+}
+
+/// Run `command` with the pieces that `fill` gives on its stdin (a piece of 0
+/// bytes ends the input), then the end of input, and give its stdout to
+/// `sink`. Each piece waits `progress` at most for the window: a far side
+/// that stops reading fails the step.
+pub async fn send(
+    handle: &Handle<Client>,
+    command: &str,
+    progress: Duration,
+    cap: usize,
+    fill: &mut dyn FnMut(&mut Vec<u8>) -> std::io::Result<()>,
+    sink: &mut dyn FnMut(&[u8]) -> std::io::Result<()>,
+) -> Result<Captured, ExecError> {
+    let mut channel = open(handle, command, progress).await?;
+    let mut piece = Vec::new();
+    loop {
+        piece.clear();
+        fill(&mut piece).map_err(|e| ExecError::Lost(format!("the local source: {e}")))?;
+        if piece.is_empty() {
+            break;
+        }
+        match tokio::time::timeout(progress, channel.data(&piece[..])).await {
+            Err(_) => return Err(ExecError::Timeout(progress)),
+            Ok(Err(e)) => return Err(ExecError::Lost(e.to_string())),
+            Ok(Ok(())) => {}
+        }
+    }
+    let _ = channel.eof().await;
+    finish(&mut channel, progress, cap, sink).await
 }
 
 /// `text` as one word for a POSIX shell, in single quotes. A newline or a

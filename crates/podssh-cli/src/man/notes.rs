@@ -59,8 +59,8 @@ const SSH: &[&str] = &[
 ];
 
 const CP: &[&str] = &[
-    "podssh cp copies files between this host and a server over SFTP, through the relay (see THE RELAY) \
-     or over TCP with --direct, with the connection flags of podssh ssh: -o, -J, -i, -v and -q, and -P \
+    "podssh cp copies files between this host and a server over SFTP, or by exec when the server has \
+     no SFTP, through the relay (see THE RELAY) or over TCP with --direct, with the connection flags of podssh ssh: -o, -J, -i, -v and -q, and -P \
      for the port, as scp has it. An operand names a server when a : comes before any /: \
      [user@]host:path or [user@][IPV6]:path. ./a:b is a local file, and on Windows so is C:\\x. An \
      empty path, host:, is the login directory.",
@@ -75,8 +75,14 @@ const CP: &[&str] = &[
      side was checked, or error, with the exit code.",
     "Several sources go into a directory. A copy from server to server goes through a temporary file on \
      this host, one connection at a time. -r and -p are refused by name: copying a directory, and \
-     keeping the mode and the times, are not implemented yet. A server with no SFTP is refused \
-     (exit 69); a copy by exec comes later.",
+     keeping the mode and the times, are not implemented yet.",
+    "A server with no SFTP subsystem gets a copy by exec, and podssh says so. Each step is one command \
+     with no pty, sh -c 'SCRIPT' sh PATH..., so the login shell only starts sh, and each path is one \
+     quoted word; a path with a newline or a NUL is refused. A probe finds the far tools: cat, wc, mv \
+     and rm are needed. The bytes go raw through cat when the 256 byte values come back unchanged, \
+     else through base64. Each answer comes after a random marker, so text that a login prints first \
+     is never data. The temporary name, the digests and the rename are as above; a copy down keeps \
+     mode 0600. With no POSIX sh, or a needed tool missing, the copy exits 69 and names it.",
     "Each SFTP reply that carries no file data is waited for 30 s at most, and each read or write 60 s. \
      --timeout bounds the whole copy, the login included. The exit codes are the sysexits of \
      EXIT STATUS, as for podssh proxy.",
