@@ -92,10 +92,10 @@ The clippy that counts is the gate's, in the build image. Its Rust can be
 newer than the host's, with new lints (clippy 1.99 found a lint that 1.98
 passes), and clippy on Windows does not compile the code for Unix only.
 Before a push that changes Rust code, run the gate (`sh scripts/dev.sh
-check`), or at least its clippy:
+check`), or at least its step `lint`:
 
 ```sh
-sh scripts/dev.sh run -- 'cd /work && rustup component add clippy && cargo clippy --locked --keep-going --all-targets -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-todo -- -D warnings'
+sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh lint'
 ```
 
 `check-repo.py` also reads each Rust file under `crates/` for a listener:
@@ -160,23 +160,37 @@ image, read the digest of its index (`docker buildx imagetools inspect REF`;
 the index must list linux/amd64 and linux/arm64, which the release builds),
 write it into the Dockerfile, and run the gate.
 
-`scripts/gate.sh` is the gate. CI runs the same file in the same image. The
-gate makes sure that:
+`scripts/gate.sh` is the gate. CI runs the same file in the same image. Its
+steps, in order: `lint`, `libs`, `msrv`, `record`, `ssh`, `ts` and
+`release`; `sh scripts/gate.sh --list` prints them. With no argument, the
+gate runs each step; with names, those steps, in the order given. CI runs
+each step in a job of its own, at the same time: its job `plan` reads the
+list, so CI cannot miss a step that the gate has. `python
+scripts/check-scripts.py` fails when a function `step_NAME` of the gate is
+not in its list, or a name has no function. One step, in the container:
 
-1. The library crates build and pass their tests with `CC=/nonexistent`
-   and `CXX=/nonexistent`. The `cc` crate reads `CXX` for C++, so `CC` alone
-   does not stop a C++ dependency on a host that has `c++`. The test of the
-   feature `plain-ws` of `podssh-ws` runs too, and `scripts/no-plain-ws.sh`
-   shows that the binary does not enable it (T-068).
-2. The work record agrees with itself (`crates/podssh-todo`). Its checker
-   passes its tests, where each planted disagreement must be found, and then
-   checks `TODO/`: the counts against the rows, the status, title and
+```sh
+sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh ssh'
+```
+
+`lint` checks the format and clippy's lints (see "Checks"), and `msrv` the
+library crates and `podssh-todo` on their declared minimum Rust. The other
+steps make sure that:
+
+1. (`libs`) The library crates build and pass their tests with
+   `CC=/nonexistent` and `CXX=/nonexistent`. The `cc` crate reads `CXX` for
+   C++, so `CC` alone does not stop a C++ dependency on a host that has `c++`.
+   The test of the feature `plain-ws` of `podssh-ws` runs too, and
+   `scripts/no-plain-ws.sh` shows that the binary does not enable it (T-068).
+2. (`record`) The work record agrees with itself (`crates/podssh-todo`). Its
+   checker passes its tests, where each planted disagreement must be found,
+   and then checks `TODO/`: the counts against the rows, the status, title and
    milestone of each row against its entry, each id that a document names,
    each cited path and line, the work order, and `docs/ROADMAP.md`.
-3. The SSH client and the command line pass their tests.
-4. The tests of the `ts` feature pass.
-5. The static musl binary has no dynamic dependencies and no program
-   interpreter.
+3. (`ssh`) The SSH client and the command line pass their tests.
+4. (`ts`) The tests of the `ts` feature pass.
+5. (`release`, with 6 to 9) The static musl binary has no dynamic dependencies
+   and no program interpreter.
 6. The binary works against real servers. `scripts/interop.sh` installs
    OpenSSH and Dropbear in the container, starts them on 127.0.0.1, and runs
    `podssh ssh --direct` against them: exit statuses and signals, streams

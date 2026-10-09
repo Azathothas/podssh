@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**255 entries: 180 open, 0 partial, 8 blocked, 67 done.**
+**255 entries: 179 open, 0 partial, 8 blocked, 68 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 92 | 0 | 4 | 51 | 147 |
+| P2 | 91 | 0 | 4 | 52 | 147 |
 | P3 | 86 | 0 | 4 | 8 | 98 |
-| **All** | 180 | 0 | 8 | 67 | 255 |
+| **All** | 179 | 0 | 8 | 68 | 255 |
 
 ## Entries
 
@@ -283,7 +283,7 @@ repository and CI).
 | [T-209](repo.md) | P2 | S | none | chore | done | Secret scanning with TruffleHog in CI (GitHub #27) |
 | [T-210](repo.md) | P2 | S | M9 | release | open | Build provenance for each release binary |
 | [T-211](repo.md) | P2 | S | M9 | release | open | Signed checksums for each release |
-| [T-212](repo.md) | P2 | M | none | chore | open | Parallel CI, with the gate as the one source |
+| [T-212](repo.md) | P2 | M | none | chore | done | Parallel CI, with the gate as the one source |
 | [T-213](repo.md) | P2 | M | none | chore | open | CI runs the box like the target sandbox |
 | [T-214](repo.md) | P2 | M | none | chore | done | CI on Windows |
 | [T-215](repo.md) | P2 | M | none | chore | done | rustfmt and clippy in the gate |

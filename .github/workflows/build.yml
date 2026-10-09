@@ -1,8 +1,10 @@
 name: build
 
 # CI runs the same gate a developer runs (`sh scripts/dev.sh check` runs
-# scripts/gate.sh in the same image). Nothing is re-implemented here; CI adds
-# the live relay check and uploads the static binary the gate built.
+# scripts/gate.sh in the same image). Nothing is re-implemented here: each
+# step of the gate runs in a job of its own, at the same time. CI adds the
+# repository checks, the plant of the no-C rule, the live relay check, the
+# tests on Windows, and the upload of the static binary that the gate built.
 
 on:
   push:
@@ -14,22 +16,96 @@ permissions:
   contents: read
 
 jobs:
-  gate:
-    name: gate
+  # The build image and the gate's steps, each read from the tree: the
+  # matrix of the job `gate` is what `gate.sh --list` prints, so it cannot
+  # drift from what `sh scripts/dev.sh check` runs.
+  plan:
+    name: plan
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      steps: ${{ steps.steps.outputs.steps }}
     steps:
       - uses: actions/checkout@v5
 
       # The one place that names the build image, pinned to a digest.
       - name: the build image
+        id: image
         run: |
           set -eu
           ref=$(tr -d '\r' < .github/images/build/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
           case "$ref" in
-            *@sha256:*) echo "BUILD_IMAGE=$ref" >> "$GITHUB_ENV" ;;
+            *@sha256:*) echo "image=$ref" >> "$GITHUB_OUTPUT" ;;
             *) echo ".github/images/build/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
           esac
+
+      # A list that is empty, or a name that the gate refuses, fails here
+      # rather than as a matrix of no job, which would pass.
+      - name: the gate's steps
+        id: steps
+        run: |
+          set -eu
+          list=$(sh scripts/gate.sh --list)
+          [ -n "$list" ] || { echo "gate.sh --list printed no step" >&2; exit 1; }
+          json=$(printf '%s\n' "$list" | jq -R . | jq -cs .)
+          echo "steps=$json" >> "$GITHUB_OUTPUT"
+          echo "the gate's steps: $json"
+
+  gate:
+    name: gate (${{ matrix.step }})
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        step: ${{ fromJSON(needs.plan.outputs.steps) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      # gate.sh caps cargo jobs from the runner's available memory.
+      - name: the gate, step ${{ matrix.step }}
+        env:
+          BUILD_IMAGE: ${{ needs.plan.outputs.image }}
+          STEP: ${{ matrix.step }}
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" -w /work \
+            -e PODSSH_TARGET=x86_64-unknown-linux-musl \
+            "$BUILD_IMAGE" \
+            sh scripts/gate.sh "$STEP"
+
+      - if: matrix.step == 'release'
+        uses: actions/upload-artifact@v7
+        with:
+          name: podssh-x86_64-unknown-linux-musl
+          path: target/x86_64-unknown-linux-musl/release/podssh
+          if-no-files-found: error
+
+  # Proves the gate's no-C-compiler rule actually fires.
+  plant:
+    name: plant
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: the no-C rule is load-bearing
+        env:
+          BUILD_IMAGE: ${{ needs.plan.outputs.image }}
+        run: |
+          docker run --rm \
+            -v "$PWD:/work" -w /work \
+            "$BUILD_IMAGE" \
+            sh scripts/plant.sh
+
+  checks:
+    name: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
 
       # Resolve python by running it: a name that prints no version is not an
       # interpreter, and a check that did not run is not a pass.
@@ -85,23 +161,6 @@ jobs:
             dash -n "$f"
           done
 
-      # gate.sh caps cargo jobs from the runner's available memory.
-      - name: the gate
-        run: |
-          docker run --rm \
-            -v "$PWD:/work" -w /work \
-            -e PODSSH_TARGET=x86_64-unknown-linux-musl \
-            "$BUILD_IMAGE" \
-            sh scripts/gate.sh
-
-      # Proves the gate's no-C-compiler rule actually fires.
-      - name: the no-C rule is load-bearing
-        run: |
-          docker run --rm \
-            -v "$PWD:/work" -w /work \
-            "$BUILD_IMAGE" \
-            sh scripts/plant.sh
-
       # The relay's published contract, checked live. Exit 1 means the relay
       # changed something podssh depends on: read the diff, update
       # crates/podssh-probe/facts/relay-facts.toml and docs/relay.md together.
@@ -120,12 +179,6 @@ jobs:
             fi
             echo "$plant exited 1, as it must"
           done
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: podssh-x86_64-unknown-linux-musl
-          path: target/x86_64-unknown-linux-musl/release/podssh
-          if-no-files-found: error
 
   # Windows is a released platform: each default test runs on it here, as the
   # gate runs them in Linux. The console code of Windows and the branches of
@@ -153,3 +206,24 @@ jobs:
       # checks and no other, or those checks prove nothing.
       - name: the console checks catch a planted podssh
         run: python scripts/interop-conpty-msys2.py --plant
+
+  # The one status to require: each job above passed. A job that was
+  # skipped or cancelled is not a pass.
+  all:
+    name: all
+    if: always()
+    needs: [plan, gate, plant, checks, windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: each job passed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "the jobs: $RESULTS"
+          for r in $RESULTS; do
+            if [ "$r" != success ]; then
+              echo "a job did not pass ($r)"
+              exit 1
+            fi
+          done

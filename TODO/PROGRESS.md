@@ -44,7 +44,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 255 entries: 180 open, 0 partial, 8 blocked, 67 done.
+`TODO/INDEX.md` holds 255 entries: 179 open, 0 partial, 8 blocked, 68 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -91,7 +91,11 @@ rules.
 
 ## Operator actions
 
-None blocks a session. After the release:
+None blocks a session. At any time: requiring the status `all` of the
+workflow `build` for `main`, if the operator wants a required check (T-212);
+`main` requires none today.
+
+After the release:
 
 - A run of T-004 and T-005 in a real sandbox, with the brief of
   `scripts/sandbox-check.sh`.

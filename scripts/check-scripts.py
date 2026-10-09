@@ -25,18 +25,26 @@ Two defects, both measured on 2026-10-01, and both of which shipped here:
 `check-todo.py` has a CRLF half of this and no parse half. This file has both,
 and it is one file so the two halves cannot drift apart.
 
+3. **A step of the gate that runs nowhere.** CI makes one job for each name
+   that `scripts/gate.sh --list` prints, and a full run of the gate runs the
+   same names. A `step_NAME` function that is not in `STEPS` would run in
+   neither; a name with no function would fail only when it runs. Planted
+   copies of both must fail this check at each run.
+
 Exit 0 when every script is clean. Exit 1 with a report naming each file, the
 line, and the reason.
 """
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
+GATE = SCRIPTS / "gate.sh"
 
 # A directory whose scripts are generated or vendored, not ours to police.
 SKIP_DIRS = {"node_modules", "target", ".git", ".tmp", ".work", "__pycache__"}
@@ -107,6 +115,38 @@ def check_parses(path: Path) -> list[str]:
             f"(no fallback left), so the POSIX parse was NOT run"]
 
 
+def check_gate_steps(text: str) -> list[str]:
+    """Each name of `STEPS` in the gate has a `step_NAME` function, once, and
+    each such function is in `STEPS`."""
+    listed = re.search(r'^STEPS="([^"]*)"$', text, re.M)
+    names = listed.group(1).split() if listed else []
+    if not names:
+        return ["scripts/gate.sh: no STEPS list, so neither the gate nor CI has a step to run"]
+    functions = re.findall(r"^step_([A-Za-z0-9_]+)\(\)", text, re.M)
+    problems = [f"scripts/gate.sh: '{n}' is in STEPS, and no function step_{n} runs it"
+                for n in names if n not in functions]
+    problems += [f"scripts/gate.sh: step_{f}() is not in STEPS, so no run of the gate, here or in CI, reaches it"
+                 for f in functions if f not in names]
+    problems += [f"scripts/gate.sh: '{n}' is in STEPS more than once" for n in sorted(set(names)) if names.count(n) > 1]
+    problems += [f"scripts/gate.sh: step_{f}() is defined more than once"
+                 for f in sorted(set(functions)) if functions.count(f) > 1]
+    return problems
+
+
+def gate_plants(text: str) -> list[str]:
+    """The check of the steps must fail on each planted copy of the gate, or
+    it proves nothing."""
+    listed = re.search(r'^STEPS="([^"]*)"$', text, re.M)
+    if not listed:
+        return []
+    plants = {
+        "a step function that is not in STEPS": text + "\nstep_planted() {\n    :\n}\n",
+        "a name in STEPS with no function": text.replace(listed.group(0), f'STEPS="{listed.group(1)} planted"', 1),
+    }
+    return [f"scripts/gate.sh: the check of the steps passed a planted copy with {what}"
+            for what, planted in plants.items() if not check_gate_steps(planted)]
+
+
 def main() -> int:
     problems: list[str] = []
     found = scripts()
@@ -118,6 +158,13 @@ def main() -> int:
         problems += check_crlf(path)
         problems += check_parses(path)
 
+    if not GATE.is_file():
+        problems.append("scripts/gate.sh: missing, so its steps were not checked")
+    else:
+        gate = GATE.read_bytes().decode("utf-8", "replace")
+        problems += check_gate_steps(gate)
+        problems += gate_plants(gate)
+
     if problems:
         print("check-scripts: a shell script is not portable\n", file=sys.stderr)
         for problem in problems:
@@ -125,7 +172,8 @@ def main() -> int:
         print(f"\ncheck-scripts: {len(problems)} problem(s)", file=sys.stderr)
         return 1
 
-    print(f"check-scripts: {len(found)} script(s) are LF and parse under dash")
+    print(f"check-scripts: {len(found)} script(s) are LF and parse under dash; "
+          f"the gate's steps agree with its STEPS, and both plants failed")
     return 0
 
 

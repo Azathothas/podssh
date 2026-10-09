@@ -97,8 +97,8 @@ Read:
 - Measured with grep on `HEAD`: `Cargo.lock` holds 478 packages, 438 of them
   from crates.io, and no git source.
 - The workflows use four actions, each by a major tag:
-  `actions/checkout@v5` (`.github/workflows/build.yml:22`),
-  `actions/upload-artifact@v7` (`.github/workflows/build.yml:124`),
+  `actions/checkout@v5` (`.github/workflows/build.yml:30`),
+  `actions/upload-artifact@v7` (`.github/workflows/build.yml:80`),
   `actions/download-artifact@v8` (`.github/workflows/release.yml:125`) and
   `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:82`).
 - The build image is a variable in two workflows and in a shell script
@@ -120,7 +120,7 @@ Read:
      image. Do this item after T-206;
    - no entry for `vendor/tailscale-rs`.
 2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
-   the live check. The no-C steps of the gate (`scripts/gate.sh:78-86`) judge
+   the live check. The no-C steps of the gate (`scripts/gate.sh:113-120`) judge
    each update of a library crate's dependencies.
 3. Dependabot alerts and security updates: on since 2026-10-08, turned on
    with `gh api` and the operator's approval (`gh api
@@ -215,7 +215,7 @@ Read:
   the multi-platform index, not the digest of one platform's image.
 - The box uses two more moving tags, `alpine:3.20` and `python:3.12-alpine`
   (`scripts/test_in_box.sh` lines 39-40 at `e1ba5ba`).
-- `scripts/gate.sh:50-53` prints the toolchain of each run, so the logs show
+- `scripts/gate.sh:80-83` prints the toolchain of each run, so the logs show
   the drift.
 
 ## Approach
@@ -327,14 +327,14 @@ Read:
 - The help (`scripts/dev.sh:331-366`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
-  and the release with neither (`scripts/gate.sh:78-86`,
-  `scripts/gate.sh:135-138`). The help omits the work record, interop, the man
+  and the release with neither (`scripts/gate.sh:113-120`,
+  `scripts/gate.sh:181-183`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (`scripts/dev.sh:602`).
 - Stale comments: `scripts/dev.sh:69-73` ("the default build"),
   `scripts/dev.sh:397-404` ("links the fork since 4b", "steps 4-5"),
   `scripts/dev.sh:462`.
-- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:80-86`);
-  `scripts/check-scripts.py:45-49` finds the scripts under `scripts/` at any
+- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:156-162`);
+  `scripts/check-scripts.py:53-57` finds the scripts under `scripts/` at any
   depth.
 
 ## Approach
@@ -348,7 +348,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:70-184`).
+   (`scripts/gate.sh:98-230`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -420,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:396-441`): the
+5. docs/development.md, "Release builds" (`docs/development.md:410-455`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -742,7 +742,7 @@ Each command exits 0. Planted defect: change one hex digit in a copy of
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -756,13 +756,13 @@ and the job takes the sum of all the steps.
 
 Read:
 
-- `.github/workflows/build.yml:16-128`: one job, `gate`, with a limit of
-  45 min (line 24). The gate is one `docker run` (lines 58-65); the plant
-  (lines 67-73) and the live check (lines 75-92) follow it.
-- `.github/workflows/build.yml:3-5`: CI implements nothing of the gate again.
-- `scripts/gate.sh:5-6`: the gate takes no argument. Its steps are at
-  `scripts/gate.sh:80-184`.
-- `scripts/gate.sh:18-29`: one cargo job for each 3 GiB of free memory.
+- `.github/workflows/build.yml` lines 16-128 at `dacbf4a`: one job, `gate`,
+  with a limit of 45 min. The gate is one `docker run`; the plant and the
+  live check follow it.
+- `.github/workflows/build.yml:3-7`: CI implements nothing of the gate again.
+- `scripts/gate.sh` lines 5-6 at `dacbf4a`: the gate takes no argument. Its
+  steps are at lines 80-184 there.
+- `scripts/gate.sh:48-59`: one cargo job for each 3 GiB of free memory.
 - AGENTS.md, section 4: on the operator's machine, one build at a time
   (`scripts/dev.sh:556-575` holds a lock).
 
@@ -775,7 +775,7 @@ the change.
    and `release` (the static build, the check of the artefact, interop and the
    man page, which share one binary). With no name, it runs each step in
    order, as now; `--list` prints the names. Each step keeps `run`
-   (`scripts/gate.sh:34-48`) and its rule for exit codes.
+   (`scripts/gate.sh:64-78`) and its rule for exit codes.
 2. `.github/workflows/build.yml`: a matrix over the step names, each job
    `docker run ... sh scripts/gate.sh STEP`; the jobs `checks` (the
    repository checks and the live check) and `plant` run beside it. A last
@@ -796,7 +796,30 @@ runs are for CI runners only.
 
 Recommendation: a matrix of the gate's own steps, so that CI runs exactly
 what a developer runs. Jobs with their own cargo commands lost: they copy the
-gate, and a copy drifts (`.github/workflows/build.yml:3-5`).
+gate, and a copy drifts (`.github/workflows/build.yml:3-7`).
+
+2026-10-09. The matrix: a first job, `plan`, reads the build image and `sh
+scripts/gate.sh --list`, and the job `gate` takes its matrix from that list.
+CI has no list of its own, so it cannot drift from the gate. The drift check
+of step 3 is therefore on the gate's one list: `python
+scripts/check-scripts.py` fails when a function `step_NAME` is not in
+`STEPS`, or a name in `STEPS` has no function, and two planted copies of the
+gate (one of each) must fail it at each run. A matrix written in the
+workflow, with a check that it equals `--list`, lost: it is a second copy,
+kept equal by a check, where one copy needs none.
+
+The caches of step 4: none. With no cache, a run takes 6 min 10 s from start
+to end, against 10 to 15.5 min before; the longest job is `release` (5 min
+52 s: the static build, interop and the man page). A cache of each step's
+`target/` would have to share the 10 GB of the repository's caches between
+seven steps and each branch of a pull request, and a restore that misses
+costs its download. Caches lost while the run is this short; a slow run
+brings the question back. The downloads of crates are short: the job
+`record` takes 29 s, its downloads included.
+
+`all` needs each job, and fails when one did not pass, also when one was
+skipped or cancelled. `main` has no protection today; requiring `all` there
+is the operator's choice (`TODO/PROGRESS.md`, "Operator actions").
 
 ## Prove
 
@@ -808,6 +831,45 @@ gh run list -R Azathothas/podssh --workflow build.yml -L 1 --json conclusion,cre
 The list equals the matrix, and the last run passed in less wall time than
 before. Planted defect: remove `ts` from the matrix; the drift check must
 fail.
+
+## Correction
+
+2026-10-09: since `cc386ce`, `.github/workflows/build.yml` also has the job
+`windows` (T-214). Measured before the change, with `gh run list`: the last
+12 runs of `build` on `main`, from `a9c9c2f` to `cc386ce`, took 10 min 3 s
+to 15 min 27 s from start to end; 7 of them took more than 14 min. The
+matrix comes from `--list` (Decision), so the plant of the
+Prove (`ts` removed from the matrix) has no matrix to remove it from; its
+two plants are in `scripts/check-scripts.py`.
+
+## Done
+
+2026-10-09, in the commit "CI runs each step of the gate in a job of its
+own, at the same time".
+
+- `scripts/gate.sh`: the steps `lint`, `libs`, `msrv`, `record`, `ssh`, `ts`
+  and `release`, each a function, in `STEPS`. With no argument, each step,
+  in order; with names, those, in the order given; `--list` prints them; a
+  name that is not a step exits 64.
+- `.github/workflows/build.yml`: the jobs `plan` (the image and the list),
+  `gate` (a matrix over the list, `fail-fast: false`; the job `release`
+  uploads the static binary), `plant`, `checks` (the repository checks, the
+  configuration of Dependabot, the scripts, the live relay check), `windows`
+  and `all`.
+- `scripts/check-scripts.py`: the check of the steps, and its two plants at
+  each run.
+- `docs/development.md`: the steps, the one-step run in the container, and
+  the jobs of CI.
+- Prove: `sh scripts/dev.sh run -- 'sh scripts/gate.sh --list'`: the seven
+  names, exit 0. `sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh
+  record'`: that step alone, green; `nosuch`: exit 64. `sh scripts/dev.sh
+  check` with the new gate: green in 14 min 44 s, each step, interop 103 of
+  103. CI run 37883856054, dispatched on a branch before the commit: each
+  job passed, 6 min 10 s from start to end (`release` 5 min 52 s, `windows`
+  5 min 31 s, `ts` 4 min 33 s, `ssh` 2 min 56 s, `lint` 2 min 39 s, `libs`
+  1 min 57 s, `msrv` 1 min 8 s, `plant` 1 min, `record` 29 s). Plants: a
+  function `step_extra` added to the gate: `check-scripts.py` exits 1 and
+  names it; restored, exit 0.
 
 # T-213: CI runs the box like the target sandbox
 
@@ -840,7 +902,7 @@ Read:
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:130`).
 - The box needs a static binary; CI uploads one
-  (`.github/workflows/build.yml:124-128`).
+  (`.github/workflows/build.yml:79-84`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
   `/dev/pts` (`scripts/test_in_box.sh:180`). Nobody measured the Podman of a
   GitHub runner with them.
@@ -919,7 +981,7 @@ machine.
 
 Read:
 
-- `.github/workflows/build.yml:17-19`: one job, on `ubuntu-latest`.
+- `.github/workflows/build.yml` lines 17-19 at `e892b0f`: one job, on `ubuntu-latest`.
 - `.github/workflows/release.yml:71-112`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
@@ -1042,7 +1104,7 @@ code is not in the default style of rustfmt.
 
 Read:
 
-- `scripts/gate.sh:70-184` has no step for rustfmt or clippy. There is no
+- `scripts/gate.sh` lines 55-166 at `528bb64` have no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
 - One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:308`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
@@ -1326,7 +1388,7 @@ Read:
 - `crates/podssh-ssh/Cargo.toml:6-8` and `crates/podssh-cli/Cargo.toml:6-8`:
   1.89, the minimum of russh 0.64.1. `crates/podssh-ts/Cargo.toml:5-6`: 1.92,
   the minimum of the fork.
-- `scripts/gate.sh:50-53` prints the one toolchain of the gate.
+- `scripts/gate.sh:80-83` prints the one toolchain of the gate.
 - The workspace uses the resolver "2", which ignores `rust-version` when it
   picks versions.
 
@@ -1463,17 +1525,17 @@ the gate on any host that has a C++ compiler. The no-C rule held only because
 
 Read, in the tree as it is now:
 
-- `scripts/gate.sh:70-86`: the library crates build and test with
+- `scripts/gate.sh:90-120`: the library crates build and test with
   `CC=/nonexistent` and `CXX=/nonexistent`.
 - `scripts/plant.sh:100-145`: a crate in a temporary path whose build script
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:165-167` states the rule with `CXX`, and
+- `docs/development.md:180-182` states the rule with `CXX`, and
   `docs/STATUS.md:239` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
-- `.github/workflows/build.yml:97-103` runs the plant on each push.
+- `.github/workflows/build.yml:94-101` runs the plant on each push.
 
 ## Approach
 
@@ -1539,7 +1601,7 @@ Read:
   empty.
 - The model of a floor: `crates/podssh-relay/tests/default_relay.rs:54`
   asserts that the sweep read more than 20 files.
-  `scripts/check-scripts.py:112-115` already fails when it finds no script.
+  `scripts/check-scripts.py:152-155` already fails when it finds no script.
 - The counts today: 216 tracked Rust files under `crates/`, 24 live Markdown
   files on disk, 827 tracked files, 11 shell scripts.
 
@@ -1555,7 +1617,7 @@ Read:
 3. A plant in the same script: a mode `--plant-empty` runs the checks on an
    empty temporary directory and must exit 1. The control is the real tree,
    which must exit 0. CI runs both, as it does for the relay check
-   (`.github/workflows/build.yml:110-122`).
+   (`.github/workflows/build.yml:169-181`).
 4. With T-207: the size check also reads `scripts/`, with its own floor.
 5. The checker of `TODO/` gets its own floor in its own change; this entry
    does not plan it.
@@ -1922,7 +1984,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:42-47`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:119-125`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:156-163`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
