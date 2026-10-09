@@ -6,7 +6,7 @@
 //! handshake costs no connection to sshd (T-164).
 
 use std::fmt;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
@@ -17,6 +17,7 @@ use super::link::Link;
 use super::pump::{self, Ended};
 use super::record::{Record, Role};
 use super::secret::Entropy;
+use super::Settings;
 
 /// How long the client may take to open or resume a session.
 pub const HANDSHAKE_LIMIT: Duration = Duration::from_secs(30);
@@ -52,6 +53,7 @@ pub struct Accepted<L> {
     link: L,
     decoder: Decoder,
     established: Box<Established>,
+    settings: Settings,
 }
 
 /// Greet the client on `link`, and accept the session that it opens or
@@ -59,14 +61,14 @@ pub struct Accepted<L> {
 pub async fn accept<L>(
     mut link: L,
     role: Role,
-    features: &[&str],
+    settings: Settings,
     sessions: &Mutex<Sessions>,
     entropy: &mut (dyn Entropy + Send),
 ) -> Result<Accepted<L>, FarError>
 where
     L: AsyncRead + AsyncWrite + Unpin,
 {
-    let (handshake, greeting) = FarHandshake::start(role, features, entropy).map_err(FarError::Handshake)?;
+    let (handshake, greeting) = FarHandshake::start(role, settings.features, entropy).map_err(FarError::Handshake)?;
     send(&mut link, &greeting).await?;
     let mut decoder = Decoder::new();
     let shaken = tokio::time::timeout(HANDSHAKE_LIMIT, shake(&mut link, &mut decoder, handshake, sessions, entropy));
@@ -74,7 +76,7 @@ where
         Ok(result) => result?,
         Err(_) => return Err(FarError::Timeout),
     };
-    Ok(Accepted { link, decoder, established })
+    Ok(Accepted { link, decoder, established, settings })
 }
 
 async fn shake<L>(
@@ -141,8 +143,8 @@ where
     where
         A: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        let Accepted { link, decoder, established } = self;
-        let state = Link::new(established.received, established.peer_received);
+        let Accepted { link, decoder, established, settings } = self;
+        let state: Arc<Mutex<Link>> = Arc::new(Mutex::new(settings.link(&established)));
         let ended = pump::run(app, link, decoder, state).await;
         let mut sessions = sessions.lock().unwrap_or_else(|e| e.into_inner());
         sessions.set_received(&established.id, ended.received);

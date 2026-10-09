@@ -12,12 +12,15 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
+use std::sync::{Arc, Mutex};
+
 use super::decode::{DecodeError, Decoder};
 use super::handshake::{Ask, ClientHandshake, Established, HandshakeError, Step};
 use super::link::Link;
 use super::pump::{self, Ended};
 use super::record::{kind, Record, Role};
 use super::secret::{Entropy, SessionId};
+use super::Settings;
 
 /// How long the client waits for the far end's first byte: longer than the
 /// operator leg waits for the node's `ready` (20 s), after which the first
@@ -90,6 +93,7 @@ pub struct Client<L> {
     early: Vec<u8>,
     /// The layer's state, for a far end with it.
     layer: Option<(Decoder, Box<Established>)>,
+    settings: Settings,
 }
 
 /// Wait for the far end's first byte. A `GREETING` starts the handshake for
@@ -97,7 +101,7 @@ pub struct Client<L> {
 pub async fn start<L>(
     mut link: L,
     ask: Ask,
-    features: &[&str],
+    settings: Settings,
     entropy: &mut (dyn Entropy + Send),
 ) -> Result<Client<L>, ClientError>
 where
@@ -105,7 +109,7 @@ where
 {
     // The `OPEN` is made first, while `entropy` is at hand; it waits for
     // the `GREETING`, and with no layer it is dropped unsent.
-    let (handshake, open) = ClientHandshake::start(ask, features, entropy).map_err(ClientError::Handshake)?;
+    let (handshake, open) = ClientHandshake::start(ask, settings.features, entropy).map_err(ClientError::Handshake)?;
     let mut buf = vec![0u8; 64 * 1024];
     let first = match tokio::time::timeout(FIRST_BYTE_WAIT, link.read(&mut buf)).await {
         Err(_) => 0,
@@ -114,7 +118,7 @@ where
     };
     if first == 0 || buf[0] != kind::GREETING {
         let found = Found::Plain { first: buf[..first].first().copied() };
-        return Ok(Client { link, found, early: buf[..first].to_vec(), layer: None });
+        return Ok(Client { link, found, early: buf[..first].to_vec(), layer: None, settings });
     }
     let mut decoder = Decoder::new();
     decoder.push(&buf[..first]);
@@ -129,7 +133,7 @@ where
         features: established.features.clone(),
         resumed: established.resumed,
     };
-    Ok(Client { link, found, early: Vec::new(), layer: Some((decoder, established)) })
+    Ok(Client { link, found, early: Vec::new(), layer: Some((decoder, established)), settings })
 }
 
 /// The handshake, from the far end's first bytes on.
@@ -201,10 +205,10 @@ where
     where
         A: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        let Client { mut link, early, layer, .. } = self;
+        let Client { mut link, early, layer, settings, .. } = self;
         match layer {
             Some((decoder, established)) => {
-                let state = Link::new(established.received, established.peer_received);
+                let state: Arc<Mutex<Link>> = Arc::new(Mutex::new(settings.link(&established)));
                 Outcome::Layer(pump::run(app, link, decoder, state).await)
             }
             None => {

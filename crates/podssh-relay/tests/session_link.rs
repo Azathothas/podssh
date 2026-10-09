@@ -14,7 +14,7 @@ use podssh_relay::session::client::{self, ClientError, Found, Outcome};
 use podssh_relay::session::far;
 use podssh_relay::session::{
     Acceptance, Ask, Decoder, End, HandshakeError, LinkError, OffsetError, OsEntropy, Record, RefuseCode, Role,
-    SessionId, Sessions,
+    SessionId, Sessions, Settings,
 };
 
 const PIPE: usize = 256 * 1024;
@@ -48,7 +48,8 @@ async fn read_record(link: &mut DuplexStream, decoder: &mut Decoder) -> Record {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_far_end_with_no_layer_gets_the_bytes_as_they_are() {
     let (client_link, mut server) = tokio::io::duplex(PIPE);
-    let started = tokio::spawn(async move { client::start(client_link, Ask::New, &[], &mut OsEntropy).await });
+    let started =
+        tokio::spawn(async move { client::start(client_link, Ask::New, Settings::default(), &mut OsEntropy).await });
     server.write_all(b"SSH-2.0-OpenSSH_9.6\r\n").await.unwrap();
     let client = tokio::time::timeout(LIMIT, started).await.unwrap().unwrap().unwrap();
     assert_eq!(client.found(), &Found::Plain { first: Some(b'S') });
@@ -77,7 +78,8 @@ async fn the_layer_carries_a_session_both_ways() {
 
     let far_sessions = sessions.clone();
     let far_end = tokio::spawn(async move {
-        let accepted = far::accept(far_link, Role::NODE, &["replay.v1"], &far_sessions, &mut OsEntropy).await.unwrap();
+        let accepted =
+            far::accept(far_link, Role::NODE, Settings::default(), &far_sessions, &mut OsEntropy).await.unwrap();
         // The target is an echo, connected after the handshake.
         let (target, mut echo) = tokio::io::duplex(PIPE);
         tokio::spawn(async move {
@@ -97,7 +99,7 @@ async fn the_layer_carries_a_session_both_ways() {
         accepted.run(target, &far_sessions).await
     });
 
-    let client = tokio::time::timeout(LIMIT, client::start(client_link, Ask::New, &["replay.v1"], &mut OsEntropy))
+    let client = tokio::time::timeout(LIMIT, client::start(client_link, Ask::New, Settings::default(), &mut OsEntropy))
         .await
         .unwrap()
         .unwrap();
@@ -151,7 +153,8 @@ async fn scripted_far_end(server: &mut DuplexStream) -> Decoder {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_refusal_reaches_the_client_with_its_reason() {
     let (client_link, mut server) = tokio::io::duplex(PIPE);
-    let started = tokio::spawn(async move { client::start(client_link, Ask::New, &[], &mut OsEntropy).await });
+    let started =
+        tokio::spawn(async move { client::start(client_link, Ask::New, Settings::default(), &mut OsEntropy).await });
     let mut decoder = scripted_far_end(&mut server).await;
     let open = read_record(&mut server, &mut decoder).await;
     assert!(matches!(open, Record::Open { .. }), "{open:?}");
@@ -172,7 +175,8 @@ async fn a_refusal_reaches_the_client_with_its_reason() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_gap_ends_the_link_and_nothing_after_it_is_delivered() {
     let (client_link, mut server) = tokio::io::duplex(PIPE);
-    let started = tokio::spawn(async move { client::start(client_link, Ask::New, &[], &mut OsEntropy).await });
+    let started =
+        tokio::spawn(async move { client::start(client_link, Ask::New, Settings::default(), &mut OsEntropy).await });
     let mut decoder = scripted_far_end(&mut server).await;
     let _open = read_record(&mut server, &mut decoder).await;
     // RFC 7748's public key of Bob: any key that is not of low order.

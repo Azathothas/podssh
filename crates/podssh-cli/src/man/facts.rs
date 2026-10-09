@@ -68,6 +68,13 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (&["PODSSH_RELAY_TOKEN"], "A relay token to use in place of one podssh mints. podssh never prints it."),
     (
+        &["PODSSH_REPLAY_BUFFER"],
+        "With a node that offers the resumable layer, the bytes that podssh keeps in each direction until \
+      the node acknowledges them, so that a new link can send them again: a whole number of bytes, from \
+      4194304 (the default) to 16777216. When they are kept in full, podssh sends nothing more until an \
+      acknowledgement comes. Another value is ignored.",
+    ),
+    (
         &["PODSSH_SESSION_BUDGET"],
         "Lowers the bytes that podssh cp and mv carry in one relay session before they open a new one, \
       for a relay with smaller limits: a whole number of bytes, 1048576 at least. It never raises the \

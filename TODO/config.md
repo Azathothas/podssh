@@ -50,7 +50,7 @@ them too, which is wrong. An unknown `%` token stays as text (`resolve.rs:303-30
 6. Refuse a file that another user owns or can write, as OpenSSH does, on the opened file
    (`crates/podssh-relay/src/cache.rs:256-268`). An unknown `%` token is an error.
 7. In the same commit: the `-F` row (`crates/podssh-cli/src/flags.rs:143-144`), VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:45-115`, 98-142), the `ssh` notes,
+   FILES (`crates/podssh-cli/src/man/facts.rs:45-122`, 98-142), the `ssh` notes,
    `docs/cli.md:446-467` and `docs/STATUS.md`.
 
 ## Decision
@@ -399,7 +399,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:45-115`, 98-142), `docs/relay.md:30-56` and
+   FILES (`crates/podssh-cli/src/man/facts.rs:45-122`, 98-142), `docs/relay.md:30-56` and
    `docs/cli.md`. The cache directory is the work of T-243.
 
 ## Decision

@@ -675,7 +675,7 @@ Read:
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
-- `crates/podssh-cli/src/man/facts.rs:314-330`: the drift test of the manual
+- `crates/podssh-cli/src/man/facts.rs:321-337`: the drift test of the manual
   counts each quoted upper-case name with `_` in the sources as a variable
   (except `CARGO_` names).
 
@@ -1274,7 +1274,7 @@ warning, and the gate checks the format and the lints".
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
-(`docs/design.md:357-359`) show that a dependency can get one.
+(`docs/design.md:368-370`) show that a dependency can get one.
 **Category:** chore
 **Milestone:** none
 **Priority:** P2

@@ -148,7 +148,11 @@ pub(super) async fn connect(
 /// are. What it says of a session that failed, when the leg cannot say it
 /// better.
 async fn layer(link: DuplexStream, ssh: DuplexStream, log: Arc<Log>, shown: String) -> Option<String> {
-    let client = match session::client::start(link, session::Ask::New, &[], &mut OsEntropy).await {
+    let settings = session::Settings {
+        replay_capacity: session::replay::capacity(std::env::var(session::replay::CAPACITY_ENV).ok().as_deref()),
+        ..session::Settings::default()
+    };
+    let client = match session::client::start(link, session::Ask::New, settings, &mut OsEntropy).await {
         Ok(client) => client,
         Err(e) => return Some(e.to_string()),
     };

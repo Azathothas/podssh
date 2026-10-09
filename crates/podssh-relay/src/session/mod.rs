@@ -16,7 +16,8 @@
 //! - [`secret`]: the session id, the nonces, the secret and the proofs;
 //! - [`handshake`]: the state machines of the client and the far end, and
 //!   the sessions that a far end keeps;
-//! - [`link`]: a link past its handshake, record by record;
+//! - [`link`]: a session past its handshake, record by record, and
+//!   [`replay`]: the bytes that it keeps until the peer acknowledges them;
 //! - [`client`] and [`far`]: the two ends over tokio streams.
 //!
 //! All but the last two are sans-IO: bytes and records in, records and
@@ -30,6 +31,7 @@ pub mod link;
 pub mod offset;
 mod pump;
 pub mod record;
+pub mod replay;
 pub mod secret;
 
 pub use decode::{DecodeError, Decoder};
@@ -38,4 +40,38 @@ pub use link::{Event, Link, LinkError};
 pub use offset::{Inbound, OffsetError, Outbound};
 pub use pump::{End, Ended};
 pub use record::{Acceptance, Hello, Opening, Record, RefuseCode, Role};
+pub use replay::{NotKept, Replay};
 pub use secret::{Entropy, NoRandom, Nonce, OsEntropy, Proof, Secret, SessionId};
+
+/// The features that this build offers: a side ignores a name that it does
+/// not know, and uses a feature only when both sides named it.
+pub const FEATURES: &[&str] = &["replay.v1"];
+
+/// What one end of the layer offers and keeps.
+#[derive(Debug, Clone, Copy)]
+pub struct Settings {
+    /// The feature names that this end gives in its first record.
+    pub features: &'static [&'static str],
+    /// The capacity of the replay buffer in each direction (T-152).
+    pub replay_capacity: usize,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Settings { features: FEATURES, replay_capacity: replay::DEFAULT_CAPACITY }
+    }
+}
+
+impl Settings {
+    /// The state of a new session: a replay buffer and acknowledgements when
+    /// both sides named `replay.v1`, else neither, since a peer that does not
+    /// acknowledge would fill the buffer and stop the session.
+    pub fn link(&self, established: &Established) -> Link {
+        let link = Link::new(established.received, established.peer_received);
+        if established.features.iter().any(|name| name == "replay.v1") {
+            link.with_replay(self.replay_capacity)
+        } else {
+            link
+        }
+    }
+}

@@ -168,7 +168,7 @@ buffer with a start offset; ssh-obi's duplicate recent bytes); GitHub #31.
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -219,6 +219,14 @@ link. A node with 16 sessions (crates/podssh-transport/src/control.rs lines 111-
 then holds 64 MiB at most. The alternative, 16 MiB, lost: four times the
 memory in a cage, for no measured gain.
 
+Taken (2026-10-09): the buffer and the `ACK`s run only when both sides
+named `replay.v1` in their first records. A peer that never acknowledges
+would fill the buffer, and the writer would then wait for ever: the
+alternative, a buffer on each session, lost for that reason. Taken: the
+writer reads from the application only what the buffer has room for, so the
+buffer never holds more than its capacity (the bound of step 2 with no extra
+record); a `DATA` record over the room is refused whole, never cut.
+
 ## Prove
 
 ```sh
@@ -233,6 +241,58 @@ checks the invariant of GitHub #31: no byte that is not acknowledged is
 dropped, and a resume at an offset that is not kept gets `REFUSE` with a
 named reason, never a silent gap. A planted buffer with no capacity check
 fails it, and so does one that drops its oldest bytes when it is full.
+
+## Correction
+
+The bound of the Decision counts 16 sessions on a node, but the node takes
+the relay's limit from its `hello`: 64 sessions, measured 2026-10-09
+(`docs/reverse.md:20-23`). With each session's 4 MiB kept, a node can hold
+256 MiB; T-153, which makes the node a far end that keeps sessions, bounds
+the whole node (its step 6). Step 7's `-v` line belongs to the resume loop
+of T-153: no resume runs before it, and `Link::resume` gives the count of
+the bytes sent again. By the operator's decision of 2026-10-09, the planted
+buffers wait for the checks of the release (T-251).
+
+## Done
+
+2026-10-09.
+
+- `crates/podssh-relay/src/session/replay.rs`: the bytes from the
+  acknowledged offset to the sent offset, taken as they come and given back
+  when the buffer empties; 4 MiB by default, up to 16 MiB with
+  `PODSSH_REPLAY_BUFFER` (the manual's ENVIRONMENT); bytes past the room
+  refused whole; a resume from an offset that it does not keep is `NotKept`,
+  whose `REFUSE` (code 3) names the offset asked and the offsets kept.
+- `link.rs`: the session's state now outlives a link (offsets, buffer, the
+  last `ACK`), and `Link::resume` starts the next link with the bytes to send
+  again; an `ACK` or a `PONG` frees the buffer. `pump.rs`: the writer reads
+  only what the buffer has room for and waits for an `ACK` when it has none;
+  the receiver acknowledges each 64 KiB at once and fewer bytes after 200 ms.
+  The two ends turn the buffer on only when both named `replay.v1`
+  (`Settings`, `session::FEATURES`); `podssh ssh node://` passes the
+  setting. The defaults are in `docs/design.md` (section 5), the bound in
+  T-201.
+- Prove, native: `cargo test -p podssh-relay --test session_replay`:
+  9 passed, three runs in a row with the link test. 32 MiB to a far end that
+  does not acknowledge: exactly 4 MiB go out and nothing more for 500 ms; an
+  `ACK` of 1 MiB lets exactly 1 MiB more through; then the whole 32 MiB with
+  an equal SHA-256. A frame lost after 640 KiB of 2 MiB: the link ends with
+  the bytes before the gap, the resume sends exactly the other 1,441,792,
+  and the digests are equal. A model of 3 MiB of random sends and
+  acknowledgements, old ones among them: the buffer holds exactly the bytes
+  not acknowledged after each step. Resumes from below the acknowledged
+  offset and past the bytes sent are refused with both offsets. A peer with
+  no `replay.v1` gets 6 MiB with no buffer and no `ACK`.
+- `cargo test --no-fail-fast`: 972 passed, 0 failed, 20 ignored (the live
+  tests). `python scripts/check-repo.py`: ok.
+  `cargo todo check`: the record agrees.
+- Waits for T-251, by the decision of 2026-10-09: the two planted buffers
+  (`Replay::keep` with no check of the room, which must fail
+  `the_buffer_never_grows_past_its_capacity` and
+  `a_full_buffer_makes_the_writer_wait_until_an_ack`; and one that drops its
+  oldest bytes when full, which must fail
+  `the_buffer_never_drops_a_byte_that_is_not_acknowledged` and
+  `a_resume_sends_exactly_the_missing_bytes_after_a_lost_frame`).
 
 # T-153: Resume through any road and relay host, with a session secret and a capped backoff
 
@@ -286,7 +346,11 @@ the node then exits (`docs/reverse.md:19`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:127-230`).
+   (`crates/podssh-cli/src/man/facts.rs:134-237`).
+6. A node keeps the replay buffer of each session (T-152): with the relay's
+   limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
+   replay memory (a session past the bound gets `REFUSE` busy, code 6), and
+   write the bound in T-201.
 
 ## Decision
 
@@ -357,8 +421,8 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:278-286`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:174-184`,
-   `crates/podssh-cli/src/man/facts.rs:208-215`), the note at
+   (`crates/podssh-cli/src/man/facts.rs:181-191`,
+   `crates/podssh-cli/src/man/facts.rs:215-222`), the note at
    `crates/podssh-cli/src/man/notes.rs:56`, `docs/relay.md`, `README.md`.
 
 ## Decision
@@ -431,7 +495,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:127-230`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:134-237`).
 
 ## Decision
 
@@ -520,7 +584,7 @@ live session that survives a stall of 3 minutes.
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:385-405`; the two
+sandbox, before a default depends on it); `docs/design.md:396-416`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -544,7 +608,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:385-405`). A session carries 64 MiB at most, both directions
+(`docs/design.md:396-416`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:127`).
 
 ## Approach

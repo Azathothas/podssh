@@ -319,8 +319,10 @@ Read, the bounds today:
    plus a margin; the check fails above it.
 5. Give `known_hosts` a read limit (16 MiB, far above a real file) with a
    message that names the file, or state in the table that it has none.
-6. In M6, the replay buffer (4 to 16 MiB, `docs/design.md:206-207`; T-152)
-   joins the table.
+6. In M6, the replay buffer joins the table (T-152, 2026-10-09): 4 MiB in
+   each direction of each resumable session by default, 16 MiB at most with
+   `PODSSH_REPLAY_BUFFER` (`crates/podssh-relay/src/session/replay.rs`); at
+   the bound the writer waits for an `ACK`, and no byte is dropped.
 
 ## Prove
 

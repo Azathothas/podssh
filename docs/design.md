@@ -285,6 +285,17 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   `ACCEPT` with its own received offset and the same HMAC of
   `podssh-session v1 far proof`, which the client checks. Each side then
   sends from the other's offset.
+- **The replay buffer** (T-152), when both sides name `replay.v1`. Each
+  side keeps the bytes that it sent from the peer's acknowledged offset on:
+  4 MiB in each direction, up to 16 MiB with `PODSSH_REPLAY_BUFFER`. When it
+  is full, the writer waits for an `ACK`, so SSH waits and its window stops
+  the far side; no byte that is not acknowledged is ever dropped. A receiver
+  acknowledges each 64 KiB at once, fewer bytes after 200 ms, and in each
+  `PONG`. A resume sends again from the peer's received offset; one that the
+  buffer no longer keeps (below the acknowledged offset, or past the bytes
+  sent) gets `REFUSE` (3) with both offsets in its reason, and the session
+  ends: never a silent gap. A peer that does not name `replay.v1` gets no
+  buffer and no `ACK`, since it would never acknowledge.
 - **What the layer defends against.** The relay terminates TLS, so it can
   read and log each byte. The secret never crosses it, and a proof names the
   nonces of its own link: a reader of the relay's logs cannot take a
