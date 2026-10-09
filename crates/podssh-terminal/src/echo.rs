@@ -28,13 +28,12 @@
 //!
 //! ## What is deliberately absent
 //!
-//! **No `onlcr` here, yet.** The sibling expands lone `\n` to `\r\n` on the way
-//! out — **READ**, `session.rs:629-642` — because the shell below it runs on a
-//! pipe and its `OPOST`/`ONLCR` is absent. The cooked mode runs in that same
-//! case, with nothing below (T-125), so a lone `\n` of the program's output
-//! needs its `\r`: T-111, which serves a child with no pty, adds it.
-//! Over a real pty, the transparent mode's case, the pty already translated,
-//! and an extra `\r` would stair-step every line.
+//! **No `onlcr` in the transparent mode.** The sibling expands `\n` to `\r\n`
+//! on the way out — **READ**, `session.rs:629-642` — because the shell below
+//! it runs on a pipe and its `OPOST`/`ONLCR` is absent. The cooked mode runs
+//! in that same case, with nothing below (T-125), so it does the same to the
+//! program's output (`output`). Over a real pty, the transparent mode's
+//! case, the pty already translated, and an extra `\r` would be a second one.
 //!
 //! **No supervisor, no shell, no process group.** `session.rs:456-744` spawns
 //! and supervises a child. podssh has no child to spawn: the remote program is
@@ -57,6 +56,7 @@
 //! | [`inspect`] | the read-only accessors a caller and a test need |
 //! | `units` | characters and cells: where the cursor stops, and how far it moves |
 //! | `screen` | rows: where each cell of a line wider than the terminal falls |
+//! | `output` | the program's output while a line is under edit |
 //!
 //! **The split is invisible in behaviour.** Every byte rule below is
 //! transcribed to the same line of `session.rs` it was cited to before the
@@ -72,6 +72,7 @@ use screen::Place;
 pub mod editing;
 pub mod history;
 pub mod inspect;
+pub(crate) mod output;
 pub(crate) mod screen;
 pub(crate) mod units;
 
@@ -155,7 +156,6 @@ impl fmt::Display for Event {
 /// **Pure state.** Every method is deterministic in its arguments, which is
 /// the only reason the tests can assert exact bytes rather than "something was
 /// echoed". **READ**, `session.rs:152-168`.
-#[derive(Debug)]
 pub struct Discipline {
     /// **`pub(crate)`, not `pub`.** The fields below are private to the
     /// crate because **the submodules write them and nothing outside may**:
@@ -197,6 +197,26 @@ pub struct Discipline {
     pub(crate) shown: Place,
     /// Where the drawn prompt and line end.
     pub(crate) drawn_end: Place,
+    /// Output hid the line and stopped inside a row: the line comes back on
+    /// a row of its own at the next key.
+    pub(crate) hidden: bool,
+}
+
+impl fmt::Debug for Discipline {
+    /// **The shape, not the text.** A `Debug` that printed the line or the
+    /// history would put whatever the user typed into each log that touches
+    /// the discipline, a password typed at a mistaken prompt among them, as
+    /// `Session`'s own `Debug` says.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Discipline")
+            .field("line_len", &self.line.len())
+            .field("cursor", &self.cursor)
+            .field("history_len", &self.history.len())
+            .field("utf8", &self.utf8)
+            .field("width", &self.width)
+            .field("hidden", &self.hidden)
+            .finish_non_exhaustive()
+    }
 }
 
 impl Default for Discipline {
@@ -227,6 +247,7 @@ impl Discipline {
             width: None,
             shown: Place::default(),
             drawn_end: Place::default(),
+            hidden: false,
         };
         d.reset_area();
         d
@@ -335,9 +356,10 @@ impl Discipline {
     /// and the `\n` of a `\r\n` pair is swallowed before the byte is read as a
     /// submission.
     pub fn key(&mut self, b: u8) -> Vec<Event> {
-        // A character typed in parts waits in `partial`; a byte that cannot
-        // continue it puts its bytes into the line first, each as typed.
-        let mut out = Vec::new();
+        // A line that output hid comes back first. A character typed in parts
+        // waits in `partial`; a byte that cannot continue it puts its bytes
+        // into the line first, each as typed.
+        let mut out = self.unhide();
         if !self.partial.is_empty() && !(0x80..=0xbf).contains(&b) {
             for p in std::mem::take(&mut self.partial) {
                 out.extend(self.insert_unit(&[p]));
@@ -359,7 +381,7 @@ impl Discipline {
     /// The bytes of a character typed in parts go into the line as typed, as
     /// a byte that cannot continue them would put them.
     pub fn idle(&mut self) -> Vec<Event> {
-        let mut out = Vec::new();
+        let mut out = self.unhide();
         if self.esc.abandon() {
             out.push(Event::ToLocal(BELL.to_vec()));
         }
@@ -414,14 +436,8 @@ impl Discipline {
             0x7f | 0x08 => self.erase_left(),
             0x15 => self.erase_line(),
             0x17 => self.erase_word(),
-            0x01 => {
-                self.cursor = 0;
-                vec![]
-            }
-            0x05 => {
-                self.cursor = self.line.len();
-                vec![]
-            }
+            0x01 => self.home(),
+            0x05 => self.end(),
             _ => self.insert(b),
         }
     }

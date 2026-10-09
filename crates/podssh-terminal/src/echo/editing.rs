@@ -21,6 +21,8 @@
 //!   **`session.rs:354-376`**
 //! - [`Discipline::escape`] — the final byte of a sequence, `ESC [` or `ESC O`.
 //!   **`session.rs:378-403`**
+//! - [`Discipline::home`] and [`Discipline::end`] — the line's cursor and the
+//!   screen's together; [`Discipline::delete_under`] — Delete.
 //! - [`Discipline::insert`] — an ordinary byte, or a refusal at the cap.
 //!   **`session.rs:437-453`**
 //!
@@ -60,11 +62,41 @@ impl Discipline {
         if self.line.is_empty() {
             return vec![Event::Eof];
         }
-        if let Some(u) = after(&self.line, self.utf8, self.cursor) {
-            self.line.drain(u.start..u.start + u.len);
-            return vec![Event::ToLocal(self.redraw())];
+        self.delete_under()
+    }
+
+    /// Delete, the VT220's Remove: the character under the cursor goes, and
+    /// nothing at the very end. It never ends input, as Ctrl-D on an empty
+    /// line does.
+    pub(crate) fn delete_under(&mut self) -> Vec<Event> {
+        let Some(u) = after(&self.line, self.utf8, self.cursor) else { return vec![] };
+        self.line.drain(u.start..u.start + u.len);
+        vec![Event::ToLocal(self.redraw())]
+    }
+
+    /// Home: the line's cursor to the start, and the screen's with it, so
+    /// the next key lands where the user sees the cursor.
+    pub(crate) fn home(&mut self) -> Vec<Event> {
+        self.cursor = 0;
+        self.move_shown()
+    }
+
+    /// End: the line's cursor to the end, and the screen's with it.
+    pub(crate) fn end(&mut self) -> Vec<Event> {
+        self.cursor = self.line.len();
+        self.move_shown()
+    }
+
+    /// The screen's cursor to the line's, by rows and columns.
+    fn move_shown(&mut self) -> Vec<Event> {
+        let to = self.place(self.cursor);
+        let out = motion(self.shown, to);
+        self.shown = to;
+        if out.is_empty() {
+            vec![]
+        } else {
+            vec![Event::ToLocal(out)]
         }
-        vec![]
     }
 
     /// Erase the character left of the cursor, and the cells it took. At the
@@ -140,8 +172,9 @@ impl Discipline {
     /// second form; only `ESC O` has the keypad.
     ///
     /// **Arrows echo their own sequences**, which move a real terminal's
-    /// cursor exactly where the local cursor went. Home and End stay silent
-    /// until the next redraw. **Everything else bells and drops**, and that is
+    /// cursor exactly where the local cursor went, and Home and End move it
+    /// too. The VT220 editing keys come as `ESC [ n ~`: 1 and 7 are Home, 4
+    /// and 8 End, and 3 Delete. **Everything else bells and drops**, and that is
     /// not an omission — see `session.rs:54-55`, *"any escape sequence outside
     /// arrows, Home, and End is dropped"*. A discipline that passes an
     /// untested sequence to a client that is *not* full-screen corrupts the
@@ -156,8 +189,12 @@ impl Discipline {
     /// discipline that silently drops a sequence its client was promised is worse
     /// than one that rings a bell"*.
     pub(crate) fn escape(&mut self, intro: Intro, b: u8, param: Param) -> Vec<Event> {
-        if param != Param::None {
-            return vec![Event::ToLocal(BELL.to_vec())];
+        match (intro, b, param) {
+            (Intro::Csi, b'~', Param::Number(1 | 7)) => return self.home(),
+            (Intro::Csi, b'~', Param::Number(4 | 8)) => return self.end(),
+            (Intro::Csi, b'~', Param::Number(3)) => return self.delete_under(),
+            (_, _, Param::None) => {}
+            _ => return vec![Event::ToLocal(BELL.to_vec())],
         }
         match b {
             b'A' => self.history_up(),
@@ -165,14 +202,8 @@ impl Discipline {
             // A step is a whole character, and the screen moves by its cells.
             b'C' if self.cursor < self.line.len() => self.step(after(&self.line, self.utf8, self.cursor), b'C'),
             b'D' if self.cursor > 0 => self.step(before(&self.line, self.utf8, self.cursor), b'D'),
-            b'H' => {
-                self.cursor = 0;
-                vec![]
-            }
-            b'F' => {
-                self.cursor = self.line.len();
-                vec![]
-            }
+            b'H' => self.home(),
+            b'F' => self.end(),
             // The keypad in application mode: Enter submits, and each other
             // key types the character it shows, `ESC O j` to `ESC O y` being
             // `*+,-./` and the digits. F1 to F4, `ESC O P` to `ESC O S`, ring.

@@ -194,12 +194,12 @@ fn an_unknown_bracket_sequence_bells_and_changes_no_state() {
     // does not implement function keys; it says so rather than guessing.
     let mut d = Discipline::new();
     feed(&mut d, b"ab");
-    let got = feed(&mut d, b"\x1b[1~");
+    let got = feed(&mut d, b"\x1b[15~");
     assert_eq!(got.local, BELL, "one bell and nothing else: {}", got.show());
     assert!(got.remote.is_empty(), "{}", got.show());
     assert!(!got.eof, "{}", got.show());
-    // **The state change that must not have happened.** The `1` and the `~`
-    // are consumed with the sequence; they must not have been inserted.
+    // **The state change that must not have happened.** The `1`, the `5`
+    // and the `~` are consumed with the sequence; none may be inserted.
     assert_eq!(feed(&mut d, b"\n").remote, b"ab\n", "the line is exactly as it was");
 }
 

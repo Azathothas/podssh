@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**257 entries: 170 open, 0 partial, 8 blocked, 79 done.**
+**257 entries: 169 open, 0 partial, 8 blocked, 80 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 87 | 0 | 4 | 57 | 148 |
+| P2 | 86 | 0 | 4 | 58 | 148 |
 | P3 | 81 | 0 | 4 | 14 | 99 |
-| **All** | 170 | 0 | 8 | 79 | 257 |
+| **All** | 169 | 0 | 8 | 80 | 257 |
 
 ## Entries
 
@@ -202,7 +202,7 @@ repository and CI).
 | [T-126](terminal.md) | P2 | M | M5 | defect | done | L2: the line discipline has no raw mode and no window size |
 | [T-127](terminal.md) | P2 | S | M5 | defect | done | L3: the cursor counts bytes, not characters |
 | [T-128](terminal.md) | P2 | S | M5 | defect | done | L4: `ESC O x` keys ring the bell, and a single Escape removes the next key |
-| [T-129](terminal.md) | P2 | M | M5 | defect | open | L5: Delete, Home and End, Ctrl-Z, Ctrl-S, Ctrl-Q, and remote output over the edited line |
+| [T-129](terminal.md) | P2 | M | M5 | defect | done | L5: Delete, Home and End, Ctrl-Z, Ctrl-S, Ctrl-Q, and remote output over the edited line |
 | [T-130](terminal.md) | P3 | S | backlog | docs | open | State which terminal sequences podssh reads and which it passes unchanged |
 | [T-131](terminal.md) | P3 | S | backlog | measurement | open | Which servers honour the `signal` request for Ctrl-C with no remote pty |
 | [T-132](terminal.md) | P3 | S | backlog | research | open | Compare the Windows console handling with csshw's |

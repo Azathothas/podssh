@@ -15,13 +15,13 @@
 //! | [`Mode::Cooked`] | selected, with no pty and no discipline below | echo, editing, history, a static prompt |
 //! | [`Mode::Transparent`] | each other case | each byte both ways as it came; the size held across a frame |
 //!
-//! ## Where the two modes agree, and that is worth knowing
+//! ## Where the two modes differ, and that is worth knowing
 //!
-//! **The reverse leg is byte-identical in both**, because a remote program
-//! that owns the screen and a shell that owns the line both simply emit bytes.
-//! **So what differs between the modes is the forward leg and the frames** —
-//! and one difference in the reverse leg that is the sharpest thing this entry
-//! has to say:
+//! **The forward leg, the frames, and the reverse leg.** In the transparent
+//! mode each byte of the program passes as it came. In the cooked mode the
+//! program writes to a pipe while the user edits a line, so its output is
+//! written around the line, with each `\n` as `\r\n` ([`crate::echo`]'s
+//! `output`). And one difference is the sharpest thing this entry has to say:
 //!
 //! > A `\r\n` pair means **two different things** in the two modes. In cooked it
 //! > is a user's Enter and its pair, and the `\n` is swallowed so a command does
@@ -198,11 +198,19 @@ impl Session {
 
     /// Remote bytes in, their consequences out.
     ///
-    /// **Byte-identical in both modes**, and that is deliberate: a shell and
-    /// a full-screen program both simply emit bytes, and a discipline that
-    /// edited them would be editing output it does not own.
+    /// **As they came in the transparent mode**: a full-screen program owns
+    /// the screen, and a discipline that edited its bytes would be editing
+    /// output it does not own. **Around the line under edit in the cooked
+    /// mode**, with each `\n` as `\r\n`, since the program writes to a pipe
+    /// and nothing else would keep its output out of the line. After the end
+    /// of input no line is drawn, and only the newlines change.
     pub fn on_remote_bytes(&mut self, bytes: &[u8]) -> Vec<Event> {
-        self.pass.forward_remote(bytes)
+        match self.mode {
+            Mode::Cooked if bytes.is_empty() => vec![],
+            Mode::Cooked if self.ended => vec![Event::ToLocal(crate::echo::output::onlcr(bytes))],
+            Mode::Cooked => self.cooked.output(bytes),
+            Mode::Transparent => self.pass.forward_remote(bytes),
+        }
     }
 
     /// Client EOF: submit a partial line, then end input.

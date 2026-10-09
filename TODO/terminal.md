@@ -29,7 +29,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
   (`crates/podssh-terminal/src/session.rs` lines 79-85 at `6e77829`). In `NoPty`, each local byte
   sets `ended` and returns a bell (`crates/podssh-terminal/src/session.rs` lines 169-174 at `6e77829`).
   In `Cooked`, the discipline echoes each byte
-  (`crates/podssh-terminal/src/echo/editing.rs:206-238`).
+  (`crates/podssh-terminal/src/echo/editing.rs:237-269`).
 - Read, at `6e77829`: tests pin the wrong table (`crates/podssh-terminal/tests/keys.rs` lines 315-326,
   `crates/podssh-terminal/tests/keys.rs` lines 328-346), and plant E builds
   `Session::new(true, true)` (`crates/podssh-terminal/tests/plants.rs` line 327).
@@ -299,7 +299,7 @@ character takes two cells and counts as one.
 3. Backspace, Ctrl-W, Ctrl-D and the arrows act on whole characters; the
    rubout and the arrow echo use the cell count (`ESC [ n D`).
 4. The history keeps bytes (`Vec<u8>`), not lossy strings.
-5. Same commit: `docs/terminal.md:81-114` (the rules), `docs/STATUS.md:220`.
+5. Same commit: `docs/terminal.md:81-119` (the rules), `docs/STATUS.md:220`.
 
 ## Decision
 
@@ -513,7 +513,7 @@ lone Escape rings at its caller's idle tick".
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -525,20 +525,23 @@ that arrives during an edit is written over the edited line.
 
 ## Premise
 
-- Read: `ESC [ 3 ~` (Delete), `ESC [ 1 ~` and `ESC [ 7 ~` (Home), and
-  `ESC [ 4 ~` and `ESC [ 8 ~` (End) carry a parameter, and each final with a
-  parameter is refused (`crates/podssh-terminal/src/echo/editing.rs:154-157`).
-- Read: `ESC [ H` and `ESC [ F` move the cursor and send nothing
-  (`crates/podssh-terminal/src/echo/editing.rs:168-175`); Ctrl-A and Ctrl-E
-  do the same (`crates/podssh-terminal/src/echo.rs:417-424`). Tests pin the
-  silence (`crates/podssh-terminal/tests/discipline.rs:189-217`).
+- Read, at `cb94460`: `ESC [ 3 ~` (Delete), `ESC [ 1 ~` and `ESC [ 7 ~` (Home),
+  and `ESC [ 4 ~` and `ESC [ 8 ~` (End) carry a parameter, and each final
+  with a parameter is refused
+  (`crates/podssh-terminal/src/echo/editing.rs` lines 154-157).
+- Read, at `cb94460`: `ESC [ H` and `ESC [ F` move the cursor and send nothing
+  (`crates/podssh-terminal/src/echo/editing.rs` lines 168-175); Ctrl-A and
+  Ctrl-E do the same (`crates/podssh-terminal/src/echo.rs` lines 417-424).
+  Tests pin the silence
+  (`crates/podssh-terminal/tests/discipline.rs` lines 189-217).
 - Read, at `6e77829`: passthrough refuses `0x1a`, `0x11` and `0x13`
   (`crates/podssh-terminal/src/passthrough.rs` lines 89-95,
   `crates/podssh-terminal/src/refusal.rs:33-35`), and a test pins it
   (`crates/podssh-terminal/src/passthrough.rs` lines 223-236).
-- Read: in the cooked mode, remote bytes go out as they come, and the edited
-  line is not drawn again (`crates/podssh-terminal/src/session.rs:204-206`,
-  `crates/podssh-terminal/src/passthrough.rs:68-74`).
+- Read, at `cb94460`: in the cooked mode, remote bytes go out as they come, and
+  the edited line is not drawn again
+  (`crates/podssh-terminal/src/session.rs` lines 204-206,
+  `crates/podssh-terminal/src/passthrough.rs` lines 68-74).
 
 ## Approach
 
@@ -548,12 +551,27 @@ that arrives during an edit is written over the edited line.
 2. Home, End, Ctrl-A and Ctrl-E send the motion: `ESC [ n D` or `ESC [ n C`
    by cells (T-127), or a redraw.
 3. The transparent mode of T-125 refuses nothing. Ctrl-Z, Ctrl-S and Ctrl-Q
-   stay refused in the cooked mode only (`docs/terminal.md:145-147`).
+   stay refused in the cooked mode only (`docs/terminal.md:150-152`).
 4. Output during an edit: `\r` and `ESC [ K` clear the edited line, the
    output is written, then the prompt and the line are drawn again with the
    cursor in place. Invariant: output never changes the line under edit.
 5. Rewrite the tests that pin the old behaviour. Same commit:
-   `docs/terminal.md:142-151`, `docs/STATUS.md:220`.
+   `docs/terminal.md` lines 142-151 at `cb94460`, `docs/STATUS.md:220`.
+
+## Decision
+
+2026-10-09. **Each `\n` of the program's output becomes `\r\n` in the
+cooked mode's output path**, as n_tty's `ONLCR` and podbox's `onlcr` do: a
+`\r\n` becomes `\r\r\n`, which a terminal shows the same, and no state is
+carried across chunks. The cooked mode runs only with nothing below that
+edits (T-125), which is the case of the newline rule. Leaving it to serve
+(T-111) lost: two places would edit one stream, and the crate could not know
+where the output ended. **Output that stops inside a row waits** for the next
+key, or for output that ends its row; drawing the line after each chunk lost:
+it breaks a progress bar drawn with `\r` and a program's own prompt. **After
+the end of input** no line is drawn, and only the newlines change. **The
+paste markers** `ESC [ 200 ~` and `ESC [ 201 ~` ring like each other `~`
+key: a program on a pipe does not turn on bracketed paste.
 
 ## Prove
 
@@ -578,11 +596,67 @@ The cooked mode now runs only with nothing below, so the program's output
 reaches it from a pipe, with no `ONLCR`: T-111 adds the `\r` before a lone
 `\n` (its Premise), and step 4 draws that output over the edited line.
 
+2026-10-09, four more. **(a) The plant-D tests** (`tests/keys.rs`,
+`tests/plants.rs`) fed `ESC [ 1 ~` while their comments name F5,
+`ESC [ 1 5 ~`; since `ESC [ 1 ~` is Home now, they feed `ESC [ 1 5 ~`.
+**(b) Step 4's `\r` and `ESC [ K` clear one row**; after T-126 the line can
+take several, so the clear goes up to its first row and uses `ESC [ J`.
+**(c) Output that stops inside a row** is not in step 4: it waits (see
+Decision). **(d) The new tests are in `tests/motion.rs` and
+`tests/output.rs`**, not `discipline.rs` and `keys.rs`, which are near the
+500-line rule; the moving tests of `discipline.rs` moved with them. The test
+of step 3 is T-125's `mode_transparent_passes_ctrl_z_s_q`.
+
+## Done
+
+2026-10-09, in the commit "Home, End and Delete move the screen's cursor,
+and the program's output goes around the line under edit".
+
+- `crates/podssh-terminal/src/echo/editing.rs`: `ESC [ n ~` with 1 or 7
+  is Home, 4 or 8 End, and 3 Delete; each other `~` rings once.
+  `Discipline::home` and `Discipline::end` move the screen's cursor by rows
+  and columns, and Ctrl-A, Ctrl-E, `ESC [ H` and `ESC [ F` use them;
+  `Discipline::delete_under`, which Ctrl-D uses on a live line.
+- `echo/output.rs` (new): `Discipline::output` hides the line, writes the
+  output with each `\n` as `\r\n`, and draws the line again below it;
+  output that stops inside a row waits for the next key (`unhide`, at
+  `key`, `idle` and `submit_and_end`). `session.rs`: `on_remote_bytes` sends
+  the cooked mode's output through it, and after the end of input only the
+  newlines change. `screen.rs`: a resize while the line is hidden draws
+  nothing.
+- Found in passing: `Discipline` derived `Debug`, which printed the line
+  and the history into any log; its `Debug` now shows their lengths only,
+  as `Session`'s does (test `the_debug_form_shows_no_typed_text`).
+- Tests: in `tests/motion.rs`, `l5_home_and_end_move_the_screen_cursor`,
+  `l5_home_and_then_an_insert_lands_at_the_start`,
+  `l5_home_on_a_long_line_moves_up_a_row`,
+  `l5_delete_tilde_deletes_under_the_cursor` and
+  `l5_other_tilde_keys_ring_once`, with the arrows' two tests from
+  `discipline.rs`; in `tests/output.rs`,
+  `l5_output_during_an_edit_redraws_the_line`,
+  `l5_output_puts_the_cursor_back_mid_line`,
+  `l5_output_that_stops_inside_a_row_waits_for_the_next_key`,
+  `l5_output_during_an_edit_of_a_long_line_clears_each_row` and
+  `l5_after_the_end_of_input_only_the_newlines_change`; a unit test of
+  `onlcr`.
+- `docs/terminal.md` (the keys, the refusals, output during an edit, and
+  the newline rule) and `docs/STATUS.md`.
+- Prove: `cargo test -p podssh-terminal -- l5_`: 10 passed.
+  `cargo test -p podssh-terminal --no-fail-fast`: 135 passed. Plants, each
+  restored, each failing its test: Home silent again (the entry's plant);
+  Delete as Ctrl-D; each `~` number as Home; Home by columns only; the
+  output as it came; no `ONLCR`; a redraw after each output; a clear of one
+  row; a `Debug` that prints the line. The plant of step 3 is T-125's.
+- In a real terminal, by hand: the bytes of seven cases (Home and End on
+  one row and on two, Delete, output after the line, mid-line and over two
+  rows, and output that stops inside a row) shown by tmux 3.7c in the
+  build image: each row and the cursor where the discipline counts them.
+
 # T-130: State which terminal sequences podssh reads and which it passes unchanged
 
 **Source:** GitHub #18 and GitHub #19 (nikhiljha/rose
 `nikhiljha/rose:doc/spec.md`, lines 19-42, "Terminal Feature Boundary");
-`docs/terminal.md:116-151`.
+`docs/terminal.md:121-158`.
 **Category:** docs
 **Milestone:** backlog
 **Priority:** P3
@@ -602,7 +676,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
   (`crates/podssh-ssh/src/escape.rs:1-13`, `crates/podssh-ssh/src/escape.rs:30-70`).
   Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:58-67`).
 - Read: the line discipline acts on the arrows, Home, End and its control
-  keys, and refuses other sequences (`docs/terminal.md:116-151`). T-128 and
+  keys, and refuses other sequences (`docs/terminal.md:121-158`). T-128 and
   T-129 change that list.
 - Read in the reports of GitHub #18 and #19, not verified here: rose states
   its terminal boundary in its spec. rose is GPL: read the spec, copy no code.
@@ -633,7 +707,7 @@ fails. The binary (`$BIN`) prints the note in its manual.
 
 # T-131: Which servers honour the `signal` request for Ctrl-C with no remote pty
 
-**Source:** `docs/terminal.md:164-168` (section "Open").
+**Source:** `docs/terminal.md:179-183` (section "Open").
 **Category:** measurement
 **Milestone:** backlog
 **Priority:** P3
@@ -649,7 +723,7 @@ on it. podssh cannot select a behaviour without that fact.
 
 ## Premise
 
-- Read: `docs/terminal.md:164-168` records the question as open.
+- Read: `docs/terminal.md:179-183` records the question as open.
 - Read: podssh's client never sends a `signal` request: no call in
   `crates/podssh-ssh/src`. With no remote pty, the local terminal stays in
   its normal mode (`docs/terminal.md:24`), so Ctrl-C stops podssh itself.

@@ -41,7 +41,8 @@ impl Discipline {
     /// empty**, because the sibling's own tests pin that: an empty submit is
     /// `b"\n"` on the forward leg (`session.rs:836-838`).
     pub fn submit_and_end(&mut self) -> Vec<Event> {
-        let mut events = self.submit();
+        let mut events = self.unhide();
+        events.extend(self.submit());
         events.push(Event::Eof);
         events
     }

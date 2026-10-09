@@ -17,10 +17,11 @@
 //!
 //! **Characters only.** What a byte typed into a line produces: the echo,
 //! the erase, the submit, and the rows of a line wider than the terminal.
-//! Escapes, history, signals and the two modes are in `keys.rs`, window size
-//! in `window.rs`, and the harness that keeps the two legs apart is in
-//! `common/mod.rs`, so **the byte-exactness rigour is written once and each
-//! file uses it.**
+//! Escapes, history, signals and the two modes are in `keys.rs`, the moving
+//! keys and Delete in `motion.rs`, output during an edit in `output.rs`,
+//! window size in `window.rs`, and the harness that keeps the two legs apart
+//! is in `common/mod.rs`, so **the byte-exactness rigour is written once and
+//! each file uses it.**
 //!
 //! ## Where a rule is deliberately NOT the sibling's
 //!
@@ -182,73 +183,6 @@ fn a_mid_line_erase_redraws_because_the_tail_shifted() {
     let got = feed(&mut mid, b"abc\x1b[D\x1b[D\x7f\n");
     assert!(has(&got.local, EL), "mid-line: {}", got.show());
     assert_eq!(got.remote, b"bc\n", "erasing left of the cursor removed 'a'");
-}
-
-// ───────────────────────────────── moving
-
-#[test]
-fn ctrl_a_and_ctrl_e_are_silent_moves() {
-    // **Silent is the assertion.** The jump echoes nothing, and the only
-    // place the moved cursor shows is the redraw the *next* insert triggers.
-    // Transcribed: `session.rs:937-947`.
-    let mut d = Discipline::new();
-    assert_eq!(feed(&mut d, b"ab\x01").local, b"ab", "home echoes nothing");
-    let got = feed(&mut d, b"X\n");
-    assert!(has(&got.local, EL), "{}", got.show());
-    assert_eq!(got.remote, b"Xab\n", "the insert landed at the start");
-
-    let mut d = Discipline::new();
-    let got = feed(&mut d, b"ab\x1b[H\x05X\n");
-    assert_eq!(&got.local[..2], b"ab", "the jump itself echoes nothing");
-    assert_eq!(got.remote, b"abX\n", "and the insert landed at the end");
-}
-
-#[test]
-fn esc_h_and_esc_f_move_like_ctrl_a_and_ctrl_e() {
-    // **`ESC [ H` and `ESC [ F`, silent**, exactly as their Ctrl equivalents.
-    // Transcribed: `session.rs:992-1007`.
-    let mut d = Discipline::new();
-    assert_eq!(feed(&mut d, b"ab\x1b[H").local, b"ab", "home echoes nothing");
-    assert_eq!(feed(&mut d, b"X\n").remote, b"Xab\n");
-
-    let mut d = Discipline::new();
-    assert_eq!(feed(&mut d, b"ab\x1b[H\x1b[F").local, b"ab", "end echoes nothing");
-    assert_eq!(feed(&mut d, b"X\n").remote, b"abX\n");
-}
-
-#[test]
-fn left_and_right_echo_their_own_sequences_and_only_those() {
-    // **The arrows echo exactly what they are.** `ESC [ D` moves a real
-    // terminal's cursor to exactly where the discipline's cursor went; sending
-    // anything else — or nothing — leaves the two out of step, and the first
-    // insert afterwards then redraws at the wrong place.
-    // Transcribed: `session.rs:980-990`, `381-392`.
-    let mut d = Discipline::new();
-    assert_eq!(feed(&mut d, b"ac\x1b[D").local, b"ac\x1b[D", "left echoes ESC [ D");
-    assert!(has(&feed(&mut d, b"b").local, EL), "insert redraws");
-    assert_eq!(feed(&mut d, b"\n").remote, b"abc\n");
-
-    let mut d = Discipline::new();
-    let got = feed(&mut d, b"ac\x1b[D\x1b[D\x1b[C");
-    assert!(got.local.windows(3).any(|w| w == b"\x1b[C"), "right echoes ESC [ C");
-    assert_eq!(feed(&mut d, b"b\n").remote, b"abc\n");
-}
-
-#[test]
-fn an_arrow_at_its_bound_bells_and_the_line_survives() {
-    // **Two refusals and a survivor.** Left at column zero and right at the
-    // end of the line ring, and **the line underneath is untouched** — that
-    // last half is what a refusal that damaged state would fail.
-    // Transcribed: `session.rs:1105-1118`.
-    let mut d = Discipline::new();
-    let got = feed(&mut d, b"\x1b[D");
-    assert_eq!(got.local, BELL, "{}", got.show());
-    assert!(got.remote.is_empty(), "{}", got.show());
-
-    let mut d = Discipline::new();
-    let got = feed(&mut d, b"a\x1b[C");
-    assert_eq!(got.local, b"a\x07", "the echo stands, then the bell",);
-    assert_eq!(feed(&mut d, b"\n").remote, b"a\n", "and the line survived");
 }
 
 // ───────────────────────────────── the cap
@@ -459,4 +393,18 @@ fn rows_a_wide_character_that_does_not_fit_starts_the_next_row() {
     let mut d = sized(6, true);
     assert_eq!(feed(&mut d, "abc漢".as_bytes()).local, "abc漢".as_bytes());
     assert_eq!(feed(&mut d, b"\x1b[D").local, b"\x1b[A\x1b[3C");
+}
+
+// ───────────────────────────────── what a log may show
+
+#[test]
+fn the_debug_form_shows_no_typed_text() {
+    // A `Debug` print of the discipline goes into logs: it shows the shape
+    // of the line, never the bytes, which may be a password typed at a
+    // mistaken prompt.
+    let mut d = Discipline::new();
+    feed(&mut d, b"hunter2\rsecond");
+    let shown = format!("{d:?}");
+    assert!(!shown.contains("hunter2") && !shown.contains("second"), "{shown}");
+    assert!(shown.contains("line_len: 6"), "{shown}");
 }

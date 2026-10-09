@@ -52,8 +52,9 @@ pub enum Refusal {
     /// to stop. **READ**, `session.rs:46`.
     FlowControl,
     /// An escape sequence other than the arrows, Home and End (`ESC [` or
-    /// `ESC O`, then `A B C D H F`) and the keypad's `ESC O` keys, in the
-    /// cooked mode: F1 to F4 among them. Dropped rather than interpreted: a
+    /// `ESC O`, then `A B C D H F`), the editing keys `ESC [ n ~` for Home,
+    /// End and Delete, and the keypad's `ESC O` keys, in the cooked mode: F1
+    /// to F4, Insert and the page keys among them. Dropped rather than interpreted: a
     /// discipline that passes an untested sequence to a client that is *not*
     /// full-screen corrupts the scrollback. **READ**, `session.rs:54-55`.
     CursorAddressing,
@@ -73,8 +74,8 @@ pub enum Refusal {
     /// A byte past [`crate::echo::LINE_CAP`].
     /// **READ**, `session.rs:441-443`.
     LineTooLong,
-    /// `Ctrl-D` past the last cell of a line: not end of input, and not a
-    /// deletion either. This one is **silent**, and deliberately so —
+    /// `Ctrl-D` or Delete past the last cell of a line: not end of input, and
+    /// not a deletion either. This one is **silent**, and deliberately so —
     /// **READ**, `session.rs:1035-1044`: *"Past the last cell there is nothing to
     /// delete: no bell, no redraw, no shell bytes."* It is listed here anyway,
     /// because **a documented silence is a decision and an undocumented one is

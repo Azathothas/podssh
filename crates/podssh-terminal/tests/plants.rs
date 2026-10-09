@@ -182,7 +182,7 @@ fn plant_d_an_unknown_escape() {
         for _ in d.key(*b) {}
     }
     let mut events = Vec::new();
-    for b in b"\x1b[1~" {
+    for b in b"\x1b[15~" {
         events.extend(d.key(*b));
     }
 
@@ -200,8 +200,8 @@ fn plant_d_an_unknown_escape() {
 
     assert_eq!(events, vec![Event::ToLocal(BELL.to_vec())], "one bell and nothing else");
 
-    // **The state change that must not have happened.** `1` and `~` must
-    // not have become part of the line — a guard that consumed the sequence as
+    // **The state change that must not have happened.** `1`, `5` and `~`
+    // must not have become part of the line — a guard that consumed the sequence as
     // an edit would pass the bell assertion and fail this one.
     let mut remote = Vec::new();
     for b in b"\n" {
@@ -213,8 +213,8 @@ fn plant_d_an_unknown_escape() {
     }
     assert_eq!(
         remote, b"ab\n",
-        "no state change: the command line is exactly `ab`, and `1` and `~` \
-         never reached it"
+        "no state change: the command line is exactly `ab`, and `1`, `5` and \
+         `~` never reached it"
     );
 }
 

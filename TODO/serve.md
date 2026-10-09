@@ -312,14 +312,14 @@ command, and the session must end.
 ## Premise
 
 - Read: `crates/podssh-terminal` holds podbox's echo, editing and history
-  rules (`docs/terminal.md:81-114`), and reports Ctrl-C and Ctrl-\ as
-  `Event::Signal` (`crates/podssh-terminal/src/echo.rs:399-401`). No command
+  rules (`docs/terminal.md:81-119`), and reports Ctrl-C and Ctrl-\ as
+  `Event::Signal` (`crates/podssh-terminal/src/echo.rs:421-423`). No command
   uses it, and it has the defects T-125 to T-129, which come first.
-- Read: the crate refuses to add `\r` before `\n`
-  (`crates/podssh-terminal/src/echo.rs:31-37`,
+- Read, at `cb94460`: the crate refuses to add `\r` before `\n`
+  (`crates/podssh-terminal/src/echo.rs` lines 31-37,
   `crates/podssh-terminal/src/passthrough.rs:56-74`). Here the child writes
   to a pipe and the client's terminal is raw: the case where a lone `\n`
-  must become `\r\n` (`docs/terminal.md:159-162`).
+  must become `\r\n` (`docs/terminal.md:174-177`).
 - Read: a signal to the group also stops a shell that does not catch it
   (`crates/podssh-terminal/src/session.rs:36-46`). Not measured yet: which
   shell mode survives.
@@ -363,6 +363,16 @@ LF. The gate runs the same through OpenSSH's `ssh -tt`, in the shape of
 (no `/dev/ptmx`), a new step drives `podssh serve --stdio` with
 `podman exec -i` from OpenSSH on the host. A planted serve that signals the
 shell's pid and not its group fails the 15 s check.
+
+## Correction
+
+2026-10-09 (T-129): the crate now writes the child's output in the cooked
+mode itself: each `\n` becomes `\r\n`, and output during an edit is written
+around the line (`Session::on_remote_bytes`). So the second Premise no
+longer holds, and step 4 is the crate's: serve passes the child's output to
+`Session::on_remote_bytes`, and adds no `\r`. Each byte for the client
+goes that way, the child's stderr and the line of step 5 included, or the
+discipline's count of the screen is wrong.
 
 # T-112: An SFTP server in `podssh serve`
 
@@ -448,7 +458,7 @@ out with matching digests.
 
 - Read: `podssh serve` runs in the sandbox as a node (T-107 on the runner of
   T-079), and the operator connects through the relay (T-084).
-- Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:153-157`).
+- Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:160-164`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
   `docs/STATUS.md:151`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:42`).
@@ -877,7 +887,7 @@ files add them, and many cage images have none.
 ## Premise
 
 - Read: in the line discipline mode (T-111), serve prints the prompt and
-  sees each submitted line (`crates/podssh-terminal/src/echo.rs:303-320`),
+  sees each submitted line (`crates/podssh-terminal/src/echo.rs:324-341`),
   so it knows where each mark goes.
 - Read: with a real pty (T-110), only the shell knows; it needs hooks in its
   start files.

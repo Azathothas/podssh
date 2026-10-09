@@ -112,6 +112,10 @@ impl Discipline {
             return vec![];
         }
         self.width = width;
+        // A hidden line is drawn at the new width when it comes back.
+        if self.hidden {
+            return vec![];
+        }
         if self.line.is_empty() && self.drawn_end.row == 0 {
             self.reset_area();
             return vec![];

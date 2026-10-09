@@ -85,6 +85,11 @@ These byte rules come from podbox (`crates/podbox-ssh/src/session.rs`):
 - DEL and BS erase to the left. Ctrl-U erases the line, Ctrl-W a word.
   Ctrl-A and Ctrl-E go to the start and the end. Up and down recall the
   history; left and right move the cursor.
+- Home and End do as Ctrl-A and Ctrl-E, in each form a terminal sends:
+  `ESC [ H` and `ESC [ F`, `ESC O H` and `ESC O F`, and the VT220 and rxvt
+  `ESC [ 1 ~` or `ESC [ 7 ~` and `ESC [ 4 ~` or `ESC [ 8 ~`. Each of these
+  keys moves the screen's cursor with the line's. Delete (`ESC [ 3 ~`)
+  deletes the character under the cursor, and never ends input.
 - CR and LF both submit the line. The LF of a CRLF pair is ignored.
 - On one row, a redraw is `\r`, the prompt, the buffer, `ESC[K`, `\r`, the
   prompt, and the buffer up to the cursor.
@@ -145,10 +150,12 @@ acceptance:
 - Ctrl-Z: with no job control, a stopped shell has nothing to return to,
   and the session stops.
 - Ctrl-S and Ctrl-Q: there is no IXON below, so there is nothing to stop.
-- Escape sequences other than the arrows, Home, End and the keypad's keys
-  are dropped. If `ESC[?1049h` passes through, it corrupts the scrollback.
+- Escape sequences other than the arrows, Home, End, Delete and the
+  keypad's keys are dropped: Insert, the page keys and F5 and above ring
+  once. If `ESC[?1049h` passes through, it corrupts the scrollback.
 - A lone Escape, and Alt with a key: no key is bound to them.
-- Ctrl-D after the last character is the only refusal with no bell.
+- Ctrl-D or Delete after the last character is the only refusal with no
+  bell.
 
 `fg`, `bg` and `jobs` go to the shell. `less`, `vi` and `top` need a real
 pty; sandhome gave a warning when one of about 20 such command names was
@@ -156,10 +163,18 @@ typed. Where `/dev/ptmx` is missing, `podssh serve` makes a tty when a probe
 allows it (T-248): a new devpts instance, or a tty in user space that answers
 the child's tty system calls.
 
-Newlines: change a lone `\n` to `\r\n` only when the remote side has no pty
-and podssh holds the local terminal in raw mode. Never change newlines when
-the remote side has a pty, or for command output that goes to a pipe or a
-file.
+The program's output while a line is under edit: the line is hidden (up to
+its first row, `\r`, and `ESC [ K` or `ESC [ J`), the output is written, and
+the prompt and the line are drawn again below it, with the cursor in its
+place. Output never lands in the line or changes it. Output that stops
+inside a row, such as a program's own prompt or a progress bar drawn with
+`\r`, stays as it is, and the line comes back on the next row at the next
+key.
+
+Newlines: in the line discipline, each `\n` of the program's output becomes
+`\r\n`, as a pty's `ONLCR` makes it: the program writes to a pipe, and the
+terminal is raw. Never change newlines when the remote side has a pty, or
+for command output that goes to a pipe or a file.
 
 ## Open
 
