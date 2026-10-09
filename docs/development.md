@@ -69,7 +69,7 @@ No script changes this file.
 ## Checks
 
 ```sh
-python scripts/check-repo.py        # 500-line rule, doc links, credentials, LF in shell scripts
+python scripts/check-repo.py        # 500-line rule, doc links, credentials, LF, pinned images, no listener
 python scripts/check-scripts.py     # shell scripts parse under dash
 python scripts/check-relay-spec.py  # the live relay still matches what podssh uses
 cargo todo check                    # the work record in TODO/ agrees: counts, statuses, cited paths and lines, no citation left unmoved
@@ -77,6 +77,14 @@ cargo todo remap FILE...            # after an edit of FILE: move its citations 
 cargo deny --locked check advisories licenses bans sources   # the dependencies (deny.toml)
 cargo deny --locked --all-features check licenses sources    # the same, with the Tailscale fork
 ```
+
+`check-repo.py` also reads each Rust file under `crates/` for a listener:
+`TcpListener`, `UnixListener`, `UdpSocket`, `bind(`, `listen(` and
+`socket2`, outside comment lines. A crate's `tests/` may hold one, for a
+server on the loopback; elsewhere only the bind probes of `podssh doctor`
+may. A listener that the user asks for and a probe allows joins the table
+in the commit that adds it. The scan fails when it reads fewer than 100
+files, and when a listener that it plants in a temporary tree is not found.
 
 `deny.toml` allows each license that a crate of the graph needs, by name,
 and crates.io as the only source; an advisory is ignored only with its

@@ -11,6 +11,10 @@
   5. Each image that builds or tests podssh is named in one place, a
      Dockerfile of .github/images/, pinned to a digest; no workflow and no
      script names one by its tag.
+  6. No Rust source under crates/ makes a listener outside its allowance:
+     the rule "no listener unless the user asks for it and a probe at run
+     time allows the bind" (AGENTS.md, section 5). Each crate's tests/ may,
+     for servers on the loopback. A planted listener must be found first.
 
 Run it from anywhere: `python scripts/check-repo.py`. Read the exit code
 directly, not through a pipe.
@@ -21,6 +25,7 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -53,6 +58,23 @@ IMAGES = ROOT / ".github" / "images"
 PINNED_FROM = re.compile(r"^FROM\s+\S+@sha256:[0-9a-f]{64}\s*$")
 # An image of these, named by a tag, as a workflow or a script would pull it.
 IMAGE_BY_TAG = re.compile(r"\b(?:rust|alpine|python):[0-9][\w.-]*")
+
+# Each pattern that makes or names a listening socket, and the files outside
+# a crate's tests/ where it may stand. A listener that the user asks for, and
+# that a probe allows, joins its row in the commit that adds it, with the
+# flag that asks for it and the probe that allows it.
+LISTENER_RULE = "no listener unless the user asks for it and a probe at run time allows the bind"
+LISTENERS = {
+    "TcpListener": [],
+    "UnixListener": [],
+    "UdpSocket": [],
+    # The bind probes of `podssh doctor`, which close at once and never listen.
+    "bind(": ["crates/podssh-cli/src/doctor/unix.rs"],
+    "listen(": [],
+    "socket2": [],
+}
+# Fewer Rust files than this means that the scan read too little to pass.
+MIN_RUST_FILES = 100
 
 
 def git_files() -> list[Path]:
@@ -167,6 +189,44 @@ def check_images() -> list[str]:
     return problems
 
 
+def listener_hits(root: Path) -> tuple[int, list[tuple[str, int, str]]]:
+    """Each use of a listener's pattern in the Rust files under root/crates,
+    outside comment lines, as (file, line, pattern); and the files read."""
+    files = [p for p in sorted((root / "crates").rglob("*.rs")) if "target" not in p.relative_to(root).parts]
+    hits = []
+    for path in files:
+        rel = path.relative_to(root).as_posix()
+        for line_no, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if line.lstrip().startswith("//"):
+                continue
+            hits.extend((rel, line_no, pattern) for pattern in LISTENERS if pattern in line)
+    return len(files), hits
+
+
+def outside_allowance(hits: list[tuple[str, int, str]]) -> list[tuple[str, int, str]]:
+    # A crate's tests/ holds servers on the loopback, for tests only.
+    return [(rel, n, p) for rel, n, p in hits if "/tests/" not in rel and rel not in LISTENERS[p]]
+
+
+def check_listeners() -> list[str]:
+    count, hits = listener_hits(ROOT)
+    # A check that reads too little does not pass.
+    if count < MIN_RUST_FILES:
+        return [f"crates/: {count} Rust files read, fewer than {MIN_RUST_FILES}"]
+    problems = [f"{rel}:{n}: `{p}`: {LISTENER_RULE}" for rel, n, p in outside_allowance(hits)]
+    # The plant: one listener in a library crate's src/ must be found, or
+    # the scan proves nothing.
+    with tempfile.TemporaryDirectory() as tmp:
+        planted = Path(tmp) / "crates" / "podssh-ws" / "src" / "planted.rs"
+        planted.parent.mkdir(parents=True)
+        planted.write_text('fn planted() { let _l = std::net::TcpListener::bind("127.0.0.1:0"); }\n', encoding="utf-8")
+        if not outside_allowance(listener_hits(Path(tmp))[1]):
+            problems.append("the listener scan is vacuous: a planted TcpListener in crates/podssh-ws/src was not found")
+    allowed = len(hits) - len(outside_allowance(hits))
+    check_listeners.note = f"{count} Rust files read; {allowed} uses of a listener's pattern within the allowance"
+    return problems
+
+
 def main() -> int:
     checks = [
         ("source files at most 500 lines", check_file_size),
@@ -174,11 +234,15 @@ def main() -> int:
         ("no credential-shaped strings", check_secrets),
         ("shell scripts are LF", check_shell_line_endings),
         ("each image is pinned, in one place", check_images),
+        ("no listener outside its allowance", check_listeners),
     ]
     failed = False
     for name, check in checks:
         problems = check()
         print(f"{'ok  ' if not problems else 'FAIL'} {name}")
+        note = getattr(check, "note", None)
+        if note:
+            print(f"     {note}")
         for problem in problems:
             print(f"     {problem}")
         failed = failed or bool(problems)

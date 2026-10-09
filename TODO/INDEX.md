@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**254 entries: 185 open, 1 partial, 8 blocked, 60 done.**
+**254 entries: 184 open, 0 partial, 8 blocked, 62 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 95 | 1 | 4 | 47 | 147 |
+| P2 | 94 | 0 | 4 | 49 | 147 |
 | P3 | 88 | 0 | 4 | 5 | 97 |
-| **All** | 185 | 1 | 8 | 60 | 254 |
+| **All** | 184 | 0 | 8 | 62 | 254 |
 
 ## Entries
 
@@ -287,7 +287,7 @@ repository and CI).
 | [T-213](repo.md) | P2 | M | none | chore | open | CI runs the box like the target sandbox |
 | [T-214](repo.md) | P2 | M | none | chore | open | CI on Windows |
 | [T-215](repo.md) | P2 | M | none | chore | open | rustfmt and clippy in the gate |
-| [T-216](repo.md) | P2 | S | none | chore | partial | Advisories and licenses of the dependencies, checked in CI |
+| [T-216](repo.md) | P2 | S | none | chore | done | Advisories and licenses of the dependencies, checked in CI |
 | [T-217](repo.md) | P3 | S | none | chore | open | The declared minimum Rust versions, checked in CI |
 | [T-218](repo.md) | P2 | M | M9 | release | open | More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64 |
 | [T-219](repo.md) | P2 | S | none | chore | done | The no-C gate also stops C++ |
@@ -295,7 +295,7 @@ repository and CI).
 | [T-221](resume.md) | P3 | M | backlog | feature | open | Replayed output after dropped bytes starts at a boundary of the terminal grammar (GitHub #31) |
 | [T-222](serve.md) | P2 | S | M5 | feature | open | `podssh serve` finds a shell with no passwd entry and no `/etc/shells`, and names each candidate that failed (GitHub #32) |
 | [T-223](repo.md) | P3 | S | none | defect | open | `scripts/check-repo.py` passes when it finds nothing to check (GitHub #33) |
-| [T-224](repo.md) | P2 | S | none | chore | open | The gate finds a listener in the source: a scan with an allow-list (GitHub #33) |
+| [T-224](repo.md) | P2 | S | none | chore | done | The gate finds a listener in the source: a scan with an allow-list (GitHub #33) |
 | [T-225](robustness.md) | P3 | M | backlog | chore | open | The interop gate takes each expected exit code from stock OpenSSH, beside the literal (GitHub #34) |
 | [T-226](reverse.md) | P2 | M | backlog | feature | blocked | Pairing grants that are signed and used once, not bearer tokens that can be replayed (GitHub #35) |
 | [T-227](ssh.md) | P2 | S | backlog | defect | open | `--direct` has no limit on a stuck write, but the relay leg fails after 60 s (GitHub #36) |

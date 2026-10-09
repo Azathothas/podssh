@@ -322,7 +322,7 @@ Measured: `wc -l scripts/dev.sh` gives 592.
 
 Read:
 
-- `scripts/check-repo.py:65-75` checks only the Rust files under `crates/`.
+- `scripts/check-repo.py:87-97` checks only the Rust files under `crates/`.
 - `scripts/dev.sh:318-329` defines `step`, which nothing calls.
 - The help (`scripts/dev.sh:331-366`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
@@ -420,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:342-387`): the
+5. docs/development.md, "Release builds" (`docs/development.md:350-395`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -501,8 +501,8 @@ credential that a later commit removed, is not found.
 
 Read:
 
-- `scripts/check-repo.py:35-48` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:110-131` scans the tracked
+- `scripts/check-repo.py:40-53` defines the shapes (a relay token, a Tailscale
+  key, a private key block); `scripts/check-repo.py:132-153` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -860,7 +860,7 @@ Read:
 4. Pin the images of the box with the build image (T-206).
 5. Credentials: the box mints a token and never prints it
    (`scripts/sandbox-check.sh:2-4`). Before the job is required, scan its
-   first log with the token pattern of `scripts/check-repo.py:39`.
+   first log with the token pattern of `scripts/check-repo.py:44`.
 6. docs/STATUS.md (the box section) cites the CI run; docs/development.md says
    that CI runs the box.
 
@@ -1056,7 +1056,7 @@ is 486. Measure again before the format.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1097,7 +1097,7 @@ Read:
    with all features (the fork comes with `ts`).
 3. Notices: make a file of third-party licenses for each release (cargo-about,
    a Rust tool), publish it with the binaries, and name it in the notes.
-4. docs/development.md, "Checks" (`docs/development.md:69-88`): the command.
+4. docs/development.md, the section "Checks" (`docs/development.md`): the command.
    `SECURITY.md`: how an advisory is handled.
 
 ## Decision
@@ -1149,6 +1149,30 @@ operations of `rsa`, which has no fixed version: `podssh-ws` only verifies
 RSA signatures, but an RSA user key signs through it. The advisory is
 ignored in `deny.toml` with that reason, the gap is in `SECURITY.md`, and
 T-257 moves RSA signing to aws-lc-rs. Next: the run with the ignore.
+
+## Done
+
+2026-10-09, in the commits "Advisories, licenses and sources of the
+dependencies, and the notices", "An advisory of rsa, read and ignored with
+its reason; RSA signing is an entry" and "An unmaintained proc-macro of the
+Tailscale fork, ignored with its reason"; closed in the commit "The
+repository check finds a listener outside its allowance".
+
+- `deny.toml`, `.github/workflows/deny.yml` (cargo-deny 0.20.2, each push,
+  each pull request, each day), `about.toml` and `about.hbs` (cargo-about
+  0.9.2 in the job `publish`, `THIRD-PARTY-LICENSES.md` named in the body of
+  each release), `docs/development.md` ("Checks") and `SECURITY.md` (how an
+  advisory is handled; the gap of RSA signing).
+- The advisories read in CI: RUSTSEC-2023-0071 (Marvin, `rsa`; no fixed
+  version; T-257) and RUSTSEC-2024-0436 (`paste` unmaintained; a build-time
+  proc-macro of the Tailscale fork), each ignored with its reason and date.
+- Prove: run 37877656949 of `deny.yml`: "advisories ok, bans ok, licenses ok,
+  sources ok", and with every feature "licenses ok, sources ok". Here, the
+  same license, ban and source checks: exit 0. Plant, restored: without
+  `CDLA-Permissive-2.0` the license check exits 4 and rejects webpki-roots.
+- The notices: made here from the graph of the release binary (321,621
+  bytes, 60 sections); the first release publishes them (T-251 checks the
+  release's files).
 
 # T-217: The declared minimum Rust versions, checked in CI
 
@@ -1321,7 +1345,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:131-133` states the rule with `CXX`, and
+- `docs/development.md:139-141` states the rule with `CXX`, and
   `docs/STATUS.md:237` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -1382,13 +1406,13 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:67`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:89`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56; the walk is at 57
   now.)
-- `scripts/check-repo.py:78-107`, `scripts/check-repo.py:110-131` and
-  `scripts/check-repo.py:134-139`: the links, the credentials and the line
+- `scripts/check-repo.py:100-129`, `scripts/check-repo.py:132-153` and
+  `scripts/check-repo.py:156-161`: the links, the credentials and the line
   endings have no floor either.
-- `scripts/check-repo.py:170-185`: `main` passes when each list of problems is
+- `scripts/check-repo.py:230-249`: `main` passes when each list of problems is
   empty.
 - The model of a floor: `crates/podssh-relay/tests/default_relay.rs:54`
   asserts that the sweep read more than 20 files.
@@ -1434,7 +1458,7 @@ step must fail on that.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1453,7 +1477,7 @@ listener when the user asks for it and a probe at run time allows the bind
 (T-038, T-039, T-124, T-186, and `podssh agent` in T-034); Q10 allows a race
 of relay hosts (T-220), more than one outbound connection for a moment, which
 is not a listener.
-`scripts/check-repo.py:170-177` has four checks, and none reads a socket
+`scripts/check-repo.py:230-238` has four checks, and none reads a socket
 call; `scripts/plant.sh` plants C and C++ only.
 
 Measured with grep over `git ls-files 'crates/*'`: three files hold a
@@ -1508,6 +1532,36 @@ It exits 0 and prints the count of files read and the allowed hits. Planted
 defect: add `let _l = std::net::TcpListener::bind("127.0.0.1:0");` to a file
 under `crates/podssh-ws/src/`; the check must exit 1 and name the file and the
 rule.
+
+## Correction
+
+2026-10-09: the measurement is older than the reverse road. Measured again
+with `git grep` over the Rust files under `crates/` (265): outside a crate's
+`tests/`, only `bind(` in `crates/podssh-cli/src/doctor/unix.rs` (twice);
+in `tests/`, six files hold a server on the loopback (`podssh-ws`: `dial.rs`,
+`hostname_verification.rs`, `caller_tls.rs`, `plain_loopback.rs`;
+`podssh-relay`: `blocking_plain.rs` and `stand_in/mod.rs`). No file uses
+`UnixListener`, `UdpSocket`, `listen(` or `socket2`. `scripts/check-repo.py`
+had five checks before this one.
+
+## Done
+
+2026-10-09, in the commit "The repository check finds a listener outside its
+allowance".
+
+- `scripts/check-repo.py`, check 6: the table of patterns with the files that
+  each may stand in outside `tests/`, the rule it protects, the floor of 100
+  files, and a plant at each run (one `TcpListener::bind` in
+  `crates/podssh-ws/src` of a temporary tree must be found). It prints the
+  files read and the uses within the allowance.
+- The documents already state the rule as ruled (`docs/architecture.md:101-108`,
+  `docs/target-environment.md:74-78`, `AGENTS.md`, section 5): nothing to
+  change there. `docs/development.md`, "Checks": the scan.
+- Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32
+  uses of a listener's pattern within the allowance". Plant, restored:
+  `std::net::TcpListener::bind("127.0.0.1:0")` appended to
+  `crates/podssh-ws/src/lib.rs`: exit 1, and the check named the file, the
+  line, each pattern (`TcpListener`, `bind(`) and the rule.
 
 # T-244: Code comments break `AGENTS.md` rule 6, and some name files and facts that are wrong
 
@@ -1736,7 +1790,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:169-170` lists what the containers do not get; name
+5. `docs/development.md:177-178` lists what the containers do not get; name
    each excluded pattern there.
 
 ## Prove
