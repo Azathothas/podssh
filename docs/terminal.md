@@ -105,10 +105,27 @@ Parse each escape sequence as a whole:
 
 - A CSI is `ESC [`, then parameter bytes 0x30 to 0x3F, intermediate bytes
   0x20 to 0x2F, and a final byte 0x40 to 0x7E.
-- `ESC O x` is also a sequence.
-- If podssh does not interpret a sequence, it refuses the whole sequence.
-  (A parser that reads one byte after `ESC [` makes F5, `ESC [ 1 5 ~`, ring
-  the bell and then type `5~`.)
+- `ESC O x` (SS3) is also a sequence, read as a CSI is: some terminals put
+  a parameter before the final (`ESC O 2 P`). `ESC O A` to `ESC O D`,
+  `ESC O H` and `ESC O F`, the arrows, Home and End of a terminal in
+  application mode, act as their CSI forms, and the screen moves by the CSI
+  form. On the keypad in application mode, `ESC O M` is Enter, and
+  `ESC O j` to `ESC O y` and `ESC O X` type `*+,-./`, the digits and `=`.
+- The Linux console sends F1 to F5 as `ESC [ [ A` to `ESC [ [ E`, so
+  `ESC [ [` takes one more byte.
+- `ESC` starts a new sequence wherever it comes. A control byte ends a
+  sequence and is a key of its own: an escape never takes Ctrl-C, Ctrl-D or
+  Enter.
+- `ESC` and a key with no pause is an Alt key: one bell, and the key is not
+  typed, each byte of a UTF-8 character included.
+- A lone `ESC`, or a sequence cut short, rings once when no byte came for
+  50 ms, and the next key is typed as usual. The crate reads no clock: while
+  `Session::waiting` is true, the caller calls `Session::on_idle` after
+  50 ms with no byte.
+- If podssh does not interpret a sequence, it refuses the whole sequence:
+  F1 to F4, in each of these forms, ring once and type nothing. (A parser
+  that reads one byte after `ESC [` makes F5, `ESC [ 1 5 ~`, ring the bell
+  and then type `5~`.)
 
 A refusal rings the bell and changes nothing, because silence looks like
 acceptance:
@@ -116,8 +133,9 @@ acceptance:
 - Ctrl-Z: with no job control, a stopped shell has nothing to return to,
   and the session stops.
 - Ctrl-S and Ctrl-Q: there is no IXON below, so there is nothing to stop.
-- Escape sequences other than the arrows, Home and End are dropped. If
-  `ESC[?1049h` passes through, it corrupts the scrollback.
+- Escape sequences other than the arrows, Home, End and the keypad's keys
+  are dropped. If `ESC[?1049h` passes through, it corrupts the scrollback.
+- A lone Escape, and Alt with a key: no key is bound to them.
 - Ctrl-D after the last character is the only refusal with no bell.
 
 `fg`, `bg` and `jobs` go to the shell. `less`, `vi` and `top` need a real

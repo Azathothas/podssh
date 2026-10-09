@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**257 entries: 172 open, 0 partial, 8 blocked, 77 done.**
+**257 entries: 171 open, 0 partial, 8 blocked, 78 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 89 | 0 | 4 | 55 | 148 |
+| P2 | 88 | 0 | 4 | 56 | 148 |
 | P3 | 81 | 0 | 4 | 14 | 99 |
-| **All** | 172 | 0 | 8 | 77 | 257 |
+| **All** | 171 | 0 | 8 | 78 | 257 |
 
 ## Entries
 
@@ -201,7 +201,7 @@ repository and CI).
 | [T-125](terminal.md) | P2 | S | M5 | defect | done | L1: the mode selection of the line discipline is the wrong way round |
 | [T-126](terminal.md) | P2 | M | M5 | defect | open | L2: the line discipline has no raw mode and no window size |
 | [T-127](terminal.md) | P2 | S | M5 | defect | done | L3: the cursor counts bytes, not characters |
-| [T-128](terminal.md) | P2 | S | M5 | defect | open | L4: `ESC O x` keys ring the bell, and a single Escape removes the next key |
+| [T-128](terminal.md) | P2 | S | M5 | defect | done | L4: `ESC O x` keys ring the bell, and a single Escape removes the next key |
 | [T-129](terminal.md) | P2 | M | M5 | defect | open | L5: Delete, Home and End, Ctrl-Z, Ctrl-S, Ctrl-Q, and remote output over the edited line |
 | [T-130](terminal.md) | P3 | S | backlog | docs | open | State which terminal sequences podssh reads and which it passes unchanged |
 | [T-131](terminal.md) | P3 | S | backlog | measurement | open | Which servers honour the `signal` request for Ctrl-C with no remote pty |

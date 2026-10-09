@@ -63,6 +63,17 @@ fn a_crlf_pair_is_one_enter_and_not_two_commands() {
 }
 
 #[test]
+fn a_key_between_cr_and_lf_ends_the_pair() {
+    // Only the byte right after a `\r` is its pair: after Enter and Up, a
+    // Ctrl-J submits the recalled line, as in the reference, where `ESC` is
+    // itself a key.
+    let mut d = Discipline::new();
+    feed(&mut d, b"one\r");
+    let got = feed(&mut d, b"\x1b[A\n");
+    assert_eq!(got.remote, b"one\n", "{}", got.show());
+}
+
+#[test]
 fn a_lone_cr_and_a_lone_lf_both_submit() {
     // **Each alone, in a fresh discipline** — back to back they would be a
     // `\r\n` pair, which is the case above. Transcribed: `session.rs:799-809`.
@@ -235,6 +246,23 @@ fn an_arrow_at_its_bound_bells_and_the_line_survives() {
     let got = feed(&mut d, b"a\x1b[C");
     assert_eq!(got.local, b"a\x07", "the echo stands, then the bell",);
     assert_eq!(feed(&mut d, b"\n").remote, b"a\n", "and the line survived");
+}
+
+// ───────────────────────────────── the cap
+
+#[test]
+fn a_line_past_the_cap_drops_bytes_with_a_bell_each() {
+    // **Exactly one bell per rejected byte, and the accepted bytes still
+    // echo themselves.** An unbounded line buffer is the defect the cap
+    // exists to prevent, so the cap's arithmetic is asserted, not its existence.
+    // Transcribed: `session.rs:957-968`, `108`.
+    assert_eq!(LINE_CAP, 65536);
+    let mut d = Discipline::new();
+    let big = vec![b'y'; LINE_CAP + 5];
+    let got = feed(&mut d, &big);
+    assert_eq!(got.local.len(), LINE_CAP + 5, "echo plus five bells");
+    assert_eq!(got.local.iter().filter(|b| **b == b'\x07').count(), 5, "one bell each");
+    assert_eq!(feed(&mut d, b"\n").remote.len(), LINE_CAP + 1, "and the line submits");
 }
 
 // ───────────────────────────────── UTF-8: characters and cells

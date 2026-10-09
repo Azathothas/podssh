@@ -203,7 +203,7 @@ Read:
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
   peer (`SECURITY.md:59-62`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
-  discipline (`docs/terminal.md:81-132`). T-127 (the cursor counts bytes) and
+  discipline (`docs/terminal.md:81-150`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
 - Read in the message of commit `a378863`: `rio-vt` needs `simdutf`, a C++
   library, so it cannot be a dependency of a library crate.
@@ -229,7 +229,7 @@ Read:
    in the gate's container (installed with apk, as `scripts/interop-man.sh:20`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
-6. docs/terminal.md, section "Tests" (`docs/terminal.md:140`), names the
+6. docs/terminal.md, section "Tests" (`docs/terminal.md:158`), names the
    oracle.
 
 ## Decision

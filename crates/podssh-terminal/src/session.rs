@@ -169,6 +169,24 @@ impl Session {
         out
     }
 
+    /// Whether the cooked discipline holds a key still open: a lone `ESC`, a
+    /// key cut short, or a character typed in parts. **The caller then calls
+    /// [`Session::on_idle`] when no byte came for [`crate::echo::IDLE`]**,
+    /// and the crate reads no clock. Never in the transparent mode, which
+    /// reads no key.
+    pub fn waiting(&self) -> bool {
+        self.mode == Mode::Cooked && self.cooked.waiting()
+    }
+
+    /// No local byte came for [`crate::echo::IDLE`] while
+    /// [`Session::waiting`]: an open key ends, with one bell for an escape.
+    pub fn on_idle(&mut self) -> Vec<Event> {
+        match self.mode {
+            Mode::Cooked => self.cooked.idle(),
+            Mode::Transparent => vec![],
+        }
+    }
+
     /// Remote bytes in, their consequences out.
     ///
     /// **Byte-identical in both modes**, and that is deliberate: a shell and

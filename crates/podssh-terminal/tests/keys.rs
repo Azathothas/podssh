@@ -1,4 +1,5 @@
-//! **The keys: escapes, history, signals, the two modes, and window size.**
+//! **The keys: escapes, history, signals, and the two modes.** Window size
+//! is in `window.rs`, and a byte past the line cap in `discipline.rs`.
 //!
 //! **Byte-exact on both legs, exactly as the entry demands**, and every
 //! rule below names the line of
@@ -8,22 +9,19 @@
 //! **What separates this file from `discipline.rs`** is the subject, not the
 //! rigour: that file pins echo, erasing and submission — **what a byte typed
 //! into a line produces** and this one pins **what a key that is not a
-//! character produces**, plus the two places where the answer depends on
-//! something other than the byte: the mode the server granted, and whether a
-//! full-screen frame is open.
+//! character produces**, plus the place where the answer depends on
+//! something other than the byte: the mode that the facts chose.
 //!
 //! **Both files assert exact bytes on `local` and `remote` separately.** A
 //! test that only checks that "something was echoed" cannot catch this class of
 //! bug, because the failure is the right bytes in the wrong direction or the
 //! wrong sequence substituted.
 
-use podssh_terminal::echo::{Discipline, Event, Sig, BELL, EL, HISTORY_CAP, LINE_CAP};
-use podssh_terminal::passthrough::Passthrough;
+use podssh_terminal::echo::{Discipline, Event, Sig, BELL, EL, HISTORY_CAP};
 use podssh_terminal::session::{Facts, Mode, Session};
-use podssh_terminal::window::{Size, Window};
 
 mod common;
-use common::{feed, has, legs, over_a_pty, selected, LocalBytes};
+use common::{feed, has, legs, over_a_pty, selected};
 
 // ───────────────────────────────── history
 
@@ -252,29 +250,145 @@ fn the_same_guard_accepts_the_sequences_it_must() {
 
 #[test]
 fn an_escape_that_is_not_a_csi_bells() {
-    // **Anything after `ESC` that is not `[` is refused**, and the byte that
-    // followed is consumed with it. Transcribed: `session.rs:247-253`.
+    // **An Alt key**: `ESC x` with no pause is Alt+x, refused whole, and the
+    // `x` is consumed with it, as in the reference (`session.rs:247-253`).
+    // `ESC O`, a control byte and a second `ESC` are not Alt keys: see the
+    // `escape_` tests.
     let mut d = Discipline::new();
     let got = feed(&mut d, b"\x1bxa");
     assert_eq!(got.local, [BELL.to_vec(), b"a".to_vec()].concat(), "{}", got.show());
     assert!(got.remote.is_empty(), "{}", got.show());
 }
 
-// ───────────────────────────────── the cap
+// ───────────────────────────────── the other escape keys, and the lone Escape
 
 #[test]
-fn a_line_past_the_cap_drops_bytes_with_a_bell_each() {
-    // **Exactly one bell per rejected byte, and the accepted bytes still
-    // echo themselves.** An unbounded line buffer is the defect the cap
-    // exists to prevent, so the cap's arithmetic is asserted, not its existence.
-    // Transcribed: `session.rs:957-968`, `108`.
-    assert_eq!(LINE_CAP, 65536);
+fn escape_ss3_arrows_move_like_csi_arrows() {
+    // **A terminal in application mode sends `ESC O D` for Left.** The
+    // screen moves by the CSI form, because `ESC O D` written to a terminal
+    // is no motion at all.
     let mut d = Discipline::new();
-    let big = vec![b'y'; LINE_CAP + 5];
-    let got = feed(&mut d, &big);
-    assert_eq!(got.local.len(), LINE_CAP + 5, "echo plus five bells");
-    assert_eq!(got.local.iter().filter(|b| **b == b'\x07').count(), 5, "one bell each");
-    assert_eq!(feed(&mut d, b"\n").remote.len(), LINE_CAP + 1, "and the line submits");
+    feed(&mut d, b"ac");
+    let got = feed(&mut d, b"\x1bOD");
+    assert_eq!(got.local, b"\x1b[D", "{}", got.show());
+    // An insert between, then Home and End: the line is `abc`.
+    feed(&mut d, b"b\x1bOH\x1bOF");
+    assert_eq!(feed(&mut d, b"\r").remote, b"abc\n");
+    assert!(feed(&mut d, b"\x1bOA").local.ends_with(b"abc"), "Up recalls, as `ESC [ A` does");
+}
+
+#[test]
+fn escape_f1_to_f4_ring_once_and_insert_nothing() {
+    // F1 to F4 as each terminal sends them: xterm and its kin and Windows
+    // (`ESC O P` to `ESC O S`), the Linux console (`ESC [ [ A` to
+    // `ESC [ [ D`), rxvt (`ESC [ 1 1 ~` to `ESC [ 1 4 ~`), and a modified F1.
+    let keys: [&[u8]; 11] = [
+        b"\x1bOP",
+        b"\x1bOQ",
+        b"\x1bOR",
+        b"\x1bOS",
+        b"\x1b[[A",
+        b"\x1b[[B",
+        b"\x1b[[C",
+        b"\x1b[[D",
+        b"\x1b[11~",
+        b"\x1b[14~",
+        b"\x1bO2P",
+    ];
+    for key in keys {
+        let mut d = Discipline::new();
+        feed(&mut d, b"ab");
+        let got = feed(&mut d, key);
+        assert_eq!(got.local, BELL, "{key:02x?}: one bell and nothing else: {}", got.show());
+        assert!(!d.waiting(), "{key:02x?}: the key is whole");
+        assert_eq!(feed(&mut d, b"\r").remote, b"ab\n", "{key:02x?}: the line is unchanged");
+    }
+}
+
+#[test]
+fn escape_then_ctrl_c_still_signals() {
+    // **An escape never takes Ctrl-C, Ctrl-D or Enter**, so a user who
+    // pressed Escape first can still interrupt, end input, or submit.
+    let mut d = Discipline::new();
+    feed(&mut d, b"ab");
+    let got = feed(&mut d, b"\x1b\x03");
+    assert_eq!(got.signals, vec![Sig::Int], "{}", got.show());
+    assert_eq!(got.local, b"^C\r\n$ ", "no bell, no caret byte typed: {}", got.show());
+    let got = feed(&mut d, b"\x1bO\x03");
+    assert_eq!(got.signals, vec![Sig::Int], "from inside a sequence too: {}", got.show());
+    assert_eq!(feed(&mut d, b"x\x1b\r").remote, b"x\n", "Enter after Escape submits");
+    assert!(feed(&mut d, b"\x1b\x04").eof, "Ctrl-D after Escape ends input on an empty line");
+}
+
+#[test]
+fn escape_alone_then_idle_keeps_the_next_key() {
+    // **The lone Escape rings once its pause ends**, and the key after the
+    // pause is typed. Without the tick, `c` would end the key as Alt+c.
+    let mut d = Discipline::new();
+    feed(&mut d, b"ab\x1b");
+    assert!(d.waiting(), "the Escape is open");
+    assert_eq!(legs(d.idle()).local, BELL, "one bell at the tick");
+    assert!(!d.waiting(), "and nothing is open after it");
+    assert_eq!(legs(d.idle()), Default::default(), "a second tick finds nothing");
+    assert_eq!(feed(&mut d, b"c\r").remote, b"abc\n", "the next key is typed");
+}
+
+#[test]
+fn escape_idle_through_the_session_and_never_in_the_transparent_mode() {
+    // The caller ticks the session. The transparent mode reads no key, so it
+    // never waits: there the program below owns Escape.
+    let mut s = Session::new(selected());
+    legs(s.on_local_bytes(b"ab\x1b"));
+    assert!(s.waiting());
+    assert_eq!(legs(s.on_idle()).local, BELL);
+    assert_eq!(legs(s.on_local_bytes(b"c\r")).remote, b"abc\n");
+    let mut t = Session::new(over_a_pty());
+    assert_eq!(t.on_local_bytes(b"\x1b"), vec![Event::ToRemote(b"\x1b".to_vec())]);
+    assert!(!t.waiting());
+    assert!(t.on_idle().is_empty());
+}
+
+#[test]
+fn escape_and_a_letter_is_an_alt_key_refused_whole() {
+    // **The control for the tick**: with no pause, `ESC c` is Alt+c. It is
+    // refused whole, so Alt+b never inserts a `b`, nor Alt+é a lone byte.
+    let mut d = Discipline::with_utf8(true);
+    feed(&mut d, b"ab");
+    let got = feed(&mut d, b"\x1bc");
+    assert_eq!(got.local, BELL, "{}", got.show());
+    let got = feed(&mut d, "\x1bé".as_bytes());
+    assert_eq!(got.local, BELL, "{}", got.show());
+    assert!(!d.waiting());
+    assert_eq!(feed(&mut d, b"\r").remote, b"ab\n");
+}
+
+#[test]
+fn escape_a_second_escape_starts_a_new_sequence() {
+    // `ESC [` cut short by a whole key: the second `ESC` is not typed raw
+    // into the line, where the terminal would read it as a sequence.
+    let mut d = Discipline::new();
+    feed(&mut d, b"ab");
+    let got = feed(&mut d, b"\x1b[\x1b[DX\r");
+    assert_eq!(got.remote, b"aXb\n", "{}", got.show());
+}
+
+#[test]
+fn escape_idle_ends_a_sequence_cut_short() {
+    // `ESC [ 1` and a pause: the tick ends it, so `l` is a key rather than
+    // the final byte of a stale sequence.
+    let mut d = Discipline::new();
+    feed(&mut d, b"ab\x1b[1");
+    assert_eq!(legs(d.idle()).local, BELL);
+    assert_eq!(feed(&mut d, b"l\r").remote, b"abl\n");
+}
+
+#[test]
+fn escape_keypad_in_application_mode_types_its_keys() {
+    // A program may leave the keypad in application mode (`ESC =`). Its keys
+    // then come as `ESC O` and a letter, and each types what it shows.
+    let mut d = Discipline::new();
+    let got = feed(&mut d, b"\x1bOq\x1bOk\x1bOy\x1bOX\x1bOM");
+    assert_eq!(got.remote, b"1+9=\n", "{}", got.show());
 }
 
 // ───────────────────────────────── the two modes, in one place
@@ -370,97 +484,4 @@ fn mode_transparent_passes_ctrl_z_s_q() {
     for b in [0x1au8, 0x11, 0x13] {
         assert_eq!(s.on_local_byte(b), vec![Event::ToRemote(vec![b])], "byte {b:#x}");
     }
-}
-
-// ───────────────────────────────── window size: the plant and its control
-
-#[test]
-fn a_resize_mid_frame_is_deferred_and_the_frame_survives_intact() {
-    // **THE PLANT, and it is stated in the terms the entry uses.**
-    //
-    // The claim: a resize that arrives while a full-screen program is drawing
-    // must not be interleaved into the frame, because a program that sees a size
-    // change mid-render draws against two geometries at once.
-    //
-    // The measurements, both of them exact bytes:
-    //   * **the frame is intact** — every byte the program drew arrives at the
-    //     local side, in order, with nothing inserted and nothing dropped;
-    //   * **the size was not lost** — it is released when the frame ends.
-    let mut p = Passthrough::new();
-    let frame = b"\x1b[2J\x1b[Hrow one\x1b[K\x1b[2Krow two\x1b[K";
-    p.begin_frame();
-
-    // Three resizes arrive mid-frame, each between two of the frame's bytes.
-    assert_eq!(p.on_resize(Size::new(40, 120)), None, "first: held");
-    let mut arrived = p.forward_remote(&frame[..9]).concat_local();
-    assert_eq!(p.on_resize(Size::new(45, 150)), None, "second: held");
-    arrived.extend_from_slice(&p.forward_remote(&frame[9..]).concat_local());
-
-    // **The frame is intact.** A byte for byte, which is the whole of the
-    // assertion: had a resize been interleaved, this would be longer than the
-    // input, or shorter.
-    assert_eq!(arrived, frame, "the frame arrived whole and in order");
-    assert_eq!(arrived.len(), frame.len(), "and not one byte was added");
-
-    // **And the size survived the frame**, released at its end.
-    assert_eq!(p.end_frame(), Some(Size::new(45, 150)), "the latest size is released");
-}
-
-#[test]
-fn a_resize_while_idle_propagates_immediately() {
-    // **THE CONTROL for the plant above, on the same guard.** A guard
-    // that defers everything looks exactly like a guard that defers correctly,
-    // and only the idle case tells them apart. **This is also the clause
-    // `stty size` in the `Prove` block depends on**: a size that only ever gets
-    // deferred is a window that never resizes.
-    let mut p = Passthrough::new();
-    assert!(!p.in_frame(), "no frame is open");
-    assert_eq!(p.on_resize(Size::new(50, 160)), Some(Size::new(50, 160)), "at once");
-    assert!(!p.in_frame(), "and it did not open a frame");
-
-    // **Through the driver too**, so the mode dispatch is covered.
-    let mut s = Session::new(over_a_pty());
-    assert_eq!(s.on_resize(Size::new(24, 80)), Some(Size::new(24, 80)));
-}
-
-#[test]
-fn a_resize_can_never_be_dropped() {
-    // **The invariant, over a whole sequence.** Hold any number of
-    // resizes across any number of frames and **the last one is always
-    // released**, so a resize cannot be swallowed by a frame boundary — the
-    // failure a deferral that only ever holds one field could have.
-    let mut w = Window::new();
-    let mut released = Vec::new();
-    for (frame, rows, cols) in [(1, 30u16, 100u16), (2, 31, 101), (3, 40, 120)] {
-        w.begin_frame();
-        for step in 0..frame {
-            w.on_resize(Size::new(rows + step, cols + step));
-        }
-        if let Some(size) = w.end_frame() {
-            released.push(size);
-        }
-    }
-    assert_eq!(
-        released,
-        vec![Size::new(30, 100), Size::new(32, 102), Size::new(42, 122)],
-        "each frame released its last held size"
-    );
-    assert_eq!(w.propagated(), Some(Size::new(42, 122)), "and the last is current");
-}
-
-// ───────────────────────────────── `stty size`, as far as this crate gets
-
-#[test]
-fn the_size_a_program_would_read_is_the_one_that_was_propagated() {
-    // **The `stty size` clause of the acceptance, at the only level this
-    // crate can reach.** The real command needs the constrained host and a
-    // built CLI; what it needs *from here* is the size it would be given.
-    // **This is the plant for the whole window-size half**: the sibling's
-    // refusal would leave `propagated()` `None` forever and this fails, which is
-    // why the sibling's code alone would have shipped the bug.
-    let mut w = Window::new();
-    assert_eq!(w.propagated(), None, "nothing has been propagated yet");
-    let sent = w.on_resize(Size::new(50, 160)).expect("idle: sent at once");
-    assert_eq!(sent, w.propagated().expect("and it is now the propagated size"));
-    assert_eq!(w.propagated().map(|s| s.to_string()), Some("50x160".to_string()));
 }

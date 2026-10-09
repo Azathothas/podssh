@@ -29,7 +29,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
   (`crates/podssh-terminal/src/session.rs` lines 79-85 at `6e77829`). In `NoPty`, each local byte
   sets `ended` and returns a bell (`crates/podssh-terminal/src/session.rs` lines 169-174 at `6e77829`).
   In `Cooked`, the discipline echoes each byte
-  (`crates/podssh-terminal/src/echo/editing.rs:180-212`).
+  (`crates/podssh-terminal/src/echo/editing.rs:190-222`).
 - Read, at `6e77829`: tests pin the wrong table (`crates/podssh-terminal/tests/keys.rs` lines 315-326,
   `crates/podssh-terminal/tests/keys.rs` lines 328-346), and plant E builds
   `Session::new(true, true)` (`crates/podssh-terminal/tests/plants.rs` line 327).
@@ -134,9 +134,9 @@ writes over the rows above it.
   (`crates/podssh-terminal/Cargo.toml` lines 10-11 at `8d3f63d`). The notes say that the crate
   never reads the size and never sends (`crates/podssh-terminal/src/window.rs:37-42`).
 - Read: the redraw is `\r`, the prompt, the line, `ESC [ K`, `\r`, the prompt
-  and the line up to the cursor (`crates/podssh-terminal/src/echo.rs:197-207`):
+  and the line up to the cursor (`crates/podssh-terminal/src/echo.rs:202-212`):
   one row. `Session::on_resize` gives the size to `Window` only
-  (`crates/podssh-terminal/src/session.rs:196-201`).
+  (`crates/podssh-terminal/src/session.rs:214-219`).
 - Read: `podssh-ssh` has a raw mode and a size that work, and the gate checks
   them (`crates/podssh-ssh/src/terminal/unix.rs:12-76`,
   `crates/podssh-ssh/src/terminal/windows.rs:31-111`, `docs/STATUS.md:65`).
@@ -309,7 +309,7 @@ over characters and its screen moves by cells".
 **Milestone:** M5
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -320,21 +320,21 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
 
 ## Premise
 
-- Read: after `ESC`, each byte that is not `[` is refused and consumed
-  (`crates/podssh-terminal/src/escape.rs:128-138`). So `O` is consumed, and
-  the byte after it (`P`, `A`) is a fresh key that is inserted
-  (`crates/podssh-terminal/src/echo.rs:294-304`,
-  `crates/podssh-terminal/src/echo.rs:338`).
-- Read: the path that gives a control byte back to the key handling
-  (`Restart`) exists only in the CSI state
-  (`crates/podssh-terminal/src/escape.rs:157-161`). So `ESC` then Ctrl-C
-  loses the Ctrl-C, against the module's own note
-  (`crates/podssh-terminal/src/escape.rs:40-45`). Its test covers `ESC [ 1`
-  then Ctrl-C only (`crates/podssh-terminal/src/escape.rs:290-306`).
-- Read: tests pin the loss: `ESC x a` gives a bell and `a`
-  (`crates/podssh-terminal/tests/keys.rs:253-261`,
-  `crates/podssh-terminal/src/escape.rs:308-313`). The rule says that
-  `ESC O x` is a sequence (`docs/terminal.md:108`).
+- Read, at `a7648ff`: after `ESC`, each byte that is not `[` is refused and
+  consumed (`crates/podssh-terminal/src/escape.rs` lines 128-138). So `O` is
+  consumed, and the byte after it (`P`, `A`) is a fresh key that is inserted
+  (`crates/podssh-terminal/src/echo.rs` lines 294-304 and 338).
+- Read, at `a7648ff`: the path that gives a control byte back to the key
+  handling (`Restart`) exists only in the CSI state
+  (`crates/podssh-terminal/src/escape.rs` lines 157-161). So `ESC` then
+  Ctrl-C loses the Ctrl-C, against the module's own note
+  (`crates/podssh-terminal/src/escape.rs` lines 40-45). Its test covers
+  `ESC [ 1` then Ctrl-C only (`crates/podssh-terminal/src/escape.rs` lines
+  290-306).
+- Read, at `a7648ff`: tests pin the loss: `ESC x a` gives a bell and `a`
+  (`crates/podssh-terminal/tests/keys.rs` lines 253-261,
+  `crates/podssh-terminal/src/escape.rs` lines 308-313). The rule says that
+  `ESC O x` is a sequence (`docs/terminal.md` line 108).
 
 ## Approach
 
@@ -344,8 +344,8 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
 2. After a lone `ESC`, a control byte is a fresh key (`Restart`), as in the
    CSI state. Invariant: an escape never consumes Ctrl-C, Ctrl-D or Enter.
 3. A printable byte after a lone `ESC`: see Decision.
-4. Rewrite the tests that pin the loss. Same commit: `docs/terminal.md:104-111`,
-   `docs/STATUS.md:220`.
+4. Rewrite the tests that pin the loss. Same commit: `docs/terminal.md`
+   lines 104-111 at `a7648ff`, `docs/STATUS.md:220`.
 
 ## Decision
 
@@ -355,6 +355,27 @@ and reset, so the next key is typed as usual. `ESC` and a byte within 50 ms
 are an Alt key: one bell, and nothing is inserted. Both callers are
 asynchronous and have a timer. The alternative with no timer, which types
 each byte after a lone `ESC`, lost: Alt+b would insert a `b`.
+
+2026-10-09, the rest of it. **The tick's period** is `echo::IDLE`, 50 ms, and
+the crate reads no clock: `Session::waiting` says when a caller owes the
+tick, and `Session::on_idle` is the tick. The tick also puts in the bytes of
+a character typed in parts (T-127), since a character's bytes come in one
+write; waiting for the next key lost: a broken byte would show only then.
+**A byte that cuts a sequence short**, a control byte or a new `ESC`, rings
+nothing for the part it cut: its own effect is the answer. A bell there lost:
+one key would get two answers, and Alt+Ctrl-C would ring and signal. **Alt
+with a character of several UTF-8 bytes** is refused whole; refusing the
+lead byte alone lost: the rest would be typed as lone continuation bytes.
+**The keypad in application mode** is read: `ESC O M` is Enter, and
+`ESC O j` to `ESC O y` and `ESC O X` type the character on the key, as the
+keypad does in numeric mode. A program that leaves the keypad in that mode
+would otherwise make each key ring; reading Enter alone lost: the digits
+would still ring. **The final step carries the introducer and the
+parameter**, read as no parameter, one decimal number, or other, since T-129
+reads the number of `ESC [ 3 ~`; a flag for "no parameter" lost: T-129 would
+parse the bytes again. **The tests are in `tests/keys.rs`**, as the Prove
+says: to keep it under 500 lines, its window-size tests moved unchanged to
+`tests/window.rs`, and its line-cap test to `tests/discipline.rs`.
 
 ## Prove
 
@@ -369,6 +390,54 @@ New tests in crates/podssh-terminal/tests/keys.rs:
 `escape_then_ctrl_c_still_signals`, and
 `escape_alone_then_idle_keeps_the_next_key`. Plant: remove the SS3 state;
 the first test fails with `A` in the line.
+
+## Correction
+
+2026-10-09. **"Tests pin the loss" holds for the bell, not for the loss.**
+Under this entry's own Decision, `ESC x` with no pause is an Alt key, refused
+whole, so the test of `ESC x a` (a bell, then `a`) and the parser's unit test
+stay correct; only their comments changed. **Three more faults of the same
+code**, repaired here: `ESC` inside a sequence was a control byte, so
+`ESC [ ESC [ D` put a raw `ESC` into the line; the Linux console's F1 to F5,
+`ESC [ [ A` to `ESC [ [ E`, rang and then typed the letter, because the
+second `[` ended the CSI; and the `\r` of a `\r\n` pair stayed open across
+an escape sequence, because the parser takes `ESC` before the pair is read,
+so after Enter and Up a Ctrl-J was swallowed. The reference reads `ESC` as a
+key, which ends the pair.
+
+## Done
+
+2026-10-09, in the commit "The line discipline reads the ESC O keys, and a
+lone Escape rings at its caller's idle tick".
+
+- `crates/podssh-terminal/src/escape.rs`: the SS3 state, the Linux
+  console's `ESC [ [`, the Alt state, `ESC` that starts a new sequence in
+  every state, a control byte that is a key right after `ESC`, the
+  introducer and `Param` in the final step, `is_open` and `abandon`. Its
+  unit tests moved to `src/escape/tests.rs`, with seven new ones.
+- `echo.rs`: `IDLE`, `Discipline::waiting` and `Discipline::idle`; the
+  `\r\n` pair ends at each byte. `echo/editing.rs`: the `ESC O` arrows,
+  Home and End act as their CSI forms, and the keypad keys. `session.rs`:
+  `Session::waiting` and `Session::on_idle`, which never wait in the
+  transparent mode. `refusal.rs`: `Refusal::EscapeKey`.
+- Tests in `tests/keys.rs`: the entry's four, and
+  `escape_idle_through_the_session_and_never_in_the_transparent_mode`,
+  `escape_and_a_letter_is_an_alt_key_refused_whole`,
+  `escape_a_second_escape_starts_a_new_sequence`,
+  `escape_idle_ends_a_sequence_cut_short` and
+  `escape_keypad_in_application_mode_types_its_keys`; in
+  `tests/discipline.rs`, `a_key_between_cr_and_lf_ends_the_pair`.
+- `docs/terminal.md` (the escape rules and the refusals) and
+  `docs/STATUS.md`.
+- Prove: `cargo test -p podssh-terminal --test keys -- escape_`: 10 passed
+  (the nine `escape_` tests and `an_escape_that_is_not_a_csi_bells`).
+  `cargo test -p podssh-terminal --no-fail-fast`: 128 passed. Plants, each
+  restored, each failing its test: no SS3 state (`ESC O D` gave a bell and
+  `D`); the Escape state refusing control bytes (Ctrl-C gave a bell and no
+  signal); `idle` doing nothing; an Alt key typed; `ESC` starting a sequence
+  only outside one (a raw `ESC` reached the line); no Linux form (F1 typed
+  `A`); `abandon` of a lone `ESC` only; the pair kept open through a
+  sequence; no keypad keys.
 
 # T-129: L5: Delete, Home and End, Ctrl-Z, Ctrl-S, Ctrl-Q, and remote output over the edited line
 
@@ -394,15 +463,15 @@ that arrives during an edit is written over the edited line.
   `ESC [ 4 ~` and `ESC [ 8 ~` (End) carry a parameter, and each final with a
   parameter is refused (`crates/podssh-terminal/src/echo/editing.rs:142-145`).
 - Read: `ESC [ H` and `ESC [ F` move the cursor and send nothing
-  (`crates/podssh-terminal/src/echo/editing.rs:152-159`); Ctrl-A and Ctrl-E
-  do the same (`crates/podssh-terminal/src/echo.rs:330-337`). Tests pin the
-  silence (`crates/podssh-terminal/tests/discipline.rs:175-203`).
+  (`crates/podssh-terminal/src/echo/editing.rs:156-163`); Ctrl-A and Ctrl-E
+  do the same (`crates/podssh-terminal/src/echo.rs:358-365`). Tests pin the
+  silence (`crates/podssh-terminal/tests/discipline.rs:186-214`).
 - Read, at `6e77829`: passthrough refuses `0x1a`, `0x11` and `0x13`
   (`crates/podssh-terminal/src/passthrough.rs` lines 89-95,
   `crates/podssh-terminal/src/refusal.rs:33-35`), and a test pins it
   (`crates/podssh-terminal/src/passthrough.rs` lines 223-236).
 - Read: in the cooked mode, remote bytes go out as they come, and the edited
-  line is not drawn again (`crates/podssh-terminal/src/session.rs:177-179`,
+  line is not drawn again (`crates/podssh-terminal/src/session.rs:195-197`,
   `crates/podssh-terminal/src/passthrough.rs:68-74`).
 
 ## Approach
@@ -413,12 +482,12 @@ that arrives during an edit is written over the edited line.
 2. Home, End, Ctrl-A and Ctrl-E send the motion: `ESC [ n D` or `ESC [ n C`
    by cells (T-127), or a redraw.
 3. The transparent mode of T-125 refuses nothing. Ctrl-Z, Ctrl-S and Ctrl-Q
-   stay refused in the cooked mode only (`docs/terminal.md:116-119`).
+   stay refused in the cooked mode only (`docs/terminal.md:133-135`).
 4. Output during an edit: `\r` and `ESC [ K` clear the edited line, the
    output is written, then the prompt and the line are drawn again with the
    cursor in place. Invariant: output never changes the line under edit.
 5. Rewrite the tests that pin the old behaviour. Same commit:
-   `docs/terminal.md:113-121`, `docs/STATUS.md:220`.
+   `docs/terminal.md:130-139`, `docs/STATUS.md:220`.
 
 ## Prove
 
@@ -447,7 +516,7 @@ reaches it from a pipe, with no `ONLCR`: T-111 adds the `\r` before a lone
 
 **Source:** GitHub #18 and GitHub #19 (nikhiljha/rose
 `nikhiljha/rose:doc/spec.md`, lines 19-42, "Terminal Feature Boundary");
-`docs/terminal.md:104-121`.
+`docs/terminal.md:104-139`.
 **Category:** docs
 **Milestone:** backlog
 **Priority:** P3
@@ -467,7 +536,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
   (`crates/podssh-ssh/src/escape.rs:1-13`, `crates/podssh-ssh/src/escape.rs:30-70`).
   Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:58-67`).
 - Read: the line discipline acts on the arrows, Home, End and its control
-  keys, and refuses other sequences (`docs/terminal.md:104-121`). T-128 and
+  keys, and refuses other sequences (`docs/terminal.md:104-139`). T-128 and
   T-129 change that list.
 - Read in the reports of GitHub #18 and #19, not verified here: rose states
   its terminal boundary in its spec. rose is GPL: read the spec, copy no code.
@@ -498,7 +567,7 @@ fails. The binary (`$BIN`) prints the note in its manual.
 
 # T-131: Which servers honour the `signal` request for Ctrl-C with no remote pty
 
-**Source:** `docs/terminal.md:134-138` (section "Open").
+**Source:** `docs/terminal.md:152-156` (section "Open").
 **Category:** measurement
 **Milestone:** backlog
 **Priority:** P3
@@ -514,7 +583,7 @@ on it. podssh cannot select a behaviour without that fact.
 
 ## Premise
 
-- Read: `docs/terminal.md:134-138` records the question as open.
+- Read: `docs/terminal.md:152-156` records the question as open.
 - Read: podssh's client never sends a `signal` request: no call in
   `crates/podssh-ssh/src`. With no remote pty, the local terminal stays in
   its normal mode (`docs/terminal.md:24`), so Ctrl-C stops podssh itself.

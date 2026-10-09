@@ -16,9 +16,9 @@
 //! A transcription that stopped at the reference's parser would ring the bell,
 //! pass a test that only checks the bell, **and silently corrupt the command
 //! a user is typing** every time they press a function key. **MEASURED** — a
-//! test at the bottom of this file runs the reference's own parser over
-//! `ESC [ 1 5 ~` and asserts what it produces, so the divergence is a recorded
-//! measurement rather than an argument.
+//! test of this module runs the reference's own parser over `ESC [ 1 5 ~` and
+//! asserts what it produces, so the divergence is a recorded measurement
+//! rather than an argument.
 //!
 //! ## What this parser reads instead
 //!
@@ -35,14 +35,43 @@
 //! *"a discipline that silently drops a sequence its client was promised is worse
 //! than one that rings a bell"*.
 //!
-//! ## The one byte that escapes a sequence
+//! ## The keys that are not a CSI
+//!
+//! - **SS3, `ESC O` and a final byte.** A terminal in application mode sends
+//!   the arrows, Home and End this way, F1 to F4 are `ESC O P` to `ESC O S`
+//!   on most terminals, and the keypad in application mode sends `ESC O M`
+//!   for Enter. Some terminals put a parameter before the final, as in
+//!   `ESC O 2 P` for Shift+F1, so the bytes before it are read as a CSI's are.
+//! - **The Linux console's F1 to F5**, `ESC [ [ A` to `ESC [ [ E`. The second
+//!   `[` would end a CSI, so `ESC [ [` takes one more byte.
+//! - **An Alt key**: `ESC` and a character is how a terminal sends Alt. No Alt
+//!   key is bound, so it is refused whole: one bell, and the character is not
+//!   typed, each of its UTF-8 bytes included.
+//!
+//! ## The bytes that end a sequence early
 //!
 //! **A control byte below `0x20` ends the sequence and is handled as a fresh
 //! key.** This is deliberate and it is the `Restart` arm below: a user who
 //! presses `ESC` and then `Ctrl-C` means to interrupt, and a parser that
 //! swallowed the `Ctrl-C` as part of a malformed sequence would leave them with
 //! no way to stop a running command — which is the failure plant E exists to
-//! catch.
+//! catch. **It holds right after `ESC` too**, so an escape never takes Ctrl-C,
+//! Ctrl-D or Enter.
+//!
+//! **`ESC` starts a new sequence wherever it comes.** It is never text: a raw
+//! `ESC` in the line would reach the terminal as the start of a sequence.
+//!
+//! ## A lone Escape
+//!
+//! **Only time tells a lone `ESC` from the start of a key**, and `ESC [` and
+//! `ESC O` (Alt+[ and Alt+O) from the start of a longer one. A terminal writes
+//! the bytes of one key at once, and a person types slower than that, so the
+//! caller ticks the discipline when no byte came for [`crate::echo::IDLE`], and
+//! the tick ends the open sequence ([`Esc::abandon`]) with one bell. The next
+//! key is then a key. **This parser reads no clock**, so a test drives the
+//! tick.
+
+use crate::echo::units::utf8_len;
 
 /// The longest parameter/intermediate run a CSI sequence may accumulate before
 /// podssh stops counting.
@@ -63,11 +92,56 @@ pub enum Esc {
     /// Not in a sequence.
     #[default]
     None,
-    /// **`ESC` seen, and the next byte decides whether this is a CSI.**
+    /// **`ESC` seen, and the next byte decides what follows.**
     /// **READ**, `session.rs:148`.
     Escape,
     /// **`ESC [` seen**, with the parameter and intermediate bytes so far.
     Csi(Vec<u8>),
+    /// **`ESC O` seen**, with the parameter and intermediate bytes so far.
+    Ss3(Vec<u8>),
+    /// **`ESC [ [` seen**: the Linux console's F1 to F5 end with one more byte.
+    LinuxFn,
+    /// **An Alt key**, whose character has this many UTF-8 bytes still to come.
+    Alt(u8),
+}
+
+/// The introducer of a sequence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Intro {
+    /// `ESC [`.
+    Csi,
+    /// `ESC O`: a key of a terminal in application mode, or of its keypad.
+    Ss3,
+}
+
+/// What stands between the introducer of a sequence and its final byte.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Param {
+    /// Nothing. **The recognised keys are exactly these**, which is what
+    /// makes `ESC [ 1 C` a refusal rather than a silently-honoured cursor
+    /// move.
+    None,
+    /// One decimal number, as in `ESC [ 3 ~`.
+    Number(u16),
+    /// Anything else: two numbers, a private marker, an intermediate byte, or
+    /// a run cut at [`CSI_PARAM_CAP`].
+    Other,
+}
+
+impl Param {
+    /// The parameter that these bytes make, read between the introducer and
+    /// the final byte.
+    pub fn read(bytes: &[u8]) -> Param {
+        if bytes.is_empty() {
+            return Param::None;
+        }
+        // A run at the cap may have lost the bytes past it, so it is never
+        // read as a number.
+        if bytes.len() >= CSI_PARAM_CAP || !bytes.iter().all(u8::is_ascii_digit) {
+            return Param::Other;
+        }
+        std::str::from_utf8(bytes).ok().and_then(|s| s.parse().ok()).map_or(Param::Other, Param::Number)
+    }
 }
 
 /// What the parser decided about one byte.
@@ -75,21 +149,20 @@ pub enum Esc {
 pub enum Step {
     /// **The byte belongs to the sequence** and nothing happens yet.
     Continue,
-    /// **The sequence ended here**, at a final byte. `bare` is `true` when
-    /// no parameter or intermediate byte preceded it — **the recognised
-    /// keys are exactly the bare ones**, which is what makes `ESC [ 1 C` a
-    /// refusal rather than a silently-honoured cursor move.
+    /// **The sequence ended here**, at a final byte.
     Final {
+        /// `ESC [` or `ESC O`.
+        intro: Intro,
         /// The final byte, `0x40`–`0x7e`.
         final_byte: u8,
-        /// Whether no parameters or intermediates preceded it.
-        bare: bool,
+        /// What stood before it; [`Param::None`] for a key.
+        param: Param,
     },
     /// **Refused.** The caller rings the bell and changes nothing.
     Refused,
-    /// **The byte was not part of the sequence**, so the caller handles it as
-    /// a fresh key. Only a control byte below `0x20` gets here, and it
-    /// exists so a signal character is never swallowed by a malformed sequence.
+    /// **The byte is not part of a sequence**, so the caller handles it as a
+    /// key: each byte outside one, and a byte that ends one early. It exists
+    /// so a signal character is never swallowed by a malformed sequence.
     Restart,
 }
 
@@ -116,253 +189,107 @@ impl Esc {
     /// sequence, and a parser that also edited the line would be two
     /// disciplines wearing one name.
     pub fn step(&mut self, b: u8) -> Step {
-        match self {
-            Esc::None => {
-                if b == 0x1b {
-                    *self = Esc::Escape;
-                    Step::Continue
-                } else {
-                    Step::Restart
-                }
-            }
-            Esc::Escape => {
-                if b == b'[' {
-                    *self = Esc::Csi(Vec::new());
-                    Step::Continue
-                } else {
-                    // Transcribed from `session.rs:248-251`: anything after
-                    // `ESC` that is not `[` is refused, and the byte is consumed
-                    // with it.
-                    *self = Esc::None;
-                    Step::Refused
-                }
-            }
-            Esc::Csi(params) => {
-                if is_csi_param(b) || is_csi_intermediate(b) {
-                    // **Over the cap the bytes stop accumulating, and the
-                    // sequence is refused at its final byte** — a sequence with
-                    // more parameters than any real one is a malformed one, and
-                    // a bounded buffer is the alternative to a line that grows
-                    // until the process dies.
-                    if params.len() < CSI_PARAM_CAP {
-                        params.push(b);
-                    }
-                    Step::Continue
-                } else if is_csi_final(b) {
-                    // `bare` is read **before** the state is replaced, because
-                    // the replacement is what moves the parameters out.
-                    let bare = params.is_empty();
-                    *self = Esc::None;
-                    Step::Final { final_byte: b, bare }
-                } else {
-                    // **The control byte.** See the module docs: a `Ctrl-C`
-                    // after a stray `ESC` must still interrupt.
-                    *self = Esc::None;
-                    Step::Restart
-                }
-            }
+        // `ESC` starts a new sequence in every state: it is never text, and
+        // a raw one in the line would reach the terminal.
+        if b == 0x1b {
+            *self = Esc::Escape;
+            return Step::Continue;
         }
+        // Each arm sets the next state; taking the state out moves the
+        // parameters of a CSI rather than copying them.
+        match std::mem::take(self) {
+            Esc::None => Step::Restart,
+            Esc::Escape => self.after_escape(b),
+            // The second `[` would end the CSI, but on the Linux console it
+            // begins F1 to F5.
+            Esc::Csi(params) if params.is_empty() && b == b'[' => {
+                *self = Esc::LinuxFn;
+                Step::Continue
+            }
+            Esc::Csi(params) => self.sequence(Intro::Csi, params, b),
+            Esc::Ss3(params) => self.sequence(Intro::Ss3, params, b),
+            // A printable byte is the last of the Linux form, and no key of
+            // that form is bound.
+            Esc::LinuxFn if (0x20..=0x7e).contains(&b) => Step::Refused,
+            Esc::LinuxFn => Step::Restart,
+            Esc::Alt(left) => match b {
+                0x80..=0xbf if left > 1 => {
+                    *self = Esc::Alt(left - 1);
+                    Step::Continue
+                }
+                0x80..=0xbf => Step::Refused,
+                // The character was cut short, and the byte is a key of its
+                // own.
+                _ => Step::Restart,
+            },
+        }
+    }
+
+    /// The byte after a lone `ESC`. The reference refuses each byte that is
+    /// not `[` (`session.rs:248-251`); this one also reads SS3, lets a control
+    /// byte through, and refuses an Alt key whole.
+    fn after_escape(&mut self, b: u8) -> Step {
+        match b {
+            b'[' => {
+                *self = Esc::Csi(Vec::new());
+                Step::Continue
+            }
+            b'O' => {
+                *self = Esc::Ss3(Vec::new());
+                Step::Continue
+            }
+            // A control byte is a key of its own: an escape never takes
+            // Ctrl-C, Ctrl-D or Enter.
+            0x00..=0x1f => Step::Restart,
+            // Alt and a character of several UTF-8 bytes waits for the rest,
+            // so that no lone continuation byte reaches the line.
+            0xc2..=0xf4 => {
+                *self = Esc::Alt(utf8_len(b).unwrap_or(2) as u8 - 1);
+                Step::Continue
+            }
+            // Alt and a key: one bell, and the key is not typed. Typing it
+            // would make Alt+b insert a `b`.
+            _ => Step::Refused,
+        }
+    }
+
+    /// The bytes of a CSI or an SS3 after its introducer: parameters and
+    /// intermediates, then one final byte.
+    fn sequence(&mut self, intro: Intro, mut params: Vec<u8>, b: u8) -> Step {
+        if is_csi_param(b) || is_csi_intermediate(b) {
+            // **Over the cap the bytes stop accumulating, and the
+            // sequence is refused at its final byte** — a sequence with
+            // more parameters than any real one is a malformed one, and
+            // a bounded buffer is the alternative to a line that grows
+            // until the process dies.
+            if params.len() < CSI_PARAM_CAP {
+                params.push(b);
+            }
+            *self = match intro {
+                Intro::Csi => Esc::Csi(params),
+                Intro::Ss3 => Esc::Ss3(params),
+            };
+            Step::Continue
+        } else if is_csi_final(b) {
+            Step::Final { intro, final_byte: b, param: Param::read(&params) }
+        } else {
+            // **The control byte.** See the module docs: a `Ctrl-C`
+            // after a stray `ESC` must still interrupt.
+            Step::Restart
+        }
+    }
+
+    /// Whether a sequence is open, so that the caller owes an idle tick.
+    pub fn is_open(&self) -> bool {
+        *self != Esc::None
+    }
+
+    /// The idle tick: no byte came, so an open sequence ends here. True when
+    /// one was open, which the caller answers with one bell.
+    pub fn abandon(&mut self) -> bool {
+        std::mem::take(self) != Esc::None
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Run a whole string through the parser, collecting the steps.
-    fn run(bytes: &[u8]) -> Vec<Step> {
-        let mut esc = Esc::None;
-        bytes.iter().map(|b| esc.step(*b)).collect()
-    }
-
-    #[test]
-    fn a_recognised_key_is_a_bare_final() {
-        // **The accepted case, and the one a guard that refuses everything
-        // cannot pass.** `ESC [ C` must end in a bare `C` — `bare: true` is
-        // what tells the discipline "this is the key, not a parameterised
-        // motion", and it is the only thing that keeps the refusal narrow.
-        let steps = run(b"\x1b[C");
-        assert_eq!(steps, vec![Step::Continue, Step::Continue, Step::Final { final_byte: b'C', bare: true }]);
-        assert_eq!(Esc::None, Esc::None);
-    }
-
-    #[test]
-    fn the_five_recognised_keys_are_bare_finals() {
-        // **Exactly `A B C D H F`, and every one of them bare.**
-        for final_byte in *b"ABCDHF" {
-            assert_eq!(
-                run(&[0x1b, b'[', final_byte]).last(),
-                Some(&Step::Final { final_byte, bare: true }),
-                "final {:?}",
-                final_byte as char
-            );
-        }
-    }
-
-    #[test]
-    fn the_plant_sequence_is_consumed_whole_and_never_becomes_text() {
-        // **THE PLANT, and the whole reason this module exists.**
-        // `ESC [ 1 5 ~` must ring a bell and insert nothing: the `1` and the `5`
-        // are **parameters**, consumed by the sequence, and `~` is its final
-        // byte. **The last step is a `Final`, not a `Restart`** — a
-        // `Restart` would mean `~` fell through to the line as text, which is
-        // precisely the defect this parser fixes.
-        let steps = run(b"\x1b[1~");
-        assert_eq!(
-            steps,
-            vec![
-                Step::Continue, // ESC
-                Step::Continue, // [
-                Step::Continue, // 1  — a parameter
-                Step::Final { final_byte: b'~', bare: false },
-            ],
-            "'1' is consumed as a parameter and '~' ends the sequence"
-        );
-
-        let steps = run(b"\x1b[15~");
-        assert_eq!(
-            steps.last(),
-            Some(&Step::Final { final_byte: b'~', bare: false }),
-            "and ESC [ 1 5 ~ likewise: 1 and 5 are both parameters"
-        );
-    }
-
-    #[test]
-    fn the_reference_parser_produces_the_defect_this_module_fixes() {
-        // **The measurement behind the divergence, kept as a test so it
-        // cannot be quietly forgotten.** This is the sibling's parser,
-        // transcribed exactly from `session.rs:244-262`: `ESC` then `[`, then
-        // **the next byte is dispatched and the sequence is over.**
-        //
-        // Fed `ESC [ 1 5 ~`, it dispatches on `1` (unknown, bell) and then
-        // **`5` and `~` fall through to the line as ordinary characters.**
-        // That is what the entry's plant forbids — *"a bell and no state
-        // change"* — and it is why the transcription stops at the byte rules
-        // and not at the parser.
-        fn reference(bytes: &[u8]) -> Vec<u8> {
-            #[derive(Clone, Copy, PartialEq, Eq)]
-            enum State {
-                None,
-                SawEsc,
-                SawCsi,
-            }
-            let mut state = State::None;
-            let mut inserted = Vec::new();
-            for b in bytes {
-                match state {
-                    State::SawEsc => {
-                        state = if *b == b'[' { State::SawCsi } else { State::None };
-                    }
-                    State::SawCsi => {
-                        state = State::None; // dispatch on this byte; unknown -> bell
-                    }
-                    State::None => {
-                        if *b == 0x1b {
-                            state = State::SawEsc;
-                        } else {
-                            inserted.push(*b);
-                        }
-                    }
-                }
-            }
-            inserted
-        }
-
-        let inserted = reference(b"\x1b[1~");
-        assert_eq!(inserted, vec![b'~'], "MEASURED on the reference's own parser: '~' reaches the line");
-
-        let inserted = reference(b"\x1b[15~");
-        assert_eq!(inserted, vec![b'5', b'~'], "and for the entry's own ESC [ 1 5 ~, '5' and '~' reach the line");
-
-        // **And what this parser does instead.** Nothing is inserted: every
-        // byte after `ESC [` belongs to the sequence.
-        let mut esc = Esc::None;
-        let mut inserted = Vec::new();
-        for b in b"\x1b[15~" {
-            match esc.step(*b) {
-                Step::Restart => inserted.push(*b),
-                Step::Refused | Step::Continue | Step::Final { .. } => {}
-            }
-        }
-        assert!(inserted.is_empty(), "MEASURED on this parser: nothing reaches the line");
-    }
-
-    #[test]
-    fn a_control_byte_abandons_the_sequence_so_a_signal_still_signals() {
-        // **The `Restart` arm, and it is load-bearing.** `ESC` followed by
-        // `Ctrl-C` must interrupt; a parser that swallowed the `Ctrl-C` as part
-        // of a malformed sequence would leave a user with no way to stop a
-        // running command, which is the failure plant E exists to catch.
-        assert_eq!(
-            run(b"\x1b[1\x03"),
-            vec![
-                Step::Continue, // ESC
-                Step::Continue, // [
-                Step::Continue, // 1  — a parameter
-                Step::Restart,  // 0x03 abandons the sequence and comes back
-            ],
-            "the 0x03 comes back as Restart, so the caller signals"
-        );
-    }
-
-    #[test]
-    fn an_escape_that_is_not_a_csi_is_refused_and_the_byte_is_consumed() {
-        // **Transcribed**, `session.rs:248-251`: `ESC x` is a bell, and the
-        // `x` does not become text either.
-        assert_eq!(run(b"\x1bx"), vec![Step::Continue, Step::Refused], "the 'x' is consumed with the refused sequence");
-    }
-
-    #[test]
-    fn a_parameterised_motion_is_refused_rather_than_guessed() {
-        // **`ESC [ 1 C` is a real sequence** — "cursor forward one" — and the
-        // cooked discipline does not implement parameterised motion. It is
-        // refused rather than treated as a plain `C`, because **a discipline
-        // that interprets sequences it has not tested is a discipline that will
-        // corrupt somebody's terminal** — and a bare `C` handler would move the
-        // cursor as though the `1` had not been there.
-        let steps = run(b"\x1b[1C");
-        assert_eq!(
-            steps.last(),
-            Some(&Step::Final { final_byte: b'C', bare: false }),
-            "'C' with a parameter behind it is not the bare key"
-        );
-    }
-
-    #[test]
-    fn a_sequence_longer_than_the_cap_is_still_refused_and_the_state_is_bounded() {
-        // **The bound, and the state it bounds.** Twenty parameter bytes is
-        // not a real sequence, and the buffer stops growing at sixteen.
-        let mut esc = Esc::None;
-        for b in b"\x1b[0123456789012345678901234567890123456789" {
-            let _ = esc.step(*b);
-        }
-        match &esc {
-            Esc::Csi(params) => {
-                assert_eq!(params.len(), CSI_PARAM_CAP, "the buffer stops at the cap");
-                assert!(params.iter().all(|b| is_csi_param(*b)), "and holds only parameters");
-            }
-            other => panic!("the state should still be a CSI in progress: {other:?}"),
-        }
-        // And it still ends at a final byte, with `bare: false` because the
-        // parameters are there — so the sequence is refused.
-        assert_eq!(esc.step(b'~'), Step::Final { final_byte: b'~', bare: false });
-    }
-
-    #[test]
-    fn the_byte_classes_do_not_overlap() {
-        // **Three ranges, and a byte in two of them would make the parser's
-        // order the only thing deciding what a sequence means.** Asserted
-        // here so a careless edit to a boundary is caught.
-        for b in 0x20u8..=0x7e {
-            let count = is_csi_param(b) as u8 + is_csi_intermediate(b) as u8 + is_csi_final(b) as u8;
-            assert_eq!(count, 1, "byte {b:#x} is in {count} classes");
-        }
-        for b in 0x00u8..0x20 {
-            assert!(!is_csi_param(b) && !is_csi_intermediate(b) && !is_csi_final(b));
-            assert!(!is_csi_final(b), "a control byte never ends a CSI");
-        }
-        for b in 0x7fu8..=0xff {
-            assert!(!is_csi_param(b) && !is_csi_intermediate(b) && !is_csi_final(b));
-        }
-    }
-}
+mod tests;

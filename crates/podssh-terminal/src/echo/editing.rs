@@ -19,7 +19,8 @@
 //! - [`Discipline::erase_line`] — Ctrl-U. **`session.rs:340-352`**
 //! - [`Discipline::erase_word`] — Ctrl-W: blanks first, then the word.
 //!   **`session.rs:354-376`**
-//! - [`Discipline::escape`] — the final byte of a sequence. **`session.rs:378-403`**
+//! - [`Discipline::escape`] — the final byte of a sequence, `ESC [` or `ESC O`.
+//!   **`session.rs:378-403`**
 //! - [`Discipline::insert`] — an ordinary byte, or a refusal at the cap.
 //!   **`session.rs:437-453`**
 //!
@@ -31,6 +32,7 @@
 use super::units::{after, before, blank, motion, units, utf8_len};
 use super::Discipline;
 use crate::echo::{Event, Sig, BELL, EL, LINE_CAP, PROMPT};
+use crate::escape::{Intro, Param};
 
 impl Discipline {
     /// A signal character: drop the line being edited, echo the caret notation a
@@ -121,7 +123,9 @@ impl Discipline {
         }
     }
 
-    /// The final byte of an `ESC [` sequence.
+    /// The final byte of an `ESC [` or an `ESC O` sequence. The two share the
+    /// arrows, Home and End, because a terminal in application mode sends the
+    /// second form; only `ESC O` has the keypad.
     ///
     /// **Arrows echo their own sequences**, which move a real terminal's
     /// cursor exactly where the local cursor went. Home and End stay silent
@@ -131,7 +135,7 @@ impl Discipline {
     /// untested sequence to a client that is *not* full-screen corrupts the
     /// scrollback. **READ**, `session.rs:378-403`.
     ///
-    /// **`bare` is load-bearing.** **`ESC [ 1 C` is a real sequence** —
+    /// **The parameter is load-bearing.** **`ESC [ 1 C` is a real sequence** —
     /// "cursor forward one" — and **it is refused rather than treated as a
     /// plain `C`.** Handling it as `C` would move the cursor as though the `1`
     /// had never been sent, and a discipline that interprets sequences it has
@@ -139,8 +143,8 @@ impl Discipline {
     /// is the entry's rule applied to a sequence the reference never met: *"a
     /// discipline that silently drops a sequence its client was promised is worse
     /// than one that rings a bell"*.
-    pub(crate) fn escape(&mut self, b: u8, bare: bool) -> Vec<Event> {
-        if !bare {
+    pub(crate) fn escape(&mut self, intro: Intro, b: u8, param: Param) -> Vec<Event> {
+        if param != Param::None {
             return vec![Event::ToLocal(BELL.to_vec())];
         }
         match b {
@@ -157,6 +161,12 @@ impl Discipline {
                 self.cursor = self.line.len();
                 vec![]
             }
+            // The keypad in application mode: Enter submits, and each other
+            // key types the character it shows, `ESC O j` to `ESC O y` being
+            // `*+,-./` and the digits. F1 to F4, `ESC O P` to `ESC O S`, ring.
+            b'M' if intro == Intro::Ss3 => self.submit(),
+            b'X' if intro == Intro::Ss3 => self.insert(b'='),
+            b'j'..=b'y' if intro == Intro::Ss3 => self.insert(b - 0x40),
             _ => vec![Event::ToLocal(BELL.to_vec())],
         }
     }

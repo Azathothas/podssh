@@ -51,11 +51,16 @@ pub enum Refusal {
     /// Ctrl-Q / Ctrl-S: flow control. No `IXON` below, so there is nothing
     /// to stop. **READ**, `session.rs:46`.
     FlowControl,
-    /// An escape sequence outside `ESC [ A B C D H F`, in the cooked mode.
-    /// Dropped rather than interpreted: a discipline that passes an untested
-    /// sequence to a client that is *not* full-screen corrupts the scrollback.
-    /// **READ**, `session.rs:54-55`.
+    /// An escape sequence other than the arrows, Home and End (`ESC [` or
+    /// `ESC O`, then `A B C D H F`) and the keypad's `ESC O` keys, in the
+    /// cooked mode: F1 to F4 among them. Dropped rather than interpreted: a
+    /// discipline that passes an untested sequence to a client that is *not*
+    /// full-screen corrupts the scrollback. **READ**, `session.rs:54-55`.
     CursorAddressing,
+    /// A lone Escape, an Alt key (`ESC` and a key), or a key cut short: no
+    /// key is bound to them. The lone one rings once no byte came for
+    /// [`crate::echo::IDLE`], and the key after it is typed as usual.
+    EscapeKey,
     /// An erase at the very start of the line, or `Ctrl-U`/`Ctrl-W` on an empty
     /// one. There is nothing to erase, and the bell says so rather than
     /// leaving the user pressing a key that does nothing.
@@ -101,6 +106,7 @@ impl Refusal {
             Refusal::Suspend => "suspend is refused: no job control without a terminal",
             Refusal::FlowControl => "flow control is refused: there is no IXON to stop",
             Refusal::CursorAddressing => "this escape sequence is refused: it is not a key podssh interprets",
+            Refusal::EscapeKey => "Escape, and Alt with a key, are refused: no key is bound to them",
             Refusal::NothingToErase => "there is nothing to erase here",
             Refusal::NoMoreHistory => "history does not go further in that direction",
             Refusal::AtLineBound => "the cursor is already at that end of the line",
@@ -122,10 +128,11 @@ impl Refusal {
 
 /// The catalogue, as a list. **Exported so a caller can print what this
 /// terminal will not do.**
-pub const REFUSALS: [Refusal; 8] = [
+pub const REFUSALS: [Refusal; 9] = [
     Refusal::Suspend,
     Refusal::FlowControl,
     Refusal::CursorAddressing,
+    Refusal::EscapeKey,
     Refusal::NothingToErase,
     Refusal::NoMoreHistory,
     Refusal::AtLineBound,
@@ -140,7 +147,7 @@ mod tests {
     #[test]
     fn every_refusal_names_a_reason_worth_reading() {
         // **A refusal with no reason is a bug report waiting to be filed.**
-        assert_eq!(REFUSALS.len(), 8);
+        assert_eq!(REFUSALS.len(), 9);
         for refusal in REFUSALS {
             assert!(!refusal.reason().is_empty(), "{refusal:?} has no reason");
             assert!(refusal.reason().len() > 10, "{refusal:?} has a useless reason");

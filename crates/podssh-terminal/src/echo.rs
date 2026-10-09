@@ -23,7 +23,7 @@
 //! | `BELL` | `session.rs:115` |
 //! | redraw: `\r`, prompt, buffer, `EL`, `\r`, prompt, line-to-cursor | `session.rs:177-187` |
 //! | `\r` and `\n` both submit; the `\n` of a `\r\n` pair is swallowed | `session.rs:260-266`, `273-277` |
-//! | recognised escapes: exactly `ESC [ A B C D H F` | `session.rs:381-403` |
+//! | recognised escapes: `ESC [ A B C D H F`, the same keys after `ESC O`, and the keypad's `ESC O` keys | `session.rs:381-403`, for `ESC [` |
 //! | the key dispatch itself | `session.rs:267-294` |
 //!
 //! ## What is deliberately absent
@@ -87,6 +87,11 @@ pub const LINE_CAP: usize = 65536;
 pub const EL: &[u8] = b"\x1b[K";
 /// The bell. **READ**, `session.rs:115`.
 pub const BELL: &[u8] = b"\x07";
+/// How long a caller waits with no byte, while [`Discipline::waiting`], before
+/// it calls [`Discipline::idle`]. A terminal writes the bytes of one key at
+/// once, and a person types slower than this, so a lone `ESC` is told from the
+/// start of a key by the pause that follows it.
+pub const IDLE: std::time::Duration = std::time::Duration::from_millis(50);
 
 /// A signal character, translated. **Named, not delivered.** This crate
 /// never calls `kill`: the process that must die is the remote side's, and the
@@ -283,8 +288,34 @@ impl Discipline {
         out
     }
 
+    /// Whether a key is still open: an escape sequence, or a character typed
+    /// in parts. The caller then calls [`Discipline::idle`] when no byte came
+    /// for [`IDLE`].
+    pub fn waiting(&self) -> bool {
+        self.esc.is_open() || !self.partial.is_empty()
+    }
+
+    /// No byte came for [`IDLE`]. An open sequence was a lone `ESC`, or a key
+    /// cut short: it ends with one bell, and the next key is typed as usual.
+    /// The bytes of a character typed in parts go into the line as typed, as
+    /// a byte that cannot continue them would put them.
+    pub fn idle(&mut self) -> Vec<Event> {
+        let mut out = Vec::new();
+        if self.esc.abandon() {
+            out.push(Event::ToLocal(BELL.to_vec()));
+        }
+        for p in std::mem::take(&mut self.partial) {
+            out.extend(self.insert_unit(&[p]));
+        }
+        out
+    }
+
     /// One byte, once no part of a character waits.
     fn dispatch(&mut self, b: u8) -> Vec<Event> {
+        // Only the byte right after a `\r` can be its pair. In the reference
+        // `ESC` is itself a key and ends the pair; here the parser takes it
+        // first, so the pair ends at each byte.
+        let after_cr = std::mem::take(&mut self.last_was_cr);
         // An escape in progress owns the byte before anything else does —
         // **READ**, `session.rs:246`. **The parser is [`crate::escape`]'s, not
         // the reference's**, and the difference is the plant: the
@@ -294,7 +325,7 @@ impl Discipline {
         match self.esc.step(b) {
             Step::Continue => return vec![],
             Step::Refused => return vec![Event::ToLocal(BELL.to_vec())],
-            Step::Final { final_byte, bare } => return self.escape(final_byte, bare),
+            Step::Final { intro, final_byte, param } => return self.escape(intro, final_byte, param),
             // The byte was not part of a sequence. A control byte below
             // `0x20` lands here so `ESC` followed by `Ctrl-C` still signals
             // rather than being swallowed by a malformed sequence — the same
@@ -303,11 +334,8 @@ impl Discipline {
             Step::Restart => {}
         }
         // The second half of a `\r\n` pair is the pair, not a line.
-        if self.last_was_cr {
-            self.last_was_cr = false;
-            if b == b'\n' {
-                return vec![];
-            }
+        if after_cr && b == b'\n' {
+            return vec![];
         }
         match b {
             0x03 => self.signal_key(Sig::Int, b"^C\r\n"),

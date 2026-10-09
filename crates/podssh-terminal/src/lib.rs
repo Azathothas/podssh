@@ -78,7 +78,7 @@ pub mod session;
 pub mod term;
 pub mod window;
 
-pub use echo::{Discipline, Event, Sig, BELL, EL, HISTORY_CAP, LINE_CAP, PROMPT};
+pub use echo::{Discipline, Event, Sig, BELL, EL, HISTORY_CAP, IDLE, LINE_CAP, PROMPT};
 pub use passthrough::Passthrough;
 pub use refusal::{Refusal, REFUSALS};
 pub use session::{Facts, Mode, Session};
