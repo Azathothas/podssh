@@ -1,10 +1,15 @@
-//! An established link over tokio streams: the application's bytes out as
-//! `DATA`, the peer's records in, both ends of the session at once.
+//! One link of a session over tokio streams: the application's bytes out as
+//! `DATA`, the peer's records in, both ways at once.
 //!
 //! With a replay buffer, the application's bytes go out only while the
 //! buffer has room: a full buffer makes the writer wait for an `ACK`, so SSH
 //! waits and its window stops the far side (T-152). The peer's bytes are
 //! acknowledged each 64 KiB, and 200 ms after any that are not.
+//!
+//! A link can end at any await: the application stays open, and what the
+//! session needs for the next link (its offsets, its buffer, the bytes not
+//! yet written to the application) is in the [`Carry`] that the caller
+//! keeps (T-153).
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -38,6 +43,25 @@ pub enum End {
     /// The link carried what ends it: a gap, bytes that are not records, a
     /// `REFUSE`.
     Broken(LinkError),
+    /// This side was told to stop: the session went on to a newer link.
+    Stopped,
+    /// No new link carried the session on, for this reason: the far end did
+    /// not resume it, the transport said not to come back, or the deadline
+    /// passed (T-153).
+    GaveUp(String),
+}
+
+impl End {
+    /// Whether a new link can carry the session on: each end but the
+    /// session's own (a `CLOSE` either way, a `REFUSE`).
+    pub fn resumable(&self) -> bool {
+        match self {
+            End::Lost(_) | End::Stopped => true,
+            End::Broken(LinkError::Refused { .. }) => false,
+            End::Broken(_) => true,
+            End::LocalEnd | End::Closed(_) | End::GaveUp(_) => false,
+        }
+    }
 }
 
 /// The end of a link, and the offsets of the session at that moment.
@@ -50,24 +74,49 @@ pub struct Ended {
     pub sent: u64,
 }
 
-/// Carry the session between `app` and `link` until either ends. `decoder`
-/// holds what the handshake read past its last record. `state` stays with
-/// the caller, with its replay buffer, for the next link.
-pub(crate) async fn run<A, L>(app: A, link: L, decoder: Decoder, state: Arc<Mutex<Link>>) -> Ended
+/// What a session carries from one link to the next.
+#[derive(Debug)]
+pub struct Carry {
+    /// The offsets, the replay buffer and the acknowledgements.
+    pub state: Arc<Mutex<Link>>,
+    /// Bytes received and counted, not yet written to the application: a link
+    /// that ends while it writes them leaves the rest here, for the next.
+    undelivered: Vec<u8>,
+}
+
+impl Carry {
+    pub fn new(link: Link) -> Carry {
+        Carry { state: Arc::new(Mutex::new(link)), undelivered: Vec::new() }
+    }
+
+    /// The bytes received that the application has not taken yet.
+    pub fn undelivered(&self) -> usize {
+        self.undelivered.len()
+    }
+}
+
+/// Carry the session between `app` and `link` until the link or the session
+/// ends, or `stop` is notified. `decoder` holds what the handshake read past
+/// its last record. The application is not shut: the caller does that when
+/// the session ends, and keeps it open for the next link when it does not.
+pub async fn run<A, L>(app: &mut A, link: L, decoder: Decoder, carry: &mut Carry, stop: Option<&Notify>) -> Ended
 where
-    A: AsyncRead + AsyncWrite + Send,
+    A: AsyncRead + AsyncWrite + Unpin + Send,
     L: AsyncRead + AsyncWrite + Send,
 {
     let (mut app_r, mut app_w) = tokio::io::split(app);
     let (link_r, link_w) = tokio::io::split(link);
     let writer = tokio::sync::Mutex::new(link_w);
     let room = Notify::new();
+    let never = Notify::new();
+    let stop = stop.unwrap_or(&never);
+    let Carry { state, undelivered } = carry;
 
     // Both directions live in this block, so that neither holds the writer
     // when it ends.
     let (end, close) = {
-        let up = up(&mut app_r, &writer, &state, &room);
-        let down = down(&mut app_w, link_r, decoder, &writer, &state, &room);
+        let up = up(&mut app_r, &writer, state, &room);
+        let down = down(&mut app_w, link_r, decoder, &writer, state, &room, undelivered);
         tokio::pin!(up);
         tokio::pin!(down);
         tokio::select! {
@@ -86,14 +135,13 @@ where
                 },
                 Some(failed) => (failed, false),
             },
+            _ = stop.notified() => (End::Stopped, false),
         }
     };
     if close {
         let _ = send_close(&mut *writer.lock().await).await;
     }
-    // The application learns that no more bytes come, whatever the reason.
-    let _ = app_w.shutdown().await;
-    let state = lock(&state);
+    let state = lock(state);
     Ended { end, received: state.received(), sent: state.sent() }
 }
 
@@ -103,7 +151,8 @@ fn lock(state: &Mutex<Link>) -> std::sync::MutexGuard<'_, Link> {
 
 /// The application's bytes out: `None` when it ended them and `CLOSE` went
 /// out, else why the link failed. It reads only what the replay buffer has
-/// room for, and waits for an acknowledgement when it has none.
+/// room for, and waits for an acknowledgement when it has none. A byte read
+/// is in the buffer before any await, so a link that ends loses none.
 async fn up<R, W>(app: &mut R, writer: &tokio::sync::Mutex<W>, state: &Mutex<Link>, room: &Notify) -> Option<End>
 where
     R: AsyncRead + Unpin,
@@ -158,6 +207,19 @@ async fn send<W: AsyncWrite + Unpin>(writer: &tokio::sync::Mutex<W>, record: &Re
     Ok(())
 }
 
+/// Write the bytes kept for the application in steps that a cancel cannot
+/// cut: each byte written leaves the buffer before the next await.
+async fn deliver<W: AsyncWrite + Unpin>(app: &mut W, undelivered: &mut Vec<u8>) -> std::io::Result<()> {
+    while !undelivered.is_empty() {
+        let n = app.write(undelivered).await?;
+        if n == 0 {
+            return Err(std::io::ErrorKind::WriteZero.into());
+        }
+        undelivered.drain(..n);
+    }
+    app.flush().await
+}
+
 /// The peer's records in, until the link or the session ends.
 async fn down<W, R, LW>(
     app: &mut W,
@@ -166,12 +228,17 @@ async fn down<W, R, LW>(
     writer: &tokio::sync::Mutex<LW>,
     state: &Mutex<Link>,
     room: &Notify,
+    undelivered: &mut Vec<u8>,
 ) -> End
 where
     W: AsyncWrite + Unpin,
     R: AsyncRead + Unpin,
     LW: AsyncWrite + Unpin,
 {
+    // What an earlier link received and could not write yet goes first.
+    if deliver(app, undelivered).await.is_err() {
+        return End::LocalEnd;
+    }
     let mut buf = vec![0u8; 64 * 1024];
     // When the bytes not yet acknowledged must be.
     let mut ack_at: Option<Instant> = None;
@@ -186,9 +253,10 @@ where
             let event = lock(state).on_record(record);
             match event {
                 Ok(Event::Deliver(bytes)) => {
+                    undelivered.extend_from_slice(&bytes);
                     // An application that stopped reading has ended the
                     // session on its side; its own end says why.
-                    if app.write_all(&bytes).await.is_err() {
+                    if deliver(app, undelivered).await.is_err() {
                         return End::LocalEnd;
                     }
                 }

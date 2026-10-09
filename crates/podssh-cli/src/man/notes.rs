@@ -31,7 +31,9 @@ const SSH: &[&str] = &[
      relay. Its host key is recorded and checked under the name node://NAME. --pair-file gives the pair, \
      or its operator's part, in a file. A node has no port, and -J, -W and --direct cannot go with it yet. \
      podssh sends nothing until the node's first bytes (30 s at most), to learn whether the node offers \
-     the resumable layer; -v says whether it does.",
+     the resumable layer; -v says whether it does. With the layer, a lost link to the relay is replaced \
+     by a new one for 10 minutes, and the SSH session goes on where it was; one line on stderr tells of \
+     each loss and each resume.",
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \
@@ -152,6 +154,12 @@ const NODE: &[&str] = &[
      podssh relay). Each session that an operator opens is one connection to TARGET, from this host, \
      through HTTPS_PROXY unless TARGET is on the loopback. podssh dials TARGET once at the start, and \
      exits when it cannot.",
+    "Each session runs the resumable layer: an operator that loses its link to the relay resumes the \
+     session on a new link, and the node keeps the session and its connection to TARGET for 10 minutes \
+     after a loss. TARGET is dialled only once the operator's handshake is done. The node keeps at most \
+     64 MiB of replay buffers (16 sessions with the default of PODSSH_REPLAY_BUFFER); a new session past \
+     that ends at once with the reason. An operator that does not speak the layer cannot use the node; \
+     podssh ssh node:// and podssh operator speak it.",
     "The node runs until Ctrl-C or SIGTERM (exit 0), or until the relay ends the pair: stopped, \
      expired, refused, or served by another node; each has its code in EXIT STATUS. A broken \
      connection to the relay is made again, after a growing wait. stdout stays empty; notes go to \
@@ -167,6 +175,10 @@ const OPERATOR: &[&str] = &[
     "Before the node takes the session, up to 1 MiB of stdin is kept, and sent then. The session ends \
      when stdin ends or the node's TARGET closes; it exits 0 only when the node took the session. An \
      error is one line on stderr; the codes are in EXIT STATUS.",
+    "With a node that offers the resumable layer, a lost link to the relay is replaced by a new one, \
+     for 10 minutes, and the session goes on where it was; one line on stderr tells of each loss and \
+     each resume. A close that a new link would only get again (a stopped or expired pair) ends the \
+     session.",
     "With --pair-file, the pair comes from FILE, or its operator's part alone, as podssh relay pair \
      writes it for the operator, and the store is not used.",
 ];

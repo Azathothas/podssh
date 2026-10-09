@@ -278,6 +278,44 @@ pub fn classify(close: &RelayClose) -> Classified {
     Classified { row: row.copied(), retry, session, code: close.code, reason }
 }
 
+/// Whether the resumable layer carries a session on after this close of
+/// its link (T-153). A lost or failed socket, a node that went away or was
+/// slow, and the relay's own limits are resumed: the layer's offsets make a
+/// dropped frame harmless, so `relay backpressure` is resumed too. A stop, an
+/// expired pair, and a fault of podssh's own bytes are not: the same close
+/// would come again. A close that matches no row is resumed, but for the
+/// codes that name a fault of the bytes or a policy (`1001` to `1003`,
+/// `1007` to `1010`) and an application's code (4000 and up).
+pub fn resumes(close: &RelayClose) -> bool {
+    match classify(close).session {
+        SessionAction::Stop
+        | SessionAction::MintNewPair
+        | SessionAction::ReopenSession
+        | SessionAction::FixCodec
+        | SessionAction::AnswerReadyFirst
+        | SessionAction::DoNotSendText
+        | SessionAction::WaitForReady
+        | SessionAction::ShrinkControl
+        | SessionAction::AlwaysPrefixFullId
+        | SessionAction::ChunkTo64K => false,
+        SessionAction::Reconnect
+        | SessionAction::OpenNewSession
+        | SessionAction::SlowDown
+        | SessionAction::RetryOpen
+        | SessionAction::WaitAndRetry
+        | SessionAction::ReconnectNode
+        | SessionAction::ReconnectSocket
+        | SessionAction::ReadyDeadlineMissed
+        | SessionAction::BackOff
+        // A node's `close` or `reject`, or a normal end, with no `CLOSE`
+        // record of the layer before it: the far end may still keep the
+        // session, and its handshake says whether it does.
+        | SessionAction::ParseReasonNotCode
+        | SessionAction::NormalEnd => true,
+        SessionAction::Unknown => !matches!(close.code, 1001..=1003 | 1007..=1010 | 4000..),
+    }
+}
+
 /// Whether a reason reads as a node's refusal. A small closed set: the row
 /// names a refusal, a closed port, a refusal to start, and no string; to
 /// accept any reason would make each unmatched close a node's refusal.

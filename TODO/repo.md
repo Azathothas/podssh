@@ -1274,7 +1274,7 @@ warning, and the gate checks the format and the lints".
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
-(`docs/design.md:368-370`) show that a dependency can get one.
+(`docs/design.md:384-386`) show that a dependency can get one.
 **Category:** chore
 **Milestone:** none
 **Priority:** P2

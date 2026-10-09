@@ -18,30 +18,38 @@
 //!   the sessions that a far end keeps;
 //! - [`link`]: a session past its handshake, record by record, and
 //!   [`replay`]: the bytes that it keeps until the peer acknowledges them;
-//! - [`client`] and [`far`]: the two ends over tokio streams.
+//! - [`client`] and [`far`]: the two ends over tokio streams, [`pump`]: one
+//!   link of a session, [`resume`]: the client's session across links, and
+//!   [`keep`]: the sessions that a far end keeps across links;
+//! - [`sessions`]: the secrets and offsets that a far end keeps, by id.
 //!
-//! All but the last two are sans-IO: bytes and records in, records and
-//! events out, with no socket and no clock.
+//! The records, the offsets, the secrets, the handshakes, the link and the
+//! replay buffer are sans-IO: bytes and records in, records and events out,
+//! with no socket and no clock.
 
 pub mod client;
 pub mod decode;
 pub mod far;
 pub mod handshake;
+pub mod keep;
 pub mod link;
 pub mod offset;
-mod pump;
+pub mod pump;
 pub mod record;
 pub mod replay;
+pub mod resume;
 pub mod secret;
+pub mod sessions;
 
 pub use decode::{DecodeError, Decoder};
-pub use handshake::{Ask, ClientHandshake, Established, FarHandshake, HandshakeError, Sessions, Step};
+pub use handshake::{Ask, ClientHandshake, Established, FarHandshake, HandshakeError, Step};
 pub use link::{Event, Link, LinkError};
 pub use offset::{Inbound, OffsetError, Outbound};
-pub use pump::{End, Ended};
+pub use pump::{Carry, End, Ended};
 pub use record::{Acceptance, Hello, Opening, Record, RefuseCode, Role};
 pub use replay::{NotKept, Replay};
 pub use secret::{Entropy, NoRandom, Nonce, OsEntropy, Proof, Secret, SessionId};
+pub use sessions::Sessions;
 
 /// The features that this build offers: a side ignores a name that it does
 /// not know, and uses a feature only when both sides named it.
@@ -54,11 +62,17 @@ pub struct Settings {
     pub features: &'static [&'static str],
     /// The capacity of the replay buffer in each direction (T-152).
     pub replay_capacity: usize,
+    /// How long after a loss the session waits for a new link (T-153).
+    pub resume_deadline: std::time::Duration,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { features: FEATURES, replay_capacity: replay::DEFAULT_CAPACITY }
+        Settings {
+            features: FEATURES,
+            replay_capacity: replay::DEFAULT_CAPACITY,
+            resume_deadline: resume::RESUME_DEADLINE,
+        }
     }
 }
 

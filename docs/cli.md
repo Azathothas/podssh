@@ -66,8 +66,10 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   not go with it yet (exit 64). To a node, podssh sends nothing until the
   node's first bytes, 30 s at most: a node that offers the resumable layer
   greets with its first record, and `-v` says whether it did (T-151,
-  `docs/design.md` section 5). `-J a,b` makes a chain of hops; `-J a -J b`
-  is an error.
+  `docs/design.md` section 5). With the layer, a lost link to the relay is
+  replaced by a new one for 10 minutes and the SSH session goes on where it
+  was, with one line on stderr for each loss and each resume (T-153).
+  `-J a,b` makes a chain of hops; `-J a -J b` is an error.
   `ssh host:2222` connects to a host named `host:2222` on port 22. The port
   form of OpenSSH is `ssh://user@host:2222`. podssh also accepts `host:PORT`,
   because its own "did you mean" message gives that form. A host name cannot

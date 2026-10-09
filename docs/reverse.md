@@ -90,8 +90,23 @@ gave 3 through a node in front of railway.new's SSH service, and
 `podssh operator lab` carried that server's banner (`cargo test -p
 podssh-cli --test node_live -- --ignored`). Since T-151, `podssh ssh
 node://` sends nothing until the node's first byte, to learn whether the
-node offers the resumable layer ([design.md](design.md), section 5); no
-node offers it yet, and `exit 3` still gave 3 (the same test, 2026-10-09).
+node offers the resumable layer ([design.md](design.md), section 5).
+
+Since T-153, each session of `podssh node` runs the resumable layer: the
+node answers `ready` at once, greets, and dials TARGET only after the
+operator's handshake; it keeps a session and its connection to TARGET for
+10 minutes after a lost link, and at most 64 MiB of replay buffers.
+`podssh ssh node://` and `podssh operator` run the client: after a lost
+leg, they open a new one and resume the session where it was, unless the
+relay's close says not to come back (a stopped or expired pair, a fault of
+podssh's own bytes). A new leg goes to the control host, which alone serves
+`/v1/connect` ([relay.md](relay.md)). An operator that does not speak the
+layer cannot use a podssh node. Measured 2026-10-09 through the live relay:
+GitHub's banner came through a node to `podssh operator` and through the
+library's leg with the layer's client (`cargo test -p podssh-cli --test
+node_live -- --ignored`), and `podssh ssh node://` logged in to
+railway.new through the layer, which then limited the anonymous visitor
+(its exit 13) in place of running `exit 3`.
 
 Synchronous code (podbox) runs the node and the operator through
 `podssh_relay::blocking` (feature `blocking`, T-081): a handler opens each

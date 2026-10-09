@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**257 entries: 160 open, 0 partial, 8 blocked, 89 done.**
+**258 entries: 159 open, 0 partial, 9 blocked, 90 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 77 | 0 | 4 | 67 | 148 |
+| P2 | 76 | 0 | 5 | 68 | 149 |
 | P3 | 81 | 0 | 4 | 14 | 99 |
-| **All** | 160 | 0 | 8 | 89 | 257 |
+| **All** | 159 | 0 | 9 | 90 | 258 |
 
 ## Entries
 
@@ -226,7 +226,7 @@ repository and CI).
 | [T-150](copy.md) | P3 | M | backlog | feature | open | A copy protocol between two podssh ends |
 | [T-151](resume.md) | P2 | L | M6 | feature | done | The resumable layer: its handshake and the byte offsets |
 | [T-152](resume.md) | P2 | M | M6 | feature | done | The replay buffer, limited, with backpressure |
-| [T-153](resume.md) | P2 | L | M6 | feature | open | Resume through any road and relay host, with a session secret and a capped backoff |
+| [T-153](resume.md) | P2 | L | M6 | feature | done | Resume through any road and relay host, with a session secret and a capped backoff |
 | [T-154](resume.md) | P2 | S | M6 | feature | open | Heartbeats that also prevent the relay's idle cut |
 | [T-155](resume.md) | P2 | S | M6 | feature | open | Move a session to a new relay connection before the relay's limits |
 | [T-156](resume.md) | P2 | M | M6 | measurement | open | M6 exit: a session survives a stopped relay host, a new address and a stall of 3 minutes |
@@ -332,3 +332,4 @@ repository and CI).
 | [T-258](repo.md) | P3 | S | none | defect | done | Line numbers written as plain text in the record are not moved |
 | [T-259](repo.md) | P2 | S | none | defect | done | One dropped connection fails a live TLS test, and with it the gate |
 | [T-260](repo.md) | P3 | S | none | chore | done | The open pull requests of Dependabot, #37 to #42 |
+| [T-261](resume.md) | P2 | S | M6 | feature | blocked | A node that lost its socket connects again on `409`, until the resume deadline |

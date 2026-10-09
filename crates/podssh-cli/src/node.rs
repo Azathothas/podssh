@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_relay::pair::Pair;
-use podssh_relay::reverse::{self, Exit, NodeConfig, Settings, TcpHandler, Wire};
+use podssh_relay::reverse::{self, Exit, Layered, NodeConfig, Settings, TcpHandler, Wire};
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
 
@@ -109,7 +109,11 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         repair: None,
         wire: Wire::Tls,
     };
-    let handler = Arc::new(TcpHandler { host, port, timeout: DIAL_LIMIT });
+    // Each session runs the resumable layer (T-153): a client that loses its
+    // leg resumes the session on a new one, with the same connection to
+    // TARGET, which is dialled only after the layer's handshake.
+    let tcp = TcpHandler { host, port, timeout: DIAL_LIMIT };
+    let handler = Arc::new(Layered::new(tcp, crate::layered::settings(), reverse::layered::NODE_BUDGET));
     let exit = reverse::run(&mut config, handler, stop_signal()).await;
     finish(&label, exit, err)
 }

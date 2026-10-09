@@ -243,6 +243,12 @@ are `podssh relay`, `podssh node`, `podssh operator` and
   waits for the `ready` text frame, then sends and receives raw binary frames
   with **no framing**. A text frame from the operator closes the socket with
   `1003`. The relay rewrites an id that an operator sends; it never uses it.
+  Only the control host serves the reverse road: measured 2026-10-09, an
+  operator's `/v1/connect/<name>` on two pool hosts
+  (`tcp-eu-central-1` and `tcp-ap-south-1`) got `HTTP 503: reverse:
+  unavailable`, while the control host carried the session. So a resumed
+  session (T-153) comes back through the control host, by each of its
+  addresses (pins, the resolver, DNS over HTTPS), never through the pool.
 - One node socket for each name; a second one gets `409`.
   `POST /v1/stop/<name>` stops the node and its sessions. It was seen to
   answer `{"stopped": false}` and still destroy the credentials, so treat

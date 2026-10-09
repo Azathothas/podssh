@@ -7,11 +7,16 @@
 use std::io::Write;
 
 use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome, Wire};
+use podssh_ws::client::ConnectError;
 use podssh_ws::dial::ProxyChoice;
 
 use crate::exitmap::Fault;
+use crate::layered::{Carried, Line};
 use crate::pairs;
 use crate::relay_settings::Refusal;
+
+/// Each direction of the pipe between the layer and the leg.
+const PIPE: usize = 256 * 1024;
 
 /// What `podssh operator` was asked to do.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -51,12 +56,32 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
         wire: Wire::Tls,
     };
     let io = tokio::io::join(tokio::io::stdin(), tokio::io::stdout());
-    let ran = runtime.block_on(operator::run(&config, io));
+    // stdout carries the session's bytes alone: each line goes to stderr.
+    let say = |line: Line| {
+        if let Line::Always(text) = line {
+            eprintln!("podssh operator: {label}: {text}");
+        }
+    };
+    // stdin and stdout <-> the resumable layer <-> the operator's leg, a new
+    // leg after each lost one when the node offers the layer (T-153).
+    let ran = runtime.block_on(async {
+        let (link, leg_end) = tokio::io::duplex(PIPE);
+        let first = operator::start(&config, leg_end).await?;
+        Ok::<_, ConnectError>(crate::layered::carry(&config, link, first, io, &say).await)
+    });
     // A read on stdin may still be blocked in a helper thread; the session
     // has ended, so it is not waited for.
     runtime.shutdown_background();
     match ran {
-        Ok(outcome) => finish(&label, &outcome, err),
+        Ok(Carried { why: Some(why), .. }) => {
+            let _ = writeln!(err, "podssh operator: {label}: {why}");
+            Fault::SessionFault.code()
+        }
+        Ok(Carried { why: None, leg: Some(outcome) }) => finish(&label, &outcome, err),
+        Ok(Carried { why: None, leg: None }) => {
+            let _ = writeln!(err, "podssh operator: {label}: the relay did not end the session in time");
+            Fault::RelayUnreachable.code()
+        }
         Err(e) => pairs::connect_refusal(&e, &label).report("operator", err),
     }
 }

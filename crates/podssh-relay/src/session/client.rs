@@ -12,12 +12,9 @@ use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-use std::sync::{Arc, Mutex};
-
 use super::decode::{DecodeError, Decoder};
 use super::handshake::{Ask, ClientHandshake, Established, HandshakeError, Step};
-use super::link::Link;
-use super::pump::{self, Ended};
+use super::pump::{self, Carry, Ended};
 use super::record::{kind, Record, Role};
 use super::secret::{Entropy, SessionId};
 use super::Settings;
@@ -96,6 +93,15 @@ pub struct Client<L> {
     settings: Settings,
 }
 
+/// A client taken apart, for the session across links.
+pub(crate) struct Parts<L> {
+    pub(crate) link: L,
+    pub(crate) found: Found,
+    pub(crate) early: Vec<u8>,
+    pub(crate) layer: Option<(Decoder, Box<Established>)>,
+    pub(crate) settings: Settings,
+}
+
 /// Wait for the far end's first byte. A `GREETING` starts the handshake for
 /// `ask`, and `OPEN` goes out after it; anything else means no layer.
 pub async fn start<L>(
@@ -136,8 +142,9 @@ where
     Ok(Client { link, found, early: Vec::new(), layer: Some((decoder, established)), settings })
 }
 
-/// The handshake, from the far end's first bytes on.
-async fn shake<L>(
+/// The handshake, from the far end's first bytes on: `open` goes out after
+/// the far end's first record, its `GREETING`.
+pub(crate) async fn shake<L>(
     link: &mut L,
     decoder: &mut Decoder,
     mut handshake: ClientHandshake,
@@ -171,7 +178,7 @@ where
     }
 }
 
-async fn send<L: AsyncWrite + Unpin>(link: &mut L, record: &Record) -> Result<(), ClientError> {
+pub(crate) async fn send<L: AsyncWrite + Unpin>(link: &mut L, record: &Record) -> Result<(), ClientError> {
     let bytes = record.to_bytes().map_err(|e| ClientError::Io(std::io::Error::other(e)))?;
     link.write_all(&bytes).await.map_err(ClientError::Io)?;
     link.flush().await.map_err(ClientError::Io)
@@ -194,6 +201,15 @@ where
         &self.found
     }
 
+    pub(crate) fn into_parts(self) -> Parts<L> {
+        Parts { link: self.link, found: self.found, early: self.early, layer: self.layer, settings: self.settings }
+    }
+
+    pub(crate) fn from_parts(parts: Parts<L>) -> Client<L> {
+        let Parts { link, found, early, layer, settings } = parts;
+        Client { link, found, early, layer, settings }
+    }
+
     /// The session's id and secret, which a resume needs (T-153). Never for
     /// a message.
     pub fn established(&self) -> Option<&Established> {
@@ -208,8 +224,11 @@ where
         let Client { mut link, early, layer, settings, .. } = self;
         match layer {
             Some((decoder, established)) => {
-                let state: Arc<Mutex<Link>> = Arc::new(Mutex::new(settings.link(&established)));
-                Outcome::Layer(pump::run(app, link, decoder, state).await)
+                let mut carry = Carry::new(settings.link(&established));
+                let ended = pump::run(&mut app, link, decoder, &mut carry, None).await;
+                // The application learns that no more bytes come.
+                let _ = app.shutdown().await;
+                Outcome::Layer(ended)
             }
             None => {
                 if let Err(e) = app.write_all(&early).await {

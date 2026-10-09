@@ -19,13 +19,13 @@
 //! the bytes secret and whole. What the layer refuses is a passive reader of
 //! the relay's logs taking a session over.
 
-use std::collections::HashMap;
 use std::fmt;
 
 use super::record::{Acceptance, Hello, Opening, Record, RefuseCode, Role, VERSION};
 use super::secret::{
     derive, prove, verify, Claim, Entropy, Exchange, KeyPair, NoRandom, Nonce, Prover, Secret, SessionId, ID_LEN,
 };
+use super::sessions::Sessions;
 
 /// Why a handshake failed at this end.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -265,60 +265,6 @@ fn accepted(
     }
 }
 
-/// A session that a far end keeps: its secret and its received offset.
-struct Kept {
-    secret: Secret,
-    received: u64,
-}
-
-/// The sessions that a far end keeps, by id. A session stays after its link
-/// ends, so that a client can resume it (T-153 adds the deadline).
-#[derive(Default)]
-pub struct Sessions {
-    kept: HashMap<SessionId, Kept>,
-}
-
-impl Sessions {
-    pub fn new() -> Sessions {
-        Sessions::default()
-    }
-
-    pub fn len(&self) -> usize {
-        self.kept.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.kept.is_empty()
-    }
-
-    pub fn contains(&self, id: &SessionId) -> bool {
-        self.kept.contains_key(id)
-    }
-
-    /// The far end's received offset of a session.
-    pub fn received(&self, id: &SessionId) -> Option<u64> {
-        self.kept.get(id).map(|kept| kept.received)
-    }
-
-    /// The far end now has each byte of the session below `offset`.
-    pub fn set_received(&mut self, id: &SessionId, offset: u64) {
-        if let Some(kept) = self.kept.get_mut(id) {
-            kept.received = offset;
-        }
-    }
-
-    /// Forget a session: its secret is wiped, and no client can resume it.
-    pub fn remove(&mut self, id: &SessionId) -> bool {
-        self.kept.remove(id).is_some()
-    }
-}
-
-impl fmt::Debug for Sessions {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Sessions({} kept)", self.kept.len())
-    }
-}
-
 enum FarState {
     /// `GREETING` is out; waiting for `OPEN`.
     Greeted,
@@ -381,7 +327,7 @@ impl FarHandshake {
                 }
             }
             (FarState::Proving { id, client }, Record::Proof { offset, proof }) => {
-                let Some(kept) = sessions.kept.get(&id) else {
+                let (Some(secret), Some(received)) = (sessions.secret(&id), sessions.received(&id)) else {
                     let error = HandshakeError::Unexpected("a resume of a session that ended");
                     return Ok(refuse(RefuseCode::UNKNOWN_SESSION, "no such session here", error));
                 };
@@ -392,16 +338,15 @@ impl FarHandshake {
                     client_nonce: &client.nonce,
                     offset,
                 };
-                if !verify(&kept.secret, &claim, &proof) {
+                if !verify(secret, &claim, &proof) {
                     return Ok(refuse(RefuseCode::BAD_PROOF, "wrong proof", HandshakeError::BadProof));
                 }
-                let ours = Claim { prover: Prover::Far, offset: kept.received, ..claim };
-                let accept =
-                    Record::Accept(Acceptance::Resume { offset: kept.received, proof: prove(&kept.secret, &ours) });
+                let ours = Claim { prover: Prover::Far, offset: received, ..claim };
+                let accept = Record::Accept(Acceptance::Resume { offset: received, proof: prove(secret, &ours) });
                 let session = Established {
                     id,
-                    secret: Secret::from_bytes(*kept.secret.bytes()),
-                    received: kept.received,
+                    secret: Secret::from_bytes(*secret.bytes()),
+                    received,
                     peer_received: offset,
                     version: VERSION.min(client.version),
                     peer_role: client.role,
@@ -451,7 +396,7 @@ impl FarHandshake {
             far_public: &key.public,
         };
         let secret = derive(&exchange);
-        sessions.kept.insert(id, Kept { secret: Secret::from_bytes(*secret.bytes()), received: 0 });
+        sessions.insert(id, Secret::from_bytes(*secret.bytes()));
         let session = Established {
             id,
             secret,

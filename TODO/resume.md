@@ -303,7 +303,7 @@ talaria0101's drops); GitHub #17 and #25 (a retry by the close reason).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -363,7 +363,19 @@ Recommendation: after a loss, a node retries `409` with the backoff until the
 deadline, because the relay can still hold its old socket; a first
 registration still exits on `409` (`docs/reverse.md:19`). The alternative, an
 exit on each `409`, lost: a new node address would end each session. The
-operator confirms this change of `docs/reverse.md`.
+operator confirms this change of `docs/reverse.md`: T-261, which waits for
+Q29.
+
+Taken (2026-10-09): each session of `podssh node` runs the layer, and the
+node has no flag for an operator with no layer. podssh replaces the other
+operators of the reverse road, and both of its own (`podssh ssh node://`,
+`podssh operator`) speak the layer; a flag would carry no resume, and it
+can come when an operator needs it. Taken: the node keeps 64 MiB of replay
+buffers at most, a whole buffer for each session that it keeps (16 at the
+default of 4 MiB), so the bound of step 6 holds whatever the sessions do; a
+new session past it ends at once with the reason. Taken: the line of each
+resume gives the bytes sent again, so `-v` is not needed for them (T-152,
+step 7).
 
 ## Prove
 
@@ -377,6 +389,131 @@ way, resumes through a second fake relay host, and compares SHA-256 digests;
 after the deadline, `REFUSE` comes and the client exits 255. The policy test
 maps each close row to resume or stop; a planted policy that resumes on
 `1001 pair expired` fails it.
+
+## Correction
+
+The policy test needs the close table, which is in the feature `pair`: its
+command is `cargo test -p podssh-relay --features pair --test
+session_resume --test session_policy`. The Premise's `classify` gives
+`relay backpressure` no retry, which stays true of a session with no layer;
+with the layer, a dropped frame is a gap that a resume repairs, so the
+layer's own policy (`podssh_relay::reverse::closes::resumes`) resumes it.
+Step 5, measured 2026-10-09: two pool hosts answered an operator's
+`/v1/connect/<name>` with `HTTP 503: reverse: unavailable`, and the control
+host carried the session; a resume goes through the control host alone, by
+each of its addresses (`docs/relay.md`). The `409` of the Decision is T-261.
+By the operator's decision of 2026-10-09, the gate run and the planted
+policy wait for the checks of the release (T-251).
+
+## Done
+
+2026-10-09.
+
+- The client's session across links (`crates/podssh-relay/src/session/resume.rs`):
+  after a loss, it asks its caller for a new link, proves the secret on it,
+  and each side sends again from the other's offset; a `CLOSE`, a `REFUSE`,
+  or a close that says not to come back ends it, and else it tries with the
+  backoff of the forward opener until 10 minutes after the loss
+  (`End::GaveUp` with the reason). The far end's sessions across links
+  (`keep.rs`): a session's target and state wait after a loss until the
+  deadline; a resume stops the old link when it still runs; the received
+  offset of a resume's `ACCEPT` is read from the session's state at that
+  moment (`sessions.rs`). One link (`pump.rs`) borrows the application and
+  never shuts it on a loss, and the bytes received but not yet written stay
+  with the session, so a link that ends in a write loses none.
+- `crates/podssh-relay/src/reverse/layered.rs`: the node's far end, a handler
+  over the TCP handler: `ready` at once, the handshake, then TARGET for a new
+  session only, and the node's budget of 64 MiB. `reverse::closes::resumes`:
+  the policy of step 3 over the table's rows.
+- `crates/podssh-cli/src/layered.rs`: the client over the operator's legs,
+  for `podssh ssh node://` and `podssh operator`; one line for each loss and
+  each resume. `podssh node` runs the far end. The manual's notes of `ssh`,
+  `node` and `operator`, `docs/cli.md`, `docs/reverse.md`, `docs/relay.md`
+  and `docs/design.md` (section 5) say so.
+- Prove, native: `cargo test -p podssh-relay --features pair --test
+  session_resume --test session_policy`: 6 passed. Four cuts at random points
+  in the middle of records, while 32 MiB go each way: four losses, four
+  resumes through two stand-in hosts, and equal SHA-256 digests at both ends.
+  A loss with no new link until the far end's deadline passed: the resume
+  gets `REFUSE` (an unknown session), and the session ends with that reason;
+  with no new link at all, the client stops at its own deadline. Each row of
+  the close table resumes or stops as step 3 says. `--test reverse_layered`:
+  3 passed: a session cut twice comes back whole with one connection to
+  TARGET; an unreachable TARGET and a node past its budget end the session
+  with the reason.
+- Live, once (`cargo test -p podssh-cli --test node_live -- --ignored`):
+  GitHub's banner came through a node with the layer, and `podssh operator`
+  carried it with exit 0; `podssh ssh node://` logged in to railway.new
+  through the layer (`-v`: "the far end (a podssh node) opened resumable
+  session ef6f903b", features `replay.v1`), and railway.new then limited the
+  anonymous visitor with its exit 13 in place of `exit 3`; the test now names
+  that cause.
+- `cargo test --no-fail-fast`: 981 passed, 0 failed, 20 ignored (the live
+  tests). `python scripts/check-repo.py`: ok.
+  `cargo todo check`: the record agrees.
+- Waits for T-251, by the decision of 2026-10-09: the gate, and the planted
+  policy that resumes on `1001 pair expired`, which must fail
+  `an_expired_pair_and_a_stop_are_never_resumed` and
+  `each_row_of_the_table_resumes_or_stops`.
+
+# T-261: A node that lost its socket connects again on `409`, until the resume deadline
+
+**Source:** T-153 (its Decision: "The operator confirms this change of
+`docs/reverse.md`"); T-255 (the relay's side drops reverse sockets at
+random, with no Close).
+**Category:** feature
+**Milestone:** M6
+**Priority:** P2
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+The relay's side drops a node's socket at random (T-255). A node that
+connects again can get `409` while the relay still holds the old socket, and
+the node then exits: each session that the resumable layer keeps on it ends,
+and no client can resume it (T-153).
+
+## Premise
+
+Read: rule 6 of `docs/reverse.md:19` says "On `409` (a second socket for the
+same name), exit. Do not retry." podssh's node does so
+(`crates/podssh-relay/src/reverse/node.rs:148`), for a first registration
+and after a loss alike. T-153's Decision recommends a retry after a loss and
+leaves that change of `docs/reverse.md` to the operator.
+
+## Approach
+
+1. A node that held its socket and lost it takes `409` as a wait: it connects
+   again with `open::backoff` until the resume deadline of T-153, then exits
+   as now. A first registration still exits on `409`: another node has the
+   name.
+2. One stderr line for each `409` after a loss, with the time left.
+3. Rule 6 of `docs/reverse.md` gives both cases, and the manual's section of
+   `node` says so.
+
+## Decision
+
+Recommendation (T-153's): connect again after a loss. The alternative, an
+exit on each `409`, lost: a node whose socket the relay dropped would end
+each session that the layer keeps. The operator rules on it (Q29).
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair --test reverse_node -- conflict
+```
+
+A stand-in relay answers a node's next connection after a loss with `409`
+twice, then accepts it: the node keeps its sessions. A first connection that
+gets `409` exits as before. A planted node that exits on each `409` fails the
+test.
+
+## Blocker
+
+The operator: Q29 in `TODO/PROGRESS.md`. The change is to a rule of
+`docs/reverse.md` that T-153's Decision leaves to the operator.
 
 # T-154: Heartbeats that also prevent the relay's idle cut
 
@@ -423,7 +560,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:181-191`,
    `crates/podssh-cli/src/man/facts.rs:215-222`), the note at
-   `crates/podssh-cli/src/man/notes.rs:56`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes.rs:58`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -584,7 +721,7 @@ live session that survives a stall of 3 minutes.
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:396-416`; the two
+sandbox, before a default depends on it); `docs/design.md:412-432`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -608,7 +745,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:396-416`). A session carries 64 MiB at most, both directions
+(`docs/design.md:412-432`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:127`).
 
 ## Approach
@@ -624,7 +761,7 @@ together (`docs/relay.md:127`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:160-161`, `docs/relay.md:263-269`). Skip a
+   needs a token (`docs/relay.md:160-161`, `docs/relay.md:269-275`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.

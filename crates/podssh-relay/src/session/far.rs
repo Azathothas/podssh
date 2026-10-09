@@ -6,17 +6,17 @@
 //! handshake costs no connection to sshd (T-164).
 
 use std::fmt;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use super::decode::{DecodeError, Decoder};
-use super::handshake::{Established, FarHandshake, HandshakeError, Sessions, Step};
-use super::link::Link;
-use super::pump::{self, Ended};
+use super::handshake::{Established, FarHandshake, HandshakeError, Step};
+use super::pump::{self, Carry, Ended};
 use super::record::{Record, Role};
 use super::secret::Entropy;
+use super::sessions::Sessions;
 use super::Settings;
 
 /// How long the client may take to open or resume a session.
@@ -136,6 +136,23 @@ where
         &self.established
     }
 
+    pub(crate) fn into_parts(self) -> (L, Decoder, Box<Established>, Settings) {
+        (self.link, self.decoder, self.established, self.settings)
+    }
+
+    /// End the session at once, with `reason` in a `CLOSE` (its target could
+    /// not be reached, or the far end keeps as many sessions as it can): the
+    /// session is forgotten, and the client ends with the reason.
+    pub async fn close(self, reason: &str, sessions: &Mutex<Sessions>) {
+        let Accepted { mut link, established, .. } = self;
+        sessions.lock().unwrap_or_else(|e| e.into_inner()).remove(&established.id);
+        let close = Record::Close { reason: super::record::cut_reason(reason) };
+        if let Ok(bytes) = close.to_bytes() {
+            let _ = link.write_all(&bytes).await;
+        }
+        let _ = link.shutdown().await;
+    }
+
     /// Carry the session between the target `app` and the link until either
     /// ends. The far end's received offset goes back to `sessions`, for a
     /// resume.
@@ -144,8 +161,11 @@ where
         A: AsyncRead + AsyncWrite + Unpin + Send,
     {
         let Accepted { link, decoder, established, settings } = self;
-        let state: Arc<Mutex<Link>> = Arc::new(Mutex::new(settings.link(&established)));
-        let ended = pump::run(app, link, decoder, state).await;
+        let mut carry = Carry::new(settings.link(&established));
+        let mut app = app;
+        let ended = pump::run(&mut app, link, decoder, &mut carry, None).await;
+        // The target learns that no more bytes come.
+        let _ = app.shutdown().await;
         let mut sessions = sessions.lock().unwrap_or_else(|e| e.into_inner());
         sessions.set_received(&established.id, ended.received);
         ended

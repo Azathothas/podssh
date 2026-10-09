@@ -33,7 +33,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`, again after T-152: 972 passed, 0 failed, 20
+- `cargo test --no-fail-fast`, again after T-153: 981 passed, 0 failed, 20
   ignored (the live tests).
 - `cargo test -p podssh-relay --all-features --no-fail-fast`: 110 passed, 0
   failed, 14 ignored (the live tests).
@@ -47,7 +47,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 257 entries: 160 open, 0 partial, 8 blocked, 89 done.
+`TODO/INDEX.md` holds 258 entries: 159 open, 0 partial, 9 blocked, 90 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -69,7 +69,8 @@ its run before the tag), and last T-250 (the one release). Between milestone
 entries: the `none` entries of `TODO/repo.md`, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
-`blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253 and T-255.
+`blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253 and T-255;
+and T-261, which waits for the operator's answer to Q29.
 
 ## Parked open work
 
@@ -85,12 +86,20 @@ it can start.
 
 ## Questions for the operator
 
-None is open. The operator ruled on the questions of the triage (Q1 to Q12)
-and of the unattended session (Q13 to Q28) on 2026-10-08; the rulings are in
+The operator ruled on the questions of the triage (Q1 to Q12) and of the
+unattended session (Q13 to Q28) on 2026-10-08; the rulings are in
 `docs/decisions.md`. A new question goes here, with its number, the entries
 that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
+
+- **Q29 (2026-10-09, blocks T-261).** The relay's side drops a node's socket
+  at random (T-255), and a node that connects again can get `409` while the
+  relay still holds the old one. Rule 6 of `docs/reverse.md` says to exit
+  on `409`, which ends each session that the resumable layer keeps (T-153).
+  May a node that lost its socket connect again on `409`, with the backoff,
+  until the resume deadline (10 minutes), while a first registration still
+  exits on `409`? Recommendation: yes (T-153's Decision).
 
 ## Operator actions
 

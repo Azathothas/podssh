@@ -185,7 +185,7 @@ usable shell through `podssh serve`.
 | A stuck write | Fails after 60 s |
 | The relay's idle cut | Keepalives every 60 s keep the session (MEASURED: 602 s with keepalives; cut at 184 s without) |
 | The relay's limits (12 h, 64 MiB) | The session ends, with the reason |
-| A dropped connection | The session ends; `ssh` prints the relay's reason and exits 255. `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136) |
+| A dropped connection | On the forward road, the session ends; `ssh` prints the relay's reason and exits 255. `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136). To a node (`ssh node://`, `operator`), the resumable layer carries the session onto a new link, for 10 minutes (T-153) |
 | A changed client address | The session is lost |
 
 The relay has no resumption on either path (READ, in the relay's source and
@@ -310,9 +310,25 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   and any other byte, or none, means no layer. The bytes then pass as they
   are, and `-v` says so.
 
-Measured 2026-10-09: `podssh ssh node://` runs the client's end. No node
-speaks the layer yet (T-153 makes the node a far end that keeps its
-sessions), so each session to a node runs with no layer, as before.
+- **Across links** (T-153). The client resumes after each loss but a
+  `CLOSE`, a `REFUSE`, and a relay close that a new link would only get
+  again (a stopped or expired pair, a fault of podssh's own bytes:
+  `podssh_relay::reverse::closes::resumes`). It tries a new link with the
+  backoff of the forward opener, until 10 minutes after the loss; the far end
+  keeps the session and its target as long, then forgets it, and a late
+  resume gets `REFUSE` (1, an unknown session). A resume can come while the
+  far end still runs the old link: the old link stops, and the new one goes
+  on from the client's offset. Bytes received but not yet written to the
+  application stay with the session, so a link that ends in a write loses
+  none.
+
+Measured 2026-10-09: `podssh node` runs the far end for each session, and
+`podssh ssh node://` and `podssh operator` run the client. A node keeps 64
+MiB of replay buffers at most, a whole buffer for each session that it
+keeps, and dials its target only after a session's handshake. Through the
+live relay, a node in front of `github.com:22` carried GitHub's banner
+through the layer to `podssh operator`, and `podssh ssh node://` logged in
+through it.
 
 ## 6. socat and tailcat
 

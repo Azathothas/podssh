@@ -4,14 +4,12 @@
 //! name the node so: a name that no DNS name can be.
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome as LegOutcome, Wire};
-use podssh_relay::session::client::Outcome;
-use podssh_relay::session::{self, End, OsEntropy};
 use podssh_ssh::{Log, EXIT_FAILURE};
 use podssh_ws::{ProxyChoice, Trust};
-use tokio::io::DuplexStream;
+
+use crate::layered::Line;
 
 use super::args::SshArgs;
 use super::resolve::{Env, Transport};
@@ -21,9 +19,6 @@ pub const SCHEME: &str = "node://";
 
 /// Each direction of the pipe between the SSH client and the leg.
 const PIPE: usize = 256 * 1024;
-/// How long the leg may take to end after the SSH client: its Close and the
-/// relay's answer.
-const LEG_END: Duration = Duration::from_secs(12);
 
 /// `node://[user@]NAME` as the user and NAME; `None` for each other
 /// destination. `node:NAME`, with no slashes, is a host named `node`.
@@ -114,7 +109,8 @@ pub(super) async fn connect(
         wire: Wire::Tls,
     };
     log.verbose(&format!("connecting to {shown} through the relay {}", part.relay.host));
-    // SSH <-> the resumable layer <-> the operator's leg.
+    // SSH <-> the resumable layer <-> the operator's leg, a new leg after
+    // each lost one when the node offers the layer (T-153).
     let (ssh_end, layer_end) = tokio::io::duplex(PIPE);
     let (link_end, leg_end) = tokio::io::duplex(PIPE);
     let leg = match operator::start(&config, leg_end).await {
@@ -124,50 +120,23 @@ pub(super) async fn connect(
             return EXIT_FAILURE;
         }
     };
-    let layer = tokio::spawn(layer(link_end, layer_end, log.clone(), shown.clone()));
-    let code = podssh_ssh::run(ssh_end, opts, None, log.clone()).await;
-    // The client has closed its end; the leg sends its Close and waits for
-    // the answer, so the relay ends the session cleanly.
-    let (layer, ended) = tokio::join!(tokio::time::timeout(LEG_END, layer), tokio::time::timeout(LEG_END, leg));
+    let say = |line: Line| match line {
+        Line::Always(text) => log.info(&format!("{shown}: {text}")),
+        Line::Verbose(text) => log.verbose(&format!("{shown}: {text}")),
+    };
+    // The SSH client and the layer in one task: when the client closes its
+    // end, the layer sends `CLOSE`, and the last leg its Close.
+    let (code, carried) = tokio::join!(
+        podssh_ssh::run(ssh_end, opts, None, log.clone()),
+        crate::layered::carry(&config, link_end, leg, layer_end, &say)
+    );
     if code == EXIT_FAILURE {
-        let why = match (layer, ended) {
-            (Ok(Ok(Some(why))), _) => Some(why),
-            (_, Ok(Ok(outcome))) => explain(&outcome),
-            _ => None,
-        };
+        let why = carried.why.or_else(|| carried.leg.as_ref().and_then(explain));
         if let Some(why) = why {
             log.error(&format!("{shown}: {why}"));
         }
     }
     code
-}
-
-/// The resumable layer between the SSH client and the leg (T-151). The
-/// client sends nothing until the node's first byte: a node that greets
-/// with the layer gets it, and any other far end gets the bytes as they
-/// are. What it says of a session that failed, when the leg cannot say it
-/// better.
-async fn layer(link: DuplexStream, ssh: DuplexStream, log: Arc<Log>, shown: String) -> Option<String> {
-    let settings = session::Settings {
-        replay_capacity: session::replay::capacity(std::env::var(session::replay::CAPACITY_ENV).ok().as_deref()),
-        ..session::Settings::default()
-    };
-    let client = match session::client::start(link, session::Ask::New, settings, &mut OsEntropy).await {
-        Ok(client) => client,
-        Err(e) => return Some(e.to_string()),
-    };
-    log.verbose(&format!("{shown}: {}", client.found()));
-    match client.run(ssh).await {
-        Outcome::Plain(_) => None,
-        Outcome::Layer(ended) => match ended.end {
-            End::Closed(reason) if !reason.is_empty() => {
-                Some(format!("the far end ended the session: {}", podssh_ws::text::one_line(&reason)))
-            }
-            End::Broken(e) => Some(e.to_string()),
-            // The leg's close code and reason say more of a lost link.
-            End::Closed(_) | End::LocalEnd | End::Lost(_) => None,
-        },
-    }
 }
 
 /// What the leg says of a session that failed; nothing for a normal end.

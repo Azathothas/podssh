@@ -106,8 +106,11 @@ fn node_command_serves_a_tcp_target() {
     let name = part["name"].as_str().unwrap().to_string();
     let token = part["connect_token"].as_str().unwrap().to_string();
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-    let (banner, outcome) = runtime.block_on(async {
-        let (io, mut user) = tokio::io::duplex(64 * 1024);
+    // The node greets with the resumable layer (T-153): its client goes
+    // between the reader and the operator's leg, as in `podssh operator`.
+    let (banner, carried) = runtime.block_on(async {
+        let (app, mut user) = tokio::io::duplex(64 * 1024);
+        let (link, leg_end) = tokio::io::duplex(64 * 1024);
         let config = OperatorConfig {
             relay: &relay,
             name: &name,
@@ -118,6 +121,7 @@ fn node_command_serves_a_tcp_target() {
             limits: OperatorLimits::default(),
             wire: Wire::Tls,
         };
+        let first = operator::start(&config, leg_end).await.expect("the operator's socket");
         let read = async move {
             let mut got = Vec::new();
             let mut byte = [0u8; 1];
@@ -131,12 +135,16 @@ fn node_command_serves_a_tcp_target() {
             let _ = user.shutdown().await;
             got
         };
-        let (outcome, banner) = tokio::join!(tokio::time::timeout(LIMIT, operator::run(&config, io)), read);
-        (banner, outcome)
+        let say = |_: podssh_cli::layered::Line| {};
+        let carry = podssh_cli::layered::carry(&config, link, first, app, &say);
+        let (carried, banner) = tokio::join!(tokio::time::timeout(LIMIT, carry), read);
+        (banner, carried)
     });
-    let outcome = outcome.expect("the session in time").expect("the operator's socket");
+    let carried = carried.expect("the session in time");
+    let outcome = carried.leg.expect("the leg's end");
     eprintln!("through the node: {}; {outcome:?}", String::from_utf8_lossy(&banner).trim_end());
     assert!(banner.starts_with(b"SSH-2.0-"), "{:?}", String::from_utf8_lossy(&banner));
+    assert_eq!(carried.why, None);
     assert!(matches!(outcome, Outcome::LocalEnd | Outcome::Ended { code: 1000, .. }), "{outcome:?}");
 
     let (rc, out, err) = run(&home, &["relay", "status", "lab"]);
@@ -217,7 +225,15 @@ fn ssh_to_a_node() {
             "exit 3",
         ],
     );
-    // Withheld: railway.new's words hold a claim URL.
+    // Withheld: railway.new's words hold a claim URL. Measured 2026-10-09:
+    // railway.new can answer an anonymous visitor with its limit instead of
+    // running the command; the login through the node then worked, and the
+    // check cannot be made.
+    assert!(
+        !out.contains("visitors are limited"),
+        "railway.new limited this anonymous visitor (its exit {rc}): the login through the node worked, but \
+         `exit 3` did not run; try again later"
+    );
     assert_eq!(rc, 3, "the remote status through the node ({} bytes out, {} bytes err)", out.len(), err.len());
     let recorded = std::fs::read_to_string(&known).expect("a host key recorded");
     assert!(recorded.starts_with("node://lab "), "the host key is recorded under node://lab");
