@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**255 entries: 177 open, 0 partial, 8 blocked, 70 done.**
+**255 entries: 176 open, 0 partial, 8 blocked, 71 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
 | P2 | 91 | 0 | 4 | 52 | 147 |
-| P3 | 84 | 0 | 4 | 10 | 98 |
-| **All** | 177 | 0 | 8 | 70 | 255 |
+| P3 | 83 | 0 | 4 | 11 | 98 |
+| **All** | 176 | 0 | 8 | 71 | 255 |
 
 ## Entries
 
@@ -329,4 +329,4 @@ repository and CI).
 | [T-255](relay.md) | P2 | M | M4 | measurement | blocked | The relay's side drops reverse sockets at random, with no Close |
 | [T-256](reverse.md) | P2 | S | M4 | defect | done | A local side that does not read stops every session of the node |
 | [T-257](ssh.md) | P2 | M | backlog | defect | open | An RSA user key signs through the `rsa` crate, which is open to a timing attack |
-| [T-258](repo.md) | P3 | S | none | defect | open | Line numbers written as plain text in the record are not moved |
+| [T-258](repo.md) | P3 | S | none | defect | done | Line numbers written as plain text in the record are not moved |

@@ -118,6 +118,13 @@ The checker tests that each cited line exists, and that a citation which
 quotes its line (`` `FILE:N` says "TEXT" ``) holds that text there. Quote the
 lines that a claim depends on.
 
+A line number goes into a citation, never into plain text after one: write
+`FILE:N`, or a bare `:N` after a citation of FILE in its paragraph, which
+`remap` moves and the checker reads in that file. A reading of an earlier
+tree says so: "line N at `COMMIT`", or a paragraph that reads at a named
+commit ("Read, at `COMMIT`: ..."). The checker finds a plain "line N" after
+a citation (T-258).
+
 ## 3. Decisions that are not discussed again
 
 - The milestone order: M3, then M4, M5 and M6

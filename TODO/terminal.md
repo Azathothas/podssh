@@ -425,7 +425,7 @@ on it. podssh cannot select a behaviour without that fact.
   `crates/podssh-ssh/src`. With no remote pty, the local terminal stays in
   its normal mode (`docs/terminal.md:24`), so Ctrl-C stops podssh itself.
 - Read: the russh client has `Channel::signal`
-  (`Eugeny/russh:russh/src/channels/mod.rs`, line 244), so a test can send
+  (`Eugeny/russh:russh/src/channels/mod.rs`, line 244 at `22c3b88`), so a test can send
   the request. `podssh serve` will act on it (T-108).
 
 ## Approach

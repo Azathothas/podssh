@@ -36,15 +36,15 @@ and `CARGO_BUILD_JOBS=4`:
 - `cargo test -p podssh-relay --all-features --no-fail-fast`: 110 passed, 0
   failed, 14 ignored (the live tests).
 - `sh scripts/dev.sh check` (after T-082): green; interop 103 of 103.
-- `cargo test -p podssh-todo`: 65 passed: 12 unit tests, 34 plant tests (33
-  planted disagreements and the control), 11 tests of the remap, 7 tests of
+- `cargo test -p podssh-todo`: 71 passed: 15 unit tests, 37 plant tests (35
+  planted disagreements and two controls), 11 tests of the remap, 7 tests of
   the writer, and the test of this record.
 - `cargo todo check`: the record agrees. `python scripts/check-repo.py`: ok.
 - `cargo clippy -p podssh-todo --all-targets -- -D warnings`: no warning.
 
 ## Counts
 
-`TODO/INDEX.md` holds 255 entries: 177 open, 0 partial, 8 blocked, 70 done.
+`TODO/INDEX.md` holds 255 entries: 176 open, 0 partial, 8 blocked, 71 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

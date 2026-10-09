@@ -30,6 +30,7 @@ pub fn check(root: &Path, r: &Record, p: &mut Vec<Problem>) {
         }
         if rel.starts_with("TODO/") {
             citations(root, &rel, &text, p);
+            crate::numbers::check(root, &rel, &text, p);
         }
     }
     work_order(r, &status, p);

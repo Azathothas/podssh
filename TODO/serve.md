@@ -26,7 +26,7 @@ core: the handshake, a host key that does not change, and key authentication.
   prints "unknown subcommand 'serve'" and exits 64.
 - Read: no source in `crates/` uses `russh::server`. russh 0.64.1 builds its
   server module on each target except wasm, with no feature
-  (`Eugeny/russh:russh/src/lib_inner.rs`, lines 69-70), so
+  (`Eugeny/russh:russh/src/lib_inner.rs`, lines 69-70 at `22c3b88`), so
   `crates/podssh-ssh/Cargo.toml:18` has it. `run_stream` serves one
   connection over any stream, as `crates/podssh-ssh/src/run.rs:31-36` does.
   To reuse: `crates/podssh-ssh/src/keygen.rs:60-130` (a key, mode 0600, never
@@ -387,7 +387,7 @@ default since OpenSSH 9.0), need an SFTP subsystem on the server.
   `docs/ROADMAP.md:189` names `russh-sftp` for the client and the server.
 - Read: russh gives a channel as a byte stream (`Channel::into_stream`), and
   `subsystem_request` must answer (`Eugeny/russh:russh/src/server/mod.rs`,
-  lines 686-696).
+  lines 686-696 at `22c3b88`).
 - Read: the client reaches an SFTP subsystem already: `-s sftp` gets
   `SSH_FXP_VERSION` from OpenSSH's `sftp-server` (`scripts/interop.sh:220-227`).
 - Read in the report of GitHub #20, not verified here: tty7 issue #1126 is an
@@ -707,7 +707,7 @@ a restart ends each session on it (`docs/design.md:191-194`).
 - Read: the client ends its session properly on SIGTERM and SIGHUP
   (`crates/podssh-ssh/src/io.rs:229-262`). The server has no such handling.
 - Read: russh can end a connection with a reason: `Handle::disconnect`
-  (`Eugeny/russh:russh/src/server/session.rs`, line 457).
+  (`Eugeny/russh:russh/src/server/session.rs`, line 457 at `22c3b88`).
 - Read: in `--stdio` mode one process serves one connection. The node mode
   (`podssh serve NAME`, after T-079) serves many, so a reload matters there.
 
@@ -1108,7 +1108,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   listening off. The rules still say that podssh never listens
   (`AGENTS.md:178-183`, `docs/architecture.md:101-108`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
-  (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010). doctor binds a
+  (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
   TCP and an AF_UNIX socket to test the host, and closes them at once
   (`crates/podssh-cli/src/doctor/unix.rs:137-188`).
 - Read in the report of GitHub #18, not verified here: sandhole can take SSH

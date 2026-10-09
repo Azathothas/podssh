@@ -102,7 +102,7 @@ Read:
   `actions/download-artifact@v8` (`.github/workflows/release.yml:125`) and
   `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:82`).
 - The build image is a variable in two workflows and in a shell script
-  (`.github/workflows/build.yml` line 15, `.github/workflows/release.yml` line 23 and
+  (`.github/workflows/build.yml` line 15 at `19ca632`, `.github/workflows/release.yml` line 23 at `19ca632` and
   `scripts/dev.sh` line 60 at `e1ba5ba`). Dependabot's docker ecosystem reads the `FROM` lines
   of Dockerfiles, not such variables (from GitHub's documentation as known;
   to verify).
@@ -343,8 +343,8 @@ Read:
 2. Move the Windows transport into one file that `scripts/dev.sh` sources
    (proposed: scripts/dev-wsl.sh, directly in `scripts/`): the tool settings,
    `EXCLUDES` with its comments, `run_in_image`, the PowerShell bridge, `b64`,
-   `preflight`, `wt`, `win_path` and `scratch_file` (lines 48-300 and
-   352-377). Source it after the self-location (lines 37-46). Keep each
+   `preflight`, `wt`, `win_path` and `scratch_file` (lines 48-300 at `22c3b88` and
+   352-377). Source it after the self-location (lines 37-46 at `22c3b88`). Keep each
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
@@ -357,7 +357,7 @@ Read:
 
 Pitfalls: keep the new file directly in `scripts/`, so the dash loop of CI
 reads it. `.gitattributes` gives it LF. The lock and its trap stay in
-`scripts/dev.sh` (lines 540-559).
+`scripts/dev.sh` (lines 540-559 at `22c3b88`).
 
 ## Prove
 
@@ -670,8 +670,8 @@ Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
   `SHA256SUMS` and publishes them (`.github/workflows/release.yml:23-169`).
-  The workflow has `contents: read` (lines 19-20); `publish` adds
-  `contents: write` (lines 112-113).
+  The workflow has `contents: read` (`:19-20`); `publish` adds
+  `contents: write` (`:118-119`).
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
@@ -685,7 +685,7 @@ Read:
    each binary with `actions/attest-build-provenance`, pinned by commit SHA,
    for a tag `v*` only. Give these jobs `id-token: write` and
    `attestations: write`. A run by hand makes no attestation.
-2. Tell the user how to check, in `README.md` (lines 46-47) and in the
+2. Tell the user how to check, in `README.md` (`:46-47`) and in the
    release notes: `gh attestation verify FILE --repo Azathothas/podssh`.
 3. Let `podssh --version` name the commit: the workflows set a variable at
    compile time (`option_env!`, no build script, no `git` call); a local build
@@ -732,7 +732,7 @@ Read:
   `sha256sum`, and `.github/workflows/release.yml:153-169` publishes it with
   the binaries. No signature is published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81). `README.md:46-47` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:87`). `README.md:46-47` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -1532,7 +1532,7 @@ Read:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
   (`.github/workflows/release.yml:52-59`), `dumpbin /dependents` on Windows
-  (lines 86-101).
+  (`:92-107`).
 - The binary needs a C compiler for aws-lc (`docs/development.md:11-13`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
@@ -1667,7 +1667,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 Read:
 
 - `scripts/check-repo.py:91`: the size check walks `crates/` with `rglob`; a
-  missing directory yields nothing. (#33 cites line 56; the walk is at 57
+  missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
   endings have no floor either.
@@ -1766,7 +1766,7 @@ is not a listener.
 call; `scripts/plant.sh` plants C and C++ only.
 
 Measured with grep over `git ls-files 'crates/*'`: three files hold a
-listener or a bind. `crates/podssh-cli/src/doctor/unix.rs:151` and line 226
+listener or a bind. `crates/podssh-cli/src/doctor/unix.rs:151` and line 226 at `22c3b88`
 are the bind probes of `doctor`, which close at once and never listen
 (`crates/podssh-cli/src/doctor/mod.rs:15-16`). The test servers are in
 `crates/podssh-ws/tests/dial.rs:80` and
@@ -1883,7 +1883,7 @@ Measured with Python over the tracked files outside `vendor/`:
   63 files name a work item of an earlier session (E02, E16).
 
 Read, names of files that do not exist: docs/spec/06-cli.md
-(`crates/podssh-cli/src/flags.rs:3`, lines 12 and 372-374, and four more
+(`crates/podssh-cli/src/flags.rs:3`, `:12` and `:402-404`, and four more
 files); docs/TODO/cli/surface.md (`crates/podssh-cli/src/flags.rs:103`,
 `crates/podssh-cli/src/suggest.rs:9`); docs/TODO/protocol/ssh-core.md
 (`crates/podssh-terminal/src/window.rs:42-44`); docs/spec/01-relay-protocol.md
@@ -2056,7 +2056,7 @@ Read:
 - `.gitignore` (lines 16-18) keeps a root `/agents.md` out of git, as "a
   lowercase duplicate of AGENTS.md created by the filesystem".
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
-  with no word (`crates/podssh-todo/src/refs.rs:42-47`). It accepts
+  with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
   container (`scripts/gate.sh:191-198`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
@@ -2231,7 +2231,7 @@ starts the work from a false premise.
 
 ## Premise
 
-- Read: `citations` (`crates/podssh-todo/src/refs.rs:93-136`) tests that the
+- Read: `citations` (`crates/podssh-todo/src/refs.rs:94-137`) tests that the
   path exists with its exact case, and that the last line is not past the end
   of the file. It does not test what the line says.
 - Measured on 2026-10-08: a script outside the repository moved the
@@ -2393,7 +2393,7 @@ check` must exit 1 and name each citation of it, and exit 0 again when the file 
   `check_with`, which runs `remap` without writing and reports each citation that would move:
   "cites FILE N -> M, as FILE changed since HEAD: run `cargo todo remap FILE`".
 - `crates/podssh-todo/src/refs.rs`: a citation whose range ends before it starts, or that names
-  line 0, is a problem; two plant tests.
+  line 0 at `4e817d7`, is a problem; two plant tests.
 - `TODO/RULES.md` (citations), `docs/development.md` (checks) and the rows of `podssh-todo` and of
   the work record in `docs/STATUS.md` say so.
 - Prove: `cargo test -p podssh-todo --test remap -- an_edit_with_no_remap_is_found_by_the_check`:
@@ -2415,7 +2415,7 @@ moved each citation in backticks, and none written as plain text.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2452,3 +2452,43 @@ cargo todo check
 ```
 
 Both pass, and the plant is found.
+
+## Correction
+
+2026-10-09: over the whole of `TODO/`, the check finds 119 numbers in plain
+text after a citation, not 42; the scan of the Premise read the Rust files
+that T-215 changed only. And a bare `:N` was moved by `remap` but read by
+no check: `citation` takes a span that starts with `:` for no citation. The
+check reads it now, in the file that the last citation of its paragraph
+names, as `remap` does.
+
+## Done
+
+2026-10-09, in the commit "The record's checker finds a line number in plain
+text after a citation, and reads each bare :N".
+
+- `crates/podssh-todo/src/numbers.rs`: in each paragraph of `TODO/`, a
+  "line N" or "lines N-M" (also "lines 3 and 5") outside code spans and
+  quotes, after a citation, with no "at `COMMIT`" after it and no reading at
+  a named commit before it, is a problem that names the two forms. Each
+  bare `:N` names a line of the file that the last citation of its
+  paragraph names. Code spans are read as CommonMark reads them, so a span
+  of two backticks that shows a citation cites nothing.
+- The 119 numbers, rewritten by a script: each became the history form
+  "at `COMMIT`" of the commit that wrote it (the first commit whose file
+  holds its text: 92), or a bare `:N` at today's line (27), when its entry is
+  not done, its paragraph cites that one file, and each of its lines is the
+  same now as then. By hand: the four call sites of T-220, written as bare
+  numbers, are bare citations now beside the lines that moved with them.
+- `TODO/RULES.md`: the rule, with its two forms. `docs/development.md`,
+  `docs/STATUS.md` and `TODO/PROGRESS.md`: the check, and the count of the
+  checker's tests.
+- Prove: `cargo test -p podssh-todo`: 71 passed (15 unit tests, 37 plant
+  tests). `cargo todo check`: the record agrees; before the rewrite, 119
+  problems, the same 119 as the script's own scan, less one that a quote
+  over two lines holds. Plants: "line 5" after a citation is found; `:9`
+  after a citation of a file of 5 lines is found; "line 9 at `0123abc`" and
+  `:4` pass. A character of more than one byte before a number made the
+  first version panic; a test holds it now. `cargo clippy --all-targets -p
+  podssh-todo -- -D warnings`: no warning.
+

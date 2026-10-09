@@ -268,3 +268,29 @@ fn a_line_0_is_found() {
     t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/x/src/lib.rs:0`.");
     assert_found(&t, "`crates/x/src/lib.rs:0`: a range runs from line 1 or later");
 }
+
+#[test]
+fn a_plain_line_number_after_a_citation_is_found() {
+    // remap moves neither "line 5" nor its file's other numbers (T-258).
+    let t = Tree::new("plain-number");
+    t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/x/src/lib.rs:3`, and line 5.");
+    assert_found(&t, "\"line 5\" follows a citation as plain text");
+}
+
+#[test]
+fn a_bare_number_names_a_line_of_its_file() {
+    let t = Tree::new("bare-number");
+    t.plant("TODO/area.md", "Read: `crates/x/src/lib.rs:3`.", "Read: `crates/x/src/lib.rs:3` and `:9`.");
+    assert_found(&t, "`:9` after `crates/x/src/lib.rs`: crates/x/src/lib.rs has 5 lines");
+}
+
+#[test]
+fn a_reading_at_a_commit_and_a_bare_number_agree() {
+    let t = Tree::new("number-forms");
+    t.plant(
+        "TODO/area.md",
+        "Read: `crates/x/src/lib.rs:3`.",
+        "Read: `crates/x/src/lib.rs:3`, line 9 at `0123abc`, and `:4`.",
+    );
+    assert_eq!(t.problems(), Vec::<String>::new());
+}

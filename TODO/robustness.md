@@ -27,9 +27,9 @@ acceptance on rare input stays hidden. The release build aborts on a panic
 
 Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/frame.rs:113`); HTTP heads and chunked bodies
-(`crates/podssh-ws/src/http.rs:110`, line 183); the upgrade answer
+(`crates/podssh-ws/src/http.rs:110`, line 183 at `e892b0f`); the upgrade answer
 (`crates/podssh-ws/src/handshake.rs:175`); proxy URLs, `NO_PROXY` and the
-CONNECT status (`crates/podssh-ws/src/dial.rs:49`, lines 178 and 334); close
+CONNECT status (`crates/podssh-ws/src/dial.rs:49`, lines 178 and 334 at `22c3b88`); close
 reasons (`crates/podssh-ws/src/session.rs:307`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:79`, `crates/podssh-relay/src/pool.rs:92`);
@@ -115,12 +115,12 @@ Read: `scripts/interop.sh:22-24` defines `ok`, `bad` and `skipped`, and
 `scripts/interop.sh:288-289` fails only when a check failed. With no
 `sshd.pam` in the image, the PAM check becomes `skip` and the gate stays
 green (`scripts/interop.sh:172-178`). A name carries values of the run (the
-seconds at `scripts/interop.sh:237`, the tty at line 221), so it is not a
+seconds at `scripts/interop.sh:237`, the tty at `:221`), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
-(`scripts/gate.sh:257`). The totals are typed in `docs/STATUS.md:20`, line 57
-and line 196.
+(`scripts/gate.sh:257`). The totals are typed in `docs/STATUS.md:20`, line 57 at `3cbf215`
+and line 196 at `22c3b88`.
 
 ## Approach
 
@@ -277,7 +277,7 @@ Read, the bounds today:
 
 - A frame: 262144 bytes (`crates/podssh-ws/src/frame.rs:30`, refused at lines
   180-194). A message in fragments: 16 MiB
-  (`crates/podssh-ws/src/session.rs:29`, checked at lines 240-242).
+  (`crates/podssh-ws/src/session.rs:29`, checked at lines 240-242 at `23b5d82`).
 - A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:8`), for the
   proxy (`crates/podssh-ws/src/dial.rs:18`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:124`).
@@ -439,7 +439,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 73-182 (`docs/STATUS.md:188-205`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:188-205`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:241`, enforced at
   `crates/podssh-ssh/src/run.rs:144-149`); a reply, 30 s
@@ -450,7 +450,7 @@ Read:
 
 ## Approach
 
-1. New modes in `scripts/fake-relay.py`, applied in `pump` (lines 143-210), in
+1. New modes in `scripts/fake-relay.py`, applied in `pump` (`:143-210`), in
    each direction: `delay:MS`; `jitter:MIN:MAX:SEED`, from a seeded generator,
    so that a run repeats; `rate:BYTES_PER_SECOND`, a token bucket;
    `cut:BYTES`, the TCP connection closed with no Close frame.
@@ -534,7 +534,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 
 1. Settle the client first: in the gate's container, run `command -v ssh`
    before the package line. If it is missing, add the client package to
-   `scripts/interop.sh:32`, and print its version (as line 96 does for the
+   `scripts/interop.sh:32`, and print its version (as `:97` does for the
    servers).
 2. For each call of `podssh ssh` in the matrix and in the refusals (lines
    146-196), run the stock `ssh` first, with the same server, port, key,

@@ -439,7 +439,7 @@ Read:
   (`yes`), `crates/podssh-ssh/src/hostkey.rs:75-79` (BatchMode),
   `crates/podssh-ssh/src/hostkey.rs:99-106` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:71-73`). GitHub #29
-  cites line 91, which builds the question about other key types.
+  cites line 91 at `22c3b88`, which builds the question about other key types.
 - `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:3607`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
@@ -1300,12 +1300,12 @@ comment of the field says that the limit covers the authentication too.
 Read, at `9fefff2`:
 
 - The comment says "Bound on the SSH handshake and authentication"
-  (`crates/podssh-ssh/src/options.rs` lines 202-203). The manual says "the
-  SSH handshake" only (`crates/podssh-cli/src/ssh/keywords.rs` line 28,
-  `crates/podssh-cli/src/flags.rs` lines 167-168).
+  (`crates/podssh-ssh/src/options.rs` lines 202-203 at `8d668b7`). The manual says "the
+  SSH handshake" only (`crates/podssh-cli/src/ssh/keywords.rs` line 28 at `8d668b7`,
+  `crates/podssh-cli/src/flags.rs` lines 167-168 at `8d668b7`).
 - `connect` limits `connect_stream` only
-  (`crates/podssh-ssh/src/run.rs` lines 137-159); `auth::authenticate` runs
-  with no limit (line 160 there).
+  (`crates/podssh-ssh/src/run.rs` lines 137-159 at `8d668b7`); `auth::authenticate` runs
+  with no limit (line 160 at `8d668b7` there).
 - In russh 0.64.1, an authentication request waits for its reply with no
   limit (`wait_recv_reply`), and keepalives start only after the
   authentication succeeds. So nothing ends the wait on the direct road.
@@ -1326,9 +1326,9 @@ Not measured: it needs a server that stalls.
    limit (exit 124).
 2. Limit each wait for an answer of the server with `ConnectTimeout`, at
    `9fefff2`: the `none` request (`crates/podssh-ssh/src/auth.rs` lines
-   64-68), a key (`crates/podssh-ssh/src/keys.rs` lines 73-76), an agent key
-   (line 148 there), keyboard-interactive (`crates/podssh-ssh/src/auth.rs`
-   lines 162-165 and 194) and the password (lines 214-218 there).
+   64-68), a key (`crates/podssh-ssh/src/keys.rs` lines 73-76 at `8d668b7`), an agent key
+   (line 148 at `8d668b7` there), keyboard-interactive (`crates/podssh-ssh/src/auth.rs`
+   lines 162-165 and 194 at `8d668b7`) and the password (lines 214-218 at `8d668b7` there).
 3. Do not count a local prompt: each prompt runs before its request
    (`crates/podssh-ssh/src/auth.rs:144-149`). Pitfall: an agent that asks its
    user to confirm a signature (`ssh-add -c`) runs inside the agent request.

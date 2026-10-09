@@ -69,7 +69,7 @@ server listens, and the client connects out for each connection.
    corrected the texts of the `-R` refusal (the help and the manual's note
    at `crates/podssh-cli/src/man/notes.rs:38-40`). Change the test that
    asserts the refusal (`crates/podssh-cli/tests/flag_table.rs:64-83`).
-   Update `docs/cli.md:110-124` (correct line 78) and `docs/STATUS.md`.
+   Update `docs/cli.md:110-124` (correct line 78 at `e8bbd4d`) and `docs/STATUS.md`.
 7. Pitfalls: each forwarded connection is one more outbound connection, made
    under the proxy rule of `AGENTS.md:178-183`; say so in the help. The relay's
    64 MiB and 12 h cover all the forwarded connections of a session

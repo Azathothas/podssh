@@ -453,12 +453,12 @@ also after `POST /v1/stop` (`docs/reverse.md:116-118`). A `409` from `/v1/pair` 
 Read: the forward path already follows the contract in `podssh-relay`. It mints once again after a
 `403` for a cached token that is not a policy refusal (`crates/podssh-relay/src/open.rs` lines
 236-244 and 113-117). It sends a `503` to the next host, never to the same one (the same file,
-lines 53-76, and the test at line 300).
+lines 53-76 at `4b6e917`, and the test at line 300 at `4b6e917`).
 
 ## Approach
 
 1. Keep the body: build `HttpFailure` from `ConnectError::Refused { status, body }`
-   (`crates/podssh-ws/src/client.rs` lines 117-120). Reuse `podssh_relay::open::is_policy_refusal`;
+   (`crates/podssh-ws/src/client.rs` lines 117-120 at `4b6e917`). Reuse `podssh_relay::open::is_policy_refusal`;
    do not parse the body a second way.
 2. Make the rule depend on the leg (crates/podssh-transport/src/transport.rs lines 117-127 at `e8bbd4d`):
    forward `403` that is not a policy refusal: a new `Retry::NewToken` (mint once, then stop);
@@ -554,7 +554,7 @@ but not `#`, `/` or `..` in a segment (`crates/podssh-ws/src/client.rs:68-87`).
 
 Read: the commands already check the forward path. `podssh_relay::relay::forward_path` calls
 `check_host`: letters, digits, `.`, `-` and `_`, no leading `-` or `.`, at most 253 characters
-(`crates/podssh-relay/src/relay.rs` lines 158-174), with a test of bad hosts (lines 218-226).
+(`crates/podssh-relay/src/relay.rs` lines 158-174 at `3b60753`), with a test of bad hosts (lines 218-226 at `3b60753`).
 Nothing checks a node name.
 
 Read in a local copy of podbox at `5bd8cb0` (`docs/design.md:66` names `452d792`): `validate_name`

@@ -10,6 +10,7 @@
 pub mod check;
 pub mod diff;
 pub mod model;
+pub mod numbers;
 pub mod parse;
 pub mod refs;
 pub mod remap;

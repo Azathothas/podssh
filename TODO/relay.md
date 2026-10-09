@@ -25,10 +25,10 @@ run sends that token to the first host, also when that host is of another relay 
 The file name and the `doctor` line are the reporter's measurement (GitHub #3); not measured
 here, because they need the network. Read on `3ee70dc` (the line numbers are those of
 `2da855f`): `try_host` passes the first host as the cache key (`crates/podssh-relay/src/open.rs`
-lines 218-219); `token::obtain` loads and stores by it (`crates/podssh-relay/src/token.rs` lines
+lines 218-219 at `37ace00`); `token::obtain` loads and stores by it (`crates/podssh-relay/src/token.rs` lines
 105 and 110); a 403 removes the entry under it (`crates/podssh-relay/src/open.rs` lines
 238-243). `doctor` uses and names the same key (`crates/podssh-cli/src/doctor/relay_checks.rs`
-lines 144-150). `docs/relay.md` lines 43-45 and `crates/podssh-relay/src/relay.rs` lines 36-37
+lines 144-150 at `37ace00`). `docs/relay.md` lines 43-45 at `37ace00` and `crates/podssh-relay/src/relay.rs` lines 36-37 at `37ace00`
 make the first host the key on purpose. A pool host
 gets a token only under the parent domain of the primary host, "because the token is sent to
 them" (`crates/podssh-relay/src/pool.rs:7-8`, 75-80); a list from `--relay-host` or
@@ -77,7 +77,7 @@ sh scripts/dev.sh check                   # interop-faults: the file-name check
 ```
 
 A unit test: `token_key` of a pool host is the default host; of another host, that host. In
-`scripts/interop-faults.sh`, after the failover from a host that is down (lines 77-87), with a
+`scripts/interop-faults.sh`, after the failover from a host that is down (lines 77-87 at `22c3b88`), with a
 new `XDG_CACHE_HOME`: no `relay-token-relay-dead.test*` file, and one
 `relay-token-relay-a.test*` file. Today's code is the planted defect: the check fails.
 
@@ -174,7 +174,7 @@ sh scripts/dev.sh check                                   # interop: the stand-i
 cargo test -p podssh-cli --test relay_live -- --ignored   # the live relay, on request
 ```
 
-`scripts/fake-relay.py` (it serves `/health` and the mint: lines 98-106) gets `/relays.json`,
+`scripts/fake-relay.py` (it serves `/health` and the mint: `:98-106`) gets `/relays.json`,
 `/trace` and `/llms-full.txt`. In the gate, `relay status` exits 0 with the stand-in's version;
 `relay trace` sends `X-Relay-Token`, which the stand-in requires; a HOST of `a&b` exits 64 before
 any connection. Planted defect: leave the header out; the stand-in answers 403, the test fails.
@@ -347,7 +347,7 @@ every 60 s keep a session for 602 s (`docs/STATUS.md`, "`podssh proxy`, measured
 pinned contract lists "idle sessions (180000 ms of payload inactivity; transport keepalives do
 not reset this)" among its guards
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-234`), and says that the
-reverse relay "hibernates idle sockets" (line 241). `docs/reverse.md` lines 24-29 at `cd75137`, from dropssh: the
+reverse relay "hibernates idle sockets" (line 241 at `22c3b88`). `docs/reverse.md` lines 24-29 at `cd75137`, from dropssh: the
 relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant.
 
 ## Approach
@@ -515,15 +515,15 @@ user sees nothing.
 ## Premise
 
 Read on `3ee70dc`, as the issue says: a plain `for` loop over the hosts
-(`crates/podssh-relay/src/open.rs:192-194`); `HOST_DEADLINE` 45 s (line 29), `CONNECT_TIMEOUT`
-20 s (line 25). `notes` is declared at lines 177 and 216; its four call sites are 186 (the round
-notice), 190 (into `try_host`), 198 (a failed host) and 222 (the token cache). The session
-returns with its host at line 194 (the issue says 192). The order of preference is built in
+(`crates/podssh-relay/src/open.rs:192-194`); `HOST_DEADLINE` 45 s (`:29`), `CONNECT_TIMEOUT`
+20 s (`:25`). `notes` is declared at `:180` and `:215`; its four call sites are `:189` (the
+round notice), `:193` (into `try_host`), `:201` (a failed host) and `:221` (the token cache). The session
+returns with its host at `:197` (the issue says 192). The order of preference is built in
 `crates/podssh-relay/src/relay.rs:55-73`. No `FuturesUnordered`, `JoinSet` or `join_all` is in
 `podssh-relay` or `podssh-ws`. Measured in the gate (`docs/STATUS.md`, "Faults between podssh
 and the relay, measured"): each silent-host fault costs 20 s. The issue calls rule 3 of
 `docs/architecture.md` "no option dropped silently"; it is "One outbound connection, never a
-listener" (lines 86-88), and the ruling on Q10 allows more than one for a moment.
+listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one for a moment.
 
 ## Approach
 
@@ -546,7 +546,7 @@ listener" (lines 86-88), and the ruling on Q10 allows more than one for a moment
 5. An error that each host would give (`crates/podssh-relay/src/open.rs:57-79`) still stops the
    run, and stops the other attempts.
 6. Each attempt keeps its own notes, given to `notes` in the order of the list; the round notice
-   (line 186) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
+   (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:112-235`, 323-343) and to `ONCE`
@@ -571,7 +571,7 @@ cargo test -p podssh-cli     # the flag, the variable and the manual tables
 sh scripts/dev.sh check      # interop-faults: the silent first hosts in each mode
 ```
 
-In `scripts/interop-faults.sh` (lines 77-87), the two silent-host cases fail over in less than
+In `scripts/interop-faults.sh` (lines 77-87 at `22c3b88`), the two silent-host cases fail over in less than
 5 s in `staggered` and `parallel`, and in less than 10 s in `serial`. `scripts/fake-relay.py`
 logs each mint and each Close: one mint, and a Close for each session not kept. An unknown mode
 exits 64. Planted defect: keep the first attempt that opens, whatever its place; the test with
@@ -599,12 +599,12 @@ another place.
 
 Read on `3ee70dc`: `candidate_dirs` (`crates/podssh-relay/src/cache.rs:58-73`) gives the user's
 cache directory (`LOCALAPPDATA` on Windows, else `XDG_CACHE_HOME`, else `HOME/.cache`, absolute
-paths only: lines 286-299), then `std::env::temp_dir()` with the user's tag (lines 57-58), then
-the fixed `/dev/shm` on Unix (lines 59-61), then `.podssh` in the working directory (lines
-62-64). A store falls through each directory that refuses it (lines 103-112). No variable or
+paths only: lines 286-299 at `22c3b88`), then `std::env::temp_dir()` with the user's tag (`:64-65`), then
+the fixed `/dev/shm` on Unix (`:66-68`), then `.podssh` in the working directory (lines
+62-64). A store falls through each directory that refuses it (`:148-157`). No variable or
 flag names a directory. `doctor` probes the same list and names the first that can be written
 (`crates/podssh-cli/src/doctor/host.rs:94-120`). VARIABLES and FILES give the list
-(`crates/podssh-cli/src/man/facts.rs:92`, 108-113), a test fixes its shape (lines 365-377), and
+(`crates/podssh-cli/src/man/facts.rs:92`, 108-113), a test fixes its shape (lines 365-377 at `22c3b88`), and
 the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
 
 ## Approach
@@ -625,7 +625,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:92`,
-   108-113, 122-132), the test of lines 365-377, the comment of `cache.rs`, and the `doctor`
+   108-113, 122-132), the test of lines 365-377 at `22c3b88`, the comment of `cache.rs`, and the `doctor`
    notes (`crates/podssh-cli/src/man/notes.rs:113-132`).
 
 ## Decision

@@ -121,10 +121,10 @@ Measured: `podssh man --json` exits 64 ("unknown flag '--json'"). `podssh --help
 and prints the text help, so it drops `--json` silently (T-010).
 
 Read: the data is in tables already. Commands and flags: `VERBS`
-(`crates/podssh-cli/src/flags.rs:414-441`), each row with its kind and `instead` (lines 19-47),
-and the availability (lines 443-451). Arguments: the parser
+(`crates/podssh-cli/src/flags.rs:414-441`), each row with its kind and `instead` (lines 19-47 at `22c3b88`),
+and the availability (lines 443-451 at `22c3b88`). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:199-203`). Keywords:
-`crates/podssh-cli/src/ssh/keywords.rs:25-92`, with the stated defaults (lines 99-104).
+`crates/podssh-cli/src/ssh/keywords.rs:25-92`, with the stated defaults (lines 99-104 at `22c3b88`).
 Variables: `crates/podssh-cli/src/man/facts.rs:45-109`. The files and the exit codes were text
 blocks only (`crates/podssh-cli/src/man/facts.rs` lines 100-145 and 231-271 at `332ee58`), and the blocks of the
 manual do not keep the kind and the `instead` of a flag.
@@ -409,7 +409,7 @@ Measured: `podssh ping example.org` exits 64 ("unknown subcommand 'ping'. No clo
 so none is guessed.").
 
 Read: the session pings the relay every 10 s and counts the pongs, but it measures no round
-trip (`crates/podssh-ws/src/session.rs:149-173`; the payload is a counter, line 162). `doctor`
+trip (`crates/podssh-ws/src/session.rs:149-173`; the payload is a counter, `:170`). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs:130-132`). The relay counts both directions
 against 64 MiB for each session (`docs/relay.md:120`). The stand-in relay answers pings
@@ -474,8 +474,8 @@ byte counts and no name of the relay host.
 Measured: `podssh ssh --json example.org true` exits 64 (unknown flag).
 
 Read: a session ends as `io::End` (`crates/podssh-ssh/src/io.rs:17-30`). The exit status and the
-signal are read in `handle_msg` (lines 115-131). The output goes straight to the process's
-stdout and stderr in `write_out` (lines 140-150), so nothing counts bytes. `session::run` maps
+signal are read in `handle_msg` (`:115-131`). The output goes straight to the process's
+stdout and stderr in `write_out` (`:140-150`), so nothing counts bytes. `session::run` maps
 the end to the exit code (`crates/podssh-ssh/src/session.rs:100-104`). The relay host is known
 at `crates/podssh-cli/src/ssh/mod.rs:96`, and the relay's close reason is in `RelayStatus`
 (`crates/podssh-ssh/src/relay_stream.rs:55-71`).
@@ -599,7 +599,7 @@ host, and how they ended. Each of these facts is lost when the process ends.
 Read: podssh keeps no record of a session. `-E LOGFILE` appends podssh's own messages, which is
 another purpose (`crates/podssh-cli/src/flags.rs:141-142`). The cache directories and the rules
 for private files are in `crates/podssh-relay/src/cache.rs:58-73` and 164-262. `write_private`
-replaces a whole file (lines 178-197), and no function appends to one.
+replaces a whole file (lines 178-197 at `22c3b88`), and no function appends to one.
 
 ## Approach
 

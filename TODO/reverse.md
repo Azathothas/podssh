@@ -34,16 +34,16 @@ These endpoints are on the "control host only" (`:23-24`, `:130`); no pool host 
 The lines of the files that this entry changed are those of `3632dcb`.
 
 Read: `/v1/pair` can answer `409` (pair again), and a new mint secret ends each token at once
-(`docs/relay.md` lines 188-190). `/v1/stop` once answered `{"stopped": false}` and still destroyed
-the credentials (lines 209-212 there); then the other tokens get `403 reverse: forbidden`
-(`docs/reverse.md` lines 51-52). Which token `/v1/status` accepts is not known (line 53 there); a
+(`docs/relay.md` lines 188-190 at `9811e0d`). `/v1/stop` once answered `{"stopped": false}` and still destroyed
+the credentials (lines 209-212 at `9811e0d` there); then the other tokens get `403 reverse: forbidden`
+(`docs/reverse.md` lines 51-52 at `9811e0d`). Which token `/v1/status` accepts is not known (line 53 at `9811e0d` there); a
 local copy of podbox at `5bd8cb0` says `connect_token` only
 (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`).
 
-Read: `podssh-relay` has no pairing code (`crates/podssh-relay/src/lib.rs` lines 14-21).
+Read: `podssh-relay` has no pairing code (`crates/podssh-relay/src/lib.rs` lines 14-21 at `9811e0d`).
 `https_post_json` sends fixed headers, and `https_request`, which takes headers, is private
-(`crates/podssh-ws/src/client.rs` lines 261-313). The private files of the token cache can hold a
-pair (`crates/podssh-relay/src/cache.rs` lines 126-153 and 221-240).
+(`crates/podssh-ws/src/client.rs` lines 261-313 at `9811e0d`). The private files of the token cache can hold a
+pair (`crates/podssh-relay/src/cache.rs` lines 126-153 and 221-240 at `9811e0d`).
 
 ## Approach
 
@@ -600,8 +600,8 @@ and a test reads that copy to check them (crates/podssh-transport/src/closes.rs 
    history, no line numbers. Keep the check of the close rows against the pinned copy as a test
    (T-060 decides where the copy lives).
 5. Move the examples to `podssh_relay::open`, the forward path that the commands use. Then remove
-   the crate: `Cargo.toml` lines 6, 24 and 57-60, `crates/podssh-cli/Cargo.toml` line 34, `scripts/gate.sh`
-   line 61 and `scripts/plant.sh` line 39, all at `e8bbd4d`.
+   the crate: `Cargo.toml` lines 6, 24 and 57-60 at `cd75137`, `crates/podssh-cli/Cargo.toml` line 34 at `cd75137`, `scripts/gate.sh`
+   line 61 at `9811e0d` and `scripts/plant.sh` line 39 at `cd75137`, all at `e8bbd4d`.
 6. Update in the same commit, at the lines of `e8bbd4d`: `AGENTS.md` lines 189-191 and 235,
    `docs/architecture.md` lines 82 and 99-109, `docs/development.md` lines 14-15 and 265, `docs/STATUS.md`
    lines 212, 215 and 226. The list of library crates in `docs/decisions.md` line 34 is a fact of a
@@ -1412,9 +1412,9 @@ tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
 `crates/podssh-ws/tests/signatures.rs:29-163`); the comment's `crypto_vectors.rs:192` is not one. Read: the
 issue's "rule 8" is rule 6 (`docs/architecture.md:120-122`), and its "section 2" sentence about an allowlist of
 keys is in section 7 (`docs/design.md:314-315`). Read in the report (not verified here): syq signs a grant in a
-fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 and
+fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and
 1416-1492 of `greaber/syq:src/delegation.rs`). The reporter's correction: a signed grant leaks as a token does
-(lines 11-12); signing buys scope, single use and non-repudiation, not safety after a leak.
+(lines 11-12 at `22c3b88`); signing buys scope, single use and non-repudiation, not safety after a leak.
 
 Read, what a leaked token gives today. `connect_token`: sessions to the node; an SSH server's own
 authentication still stands, but a raw TCP TARGET (T-083) has no other gate. `node_token`: an impersonated node
