@@ -420,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:379-424`): the
+5. docs/development.md, "Release builds" (`docs/development.md:396-441`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -831,14 +831,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:122-136`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:123-137`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-188` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:129`).
+  in a required property (17 properties, `docs/STATUS.md:130`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:124-128`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
@@ -865,7 +865,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:159`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:160`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -883,7 +883,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:130`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:131`,
 and the job must fail.
 
 ## Correction
@@ -905,7 +905,7 @@ platform (`.github/workflows/release.yml:71-112`).
 **Milestone:** none
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -923,7 +923,8 @@ Read:
 - `.github/workflows/release.yml:71-112`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
-- `docs/STATUS.md:230`: the default tests pass on Windows, run by hand.
+- `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
+  run by hand.
   `docs/STATUS.md:69`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
@@ -957,6 +958,15 @@ shell as its default shell, and it puts a second pseudo console between the
 script and the shell. Checks by hand only lost: the restore checks guard a
 defect of Windows that no Linux test reaches.
 
+Step 3 (2026-10-09): T-199 brings the scorer and the baseline, and it is a
+`backlog` entry, after M8; this entry is `none` work. So T-199 adds the ids
+of `scripts/interop-conpty.py` to its baseline and scores this job's output.
+Until then, `scripts/interop-conpty-msys2.py` scores its own run: each of the
+14 checks must print `ok` (a deleted check fails the count), and with the
+plant exactly the three restore checks must fail. Keeping this entry
+`partial` until T-199 lost: the job and its plant run at each push, and
+nothing of this entry would be left to do but the step that T-199 owns.
+
 ## Prove
 
 ```sh
@@ -974,10 +984,38 @@ the gate, so that each push and each pull request runs it. The release's
 Windows job still runs on `windows-latest`; this one is pinned to
 `windows-2025`, as step 1 says.
 
-The state (partial), 2026-10-09: step 1 is written (the default tests and
-`python scripts/check-repo.py` on `windows-2025`, with NASM as in the
-release). Next: its first run in CI, then the SSH server of MSYS2 for
-`scripts/interop-conpty.py` (step 2) and its plant (step 4).
+The server of step 2 is in a script, `scripts/interop-conpty-msys2.py`,
+which the job and a developer with MSYS2 run the same way. Its port is a
+free one of 127.0.0.1, not 2222, so that two runs on one machine do not
+collide. `-o UserKnownHostsFile` keeps the host key in the run's directory.
+The image `windows-2025` has MSYS2 at `C:\msys64`, not on `PATH` (its
+readme, and the run).
+
+## Done
+
+2026-10-09, in the commits "Each repository check has a floor, and fails on
+an empty tree" (the job, step 1) and "CI runs the console checks on Windows,
+against MSYS2's sshd" (steps 2, 4 and 5).
+
+- `.github/workflows/build.yml`: the job `windows` on `windows-2025`: NASM,
+  the default tests, `python scripts/check-repo.py`, the console checks
+  against MSYS2's sshd, and the same with the plant.
+- `scripts/interop-conpty-msys2.py`: installs openssh, vim, less and
+  procps-ng with pacman (`--install`), makes a user key with `podssh keygen`
+  and a host key, starts MSYS2's sshd on a free port of 127.0.0.1 for one
+  run, runs `scripts/interop-conpty.py` with `--direct`, stops the server
+  and deletes the keys. `--plant` builds a podssh whose restore of the
+  console finds nothing to restore, runs the checks with it, then puts the
+  source back and builds again.
+- `docs/development.md`: the job and the script. `docs/STATUS.md`: the rows
+  of Windows cite the CI run.
+- Step 3 goes to T-199 (Decision).
+- Prove, CI run 37882386744: `python scripts/interop-conpty-msys2.py --install
+  target/debug/podssh.exe`: 14 of 14 (33 s, pacman included); `--plant`: the
+  three restore checks failed and no other (46 s, both builds included); the
+  keys were deleted after each run. The default tests: 814 passed, 0 failed,
+  19 ignored. The run was dispatched on a branch before the commit; `main`
+  runs the same job at each push.
 
 # T-215: rustfmt and clippy in the gate
 
@@ -1431,8 +1469,8 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:164-166` states the rule with `CXX`, and
-  `docs/STATUS.md:238` records the measurement. Rule 4 of
+- `docs/development.md:165-167` states the rule with `CXX`, and
+  `docs/STATUS.md:239` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:97-103` runs the plant on each push.
@@ -1463,7 +1501,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:238`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:239`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1795,7 +1833,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:150`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:151`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.

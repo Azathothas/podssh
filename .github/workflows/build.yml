@@ -144,3 +144,12 @@ jobs:
         run: cargo test --locked --no-fail-fast
       - name: repository checks
         run: python scripts/check-repo.py
+      # podssh in a real pseudo console (interop-conpty.py), against the
+      # OpenSSH server of MSYS2 on 127.0.0.1, which the image has at
+      # C:\msys64. The keys are made for the run and deleted after it.
+      - name: the console checks against MSYS2's sshd
+        run: python scripts/interop-conpty-msys2.py --install target/debug/podssh.exe
+      # A podssh that leaves the console raw must fail the three restore
+      # checks and no other, or those checks prove nothing.
+      - name: the console checks catch a planted podssh
+        run: python scripts/interop-conpty-msys2.py --plant

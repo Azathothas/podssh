@@ -41,6 +41,7 @@ cargo test -p podssh-ws --features plain-ws --test plain_loopback   # plain ws:/
   that fails, and the remaining targets do not run.
 - The workspace builds and tests natively on Windows (MSVC) and Linux. The
   static Linux binary needs the musl target. The container gate builds it.
+  CI's job `windows` runs the default tests on `windows-2025` at each push.
 
 ## Memory
 
@@ -312,6 +313,22 @@ give:
 ```sh
 python scripts/interop-conpty.py target/debug/podssh.exe root@HOST --direct
 ```
+
+CI's job `windows` runs it at each push against the OpenSSH server of MSYS2
+on 127.0.0.1, which the runner image has at `C:\msys64`
+(`scripts/interop-conpty-msys2.py`). The user key and the host key are made
+for the run and deleted after it. A second run builds a podssh that leaves
+the console raw; it must fail the three restore checks and no other. With
+MSYS2 on a developer's machine, the same:
+
+```sh
+python scripts/interop-conpty-msys2.py target/debug/podssh.exe   # 14 of 14, or exit 1
+python scripts/interop-conpty-msys2.py --plant                   # builds the plant, then podssh again
+```
+
+`--install` first adds openssh, vim, less and procps-ng with pacman;
+`MSYS2_ROOT` names a directory other than `C:\msys64`. Exit 2 means that the
+checks did not run (no MSYS2, or the server did not start).
 
 `scripts/capture-close.py` captures the payload of a Close that the live
 relay sends, with a client of the Python standard library: bytes that podssh

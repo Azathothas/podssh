@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**255 entries: 180 open, 1 partial, 8 blocked, 66 done.**
+**255 entries: 180 open, 0 partial, 8 blocked, 67 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 92 | 1 | 4 | 50 | 147 |
+| P2 | 92 | 0 | 4 | 51 | 147 |
 | P3 | 86 | 0 | 4 | 8 | 98 |
-| **All** | 180 | 1 | 8 | 66 | 255 |
+| **All** | 180 | 0 | 8 | 67 | 255 |
 
 ## Entries
 
@@ -285,7 +285,7 @@ repository and CI).
 | [T-211](repo.md) | P2 | S | M9 | release | open | Signed checksums for each release |
 | [T-212](repo.md) | P2 | M | none | chore | open | Parallel CI, with the gate as the one source |
 | [T-213](repo.md) | P2 | M | none | chore | open | CI runs the box like the target sandbox |
-| [T-214](repo.md) | P2 | M | none | chore | partial | CI on Windows |
+| [T-214](repo.md) | P2 | M | none | chore | done | CI on Windows |
 | [T-215](repo.md) | P2 | M | none | chore | done | rustfmt and clippy in the gate |
 | [T-216](repo.md) | P2 | S | none | chore | done | Advisories and licenses of the dependencies, checked in CI |
 | [T-217](repo.md) | P3 | S | none | chore | open | The declared minimum Rust versions, checked in CI |
