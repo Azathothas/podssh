@@ -420,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:369-414`): the
+5. docs/development.md, "Release builds" (`docs/development.md:379-424`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -1092,6 +1092,20 @@ crates/podssh-transport/src/socket.rs at `e8bbd4d` is 480 (T-071);
 `crates/podssh-cli/src/dispatch.rs` is 480; `crates/podssh-ws/tests/rfc6455.rs`
 is 486. Measure again before the format.
 
+2026-10-09: the gate of CI failed at its step of clippy on the push of this
+entry (runs 37879663510 and 37880012628). The Prove ran clippy on the
+Windows host only, with Rust 1.98. clippy 1.99 of the build image found a
+loop over one element (`single_element_loop`) in
+`crates/podssh-probe/tests/relay_facts.rs`, which clippy 1.98 passed, and
+three clones made into a slice (`cloned_ref_to_slice_refs`) in
+`crates/podssh-relay/tests/cache.rs`, in a test for Unix only, which clippy
+on Windows does not compile. Repaired in the commit "clippy 1.99 of the build
+image gives no warning": the copies are a named list, filtered;
+`std::slice::from_ref`, as in the rest of that file. clippy 1.99 in the build
+image, with `--keep-going` over each target: no other warning.
+`docs/development.md` now says that the gate's clippy is the one that
+counts.
+
 ## Done
 
 2026-10-09, in the commits "The code in one format: rustfmt, 120
@@ -1417,7 +1431,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:154-156` states the rule with `CXX`, and
+- `docs/development.md:164-166` states the rule with `CXX`, and
   `docs/STATUS.md:238` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.

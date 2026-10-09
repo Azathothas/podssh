@@ -224,12 +224,9 @@ fn a_readable_document_is_checked_whatever_health_said_and_the_move_is_visible()
 fn the_facts_file_is_one_file_and_there_is_only_one() {
     // ⛔ A second copy of these numbers is the drift this exists to catch.
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().and_then(Path::parent).expect("a workspace root");
-    let mut found = Vec::new();
-    for candidate in ["docs/spec/relay-structural-facts.json"] {
-        if root.join(candidate).is_file() {
-            found.push(candidate.to_string());
-        }
-    }
+    // The copies that existed once; a copy found later joins the list.
+    const COPIES: &[&str] = &["docs/spec/relay-structural-facts.json"];
+    let found: Vec<String> = COPIES.iter().filter(|c| root.join(c).is_file()).map(|c| c.to_string()).collect();
     assert_eq!(
         found,
         Vec::<String>::new(),

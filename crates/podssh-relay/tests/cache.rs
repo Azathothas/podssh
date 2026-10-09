@@ -110,16 +110,23 @@ fn files_others_could_read_or_symlinks_are_not_trusted() {
     use std::os::unix::fs::PermissionsExt;
     let dir = scratch("unix-perms");
     let path =
-        store_in_first(&[dir.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example").unwrap();
+        store_in_first(std::slice::from_ref(&dir), "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example")
+            .unwrap();
     assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
     assert_eq!(std::fs::metadata(&dir).unwrap().permissions().mode() & 0o777, 0o700);
 
     std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
-    assert!(load_from(&[dir.clone()], "relay.example", NOW).is_none(), "a world-readable file is ignored");
+    assert!(load_from(std::slice::from_ref(&dir), "relay.example", NOW).is_none(), "a world-readable file is ignored");
 
     let other = scratch("unix-link");
-    let real =
-        store_in_first(&[other.clone()], "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example").unwrap();
+    let real = store_in_first(
+        std::slice::from_ref(&other),
+        "relay.example",
+        TOKEN,
+        NOW + MIN_REMAINING_MS * 2,
+        "relay.example",
+    )
+    .unwrap();
     let linked_dir = scratch("unix-linked");
     std::os::unix::fs::symlink(&real, linked_dir.join(file_name("relay.example"))).unwrap();
     assert!(load_from(&[linked_dir], "relay.example", NOW).is_none(), "a symlink is ignored");

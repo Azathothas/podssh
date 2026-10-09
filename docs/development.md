@@ -87,6 +87,16 @@ patches. A table keeps one row to a line (`#[rustfmt::skip]`, with a comment
 that says so). A lint is repaired, or allowed at its item with a comment that
 says why; never for a whole crate.
 
+The clippy that counts is the gate's, in the build image. Its Rust can be
+newer than the host's, with new lints (clippy 1.99 found a lint that 1.98
+passes), and clippy on Windows does not compile the code for Unix only.
+Before a push that changes Rust code, run the gate (`sh scripts/dev.sh
+check`), or at least its clippy:
+
+```sh
+sh scripts/dev.sh run -- 'cd /work && rustup component add clippy && cargo clippy --locked --keep-going --all-targets -p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-todo -- -D warnings'
+```
+
 `check-repo.py` also reads each Rust file under `crates/` for a listener:
 `TcpListener`, `UnixListener`, `UdpSocket`, `bind(`, `listen(` and
 `socket2`, outside comment lines. A crate's `tests/` may hold one, for a
