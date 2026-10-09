@@ -118,6 +118,9 @@ run "library crates and podssh-todo: check on Rust $MSRV (no C compiler)" \
 # or a cited line that disagrees fails the gate. Pure Rust, no C.
 run "the work record: the checker's tests (plants included)" \
     env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-todo
+# The record's checker reads AGENTS.md for the ids it names, and would pass
+# with the file missing: a copy of the tree without it fails here first.
+run "the tree has AGENTS.md" test -f AGENTS.md
 run "the work record: TODO/ agrees with itself" \
     env CC=/nonexistent CXX=/nonexistent cargo run --locked -q -p podssh-todo -- check
 

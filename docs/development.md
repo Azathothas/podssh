@@ -189,8 +189,12 @@ NOTE: The stand-ins are part of this repository. They test how podssh
 handles each fault. The live tests show that podssh works with the real
 relay.
 
-The containers are temporary. `.git`, `target/`, `.env/`, `.work/`, `.tmp/`
-and `.codegraph/` are not copied into them.
+The containers are temporary. They get the tree as CI does, without these
+patterns of `scripts/dev.sh` (`EXCLUDES`): `target/**` and
+`vendor/tailscale-rs/target/**` (build output, which would pass the copy's
+limit of 1 GiB), `.git/**`, `.work/**`, `.tmp/**`, `.env/**` (live
+credentials) and `.codegraph/**` (a local index). A pattern matches a file of
+that name at any depth.
 
 ## A box like the target sandbox
 

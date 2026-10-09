@@ -119,7 +119,7 @@ seconds at `scripts/interop.sh:237`, the tty at line 221), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
-(`scripts/gate.sh:174`). The totals are typed in `docs/STATUS.md:20`, line 57
+(`scripts/gate.sh:177`). The totals are typed in `docs/STATUS.md:20`, line 57
 and line 196.
 
 ## Approach
@@ -307,7 +307,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:275-278`): a proxy head that never ends stops at
+   (`docs/development.md:279-282`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.

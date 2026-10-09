@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**255 entries: 181 open, 1 partial, 8 blocked, 65 done.**
+**255 entries: 180 open, 1 partial, 8 blocked, 66 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
 | P2 | 92 | 1 | 4 | 50 | 147 |
-| P3 | 87 | 0 | 4 | 7 | 98 |
-| **All** | 181 | 1 | 8 | 65 | 255 |
+| P3 | 86 | 0 | 4 | 8 | 98 |
+| **All** | 180 | 1 | 8 | 66 | 255 |
 
 ## Entries
 
@@ -317,7 +317,7 @@ repository and CI).
 | [T-243](relay.md) | P2 | S | backlog | feature | open | The user can choose the cache directory, and no directory is fixed in the code |
 | [T-244](repo.md) | P3 | M | none | chore | open | Code comments break `AGENTS.md` rule 6, and some name files and facts that are wrong |
 | [T-245](repo.md) | P2 | S | none | chore | open | The box refuses each bind, but sandbox A allows an AF_UNIX bind |
-| [T-246](repo.md) | P3 | S | none | chore | open | `scripts/dev.sh` excludes each file named `agents.md` from the container copy, with no reason given |
+| [T-246](repo.md) | P3 | S | none | chore | done | `scripts/dev.sh` excludes each file named `agents.md` from the container copy, with no reason given |
 | [T-247](repo.md) | P3 | S | none | chore | done | `podssh-cli` declares dependencies that it does not use |
 | [T-248](serve.md) | P2 | M | M5 | research | open | A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space |
 | [T-249](repo.md) | P2 | M | none | chore | done | A cited line that moved still exists, so the checker does not see a stale citation |

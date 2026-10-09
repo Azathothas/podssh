@@ -112,7 +112,7 @@ PODSSH_JOBS=${PODSSH_JOBS:-4}
 #
 # `.env/` holds live credentials and never enters a build container (persistent
 # job directories used to keep a copy of it). `.codegraph/` is a local index.
-EXCLUDES="target/** vendor/tailscale-rs/target/** .git/** .work/** .tmp/** .env/** .codegraph/** agents.md"
+EXCLUDES="target/** vendor/tailscale-rs/target/** .git/** .work/** .tmp/** .env/** .codegraph/**"
 
 # ⛔ **The split lives in `run_in_image` and nowhere else.** The globbing has to
 # be disabled at BOTH places the words are split: once in the loop below, and

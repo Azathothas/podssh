@@ -328,7 +328,7 @@ Read:
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
   and the release with neither (`scripts/gate.sh:78-86`,
-  `scripts/gate.sh:132-135`). The help omits the work record, interop, the man
+  `scripts/gate.sh:135-138`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (`scripts/dev.sh:602`).
 - Stale comments: `scripts/dev.sh:69-73` ("the default build"),
   `scripts/dev.sh:397-404` ("links the fork since 4b", "steps 4-5"),
@@ -348,7 +348,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:70-181`).
+   (`scripts/gate.sh:70-184`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -420,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:365-410`): the
+5. docs/development.md, "Release builds" (`docs/development.md:369-414`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -761,7 +761,7 @@ Read:
   (lines 67-73) and the live check (lines 75-92) follow it.
 - `.github/workflows/build.yml:3-5`: CI implements nothing of the gate again.
 - `scripts/gate.sh:5-6`: the gate takes no argument. Its steps are at
-  `scripts/gate.sh:80-181`.
+  `scripts/gate.sh:80-184`.
 - `scripts/gate.sh:18-29`: one cargo job for each 3 GiB of free memory.
 - AGENTS.md, section 4: on the operator's machine, one build at a time
   (`scripts/dev.sh:556-575` holds a lock).
@@ -1004,7 +1004,7 @@ code is not in the default style of rustfmt.
 
 Read:
 
-- `scripts/gate.sh:70-181` has no step for rustfmt or clippy. There is no
+- `scripts/gate.sh:70-184` has no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
 - One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:308`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
@@ -1847,7 +1847,7 @@ while reading `scripts/dev.sh`.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1862,7 +1862,7 @@ there.
 
 Read:
 
-- `scripts/dev.sh:115` puts `agents.md` in `EXCLUDES`. The comments above it
+- `scripts/dev.sh` line 115 at `188f327` puts `agents.md` in `EXCLUDES`. The comments above it
   (lines 66-98) give a reason for each other pattern, not for this one. The
   line is in the first public commit, `9a03102`.
 - `.gitignore` (lines 16-18) keeps a root `/agents.md` out of git, as "a
@@ -1870,7 +1870,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:42-47`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:119-122`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:119-125`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -1887,7 +1887,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:192-193` lists what the containers do not get; name
+5. `docs/development.md` lines 192-193 at `188f327` list what the containers do not get; name
    each excluded pattern there.
 
 ## Prove
@@ -1899,6 +1899,33 @@ sh scripts/dev.sh check     # the record's checker passes in the container too
 
 Both exit 0. Planted defect: add `AGENTS.md` to `EXCLUDES`; the new step of
 the gate must fail before the record's checker runs.
+
+## Correction
+
+2026-10-09, measured with `sh scripts/dev.sh run`: the pattern did not take
+the root `AGENTS.md`, which reached `/work` (13,848 bytes); it matches a file
+named `agents.md` in lower case at any depth, as a planted docs/agents.md
+did not reach `/work`. So the gate read the same `AGENTS.md` as CI; the
+pattern could only hide a lower-case `agents.md`, which this file system
+cannot hold beside `AGENTS.md`, and which git ignores at the root.
+
+## Done
+
+2026-10-09, in the commit "The container gets the tree that CI gets, and the
+gate needs AGENTS.md".
+
+- `scripts/dev.sh`: `agents.md` is no longer in `EXCLUDES`.
+- `scripts/gate.sh`: the step "the tree has AGENTS.md" (`test -f
+  AGENTS.md`) before the record's checker.
+- `docs/development.md`: each excluded pattern, with its reason.
+- Prove: `sh scripts/dev.sh run -- 'cd /work && test -f AGENTS.md && test -f
+  TODO/machine.md'`: exit 0. `sh scripts/dev.sh check` on this tree: each step
+  exited 0 but the one of clippy, which the image's clippy 1.99 failed on a
+  loop over one element in a test of `podssh-probe` (repaired in the commit
+  "clippy 1.99 of the build image gives no warning"); the new step "the tree
+  has AGENTS.md" exited 0, before the record's checker; interop 103 of 103.
+  Plant, restored: `AGENTS.md` added to `EXCLUDES`: the same test in the
+  container exited 1, as the gate's new step would.
 
 # T-247: `podssh-cli` declares dependencies that it does not use
 
