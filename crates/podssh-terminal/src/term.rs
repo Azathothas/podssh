@@ -1,6 +1,6 @@
 //! `TERM` selection: which name goes on the `pty-req`.
 //!
-//! ⛔ **A pty with no `TERM` is not a terminal to a terminfo program.** This is
+//! **A pty with no `TERM` is not a terminal to a terminfo program.** This is
 //! the whole reason this module exists, and it is a defect three sibling
 //! projects recorded independently. **READ**, `sandhome` `shell/faketty:82-93`,
 //! verbatim:
@@ -13,7 +13,7 @@
 //!
 //! ## The predicate, and it is exactly three values
 //!
-//! ⛔ **`''|dumb|unknown` and nothing else.** **READ**, `shell/faketty:89-93`:
+//! **`''|dumb|unknown` and nothing else.** **READ**, `shell/faketty:89-93`:
 //!
 //! ```sh
 //! case "${TERM:-}" in
@@ -23,7 +23,7 @@
 //! esac
 //! ```
 //!
-//! ⛔ **The negative half is the load-bearing half.** A caller who named
+//! **The negative half is the load-bearing half.** A caller who named
 //! `xterm-256color`, `screen` or `tmux` keeps it, and substituting over that
 //! would override a user who has a real terminal on the other end. A test that
 //! only proves the substitution will substitute over a good value forever, so
@@ -32,7 +32,7 @@
 //! ## What is different from the sibling
 //!
 //! The override's name. `SANDHOME_FAKEPTY_TERM` is the sibling's; podssh's is
-//! **`PODSSH_TERM`** — this entry's own text, and a name podssh owns. ⛔ **The
+//! **`PODSSH_TERM`** — this entry's own text, and a name podssh owns. **The
 //! default substitution value is the sibling's `xterm-256color`, kept**:
 //! inventing a different one would be a decision about terminfo contents that
 //! nobody has measured, and the sibling chose it on a machine where the choice
@@ -41,7 +41,7 @@
 /// The environment variable `TERM` itself. Named so the predicate and its tests
 /// cannot drift onto a literal.
 pub const TERM_ENV: &str = "TERM";
-/// The override. ⛔ **Only consulted when the current value is unusable.** An
+/// The override. **Only consulted when the current value is unusable.** An
 /// override that reached over a good `TERM` would be the defect this module
 /// exists to prevent, run in the other direction.
 pub const TERM_OVERRIDE_ENV: &str = "PODSSH_TERM";
@@ -52,7 +52,7 @@ pub const TERM_FALLBACK: &str = "xterm-256color";
 /// names them and no others.
 pub const TERM_PREDICATE_USABLE: [&str; 3] = ["", "dumb", "unknown"];
 
-/// What `select_term` decided, and why. ⛔ **The reason is carried, not just the
+/// What `select_term` decided, and why. **The reason is carried, not just the
 /// value**: a session that reports `term=xterm-256color reason=Substituted`
 /// tells its user why their `TERM` was not honoured, and one that reports only
 /// the value looks like it ignored them.
@@ -69,7 +69,7 @@ pub enum TermChoice {
 }
 
 impl TermChoice {
-    /// Whether the existing value was replaced. ⛔ **The negative half of the
+    /// Whether the existing value was replaced. **The negative half of the
     /// predicate as a question**, so a caller does not have to compare the
     /// string it passed in against the string it got back to learn whether it
     /// was overridden.
@@ -80,7 +80,7 @@ impl TermChoice {
 
 /// Whether a `TERM` value is one of the three the predicate refuses.
 ///
-/// ⛔ **Exactly three values, and the set is the specification.** A predicate
+/// **Exactly three values, and the set is the specification.** A predicate
 /// that also refused, say, `vt100` would override a caller who deliberately
 /// asked for a VT100, and nothing here has measured that such a caller does not
 /// exist. **READ**, `shell/faketty:89-93`.
@@ -90,14 +90,14 @@ pub fn is_unusable(value: &str) -> bool {
 
 /// Decide the `TERM` to send, from what the environment holds.
 ///
-/// ⛔ **The parameters are the environment**, passed in rather than read. The
+/// **The parameters are the environment**, passed in rather than read. The
 /// predicate is then a pure function of two strings, so its negative half is
 /// testable without touching the process environment a test suite shares — and
 /// a test that mutates `TERM` to test something else can no longer race it.
 pub fn select_term(current: Option<&str>, override_value: Option<&str>) -> (String, TermChoice) {
     let current = current.unwrap_or("");
     if !is_unusable(current) {
-        // ⛔ The half that is easy to get wrong. A usable value returns as it
+        // The half that is easy to get wrong. A usable value returns as it
         // arrived, and the override is not even looked at.
         return (current.to_string(), TermChoice::Kept);
     }
@@ -109,7 +109,7 @@ pub fn select_term(current: Option<&str>, override_value: Option<&str>) -> (Stri
 
 /// [`select_term`], reading the two variables out of the process environment.
 ///
-/// ⛔ **Only for the caller that owns the process.** The tests use
+/// **Only for the caller that owns the process.** The tests use
 /// [`select_term`] directly, because a test that sets `TERM` changes it for
 /// every other test in the same binary, and cargo runs them in threads.
 pub fn select_term_from_env() -> (String, TermChoice) {
@@ -126,9 +126,9 @@ mod tests {
 
     #[test]
     fn term_unset_is_substituted() {
-        // ⛔ **The `Prove` plant, positive half.** With no `TERM` the sibling's
+        // **The `Prove` plant, positive half.** With no `TERM` the sibling's
         // defect is `'unknown': I need something more specific.` from `less`.
-        // ⛔ This is the *unit* form of that plant: it proves the predicate,
+        // This is the *unit* form of that plant: it proves the predicate,
         // and the real `less` run is named on the entry as not executable from
         // this machine.
         let (term, choice) = select_term(None, None);
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn an_empty_string_is_the_same_as_unset() {
-        // ⛔ `TERM=""` is what a program that clears it leaves behind, and the
+        // `TERM=""` is what a program that clears it leaves behind, and the
         // shell predicate's `''` arm exists for it. A Rust `Option` that mapped
         // `Some("")` to "present" would miss it.
         let (term, choice) = select_term(Some(""), None);
@@ -149,7 +149,7 @@ mod tests {
 
     #[test]
     fn dumb_and_unknown_are_substituted() {
-        // ⛔ **The predicate is three values, so all three are named.** Testing
+        // **The predicate is three values, so all three are named.** Testing
         // only the empty one proves a predicate that refuses blanks, which is
         // a different predicate.
         for unusable in ["dumb", "unknown"] {
@@ -163,8 +163,8 @@ mod tests {
 
     #[test]
     fn term_xterm_256color_is_left_alone() {
-        // ⛔ **The `Prove` plant, negative half, and the most important line in
-        // this file.** ⛔ A test that only proves the substitution passes and
+        // **The `Prove` plant, negative half, and the most important line in
+        // this file.** A test that only proves the substitution passes and
         // keeps substituting over a good value forever.
         let (term, choice) = select_term(Some("xterm-256color"), None);
         assert_eq!(term, "xterm-256color");
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn a_real_terminal_name_is_never_overridden_even_by_the_override() {
-        // ⛔ **The override does not outrank a good value.** This is the case a
+        // **The override does not outrank a good value.** This is the case a
         // naive "check the override first" implementation gets wrong, and it is
         // why the order in `select_term` is what it is.
         for good in ["xterm", "screen", "screen-256color", "tmux-256color", "vt100", "linux"] {
@@ -186,8 +186,8 @@ mod tests {
 
     #[test]
     fn a_near_miss_is_not_in_the_predicate() {
-        // ⛔ `Dumb` and `unknown-256color` are *different strings* from `dumb`
-        // and `unknown`. ⛔ The predicate is exact — a case-insensitive or
+        // `Dumb` and `unknown-256color` are *different strings* from `dumb`
+        // and `unknown`. The predicate is exact — a case-insensitive or
         // prefix match would override a caller who deliberately named one of
         // them, and nothing here has measured that no such caller exists.
         for near in ["Dumb", "UNKNOWN", "unknown-256color", "dumber", "xterm-dumb"] {
@@ -209,7 +209,7 @@ mod tests {
 
     #[test]
     fn an_empty_or_blank_override_falls_back_rather_than_sending_an_empty_term() {
-        // ⛔ **Substituting in an empty name would reproduce the defect the
+        // **Substituting in an empty name would reproduce the defect the
         // module exists to fix.** `TERM=""` and `TERM=dumb` are the same
         // failure, so an override that yields one must not be honoured.
         for blank in ["", "   ", "\t"] {
@@ -221,7 +221,7 @@ mod tests {
 
     #[test]
     fn the_override_is_not_trimmed_into_something_else() {
-        // ⛔ It is trimmed at the edges, because a shell script that exported
+        // It is trimmed at the edges, because a shell script that exported
         // `TERM="screen "` has named `screen`. It is not trimmed of internal
         // space, because that would be a different name from the one given.
         let (term, _) = select_term(None, Some("  screen  "));
@@ -232,7 +232,7 @@ mod tests {
 
     #[test]
     fn the_predicate_is_exactly_three_values() {
-        // ⛔ **This assertion is the specification.** If someone adds a fourth
+        // **This assertion is the specification.** If someone adds a fourth
         // value to make some new caller happy, this fails and the decision is
         // made in the open rather than by widening an array.
         assert_eq!(TERM_PREDICATE_USABLE, ["", "dumb", "unknown"]);
@@ -243,7 +243,7 @@ mod tests {
 
     #[test]
     fn the_fallback_is_resolvable_and_the_override_has_podssh_s_name() {
-        // ⛔ The sibling's fallback value, kept deliberately: see the module
+        // The sibling's fallback value, kept deliberately: see the module
         // docs. And the override is podssh's own name, not `SANDHOME_`'s.
         assert_eq!(TERM_FALLBACK, "xterm-256color");
         assert_eq!(TERM_OVERRIDE_ENV, "PODSSH_TERM");

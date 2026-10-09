@@ -1,20 +1,20 @@
 //! `clap`'s errors, rebuilt as podssh's own messages — and **never rendered**.
 //!
-//! ⛔ `docs/spec/06-cli.md`:82-85 asks for an unknown flag to be *"an error
-//! naming the nearest known flag"*, ⛔ and the sibling prints a full usage
+//! `docs/spec/06-cli.md`:82-85 asks for an unknown flag to be *"an error
+//! naming the nearest known flag"*, and the sibling prints a full usage
 //! block instead (`src/main.c:277`), which buries the one line the user needs.
-//! ⛔ `clap`'s own renderer adds a `Usage:` header and a
-//! `For more information, try '--help'` trailer, so ⛔ **nothing here calls
+//! `clap`'s own renderer adds a `Usage:` header and a
+//! `For more information, try '--help'` trailer, so **nothing here calls
 //! `render()`**: the error's *context* is read and podssh's words are built
 //! from it.
 //!
-//! ⛔ **Its own module because it is a different question from parsing.** The
+//! **Its own module because it is a different question from parsing.** The
 //! tree decides what a command line means; this decides how a refusal reads.
-//! ⛔ `RULES.md`:80-91 is the reason the two are not one file: it puts a hard
+//! `RULES.md`:80-91 is the reason the two are not one file: it puts a hard
 //! 500-line cap on source, *"split it into modules with names that say what
 //! they hold"* — and `tree.rs` reached it.
 //!
-//! ⛔ `was_given` stayed in [`crate::tree`]: it reads `ArgMatches`, not an
+//! `was_given` stayed in [`crate::tree`]: it reads `ArgMatches`, not an
 //! error, and moving it here would be a module boundary drawn by line count
 //! rather than by what the code is about.
 
@@ -22,12 +22,12 @@ use crate::flags::FlagKind;
 use crate::tree::Parsed;
 use clap::error::{ContextKind, ContextValue, ErrorKind};
 
-/// ⛔ **Rebuild a `clap` error as podssh's own message, with no usage block.**
+/// **Rebuild a `clap` error as podssh's own message, with no usage block.**
 ///
-/// ⛔ `clap 4.6`'s context is a `FlatMap<ContextKind, ContextValue>` and
+/// `clap 4.6`'s context is a `FlatMap<ContextKind, ContextValue>` and
 /// `ContextValue` is an enum, not a list — MEASURED 2026-10-02 by reading
 /// `clap_builder-4.6.7/src/error/context.rs` and `.../format.rs` in this
-/// machine's cargo registry. ⛔ The two shapes read here are
+/// machine's cargo registry. The two shapes read here are
 /// `ContextValue::String(_)` for the offending token and
 /// `ContextValue::StyledStrs(_)` for the suggestions `strsim` produced.
 pub fn rebuild_error(verb: &str, e: &clap::Error) -> Parsed {
@@ -41,7 +41,7 @@ pub fn rebuild_error(verb: &str, e: &clap::Error) -> Parsed {
         }
         ErrorKind::UnknownArgument => {
             let given = string_ctx(e, ContextKind::InvalidArg);
-            // ⛔ **The suggestion key is `SuggestedArg`, and that was measured
+            // **The suggestion key is `SuggestedArg`, and that was measured
             // rather than assumed.** `cargo run -p podssh-cli --example
             // probe_clap` against `clap 4.6.7` in the build image, 2026-10-05,
             // prints for `ssh --StrictHostKeyChekcing=no host`:
@@ -50,14 +50,14 @@ pub fn rebuild_error(verb: &str, e: &clap::Error) -> Parsed {
             //   Usage        = StyledStr("Usage: ssh --StrictHostKeyChecking …")
             //   Suggested    = StyledStrs(["to pass '--StrictHostKeyChekcing' as
             //                   a value, use '-- --StrictHostKeyChekcing'"])
-            // ⛔ `ContextKind::Suggested` is a **different** key: it carries
+            // `ContextKind::Suggested` is a **different** key: it carries
             // clap's `--` tip, not the nearest flag, so reading it would lose
             // the suggestion the refusal exists to name.
-            // ⛔ And `Usage` is present in the context, which is why this code
+            // And `Usage` is present in the context, which is why this code
             // reads the context and never `e.render()`s: rendering is what
             // prints the block that buries the one line the user needs.
             //
-            // ⛔ `strsim`'s Damerau-Levenshtein found this at distance 2. A
+            // `strsim`'s Damerau-Levenshtein found this at distance 2. A
             // hand-rolled function in the same place would have had to be
             // written and then measured to be as good, and the entry records
             // that a hand-rolled edit distance in this position was already
@@ -99,14 +99,14 @@ fn unknown(verb: &str, e: &clap::Error, given: &str) -> Parsed {
     Parsed::Usage(crate::refuse::unknown_flag(given, suggestion.as_deref()))
 }
 
-/// ⛔ **Whether a token was written as a flag.**
+/// **Whether a token was written as a flag.**
 ///
-/// ⛔ **`clap` uses the same context key for the two, and the shape is the only
+/// **`clap` uses the same context key for the two, and the shape is the only
 /// thing that separates them**: an unknown flag's name and a positional's *usage
-/// string* both arrive in `ContextKind::InvalidArg`. ⛔ Reporting the second as
+/// string* both arrive in `ContextKind::InvalidArg`. Reporting the second as
 /// the first told the user a flag they never typed does not exist — `podssh cp a`
 /// printed `unknown flag '[paths] [paths]...'`, and `podssh man ssh extra`
-/// printed `unknown flag 'extra'`. ⛔ `-` alone is a positional (stdin), not a
+/// printed `unknown flag 'extra'`. `-` alone is a positional (stdin), not a
 /// flag.
 fn flag_shaped(token: &str) -> bool {
     token.starts_with('-') && token != "-"
@@ -123,10 +123,10 @@ fn string_ctx(e: &clap::Error, kind: ContextKind) -> String {
 
 /// Read the first suggestion out of a `clap` error as plain text.
 ///
-/// ⛔ `clap 4.6` carries a flag suggestion under `ContextKind::SuggestedArg` as
+/// `clap 4.6` carries a flag suggestion under `ContextKind::SuggestedArg` as
 /// a plain `ContextValue::String` — MEASURED 2026-10-05 in the build image by
 /// `cargo run -p podssh-cli --example probe_clap` against `clap 4.6.7`, which
-/// printed `SuggestedArg = String("--StrictHostKeyChecking")`. ⛔ A subcommand
+/// printed `SuggestedArg = String("--StrictHostKeyChecking")`. A subcommand
 /// suggestion arrives under `SuggestedSubcommand` instead, and the two are
 /// read by the same function because the shape is identical.
 fn string_ctx_opt(e: &clap::Error, kind: ContextKind) -> Option<String> {

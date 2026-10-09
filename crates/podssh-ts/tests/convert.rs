@@ -1,6 +1,6 @@
 //! Conversion tests: the owned selection becomes fork options field-for-field.
 //!
-//! ⛔ The proxy URL parses via the fork's own `ProxyConfig::from_url`, so the
+//! The proxy URL parses via the fork's own `ProxyConfig::from_url`, so the
 //! dialer and this validator never disagree on what a URL means — and the
 //! bad-URL test below pins that by feeding the fork's own refusals back.
 

@@ -1,6 +1,6 @@
-//! ⛔ **The CA bundle, its resolution, and E03's first two plants.**
+//! **The CA bundle, its resolution, and E03's first two plants.**
 //!
-//! ⛔ **A plant that has never failed is indistinguishable from a plant that
+//! **A plant that has never failed is indistinguishable from a plant that
 //! always passes.** Each of the two below asserts the *specific* failure, not
 //! merely that something failed, so a defect that reddened the suite for an
 //! unrelated reason cannot pass a plant that only looked at the outcome.
@@ -36,7 +36,7 @@ fn hex(bytes: &[u8]) -> String {
 
 // ── the PEM decoder ─────────────────────────────────────────────────────────
 
-/// ⛔ **Byte-exact.** The first bytes of the decoded certificate are asserted
+/// **Byte-exact.** The first bytes of the decoded certificate are asserted
 /// as hex, so a decoder that is off by one base64 character — the failure that
 /// produces a certificate that parses as garbage and a chain error that reads
 /// like an untrusted issuer — cannot pass.
@@ -44,10 +44,10 @@ fn hex(bytes: &[u8]) -> String {
 fn plant_pem_decoding_is_byte_exact() {
     let certs = bundle::pem_certificates(DIGICERT_ECC_ROOT_G5.as_bytes()).expect("a single PEM certificate");
     assert_eq!(certs.len(), 1);
-    // ⛔ A DER SEQUENCE, tag 0x30. The whole length follows; the point is that
+    // A DER SEQUENCE, tag 0x30. The whole length follows; the point is that
     // the first byte is right, which a shifted decoder gets wrong.
     assert_eq!(certs[0].as_ref()[0], 0x30);
-    // ⛔ **The exact length and the exact first eight bytes**, measured from
+    // **The exact length and the exact first eight bytes**, measured from
     // the same PEM by decoding it independently. A decoder off by one base64
     // character produces a certificate of the wrong length that still starts
     // 0x30, so the length is the half that catches it.
@@ -63,7 +63,7 @@ fn a_bundle_with_several_certificates_yields_all_of_them() {
     assert_eq!(certs[0], certs[1], "the same input parsed two ways");
 }
 
-/// ⛔ **Comments and blank lines between blocks are ignored.** A real CA
+/// **Comments and blank lines between blocks are ignored.** A real CA
 /// bundle carries human-readable text, and a decoder that refused it would
 /// reject bundles that work everywhere else.
 #[test]
@@ -76,7 +76,7 @@ fn text_between_blocks_is_ignored() {
     assert_eq!(certs.len(), 2);
 }
 
-/// ⛔ **A `PRIVATE KEY` block is not a certificate.** A trust bundle carrying
+/// **A `PRIVATE KEY` block is not a certificate.** A trust bundle carrying
 /// one holds a key in a world-readable file, and a parser that skipped it
 /// silently would hide that.
 #[test]
@@ -102,7 +102,7 @@ fn non_base64_inside_a_block_is_an_error() {
 
 // ── PLANT 1: a CA bundle path that does not exist ───────────────────────────
 
-/// ⛔ **E03's first plant: a CA bundle path that does not exist must `FAIL`,
+/// **E03's first plant: a CA bundle path that does not exist must `FAIL`,
 /// with the path it tried.**
 #[test]
 fn plant_a_missing_ca_bundle_fails_and_names_the_path() {
@@ -111,7 +111,7 @@ fn plant_a_missing_ca_bundle_fails_and_names_the_path() {
 
     match err {
         podssh_ws::WsError::Bundle { path, why } => {
-            // ⛔ **The path must be in the message.** A deployment that cannot
+            // **The path must be in the message.** A deployment that cannot
             // find its trust store cannot be diagnosed from "TLS failed", and
             // naming the path is the whole point of this plant.
             assert_eq!(path, missing.display().to_string());
@@ -124,7 +124,7 @@ fn plant_a_missing_ca_bundle_fails_and_names_the_path() {
     }
 }
 
-/// ⛔ **And the same defect seen through the doctor is `FAIL`, not `????` and
+/// **And the same defect seen through the doctor is `FAIL`, not `????` and
 /// not `ok`.** A bundle that cannot be read is a check that *ran* and did not
 /// hold; it is different from one that could not run at all.
 #[tokio::test]
@@ -142,14 +142,14 @@ async fn plant_a_missing_bundle_is_fail_in_the_doctor() {
 
     match &bundle_line.1 {
         Verdict::Failed { detail } => {
-            assert!(detail.contains("podssh-ca.pem"), "⛔ the failure must name the path it tried, got: {detail}");
+            assert!(detail.contains("podssh-ca.pem"), "the failure must name the path it tried, got: {detail}");
             assert_eq!(bundle_line.1.label(), "FAIL");
         }
         other => panic!("a bundle that could not be read is FAIL, not {}: {other:?}", other.label()),
     }
 }
 
-/// ⛔ **The handshake that follows is `????`, not `FAIL`.** This is the case
+/// **The handshake that follows is `????`, not `FAIL`.** This is the case
 /// that makes the three-valued report worth having: the handshake was never
 /// attempted, because there was no trust anchor to verify a chain against.
 /// Reporting it as a handshake failure would blame the relay for a local
@@ -169,7 +169,7 @@ async fn an_unattempted_handshake_is_unknown_never_ok() {
     let handshake = report.iter().find(|(name, _)| name == "TLS handshake").expect("the doctor reports the handshake");
 
     assert_eq!(handshake.1.label(), "????");
-    assert!(!handshake.1.is_success(), "⛔ a handshake that never ran must never count as a success");
+    assert!(!handshake.1.is_success(), "a handshake that never ran must never count as a success");
     match &handshake.1 {
         Verdict::Unknown { why } => {
             assert!(!why.is_empty(), "???? must say why");
@@ -181,7 +181,7 @@ async fn an_unattempted_handshake_is_unknown_never_ok() {
 
 // ── the three-valued type itself ────────────────────────────────────────────
 
-/// ⛔ **`Unknown` is never a success, and never prints as `ok`.** This is the
+/// **`Unknown` is never a success, and never prints as `ok`.** This is the
 /// property the whole enum exists to hold, asserted directly so a later edit
 /// to `is_success` cannot quietly break every caller at once.
 #[test]
@@ -196,7 +196,7 @@ fn the_three_valued_type_holds_its_contract() {
 
     assert!(ok.is_success());
     assert!(!failed.is_success());
-    // ⛔ **This one.** A doctor that exits 0 because a probe could not run is
+    // **This one.** A doctor that exits 0 because a probe could not run is
     // the exact defect this repository has shipped three times.
     assert!(!unknown.is_success());
 
@@ -206,7 +206,7 @@ fn the_three_valued_type_holds_its_contract() {
 
 // ── bundle resolution from /proc/self/exe ───────────────────────────────────
 
-/// ⛔ **The bundle is resolved beside the executable, and the path is absolute.**
+/// **The bundle is resolved beside the executable, and the path is absolute.**
 /// `argv[0]` is where the binary was launched from, not where it is: a binary
 /// started through `PATH` or through a symlink resolves a different bundle
 /// each way. The sibling project made exactly this mistake, and
@@ -217,11 +217,11 @@ fn the_default_bundle_path_is_beside_the_executable_and_absolute() {
     let bundle = bundle::default_bundle_path().expect("a bundle path");
 
     assert!(bundle.is_absolute(), "the bundle path must be absolute: {bundle:?}");
-    assert_eq!(bundle.parent(), exe.parent(), "⛔ the bundle must sit beside the executable");
+    assert_eq!(bundle.parent(), exe.parent(), "the bundle must sit beside the executable");
     assert_eq!(bundle.file_name().unwrap(), bundle::BUNDLE_FILE_NAME);
 }
 
-/// ⛔ **The default path names a file, and the doctor says so when it is
+/// **The default path names a file, and the doctor says so when it is
 /// missing.** This is the control for plant 1: the path resolution itself is
 /// exercised, and a deployment reading this learns exactly which file to
 /// install.
@@ -252,7 +252,7 @@ async fn the_default_path_is_what_the_doctor_reports_when_it_is_absent() {
 
 // ── a bundle that parses but holds nothing usable ───────────────────────────
 
-/// ⛔ **A PEM file with no CERTIFICATE block is an error, not an empty trust
+/// **A PEM file with no CERTIFICATE block is an error, not an empty trust
 /// store.** An empty `RootCertStore` rejects every chain with a message that
 /// reads like a network fault, so the two must not be confusable.
 #[test]
@@ -262,7 +262,7 @@ fn a_pem_file_with_no_certificate_is_an_error() {
     assert!(err.contains("no CERTIFICATE block"), "the message must say what was wrong, got: {err}");
 }
 
-/// ⛔ **A file that is not UTF-8 is an error.** A binary trust store is a
+/// **A file that is not UTF-8 is an error.** A binary trust store is a
 /// deployment mistake, and "not a PEM bundle" is a far better report than a
 /// chain error forty seconds later.
 #[test]

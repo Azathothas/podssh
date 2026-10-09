@@ -1,6 +1,6 @@
 //! `TsConfig`: everything `TsNode` needs, and the mapping to fork selections.
 //!
-//! ⛔ This module never names fork types. `podssh-ts` owns `RuntimeSelection`
+//! This module never names fork types. `podssh-ts` owns `RuntimeSelection`
 //! and `node.rs` converts it at the boundary in 4b, so no fork-version
 //! coupling leaks into these signatures.
 

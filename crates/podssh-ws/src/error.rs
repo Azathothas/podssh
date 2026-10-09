@@ -1,6 +1,6 @@
-//! ⛔ Every way this layer can fail, as values.
+//! Every way this layer can fail, as values.
 //!
-//! ⛔ **No variant carries a token, and none formats one.** `Display` is what
+//! **No variant carries a token, and none formats one.** `Display` is what
 //! ends up in a log, and the relay specification's own rule is that a token
 //! never enters a log, a URL, a screenshot, or an issue report. An error type
 //! that could hold one would make that rule a matter of every call site's
@@ -17,7 +17,7 @@ pub enum Verdict {
     Failed {
         detail: String,
     },
-    /// ⛔ **A check that could not run.** Never collapsed into `Ok` — four
+    /// **A check that could not run.** Never collapsed into `Ok` — four
     /// sibling projects shipped a doctor that reported green over a broken
     /// environment, and the defect recurs three times independently.
     Unknown {
@@ -26,7 +26,7 @@ pub enum Verdict {
 }
 
 impl Verdict {
-    /// ⛔ The label the entry's `Prove` block names: `ok`, `FAIL`, `????`.
+    /// The label the entry's `Prove` block names: `ok`, `FAIL`, `????`.
     pub fn label(&self) -> &'static str {
         match self {
             Verdict::Ok { .. } => "ok",
@@ -55,7 +55,7 @@ impl fmt::Display for Verdict {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum WsError {
-    /// ⛔ The trust bundle could not be used. The path is always in the
+    /// The trust bundle could not be used. The path is always in the
     /// message: a deployment that cannot find its trust store cannot be
     /// diagnosed from "TLS failed".
     Bundle { path: String, why: String },
@@ -65,7 +65,7 @@ pub enum WsError {
     Handshake(String),
     /// The HTTP upgrade to WebSocket failed, with the relay's status line.
     Upgrade { status: u16, why: String },
-    /// ⛔ A frame could not be parsed. This is an `Err`, never a panic: an
+    /// A frame could not be parsed. This is an `Err`, never a panic: an
     /// unparseable frame mid-stream is a peer fault and must end the session
     /// cleanly.
     Frame(String),

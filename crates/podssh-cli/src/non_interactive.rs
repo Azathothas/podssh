@@ -1,23 +1,23 @@
 //! E33: non-interactive operation — one value computed once at startup.
 //!
-//! ⛔ **The detection is the default; no flag is needed to avoid hanging.**
+//! **The detection is the default; no flag is needed to avoid hanging.**
 //! `docs/TODO/cli/non-interactive.md`:104-111 — requiring *both* fds is the
 //! stdout rule applied to input: stdin a terminal while stdout is a file is
 //! exactly where a prompt lands in a script's output. A script that must pass
 //! a flag to avoid hanging is a script that will hang.
 //!
-//! ⛔ **One function gates every prompt; nothing else may ask.**
+//! **One function gates every prompt; nothing else may ask.**
 //! [`gate_prompt`] is the only path from "wants a secret" to "asks the user",
 //! and outside [`Attachment::Terminal`] it returns [`Refusal`] instead. The
 //! nine [`PromptSite`] rows are E33's audit table as code — an enumerated
 //! list, not a review — so a tenth prompt cannot be added without a row here.
 //!
-//! ⛔ **`--timeout` is parsed whole-string or not at all.** The sibling parses
+//! **`--timeout` is parsed whole-string or not at all.** The sibling parses
 //! its twin flag with `atoi`, so `--timeout 30x` is 0, and 0 means unbounded —
 //! a script that hangs believing it is bounded. [`parse_timeout`] rejects
 //! `30x`, rejects `0`, and rejects overflow, naming `--timeout` every time.
 //!
-//! ⛔ **Provisional fault mapping, owned elsewhere.** `--timeout` problems are
+//! **Provisional fault mapping, owned elsewhere.** `--timeout` problems are
 //! [`Fault::Usage`] (E33's own Prove check 6: a missing `--timeout` is a USAGE
 //! error). Every prompt-gate refusal is [`Fault::SessionFault`] **until the
 //! owning entry names its value** — E13 for host keys, E12/E23 for token and
@@ -33,7 +33,7 @@ use crate::exitmap::Fault;
 
 /// How podssh is attached, computed once at startup and passed down.
 ///
-/// ⛔ **Four variants because the dangerous override exists.** `Forced` is
+/// **Four variants because the dangerous override exists.** `Forced` is
 /// `--non-interactive` or `--jsonl`; `ForcedInteractive` is `--interactive`,
 /// which is refused unless both fds are TTYs — a flag promising interaction
 /// podssh cannot deliver is a flag that hangs. Neither flag is in the tree
@@ -97,7 +97,7 @@ pub fn force_interactive(stdin_tty: bool, stdout_tty: bool) -> Result<Attachment
 
 /// A refusal: the fault for the exit code and the diagnostic for stderr.
 ///
-/// ⛔ **The message names what was wanted and what to type instead.** A bare
+/// **The message names what was wanted and what to type instead.** A bare
 /// "refused" in a pipe is the hang wearing a smaller number — the job returns
 /// but nobody knows why.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -120,7 +120,7 @@ pub enum PromptSite {
     TokenAbsent,
     /// No relay configured. Remedy names `--relay`; never prompts.
     NoRelay,
-    /// A key passphrase. ⛔ **Unowned**: E01 has not named the auth surface,
+    /// A key passphrase. **Unowned**: E01 has not named the auth surface,
     /// so the remedy says so instead of inventing a flag.
     Passphrase,
     /// `known_hosts` unreadable. Remedy names the path tried.
@@ -259,7 +259,7 @@ pub fn require_timeout(verb: &str, attachment: Attachment, raw: Option<&str>) ->
 pub fn gate_prompt(attachment: Attachment, site: &PromptSite) -> Result<(), Refusal> {
     fn refused(site: &PromptSite, remedy: String) -> Refusal {
         Refusal {
-            // ⛔ Provisional: the owning entry names the final value (see the
+            // Provisional: the owning entry names the final value (see the
             // module header). Not `Usage` — the command line was fine.
             fault: Fault::SessionFault,
             message: format!("podssh: refusing to ask ({site:?}).\n{remedy}"),

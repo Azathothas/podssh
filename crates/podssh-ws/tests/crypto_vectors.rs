@@ -1,4 +1,4 @@
-//! ⛔ **The crypto primitives, against published vectors, not against
+//! **The crypto primitives, against published vectors, not against
 //! themselves.** A provider that agrees with its own bugs completes a
 //! handshake with nobody and passes every test written by the same author.
 //!
@@ -12,7 +12,7 @@ use podssh_ws::crypto::hash::{SHA256, SHA384};
 use podssh_ws::crypto::hkdf::PureHkdf;
 use podssh_ws::crypto::hmac::{HMAC_SHA256, HMAC_SHA384};
 use podssh_ws::crypto::kx::{SECP256R1, X25519};
-// ⛔ The signature algorithms are asserted in `signatures.rs`; this file
+// The signature algorithms are asserted in `signatures.rs`; this file
 // keeps the provider as a whole.
 use podssh_ws::crypto::sign::signature_algorithms;
 use rustls::crypto::hmac::Hmac as _;
@@ -26,7 +26,7 @@ fn unhex(s: &str) -> Vec<u8> {
     (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).expect("hex")).collect()
 }
 
-/// ⛔ **Fixed-size keys are converted with a checked `try_into`, never
+/// **Fixed-size keys are converted with a checked `try_into`, never
 /// resized.** A helper that padded a short key would make a truncated test
 /// vector look like a valid one.
 fn unhex32(s: &str) -> [u8; 32] {
@@ -35,7 +35,7 @@ fn unhex32(s: &str) -> [u8; 32] {
 
 // ── hashes ──────────────────────────────────────────────────────────────────
 
-/// ⛔ FIPS 180-4 / NIST CAVP: SHA-256 of "abc".
+/// FIPS 180-4 / NIST CAVP: SHA-256 of "abc".
 #[test]
 fn sha256_matches_the_published_vector() {
     assert_eq!(hex(SHA256.hash(b"abc").as_ref()), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
@@ -43,7 +43,7 @@ fn sha256_matches_the_published_vector() {
     assert_eq!(SHA256.algorithm(), rustls::crypto::hash::HashAlgorithm::SHA256);
 }
 
-/// ⛔ FIPS 180-4: SHA-384 of "abc".
+/// FIPS 180-4: SHA-384 of "abc".
 #[test]
 fn sha384_matches_the_published_vector() {
     assert_eq!(
@@ -54,7 +54,7 @@ fn sha384_matches_the_published_vector() {
     assert_eq!(SHA384.output_len(), 48);
 }
 
-/// ⛔ **The empty string**, because a hash that never sees an empty input is a
+/// **The empty string**, because a hash that never sees an empty input is a
 /// hash whose padding has never been exercised. SHA-256("") is a published
 /// constant and it is the one every implementation gets wrong first.
 #[test]
@@ -67,7 +67,7 @@ fn hashes_handle_the_empty_input() {
     );
 }
 
-/// ⛔ **Incremental and one-shot must agree.** rustls hashes the handshake
+/// **Incremental and one-shot must agree.** rustls hashes the handshake
 /// transcript with `start()`/`update()`/`finish()` and single messages with
 /// `hash()`. A divergence between them produces a transcript hash that matches
 /// nothing the peer computed, and it surfaces as a `Finished` mismatch.
@@ -82,7 +82,7 @@ fn incremental_and_one_shot_hashing_agree() {
     }
 }
 
-/// ⛔ **`fork` must copy the prefix, not share the state.** rustls forks the
+/// **`fork` must copy the prefix, not share the state.** rustls forks the
 /// transcript to hash a handshake message and then continue the original. A
 /// `fork` that aliased the context would make the second hash a hash of
 /// everything so far *twice*.
@@ -118,7 +118,7 @@ impl UpdateBoxed for Box<dyn rustls::crypto::hash::Context> {
 
 // ── HMAC ────────────────────────────────────────────────────────────────────
 
-/// ⛔ RFC 4231 test case 1.
+/// RFC 4231 test case 1.
 #[test]
 fn hmac_sha256_matches_rfc4231_case_1() {
     let key = [0x0bu8; 20];
@@ -127,7 +127,7 @@ fn hmac_sha256_matches_rfc4231_case_1() {
     assert_eq!(HMAC_SHA256.hash_output_len(), 32);
 }
 
-/// ⛔ RFC 4231 test case 1, for SHA-384.
+/// RFC 4231 test case 1, for SHA-384.
 #[test]
 fn hmac_sha384_matches_rfc4231_case_1() {
     let key = [0x0bu8; 20];
@@ -139,7 +139,7 @@ fn hmac_sha384_matches_rfc4231_case_1() {
     );
 }
 
-/// ⛔ **Signing the same message twice must give the same tag.** rustls signs
+/// **Signing the same message twice must give the same tag.** rustls signs
 /// with a `Key` it holds, and a `Key` whose second signature depended on its
 /// first would produce a key schedule that is right once and wrong forever.
 #[test]
@@ -150,7 +150,7 @@ fn an_hmac_key_signs_repeatedly_and_identically() {
     assert_eq!(first.as_ref(), second.as_ref());
 }
 
-/// ⛔ **`sign_concat` is the same as signing the joined message.** rustls uses
+/// **`sign_concat` is the same as signing the joined message.** rustls uses
 /// the two forms interchangeably, and a mismatch between them silently changes
 /// the transcript hash.
 #[test]
@@ -163,13 +163,13 @@ fn sign_concat_equals_signing_the_joined_message() {
 
 // ── HKDF: RFC 5869 appendix A ───────────────────────────────────────────────
 
-/// ⛔ **RFC 5869 appendix A, test case 1.** The most-copied vector in the
+/// **RFC 5869 appendix A, test case 1.** The most-copied vector in the
 /// literature; if extract and expand are transposed this is what catches it.
 #[test]
 fn hkdf_sha256_matches_rfc5869_case_1() {
     let ikm = [0x0bu8; 22];
     let salt: Vec<u8> = (0x00u8..=0x0c).collect();
-    // ⛔ **info is TEN octets, 0xf0f1f2f3f4f5f6f7f8f9.** The three-octet form
+    // **info is TEN octets, 0xf0f1f2f3f4f5f6f7f8f9.** The three-octet form
     // is the vector from the HKDF draft that predates this RFC, and pasting it
     // here produced an OKM that matched nothing — including, briefly, this
     // implementation. The PRK below is the one that pins the test to the RFC.
@@ -199,7 +199,7 @@ fn every_aead_round_trips_and_rejects_a_flipped_bit() {
 
         let mut sealed = plaintext.to_vec();
         aead.seal_in_place(&nonce, aad, &mut sealed).expect("seal");
-        // ⛔ **Sealing must change the bytes.** An AEAD that returned its input
+        // **Sealing must change the bytes.** An AEAD that returned its input
         // would "round-trip" perfectly and protect nothing.
         assert_ne!(sealed, plaintext, "{id:?} did not change the plaintext");
         assert_eq!(sealed.len(), plaintext.len() + 16, "{id:?} tag length");
@@ -208,12 +208,12 @@ fn every_aead_round_trips_and_rejects_a_flipped_bit() {
         let n = aead.open_in_place(&nonce, aad, &mut opened).expect("open");
         assert_eq!(&opened[..n], plaintext, "{id:?} did not round-trip");
 
-        // ⛔ **A modified ciphertext must be rejected, not returned as garbage.**
+        // **A modified ciphertext must be rejected, not returned as garbage.**
         let mut tampered = sealed.clone();
         tampered[0] ^= 0x01;
         assert!(aead.open_in_place(&nonce, aad, &mut tampered).is_none(), "{id:?} accepted a tampered ciphertext");
 
-        // ⛔ **The AAD is authenticated too**, or a peer could move bytes
+        // **The AAD is authenticated too**, or a peer could move bytes
         // between records without the tag noticing.
         assert!(
             aead.open_in_place(&nonce, b"different aad", &mut tampered).is_none(),
@@ -225,7 +225,7 @@ fn every_aead_round_trips_and_rejects_a_flipped_bit() {
 #[test]
 fn an_aead_refuses_a_key_of_the_wrong_length() {
     use podssh_ws::crypto::aead::Aead;
-    // ⛔ **AES-128's key is 16 bytes and AES-256's is 32.** A provider that
+    // **AES-128's key is 16 bytes and AES-256's is 32.** A provider that
     // accepted either length for both would let a peer negotiate AES-128 and
     // then encrypt with a key the wrong size.
     assert!(Aead::new(AeadId::Aes128Gcm, &[0u8; 32]).is_err());
@@ -235,7 +235,7 @@ fn an_aead_refuses_a_key_of_the_wrong_length() {
 
 // ── key exchange ────────────────────────────────────────────────────────────
 
-/// ⛔ **RFC 7748 §6.1, the X25519 test vector.** A key exchange that agrees
+/// **RFC 7748 §6.1, the X25519 test vector.** A key exchange that agrees
 /// with nobody is the one failure that produces a handshake which *completes*
 /// and then decrypts to nothing.
 #[test]
@@ -249,7 +249,7 @@ fn x25519_matches_rfc7748_section_6_1() {
     let alice_pub = PublicKey::from(&alice).to_bytes();
     let bob_pub = PublicKey::from(&bob).to_bytes();
 
-    // ⛔ The public keys are the values the RFC publishes, which checks the
+    // The public keys are the values the RFC publishes, which checks the
     // scalar multiplication and not merely that both sides agree.
     assert_eq!(hex(&alice_pub), "8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a");
     assert_eq!(hex(&bob_pub), "de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f");
@@ -257,7 +257,7 @@ fn x25519_matches_rfc7748_section_6_1() {
     assert_eq!(shared, "4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742");
 }
 
-/// ⛔ **Two key exchanges must complete against each other.** This is the
+/// **Two key exchanges must complete against each other.** This is the
 /// property `SupportedKxGroup::start` and `ActiveKeyExchange::complete` have
 /// to satisfy, and it is the only way to test them without a peer.
 #[test]
@@ -273,7 +273,7 @@ fn both_key_exchange_groups_agree_with_themselves() {
     }
 }
 
-/// ⛔ **The key share encodings RFC 8446 §4.2.8.2 requires.** A P-256 share
+/// **The key share encodings RFC 8446 §4.2.8.2 requires.** A P-256 share
 /// must be an uncompressed point; an X25519 share exactly 32 bytes.
 #[test]
 fn key_shares_have_the_encodings_rfc8446_requires() {
@@ -285,7 +285,7 @@ fn key_shares_have_the_encodings_rfc8446_requires() {
     assert_eq!(p.pub_key()[0], 0x04, "SEC1 uncompressed points start 0x04");
 }
 
-/// ⛔ **A malformed peer key share is an error, not a panic.** This is the
+/// **A malformed peer key share is an error, not a panic.** This is the
 /// input a peer controls, and a panic on it takes down the client.
 #[test]
 fn a_malformed_peer_key_share_is_an_error_not_a_panic() {
@@ -293,7 +293,7 @@ fn a_malformed_peer_key_share_is_an_error_not_a_panic() {
         vec![],
         vec![0u8; 31],
         vec![0u8; 33],
-        // ⛔ An all-zero X25519 share is a low-order point. RFC 8446 requires
+        // An all-zero X25519 share is a low-order point. RFC 8446 requires
         // it be refused, and x25519-dalek deliberately leaves the check here.
         vec![0u8; 32],
     ] {
@@ -311,7 +311,7 @@ fn a_malformed_peer_key_share_is_an_error_not_a_panic() {
 #[test]
 fn the_provider_offers_only_what_it_implements() {
     let p = podssh_ws::crypto::provider();
-    // ⛔ **Two suites, both TLS 1.3.** The `tls12` feature is on because
+    // **Two suites, both TLS 1.3.** The `tls12` feature is on because
     // rustls's builder needs it, and a TLS 1.2 suite listed here would be one
     // podssh cannot complete.
     assert_eq!(p.cipher_suites.len(), 2);
@@ -319,15 +319,15 @@ fn the_provider_offers_only_what_it_implements() {
         assert!(matches!(suite, rustls::SupportedCipherSuite::Tls13(_)), "a TLS 1.2 suite is offered");
     }
     assert_eq!(p.kx_groups.len(), 2);
-    // ⛔ **THREE signature algorithms, and the third was added because a
-    // measurement demanded it.** ⛔ This assertion said `2` when the first
+    // **THREE signature algorithms, and the third was added because a
+    // measurement demanded it.** This assertion said `2` when the first
     // version of the provider offered P-256/SHA-256 and Ed25519, and the live
     // handshake then failed with
     // `UnsupportedSignatureAlgorithmContext { signature_algorithm_id:
     // [6, 8, 42, 134, 72, 206, 61, 4, 3, 3] }` — that OID is
     // `ecdsa-with-SHA384` (1.2.840.10045.4.3.3), the algorithm the relay's
-    // second intermediate certificate is signed with. ⛔ MEASURED 2026-10-02 in
-    // `rust:1-alpine` against `tcp.ssh.relay.ajam.dev:443`. ⛔ P-384/SHA-384
+    // second intermediate certificate is signed with. MEASURED 2026-10-02 in
+    // `rust:1-alpine` against `tcp.ssh.relay.ajam.dev:443`. P-384/SHA-384
     // was implemented in response and the handshake completed, so the count
     // here is three and the count is the *result* of a measurement rather than
     // a preference.
@@ -348,11 +348,11 @@ fn the_provider_offers_only_what_it_implements() {
 #[test]
 fn the_signature_mapping_covers_every_algorithm_it_lists() {
     let algs = signature_algorithms();
-    // ⛔ **Every entry in `all` must be reachable from `mapping`.** A scheme
+    // **Every entry in `all` must be reachable from `mapping`.** A scheme
     // listed in `all` but absent from `mapping` is one rustls will never
     // verify, and a peer that selects it gets a handshake failure rather than
     // a clean negotiation failure.
-    // ⛔ **Compared by address, not by value.** `dyn SignatureVerificationAlgorithm`
+    // **Compared by address, not by value.** `dyn SignatureVerificationAlgorithm`
     // is not `PartialEq`, and writing an equality for it would compare
     // algorithms by a rule invented here rather than by identity.
     let addr = |a: &&dyn rustls_pki_types::SignatureVerificationAlgorithm| {
@@ -366,7 +366,7 @@ fn the_signature_mapping_covers_every_algorithm_it_lists() {
             );
         }
     }
-    // ⛔ **Six mapped schemes.** ⛔ The third is ECDSA_NISTP384_SHA384, added
+    // **Six mapped schemes.** The third is ECDSA_NISTP384_SHA384, added
     // after the live handshake named `ecdsa-with-SHA384` as the algorithm it
     // could not verify; see `the_provider_offers_only_what_it_implements` for
     // the measurement. The other three are RSA-PSS with SHA-256, -384 and

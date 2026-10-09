@@ -2,7 +2,7 @@
 //! [`crate::tree`], which re-exports this type; it is a module of its own so
 //! that each file stays short.
 
-/// ⛔ **What the parse produced.** ⛔ Every variant here is a decision that had
+/// **What the parse produced.** Every variant here is a decision that had
 /// to be made deliberately, and each names the rule that made it.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Parsed {
@@ -11,11 +11,11 @@ pub enum Parsed {
     Help(&'static str),
     /// `podssh --version`.
     Version,
-    /// A verb was selected. ⛔ `refused` non-empty means the user asked for
+    /// A verb was selected. `refused` non-empty means the user asked for
     /// something this release does not do, and it is a refusal.
     Command {
         verb: &'static str,
-        /// `(flag as written, what to use instead, why)`. ⛔ Owned because
+        /// `(flag as written, what to use instead, why)`. Owned because
         /// `FlagRow::usage_form` builds a `String`: the spelling carries the
         /// metavariable, and the table is `&'static` data that must not be
         /// copied per parse. The third element is the row's own reason, so
@@ -24,7 +24,7 @@ pub enum Parsed {
         refused: Vec<(String, &'static str, &'static str)>,
         /// `-P TAG` on `ssh`: accepted, ignored, and it says so.
         tag: Option<String>,
-        /// `--timeout DURATION`, verbatim. ⛔ `None` when the flag was absent
+        /// `--timeout DURATION`, verbatim. `None` when the flag was absent
         /// **and** when the verb has no `--timeout` row — E33's gate enforces
         /// only where the tree could have supplied the flag, so `ssh` (no row;
         /// adding one needs a spec row first) carries nothing and is
@@ -38,7 +38,7 @@ pub enum Parsed {
         /// `keygen`'s; `None` for every other verb.
         keygen: Option<Box<crate::keygen::KeygenArgs>>,
     },
-    /// A usage error. ⛔ The message never contains a usage block.
+    /// A usage error. The message never contains a usage block.
     Usage(String),
     /// `podssh` with no subcommand at all.
     NoArguments(String),
@@ -96,7 +96,7 @@ pub enum Parsed {
         full: bool,
         refused: Vec<(String, &'static str, &'static str)>,
     },
-    /// ⛔ **`podssh ts`, and it is its own variant because it carries behaviour
+    /// **`podssh ts`, and it is its own variant because it carries behaviour
     /// inputs no other verb has** (E39). Like `Man`, the refusal list rides
     /// along so a `Refused` row added to `TS_FLAGS` later refuses instead of
     /// being silently dropped. `mode` is the validated closed value (`auto`
@@ -131,14 +131,14 @@ pub enum Parsed {
 }
 
 impl Parsed {
-    /// Whether this outcome writes only to stderr. ⛔ E31's plant 6 is a
+    /// Whether this outcome writes only to stderr. E31's plant 6 is a
     /// `println!` in the dispatch, and the assertion is that no byte reaches
     /// stdout on any of these paths.
     pub fn is_error(&self) -> bool {
         matches!(self, Parsed::Usage(_) | Parsed::NoArguments(_) | Parsed::UnknownVerb(_))
     }
 
-    /// ⛔ Whether this outcome requires a refusal rather than dispatch. ⛔ A
+    /// Whether this outcome requires a refusal rather than dispatch. A
     /// `Command` carrying a `Refused` flag is a refusal too — an unimplemented
     /// flag is never a stub that exits 0 (`06-cli.md`:244-245).
     pub fn needs_refusal(&self) -> bool {

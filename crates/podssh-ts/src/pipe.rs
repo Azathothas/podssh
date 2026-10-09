@@ -1,6 +1,6 @@
 //! The `-W` byte pipe: stdin↔stream until EOF, bytes only on stdout.
 //!
-//! ⛔ Diagnostics never touch stdout — the caller owns the streams, and this
+//! Diagnostics never touch stdout — the caller owns the streams, and this
 //! function only returns counts. A framing byte on stdout would corrupt the
 //! stream for anything downstream (`ssh -o ProxyCommand`), so the byte
 //! equality is pinned in `tests/pipe.rs`, not trusted to review.
@@ -11,7 +11,7 @@ use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 /// from_remote)` byte counts. Any I/O error aborts with the error — a
 /// half-open pipe is a failure, not a partial success.
 ///
-/// ⛔ A leg here must be both readable AND writable, which stdin is not —
+/// A leg here must be both readable AND writable, which stdin is not —
 /// so `-W` does not use this function. It uses [`pipe_streams`] below, and
 /// this one stays for duplex-shaped ends (its tests pin the byte equality).
 pub async fn copy_bidirectional<A, B>(a: &mut A, b: &mut B) -> std::io::Result<(u64, u64)>
@@ -34,7 +34,7 @@ pub enum FirstEnd {
 /// How a `-W` pipe ended: per-direction byte counts (`None` when that
 /// direction did not run to EOF) and which end finished first.
 ///
-/// ⛔ `down: None` does NOT mean zero bytes arrived: when local EOF wins,
+/// `down: None` does NOT mean zero bytes arrived: when local EOF wins,
 /// the down leg is cancelled mid-drain, and bytes it already delivered to
 /// local stdout are real but uncounted. `None` means "incomplete", and the
 /// count beside it is the only number reported.
@@ -74,7 +74,7 @@ where
     let down_fut = async { tokio::io::copy(&mut rd, local_w).await };
     tokio::pin!(up_fut);
     tokio::pin!(down_fut);
-    // ⛔ No `down_fut.await` on the up-win arm: the down leg can only finish
+    // No `down_fut.await` on the up-win arm: the down leg can only finish
     // on stream EOF, and awaiting it here reintroduces the exact hang this
     // function exists to avoid (the losing future is cancelled by the
     // select). An earlier revision awaited it and hung forever whenever the

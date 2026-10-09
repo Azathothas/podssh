@@ -103,7 +103,7 @@ def load_facts(path: Path) -> dict:
     that has proven nothing.
     """
     facts: dict = {"pin": {}, "facts": [], "relations": [], "top": {}}
-    # ⛔ Top-level keys come BEFORE any table header. `section = "pin"` would be
+    # Top-level keys come BEFORE any table header. `section = "pin"` would be
     # a lie for them, and a reader that trusts `section` would file `origin`
     # under the pin and then report "no origin" - which is exactly what the
     # first version of this function did.
@@ -227,7 +227,7 @@ def validate(facts: dict) -> None:
         if not facts["pin"].get(field):
             raise FactsFileError(f"the pin has no {field}")
     if not facts["facts"]:
-        raise FactsFileError("⛔ there are no structural facts at all; a gate "
+        raise FactsFileError("there are no structural facts at all; a gate "
                              "with no facts asserts nothing")
     for fact in facts["facts"]:
         if not fact.get("id") or not fact.get("line"):

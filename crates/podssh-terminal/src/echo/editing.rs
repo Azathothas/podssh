@@ -1,17 +1,17 @@
 //! Erasing, moving, and inserting: the edits a key makes to a line.
 //!
-//! ⛔ **Transcribed from `.tmp/podbox/crates/podbox-ssh/src/session.rs`,** and
-//! each method names the line it came from. ⛔ This is a split of [`super`], not
-//! a second implementation: ⛔ **the reference is 1132 lines in one file and
-//! this repository's gate forbids a source file over 500 lines**, ⛔ so the
-//! transcription is cut by responsibility and ⛔ **not one byte rule was
-//! re-derived or dropped to make it fit.** ⛔ The suite is the same 96 tests
+//! **Transcribed from `.tmp/podbox/crates/podbox-ssh/src/session.rs`,** and
+//! each method names the line it came from. This is a split of [`super`], not
+//! a second implementation: **the reference is 1132 lines in one file and
+//! this repository's gate forbids a source file over 500 lines**, so the
+//! transcription is cut by responsibility and **not one byte rule was
+//! re-derived or dropped to make it fit.** The suite is the same 96 tests
 //! before and after the split.
 //!
 //! ## What is here
 //!
 //! - [`Discipline::signal_key`] — Ctrl-C and Ctrl-\: drop the line, echo the
-//!   caret notation, report the signal. ⛔ The interrupted line never ran, so
+//!   caret notation, report the signal. The interrupted line never ran, so
 //!   history never saw it. **`session.rs:297-308`**
 //! - [`Discipline::eof_or_delete`] — Ctrl-D at three positions, three answers.
 //!   **`session.rs:310-321`**
@@ -23,9 +23,9 @@
 //! - [`Discipline::insert`] — an ordinary byte, or a refusal at the cap.
 //!   **`session.rs:437-453`**
 //!
-//! ⛔ **`pub(crate)`, not `pub`.** ⛔ These are called from [`super::Discipline::key`]
-//! in another module, ⛔ and ⛔ `pub(crate)` is the whole of what that needs: ⛔ they
-//! stay invisible outside the crate, ⛔ so a caller cannot drive a half-finished
+//! **`pub(crate)`, not `pub`.** These are called from [`super::Discipline::key`]
+//! in another module, and `pub(crate)` is the whole of what that needs: they
+//! stay invisible outside the crate, so a caller cannot drive a half-finished
 //! edit that the byte rules never sanctioned.
 
 use super::Discipline;
@@ -117,19 +117,19 @@ impl Discipline {
 
     /// The final byte of an `ESC [` sequence.
     ///
-    /// ⛔ **Arrows echo their own sequences**, which move a real terminal's
+    /// **Arrows echo their own sequences**, which move a real terminal's
     /// cursor exactly where the local cursor went. Home and End stay silent
-    /// until the next redraw. ⛔ **Everything else bells and drops**, and that is
+    /// until the next redraw. **Everything else bells and drops**, and that is
     /// not an omission — see `session.rs:54-55`, *"any escape sequence outside
     /// arrows, Home, and End is dropped"*. A discipline that passes an
     /// untested sequence to a client that is *not* full-screen corrupts the
     /// scrollback. **READ**, `session.rs:378-403`.
     ///
-    /// ⛔ **`bare` is load-bearing.** ⛔ **`ESC [ 1 C` is a real sequence** —
-    /// "cursor forward one" — and ⛔ **it is refused rather than treated as a
-    /// plain `C`.** ⛔ Handling it as `C` would move the cursor as though the `1`
-    /// had never been sent, ⛔ and a discipline that interprets sequences it has
-    /// not tested is a discipline that will corrupt somebody's terminal. ⛔ This
+    /// **`bare` is load-bearing.** **`ESC [ 1 C` is a real sequence** —
+    /// "cursor forward one" — and **it is refused rather than treated as a
+    /// plain `C`.** Handling it as `C` would move the cursor as though the `1`
+    /// had never been sent, and a discipline that interprets sequences it has
+    /// not tested is a discipline that will corrupt somebody's terminal. This
     /// is the entry's rule applied to a sequence the reference never met: *"a
     /// discipline that silently drops a sequence its client was promised is worse
     /// than one that rings a bell"*.

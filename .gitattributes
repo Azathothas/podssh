@@ -1,13 +1,13 @@
-# ⛔ Line endings, decided once here rather than rediscovered by a tool.
+# Line endings, decided once here rather than rediscovered by a tool.
 #
 # Measured 2026-10-01: a CRLF after `case $link in` makes `dash` fail with
 # `Syntax error: word unexpected (expecting "in")` while `bash -n` accepts the
 # same file. It has now happened three times in this repository, and once
 # because an edit rewrote a file with a Python script that wrote text mode.
-# ⛔ `scripts/check-scripts.py` checks the shell scripts, and the CI workflow
+# `scripts/check-scripts.py` checks the shell scripts, and the CI workflow
 # runs it; this file is what stops the conversion happening in the first place.
 #
-# ⛔ `* text=auto` would have converted `check-todo.py` on checkout, which is a
+# `* text=auto` would have converted `check-todo.py` on checkout, which is a
 # Python file this repository runs directly. The shell scripts are pinned to LF
 # below rather than left to normalisation, because the failure mode is a shell
 # that parses in one shell and not the other.
@@ -29,10 +29,10 @@ scripts/dev.sh text eol=lf
 *.lock text eol=lf
 LICENSE text eol=lf
 
-# ⛔ **`*.txt` is pinned for one file, and the file is a contract.**
+# **`*.txt` is pinned for one file, and the file is a contract.**
 # `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt` is the pinned
 # copy of the relay's document, and two of its tests assert its SHA-256 and its
-# byte count. ⛔ MEASURED 2026-10-05: with `text=auto` and no `eol`, a clone on a
+# byte count. MEASURED 2026-10-05: with `text=auto` and no `eol`, a clone on a
 # machine using git's defaults (native eol on Windows, or `core.autocrlf=true`)
 # checks that file out CRLF, and both assertions fail on a tree nothing is wrong
 # with — a check that fires on correct input. `*.patch` is here for the same
@@ -46,7 +46,7 @@ LICENSE text eol=lf
 # Windows working tree (still CRLF) passed. Store these byte-for-byte.
 crates/podssh-core/tests/fixtures/*.txt -text
 
-# ⛔ A binary is a binary, and `text=auto` guesses from content.
+# A binary is a binary, and `text=auto` guesses from content.
 *.png binary
 *.jpg binary
 *.gz binary

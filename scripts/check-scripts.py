@@ -9,7 +9,7 @@ Two defects, both measured on 2026-10-01, and both of which shipped here:
    repository, most recently because a local edit rewrote all three scripts.
    The first CI step that checked this grepped all of `scripts/` rather than
    `scripts/*.sh`, and was RED ON MAIN from the moment it was pushed, because
-   `check-todo.py` is Windows-authored and has CRLF on every line. ⛔ A guard
+   `check-todo.py` is Windows-authored and has CRLF on every line. A guard
    that fires on correct input is not a strict guard, it is a broken one.
 
 2. **Bashisms.** `arr+=(one two)` parses under `bash -n` and fails under dash.
@@ -18,7 +18,7 @@ Two defects, both measured on 2026-10-01, and both of which shipped here:
    MEASURED, both directions:
        dash -n  -> exit 2, "3: Syntax error: "(" unexpected"
        bash -n  -> exit 0
-   ⛔ `scripts/gate.sh` and `scripts/plant.sh` run inside the build image as
+   `scripts/gate.sh` and `scripts/plant.sh` run inside the build image as
    `sh`, so a bashism fails there at RUNTIME, after a local `check` has
    reported green.
 
@@ -58,7 +58,7 @@ def scripts() -> list[Path]:
 
 
 def check_crlf(path: Path) -> list[str]:
-    """⛔ **Any carriage return, not only `\\r\\n`.**
+    """**Any carriage return, not only `\\r\\n`.**
 
     An old-Mac lone `\\r` is a line ending to a reader and not to `dash`, and a
     check written as `b"\\r\\n" in raw` cannot see one. The count is reported so
@@ -76,18 +76,18 @@ def check_crlf(path: Path) -> list[str]:
 
 
 def check_parses(path: Path) -> list[str]:
-    """⛔ `dash -n`, never `sh -n`.
+    """`dash -n`, never `sh -n`.
 
     `sh` on a Git Bash host is bash in POSIX mode: it accepts arrays, which dash
     rejects, so a check written with `sh -n` passes on exactly the files that
     break in the build image. MEASURED on this machine with a planted
     `arr+=(one two)`: `dash -n` exits 2, `bash -n` exits 0.
 
-    ⛔ **Each shell is tried independently, and that is a message fix.** The loop
+    **Each shell is tried independently, and that is a message fix.** The loop
     used to `return` from its `FileNotFoundError` arm on the FIRST missing shell,
     so a host with `sh` but no `dash` was told *"neither `dash` nor `sh` is on
     PATH"* — a report that sends the reader looking for a problem that is not
-    there. ⛔ `sh` alone is still reported as a problem: it is the weaker shell
+    there. `sh` alone is still reported as a problem: it is the weaker shell
     and the dash parse did not run, so this stays fail-closed.
     """
     missing: list[str] = []
@@ -108,7 +108,7 @@ def check_parses(path: Path) -> list[str]:
                     f"parsed under `sh` only — the weaker shell, which accepts "
                     f"the bashisms dash rejects"]
         return []
-    # ⛔ A missing shell is NOT a pass. Reporting success for a check that could
+    # A missing shell is NOT a pass. Reporting success for a check that could
     # not run is the defect this repository has shipped three times; it is
     # reported as a failure so nobody reads a green result that verified nothing.
     return [f"{path.relative_to(ROOT)}: {' and '.join(missing)} not on PATH "

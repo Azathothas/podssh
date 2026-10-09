@@ -1,13 +1,13 @@
 //! podssh's command line: one tree, two renderers, and refusals that name a
 //! real flag.
 //!
-//! ⛔ **The seam is argv in, a typed command out**, and it is one seam:
+//! **The seam is argv in, a typed command out**, and it is one seam:
 //! [`tree::parse`] is the only way a command is selected, and [`dispatch`]
 //! turns the result into an exit code. Everything else in this crate is a
 //! renderer or a table, so there is exactly one place where a wrong command
 //! line can be mistaken for a right one.
 //!
-//! ⛔ **`podssh` with no subcommand never connects.** `06-cli.md`:17 makes it
+//! **`podssh` with no subcommand never connects.** `06-cli.md`:17 makes it
 //! an error that explains itself, and the two-stage handler in [`refuse`] is
 //! why `podssh example.org` says `Try: podssh ssh example.org` and never says
 //! `doctor`.
@@ -24,10 +24,10 @@ pub mod clap_error;
 pub mod dispatch;
 pub mod doctor;
 pub mod exit_codes;
-// ⛔ **E24's fault table, as code.** ⛔ `exit_codes.rs` holds the two
+// **E24's fault table, as code.** `exit_codes.rs` holds the two
 // candidate usage constants and names the fork; `exitmap.rs` holds the whole
 // table, the collision guard, and the tests that decide `2` versus `64`.
-// ⛔ Two modules because they answer different questions: `exit_codes.rs` is
+// Two modules because they answer different questions: `exit_codes.rs` is
 // "what does this crate emit today", `exitmap.rs` is "what the contract says".
 pub mod exitmap;
 // Tables, one flag to a row: rustfmt would spread each row over many lines.

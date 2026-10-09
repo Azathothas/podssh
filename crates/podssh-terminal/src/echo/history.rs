@@ -1,8 +1,8 @@
 //! Recall: history, the cap, and the line set aside while browsing it.
 //!
-//! ⛔ **Transcribed from `.tmp/podbox/crates/podbox-ssh/src/session.rs`,** each
-//! method naming the line it came from. ⛔ A split of [`super`], for the reason
-//! given there: ⛔ the 500-line gate is why these are separate files, ⛔ **and no
+//! **Transcribed from `.tmp/podbox/crates/podbox-ssh/src/session.rs`,** each
+//! method naming the line it came from. A split of [`super`], for the reason
+//! given there: the 500-line gate is why these are separate files, **and no
 //! history rule was re-derived or dropped to make the split fit.**
 //!
 //! ## What is here
@@ -12,8 +12,8 @@
 //! - [`Discipline::history_down`] — walk newer, and past the newest restore the
 //!   parked line. **`session.rs:422-435`**
 //!
-//! ⛔ **The parked line is load-bearing.** ⛔ Without it, `Up` would silently
-//! destroy what the user was typing: ⛔ press Up on a half-typed command and the
+//! **The parked line is load-bearing.** Without it, `Up` would silently
+//! destroy what the user was typing: press Up on a half-typed command and the
 //! half-typed command is gone, with no bell and no way back.
 
 use super::Discipline;

@@ -1,6 +1,6 @@
 //! E07 — the userspace line discipline, for a host with no pty.
 //!
-//! ⛔ **This crate never touches the network.** It owns echo, line editing,
+//! **This crate never touches the network.** It owns echo, line editing,
 //! history, signal characters, `TERM` selection, and window size. The bytes
 //! arrive over SSH from [`podssh-core`] and leave again; nothing here dials,
 //! reads a socket, or knows a relay exists.
@@ -24,7 +24,7 @@
 //! | [`echo::Discipline`] | `pty-req` accepted, the remote program is a shell | podssh: echo, editing, history, a static prompt |
 //! | [`passthrough::Passthrough`] | `pty-req` accepted, the remote program is not a shell | the remote side, whole |
 //!
-//! ⛔ **A full-screen program is a separate mode, not a richer cooked mode.** The
+//! **A full-screen program is a separate mode, not a richer cooked mode.** The
 //! echo discipline **drops** cursor addressing, because a discipline that
 //! interprets sequences it has not tested corrupts somebody's terminal. A `vi`
 //! cannot run under those rules, so `vi` gets the other mode — where podssh
@@ -32,22 +32,22 @@
 //!
 //! ## What was transcribed, and what was not
 //!
-//! ⭐ **The echo discipline is a transcription, not an invention.** podbox ships
+//! **The echo discipline is a transcription, not an invention.** podbox ships
 //! this exact discipline server-side and its byte rules are pinned by ~40 named
 //! tests — **READ**, `.tmp/podbox/crates/podbox-ssh/src/session.rs:1`. Every
 //! constant here cites the line it came from, and every refusal is in the
 //! catalogue below.
 //!
-//! ⛔ **One behaviour is deliberately NOT transcribed.** The sibling *refuses*
+//! **One behaviour is deliberately NOT transcribed.** The sibling *refuses*
 //! window size, because `sshd`'s `ForceCommand` consumes size changes before any
-//! byte reaches it — **READ**, `session.rs:47-50`. ⛔ podssh is not behind
+//! byte reaches it — **READ**, `session.rs:47-50`. podssh is not behind
 //! `ForceCommand`: podssh issues `window-change` itself. So [`window`] honours
 //! a resize and **defers** one that arrives mid-frame rather than dropping it.
 //! Copying the sibling's refusal would have shipped that bug.
 //!
 //! ## The refusal rule
 //!
-//! ⛔ **A refusal rings the bell and changes nothing.** Silence would read as
+//! **A refusal rings the bell and changes nothing.** Silence would read as
 //! acceptance, and a user who cannot tell "not supported" from "did nothing"
 //! will file it as a bug in the wrong place.
 //!

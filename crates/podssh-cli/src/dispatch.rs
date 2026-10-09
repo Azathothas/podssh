@@ -1,13 +1,13 @@
 //! Dispatch: the parse result becomes bytes on two streams and an exit code.
 //!
-//! ⛔ **stdout carries the answer and nothing else.** `06-cli.md`:251-252:
+//! **stdout carries the answer and nothing else.** `06-cli.md`:251-252:
 //! *"stdout is protocol data or the answer, and nothing else. Diagnostics go to
-//! stderr, always, in every subcommand."* ⛔ This module is where that is
+//! stderr, always, in every subcommand."* This module is where that is
 //! enforced, and it is the module E31's plant 6 targets: one `println!` on the
 //! wrong path and `podssh example.org 2>/dev/null | wc -c` stops reading 0.
 //!
-//! ⛔ **The terminal state is a parameter, not a probe.** [`run`] — the entry
-//! point every test calls — gets [`Tty::none`], so ⛔ no test can enter the
+//! **The terminal state is a parameter, not a probe.** [`run`] — the entry
+//! point every test calls — gets [`Tty::none`], so no test can enter the
 //! pager and block on a terminal; [`main_with_args`] asks the operating system
 //! once, where the real file descriptors are, and passes the answer down.
 
@@ -20,7 +20,7 @@ use crate::pager::Tty;
 use crate::tree::Parsed;
 
 /// The two streams, as a pair of sinks, so a test can assert on both without
-/// spawning a process. ⛔ This is what makes plant 6 a unit test as well as a
+/// spawning a process. This is what makes plant 6 a unit test as well as a
 /// shell assertion — and the shell assertion is still the one that counts,
 /// because it runs the real binary.
 pub struct Streams<'a> {
@@ -31,7 +31,7 @@ pub struct Streams<'a> {
 /// Run a parsed command line **with no terminal**. Returns the process exit
 /// code.
 ///
-/// ⛔ This is the entry point tests use, and it cannot page — ⛔ `RULES.md`:101
+/// This is the entry point tests use, and it cannot page — `RULES.md`:101
 /// puts it as *"nothing blocks on a terminal"*, and a test that could page
 /// would block on a key nobody presses.
 pub fn run(p: &Parsed, s: &mut Streams<'_>) -> i32 {
@@ -57,7 +57,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             let _ = writeln!(s.out, "podssh {}", help::version());
             0
         }
-        // ⛔ A usage error is a refusal. Nothing goes to stdout, because the
+        // A usage error is a refusal. Nothing goes to stdout, because the
         // only thing that should ever be there is an answer.
         Parsed::Usage(m) => {
             let _ = writeln!(s.err, "{m}");
@@ -146,7 +146,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             );
             EXIT_NOT_IMPLEMENTED
         }
-        // ⛔ `ts` is dispatched, not refused: `ts.rs` owns the verb the way
+        // `ts` is dispatched, not refused: `ts.rs` owns the verb the way
         // `man.rs` owns `man`. The VERB_OWNER row is gone — and
         // `tests/ts_behave.rs` proves no `ts` shape exits 0 having done
         // nothing, which is what the row used to guarantee.
@@ -190,12 +190,12 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             )
         }
         Parsed::Command { verb, refused, tag, timeout, jsonl, ssh, keygen } => {
-            // ⛔ `-P TAG` on ssh: accepted, ignored, and it says so on stderr so
+            // `-P TAG` on ssh: accepted, ignored, and it says so on stderr so
             // a user who meant a port learns before the connection fails.
             if let Some(t) = tag {
                 let _ = writeln!(s.err, "{}", crate::refuse::accepted_tag_notice(t));
             }
-            // ⛔ E33's gate, computed once and passed down: the attachment from
+            // E33's gate, computed once and passed down: the attachment from
             // the probed TTY and `--jsonl`, then the required `--timeout`.
             // Only verbs whose table declares `--timeout` enter the gate, so
             // enforcement follows the flag's existence and never invents a
@@ -224,7 +224,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 let _ = writeln!(s.err, "{}", refusal.message);
                 return refusal.fault.code();
             }
-            // ⛔ Refused flags first, and they refuse before anything else
+            // Refused flags first, and they refuse before anything else
             // happens, so nothing is half-done.
             if refusals(verb, refused, s.err) {
                 return EXIT_USAGE;
@@ -248,7 +248,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
     }
 }
 
-/// Print every refused flag, and say whether there was one. ⛔ One function so
+/// Print every refused flag, and say whether there was one. One function so
 /// `man` and every other verb refuse in the same words.
 ///
 /// The third line is the row's own reason, because the causes differ: `-L`
@@ -263,7 +263,7 @@ fn refusals(verb: &str, refused: &[(String, &'static str, &'static str)], err: &
     true
 }
 
-/// The one function `main` calls. ⛔ It is here rather than in `main.rs` so a
+/// The one function `main` calls. It is here rather than in `main.rs` so a
 /// test can call the whole path — parse, dispatch, both streams, exit code —
 /// with no process and no pipe.
 pub fn main_with_args<I, S>(args: I) -> i32
@@ -287,7 +287,7 @@ where
 mod tests {
     use super::*;
 
-    /// ⛔ **Plant 6, as a unit test.** The shell assertion
+    /// **Plant 6, as a unit test.** The shell assertion
     /// `podssh example.org 2>/dev/null | wc -c` is the acceptance; this is the
     /// same claim with both streams captured, so a `println!` on a refusal path
     /// fails here as well.
@@ -326,7 +326,7 @@ mod tests {
         assert_eq!(rc, 64);
         let text = String::from_utf8(err).unwrap();
         assert!(text.contains("Try: podssh ssh example.org"), "{text}");
-        // ⛔ `doctor` is ON the printed subcommand list; what must not happen is
+        // `doctor` is ON the printed subcommand list; what must not happen is
         // it being SUGGESTED. The only "Try:" line names ssh.
         let tries: Vec<&str> = text.lines().filter(|l| l.starts_with("Try:")).collect();
         assert_eq!(tries, vec!["Try: podssh ssh example.org"], "{text}");
@@ -389,7 +389,7 @@ mod tests {
         let p = crate::tree::parse(vec!["man"]);
         let mut out: Vec<u8> = Vec::new();
         let mut err: Vec<u8> = Vec::new();
-        // ⛔ `run` and not `run_with`: the test entry point has no terminal, so
+        // `run` and not `run_with`: the test entry point has no terminal, so
         // this can never page and never block.
         let rc = run(&p, &mut Streams { out: &mut out, err: &mut err });
         assert_eq!(rc, 0, "stderr: {}", String::from_utf8_lossy(&err));
@@ -397,7 +397,7 @@ mod tests {
         assert!(err.is_empty(), "{:?}", String::from_utf8_lossy(&err));
     }
 
-    /// ⛔ The control for the refusal path: an unknown man section is a usage
+    /// The control for the refusal path: an unknown man section is a usage
     /// error at exit **64**, with nothing on stdout.
     #[test]
     fn an_unknown_man_section_is_a_usage_error() {
@@ -410,7 +410,7 @@ mod tests {
         assert!(String::from_utf8(err).unwrap().contains("nonsense"));
     }
 
-    /// ⛔ **E33 Prove check 6, as a unit test.** `run` uses `Tty::none`, which
+    /// **E33 Prove check 6, as a unit test.** `run` uses `Tty::none`, which
     /// is a pipe: `chat --send` with no `--timeout` is refused as a verb that
     /// is not implemented (70), not as a usage error that asks for a flag
     /// that would change nothing (GitHub #6).
@@ -465,7 +465,7 @@ mod tests {
         assert!(String::from_utf8(err).unwrap().contains("--timeout"));
     }
 
-    /// ⛔ **Enforcement follows the flag's existence.** `ssh` has no
+    /// **Enforcement follows the flag's existence.** `ssh` has no
     /// `--timeout` row, so a piped `ssh` run reaches ssh itself (here it stops
     /// on a destination the relay cannot take, before any network) — the
     /// gate must not invent a requirement the tree cannot satisfy.

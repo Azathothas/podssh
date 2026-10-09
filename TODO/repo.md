@@ -1856,7 +1856,7 @@ again here; rule 6 of AGENTS.md, section 5.
 **Milestone:** none
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1943,6 +1943,24 @@ sh scripts/dev.sh check           # the gate, with the changed messages
 Each command exits 0; the second shows no link to a missing item. Planted
 defect: put one U+26D4 into a comment of `crates/podssh-ws/src/frame.rs`;
 `check-repo.py` must exit 1 and name the file and the line.
+
+## Correction
+
+2026-10-09, measured again after T-082 removed `podssh-transport`: 3,301
+markers on 2,727 lines of 117 code files; 47 lines with a line number of a
+document, 147 with the name of an earlier work item, and 18 with a path under
+docs/spec/ or docs/TODO/, 201 lines in all, 132 of them in `podssh-cli`. The
+U+26A0 markers went with `podssh-transport`. The tests of the record's
+checker (`crates/podssh-todo`) hold Markdown locations such as
+"TODO/INDEX.md:3" as data: the check of step 5 leaves that crate out.
+
+The state (partial), 2026-10-09: step 1 is done, in the commit "The code
+carries no stop-sign markers": each of the 3,301 markers is gone with one
+space beside it, no line and no word with it, and each file keeps its line
+endings (the IRC fixture its CRLF). rustfmt joined seven assertions whose
+messages became shorter; `remap` moved the eight citations that they shifted.
+Next: steps 2 to 4 (the 201 lines, and the wrong facts), then the check of
+step 5.
 
 # T-245: The box refuses each bind, but sandbox A allows an AF_UNIX bind
 
@@ -2492,3 +2510,50 @@ text after a citation, and reads each bare :N".
   first version panic; a test holds it now. `cargo clippy --all-targets -p
   podssh-todo -- -D warnings`: no warning.
 
+# T-259: One dropped connection fails a live TLS test, and with it the gate
+
+**Source:** the gate's run of 2026-10-09 after the markers of T-244: the step
+`libs` failed once, and passed when it ran again with no change.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The live tests of `crates/podssh-ws/tests/live_handshake.rs` run in the gate
+and in CI, each with one TCP connection and one handshake to the relay. The
+relay's side drops connections at random (T-255), so one drop fails the
+test, the step `libs`, and the whole gate, for no defect of podssh.
+
+## Premise
+
+Measured on 2026-10-09: in `sh scripts/dev.sh check`, the test
+`the_negotiated_parameters_are_ones_this_provider_implements` failed with
+"tls handshake eof" (`crates/podssh-ws/tests/live_handshake.rs:172`); the
+step `libs` alone, run again at once, passed. Each live test of the file
+opens its own connection, with no second attempt
+(`crates/podssh-ws/tests/live_handshake.rs:31`, `live_enabled`).
+
+## Approach
+
+1. One helper in the file connects and shakes hands: up to three attempts,
+   each bounded, when an attempt ends in an I/O error before the handshake
+   reached a verdict (EOF, reset, a time limit); each failed attempt is
+   printed.
+2. A verdict is never retried: a refused certificate, a wrong name, or a
+   suite that the provider does not offer fails at once, as now. So the
+   plants still fail the first time.
+3. `docs/STATUS.md`: the live TLS tests, and their attempts.
+
+## Prove
+
+```sh
+cargo test -p podssh-ws --test live_handshake
+cargo test -p podssh-ws --test hostname_verification
+```
+
+Each passes. Planted defect: a helper that retries a refused certificate
+must make the wrong-hostname plant pass on its third attempt; the test that
+counts the attempts on a verdict must fail.

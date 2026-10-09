@@ -1,6 +1,6 @@
 //! SHA-256 and SHA-384 as `rustls::crypto::hash`.
 //!
-//! ⛔ **The provider is a proposal until it has exchanged a certificate with a
+//! **The provider is a proposal until it has exchanged a certificate with a
 //! real peer.** A `CryptoProvider` that has never completed a handshake is a
 //! struct with plausible contents, so every piece of it is asserted against a
 //! published test vector rather than against itself.
@@ -10,7 +10,7 @@ use std::fmt;
 use rustls::crypto::hash::{Context, Hash, HashAlgorithm, Output};
 use sha2::{Digest, Sha256, Sha384};
 
-/// ⛔ One enum rather than two types, so a suite cannot be built with a SHA-256
+/// One enum rather than two types, so a suite cannot be built with a SHA-256
 /// hash and a SHA-384 HKDF. That pairing is not detectable at the type level
 /// once both are behind `&'static dyn`, and it produces a handshake that
 /// fails in the key schedule rather than at construction.
@@ -43,7 +43,7 @@ pub static SHA384: &dyn Hash = &PureHash(HashAlgorithmId::Sha384);
 #[derive(Debug)]
 pub struct PureHash(pub HashAlgorithmId);
 
-/// ⛔ `Sha256` and `Sha384` are different types, so the enum is dispatched
+/// `Sha256` and `Sha384` are different types, so the enum is dispatched
 /// rather than boxed. A `Box<dyn Digest>` here would heap-allocate on every
 /// `start()`, which for a transcript hash is a per-record cost.
 #[derive(Clone)]

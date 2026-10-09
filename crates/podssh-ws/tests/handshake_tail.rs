@@ -1,8 +1,8 @@
-//! ⛔ **The bytes that arrive behind the `101`, and the Pong a Ping requires.**
+//! **The bytes that arrive behind the `101`, and the Pong a Ping requires.**
 //!
-//! ⛔ The relay dials the target *before* the upgrade, so the target's first
+//! The relay dials the target *before* the upgrade, so the target's first
 //! bytes can share a TCP segment with the response headers, and one `read` can
-//! carry any number of frames. ⛔ Both cases were once discarded: `read_response`
+//! carry any number of frames. Both cases were once discarded: `read_response`
 //! returned `Result<(), _>` and the reader kept its buffer in a local. A frame
 //! parser that starts mid-frame decodes garbage forever after, and nothing in
 //! the tree noticed — the bytes were already off the socket and there was no
@@ -30,12 +30,12 @@ fn response_for(key: &str) -> String {
     )
 }
 
-/// ⛔ A server frame, unmasked, so it is exactly what the relay writes.
+/// A server frame, unmasked, so it is exactly what the relay writes.
 fn server_frame(payload: &[u8]) -> Vec<u8> {
     frame::encode(&Frame { fin: true, opcode: frame::OPCODE_BINARY, payload: payload.to_vec() }, Role::Server, [0; 4])
 }
 
-/// ⛔ **A stream whose reads are scripted, and which records its writes.** When
+/// **A stream whose reads are scripted, and which records its writes.** When
 /// `tail` is set the reads are built from the request the caller wrote, because
 /// the 101's `Sec-WebSocket-Accept` depends on a key this side generates and a
 /// canned response cannot carry it.
@@ -116,7 +116,7 @@ async fn a_frame_coalesced_with_the_101_is_returned_and_not_dropped() {
 
 #[tokio::test]
 async fn a_frame_split_across_reads_is_assembled_without_loss() {
-    // ⛔ The header arrives in two reads and the frame starts in the second,
+    // The header arrives in two reads and the frame starts in the second,
     // which is the shape a small MTU produces.
     let text = response_for(KEY);
     let (one, two) = text.split_at(40);
@@ -138,7 +138,7 @@ async fn a_101_with_nothing_behind_it_yields_no_tail() {
 
 #[tokio::test]
 async fn the_handshake_hands_the_tail_to_its_caller() {
-    // ⛔ The real entry point, with the real request: the tail has to survive
+    // The real entry point, with the real request: the tail has to survive
     // `handshake` as well as `read_response`, or `connect` has nothing to store.
     let mut stream = Scripted::answering(server_frame(b"behind"));
     let (_, tail) =
@@ -150,8 +150,8 @@ async fn the_handshake_hands_the_tail_to_its_caller() {
 
 #[test]
 fn the_buffer_keeps_the_frames_after_the_one_returned() {
-    // ⛔ Two complete frames in one buffer, the case a single `read` produces.
-    // ⛔ A reader that drains its buffer on return loses the second frame for
+    // Two complete frames in one buffer, the case a single `read` produces.
+    // A reader that drains its buffer on return loses the second frame for
     // good — it was already off the socket.
     let mut buf = server_frame(b"one");
     buf.extend_from_slice(&server_frame(b"two"));
@@ -172,8 +172,8 @@ fn the_buffer_keeps_the_frames_after_the_one_returned() {
 
 #[test]
 fn a_ping_becomes_a_pong_that_echoes_its_payload() {
-    // ⛔ RFC 6455 §5.5.2: an endpoint MUST answer a Ping with a Pong carrying
-    // the same application data. ⛔ A Ping surfaced as data would be read as
+    // RFC 6455 §5.5.2: an endpoint MUST answer a Ping with a Pong carrying
+    // the same application data. A Ping surfaced as data would be read as
     // protocol bytes, and one surfaced as an error killed the session:
     // `TransportError::Unexpected` is `Retry::Never`.
     let ping = frame::encode(
@@ -193,7 +193,7 @@ fn a_ping_becomes_a_pong_that_echoes_its_payload() {
 
 // ── the Pong the loop actually writes ───────────────────────────────────────
 
-/// ⛔ **The Pong is a write, and a write is bytes.** ⛔ `next_event` above stops
+/// **The Pong is a write, and a write is bytes.** `next_event` above stops
 /// at the decision; this drives `read_frame_over`, the loop
 /// `RelaySession::read_frame` runs, with a stream whose writes are recorded.
 #[tokio::test]
@@ -213,7 +213,7 @@ async fn read_frame_answers_a_ping_with_a_masked_pong() {
         .expect("the data frame follows the Ping");
     assert_eq!(frame.payload, b"after");
 
-    // ⛔ `Role::Client` here is the mask check: the decoder refuses an unmasked
+    // `Role::Client` here is the mask check: the decoder refuses an unmasked
     // client frame, so a Pong written without §5.3's mask cannot pass.
     let (pong, used) = frame::decode(&stream.written, Role::Client)
         .expect("the recorded write is a well-formed client frame")
@@ -223,7 +223,7 @@ async fn read_frame_answers_a_ping_with_a_masked_pong() {
     assert_eq!(pong.payload, b"keepalive", "§5.5.3: the payload comes back");
 }
 
-/// ⛔ §5.5 caps a control frame at 125 bytes, so a 126-byte Ping is the
+/// §5.5 caps a control frame at 125 bytes, so a 126-byte Ping is the
 /// peer's violation and answering it would put podssh on the wrong side of
 /// the same rule. The decoder refuses it: the read fails, and the only frame
 /// written is a Close 1002 (§7.1.7), never a Pong.
@@ -244,7 +244,7 @@ async fn read_frame_refuses_an_oversized_ping_with_a_close_1002() {
     assert_eq!(sent.payload, 1002u16.to_be_bytes());
 }
 
-/// ⛔ §5.5.2's MUST is excused once a Close has been received, so a later
+/// §5.5.2's MUST is excused once a Close has been received, so a later
 /// Ping is not answered.
 #[tokio::test]
 async fn read_frame_does_not_answer_a_ping_after_a_close() {

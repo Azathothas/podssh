@@ -1,7 +1,7 @@
 origin = "https://tcp.ssh.relay.ajam.dev"
 
-# ⛔ The pin. This is what the live document is compared against, and it moves.
-# ⛔ NEVER re-pin silently: when the live version changes, read the diff, then
+# The pin. This is what the live document is compared against, and it moves.
+# NEVER re-pin silently: when the live version changes, read the diff, then
 # update this file and docs/spec/01-relay-protocol.md in the same change.
 [pin]
 version = "2026-10-03-r2"
@@ -11,15 +11,15 @@ spec-bytes = 18359
 measured-on = "2026-10-04"
 measured-how = "curl -sSL https://tcp.ssh.relay.ajam.dev/llms-full.txt | tee /tmp/llms.txt | wc -lc ; sha256sum /tmp/llms.txt ; curl -sSL https://tcp.ssh.relay.ajam.dev/health | grep -o version"
 
-# ⛔ Read from /relays.json at startup, never compiled in. There is no `hello`
+# Read from /relays.json at startup, never compiled in. There is no `hello`
 # frame on the forward path, so a constant here is a number nothing could
 # correct. Re-measured 2026-10-02 from
 # https://tcp.ssh.relay.ajam.dev/relays.json?host=github.com&port=22
 forward-max-frame-bytes = 262144
 
 # ── Structural facts ────────────────────────────────────────────────────────
-# ⛔ Each is ONE line of the peer's document, and the value that line must carry.
-# ⛔ Nothing else about the peer's prose is asserted.
+# Each is ONE line of the peer's document, and the value that line must carry.
+# Nothing else about the peer's prose is asserted.
 
 [[facts]]
 id = "reverse-node-path"
@@ -59,7 +59,7 @@ contains = "| 1009 | bad multiplex frame | node |"
 why = "A node binary frame under 32 bytes or over 65568 closes the node 1009. Confining the 32-byte id prefix and the payload to ONE frame is what avoids it."
 
 # ── Relations between two published numbers ─────────────────────────────────
-# ⛔ Asserted as arithmetic rather than as two literals, so a peer rewording
+# Asserted as arithmetic rather than as two literals, so a peer rewording
 # either sentence does not redden the gate while a peer changing either number
 # does. The expression names its operands, so the check reads as the arithmetic
 # it performs.
@@ -68,12 +68,12 @@ why = "A node binary frame under 32 bytes or over 65568 closes the node 1009. Co
 id = "reverse-node-frame-cap"
 expression = "id + payload == cap"
 why = "A node frame is 32 bytes of id plus up to 65536 bytes of payload, and the relay refuses it over 65568. Sending the id and the payload as two frames closes the node 1009 instead."
-# ⛔ BOTH operands come from line 182, and that is the whole reason this
-# relation exists rather than two literal facts. ⛔ An earlier version took the
+# BOTH operands come from line 182, and that is the whole reason this
+# relation exists rather than two literal facts. An earlier version took the
 # cap from line 184, which states a DIFFERENT limit: 65536 is the OPERATOR
 # frame's payload cap, and 32 + 65536 != 65536. The relation then reported the
 # relay contradicting itself while comparing two numbers that were never
-# related. ⛔ One sentence, two numbers, one arithmetic fact.
+# related. One sentence, two numbers, one arithmetic fact.
 [relations.src]
 line = 182
 pattern = "over (\\d+) \\(32-byte id plus (\\d+) payload\\)"
@@ -84,9 +84,9 @@ line = 182
 pattern = "over (\\d+) \\(32-byte id plus (\\d+) payload\\)"
 names = ["cap"]
 
-# ⛔ Line 182 has exactly ONE parenthetical bound. Its prose is
+# Line 182 has exactly ONE parenthetical bound. Its prose is
 #   "over 65568 (32-byte id plus 65536 payload)": the 65568 comes BEFORE the '('
-#   and only the 65536 falls inside it. ⛔ The first version of the Python half
+#   and only the 65536 falls inside it. The first version of the Python half
 #   of this gate read group 1 as the id length and computed `65568 + 65536`,
 #   which reported the relay contradicting itself when the relay is consistent.
 #   Group 1 is the TOTAL cap and group 2 is the payload. Verify a citation with

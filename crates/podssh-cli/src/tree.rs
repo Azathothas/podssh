@@ -1,30 +1,30 @@
-//! The command tree. ⛔ **This is the single definition both renderers walk**:
+//! The command tree. **This is the single definition both renderers walk**:
 //! `--help` is [`crate::help`]'s projection of it and `podssh man` is E32's.
 //!
-//! ⛔ **Why this is a table of [`Verb`]s and not a `clap` derive tree.** Two
+//! **Why this is a table of [`Verb`]s and not a `clap` derive tree.** Two
 //! reasons, and both are in the entry:
 //!
-//! 1. ⛔ **`-P` means different things on different verbs**, MEASURED on this
+//! 1. **`-P` means different things on different verbs**, MEASURED on this
 //!    machine against OpenSSH_10.3p1: `ssh` usage prints `[-P tag]`, `scp`
-//!    usage prints `[-P port]`, `sftp -h` prints `[-P port]`. ⛔ A single
+//!    usage prints `[-P port]`, `sftp -h` prints `[-P port]`. A single
 //!    `#[derive(Parser)]` struct cannot express that, because `clap` resolves a
 //!    short flag per command — so `ssh` and `cp` genuinely need separate
 //!    builders, which is what [`verb_command`] returns.
-//! 2. ⛔ **E32 must render the tree without editing it.** A `derive` tree is
+//! 2. **E32 must render the tree without editing it.** A `derive` tree is
 //!    Rust syntax; a sibling module cannot walk it without a macro. [`Verb`] is
 //!    data, so `man.rs` walks [`crate::flags::VERBS`] and gets every flag,
 //!    alias and help string with no second list to keep in step.
 //!
-//! ⛔ **The tree is built for parsing, not for help.** Help is rendered by
+//! **The tree is built for parsing, not for help.** Help is rendered by
 //! [`crate::help`] from [`crate::flags::VERBS`] so that the two cannot
 //! disagree, and `clap`'s own help output is never printed.
 
 use crate::flags::{FlagKind, FlagRow, Verb};
 use clap::{Arg, ArgAction, ArgMatches, Command};
 
-/// ⛔ **The two flags OpenSSH lets a user repeat, and neither takes a value.**
+/// **The two flags OpenSSH lets a user repeat, and neither takes a value.**
 ///
-/// ⛔ `-v` increments a level; `-q` *"increase[s] the quietness"*. ⛔ Every other
+/// `-v` increments a level; `-q` *"increase[s] the quietness"*. Every other
 /// row is a value, a switch, or a refusal — and a refusal is refused on its
 /// first occurrence.
 fn counted(long: &str) -> bool {
@@ -37,24 +37,24 @@ fn appended(long: &str) -> bool {
     matches!(long, "option" | "identity-file")
 }
 
-/// A pod name in the parser's grammar. ⛔ `ssh`/`cp` take their own so that a
+/// A pod name in the parser's grammar. `ssh`/`cp` take their own so that a
 /// token the top level did not consume is reported against the verb the user
 /// actually typed, naming that verb's flags.
 fn add_flag(cmd: Command, row: &'static FlagRow, keep_each: bool) -> Command {
     let mut arg = Arg::new(row.long).long(row.long).help(row.help);
-    // ⛔ A row that takes an argument is `Set`; a boolean is `SetTrue`; `-v` and
+    // A row that takes an argument is `Set`; a boolean is `SetTrue`; `-v` and
     // `-q` are **counts**.
     //
-    // ⛔ **A count is not decoration.** `06-cli.md`:65 makes `-v`/`-q` parity
+    // **A count is not decoration.** `06-cli.md`:65 makes `-v`/`-q` parity
     // flags, `ssh -v -v -v` is how a user raises verbosity, and OpenSSH's own
-    // words for `-q` are *"Multiple -q options increase the quietness"*. ⛔ The
+    // words for `-q` are *"Multiple -q options increase the quietness"*. The
     // first version of this function had a `Count` arm guarded on
     // `row.arg.is_some()`, and **neither row declares an argument value** — so
     // the arm was unreachable and a repeated flag was refused as
     // `unknown flag '--verbose'`, which is a flag that is not unknown, only
     // repeated.
     //
-    // ⛔ A counted flag declares **no** argument value (`flags.rs`: `-v` and `-q`
+    // A counted flag declares **no** argument value (`flags.rs`: `-v` and `-q`
     // are the two rows with `arg: None` and a counted spelling), and the `None`
     // arm below is where they are matched.
     arg = match row.arg {
@@ -65,7 +65,7 @@ fn add_flag(cmd: Command, row: &'static FlagRow, keep_each: bool) -> Command {
         None if counted(row.long) => arg.action(ArgAction::Count),
         None => arg.action(ArgAction::SetTrue),
     };
-    // ⛔ Refused rows are **still declared**, so `ssh -L 8080:db:5432` reaches
+    // Refused rows are **still declared**, so `ssh -L 8080:db:5432` reaches
     // a refusal naming `-W` rather than being reported as an *unknown* flag,
     // which is a different and worse message.
     if let Some(c) = row.short {
@@ -77,7 +77,7 @@ fn add_flag(cmd: Command, row: &'static FlagRow, keep_each: bool) -> Command {
 /// Build one verb's parser from its flag rows.
 pub fn verb_command(verb: &'static Verb) -> Command {
     let mut cmd = Command::new(verb.name).about(verb.about).disable_help_flag(true).disable_version_flag(true).arg(
-        // ⛔ The universal option's spelling and sentence come from
+        // The universal option's spelling and sentence come from
         // [`crate::flags::HELP_FLAG`], so the parser, `--help` and the man
         // page cannot describe it differently.
         Arg::new(crate::flags::HELP_FLAG.long)
@@ -99,7 +99,7 @@ pub use crate::parsed::Parsed;
 
 /// Parse a whole `argv` **after** the program name.
 ///
-/// ⛔ **The two-stage no-subcommand handler lives here and nowhere else**, and
+/// **The two-stage no-subcommand handler lives here and nowhere else**, and
 /// its order is load-bearing: `podssh example.org` must be answered as a host,
 /// and no distance function gets a vote before the shape stage has run. See
 /// [`crate::refuse`].
@@ -110,7 +110,7 @@ where
 {
     let argv: Vec<std::ffi::OsString> = args.into_iter().map(Into::into).collect();
 
-    // ⛔ Stage zero: no arguments at all. Never an implicit ssh.
+    // Stage zero: no arguments at all. Never an implicit ssh.
     if argv.is_empty() {
         return Parsed::NoArguments(crate::refuse::no_arguments());
     }
@@ -126,7 +126,7 @@ where
         }
     };
 
-    // ⛔ The global flags, read before any subcommand is selected, so
+    // The global flags, read before any subcommand is selected, so
     // `podssh --help` never needs a verb. A word after them is answered or
     // refused, never dropped (GitHub #10).
     match first.as_str() {
@@ -140,14 +140,14 @@ where
         _ => {}
     }
 
-    // ⛔ A leading `-` at the top level names no verb and has no verb to name
+    // A leading `-` at the top level names no verb and has no verb to name
     // a flag against, so it is reported with no guess rather than a wrong one.
     if first.starts_with('-') {
         return Parsed::Usage(crate::refuse::unknown_flag(&first, None));
     }
 
     let Some(verb) = crate::flags::verb_for(&first) else {
-        // ⛔ Both stages, in order, and the verdict carries the message.
+        // Both stages, in order, and the verdict carries the message.
         let verdict = crate::suggest::diagnose_no_subcommand(&first);
         return Parsed::UnknownVerb(crate::refuse::unknown_verb(&first, &verdict));
     };
@@ -173,10 +173,10 @@ fn top_help(flag: &str, rest: &[std::ffi::OsString]) -> Parsed {
     }
 }
 
-/// ⛔ **The per-verb half.** ⛔ This is where `-P` means port on `cp` and a Tag
+/// **The per-verb half.** This is where `-P` means port on `cp` and a Tag
 /// on `ssh`, because the two verbs have different `clap` commands.
 pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
-    // ⛔ `--jsonl` under `proxy` never reaches `clap`: it is refused here with
+    // `--jsonl` under `proxy` never reaches `clap`: it is refused here with
     // the reason, because the generic unknown-flag text cannot say why JSON
     // cannot go where the SSH byte stream goes. Exact spellings only — a
     // positional that merely contains the substring is somebody's hostname.
@@ -186,7 +186,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         return Parsed::Usage(crate::non_interactive::refuse_jsonl_in_proxy().message);
     }
 
-    // ⛔ `--ts-mode` values are closed: auto tun socks tcp relay. Anything else
+    // `--ts-mode` values are closed: auto tun socks tcp relay. Anything else
     // is usage 64 now, not a fallthrough to auto later. Both spellings
     // (`--ts-mode bogus` and `--ts-mode=bogus`); a `--ts-mode` with no usable
     // value falls through to clap, which reports the missing value itself.
@@ -227,7 +227,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         return Parsed::Help(verb.name);
     }
 
-    // ⛔ Refused flags are found by their id — one per row, shared by the short
+    // Refused flags are found by their id — one per row, shared by the short
     // and long spelling — so `-L` and `--forward-local` refuse identically.
     let mut refused: Vec<(String, &'static str, &'static str)> = Vec::new();
     for row in verb.flags {
@@ -236,7 +236,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         }
     }
 
-    // ⛔ `-P` on `ssh` is a Tag: accepted, ignored, and it says so rather than
+    // `-P` on `ssh` is a Tag: accepted, ignored, and it says so rather than
     // failing silently. On `cp`/`mv` it is the port and needs no notice.
     let tag =
         if verb.name == "ssh" { matches.get_one::<String>("tag").filter(|t| !t.is_empty()).cloned() } else { None };
@@ -325,7 +325,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         };
     }
 
-    // ⛔ **`ts` carries its behaviour inputs** (E39): every flag value the
+    // **`ts` carries its behaviour inputs** (E39): every flag value the
     // dispatch needs, read here where `clap` owns them. `--ts-mode` was
     // validated above, so absence here means `auto` — the default, not a
     // guess. Only rows `TS_FLAGS` declares are read.
@@ -348,7 +348,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         };
     }
 
-    // ⛔ E33's carried values: only rows the verb's table declares are read,
+    // E33's carried values: only rows the verb's table declares are read,
     // so `matches.get_flag` never panics on a verb that lacks the row and no
     // verb invents a flag the flag-table gate has not seen in the spec.
     let has_timeout = verb.flags.iter().any(|r| r.long == "timeout");
@@ -367,7 +367,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
 
 /// Whether an argument id was actually supplied, under either spelling.
 ///
-/// ⛔ A boolean flag that was not given is still present in `ArgMatches` with
+/// A boolean flag that was not given is still present in `ArgMatches` with
 /// the value `false`, so "contains the id" is not enough — the value has to be
 /// read, or the flag has to be true.
 fn was_given(m: &ArgMatches, id: &str) -> bool {

@@ -14,7 +14,7 @@
 PODSSH_TOOL=${PODSSH_TOOL:-wsl-toolkit}
 PODSSH_PS=${PODSSH_PS:-powershell.exe}
 
-# ⛔ Why the tree is copied at all, and what is left out.
+# Why the tree is copied at all, and what is left out.
 #
 # wsl-toolkit copies the workspace into the container. That means the host's
 # `target/` goes with it, and a Windows `target/` is 848 MB against a 1 GiB
@@ -22,8 +22,8 @@ PODSSH_PS=${PODSSH_PS:-powershell.exe}
 # reason. Measured 2026-10-01: "workspace refused: the workspace passes
 # 1.0 GiB at target/...". Build output is not source, and is excluded.
 #
-# ⛔ The list is a single space-separated string and `exclude_args` turns it
-# into flags. ⛔ TWO things about that are load-bearing, and both were broken
+# The list is a single space-separated string and `exclude_args` turns it
+# into flags. TWO things about that are load-bearing, and both were broken
 # before they were measured:
 #
 #   * It must not be expanded unquoted. `set -- $EXCLUDES` splits on spaces
@@ -38,7 +38,7 @@ PODSSH_PS=${PODSSH_PS:-powershell.exe}
 # `set -f` disables globbing for the split and is the whole mechanism: a
 # mechanism that cannot glob is a mechanism that cannot break this way again.
 #
-# ⛔ `target/**` covers the workspace root only. The vendored fork builds on
+# `target/**` covers the workspace root only. The vendored fork builds on
 # the host too (its own workspace, its own `target/`), and a host-built
 # `librustls-*.rlib` alone passes 1.0 GiB — measured 2026-10-06:
 # "workspace refused: the workspace passes 1.0 GiB at
@@ -49,16 +49,16 @@ PODSSH_PS=${PODSSH_PS:-powershell.exe}
 # job directories used to keep a copy of it). `.codegraph/` is a local index.
 EXCLUDES="target/** vendor/tailscale-rs/target/** .git/** .work/** .tmp/** .env/** .codegraph/**"
 
-# ⛔ **The split lives in `run_in_image` and nowhere else.** The globbing has to
+# **The split lives in `run_in_image` and nowhere else.** The globbing has to
 # be disabled at BOTH places the words are split: once in the loop below, and
 # once where the loop's result is word-split into flags. Measured 2026-10-01
 # with only one of the two disabled: 5 patterns became 80 arguments, and the run
-# stalled for minutes instead of starting. ⛔ A second copy of the loop — as a
+# stalled for minutes instead of starting. A second copy of the loop — as a
 # helper named for the job, called from nowhere — is exactly the drift this
 # warns about, and there is only one.
 
 # run_in_image <workspace|--no-workspace> <script-token|command> <is-script>
-# The one place a run is built. ⛔ Every argument is quoted here, so nothing
+# The one place a run is built. Every argument is quoted here, so nothing
 # downstream can re-split a glob by accident.
 run_in_image() {
     _ws=$1
@@ -97,7 +97,7 @@ run_in_image() {
         --timeout 60m
 }
 
-# ⛔ Why arguments travel as base64 in one environment variable, twice.
+# Why arguments travel as base64 in one environment variable, twice.
 #
 # Git Bash rewrites a guest path that begins with `/` into a Windows path
 # before the program starts, and it rewrites the VALUE of a variable whose
@@ -127,15 +127,15 @@ if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
 }
 & $tool @argv
 
-# 🛘 A NULL $LASTEXITCODE IS NOT A PASS. MEASURED 2026-10-01:
+# A NULL $LASTEXITCODE IS NOT A PASS. MEASURED 2026-10-01:
 # `$null -eq $LASTEXITCODE` is True before any native process has run, and
-# `exit $LASTEXITCODE` with a null value exits 0. 🛘 **So if the tool
+# `exit $LASTEXITCODE` with a null value exits 0. **So if the tool
 # terminated as a PowerShell error rather than a process, this bridge reported
-# success — and the whole verdict of `dev.sh check` is that bridge.** 🛘 This
+# success — and the whole verdict of `dev.sh check` is that bridge.** This
 # is the preflight bug again with a different trigger: the preflight only sees
 # `command -v`, and a tool that exists and then fails this way slips past it.
 #
-# 🛘 The exit code is read from the PROCESS, which is the rule this whole
+# The exit code is read from the PROCESS, which is the rule this whole
 # repository is built on. A null here means no process ran, and that is a
 # failure, not a zero.
 if ($null -eq $LASTEXITCODE) {
@@ -147,7 +147,7 @@ exit $LASTEXITCODE
 
 b64() { printf '%s' "$1" | base64 | tr -d '\r\n'; }
 
-# ⛔ The preflight. Measured 2026-10-01, and it is why this function exists.
+# The preflight. Measured 2026-10-01, and it is why this function exists.
 #
 # With `wsl-toolkit` off PATH, a subcommand printed
 #
@@ -156,10 +156,10 @@ b64() { printf '%s' "$1" | base64 | tr -d '\r\n'; }
 # and **exited 0**. A gate that reports success when it did not run is worse
 # than no gate, and this is the same defect the repository already documents
 # twice: the `????` that means "a probe could not run" and the `del field,
-# value` that passed everything. ⛔ **A missing prerequisite must be a missing
+# value` that passed everything. **A missing prerequisite must be a missing
 # prerequisite, loudly, with a non-zero exit and the command that installs it.**
 #
-# ⛔ It runs once per invocation, before anything expensive, and it is cheap:
+# It runs once per invocation, before anything expensive, and it is cheap:
 # three `command -v` calls and nothing else.
 PREFLIGHT_DONE=0
 preflight() {
@@ -212,7 +212,7 @@ wt() {
 }
 
 # win_path <path>   the same path, in the spelling PowerShell understands.
-# ⛔ A DIRECTORY, never a file. `cd` into a file fails, and the error reads
+# A DIRECTORY, never a file. `cd` into a file fails, and the error reads
 # "cd: /tmp/.../gate.sh: Not a directory" — which looks like a missing file and
 # is really a function that only worked for directories. Measured 2026-10-01.
 win_path() {
@@ -226,7 +226,7 @@ win_path() {
 }
 
 # scratch_file <prefix>   a script file on this machine, with its Windows path on
-# stdout. ⛔ Never mktemp under /tmp and hand that path to the tool: /tmp is
+# stdout. Never mktemp under /tmp and hand that path to the tool: /tmp is
 # Git Bash's, and PowerShell resolves it to C:\tmp, which does not exist.
 # Measured 2026-10-01: "cd: /tmp/podssh-gate-XXXX.sh: Not a directory".
 # --script sends this machine's file bytes, so the file must be somewhere

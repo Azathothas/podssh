@@ -1,17 +1,17 @@
-//! ⛔ **E03's second plant, proven against podssh's own verifier, with no
+//! **E03's second plant, proven against podssh's own verifier, with no
 //! relay involved.**
 //!
-//! ⛔ **Why this file exists, and the measurement that forced it.** E03's plant
-//! is "a certificate for the wrong hostname must be rejected". ⛔ MEASURED
+//! **Why this file exists, and the measurement that forced it.** E03's plant
+//! is "a certificate for the wrong hostname must be rejected". MEASURED
 //! 2026-10-02 in `rust:1-alpine`: the *live* plant does **not** discriminate.
 //! Replacing `tls::client_config`'s verifier with one that accepts everything
 //! left the live suite at **4 passed, exit 0**, and with `--nocapture` the
 //! chain was still being presented while the handshake failed — the relay's
 //! edge refuses the SNI itself and never sends a certificate for the client
-//! to reject locally. ⛔ A plant that cannot fail is a guard nobody has
+//! to reject locally. A plant that cannot fail is a guard nobody has
 //! checked, and this repository has shipped six of those.
 //!
-//! ⛔ So the proof lives here: a server podssh controls, serving a certificate
+//! So the proof lives here: a server podssh controls, serving a certificate
 //! for one name, asked for by another. The live test keeps its own claim — the
 //! *peer* accepts the right name and rejects the wrong one. Together they are
 //! E03's sentence; neither alone is.
@@ -24,9 +24,9 @@ mod cert {
 
 use cert::server_for;
 
-/// ⛔ **THE PLANT.** A valid certificate, chaining to a root in the store,
+/// **THE PLANT.** A valid certificate, chaining to a root in the store,
 /// presented by a working TLS server — carrying `wrong.example`, asked for as
-/// `podssh.invalid`. ⛔ The handshake must fail, in the name check.
+/// `podssh.invalid`. The handshake must fail, in the name check.
 #[tokio::test]
 async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
     let (acceptor, roots) = server_for("wrong.example").expect("a server for the name under test");
@@ -70,24 +70,24 @@ async fn plant_a_certificate_for_the_wrong_hostname_is_rejected() {
         Err(e) => {
             let text = e.to_string();
             eprintln!("rejected: {text}");
-            // ⛔ **The failure must BE the name check.** A rejection for any
+            // **The failure must BE the name check.** A rejection for any
             // other reason would pass this assertion and leave the entry
             // unproven — which is exactly what the live-only plant did.
             assert!(
                 text.contains("not valid for") || text.contains("NotValidForName") || text.contains("name"),
-                "⛔ the rejection must name the certificate's name mismatch, got: {text}"
+                "the rejection must name the certificate's name mismatch, got: {text}"
             );
         }
         Ok(_) => panic!(
-            "⛔ PLANT FAILED TO FIRE: a certificate for wrong.example was accepted \
+            "PLANT FAILED TO FIRE: a certificate for wrong.example was accepted \
              for the name podssh.invalid."
         ),
     }
 }
 
-/// ⛔ **THE CONTROL, and it differs by one argument.** The same certificate,
+/// **THE CONTROL, and it differs by one argument.** The same certificate,
 /// the same trust store, the same configuration, the same server — asked for
-/// by the name it actually carries. ⛔ A guard proven in one direction only is
+/// by the name it actually carries. A guard proven in one direction only is
 /// a guard nobody has seen accept a correct input, and this is the half that
 /// makes the rejection above attributable to the name check.
 #[tokio::test]
@@ -113,16 +113,14 @@ async fn the_control_the_right_hostname_is_accepted() {
     let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
     let name = rustls_pki_types::ServerName::try_from("wrong.example").expect("a valid name");
 
-    let tls = client
-        .connect(name, tcp)
-        .await
-        .expect("⛔ the control must succeed: a guard proven one way only is not a guard");
+    let tls =
+        client.connect(name, tcp).await.expect("the control must succeed: a guard proven one way only is not a guard");
     let (_, session) = tls.get_ref();
     assert!(!session.is_handshaking(), "the control handshake did not finish");
     let _ = server.await;
 }
 
-/// ⛔ **The pair above is the claim, and this is what makes it one.** The same
+/// **The pair above is the claim, and this is what makes it one.** The same
 /// certificate and the same trust store, two names, opposite outcomes — so a
 /// permissive verifier, which is what was planted, cannot satisfy both.
 #[tokio::test]
@@ -177,7 +175,7 @@ async fn a_permissive_verifier_could_not_satisfy_both() {
     let _ = b_server.await;
     assert!(
         bad_result.is_err(),
-        "⛔ the wrong name was accepted by the same configuration that \
+        "the wrong name was accepted by the same configuration that \
          accepted the right one"
     );
 }

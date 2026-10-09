@@ -1,6 +1,6 @@
 //! Mode-chain readiness: which tailnet route to try, and in what order.
 //!
-//! ⛔ Three-valued verdicts (`Ok` / `Fail` / `Unknown`), never `ok` for an
+//! Three-valued verdicts (`Ok` / `Fail` / `Unknown`), never `ok` for an
 //! unrun check. The default order is `tun → socks → tcp → relay` (r2); a
 //! forced single mode is a one-element slice — no `--order` in v1. Falling
 //! through happens only on pre-dial failures: a dial failing under a ready
@@ -23,7 +23,7 @@ pub enum Verdict {
 
 /// Everything a probe reads, injected so tests use fakes instead of the host.
 ///
-/// ⛔ `addrs`/`socks_endpoint` have no reader until the Tun/Socks variants
+/// `addrs`/`socks_endpoint` have no reader until the Tun/Socks variants
 /// land; they are kept (not removed) so the injected-inputs shape is stable
 /// and the future rules plug into named fields rather than a redesign.
 #[allow(dead_code)]
@@ -68,7 +68,7 @@ pub fn select_chain(modes: &[TsMode], inputs: &ChainInputs) -> Option<TsMode> {
 
 /// The default chain order: `tun → socks → tcp → relay`.
 pub fn default_chain(relay: TsMode) -> Vec<TsMode> {
-    // ⛔ Tun/Socks variants do not exist yet; the order is Tcp then the relay
+    // Tun/Socks variants do not exist yet; the order is Tcp then the relay
     // mode, and the two front slots are filled when the variants land. The
     // constant below names the intended full order so the gap is visible.
     let _intended = ["tun", "socks", "tcp", "relay"];

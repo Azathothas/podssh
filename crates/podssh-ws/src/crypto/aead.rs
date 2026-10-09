@@ -1,6 +1,6 @@
 //! TLS 1.3 record protection, in pure Rust.
 //!
-//! ⛔ **Only what `suites.rs` offers is implemented.** Offering a suite whose
+//! **Only what `suites.rs` offers is implemented.** Offering a suite whose
 //! AEAD cannot be completed is worse than not offering it, because a peer that
 //! selects it gets a failure deep in the record layer rather than a clean "no
 //! shared cipher suite" during the handshake.
@@ -18,13 +18,13 @@ use rustls::{ContentType, Error, ProtocolVersion};
 
 use rustls::ConnectionTrafficSecrets;
 
-/// ⛔ The Poly1305 tag is 16 bytes in every AEAD here, so it is a constant
+/// The Poly1305 tag is 16 bytes in every AEAD here, so it is a constant
 /// rather than a per-algorithm field. A `tag_len()` that could differ would
 /// have to be carried through the encrypter's length calculation, and a
 /// mismatch there silently truncates a record.
 pub const TAG_LEN: usize = 16;
 
-/// ⛔ The TLS nonce length, fixed by `rustls::crypto::cipher::NONCE_LEN` and
+/// The TLS nonce length, fixed by `rustls::crypto::cipher::NONCE_LEN` and
 /// repeated here so the AEAD functions can be read without the rustls import.
 pub const NONCE_LEN: usize = 12;
 
@@ -36,7 +36,7 @@ pub enum AeadId {
 }
 
 impl AeadId {
-    /// ⛔ AES-128 and AES-256 differ, and a provider that reported one key
+    /// AES-128 and AES-256 differ, and a provider that reported one key
     /// length for both would let a peer negotiate AES-128 and then fail to
     /// build the encrypter.
     pub fn key_len(self) -> usize {
@@ -48,7 +48,7 @@ impl AeadId {
     }
 }
 
-/// ⛔ `Debug` names the algorithm and never the key. A `Debug` that prints key
+/// `Debug` names the algorithm and never the key. A `Debug` that prints key
 /// material is a credential in a log, and this repository has a rule about
 /// exactly that.
 pub struct Aead {
@@ -91,7 +91,7 @@ impl Aead {
         self.id
     }
 
-    /// ⛔ The nonce is a `GenericArray` of 12 bytes, and the length is fixed
+    /// The nonce is a `GenericArray` of 12 bytes, and the length is fixed
     /// by `NONCE_LEN` above. The size is named explicitly rather than inferred,
     /// because `aes_gcm::Nonce` takes it as a type parameter and a wrong one
     /// would be a different nonce length rather than a compile error at the
@@ -114,7 +114,7 @@ impl Aead {
         Some(())
     }
 
-    /// ⛔ **In place, and that is not an optimisation.** `MessageDecrypter::
+    /// **In place, and that is not an optimisation.** `MessageDecrypter::
     /// decrypt` returns a message borrowing the caller's buffer for the
     /// lifetime `'a`. A decrypter that allocated a fresh `Vec` would have to
     /// either leak it or shorten the borrow, so the plaintext is written back
@@ -129,7 +129,7 @@ impl Aead {
                     .ok()?
             }
         };
-        // ⛔ The AEAD crates return a `Vec` that may be a fresh allocation, so
+        // The AEAD crates return a `Vec` that may be a fresh allocation, so
         // it is copied back rather than returned. The length is returned
         // separately because the caller's buffer is what the borrow names.
         let len = plain.len();
@@ -150,7 +150,7 @@ impl Tls13AeadAlgorithm for PureAead {
     fn encrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn MessageEncrypter> {
         match Aead::new(self.0, key.as_ref()) {
             Ok(aead) => Box::new(Encrypter { aead, iv }),
-            // ⛔ Unreachable in practice, because rustls sizes `key` from
+            // Unreachable in practice, because rustls sizes `key` from
             // `key_len()`. An encrypter that returns an error is still the right
             // answer: a panic here would lose the session over a bug that a
             // returned `Err` reports honestly.
@@ -170,7 +170,7 @@ impl Tls13AeadAlgorithm for PureAead {
     }
 
     fn extract_keys(&self, key: AeadKey, iv: Iv) -> Result<ConnectionTrafficSecrets, UnsupportedOperationError> {
-        // ⛔ QUIC is not something podssh offers: it speaks TLS over TCP to a
+        // QUIC is not something podssh offers: it speaks TLS over TCP to a
         // relay, not QUIC. Refusing here is what makes `quic: None` on the
         // suites consistent with this implementation rather than a claim.
         let _ = (key, iv);
@@ -186,7 +186,7 @@ struct Encrypter {
 impl MessageEncrypter for Encrypter {
     fn encrypt(&mut self, msg: OutboundPlainMessage<'_>, seq: u64) -> Result<OutboundOpaqueMessage, Error> {
         let total_len = self.encrypted_payload_len(msg.payload.len());
-        // ⛔ RFC 8446 §5.2: the real content type is appended INSIDE the AEAD
+        // RFC 8446 §5.2: the real content type is appended INSIDE the AEAD
         // plaintext and the outer record type is always `application_data`.
         // Reversing these produces a record that decrypts to a payload one byte
         // short, which reads as a framing bug in the layer above.
@@ -196,7 +196,7 @@ impl MessageEncrypter for Encrypter {
 
         let nonce = Nonce::new(&self.iv, seq);
         let aad = make_tls13_aad(total_len);
-        // ⛔ Sealed into a `Vec` and re-wrapped, because `PrefixedPayload`
+        // Sealed into a `Vec` and re-wrapped, because `PrefixedPayload`
         // keeps its length private and the AEAD writes in place. The length is
         // checked rather than assumed: a sealed payload of the wrong size is a
         // record that would be rejected by the peer with no local clue.
@@ -208,7 +208,7 @@ impl MessageEncrypter for Encrypter {
 
         Ok(OutboundOpaqueMessage::new(
             ContentType::ApplicationData,
-            // ⛔ RFC 8446 §5.1: application data records carry TLSv1_2 as the
+            // RFC 8446 §5.1: application data records carry TLSv1_2 as the
             // legacy record version, even in a TLS 1.3 connection.
             ProtocolVersion::TLSv1_2,
             PrefixedPayload::from(sealed.as_slice()),
@@ -236,7 +236,7 @@ impl MessageDecrypter for Decrypter {
         let plain_len = self.aead.open_in_place(&nonce.0, &aad, payload.as_mut()).ok_or(Error::DecryptError)?;
         payload.truncate(plain_len);
 
-        // ⛔ `into_tls13_unpadded_message` reads the trailing content type,
+        // `into_tls13_unpadded_message` reads the trailing content type,
         // strips the zero padding, and REJECTS a payload whose type byte is
         // zero. Doing that by hand is how a record layer comes to accept inner
         // plaintext it should refuse.

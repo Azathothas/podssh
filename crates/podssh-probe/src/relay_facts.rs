@@ -1,12 +1,12 @@
 //! E06 — assert the relay's structural facts against its published document.
 //!
-//! ⛔ **The prose is never asserted. The structure is.** This module reads the
+//! **The prose is never asserted. The structure is.** This module reads the
 //! peer's live `llms-full.txt` and checks six structural facts and one
 //! arithmetic relation. Nothing else about the peer's prose is asserted, so a
 //! rewording cannot turn into a red run while a renamed path, a changed frame
 //! cap or a changed timeout does.
 //!
-//! ⛔ **Every outcome is three-valued**, and the third value is not optional.
+//! **Every outcome is three-valued**, and the third value is not optional.
 //! `ok` means the facts were checked and they hold. `Failed` means they were
 //! checked and they do not. `Unknown` means the document was not read, and it is
 //! never collapsed into `ok` — four sibling projects shipped a doctor that
@@ -17,7 +17,7 @@ use crate::facts::{Expect, Facts, Operand};
 
 use sha2::{Digest, Sha256};
 
-/// ⛔ One finding, each naming the line that disagrees and why it matters.
+/// One finding, each naming the line that disagrees and why it matters.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Disagreement {
     pub fact_id: String,
@@ -30,15 +30,15 @@ impl std::fmt::Display for Disagreement {
     }
 }
 
-/// ⛔ **Never an empty vector.** An unreadable relay is not a relay with no
+/// **Never an empty vector.** An unreadable relay is not a relay with no
 /// disagreements, and the two must not print the same way.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Verdict {
-    /// ⛔ **`version` is what `/health` served, and `pinned` is what this
+    /// **`version` is what `/health` served, and `pinned` is what this
     /// repository's facts were pinned against.** They are two different
     /// measurements and both are carried: E06's subject is a version that
     /// moves, and a verdict that reported only the pin would state the version
-    /// podssh *expected* as the version it ran against. ⛔ `version` is `None`
+    /// podssh *expected* as the version it ran against. `version` is `None`
     /// when `/health` was not read, which is not the same as a matching one.
     Ok {
         version: Option<String>,
@@ -56,15 +56,15 @@ pub enum Verdict {
 }
 
 impl Verdict {
-    /// ⛔ `????`, never `ok`. A check that did not run is not a pass.
+    /// `????`, never `ok`. A check that did not run is not a pass.
     pub fn is_unknown(&self) -> bool {
         matches!(self, Verdict::Unknown { .. })
     }
 
-    /// ⛔ **The relay served a version this repository did not pin.**
+    /// **The relay served a version this repository did not pin.**
     ///
-    /// ⛔ **Reported, never fatal**: the protocol did not necessarily move, and
-    /// the structural facts are what decide that. ⛔ But a client that cannot
+    /// **Reported, never fatal**: the protocol did not necessarily move, and
+    /// the structural facts are what decide that. But a client that cannot
     /// tell "the document I checked is the pinned one" from "the relay has
     /// moved since" has not diagnosed anything, which is the whole of E06.
     pub fn version_moved(&self) -> bool {
@@ -74,7 +74,7 @@ impl Verdict {
 
 fn line_of(spec: &str, number: usize) -> Result<&str, String> {
     let total = spec.split('\n').count();
-    // ⛔ `split('\n')` on a document ending in a newline yields a trailing empty
+    // `split('\n')` on a document ending in a newline yields a trailing empty
     // element, so this is one more than a reader's `wc -l`. Subtract it rather
     // than let a citation one line past the end resolve.
     let total = if spec.ends_with('\n') { total - 1 } else { total };
@@ -83,11 +83,11 @@ fn line_of(spec: &str, number: usize) -> Result<&str, String> {
         .ok_or_else(|| format!("spec line {number} does not exist; the document has {total} lines"))
 }
 
-/// ⛔ Read an operand's numbers off one line of the peer's document.
+/// Read an operand's numbers off one line of the peer's document.
 ///
-/// ⛔ **The names bound the groups.** `names = ["cap", "payload"]` binds group 1
+/// **The names bound the groups.** `names = ["cap", "payload"]` binds group 1
 /// to `cap` and group 2 to `payload`, and the arithmetic in `evaluate` refers to
-/// those names. ⛔ A relation that names a group index instead would be a check
+/// those names. A relation that names a group index instead would be a check
 /// whose meaning can change when a pattern is edited — which is the defect the
 /// first version of `scripts/check-relay-spec.py` shipped.
 pub fn read_operand(operand: &Operand, spec: &str) -> Result<Vec<(String, i64)>, String> {
@@ -110,9 +110,9 @@ pub fn read_operand(operand: &Operand, spec: &str) -> Result<Vec<(String, i64)>,
     Ok(values)
 }
 
-/// ⛔ The arithmetic, evaluated over named operands.
+/// The arithmetic, evaluated over named operands.
 ///
-/// ⛔ **Only the forms this repository actually asserts are accepted**, and
+/// **Only the forms this repository actually asserts are accepted**, and
 /// anything else is an error naming the expression. An evaluator that silently
 /// ignored an expression it did not understand would turn every future relation
 /// into a check that passes.
@@ -125,7 +125,7 @@ fn evaluate(expression: &str, left: &[(String, i64)], right: &[(String, i64)]) -
     };
     match expression {
         "id + payload == cap" => {
-            // ⛔ The 32-byte id is named here rather than read off the peer's
+            // The 32-byte id is named here rather than read off the peer's
             // sentence, because line 147 publishes ONE parenthetical bound and
             // its prose does not match its own parentheses. The id length is
             // therefore an internal constant, and the peer's total cap is
@@ -141,17 +141,17 @@ fn evaluate(expression: &str, left: &[(String, i64)], right: &[(String, i64)]) -
             }
         }
         other => Err(format!(
-            "no evaluator for {other:?}; ⛔ a relation this gate does not understand must \
+            "no evaluator for {other:?}; a relation this gate does not understand must \
              fail loudly, because silently ignoring it is a check that always passes"
         )),
     }
 }
 
-/// ⛔ **The whole of E06's assertion.** Pure: it reads a document it was handed
-/// and decides. ⛔ It never fetches. A function that both decides and reaches
+/// **The whole of E06's assertion.** Pure: it reads a document it was handed
+/// and decides. It never fetches. A function that both decides and reaches
 /// the network cannot be tested against a planted document without a network.
 ///
-/// ⛔ **`observed` is the version `/health` served**, so that the verdict can
+/// **`observed` is the version `/health` served**, so that the verdict can
 /// state the version podssh ran against rather than the one it pinned. It may
 /// be `None` — a document read without `/health` — and that is reported as
 /// "no version observed" rather than as the pin.
@@ -258,16 +258,16 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hasher.finalize().iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-/// ⛔ **The half that reads a relay**, which `podssh relay spec` runs: from
+/// **The half that reads a relay**, which `podssh relay spec` runs: from
 /// `/health` and the published document, assert the facts, and state the
 /// version the client ran against.
 ///
-/// ⛔ **A version that is not the pinned one is reported, never fatal.** The
+/// **A version that is not the pinned one is reported, never fatal.** The
 /// protocol did not necessarily move, and the structural facts are what decide
 /// that. Refusing to start on a version string alone would make a reworded
 /// sentence into an outage.
 ///
-/// ⛔ **A relay that cannot be read is `Unknown`, not `Ok`.**
+/// **A relay that cannot be read is `Unknown`, not `Ok`.**
 pub struct Observed {
     pub version: Option<String>,
     pub document: Option<String>,
@@ -282,7 +282,7 @@ pub fn verdict_from(observed: &Observed, facts: &Facts) -> Verdict {
             },
         };
     };
-    // ⛔ **The `/health` version travels into the verdict.** See
+    // **The `/health` version travels into the verdict.** See
     // [`Verdict::Ok`]: the pin is what this repository checked against, and the
     // served version is what it ran against. Collapsing them made `--doctor`
     // print the old version after the relay moved.

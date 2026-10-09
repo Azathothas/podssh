@@ -1,4 +1,4 @@
-//! ⛔ **E30 live proof: real IRC registration over the real forward path.**
+//! **E30 live proof: real IRC registration over the real forward path.**
 //!
 //! Register (CAP LS / NICK / USER → 001), drain trailing numerics, watch for
 //! mid-line payload ends (live frame splits), echo two self `PRIVMSG`s
@@ -6,7 +6,7 @@
 //! (`podssh_relay::open`): the token comes from the environment, the cache or
 //! a mint, and is never printed. Stdout: counts, codes, caps, probe id.
 //!
-//! ⛔ **Fallbacks**: seven ircds, `--bundle` or podssh's own trust, one nick retry,
+//! **Fallbacks**: seven ircds, `--bundle` or podssh's own trust, one nick retry,
 //! throwaway-channel echo when self-messages never reflect (70 partial).
 //!
 //! Exits: 0 full proof; 70 registered but echo missed; 69 no registration;
@@ -37,7 +37,7 @@ const ECHO_WAIT: Duration = Duration::from_secs(10);
 /// 005/MOTD arrive WITH 001: drain briefly so CAP/ISUPPORT are complete.
 const DRAIN_001: Duration = Duration::from_secs(5);
 
-/// ⛔ Unblocked 6667 (spec :249-251). First full proof wins. Small networks lead.
+/// Unblocked 6667 (spec :249-251). First full proof wins. Small networks lead.
 const FALLBACK_TARGETS: &[(&str, u16)] = &[
     ("irc.tilde.chat", 6667),
     ("irc.hackint.org", 6667),
@@ -69,10 +69,10 @@ async fn main() {
                 }
             }
             "--nick" => nick_arg = argv.next(),
-            // ⛔ Undernet 421s CAP LS post-001: some ircds stall on CAP from
+            // Undernet 421s CAP LS post-001: some ircds stall on CAP from
             // an unregistered client, so the burst without it is the control.
             "--no-cap" => no_cap = true,
-            // ⛔ Pair mode: two instances, one channel. `--pair ID` fixes the
+            // Pair mode: two instances, one channel. `--pair ID` fixes the
             // probe id both sides share; `--role send|listen` picks the half.
             "--pair" => pair_id = argv.next(),
             "--role" => role_arg = argv.next(),
@@ -100,7 +100,7 @@ async fn main() {
         None => FALLBACK_TARGETS.iter().map(|(h, p)| (h.to_string(), *p)).collect(),
     };
     let nick_base = nick_arg.unwrap_or_else(|| format!("podssh-{}", random_hex6()));
-    // ⛔ Pair mode shares one id: the listener awaits exactly what the sender sends.
+    // Pair mode shares one id: the listener awaits exactly what the sender sends.
     let probe_id = pair_id.unwrap_or_else(random_hex6);
     let deadline = Instant::now() + WHOLE_OP;
 
@@ -192,7 +192,7 @@ async fn run_target(
     };
     let mut irc = new_session(host, port, nick_base.to_string(), policy);
 
-    // ⛔ `--no-cap` sends NICK/USER only: `initial_burst` always leads with
+    // `--no-cap` sends NICK/USER only: `initial_burst` always leads with
     // CAP LS, and a ircd that stalls on pre-registration CAP never answers.
     if send_all(&mut runner, &burst_for(&mut irc, no_cap), &mut a).await.is_err() {
         eprintln!("podssh: {host}:{port}: burst write failed.");
@@ -247,7 +247,7 @@ async fn run_target(
     a.caps_enabled = irc.negotiation().enabled().to_vec();
     a.nicklen = irc.isupport().get("NICKLEN").unwrap_or("????").to_string();
 
-    // ⛔ Pair mode skips self-echo: the proof is A→channel→B, not A→A.
+    // Pair mode skips self-echo: the proof is A→channel→B, not A→A.
     if let Some(r) = role {
         return pair_exchange(&mut runner, &mut irc, &mut a, probe_id, deadline, r, host, port).await;
     }
@@ -279,13 +279,13 @@ async fn run_target(
         }
     }
 
-    // ⛔ Channel fallback for networks without self-message reflection.
+    // Channel fallback for networks without self-message reflection.
     if !(a.echo_short && a.echo_long) && Instant::now() < deadline {
         let target = a.target.clone();
         channel_echo(&mut runner, &mut irc, &mut a, probe_id, deadline, &target).await;
     }
 
-    // ⛔ QUIT deliberately, then a grace beat: a finished probe leaves no
+    // QUIT deliberately, then a grace beat: a finished probe leaves no
     // ghost nick (an idle reconnect must NOT send QUIT — entry's own rule).
     leave(&mut runner, &mut a).await;
     a
@@ -378,7 +378,7 @@ async fn pair_exchange(
                 a.echo_chan_long = true;
             }
         } else {
-            // ⛔ Pair-listen waits out the deadline, not one echo budget: the
+            // Pair-listen waits out the deadline, not one echo budget: the
             // sender registers on its own clock (~20 s) after we start, and a
             // fixed 10 s wait would QUIT before it ever speaks.
             let ok = await_echo(runner, irc, a, text, deadline, &format!("{target} pair")).await;

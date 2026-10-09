@@ -1,6 +1,6 @@
 //! `TsNode`: the fork `Device` behind podssh's config, secret, and errors.
 //!
-//! ⛔ The boundary rule: `TsConfig`/`RuntimeSelection` in, fork types out, and
+//! The boundary rule: `TsConfig`/`RuntimeSelection` in, fork types out, and
 //! the conversion is pure (`selection_to_options`, plant-fired in
 //! `tests/convert.rs`). `start` itself needs the control plane and, for
 //! `Relay` mode, the relay's allowlist — so it is live-tested (M5), not
@@ -36,7 +36,7 @@ pub fn selection_to_options(
 
 /// A tailnet node: fork `Device` plus the state file it persists to.
 ///
-/// ⛔ `dead_code` on `state_file`: it is retained for reconnect/identity
+/// `dead_code` on `state_file`: it is retained for reconnect/identity
 /// proof and has no reader yet; the field is the reason the struct can grow
 /// one without changing construction.
 #[allow(dead_code)]

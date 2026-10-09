@@ -1,6 +1,6 @@
 //! The one machine-readable status line: facts only, secrets never.
 //!
-//! ⛔ `podssh ts` prints [`StatusFacts::render`]: the node-key prefix (8 hex),
+//! `podssh ts` prints [`StatusFacts::render`]: the node-key prefix (8 hex),
 //! the tailnet IP, the home region. The full node key and the auth key never
 //! reach this struct — there is no field for them, so no renderer can leak them.
 

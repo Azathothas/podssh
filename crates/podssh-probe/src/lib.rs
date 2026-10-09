@@ -1,7 +1,7 @@
 //! podssh-probe — capability detection. Probes; never assumes.
 //!
-//! ⛔ Every answer this crate gives is **three-valued**: `ok`, a failure, or
-//! `????` for something that could not be measured. ⛔ **A capability that was
+//! Every answer this crate gives is **three-valued**: `ok`, a failure, or
+//! `????` for something that could not be measured. **A capability that was
 //! not probed is never reported as present**, and a check that could not run is
 //! never reported as a pass — that is the defect four sibling projects shipped
 //! and the one this repository shipped itself.

@@ -1,14 +1,14 @@
-//! ⛔ **PLANT: a message split across two frames must reassemble.**
+//! **PLANT: a message split across two frames must reassemble.**
 //!
-//! ⛔ **This is the defect the whole transport can cause and the one a fixture
-//! hides**, and the entry says so in its own words. ⛔ A WebSocket frame carries
-//! bytes and ⛔ **the relay copies payload verbatim**, ⛔ so a frame boundary
-//! means nothing on the IRC wire ⛔ and a message may be split at any byte.
+//! **This is the defect the whole transport can cause and the one a fixture
+//! hides**, and the entry says so in its own words. A WebSocket frame carries
+//! bytes and **the relay copies payload verbatim**, so a frame boundary
+//! means nothing on the IRC wire and a message may be split at any byte.
 //!
-//! ⛔ **A fixture cannot express a split.** ⛔ `tests/fixtures/grammar.txt` is a
-//! table of complete lines; ⛔ the split is not a property of a line, ⛔ it is a
-//! property of *how the bytes arrived*. ⛔ So these tests **split the bytes
-//! themselves**, ⛔ at every offset, ⛔ rather than reproducing one lucky split.
+//! **A fixture cannot express a split.** `tests/fixtures/grammar.txt` is a
+//! table of complete lines; the split is not a property of a line, it is a
+//! property of *how the bytes arrived*. So these tests **split the bytes
+//! themselves**, at every offset, rather than reproducing one lucky split.
 
 mod common;
 
@@ -17,8 +17,8 @@ use podssh_core::irc::message::{Command, Message};
 
 const LONG: &str = ":alice!u@host PRIVMSG #ops :the quick brown fox jumps over the lazy dog";
 
-/// ⛔ **THE PLANT.** One message, cut in two at the halfway point, pushed as
-/// two frames. ⛔ **Neither half is a message** ⛔ and a client that parses
+/// **THE PLANT.** One message, cut in two at the halfway point, pushed as
+/// two frames. **Neither half is a message** and a client that parses
 /// per-frame emits half a `PRIVMSG` as if it were a whole one.
 #[test]
 fn plant_a_message_split_across_two_frames_reassembles() {
@@ -30,24 +30,24 @@ fn plant_a_message_split_across_two_frames_reassembles() {
     let first = r.push(&bytes[..at]).expect("the first half is not over-long");
     assert!(
         first.is_empty(),
-        "⛔ PLANT: the first half produced {:?}. A frame boundary means nothing on \
+        "PLANT: the first half produced {:?}. A frame boundary means nothing on \
          the IRC wire, so a half message must produce no message at all.",
         first
     );
-    assert_eq!(r.pending_len(), at, "⛔ the half is buffered, not dropped");
+    assert_eq!(r.pending_len(), at, "the half is buffered, not dropped");
 
     let second = r.push(&bytes[at..]).expect("the second half completes the line");
-    assert_eq!(second, vec![LONG.to_string()], "⛔ PLANT: the message did not reassemble");
+    assert_eq!(second, vec![LONG.to_string()], "PLANT: the message did not reassemble");
     assert_eq!(r.pending_len(), 0);
 }
 
 #[test]
 fn every_split_of_one_message_reassembles() {
-    // ⛔ **EVERY BYTE OFFSET, NOT ONE LUCKY SPLIT.** ⛔ A single
-    // hand-picked split is a coin toss: ⛔ a reassembler that gets the common
-    // case right and mishandles a split one byte earlier survives it. ⛔
-    // ⛔ **This is the test the entry's plant clause asks for**, ⛔ and the
-    // cost is len(line) runs — ⛔ cheap, and ⛔ it is the difference
+    // **EVERY BYTE OFFSET, NOT ONE LUCKY SPLIT.** A single
+    // hand-picked split is a coin toss: a reassembler that gets the common
+    // case right and mishandles a split one byte earlier survives it.
+    // **This is the test the entry's plant clause asks for**, and the
+    // cost is len(line) runs — cheap, and it is the difference
     // between a proof and an anecdote.
     let wire = format!(
         "{LONG}
@@ -75,9 +75,9 @@ fn a_message_split_into_three_frames_still_reassembles() {
     let bytes = wire.as_bytes();
     let first_len = LONG.len() + 2;
 
-    // ⛔ **Three ordered cut points, derived from the message boundaries** ⛔ and
-    // ⛔ every one of them lands *inside* a message ⛔ — ⛔ which is the point,
-    // ⛔ because a cut between two complete messages proves nothing.
+    // **Three ordered cut points, derived from the message boundaries** and
+    // every one of them lands *inside* a message — which is the point,
+    // because a cut between two complete messages proves nothing.
     let cuts = [(10, 30), (20, first_len - 1), (first_len - 2, first_len + 6)];
     for (a, b) in cuts {
         assert!(a < b && b < bytes.len(), "cut points must be ordered: {a} {b}");
@@ -89,36 +89,36 @@ fn a_message_split_into_three_frames_still_reassembles() {
         assert_eq!(
             out,
             vec![LONG.to_string(), "PING :aBcD1234".to_string()],
-            "⛔ a three-way split at {a}/{b} did not reassemble"
+            "a three-way split at {a}/{b} did not reassemble"
         );
     }
 }
 
 #[test]
 fn a_crlf_split_across_two_frames_is_still_one_terminator() {
-    // ⛔ **The split that a naive byte-splitter gets wrong.** ⛔ The `\r` and
-    // the `\n` are separate bytes, ⛔ so a frame may end after the `\r`. ⛔ A
+    // **The split that a naive byte-splitter gets wrong.** The `\r` and
+    // the `\n` are separate bytes, so a frame may end after the `\r`. A
     // reassembler that treats a lone `\r` as a terminator emits the line one
-    // byte early ⛔ and then emits an empty line when the `\n` arrives.
+    // byte early and then emits an empty line when the `\n` arrives.
     let wire = b"PING :tok\r\n";
     for at in 1..wire.len() {
         let mut r = Reassembler::new();
         let mut out = Vec::new();
         out.extend(r.push(&wire[..at]).expect("short"));
         out.extend(r.push(&wire[at..]).expect("short"));
-        assert_eq!(out, vec!["PING :tok".to_string()], "⛔ a split at byte {at} did not produce exactly one line");
+        assert_eq!(out, vec!["PING :tok".to_string()], "a split at byte {at} did not produce exactly one line");
     }
 }
 
 #[test]
 fn a_bare_lf_is_a_terminator_and_a_lone_cr_is_not() {
-    // ⛔ RFC 1459 mandates CRLF and the encoder only writes that ⛔ but a server
+    // RFC 1459 mandates CRLF and the encoder only writes that but a server
     // that emits a bare LF is real, and a client that drops the message is worse
     // than one that accepts it.
     let mut r = Reassembler::new();
     assert_eq!(r.push(b"JOIN #one\n").unwrap(), vec!["JOIN #one".to_string()]);
 
-    // ⛔ **A lone `\r` is never a terminator**, ⛔ because a CRLF arriving as two
+    // **A lone `\r` is never a terminator**, because a CRLF arriving as two
     // separate frames is the split this module exists for.
     let mut r = Reassembler::new();
     assert!(r.push(b"JOIN #one\r").unwrap().is_empty());
@@ -132,7 +132,7 @@ fn a_lone_cr_inside_a_line_is_content() {
     assert_eq!(
         r.push(b"PRIVMSG #c :a\rb\r\n").unwrap(),
         vec!["PRIVMSG #c :a\rb".to_string()],
-        "⛔ a CR that is not part of a CRLF is content, not a terminator"
+        "a CR that is not part of a CRLF is content, not a terminator"
     );
 }
 
@@ -140,34 +140,34 @@ fn a_lone_cr_inside_a_line_is_content() {
 
 #[test]
 fn plant_a_stream_truncated_mid_line_emits_no_partial_line() {
-    // ⛔ **THE PLANT.** ⛔ The stream ends in the middle of a `PRIVMSG`. ⛔ A
+    // **THE PLANT.** The stream ends in the middle of a `PRIVMSG`. A
     // client that emitted the partial line would put
     // `:alice!u@host PRIVMSG #ops :hel` in a user's terminal and then nothing
-    // more, ⛔ and the user cannot tell that from a peer that stopped talking.
+    // more, and the user cannot tell that from a peer that stopped talking.
     let wire = b":alice!u@host PRIVMSG #ops :hello there world\r\n";
     let keep = wire.len() - 15;
     let mut r = Reassembler::new();
     let out = r.push(&wire[..keep]).expect("short");
     assert!(
         out.is_empty(),
-        "⛔ PLANT: a truncated push emitted {:?}; a partial line must not be \
+        "PLANT: a truncated push emitted {:?}; a partial line must not be \
          emitted as a message",
         out
     );
     assert_eq!(r.pending_len(), keep);
 
-    // ⛔ **The end of the stream is a separate, explicit event** ⛔ and it is the
-    // only place a partial line may be observed ⛔ and ⛔ it is returned to the
+    // **The end of the stream is a separate, explicit event** and it is the
+    // only place a partial line may be observed and it is returned to the
     // caller rather than emitted as a message.
     let rest = r.take_rest().expect("the partial line is still buffered");
     assert_eq!(
         rest,
         std::str::from_utf8(&wire[..keep]).expect("the prefix is UTF-8"),
-        "⛔ the partial line must be exactly the bytes that arrived"
+        "the partial line must be exactly the bytes that arrived"
     );
     assert!(rest.starts_with(":alice!u@host PRIVMSG #ops :"));
-    assert_eq!(r.pending_len(), 0, "⛔ taking the rest must clear the buffer");
-    assert_eq!(r.take_rest(), None, "⛔ there is nothing left to take");
+    assert_eq!(r.pending_len(), 0, "taking the rest must clear the buffer");
+    assert_eq!(r.take_rest(), None, "there is nothing left to take");
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn plant_a_stream_truncated_at_every_offset_never_emits_a_partial_line() {
         let out = r.push(&wire[..at]).expect("short");
         assert!(
             out.is_empty(),
-            "⛔ PLANT: a stream truncated at byte {at} emitted {:?}; every \
+            "PLANT: a stream truncated at byte {at} emitted {:?}; every \
              truncation before the CRLF must emit nothing",
             out
         );
@@ -190,27 +190,27 @@ fn a_clean_end_of_stream_takes_nothing() {
     let wire = b"PING :aBcD1234\r\n";
     let mut r = Reassembler::new();
     assert_eq!(r.push(wire).unwrap(), vec!["PING :aBcD1234".to_string()]);
-    // ⛔ **Nothing pending, so nothing to take**, ⛔ and the reconnect path can
+    // **Nothing pending, so nothing to take**, and the reconnect path can
     // tell a clean end from a truncation.
     assert_eq!(r.take_rest(), None);
 }
 
 #[test]
 fn a_truncated_line_does_not_parse_as_a_message_even_if_it_is_handed_over() {
-    // ⛔ **The second half of the truncate plant, and the one a fixture hides.**
-    // ⛔ `take_rest` deliberately returns the partial line ⛔ and ⛔ **the parser
-    // must then refuse it**, ⛔ because `:alice!u@host PRIVMSG #ops :hel` is not
-    // a malformed message ⛔ — ⛔ it is a perfectly well-formed message with a
-    // shorter text. ⛔ **Only the caller knows the stream ended**, and ⛔ that
+    // **The second half of the truncate plant, and the one a fixture hides.**
+    // `take_rest` deliberately returns the partial line and **the parser
+    // must then refuse it**, because `:alice!u@host PRIVMSG #ops :hel` is not
+    // a malformed message — it is a perfectly well-formed message with a
+    // shorter text. **Only the caller knows the stream ended**, and that
     // is why [`Session::on_stream_end`](podssh_core::irc::Session::on_stream_end)
     // reports it rather than parsing it.
     let partial = ":alice!u@host PRIVMSG #ops :hel";
     let m = Message::parse(partial).expect("it IS syntactically valid");
     let Command::Privmsg { text, .. } = &m.command else { panic!("expected a PRIVMSG") };
-    // ⛔ **The defect this names**: a truncated stream handed to a parser yields
-    // ⛔ a *complete-looking* message whose text happens to be short.
+    // **The defect this names**: a truncated stream handed to a parser yields
+    // a *complete-looking* message whose text happens to be short.
     assert_eq!(text.as_str(), "hel");
-    // ⛔ So the guard is the stream's word, not the parse's.
+    // So the guard is the stream's word, not the parse's.
     assert!(podssh_core::irc::SessionError::TruncatedMidLine {
         partial: partial.to_string(),
         pending_bytes: partial.len(),
@@ -223,43 +223,43 @@ fn a_truncated_line_does_not_parse_as_a_message_even_if_it_is_handed_over() {
 
 #[test]
 fn an_over_long_line_is_discarded_and_the_stream_resynchronises() {
-    // ⛔ **Not a plant: this is the control for one.** ⛔ The line past the limit
-    // is dropped whole, ⛔ and ⛔ **the tail of an over-long line is dropped with
-    // it** ⛔ rather than parsed as a fresh message ⛔ — ⛔ skipping to the next
+    // **Not a plant: this is the control for one.** The line past the limit
+    // is dropped whole, and **the tail of an over-long line is dropped with
+    // it** rather than parsed as a fresh message — skipping to the next
     // newline is what keeps 40 KB of one line from becoming forty thousand
     // messages.
     let mut r = Reassembler::with_max_line(64);
     let long = "P".repeat(500);
     let err = r
         .push(format!("{long}\r\nPING :after\r\n").as_bytes())
-        .expect_err("⛔ a 500-byte line complete with its CRLF must not pass a 64-byte limit");
+        .expect_err("a 500-byte line complete with its CRLF must not pass a 64-byte limit");
     match err {
         FrameError::Overlong { bytes, max_line } => {
-            assert_eq!((bytes, max_line), (500, 64), "⛔ the error must name the line and the limit");
+            assert_eq!((bytes, max_line), (500, 64), "the error must name the line and the limit");
         }
         other => panic!("expected Overlong, got {other:?}"),
     }
-    assert!(r.overflowed(), "⛔ the overrun must be observable, not silent");
+    assert!(r.overflowed(), "the overrun must be observable, not silent");
 
-    // ⛔ **The tail of an over-long line is dropped with it** ⛔ — ⛔ not parsed
-    // as a fresh message ⛔ — ⛔ and ⛔ the message *after* it parses normally.
+    // **The tail of an over-long line is dropped with it** — not parsed
+    // as a fresh message — and the message *after* it parses normally.
     let out = r.push(b"PING :next\r\n").expect("short");
-    assert_eq!(out, vec!["PING :next".to_string()], "⛔ the stream must resynchronise");
+    assert_eq!(out, vec!["PING :next".to_string()], "the stream must resynchronise");
 
-    // ⛔ **And the same when the terminator has not arrived**, which is the
-    // other failure mode the check has to cover ⛔ and ⛔ the one that would
+    // **And the same when the terminator has not arrived**, which is the
+    // other failure mode the check has to cover and the one that would
     // otherwise let the buffer grow without bound.
     let mut r = Reassembler::with_max_line(64);
     assert!(r.push(long.as_bytes()).unwrap().is_empty());
-    assert!(r.overflowed(), "⛔ an unterminated over-long line must be flagged");
-    assert!(r.push(b"PING :tail\r\n").unwrap().is_empty(), "⛔ the rest of it is skipped");
+    assert!(r.overflowed(), "an unterminated over-long line must be flagged");
+    assert!(r.push(b"PING :tail\r\n").unwrap().is_empty(), "the rest of it is skipped");
 }
 
 #[test]
 fn a_line_at_exactly_the_limit_is_accepted() {
-    // ⛔ **The limit counts the CRLF**, ⛔ because RFC 2812 §2.3 says *"a maximum
-    // message length of 512 characters"* ⛔ and a message on the wire carries its
-    // terminator. ⛔ A ten-byte line is twelve on the wire, ⛔ so twelve is the
+    // **The limit counts the CRLF**, because RFC 2812 §2.3 says *"a maximum
+    // message length of 512 characters"* and a message on the wire carries its
+    // terminator. A ten-byte line is twelve on the wire, so twelve is the
     // smallest limit that accepts it and eleven is the largest that refuses it.
     let line = "0123456789"; // ten bytes; twelve with the CRLF
     let mut r = Reassembler::with_max_line(12);
@@ -270,7 +270,7 @@ fn a_line_at_exactly_the_limit_is_accepted() {
     let err = r.push(format!("{line}\r\n").as_bytes()).expect_err("one over must fail");
     match err {
         FrameError::Overlong { bytes, max_line } => {
-            assert_eq!((bytes, max_line), (10, 11), "⛔ the error must name the line and the limit");
+            assert_eq!((bytes, max_line), (10, 11), "the error must name the line and the limit");
         }
         other => panic!("expected Overlong, got {other:?}"),
     }
@@ -278,36 +278,36 @@ fn a_line_at_exactly_the_limit_is_accepted() {
 
 #[test]
 fn nul_is_stripped_and_never_truncates() {
-    // ⛔ RFC 2812 §2.3.1: NUL in a message is **stripped**, not truncated.
+    // RFC 2812 §2.3.1: NUL in a message is **stripped**, not truncated.
     let mut r = Reassembler::new();
     assert_eq!(
         r.push(b"PRIVMSG #c :a\0b\0c\r\n").unwrap(),
         vec!["PRIVMSG #c :abc".to_string()],
-        "⛔ NUL must be dropped and the rest of the line kept"
+        "NUL must be dropped and the rest of the line kept"
     );
 }
 
 #[test]
 fn an_empty_line_is_no_message_at_all() {
     let mut r = Reassembler::new();
-    assert!(r.push(b"\r\n\r\n").unwrap().is_empty(), "⛔ a blank line is not a message");
+    assert!(r.push(b"\r\n\r\n").unwrap().is_empty(), "a blank line is not a message");
     assert_eq!(r.pending_len(), 0);
 }
 
 #[test]
 fn the_default_limit_is_far_enough_for_the_largest_line_the_entry_writes() {
-    // ⛔ **The chunk size is proved against this number**, ⛔ not against the
-    // parser's opinion of it. ⛔ RFC 2812 §2.3 caps a message at 512 including
-    // the terminator; ⛔ a chunk line must land under that, ⛔ and ⛔ this test
+    // **The chunk size is proved against this number**, not against the
+    // parser's opinion of it. RFC 2812 §2.3 caps a message at 512 including
+    // the terminator; a chunk line must land under that, and this test
     // fails if `TransferLimits::chunk_bytes` is ever raised past it.
     let limits = podssh_core::irc::TransferLimits::default();
     let length = podssh_core::irc::transfer::chunk_line_length(&limits, "t", 0, 0);
-    assert!(length <= 512, "⛔ a chunk line is {length} bytes; RFC 2812 §2.3 caps a message at 512");
+    assert!(length <= 512, "a chunk line is {length} bytes; RFC 2812 §2.3 caps a message at 512");
     // Two constants: checked when the test compiles.
     const {
         assert!(
             DEFAULT_MAX_LINE >= 512,
-            "⛔ the reassembler's default limit must be at least the RFC's 512, or a \
+            "the reassembler's default limit must be at least the RFC's 512, or a \
              legal message is refused"
         )
     };
@@ -315,9 +315,9 @@ fn the_default_limit_is_far_enough_for_the_largest_line_the_entry_writes() {
 
 #[test]
 fn the_suite_is_not_vacuous() {
-    // ⛔ **A suite that runs nothing reports 0 passed and exit 0.** ⛔ That is
+    // **A suite that runs nothing reports 0 passed and exit 0.** That is
     // a pass that measured nothing, and this repository has shipped a gate that
-    // did it. ⛔ So the split cases are counted, not assumed.
+    // did it. So the split cases are counted, not assumed.
     let mut count = 0usize;
     let bytes = format!("{LONG}\r\n").into_bytes();
     for at in 1..bytes.len() {
@@ -327,6 +327,6 @@ fn the_suite_is_not_vacuous() {
         assert_eq!(out.len(), 1);
         count += 1;
     }
-    assert!(count > 20, "⛔ only {count} split cases ran; the suite is too small to mean anything");
+    assert!(count > 20, "only {count} split cases ran; the suite is too small to mean anything");
     let _ = common::lines_from(&bytes);
 }

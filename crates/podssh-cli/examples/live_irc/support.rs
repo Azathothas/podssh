@@ -78,12 +78,12 @@ impl Attempt {
         self.registered && (self.echo_short || self.echo_chan_short) && (self.echo_long || self.echo_chan_long)
     }
 
-    /// ⛔ Registration outranks echo: closer to the proof wins.
+    /// Registration outranks echo: closer to the proof wins.
     pub fn score(&self) -> u8 {
         (self.registered as u8) * 4 + ((self.echo_short || self.echo_chan_short) as u8) * 2 + (self.connected as u8)
     }
 
-    /// ⛔ Counts, codes, capability names, our probe id. The token never appears.
+    /// Counts, codes, capability names, our probe id. The token never appears.
     pub fn report(&self) {
         print!(
             "target={}\nregistered={}\ncaps_offered={}\ncaps_enabled={}\nisupport_nicklen={}\npayloads={} split_seen={}\necho_self={}/{} echo_chan={}/{}\nframes_sent={}\n",
@@ -119,7 +119,7 @@ pub async fn pump_once(runner: &mut LiveRunner, irc: &mut Session, a: &mut Attem
         Err(_) => return PumpOut::Timeout,
     };
     a.payloads += 1;
-    // ⛔ A payload not ending at a line ending is a message across a frame boundary.
+    // A payload not ending at a line ending is a message across a frame boundary.
     if !payload.ends_with(b"\n") {
         a.split_seen = true;
     }

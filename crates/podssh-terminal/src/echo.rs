@@ -1,15 +1,15 @@
 //! The line under edit: the byte rules, transcribed.
 //!
-//! ⭐ **This module is a transcription.** podbox ships this exact discipline
+//! **This module is a transcription.** podbox ships this exact discipline
 //! server-side — **READ**, `.tmp/podbox/crates/podbox-ssh/src/session.rs:1` —
 //! and its bytes are pinned by ~40 named tests, so re-deriving them would only
 //! produce a second thing to be wrong. Each constant and each byte rule below
 //! cites the line it came from, read with `sed -n` on 2026-10-02.
 //!
-//! ⛔ **The one deliberate difference is the destination names, not the bytes.**
+//! **The one deliberate difference is the destination names, not the bytes.**
 //! The sibling names them `ToShell` and `ToClient` because it supervises a local
 //! `/bin/sh` under `ForceCommand`. podssh is the SSH *client*, so the forward
-//! leg is an SSH channel rather than a pipe. ⛔ **The byte sequence produced for
+//! leg is an SSH channel rather than a pipe. **The byte sequence produced for
 //! every input is identical**, and the tests assert those bytes, not the names.
 //!
 //! ## The byte rules, and where each one is transcribed from
@@ -28,25 +28,25 @@
 //!
 //! ## What is deliberately absent
 //!
-//! ⛔ **No `onlcr` here.** The sibling expands lone `\n` to `\r\n` on the way out
+//! **No `onlcr` here.** The sibling expands lone `\n` to `\r\n` on the way out
 //! — **READ**, `session.rs:629-642` — because the shell below it runs on a pipe
-//! and its `OPOST`/`ONLCR` is absent. ⛔ podssh has no such gap: the remote side
+//! and its `OPOST`/`ONLCR` is absent. podssh has no such gap: the remote side
 //! is a real pty, so its own line discipline already did the translation and
 //! podssh forwarding an extra `\r` would stair-step every line. The expansion
 //! belongs to the case where there is no pty below, and this crate never sits
 //! above one.
 //!
-//! ⛔ **No supervisor, no shell, no process group.** `session.rs:456-744` spawns
+//! **No supervisor, no shell, no process group.** `session.rs:456-744` spawns
 //! and supervises a child. podssh has no child to spawn: the remote program is
 //! the SSH server's, and the signal characters are channel bytes here, resolved
 //! into `SIGINT`/`SIGQUIT` by the core that owns the connection.
 
 //! ## The module split
 //!
-//! ⛔ **The reference is one 1132-line file and this is not.** ⛔ A source file
-//! over 500 lines is a gate in this repository, not a preference, ⛔ and the
-//! answer to that is ⛔ **to split by responsibility, not to delete the
-//! comments that make the split legible.** ⛔ Three files hold the same
+//! **The reference is one 1132-line file and this is not.** A source file
+//! over 500 lines is a gate in this repository, not a preference, and the
+//! answer to that is **to split by responsibility, not to delete the
+//! comments that make the split legible.** Three files hold the same
 //! transcription:
 //!
 //! | file | holds |
@@ -56,9 +56,9 @@
 //! | [`history`] | recall, the cap, and the parked line |
 //! | [`inspect`] | the read-only accessors a caller and a test need |
 //!
-//! ⛔ **The split is invisible in behaviour.** ⛔ Every byte rule below is
+//! **The split is invisible in behaviour.** Every byte rule below is
 //! transcribed to the same line of `session.rs` it was cited to before the
-//! files were separated, ⛔ and ⛔ **no test was weakened or skipped to make the
+//! files were separated, and **no test was weakened or skipped to make the
 //! split fit** — the suite is the same 96 tests.
 
 use std::fmt;
@@ -86,7 +86,7 @@ pub const EL: &[u8] = b"\x1b[K";
 /// The bell. **READ**, `session.rs:115`.
 pub const BELL: &[u8] = b"\x07";
 
-/// A signal character, translated. ⛔ **Named, not delivered.** This crate
+/// A signal character, translated. **Named, not delivered.** This crate
 /// never calls `kill`: the process that must die is the remote side's, and the
 /// remote side is reached over a channel. `Sig` is the boundary — podssh-core
 /// turns it into an SSH channel request or a terminal byte, according to what
@@ -106,7 +106,7 @@ pub enum Sig {
 
 /// One consequence of one client byte.
 ///
-/// ⛔ **A byte can echo and submit at once** — Enter echoes `\r\n` and emits the
+/// **A byte can echo and submit at once** — Enter echoes `\r\n` and emits the
 /// line in the same call — so this is a list, never a single value.
 /// **READ**, `session.rs:127-140`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -122,7 +122,7 @@ pub enum Event {
 }
 
 impl fmt::Display for Event {
-    /// ⛔ A legible form, because a failing test prints one of these and a
+    /// A legible form, because a failing test prints one of these and a
     /// `Debug` dump of `vec![27, 91, 75]` names nothing. The spelling lives in
     /// [`crate::bytes`], because rendering bytes is its own job.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -137,16 +137,16 @@ impl fmt::Display for Event {
 
 /// The line under edit.
 ///
-/// ⛔ **Pure state.** Every method is deterministic in its arguments, which is
+/// **Pure state.** Every method is deterministic in its arguments, which is
 /// the only reason the tests can assert exact bytes rather than "something was
 /// echoed". **READ**, `session.rs:152-168`.
 #[derive(Debug, Default)]
 pub struct Discipline {
-    /// ⛔ **`pub(crate)`, not `pub`.** ⛔ The fields below are private to the
-    /// crate because ⛔ **the submodules write them and nothing outside may**:
-    /// ⛔ a caller that could set `cursor` without going through a byte rule
-    /// could desynchronise the cursor from the buffer, ⛔ and the redraw would
-    /// then place the cursor where the line is not. ⛔ The accessors in
+    /// **`pub(crate)`, not `pub`.** The fields below are private to the
+    /// crate because **the submodules write them and nothing outside may**:
+    /// a caller that could set `cursor` without going through a byte rule
+    /// could desynchronise the cursor from the buffer, and the redraw would
+    /// then place the cursor where the line is not. The accessors in
     /// [`inspect`] are the only door out, and they return borrows.
     pub(crate) line: Vec<u8>,
     pub(crate) cursor: usize,
@@ -156,11 +156,11 @@ pub struct Discipline {
     pub(crate) saved: Option<Vec<u8>>,
     /// History index under view, or `None` when editing a fresh line.
     pub(crate) hpos: Option<usize>,
-    /// ⛔ **The escape parser, and it is not the reference's.** ⛔ The reference
+    /// **The escape parser, and it is not the reference's.** The reference
     /// reads two bytes and dispatches on the third (`session.rs:142-150`,
-    /// `244-262`); ⛔ this reads a whole CSI sequence, ⛔ because ⛔ **the entry's
+    /// `244-262`); this reads a whole CSI sequence, because **the entry's
     /// own plant — `ESC [ 1 5 ~` must produce a bell and no state change — cannot
-    /// be satisfied by that parser.** ⛔ See [`crate::escape`], which carries the
+    /// be satisfied by that parser.** See [`crate::escape`], which carries the
     /// measurement.
     esc: Esc,
     /// A `\r` just submitted: a `\n` arriving next is its pair, not a second
@@ -176,7 +176,7 @@ impl Discipline {
     /// Redraw the line: `\r`, the prompt, the buffer, clear the rest, and the
     /// cursor back where the edit left it.
     ///
-    /// ⛔ **Transcribed byte for byte**, `session.rs:177-187`. ECMA-48 sequences
+    /// **Transcribed byte for byte**, `session.rs:177-187`. ECMA-48 sequences
     /// a terminal from the last fifty years answers, and fixed bytes a pipe can
     /// assert — which is the whole reason the shape is not "whatever looks
     /// right".
@@ -196,7 +196,7 @@ impl Discipline {
     /// the cursor back, blank the cell, and move back again: three bytes, no
     /// ANSI needed. **READ**, `session.rs:189-198`.
     ///
-    /// ⛔ **`pub` because a test asserts against it directly.** ⛔ A test that
+    /// **`pub` because a test asserts against it directly.** A test that
     /// rebuilt the triple as a literal would be a second copy of the rule, and
     /// a second copy is what drifts.
     pub fn rubout(n: usize) -> Vec<u8> {
@@ -226,7 +226,7 @@ impl Discipline {
 
     /// Submit the line: history, the forward bytes, and the echo.
     ///
-    /// ⛔ **The prompt travels with the echo, not after the output** — the shell
+    /// **The prompt travels with the echo, not after the output** — the shell
     /// runs non-interactive and prints none of its own. The order reads
     /// prompt-first on a busy session; the bytes stay deterministic, which a
     /// readiness heuristic could never promise. **READ**, `session.rs:216-232`.
@@ -253,24 +253,24 @@ impl Discipline {
 
     /// One client byte in, its consequences out.
     ///
-    /// ⛔ **The dispatch is transcribed from `session.rs:244-295`**, including
+    /// **The dispatch is transcribed from `session.rs:244-295`**, including
     /// the order: an escape in progress owns the byte before anything else does,
     /// and the `\n` of a `\r\n` pair is swallowed before the byte is read as a
     /// submission.
     pub fn key(&mut self, b: u8) -> Vec<Event> {
-        // ⛔ An escape in progress owns the byte before anything else does —
-        // **READ**, `session.rs:246`. ⛔ **The parser is [`crate::escape`]'s, not
-        // the reference's**, and the difference is the plant: ⛔ the
+        // An escape in progress owns the byte before anything else does —
+        // **READ**, `session.rs:246`. **The parser is [`crate::escape`]'s, not
+        // the reference's**, and the difference is the plant: the
         // reference dispatches on the byte after `ESC [` and drops the rest of
         // the sequence on the floor, where `ESC [ 1 5 ~` puts `5` and `~` into
-        // the user's command line. ⛔ This one consumes the whole sequence.
+        // the user's command line. This one consumes the whole sequence.
         match self.esc.step(b) {
             Step::Continue => return vec![],
             Step::Refused => return vec![Event::ToLocal(BELL.to_vec())],
             Step::Final { final_byte, bare } => return self.escape(final_byte, bare),
-            // ⛔ The byte was not part of a sequence. ⛔ A control byte below
-            // `0x20` lands here so ⛔ `ESC` followed by `Ctrl-C` still signals
-            // rather than being swallowed by a malformed sequence — ⛔ the same
+            // The byte was not part of a sequence. A control byte below
+            // `0x20` lands here so `ESC` followed by `Ctrl-C` still signals
+            // rather than being swallowed by a malformed sequence — the same
             // order the reference has, and the reason a user always has a way to
             // interrupt.
             Step::Restart => {}
@@ -285,9 +285,9 @@ impl Discipline {
         match b {
             0x03 => self.signal_key(Sig::Int, b"^C\r\n"),
             0x1c => self.signal_key(Sig::Quit, b"^\\\r\n"),
-            // Refused, loudly. ⛔ `session.rs:271` refuses `0x1a` (Ctrl-Z),
+            // Refused, loudly. `session.rs:271` refuses `0x1a` (Ctrl-Z),
             // `0x11` (Ctrl-Q) and `0x13` (Ctrl-S) in one arm, and this crate
-            // keeps that: one shape, one reason, one bell. ⛔ The predicate is
+            // keeps that: one shape, one reason, one bell. The predicate is
             // [`crate::refusal::refuses`] so the pass-through mode refuses the
             // same bytes from the same source.
             b if crate::refusal::refuses(b) => vec![Event::ToLocal(BELL.to_vec())],

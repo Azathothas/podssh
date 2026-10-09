@@ -1,8 +1,8 @@
 //! Encoding: a [`Message`] back to bytes.
 //!
-//! ⛔ **Split out of `message.rs`, which went over the 500-line gate with
-//! the parser and the encoder together.** ⛔ Parse and encode are two
-//! directions of one grammar and deserve one file each — ⛔ and a test
+//! **Split out of `message.rs`, which went over the 500-line gate with
+//! the parser and the encoder together.** Parse and encode are two
+//! directions of one grammar and deserve one file each — and a test
 //! that says "round trip" reads as one claim rather than two.
 
 use crate::irc::command::parse_command;
@@ -11,7 +11,7 @@ use crate::irc::message::{parse_prefix, split_params, Message, ParseError};
 use crate::irc::tag::{parse_tags, render_tags};
 
 impl Message {
-    /// ⛔ Parse one line, **without** its `\r\n`. ⛔ A line that still carries
+    /// Parse one line, **without** its `\r\n`. A line that still carries
     /// its terminator parses, because [`Reassembler`] strips it and a caller
     /// that forgot would otherwise fail on a correct message.
     pub fn parse(line: &str) -> Result<Self, ParseError> {
@@ -28,7 +28,7 @@ impl Message {
         if let Some(after) = rest.strip_prefix('@') {
             let (tag_text, tail) = match after.find(' ') {
                 Some(i) => (&after[..i], &after[i + 1..]),
-                // ⛔ A tag with no space after it is a broken line, and the
+                // A tag with no space after it is a broken line, and the
                 // parser must not read the rest of it as a command.
                 None => return Err(ParseError::PrefixOnly { line: line.to_string() }),
             };
@@ -61,8 +61,8 @@ impl Message {
         Ok(Message { tags, prefix, command })
     }
 
-    /// ⛔ **Encode, byte-exactly.** No trailing space is written, and the `:` is
-    /// written on the trailing **always** — ⛔ a trailing without it is not a
+    /// **Encode, byte-exactly.** No trailing space is written, and the `:` is
+    /// written on the trailing **always** — a trailing without it is not a
     /// trailing, and the shortest legal spelling of a trailing parameter is the
     /// one that says what it is.
     pub fn to_line(&self) -> String {
@@ -89,7 +89,7 @@ impl Message {
         out
     }
 
-    /// ⛔ The line plus its terminator: what goes on the wire.
+    /// The line plus its terminator: what goes on the wire.
     pub fn to_wire(&self) -> String {
         format!("{}\r\n", self.to_line())
     }

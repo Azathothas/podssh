@@ -30,7 +30,7 @@ wait for `001` (`crates/podssh-core/src/irc/cap.rs:22-28`). Only `on_registratio
 (`crates/podssh-core/src/irc/cap.rs:187-193`), and only `001` calls it
 (`crates/podssh-core/src/irc/session.rs:323-332`). `ACK` and `NAK` send nothing
 (`crates/podssh-core/src/irc/cap.rs:125-144`). A test asserts the wrong order
-(`crates/podssh-core/tests/session.rs:208-231`). A `421` for `CAP` before `001` sets `Refused`
+(`crates/podssh-core/tests/session.rs:200-223`). A `421` for `CAP` before `001` sets `Refused`
 (`crates/podssh-core/src/irc/session.rs:318-322`), and the live probe can then drop the server
 (`crates/podssh-cli/examples/live_irc.rs:228-231`).
 
@@ -48,7 +48,7 @@ used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is n
 3. Read a `421` for `CAP` as "no `CAP` here": send no `CAP END`, and do not set `Refused`.
 4. Correct the comments at `crates/podssh-core/src/irc/cap.rs:9-28` and
    `crates/podssh-core/src/irc/session.rs:22-24`, and remove the test at
-   `crates/podssh-core/tests/session.rs:208-231`. Record the new network results in
+   `crates/podssh-core/tests/session.rs:200-223`. Record the new network results in
    `docs/irc.md:12-24`, and update `docs/STATUS.md:219`, in the same commit.
 
 ## Prove
@@ -95,7 +95,7 @@ parameters as names (`crates/podssh-core/src/irc/cap.rs:242-251`), so in `CAP * 
 second `*` is a name. podssh needs only `znc.in/self-message`
 (`crates/podssh-core/src/irc/mod.rs:63-71`). With `extended-join`, the real name in a `JOIN` echo is
 read as keys (`crates/podssh-core/src/irc/command.rs:60-64`). The one test of the filter uses one
-line with no values (`crates/podssh-core/tests/session.rs:233-245`).
+line with no values (`crates/podssh-core/tests/session.rs:225-237`).
 
 Known from `ircv3/ircv3-specifications:extensions/capability-negotiation.md`, not read in this
 session: a `REQ` is all or nothing, a `302` list uses `name=value`, and a line with `*` before its
@@ -285,7 +285,7 @@ before it. A reconnect keeps the old state. A `433` during registration ends the
 Read: `Session` has no field for its nick (`crates/podssh-core/src/irc/session.rs:150-165`), and
 `JOIN` and `PART` ignore the prefix (`crates/podssh-core/src/irc/session.rs:335-351`). The test
 named for a kick sends another user's `PART` and expects the channel to go
-(`crates/podssh-core/tests/session.rs:172-181`): it asserts the defect. `KICK` has no variant
+(`crates/podssh-core/tests/session.rs:164-173`): it asserts the defect. `KICK` has no variant
 (`crates/podssh-core/src/irc/message.rs:115-192`), and it ends as "unhandled command"
 (`crates/podssh-core/src/irc/session.rs:377-383`). Each `005` builds a new map
 (`crates/podssh-core/src/irc/session.rs:309-312`).
@@ -295,7 +295,7 @@ Read: `reconnect_burst` only adds `JOIN` lines (`crates/podssh-core/src/irc/sess
 tokens. `Negotiation::reconnect` has no caller (`crates/podssh-core/src/irc/cap.rs:195-204`). A
 `433` sets `Refused` and sends nothing (`crates/podssh-core/src/irc/session.rs:318-322`), against
 its comment (`crates/podssh-core/src/irc/session.rs:39-43`). A test asserts the refusal
-(`crates/podssh-core/tests/session.rs:263-272`), and the live probe works around it
+(`crates/podssh-core/tests/session.rs:255-264`), and the live probe works around it
 (`crates/podssh-cli/examples/live_irc.rs:220-227`).
 
 ## Approach
@@ -502,7 +502,7 @@ none, the relay cut it after 184 s (`docs/STATUS.md:97-98`).
 3. Remove the `PRIVMSG` heartbeat and its parser
    (`crates/podssh-core/src/irc/session_send.rs:62-79`, `crates/podssh-core/src/irc/reap.rs:53-75`,
    `crates/podssh-core/src/irc/session.rs:354-361`). No released podssh sends it.
-4. Rewrite the test at `crates/podssh-core/tests/session.rs:330-349`. Correct the comments at
+4. Rewrite the test at `crates/podssh-core/tests/session.rs:322-341`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs:5-29` and the test name at
    `crates/podssh-core/tests/transfer.rs:371-396`.
 5. Update `docs/STATUS.md:219` in the same commit.

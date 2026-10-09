@@ -20,7 +20,7 @@ impl rustls::crypto::hmac::Hmac for PureHmac {
     fn with_key(&self, key: &[u8]) -> Box<dyn Key> {
         Box::new(PureHmacKey {
             id: self.0,
-            // ⛔ `Hmac::new_from_slice` is infallible for HMAC with any key
+            // `Hmac::new_from_slice` is infallible for HMAC with any key
             // length, but the trait says so only for HMAC; an `expect` here
             // would be unreachable and a `map_err` would need an impossible
             // error type. The length check is done by the constructor below.
@@ -36,7 +36,7 @@ impl rustls::crypto::hmac::Hmac for PureHmac {
 pub static HMAC_SHA256: PureHmac = PureHmac(HashAlgorithmId::Sha256);
 pub static HMAC_SHA384: PureHmac = PureHmac(HashAlgorithmId::Sha384);
 
-/// ⛔ `Clone` is required, not incidental: rustls signs repeatedly with the
+/// `Clone` is required, not incidental: rustls signs repeatedly with the
 /// same `Key` and must get the same tag each time, and `Hmac::finalize`
 /// consumes. A fresh `AnyMac` per signature would re-key per call, which is
 /// correct but allocates on every record.
@@ -54,7 +54,7 @@ impl AnyMac {
         }
     }
 
-    /// ⛔ `finalize` consumes, so this takes `&mut self` and uses
+    /// `finalize` consumes, so this takes `&mut self` and uses
     /// `finalize_reset` semantics by cloning: rustls signs repeatedly with the
     /// same `Key` and must get the same tag each time.
     fn tag(&self) -> Vec<u8> {

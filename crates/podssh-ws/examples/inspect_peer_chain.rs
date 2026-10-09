@@ -1,5 +1,5 @@
-//! ⛔ **A one-off probe, run once, to read the live relay's certificate
-//! chain.** ⛔ It is NOT a test: it prints, it asserts nothing, and it is
+//! **A one-off probe, run once, to read the live relay's certificate
+//! chain.** It is NOT a test: it prints, it asserts nothing, and it is
 //! excluded from the suite by living in `examples/`. The question it answers
 //! is "which curve and which signature algorithm does the relay actually
 //! present", and the answer decides whether E03's provider is complete.
@@ -30,7 +30,7 @@ async fn main() {
     let tcp = tokio::net::TcpStream::connect(addr).await.expect("connect");
     let name = rustls_pki_types::ServerName::try_from(host.to_string()).expect("a name");
 
-    // ⛔ `dangerous` is used here deliberately and ONLY here: this probe wants
+    // `dangerous` is used here deliberately and ONLY here: this probe wants
     // to see the peer's chain precisely because podssh's own verifier refuses
     // it. Nothing in the shipped path uses this.
     let mut cfg = (*config).clone();
@@ -52,7 +52,7 @@ async fn main() {
     }
 }
 
-/// ⛔ **A verifier that prints the peer's chain and accepts it.**
+/// **A verifier that prints the peer's chain and accepts it.**
 #[derive(Debug)]
 struct PrintChain;
 
@@ -93,9 +93,9 @@ impl ServerCertVerifier for PrintChain {
     }
 
     fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-        // ⛔ **An empty list made the client send a `signature_algorithms`
+        // **An empty list made the client send a `signature_algorithms`
         // extension with nothing in it**, and the server answered
-        // `DecodeError`. ⛔ This verifier accepts every signature, so it must
+        // `DecodeError`. This verifier accepts every signature, so it must
         // also *offer* the schemes a TLS 1.3 server needs to sign with —
         // otherwise it is not permissive, it is broken.
         vec![
@@ -108,7 +108,7 @@ impl ServerCertVerifier for PrintChain {
     }
 }
 
-/// ⛔ **A minimal DER walk, enough to name the algorithm and the curve.** The
+/// **A minimal DER walk, enough to name the algorithm and the curve.** The
 /// alternative was a full X.509 parser, and the question being answered is
 /// narrower than that: which `signatureAlgorithm` signed this, and is the
 /// subject public key on P-256 or P-384. A field that a short or odd
@@ -129,7 +129,7 @@ fn describe(index: usize, role: &str, der: &[u8]) {
 }
 
 /// The `signatureAlgorithm` OID, read as the DER bytes that follow the
-/// AlgorithmIdentifier SEQUENCE. ⛔ Best-effort and labelled as such: this is
+/// AlgorithmIdentifier SEQUENCE. Best-effort and labelled as such: this is
 /// a diagnostic, and a wrong answer here would be worse than no answer.
 fn signature_algorithm_oid(der: &[u8]) -> Option<String> {
     // A certificate is SEQUENCE { tbsCertificate, signatureAlgorithm, ... }:
@@ -141,7 +141,7 @@ fn signature_algorithm_oid(der: &[u8]) -> Option<String> {
     read_oid(der, alg.body_start)
 }
 
-/// ⛔ **The named-curve OIDs, matched on their DER body bytes.** The tag and
+/// **The named-curve OIDs, matched on their DER body bytes.** The tag and
 /// length byte are included because the previous version searched for the
 /// body alone and found the same three bytes inside an unrelated OID.
 fn public_key_curve(der: &[u8]) -> Option<String> {

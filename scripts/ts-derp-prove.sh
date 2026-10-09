@@ -2,7 +2,7 @@
 # E39's M1 + M3 acceptance. Run it in the build image, through the wrapper:
 #   sh scripts/dev.sh run -- 'sh /work/scripts/ts-derp-prove.sh'
 #
-# ⛔ Run it through the wrapper rather than directly. The example bounds its own
+# Run it through the wrapper rather than directly. The example bounds its own
 # 30 s handshake, but the cargo build phase has no bound of its own and
 # `dev.sh run`'s `--timeout 30m` is what stops a hung build or a hung network
 # call; nothing here can bound itself POSIXly.
@@ -11,7 +11,7 @@
 # podssh's gate does not build it, so this script is the one place its proofs
 # run. Every exit code is echoed on its own line, never through a pipe.
 #
-# ⛔ **Three outcomes, not two.** The example distinguishes 0 (expected), 1
+# **Three outcomes, not two.** The example distinguishes 0 (expected), 1
 # (wrong outcome) and 3 (`????` — the relay answered 429/503 or nothing, so no
 # result was obtained). Flattening 3 into 1 reports a rate-limited relay as a
 # failed proof and sends the next session hunting a defect that is not there.
@@ -19,7 +19,7 @@
 # failure, 3 inconclusive.
 set -u
 
-# ⛔ **The verdict is a function so that it has a failure test.**
+# **The verdict is a function so that it has a failure test.**
 #
 # `--verdict-only A B C` runs it over three exit codes with no cargo and no
 # network, which is the only way this branch can be proven on a host that cannot
@@ -41,7 +41,7 @@ verdict() {
             _failed=1
         fi
     done
-    # ⛔ A real failure outranks an inconclusive step: a wrong outcome is a
+    # A real failure outranks an inconclusive step: a wrong outcome is a
     # defect whether or not another proof could not be read.
     if [ "$_failed" -eq 1 ]; then
         echo "ts-derp-prove: at least one proof failed" >&2

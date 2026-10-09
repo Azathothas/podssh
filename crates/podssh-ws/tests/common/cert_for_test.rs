@@ -1,6 +1,6 @@
-// ⛔ **A minimal X.509 certificate, minted here, in pure Rust.**
+// **A minimal X.509 certificate, minted here, in pure Rust.**
 //
-// ⛔ **Why this exists, and why not `rcgen`.** MEASURED 2026-10-02 in
+// **Why this exists, and why not `rcgen`.** MEASURED 2026-10-02 in
 // `rust:1-alpine`, in this order:
 //
 // 1. `rcgen 0.14` with **default features** pulls in `ring 0.17`, which
@@ -12,14 +12,14 @@
 //    compile: `compile_error!("At least one of the 'ring' or 'aws_lc_rs'
 //    features must be activated when the 'crypto' feature is enabled")`.
 //
-// ⛔ So rcgen has no pure-Rust configuration at all, and this is the same
+// So rcgen has no pure-Rust configuration at all, and this is the same
 // wall `ring` and `aws-lc-sys` present. The primitives are already here —
 // `p256` for the key and the signature, `sha2` for the digest — so the
 // certificate is built from those and nothing is added.
 //
-// ⛔ **Two subjects, two files, and this file is only the seam.**
+// **Two subjects, two files, and this file is only the seam.**
 // `cert_encoding.rs` writes the DER and mints the certificate;
-// `cert_server.rs` is the rustls server that presents it. ⛔ MEASURED
+// `cert_server.rs` is the rustls server that presents it. MEASURED
 // 2026-10-02: the failures in this area were never "the bytes are wrong" and
 // "the server is wrong" at the same time — one file holding both is what made
 // each look like the other.

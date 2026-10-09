@@ -1,9 +1,9 @@
-//! ⛔ **Signature verification, against published vectors and against a live
+//! **Signature verification, against published vectors and against a live
 //! chain.**
 //!
-//! ⛔ **Why this is a second file.** `crypto_vectors.rs` reached 510 lines when
+//! **Why this is a second file.** `crypto_vectors.rs` reached 510 lines when
 //! the provider grew a third signature algorithm, and the 500-line cap is a
-//! gate rather than advice. ⛔ The block moved here whole; no comment was
+//! gate rather than advice. The block moved here whole; no comment was
 //! deleted to make room, because a file that only fits because its comments
 //! were removed is not a split.
 
@@ -15,7 +15,7 @@ fn hex(bytes: &[u8]) -> String {
 
 // ── ECDSA P-256 with SHA-256 ────────────────────────────────────────────────
 
-/// ⛔ **ECDSA P-256/SHA-256, self-signed and verified.** The key and the
+/// **ECDSA P-256/SHA-256, self-signed and verified.** The key and the
 /// message are generated here, so this asserts the *encoding* contract: a raw
 /// SEC1 point in, a DER signature out.
 #[test]
@@ -37,13 +37,13 @@ fn ecdsa_p256_sha256_verifies_a_real_signature_and_rejects_a_tampered_one() {
         "a valid ECDSA signature did not verify"
     );
 
-    // ⛔ **The message is authenticated.** A signature that verified over a
+    // **The message is authenticated.** A signature that verified over a
     // different message would accept a replayed handshake signature.
     assert!(
         ECDSA_P256_SHA256.verify_signature(raw, b"a different message", signature.to_der().as_bytes()).is_err(),
         "ECDSA verified a signature over the wrong message"
     );
-    // ⛔ **So is the key.** A signature verified under any other key would make
+    // **So is the key.** A signature verified under any other key would make
     // the chain's issuer irrelevant.
     let other = SigningKey::from_bytes(&[0x43u8; 32].into()).expect("a scalar");
     assert!(
@@ -56,7 +56,7 @@ fn ecdsa_p256_sha256_verifies_a_real_signature_and_rejects_a_tampered_one() {
             .is_err(),
         "ECDSA verified under the wrong key"
     );
-    // ⛔ **And a truncated signature is rejected**, not treated as a DER parse
+    // **And a truncated signature is rejected**, not treated as a DER parse
     // that happens to succeed.
     let der = signature.to_der();
     assert!(
@@ -65,7 +65,7 @@ fn ecdsa_p256_sha256_verifies_a_real_signature_and_rejects_a_tampered_one() {
     );
 }
 
-/// ⛔ **Ed25519, RFC 8032 test vector 1.** The secret, public and message are
+/// **Ed25519, RFC 8032 test vector 1.** The secret, public and message are
 /// the RFC's, so this is a check against the standard and not a round-trip
 /// with itself.
 #[test]
@@ -94,7 +94,7 @@ fn ed25519_matches_rfc8032_vector_1() {
         ED25519.verify_signature(&expected_public, message, &signature.to_bytes()).is_ok(),
         "the RFC 8032 signature did not verify"
     );
-    // ⛔ **A public key of the wrong length is rejected.** ⛔ The `try_into` in
+    // **A public key of the wrong length is rejected.** The `try_into` in
     // `Ed25519Verify` is what stops a 33-byte "Ed25519 key" from being
     // zero-extended into a valid-looking one.
     assert!(ED25519.verify_signature(&[0u8; 31], message, &signature.to_bytes()).is_err());
@@ -103,14 +103,14 @@ fn ed25519_matches_rfc8032_vector_1() {
 
 // ── ECDSA P-384 with SHA-384 ────────────────────────────────────────────────
 
-/// ⛔ **P-384/SHA-384, and this algorithm exists because a measurement named
-/// it.** ⛔ MEASURED 2026-10-02 in `rust:1-alpine`: the live handshake failed
+/// **P-384/SHA-384, and this algorithm exists because a measurement named
+/// it.** MEASURED 2026-10-02 in `rust:1-alpine`: the live handshake failed
 /// with `UnsupportedSignatureAlgorithmContext { signature_algorithm_id:
 /// [6, 8, 42, 134, 72, 206, 61, 4, 3, 3] }`, and that OID is
 /// `ecdsa-with-SHA384` (1.2.840.10045.4.3.3) — the algorithm the relay's
 /// second intermediate certificate is signed with.
 ///
-/// ⛔ The same three rules as P-256 hold here, and they are asserted again
+/// The same three rules as P-256 hold here, and they are asserted again
 /// rather than assumed: a valid signature verifies, and a different message, a
 /// different key and a truncated signature do not.
 #[test]
@@ -135,21 +135,21 @@ fn ecdsa_p384_sha384_verifies_and_rejects_the_same_three_ways() {
     );
     assert!(
         ECDSA_P384_SHA384.verify_signature(raw, b"a different message", der.as_bytes()).is_err(),
-        "⛔ P-384 verified a signature over the wrong message"
+        "P-384 verified a signature over the wrong message"
     );
     let other = SigningKey::from_bytes(&[0x52u8; 48].into()).expect("a scalar");
     let other_point = other.verifying_key().to_encoded_point(false);
     assert!(
         ECDSA_P384_SHA384.verify_signature(other_point.as_bytes(), message, der.as_bytes()).is_err(),
-        "⛔ P-384 verified under the wrong key"
+        "P-384 verified under the wrong key"
     );
     assert!(
         ECDSA_P384_SHA384.verify_signature(raw, message, &der.as_bytes()[..der.len() - 1]).is_err(),
-        "⛔ P-384 accepted a truncated signature"
+        "P-384 accepted a truncated signature"
     );
 }
 
-/// ⛔ **A P-384 key is not a P-256 key.** ⛔ The two algorithms differ only in
+/// **A P-384 key is not a P-256 key.** The two algorithms differ only in
 /// the `AlgorithmIdentifier` they report, so a provider that got the mapping
 /// wrong would accept a P-256 signature under the P-384 name — and the
 /// cross-check here is what says it does not.

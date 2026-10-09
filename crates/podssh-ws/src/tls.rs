@@ -1,6 +1,6 @@
 //! The `ClientConfig`, and the rule that hostname verification has no bypass.
 //!
-//! ⛔ **There is no `--insecure`, and there is no parameter that would become
+//! **There is no `--insecure`, and there is no parameter that would become
 //! one.** A sibling project made verification a decision rather than an
 //! option. The way that decision is held here is structural: the only
 //! constructor takes a bundle and builds a `WebPkiServerVerifier`, and that
@@ -162,7 +162,7 @@ fn add_extra(roots: &mut RootCertStore, sources: &mut Vec<String>, path: &Path) 
 #[derive(Debug)]
 pub struct TlsRoots {
     pub roots: RootCertStore,
-    /// ⛔ Where they came from, printed by the doctor. "Verified" is only
+    /// Where they came from, printed by the doctor. "Verified" is only
     /// meaningful next to the path that was read.
     pub source: String,
     pub count: usize,
@@ -172,7 +172,7 @@ pub fn roots_from_bundle(path: &Path) -> Result<TlsRoots, WsError> {
     let certs = bundle::load_bundle(path).map_err(|why| WsError::Bundle { path: path.display().to_string(), why })?;
     let offered = certs.len();
     let mut roots = RootCertStore::empty();
-    // ⛔ `add_parsable_certificates` returns `(valid, invalid)` counts. A
+    // `add_parsable_certificates` returns `(valid, invalid)` counts. A
     // silently dropped root produces a chain failure that reads as an
     // untrusted issuer rather than as a damaged file, so a non-zero invalid
     // count is an error naming both numbers.
@@ -204,7 +204,7 @@ pub fn roots_from_compiled_set() -> TlsRoots {
     }
 }
 
-/// ⛔ **The provider is passed explicitly, never installed as a process
+/// **The provider is passed explicitly, never installed as a process
 /// default.** `install_default` is global and can only succeed once per
 /// process, so a library that did it would take the choice away from whatever
 /// embeds podssh, and a second call would return an error that reads like a
@@ -228,7 +228,7 @@ pub fn client_config_with(roots: &TlsRoots, provider: CryptoProvider) -> Result<
         .map_err(|e| WsError::Config(e.to_string()))?
         .dangerous()
         .with_custom_certificate_verifier(verifier)
-        // ⛔ **No SNI suppression, no ALPN, no client certificate.** The relay
+        // **No SNI suppression, no ALPN, no client certificate.** The relay
         // is a single hostname; a client that presents a client certificate
         // has nothing to present one for.
         .with_no_client_auth();

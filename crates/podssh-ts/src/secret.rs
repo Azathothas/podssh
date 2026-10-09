@@ -1,6 +1,6 @@
 //! The tailnet auth key, as a secret: file/env only, never argv, never printed.
 //!
-//! ⛔ Modelled on `podssh-cli/src/security/token.rs`: the bytes are reachable
+//! Modelled on `podssh-cli/src/security/token.rs`: the bytes are reachable
 //! through [`AuthKey::expose`] and destroyed by [`AuthKey::expire`], and
 //! `Debug` prints a fixed redaction. There is no `Display`.
 

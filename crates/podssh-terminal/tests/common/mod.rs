@@ -1,12 +1,12 @@
-//! ⛔ **The shared test harness: both legs, kept apart.**
+//! **The shared test harness: both legs, kept apart.**
 //!
-//! ⛔ **Every test in this suite drives the discipline through `feed` or `Session`,
+//! **Every test in this suite drives the discipline through `feed` or `Session`,
 //! never by touching internal state**, so no assertion can read something the
 //! bytes did not produce.
 //!
-//! ⛔ **The two legs are separate fields and never merged.** ⛔ The entry names
+//! **The two legs are separate fields and never merged.** The entry names
 //! the failure this prevents: *"the failure is the right bytes in the wrong
-//! direction or the wrong sequence substituted."* ⛔ A single merged buffer
+//! direction or the wrong sequence substituted."* A single merged buffer
 //! cannot tell those apart, so neither can a test that reads one.
 
 #![allow(dead_code)] // each test file uses a subset; a shared harness is expected.
@@ -43,7 +43,7 @@ pub struct Legs {
 }
 
 impl Legs {
-    /// ⛔ **A `Display` that prints every leg, so a failing assertion shows what
+    /// **A `Display` that prints every leg, so a failing assertion shows what
     /// arrived and not merely that something did.**
     pub fn show(&self) -> String {
         format!(
@@ -56,10 +56,10 @@ impl Legs {
     }
 }
 
-/// ⛔ **The local bytes out of a `Vec<Event>` reply.** ⛔ The pass-through
+/// **The local bytes out of a `Vec<Event>` reply.** The pass-through
 /// discipline returns `Vec<Event>` where each `ToLocal` is one chunk, and a frame
-/// arrives in several of them. ⛔ Concatenating them is exactly what the terminal
-/// does, and ⛔ asserting on the concatenation is what makes "the frame is intact"
+/// arrives in several of them. Concatenating them is exactly what the terminal
+/// does, and asserting on the concatenation is what makes "the frame is intact"
 /// a byte-for-byte claim rather than a count.
 pub trait LocalBytes {
     fn concat_local(&self) -> Vec<u8>;
@@ -77,12 +77,12 @@ impl LocalBytes for Vec<Event> {
     }
 }
 
-/// ⛔ **True when `needle` occurs anywhere in `hay`.**
+/// **True when `needle` occurs anywhere in `hay`.**
 ///
-/// ⛔ **`Vec::contains` takes an element, not a slice**, so every subsequence
-/// check in this suite goes through here. ⛔ The reference has the same helper
+/// **`Vec::contains` takes an element, not a slice**, so every subsequence
+/// check in this suite goes through here. The reference has the same helper
 /// and the same reason for it — **READ**, `session.rs:770-774`, *"so
-/// subsequence checks go through here"* — and ⛔ **a test written as
+/// subsequence checks go through here"* — and **a test written as
 /// `hay.contains(&b'\x1b')` does not compile, which is how this error is caught
 /// rather than asserted around.**
 pub fn has(hay: &[u8], needle: &[u8]) -> bool {

@@ -32,7 +32,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
   (`crates/podssh-terminal/src/echo/editing.rs:166-178`).
 - Read: tests pin the wrong table (`crates/podssh-terminal/tests/keys.rs:315-326`,
   `crates/podssh-terminal/tests/keys.rs:328-346`), and plant E builds
-  `Session::new(true, true)` (`crates/podssh-terminal/tests/plants.rs:331`).
+  `Session::new(true, true)` (`crates/podssh-terminal/tests/plants.rs:327`).
 - Read: the rule: three inputs select the mode, the user selects the
   discipline, and the absence of a pty alone never selects it
   (`docs/terminal.md:10-18`, `docs/terminal.md:27-32`). On the server side,
@@ -246,7 +246,7 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
   then Ctrl-C only (`crates/podssh-terminal/src/escape.rs:290-306`).
 - Read: tests pin the loss: `ESC x a` gives a bell and `a`
   (`crates/podssh-terminal/tests/keys.rs:253-261`,
-  `crates/podssh-terminal/src/escape.rs:308-317`). The rule says that
+  `crates/podssh-terminal/src/escape.rs:308-313`). The rule says that
   `ESC O x` is a sequence (`docs/terminal.md:97`).
 
 ## Approach

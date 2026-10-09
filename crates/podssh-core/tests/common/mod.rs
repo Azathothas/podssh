@@ -1,13 +1,13 @@
-//! Shared helpers for E30's suites. ⛔ One place, so the four suites cannot
+//! Shared helpers for E30's suites. One place, so the four suites cannot
 //! drift on what a "line" is.
 
 #![allow(dead_code)]
 
 use podssh_core::irc::framing::Reassembler;
 
-/// ⛔ Read a fixture that is committed **with CRLF endings**, ⛔ because a
+/// Read a fixture that is committed **with CRLF endings**, because a
 /// fixture rewritten by an editor to LF would stop testing the terminator the
-/// protocol actually uses. ⛔ **The assertion is in the helper**: a fixture
+/// protocol actually uses. **The assertion is in the helper**: a fixture
 /// that has been normalised is a fixture that no longer proves anything, and
 /// the failure names the file.
 pub mod session;
@@ -22,7 +22,7 @@ pub fn fixture(name: &str) -> String {
     String::from_utf8(raw).expect("a fixture is UTF-8")
 }
 
-/// ⛔ Push bytes through a fresh reassembler and return the lines.
+/// Push bytes through a fresh reassembler and return the lines.
 pub fn lines_from(bytes: &[u8]) -> Vec<String> {
     let mut r = Reassembler::new();
     r.push(bytes).expect("fixture bytes must not overflow").to_vec()

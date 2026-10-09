@@ -1,6 +1,6 @@
 //! The OS random source. `rand::rngs::OsRng` and nothing else.
 //!
-//! ⛔ **No `small_rng`, no `StdRng::from_entropy`, no seeded fallback.** A
+//! **No `small_rng`, no `StdRng::from_entropy`, no seeded fallback.** A
 //! deterministic RNG anywhere in a protocol path is a key-recovery bug, and the
 //! workspace manifest already says so in a comment; this module is where that
 //! becomes a type.

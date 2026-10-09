@@ -1,23 +1,23 @@
 //! The transfer's own wire: the marker line, its shapes, and base64.
 //!
-//! ⛔ **This is not IRC.** It is a `PODSSH1|…` payload inside a `PRIVMSG`, ⛔
+//! **This is not IRC.** It is a `PODSSH1|…` payload inside a `PRIVMSG`,
 //! and it has its own file so the base64 codec — which has nothing to do with
 //! the IRC grammar — is not read every time somebody opens the protocol.
 
 use crate::irc::limits::TransferLimits;
 use crate::irc::message::{Command, Message, Middle, Trailing};
 
-/// ⛔ **The marker, in every transfer line.** ⛔ It is a plain `PRIVMSG` and
-/// not a `CTCP ACTION`, ⛔ **deliberately**: podssh is not required to speak to
+/// **The marker, in every transfer line.** It is a plain `PRIVMSG` and
+/// not a `CTCP ACTION`, **deliberately**: podssh is not required to speak to
 /// a real ircd's clients, and a `PRIVMSG` is the one construct every IRC
 /// implementation forwards, relays and stores.
 pub const MARKER: &str = "PODSSH1";
 
-/// ⛔ **Base64, without a dependency.** ⛔ `podssh-core` has no `base64` in its
-/// manifest and ⛔ **adding one is not free**: every dependency is another thing
+/// **Base64, without a dependency.** `podssh-core` has no `base64` in its
+/// manifest and **adding one is not free**: every dependency is another thing
 /// that can fail `CC=/nonexistent`, and this is a 40-line codec with vectors
-/// from RFC 4648 in the tests. ⛔ **Standard alphabet, with padding** — the
-/// padded form is what every other implementation emits, ⛔ so a peer that is
+/// from RFC 4648 in the tests. **Standard alphabet, with padding** — the
+/// padded form is what every other implementation emits, so a peer that is
 /// not podssh and a file produced elsewhere both decode.
 pub mod b64 {
     const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -37,9 +37,9 @@ pub mod b64 {
         out
     }
 
-    /// ⛔ **Strict.** ⛔ A non-alphabet byte, a length that is not a multiple of
+    /// **Strict.** A non-alphabet byte, a length that is not a multiple of
     /// four, padding in the middle, or padding before the last group are all
-    /// errors, ⛔ because a lenient decoder silently drops the offending byte
+    /// errors, because a lenient decoder silently drops the offending byte
     /// and the file that arrives is short by one with no word to anyone.
     pub fn decode(input: &str) -> Result<Vec<u8>, String> {
         if input.len() % 4 != 0 {
@@ -92,10 +92,10 @@ pub mod b64 {
     }
 }
 
-/// ⛔ **The shapes a transfer line can take, named.**
+/// **The shapes a transfer line can take, named.**
 ///
-/// ⛔ **They are types rather than only variants** ⛔ because a function that
-/// takes "an offer" or "a chunk" says what it needs, ⛔ and `&Line::Offer` is
+/// **They are types rather than only variants** because a function that
+/// takes "an offer" or "a chunk" says what it needs, and `&Line::Offer` is
 /// not a type at all — it is a variant, and a signature naming one does not
 /// compile.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -116,9 +116,9 @@ pub struct Accept {
 pub struct Chunk {
     pub transfer_id: String,
     pub index: u64,
-    /// ⛔ **The byte offset in the file, and it is the resume key.** ⛔ Not
-    /// an index into a session: ⛔ chunk `i` is always bytes
-    /// `[i*320, i*320+320)` of the *file*, ⛔ so a session boundary changes
+    /// **The byte offset in the file, and it is the resume key.** Not
+    /// an index into a session: chunk `i` is always bytes
+    /// `[i*320, i*320+320)` of the *file*, so a session boundary changes
     /// which chunks are sent and never what a chunk means.
     pub offset: u64,
     pub payload: String,
@@ -147,31 +147,31 @@ pub struct Deny {
     pub reason: String,
 }
 
-/// ⛔ **What one transfer line means.** ⛔ Parsed once, at the edge, ⛔ so no
+/// **What one transfer line means.** Parsed once, at the edge, so no
 /// downstream code ever re-reads a positional field out of a string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Line {
-    /// ⛔ `PODSSH1|offer|<transfer-id>|<name>|<total>|<chunks>`
+    /// `PODSSH1|offer|<transfer-id>|<name>|<total>|<chunks>`
     Offer(Offer),
-    /// ⛔ `PODSSH1|accept|<transfer-id>|<from-chunk>`
+    /// `PODSSH1|accept|<transfer-id>|<from-chunk>`
     Accept(Accept),
-    /// ⛔ `PODSSH1|chunk|<transfer-id>|<index>|<offset>|<base64>`
+    /// `PODSSH1|chunk|<transfer-id>|<index>|<offset>|<base64>`
     Chunk(Chunk),
-    /// ⛔ `PODSSH1|ack|<transfer-id>|<index>`
+    /// `PODSSH1|ack|<transfer-id>|<index>`
     Ack(Ack),
-    /// ⛔ `PODSSH1|digest|<transfer-id>|<sha256-hex>`
+    /// `PODSSH1|digest|<transfer-id>|<sha256-hex>`
     Digest(Digest),
-    /// ⛔ `PODSSH1|done|<transfer-id>`
+    /// `PODSSH1|done|<transfer-id>`
     Done(Done),
-    /// ⛔ `PODSSH1|deny|<transfer-id>|<reason>`
+    /// `PODSSH1|deny|<transfer-id>|<reason>`
     Deny(Deny),
-    /// ⛔ A marker line podssh does not understand, kept whole.
+    /// A marker line podssh does not understand, kept whole.
     Unknown { verb: String, rest: String },
 }
 
 impl Line {
-    /// ⛔ Split a `PRIVMSG`'s text into a transfer line. ⛔ **`None` for a
-    /// message that is not a transfer at all**, ⛔ which is the overwhelming
+    /// Split a `PRIVMSG`'s text into a transfer line. **`None` for a
+    /// message that is not a transfer at all**, which is the overwhelming
     /// majority of `PRIVMSG`s in a channel and must cost nothing.
     pub fn parse(text: &str) -> Option<Self> {
         let rest = text.strip_prefix(MARKER)?;
@@ -219,8 +219,8 @@ impl Line {
         })
     }
 
-    /// ⛔ Render to the text of a `PRIVMSG`. ⛔ **Byte-exact with
-    /// [`Line::parse`]**, ⛔ and asserted over a round trip in the tests, ⛔ so
+    /// Render to the text of a `PRIVMSG`. **Byte-exact with
+    /// [`Line::parse`]**, and asserted over a round trip in the tests, so
     /// the two halves of this protocol cannot drift apart.
     pub fn render(&self) -> String {
         match self {
@@ -248,7 +248,7 @@ impl Line {
     }
 }
 
-/// ⛔ Wrap a transfer line in the `PRIVMSG` that carries it.
+/// Wrap a transfer line in the `PRIVMSG` that carries it.
 pub fn as_privmsg(target: &str, line: &Line) -> Message {
     Message {
         tags: Vec::new(),
@@ -257,9 +257,9 @@ pub fn as_privmsg(target: &str, line: &Line) -> Message {
     }
 }
 
-/// ⛔ **The chunk size is a property of the encoder, and this is where it is
+/// **The chunk size is a property of the encoder, and this is where it is
 /// proved rather than asserted.** A chunk line's wire length is
-/// `512 - header` at most; ⛔ [`TransferLimits::default`] says 320 raw bytes,
+/// `512 - header` at most; [`TransferLimits::default`] says 320 raw bytes,
 /// and this function is what makes that number checkable against the real
 /// [`Message::to_wire`] rather than against arithmetic on paper.
 pub fn chunk_line_length(limits: &TransferLimits, transfer_id: &str, index: u64, offset: u64) -> usize {
@@ -269,8 +269,8 @@ pub fn chunk_line_length(limits: &TransferLimits, transfer_id: &str, index: u64,
     as_privmsg("#x", &line).to_wire().len()
 }
 
-/// ⛔ The refusal a peer sends, and ⛔ **the reason string is the only part
-/// of this protocol a human reads**, ⛔ so a machine-generated reason reads
+/// The refusal a peer sends, and **the reason string is the only part
+/// of this protocol a human reads**, so a machine-generated reason reads
 /// as a machine having no reason.
 pub fn deny(target: &str, transfer_id: &str, reason: &str) -> Message {
     as_privmsg(target, &Line::Deny(Deny { transfer_id: transfer_id.to_string(), reason: reason.to_string() }))

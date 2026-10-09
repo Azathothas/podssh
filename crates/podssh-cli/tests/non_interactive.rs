@@ -1,4 +1,4 @@
-//! ⛔ **E33's audit table as tests, against the public API.**
+//! **E33's audit table as tests, against the public API.**
 //!
 //! These exercise `podssh_cli::non_interactive` the way a caller does —
 //! [`resolve`], [`parse_timeout`], [`require_timeout`], [`gate_prompt`] —
@@ -14,7 +14,7 @@ use podssh_cli::non_interactive::{
     PromptSite,
 };
 
-/// ⛔ **Both fds, not stdin alone.** `podssh chat '#c' < /dev/null >
+/// **Both fds, not stdin alone.** `podssh chat '#c' < /dev/null >
 /// log.txt` must not become an interactive client holding a device nobody
 /// holds — stdin a terminal while stdout is a file is where a prompt lands
 /// in a script's output.
@@ -26,7 +26,7 @@ fn terminal_needs_both_fds() {
     assert_eq!(resolve(false, false, false), Attachment::Pipe);
 }
 
-/// ⛔ **`--jsonl` forces non-interactive even on a terminal.** It is the
+/// **`--jsonl` forces non-interactive even on a terminal.** It is the
 /// answer on stdout, and an answer with prompts mixed in is not parseable.
 #[test]
 fn jsonl_forces_non_interactive_even_on_a_terminal() {
@@ -34,7 +34,7 @@ fn jsonl_forces_non_interactive_even_on_a_terminal() {
     assert_eq!(resolve(false, false, true), Attachment::Forced);
 }
 
-/// ⛔ **The override in the dangerous direction is refused.** A flag
+/// **The override in the dangerous direction is refused.** A flag
 /// promising interaction podssh cannot deliver is a flag that hangs, so
 /// the refusal names the fd that is not a TTY.
 #[test]
@@ -58,7 +58,7 @@ fn parse_timeout_accepts_bare_seconds_and_suffixed_forms() {
     assert_eq!(parse_timeout("007").unwrap(), Duration::from_secs(7));
 }
 
-/// ⛔ **Plant 4, as a test.** The sibling parses with `atoi`, so
+/// **Plant 4, as a test.** The sibling parses with `atoi`, so
 /// `30x` is 0 and 0 means unbounded — the guard it was meant to set,
 /// silently removed. Every one of these must be a usage error naming
 /// `--timeout`, immediately, never a hang and never a zero.
@@ -84,7 +84,7 @@ fn parse_timeout_rejects_zero_and_overflow() {
     assert_eq!(refusal.fault, Fault::Usage);
 }
 
-/// ⛔ **A missing `--timeout` in a pipe is a USAGE error, not a hang.**
+/// **A missing `--timeout` in a pipe is a USAGE error, not a hang.**
 /// E33 Prove check 6: exit 64 naming `--timeout`.
 #[test]
 fn missing_timeout_outside_a_terminal_is_usage_64() {
@@ -111,7 +111,7 @@ fn a_provided_timeout_is_always_parsed() {
     assert_eq!(refusal.fault, Fault::Usage);
 }
 
-/// ⛔ **Plants 1 and 3: the implicit detection is the whole entry.** If
+/// **Plants 1 and 3: the implicit detection is the whole entry.** If
 /// `resolve` hardcoded `Terminal`, or the TOFU path prompted
 /// unconditionally, a piped run would hang waiting on nobody. Every site
 /// refuses outside a terminal, and every refusal names its remedy.
@@ -141,7 +141,7 @@ fn every_prompt_site_refuses_outside_a_terminal_and_names_its_remedy() {
     }
 }
 
-/// ⛔ **Row 2 refuses always — never even on a TTY.** E13 never
+/// **Row 2 refuses always — never even on a TTY.** E13 never
 /// auto-replaces; a prompt offers the operator an accident.
 #[test]
 fn a_changed_host_key_refuses_even_on_a_terminal() {
@@ -164,7 +164,7 @@ fn other_sites_allow_a_terminal() {
     }
 }
 
-/// ⛔ **`--jsonl` in ProxyCommand is refused, never redirected.** Stdout is
+/// **`--jsonl` in ProxyCommand is refused, never redirected.** Stdout is
 /// the SSH stream; a JSON line lands mid-version-string.
 #[test]
 fn jsonl_is_refused_in_proxy_mode() {
@@ -185,9 +185,9 @@ fn a_refusal_names_the_site_and_the_remedy() {
     assert!(refusal.message.contains("--accept-new"), "{}", refusal.message);
 }
 
-// ⛔ ─────────── the binary half: pipes, exit codes, both streams ───────────
+// ─────────── the binary half: pipes, exit codes, both streams ───────────
 //
-// ⛔ Plant 6's lesson (`tests/binary_streams.rs:1-28`): a unit test calls
+// Plant 6's lesson (`tests/binary_streams.rs:1-28`): a unit test calls
 // `dispatch::run` with in-memory streams, and a defect on the real file
 // descriptors walks straight past it. These run the actual executable with
 // stdin nulled and stdout piped — deterministically a pipe, on any host.
@@ -245,7 +245,7 @@ fn garbage_timeout_is_64_immediately() {
 }
 
 /// A valid `--timeout` passes the gate. `chat` itself is still E33's to
-/// build, so the run lands on the unimplemented refusal (70) — ⛔ **not** on
+/// build, so the run lands on the unimplemented refusal (70) — **not** on
 /// 64, and never on 0, and never a hang.
 #[test]
 fn valid_timeout_passes_the_gate_and_reaches_the_unbuilt_verb() {
@@ -255,7 +255,7 @@ fn valid_timeout_passes_the_gate_and_reaches_the_unbuilt_verb() {
     assert!(String::from_utf8(err).unwrap().contains("not implemented yet"));
 }
 
-/// ⛔ **`--jsonl` under `proxy` names the SSH stream.** Not the generic
+/// **`--jsonl` under `proxy` names the SSH stream.** Not the generic
 /// unknown-flag text: the message must say why JSON cannot go there.
 #[test]
 fn proxy_jsonl_names_the_ssh_stream() {

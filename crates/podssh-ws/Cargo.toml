@@ -36,16 +36,16 @@ serde_json = { workspace = true }
 plain-ws = []
 
 [dev-dependencies]
-# ⛔ The doctor is async because it may be asked to perform a handshake, and
+# The doctor is async because it may be asked to perform a handshake, and
 # the plants that assert `????` rather than `ok` have to drive it as a caller
 # would. `macros` is what makes `#[tokio::test]` exist.
 tokio = { workspace = true, features = ["macros", "rt"] }
-# ⛔ The live handshake test drives the same `tokio-rustls` connector the
+# The live handshake test drives the same `tokio-rustls` connector the
 # library uses, rather than re-deriving one, so what is proven is what ships.
 tokio-rustls = { workspace = true }
 rustls-pki-types = { workspace = true }
-# ⛔ The signature tests mint real signatures on real curves, so they need the
-# same crates the provider uses. ⛔ `p256` and `p384` are `default-features =
+# The signature tests mint real signatures on real curves, so they need the
+# same crates the provider uses. `p256` and `p384` are `default-features =
 # false` here for the same reason they are in `[dependencies]`: nothing may
 # pull in a C toolchain.
 p256 = { workspace = true }

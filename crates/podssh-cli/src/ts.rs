@@ -1,12 +1,12 @@
 //! `podssh ts` behaviour (E39 increment 4b): status, `-W` pipe, exits.
 //!
-//! ⛔ stdout carries the answer and nothing else — the status line for the
+//! stdout carries the answer and nothing else — the status line for the
 //! bare form, the byte stream for `-W`. Every other path writes stderr only,
 //! and every error path exits non-zero (pinned in `tests/ts_behave.rs`: the
 //! VERB_OWNER `ts` row is gone because this module, not the refusal table,
 //! owns the verb now).
 //!
-//! ⛔ This module is the first sync→async bridge in the CLI: dispatch is
+//! This module is the first sync→async bridge in the CLI: dispatch is
 //! synchronous, `TsNode` is async, so a current-thread runtime is built per
 //! invocation and driven with `block_on`. The E33 `--timeout` bound (required
 //! with no TTY) caps the whole operation; on a terminal with no `--timeout`
@@ -38,7 +38,7 @@ pub struct TsArgs {
 
 /// Run the `ts` verb: gate, then behaviour. Returns the process exit code.
 pub fn run_ts(a: &TsArgs, out: &mut dyn Write, err: &mut dyn Write, tty: Tty) -> i32 {
-    // ⛔ E33's gate, same as every other verb with a `--timeout` row: required
+    // E33's gate, same as every other verb with a `--timeout` row: required
     // with no TTY, parsed always. The bound caps the whole operation below.
     let attachment = crate::non_interactive::resolve_tty(tty, a.jsonl);
     let bound = match crate::non_interactive::require_timeout_or_env("ts", attachment, a.timeout.as_deref(), |n| {
@@ -50,7 +50,7 @@ pub fn run_ts(a: &TsArgs, out: &mut dyn Write, err: &mut dyn Write, tty: Tty) ->
             return refusal.fault.code();
         }
     };
-    // ⛔ `--ts-wait-allowlist` parses with E33's parser; the refusal names the
+    // `--ts-wait-allowlist` parses with E33's parser; the refusal names the
     // ts flag, not `--timeout`, so the message is re-pointed (the fault stays).
     let wait = match a.wait_allowlist.as_deref() {
         None => None,
@@ -81,7 +81,7 @@ async fn ts_async(
     bound: Option<Duration>,
     wait: Option<Duration>,
 ) -> i32 {
-    // ⛔ The host form needs the session engine, which does not exist (E01).
+    // The host form needs the session engine, which does not exist (E01).
     // It names E01 rather than E39: the node may be fine; the SSH side is not.
     if a.destination.is_some() && a.w_target.is_none() {
         let _ = writeln!(
@@ -132,7 +132,7 @@ async fn ts_async(
         Some(m) => vec![m.clone()],
         None => podssh_ts::chain::default_chain(relay_mode),
     };
-    // ⛔ One probe pass, one selection: `select_chain` returning `Some` is the
+    // One probe pass, one selection: `select_chain` returning `Some` is the
     // same condition, so the mode below is the probed winner — never a
     // default the probe did not bless.
     let selected = match podssh_ts::chain::select_chain(&modes, &inputs) {
@@ -209,7 +209,7 @@ async fn ts_async(
             Ok(r) => r,
             Err(_) => {
                 let _ = writeln!(err, "podssh ts: start did not finish within the bound.");
-                // ⛔ 78, recorded as a v1 choice: the flags were fine (not
+                // 78, recorded as a v1 choice: the flags were fine (not
                 // 64), it is not auth (not 77), not a bug (not 70) and not
                 // the relay refusing (not 69) — the run could not establish
                 // in the bound given.
@@ -295,14 +295,14 @@ async fn status_form(
                 let left = deadline.map(|d| d.saturating_duration_since(tokio::time::Instant::now()));
                 match left {
                     Some(d) if !d.is_zero() => {
-                        // ⛔ 2 s poll cadence: a v1 design constant, not a
+                        // 2 s poll cadence: a v1 design constant, not a
                         // measurement — short enough to notice admission,
                         // long enough to not spin on the runtime.
                         tokio::time::sleep(std::cmp::min(d, Duration::from_secs(2))).await;
                         continue;
                     }
                     _ => {
-                        // ⛔ MEASURED 2026-10-07: an allowlisted-but-unsynced
+                        // MEASURED 2026-10-07: an allowlisted-but-unsynced
                         // node sits here, not on the 1008 arm — the fork never
                         // surfaces the relay's close through the Device API,
                         // so "no netmap" IS the unlisted-key symptom and the
@@ -365,7 +365,7 @@ async fn pipe_form(node: &podssh_ts::node::TsNode, target: &str, err: &mut dyn W
         Ok(s) => s,
         Err(e) => return node_error_exit(&e, err),
     };
-    // ⛔ stdin/stdout stay split: stdin is not writable and stdout is not
+    // stdin/stdout stay split: stdin is not writable and stdout is not
     // readable, so neither can be a `copy_bidirectional` leg. Counts and the
     // ending go to stderr — stdout carries the stream and nothing else.
     let mut stdin = tokio::io::stdin();

@@ -1,4 +1,4 @@
-//! ⛔ **The tree's parse contract, from outside.**
+//! **The tree's parse contract, from outside.**
 //!
 //! Moved out of `src/tree.rs` when the E33 wiring (carried `--timeout` and
 //! `--jsonl`, the proxy pre-check) would have pushed that file over the
@@ -21,8 +21,8 @@ fn a_host_is_a_refusal_and_names_ssh() {
     let p = parse(args(&["example.org"]));
     let Parsed::UnknownVerb(m) = &p else { panic!("{p:?}") };
     assert!(m.contains("Try: podssh ssh example.org"), "{m}");
-    // ⛔ **Not `!m.contains("doctor")` — and the reason matters.** The
-    // refusal prints the subcommand list, and `doctor` is on it. ⛔ What
+    // **Not `!m.contains("doctor")` — and the reason matters.** The
+    // refusal prints the subcommand list, and `doctor` is on it. What
     // must not happen is `doctor` being *suggested*, so the assertion is
     // that the only `Try:` line names `ssh` and no other.
     let tries: Vec<&str> = m.lines().filter(|l| l.starts_with("Try:")).collect();
@@ -42,7 +42,7 @@ fn a_typo_names_the_real_verb() {
 
 #[test]
 fn an_alias_resolves_to_its_verb() {
-    // ⛔ The entry's acceptance: `podssh irc --help` exits 0.
+    // The entry's acceptance: `podssh irc --help` exits 0.
     assert_eq!(parse(args(&["irc", "--help"])), Parsed::Help("chat"));
     assert_eq!(parse(args(&["chat", "--help"])), Parsed::Help("chat"));
     assert_eq!(parse(args(&["scp", "--help"])), Parsed::Help("cp"));
@@ -51,7 +51,7 @@ fn an_alias_resolves_to_its_verb() {
 
 #[test]
 fn minus_p_is_a_tag_on_ssh_and_a_port_on_cp() {
-    // ⛔ MEASURED, OpenSSH_10.3p1: ssh prints `[-P tag]`, scp `[-P port]`.
+    // MEASURED, OpenSSH_10.3p1: ssh prints `[-P tag]`, scp `[-P port]`.
     let on_ssh = parse(args(&["ssh", "-P", "mytag", "host"]));
     let Parsed::Command { verb, refused, tag, .. } = &on_ssh else { panic!("{on_ssh:?}") };
     assert_eq!(*verb, "ssh");
@@ -77,31 +77,31 @@ fn a_refused_flag_names_its_replacement() {
 
 #[test]
 fn an_unknown_flag_is_never_silently_dropped() {
-    // ⛔ **The spec's security bug, at `06-cli.md`:84-85: "A silently-dropped
+    // **The spec's security bug, at `06-cli.md`:84-85: "A silently-dropped
     // `-o StrictHostKeyChecking=no` is a security bug that reports success."**
-    // ⛔ Exit 0 on this input would be exactly that.
+    // Exit 0 on this input would be exactly that.
     let p = parse(args(&["ssh", "--StrictHostKeyChekcing=no", "host"]));
     assert!(p.needs_refusal(), "{p:?}");
     let Parsed::Usage(m) = &p else { panic!("{p:?}") };
-    // ⛔ Names what was given…
+    // Names what was given…
     assert!(m.contains("StrictHostKeyChekcing"), "{m}");
-    // ⛔ …and names the nearest real flag, which `strsim` found at
+    // …and names the nearest real flag, which `strsim` found at
     // distance 2. This is the requirement at `06-cli.md`:84-85.
     assert!(m.contains("Did you mean"), "{m}");
     assert!(m.contains("StrictHostKeyChecking"), "must name the real flag: {m}");
-    // ⛔ And no usage dump, which is the sibling's failure (`src/main.c:277`).
+    // And no usage dump, which is the sibling's failure (`src/main.c:277`).
     assert!(!m.contains("Usage:"), "no usage header: {m}");
     assert!(!m.contains("For more information"), "no clap trailer: {m}");
-    // ⛔ Four lines, not thirty.
+    // Four lines, not thirty.
     assert!(m.lines().count() <= 5, "{m}");
 }
 
-/// ⛔ **`-v` and `-q` are repeatable, in both spellings.**
+/// **`-v` and `-q` are repeatable, in both spellings.**
 ///
-/// ⛔ This is OpenSSH parity and not a preference: `06-cli.md`:65 lists
+/// This is OpenSSH parity and not a preference: `06-cli.md`:65 lists
 /// `-v`/`-q` as parity flags, the `-v` row's own help says *"repeatable"*,
 /// and OpenSSH's manual says *"Multiple -q options increase the
-/// quietness"*. ⛔ A second `-v` used to be refused as
+/// quietness"*. A second `-v` used to be refused as
 /// `unknown flag '--verbose'` — a flag that is not unknown, only repeated —
 /// because the `Count` arm was guarded on a `row.arg` neither of the two
 /// rows has.
@@ -121,7 +121,7 @@ fn verbose_and_quiet_are_repeatable_in_every_spelling() {
         let p = parse(args(&argv));
         assert!(!p.is_error(), "{spelling:?} must parse: {p:?}");
     }
-    // ⛔ The control: one `-v` still parses, and it is not a refusal.
+    // The control: one `-v` still parses, and it is not a refusal.
     let p = parse(args(&["ssh", "-v", "host"]));
     assert!(!p.needs_refusal(), "{p:?}");
 }
@@ -135,7 +135,7 @@ fn a_correct_command_line_parses_and_is_not_a_refusal() {
     assert!(!p.needs_refusal());
 }
 
-/// ⛔ **E33's carried values.** Verbs with `--timeout`/`--jsonl` rows hand
+/// **E33's carried values.** Verbs with `--timeout`/`--jsonl` rows hand
 /// them to dispatch; verbs without the rows carry nothing, and the gate
 /// enforces only where the tree could have supplied the flag.
 #[test]
@@ -156,7 +156,7 @@ fn verbs_with_timeout_rows_carry_their_values() {
     assert!(!jsonl);
 }
 
-/// ⛔ **`--jsonl` under `proxy` is the specific refusal, not a generic
+/// **`--jsonl` under `proxy` is the specific refusal, not a generic
 /// unknown-flag message.** Stdout there is the SSH byte stream; the message
 /// must say so.
 #[test]

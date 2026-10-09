@@ -1,6 +1,6 @@
 //! Pipe tests: byte equality both ways, exact counts, EOF propagation.
 //!
-//! ⛔ `tokio::io::duplex` stands in for stdin and the tailnet stream: the
+//! `tokio::io::duplex` stands in for stdin and the tailnet stream: the
 //! bytes are what is pinned, not the transport.
 
 use podssh_ts::pipe::copy_bidirectional;
@@ -9,7 +9,7 @@ use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
 
 #[tokio::test]
 async fn bytes_survive_both_directions_exactly() {
-    // ⛔ Each duplex end is split: the write half feeds finite bytes and is
+    // Each duplex end is split: the write half feeds finite bytes and is
     // dropped (EOF after the drain), the read half collects what the copy
     // delivers. Dropping a whole peer upfront would break the copy's writes
     // with BrokenPipe instead — that failure is the test's own bug, not the
@@ -18,7 +18,7 @@ async fn bytes_survive_both_directions_exactly() {
     let (mut b_side, b_peer) = tokio::io::duplex(64);
     let (mut a_pr, mut a_pw) = split(a_peer);
     let (mut b_pr, mut b_pw) = split(b_peer);
-    // ⛔ EOF comes from explicit `shutdown()`, not from dropping a split
+    // EOF comes from explicit `shutdown()`, not from dropping a split
     // half: `tokio::io::split` shares ownership, so a dropped WriteHalf
     // need not close anything while its ReadHalf lives — the copy would
     // hang waiting for an EOF that never arrives (measured: 30 s timeout,
@@ -41,7 +41,7 @@ async fn bytes_survive_both_directions_exactly() {
 
     let (up, down) = copy_bidirectional(&mut a_side, &mut b_side).await.unwrap();
     assert_eq!((up, down), (9, 11));
-    // ⛔ Closing the copy's ends is what lets the collectors see EOF: without
+    // Closing the copy's ends is what lets the collectors see EOF: without
     // these drops the awaits below hang, and a hanging test is the defect.
     drop(a_side);
     drop(b_side);

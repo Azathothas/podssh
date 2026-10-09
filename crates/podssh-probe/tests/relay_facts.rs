@@ -1,12 +1,12 @@
-//! ⛔ **The acceptance of E06, and its plants in one place.**
+//! **The acceptance of E06, and its plants in one place.**
 //!
 //! Every test here runs against a **local copy of the relay's published
 //! document**, committed under `tests/`, so the gate is provable on a host with
-//! no egress. ⛔ That copy is a *recorded measurement*, not a fixture someone
+//! no egress. That copy is a *recorded measurement*, not a fixture someone
 //! invented: its SHA-256 is the one in `relay-facts.toml`, and
 //! `spec_copy_matches_the_pin` fails if it is edited without re-pinning.
 //!
-//! ⛔ **The plants are tests, not comments.** E06's `Prove` block requires the
+//! **The plants are tests, not comments.** E06's `Prove` block requires the
 //! gate to be seen failing, so the failures are asserted here rather than
 //! described. A gate that has never failed is indistinguishable from one that
 //! always passes.
@@ -22,7 +22,7 @@ fn facts() -> Facts {
     Facts::load().expect("the facts file is embedded and must parse")
 }
 
-/// ⛔ Replace the first line carrying `needle` with a mutated one.
+/// Replace the first line carrying `needle` with a mutated one.
 fn mutate(spec: &str, needle: &str, replacement: &str) -> String {
     let mut out = String::with_capacity(spec.len());
     let mut done = false;
@@ -75,12 +75,12 @@ fn the_node_frame_cap_arithmetic_is_the_one_the_relay_publishes() {
     let relation = &facts.relations[0];
     let left = read_operand(&relation.src, SPEC_COPY).expect("spec line 182 publishes two numbers");
     let right = read_operand(&relation.dst, SPEC_COPY).expect("spec line 182 publishes one");
-    // ⛔ Group 1 of line 182 is the TOTAL cap, not the id length. Its prose is
+    // Group 1 of line 182 is the TOTAL cap, not the id length. Its prose is
     // "over 65568 (32-byte id plus 65536 payload)": the 65568 is before the '('.
     assert_eq!(left, vec![("cap".to_string(), 65568), ("payload".to_string(), 65536)]);
     assert_eq!(right, vec![("cap".to_string(), 65568)]);
 
-    // ⛔ And the number an earlier version wrongly compared against: line 184 is
+    // And the number an earlier version wrongly compared against: line 184 is
     // the OPERATOR frame's payload cap, a different limit, and 32 + 65536 is
     // not it. Asserted here so the two can never be confused again.
     assert_eq!(
@@ -94,13 +94,13 @@ fn the_node_frame_cap_arithmetic_is_the_one_the_relay_publishes() {
         )
         .expect("spec line 184 publishes one"),
         vec![("cap".to_string(), 65536)],
-        "⛔ 65536 on line 184 is the OPERATOR payload cap, not the node frame cap"
+        "65536 on line 184 is the OPERATOR payload cap, not the node frame cap"
     );
 }
 
 // ── the plants: each fact, corrupted, must redden ──────────────────────────
 
-/// ⛔ **One test per plant, and each asserts the specific fact that fired.**
+/// **One test per plant, and each asserts the specific fact that fired.**
 /// A plant that made the gate red for some other reason would pass here, so the
 /// fact id is checked by name.
 #[test]
@@ -146,7 +146,7 @@ fn plant_subprotocol_offer_fails() {
 
 #[test]
 fn plant_reworded_prose_does_not_fail() {
-    // ⛔ **The other direction, and the one a fact gate is easy to get wrong.**
+    // **The other direction, and the one a fact gate is easy to get wrong.**
     // Reflowing a sentence, changing the surrounding table's wording, or
     // reordering prose must leave the gate green. A gate that asserts prose is
     // a conformance suite that has to be re-maintained every time the peer
@@ -163,7 +163,7 @@ fn plant_reworded_prose_does_not_fail() {
 
 #[test]
 fn a_truncated_document_is_failed_not_unknown() {
-    // ⛔ Lines past the end must be reported as disagreements, not silently
+    // Lines past the end must be reported as disagreements, not silently
     // skipped: a shorter document is a relay that changed shape.
     let truncated = SPEC_COPY.split('\n').take(100).collect::<Vec<_>>().join("\n");
     match assert_facts(&truncated, &facts(), None) {
@@ -179,7 +179,7 @@ fn a_truncated_document_is_failed_not_unknown() {
 
 #[test]
 fn an_unreadable_relay_is_unknown_and_never_ok() {
-    // ⛔ **The defect this repository has shipped three times.** A relay that
+    // **The defect this repository has shipped three times.** A relay that
     // could not be read must not produce `ok`, and must not produce `Failed`
     // either — those are different facts with different remedies.
     for observed in
@@ -194,7 +194,7 @@ fn an_unreadable_relay_is_unknown_and_never_ok() {
 
 #[test]
 fn a_readable_document_is_checked_whatever_health_said_and_the_move_is_visible() {
-    // ⛔ **The version the relay served is reported, and the pin is not
+    // **The version the relay served is reported, and the pin is not
     // substituted for it.** E06's subject is a version that moves: a verdict
     // that echoed the pin back would tell an operator, after the relay
     // upgraded, that they had run against the version they pinned — which is
@@ -210,7 +210,7 @@ fn a_readable_document_is_checked_whatever_health_said_and_the_move_is_visible()
     assert!(verdict_from(&observed, &facts()).version_moved(), "the move is visible");
     let same = Observed { version: Some(facts().pin.version.clone()), document: Some(SPEC_COPY.to_string()) };
     assert!(!verdict_from(&same, &facts()).version_moved());
-    // ⛔ A document read with no `/health` reports NO served version rather
+    // A document read with no `/health` reports NO served version rather
     // than the pin: "not read" and "matches" must not print the same way.
     let document_only = Observed { version: None, document: Some(SPEC_COPY.to_string()) };
     match verdict_from(&document_only, &facts()) {
@@ -222,7 +222,7 @@ fn a_readable_document_is_checked_whatever_health_said_and_the_move_is_visible()
 
 #[test]
 fn the_facts_file_is_one_file_and_there_is_only_one() {
-    // ⛔ A second copy of these numbers is the drift this exists to catch.
+    // A second copy of these numbers is the drift this exists to catch.
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().and_then(Path::parent).expect("a workspace root");
     // The copies that existed once; a copy found later joins the list.
     const COPIES: &[&str] = &["docs/spec/relay-structural-facts.json"];
@@ -230,7 +230,7 @@ fn the_facts_file_is_one_file_and_there_is_only_one() {
     assert_eq!(
         found,
         Vec::<String>::new(),
-        "⛔ crates/podssh-probe/facts/relay-facts.toml is the only facts file; \
+        "crates/podssh-probe/facts/relay-facts.toml is the only facts file; \
          these are copies that can drift from it: {found:?}"
     );
 }

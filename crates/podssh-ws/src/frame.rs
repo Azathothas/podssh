@@ -1,6 +1,6 @@
 //! RFC 6455 framing, byte-exact.
 //!
-//! ⛔ **Client→server frames MUST be masked** (RFC 6455 §5.3): "The masking key
+//! **Client→server frames MUST be masked** (RFC 6455 §5.3): "The masking key
 //! is a 32-bit value chosen at random by the client. When preparing a masked
 //! frame, the client MUST pick a fresh masking key from the set of allowed
 //! 32-bit values. The masking key needs to be unpredictable; thus, the masking
@@ -8,7 +8,7 @@
 //! for a given frame MUST NOT make it simple for a server/proxy to predict the
 //! masking key for a subsequent frame."
 //!
-//! ⛔ **The mask is `transformed[i] = original[i] XOR key[i % 4]`, in that
+//! **The mask is `transformed[i] = original[i] XOR key[i % 4]`, in that
 //! order**, and getting the order wrong produces frames a server decodes
 //! without error and a proxy decodes into something else — the failure mode
 //! E02's byte-exact framing tests exist to catch.
@@ -22,21 +22,21 @@ pub const OPCODE_CLOSE: u8 = 0x8;
 pub const OPCODE_PING: u8 = 0x9;
 pub const OPCODE_PONG: u8 = 0xa;
 
-/// ⛔ The relay's own caps, re-measured from `/relays.json` on 2026-10-02 and
-/// asserted by `podssh-probe`. ⛔ **They are not the same number**: the forward
+/// The relay's own caps, re-measured from `/relays.json` on 2026-10-02 and
+/// asserted by `podssh-probe`. **They are not the same number**: the forward
 /// path caps a frame at 262144 bytes and a reverse node frame is 65568 on the
 /// wire. Conflating them is the single easiest way to build the wrong client,
 /// so both are named here rather than one `MAX_FRAME` constant.
 pub const FORWARD_MAX_FRAME: usize = 262_144;
 pub const NODE_MAX_FRAME: usize = 65_568;
 
-/// ⛔ RFC 6455 §5.5: *"All control frames MUST have a payload length of 125
-/// bytes or less."* ⛔ It is the cap the reader checks before it answers a
+/// RFC 6455 §5.5: *"All control frames MUST have a payload length of 125
+/// bytes or less."* It is the cap the reader checks before it answers a
 /// Ping: a larger Ping is already the peer's violation, and echoing it would
 /// make podssh the side that sent an illegal control frame.
 pub const MAX_CONTROL_PAYLOAD: usize = 125;
 
-/// ⛔ RFC 6455 §5.2: the length field is 7 bits, 7+16, or 7+64. 126 and 127
+/// RFC 6455 §5.2: the length field is 7 bits, 7+16, or 7+64. 126 and 127
 /// are the two values that mean "the real length is in the following 2 or 8
 /// bytes", and treating either as a length is how a decoder reads a 65535-byte
 /// frame as a 4 GiB one.
@@ -50,7 +50,7 @@ pub struct Frame {
     pub payload: Vec<u8>,
 }
 
-/// ⛔ **Which side is writing.** RFC 6455 §5.1: a client-to-server frame MUST
+/// **Which side is writing.** RFC 6455 §5.1: a client-to-server frame MUST
 /// be masked and a server-to-client frame MUST NOT be. The direction is a
 /// parameter rather than an assumption, because a decoder that assumes it can
 /// accept an unmasked client frame — the exact thing §5.3 forbids — and a
@@ -61,7 +61,7 @@ pub enum Role {
     Server,
 }
 
-/// ⛔ **Encode a frame for the given direction.** `masking_key` is ignored for
+/// **Encode a frame for the given direction.** `masking_key` is ignored for
 /// [`Role::Server`], because a masked server frame is a protocol violation and
 /// producing one is worse than ignoring a key a caller happened to pass.
 pub fn encode(frame: &Frame, role: Role, masking_key: [u8; 4]) -> Vec<u8> {
@@ -70,7 +70,7 @@ pub fn encode(frame: &Frame, role: Role, masking_key: [u8; 4]) -> Vec<u8> {
     out.push((if frame.fin { 0x80 } else { 0x00 }) | (frame.opcode & 0x0f));
 
     let mask_bit = match role {
-        // ⛔ The mask bit is set unconditionally on the client path. RFC 6455
+        // The mask bit is set unconditionally on the client path. RFC 6455
         // §5.3 requires it and a server tolerates its absence while every
         // proxy in between does not.
         Role::Client => 0x80u8,
@@ -94,7 +94,7 @@ pub fn encode(frame: &Frame, role: Role, masking_key: [u8; 4]) -> Vec<u8> {
         Role::Client => {
             out.extend_from_slice(&masking_key);
             for (i, byte) in frame.payload.iter().enumerate() {
-                // ⛔ **`i % 4`, and the key is applied to the payload only.**
+                // **`i % 4`, and the key is applied to the payload only.**
                 // Applying it to the header is the other common mistake, and
                 // the server tolerates that while every proxy does not.
                 out.push(byte ^ masking_key[i % 4]);
@@ -104,7 +104,7 @@ pub fn encode(frame: &Frame, role: Role, masking_key: [u8; 4]) -> Vec<u8> {
     out
 }
 
-/// ⛔ **Decode one frame from `input`, returning it and the bytes consumed.**
+/// **Decode one frame from `input`, returning it and the bytes consumed.**
 ///
 /// A short input is `Ok(None)`, not an error: a stream arrives in pieces and a
 /// decoder that errored on a partial frame would break every read. A frame
@@ -117,7 +117,7 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
     let first = input[0];
     let second = input[1];
     let fin = first & 0x80 != 0;
-    // ⛔ RSV1-3 must be zero unless an extension negotiated them. podssh
+    // RSV1-3 must be zero unless an extension negotiated them. podssh
     // negotiates no extension, so a set RSV bit is a protocol violation and is
     // refused rather than ignored — ignoring it is how a compressed frame is
     // read as raw bytes.
@@ -129,7 +129,7 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
         return Err(WsError::Frame(format!("opcode 0x{opcode:x} is not defined")));
     }
     let masked = second & 0x80 != 0;
-    // ⛔ **Direction is enforced, not assumed.** A server-to-client frame must
+    // **Direction is enforced, not assumed.** A server-to-client frame must
     // NOT be masked and a client-to-server frame MUST be, and this is the
     // check that makes "every client frame is masked" a property of the wire
     // rather than a claim about the encoder.
@@ -143,7 +143,7 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
     let mut cursor = 2usize;
     let len7 = (second & 0x7f) as usize;
     let payload_len = match len7 {
-        // ⛔ The markers are compared as `usize` because `len7` is, and a
+        // The markers are compared as `usize` because `len7` is, and a
         // `u8` marker in a `usize` match arm does not compile — which is the
         // type system refusing to let the 7-bit field be read as a length.
         n if n == LENGTH_16_MARKER as usize => {
@@ -162,7 +162,7 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
             buf.copy_from_slice(&input[cursor..cursor + 8]);
             let v = u64::from_be_bytes(buf);
             cursor += 8;
-            // ⛔ A 64-bit length is checked before it is cast. Truncating it to
+            // A 64-bit length is checked before it is cast. Truncating it to
             // a `usize` and then allocating is how a peer turns four bytes of
             // its own output into an allocation of gigabytes.
             if v > usize::MAX as u64 {
@@ -226,7 +226,7 @@ pub fn decode(input: &[u8], role: Role) -> Result<Option<(Frame, usize)>, WsErro
     Ok(Some((Frame { fin, opcode, payload }, cursor + payload_len)))
 }
 
-/// ⛔ **The mask is a bijection, so encode-then-decode is the identity.** This
+/// **The mask is a bijection, so encode-then-decode is the identity.** This
 /// is what makes masking testable without a peer: if `apply_mask` were not its
 /// own inverse the relay would receive different bytes than podssh sent, and
 /// nothing in a unit test would notice.

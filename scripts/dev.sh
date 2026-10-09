@@ -1,7 +1,7 @@
 #!/bin/sh
 # scripts/dev.sh - the one command that builds and checks podssh.
 #
-# ⛔ Every developer and every agent runs this. Nobody types wsl-toolkit, and
+# Every developer and every agent runs this. Nobody types wsl-toolkit, and
 # nobody reads a manual to use it: the two facts about it that used to require
 # a manual are encoded below, once, with the reason next to each.
 #
@@ -24,11 +24,11 @@
 # (default 4): on 2026-10-07 three uncapped builds at once nearly exhausted
 # the developer machine's memory through WSL.
 #
-# ⛔ POSIX sh throughout. The container's shell is a POSIX shell, and a bashism
+# POSIX sh throughout. The container's shell is a POSIX shell, and a bashism
 # here fails as "Bad substitution" partway through a run that had already
 # passed its real checks — which is how a green run gets reported as a failure.
 #
-# ⛔ Every exit code is read from the process that produced it. Nothing is
+# Every exit code is read from the process that produced it. Nothing is
 # piped into another program to find out whether it worked: a pipeline reports
 # the pipe's status, and a failure then reads as success.
 
@@ -84,20 +84,20 @@ PODSSH_TARGET=${PODSSH_TARGET:-x86_64-unknown-linux-musl}
 PODSSH_JOBS=${PODSSH_JOBS:-4}
 
 
-# ⛔ **The host interpreter, PROVED to run before its exit code is trusted.**
+# **The host interpreter, PROVED to run before its exit code is trusted.**
 #
 # On Windows a `python` on PATH can be the Microsoft Store execution alias: it
 # prints *"Python was not found; run without arguments to install from the
 # Microsoft Store"* and exits **without running anything**, so a step that read
 # only `$?` would report whatever the alias returned and a check that never ran
-# would read as a pass. ⛔ This repository has already had exactly that
+# would read as a pass. This repository has already had exactly that
 # (`scripts/check-relay-spec.py`'s header records it, and it is why the alias
 # exists there as a named hazard).
 #
-# ⛔ So the probe is the interpreter's own output, not `command -v`: an alias has
+# So the probe is the interpreter's own output, not `command -v`: an alias has
 # no version to print. MEASURED 2026-10-05, this machine: `command -v python3`
 # resolves to `.../WindowsApps/python3` (the alias, which prints its message and
-# exits 49) while `python` resolves to a real 3.13 — ⛔ so the order below and
+# exits 49) while `python` resolves to a real 3.13 — so the order below and
 # the version check are both load-bearing, and a host where BOTH are aliases
 # fails here rather than reporting a green check.
 host_python() {
@@ -111,7 +111,7 @@ host_python() {
     return 1
 }
 
-# ⛔ **A subcommand that takes no arguments refuses one rather than dropping it.**
+# **A subcommand that takes no arguments refuses one rather than dropping it.**
 # MEASURED 2026-10-01: `dev.sh build --release` produced no release artefact and
 # exited 0. Silently ignoring `dev.sh check --all-features` is the same defect
 # with the other polarity, and the two behaviours (a refused *subcommand*, a
@@ -173,7 +173,7 @@ USAGE
 
 # One cargo subcommand, for `dev.sh build` and `dev.sh test`.
 #
-# ⛔ No CC override here: these are dev conveniences that must build and test
+# No CC override here: these are dev conveniences that must build and test
 # ANY crate the user names — including `podssh-cli`, which needs cc (aws-lc,
 # through russh). The no-C constraint is not enforced per-invocation; it is
 # enforced by the step `libs` of `scripts/gate.sh` over the library crates,
@@ -182,7 +182,7 @@ USAGE
 # here would make `dev.sh test -p podssh-cli` fail for a reason unrelated to
 # any defect — the exact failure mode the gate comments warn about.
 #
-# ⛔ The heredoc is UNQUOTED on purpose, so $_verb and $_extra expand here, on
+# The heredoc is UNQUOTED on purpose, so $_verb and $_extra expand here, on
 # the host, where they are known. Everything the container must compute is
 # escaped with a backslash. Measured 2026-10-01: with the delimiter quoted,
 # nothing expanded on the host and the container received the literal text
@@ -202,7 +202,7 @@ CARGO
 }
 
 # cmd_cargo <verb> [extra args]   one cargo verb in the build image.
-# ⛔ The verb and the extra args are pasted into a generated script, so they
+# The verb and the extra args are pasted into a generated script, so they
 # are code, not data. That is acceptable because the caller is a human typing
 # a subcommand; it is NOT acceptable for a value that came off the network.
 cmd_cargo() {
@@ -215,12 +215,12 @@ cmd_cargo() {
 # The gate, as the container runs it: scripts/gate.sh, the one place that
 # knows what the gate is.
 #
-# ⛔ `run <label> <command...>` redirects to a file and reads $? on its own
+# `run <label> <command...>` redirects to a file and reads $? on its own
 # line. A `cargo ... | tail -2` followed by `echo $?` reports TAIL's status,
 # so a failed build prints exit=0. That is this repository's standing trap:
 # "a command piped into anything reports the pipe's status".
-# ⛔ The gate is `scripts/gate.sh` and nothing else. It used to be a heredoc
-# inside this file as well, ⛔ **which is a second copy that can drift from the
+# The gate is `scripts/gate.sh` and nothing else. It used to be a heredoc
+# inside this file as well, **which is a second copy that can drift from the
 # first** — and CI runs that script, so a divergence here would be a pipeline
 # proving something the developer never ran. There is now exactly one gate.
 cmd_gate() {
@@ -229,7 +229,7 @@ cmd_gate() {
 
 cmd_images() {
     # No workspace: this is a question about the image, not about the tree.
-    # ⛔ base64, not -c. A -c payload containing spaces is split by the bridge's
+    # base64, not -c. A -c payload containing spaces is split by the bridge's
     # field separator and arrives as several arguments, which the tool reports
     # as "run takes flags, not positional arguments". Measured 2026-10-01, and
     # it is the same reason the gate scripts travel as --script.
@@ -259,7 +259,7 @@ wt_workspace() {
 }
 
 
-# ⛔ The plant is `scripts/plant.sh` and nothing else, for the same reason the
+# The plant is `scripts/plant.sh` and nothing else, for the same reason the
 # gate is one file: a second copy is a copy that drifts.
 cmd_plant() {
     wt_workspace "$(win_path "$REPO_ROOT/scripts/plant.sh")"
@@ -282,7 +282,7 @@ cmd_clean() {
 # ------------------------------------------------------------------------ gates
 cmd_check() {
     rc=0
-    # ⛔ The interpreter first, and nothing after it runs if this fails: a gate
+    # The interpreter first, and nothing after it runs if this fails: a gate
     # whose host half did not run must not reach the container half and print
     # "check green".
     PY=$(host_python) || {
@@ -363,13 +363,13 @@ esac
 case $_sub in
     help|-h|--help) set_usage; exit 0 ;;
     check)          no_arguments "$@"; cmd_check ;;
-    # ⛔ No `shift` here. The case arm consumed the subcommand name with the
+    # No `shift` here. The case arm consumed the subcommand name with the
     # `shift` at the top of the dispatch, and `cmd_cargo` shifts once more to
-    # take its verb. ⛔ A second shift in the arm ate the first argument a user
+    # take its verb. A second shift in the arm ate the first argument a user
     # typed — MEASURED 2026-10-01: `dev.sh test -p podssh-core` ran
     # `cargo test podssh-core`, and `dev.sh build --release` produced no release
     # artefact while **exiting 0**, because cargo reads the mangled form as a
-    # bare target pattern and builds. ⛔ **A silently wrong build that reports
+    # bare target pattern and builds. **A silently wrong build that reports
     # success is the failure mode this repository is most afraid of.**
     build)          cmd_cargo build "$@" ;;
     test)           cmd_cargo test "$@" ;;

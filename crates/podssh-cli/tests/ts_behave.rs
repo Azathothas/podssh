@@ -1,12 +1,12 @@
 //! `ts` behaviour tests (E39 increment 4b): dispatch maps every failure to
 //! a non-zero exit with empty stdout, and the VERB_OWNER row is gone.
 //!
-//! ⛔ The plant for this suite is deleting the `Parsed::Ts` arm in
+//! The plant for this suite is deleting the `Parsed::Ts` arm in
 //! `dispatch.rs`: every test below must fail, because the arm — not the
 //! removed owner row — does the work. `run` uses `Tty::none` (a pipe), so
 //! every case carries `--timeout` past E33's gate except the gate test.
 //!
-//! ⛔ Shapes that would attempt a live start (valid key + state) are absent
+//! Shapes that would attempt a live start (valid key + state) are absent
 //! here: they would dial the control plane from a unit test. The live proof
 //! is the ignored M5 test at the bottom, naming its blocker.
 //!
@@ -207,7 +207,7 @@ fn ts_without_timeout_in_a_pipe_is_usage_64() {
 
 /// M5 live acceptance: a real node prints its one status line.
 ///
-/// ⛔ Ignored: needs a live tailnet (auth key at `.env/TS_KEY.txt` plus the
+/// Ignored: needs a live tailnet (auth key at `.env/TS_KEY.txt` plus the
 /// relay allowlist sync — operator action with the Tailscale admin token and
 /// the wrangler credential, neither present here). Un-ignoring without both
 /// proves nothing: an unlisted key reads `1008 "not authorized"`, which is

@@ -47,7 +47,7 @@ sha1 = { version = "0.10.7", default-features = false }
 # The relay token is wiped from memory when dropped.
 zeroize = { workspace = true }
 
-# ⛔ MEASURED 2026-10-02, this machine (Git Bash on Windows) and in
+# MEASURED 2026-10-02, this machine (Git Bash on Windows) and in
 # `rust:1-alpine` via `sh scripts/dev.sh run`:
 #   curl -sS 'https://crates.io/api/v1/crates/clap'            -> max_version 4.6.7
 #   curl -sS 'https://index.crates.io/cl/ap/clap'              -> 4.6.7, rust_version 1.85
@@ -57,7 +57,7 @@ zeroize = { workspace = true }
 # measured a hand-rolled edit distance to be wrong for `example.org`; this is
 # the library doing it instead.
 #
-# ⛔ `wrap_help` is OFF on purpose. It pulls `terminal_size`, which is a
+# `wrap_help` is OFF on purpose. It pulls `terminal_size`, which is a
 # terminal probe — and `RULES.md` forbids depending on a capability that has not
 # been probed. Podssh renders `--help` at a fixed 100 columns, which is what
 # makes the man/help parity check a string comparison rather than a guess.

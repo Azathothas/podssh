@@ -1,19 +1,19 @@
 //! The two halves of a session that are not the session: what it remembers, and
 //! the messages it composes.
 //!
-//! ⛔ **Split out of `session.rs`, which went over the 500-line gate with them
-//! in**, and ⛔ split rather than trimmed. ⛔ `ChannelMemory` carries the
-//! reconnect's correctness ⛔ — ⛔ a memory that keeps a room the user left
-//! rejoins them into it silently ⛔ — ⛔ and that reasoning is the reason the
+//! **Split out of `session.rs`, which went over the 500-line gate with them
+//! in**, and split rather than trimmed. `ChannelMemory` carries the
+//! reconnect's correctness — a memory that keeps a room the user left
+//! rejoins them into it silently — and that reasoning is the reason the
 //! bug cannot recur.
 
 use crate::irc::message::{Command, Message, Middle, Trailing};
 use crate::irc::session::Server;
 
-/// ⛔ **What a reconnect must restore.** A `Vec` and not a `HashSet`, ⛔
-/// because ⛔ **join order is part of the contract** ⛔ — podssh rejoins in the
-/// order the user joined, ⛔ which is the order they expect to see the rooms
-/// appear, ⛔ and a set would make it arbitrary between runs.
+/// **What a reconnect must restore.** A `Vec` and not a `HashSet`,
+/// because **join order is part of the contract** — podssh rejoins in the
+/// order the user joined, which is the order they expect to see the rooms
+/// appear, and a set would make it arbitrary between runs.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ChannelMemory {
     channels: Vec<String>,
@@ -21,8 +21,8 @@ pub struct ChannelMemory {
 }
 
 impl ChannelMemory {
-    /// ⛔ Remember a channel. ⛔ **A duplicate join is not remembered twice**,
-    /// ⛔ or a reconnect would send two `JOIN`s for the same room and the user
+    /// Remember a channel. **A duplicate join is not remembered twice**,
+    /// or a reconnect would send two `JOIN`s for the same room and the user
     /// would see it echoed back twice.
     pub fn remember(&mut self, channel: &str, key: Option<String>) -> bool {
         if self.channels.iter().any(|c| Middle(c.clone()).eq_irc(channel)) {
@@ -33,9 +33,9 @@ impl ChannelMemory {
         true
     }
 
-    /// ⛔ Forget a channel ⛔ — **when the user parts, and when the server
-    /// kicks them out.** ⛔ A memory that keeps a room the user was removed from
-    /// rejoins them into it on the next reconnect, ⛔ which on a moderated
+    /// Forget a channel — **when the user parts, and when the server
+    /// kicks them out.** A memory that keeps a room the user was removed from
+    /// rejoins them into it on the next reconnect, which on a moderated
     /// channel is a `+b` ban the user did not ask for and cannot see.
     pub fn forget(&mut self, channel: &str) {
         if let Some(i) = self.channels.iter().position(|c| Middle(c.clone()).eq_irc(channel)) {
@@ -65,8 +65,8 @@ pub fn nick_message(nick: &str) -> Message {
     Message { tags: Vec::new(), prefix: None, command: Command::Nick { nickname: Middle(nick.to_string()) } }
 }
 
-/// ⛔ `USER <user> <mode> <unused> :<realname>` ⛔ **with the `<unused>`
-/// parameter present**, ⛔ because RFC 1459 §4.1.2 has five parameters there and
+/// `USER <user> <mode> <unused> :<realname>` **with the `<unused>`
+/// parameter present**, because RFC 1459 §4.1.2 has five parameters there and
 /// a client that sends four is answered with `461` during registration.
 pub fn user_message(server: &Server) -> Message {
     Message {

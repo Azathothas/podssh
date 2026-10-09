@@ -1,15 +1,15 @@
-//! Refusals. ⛔ Every one of them names a real flag, and **none of them prints
+//! Refusals. Every one of them names a real flag, and **none of them prints
 //! a usage block**.
 //!
 //! `docs/spec/06-cli.md`:82-85 requires an unknown flag to be *"an error
 //! naming the nearest known flag"*, and the sibling half-meets that: **READ**,
-//! `.tmp/dropssh/src/main.c:276-278` refuses and exits 2, ⛔ **but the message
+//! `.tmp/dropssh/src/main.c:276-278` refuses and exits 2, **but the message
 //! is only `unknown option %s`, with no nearest match**, and
 //! **READ**, `src/main.c:283-287` records the class in its own words — `--json`
 //! *"was accepted, set a field, and nothing read it, which is worse than
 //! refusing it"*.
 //!
-//! ⛔ **The `usage()` dump is the reason refusals live here rather than in the
+//! **The `usage()` dump is the reason refusals live here rather than in the
 //! parser.** The sibling prints a full usage block on an unknown option
 //! (`src/main.c:277`), and that buries the one line the user needs. A refusal
 //! here is three lines: what was given, what it means elsewhere, what to type.
@@ -19,18 +19,18 @@ use crate::suggest::NoSubcommand;
 
 /// The message for an unknown flag: the flag given, and the nearest known one.
 ///
-/// ⛔ `nearest_flag` is `clap`'s own suggestion engine (the `suggestions`
-/// feature, `strsim`), not the function above — ⛔ and that asymmetry is
+/// `nearest_flag` is `clap`'s own suggestion engine (the `suggestions`
+/// feature, `strsim`), not the function above — and that asymmetry is
 /// deliberate. `clap` searches the flags of the command actually being parsed,
 /// so it can name `-p` for a typo of `-P` on `ssh`; a hand-rolled search over a
 /// flat list would name a flag belonging to a different verb, which is the
 /// `cp`/`ssh` `-P` split made worse.
 pub fn unknown_flag(token: &str, suggestion: Option<&str>) -> String {
-    // ⛔ **The last line is the same in both branches, and it was missing from
-    // one.** ⛔ A test caught it: with no suggestion the message ended at
-    // *"Run 'podssh --help' for the flags this build accepts."* ⛔ and never said
-    // anything was ignored ⛔ — which is precisely the reassurance a user who
-    // just mistyped `-o StrictHostKeyChecking=no` needs, ⛔ because the failure
+    // **The last line is the same in both branches, and it was missing from
+    // one.** A test caught it: with no suggestion the message ended at
+    // *"Run 'podssh --help' for the flags this build accepts."* and never said
+    // anything was ignored — which is precisely the reassurance a user who
+    // just mistyped `-o StrictHostKeyChecking=no` needs, because the failure
     // they are afraid of is a **silent** drop, and the branch that cannot
     // suggest anything is the branch most likely to be a genuinely unknown flag.
     let last = "Nothing was ignored: an unrecognised -o would drop a security setting.";
@@ -44,7 +44,7 @@ pub fn unknown_flag(token: &str, suggestion: Option<&str>) -> String {
 }
 
 /// The message for a flag that parses but is refused, and it **must** name the
-/// replacement. ⛔ A refusal that does not say what to type instead is the
+/// replacement. A refusal that does not say what to type instead is the
 /// sibling's `unknown option %s`. One function, so that each verb, and a
 /// refused flag given with no value, refuse in the same words; the third line
 /// is the row's own reason.
@@ -80,15 +80,15 @@ pub fn missing_value(verb: &str, row: &FlagRow) -> String {
     )
 }
 
-/// ⛔ The message for `-P` on `ssh`, which is **accepted and ignored**, so it
+/// The message for `-P` on `ssh`, which is **accepted and ignored**, so it
 /// has to say why it did nothing.
 ///
-/// ⛔ The entry's premise said this should be refused, because `ssh -P` was
-/// measured to print `option requires an argument -- P`. ⛔ **That measurement
+/// The entry's premise said this should be refused, because `ssh -P` was
+/// measured to print `option requires an argument -- P`. **That measurement
 /// was correct and it was about the wrong thing**: it showed `-P` takes an
 /// argument, not that it is absent. MEASURED 2026-10-02, this machine,
 /// OpenSSH_10.3p1: `ssh -G -P mytag example.org` prints `tag mytag`, and
-/// without `-P` there is no `tag` line. ⛔ `-P` is a real OpenSSH `ssh` flag
+/// without `-P` there is no `tag` line. `-P` is a real OpenSSH `ssh` flag
 /// whose value is a Tag, and refusing it would refuse a flag a user has
 /// memorised.
 pub fn accepted_tag_notice(tag: &str) -> String {
@@ -100,7 +100,7 @@ pub fn accepted_tag_notice(tag: &str) -> String {
 }
 
 /// The message for an unknown verb, and it carries the whole subcommand list
-/// when no guess is available — ⛔ **the list is the answer, not a usage dump**,
+/// when no guess is available — **the list is the answer, not a usage dump**,
 /// because it is what the user asked for and it is three lines, not thirty.
 pub fn unknown_verb(token: &str, verdict: &NoSubcommand) -> String {
     let mut m = String::new();
@@ -145,7 +145,7 @@ pub fn unknown_man_section(token: &str, sections: &[&str]) -> String {
     m
 }
 
-/// The message for `podssh` with no arguments at all. ⛔ Never an implicit
+/// The message for `podssh` with no arguments at all. Never an implicit
 /// `ssh` — `06-cli.md`:17.
 pub fn no_arguments() -> String {
     let mut m = String::from(
@@ -160,18 +160,18 @@ pub fn no_arguments() -> String {
     m
 }
 
-/// ⛔ **A `clap` error that carries no offending token**: a missing value, or a
-/// positional count that does not fit. ⛔ It names the verb and what was
-/// expected, and ⛔ **never prints a usage block** — the sibling's failure
+/// **A `clap` error that carries no offending token**: a missing value, or a
+/// positional count that does not fit. It names the verb and what was
+/// expected, and **never prints a usage block** — the sibling's failure
 /// (`src/main.c:277`) is a full usage dump on an unknown option, which buries
 /// the one line the user needs.
-/// ⛔ **A `clap` error that carries no offending token**: a missing value, or a
-/// positional count that does not fit. ⛔ It names the verb and what was
-/// expected, and ⛔ **never prints a usage block** — the sibling's failure
+/// **A `clap` error that carries no offending token**: a missing value, or a
+/// positional count that does not fit. It names the verb and what was
+/// expected, and **never prints a usage block** — the sibling's failure
 /// (`src/main.c:277`) is a full usage dump on an unknown option, which buries
 /// the one line the user needs.
 ///
-/// ⛔ `given` is the offending token, empty when `clap` reported none. It is
+/// `given` is the offending token, empty when `clap` reported none. It is
 /// only ever a token that is **not flag-shaped**: a flag-shaped one is answered
 /// by [`unknown_flag`], because being told a flag does not exist when the real
 /// problem is a missing positional is a message about the wrong thing.
@@ -205,7 +205,7 @@ pub fn bad_invocation(verb: &str, kind: clap::error::ErrorKind, given: &str) -> 
     )
 }
 
-/// Whether a flag kind is one that must refuse rather than parse. ⛔ One place,
+/// Whether a flag kind is one that must refuse rather than parse. One place,
 /// so the parser and the table check cannot disagree about which flags refuse.
 pub fn refuses(kind: FlagKind) -> bool {
     matches!(kind, FlagKind::Refused | FlagKind::NotInFirstRelease)
@@ -216,17 +216,17 @@ mod tests {
     use super::*;
     use crate::suggest::NoSubcommand;
 
-    /// ⛔ **A refusal is a line, not a usage dump**, and the test for that is a
+    /// **A refusal is a line, not a usage dump**, and the test for that is a
     /// line-count claim rather than a substring one.
     ///
-    /// ⛔ **A substring test is what this check was written as first, and it is
+    /// **A substring test is what this check was written as first, and it is
     /// wrong**: `relay` is in the subcommand list, so a refusal that names the
-    /// list would trip a naive `contains("usage")`. ⛔ The defect being guarded
-    /// against is **bulk** ⛔ the sibling prints ~30 lines of `Usage:` and
+    /// list would trip a naive `contains("usage")`. The defect being guarded
+    /// against is **bulk** the sibling prints ~30 lines of `Usage:` and
     /// `For more information, try '--help'` (`src/main.c:277`), and that is
     /// what buries the one line the user needs.
     ///
-    /// ⛔ So the assertion is: every refusal is a **single short line** plus the
+    /// So the assertion is: every refusal is a **single short line** plus the
     /// answer. Anything approaching a usage dump fails this.
     #[test]
     fn a_refusal_is_a_line_not_a_usage_dump() {
@@ -240,7 +240,7 @@ mod tests {
         }
     }
 
-    /// ⛔ **The other half of the same guard**: the subcommand list is allowed,
+    /// **The other half of the same guard**: the subcommand list is allowed,
     /// and it is what a user who mistyped a verb actually needs.
     #[test]
     fn the_subcommand_list_survives_a_refusal() {
@@ -250,7 +250,7 @@ mod tests {
         }
     }
 
-    /// ⛔ **`podssh` with no arguments says it will not guess a destination**, which
+    /// **`podssh` with no arguments says it will not guess a destination**, which
     /// is the sentence `06-cli.md`:17 turns into behaviour.
     #[test]
     fn no_arguments_says_it_will_not_connect() {
@@ -262,8 +262,8 @@ mod tests {
         }
     }
 
-    /// ⛔ **An unknown flag's message names both ends**: what was given and the
-    /// nearest known one. ⛔ Without a suggestion it still says nothing was
+    /// **An unknown flag's message names both ends**: what was given and the
+    /// nearest known one. Without a suggestion it still says nothing was
     /// ignored, because a silently-dropped `-o` is the spec's security bug.
     #[test]
     fn an_unknown_flag_names_the_given_and_the_nearest() {

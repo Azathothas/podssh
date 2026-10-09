@@ -1,18 +1,18 @@
 # Grammar fixture: one real IRC line per case, byte-exact, CRLF in the file.
 #
-# ⛔ **Each line after the `#` header is `<wire line> ||| <what podssh must
-# believe about it>`.** ⛔ The split is three pipes because a wire line may
+# **Each line after the `#` header is `<wire line> ||| <what podssh must
+# believe about it>`.** The split is three pipes because a wire line may
 # contain any character except CRLF, and a one-pipe split would break on a
 # message that quotes one.
 #
-# ⛔ **These are recorded lines, not invented ones.** ⛔ They are the shapes
-# RFC 2812 §2.3, §3 and §6 specify and that public ircds emit; ⛔ **nothing here
+# **These are recorded lines, not invented ones.** They are the shapes
+# RFC 2812 §2.3, §3 and §6 specify and that public ircds emit; **nothing here
 # is a measurement of a real ircd**, because this machine cannot reach one
 # without a relay token and a CLI, and that limit is named on the entry.
 #
-# ⛔ **`grammar.txt` proves the parser against a table. It does not prove the
-# session** — ⛔ a frame boundary landing mid-message cannot be written in this
-# format at all, ⛔ which is why `reassembly.rs` splits the bytes itself.
+# **`grammar.txt` proves the parser against a table. It does not prove the
+# session** — a frame boundary landing mid-message cannot be written in this
+# format at all, which is why `reassembly.rs` splits the bytes itself.
 
 :irc.example.org 001 alice :Welcome to the Example IRC Network alice!u@h ||| a server prefix with a text that itself contains `alice!u@h`; the prefix is irc.example.org
 :irc.example.org 005 alice CHANTYPES=# PREFIX=(ov)@+ NETWORK=Example CHANMODES=eIbq,k,flj,CFLMPQScgimnprstz CHANNELLEN=64 NICKLEN=12 MAXTARGETS=4 CASEMAPPING=ascii :are supported by this server ||| 005 with six tokens; the first parameter is the nick and is not a token

@@ -1,6 +1,6 @@
 //! HKDF for the TLS 1.3 key schedule.
 //!
-//! ⛔ **RFC 5869, and the test vectors are the ones in its appendix A.** The
+//! **RFC 5869, and the test vectors are the ones in its appendix A.** The
 //! key schedule is the one place where a subtly wrong extract produces a
 //! handshake that completes and then decrypts to garbage, so this is asserted
 //! against the published vectors rather than against itself.
@@ -14,7 +14,7 @@ use zeroize::Zeroize;
 
 use super::hash::HashAlgorithmId;
 
-/// ⛔ `hkdf::Hkdf` is monomorphised over the hash, so there are two of them
+/// `hkdf::Hkdf` is monomorphised over the hash, so there are two of them
 /// here and the `id` decides which. The alternative — a boxed `DynHash` —
 /// would need a trait object per hash and buys nothing at two variants.
 pub struct PureHkdf(pub HashAlgorithmId);
@@ -33,7 +33,7 @@ impl Hkdf for PureHkdf {
 
     fn extract_from_secret(&self, salt: Option<&[u8]>, secret: &[u8]) -> Box<dyn HkdfExpander> {
         let hash_len = self.0.output_len();
-        // ⛔ RFC 5869 §2.2: an absent salt is `HashLen` zero bytes, NOT an empty
+        // RFC 5869 §2.2: an absent salt is `HashLen` zero bytes, NOT an empty
         // salt. RFC 8446 §7.1 relies on this for the early-secret derivation,
         // so a `None` mapped to `&[]` produces a key schedule that differs from
         // every other implementation's and fails at the first Finished.
@@ -60,11 +60,11 @@ impl Hkdf for PureHkdf {
 impl PureHkdf {
     /// `HKDF-Extract(salt, ikm)`, returning the PRK.
     ///
-    /// ⛔ **`extract` returns `(Output<H>, Hkdf)` and the first element is the
+    /// **`extract` returns `(Output<H>, Hkdf)` and the first element is the
     /// PRK.** Taking the second and expanding it would silently run
     /// extract-then-expand-one-block and produce a PRK that is not the RFC's.
     fn extract_prk(&self, salt: &[u8], ikm: &[u8]) -> Vec<u8> {
-        // ⛔ Each arm converts inside itself. The two `Output` types are
+        // Each arm converts inside itself. The two `Output` types are
         // different `GenericArray`s, so binding one and converting after the
         // match does not typecheck — which is the compiler refusing to let the
         // two hashes' PRKs be confused.
@@ -74,7 +74,7 @@ impl PureHkdf {
         }
     }
 
-    /// ⛔ **`HKDF-Extract` on its own, for the RFC 5869 vector.**
+    /// **`HKDF-Extract` on its own, for the RFC 5869 vector.**
     ///
     /// The appendix A vectors publish the PRK as well as the OKM, and
     /// asserting both separates an extract bug from an expand bug — a test
@@ -94,7 +94,7 @@ impl Expander {
         if output.len() > 255 * self.id.output_len() {
             return Err(OutputLengthError);
         }
-        // ⛔ `expand_multi_info` takes the info components separately, so the
+        // `expand_multi_info` takes the info components separately, so the
         // concatenation rustls hands over as slices is never materialised.
         match self.id {
             HashAlgorithmId::Sha256 => hkdf::Hkdf::<Sha256>::from_prk(&self.prk)
@@ -111,7 +111,7 @@ impl Expander {
 
 impl Drop for Expander {
     fn drop(&mut self) {
-        // ⛔ A PRK is key material. `zeroize` is already a dependency and the
+        // A PRK is key material. `zeroize` is already a dependency and the
         // rest of this crate uses it; an expander that leaves its PRK on the
         // heap is the one place the whole design leaks.
         self.prk.zeroize();
