@@ -123,7 +123,7 @@ chacha20poly1305 = { version = "0.10", default-features = false, features = ["al
 # Rust and already in the lockfile as transitive deps — these lines only name
 # the same versions directly. CC-cleanliness is proved by the container gate.
 chacha20 = { version = "0.9", default-features = false }
-cipher = { version = "0.4", default-features = false }
+cipher = { version = "0.5", default-features = false }
 poly1305 = { version = "0.8", default-features = false }
 x25519-dalek = { version = "2", default-features = false, features = ["static_secrets"] }
 ed25519-dalek = { version = "2", default-features = false, features = ["std"] }
