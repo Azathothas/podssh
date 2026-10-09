@@ -133,6 +133,10 @@ that uses iroh's own proxy selection fails with `ALL_PROXY` set.
   FAIL.
 - Waits for T-251, by the decision of 2026-10-09: `sh scripts/dev.sh check`
   (the steps `msrv_iroh` and `iroh` in the build image).
+- CI, the run of `8d88bdf`: the gate's steps `msrv_iroh` and `iroh` passed.
+  The secret scan stopped at the made-up proxy credentials of the new tests,
+  at the loopback and at a documentation address, which TruffleHog could not
+  verify; they are listed in `.github/secrets-allow.txt` as test values.
 
 # T-163: iroh tickets and node keys
 
