@@ -47,7 +47,7 @@
 
 use crate::echo::{Discipline, Event};
 use crate::passthrough::Passthrough;
-use crate::window::{Size, Window};
+use crate::window::Size;
 
 /// What lies below the session, and what the caller asked for: the three
 /// facts that choose the mode.
@@ -98,7 +98,6 @@ pub struct Session {
     mode: Mode,
     cooked: Discipline,
     pass: Passthrough,
-    window: Window,
     ended: bool,
 }
 
@@ -117,9 +116,19 @@ impl Session {
             mode: Mode::select(facts),
             cooked: Discipline::with_utf8(utf8),
             pass: Passthrough::new(),
-            window: Window::new(),
             ended: false,
         }
+    }
+
+    /// The session, with the terminal's size: as the client measured it, or
+    /// as `pty-req` carried it. The cooked discipline needs the width to draw
+    /// a line longer than one row; the transparent mode keeps it as the size
+    /// already sent with the request.
+    pub fn sized(mut self, size: Size) -> Session {
+        // The line is empty, so the discipline draws nothing here.
+        let _ = self.cooked.resize(size);
+        let _ = self.pass.on_resize(size);
+        self
     }
 
     /// The mode, decided from the facts.
@@ -208,13 +217,16 @@ impl Session {
         }
     }
 
-    /// A local resize arrived. **The size to send now, or `None` while a frame
-    /// is open** — and **never dropped**, which is the whole difference
-    /// between this and the sibling's refusal of window size.
-    pub fn on_resize(&mut self, size: Size) -> Option<Size> {
+    /// A local resize arrived. In the transparent mode, **the size to send
+    /// now, as [`Event::Size`], or nothing while a frame is open** — and
+    /// **never dropped**, which is the whole difference between this and the
+    /// sibling's refusal of window size. In the cooked mode nothing below has
+    /// a size; the discipline takes the new width, and draws the line again
+    /// when the width changed.
+    pub fn on_resize(&mut self, size: Size) -> Vec<Event> {
         match self.mode {
-            Mode::Cooked => self.window.on_resize(size),
-            Mode::Transparent => self.pass.on_resize(size),
+            Mode::Cooked => self.cooked.resize(size),
+            Mode::Transparent => self.pass.on_resize(size).map(Event::Size).into_iter().collect(),
         }
     }
 
@@ -228,10 +240,11 @@ impl Session {
         }
     }
 
-    /// The full-screen frame ended. Returns a held size, if one.
+    /// The full-screen frame ended. Returns a held size, if one: never in the
+    /// cooked mode, which holds no frame.
     pub fn end_frame(&mut self) -> Option<Size> {
         match self.mode {
-            Mode::Cooked => self.window.end_frame(),
+            Mode::Cooked => None,
             Mode::Transparent => self.pass.end_frame(),
         }
     }

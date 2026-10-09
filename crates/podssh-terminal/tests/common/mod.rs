@@ -12,6 +12,7 @@
 #![allow(dead_code)] // each test file uses a subset; a shared harness is expected.
 
 use podssh_terminal::echo::{Discipline, Event, Sig};
+use podssh_terminal::window::Size;
 
 /// Drive a discipline with bytes and collect both legs separately.
 pub fn feed(d: &mut Discipline, bytes: &[u8]) -> Legs {
@@ -23,6 +24,7 @@ pub fn feed(d: &mut Discipline, bytes: &[u8]) -> Legs {
                 Event::ToRemote(r) => legs.remote.extend_from_slice(&r),
                 Event::Signal(s) => legs.signals.push(s),
                 Event::Eof => legs.eof = true,
+                Event::Size(s) => legs.sizes.push(s),
             }
         }
     }
@@ -39,6 +41,7 @@ pub fn legs(events: Vec<Event>) -> Legs {
             Event::ToRemote(r) => legs.remote.extend_from_slice(&r),
             Event::Signal(s) => legs.signals.push(s),
             Event::Eof => legs.eof = true,
+            Event::Size(s) => legs.sizes.push(s),
         }
     }
     legs
@@ -65,6 +68,8 @@ pub struct Legs {
     pub signals: Vec<Sig>,
     /// Whether input ended.
     pub eof: bool,
+    /// Window sizes to send, in order.
+    pub sizes: Vec<Size>,
 }
 
 impl Legs {
@@ -72,11 +77,12 @@ impl Legs {
     /// arrived and not merely that something did.**
     pub fn show(&self) -> String {
         format!(
-            "local={} remote={} signals={:?} eof={}",
+            "local={} remote={} signals={:?} eof={} sizes={:?}",
             podssh_terminal::bytes::quoted(&self.local),
             podssh_terminal::bytes::quoted(&self.remote),
             self.signals,
-            self.eof
+            self.eof,
+            self.sizes
         )
     }
 }

@@ -29,7 +29,8 @@
 //! stay invisible outside the crate, so a caller cannot drive a half-finished
 //! edit that the byte rules never sanctioned.
 
-use super::units::{after, before, blank, motion, units, utf8_len};
+use super::screen::{csi, motion, ED};
+use super::units::{after, before, blank, units, utf8_len, Unit};
 use super::Discipline;
 use crate::echo::{Event, Sig, BELL, EL, LINE_CAP, PROMPT};
 use crate::escape::{Intro, Param};
@@ -40,12 +41,15 @@ impl Discipline {
     /// interrupted line never ran, so history never saw it.
     /// **READ**, `session.rs:297-308`.
     pub(crate) fn signal_key(&mut self, sig: Sig, caret: &[u8]) -> Vec<Event> {
+        // Over several rows the caret goes after the line, not over it.
+        let mut echo = if self.drawn_end.row > 0 { motion(self.shown, self.drawn_end) } else { Vec::new() };
         self.line.clear();
         self.cursor = 0;
         self.saved = None;
         self.hpos = None;
-        let mut echo = caret.to_vec();
+        echo.extend_from_slice(caret);
         echo.extend_from_slice(PROMPT);
+        self.reset_area();
         vec![Event::ToLocal(echo), Event::Signal(sig)]
     }
 
@@ -72,26 +76,33 @@ impl Discipline {
         };
         self.cursor = u.start;
         self.line.drain(u.start..u.start + u.len);
-        // At the end the triple suffices; mid-line the tail shifted and only a
-        // redraw puts every cell right.
+        // At the end the triple suffices where `\b` reaches the cells;
+        // mid-line the tail shifted and only a redraw puts every cell right.
         if self.cursor == self.line.len() {
-            vec![Event::ToLocal(Self::rubout(u.cells))]
-        } else {
-            vec![Event::ToLocal(self.redraw())]
+            if let Some(out) = self.rubout_at_end(u.cells) {
+                return vec![Event::ToLocal(out)];
+            }
         }
+        vec![Event::ToLocal(self.redraw())]
     }
 
     /// Erase the whole line, wherever the cursor sits: `\r`, prompt, and clear,
-    /// which is one fixed shape for every length. **READ**, `session.rs:340-352`.
+    /// which is one fixed shape for every length on one row. **READ**,
+    /// `session.rs:340-352`. Over several rows, up to the first row first, and
+    /// `ESC [ J` clears the rows below too.
     pub(crate) fn erase_line(&mut self) -> Vec<Event> {
         if self.line.is_empty() {
             return vec![Event::ToLocal(BELL.to_vec())];
         }
+        let rows = self.drawn_end.row > 0;
+        let mut out = Vec::new();
+        csi(&mut out, self.shown.row, b'A');
         self.line.clear();
         self.cursor = 0;
-        let mut out = b"\r".to_vec();
+        out.extend_from_slice(b"\r");
         out.extend_from_slice(PROMPT);
-        out.extend_from_slice(EL);
+        out.extend_from_slice(if rows { ED } else { EL });
+        self.reset_area();
         vec![Event::ToLocal(out)]
     }
 
@@ -117,10 +128,11 @@ impl Discipline {
         self.line.drain(from..self.cursor);
         self.cursor = from;
         if self.cursor == self.line.len() {
-            vec![Event::ToLocal(Self::rubout(cells))]
-        } else {
-            vec![Event::ToLocal(self.redraw())]
+            if let Some(out) = self.rubout_at_end(cells) {
+                return vec![Event::ToLocal(out)];
+            }
         }
+        vec![Event::ToLocal(self.redraw())]
     }
 
     /// The final byte of an `ESC [` or an `ESC O` sequence. The two share the
@@ -171,15 +183,19 @@ impl Discipline {
         }
     }
 
-    /// The cursor over one step, left or right, and the motion that the
-    /// screen makes: none for a step of no cells.
-    fn step(&mut self, unit: Option<super::units::Unit>, direction: u8) -> Vec<Event> {
+    /// The cursor over one step, left or right, and the motion that takes the
+    /// screen's cursor to its place: none for a step of no cells, and up or
+    /// down a row where the step crosses one.
+    fn step(&mut self, unit: Option<Unit>, direction: u8) -> Vec<Event> {
         let Some(u) = unit else { return vec![Event::ToLocal(BELL.to_vec())] };
         self.cursor = if direction == b'C' { u.start + u.len } else { u.start };
-        if u.cells == 0 {
+        let to = self.place(self.cursor);
+        let out = motion(self.shown, to);
+        self.shown = to;
+        if out.is_empty() {
             vec![]
         } else {
-            vec![Event::ToLocal(motion(u.cells, direction))]
+            vec![Event::ToLocal(out)]
         }
     }
 
@@ -214,7 +230,7 @@ impl Discipline {
         if self.cursor == self.line.len() {
             self.line.extend_from_slice(unit);
             self.cursor += unit.len();
-            vec![Event::ToLocal(unit.to_vec())]
+            vec![Event::ToLocal(self.append_echo(unit))]
         } else {
             self.line.splice(self.cursor..self.cursor, unit.iter().copied());
             self.cursor += unit.len();

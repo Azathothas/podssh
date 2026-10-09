@@ -29,7 +29,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
   (`crates/podssh-terminal/src/session.rs` lines 79-85 at `6e77829`). In `NoPty`, each local byte
   sets `ended` and returns a bell (`crates/podssh-terminal/src/session.rs` lines 169-174 at `6e77829`).
   In `Cooked`, the discipline echoes each byte
-  (`crates/podssh-terminal/src/echo/editing.rs:190-222`).
+  (`crates/podssh-terminal/src/echo/editing.rs:206-238`).
 - Read, at `6e77829`: tests pin the wrong table (`crates/podssh-terminal/tests/keys.rs` lines 315-326,
   `crates/podssh-terminal/tests/keys.rs` lines 328-346), and plant E builds
   `Session::new(true, true)` (`crates/podssh-terminal/tests/plants.rs` line 327).
@@ -118,7 +118,7 @@ and nothing below echoes".
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -133,16 +133,18 @@ writes over the rows above it.
   `crates/podssh-terminal/src`; `libc` is declared and not used
   (`crates/podssh-terminal/Cargo.toml` lines 10-11 at `8d3f63d`). The notes say that the crate
   never reads the size and never sends (`crates/podssh-terminal/src/window.rs:37-42`).
-- Read: the redraw is `\r`, the prompt, the line, `ESC [ K`, `\r`, the prompt
-  and the line up to the cursor (`crates/podssh-terminal/src/echo.rs:202-212`):
-  one row. `Session::on_resize` gives the size to `Window` only
-  (`crates/podssh-terminal/src/session.rs:214-219`).
+- Read, at `7e4a518`: the redraw is `\r`, the prompt, the line, `ESC [ K`, `\r`,
+  the prompt and the line up to the cursor
+  (`crates/podssh-terminal/src/echo.rs` lines 202-212): one row.
+  `Session::on_resize` gives the size to `Window` only
+  (`crates/podssh-terminal/src/session.rs` lines 214-219).
 - Read: `podssh-ssh` has a raw mode and a size that work, and the gate checks
   them (`crates/podssh-ssh/src/terminal/unix.rs:12-76`,
   `crates/podssh-ssh/src/terminal/windows.rs:31-111`, `docs/STATUS.md:65`).
-- Read: the crate has its own `TERM` rule: it replaces `dumb` and `unknown`,
-  and reads `PODSSH_TERM` (`crates/podssh-terminal/src/term.rs:47-53`). The
-  documented rule sends `TERM` unchanged (`docs/terminal.md:60-65`). The
+- Read, at `7e4a518`: the crate has its own `TERM` rule: it replaces `dumb` and
+  `unknown`, and reads `PODSSH_TERM`
+  (`git show 7e4a518:crates/podssh-terminal/src/term.rs`, lines 47-53). The documented rule
+  sends `TERM` unchanged (`docs/terminal.md:60-65`). The
   manual does not name `PODSSH_TERM`, and its variable test does not read
   this crate (`crates/podssh-cli/src/man/facts.rs:240-241`).
 
@@ -169,6 +171,22 @@ no terminal and gets the size from `pty-req` and `window-change`. Raw mode in
 the crate lost: serve has nothing to make raw, and the client's working code
 would be copied, and two copies drift.
 
+2026-10-09, the rest of it. **The size enters by `Discipline::resize`**,
+and `Session::sized` gives it when the session is made. `Session::on_resize`
+returns events: the redraw in the cooked mode, and in the transparent mode
+`Event::Size`, the size to send. A size and a list apart lost: a caller
+could drop the redraw. The cooked mode's `Window` is gone, since with no pty
+below no size is sent. **A width of 0 is no width**, and the redraw stays on
+one row; a default of 80 lost: it draws over the output above the line when
+the real width is larger. **A new width draws the line again on a row of its
+own**, after `\r\n`; drawing in place lost: a terminal that reflows has
+moved the old rows to places the crate cannot know. **The screen's cursor is
+counted apart from the line's**, because Ctrl-A and Home move only the
+line's until T-129; an append first takes the screen's cursor to the end.
+**The crate's `TERM` rule is gone** (step 4), with plants A and B of
+`tests/plants.rs`; the client's rule in `podssh-ssh` is the one that reaches
+the `pty-req`.
+
 ## Prove
 
 ```sh
@@ -188,6 +206,54 @@ the first test fails. `cargo tree` shows no `libc` for the crate.
 2026-10-09: T-127 removed the unused `libc` of step 5 (its commit, "With
 IUTF8, the line discipline's cursor steps over characters and its screen
 moves by cells").
+
+2026-10-09, three precisions. **The Problem**: `\r` goes back to column 0
+of the row the cursor is on; the redraw then writes downward, leaves the rows
+above stale, and its second half writes the prompt over the last row. The
+conclusion holds. **The Prove's test**: "Ctrl-A, then an insert" would change
+again in T-129, where Ctrl-A sends a motion, so the test moves with 12 Left
+arrows. **The expected bytes**: a count of 1 is written `ESC [ A`, not
+`ESC [ 1 A`, as the arrow keys send it (ECMA-48's default is 1), so the
+transcribed `ESC [ C` and `ESC [ D` stay byte-exact.
+
+## Done
+
+2026-10-09, in the commit "The line discipline takes the terminal's width
+and draws a long line over several rows".
+
+- `crates/podssh-terminal/src/echo/screen.rs` (new): places by row and
+  column, the motions between them, the wrap of a full row and of a wide
+  character; `Discipline::resize`, the append with `\r\n` at a full row, the
+  rubout only where `\b` reaches, the redraw over rows, and the way down to
+  the last row.
+- `echo.rs`: `width`, `shown` and `drawn_end`; the redraw keeps the
+  transcribed shape on one row; Enter leaves from the last row;
+  `Event::Size`. `echo/editing.rs`: Ctrl-C, Backspace, Ctrl-U, Ctrl-W and
+  the arrows by rows. `session.rs`: `Session::sized`, `on_resize` returns
+  events, and the cooked mode's `Window` is gone. `term.rs` and its exports
+  are gone, with plants A and B. `screen::motion` replaced `units::motion`.
+- Tests: the entry's two `rows_` tests in `tests/discipline.rs`, and
+  `rows_an_append_to_the_last_column_moves_to_the_next_row`,
+  `rows_backspace_over_a_row_start_redraws_instead_of_rubbing_out`,
+  `rows_enter_in_a_long_line_leaves_from_its_last_row`,
+  `rows_ctrl_u_and_ctrl_c_start_from_the_rows_they_need`,
+  `rows_with_no_size_the_redraw_stays_on_one_row` (the control) and
+  `rows_a_wide_character_that_does_not_fit_starts_the_next_row`; five unit
+  tests of `screen.rs`.
+- `docs/terminal.md` and `docs/STATUS.md`.
+- Prove: `cargo test -p podssh-terminal --test discipline -- rows_`: 8
+  passed. `cargo test -p podssh-terminal --no-fail-fast`: 125 passed.
+  `cargo tree -p podssh-terminal -e normal`: `unicode-width` only, no
+  `libc`. Plants, each restored, each failing its test: the redraw ignoring
+  the width (the entry's plant: the one-row shape was sent); `on_resize`
+  giving the cooked mode nothing; no `\r\n` at a full row; the rubout
+  always; Enter not going down; a default width of 80; a wide character not
+  wrapping whole.
+- In a real terminal, by hand: the bytes of eight cases (a full row, the
+  insert, Enter, Backspace, the wide character, Ctrl-U, Ctrl-C, and the
+  one-row control), shown by tmux 3.7c in the build image at 20, 6 and 80
+  columns: each row and the cursor where the discipline counts them. T-200
+  makes such a check part of the tests.
 
 # T-127: L3: the cursor counts bytes, not characters
 
@@ -233,7 +299,7 @@ character takes two cells and counts as one.
 3. Backspace, Ctrl-W, Ctrl-D and the arrows act on whole characters; the
    rubout and the arrow echo use the cell count (`ESC [ n D`).
 4. The history keeps bytes (`Vec<u8>`), not lossy strings.
-5. Same commit: `docs/terminal.md:81-102` (the rules), `docs/STATUS.md:220`.
+5. Same commit: `docs/terminal.md:81-114` (the rules), `docs/STATUS.md:220`.
 
 ## Decision
 
@@ -461,17 +527,17 @@ that arrives during an edit is written over the edited line.
 
 - Read: `ESC [ 3 ~` (Delete), `ESC [ 1 ~` and `ESC [ 7 ~` (Home), and
   `ESC [ 4 ~` and `ESC [ 8 ~` (End) carry a parameter, and each final with a
-  parameter is refused (`crates/podssh-terminal/src/echo/editing.rs:142-145`).
+  parameter is refused (`crates/podssh-terminal/src/echo/editing.rs:154-157`).
 - Read: `ESC [ H` and `ESC [ F` move the cursor and send nothing
-  (`crates/podssh-terminal/src/echo/editing.rs:156-163`); Ctrl-A and Ctrl-E
-  do the same (`crates/podssh-terminal/src/echo.rs:358-365`). Tests pin the
-  silence (`crates/podssh-terminal/tests/discipline.rs:186-214`).
+  (`crates/podssh-terminal/src/echo/editing.rs:168-175`); Ctrl-A and Ctrl-E
+  do the same (`crates/podssh-terminal/src/echo.rs:417-424`). Tests pin the
+  silence (`crates/podssh-terminal/tests/discipline.rs:189-217`).
 - Read, at `6e77829`: passthrough refuses `0x1a`, `0x11` and `0x13`
   (`crates/podssh-terminal/src/passthrough.rs` lines 89-95,
   `crates/podssh-terminal/src/refusal.rs:33-35`), and a test pins it
   (`crates/podssh-terminal/src/passthrough.rs` lines 223-236).
 - Read: in the cooked mode, remote bytes go out as they come, and the edited
-  line is not drawn again (`crates/podssh-terminal/src/session.rs:195-197`,
+  line is not drawn again (`crates/podssh-terminal/src/session.rs:204-206`,
   `crates/podssh-terminal/src/passthrough.rs:68-74`).
 
 ## Approach
@@ -482,12 +548,12 @@ that arrives during an edit is written over the edited line.
 2. Home, End, Ctrl-A and Ctrl-E send the motion: `ESC [ n D` or `ESC [ n C`
    by cells (T-127), or a redraw.
 3. The transparent mode of T-125 refuses nothing. Ctrl-Z, Ctrl-S and Ctrl-Q
-   stay refused in the cooked mode only (`docs/terminal.md:133-135`).
+   stay refused in the cooked mode only (`docs/terminal.md:145-147`).
 4. Output during an edit: `\r` and `ESC [ K` clear the edited line, the
    output is written, then the prompt and the line are drawn again with the
    cursor in place. Invariant: output never changes the line under edit.
 5. Rewrite the tests that pin the old behaviour. Same commit:
-   `docs/terminal.md:130-139`, `docs/STATUS.md:220`.
+   `docs/terminal.md:142-151`, `docs/STATUS.md:220`.
 
 ## Prove
 
@@ -516,7 +582,7 @@ reaches it from a pipe, with no `ONLCR`: T-111 adds the `\r` before a lone
 
 **Source:** GitHub #18 and GitHub #19 (nikhiljha/rose
 `nikhiljha/rose:doc/spec.md`, lines 19-42, "Terminal Feature Boundary");
-`docs/terminal.md:104-139`.
+`docs/terminal.md:116-151`.
 **Category:** docs
 **Milestone:** backlog
 **Priority:** P3
@@ -536,7 +602,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
   (`crates/podssh-ssh/src/escape.rs:1-13`, `crates/podssh-ssh/src/escape.rs:30-70`).
   Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:58-67`).
 - Read: the line discipline acts on the arrows, Home, End and its control
-  keys, and refuses other sequences (`docs/terminal.md:104-139`). T-128 and
+  keys, and refuses other sequences (`docs/terminal.md:116-151`). T-128 and
   T-129 change that list.
 - Read in the reports of GitHub #18 and #19, not verified here: rose states
   its terminal boundary in its spec. rose is GPL: read the spec, copy no code.
@@ -567,7 +633,7 @@ fails. The binary (`$BIN`) prints the note in its manual.
 
 # T-131: Which servers honour the `signal` request for Ctrl-C with no remote pty
 
-**Source:** `docs/terminal.md:152-156` (section "Open").
+**Source:** `docs/terminal.md:164-168` (section "Open").
 **Category:** measurement
 **Milestone:** backlog
 **Priority:** P3
@@ -583,7 +649,7 @@ on it. podssh cannot select a behaviour without that fact.
 
 ## Premise
 
-- Read: `docs/terminal.md:152-156` records the question as open.
+- Read: `docs/terminal.md:164-168` records the question as open.
 - Read: podssh's client never sends a `signal` request: no call in
   `crates/podssh-ssh/src`. With no remote pty, the local terminal stays in
   its normal mode (`docs/terminal.md:24`), so Ctrl-C stops podssh itself.

@@ -5,6 +5,7 @@
 //! so these tests pin the opposite: the size goes out at once when idle, waits
 //! for the end of a frame, and the last one always arrives.
 
+use podssh_terminal::echo::Event;
 use podssh_terminal::passthrough::Passthrough;
 use podssh_terminal::session::Session;
 use podssh_terminal::window::{Size, Window};
@@ -60,7 +61,7 @@ fn a_resize_while_idle_propagates_immediately() {
 
     // **Through the driver too**, so the mode dispatch is covered.
     let mut s = Session::new(over_a_pty());
-    assert_eq!(s.on_resize(Size::new(24, 80)), Some(Size::new(24, 80)));
+    assert_eq!(s.on_resize(Size::new(24, 80)), vec![Event::Size(Size::new(24, 80))]);
 }
 
 #[test]

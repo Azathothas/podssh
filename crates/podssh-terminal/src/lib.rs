@@ -1,7 +1,7 @@
 //! The userspace line discipline, for a host with no pty.
 //!
 //! **This crate never touches the network.** It owns echo, line editing,
-//! history, signal characters, `TERM` selection, and window size. The bytes
+//! history, signal characters, and window size. The bytes
 //! arrive over SSH from [`podssh-core`] and leave again; nothing here dials,
 //! reads a socket, or knows a relay exists.
 //!
@@ -61,7 +61,7 @@
 //!
 //! - [`bytes`] — rendering bytes legibly, so a failing assertion names them
 //! - [`echo`] — the line under edit: the byte rules, transcribed
-//! - [`term`] — `TERM` selection and the `''|dumb|unknown` predicate
+//! - [`escape`] — the escape-sequence parser: what counts as one key
 //! - [`window`] — window size, deferred while a frame is mid-draw
 //! - [`passthrough`] — the second discipline, for a program that owns the screen
 //! - [`refusal`] — the refusal catalogue that the cooked discipline answers from
@@ -75,12 +75,10 @@ pub mod escape;
 pub mod passthrough;
 pub mod refusal;
 pub mod session;
-pub mod term;
 pub mod window;
 
 pub use echo::{Discipline, Event, Sig, BELL, EL, HISTORY_CAP, IDLE, LINE_CAP, PROMPT};
 pub use passthrough::Passthrough;
 pub use refusal::{Refusal, REFUSALS};
 pub use session::{Facts, Mode, Session};
-pub use term::{TermChoice, TERM_ENV, TERM_OVERRIDE_ENV, TERM_PREDICATE_USABLE};
 pub use window::{Size, Window};

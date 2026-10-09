@@ -16,10 +16,11 @@
 //! ## What this file holds, and why it is not all of it
 //!
 //! **Characters only.** What a byte typed into a line produces: the echo,
-//! the erase, the submit. Escapes, history, signals, the two modes and window
-//! size are in `keys.rs`, and the harness that keeps the two legs apart is in
-//! `common/mod.rs`, so **the byte-exactness rigour is written once and both
-//! files use it.**
+//! the erase, the submit, and the rows of a line wider than the terminal.
+//! Escapes, history, signals and the two modes are in `keys.rs`, window size
+//! in `window.rs`, and the harness that keeps the two legs apart is in
+//! `common/mod.rs`, so **the byte-exactness rigour is written once and each
+//! file uses it.**
 //!
 //! ## Where a rule is deliberately NOT the sibling's
 //!
@@ -30,9 +31,11 @@
 //! pin that half.
 
 use podssh_terminal::echo::{Discipline, BELL, EL, LINE_CAP, PROMPT};
+use podssh_terminal::session::Session;
+use podssh_terminal::window::Size;
 
 mod common;
-use common::{feed, has};
+use common::{feed, has, legs, selected};
 
 // ───────────────────────────────── echo and submission
 
@@ -350,4 +353,110 @@ fn utf8_the_line_cap_never_splits_a_character() {
     let got = feed(&mut d, b"\xc3\xa9");
     assert_eq!(got.local, BELL, "the character drops whole: {}", got.show());
     assert_eq!(d.line().len(), LINE_CAP - 1);
+}
+
+// ───────────────────────────────── rows: a line wider than the terminal
+
+/// A discipline that knows its terminal is `cols` wide.
+fn sized(cols: u16, utf8: bool) -> Discipline {
+    let mut d = Discipline::with_utf8(utf8);
+    assert!(d.resize(Size::new(24, cols)).is_empty(), "an empty line draws nothing");
+    d
+}
+
+#[test]
+fn rows_a_long_line_redraws_from_its_first_row() {
+    // 20 columns: the prompt and 18 `a` fill the first row, 12 more the
+    // second. An insert there redraws from the first row; `\r` alone would
+    // go back only to the start of the cursor's row.
+    let mut d = sized(20, false);
+    feed(&mut d, &[b'a'; 30]);
+    feed(&mut d, &b"\x1b[D".repeat(12));
+    let got = feed(&mut d, b"X");
+    let want = [&b"\x1b[A\r$ "[..], &[b'a'; 18], b"X", &[b'a'; 12], b"\x1b[J\x1b[12D"].concat();
+    assert_eq!(got.local, want, "{}", got.show());
+    assert_eq!(feed(&mut d, b"\r").remote, [&[b'a'; 18][..], b"X", &[b'a'; 12], b"\n"].concat());
+}
+
+#[test]
+fn rows_the_width_follows_a_resize() {
+    // Told 80 columns, then 20: the line is drawn again on a row of its own,
+    // over two rows, and the next redraw starts a row up. The cooked mode has
+    // no size to send.
+    let mut s = Session::new(selected()).sized(Size::new(24, 80));
+    legs(s.on_local_bytes(&[b'a'; 30]));
+    let got = legs(s.on_resize(Size::new(24, 20)));
+    assert_eq!(got.local, [&b"\r\n\r$ "[..], &[b'a'; 30], b"\x1b[J"].concat(), "{}", got.show());
+    assert!(got.sizes.is_empty(), "{}", got.show());
+    assert_eq!(legs(s.on_resize(Size::new(40, 20))), Default::default(), "the same width draws nothing");
+    let got = legs(s.on_local_bytes(b"\x1b[DX"));
+    assert!(got.local.starts_with(b"\x1b[D\x1b[A\r$ "), "{}", got.show());
+}
+
+#[test]
+fn rows_an_append_to_the_last_column_moves_to_the_next_row() {
+    // The 18th `a` fills the row, and the terminal's cursor would wait in its
+    // last column: `\r\n` takes it to the next row, where the discipline
+    // counts it.
+    let mut d = sized(20, false);
+    feed(&mut d, &[b'a'; 17]);
+    assert_eq!(feed(&mut d, b"a").local, b"a\r\n");
+    assert_eq!(feed(&mut d, b"b").local, b"b", "the next byte is an echo again");
+}
+
+#[test]
+fn rows_backspace_over_a_row_start_redraws_instead_of_rubbing_out() {
+    // `\b` does not go up a row, so erasing the last cell of the row above
+    // is a redraw; on the cursor's own row the triple serves again.
+    let mut d = sized(20, false);
+    feed(&mut d, &[b'a'; 18]);
+    let got = feed(&mut d, b"\x7f");
+    assert_eq!(got.local, [&b"\x1b[A\r$ "[..], &[b'a'; 17], b"\x1b[J"].concat(), "{}", got.show());
+    assert_eq!(feed(&mut d, b"\x7f").local, Discipline::rubout(1));
+}
+
+#[test]
+fn rows_enter_in_a_long_line_leaves_from_its_last_row() {
+    // Enter with the cursor on the first row: the next prompt goes below the
+    // line, not over its second row.
+    let mut d = sized(20, false);
+    feed(&mut d, &[b'a'; 30]);
+    feed(&mut d, &b"\x1b[D".repeat(20));
+    let got = feed(&mut d, b"\r");
+    assert_eq!(got.local, b"\x1b[B\r\n$ ", "{}", got.show());
+    assert_eq!(got.remote, [&[b'a'; 30][..], b"\n"].concat());
+}
+
+#[test]
+fn rows_ctrl_u_and_ctrl_c_start_from_the_rows_they_need() {
+    // Ctrl-U goes up to the first row and clears below it; Ctrl-C with the
+    // cursor on the first row writes its caret after the line, not over it.
+    let mut d = sized(20, false);
+    feed(&mut d, &[b'a'; 30]);
+    assert_eq!(feed(&mut d, b"\x15").local, b"\x1b[A\r$ \x1b[J");
+    feed(&mut d, &[b'a'; 30]);
+    feed(&mut d, &b"\x1b[D".repeat(20));
+    let got = feed(&mut d, b"\x03");
+    assert_eq!(got.local, b"\x1b[B^C\r\n$ ", "{}", got.show());
+}
+
+#[test]
+fn rows_with_no_size_the_redraw_stays_on_one_row() {
+    // The control: with no width known, a long line redraws in the
+    // transcribed shape, as the reference's does.
+    let mut d = Discipline::new();
+    feed(&mut d, &[b'a'; 100]);
+    let got = feed(&mut d, b"\x1b[DX");
+    let want = [&b"\x1b[D\r$ "[..], &[b'a'; 99], b"Xa", EL, b"\r$ ", &[b'a'; 99], b"X"].concat();
+    assert_eq!(got.local, want, "{}", got.show());
+}
+
+#[test]
+fn rows_a_wide_character_that_does_not_fit_starts_the_next_row() {
+    // Six columns: `$ abc` leaves one cell, and the wide character takes two,
+    // so the terminal starts it on the next row; Left goes back up, to after
+    // the `c`.
+    let mut d = sized(6, true);
+    assert_eq!(feed(&mut d, "abc漢".as_bytes()).local, "abc漢".as_bytes());
+    assert_eq!(feed(&mut d, b"\x1b[D").local, b"\x1b[A\x1b[3C");
 }

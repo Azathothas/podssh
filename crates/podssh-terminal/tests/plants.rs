@@ -1,12 +1,12 @@
-//! **The line discipline's five plants, and the controls that prove they are not guards that
+//! **The line discipline's plants, and the controls that prove they are not guards that
 //! refuse everything.**
 //!
-//! The entry's `Prove` block names these five defects:
+//! The entry's `Prove` block named five defects. Plants A and B were of the
+//! crate's own `TERM` rule, which is gone: the client's `TERM` rule
+//! (`podssh-ssh`) is the one that reaches the `pty-req`. Three remain:
 //!
 //! | Plant | Defect | What must happen |
 //! | --- | --- | --- |
-//! | A | `TERM` unset | it must be substituted, or a pager answers `'unknown'` |
-//! | B | `TERM=xterm-256color` | **it must be left alone** |
 //! | C | a resize delivered mid-frame | the frame must stay intact, the size must survive |
 //! | D | an unknown escape, `ESC [ 1 5 ~` | a bell and no state change |
 //! | E | `Ctrl-C` against a non-shell command | the command dies, the session survives |
@@ -24,13 +24,12 @@
 //! stopped planting.
 //!
 //! ```sh
-//! PODSSH_PLANT=no_term_substitute cargo test -p podssh-terminal --test plants plant_a
-//! cargo test -p podssh-terminal --test plants plant_a     # the control
+//! PODSSH_PLANT=drop_resize_mid_frame cargo test -p podssh-terminal --test plants plant_c
+//! cargo test -p podssh-terminal --test plants plant_c     # the control
 //! ```
 //!
-//! **Two of the five cannot be run as the entry wrote them, and the reason is
-//! in the test bodies.** Plants A and B name `less` on a constrained host, and
-//! E names a real command dying against a real shell. **No command uses this crate yet,
+//! **One of the three cannot be run as the entry wrote it, and the reason is
+//! in its body.** E names a real command dying against a real shell. **No command uses this crate yet,
 //! and there is no constrained host on this machine**, so what
 //! is asserted here is the **unit-level** form of each defect — and that
 //! substitution is named rather than glossed over: the real run is named on the
@@ -39,7 +38,6 @@
 
 use podssh_terminal::echo::{Discipline, Event, Sig, BELL, EL};
 use podssh_terminal::session::{Mode, Session};
-use podssh_terminal::term::{select_term, TermChoice, TERM_OVERRIDE_ENV};
 use podssh_terminal::window::{Size, Window};
 
 mod common;
@@ -58,30 +56,6 @@ fn planted(name: &str) -> bool {
 /// tells them apart is **a second test that passes on the same guard.** If
 /// the controls lived in the unit suites and someone deleted one, nothing would
 /// fail.
-
-#[test]
-fn control_a_term_that_is_present_is_used() {
-    // **The control for plant A.** With a usable `TERM` set, the predicate
-    // must return it untouched. If `select_term` always substituted, this
-    // would fail; if it never substituted, plant A would.
-    let (term, choice) = select_term(Some("screen-256color"), None);
-    assert_eq!(term, "screen-256color");
-    assert_eq!(choice, TermChoice::Kept);
-}
-
-#[test]
-fn control_b_the_override_is_ignored_when_the_value_is_good() {
-    // **The control for plant B, and the one most worth keeping.** An
-    // override that outranks a good `TERM` is the same defect as never
-    // substituting, wearing the opposite costume. `PODSSH_TERM` must be
-    // consulted **only** when the current value is unusable.
-    for good in ["xterm-256color", "screen", "tmux-256color", "vt100"] {
-        let (term, choice) = select_term(Some(good), Some("dumb"));
-        assert_eq!(term, good, "{good} must survive even with {TERM_OVERRIDE_ENV}");
-        assert_eq!(choice, TermChoice::Kept, "{good}");
-        assert!(!choice.replaced(), "{good}");
-    }
-}
 
 #[test]
 fn control_c_a_resize_while_idle_is_sent_at_once() {
@@ -149,67 +123,6 @@ fn control_e_a_signal_that_is_not_pressed_changes_nothing() {
     let events = s.on_local_bytes(b"echo hello\n");
     assert!(!events.iter().any(|e| matches!(e, Event::Signal(_))), "no signal for ordinary input: {events:?}");
     assert!(!s.ended(), "and the session lives");
-}
-
-// ───────────────────────────────────────────────────── plant A: TERM unset
-
-#[test]
-fn plant_a_term_unset() {
-    // **THE PLANT: `TERM` unset.** The entry's words: *"Expect it to fail
-    // without the override: the pager answers `'unknown': I need something more
-    // specific.`"* — **READ**, `sandhome` `shell/faketty:82-93`.
-    //
-    // **What is asserted here, and what is not.** **`less` is NOT run.**
-    // There is no constrained host on this machine and no command uses this crate yet,
-    // so **the real command cannot execute and the entry keeps
-    // that clause open with the reason.** What is asserted is the mechanism the
-    // real run depends on: **the name that would reach the `pty-req` is one a
-    // terminfo database can resolve.**
-    let (term, choice) = select_term(None, None);
-
-    if planted("no_term_substitute") {
-        // **The defect arm.** A client that forwarded the unset `TERM` as
-        // `unknown` would produce exactly the recorded failure, and this
-        // assertion is the one it cannot satisfy.
-        assert_eq!(
-            term, "unknown",
-            "the DEFECT arm is reached: an unset TERM reached the pty-req as \
-             {term:?}, and `less` answers 'unknown': I need something more specific."
-        );
-        panic!("THE PLANT FIRED: an unset TERM was not substituted");
-    }
-
-    assert_eq!(term, "xterm-256color", "an unset TERM must reach the pty-req as a resolvable name");
-    assert_eq!(choice, TermChoice::SubstitutedWithFallback);
-    assert!(choice.replaced());
-}
-
-// ───────────────────────────────────────── plant B: the negative half
-
-#[test]
-fn plant_b_term_xterm_256color_is_left_alone() {
-    // **THE PLANT, and the negative half of the same predicate.** The
-    // entry's words: *"podssh must leave it alone. A test that only proves the
-    // substitution passes will happily substitute over a good value forever."*
-    let (term, choice) = select_term(Some("xterm-256color"), None);
-
-    if planted("override_good_term") {
-        // **The defect arm.** The substitution is unconditional here, which
-        // is the defect a substitution-only test cannot see.
-        assert_eq!(
-            term,
-            "xterm-256color",
-            "the DEFECT arm is reached: PODSSH_TERM={:?} overrode a TERM the \
-             user set deliberately, and a caller who named a real terminal \
-             would have been overridden by a client pretending to help.",
-            std::env::var(TERM_OVERRIDE_ENV).ok()
-        );
-        panic!("THE PLANT FIRED: a good TERM was overridden");
-    }
-
-    assert_eq!(term, "xterm-256color", "xterm-256color must reach the pty-req unchanged");
-    assert_eq!(choice, TermChoice::Kept, "and the session must report it as kept");
-    assert!(!choice.replaced(), "a value the user set must not be replaced");
 }
 
 // ─────────────────────────────── plant C: a resize delivered mid-frame
@@ -425,7 +338,7 @@ fn the_cooked_mode_has_no_alternate_screen_and_says_so() {
             match event {
                 Event::ToLocal(bytes) => local.extend_from_slice(&bytes),
                 Event::ToRemote(bytes) => remote.extend_from_slice(&bytes),
-                Event::Eof | Event::Signal(_) => {}
+                Event::Eof | Event::Signal(_) | Event::Size(_) => {}
             }
         }
     }

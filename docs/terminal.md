@@ -86,8 +86,20 @@ These byte rules come from podbox (`crates/podbox-ssh/src/session.rs`):
   Ctrl-A and Ctrl-E go to the start and the end. Up and down recall the
   history; left and right move the cursor.
 - CR and LF both submit the line. The LF of a CRLF pair is ignored.
-- A redraw is `\r`, the prompt, the buffer, `ESC[K`, `\r`, the prompt, and
-  the buffer up to the cursor.
+- On one row, a redraw is `\r`, the prompt, the buffer, `ESC[K`, `\r`, the
+  prompt, and the buffer up to the cursor.
+- The caller gives the terminal's size: the client measures its terminal,
+  and `podssh serve` reads `pty-req` and `window-change`. Raw mode stays in
+  `podssh-ssh`. A line wider than the terminal takes several rows, and a
+  wide character that does not fit at the end of a row starts the next one.
+  The redraw then goes up to the first row (`ESC [ n A`), writes `\r`, the
+  prompt and the line, clears below with `ESC [ J`, and moves the cursor back
+  by rows and columns. A row that the line fills ends with `\r\n`, so the
+  terminal's cursor never waits in the last column. Backspace at the start
+  of a row redraws, because `\b` does not go up a row. Enter and Ctrl-C leave
+  from the last row. A new width draws the line again on a row of its own.
+  With no size, or a width of 0, the redraw stays on one row. A line taller
+  than the screen is not drawn right: `ESC [ A` stops at the top row.
 - A line holds 65536 bytes or fewer; the extra bytes are dropped with a
   bell. The history keeps 100 entries and skips a repeat of the last entry.
 - With `IUTF8` from the modes of `pty-req`, the cursor steps over whole

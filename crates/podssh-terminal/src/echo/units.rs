@@ -69,16 +69,6 @@ pub(crate) fn after(line: &[u8], utf8: bool, at: usize) -> Option<Unit> {
     units(line, utf8).into_iter().find(|u| u.start == at)
 }
 
-/// A motion of the screen cursor by `cells`, left (`D`) or right (`C`): the
-/// count is written only when it is not 1, so a step of one cell stays
-/// `ESC [ D`, the reference's bytes.
-pub(crate) fn motion(cells: usize, direction: u8) -> Vec<u8> {
-    match cells {
-        1 => vec![0x1b, b'[', direction],
-        n => format!("\x1b[{n}{}", direction as char).into_bytes(),
-    }
-}
-
 /// Whether `unit` is one space: the boundary of a word for Ctrl-W.
 pub(crate) fn blank(line: &[u8], unit: Unit) -> bool {
     unit.len == 1 && line[unit.start] == b' '
@@ -100,11 +90,5 @@ mod tests {
         assert_eq!(units("\u{e9}".as_bytes(), false).len(), 2);
         let broken = units(b"\xff\xc3", true);
         assert_eq!(broken.iter().map(|u| (u.len, u.cells)).collect::<Vec<_>>(), vec![(1, 1), (1, 1)]);
-    }
-
-    #[test]
-    fn a_motion_of_one_cell_has_no_count() {
-        assert_eq!(motion(1, b'D'), b"\x1b[D");
-        assert_eq!(motion(2, b'C'), b"\x1b[2C");
     }
 }

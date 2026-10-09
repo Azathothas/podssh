@@ -21,7 +21,7 @@
 //! | line cap, 65536 bytes, past it a byte drops with a bell | `session.rs:108`, `440-453` |
 //! | erase-in-line `EL` | `session.rs:114` |
 //! | `BELL` | `session.rs:115` |
-//! | redraw: `\r`, prompt, buffer, `EL`, `\r`, prompt, line-to-cursor | `session.rs:177-187` |
+//! | redraw on one row: `\r`, prompt, buffer, `EL`, `\r`, prompt, line-to-cursor | `session.rs:177-187` |
 //! | `\r` and `\n` both submit; the `\n` of a `\r\n` pair is swallowed | `session.rs:260-266`, `273-277` |
 //! | recognised escapes: `ESC [ A B C D H F`, the same keys after `ESC O`, and the keypad's `ESC O` keys | `session.rs:381-403`, for `ESC [` |
 //! | the key dispatch itself | `session.rs:267-294` |
@@ -56,6 +56,7 @@
 //! | [`history`] | recall, the cap, and the parked line |
 //! | [`inspect`] | the read-only accessors a caller and a test need |
 //! | `units` | characters and cells: where the cursor stops, and how far it moves |
+//! | `screen` | rows: where each cell of a line wider than the terminal falls |
 //!
 //! **The split is invisible in behaviour.** Every byte rule below is
 //! transcribed to the same line of `session.rs` it was cited to before the
@@ -65,10 +66,13 @@
 use std::fmt;
 
 use crate::escape::{Esc, Step};
+use crate::window::Size;
+use screen::Place;
 
 pub mod editing;
 pub mod history;
 pub mod inspect;
+pub(crate) mod screen;
 pub(crate) mod units;
 
 /// The prompt, printed before every line. Static on purpose, and transcribed:
@@ -125,6 +129,10 @@ pub enum Event {
     Signal(Sig),
     /// Input ended: Ctrl-D on an empty line, or EOF from the client.
     Eof,
+    /// A window size for the program, to send as `window-change`. Only the
+    /// transparent mode makes one: in the cooked mode nothing below has a
+    /// size.
+    Size(Size),
 }
 
 impl fmt::Display for Event {
@@ -137,6 +145,7 @@ impl fmt::Display for Event {
             Event::ToLocal(b) => write!(f, "ToLocal({})", crate::bytes::quoted(b)),
             Event::Signal(s) => write!(f, "Signal({s:?})"),
             Event::Eof => write!(f, "Eof"),
+            Event::Size(s) => write!(f, "Size({s})"),
         }
     }
 }
@@ -146,7 +155,7 @@ impl fmt::Display for Event {
 /// **Pure state.** Every method is deterministic in its arguments, which is
 /// the only reason the tests can assert exact bytes rather than "something was
 /// echoed". **READ**, `session.rs:152-168`.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Discipline {
     /// **`pub(crate)`, not `pub`.** The fields below are private to the
     /// crate because **the submodules write them and nothing outside may**:
@@ -179,6 +188,21 @@ pub struct Discipline {
     /// A `\r` just submitted: a `\n` arriving next is its pair, not a second
     /// line. **READ**, `session.rs:164-167`.
     last_was_cr: bool,
+    /// The terminal's width in cells, or `None` while no size is known: the
+    /// redraw then stays on one row, as the reference's does.
+    pub(crate) width: Option<usize>,
+    /// Where the terminal's cursor is, counted from the first row of the
+    /// prompt. Kept apart from `cursor`, because a silent move (Ctrl-A, Home)
+    /// leaves the screen's cursor behind.
+    pub(crate) shown: Place,
+    /// Where the drawn prompt and line end.
+    pub(crate) drawn_end: Place,
+}
+
+impl Default for Discipline {
+    fn default() -> Self {
+        Discipline::with_utf8(false)
+    }
 }
 
 impl Discipline {
@@ -188,26 +212,54 @@ impl Discipline {
     }
 
     /// A discipline for a terminal that is UTF-8 (`IUTF8`), or that is not.
+    /// It knows no width until [`Discipline::resize`].
     pub fn with_utf8(utf8: bool) -> Self {
-        Discipline { utf8, ..Discipline::default() }
+        let mut d = Discipline {
+            line: Vec::new(),
+            cursor: 0,
+            history: Vec::new(),
+            utf8,
+            partial: Vec::new(),
+            saved: None,
+            hpos: None,
+            esc: Esc::None,
+            last_was_cr: false,
+            width: None,
+            shown: Place::default(),
+            drawn_end: Place::default(),
+        };
+        d.reset_area();
+        d
     }
 
     /// Redraw the line: `\r`, the prompt, the buffer, clear the rest, and the
     /// cursor back where the edit left it.
     ///
-    /// **Transcribed byte for byte**, `session.rs:177-187`. ECMA-48 sequences
-    /// a terminal from the last fifty years answers, and fixed bytes a pipe can
-    /// assert — which is the whole reason the shape is not "whatever looks
-    /// right".
-    pub(crate) fn redraw(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(PROMPT.len() + self.line.len() * 2 + 16);
-        out.extend_from_slice(b"\r");
-        out.extend_from_slice(PROMPT);
-        out.extend_from_slice(&self.line);
-        out.extend_from_slice(EL);
-        out.extend_from_slice(b"\r");
-        out.extend_from_slice(PROMPT);
-        out.extend_from_slice(&self.line[..self.cursor]);
+    /// **Transcribed byte for byte**, `session.rs:177-187`, **while the area
+    /// stays on one row**. ECMA-48 sequences a terminal from the last fifty
+    /// years answers, and fixed bytes a pipe can assert — which is the whole
+    /// reason the shape is not "whatever looks right". When the old area or
+    /// the new one takes more than one row, `\r` would go back only to the
+    /// start of the cursor's row, so [`Discipline::redraw_rows`] starts from
+    /// the first row instead.
+    pub(crate) fn redraw(&mut self) -> Vec<u8> {
+        let end = self.place(self.line.len());
+        let cursor = self.place(self.cursor);
+        let out = if self.drawn_end.row == 0 && end.row == 0 {
+            let mut out = Vec::with_capacity(PROMPT.len() + self.line.len() * 2 + 16);
+            out.extend_from_slice(b"\r");
+            out.extend_from_slice(PROMPT);
+            out.extend_from_slice(&self.line);
+            out.extend_from_slice(EL);
+            out.extend_from_slice(b"\r");
+            out.extend_from_slice(PROMPT);
+            out.extend_from_slice(&self.line[..self.cursor]);
+            out
+        } else {
+            self.redraw_rows(end, cursor)
+        };
+        self.drawn_end = end;
+        self.shown = cursor;
         out
     }
 
@@ -255,8 +307,15 @@ impl Discipline {
         self.cursor = 0;
         self.saved = None;
         self.hpos = None;
-        let mut echo = b"\r\n".to_vec();
+        // The next prompt goes below the line: from its last row, and on the
+        // fresh row a line that filled its last row already moved to.
+        let mut echo = self.down_to_last_row();
+        echo.push(b'\r');
+        if !self.on_fresh_row() {
+            echo.push(b'\n');
+        }
         echo.extend_from_slice(PROMPT);
+        self.reset_area();
         vec![Event::ToLocal(echo), Event::ToRemote(forward)]
     }
 
