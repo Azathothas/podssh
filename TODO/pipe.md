@@ -293,7 +293,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:269-271`).
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
   `AGENTS.md:178-183`, `docs/architecture.md:101-108`,
-  `docs/target-environment.md:74-78`, `SECURITY.md:59-62`, `README.md:35-36`.
+  `docs/target-environment.md:74-78`, `SECURITY.md:68-71`, `README.md:35-36`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:150`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -563,7 +563,7 @@ When the relay's operator adds the endpoint:
    never prints a token. Port discovery comes later: it reads
    `/proc/net/tcp` only where `/proc` exists.
 5. In the same commit: `docs/relay.md`, `docs/reverse.md`,
-   `SECURITY.md:11-21` (what the relay sees), the notes, `docs/STATUS.md`.
+   `SECURITY.md:20-30` (what the relay sees), the notes, `docs/STATUS.md`.
 
 ## Prove
 
@@ -674,7 +674,7 @@ and with which limits.
    (T-175, T-177), then `usbip attach -r 127.0.0.1 -b BUSID` as root. podssh
    needs no privilege; `usbip` does.
 2. Use `ssh:`, never `relay:` to a public `usbipd`: USB/IP is not encrypted,
-   and the relay would see the traffic of the device (`SECURITY.md:11-21`).
+   and the relay would see the traffic of the device (`SECURITY.md:20-30`).
    Through the relay, the session ends at 64 MiB with 1009, and the device
    goes away; `--direct` avoids the relay where a direct road exists.
 3. Measure the recipe on two Linux hosts that have the modules (the

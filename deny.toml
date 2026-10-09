@@ -1,0 +1,51 @@
+# cargo-deny: the advisories, licenses, duplicate versions and sources of the
+# dependencies, in CI (.github/workflows/deny.yml) and by hand:
+#
+#   cargo deny --locked check advisories licenses bans sources
+#   cargo deny --locked --all-features check licenses sources
+
+[graph]
+all-features = false
+
+[advisories]
+version = 2
+yanked = "deny"
+# Each ignored advisory names its reason and the date it was read.
+ignore = []
+
+[licenses]
+version = 2
+confidence-threshold = 0.93
+# Each license that a crate of the graph needs, by name. A crate offered
+# under a choice is checked against the choice; LGPL is not allowed, as the
+# release binaries are static.
+allow = [
+  "0BSD",
+  "Apache-2.0",
+  "Apache-2.0 WITH LLVM-exception",
+  "BSD-1-Clause",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "CDLA-Permissive-2.0",
+  "ISC",
+  "MIT",
+  "Unicode-3.0",
+  "Zlib",
+]
+# Copyleft for each file, and only in the Tailscale fork (feature ts): its
+# source stays with the crate, and its notice ships with the release.
+exceptions = [
+  { allow = ["MPL-2.0"], crate = "dyn-eq" },
+]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+# The crates of the workspace and of the fork are paths, not releases.
+allow-wildcard-paths = true
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

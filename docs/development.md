@@ -74,7 +74,16 @@ python scripts/check-scripts.py     # shell scripts parse under dash
 python scripts/check-relay-spec.py  # the live relay still matches what podssh uses
 cargo todo check                    # the work record in TODO/ agrees: counts, statuses, cited paths and lines, no citation left unmoved
 cargo todo remap FILE...            # after an edit of FILE: move its citations by a diff against HEAD
+cargo deny --locked check advisories licenses bans sources   # the dependencies (deny.toml)
+cargo deny --locked --all-features check licenses sources    # the same, with the Tailscale fork
 ```
+
+`deny.toml` allows each license that a crate of the graph needs, by name,
+and crates.io as the only source; an advisory is ignored only with its
+reason and the date it was read. CI runs both commands on each push, each
+pull request and each day (`.github/workflows/deny.yml`). Each release
+publishes `THIRD-PARTY-LICENSES.md`, the licenses of the crates in its
+binaries with their texts (`about.toml`, `about.hbs`, made by cargo-about).
 
 Read each exit code directly. `cmd | tail` gives the exit code of `tail`.
 

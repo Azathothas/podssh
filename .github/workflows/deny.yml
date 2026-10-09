@@ -1,0 +1,36 @@
+name: deny
+
+# The advisories, licenses, duplicate versions and sources of the
+# dependencies (deny.toml): on each push, each pull request and each day,
+# as an advisory can come while the tree does not change.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deny:
+    name: deny
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      # A release binary of cargo-deny, checked against its checksum.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
+
+      - name: advisories, licenses, duplicates and sources
+        run: cargo deny --locked check advisories licenses bans sources
+
+      # The Tailscale fork comes with the feature ts.
+      - name: licenses and sources, with each feature
+        run: cargo deny --locked --all-features check licenses sources

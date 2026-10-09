@@ -126,6 +126,17 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+      # The licenses of the crates in the binaries, with their texts: the
+      # notices that Apache-2.0 and the BSD licenses ask a binary to carry.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-about@0.9.2
+      - name: the notices of the third-party licenses
+        run: |
+          set -eu
+          cargo about generate --manifest-path crates/podssh-cli/Cargo.toml --locked -c about.toml about.hbs \
+            -o dist/THIRD-PARTY-LICENSES.md
+          test -s dist/THIRD-PARTY-LICENSES.md
       - name: checksums
         run: |
           set -eu
@@ -147,7 +158,12 @@ jobs:
           set -eu
           notes="docs/releases/$TAG.md"
           if [ ! -f "$notes" ]; then echo "missing release notes: $notes"; exit 1; fi
-          { cat "$notes"; printf '\n## The commits of this release\n\n'; cat "$RUNNER_TEMP/changes.md"; } > "$RUNNER_TEMP/body.md"
+          {
+            cat "$notes"
+            printf '\nThe licenses of the crates in the binaries, with their texts: THIRD-PARTY-LICENSES.md.\n'
+            printf '\n## The commits of this release\n\n'
+            cat "$RUNNER_TEMP/changes.md"
+          } > "$RUNNER_TEMP/body.md"
           pre=""
           case "$TAG" in *-*) pre="--prerelease" ;; esac
           gh release create "$TAG" $pre --title "podssh $TAG" --notes-file "$RUNNER_TEMP/body.md" dist/*

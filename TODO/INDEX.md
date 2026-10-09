@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**253 entries: 185 open, 1 partial, 8 blocked, 59 done.**
+**253 entries: 184 open, 1 partial, 8 blocked, 60 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 95 | 1 | 4 | 46 | 146 |
+| P2 | 94 | 1 | 4 | 47 | 146 |
 | P3 | 88 | 0 | 4 | 5 | 97 |
-| **All** | 185 | 1 | 8 | 59 | 253 |
+| **All** | 184 | 1 | 8 | 60 | 253 |
 
 ## Entries
 
@@ -280,14 +280,14 @@ repository and CI).
 | [T-206](repo.md) | P2 | S | none | chore | done | B7: the build image is not pinned to a digest |
 | [T-207](repo.md) | P3 | S | none | chore | open | B8: `scripts/dev.sh` has about 600 lines |
 | [T-208](repo.md) | P2 | S | none | chore | done | A changelog from the commits, and release notes from it (GitHub #27) |
-| [T-209](repo.md) | P2 | S | none | chore | partial | Secret scanning with TruffleHog in CI (GitHub #27) |
+| [T-209](repo.md) | P2 | S | none | chore | done | Secret scanning with TruffleHog in CI (GitHub #27) |
 | [T-210](repo.md) | P2 | S | M9 | release | open | Build provenance for each release binary |
 | [T-211](repo.md) | P2 | S | M9 | release | open | Signed checksums for each release |
 | [T-212](repo.md) | P2 | M | none | chore | open | Parallel CI, with the gate as the one source |
 | [T-213](repo.md) | P2 | M | none | chore | open | CI runs the box like the target sandbox |
 | [T-214](repo.md) | P2 | M | none | chore | open | CI on Windows |
 | [T-215](repo.md) | P2 | M | none | chore | open | rustfmt and clippy in the gate |
-| [T-216](repo.md) | P2 | S | none | chore | open | Advisories and licenses of the dependencies, checked in CI |
+| [T-216](repo.md) | P2 | S | none | chore | partial | Advisories and licenses of the dependencies, checked in CI |
 | [T-217](repo.md) | P3 | S | none | chore | open | The declared minimum Rust versions, checked in CI |
 | [T-218](repo.md) | P2 | M | M9 | release | open | More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64 |
 | [T-219](repo.md) | P2 | S | none | chore | done | The no-C gate also stops C++ |

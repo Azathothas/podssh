@@ -392,7 +392,7 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:132-142`).
+  them (`.github/workflows/release.yml:143-153`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
@@ -420,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:333-378`): the
+5. docs/development.md, "Release builds" (`docs/development.md:342-387`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -488,7 +488,7 @@ release", and closed in the commit "Secret scanning of the history".
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -586,6 +586,26 @@ from a miss, a missing file exits 2, and no raw, redacted or extra value is
 printed) and the section "Checks" of `docs/development.md` are written.
 Next: the first run of the workflow.
 
+## Done
+
+2026-10-09, in the commits "Secret scanning of the history", "The secret
+scan reads the scanner's exit code under bash -e" and "The test values that
+look like credentials, listed for the secret scan"; closed in the commit
+"Advisories, licenses and sources of the dependencies, and the notices".
+
+- `.github/workflows/secrets.yml`, `.github/images/trufflehog/Dockerfile`
+  (TruffleHog 3.97.9, by the digest of its index), `scripts/secrets-report.py`,
+  `.github/secrets-allow.txt` (9 test values, Decision 6), and the section
+  "Checks" of `docs/development.md`.
+- The first run failed for a reason of the workflow itself: the runner's
+  shell is `bash -e`, so the planted key's exit 183 ended the step before its
+  code was read. Repaired with `|| rc=$?`.
+- Prove: run 37876982750 of `secrets.yml` on `main`: success. The planted key
+  was found ("unverified PrivateKey key:1", "a finding of PrivateKey"); the
+  history gave 9 findings, each an allowed test value, and "0 verified or
+  unknown". `gh run list --workflow secrets.yml -b main -L 1` gives
+  `success`.
+
 # T-210: Build provenance for each release binary
 
 **Source:** GitHub #25 (Nemo-010, 2026-10-08), the request for provenance of
@@ -612,7 +632,7 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:23-153`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:23-169`).
   The workflow has `contents: read` (lines 19-20); `publish` adds
   `contents: write` (lines 112-113).
 - The KTM tester could not tell from an artifact which commit made it, and
@@ -671,8 +691,8 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:129-134` writes `SHA256SUMS` with
-  `sha256sum`, and `.github/workflows/release.yml:142-153` publishes it with
+- `.github/workflows/release.yml:140-145` writes `SHA256SUMS` with
+  `sha256sum`, and `.github/workflows/release.yml:153-169` publishes it with
   the binaries. No signature is published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
   holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81). `README.md:46-47` gives no step to check a download.
@@ -1036,7 +1056,7 @@ is 486. Measure again before the format.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1059,7 +1079,7 @@ Read:
   CDLA-Permissive-2.0; russh 0.64.1 Apache-2.0.
 - BSD-3-Clause and Apache-2.0 ask that a binary copy carries the notices. The
   release publishes the binaries and `SHA256SUMS` only
-  (`.github/workflows/release.yml:129-153`).
+  (`.github/workflows/release.yml:140-169`).
 - The fork already has a configuration for cargo-deny
   (`vendor/tailscale-rs/deny.toml:1-35`): an allow list of licenses, one
   ignored advisory with its reason, crates.io only.
@@ -1077,7 +1097,7 @@ Read:
    with all features (the fork comes with `ts`).
 3. Notices: make a file of third-party licenses for each release (cargo-about,
    a Rust tool), publish it with the binaries, and name it in the notes.
-4. docs/development.md, "Checks" (`docs/development.md:69-79`): the command.
+4. docs/development.md, "Checks" (`docs/development.md:69-88`): the command.
    `SECURITY.md`: how an advisory is handled.
 
 ## Decision
@@ -1096,6 +1116,34 @@ cargo deny --locked --all-features check licenses sources
 Both exit 0, and the next release has a file of notices. Planted defect:
 remove `CDLA-Permissive-2.0` from the allow list; the license check must fail
 on webpki-roots.
+
+## Correction
+
+2026-10-09, the Decision's details:
+
+1. Its own workflow, `.github/workflows/deny.yml` (each push to `main`, each
+   pull request, each day, and by hand), not a job of
+   `.github/workflows/build.yml`: a daily schedule there would run the gate
+   each day. cargo-deny 0.20.2 comes as a release binary checked against its
+   checksum (`taiki-e/install-action`), not built on each run.
+2. The allow list has the licenses that the graph needs, by name, but not
+   LGPL-2.1-or-later: its one crate (r-efi) is offered under MIT too, and a
+   crate under LGPL alone would not fit a static binary. MPL-2.0 is an
+   exception for one crate, dyn-eq, which only the Tailscale fork (feature
+   `ts`) brings. Duplicate versions are a warning; path dependencies are
+   allowed as wildcards, as the workspace and the fork are paths.
+3. The notices: `about.toml` and `about.hbs` make `THIRD-PARTY-LICENSES.md`
+   for the graph of `podssh-cli` with its default features, as the release
+   binaries are built; the job `publish` makes it with cargo-about 0.9.2 and
+   names it in the body of the release.
+
+The state (partial), 2026-10-09: `cargo deny --locked --offline check
+licenses bans sources`: exit 0 ("bans ok, licenses ok, sources ok"), and with
+`--all-features check licenses sources`: exit 0. Plant, restored: without
+`CDLA-Permissive-2.0`, the license check exits 4 and rejects webpki-roots.
+`cargo about generate` made the notices here: 321,621 bytes, 60 sections,
+aws-lc-sys, russh and webpki-roots among them. The advisories need the
+RustSec database, which the first run in CI reads. Next: that run.
 
 # T-217: The declared minimum Rust versions, checked in CI
 
@@ -1268,7 +1316,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:122-124` states the rule with `CXX`, and
+- `docs/development.md:131-133` states the rule with `CXX`, and
   `docs/STATUS.md:237` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -1683,7 +1731,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:160-161` lists what the containers do not get; name
+5. `docs/development.md:169-170` lists what the containers do not get; name
    each excluded pattern there.
 
 ## Prove

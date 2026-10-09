@@ -53,7 +53,7 @@ compiler.
    consumes at most its input, and a control frame has FIN and 125 bytes or
    fewer (fails until T-063); `forward_path` after `parse_relay_list` has the
    form `/connect/HOST/PORT`; `one_line` leaves no control character
-   (`SECURITY.md:49-52`); `Reassembler::push` stays under a stated limit
+   (`SECURITY.md:58-61`); `Reassembler::push` stays under a stated limit
    (fails until T-096); the command line target calls `parse`, never the
    dispatch, so no target reaches the network.
 3. Reach a private parser through a wrapper under `#[cfg(fuzzing)]`, which
@@ -199,7 +199,7 @@ Read:
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
-  peer (`SECURITY.md:49-52`).
+  peer (`SECURITY.md:58-61`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
   discipline (`docs/terminal.md:78-121`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
@@ -307,7 +307,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:243-246`): a proxy head that never ends stops at
+   (`docs/development.md:252-255`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -465,7 +465,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate,
-   `docs/development.md:145-151`) and the faults table of docs/STATUS.md.
+   `docs/development.md:154-160`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 

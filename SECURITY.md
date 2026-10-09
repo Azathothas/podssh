@@ -8,6 +8,15 @@ Use the private vulnerability report of GitHub: **Security**, then **Report
 a vulnerability**, on this repository. Do not open a public issue for a
 security problem.
 
+## Advisories of the dependencies
+
+CI reads the dependencies against the RustSec advisories on each push and
+each day (`deny.toml`, `.github/workflows/deny.yml`). On an advisory:
+update the crate when a fixed version exists, and say in the release notes
+which release carries the fix. When no fixed version exists, read whether
+podssh reaches the affected code; ignore the advisory only with its reason
+and the date, in `deny.toml`, and keep an entry in `TODO/` until it is fixed.
+
 ## What the relay can see and do
 
 The relay is between podssh and the server in every connection. The relay

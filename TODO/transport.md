@@ -180,7 +180,7 @@ The first test feeds the double a Close with code 1001 and `pair expired`. It as
 `TransportError::Closed` with that code and reason, and `retry() == Retry::NewPair`; with
 `operator stopped reverse relay` it asserts `Retry::Never`. Add one Close payload captured from
 the live relay (for example `1000 target closed` through `podssh proxy`) as a fixture, so the
-parser also meets bytes that podssh did not make (`docs/development.md:234-236`). The second test
+parser also meets bytes that podssh did not make (`docs/development.md:243-245`). The second test
 asserts that an unmatched `4000 x` and a node's `1011 connection refused` both show their own code
 and reason. Plant: delete the new 0x8 arm; the first test must fail with `Unexpected`.
 
@@ -469,7 +469,7 @@ lines 53-76, and the test at line 300).
 4. Update crates/podssh-transport/tests/closes.rs at `e8bbd4d` (lines 129-149) and the texts of
    crates/podssh-transport/src/error.rs at `e8bbd4d` (lines 170-184). Close this entry in place.
 5. Pitfall: the body comes from the network. Keep it out of format strings and remove control
-   characters before it reaches a terminal (`SECURITY.md:49-52`).
+   characters before it reaches a terminal (`SECURITY.md:58-61`).
 
 ## Decision
 
