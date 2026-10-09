@@ -1819,3 +1819,8 @@ message on each road.
 - The new checks of `scripts/interop-cp.sh`, and "mv of a source that
   grows", run in CI's step `release` at the push of the repair; its result
   goes into `docs/STATUS.md`.
+- CI, the run of `5557c62` (37992184997), the first whose gate pulled its
+  image (the runs of `a6ef7ba` and `b932993` met Docker Hub's refusal,
+  T-268): the step `release`, interop 203 passed, 0 failed; each of the six
+  new checks of a source that grows gives 66 and no copy, "mv of a source
+  that grows" gives 66, and no temporary file stays. The whole run passed.

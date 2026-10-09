@@ -2830,3 +2830,8 @@ and a mirror must serve it.
   digest exits 64; `shellcheck -s sh scripts/pull-image.sh` and
   `python scripts/check-repo.py` pass.
 - CI: the run of the push of the repair, recorded in `docs/STATUS.md`.
+- CI, the runs of `5557c62`: Docker Hub refused each pull again, and
+  `mirror.gcr.io` served the same digests: the scanner in `secrets`
+  (37992185086), whose check of the mirrors passed, and the build image in
+  each of the 11 steps of the gate and in `plant` (37992184997). Each
+  workflow passed.
