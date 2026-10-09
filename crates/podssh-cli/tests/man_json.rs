@@ -151,10 +151,10 @@ fn the_json_is_the_same_in_any_environment() {
 
 #[test]
 fn a_section_gives_one_command_or_one_table() {
-    let (rc, out, _) = podssh(&["man", "--json", "scp"], &[], false);
+    let (rc, out, _) = podssh(&["man", "--json", "irc"], &[], false);
     assert_eq!(rc, 0);
     let doc: Value = serde_json::from_str(&out).unwrap();
-    assert_eq!(doc["command"]["name"], "cp", "an alias finds its command");
+    assert_eq!(doc["command"]["name"], "chat", "an alias finds its command");
     let (rc, out, _) = podssh(&["man", "--json", "exit-status"], &[], false);
     assert_eq!(rc, 0);
     assert!(serde_json::from_str::<Value>(&out).unwrap()["exit_codes"].is_array());

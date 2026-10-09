@@ -28,6 +28,24 @@ fn the_ssh_short_flags_are_exactly_the_reviewed_set() {
     );
 }
 
+/// Every letter of the usage of OpenSSH 10.3p1's `scp` and `sftp` (measured
+/// on 2026-10-08, T-139): each has a row, so none is an unknown flag. Order
+/// does not matter.
+const SCP_SHORT_FLAGS: &str = "346ABCOpqRrsTvcDFiJloPSX";
+const SFTP_SHORT_FLAGS: &str = "46AaCfNpqrvBbcDFiJloPRSsX";
+
+#[test]
+fn the_scp_and_sftp_short_flags_are_exactly_the_reviewed_sets() {
+    for (name, reviewed) in [("scp", SCP_SHORT_FLAGS), ("sftp", SFTP_SHORT_FLAGS)] {
+        let verb = VERBS.iter().find(|v| v.name == name).unwrap();
+        let mut in_tree: Vec<char> = verb.flags.iter().filter_map(|r| r.short).collect();
+        let mut expected: Vec<char> = reviewed.chars().collect();
+        in_tree.sort_unstable();
+        expected.sort_unstable();
+        assert_eq!(in_tree, expected, "the {name} short flags changed; update the reviewed set in the same change");
+    }
+}
+
 #[test]
 fn no_short_flag_is_listed_twice_for_one_verb() {
     for v in VERBS {
@@ -89,8 +107,10 @@ fn every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub() {
     // with their own dispatch arm are listed in DISPATCHED. Dispatch
     // also treats a verb with no row as an internal error (non-zero), so this
     // test is the first line of defence, not the only one.
-    const DISPATCHED: &[&str] =
-        &["ts", "proxy", "ssh", "doctor", "keygen", "man", "status", "node", "relay", "operator", "cp", "mv"];
+    const DISPATCHED: &[&str] = &[
+        "ts", "proxy", "ssh", "doctor", "keygen", "man", "status", "node", "relay", "operator", "cp", "mv", "scp",
+        "sftp",
+    ];
     let owner_names: Vec<&str> = podssh_cli::flags::VERB_OWNER.iter().map(|(n, _)| *n).collect();
     for v in VERBS {
         if DISPATCHED.contains(&v.name) {

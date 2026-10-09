@@ -930,14 +930,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:135-149`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:137-151`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-188` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:142`).
+  in a required property (17 properties, `docs/STATUS.md:144`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:86-91`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
@@ -964,7 +964,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:172`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:174`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -982,7 +982,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:143`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:145`,
 and the job must fail.
 
 ## Correction
@@ -1024,7 +1024,7 @@ Read:
   test.
 - `docs/STATUS.md` line 230 at `9966ed4`: the default tests pass on Windows,
   run by hand.
-  `docs/STATUS.md:70`: `scripts/interop-conpty.py` passes 14 of 14 against a
+  `docs/STATUS.md:72`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
   `stty`, `vi`, `less`, `top`, `seq` and `/tmp`.
@@ -1042,7 +1042,7 @@ Read:
    deletes (see Decision). Run the script with `--direct`; 14 of 14 must pass.
 3. With T-199: score the output with the Windows part of the baseline.
 4. The plant: a podssh that does not restore the mode of the console must
-   fail the three restore checks (as measured by hand, `docs/STATUS.md:70`).
+   fail the three restore checks (as measured by hand, `docs/STATUS.md:72`).
    Run it once in CI, and record it.
 5. docs/STATUS.md cites the CI run for the rows of Windows;
    docs/development.md names the job.
@@ -1606,7 +1606,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:200-202` states the rule with `CXX`, and
-  `docs/STATUS.md:254` records the measurement. Rule 4 of
+  `docs/STATUS.md:256` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:101-108` runs the plant on each push.
@@ -1637,7 +1637,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:254`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:256`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2030,7 +2030,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:163`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:165`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.

@@ -109,7 +109,7 @@ that minted it".
 
 # T-058: `podssh relay status`, `info`, `spec` and `trace`
 
-**Source:** `crates/podssh-cli/src/positionals.rs:41-47` (the subcommands that the parser
+**Source:** `crates/podssh-cli/src/positionals.rs:47-53` (the subcommands that the parser
 declares); `docs/relay.md:263-269`; the tester of sandbox A, who used `curl` and a minted token
 on `/trace` (`report-podssh-sandbox-KTM-2026-10-08.txt`, outside the repository).
 **Category:** feature
@@ -154,13 +154,13 @@ token header (`crates/podssh-ws/src/client.rs:271-282`); `https_request` takes h
    (T-049). Each request has the 10 s limit of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs:27`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs` line 442 at `af0a163`); change `DISPATCHED`, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:235`), the notes, `docs/relay.md:263-269` and
+   (`crates/podssh-cli/src/help.rs:236`), the notes, `docs/relay.md:263-269` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags.rs:295-306`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags.rs:297-308`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:211-229` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
@@ -666,7 +666,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:98`,
    108-113, 122-132), the test of lines 365-377 at `22c3b88`, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:168-187`).
+   notes (`crates/podssh-cli/src/man/notes.rs:191-210`).
 
 ## Decision
 
@@ -783,7 +783,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:109`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:111`). That is one run, before 2026-10-09.
 
 ## Approach
 

@@ -45,7 +45,8 @@ fn an_alias_resolves_to_its_verb() {
     // The entry's acceptance: `podssh irc --help` exits 0.
     assert_eq!(parse(args(&["irc", "--help"])), Parsed::Help("chat"));
     assert_eq!(parse(args(&["chat", "--help"])), Parsed::Help("chat"));
-    assert_eq!(parse(args(&["scp", "--help"])), Parsed::Help("cp"));
+    assert_eq!(parse(args(&["scp", "--help"])), Parsed::Help("scp"));
+    assert_eq!(parse(args(&["irc", "--help"])), Parsed::Help("chat"));
     assert_eq!(parse(args(&["connect", "--help"])), Parsed::Help("ssh"));
 }
 
@@ -230,7 +231,7 @@ fn the_top_level_help_drops_no_word() {
     assert_eq!(parse(args(&["--help"])), Parsed::Help(""));
     assert_eq!(parse(args(&["-h"])), Parsed::Help(""));
     assert_eq!(parse(args(&["--help", "ssh"])), Parsed::Help("ssh"));
-    assert_eq!(parse(args(&["-h", "scp"])), Parsed::Help("cp"));
+    assert_eq!(parse(args(&["-h", "scp"])), Parsed::Help("scp"));
     assert_eq!(parse(args(&["--version"])), Parsed::Version);
     let refused: [&[&str]; 5] = [
         &["--help", "--json"],

@@ -234,8 +234,9 @@ mod tests {
             let m = unknown_verb(token, &crate::suggest::diagnose_no_subcommand(token));
             assert!(!m.contains("Usage:"), "{token} printed a usage header: {m}");
             assert!(!m.contains("For more information"), "{token} printed clap's trailer: {m}");
+            // A line for each verb and a few more: never a usage dump.
             let lines = m.lines().count();
-            assert!(lines <= 18, "{token} produced {lines} lines: {m}");
+            assert!(lines <= VERBS.len() + 5, "{token} produced {lines} lines: {m}");
             assert!(m.contains("Try:") || m.contains("Run 'podssh --help'"), "{token} gave no next step: {m}");
         }
     }

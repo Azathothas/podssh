@@ -75,6 +75,20 @@ pub struct Entry {
     pub attrs: FileAttributes,
 }
 
+/// What `statvfs@openssh.com` tells of a file system: the unit of its
+/// counts (`f_frsize`), its blocks and its inodes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Statvfs {
+    pub unit: u64,
+    pub blocks: u64,
+    pub free: u64,
+    /// Free to a user who is not root.
+    pub available: u64,
+    pub files: u64,
+    pub files_free: u64,
+    pub files_available: u64,
+}
+
 /// An SFTP session.
 pub struct Sftp {
     raw: RawSftpSession,
@@ -118,18 +132,26 @@ impl Sftp {
     /// The `sftp` subsystem on a new session channel of `handle`. A refusal,
     /// or no answer to the request, is [`SftpError::NoSftp`].
     pub async fn open(handle: &Handle<Client>, limits: Limits) -> Result<Sftp, SftpError> {
+        Sftp::open_named(handle, "sftp", limits).await
+    }
+
+    /// The subsystem `name` as an SFTP server (`sftp -s NAME`).
+    pub async fn open_named(handle: &Handle<Client>, name: &str, limits: Limits) -> Result<Sftp, SftpError> {
         let what = "open a session channel for SFTP";
         let mut channel = match tokio::time::timeout(limits.metadata, handle.channel_open_session()).await {
             Err(_) => return Err(SftpError::Timeout { what: what.into(), limit: limits.metadata }),
             Ok(Err(e)) => return Err(SftpError::Closed(format!("{what}: {e}"))),
             Ok(Ok(channel)) => channel,
         };
-        let asked = tokio::time::timeout(limits.metadata, channel.request_subsystem(true, "sftp")).await;
+        let asked = tokio::time::timeout(limits.metadata, channel.request_subsystem(true, name)).await;
         match asked {
             Err(_) => {
-                return Err(SftpError::Timeout { what: "ask for the sftp subsystem".into(), limit: limits.metadata })
+                return Err(SftpError::Timeout {
+                    what: format!("ask for the {name} subsystem"),
+                    limit: limits.metadata,
+                })
             }
-            Ok(Err(e)) => return Err(SftpError::Closed(format!("ask for the sftp subsystem: {e}"))),
+            Ok(Err(e)) => return Err(SftpError::Closed(format!("ask for the {name} subsystem: {e}"))),
             Ok(Ok(())) => {}
         }
         // Nothing comes before the subsystem's reply that SFTP needs.
@@ -262,6 +284,40 @@ impl Sftp {
         match within(limit, what, self.raw.extended("copy-data", data)).await? {
             russh_sftp::protocol::Packet::Status(s) if s.status_code == StatusCode::Ok => Ok(()),
             russh_sftp::protocol::Packet::Status(s) => Err(SftpError::from_raw(what, Raw::Status(s), limit)),
+            _ => Err(SftpError::Protocol(format!("{what}: a reply of the wrong type"))),
+        }
+    }
+
+    /// The file system of `path` (`statvfs@openssh.com`), for `df`.
+    pub async fn statvfs(&self, path: &str) -> Result<Statvfs, SftpError> {
+        let what = format!("statvfs {path}");
+        if !self.extensions.contains_key("statvfs@openssh.com") {
+            let message = "the server has no statvfs@openssh.com".to_string();
+            return Err(SftpError::Status { what, code: StatusCode::OpUnsupported as u32, message });
+        }
+        let request = self.raw.extended("statvfs@openssh.com", ssh_strings(&[path]));
+        match within(self.limits.metadata, &what, request).await? {
+            // Eleven uint64: bsize, frsize, blocks, bfree, bavail, files,
+            // ffree, favail, fsid, flag, namemax.
+            russh_sftp::protocol::Packet::ExtendedReply(r) if r.data.len() >= 88 => {
+                let n = |i: usize| {
+                    let mut eight = [0u8; 8];
+                    eight.copy_from_slice(&r.data[i * 8..i * 8 + 8]);
+                    u64::from_be_bytes(eight)
+                };
+                Ok(Statvfs {
+                    unit: n(1),
+                    blocks: n(2),
+                    free: n(3),
+                    available: n(4),
+                    files: n(5),
+                    files_free: n(6),
+                    files_available: n(7),
+                })
+            }
+            russh_sftp::protocol::Packet::Status(s) => {
+                Err(SftpError::from_raw(&what, Raw::Status(s), self.limits.metadata))
+            }
             _ => Err(SftpError::Protocol(format!("{what}: a reply of the wrong type"))),
         }
     }

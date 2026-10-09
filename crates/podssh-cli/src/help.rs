@@ -216,7 +216,7 @@ pub fn verb_notes(verb: &Verb) -> String {
         s.push_str("-P on ssh is OpenSSH's Tag, not a port, and is ignored. On scp and\n");
         s.push_str("  sftp, -P is the port. The meaning is per-verb.\n");
     }
-    if verb.name == "cp" || verb.name == "mv" {
+    if matches!(verb.name, "cp" | "mv" | "scp" | "sftp") {
         s.push('\n');
         s.push_str("-P here is the port, as on scp and sftp. On ssh it is a Tag.\n");
     }
@@ -229,7 +229,8 @@ pub fn verb_notes(verb: &Verb) -> String {
 pub fn usage_tail(verb: &Verb) -> &'static str {
     match verb.name {
         "ssh" => "[OPTIONS] [--] [user@]host [COMMAND...]",
-        "cp" | "mv" => "[OPTIONS] SRC... DST",
+        "cp" | "mv" | "scp" => "[OPTIONS] SRC... DST",
+        "sftp" => "[OPTIONS] DESTINATION",
         "chat" => "[OPTIONS] [CHANNEL] [MESSAGE]",
         "man" => "[OPTIONS] [SECTION]",
         "relay" => "[OPTIONS] SUBCOMMAND NAME",
@@ -311,7 +312,7 @@ mod tests {
     fn help_prints_an_alias_beside_its_verb() {
         let h = top_level_help();
         assert!(h.contains("aliases: irc"), "{h}");
-        assert!(h.contains("aliases: scp, sftp"), "{h}");
+        assert!(h.contains("aliases: ssh-keygen"), "{h}");
     }
 
     #[test]

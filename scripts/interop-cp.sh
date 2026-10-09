@@ -256,6 +256,9 @@ no_part "cp by exec"
 # podssh mv, while these servers run (T-138).
 # shellcheck source=scripts/interop-mv.sh
 . "$HERE/interop-mv.sh"
+# podssh scp and podssh sftp (T-139).
+# shellcheck source=scripts/interop-sftp.sh
+. "$HERE/interop-sftp.sh"
 # A copy that goes on after a broken connection (T-136).
 # shellcheck source=scripts/interop-resume.sh
 . "$HERE/interop-resume.sh"

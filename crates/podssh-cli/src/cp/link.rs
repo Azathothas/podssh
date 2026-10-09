@@ -95,10 +95,28 @@ pub async fn connect(resolved: &Resolved, log: &Arc<Log>) -> Result<Link, Failed
     }
 }
 
-/// Connect to `resolved`'s server and open the road of its files. With no
-/// SFTP, `exec` probes for a copy by exec, and says so once; without it the
-/// answer is `None`.
-pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Option<Link>, Failed> {
+/// Connect to `resolved`'s server for SFTP only, on the subsystem `name`
+/// (`podssh sftp`, `-s NAME`).
+pub async fn open_sftp(resolved: &Resolved, log: &Arc<Log>, name: &str) -> Result<Link, Failed> {
+    let (handles, relay) = hops(resolved, log).await?;
+    let handle = handles.last().expect("the destination's connection");
+    let host = &resolved.options.destination.host;
+    match Sftp::open_named(handle, name, Limits::default()).await {
+        Ok(sftp) => Ok(Link { handles, road: Road::Sftp(sftp), meter: Meter::new(relay) }),
+        Err(e) => {
+            podssh_ssh::run::disconnect_all(&handles).await;
+            let why = match e {
+                SftpError::NoSftp => format!("{host} has no {name} subsystem"),
+                e => format!("{host}: {e}"),
+            };
+            Err(Failed::new(Fault::RelayUnreachable, why))
+        }
+    }
+}
+
+/// The connection to `resolved`'s server, each hop logged in, and the relay
+/// leg's status when the relay carries it.
+async fn hops(resolved: &Resolved, log: &Arc<Log>) -> Result<(Vec<Connection>, Option<RelayStatus>), Failed> {
     let reached = match crate::ssh::transport::reach(resolved, log).await {
         Ok(reached) => reached,
         Err(not) => {
@@ -110,6 +128,14 @@ pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Opt
         }
     };
     let handles = podssh_ssh::run::connect_hops(reached.stream, &resolved.options, log).await.map_err(hop_failure)?;
+    Ok((handles, reached.relay))
+}
+
+/// Connect to `resolved`'s server and open the road of its files. With no
+/// SFTP, `exec` probes for a copy by exec, and says so once; without it the
+/// answer is `None`.
+pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Option<Link>, Failed> {
+    let (handles, relay) = hops(resolved, log).await?;
     let handle = handles.last().expect("the destination's connection");
     let host = &resolved.options.destination.host;
     let road = match Sftp::open(handle, Limits::default()).await {
@@ -134,7 +160,7 @@ pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Opt
             return Err(Failed::new(Fault::RelayUnreachable, format!("{host}: {e}")));
         }
     };
-    Ok(Some(Link { handles, road, meter: Meter::new(reached.relay) }))
+    Ok(Some(Link { handles, road, meter: Meter::new(relay) }))
 }
 
 /// The fault of a sysexits code that `transport::reach` gave.

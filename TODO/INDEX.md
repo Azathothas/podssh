@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**257 entries: 163 open, 0 partial, 8 blocked, 86 done.**
+**257 entries: 162 open, 0 partial, 8 blocked, 87 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 80 | 0 | 4 | 64 | 148 |
+| P2 | 79 | 0 | 4 | 65 | 148 |
 | P3 | 81 | 0 | 4 | 14 | 99 |
-| **All** | 163 | 0 | 8 | 86 | 257 |
+| **All** | 162 | 0 | 8 | 87 | 257 |
 
 ## Entries
 
@@ -212,7 +212,7 @@ repository and CI).
 | [T-136](copy.md) | P2 | M | M5 | feature | done | `podssh cp` continues from an offset after a drop |
 | [T-137](copy.md) | P2 | M | M5 | feature | done | `podssh cp` opens a new relay session before the relay's limits |
 | [T-138](copy.md) | P2 | S | M5 | feature | done | `podssh mv`: copy, verify, delete, and say first that it is not atomic |
-| [T-139](copy.md) | P2 | L | M5 | feature | open | `podssh scp` and `podssh sftp` with the command lines of OpenSSH |
+| [T-139](copy.md) | P2 | L | M5 | feature | done | `podssh scp` and `podssh sftp` with the command lines of OpenSSH |
 | [T-140](copy.md) | P3 | M | backlog | feature | open | Pipelined SFTP |
 | [T-141](copy.md) | P3 | M | backlog | feature | open | Parallel transfer in chunks |
 | [T-142](copy.md) | P3 | L | backlog | feature | open | Delta copy: only the blocks that changed |

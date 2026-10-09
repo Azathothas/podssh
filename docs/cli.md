@@ -235,6 +235,37 @@ SFTP, through the relay or with `--direct`, with the connection flags of
 - `--jsonl` adds `"source_removed"` to each `done` object; a rename has no
   digest (`"sha256": null`) and `"verified_by": "rename"`.
 
+## `podssh scp` and `podssh sftp`
+
+Each takes the command line of OpenSSH's own (`crates/podssh-cli/src/flags/scp.rs`,
+`crates/podssh-cli/src/sftp/`), and copies as `cp` does: over SFTP (or by
+exec for `scp`), under a temporary name, verified by its digest, then
+renamed.
+
+- **Each letter of OpenSSH 10.3p1's usage parses**: supported, accepted
+  with no effect (`scp -3`, `-s`, `-T`; `sftp -a`, `-f`, `-N`), or refused
+  by name with what to use instead. `-s`, `-R` and `-B` are switches on
+  `scp` and take a value on `sftp`, so each verb has its own table.
+  `scp -B` is `BatchMode=yes`; `sftp -s NAME` names the subsystem.
+- **A URI operand**, `scp://[user@]host[:port][/path]` (or `sftp://`), is
+  read as OpenSSH's `parse_uri` reads it: the path after the first `/` is
+  under the login directory, `//` makes it absolute, the user and the path
+  are percent-decoded, and the port is that operand's own. `cp` and `mv`
+  take URIs too.
+- **No `--timeout`**, as OpenSSH's have none; each wait of a copy has its
+  own limit. Usage errors are 64 where OpenSSH gives 1.
+- **`sftp -b FILE`** (`-b -` for stdin) runs each line in order and prints
+  it first; `@` before a command keeps the line from being printed, and `-`
+  keeps its failure from ending the batch. Else, on a terminal, `sftp`
+  asks at a prompt; with no terminal and no `-b` it refuses (64). A
+  destination whose path names a file fetches it and ends.
+- The commands: `get` and `put` (`reget` and `reput` are the same: a copy
+  that broke goes on by itself), `rename`, `rm` (with `*` and `?` in the
+  last name), `mkdir [-p]`, `rmdir`, `ls [-la]`, `cd`, `lcd`, `pwd`,
+  `lpwd`, `chmod`, `df [-hi]` (`statvfs@openssh.com`), `help`, `version`,
+  and `bye`. The local commands (`lls`, `lmkdir`, `!command`) and `ln`,
+  `chown`, `chgrp` are refused by name.
+
 ## `podssh doctor`
 
 `podssh man doctor` gives the checks. The rules behind them:

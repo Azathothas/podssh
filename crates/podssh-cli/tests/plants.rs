@@ -205,9 +205,11 @@ fn plant_a_global_p_rule_would_break_one_verb_or_the_other() {
     assert_eq!(tag.as_deref(), Some("mytag"), "-P on ssh carries its value");
     assert!(refused.is_empty(), "ssh: -P must not be refused");
 
-    // cp, mv, and both aliases: a port. Honoured, no notice, no tag.
-    for spelling in ["cp", "mv", "scp", "sftp"] {
-        let p = parse(args(&[spelling, "-P", "2222", "a", "b"]));
+    // cp, mv, scp and sftp: a port. Honoured, no notice, no tag.
+    for (spelling, operands) in [("cp", &["a", "b"][..]), ("mv", &["a", "b"]), ("scp", &["a", "b"]), ("sftp", &["h"])] {
+        let mut words = vec![spelling, "-P", "2222"];
+        words.extend_from_slice(operands);
+        let p = parse(args(&words));
         let Parsed::Command { refused, tag, .. } = &p else { panic!("{spelling}: {p:?}") };
         assert!(refused.is_empty(), "{spelling}: -P is the port and must be honoured");
         assert_eq!(tag, &None, "{spelling}: -P is a port here, not a Tag");
@@ -352,8 +354,8 @@ fn the_control_every_documented_alias_still_resolves() {
     for (spelling, want) in [
         ("irc", "chat"),
         ("chat", "chat"),
-        ("scp", "cp"),
-        ("sftp", "cp"),
+        ("scp", "scp"),
+        ("sftp", "sftp"),
         ("cp", "cp"),
         ("mv", "mv"),
         ("connect", "ssh"),

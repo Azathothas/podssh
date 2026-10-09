@@ -51,6 +51,7 @@ pub mod refuse;
 pub mod relay_cmd;
 pub mod relay_settings;
 pub mod relay_spec;
+pub mod sftp;
 pub mod ssh;
 pub mod status;
 pub mod suggest;

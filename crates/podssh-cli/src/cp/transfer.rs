@@ -75,14 +75,14 @@ fn failed(fault: Fault, message: String) -> Failed {
 /// Which side a failure is on: a source that cannot be read, or a
 /// destination that cannot be written.
 #[derive(Clone, Copy)]
-pub(super) enum Side {
+pub(crate) enum Side {
     Source,
     Destination,
 }
 
 /// The failure of an SFTP step: a status on a path names the side; a step
 /// with no answer, or a session that broke, is a fault of the session.
-pub(super) fn from_sftp(e: SftpError, side: Side) -> Failed {
+pub(crate) fn from_sftp(e: SftpError, side: Side) -> Failed {
     let fault = match (&e, side) {
         (SftpError::Status { .. }, Side::Source) => Fault::NoInput,
         (SftpError::Status { .. }, Side::Destination) => Fault::CantCreate,
@@ -155,7 +155,7 @@ pub(super) async fn remote_target(sftp: &Sftp, dest: &str, name: &str, many: boo
 }
 
 /// `path` split into its directory, with its last `/`, and its name.
-pub(super) fn split_remote(path: &str) -> (&str, &str) {
+pub(crate) fn split_remote(path: &str) -> (&str, &str) {
     match path.rfind('/') {
         Some(i) => (&path[..=i], &path[i + 1..]),
         None => ("", path),

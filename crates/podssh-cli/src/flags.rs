@@ -236,7 +236,9 @@ pub const SSH_FLAGS: &[FlagRow] = &[
 
 // `cp`, `mv` and their aliases: their table is in `flags/copy.rs`.
 mod copy;
+mod scp;
 pub use copy::CP_FLAGS;
+pub use scp::{SCP_FLAGS, SFTP_FLAGS};
 
 /// **`chat` and its `irc` alias.** `--jsonl` and `--timeout` feed the gate of runs
 /// with no terminal, and appear in the tree because a flag that does not parse cannot be refused.
@@ -404,8 +406,12 @@ pub const VERBS: &[Verb] = &[
         about: "reverse mode, operator side: raw bytes to a named node" },
     Verb { name: "chat", aliases: &["chat", "irc"], flags: CHAT_FLAGS,
         about: "the IRC client" },
-    Verb { name: "cp", aliases: &["cp", "scp", "sftp"], flags: CP_FLAGS,
+    Verb { name: "cp", aliases: &["cp"], flags: CP_FLAGS,
         about: "copy files to or from a remote host" },
+    Verb { name: "scp", aliases: &["scp"], flags: SCP_FLAGS,
+        about: "copy files with the command line of OpenSSH's scp" },
+    Verb { name: "sftp", aliases: &["sftp"], flags: SFTP_FLAGS,
+        about: "file commands on a host, from a batch or at a prompt, as OpenSSH's sftp" },
     Verb { name: "mv", aliases: &["mv"], flags: CP_FLAGS,
         about: "move files; across hosts this is a copy and a delete" },
     Verb { name: "man", aliases: &["man"], flags: MAN_FLAGS,

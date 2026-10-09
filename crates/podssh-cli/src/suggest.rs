@@ -307,8 +307,9 @@ mod tests {
     fn every_alias_resolves_to_its_canonical_name() {
         assert_eq!(canonical_name("irc"), Some("chat"));
         assert_eq!(canonical_name("chat"), Some("chat"));
-        assert_eq!(canonical_name("scp"), Some("cp"));
-        assert_eq!(canonical_name("sftp"), Some("cp"));
+        // scp and sftp are verbs of their own since T-139.
+        assert_eq!(canonical_name("scp"), Some("scp"));
+        assert_eq!(canonical_name("sftp"), Some("sftp"));
         assert_eq!(canonical_name("connect"), Some("ssh"));
         assert_eq!(canonical_name("nope"), None);
     }

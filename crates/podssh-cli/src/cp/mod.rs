@@ -20,15 +20,15 @@
 //! environment. With several files, the first failure's code.
 
 pub mod byexec;
-mod bysftp;
+pub(crate) mod bysftp;
 mod digest;
-mod link;
+pub(crate) mod link;
 mod moving;
 pub mod operand;
 pub mod plan;
-mod resume;
+pub(crate) mod resume;
 mod session;
-mod transfer;
+pub(crate) mod transfer;
 
 use std::io::Write;
 use std::sync::Arc;
@@ -57,17 +57,24 @@ pub struct CpArgs {
     pub ssh: SshArgs,
     /// `mv`: each source goes once its copy is verified.
     pub moving: bool,
+    /// The verb that the user typed, for messages: `cp`, `mv` or `scp`.
+    pub verb: &'static str,
 }
 
 impl CpArgs {
-    /// Read the values out of `cp`'s or `mv`'s matches.
-    pub fn from_matches(m: &ArgMatches, moving: bool) -> Self {
+    /// Read the values out of the matches of `verb`: `cp`, `mv` or `scp`.
+    pub fn from_matches(m: &ArgMatches, verb: &'static str) -> Self {
         let paths = if m.try_contains_id("paths").unwrap_or(false) {
             m.get_many::<String>("paths").map(|v| v.cloned().collect()).unwrap_or_default()
         } else {
             Vec::new()
         };
-        CpArgs { paths, ssh: SshArgs::from_matches(m), moving }
+        let mut ssh = SshArgs::from_matches(m);
+        // scp's -B is OpenSSH's BatchMode.
+        if m.try_get_one::<bool>("batch-mode").ok().flatten().copied().unwrap_or(false) {
+            ssh.options.push("BatchMode=yes".into());
+        }
+        CpArgs { paths, ssh, moving: verb == "mv", verb }
     }
 }
 
@@ -82,7 +89,7 @@ struct Outcome {
 
 /// Run `podssh cp` or `podssh mv`; returns the process exit code.
 pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    let verb = if args.moving { "mv" } else { "cp" };
+    let verb = args.verb;
     let plan = match plan::plan(&args.paths, cfg!(windows)) {
         Ok(plan) => plan,
         Err(why) => {
@@ -100,6 +107,10 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     let resolve_for = |server: &Remote| {
         let mut ssh = args.ssh.clone();
         ssh.destination = Some(server.destination());
+        // A URI's port is that operand's own, over -P (T-139).
+        if let Some(port) = server.port {
+            ssh.port = Some(port.to_string());
+        }
         resolve::resolve_or_refuse(&ssh, &Env::from_process())
     };
     let servers: Vec<Remote> = match (&plan.sources[0], &plan.destination) {

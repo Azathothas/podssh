@@ -9,6 +9,8 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "ssh" => SSH,
         "cp" => CP,
         "mv" => MV,
+        "scp" => SCP,
+        "sftp" => SFTP,
         "proxy" => PROXY,
         "node" => NODE,
         "operator" => OPERATOR,
@@ -92,6 +94,27 @@ const CP: &[&str] = &[
      backoff between them. A refused login, or a host key other than the first connection's, ends it. \
      The same command run again goes on too while the source is as it was: a private side file in the \
      cache directories keeps the offset, never a byte of the file. The digest covers the whole file.",
+];
+
+const SCP: &[&str] = &[
+    "podssh scp takes the command line of OpenSSH's scp, and copies as podssh cp does: over SFTP, or by \
+     exec when the server has no SFTP; under a temporary name, verified by its digest, then renamed. Each \
+     letter of OpenSSH's usage parses: -B is BatchMode=yes, -3, -s and -T are accepted and change \
+     nothing, and the others that podssh does not carry are refused by name. An operand can be a URI, \
+     scp://[user@]host[:port][/path]: its path is under the login directory, and // makes it absolute. \
+     podssh scp takes no flag for a time limit, as OpenSSH's takes none; each wait of a copy has its own.",
+];
+
+const SFTP: &[&str] = &[
+    "podssh sftp takes the command line of OpenSSH's sftp. With -b FILE, or -b - for stdin, it runs the \
+     commands of FILE in order and prints each line first; a line that starts with @ is not printed, and \
+     one that starts with - does not end the batch when it fails. Else, on a terminal, it asks at a \
+     prompt; with no terminal and no -b it refuses (exit 64). A destination with the path of a file \
+     fetches that file and ends; one with a directory starts there.",
+    "The commands: get and put (with reget and reput, which are the same), rename, rm (with * and ? in \
+     the last name), mkdir [-p], rmdir, ls [-la], cd, lcd, pwd, lpwd, chmod, df [-hi], help, version, and \
+     bye, exit or quit. get and put copy as podssh cp does. The exit code is that of the first command \
+     that ends the batch, as for podssh cp; a usage error is 64 where OpenSSH gives 1.",
 ];
 
 const MV: &[&str] = &[
