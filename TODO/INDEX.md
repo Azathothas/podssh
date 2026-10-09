@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**252 entries: 189 open, 0 partial, 8 blocked, 55 done.**
+**252 entries: 188 open, 0 partial, 8 blocked, 56 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 99 | 0 | 4 | 42 | 145 |
+| P2 | 98 | 0 | 4 | 43 | 145 |
 | P3 | 88 | 0 | 4 | 5 | 97 |
-| **All** | 189 | 0 | 8 | 55 | 252 |
+| **All** | 188 | 0 | 8 | 56 | 252 |
 
 ## Entries
 
@@ -277,7 +277,7 @@ repository and CI).
 | [T-203](robustness.md) | P2 | M | M6 | chore | open | The fault-injection harness: latency, jitter, bandwidth, a new address |
 | [T-204](repo.md) | P2 | M | none | chore | done | Adopt the todo model, with a Rust checker in the gate |
 | [T-205](repo.md) | P2 | S | none | chore | open | Dependabot for cargo, GitHub Actions and the build image (GitHub #27) |
-| [T-206](repo.md) | P2 | S | none | chore | open | B7: the build image is not pinned to a digest |
+| [T-206](repo.md) | P2 | S | none | chore | done | B7: the build image is not pinned to a digest |
 | [T-207](repo.md) | P3 | S | none | chore | open | B8: `scripts/dev.sh` has about 600 lines |
 | [T-208](repo.md) | P2 | S | none | chore | open | A changelog from the commits, and release notes from it (GitHub #27) |
 | [T-209](repo.md) | P2 | S | none | chore | open | Secret scanning with TruffleHog in CI (GitHub #27) |

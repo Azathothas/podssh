@@ -307,7 +307,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:214-217`): a proxy head that never ends stops at
+   (`docs/development.md:226-229`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -437,14 +437,14 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 73-182 (`docs/STATUS.md:186-203`, 14 of 14 since T-236).
+  checks are at lines 73-182 (`docs/STATUS.md:187-204`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:241`, enforced at
   `crates/podssh-ssh/src/run.rs:138-143`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability
-  (`.github/workflows/build.yml:59-65`).
+  (`.github/workflows/build.yml:65-71`).
 
 ## Approach
 
@@ -465,7 +465,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate,
-   `docs/development.md:116-122`) and the faults table of docs/STATUS.md.
+   `docs/development.md:128-134`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 

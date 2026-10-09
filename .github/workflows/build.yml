@@ -10,10 +10,6 @@ on:
   pull_request:
   workflow_dispatch:
 
-env:
-  # Must equal PODSSH_BUILD_IMAGE in scripts/dev.sh.
-  BUILD_IMAGE: docker.io/library/rust:1-alpine
-
 permissions:
   contents: read
 
@@ -24,6 +20,16 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
+
+      # The one place that names the build image, pinned to a digest.
+      - name: the build image
+        run: |
+          set -eu
+          ref=$(tr -d '\r' < .github/images/build/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
+          case "$ref" in
+            *@sha256:*) echo "BUILD_IMAGE=$ref" >> "$GITHUB_ENV" ;;
+            *) echo ".github/images/build/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
+          esac
 
       # Resolve python by running it: a name that prints no version is not an
       # interpreter, and a check that did not run is not a pass.

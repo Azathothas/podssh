@@ -74,7 +74,7 @@ if ! command -v cmake >/dev/null 2>&1; then
         apk add --no-cache cmake make perl >/dev/null || exit 71
     else
         echo "ts-derp-prove: cmake is missing and there is no apk to install it." >&2
-        echo "ts-derp-prove: this script expects the build image (rust:1-alpine)." >&2
+        echo "ts-derp-prove: this script expects the build image (.github/images/build/Dockerfile)." >&2
         exit 71
     fi
 fi

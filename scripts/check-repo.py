@@ -8,6 +8,9 @@
      credential (a relay token or a Tailscale key with a real-looking secret,
      or a private key block with a body).
   4. Shell scripts use LF line endings (dash rejects CRLF; bash -n does not).
+  5. Each image that builds or tests podssh is named in one place, a
+     Dockerfile of .github/images/, pinned to a digest; no workflow and no
+     script names one by its tag.
 
 Run it from anywhere: `python scripts/check-repo.py`. Read the exit code
 directly, not through a pipe.
@@ -43,6 +46,13 @@ TS_KEY = re.compile(r"tskey-(?:auth|client|api)-[A-Za-z0-9]{6,}-[A-Za-z0-9]{16,}
 PRIVATE_KEY = re.compile(
     r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----\r?\n(?:[A-Za-z0-9+/=:\-]*\r?\n)?(?:[A-Za-z0-9+/=]{60,}\r?\n){3}"
 )
+
+
+# The one place of each image: one FROM line, pinned to an @sha256: digest.
+IMAGES = ROOT / ".github" / "images"
+PINNED_FROM = re.compile(r"^FROM\s+\S+@sha256:[0-9a-f]{64}\s*$")
+# An image of these, named by a tag, as a workflow or a script would pull it.
+IMAGE_BY_TAG = re.compile(r"\b(?:rust|alpine|python):[0-9][\w.-]*")
 
 
 def git_files() -> list[Path]:
@@ -129,12 +139,41 @@ def check_shell_line_endings() -> list[str]:
     return problems
 
 
+def check_images() -> list[str]:
+    dockerfiles = sorted(IMAGES.glob("*/Dockerfile"))
+    # A check that finds nothing to check does not pass.
+    if not dockerfiles:
+        return [".github/images/: no Dockerfile, so no image is pinned"]
+    problems = []
+    for path in dockerfiles:
+        rel = path.relative_to(ROOT).as_posix()
+        lines = [
+            line
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+        if len(lines) != 1 or not PINNED_FROM.match(lines[0]):
+            problems.append(f"{rel}: one FROM line, the image pinned to @sha256: and 64 hex digits")
+    for path in git_files():
+        rel = path.relative_to(ROOT).as_posix()
+        scanned = rel.startswith(".github/workflows/") or (rel.startswith("scripts/") and path.suffix == ".sh")
+        if not scanned or not path.is_file():
+            continue
+        for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if line.lstrip().startswith("#"):
+                continue
+            if IMAGE_BY_TAG.search(line):
+                problems.append(f"{rel}:{line_no}: names an image by its tag; read it from .github/images/")
+    return problems
+
+
 def main() -> int:
     checks = [
         ("source files at most 500 lines", check_file_size),
         ("doc links resolve", check_links),
         ("no credential-shaped strings", check_secrets),
         ("shell scripts are LF", check_shell_line_endings),
+        ("each image is pinned, in one place", check_images),
     ]
     failed = False
     for name, check in checks:

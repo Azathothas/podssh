@@ -19,9 +19,6 @@ on:
 permissions:
   contents: read
 
-env:
-  BUILD_IMAGE: docker.io/library/rust:1-alpine
-
 jobs:
   linux:
     name: linux ${{ matrix.target }}
@@ -37,6 +34,15 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+      # The one place that names the build image, pinned to a digest.
+      - name: the build image
+        run: |
+          set -eu
+          ref=$(tr -d '\r' < .github/images/build/Dockerfile | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
+          case "$ref" in
+            *@sha256:*) echo "BUILD_IMAGE=$ref" >> "$GITHUB_ENV" ;;
+            *) echo ".github/images/build/Dockerfile names no image pinned to a digest" >&2; exit 1 ;;
+          esac
       - name: build (static musl, in the gate's image)
         run: |
           docker run --rm -v "$PWD:/work" -w /work \

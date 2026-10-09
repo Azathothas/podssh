@@ -97,13 +97,13 @@ Read:
 - Measured with grep on `HEAD`: `Cargo.lock` holds 478 packages, 438 of them
   from crates.io, and no git source.
 - The workflows use four actions, each by a major tag:
-  `actions/checkout@v5` (`.github/workflows/build.yml:26`),
-  `actions/upload-artifact@v7` (`.github/workflows/build.yml:94`),
-  `actions/download-artifact@v8` (`.github/workflows/release.yml:116`) and
-  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:76`).
+  `actions/checkout@v5` (`.github/workflows/build.yml:22`),
+  `actions/upload-artifact@v7` (`.github/workflows/build.yml:100`),
+  `actions/download-artifact@v8` (`.github/workflows/release.yml:122`) and
+  `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:82`).
 - The build image is a variable in two workflows and in a shell script
-  (`.github/workflows/build.yml:15`, `.github/workflows/release.yml:23`,
-  `scripts/dev.sh:60`). Dependabot's docker ecosystem reads the `FROM` lines
+  (`.github/workflows/build.yml` line 15, `.github/workflows/release.yml` line 23 and
+  `scripts/dev.sh` line 60 at `e1ba5ba`). Dependabot's docker ecosystem reads the `FROM` lines
   of Dockerfiles, not such variables (from GitHub's documentation as known;
   to verify).
 - `vendor/tailscale-rs` has its own `Cargo.lock`, and its patches apply to a
@@ -157,7 +157,7 @@ defect: write `package-ecosystem: cargoo`; the schema check must fail.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -171,15 +171,15 @@ for example with new lints (T-215).
 
 Read:
 
-- The reference is written in three places: `.github/workflows/build.yml:15`
+- The reference is written in three places: `.github/workflows/build.yml` line 15 at `e1ba5ba`
   (line 14 says that it must equal the one in `scripts/dev.sh`),
-  `.github/workflows/release.yml:23` and `scripts/dev.sh:60`. No check makes
+  `.github/workflows/release.yml` line 23 and `scripts/dev.sh` line 60, both at `e1ba5ba`. No check makes
   them equal.
 - The release builds aarch64 on an arm64 runner
-  (`.github/workflows/release.yml:34-35`). So the pin must be the digest of
+  (`.github/workflows/release.yml:31-32`). So the pin must be the digest of
   the multi-platform index, not the digest of one platform's image.
 - The box uses two more moving tags, `alpine:3.20` and `python:3.12-alpine`
-  (`scripts/test_in_box.sh:39-40`).
+  (`scripts/test_in_box.sh` lines 39-40 at `e1ba5ba`).
 - `scripts/gate.sh:50-53` prints the toolchain of each run, so the logs show
   the drift.
 
@@ -196,9 +196,25 @@ Read:
    digits, and no workflow or script holds a second literal of the image.
 4. Pin the two images of the box the same way.
 5. Measure that wsl-toolkit takes a reference with a digest
-   (`scripts/dev.sh:131` passes it to `--image`): `sh scripts/dev.sh images`.
+   (`scripts/dev.sh:147` passes it to `--image`): `sh scripts/dev.sh images`.
 6. Record the pinned toolchain in docs/STATUS.md ("Build, tests, CI"), and
    name the file in docs/development.md.
+
+## Decision
+
+2026-10-09: the three images live in one directory, each in its own
+Dockerfile of one `FROM` line: `.github/images/build/Dockerfile`,
+`.github/images/box/Dockerfile` and `.github/images/box-proxy/Dockerfile`.
+Dependabot's docker ecosystem (T-205) then takes one directory for each.
+Lost: .github/build-image/Dockerfile alone, as step 2 proposed, with the
+box's two images elsewhere: three places for one kind of fact.
+
+The scripts read the `FROM` line with a small function (`image_of`, in
+`scripts/dev.sh` and `scripts/test_in_box.sh`), which drops a CR and refuses
+a reference with no digest (exit 78); `PODSSH_BUILD_IMAGE` still overrides
+it. The workflows read it in a step of their own. `check-repo.py` skips
+comment lines, so the notes that name `rust:1-alpine` as where a fact was
+measured stay; a line that runs or pulls an image cannot name it by its tag.
 
 ## Prove
 
@@ -214,6 +230,38 @@ a release run takes CI from the work (the operator, 2026-10-08). Planted
 defect: write the literal `rust:1-alpine` back into
 `.github/workflows/release.yml`; `check-repo.py` must exit 1 and name the
 file.
+
+## Done
+
+2026-10-09, in the commit "The build and box images, pinned to digests in
+one place".
+
+- The digests of the three multi-platform indexes, read from Docker Hub's
+  registry on 2026-10-09: `rust:1-alpine` `sha256:0cce0a5e…` (linux/amd64,
+  linux/arm64/v8, ppc64le, riscv64), `alpine:3.20` `sha256:d9e853e8…` and
+  `python:3.12-alpine` `sha256:1b668429…` (each with linux/amd64 and
+  linux/arm64/v8).
+- `.github/workflows/build.yml` and `.github/workflows/release.yml` have no
+  `BUILD_IMAGE` literal; a step reads the Dockerfile into `$GITHUB_ENV`.
+  `scripts/dev.sh` and `scripts/test_in_box.sh` read their images the same
+  way; the help of `dev.sh` and a message of `scripts/ts-derp-prove.sh` name
+  the Dockerfile. `.gitattributes` keeps the Dockerfiles LF.
+- `scripts/check-repo.py`, check 5: each Dockerfile holds one `FROM` pinned
+  to `@sha256:` and 64 hex digits, at least one exists, and no workflow or
+  shell script names an image by its tag outside a comment.
+- Prove: `python scripts/check-repo.py`: ok, 5 checks. `sh scripts/dev.sh
+  images`: exit 0; wsl-toolkit pulled `rust@sha256:0cce0a5e…` and printed
+  rustc 1.99.0 (b940084d7 2026-09-28), cargo 1.99.0, musl. `sh scripts/dev.sh check`: green in the pinned image, 13 min 49 s: each build and test step, interop 103 of 103, the man page in groff and mandoc.
+  `sh scripts/test_in_box.sh` with the gate's binary of `b082b83`: the box built from the pinned `alpine:3.20`, its proxy in the pinned `python:3.12-alpine`; each property of the probe matched, `podssh doctor --full` 30 ok, `scripts/sandbox-check.sh` 7 ok, 0 FAIL, 1 skip; exit 0.
+- Plants, each restored: the literal `docker.io/library/rust:1-alpine`
+  appended to `.github/workflows/release.yml`: check 5 failed and named
+  that file at the appended line (144), exit 1; the digest removed from the
+  build image's Dockerfile: it failed and named that file, exit 1; no
+  Dockerfile at all: it failed ("no image is pinned"), exit 1. The reader of
+  the scripts, on a file with no digest and on a missing file: exit 1 with a
+  message; on a CRLF file: the reference without the CR.
+- The release workflow reads the same pin; its build is checked in the run by
+  hand of M9 (T-251), as the Prove says.
 
 # T-207: B8: `scripts/dev.sh` has about 600 lines
 
@@ -239,18 +287,18 @@ Measured: `wc -l scripts/dev.sh` gives 592.
 
 Read:
 
-- `scripts/check-repo.py:55-65` checks only the Rust files under `crates/`.
-- `scripts/dev.sh:302-313` defines `step`, which nothing calls.
-- The help (`scripts/dev.sh:315-350`) says that the gate builds the default
+- `scripts/check-repo.py:65-75` checks only the Rust files under `crates/`.
+- `scripts/dev.sh:318-329` defines `step`, which nothing calls.
+- The help (`scripts/dev.sh:331-366`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
   and the release with neither (`scripts/gate.sh:63-71`,
   `scripts/gate.sh:117-120`). The help omits the work record, interop, the man
-  page, the C++ plant, and the subcommand `gate` (`scripts/dev.sh:586`).
-- Stale comments: `scripts/dev.sh:55-59` ("the default build"),
-  `scripts/dev.sh:381-388` ("links the fork since 4b", "steps 4-5"),
-  `scripts/dev.sh:446`.
-- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:50-56`);
+  page, the C++ plant, and the subcommand `gate` (`scripts/dev.sh:602`).
+- Stale comments: `scripts/dev.sh:69-73` ("the default build"),
+  `scripts/dev.sh:397-404` ("links the fork since 4b", "steps 4-5"),
+  `scripts/dev.sh:462`.
+- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:56-62`);
   `scripts/check-scripts.py:45-49` finds the scripts under `scripts/` at any
   depth.
 
@@ -309,12 +357,12 @@ previous release, so a change that the notes forget is invisible to a user.
 Read:
 
 - The job `publish` reads the notes from `docs/releases/`, and fails without
-  them (`.github/workflows/release.yml:126-136`).
+  them (`.github/workflows/release.yml:132-142`).
   No notes file exists yet; T-250 writes the first. The notes drafted for a
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
 - `actions/checkout@v5` fetches one commit by default
-  (`.github/workflows/release.yml:115`), which hides the history from a
+  (`.github/workflows/release.yml:121`), which hides the history from a
   generator.
 - Measured: `git rev-list --count HEAD` gives 27, and `git tag -l` gives no
   tag. The subjects are "scope: text" ("podssh ssh: ...", "gate: ...") or
@@ -337,7 +385,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:277-303`): the
+5. docs/development.md, "Release builds" (`docs/development.md:289-315`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -384,8 +432,8 @@ credential that a later commit removed, is not found.
 
 Read:
 
-- `scripts/check-repo.py:32-45` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:100-121` scans the tracked
+- `scripts/check-repo.py:35-48` defines the shapes (a relay token, a Tailscale
+  key, a private key block); `scripts/check-repo.py:110-131` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -453,7 +501,7 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:26-136`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:23-142`).
   The workflow has `contents: read` (lines 19-20); `publish` adds
   `contents: write` (lines 112-113).
 - The KTM tester could not tell from an artifact which commit made it, and
@@ -512,8 +560,8 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:120-125` writes `SHA256SUMS` with
-  `sha256sum`, and `.github/workflows/release.yml:126-136` publishes it with
+- `.github/workflows/release.yml:126-131` writes `SHA256SUMS` with
+  `sha256sum`, and `.github/workflows/release.yml:132-142` publishes it with
   the binaries. No signature is published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
   holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81). `README.md:46-47` gives no step to check a download.
@@ -577,7 +625,7 @@ and the job takes the sum of all the steps.
 
 Read:
 
-- `.github/workflows/build.yml:20-98`: one job, `gate`, with a limit of
+- `.github/workflows/build.yml:16-104`: one job, `gate`, with a limit of
   45 min (line 24). The gate is one `docker run` (lines 58-65); the plant
   (lines 67-73) and the live check (lines 75-92) follow it.
 - `.github/workflows/build.yml:3-5`: CI implements nothing of the gate again.
@@ -585,7 +633,7 @@ Read:
   `scripts/gate.sh:65-166`.
 - `scripts/gate.sh:18-29`: one cargo job for each 3 GiB of free memory.
 - AGENTS.md, section 4: on the operator's machine, one build at a time
-  (`scripts/dev.sh:540-559` holds a lock).
+  (`scripts/dev.sh:556-575` holds a lock).
 
 Not measured: the wall time of a CI run. Measure it with `gh run list` before
 the change.
@@ -653,7 +701,7 @@ sees it.
 Read:
 
 - `docs/STATUS.md:122-136`: the box, measured by hand on 2026-10-08.
-- `scripts/test_in_box.sh:179-182`: the box runs `probe.sh`, then
+- `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-188` prints the exit code of each step and does
@@ -661,9 +709,9 @@ Read:
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:129`).
 - The box needs a static binary; CI uploads one
-  (`.github/workflows/build.yml:94-98`).
-- The box uses `--disable-dns` (`scripts/test_in_box.sh:99`) and a mask on
-  `/dev/pts` (`scripts/test_in_box.sh:167`). Nobody measured the Podman of a
+  (`.github/workflows/build.yml:100-104`).
+- The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
+  `/dev/pts` (`scripts/test_in_box.sh:180`). Nobody measured the Podman of a
   GitHub runner with them.
 - The box reaches the live relay and `github.com` through its proxy.
 
@@ -681,12 +729,12 @@ Read:
 4. Pin the images of the box with the build image (T-206).
 5. Credentials: the box mints a token and never prints it
    (`scripts/sandbox-check.sh:2-4`). Before the job is required, scan its
-   first log with the token pattern of `scripts/check-repo.py:36`.
+   first log with the token pattern of `scripts/check-repo.py:39`.
 6. docs/STATUS.md (the box section) cites the CI run; docs/development.md says
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:158`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:159`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -721,7 +769,7 @@ so the job of this entry must have both; nobody measured a runner for them.
 # T-214: CI on Windows
 
 **Source:** the triage of GitHub #27 (2026-10-08). Windows is a released
-platform (`.github/workflows/release.yml:65-106`).
+platform (`.github/workflows/release.yml:71-112`).
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -740,11 +788,11 @@ machine.
 
 Read:
 
-- `.github/workflows/build.yml:21-23`: one job, on `ubuntu-latest`.
-- `.github/workflows/release.yml:65-106`: the Windows job installs NASM
+- `.github/workflows/build.yml:17-19`: one job, on `ubuntu-latest`.
+- `.github/workflows/release.yml:71-112`: the Windows job installs NASM
   (line 76), builds, and checks for C runtime DLLs (lines 86-101); it runs no
   test.
-- `docs/STATUS.md:229`: the default tests pass on Windows, run by hand.
+- `docs/STATUS.md:230`: the default tests pass on Windows, run by hand.
   `docs/STATUS.md:69`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
 - `scripts/interop-conpty.py:217-261` needs a server with a POSIX shell,
@@ -900,7 +948,7 @@ Read:
   CDLA-Permissive-2.0; russh 0.64.1 Apache-2.0.
 - BSD-3-Clause and Apache-2.0 ask that a binary copy carries the notices. The
   release publishes the binaries and `SHA256SUMS` only
-  (`.github/workflows/release.yml:120-136`).
+  (`.github/workflows/release.yml:126-142`).
 - The fork already has a configuration for cargo-deny
   (`vendor/tailscale-rs/deny.toml:1-35`): an allow list of licenses, one
   ignored advisory with its reason, crates.io only.
@@ -1031,11 +1079,11 @@ with a C toolchain for aws-lc.
 
 Read:
 
-- `.github/workflows/release.yml:31-35`: x86_64 and aarch64 musl, each on a
-  native runner in `rust:1-alpine`. `.github/workflows/release.yml:65-106`:
+- `.github/workflows/release.yml:28-32`: x86_64 and aarch64 musl, each on a
+  native runner in `rust:1-alpine`. `.github/workflows/release.yml:71-112`:
   Windows x86_64 with a static C runtime.
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
-  (`.github/workflows/release.yml:46-53`), `dumpbin /dependents` on Windows
+  (`.github/workflows/release.yml:52-59`), `dumpbin /dependents` on Windows
   (lines 86-101).
 - The binary needs a C compiler for aws-lc (`docs/development.md:11-13`); the
   library crates need none.
@@ -1070,7 +1118,7 @@ Recommendation: build each new Linux target in the image family of the gate
 under QEMU, where that image exists for the platform, so that there is one
 toolchain. `cross` and `cargo-zigbuild` lost: each brings a second C
 toolchain that the gate never judged. Measure the build time first: QEMU is
-slow, and the job limit is 60 min (`.github/workflows/release.yml:37`).
+slow, and the job limit is 60 min (`.github/workflows/release.yml:34`).
 
 ## Prove
 
@@ -1109,11 +1157,11 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:93-95` states the rule with `CXX`, and
-  `docs/STATUS.md:235` records the measurement. Rule 4 of
+- `docs/development.md:105-107` states the rule with `CXX`, and
+  `docs/STATUS.md:237` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
-- `.github/workflows/build.yml:67-73` runs the plant on each push.
+- `.github/workflows/build.yml:73-79` runs the plant on each push.
 
 ## Approach
 
@@ -1141,7 +1189,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:235`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:237`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1170,13 +1218,13 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:57`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:67`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56; the walk is at 57
   now.)
-- `scripts/check-repo.py:68-97`, `scripts/check-repo.py:100-121` and
-  `scripts/check-repo.py:124-129`: the links, the credentials and the line
+- `scripts/check-repo.py:78-107`, `scripts/check-repo.py:110-131` and
+  `scripts/check-repo.py:134-139`: the links, the credentials and the line
   endings have no floor either.
-- `scripts/check-repo.py:132-146`: `main` passes when each list of problems is
+- `scripts/check-repo.py:170-185`: `main` passes when each list of problems is
   empty.
 - The model of a floor: `crates/podssh-relay/tests/default_relay.rs:54`
   asserts that the sweep read more than 20 files.
@@ -1196,7 +1244,7 @@ Read:
 3. A plant in the same script: a mode `--plant-empty` runs the checks on an
    empty temporary directory and must exit 1. The control is the real tree,
    which must exit 0. CI runs both, as it does for the relay check
-   (`.github/workflows/build.yml:80-92`).
+   (`.github/workflows/build.yml:86-98`).
 4. With T-207: the size check also reads `scripts/`, with its own floor.
 5. The checker of `TODO/` gets its own floor in its own change; this entry
    does not plan it.
@@ -1241,7 +1289,7 @@ listener when the user asks for it and a probe at run time allows the bind
 (T-038, T-039, T-124, T-186, and `podssh agent` in T-034); Q10 allows a race
 of relay hosts (T-220), more than one outbound connection for a moment, which
 is not a listener.
-`scripts/check-repo.py:132-138` has four checks, and none reads a socket
+`scripts/check-repo.py:170-177` has four checks, and none reads a socket
 call; `scripts/plant.sh` plants C and C++ only.
 
 Measured with grep over `git ls-files 'crates/*'`: three files hold a
@@ -1325,7 +1373,7 @@ Measured with Python over the tracked files outside `vendor/`:
   `scripts/ts-derp-prove.sh` (4), `scripts/check-scripts.py` (7),
   `scripts/check-relay-spec.py` (2) and `.gitattributes` (6). Other markers:
   U+26A0 (7, in podssh-transport), U+2B50 (3, in podssh-terminal), U+1F6D8
-  (`scripts/dev.sh:179-189`).
+  (`scripts/dev.sh:195-205`).
 - 340 markers are in string literals: 326 in tests, 14 in `src`, one of them
   in a message for users (crates/podssh-transport/src/backpressure/mod.rs line 157 at `e8bbd4d`).
 - 266 lines in 42 code files hold a line number of a document; 188 lines in
@@ -1418,7 +1466,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:149`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:150`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -1499,7 +1547,7 @@ there.
 
 Read:
 
-- `scripts/dev.sh:99` puts `agents.md` in `EXCLUDES`. The comments above it
+- `scripts/dev.sh:115` puts `agents.md` in `EXCLUDES`. The comments above it
   (lines 66-98) give a reason for each other pattern, not for this one. The
   line is in the first public commit, `9a03102`.
 - `.gitignore` (lines 16-18) keeps a root `/agents.md` out of git, as "a
@@ -1524,7 +1572,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:131-132` lists what the containers do not get; name
+5. `docs/development.md:143-144` lists what the containers do not get; name
    each excluded pattern there.
 
 ## Prove

@@ -28,6 +28,19 @@
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$HERE/.." && pwd)
+# The image that a Dockerfile of .github/images/ names on its FROM line: the
+# one place that names it, pinned to a digest. A CR is dropped, as a checkout
+# on Windows can add one.
+image_of() {
+    _ref=$(tr -d '\r' <"$1" 2>/dev/null | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
+    case $_ref in
+        *@sha256:*) printf '%s\n' "$_ref" ;;
+        *)
+            echo "podssh: $1 names no image pinned to a digest" >&2
+            return 1
+            ;;
+    esac
+}
 BIN=${1:-$REPO/target/x86_64-unknown-linux-musl/release/podssh}
 NET=podssh-box-net
 PROXY=podssh-box-proxy
@@ -36,8 +49,8 @@ TARGET=podssh-box-target
 RUN=${BOX_RUN:-check}
 case $RUN in check | tt) ;; *) echo "test_in_box: BOX_RUN is check or tt, not $RUN" >&2; exit 1 ;; esac
 IMAGE=localhost/podssh-box:2
-BASE_IMAGE=docker.io/library/alpine:3.20
-PROXY_IMAGE=docker.io/library/python:3.12-alpine
+BASE_IMAGE=$(image_of "$REPO/.github/images/box/Dockerfile") || exit 78
+PROXY_IMAGE=$(image_of "$REPO/.github/images/box-proxy/Dockerfile") || exit 78
 PORT=45331
 
 die() {

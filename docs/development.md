@@ -81,12 +81,24 @@ Read each exit code directly. `cmd | tail` gives the exit code of `tail`.
 ## The container gate
 
 ```sh
-sh scripts/dev.sh check    # the host checks, then scripts/gate.sh in rust:1-alpine
+sh scripts/dev.sh check    # the host checks, then scripts/gate.sh in the build image
 sh scripts/dev.sh plant    # shows that the checks for "no C or C++ compiler" work
+sh scripts/dev.sh images   # the build image runs: its uname, rustc and cargo
 sh scripts/dev.sh test -p podssh-core
 sh scripts/dev.sh run -- 'uname -a'
 sh scripts/dev.sh help
 ```
+
+Each image is named in one place, pinned to the digest of its multi-platform
+index: `.github/images/build/Dockerfile` (`rust:1-alpine`, for the gate, CI
+and the release), `.github/images/box/Dockerfile` (`alpine:3.20`, the box and
+its SSH server) and `.github/images/box-proxy/Dockerfile`
+(`python:3.12-alpine`, the box's proxy). The scripts and the workflows read
+their `FROM` line, so two runs of one commit use one compiler, and
+`python scripts/check-repo.py` fails on a second name. To move to a newer
+image, read the digest of its index (`docker buildx imagetools inspect REF`;
+the index must list linux/amd64 and linux/arm64, which the release builds),
+write it into the Dockerfile, and run the gate.
 
 `scripts/gate.sh` is the gate. CI runs the same file in the same image. The
 gate makes sure that:

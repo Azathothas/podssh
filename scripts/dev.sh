@@ -52,12 +52,28 @@ PODSSH_TOOL=${PODSSH_TOOL:-wsl-toolkit}
 PODSSH_PS=${PODSSH_PS:-powershell.exe}
 PODSSH_PS_SCRIPT=${PODSSH_PS_SCRIPT:-powershell.exe}
 
-# The build image. podssh ships a static musl binary, and `rust:1-alpine` is
-# musl with rustc and cargo installed. The image DOES carry a working `cc`
-# (the Tailscale feature needs one), so the no-C rule for the default build is
-# enforced by `CC=/nonexistent` in scripts/gate.sh, and scripts/plant.sh
-# proves that setting is load-bearing.
-PODSSH_BUILD_IMAGE=${PODSSH_BUILD_IMAGE:-docker.io/library/rust:1-alpine}
+# The image that a Dockerfile of .github/images/ names on its FROM line: the
+# one place that names it, pinned to a digest. A CR is dropped, as a checkout
+# on Windows can add one.
+image_of() {
+    _ref=$(tr -d '\r' <"$1" 2>/dev/null | sed -n 's/^FROM[[:space:]]\{1,\}\([^[:space:]]\{1,\}\).*/\1/p')
+    case $_ref in
+        *@sha256:*) printf '%s\n' "$_ref" ;;
+        *)
+            echo "podssh: $1 names no image pinned to a digest" >&2
+            return 1
+            ;;
+    esac
+}
+
+# The build image, from .github/images/build/Dockerfile. podssh ships a static
+# musl binary, and `rust:1-alpine` is musl with rustc and cargo installed. The
+# image DOES carry a working `cc` (the Tailscale feature needs one), so the
+# no-C rule for the default build is enforced by `CC=/nonexistent` in
+# scripts/gate.sh, and scripts/plant.sh proves that setting is load-bearing.
+if [ -z "${PODSSH_BUILD_IMAGE:-}" ]; then
+    PODSSH_BUILD_IMAGE=$(image_of "$REPO_ROOT/.github/images/build/Dockerfile") || exit 78
+fi
 PODSSH_TARGET=${PODSSH_TARGET:-x86_64-unknown-linux-musl}
 # Cargo jobs inside the container. Raise it only on a machine with the memory
 # for it (roughly 3 GB per job for this workspace).
@@ -257,13 +273,13 @@ preflight() {
         cat >&2 <<EOF
 podssh: '$PODSSH_TOOL' is not on PATH, so the container gate cannot run here.
 
-  The gate builds in the rust:1-alpine image so that its result does not
-  depend on what this machine happens to have installed. On Windows this
+  The gate builds in the image of .github/images/build/Dockerfile so that
+  its result does not depend on what this machine happens to have installed. On Windows this
   script drives that container through wsl-toolkit, a single executable
   kept on PATH (usually ~/bin). Anywhere else, run the gate in the image
   directly, as CI does:
 
-    docker run --rm -v "\$PWD:/work" rust:1-alpine sh /work/scripts/gate.sh
+    docker run --rm -v "\$PWD:/work" $PODSSH_BUILD_IMAGE sh /work/scripts/gate.sh
 
   Override the tool with PODSSH_TOOL=/path/to/executable.
 EOF
