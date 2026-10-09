@@ -131,7 +131,7 @@ Read:
   unexpected EOF to one sentence (`crates/podssh-ssh/src/run.rs:268-274`).
   `run` prints it first, and the relay's reason second
   (`crates/podssh-ssh/src/run.rs` lines 38-46 at `80f20bf`,
-  `crates/podssh-ssh/src/relay_stream.rs:40-56`).
+  `crates/podssh-ssh/src/relay_stream.rs:45-61`).
 - The form `HOST: the connection closed unexpectedly` comes only from the
   handshake (`crates/podssh-ssh/src/run.rs` lines 108-122 at `80f20bf`).
   Thus both reported drops happened before the first key exchange ended.
@@ -344,19 +344,19 @@ exit codes of OpenSSH for these paths are not measured.
 Read:
 
 - A channel that closes with no `exit-status` and no `exit-signal` gives 255
-  (`crates/podssh-ssh/src/io.rs:132`, `crates/podssh-ssh/src/session.rs:18-19`,
+  (`crates/podssh-ssh/src/io.rs:154`, `crates/podssh-ssh/src/session.rs:18-19`,
   `crates/podssh-ssh/src/session.rs:102`). A channel that ends with no Close
-  is `Lost`: an error, and 255 (`crates/podssh-ssh/src/io.rs:94`,
+  is `Lost`: an error, and 255 (`crates/podssh-ssh/src/io.rs:116`,
   `crates/podssh-ssh/src/session.rs:103`).
 - A closed stdout (EPIPE) gives the status so far, or 0 when none came
-  (`crates/podssh-ssh/src/io.rs:106-110`).
+  (`crates/podssh-ssh/src/io.rs:128-132`).
 - `-N` gives 0 when the connection ends with no error
   (`crates/podssh-ssh/src/run.rs:137-145`). russh 0.64.1 ends the session with
   no error when the server sends SSH_MSG_DISCONNECT.
 - `-W` gives 0 when the far end closes and when stdout closes
   (`crates/podssh-ssh/src/forward.rs:54-58`), and 255 when the connection
   died (`crates/podssh-ssh/src/forward.rs:76-82`).
-- An exit status above 255 gives 255 (`crates/podssh-ssh/src/io.rs:115-117`).
+- An exit status above 255 gives 255 (`crates/podssh-ssh/src/io.rs:137-139`).
   OpenSSH passes the value to `exit()`, so 256 reads as 0 there. podssh's
   rule is safer, and stays.
 - `docs/cli.md:428` says only that a closed stdout ends the session cleanly.
@@ -407,7 +407,7 @@ logs each `exit-status` request, and correct the row.
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
 lablup/bssh report in GitHub #18, #20 and #22 (item 8, "`@cert-authority`
-rejection"); the known gap in `docs/STATUS.md:274` and `SECURITY.md:98-100`.
+rejection"); the known gap in `docs/STATUS.md:280` and `SECURITY.md:98-100`.
 Each claim read again here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog
@@ -473,7 +473,7 @@ back to the plain key only when no CA line matches.
    (`crates/podssh-cli/src/doctor/clock.rs`).
 6. Keep the test `a_cert_authority_line_does_not_make_a_key_known`: a CA line
    never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:68-70`.
-   When certificates work, change `docs/STATUS.md:274` and `SECURITY.md:98-100`.
+   When certificates work, change `docs/STATUS.md:280` and `SECURITY.md:98-100`.
 
 GitHub #29 notes that the bssh report in #18, #20 and #22 asks podssh to
 keep refusing a certificate that no trusted CA signed. Verification keeps
@@ -838,8 +838,8 @@ acceptable.
    the password only for a prompt that ends the output with no newline after
    it, before M2, and once.
 5. Put the filter in a new module, crates/podssh-ssh/src/elevate.rs. Hook it
-   into `handle_msg` (`crates/podssh-ssh/src/io.rs:104-138`) and the stdin
-   branch (`crates/podssh-ssh/src/io.rs:56-87`), and keep `io.rs` under 500
+   into `handle_msg` (`crates/podssh-ssh/src/io.rs:126-160`) and the stdin
+   branch (`crates/podssh-ssh/src/io.rs:56-109`), and keep `io.rs` under 500
    lines.
 6. Pitfalls: with a NOPASSWD rule, M1 never comes, so no password is sent;
    `-k` makes `sudo` ask also with cached credentials; the remote login shell
@@ -892,8 +892,8 @@ and no player.
 ## Premise
 
 - Read: each output of a session passes `handle_msg`
-  (`crates/podssh-ssh/src/io.rs:104-114`), and each window change passes the
-  resize branch (`crates/podssh-ssh/src/io.rs:96-98`). The size at the start
+  (`crates/podssh-ssh/src/io.rs:126-136`), and each window change passes the
+  resize branch (`crates/podssh-ssh/src/io.rs:118-120`). The size at the start
   is `terminal::size` (`crates/podssh-ssh/src/terminal/mod.rs:54`).
   `podssh-ssh` has no JSON dependency
   (`crates/podssh-ssh/Cargo.toml:17-28`).
@@ -1061,9 +1061,9 @@ Read:
   (`crates/podssh-ws/src/client.rs:34-35`, given to the session at
   `crates/podssh-ws/src/client.rs:178`), and `write` applies it
   (`crates/podssh-ws/src/session.rs:249-259`). Then the copy task stops
-  (`crates/podssh-ssh/src/relay_stream.rs:124-130`), the next ping meets the
+  (`crates/podssh-ssh/src/relay_stream.rs:138-149`), the next ping meets the
   same limit and ends the read task (`crates/podssh-ws/src/session.rs:169-172`,
-  `crates/podssh-ssh/src/relay_stream.rs:136-147`), and russh's next write
+  `crates/podssh-ssh/src/relay_stream.rs:155-166`), and russh's next write
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set
   (`crates/podssh-cli/src/ssh/transport.rs:99-101`,
@@ -1647,3 +1647,75 @@ sh scripts/dev.sh check     # the interop logins, an RSA key among them
 
 Both pass, and no private-key operation of the `rsa` crate is left in the
 source. Planted defect: sign with `RsaKeypair` again; the sweep must fail.
+
+# T-269: A session can wait for ever when its link ends while it sends
+
+**Source:** T-156's controls (2026-10-10): a session of the forward road
+whose relay host stopped in the middle of 20 MiB up and back did not end in
+7 of 54 runs, and said nothing after its login.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A session of `podssh ssh` whose link ends while it sends can wait for ever,
+with no exit and no word, where it should end with 255 and the reason. A
+user sees a session that hangs.
+
+## Premise
+
+Measured: a hung run of the control held no TCP connection (the relay
+host's reset had come through), and `-vv` printed nothing after the login.
+Read at `b62d657`: the session's loop awaited each send of stdin's bytes on
+the channel inside its `select!` (now `crates/podssh-ssh/src/io.rs:64-89`),
+and a send waits for the channel's window; while it waited, the loop read
+none of the channel's messages, which carry the end. And in the relay
+stream, the task that sends stopped reading the pipe when a send failed,
+while the task that receives could wait for russh to read (now
+`crates/podssh-ssh/src/relay_stream.rs:117-206`): russh, which waited on a
+write into the pipe, read nothing, so neither task ended.
+
+## Approach
+
+1. While a send waits, the loop reads the channel's messages, and their
+   end ends the session.
+2. In the relay stream, each task's end with the link stops the other: the
+   pipe closes, and a write of russh's that waits on it fails.
+3. Tests: the relay stream's deadlock (the link breaks while russh writes
+   and does not read; russh's write must fail); a command that exits, and a
+   connection that ends, while the window is spent
+   (`crates/podssh-cli/tests/window_lost.rs`, with `hold` and `quit` of the
+   tests' server); and T-156's control of a stopped relay host, run many
+   times.
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh --lib relay_stream
+cargo test -p podssh-cli --test window_lost
+```
+
+With T-156's checks: its control of a stopped relay host, 40 runs and no
+hang. Plant: the relay stream's receiving task with no stop fails its test.
+
+## Done
+
+2026-10-10. The session's loop reads the channel's messages while a send
+waits for the window (`crates/podssh-ssh/src/io.rs:64-89`), and in the
+relay stream each task's end with the link stops the other
+(`crates/podssh-ssh/src/relay_stream.rs:117-206`).
+- T-156's control of a stopped relay host (the forward road, 20 MiB up and
+  back, the relay host's connections end with RST at 8 MiB; a limit of 60 s
+  for each run): before, 7 of 54 runs never ended; with the loop's change
+  alone, 0 of 40; with both changes, 0 of 70 (30 of them with lines of
+  debugging). Each other run ended with 255 in about 4 s.
+- Native: the relay stream's new test passes, and fails on the planted
+  deadlock (the receiving task with no stop: russh's write did not end
+  within 10 s). `crates/podssh-cli/tests/window_lost.rs`: a command that
+  exits (3) and a connection that ends (255) while the window is spent, 2
+  passed; they pass on the old loop too, as russh wakes a send that waits
+  when a channel or a direct connection ends. `cargo test --workspace`:
+  1069 passed, 0 failed, 30 ignored.

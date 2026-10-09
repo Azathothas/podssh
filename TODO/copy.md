@@ -64,7 +64,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
    extension list for T-134.
 6. Each `SSH_FX_*` status gives a sentence with the path; the server's text
    goes through `podssh_ws::text::one_line`
-   (`crates/podssh-ssh/src/io.rs:125`).
+   (`crates/podssh-ssh/src/io.rs:147`).
 7. No EOF before the last reply. Fail at once on a reply id that no request
    has, and on a `READ` reply longer than its request.
 
@@ -645,8 +645,8 @@ old writer can race the new one.
   IRC, with a budget of 60 MiB and the reason for the margin
   (`crates/podssh-core/src/irc/limits.rs:88-95`).
 - Read: the relay stream sees each payload byte both ways
-  (`crates/podssh-ssh/src/relay_stream.rs:125`,
-  `crates/podssh-ssh/src/relay_stream.rs:150-155`). Each new SSH
+  (`crates/podssh-ssh/src/relay_stream.rs:148`,
+  `crates/podssh-ssh/src/relay_stream.rs:170-182`). Each new SSH
   connection asks again for a passphrase or a password
   (`crates/podssh-ssh/src/keys.rs:188-236`,
   `crates/podssh-ssh/src/auth.rs:231-274`).
@@ -1368,7 +1368,7 @@ uplink of a shared host.
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
   (`crates/podssh-cli/src/flags/copy.rs:27-28`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
-  (`crates/podssh-ssh/src/io.rs:229-262`); no copy code exists yet.
+  (`crates/podssh-ssh/src/io.rs:251-284`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
   `-l limit`. OpenSSH's manual gives the unit as Kbit/s (not read here).
 
@@ -1555,8 +1555,8 @@ which needs support in the terminal client.
 ## Premise
 
 - Read: `podssh ssh` writes the remote output to stdout as it comes
-  (`crates/podssh-ssh/src/io.rs:104-111`) and passes the local keys through
-  the escape filter (`crates/podssh-ssh/src/io.rs:58-87`). Nothing looks
+  (`crates/podssh-ssh/src/io.rs:126-133`) and passes the local keys through
+  the escape filter (`crates/podssh-ssh/src/io.rs:58-109`). Nothing looks
   for a ZMODEM header.
 - Not verified here: ZMODEM escapes its control bytes, so it crosses a pty;
   whether a ZMODEM crate in pure Rust exists and is maintained.

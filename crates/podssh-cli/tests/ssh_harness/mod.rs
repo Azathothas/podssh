@@ -1,9 +1,13 @@
 //! An SSH server on the loopback for the tests of the roads (T-157, T-165,
 //! T-203): a russh server in the test process that lets anyone in and runs
-//! four commands: `greet` prints [`GREETING`]; `source N` sends N bytes;
+//! five commands: `greet` prints [`GREETING`]; `source N` sends N bytes;
 //! `sink` prints `R` as it starts to read, reads stdin to its end, then
 //! prints the count, as `sh -c 'echo R; wc -c'` does on a POSIX server;
-//! `echo` sends stdin back as it comes. Each exits 0.
+//! `echo` sends stdin back as it comes. Each exits 0. `hold` and `quit` take
+//! no input after their first bytes, so the client's window runs out; 2 s
+//! later `hold` ends the connection with no word, and `quit` exits 3 and
+//! closes its channel, as a command that reads no input (`head`, `true`)
+//! does while a large file comes.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -23,11 +27,13 @@ pub const GREETING: &str = "hello over the iroh road\n";
 const BLOCK: usize = 32 * 1024;
 
 /// One connection's handler: the bytes that `sink` has read on each of its
-/// channels, and the channels of `echo`.
+/// channels, and the channels of `echo` and of `hold`.
 #[derive(Default)]
 struct Far {
     sinks: HashMap<ChannelId, u64>,
     echoes: Vec<ChannelId>,
+    holds: Vec<ChannelId>,
+    quits: Vec<ChannelId>,
 }
 
 impl server::Handler for Far {
@@ -81,6 +87,8 @@ impl server::Handler for Far {
                 session.data(channel, b"R\n".as_slice())?;
             }
             (Some("echo"), _) => self.echoes.push(channel),
+            (Some("hold"), _) => self.holds.push(channel),
+            (Some("quit"), _) => self.quits.push(channel),
             _ => {
                 session.data(channel, GREETING.as_bytes())?;
                 session.exit_status_request(channel, 0)?;
@@ -92,6 +100,18 @@ impl server::Handler for Far {
     }
 
     async fn data(&mut self, channel: ChannelId, data: &[u8], session: &mut Session) -> Result<(), Self::Error> {
+        if self.holds.contains(&channel) {
+            // The session's loop waits here: no window adjustment goes out.
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            return Err(russh::Error::Disconnect);
+        }
+        if let Some(at) = self.quits.iter().position(|c| *c == channel) {
+            self.quits.remove(at);
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            session.exit_status_request(channel, 3)?;
+            session.eof(channel)?;
+            session.close(channel)?;
+        }
         if let Some(bytes) = self.sinks.get_mut(&channel) {
             *bytes += data.len() as u64;
         }

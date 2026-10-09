@@ -40,7 +40,7 @@ byte is read as a Close with no code (`session.rs` lines 275-278 at `076e3ce`); 
    `WsError::Frame` when `fin` is clear or the length is over 125. Name the rule in the message.
 2. Refuse a Close payload of 1 byte in the same place.
 3. The read then fails (`crates/podssh-ws/src/session.rs` line 176 at `3b60753`). Today a failed
-   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:170-172`): send 1002 (protocol
+   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:197-199`): send 1002 (protocol
    error) there, as lines 130-137 do for an unexpected frame. `podssh proxy` exits as for a
    broken session.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the new tests in a new file,

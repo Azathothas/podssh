@@ -61,9 +61,31 @@ pub async fn pump(
                         Some(e) => e.feed(&bytes),
                         None => (bytes, Vec::new()),
                     };
-                    if !data.is_empty() && writer.data_bytes(data).await.is_err() {
-                        // The channel is closing; keep reading for its status.
-                        input = None;
+                    if !data.is_empty() {
+                        // The send waits for the channel's window, which a
+                        // connection that ended never opens: the channel's
+                        // messages are read meanwhile, and its end ends this.
+                        let send = writer.data_bytes(data);
+                        tokio::pin!(send);
+                        loop {
+                            tokio::select! {
+                                sent = &mut send => {
+                                    if sent.is_err() {
+                                        // The channel is closing; keep reading for its status.
+                                        input = None;
+                                    }
+                                    break;
+                                }
+                                msg = reader.wait() => match msg {
+                                    Some(m) => {
+                                        if let Some(end) = handle_msg(m, &mut status, log).await {
+                                            return end;
+                                        }
+                                    }
+                                    None => return status.map(End::Status).unwrap_or(End::Lost),
+                                },
+                            }
+                        }
                     }
                     for command in commands {
                         match command {

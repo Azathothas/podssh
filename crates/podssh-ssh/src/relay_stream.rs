@@ -11,6 +11,10 @@
 //! while the relay often says why (an idle cut, the 64 MiB limit, an expired
 //! token). The status also counts the payload bytes both ways, as the relay
 //! counts its cap, so that a copy can open a new session first (T-137).
+//!
+//! When one task ends with the link, it stops the other: russh can wait on a
+//! write into the pipe that only the sending task reads, while the receiving
+//! task waits for russh to read, and neither would see the broken link.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -20,6 +24,7 @@ use podssh_ws::frame;
 use podssh_ws::session::close_code_and_reason;
 use podssh_ws::{RelaySession, SessionError};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream};
+use tokio::sync::Notify;
 
 /// Size of the in-memory pipe in each direction.
 const PIPE: usize = 256 * 1024;
@@ -109,21 +114,35 @@ where
     let status = RelayStatus::default();
     let session = Arc::new(session);
     let (mut from_ssh, mut to_ssh) = tokio::io::split(theirs);
+    // Each task's end with the link stops the other; the pipe then closes,
+    // and a write of russh's that waits on it fails.
+    let up_failed = Arc::new(Notify::new());
+    let down_ended = Arc::new(Notify::new());
 
     let up_session = session.clone();
     let up_status = status.clone();
+    let (up_failed_tx, down_ended_rx) = (up_failed.clone(), down_ended.clone());
     tokio::spawn(async move {
         let mut buf = vec![0u8; CHUNK];
         loop {
-            match from_ssh.read(&mut buf).await {
+            let read = tokio::select! {
+                read = from_ssh.read(&mut buf) => read,
+                () = down_ended_rx.notified() => break,
+            };
+            match read {
                 Ok(0) | Err(_) => {
                     // SSH is done with the connection: close it properly.
                     let _ = up_session.send_close(1000, "").await;
                     break;
                 }
                 Ok(n) => {
-                    if let Err(e) = up_session.send_binary(&buf[..n]).await {
+                    let sent = tokio::select! {
+                        sent = up_session.send_binary(&buf[..n]) => sent,
+                        () = down_ended_rx.notified() => break,
+                    };
+                    if let Err(e) = sent {
                         up_status.set_once(RelayEnd::Failed(e.context("sending failed")));
+                        up_failed_tx.notify_one();
                         break;
                     }
                     up_status.count(n);
@@ -145,13 +164,21 @@ where
                     down_status.set_once(RelayEnd::Failed(reason));
                     break;
                 }
+                () = up_failed.notified() => break,
             };
             match frame {
                 Ok(f) if f.opcode == frame::OPCODE_BINARY => {
                     // An empty frame is the relay's keepalive, not data.
                     down_status.count(f.payload.len());
-                    if !f.payload.is_empty() && to_ssh.write_all(&f.payload).await.is_err() {
-                        break;
+                    if !f.payload.is_empty() {
+                        // russh may not read while it waits on its own write.
+                        let wrote = tokio::select! {
+                            wrote = to_ssh.write_all(&f.payload) => wrote.is_ok(),
+                            () = up_failed.notified() => false,
+                        };
+                        if !wrote {
+                            break;
+                        }
                     }
                 }
                 Ok(f) if f.opcode == frame::OPCODE_CLOSE => {
@@ -173,7 +200,8 @@ where
                 }
             }
         }
-        // End of stream for russh.
+        // End of stream for russh; the sending task stops too.
+        down_ended.notify_one();
         let _ = to_ssh.shutdown().await;
     });
 
@@ -224,5 +252,37 @@ mod tests {
         assert_eq!(back, vec![9u8; 500]);
         assert_eq!(status.bytes(), 1500, "out and in together, no keepalive");
         assert!(status.age() < Duration::from_secs(60));
+    }
+
+    /// The link breaks while russh writes and does not read: the sending
+    /// task fails, and the receiving task, which waits for russh to read what
+    /// came before, must stop too, so that russh's write fails and does not
+    /// wait for ever.
+    #[tokio::test]
+    async fn a_broken_link_ends_a_write_of_russh_that_nobody_reads() {
+        use podssh_ws::frame::{encode, Frame, Role, OPCODE_BINARY};
+        let (ours, mut relay) = tokio::io::duplex(1 << 20);
+        let session = RelaySession::new(ours, Vec::new(), None, Duration::from_secs(30));
+        let (ssh, status) = spawn(session);
+        let (ssh_read, mut ssh_write) = tokio::io::split(ssh);
+        // More than the pipe to russh holds: the receiving task waits.
+        for _ in 0..8 {
+            let frame = Frame { fin: true, opcode: OPCODE_BINARY, payload: vec![1u8; CHUNK] };
+            relay.write_all(&encode(&frame, Role::Server, [0; 4])).await.expect("sent");
+        }
+        // More than the link and the pipe hold, which the relay does not read.
+        let writer = tokio::spawn(async move {
+            let chunk = vec![2u8; CHUNK];
+            while ssh_write.write_all(&chunk).await.is_ok() {}
+        });
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(!writer.is_finished(), "russh's write waits on the full link");
+        drop(relay);
+        tokio::time::timeout(Duration::from_secs(10), writer)
+            .await
+            .expect("russh's write ends once the link broke")
+            .expect("the writer ended");
+        assert!(matches!(status.get(), Some(RelayEnd::Failed(_))), "{:?}", status.get());
+        drop(ssh_read);
     }
 }

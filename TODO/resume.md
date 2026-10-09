@@ -28,7 +28,7 @@ a session id and a 256-bit resume secret, under SSH (`docs/design.md:220-237`),
 in a `session` module of `podssh-relay` (`docs/design.md:123-132`), a crate
 with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
-(`crates/podssh-ssh/src/relay_stream.rs:102-181`). Frame boundaries mean nothing
+(`crates/podssh-ssh/src/relay_stream.rs:107-209`). Frame boundaries mean nothing
 on the relay (`docs/relay.md:65-68`), and the relay reads each record and can
 drop or add frames (`SECURITY.md:33-36`).
 
@@ -58,7 +58,7 @@ drop or add frames (`SECURITY.md:33-36`).
    side ignores a name that it does not know (ssh-obi's model, read in
    GitHub #19, not verified here).
 7. On the client, the layer goes between the pipe and the link, and keeps
-   `RelayStatus` (`crates/podssh-ssh/src/relay_stream.rs:58-100`). Docs: the
+   `RelayStatus` (`crates/podssh-ssh/src/relay_stream.rs:63-105`). Docs: the
    records and the threat model in `docs/design.md` section 5,
    `docs/architecture.md`, the map of `AGENTS.md`, and `docs/STATUS.md`.
 
@@ -102,7 +102,7 @@ unknown session. The gate builds `podssh-relay` with `CC=/nonexistent`.
 ## Correction
 
 Step 7 cites the pipe of the forward road
-(`crates/podssh-ssh/src/relay_stream.rs:58-100`), whose far end is the
+(`crates/podssh-ssh/src/relay_stream.rs:63-105`), whose far end is the
 relay itself: it never speaks the layer, so that pipe keeps no layer and its
 `RelayStatus` is unchanged. The client's pipe to a node is in
 `crates/podssh-cli/src/ssh/node.rs`, between SSH and the operator's leg,
@@ -948,7 +948,7 @@ must grow for layer 2).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -991,6 +991,29 @@ T-080) and a far end (`podssh serve`, T-107).
 7. Record each result in `docs/STATUS.md` with the date and the command, and
    mark the M6 exit in `docs/ROADMAP.md`.
 
+## Decision
+
+2026-10-10, before the work:
+
+- The faults go in the stand-in proxy, where each road meets them alike,
+  the relay's protocols unread: `--stop-after SECONDS` (each open tunnel
+  ends with RST, SECONDS after the first one, and new tunnels go on: the
+  relay host in use stops, and the client and the node come back as through
+  another address of the control host), `--move` (T-203) and `--pause
+  AFTER:FOR`. Lost: the faults in the stand-in relay, which the iroh road's
+  relay, iroh's own server, would then need again.
+- The stand-in relay gains the reverse road (item 1) as the live relay
+  showed it (`docs/relay.md`, the reverse path): `POST /v1/pair`,
+  `/v1/node/<name>`, `/v1/connect/<name>`, `/v1/status/<name>`,
+  `/v1/stop/<name>`, each token in `X-Relay-Token`, the text frames `hello`,
+  `open`, `ready`, `reject` and `close`, and the 32 characters of each id.
+- The iroh road's relay is iroh's relay server under a name that only the
+  proxy resolves, with a certificate for that name, so its connections pass
+  the faults of the proxy too.
+- The same checks run natively in an ignored test, with the tests' SSH
+  server for the transfer and the lines; the gate's run, with OpenSSH and a
+  `-tt` shell, and the box's live run wait for T-251.
+
 ## Prove
 
 ```sh
@@ -1002,6 +1025,20 @@ The fault step of the gate prints `ok` for six new checks (three faults on two
 roads) and for the controls on the forward road; the controls show that the
 checks fail for a session that does not resume. The run in the box shows a
 live session that survives a stall of 3 minutes.
+
+## Correction
+
+The far end that the checks need is the layer's far end, which `podssh node`
+is, in front of an SSH server; `podssh serve` (T-107, held by the operator)
+is not needed for them.
+
+## Done
+
+Partial, 2026-10-10. Done: the decisions above. To do: the reverse road in
+`scripts/fake-relay.py`; `--stop-after` and `--pause` in
+`scripts/fake-proxy.py`; a test relay of iroh under a name; the native
+checks (three faults, two roads, and the forward road's controls); the
+gate's checks; `docs/STATUS.md` and the M6 exit in `docs/ROADMAP.md`.
 
 # T-157: Throughput on each road and relay, by a committed method
 

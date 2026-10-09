@@ -262,6 +262,12 @@ wait for T-251):
 | Each byte held 3 s from the start (`pause`) | `greet` came back after the pause |
 | The client's address changes (`--move`): the old tunnel goes silent | The forward road, with no resumable layer, ended with 255 by its ping watcher; a new session left from 127.0.0.2 and worked |
 
+A relay host that stops in the middle of a session of the forward road
+(T-269, 2026-10-10, with the control of T-156: 20 MiB up and back, and the
+relay host's connections end with RST at 8 MiB): `ssh` exits 255 in about
+4 s, in each of 110 runs. Before T-269, 7 of 54 runs never ended, and said
+nothing after the login.
+
 ## Components
 
 The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082;

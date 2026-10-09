@@ -285,7 +285,7 @@ Read, the bounds today:
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:22`).
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:29`). The relay pipe:
   256 KiB each way, frames of 64 KiB
-  (`crates/podssh-ssh/src/relay_stream.rs:25-28`). Pump buffers: 32 KiB
+  (`crates/podssh-ssh/src/relay_stream.rs:30-33`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/proxy.rs:217`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
   `crates/podssh-relay/src/open.rs:25-29`, `crates/podssh-ssh/src/session.rs:21`.
@@ -574,7 +574,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
   `scripts/sandbox-check.sh:174-187` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
-- `crates/podssh-ssh/src/io.rs:115-120` maps an exit status that does not fit
+- `crates/podssh-ssh/src/io.rs:137-142` maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:69`, `docs/STATUS.md:71`).
 - A correction to the framing of #34: for a signal, podssh differs from
@@ -617,7 +617,7 @@ sh scripts/dev.sh check     # interop: for each case, the code of OpenSSH, of po
 
 The interop section shows, for each case, the reference code, podssh's code
 and the literal, and the signal row as a named difference. Planted defect 1:
-map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:120`; the literal
+map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:142`; the literal
 check of 143 must fail, and the table must report its signal row as broken.
 Planted defect 2: let the reference run `true` in place of `exit 3`; the
 derived check must fail.
