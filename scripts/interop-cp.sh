@@ -251,6 +251,35 @@ for port in 2201 2207; do
     c "$port" "$T:cp/noread" "$CW/down/noread$port" >/dev/null 2>"$CW/err"
     expect_rc "cp down of a far file that cannot be read, port $port" 66 $? "$CW/err"
 done
+# A source that grows during the copy: the copy reads what the source held
+# at the start, then stops with 66, on each road and each way, and leaves no
+# copy (T-267). A copy that followed it would not end while it grows.
+head -c 5000000 /dev/urandom >"$CW/up/grow"
+(while :; do printf x >>"$CW/up/grow"; done) &
+grower=$!
+for port in 2201 2207; do
+    c "$port" "$CW/up/grow" "$T:cp/grown$port" >/dev/null 2>"$CW/err"
+    rc=$?
+    [ "$rc" = 66 ] && [ ! -e "$RD/grown$port" ] && grep -q "changed while it was read" "$CW/err" \
+        && ok "cp up of a source that grows, port $port: exit 66, and no copy" \
+        || bad "cp up of a source that grows, port $port: exit $rc" "$CW/err"
+done
+kill "$grower" 2>/dev/null
+wait "$grower" 2>/dev/null
+head -c 5000000 /dev/urandom >"$RD/growfar"
+chown podtest:podtest "$RD/growfar"
+(while :; do printf x >>"$RD/growfar"; done) &
+grower=$!
+for port in 2201 2206 2207 2209; do
+    c "$port" "$T:cp/growfar" "$CW/down/grown$port" >/dev/null 2>"$CW/err"
+    rc=$?
+    [ "$rc" = 66 ] && [ ! -e "$CW/down/grown$port" ] && grep -q "changed while it was read" "$CW/err" \
+        && ok "cp down of a far file that grows, port $port: exit 66, and no copy" \
+        || bad "cp down of a far file that grows, port $port: exit $rc" "$CW/err"
+done
+kill "$grower" 2>/dev/null
+wait "$grower" 2>/dev/null
+rm -f "$CW/up/grow" "$RD/growfar"
 no_part "cp by exec"
 
 # podssh mv, while these servers run (T-138).

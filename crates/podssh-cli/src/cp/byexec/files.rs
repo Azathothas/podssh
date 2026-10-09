@@ -99,9 +99,14 @@ impl Far {
             let mut sent = start;
             let raw = self.raw;
             let mut spent = None;
+            let mut grew = false;
             let mut fill = |piece: &mut Vec<u8>| {
                 let mut buf = vec![0u8; PIECE];
                 let n = read_full(&mut file, &mut buf)?;
+                if sent + n as u64 > before.len() {
+                    grew = true;
+                    return Err(std::io::Error::other("the file changed while it was read"));
+                }
                 // Before the relay's limits, a new session goes on (T-137).
                 if n > 0 {
                     if let Some(f) = meter.spent(n as u64) {
@@ -121,9 +126,12 @@ impl Far {
                 }
                 Ok(())
             };
-            let got = exec::send(handle, &cmd, DATA_WAIT, 4096, &mut fill, &mut |_| Ok(()))
-                .await
-                .map_err(|e| spent.take().unwrap_or_else(|| step_failed(&temp, e)))?;
+            let got = exec::send(handle, &cmd, DATA_WAIT, 4096, &mut fill, &mut |_| Ok(())).await.map_err(|e| {
+                spent
+                    .take()
+                    .or_else(|| grew.then(|| transfer::changed(source)))
+                    .unwrap_or_else(|| step_failed(&temp, e))
+            })?;
             if got.status != Some(0) {
                 let why = String::from_utf8_lossy(&got.stderr);
                 return Err(failed(
@@ -133,7 +141,7 @@ impl Far {
             }
             let after = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
             if after.len() != sent || after.modified().ok() != before.modified().ok() {
-                return Err(failed(Fault::NoInput, format!("{source}: the file changed while it was read")));
+                return Err(transfer::changed(source));
             }
             let sum: Sum = hasher.finalize().into();
             let (far, how) = self.digest(handle, &temp, sent).await?;
@@ -214,7 +222,13 @@ impl Far {
             }
             let mut came = start;
             let mut spent = None;
+            let mut grew = false;
             self.read(handle, source, start, &mut |bytes| {
+                // More than `wc -c` gave: the far file grows (T-267).
+                if came + bytes.len() as u64 > size {
+                    grew = true;
+                    return Err(std::io::Error::other("the file changed while it was read"));
+                }
                 // Before the relay's limits, a new session goes on (T-137).
                 if let Some(f) = meter.spent(bytes.len() as u64) {
                     spent = Some(f);
@@ -227,7 +241,7 @@ impl Far {
                 Ok(())
             })
             .await
-            .map_err(|e| spent.take().unwrap_or(e))?;
+            .map_err(|e| spent.take().or_else(|| grew.then(|| transfer::changed(source))).unwrap_or(e))?;
             if came != size {
                 return Err(failed(Fault::SessionFault, format!("{source}: {came} bytes came, and wc -c gave {size}")));
             }

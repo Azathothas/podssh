@@ -295,18 +295,32 @@ impl Far {
         }
     }
 
-    /// The far digest of `path`: by a command, else by reading it again.
+    /// The far digest of `path`: by a command, else by reading it again,
+    /// the copy's `size` bytes and one more at most, so that a file that
+    /// grows ends the read, and its longer digest fails the comparison
+    /// (T-267).
     async fn digest(&self, handle: &Connection, path: &str, size: u64) -> Result<(Sum, String), Failed> {
         let named = if path.starts_with('/') { path.to_string() } else { format!("./{path}") };
         if let Some(found) = digest::by_command(handle, &named, size).await {
             return Ok(found);
         }
         let mut hasher = Sha256::new();
-        self.read(handle, path, 0, &mut |bytes| {
-            hasher.update(bytes);
-            Ok(())
-        })
-        .await?;
+        let mut seen = 0u64;
+        let read = self
+            .read(handle, path, 0, &mut |bytes| {
+                let room = (size + 1).saturating_sub(seen).min(bytes.len() as u64) as usize;
+                hasher.update(&bytes[..room]);
+                seen += room as u64;
+                if seen > size {
+                    return Err(std::io::Error::other("the far file is longer than the copy"));
+                }
+                Ok(())
+            })
+            .await;
+        // Stopped past the copy's size: the digest so far differs, and says so.
+        if seen <= size {
+            read?;
+        }
         Ok((hasher.finalize().into(), digest::READ_AGAIN.to_string()))
     }
 

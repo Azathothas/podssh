@@ -72,6 +72,13 @@ fn failed(fault: Fault, message: String) -> Failed {
     Failed::new(fault, message)
 }
 
+/// The source changed while it was read: its size or its time of change
+/// moved, or it held more than at the start. A copy stops there: one that
+/// read on would not end while the source grows (T-267).
+pub(super) fn changed(source: &str) -> Failed {
+    failed(Fault::NoInput, format!("{source}: the file changed while it was read"))
+}
+
 /// Which side a failure is on: a source that cannot be read, or a
 /// destination that cannot be written.
 #[derive(Clone, Copy)]
@@ -116,7 +123,7 @@ pub(super) async fn far_digest(
             return Ok(found);
         }
     }
-    let sum = digest::by_reading(sftp, path).await.map_err(|e| from_sftp(e, side))?;
+    let sum = digest::by_reading(sftp, path, size).await.map_err(|e| from_sftp(e, side))?;
     Ok((sum, digest::READ_AGAIN.to_string()))
 }
 

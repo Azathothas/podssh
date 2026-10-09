@@ -75,13 +75,19 @@ pub async fn by_command(handle: &Connection, path: &str, size: u64) -> Option<(S
     read_answer(&got.stdout)
 }
 
-/// The digest of `path` on the server, by reading it again over SFTP.
-pub async fn by_reading(sftp: &Sftp, path: &str) -> Result<Sum, SftpError> {
+/// The digest of `path` on the server, by reading it again over SFTP: the
+/// copy's `size` bytes and one more at most, so that a file that grows ends
+/// the read, and its longer digest fails the comparison (T-267).
+pub async fn by_reading(sftp: &Sftp, path: &str, size: u64) -> Result<Sum, SftpError> {
     let file = sftp.open_file(path, OpenFlags::READ, FileAttributes::default()).await?;
     let mut hasher = Sha256::new();
     let mut offset = 0u64;
     let read = loop {
-        match sftp.read(&file, offset, sftp.read_len()).await {
+        if offset > size {
+            break Ok(());
+        }
+        let want = u64::from(sftp.read_len()).min(size + 1 - offset) as u32;
+        match sftp.read(&file, offset, want).await {
             Ok(Some(data)) if !data.is_empty() => {
                 hasher.update(&data);
                 offset += data.len() as u64;
@@ -149,5 +155,59 @@ mod tests {
     fn the_script_has_no_single_quote() {
         // It goes inside single quotes for the login shell.
         assert!(!SCRIPT.contains('\''));
+    }
+
+    /// OpenSSH's sftp-server where this host has one, at the places that the
+    /// tests of podssh-ssh look; `PODSSH_TEST_SFTP_SERVER` names another.
+    fn sftp_server() -> Option<std::path::PathBuf> {
+        if let Some(named) = std::env::var_os("PODSSH_TEST_SFTP_SERVER") {
+            return Some(named.into());
+        }
+        [
+            "/usr/lib/ssh/sftp-server",
+            "/usr/lib/openssh/sftp-server",
+            "/usr/libexec/openssh/sftp-server",
+            "/usr/libexec/sftp-server",
+            r"C:\Program Files\Git\usr\lib\ssh\sftp-server.exe",
+        ]
+        .iter()
+        .map(std::path::PathBuf::from)
+        .find(|p| p.is_file())
+    }
+
+    /// The digest by reading stops one byte past the copy's size: a far file
+    /// that grows ends the read, and a longer one's digest differs (T-267).
+    #[tokio::test]
+    async fn the_digest_by_reading_stops_one_byte_past_the_copy() {
+        let Some(server) = sftp_server() else {
+            eprintln!("did not run: no sftp-server here; PODSSH_TEST_SFTP_SERVER names one");
+            return;
+        };
+        let dir = std::env::temp_dir().join(format!("podssh-digest-{:016x}", rand::random::<u64>()));
+        std::fs::create_dir(&dir).expect("a directory");
+        let data: Vec<u8> = (0..300_000u32).map(|i| (i.wrapping_mul(7) % 251) as u8).collect();
+        std::fs::write(dir.join("f"), &data).expect("written");
+        let mut child = tokio::process::Command::new(server)
+            .current_dir(&dir)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .kill_on_drop(true)
+            .spawn()
+            .expect("the sftp-server starts");
+        let pipes = tokio::io::join(child.stdout.take().expect("stdout"), child.stdin.take().expect("stdin"));
+        let limit = Duration::from_secs(10);
+        let sftp = tokio::time::timeout(limit, Sftp::over(pipes, podssh_ssh::sftp::Limits::default()))
+            .await
+            .expect("the version exchange within 10 s")
+            .expect("the version exchange");
+        let of = |bytes: &[u8]| -> Sum { Sha256::digest(bytes).into() };
+        let same = tokio::time::timeout(limit, by_reading(&sftp, "f", data.len() as u64)).await.expect("within 10 s");
+        assert_eq!(same.expect("read"), of(&data), "a far file of the copy's size: its digest");
+        let longer = tokio::time::timeout(limit, by_reading(&sftp, "f", 100_000)).await.expect("within 10 s");
+        assert_eq!(longer.expect("read"), of(&data[..100_001]), "a longer far file: one byte past the copy, no more");
+        let _ = sftp.close_session();
+        drop(child);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

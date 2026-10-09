@@ -86,6 +86,9 @@ pub async fn up(
             if n == 0 {
                 break;
             }
+            if offset + n as u64 > before.len() {
+                return Err(transfer::changed(source));
+            }
             // Before the relay's limits, a new session goes on (T-137).
             if let Some(spent) = meter.spent(n as u64) {
                 return Err(spent);
@@ -99,7 +102,7 @@ pub async fn up(
         sftp.close(&file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
         let after = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
         if after.len() != before.len() || after.modified().ok() != before.modified().ok() || after.len() != offset {
-            return Err(failed(Fault::NoInput, format!("{source}: the file changed while it was read")));
+            return Err(transfer::changed(source));
         }
         let sum: Sum = hasher.finalize().into();
         let (far, how) = transfer::far_digest(handle, sftp, &temp, offset, Side::Destination).await?;
@@ -181,6 +184,10 @@ pub async fn down(
             .map_err(|e| transfer::from_sftp(e, Side::Source))?;
         let mut offset = start;
         let size = attrs.size.unwrap_or(0);
+        // Past the size that the file had at the start, a second look at its
+        // size tells a file that grows, which a read would follow while it
+        // grows (T-267), from a file of /proc, which says 0 and has bytes.
+        let mut looked = false;
         let read = loop {
             if offset < size {
                 if let Some(spent) = meter.spent(u64::from(sftp.read_len())) {
@@ -189,6 +196,14 @@ pub async fn down(
             }
             match sftp.read(&file, offset, sftp.read_len()).await {
                 Ok(Some(data)) if !data.is_empty() => {
+                    if !looked && offset + data.len() as u64 > size {
+                        looked = true;
+                        match sftp.stat(source).await {
+                            Ok(now) if now.size == attrs.size => {}
+                            Ok(_) => break Err(transfer::changed(source)),
+                            Err(e) => break Err(transfer::from_sftp(e, Side::Source)),
+                        }
+                    }
                     hasher.update(&data);
                     if let Err(e) = out.as_mut().map_or(Ok(()), |f| f.write_all(&data)) {
                         break Err(failed(Fault::CantCreate, format!("{shown}: {e}")));

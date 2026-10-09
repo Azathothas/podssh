@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:175`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:176`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:174`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:175`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -1065,7 +1065,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:201-205` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:173`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:174`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1171,7 +1171,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:173`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:174`).
 
 ## Premise
 
@@ -1358,7 +1358,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:173`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:174`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -1735,3 +1735,87 @@ returns a wrong digest; the copy must then fail with exit 70.
 ## Start condition
 
 T-112 is done: `podssh serve` has an SFTP server.
+
+# T-267: A copy follows a source that grows, and does not end
+
+**Source:** CI, the run of `a22e3ec` (2026-10-09): the gate's step
+`release` failed three checks of `scripts/interop-cp.sh` and the scripts
+that it sources (194 passed, 3 failed), with a change that touched no code
+of the copy.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+The check "mv of a source that grows" (`scripts/interop-mv.sh:73-83`)
+ended at its `--timeout` of 120 s, exit 75 in place of 66, and the
+temporary file that it left on the server failed two later checks. The
+same check passed in the runs before, with the same copy: a check that
+fails at random hides a real failure. And a copy of a file that another
+program writes on, such as a log, need not end at all.
+
+## Premise
+
+Read at `a22e3ec`: the copy up over SFTP reads the source until a read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:84-100`), and each read
+waits for the server's answer to the write before it. The check's writer
+adds a byte to the source in a loop, so a read gives no byte only when the
+writer adds none for a whole round trip: when the runner does not schedule
+it. The check after the read gives 66 to a source whose size moved
+(`crates/podssh-cli/src/cp/bysftp.rs:103-106`), but only once the read
+ends. The copy up by exec reads the same way
+(`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); the copies down read
+the far file until it ends, over SFTP
+(`crates/podssh-cli/src/cp/bysftp.rs:191-217`) and with `cat`
+(`crates/podssh-cli/src/cp/byexec.rs:329-364`); and so do the far digests
+that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-104`,
+`crates/podssh-cli/src/cp/byexec.rs:298-325`).
+
+## Approach
+
+1. A copy reads what the source held at the start, and stops with 66, "the
+   file changed while it was read", at the first byte past it: the result
+   that the check after the read gives such a source anyway, now at once.
+2. Down over SFTP, a second look at the far size at that byte: a file of
+   `/proc` says 0 and has bytes, and its size stands, so its copy goes on
+   as before.
+3. The far digest by reading stops one byte past the copy's size: a far
+   file that grows ends the read, and its digest differs.
+4. Checks in `scripts/interop-cp.sh`: a source that grows, up on each road
+   (ports 2201 and 2207) and down on each (2201, 2206, 2207 and 2209): 66,
+   and no copy. A native test of the digest by reading, against OpenSSH's
+   `sftp-server`.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --lib cp::digest   # the digest by reading stops one byte past the copy
+sh scripts/dev.sh check                     # interop-cp.sh and interop-mv.sh, in the build image
+```
+
+CI's step `release` passes "mv of a source that grows", the new checks of
+a source that grows, and the checks of a temporary file, at the push of the
+repair and at the pushes after it. Plant: the digest by reading with no
+bound fails the native test.
+
+## Done
+
+2026-10-10. Each road of the copy reads what the source held at the start,
+and stops with 66, "the file changed while it was read", at the first byte
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:84-100`) and by
+exec (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); down by exec
+past the size that `wc -c` gave; down over SFTP after a second look at the
+far size, so that a file of `/proc` goes on as before. The far digest by
+reading, over SFTP and by exec, stops one byte past the copy's size. One
+function, `changed` in `crates/podssh-cli/src/cp/transfer.rs`, gives the
+message on each road.
+- Native: `cargo test -p podssh-cli --lib cp::digest`, 5 passed, the new
+  test against Git for Windows' `sftp-server`; planted, the digest by
+  reading with no bound fails it. `cargo test --workspace`: 1066 passed,
+  0 failed, 30 ignored.
+- The new checks of `scripts/interop-cp.sh`, and "mv of a source that
+  grows", run in CI's step `release` at the push of the repair; its result
+  goes into `docs/STATUS.md`.

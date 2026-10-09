@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**263 entries: 139 open, 0 partial, 22 blocked, 102 done.**
+**264 entries: 139 open, 0 partial, 22 blocked, 103 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 10 | 12 |
+| P1 | 2 | 0 | 0 | 11 | 13 |
 | P2 | 55 | 0 | 18 | 77 | 150 |
 | P3 | 82 | 0 | 4 | 14 | 100 |
-| **All** | 139 | 0 | 22 | 102 | 263 |
+| **All** | 139 | 0 | 22 | 103 | 264 |
 
 ## Entries
 
@@ -338,3 +338,4 @@ repository and CI).
 | [T-264](roads.md) | P2 | M | backlog | feature | open | Reach a service that `cloudflared` publishes, through `HTTPS_PROXY` |
 | [T-265](ws.md) | P1 | S | M6 | defect | done | A silent first address holds the whole of a direct dial |
 | [T-266](repo.md) | P1 | S | none | defect | done | The vi check of the Windows console job fails at random |
+| [T-267](copy.md) | P1 | S | none | defect | done | A copy follows a source that grows, and does not end |
