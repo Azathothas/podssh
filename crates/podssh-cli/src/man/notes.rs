@@ -34,6 +34,14 @@ const SSH: &[&str] = &[
      the resumable layer; -v says whether it does. With the layer, a lost link to the relay is replaced \
      by a new one for 10 minutes, and the SSH session goes on where it was; one line on stderr tells of \
      each loss and each resume.",
+    "iroh:TICKET, or user@iroh:TICKET, reaches a node of the iroh road (see podssh node), in a build with \
+     the feature iroh. The ticket is the address that the node prints, not a credential: the node lets in \
+     only the client keys of its allowlist. This client's key is made on first use, in the cache \
+     (iroh-client.key) or in the file of --iroh-key; podssh prints it when it is new, and when a node \
+     refuses it, as the line that the node's operator adds. The host key is recorded and checked under \
+     the name iroh:KEY, the node's key, which stays when the ticket changes. A node has no port, and -J, \
+     -W and --direct cannot go with it yet. The session runs the resumable layer: a lost link is \
+     replaced by a new one, for 10 minutes.",
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \
@@ -171,6 +179,16 @@ const NODE: &[&str] = &[
      serves the pair. stdout stays empty; notes go to stderr.",
     "With --pair-file, the pair comes from FILE, in the form of the store, and the store is not used. \
      FILE must be a regular file of the user that nobody else can read.",
+    "With --iroh, in a build with the feature iroh, the node serves TARGET over the iroh road, with no \
+     pair: QUIC between keys, through an iroh relay (n0's public relays) and HTTPS_PROXY, and directly \
+     when UDP works. NAME labels the node's key, a private file in the cache (iroh-node-NAME.key), or the \
+     file of --iroh-key, made when it is missing; --iroh-ephemeral makes a key for this run only. When it \
+     starts, the node prints its key and its ticket (iroh:...) on stderr, and a new ticket when its home \
+     relay changes; a client dials the ticket with podssh ssh iroh:TICKET.",
+    "A client of the iroh road gets in only when its key is a line of the file of --iroh-allow, which \
+     the node reads again for each connection, so a key added counts at once. With no such file, no \
+     client gets in. Each refused key is said on stderr: it is the line to add. A session reaches TARGET \
+     only after the layer's handshake, and resumes on a new link for 10 minutes, as on the relay.",
 ];
 
 const OPERATOR: &[&str] = &[

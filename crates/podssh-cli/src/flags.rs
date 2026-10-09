@@ -176,6 +176,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),
+    row(None, "iroh-key", Some("FILE"), FlagKind::Supported,
+        "iroh:TICKET: this client's key in FILE, made when missing (default: iroh-client.key in the cache); a build with the feature iroh", None),
     // These two disable things podssh never does, so they need no work.
     row(Some('x'), "no-x11", None, FlagKind::Supported,
         "no X11 forwarding (podssh never forwards X11)", None),
@@ -236,8 +238,10 @@ pub const SSH_FLAGS: &[FlagRow] = &[
 
 // `cp`, `mv` and their aliases: their table is in `flags/copy.rs`.
 mod copy;
+mod node;
 mod scp;
 pub use copy::CP_FLAGS;
+pub use node::NODE_FLAGS;
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
 
 /// **`chat` and its `irc` alias.** `--jsonl` and `--timeout` feed the gate of runs
@@ -400,7 +404,7 @@ pub const VERBS: &[Verb] = &[
         about: "the OpenSSH-compatible client, over the relay" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
         about: "ProxyCommand form: a byte pipe, not an SSH client" },
-    Verb { name: "node", aliases: &["node"], flags: PAIR_FLAGS,
+    Verb { name: "node", aliases: &["node"], flags: NODE_FLAGS,
         about: "reverse mode: expose a local service to operators" },
     Verb { name: "operator", aliases: &["operator"], flags: PAIR_FLAGS,
         about: "reverse mode, operator side: raw bytes to a named node" },

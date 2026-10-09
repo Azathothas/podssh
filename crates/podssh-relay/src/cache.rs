@@ -12,6 +12,9 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+mod own;
+pub use own::{create_file_in_first, create_private, read_own, Others};
+
 /// A cached token is reused only while it has at least this long left.
 pub const MIN_REMAINING_MS: i64 = 10 * 60 * 1000;
 
@@ -254,17 +257,9 @@ pub fn safe_name(host: &str) -> String {
 }
 
 /// Read a cache file only if it is a regular file of ours that nobody else can
-/// read. On Unix the checks are made on the opened file, so a symlink swapped
-/// in between the check and the read cannot be followed.
+/// read; anything else is ignored, as a cache file can be made again.
 fn read_trusted(path: &Path) -> Option<String> {
-    let file = open_no_follow(path).ok()?;
-    let meta = file.metadata().ok()?;
-    if !meta.is_file() || meta.len() > MAX_FILE || !owned_and_private(&meta) {
-        return None;
-    }
-    let mut text = String::new();
-    std::io::Read::read_to_string(&mut &file, &mut text).ok()?;
-    Some(text)
+    read_own(path, Others::NoAccess).ok().flatten()
 }
 
 /// Write `body` to `dir/name` via a private temporary file and a rename, so a

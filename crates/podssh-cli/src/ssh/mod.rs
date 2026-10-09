@@ -32,8 +32,8 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh {} (SSH: russh, aws-lc-rs)", env!("CARGO_PKG_VERSION"));
         return 0;
     }
-    // Before anything is resolved or connects: the road is not here.
-    if let Some(destination) = args.destination.as_deref().filter(|d| iroh::is_iroh(d)) {
+    // Before anything is resolved or connects: the road is not in this build.
+    if let Some(destination) = args.destination.as_deref().filter(|d| iroh::is_iroh(d) && !cfg!(feature = "iroh")) {
         let _ = writeln!(err, "podssh ssh: {}", iroh::refusal(destination));
         return EXIT_NOT_IMPLEMENTED;
     }
@@ -79,6 +79,9 @@ async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
     let opts = &resolved.options;
     if let Transport::Node { label, pair_file, trust } = &resolved.transport {
         return node::connect(label, pair_file.as_deref(), trust, opts, log).await;
+    }
+    if let Transport::Iroh { ticket, key, trust } = &resolved.transport {
+        return iroh::connect(ticket, key.as_deref(), trust, opts, log).await;
     }
     let reached = match transport::reach(&resolved, &log).await {
         Ok(reached) => reached,

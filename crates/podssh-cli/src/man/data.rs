@@ -101,7 +101,7 @@ pub fn files() -> Vec<(Vec<String>, String)> {
         "$XDG_CACHE_HOME/podssh (else ~/.cache/podssh), else $TMPDIR/podssh-UID (else /tmp), else \
          /dev/shm/podssh-UID, else ./.podssh"
     };
-    vec![
+    let rows = vec![
         (
             paths(podssh_ssh::options::default_identity_files(home)),
             "The identity files tried, in this order, when no -i or IdentityFile is given.".to_string(),
@@ -136,6 +136,34 @@ pub fn files() -> Vec<(Vec<String>, String)> {
         (
             podssh_ws::tls::SYSTEM_BUNDLES.iter().map(|s| s.to_string()).collect(),
             "The system CA bundles. The first one that podssh can read is added to the trust store.".to_string(),
+        ),
+    ];
+    [rows, iroh_files()].concat()
+}
+
+/// The files of the iroh road: none in a build without it.
+#[cfg(not(feature = "iroh"))]
+fn iroh_files() -> Vec<(Vec<String>, String)> {
+    Vec::new()
+}
+
+/// The files of the iroh road, in a build that has it.
+#[cfg(feature = "iroh")]
+fn iroh_files() -> Vec<(Vec<String>, String)> {
+    vec![
+        (
+            vec![podssh_iroh::keys::node_file("NAME"), podssh_iroh::keys::CLIENT_FILE.to_string()],
+            "The keys of the iroh road, in the cache, or in the file of --iroh-key: a node's under its NAME, \
+             and this user's as a client. Each holds the secret key in hex, has mode 0600, and is made when \
+             it is missing. podssh refuses one that is a symbolic link, another user's, or that others can \
+             read, and never replaces it: a new key would change the node's ticket."
+                .to_string(),
+        ),
+        (
+            vec!["the file of --iroh-allow".to_string()],
+            "The client keys that may connect to podssh node --iroh: one key on each line, then a comment if \
+             any; # starts a comment line. A file of the user that others cannot change; others may read it."
+                .to_string(),
         ),
     ]
 }

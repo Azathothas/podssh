@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**262 entries: 144 open, 0 partial, 22 blocked, 96 done.**
+**262 entries: 143 open, 0 partial, 22 blocked, 97 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 9 | 11 |
-| P2 | 60 | 0 | 18 | 72 | 150 |
+| P2 | 59 | 0 | 18 | 73 | 150 |
 | P3 | 82 | 0 | 4 | 14 | 100 |
-| **All** | 144 | 0 | 22 | 96 | 262 |
+| **All** | 143 | 0 | 22 | 97 | 262 |
 
 ## Entries
 
@@ -236,7 +236,7 @@ repository and CI).
 | [T-160](resume.md) | P3 | L | backlog | feature | open | Local echo and prediction for high latency |
 | [T-161](resume.md) | P3 | L | backlog | research | open | Screen state and scrollback when a client attaches |
 | [T-162](roads.md) | P2 | L | M6 | feature | done | The iroh road behind the cargo feature `iroh` |
-| [T-163](roads.md) | P2 | S | M6 | feature | open | iroh tickets and node keys |
+| [T-163](roads.md) | P2 | S | M6 | feature | done | iroh tickets and node keys |
 | [T-164](roads.md) | P2 | M | M6 | feature | open | Race the iroh road and the reverse road |
 | [T-165](roads.md) | P2 | S | M6 | feature | open | Configurable iroh relays, the operator's relay first |
 | [T-166](roads.md) | P3 | M | backlog | feature | open | A roost: a podssh next to a standard sshd |

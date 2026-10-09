@@ -6,7 +6,7 @@ itself; Multipath TCP; and resumption in the relay (M8).
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
-**Source:** ROADMAP M6 (the iroh road); `docs/design.md:407-521`;
+**Source:** ROADMAP M6 (the iroh road); `docs/design.md:407-555`;
 `docs/decisions.md` (2026-10-08: iroh is a road that the user must select);
 GitHub #18 (Nemo-010, 2026-10-08: the iroh-ssh, zuko, GPU-Share and quic-ssh
 reports).
@@ -30,7 +30,7 @@ to 245 crates. In the target sandbox it runs only with no UDP transport (or a
 UDP bind after a probe), podssh's proxy in `proxy_url(...)`, the `Minimal`
 preset with no pkarr or DNS, peers dialled by ticket, and a home relay whose
 `/ping` passes the proxy. The operator accepted netlink sockets and extra
-connections for this road (`docs/design.md:510-513`). The sandbox refuses UDP
+connections for this road (`docs/design.md:544-547`). The sandbox refuses UDP
 (`docs/target-environment.md:23`). Measured on `3ee70dc`: `--iroh` is an
 unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 
@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:453-461`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:457-465`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -141,13 +141,13 @@ that uses iroh's own proxy selection fails with `ALL_PROXY` set.
 # T-163: iroh tickets and node keys
 
 **Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:434` and
-`docs/design.md:478-479`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
+`docs/design.md:512-513`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
 handoff; iroh-ssh's persistent and ephemeral keys).
 **Category:** feature
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -158,11 +158,11 @@ no form for a ticket, no place for the keys, and no rule for who may connect.
 
 Read: with the `Minimal` preset nothing is discovered, so a ticket gives the
 key and the relay URL (`docs/design.md:434`). The key is the identity, and
-access is by an allowlist of keys or a relay token (`docs/design.md:478-479`).
+access is by an allowlist of keys or a relay token (`docs/design.md:512-513`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:269-270`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:273-274`,
 `crates/podssh-cli/src/ts.rs:178`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -171,8 +171,8 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:269-270`,
 1. Keys: one Ed25519 secret key for each role (node, client), in a private
    file. `--iroh-key FILE` names the file, as `--ts-state` does; with no flag,
    it goes to the first usable directory of the cache chain
-   (`crates/podssh-relay/src/cache.rs:58-73`). Reuse the private-file code of
-   the token cache (`crates/podssh-relay/src/cache.rs:256-289`: mode 0600, no
+   (`crates/podssh-relay/src/cache.rs:61-76`). Reuse the private-file code of
+   the token cache (`crates/podssh-relay/src/cache.rs:259-284`: mode 0600, no
    symbolic link, the owner checked); do not write a second copy.
 2. Print the fingerprint of the public key, never the secret key. A node key
    persists, and a node warns when it makes a new one, because its ticket
@@ -185,7 +185,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:269-270`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:397`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:91-141`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:91-169`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-122`).
 
 ## Decision
@@ -195,6 +195,40 @@ keys gives access. A ticket can then go on a command line or into
 `ssh_config` with no risk. The alternative, a bearer ticket (tailcat's address
 is one: `docs/design.md:374-375`), lost: each process on the host can read a
 command line, and the rules forbid credentials there.
+
+2026-10-10, the shape of the command line and the files:
+
+- `podssh node NAME TARGET --iroh` serves TARGET over the iroh road alone;
+  NAME labels the node's key and its lines, and no pair is needed. Lost: both
+  roads whenever a pair exists. The two roads end for different reasons (a
+  pair expires, a key does not), and one keeper for both is the work of the
+  race (T-164), which now says so.
+- A key file holds the 32 secret bytes in hex and a newline, as iroh's
+  `SecretKey` parses them (and as dumbpipe's `IROH_SECRET` gives them). With
+  no `--iroh-key`, the node's key is `iroh-node-NAME.key` and the client's
+  `iroh-client.key`, in the cache's directories. A key file that exists and
+  is not private, or is a symbolic link, is refused with the reason and never
+  replaced: a new key would change the node's ticket. The file is made whole
+  or not at all (a temporary file and a hard link), so two first runs at the
+  same time get one key.
+- `--iroh-ephemeral`, not `--ephemeral`: the flags of a road carry its name,
+  as `--ts-ephemeral` does.
+- The fingerprint is the public key itself, in iroh's hex: it is not secret,
+  and the allowlist takes it as it is. Lost: a hash, as ssh shows, which the
+  allowlist could not take.
+- The allowlist is `--iroh-allow FILE`: one key on each line (hex or base32,
+  as iroh writes a key), then an optional comment; `#` starts a comment line.
+  The node reads it again for each connection, so a key added counts at once.
+  A line that is not a key lets nobody in and is named. With no file, nobody
+  gets in, and the node says so when it starts. A file that another user owns
+  or that others can write is refused, as sshd refuses an `authorized_keys`;
+  others may read it, as it holds public keys.
+- A refused client gets the QUIC close code 403 with the reason, and prints
+  its own key with the remedy.
+- The ticket holds the node's key and its home relay, and no IP address of
+  its host: with UDP, the relay tells each side the other's addresses.
+- The known host's name is `iroh:` and the node's key: a ticket changes with
+  the home relay, the key does not.
 
 ## Prove
 
@@ -209,6 +243,79 @@ secret. The ticket test parses tickets that iroh made (fixed strings, not
 made by podssh's encoder), and refuses a client key that is not in the
 allowlist. A planted node that accepts each key fails it.
 
+## Done
+
+2026-10-10.
+
+- `podssh_relay::cache` (`cache/own.rs`): `read_own` reads a file that the
+  user names, or that podssh keeps for good, with each refusal's reason (a
+  symbolic link, not a regular file, another user's, open to others beyond
+  what the file allows), where the cache ignores a file that it can make
+  again; the cache's own reads are `read_own`'s now. `create_private` makes
+  a private file whole or not at all and never over another (a temporary
+  file and a hard link; in place where a file system has no hard links), and
+  `create_file_in_first` does so in the first of the cache's directories
+  that takes it.
+- `podssh-iroh`: `keys` (a key in the file that the user names, in the
+  cache under the node's NAME or the client's one name, or for one run; made
+  from the OS's random source, with an error and no panic without one;
+  refused and kept when it is not private; shown by its public half);
+  `ticket` (iroh-tickets 1.0's ticket after `iroh:`; a node's holds its key
+  and its home relay only; `follow` gives the new ticket when the home relay
+  changes); `allow` (the allowlist: keys in hex or base32, comments, each
+  bad line named; a file that others can change is refused); `client`
+  (`Dialer`: a stream on the connection while it lives, else a new
+  connection; the node's refusal known by its close code, 403; `carry` runs
+  the layer and resumes it on a new link); `far::serve` closes a client that
+  the allowlist refuses before any stream. Over iroh, the layer's features
+  leave out `move.v1`.
+- podssh-cli: `podssh node NAME TARGET --iroh` (`node_iroh.rs`): TARGET is
+  dialled first, then the key, the endpoint and a home relay within 30 s;
+  the key, the ticket and who may connect go to stderr, and each connection's
+  key is checked against the file of `--iroh-allow`, read again each time,
+  each refusal said with the key. `--iroh-key`, `--iroh-allow` and
+  `--iroh-ephemeral` are usage errors with no `--iroh`, and so are
+  `--iroh-ephemeral` with `--iroh-key`, and `--pair-file`, with it.
+  `podssh ssh [user@]iroh:TICKET`: the ticket is checked before anything
+  connects, the host key is kept under `iroh:` and the node's key, and this
+  user's key (`iroh-client.key`, or `--iroh-key`) is printed when it is new
+  and when a node refuses it; `-p`, `-J`, `-W`, `--direct`, `-4`, `-6`,
+  `HostName` and `--pair-file` are refused with it, and SSH sends no
+  keepalive by default, as to a node of the reverse road. In a build without
+  the feature, `--iroh` exits 70 and names it, as an iroh destination does.
+  The flag table of `node` is in `flags/node.rs`. The manual: the notes of
+  `ssh` and `node`, and two rows of FILES with the feature.
+- The documents: `SECURITY.md`, `docs/cli.md`, `docs/design.md` (section
+  7), `docs/architecture.md`, `AGENTS.md` (the map) and `docs/STATUS.md`.
+  T-164's approach now says that a node serves both roads, with one keeper,
+  as part of the race.
+- Prove, native, Windows: `cargo test -p podssh-iroh --test keys --test
+  tickets`: 15 passed (7 and 8). A key file, of mode 0600 on Unix, is made
+  once and read again; a key in the second of the cache's directories is
+  found, and none is made in the first; eight first runs at once get one
+  key and leave no temporary file; no output holds the secret; a file that
+  is not a key is refused with its path and kept; no random source is an
+  error. iroh's own ticket (the vector of iroh-tickets 1.0.0, written by
+  Python's base32) parses to its key, relay and address, and podssh writes
+  the same text back; tickets that reach nothing, or are no tickets, are
+  refused; an allowlist takes hex, base32 and comments, and names a bad
+  line. A node, over a relay on the loopback and the stand-in proxy, refuses
+  a client that is not in its allowlist and opens no target for it; the
+  client gets in once its key is added to the file, with no new start of
+  the node. The planted node that admits each key fails that check, and a
+  planted `far::serve` that skips the allowlist failed
+  `a_node_refuses_a_client_that_is_not_in_its_allowlist` (run once, then
+  restored). `cargo test -p podssh-cli --test iroh_cli`: 3 passed in the
+  default build, 4 with the feature. `cargo test --no-fail-fast`: 1002 passed, 0 failed, 22 ignored;
+  `cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh`:
+  355 passed, 0 failed, 8 ignored. clippy in both builds: no warning. `cargo deny`: ok (iroh-tickets
+  brings `heapless` 0.7 through postcard's default features, under MIT or
+  Apache-2.0).
+- Waits: the checks that only Unix has (modes, symbolic links) run in CI's
+  gate, step `iroh`, on Linux; `sh scripts/dev.sh check` waits for T-251, by
+  the decision of 2026-10-09. The command line from end to end, a node and a
+  client through a relay on the loopback, needs the relays as a setting, and
+  comes with T-165.
 # T-164: Race the iroh road and the reverse road
 
 **Source:** `docs/design.md:45-53` (when two roads are possible, podssh races
@@ -234,7 +341,7 @@ limit of iroh to each connection.
 Read: for a podssh node, the iroh road is first and the reverse road with the
 resumable layer is second, raced (`docs/design.md:48-53`). The first real
 sandbox can block what iroh needs, so the fallback is necessary
-(`docs/design.md:515-521`). The user must select iroh (`docs/decisions.md`,
+(`docs/design.md:549-555`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:55-62`). The relay opener tries one host at a time
 (`crates/podssh-relay/src/open.rs:177-212`), and no code races two roads.
@@ -242,7 +349,10 @@ sandbox can block what iroh needs, so the fallback is necessary
 ## Approach
 
 1. Race only when the user selected the iroh road and the node also has a
-   reverse pair. Else use the one road, as now.
+   reverse pair. Else use the one road, as now. A node serves both roads at
+   once, with one keeper of sessions for both, so that a session resumes on
+   either road: `podssh node NAME TARGET --iroh` serves the iroh road alone
+   since T-163.
 2. Start the iroh road first. Start the reverse road after a head start of
    250 ms, or at once when the iroh road fails before that.
 3. The winner is the first link whose layer handshake (T-151) completes.
@@ -255,7 +365,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:27-69`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:27-77`).
 
 ## Decision
 
@@ -304,9 +414,9 @@ forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
 (`crates/podssh-relay/src/pool.rs:18-27`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
-published (`docs/design.md:495-497`). At least three projects run the iroh
+published (`docs/design.md:529-531`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
-`docs/design.md:501-503`). The URLs of n0's relays for iroh 1.x must be read
+`docs/design.md:535-537`). The URLs of n0's relays for iroh 1.x must be read
 in iroh's source at the pinned version.
 
 ## Approach
@@ -332,6 +442,10 @@ in iroh's source at the pinned version.
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
+8. A test of the command line from end to end, which T-163 left for this
+   entry: `podssh node NAME TARGET --iroh` and `podssh ssh iroh:TICKET`,
+   with the relay of the new flag on the loopback, an allowlist, and a
+   client that is refused, then let in.
 
 ## Prove
 
@@ -350,7 +464,7 @@ other build.
 # T-166: A roost: a podssh next to a standard sshd
 
 **Source:** `docs/design.md:52` (a standard sshd behind a podssh `roost`) and
-`docs/design.md:217-220`; the `roost` of pigeons (`docs/design.md:505-508`);
+`docs/design.md:217-220`; the `roost` of pigeons (`docs/design.md:539-542`);
 GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh reaches sshd by node id, and
 refuses early when no sshd answers).
 **Category:** feature
@@ -860,7 +974,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:221-231` (layer 3) and `docs/design.md:530-533` (question 1 of
+`docs/design.md:221-231` (layer 3) and `docs/design.md:564-567` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -883,7 +997,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:227-231`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:530-533`). The relay is in another repository.
+(`docs/design.md:564-567`). The relay is in another repository.
 
 ## Approach
 

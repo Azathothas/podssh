@@ -27,6 +27,9 @@ pub enum Transport {
     /// The node of a pair, through the operator's leg of the reverse road
     /// (`node://NAME`, T-084).
     Node { label: String, pair_file: Option<String>, trust: Trust },
+    /// A node over the iroh road (`iroh:TICKET`, T-163), with this client's
+    /// key file when `--iroh-key` names one.
+    Iroh { ticket: String, key: Option<String>, trust: Trust },
 }
 
 /// A command line, resolved.
@@ -110,10 +113,15 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     }
     let destination = args.destination.as_deref().ok_or("missing destination: podssh ssh [user@]host [command]")?;
     let node = super::node::destination(destination)?;
-    let target = match &node {
-        Some((user, label)) => Hop { user: user.clone(), host: label.clone(), port: 22 },
-        None => parse_hop(destination)?,
+    let iroh = super::iroh::destination(destination)?;
+    let target = match (&node, &iroh) {
+        (Some((user, label)), _) => Hop { user: user.clone(), host: label.clone(), port: 22 },
+        (None, Some(dest)) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
+        (None, None) => parse_hop(destination)?,
     };
+    if args.iroh_key.is_some() && iroh.is_none() {
+        return Err("--iroh-key is for an iroh:TICKET destination".into());
+    }
     let host = match settings.host_name.clone() {
         Some(name) => {
             host_rule(&format!("HostName={name}"), &name)?;
@@ -230,17 +238,23 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         _ => None,
     };
     let first = jump.first().map(|h| h.host.clone()).unwrap_or_else(|| host.clone());
+    let ask = |label| super::node::Ask {
+        label,
+        args,
+        host_name: settings.host_name.is_some(),
+        port: args.port.is_some() || settings.port.is_some(),
+        jumps: jump.len(),
+        family,
+        forward: matches!(request, Request::StdioForward { .. }),
+    };
     let transport = if let Some((_, label)) = &node {
-        let ask = super::node::Ask {
-            label,
-            args,
-            host_name: settings.host_name.is_some(),
-            port: args.port.is_some() || settings.port.is_some(),
-            jumps: jump.len(),
-            family,
-            forward: matches!(request, Request::StdioForward { .. }),
+        super::node::transport(&ask(label), env)?
+    } else if let Some(dest) = &iroh {
+        let trust = match args.ca_file.clone().or_else(|| env.ssl_cert_file.clone()) {
+            Some(file) => Trust::File(file.into()),
+            None => Trust::Default,
         };
-        super::node::transport(&ask, env)?
+        super::iroh::transport(dest, &ask(&dest.shown), trust)?
     } else if args.direct {
         if family.is_some() {
             return Err(
@@ -272,7 +286,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     // A node runs the resumable layer, whose heartbeat finds a dead link and
     // keeps the relay's idle cut away; SSH's own keepalives would end a
     // session that the layer carries onto a new link (T-154).
-    let resumable = matches!(transport, Transport::Node { .. });
+    let resumable = matches!(transport, Transport::Node { .. } | Transport::Iroh { .. });
     let keepalive_interval = match settings.alive_interval {
         Some(0) => None,
         Some(s) => Some(Duration::from_secs(s)),
@@ -298,10 +312,12 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
 
     // OpenSSH opens -E FILE with the name as typed.
     let log_file = args.log_file.as_deref().map(PathBuf::from);
-    // A node is named `node://NAME` in the messages and the known hosts.
-    let shown = match &node {
-        Some((_, label)) => format!("{}{label}", super::node::SCHEME),
-        None => host.clone(),
+    // A node is named `node://NAME` in the messages and the known hosts; a
+    // node of the iroh road, `iroh:` and its key.
+    let shown = match (&node, &iroh) {
+        (Some((_, label)), _) => format!("{}{label}", super::node::SCHEME),
+        (None, Some(dest)) => dest.shown.clone(),
+        (None, None) => host.clone(),
     };
     let mut options = Options::new(Hop { user: None, host: shown, port }, user.clone());
     options.host_key_alias = settings.host_key_alias.clone();

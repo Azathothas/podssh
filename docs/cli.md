@@ -380,6 +380,17 @@ commands. The rules behind them:
   bytes and nothing else, and it exits 0 only when the node took the
   session. Its codes are those of `node`. `ssh node://NAME` runs the SSH
   client over the same leg, and keeps the codes of OpenSSH (255).
+- **`node --iroh` needs no pair** (T-163, a build with the feature
+  `iroh`). NAME labels the node's key (`iroh-node-NAME.key` in the cache,
+  or the file of `--iroh-key`; `--iroh-ephemeral` keeps none). The node
+  prints its key and its ticket on stderr. A client's key gets in only from
+  the file of `--iroh-allow`; with no such file, none does. `ssh
+  iroh:TICKET` dials the ticket with this user's key (`iroh-client.key`, or
+  `--iroh-key`), prints the key when it is new and when a node refuses it,
+  and records the host key under `iroh:` and the node's key. A flag of the
+  iroh road with no `--iroh`, or `--iroh-key` with no iroh destination, is
+  a usage error (64); in a build without the feature, `--iroh` and an iroh
+  destination exit 70 and name the feature.
 - **A link can drop.** The relay's side ends a socket of the reverse road
   at random, with no Close (T-255). `operator` and `ssh node://NAME` then
   say that the link ended with no Close, or that the node's link ended

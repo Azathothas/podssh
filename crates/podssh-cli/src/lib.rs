@@ -40,6 +40,9 @@ pub mod layered;
 // The manual (`man/`) and the pager that shows it on a terminal.
 pub mod man;
 pub mod node;
+// `podssh node --iroh`: the iroh road, with the feature `iroh` only.
+#[cfg(feature = "iroh")]
+pub mod node_iroh;
 pub mod non_interactive;
 pub mod operator;
 pub mod pager;

@@ -81,8 +81,15 @@ LISTENERS = {
     # allowed it does the endpoint bind UDP for direct paths.
     "UdpSocket": ["crates/podssh-iroh/src/probe.rs"],
     # The bind probes of `podssh doctor`, which close at once and never listen;
-    # and the iroh road's probe and endpoint, as above.
-    "bind(": ["crates/podssh-cli/src/doctor/unix.rs", "crates/podssh-iroh/src/probe.rs", "crates/podssh-iroh/src/endpoint.rs"],
+    # and the iroh road's probe and endpoint, as above, with the two commands
+    # that make the endpoint: `podssh node --iroh` and `podssh ssh iroh:` (T-163).
+    "bind(": [
+        "crates/podssh-cli/src/doctor/unix.rs",
+        "crates/podssh-iroh/src/probe.rs",
+        "crates/podssh-iroh/src/endpoint.rs",
+        "crates/podssh-cli/src/node_iroh.rs",
+        "crates/podssh-cli/src/ssh/iroh/dial.rs",
+    ],
     "listen(": [],
     "socket2": [],
 }

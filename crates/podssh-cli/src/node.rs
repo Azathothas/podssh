@@ -2,7 +2,8 @@
 //! label NAME, in front of the TCP service TARGET. Each session that an
 //! operator opens is one connection to TARGET. The node runs until Ctrl-C or
 //! SIGTERM (exit 0), or until the relay ends the pair. stdout stays empty:
-//! a node has no answer to give.
+//! a node has no answer to give. With `--iroh`, the node serves the iroh
+//! road instead, with no pair (T-163, `node_iroh`).
 
 use std::io::Write;
 use std::sync::Arc;
@@ -31,11 +32,30 @@ pub struct NodeArgs {
     pub ca_file: Option<String>,
     /// A pair file to use in place of the store.
     pub pair_file: Option<String>,
+    /// Serve the iroh road, with no pair.
+    pub iroh: bool,
+    /// The node's key file on the iroh road.
+    pub iroh_key: Option<String>,
+    /// The file of the client keys that may connect over the iroh road.
+    pub iroh_allow: Option<String>,
+    /// A key for this run only.
+    pub iroh_ephemeral: bool,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
 /// Run the verb; returns the process exit code.
 pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
+    let iroh_only = [
+        ("--iroh-key", args.iroh_key.is_some()),
+        ("--iroh-allow", args.iroh_allow.is_some()),
+        ("--iroh-ephemeral", args.iroh_ephemeral),
+    ];
+    if let Some((flag, _)) = iroh_only.iter().find(|(_, given)| *given).filter(|_| !args.iroh) {
+        return Refusal::usage(format!("{flag} is for the iroh road: add --iroh")).report("node", err);
+    }
+    if args.iroh {
+        return iroh(args, err);
+    }
     let ready = match prepare(args) {
         Ok(ready) => ready,
         Err(refusal) => return refusal.report("node", err),
@@ -153,9 +173,23 @@ fn finish(label: &str, exit: Exit, err: &mut dyn Write) -> i32 {
     fault.code()
 }
 
+/// The node over the iroh road.
+#[cfg(feature = "iroh")]
+fn iroh(args: &NodeArgs, err: &mut dyn Write) -> i32 {
+    crate::node_iroh::run(args, err)
+}
+
+/// The iroh road is not in this build: the refusal names the feature, before
+/// anything is read or connects.
+#[cfg(not(feature = "iroh"))]
+fn iroh(_: &NodeArgs, err: &mut dyn Write) -> i32 {
+    let _ = writeln!(err, "podssh node: {}", crate::ssh::iroh::not_built("--iroh"));
+    crate::exit_codes::EXIT_NOT_IMPLEMENTED
+}
+
 /// Ctrl-C, or SIGTERM on Unix. When no signal can be watched, the node runs
 /// until the relay ends it, and does not stop at once.
-async fn stop_signal() {
+pub(crate) async fn stop_signal() {
     #[cfg(unix)]
     {
         use tokio::signal::unix::{signal, SignalKind};

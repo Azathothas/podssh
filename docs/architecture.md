@@ -83,7 +83,7 @@ bytes. See [reverse.md](reverse.md).
 | `podssh-terminal` | A line discipline in the process (not used yet) | none |
 | `podssh-probe` | Facts about the structure of the relay's document (tests only) | none |
 | `podssh-ts` | The Tailscale adapter over `vendor/tailscale-rs` (feature `ts`) | the fork in `vendor/` |
-| `podssh-iroh` | The iroh road between two podssh ends (feature `iroh`, T-162): an iroh endpoint with podssh's relays, proxy, name resolution and trust store, UDP only after a probe, and the resumable layer's sessions over QUIC streams | `podssh-relay`, `podssh-ws` |
+| `podssh-iroh` | The iroh road between two podssh ends (feature `iroh`, T-162, T-163): an iroh endpoint with podssh's relays, proxy, name resolution and trust store, UDP only after a probe, the resumable layer's sessions over QUIC streams, the keys in private files, the tickets, and the allowlist of a node | `podssh-relay`, `podssh-ws` |
 
 ## Design rules
 

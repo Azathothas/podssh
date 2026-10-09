@@ -28,6 +28,11 @@ url = "2"
 n0-error = "1"
 # The check of the proxy's credentials against iroh's encoding of them.
 base64 = { workspace = true }
+# A node's address as iroh's own tools write it (T-163); the version of
+# iroh's own crates.
+iroh-tickets = "1"
+# The secret key's bytes and text, wiped when they are dropped.
+zeroize = { workspace = true }
 
 [dev-dependencies]
 # A relay server on the loopback, and the skip of its certificate check, for

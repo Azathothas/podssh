@@ -10,18 +10,15 @@ mod common;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
-use iroh::tls::CaTlsConfig;
-use iroh::{EndpointAddr, RelayUrl};
-use podssh_iroh::{Options, Udp, ALPN};
+use iroh::EndpointAddr;
+use podssh_iroh::{Options, ALPN};
 use podssh_relay::session::client::{self, Found, Outcome};
 use podssh_relay::session::{Ask, End, OsEntropy, Settings};
-use podssh_ws::dial::HttpProxy;
-use podssh_ws::{ProxyChoice, Trust};
 use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 use tokio::sync::mpsc;
 
-use common::{proxy, relay, LIMIT};
+use common::{options, proxy, relay, LIMIT};
 
 const PIPE: usize = 256 * 1024;
 const MIB: usize = 1 << 20;
@@ -36,20 +33,6 @@ fn pseudo_random(len: usize, seed: u32) -> Vec<u8> {
             x as u8
         })
         .collect()
-}
-
-/// An endpoint's options: the relay, through the proxy, with no UDP; the
-/// relay's certificate check skipped, as it is self-signed.
-fn options(relay: &RelayUrl, proxy: std::net::SocketAddr, accepts: bool) -> Options {
-    Options {
-        relays: vec![relay.clone()],
-        proxy: ProxyChoice::Via(HttpProxy::parse(&format!("http://{proxy}")).expect("a proxy URL")),
-        trust: Trust::Default,
-        udp: Udp::Off,
-        secret: None,
-        accepts,
-        relay_tls: Some(CaTlsConfig::insecure_skip_verify()),
-    }
 }
 
 /// Write `out` and read as many bytes at once, then end the bytes.
@@ -84,9 +67,12 @@ async fn a_session_through_a_proxy_and_a_relay_carries_20_mib_each_way() {
             Ok::<_, String>(target)
         }
     };
-    tokio::spawn(podssh_iroh::far::serve(far.clone(), Settings::default(), 64 * MIB, open));
-
     let near = podssh_iroh::bind(&options(&relay_url, proxy, false)).await.expect("the client");
+    // The client's key, and no other, is in the far end's allowlist.
+    let client_key = near.id();
+    let admit = move |key: &iroh::PublicKey| *key == client_key;
+    tokio::spawn(podssh_iroh::far::serve(far.clone(), Settings::default(), 64 * MIB, open, admit));
+
     let addr = EndpointAddr::new(far.id()).with_relay_url(relay_url.clone());
     let connection = tokio::time::timeout(LIMIT, near.connect(addr, ALPN)).await.unwrap().expect("a connection");
     let stream = podssh_iroh::open_session(&connection).await.expect("a session's stream");

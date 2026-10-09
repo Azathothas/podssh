@@ -73,6 +73,14 @@ Each rule is implemented.
   for its direct paths only after a probe allows it; with no UDP, its relay
   carries each byte, and a peer is accepted only with the ALPN of podssh's
   sessions.
+- **A node of the iroh road lets in only the keys of its allowlist.** Its
+  ticket is an address, not a credential, so it may go on a command line.
+  Each end's key is its identity, in a private file that podssh makes once
+  and never replaces; a key file that is a symbolic link, another user's,
+  or readable by others is refused with the reason. podssh shows a key by
+  its public half only. The node reads its allowlist for each connection,
+  refuses an allowlist that others can change, and closes a refused
+  connection before any stream, so a refused client never reaches TARGET.
 - **A channel that podssh did not ask for is refused.** A server can open
   channels toward the client (`forwarded-tcpip`, agent, X11, `session`,
   `direct-tcpip` and the two streamlocal kinds). podssh asks for none, so

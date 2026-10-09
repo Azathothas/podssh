@@ -52,7 +52,11 @@ pub fn add(cmd: Command, name: &str) -> Command {
             )
             .arg(Arg::new("args").value_name("NAME").num_args(0..).help("the label of a pair, which you choose")),
         "node" => cmd
-            .arg(Arg::new("name").value_name("NAME").help("the label of a stored pair (podssh relay pair NAME)"))
+            .arg(
+                Arg::new("name")
+                    .value_name("NAME")
+                    .help("the label of a stored pair (podssh relay pair NAME); with --iroh, the node's name, which labels its key"),
+            )
             .arg(
                 Arg::new("target")
                     .value_name("TARGET")

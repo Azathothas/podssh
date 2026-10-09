@@ -88,7 +88,13 @@ where
         outcome = &mut session => outcome,
         () = warn_of_expiry(expires_ms, say) => session.await,
     };
-    let why = match outcome {
+    Carried { why: why_ended(outcome), leg: last(&legs).await }
+}
+
+/// What the layer says of a session that did not end well: `None` for a
+/// good end, and for a lost link, of which the road says more.
+pub(crate) fn why_ended(outcome: Outcome) -> Option<String> {
+    match outcome {
         Outcome::Plain(_) => None,
         Outcome::Layer(ended) => match ended.end {
             End::Closed(reason) if !reason.is_empty() => {
@@ -105,8 +111,7 @@ where
             | End::Retired
             | End::Moving => None,
         },
-    };
-    Carried { why, leg: last(&legs).await }
+    }
 }
 
 /// How long to wait before the warning of a pair that expires at
@@ -189,7 +194,8 @@ fn is_final(e: &ConnectError) -> bool {
     matches!(e, ConnectError::Refused { status: 401 | 403 | 404 | 410, .. })
 }
 
-fn line_of(note: Note) -> Line {
+/// The line of a step of the session across links.
+pub(crate) fn line_of(note: Note) -> Line {
     match note {
         Note::Lost { why } => Line::Always(format!("{why}; resuming the session")),
         Note::Retry { why, wait } => {

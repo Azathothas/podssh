@@ -66,6 +66,10 @@ pub async fn reach(resolved: &Resolved, log: &Arc<Log>) -> Result<Reached, NotRe
             lines: vec!["a node:// destination is reached through its pair, not here".into()],
             code: sysexits::EX_USAGE,
         }),
+        Transport::Iroh { .. } => Err(NotReached {
+            lines: vec!["an iroh: destination is reached over the iroh road, not here".into()],
+            code: sysexits::EX_USAGE,
+        }),
         Transport::Direct => {
             if podssh_relay::open::offline() {
                 return Err(NotReached {

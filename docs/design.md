@@ -466,7 +466,41 @@ relay on the loopback, under a name that only the proxy resolves, with equal
 digests; podssh's trust store refuses the test relay's self-signed
 certificate. `podssh doctor`, with the feature, reached n0's first relay
 with `/ping` in 576 ms. Not measured yet: a real sandbox, and the
-throughput (T-157). Dialling a ticket comes with T-163.
+throughput (T-157).
+
+**Built (T-163, 2026-10-10):** keys, tickets and the allowlist.
+`podssh node NAME TARGET --iroh` serves TARGET over the iroh road with no
+pair, and prints its key and its ticket; `podssh ssh iroh:TICKET` dials it.
+
+- Each end's key is an Ed25519 secret in a private file, in hex as iroh
+  parses it: the node's under its NAME, the client's one for each user, in
+  the cache's directories or the file of `--iroh-key`. A file is made whole
+  or not at all (a temporary file and a hard link), so two first runs get
+  one key; a file that is not private, or a symbolic link, is refused and
+  kept, as a new key would change the ticket. A key is shown by its public
+  half, which the allowlist takes as it is.
+- The ticket is `iroh:` and iroh's own ticket of an endpoint (iroh-tickets
+  1.0), with the node's key and its home relay, and no address of its host:
+  with UDP, the relay tells each side the other's addresses. It is an
+  address, not a credential (the entry's decision), so it may go on a
+  command line.
+- Access is by the allowlist of `--iroh-allow`, read again for each
+  connection: the handshake proves the client's key, and a refused one is
+  closed with the code 403 before any stream, so it never reaches TARGET.
+  The client then prints its own key, the line to add.
+- The client carries the session over a stream of one QUIC connection, and
+  after a lost link over a new stream, or a new connection. The layer's
+  features over iroh are `replay.v1` and `heartbeat.v1`: a move keeps a
+  session within the limits of the WebSocket relay's sessions, which a QUIC
+  connection does not have.
+
+MEASURED offline (`cargo test -p podssh-iroh --test keys --test tickets`):
+iroh's own ticket (the vector of iroh-tickets, written by another encoder)
+parses to its key, relay and address, and podssh writes it back the same; a
+node refuses a client whose key is not in its allowlist, opens no target
+for it, and lets the client in once its key is added; a planted node that
+admits each key fails that check. Not yet: the command line end to end,
+which needs the relays as a setting (T-165).
 
 What iroh then gives, when both ends run podssh:
 

@@ -43,6 +43,8 @@ pub struct SshArgs {
     pub direct: bool,
     /// For `node://NAME`: a pair, or its operator's part, in a file.
     pub pair_file: Option<String>,
+    /// For `iroh:TICKET`: this client's key file.
+    pub iroh_key: Option<String>,
 }
 
 /// The long-only rows that are spellings of `-o NAME=VALUE`.
@@ -59,6 +61,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("relay-addr", "give the addresses as one comma list"),
     ("ca-file", "give one file"),
     ("pair-file", "give one file"),
+    ("iroh-key", "give one file"),
 ];
 
 /// The refusal for a flag of [`ONCE`] given more than once, if there is one.
@@ -131,6 +134,7 @@ impl SshArgs {
             ca_file: one("ca-file"),
             direct: flag("direct"),
             pair_file: one("pair-file"),
+            iroh_key: one("iroh-key"),
         }
     }
 }

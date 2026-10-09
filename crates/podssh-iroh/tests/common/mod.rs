@@ -10,7 +10,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use iroh::tls::CaTlsConfig;
 use iroh::RelayUrl;
+use podssh_iroh::{Options, Udp};
+use podssh_ws::dial::HttpProxy;
+use podssh_ws::{ProxyChoice, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 
@@ -25,6 +29,20 @@ pub async fn relay() -> (RelayUrl, impl Sized) {
     let port = url.port().expect("the relay's port");
     let named: RelayUrl = format!("https://{RELAY_NAME}:{port}").parse().expect("a relay URL");
     (named, server)
+}
+
+/// An endpoint's options: the relay, through the proxy, with no UDP; the
+/// relay's certificate check skipped, as it is self-signed.
+pub fn options(relay: &RelayUrl, proxy: SocketAddr, accepts: bool) -> Options {
+    Options {
+        relays: vec![relay.clone()],
+        proxy: ProxyChoice::Via(HttpProxy::parse(&format!("http://{proxy}")).expect("a proxy URL")),
+        trust: Trust::Default,
+        udp: Udp::Off,
+        secret: None,
+        accepts,
+        relay_tls: Some(CaTlsConfig::insecure_skip_verify()),
+    }
 }
 
 /// A stand-in CONNECT proxy, as a sandbox's: `CONNECT relay.podssh.test:PORT`

@@ -539,7 +539,7 @@ credential that a later commit removed, is not found.
 Read:
 
 - `scripts/check-repo.py:50-63` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:175-196` scans the tracked
+  key, a private key block); `scripts/check-repo.py:182-203` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -1035,7 +1035,7 @@ Read:
   `stty`, `vi`, `less`, `top`, `seq` and `/tmp`.
 - The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
   `crates/podssh-ssh/src/prompt.rs:89`, and the `cfg(not(unix))` branches of
-  `crates/podssh-relay/src/cache.rs:297-351`.
+  `crates/podssh-relay/src/cache.rs:292-346`.
 
 ## Approach
 
@@ -1671,7 +1671,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:114`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:121`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -2217,7 +2217,7 @@ Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
 
 Read: `libc` (line 44) is used only in code under `cfg(unix)`
 (`crates/podssh-cli/src/ssh/tokens.rs:127`, `crates/podssh-cli/src/ssh/tokens.rs:144`,
-`crates/podssh-cli/src/ssh/resolve.rs:83`,
+`crates/podssh-cli/src/ssh/resolve.rs:86`,
 the module of `crates/podssh-cli/src/doctor/unix.rs`). T-060 decides whether a
 command uses `podssh-probe`.
 
