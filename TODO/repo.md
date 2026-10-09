@@ -328,7 +328,7 @@ Read:
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
   and the release with neither (`scripts/gate.sh:113-120`,
-  `scripts/gate.sh:181-183`). The help omits the work record, interop, the man
+  `scripts/gate.sh:216-218`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (`scripts/dev.sh:602`).
 - Stale comments: `scripts/dev.sh:69-73` ("the default build"),
   `scripts/dev.sh:397-404` ("links the fork since 4b", "steps 4-5"),
@@ -348,7 +348,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:98-230`).
+   (`scripts/gate.sh:98-265`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -420,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:410-455`): the
+5. docs/development.md, "Release builds" (`docs/development.md:416-461`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -1369,7 +1369,7 @@ repository check finds a listener outside its allowance".
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1409,6 +1409,18 @@ Read:
 5. docs/STATUS.md, "Build, tests, CI": one row for each version, with the date
    and the run.
 
+## Decision
+
+2026-10-09: steps of the gate, not a job of the workflow. `msrv_ssh` and
+`msrv_ts` join `msrv` in `scripts/gate.sh`, so that a developer's gate runs
+them too, and CI runs each in a job of its own (T-212). rustup fetches each
+toolchain into the build image, so the C toolchain of aws-lc is the gate's:
+step 3 asked for the image family of each version for that reason, and one
+image gives it with no second pin. An image for each version lost: three
+more pins, and C toolchains that differ from the gate's by their dates. Two
+steps rather than one: the check of the fork takes minutes, and alone it
+would be the longest job of CI.
+
 ## Prove
 
 ```sh
@@ -1429,6 +1441,31 @@ podssh-todo passed `cargo check --locked --all-targets` on 1.85.0, and two steps
 (podssh-ssh, podssh-cli) and 1.92 (podssh-ts); the job may take the check of the library crates
 over from the gate. The plant for 1.85: a call stable since 1.86 (`Vec::pop_if`) fails it with
 `E0658`.
+
+The checks of 1.89 and 1.92 are steps of the gate (Decision). So the Prove
+runs as `sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh msrv msrv_ssh
+msrv_ts'`, and the plant of 1.89 is a call stable since 1.90, as `File::lock`
+is stable on 1.89.
+
+## Done
+
+2026-10-09, in the commit "The gate checks each crate on the minimum Rust
+that it declares".
+
+- `scripts/gate.sh`: `rust_version` reads each manifest's version in the
+  gate's shell, and fails on one that is not 1.x. The step `msrv_ssh` checks
+  `podssh-ssh` and `podssh-cli` on their versions (1.89); `msrv_ts` checks
+  `podssh-ts` and the CLI with the feature `ts` on the adapter's (1.92).
+- `.cargo/config.toml`: `incompatible-rust-versions = "fallback"`.
+- `docs/development.md`: the three versions, their steps, and the policy of
+  updates. `docs/STATUS.md`: a row for each version.
+- Prove: `sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh msrv msrv_ssh
+  msrv_ts'`: each check exited 0 (1.85, 1.89 twice, 1.92), green in 6 min
+  37 s. Plants, together, then restored: `u32::checked_sub_signed` called in
+  `podssh-ssh`: both checks on 1.89 exited 101 with `E0658`
+  (`mixed_integer_ops_unsigned_sub`); `podssh-ts` declaring 1.91: the check
+  exited 101, as cargo names each crate of the fork that requires rustc
+  1.92.0. CI runs the two new steps as jobs from the push of this commit.
 
 # T-218: More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64
 
@@ -1531,8 +1568,8 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:180-182` states the rule with `CXX`, and
-  `docs/STATUS.md:239` records the measurement. Rule 4 of
+- `docs/development.md:185-187` states the rule with `CXX`, and
+  `docs/STATUS.md:241` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:94-101` runs the plant on each push.
@@ -1563,7 +1600,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:239`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:241`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1984,7 +2021,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:42-47`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:156-163`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:191-198`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,

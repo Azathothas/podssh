@@ -18,7 +18,7 @@ set -u
 
 # The steps, in the order of a full run. A step that is not in this list runs
 # nowhere: not here, and not in CI.
-STEPS="lint libs msrv record ssh ts release"
+STEPS="lint libs msrv msrv_ssh msrv_ts record ssh ts release"
 
 if [ "$#" -eq 1 ] && [ "$1" = --list ]; then
     for _s in $STEPS; do
@@ -128,26 +128,61 @@ step_libs() {
     run "the binary does not enable plain-ws" sh scripts/no-plain-ws.sh
 }
 
-# The declared minimum Rust of the library crates and podssh-todo, the
-# workspace's rust-version (podbox's minimum, T-081), checked so that the
-# number stays true. rustup fetches that toolchain at each run.
-step_msrv() {
-    MSRV=$(tr -d '\r' < Cargo.toml | sed -n 's/^rust-version = "\([0-9.]*\)"$/\1/p')
-    # An empty version would run `cargo +` on the default toolchain: a false pass.
-    case "$MSRV" in
+# The declared minimum Rust of each crate, checked so that each number stays
+# true. Each is read from its manifest, and rustup fetches that toolchain at
+# each run into this image, so the C toolchain of aws-lc is the gate's own.
+# rust_version MANIFEST sets RV to the version that MANIFEST declares, in this
+# shell (a command substitution would lose `failed`). An empty one, or one
+# that is not 1.x, fails: `cargo +` with no version would run the default
+# toolchain, a false pass.
+rust_version() {
+    RV=$(tr -d '\r' < "$1" | sed -n 's/^rust-version = "\([0-9.]*\)"$/\1/p')
+    case "$RV" in
         1.*) ;;
         *)
-            echo "FAIL the workspace's rust-version could not be read from Cargo.toml"
+            echo "FAIL the rust-version of $1 could not be read"
             failed=1
-            MSRV=unreadable
+            RV=unreadable
             ;;
     esac
+}
+
+# The workspace's version (podbox's minimum, T-081), for the library crates
+# and podssh-todo.
+step_msrv() {
+    rust_version Cargo.toml
+    MSRV=$RV
     run "Rust $MSRV, the declared minimum of the library crates: install" \
         rustup toolchain install "$MSRV" --profile minimal
     # shellcheck disable=SC2086
     run "library crates and podssh-todo: check on Rust $MSRV (no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo "+$MSRV" check --locked $LIBS -p podssh-todo \
             --features podssh-relay/blocking,podssh-relay/plain-ws --all-targets
+}
+
+# russh's minimum, which the SSH client and the CLI declare, each on its own.
+step_msrv_ssh() {
+    rust_version crates/podssh-ssh/Cargo.toml
+    SSH_RUST=$RV
+    rust_version crates/podssh-cli/Cargo.toml
+    CLI_RUST=$RV
+    run "Rust $SSH_RUST, the declared minimum of podssh-ssh: install" \
+        rustup toolchain install "$SSH_RUST" --profile minimal
+    run "podssh-ssh: check on Rust $SSH_RUST" cargo "+$SSH_RUST" check --locked --all-targets -p podssh-ssh
+    run "Rust $CLI_RUST, the declared minimum of podssh-cli: install" \
+        rustup toolchain install "$CLI_RUST" --profile minimal
+    run "podssh-cli: check on Rust $CLI_RUST" cargo "+$CLI_RUST" check --locked --all-targets -p podssh-cli
+}
+
+# The fork's minimum, which the Tailscale adapter declares; the CLI with the
+# feature `ts` too, which brings the adapter in.
+step_msrv_ts() {
+    rust_version crates/podssh-ts/Cargo.toml
+    TS_RUST=$RV
+    run "Rust $TS_RUST, the declared minimum of podssh-ts: install" \
+        rustup toolchain install "$TS_RUST" --profile minimal
+    run "podssh-ts and podssh-cli with the feature ts: check on Rust $TS_RUST" \
+        cargo "+$TS_RUST" check --locked --all-targets -p podssh-ts -p podssh-cli --features podssh-cli/ts
 }
 
 # The work record (TODO/): the checker's own tests, where each planted

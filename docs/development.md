@@ -6,8 +6,8 @@ target sandbox, and release it.
 ## Requirements
 
 - Rust 1.89 or later for the binary. The library crates build with Rust
-  1.85, podbox's minimum; the gate checks them on it. The `ts` feature needs
-  Rust 1.92.
+  1.85, podbox's minimum. The `ts` feature needs Rust 1.92. The gate checks
+  each crate on the version that its manifest declares.
 - A C compiler for the binary. The SSH client uses aws-lc (`aws-lc-sys`,
   through `russh`). On Windows, also NASM; without it, aws-lc uses prebuilt
   objects.
@@ -161,8 +161,8 @@ the index must list linux/amd64 and linux/arm64, which the release builds),
 write it into the Dockerfile, and run the gate.
 
 `scripts/gate.sh` is the gate. CI runs the same file in the same image. Its
-steps, in order: `lint`, `libs`, `msrv`, `record`, `ssh`, `ts` and
-`release`; `sh scripts/gate.sh --list` prints them. With no argument, the
+steps, in order: `lint`, `libs`, `msrv`, `msrv_ssh`, `msrv_ts`, `record`,
+`ssh`, `ts` and `release`; `sh scripts/gate.sh --list` prints them. With no argument, the
 gate runs each step; with names, those steps, in the order given. CI runs
 each step in a job of its own, at the same time: its job `plan` reads the
 list, so CI cannot miss a step that the gate has. `python
@@ -173,9 +173,14 @@ not in its list, or a name has no function. One step, in the container:
 sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh ssh'
 ```
 
-`lint` checks the format and clippy's lints (see "Checks"), and `msrv` the
-library crates and `podssh-todo` on their declared minimum Rust. The other
-steps make sure that:
+`lint` checks the format and clippy's lints (see "Checks"). `msrv`,
+`msrv_ssh` and `msrv_ts` check each crate with `cargo check --locked
+--all-targets` on the minimum Rust that its manifest declares: 1.85 for the
+library crates and `podssh-todo` (with no C compiler), 1.89 for `podssh-ssh`
+and `podssh-cli`, 1.92 for `podssh-ts` and the CLI with the feature `ts`.
+rustup fetches each toolchain into the build image, so the C toolchain is
+the gate's. `.cargo/config.toml` makes `cargo update` prefer the versions of
+dependencies that these minimums allow. The other steps make sure that:
 
 1. (`libs`) The library crates build and pass their tests with
    `CC=/nonexistent` and `CXX=/nonexistent`. The `cc` crate reads `CXX` for
@@ -392,9 +397,10 @@ that must fail.
 
 Each pull request of Dependabot runs the whole CI: the gate, whose steps with
 no C compiler judge each update of a library crate's dependencies and whose
-check on Rust 1.85 refuses an update that needs a newer compiler; the plant;
-and the live check of the relay's document. An update whose CI is green is
-applied as the operator's own commit, then its pull request is closed:
+checks on each declared minimum Rust refuse an update that needs a newer
+compiler; the plant; and the live check of the relay's document. An update
+whose CI is green is applied as the operator's own commit, then its pull
+request is closed:
 
 ```sh
 git fetch origin pull/NUMBER/head

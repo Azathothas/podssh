@@ -3,3 +3,9 @@
 # citations of an edited file (see TODO/RULES.md).
 [alias]
 todo = "run -q -p podssh-todo --"
+
+# `cargo update` and a new dependency take the versions that the declared
+# minimum Rust allows, and a newer one only when no other matches (T-217).
+# The gate checks each declared minimum (scripts/gate.sh, the steps msrv).
+[resolver]
+incompatible-rust-versions = "fallback"
