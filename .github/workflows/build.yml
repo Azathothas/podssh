@@ -27,7 +27,7 @@ jobs:
       image: ${{ steps.image.outputs.image }}
       steps: ${{ steps.steps.outputs.steps }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # The one place that names the build image, pinned to a digest.
       - name: the build image
@@ -62,7 +62,7 @@ jobs:
       matrix:
         step: ${{ fromJSON(needs.plan.outputs.steps) }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # gate.sh caps cargo jobs from the runner's available memory.
       - name: the gate, step ${{ matrix.step }}
@@ -97,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: the no-C rule is load-bearing
         env:
           BUILD_IMAGE: ${{ needs.plan.outputs.image }}
@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Resolve python by running it: a name that prints no version is not an
       # interpreter, and a check that did not run is not a pass.
@@ -197,7 +197,7 @@ jobs:
     env:
       CARGO_BUILD_JOBS: 4
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       # aws-lc's build wants NASM on Windows, as in the release.
       - uses: ilammy/setup-nasm@v1
       - name: the default tests

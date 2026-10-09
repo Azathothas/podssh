@@ -97,7 +97,7 @@ Read:
 - Measured with grep on `HEAD`: `Cargo.lock` holds 478 packages, 438 of them
   from crates.io, and no git source.
 - The workflows use four actions, each by a major tag:
-  `actions/checkout@v5` (`.github/workflows/build.yml:30`),
+  `actions/checkout@v5` (`.github/workflows/build.yml` line 30 at `7c70aa7`),
   `actions/upload-artifact@v7` (`.github/workflows/build.yml:87`),
   `actions/download-artifact@v8` (`.github/workflows/release.yml:125`) and
   `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:82`).
@@ -434,7 +434,7 @@ Read:
   beta that the operator dropped are in git:
   `git show b1b111b:docs/releases/v0.1.0-beta.1.md`.
 - `actions/checkout@v5` fetches one commit by default
-  (`.github/workflows/release.yml:121`), which hides the history from a
+  (`.github/workflows/release.yml` line 121 at `7c70aa7`), which hides the history from a
   generator.
 - Measured: `git rev-list --count HEAD` gives 27, and `git tag -l` gives no
   tag. The subjects are "scope: text" ("podssh ssh: ...", "gate: ...") or
@@ -2621,3 +2621,65 @@ and never a verdict".
   `InvalidData` made a break: the offline test failed ("InvalidData: 3
   attempts"). In the build image, the steps `lint` and `libs`: green.
 
+# T-260: The open pull requests of Dependabot, #37 to #42
+
+**Source:** the pull requests of Dependabot (T-205), open on 2026-10-09.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+Six pull requests of Dependabot waited: none was applied or closed, so the
+updates they carry went nowhere, and two of them would change the fork in
+`vendor/tailscale-rs`, which follows its own patches.
+
+## Premise
+
+Read on 2026-10-09 with `gh pr list` and `gh pr diff`:
+
+- #37: `actions/checkout` from 5 to 7, in each workflow (12 uses). The notes
+  of v7 change the checkout of a fork's pull request for
+  `pull_request_target` and `workflow_run`, which no workflow here uses.
+- #38: the group of minor and patch updates: `libc` 0.2.190, `tokio`
+  1.53.2, `zerocopy` 0.8.62, in `Cargo.lock` only. Each check of its CI
+  passed, the steps of each declared minimum Rust too.
+- #39 (`cipher` 0.5) and #42 (`chacha20` 0.10): declarations of
+  `[workspace.dependencies]` that no crate used, which T-244 removed.
+- #40 (`blake2` 0.11) and #41 (`itertools` 0.15): `vendor/tailscale-rs/Cargo.toml`.
+
+## Approach
+
+1. Apply #38 and #37 as the operator's own commit (`docs/development.md`,
+   "Updates"), and run the tests and CI.
+2. Close #39 and #42: what they update is gone. Close #40 and #41: the fork
+   takes no update of Dependabot's. Each with a comment that says why.
+
+## Decision
+
+The fork's major updates are closed by hand, as they come. A rule in
+`.github/dependabot.yml` that leaves `vendor/` out lost for now: whether
+Dependabot honours one for cargo is not measured here, and a rule that
+does nothing reads as a guard.
+
+## Prove
+
+```sh
+cargo test --no-fail-fast --locked
+gh pr list -R Azathothas/podssh --state open --author app/dependabot
+```
+
+The tests pass, CI passes on the push, and none of the six is open.
+
+## Done
+
+2026-10-09, in the commit "Dependabot's updates of the crates and of the
+checkout action".
+
+- `Cargo.lock`: #38, applied with `git cherry-pick --no-commit`.
+- `.github/workflows/*.yml`: `actions/checkout@v7`, each of the 12 uses.
+- Prove: `cargo test --no-fail-fast --locked`: 824 passed, 0 failed, 20
+  ignored. The six pull requests are closed after the push, each with its
+  reason; #37 and #38 name the commit that applied them.
