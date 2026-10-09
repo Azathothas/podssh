@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:146` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:242`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:243`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -407,7 +407,7 @@ logs each `exit-status` request, and correct the row.
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
 lablup/bssh report in GitHub #18, #20 and #22 (item 8, "`@cert-authority`
-rejection"); the known gap in `docs/STATUS.md:273` and `SECURITY.md:98-100`.
+rejection"); the known gap in `docs/STATUS.md:274` and `SECURITY.md:98-100`.
 Each claim read again here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog
@@ -473,7 +473,7 @@ back to the plain key only when no CA line matches.
    (`crates/podssh-cli/src/doctor/clock.rs`).
 6. Keep the test `a_cert_authority_line_does_not_make_a_key_known`: a CA line
    never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:68-70`.
-   When certificates work, change `docs/STATUS.md:273` and `SECURITY.md:98-100`.
+   When certificates work, change `docs/STATUS.md:274` and `SECURITY.md:98-100`.
 
 GitHub #29 notes that the bssh report in #18, #20 and #22 asks podssh to
 keep refusing a certificate that no trusted CA signed. Verification keeps
