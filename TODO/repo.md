@@ -80,7 +80,7 @@ Dependabot.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -98,7 +98,7 @@ Read:
   from crates.io, and no git source.
 - The workflows use four actions, each by a major tag:
   `actions/checkout@v5` (`.github/workflows/build.yml:22`),
-  `actions/upload-artifact@v7` (`.github/workflows/build.yml:100`),
+  `actions/upload-artifact@v7` (`.github/workflows/build.yml:113`),
   `actions/download-artifact@v8` (`.github/workflows/release.yml:122`) and
   `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:82`).
 - The build image is a variable in two workflows and in a shell script
@@ -148,6 +148,21 @@ test "$(gh pr list -R Azathothas/podssh --author app/dependabot --state all --js
 The first command shows that the file is valid. The second, a week later,
 shows that Dependabot opened pull requests, each with a CI run. Planted
 defect: write `package-ecosystem: cargoo`; the schema check must fail.
+
+## Correction
+
+2026-10-09: this machine has neither `pipx` nor `check-jsonschema`, and the
+work does not install a tool from PyPI on it. The first command runs in CI
+instead, where the runner has `pipx`: a step of `.github/workflows/build.yml`
+checks `.github/dependabot.yml` against the schema, then a copy with
+`package-ecosystem: cargoo`, which must fail. The step itself fails if the
+planted copy passes.
+
+The state (partial), 2026-10-09: `.github/dependabot.yml` (cargo, one group
+for minor and patch, at most 5 pull requests; the actions, one group; the
+three images of `.github/images/`, after T-206), the CI step, and the section
+"Updates" of `docs/development.md` are written. Next: the step's result in
+CI, then Dependabot's first pull requests.
 
 # T-206: B7: the build image is not pinned to a digest
 
@@ -298,7 +313,7 @@ Read:
 - Stale comments: `scripts/dev.sh:69-73` ("the default build"),
   `scripts/dev.sh:397-404` ("links the fork since 4b", "steps 4-5"),
   `scripts/dev.sh:462`.
-- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:56-62`);
+- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:69-75`);
   `scripts/check-scripts.py:45-49` finds the scripts under `scripts/` at any
   depth.
 
@@ -385,7 +400,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:289-315`): the
+5. docs/development.md, "Release builds" (`docs/development.md:316-342`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -625,7 +640,7 @@ and the job takes the sum of all the steps.
 
 Read:
 
-- `.github/workflows/build.yml:16-104`: one job, `gate`, with a limit of
+- `.github/workflows/build.yml:16-117`: one job, `gate`, with a limit of
   45 min (line 24). The gate is one `docker run` (lines 58-65); the plant
   (lines 67-73) and the live check (lines 75-92) follow it.
 - `.github/workflows/build.yml:3-5`: CI implements nothing of the gate again.
@@ -709,7 +724,7 @@ Read:
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:129`).
 - The box needs a static binary; CI uploads one
-  (`.github/workflows/build.yml:100-104`).
+  (`.github/workflows/build.yml:113-117`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
   `/dev/pts` (`scripts/test_in_box.sh:180`). Nobody measured the Podman of a
   GitHub runner with them.
@@ -1161,7 +1176,7 @@ Read, in the tree as it is now:
   `docs/STATUS.md:237` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
-- `.github/workflows/build.yml:73-79` runs the plant on each push.
+- `.github/workflows/build.yml:86-92` runs the plant on each push.
 
 ## Approach
 
@@ -1244,7 +1259,7 @@ Read:
 3. A plant in the same script: a mode `--plant-empty` runs the checks on an
    empty temporary directory and must exit 1. The control is the real tree,
    which must exit 0. CI runs both, as it does for the relay check
-   (`.github/workflows/build.yml:86-98`).
+   (`.github/workflows/build.yml:99-111`).
 4. With T-207: the size check also reads `scripts/`, with its own floor.
 5. The checker of `TODO/` gets its own floor in its own change; this entry
    does not plan it.

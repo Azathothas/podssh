@@ -286,6 +286,33 @@ cargo run -p podssh-cli --example live_irc                 # an IRC registration
 - Do not change the line endings of a file that a change does not otherwise
   touch.
 
+## Updates
+
+Dependabot (`.github/dependabot.yml`) looks each week at the crates of the
+workspace's `Cargo.lock`, the actions of the workflows, and the three pinned
+images of `.github/images/`. Minor and patch updates of the crates come in one
+pull request, and each major update alone; the actions come in one. The fork
+in `vendor/tailscale-rs` has no entry: it follows its own patches. CI checks
+the configuration against Dependabot's published schema, with a planted copy
+that must fail.
+
+Each pull request of Dependabot runs the whole CI: the gate, whose steps with
+no C compiler judge each update of a library crate's dependencies and whose
+check on Rust 1.85 refuses an update that needs a newer compiler; the plant;
+and the live check of the relay's document. An update whose CI is green is
+applied as the operator's own commit, then its pull request is closed:
+
+```sh
+git fetch origin pull/NUMBER/head
+git cherry-pick --no-commit FETCH_HEAD   # the change, not the bot's commit
+git commit                               # the operator's commit; then the checks, and push
+```
+
+A merge in GitHub's page, or a plain `git cherry-pick`, would keep the bot
+as the author, and each commit of this repository is the operator's
+(`docs/decisions.md`). A minimum Rust is raised only by a decision, never to
+let an update in.
+
 ## Release builds
 
 The released Linux binary is `podssh-cli` for `x86_64-unknown-linux-musl`,

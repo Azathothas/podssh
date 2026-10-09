@@ -1,0 +1,37 @@
+# Dependabot: a weekly look at the crates, the actions of the workflows and
+# the pinned images. Each pull request runs the whole CI (the gate with its
+# no-C steps, the plant, the live check); the operator applies a judged update
+# as the operator's own commit (docs/development.md, "Updates").
+version: 2
+updates:
+  # The workspace's Cargo.lock; the fork in vendor/tailscale-rs follows its
+  # own patches and has no entry.
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Minor and patch updates in one pull request; each major update alone.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # The one place of each image: its digest moves with the tag.
+  - package-ecosystem: docker
+    directories:
+      - /.github/images/build
+      - /.github/images/box
+      - /.github/images/box-proxy
+    schedule:
+      interval: weekly

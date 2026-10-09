@@ -53,6 +53,19 @@ jobs:
       - name: repository checks
         run: '"$PY" scripts/check-repo.py'
 
+      # Dependabot's configuration, against its published schema. A copy with
+      # a wrong ecosystem must fail, or the check proves nothing.
+      - name: dependabot's configuration is valid
+        run: |
+          set -eu
+          pipx run check-jsonschema --builtin-schema vendor.dependabot .github/dependabot.yml
+          sed 's/package-ecosystem: cargo$/package-ecosystem: cargoo/' .github/dependabot.yml > "$RUNNER_TEMP/planted.yml"
+          if pipx run check-jsonschema --builtin-schema vendor.dependabot "$RUNNER_TEMP/planted.yml"; then
+            echo "the schema check is vacuous: a planted ecosystem passed"
+            exit 1
+          fi
+          echo "the planted ecosystem failed, as it must"
+
       - name: shell scripts are LF and parse under dash
         run: |
           set -eu
