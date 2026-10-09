@@ -22,7 +22,9 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   is an entry (T-027, and T-220 to T-227). The operator ruled on the
   twelve questions of scope and design the same day (`docs/decisions.md`).
 - **The mode of work.** Since 2026-10-08, each session runs unattended
-  toward `v1.0.0` (`AGENTS.md`, section 2; `docs/decisions.md`).
+  toward `v1.0.0` (`AGENTS.md`, section 2; `docs/decisions.md`). Since
+  2026-10-09, an entry closes with the native tests; the runs in the build
+  image and the planted defects wait for T-251 (`docs/decisions.md`).
 - **The branch.** The record was added in `22c3b88` and `e275d36` on
   2026-10-08, and CI passed for both (runs 37777359030 and 37777669130).
 

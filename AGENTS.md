@@ -200,11 +200,15 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 
 ## 6. Procedure for a change
 
-1. Do one entry of `TODO/` at a time. Complete it until its Prove passes.
+1. Do one entry of `TODO/` at a time. Complete it until the native parts
+   of its Prove pass. Runs in the build image and planted defects wait for
+   the checks of the release (T-251; `docs/decisions.md`, 2026-10-09); the
+   entry's `## Done` says what waits.
 2. Test protocol code against software that podssh did not write: OpenSSH,
    Dropbear, a real IRC server, the live relay, or bytes captured from one.
+   A test that needs the build image waits for T-251.
 3. Trust a new check only after it fails on a planted defect and passes on
-   correct input.
+   correct input. The planted run waits for T-251.
 4. Read each exit code directly, not through a pipe. Put a time limit on
    each network wait and on each process wait.
 5. Before each commit, run `python scripts/check-repo.py`,
@@ -215,8 +219,8 @@ These rules come from [docs/decisions.md](docs/decisions.md).
    `cargo todo set T-NNN done`, which also updates the counts.
 7. Commit on `main`. Attribute the commit to the operator only. Do not add
    co-author lines.
-8. Push only verified work. Do not rewrite published history. CI runs the
-   gate on each push.
+8. Push work that the native tests verified. Do not rewrite published
+   history. CI runs the gate on each push; a failed run may wait for T-251.
 9. Do not change the line endings of a file that you do not otherwise
    change.
 10. Do not change the files in `.tmp/`. They are read-only copies of other

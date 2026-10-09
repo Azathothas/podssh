@@ -132,3 +132,13 @@ and nothing runs. T-250 runs the same script on the published files.
 
 Each entry of `TODO/` is done, except the entries that wait for the relay's
 operator.
+
+## Correction
+
+2026-10-09 (the operator's decision of that day, `docs/decisions.md`):
+from T-136 on, an entry closes with the native tests, and the other parts
+of its Prove wait for this entry. Before the release check, run them: the
+whole gate in the build image (`sh scripts/dev.sh check`, the interop
+against OpenSSH and Dropbear with it), then each planted defect that the
+`## Done` of such an entry names as waiting. A failure is repaired, and its
+entry gets a `## Correction`, before the tag.
