@@ -668,7 +668,7 @@ after T-153.
 **Milestone:** M6
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -702,6 +702,25 @@ cargo test -p podssh-cli -- plain
 The argument test parses `--plain` for `node` and refuses it elsewhere. A
 test of the handler shows that a plain node gives TARGET's first bytes with
 no `GREETING`, and that the default node greets.
+
+## Done
+
+2026-10-10. `podssh node NAME TARGET --plain` carries each session's bytes
+as they are, with no resumable layer: the node's handler is then the TCP
+handler alone, which dials TARGET at `open`
+(`crates/podssh-cli/src/node.rs:152-163`). The node's first line names its
+mode (`crates/podssh-cli/src/node.rs:129`). `--plain` with `--iroh` is
+refused with 64 (`crates/podssh-cli/src/node.rs:63-66`): the iroh road
+always runs the layer. The flag's row, the manual's note of `node`,
+`docs/reverse.md` and `docs/cli.md`.
+- Native: `cargo test -p podssh-cli -- plain`, 3 passed. The argument test:
+  `--plain` with `--iroh` exits 64, `--plain` for `operator` and `ssh`
+  exits 64, and a node with `--plain` gets to its pair (78, as none is
+  stored). Through the stand-in relay's reverse road
+  (`crates/podssh-cli/tests/node_plain.rs`), `podssh ssh -v node://` finds
+  no layer at a plain node, the layer's features at the default node, and
+  logs in and runs `greet` through each. Planted, a `--plain` that changes
+  nothing fails the plain check, and the default check still passes.
 
 # T-154: Heartbeats that also prevent the relay's idle cut
 

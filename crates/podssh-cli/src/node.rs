@@ -2,8 +2,10 @@
 //! label NAME, in front of the TCP service TARGET. Each session that an
 //! operator opens is one connection to TARGET. The node runs until Ctrl-C or
 //! SIGTERM (exit 0), or until the relay ends the pair. stdout stays empty:
-//! a node has no answer to give. With `--iroh`, the node serves the iroh
-//! road instead, with no pair (T-163, `node_iroh`).
+//! a node has no answer to give. Each session runs the resumable layer
+//! (T-153), or with `--plain` carries TARGET's bytes as they are (T-263).
+//! With `--iroh`, the node serves the iroh road instead, with no pair
+//! (T-163, `node_iroh`).
 
 use std::io::Write;
 use std::sync::Arc;
@@ -32,6 +34,8 @@ pub struct NodeArgs {
     pub ca_file: Option<String>,
     /// A pair file to use in place of the store.
     pub pair_file: Option<String>,
+    /// Each session's bytes as they are, with no resumable layer.
+    pub plain: bool,
     /// Serve the iroh road, with no pair.
     pub iroh: bool,
     /// The node's key file on the iroh road.
@@ -55,6 +59,10 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     ];
     if let Some((flag, _)) = iroh_only.iter().find(|(_, given)| *given).filter(|_| !args.iroh) {
         return Refusal::usage(format!("{flag} is for the iroh road: add --iroh")).report("node", err);
+    }
+    if args.plain && args.iroh {
+        let why = "--plain is for the pair's road: the iroh road always runs the resumable layer";
+        return Refusal::usage(why.to_string()).report("node", err);
     }
     if args.iroh {
         return iroh(args, err);
@@ -87,6 +95,7 @@ struct Ready {
     host: String,
     port: u16,
     trust: Trust,
+    plain: bool,
 }
 
 fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
@@ -101,11 +110,12 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         None => (pairs::stored(&label)?, true),
     };
     pairs::online()?;
-    Ok(Ready { label, pair, stored, host, port, trust: pairs::trust(args.ca_file.as_deref()) })
+    let trust = pairs::trust(args.ca_file.as_deref());
+    Ok(Ready { label, pair, stored, host, port, trust, plain: args.plain })
 }
 
 async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, pair, stored, host, port, trust } = ready;
+    let Ready { label, pair, stored, host, port, trust, plain } = ready;
     let target = podssh_ws::dial::authority(&host, port);
     let proxy = ProxyChoice::FromEnvironment;
     // TARGET first: a node that cannot reach it would serve no session.
@@ -116,9 +126,10 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             return refusal.report("node", err);
         }
     }
+    let mode = if plain { "in plain mode, with no resumable layer" } else { "with the resumable layer" };
     let _ = writeln!(
         err,
-        "podssh node: {label}: serving {target} through {} until Ctrl-C; the pair expires {}",
+        "podssh node: {label}: serving {target} through {} {mode} until Ctrl-C; the pair expires {}",
         pair.relay.host,
         pairs::utc(pair.expires_ms)
     );
@@ -137,12 +148,18 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         wire: Wire::Tls,
         say: Some(&say),
     };
-    // Each session runs the resumable layer (T-153): a client that loses its
-    // leg resumes the session on a new one, with the same connection to
-    // TARGET, which is dialled only after the layer's handshake.
     let tcp = TcpHandler { host, port, timeout: DIAL_LIMIT };
-    let handler = Arc::new(Layered::new(tcp, crate::layered::settings(), reverse::layered::NODE_BUDGET));
-    let exit = reverse::run(&mut config, handler, stop_signal()).await;
+    let exit = if plain {
+        // TARGET at `open`, its bytes as they come: an operator that does not
+        // speak the layer can use the node, and a lost leg ends the session.
+        Box::pin(reverse::run(&mut config, Arc::new(tcp), stop_signal())).await
+    } else {
+        // Each session runs the resumable layer (T-153): a client that loses
+        // its leg resumes the session on a new one, with the same connection
+        // to TARGET, which is dialled only after the layer's handshake.
+        let handler = Arc::new(Layered::new(tcp, crate::layered::settings(), reverse::layered::NODE_BUDGET));
+        Box::pin(reverse::run(&mut config, handler, stop_signal())).await
+    };
     finish(&label, exit, err)
 }
 

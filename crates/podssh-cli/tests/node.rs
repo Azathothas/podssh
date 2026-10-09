@@ -27,6 +27,23 @@ fn node_needs_a_name_and_a_target_and_refuses_bad_ones_before_any_connection() {
     }
 }
 
+/// `--plain` is a flag of `node` alone, and of the pair's road: the iroh
+/// road always runs the resumable layer (T-263).
+#[test]
+fn plain_is_a_flag_of_the_node_of_a_pair_only() {
+    let home = scratch("plain");
+    let (rc, _, err) = podssh(&home, &["node", "lab", "127.0.0.1:22", "--plain", "--iroh"], &[]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("--plain is for the pair's road"), "{err}");
+    for args in [&["operator", "lab", "--plain"][..], &["ssh", "--plain", "node://lab"][..]] {
+        let (rc, _, err) = podssh(&home, args, &[]);
+        assert_eq!(rc, 64, "{args:?}: {err}");
+    }
+    // With a pair to find, the node gets past the flag: no stored pair, 78.
+    let (rc, _, err) = podssh(&home, &["node", "lab", "127.0.0.1:22", "--plain"], &[]);
+    assert_eq!(rc, 78, "{err}");
+}
+
 #[test]
 fn with_no_stored_pair_each_command_names_the_remedy() {
     let home = scratch("none");

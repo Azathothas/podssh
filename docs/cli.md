@@ -366,6 +366,11 @@ commands. The rules behind them:
 - **A node dials TARGET first,** once, and exits 69 when it cannot; else
   each operator would get a `reject`. It runs until Ctrl-C or SIGTERM
   (exit 0). Its stdout stays empty.
+- **`node --plain`** carries each session's bytes as they are, with no
+  resumable layer, for an operator that does not speak it (T-263): a lost
+  link ends the session, as before T-153. The node's first line names its
+  mode. The iroh road always runs the layer, so `--plain` with `--iroh` is
+  refused (64).
 - **The exit codes follow the faults of E24**
   (`crates/podssh-cli/src/exitmap.rs`): 69 for a relay or TARGET out of
   reach, a stopped pair, or a pair that another node serves; 77 for a

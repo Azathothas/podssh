@@ -402,7 +402,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:134-143`).
+   and above all not the `stop_token` (`docs/reverse.md:135-144`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -666,7 +666,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:105`,
    108-113, 122-132), the test of lines 365-377 at `22c3b88`, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:237-256`).
+   notes (`crates/podssh-cli/src/man/notes.rs:238-257`).
 
 ## Decision
 

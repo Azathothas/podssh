@@ -174,8 +174,9 @@ const NODE: &[&str] = &[
      session on a new link, and the node keeps the session and its connection to TARGET for 10 minutes \
      after a loss. TARGET is dialled only once the operator's handshake is done. The node keeps at most \
      64 MiB of replay buffers (16 sessions with the default of PODSSH_REPLAY_BUFFER); a new session past \
-     that ends at once with the reason. An operator that does not speak the layer cannot use the node; \
-     podssh ssh node:// and podssh operator speak it.",
+     that ends at once with the reason. podssh ssh node:// and podssh operator speak the layer. For an \
+     operator that does not, --plain carries each session's bytes as they are, TARGET dialled at the \
+     start of the session: a lost link then ends the session. The node's first line names its mode.",
     "The node runs until Ctrl-C or SIGTERM (exit 0), or until the relay ends the pair: stopped, \
      expired, refused, or served by another node; each has its code in EXIT STATUS. A broken \
      connection to the relay is made again, after a growing wait. After a loss the relay can still \

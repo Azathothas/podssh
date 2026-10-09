@@ -106,7 +106,8 @@ leg, they open a new one and resume the session where it was, unless the
 relay's close says not to come back (a stopped or expired pair, a fault of
 podssh's own bytes). A new leg goes to the control host, which alone serves
 `/v1/connect` ([relay.md](relay.md)). An operator that does not speak the
-layer cannot use a podssh node. Measured 2026-10-09 through the live relay:
+layer uses a node of `--plain` (T-263), which carries each session's bytes
+as they are, with no resume. Measured 2026-10-09 through the live relay:
 GitHub's banner came through a node to `podssh operator` and through the
 library's leg with the layer's client (`cargo test -p podssh-cli --test
 node_live -- --ignored`), and `podssh ssh node://` logged in to

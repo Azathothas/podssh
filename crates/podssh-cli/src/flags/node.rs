@@ -1,6 +1,7 @@
-//! The flag rows of `node`: those of a pair, as `operator` has them, and
-//! those of the iroh road (T-163), which a build has with the feature `iroh`
-//! only; in another build, `--iroh` is refused with exit 70.
+//! The flag rows of `node`: those of a pair, as `operator` has them, the
+//! plain mode (T-263), and those of the iroh road (T-163), which a build has
+//! with the feature `iroh` only; in another build, `--iroh` is refused with
+//! exit 70.
 
 use super::{row, FlagKind, FlagRow};
 
@@ -13,6 +14,8 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "use the pair in FILE, a private file, not the one stored under NAME (operator: its operator's part will do)", None),
+    row(None, "plain", None, FlagKind::Supported,
+        "carry each session's bytes as they are, with no resumable layer, for an operator that does not speak it; a lost link ends the session", None),
     row(None, "iroh", None, FlagKind::Supported,
         "serve TARGET over the iroh road, with no pair: a client dials the ticket that the node prints; a build with the feature iroh", None),
     row(None, "iroh-key", Some("FILE"), FlagKind::Supported,

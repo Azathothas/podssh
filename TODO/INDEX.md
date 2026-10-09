@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**266 entries: 138 open, 0 partial, 22 blocked, 106 done.**
+**266 entries: 137 open, 0 partial, 22 blocked, 107 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 13 | 15 |
 | P2 | 54 | 0 | 18 | 78 | 150 |
-| P3 | 82 | 0 | 4 | 14 | 100 |
-| **All** | 138 | 0 | 22 | 106 | 266 |
+| P3 | 81 | 0 | 4 | 15 | 100 |
+| **All** | 137 | 0 | 22 | 107 | 266 |
 
 ## Entries
 
@@ -334,7 +334,7 @@ repository and CI).
 | [T-260](repo.md) | P3 | S | none | chore | done | The open pull requests of Dependabot, #37 to #42 |
 | [T-261](resume.md) | P2 | S | M6 | feature | done | A node that lost its socket connects again on `409`, until the resume deadline |
 | [T-262](resume.md) | P1 | M | M6 | defect | done | A session cut at random points can end before its bytes come through |
-| [T-263](resume.md) | P3 | S | M6 | feature | open | A node in plain mode, for a client with no resumable layer |
+| [T-263](resume.md) | P3 | S | M6 | feature | done | A node in plain mode, for a client with no resumable layer |
 | [T-264](roads.md) | P2 | M | backlog | feature | open | Reach a service that `cloudflared` publishes, through `HTTPS_PROXY` |
 | [T-265](ws.md) | P1 | S | M6 | defect | done | A silent first address holds the whole of a direct dial |
 | [T-266](repo.md) | P1 | S | none | defect | done | The vi check of the Windows console job fails at random |

@@ -284,6 +284,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
             pair_file: get("pair-file"),
+            plain: matches.get_flag("plain"),
             iroh: matches.get_flag("iroh"),
             iroh_key: get("iroh-key"),
             iroh_allow: get("iroh-allow"),
