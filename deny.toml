@@ -11,7 +11,13 @@ all-features = false
 version = 2
 yanked = "deny"
 # Each ignored advisory names its reason and the date it was read.
-ignore = []
+ignore = [
+  # Marvin: the private-key operations of `rsa` are not constant-time, and no
+  # fixed version exists. podssh-ws only verifies RSA signatures, with public
+  # keys. podssh-ssh signs with an RSA user key, and podssh keygen makes one,
+  # through russh and ssh-key: T-257 moves both to aws-lc-rs. Read 2026-10-09.
+  { id = "RUSTSEC-2023-0071", reason = "no fixed version; podssh-ws verifies only; RSA signing moves to aws-lc-rs in T-257" },
+]
 
 [licenses]
 version = 2

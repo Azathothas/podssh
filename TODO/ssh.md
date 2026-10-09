@@ -1592,3 +1592,57 @@ the remote user again, and both checks fail.
   for `...-envuser`). The gate's binary of `8d668b7`, before this entry:
   the new check failed, "podssh wrote .../%C-%L-%l-%i-podtest-podtest-
   127.0.0.1-%p-%n-%j-%k; ssh -G gives .../185b8d38...-0-root-podtest-...".
+
+# T-257: An RSA user key signs through the `rsa` crate, which is open to a timing attack
+
+**Source:** the first run of `.github/workflows/deny.yml` on 2026-10-09
+(T-216): advisory RUSTSEC-2023-0071 for `rsa` 0.9.10 and 0.10.0-rc.18.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The private-key operations of the `rsa` crate are not constant-time (the
+Marvin attack), and no fixed version exists. `podssh ssh` signs with an RSA
+user key through russh and ssh-key, which use that crate, so each login with
+such a key shows a server the timing of one signature. `podssh keygen -t rsa`
+makes its keys with the same crate.
+
+## Premise
+
+Read: `rsa` 0.10.0-rc.18 comes into `podssh-ssh` through russh 0.64.1 and
+ssh-key 0.7.0-rc.11 (`cargo tree -i rsa@0.10.0-rc.18`); `podssh keygen` makes
+an RSA key with `RsaKeypair::random` (`crates/podssh-ssh/src/keygen.rs:69`),
+and its default is Ed25519 (`crates/podssh-ssh/src/keygen.rs:36`). `rsa`
+0.9.10 comes into `podssh-ws`, which only verifies signatures with public keys
+(`crates/podssh-ws/src/crypto/rsa_sig.rs:10-12`): the attack needs the private
+key. The binary already links aws-lc-rs, whose RSA is constant-time, for the
+ciphers of russh (`docs/decisions.md`, the SSH client).
+
+## Approach
+
+1. Sign with an RSA user key through aws-lc-rs: russh can authenticate with a
+   signer of the caller's (the path that an agent takes), so the key is read
+   once into an aws-lc-rs key pair, and only the signature leaves it.
+2. Make RSA keys in `podssh keygen` with aws-lc-rs too, and write them in
+   OpenSSH's format as now.
+3. Test against OpenSSH: a login with an RSA key to the gate's sshd, and
+   `ssh-keygen -Y verify` on a signature; a plant that signs with the old path
+   is found by a source sweep that names `rsa::` outside verification.
+4. Keep the ignore of RUSTSEC-2023-0071 in `deny.toml` while `rsa` stays in
+   the graph for verification, with its reason changed to say that no
+   private-key operation uses it; remove the gap from `SECURITY.md`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ssh --no-fail-fast
+sh scripts/dev.sh check     # the interop logins, an RSA key among them
+```
+
+Both pass, and no private-key operation of the `rsa` crate is left in the
+source. Planted defect: sign with `RsaKeypair` again; the sweep must fail.

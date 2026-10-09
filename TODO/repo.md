@@ -1143,7 +1143,12 @@ licenses bans sources`: exit 0 ("bans ok, licenses ok, sources ok"), and with
 `CDLA-Permissive-2.0`, the license check exits 4 and rejects webpki-roots.
 `cargo about generate` made the notices here: 321,621 bytes, 60 sections,
 aws-lc-sys, russh and webpki-roots among them. The advisories need the
-RustSec database, which the first run in CI reads. Next: that run.
+RustSec database, which the first run in CI reads. That run (37877273469)
+found RUSTSEC-2023-0071, the Marvin timing attack on the private-key
+operations of `rsa`, which has no fixed version: `podssh-ws` only verifies
+RSA signatures, but an RSA user key signs through it. The advisory is
+ignored in `deny.toml` with that reason, the gap is in `SECURITY.md`, and
+T-257 moves RSA signing to aws-lc-rs. Next: the run with the ignore.
 
 # T-217: The declared minimum Rust versions, checked in CI
 

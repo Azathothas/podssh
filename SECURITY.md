@@ -86,4 +86,10 @@ security:
 - podssh offers no host certificate algorithm, so a server shows its plain
   key. podssh does not use `@cert-authority` lines: a host that only such a
   line trusts is an unknown host (T-027, [TODO/ssh.md](TODO/ssh.md)).
+- A signature with an RSA user key, and an RSA key that `podssh keygen`
+  makes, use the `rsa` crate, whose private-key operations are not
+  constant-time (RUSTSEC-2023-0071, the Marvin attack; no fixed version). The
+  default key, Ed25519, and ECDSA keys do not use it, and an agent keeps the
+  key in its own process (T-257, [TODO/ssh.md](TODO/ssh.md)). The check of a
+  server's RSA certificate uses only the public key.
 - The IRC client sends plain text through the relay. No command uses it yet.

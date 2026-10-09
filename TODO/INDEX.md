@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**253 entries: 184 open, 1 partial, 8 blocked, 60 done.**
+**254 entries: 185 open, 1 partial, 8 blocked, 60 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 94 | 1 | 4 | 47 | 146 |
+| P2 | 95 | 1 | 4 | 47 | 147 |
 | P3 | 88 | 0 | 4 | 5 | 97 |
-| **All** | 184 | 1 | 8 | 60 | 253 |
+| **All** | 185 | 1 | 8 | 60 | 254 |
 
 ## Entries
 
@@ -328,3 +328,4 @@ repository and CI).
 | [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |
 | [T-255](relay.md) | P2 | M | M4 | measurement | blocked | The relay's side drops reverse sockets at random, with no Close |
 | [T-256](reverse.md) | P2 | S | M4 | defect | done | A local side that does not read stops every session of the node |
+| [T-257](ssh.md) | P2 | M | backlog | defect | open | An RSA user key signs through the `rsa` crate, which is open to a timing attack |
