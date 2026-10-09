@@ -31,7 +31,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 Measured on 2026-10-09 after T-061, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`: 810 passed, 0 failed, 18 ignored (the live
+- `cargo test --no-fail-fast`: 810 passed, 0 failed, 19 ignored (the live
   tests).
 - `cargo test -p podssh-relay --all-features --no-fail-fast`: 109 passed, 0
   failed, 7 ignored (the live tests).
@@ -44,7 +44,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 252 entries: 190 open, 0 partial, 7 blocked, 55 done.
+`TODO/INDEX.md` holds 252 entries: 189 open, 1 partial, 7 blocked, 55 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

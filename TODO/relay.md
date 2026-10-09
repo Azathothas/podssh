@@ -715,7 +715,7 @@ The operator ruled on 2026-10-08 that the relay stays separate
 **Milestone:** M4
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -755,6 +755,28 @@ Read: on the forward path, keepalives every 60 s kept one session for 602 s
 5. podssh's part, whatever the cause: the message of `podssh operator` for a drop says that the link
    ended with no Close, and that a new session may work. A node connects again (T-079). Resumable
    sessions (M6) carry a session over a drop.
+
+## Decision
+
+2026-10-09, before the paired runs:
+
+1. The pairs' holders run on worker threads; the forward holder runs on the test's own task, as
+   the notes of the forward opener are not `Send`.
+2. A drop that the run plants is its check: pair 0 first drops its operator's socket with no Close,
+   and its node must see the relay's `close` of the session within 15 s, or the run fails.
+3. A drop is counted for each end that saw its connection end with no Close, after up to 5 s for
+   the other end: the relay's `1011` can reach the operator before the node's own end is read.
+4. The forward session goes to GitHub's SSH port, sends an SSH identification line, then stays
+   quiet with a Ping every 10 s. GitHub's limit for a login and the relay's idle cut end it with a
+   Close; those are ends, not drops, and the session is opened again.
+5. The workflow `.github/workflows/reverse-drops.yml` runs only by hand, and takes the end time as
+   an input, through the environment. Both runs end at the same time; the overlap is the
+   comparison.
+
+The state (partial), 2026-10-09: the test and the workflow are written. A trial of 150 s from this
+machine (01:25:58 to 01:28:28 UTC) passed: the planted drop was seen, and pair 3's operator socket
+dropped at 12.3 s, after which the node saw the relay's `close` of the session. Next: the paired
+runs.
 
 ## Prove
 

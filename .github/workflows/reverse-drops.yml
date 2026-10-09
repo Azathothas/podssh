@@ -1,0 +1,37 @@
+name: reverse drops
+
+# T-255: how often the relay's side drops a socket of the reverse road, seen
+# from GitHub's network. Started by hand only, at the same time as a run from
+# another network and with the same end time, so that the drops can be
+# compared by time. The test makes pairs on the live relay and stops them at
+# the end; it prints no token.
+
+on:
+  workflow_dispatch:
+    inputs:
+      until:
+        description: "The end of the run, in Unix seconds (at most an hour ahead)"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  drops:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: build the test
+        env:
+          CARGO_BUILD_JOBS: "4"
+        run: cargo test --locked -p podssh-relay --features pair --test reverse_drops_live --no-run
+
+      # The input reaches the test through the environment, never through
+      # the shell's text.
+      - name: the drops of reverse sockets, live
+        env:
+          CARGO_BUILD_JOBS: "4"
+          PODSSH_DROPS_UNTIL: ${{ inputs.until }}
+        run: cargo test --locked -p podssh-relay --features pair --test reverse_drops_live -- --ignored --nocapture
