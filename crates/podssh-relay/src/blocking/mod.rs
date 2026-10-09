@@ -277,6 +277,7 @@ impl Client {
             settings: options.settings,
             repair: options.repair.clone().map(blocking_repair),
             wire: self.config.wire,
+            say: None,
         };
         let handler = Arc::new(bridge::Bridged(Arc::new(handler)));
         let exit = runtime.block_on(reverse::run(&mut config, handler, stopper.stopped()));

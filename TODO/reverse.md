@@ -134,7 +134,7 @@ tokens, in one run that prints no token. The gate shows that the feature adds no
 
 # T-079: The node runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:8-36`; GitHub #19
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:8-40`; GitHub #19
 (a design input). Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:231`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:121-123`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:126-128`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:63-123`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:68-128`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -295,7 +295,7 @@ and `1009` exit with a code that is not zero. Use the code and the reason.
 Read: data before `ready` closes the operator with `1008 wait for ready`, a text frame from the
 operator closes it with `1003`, a frame carries at most 65536 bytes, and a session at most 64 MiB
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:141-148`, `:178-184`, `:190`, `:192`).
-The relay sends no keepalives on reverse sockets (`docs/reverse.md:24-32`).
+The relay sends no keepalives on reverse sockets (`docs/reverse.md:28-36`).
 
 Read: the codecs: `encode_operator_frame` and `chunk_for_bare`
 (crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`, lines 125-133), and `parse_operator_control`
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:118-123`).
+   the code and the reason (`docs/reverse.md:123-128`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -631,7 +631,8 @@ types and two retry tables for one protocol, which is how `403` and `503` alread
 4. The rules of T-075 hold where the answers are read. The forward opener mints a new token once for
    a refused cached one, and never after a policy refusal (`crates/podssh-relay/src/open.rs:235-243`).
    A node exits on a `409`, pairs again on a `403` after the expiry, and stops on a `403` before it
-   (`crates/podssh-relay/src/reverse/node.rs:148-151`). A node connects again after a `503`, as
+   (crates/podssh-relay/src/reverse/node.rs, lines 148-151 at `fb228e9`; T-261 later made a `409`
+   after a loss a wait). A node connects again after a `503`, as
    after each other failure: the contract's rules for a `503` name the forward leg's authentication
    and the mint (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:99-103`), and a node
    outlives a restart of the relay. The deleted table said "never on this host" for each leg, but
@@ -675,7 +676,7 @@ compiler. Plant: leave one `use podssh_transport` in an example; the build must 
   with the code that they tested: 7 of the backpressure module, 2 of the backoff, 1 of the HTTP
   table, 6 of the endpoint builder, 7 of the forward framing, 2 of the adapter and 15 of the socket
   layer. What the runners need of that layer, their tests check: a control leaves as a text frame
-  (`crates/podssh-relay/tests/reverse_node.rs:133-136`), data waits for `ready`
+  (`crates/podssh-relay/tests/reverse_node.rs:137-140`), data waits for `ready`
   (`ready_waits_for_the_handler_and_comes_before_data`, `plant_data_before_ready`,
   `input_before_ready_is_kept_then_sent_in_order`), a Close keeps its code and reason
   (`a_close_of_the_relay_ends_the_socket_with_its_code_and_reason`), and the token travels in its
@@ -735,7 +736,7 @@ Read: the relay names an agent-created pair; only an admitted name is chosen, by
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:90-91`, `:130-134`). In the measured sandbox
 nothing can listen, and `connect()` to loopback failed with `EACCES` (`docs/target-environment.md:22`, `:25`).
 So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) serves in the process
-(`docs/reverse.md:33-36`).
+(`docs/reverse.md:37-40`).
 
 ## Approach
 
@@ -1232,7 +1233,7 @@ Read: the library crates must build with no C compiler (`AGENTS.md:193-195`, `sc
    the gate before it is chosen; else RustCrypto parts with the IK handshake written here, and the
    test vectors of the Noise specification.
 3. Messages: each Noise message at most 65535 bytes, with a length prefix, inside the session's
-   bytes. The relay's frames on the operator leg stay bare (`docs/reverse.md:65`).
+   bytes. The relay's frames on the operator leg stay bare (`docs/reverse.md:70`).
 4. Layers with M6 (T-151, T-153): either Noise for each connection under the resumable layer (a
    resume makes a new handshake and proves the resume secret inside it), or above it. Decide in
    T-151, and record the choice in `docs/design.md` (section 5).
@@ -1287,7 +1288,7 @@ only `share PORT` opens a port.
 Read: one name holds one node socket
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:152-154`); tokens are scoped to a name
 and a role (`:128-129`). The operator leg has no framing, so a route cannot travel in the relay's
-frames (`docs/reverse.md:65`). Data needs `ready` first (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:180`), and `ready` comes
+frames (`docs/reverse.md:70`). Data needs `ready` first (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:180`), and `ready` comes
 after the local side accepts (`docs/reverse.md:16`). So a route that the operator names reaches the
 node only after `ready`.
 
@@ -1410,7 +1411,7 @@ upgrade, 72 h at most (`docs/relay.md:108-112`); `POST /v1/pair` gives the three
 (`docs/relay.md:242-245`). The contract scopes reverse tokens to a name and a role, and states no single use and
 no binding to a peer (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:128-129`). A new mint secret
 ends each token at once (`docs/relay.md:230-232`). A text frame from the operator closes its socket with
-`1003`, and the operator leg carries no framing (`docs/relay.md:259-262`, `docs/reverse.md:65`).
+`1003`, and the operator leg carries no framing (`docs/relay.md:259-262`, `docs/reverse.md:70`).
 
 Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 1). The wider `sign(` hits are
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,

@@ -86,6 +86,7 @@ fn node<H: Handler>(made: Pair, handler: H) -> (tokio::task::JoinHandle<Exit>, A
             settings: Settings::default(),
             repair: None,
             wire: Wire::Tls,
+            say: None,
         };
         run(&mut config, Arc::new(handler), async move { stopper.notified().await }).await
     });

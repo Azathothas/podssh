@@ -43,8 +43,8 @@ and `CARGO_BUILD_JOBS=4`:
 - `cargo test --no-fail-fast`, again after T-155: 994 passed, 0 failed, 22
   ignored (the live tests). CI's gate passed at `a3b81d1` (T-262; run
   37963246424).
-- `cargo test -p podssh-relay --all-features --no-fail-fast`: 170 passed, 0
-  failed, 14 ignored (the live tests).
+- `cargo test -p podssh-relay --all-features --no-fail-fast`, after T-261:
+  173 passed, 0 failed, 14 ignored (the live tests).
 - `sh scripts/dev.sh check` (after T-212): green; interop 103 of 103. The steps that
   later changes touched, each alone in the build image after them: green.
 - `cargo test -p podssh-todo`: 71 passed: 15 unit tests, 37 plant tests (35
@@ -55,7 +55,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 261 entries: 146 open, 0 partial, 22 blocked, 93 done.
+`TODO/INDEX.md` holds 261 entries: 145 open, 0 partial, 22 blocked, 94 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

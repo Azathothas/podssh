@@ -9,6 +9,7 @@ use std::time::Duration;
 use podssh_ws::client::{ConnectError, Endpoint, WsClientConfig};
 use podssh_ws::{DialError, ProxyChoice, Trust};
 use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::time::Instant;
 
 use super::closes::RelayClose;
 use super::framing::SessionId;
@@ -45,6 +46,8 @@ pub struct NodeConfig<'a> {
     pub repair: Option<RepairHook>,
     /// TLS, except in the tests of an embedder.
     pub wire: Wire,
+    /// Lines for the user: each `409` after a loss, with the time left.
+    pub say: Option<&'a (dyn Fn(String) + Send + Sync)>,
 }
 
 /// Why a node ended. Each is final: a failure that a reconnection repairs is
@@ -53,7 +56,9 @@ pub struct NodeConfig<'a> {
 pub enum Exit {
     /// The caller stopped it: each session got `close`, the socket a Close 1000.
     Stopped,
-    /// `409`: another node holds the name. Not retried.
+    /// `409`: another node holds the name, at the first registration; or
+    /// the relay held the old socket longer than `Settings::rejoin` after a
+    /// loss (T-261).
     NameInUse,
     /// `1001 operator stopped reverse relay`: the pair is over, and its stored
     /// copy is deleted.
@@ -93,6 +98,12 @@ pub fn after_close(close: &RelayClose) -> Next {
 /// Run the node until it ends; reconnect after a broken socket, with the
 /// jittered backoff of the forward opener. `config.pair` is then the pair that
 /// the node ended with: a new one after a re-pair.
+///
+/// A `409` at the first registration means that another node has the name,
+/// and the node exits. After a loss it means that the relay still holds the
+/// old socket: the node connects again until `Settings::rejoin` after the
+/// loss, as the sessions that the resumable layer keeps wait that long
+/// (T-261; rule 6 of `docs/reverse.md`).
 pub async fn run<H, F>(config: &mut NodeConfig<'_>, handler: Arc<H>, stop: F) -> Exit
 where
     H: Handler,
@@ -100,6 +111,8 @@ where
 {
     let mut stop = Box::pin(stop);
     let mut retry: u32 = 0;
+    // When the node last lost a socket that it held.
+    let mut lost: Option<Instant> = None;
     loop {
         let path = match crate::relay::node_path(&config.pair.name) {
             Ok(path) => path,
@@ -126,6 +139,7 @@ where
                     #[cfg(feature = "plain-ws")]
                     Socket::Plain(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
                 };
+                lost = Some(Instant::now());
                 match end {
                     End::Stopped => return Exit::Stopped,
                     End::Failed(_) => Next::Reconnect,
@@ -145,7 +159,21 @@ where
                 ConnectError::Config(why)
                 | ConnectError::Dial(DialError::BadProxy(why) | DialError::InvalidTarget(why)),
             ) => return Exit::Unusable(why),
-            Err(ConnectError::Refused { status: 409, .. }) => return Exit::NameInUse,
+            Err(ConnectError::Refused { status: 409, .. }) => {
+                let left = lost.map(|at| config.settings.rejoin.saturating_sub(at.elapsed()));
+                match left {
+                    Some(left) if !left.is_zero() => {
+                        if let Some(say) = config.say {
+                            say(format!(
+                                "the relay still holds the node's lost socket (409); connecting again, for {} s more",
+                                left.as_secs()
+                            ));
+                        }
+                        Next::Reconnect
+                    }
+                    _ => return Exit::NameInUse,
+                }
+            }
             Err(ConnectError::Refused { status: 403, .. }) if expired(&config.pair) => Next::Repair,
             Err(ConnectError::Refused { status: 403, .. }) => return Exit::Forbidden,
             Err(_) => Next::Reconnect,

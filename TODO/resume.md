@@ -246,7 +246,7 @@ fails it, and so does one that drops its oldest bytes when it is full.
 
 The bound of the Decision counts 16 sessions on a node, but the node takes
 the relay's limit from its `hello`: 64 sessions, measured 2026-10-09
-(`docs/reverse.md:20-23`). With each session's 4 MiB kept, a node can hold
+(`docs/reverse.md:24-27`). With each session's 4 MiB kept, a node can hold
 256 MiB; T-153, which makes the node a far end that keeps sessions, bounds
 the whole node (its step 6). Step 7's `-v` line belongs to the resume loop
 of T-153: no resume runs before it, and `Link::resume` gives the count of
@@ -323,7 +323,7 @@ until T-072 (repaired 2026-10-09). Read, not measured: `/v1/node` and `/v1/conne
 control host only (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:23-24`).
 A second node socket for one name gets `409`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:152-153`), and
-the node then exits (`docs/reverse.md:19`).
+the node then exits (docs/reverse.md, line 19 at `fb228e9`).
 
 ## Approach
 
@@ -465,7 +465,7 @@ random, with no Close).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -476,9 +476,9 @@ and no client can resume it (T-153).
 
 ## Premise
 
-Read: rule 6 of `docs/reverse.md:19` says "On `409` (a second socket for the
-same name), exit. Do not retry." podssh's node does so
-(`crates/podssh-relay/src/reverse/node.rs:148`), for a first registration
+Read, at `fb228e9`: rule 6 of docs/reverse.md (line 19) says "On `409` (a
+second socket for the same name), exit. Do not retry." podssh's node does so
+(crates/podssh-relay/src/reverse/node.rs, line 148), for a first registration
 and after a loss alike. T-153's Decision recommends a retry after a loss and
 leaves that change of `docs/reverse.md` to the operator.
 
@@ -510,6 +510,39 @@ A stand-in relay answers a node's next connection after a loss with `409`
 twice, then accepts it: the node keeps its sessions. A first connection that
 gets `409` exits as before. A planted node that exits on each `409` fails the
 test.
+
+## Correction
+
+A test of a node that connects needs a stand-in relay over plain `ws://`:
+the one of the blocking facade (`crates/podssh-relay/tests/stand_in/mod.rs`)
+and the feature `plain-ws`. The tests are in
+`crates/podssh-relay/tests/blocking_plain.rs`, which the gate's step `libs`
+runs: `cargo test -p podssh-relay --features blocking,plain-ws --test
+blocking_plain -- conflict`. The node keeps no session across its sockets
+itself: the keeper of the resumable layer does, while the node runs, so the
+test shows that the node runs on and serves on the new socket.
+
+## Done
+
+2026-10-09.
+
+- `crates/podssh-relay/src/reverse/node.rs`: a node notes when it lost a
+  socket that it held. A `409` within `Settings::rejoin` of that loss is a
+  wait, with the jittered backoff, and a line for the user
+  (`NodeConfig::say`) with the time left; a `409` at the first registration,
+  or after the limit, ends the node as before (`Exit::NameInUse`).
+  `Settings::rejoin` is the layer's resume deadline, 10 minutes.
+- `podssh node` prints each such line on stderr, and its last line for
+  `Exit::NameInUse` names both causes. Rule 6 of `docs/reverse.md` and the
+  manual's note of `node` give both cases.
+- Prove, native: `cargo test -p podssh-relay --features blocking,plain-ws
+  --test blocking_plain -- conflict`: 3 passed. After a loss with no Close,
+  two `409`s, then the node takes the new socket and serves a session on it;
+  a `409` at the first registration ends the node at once; with a limit of
+  2 s, `409`s after a loss end it, but only after the 2 s. Planted, a node
+  that exits on each `409`: both tests after a loss failed, and the one of
+  the first registration passed.
+- `cargo test --no-fail-fast`: 994 passed, 0 failed, 22 ignored; with `-p podssh-relay --all-features`: 173 passed, 0 failed, 14 ignored.
 
 # T-262: A session cut at random points can end before its bytes come through
 
@@ -684,7 +717,7 @@ no `GREETING`, and that the default node greets.
 
 The relay cuts a connection after 180 s with no payload, and its empty
 keepalive frames do not count (`docs/relay.md:72-73`, `docs/relay.md:125`). A
-reverse socket gets no keepalive at all (`docs/reverse.md:24-32`). SSH's own
+reverse socket gets no keepalive at all (`docs/reverse.md:28-36`). SSH's own
 keepalives must not end a session that the layer would resume.
 
 ## Premise

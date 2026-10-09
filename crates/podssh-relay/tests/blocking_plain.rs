@@ -12,7 +12,7 @@ use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
 use podssh_relay::blocking::{Client, Closed, Config, Local, NodeOptions, Operator, Stopper};
-use podssh_relay::reverse::{Exit, Outcome, Wire};
+use podssh_relay::reverse::{Exit, Outcome, Settings, Wire};
 use podssh_ws::frame;
 use stand_in::{data, open, pipe, ready, test_pair, Shared, StandIn, CONNECT, ID1, ID2, LIMIT, NAME, NODE};
 
@@ -275,11 +275,98 @@ fn a_node_that_cannot_connect_as_set_up_exits() {
 /// The result of `work` within the limit. A node that never ends fails the
 /// test, and its thread is left behind, rather than holding the test for ever.
 fn in_time<T: Send + 'static>(work: impl FnOnce() -> T + Send + 'static) -> T {
+    in_time_within(LIMIT, work)
+}
+
+fn in_time_within<T: Send + 'static>(limit: Duration, work: impl FnOnce() -> T + Send + 'static) -> T {
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
         let _ = tx.send(work());
     });
-    rx.recv_timeout(LIMIT).expect("an end within the limit")
+    rx.recv_timeout(limit).expect("an end within the limit")
+}
+
+/// The waits of three attempts with the jittered backoff, and some room.
+const REJOIN_LIMIT: Duration = Duration::from_secs(30);
+
+/// A node that held its socket and lost it with no Close, as the relay's
+/// side drops one (T-255): the relay answers `409` while it still holds the
+/// old socket, and the node connects again until the relay takes the new
+/// one, and serves on it (T-261). A node that exited on `409` would end the
+/// sessions that the resumable layer keeps on it. The relay's side runs on
+/// a thread of its own, so a node that exits early fails the test.
+#[test]
+fn conflict_after_a_loss_connects_again_and_serves() {
+    let (stand_in, relay) = StandIn::new();
+    let stopper = Stopper::new();
+    let relay_stopper = stopper.clone();
+    std::thread::spawn(move || {
+        let (_, mut peer) = stand_in.accept();
+        peer.text(&open(ID1));
+        assert_eq!(peer.next_text(), ready(ID1));
+        drop(peer);
+        stand_in.refuse(409, "reverse: a node is connected under this name");
+        stand_in.refuse(409, "reverse: a node is connected under this name");
+        let (head, mut peer) = stand_in.accept();
+        assert!(head.starts_with(&format!("GET /v1/node/{NAME} HTTP/1.1\r\n")), "{head}");
+        peer.text(&open(ID2));
+        assert_eq!(peer.next_text(), ready(ID2));
+        peer.send(frame::OPCODE_BINARY, &data(ID2, b"again"));
+        assert_eq!(peer.node_bytes(5), vec![(ID2.to_string(), b"again".to_vec())]);
+        relay_stopper.stop();
+        // The stop closes the session, then the socket.
+        while let Some(f) = peer.next(LIMIT) {
+            if f.opcode == frame::OPCODE_CLOSE {
+                peer.close(1000, "");
+                break;
+            }
+        }
+    });
+    let exit = in_time_within(REJOIN_LIMIT, move || {
+        client().run_node(&mut test_pair(&relay, NAME, 0), echo, &NodeOptions::default(), &stopper)
+    });
+    assert!(matches!(exit, Ok(Exit::Stopped)), "{exit:?}");
+}
+
+/// A `409` at the first registration: another node has the name, and the
+/// node exits at once, as before T-261.
+#[test]
+fn conflict_at_the_first_registration_exits() {
+    let (stand_in, relay) = StandIn::new();
+    std::thread::spawn(move || loop {
+        stand_in.refuse(409, "reverse: a node is connected under this name");
+    });
+    let exit = in_time(move || {
+        client().run_node(&mut test_pair(&relay, NAME, 0), echo, &NodeOptions::default(), &Stopper::new())
+    });
+    assert!(matches!(exit, Ok(Exit::NameInUse)), "{exit:?}");
+}
+
+/// After a loss, a relay that answers `409` for longer than the node's
+/// limit (2 s here, the resume deadline of 10 minutes by default) ends the
+/// node, but only after the limit.
+#[test]
+fn conflict_past_the_limit_after_a_loss_exits() {
+    let (stand_in, relay) = StandIn::new();
+    let (lost_tx, lost_rx) = mpsc::channel();
+    std::thread::spawn(move || {
+        let (_, peer) = stand_in.accept();
+        drop(peer);
+        let _ = lost_tx.send(Instant::now());
+        loop {
+            stand_in.refuse(409, "reverse: a node is connected under this name");
+        }
+    });
+    let options = NodeOptions {
+        settings: Settings { rejoin: Duration::from_secs(2), ..Settings::default() },
+        ..NodeOptions::default()
+    };
+    let exit = in_time_within(REJOIN_LIMIT, move || {
+        client().run_node(&mut test_pair(&relay, NAME, 0), echo, &options, &Stopper::new())
+    });
+    assert!(matches!(exit, Ok(Exit::NameInUse)), "{exit:?}");
+    let since = lost_rx.recv().unwrap().elapsed();
+    assert!(since >= Duration::from_secs(2), "the node tried again for its 2 s: {since:?}");
 }
 
 /// An expired pair: the relay answers `403`, the hook gives a new pair on a

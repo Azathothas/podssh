@@ -494,8 +494,8 @@ risk is a changed option (a host, a relay, a trust store), not a command.
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:27-153`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-73`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:311-319`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:280-294`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:313-321`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:282-296`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:100-105`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -1044,7 +1044,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:163-166`
    names `podssh keygen -p`; `docs/cli.md:323-335`, the notes of `keygen`
-   (`crates/podssh-cli/src/man/notes.rs:241-249`), `docs/STATUS.md`.
+   (`crates/podssh-cli/src/man/notes.rs:243-251`), `docs/STATUS.md`.
 
 ## Decision
 
@@ -1401,7 +1401,7 @@ that `forward-remote` names `-W HOST:PORT`
    gives the rule. Same commit: `docs/STATUS.md`.
 
 Pitfall: the manual tests read these texts. `each_name_in_a_note_exists`
-checks each flag that a note names (`crates/podssh-cli/src/man/notes.rs:346-350`),
+checks each flag that a note names (`crates/podssh-cli/src/man/notes.rs:348-352`),
 and the parity tests compare the sentence of each row in `--help` and in the
 manual (`crates/podssh-cli/tests/man_flag_parity.rs`). Change the row and both
 notes in one commit.

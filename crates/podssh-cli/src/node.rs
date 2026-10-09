@@ -99,15 +99,20 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         pair.relay.host,
         pairs::utc(pair.expires_ms)
     );
+    // As the operator's lines, written from inside the node as they come.
+    let say = |line: String| eprintln!("podssh node: {label}: {line}");
     let mut config = NodeConfig {
         pair,
         label: stored.then(|| label.clone()),
         trust: &trust,
         proxy: &proxy,
         timeout: pairs::REQUEST_LIMIT,
-        settings: Settings::default(),
+        // A lost socket is taken again for as long as the layer keeps a
+        // session (T-261).
+        settings: Settings { rejoin: crate::layered::settings().resume_deadline, ..Settings::default() },
         repair: None,
         wire: Wire::Tls,
+        say: Some(&say),
     };
     // Each session runs the resumable layer (T-153): a client that loses its
     // leg resumes the session on a new one, with the same connection to
@@ -127,9 +132,12 @@ fn finish(label: &str, exit: Exit, err: &mut dyn Write) -> i32 {
             let _ = writeln!(err, "podssh node: {label}: stopped");
             return 0;
         }
-        Exit::NameInUse => {
-            (Fault::RelayUnreachable, "another node serves this pair (409); a pair has one node at a time".to_string())
-        }
+        Exit::NameInUse => (
+            Fault::RelayUnreachable,
+            "another node serves this pair (409), or the relay held this node's lost socket for too long; a pair \
+             has one node at a time"
+                .to_string(),
+        ),
         Exit::PairStopped => (Fault::Revoked, format!("the pair was stopped on the relay; {remedy}")),
         Exit::PairExpired => (Fault::PairExpired, format!("the pair expired; {remedy}")),
         Exit::Forbidden => {

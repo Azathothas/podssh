@@ -402,7 +402,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:129-138`).
+   and above all not the `stop_token` (`docs/reverse.md:134-143`).
 5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
    the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
 
@@ -418,7 +418,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    limit of the relay, which would change what is measured.
 3. The test talks to the relay with `podssh_ws::connect` and the codecs of
    `podssh_relay::reverse`, not with the runners: the node runner pings every 10 s
-   (`docs/reverse.md:24-32`), which would hide run (a).
+   (`docs/reverse.md:28-36`), which would hide run (a).
 4. The time of a close counts from the session's `ready`, about 0.2 s before the first byte each
    way, which is the last payload of runs (a) and (b).
 5. The control asserts; runs (a) and (b) print what they measured, as either answer is a result.
@@ -666,7 +666,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:105`,
    108-113, 122-132), the test of lines 365-377 at `22c3b88`, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:208-227`).
+   notes (`crates/podssh-cli/src/man/notes.rs:210-229`).
 
 ## Decision
 

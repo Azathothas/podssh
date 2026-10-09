@@ -319,7 +319,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:235` and `crates/podssh-cli/src/man/notes.rs:264-266`.
+   `docs/tailscale.md`, `docs/STATUS.md:235` and `crates/podssh-cli/src/man/notes.rs:266-268`.
 
 ## Decision
 
@@ -449,7 +449,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:63`, `docs/tailscale.md:8-19` and
-   `crates/podssh-cli/src/man/notes.rs:264-266`.
+   `crates/podssh-cli/src/man/notes.rs:266-268`.
 
 ## Prove
 
@@ -514,7 +514,7 @@ stream (`crates/podssh-cli/src/ts.rs:371-373`). `proxy --jsonl` is refused at pa
 3. Keep errors on stderr as text; the exit code stays the result. T-104 and T-105 add events (a
    drop, a new connection, a refusal) to this form when their states exist.
 4. Change the help text of the row (`crates/podssh-cli/src/flags.rs:279-280`) and the notes of the
-   manual (`crates/podssh-cli/src/man/notes.rs:264-266`) in the same commit. The tests of the manual
+   manual (`crates/podssh-cli/src/man/notes.rs:266-268`) in the same commit. The tests of the manual
    compare the row with the help.
 
 ## Decision

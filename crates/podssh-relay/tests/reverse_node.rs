@@ -120,8 +120,12 @@ fn start(handler: Local) -> (Relay, Arc<Notify>, tokio::task::JoinHandle<End>, E
     let ends = handler.ends.clone();
     let stop = Arc::new(Notify::new());
     let stopper = stop.clone();
-    let settings =
-        Settings { open_limit: Duration::from_secs(3), ping_every: Duration::from_secs(60), pings_allowed: 3 };
+    let settings = Settings {
+        open_limit: Duration::from_secs(3),
+        ping_every: Duration::from_secs(60),
+        pings_allowed: 3,
+        ..Settings::default()
+    };
     let task = tokio::spawn(async move {
         let session = RelaySession::new(client, Vec::new(), None, LIMIT);
         let mut stop = Box::pin(async move { stopper.notified().await });

@@ -165,8 +165,10 @@ const NODE: &[&str] = &[
      podssh ssh node:// and podssh operator speak it.",
     "The node runs until Ctrl-C or SIGTERM (exit 0), or until the relay ends the pair: stopped, \
      expired, refused, or served by another node; each has its code in EXIT STATUS. A broken \
-     connection to the relay is made again, after a growing wait. stdout stays empty; notes go to \
-     stderr.",
+     connection to the relay is made again, after a growing wait. After a loss the relay can still \
+     hold the old connection, and answer 409: the node then connects again for 10 minutes, the time \
+     that it keeps a session, with a line for each 409. A 409 at the start means that another node \
+     serves the pair. stdout stays empty; notes go to stderr.",
     "With --pair-file, the pair comes from FILE, in the form of the store, and the store is not used. \
      FILE must be a regular file of the user that nobody else can read.",
 ];

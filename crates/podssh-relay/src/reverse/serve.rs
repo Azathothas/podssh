@@ -40,7 +40,8 @@ pub enum End {
     Stopped,
 }
 
-/// What a node needs for one socket.
+/// What a node needs for one socket, and how long it connects again after
+/// it lost one.
 #[derive(Debug, Clone, Copy)]
 pub struct Settings {
     /// How long the handler may take to open the local side: under the 15 s
@@ -51,6 +52,10 @@ pub struct Settings {
     /// 2026-10-09).
     pub ping_every: Duration,
     pub pings_allowed: u32,
+    /// How long a node that lost its socket connects again when the relay
+    /// answers `409`: the relay can still hold the old socket, and the
+    /// sessions that the resumable layer keeps wait as long (T-261).
+    pub rejoin: Duration,
 }
 
 impl Default for Settings {
@@ -59,6 +64,7 @@ impl Default for Settings {
             open_limit: Duration::from_secs(10),
             ping_every: podssh_ws::LIVENESS_EVERY,
             pings_allowed: podssh_ws::LIVENESS_ALLOWED,
+            rejoin: crate::session::resume::RESUME_DEADLINE,
         }
     }
 }

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**261 entries: 146 open, 0 partial, 22 blocked, 93 done.**
+**261 entries: 145 open, 0 partial, 22 blocked, 94 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 8 | 10 |
-| P2 | 62 | 0 | 18 | 70 | 150 |
+| P2 | 61 | 0 | 18 | 71 | 150 |
 | P3 | 82 | 0 | 4 | 14 | 100 |
-| **All** | 146 | 0 | 22 | 93 | 261 |
+| **All** | 145 | 0 | 22 | 94 | 261 |
 
 ## Entries
 
@@ -332,7 +332,7 @@ repository and CI).
 | [T-258](repo.md) | P3 | S | none | defect | done | Line numbers written as plain text in the record are not moved |
 | [T-259](repo.md) | P2 | S | none | defect | done | One dropped connection fails a live TLS test, and with it the gate |
 | [T-260](repo.md) | P3 | S | none | chore | done | The open pull requests of Dependabot, #37 to #42 |
-| [T-261](resume.md) | P2 | S | M6 | feature | open | A node that lost its socket connects again on `409`, until the resume deadline |
+| [T-261](resume.md) | P2 | S | M6 | feature | done | A node that lost its socket connects again on `409`, until the resume deadline |
 | [T-262](resume.md) | P1 | M | M6 | defect | done | A session cut at random points can end before its bytes come through |
 | [T-263](resume.md) | P3 | S | M6 | feature | open | A node in plain mode, for a client with no resumable layer |
 | [T-264](roads.md) | P2 | M | backlog | feature | open | Reach a service that `cloudflared` publishes, through `HTTPS_PROXY` |
