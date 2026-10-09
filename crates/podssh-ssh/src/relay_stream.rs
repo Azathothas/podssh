@@ -9,9 +9,12 @@
 //! When the relay ends the session, its close code and reason are kept in a
 //! [`RelayStatus`], because SSH alone can only say "the connection closed",
 //! while the relay often says why (an idle cut, the 64 MiB limit, an expired
-//! token).
+//! token). The status also counts the payload bytes both ways, as the relay
+//! counts its cap, so that a copy can open a new session first (T-137).
 
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 use podssh_ws::frame;
 use podssh_ws::session::close_code_and_reason;
@@ -52,21 +55,47 @@ impl RelayEnd {
     }
 }
 
-/// Where the copying tasks leave the reason the relay leg ended. Cloneable;
-/// all clones see the same value. The first reason recorded wins.
-#[derive(Debug, Clone, Default)]
-pub struct RelayStatus(Arc<Mutex<Option<RelayEnd>>>);
+/// Where the copying tasks leave the reason the relay leg ended, and the
+/// payload bytes that they carried. Cloneable; all clones see the same
+/// values. The first reason recorded wins.
+#[derive(Debug, Clone)]
+pub struct RelayStatus {
+    end: Arc<Mutex<Option<RelayEnd>>>,
+    bytes: Arc<AtomicU64>,
+    started: Instant,
+}
+
+impl Default for RelayStatus {
+    fn default() -> Self {
+        RelayStatus { end: Arc::default(), bytes: Arc::default(), started: Instant::now() }
+    }
+}
 
 impl RelayStatus {
     pub fn get(&self) -> Option<RelayEnd> {
-        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
+        self.end.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     fn set_once(&self, end: RelayEnd) {
-        let mut slot = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        let mut slot = self.end.lock().unwrap_or_else(|e| e.into_inner());
         if slot.is_none() {
             *slot = Some(end);
         }
+    }
+
+    fn count(&self, n: usize) {
+        self.bytes.fetch_add(n as u64, Ordering::Relaxed);
+    }
+
+    /// The payload bytes of the session so far, out and in together: what
+    /// the relay counts against its cap. Keepalives carry none.
+    pub fn bytes(&self) -> u64 {
+        self.bytes.load(Ordering::Relaxed)
+    }
+
+    /// How long ago the session began.
+    pub fn age(&self) -> Duration {
+        self.started.elapsed()
     }
 }
 
@@ -97,6 +126,7 @@ where
                         up_status.set_once(RelayEnd::Failed(e.context("sending failed")));
                         break;
                     }
+                    up_status.count(n);
                 }
             }
         }
@@ -119,6 +149,7 @@ where
             match frame {
                 Ok(f) if f.opcode == frame::OPCODE_BINARY => {
                     // An empty frame is the relay's keepalive, not data.
+                    down_status.count(f.payload.len());
                     if !f.payload.is_empty() && to_ssh.write_all(&f.payload).await.is_err() {
                         break;
                     }
@@ -161,5 +192,37 @@ mod tests {
         assert_eq!(idle.explain().unwrap(), "the relay closed the connection (code 1001): idle");
         let reset = SessionError::Io { kind: std::io::ErrorKind::ConnectionReset, text: "reset".into() };
         assert!(RelayEnd::Failed(reset).explain().unwrap().contains("reset"));
+    }
+
+    /// The relay counts its cap both ways together, and so does the status:
+    /// each payload byte out and in, and no keepalive.
+    #[tokio::test]
+    async fn relay_count_sees_both_directions() {
+        use podssh_ws::frame::{decode, encode, Frame, Role, OPCODE_BINARY};
+        let (ours, mut relay) = tokio::io::duplex(1 << 20);
+        let session = RelaySession::new(ours, Vec::new(), None, Duration::from_secs(5));
+        let (mut ssh, status) = spawn(session);
+        ssh.write_all(&[7u8; 1000]).await.expect("written");
+        // What the relay reads: one masked frame of the 1000 bytes.
+        let mut got = Vec::new();
+        let mut buf = vec![0u8; 4096];
+        let up = loop {
+            let n = relay.read(&mut buf).await.expect("read");
+            got.extend_from_slice(&buf[..n]);
+            if let Some((frame, _)) = decode(&got, Role::Client).expect("a frame") {
+                break frame;
+            }
+        };
+        assert_eq!(up.payload, vec![7u8; 1000]);
+        // A keepalive, then 500 bytes from the target.
+        for payload in [Vec::new(), vec![9u8; 500]] {
+            let frame = Frame { fin: true, opcode: OPCODE_BINARY, payload };
+            relay.write_all(&encode(&frame, Role::Server, [0; 4])).await.expect("sent");
+        }
+        let mut back = vec![0u8; 500];
+        ssh.read_exact(&mut back).await.expect("the target's bytes");
+        assert_eq!(back, vec![9u8; 500]);
+        assert_eq!(status.bytes(), 1500, "out and in together, no keepalive");
+        assert!(status.age() < Duration::from_secs(60));
     }
 }

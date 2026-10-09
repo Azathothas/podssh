@@ -28,7 +28,7 @@ a session id and a 256-bit resume secret, under SSH (`docs/design.md:203-220`),
 in a `session` module of `podssh-relay` (`docs/design.md:106-115`), a crate
 with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
-(`crates/podssh-ssh/src/relay_stream.rs:73-150`). Frame boundaries mean nothing
+(`crates/podssh-ssh/src/relay_stream.rs:102-181`). Frame boundaries mean nothing
 on the relay (`docs/relay.md:65-68`), and the relay reads each record and can
 drop or add frames (`SECURITY.md:33-36`).
 
@@ -58,7 +58,7 @@ drop or add frames (`SECURITY.md:33-36`).
    side ignores a name that it does not know (ssh-obi's model, read in
    GitHub #19, not verified here).
 7. On the client, the layer goes between the pipe and the link, and keeps
-   `RelayStatus` (`crates/podssh-ssh/src/relay_stream.rs:55-71`). Docs: the
+   `RelayStatus` (`crates/podssh-ssh/src/relay_stream.rs:58-100`). Docs: the
    records and the threat model in `docs/design.md` section 5,
    `docs/architecture.md`, the map of `AGENTS.md`, and `docs/STATUS.md`.
 
@@ -193,7 +193,7 @@ the node then exits (`docs/reverse.md:19`).
 
 1. The client drives the resume. On a loss with no `CLOSE` record, it tries
    the roads of T-164 and each host of the `RelayList`
-   (`crates/podssh-relay/src/relay.rs:36-50`), each within `HOST_DEADLINE`
+   (`crates/podssh-relay/src/relay.rs:64-78`), each within `HOST_DEADLINE`
    (`crates/podssh-relay/src/open.rs:27-29`), with `open::backoff` between
    rounds (`crates/podssh-relay/src/open.rs:262-276`). Do not fork it (T-077).
 2. A `CLOSE` record never reconnects; each other loss reconnects first
@@ -210,7 +210,7 @@ the node then exits (`docs/reverse.md:19`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:121-211`).
+   (`crates/podssh-cli/src/man/facts.rs:127-230`).
 
 ## Decision
 
@@ -262,7 +262,7 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:140-174`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:224-244`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:227-247`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
 `crates/podssh-cli/src/ssh/resolve.rs:278-286`, and `podssh ssh` exits 255.
@@ -281,8 +281,8 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:278-286`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:168-178`,
-   `crates/podssh-cli/src/man/facts.rs:202-209`), the note at
+   (`crates/podssh-cli/src/man/facts.rs:174-184`,
+   `crates/podssh-cli/src/man/facts.rs:208-215`), the note at
    `crates/podssh-cli/src/man/notes.rs:52`, `docs/relay.md`, `README.md`.
 
 ## Decision
@@ -355,7 +355,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:121-211`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:127-230`).
 
 ## Decision
 
@@ -484,7 +484,7 @@ together (`docs/relay.md:127`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:152-153`, `docs/relay.md:255-261`). Skip a
+   needs a token (`docs/relay.md:160-161`, `docs/relay.md:263-269`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.

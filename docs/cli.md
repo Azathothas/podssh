@@ -199,6 +199,14 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   starts over and says so. The digest covers the whole file: a continued
   copy whose digests differ starts once more from the first byte, then
   fails.
+- **Before the relay's limits** (64 MiB both ways, 12 h for each session),
+  a copy opens a new session and goes on at its offset, with no wait: it
+  counts each session's payload bytes and age against a budget of 60 MiB
+  and 11 h 30 min (`docs/relay.md`, "Limits that users see";
+  `PODSSH_SESSION_BUDGET` lowers the bytes). Each new connection meets the
+  first one's host key, and logs in as the first did: a key that a
+  passphrase opened, or a password that the server took, is kept in memory
+  for the run, so no new question comes. `--direct` has no such limit.
 
 ## `podssh mv`
 

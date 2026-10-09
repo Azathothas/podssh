@@ -132,7 +132,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:267-268`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:267`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:91-141`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-109`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-115`).
 
 ## Decision
 
@@ -262,7 +262,7 @@ in iroh's source at the pinned version.
    of one line, with its measurement (T-157).
 2. `--iroh-relay URL[,URL...]` and `PODSSH_IROH_RELAY` replace the table, as
    `--relay-host` and `PODSSH_RELAY` replace the relay list
-   (`crates/podssh-relay/src/relay.rs:52-73`). The flag wins.
+   (`crates/podssh-relay/src/relay.rs:80-101`). The flag wins.
 3. Accept `https://` URLs only, with a host that passes `check_host`
    (`crates/podssh-ws/src/names.rs:8-24`), and with no user information
    and no query.
@@ -272,9 +272,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-109`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-115`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:121-211`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:127-230`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -525,7 +525,7 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:154-175`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:162-183`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-cli/src/doctor/relay_checks.rs:22-24`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,

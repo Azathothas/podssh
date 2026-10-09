@@ -235,15 +235,37 @@ async fn password(
     opts: &Options,
     notes: &mut Vec<String>,
 ) -> Result<Step, String> {
+    // The password that the server took earlier in this run goes first: a
+    // later connection of a copy must not ask again (T-137).
+    if let Some(memory) = &opts.remembered {
+        if let Some(kept) = memory.password() {
+            let step =
+                within(opts.connect_timeout, host, "the password", handle.authenticate_password(user, kept.as_str()))
+                    .await?
+                    .map(Step::from)
+                    .map_err(|e| format!("password authentication failed: {e}"))?;
+            if matches!(step, Step::Success) {
+                return Ok(step);
+            }
+            memory.forget_password();
+        }
+    }
     if opts.batch_mode || !prompt::can_ask() {
         notes.push("password authentication was skipped: there is no terminal or SSH_ASKPASS to ask on".into());
         return Ok(Step::Exhausted);
     }
     match ask(format!("{user}@{host}'s password: "), false).await {
-        Ok(pw) => within(opts.connect_timeout, host, "the password", handle.authenticate_password(user, pw.as_str()))
-            .await?
-            .map(Step::from)
-            .map_err(|e| format!("password authentication failed: {e}")),
+        Ok(pw) => {
+            let step =
+                within(opts.connect_timeout, host, "the password", handle.authenticate_password(user, pw.as_str()))
+                    .await?
+                    .map(Step::from)
+                    .map_err(|e| format!("password authentication failed: {e}"))?;
+            if let (Step::Success, Some(memory)) = (&step, &opts.remembered) {
+                memory.keep_password(pw.as_str());
+            }
+            Ok(step)
+        }
         Err(e) => {
             notes.push(format!("password authentication was abandoned: {e}"));
             Ok(Step::Exhausted)

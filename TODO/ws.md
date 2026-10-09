@@ -40,7 +40,7 @@ byte is read as a Close with no code (`session.rs` lines 275-278 at `076e3ce`); 
    `WsError::Frame` when `fin` is clear or the length is over 125. Name the rule in the message.
 2. Refuse a Close payload of 1 byte in the same place.
 3. The read then fails (`crates/podssh-ws/src/session.rs` line 176 at `3b60753`). Today a failed
-   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:139-141`): send 1002 (protocol
+   read sends no Close (`crates/podssh-ssh/src/relay_stream.rs:170-172`): send 1002 (protocol
    error) there, as lines 130-137 do for an unexpected frame. `podssh proxy` exits as for a
    broken session.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the new tests in a new file,
@@ -137,7 +137,7 @@ row, panic the same way: `rng.fill_bytes` for the X25519 secret
    range), and compute the shared secret with the `diffie_hellman` function of `elliptic-curve`
    0.13. Check the API of `p256` 0.13.2 first. No generator that can panic goes in.
 4. Make the source a parameter in the tests, so a failing source can be planted.
-5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:238-258`
+5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:257-277`
    does, and fails on `fill_bytes(` or `OsRng` outside `random.rs`.
 
 ## Decision
@@ -232,7 +232,7 @@ cannot look for that word alone.
    (`crates/podssh-ws/examples/inspect_peer_chain.rs`), and remove `pub mod probe;`. Keep each
    file under 500 lines.
 2. Add the test that `probe.rs` (lines 9-12 at `510d86f`) promised: a scan of the source of `podssh-ws`,
-   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:238-258`
+   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:257-277`
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
@@ -311,7 +311,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`crates/podssh-relay/src/token.rs:91-96`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:117-126`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:181`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:189`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -430,7 +430,7 @@ requires TLS 1.3 (`scripts/fake-relay.py:254-255`).
    (`crates/podssh-cli/src/doctor/relay_checks.rs:93-96`); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md:46`, the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:188-201`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:194-207`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 

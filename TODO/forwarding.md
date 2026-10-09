@@ -140,7 +140,7 @@ remote host that must use the key, such as `git` on a build host.
   refuses, and the keyword is silent.
 - Read: podssh already connects to the local agent to log in: `SSH_AUTH_SOCK`
   on Unix; the named pipe of the OpenSSH agent, then Pageant, on Windows
-  (`crates/podssh-ssh/src/keys.rs:259-289`). That is a connection, not a
+  (`crates/podssh-ssh/src/keys.rs:275-305`). That is a connection, not a
   listener.
 - Read: russh 0.64.1 has `Channel::agent_forward`
   (`auth-agent-req@openssh.com`), and its default handler accepts an
@@ -162,7 +162,7 @@ remote host that must use the key, such as `git` on a build host.
    Never to a jump hop.
 3. In the handler, accept `auth-agent@openssh.com` only when `-A` was given
    for this connection. For each such channel, connect to the agent with the
-   code of `crates/podssh-ssh/src/keys.rs:259-289`, then copy bytes. Reject
+   code of `crates/podssh-ssh/src/keys.rs:275-305`, then copy bytes. Reject
    the channel without `-A`, and warn, as OpenSSH does.
 4. Write the rule and the risk in the manual's notes and in `docs/cli.md`
    (section "Forwarding"): while the session lasts, root on the server can
@@ -247,7 +247,7 @@ X11 channel.
    (`crates/podssh-cli/src/flags.rs:180-181`).
 6. On Windows, a `DISPLAY` such as `localhost:0` (VcXsrv, X410) is TCP port
    6000. The X server's connection is local and named by the user, as the
-   agent's connection is (`crates/podssh-ssh/src/keys.rs:259-289`).
+   agent's connection is (`crates/podssh-ssh/src/keys.rs:275-305`).
 
 ## Decision
 

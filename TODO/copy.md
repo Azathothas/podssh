@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:171`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:172`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -623,7 +623,7 @@ repository).
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:170`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:171`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -645,11 +645,11 @@ old writer can race the new one.
   IRC, with a budget of 60 MiB and the reason for the margin
   (`crates/podssh-core/src/irc/limits.rs:88-95`).
 - Read: the relay stream sees each payload byte both ways
-  (`crates/podssh-ssh/src/relay_stream.rs:96`,
-  `crates/podssh-ssh/src/relay_stream.rs:120-124`). Each new SSH
+  (`crates/podssh-ssh/src/relay_stream.rs:125`,
+  `crates/podssh-ssh/src/relay_stream.rs:150-155`). Each new SSH
   connection asks again for a passphrase or a password
-  (`crates/podssh-ssh/src/keys.rs:184-220`,
-  `crates/podssh-ssh/src/auth.rs:231-252`).
+  (`crates/podssh-ssh/src/keys.rs:188-236`,
+  `crates/podssh-ssh/src/auth.rs:231-274`).
 
 ## Approach
 
@@ -657,7 +657,7 @@ old writer can race the new one.
    ways; 11 h 30 min) go in `crates/podssh-relay/src/relay.rs`, beside
    `RELAY_IDLE_SECS`. A variable `PODSSH_SESSION_BUDGET` can lower the byte
    budget (a relay with smaller caps, the tests), never raise it; add it to
-   `crates/podssh-cli/src/man/facts.rs:45-109`.
+   `crates/podssh-cli/src/man/facts.rs:45-115`.
 2. Count the payload bytes both ways in the relay stream (an atomic counter
    beside `RelayStatus`), and keep the session's start time.
 3. Invariant: no session passes a budget. Before a data request that would
@@ -670,7 +670,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:122-211`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:128-230`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -678,10 +678,22 @@ old writer can race the new one.
 
 Recommendation: a budget of 60 MiB counted by podssh, as `podssh-core`
 uses for IRC: the relay counts bytes that podssh has not yet received, and
-can hold 2 MiB queued (`docs/relay.md:165`). Waiting for `1009` (T-136
+can hold 2 MiB queued (`docs/relay.md:173`). Waiting for `1009` (T-136
 alone) lost: each cut breaks a request in flight. Credentials stay in
 memory for the run, never on disk; asking again lost: a 200 MiB copy would
 ask four times, and with no terminal it could not ask at all.
+
+2026-10-09, the rest of it. **The check** comes before each data request:
+an SFTP write or read, a piece of a copy up by exec, or a piece that a far
+`cat` sends down; each with 64 KiB of room for the framing of SSH and SFTP.
+**A spent session** ends the attempt with its own cause, and the copy goes
+on over a new session at once, with no wait and no attempt counted, unless
+the attempt moved no byte. **`PODSSH_SESSION_BUDGET`** takes a whole number
+of bytes of 1 MiB or more; a smaller or other value is ignored, so a typing
+error cannot make each request a new session. **The memory of a login**
+keeps the decrypted key and the password, never the passphrase, in podssh's
+own process, wiped on drop; it forgets a password that the server no longer
+takes.
 
 ## Prove
 
@@ -696,6 +708,48 @@ both directions, as the relay counts (`docs/relay.md:127`). With
 `PODSSH_SESSION_BUDGET=3000000`, an upload and a download of 10,000,000
 bytes finish with equal digests, no `1009` on stderr, and 4 sessions or
 more. Plant: count one direction only; the upload then meets `1009`.
+
+## Correction
+
+2026-10-09. **Step 3's "close the SFTP handle (or send EOF on the exec
+road)"**: by exec, the copy stops sending and closes the session; the far
+`cat` ends with it, and the next attempt waits until the far file stands
+still (T-136). **The Prove's mode** of the stand-in relay is T-136's
+`closeall:BYTES:CODE`. **Step 4 also needed a type** in `podssh-ssh`:
+`crates/podssh-ssh/src/remember.rs`, through `Options::remembered`.
+**Clippy's limit of 7 arguments**: the four functions that copy a file take
+the meter as an eighth, and say so with an `allow`, as `podssh-ws` does.
+
+## Done
+
+2026-10-09, in the commit "podssh cp opens a new relay session before the
+relay's limits, and logs in as the first session did".
+
+- `crates/podssh-relay/src/relay.rs`: the caps (64 MiB, 12 h), podssh's
+  budgets (60 MiB, 11 h 30 min) and `byte_budget`, with
+  `PODSSH_SESSION_BUDGET`. `crates/podssh-ssh/src/relay_stream.rs`: the
+  status counts the payload bytes both ways, and the session's age.
+- `crates/podssh-cli/src/cp/link.rs`: the `Meter` of each link; the four
+  functions that copy a file check it before each data request, and
+  `crates/podssh-cli/src/cp/session.rs` opens a new session at once when a
+  session is spent.
+- `crates/podssh-ssh/src/remember.rs`: the key that a passphrase opened and
+  the password that the server took, for the run; `keys.rs` and `auth.rs`
+  offer them first.
+- `scripts/interop-resume.sh`: 10,000,000 bytes up and down with a budget
+  of 3,000,000 through a stand-in relay that ends each session at 4,000,000
+  bytes with 1009; and an encrypted key over the sessions that a relay cuts,
+  with a count of the questions.
+- The manual (`PODSSH_SESSION_BUDGET`; "Session limits" in THE RELAY),
+  `docs/relay.md` and `docs/cli.md`.
+- Prove, native: `cargo test -p podssh-relay -- budget`: 2 passed;
+  `cargo test -p podssh-ssh -- relay_count`: 1 passed (1000 bytes out, a
+  keepalive and 500 bytes in count 1500); the tests of the meter and of the
+  memory of a login; `cargo test --no-fail-fast`: 919 passed, 0 failed, 20 ignored.
+- Waits for T-251 (the decision of 2026-10-09): the run in the build image
+  of the cases of `scripts/interop-resume.sh` above (CI runs them at each
+  push), and the plant of the Prove (count one direction only; the upload
+  must then meet 1009).
 
 # T-138: `podssh mv`: copy, verify, delete, and say first that it is not atomic
 
@@ -904,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:211-229` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:349-352`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:357-360`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -953,10 +1007,10 @@ trip is long, so such a copy uses a small part of what the path carries.
   (1 MiB queued, `1011`, a dropped frame;
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). T-024
   corrected it to the forward path's rule
-  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:176-180` gives
+  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:184-188` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:169`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:170`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1062,7 +1116,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:169`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:170`).
 
 ## Premise
 
@@ -1249,7 +1303,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:169`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:170`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -1519,7 +1573,7 @@ host, and the copy back then destroys that change with no word.
   probe (`crates/podssh-cli/src/pager.rs:96`) and runs it with
   `run_program` (`crates/podssh-cli/src/pager.rs:134`).
 - Read: `VISUAL` and `EDITOR` are not in the manual's variables
-  (`crates/podssh-cli/src/man/facts.rs:45-109`).
+  (`crates/podssh-cli/src/man/facts.rs:45-115`).
 - Read: the relay cuts a session after 180 s with no payload
   (`crates/podssh-relay/src/relay.rs:19-21`); an editor stays open longer.
 

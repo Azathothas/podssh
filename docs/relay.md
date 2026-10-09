@@ -132,6 +132,14 @@ Because of the idle cut, an idle SSH session must send traffic at least
 every 180 s: `ServerAliveInterval=60` with `podssh proxy`, and the client's
 keepalives (on by default) with `podssh ssh`.
 
+Because of the session length and volume, `podssh cp` and `podssh mv` count
+the payload bytes of each relay session both ways, and its age. Before 60
+MiB or 11 h 30 min they open a new session and go on at the offset of the
+copy (T-137; the constants are in `crates/podssh-relay/src/relay.rs`). The
+4 MiB under the cap leave room for what the relay holds queued (up to 2 MiB)
+and the framing of SSH. `PODSSH_SESSION_BUDGET` lowers the byte budget for a
+relay with smaller caps; it never raises it.
+
 ### Connect options (query string)
 
 `?family=4|6`, `?path=vpc|direct`, `?dial=lazy` (connect on the first byte

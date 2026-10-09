@@ -10,7 +10,9 @@ echo
 echo "== cp goes on after a broken connection"
 RW="$CW/resume"
 mkdir -p "$RW/cache" "$RW/down"
-for spec in close:close:1500000:1011 cap:closeall:1500000:1011 a:normal; do
+# The fourth, under the certificate's name relay-kill, ends each session at
+# 4,000,000 bytes both ways with 1009, as the relay's cap does (T-137).
+for spec in close:close:1500000:1011 cap:closeall:1500000:1011 a:normal kill:closeall:4000000:1009; do
     name=${spec%%:*}
     python3 "$HERE/fake-relay.py" --cert "$FK/relay.pem" --key "$FK/relay.key" --keepalive 2 \
         --port-file "$RW/$name.port" --mode "${spec#*:}" >"$RW/$name.log" 2>&1 &
@@ -18,7 +20,7 @@ for spec in close:close:1500000:1011 cap:closeall:1500000:1011 a:normal; do
 done
 tries=0
 while [ "$tries" -lt 30 ]; do
-    [ -s "$RW/close.port" ] && [ -s "$RW/cap.port" ] && [ -s "$RW/a.port" ] && break
+    [ -s "$RW/close.port" ] && [ -s "$RW/cap.port" ] && [ -s "$RW/a.port" ] && [ -s "$RW/kill.port" ] && break
     sleep 1
     tries=$((tries + 1))
 done
@@ -95,6 +97,41 @@ rc=$?
     && ok "cp stopped by SIGINT (exit $first) goes on at an offset when run again: equal digests" \
     || bad "cp stopped by SIGINT and run again: exit $first, then $rc" "$RW/err2"
 
+# Before the relay's limits (T-137): with a budget of 3,000,000 bytes, 10,000,000
+# go up and down through the relay that ends each session at 4,000,000 with
+# 1009, in new sessions that podssh opens first: no break, and no wait.
+head -c 10000000 /dev/urandom >"$RW/b10"
+export PODSSH_SESSION_BUDGET=3000000
+rcp kill 2201 -v "$RW/b10" "$T:cp/r-b10" >/dev/null 2>"$RW/err"
+rc=$?
+n=$(grep -c "near its limits" "$RW/err")
+[ "$rc" = 0 ] && [ "$(sum "$RW/b10")" = "$(sum "$RD/r-b10")" ] && [ "$n" -ge 3 ] && ! grep -q "a new connection in" "$RW/err" \
+    && ok "cp up under a budget of 3,000,000 bytes: $n new sessions before the cap, no break" \
+    || bad "cp up under a budget: exit $rc, $n new sessions" "$RW/err"
+rcp kill 2201 -v "$T:cp/r-b10" "$RW/down/b10" >/dev/null 2>"$RW/err"
+rc=$?
+n=$(grep -c "near its limits" "$RW/err")
+[ "$rc" = 0 ] && [ "$(sum "$RW/b10")" = "$(sum "$RW/down/b10")" ] && [ "$n" -ge 3 ] && ! grep -q "a new connection in" "$RW/err" \
+    && ok "cp down under a budget of 3,000,000 bytes: $n new sessions before the cap, no break" \
+    || bad "cp down under a budget: exit $rc, $n new sessions" "$RW/err"
+unset PODSSH_SESSION_BUDGET
+
+# A key that a passphrase opens is asked for once, however many sessions the
+# copy takes (T-137): each later session uses the key kept for the run.
+printf '#!/bin/sh\necho x >>"%s"\necho "open sesame"\n' "$RW/asked" >"$RW/askpass-count"
+chmod 700 "$RW/askpass-count"
+: >"$RW/asked"
+env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY -u all_proxy -u ALL_PROXY XDG_CACHE_HOME="$RW/cache" HOME="$W" \
+    SSH_ASKPASS="$RW/askpass-count" SSH_ASKPASS_REQUIRE=force "$BIN" cp \
+    --relay-host "relay-close.test:$(cat "$RW/close.port")" --relay-addr "$PINS" --ca-file "$FK/ca.pem" -P 2201 \
+    -o UserKnownHostsFile="$KH" -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes \
+    -i "$W/id_enc" --timeout 300s -v "$T:cp/f5000000" "$RW/down/enc" </dev/null >/dev/null 2>"$RW/err"
+rc=$?
+asked=$(wc -l <"$RW/asked")
+[ "$rc" = 0 ] && [ "$asked" = 1 ] && [ "$(went "$RW/err")" -ge 3 ] && [ "$(sum "$RD/f5000000")" = "$(sum "$RW/down/enc")" ] \
+    && ok "cp over sessions that the relay cuts asks for a key's passphrase once" \
+    || bad "cp with an encrypted key over sessions that the relay cuts: exit $rc, asked $asked times" "$RW/err"
+
 # Nothing stays behind: no temporary file, and no side file.
 if find "$RD" "$RW/down" -name '*.podssh-*.part' | grep -q . || ls "$RW"/cache/podssh/podssh-cp-*.resume >/dev/null 2>&1; then
     bad "cp went on: a temporary or side file stayed"
@@ -102,6 +139,6 @@ if find "$RD" "$RW/down" -name '*.podssh-*.part' | grep -q . || ls "$RW"/cache/p
 else
     ok "cp went on: no temporary file and no side file stayed"
 fi
-for name in close cap a; do
+for name in close cap a kill; do
     [ -f "$RW/$name.pid" ] && kill "$(cat "$RW/$name.pid")" 2>/dev/null
 done

@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:355-358`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:363-366`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/resolve.rs:379-427`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:404-421`); they cannot define a group.
+  (`docs/cli.md:412-429`); they cannot define a group.
 
 ## Approach
 
@@ -631,7 +631,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:127`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:355-358`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:363-366`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -740,20 +740,20 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:120-122`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-53`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:246-248`).
+  credentials or tokens (`docs/cli.md:254-256`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:275-290`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:355-358`), which is not a failure of podssh.
+  status (`docs/cli.md:363-366`), which is not a failure of podssh.
 
 ## Approach
 
 1. A variable `PODSSH_ERROR_PROGRAM`: one program, with no shell and no
    arguments, as `SSH_ASKPASS`. Add it to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-109`).
+   (`crates/podssh-cli/src/man/facts.rs:45-115`).
 2. When: only when podssh itself fails: a usage error (64), a configuration
    error (78), 69, 70, 77, or 255 for a failure of podssh. Never after a
    success, and never for the status of a remote command or of an `exec:`

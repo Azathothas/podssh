@@ -3,14 +3,18 @@
 
 use std::sync::Arc;
 
+use podssh_relay::relay::{byte_budget, SESSION_BUDGET_ENV, SESSION_TIME_BUDGET};
 use podssh_ssh::run::HopError;
 use podssh_ssh::sftp::{Limits, Sftp, SftpError};
-use podssh_ssh::{Connection, Log};
+use podssh_ssh::{Connection, Log, RelayStatus};
 
 use super::byexec::Far;
-use super::transfer::Failed;
+use super::transfer::{Cause, Failed};
 use crate::exitmap::Fault;
 use crate::ssh::resolve::Resolved;
+
+/// Room for the framing of SSH and SFTP around the bytes of one request.
+const OVERHEAD: u64 = 64 << 10;
 
 /// How the files of one session go: SFTP, or a command for each step.
 pub enum Road {
@@ -22,6 +26,42 @@ pub enum Road {
 pub struct Link {
     handles: Vec<Connection>,
     pub road: Road,
+    pub meter: Meter,
+}
+
+/// What one relay session may still carry before a copy opens a new one
+/// (T-137): its payload bytes and its age, against podssh's budgets. A
+/// direct connection has no cap.
+#[derive(Debug, Clone)]
+pub struct Meter {
+    relay: Option<RelayStatus>,
+    budget: u64,
+}
+
+impl Meter {
+    /// The meter of a session: `relay` when the relay carries it.
+    pub fn new(relay: Option<RelayStatus>) -> Meter {
+        Meter { relay, budget: byte_budget(std::env::var(SESSION_BUDGET_ENV).ok().as_deref()) }
+    }
+
+    /// The bytes that the session may still carry; no end without a relay.
+    pub fn left(&self) -> u64 {
+        match &self.relay {
+            None => u64::MAX,
+            Some(status) if status.age() >= SESSION_TIME_BUDGET => 0,
+            Some(status) => self.budget.saturating_sub(status.bytes()),
+        }
+    }
+
+    /// Whether a request that moves `n` more bytes must wait for a new
+    /// session: the failure that says so, else `None`.
+    pub fn spent(&self, n: u64) -> Option<Failed> {
+        (self.left() < n.saturating_add(OVERHEAD)).then(|| Failed {
+            fault: Fault::SessionFault,
+            message: "the relay session is near its limits".into(),
+            cause: Cause::Spent,
+        })
+    }
 }
 
 impl Link {
@@ -38,7 +78,7 @@ impl Link {
 
     /// End the SFTP session, then each connection.
     pub async fn close(self) {
-        let Link { handles, road } = self;
+        let Link { handles, road, .. } = self;
         if let Road::Sftp(sftp) = road {
             let _ = sftp.close_session();
         }
@@ -94,7 +134,7 @@ pub async fn open(resolved: &Resolved, log: &Arc<Log>, exec: bool) -> Result<Opt
             return Err(Failed::new(Fault::RelayUnreachable, format!("{host}: {e}")));
         }
     };
-    Ok(Some(Link { handles, road }))
+    Ok(Some(Link { handles, road, meter: Meter::new(reached.relay) }))
 }
 
 /// The fault of a sysexits code that `transport::reach` gave.
@@ -109,4 +149,21 @@ fn hop_failure(e: HopError) -> Failed {
         HopError::HostKey(_) | HopError::Auth(_) => Fault::Auth,
     };
     Failed::new(fault, e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_session_is_spent_before_its_budget_and_a_direct_one_never() {
+        let direct = Meter { relay: None, budget: 1 << 20 };
+        assert_eq!(direct.left(), u64::MAX);
+        assert!(direct.spent(u64::MAX / 2).is_none());
+        let relayed = Meter { relay: Some(RelayStatus::default()), budget: 1 << 20 };
+        assert_eq!(relayed.left(), 1 << 20, "a new session has the whole budget");
+        assert!(relayed.spent(1000).is_none());
+        let spent = relayed.spent(1 << 20).expect("a request that would pass the budget, with its framing");
+        assert_eq!((spent.cause, spent.fault), (Cause::Spent, Fault::SessionFault));
+    }
 }

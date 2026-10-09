@@ -11,6 +11,7 @@ use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
 use super::digest::{self, Sum};
+use super::link::Meter;
 use super::resume::{self, Progress};
 use super::transfer::{self, Cause, Done, Failed, Side};
 use crate::exitmap::Fault;
@@ -21,6 +22,7 @@ fn failed(fault: Fault, message: String) -> Failed {
 
 /// Copy the local file `source` to `dest` on the server, or write on in the
 /// copy that `progress` holds.
+#[allow(clippy::too_many_arguments)]
 pub async fn up(
     sftp: &Sftp,
     handle: &Connection,
@@ -29,6 +31,7 @@ pub async fn up(
     many: bool,
     log: &Log,
     progress: &mut Progress,
+    meter: &Meter,
 ) -> Result<Done, Failed> {
     let local = Path::new(source);
     let before = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
@@ -83,6 +86,10 @@ pub async fn up(
             if n == 0 {
                 break;
             }
+            // Before the relay's limits, a new session goes on (T-137).
+            if let Some(spent) = meter.spent(n as u64) {
+                return Err(spent);
+            }
             hasher.update(&buf[..n]);
             sftp.write(&file, offset, &buf[..n]).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
             offset += n as u64;
@@ -114,6 +121,10 @@ pub async fn up(
     match &copied {
         // The next connection writes on in it.
         Err(f) if f.cause == Cause::Broke => progress.save(),
+        Err(f) if f.cause == Cause::Spent => {
+            let _ = sftp.close(&file).await;
+            progress.save();
+        }
         Err(_) => {
             let _ = sftp.close(&file).await;
             let _ = sftp.remove(&temp).await;
@@ -126,6 +137,7 @@ pub async fn up(
 
 /// Copy `source` on the server to the local `dest`, or write on in the copy
 /// that `progress` holds.
+#[allow(clippy::too_many_arguments)]
 pub async fn down(
     sftp: &Sftp,
     handle: &Connection,
@@ -134,6 +146,7 @@ pub async fn down(
     many: bool,
     log: &Log,
     progress: &mut Progress,
+    meter: &Meter,
 ) -> Result<Done, Failed> {
     let attrs = sftp.stat(source).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
     if !attrs.is_regular() {
@@ -167,7 +180,13 @@ pub async fn down(
             .await
             .map_err(|e| transfer::from_sftp(e, Side::Source))?;
         let mut offset = start;
+        let size = attrs.size.unwrap_or(0);
         let read = loop {
+            if offset < size {
+                if let Some(spent) = meter.spent(u64::from(sftp.read_len())) {
+                    break Err(spent);
+                }
+            }
             match sftp.read(&file, offset, sftp.read_len()).await {
                 Ok(Some(data)) if !data.is_empty() => {
                     hasher.update(&data);
@@ -206,7 +225,7 @@ pub async fn down(
     .await;
     drop(out);
     match &copied {
-        Err(f) if f.cause == Cause::Broke => progress.save(),
+        Err(f) if matches!(f.cause, Cause::Broke | Cause::Spent) => progress.save(),
         Err(_) => {
             let _ = std::fs::remove_file(&temp);
             progress.clear();

@@ -14,6 +14,7 @@ use sha2::{Digest, Sha256};
 
 use super::{command, failed, step_failed, Far, Kind};
 use crate::cp::digest::{self, Sum};
+use crate::cp::link::Meter;
 use crate::cp::resume::{self, Progress};
 use crate::cp::transfer::{self, Cause, Done, Failed};
 use crate::exitmap::Fault;
@@ -36,6 +37,7 @@ fn read_full(reader: &mut impl Read, buf: &mut [u8]) -> std::io::Result<usize> {
 impl Far {
     /// Copy the local file `source` to `dest` on the server, or write on in
     /// the copy that `progress` holds.
+    #[allow(clippy::too_many_arguments)]
     pub async fn up(
         &self,
         handle: &Connection,
@@ -44,6 +46,7 @@ impl Far {
         many: bool,
         log: &Log,
         progress: &mut Progress,
+        meter: &Meter,
     ) -> Result<Done, Failed> {
         let local = Path::new(source);
         let before = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
@@ -95,9 +98,17 @@ impl Far {
                 .map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
             let mut sent = start;
             let raw = self.raw;
+            let mut spent = None;
             let mut fill = |piece: &mut Vec<u8>| {
                 let mut buf = vec![0u8; PIECE];
                 let n = read_full(&mut file, &mut buf)?;
+                // Before the relay's limits, a new session goes on (T-137).
+                if n > 0 {
+                    if let Some(f) = meter.spent(n as u64) {
+                        spent = Some(f);
+                        return Err(std::io::Error::other("the relay session is near its limits"));
+                    }
+                }
                 hasher.update(&buf[..n]);
                 sent += n as u64;
                 // Sent, not yet known to be written: a break counts the far
@@ -112,7 +123,7 @@ impl Far {
             };
             let got = exec::send(handle, &cmd, DATA_WAIT, 4096, &mut fill, &mut |_| Ok(()))
                 .await
-                .map_err(|e| step_failed(&temp, e))?;
+                .map_err(|e| spent.take().unwrap_or_else(|| step_failed(&temp, e)))?;
             if got.status != Some(0) {
                 let why = String::from_utf8_lossy(&got.stderr);
                 return Err(failed(
@@ -142,7 +153,7 @@ impl Far {
         match &copied {
             // Only what the far file held at the start is known to be there;
             // the next attempt counts it again.
-            Err(f) if f.cause == Cause::Broke => {
+            Err(f) if matches!(f.cause, Cause::Broke | Cause::Spent) => {
                 progress.offset = start;
                 progress.save();
             }
@@ -157,6 +168,7 @@ impl Far {
 
     /// Copy `source` on the server to the local `dest`, or write on in the
     /// copy that `progress` holds.
+    #[allow(clippy::too_many_arguments)]
     pub async fn down(
         &self,
         handle: &Connection,
@@ -165,6 +177,7 @@ impl Far {
         many: bool,
         log: &Log,
         progress: &mut Progress,
+        meter: &Meter,
     ) -> Result<Done, Failed> {
         let size = match self.kind(handle, source).await? {
             Kind::File(n) => n,
@@ -200,14 +213,21 @@ impl Far {
                     .map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
             }
             let mut came = start;
+            let mut spent = None;
             self.read(handle, source, start, &mut |bytes| {
+                // Before the relay's limits, a new session goes on (T-137).
+                if let Some(f) = meter.spent(bytes.len() as u64) {
+                    spent = Some(f);
+                    return Err(std::io::Error::other("the relay session is near its limits"));
+                }
                 hasher.update(bytes);
                 out.as_mut().map_or(Ok(()), |f| f.write_all(bytes))?;
                 came += bytes.len() as u64;
                 progress.advance(came);
                 Ok(())
             })
-            .await?;
+            .await
+            .map_err(|e| spent.take().unwrap_or(e))?;
             if came != size {
                 return Err(failed(Fault::SessionFault, format!("{source}: {came} bytes came, and wc -c gave {size}")));
             }
@@ -234,7 +254,7 @@ impl Far {
         .await;
         drop(out);
         match &copied {
-            Err(f) if f.cause == Cause::Broke => progress.save(),
+            Err(f) if matches!(f.cause, Cause::Broke | Cause::Spent) => progress.save(),
             Err(_) => {
                 let _ = std::fs::remove_file(&temp);
                 progress.clear();

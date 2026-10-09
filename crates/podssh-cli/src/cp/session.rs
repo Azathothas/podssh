@@ -164,6 +164,22 @@ async fn attempts(
                 *link = Some(current);
                 return Ok((done, first.take().expect("set at the first attempt")));
             }
+            // Near the relay's limits: a new session at once, with no wait;
+            // one that moves no byte still counts as an attempt.
+            Err(f) if f.cause == Cause::Spent => {
+                current.close().await;
+                if p.offset > best {
+                    best = p.offset;
+                    tries = 0;
+                } else {
+                    tries += 1;
+                    if tries > TRIES {
+                        return Err(f);
+                    }
+                }
+                continued = true;
+                log.verbose(&format!("{}: {}; a new one goes on at byte {}", shown(source), f.message, p.offset));
+            }
             Err(f) if f.cause == Cause::Broke => {
                 current.close().await;
                 if p.offset > best {
@@ -234,19 +250,19 @@ async fn copy(
     let handle = link.handle();
     match (&link.road, source, dest) {
         (Road::Sftp(sftp), Operand::Local(path), Operand::Remote(dest)) => {
-            bysftp::up(sftp, handle, path, &dest.path, many, log, progress).await
+            bysftp::up(sftp, handle, path, &dest.path, many, log, progress, &link.meter).await
         }
         (Road::Sftp(sftp), Operand::Remote(src), Operand::Local(dest)) => {
-            bysftp::down(sftp, handle, &src.path, dest, many, log, progress).await
+            bysftp::down(sftp, handle, &src.path, dest, many, log, progress, &link.meter).await
         }
         (Road::Sftp(sftp), Operand::Remote(src), Operand::Remote(dest)) => {
             transfer::within(sftp, handle, &src.path, &dest.path, log).await
         }
         (Road::Exec(far), Operand::Local(path), Operand::Remote(dest)) => {
-            far.up(handle, path, &dest.path, many, log, progress).await
+            far.up(handle, path, &dest.path, many, log, progress, &link.meter).await
         }
         (Road::Exec(far), Operand::Remote(src), Operand::Local(dest)) => {
-            far.down(handle, &src.path, dest, many, log, progress).await
+            far.down(handle, &src.path, dest, many, log, progress, &link.meter).await
         }
         (Road::Exec(_), Operand::Remote(_), Operand::Remote(_)) => {
             unreachable!("a copy within one server by exec goes through this host")

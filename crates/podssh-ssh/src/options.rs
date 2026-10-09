@@ -219,6 +219,9 @@ pub struct Options {
     /// connection that a run opens again (`cp`, T-136); `None` for one
     /// connection.
     pub host_key_pin: Option<crate::hostkey::Pin>,
+    /// The login that worked, for each later connection of the run (`cp`,
+    /// T-137): no second question for a passphrase or a password.
+    pub remembered: Option<crate::remember::Remembered>,
 }
 
 impl Options {
@@ -252,6 +255,7 @@ impl Options {
             log_level: LogLevel::Info,
             stdin_null: false,
             host_key_pin: None,
+            remembered: None,
         }
     }
 }

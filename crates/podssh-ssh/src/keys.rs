@@ -19,6 +19,7 @@ use crate::handler::Client;
 use crate::log::Log;
 use crate::options::{Agent, Options};
 use crate::prompt::{self, PromptError};
+use crate::remember::Remembered;
 
 type DynAgent = AgentClient<Box<dyn AgentStream + Send + Unpin + 'static>>;
 
@@ -44,6 +45,8 @@ pub(crate) struct PublicKeys {
     /// host's name for its message.
     limit: Duration,
     host: String,
+    /// The keys that a passphrase opened earlier in this run.
+    remembered: Option<Remembered>,
 }
 
 impl PublicKeys {
@@ -56,6 +59,7 @@ impl PublicKeys {
             agent: AgentState::NotTried,
             can_prompt: !opts.batch_mode,
             passphrase_tries: opts.password_prompts.max(1),
+            remembered: opts.remembered.clone(),
             log,
             offered: Vec::new(),
             rsa_hash: None,
@@ -189,12 +193,19 @@ impl PublicKeys {
         warn_if_readable_by_others(path, &self.log);
         match russh::keys::load_secret_key(path, None) {
             Ok(key) => Some(key),
+            // Opened earlier in this run: no second question.
+            Err(russh::keys::Error::KeyIsEncrypted) if self.kept(path).is_some() => self.kept(path),
             Err(russh::keys::Error::KeyIsEncrypted) => self.decrypt(path).await,
             Err(e) => {
                 self.log.info(&format!("could not use the key file {}: {e}", path.display()));
                 None
             }
         }
+    }
+
+    /// The key of `path` that a passphrase opened earlier in this run.
+    fn kept(&self, path: &Path) -> Option<PrivateKey> {
+        self.remembered.as_ref().and_then(|memory| memory.key(path))
     }
 
     async fn decrypt(&mut self, path: &Path) -> Option<PrivateKey> {
@@ -210,7 +221,12 @@ impl PublicKeys {
             match answer {
                 Ok(p) if p.is_empty() => return None,
                 Ok(p) => match russh::keys::load_secret_key(path, Some(p.as_str())) {
-                    Ok(key) => return Some(key),
+                    Ok(key) => {
+                        if let Some(memory) = &self.remembered {
+                            memory.keep_key(path, &key);
+                        }
+                        return Some(key);
+                    }
                     Err(_) => self.log.info(&format!("Bad passphrase for {}.", path.display())),
                 },
                 Err(_) => return None,

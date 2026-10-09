@@ -20,6 +20,34 @@ pub const RELAY_ENV: &str = "PODSSH_RELAY";
 /// `/relays.json`, version 2026-10-03-r2), so keepalives must come sooner.
 pub const RELAY_IDLE_SECS: u64 = 180;
 
+/// The relay ends a session after this many payload bytes, both ways
+/// together, with `1009 session byte cap` (the same document).
+pub const SESSION_BYTE_CAP: u64 = 64 << 20;
+
+/// The relay ends a session after this long (720 minutes).
+pub const SESSION_TIME_CAP: std::time::Duration = std::time::Duration::from_secs(12 * 3600);
+
+/// podssh's own byte budget for one session, under the cap: the relay
+/// counts bytes that podssh has not read yet, and can hold 2 MiB queued, so a
+/// copy opens a new session first (T-137). The IRC transfer keeps the same
+/// margin for the same reason.
+pub const SESSION_BYTE_BUDGET: u64 = 60 << 20;
+
+/// podssh's time budget for one session, half an hour under the cap.
+pub const SESSION_TIME_BUDGET: std::time::Duration = std::time::Duration::from_secs(11 * 3600 + 30 * 60);
+
+/// Lowers the byte budget, for a relay with smaller caps or a test; it never
+/// raises it.
+pub const SESSION_BUDGET_ENV: &str = "PODSSH_SESSION_BUDGET";
+
+/// The byte budget, with `env` (the value of [`SESSION_BUDGET_ENV`]) lowering
+/// it: a whole number of bytes, at least 1 MiB. Any other value is ignored.
+pub fn byte_budget(env: Option<&str>) -> u64 {
+    env.and_then(|v| v.trim().parse::<u64>().ok())
+        .filter(|n| *n >= 1 << 20)
+        .map_or(SESSION_BYTE_BUDGET, |n| n.min(SESSION_BYTE_BUDGET))
+}
+
 /// How many pool hosts follow the default host when no list is given. Each
 /// failed host costs one bounded attempt; a handful covers a dead host or a
 /// proxy that refuses one name without making a hopeless run slow.
@@ -157,6 +185,28 @@ pub fn ipv6_note(ipv6_target: bool, reason: &str) -> Option<&'static str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // The byte budget stays under the cap, with room for what the relay can
+    // hold queued: checked when the crate compiles.
+    const _: () = assert!(SESSION_BYTE_BUDGET < SESSION_BYTE_CAP && SESSION_BYTE_CAP - SESSION_BYTE_BUDGET >= 2 << 20);
+
+    #[test]
+    fn each_budget_is_under_its_cap() {
+        assert!(SESSION_TIME_BUDGET < SESSION_TIME_CAP);
+        // The idle cut is far shorter than either: keepalives handle it.
+        assert!(std::time::Duration::from_secs(RELAY_IDLE_SECS) < SESSION_TIME_BUDGET);
+    }
+
+    #[test]
+    fn the_budget_variable_lowers_the_budget_and_never_raises_it() {
+        assert_eq!(byte_budget(None), SESSION_BYTE_BUDGET);
+        assert_eq!(byte_budget(Some("3000000")), 3_000_000);
+        assert_eq!(byte_budget(Some(" 4194304 ")), 4 << 20);
+        assert_eq!(byte_budget(Some("999999999999")), SESSION_BYTE_BUDGET, "never above the budget");
+        for ignored in ["", "abc", "-5", "1000", "3e6"] {
+            assert_eq!(byte_budget(Some(ignored)), SESSION_BYTE_BUDGET, "{ignored:?}");
+        }
+    }
 
     #[test]
     fn the_default_relay_comes_first_then_pool_alternates() {

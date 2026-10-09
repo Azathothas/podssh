@@ -32,7 +32,7 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
 CONNECT status (`crates/podssh-ws/src/dial.rs:49`, lines 178 and 334 at `22c3b88`); close
 reasons (`crates/podssh-ws/src/session.rs:307`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
-(`crates/podssh-relay/src/relay.rs:79`, `crates/podssh-relay/src/pool.rs:92`);
+(`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:92`);
 `known_hosts` lines, in a private function
 (`crates/podssh-ssh/src/known_hosts.rs:120`); the escape filter
 (`crates/podssh-ssh/src/escape.rs:30`); IRC lines and frames
@@ -285,7 +285,7 @@ Read, the bounds today:
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:19`).
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:29`). The relay pipe:
   256 KiB each way, frames of 64 KiB
-  (`crates/podssh-ssh/src/relay_stream.rs:22-25`). Pump buffers: 32 KiB
+  (`crates/podssh-ssh/src/relay_stream.rs:25-28`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/proxy.rs:217`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
   `crates/podssh-relay/src/open.rs:25-29`, `crates/podssh-ssh/src/session.rs:21`.
@@ -297,7 +297,7 @@ Read, the bounds today:
   backpressure`): the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
   now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:25-28`):
-  `docs/relay.md:176-180` says that backpressure closes with `1013` at
+  `docs/relay.md:184-188` says that backpressure closes with `1013` at
   2 MiB and drops no frame. T-062 measures whether that check operates.
 
 ## Approach
@@ -363,7 +363,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 - The joining of fragments (`crates/podssh-ws/src/session.rs:266-290`). It is
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:69`) takes
   any stream, so a test can drive it.
-- Relay lists and paths (`crates/podssh-relay/src/relay.rs:79-155`, `crates/podssh-ws/src/names.rs:8-57`).
+- Relay lists and paths (`crates/podssh-relay/src/relay.rs:107-183`, `crates/podssh-ws/src/names.rs:8-57`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:145-201`).
 - The escape filter, which keeps its state from one read to the next
   (`crates/podssh-ssh/src/escape.rs:30-70`).
@@ -439,9 +439,9 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:199-216`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:200-217`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
-  (`crates/podssh-ssh/src/options.rs:245`, enforced at
+  (`crates/podssh-ssh/src/options.rs:248`, enforced at
   `crates/podssh-ssh/src/run.rs:183-189`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
@@ -525,7 +525,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:66`, `docs/STATUS.md:68`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:357-358` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:365-366` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -542,14 +542,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:357-358`). A difference that the table does not name fails,
+   `docs/cli.md:365-366`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:357-358` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:365-366` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed

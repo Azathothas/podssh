@@ -46,6 +46,9 @@ pub enum Cause {
     /// The connection broke under the step: a new one can continue the copy
     /// (T-136).
     Broke,
+    /// The relay session is near its limits: a new one goes on at once
+    /// (T-137).
+    Spent,
     /// The digests differ.
     Digests,
 }

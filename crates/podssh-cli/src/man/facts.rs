@@ -67,6 +67,12 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       flag wins, and an empty value is no value. A bad value is a configuration error (78).",
     ),
     (&["PODSSH_RELAY_TOKEN"], "A relay token to use in place of one podssh mints. podssh never prints it."),
+    (
+        &["PODSSH_SESSION_BUDGET"],
+        "Lowers the bytes that podssh cp and mv carry in one relay session before they open a new one, \
+      for a relay with smaller limits: a whole number of bytes, 1048576 at least. It never raises the \
+      budget of THE RELAY's session limits; another value is ignored.",
+    ),
     (&["SSL_CERT_FILE"], "Trust only the CA certificates in this file, as --ca-file. The flag wins."),
     (
         &["SSH_AUTH_SOCK"],
@@ -205,6 +211,19 @@ fn relay() -> Vec<Block> {
                 "The relay closes a session after {idle} s with no traffic. podssh ssh sends a keepalive \
                  every {keepalive} s. With OpenSSH, set ServerAliveInterval below {idle}.",
                 idle = relay::RELAY_IDLE_SECS
+            ),
+        ),
+        item(
+            vec![lit("Session limits")],
+            format!(
+                "The relay ends a session after {cap} MiB, both ways together, or after {hours} hours. \
+                 podssh cp and mv count each session's bytes and age, and before {budget} MiB or {minutes} \
+                 minutes they open a new session and go on at the offset of the copy, with the host key and \
+                 the login of the first; PODSSH_SESSION_BUDGET lowers the bytes. --direct has no limit.",
+                cap = relay::SESSION_BYTE_CAP >> 20,
+                hours = relay::SESSION_TIME_CAP.as_secs() / 3600,
+                budget = relay::SESSION_BYTE_BUDGET >> 20,
+                minutes = relay::SESSION_TIME_BUDGET.as_secs() / 60
             ),
         ),
     ]

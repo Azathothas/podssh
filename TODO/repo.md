@@ -675,7 +675,7 @@ Read:
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
-- `crates/podssh-cli/src/man/facts.rs:295-311`: the drift test of the manual
+- `crates/podssh-cli/src/man/facts.rs:314-330`: the drift test of the manual
   counts each quoted upper-case name with `_` in the sources as a variable
   (except `CARGO_` names).
 
@@ -930,14 +930,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:134-148`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:135-149`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-188` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:141`).
+  in a required property (17 properties, `docs/STATUS.md:142`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:86-91`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
@@ -964,7 +964,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:171`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:172`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -982,7 +982,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:142`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:143`,
 and the job must fail.
 
 ## Correction
@@ -1606,7 +1606,7 @@ Read, in the tree as it is now:
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
 - `docs/development.md:200-202` states the rule with `CXX`, and
-  `docs/STATUS.md:253` records the measurement. Rule 4 of
+  `docs/STATUS.md:254` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:101-108` runs the plant on each push.
@@ -1637,7 +1637,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:253`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:254`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1901,7 +1901,7 @@ Read, wrong facts:
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
 - crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:176-180` says
+  as the forward path's. For the forward path, `docs/relay.md:184-188` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.
@@ -2030,7 +2030,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:162`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:163`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.

@@ -111,8 +111,10 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
         match resolve_for(server) {
             Ok(mut r) => {
                 // Each new connection of this run meets the first one's host
-                // key (T-136).
+                // key (T-136), and logs in as the first did, with no second
+                // question (T-137).
                 r.options.host_key_pin = Some(podssh_ssh::hostkey::Pin::default());
+                r.options.remembered = Some(podssh_ssh::remember::Remembered::default());
                 resolved.push(r);
             }
             Err(refusal) => return refusal.report(verb, err),
