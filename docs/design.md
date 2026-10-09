@@ -184,7 +184,7 @@ usable shell through `podssh serve`.
 | A silent link | A ping every 10 s; dead after three checks with no frame (30 to 40 s). To a node, the resumable layer's heartbeat too: a link with nothing from the far end for 30 s is dead, and a new one replaces it (T-154) |
 | A stuck write | Fails after 60 s |
 | The relay's idle cut | Keepalives every 60 s keep the session (MEASURED: 602 s with keepalives; cut at 184 s without). To a node, the layer's records each 10 s keep it, and SSH sends no keepalive unless asked (T-154) |
-| The relay's limits (12 h, 64 MiB) | The session ends, with the reason |
+| The relay's limits (12 h, 64 MiB) | The session ends, with the reason. To a node, the session moves to a new link before them, at 48 MiB or 11 h (T-155) |
 | A dropped connection | On the forward road, the session ends; `ssh` prints the relay's reason and exits 255. `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136). To a node (`ssh node://`, `operator`), the resumable layer carries the session onto a new link, for 10 minutes (T-153) |
 | A changed client address | The session is lost |
 
@@ -256,7 +256,7 @@ body of at most 64 KiB. Numbers are big-endian, and offsets and values have
 | 0x08 | `PING` | either | a value |
 | 0x09 | `PONG` | either | the value of the `PING`, then an offset |
 | 0x0a | `CLOSE` | either | a reason: the session ends, not only the link; the peer answers with its own `CLOSE` (T-262) |
-| 0x0b | `RETIRE` | client | nothing: this link ends, and the session goes on over another (T-155, in progress) |
+| 0x0b | `RETIRE` | client | nothing: this link ends, and the session goes on over another (T-155) |
 
 The magic is the 14 bytes `podssh-session`, and the version is 1; each side
 names the highest version that it speaks, and the session speaks the lower.
@@ -346,7 +346,7 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   far end that no longer knows the session, after this side's application
   ended, had the `CLOSE`, and the session ended there. A resume that the far
   end accepted while the session ended on the old link gets a `CLOSE`.
-- **A move** (T-155, in progress), when both sides name `move.v1` and
+- **A move** (T-155), when both sides name `move.v1` and
   `replay.v1`. At 48 MiB of a link both ways, or at 11 h, the client opens a
   new link and waits for its `GREETING` while the old link carries the
   session; then the old link stops at a record boundary and says `RETIRE`,
@@ -355,7 +355,9 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   them, and ask for bytes that the other side no longer keeps. A session
   whose application ended does not move. The far end lets the newest resume
   take a session: the client runs one handshake at a time, so an older one
-  that still waits is a link that the client left.
+  that still waits is a link that the client left. The client warns an hour
+  before its pair expires (72 h at most); at the expiry the relay ends each
+  session of the pair with `1001`, which no resume carries on.
 
 Measured 2026-10-09: `podssh node` runs the far end for each session, and
 `podssh ssh node://` and `podssh operator` run the client. A node keeps 64

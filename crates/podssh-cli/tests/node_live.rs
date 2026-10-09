@@ -2,76 +2,20 @@
 //! only: `cargo test -p podssh-cli --test node_live -- --ignored`. The binary
 //! makes a pair and runs a node in front of GitHub's SSH server; an operator
 //! session that holds the operator's file alone reads GitHub's banner through
-//! the node; then the binary stops the pair. No test prints a token.
+//! the node; then the binary stops the pair. No test prints a token. Two
+//! tests take long, and run with the checks of the release (T-251): an idle
+//! session of 10 minutes (T-154), and 200 MiB each way (T-155).
 
-use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
-use std::sync::mpsc;
+mod live_harness;
+
+use std::process::Stdio;
 use std::time::{Duration, Instant};
 
+use live_harness::{command, echo_server, lines_of, run, scratch, Cleanup, LIMIT};
 use podssh_relay::relay::parse_relay;
 use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome, Wire};
 use podssh_ws::{ProxyChoice, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
-const LIMIT: Duration = Duration::from_secs(60);
-
-fn scratch(tag: &str) -> PathBuf {
-    let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
-    let dir = std::env::temp_dir().join(format!("podssh-node-live-{tag}-{}-{nanos}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
-}
-
-/// `podssh ARGS` with HOME and the cache under `home`, on the network.
-fn command(home: &Path, args: &[&str]) -> Command {
-    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
-    cmd.args(args);
-    for name in ["PODSSH_RELAY", "PODSSH_RELAY_ADDR", "PODSSH_RELAY_TOKEN", "PODSSH_OFFLINE"] {
-        cmd.env_remove(name);
-    }
-    cmd.env("HOME", home).env("USERPROFILE", home);
-    cmd.env("XDG_CACHE_HOME", home.join("cache")).env("LOCALAPPDATA", home.join("cache"));
-    cmd
-}
-
-fn run(home: &Path, args: &[&str]) -> (i32, String, String) {
-    let mut child = command(home, args)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("podssh runs");
-    let deadline = Instant::now() + LIMIT;
-    while child.try_wait().expect("wait").is_none() {
-        assert!(Instant::now() < deadline, "podssh {args:?} did not end in time");
-        std::thread::sleep(Duration::from_millis(50));
-    }
-    let out = child.wait_with_output().expect("output");
-    let text = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
-    (out.status.code().unwrap_or(-1), text(&out.stdout), text(&out.stderr))
-}
-
-/// Kills the node and stops the pair, if a test ends early, and deletes the
-/// scratch directory, with its throwaway key, in each case.
-struct Cleanup<'a> {
-    home: &'a Path,
-    node: Option<Child>,
-}
-
-impl Drop for Cleanup<'_> {
-    fn drop(&mut self) {
-        if let Some(mut node) = self.node.take() {
-            let _ = node.kill();
-            let _ = node.wait();
-        }
-        if self.home.join("cache").join("podssh").join("pair-lab.json").exists() {
-            let _ = run(self.home, &["relay", "revoke", "lab"]);
-        }
-        let _ = std::fs::remove_dir_all(self.home);
-    }
-}
 
 #[test]
 #[ignore = "the live relay: run with --ignored"]
@@ -89,15 +33,9 @@ fn node_command_serves_a_tcp_target() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("the node runs");
-    let stderr = node.stderr.take().unwrap();
+    let lines = lines_of(&mut node);
     cleanup.node = Some(node);
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
-        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-            let _ = tx.send(line);
-        }
-    });
-    let first = rx.recv_timeout(LIMIT).expect("the node says what it serves");
+    let first = lines.recv_timeout(LIMIT).expect("the node says what it serves");
     assert!(first.contains("serving github.com:22"), "{first}");
     std::thread::sleep(Duration::from_secs(2));
 
@@ -136,7 +74,7 @@ fn node_command_serves_a_tcp_target() {
             got
         };
         let say = |_: podssh_cli::layered::Line| {};
-        let carry = podssh_cli::layered::carry(&config, link, first, app, &say);
+        let carry = podssh_cli::layered::carry(&config, link, first, app, None, &say);
         let (carried, banner) = tokio::join!(tokio::time::timeout(LIMIT, carry), read);
         (banner, carried)
     });
@@ -160,18 +98,6 @@ fn node_command_serves_a_tcp_target() {
     assert!(out.starts_with("lab: stopped"), "{out}");
     assert!(!home.join("cache").join("podssh").join("pair-lab.json").exists(), "the stored copy is gone");
     eprintln!("{}", out.trim_end());
-}
-
-/// The node's stderr, a line at a time.
-fn lines_of(node: &mut Child) -> mpsc::Receiver<String> {
-    let stderr = node.stderr.take().unwrap();
-    let (tx, rx) = mpsc::channel();
-    std::thread::spawn(move || {
-        for line in BufReader::new(stderr).lines().map_while(Result::ok) {
-            let _ = tx.send(line);
-        }
-    });
-    rx
 }
 
 /// `podssh ssh node://NAME` and `podssh operator NAME` (T-084) through a node
@@ -246,7 +172,7 @@ fn ssh_to_a_node() {
         .spawn()
         .expect("the operator runs");
     let mut stdout = pipe.stdout.take().unwrap();
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let mut got = Vec::new();
         let mut byte = [0u8; 1];
@@ -288,17 +214,7 @@ const IDLE: Duration = Duration::from_secs(600);
 #[test]
 #[ignore = "the live relay, 10 minutes: run with --ignored"]
 fn an_idle_session_through_a_node_lives_10_minutes() {
-    let echo = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
-    let port = echo.local_addr().unwrap().port();
-    std::thread::spawn(move || {
-        for stream in echo.incoming().map_while(Result::ok) {
-            std::thread::spawn(move || {
-                let mut reader = stream.try_clone().unwrap();
-                let mut writer = stream;
-                let _ = std::io::copy(&mut reader, &mut writer);
-            });
-        }
-    });
+    let port = echo_server();
 
     let home = scratch("idle");
     let operator_file = home.join("lab-operator.json");
@@ -356,13 +272,140 @@ fn an_idle_session_through_a_node_lives_10_minutes() {
             }
             let _ = user.shutdown().await;
         };
-        let carry = podssh_cli::layered::carry(&config, link, first, app, &say);
+        let carry = podssh_cli::layered::carry(&config, link, first, app, None, &say);
         let (carried, ()) = tokio::join!(carry, user_side);
         carried
     });
     assert_eq!(carried.why, None);
     let notes = notes.lock().unwrap();
     eprintln!("an idle session of {} s through the node: {} lines of loss and resume", IDLE.as_secs(), notes.len());
+
+    let mut node = cleanup.node.take().unwrap();
+    let _ = node.kill();
+    let _ = node.wait();
+    let (rc, _, err) = run(&home, &["relay", "revoke", "lab"]);
+    assert_eq!(rc, 0, "{err}");
+}
+
+/// The bytes that go each way through the node in the test of the move.
+const MOVED: usize = 200 << 20;
+
+/// Bytes from a fixed xorshift, made a block at a time, so that the test
+/// needs no 200 MiB in memory.
+struct Xorshift(u32);
+
+impl Xorshift {
+    fn fill(&mut self, block: &mut [u8]) {
+        for byte in block {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 17;
+            self.0 ^= self.0 << 5;
+            *byte = self.0 as u8;
+        }
+    }
+}
+
+/// A session through a node that carries 200 MiB each way (T-155), far more
+/// than the relay's 64 MiB for one of its sessions: the resumable layer moves
+/// the session to a new link before each link meets the cap, and the bytes
+/// come back whole from an echo server on this machine's loopback. Each move
+/// and each loss is printed.
+#[test]
+#[ignore = "the live relay, 200 MiB each way: run with --ignored"]
+fn move_200mib_each_way_through_a_node() {
+    use sha2::{Digest, Sha256};
+
+    let port = echo_server();
+
+    let home = scratch("move");
+    let operator_file = home.join("lab-operator.json");
+    let (rc, _, err) = run(&home, &["relay", "pair", "lab", "--operator-file", operator_file.to_str().unwrap()]);
+    assert_eq!(rc, 0, "{err}");
+    let mut cleanup = Cleanup { home: &home, node: None };
+    let target = format!("127.0.0.1:{port}");
+    let mut node = command(&home, &["node", "lab", &target])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the node runs");
+    let lines = lines_of(&mut node);
+    cleanup.node = Some(node);
+    let first = lines.recv_timeout(LIMIT).expect("the node says what it serves");
+    assert!(first.contains(&format!("serving {target}")), "{first}");
+    std::thread::sleep(Duration::from_secs(2));
+
+    let part: serde_json::Value = serde_json::from_slice(&std::fs::read(&operator_file).unwrap()).unwrap();
+    let relay = parse_relay(part["relay"].as_str().unwrap()).unwrap();
+    let name = part["name"].as_str().unwrap().to_string();
+    let token = part["connect_token"].as_str().unwrap().to_string();
+    let lines_said = std::sync::Mutex::new(Vec::new());
+    let started = Instant::now();
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
+    let (carried, sent, received) = runtime.block_on(async {
+        let (app, user) = tokio::io::duplex(256 * 1024);
+        let (link, leg_end) = tokio::io::duplex(256 * 1024);
+        let config = OperatorConfig {
+            relay: &relay,
+            name: &name,
+            connect_token: &token,
+            trust: &Trust::Default,
+            proxy: &ProxyChoice::FromEnvironment,
+            timeout: Duration::from_secs(30),
+            limits: OperatorLimits::default(),
+            wire: Wire::Tls,
+        };
+        let first = operator::start(&config, leg_end).await.expect("the operator's socket");
+        let say = |line: podssh_cli::layered::Line| {
+            let text = match line {
+                podssh_cli::layered::Line::Always(text) | podssh_cli::layered::Line::Verbose(text) => text,
+            };
+            eprintln!("{:.0} s: {text}", started.elapsed().as_secs_f64());
+            lines_said.lock().unwrap().push(text);
+        };
+        let (mut user_r, mut user_w) = tokio::io::split(user);
+        let write = async move {
+            let (mut bytes, mut digest) = (Xorshift(0x5eed_0155), Sha256::new());
+            let mut block = vec![0u8; 64 * 1024];
+            for _ in 0..MOVED / block.len() {
+                bytes.fill(&mut block);
+                digest.update(&block);
+                user_w.write_all(&block).await.expect("the session takes each byte");
+            }
+            digest.finalize()
+        };
+        let read = async move {
+            let mut digest = Sha256::new();
+            let mut block = vec![0u8; 64 * 1024];
+            let mut left = MOVED;
+            while left > 0 {
+                let n = user_r.read(&mut block).await.expect("the session gives each byte");
+                assert!(n > 0, "the session ended {left} bytes early");
+                digest.update(&block[..n]);
+                left -= n;
+            }
+            digest.finalize()
+        };
+        let user_side = async move {
+            let (sent, received) = tokio::join!(write, read);
+            (sent, received)
+        };
+        let carry = podssh_cli::layered::carry(&config, link, first, app, None, &say);
+        tokio::pin!(carry);
+        // The user's side ends its bytes once each came back, and the session
+        // then ends.
+        let (sent, received) = tokio::select! {
+            sides = user_side => sides,
+            carried = &mut carry => panic!("the session ended before its bytes: {:?}", carried.why),
+        };
+        (carry.await, sent, received)
+    });
+    assert_eq!(sent, received, "200 MiB came back whole");
+    assert_eq!(carried.why, None);
+    let said = lines_said.lock().unwrap();
+    let moves = said.iter().filter(|text| text.contains("moved to a new link")).count();
+    eprintln!("200 MiB each way through the node in {} s: {moves} moves", started.elapsed().as_secs());
+    assert!(moves >= 6, "{moves} moves for 400 MiB through links of 64 MiB at most");
 
     let mut node = cleanup.node.take().unwrap();
     let _ = node.kill();

@@ -145,6 +145,18 @@ copy (T-137; the constants are in `crates/podssh-relay/src/relay.rs`). The
 and the framing of SSH. `PODSSH_SESSION_BUDGET` lowers the byte budget for a
 relay with smaller caps; it never raises it.
 
+To a node, the resumable layer moves the session before these limits
+(T-155): at 48 MiB of a link, both ways, or at 11 h, the client opens a new
+link through the usual roads and relay hosts, and the node greets on it
+while the old link carries the session. Then the old link stops at a record
+boundary and says `RETIRE`, and the new one resumes from the offsets of its
+own handshake. A move that fails is no fault: at the cap the relay closes
+the link with `1009`, and the layer resumes the session. `-v` prints one
+line for each move. A pair lives 72 h at most: `podssh ssh node://` and
+`podssh operator` warn an hour before it expires, and at the expiry the
+relay ends each session of the pair (`1001 pair expired`), which the layer
+does not resume.
+
 ### Connect options (query string)
 
 `?family=4|6`, `?path=vpc|direct`, `?dial=lazy` (connect on the first byte

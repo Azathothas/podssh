@@ -24,6 +24,10 @@ const LEG_WAIT: Duration = Duration::from_secs(5);
 /// How long the last leg may take to end after the session: its Close and
 /// the relay's answer.
 const LEG_END: Duration = Duration::from_secs(12);
+/// How long before the pair's expiry the user hears of it: at the expiry
+/// the relay ends each session of the pair (`1001 pair expired`), and no
+/// resume can carry one on (T-155).
+pub const EXPIRY_WARNING: Duration = Duration::from_secs(3600);
 
 /// One line for the user: always, or only with `-v`.
 pub enum Line {
@@ -47,12 +51,14 @@ pub fn settings() -> Settings {
 
 /// Carry `app` to the node: `link` is the pipe to `first`, a leg already
 /// connected. Each lost leg is replaced, until the session ends or cannot
-/// go on.
+/// go on. `expires_ms`, the pair's expiry in milliseconds since the epoch,
+/// gives a warning an hour before it.
 pub async fn carry<A>(
     config: &OperatorConfig<'_>,
     link: DuplexStream,
     first: JoinHandle<LegOutcome>,
     app: A,
+    expires_ms: Option<i64>,
     say: &(dyn Fn(Line) + Sync),
 ) -> Carried
 where
@@ -75,7 +81,13 @@ where
         async move { next_leg(config, legs_ref, previous).await }
     };
     let note = |note: Note| say(line_of(note));
-    let outcome = resume::run(client, app, connect, note, &mut OsEntropy).await;
+    let mut entropy = OsEntropy;
+    let session = resume::run(client, app, connect, note, &mut entropy);
+    tokio::pin!(session);
+    let outcome = tokio::select! {
+        outcome = &mut session => outcome,
+        () = warn_of_expiry(expires_ms, say) => session.await,
+    };
     let why = match outcome {
         Outcome::Plain(_) => None,
         Outcome::Layer(ended) => match ended.end {
@@ -95,6 +107,33 @@ where
         },
     };
     Carried { why, leg: last(&legs).await }
+}
+
+/// How long to wait before the warning of a pair that expires at
+/// `expires_ms`, at `now_ms`: none once the pair expired, as the relay then
+/// says so itself.
+pub fn expiry_wait(expires_ms: i64, now_ms: i64) -> Option<Duration> {
+    let left = expires_ms.checked_sub(now_ms).filter(|left| *left > 0)?;
+    let warning = EXPIRY_WARNING.as_millis() as i64;
+    Some(Duration::from_millis(left.saturating_sub(warning).max(0) as u64))
+}
+
+/// One line an hour before the pair expires, or at once when less is left;
+/// never, with no expiry or one that passed.
+async fn warn_of_expiry(expires_ms: Option<i64>, say: &(dyn Fn(Line) + Sync)) {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_millis()).unwrap_or(i64::MAX));
+    let Some(wait) = expires_ms.and_then(|expires| expiry_wait(expires, now_ms)) else {
+        return std::future::pending().await;
+    };
+    tokio::time::sleep(wait).await;
+    let left = expires_ms.unwrap_or(0).saturating_sub(now_ms).saturating_sub(wait.as_millis() as i64);
+    say(Line::Always(format!(
+        "the pair expires in {} min; the relay then ends this session, and a new pair (podssh relay pair) is \
+         needed to go on",
+        (left.max(0) / 60_000).max(1)
+    )));
 }
 
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -168,5 +207,31 @@ fn line_of(note: Note) -> Line {
             after.as_secs_f64(),
             if resent > 0 { format!(", {resent} bytes sent again") } else { String::new() }
         )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const HOUR: i64 = 3_600_000;
+
+    #[test]
+    fn the_warning_comes_an_hour_before_the_expiry() {
+        assert_eq!(expiry_wait(10 * HOUR, 0), Some(Duration::from_millis(9 * HOUR as u64)));
+        assert_eq!(expiry_wait(HOUR + 1, 1), Some(Duration::ZERO));
+    }
+
+    #[test]
+    fn less_than_an_hour_left_is_said_at_once() {
+        assert_eq!(expiry_wait(HOUR - 1, 0), Some(Duration::ZERO));
+        assert_eq!(expiry_wait(5, 4), Some(Duration::ZERO));
+    }
+
+    #[test]
+    fn a_pair_that_expired_gets_no_warning() {
+        assert_eq!(expiry_wait(100, 100), None);
+        assert_eq!(expiry_wait(100, 200), None);
+        assert_eq!(expiry_wait(i64::MIN, i64::MAX), None);
     }
 }

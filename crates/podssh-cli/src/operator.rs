@@ -67,7 +67,7 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
     let ran = runtime.block_on(async {
         let (link, leg_end) = tokio::io::duplex(PIPE);
         let first = operator::start(&config, leg_end).await?;
-        Ok::<_, ConnectError>(crate::layered::carry(&config, link, first, io, &say).await)
+        Ok::<_, ConnectError>(crate::layered::carry(&config, link, first, io, Some(part.expires_ms), &say).await)
     });
     // A read on stdin may still be blocked in a helper thread; the session
     // has ended, so it is not waited for.

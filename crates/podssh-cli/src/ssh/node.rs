@@ -128,7 +128,7 @@ pub(super) async fn connect(
     // end, the layer sends `CLOSE`, and the last leg its Close.
     let (code, carried) = tokio::join!(
         podssh_ssh::run(ssh_end, opts, None, log.clone()),
-        crate::layered::carry(&config, link_end, leg, layer_end, &say)
+        crate::layered::carry(&config, link_end, leg, layer_end, Some(part.expires_ms), &say)
     );
     if code == EXIT_FAILURE {
         let why = carried.why.or_else(|| carried.leg.as_ref().and_then(explain));

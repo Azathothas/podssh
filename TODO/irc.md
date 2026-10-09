@@ -522,7 +522,7 @@ The new file crates/podssh-core/tests/keepalive.rs holds `the_keepalive_is_a_pin
 and `a_matching_pong_counts_as_a_reception`. Plant: return the `PRIVMSG` heartbeat; the first test
 must fail. Live: give the probe an idle mode. An idle session on undernet must stay open for 10 min
 with no channel message. With the keepalive off (the control), the relay must close it at about
-180 s with `1001 idle timeout` (`docs/relay.md:175`).
+180 s with `1001 idle timeout` (`docs/relay.md:187`).
 
 # T-099: `podssh chat` on the roads between two podssh ends, end-to-end encrypted
 

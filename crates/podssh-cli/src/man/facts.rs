@@ -233,11 +233,18 @@ fn relay() -> Vec<Block> {
                 "The relay ends a session after {cap} MiB, both ways together, or after {hours} hours. \
                  podssh cp and mv count each session's bytes and age, and before {budget} MiB or {minutes} \
                  minutes they open a new session and go on at the offset of the copy, with the host key and \
-                 the login of the first; PODSSH_SESSION_BUDGET lowers the bytes. --direct has no limit.",
+                 the login of the first; PODSSH_SESSION_BUDGET lowers the bytes. To a node, the resumable \
+                 layer moves the session to a new link at {moved} MiB of a link or after {move_hours} hours, \
+                 and -v prints a line for each move. A pair expires after 72 hours at most: podssh ssh \
+                 node:// and podssh operator warn {warning} minutes before, and then the relay ends each \
+                 session of the pair. --direct has no limit.",
                 cap = relay::SESSION_BYTE_CAP >> 20,
                 hours = relay::SESSION_TIME_CAP.as_secs() / 3600,
                 budget = relay::SESSION_BYTE_BUDGET >> 20,
-                minutes = relay::SESSION_TIME_BUDGET.as_secs() / 60
+                minutes = relay::SESSION_TIME_BUDGET.as_secs() / 60,
+                moved = podssh_relay::session::resume::MOVE_BYTES >> 20,
+                move_hours = podssh_relay::session::resume::MOVE_AGE.as_secs() / 3600,
+                warning = crate::layered::EXPIRY_WARNING.as_secs() / 60
             ),
         ),
     ]

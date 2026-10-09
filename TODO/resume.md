@@ -346,7 +346,7 @@ the node then exits (`docs/reverse.md:19`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:134-244`).
+   (`crates/podssh-cli/src/man/facts.rs:134-251`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -624,7 +624,8 @@ Prove, native, Windows, 2026-10-09:
   through a node with the new pump, and `podssh ssh node://` logged in to
   railway.new through it; railway.new then limited the anonymous visitor
   (its exit 13) in place of running `exit 3`, as in the run of T-153.
-- CI's gate runs on the push of this change.
+- CI's gate passed at `a3b81d1`, the commit of this repair: each of its
+  steps, `libs` included (run 37963246424).
 
 # T-263: A node in plain mode, for a client with no resumable layer
 
@@ -796,7 +797,7 @@ close at the volume cap).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -833,7 +834,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:134-244`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:134-251`).
 
 ## Decision
 
@@ -856,10 +857,22 @@ The move test gives a fake link a cap of 1 MiB, as a constructor argument:
 close. A planted layer that never moves meets `1009` at the first cap, and
 the test fails. The live test sends 200 MiB each way with equal digests.
 
+## Correction
+
+The live test needs a node and the layer's client, which are in
+podssh-cli: it is `cargo test -p podssh-cli --test node_live -- --ignored
+move_200mib`, with an echo server on the loopback as the node's TARGET.
+Step 6 needs no ticket of T-163: the operator's part of a pair keeps its
+expiry (`expires_ms`, `crates/podssh-relay/src/pair.rs:347`), and at the
+expiry the relay ends each session of the pair with `1001 pair expired`
+(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:171`), which
+the policy of T-153 does not resume. The repair of T-262 changed step 3:
+the new link greets while the old one carries the session, but its
+handshake takes the offsets only after the old one stopped.
+
 ## Done
 
-Partial, 2026-10-09. Committed with T-154 and the repair of T-262, in the
-same files:
+2026-10-09.
 
 - The record `RETIRE` (0x0b, no body: a link ends, the session goes on), in
   the codec, its vectors and `docs/design.md`; `Event::Retired` and
@@ -870,29 +883,29 @@ same files:
   pass the move's mark. `End::Moving`, which the driver gives its caller
   when it asks for a link to move to.
 - The move in `resume::run`: at the mark or the age, a second link is asked
-  for and resumed while the old one still carries the session; then the old
-  one stops at a record boundary and says `RETIRE`, and the new one sends
-  again from the far end's offset (`Note::Moved`, `Note::MoveFailed`; the
-  CLI prints them with `-v`, and its connect does not wait for a leg that
-  still runs).
-- `tests/session_move.rs`: a stand-in relay caps each link at 1 MiB, the move
-  is at 768 KiB, and 8 MiB each way pass over more than 8 links with equal
-  digests, no cap met and no loss. On the way, a deadlock was found and
-  repaired: two locks of one mutex in one expression.
-- T-262 changed the move: the new link greets while the old one carries the
-  session, then the old one stops with `RETIRE`, and only then does the new
-  link's handshake take the offsets; a session whose application ended does
-  not move; the far end gives a session to its newest resume. A second test
-  moves each 256 KiB with both ends at full speed. Both tests: 20 runs in a
-  row passed.
-
-Open, in this order:
-
-1. `docs/relay.md` ("Limits that users see") and the manual's relay section.
-2. Step 6 needs no ticket of T-163 on the relay road: the operator's part of
-   a pair keeps its expiry (`expires_ms`, `crates/podssh-relay/src/pair.rs:347`).
-3. The live test `move_200mib`, written; its run (200 MiB each way, over
-   100 MiB) waits for T-251 (Q35).
+  for, and its far end greets while the old one still carries the session;
+  then the old one stops at a record boundary and says `RETIRE`, and the new
+  link's handshake takes the offsets, then sends again from the far end's
+  offset (`Note::Moved`, `Note::MoveFailed`; the CLI prints them with `-v`,
+  and its connect does not wait for a leg that still runs). A session whose
+  application ended does not move.
+- `podssh ssh node://` and `podssh operator` say, an hour before the pair
+  expires, that the relay then ends the session (`EXPIRY_WARNING` and
+  `expiry_wait` in `crates/podssh-cli/src/layered.rs`).
+- `docs/relay.md` ("Limits that users see"), the manual's "Session limits",
+  and `docs/design.md` (section 5) say so.
+- Prove, native: `cargo test -p podssh-relay --test session_move`: 2 passed,
+  in 20 runs in a row. Links capped at 1 MiB with a move at 768 KiB: 8 MiB
+  each way with equal digests over more than 8 links, no cap met and no
+  loss; a move each 256 KiB with both ends at full speed: no loss and no
+  failed move. `cargo test -p podssh-cli --lib -- layered`: 3 passed (the
+  wait before the warning: an hour before, at once with less left, none
+  after the expiry). `cargo test -p podssh-cli --no-fail-fast`: 331 passed,
+  0 failed, 8 ignored (the live tests). `cargo test --no-fail-fast`: 994
+  passed, 0 failed, 22 ignored.
+- Waits for T-251: the live test `move_200mib_each_way_through_a_node`
+  (400 MiB through the relay: over 100 MiB, Q35), and the planted layer that
+  never moves, which must meet the cap and fail the move test.
 
 # T-156: M6 exit: a session survives a stopped relay host, a new address and a stall of 3 minutes
 
@@ -960,7 +973,7 @@ live session that survives a stall of 3 minutes.
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:447-467`; the two
+sandbox, before a default depends on it); `docs/design.md:449-469`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -984,7 +997,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:447-467`). A session carries 64 MiB at most, both directions
+(`docs/design.md:449-469`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:127`).
 
 ## Approach
@@ -1000,7 +1013,7 @@ together (`docs/relay.md:127`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:165-166`, `docs/relay.md:274-280`). Skip a
+   needs a token (`docs/relay.md:177-178`, `docs/relay.md:286-292`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.

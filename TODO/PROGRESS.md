@@ -30,9 +30,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 - **The resumable layer (2026-10-09).** T-262 is repaired: the test of
   T-153 that cut a session at random points and failed in CI at `7797b2a`
   passes 20 runs in a row, with a test for each of its causes. T-154 is
-  done in the same commit. T-155 is partial: its move is in and tested, and
-  its `## Done` lists what remains (documents, a warning before a pair
-  expires, the live test). The operator settled Q31 to Q37 on 2026-10-09
+  done in the same commit, and T-155 after it; their live tests of more
+  than 5 minutes or 100 MiB wait for T-251. The operator settled Q31 to Q37 on 2026-10-09
   (`docs/decisions.md`). A copy of the tree before T-262 is at the local ref
   `refs/checkpoints/2026-10-09`, a backup only: never pushed, never merged.
 
@@ -41,10 +40,11 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`, again after T-262: 991 passed, 0 failed, 21 ignored (the live
-  tests).
-- `cargo test -p podssh-relay --all-features --no-fail-fast`: 170 passed, 0 failed, 14 ignored (the
-  live tests).
+- `cargo test --no-fail-fast`, again after T-155: 994 passed, 0 failed, 22
+  ignored (the live tests). CI's gate passed at `a3b81d1` (T-262; run
+  37963246424).
+- `cargo test -p podssh-relay --all-features --no-fail-fast`: 170 passed, 0
+  failed, 14 ignored (the live tests).
 - `sh scripts/dev.sh check` (after T-212): green; interop 103 of 103. The steps that
   later changes touched, each alone in the build image after them: green.
 - `cargo test -p podssh-todo`: 71 passed: 15 unit tests, 37 plant tests (35
@@ -55,7 +55,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 261 entries: 146 open, 1 partial, 22 blocked, 92 done.
+`TODO/INDEX.md` holds 261 entries: 146 open, 0 partial, 22 blocked, 93 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
