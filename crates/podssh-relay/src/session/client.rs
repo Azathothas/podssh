@@ -225,7 +225,7 @@ where
         match layer {
             Some((decoder, established)) => {
                 let mut carry = Carry::new(settings.link(&established));
-                let ended = pump::run(&mut app, link, decoder, &mut carry, None).await;
+                let ended = pump::run(&mut app, link, decoder, &mut carry, &pump::Watch::default()).await;
                 // The application learns that no more bytes come.
                 let _ = app.shutdown().await;
                 Outcome::Layer(ended)

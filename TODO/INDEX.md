@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**258 entries: 159 open, 0 partial, 9 blocked, 90 done.**
+**261 entries: 146 open, 1 partial, 22 blocked, 92 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 76 | 0 | 5 | 68 | 149 |
-| P3 | 81 | 0 | 4 | 14 | 99 |
-| **All** | 159 | 0 | 9 | 90 | 258 |
+| P1 | 2 | 0 | 0 | 8 | 10 |
+| P2 | 62 | 1 | 18 | 69 | 150 |
+| P3 | 82 | 0 | 4 | 14 | 100 |
+| **All** | 146 | 1 | 22 | 92 | 261 |
 
 ## Entries
 
@@ -158,7 +158,7 @@ repository and CI).
 | [T-082](reverse.md) | P2 | M | M4 | chore | done | Move the codecs of `podssh-transport` into `podssh-relay` |
 | [T-083](reverse.md) | P2 | M | M4 | feature | done | `podssh node NAME TARGET` |
 | [T-084](reverse.md) | P2 | M | M4 | feature | done | `podssh operator NAME` and `podssh ssh NODE` |
-| [T-085](reverse.md) | P2 | M | M4 | measurement | open | M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox |
+| [T-085](reverse.md) | P2 | M | M4 | measurement | blocked | M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox |
 | [T-086](reverse.md) | P3 | M | backlog | feature | blocked | Pairing by a short one-time code, given out of band |
 | [T-087](reverse.md) | P2 | M | backlog | feature | open | Node identity and access: a node key, an allowlist, an expected fingerprint, revocation |
 | [T-088](reverse.md) | P2 | L | backlog | feature | open | End-to-end encryption between two podssh ends |
@@ -180,18 +180,18 @@ repository and CI).
 | [T-104](ts.md) | P2 | M | M8 | feature | open | `podssh ts` connects again after a drop |
 | [T-105](ts.md) | P2 | M | M8 | defect | open | The fork shows the relay's `1008 not authorized` as a missing network map |
 | [T-106](ts.md) | P2 | M | M8 | measurement | blocked | The live test of `podssh ts` with two nodes |
-| [T-107](serve.md) | P2 | M | M5 | feature | open | `podssh serve`: the russh server, its host key in a state file, and authorized keys |
-| [T-108](serve.md) | P2 | M | M5 | feature | open | `podssh serve`: exec, a shell and the environment, as the sandbox's user |
-| [T-109](serve.md) | P2 | S | M5 | feature | open | `podssh serve`: direct-tcpip into the cage |
-| [T-110](serve.md) | P2 | M | M5 | feature | open | `podssh serve`: a real pty when `/dev/ptmx` exists |
-| [T-111](serve.md) | P2 | L | M5 | feature | open | `podssh serve` with no `/dev/ptmx`: the line discipline, and Ctrl-C to the child's process group |
-| [T-112](serve.md) | P2 | M | M5 | feature | open | An SFTP server in `podssh serve` |
-| [T-113](serve.md) | P2 | M | M5 | measurement | open | M5 exit: a usable shell and 200 MiB each way from a sealed sandbox |
+| [T-107](serve.md) | P2 | M | M5 | feature | blocked | `podssh serve`: the russh server, its host key in a state file, and authorized keys |
+| [T-108](serve.md) | P2 | M | M5 | feature | blocked | `podssh serve`: exec, a shell and the environment, as the sandbox's user |
+| [T-109](serve.md) | P2 | S | M5 | feature | blocked | `podssh serve`: direct-tcpip into the cage |
+| [T-110](serve.md) | P2 | M | M5 | feature | blocked | `podssh serve`: a real pty when `/dev/ptmx` exists |
+| [T-111](serve.md) | P2 | L | M5 | feature | blocked | `podssh serve` with no `/dev/ptmx`: the line discipline, and Ctrl-C to the child's process group |
+| [T-112](serve.md) | P2 | M | M5 | feature | blocked | An SFTP server in `podssh serve` |
+| [T-113](serve.md) | P2 | M | M5 | measurement | blocked | M5 exit: a usable shell and 200 MiB each way from a sealed sandbox |
 | [T-114](serve.md) | P2 | M | backlog | feature | open | `podssh serve`: access rules for each key and command |
 | [T-115](serve.md) | P3 | M | backlog | feature | open | `podssh serve`: a TOTP second factor |
 | [T-116](serve.md) | P3 | S | backlog | feature | open | `podssh serve`: an audit log |
-| [T-117](serve.md) | P2 | S | M5 | feature | open | `podssh serve`: a clean stop, and SIGHUP reads the settings again |
-| [T-118](serve.md) | P2 | S | M5 | feature | open | `podssh serve`: a slow client cannot stall a pty or fill the memory |
+| [T-117](serve.md) | P2 | S | M5 | feature | blocked | `podssh serve`: a clean stop, and SIGHUP reads the settings again |
+| [T-118](serve.md) | P2 | S | M5 | feature | blocked | `podssh serve`: a slow client cannot stall a pty or fill the memory |
 | [T-119](serve.md) | P3 | S | backlog | feature | open | `podssh serve`: the MOTD and `~/.hushlogin` |
 | [T-120](serve.md) | P3 | M | backlog | feature | open | `podssh serve`: shell integration marks, when asked |
 | [T-121](serve.md) | P3 | M | backlog | feature | open | Install `podssh serve` or `podssh node` as a service with no privileges |
@@ -227,8 +227,8 @@ repository and CI).
 | [T-151](resume.md) | P2 | L | M6 | feature | done | The resumable layer: its handshake and the byte offsets |
 | [T-152](resume.md) | P2 | M | M6 | feature | done | The replay buffer, limited, with backpressure |
 | [T-153](resume.md) | P2 | L | M6 | feature | done | Resume through any road and relay host, with a session secret and a capped backoff |
-| [T-154](resume.md) | P2 | S | M6 | feature | open | Heartbeats that also prevent the relay's idle cut |
-| [T-155](resume.md) | P2 | S | M6 | feature | open | Move a session to a new relay connection before the relay's limits |
+| [T-154](resume.md) | P2 | S | M6 | feature | done | Heartbeats that also prevent the relay's idle cut |
+| [T-155](resume.md) | P2 | S | M6 | feature | partial | Move a session to a new relay connection before the relay's limits |
 | [T-156](resume.md) | P2 | M | M6 | measurement | open | M6 exit: a session survives a stopped relay host, a new address and a stall of 3 minutes |
 | [T-157](resume.md) | P2 | M | M6 | measurement | open | Throughput on each road and relay, by a committed method |
 | [T-158](resume.md) | P3 | M | backlog | feature | open | Detach and attach again |
@@ -284,7 +284,7 @@ repository and CI).
 | [T-210](repo.md) | P2 | S | M9 | release | open | Build provenance for each release binary |
 | [T-211](repo.md) | P2 | S | M9 | release | open | Signed checksums for each release |
 | [T-212](repo.md) | P2 | M | none | chore | done | Parallel CI, with the gate as the one source |
-| [T-213](repo.md) | P2 | M | none | chore | open | CI runs the box like the target sandbox |
+| [T-213](repo.md) | P2 | M | none | chore | blocked | CI runs the box like the target sandbox |
 | [T-214](repo.md) | P2 | M | none | chore | done | CI on Windows |
 | [T-215](repo.md) | P2 | M | none | chore | done | rustfmt and clippy in the gate |
 | [T-216](repo.md) | P2 | S | none | chore | done | Advisories and licenses of the dependencies, checked in CI |
@@ -293,7 +293,7 @@ repository and CI).
 | [T-219](repo.md) | P2 | S | none | chore | done | The no-C gate also stops C++ |
 | [T-220](relay.md) | P2 | M | backlog | feature | open | A silent first relay host costs a full dial before the next host is tried (GitHub #30) |
 | [T-221](resume.md) | P3 | M | backlog | feature | open | Replayed output after dropped bytes starts at a boundary of the terminal grammar (GitHub #31) |
-| [T-222](serve.md) | P2 | S | M5 | feature | open | `podssh serve` finds a shell with no passwd entry and no `/etc/shells`, and names each candidate that failed (GitHub #32) |
+| [T-222](serve.md) | P2 | S | M5 | feature | blocked | `podssh serve` finds a shell with no passwd entry and no `/etc/shells`, and names each candidate that failed (GitHub #32) |
 | [T-223](repo.md) | P3 | S | none | defect | done | `scripts/check-repo.py` passes when it finds nothing to check (GitHub #33) |
 | [T-224](repo.md) | P2 | S | none | chore | done | The gate finds a listener in the source: a scan with an allow-list (GitHub #33) |
 | [T-225](robustness.md) | P3 | M | backlog | chore | open | The interop gate takes each expected exit code from stock OpenSSH, beside the literal (GitHub #34) |
@@ -316,10 +316,10 @@ repository and CI).
 | [T-242](ws.md) | P3 | S | backlog | defect | open | The frame decoder accepts a length that is not in the minimal form |
 | [T-243](relay.md) | P2 | S | backlog | feature | open | The user can choose the cache directory, and no directory is fixed in the code |
 | [T-244](repo.md) | P3 | M | none | chore | done | Code comments break `AGENTS.md` rule 6, and some name files and facts that are wrong |
-| [T-245](repo.md) | P2 | S | none | chore | open | The box refuses each bind, but sandbox A allows an AF_UNIX bind |
+| [T-245](repo.md) | P2 | S | none | chore | blocked | The box refuses each bind, but sandbox A allows an AF_UNIX bind |
 | [T-246](repo.md) | P3 | S | none | chore | done | `scripts/dev.sh` excludes each file named `agents.md` from the container copy, with no reason given |
 | [T-247](repo.md) | P3 | S | none | chore | done | `podssh-cli` declares dependencies that it does not use |
-| [T-248](serve.md) | P2 | M | M5 | research | open | A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space |
+| [T-248](serve.md) | P2 | M | M5 | research | blocked | A tty for `podssh serve` where `/dev/ptmx` is missing: a new devpts instance, or a tty in user space |
 | [T-249](repo.md) | P2 | M | none | chore | done | A cited line that moved still exists, so the checker does not see a stale citation |
 | [T-250](release.md) | P1 | M | M9 | release | open | Publish v1.0.0, the first stable release |
 | [T-251](release.md) | P1 | M | M9 | measurement | open | The check of a release from end to end, with no human |
@@ -332,4 +332,7 @@ repository and CI).
 | [T-258](repo.md) | P3 | S | none | defect | done | Line numbers written as plain text in the record are not moved |
 | [T-259](repo.md) | P2 | S | none | defect | done | One dropped connection fails a live TLS test, and with it the gate |
 | [T-260](repo.md) | P3 | S | none | chore | done | The open pull requests of Dependabot, #37 to #42 |
-| [T-261](resume.md) | P2 | S | M6 | feature | blocked | A node that lost its socket connects again on `409`, until the resume deadline |
+| [T-261](resume.md) | P2 | S | M6 | feature | open | A node that lost its socket connects again on `409`, until the resume deadline |
+| [T-262](resume.md) | P1 | M | M6 | defect | done | A session cut at random points can end before its bytes come through |
+| [T-263](resume.md) | P3 | S | M6 | feature | open | A node in plain mode, for a client with no resumable layer |
+| [T-264](roads.md) | P2 | M | backlog | feature | open | Reach a service that `cloudflared` publishes, through `HTTPS_PROXY` |

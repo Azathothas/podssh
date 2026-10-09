@@ -55,7 +55,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:236`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-46`,
    `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
-   from the lines that you change (`AGENTS.md:196-197`).
+   from the lines that you change (`AGENTS.md:198-199`).
 
 ## Decision
 
@@ -146,7 +146,7 @@ writes over the rows above it.
   (`git show 7e4a518:crates/podssh-terminal/src/term.rs`, lines 47-53). The documented rule
   sends `TERM` unchanged (`docs/terminal.md:60-65`). The
   manual does not name `PODSSH_TERM`, and its variable test does not read
-  this crate (`crates/podssh-cli/src/man/facts.rs:266-267`).
+  this crate (`crates/podssh-cli/src/man/facts.rs:273-274`).
 
 ## Approach
 

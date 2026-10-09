@@ -53,7 +53,7 @@ pub use sessions::Sessions;
 
 /// The features that this build offers: a side ignores a name that it does
 /// not know, and uses a feature only when both sides named it.
-pub const FEATURES: &[&str] = &["replay.v1"];
+pub const FEATURES: &[&str] = &["replay.v1", "heartbeat.v1", "move.v1"];
 
 /// What one end of the layer offers and keeps.
 #[derive(Debug, Clone, Copy)]
@@ -64,6 +64,11 @@ pub struct Settings {
     pub replay_capacity: usize,
     /// How long after a loss the session waits for a new link (T-153).
     pub resume_deadline: std::time::Duration,
+    /// The bytes of one link, both ways, after which the client moves the
+    /// session to a new link (T-155).
+    pub move_bytes: u64,
+    /// The age of one link after which the client moves the session.
+    pub move_age: std::time::Duration,
 }
 
 impl Default for Settings {
@@ -72,6 +77,8 @@ impl Default for Settings {
             features: FEATURES,
             replay_capacity: replay::DEFAULT_CAPACITY,
             resume_deadline: resume::RESUME_DEADLINE,
+            move_bytes: resume::MOVE_BYTES,
+            move_age: resume::MOVE_AGE,
         }
     }
 }
@@ -79,13 +86,22 @@ impl Default for Settings {
 impl Settings {
     /// The state of a new session: a replay buffer and acknowledgements when
     /// both sides named `replay.v1`, else neither, since a peer that does not
-    /// acknowledge would fill the buffer and stop the session.
+    /// acknowledge would fill the buffer and stop the session; a heartbeat
+    /// when both named `heartbeat.v1`, since a peer that does not answer a
+    /// `PING` would look dead.
     pub fn link(&self, established: &Established) -> Link {
-        let link = Link::new(established.received, established.peer_received);
-        if established.features.iter().any(|name| name == "replay.v1") {
-            link.with_replay(self.replay_capacity)
-        } else {
-            link
+        let named = |feature: &str| established.features.iter().any(|name| name == feature);
+        let mut link = Link::new(established.received, established.peer_received);
+        if named("replay.v1") {
+            link = link.with_replay(self.replay_capacity);
         }
+        if named("heartbeat.v1") {
+            link = link.with_heartbeat();
+        }
+        // A move resends from the far end's offset: it needs the buffer.
+        if named("move.v1") && named("replay.v1") {
+            link = link.with_moves();
+        }
+        link
     }
 }

@@ -40,4 +40,6 @@ plain-ws = ["podssh-ws/plain-ws"]
 libc = { workspace = true }
 
 [dev-dependencies]
-tokio = { workspace = true, features = ["macros", "rt"] }
+# `test-util` gives the tests a paused clock: the heartbeat's 200 s of idle
+# time pass at once (T-154).
+tokio = { workspace = true, features = ["macros", "rt", "test-util"] }

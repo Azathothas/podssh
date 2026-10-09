@@ -275,3 +275,98 @@ fn ssh_to_a_node() {
     let (rc, _, err) = run(&home, &["relay", "revoke", "lab"]);
     assert_eq!(rc, 0, "{err}");
 }
+
+/// How long the idle session waits (T-154).
+const IDLE: Duration = Duration::from_secs(600);
+
+/// An idle session through a node for 10 minutes (T-154, T-153): a node in
+/// front of an echo server on this machine's loopback, and the client of the
+/// resumable layer over the library's operator leg. The layer's records keep
+/// each link busy, and a link that the relay's side drops (T-255) is
+/// replaced; after the wait the echo still answers. Each loss and resume is
+/// printed.
+#[test]
+#[ignore = "the live relay, 10 minutes: run with --ignored"]
+fn an_idle_session_through_a_node_lives_10_minutes() {
+    let echo = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = echo.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for stream in echo.incoming().map_while(Result::ok) {
+            std::thread::spawn(move || {
+                let mut reader = stream.try_clone().unwrap();
+                let mut writer = stream;
+                let _ = std::io::copy(&mut reader, &mut writer);
+            });
+        }
+    });
+
+    let home = scratch("idle");
+    let operator_file = home.join("lab-operator.json");
+    let (rc, _, err) = run(&home, &["relay", "pair", "lab", "--operator-file", operator_file.to_str().unwrap()]);
+    assert_eq!(rc, 0, "{err}");
+    let mut cleanup = Cleanup { home: &home, node: None };
+    let target = format!("127.0.0.1:{port}");
+    let mut node = command(&home, &["node", "lab", &target])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("the node runs");
+    let lines = lines_of(&mut node);
+    cleanup.node = Some(node);
+    let first = lines.recv_timeout(LIMIT).expect("the node says what it serves");
+    assert!(first.contains(&format!("serving {target}")), "{first}");
+    std::thread::sleep(Duration::from_secs(2));
+
+    let part: serde_json::Value = serde_json::from_slice(&std::fs::read(&operator_file).unwrap()).unwrap();
+    let relay = parse_relay(part["relay"].as_str().unwrap()).unwrap();
+    let name = part["name"].as_str().unwrap().to_string();
+    let token = part["connect_token"].as_str().unwrap().to_string();
+    let notes = std::sync::Mutex::new(Vec::new());
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
+    let carried = runtime.block_on(async {
+        let (app, mut user) = tokio::io::duplex(64 * 1024);
+        let (link, leg_end) = tokio::io::duplex(64 * 1024);
+        let config = OperatorConfig {
+            relay: &relay,
+            name: &name,
+            connect_token: &token,
+            trust: &Trust::Default,
+            proxy: &ProxyChoice::FromEnvironment,
+            timeout: Duration::from_secs(30),
+            limits: OperatorLimits::default(),
+            wire: Wire::Tls,
+        };
+        let first = operator::start(&config, leg_end).await.expect("the operator's socket");
+        let say = |line: podssh_cli::layered::Line| {
+            if let podssh_cli::layered::Line::Always(text) = line {
+                eprintln!("{text}");
+                notes.lock().unwrap().push(text);
+            }
+        };
+        let user_side = async move {
+            for word in [&b"before the wait\n"[..], &b"after the wait\n"[..]] {
+                user.write_all(word).await.unwrap();
+                let mut back = vec![0u8; word.len()];
+                tokio::time::timeout(LIMIT, user.read_exact(&mut back)).await.expect("the echo in time").unwrap();
+                assert_eq!(back, word);
+                if word.starts_with(b"before") {
+                    tokio::time::sleep(IDLE).await;
+                }
+            }
+            let _ = user.shutdown().await;
+        };
+        let carry = podssh_cli::layered::carry(&config, link, first, app, &say);
+        let (carried, ()) = tokio::join!(carry, user_side);
+        carried
+    });
+    assert_eq!(carried.why, None);
+    let notes = notes.lock().unwrap();
+    eprintln!("an idle session of {} s through the node: {} lines of loss and resume", IDLE.as_secs(), notes.len());
+
+    let mut node = cleanup.node.take().unwrap();
+    let _ = node.kill();
+    let _ = node.wait();
+    let (rc, _, err) = run(&home, &["relay", "revoke", "lab"]);
+    assert_eq!(rc, 0, "{err}");
+}

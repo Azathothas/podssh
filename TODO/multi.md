@@ -54,10 +54,10 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    (`crates/podssh-ssh/src/log.rs:12-15`). Each line gets `HOST: `. With
    `--output-dir`, the bytes go unchanged to `HOST.out` and `HOST.err`, and
    the status to `HOST.status`.
-4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/resolve.rs:304`).
+4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/resolve.rs:315`).
    An unknown host key refuses that host and gives its fingerprint and
    `-o StrictHostKeyChecking=accept-new`. stdin is not read
-   (`crates/podssh-cli/src/ssh/resolve.rs:318`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:329`).
 5. Get the token once, before the fan-out. Serialize `known_hosts::append`
    in the process with a mutex; T-029 covers two processes.
 6. The exit status: the largest status of the hosts, and 255 for a host that
@@ -113,7 +113,7 @@ is not a shell. A set of hosts has no name.
   and `podssh ssh '@web' true` exits 64 (`"@web": empty user name`). Thus
   `{` and a leading `@` are free.
 - Read: each host is checked before a connection
-  (`crates/podssh-cli/src/ssh/resolve.rs:379-427`,
+  (`crates/podssh-cli/src/ssh/resolve.rs:390-438`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
   (`docs/cli.md:448-465`); they cannot define a group.
@@ -305,7 +305,7 @@ command must be shown, with its values in it, before it runs.
 
 - Read: the remote command is the words of the command line joined with
   spaces, as OpenSSH joins them
-  (`crates/podssh-cli/src/ssh/resolve.rs:362-366`); podssh quotes nothing.
+  (`crates/podssh-cli/src/ssh/resolve.rs:373-377`); podssh quotes nothing.
 - Read: podssh can ask on the controlling terminal or through `SSH_ASKPASS`,
   and refuses when nobody can answer (`crates/podssh-ssh/src/prompt.rs:48-82`).
 - Read: no settings file exists yet; T-048 adds it.
@@ -473,9 +473,9 @@ name is copied by hand.
 
 - Read: `podssh ssh -t HOST -- docker exec -it NAME sh` works today, as a
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:198-206`,
-  `crates/podssh-cli/src/ssh/resolve.rs:362-376`). Only the list is missing.
+  `crates/podssh-cli/src/ssh/resolve.rs:373-387`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:186-190`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:188-192`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -504,7 +504,7 @@ name is copied by hand.
 Recommendation: a verb that lists, and prints the `podssh ssh` command. The
 alternative, a destination such as `docker:NAME@HOST`, lost: `podssh ssh`
 takes the destinations of OpenSSH, and a new form in
-`crates/podssh-cli/src/ssh/resolve.rs:379-427` breaks that parity.
+`crates/podssh-cli/src/ssh/resolve.rs:390-438` breaks that parity.
 
 ## Prove
 
@@ -735,7 +735,7 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:186-190`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:188-192`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:94-111`).
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:120-122`). The token type never shows itself

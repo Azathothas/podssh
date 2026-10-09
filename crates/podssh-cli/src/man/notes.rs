@@ -55,7 +55,10 @@ const SSH: &[&str] = &[
     "A repeated value follows OpenSSH: the first -p and -l, the last -e, -E and -F, and the first value \
      of each -o keyword. A second -J or -W is refused, and so is a second --relay-host, --relay-addr or \
      --ca-file: give several hops, hosts or addresses as one comma list.",
-    "podssh sends keepalives (ServerAliveInterval), so the relay does not close an idle session.",
+    "podssh sends keepalives (ServerAliveInterval), so the relay does not close an idle session. To a \
+     node, the resumable layer keeps the link busy and finds a dead one, and SSH sends none unless \
+     ServerAliveInterval is set: a keepalive with no answer would end a session that the layer carries \
+     onto a new link.",
     "podssh reads options before and after the host, as OpenSSH does, so a host that a script did not \
      write can be read as a flag. Put -- before it: podssh ssh -- \"$HOST\" uptime. A host, or a \
      -o HostName=VALUE, that starts with - is refused (exit 64), as OpenSSH refuses it.",

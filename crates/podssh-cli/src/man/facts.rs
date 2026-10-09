@@ -182,11 +182,16 @@ fn relay() -> Vec<Block> {
             vec![lit("Liveness")],
             format!(
                 "podssh pings the relay every {every} s. After {allowed} checks in a row with no frame from \
-                 the relay, the link is dead and the session ends, so a silent relay is found in {} to {} s.",
+                 the relay, the link is dead and the session ends, so a silent relay is found in {} to {} s. \
+                 To a node, the resumable layer also sends a record when it sent nothing for {beat} s, and the \
+                 node does the same; a link that carries nothing from the node for {dead} s is dead, and the \
+                 session goes on over a new one.",
                 every * u64::from(allowed),
                 every * u64::from(allowed + 1),
                 every = every,
                 allowed = allowed,
+                beat = podssh_relay::session::pump::PING_EVERY.as_secs(),
+                dead = podssh_relay::session::pump::DEAD_AFTER.as_secs(),
             ),
         ),
         item(
@@ -216,7 +221,9 @@ fn relay() -> Vec<Block> {
             vec![lit("Idle limit")],
             format!(
                 "The relay closes a session after {idle} s with no traffic. podssh ssh sends a keepalive \
-                 every {keepalive} s. With OpenSSH, set ServerAliveInterval below {idle}.",
+                 every {keepalive} s. With OpenSSH, set ServerAliveInterval below {idle}. To a node, the \
+                 resumable layer's records keep each link busy, and SSH sends no keepalive unless \
+                 ServerAliveInterval is set.",
                 idle = relay::RELAY_IDLE_SECS
             ),
         ),

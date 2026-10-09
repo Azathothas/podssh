@@ -181,9 +181,9 @@ usable shell through `podssh serve`.
 | A relay host is down, refuses, or is behind a proxy 5xx | Fails over to the next host: the default host and up to three hosts of the pool, or the user's list. Each attempt has a limit of 45 s. |
 | No proxy and no DNS | Uses an IP literal, a pinned address, the system resolver, then DNS over HTTPS by IP literal |
 | Latency | 60 s for the SSH handshake; 30 s for a pty or exec reply; 30 s for each SFTP reply with no file data, and 60 s for an SFTP read or write (T-133) |
-| A silent link | A ping every 10 s; dead after three checks with no frame (30 to 40 s) |
+| A silent link | A ping every 10 s; dead after three checks with no frame (30 to 40 s). To a node, the resumable layer's heartbeat too: a link with nothing from the far end for 30 s is dead, and a new one replaces it (T-154) |
 | A stuck write | Fails after 60 s |
-| The relay's idle cut | Keepalives every 60 s keep the session (MEASURED: 602 s with keepalives; cut at 184 s without) |
+| The relay's idle cut | Keepalives every 60 s keep the session (MEASURED: 602 s with keepalives; cut at 184 s without). To a node, the layer's records each 10 s keep it, and SSH sends no keepalive unless asked (T-154) |
 | The relay's limits (12 h, 64 MiB) | The session ends, with the reason |
 | A dropped connection | On the forward road, the session ends; `ssh` prints the relay's reason and exits 255. `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136). To a node (`ssh node://`, `operator`), the resumable layer carries the session onto a new link, for 10 minutes (T-153) |
 | A changed client address | The session is lost |
@@ -255,7 +255,8 @@ body of at most 64 KiB. Numbers are big-endian, and offsets and values have
 | 0x07 | `ACK` | either | an offset |
 | 0x08 | `PING` | either | a value |
 | 0x09 | `PONG` | either | the value of the `PING`, then an offset |
-| 0x0a | `CLOSE` | either | a reason: the session ends, not only the link |
+| 0x0a | `CLOSE` | either | a reason: the session ends, not only the link; the peer answers with its own `CLOSE` (T-262) |
+| 0x0b | `RETIRE` | client | nothing: this link ends, and the session goes on over another (T-155, in progress) |
 
 The magic is the 14 bytes `podssh-session`, and the version is 1; each side
 names the highest version that it speaks, and the session speaks the lower.
@@ -310,6 +311,15 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   and any other byte, or none, means no layer. The bytes then pass as they
   are, and `-v` says so.
 
+- **The heartbeat** (T-154), when both sides name `heartbeat.v1`. A side
+  that sent nothing for 10 s sends `PING`, and the far side answers `PONG`
+  with its received offset, an acknowledgement. Any bytes from the far end
+  count as life; a link with none for 30 s is dead, and the session goes
+  on over a new one. Each record is payload to the relay, so the idle cut
+  never comes; the cost is about 34 bytes each way each 10 s. To a node,
+  SSH sends no keepalive of its own unless `ServerAliveInterval` is set,
+  since a keepalive with no answer would end a session that the layer
+  carries over.
 - **Across links** (T-153). The client resumes after each loss but a
   `CLOSE`, a `REFUSE`, and a relay close that a new link would only get
   again (a stopped or expired pair, a fault of podssh's own bytes:
@@ -321,6 +331,31 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   on from the client's offset. Bytes received but not yet written to the
   application stay with the session, so a link that ends in a write loses
   none.
+- **One writer for each link** (T-262). The side that reads a link never
+  waits to write to it: an `ACK`, a `PONG` or a `PING` waits for the link's
+  one writer, which sends it before its next `DATA`. When each end's reader
+  waited for its own writer, stalled on a full link, and both ends sent at
+  once, neither link moved again. The bytes of a resume go out the same
+  way, while the new link is read. A link whose writes fail is still read
+  for 5 s at most: a relay delivers the far end's last bytes and its `CLOSE`
+  before it closes the link.
+- **The end of a session** (T-262). The side whose application ended its
+  bytes sends `CLOSE` after the last of them, and the peer answers with its
+  own `CLOSE`; then both forget the session. A link that ends before the
+  answer leaves the session to a resume, which sends the `CLOSE` again. A
+  far end that no longer knows the session, after this side's application
+  ended, had the `CLOSE`, and the session ended there. A resume that the far
+  end accepted while the session ended on the old link gets a `CLOSE`.
+- **A move** (T-155, in progress), when both sides name `move.v1` and
+  `replay.v1`. At 48 MiB of a link both ways, or at 11 h, the client opens a
+  new link and waits for its `GREETING` while the old link carries the
+  session; then the old link stops at a record boundary and says `RETIRE`,
+  and only then does the new link's handshake take the offsets. An offset
+  taken while the old link still carried acknowledgements could fall below
+  them, and ask for bytes that the other side no longer keeps. A session
+  whose application ended does not move. The far end lets the newest resume
+  take a session: the client runs one handshake at a time, so an older one
+  that still waits is a link that the client left.
 
 Measured 2026-10-09: `podssh node` runs the far end for each session, and
 `podssh ssh node://` and `podssh operator` run the client. A node keeps 64

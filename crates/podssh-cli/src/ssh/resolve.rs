@@ -269,17 +269,28 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         Transport::Relay { relays, trust, family }
     };
 
+    // A node runs the resumable layer, whose heartbeat finds a dead link and
+    // keeps the relay's idle cut away; SSH's own keepalives would end a
+    // session that the layer carries onto a new link (T-154).
+    let resumable = matches!(transport, Transport::Node { .. });
     let keepalive_interval = match settings.alive_interval {
         Some(0) => None,
         Some(s) => Some(Duration::from_secs(s)),
+        None if resumable => None,
         None => Some(Duration::from_secs(60)),
     };
     let notes: Vec<String> = settings.ignored.iter().map(|k| format!("-o {k} has no effect in podssh")).collect();
     let mut warnings = Vec::new();
     let idle = relay::RELAY_IDLE_SECS;
-    if matches!(transport, Transport::Relay { .. } | Transport::Node { .. })
-        && keepalive_interval.is_none_or(|d| d.as_secs() >= idle)
-    {
+    if resumable {
+        if keepalive_interval.is_some() {
+            warnings.push(
+                "ServerAliveInterval ends the session after ServerAliveCountMax keepalives with no answer, also \
+                 while the resumable layer would carry it onto a new link"
+                    .to_string(),
+            );
+        }
+    } else if matches!(transport, Transport::Relay { .. }) && keepalive_interval.is_none_or(|d| d.as_secs() >= idle) {
         warnings.push(format!(
             "ServerAliveInterval is off or at least {idle} s: the relay closes a connection after {idle} s without traffic"
         ));

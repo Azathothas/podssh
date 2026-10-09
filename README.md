@@ -130,7 +130,7 @@ the owner can read the cache.
 
 | Limit | Value | What to do |
 | --- | --- | --- |
-| Idle cut | 180 s with no payload (the relay's keepalives do not count) | Keep `ServerAliveInterval` below 180 |
+| Idle cut | 180 s with no payload (the relay's keepalives do not count) | Keep `ServerAliveInterval` below 180; to a node, the resumable layer keeps the link busy |
 | Session length | 12 h | Connect again |
 | Session volume | 64 MiB, both directions together | Use a new session for large transfers |
 | Token lifetime | 72 h or less, minted with `POST /v1/mint` | podssh mints and caches tokens |

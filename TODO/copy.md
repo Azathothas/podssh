@@ -188,7 +188,7 @@ leave a short or wrong file under the destination's name.
    operands, or none remote, exit 64.
 2. Build an `SshArgs` (host, `-P` as the port, `-i`, `-o`) for
    `crate::ssh::resolve::resolve`
-   (`crates/podssh-cli/src/ssh/resolve.rs:92-327`), so `-F` follows the rule
+   (`crates/podssh-cli/src/ssh/resolve.rs:92-338`), so `-F` follows the rule
    of `ssh`. Add `-o`, `-J`, `-v`, `-q` and the relay rows of `ssh`
    (`--relay-host`, `--relay-addr`, `--ca-file`, `--direct`) to `CP_FLAGS`.
 3. Split `crates/podssh-cli/src/ssh/mod.rs` lines 73-151 at `6483366` so that the relay (with
@@ -670,7 +670,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:135-237`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:135-244`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -678,7 +678,7 @@ old writer can race the new one.
 
 Recommendation: a budget of 60 MiB counted by podssh, as `podssh-core`
 uses for IRC: the relay counts bytes that podssh has not yet received, and
-can hold 2 MiB queued (`docs/relay.md:173`). Waiting for `1009` (T-136
+can hold 2 MiB queued (`docs/relay.md:178`). Waiting for `1009` (T-136
 alone) lost: each cut breaks a request in flight. Credentials stay in
 memory for the run, never on disk; asking again lost: a 200 MiB copy would
 ask four times, and with no terminal it could not ask at all.
@@ -1062,7 +1062,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (1 MiB queued, `1011`, a dropped frame;
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). T-024
   corrected it to the forward path's rule
-  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:184-188` gives
+  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:189-193` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
 - Measured in two sandboxes (`docs/STATUS.md:173`): 20 MiB through the
@@ -1118,7 +1118,7 @@ stream.
 - Read: `AGENTS.md` rule 2 allows one outbound connection. Several channels
   in one SSH connection keep the rule; several relay sessions at once do
   not. The operator accepted more than one outbound connection for the iroh
-  road (`docs/design.md:439-442`), and on 2026-10-08 for one copy when the
+  road (`docs/design.md:474-477`), and on 2026-10-08 for one copy when the
   user asks (`docs/decisions.md`).
 - Read: the cap of 64 MiB is for each session (`docs/relay.md:127`).
 - Not measured: whether one relay session, or the path itself, limits the
@@ -1676,7 +1676,7 @@ non-zero. Plant: skip the check of step 5; that case must then fail.
 **Source:** GitHub #18 (zuko's `files` server, `adonm/zuko:src/files.rs`)
 and GitHub #21 (parsync's internal helper,
 `AlpinDale/parsync:src/remote_helper.rs`), read in the issues;
-`docs/design.md:444-450`.
+`docs/design.md:479-485`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -1697,7 +1697,7 @@ can do better.
   request; it names its own requests `NAME@openssh.com`.
 - Read: `podssh serve` will have an SFTP server in the process (T-112).
 - Read: both roads between podssh ends carry the same `cp`
-  (`docs/design.md:444-450`).
+  (`docs/design.md:479-485`).
 
 ## Approach
 

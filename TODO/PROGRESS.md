@@ -27,16 +27,24 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   image and the planted defects wait for T-251 (`docs/decisions.md`).
 - **The branch.** The record was added in `22c3b88` and `e275d36` on
   2026-10-08, and CI passed for both (runs 37777359030 and 37777669130).
+- **The resumable layer (2026-10-09).** T-262 is repaired: the test of
+  T-153 that cut a session at random points and failed in CI at `7797b2a`
+  passes 20 runs in a row, with a test for each of its causes. T-154 is
+  done in the same commit. T-155 is partial: its move is in and tested, and
+  its `## Done` lists what remains (documents, a warning before a pair
+  expires, the live test). The operator settled Q31 to Q37 on 2026-10-09
+  (`docs/decisions.md`). A copy of the tree before T-262 is at the local ref
+  `refs/checkpoints/2026-10-09`, a backup only: never pushed, never merged.
 
 ## Baseline
 
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`, again after T-153: 981 passed, 0 failed, 20
-  ignored (the live tests).
-- `cargo test -p podssh-relay --all-features --no-fail-fast`: 110 passed, 0
-  failed, 14 ignored (the live tests).
+- `cargo test --no-fail-fast`, again after T-262: 991 passed, 0 failed, 21 ignored (the live
+  tests).
+- `cargo test -p podssh-relay --all-features --no-fail-fast`: 170 passed, 0 failed, 14 ignored (the
+  live tests).
 - `sh scripts/dev.sh check` (after T-212): green; interop 103 of 103. The steps that
   later changes touched, each alone in the build image after them: green.
 - `cargo test -p podssh-todo`: 71 passed: 15 unit tests, 37 plant tests (35
@@ -47,7 +55,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 258 entries: 159 open, 0 partial, 9 blocked, 90 done.
+`TODO/INDEX.md` holds 261 entries: 146 open, 1 partial, 22 blocked, 92 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -60,7 +68,7 @@ then take the next one. Each session runs unattended until the goal of
 **After M3 and before M4 (the operator's ruling of 2026-10-08):**
 the surface for agents: done.
 
-**M4, in this order:** T-085 (the exit measurement).
+**M4:** T-085 (the exit measurement) is on hold (Q32).
 
 **Then** M5, M6, M7 and M8, each in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"); then each `backlog` entry, in the order
@@ -70,7 +78,8 @@ entries: the `none` entries of `TODO/repo.md`, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253 and T-255;
-and T-261, which waits for the operator's answer to Q29.
+and the entries that the operator holds (status `blocked`, Q32): T-085,
+T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248.
 
 ## Parked open work
 
@@ -79,7 +88,6 @@ it can start.
 
 | Entry | Start condition |
 | --- | --- |
-| T-085 | M3 is done, and T-078 to T-084 are done |
 | T-150 | T-112 is done: `podssh serve` has an SFTP server |
 | T-250 | Each entry is done, except the relay's, and the gate is green |
 | T-251 | Each entry is done, except the relay's; it runs before the tag of T-250 |
@@ -93,13 +101,7 @@ that it blocks (status `blocked`) and a recommendation; the session then
 takes the next entry. Nothing is closed as out of scope until the operator
 rules.
 
-- **Q29 (2026-10-09, blocks T-261).** The relay's side drops a node's socket
-  at random (T-255), and a node that connects again can get `409` while the
-  relay still holds the old one. Rule 6 of `docs/reverse.md` says to exit
-  on `409`, which ends each session that the resumable layer keeps (T-153).
-  May a node that lost its socket connect again on `409`, with the backoff,
-  until the resume deadline (10 minutes), while a first registration still
-  exits on `409`? Recommendation: yes (T-153's Decision).
+None is open: the operator settled Q31 to Q37 on 2026-10-09.
 
 ## Operator actions
 

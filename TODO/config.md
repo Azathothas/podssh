@@ -241,7 +241,7 @@ refused. ... podssh reads no ssh_config, so it has no configuration to print."
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:92-327`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:92-338`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the defaults included.
 
 ## Approach
@@ -258,7 +258,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:125`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:27-66`) and `docs/cli.md:48-101`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:27-69`) and `docs/cli.md:48-101`
    in the same commit.
 
 ## Decision
@@ -378,7 +378,7 @@ go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:62
 `crates/podssh-cli/src/proxy.rs:77-81`. The pins of the flag and of the variable add up
 (`crates/podssh-cli/src/pins.rs:13-23`). The token cache uses the user's
 cache directory first (`crates/podssh-relay/src/cache.rs:377-386`). The decision named the
-configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:45`, T-243).
+configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:48`, T-243).
 
 ## Approach
 

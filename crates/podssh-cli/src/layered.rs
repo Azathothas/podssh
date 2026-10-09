@@ -68,8 +68,10 @@ where
         say(Line::Verbose(format!("the layer's features: {}", features.join(", "))));
     }
     let legs_ref = &legs;
-    let connect = |_: &Ended| {
-        let previous = lock(legs_ref).take();
+    let connect = |ended: &Ended| {
+        // A move opens a new leg while the old one still carries the
+        // session: there is no end of it to wait for.
+        let previous = if matches!(ended.end, End::Moving) { None } else { lock(legs_ref).take() };
         async move { next_leg(config, legs_ref, previous).await }
     };
     let note = |note: Note| say(line_of(note));
@@ -83,7 +85,13 @@ where
             End::Broken(e) => Some(e.to_string()),
             End::GaveUp(reason) => Some(format!("the session could not go on: {}", podssh_ws::text::one_line(&reason))),
             // The leg's close code and reason say more of a lost link.
-            End::Closed(_) | End::LocalEnd | End::Lost(_) | End::Stopped => None,
+            End::Closed(_)
+            | End::LocalEnd
+            | End::Closing
+            | End::Lost(_)
+            | End::Stopped
+            | End::Retired
+            | End::Moving => None,
         },
     };
     Carried { why, leg: last(&legs).await }
@@ -148,6 +156,13 @@ fn line_of(note: Note) -> Line {
         Note::Retry { why, wait } => {
             Line::Verbose(format!("no new link yet ({why}); trying again in {:.1} s", wait.as_secs_f64()))
         }
+        Note::Moved { bytes, age, resent } => Line::Verbose(format!(
+            "the session moved to a new link before the relay's limits, after {} MiB in {} s ({resent} bytes \
+             sent again)",
+            bytes >> 20,
+            age.as_secs()
+        )),
+        Note::MoveFailed { why } => Line::Verbose(format!("a move to a new link failed ({why}); the link goes on")),
         Note::Resumed { resent, after } => Line::Always(format!(
             "the session resumed after {:.1} s{}",
             after.as_secs_f64(),

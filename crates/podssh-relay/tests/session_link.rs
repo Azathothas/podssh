@@ -106,7 +106,8 @@ async fn the_layer_carries_a_session_both_ways() {
     let Found::Layer { peer_role, features, resumed, .. } = client.found().clone() else {
         panic!("{:?}", client.found())
     };
-    assert_eq!((peer_role, features, resumed), (Role::NODE, vec!["replay.v1".to_string()], false));
+    let all: Vec<String> = podssh_relay::session::FEATURES.iter().map(|f| f.to_string()).collect();
+    assert_eq!((peer_role, features, resumed), (Role::NODE, all, false));
     let id = client.established().unwrap().id;
     assert!(sessions.lock().unwrap().contains(&id));
 
@@ -135,6 +136,62 @@ async fn the_layer_carries_a_session_both_ways() {
     let far_ended = tokio::time::timeout(LIMIT, far_end).await.unwrap().unwrap();
     assert!(matches!(far_ended.end, End::Closed(_)), "{far_ended:?}");
     assert_eq!(sessions.lock().unwrap().received(&id), Some(1 << 20));
+}
+
+/// Write `out` and read as many bytes at once, then end the bytes.
+async fn exchange(stream: DuplexStream, out: Vec<u8>) -> Vec<u8> {
+    let (mut r, mut w) = tokio::io::split(stream);
+    let len = out.len();
+    let writer = tokio::spawn(async move {
+        w.write_all(&out).await.unwrap();
+        w
+    });
+    let mut got = vec![0u8; len];
+    r.read_exact(&mut got).await.unwrap();
+    let mut w = writer.await.unwrap();
+    w.shutdown().await.unwrap();
+    got
+}
+
+/// Both ends send 4 MiB at once through a link that holds 4 KiB each way.
+/// An end whose reader waited for its writer, stalled on the full link,
+/// would stop reading; the other end would then stall in turn, and neither
+/// link would move again (T-262).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn both_ends_send_at_once_through_a_small_link() {
+    let (client_link, far_link) = tokio::io::duplex(4 * 1024);
+    let sessions = std::sync::Arc::new(Mutex::new(Sessions::new()));
+    let (target, at_target) = tokio::io::duplex(PIPE);
+    let far_sessions = sessions.clone();
+    let far_end = tokio::spawn(async move {
+        let accepted =
+            far::accept(far_link, Role::NODE, Settings::default(), &far_sessions, &mut OsEntropy).await.unwrap();
+        accepted.run(target, &far_sessions).await
+    });
+    let client = tokio::time::timeout(LIMIT, client::start(client_link, Ask::New, Settings::default(), &mut OsEntropy))
+        .await
+        .unwrap()
+        .unwrap();
+    let (app, app_end) = tokio::io::duplex(PIPE);
+    let run = tokio::spawn(client.run(app_end));
+    let up = pseudo_random(4 << 20, 0x0bad);
+    let down = pseudo_random(4 << 20, 0xf00d);
+    let (at_far, at_client) = tokio::time::timeout(LIMIT, async {
+        tokio::join!(exchange(at_target, down.clone()), exchange(app, up.clone()))
+    })
+    .await
+    .expect("both ways moved within the limit");
+    assert_eq!(Sha256::digest(&at_far), Sha256::digest(&up));
+    assert_eq!(Sha256::digest(&at_client), Sha256::digest(&down));
+    for outcome in [
+        tokio::time::timeout(LIMIT, run).await.unwrap().unwrap(),
+        Outcome::Layer(tokio::time::timeout(LIMIT, far_end).await.unwrap().unwrap()),
+    ] {
+        assert!(
+            matches!(&outcome, Outcome::Layer(ended) if matches!(ended.end, End::LocalEnd | End::Closed(_))),
+            "{outcome:?}"
+        );
+    }
 }
 
 /// A scripted far end: the bytes of a real `GREETING`, then what the test

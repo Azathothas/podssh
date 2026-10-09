@@ -51,7 +51,7 @@ a self node with no home region (`crates/podssh-cli/src/ts.rs:288-320`).
    a later send must not panic.
 3. With no `--timeout` (a terminal), limit the first map wait by `--ts-wait-allowlist`, else by a
    named constant of 20 s, "a design constant, not a measurement", as at
-   `crates/podssh-cli/src/ts.rs:298-301`. The default stays fail-fast (`docs/decisions.md:39`).
+   `crates/podssh-cli/src/ts.rs:298-301`. The default stays fail-fast (`docs/decisions.md:42`).
 4. Apply the same limit to the address wait in `Device::tcp_connect`
    (`vendor/tailscale-rs/src/lib.rs:272-276`). Keep one message and exit 78 for "no map in time".
 5. Correct the two comments, and update `docs/STATUS.md:234` in the same commit.
@@ -103,7 +103,7 @@ Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/
 and a closed stdout is a clean end there (`crates/podssh-cli/src/proxy.rs:272-275`) and in the rules
 (`docs/cli.md:412`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:384-387`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
-(`docs/relay.md:169`). An earlier version of the pipe waited with no limit, and hung
+(`docs/relay.md:174`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs:77-81`).
 
 ## Approach
@@ -160,7 +160,7 @@ Read: `probe` returns `Ok` for `Tcp` and `Relay` when `has_key` is true
 (`crates/podssh-ts/src/chain.rs:44-61`), which `podssh ts` always sets
 (`crates/podssh-cli/src/ts.rs:130`). The first ready mode of `tcp`, `relay` wins
 (`crates/podssh-ts/src/chain.rs:63-76`), and a test asserts it (`crates/podssh-ts/tests/chain.rs:26-31`).
-The decided chain is tun, socks, tcp, relay (`docs/decisions.md:39`), and the rule is to probe
+The decided chain is tun, socks, tcp, relay (`docs/decisions.md:42`), and the rule is to probe
 before use (`docs/target-environment.md:90-92`).
 
 Read: `ephemeral` goes into the register request (`crates/podssh-ts/src/node.rs:64`). The fork has
@@ -313,13 +313,13 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
 2. Wait with podssh's backoff, passed in `RuntimeOptions`; count from 1 after a link of 60 s. With
    a pin, each region dials the relay with one key (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:285-292`):
    two sockets must not replace each other for ever (`crates/podssh-ts/src/classify.rs:3-6`).
-3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:39`);
+3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:42`);
    it goes to the state of T-105. The inactivity close of a region that is not home is no error
    (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:351-356`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:235` and `crates/podssh-cli/src/man/notes.rs:261-263`.
+   `docs/tailscale.md`, `docs/STATUS.md:235` and `crates/podssh-cli/src/man/notes.rs:264-266`.
 
 ## Decision
 
@@ -449,7 +449,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:63`, `docs/tailscale.md:8-19` and
-   `crates/podssh-cli/src/man/notes.rs:261-263`.
+   `crates/podssh-cli/src/man/notes.rs:264-266`.
 
 ## Prove
 
@@ -514,7 +514,7 @@ stream (`crates/podssh-cli/src/ts.rs:371-373`). `proxy --jsonl` is refused at pa
 3. Keep errors on stderr as text; the exit code stays the result. T-104 and T-105 add events (a
    drop, a new connection, a refusal) to this form when their states exist.
 4. Change the help text of the row (`crates/podssh-cli/src/flags.rs:279-280`) and the notes of the
-   manual (`crates/podssh-cli/src/man/notes.rs:261-263`) in the same commit. The tests of the manual
+   manual (`crates/podssh-cli/src/man/notes.rs:264-266`) in the same commit. The tests of the manual
    compare the row with the help.
 
 ## Decision

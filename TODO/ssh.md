@@ -139,7 +139,7 @@ Read:
   (`crates/podssh-ssh/src/handler.rs` lines 31-59 at `80f20bf`), and the
   default of russh 0.64.1 drops the reason.
 - The relay's contract gives no close codes for the forward path;
-  `docs/relay.md:162-174` lists them, read from the relay's source.
+  `docs/relay.md:167-179` lists them, read from the relay's source.
   `1011 write failed: ...` means that the relay could not write to the
   target. The KTM report saw it with 0 bytes, on a target that the relay
   could dial but not use (read in the report, not verified here).
@@ -147,8 +147,8 @@ Read:
   MiB queued". That row is in the contract's table of reverse close codes
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:160-166`, row
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). On the
-  forward path, backpressure closes with `1013` at 2 MiB (`docs/relay.md:173`,
-  `docs/relay.md:184-188`). The comment on the SSH window
+  forward path, backpressure closes with `1013` at 2 MiB (`docs/relay.md:178`,
+  `docs/relay.md:189-193`). The comment on the SSH window
   (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`) also cites the
   reverse row.
 
@@ -157,7 +157,7 @@ Read:
 1. Classify a forward-path close in one place, next to
    `close_code_and_reason` (`crates/podssh-ws/src/session.rs:306-314`), which
    `podssh ssh` and `podssh proxy` both use. Map the code and the reason of
-   `docs/relay.md:167-174` to a hop. Relay to target: `1011` with
+   `docs/relay.md:172-179` to a hop. Relay to target: `1011` with
    `connect failed`, `write failed`, `target closed before sending anything`
    or `wrong target banner`, and `1013 target write backlog`. Client to
    relay: `1011` with `client send failed` or `client error`,
@@ -194,7 +194,7 @@ cargo test -p podssh-ssh -- first_line
 sh scripts/dev.sh check
 ```
 
-The first test has one case for each row of `docs/relay.md:167-174`, and one
+The first test has one case for each row of `docs/relay.md:172-179`, and one
 for an unknown code. The second builds the first line from each kind of
 `RelayEnd`, from a server disconnect, and from a bare russh error. In the
 gate, a new stand-in relay in `scripts/interop-faults.sh` (mode
@@ -289,7 +289,7 @@ Read:
    `1001`, `1009` or `1013`.
 4. Wait with the jittered backoff that exists
    (`crates/podssh-relay/src/open.rs:262-276`). Bound the whole by the rounds
-   of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:323`) and
+   of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:334`) and
    the deadline of each host.
 5. Never prompt again without a person: under `BatchMode`, or with no
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
@@ -635,7 +635,7 @@ measured: a race needs two processes; the test below makes it certain.
    (`crates/podssh-ssh/src/hostkey.rs:183-207`). Else append.
 3. Hold the lock only for the read and the write, never across a prompt.
 4. When the file system refuses locks, append as today, with a verbose note
-   (a fallback that says so, `AGENTS.md:198`).
+   (a fallback that says so, `AGENTS.md:200`).
 
 ## Prove
 

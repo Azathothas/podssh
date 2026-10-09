@@ -123,6 +123,7 @@ fn vectors() -> Vec<(&'static str, Vec<u8>, Record)> {
         ),
         ("CLOSE", hex("0a 00000003 627965"), Record::Close { reason: "bye".into() }),
         ("CLOSE with no reason", hex("0a 00000000"), Record::Close { reason: String::new() }),
+        ("RETIRE", hex("0b 00000000"), Record::Retire),
     ]
 }
 
@@ -212,7 +213,7 @@ fn malformed(bytes: &[u8]) -> &'static str {
 fn a_type_that_the_table_does_not_have_is_refused_at_its_first_byte() {
     assert_eq!(error_of(b"SSH-2.0-OpenSSH_9.6\r\n"), DecodeError::UnknownType(b'S'));
     assert_eq!(error_of(&[0x00]), DecodeError::UnknownType(0));
-    assert_eq!(error_of(&[0x0b]), DecodeError::UnknownType(0x0b));
+    assert_eq!(error_of(&[0x0c]), DecodeError::UnknownType(0x0c));
 }
 
 #[test]
@@ -248,6 +249,8 @@ fn bodies_that_are_not_their_record_are_refused() {
     // An offset of 7 bytes, and one of 9.
     assert_eq!(malformed(&hex("07 00000007 00000000000000")), "the body ends early");
     assert_eq!(malformed(&hex("07 00000009 000000000000000000")), "bytes after the end of the body");
+    // A `RETIRE` has no body.
+    assert_eq!(malformed(&hex("0b 00000001 00")), "bytes after the end of the body");
 }
 
 /// After an error the decoder gives that error again: no byte after it is

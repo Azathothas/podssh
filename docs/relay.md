@@ -130,7 +130,12 @@ Measured 2026-10-08 (T-007), with a TLS handshake through each session:
 
 Because of the idle cut, an idle SSH session must send traffic at least
 every 180 s: `ServerAliveInterval=60` with `podssh proxy`, and the client's
-keepalives (on by default) with `podssh ssh`.
+keepalives (on by default) with `podssh ssh`. To a node, the resumable
+layer sends a record each way when a side sent nothing for 10 s, which is
+payload to the relay, and a link that carries nothing for 30 s is replaced
+(T-154); `podssh ssh node://` then sends no SSH keepalive unless
+`ServerAliveInterval` is set. The cost is about 34 bytes each way each
+10 s, under 0.2 MiB of the session's 64 MiB in 12 h.
 
 Because of the session length and volume, `podssh cp` and `podssh mv` count
 the payload bytes of each relay session both ways, and its age. Before 60

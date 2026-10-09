@@ -28,7 +28,8 @@ stop to ask, and do not wait for a reply. Stop only when the operator
 interrupts you, or when the goal is reached.
 
 **The goal.** Each entry of `TODO/` is done, except the entries that wait
-for the relay's operator. Each test passes, and the gate is green in CI.
+for the relay's operator and the entries that the operator holds
+(`TODO/PROGRESS.md`). Each test passes, and the gate is green in CI.
 `v1.0.0`, the first stable release, is published and verified from end to
 end (T-250, T-251). It is the one release: no beta, and no release between
 entries.
@@ -87,7 +88,8 @@ After a compaction of your context, read this file again, then
   correct yourself; move the old text to "Superseded".
 - When somebody outside must act, set the entry to `blocked`, write a
   `## Blocker` that names who, and take the next entry. Do not work on the
-  entries that wait for the relay's operator (`TODO/PROGRESS.md`).
+  entries that wait for the relay's operator or that the operator holds
+  (`TODO/PROGRESS.md`).
 - Never close an entry as out of scope or as "won't fix".
 
 ### Releases
@@ -204,7 +206,9 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 1. Do one entry of `TODO/` at a time. Complete it until the native parts
    of its Prove pass. Runs in the build image and planted defects wait for
    the checks of the release (T-251; `docs/decisions.md`, 2026-10-09); the
-   entry's `## Done` says what waits.
+   entry's `## Done` says what waits. So does a live test of more than 5
+   minutes or 100 MiB; a shorter live test runs with the entry. A test that
+   fails at random is repaired before any other work.
 2. Test protocol code against software that podssh did not write: OpenSSH,
    Dropbear, a real IRC server, the live relay, or bytes captured from one.
    A test that needs the build image waits for T-251.

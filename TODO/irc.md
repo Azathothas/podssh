@@ -437,7 +437,7 @@ whole file in memory, for any total that the offer gives (`crates/podssh-core/sr
 2. `ack(target)`: name the chunk just accepted, by count, and send it to the transfer's target.
 3. In `accept`, check the index before the bytes go into the file.
 4. Limit the receiver's memory: a size limit from the caller, or a sink that the caller owns. A
-   file is taken only when the user accepts it (`docs/decisions.md:41`).
+   file is taken only when the user accepts it (`docs/decisions.md:44`).
 5. Update `docs/irc.md:26-32` and `docs/STATUS.md:235` in the same commit.
 
 ## Decision
@@ -522,14 +522,14 @@ The new file crates/podssh-core/tests/keepalive.rs holds `the_keepalive_is_a_pin
 and `a_matching_pong_counts_as_a_reception`. Plant: return the `PRIVMSG` heartbeat; the first test
 must fail. Live: give the probe an idle mode. An idle session on undernet must stay open for 10 min
 with no channel message. With the keepalive off (the control), the relay must close it at about
-180 s with `1001 idle timeout` (`docs/relay.md:170`).
+180 s with `1001 idle timeout` (`docs/relay.md:175`).
 
 # T-099: `podssh chat` on the roads between two podssh ends, end-to-end encrypted
 
 **Source:** `docs/ROADMAP.md:240-242`; the operator's ruling of 2026-10-08 on
 chat (`docs/decisions.md`): the roads first, after M6, and IRC as a second
 transport (T-252); the decision of 2026-10-01 that two users on constrained
-hosts chat and share files (`docs/decisions.md:44`).
+hosts chat and share files (`docs/decisions.md:47`).
 **Category:** feature
 **Milestone:** M8
 **Priority:** P2
@@ -548,7 +548,7 @@ the IRC server read, and most public networks refused the relay
 Measured on `3ee70dc`: `podssh chat --timeout 5s </dev/null`, and the same
 with `podssh irc`, exit 70 with "'chat' is not implemented yet; nothing was
 done." Read: podssh executes nothing that it receives and takes no file on
-its own (`docs/decisions.md:41`). The roads exist after M6: the reverse road
+its own (`docs/decisions.md:44`). The roads exist after M6: the reverse road
 (T-078, T-083, T-084), the iroh road (T-162), and end-to-end encryption
 between two podssh ends (T-088). No flag of `chat` names a peer or a server
 today (`crates/podssh-cli/src/flags.rs:243-255`,

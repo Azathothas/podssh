@@ -35,7 +35,7 @@ OpenSSH 10.3p1 (`ssh -G -F none`, offline) gives `hostname 2001:db8::1` for
 `[2001:db8::1]:8079`: it reads no port there.
 
 Read: `parse_hop` already removes the brackets
-(`crates/podssh-cli/src/ssh/resolve.rs:379-427`). The refusal is `check_host`
+(`crates/podssh-cli/src/ssh/resolve.rs:390-438`). The refusal is `check_host`
 (`crates/podssh-ws/src/names.rs:8-24`, re-exported by `podssh_relay::relay`), called at
 `crates/podssh-cli/src/ssh/resolve.rs:253`, `crates/podssh-cli/src/proxy.rs:108`
 and in `forward_path` (`crates/podssh-relay/src/relay.rs:139-152`); since this
@@ -473,7 +473,7 @@ Measured offline (`PODSSH_OFFLINE=1`):
   name cannot start with '-'". `--relay-host=evil.example` there sets the relay.
 - `podssh proxy --relay-host=evil.example 22` is 64, `missing PORT`.
 - Exit 64: `ssh -- -oProxyCommand=x`, `ssh -- user@-x true`, `ssh -J=-x host`
-  (`crates/podssh-cli/src/ssh/resolve.rs:423-425`); `ssh --relay-host=-x host`,
+  (`crates/podssh-cli/src/ssh/resolve.rs:434-436`); `ssh --relay-host=-x host`,
   `proxy -- -oX 22`, `proxy - 22` (`crates/podssh-ws/src/names.rs:17-19`).
   `ssh -- host -x` runs the command `-x`: `--` ends the options.
 - `ssh --direct -oHostName=-x host true` reaches the offline stop: `HostName`
@@ -491,16 +491,16 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:181-185`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:27-150`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:27-153`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-73`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:308-316`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:277-291`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:311-319`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:280-294`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:100-105`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
 4. Check `HostName` with the rule of the destination: one function for the
-   checks at `crates/podssh-cli/src/ssh/resolve.rs:420-425`, also called at
+   checks at `crates/podssh-cli/src/ssh/resolve.rs:431-436`, also called at
    `crates/podssh-cli/src/ssh/resolve.rs:117-123`.
 5. Same commit: `docs/cli.md` (lines 62-75 at `3cbf215`; the `--` rule, and a host that starts
    with `-` is refused, as OpenSSH refuses it), `docs/STATUS.md`.
@@ -602,7 +602,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    or `proxy`.
 4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-122`),
    which `each_variable_in_the_source_is_documented` requires
-   (`crates/podssh-cli/src/man/facts.rs:304-317`); "default: env
+   (`crates/podssh-cli/src/man/facts.rs:311-324`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
    it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:434-436`;
    `docs/STATUS.md`.
@@ -1044,7 +1044,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:163-166`
    names `podssh keygen -p`; `docs/cli.md:323-335`, the notes of `keygen`
-   (`crates/podssh-cli/src/man/notes.rs:238-246`), `docs/STATUS.md`.
+   (`crates/podssh-cli/src/man/notes.rs:241-249`), `docs/STATUS.md`.
 
 ## Decision
 
@@ -1401,7 +1401,7 @@ that `forward-remote` names `-W HOST:PORT`
    gives the rule. Same commit: `docs/STATUS.md`.
 
 Pitfall: the manual tests read these texts. `each_name_in_a_note_exists`
-checks each flag that a note names (`crates/podssh-cli/src/man/notes.rs:343-347`),
+checks each flag that a note names (`crates/podssh-cli/src/man/notes.rs:346-350`),
 and the parity tests compare the sentence of each row in `--help` and in the
 manual (`crates/podssh-cli/tests/man_flag_parity.rs`). Change the row and both
 notes in one commit.

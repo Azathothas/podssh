@@ -82,7 +82,7 @@ impl Decoder {
         let Some(&first) = self.buf.first() else { return Ok(None) };
         // A wrong type is known at its first byte; waiting for a body that a
         // peer with no layer will never send would only hang.
-        if !(kind::GREETING..=kind::CLOSE).contains(&first) {
+        if !(kind::GREETING..=kind::RETIRE).contains(&first) {
             return Err(DecodeError::UnknownType(first));
         }
         if self.buf.len() < HEADER {
@@ -154,6 +154,7 @@ pub fn decode_body(kind: u8, body: &[u8]) -> Result<Record, DecodeError> {
             Record::Pong { value, offset: b.u64()? }
         }
         kind::CLOSE => Record::Close { reason: b.reason()? },
+        kind::RETIRE => Record::Retire,
         other => return Err(DecodeError::UnknownType(other)),
     };
     b.end()?;

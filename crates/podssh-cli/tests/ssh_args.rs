@@ -255,6 +255,28 @@ fn keepalives_off_over_the_relay_earn_a_note() {
     assert!(r.warnings.iter().any(|n| n.contains("180")), "{:?}", r.warnings);
 }
 
+/// To a node, the resumable layer's heartbeat does the keepalives' work, and
+/// SSH's own would end a session that the layer carries over (T-154): off by
+/// default, with no note; one that the user sets stays, with one warning.
+/// The forward road keeps its keepalives.
+#[test]
+fn the_resumable_road_has_no_ssh_keepalive_unless_asked() {
+    let r = resolve(&ssh(&["node://lab"]), &env()).unwrap();
+    assert_eq!(r.options.keepalive_interval, None);
+    assert!(r.warnings.is_empty(), "{:?}", r.warnings);
+
+    let r = resolve(&ssh(&["-o", "ServerAliveInterval=30", "node://lab"]), &env()).unwrap();
+    assert_eq!(r.options.keepalive_interval.map(|d| d.as_secs()), Some(30));
+    assert_eq!(r.warnings.len(), 1, "{:?}", r.warnings);
+    assert!(r.warnings[0].contains("resumable layer"), "{:?}", r.warnings);
+
+    let r = resolve(&ssh(&["-o", "ServerAliveInterval=0", "node://lab"]), &env()).unwrap();
+    assert!(r.warnings.is_empty(), "no idle cut to warn of on the resumable road: {:?}", r.warnings);
+
+    let r = resolve(&ssh(&["host"]), &env()).unwrap();
+    assert_eq!(r.options.keepalive_interval.map(|d| d.as_secs()), Some(60), "the forward road keeps them");
+}
+
 /// Each `%` token as OpenSSH 10.3p1 expands it (`sshconnect.h`): `%u` is the
 /// local user and `%r` the remote one, `%h` the host lowercased and `%n` as
 /// typed, `%k` the alias, `%j` the last jump host, `%C` the SHA-1 of

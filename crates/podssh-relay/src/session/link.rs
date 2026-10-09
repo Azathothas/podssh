@@ -22,6 +22,8 @@ pub enum Event {
     Reply(Record),
     /// The peer ended the session, with its reason.
     Closed(String),
+    /// The peer retired this link: the session goes on over another one.
+    Retired,
     /// Nothing for the application: an old `DATA`, an `ACK`, a `PONG`.
     Nothing,
 }
@@ -85,6 +87,11 @@ pub struct Link {
     acks: bool,
     /// The received offset of the last acknowledgement sent.
     acked: u64,
+    /// Whether each end pings when idle: both named `heartbeat.v1`.
+    heartbeat: bool,
+    /// Whether the client moves the session to a new link before the
+    /// relay's limits: both named `move.v1`.
+    moves: bool,
     failed: Option<LinkError>,
 }
 
@@ -99,8 +106,34 @@ impl Link {
             replay: None,
             acks: false,
             acked: received,
+            heartbeat: false,
+            moves: false,
             failed: None,
         }
+    }
+
+    /// Send a `PING` when idle, and take a link that carries nothing for
+    /// three intervals as dead (T-154): both sides named `heartbeat.v1`.
+    pub fn with_heartbeat(mut self) -> Link {
+        self.heartbeat = true;
+        self
+    }
+
+    /// Whether the link pings when idle.
+    pub fn heartbeat(&self) -> bool {
+        self.heartbeat
+    }
+
+    /// Move the session to a new link before the relay's limits, and retire
+    /// the old one (T-155): both sides named `move.v1`.
+    pub fn with_moves(mut self) -> Link {
+        self.moves = true;
+        self
+    }
+
+    /// Whether the session moves before the relay's limits.
+    pub fn moves(&self) -> bool {
+        self.moves
     }
 
     /// Keep each byte sent until the peer acknowledges it, `capacity` bytes
@@ -179,6 +212,7 @@ impl Link {
                 Ok(Event::Reply(Record::Pong { value, offset }))
             }
             Record::Close { reason } => Ok(Event::Closed(reason)),
+            Record::Retire => Ok(Event::Retired),
             Record::Refuse { code, reason } => Err(LinkError::Refused { code, reason }),
             other => Err(LinkError::Unexpected(other.name())),
         }

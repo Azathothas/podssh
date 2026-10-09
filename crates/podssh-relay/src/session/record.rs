@@ -16,6 +16,7 @@
 //! | 0x08 | PING     | either  | a value |
 //! | 0x09 | PONG     | either  | the value of the PING, then an offset |
 //! | 0x0a | CLOSE    | either  | a reason |
+//! | 0x0b | RETIRE   | client  | nothing: this link ends, the session goes on (T-155) |
 //!
 //! The magic is the 14 bytes `podssh-session`. A nonce, a public key and a
 //! proof have 32 bytes, a session id 16. Features are a count byte (16 at
@@ -58,6 +59,7 @@ pub mod kind {
     pub const PING: u8 = 0x08;
     pub const PONG: u8 = 0x09;
     pub const CLOSE: u8 = 0x0a;
+    pub const RETIRE: u8 = 0x0b;
 }
 
 /// What a side is. A byte, so that a role of a later version still decodes
@@ -212,6 +214,9 @@ pub enum Record {
     Close {
         reason: String,
     },
+    /// The end of this link alone: the client moved the session to another
+    /// one (T-155), and nothing more comes on this one.
+    Retire,
 }
 
 impl Record {
@@ -232,6 +237,7 @@ impl Record {
             Record::Ping { .. } => kind::PING,
             Record::Pong { .. } => kind::PONG,
             Record::Close { .. } => kind::CLOSE,
+            Record::Retire => kind::RETIRE,
         }
     }
 
@@ -327,6 +333,7 @@ impl Record {
                 Ok(())
             }
             Record::Close { reason } => text(out, reason),
+            Record::Retire => Ok(()),
         }
     }
 }
@@ -344,6 +351,7 @@ pub fn name_of(kind: u8) -> &'static str {
         kind::PING => "PING",
         kind::PONG => "PONG",
         kind::CLOSE => "CLOSE",
+        kind::RETIRE => "RETIRE",
         _ => "an unknown record",
     }
 }
@@ -434,6 +442,7 @@ impl fmt::Debug for Record {
                 f.debug_struct("Pong").field("value", value).field("offset", offset).finish()
             }
             Record::Close { reason } => f.debug_struct("Close").field("reason", reason).finish(),
+            Record::Retire => f.write_str("Retire"),
         }
     }
 }
