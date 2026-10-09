@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**257 entries: 169 open, 0 partial, 8 blocked, 80 done.**
+**257 entries: 168 open, 0 partial, 8 blocked, 81 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 86 | 0 | 4 | 58 | 148 |
+| P2 | 85 | 0 | 4 | 59 | 148 |
 | P3 | 81 | 0 | 4 | 14 | 99 |
-| **All** | 169 | 0 | 8 | 80 | 257 |
+| **All** | 168 | 0 | 8 | 81 | 257 |
 
 ## Entries
 
@@ -206,7 +206,7 @@ repository and CI).
 | [T-130](terminal.md) | P3 | S | backlog | docs | open | State which terminal sequences podssh reads and which it passes unchanged |
 | [T-131](terminal.md) | P3 | S | backlog | measurement | open | Which servers honour the `signal` request for Ctrl-C with no remote pty |
 | [T-132](terminal.md) | P3 | S | backlog | research | open | Compare the Windows console handling with csshw's |
-| [T-133](copy.md) | P2 | M | M5 | feature | open | An SFTP client in the process, the base of `cp` |
+| [T-133](copy.md) | P2 | M | M5 | feature | done | An SFTP client in the process, the base of `cp` |
 | [T-134](copy.md) | P2 | M | M5 | feature | open | `podssh cp` over SFTP: a temporary name, the digest, then a rename |
 | [T-135](copy.md) | P2 | M | M5 | feature | open | `podssh cp` by exec when the server has no SFTP |
 | [T-136](copy.md) | P2 | M | M5 | feature | open | `podssh cp` continues from an offset after a drop |

@@ -36,6 +36,7 @@ pub mod prompt;
 pub mod relay_stream;
 pub mod run;
 pub mod session;
+pub mod sftp;
 pub mod signals;
 pub mod terminal;
 

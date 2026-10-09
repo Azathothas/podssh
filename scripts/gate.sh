@@ -198,8 +198,13 @@ step_record() {
         env CC=/nonexistent CXX=/nonexistent cargo run --locked -q -p podssh-todo -- check
 }
 
+# The SFTP client's tests (T-133) run OpenSSH's sftp-server over its pipes:
+# installed with apk into this throwaway container, and named, so that a
+# missing server fails rather than skips.
 step_ssh() {
+    run "OpenSSH's sftp-server, for the SFTP client's tests" apk add --no-cache openssh-sftp-server
     run "the SSH client and the CLI (need cc): tests" \
+        env PODSSH_TEST_SFTP_SERVER=/usr/lib/ssh/sftp-server \
         cargo test --locked --no-fail-fast -p podssh-ssh -p podssh-cli
 }
 

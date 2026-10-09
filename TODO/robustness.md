@@ -119,7 +119,7 @@ seconds at `scripts/interop.sh:237`, the tty at `:221`), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
-(`scripts/gate.sh:257`). The totals are typed in `docs/STATUS.md:20`, line 57 at `3cbf215`
+(`scripts/gate.sh:262`). The totals are typed in `docs/STATUS.md:20`, line 57 at `3cbf215`
 and line 196 at `22c3b88`.
 
 ## Approach
@@ -439,10 +439,10 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-13`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:33-39` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:188-205`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:189-206`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:241`, enforced at
-  `crates/podssh-ssh/src/run.rs:144-149`); a reply, 30 s
+  `crates/podssh-ssh/src/run.rs:154-159`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability

@@ -26,6 +26,9 @@ sha1 = { version = "0.10.7", default-features = false }
 # keys, seeded from the operating system; the same version and features as
 # russh's own, so nothing new is compiled.
 rand = { version = "0.10", features = ["thread_rng"] }
+# SFTP version 3 (T-133): pure Rust, Apache-2.0, a limit on each request, and
+# requests in flight together. Its one optional feature (async-trait) is off.
+russh-sftp = { version = "3.0.1", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

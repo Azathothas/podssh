@@ -75,20 +75,30 @@ pub fn failure_lines(message: &str, relay: Option<&RelayEnd>, target: &str) -> V
     lines
 }
 
-async fn run_inner<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Result<i32, String>
+/// The SSH connection to each `-J` hop in turn, the destination last, each
+/// authenticated: for a session (`ssh`) and for SFTP (`cp`). Every handle
+/// stays alive until the end, since each hop's channel runs inside the
+/// previous hop's connection.
+pub async fn connect_hops<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Result<Vec<Handle<Client>>, String>
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let hops: Vec<&Hop> = opts.jump.iter().chain(std::iter::once(&opts.destination)).collect();
     let last = hops.len() - 1;
-    // Every handle stays alive until the end: each hop's channel runs inside
-    // the previous hop's connection.
     let mut handles: Vec<Handle<Client>> = vec![connect(stream, hops[0], last == 0, opts, log).await?];
     for (i, hop) in hops.iter().enumerate().skip(1) {
         let previous = handles.last().expect("one handle per hop so far");
         let channel = forward::open(previous, &hop.host, hop.port).await?;
         handles.push(connect(channel, hop, i == last, opts, log).await?);
     }
+    Ok(handles)
+}
+
+async fn run_inner<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Result<i32, String>
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let mut handles = connect_hops(stream, opts, log).await?;
     let host = display(&opts.destination);
     let result = match &opts.request {
         Request::StdioForward { host, port } => {

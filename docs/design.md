@@ -180,7 +180,7 @@ usable shell through `podssh serve`.
 | --- | --- |
 | A relay host is down, refuses, or is behind a proxy 5xx | Fails over to the next host: the default host and up to three hosts of the pool, or the user's list. Each attempt has a limit of 45 s. |
 | No proxy and no DNS | Uses an IP literal, a pinned address, the system resolver, then DNS over HTTPS by IP literal |
-| Latency | 60 s for the SSH handshake; 30 s for a pty or exec reply |
+| Latency | 60 s for the SSH handshake; 30 s for a pty or exec reply; 30 s for each SFTP reply with no file data, and 60 s for an SFTP read or write (T-133) |
 | A silent link | A ping every 10 s; dead after three checks with no frame (30 to 40 s) |
 | A stuck write | Fails after 60 s |
 | The relay's idle cut | Keepalives every 60 s keep the session (MEASURED: 602 s with keepalives; cut at 184 s without) |

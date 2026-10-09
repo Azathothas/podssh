@@ -13,7 +13,7 @@ issue 1126).
 **Milestone:** M5
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -24,13 +24,15 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
 
 ## Premise
 
-- Read: no line of `Cargo.lock` contains `sftp`; `podssh-ssh` has `russh`
-  0.64.1 only (`crates/podssh-ssh/Cargo.toml:18`, `Cargo.lock:3020-3022`).
-- Read: the subsystem request exists
-  (`crates/podssh-ssh/src/session.rs:68-71`); `wait_reply` counts 30 s of
-  silence as a refusal (`crates/podssh-ssh/src/session.rs:111-123`). The
-  handshake has a limit (`crates/podssh-ssh/src/run.rs:144-150`); the
-  authentication after it has none (`crates/podssh-ssh/src/run.rs:166`).
+- Read, at `61eceeb`: no line of `Cargo.lock` contains `sftp`; `podssh-ssh`
+  has `russh` 0.64.1 only (`crates/podssh-ssh/Cargo.toml` line 18,
+  `Cargo.lock` lines 3020-3022).
+- Read, at `61eceeb`: the subsystem request exists
+  (`crates/podssh-ssh/src/session.rs` lines 68-71); `wait_reply` counts 30 s
+  of silence as a refusal (`crates/podssh-ssh/src/session.rs` lines
+  111-123). The handshake has a limit (`crates/podssh-ssh/src/run.rs` lines
+  144-150); the authentication after it has none
+  (`crates/podssh-ssh/src/run.rs` line 166).
 - Measured on 2026-10-08, offline: the `sftp-server` of OpenSSH 10.3p1 (Git
   for Windows), driven over its stdin and stdout, answers version 3 with the
   `@openssh.com` extensions posix-rename, statvfs, fstatvfs, hardlink,
@@ -50,8 +52,9 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
    a session channel, `subsystem sftp` through `wait_reply` (made
    `pub(crate)`), then SFTP on the channel's stream. A refused subsystem is
    the typed error `NoSftp`, the only error that T-135 falls back on.
-3. Move the hop chain of `crates/podssh-ssh/src/run.rs:78-91` into one
-   function that returns the handles, for `session::run` and for SFTP.
+3. Move the hop chain of `crates/podssh-ssh/src/run.rs` lines 78-91 at
+   `61eceeb` into one function that returns the handles, for `session::run` and
+   for SFTP.
 4. Invariant: no request and no step of the open waits without a limit.
    Three named constants, shown by the manual: 30 s for a metadata reply (as
    `REPLY_WAIT`), 60 s with no data acknowledged (`docs/design.md:185`),
@@ -74,6 +77,17 @@ minimum Rust above 1.89, or no requests in flight together (bssh patches
 its copy for that, read in GitHub #21). Our own client lost as the first
 choice: a second protocol implementation to fuzz (T-198) and to test.
 
+2026-10-09, step 1 read: `russh-sftp` 3.0.1 (Apache-2.0) has no blocker. It
+is pure Rust; its new crates are `dashmap`, `serde_bytes`,
+`crossbeam-utils`, `parking_lot_core` and a second `hashbrown` (0.14), and
+`gloo-timers` and `redox_syscall` only for wasm32 and Redox. It declares no
+minimum Rust, and builds on 1.89 in the gate's `msrv_ssh` step. Each request
+has a limit (`request_timeout_secs`, whole seconds), and requests are in
+flight together (a map of the waiting ones). So `russh-sftp`, as the
+recommendation says. Its limit is one for each session, so the module sets
+it to the data limit (60 s), and puts the 30 s of a metadata reply around
+each such call itself.
+
 ## Prove
 
 ```sh
@@ -88,6 +102,51 @@ before its test step and sets it, and a name with no program fails. Each
 request agrees with the files on disk; each `silent` request fails within
 its limit plus 1 s. Plant: remove one limit; the test must then fail on its
 own outer limit of 10 s.
+
+## Correction
+
+2026-10-09. **Step 7's unknown reply id**: `russh-sftp` drops a reply whose
+id no request waits for, since it may answer a request that timed out; the
+module cannot see it. The request that waited for the reply fails at its own
+limit, not at once. The rest of step 7 holds: the end of input goes to the
+server only after each reply (`Sftp::close_session` takes the session), and a
+`READ` reply longer than its request fails. **Step 4's manual**: the module
+names its limits (`METADATA_WAIT`, `DATA_WAIT`), and a command's deadline is
+its own `--timeout`; no command opens SFTP yet, so the manual names them
+with `cp` (T-134). **The Prove's `-- silent`** runs the three tests of a peer
+that never answers; the tests of a long `READ` reply and of a peer that
+leaves run with the others.
+
+## Done
+
+2026-10-09, in the commit "podssh-ssh has an SFTP client, with a limit on
+each step".
+
+- `crates/podssh-ssh/src/sftp/`: `Sftp::open` asks a new session channel
+  for the `sftp` subsystem through `session::wait_reply` (now `pub(crate)`),
+  and a refusal or no answer is `SftpError::NoSftp`; `Sftp::over` runs the
+  version exchange on any stream, and reads `limits@openssh.com` (requests
+  of the server's size, else 32 KiB, never over 255 KiB). `stat`, `lstat`,
+  `realpath`, `open_file`, `close`, `read`, `write`, `fsync`, `remove`,
+  `rename` (over the target with `posix-rename@openssh.com`), `mkdir`,
+  `rmdir`, `read_dir` and `close_session`, each within its limit.
+  `SftpError` gives each status a sentence with the path, and the server's
+  text on one line.
+- `run.rs`: `connect_hops`, the hop chain in one function, for `ssh` and
+  for SFTP. `Cargo.toml` and `Cargo.lock`: `russh-sftp` 3.0.1.
+- `scripts/gate.sh`: the `ssh` step installs `openssh-sftp-server` and names
+  it in `PODSSH_TEST_SFTP_SERVER`; CI's Windows job names the copy of Git
+  for Windows.
+- `docs/STATUS.md`, `docs/design.md` (the reliability table) and the map of
+  `AGENTS.md`.
+- Prove: `cargo test -p podssh-ssh --test sftp_client`: 8 passed, with Git
+  for Windows' `sftp-server`; a `PODSSH_TEST_SFTP_SERVER` with no program
+  there fails. `cargo test -p podssh-ssh --test sftp_client -- silent`: 3
+  passed. Plants, each restored: `stat` with a limit of an hour failed its
+  test after 3.0 s, at the library's own limit; no limit at all failed on
+  the test's own limit of 10 s; a long `READ` reply accepted failed its
+  test. `sh scripts/gate.sh lint msrv_ssh ssh` in the build image: green,
+  the `ssh` step with Alpine's `sftp-server` named.
 
 # T-134: `podssh cp` over SFTP: a temporary name, the digest, then a rename
 
@@ -280,7 +339,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:160`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:161`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -367,7 +426,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:159`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:160`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -612,7 +671,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:176-180` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:158`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:159`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -718,7 +777,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:158`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:159`).
 
 ## Premise
 
@@ -897,7 +956,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:158`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:159`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 

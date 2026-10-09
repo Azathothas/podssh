@@ -107,8 +107,8 @@ pub async fn run(handle: &Handle<Client>, opts: &Options, host: &str, log: &Arc<
 /// Wait for the reply to a request sent with `want_reply`. Messages that
 /// arrive first are kept for the pump. Silence for [`REPLY_WAIT`] counts as a
 /// refusal (RFC 4254 gives the reply no reason, and a server may never send
-/// one).
-async fn wait_reply(channel: &mut Channel<Msg>, early: &mut Vec<ChannelMsg>) -> Result<bool, String> {
+/// one). The `sftp` subsystem of [`crate::sftp`] waits the same way.
+pub(crate) async fn wait_reply(channel: &mut Channel<Msg>, early: &mut Vec<ChannelMsg>) -> Result<bool, String> {
     let deadline = tokio::time::Instant::now() + REPLY_WAIT;
     loop {
         match tokio::time::timeout_at(deadline, channel.wait()).await {

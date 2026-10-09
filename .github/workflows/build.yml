@@ -200,7 +200,10 @@ jobs:
       - uses: actions/checkout@v7
       # aws-lc's build wants NASM on Windows, as in the release.
       - uses: ilammy/setup-nasm@v1
+      # The SFTP client's tests run the sftp-server of Git for Windows.
       - name: the default tests
+        env:
+          PODSSH_TEST_SFTP_SERVER: C:\Program Files\Git\usr\lib\ssh\sftp-server.exe
         run: cargo test --locked --no-fail-fast
       - name: repository checks
         run: python scripts/check-repo.py
