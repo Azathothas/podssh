@@ -188,9 +188,13 @@ Measured 2026-10-01:
 
 ### Open questions
 
-- Why does the relay's side drop a reverse socket at random, with no
-  WebSocket Close? It did in 6 of 12 runs of 240 s on 2026-10-09 (T-061),
-  also under payload; T-255 measures how often, and where.
+- Why does the relay's side drop a socket of the reverse road with no
+  WebSocket Close? Measured on 2026-10-09 (T-061, T-255): from this machine
+  and from a GitHub Actions runner, in bursts (about 9 an hour of a session
+  from 00:27 to 01:28 UTC, then one in 4.6 hours of sessions until 02:05);
+  one socket at a time while the relay lives on (it tells the other end),
+  or both sockets of one pair at once. Forward sessions had none in 1.2
+  hours. The relay's operator can tell why (T-255 waits for them).
 - The short index `/llms.txt` (r2) has facts that the full document does
   not: `/v1/pair` can return `409` (retry with a new pair), and a change of
   the mint secret makes each token invalid at once.

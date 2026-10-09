@@ -238,6 +238,11 @@ commands. The rules behind them:
   bytes and nothing else, and it exits 0 only when the node took the
   session. Its codes are those of `node`. `ssh node://NAME` runs the SSH
   client over the same leg, and keeps the codes of OpenSSH (255).
+- **A link can drop.** The relay's side ends a socket of the reverse road
+  at random, with no Close (T-255). `operator` and `ssh node://NAME` then
+  say that the link ended with no Close, or that the node's link ended
+  (`1011 node disconnected`), and that a new session may work: the node
+  connects again by itself. `operator` exits 69.
 
 ## Exit codes
 

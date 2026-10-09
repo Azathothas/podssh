@@ -149,6 +149,22 @@ pub(crate) fn operator_part(label: &str, pair_file: Option<&str>) -> Result<pair
 
 /// A connection to the relay that failed for a pair: its code, and for a
 /// refused token the remedy.
+/// How a session of the reverse road ended after `ready`, in words, the same
+/// for `podssh operator` and `podssh ssh node://NAME`. With no Close (`1006`)
+/// the link broke, and the relay drops links at random (T-255); a node that
+/// lost its link connects again. In both cases a new session may work.
+pub(crate) fn session_end(code: u16, reason: &str) -> String {
+    match code {
+        1006 => format!("the link to the relay ended with no Close ({reason}); a new session may work"),
+        1011 if reason.trim().eq_ignore_ascii_case("node disconnected") => {
+            "the node's link to the relay ended (relay close 1011: node disconnected); the node connects again, \
+             so a new session may work"
+                .to_string()
+        }
+        _ => format!("the relay ended the session (relay close {code}): {reason}"),
+    }
+}
+
 pub(crate) fn connect_refusal(e: &ConnectError, label: &str) -> Refusal {
     let message = match e {
         ConnectError::Refused { status: 403, .. } => format!(
@@ -158,4 +174,32 @@ pub(crate) fn connect_refusal(e: &ConnectError, label: &str) -> Refusal {
         other => other.to_string(),
     };
     Refusal { message, code: connect_code(e) }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::session_end;
+
+    #[test]
+    fn a_session_that_ends_with_no_close_is_the_link_and_may_work_again() {
+        let text = session_end(1006, "the relay closed the connection without a WebSocket Close");
+        assert!(text.starts_with("the link to the relay ended with no Close ("), "{text}");
+        assert!(text.ends_with("; a new session may work"), "{text}");
+        assert!(!text.contains("relay close 1006"), "no Close came, so none is named: {text}");
+    }
+
+    #[test]
+    fn a_node_that_lost_its_link_is_named_and_may_work_again() {
+        for reason in ["node disconnected", " Node Disconnected "] {
+            let text = session_end(1011, reason);
+            assert!(text.starts_with("the node's link to the relay ended (relay close 1011: node disconnected)"), "{text}");
+            assert!(text.ends_with("so a new session may work"), "{text}");
+        }
+    }
+
+    #[test]
+    fn each_other_end_keeps_the_relays_code_and_reason() {
+        assert_eq!(session_end(1011, "write failed"), "the relay ended the session (relay close 1011): write failed");
+        assert_eq!(session_end(1013, "slow"), "the relay ended the session (relay close 1013): slow");
+    }
 }

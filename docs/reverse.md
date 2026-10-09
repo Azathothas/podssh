@@ -103,6 +103,10 @@ over a reader and a writer, such as standard input and output.
 3. Use the close code **and** the reason. The two reasons of `1001` (node
    stopped, pair expired) need opposite actions. An empty reason with `1001`
    must not start a new mint.
+4. An end with no Close is the link, and so is `1011 node disconnected` for
+   the node's link: the relay's side drops them at random (T-255). Say so,
+   and that a new session may work; the node connects again by itself.
+   `podssh operator` exits 69 for both.
 
 ## Credentials
 

@@ -90,9 +90,7 @@ fn finish(label: &str, outcome: &Outcome, err: &mut dyn Write) -> i32 {
         Outcome::Ended { code: code @ (1003 | 1008 | 1009), reason } => {
             (Fault::SessionFault, format!("the relay closed the session for a fault (relay close {code}): {reason}"))
         }
-        Outcome::Ended { code, reason } => {
-            (Fault::RelayUnreachable, format!("the relay ended the session (relay close {code}): {reason}"))
-        }
+        Outcome::Ended { code, reason } => (Fault::RelayUnreachable, pairs::session_end(*code, reason)),
     };
     let _ = writeln!(err, "podssh operator: {label}: {why}");
     fault.code()

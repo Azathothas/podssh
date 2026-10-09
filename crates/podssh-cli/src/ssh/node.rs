@@ -141,6 +141,6 @@ fn explain(outcome: &Outcome) -> Option<String> {
         }
         Outcome::NeverReady { code: None, reason } => Some(format!("the node did not take the session: {reason}")),
         Outcome::Ended { code: 1000, .. } | Outcome::LocalEnd => None,
-        Outcome::Ended { code, reason } => Some(format!("the relay ended the session (relay close {code}): {reason}")),
+        Outcome::Ended { code, reason } => Some(crate::pairs::session_end(*code, reason)),
     }
 }

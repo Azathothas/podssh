@@ -57,19 +57,19 @@ repository and CI).
 6. An entry that waits for a measurement in a real sandbox is done in one
    session with the other entries of that kind.
 7. The entries that wait for the relay's operator are skipped: T-086,
-   T-106, T-169, T-173, T-180, T-226 and T-253.
+   T-106, T-169, T-173, T-180, T-226, T-253 and T-255.
 
 ## Counts
 
-**252 entries: 189 open, 1 partial, 7 blocked, 55 done.**
+**252 entries: 189 open, 0 partial, 8 blocked, 55 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 99 | 1 | 3 | 42 | 145 |
+| P2 | 99 | 0 | 4 | 42 | 145 |
 | P3 | 88 | 0 | 4 | 5 | 97 |
-| **All** | 189 | 1 | 7 | 55 | 252 |
+| **All** | 189 | 0 | 8 | 55 | 252 |
 
 ## Entries
 
@@ -326,4 +326,4 @@ repository and CI).
 | [T-252](irc.md) | P2 | M | M8 | feature | open | `podssh chat --irc`: IRC as a second transport for chat |
 | [T-253](relay.md) | P2 | M | backlog | defect | blocked | The relay's egress reaches no IPv6 host |
 | [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |
-| [T-255](relay.md) | P2 | M | M4 | measurement | partial | The relay's side drops reverse sockets at random, with no Close |
+| [T-255](relay.md) | P2 | M | M4 | measurement | blocked | The relay's side drops reverse sockets at random, with no Close |

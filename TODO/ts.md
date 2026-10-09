@@ -31,7 +31,7 @@ the rest is read. `bound` wraps only `TsNode::start` and `tcp_connect`
 (`crates/podssh-cli/src/ts.rs:215-229`, `crates/podssh-cli/src/ts.rs:367-378`), not `node.status()`
 or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs:297`, `crates/podssh-cli/src/ts.rs:358`). The
 module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs:9-14`),
-and `docs/cli.md:280-282` makes that a rule.
+and `docs/cli.md:285-287` makes that a rule.
 
 Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs:81-84`), whose reply
 waits in a queue until a map with the self node arrives
@@ -101,7 +101,7 @@ of an OpenSSH `ProxyCommand` (`crates/podssh-ts/src/pipe.rs:54-64`). The test
 
 Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/src/proxy.rs:193-209`),
 and a closed stdout is a clean end there (`crates/podssh-cli/src/proxy.rs:266-269`) and in the rules
-(`docs/cli.md:258`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:399-402`).
+(`docs/cli.md:263`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:399-402`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
 (`docs/relay.md:154`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs:84-88`).
