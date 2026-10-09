@@ -6,7 +6,7 @@ step and each open of a session has a time limit.
 
 # T-133: An SFTP client in the process, the base of `cp`
 
-**Source:** ROADMAP M5 ("SFTP in the process"), `docs/design.md:161-165`;
+**Source:** ROADMAP M5 ("SFTP in the process"), `docs/design.md:178-182`;
 GitHub #20 (Nemo-010, 2026-10-08: "Bound every SFTP/PTY wait", after tty7's
 issue 1126).
 **Category:** feature
@@ -57,7 +57,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
    for SFTP.
 4. Invariant: no request and no step of the open waits without a limit.
    Three named constants, shown by the manual: 30 s for a metadata reply (as
-   `REPLY_WAIT`), 60 s with no data acknowledged (`docs/design.md:185`),
+   `REPLY_WAIT`), 60 s with no data acknowledged (`docs/design.md:202`),
    and the `--timeout` deadline over all, authentication included. Wrap a
    call in `tokio::time::timeout` where the crate has no limit.
 5. Size the requests from `limits@openssh.com`, else 32 KiB. Keep the
@@ -150,7 +150,7 @@ each step".
 
 # T-134: `podssh cp` over SFTP: a temporary name, the digest, then a rename
 
-**Source:** ROADMAP M5 (`podssh cp` and `podssh mv`), `docs/design.md:161-165`;
+**Source:** ROADMAP M5 (`podssh cp` and `podssh mv`), `docs/design.md:178-182`;
 GitHub #21 (Nemo-010, 2026-10-08: agent-ssh-cli verifies, then renames;
 syq's integrity checks and atomic replacement; read in the issue).
 **Category:** feature
@@ -183,12 +183,12 @@ leave a short or wrong file under the destination's name.
 ## Approach
 
 1. `CpArgs` in a new module crates/podssh-cli/src/cp/, read as `SshArgs` is
-   (`crates/podssh-cli/src/ssh/args.rs:87-143`). An operand is remote when a
+   (`crates/podssh-cli/src/ssh/args.rs:90-147`). An operand is remote when a
    `:` comes before any `/`; on Windows, `C:\x` is local. Fewer than two
    operands, or none remote, exit 64.
 2. Build an `SshArgs` (host, `-P` as the port, `-i`, `-o`) for
    `crate::ssh::resolve::resolve`
-   (`crates/podssh-cli/src/ssh/resolve.rs:96-357`), so `-F` follows the rule
+   (`crates/podssh-cli/src/ssh/resolve.rs:97-363`), so `-F` follows the rule
    of `ssh`. Add `-o`, `-J`, `-v`, `-q` and the relay rows of `ssh`
    (`--relay-host`, `--relay-addr`, `--ca-file`, `--direct`) to `CP_FLAGS`.
 3. Split `crates/podssh-cli/src/ssh/mod.rs` lines 73-151 at `6483366` so that the relay (with
@@ -314,7 +314,7 @@ SHA-256 before they take the destination's name".
 
 **Source:** ROADMAP M5 ("an exec transfer as the fallback for minimal
 servers"; "Do not assume POSIX tools or an interactive shell"),
-`docs/design.md:161-165`; GitHub #18 (zuko's file server, read in the issue).
+`docs/design.md:178-182`; GitHub #18 (zuko's file server, read in the issue).
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -372,7 +372,7 @@ never reaches this road. A far `cat` can still run after a drop (T-136).
 ## Decision
 
 Recommendation: raw `cat` over a channel with no pty, and `base64` only
-when step 5 fails. `docs/design.md:162` names both tools; raw bytes are
+when step 5 fails. `docs/design.md:179` names both tools; raw bytes are
 measured clean, and `base64` adds a third to the bytes that count against
 the relay's 64 MiB and needs a tool that not each host has. `base64` for
 each copy lost on both counts.
@@ -466,7 +466,7 @@ SFTP, raw through cat or through base64".
 # T-136: `podssh cp` continues from an offset after a drop
 
 **Source:** ROADMAP M5 ("Continue from an offset after a drop"),
-`docs/design.md:163-164`; GitHub #21 (agent-ssh-cli's `.part` and
+`docs/design.md:180-181`; GitHub #21 (agent-ssh-cli's `.part` and
 `.part.meta`, parsync's resume, syq's partial file; read in the issue);
 GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 **Category:** feature
@@ -485,7 +485,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
 ## Premise
 
 - Read: today a drop ends the session with the relay's reason, and nothing
-  continues (`docs/design.md:181-189`).
+  continues (`docs/design.md:198-206`).
 - Read: SFTP reads and writes name their offset, so a copy can continue at
   any offset. The far file's size is no proof: with requests in flight
   (T-140), a later write can land while an earlier one fails.
@@ -493,7 +493,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
   (`crates/podssh-relay/src/cache.rs:62-76`,
   `crates/podssh-relay/src/cache.rs:135-161`).
 - Read: after a drop, the relay closes the target's TCP connection within
-  15 s (`docs/design.md:191-194`), so a far `cat` can write for a while.
+  15 s (`docs/design.md:208-211`), so a far `cat` can write for a while.
 
 ## Approach
 
@@ -755,7 +755,7 @@ relay's limits, and logs in as the first session did".
 
 **Source:** ROADMAP M5 ("Across hosts, `mv` is copy, verify, delete; podssh
 says first that it is not atomic"); the description of `mv` in
-`crates/podssh-cli/src/flags.rs:421-422`.
+`crates/podssh-cli/src/flags.rs:423-424`.
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -773,7 +773,7 @@ user must know this before the move starts.
 
 - Measured on `3ee70dc`, offline: `podssh mv --timeout 30s a b` exits 70
   (`'mv' is not implemented yet; nothing was done.`).
-- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:421-422`),
+- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:423-424`),
   so the operands and options of T-134 apply.
 - Measured (T-133's offline probe): `posix-rename@openssh.com` replaces in
   one step; `SSH_FXP_RENAME` refuses an existing target.
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:211-229` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:404-407`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:409-412`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1118,7 +1118,7 @@ stream.
 - Read: `AGENTS.md` rule 2 allows one outbound connection. Several channels
   in one SSH connection keep the rule; several relay sessions at once do
   not. The operator accepted more than one outbound connection for the iroh
-  road (`docs/design.md:572-575`), and on 2026-10-08 for one copy when the
+  road (`docs/design.md:589-592`), and on 2026-10-08 for one copy when the
   user asks (`docs/decisions.md`).
 - Read: the cap of 64 MiB is for each session (`docs/relay.md:127`).
 - Not measured: whether one relay session, or the path itself, limits the
@@ -1634,7 +1634,7 @@ host, and the copy back then destroys that change with no word.
 
 ## Approach
 
-1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:404-435`),
+1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:406-437`),
    with the connection flags that T-134 gives `cp`. It needs a terminal on
    stdin and stdout; else exit 64.
 2. Download with T-134 into a new directory of mode 0700 in the cache
@@ -1676,7 +1676,7 @@ non-zero. Plant: skip the check of step 5; that case must then fail.
 **Source:** GitHub #18 (zuko's `files` server, `adonm/zuko:src/files.rs`)
 and GitHub #21 (parsync's internal helper,
 `AlpinDale/parsync:src/remote_helper.rs`), read in the issues;
-`docs/design.md:577-583`.
+`docs/design.md:594-600`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -1697,7 +1697,7 @@ can do better.
   request; it names its own requests `NAME@openssh.com`.
 - Read: `podssh serve` will have an SFTP server in the process (T-112).
 - Read: both roads between podssh ends carry the same `cp`
-  (`docs/design.md:577-583`).
+  (`docs/design.md:594-600`).
 
 ## Approach
 

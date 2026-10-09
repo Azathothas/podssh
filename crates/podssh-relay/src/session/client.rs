@@ -8,9 +8,11 @@
 //! pass both ways as they are, as before the layer.
 
 use std::fmt;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 use std::time::Duration;
 
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 
 use super::decode::{DecodeError, Decoder};
 use super::handshake::{Ask, ClientHandshake, Established, HandshakeError, Step};
@@ -105,7 +107,7 @@ pub(crate) struct Parts<L> {
 /// Wait for the far end's first byte. A `GREETING` starts the handshake for
 /// `ask`, and `OPEN` goes out after it; anything else means no layer.
 pub async fn start<L>(
-    mut link: L,
+    link: L,
     ask: Ask,
     settings: Settings,
     entropy: &mut (dyn Entropy + Send),
@@ -113,33 +115,121 @@ pub async fn start<L>(
 where
     L: AsyncRead + AsyncWrite + Unpin,
 {
-    // The `OPEN` is made first, while `entropy` is at hand; it waits for
-    // the `GREETING`, and with no layer it is dropped unsent.
-    let (handshake, open) = ClientHandshake::start(ask, settings.features, entropy).map_err(ClientError::Handshake)?;
+    greeted(link).await?.start(ask, settings, entropy).await
+}
+
+/// A link whose far end has spoken first, or kept silent for
+/// [`FIRST_BYTE_WAIT`]: what it sent, and nothing of the client yet. The
+/// race between roads (T-164) stops here, so a link that loses it never
+/// sends `OPEN`, and its far end never dials its target.
+pub struct Greeted<L> {
+    link: L,
+    /// The far end's first bytes; none after a silent wait.
+    first: Vec<u8>,
+}
+
+impl<L> Greeted<L> {
+    /// Whether the far end said anything in the wait.
+    pub fn spoke(&self) -> bool {
+        !self.first.is_empty()
+    }
+
+    /// Whether the far end greets with the resumable layer.
+    pub fn layer(&self) -> bool {
+        self.first.first() == Some(&kind::GREETING)
+    }
+
+    /// The link with the bytes read in the wait given back first, for a
+    /// handshake that reads them itself (a resume, T-164).
+    pub fn rewound(self) -> Rewound<L> {
+        Rewound { first: self.first, at: 0, link: self.link }
+    }
+}
+
+/// A link whose first bytes were read already: it reads them again first.
+pub struct Rewound<L> {
+    first: Vec<u8>,
+    at: usize,
+    link: L,
+}
+
+impl<L: AsyncRead + Unpin> AsyncRead for Rewound<L> {
+    fn poll_read(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<std::io::Result<()>> {
+        if self.at < self.first.len() {
+            let n = (self.first.len() - self.at).min(buf.remaining());
+            let at = self.at;
+            buf.put_slice(&self.first[at..at + n]);
+            self.at += n;
+            return Poll::Ready(Ok(()));
+        }
+        Pin::new(&mut self.link).poll_read(cx, buf)
+    }
+}
+
+impl<L: AsyncWrite + Unpin> AsyncWrite for Rewound<L> {
+    fn poll_write(mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
+        Pin::new(&mut self.link).poll_write(cx, buf)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.link).poll_flush(cx)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+        Pin::new(&mut self.link).poll_shutdown(cx)
+    }
+}
+
+/// Wait for the far end's first bytes, within [`FIRST_BYTE_WAIT`].
+pub async fn greeted<L>(mut link: L) -> Result<Greeted<L>, ClientError>
+where
+    L: AsyncRead + Unpin,
+{
     let mut buf = vec![0u8; 64 * 1024];
     let first = match tokio::time::timeout(FIRST_BYTE_WAIT, link.read(&mut buf)).await {
         Err(_) => 0,
         Ok(Ok(n)) => n,
         Ok(Err(e)) => return Err(ClientError::Io(e)),
     };
-    if first == 0 || buf[0] != kind::GREETING {
-        let found = Found::Plain { first: buf[..first].first().copied() };
-        return Ok(Client { link, found, early: buf[..first].to_vec(), layer: None, settings });
-    }
-    let mut decoder = Decoder::new();
-    decoder.push(&buf[..first]);
-    let established =
-        match tokio::time::timeout(HANDSHAKE_LIMIT, shake(&mut link, &mut decoder, handshake, open, &mut buf)).await {
+    buf.truncate(first);
+    Ok(Greeted { link, first: buf })
+}
+
+impl<L> Greeted<L>
+where
+    L: AsyncRead + AsyncWrite + Unpin,
+{
+    /// The handshake for `ask`, after a `GREETING`; with anything else, no
+    /// layer, and the bytes read pass on as they are.
+    pub async fn start(
+        self,
+        ask: Ask,
+        settings: Settings,
+        entropy: &mut (dyn Entropy + Send),
+    ) -> Result<Client<L>, ClientError> {
+        let Greeted { mut link, first } = self;
+        if !first.first().is_some_and(|b| *b == kind::GREETING) {
+            let found = Found::Plain { first: first.first().copied() };
+            return Ok(Client { link, found, early: first, layer: None, settings });
+        }
+        let (handshake, open) =
+            ClientHandshake::start(ask, settings.features, entropy).map_err(ClientError::Handshake)?;
+        let mut buf = vec![0u8; 64 * 1024];
+        let mut decoder = Decoder::new();
+        decoder.push(&first);
+        let shaking = shake(&mut link, &mut decoder, handshake, open, &mut buf);
+        let established = match tokio::time::timeout(HANDSHAKE_LIMIT, shaking).await {
             Ok(result) => result?,
             Err(_) => return Err(ClientError::Timeout),
         };
-    let found = Found::Layer {
-        id: established.id,
-        peer_role: established.peer_role,
-        features: established.features.clone(),
-        resumed: established.resumed,
-    };
-    Ok(Client { link, found, early: Vec::new(), layer: Some((decoder, established)), settings })
+        let found = Found::Layer {
+            id: established.id,
+            peer_role: established.peer_role,
+            features: established.features.clone(),
+            resumed: established.resumed,
+        };
+        Ok(Client { link, found, early: Vec::new(), layer: Some((decoder, established)), settings })
+    }
 }
 
 /// The handshake, from the far end's first bytes on: `open` goes out after

@@ -180,6 +180,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "iroh:TICKET: this client's key in FILE, made when missing (default: iroh-client.key in the cache); a build with the feature iroh", None),
     row(None, "iroh-relay", Some("URLS"), FlagKind::Supported,
         "iroh:TICKET: the iroh relays to try after the ticket's, https://HOST[:PORT][,...] (default: env PODSSH_IROH_RELAY, else n0's)", None),
+    row(None, "iroh-ticket", Some("TICKET"), FlagKind::Supported,
+        "node://NAME: race the iroh road to TICKET, first, with the pair's road; the first that answers carries the session; a build with the feature iroh", None),
     // These two disable things podssh never does, so they need no work.
     row(Some('x'), "no-x11", None, FlagKind::Supported,
         "no X11 forwarding (podssh never forwards X11)", None),

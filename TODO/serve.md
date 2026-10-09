@@ -6,7 +6,7 @@ shell that T-108 runs.
 
 # T-107: `podssh serve`: the russh server, its host key in a state file, and authorized keys
 
-**Source:** `docs/ROADMAP.md:177-182` (M5), `docs/design.md:151-155`; GitHub #20
+**Source:** `docs/ROADMAP.md:177-182` (M5), `docs/design.md:168-172`; GitHub #20
 (Nemo-010, 2026-10-08: bssh-server and tty7 as references).
 **Category:** feature
 **Milestone:** M5
@@ -50,7 +50,7 @@ core: the handshake, a host key that does not change, and key authentication.
    `$HOME/.ssh/authorized_keys`. Lines with options wait for T-114. No usable
    key: exit 78. Invariant: no setting accepts each key. `auth_publickey`
    compares `key_data()`; the login name selects nothing.
-5. The verb: rows in `crates/podssh-cli/src/flags.rs:400-435` and
+5. The verb: rows in `crates/podssh-cli/src/flags.rs:402-437` and
    `crates/podssh-cli/src/positionals.rs:8-96`, an arm beside
    `crates/podssh-cli/src/dispatch.rs:192-256`, the manual, `docs/cli.md`,
    `docs/STATUS.md`. The first source is `--stdio`, as `sshd -i`: OpenSSH
@@ -238,7 +238,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 
 # T-110: `podssh serve`: a real pty when `/dev/ptmx` exists
 
-**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:156-160`,
+**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:173-177`,
 `docs/terminal.md:48-58`; GitHub #20 (bound every PTY wait).
 **Category:** feature
 **Milestone:** M5
@@ -313,7 +313,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 
 # T-111: `podssh serve` with no `/dev/ptmx`: the line discipline, and Ctrl-C to the child's process group
 
-**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:156-160`,
+**Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:173-177`,
 `docs/decisions.md:46`; GitHub #20 (fux line-discipline notes).
 **Category:** feature
 **Milestone:** M5
@@ -326,7 +326,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 The measured cage has no `/dev/ptmx` (`docs/target-environment.md:26`). There
 a shell on pipes gives no echo, no editing and no prompt, and Ctrl-C reaches
 nothing. Only the server side can turn Ctrl-C into a signal for the child's
-process group (`docs/design.md:156-160`). Without it, a user cannot stop a
+process group (`docs/design.md:173-177`). Without it, a user cannot stop a
 command, and the session must end.
 
 ## Premise
@@ -401,7 +401,7 @@ discipline's count of the screen is wrong.
 
 # T-112: An SFTP server in `podssh serve`
 
-**Source:** `docs/ROADMAP.md:189`, `docs/design.md:161-165`; GitHub #20
+**Source:** `docs/ROADMAP.md:189`, `docs/design.md:178-182`; GitHub #20
 (tty7 issue #1126: bound every SFTP wait); GitHub #21 (bssh pipelined SFTP).
 **Category:** feature
 **Milestone:** M5
@@ -745,7 +745,7 @@ lifecycle); GitHub #22 (Petyok/SSHub: hot reload).
 
 A node that stops must not leave shells behind, and must not cut sessions
 with no word. An operator who adds a key must not have to restart the node:
-a restart ends each session on it (`docs/design.md:191-194`).
+a restart ends each session on it (`docs/design.md:208-211`).
 
 ## Premise
 
@@ -1101,7 +1101,7 @@ default of russh refuses each `tcpip-forward` with no reason.
 - Read: the cage refuses `bind` (`docs/target-environment.md:25`; the box:
   `scripts/box/probe.sh:86-91`). The operator's ruling on Q1 (2026-10-08)
   allows a listener only when the user asks and a probe allows the bind.
-- Read: `docs/design.md:399-401` allows a listener on the far side. The relay
+- Read: `docs/design.md:416-418` allows a listener on the far side. The relay
   is a listener that podssh does not run: a node name takes operator
   sessions (`docs/relay.md:234-258`).
 - Read in the report of GitHub #18, not verified here: sandhole publishes
@@ -1225,7 +1225,7 @@ no reason (`docs/target-environment.md:63-64`).
 ## Premise
 
 - Read: no source in `crates/` reads `SHELL` or selects a shell; `serve` is
-  not a verb (`crates/podssh-cli/src/flags.rs:400-435`). The line numbers in
+  not a verb (`crates/podssh-cli/src/flags.rs:402-437`). The line numbers in
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.

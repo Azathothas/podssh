@@ -29,7 +29,25 @@ where
     F: Future<Output = Result<A, String>> + Send + 'static,
     G: Fn(&PublicKey) -> bool + Clone + Send + Sync + 'static,
 {
-    let keeper: Arc<Keeper<A>> = Arc::new(Keeper::new(settings.resume_deadline));
+    let keeper = Arc::new(Keeper::new(settings.resume_deadline));
+    serve_kept(endpoint, settings, budget, open, admit, keeper).await
+}
+
+/// [`serve`] with `keeper`, which the reverse road's far end may share, so
+/// that a session resumes on either road (T-164).
+pub async fn serve_kept<A, O, F, G>(
+    endpoint: Endpoint,
+    settings: Settings,
+    budget: usize,
+    open: O,
+    admit: G,
+    keeper: Arc<Keeper<A>>,
+) where
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    O: Fn() -> F + Clone + Send + Sync + 'static,
+    F: Future<Output = Result<A, String>> + Send + 'static,
+    G: Fn(&PublicKey) -> bool + Clone + Send + Sync + 'static,
+{
     let sweeping = {
         let keeper = Arc::downgrade(&keeper);
         tokio::spawn(async move {

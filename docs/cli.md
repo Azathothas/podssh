@@ -391,6 +391,11 @@ commands. The rules behind them:
   iroh road with no `--iroh`, or `--iroh-key` with no iroh destination, is
   a usage error (64); in a build without the feature, `--iroh` and an iroh
   destination exit 70 and name the feature.
+- **`node --iroh` with a pair serves both roads** (T-164), with one keeper,
+  and `ssh node://NAME --iroh-ticket TICKET` races them: the iroh road
+  first, the pair's road after 250 ms or when the iroh road fails, the first
+  far end that speaks wins, again at each resume. `--iroh-ticket` with
+  another destination is a usage error (64).
 - **A link can drop.** The relay's side ends a socket of the reverse road
   at random, with no Close (T-255). `operator` and `ssh node://NAME` then
   say that the link ended with no Close, or that the node's link ended

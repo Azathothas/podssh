@@ -35,6 +35,7 @@ pub mod keep;
 pub mod link;
 pub mod offset;
 pub mod pump;
+pub mod race;
 pub mod record;
 pub mod replay;
 pub mod resume;

@@ -47,6 +47,8 @@ pub struct SshArgs {
     pub iroh_key: Option<String>,
     /// For `iroh:TICKET`: the relays to try after the ticket's.
     pub iroh_relay: Option<String>,
+    /// For `node://NAME`: the node's iroh ticket, to race with the pair.
+    pub iroh_ticket: Option<String>,
 }
 
 /// The long-only rows that are spellings of `-o NAME=VALUE`.
@@ -65,6 +67,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("pair-file", "give one file"),
     ("iroh-key", "give one file"),
     ("iroh-relay", "give the relays as one comma list"),
+    ("iroh-ticket", "give one ticket"),
 ];
 
 /// The refusal for a flag of [`ONCE`] given more than once, if there is one.
@@ -139,6 +142,7 @@ impl SshArgs {
             pair_file: one("pair-file"),
             iroh_key: one("iroh-key"),
             iroh_relay: one("iroh-relay"),
+            iroh_ticket: one("iroh-ticket"),
         }
     }
 }

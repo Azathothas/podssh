@@ -43,6 +43,10 @@ const SSH: &[&str] = &[
      -W and --direct cannot go with it yet. The session runs the resumable layer: a lost link is \
      replaced by a new one, for 10 minutes. podssh asks the ticket's relay first, then those of \
      --iroh-relay (see THE RELAY).",
+    "node://NAME with --iroh-ticket TICKET races the two roads to the node: the iroh road starts first, \
+     the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
+     speaks carries the session; the other link ends before it sends anything, so it opens nothing at \
+     the node's TARGET. Each resume races them again, and -v says which road answered first.",
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \
@@ -186,7 +190,10 @@ const NODE: &[&str] = &[
      (see THE RELAY). NAME labels the node's key, a private file in the cache (iroh-node-NAME.key), or the \
      file of --iroh-key, made when it is missing; --iroh-ephemeral makes a key for this run only. When it \
      starts, the node prints its key and its ticket (iroh:...) on stderr, and a new ticket when its home \
-     relay changes; a client dials the ticket with podssh ssh iroh:TICKET.",
+     relay changes; a client dials the ticket with podssh ssh iroh:TICKET. When the pair NAME is stored \
+     and good, or --pair-file gives one, the node serves the pair's road too, with one keeper of \
+     sessions for both: a session resumes on either road, and podssh ssh node://NAME --iroh-ticket \
+     TICKET races them. When the pair's road ends, the node says why, and the iroh road goes on.",
     "A client of the iroh road gets in only when its key is a line of the file of --iroh-allow, which \
      the node reads again for each connection, so a key added counts at once. With no such file, no \
      client gets in. Each refused key is said on stderr: it is the line to add. A session reaches TARGET \

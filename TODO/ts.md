@@ -31,7 +31,7 @@ the rest is read. `bound` wraps only `TsNode::start` and `tcp_connect`
 (`crates/podssh-cli/src/ts.rs:207-221`, `crates/podssh-cli/src/ts.rs:353-363`), not `node.status()`
 or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs:289`, `crates/podssh-cli/src/ts.rs:344`). The
 module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs:9-14`),
-and `docs/cli.md:445-447` makes that a rule.
+and `docs/cli.md:450-452` makes that a rule.
 
 Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs:76-79`), whose reply
 waits in a queue until a map with the self node arrives
@@ -101,7 +101,7 @@ of an OpenSSH `ProxyCommand` (`crates/podssh-ts/src/pipe.rs:51-61`). The test
 
 Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/src/proxy.rs:196-212`),
 and a closed stdout is a clean end there (`crates/podssh-cli/src/proxy.rs:272-275`) and in the rules
-(`docs/cli.md:423`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:384-387`).
+(`docs/cli.md:428`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:384-387`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
 (`docs/relay.md:186`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs:77-81`).
@@ -251,7 +251,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:105-120`), so apply `NO_PROXY` for each host in
    the new function.
-4. Update `crates/podssh-cli/src/flags.rs:271-272`, `docs/tailscale.md:25-26` and
+4. Update `crates/podssh-cli/src/flags.rs:273-274`, `docs/tailscale.md:25-26` and
    `docs/STATUS.md:263` in the same commit.
 
 ## Prove
@@ -319,7 +319,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:261` and `crates/podssh-cli/src/man/notes.rs:286-288`.
+   `docs/tailscale.md`, `docs/STATUS.md:261` and `crates/podssh-cli/src/man/notes.rs:293-295`.
 
 ## Decision
 
@@ -449,7 +449,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:63`, `docs/tailscale.md:8-19` and
-   `crates/podssh-cli/src/man/notes.rs:286-288`.
+   `crates/podssh-cli/src/man/notes.rs:293-295`.
 
 ## Prove
 
@@ -497,7 +497,7 @@ build ("'ts' is not available in this build"), so the parser accepts the flag. T
 `podssh proxy --jsonl example.invalid 22 </dev/null` exits 64: "--jsonl is refused in ProxyCommand
 mode."
 
-Read: the row is at `crates/podssh-cli/src/flags.rs:285-286`. `podssh ts` reads the flag once, in
+Read: the row is at `crates/podssh-cli/src/flags.rs:287-288`. `podssh ts` reads the flag once, in
 `resolve_tty` (`crates/podssh-cli/src/ts.rs:43`), which only makes the run non-interactive
 (`crates/podssh-cli/src/non_interactive.rs:61-76`). The status form writes plain text
 (`crates/podssh-cli/src/ts.rs:290-292`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
@@ -513,8 +513,8 @@ stream (`crates/podssh-cli/src/ts.rs:371-373`). `proxy --jsonl` is refused at pa
    `{"event":"status","nodekey_prefix":...,"tailnet_ip":...,"home_region":...}`. Never the key.
 3. Keep errors on stderr as text; the exit code stays the result. T-104 and T-105 add events (a
    drop, a new connection, a refusal) to this form when their states exist.
-4. Change the help text of the row (`crates/podssh-cli/src/flags.rs:285-286`) and the notes of the
-   manual (`crates/podssh-cli/src/man/notes.rs:286-288`) in the same commit. The tests of the manual
+4. Change the help text of the row (`crates/podssh-cli/src/flags.rs:287-288`) and the notes of the
+   manual (`crates/podssh-cli/src/man/notes.rs:293-295`) in the same commit. The tests of the manual
    compare the row with the help.
 
 ## Decision

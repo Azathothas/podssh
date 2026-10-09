@@ -37,6 +37,10 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh ssh: {}", iroh::refusal(destination));
         return EXIT_NOT_IMPLEMENTED;
     }
+    if args.iroh_ticket.is_some() && !cfg!(feature = "iroh") {
+        let _ = writeln!(err, "podssh ssh: {}", iroh::not_built("--iroh-ticket"));
+        return EXIT_NOT_IMPLEMENTED;
+    }
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("ssh", err);
     }
@@ -68,7 +72,9 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
             return EXIT_FAILURE;
         }
     };
-    let code = runtime.block_on(connect_and_run(resolved, log));
+    // On the heap: the future of each road is large, and Windows gives the
+    // main thread 1 MiB of stack.
+    let code = runtime.block_on(Box::pin(connect_and_run(resolved, log)));
     // A read on stdin may still be blocked in a helper thread; do not wait for
     // it, or podssh would hang after the session has ended.
     runtime.shutdown_background();
@@ -77,11 +83,14 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
 
 async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
     let opts = &resolved.options;
-    if let Transport::Node { label, pair_file, trust } = &resolved.transport {
-        return node::connect(label, pair_file.as_deref(), trust, opts, log).await;
+    if let Transport::Node { label, pair_file, trust, race } = &resolved.transport {
+        if let Some(race) = race {
+            return Box::pin(iroh::race_connect(label, pair_file.as_deref(), trust, race, opts, log)).await;
+        }
+        return Box::pin(node::connect(label, pair_file.as_deref(), trust, opts, log)).await;
     }
     if let Transport::Iroh { ticket, key, relays, trust } = &resolved.transport {
-        return iroh::connect(ticket, key.as_deref(), relays, trust, opts, log).await;
+        return Box::pin(iroh::connect(ticket, key.as_deref(), relays, trust, opts, log)).await;
     }
     let reached = match transport::reach(&resolved, &log).await {
         Ok(reached) => reached,

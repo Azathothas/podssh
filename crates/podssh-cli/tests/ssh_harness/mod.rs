@@ -9,6 +9,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -108,6 +109,13 @@ impl server::Handler for Far {
 /// The server on the loopback, with the host key in `key`, on the current
 /// runtime: its port.
 pub async fn start(key: &Path) -> u16 {
+    start_counting(key).await.0
+}
+
+/// [`start`], with the count of the TCP connections that the server took.
+pub async fn start_counting(key: &Path) -> (u16, Arc<AtomicUsize>) {
+    let connections = Arc::new(AtomicUsize::new(0));
+    let counted = connections.clone();
     let mut config = server::Config::default();
     config.keys.push(russh::keys::load_secret_key(key, None).expect("the host key"));
     config.auth_rejection_time = Duration::from_millis(10);
@@ -117,6 +125,7 @@ pub async fn start(key: &Path) -> u16 {
     let port = listener.local_addr().unwrap().port();
     tokio::spawn(async move {
         while let Ok((stream, _)) = listener.accept().await {
+            counted.fetch_add(1, Ordering::SeqCst);
             let config = config.clone();
             tokio::spawn(async move {
                 if let Ok(session) = server::run_stream(config, stream, Far::default()).await {
@@ -125,5 +134,5 @@ pub async fn start(key: &Path) -> u16 {
             });
         }
     });
-    port
+    (port, connections)
 }

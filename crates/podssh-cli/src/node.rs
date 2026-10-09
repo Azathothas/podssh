@@ -149,12 +149,20 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
 /// The exit code for each end of a node, by the table of `exitmap`, and what
 /// to do next.
 fn finish(label: &str, exit: Exit, err: &mut dyn Write) -> i32 {
+    let Some((fault, why)) = ended(label, exit) else {
+        let _ = writeln!(err, "podssh node: {label}: stopped");
+        return 0;
+    };
+    let _ = writeln!(err, "podssh node: {label}: {why}");
+    fault.code()
+}
+
+/// The fault and the words for an end of the pair's road; none when it
+/// was stopped.
+pub(crate) fn ended(label: &str, exit: Exit) -> Option<(Fault, String)> {
     let remedy = format!("make a new pair with `podssh relay pair {label}`");
     let (fault, why) = match exit {
-        Exit::Stopped => {
-            let _ = writeln!(err, "podssh node: {label}: stopped");
-            return 0;
-        }
+        Exit::Stopped => return None,
         Exit::NameInUse => (
             Fault::RelayUnreachable,
             "another node serves this pair (409), or the relay held this node's lost socket for too long; a pair \
@@ -172,8 +180,7 @@ fn finish(label: &str, exit: Exit, err: &mut dyn Write) -> i32 {
         ),
         Exit::Unusable(why) => (Fault::Config, why),
     };
-    let _ = writeln!(err, "podssh node: {label}: {why}");
-    fault.code()
+    Some((fault, why))
 }
 
 /// The node over the iroh road.

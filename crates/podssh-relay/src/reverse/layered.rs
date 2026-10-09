@@ -38,13 +38,13 @@ pub struct Layered<H: Handler> {
 
 impl<H: Handler> Layered<H> {
     pub fn new(inner: H, settings: Settings, budget: usize) -> Layered<H> {
-        Layered {
-            inner: Arc::new(inner),
-            keeper: Arc::new(Keeper::new(settings.resume_deadline)),
-            settings,
-            budget,
-            sweeping: AtomicBool::new(false),
-        }
+        Layered::with_keeper(inner, settings, budget, Arc::new(Keeper::new(settings.resume_deadline)))
+    }
+
+    /// With `keeper`, which another road's far end may share: a session
+    /// then resumes on either road (T-164).
+    pub fn with_keeper(inner: H, settings: Settings, budget: usize, keeper: Arc<Keeper<H::Stream>>) -> Layered<H> {
+        Layered { inner: Arc::new(inner), keeper, settings, budget, sweeping: AtomicBool::new(false) }
     }
 
     /// The sessions kept, with a link or waiting for one.

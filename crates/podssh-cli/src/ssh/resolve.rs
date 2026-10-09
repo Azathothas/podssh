@@ -25,8 +25,9 @@ pub enum Transport {
     /// A TCP connection, through `HTTPS_PROXY` when one is set (`--direct`).
     Direct,
     /// The node of a pair, through the operator's leg of the reverse road
-    /// (`node://NAME`, T-084).
-    Node { label: String, pair_file: Option<String>, trust: Trust },
+    /// (`node://NAME`, T-084); raced with its iroh road when `race` names
+    /// one (T-164).
+    Node { label: String, pair_file: Option<String>, trust: Trust, race: Option<super::iroh::Race> },
     /// A node over the iroh road (`iroh:TICKET`, T-163), with this client's
     /// key file when `--iroh-key` names one, and the relays to try after the
     /// ticket's (T-165).
@@ -120,9 +121,13 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         (None, Some(dest)) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
         (None, None) => parse_hop(destination)?,
     };
+    if args.iroh_ticket.is_some() && node.is_none() {
+        return Err("--iroh-ticket is for a node://NAME destination, whose pair it races with".into());
+    }
+    let iroh_road = iroh.is_some() || args.iroh_ticket.is_some();
     for (flag, given) in [("--iroh-key", args.iroh_key.is_some()), ("--iroh-relay", args.iroh_relay.is_some())] {
-        if given && iroh.is_none() {
-            return Err(format!("{flag} is for an iroh:TICKET destination").into());
+        if given && !iroh_road {
+            return Err(format!("{flag} is for an iroh:TICKET destination, or --iroh-ticket").into());
         }
     }
     let host = match settings.host_name.clone() {
@@ -251,7 +256,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         forward: matches!(request, Request::StdioForward { .. }),
     };
     let transport = if let Some((_, label)) = &node {
-        super::node::transport(&ask(label), env)?
+        let race = super::iroh::race(args)?;
+        super::node::transport(&ask(label), env, race)?
     } else if let Some(dest) = &iroh {
         let trust = match args.ca_file.clone().or_else(|| env.ssl_cert_file.clone()) {
             Some(file) => Trust::File(file.into()),

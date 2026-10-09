@@ -20,7 +20,7 @@ use tokio::task::JoinHandle;
 /// Each direction of the pipe between the layer and a leg.
 const PIPE: usize = 256 * 1024;
 /// How long a lost leg may take to say why it ended.
-const LEG_WAIT: Duration = Duration::from_secs(5);
+pub(crate) const LEG_WAIT: Duration = Duration::from_secs(5);
 /// How long the last leg may take to end after the session: its Close and
 /// the relay's answer.
 const LEG_END: Duration = Duration::from_secs(12);
@@ -141,12 +141,12 @@ async fn warn_of_expiry(expires_ms: Option<i64>, say: &(dyn Fn(Line) + Sync)) {
     )));
 }
 
-fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+pub(crate) fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 /// The last leg's end, once it has sent its Close and the relay answered.
-async fn last(legs: &Mutex<Option<JoinHandle<LegOutcome>>>) -> Option<LegOutcome> {
+pub(crate) async fn last(legs: &Mutex<Option<JoinHandle<LegOutcome>>>) -> Option<LegOutcome> {
     let handle = lock(legs).take()?;
     tokio::time::timeout(LEG_END, handle).await.ok()?.ok()
 }
@@ -178,7 +178,7 @@ async fn next_leg(
 
 /// A leg's end that a new leg would only repeat: a stopped or expired pair,
 /// a fault of podssh's own bytes.
-fn stops(outcome: &LegOutcome) -> Option<String> {
+pub(crate) fn stops(outcome: &LegOutcome) -> Option<String> {
     let (code, reason) = match outcome {
         LegOutcome::Ended { code, reason } => (*code, reason.as_str()),
         LegOutcome::NeverReady { code: Some(code), reason } => (*code, reason.as_str()),
@@ -190,7 +190,7 @@ fn stops(outcome: &LegOutcome) -> Option<String> {
 
 /// A refusal of the relay that a new leg would only get again: the pair or
 /// its token is no longer good.
-fn is_final(e: &ConnectError) -> bool {
+pub(crate) fn is_final(e: &ConnectError) -> bool {
     matches!(e, ConnectError::Refused { status: 401 | 403 | 404 | 410, .. })
 }
 

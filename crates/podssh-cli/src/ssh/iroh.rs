@@ -7,6 +7,8 @@
 
 #[cfg(feature = "iroh")]
 mod dial;
+#[cfg(feature = "iroh")]
+mod race;
 
 use super::node::Ask;
 use super::resolve::Transport;
@@ -97,6 +99,24 @@ pub(super) fn transport(dest: &Destination, r: &Ask<'_>, trust: Trust) -> Result
     Ok(Transport::Iroh { ticket: dest.ticket.clone(), key: r.args.iroh_key.clone(), relays, trust })
 }
 
+/// The iroh road of a race with a pair's reverse road (T-164): the node's
+/// ticket, this client's key file, and the relays after the ticket's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Race {
+    pub ticket: String,
+    pub key: Option<String>,
+    pub relays: Vec<String>,
+}
+
+/// `--iroh-ticket` of a `node://NAME` destination, checked before anything
+/// connects.
+pub(super) fn race(args: &super::args::SshArgs) -> Result<Option<Race>, Refusal> {
+    let Some(ticket) = &args.iroh_ticket else { return Ok(None) };
+    shown(ticket).map_err(Refusal::usage)?;
+    let relays = relays(args.iroh_relay.as_deref())?;
+    Ok(Some(Race { ticket: ticket.clone(), key: args.iroh_key.clone(), relays }))
+}
+
 /// The relays of `--iroh-relay`, else of the variable, else of the table: a
 /// bad flag is a usage error (64), a bad variable a configuration error
 /// (78), as the relay's own flag and variable are.
@@ -137,5 +157,31 @@ pub(super) async fn connect(
     log: std::sync::Arc<podssh_ssh::Log>,
 ) -> i32 {
     log.error(&not_built(ticket));
+    podssh_ssh::EXIT_FAILURE
+}
+
+/// SSH to the node of a pair, raced with its iroh road (T-164).
+#[cfg(feature = "iroh")]
+pub(super) async fn race_connect(
+    label: &str,
+    pair_file: Option<&str>,
+    trust: &Trust,
+    race_road: &Race,
+    opts: &podssh_ssh::options::Options,
+    log: std::sync::Arc<podssh_ssh::Log>,
+) -> i32 {
+    race::connect(label, pair_file, trust, race_road, opts, log).await
+}
+
+#[cfg(not(feature = "iroh"))]
+pub(super) async fn race_connect(
+    _: &str,
+    _: Option<&str>,
+    _: &Trust,
+    _: &Race,
+    _: &podssh_ssh::options::Options,
+    log: std::sync::Arc<podssh_ssh::Log>,
+) -> i32 {
+    log.error(&not_built("--iroh-ticket"));
     podssh_ssh::EXIT_FAILURE
 }

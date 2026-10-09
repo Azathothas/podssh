@@ -1,11 +1,11 @@
 The work of milestone M7, `podssh pipe` and `--persist`, and the backlog of
 streams that `pipe` can carry: desktop streams and Telnet, a published HTTP
-service, serial devices and USB/IP. The design is `docs/design.md:370-405`;
+service, serial devices and USB/IP. The design is `docs/design.md:387-422`;
 the milestone is `docs/ROADMAP.md:227-236`.
 
 # T-174: `podssh pipe A B` with local addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`), `docs/design.md:387-405`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`), `docs/design.md:404-422`;
 GitHub #26 (Nemo-010, 2026-10-08). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M7
@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:404-435`).
+  row (`crates/podssh-cli/src/flags.rs:406-437`).
 - Read: the only pump is `crates/podssh-cli/src/proxy.rs:186-281`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,7 +37,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:404-435`, two
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:406-437`, two
    required positionals (`crates/podssh-cli/src/positionals.rs:7-96`), a
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-135`), a
    dispatch arm, and `pipe` in `DISPATCHED`
@@ -71,7 +71,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    (`crates/podssh-cli/src/man/notes.rs:7-25`), two examples
    (`crates/podssh-cli/src/man/examples.rs:8-73`; its test at
    `crates/podssh-cli/src/man/examples.rs:196-206` learns the new variant),
-   `docs/design.md:389-397`, `docs/STATUS.md`. Each file stays under 500
+   `docs/design.md:406-414`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:198-199`).
 
 ## Decision
@@ -101,7 +101,7 @@ checks for 7 and 64 must fail.
 
 # T-175: `podssh pipe` with remote addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`), `docs/design.md:394-397`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:229-233`), `docs/design.md:411-414`;
 GitHub #26 (Nemo-010, 2026-10-08); the RustConn report in GitHub #24 (one
 address model across roads; read in the report, not verified here).
 **Category:** feature
@@ -152,8 +152,8 @@ local program to a target, and `podssh proxy` stays a second pump.
    `crates/podssh-cli/src/proxy.rs:249-281`).
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it
-   (`crates/podssh-cli/src/ssh/resolve.rs:146-150`,
-   `crates/podssh-cli/src/ssh/resolve.rs:409-457`). Make
+   (`crates/podssh-cli/src/ssh/resolve.rs:151-155`,
+   `crates/podssh-cli/src/ssh/resolve.rs:415-463`). Make
    `crates/podssh-ssh/src/run.rs:109-116` a public `connect_chain` that `-W`
    and the pipe both use; keep each handle alive until the pipe ends. The
    options: `-i`, `-o NAME=VALUE` through
@@ -163,11 +163,11 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:414`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:419`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:153-211` a typed error, so that 77 is not
    guessed from a message.
-7. In the same commit: `docs/cli.md`, `docs/design.md:389-397`, the notes,
+7. In the same commit: `docs/cli.md`, `docs/design.md:406-414`, the notes,
    the examples, `docs/STATUS.md`.
 
 ## Decision
@@ -261,7 +261,7 @@ not a listener, so `docs/target-environment.md:74-78` allows it.
    after a probe at run time; where one fails, exit 69 with the reason
    (the operator's ruling of 2026-10-08).
 5. T-040 gives the remote form: a socket on the server, through `-W`.
-6. In the same commit: `docs/cli.md`, `docs/design.md:393`, the notes,
+6. In the same commit: `docs/cli.md`, `docs/design.md:410`, the notes,
    `docs/STATUS.md`. With T-174 and T-175 done, the first item of ROADMAP M7
    is done.
 
@@ -280,7 +280,7 @@ never answers, and the test fails at its limit of 10 s.
 
 # T-177: `podssh pipe` with a local listener after a probe
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:232-233`), `docs/design.md:399-405`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:232-233`), `docs/design.md:416-422`;
 GitHub #26 (a local-only mode, as the `--local` of bunflared; read in the
 report, not verified here); sandbox A of T-001.
 **Category:** feature
@@ -292,9 +292,9 @@ report, not verified here); sandbox A of T-001.
 ## Problem
 
 Desktop clients, browsers and database clients call `connect()` themselves:
-they need a local port or socket (`docs/design.md:402-405`). podssh refuses
+they need a local port or socket (`docs/design.md:419-422`). podssh refuses
 each listener. The design allows one for `pipe`, locally, after a probe
-shows that an AF_UNIX or loopback bind works (`docs/design.md:399-401`).
+shows that an AF_UNIX or loopback bind works (`docs/design.md:416-418`).
 
 ## Premise
 
@@ -340,8 +340,8 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:399-401`).
    module that doctor and pipe share; doctor stays bind-and-close. In the
    same commit, change each sentence that says podssh never listens: the
    five documents, `crates/podssh-cli/src/help.rs:213-214`,
-   `crates/podssh-cli/src/man/notes.rs:55-57`, the reasons of the `-L` and
-   `-D` rows (`crates/podssh-cli/src/flags.rs:198-203`; keep `-W HOST:PORT`
+   `crates/podssh-cli/src/man/notes.rs:59-61`, the reasons of the `-L` and
+   `-D` rows (`crates/podssh-cli/src/flags.rs:200-205`; keep `-W HOST:PORT`
    as what to use, which `crates/podssh-cli/tests/flag_table.rs:82-101`
    asserts), `crates/podssh-cli/src/ssh/keywords.rs:83-84`,
    `crates/podssh-cli/src/ssh/options.rs:157-159`,
@@ -375,7 +375,7 @@ Plant: bind with no umask; the check of the mode must fail.
 
 # T-178: `--persist`: connect again and attach `tmux` again
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:234-236`), `docs/design.md:221-231`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:234-236`), `docs/design.md:238-248`;
 GitHub #19 (a lasting terminal through `tmux`, from the slingshot report:
 `ado11231/slingshot:crates/slingshot-agent/src/jobs.rs`; read in the
 report, not verified here).
@@ -388,10 +388,10 @@ report, not verified here).
 ## Problem
 
 When the relay drops a session, `podssh ssh` exits 255 and the remote shell
-is gone (`docs/design.md:188`). Against a standard sshd only one end runs
-podssh, so the layer of M6 cannot help (`docs/design.md:221-223`). The
+is gone (`docs/design.md:205`). Against a standard sshd only one end runs
+podssh, so the layer of M6 cannot help (`docs/design.md:238-240`). The
 cheapest repair: connect again, and attach a `tmux` session that kept
-running on the server (`docs/design.md:224-226`).
+running on the server (`docs/design.md:241-243`).
 
 ## Premise
 
@@ -409,14 +409,14 @@ running on the server (`docs/design.md:224-226`).
 ## Approach
 
 1. Flags `--persist` and `--persist-name NAME` (default `podssh`; letters,
-   digits, `_` and `-`, 32 at most) in `crates/podssh-cli/src/flags.rs:112-239`.
+   digits, `_` and `-`, 32 at most) in `crates/podssh-cli/src/flags.rs:112-241`.
    With a command, `-W`, `-N`, `-s` or `RemoteCommand`, exit 64.
 2. The probe, after the login: one exec runs `command -v tmux`. No tmux:
    exit 255 with "the server has no tmux on PATH; --persist needs it". T-193
    uses the same function.
 3. The session runs `tmux new-session -A -s NAME` with a pty, as `-tt` does.
    `-A` attaches when the session exists; that makes a second run safe.
-4. A loop around `crates/podssh-cli/src/ssh/mod.rs:78-109`. Connect again
+4. A loop around `crates/podssh-cli/src/ssh/mod.rs:84-118`. Connect again
    only for a lost link: `End::Lost`, the ping watcher, or the relay's 1001,
    1006, 1009 or 1011. Never after an exit status, `~.`, a detach of tmux
    (exit 0), or a failure of the host key or the authentication.
@@ -426,9 +426,9 @@ running on the server (`docs/design.md:224-226`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:431-433`). After the attach, send the window size again.
+   (`docs/cli.md:436-438`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes.rs:27-78`), `docs/design.md:224-226`,
+   (`crates/podssh-cli/src/man/notes.rs:27-82`), `docs/design.md:241-243`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:32-33`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
@@ -477,8 +477,8 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
-  (`crates/podssh-cli/src/man/notes.rs:149-153`); a client that calls
-  `connect()` itself needs a listener (`docs/design.md:402-405`), which
+  (`crates/podssh-cli/src/man/notes.rs:153-157`); a client that calls
+  `connect()` itself needs a listener (`docs/design.md:419-422`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:127`), then Close 1009 (`docs/relay.md:188`); public
@@ -509,7 +509,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
    form a to `crates/podssh-cli/src/man/examples.rs:8-73`; its ProxyCommand
    parses (`crates/podssh-cli/src/man/examples.rs:173-180`). Link the table
-   from `docs/design.md:402-405`.
+   from `docs/design.md:419-422`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
 ## Prove

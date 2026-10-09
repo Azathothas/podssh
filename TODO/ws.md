@@ -1,7 +1,7 @@
 This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP and proxies, TLS
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
-`podssh-ws` item of ROADMAP M4 and `docs/design.md:117-121`, and from GitHub issues. The crate
+`podssh-ws` item of ROADMAP M4 and `docs/design.md:134-138`, and from GitHub issues. The crate
 must build with no C compiler (`scripts/gate.sh:117-124`).
 
 # T-063: W10: the frame decoder does not check a received control frame
@@ -287,7 +287,7 @@ The scan passes on the tree, and the example still builds. Planted defect: add a
 
 # T-066: A `rustls::ClientConfig` that the caller supplies, for podbox
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:79-80` and 102-104. Read here
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:96-97` and 102-104. Read here
 on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -328,7 +328,7 @@ HTTP/1.1 only (`docs/relay.md:206`). The `tls12` feature of `rustls` is on in th
 5. `podssh-ws` must not depend on `ring`, also not in its tests: the gate builds the tests with
    no C compiler. The tests make the caller's configuration with podssh's own provider.
 6. The default stays `Trust`, so the binary does not change.
-7. Change `docs/design.md:117-121` and `docs/architecture.md` in the same commit.
+7. Change `docs/design.md:134-138` and `docs/architecture.md` in the same commit.
 
 ## Decision
 
@@ -388,7 +388,7 @@ unknown, and the test fails.
 # T-067: TLS 1.2, for intercepting proxies
 
 **Source:** `docs/STATUS.md` (Components, `podssh-ws`: "No TLS 1.2 (some intercepting proxies
-need it)"); `docs/design.md:79-80`. podssh has not measured such a proxy.
+need it)"); `docs/design.md:96-97`. podssh has not measured such a proxy.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
@@ -455,7 +455,7 @@ from the list; its OpenSSL check fails.
 
 # T-068: Plain `ws://` to loopback, for tests only
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:118-119`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:135-136`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P3
@@ -489,7 +489,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 4. The runners of `podssh-relay` (T-079, T-081) must take any stream type, so that podbox's
    tests can use them.
 5. The binary never enables the feature; a check in the gate proves it.
-6. Change `docs/design.md:118-119` in the same commit.
+6. Change `docs/design.md:135-136` in the same commit.
 
 ## Decision
 
@@ -545,7 +545,7 @@ the feature. Planted defect: remove the loopback check; the refusal test fails.
 
 # T-069: Typed session errors in `podssh-ws`
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:119-120`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:136-137`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P2

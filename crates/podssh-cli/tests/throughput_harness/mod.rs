@@ -52,6 +52,8 @@ pub struct Session {
     pub runtime: tokio::runtime::Runtime,
     /// The port of the test's SSH server.
     pub port: u16,
+    /// The connections that the test's SSH server took.
+    pub connections: Arc<std::sync::atomic::AtomicUsize>,
     children: Mutex<Vec<Child>>,
     pairs: Mutex<Vec<String>>,
     #[cfg(feature = "iroh-test")]
@@ -71,11 +73,12 @@ impl Session {
             .output()
             .expect("podssh keygen runs");
         assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
-        let port = runtime.block_on(crate::ssh_harness::start(&key));
+        let (port, connections) = runtime.block_on(crate::ssh_harness::start_counting(&key));
         Session {
             home,
             runtime,
             port,
+            connections,
             children: Mutex::new(Vec::new()),
             pairs: Mutex::new(Vec::new()),
             #[cfg(feature = "iroh-test")]

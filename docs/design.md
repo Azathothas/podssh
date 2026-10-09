@@ -61,6 +61,23 @@ Each road has the same rules:
 - credentials never go on argv, in URLs, or in output;
 - each capability is probed before podssh uses it.
 
+**The race (T-164, built 2026-10-10).** `podssh ssh node://NAME
+--iroh-ticket TICKET` races the iroh road to the node's ticket and the
+reverse road of its pair. The iroh road starts first; the pair's road after
+250 ms (`session::race::HEAD_START`, as RFC 8305 gives IPv6 one), or at
+once when the iroh road fails before. The first far end that speaks wins,
+and the layer's handshake goes on that link alone: the far end dials its
+target only when a handshake completes, so the losing link, which never
+sends `OPEN`, costs no connection to sshd. Each resume runs the same race.
+`podssh node NAME TARGET --iroh` serves both roads when it has the pair,
+with one keeper of sessions for both, so a session resumes on either.
+MEASURED: the rules on a paused clock with stand-in roads
+(`cargo test -p podssh-relay --test session_race`); live, with a pair on the
+live relay and iroh's relay server on the loopback, the iroh road won when
+both answered, and TARGET saw one connection; with the iroh road pointed at
+a silent relay, the pair's road won (`cargo test -p podssh-cli --features
+iroh-test --test road_race -- --ignored`).
+
 ## 3. The core as a library for podbox
 
 podbox is the container runtime that podssh grew out of (HEAD `452d792`). It

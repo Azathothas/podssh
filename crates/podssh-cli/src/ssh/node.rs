@@ -52,7 +52,7 @@ pub(super) struct Ask<'a> {
     pub forward: bool,
 }
 
-pub(super) fn transport(r: &Ask<'_>, env: &Env) -> Result<Transport, String> {
+pub(super) fn transport(r: &Ask<'_>, env: &Env, race: Option<super::iroh::Race>) -> Result<Transport, String> {
     let why = if r.args.direct {
         Some("--direct cannot reach a node: only the relay can")
     } else if r.jumps > 0 {
@@ -75,7 +75,7 @@ pub(super) fn transport(r: &Ask<'_>, env: &Env) -> Result<Transport, String> {
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,
     };
-    Ok(Transport::Node { label: r.label.to_string(), pair_file: r.args.pair_file.clone(), trust })
+    Ok(Transport::Node { label: r.label.to_string(), pair_file: r.args.pair_file.clone(), trust, race })
 }
 
 /// SSH over the operator's leg to the node of the pair under `label`.
