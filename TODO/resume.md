@@ -252,7 +252,7 @@ maps each close row to resume or stop; a planted policy that resumes on
 
 The relay cuts a connection after 180 s with no payload, and its empty
 keepalive frames do not count (`docs/relay.md:65-66`, `docs/relay.md:118`). A
-reverse socket gets no keepalive at all (`docs/reverse.md:24-29`). SSH's own
+reverse socket gets no keepalive at all (`docs/reverse.md:24-32`). SSH's own
 keepalives must not end a session that the layer would resume.
 
 ## Premise
@@ -484,7 +484,7 @@ together (`docs/relay.md:120`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:145-146`, `docs/relay.md:234-240`). Skip a
+   needs a token (`docs/relay.md:145-146`, `docs/relay.md:244-250`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.

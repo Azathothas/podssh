@@ -226,7 +226,7 @@ The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082).
 | --- | --- | --- |
 | The library crates (`podssh-ws`, `podssh-relay`, `podssh-core`, `podssh-terminal`, `podssh-probe`) | Build and pass their tests with `CC=/nonexistent` and `CXX=/nonexistent` | `scripts/gate.sh` |
 | The library crates and `podssh-todo` on their declared minimum, Rust 1.85 | Pass `cargo check --locked --all-targets` on 1.85.0 and 1.85.1, Windows, 2026-10-09 (T-081); a call stabilized in 1.86, planted, fails it (`E0658`) | `cargo +1.85 check --locked --all-targets ...` (`scripts/gate.sh`) |
-| The default tests | **810 passed, 0 failed, 12 ignored** (the live tests), Windows, 2026-10-09, after T-082 moved 44 of the 84 tests of `podssh-transport` and deleted the crate | `cargo test --no-fail-fast` |
+| The default tests | **810 passed, 0 failed, 18 ignored** (the live tests), Windows, 2026-10-09, after T-082 moved 44 of the 84 tests of `podssh-transport` and deleted the crate, and T-061 added six live tests | `cargo test --no-fail-fast` |
 | The tests of the Tailscale feature | **226 passed, 0 failed, 2 ignored** (the live tests) | `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts` |
 | The repository checks | Pass | `python scripts/check-repo.py` |
 | The work record | `TODO/` agrees with itself. The checker's tests pass: 12 unit tests, 34 plant tests (the control, and 33 planted disagreements, each found), 11 tests of the remap (one of them: a forgotten remap is found by `check`, T-254), 7 tests of the writer, and the test of this repository's record. With either floor removed (an index with no rows, a missing roadmap), its plant fails. A remap that never moves fails 8 of its 10 tests; a quote check that never fires fails both quote tests. On the edits of `d272ebb`, `cargo todo remap` moved the same 67 citations as the script used there, and listed the same 11 for review. | `cargo todo check`, `cargo test -p podssh-todo` |
@@ -247,6 +247,21 @@ document is the same, byte for byte, as the pinned copy (SHA-256
 `/relays.json`: frames of 262144 bytes, an idle cut at 180 s, and 12 h and
 64 MiB for each session. See [relay.md](relay.md).
 
+The reverse road has no idle cut (T-061, 2026-10-09, 00:27 to 01:11 UTC,
+`cargo test -p podssh-relay --features pair --test reverse_idle_live -- --ignored --nocapture --test-threads 1`,
+12 runs of 240 s). In each of the 4 quiet runs that no drop disturbed, the
+session and both sockets were open at 240 s with no payload since the first
+byte, and then carried a byte each way: with no frame at all, with a Ping
+from one end every 20 s (each end once), and with a Ping from each end
+every 10 s, as the runners ping. The relay sent no keepalive, and answered
+each Ping. But in 6 of the 12 runs, the relay's side ended a socket's
+connection with no WebSocket Close, at 24 s to 212 s, also in a control
+that carried a byte each way every 60 s: the node's socket 5 times, the
+operator's 3 times, once both at the same moment. The relay saw each drop
+of one socket (`1011 node disconnected` to the operator, or a `close` of
+the session to the node). No proxy was set, and the certificate was the
+relay's own. T-255.
+
 ## Measure again
 
 CAUTION: On a machine with less than 32 GB of memory, set
@@ -257,6 +272,7 @@ cargo test --no-fail-fast                                 # the default members
 cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts
 cargo test -p podssh-cli --test proxy_live -- --ignored   # the network: the live relay
 cargo test -p podssh-cli --test doctor -- --ignored       # the network: the live relay
+cargo test -p podssh-relay --features pair --test reverse_idle_live -- --ignored --nocapture --test-threads 1   # the network: about 25 min
 target/debug/podssh doctor                                # this host, its egress, the relay
 sh scripts/sandbox-check.sh target/debug/podssh           # the sandbox record
 sh scripts/test_in_box.sh path/to/static/podssh           # the Podman box

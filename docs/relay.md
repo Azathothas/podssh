@@ -188,18 +188,20 @@ Measured 2026-10-01:
 
 ### Open questions
 
-- Does the idle cut of 180 s apply to reverse sockets? On the forward path,
-  it is measured: see [STATUS.md](STATUS.md).
+- Why does the relay's side drop a reverse socket at random, with no
+  WebSocket Close? It did in 6 of 12 runs of 240 s on 2026-10-09 (T-061),
+  also under payload; T-255 measures how often, and where.
 - The short index `/llms.txt` (r2) has facts that the full document does
   not: `/v1/pair` can return `409` (retry with a new pair), and a change of
   the mint secret makes each token invalid at once.
 
 ## The reverse path: a host whose only egress is the relay
 
-podssh does not implement this path yet (milestone M4). The rules found so
-far are in [reverse.md](reverse.md). Pairing is in `podssh-relay`, behind
-the feature `pair` (`pair::create`, `status`, `stop`; T-078), and no
-command uses it yet.
+podssh implements this path in `podssh-relay`, behind the feature `pair`:
+the pairs (T-078), the node (T-079) and the operator (T-080); the commands
+are `podssh relay`, `podssh node`, `podssh operator` and
+`podssh ssh node://NAME` (T-083, T-084). The rules are in
+[reverse.md](reverse.md).
 
 - `POST /v1/pair` (body `{}`) gives `{name, node_token, connect_token,
   stop_token, expires}` (72 h or less). Measured 2026-10-09: each token is
@@ -230,6 +232,14 @@ command uses it yet.
   each token and for a second stop.
 - The full table of reverse close codes (1000 to 1013, with reasons and
   actions) is in the contract, "Reverse close codes".
+- No idle cut (T-061, measured 2026-10-09): a session with no payload after
+  its first byte kept both sockets open for 240 s and then carried a byte
+  each way, with no frame at all, with a Ping from one end every 20 s, and
+  with a Ping from each end every 10 s. The relay sent no keepalive, and
+  answered each Ping. But in 6 of the 12 runs, the relay's side ended a
+  socket's connection with no WebSocket Close, at 24 s to 212 s, also under
+  payload. The relay saw it: it sent the operator `1011 node disconnected`,
+  or the node a `close` of the session (T-255).
 
 ## Diagnostics
 

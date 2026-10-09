@@ -110,7 +110,7 @@ that minted it".
 # T-058: `podssh relay status`, `info`, `spec` and `trace`
 
 **Source:** `crates/podssh-cli/src/positionals.rs:39-45` (the subcommands that the parser
-declares); `docs/relay.md:234-240`; the tester of sandbox A, who used `curl` and a minted token
+declares); `docs/relay.md:244-250`; the tester of sandbox A, who used `curl` and a minted token
 on `/trace` (`report-podssh-sandbox-KTM-2026-10-08.txt`, outside the repository).
 **Category:** feature
 **Milestone:** backlog
@@ -154,7 +154,7 @@ token header (`crates/podssh-ws/src/client.rs:278-289`); `https_request` takes h
    (T-049). Each request has the 10 s limit of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs:27`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs` line 442 at `af0a163`); change `DISPATCHED`, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:254`), the notes, `docs/relay.md:234-240` and
+   (`crates/podssh-cli/src/help.rs:254`), the notes, `docs/relay.md:244-250` and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
 ## Decision
@@ -320,12 +320,12 @@ The pinned copy exits 0. A copy with the node path renamed (the plant of
 
 # T-061: Measure whether the relay's idle cut applies to reverse sockets
 
-**Source:** `docs/relay.md:189-195` ("Open questions"); ROADMAP M4.
+**Source:** `docs/relay.md` lines 189-195 at `cd75137` ("Open questions"); ROADMAP M4.
 **Category:** measurement
 **Milestone:** M4
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -340,7 +340,7 @@ every 60 s keep a session for 602 s (`docs/STATUS.md`, "`podssh proxy`, measured
 pinned contract lists "idle sessions (180000 ms of payload inactivity; transport keepalives do
 not reset this)" among its guards
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-234`), and says that the
-reverse relay "hibernates idle sockets" (line 241). `docs/reverse.md:24-29`, from dropssh: the
+reverse relay "hibernates idle sockets" (line 241). `docs/reverse.md` lines 24-29 at `cd75137`, from dropssh: the
 relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant.
 
 ## Approach
@@ -355,20 +355,73 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
    reason of the close, or "open at 240 s".
 3. At 240 s, send one byte each way: a hibernated socket can stay open and not deliver.
 4. Stop the pair at the end (`POST /v1/stop/NAME`). Tokens go only in headers; never print one,
-   and above all not the `stop_token` (`docs/reverse.md:104-113`).
-5. Answer the question in `docs/relay.md:189-195`, record the result in `docs/STATUS.md` with
-   the date and the command, and correct `docs/reverse.md:24-29` if the result differs.
+   and above all not the `stop_token` (`docs/reverse.md:107-116`).
+5. Answer the question in `docs/relay.md` lines 189-195 at `cd75137`, record the result in `docs/STATUS.md` with
+   the date and the command, and correct `docs/reverse.md` lines 24-29 at `cd75137` if the result differs.
+
+## Decision
+
+2026-10-09, before the runs:
+
+1. The file is crates/podssh-relay/tests/reverse_idle_live.rs, after the other live tests
+   (`pair_live.rs`, `reverse_live.rs`, `blocking_live.rs`). Lost: `live_reverse.rs`, a name that
+   differs from `reverse_live.rs` only in its order.
+2. One test for each run, so that each run makes and stops its own pair, and a failed run does not
+   hide the others. They run one at a time (`--test-threads 1`): two runs at once could share a
+   limit of the relay, which would change what is measured.
+3. The test talks to the relay with `podssh_ws::connect` and the codecs of
+   `podssh_relay::reverse`, not with the runners: the node runner pings every 10 s
+   (`docs/reverse.md:24-32`), which would hide run (a).
+4. The time of a close counts from the session's `ready`, about 0.2 s before the first byte each
+   way, which is the last payload of runs (a) and (b).
+5. The control asserts; runs (a) and (b) print what they measured, as either answer is a result.
 
 ## Prove
 
 ```sh
 export CARGO_BUILD_JOBS=4
-cargo test -p podssh-relay --test live_reverse -- --ignored --nocapture   # live, about 13 min
+cargo test -p podssh-relay --features pair --test reverse_idle_live -- --ignored --nocapture --test-threads 1   # live, six runs, about 25 min
 ```
 
 Each wait has a limit of 300 s, so the test ends with a result, never with a hang. Run (c) is
 the control: its sockets must stay open and carry the bytes for 240 s. If they do not, the setup
 is wrong, not the relay.
+
+## Correction
+
+2026-10-09: T-082 deleted `WsSocket` and `Leg` with `podssh-transport`, so step 1's second way to
+send `ready` is gone. The test sends `ready` with `RelaySession::send_text`, built by
+`control::ready`, as the node runner does. The Prove's command names the feature `pair`, which the
+pairs need, and the file of Decision 1.
+
+## Done
+
+2026-10-09, in the commit "The reverse road has no idle cut, and drops at random".
+
+- `crates/podssh-relay/tests/reverse_idle_live.rs`: six runs, one test each, each with its own pair,
+  stopped at the end: (a) no payload and no Pings; (b) a Ping from each end every 20 s; (b1) from
+  the node only; (b2) from the operator only; (d) from each end every 10 s, as the runners ping;
+  (c) the control, a byte each way every 60 s. Round 2 added (b1), (b2) and (d), when round 1
+  seemed to show that Pings caused a drop; round 2 showed that they do not.
+- The answer: no idle cut. In each of the 4 quiet runs that no drop disturbed ((a) in round 1;
+  (d), (b1) and (b2) in round 2), the session and both sockets were open at 240 s with no payload
+  since the first byte, and then carried a byte each way. The relay sent no keepalive, and
+  answered each Ping with a Pong. The control passed in rounds 1 and 3.
+- The drops: in 6 of the 12 runs, the relay's side ended a socket's connection with no WebSocket
+  Close, at 24.5 s to 212.4 s, also in the control of round 2 (53.1 s): the node's socket 5 times,
+  the operator's 3 times, once both at the same moment. The relay saw each drop of one socket: it
+  sent the operator `1011 node disconnected`, or the node a `close` of the session with no reason.
+  No proxy was set, and the relay's certificate was its own (Google Trust Services WE1, for
+  `ajam.dev`), so nothing on this machine stood between. T-255 measures the rate and the place.
+- `docs/relay.md`: the question answered, the drops as a new open question, and the reverse path
+  as podssh implements it (the section said that no command used it). `docs/reverse.md` (rule 8):
+  a quiet socket is not dormant. `docs/STATUS.md` ("The relay", "Measure again").
+- Prove: the command of the Prove. Round 1 (00:27 to 00:39 UTC): 3 passed. Round 2 (00:41 to 00:59
+  UTC): 5 passed, 1 failed, the control, by the drop at 53.1 s. Round 3, (a), (d) and the control
+  (01:01 to 01:11 UTC): 3 passed. The output of each round is kept outside the repository.
+- Plant: the operator sends only its first byte. The control failed (`the control's last byte to
+  the node`: `Some(false)`, exit 101) in a run that no drop disturbed. Restored, the file is the
+  one of round 3.
 
 # T-062: Measure whether the relay's backpressure close (1013) operates
 
@@ -654,3 +707,61 @@ The test prints "bytes came back from the IPv6 host".
 The relay's operator: the egress of the relay is work of the relay project.
 The operator ruled on 2026-10-08 that the relay stays separate
 (`docs/decisions.md`).
+
+# T-255: The relay's side drops reverse sockets at random, with no Close
+
+**Source:** the runs of T-061 on 2026-10-09 (`crates/podssh-relay/tests/reverse_idle_live.rs`).
+**Category:** measurement
+**Milestone:** M4
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+In 6 of 12 runs of 240 s, the relay's side ended a reverse socket's connection with no WebSocket
+Close, at 24 s to 212 s, also while the session carried a byte each way every 60 s. An operator's
+session then ends with exit 69 (`podssh operator`, `podssh ssh node://NAME`), and a node connects
+again. It is not known how often this happens, whether forward sessions see it too, and whether
+the cause is this machine's path or the relay.
+
+## Premise
+
+Measured on 2026-10-09 from this machine, 00:27 to 01:11 UTC, with no proxy and the relay's own
+certificate (Google Trust Services WE1, for `ajam.dev`), by the command of T-061: the node's socket
+dropped 5 times, the operator's 3 times, once both at the same moment. The relay saw each drop of
+one socket: it sent the operator `1011 node disconnected`, or the node a `close` of the session
+with no reason. Each drop read as the end of the TCP stream with no Close frame
+(`SessionError::ClosedWithoutClose`). Runs with no frame at all, with Pings and with payload each
+had drops, so the traffic does not cause them.
+
+Read: on the forward path, keepalives every 60 s kept one session for 602 s
+(`docs/STATUS.md:96`). That is one run, before 2026-10-09.
+
+## Approach
+
+1. A live test, ignored by default, in a new file crates/podssh-relay/tests/reverse_drops_live.rs:
+   four pairs, each with a node's socket and an operator's session, held for 15 minutes with a Ping
+   from each end every 10 s, as the runners do. Record the UTC time of each drop, the socket, and
+   what the relay said to the other end. Stop each pair at the end.
+2. Run it from this machine and, at the same time, from a GitHub Actions runner (a job started by
+   hand with `workflow_dispatch`), so that two networks see the same relay. Drops at the same
+   moments on both sides point to the relay (a restart of its code or of its objects); drops on one
+   side only point to that side's path.
+3. A forward session in the same run, for comparison, when one of the allowed targets keeps a quiet
+   TCP connection open; else record it as not measured.
+4. Record the rate and the place in `docs/relay.md` ("Open questions") and `docs/STATUS.md`. If the
+   cause is the relay, write a `## Blocker` that names the relay's operator, with the evidence.
+5. podssh's part, whatever the cause: the message of `podssh operator` for a drop says that the link
+   ended with no Close, and that a new session may work. A node connects again (T-079). Resumable
+   sessions (M6) carry a session over a drop.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --features pair --test reverse_drops_live -- --ignored --nocapture   # live, about 16 min
+```
+
+Each drop is printed with its UTC time; the run here and the run on the runner are compared by
+time. A drop that the relay saw is told apart from one that it did not by the other end's frame.

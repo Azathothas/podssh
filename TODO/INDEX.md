@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**251 entries: 190 open, 0 partial, 7 blocked, 54 done.**
+**252 entries: 190 open, 0 partial, 7 blocked, 55 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 99 | 0 | 3 | 42 | 144 |
-| P3 | 89 | 0 | 4 | 4 | 97 |
-| **All** | 190 | 0 | 7 | 54 | 251 |
+| P2 | 100 | 0 | 3 | 42 | 145 |
+| P3 | 88 | 0 | 4 | 5 | 97 |
+| **All** | 190 | 0 | 7 | 55 | 252 |
 
 ## Entries
 
@@ -134,7 +134,7 @@ repository and CI).
 | [T-058](relay.md) | P2 | M | backlog | feature | open | `podssh relay status`, `info`, `spec` and `trace` |
 | [T-059](relay.md) | P3 | S | backlog | feature | open | A relay host that failed recently is tried last, also in the next run |
 | [T-060](relay.md) | P3 | S | none | chore | open | P1: no command uses `podssh-probe` |
-| [T-061](relay.md) | P3 | S | M4 | measurement | open | Measure whether the relay's idle cut applies to reverse sockets |
+| [T-061](relay.md) | P3 | S | M4 | measurement | done | Measure whether the relay's idle cut applies to reverse sockets |
 | [T-062](relay.md) | P3 | S | backlog | measurement | open | Measure whether the relay's backpressure close (1013) operates |
 | [T-063](ws.md) | P2 | S | M4 | defect | done | W10: the frame decoder does not check a received control frame |
 | [T-064](ws.md) | P3 | S | M4 | defect | done | W13: `OsRng::fill_bytes` panics when the system gives no random bytes |
@@ -326,3 +326,4 @@ repository and CI).
 | [T-252](irc.md) | P2 | M | M8 | feature | open | `podssh chat --irc`: IRC as a second transport for chat |
 | [T-253](relay.md) | P2 | M | backlog | defect | blocked | The relay's egress reaches no IPv6 host |
 | [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |
+| [T-255](relay.md) | P2 | M | M4 | measurement | open | The relay's side drops reverse sockets at random, with no Close |

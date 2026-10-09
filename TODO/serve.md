@@ -526,7 +526,7 @@ so a key with limits cannot be used at all.
 - Read: the patterns of `from=` are those of `known_hosts`, which
   `crates/podssh-ssh/src/known_hosts.rs:145-168` matches (negation included).
 - Read: on the reverse road, serve does not know the client's address: the
-  stream comes from the relay (`docs/relay.md:197-220`).
+  stream comes from the relay (`docs/relay.md:198-222`).
 - Read in the reports of GitHub #21 and #18, not verified here: agent-ssh-cli
   checks regex lists before exec; sandhole limits local forwarding.
 
@@ -1048,7 +1048,7 @@ default of russh refuses each `tcpip-forward` with no reason.
   allows a listener only when the user asks and a probe allows the bind.
 - Read: `docs/design.md:269-271` allows a listener on the far side. The relay
   is a listener that podssh does not run: a node name takes operator
-  sessions (`docs/relay.md:197-220`).
+  sessions (`docs/relay.md:198-222`).
 - Read in the report of GitHub #18, not verified here: sandhole publishes
   services through a stock `ssh -R`.
 
