@@ -1,0 +1,54 @@
+name: changelog
+
+# The list of the commits since the last tag, as the body of a release will
+# carry it (cliff.toml), made by hand at any time and kept as an artifact,
+# with the check that no commit is dropped. A run of the release workflow
+# takes CI from the work, so the list is made here, apart from it.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  list:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # git-cliff reads the commits since the last tag.
+          fetch-depth: 0
+
+      - name: git-cliff, pinned
+        run: cargo install --locked git-cliff --version 2.9.1
+
+      - name: the list, with each commit
+        run: |
+          set -eu
+          git cliff --config cliff.toml --unreleased --strip all > "$RUNNER_TEMP/changes.md"
+          last=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+          if [ -n "$last" ]; then
+            commits=$(git rev-list --count "$last..HEAD")
+          else
+            commits=$(git rev-list --count HEAD)
+          fi
+          listed=$(grep -c '^- ' "$RUNNER_TEMP/changes.md" || true)
+          echo "listed $listed of the $commits commits since ${last:-the first}"
+          test "$listed" -eq "$commits"
+          # A parser that skips its group must make the count fail, or the
+          # count proves nothing. "Other" is never empty.
+          sed 's|group = "<!-- 4 -->Other" }|group = "<!-- 4 -->Other", skip = true }|' cliff.toml > "$RUNNER_TEMP/planted.toml"
+          planted=$(git cliff --config "$RUNNER_TEMP/planted.toml" --unreleased --strip all | grep -c '^- ' || true)
+          if [ "$planted" -eq "$commits" ]; then
+            echo "the count is vacuous: a skipped group still listed $planted"
+            exit 1
+          fi
+          echo "the planted skip listed $planted of $commits, as it must not list all"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: changes
+          path: ${{ runner.temp }}/changes.md
+          if-no-files-found: error

@@ -339,7 +339,17 @@ To publish a release:
    this file.
 2. Push the tag `vX.Y.Z` or `vX.Y.Z-pre`. A tag with a suffix (`-beta.1`)
    becomes a prerelease.
-3. The workflow adds `SHA256SUMS` and publishes the release.
+3. The workflow adds `SHA256SUMS` and publishes the release. Its body is
+   the notes file, then the list of the commits since the previous tag:
+   each commit, grouped by its subject (`cliff.toml`, read by a pinned
+   git-cliff). No `CHANGELOG.md` is kept in the tree: git holds the history.
+
+The list can be read at any time, as an artifact named `changes`; the run
+also checks that no commit is dropped:
+
+```sh
+gh workflow run changelog.yml --ref main
+```
 
 The plan of releases (the operator, 2026-10-08): one release, `v1.0.0`,
 when each other entry is done, except the relay's (T-250). No beta, and no

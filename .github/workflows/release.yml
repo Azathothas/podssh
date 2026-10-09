@@ -119,6 +119,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          # git-cliff reads the commits since the previous tag.
+          fetch-depth: 0
       - uses: actions/download-artifact@v8
         with:
           path: dist
@@ -129,6 +132,13 @@ jobs:
           cd dist
           sha256sum podssh-* > SHA256SUMS
           cat SHA256SUMS
+      # The commits of this release, each one, from cliff.toml.
+      - name: the list of the commits (git-cliff, pinned)
+        run: |
+          set -eu
+          cargo install --locked git-cliff --version 2.9.1
+          git cliff --config cliff.toml --latest --strip all > "$RUNNER_TEMP/changes.md"
+          test -s "$RUNNER_TEMP/changes.md"
       - name: publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -137,6 +147,7 @@ jobs:
           set -eu
           notes="docs/releases/$TAG.md"
           if [ ! -f "$notes" ]; then echo "missing release notes: $notes"; exit 1; fi
+          { cat "$notes"; printf '\n## The commits of this release\n\n'; cat "$RUNNER_TEMP/changes.md"; } > "$RUNNER_TEMP/body.md"
           pre=""
           case "$TAG" in *-*) pre="--prerelease" ;; esac
-          gh release create "$TAG" $pre --title "podssh $TAG" --notes-file "$notes" dist/*
+          gh release create "$TAG" $pre --title "podssh $TAG" --notes-file "$RUNNER_TEMP/body.md" dist/*

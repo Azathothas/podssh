@@ -1,0 +1,37 @@
+# git-cliff: the list of the commits since the last tag, for the body of a
+# release (docs/development.md, "Release builds"). Each commit is kept: no
+# parser skips one, and a subject need not be a Conventional Commit. The
+# groups follow the subjects of this repository; "Other" takes the rest.
+
+[changelog]
+header = ""
+body = """
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim }}
+{% for commit in commits %}
+- {{ commit.message | split(pat="\n") | first | trim }} ({{ commit.id | truncate(length=7, end="") }})
+{%- endfor %}
+{% endfor %}
+"""
+footer = ""
+trim = true
+
+[git]
+conventional_commits = false
+filter_unconventional = false
+split_commits = false
+# An issue named as #N links to it.
+commit_preprocessors = [
+  { pattern = '#([0-9]+)', replace = "[#${1}](https://github.com/Azathothas/podssh/issues/${1})" },
+]
+# The comment before each group's name only orders the groups.
+commit_parsers = [
+  { message = '^podssh [a-z-]+:', group = "<!-- 0 -->Commands" },
+  { message = '^(gate|Workflows|CI)\b|^scripts/', group = "<!-- 1 -->Build and CI" },
+  { message = '^[Dd]ocs\b', group = "<!-- 2 -->Documents" },
+  { message = '^Fix', group = "<!-- 3 -->Repairs" },
+  { message = '.', group = "<!-- 4 -->Other" },
+]
+filter_commits = false
+tag_pattern = 'v[0-9].*'
+sort_commits = "oldest"

@@ -99,7 +99,7 @@ Read:
 - The workflows use four actions, each by a major tag:
   `actions/checkout@v5` (`.github/workflows/build.yml:22`),
   `actions/upload-artifact@v7` (`.github/workflows/build.yml:113`),
-  `actions/download-artifact@v8` (`.github/workflows/release.yml:122`) and
+  `actions/download-artifact@v8` (`.github/workflows/release.yml:125`) and
   `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:82`).
 - The build image is a variable in two workflows and in a shell script
   (`.github/workflows/build.yml` line 15, `.github/workflows/release.yml` line 23 and
@@ -360,7 +360,7 @@ changelog generators.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -400,7 +400,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:316-342`): the
+5. docs/development.md, "Release builds" (`docs/development.md:316-361`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -426,6 +426,25 @@ the run by hand of M9 before the tag (T-251), not before: a release run
 takes CI from the work (the operator, 2026-10-08). After the first tag, compare with
 `git rev-list --count TAG..HEAD` instead. Planted defect: give the
 "Documents" parser `skip = true`; the count test must fail.
+
+## Correction
+
+2026-10-09: git-cliff is not installed on this machine, and the work does
+not install a new tool here. The Prove's two commands run on a GitHub
+runner instead, in `.github/workflows/changelog.yml`, which installs a
+pinned git-cliff (2.9.1, which declares Rust 1.85 as the workspace does),
+makes the list as an artifact (step 3, without a run of the release
+workflow), compares the count with the commits since the last tag, and plants
+a skipped group. The plant skips "Other", which is never empty: the
+"Documents" group of the Prove can be empty between two tags, and its plant
+would then prove nothing. Measured: 83 commits, no tag, no merge; the
+groups take 7 (Commands), 4 (Build and CI), 5 (Documents), 1 (Repairs) and
+66 (Other).
+
+The state (partial), 2026-10-09: `cliff.toml`, the workflow, the release's
+body (the notes file, then the list; `fetch-depth: 0` in the job `publish`)
+and the section "Release builds" of `docs/development.md` are written.
+Next: the first run of the workflow, by hand.
 
 # T-209: Secret scanning with TruffleHog in CI (GitHub #27)
 
@@ -516,7 +535,7 @@ Measured: `target/debug/podssh.exe --version` prints `podssh 0.1.0`, exit 0.
 Read:
 
 - The jobs `linux` and `windows` build the binaries, and `publish` adds
-  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:23-142`).
+  `SHA256SUMS` and publishes them (`.github/workflows/release.yml:23-153`).
   The workflow has `contents: read` (lines 19-20); `publish` adds
   `contents: write` (lines 112-113).
 - The KTM tester could not tell from an artifact which commit made it, and
@@ -575,8 +594,8 @@ the release workflow of podssh.
 
 Read:
 
-- `.github/workflows/release.yml:126-131` writes `SHA256SUMS` with
-  `sha256sum`, and `.github/workflows/release.yml:132-142` publishes it with
+- `.github/workflows/release.yml:129-134` writes `SHA256SUMS` with
+  `sha256sum`, and `.github/workflows/release.yml:142-153` publishes it with
   the binaries. No signature is published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
   holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, line 81). `README.md:46-47` gives no step to check a download.
@@ -963,7 +982,7 @@ Read:
   CDLA-Permissive-2.0; russh 0.64.1 Apache-2.0.
 - BSD-3-Clause and Apache-2.0 ask that a binary copy carries the notices. The
   release publishes the binaries and `SHA256SUMS` only
-  (`.github/workflows/release.yml:126-142`).
+  (`.github/workflows/release.yml:129-153`).
 - The fork already has a configuration for cargo-deny
   (`vendor/tailscale-rs/deny.toml:1-35`): an allow list of licenses, one
   ignored advisory with its reason, crates.io only.
