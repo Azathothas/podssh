@@ -572,7 +572,7 @@ its control runner, for each registration (`vendor/tailscale-rs/ts_runtime/src/l
 `vendor/tailscale-rs/ts_runtime/src/control_runner.rs:54`, `vendor/tailscale-rs/ts_runtime/src/control_runner.rs:108`).
 
 Read: the relay token is a `Zeroizing<String>` (`crates/podssh-relay/src/token.rs:29`), and
-`zeroize` is a workspace dependency (`Cargo.toml:153`), but podssh-ts does not use it
+`zeroize` is a workspace dependency (`Cargo.toml:156`), but podssh-ts does not use it
 (`crates/podssh-ts/Cargo.toml:10-14`). The fork already depends on it
 (`vendor/tailscale-rs/Cargo.toml:106`). The comment at `crates/podssh-ts/src/secret.rs:3-5` names a
 model file that no longer exists.

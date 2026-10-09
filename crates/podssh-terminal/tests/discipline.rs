@@ -29,7 +29,7 @@
 //! and expanding again would stair-step every line. The `passthrough` tests
 //! pin that half.
 
-use podssh_terminal::echo::{Discipline, BELL, EL, PROMPT};
+use podssh_terminal::echo::{Discipline, BELL, EL, LINE_CAP, PROMPT};
 
 mod common;
 use common::{feed, has};
@@ -235,4 +235,91 @@ fn an_arrow_at_its_bound_bells_and_the_line_survives() {
     let got = feed(&mut d, b"a\x1b[C");
     assert_eq!(got.local, b"a\x07", "the echo stands, then the bell",);
     assert_eq!(feed(&mut d, b"\n").remote, b"a\n", "and the line survived");
+}
+
+// ───────────────────────────────── UTF-8: characters and cells
+
+#[test]
+fn utf8_backspace_erases_one_character() {
+    // U+00E9 is two bytes, one cell: Backspace takes both, and rubs out one
+    // cell. The plant, a one-byte step, leaves a stray 0xC3 on the line.
+    let mut d = Discipline::with_utf8(true);
+    let got = feed(&mut d, b"\xc3\xa9\x7f\r");
+    assert_eq!(got.remote, b"\n", "the submitted line is empty: {}", got.show());
+    assert_eq!(got.local, b"\xc3\xa9\x08 \x08\r\n$ ", "{}", got.show());
+}
+
+#[test]
+fn utf8_left_moves_over_a_wide_character_by_two_cells() {
+    // U+6F22 takes two cells, so the screen cursor moves two.
+    let mut d = Discipline::with_utf8(true);
+    let got = feed(&mut d, "\u{6f22}".as_bytes());
+    assert_eq!(got.local, "\u{6f22}".as_bytes(), "the echo, once the character is whole");
+    assert_eq!(feed(&mut d, b"\x1b[D").local, b"\x1b[2D");
+    assert_eq!(feed(&mut d, b"a\r").remote, "a\u{6f22}\n".as_bytes(), "the insert lands before it");
+}
+
+#[test]
+fn utf8_a_line_that_is_not_utf8_is_recalled_unchanged() {
+    // History keeps bytes: a lossy copy would come back as U+FFFD.
+    let mut d = Discipline::with_utf8(true);
+    feed(&mut d, b"\xff\xfe\r");
+    let got = feed(&mut d, b"\x1b[A\r");
+    assert_eq!(got.remote, b"\xff\xfe\n", "{}", got.show());
+}
+
+#[test]
+fn utf8_without_iutf8_the_cursor_counts_bytes() {
+    // The control: with no IUTF8, Backspace takes one byte, as a terminal
+    // with no IUTF8 does.
+    let mut d = Discipline::new();
+    assert_eq!(feed(&mut d, b"\xc3\xa9\x7f\r").remote, b"\xc3\n");
+}
+
+#[test]
+fn utf8_an_accent_moves_with_its_letter() {
+    // e and U+0301 are one step of one cell: Left moves one cell to the
+    // start, where Backspace has nothing to erase.
+    let mut d = Discipline::with_utf8(true);
+    feed(&mut d, "e\u{301}".as_bytes());
+    assert_eq!(feed(&mut d, b"\x1b[D").local, b"\x1b[D");
+    assert_eq!(d.cursor(), 0);
+    assert_eq!(feed(&mut d, b"\x7f").local, BELL);
+}
+
+#[test]
+fn utf8_ctrl_w_rubs_out_the_cells_of_wide_characters() {
+    let mut d = Discipline::with_utf8(true);
+    feed(&mut d, "a \u{6f22}\u{6f22}".as_bytes());
+    assert_eq!(feed(&mut d, b"\x17").local, Discipline::rubout(4), "two wide characters, four cells");
+    assert_eq!(feed(&mut d, b"\r").remote, b"a \n");
+}
+
+#[test]
+fn utf8_ctrl_d_deletes_the_whole_character_under_the_cursor() {
+    let mut d = Discipline::with_utf8(true);
+    feed(&mut d, "\u{6f22}a\x1b[D\x1b[D".as_bytes());
+    assert_eq!(d.cursor(), 0);
+    feed(&mut d, b"\x04");
+    assert_eq!(d.line(), b"a", "no half of the character stays");
+}
+
+#[test]
+fn utf8_a_character_typed_into_the_middle_arrives_whole() {
+    // One redraw, holding the whole character: never a redraw with a lone
+    // lead byte.
+    let mut d = Discipline::with_utf8(true);
+    feed(&mut d, b"ab\x1b[D");
+    assert!(feed(&mut d, b"\xc3").local.is_empty(), "half a character waits");
+    let got = feed(&mut d, b"\xa9");
+    assert_eq!(got.local, b"\r$ a\xc3\xa9b\x1b[K\r$ a\xc3\xa9", "{}", got.show());
+}
+
+#[test]
+fn utf8_the_line_cap_never_splits_a_character() {
+    let mut d = Discipline::with_utf8(true);
+    feed(&mut d, &vec![b'y'; LINE_CAP - 1]);
+    let got = feed(&mut d, b"\xc3\xa9");
+    assert_eq!(got.local, BELL, "the character drops whole: {}", got.show());
+    assert_eq!(d.line().len(), LINE_CAP - 1);
 }

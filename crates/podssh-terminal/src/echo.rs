@@ -55,6 +55,7 @@
 //! | [`editing`](editing) | erasing, moving, and the byte a key inserts |
 //! | [`history`] | recall, the cap, and the parked line |
 //! | [`inspect`] | the read-only accessors a caller and a test need |
+//! | `units` | characters and cells: where the cursor stops, and how far it moves |
 //!
 //! **The split is invisible in behaviour.** Every byte rule below is
 //! transcribed to the same line of `session.rs` it was cited to before the
@@ -68,6 +69,7 @@ use crate::escape::{Esc, Step};
 pub mod editing;
 pub mod history;
 pub mod inspect;
+pub(crate) mod units;
 
 /// The prompt, printed before every line. Static on purpose, and transcribed:
 /// the sibling prints one because the shell below it runs non-interactive and
@@ -149,7 +151,14 @@ pub struct Discipline {
     /// [`inspect`] are the only door out, and they return borrows.
     pub(crate) line: Vec<u8>,
     pub(crate) cursor: usize,
-    pub(crate) history: Vec<String>,
+    /// **Bytes, as typed**, so a line that is not UTF-8 comes back unchanged.
+    pub(crate) history: Vec<Vec<u8>>,
+    /// The terminal is UTF-8 (`IUTF8`): the cursor steps over characters, not
+    /// bytes, and the screen moves by their cells.
+    pub(crate) utf8: bool,
+    /// The bytes of a character typed so far, held until it is whole, so that
+    /// the line and the screen never hold half of one.
+    pub(crate) partial: Vec<u8>,
     /// The uncommitted line set aside while browsing history, restored when the
     /// browse returns past the newest entry. **READ**, `session.rs:159-161`.
     pub(crate) saved: Option<Vec<u8>>,
@@ -168,8 +177,14 @@ pub struct Discipline {
 }
 
 impl Discipline {
+    /// A discipline that counts bytes, as a terminal with no `IUTF8` does.
     pub fn new() -> Self {
         Discipline::default()
+    }
+
+    /// A discipline for a terminal that is UTF-8 (`IUTF8`), or that is not.
+    pub fn with_utf8(utf8: bool) -> Self {
+        Discipline { utf8, ..Discipline::default() }
     }
 
     /// Redraw the line: `\r`, the prompt, the buffer, clear the rest, and the
@@ -213,11 +228,10 @@ impl Discipline {
         if self.line.is_empty() {
             return;
         }
-        let line = String::from_utf8_lossy(&self.line).to_string();
-        if self.history.last().is_some_and(|h| *h == line) {
+        if self.history.last().is_some_and(|h| *h == self.line) {
             return;
         }
-        self.history.push(line);
+        self.history.push(self.line.clone());
         if self.history.len() > HISTORY_CAP {
             self.history.remove(0);
         }
@@ -244,7 +258,7 @@ impl Discipline {
     /// Recall history entry `idx`: replace the buffer, park the cursor at the
     /// end, and redraw. **READ**, `session.rs:234-241`.
     pub(crate) fn recall(&mut self, idx: usize) -> Vec<Event> {
-        self.line = self.history[idx].clone().into_bytes();
+        self.line = self.history[idx].clone();
         self.cursor = self.line.len();
         self.hpos = Some(idx);
         vec![Event::ToLocal(self.redraw())]
@@ -257,6 +271,20 @@ impl Discipline {
     /// and the `\n` of a `\r\n` pair is swallowed before the byte is read as a
     /// submission.
     pub fn key(&mut self, b: u8) -> Vec<Event> {
+        // A character typed in parts waits in `partial`; a byte that cannot
+        // continue it puts its bytes into the line first, each as typed.
+        let mut out = Vec::new();
+        if !self.partial.is_empty() && !(0x80..=0xbf).contains(&b) {
+            for p in std::mem::take(&mut self.partial) {
+                out.extend(self.insert_unit(&[p]));
+            }
+        }
+        out.extend(self.dispatch(b));
+        out
+    }
+
+    /// One byte, once no part of a character waits.
+    fn dispatch(&mut self, b: u8) -> Vec<Event> {
         // An escape in progress owns the byte before anything else does —
         // **READ**, `session.rs:246`. **The parser is [`crate::escape`]'s, not
         // the reference's**, and the difference is the plant: the

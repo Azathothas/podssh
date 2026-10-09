@@ -90,6 +90,14 @@ These byte rules come from podbox (`crates/podbox-ssh/src/session.rs`):
   the buffer up to the cursor.
 - A line holds 65536 bytes or fewer; the extra bytes are dropped with a
   bell. The history keeps 100 entries and skips a repeat of the last entry.
+- With `IUTF8` from the modes of `pty-req`, the cursor steps over whole
+  characters, and an accent moves with its letter; without it, over bytes,
+  as a terminal with no `IUTF8` does. The screen moves by cells
+  (`unicode-width`): a wide character takes 2, an accent 0, and a control
+  byte or a byte that is not UTF-8 the 1 cell of its echo. Backspace, Ctrl-W,
+  Ctrl-D and the arrows act on whole characters, and the arrows write
+  `ESC [ n D` or `ESC [ n C` for a step of n cells. The line and the history
+  keep the bytes as typed; the cap drops a character whole, never half of it.
 - A shell on a pipe prints no prompt and keeps no history. Thus podbox
   prints a static `$ ` and keeps the history itself.
 

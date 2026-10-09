@@ -63,8 +63,8 @@ fn history_forgets_past_the_cap_and_the_oldest_goes_first() {
         feed(&mut d, line.as_bytes());
     }
     assert_eq!(d.history().len(), HISTORY_CAP, "the cap holds");
-    assert_eq!(d.history()[0], "cmd5", "the oldest five left");
-    assert_eq!(d.history()[HISTORY_CAP - 1], "cmd104", "and the newest is last");
+    assert_eq!(d.history()[0], b"cmd5", "the oldest five left");
+    assert_eq!(d.history()[HISTORY_CAP - 1], b"cmd104", "and the newest is last");
     // Up walks the history **backwards from the newest**, so the first press
     // reaches `cmd104` and the hundredth reaches `cmd5` which is exactly the
     // cap, and the hundred-and-first has nothing left to reach.

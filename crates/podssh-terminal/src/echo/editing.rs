@@ -15,7 +15,7 @@
 //!   history never saw it. **`session.rs:297-308`**
 //! - [`Discipline::eof_or_delete`] — Ctrl-D at three positions, three answers.
 //!   **`session.rs:310-321`**
-//! - [`Discipline::erase_left`] — DEL and BS. **`session.rs:323-338`**
+//! - [`Discipline::erase_left`] — DEL and BS, one character. **`session.rs:323-338`**
 //! - [`Discipline::erase_line`] — Ctrl-U. **`session.rs:340-352`**
 //! - [`Discipline::erase_word`] — Ctrl-W: blanks first, then the word.
 //!   **`session.rs:354-376`**
@@ -28,6 +28,7 @@
 //! stay invisible outside the crate, so a caller cannot drive a half-finished
 //! edit that the byte rules never sanctioned.
 
+use super::units::{after, before, blank, motion, units, utf8_len};
 use super::Discipline;
 use crate::echo::{Event, Sig, BELL, EL, LINE_CAP, PROMPT};
 
@@ -46,31 +47,33 @@ impl Discipline {
         vec![Event::ToLocal(echo), Event::Signal(sig)]
     }
 
-    /// Ctrl-D: end of input on an empty line, delete under the cursor on a live
-    /// one, and nothing at all at the very end. **READ**, `session.rs:310-321`.
+    /// Ctrl-D: end of input on an empty line, delete the character under the
+    /// cursor on a live one, and nothing at all at the very end.
+    /// **READ**, `session.rs:310-321`.
     pub(crate) fn eof_or_delete(&mut self) -> Vec<Event> {
         if self.line.is_empty() {
             return vec![Event::Eof];
         }
-        if self.cursor < self.line.len() {
-            self.line.remove(self.cursor);
+        if let Some(u) = after(&self.line, self.utf8, self.cursor) {
+            self.line.drain(u.start..u.start + u.len);
             return vec![Event::ToLocal(self.redraw())];
         }
         vec![]
     }
 
-    /// Erase one cell left of the cursor. At the very start there is nothing to
-    /// erase, and the bell says so. **READ**, `session.rs:323-338`.
+    /// Erase the character left of the cursor, and the cells it took. At the
+    /// very start there is nothing to erase, and the bell says so.
+    /// **READ**, `session.rs:323-338`.
     pub(crate) fn erase_left(&mut self) -> Vec<Event> {
-        if self.cursor == 0 {
+        let Some(u) = before(&self.line, self.utf8, self.cursor) else {
             return vec![Event::ToLocal(BELL.to_vec())];
-        }
-        self.cursor -= 1;
-        self.line.remove(self.cursor);
+        };
+        self.cursor = u.start;
+        self.line.drain(u.start..u.start + u.len);
         // At the end the triple suffices; mid-line the tail shifted and only a
         // redraw puts every cell right.
         if self.cursor == self.line.len() {
-            vec![Event::ToLocal(Self::rubout(1))]
+            vec![Event::ToLocal(Self::rubout(u.cells))]
         } else {
             vec![Event::ToLocal(self.redraw())]
         }
@@ -97,19 +100,22 @@ impl Discipline {
         if self.cursor == 0 {
             return vec![Event::ToLocal(BELL.to_vec())];
         }
-        let mut n = 0;
-        while self.cursor > 0 && self.line[self.cursor - 1] == b' ' {
-            self.cursor -= 1;
-            self.line.remove(self.cursor);
-            n += 1;
+        let steps = units(&self.line[..self.cursor], self.utf8);
+        let mut i = steps.len();
+        let mut cells = 0;
+        while i > 0 && blank(&self.line, steps[i - 1]) {
+            i -= 1;
+            cells += steps[i].cells;
         }
-        while self.cursor > 0 && self.line[self.cursor - 1] != b' ' {
-            self.cursor -= 1;
-            self.line.remove(self.cursor);
-            n += 1;
+        while i > 0 && !blank(&self.line, steps[i - 1]) {
+            i -= 1;
+            cells += steps[i].cells;
         }
+        let from = steps[i].start;
+        self.line.drain(from..self.cursor);
+        self.cursor = from;
         if self.cursor == self.line.len() {
-            vec![Event::ToLocal(Self::rubout(n))]
+            vec![Event::ToLocal(Self::rubout(cells))]
         } else {
             vec![Event::ToLocal(self.redraw())]
         }
@@ -140,14 +146,9 @@ impl Discipline {
         match b {
             b'A' => self.history_up(),
             b'B' => self.history_down(),
-            b'C' if self.cursor < self.line.len() => {
-                self.cursor += 1;
-                vec![Event::ToLocal(b"\x1b[C".to_vec())]
-            }
-            b'D' if self.cursor > 0 => {
-                self.cursor -= 1;
-                vec![Event::ToLocal(b"\x1b[D".to_vec())]
-            }
+            // A step is a whole character, and the screen moves by its cells.
+            b'C' if self.cursor < self.line.len() => self.step(after(&self.line, self.utf8, self.cursor), b'C'),
+            b'D' if self.cursor > 0 => self.step(before(&self.line, self.utf8, self.cursor), b'D'),
             b'H' => {
                 self.cursor = 0;
                 vec![]
@@ -160,20 +161,53 @@ impl Discipline {
         }
     }
 
-    /// An ordinary byte: append at the end with a one-byte echo, or insert
-    /// mid-line with a redraw. Past the cap the byte drops with a bell, and the
-    /// bell is the whole answer. **READ**, `session.rs:437-453`.
+    /// The cursor over one step, left or right, and the motion that the
+    /// screen makes: none for a step of no cells.
+    fn step(&mut self, unit: Option<super::units::Unit>, direction: u8) -> Vec<Event> {
+        let Some(u) = unit else { return vec![Event::ToLocal(BELL.to_vec())] };
+        self.cursor = if direction == b'C' { u.start + u.len } else { u.start };
+        if u.cells == 0 {
+            vec![]
+        } else {
+            vec![Event::ToLocal(motion(u.cells, direction))]
+        }
+    }
+
+    /// An ordinary byte. With UTF-8, the byte of a character typed in parts
+    /// waits until the character is whole; a byte that starts none, or a
+    /// character that is not valid, goes in as bytes. **READ**,
+    /// `session.rs:437-453`.
     pub(crate) fn insert(&mut self, b: u8) -> Vec<Event> {
-        if self.line.len() >= LINE_CAP {
+        if !self.utf8 {
+            return self.insert_unit(&[b]);
+        }
+        self.partial.push(b);
+        let whole = match utf8_len(self.partial[0]) {
+            Some(n) if self.partial.len() < n => return vec![],
+            Some(n) if self.partial.len() == n => std::str::from_utf8(&self.partial).is_ok(),
+            _ => false,
+        };
+        let parts = std::mem::take(&mut self.partial);
+        if whole {
+            return self.insert_unit(&parts);
+        }
+        parts.into_iter().flat_map(|p| self.insert_unit(&[p])).collect()
+    }
+
+    /// One whole step into the line: appended with its echo, or inserted
+    /// mid-line with a redraw. A step that would pass the cap drops whole,
+    /// with a bell, so the cap never splits a character.
+    pub(crate) fn insert_unit(&mut self, unit: &[u8]) -> Vec<Event> {
+        if self.line.len() + unit.len() > LINE_CAP {
             return vec![Event::ToLocal(BELL.to_vec())];
         }
         if self.cursor == self.line.len() {
-            self.line.push(b);
-            self.cursor += 1;
-            vec![Event::ToLocal(vec![b])]
+            self.line.extend_from_slice(unit);
+            self.cursor += unit.len();
+            vec![Event::ToLocal(unit.to_vec())]
         } else {
-            self.line.insert(self.cursor, b);
-            self.cursor += 1;
+            self.line.splice(self.cursor..self.cursor, unit.iter().copied());
+            self.cursor += unit.len();
             vec![Event::ToLocal(self.redraw())]
         }
     }

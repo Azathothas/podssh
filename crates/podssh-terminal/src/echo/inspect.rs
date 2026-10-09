@@ -20,17 +20,16 @@ impl Discipline {
         &self.line
     }
 
-    /// Where the cursor sits, as a byte offset. **A byte offset, not a
-    /// character count**: the cursor counts bytes, like a terminal without
-    /// IUTF8, so erasing half of a multibyte character sends the other half to
-    /// the shell. **READ**, `session.rs:31-32`.
+    /// Where the cursor sits, as a byte offset into the line. With UTF-8 it
+    /// stops only between characters; without it, as in the reference
+    /// (**READ**, `session.rs:31-32`), between bytes.
     pub fn cursor(&self) -> usize {
         self.cursor
     }
 
     /// The history as it stands, oldest first. Read-only, for the same reason
     /// as `line`.
-    pub fn history(&self) -> &[String] {
+    pub fn history(&self) -> &[Vec<u8>] {
         &self.history
     }
 

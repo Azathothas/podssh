@@ -107,9 +107,15 @@ impl Session {
     /// way to build a `Session` without saying what lies below it, so a
     /// caller cannot skip the decision and get a mode by accident.
     pub fn new(facts: Facts) -> Session {
+        Session::with_utf8(facts, false)
+    }
+
+    /// [`Session::new`], for a terminal that is UTF-8 (`IUTF8` in the modes of
+    /// `pty-req`), whose cursor steps over characters rather than bytes.
+    pub fn with_utf8(facts: Facts, utf8: bool) -> Session {
         Session {
             mode: Mode::select(facts),
-            cooked: Discipline::new(),
+            cooked: Discipline::with_utf8(utf8),
             pass: Passthrough::new(),
             window: Window::new(),
             ended: false,

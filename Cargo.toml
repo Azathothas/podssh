@@ -95,6 +95,9 @@ rustls-pki-types = "1"
 webpki-roots = "1"
 
 serde = { version = "1", features = ["derive"] }
+# The cells of a character on a terminal, for the cursor of the line
+# discipline (podssh-terminal). Pure Rust, no dependency, no build script.
+unicode-width = { version = "0.2", default-features = false }
 serde_json = "1"
 # The relay's facts file (podssh-probe). Pure Rust, and it must stay so: the build image
 # has no C compiler, so a TOML parser that wanted `cc` would fail the gate.
