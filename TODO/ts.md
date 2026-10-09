@@ -235,7 +235,7 @@ WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:135-141`)
 
 Read: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs:200-213`),
 against the manual (`crates/podssh-cli/src/man/facts.rs:45-49`), the rule at
-`docs/target-environment.md:68-71` and `SECURITY.md:52-55`. A URL with no port means 80 in podssh
+`docs/target-environment.md:68-71` and `SECURITY.md:53-56`. A URL with no port means 80 in podssh
 (`crates/podssh-ws/src/dial.rs:66`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:39-41`).
 Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:25-26`).
 
@@ -590,7 +590,7 @@ model file that no longer exists.
 4. In the fork, hold the key as `Zeroizing<String>` in `Config` and in `Params`, as a new patch
    with its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`.
 5. Correct the comment at `crates/podssh-ts/src/secret.rs:3-5`, and name the tailnet key in the
-   rule at `SECURITY.md:52-55`, in the same commit.
+   rule at `SECURITY.md:53-56`, in the same commit.
 
 Pitfall: `Device::new` takes the key by value (`crates/podssh-ts/src/node.rs:70`), so only the fork
 can clear its copy (step 4).

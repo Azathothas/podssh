@@ -885,7 +885,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs:73-120`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:131-137`); the
 operator leg receives text frames (`docs/relay.md:227-230`). A host key is recorded under the target
-host, never the relay's name (`SECURITY.md:62-67`); `HostKeyAlias` exists
+host, never the relay's name (`SECURITY.md:63-68`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:289`). `podssh ssh` uses the exit codes of OpenSSH, and
 `podssh proxy` sysexits (`docs/cli.md:257-261`).
 
@@ -1139,7 +1139,7 @@ Read: credentials are HMAC tokens scoped to a name and a role, issued by the rel
 over a trusted channel (`:137-138`); the node chooses what to expose (`:245-246`).
 
 Read: `podssh ssh` checks host keys with `known_hosts`, and never records one under the relay's name
-(`SECURITY.md:37-41`, `:62-67`). `podssh serve` keeps its host key in a state file and takes
+(`SECURITY.md:38-42`, `:63-68`). `podssh serve` keeps its host key in a state file and takes
 authorized keys from a flag or a file (`docs/ROADMAP.md:177-182`, T-107).
 
 Read in the reports (not verified here): iroh-ssh warns about an ephemeral node key
@@ -1206,8 +1206,8 @@ is encrypted from the operator's client to the server. A raw TCP TARGET of `pods
 ## Premise
 
 Read: the relay sees the target, the time and volume of the traffic, and the start of an SSH
-connection; after the key exchange it sees only ciphertext (`SECURITY.md:20-30`). It can drop, delay
-or add frames (`SECURITY.md:32-35`).
+connection; after the key exchange it sees only ciphertext (`SECURITY.md:21-31`). It can drop, delay
+or add frames (`SECURITY.md:33-36`).
 
 Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:351-357`);
 for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:373-375`).
@@ -1419,7 +1419,7 @@ fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and
 Read, what a leaked token gives today. `connect_token`: sessions to the node; an SSH server's own
 authentication still stands, but a raw TCP TARGET (T-083) has no other gate. `node_token`: an impersonated node
 while the real one is away (one socket for each name, and a new node gets the new sessions: `:152-156` of the
-contract); for SSH, the operator's host-key check finds it (`SECURITY.md:37-41`). `stop_token`: a denial of
+contract); for SSH, the operator's host-key check finds it (`SECURITY.md:38-42`). `stop_token`: a denial of
 service; the node, its sessions and the pair end (`docs/relay.md:232-236`).
 
 ## Approach

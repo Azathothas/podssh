@@ -30,7 +30,7 @@ with no C. Measured: `grep -ril resum crates` finds only the IRC client.
 Today russh's bytes go through a pipe to the relay session
 (`crates/podssh-ssh/src/relay_stream.rs:73-150`). Frame boundaries mean nothing
 on the relay (`docs/relay.md:58-61`), and the relay reads each record and can
-drop or add frames (`SECURITY.md:32-35`).
+drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
 

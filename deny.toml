@@ -17,6 +17,10 @@ ignore = [
   # keys. podssh-ssh signs with an RSA user key, and podssh keygen makes one,
   # through russh and ssh-key: T-257 moves both to aws-lc-rs. Read 2026-10-09.
   { id = "RUSTSEC-2023-0071", reason = "no fixed version; podssh-ws verifies only; RSA signing moves to aws-lc-rs in T-257" },
+  # paste is unmaintained, not open to an attack: a proc-macro, which runs
+  # at build time only, that only the Tailscale fork brings (through
+  # stun-rs). The fork's own deny.toml ignores it too. Read 2026-10-09.
+  { id = "RUSTSEC-2024-0436", reason = "unmaintained build-time proc-macro, only through the Tailscale fork" },
 ]
 
 [licenses]

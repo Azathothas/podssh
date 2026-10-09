@@ -315,7 +315,7 @@ AF_UNIX.
   (`crates/podssh-cli/src/flags.rs:194-199`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs:145-147`).
 - Read: `AGENTS.md:178-183` (no bind, no listen),
-  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:68-71` ("Nothing
+  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:69-72` ("Nothing
   listens") and `README.md:36` state the rule from before the ruling.
   `docs/design.md:269-271` already allows a local listener for `pipe` after
   a probe.

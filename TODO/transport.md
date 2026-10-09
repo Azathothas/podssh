@@ -469,7 +469,7 @@ lines 53-76, and the test at line 300).
 4. Update crates/podssh-transport/tests/closes.rs at `e8bbd4d` (lines 129-149) and the texts of
    crates/podssh-transport/src/error.rs at `e8bbd4d` (lines 170-184). Close this entry in place.
 5. Pitfall: the body comes from the network. Keep it out of format strings and remove control
-   characters before it reaches a terminal (`SECURITY.md:58-61`).
+   characters before it reaches a terminal (`SECURITY.md:59-62`).
 
 ## Decision
 

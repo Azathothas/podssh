@@ -15,7 +15,8 @@ each day (`deny.toml`, `.github/workflows/deny.yml`). On an advisory:
 update the crate when a fixed version exists, and say in the release notes
 which release carries the fix. When no fixed version exists, read whether
 podssh reaches the affected code; ignore the advisory only with its reason
-and the date, in `deny.toml`, and keep an entry in `TODO/` until it is fixed.
+and the date, in `deny.toml`. A vulnerability that podssh reaches keeps an
+entry in `TODO/` until it is fixed.
 
 ## What the relay can see and do
 
