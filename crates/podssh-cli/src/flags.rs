@@ -321,6 +321,8 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     row(None, "operator-file", Some("FILE"), FlagKind::Supported,
         "pair: write the operator's part of the pair to FILE, a new file that only its owner can read", None),
+    row(None, "document", Some("FILE"), FlagKind::Supported,
+        "spec: check FILE, a copy of the relay's document, and read nothing from the network", None),
 ];
 
 /// `node` and `operator` (T-083, T-084): a service and a pipe, with no
@@ -429,7 +431,7 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "man", aliases: &["man"], flags: MAN_FLAGS,
         about: "this manual: each command, flag, variable, file and exit code" },
     Verb { name: "relay", aliases: &["relay"], flags: RELAY_FLAGS,
-        about: "the pairs of the reverse road: make one, ask about it, stop it" },
+        about: "the pairs of the reverse road, and the relay's document against podssh's facts" },
     Verb { name: "status", aliases: &["status"], flags: STATUS_FLAGS,
         about: "the state of this host as one line of JSON: relays, token, proxy, terminal, a host key" },
     Verb { name: "doctor", aliases: &["doctor"], flags: DOCTOR_FLAGS,

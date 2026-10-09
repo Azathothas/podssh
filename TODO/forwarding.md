@@ -411,7 +411,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   (T-001); the Podman box refuses each `bind`
   (`scripts/box/seccomp.json:5-10`).
 - Read: the relay's limits apply to the shared connection: all the sessions
-  of a master share one 64 MiB and one 12 h (`docs/relay.md:114-120`).
+  of a master share one 64 MiB and one 12 h (`docs/relay.md:121-127`).
 
 ## Approach
 

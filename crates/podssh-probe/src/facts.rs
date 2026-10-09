@@ -1,9 +1,9 @@
 //! E06 — the relay's structural facts, and the pin against them.
 //!
-//! ⛔ **One file, read by the startup assertion, the tests, the record gate and
+//! ⛔ **One file, read by `podssh relay spec`, the tests, the record gate and
 //! `scripts/check-relay-spec.py`.** A second hand-written copy of these numbers
 //! is the exact drift this exists to catch, and a copy in a Python script that
-//! the Rust startup path cannot see would be worse than none.
+//! the binary cannot see would be worse than none.
 //!
 //! ⛔ **The prose is never asserted. The structure is.** A peer rewording a
 //! sentence must not turn into a red run; a peer renaming a path, changing a

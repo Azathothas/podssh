@@ -2,7 +2,8 @@
 //! user chooses. `pair NAME` makes a pair on the relay's control host and
 //! keeps it under NAME; `revoke NAME` stops it and forgets it; `status NAME`
 //! asks whether its node is online. stdout carries the answer, one line, with
-//! the label and never a token. `status` with no NAME, `info`, `spec` and
+//! the label and never a token. `spec` checks the relay's document against
+//! podssh's facts (`relay_spec.rs`, T-060). `status` with no NAME, `info` and
 //! `trace` are T-058's, and refuse.
 
 use std::io::Write;
@@ -27,6 +28,9 @@ pub struct RelayArgs {
     pub ca_file: Option<String>,
     /// `pair`: a new file for the operator's part of the pair.
     pub operator_file: Option<String>,
+    /// `spec`: a copy of the relay's document to check, read instead of the
+    /// live one.
+    pub document: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -39,6 +43,10 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
     }
     if args.operator_file.is_some() && sub != Some("pair") {
         let _ = writeln!(err, "podssh relay: --operator-file goes with `podssh relay pair NAME` only");
+        return EXIT_USAGE;
+    }
+    if args.document.is_some() && sub != Some("spec") {
+        let _ = writeln!(err, "podssh relay: --document goes with `podssh relay spec` only");
         return EXIT_USAGE;
     }
     let name = args.args.first().map(String::as_str);
@@ -57,14 +65,18 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
             );
             return EXIT_NOT_IMPLEMENTED;
         }
-        (Some(sub @ ("info" | "spec" | "trace")), _) => {
+        (Some("spec"), None) => return crate::relay_spec::run(args, out, err),
+        (Some("spec"), Some(word)) => {
+            Err(Refusal::usage(format!("spec takes no NAME, and {word:?} would be dropped: `podssh relay spec`")))
+        }
+        (Some(sub @ ("info" | "trace")), _) => {
             let _ = writeln!(err, "{}", crate::refuse::not_implemented(&format!("relay {sub}")));
             return EXIT_NOT_IMPLEMENTED;
         }
         (Some(other), _) => Err(Refusal::usage(format!(
-            "there is no subcommand {other:?}; the subcommands are pair, revoke and status"
+            "there is no subcommand {other:?}; the subcommands are pair, revoke, status and spec"
         ))),
-        (None, _) => Err(Refusal::usage("missing SUBCOMMAND: pair NAME, revoke NAME or status NAME")),
+        (None, _) => Err(Refusal::usage("missing SUBCOMMAND: pair NAME, revoke NAME, status NAME or spec")),
     };
     match done {
         Ok(()) => 0,
@@ -73,7 +85,7 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
 }
 
 /// A current-thread runtime for one call.
-fn block_on<T>(work: impl std::future::Future<Output = T>) -> Result<T, Refusal> {
+pub(crate) fn block_on<T>(work: impl std::future::Future<Output = T>) -> Result<T, Refusal> {
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(|e| Refusal {
         message: format!("could not start the async runtime: {e}"),
         code: Fault::SessionFault.code(),

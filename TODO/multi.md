@@ -37,7 +37,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   (`crates/podssh-ssh/src/known_hosts.rs:206-236`).
 - Read: with no cached token, each session mints one
   (`crates/podssh-relay/src/token.rs:131-150`); the relay allows 120 attempts
-  with no token for each minute and address (`docs/relay.md:121`).
+  with no token for each minute and address (`docs/relay.md:128`).
 
 ## Approach
 
@@ -64,7 +64,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:414-441`,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:416-443`,
    `crates/podssh-cli/src/positionals.rs:7-84`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:92-93`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:257-260`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:262-265`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/resolve.rs:379-427`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:299-316`); they cannot define a group.
+  (`docs/cli.md:304-321`); they cannot define a group.
 
 ## Approach
 
@@ -615,7 +615,7 @@ of the command.
 - Measured: `podssh run host -- true` exits 64 (`unknown subcommand 'run'`).
 - Read: the copy is work of M5: `cp` over SFTP (T-134), directories and an
   ignore file (T-143), and a new relay session before the limits (T-137).
-  `cp` exits 70 today (`crates/podssh-cli/src/flags.rs:452-456`).
+  `cp` exits 70 today (`crates/podssh-cli/src/flags.rs:454-458`).
 
 ## Approach
 
@@ -628,9 +628,9 @@ of the command.
    changed.
 3. Then one exec on the same SSH connection: `cd DIR && COMMAND`, with DIR
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
-   (`docs/relay.md:120`), run the exec on a new session (T-137).
+   (`docs/relay.md:127`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:257-260`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:262-265`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -741,7 +741,7 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:269-284`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:257-260`), which is not a failure of podssh.
+  status (`docs/cli.md:262-265`), which is not a failure of podssh.
 
 ## Approach
 
@@ -820,7 +820,7 @@ queue, no wait for a result, and no way to get the output back.
   queue on the client dies with it, and a client that waits must not need a
   listener (`docs/target-environment.md:74-78`).
 - Read: the output comes back with `cp` (T-134), within 64 MiB for each
-  relay session (`docs/relay.md:120`); T-137 opens a new session.
+  relay session (`docs/relay.md:127`); T-137 opens a new session.
 - Read in the report: GPU-Share places jobs by idle time and free VRAM. No
   such logic here: a count of slots is the only limit.
 
@@ -840,7 +840,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-67`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-68`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest

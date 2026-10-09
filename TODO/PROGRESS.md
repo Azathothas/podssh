@@ -28,14 +28,14 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 
 ## Baseline
 
-Measured on 2026-10-09 after T-256, on Windows 11 with native cargo 1.98.0
+Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`: 814 passed, 0 failed, 19 ignored (the live
-  tests).
+- `cargo test --no-fail-fast`: 823 passed, 0 failed, 20 ignored (the live tests).
 - `cargo test -p podssh-relay --all-features --no-fail-fast`: 110 passed, 0
   failed, 14 ignored (the live tests).
-- `sh scripts/dev.sh check` (after T-082): green; interop 103 of 103.
+- `sh scripts/dev.sh check` (after T-212): green; interop 103 of 103. The steps that
+  later changes touched, each alone in the build image after them: green.
 - `cargo test -p podssh-todo`: 71 passed: 15 unit tests, 37 plant tests (35
   planted disagreements and two controls), 11 tests of the remap, 7 tests of
   the writer, and the test of this record.
@@ -44,7 +44,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 255 entries: 176 open, 0 partial, 8 blocked, 71 done.
+`TODO/INDEX.md` holds 255 entries: 175 open, 0 partial, 8 blocked, 72 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

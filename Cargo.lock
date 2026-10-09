@@ -2496,6 +2496,7 @@ dependencies = [
  "clap",
  "libc",
  "podssh-core",
+ "podssh-probe",
  "podssh-relay",
  "podssh-ssh",
  "podssh-ts",
@@ -2518,7 +2519,6 @@ dependencies = [
 name = "podssh-probe"
 version = "0.1.0"
 dependencies = [
- "libc",
  "regex",
  "serde",
  "sha2 0.10.9",

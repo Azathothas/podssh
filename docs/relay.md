@@ -20,6 +20,13 @@ curl -sS https://tcp.ssh.relay.ajam.dev/health
 curl -sS https://tcp.ssh.relay.ajam.dev/llms-full.txt | sha256sum
 ```
 
+With the binary alone, `podssh relay spec` reads both, and checks the
+document against the facts that podssh was built with
+(`crates/podssh-probe/facts/relay-facts.toml`): `ok`, or a `FAIL` line for
+each fact that the relay changed, and exit 1. `--document FILE` checks a
+copy instead. `scripts/check-relay-spec.py` checks the same facts, and CI
+asks both for one verdict (`scripts/relay-spec-agree.py`).
+
 ## How podssh selects relay hosts
 
 The code is in `crates/podssh-relay/`.

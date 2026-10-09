@@ -73,6 +73,7 @@ No script changes this file.
 python scripts/check-repo.py        # 500-line rule, doc links, credentials, LF, pinned images, no listener
 python scripts/check-scripts.py     # shell scripts parse under dash
 python scripts/check-relay-spec.py  # the live relay still matches what podssh uses
+python scripts/relay-spec-agree.py target/debug/podssh   # podssh relay spec and the script agree
 cargo todo check                    # the work record in TODO/ agrees: counts, statuses, cited paths and lines, no citation left unmoved, no line number in plain text after a citation
 cargo todo remap FILE...            # after an edit of FILE: move its citations by a diff against HEAD
 cargo deny --locked check advisories licenses bans sources   # the dependencies (deny.toml)

@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:414-441`).
+  row (`crates/podssh-cli/src/flags.rs:416-443`).
 - Read: the only pump is `crates/podssh-cli/src/proxy.rs:186-281`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,7 +37,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:414-441`, two
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:416-443`, two
    required positionals (`crates/podssh-cli/src/positionals.rs:7-84`), a
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-131`), a
    dispatch arm, and `pipe` in `DISPATCHED`
@@ -124,7 +124,7 @@ local program to a target, and `podssh proxy` stays a second pump.
   (`crates/podssh-cli/src/proxy.rs:45-96`).
 - Read: `crates/podssh-ssh/src/relay_stream.rs:89-93` sends Close 1000 when
   its write side ends. That is right for SSH and wrong for a pipe: the relay
-  has no half-close (`docs/relay.md:67-73`), so a Close cuts a reply on its
+  has no half-close (`docs/relay.md:74-80`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
   (`docs/STATUS.md:93`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:12-20`
@@ -163,7 +163,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:261`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:266`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:115-169` a typed error, so that 77 is not
    guessed from a message.
@@ -391,7 +391,7 @@ running on the server (`docs/design.md:224-226`).
   (`crates/podssh-ssh/src/session.rs:100-102`). Raw mode is entered once for
   each session (`crates/podssh-ssh/src/session.rs:80-96`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
-  (`docs/relay.md:152-158`). Sandbox A measured the cap at 67,107,943 bytes,
+  (`docs/relay.md:159-165`). Sandbox A measured the cap at 67,107,943 bytes,
   and one close `1011` in 180 short sessions (`docs/STATUS.md:159-160`).
 - Read: tmux is never assumed (`docs/target-environment.md:90-92`).
 
@@ -415,7 +415,7 @@ running on the server (`docs/design.md:224-226`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:271-273`). After the attach, send the window size again.
+   (`docs/cli.md:276-278`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes.rs:23-58`), `docs/design.md:224-226`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -470,8 +470,8 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
   `connect()` itself needs a listener (`docs/design.md:272-275`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
-  (`docs/relay.md:120`), then Close 1009 (`docs/relay.md:156`); public
-  targets only (`docs/relay.md:122`). Through the proxy of sandbox A: 0.5 to
+  (`docs/relay.md:127`), then Close 1009 (`docs/relay.md:163`); public
+  targets only (`docs/relay.md:129`). Through the proxy of sandbox A: 0.5 to
   0.7 MB/s (`docs/STATUS.md:158`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
@@ -530,14 +530,14 @@ and sandhole. Read in the reports, not verified here.
 
 A developer in a sandbox runs a web application and wants a URL for it. The
 relay carries TCP to public targets and reverse sessions to named nodes
-(`docs/relay.md:202-238`). It has no endpoint that takes public HTTPS for a
+(`docs/relay.md:209-245`). It has no endpoint that takes public HTTPS for a
 name, and podssh alone cannot add one.
 
 ## Premise
 
 - Read: the relay is the operator's Cloudflare Worker, another project, and
   its document is the contract (`docs/relay.md:3-16`). It has no publish
-  endpoint (`docs/relay.md:51-78`, `docs/relay.md:202-254`).
+  endpoint (`docs/relay.md:58-85`, `docs/relay.md:209-261`).
 - Read: on the measured sandbox, `connect()` to loopback fails with EACCES
   (`docs/target-environment.md:22`). A node there cannot reach a server on
   127.0.0.1; it can reach a Unix socket (T-176) or a program (`exec:`,
@@ -553,7 +553,7 @@ When the relay's operator adds the endpoint:
 
 1. The relay's operator publishes it in the contract first: a name, a public
    host name, and each incoming connection as a reverse session
-   (`open {id}`, `ready {id}`; `docs/relay.md:210-230`).
+   (`open {id}`, `ready {id}`; `docs/relay.md:217-237`).
 2. podssh uses the node runner (T-079) and `podssh node` (T-083):
    `podssh node NAME TARGET --publish`, TARGET each address of T-174 to
    T-176. podssh parses no HTTP: the bytes pass, WebSocket upgrades too.
@@ -661,7 +661,7 @@ and with which limits.
   SSH exec channel, and says that USB/IP needs kernel modules on the server.
 - Read: an exec channel carries binary data with equal digests
   (`docs/STATUS.md:65`), and `pipe` carries a TCP stream (T-174, T-175).
-- Read: through the relay, a session ends at 64 MiB (`docs/relay.md:120`);
+- Read: through the relay, a session ends at 64 MiB (`docs/relay.md:127`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
   privilege (`AGENTS.md:176-177`). The recipe uses the user's own `usbip` and

@@ -258,8 +258,9 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hasher.finalize().iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
-/// ⛔ **The startup half.** Read `/health` and the published document, assert
-/// the facts, and state the version the client ran against.
+/// ⛔ **The half that reads a relay**, which `podssh relay spec` runs: from
+/// `/health` and the published document, assert the facts, and state the
+/// version the client ran against.
 ///
 /// ⛔ **A version that is not the pinned one is reported, never fatal.** The
 /// protocol did not necessarily move, and the structural facts are what decide

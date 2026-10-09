@@ -2,7 +2,7 @@ This file holds the work that makes podssh usable by programs and agents: JSON f
 `man` and the result of `ssh`, `podssh status`, the end-to-end check in the binary, `podssh
 ping`, an MCP server, and a log of sessions. stdout carries the answer and nothing else
 (`docs/architecture.md:123-124`). `serde` and `serde_json` are already dependencies of the binary
-(`crates/podssh-cli/Cargo.toml:41`), so no entry here needs a new crate for JSON.
+(`crates/podssh-cli/Cargo.toml:42`), so no entry here needs a new crate for JSON.
 
 # T-049: `podssh doctor --json` (GitHub #9)
 
@@ -42,13 +42,13 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    and `detail`) and `counts` (`ok`, `fail`, `unknown`). `status` is "ok", "FAIL" or "unknown",
    the shape of GitHub #9. The exit code does not change.
 3. One model and two renderers, as `podssh man` has (`crates/podssh-cli/src/man/model.rs`).
-4. Add the row to `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:354-365`), read it into
+4. Add the row to `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:356-367`), read it into
    `Parsed::Doctor` (`crates/podssh-cli/src/tree.rs` lines 172-181 and 384-392 at `c6f09a8`), and pass it on in
    `crates/podssh-cli/src/dispatch.rs:118-133`. `tree.rs` has 454 lines and `dispatch.rs` 448:
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:123-147`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:113-132`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:118-137`) and
    `docs/cli.md:137-155` in the same commit.
 
 ## Decision
@@ -121,7 +121,7 @@ Measured: `podssh man --json` exits 64 ("unknown flag '--json'"). `podssh --help
 and prints the text help, so it drops `--json` silently (T-010).
 
 Read: the data is in tables already. Commands and flags: `VERBS`
-(`crates/podssh-cli/src/flags.rs:414-441`), each row with its kind and `instead` (lines 19-47 at `22c3b88`),
+(`crates/podssh-cli/src/flags.rs:416-443`), each row with its kind and `instead` (lines 19-47 at `22c3b88`),
 and the availability (lines 443-451 at `22c3b88`). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:199-203`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:25-92`, with the stated defaults (lines 99-104 at `22c3b88`).
@@ -226,7 +226,7 @@ opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:55-73`,
 ## Approach
 
 1. The syntax: `podssh status [OPTIONS] [[user@]host[:port]]`, with the relay flags of `doctor`
-   (`crates/podssh-cli/src/flags.rs:354-365`). Remove the owner row, and add "status" to
+   (`crates/podssh-cli/src/flags.rs:356-367`). Remove the owner row, and add "status" to
    `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:92-93`).
 2. Write one line of JSON to stdout and exit 0 (64 for a usage error). No text form: `doctor`
    is the report for people.
@@ -333,8 +333,8 @@ and `crates/podssh-ssh/src/keys.rs:81-84` offers a key to the server.
    be tested; the notes say so. No OpenSSH step (Decision).
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
-6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:354-365`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:113-132`) and `docs/cli.md:137-155` in the same commit.
+6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:356-367`), the `doctor` notes
+   (`crates/podssh-cli/src/man/notes.rs:118-137`) and `docs/cli.md:137-155` in the same commit.
 
 ## Decision
 
@@ -412,7 +412,7 @@ Read: the session pings the relay every 10 s and counts the pongs, but it measur
 trip (`crates/podssh-ws/src/session.rs:149-173`; the payload is a counter, `:170`). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs:130-132`). The relay counts both directions
-against 64 MiB for each session (`docs/relay.md:120`). The stand-in relay answers pings
+against 64 MiB for each session (`docs/relay.md:127`). The stand-in relay answers pings
 (`scripts/fake-relay.py:167-169`).
 
 ## Approach
@@ -429,7 +429,7 @@ against 64 MiB for each session (`docs/relay.md:120`). The stand-in relay answer
 4. `--size SIZE`: 8 MiB in each direction by default. Refuse more than 30 MiB (exit 64), so both
    directions stay under the relay's 64 MiB.
 5. A time limit on each step and on the whole run. `--json` as T-049 decides.
-6. Add the verb to the tables (`crates/podssh-cli/src/flags.rs:414-441`), to the help and the
+6. Add the verb to the tables (`crates/podssh-cli/src/flags.rs:416-443`), to the help and the
    manual, and to `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:92-93`).
 
 ## Decision
@@ -537,7 +537,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:267-283`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:272-288`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:140-150`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:101-108`), and stdio needs no listener.

@@ -22,7 +22,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(0, "Success. For podssh ssh: the remote command exited 0."),
         row(
             crate::doctor::EXIT_FAILED,
-            "podssh doctor: a check failed. podssh keygen: a key could not be made or read.",
+            "podssh doctor: a check failed. podssh relay spec: a fact of the relay's document disagrees. \
+             podssh keygen: a key could not be made or read.",
         ),
         row(
             crate::exit_codes::EXIT_USAGE,

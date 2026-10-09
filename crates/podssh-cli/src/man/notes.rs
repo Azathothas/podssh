@@ -106,8 +106,13 @@ const RELAY: &[&str] = &[
      NAME. revoke stops the pair on the relay and deletes the stored copy; when the relay cannot be \
      reached, the copy is kept, because its stop token is the one way to stop the pair before it \
      expires.",
-    "podssh relay status NAME says whether the pair's node is online, and its sessions. status with no \
-     NAME, info, spec and trace are not implemented yet (exit 70).",
+    "podssh relay status NAME says whether the pair's node is online, and its sessions.",
+    "podssh relay spec reads the relay's /health and its published document, /llms-full.txt, and checks \
+     the document against the facts that podssh was built with (see RELAY FACTS). It prints ok, with the \
+     document's lines, its digest and the version that the relay serves, or a FAIL line for each fact \
+     that disagrees, and exits 1: the relay changed something that podssh depends on. With --document \
+     FILE, it checks FILE and reads nothing from the network.",
+    "status with no NAME, info and trace are not implemented yet (exit 70).",
 ];
 
 const DOCTOR: &[&str] = &[

@@ -76,6 +76,13 @@ jobs:
             "$BUILD_IMAGE" \
             sh scripts/gate.sh "$STEP"
 
+      # The two forms of the check of the relay's facts, the binary's and the
+      # script's, give one verdict on the pinned copy, a planted copy and the
+      # live relay (T-060).
+      - if: matrix.step == 'release'
+        name: podssh relay spec and check-relay-spec.py agree
+        run: python3 scripts/relay-spec-agree.py target/x86_64-unknown-linux-musl/release/podssh
+
       - if: matrix.step == 'release'
         uses: actions/upload-artifact@v7
         with:

@@ -208,6 +208,11 @@ commands. The rules behind them:
   `relay pair NAME` makes and keeps one; `node NAME TARGET` serves it;
   `relay status NAME` asks whether its node is online; `relay revoke NAME`
   stops it and forgets it.
+- **`relay spec` checks the relay, not a pair.** It reads the relay's
+  `/health` and `/llms-full.txt`, or the file of `--document`, and checks
+  the document against the facts that podssh was built with: exit 0 when
+  each holds, 1 when one does not (the relay changed), 69 when the relay
+  could not be read (T-060).
 - **No token in the output.** `relay pair` prints the label and the expiry.
   The operator's part, the connect token alone, goes to the new private
   file of `--operator-file`; the node's token and the stop token stay in

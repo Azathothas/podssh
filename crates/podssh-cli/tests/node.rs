@@ -94,7 +94,7 @@ fn relay_pair_refuses_an_operator_file_that_exists_before_any_request() {
 #[test]
 fn the_other_relay_subcommands_are_not_implemented() {
     let home = scratch("t058");
-    for sub in ["status", "info", "spec", "trace"] {
+    for sub in ["status", "info", "trace"] {
         let (rc, out, err) = podssh(&home, &["relay", sub], &[]);
         assert_eq!(rc, 70, "{sub}: {err}");
         assert!(err.contains("not implemented yet") && out.is_empty(), "{sub}: {err}");

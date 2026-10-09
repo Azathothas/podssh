@@ -98,7 +98,7 @@ Read:
   from crates.io, and no git source.
 - The workflows use four actions, each by a major tag:
   `actions/checkout@v5` (`.github/workflows/build.yml:30`),
-  `actions/upload-artifact@v7` (`.github/workflows/build.yml:80`),
+  `actions/upload-artifact@v7` (`.github/workflows/build.yml:87`),
   `actions/download-artifact@v8` (`.github/workflows/release.yml:125`) and
   `ilammy/setup-nasm@v1` (`.github/workflows/release.yml:82`).
 - The build image is a variable in two workflows and in a shell script
@@ -333,7 +333,7 @@ Read:
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
   462.
-- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:156-162`);
+- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:163-169`);
   `scripts/check-scripts.py:53-57` finds the scripts under `scripts/` at any
   depth.
 
@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:421-466`): the
+5. docs/development.md, "Release builds" (`docs/development.md:422-467`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -939,7 +939,7 @@ Read:
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:130`).
 - The box needs a static binary; CI uploads one
-  (`.github/workflows/build.yml:79-84`).
+  (`.github/workflows/build.yml:86-91`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
   `/dev/pts` (`scripts/test_in_box.sh:180`). Nobody measured the Podman of a
   GitHub runner with them.
@@ -1605,11 +1605,11 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:190-192` states the rule with `CXX`, and
-  `docs/STATUS.md:241` records the measurement. Rule 4 of
+- `docs/development.md:191-193` states the rule with `CXX`, and
+  `docs/STATUS.md:242` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
-- `.github/workflows/build.yml:94-101` runs the plant on each push.
+- `.github/workflows/build.yml:101-108` runs the plant on each push.
 
 ## Approach
 
@@ -1637,7 +1637,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:241`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:242`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1691,7 +1691,7 @@ Read:
 3. A plant in the same script: a mode `--plant-empty` runs the checks on an
    empty temporary directory and must exit 1. The control is the real tree,
    which must exit 0. CI runs both, as it does for the relay check
-   (`.github/workflows/build.yml:169-181`).
+   (`.github/workflows/build.yml:176-188`).
 4. With T-207: the size check also reads `scripts/`, with its own floor.
 5. The checker of `TODO/` gets its own floor in its own change; this entry
    does not plan it.
@@ -1883,7 +1883,7 @@ Measured with Python over the tracked files outside `vendor/`:
   63 files name a work item of an earlier session (E02, E16).
 
 Read, names of files that do not exist: docs/spec/06-cli.md
-(`crates/podssh-cli/src/flags.rs:3`, `:12` and `:402-404`, and four more
+(`crates/podssh-cli/src/flags.rs:3`, `:12` and `:404-406`, and four more
 files); docs/TODO/cli/surface.md (`crates/podssh-cli/src/flags.rs:103`,
 `crates/podssh-cli/src/suggest.rs:9`); docs/TODO/protocol/ssh-core.md
 (`crates/podssh-terminal/src/window.rs:42-44`); docs/spec/01-relay-protocol.md
@@ -1901,7 +1901,7 @@ Read, wrong facts:
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt`).
 - crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d` gives the reverse
   path's backpressure (1011, 1 MiB, the frame dropped: line 185 of that copy)
-  as the forward path's. For the forward path, `docs/relay.md:169-173` says
+  as the forward path's. For the forward path, `docs/relay.md:176-180` says
   1013 at 2 MiB, with no frame dropped. The comment on the SSH window said
   the same as `backpressure/mod.rs` (`crates/podssh-ssh/src/run.rs` lines
   25-28 at `80f20bf`); T-024 corrected it.

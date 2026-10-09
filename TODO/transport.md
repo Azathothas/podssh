@@ -40,7 +40,7 @@ show this defect.
 
 Read: the contract sends control as text, and data as binary frames that start with 32 hex
 characters (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:138-141`,
-`docs/relay.md:217-226`). A prefix that is not hex closes the node with `1003 bad multiplex id`
+`docs/relay.md:224-233`). A prefix that is not hex closes the node with `1003 bad multiplex id`
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:176`).
 
 ## Approach
@@ -143,7 +143,7 @@ Read, a related gap that the former defects page did not list: `Classified::mess
 for a matched row, never the received reason (crates/podssh-transport/src/closes.rs at `e8bbd4d` lines
 119-150). The test that says the reason survives only checks that the message is not empty
 (crates/podssh-transport/tests/closes.rs at `e8bbd4d` lines 255-258). The rules want the code and the reason
-(`docs/relay.md:160-168`, `docs/reverse.md:103-105`).
+(`docs/relay.md:167-175`, `docs/reverse.md:103-105`).
 
 ## Approach
 
@@ -180,7 +180,7 @@ The first test feeds the double a Close with code 1001 and `pair expired`. It as
 `TransportError::Closed` with that code and reason, and `retry() == Retry::NewPair`; with
 `operator stopped reverse relay` it asserts `Retry::Never`. Add one Close payload captured from
 the live relay (for example `1000 target closed` through `podssh proxy`) as a fixture, so the
-parser also meets bytes that podssh did not make (`docs/development.md:305-307`). The second test
+parser also meets bytes that podssh did not make (`docs/development.md:306-308`). The second test
 asserts that an unmatched `4000 x` and a node's `1011 connection refused` both show their own code
 and reason. Plant: delete the new 0x8 arm; the first test must fail with `Unexpected`.
 
@@ -359,7 +359,7 @@ Read: the module says that the forward path drops a frame under backpressure, fr
 `1011 relay backpressure` (crates/podssh-transport/src/backpressure/mod.rs lines 4-22 at `e8bbd4d`). That row is in
 the table of the reverse path (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`).
 On the forward path the relay closes with `1013` at 2 MiB and drops no frame
-(`docs/relay.md:169-173`). The ledger counts the completion of local writes, which does not show
+(`docs/relay.md:176-180`). The ledger counts the completion of local writes, which does not show
 the relay's queue (crates/podssh-transport/src/backpressure/ledger.rs lines 212-254 at `e8bbd4d`).
 
 Read, the two ledger defects (the row does not name them; this is the reading here):
@@ -370,7 +370,7 @@ never pushed on that path (crates/podssh-transport/src/backpressure/ledger.rs li
 can pass the 32 MiB budget.
 
 Read: the design removes the module (`docs/design.md` lines 122-123 at `e8bbd4d`). The SSH window of 512 KiB is the
-flow control that podssh uses (`docs/relay.md:170-171`).
+flow control that podssh uses (`docs/relay.md:177-178`).
 
 ## Approach
 
@@ -445,10 +445,10 @@ the status and not the body (the same file, lines 122-146 and 186-196), so it ca
 
 Read: the contract: `403 missing or wrong token` needs a new token; a `403` that names the target
 is a policy refusal; `503` means that the relay does not issue or check tokens
-(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:109-112`). On
-the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:142-144`),
+(`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:116-119`). On
+the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:149-151`),
 also after `POST /v1/stop` (`docs/reverse.md:116-118`). A `409` from `/v1/pair` means "pair again"
-(`docs/relay.md:198-200`); a `409` on `/v1/node/<name>` means "exit" (`docs/reverse.md:19`).
+(`docs/relay.md:205-207`); a `409` on `/v1/node/<name>` means "exit" (`docs/reverse.md:19`).
 
 Read: the forward path already follows the contract in `podssh-relay`. It mints once again after a
 `403` for a cached token that is not a policy refusal (`crates/podssh-relay/src/open.rs` lines
