@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**253 entries: 186 open, 2 partial, 8 blocked, 57 done.**
+**253 entries: 185 open, 1 partial, 8 blocked, 59 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 7 | 9 |
-| P2 | 96 | 2 | 4 | 44 | 146 |
+| P2 | 95 | 1 | 4 | 46 | 146 |
 | P3 | 88 | 0 | 4 | 5 | 97 |
-| **All** | 186 | 2 | 8 | 57 | 253 |
+| **All** | 185 | 1 | 8 | 59 | 253 |
 
 ## Entries
 
@@ -276,11 +276,11 @@ repository and CI).
 | [T-202](robustness.md) | P3 | S | backlog | chore | open | Property tests for the state machines |
 | [T-203](robustness.md) | P2 | M | M6 | chore | open | The fault-injection harness: latency, jitter, bandwidth, a new address |
 | [T-204](repo.md) | P2 | M | none | chore | done | Adopt the todo model, with a Rust checker in the gate |
-| [T-205](repo.md) | P2 | S | none | chore | partial | Dependabot for cargo, GitHub Actions and the build image (GitHub #27) |
+| [T-205](repo.md) | P2 | S | none | chore | done | Dependabot for cargo, GitHub Actions and the build image (GitHub #27) |
 | [T-206](repo.md) | P2 | S | none | chore | done | B7: the build image is not pinned to a digest |
 | [T-207](repo.md) | P3 | S | none | chore | open | B8: `scripts/dev.sh` has about 600 lines |
-| [T-208](repo.md) | P2 | S | none | chore | partial | A changelog from the commits, and release notes from it (GitHub #27) |
-| [T-209](repo.md) | P2 | S | none | chore | open | Secret scanning with TruffleHog in CI (GitHub #27) |
+| [T-208](repo.md) | P2 | S | none | chore | done | A changelog from the commits, and release notes from it (GitHub #27) |
+| [T-209](repo.md) | P2 | S | none | chore | partial | Secret scanning with TruffleHog in CI (GitHub #27) |
 | [T-210](repo.md) | P2 | S | M9 | release | open | Build provenance for each release binary |
 | [T-211](repo.md) | P2 | S | M9 | release | open | Signed checksums for each release |
 | [T-212](repo.md) | P2 | M | none | chore | open | Parallel CI, with the gate as the one source |

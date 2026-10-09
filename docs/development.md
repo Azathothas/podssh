@@ -78,6 +78,19 @@ cargo todo remap FILE...            # after an edit of FILE: move its citations 
 
 Read each exit code directly. `cmd | tail` gives the exit code of `tail`.
 
+CI also scans each commit of the history for credentials, on each push, each
+pull request and each week (`.github/workflows/secrets.yml`): TruffleHog,
+pinned in `.github/images/trufflehog/Dockerfile`, in its git mode only, as
+its filesystem mode on a developer's machine would read `.env/`. A key made
+for the run and committed in a repository of its own must be found first.
+`scripts/secrets-report.py` prints each finding with no secret in it, as the
+logs of a public repository are public; a verified finding, or one that
+could not be verified, fails the run, and an unverified one is a note.
+
+On a finding: revoke the credential first, because the history is public
+and copies of it may exist; then remove it from the tree. Never rewrite the
+published history (`AGENTS.md`, section 6).
+
 ## The container gate
 
 ```sh

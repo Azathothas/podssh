@@ -33,5 +33,6 @@ updates:
       - /.github/images/build
       - /.github/images/box
       - /.github/images/box-proxy
+      - /.github/images/trufflehog
     schedule:
       interval: weekly

@@ -80,7 +80,7 @@ Dependabot.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -163,6 +163,26 @@ for minor and patch, at most 5 pull requests; the actions, one group; the
 three images of `.github/images/`, after T-206), the CI step, and the section
 "Updates" of `docs/development.md` are written. Next: the step's result in
 CI, then Dependabot's first pull requests.
+
+## Done
+
+2026-10-09, in the commit "Dependabot for the crates, the actions and the
+pinned images", and closed in the commit "Secret scanning of the history".
+
+- `.github/dependabot.yml`: the crates, weekly, minor and patch updates in
+  one group, each major update alone, at most 5 pull requests open; the
+  actions, in one group; the images of `.github/images/` (since T-209 also
+  the scanner's).
+- The step "dependabot's configuration is valid" of
+  `.github/workflows/build.yml` passed in run 37875200107: "ok -- validation
+  done", then "the planted ecosystem failed, as it must".
+- Dependabot opened 6 pull requests within minutes, each with a CI run:
+  #37 (actions/checkout 5 to 7), #38 (the group of minor and patch updates,
+  3 crates), #39 (cipher 0.4.4 to 0.5.2), #40 (blake2 0.10.6 to 0.11.0), #41
+  (itertools 0.14.0 to 0.15.0) and #42 (chacha20 0.9.1 to 0.10.2).
+  `gh pr list -R Azathothas/podssh --author app/dependabot --state all`
+  gives 6. Each is judged and applied as `docs/development.md` ("Updates")
+  says.
 
 # T-206: B7: the build image is not pinned to a digest
 
@@ -360,7 +380,7 @@ changelog generators.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -400,7 +420,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:316-361`): the
+5. docs/development.md, "Release builds" (`docs/development.md:329-374`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -446,6 +466,21 @@ body (the notes file, then the list; `fetch-depth: 0` in the job `publish`)
 and the section "Release builds" of `docs/development.md` are written.
 Next: the first run of the workflow, by hand.
 
+## Done
+
+2026-10-09, in the commit "The list of the commits, for the body of each
+release", and closed in the commit "Secret scanning of the history".
+
+- `cliff.toml`, `.github/workflows/changelog.yml`, the job `publish` of
+  `.github/workflows/release.yml` (the whole history; a pinned git-cliff;
+  the body is the notes file, then the list) and `docs/development.md`.
+- Prove, on a GitHub runner (the Correction): run 37876270327 of
+  `changelog.yml` gave "listed 84 of the 84 commits since the first"; the
+  planted skip of "Other" listed 17 of the 84, so the count can fail; the
+  artifact `changes` holds the list (2949 bytes).
+- The list in the body of a release is checked in the run by hand of M9,
+  before the tag (T-251).
+
 # T-209: Secret scanning with TruffleHog in CI (GitHub #27)
 
 **Source:** GitHub #27 (the operator, 2026-10-08), which asks for TruffleHog.
@@ -453,7 +488,7 @@ Next: the first run of the workflow, by hand.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -496,6 +531,28 @@ Read:
 6. Fail on verified and unknown results; list unverified results as notes.
    The operator can choose to fail on them too.
 
+## Decision
+
+2026-10-09:
+
+1. Its own workflow, `.github/workflows/secrets.yml` (each push to `main`,
+   each pull request, each week, and by hand), not a job of
+   `.github/workflows/build.yml`: a weekly scan there would run the gate too.
+2. The scanner is pinned by the digest of its index, in
+   `.github/images/trufflehog/Dockerfile`: the one place of T-206, which
+   Dependabot updates and check 5 of `scripts/check-repo.py` checks.
+3. Each run scans the whole history, not only the commits of the push: the
+   history is short since its rewrite on 2026-10-08.
+4. The plant runs in the workflow, before each scan, in a repository of its
+   own under the runner's temporary directory: a key that `ssh-keygen` makes
+   there (`podssh keygen` would need a build first), scanned with no
+   verification and with unverified results. TruffleHog must exit 183, its
+   code for results found, and `scripts/secrets-report.py --expect
+   PrivateKey` must find the detector. Lost: a plant run once by hand, which
+   proves the scan once and not after each update of the image.
+5. The scan does not run on this machine: the scanner's container would
+   have the working tree, with `.env/`, mounted.
+
 ## Prove
 
 ```sh
@@ -508,6 +565,19 @@ temporary repository outside the tree: commit a throwaway key that
 and with unverified results, and check that it exits non-zero and names the
 detector for private keys. Then delete the directory. The key is used nowhere
 and never printed.
+
+## Correction
+
+2026-10-09: the scan is a workflow of its own (Decision 1), so the Prove's
+command reads its last run on `main`: `--workflow secrets.yml` in place of
+`--workflow build.yml`.
+
+The state (partial), 2026-10-09: the workflow, the pinned image,
+`scripts/secrets-report.py` (tested on synthetic findings: a verified or
+unknown finding exits 1, an unverified one is a note, `--expect` tells a hit
+from a miss, a missing file exits 2, and no raw, redacted or extra value is
+printed) and the section "Checks" of `docs/development.md` are written.
+Next: the first run of the workflow.
 
 # T-210: Build provenance for each release binary
 
@@ -1191,7 +1261,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:105-107` states the rule with `CXX`, and
+- `docs/development.md:118-120` states the rule with `CXX`, and
   `docs/STATUS.md:237` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -1606,7 +1676,7 @@ and with or without case.
    comment above it.
 4. In `scripts/gate.sh`, before the record's checker runs: fail when
    `/work/AGENTS.md` is missing, so a missing root file fails loudly.
-5. `docs/development.md:143-144` lists what the containers do not get; name
+5. `docs/development.md:156-157` lists what the containers do not get; name
    each excluded pattern there.
 
 ## Prove
