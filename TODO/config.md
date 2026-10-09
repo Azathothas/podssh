@@ -248,7 +248,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
 
 1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:60-80`
    requires that pair. The reviewed set of short flags does not change.
-2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:29-70`), after `resolve` (lines 36-42 at `e8bbd4d`): with
+2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:30-76`), after `resolve` (lines 36-42 at `e8bbd4d`): with
    `-G`, print the settings and exit 0. Open nothing: no relay, no token, no pool refresh.
 3. Print from `Resolved` and its `Options`, not from `Settings`, so the defaults are shown.
 4. Print only keywords of OpenSSH that podssh applies
@@ -304,7 +304,7 @@ work.
 ## Premise
 
 Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:398-429`).
-`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:42`), so a JSON
+`serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:50`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
 that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 2).
@@ -312,7 +312,7 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
 ## Approach
 
 1. Add `podssh config import FORMAT FILE` (Decision). It writes `Host` blocks to stdout and a
-   summary to stderr (`docs/architecture.md:123-124`). It never writes `~/.ssh/config`; the user
+   summary to stderr (`docs/architecture.md:127-128`). It never writes `~/.ssh/config`; the user
    adds the output.
 2. First the formats that need no new crate: the Ansible INI inventory (`ansible_host`,
    `ansible_user`, `ansible_port`), Remmina `.remmina` files and MobaXterm sessions (INI), PuTTY
@@ -372,9 +372,9 @@ command, or edits a shell profile. No file states them once.
 Read: each command resolves the same settings in its own copy. Relay hosts (`--relay-host`,
 then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:83-101`)
 go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:62-74`), called in
-`crates/podssh-cli/src/ssh/resolve.rs:252`, `crates/podssh-cli/src/doctor/mod.rs:54-57` and
+`crates/podssh-cli/src/ssh/resolve.rs:252`, `crates/podssh-cli/src/doctor/mod.rs:56-59` and
 `crates/podssh-cli/src/proxy.rs:66-69`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
-`crates/podssh-cli/src/ssh/resolve.rs:265-268`, `crates/podssh-cli/src/doctor/mod.rs:58-63` and
+`crates/podssh-cli/src/ssh/resolve.rs:265-268`, `crates/podssh-cli/src/doctor/mod.rs:60-65` and
 `crates/podssh-cli/src/proxy.rs:77-81`. The pins of the flag and of the variable add up
 (`crates/podssh-cli/src/pins.rs:13-23`). The token cache uses the user's
 cache directory first (`crates/podssh-relay/src/cache.rs:377-386`). The decision named the

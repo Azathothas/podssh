@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**261 entries: 145 open, 0 partial, 22 blocked, 94 done.**
+**262 entries: 144 open, 0 partial, 22 blocked, 96 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 8 | 10 |
-| P2 | 61 | 0 | 18 | 71 | 150 |
+| P1 | 2 | 0 | 0 | 9 | 11 |
+| P2 | 60 | 0 | 18 | 72 | 150 |
 | P3 | 82 | 0 | 4 | 14 | 100 |
-| **All** | 145 | 0 | 22 | 94 | 261 |
+| **All** | 144 | 0 | 22 | 96 | 262 |
 
 ## Entries
 
@@ -235,7 +235,7 @@ repository and CI).
 | [T-159](resume.md) | P3 | M | backlog | feature | open | Sessions on the far end that outlive the client |
 | [T-160](resume.md) | P3 | L | backlog | feature | open | Local echo and prediction for high latency |
 | [T-161](resume.md) | P3 | L | backlog | research | open | Screen state and scrollback when a client attaches |
-| [T-162](roads.md) | P2 | L | M6 | feature | open | The iroh road behind the cargo feature `iroh` |
+| [T-162](roads.md) | P2 | L | M6 | feature | done | The iroh road behind the cargo feature `iroh` |
 | [T-163](roads.md) | P2 | S | M6 | feature | open | iroh tickets and node keys |
 | [T-164](roads.md) | P2 | M | M6 | feature | open | Race the iroh road and the reverse road |
 | [T-165](roads.md) | P2 | S | M6 | feature | open | Configurable iroh relays, the operator's relay first |
@@ -336,3 +336,4 @@ repository and CI).
 | [T-262](resume.md) | P1 | M | M6 | defect | done | A session cut at random points can end before its bytes come through |
 | [T-263](resume.md) | P3 | S | M6 | feature | open | A node in plain mode, for a client with no resumable layer |
 | [T-264](roads.md) | P2 | M | backlog | feature | open | Reach a service that `cloudflared` publishes, through `HTTPS_PROXY` |
+| [T-265](ws.md) | P1 | S | M6 | defect | done | A silent first address holds the whole of a direct dial |

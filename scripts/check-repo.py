@@ -76,9 +76,13 @@ LISTENER_RULE = "no listener unless the user asks for it and a probe at run time
 LISTENERS = {
     "TcpListener": [],
     "UnixListener": [],
-    "UdpSocket": [],
-    # The bind probes of `podssh doctor`, which close at once and never listen.
-    "bind(": ["crates/podssh-cli/src/doctor/unix.rs"],
+    # The iroh road (feature `iroh`, T-162), which the user selects: its probe
+    # binds a UDP socket to port 0 and closes it, and only when the probe
+    # allowed it does the endpoint bind UDP for direct paths.
+    "UdpSocket": ["crates/podssh-iroh/src/probe.rs"],
+    # The bind probes of `podssh doctor`, which close at once and never listen;
+    # and the iroh road's probe and endpoint, as above.
+    "bind(": ["crates/podssh-cli/src/doctor/unix.rs", "crates/podssh-iroh/src/probe.rs", "crates/podssh-iroh/src/endpoint.rs"],
     "listen(": [],
     "socket2": [],
 }

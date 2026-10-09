@@ -29,7 +29,7 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/frame.rs:113`); HTTP heads and chunked bodies
 (`crates/podssh-ws/src/http.rs:110`, line 183 at `e892b0f`); the upgrade answer
 (`crates/podssh-ws/src/handshake.rs:175`); proxy URLs, `NO_PROXY` and the
-CONNECT status (`crates/podssh-ws/src/dial.rs:49`, lines 178 and 334 at `22c3b88`); close
+CONNECT status (`crates/podssh-ws/src/dial.rs:53`, lines 178 and 334 at `22c3b88`); close
 reasons (`crates/podssh-ws/src/session.rs:307`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:92`);
@@ -119,7 +119,7 @@ seconds at `scripts/interop.sh:237`, the tty at `:221`), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
-(`scripts/gate.sh:262`). The totals are typed in `docs/STATUS.md:21`, line 57 at `3cbf215`
+(`scripts/gate.sh:280`). The totals are typed in `docs/STATUS.md:21`, line 57 at `3cbf215`
 and line 196 at `22c3b88`.
 
 ## Approach
@@ -212,7 +212,7 @@ Read:
 
 1. A model of a VT terminal for the tests: the `vt100` crate (pure Rust, over
    `vte`) as a dev-dependency. The gate's library test step runs under
-   `CC=/nonexistent` and `CXX=/nonexistent` (`scripts/gate.sh:119-120`), so it
+   `CC=/nonexistent` and `CXX=/nonexistent` (`scripts/gate.sh:121-122`), so it
    shows that no C or C++ comes with it.
 2. A helper: bytes in, screen out (rows, cursor, attributes). Each case
    compares screens, not bytes.
@@ -309,7 +309,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:324-327`): a proxy head that never ends stops at
+   (`docs/development.md:331-334`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -380,7 +380,7 @@ the gate must show it.
 
 1. `proptest` as a dev-dependency of podssh-ws, podssh-relay and podssh-ssh.
    The gate's library test step runs under `CC=/nonexistent` and
-   `CXX=/nonexistent` (`scripts/gate.sh:119-120`), so it shows that no C comes
+   `CXX=/nonexistent` (`scripts/gate.sh:121-122`), so it shows that no C comes
    with it. Commit the regression files of proptest as seeds.
 2. One test file for each crate (tests/properties.rs), with these properties:
    - frames: for each opcode, FIN, role, mask and payload up to 262144 bytes,
@@ -471,7 +471,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate,
-   `docs/development.md:222-228`) and the faults table of docs/STATUS.md.
+   `docs/development.md:229-235`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 

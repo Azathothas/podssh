@@ -55,7 +55,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:236`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-46`,
    `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
-   from the lines that you change (`AGENTS.md:198-199`).
+   from the lines that you change (`AGENTS.md:200-201`).
 
 ## Decision
 
@@ -165,7 +165,7 @@ writes over the rows above it.
 ## Decision
 
 Recommendation: the crate stays sans-IO and takes the size as input
-(`docs/architecture.md:93-97`); raw mode stays in `podssh-ssh`. The two
+(`docs/architecture.md:94-98`); raw mode stays in `podssh-ssh`. The two
 callers differ: the client measures its own terminal, and serve (T-111) has
 no terminal and gets the size from `pty-req` and `window-change`. Raw mode in
 the crate lost: serve has nothing to make raw, and the client's working code

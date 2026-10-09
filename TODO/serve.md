@@ -188,9 +188,9 @@ tells the user nothing.
   handle sends `AdministrativelyProhibited`
   (`Eugeny/russh:russh/src/lib_inner.rs`, lines 570-620). A refusal can carry
   a reason with `ChannelOpenFailure::Other`.
-- Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs:186-204` (a time
+- Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs:204-222` (a time
   limit; `HTTPS_PROXY` when it is set) and
-  `crates/podssh-ws/src/dial.rs:138-144` (loopback never through a proxy).
+  `crates/podssh-ws/src/dial.rs:156-162` (loopback never through a proxy).
   The client copies a forward with half-close in
   `crates/podssh-ssh/src/forward.rs:22-83`.
 - Read: in the measured sandbox, `connect()` to loopback failed with `EACCES`
@@ -214,7 +214,7 @@ tells the user nothing.
 
 Pitfalls: `direct-streamlocal@openssh.com` (AF_UNIX) stays refused here; T-040
 is the client side. A host name that `check_name` refuses
-(`crates/podssh-ws/src/dial.rs:321-330`) gets that reason, not a generic one.
+(`crates/podssh-ws/src/dial.rs:384-393`) gets that reason, not a generic one.
 
 ## Prove
 
@@ -695,7 +695,7 @@ syslog and no `/var`. A record must not leak secrets or session data.
 
 - Read: podssh's log goes to stderr or to a file
   (`crates/podssh-ssh/src/log.rs:23-33`), as lines with no structure.
-- Read: `serde_json` is a workspace dependency (`Cargo.toml:101`), but not a
+- Read: `serde_json` is a workspace dependency (`Cargo.toml:102`), but not a
   dependency of `podssh-ssh` yet.
 - Read in the report of GitHub #25, not verified here: USBoverSSH writes an
   audit log of connection events.
@@ -986,8 +986,8 @@ with no privileges needs a way that the host allows, found by a probe.
 ## Premise
 
 - Read: podssh never assumes a tool or a privilege; it starts a program only
-  when a probe found it (`AGENTS.md:180-192`).
-- Read: a credential never goes on argv or into output (`AGENTS.md:157-160`).
+  when a probe found it (`AGENTS.md:182-194`).
+- Read: a credential never goes on argv or into output (`AGENTS.md:159-162`).
   The command line of a unit file is argv, so it must hold no token.
 - Read in the reports of GitHub #20 and #18, not verified here: tty7, zuko
   and iroh-ssh install services, and iroh-ssh adds a firewall rule (which
@@ -1043,7 +1043,7 @@ own scope; serve does nothing like it.
 ## Premise
 
 - Read: podssh must not assume systemd, and starts a program only when a probe
-  found it (`AGENTS.md:180-192`, `docs/target-environment.md:90-92`).
+  found it (`AGENTS.md:182-194`, `docs/target-environment.md:90-92`).
 - Read: T-110 and T-111 start each child with `setsid`, in serve's cgroup.
 - Read in the report of GitHub #19, not verified here: ssh-obi moves its pty
   children into a transient scope when systemd is there, and works without
@@ -1161,7 +1161,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:182-187`, `docs/architecture.md:101-108`).
+  (`AGENTS.md:184-189`, `docs/architecture.md:102-112`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
   TCP and an AF_UNIX socket to test the host, and closes them at once
@@ -1187,7 +1187,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:182-187` and `docs/architecture.md:101-108`, which then name this
+   `AGENTS.md:184-189` and `docs/architecture.md:102-112`, which then name this
    exception and the ruling.
 
 ## Prove

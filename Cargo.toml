@@ -8,6 +8,7 @@ members = [
   "crates/podssh-probe",
   "crates/podssh-relay",
   "crates/podssh-ts",
+  "crates/podssh-iroh",
   "crates/podssh-ssh",
   "crates/podssh-todo",
 ]

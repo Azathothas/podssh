@@ -22,6 +22,8 @@ use podssh_ws::{Trust, Verdict};
 
 pub(crate) mod clock;
 mod host;
+#[cfg(feature = "iroh")]
+mod iroh;
 mod net;
 mod pairs;
 mod relay_checks;
@@ -77,6 +79,8 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
 
     report.section("this host");
     host::check(&mut report);
+    #[cfg(feature = "iroh")]
+    iroh::udp(&mut report);
 
     report.section("egress");
     net::check_local(&mut report, &relays, &trust, trust_from);
@@ -106,6 +110,11 @@ async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, ful
     net::check_network(report, relays).await;
     report.section("relay");
     relay_checks::check(report, relays, trust, full).await;
+    #[cfg(feature = "iroh")]
+    {
+        report.section("iroh");
+        iroh::relay(report, trust).await;
+    }
     report.section("pairs");
     let stored = pairs::stored(report);
     pairs::presence(report, &stored, trust).await;

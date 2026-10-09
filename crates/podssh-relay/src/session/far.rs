@@ -3,9 +3,12 @@
 //!
 //! [`accept`] greets the client and runs the handshake, and only then does
 //! the caller connect to the target, so that a link that never completes its
-//! handshake costs no connection to sshd (T-164).
+//! handshake costs no connection to sshd (T-164). [`serve`] is the whole of
+//! one link of a far end that keeps its sessions: each road's far end (the
+//! node of the reverse road, the iroh road) runs it.
 
 use std::fmt;
+use std::future::Future;
 use std::sync::Mutex;
 use std::time::Duration;
 
@@ -13,14 +16,17 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
 use super::decode::{DecodeError, Decoder};
 use super::handshake::{Established, FarHandshake, HandshakeError, Step};
+use super::keep::Keeper;
 use super::pump::{self, Carry, Ended};
 use super::record::{Record, Role};
-use super::secret::Entropy;
+use super::secret::{Entropy, OsEntropy};
 use super::sessions::Sessions;
 use super::Settings;
 
 /// How long the client may take to open or resume a session.
 pub const HANDSHAKE_LIMIT: Duration = Duration::from_secs(30);
+/// How long a new session's target may take to answer.
+pub const TARGET_LIMIT: Duration = Duration::from_secs(10);
 
 /// Why the far end could not accept the link.
 #[derive(Debug)]
@@ -125,6 +131,53 @@ async fn send<L: AsyncWrite + Unpin>(link: &mut L, record: &Record) -> Result<()
     let bytes = record.to_bytes().map_err(|e| FarError::Io(std::io::Error::other(e)))?;
     link.write_all(&bytes).await.map_err(FarError::Io)?;
     link.flush().await.map_err(FarError::Io)
+}
+
+/// One link of a far end that keeps its sessions in `keeper`: the layer's
+/// handshake, then a resume goes on with the target that its session kept,
+/// and a new session reaches its target with `open`. A new session that
+/// would pass `budget` bytes of replay buffers, or whose target cannot be
+/// reached, ends at once with the reason (T-153).
+pub async fn serve<L, A, O, F>(link: L, role: Role, settings: Settings, keeper: &Keeper<A>, budget: usize, open: O)
+where
+    L: AsyncRead + AsyncWrite + Unpin + Send,
+    A: AsyncRead + AsyncWrite + Unpin + Send,
+    O: FnOnce() -> F,
+    F: Future<Output = Result<A, String>>,
+{
+    let accepted = match accept(link, role, settings, &keeper.sessions, &mut OsEntropy).await {
+        Ok(accepted) => accepted,
+        // A link that never completed its handshake: nothing to keep.
+        Err(_) => return,
+    };
+    if accepted.established().resumed {
+        let _ = keeper.run_resumed(accepted).await;
+        return;
+    }
+    // A new session holds a whole buffer's worth of the budget while it is
+    // kept, so the budget is a bound, not a hope.
+    let held = keeper.kept().saturating_mul(settings.replay_capacity);
+    if held.saturating_add(settings.replay_capacity) > budget {
+        let reason = format!(
+            "this node keeps as many resumable sessions as its budget allows ({} MiB of replay buffers)",
+            budget >> 20
+        );
+        accepted.close(&reason, &keeper.sessions).await;
+        return;
+    }
+    match tokio::time::timeout(TARGET_LIMIT, open()).await {
+        Ok(Ok(target)) => {
+            keeper.run_new(accepted, target).await;
+        }
+        Ok(Err(why)) => {
+            let reason = format!("the node could not reach its target: {why}");
+            accepted.close(&reason, &keeper.sessions).await;
+        }
+        Err(_) => {
+            let reason = format!("the node's target did not answer within {} s", TARGET_LIMIT.as_secs());
+            accepted.close(&reason, &keeper.sessions).await;
+        }
+    }
 }
 
 impl<L> Accepted<L>

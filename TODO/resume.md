@@ -34,7 +34,7 @@ drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
 
-1. A sans-IO codec (`docs/architecture.md:93-97`) in a new module
+1. A sans-IO codec (`docs/architecture.md:94-98`) in a new module
    crates/podssh-relay/src/session/, with each file under 500 lines. A record
    is a type byte, a 32-bit length and a body of 64 KiB or less: `GREETING`
    and `ACCEPT` (far end), `OPEN` and `PROOF` (client), `REFUSE`, `DATA` (its
@@ -1006,7 +1006,7 @@ live session that survives a stall of 3 minutes.
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:449-469`; the two
+sandbox, before a default depends on it); `docs/design.md:483-503`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1030,7 +1030,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:449-469`). A session carries 64 MiB at most, both directions
+(`docs/design.md:483-503`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:127`).
 
 ## Approach
@@ -1368,7 +1368,7 @@ that invariant. Bytes are dropped only where a client attaches after output
 that it never received: T-158, T-159 and T-161. The report puts the tracker
 in `podssh-transport`; it cannot work there. The layer runs under SSH and
 sees only ciphertext (`docs/design.md:203-204`), and the transport crates do
-not know the protocol that they carry (`docs/architecture.md:98-100`). The
+not know the protocol that they carry (`docs/architecture.md:99-101`). The
 plaintext of a pty exists only on the far end that keeps the shell. Read in
 the report, not verified here: tty7 drops bytes from its ring until a tracker
 says that it is at a boundary

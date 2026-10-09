@@ -6,8 +6,9 @@ target sandbox, and release it.
 ## Requirements
 
 - Rust 1.89 or later for the binary. The library crates build with Rust
-  1.85, podbox's minimum. The `ts` feature needs Rust 1.92. The gate checks
-  each crate on the version that its manifest declares.
+  1.85, podbox's minimum. The `ts` feature needs Rust 1.92, and the `iroh`
+  feature 1.91. The gate checks each crate on the version that its manifest
+  declares.
 - A C compiler for the binary. The SSH client uses aws-lc (`aws-lc-sys`,
   through `russh`). On Windows, also NASM; without it, aws-lc uses prebuilt
   objects.
@@ -32,11 +33,14 @@ cargo test --no-fail-fast          # the default members
 cargo test -p podssh-core          # one crate
 cargo build -p podssh-cli --features ts                          # with Tailscale
 cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts   # its tests
+cargo build -p podssh-cli --features iroh                        # with the iroh road
+cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh   # its tests
 cargo test -p podssh-ws --features plain-ws --test plain_loopback   # plain ws:// to loopback, for tests
 ```
 
 - A `cargo build` or `cargo test` at the root uses `default-members`. These
-  do not include `crates/podssh-ts`. Use `--workspace` to include it.
+  do not include `crates/podssh-ts` or `crates/podssh-iroh`. Use
+  `--workspace` to include them.
 - Use `--no-fail-fast`. Without it, cargo stops at the first test target
   that fails, and the remaining targets do not run.
 - The workspace builds and tests natively on Windows (MSVC) and Linux. The
@@ -176,8 +180,8 @@ the index must list linux/amd64 and linux/arm64, which the release builds),
 write it into the Dockerfile, and run the gate.
 
 `scripts/gate.sh` is the gate. CI runs the same file in the same image. Its
-steps, in order: `lint`, `libs`, `msrv`, `msrv_ssh`, `msrv_ts`, `record`,
-`ssh`, `ts` and `release`; `sh scripts/gate.sh --list` prints them. With no argument, the
+steps, in order: `lint`, `libs`, `msrv`, `msrv_ssh`, `msrv_ts`, `msrv_iroh`,
+`record`, `ssh`, `ts`, `iroh` and `release`; `sh scripts/gate.sh --list` prints them. With no argument, the
 gate runs each step; with names, those steps, in the order given. CI runs
 each step in a job of its own, at the same time: its job `plan` reads the
 list, so CI cannot miss a step that the gate has. `python
@@ -189,10 +193,11 @@ sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh ssh'
 ```
 
 `lint` checks the format and clippy's lints (see "Checks"). `msrv`,
-`msrv_ssh` and `msrv_ts` check each crate with `cargo check --locked
---all-targets` on the minimum Rust that its manifest declares: 1.85 for the
-library crates and `podssh-todo` (with no C compiler), 1.89 for `podssh-ssh`
-and `podssh-cli`, 1.92 for `podssh-ts` and the CLI with the feature `ts`.
+`msrv_ssh`, `msrv_ts` and `msrv_iroh` check each crate with `cargo check
+--locked --all-targets` on the minimum Rust that its manifest declares: 1.85
+for the library crates and `podssh-todo` (with no C compiler), 1.89 for
+`podssh-ssh` and `podssh-cli`, 1.92 for `podssh-ts` and the CLI with the
+feature `ts`, 1.91 for `podssh-iroh` and the CLI with the feature `iroh`.
 rustup fetches each toolchain into the build image, so the C toolchain is
 the gate's. `.cargo/config.toml` makes `cargo update` prefer the versions of
 dependencies that these minimums allow. The other steps make sure that:
@@ -208,7 +213,9 @@ dependencies that these minimums allow. The other steps make sure that:
    milestone of each row against its entry, each id that a document names,
    each cited path and line, the work order, and `docs/ROADMAP.md`.
 3. (`ssh`) The SSH client and the command line pass their tests.
-4. (`ts`) The tests of the `ts` feature pass.
+4. (`ts`, `iroh`) The tests of the `ts` feature pass, and those of the
+   `iroh` feature: two endpoints with no UDP, through a stand-in CONNECT
+   proxy and a relay on the loopback that only the proxy can name.
 5. (`release`, with 6 to 9) The static musl binary has no dynamic dependencies
    and no program interpreter.
 6. The binary works against real servers. `scripts/interop.sh` installs

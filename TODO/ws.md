@@ -2,7 +2,7 @@ This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP a
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
 `podssh-ws` item of ROADMAP M4 and `docs/design.md:117-121`, and from GitHub issues. The crate
-must build with no C compiler (`scripts/gate.sh:113-120`).
+must build with no C compiler (`scripts/gate.sh:115-122`).
 
 # T-063: W10: the frame decoder does not check a received control frame
 
@@ -477,7 +477,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:142-147`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
 (`crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
-(`crates/podssh-ws/src/dial.rs:157-165`).
+(`crates/podssh-ws/src/dial.rs:175-183`).
 
 ## Approach
 
@@ -658,24 +658,24 @@ given as `ALL_PROXY=socks5h://...`, cannot reach the relay: podssh refuses the s
 
 Read: `HttpProxy::parse` refuses each scheme but `http`, with "proxy scheme socks5:// is not
 supported; podssh speaks HTTP CONNECT to an http:// proxy"
-(`crates/podssh-ws/src/dial.rs:49-59`). `proxy_from_vars` reads `https_proxy`, `HTTPS_PROXY`,
-`all_proxy` and `ALL_PROXY` (`:146`), and parses the first that is set (`:154`). `dial`
-makes the error `DialError::BadProxy` (`:194`), which stops the failover at once
+(`crates/podssh-ws/src/dial.rs:53-63`). `proxy_from_vars` reads `https_proxy`, `HTTPS_PROXY`,
+`all_proxy` and `ALL_PROXY` (`:164`), and parses the first that is set (`:172`). `dial`
+makes the error `DialError::BadProxy` (`:212`), which stops the failover at once
 (`crates/podssh-relay/src/open.rs:65`) and gives exit 78 in `podssh proxy`
 (`crates/podssh-cli/src/proxy.rs:162`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs:102-108`). Two tests assert the refusal:
-`crates/podssh-cli/tests/doctor.rs:133-140` and `crates/podssh-ws/tests/dial.rs:34-42`.
+`crates/podssh-cli/tests/doctor.rs:133-140` and `crates/podssh-ws/tests/dial.rs:50-58`.
 
 ## Approach
 
 1. A proxy type with two forms, HTTP and SOCKS5, in `dial.rs`; `ProxyChoice::Via` takes it
-   (`crates/podssh-ws/src/dial.rs:74-83`). Parse `socks5://` and `socks5h://` with an optional
-   `user:password@`, decoded as for HTTP (`:353-371`).
+   (`crates/podssh-ws/src/dial.rs:92-101`). Parse `socks5://` and `socks5h://` with an optional
+   `user:password@`, decoded as for HTTP (`:416-444`).
 2. The SOCKS5 exchange (RFC 1928): offer the method 0x00, and 0x02 only with credentials; the
    user and password of RFC 1929, each of 1 to 255 bytes; CONNECT with the address type 3, the
    host name, so the client needs no DNS (`crates/podssh-ws/src/dial.rs:5-8`). Read exactly the
    length of the reply: the bytes after it belong to TLS, as `read_head_exact` keeps them
-   (`:273-296`). Bound each step.
+   (`:336-359`). Bound each step.
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
@@ -705,7 +705,7 @@ cargo test -p podssh-cli --test doctor
 sh scripts/dev.sh check   # interop: through the SOCKS5 server of OpenSSH (ssh -D)
 ```
 
-A stand-in on 127.0.0.1, as in `crates/podssh-ws/tests/dial.rs:79-101`, checks the bytes: the
+A stand-in on 127.0.0.1, as in `crates/podssh-ws/tests/dial.rs:95-117`, checks the bytes: the
 greeting, the user and password, and a CONNECT with the address type 3 and the relay's name. In
 the gate, the SOCKS5 server of OpenSSH (`ssh -N -D 127.0.0.1:PORT` to the test server) carries a
 session to the stand-in relay, and a password in the proxy URL never appears in the output.
@@ -768,3 +768,66 @@ with a length of 125, and the marker 127 with a length of 65535. Accepted: the m
 126, and the marker 127 with 65536. A session test: such a frame ends the read with an error,
 and the client sends a Close with 1002. Planted defect: remove the check; the two refusal tests
 fail, and the two controls pass.
+
+# T-265: A silent first address holds the whole of a direct dial
+
+**Source:** `podssh doctor` in a build with the feature `iroh` (T-162),
+2026-10-09: the line of n0's first relay failed after 15 s, where curl
+reached the same relay at once.
+**Category:** defect
+**Milestone:** M6
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A direct connection resolves its host and tries each address in turn, but
+the first address gets the whole time limit. An address that never answers,
+as an IPv6 address with no route can, uses up the limit, and the next
+address is never tried. A host with broken IPv6 then fails each direct dial
+to a host whose first address is IPv6.
+
+## Premise
+
+Measured on this machine, 2026-10-09: `aps1-1.relay.n0.iroh.link.` resolves
+to an IPv6 and an IPv4 address; curl got `/ping` over IPv4 in 0.68 s, and
+the doctor's dial timed out after 15 s on the IPv6 address. Read, at
+`fc01756`: connect_direct of crates/podssh-ws/src/dial.rs awaits each
+address with the dial's whole deadline, in the order of the resolver.
+
+## Approach
+
+1. Start each address 250 ms after the one before, or at once when the one
+   before failed (RFC 8305's attempt delay); the first that connects wins,
+   and the others stop.
+2. Let the two families take turns, the first family first (RFC 8305,
+   section 4), so a family that does not work costs one delay.
+3. A test with a name pinned to a silent documentation address, then the
+   loopback: the dial connects in well under the limit.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ws --test dial_race --test dial
+```
+
+The dial connects to the second address within 3 s; a planted attempt delay
+of 600 s (each address in turn, as before) waits for the silent address and
+fails.
+
+## Done
+
+2026-10-09, with T-162.
+
+- `crates/podssh-ws/src/dial.rs`: the attempts of a direct dial start
+  `ATTEMPT_DELAY` (250 ms) apart, or at once after a failure, in the order
+  of `interleave`; the first that connects wins, and dropping the set stops
+  the others.
+- Prove, native: `cargo test -p podssh-ws --test dial_race --test dial`: 16
+  passed. `192.0.2.1`, then the loopback: connected in 0.27 s. Planted, an
+  attempt delay of 600 s: the dial waited for the silent address until its
+  limit of 10 s, and the test failed.
+- `podssh doctor` in a build with the feature `iroh`: the line of n0's first
+  relay now passes, `/ping` in 576 ms over IPv4.

@@ -15,12 +15,10 @@ use super::framing::SessionId as RelayId;
 use super::node::{Handler, Opening};
 use crate::session::keep::Keeper;
 use crate::session::record::Role;
-use crate::session::{far, OsEntropy, Settings};
+use crate::session::{far, Settings};
 
 /// Each direction of the pipe between the node's session and the layer.
 const PIPE: usize = 256 * 1024;
-/// How long a new session's target may take to answer.
-const TARGET_LIMIT: Duration = Duration::from_secs(10);
 /// How often the sessions whose links are lost are checked for their
 /// deadline.
 const SWEEP_EVERY: Duration = Duration::from_secs(10);
@@ -79,39 +77,7 @@ impl<H: Handler> Handler for Layered<H> {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (inner, keeper, settings, budget) = (self.inner.clone(), self.keeper.clone(), self.settings, self.budget);
         tokio::spawn(async move {
-            let accepted = match far::accept(ours, Role::NODE, settings, &keeper.sessions, &mut OsEntropy).await {
-                Ok(accepted) => accepted,
-                // A link that never completed its handshake: nothing to keep.
-                Err(_) => return,
-            };
-            if accepted.established().resumed {
-                let _ = keeper.run_resumed(accepted).await;
-                return;
-            }
-            // A new session holds a whole buffer's worth of the node's budget
-            // while it is kept, so the budget is a bound, not a hope.
-            let held = keeper.kept().saturating_mul(settings.replay_capacity);
-            if held.saturating_add(settings.replay_capacity) > budget {
-                let reason = format!(
-                    "this node keeps as many resumable sessions as its budget allows ({} MiB of replay buffers)",
-                    budget >> 20
-                );
-                accepted.close(&reason, &keeper.sessions).await;
-                return;
-            }
-            match tokio::time::timeout(TARGET_LIMIT, inner.open(id)).await {
-                Ok(Ok(target)) => {
-                    keeper.run_new(accepted, target).await;
-                }
-                Ok(Err(why)) => {
-                    let reason = format!("the node could not reach its target: {why}");
-                    accepted.close(&reason, &keeper.sessions).await;
-                }
-                Err(_) => {
-                    let reason = format!("the node's target did not answer within {} s", TARGET_LIMIT.as_secs());
-                    accepted.close(&reason, &keeper.sessions).await;
-                }
-            }
+            far::serve(ours, Role::NODE, settings, &keeper, budget, || inner.open(id)).await;
         });
         Box::pin(async move { Ok(theirs) })
     }

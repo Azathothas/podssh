@@ -434,6 +434,40 @@ iroh can run only with this configuration (READ; not MEASURED yet):
 | No DNS | The `Minimal` preset (no pkarr or DNS lookups), podssh's own relay URL, peers dialled by ticket (a key and a relay URL), a resolver that fails fast |
 | A home relay | The HTTPS `/ping` probe must pass through the proxy. Without it, the endpoint can connect out but nothing can connect to it. |
 
+**Built (T-162, 2026-10-09):** the crate `podssh-iroh`, in the binary with
+the feature `iroh` only. iroh 1.3.0 with no default features and
+`tls-aws-lc-rs`: no ring, no port mapping, no metrics. The endpoint has the
+`Minimal` preset and no address lookup; the relays given, n0's four public
+relays by default; podssh's proxy for the relay (iroh's `proxy_url`), at an
+address that podssh resolved; podssh's name resolution in place of iroh's
+resolver; podssh's trust store for the relay's certificate; and no IP
+transport unless a UDP probe binds, then UDP sockets that are not required.
+The HTTPS probe of the relays, through the proxy, picks the home relay; the
+captive portal check is off. A session is a bidirectional QUIC stream with
+the ALPN `podssh/1`; the client's first byte announces it, as a QUIC peer
+learns of a stream only from its first byte, and the stream then carries the
+resumable layer's records. Found on the way (READ in iroh 1.3.0, and
+MEASURED in the crate's tests):
+
+- iroh's own proxy selection reads `HTTP_PROXY` first, then `HTTPS_PROXY`,
+  and knows no `ALL_PROXY` or `NO_PROXY`; the HTTP client of its relay probe
+  reads `ALL_PROXY` itself. With `ALL_PROXY` alone, an endpoint with iroh's
+  own selection probed its relay through the proxy, dialled it without, and
+  got no home relay.
+- iroh puts a proxy's user name and password in `Proxy-Authorization` as the
+  URL writes them, escapes and all, and in base64url, where RFC 7617 asks for
+  base64. podssh refuses such credentials with the reason, where the proxy
+  would refuse them with none.
+- The relay's name goes to the proxy in `CONNECT`; the proxy's own name is
+  resolved by the resolver that podssh gives iroh.
+
+MEASURED offline: 20 MiB each way through a stand-in CONNECT proxy and a
+relay on the loopback, under a name that only the proxy resolves, with equal
+digests; podssh's trust store refuses the test relay's self-signed
+certificate. `podssh doctor`, with the feature, reached n0's first relay
+with `/ping` in 576 ms. Not measured yet: a real sandbox, and the
+throughput (T-157). Dialling a ticket comes with T-163.
+
 What iroh then gives, when both ends run podssh:
 
 - **Sessions that survive relay drops and address changes**: QUIC

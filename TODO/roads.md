@@ -6,7 +6,7 @@ itself; Multipath TCP; and resumption in the relay (M8).
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
-**Source:** ROADMAP M6 (the iroh road); `docs/design.md:407-487`;
+**Source:** ROADMAP M6 (the iroh road); `docs/design.md:407-521`;
 `docs/decisions.md` (2026-10-08: iroh is a road that the user must select);
 GitHub #18 (Nemo-010, 2026-10-08: the iroh-ssh, zuko, GPU-Share and quic-ssh
 reports).
@@ -14,7 +14,7 @@ reports).
 **Milestone:** M6
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -30,7 +30,7 @@ to 245 crates. In the target sandbox it runs only with no UDP transport (or a
 UDP bind after a probe), podssh's proxy in `proxy_url(...)`, the `Minimal`
 preset with no pkarr or DNS, peers dialled by ticket, and a home relay whose
 `/ping` passes the proxy. The operator accepted netlink sockets and extra
-connections for this road (`docs/design.md:476-479`). The sandbox refuses UDP
+connections for this road (`docs/design.md:510-513`). The sandbox refuses UDP
 (`docs/target-environment.md:23`). Measured on `3ee70dc`: `--iroh` is an
 unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 
@@ -43,7 +43,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    for `ts`. The default build and the releases stay without the feature.
 2. The endpoint: the `Minimal` preset, no pkarr or DNS discovery, and the
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
-   (`crates/podssh-ws/src/dial.rs:131-155`), so `ALL_PROXY` and `NO_PROXY` act
+   (`crates/podssh-ws/src/dial.rs:149-173`), so `ALL_PROXY` and `NO_PROXY` act
    as on the other roads; iroh's own selection ignores both
    (`docs/design.md:433`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
@@ -59,7 +59,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:69-72`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:69-75`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -84,10 +84,60 @@ the feature. The second runs two endpoints with no UDP, through a stand-in
 CONNECT proxy, and carries 20 MiB with an equal SHA-256; a planted endpoint
 that uses iroh's own proxy selection fails with `ALL_PROXY` set.
 
+## Done
+
+2026-10-09, with T-265, a defect of the dial that the doctor's new line found.
+
+- crates/podssh-iroh (a workspace member, not a default one; Rust 1.91):
+  iroh 1.3.0 (`>=1.1, <2`) with no default features and `tls-aws-lc-rs`.
+  `endpoint::bind`: the `Minimal` preset, no address lookup, the relays given
+  (n0's by default, `default_relays`), podssh's proxy for the relay at an
+  address that podssh resolved (`HttpProxy::url_at` of podssh-ws), podssh's
+  name resolution (`resolve::Podssh` in iroh's `DnsResolver::custom`),
+  podssh's trust store (rustls's WebPKI verifier over podssh's roots), the
+  captive portal check off, and no IP transport unless `probe::udp` binds,
+  then UDP sockets that are not required. Proxy credentials that iroh would
+  send wrong (escaped, and in base64url) are refused with the reason.
+- `stream`: a session is a bidirectional QUIC stream with the ALPN
+  `podssh/1`, announced by one byte from the client, as a QUIC peer learns of
+  a stream only from its first byte; `far::serve` runs the layer's far end on
+  each, with one keeper. The far end's policy of one link moved from the
+  reverse road's `Layered` to `podssh_relay::session::far::serve`, which both
+  roads now run.
+- podssh-cli: the feature `iroh`; `podssh ssh iroh:...` exits 70 before
+  anything resolves, and in the default build names `--features iroh` (an
+  iroh destination is no verb, so `availability()` stays per verb); with the
+  feature, it says that dialling a ticket is not implemented yet (T-163).
+  `doctor`, with the feature: `bind UDP`, and `/ping` of the first relay
+  through the proxy.
+- The gate: `podssh-iroh` in the packages of `lint`, a clippy line with the
+  feature, and the steps `msrv_iroh` (1.91) and `iroh` (the tests). The
+  listener check allows the probe's and the endpoint's UDP bind. `deny.toml`
+  checks the targets that podssh ships: three crates under the Unlicense are
+  only for the browser's WebAssembly target of iroh's relay client, which no
+  release compiles. The documents: `README.md`, `SECURITY.md`,
+  `docs/architecture.md`, `docs/design.md` (section 7), `docs/development.md`
+  and `AGENTS.md` (sections 3 and 7).
+- Prove, native, Windows: `cargo test -p podssh-cli --test iroh_not_built`:
+  2 passed. `cargo test -p podssh-iroh -p podssh-cli --features
+  podssh-cli/iroh`: 336 passed, 0 failed, 8 ignored. In it: 20 MiB each way
+  through a stand-in CONNECT proxy and a relay on the loopback, under a name
+  that only the proxy resolves, with equal SHA-256 digests; podssh's trust
+  store refuses the relay's self-signed certificate; with `ALL_PROXY` alone,
+  podssh's selection reaches the relay, and the planted endpoint with iroh's
+  own selection gets no home relay. `cargo deny --locked check advisories
+  licenses bans sources`, and with `--all-features` for licenses and
+  sources: ok. clippy with the feature: no warning.
+- Live, once: `podssh doctor` of a build with the feature, this machine:
+  `bind UDP` ok, and n0's first relay answered `/ping` in 576 ms; 20 ok, 0
+  FAIL.
+- Waits for T-251, by the decision of 2026-10-09: `sh scripts/dev.sh check`
+  (the steps `msrv_iroh` and `iroh` in the build image).
+
 # T-163: iroh tickets and node keys
 
 **Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:434` and
-`docs/design.md:444-445`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
+`docs/design.md:478-479`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
 handoff; iroh-ssh's persistent and ephemeral keys).
 **Category:** feature
 **Milestone:** M6
@@ -104,7 +154,7 @@ no form for a ticket, no place for the keys, and no rule for who may connect.
 
 Read: with the `Minimal` preset nothing is discovered, so a ticket gives the
 key and the relay URL (`docs/design.md:434`). The key is the identity, and
-access is by an allowlist of keys or a relay token (`docs/design.md:444-445`).
+access is by an allowlist of keys or a relay token (`docs/design.md:478-479`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
@@ -180,7 +230,7 @@ limit of iroh to each connection.
 Read: for a podssh node, the iroh road is first and the reverse road with the
 resumable layer is second, raced (`docs/design.md:48-53`). The first real
 sandbox can block what iroh needs, so the fallback is necessary
-(`docs/design.md:481-487`). The user must select iroh (`docs/decisions.md`,
+(`docs/design.md:515-521`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:55-62`). The relay opener tries one host at a time
 (`crates/podssh-relay/src/open.rs:177-212`), and no code races two roads.
@@ -250,9 +300,9 @@ forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
 (`crates/podssh-relay/src/pool.rs:18-27`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
-published (`docs/design.md:461-463`). At least three projects run the iroh
+published (`docs/design.md:495-497`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
-`docs/design.md:467-469`). The URLs of n0's relays for iroh 1.x must be read
+`docs/design.md:501-503`). The URLs of n0's relays for iroh 1.x must be read
 in iroh's source at the pinned version.
 
 ## Approach
@@ -296,7 +346,7 @@ other build.
 # T-166: A roost: a podssh next to a standard sshd
 
 **Source:** `docs/design.md:52` (a standard sshd behind a podssh `roost`) and
-`docs/design.md:217-220`; the `roost` of pigeons (`docs/design.md:471-474`);
+`docs/design.md:217-220`; the `roost` of pigeons (`docs/design.md:505-508`);
 GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh reaches sshd by node id, and
 refuses early when no sshd answers).
 **Category:** feature
@@ -769,8 +819,8 @@ whether MPTCP helps podssh on any road.
 ## Premise
 
 Read: `--direct` connects with a plain `TcpStream::connect`
-(`crates/podssh-ws/src/dial.rs:206-226`, the call at
-`crates/podssh-ws/src/dial.rs:219`). Through a proxy, MPTCP can reach only the
+(`crates/podssh-ws/src/dial.rs:227-272`, the call at
+`crates/podssh-ws/src/dial.rs:245`). Through a proxy, MPTCP can reach only the
 proxy. `podssh-ws` has no `libc` dependency (`crates/podssh-ws/Cargo.toml`).
 Read in the report, not verified here: RustConn uses MPTCP. Not known:
 whether the relay's edge or a target server accepts MPTCP. Linux offers it
@@ -806,7 +856,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:221-231` (layer 3) and `docs/design.md:496-499` (question 1 of
+`docs/design.md:221-231` (layer 3) and `docs/design.md:530-533` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -829,7 +879,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:227-231`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:496-499`). The relay is in another repository.
+(`docs/design.md:530-533`). The relay is in another repository.
 
 ## Approach
 

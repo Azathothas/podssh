@@ -31,6 +31,22 @@ fn proxy_urls_parse_with_and_without_scheme_port_and_credentials() {
     assert!(!debug.contains("p@ss") && !debug.contains("user"), "Debug leaked credentials: {debug}");
 }
 
+/// The URL that a library takes (the iroh road's relay dial): the resolved
+/// address, and the credentials escaped again so that they parse back the
+/// same.
+#[test]
+fn a_proxy_as_a_url_at_its_address_keeps_its_credentials() {
+    let p = HttpProxy::parse("http://us%40er:p%3Ass word@proxy.example:3128").unwrap();
+    let url = p.url_at("192.0.2.7:3128".parse().unwrap());
+    assert_eq!(url, "http://us%40er:p%3Ass%20word@192.0.2.7:3128");
+    assert_eq!(
+        HttpProxy::parse(&url).unwrap(),
+        HttpProxy::parse("http://us%40er:p%3Ass%20word@192.0.2.7:3128").unwrap()
+    );
+    let plain = HttpProxy::parse("http://[::1]:8080").unwrap();
+    assert_eq!(plain.url_at("[::1]:8080".parse().unwrap()), "http://[::1]:8080");
+}
+
 #[test]
 fn unsupported_proxy_schemes_are_refused_by_name() {
     for url in ["https://proxy.example:443", "socks5://proxy.example:1080"] {

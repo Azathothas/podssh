@@ -3,7 +3,7 @@ to I8 of the former defects page (`git show 3ee70dc:docs/defects.md`), and the r
 decides how `podssh chat` works (T-099). No command uses the client, and `podssh chat` exits 70.
 The client is sans-IO, so its unit tests need no network. The live probe
 `crates/podssh-cli/examples/live_irc.rs` reaches real servers through the relay, with a token from
-the environment, the cache or a mint, never printed (`docs/development.md:385-392`). Each defect was read
+the environment, the cache or a mint, never printed (`docs/development.md:392-399`). Each defect was read
 again on `3ee70dc`.
 
 # T-091: I1: `CAP END` is sent only after 001
@@ -131,7 +131,7 @@ cargo test -p podssh-core --no-fail-fast
 The new file crates/podssh-core/tests/cap_list.rs holds `only_listed_capabilities_are_requested`,
 `a_value_is_never_sent_back`, `a_list_on_several_lines_gives_one_request` and
 `the_continuation_marker_is_not_a_capability`. Its input is a `CAP LS 302` reply captured from a
-real server, kept byte for byte with the server, version and date (`docs/development.md:398-399`).
+real server, kept byte for byte with the server, version and date (`docs/development.md:405-406`).
 Plant: remove the list filter; the first test must fail with `sasl=PLAIN` in the `REQ`. Then repeat
 the live runs of T-091; the probe prints the offered and enabled capabilities.
 
@@ -571,7 +571,7 @@ today (`crates/podssh-cli/src/flags.rs:243-255`,
 5. A test in two boxes through the live relay, built like the script of
    T-085: text, and files of 0, 1 and 5,000,000 bytes with equal digests.
 6. Docs in the same commit: `docs/irc.md` (a section on chat), `docs/cli.md`,
-   `docs/STATUS.md`, and the gap of plain text in `SECURITY.md:96`, which the
+   `docs/STATUS.md`, and the gap of plain text in `SECURITY.md:99`, which the
    roads do not have.
 
 ## Decision
@@ -613,7 +613,7 @@ run podssh, or who wants a public channel, has no chat.
 Read: the client is sans-IO, and T-091 to T-098 repair its defects. Measured
 on 2026-10-05: of seven public networks, only `irc.undernet.org:6667`
 accepted the relay's addresses (`docs/irc.md:12-24`). On port 6667 the relay
-and each server read the text (`SECURITY.md:96`).
+and each server read the text (`SECURITY.md:99`).
 
 ## Approach
 

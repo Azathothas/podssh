@@ -6,6 +6,21 @@
 
 [graph]
 all-features = false
+# The targets that podssh builds and ships (T-218 gives the list): a crate that
+# only another target compiles, as the browser's WebSocket of iroh's relay
+# client (T-162), is in no release, and is not checked.
+targets = [
+  "x86_64-unknown-linux-musl",
+  "aarch64-unknown-linux-musl",
+  "armv7-unknown-linux-musleabihf",
+  "riscv64gc-unknown-linux-musl",
+  "x86_64-unknown-linux-gnu",
+  "aarch64-unknown-linux-gnu",
+  "x86_64-pc-windows-msvc",
+  "aarch64-pc-windows-msvc",
+  "x86_64-apple-darwin",
+  "aarch64-apple-darwin",
+]
 
 [advisories]
 version = 2

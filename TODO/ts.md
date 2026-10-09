@@ -70,7 +70,7 @@ The new file crates/podssh-ts/tests/netmap_wait.rs gives the limit a future that
 wait. Plant: await with no limit; an outer `tokio::time::timeout` must then fail the test. An
 offline test cannot reach the fork's queue: with a silent control server, the start itself waits
 (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:79-89`). The second command is the feature
-suite (226 passed, `docs/STATUS.md:250`). The third is live, with a `ts` build, while no map comes
+suite (226 passed, `docs/STATUS.md:251`). The third is live, with a `ts` build, while no map comes
 (`docs/tailscale.md:10-11`): it must print `exit=78` after about 20 s, not `exit=124`.
 
 # T-101: C3: a local end of input cuts the reply in the `podssh-ts` pipe
@@ -174,7 +174,7 @@ type says that a register request with an expiry in the past expires the current
 1. Probe each mode before `TsNode::start`, through the proxy of T-103, in 8 s per step as
    `podssh doctor` does (`crates/podssh-cli/src/doctor/net.rs:12-13`): for `tcp`, a TLS handshake to
    a stock DERP server on port 443; for `relay`, one to the relay host. Dial with
-   `crates/podssh-ws/src/dial.rs:186-189`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:13-22`).
+   `crates/podssh-ws/src/dial.rs:204-207`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:13-22`).
 2. Add a logout to the fork: a register request with an expiry in the past, a `ControlRunner`
    message and `Device::logout(timeout)`, as a new patch with its row in
    `vendor/tailscale-rs/LOCAL-PATCHES.md`.
@@ -236,7 +236,7 @@ WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:135-141`)
 Read: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs:192-205`),
 against the manual (`crates/podssh-cli/src/man/facts.rs:45-51`), the rule at
 `docs/target-environment.md:68-71` and `SECURITY.md:53-56`. A URL with no port means 80 in podssh
-(`crates/podssh-ws/src/dial.rs:66`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:39-41`).
+(`crates/podssh-ws/src/dial.rs:70`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:39-41`).
 Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:25-26`).
 
 ## Approach
@@ -247,7 +247,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 2. Add it as a new patch with its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`, replace the stale
    text at `vendor/README.md:62-75`, and check that the whole chain of patches still applies.
 3. In `podssh ts`, take `--ts-proxy`, else `podssh_ws::dial::proxy_from_env`
-   (`crates/podssh-ws/src/dial.rs:131-155`). Give the fork a URL with an explicit port, and never
+   (`crates/podssh-ws/src/dial.rs:149-173`). Give the fork a URL with an explicit port, and never
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:105-120`), so apply `NO_PROXY` for each host in
    the new function.
@@ -268,7 +268,7 @@ which follows `vendor/tailscale-rs/ts_derp/tests/proxy_dial.rs:14-67`: the call
 `ws::connect("relay.invalid", 443)` must send `CONNECT relay.invalid:443` to a fake proxy, then fail
 at TLS, not at the name. Plant: remove the proxy branch; the fake sees nothing, and the test fails.
 A new test in crates/podssh-ts/tests/config.rs checks the choice: the flag, then the variables in
-the order of `crates/podssh-ws/src/dial.rs:146`. Live: with `HTTPS_PROXY` naming
+the order of `crates/podssh-ws/src/dial.rs:164`. Live: with `HTTPS_PROXY` naming
 `scripts/fake-proxy.py`, `podssh ts --ts-mode relay` must make its log list the relay host.
 
 # T-104: `podssh ts` connects again after a drop
@@ -503,7 +503,7 @@ Read: the row is at `crates/podssh-cli/src/flags.rs:279-280`. `podssh ts` reads 
 (`crates/podssh-cli/src/ts.rs:290-292`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
 stream (`crates/podssh-cli/src/ts.rs:371-373`). `proxy --jsonl` is refused at parse, with the reason
 (`crates/podssh-cli/src/tree.rs:179-187`, `crates/podssh-cli/src/non_interactive.rs:309-320`).
-`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:42`).
+`serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:50`).
 
 ## Approach
 
@@ -572,7 +572,7 @@ its control runner, for each registration (`vendor/tailscale-rs/ts_runtime/src/l
 `vendor/tailscale-rs/ts_runtime/src/control_runner.rs:54`, `vendor/tailscale-rs/ts_runtime/src/control_runner.rs:108`).
 
 Read: the relay token is a `Zeroizing<String>` (`crates/podssh-relay/src/token.rs:29`), and
-`zeroize` is a workspace dependency (`Cargo.toml:158`), but podssh-ts does not use it
+`zeroize` is a workspace dependency (`Cargo.toml:159`), but podssh-ts does not use it
 (`crates/podssh-ts/Cargo.toml:10-14`). The fork already depends on it
 (`vendor/tailscale-rs/Cargo.toml:106`). The comment at `crates/podssh-ts/src/secret.rs:3-5` names a
 model file that no longer exists.

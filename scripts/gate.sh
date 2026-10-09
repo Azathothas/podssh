@@ -18,7 +18,7 @@ set -u
 
 # The steps, in the order of a full run. A step that is not in this list runs
 # nowhere: not here, and not in CI.
-STEPS="lint libs msrv msrv_ssh msrv_ts record ssh ts release"
+STEPS="lint libs msrv msrv_ssh msrv_ts msrv_iroh record ssh ts iroh release"
 
 if [ "$#" -eq 1 ] && [ "$1" = --list ]; then
     for _s in $STEPS; do
@@ -85,7 +85,7 @@ echo "steps: $*"
 
 # Each package of the workspace, by name: `cargo fmt --all` would also format
 # the fork in vendor/, which keeps its own format and its patches.
-PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-todo"
+PKGS="-p podssh-cli -p podssh-ssh -p podssh-relay -p podssh-ws -p podssh-core -p podssh-terminal -p podssh-probe -p podssh-ts -p podssh-iroh -p podssh-todo"
 
 # The library crates must build with no C compiler. The image ships a working
 # `cc`, so `CC=/nonexistent` is what enforces the rule, and `CXX=/nonexistent`
@@ -106,6 +106,8 @@ step_lint() {
     run "clippy: no warning in any target" cargo clippy --locked --all-targets $PKGS -- -D warnings
     run "clippy: no warning with the Tailscale feature" \
         cargo clippy --locked --all-targets -p podssh-cli -p podssh-ts --features podssh-cli/ts -- -D warnings
+    run "clippy: no warning with the iroh feature" \
+        cargo clippy --locked --all-targets -p podssh-cli -p podssh-iroh --features podssh-cli/iroh -- -D warnings
 }
 
 # The feature `blocking` of podssh-relay (the facade for podbox, T-081) brings
@@ -185,6 +187,17 @@ step_msrv_ts() {
         cargo "+$TS_RUST" check --locked --all-targets -p podssh-ts -p podssh-cli --features podssh-cli/ts
 }
 
+# iroh's minimum, which the iroh road declares (T-162); the CLI with the
+# feature `iroh` too, which brings the road in.
+step_msrv_iroh() {
+    rust_version crates/podssh-iroh/Cargo.toml
+    IROH_RUST=$RV
+    run "Rust $IROH_RUST, the declared minimum of podssh-iroh: install" \
+        rustup toolchain install "$IROH_RUST" --profile minimal
+    run "podssh-iroh and podssh-cli with the feature iroh: check on Rust $IROH_RUST" \
+        cargo "+$IROH_RUST" check --locked --all-targets -p podssh-iroh -p podssh-cli --features podssh-cli/iroh
+}
+
 # The work record (TODO/): the checker's own tests, where each planted
 # disagreement must be found, then the record of this tree. A count, a status
 # or a cited line that disagrees fails the gate. Pure Rust, no C.
@@ -213,6 +226,11 @@ step_ssh() {
 step_ts() {
     run "Tailscale adapter (feature ts, needs cc): tests" \
         cargo test --locked --no-fail-fast -p podssh-ts -p podssh-cli --features podssh-cli/ts
+}
+
+step_iroh() {
+    run "the iroh road (feature iroh, needs cc): tests" \
+        cargo test --locked --no-fail-fast -p podssh-iroh -p podssh-cli --features podssh-cli/iroh
 }
 
 # The shipped artefact, a static musl binary; then the binary against real

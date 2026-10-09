@@ -35,7 +35,9 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
   start of the SSH handshake. The host-key check makes a relay in the middle
   safe. See [SECURITY.md](SECURITY.md).
 - **Outbound only.** podssh opens outbound connections only (to the relay,
-  or to the proxy that `HTTPS_PROXY` names). It never listens on a port.
+  or to the proxy that `HTTPS_PROXY` names). It never listens on a port. The
+  iroh road, in a build with the feature `iroh`, binds UDP for direct paths
+  only after a probe allows it.
 - **Fallbacks.** If one relay host fails, podssh tries the next one. If DNS
   fails, podssh uses pinned addresses or DNS over HTTPS. If the relay goes
   silent, podssh finds it in 30 to 40 s.

@@ -75,7 +75,7 @@ bytes. See [reverse.md](reverse.md).
 
 | Crate | Role | Internal dependencies |
 | --- | --- | --- |
-| `podssh-cli` | The `podssh` binary: arguments, `--help`, the generated man page, dispatch, the `proxy` pump, the options of `ssh`, `doctor`, `keygen` | each crate below (`podssh-ts` only with the feature `ts`) |
+| `podssh-cli` | The `podssh` binary: arguments, `--help`, the generated man page, dispatch, the `proxy` pump, the options of `ssh`, `doctor`, `keygen` | each crate below (`podssh-ts` only with the feature `ts`, `podssh-iroh` only with the feature `iroh`) |
 | `podssh-ssh` | The SSH client: russh (aws-lc-rs) over a byte stream, the relay stream, `known_hosts`, the authentication chain, prompts, the terminal (raw mode, size, escapes), exit codes, a host-key probe, key generation | `podssh-ws` |
 | `podssh-relay` | Relay hosts, the pool and failover, tokens (mint, cache, mint again), the forward opener; the pairs, the codecs (the framing of the node and operator legs, the control messages, the close table) and the runners of the reverse road (feature `pair`); the resumable layer between two podssh ends (`session/`: its records, offsets and handshake, sans-IO, and its two ends over tokio streams); the blocking facade for podbox (feature `blocking`). No C. | `podssh-ws` |
 | `podssh-ws` | The connection to the relay: TCP, proxies, the DNS fallbacks, TLS (rustls with podssh's own pure-Rust provider), the WebSocket client | none |
@@ -83,6 +83,7 @@ bytes. See [reverse.md](reverse.md).
 | `podssh-terminal` | A line discipline in the process (not used yet) | none |
 | `podssh-probe` | Facts about the structure of the relay's document (tests only) | none |
 | `podssh-ts` | The Tailscale adapter over `vendor/tailscale-rs` (feature `ts`) | the fork in `vendor/` |
+| `podssh-iroh` | The iroh road between two podssh ends (feature `iroh`, T-162): an iroh endpoint with podssh's relays, proxy, name resolution and trust store, UDP only after a probe, and the resumable layer's sessions over QUIC streams | `podssh-relay`, `podssh-ws` |
 
 ## Design rules
 
@@ -105,7 +106,10 @@ These rules apply to each change. The reasons are in
    opens only when a probe at run time allows the bind: on loopback or
    AF_UNIX, unless the user sets the address. A race between relay hosts can
    open a second connection for a short time ([decisions.md](decisions.md),
-   2026-10-08).
+   2026-10-08). The iroh road (feature `iroh`), which the user selects,
+   binds UDP for direct paths only after a probe shows that a UDP socket
+   binds, and opens more than one outbound connection (its relay's probes),
+   as the operator accepted for that road.
 4. **No C in the library crates.** `podssh-ws`, `podssh-relay`,
    `podssh-core`, `podssh-terminal` and `podssh-probe` use rustls with
    podssh's own provider and RustCrypto crates. The gate

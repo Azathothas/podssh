@@ -25,12 +25,20 @@ default = []
 # and dominates build time, memory and binary size. Without it, `podssh ts`
 # still parses and refuses with a message naming this feature.
 ts = ["dep:podssh-ts"]
+# The iroh road between two podssh ends (T-162). Off by default: iroh adds
+# about 200 crates, needs Rust 1.91 and a C compiler (aws-lc-rs, as russh),
+# and the road is one that the user selects.
+iroh = ["dep:podssh-iroh", "dep:iroh"]
 
 # Each dependency is one that the library uses: `unused_crate_dependencies`
 # is denied in src/lib.rs, so a dependency that no code uses fails the build.
 [dependencies]
 podssh-probe = { path = "../podssh-probe" }
 podssh-ts = { path = "../podssh-ts", optional = true }
+podssh-iroh = { path = "../podssh-iroh", optional = true }
+# The type of a relay's URL, for `doctor`'s line; the version that
+# podssh-iroh builds.
+iroh = { version = ">=1.1, <2", default-features = false, features = ["tls-aws-lc-rs"], optional = true }
 podssh-ws = { path = "../podssh-ws" }
 # Relay hosts and failover, tokens, forward sessions (C-free, shared with podbox).
 podssh-relay = { path = "../podssh-relay", features = ["pair"] }

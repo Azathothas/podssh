@@ -120,7 +120,7 @@ Read:
      image. Do this item after T-206;
    - no entry for `vendor/tailscale-rs`.
 2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
-   the live check. The no-C steps of the gate (`scripts/gate.sh:113-120`) judge
+   the live check. The no-C steps of the gate (`scripts/gate.sh:115-122`) judge
    each update of a library crate's dependencies.
 3. Dependabot alerts and security updates: on since 2026-10-08, turned on
    with `gh api` and the operator's approval (`gh api
@@ -327,8 +327,8 @@ Read:
 - The help (`scripts/dev.sh` lines 331-366 at `912acd0`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
-  and the release with neither (`scripts/gate.sh:113-120`,
-  `scripts/gate.sh:221-223`). The help omits the work record, interop, the man
+  and the release with neither (`scripts/gate.sh:115-122`,
+  `scripts/gate.sh:239-241`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
@@ -348,7 +348,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:98-270`).
+   (`scripts/gate.sh:98-288`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:431-476`): the
+5. docs/development.md, "Release builds" (`docs/development.md:438-483`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -539,7 +539,7 @@ credential that a later commit removed, is not found.
 Read:
 
 - `scripts/check-repo.py:50-63` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:171-192` scans the tracked
+  key, a private key block); `scripts/check-repo.py:175-196` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -685,7 +685,7 @@ Read:
    each binary with `actions/attest-build-provenance`, pinned by commit SHA,
    for a tag `v*` only. Give these jobs `id-token: write` and
    `attestations: write`. A run by hand makes no attestation.
-2. Tell the user how to check, in `README.md` (`:48-49`) and in the
+2. Tell the user how to check, in `README.md` (`:50-51`) and in the
    release notes: `gh attestation verify FILE --repo Azathothas/podssh`.
 3. Let `podssh --version` name the commit: the workflows set a variable at
    compile time (`option_env!`, no build script, no `git` call); a local build
@@ -732,7 +732,7 @@ Read:
   `sha256sum`, and `.github/workflows/release.yml:153-169` publishes it with
   the binaries. No signature is published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:87`). `README.md:48-49` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:87`). `README.md:50-51` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -1405,7 +1405,7 @@ repository check finds a listener outside its allowance".
 # T-217: The declared minimum Rust versions, checked in CI
 
 **Source:** the minimum versions that the manifests declare
-(`docs/development.md:8-10`), measured by hand on 2026-10-08 (the note beside
+(`docs/development.md:8-11`), measured by hand on 2026-10-08 (the note beside
 `rust-version` in `Cargo.toml`).
 **Category:** chore
 **Milestone:** none
@@ -1538,7 +1538,7 @@ Read:
 - The check of each platform: `readelf` for `NEEDED` and `INTERP`
   (`.github/workflows/release.yml:52-59`), `dumpbin /dependents` on Windows
   (`:92-107`).
-- The binary needs a C compiler for aws-lc (`docs/development.md:11-13`); the
+- The binary needs a C compiler for aws-lc (`docs/development.md:12-14`); the
   library crates need none.
 - Some code reads facts of Linux. The terminal check reads `tty_nr` from
   `/proc/self/stat` when it can (`crates/podssh-ssh/src/terminal/ctty.rs:24`),
@@ -1604,14 +1604,14 @@ the gate on any host that has a C++ compiler. The no-C rule held only because
 
 Read, in the tree as it is now:
 
-- `scripts/gate.sh:90-120`: the library crates build and test with
+- `scripts/gate.sh:90-122`: the library crates build and test with
   `CC=/nonexistent` and `CXX=/nonexistent`.
 - `scripts/plant.sh:100-145`: a crate in a temporary path whose build script
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:200-202` states the rule with `CXX`, and
-  `docs/STATUS.md:258` records the measurement. Rule 4 of
+- `docs/development.md:205-207` states the rule with `CXX`, and
+  `docs/STATUS.md:260` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:101-108` runs the plant on each push.
@@ -1642,7 +1642,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:258`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:260`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -1671,7 +1671,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:110`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:114`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line
@@ -1759,7 +1759,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:101-108` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:102-112` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:74-78`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
@@ -1774,7 +1774,7 @@ Measured with grep over `git ls-files 'crates/*'`: three files hold a
 listener or a bind. `crates/podssh-cli/src/doctor/unix.rs:151` and line 226 at `22c3b88`
 are the bind probes of `doctor`, which close at once and never listen
 (`crates/podssh-cli/src/doctor/mod.rs:15-16`). The test servers are in
-`crates/podssh-ws/tests/dial.rs:80` and
+`crates/podssh-ws/tests/dial.rs:96` and
 `crates/podssh-ws/tests/hostname_verification.rs:55`. No file uses
 `UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
 that skips comments and test modules is
@@ -1844,7 +1844,7 @@ allowance".
   files, and a plant at each run (one `TcpListener::bind` in
   `crates/podssh-ws/src` of a temporary tree must be found). It prints the
   files read and the uses within the allowance.
-- The documents already state the rule as ruled (`docs/architecture.md:101-108`,
+- The documents already state the rule as ruled (`docs/architecture.md:102-112`,
   `docs/target-environment.md:74-78`, `AGENTS.md`, section 5): nothing to
   change there. `docs/development.md`, "Checks": the scan.
 - Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32
@@ -2129,7 +2129,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:191-198`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:204-211`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,

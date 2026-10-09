@@ -278,7 +278,7 @@ Read:
 1. Make `run_inner` (`crates/podssh-ssh/src/run.rs:127-150`) report the phase
    that a failure reached: the handshake, the authentication, the session
    request sent, or data moved. Keep the exit codes of OpenSSH.
-2. In `connect_and_run` (`crates/podssh-cli/src/ssh/mod.rs:72-100`, which
+2. In `connect_and_run` (`crates/podssh-cli/src/ssh/mod.rs:78-106`, which
    reaches the relay through `crates/podssh-cli/src/ssh/transport.rs:44-64`), open a
    new relay session and run again only when the failure came before the
    session request, and before `-W` read a byte of stdin.
@@ -407,7 +407,7 @@ logs each `exit-status` request, and correct the row.
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
 lablup/bssh report in GitHub #18, #20 and #22 (item 8, "`@cert-authority`
-rejection"); the known gap in `docs/STATUS.md:233` and `SECURITY.md:87-89`.
+rejection"); the known gap in `docs/STATUS.md:233` and `SECURITY.md:90-92`.
 Each claim read again here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog
@@ -441,7 +441,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:140-147` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:112-114`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:3708`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5408`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -473,7 +473,7 @@ back to the plain key only when no CA line matches.
    (`crates/podssh-cli/src/doctor/clock.rs`).
 6. Keep the test `a_cert_authority_line_does_not_make_a_key_known`: a CA line
    never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:68-70`.
-   When certificates work, change `docs/STATUS.md:233` and `SECURITY.md:87-89`.
+   When certificates work, change `docs/STATUS.md:233` and `SECURITY.md:90-92`.
 
 GitHub #29 notes that the bssh report in #18, #20 and #22 asks podssh to
 keep refusing a certificate that no trusted CA signed. Verification keeps
@@ -635,7 +635,7 @@ measured: a race needs two processes; the test below makes it certain.
    (`crates/podssh-ssh/src/hostkey.rs:183-207`). Else append.
 3. Hold the lock only for the read and the write, never across a prompt.
 4. When the file system refuses locks, append as today, with a verbose note
-   (a fallback that says so, `AGENTS.md:200`).
+   (a fallback that says so, `AGENTS.md:202`).
 
 ## Prove
 
@@ -1001,7 +1001,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
    (`crates/podssh-cli/src/flags.rs:398-429`), in
    `crates/podssh-cli/src/positionals.rs` and in `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`); `docs/cli.md`;
-   "Nothing listens" in `SECURITY.md:69-72`; `docs/STATUS.md`.
+   "Nothing listens" in `SECURITY.md:69-75`; `docs/STATUS.md`.
 
 ## Decision
 
@@ -1067,7 +1067,7 @@ Read:
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set
   (`crates/podssh-cli/src/ssh/transport.rs:95-97`,
-  `crates/podssh-ws/src/dial.rs:201-203`).
+  `crates/podssh-ws/src/dial.rs:219-221`).
 - russh takes SSH window credit before it writes, so a remote program that
   stops reading makes the session idle, not stuck (GitHub #36). Only a stall
   below SSH causes the hang.

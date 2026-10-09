@@ -276,7 +276,7 @@ declares `libc` (`crates/podssh-probe/Cargo.toml` line 11 at `f8a94ca`), which n
 `crates/podssh-probe/src/facts.rs` lines 3-6 at `f8a94ca` name a "startup assertion" that no command runs;
 `crates/podssh-probe/src/relay_facts.rs` lines 261-289 at `f8a94ca` are that unused startup part. CI runs
 `scripts/check-relay-spec.py` live, with three plants (`.github/workflows/build.yml:171-188`).
-The gate runs the crate's tests with no C compiler (`scripts/gate.sh:113-120`). The build image
+The gate runs the crate's tests with no C compiler (`scripts/gate.sh:115-122`). The build image
 has no Python (`crates/podssh-probe/src/facts.rs:14-19`), so the crate is the only form of the
 check that the container gate can run.
 
@@ -660,7 +660,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (`crates/podssh-relay/src/cache.rs:320-337`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
-   (`crates/podssh-ws/src/dial.rs:141-155`), so that the tests can set it.
+   (`crates/podssh-ws/src/dial.rs:159-173`), so that the tests can set it.
 5. `doctor` names the directory in use and the variable that chose it; `status` (T-051) shows
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.

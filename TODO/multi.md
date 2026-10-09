@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:72-100`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:78-106`,
    `crates/podssh-ssh/src/run.rs:34-49`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:32-150` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -266,7 +266,7 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:69-72` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:69-75` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
 
@@ -475,7 +475,7 @@ name is copied by hand.
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:198-206`,
   `crates/podssh-cli/src/ssh/resolve.rs:373-387`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:188-192`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:190-194`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -562,7 +562,7 @@ expect rule.
    reads `\r`, `\n`, `\t` and `\xNN`. Each rule waits `--expect-timeout`
    (default 30 s); a miss ends the session with 255 and names the rule.
 3. No secrets: `--send` is on the command line, which each process can read
-   (`docs/architecture.md:120-122`). The manual says so; passwords come
+   (`docs/architecture.md:124-126`). The manual says so; passwords come
    through `SSH_ASKPASS`.
 4. Tasks before and after the connection: the shell does them
    (`cmd && podssh ssh host; cmd`). Only `LocalCommand` needs podssh,
@@ -735,10 +735,10 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:188-192`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:190-194`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:94-111`).
 - Read: credentials never go to output, logs, URLs or argv
-  (`docs/architecture.md:120-122`). The token type never shows itself
+  (`docs/architecture.md:124-126`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-53`), and doctor never shows proxy
   credentials or tokens (`docs/cli.md:290-292`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the

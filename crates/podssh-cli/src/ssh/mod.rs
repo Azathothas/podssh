@@ -8,6 +8,7 @@
 //! 64, and a bad relay variable 78, before anything is attempted.
 
 pub mod args;
+pub mod iroh;
 pub mod keywords;
 pub mod node;
 pub mod options;
@@ -21,7 +22,7 @@ use std::sync::Arc;
 use podssh_ssh::relay_stream::RelayEnd;
 use podssh_ssh::{Log, EXIT_FAILURE};
 
-use crate::exit_codes::EXIT_USAGE;
+use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
 use args::SshArgs;
 use resolve::{Env, Resolved, Transport};
 
@@ -30,6 +31,11 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
     if args.version {
         let _ = writeln!(err, "podssh {} (SSH: russh, aws-lc-rs)", env!("CARGO_PKG_VERSION"));
         return 0;
+    }
+    // Before anything is resolved or connects: the road is not here.
+    if let Some(destination) = args.destination.as_deref().filter(|d| iroh::is_iroh(d)) {
+        let _ = writeln!(err, "podssh ssh: {}", iroh::refusal(destination));
+        return EXIT_NOT_IMPLEMENTED;
     }
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("ssh", err);

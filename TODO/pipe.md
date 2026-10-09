@@ -63,7 +63,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    ENOSYS), two pipes; Windows uses pipes. stderr is shared. When the other
    side ends, the child gets the end of input, and podssh waits for it as a
    shell waits. Add the `process` feature of tokio to podssh-cli
-   (`Cargo.toml:70-72` lacks it; `crates/podssh-ssh/Cargo.toml:20` has it).
+   (`Cargo.toml:71-73` lacks it; `crates/podssh-ssh/Cargo.toml:20` has it).
 6. The exit status: the child's, and 128 + N for a signal; with two children,
    B's. A program that is not found gives 127, one that cannot run 126, as a
    shell gives. With no child, a clean end gives 0.
@@ -72,12 +72,12 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    (`crates/podssh-cli/src/man/examples.rs:8-73`; its test at
    `crates/podssh-cli/src/man/examples.rs:196-206` learns the new variant),
    `docs/design.md:389-397`, `docs/STATUS.md`. Each file stays under 500
-   lines (`AGENTS.md:196-197`).
+   lines (`AGENTS.md:198-199`).
 
 ## Decision
 
 Recommendation: `exec:` splits the words itself and starts no shell, because
-podssh must not assume a shell (`AGENTS.md:180-181`), and the user can name one
+podssh must not assume a shell (`AGENTS.md:182-183`), and the user can name one
 (`exec:sh -c 'CMD'`). The alternative, a `system:` address through
 `/bin/sh -c` as in socat, lost: Windows and some images have no `/bin/sh`.
 
@@ -140,7 +140,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:98-100`).
+   pump does not know the road (`docs/architecture.md:99-101`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:100-110` does;
    open with `crates/podssh-relay/src/open.rs:180-212`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -173,7 +173,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 ## Decision
 
 Recommendation: add `tcp:HOST:PORT`, the direct road through `HTTPS_PROXY`
-with `crates/podssh-ws/src/dial.rs:189-204`, because `ssh --direct` uses the
+with `crates/podssh-ws/src/dial.rs:207-222`, because `ssh --direct` uses the
 same dialer and socat users expect it. The alternative, no direct address,
 lost: a host with egress would then have only `relay:`, and its 64 MiB limit.
 
@@ -303,8 +303,8 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:399-401`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:182-187`, `docs/architecture.md:101-108`,
-  `docs/target-environment.md:74-78`, `SECURITY.md:69-72`, `README.md:37-38`.
+  `AGENTS.md:184-189`, `docs/architecture.md:102-112`,
+  `docs/target-environment.md:74-78`, `SECURITY.md:69-75`, `README.md:37-40`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:166`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -416,7 +416,7 @@ running on the server (`docs/design.md:224-226`).
    uses the same function.
 3. The session runs `tmux new-session -A -s NAME` with a pty, as `-tt` does.
    `-A` attaches when the session exists; that makes a second run safe.
-4. A loop around `crates/podssh-cli/src/ssh/mod.rs:72-100`. Connect again
+4. A loop around `crates/podssh-cli/src/ssh/mod.rs:78-106`. Connect again
    only for a lost link: `End::Lost`, the ping watcher, or the relay's 1001,
    1006, 1009 or 1011. Never after an exit status, `~.`, a detach of tmux
    (exit 0), or a failure of the host key or the authentication.
@@ -471,7 +471,7 @@ verified here.
 ## Problem
 
 Users ask how to carry RDP, VNC and Telnet. The documents show SSH and one
-HTTP request (`README.md:114-119`). They do not say which clients work with
+HTTP request (`README.md:116-121`). They do not say which clients work with
 no listener, or that the relay ends a desktop stream after 64 MiB.
 
 ## Premise
@@ -505,7 +505,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 3. Telnet: `podssh proxy HOST 23` carries the bytes, but a person needs a
    client that answers the IAC options: form a or b with
    `telnet 127.0.0.1 PORT`.
-4. Write a table "Other TCP protocols" after `README.md:114-119`: the
+4. Write a table "Other TCP protocols" after `README.md:116-121`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
    form a to `crates/podssh-cli/src/man/examples.rs:8-73`; its ProxyCommand
    parses (`crates/podssh-cli/src/man/examples.rs:173-180`). Link the table
@@ -675,7 +675,7 @@ and with which limits.
 - Read: through the relay, a session ends at 64 MiB (`docs/relay.md:127`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
-  privilege (`AGENTS.md:180-181`). The recipe uses the user's own `usbip` and
+  privilege (`AGENTS.md:182-183`). The recipe uses the user's own `usbip` and
   its privileges.
 
 ## Approach

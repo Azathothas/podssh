@@ -16,6 +16,10 @@ use tokio::time::Instant;
 
 /// The longest CONNECT response head podssh reads before giving up.
 const MAX_PROXY_RESPONSE: usize = 16 * 1024;
+/// How long one address may take to connect before the next is tried as
+/// well (RFC 8305's attempt delay): an address that never answers, as an
+/// IPv6 address with no route can, does not hold the whole dial (T-265).
+pub const ATTEMPT_DELAY: Duration = Duration::from_millis(250);
 
 /// An HTTP proxy that tunnels with `CONNECT`.
 #[derive(Clone, PartialEq, Eq)]
@@ -68,6 +72,20 @@ impl HttpProxy {
             return Err("the proxy URL names no host".into());
         }
         Ok(HttpProxy { host, port, credentials })
+    }
+
+    /// The proxy as an `http://` URL at `addr`, its resolved address, with
+    /// its credentials escaped again: for a library that takes a URL, as
+    /// the iroh road's relay dial does. Never for a message.
+    pub fn url_at(&self, addr: std::net::SocketAddr) -> String {
+        let userinfo = match &self.credentials {
+            Some(credentials) => {
+                let (user, password) = credentials.split_once(':').unwrap_or((credentials, ""));
+                format!("{}:{}@", percent_encode(user), percent_encode(password))
+            }
+            None => String::new(),
+        };
+        format!("http://{userinfo}{addr}")
     }
 }
 
@@ -203,7 +221,9 @@ pub async fn dial(host: &str, port: u16, proxy: &ProxyChoice, timeout: Duration)
     Ok(stream)
 }
 
-/// Resolve and connect, trying every address in turn until one answers.
+/// Resolve and connect: the addresses in the order of [`interleave`], each
+/// started [`ATTEMPT_DELAY`] after the one before, or at once when the one
+/// before failed; the first that connects wins, and the others stop.
 async fn connect_direct(host: &str, port: u16, deadline: Instant, budget: Duration) -> Result<TcpStream, DialError> {
     let target = authority(host, port);
     // Pinned addresses, the system resolver, then DNS over HTTPS: a host with
@@ -214,15 +234,58 @@ async fn connect_direct(host: &str, port: u16, deadline: Instant, budget: Durati
     if Instant::now() >= deadline {
         return Err(DialError::Timeout { step: format!("resolving {host}"), after: budget });
     }
+    let mut waiting = interleave(addrs).into_iter();
+    // Dropped at the return: each attempt that still runs stops.
+    let mut running = tokio::task::JoinSet::new();
+    let mut next_at = Instant::now();
     let mut last = String::new();
-    for addr in addrs {
-        match tokio::time::timeout_at(deadline, TcpStream::connect(addr)).await {
-            Ok(Ok(stream)) => return Ok(stream),
-            Ok(Err(e)) => last = format!("{addr}: {e}"),
-            Err(_) => return Err(DialError::Timeout { step: format!("connecting to {target}"), after: budget }),
+    loop {
+        if running.is_empty() || Instant::now() >= next_at {
+            if let Some(addr) = waiting.next() {
+                running.spawn(async move { (addr, TcpStream::connect(addr).await) });
+                next_at = Instant::now() + ATTEMPT_DELAY;
+                continue;
+            }
+            if running.is_empty() {
+                return Err(DialError::Connect { target, detail: last });
+            }
+        }
+        let wake = if waiting.len() > 0 { next_at.min(deadline) } else { deadline };
+        tokio::select! {
+            joined = running.join_next() => match joined {
+                Some(Ok((_, Ok(stream)))) => return Ok(stream),
+                Some(Ok((addr, Err(e)))) => {
+                    last = format!("{addr}: {e}");
+                    next_at = Instant::now();
+                }
+                // An attempt that panicked counts as one that failed.
+                Some(Err(e)) => last = e.to_string(),
+                None => {}
+            },
+            _ = tokio::time::sleep_until(wake) => {
+                if Instant::now() >= deadline {
+                    return Err(DialError::Timeout { step: format!("connecting to {target}"), after: budget });
+                }
+            }
         }
     }
-    Err(DialError::Connect { target, detail: last })
+}
+
+/// The addresses with the families taking turns, the first family first
+/// (RFC 8305, section 4): a family that does not work costs one attempt
+/// delay, not each of its addresses in a row.
+pub fn interleave(addrs: Vec<std::net::SocketAddr>) -> Vec<std::net::SocketAddr> {
+    let Some(first) = addrs.first().map(|a| a.is_ipv6()) else { return addrs };
+    let (mut lead, mut other): (Vec<_>, Vec<_>) = addrs.into_iter().partition(|a| a.is_ipv6() == first);
+    let mut out = Vec::with_capacity(lead.len() + other.len());
+    lead.reverse();
+    other.reverse();
+    loop {
+        match (lead.pop(), other.pop()) {
+            (None, None) => return out,
+            (a, b) => out.extend(a.into_iter().chain(b)),
+        }
+    }
 }
 
 /// Connect to the proxy and ask it for a tunnel to `host:port`.
@@ -351,6 +414,16 @@ fn split_host_port(s: &str) -> Result<(String, Option<u16>), String> {
 }
 
 /// Decode `%XX` escapes in proxy credentials.
+/// Each byte but the unreserved ones of RFC 3986 as a `%` escape.
+fn percent_encode(s: &str) -> String {
+    s.bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
 fn percent_decode(s: &str) -> Result<String, String> {
     let bytes = s.as_bytes();
     let mut out = Vec::with_capacity(bytes.len());

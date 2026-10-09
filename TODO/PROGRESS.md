@@ -40,8 +40,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`, again after T-155: 994 passed, 0 failed, 22
-  ignored (the live tests). CI's gate passed at `a3b81d1` (T-262; run
+- `cargo test --no-fail-fast`, again after T-162: 999 passed, 0 failed, 22
+  ignored (the live tests). With the feature `iroh`, `cargo test -p
+  podssh-iroh -p podssh-cli --features podssh-cli/iroh`: 336 passed, 0
+  failed, 8 ignored. CI's gate passed at `a3b81d1` (T-262; run
   37963246424).
 - `cargo test -p podssh-relay --all-features --no-fail-fast`, after T-261:
   173 passed, 0 failed, 14 ignored (the live tests).
@@ -55,7 +57,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 261 entries: 145 open, 0 partial, 22 blocked, 94 done.
+`TODO/INDEX.md` holds 262 entries: 144 open, 0 partial, 22 blocked, 96 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
