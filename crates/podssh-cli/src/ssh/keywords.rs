@@ -34,10 +34,11 @@ pub const HONOURED: &[Keyword] = &[
     kw("ExitOnForwardFailure", "yes|no", "yes: a forward of -R that the server refuses ends the run with 255", "yes"),
     kw("GlobalKnownHostsFile", "FILE...|none", "the system known_hosts files", "/dev/null"),
     kw("HostKeyAlias", "NAME", "look up and record the host key under this name", "alias"),
-    kw("HostName", "HOST", "the host to connect to, in place of the destination", "example.org"),
+    kw("HostName", "HOST", "the host to connect to, in place of the destination; %h is the host as typed", "%h.example.org"),
     kw("IdentitiesOnly", "yes|no", "yes: use only the identity files, not the other keys of the agent", "yes"),
     kw("IdentityAgent", "PATH|SSH_AUTH_SOCK|none", "the agent socket (a named pipe on Windows); none: no agent", "none"),
     kw("IdentityFile", "FILE", "the same as -i; repeatable", "~/.ssh/id_ed25519"),
+    kw("IgnoreUnknown", "PATTERN,...", "unknown keywords to accept with no effect, when they come after it", "UseKeychain"),
     kw("KbdInteractiveAuthentication", "yes|no", "allow keyboard-interactive authentication", "yes"),
     kw("LogLevel", "QUIET|FATAL|ERROR|INFO|VERBOSE|DEBUG|DEBUG2|DEBUG3", "how much podssh says on stderr (default INFO)", "VERBOSE"),
     kw("NumberOfPasswordPrompts", "N", "password attempts (default 3)", "2"),
@@ -81,7 +82,7 @@ pub const IGNORED: &[&str] = &[
 /// Keywords refused by name, and why. `options.rs` gives the same reasons.
 #[rustfmt::skip]
 pub const REFUSED: &[(&str, &str)] = &[
-    ("ProxyCommand", "podssh ssh reaches the host through the relay itself (ProxyCommand=none is accepted); to use OpenSSH, give it ProxyCommand='podssh proxy %h %p'"),
+    ("ProxyCommand", "podssh ssh reaches the host through the relay itself (none, and podssh proxy %h %p, are accepted); to use OpenSSH, give it ProxyCommand='podssh proxy %h %p'"),
     ("LocalForward", "needs a local listener, which podssh ssh does not open yet; use -W HOST:PORT, or podssh pipe tcp-listen:"),
     ("DynamicForward", "needs a local listener, which podssh ssh does not open yet; use -W HOST:PORT, or podssh pipe tcp-listen:"),
     ("ForkAfterAuthentication", "going to the background is not supported (=no is accepted); start podssh with &"),

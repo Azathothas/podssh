@@ -60,6 +60,11 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       and * matches each host. A loopback address never goes through a proxy.",
     ),
     (&["PODSSH_RELAY"], "The relay hosts, as --relay-host. The flag wins."),
+    (
+        &["PODSSH_SSH_CONFIG"],
+        "The ssh_config file of podssh ssh, as -F: none reads no file. The flag wins. A process manager \
+      sets it once, also where the home cannot be written.",
+    ),
     (&["PODSSH_RELAY_ADDR"], "Addresses to use in place of DNS, as --relay-addr, after the flag's addresses."),
     (
         &["PODSSH_TIMEOUT"],

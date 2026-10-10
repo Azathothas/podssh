@@ -49,6 +49,9 @@ pub struct Settings {
     /// `RemoteForward`: each one given, as for `-R`.
     pub remote_forwards: Vec<podssh_ssh::RemoteForward>,
     pub exit_on_forward_failure: Option<bool>,
+    /// `IgnoreUnknown`: a pattern list of unknown keywords to accept without
+    /// effect, when they come after it.
+    pub ignore_unknown: Option<String>,
     /// Keywords accepted without effect, for a verbose note.
     pub ignored: Vec<String>,
 }
@@ -151,6 +154,15 @@ impl Settings {
                 _ => return Err(bad("expected none, subsystem or default")),
             },
             "proxycommand" if value.eq_ignore_ascii_case("none") => {}
+            // The ssh_config of OpenSSH users names podssh itself; podssh ssh
+            // takes that road anyway, so the line must not stop it.
+            "proxycommand" if runs_podssh_proxy(value) == Some(true) => self.ignored.push(name.to_string()),
+            "proxycommand" if runs_podssh_proxy(value) == Some(false) => {
+                return Err(format!(
+                    "-o {name}={value}: podssh ssh reaches the host through the relay itself; it accepts \
+                     `podssh proxy %h %p` alone here, so give podssh ssh the other flags"
+                ))
+            }
             "proxycommand" => {
                 return Err(format!(
                     "-o {name}: podssh ssh reaches the host through the relay itself and runs no ProxyCommand; \
@@ -178,10 +190,103 @@ impl Settings {
             "include" | "match" | "host" => {
                 return Err(format!("-o {name}: an ssh_config block keyword, not an option"))
             }
+            "ignoreunknown" => set(&mut self.ignore_unknown, value.to_string()),
             k if keywords::is_ignored(k) => self.ignored.push(name.to_string()),
+            k if self.ignores_unknown(k) => self.ignored.push(name.to_string()),
             _ => return Err(unknown(name)),
         }
         Ok(())
+    }
+
+    /// Whether `IgnoreUnknown` names `key`, a lowercase keyword: OpenSSH's
+    /// pattern list, without case, where a negated pattern that matches
+    /// excludes it.
+    fn ignores_unknown(&self, key: &str) -> bool {
+        let Some(list) = &self.ignore_unknown else { return false };
+        let mut matched = false;
+        for pattern in list.split(',').map(str::trim) {
+            let (negated, pattern) = pattern.strip_prefix('!').map_or((false, pattern), |rest| (true, rest));
+            if podssh_ssh::known_hosts::wildcard(pattern.to_ascii_lowercase().as_bytes(), key.as_bytes()) {
+                if negated {
+                    return false;
+                }
+                matched = true;
+            }
+        }
+        matched
+    }
+}
+
+/// Whether a `ProxyCommand` runs podssh's own proxy: `Some(true)` for
+/// `[exec] podssh proxy %h %p`, with podssh by any path; `Some(false)` for
+/// podssh's proxy with other words, whose flags podssh ssh would not see;
+/// `None` for another program.
+fn runs_podssh_proxy(value: &str) -> Option<bool> {
+    let mut words: Vec<String> = words(value);
+    if words.first().is_some_and(|w| w == "exec") {
+        words.remove(0);
+    }
+    let program = words.first()?.rsplit(['/', '\\']).next()?.to_ascii_lowercase();
+    if !matches!(program.as_str(), "podssh" | "podssh.exe") || words.get(1).map(String::as_str) != Some("proxy") {
+        return None;
+    }
+    Some(words[2..] == ["%h", "%p"])
+}
+
+impl Settings {
+    /// The command line's settings, then a file's for each that the command
+    /// line left unset: the first value obtained wins, as in OpenSSH, and the
+    /// lists add up, the command line's first (`IdentityFile` adds to `-i`).
+    /// `User` and `Port` are taken apart by `resolve`, as `user@host` and
+    /// `host:PORT` come between the command line's and the file's.
+    pub fn then_file(self, file: Settings) -> Settings {
+        let mut identity_files = self.identity_files;
+        identity_files.extend(file.identity_files);
+        let mut set_env = self.set_env;
+        set_env.extend(file.set_env);
+        let mut send_env = self.send_env;
+        send_env.extend(file.send_env);
+        let mut remote_forwards = self.remote_forwards;
+        remote_forwards.extend(file.remote_forwards);
+        let mut ignored = self.ignored;
+        ignored.extend(file.ignored);
+        Settings {
+            user: self.user,
+            port: self.port,
+            host_name: self.host_name.or(file.host_name),
+            host_key_alias: self.host_key_alias.or(file.host_key_alias),
+            identity_files,
+            identities_only: self.identities_only.or(file.identities_only),
+            identity_agent: self.identity_agent.or(file.identity_agent),
+            strict: self.strict.or(file.strict),
+            user_known_hosts: self.user_known_hosts.or(file.user_known_hosts),
+            global_known_hosts: self.global_known_hosts.or(file.global_known_hosts),
+            batch_mode: self.batch_mode.or(file.batch_mode),
+            preferred_auth: self.preferred_auth.or(file.preferred_auth),
+            pubkey: self.pubkey.or(file.pubkey),
+            password: self.password.or(file.password),
+            kbd_interactive: self.kbd_interactive.or(file.kbd_interactive),
+            password_prompts: self.password_prompts.or(file.password_prompts),
+            alive_interval: self.alive_interval.or(file.alive_interval),
+            alive_count: self.alive_count.or(file.alive_count),
+            connect_timeout: self.connect_timeout.or(file.connect_timeout),
+            connection_attempts: self.connection_attempts.or(file.connection_attempts),
+            request_tty: self.request_tty.or(file.request_tty),
+            escape_char: self.escape_char.or(file.escape_char),
+            set_env,
+            send_env,
+            compression: self.compression.or(file.compression),
+            log_level: self.log_level.or(file.log_level),
+            remote_command: self.remote_command.or(file.remote_command),
+            proxy_jump: self.proxy_jump.or(file.proxy_jump),
+            address_family: self.address_family.or(file.address_family),
+            stdin_null: self.stdin_null.or(file.stdin_null),
+            session_type: self.session_type.or(file.session_type),
+            remote_forwards,
+            exit_on_forward_failure: self.exit_on_forward_failure.or(file.exit_on_forward_failure),
+            ignore_unknown: self.ignore_unknown.or(file.ignore_unknown),
+            ignored,
+        }
     }
 }
 
@@ -210,9 +315,24 @@ fn parse_seconds(value: &str) -> Option<u64> {
     v.parse::<u64>().ok()
 }
 
-/// Space-separated values, each with surrounding double quotes removed.
+/// Space-separated values, as OpenSSH splits them: a space inside double
+/// quotes belongs to its value, and the quotes go.
 fn words(value: &str) -> Vec<String> {
-    value.split_whitespace().map(unquote).collect()
+    let mut out = Vec::new();
+    let mut word: Option<String> = None;
+    let mut quoted = false;
+    for c in value.chars() {
+        match c {
+            '"' => {
+                quoted = !quoted;
+                word.get_or_insert_with(String::new);
+            }
+            c if c.is_whitespace() && !quoted => out.extend(word.take()),
+            c => word.get_or_insert_with(String::new).push(c),
+        }
+    }
+    out.extend(word);
+    out
 }
 
 fn unquote(value: &str) -> String {

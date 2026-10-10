@@ -114,6 +114,14 @@ pub fn files() -> Vec<(Vec<String>, String)> {
         ),
         (global_kh, "The system's known hosts. podssh only reads them.".to_string()),
         (
+            vec!["~/.ssh/config".to_string()],
+            "The user's ssh_config, read by podssh ssh, cp, mv, scp and sftp unless -F or PODSSH_SSH_CONFIG \
+             names another file, or none. A missing file is no error. On Unix, a file that another user than \
+             you or root owns, or that others can change, is refused. Match and Include are refused by name, \
+             with the file and the line."
+                .to_string(),
+        ),
+        (
             vec![cache.to_string()],
             format!(
                 "The cache: the first of these directories that podssh can use. It holds one relay token for \

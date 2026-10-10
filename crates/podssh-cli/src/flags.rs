@@ -141,7 +141,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(Some('E'), "log-file", Some("LOGFILE"), FlagKind::Supported,
         "append podssh's own messages to a file instead of stderr", None),
     row(Some('F'), "config", Some("CONFIG"), FlagKind::Supported,
-        "an ssh_config file; only none is accepted yet (use -o)", None),
+        "read this ssh_config file in place of ~/.ssh/config; none reads no file", None),
     row(Some('v'), "verbose", None, FlagKind::Supported,
         "raise log level; repeatable", None),
     row(Some('q'), "quiet", None, FlagKind::Supported,

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**268 entries: 122 open, 0 partial, 22 blocked, 124 done.**
+**271 entries: 124 open, 0 partial, 22 blocked, 125 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 15 | 17 |
-| P2 | 40 | 0 | 18 | 92 | 150 |
+| P1 | 3 | 0 | 0 | 15 | 18 |
+| P2 | 41 | 0 | 18 | 93 | 152 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 122 | 0 | 22 | 124 | 268 |
+| **All** | 124 | 0 | 22 | 125 | 271 |
 
 ## Entries
 
@@ -116,7 +116,7 @@ repository and CI).
 | [T-040](forwarding.md) | P3 | S | backlog | feature | open | `-W` to a Unix socket on the server (streamlocal) |
 | [T-041](forwarding.md) | P3 | S | backlog | feature | open | The forwards of a session: a list and byte counts |
 | [T-042](forwarding.md) | P3 | S | backlog | feature | open | `-R` forwards come back after a drop |
-| [T-043](config.md) | P2 | M | M8 | feature | open | Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22) |
+| [T-043](config.md) | P2 | M | M8 | feature | done | Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22) |
 | [T-044](config.md) | P2 | M | M8 | feature | open | `Include` in `ssh_config`, expanded as OpenSSH expands it |
 | [T-045](config.md) | P3 | M | backlog | feature | open | `Match` in `ssh_config` |
 | [T-046](config.md) | P2 | S | M8 | feature | done | `podssh ssh -G`: print the settings in effect (GitHub #14, #22) |
@@ -343,3 +343,6 @@ repository and CI).
 | [T-269](ssh.md) | P1 | S | none | defect | done | A session can wait for ever when its link ends while it sends |
 | [T-270](resume.md) | P1 | S | none | defect | done | A resume whose far-end task starts late takes the session from a newer one |
 | [T-271](reverse.md) | P1 | S | none | defect | done | A client can reach a node before it is online, and a node takes a slow local side of the layer for a stopped one |
+| [T-272](repo.md) | P1 | S | none | defect | open | The tests leave their scratch directories in the temporary directory |
+| [T-273](config.md) | P2 | S | M8 | defect | open | The `%` tokens of `User` and `RemoteCommand`, as OpenSSH expands them |
+| [T-274](relay.md) | P2 | M | backlog | defect | open | On Windows, the owner and the writers of a private file are not checked |

@@ -17,6 +17,8 @@ fn pipe(args: &[&str]) -> (i32, String, String) {
     let out = Command::new(env!("CARGO_BIN_EXE_podssh"))
         .arg("pipe")
         .args(args)
+        // The ssh_config of the machine that runs the test must not change it.
+        .env("PODSSH_SSH_CONFIG", "none")
         .env_remove("PAGER")
         .stdin(Stdio::null())
         .output()
@@ -88,6 +90,8 @@ fn digest(bytes: &[u8]) -> String {
 fn through(address: &str, input: Vec<u8>) -> (i32, String, String) {
     let mut child = Command::new(env!("CARGO_BIN_EXE_podssh"))
         .args(["pipe", "stdio", address])
+        // The ssh_config of the machine that runs the test must not change it.
+        .env("PODSSH_SSH_CONFIG", "none")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

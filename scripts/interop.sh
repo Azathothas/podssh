@@ -228,6 +228,25 @@ for args in "-p 2222 -l alice example.org" \
         || bad "ssh -G ($args): exit $rc; not OpenSSH's: ${extra:-nothing}" "$W/err"
 done
 
+# ssh_config (T-043): a Host alias of a -F file takes each server's HostName,
+# Port, User and IdentityFile from the file, and podssh's -G for the alias
+# holds OpenSSH's lines, but for the defaults that differ on purpose.
+printf 'Host %s\n  HostName 127.0.0.1\n  Port %s\n  User podtest\n  IdentityFile %s\n' \
+    openssh-alias 2201 "$W/id_ed25519" dropbear-alias 2203 "$W/id_ed25519" >"$W/ssh_config"
+for alias in openssh-alias dropbear-alias; do
+    env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -F "$W/ssh_config" -o UserKnownHostsFile="$KH" \
+        -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o BatchMode=yes "$alias" 'exit 4' \
+        </dev/null >"$W/out" 2>"$W/err"
+    expect_rc "-F FILE: the alias $alias reaches its server" 4 $? "$W/err"
+    ssh -F "$W/ssh_config" -G "$alias" </dev/null >"$W/ssh-G" 2>/dev/null
+    env HOME="$home" PODSSH_OFFLINE=1 "$BIN" ssh -F "$W/ssh_config" -G "$alias" </dev/null >"$W/podssh-G" 2>"$W/err"
+    rc=$?
+    extra=$(grep -v -E '^(serveraliveinterval|connecttimeout) ' "$W/podssh-G" | grep -vxF -f "$W/ssh-G" | tr '\n' ';')
+    [ "$rc" = 0 ] && [ -s "$W/podssh-G" ] && [ -z "$extra" ] \
+        && ok "ssh -G -F FILE: each line that podssh prints is OpenSSH's ($alias)" \
+        || bad "ssh -G -F FILE ($alias): exit $rc; not OpenSSH's: ${extra:-nothing}" "$W/err"
+done
+
 echo
 echo "== forwarding, jump hosts, subsystems, environment"
 # shellcheck disable=SC2086

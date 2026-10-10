@@ -47,17 +47,17 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:95-132`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:96-133`,
    `crates/podssh-ssh/src/run.rs:34-49`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:105-244` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
    (`crates/podssh-ssh/src/log.rs:12-15`). Each line gets `HOST: `. With
    `--output-dir`, the bytes go unchanged to `HOST.out` and `HOST.err`, and
    the status to `HOST.status`.
-4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/resolve.rs:344`).
+4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/resolve.rs:348`).
    An unknown host key refuses that host and gives its fingerprint and
    `-o StrictHostKeyChecking=accept-new`. stdin is not read
-   (`crates/podssh-cli/src/ssh/resolve.rs:358`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:362`).
 5. Get the token once, before the fan-out. Serialize `known_hosts::append`
    in the process with a mutex; T-029 covers two processes.
 6. The exit status: the largest status of the hosts, and 255 for a host that
@@ -113,10 +113,10 @@ is not a shell. A set of hosts has no name.
   and `podssh ssh '@web' true` exits 64 (`"@web": empty user name`). Thus
   `{` and a leading `@` are free.
 - Read: each host is checked before a connection
-  (`crates/podssh-cli/src/ssh/resolve.rs:437-485`,
+  (`crates/podssh-cli/src/ssh/resolve.rs:441-489`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:583-600`); they cannot define a group.
+  (`docs/cli.md:583-625`); they cannot define a group.
 
 ## Approach
 
@@ -244,7 +244,7 @@ and read the screen, over several of its own calls. Each run of
   the address and can turn listening off.
 - Read: `-M`, `-O` and `-S` are refused by name
   (`crates/podssh-cli/src/flags.rs:229-234`); `ControlMaster` is ignored
-  (`crates/podssh-cli/src/ssh/keywords.rs:70`).
+  (`crates/podssh-cli/src/ssh/keywords.rs:71`).
 - Read: with no listener, T-055 (`podssh mcp` over stdin and stdout) gives
   an agent tools for the life of one process.
 
@@ -305,7 +305,7 @@ command must be shown, with its values in it, before it runs.
 
 - Read: the remote command is the words of the command line joined with
   spaces, as OpenSSH joins them
-  (`crates/podssh-cli/src/ssh/resolve.rs:420-424`); podssh quotes nothing.
+  (`crates/podssh-cli/src/ssh/resolve.rs:424-428`); podssh quotes nothing.
 - Read: podssh can ask on the controlling terminal or through `SSH_ASKPASS`,
   and refuses when nobody can answer (`crates/podssh-ssh/src/prompt.rs:48-82`).
 - Read: no settings file exists yet; T-048 adds it.
@@ -358,7 +358,7 @@ short numbered list helps a person; a script must still get the usage error.
 ## Premise
 
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
-  (`crates/podssh-cli/src/ssh/resolve.rs:120`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:115`).
 - Read: `run_ssh` gets no terminal state
   (`crates/podssh-cli/src/dispatch.rs:237-239`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
@@ -472,8 +472,8 @@ name is copied by hand.
 ## Premise
 
 - Read: `podssh ssh -t HOST -- docker exec -it NAME sh` works today, as a
-  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:218-226`,
-  `crates/podssh-cli/src/ssh/resolve.rs:420-434`). Only the list is missing.
+  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:222-230`,
+  `crates/podssh-cli/src/ssh/resolve.rs:424-438`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
   finds it (`AGENTS.md:190-194`). Here the programs run on the server, for a
   request of the user.
@@ -504,7 +504,7 @@ name is copied by hand.
 Recommendation: a verb that lists, and prints the `podssh ssh` command. The
 alternative, a destination such as `docker:NAME@HOST`, lost: `podssh ssh`
 takes the destinations of OpenSSH, and a new form in
-`crates/podssh-cli/src/ssh/resolve.rs:437-485` breaks that parity.
+`crates/podssh-cli/src/ssh/resolve.rs:441-489` breaks that parity.
 
 ## Prove
 
@@ -540,7 +540,7 @@ expect rule.
 
 - Measured: `podssh ssh -o LocalCommand=true -o PermitLocalCommand=yes -v user@host.invalid true`
   prints `-o LocalCommand has no effect in podssh`, and the same for
-  `PermitLocalCommand` (`crates/podssh-cli/src/ssh/keywords.rs:74-75`).
+  `PermitLocalCommand` (`crates/podssh-cli/src/ssh/keywords.rs:75-76`).
 - Read: remote output arrives at `crates/podssh-ssh/src/io.rs:198-205`, and
   input leaves at `crates/podssh-ssh/src/io.rs:130-176`. An expect rule goes
   between them.
@@ -551,8 +551,8 @@ expect rule.
 ## Approach
 
 1. `LocalCommand`: move it and `PermitLocalCommand` from IGNORED to
-   HONOURED (`crates/podssh-cli/src/ssh/keywords.rs:25-61`), with fields in
-   `crates/podssh-cli/src/ssh/options.rs:13-54`. Run it when OpenSSH runs it
+   HONOURED (`crates/podssh-cli/src/ssh/keywords.rs:25-62`), with fields in
+   `crates/podssh-cli/src/ssh/options.rs:13-57`. Run it when OpenSSH runs it
    (check the order in the container). Expand the tokens with `Tokens::expand`
    (`crates/podssh-cli/src/ssh/tokens.rs:61-109`), which has `%p` and `%n`
    since T-238.
@@ -753,7 +753,7 @@ a ticket, or a tool that asks an AI.
 
 1. A variable `PODSSH_ERROR_PROGRAM`: one program, with no shell and no
    arguments, as `SSH_ASKPASS`. Add it to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-127`).
+   (`crates/podssh-cli/src/man/facts.rs:45-132`).
 2. When: only when podssh itself fails: a usage error (64), a configuration
    error (78), 69, 70, 77, or 255 for a failure of podssh. Never after a
    success, and never for the status of a remote command or of an `exec:`

@@ -25,6 +25,8 @@ pub fn scratch(tag: &str) -> PathBuf {
 pub fn command(home: &Path, args: &[&str]) -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     cmd.args(args);
+    // The ssh_config of the machine that runs the test must not change it.
+    cmd.env("PODSSH_SSH_CONFIG", "none");
     for name in ["PODSSH_RELAY", "PODSSH_RELAY_ADDR", "PODSSH_RELAY_TOKEN", "PODSSH_OFFLINE"] {
         cmd.env_remove(name);
     }

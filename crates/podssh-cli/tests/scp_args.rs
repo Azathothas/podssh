@@ -10,6 +10,8 @@ use std::process::{Command, Stdio};
 fn podssh(args: &[&str]) -> (i32, Vec<u8>, String) {
     let out = Command::new(env!("CARGO_BIN_EXE_podssh"))
         .args(args)
+        // The ssh_config of the machine that runs the test must not change it.
+        .env("PODSSH_SSH_CONFIG", "none")
         // No test may reach the network: a copy that would connect stops here.
         .env("PODSSH_OFFLINE", "1")
         .env_remove("PODSSH_TIMEOUT")

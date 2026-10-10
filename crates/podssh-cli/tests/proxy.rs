@@ -121,6 +121,8 @@ fn podssh_with(argv: &[&str], vars: &[(&str, &str)]) -> (i32, String) {
     use std::time::{Duration, Instant};
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     cmd.args(argv).env("PODSSH_OFFLINE", "1");
+    // The ssh_config of the machine that runs the test must not change it.
+    cmd.env("PODSSH_SSH_CONFIG", "none");
     for name in [
         "PODSSH_RELAY",
         "PODSSH_RELAY_ADDR",

@@ -582,13 +582,38 @@ commands. The rules behind them:
 
 ## `ssh_config` (milestone M8)
 
-podssh does not read `ssh_config` yet. These are the rules of OpenSSH,
-measured with `ssh -G`:
+`podssh ssh` reads `~/.ssh/config`, or the file of `-F FILE`, or of
+`PODSSH_SSH_CONFIG` when `-F` is not given; `-F none` reads no file (T-043).
+So do `cp`, `mv`, `scp`, `sftp` and the `ssh:` address of `pipe`, which reach
+a host as `podssh ssh` does. A line goes through the same parser as `-o`,
+and an error names the file and the line. The command line beats the file:
+`-l`, `-o User` and `user@host`, then the file's `User`; `-p`, `-o Port` and
+`host:PORT`, then the file's `Port`. A missing `-F` file exits 78; a missing
+`~/.ssh/config` is no error. On Unix, `~/.ssh/config` must be the user's or
+root's, and no one else may change it, checked on the file that a link
+names; a file that `-F` names is the user's choice, and is not checked.
+`ProxyCommand podssh proxy %h %p`, which a user of OpenSSH writes for
+podssh, is accepted, as `podssh ssh` takes that road anyway. `Match`, and
+`Include` in a block that applies, are refused by name until T-045 and
+T-044; the system file is read with T-044, as most of them start with
+`Include`.
+
+These are the rules of OpenSSH 10.3p1, measured with `ssh -G`, and podssh
+follows them; `crates/podssh-cli/tests/ssh_config_file.rs` holds OpenSSH's
+lines for a fixture:
 
 - The first value obtained wins, from top to bottom. The most specific block
   does not win.
-- A negated pattern excludes the host from that block only.
+- A `Host` pattern matches the host as typed, with its case: `Host MyHost`
+  does not apply to `myhost`. A negated pattern excludes the host from that
+  block only, and a line of negated patterns alone matches nothing.
 - `IdentityFile` and `-i` add up; they do not replace each other.
+- A `#` that starts a word outside double quotes starts a comment, also
+  after a value.
+- `IgnoreUnknown` holds for the keywords after it. Only the first one
+  counts, and `-o IgnoreUnknown` beats the file's.
+- `HostName` takes `%h`, the host as typed, and `%%`; another token is an
+  error. The result is lowercased.
 - `Include` is expanded where it appears, with globs in sorted order. A
   relative `Include` starts from `~/.ssh` (user file) or `/etc/ssh` (system
   file), not from the directory of the file that includes it.
@@ -598,6 +623,14 @@ measured with `ssh -G`:
   podssh connects to.
 - A missing `-F` file is an error (255), and `-F` stops the reading of each
   other configuration file. A missing `~/.ssh/config` is not an error.
+- `~/.ssh/config` that is another user's than the user's or root's, or that
+  the group or others can change, is an error; a link is followed. A file
+  of `-F` is not checked.
+
+One difference, on purpose: OpenSSH checks each line, also in a block that
+does not apply. podssh reads only the blocks that apply, as it refuses some
+keywords that OpenSSH runs (`LocalForward`), and a block for another host
+must not stop each connection.
 
 NOTE: In its recommended parsing mode, `ssh2-config` 0.8.1 drops
 `ProxyCommand` and `StrictHostKeyChecking` silently (read 2026-10-01). Do not

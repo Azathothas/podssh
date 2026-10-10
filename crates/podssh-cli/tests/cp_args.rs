@@ -12,6 +12,8 @@ fn podssh(args: &[&str]) -> (i32, Vec<u8>, String) {
         // No test may reach the network: a copy that would connect stops here.
         .env("PODSSH_OFFLINE", "1")
         .env_remove("PODSSH_TIMEOUT")
+        // Nor read the ssh_config of the machine that runs it.
+        .env("PODSSH_SSH_CONFIG", "none")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -65,10 +67,11 @@ fn recursive_and_preserve_refuse_by_name() {
 }
 
 #[test]
-fn a_config_file_is_refused_as_ssh_refuses_it() {
-    let (rc, _, err) = cp(&["-F", "some_config", "a", "host:b"]);
-    assert_eq!(rc, 64, "{err}");
-    assert!(err.contains("-F"), "{err}");
+fn a_missing_config_file_is_78_as_ssh_says() {
+    let (rc, out, err) = cp(&["-F", "no_such_config", "a", "host:b"]);
+    assert_eq!(rc, 78, "{err}");
+    assert!(out.is_empty(), "{err}");
+    assert!(err.contains("no_such_config") && err.contains("no such file"), "{err}");
 }
 
 #[test]

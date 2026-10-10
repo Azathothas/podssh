@@ -109,8 +109,30 @@ impl Tokens {
     }
 }
 
+/// `HostName` with the two tokens that OpenSSH gives it: `%h`, the host as
+/// typed, and `%%`. Another token is refused, as OpenSSH refuses it.
+pub fn host_name(value: &str, typed: &str) -> Result<String, String> {
+    let mut out = String::new();
+    let mut chars = value.chars();
+    while let Some(c) = chars.next() {
+        if c != '%' {
+            out.push(c);
+            continue;
+        }
+        match chars.next() {
+            Some('h') => out.push_str(typed),
+            Some('%') => out.push('%'),
+            Some(other) => {
+                return Err(format!("HostName {value}: %{other} is not a token of HostName, which takes %h and %%"))
+            }
+            None => return Err(format!("HostName {value}: a % at the end; write %% for a %")),
+        }
+    }
+    Ok(out)
+}
+
 /// `~` or a leading `~/` as the home directory, as OpenSSH reads it.
-fn tilde(path: &str, home: Option<&Path>) -> PathBuf {
+pub(super) fn tilde(path: &str, home: Option<&Path>) -> PathBuf {
     match (path.strip_prefix("~/").or_else(|| path.strip_prefix("~\\")), home) {
         (Some(rest), Some(h)) => h.join(rest),
         _ if path == "~" => home.map(PathBuf::from).unwrap_or_else(|| PathBuf::from(path)),

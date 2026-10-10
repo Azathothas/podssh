@@ -23,7 +23,7 @@ pub const CP_FLAGS: &[FlagRow] = &[
     row(Some('r'), "recursive", None, FlagKind::Refused,
         "copying a directory is not implemented yet", Some("one command for each file")),
     row(Some('F'), "config", Some("CONFIG"), FlagKind::Supported,
-        "an OpenSSH-format config, read for its shared keys", None),
+        "read this ssh_config file in place of ~/.ssh/config; none reads no file", None),
     row(None, "jsonl", None, FlagKind::Supported,
         "one JSON object per event on stdout", None),
     row(None, "timeout", Some("DURATION"), FlagKind::Supported,

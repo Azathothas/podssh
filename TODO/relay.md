@@ -228,7 +228,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 4. Print one note for each moved host: "trying HOST last: it failed N s ago (REASON)".
 5. Ignore a record with a time in the future (a clock that moved).
 6. `doctor` and `status` (T-051) show the records. State the window in THE RELAY section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:191-204`) and in `docs/relay.md:30-48`.
+   manual (`crates/podssh-cli/src/man/facts.rs:196-209`) and in `docs/relay.md:30-48`.
 7. This is retry policy across runs. T-220 shortens the wait inside one run; the two work
    together.
 
@@ -591,7 +591,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:112-245`, 323-343) and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:69-80`); the variable to VARIABLES and the modes to THE
-   RELAY (`crates/podssh-cli/src/man/facts.rs:45-127`, 170-183); both to `docs/relay.md:30-48`.
+   RELAY (`crates/podssh-cli/src/man/facts.rs:45-132`, 170-183); both to `docs/relay.md:30-48`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
 
@@ -644,7 +644,7 @@ the fixed `/dev/shm` on Unix (`:69-71`), then `.podssh` in the working directory
 62-64). A store falls through each directory that refuses it (`:151-160`). No variable or
 flag names a directory. `doctor` probes the same list and names the first that can be written
 (`crates/podssh-cli/src/doctor/host.rs:94-120`). VARIABLES and FILES give the list
-(`crates/podssh-cli/src/man/facts.rs:105`, 108-113), a test fixes its shape (lines 365-377 at `22c3b88`), and
+(`crates/podssh-cli/src/man/facts.rs:110`, 108-113), a test fixes its shape (lines 365-377 at `22c3b88`), and
 the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
 
 ## Approach
@@ -664,7 +664,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
 5. `doctor` names the directory in use and the variable that chose it; `status` (T-051) shows
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
-6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:105`,
+6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:110`,
    108-113, 122-132), the test of lines 365-377 at `22c3b88`, the comment of `cache.rs`, and the `doctor`
    notes (`crates/podssh-cli/src/man/notes.rs:301-320`).
 
@@ -688,7 +688,7 @@ sh scripts/dev.sh check                   # interop-faults: a token in PODSSH_CA
 
 With a set environment: `PODSSH_CACHE_DIR` comes first, `none` gives no candidate, and
 `XDG_RUNTIME_DIR` comes before the temporary directory. A scan of `cache.rs`, as
-`crates/podssh-cli/src/man/facts.rs:335-359` scans source, finds no absolute path literal. In
+`crates/podssh-cli/src/man/facts.rs:340-364` scans source, finds no absolute path literal. In
 the gate, the token file goes into a new `PODSSH_CACHE_DIR`; with a plain file there, the run
 still exits 0 and names the refusal. Planted defect: put `/dev/shm` back; the scan fails.
 
@@ -783,7 +783,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:116`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:117`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -861,3 +861,47 @@ operator` and `podssh ssh node://NAME` say that the link ended with no Close, or
 link ended, and that a new session may work (`crates/podssh-cli/src/pairs.rs`, `session_end`,
 with three unit tests, and a plant of the old wording that fails the first); a node connects again
 by itself (T-079); resumable sessions (M6) carry a session over a drop.
+
+# T-274: On Windows, the owner and the writers of a private file are not checked
+
+**Source:** T-043 (2026-10-10): `~/.ssh/config` is checked on Unix only, as the files of the
+cache are.
+**Category:** defect
+**Milestone:** backlog
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+On Windows podssh trusts the files of its cache (a relay token, the pool of hosts, a pair) and
+`~/.ssh/config`, whoever owns them and whoever may change them. Another account that may write
+one of them can choose the relay that podssh trusts, or the host that `podssh ssh` reaches.
+
+## Premise
+
+Read on `c0cdd2b`: on each system but Unix, `owned_and_private`
+(`crates/podssh-relay/src/cache.rs:346-348`) and `owned_and_unwritable`
+(`crates/podssh-relay/src/cache/own.rs:136-139`) return `true`; so does `owner_alone_writes`
+(`crates/podssh-cli/src/ssh/config.rs:97-99`) since T-043. Windows keeps the owner and the
+writers of a file in its security descriptor, which podssh does not read.
+
+## Approach
+
+1. Read the owner and the access list of the opened file, through bindings with no C code of
+   their own (`windows-sys`; verify that it is in the tree, and its version).
+2. Accept the owner when it is the user, SYSTEM or the Administrators; refuse a file that another
+   account may write, append to, or whose access list another account may change; for the cache,
+   also one that another account may read. Measure what OpenSSH for Windows accepts, and follow it.
+3. One function for the cache and for `~/.ssh/config`, with the reason in the refusal.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test cache
+cargo test -p podssh-cli --test ssh_config_file
+```
+
+On Windows, also in CI on `windows-2025`: a file that the group Users may write is refused, and
+the user's own file is read. Planted: a check that returns `true`; a test fails.

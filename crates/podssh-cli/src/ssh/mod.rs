@@ -8,6 +8,7 @@
 //! 64, and a bad relay variable 78, before anything is attempted.
 
 pub mod args;
+pub mod config;
 pub mod dump;
 pub mod forward;
 pub mod iroh;

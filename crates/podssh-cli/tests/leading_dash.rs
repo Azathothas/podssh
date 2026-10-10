@@ -9,6 +9,8 @@ use std::process::{Command, Stdio};
 fn podssh(args: &[&str]) -> (i32, String) {
     let out = Command::new(env!("CARGO_BIN_EXE_podssh"))
         .args(args)
+        // The ssh_config of the machine that runs the test must not change it.
+        .env("PODSSH_SSH_CONFIG", "none")
         .env("PODSSH_OFFLINE", "1")
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

@@ -91,6 +91,8 @@ impl Session {
     pub fn command(&self, args: &[String]) -> Command {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
         cmd.args(args);
+        // The ssh_config of the machine that runs the test must not change it.
+        cmd.env("PODSSH_SSH_CONFIG", "none");
         for name in ["PODSSH_OFFLINE", "PODSSH_IROH_RELAY", "PODSSH_TIMEOUT", "SSH_AUTH_SOCK"] {
             cmd.env_remove(name);
         }

@@ -27,6 +27,8 @@ fn env() -> Env {
         ssl_cert_file: None,
         local_host: Some("box.example.org".into()),
         uid: Some(1000),
+        // No ssh_config file: these tests hold the command line alone.
+        ssh_config: Some("none".into()),
     }
 }
 
@@ -234,10 +236,10 @@ fn ipv6_literals_resolve_through_the_relay_in_every_form() {
 }
 
 #[test]
-fn a_config_file_is_refused_unless_it_is_none() {
+fn a_config_file_that_is_missing_is_an_error_and_none_reads_nothing() {
     assert!(resolve(&ssh(&["-F", "none", "host"]), &env()).is_ok());
-    let err = resolve(&ssh(&["-F", "/etc/ssh/ssh_config", "host"]), &env()).unwrap_err();
-    assert!(err.contains("-o"), "the refusal names the alternative: {err}");
+    let err = resolve(&ssh(&["-F", "/nonexistent/podssh/ssh_config", "host"]), &env()).unwrap_err();
+    assert!(err.contains("/nonexistent/podssh/ssh_config") && err.contains("no such file"), "{err}");
 }
 
 #[test]

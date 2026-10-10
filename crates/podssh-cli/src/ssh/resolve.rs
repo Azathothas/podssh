@@ -65,6 +65,8 @@ pub struct Env {
     /// The local host name and user id, for the `%` tokens.
     pub local_host: Option<String>,
     pub uid: Option<u32>,
+    /// `PODSSH_SSH_CONFIG`: the file of `-F`, when `-F` is not given.
+    pub ssh_config: Option<String>,
 }
 
 impl Env {
@@ -79,6 +81,7 @@ impl Env {
             ssl_cert_file: var("SSL_CERT_FILE"),
             local_host: super::tokens::local_host_name(),
             uid: super::tokens::local_uid(),
+            ssh_config: var("PODSSH_SSH_CONFIG"),
         }
     }
 }
@@ -105,14 +108,6 @@ pub fn resolve(args: &SshArgs, env: &Env) -> Result<Resolved, String> {
 /// Resolve `args`; `Err` is a refusal with its exit code: 64 for the command
 /// line, 78 for a bad `PODSSH_RELAY`.
 pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal> {
-    match args.config.as_deref() {
-        None | Some("none") | Some("/dev/null") | Some("NUL") => {}
-        Some(file) => {
-            return Err(Refusal::usage(format!(
-                "-F {file}: reading ssh_config files is not implemented yet; pass the settings with -o NAME=VALUE (-F none is accepted)"
-            )))
-        }
-    }
     let mut settings = Settings::default();
     for raw in args.options.iter().chain(&args.long_options) {
         settings.apply(raw)?;
@@ -134,8 +129,16 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             return Err(format!("{flag} is for an iroh:TICKET destination, or --iroh-ticket").into());
         }
     }
-    let host = match settings.host_name.clone() {
+    // The file's blocks for the host as typed (T-043): under the command
+    // line, but for `User` and `Port`, which `user@host` and `host:PORT`
+    // also beat.
+    let source = super::config::file(args.config.as_deref(), env.ssh_config.as_deref(), env.home.as_deref());
+    let filed = super::config::read(&source, &target.host, settings.ignore_unknown.clone()).map_err(Refusal::config)?;
+    let (file_user, file_port) = (filed.user.clone(), filed.port);
+    let settings = settings.then_file(filed);
+    let host = match settings.host_name.as_deref() {
         Some(name) => {
+            let name = super::tokens::host_name(name, &target.host)?;
             host_rule(&format!("HostName={name}"), &name)?;
             name
         }
@@ -143,13 +146,14 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     };
     let port = match &args.port {
         Some(p) => parse_port(p).ok_or_else(|| format!("-p {p}: not a port"))?,
-        None => settings.port.or(Some(target.port).filter(|p| *p != 22)).unwrap_or(22),
+        None => settings.port.or(Some(target.port).filter(|p| *p != 22)).or(file_port).unwrap_or(22),
     };
     let user = args
         .login
         .clone()
         .or_else(|| settings.user.clone())
         .or_else(|| target.user.clone())
+        .or_else(|| file_user.clone())
         .or_else(|| env.user.clone())
         .ok_or("no user name: give one with user@host or -l USER")?;
     let proxy_jump = args.jump.as_deref().or(settings.proxy_jump.as_deref());

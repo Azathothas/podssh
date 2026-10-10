@@ -17,6 +17,8 @@ use std::time::{Duration, Instant};
 fn podssh(home: &std::path::Path, args: &[&str]) -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     cmd.args(args);
+    // The ssh_config of the machine that runs the test must not change it.
+    cmd.env("PODSSH_SSH_CONFIG", "none");
     for name in ["PODSSH_OFFLINE", "PODSSH_TIMEOUT", "SSH_AUTH_SOCK", "HTTPS_PROXY", "https_proxy", "ALL_PROXY"] {
         cmd.env_remove(name);
     }

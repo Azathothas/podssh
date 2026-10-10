@@ -17,6 +17,8 @@ const TICKET: &str =
 fn podssh(args: &[&str], cache: &std::path::Path) -> (i32, Vec<u8>, String) {
     let out = Command::new(env!("CARGO_BIN_EXE_podssh"))
         .args(args)
+        // The ssh_config of the machine that runs the test must not change it.
+        .env("PODSSH_SSH_CONFIG", "none")
         // No test may reach the network, nor touch the user's cache.
         .env("PODSSH_OFFLINE", "1")
         .env("XDG_CACHE_HOME", cache)

@@ -185,8 +185,8 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:283-284`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:414`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:91-169`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-127`).
+   (`crates/podssh-cli/src/man/data.rs:91-177`), and each new variable to
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-132`).
 
 ## Decision
 
@@ -510,9 +510,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-127`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-132`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:164-284`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:169-289`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
