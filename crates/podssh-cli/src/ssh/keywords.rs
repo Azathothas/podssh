@@ -33,7 +33,7 @@ pub const HONOURED: &[Keyword] = &[
     kw("EscapeChar", "CHAR|^X|none", "the same as -e", "~"),
     kw("ExitOnForwardFailure", "yes|no", "yes: a forward of -R that the server refuses ends the run with 255", "yes"),
     kw("GlobalKnownHostsFile", "FILE...|none", "the system known_hosts files", "/dev/null"),
-    kw("HostKeyAlias", "NAME", "look up and record the host key under this name", "alias"),
+    kw("HostKeyAlias", "NAME", "look up and record the host key under this name, in lowercase", "alias"),
     kw("HostName", "HOST", "the host to connect to, in place of the destination; %h is the host as typed", "%h.example.org"),
     kw("IdentitiesOnly", "yes|no", "yes: use only the identity files, not the other keys of the agent", "yes"),
     kw("IdentityAgent", "PATH|SSH_AUTH_SOCK|none", "the agent socket (a named pipe on Windows); none: no agent", "none"),
@@ -47,7 +47,7 @@ pub const HONOURED: &[Keyword] = &[
     kw("PreferredAuthentications", "LIST", "publickey, keyboard-interactive and password, in the order to try them", "publickey,password"),
     kw("ProxyJump", "HOSTS|none", "the same as -J", "none"),
     kw("PubkeyAuthentication", "yes|no", "allow key authentication", "yes"),
-    kw("RemoteCommand", "COMMAND", "the command to run when the command line gives none", "uptime"),
+    kw("RemoteCommand", "COMMAND", "the command to run when the command line gives none; it takes the % tokens", "uptime"),
     kw("RemoteForward", "[BIND:]PORT HOST:HOSTPORT", "the same as -R; repeatable", "8080 localhost:80"),
     kw("RequestTTY", "auto|yes|force|no", "yes is -t, force is -tt, no is -T", "force"),
     kw("SendEnv", "NAME...", "send these local variables; the server decides which to accept", "LANG"),
@@ -57,7 +57,7 @@ pub const HONOURED: &[Keyword] = &[
     kw("SetEnv", "NAME=VALUE...", "set these variables on the server", "A=1"),
     kw("StdinNull", "yes|no", "the same as -n", "yes"),
     kw("StrictHostKeyChecking", "yes|accept-new|no|ask", "what to do with an unknown host key (default ask); a changed key is refused with each value", "accept-new"),
-    kw("User", "USER", "the same as -l", "user"),
+    kw("User", "USER", "the same as -l, but it takes the % tokens, not %C or %r", "user"),
     kw("UserKnownHostsFile", "FILE...|none", "the user's known_hosts files; a new host key goes to the first", "/dev/null"),
 ];
 

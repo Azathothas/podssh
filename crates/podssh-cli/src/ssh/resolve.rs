@@ -13,7 +13,7 @@ use podssh_relay::relay::{self, RelayList};
 
 use super::args::SshArgs;
 use super::options::{parse_port, Settings};
-use super::tokens::{lower_host, Tokens};
+use super::tokens::{lower_host, Tokens, USER_REFUSES};
 use crate::relay_settings::Refusal;
 
 /// How the first hop is reached.
@@ -148,27 +148,20 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         Some(p) => parse_port(p).ok_or_else(|| format!("-p {p}: not a port"))?,
         None => settings.port.or(Some(target.port).filter(|p| *p != 22)).or(file_port).unwrap_or(22),
     };
-    let user = args
-        .login
-        .clone()
-        .or_else(|| settings.user.clone())
-        .or_else(|| target.user.clone())
-        .or_else(|| file_user.clone())
-        .or_else(|| env.user.clone())
-        .ok_or("no user name: give one with user@host or -l USER")?;
     let proxy_jump = args.jump.as_deref().or(settings.proxy_jump.as_deref());
     let jump: Vec<Hop> = match proxy_jump {
         None | Some("none") => Vec::new(),
         Some(list) => list.split(',').map(|h| jump_hop(h.trim())).collect::<Result<_, _>>()?,
     };
 
-    // The `%` tokens, with OpenSSH's values for this connection.
-    let tokens = Tokens {
+    // The `%` tokens, with OpenSSH's values for this connection; `%r` once
+    // the user is known.
+    let mut tokens = Tokens {
         home: env.home.clone(),
         host: lower_host(&host),
         original: target.host.clone(),
         port,
-        remote_user: user.clone(),
+        remote_user: String::new(),
         local_user: env.user.clone(),
         local_host: env.local_host.clone(),
         uid: env.uid,
@@ -178,6 +171,18 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             _ => jump.last().map(|h| h.host.clone()).unwrap_or_default(),
         },
     };
+    // OpenSSH expands a `User` of `-o` or of a file, and takes `-l` and
+    // `user@host` as they are.
+    let user = match (&args.login, &settings.user, &target.user, &file_user) {
+        (Some(login), ..) => login.clone(),
+        (None, Some(user), ..) => tokens.text("-o User=", user, USER_REFUSES)?,
+        (None, None, Some(user), _) => user.clone(),
+        (None, None, None, Some(user)) => tokens.text("User ", user, USER_REFUSES)?,
+        (None, None, None, None) => env.user.clone().ok_or("no user name: give one with user@host or -l USER")?,
+    };
+    tokens.remote_user = user.clone();
+    let remote_command =
+        settings.remote_command.as_deref().map(|c| tokens.text("RemoteCommand ", c, &[])).transpose()?;
     let expand = |setting: &str, p: &str| tokens.expand(setting, p);
     let mut identity_files: Vec<PathBuf> = args
         .identity_files
@@ -218,7 +223,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         (false, _) => Some("PreferredAuthentications does not list publickey".to_string()),
     };
 
-    let request = request(args, &settings)?;
+    let request = request(args, &settings, remote_command.as_deref())?;
     let request_tty = if matches!(request, Request::StdioForward { .. } | Request::Nothing) || args.no_tty {
         RequestTty::No
     } else {
@@ -337,7 +342,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         (None, None) => host.clone(),
     };
     let mut options = Options::new(Hop { user: None, host: shown, port }, user.clone());
-    options.host_key_alias = settings.host_key_alias.clone();
+    // OpenSSH looks a host key up, and records it, under the alias in lowercase.
+    options.host_key_alias = settings.host_key_alias.as_deref().map(str::to_ascii_lowercase);
     options.jump = jump;
     options.identity_files = identity_files;
     options.identities_only = settings.identities_only.unwrap_or(false);
@@ -370,7 +376,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         password: settings.password.unwrap_or(true),
         kbd_interactive: settings.kbd_interactive.unwrap_or(true),
         preferred: settings.preferred_auth.as_ref().map(|m| m.iter().map(|m| m.name()).collect::<Vec<_>>().join(",")),
-        remote_command: settings.remote_command.clone(),
+        remote_command,
         proxy_jump: proxy_jump.filter(|j| *j != "none").map(str::to_string),
         home: env.home.clone(),
     };
@@ -409,7 +415,7 @@ fn stdio_forward_form(target: &str) -> Result<(), String> {
     }
 }
 
-fn request(args: &SshArgs, settings: &Settings) -> Result<Request, String> {
+fn request(args: &SshArgs, settings: &Settings, remote_command: Option<&str>) -> Result<Request, String> {
     if let Some(target) = &args.stdio_forward {
         if !args.command.is_empty() {
             return Err("-W cannot be combined with a remote command".into());
@@ -421,11 +427,8 @@ fn request(args: &SshArgs, settings: &Settings) -> Result<Request, String> {
         }
         return Ok(Request::StdioForward { host: hop.host, port: hop.port });
     }
-    let command = if args.command.is_empty() {
-        settings.remote_command.clone().unwrap_or_default()
-    } else {
-        args.command.join(" ")
-    };
+    let command =
+        if args.command.is_empty() { remote_command.unwrap_or_default().to_string() } else { args.command.join(" ") };
     if args.no_command || settings.session_type.as_deref() == Some("none") {
         return Ok(Request::Nothing);
     }

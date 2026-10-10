@@ -1,8 +1,9 @@
 //! The `%` tokens of ssh_config(5) in file names (`IdentityFile`,
-//! `UserKnownHostsFile`, `GlobalKnownHostsFile`, `IdentityAgent`), with the
-//! values that OpenSSH 10.3p1 gives them (`DEFAULT_CLIENT_PERCENT_EXPAND_ARGS`
-//! in its `sshconnect.h`). An unknown token is refused, as OpenSSH refuses
-//! it: a path that silently means another file is worse than an error.
+//! `UserKnownHostsFile`, `GlobalKnownHostsFile`, `IdentityAgent`), in `User`
+//! and in `RemoteCommand`, with the values that OpenSSH 10.3p1 gives them
+//! (`DEFAULT_CLIENT_PERCENT_EXPAND_ARGS` in its `sshconnect.h`). An unknown
+//! token is refused, as OpenSSH refuses it: a path that silently means
+//! another file is worse than an error.
 
 use std::path::{Path, PathBuf};
 
@@ -59,10 +60,17 @@ impl Tokens {
     /// directory. `setting` names the option in a refusal, as `-i ` or
     /// `-o IdentityFile=`.
     pub fn expand(&self, setting: &str, path: &str) -> Result<PathBuf, String> {
-        let refuse = |why: String| format!("{setting}{path}: {why}");
+        Ok(tilde(&self.text(setting, path, &[])?, self.home.as_deref()))
+    }
+
+    /// `value` with each token replaced, and no `~`: `RemoteCommand`, or
+    /// `User`, which takes neither `%r`, the user itself, nor `%C`, made of
+    /// it (`USER_REFUSES`). A token in `refused` is refused by name.
+    pub fn text(&self, setting: &str, value: &str, refused: &[char]) -> Result<String, String> {
+        let refuse = |why: String| format!("{setting}{value}: {why}");
         let missing = |token: &str, what: &str| refuse(format!("{token} needs {what}"));
         let mut out = String::new();
-        let mut chars = path.chars();
+        let mut chars = value.chars();
         while let Some(c) = chars.next() {
             if c != '%' {
                 out.push(c);
@@ -71,6 +79,9 @@ impl Tokens {
             let Some(token) = chars.next() else {
                 return Err(refuse("a % at the end; write %% for a %".into()));
             };
+            if refused.contains(&token) {
+                return Err(refuse(format!("%{token} is not a token of this keyword, as in OpenSSH")));
+            }
             match token {
                 '%' => out.push('%'),
                 'C' => {
@@ -105,9 +116,13 @@ impl Tokens {
                 other => return Err(refuse(format!("%{other} is not a token; the tokens are {TOKENS}"))),
             }
         }
-        Ok(tilde(&out, self.home.as_deref()))
+        Ok(out)
     }
 }
+
+/// The tokens that OpenSSH 10.3p1 refuses in `User`: `%r` is the user, and
+/// `%C` is made of it.
+pub const USER_REFUSES: &[char] = &['C', 'r'];
 
 /// `HostName` with the two tokens that OpenSSH gives it: `%h`, the host as
 /// typed, and `%%`. Another token is refused, as OpenSSH refuses it.

@@ -204,6 +204,51 @@ fn the_default_file_must_be_closed_to_others_and_a_link_is_followed() {
     assert_eq!(resolve(&ssh(&["-F", &real, "alias"]), &h.env()).unwrap().options.destination.port, 2222);
 }
 
+/// `User` and `RemoteCommand` with tokens (T-273), and what OpenSSH 10.3p1's
+/// `ssh -G -F FILE` printed for each command line: a `User` of `-o` or of the
+/// file is expanded, `-l` and `user@host` are taken as they are, `%r` is the
+/// user, and `HostKeyAlias` is lowercased.
+#[rustfmt::skip]
+const TOKENS: &[(&[&str], &str, &str, &str)] = &[
+    (&["alias"], "u-alias.example.org-2222-alias-alias", "2222",
+        "echo alias.example.org 2222 u-alias.example.org-2222-alias-alias alias alias  %"),
+    (&["-J", "jump.example", "alias"], "u-alias.example.org-2222-alias-alias", "2222",
+        "echo alias.example.org 2222 u-alias.example.org-2222-alias-alias alias alias jump.example %"),
+    (&["-o", "User=o-%h", "-p", "2300", "alias"], "o-alias.example.org", "2300",
+        "echo alias.example.org 2300 o-alias.example.org alias alias  %"),
+    (&["-l", "l-%h", "alias"], "l-%h", "2222", "echo alias.example.org 2222 l-%h alias alias  %"),
+    (&["-o", "HostKeyAlias=Alias.K", "alias"], "u-alias.example.org-2222-alias-alias.k", "2222",
+        "echo alias.example.org 2222 u-alias.example.org-2222-alias-alias.k alias alias.k  %"),
+    (&["c@alias"], "c", "2222", "echo alias.example.org 2222 c alias alias  %"),
+];
+
+#[test]
+fn user_and_remote_command_take_the_tokens_as_openssh_10_3_does() {
+    let h = Home::new("tokens");
+    let f = h.file(
+        "tokens",
+        "Host alias\n  HostName %h.example.org\n  Port 2222\n  User u-%h-%p-%n-%k\n  \
+         RemoteCommand echo %h %p %r %n %k %j %%\n",
+    );
+    for (words, user, port, command) in TOKENS {
+        let mut all = vec!["-G", "-F", f.as_str()];
+        all.extend_from_slice(words);
+        let lines = dump::lines(&resolve(&ssh(&all), &h.env()).unwrap_or_else(|e| panic!("{words:?}: {e}")));
+        for line in [format!("user {user}"), format!("port {port}"), format!("remotecommand {command}")] {
+            assert!(lines.contains(&line), "{words:?}: {line:?} in {lines:#?}");
+        }
+    }
+    let lines =
+        dump::lines(&resolve(&ssh(&["-G", "-F", &f, "-o", "HostKeyAlias=Alias.K", "alias"]), &h.env()).unwrap());
+    assert!(lines.contains(&"hostkeyalias alias.k".to_string()), "{lines:#?}");
+    // The tokens that OpenSSH refuses here, each by name.
+    for (text, token) in [("User x-%r", "%r"), ("User x-%C", "%C"), ("RemoteCommand echo %T", "%T")] {
+        let f = h.file("refused", &format!("Host alias\n  {text}\n"));
+        let err = resolve(&ssh(&["-F", &f, "alias"]), &h.env()).unwrap_err();
+        assert!(err.contains(token), "{text}: {err}");
+    }
+}
+
 /// The fixture, and what OpenSSH 10.3p1 printed for it: `ssh -G -F FIXTURE`
 /// with each case's words, kept to the keywords that podssh prints.
 const FIXTURE: &str = "# A fixture of ssh_config, read by OpenSSH 10.3p1 and by podssh

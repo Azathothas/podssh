@@ -27,7 +27,8 @@ pub struct Shown {
     pub kbd_interactive: bool,
     /// `PreferredAuthentications`, as given.
     pub preferred: Option<String>,
-    /// `RemoteCommand`, as given; a command on the command line is not one.
+    /// `RemoteCommand`, its tokens expanded as OpenSSH prints it; a command
+    /// on the command line is not one.
     pub remote_command: Option<String>,
     /// `-J` or `ProxyJump`, as given.
     pub proxy_jump: Option<String>,

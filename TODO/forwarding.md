@@ -132,7 +132,8 @@ Docker lets a user bind a port under 1024, so OpenSSH gave the forward,
 and the check waited for its limit (exit 143); in the build image of the
 developer machine the kernel refused the port. The check now asks for port
 2291, which `PermitListen 2290` of the server on port 2201 refuses whatever
-the kernel allows (`scripts/interop.sh`).
+the kernel allows (`scripts/interop.sh`). In CI at `28eab6b` (run 38033483197):
+interop 222 passed, 0 failed.
 
 ## Done
 
@@ -342,7 +343,7 @@ it (`SECURITY.md`, "Design rules").
 a local listener when the user asks for it and a probe at run time allows
 the bind; loopback and AF_UNIX by default; an address that the user sets;
 listening that the user can turn off; the same refusal where the probe
-fails. Also `docs/cli.md:148-152`; the totoshko88/RustConn report in GitHub
+fails. Also `docs/cli.md:151-155`; the totoshko88/RustConn report in GitHub
 #24 (item 3) and the OthmaneBlial/MobaRust report in GitHub #21 (item 3);
 sandbox A of T-001 (`bind` refused for AF_INET, allowed for AF_UNIX).
 **Category:** feature
@@ -550,8 +551,8 @@ Measured, offline, with `MSYS_NO_PATHCONV=1` and `PODSSH_OFFLINE=1`:
 Read:
 
 - `request` parses the value of `-W` with `parse_hop`
-  (`crates/podssh-cli/src/ssh/resolve.rs:412-422`), which reads a value with
-  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/resolve.rs:452-465`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:418-428`), which reads a value with
+  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/resolve.rs:455-468`).
 - russh 0.64.1 has `Handle::channel_open_direct_streamlocal` (the channel
   `direct-streamlocal@openssh.com`). podssh opens only `direct-tcpip`
   (`crates/podssh-ssh/src/forward.rs:11-20`).
@@ -741,9 +742,9 @@ at the connection step (exit 255), after the parse:
 | `db.internal:5432`, `[::1]:5432` | accepted | accepted |
 
 Read: `request` parses the value with `parse_hop`
-(`crates/podssh-cli/src/ssh/resolve.rs:412-422`), which reads a value with no
+(`crates/podssh-cli/src/ssh/resolve.rs:418-428`), which reads a value with no
 `:` as a host on port 22, and splits a value at its one `:`
-(`crates/podssh-cli/src/ssh/resolve.rs:452-465`). `forward::open` opens
+(`crates/podssh-cli/src/ssh/resolve.rs:455-468`). `forward::open` opens
 `direct-tcpip` only (`crates/podssh-ssh/src/forward.rs:11-20`).
 
 ## Approach

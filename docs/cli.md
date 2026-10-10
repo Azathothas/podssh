@@ -140,8 +140,11 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   typed), `%p`, `%r` (the remote user) and `%u` (the local user, from
   `USER`, `LOGNAME` or `USERNAME`). An unknown token, or one whose value
   podssh does not know, is refused (exit 64); OpenSSH refuses an unknown one
-  too. `-E FILE` is opened with the name as typed, as OpenSSH opens it. The
-  gate compares the tokens with `ssh -G`.
+  too. `RemoteCommand` takes the same tokens, and `User` from `-o` or from a
+  file takes them but `%C` and `%r`; `-l` and `user@host` take none, as in
+  OpenSSH (T-273). `HostKeyAlias` is lowercased, as OpenSSH lowercases it.
+  `-E FILE` is opened with the name as typed, as OpenSSH opens it. The gate
+  compares the tokens with `ssh -G`.
 
 ## Forwarding
 
