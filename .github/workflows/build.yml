@@ -21,7 +21,7 @@ jobs:
   # drift from what `sh scripts/dev.sh check` runs.
   plan:
     name: plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       image: ${{ steps.image.outputs.image }}
@@ -55,7 +55,7 @@ jobs:
   gate:
     name: gate (${{ matrix.step }})
     needs: plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -96,7 +96,7 @@ jobs:
   plant:
     name: plant
     needs: plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -112,7 +112,7 @@ jobs:
 
   checks:
     name: checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -243,7 +243,7 @@ jobs:
     name: all
     if: always()
     needs: [plan, gate, plant, checks, windows]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: each job passed

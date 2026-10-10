@@ -26,7 +26,7 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - runner: ubuntu-latest
+          - runner: ubuntu-24.04
             target: x86_64-unknown-linux-musl
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
@@ -72,7 +72,7 @@ jobs:
 
   windows:
     name: windows x86_64
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 60
     env:
       CARGO_BUILD_JOBS: 4
@@ -116,7 +116,7 @@ jobs:
   publish:
     needs: [linux, windows]
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:

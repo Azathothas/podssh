@@ -3072,3 +3072,74 @@ runs `cargo todo check --base HEAD~1` (`.github/workflows/build.yml`). `TODO/RUL
   `832149e`, against `HEAD~1` and against `HEAD~2`: exit 0.
 - `cargo test --workspace --no-fail-fast`: 1221 passed, 0 failed, 39 ignored.
 - CI runs the new step from the push of this commit on.
+
+# T-278: CI's `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19: name the runners' systems through `v1.0.0`
+
+**Source:** the notice of GitHub Actions on each Linux job of run 38076724277
+(2026-10-11), "The ubuntu-latest label will migrate to Ubuntu 26 beginning
+October 19, 2026" (`actions/runner-images:issues/14748`, read in the run's
+annotations, not opened).
+**Category:** chore
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+Most jobs ran on `ubuntu-latest`, and the Windows release build on
+`windows-latest`. From 2026-10-19 the first label means Ubuntu 26: each
+runner's system would change during M9, and the checks of T-251 and the
+release of T-250 would run on a system that no passing run of the gate met.
+The builds run in the build image, pinned to a digest (T-206), so they do not
+change; but the runner gives Docker, Python and the tools of each step, and a
+change there can fail a step when each run belongs to the release.
+
+## Premise
+
+Read on `cafcdb4`:
+
+- `.github/workflows/build.yml`: five jobs on `ubuntu-latest`, and the job
+  `windows` on `windows-2025`, a named system.
+- `.github/workflows/release.yml`: `ubuntu-latest` for x86_64 and
+  `ubuntu-24.04-arm` for aarch64 in the matrix, `windows-latest` for the
+  Windows build, and `ubuntu-latest` for the publishing job.
+- `.github/workflows/changelog.yml`, `.github/workflows/deny.yml`,
+  `.github/workflows/reverse-drops.yml` and `.github/workflows/secrets.yml`:
+  `ubuntu-latest`.
+- The last green run (38073235063, at `14f6cde`) ran its Linux jobs on the
+  image `ubuntu-24.04` (version 20261004.327.1, in the job's log) and its
+  Windows job on Windows Server 2025.
+
+## Approach
+
+1. Name `ubuntu-24.04` for each `ubuntu-latest`, and `windows-2025` for
+   `windows-latest`: the systems of the last green run.
+2. Dependabot (T-205) updates the actions, not the runners. After `v1.0.0`,
+   a later move of the runners is a change of its own, with a run of the gate.
+3. `docs/STATUS.md`, "Build, tests, CI": the runners, and the run that passed
+   on them.
+
+## Decision
+
+Name the systems through `v1.0.0`. The alternative, to let the label move,
+lost: a failure that the new system causes would come during M9, when each
+CI run belongs to the release checks (`AGENTS.md`, section 2), and the
+gate's result would mean another system from one push to the next. podssh's
+users are not on the runner's system: the binaries are static, built in the
+pinned image.
+
+## Prove
+
+```sh
+grep -rn "ubuntu-latest\|windows-latest" .github/workflows/
+```
+
+No line. The next push's run passes each job, and each Linux job's log names
+the image `ubuntu-24.04`.
+
+## Done
+
+Partial, 2026-10-11: each workflow names `ubuntu-24.04` or `windows-2025`,
+and the grep of the Prove finds no line. The run of the push that carries
+the change is read next; it closes the entry.

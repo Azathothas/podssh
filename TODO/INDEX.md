@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**274 entries: 104 open, 0 partial, 22 blocked, 148 done.**
+**275 entries: 104 open, 1 partial, 22 blocked, 148 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 23 | 0 | 18 | 112 | 153 |
+| P2 | 23 | 1 | 18 | 112 | 154 |
 | P3 | 79 | 0 | 4 | 19 | 102 |
-| **All** | 104 | 0 | 22 | 148 | 274 |
+| **All** | 104 | 1 | 22 | 148 | 275 |
 
 ## Entries
 
@@ -349,3 +349,4 @@ repository and CI).
 | [T-275](irc.md) | P2 | S | M8 | defect | done | The transfer sends as fast as its acknowledgements come, and a server's rate limit closes it |
 | [T-276](repo.md) | P3 | S | none | chore | done | The fork's own clippy warns, and no podssh build shows it |
 | [T-277](repo.md) | P3 | S | none | chore | done | The record's check sees no citation that a commit left unmoved |
+| [T-278](repo.md) | P2 | S | none | chore | partial | CI's `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19: name the runners' systems through `v1.0.0` |
