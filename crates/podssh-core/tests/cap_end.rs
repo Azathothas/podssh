@@ -1,9 +1,11 @@
 //! `CAP END` answers the server, not its `001` (T-091). A server that answers
 //! `CAP LS` holds the registration until the client ends the negotiation:
-//! the lines here are what ngircd 27 sent a client that registered with
-//! `CAP LS 302` (captured on 2026-10-10), and its `001` came only after the
-//! client's `CAP END`. A server with no `CAP` answers `421`, and holds
-//! nothing.
+//! ngircd 27's `001` came only after the client's `CAP END`. The lines here
+//! are what ngircd 27 and InspIRCd 4.11.0 sent a client that registered with
+//! `CAP LS 302` (captured on 2026-10-10). Since T-092 podssh asks only for
+//! what it reads, so ngircd's list, `multi-prefix` alone, leaves nothing to
+//! ask, and InspIRCd's has `echo-message`. A server with no `CAP` answers
+//! `421`, and holds nothing.
 
 use podssh_core::irc::cap::Stage;
 use podssh_core::irc::reap::ReapPolicy;
@@ -25,11 +27,13 @@ fn answer(s: &mut Session, bytes: &[u8]) -> Vec<String> {
     out.iter().map(|m| m.to_line()).collect()
 }
 
-const LS: &[u8] = b":irc.ngircd.test CAP * LS :multi-prefix\r\n";
-const ACK: &[u8] = b":irc.ngircd.test CAP podtest ACK :multi-prefix\r\n";
-const NAK: &[u8] = b":irc.ngircd.test CAP podtest NAK :multi-prefix\r\n";
-const WELCOME: &[u8] =
-    b":irc.ngircd.test 001 podtest :Welcome to the Internet Relay Network podtest!~podtest@127.0.0.1\r\n";
+const NGIRCD_LS: &[u8] = b":irc.ngircd.test CAP * LS :multi-prefix\r\n";
+const LS: &[u8] = b":irc.inspircd.test CAP * LS :account-notify away-notify cap-notify echo-message extended-join inspircd.org/poison inspircd.org/stats-tags no-implicit-names standard-replies \r\n";
+const ACK: &[u8] = b":irc.inspircd.test CAP pc2 ACK :echo-message\r\n";
+// InspIRCd's NAK, of the form it sent for a request of two names, for the
+// one name asked here.
+const NAK: &[u8] = b":irc.inspircd.test CAP pc2 NAK :echo-message\r\n";
+const WELCOME: &[u8] = b":irc.inspircd.test 001 pc2 :Welcome to the PodTest IRC Network pc2!pc2@127.0.0.1\r\n";
 
 #[test]
 fn cap_end_follows_the_answer_to_the_request() {
@@ -38,7 +42,7 @@ fn cap_end_follows_the_answer_to_the_request() {
         let burst: Vec<String> = s.initial_burst().iter().map(|m| m.to_line()).collect();
         assert!(!burst.iter().any(|l| l.starts_with("CAP END")), "{burst:?}");
         let lines = answer(&mut s, LS);
-        assert_eq!(lines, ["CAP REQ :multi-prefix"], "the request, and no end before its answer");
+        assert_eq!(lines, ["CAP REQ :echo-message"], "the request, and no end before its answer");
         let lines = answer(&mut s, answered);
         assert_eq!(lines, ["CAP END"], "the {verb} of the request ends the negotiation");
         assert_eq!(s.negotiation().stage(), Stage::Ended);
@@ -56,6 +60,10 @@ fn cap_end_is_sent_at_once_when_nothing_is_wanted() {
     let lines = answer(&mut s, b":irc.ngircd.test CAP * LS :sasl\r\n");
     assert_eq!(lines, ["CAP END"], "no empty request, which would wait for an answer that ends nothing");
     assert_eq!(s.negotiation().stage(), Stage::Ended);
+    // Nor does ngircd 27's own list: podssh does not read `multi-prefix`.
+    let mut s = Session::new(server(), ReapPolicy::default());
+    let _ = s.initial_burst();
+    assert_eq!(answer(&mut s, NGIRCD_LS), ["CAP END"]);
 }
 
 #[test]

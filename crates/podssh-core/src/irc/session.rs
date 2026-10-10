@@ -85,6 +85,10 @@ pub enum RegistrationFailure {
 pub enum Event {
     /// A `PRIVMSG` from someone, already parsed.
     Privmsg { from: Prefix, target: String, text: String },
+    /// **The server's echo of a message that this client sent**, with
+    /// `echo-message` on: the proof that it was delivered. Shown once, and
+    /// never read as a peer's message or a peer's file line (T-092).
+    Echo { target: String, text: String },
     /// A `NOTICE`, which **is not shown** — RFC 2812 §3.3.2 says notices
     /// are never sent to a client that did not send the matching `PRIVMSG`
     /// except for `NOTICE AUTH`, and a client that displays them puts a
@@ -170,6 +174,11 @@ pub struct Session {
     /// ping that was a genuine retry with nothing.
     pending_pongs: Vec<String>,
     policy: ReapPolicy,
+    /// The text of the last echo of a message to this client's own nick,
+    /// while its second copy may follow: with `echo-message`, InspIRCd 4.11.0
+    /// and ergo 2.18.0 send such a message back twice, as delivered and as
+    /// echoed, one after the other.
+    last_self_echo: Option<String>,
 }
 
 impl Session {
@@ -183,6 +192,7 @@ impl Session {
             reassembler: crate::irc::framing::Reassembler::new(),
             pending_pongs: Vec::new(),
             policy,
+            last_self_echo: None,
         }
     }
 
@@ -316,6 +326,8 @@ impl Session {
         if let Some(next) = self.negotiation.observe(&message.command) {
             out.push(next);
         }
+        // A second copy follows its first at once, or is no second copy.
+        let previous_self_echo = self.last_self_echo.take();
         match &message.command {
             Command::Ping { token } => {
                 self.pending_pongs.push(token.as_str().to_string());
@@ -371,6 +383,17 @@ impl Session {
                     });
                 }
             }
+            Command::Privmsg { target, text } if self.is_echo(&message) => {
+                // Shown once: the second copy of a message to this client's
+                // own nick is dropped.
+                let to_self = target.0.eq_ignore_ascii_case(&self.server.nick);
+                if !(to_self && previous_self_echo.as_deref() == Some(text.as_str())) {
+                    if to_self {
+                        self.last_self_echo = Some(text.as_str().to_string());
+                    }
+                    events.push(Event::Echo { target: target.0.clone(), text: text.as_str().to_string() });
+                }
+            }
             Command::Privmsg { target, text } => {
                 let from = message.prefix.clone().unwrap_or_default();
                 // **THE HEARTBEAT IS CONSUMED HERE, and nowhere else.** A
@@ -409,12 +432,20 @@ impl Session {
         // consumed before the text is shown.** The reverse would put a
         // `PODSSH1|chunk|…` line in a user's terminal on every chunk of every
         // transfer.
+        // An echo of this client's own line is no line from a peer.
         if let Command::Privmsg { text, .. } = &message.command {
-            if let Some(line) = crate::irc::transfer::Line::parse(text.as_str()) {
+            if let Some(line) = crate::irc::transfer::Line::parse(text.as_str()).filter(|_| !self.is_echo(&message)) {
                 events.retain(|e| !matches!(e, Event::Privmsg { .. }));
                 events.push(Event::Transfer(line));
             }
         }
+    }
+
+    /// A message that this client sent, back from the server: with
+    /// `echo-message` on, it comes from this client's nick.
+    fn is_echo(&self, message: &Message) -> bool {
+        self.negotiation.enabled().iter().any(|c| c.eq_ignore_ascii_case(crate::irc::CAP_ECHO_MESSAGE))
+            && message.prefix.as_ref().is_some_and(|p| p.nick.eq_ignore_ascii_case(&self.server.nick))
     }
 }
 

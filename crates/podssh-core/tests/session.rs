@@ -220,7 +220,8 @@ fn sasl_is_never_requested() {
     let req = out.iter().find(|m| m.to_line().starts_with("CAP REQ")).expect("a REQ must follow an LS");
     let text = req.to_line();
     assert!(!text.contains("sasl"), "sasl was requested: {text}");
-    assert!(text.contains("multi-prefix"), "the wanted capability is missing: {text}");
+    // Only what podssh reads is asked for (T-092).
+    assert_eq!(text, "CAP REQ :znc.in/self-message");
 }
 
 #[test]
@@ -229,14 +230,14 @@ fn a_nak_is_not_requested_again_after_a_reconnect() {
     // asking twice is how a client ends up in a `CAP` loop it never leaves.
     let mut s = Session::new(server(), ReapPolicy::default());
     let _ = s.initial_burst();
-    let _ = s.on_bytes(b"CAP * LS :multi-prefix sasl\r\n");
-    let _ = s.on_bytes(b"CAP * NAK :multi-prefix\r\n");
-    assert_eq!(s.negotiation().refused(), ["multi-prefix"]);
+    let _ = s.on_bytes(b"CAP * LS :znc.in/self-message sasl\r\n");
+    let _ = s.on_bytes(b"CAP * NAK :znc.in/self-message\r\n");
+    assert_eq!(s.negotiation().refused(), ["znc.in/self-message"]);
 
     let _ = s.initial_burst();
-    let (out, _) = s.on_bytes(b"CAP * LS :multi-prefix\r\n");
+    let (out, _) = s.on_bytes(b"CAP * LS :znc.in/self-message\r\n");
     let req = out.iter().find(|m| m.to_line().starts_with("CAP REQ")).map(|m| m.to_line()).unwrap_or_default();
-    assert!(!req.contains("multi-prefix"), "a refused capability was re-requested: {req}");
+    assert!(!req.contains("self-message"), "a refused capability was re-requested: {req}");
 }
 
 #[test]

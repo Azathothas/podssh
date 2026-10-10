@@ -70,10 +70,17 @@ fn a_server_that_holds_the_registration_for_cap_end_welcomes_the_client() {
         joined = new.iter().any(|e| matches!(e, Event::Joined { channel: c } if *c == channel));
         events.extend(new);
     }
-    // A server with `CAP` gets its `CAP END` after the request; one with
-    // none answers `421`, holds nothing, and gets none.
+    // A server with `CAP` gets its `CAP END`, after the request when there
+    // is one (T-092: only what podssh reads is asked for); one with none
+    // answers `421`, holds nothing, and gets none.
     assert_eq!(s.negotiation().stage(), Stage::Ended, "podssh sent {sent:?}");
-    let asked = sent.iter().any(|l| l.starts_with("CAP REQ"));
-    assert_eq!(asked, sent.iter().any(|l| l == "CAP END"), "a request, and its end: {sent:?}");
+    let has_cap = !s.negotiation().offered().is_empty();
+    let asked = sent.iter().position(|l| l.starts_with("CAP REQ"));
+    let ended = sent.iter().position(|l| l == "CAP END");
+    assert_eq!(has_cap, ended.is_some(), "an end for a server with CAP only: {sent:?}");
+    if let Some(asked) = asked {
+        assert!(ended.is_some_and(|e| e > asked), "the end after the request: {sent:?}");
+    }
+    eprintln!("offered {:?}; enabled {:?}", s.negotiation().offered(), s.negotiation().enabled());
     let _ = stream.write_all(b"QUIT :done\r\n");
 }

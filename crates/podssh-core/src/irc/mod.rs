@@ -71,6 +71,17 @@ pub use session_parts::{join_message, nick_message, user_message, ChannelMemory}
 /// complete is how a client ends up in a loop a user cannot leave.
 pub const CAP_SELF_MESSAGE: &str = "znc.in/self-message";
 
+/// `echo-message`: the server sends each of the client's own messages back
+/// to it, which proves delivery where `znc.in/self-message` is absent
+/// (InspIRCd and ergo offer it; ngircd 27 does not).
+pub const CAP_ECHO_MESSAGE: &str = "echo-message";
+
+/// **The capabilities podssh asks for, and no other.** A capability changes
+/// what the server sends (`extended-join` changes the `JOIN` that podssh
+/// reads), so podssh asks only for those whose lines it reads; one that it
+/// does not read is never asked for, whatever the server offers.
+pub const WANTED_CAPS: &[&str] = &[CAP_ECHO_MESSAGE, CAP_SELF_MESSAGE];
+
 /// **Defaults only, and every one of them is superseded by the server's
 /// `005`** — see [`isupport::Isupport`], which is where a client reads the
 /// real value. **These are the numbers a client falls back to when the

@@ -32,6 +32,16 @@
 //! **`sasl` is never requested.** podssh's IRC leg authenticates nothing, and
 //! a client that advertises a mechanism it cannot complete gets a server that
 //! waits for credentials it will never receive.
+//!
+//! **Only the names of [`WANTED_CAPS`] are requested, without a value** (T-092).
+//! With `CAP LS 302` a server sends values (`sasl=PLAIN,EXTERNAL`), and one
+//! long list over several lines, each but the last with a `*` before its
+//! trailing: ergo 2.18.0 does both. A `REQ` that carries a value, or a name
+//! that the server does not offer, is refused whole (measured with ngircd
+//! 27, InspIRCd 4.11.0 and ergo 2.18.0), so the request names only offered
+//! names, once the last line has come.
+
+use crate::irc::WANTED_CAPS;
 
 use crate::irc::message::{CapVerb, Command, Message, Middle, Trailing};
 
@@ -57,9 +67,9 @@ pub enum Stage {
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Negotiation {
     stage: Stage,
-    /// **The server's list, minus the ones podssh refuses.** `sasl` is
-    /// removed here rather than in the `REQ`, because a capability that was
-    /// never acknowledged is a capability the client must not believe it has.
+    /// **The names that the server offers**, from each line of its `LS`, the
+    /// values left out: a value is the server's to give, never the client's
+    /// to send back.
     offered: Vec<String>,
     requested: Vec<String>,
     enabled: Vec<String>,
@@ -108,25 +118,37 @@ impl Negotiation {
     /// **Observe a `CAP` from the server**, and return whatever podssh must
     /// send next. **`None` means "send nothing"**, which is a real answer and
     /// not an absence: the common case is a server replying `ACK` to a request
-    /// podssh has already made.
+    /// podssh has already made, or a line of an `LS` that more lines follow.
     pub fn observe(&mut self, command: &Command) -> Option<Message> {
-        let (verb, names) = cap_parts(command)?;
+        let Reply { verb, names, more } = reply(command)?;
         match verb {
             CapVerb::Ls => {
-                // **THE FILTER, and it is the point of the whole module.**
-                // `sasl` is dropped, and `requested` is *not* built here: it is
-                // built by [`Negotiation::request_message`] after the caller has
-                // decided what it wants, so a negotiation that changes its mind
-                // mid-stream cannot leave a half-built request behind.
-                self.offered = names.into_iter().filter(|n| !n.eq_ignore_ascii_case("sasl")).collect();
+                for name in names {
+                    if !self.offered.iter().any(|o| o.eq_ignore_ascii_case(&name)) {
+                        self.offered.push(name);
+                    }
+                }
                 self.offered.sort();
-                self.offered.dedup();
+                // **One request, after the last line**: a line with the `*`
+                // marker is not the end of the list, and an `LS` that comes
+                // after the negotiation ended reopens nothing.
+                if more || self.stage != Stage::LsSent {
+                    return None;
+                }
                 Some(self.request_message())
             }
             CapVerb::Ack => {
+                // **The server's `ACK` is the authority, for the names that
+                // were asked for**; `-name` turns one off.
                 for name in names {
-                    if !self.enabled.iter().any(|e| e.eq_ignore_ascii_case(&name)) {
-                        self.enabled.push(name);
+                    match name.strip_prefix('-') {
+                        Some(off) => self.enabled.retain(|e| !e.eq_ignore_ascii_case(off)),
+                        None if self.requested.iter().any(|r| r.eq_ignore_ascii_case(&name))
+                            && !self.enabled.iter().any(|e| e.eq_ignore_ascii_case(&name)) =>
+                        {
+                            self.enabled.push(name)
+                        }
+                        None => {}
                     }
                 }
                 self.enabled.sort();
@@ -141,11 +163,11 @@ impl Negotiation {
                 self.refused.sort();
                 self.end()
             }
-            // A `CAP LS` arriving *after* registration is legal: it is how a
-            // server introduces a capability it added while the client was
-            // connected. **Answering with `REQ` again would re-open
-            // negotiation and require a second `CAP END`**, which RFC 2812 has
-            // no slot for. So a late `LS` is recorded and nothing is sent.
+            // `CAP NEW` and `CAP DEL` come to a client that has `cap-notify`,
+            // which `CAP LS 302` turns on by itself (IRCv3): a server says so
+            // when it adds or takes away a capability while the client is
+            // connected. A new one is recorded, and nothing is sent: podssh
+            // asks only during registration.
             CapVerb::New => {
                 for name in names {
                     if !self.offered.iter().any(|o| o.eq_ignore_ascii_case(&name)) {
@@ -160,6 +182,7 @@ impl Negotiation {
             // podssh honours by forgetting it rather than by replying.
             CapVerb::Del => {
                 self.enabled.retain(|e| !names.iter().any(|n| n.eq_ignore_ascii_case(e)));
+                self.offered.retain(|o| !names.iter().any(|n| n.eq_ignore_ascii_case(o)));
                 None
             }
             CapVerb::List => None,
@@ -167,14 +190,19 @@ impl Negotiation {
         }
     }
 
-    /// **`CAP REQ` for everything worth having**, or `CAP END` at once when
-    /// that is nothing: an empty request would wait for an answer that ends
-    /// nothing. Refused capabilities are excluded, so a reconnect does not
-    /// re-request what the server has already refused — which is the second
-    /// half of why [`Negotiation::observe`] records a `NAK`.
+    /// **`CAP REQ` for each name of [`WANTED_CAPS`] that the server offers**,
+    /// or `CAP END` at once when that is none: an empty request would wait
+    /// for an answer that ends nothing. Refused capabilities are excluded, so
+    /// a reconnect does not re-request what the server has already refused —
+    /// which is the second half of why [`Negotiation::observe`] records a
+    /// `NAK`.
     fn request_message(&mut self) -> Message {
-        let wanted: Vec<String> =
-            self.offered.iter().filter(|o| !self.refused.iter().any(|r| r.eq_ignore_ascii_case(o))).cloned().collect();
+        let wanted: Vec<String> = WANTED_CAPS
+            .iter()
+            .filter(|w| self.offered.iter().any(|o| o.eq_ignore_ascii_case(w)))
+            .filter(|w| !self.refused.iter().any(|r| r.eq_ignore_ascii_case(w)))
+            .map(|w| w.to_string())
+            .collect();
         if wanted.is_empty() {
             self.stage = Stage::Ended;
             return cap_message(CapVerb::End, &[], None);
@@ -243,18 +271,29 @@ pub fn verb_name(verb: CapVerb) -> &'static str {
     }
 }
 
-/// Pull the verb and the capability names out of a `CAP`, whatever field they
-/// arrived in. **`CAP * LS :a b` puts the names in the trailing while
-/// `CAP REQ :a b` puts them there too and `CAP ACK a b` puts them in middles**,
-/// so both are read and a client that read only one parses half of what a
-/// server sends.
-fn cap_parts(command: &Command) -> Option<(CapVerb, Vec<String>)> {
+/// What a `CAP` from the server says: its verb, the names of its last
+/// parameter, and whether more lines of the same list follow.
+struct Reply {
+    verb: CapVerb,
+    names: Vec<String>,
+    more: bool,
+}
+
+/// **The names are the last parameter, as a trailing or as a middle**:
+/// `CAP * LS :a b`, `CAP * ACK :a b` and ergo's `CAP * ACK echo-message`.
+/// Each is `name[=value]`, and the value is left out. **A `*` before the
+/// last parameter of an `LS` or a `LIST` says that more lines follow**, and
+/// is no name: ergo 2.18.0 sends `CAP * LS * :…` and then `CAP * LS :…`.
+fn reply(command: &Command) -> Option<Reply> {
     let Command::Cap { subcommand, args, trailing, .. } = command else {
         return None;
     };
-    let mut names: Vec<String> = args.iter().map(|a| a.0.clone()).collect();
+    let mut params: Vec<&str> = args.iter().map(|a| a.0.as_str()).collect();
     if let Some(trailing) = trailing {
-        names.extend(trailing.as_str().split_whitespace().map(|s| s.to_string()));
+        params.push(trailing.as_str());
     }
-    Some((*subcommand, names))
+    let last = params.pop().unwrap_or_default();
+    let more = matches!(subcommand, CapVerb::Ls | CapVerb::List) && params.last() == Some(&"*");
+    let names = last.split_whitespace().map(|token| token.split('=').next().unwrap_or(token).to_string()).collect();
+    Some(Reply { verb: *subcommand, names, more })
 }

@@ -463,7 +463,8 @@ async fn await_echo(
                     if let Event::Numeric { code, .. } = e {
                         eprintln!("podssh: {ctx}: numeric {code}");
                     }
-                    if let Event::Privmsg { text, .. } = e {
+                    // With echo-message the server's echo is the proof (T-092).
+                    if let Event::Privmsg { text, .. } | Event::Echo { text, .. } = e {
                         if text == want {
                             return true;
                         }

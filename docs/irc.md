@@ -3,7 +3,7 @@
 `podssh chat` lets two users on constrained hosts talk and exchange files.
 podssh speaks IRC itself, and the relay carries the bytes, as for SSH. No
 command uses the client yet. The client has known defects
-([TODO/irc.md](../TODO/irc.md), T-092, T-095, T-097 and T-098): among them,
+([TODO/irc.md](../TODO/irc.md), T-095, T-097 and T-098): among them,
 it sends plain text through the relay. Since T-091 the registration finishes
 on a server that holds it until `CAP END`: measured with ngircd 27 on the
 loopback of the build image, 2026-10-10.
@@ -54,6 +54,19 @@ test on the public networks again is the operator's question Q39.
   its command has whole (T-094).
 - A server with no `CAP` answers `421`, or nothing at all (InspIRCd 4 with no
   cap module); its welcome then ends the negotiation (T-094).
+- podssh asks only for the capabilities whose lines it reads:
+  `echo-message` and `znc.in/self-message` (T-092). A capability changes
+  what the server sends, so `extended-join` and the like are never asked
+  for. With `CAP LS 302` a server gives values (`sasl=PLAIN,EXTERNAL`) and
+  may send its list over several lines, each but the last with a `*`
+  before its trailing (ergo 2.18); podssh answers once, after the last
+  line, with names alone, as a request that carries a value, or a name
+  that the server did not offer, is refused whole (ngircd 27, InspIRCd
+  4.11, ergo 2.18; measured 2026-10-10).
+- With `echo-message`, the server sends each message of the client back:
+  that is the proof of delivery. A message to the client's own nick comes
+  back twice, as delivered and as echoed (InspIRCd 4.11, ergo 2.18); podssh
+  shows it once, and never reads an echo as a peer's message or file line.
 - One bad line costs no other (T-096): a line past 8 KiB is dropped whole and
   reported, and the lines around it come through; a line with no end keeps
   nothing of itself in memory; a line that is not UTF-8 is read as Latin-1,
