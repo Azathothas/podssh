@@ -14,13 +14,16 @@
 //! sees one message's worth of payload every few minutes and calls the session
 //! idle.
 //!
-//! ## What podssh sends, and why it is not chatter
+//! ## What podssh sends, and why nobody sees it
 //!
-//! **A `PRIVMSG` to a channel the user is in**, on a timer, whose text
-//! is a **heartbeat the receiving client recognises and does not display**.
-//! It is payload, it is invisible, and it doubles as proof the link works
-//! in both directions. **It is a `PRIVMSG` and not a `PONG`** because a
-//! `PONG` answers one message and this has to keep arriving on its own.
+//! **A `PING` with podssh's own token**, on a timer, which the server
+//! answers with a `PONG` to this client alone (T-098). Both lines are bytes
+//! of the stream, so both are payload to the relay; no user of a channel
+//! sees either, no channel log keeps either, and a session in no channel
+//! has a keepalive too. **Answering the server's `PING`s is not enough**:
+//! the server pings when it chooses, which can be less often than the
+//! reaper's window. A former keepalive, a `PRIVMSG` to a channel, was seen
+//! by each other client of the channel; no released podssh sent it.
 //!
 //! **The other half: podssh must also receive.** The reaper is symmetric
 //! and a session nobody speaks into is reaped the same way, so the user
@@ -45,33 +48,26 @@ use crate::irc::limits::IDLE_REAPER_MS;
 ///   worst case with one missed beat is 120 s of payload silence, and 60 s of
 ///   headroom remain. **Two missed beats is 180 s and the session is
 ///   gone**, so the margin is one beat and not two and the test says so.
-/// * **A fourth would be 45 s** and a heartbeat every 45 s is visible on a
-///   shared channel's scrollback to any user who has not installed the
-///   recogniser, which is a cost this design does not need to pay.
+/// * **A fourth would be 45 s**: more lines to the server for no margin
+///   that a single missed beat needs.
 pub const HEARTBEAT_PERIOD_MS: u64 = IDLE_REAPER_MS / 3;
 
-/// **The text podssh sends.** **It carries a version and a nonce, and
-/// the nonce is the point**: a heartbeat with a fixed text is one a user can
-/// silence by muting, and one that survives a reconnect is indistinguishable
-/// from a stale one queued in a server's buffer. The nonce is **not a secret
-/// and not a credential** — it is a counter, and a counter is what makes
-/// "the same heartbeat twice" detectable.
-pub const HEARTBEAT_PREFIX: &str = "\u{200b}podssh";
+/// The start of the token of podssh's keepalive `PING`.
+pub const KEEPALIVE_PREFIX: &str = "podssh-";
 
-/// Build one heartbeat's text.
-pub fn heartbeat_text(generation: u64) -> String {
-    format!("{HEARTBEAT_PREFIX}/{generation}")
+/// The token of one keepalive: a counter, **not a secret and not a
+/// credential**, which tells a `PONG` of this keepalive from a stale one.
+pub fn keepalive_token(generation: u64) -> String {
+    format!("{KEEPALIVE_PREFIX}{generation}")
 }
 
-/// **Is this a heartbeat, and what generation was it?** **The zero-width
-/// space is required and not decoration.** The character is stripped by most
-/// IRC loggers and by every terminal that renders it, so a heartbeat that a
-/// user somehow saw would appear as a blank line rather than as a word they
-/// might reply to. A prefix without it is text a user could quote.
-pub fn parse_heartbeat(text: &str) -> Option<u64> {
-    let rest = text.strip_prefix(HEARTBEAT_PREFIX)?;
-    let rest = rest.strip_prefix('/')?;
-    rest.parse().ok()
+/// The generation of a `PONG`'s token, when it answers podssh's keepalive.
+pub fn parse_keepalive(token: &str) -> Option<u64> {
+    let digits = token.strip_prefix(KEEPALIVE_PREFIX)?;
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok()
 }
 
 /// What the client should send to keep the session's payload counter alive.

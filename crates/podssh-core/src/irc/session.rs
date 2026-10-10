@@ -108,8 +108,8 @@ pub enum Event {
     Numeric { code: u16, text: Option<String> },
     /// A file-transfer line arrived.
     Transfer(TransferLine),
-    /// A heartbeat from a peer podssh recognises. **Not displayed**,
-    /// and its whole purpose is that a user does not see it.
+    /// The server answered podssh's keepalive (`PONG :podssh-N`): a
+    /// reception, which no user sees.
     Heartbeat { generation: u64 },
     /// An error podssh reports without a user message of its own.
     Protocol(String),

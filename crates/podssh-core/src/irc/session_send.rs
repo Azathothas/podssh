@@ -86,20 +86,16 @@ impl Session {
         }])
     }
 
-    /// **The heartbeat to send, or `None`.** **It is a `PRIVMSG`
-    /// and not a `PONG`** — spec line 233 says the reaper counts *payload*
-    /// and that **"transport keepalives do not reset this"**, so a client
-    /// that answers `PING`s and calls that keepalive is reaped at 180 s all the
-    /// same. See [`crate::irc::reap`].
-    pub fn heartbeat(&self, target: &str, generation: u64) -> Option<Message> {
+    /// **The keepalive to send, or `None`**: a `PING` with podssh's token,
+    /// which the server answers to this client alone (T-098). The reaper
+    /// counts payload, and both lines are payload; no user sees either. See
+    /// [`crate::irc::reap`].
+    pub fn heartbeat(&self, generation: u64) -> Option<Message> {
         match self.registered {
             Registered::Yes => Some(Message {
                 tags: Vec::new(),
                 prefix: None,
-                command: Command::Privmsg {
-                    target: Middle(target.to_string()),
-                    text: Trailing::new(crate::irc::reap::heartbeat_text(generation)),
-                },
+                command: Command::Ping { token: Trailing::new(crate::irc::reap::keepalive_token(generation)) },
             }),
             _ => None,
         }

@@ -380,12 +380,13 @@ fn a_message_that_is_not_a_transfer_line_costs_nothing() {
 // ── the reaper ──────────────────────────────────────────────────────────────
 
 #[test]
-fn a_client_that_only_answers_pings_still_loses_to_the_reaper() {
+fn a_client_needs_its_own_keepalive_within_the_reapers_window() {
     // **THE POINT OF THIS MODULE.** Spec line 233 and the clause
     // that matters: *"idle sessions (180000 ms of payload inactivity;
-    // transport keepalives do not reset this)"*. A `PONG` is one IRC
-    // message so a client that thinks "I answered the ping, I am alive" has
-    // measured the wrong thing.
+    // transport keepalives do not reset this)"*. The relay's own empty
+    // frames do not count; a server's `PING` comes when the server chooses,
+    // so a client that only answers it can be reaped. podssh sends its own
+    // `PING` each third of the window, and the `PONG` is payload too.
     assert_eq!(IDLE_REAPER_MS, 180_000, "spec line 233");
 
     // **A third of the window**, so one missed beat (120 s of silence)

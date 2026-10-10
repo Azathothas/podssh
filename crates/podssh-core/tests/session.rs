@@ -317,24 +317,21 @@ fn a_notice_is_carried_but_marked_as_a_notice() {
 }
 
 #[test]
-fn a_heartbeat_is_consumed_and_never_shown() {
-    // **The heartbeat must never reach a user's scrollback.** A
-    // heartbeat that a user could see is noise every 60 seconds, and one they
-    // could reply to is a conversation with the client itself.
+fn the_keepalive_never_reaches_a_users_scrollback() {
+    // **The keepalive must never reach a user's scrollback** (T-098): it
+    // is a `PING` that the server answers to this client alone, and the
+    // `PONG` is a reception, never a message.
     let mut s = registered();
-    let mut seen_as_text = 0;
     for generation in 1..=4u64 {
-        let hb = s.heartbeat("#one", generation).expect("registered means a heartbeat");
-        assert!(hb.to_line().starts_with("PRIVMSG #one :"), "the heartbeat is not a PRIVMSG: {}", hb.to_line());
-        let (_, events) = s.on_bytes(hb.to_wire().unwrap().as_bytes());
+        let line = s.heartbeat(generation).expect("registered means a keepalive").to_line();
+        assert_eq!(line, format!("PING :podssh-{generation}"), "the keepalive is not a PING");
+        let pong = format!(":irc.example.org PONG irc.example.org :podssh-{generation}\r\n");
+        let (_, events) = s.on_bytes(pong.as_bytes());
         assert!(
-            events.iter().all(|e| matches!(e, Event::Heartbeat { .. })),
-            "generation {generation} produced {events:?}; a heartbeat must be \
-             consumed before the display path"
+            events.iter().all(|e| matches!(e, Event::Heartbeat { .. })) && !events.is_empty(),
+            "generation {generation} produced {events:?}"
         );
-        seen_as_text += events.iter().filter(|e| matches!(e, Event::Privmsg { .. })).count();
     }
-    assert_eq!(seen_as_text, 0, "a heartbeat reached the display path {seen_as_text} time(s)");
 }
 
 #[test]

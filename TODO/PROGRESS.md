@@ -64,7 +64,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 274 entries: 111 open, 0 partial, 22 blocked, 141 done.
+`TODO/INDEX.md` holds 274 entries: 110 open, 0 partial, 22 blocked, 142 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -79,9 +79,8 @@ the surface for agents: done.
 
 **M4:** T-085 (the exit measurement) is on hold (Q32).
 
-**Now:** T-098, then T-252: the keepalive first, as a chat over IRC
-would otherwise put the client's keepalive message in its channel each
-60 s.
+**Now:** T-252, IRC as the second transport of chat, on the keepalive
+that no user sees.
 
 **Then** M5, M6, M7 and M8, each in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"); then each `backlog` entry, in the order

@@ -94,15 +94,14 @@ impl Session {
             }
             Command::Privmsg { target, text } => {
                 let from = message.prefix.clone().unwrap_or_default();
-                // **THE HEARTBEAT IS CONSUMED HERE, and nowhere else.** A
-                // heartbeat reaching the display path is a heartbeat in a user's
-                // scrollback, so the recognition and the suppression are one
-                // decision rather than two that can disagree.
-                if let Some(generation) = crate::irc::reap::parse_heartbeat(text.as_str()) {
-                    events.push(Event::Heartbeat { generation });
-                    return;
-                }
                 events.push(Event::Privmsg { from, target: target.0.clone(), text: text.as_str().to_string() });
+            }
+            // The server's answer to podssh's keepalive: a reception, with the
+            // token as a trailing (ngircd, InspIRCd) or a middle (ergo).
+            Command::Pong { token: Some(token), .. } => {
+                if let Some(generation) = crate::irc::reap::parse_keepalive(token.as_str()) {
+                    events.push(Event::Heartbeat { generation });
+                }
             }
             Command::Notice { target, text } => {
                 events.push(Event::Notice {

@@ -752,7 +752,7 @@ Confirmed here on `3ee70dc` by reading the code.
 **Milestone:** M8
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -763,9 +763,9 @@ payload for the relay too, and nobody sees it.
 
 ## Premise
 
-Read: the heartbeat is a `PRIVMSG` to a target (`crates/podssh-core/src/irc/session_send.rs:89-106`)
-with the text `\u{200b}podssh/N` (`crates/podssh-core/src/irc/reap.rs:53-64`), every third of 180 s
-(`crates/podssh-core/src/irc/reap.rs:38-51`).
+Read: the heartbeat is a `PRIVMSG` to a target (`crates/podssh-core/src/irc/session_send.rs`, lines 89-106 at `94f6243`)
+with the text `\u{200b}podssh/N` (`crates/podssh-core/src/irc/reap.rs`, lines 53-64 at `94f6243`), every third of 180 s
+(`crates/podssh-core/src/irc/reap.rs`, lines 38-51 at `94f6243`).
 
 Read: the module says that IRC `PONG` lines cannot keep a session open
 (`crates/podssh-core/src/irc/reap.rs:5-15`). The relay's rule is about its own keepalives, the
@@ -778,15 +778,15 @@ none, the relay cut it after 184 s (`docs/STATUS.md:120-121`).
 ## Approach
 
 1. Send `PING :podssh-<generation>` when the client side is quiet for one period. Reuse
-   `payload_plan_for` (`crates/podssh-core/src/irc/reap.rs:105-139`).
+   `payload_plan_for` (`crates/podssh-core/src/irc/reap.rs:101-135`).
 2. Count the matching `PONG` as a reception (`received_since_last_beat`). A server answers
    `PONG <server> :<token>`, so match the trailing (`crates/podssh-core/src/irc/command.rs:153-161`).
 3. Remove the `PRIVMSG` heartbeat and its parser
-   (`crates/podssh-core/src/irc/session_send.rs:89-106`, `crates/podssh-core/src/irc/reap.rs:53-75`,
-   `crates/podssh-core/src/irc/session_recv.rs:97-104`). No released podssh sends it.
-4. Rewrite the test at `crates/podssh-core/tests/session.rs:319-338`. Correct the comments at
-   `crates/podssh-core/src/irc/reap.rs:5-29` and the test name at
-   `crates/podssh-core/tests/transfer.rs:382-407`.
+   (`crates/podssh-core/src/irc/session_send.rs`, lines 89-106 at `94f6243`, `crates/podssh-core/src/irc/reap.rs`, lines 53-75 at `94f6243`,
+   `crates/podssh-core/src/irc/session_recv.rs`, lines 97-104 at `94f6243`). No released podssh sends it.
+4. Rewrite the test at `crates/podssh-core/tests/session.rs`, lines 319-338 at `94f6243`. Correct the comments at
+   `crates/podssh-core/src/irc/reap.rs`, lines 5-29 at `94f6243` and the test name at
+   `crates/podssh-core/tests/transfer.rs`, lines 382-407 at `94f6243`.
 5. Update `docs/STATUS.md:309` in the same commit.
 
 Pitfall: a server can limit the rate of `PING` lines. One `PING` in 60 s is far below the usual
@@ -813,6 +813,20 @@ answer `:srv PONG srv :tok123`, and ergo 2.18.0 answers `:ergo.test PONG ergo.te
 token as a middle. `Command::Pong` keeps the server and the token, the last parameter in either
 form (`crates/podssh-core/src/irc/command.rs:153-161`), so step 2 matches `token`, not only a
 trailing; the three lines are in the fixture of the grammar.
+
+## Done
+
+2026-10-10.
+- The keepalive is `PING :podssh-N` (`Session::heartbeat`, which takes no target now), sent by a
+  registered session alone; the server's `PONG` with that token, as a trailing or a middle, is
+  `Event::Heartbeat`, a reception that no user sees. The `PRIVMSG` heartbeat and its parser are
+  gone: the former text from a peer is an ordinary message.
+- `cargo test -p podssh-core --test keepalive`: 4 passed, on the three servers' answers that the
+  grammar's fixture captured (ngircd 27, InspIRCd 4.11.0, ergo 2.18.0); planted, the `PRIVMSG`
+  heartbeat back fails `the_keepalive_is_a_ping_and_never_a_privmsg`. `cargo test -p podssh-core
+  --no-fail-fast`: 134 passed, 0 failed, 2 ignored.
+- Waits for T-251 (a live test of more than 5 minutes): the idle session of 10 minutes on undernet
+  with no channel message, and its control, which the operator allowed on 2026-10-10 (Q39).
 
 # T-099: `podssh chat` on the roads between two podssh ends, end-to-end encrypted
 
