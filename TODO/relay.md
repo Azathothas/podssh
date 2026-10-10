@@ -174,7 +174,7 @@ sh scripts/dev.sh check                                   # interop: the stand-i
 cargo test -p podssh-cli --test relay_live -- --ignored   # the live relay, on request
 ```
 
-`scripts/fake-relay.py` (it serves `/health` and the mint: `:76-84`) gets `/relays.json`,
+`scripts/fake-relay.py` (it serves `/health` and the mint: `:86-94`) gets `/relays.json`,
 `/trace` and `/llms-full.txt`. In the gate, `relay status` exits 0 with the stand-in's version;
 `relay trace` sends `X-Relay-Token`, which the stand-in requires; a HOST of `a&b` exits 64 before
 any connection. Planted defect: leave the header out; the stand-in answers 403, the test fails.
@@ -513,7 +513,7 @@ so the comment applied a rule of the reverse path to the forward path.
    operator approves.
 4. The other direction (`target write backlog`) needs a slow target; record it as not measured
    when none is at hand.
-5. Write the result into the comment on the window (`crates/podssh-ssh/src/run.rs:25-29`) and
+5. Write the result into the comment on the window (`crates/podssh-ssh/src/run.rs:26-30`) and
    into `docs/relay.md:211-215`. Change the window (512 KiB) only if the result asks for it.
 
 ## Prove
@@ -531,7 +531,7 @@ size, which shows that the target and the path work. The slow run then gives the
 
 2026-10-08, T-024: the comment on the SSH window now gives the forward path's rule that
 `docs/relay.md:200` reads from the relay's source: `1013` when 2 MiB wait, and no frame dropped
-(`crates/podssh-ssh/src/run.rs:25-28`). The two texts agree now. The question of this entry
+(`crates/podssh-ssh/src/run.rs:26-29`). The two texts agree now. The question of this entry
 stays: whether the relay's check operates at all (it reads `bufferedAmount`,
 `docs/relay.md:211-215`).
 
@@ -692,7 +692,7 @@ sh scripts/dev.sh check                   # interop-faults: a token in PODSSH_CA
 
 With a set environment: `PODSSH_CACHE_DIR` comes first, `none` gives no candidate, and
 `XDG_RUNTIME_DIR` comes before the temporary directory. A scan of `cache.rs`, as
-`crates/podssh-cli/src/man/facts.rs:351-375` scans source, finds no absolute path literal. In
+`crates/podssh-cli/src/man/facts.rs:361-385` scans source, finds no absolute path literal. In
 the gate, the token file goes into a new `PODSSH_CACHE_DIR`; with a plain file there, the run
 still exits 0 and names the refusal. Planted defect: put `/dev/shm` back; the scan fails.
 
@@ -836,7 +836,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:126`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:127`). That is one run, before 2026-10-09.
 
 ## Approach
 

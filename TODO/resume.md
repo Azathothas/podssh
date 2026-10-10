@@ -184,7 +184,7 @@ an escape sequence of GitHub #31 needs dropped bytes (T-221). The reverse road
 drops a frame and closes with `1011 relay backpressure` above 1 MiB queued
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`); the buffer
 turns that close into a resume. The SSH window is 512 KiB for each channel
-(`crates/podssh-ssh/src/run.rs:25-29`). Do not bring back the backpressure module of
+(`crates/podssh-ssh/src/run.rs:26-30`). Do not bring back the backpressure module of
 `podssh-transport`, which T-074 removed (`docs/design.md:139-140`).
 
 ## Approach
@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:180-300`).
+   (`crates/podssh-cli/src/man/facts.rs:180-310`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -836,8 +836,8 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:361-375`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:227-242`,
-   `crates/podssh-cli/src/man/facts.rs:266-275`), the note at
+   (`crates/podssh-cli/src/man/facts.rs:237-252`,
+   `crates/podssh-cli/src/man/facts.rs:276-285`), the note at
    `crates/podssh-cli/src/man/notes.rs:103`, `docs/relay.md`, `README.md`.
 
 ## Decision
@@ -957,7 +957,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:180-300`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:180-310`).
 
 ## Decision
 
@@ -1050,10 +1050,10 @@ a stall of 3 minutes. Today each of these faults ends the session.
 
 Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
-killed in a session gives exit 255 (`scripts/interop-faults.sh:150-168`).
+killed in a session gives exit 255 (`scripts/interop-faults.sh:151-169`).
 These checks stay, for the forward road, which has no resumption. Read: the
-stand-in relay serves the forward path only (`scripts/fake-relay.py:76-88`),
-and its `stall` mode never ends (`scripts/fake-relay.py:226-229`). The
+stand-in relay serves the forward path only (`scripts/fake-relay.py:86-98`),
+and its `stall` mode never ends (`scripts/fake-relay.py:259-262`). The
 harness cannot change an address or end a stall yet (T-203). The checks need
 T-151 to T-155, the iroh road (T-162 to T-165), the reverse runners (T-079,
 T-080) and a far end (`podssh serve`, T-107).

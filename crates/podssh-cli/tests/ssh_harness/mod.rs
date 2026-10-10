@@ -103,6 +103,26 @@ impl server::Handler for Far {
     ) -> Result<(), Self::Error> {
         session.channel_success(channel)?;
         let command = String::from_utf8_lossy(data).into_owned();
+        if let Some(rest) = command.strip_prefix("append ") {
+            // `append PATH STATUS DELAY`: a line in the file at once, then
+            // the status after DELAY seconds (T-025). A command that ran twice
+            // leaves two lines.
+            let mut parts = rest.rsplitn(3, ' ');
+            let delay: u64 = parts.next().and_then(|d| d.parse().ok()).unwrap_or(0);
+            let status: u32 = parts.next().and_then(|s| s.parse().ok()).unwrap_or(0);
+            let path = parts.next().unwrap_or_default().to_string();
+            if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+                let _ = std::io::Write::write_all(&mut file, b"ran\n");
+            }
+            let handle = session.handle();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(delay)).await;
+                let _ = handle.exit_status_request(channel, status).await;
+                let _ = handle.eof(channel).await;
+                let _ = handle.close(channel).await;
+            });
+            return Ok(());
+        }
         let mut words = command.split_whitespace();
         match (words.next(), words.next().and_then(|n| n.parse::<u64>().ok())) {
             (Some("source"), Some(bytes)) => {

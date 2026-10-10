@@ -244,3 +244,38 @@ fn after_a_move_the_old_link_goes_silent_and_a_new_one_leaves_from_the_new_addre
     let logged = std::fs::read_to_string(&log).unwrap();
     assert!(logged.contains("from 127.0.0.2"), "the new tunnel's address: {logged}");
 }
+
+/// The lines that the test server's `append` left in `file`.
+fn runs_in(file: &std::path::Path) -> usize {
+    std::fs::read_to_string(file).map_or(0, |text| text.lines().count())
+}
+
+/// A drop of the relay during the SSH handshake, before any request (T-025):
+/// the relay lost the target, so podssh tries once more and says so; the
+/// command's status comes back, and the command ran once.
+#[test]
+#[ignore = "the fault harness, on the loopback: about 10 s"]
+fn a_drop_before_the_request_is_tried_again_and_the_command_runs_once() {
+    let session = Session::start("dropfirst");
+    let Some(cell) = cell(&session, "dropfirst:20:1011") else { return };
+    let file = throughput_harness::scratch("dropfirst").join("ran");
+    let ran = ssh(&session, &cell, &[], &format!("append {} 5 0", file.display()), None);
+    assert_eq!(ran.code, 5, "{}", ran.err);
+    assert_eq!(ran.err.matches("so podssh tries once more").count(), 1, "{}", ran.err);
+    assert_eq!(runs_in(&file), 1, "{}", ran.err);
+}
+
+/// A drop after the command was asked for is no failure to try again: the
+/// server may have run it. 255, no try, and the command ran once; a plant
+/// that tries in each phase runs it twice.
+#[test]
+#[ignore = "the fault harness, on the loopback: about 10 s"]
+fn a_drop_after_the_request_is_not_tried_again() {
+    let session = Session::start("dropafter");
+    let Some(cell) = cell(&session, "dropfirstat:3:1011") else { return };
+    let file = throughput_harness::scratch("dropafter").join("ran");
+    let ran = ssh(&session, &cell, &[], &format!("append {} 0 30", file.display()), None);
+    assert_eq!(ran.code, 255, "{}", ran.err);
+    assert!(!ran.err.contains("so podssh tries"), "{}", ran.err);
+    assert_eq!(runs_in(&file), 1, "{}", ran.err);
+}

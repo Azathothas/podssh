@@ -9,7 +9,7 @@ echo "== faults (a stand-in relay and proxy, OpenSSH behind them)"
 FK="$W/faults"
 mkdir -p "$FK"
 NAMES="relay-a relay-r503 relay-silent relay-hole relay-dead relay-stall relay-close relay-cap relay-kill relay-hshake
-relay-delay relay-jitter relay-rate relay-cut relay-persist"
+relay-delay relay-jitter relay-rate relay-cut relay-persist relay-dropfirst relay-dropafter"
 SAN=$(for n in $NAMES; do printf 'DNS:%s.test,' "$n"; done)
 PINS=$(for n in $NAMES; do printf '%s.test=127.0.0.1,' "$n"; done)
 SAN=${SAN%,}
@@ -35,7 +35,8 @@ fi
 # the connection ended with no Close after 1,000,000 bytes.
 for spec in a:normal r503:refuse:503 silent:silent hole:blackhole dead:normal stall:stall:12 \
         close:close:300000:1011 cap:close:1:1009 kill:normal hshake:close:1:1011 \
-        delay:delay:2000 jitter:jitter:0:1500:7 rate:rate:65536 cut:cut:1000000 persist:normal; do
+        delay:delay:2000 jitter:jitter:0:1500:7 rate:rate:65536 cut:cut:1000000 persist:normal \
+        dropfirst:dropfirst:20:1011 dropafter:dropfirstat:3:1011; do
     name=${spec%%:*}
     python3 "$HERE/fake-relay.py" --cert "$FK/relay.pem" --key "$FK/relay.key" --keepalive 2 \
         --port-file "$FK/$name.port" --mode "${spec#*:}" >"$FK/$name.log" 2>&1 &
@@ -45,7 +46,7 @@ port() { cat "$FK/$1.port" 2>/dev/null; }
 tries=0
 while [ "$tries" -lt 30 ]; do
     missing=0
-    for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist; do
+    for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist dropfirst dropafter; do
         [ -s "$FK/$n.port" ] || missing=1
     done
     [ "$missing" = 0 ] && break
@@ -276,6 +277,23 @@ took=$(( $(date +%s) - start ))
 [ "$rc" = 255 ] && [ "$took" -le 90 ] && grep -q "no progress" "$FK/err" \
     && ok "faults: a stuck write with --direct ends with 255 in ${took}s, and says so" \
     || bad "faults: a stuck write with --direct: exit $rc in ${took}s" "$FK/err"
+
+# T-025: a drop of the relay before any request is tried again, once, and
+# the command runs once; a drop after the command started is not.
+RAN=/home/podtest/t025-ran
+rm -f "$RAN" "$RAN-after"
+r "relay-dropfirst.test:$(port dropfirst)" "$T" "echo ran >> $RAN; exit 5" >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+runs=$(grep -c . "$RAN" 2>/dev/null)
+[ "$rc" = 5 ] && [ "$(grep -c 'so podssh tries once more' "$FK/err")" = 1 ] && [ "$runs" = 1 ] \
+    && ok "faults: a drop during the handshake is tried once more, and the command runs once (exit 5)" \
+    || bad "faults: a drop during the handshake: exit $rc, ${runs:-0} runs" "$FK/err"
+r "relay-dropafter.test:$(port dropafter)" "$T" "echo ran >> $RAN-after; sleep 30" >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+runs=$(grep -c . "$RAN-after" 2>/dev/null)
+[ "$rc" = 255 ] && ! grep -q "so podssh tries" "$FK/err" && [ "$runs" = 1 ] \
+    && ok "faults: a drop after the command started is not tried again (exit 255, one run)" \
+    || bad "faults: a drop after the request: exit $rc, ${runs:-0} runs" "$FK/err"
 
 for f in "$FK"/*.pid; do
     kill "$(cat "$f")" 2>/dev/null

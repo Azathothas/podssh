@@ -37,11 +37,27 @@ pub struct NotReached {
 /// Reach the first `-J` hop, or the destination, as `resolved` says. A
 /// `node://` destination is not reached here: its road has its own runner.
 pub async fn reach(resolved: &Resolved, log: &Arc<Log>) -> Result<Reached, NotReached> {
+    reach_skipping(resolved, 0, log).await
+}
+
+/// [`reach`], with the first `skip` relay hosts tried last: a try after a
+/// drop of the link to a host goes to the next one (T-025).
+pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) -> Result<Reached, NotReached> {
     let opts = &resolved.options;
     let first = opts.jump.first().unwrap_or(&opts.destination);
     let target = podssh_ws::dial::authority(&first.host, first.port);
     match &resolved.transport {
         Transport::Relay { relays, trust, family } => {
+            let turned;
+            let relays = if skip == 0 {
+                relays
+            } else {
+                let mut hosts = relays.hosts.clone();
+                let n = hosts.len().max(1);
+                hosts.rotate_left(skip % n);
+                turned = podssh_relay::relay::RelayList { hosts, explicit: relays.explicit };
+                &turned
+            };
             let mut path = podssh_relay::relay::forward_path(&first.host, first.port)
                 .map_err(|why| NotReached { lines: vec![why], code: sysexits::EX_USAGE })?;
             if let Some(f) = family {

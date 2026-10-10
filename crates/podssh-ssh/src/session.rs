@@ -85,6 +85,8 @@ pub async fn attach(
         }
     }
 
+    // From here a drop is no failure to try again: the server may run it.
+    crate::retry::reached(crate::retry::Phase::Requested);
     let what = match &opts.request {
         Request::Shell => {
             channel.request_shell(true).await.map_err(|e| e.to_string())?;

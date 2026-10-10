@@ -69,7 +69,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
    refuses `V6:PORT`: `2001:db8::1:22` is itself an address. Reuse the rule of
    `split_host_port` (`crates/podssh-ws/src/dial.rs:415-434`).
 5. Messages use `podssh_ws::dial::authority` (`crates/podssh-ws/src/dial.rs:395-402`),
-   not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:42`,
+   not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:48`,
    `crates/podssh-cli/src/proxy.rs:88`, where it is used since this entry). `known_hosts` keeps the literal as
    typed: `host_name` writes `[V6]:PORT` as OpenSSH does
    (`crates/podssh-ssh/src/known_hosts.rs:78-85`).
@@ -602,9 +602,9 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    or `proxy`.
 4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-143`),
    which `each_variable_in_the_source_is_documented` requires
-   (`crates/podssh-cli/src/man/facts.rs:395-408`); "default: env
+   (`crates/podssh-cli/src/man/facts.rs:405-418`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:663-665`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:675-677`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -1575,7 +1575,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs:185`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:74`), called at
 `crates/podssh-ssh/src/auth.rs:184`, `crates/podssh-ssh/src/auth.rs:253`,
 `crates/podssh-ssh/src/keys.rs:212` and `crates/podssh-cli/src/keygen.rs:170`.
-Its refusals name the real remedies (`docs/cli.md:637-639`). Commands use
+Its refusals name the real remedies (`docs/cli.md:649-651`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:213-231`,
 `crates/podssh-cli/src/ts.rs:54-63`) and `refuse_jsonl_in_proxy`

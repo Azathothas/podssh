@@ -34,6 +34,13 @@ Modes:
   pause:AFTER:FOR  AFTER seconds after the upgrade, each byte both ways,
                    Pongs and keepalives too, is held for FOR seconds, then
                    let through: a stall that ends
+  dropfirst:BYTES:CODE
+                   the first session only: after BYTES from the target,
+                   Close with CODE and its reason (CODE 0: the TCP
+                   connection ends with no Close); each later session
+                   behaves (T-025)
+  dropfirstat:SECONDS:CODE
+                   the same, SECONDS after the first session's upgrade
 """
 
 import argparse
@@ -48,6 +55,9 @@ from fake_ws import close_frame, frame, read_frame, response, upgraded
 
 TOKEN = "fake-relay-token-for-the-interop-harness"
 # The relay's own reasons for each code (docs/relay.md, forward path).
+# The sessions upgraded so far, for the modes that drop only the first.
+UPGRADED = {"count": 0}
+
 REASONS = {
     1001: "idle timeout",
     1009: "session byte cap",
@@ -113,7 +123,8 @@ async def connect(reader, writer, path, headers):
         return
     writer.write(upgraded(headers))
     await writer.drain()
-    await pump(reader, writer, t_reader, t_writer)
+    UPGRADED["count"] += 1
+    await pump(reader, writer, t_reader, t_writer, first=UPGRADED["count"] == 1)
 
 
 class Shaper:
@@ -170,10 +181,18 @@ class Shaper:
 SHAPED = ("delay:", "jitter:", "rate:", "pause:")
 
 
-async def pump(reader, writer, t_reader, t_writer):
+async def pump(reader, writer, t_reader, t_writer, first=False):
     stalled = asyncio.Event()
     done = asyncio.Event()
     started = time.monotonic()
+    # dropfirst and dropfirstat: the first session ends, as a relay that
+    # drops it; the later ones behave.
+    drop = {"bytes": None, "seconds": None, "code": None}
+    kind, _, rest = args.mode.partition(":")
+    if first and kind in ("dropfirst", "dropfirstat"):
+        when, code = rest.split(":")
+        drop["code"] = int(code)
+        drop["bytes" if kind == "dropfirst" else "seconds"] = float(when)
 
     async def write_client(data):
         writer.write(data)
@@ -223,6 +242,20 @@ async def pump(reader, writer, t_reader, t_writer):
             return True
         return False
 
+    async def drop_now():
+        """End the first session: a Close with the code's reason, or with
+        code 0 no Close at all."""
+        if drop["code"] == 0:
+            writer.transport.abort()
+        else:
+            await send_client(close_frame(drop["code"], REASONS.get(drop["code"], "fault injection")), last=True)
+
+    async def drop_clock():
+        if drop["seconds"] is None:
+            await asyncio.Event().wait()  # no clock: it never ends the session
+        await asyncio.sleep(drop["seconds"])
+        await drop_now()
+
     async def stall_clock():
         if args.mode.startswith("stall:"):
             await asyncio.sleep(float(args.mode.split(":")[1]))
@@ -269,11 +302,14 @@ async def pump(reader, writer, t_reader, t_writer):
             if await counted(len(data)):
                 return
             sent += len(data)
+            if drop["bytes"] is not None and sent >= drop["bytes"]:
+                await drop_now()
+                return
             if limit is not None and sent >= limit:
                 await send_client(close_frame(code, REASONS.get(code, "fault injection")), last=True)
                 return
 
-    tasks = [asyncio.ensure_future(t()) for t in (up, down)]
+    tasks = [asyncio.ensure_future(t()) for t in (up, down, drop_clock)]
     extras = [asyncio.ensure_future(t()) for t in (stall_clock, keepalive)]
     try:
         await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)

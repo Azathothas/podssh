@@ -618,6 +618,18 @@ rules behind it:
   another, 77 a key or a pair refused, or the file of `--file` declined, 78
   a setting or a pair that cannot be used.
 - A command that is not implemented exits 70. It never exits 0.
+- A drop of the relay before any request reached the destination is tried
+  again (T-025): during the SSH handshake or the login, before the
+  command, the shell, the subsystem, `-W`'s connection, `-R`'s forwards or
+  `-N`'s wait. A drop of the link to the relay goes to the next relay
+  host, and one of the relay's link to the target tries once more (by the
+  close, as `docs/relay.md` classifies it). A close at the relay's limits
+  (1001, 1009) or for a backlog (1013), and each drop after a request, end
+  the run with 255 as before: a command never runs twice. Each try says
+  why on stderr, with the backoff of a failed upgrade; a try after the
+  first asks nothing (a key that a passphrase opened and a password that
+  the server took are used again), so a login that needs a prompt stops.
+  The tries are at most `ConnectionAttempts` times the relay hosts.
 - `podssh ssh` never ends as a success with no exit status (T-026). When
   stdout closes (EPIPE), podssh stops writing, sends the end of input, and
   waits 5 s at most for the status: it gives that status, or 255 with a

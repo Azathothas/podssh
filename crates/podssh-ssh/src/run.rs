@@ -16,7 +16,8 @@ use crate::known_hosts;
 use crate::log::Log;
 use crate::options::{Hop, Options, Request};
 use crate::relay_stream::{RelayEnd, RelayStatus};
-use crate::{auth, forward, session};
+use crate::retry::{Phase, Retry};
+use crate::{auth, forward, retry, session};
 
 /// podssh's own failures, as OpenSSH's: connection, host key, authentication,
 /// and a session that ends without an exit status.
@@ -35,15 +36,37 @@ pub async fn run<S>(stream: S, opts: &Options, relay: Option<RelayStatus>, log: 
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    let outcome = run_outcome(stream, opts, relay, log.clone()).await;
+    for line in &outcome.lines {
+        log.error(line);
+    }
+    outcome.code
+}
+
+/// How a run ended: its exit code, whether a new connection may try it
+/// again (T-025), and the lines of a failure, not yet said, as a try says
+/// them in its own words.
+#[derive(Debug)]
+pub struct Outcome {
+    pub code: i32,
+    pub retry: Option<Retry>,
+    pub lines: Vec<String>,
+}
+
+/// [`run`], with its outcome given back instead of said.
+pub async fn run_outcome<S>(stream: S, opts: &Options, relay: Option<RelayStatus>, log: Arc<Log>) -> Outcome
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    retry::begin();
     match run_inner(stream, opts, &log).await {
-        Ok(code) => code,
+        Ok(code) => Outcome { code, retry: None, lines: Vec::new() },
         Err(message) => {
             let first = opts.jump.first().unwrap_or(&opts.destination);
             let target = podssh_ws::dial::authority(&first.host, first.port);
-            for line in failure_lines(&message, relay.and_then(|r| r.get()).as_ref(), &target) {
-                log.error(&line);
-            }
-            EXIT_FAILURE
+            let end = relay.and_then(|r| r.get());
+            let lines = failure_lines(&message, end.as_ref(), &target);
+            Outcome { code: EXIT_FAILURE, retry: retry::retry_phase(retry::phase(), end.as_ref()), lines }
         }
     }
 }
@@ -136,9 +159,13 @@ where
     let host = display(&opts.destination);
     let result = match &opts.request {
         Request::StdioForward { host, port } => {
+            retry::reached(Phase::Requested);
             Ok(forward::stdio(handles.last().expect("the destination"), host, *port, log).await)
         }
         Request::Nothing => {
+            // The wait of -N is its request: a drop after it is no failure
+            // to try again.
+            retry::reached(Phase::Requested);
             let mut handle = handles.pop().expect("the destination");
             let ended = (&mut handle).await;
             handles.push(handle);
@@ -218,14 +245,19 @@ where
         }
         Ok(Ok(handle)) => handle,
     };
+    retry::reached(Phase::Auth);
     auth::authenticate(&mut handle, &user, &hop.host, opts, log).await.map_err(|e| match e {
         auth::AuthError::Refused(m) => HopError::Auth(m),
         auth::AuthError::Broke(m) => HopError::Unreachable(m),
     })?;
     log.verbose(&format!("authenticated to {label} as {user}"));
+    if is_destination {
+        retry::reached(Phase::Ready);
+    }
     // The forwards of `-R` are the destination's; asked again after each new
     // connection of a run (`--persist`).
     if is_destination && !opts.remote_forwards.is_empty() {
+        retry::reached(Phase::Requested);
         crate::remote::request(&handle, &forwards, opts, log).await.map_err(HopError::Forward)?;
     }
     Ok(handle)

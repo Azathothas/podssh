@@ -38,6 +38,7 @@ pub mod prompt;
 pub mod relay_stream;
 pub mod remember;
 pub mod remote;
+pub mod retry;
 pub mod run;
 pub mod session;
 pub mod sftp;

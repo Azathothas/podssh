@@ -219,6 +219,16 @@ fn relay() -> Vec<Block> {
             ),
         ),
         item(
+            vec![lit("A dropped session")],
+            "podssh ssh tries a session again when the relay dropped it before any request reached the \
+             destination: during the SSH handshake or the login, before the command, the shell, the \
+             subsystem, -W's connection, -R's forwards or -N's wait. A drop of the link to the relay goes \
+             to the next relay host; a drop of the relay's link to the target tries once more. A close at \
+             the relay's limits (1001, 1009) or for a backlog (1013), and each drop after a request, end \
+             the run with 255. Each try says why on stderr; a try after the first asks nothing, so a login \
+             that needs a prompt then stops. The tries are at most ConnectionAttempts times the relay hosts.",
+        ),
+        item(
             vec![lit("Tokens")],
             "podssh mints a token from the relay (no account is needed), caches it, and mints a new one when \
              the relay refuses a cached token. PODSSH_RELAY_TOKEN replaces the mint. A token goes only into \

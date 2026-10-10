@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:189`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:190`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -553,7 +553,7 @@ sh scripts/dev.sh check                     # interop-cp.sh through scripts/fake
 ```
 
 The stand-in relay's `close:BYTES:CODE` mode
-(`scripts/fake-relay.py:255-274`) ends each session after 1,500,000 bytes
+(`scripts/fake-relay.py:288-310`) ends each session after 1,500,000 bytes
 from the target with `1011`. A 5,000,000-byte download must finish over 4
 sessions or more with equal digests, and `-v` names each offset. A new mode
 that counts both directions does the same for an upload. A run stopped with
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:188`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:189`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -670,7 +670,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:181-300`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:181-310`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -1056,16 +1056,16 @@ trip is long, so such a copy uses a small part of what the path carries.
 - Measured (T-133's offline probe): OpenSSH's `sftp-server` takes reads and
   writes of 261120 bytes, the 255 KiB that bssh uses.
 - Read: podssh gives the server an SSH window of 512 KiB
-  (`crates/podssh-ssh/src/run.rs:29`), so a download has 512 KiB in flight
+  (`crates/podssh-ssh/src/run.rs:30`), so a download has 512 KiB in flight
   at most, whatever the number of requests: two reads of 255 KiB fill it.
 - Read: the comment on the window quoted a row of the reverse close codes
   (1 MiB queued, `1011`, a dropped frame;
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). T-024
   corrected it to the forward path's rule
-  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:211-215` gives
+  (`crates/podssh-ssh/src/run.rs:26-29`): `docs/relay.md:211-215` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:187`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:188`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1171,7 +1171,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:187`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:188`).
 
 ## Premise
 
@@ -1358,7 +1358,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:187`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:188`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 

@@ -283,7 +283,7 @@ Read, the bounds today:
   (`crates/podssh-ws/src/handshake.rs:124`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:33`). A cache
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:28`).
-- The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:29`). The relay pipe:
+- The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:30`). The relay pipe:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:30-33`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/pipe/pump.rs:21`).
@@ -296,7 +296,7 @@ Read, the bounds today:
   relay drops a frame when more than 1 MiB waits (`1011 relay
   backpressure`): the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
-  now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:25-28`):
+  now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:26-29`):
   `docs/relay.md:211-215` says that backpressure closes with `1013` at
   2 MiB and drops no frame. T-062 measures whether that check operates.
 
@@ -306,7 +306,7 @@ Read, the bounds today:
    its value, its file, and what podssh does at the bound (the error and its
    exit code). Name the two missing limits as missing.
 2. The table states the forward path's bound, as the comment at
-   `crates/podssh-ssh/src/run.rs:25-28` does since T-024, and the result of
+   `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
    (`docs/development.md:387-390`): a proxy head that never ends stops at
@@ -335,7 +335,7 @@ sh scripts/dev.sh check                    # interop: the slow reader stays unde
 ```
 
 Each command exits 0. Planted defect: set `WINDOW`
-(`crates/podssh-ssh/src/run.rs:29`) to 64 MiB; the slow-reader check must
+(`crates/podssh-ssh/src/run.rs:30`) to 64 MiB; the slow-reader check must
 fail. If it does not, the bound is somewhere else: find it before anybody
 trusts the check. A second plant: remove the check at
 `crates/podssh-ws/src/session.rs:272-274`; the fragment test must fail.
@@ -442,11 +442,11 @@ Read:
   `stall` and `close` (`scripts/fake-relay.py:15-22`). The stand-in proxy maps
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
-- `scripts/interop-faults.sh:36-43` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:244-261`, 14 of 14 since T-236).
+- `scripts/interop-faults.sh:36-44` starts one stand-in for each fault; its
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:245-262`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:288`, enforced at
-  `crates/podssh-ssh/src/run.rs:199-205`); a reply, 30 s
+  `crates/podssh-ssh/src/run.rs:226-232`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability
@@ -454,7 +454,7 @@ Read:
 
 ## Approach
 
-1. New modes in `scripts/fake-relay.py`, applied in `pump` (`:173-293`), in
+1. New modes in `scripts/fake-relay.py`, applied in `pump` (lines 173-293 at `981b8fc`), in
    each direction: `delay:MS`; `jitter:MIN:MAX:SEED`, from a seeded generator,
    so that a run repeats; `rate:BYTES_PER_SECOND`, a token bucket;
    `cut:BYTES`, the TCP connection closed with no Close frame.
@@ -513,7 +513,7 @@ fail when the resume layer is off.
 ## Correction
 
 Item 4 needs the reverse road in the stand-in relay, which serves the
-forward road only (`scripts/fake-relay.py:71-72`). T-156 builds it (its
+forward road only (`scripts/fake-relay.py:81-82`). T-156 builds it (its
 item 1) and makes those checks its measurement (its items 2 to 5). T-203
 gives T-156 the faults that those checks need: `pause:AFTER:FOR` for the
 stall that ends, `cut` for a host stopped mid-session, and `--move` for the

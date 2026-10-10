@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**275 entries: 103 open, 0 partial, 22 blocked, 150 done.**
+**275 entries: 102 open, 0 partial, 22 blocked, 151 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 22 | 0 | 18 | 114 | 154 |
+| P2 | 21 | 0 | 18 | 115 | 154 |
 | P3 | 79 | 0 | 4 | 19 | 102 |
-| **All** | 103 | 0 | 22 | 150 | 275 |
+| **All** | 102 | 0 | 22 | 151 | 275 |
 
 ## Entries
 
@@ -98,7 +98,7 @@ repository and CI).
 | [T-022](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -e`, `-i` and `-m`: convert key formats |
 | [T-023](ssh.md) | P2 | S | M3 | defect | done | With `PubkeyAuthentication=no`, the denial still says "no key was offered; use -i FILE" (GitHub #7) |
 | [T-024](ssh.md) | P2 | S | M3 | defect | done | The first line about a dropped session is generic; name the hop that broke (GitHub #17) |
-| [T-025](ssh.md) | P2 | M | backlog | feature | open | Try a dropped forward session again when it is safe, by the relay's close reason (GitHub #17) |
+| [T-025](ssh.md) | P2 | M | backlog | feature | done | Try a dropped forward session again when it is safe, by the relay's close reason (GitHub #17) |
 | [T-026](ssh.md) | P2 | S | backlog | defect | done | A session that ends with no exit status never reads as a success |
 | [T-027](ssh.md) | P2 | M | backlog | feature | open | Host certificates and `@cert-authority` in `known_hosts` (GitHub #29) |
 | [T-028](ssh.md) | P2 | S | backlog | defect | done | `accept-new` when `known_hosts` cannot be written: verify, and say that the key was not recorded |

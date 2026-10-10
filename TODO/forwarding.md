@@ -59,7 +59,7 @@ server listens, and the client connects out for each connection.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
-   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:91-97`), with the
+   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:107-113`), with the
    limit of 20 s (`crates/podssh-relay/src/open.rs:23-25`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
@@ -209,7 +209,7 @@ remote host that must use the key, such as `git` on a build host.
    (`crates/podssh-cli/src/ssh/keywords.rs:25-82`). Change the help of `-a`
    (`crates/podssh-cli/src/flags.rs:200-201`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
-   before the shell or exec request (`crates/podssh-ssh/src/session.rs:88-102`).
+   before the shell or exec request (`crates/podssh-ssh/src/session.rs:90-104`).
    Never to a jump hop.
 3. In the handler, accept `auth-agent@openssh.com` only when `-A` was given
    for this connection. For each such channel, connect to the agent with the
@@ -671,8 +671,8 @@ sessions (GitHub #17).
 
 ## Premise
 
-Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:38-47`,
-`crates/podssh-ssh/src/run.rs:141-158`). `podssh_relay::open` fails over and
+Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-70`,
+`crates/podssh-ssh/src/run.rs:165-185`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:177-212`,
 `crates/podssh-relay/src/open.rs:265-279`). With `-N`, no command runs, so a
@@ -706,7 +706,7 @@ In the fault harness (`scripts/interop-faults.sh`), a run with the new flag,
 `--relay-host` set to `relay-kill` then `relay-a`, and
 `-N -R 127.0.0.1:2291:127.0.0.1:2203` carries a connection to port 2291.
 Then the stand-in relay `relay-kill` stops, as at
-`scripts/interop-faults.sh:158-168`. Within 60 s, a new connection to port
+`scripts/interop-faults.sh:159-169`. Within 60 s, a new connection to port
 2291 reads Dropbear's banner again. Planted defect: no new connection, and
 the second read fails.
 

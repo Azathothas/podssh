@@ -47,8 +47,8 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:97-134`,
-   `crates/podssh-ssh/src/run.rs:34-49`). Invariant: no second SSH client.
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:98-125`,
+   `crates/podssh-ssh/src/run.rs:35-72`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:131-287` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
    (`crates/podssh-ssh/src/log.rs:12-15`). Each line gets `HOST: `. With
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:29-77`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:677-738`); they cannot define a group.
+  (`docs/cli.md:689-750`); they cannot define a group.
 
 ## Approach
 
@@ -415,7 +415,7 @@ that can be missing. `podssh doctor` checks only this host.
 ## Premise
 
 - Read: an exec request runs one command through the shell of the server
-  (`crates/podssh-ssh/src/session.rs:93-96`), and its output goes to stdout
+  (`crates/podssh-ssh/src/session.rs:95-98`), and its output goes to stdout
   (`crates/podssh-ssh/src/io.rs:277-287`); podssh cannot read it.
 - Read: on Linux, `/proc/loadavg`, `/proc/meminfo`, `/proc/uptime` and
   `/proc/net/dev` hold the facts, and a POSIX shell reads them with `read`,
