@@ -171,13 +171,15 @@ fn iroh_files() -> Vec<(Vec<String>, String)> {
             "The keys of the iroh road, in the cache, or in the file of --iroh-key: a node's under its NAME, \
              and this user's as a client. Each holds the secret key in hex, has mode 0600, and is made when \
              it is missing. podssh refuses one that is a symbolic link, another user's, or that others can \
-             read, and never replaces it: a new key would change the node's ticket."
+             read, and never replaces it: a new key would change the node's ticket. The names of an earlier \
+             podssh, iroh-node-NAME.key and iroh-client.key, are still read."
                 .to_string(),
         ),
         (
             vec!["the file of --iroh-allow".to_string()],
-            "The client keys that may connect to podssh node --iroh: one key on each line, then a comment if \
-             any; # starts a comment line. A file of the user that others cannot change; others may read it."
+            "The client keys that may connect to podssh node --iroh: one key on each line, as its \
+             fingerprint (SHA256:...) or in iroh's hex or base32, then a comment if any; # starts a comment \
+             line. A file of the user that others cannot change; others may read it."
                 .to_string(),
         ),
     ]

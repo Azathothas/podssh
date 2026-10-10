@@ -491,11 +491,11 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:181-185`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:28-186`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:28-187`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-90`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:427-435`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:396-410`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:430-438`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:399-413`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:98-103`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -960,7 +960,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:65-94`, called at
    `crates/podssh-cli/src/tree.rs:379-383`).
 4. `docs/cli.md:123-128` and a note of the manual
-   (`crates/podssh-cli/src/man/notes.rs:88-90`) state the rule.
+   (`crates/podssh-cli/src/man/notes.rs:89-91`) state the rule.
 
 ## Prove
 
@@ -1044,7 +1044,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:163-166`
    names `podssh keygen -p`; `docs/cli.md:364-376`, the notes of `keygen`
-   (`crates/podssh-cli/src/man/notes.rs:334-342`), `docs/STATUS.md`.
+   (`crates/podssh-cli/src/man/notes.rs:337-345`), `docs/STATUS.md`.
 
 ## Decision
 

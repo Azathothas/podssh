@@ -48,7 +48,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:130-154`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:301-320`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:304-323`) and
    `docs/cli.md:315-333` in the same commit.
 
 ## Decision
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:85-88` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:352-363`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:301-320`) and `docs/cli.md:315-333` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:304-323`) and `docs/cli.md:315-333` in the same commit.
 
 ## Decision
 

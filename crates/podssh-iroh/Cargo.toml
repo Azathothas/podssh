@@ -31,8 +31,6 @@ base64 = { workspace = true }
 # A node's address as iroh's own tools write it (T-163); the version of
 # iroh's own crates.
 iroh-tickets = "1"
-# The secret key's bytes and text, wiped when they are dropped.
-zeroize = { workspace = true }
 # iroh's relay server, and a certificate under any name, for the feature
 # `test-relay` only.
 iroh-relay = { version = "1", default-features = false, features = ["server", "test-utils"], optional = true }

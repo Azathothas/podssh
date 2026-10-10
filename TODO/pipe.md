@@ -612,7 +612,7 @@ running on the server (`docs/design.md:241-243`).
    cached token. A prompt with no terminal ends the loop
    (`docs/cli.md:558-560`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes.rs:28-102`), `docs/design.md:241-243`,
+   (`crates/podssh-cli/src/man/notes.rs:28-103`), `docs/design.md:241-243`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:32-33`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
@@ -724,7 +724,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
-  (`crates/podssh-cli/src/man/notes.rs:173-177`); a client that calls
+  (`crates/podssh-cli/src/man/notes.rs:174-178`); a client that calls
   `connect()` itself needs a listener (`docs/design.md:426-429`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together

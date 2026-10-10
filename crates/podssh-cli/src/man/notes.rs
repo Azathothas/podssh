@@ -38,8 +38,9 @@ const SSH: &[&str] = &[
     "iroh:TICKET, or user@iroh:TICKET, reaches a node of the iroh road (see podssh node), in a build with \
      the feature iroh. The ticket is the address that the node prints, not a credential: the node lets in \
      only the client keys of its allowlist. This client's key is made on first use, in the cache \
-     (iroh-client.key) or in the file of --iroh-key; podssh prints it when it is new, and when a node \
-     refuses it, as the line that the node's operator adds. The host key is recorded and checked under \
+     (client.key, or iroh-client.key of an earlier podssh) or in the file of --iroh-key; podssh prints \
+     its fingerprint when it is new, and when a node refuses it, as the line that the node's operator \
+     adds. The host key is recorded and checked under \
      the name iroh:KEY, the node's key, which stays when the ticket changes. A node has no port, and -J, \
      -W and --direct cannot go with it yet. The session runs the resumable layer: a lost link is \
      replaced by a new one, for 10 minutes. podssh asks the ticket's relay first, then those of \
@@ -251,14 +252,16 @@ const NODE: &[&str] = &[
     "With --iroh, in a build with the feature iroh, the node serves TARGET over the iroh road, with no \
      pair: QUIC between keys, through an iroh relay and HTTPS_PROXY, and directly when UDP works. The \
      relays are n0's public ones, or those of --iroh-relay, and the first that answers is the node's \
-     (see THE RELAY). NAME labels the node's key, a private file in the cache (iroh-node-NAME.key), or the \
-     file of --iroh-key, made when it is missing; --iroh-ephemeral makes a key for this run only. When it \
-     starts, the node prints its key and its ticket (iroh:...) on stderr, and a new ticket when its home \
+     (see THE RELAY). NAME labels the node's key, a private file in the cache (node-NAME.key, or \
+     iroh-node-NAME.key of an earlier podssh), or the file of --iroh-key, made when it is missing; \
+     --iroh-ephemeral makes a key for this run only. When it starts, the node prints its key's \
+     fingerprint and its ticket (iroh:...) on stderr, and a new ticket when its home \
      relay changes; a client dials the ticket with podssh ssh iroh:TICKET. When the pair NAME is stored \
      and good, or --pair-file gives one, the node serves the pair's road too, with one keeper of \
      sessions for both: a session resumes on either road, and podssh ssh node://NAME --iroh-ticket \
      TICKET races them. When the pair's road ends, the node says why, and the iroh road goes on.",
-    "A client of the iroh road gets in only when its key is a line of the file of --iroh-allow, which \
+    "A client of the iroh road gets in only when its key, or the key's fingerprint, is a line of the \
+     file of --iroh-allow, which \
      the node reads again for each connection, so a key added counts at once. With no such file, no \
      client gets in. Each refused key is said on stderr: it is the line to add. A session reaches TARGET \
      only after the layer's handshake, and resumes on a new link for 10 minutes, as on the relay.",

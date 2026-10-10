@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:586-659`, FILES (`crates/podssh-cli/src/man/data.rs:91-184`) and the
+7. Change `docs/cli.md:586-659`, FILES (`crates/podssh-cli/src/man/data.rs:91-186`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -387,7 +387,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:125`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:28-102`) and `docs/cli.md:48-132`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:28-103`) and `docs/cli.md:48-132`
    in the same commit.
 
 ## Decision

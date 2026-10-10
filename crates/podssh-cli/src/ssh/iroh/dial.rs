@@ -41,11 +41,11 @@ pub(crate) async fn prepare(
     log: &Log,
 ) -> Result<Prepared, String> {
     let addr = ticket::parse(text)?;
-    let shown = format!("{}{}", super::SCHEME, keys::fingerprint(&addr.id));
+    let shown = format!("{}{}", super::SCHEME, keys::name(&addr.id));
     crate::pairs::online().map_err(|refusal| format!("{shown}: {}", refusal.message))?;
     let place = match key {
         Some(file) => Place::File(file.into()),
-        None => Place::Cache(keys::CLIENT_FILE.into()),
+        None => keys::client_place(),
     };
     let key = keys::load(&place, &mut OsEntropy).map_err(|why| format!("{shown}: this client's key: {why}"))?;
     let fingerprint = keys::fingerprint(&key.public());

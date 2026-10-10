@@ -83,7 +83,7 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         }
         (Some(file), false) => Place::File(file.into()),
         (None, true) => Place::Ephemeral,
-        (None, false) => Place::Cache(keys::node_file(&label)),
+        (None, false) => keys::node_place(&label),
     };
     // A bad flag is a usage error, a bad variable a configuration error.
     let relays = match podssh_iroh::relays::from_environment(args.iroh_relay.as_deref()) {
@@ -173,7 +173,8 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         Err(why) => format!("the iroh road alone ({why})"),
     };
     let _ = writeln!(err, "podssh node: {label}: serving {target} over {roads} until Ctrl-C");
-    let _ = writeln!(err, "podssh node: {label}: key {fingerprint} ({kept})");
+    let _ =
+        writeln!(err, "podssh node: {label}: key {fingerprint}, the node iroh:{} ({kept})", keys::name(&key.public()));
     let _ = writeln!(err, "podssh node: {label}: ticket {}", ticket::of(&endpoint, &relay));
     let _ = writeln!(err, "podssh node: {label}: {}", who_may(allow.as_deref()));
 

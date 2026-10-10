@@ -23,6 +23,12 @@ sha2 = { workspace = true }
 hmac = { workspace = true }
 hkdf = { workspace = true }
 x25519-dalek = { workspace = true }
+# The identity of each end (src/identity/, T-087): an Ed25519 key, shown by
+# its SHA256 fingerprint in base64 as OpenSSH shows one. Pure Rust.
+ed25519-dalek = { workspace = true, features = ["zeroize"] }
+base64 = { workspace = true }
+# The channel between two podssh ends (src/e2e/, T-088): Noise XX, pure Rust.
+snow = { workspace = true }
 
 [features]
 # Pairs of the reverse road: `POST /v1/pair`, the status of a pair and

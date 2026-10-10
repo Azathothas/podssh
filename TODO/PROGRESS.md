@@ -44,11 +44,11 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --workspace --no-fail-fast`, again after T-277 (2026-10-10):
-  1221 passed, 0 failed, 39 ignored (the live tests, and the checks of
+- `cargo test --workspace --no-fail-fast`, again with the first part of T-087 and T-088
+  (2026-10-10): 1250 passed, 0 failed, 39 ignored (the live tests, and the checks of
   faults and of the exit of M6). With the feature `iroh` and the test
   relay, `cargo test -p podssh-iroh -p podssh-cli --features
-  podssh-cli/iroh-test`, after T-175: 394 passed, 0 failed, 29 ignored.
+  podssh-cli/iroh-test`, with the same: 441 passed, 0 failed, 29 ignored.
   With the feature `ts`, `cargo test -p podssh-ts -p podssh-cli --features
   podssh-cli/ts`, after T-105: 493 passed, 0 failed, 25 ignored.
   CI's gate passed at `9460b4e` (T-271; run 38019504447).

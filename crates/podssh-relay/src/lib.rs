@@ -12,6 +12,10 @@
 //! - `reverse` (feature `pair`): the node and the operator of the reverse road;
 //! - [`session`]: the resumable layer between two podssh ends: its records,
 //!   offsets and handshake, and its client and far end over tokio streams;
+//! - [`identity`]: who an end is: its key file, its fingerprint, a node's
+//!   allowlist and an operator's pins, the same on each road;
+//! - [`e2e`]: the channel between two podssh ends, Noise XX above the
+//!   resumable layer, in which each end proves its key;
 //! - `blocking` (feature `blocking`): a synchronous facade over all of these,
 //!   for a caller with no async runtime: it owns a runtime on the current
 //!   thread, and refuses a call from inside a tokio runtime.
@@ -22,6 +26,8 @@
 #[cfg(feature = "blocking")]
 pub mod blocking;
 pub mod cache;
+pub mod e2e;
+pub mod identity;
 pub mod open;
 #[cfg(feature = "pair")]
 pub mod pair;

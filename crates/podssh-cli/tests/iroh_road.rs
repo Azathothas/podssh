@@ -131,6 +131,15 @@ fn key_after(text: &str, after: &str) -> String {
     text[start..].chars().take_while(char::is_ascii_hexdigit).collect()
 }
 
+/// The fingerprint (`SHA256:` and its base64) that follows `after` in `text`.
+fn fingerprint_after(text: &str, after: &str) -> String {
+    let start = text.find(after).unwrap_or_else(|| panic!("{after:?} is not in {text}")) + after.len();
+    let body =
+        text[start..].strip_prefix("SHA256:").unwrap_or_else(|| panic!("no fingerprint after {after:?}: {text}"));
+    let digits: String = body.chars().take_while(|c| c.is_ascii_alphanumeric() || *c == '+' || *c == '/').collect();
+    format!("SHA256:{digits}")
+}
+
 #[test]
 fn a_client_is_refused_then_let_in_and_runs_a_command_over_the_iroh_road() {
     let home = scratch("e2e");
@@ -195,8 +204,8 @@ fn a_client_is_refused_then_let_in_and_runs_a_command_over_the_iroh_road() {
     // Refused: the client's key is in no allowlist yet.
     let (rc, out, err) = run(&home, &ssh);
     assert_eq!(rc, 255, "stdout {out:?}, stderr {err}");
-    let key = key_after(&err, "refused this client's key ");
-    assert_eq!(key.len(), 64, "the client says its key: {err}");
+    let key = fingerprint_after(&err, "refused this client's key ");
+    assert_eq!(key.len(), 50, "the client says its key's fingerprint: {err}");
     let refused = wait_for(&lines, "refused the client key");
     assert!(line_with(&refused, "refused the client key").contains(&key), "the node names the key: {refused:#?}");
 
@@ -210,7 +219,8 @@ fn a_client_is_refused_then_let_in_and_runs_a_command_over_the_iroh_road() {
     let connected = wait_for(&lines, "connected");
     assert!(line_with(&connected, "connected").contains(&key), "{connected:#?}");
     let recorded = std::fs::read_to_string(&known).unwrap();
-    let node_key_hex = key_after(&node_line, ": key ");
+    let node_key_hex = key_after(&node_line, ", the node iroh:");
+    assert_eq!(node_key_hex.len(), 64, "the node says its name in the known hosts: {node_line}");
     assert!(recorded.contains(&format!("iroh:{node_key_hex}")), "the host key is under the node's key: {recorded}");
     drop(relay);
 }

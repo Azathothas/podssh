@@ -441,7 +441,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:140-147` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:112-114`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5416`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5432`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -563,7 +563,7 @@ Not measured here: each case needs a server.
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
 5. Update `docs/cli.md:552-574` (one line) and the manual's note on host keys
-   (`crates/podssh-cli/src/man/notes.rs:51-54`).
+   (`crates/podssh-cli/src/man/notes.rs:52-55`).
 
 ## Decision
 

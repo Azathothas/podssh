@@ -445,7 +445,7 @@ Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it s
    it needs 1.88, and podbox follows (the operator's ruling of 2026-10-08). Write the result in
    `docs/design.md` (section 3).
 7. Document the facade in `docs/design.md` (lines 89-110 at `0d92eef`) and in the crate's header
-   (`crates/podssh-relay/src/lib.rs:1-20`); add the feature to the gate (`scripts/gate.sh:118`).
+   (`crates/podssh-relay/src/lib.rs:1-24`); add the feature to the gate (`scripts/gate.sh:118`).
 
 ## Decision
 
@@ -1237,7 +1237,21 @@ fail. Live: a second node with another key under the same label is refused by th
 ## Done
 
 Partial, 2026-10-10: the plan is the Decision, with T-088, whose channel carries this entry's
-proof; the two are built together. Nothing is built yet.
+proof; the two are built together.
+- Built: the identity of each end, `crates/podssh-relay/src/identity/` (no C). The key files of
+  T-163 moved there from `podssh-iroh`, named `node-LABEL.key` and `client.key`, with the names of
+  T-163 still read; a key is shown by its SHA256 fingerprint, the one that OpenSSH 10.3p1 gives;
+  a key is read in iroh's hex and base32; the Noise key is derived from the seed and signed by the
+  identity; a node's allowlist takes keys or fingerprints, read again for each session; an
+  operator's pins are in `known-nodes`. The iroh road runs on them: the same key files, a key
+  shown by its fingerprint and taken by its allowlist, and the node's name `iroh:` and its hex
+  kept in the known hosts. `cargo test -p podssh-relay --test identity --test identity_file`: 16
+  passed on Windows (two more run on Unix only), each check failing on its planted defect (the
+  fingerprint, base32's last bits, the signature, a changed pin, the allowlist, T-163's names);
+  `cargo test -p podssh-iroh --test keys --test tickets` and the iroh road's tests of the command
+  line pass.
+- Next: the command line (`--allow`, `--node-key`, `--key`, `--no-e2e`), the pins of an operator,
+  the allowlist on the pair's road, the exits, the manual and the documents; the live test.
 
 # T-088: End-to-end encryption between two podssh ends
 
@@ -1348,8 +1362,27 @@ the live test runs one session through the real relay.
 
 ## Done
 
-Partial, 2026-10-10: the plan is the Decision; built with T-087, whose keys it proves. Nothing is
-built yet.
+Partial, 2026-10-10: the plan is the Decision; built with T-087, whose keys it proves.
+- Built: the channel, `crates/podssh-relay/src/e2e/`: Noise XX through `snow` 0.10 with
+  ChaChaPoly, SHA-256 and Curve25519 only (`cargo tree -p podssh-relay -i ring` prints nothing, and
+  `CC=/nonexistent cargo build -p podssh-relay --features blocking,plain-ws` passes); each end's
+  proof of its key; the node's verdict; data and the clean end of each direction, with the
+  half-close of TCP, which the layer alone does not give; a node's end, which reaches its target
+  only once the operator's key is let in, and an operator's, which checks the node's key before it
+  proves its own; `podssh_relay::reverse::E2e`, a node's handler over another.
+  `cargo test -p podssh-relay --features pair --test e2e --test e2e_faults --test e2e_layered`: 17
+  passed, and 10 runs in a row: snow, set up with the channel's pattern, gives the cacophony
+  vector; 3 MiB through a stand-in relay that recorded no plain text; a changed bit, a dropped, a
+  repeated and a moved frame, and a cut, each end the session with no byte of the bad frame given
+  on; an operator that refuses the node's key says nothing of its own; a node's refusals cost its
+  target no connection; a peer with no channel is refused at both ends; a replayed proof of another
+  key is refused; 8 MiB each way above the layer through cut links, with one handshake and one
+  connection to the target. Planted, each check fails its test: the tag's check skipped (a bad
+  frame passed over), the signature's check skipped, the operator's check skipped, a cut taken for
+  an end, the node's admission skipped, the magic not checked.
+- Next: the channel in each end of `podssh` (`node`, `operator`, `ssh node://`, `pipe node:`, the
+  race of the roads, the iroh road, the facade), on by default with `--no-e2e`; `docs/design.md`
+  (section 5), `SECURITY.md` and `docs/reverse.md`; the live test.
 
 # T-089: A node offers several named targets, each with its own grant
 

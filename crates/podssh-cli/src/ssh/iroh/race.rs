@@ -92,7 +92,7 @@ impl Iroh<'_> {
     async fn make(&self) -> Result<(Endpoint, Dialer), String> {
         let place = match &self.race.key {
             Some(file) => Place::File(file.into()),
-            None => Place::Cache(keys::CLIENT_FILE.into()),
+            None => keys::client_place(),
         };
         let key = keys::load(&place, &mut OsEntropy).map_err(|why| format!("this client's key: {why}"))?;
         let fingerprint = keys::fingerprint(&key.public());

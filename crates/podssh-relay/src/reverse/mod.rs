@@ -5,6 +5,7 @@
 
 pub mod closes;
 pub mod control;
+pub mod e2e;
 pub mod framing;
 pub mod layered;
 pub mod node;
@@ -15,6 +16,7 @@ pub mod tcp;
 pub mod wire;
 
 pub use closes::RelayClose;
+pub use e2e::E2e;
 pub use framing::SessionId;
 pub use layered::Layered;
 

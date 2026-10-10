@@ -403,7 +403,7 @@ AF_UNIX.
    variable that refuses each local listener (`-L`, `-D`, T-039, T-034). Add
    it to `VARIABLES` in `crates/podssh-cli/src/man/facts.rs`.
 6. In the same commit, change the rows, the keywords, the note at
-   `crates/podssh-cli/src/man/notes.rs:70-71`, the test at
+   `crates/podssh-cli/src/man/notes.rs:71-72`, the test at
    `crates/podssh-cli/tests/flag_table.rs:82-98`, and the documents that the
    Premise quotes.
 

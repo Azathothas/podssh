@@ -63,7 +63,7 @@ pub fn destination(text: &str) -> Result<Option<Destination>, String> {
 /// The node's name: `iroh:` and its key.
 #[cfg(feature = "iroh")]
 fn shown(ticket: &str) -> Result<String, String> {
-    podssh_iroh::ticket::parse(ticket).map(|addr| format!("{SCHEME}{}", podssh_iroh::keys::fingerprint(&addr.id)))
+    podssh_iroh::ticket::parse(ticket).map(|addr| format!("{SCHEME}{}", podssh_iroh::keys::name(&addr.id)))
 }
 
 #[cfg(not(feature = "iroh"))]
