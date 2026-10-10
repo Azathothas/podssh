@@ -1623,3 +1623,4 @@ handler's window fails the new test.
   ignored.
 - Linux, in the build image: clippy with no warning, `podssh-relay` with each feature; the node
   tests. T-177's checks of the gate ran there too, with a user `podtest`: both passed.
+- CI at `9460b4e` (run 38019504447): the step `m6` passed, 11 of 11 in 671 s, the control with them.

@@ -176,8 +176,8 @@ fn a_duplicate_join_is_remembered_once() {
     // **Or a reconnect sends two `JOIN`s for one room** and the user sees
     // it echoed back twice.
     let mut s = registered();
-    assert!(s.send_join("#one", None)[0].to_line().starts_with("JOIN"));
-    let again = s.send_join("#one", None);
+    assert!(s.send_join("#one", None).unwrap()[0].to_line().starts_with("JOIN"));
+    let again = s.send_join("#one", None).unwrap();
     assert_eq!(s.memory().len(), 1);
     assert_eq!(again.len(), 1, "the duplicate still goes out; only memory is deduped");
 }
@@ -303,7 +303,7 @@ fn a_heartbeat_is_consumed_and_never_shown() {
     for generation in 1..=4u64 {
         let hb = s.heartbeat("#one", generation).expect("registered means a heartbeat");
         assert!(hb.to_line().starts_with("PRIVMSG #one :"), "the heartbeat is not a PRIVMSG: {}", hb.to_line());
-        let (_, events) = s.on_bytes(hb.to_wire().as_bytes()).expect("short");
+        let (_, events) = s.on_bytes(hb.to_wire().unwrap().as_bytes()).expect("short");
         assert!(
             events.iter().all(|e| matches!(e, Event::Heartbeat { .. })),
             "generation {generation} produced {events:?}; a heartbeat must be \
@@ -367,7 +367,7 @@ fn an_over_long_message_is_refused_and_not_truncated() {
     }
     // **And one that fits goes out whole.**
     let ok = s.send_privmsg("#c", &"x".repeat(400)).expect("400 bytes fits");
-    assert_eq!(ok.to_wire().len(), "PRIVMSG #c :".len() + 400 + 2);
+    assert_eq!(ok.to_wire().unwrap().len(), "PRIVMSG #c :".len() + 400 + 2);
 }
 
 // ── what these tests do NOT prove ────────────────────────────────────────

@@ -141,7 +141,7 @@ fn a_chunk_sent_twice_is_refused_rather_than_written_out_of_place() {
     // it sent.
     let limits = TransferLimits::default();
     let data: Vec<u8> = (0..1000u32).map(|i| (i % 251) as u8).collect();
-    let mut sender = Sender::new("t1", "file.bin", data.len() as u64, limits);
+    let mut sender = Sender::new("t1", "file.bin", data.len() as u64, limits).expect("a safe id and name");
 
     let mut receiver = Receiver::from_offer(&the_offer(&sender)).expect("a well-formed offer is accepted");
 
@@ -215,7 +215,7 @@ fn a_transfer_resumes_from_the_chunk_boundary_after_a_session_ends() {
     let limits = TransferLimits::default();
     let total = limits.session_bytes as u64 + 5_000;
     let data: Vec<u8> = (0..total).map(|i| (i % 251) as u8).collect();
-    let mut sender = Sender::new("t2", "big.bin", total, limits);
+    let mut sender = Sender::new("t2", "big.bin", total, limits).expect("a safe id and name");
 
     // **Session 1** carries whole chunks until the budget is used up.
     let mut received: Vec<u8> = Vec::new();
@@ -269,7 +269,7 @@ fn a_receiver_built_from_the_offer_computes_the_same_geometry_as_the_sender() {
     // at chunk 90.
     let limits = TransferLimits::default();
     let total = 12_345u64;
-    let sender = Sender::new("t3", "x.bin", total, limits);
+    let sender = Sender::new("t3", "x.bin", total, limits).expect("a safe id and name");
     let offer = match offer_text(&sender.offer("#c")).expect("a transfer line") {
         Line::Offer(o) => o,
         other => panic!("expected an offer, got {other:?}"),
@@ -295,7 +295,7 @@ fn a_partial_file_is_never_handed_back() {
     // file on the user's disk that opens and is wrong.
     let limits = TransferLimits::default();
     let data = vec![7u8; 1000];
-    let mut sender = Sender::new("t4", "f.bin", data.len() as u64, limits);
+    let mut sender = Sender::new("t4", "f.bin", data.len() as u64, limits).expect("a safe id and name");
     let offer = match offer_text(&sender.offer("#c")).unwrap() {
         Line::Offer(o) => o,
         other => panic!("expected an offer, got {other:?}"),
@@ -322,7 +322,7 @@ fn a_wrong_digest_is_detected() {
     // agree.
     let limits = TransferLimits::default();
     let data: Vec<u8> = (0..700u32).map(|i| (i % 256) as u8).collect();
-    let mut sender = Sender::new("t5", "f.bin", data.len() as u64, limits);
+    let mut sender = Sender::new("t5", "f.bin", data.len() as u64, limits).expect("a safe id and name");
     let offer = match offer_text(&sender.offer("#c")).unwrap() {
         Line::Offer(o) => o,
         other => panic!("expected an offer, got {other:?}"),

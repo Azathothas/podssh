@@ -1,8 +1,9 @@
 //! The sending half, and **the resume rule that makes it correct.**
 
+use crate::irc::encode::Unsafe;
 use crate::irc::limits::TransferLimits;
 use crate::irc::message::Message;
-use crate::irc::transfer::wire::{as_privmsg, b64, Chunk, Digest, Line, Offer};
+use crate::irc::transfer::wire::{as_privmsg, b64, check_field, Chunk, Digest, Line, Offer};
 
 /// The sending half.
 #[derive(Debug, Clone)]
@@ -23,18 +24,20 @@ pub struct Sender {
 }
 
 impl Sender {
-    pub fn new(transfer_id: impl Into<String>, name: impl Into<String>, total: u64, limits: TransferLimits) -> Self {
+    /// **The id and the name are checked here**, once, as each line of the
+    /// transfer carries the id and the offer the name: see
+    /// [`check_field`].
+    pub fn new(
+        transfer_id: impl Into<String>,
+        name: impl Into<String>,
+        total: u64,
+        limits: TransferLimits,
+    ) -> Result<Self, Unsafe> {
+        let (transfer_id, name) = (transfer_id.into(), name.into());
+        check_field("the transfer id", &transfer_id)?;
+        check_field("the name", &name)?;
         let chunks = limits.chunk_count(total);
-        Sender {
-            transfer_id: transfer_id.into(),
-            name: name.into(),
-            total,
-            chunks,
-            limits,
-            next_chunk: 0,
-            bytes_committed: 0,
-            session_index: 0,
-        }
+        Ok(Sender { transfer_id, name, total, chunks, limits, next_chunk: 0, bytes_committed: 0, session_index: 0 })
     }
 
     pub fn chunks(&self) -> u64 {

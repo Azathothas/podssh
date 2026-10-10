@@ -18,6 +18,25 @@ use crate::irc::limits::TransferLimits;
 use crate::irc::message::Message;
 use crate::irc::transfer::wire::{as_privmsg, b64, Ack, Chunk, Line, Offer};
 
+/// **The peer's name for a file, as a base name only**: what follows its last
+/// `/` or `\`, so a caller that writes the file under it stays in its
+/// directory, on each system. A name with no base (empty, `.` or `..`) is
+/// refused, and so is one with a `:`, which names a drive (`C:x`) or a stream
+/// on Windows, or a control character.
+pub fn base_name(name: &str) -> Result<String, String> {
+    let base = name.rsplit(['/', '\\']).next().unwrap_or_default();
+    if base.is_empty() || base == "." || base == ".." {
+        return Err(format!("the offered name {name:?} names no file in a directory"));
+    }
+    if base.contains(':') {
+        return Err(format!("the offered name {name:?} holds ':', which names a drive or a stream on Windows"));
+    }
+    if let Some(c) = base.chars().find(|c| c.is_control()) {
+        return Err(format!("the offered name {name:?} holds the control character {c:?}"));
+    }
+    Ok(base.to_string())
+}
+
 /// **The receiving half, and the resume rule that makes it correct.**
 ///
 /// A chunk is accepted **only at the offset the receiver expects next**,
@@ -76,7 +95,7 @@ impl Receiver {
         }
         Ok(Receiver {
             transfer_id: line.transfer_id.clone(),
-            name: line.name.clone(),
+            name: base_name(&line.name)?,
             total: line.total,
             chunks: line.chunks,
             limits: TransferLimits::default(),
@@ -86,6 +105,7 @@ impl Receiver {
         })
     }
 
+    /// The peer's name for the file, as a base name: see [`base_name`].
     pub fn name(&self) -> &str {
         &self.name
     }

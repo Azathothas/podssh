@@ -2,10 +2,11 @@
 
 `podssh chat` lets two users on constrained hosts talk and exchange files.
 podssh speaks IRC itself, and the relay carries the bytes, as for SSH. No
-command uses the client yet. The client has known defects ([TODO/irc.md](../TODO/irc.md),
-T-092 to T-098): among them, it sends plain text through the relay. Since
-T-091 the registration finishes on a server that holds it until `CAP END`:
-measured with ngircd 27 on the loopback of the build image, 2026-10-10.
+command uses the client yet. The client has known defects
+([TODO/irc.md](../TODO/irc.md), T-092 and T-094 to T-098): among them, it
+sends plain text through the relay. Since T-091 the registration finishes on
+a server that holds it until `CAP END`: measured with ngircd 27 on the
+loopback of the build image, 2026-10-10.
 
 The operator decides when chat starts, and whether it stays on IRC or moves
 to the roads between two podssh ends ([design.md](design.md), section 8).
@@ -34,9 +35,15 @@ test on the public networks again is the operator's question Q39.
 - Files go through the server as chunks, each with its own length and
   digest. IRC has no integrity check, so a dropped frame is otherwise a hole
   with no message.
+- The receiver keeps the sender's name for a file as a base name, with no
+  directory, so the file goes where the receiver chose. A name with no base,
+  or with a `:` (a drive or a stream on Windows), is refused (T-093).
 
 ## Connection handling
 
 - To connect again, send CAP, NICK and USER again and join the channels
   again. Do not send QUIT first.
 - Answer `PING` with its token, byte for byte.
+- A caller's text never changes a line: a CR, LF or NUL is refused, and so
+  is a space in a target or a channel. podssh never removes a character, and
+  never splits a message (T-093).

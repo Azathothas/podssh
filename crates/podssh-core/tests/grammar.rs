@@ -52,11 +52,15 @@ fn every_fixture_line_parses_and_re_encodes_to_itself() {
         // blanket "skip lines that fail" is how a suite stops testing.
         if wire == "PING 12345" {
             assert_eq!(message.to_line(), "PING :12345");
-            assert_eq!(message.to_wire(), "PING :12345\r\n");
+            assert_eq!(message.to_wire().unwrap(), "PING :12345\r\n");
             continue;
         }
         assert_eq!(message.to_line(), wire, "{belief}: re-encoding produced a different line than the wire");
-        assert_eq!(message.to_wire(), format!("{wire}\r\n"), "{belief}: the wire form must be the line plus CRLF");
+        assert_eq!(
+            message.to_wire().unwrap(),
+            format!("{wire}\r\n"),
+            "{belief}: the wire form must be the line plus CRLF"
+        );
     }
 }
 

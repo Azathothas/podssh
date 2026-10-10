@@ -168,7 +168,7 @@ pub fn new_session(host: &str, port: u16, nick: String, policy: ReapPolicy) -> S
 /// Write every message's wire bytes, counting frames.
 pub async fn send_all(runner: &mut LiveRunner, msgs: &[podssh_core::irc::Message], a: &mut Attempt) -> Result<(), ()> {
     for m in msgs {
-        let wire = m.to_wire();
+        let wire = m.to_wire().map_err(|e| eprintln!("podssh: not sent: {e}"))?;
         runner.send_bytes(wire.as_bytes()).await.map_err(|_| ())?;
         a.frames_sent = runner.sent_frames();
     }

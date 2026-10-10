@@ -32,13 +32,13 @@ fn a_server_that_holds_the_registration_for_cap_end_welcomes_the_client() {
     stream.set_read_timeout(Some(Duration::from_millis(500))).unwrap();
     let mut s = Session::new(server, ReapPolicy::default());
     let mut sent = Vec::new();
-    let mut send = |stream: &mut TcpStream, lines: Vec<String>| {
-        for line in lines {
-            stream.write_all(format!("{line}\r\n").as_bytes()).unwrap();
-            sent.push(line);
+    let mut send = |stream: &mut TcpStream, messages: Vec<podssh_core::irc::Message>| {
+        for message in messages {
+            stream.write_all(message.to_wire().expect("a line podssh may write").as_bytes()).unwrap();
+            sent.push(message.to_line());
         }
     };
-    send(&mut stream, s.initial_burst().iter().map(|m| m.to_line()).collect());
+    send(&mut stream, s.initial_burst());
     let deadline = Instant::now() + Duration::from_secs(15);
     let mut buf = [0u8; 4096];
     while s.registered() != Registered::Yes {
@@ -50,7 +50,7 @@ fn a_server_that_holds_the_registration_for_cap_end_welcomes_the_client() {
         };
         let (out, _) = s.on_bytes(&buf[..n]).expect("lines of the server");
         assert!(!matches!(s.registered(), Registered::Refused(_)), "refused: {:?}; sent {sent:?}", s.registered());
-        send(&mut stream, out.iter().map(|m| m.to_line()).collect());
+        send(&mut stream, out);
     }
     assert!(sent.iter().any(|l| l == "CAP END"), "the client ended the negotiation: {sent:?}");
     let _ = stream.write_all(b"QUIT :done\r\n");

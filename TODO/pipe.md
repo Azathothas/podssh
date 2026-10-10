@@ -553,8 +553,9 @@ only the code of Windows builds a `SOCKADDR_UN`, in one function that
   `@NAME` while this user's is served. At `a220c13` (run 38016375327) both
   failed before they began: they ran after the pipe section had removed its
   directory. The removal is the section's last step since T-271's commit,
-  and the result at that push goes into `docs/STATUS.md`. The box's step (`scripts/sandbox-check.sh`, `unix-listen
-  exit=77`) runs with the checks of the release (T-251).
+  and at that push, `9460b4e` (run 38019504447), both passed. The box's step
+  (`scripts/sandbox-check.sh`, `unix-listen exit=77`) runs with the checks of
+  the release (T-251).
 
 # T-178: `--persist`: connect again and attach `tmux` again
 

@@ -122,6 +122,15 @@ pub enum SessionError {
     NotRegistered,
     /// The message would exceed the 512-byte line limit.
     TooLong { bytes: usize },
+    /// A part of the message would change the line it is written in: a CR,
+    /// LF or NUL, or in a middle a space, a leading `:` or nothing.
+    Unsafe(crate::irc::encode::Unsafe),
+}
+
+impl From<crate::irc::encode::Unsafe> for SessionError {
+    fn from(e: crate::irc::encode::Unsafe) -> Self {
+        SessionError::Unsafe(e)
+    }
 }
 
 impl std::fmt::Display for SessionError {
@@ -133,6 +142,7 @@ impl std::fmt::Display for SessionError {
                  the partial line is NOT shown and the session reconnects"
             ),
             SessionError::Frame(e) => write!(f, "{e}"),
+            SessionError::Unsafe(e) => write!(f, "{e}"),
             SessionError::NotRegistered => {
                 write!(f, "not registered yet; a server drops traffic sent before 001")
             }

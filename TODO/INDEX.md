@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**268 entries: 130 open, 0 partial, 22 blocked, 116 done.**
+**268 entries: 129 open, 0 partial, 22 blocked, 117 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 15 | 17 |
-| P2 | 48 | 0 | 18 | 84 | 150 |
+| P2 | 47 | 0 | 18 | 85 | 150 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 130 | 0 | 22 | 116 | 268 |
+| **All** | 129 | 0 | 22 | 117 | 268 |
 
 ## Entries
 
@@ -166,7 +166,7 @@ repository and CI).
 | [T-090](reverse.md) | P3 | M | backlog | feature | open | Find a node by name with no payload leak |
 | [T-091](irc.md) | P2 | S | M8 | defect | done | I1: `CAP END` is sent only after 001 |
 | [T-092](irc.md) | P2 | M | M8 | defect | open | I2: the client asks for each offered capability |
-| [T-093](irc.md) | P2 | S | M8 | defect | open | I3: text is not checked for CR, LF and NUL |
+| [T-093](irc.md) | P2 | S | M8 | defect | done | I3: text is not checked for CR, LF and NUL |
 | [T-094](irc.md) | P2 | S | M8 | defect | open | I4: trailing forms of JOIN, NICK and PRIVMSG are dropped |
 | [T-095](irc.md) | P2 | M | M8 | defect | open | I5: PART, KICK, 005, a new connection and 433 are handled incorrectly |
 | [T-096](irc.md) | P2 | S | M8 | defect | open | I6: the line framing loses lines, and its buffer has no limit |

@@ -4,8 +4,9 @@
 //! and it has its own file so the base64 codec — which has nothing to do with
 //! the IRC grammar — is not read every time somebody opens the protocol.
 
+use crate::irc::encode::{check_chars, Unsafe};
 use crate::irc::limits::TransferLimits;
-use crate::irc::message::{Command, Message, Middle, Trailing};
+use crate::irc::message::{wire_len, Command, Message, Middle, Trailing};
 
 /// **The marker, in every transfer line.** It is a plain `PRIVMSG` and
 /// not a `CTCP ACTION`, **deliberately**: podssh is not required to speak to
@@ -248,6 +249,16 @@ impl Line {
     }
 }
 
+/// **A field that a caller names**, a transfer's id or a file's name: not
+/// empty, no `|`, which separates the fields and would shift each one after
+/// it, and no CR, LF or NUL, which end the line.
+pub fn check_field(field: &str, value: &str) -> Result<(), Unsafe> {
+    if value.is_empty() {
+        return Err(Unsafe { field: field.to_string(), found: "nothing".into() });
+    }
+    check_chars(field, value, &['|', '\r', '\n', '\0'])
+}
+
 /// Wrap a transfer line in the `PRIVMSG` that carries it.
 pub fn as_privmsg(target: &str, line: &Line) -> Message {
     Message {
@@ -261,17 +272,22 @@ pub fn as_privmsg(target: &str, line: &Line) -> Message {
 /// proved rather than asserted.** A chunk line's wire length is
 /// `512 - header` at most; [`TransferLimits::default`] says 320 raw bytes,
 /// and this function is what makes that number checkable against the real
-/// [`Message::to_wire`] rather than against arithmetic on paper.
+/// encoder ([`wire_len`], the length of [`Message::to_wire`]) rather than
+/// against arithmetic on paper.
 pub fn chunk_line_length(limits: &TransferLimits, transfer_id: &str, index: u64, offset: u64) -> usize {
     let payload_len = limits.chunk_bytes.div_ceil(3) * 4;
     let line =
         Line::Chunk(Chunk { transfer_id: transfer_id.to_string(), index, offset, payload: "A".repeat(payload_len) });
-    as_privmsg("#x", &line).to_wire().len()
+    wire_len(&as_privmsg("#x", &line))
 }
 
 /// The refusal a peer sends, and **the reason string is the only part
 /// of this protocol a human reads**, so a machine-generated reason reads
-/// as a machine having no reason.
-pub fn deny(target: &str, transfer_id: &str, reason: &str) -> Message {
-    as_privmsg(target, &Line::Deny(Deny { transfer_id: transfer_id.to_string(), reason: reason.to_string() }))
+/// as a machine having no reason. A `|` in it would cut it short on the
+/// peer's side, which reads the reason up to the next `|`; an empty one is
+/// legal.
+pub fn deny(target: &str, transfer_id: &str, reason: &str) -> Result<Message, Unsafe> {
+    check_field("the transfer id", transfer_id)?;
+    check_chars("the reason", reason, &['|', '\r', '\n', '\0'])?;
+    Ok(as_privmsg(target, &Line::Deny(Deny { transfer_id: transfer_id.to_string(), reason: reason.to_string() })))
 }

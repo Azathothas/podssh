@@ -36,6 +36,8 @@ pub mod recv;
 pub mod send;
 pub mod wire;
 
-pub use recv::Receiver;
+pub use recv::{base_name, Receiver};
 pub use send::Sender;
-pub use wire::{as_privmsg, b64, chunk_line_length, deny, Accept, Ack, Chunk, Deny, Digest, Done, Line, Offer, MARKER};
+pub use wire::{
+    as_privmsg, b64, check_field, chunk_line_length, deny, Accept, Ack, Chunk, Deny, Digest, Done, Line, Offer, MARKER,
+};

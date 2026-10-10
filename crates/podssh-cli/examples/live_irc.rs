@@ -307,7 +307,13 @@ async fn join_channel(
     deadline: Instant,
     target: &str,
 ) -> bool {
-    let joins = irc.send_join(channel, None);
+    let joins = match irc.send_join(channel, None) {
+        Ok(joins) => joins,
+        Err(e) => {
+            eprintln!("podssh: channel {channel}: join refused: {e}");
+            return false;
+        }
+    };
     if send_all(runner, &joins, a).await.is_err() {
         return false;
     }
@@ -430,8 +436,9 @@ async fn channel_echo(
             a.echo_chan_long = ok;
         }
     }
-    let parts = irc.send_part(&channel, Some("podssh live probe done"));
-    let _ = send_all(runner, &parts, a).await;
+    if let Ok(parts) = irc.send_part(&channel, Some("podssh live probe done")) {
+        let _ = send_all(runner, &parts, a).await;
+    }
 }
 
 /// Wait for our text back as a PRIVMSG. Numerics log with context: an error
