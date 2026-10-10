@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**266 entries: 134 open, 0 partial, 22 blocked, 110 done.**
+**267 entries: 134 open, 0 partial, 22 blocked, 111 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 13 | 15 |
+| P1 | 2 | 0 | 0 | 14 | 16 |
 | P2 | 51 | 0 | 18 | 81 | 150 |
 | P3 | 81 | 0 | 4 | 15 | 100 |
-| **All** | 134 | 0 | 22 | 110 | 266 |
+| **All** | 134 | 0 | 22 | 111 | 267 |
 
 ## Entries
 
@@ -341,3 +341,4 @@ repository and CI).
 | [T-267](copy.md) | P1 | S | none | defect | done | A copy follows a source that grows, and does not end |
 | [T-268](repo.md) | P1 | S | none | defect | done | A pull that Docker Hub refuses fails a job of CI before its check |
 | [T-269](ssh.md) | P1 | S | none | defect | done | A session can wait for ever when its link ends while it sends |
+| [T-270](resume.md) | P1 | S | none | defect | done | A resume whose far-end task starts late takes the session from a newer one |

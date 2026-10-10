@@ -660,6 +660,76 @@ Prove, native, Windows, 2026-10-09:
 - CI's gate passed at `a3b81d1`, the commit of this repair: each of its
   steps, `libs` included (run 37963246424).
 
+# T-270: A resume whose far-end task starts late takes the session from a newer one
+
+**Source:** the native run of `cargo test --workspace` on 2026-10-10,
+during T-178: the test of moves at full speed lost a link once.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A session that moves twice in a row can lose its newest link: the client
+sees the link end with no word from the far end, and resumes on another.
+No byte is lost, but the test of T-155 at full speed fails, and a user
+would see a loss that should not happen.
+
+## Premise
+
+- Measured: `a_session_moves_while_both_ends_send_at_full_speed`
+  (`crates/podssh-relay/tests/session_move.rs:183-193`) failed once in the
+  native run of the workspace on 2026-10-10, with `[Lost { why: "the link
+  ended with no word from the far end" }]`. It then passed 30 runs alone,
+  60 with four copies at once, 40 with the other test of its file, and 75
+  with three copies at once.
+- Read: the far end numbered each resume when its task reached
+  `run_resumed`, after `far::accept` had sent the `ACCEPT`, and the newest
+  number won (`Keeper::run_resumed`, `crates/podssh-relay/src/session/keep.rs`).
+  At full speed the client moves again as soon as the new link carries
+  256 KiB, so the far end can answer the handshake of a third link before
+  the task of the second reaches `run_resumed`. That task then took a
+  greater number, the third link's `take` gave way to it, and the far end
+  dropped the third link after its handshake.
+
+## Approach
+
+1. Number a resume in `far::accept`'s handshake, under the sessions' lock,
+   before the `ACCEPT` goes out (`Sessions::next_resume`), and carry the
+   number in `Accepted`.
+2. `run_resumed` takes that number, and only raises the newest: an older
+   resume whose task starts late gives way.
+3. A test that orders the tasks so: two resumes answered A then B, B's task
+   first, then A's.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-relay --test session_newest
+cargo test -p podssh-relay --all-features
+```
+
+A gives way at once with "a newer link resumed the session", and B still
+carries the session. Plant: number by the order of the tasks again; the
+test must fail.
+
+## Done
+
+2026-10-10. `Sessions::next_resume` numbers each resume in `far::accept`
+before its `ACCEPT` goes out (`crates/podssh-relay/src/session/sessions.rs`,
+`crates/podssh-relay/src/session/far.rs`); `Accepted` carries the number,
+and `Keeper::run_resumed` only raises the newest
+(`crates/podssh-relay/src/session/keep.rs`).
+- `cargo test -p podssh-relay --test session_newest`: 1 passed. Planted,
+  the number by the order of the tasks: the older resume took the session
+  from the newer, and the test failed at its limit of 5 s.
+- `cargo test -p podssh-relay --all-features`: 181 passed, 0 failed, 14
+  ignored; clippy with no warning, also for `podssh-iroh`. The tests of
+  moves (`--test session_move`) passed 40 runs in a row after the change.
+
 # T-263: A node in plain mode, for a client with no resumable layer
 
 **Source:** the operator's ruling of 2026-10-09 (Q34, `docs/decisions.md`),

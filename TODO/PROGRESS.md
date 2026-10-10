@@ -50,8 +50,8 @@ and `CARGO_BUILD_JOBS=4`:
   relay, `cargo test -p podssh-iroh -p podssh-cli --features
   podssh-cli/iroh-test`, after T-175: 394 passed, 0 failed, 29 ignored.
   CI's gate passed at `b20de13` (T-175; run 38007763879).
-- `cargo test -p podssh-relay --all-features --no-fail-fast`, after T-261:
-  173 passed, 0 failed, 14 ignored (the live tests).
+- `cargo test -p podssh-relay --all-features --no-fail-fast`, after T-270:
+  181 passed, 0 failed, 14 ignored (the live tests).
 - `sh scripts/dev.sh check` (after T-212): green; interop 103 of 103. The steps that
   later changes touched, each alone in the build image after them: green.
 - `cargo test -p podssh-todo`: 71 passed: 15 unit tests, 37 plant tests (35
@@ -62,7 +62,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 266 entries: 134 open, 0 partial, 22 blocked, 110 done.
+`TODO/INDEX.md` holds 267 entries: 134 open, 0 partial, 22 blocked, 111 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

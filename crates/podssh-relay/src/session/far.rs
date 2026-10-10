@@ -60,6 +60,9 @@ pub struct Accepted<L> {
     decoder: Decoder,
     established: Box<Established>,
     settings: Settings,
+    /// A resume's number, in the order of the handshakes; 0 for a new
+    /// session.
+    resume: u64,
 }
 
 /// Greet the client on `link`, and accept the session that it opens or
@@ -78,11 +81,11 @@ where
     send(&mut link, &greeting).await?;
     let mut decoder = Decoder::new();
     let shaken = tokio::time::timeout(HANDSHAKE_LIMIT, shake(&mut link, &mut decoder, handshake, sessions, entropy));
-    let established = match shaken.await {
+    let (established, resume) = match shaken.await {
         Ok(result) => result?,
         Err(_) => return Err(FarError::Timeout),
     };
-    Ok(Accepted { link, decoder, established, settings })
+    Ok(Accepted { link, decoder, established, settings, resume })
 }
 
 async fn shake<L>(
@@ -91,7 +94,7 @@ async fn shake<L>(
     mut handshake: FarHandshake,
     sessions: &Mutex<Sessions>,
     entropy: &mut (dyn Entropy + Send),
-) -> Result<Box<Established>, FarError>
+) -> Result<(Box<Established>, u64), FarError>
 where
     L: AsyncRead + AsyncWrite + Unpin,
 {
@@ -106,10 +109,18 @@ where
                 Step::Send(record) => send(link, &record).await?,
                 Step::Wait => {}
                 Step::Established(accept, established) => {
+                    // A resume's place is set before its answer goes out:
+                    // the task that runs it may start late, after a newer
+                    // resume of the same client.
+                    let resume = if established.resumed {
+                        sessions.lock().unwrap_or_else(|e| e.into_inner()).next_resume()
+                    } else {
+                        0
+                    };
                     if let Some(accept) = accept {
                         send(link, &accept).await?;
                     }
-                    return Ok(established);
+                    return Ok((established, resume));
                 }
                 Step::Refuse(refusal, error) => {
                     // The client reads why before the link ends.
@@ -193,6 +204,12 @@ where
         (self.link, self.decoder, self.established, self.settings)
     }
 
+    /// The resume's number, in the order of the handshakes; 0 for a new
+    /// session.
+    pub(crate) fn resume(&self) -> u64 {
+        self.resume
+    }
+
     /// End the session at once, with `reason` in a `CLOSE` (its target could
     /// not be reached, or the far end keeps as many sessions as it can): the
     /// session is forgotten, and the client ends with the reason.
@@ -213,7 +230,7 @@ where
     where
         A: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        let Accepted { link, decoder, established, settings } = self;
+        let Accepted { link, decoder, established, settings, .. } = self;
         let mut carry = Carry::new(settings.link(&established));
         let mut app = app;
         let ended = pump::run(&mut app, link, decoder, &mut carry, &pump::Watch::default()).await;

@@ -35,6 +35,8 @@ impl Kept {
 #[derive(Default)]
 pub struct Sessions {
     kept: HashMap<SessionId, Kept>,
+    /// The resumes so far, in the order of their handshakes.
+    resumes: u64,
 }
 
 impl Sessions {
@@ -86,6 +88,14 @@ impl Sessions {
 
     pub(crate) fn secret(&self, id: &SessionId) -> Option<&Secret> {
         self.kept.get(id).map(|kept| &kept.secret)
+    }
+
+    /// The number of a resume whose handshake answers now: taken before its
+    /// `ACCEPT` goes out, so a later resume of the client, which waits for
+    /// that answer, always has a greater one.
+    pub(crate) fn next_resume(&mut self) -> u64 {
+        self.resumes += 1;
+        self.resumes
     }
 }
 

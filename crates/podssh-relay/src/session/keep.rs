@@ -7,10 +7,11 @@
 //! not yet seen fail: the old link is told to stop, and the new one goes on
 //! from the client's offset once it has. The newest resume wins: the client
 //! runs one handshake at a time, so an older resume that still waits is a
-//! link that the client left, and it gives way.
+//! link that the client left, and it gives way. Newest is by the order of
+//! the handshakes, which [`super::far::accept`] numbers before it answers,
+//! not by the order in which their tasks start (T-270).
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -71,7 +72,6 @@ pub struct Keeper<A> {
     slots: Mutex<HashMap<SessionId, Slot<A>>>,
     /// The newest resume of each session, by its number.
     newest: Mutex<HashMap<SessionId, u64>>,
-    resumes: AtomicU64,
     deadline: Duration,
 }
 
@@ -85,7 +85,6 @@ where
             sessions: Mutex::new(Sessions::new()),
             slots: Mutex::new(HashMap::new()),
             newest: Mutex::new(HashMap::new()),
-            resumes: AtomicU64::new(0),
             deadline,
         }
     }
@@ -128,10 +127,15 @@ where
     where
         L: AsyncRead + AsyncWrite + Unpin + Send,
     {
+        let number = accepted.resume();
         let (mut link, decoder, established, _) = accepted.into_parts();
         let id = established.id;
-        let number = self.resumes.fetch_add(1, Ordering::SeqCst) + 1;
-        lock(&self.newest).insert(id, number);
+        // Only raised: an older resume whose task starts late gives way.
+        {
+            let mut newest = lock(&self.newest);
+            let at = newest.entry(id).or_insert(number);
+            *at = (*at).max(number);
+        }
         let (watch, done) = (Arc::new(Watch::default()), Arc::new(Notify::new()));
         let (mut app, mut carry) = match self.take(&id, number, &watch, &done).await {
             Ok(taken) => taken,
