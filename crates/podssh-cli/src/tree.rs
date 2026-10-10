@@ -296,7 +296,12 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
 
     if verb.name == "pipe" {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
-        return Parsed::Pipe(Box::new(crate::pipe::PipeArgs { a: get("a"), b: get("b"), refused }));
+        return Parsed::Pipe(Box::new(crate::pipe::PipeArgs {
+            a: get("a"),
+            b: get("b"),
+            ssh: crate::ssh::args::SshArgs::from_matches(&matches),
+            refused,
+        }));
     }
 
     if verb.name == "operator" {

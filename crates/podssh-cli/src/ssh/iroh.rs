@@ -6,7 +6,7 @@
 //! ticket changes with its home relay.
 
 #[cfg(feature = "iroh")]
-mod dial;
+pub(crate) mod dial;
 #[cfg(feature = "iroh")]
 mod race;
 
@@ -121,7 +121,7 @@ pub(super) fn race(args: &super::args::SshArgs) -> Result<Option<Race>, Refusal>
 /// bad flag is a usage error (64), a bad variable a configuration error
 /// (78), as the relay's own flag and variable are.
 #[cfg(feature = "iroh")]
-fn relays(flag: Option<&str>) -> Result<Vec<String>, Refusal> {
+pub(crate) fn relays(flag: Option<&str>) -> Result<Vec<String>, Refusal> {
     match podssh_iroh::relays::from_environment(flag) {
         Ok((list, _)) => Ok(list.iter().map(ToString::to_string).collect()),
         Err(why) if flag.is_some() => Err(Refusal::usage(why)),
@@ -130,7 +130,7 @@ fn relays(flag: Option<&str>) -> Result<Vec<String>, Refusal> {
 }
 
 #[cfg(not(feature = "iroh"))]
-fn relays(_: Option<&str>) -> Result<Vec<String>, Refusal> {
+pub(crate) fn relays(_: Option<&str>) -> Result<Vec<String>, Refusal> {
     Ok(Vec::new())
 }
 

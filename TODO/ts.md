@@ -31,7 +31,7 @@ the rest is read. `bound` wraps only `TsNode::start` and `tcp_connect`
 (`crates/podssh-cli/src/ts.rs:207-221`, `crates/podssh-cli/src/ts.rs:353-363`), not `node.status()`
 or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs:289`, `crates/podssh-cli/src/ts.rs:344`). The
 module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs:9-14`),
-and `docs/cli.md:480-482` makes that a rule.
+and `docs/cli.md:495-497` makes that a rule.
 
 Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs:76-79`), whose reply
 waits in a queue until a map with the self node arrives
@@ -99,9 +99,9 @@ of an OpenSSH `ProxyCommand` (`crates/podssh-ts/src/pipe.rs:51-61`). The test
 (`crates/podssh-ts/tests/pipe.rs:62-95`). The next test accepts the same
 (`crates/podssh-ts/tests/pipe.rs:97-122`).
 
-Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/src/proxy.rs:196-212`),
-and a closed stdout is a clean end there (`crates/podssh-cli/src/proxy.rs:272-275`) and in the rules
-(`docs/cli.md:458`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:384-387`).
+Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/src/pipe/relay.rs:94-108`),
+and a closed stdout is a clean end there (`crates/podssh-cli/src/pipe/relay.rs:197-201`) and in the rules
+(`docs/cli.md:473`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:384-387`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
 (`docs/relay.md:186`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs:77-81`).
@@ -319,7 +319,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:302` and `crates/podssh-cli/src/man/notes.rs:314-316`.
+   `docs/tailscale.md`, `docs/STATUS.md:302` and `crates/podssh-cli/src/man/notes.rs:324-326`.
 
 ## Decision
 
@@ -449,7 +449,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:64`, `docs/tailscale.md:8-19` and
-   `crates/podssh-cli/src/man/notes.rs:314-316`.
+   `crates/podssh-cli/src/man/notes.rs:324-326`.
 
 ## Prove
 
@@ -514,7 +514,7 @@ stream (`crates/podssh-cli/src/ts.rs:371-373`). `proxy --jsonl` is refused at pa
 3. Keep errors on stderr as text; the exit code stays the result. T-104 and T-105 add events (a
    drop, a new connection, a refusal) to this form when their states exist.
 4. Change the help text of the row (`crates/podssh-cli/src/flags.rs:289-290`) and the notes of the
-   manual (`crates/podssh-cli/src/man/notes.rs:314-316`) in the same commit. The tests of the manual
+   manual (`crates/podssh-cli/src/man/notes.rs:324-326`) in the same commit. The tests of the manual
    compare the row with the help.
 
 ## Decision

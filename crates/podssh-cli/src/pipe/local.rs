@@ -24,11 +24,13 @@ pub struct Unopened {
 /// Open `address`, in a tokio runtime.
 pub fn open(address: &Address) -> Result<End, Unopened> {
     match address {
-        Address::Stdio => {
-            Ok(End { read: Box::new(tokio::io::stdin()), write: Box::new(tokio::io::stdout()), child: None })
-        }
+        Address::Stdio => Ok(stdio()),
         Address::Fd(n) => descriptor(*n),
         Address::Exec(words) => exec(words, &socketpair),
+        // A remote address goes to its road (`remote`), never here.
+        Address::Relay { .. } | Address::Tcp { .. } | Address::Ssh { .. } | Address::Node(_) | Address::Iroh(_) => {
+            Err(Unopened { code: crate::exit_codes::EXIT_SOFTWARE, why: "a remote address is not a local end".into() })
+        }
     }
 }
 
@@ -45,6 +47,11 @@ fn socketpair() -> io::Result<Pair> {
 #[cfg(not(unix))]
 fn socketpair() -> io::Result<Pair> {
     Err(io::Error::new(io::ErrorKind::Unsupported, "no socketpair here"))
+}
+
+/// stdin and stdout.
+pub fn stdio() -> End {
+    End::plain(Box::new(tokio::io::stdin()), Box::new(tokio::io::stdout()))
 }
 
 /// Start `words` with a socketpair from `pair`, or with two pipes when it
@@ -78,7 +85,7 @@ fn with_socketpair(
     ours.set_nonblocking(true).map_err(failed)?;
     let ours = tokio::net::UnixStream::from_std(ours).map_err(failed)?;
     let (read, write) = ours.into_split();
-    Ok(End { read: Box::new(read), write: Box::new(write), child: Some(child) })
+    Ok(child_end(Box::new(read), Box::new(write), child))
 }
 
 fn with_pipes(mut cmd: Command, words: &[String]) -> Result<End, Unopened> {
@@ -87,7 +94,11 @@ fn with_pipes(mut cmd: Command, words: &[String]) -> Result<End, Unopened> {
     let (Some(stdin), Some(stdout)) = (child.stdin.take(), child.stdout.take()) else {
         return Err(Unopened { code: 126, why: format!("exec:{}: no pipes to the child", words[0]) });
     };
-    Ok(End { read: Box::new(stdout), write: Box::new(stdin), child: Some(child) })
+    Ok(child_end(Box::new(stdout), Box::new(stdin), child))
+}
+
+fn child_end(read: super::pump::Reader, write: super::pump::Writer, child: tokio::process::Child) -> End {
+    End { read, write, child: Some(child), last_word: false, ending: None }
 }
 
 /// A program that cannot start gives what a shell gives: 127 when it is not
@@ -129,7 +140,7 @@ fn descriptor(n: i32) -> Result<End, Unopened> {
     // came from the parent for podssh to use, and `reading` is a new copy.
     let (read, write) = unsafe { (std::fs::File::from_raw_fd(reading), std::fs::File::from_raw_fd(n)) };
     let write = FdWrite { file: tokio::fs::File::from_std(write), fd: n };
-    Ok(End { read: Box::new(tokio::fs::File::from_std(read)), write: Box::new(write), child: None })
+    Ok(End::plain(Box::new(tokio::fs::File::from_std(read)), Box::new(write)))
 }
 
 #[cfg(not(unix))]

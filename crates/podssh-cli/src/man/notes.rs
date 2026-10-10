@@ -169,20 +169,30 @@ const PROXY: &[&str] = &[
 const PIPE: &[&str] = &[
     "podssh pipe A B joins two byte streams, as socat does, with no listener: what A gives goes to B, \
      and what B gives goes to A. Each address is KIND:REST: - or stdio (stdin and stdout), fd:N (a \
-     descriptor that podssh inherited, 3 or more, on Unix), or exec:CMD (a program). Both are checked \
-     before anything starts, and stdio on both sides is refused.",
+     descriptor that podssh inherited, 3 or more, on Unix), or exec:CMD (a program); relay:HOST:PORT \
+     (TCP through the relay, as podssh proxy carries it), tcp:HOST:PORT (TCP from this host, through \
+     HTTPS_PROXY when it is set), ssh:[USER@]HOP[,HOP...],HOST:PORT (TCP that the last SSH hop opens, \
+     as -W asks), node:NAME (the TARGET of the node of a pair), or iroh:TICKET (the TARGET of a node \
+     of the iroh road). Both are checked before anything starts, and stdio on both sides is refused.",
+    "The hops of ssh: log in as podssh ssh logs in: through the relay, or with --direct, with -i and \
+     -o; an -o of a session (RequestTTY, RemoteCommand) is refused. node: takes the pair stored under \
+     NAME, or the one of --pair-file. iroh: takes this client's key of --iroh-key, and the relays of \
+     --iroh-relay after the ticket's.",
     "exec:CMD starts the program with no shell: its words split at blanks, with single and double \
      quotes, and no variables, globs or escapes; exec:sh -c 'CMD' names a shell. The program gets one \
      end of a socketpair as its stdin and stdout, or two pipes where a socketpair is refused and on \
      Windows. Its stderr is podssh's.",
     "When one side's input ends, the other side gets the end of its input, and the other direction goes \
-     on, so that a reply still comes back. The pipe ends when both have ended, when a side's reader is \
-     gone, or when a program has exited and its output has ended. podssh waits for each program, as a \
-     shell does.",
-    "The exit status is the program's (B's when both are programs), 128 + N for a signal, 127 for a \
-     program that is not found and 126 for one that cannot run; with no program, 0. The addresses \
-     relay:, ssh:, node:, iroh:, unix-connect:, unix-listen:, tcp-listen: and serial: are not built yet, \
-     and exit 70.",
+     on, so that a reply still comes back: tcp: and ssh: pass it on as a half-close. The relay has no \
+     half-close, so relay: sends nothing at the end of input, and the target's bytes come until it \
+     closes; node: and iroh: end their session. The pipe ends when both have ended, when a side's \
+     reader is gone, when a program has exited and its output has ended, or when a road has ended. \
+     podssh waits for each program, as a shell does.",
+    "A road that failed gives the exit status, as podssh proxy gives it: 69 for a road out of reach, 77 \
+     for a refusal (of the relay, a proxy, a host key or a login) and 78 for a setting that cannot be \
+     used. Else the status is the program's (B's when both are programs), 128 + N for a signal, 127 for \
+     a program that is not found and 126 for one that cannot run; with neither, 0. The addresses \
+     unix-connect:, unix-listen:, tcp-listen: and serial: are not built yet, and exit 70.",
 ];
 
 const NODE: &[&str] = &[

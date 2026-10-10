@@ -6,8 +6,13 @@
 //! on: a reply on its way still comes back (an end's write half closes only
 //! itself, as a TCP half-close does). A writer whose reader is gone ends the
 //! pipe, as a reader that left wants no more. An end with a child ends the
-//! pipe when its output ended and the child exited: the other side's input
-//! may never end (a terminal), and nobody would read it.
+//! pipe when its output ended and the child exited, and an end whose output
+//! is its last word (a relay's session that closed) ends it when its output
+//! ends: the other side's input may never end (a terminal), and nobody
+//! would read it.
+
+use std::future::Future;
+use std::pin::Pin;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::process::Child;
@@ -18,12 +23,39 @@ const CHUNK: usize = 32 * 1024;
 pub type Reader = Box<dyn AsyncRead + Send + Unpin>;
 pub type Writer = Box<dyn AsyncWrite + Send + Unpin>;
 
-/// One side of a pipe: what it gives, what it takes, and its child, if it
-/// started one.
+/// One side of a pipe: what it gives, what it takes, its child, if it
+/// started one, and what is left to do after the pump.
 pub struct End {
     pub read: Reader,
     pub write: Writer,
     pub child: Option<Child>,
+    /// The end of this side's output ends the pipe: nothing more can come.
+    pub last_word: bool,
+    pub ending: Option<Box<dyn Ending>>,
+}
+
+impl End {
+    /// A local end: its handles alone.
+    pub fn plain(read: Reader, write: Writer) -> End {
+        End { read, write, child: None, last_word: false, ending: None }
+    }
+}
+
+/// How a road ended, once the pump is done with it: an exit code and the
+/// lines that say why, or `None` for a clean end.
+pub type Verdict = Option<(i32, Vec<String>)>;
+
+/// What a remote end does after the pump: close what is still open, and say
+/// how its road ended.
+pub trait Ending: Send {
+    fn finish(self: Box<Self>) -> Pin<Box<dyn Future<Output = Verdict> + Send>>;
+}
+
+/// What the pump hands back of one side: its child, to be waited for, and
+/// its ending.
+pub struct Left {
+    pub child: Option<Child>,
+    pub ending: Option<Box<dyn Ending>>,
 }
 
 /// How one direction ended.
@@ -35,10 +67,10 @@ pub enum Flow {
     Gone,
 }
 
-/// The children that the pump hands back, to be waited for.
+/// What the pump hands back of each side.
 pub struct Pumped {
-    pub a: Option<Child>,
-    pub b: Option<Child>,
+    pub a: Left,
+    pub b: Left,
 }
 
 /// Copy `from` to `to` until `from` ends, then shut `to` down.
@@ -58,12 +90,12 @@ pub async fn copy(mut from: Reader, mut to: Writer) -> Flow {
     }
 }
 
-/// Copy both ways until each input ended, a reader is gone, or a child
-/// exited after its output ended. The ends' handles go when this returns, so
-/// a child that still runs gets the end of its input.
+/// Copy both ways until each input ended, a reader is gone, or a side whose
+/// output ended has no more to say. The ends' handles go when this returns,
+/// so a child that still runs gets the end of its input.
 pub async fn pump(a: End, b: End) -> Pumped {
-    let End { read: a_read, write: a_write, child: mut a_child } = a;
-    let End { read: b_read, write: b_write, child: mut b_child } = b;
+    let End { read: a_read, write: a_write, child: mut a_child, last_word: a_last, ending: a_ending } = a;
+    let End { read: b_read, write: b_write, child: mut b_child, last_word: b_last, ending: b_ending } = b;
     let a_to_b = copy(a_read, b_write);
     let b_to_a = copy(b_read, a_write);
     tokio::pin!(a_to_b);
@@ -84,19 +116,23 @@ pub async fn pump(a: End, b: End) -> Pumped {
                 }
                 b_done = true;
             }
-            () = exited(&mut a_child), if a_done && !b_done => break,
-            () = exited(&mut b_child), if b_done && !a_done => break,
+            () = said(&mut a_child, a_last), if a_done && !b_done => break,
+            () = said(&mut b_child, b_last), if b_done && !a_done => break,
         }
         if a_done && b_done {
             break;
         }
     }
-    Pumped { a: a_child, b: b_child }
+    Pumped { a: Left { child: a_child, ending: a_ending }, b: Left { child: b_child, ending: b_ending } }
 }
 
-/// When the child exits; never, with no child. tokio keeps the status, so a
-/// later wait gets it again.
-async fn exited(child: &mut Option<Child>) {
+/// When a side whose output ended has said all that it will: at once when
+/// its output was its last word, when its child exits, else never. tokio
+/// keeps a child's status, so a later wait gets it again.
+async fn said(child: &mut Option<Child>, last_word: bool) {
+    if last_word {
+        return;
+    }
     match child {
         Some(child) => {
             let _ = child.wait().await;
@@ -112,7 +148,7 @@ mod tests {
 
     fn end(stream: tokio::io::DuplexStream) -> End {
         let (read, write) = tokio::io::split(stream);
-        End { read: Box::new(read), write: Box::new(write), child: None }
+        End::plain(Box::new(read), Box::new(write))
     }
 
     /// The end of one side's input reaches the other side, and the reply

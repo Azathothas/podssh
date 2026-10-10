@@ -413,11 +413,19 @@ commands. The rules behind them:
 
 - **No listener.** `podssh pipe A B` joins two byte streams that exist
   already: stdin and stdout (`-` or `stdio`), a descriptor that the caller
-  opened (`fd:N`, 3 or more, on Unix), or a program (`exec:CMD`). Both
+  opened (`fd:N`, 3 or more, on Unix), a program (`exec:CMD`), or a road
+  (T-175): `relay:HOST:PORT`, `tcp:HOST:PORT`,
+  `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME` and `iroh:TICKET`. Both
   addresses are checked before anything starts; an unknown kind is a usage
-  error (64) that lists the kinds, and a kind of a later entry (`relay:`,
-  `ssh:`, `node:`, `iroh:`, `unix-connect:`, `unix-listen:`, `tcp-listen:`,
-  `serial:`) exits 70.
+  error (64) that lists the kinds, and a kind of a later entry
+  (`unix-connect:`, `unix-listen:`, `tcp-listen:`, `serial:`) exits 70.
+- **The roads, as the other commands take them.** `relay:` is what
+  `podssh proxy` carries: since T-175, proxy runs the pipe of `stdio` and
+  `relay:`, with its words and codes. `tcp:` dials as `ssh --direct` does.
+  The hops of `ssh:` log in as `podssh ssh` does, with `-i`, `-o`
+  (a keyword of a session, such as `RequestTTY`, is refused) and `--direct`;
+  `node:` takes the pair of the label or of `--pair-file`; `iroh:` the key
+  of `--iroh-key` and the relays of `--iroh-relay`.
 - **No shell.** `exec:` splits its words with single and double quotes
   only, as podssh assumes no shell; `exec:sh -c 'CMD'` names one. The child
   gets one end of a socketpair as its stdin and stdout, so that the end of
@@ -425,12 +433,19 @@ commands. The rules behind them:
   sandbox's seccomp) and on Windows. Its stderr is podssh's.
 - **Half-close, as `podssh proxy` does.** When one side's input ends, the
   other side's write half is shut, and the other direction goes on: a reply
-  still comes back. A writer whose reader is gone ends the pipe; a program
-  that exited after its output ended ends it too, as the other side's input
-  may never end. podssh waits for each program, as a shell does.
-- **The exit status of a shell.** The program's, B's when both are
-  programs, 128 + N for a signal, 127 for a program that is not found and 126
-  for one that cannot run; with no program, 0.
+  still comes back. `tcp:` and `ssh:` pass it on as TCP and SSH do; the
+  relay has no half-close, so `relay:` sends no Close, and the target's
+  bytes come until it closes; `node:` and `iroh:` end their session, whose
+  layer has no half-close. A writer whose reader is gone ends the pipe; a
+  program that exited after its output ended ends it too, and so does a
+  road that ended, as the other side's input may never end. podssh waits
+  for each program, as a shell does.
+- **The exit status.** A road that failed gives it, as `podssh proxy` gives
+  it: 69 for a road out of reach, 77 for a refusal (the relay, a proxy, a
+  host key, a login) and 78 for a setting that cannot be used. Else the
+  program's, B's when both are programs, 128 + N for a signal, 127 for a
+  program that is not found and 126 for one that cannot run; with neither,
+  0.
 
 ## Exit codes
 

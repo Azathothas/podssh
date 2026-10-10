@@ -73,16 +73,27 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
     // has ended, so it is not waited for.
     runtime.shutdown_background();
     match ran {
-        Ok(Carried { why: Some(why), .. }) => {
-            let _ = writeln!(err, "podssh operator: {label}: {why}");
-            Fault::SessionFault.code()
-        }
-        Ok(Carried { why: None, leg: Some(outcome) }) => finish(&label, &outcome, err),
-        Ok(Carried { why: None, leg: None }) => {
-            let _ = writeln!(err, "podssh operator: {label}: the relay did not end the session in time");
-            Fault::RelayUnreachable.code()
-        }
+        Ok(carried) => match judged(&label, &carried) {
+            None => 0,
+            Some((code, why)) => {
+                let _ = writeln!(err, "podssh operator: {label}: {why}");
+                code
+            }
+        },
         Err(e) => pairs::connect_refusal(&e, &label).report("operator", err),
+    }
+}
+
+/// How a session to the node of `label` ended: the exit code and the line
+/// that says why, or `None` for a clean end. `podssh pipe node:` judges by
+/// it too.
+pub(crate) fn judged(label: &str, carried: &Carried) -> Option<(i32, String)> {
+    match carried {
+        Carried { why: Some(why), .. } => Some((Fault::SessionFault.code(), why.clone())),
+        Carried { why: None, leg: Some(outcome) } => verdict(label, outcome).map(|(fault, why)| (fault.code(), why)),
+        Carried { why: None, leg: None } => {
+            Some((Fault::RelayUnreachable.code(), "the relay did not end the session in time".to_string()))
+        }
     }
 }
 
@@ -95,10 +106,11 @@ fn prepare(args: &OperatorArgs) -> Result<(String, podssh_relay::pair::OperatorP
     Ok((label, part))
 }
 
-/// The exit code for each end of the session, by the table of `exitmap`.
-fn finish(label: &str, outcome: &Outcome, err: &mut dyn Write) -> i32 {
+/// The fault for each end of the session, by the table of `exitmap`; none
+/// for a clean end.
+fn verdict(label: &str, outcome: &Outcome) -> Option<(Fault, String)> {
     let (fault, why) = match outcome {
-        Outcome::LocalEnd | Outcome::Ended { code: 1000, .. } => return 0,
+        Outcome::LocalEnd | Outcome::Ended { code: 1000, .. } => return None,
         Outcome::NeverReady { code: Some(code), reason } => {
             (Fault::RelayUnreachable, format!("the node did not take the session (relay close {code}): {reason}"))
         }
@@ -119,6 +131,5 @@ fn finish(label: &str, outcome: &Outcome, err: &mut dyn Write) -> i32 {
         }
         Outcome::Ended { code, reason } => (Fault::RelayUnreachable, pairs::session_end(*code, reason)),
     };
-    let _ = writeln!(err, "podssh operator: {label}: {why}");
-    fault.code()
+    Some((fault, why))
 }

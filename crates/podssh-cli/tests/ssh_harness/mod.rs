@@ -7,7 +7,8 @@
 //! no input after their first bytes, so the client's window runs out; 2 s
 //! later `hold` ends the connection with no word, and `quit` exits 3 and
 //! closes its channel, as a command that reads no input (`head`, `true`)
-//! does while a large file comes.
+//! does while a large file comes. A direct-tcpip channel (`-W`, `podssh pipe
+//! ssh:`) reaches its HOST:PORT from the server, each way with its half-close.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -41,6 +42,29 @@ impl server::Handler for Far {
 
     async fn auth_none(&mut self, _user: &str) -> Result<Auth, Self::Error> {
         Ok(Auth::Accept)
+    }
+
+    async fn channel_open_direct_tcpip(
+        &mut self,
+        channel: Channel<Msg>,
+        host: &str,
+        port: u32,
+        _originator: &str,
+        _originator_port: u32,
+        reply: server::ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        match tokio::net::TcpStream::connect(format!("{host}:{port}")).await {
+            Ok(mut tcp) => {
+                reply.accept().await;
+                tokio::spawn(async move {
+                    let mut stream = channel.into_stream();
+                    let _ = tokio::io::copy_bidirectional(&mut stream, &mut tcp).await;
+                });
+            }
+            Err(_) => reply.reject(russh::ChannelOpenFailure::ConnectFailed).await,
+        }
+        Ok(())
     }
 
     async fn channel_open_session(

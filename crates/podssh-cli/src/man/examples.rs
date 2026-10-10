@@ -51,6 +51,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ),
         ("a descriptor that the calling program opened for podssh, on Unix", "podssh pipe fd:3 stdio".into()),
         (
+            "a TCP service behind an SSH server, on stdin and stdout, as -W reaches it",
+            "podssh pipe stdio ssh:user@bastion.example.org,db.internal:5432".into(),
+        ),
+        (
             "offer a service of this host to an operator outside: a pair, with its operator's part in a file",
             "podssh relay pair lab --operator-file lab-operator.json".into(),
         ),

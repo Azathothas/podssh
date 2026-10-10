@@ -8,15 +8,13 @@
 //! stdout carries the target's bytes and nothing else; diagnostics go to
 //! stderr. End of stdin stops sending but keeps receiving (as `nc` does without
 //! `-N`): a WebSocket Close is not a TCP half-close, and sending one would cut
-//! off a reply that is still on its way.
+//! off a reply that is still on its way. Since T-175 it is the pipe of
+//! `stdio` and `relay:HOST:PORT`: one pump, and the relay's end of
+//! `crate::pipe::relay`.
 
 use std::io::Write;
-use std::sync::Arc;
 
-use podssh_ws::frame;
-use podssh_ws::session::close_code_and_reason;
-use podssh_ws::{RelaySession, Trust};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use podssh_ws::Trust;
 
 use podssh_relay::open::{OpenError, Request};
 use podssh_relay::relay::{self, RelayList};
@@ -144,7 +142,11 @@ async fn session(relays: &RelayList, path: &str, trust: &Trust, target: &str, v6
     })
     .await;
     match opened {
-        Ok(opened) => pump(opened.session, target, v6, err).await,
+        Ok(opened) => {
+            let relayed = crate::pipe::relay::carry(opened.session, target.to_string(), v6);
+            let pumped = crate::pipe::pump::pump(crate::pipe::local::stdio(), relayed).await;
+            crate::pipe::report(pumped, "podssh", err).await
+        }
         Err(failure) => {
             for line in failure.lines(target) {
                 let _ = writeln!(err, "podssh: {line}");
@@ -167,115 +169,5 @@ pub fn sysexit(e: &OpenError) -> i32 {
             _ => EX_UNAVAILABLE,
         },
         _ => EX_UNAVAILABLE,
-    }
-}
-
-/// How the relay-to-stdout direction ended.
-enum Ended {
-    Closed {
-        code: Option<u16>,
-        reason: String,
-    },
-    /// stdout went away (the consumer, e.g. ssh, exited).
-    OutputGone,
-}
-
-/// Copy both directions until the relay ends the session.
-/// `target` (`host:port`) and `v6` (an IPv6 address) are for the note on how
-/// its session ended.
-async fn pump(session: RelaySession, target: &str, v6: bool, err: &mut dyn Write) -> i32 {
-    let session = Arc::new(session);
-    let upstream = stdin_to_relay(session.clone());
-    let downstream = relay_to_stdout(session.clone());
-    // A link that dies without a word is found by pinging, in about 30 s
-    // instead of at the 90 s idle read limit.
-    let liveness = session.watch_liveness(podssh_ws::LIVENESS_EVERY, podssh_ws::LIVENESS_ALLOWED);
-    tokio::pin!(upstream);
-    tokio::pin!(downstream);
-    tokio::pin!(liveness);
-    let mut sending = true;
-    loop {
-        tokio::select! {
-            reason = &mut liveness => {
-                let _ = writeln!(err, "podssh: {reason}");
-                return EX_UNAVAILABLE;
-            }
-            sent = &mut upstream, if sending => match sent {
-                Ok(()) => sending = false,
-                Err(e) => {
-                    let _ = writeln!(err, "podssh: {e}");
-                    return EX_UNAVAILABLE;
-                }
-            },
-            ended = &mut downstream => return finish(ended, &session, target, v6, err).await,
-        }
-    }
-}
-
-async fn stdin_to_relay(session: Arc<RelaySession>) -> Result<(), String> {
-    let mut stdin = tokio::io::stdin();
-    let mut buf = vec![0u8; 32 * 1024];
-    loop {
-        // A stdin that fails to read is treated like one that ended.
-        let n = stdin.read(&mut buf).await.unwrap_or(0);
-        if n == 0 {
-            return Ok(());
-        }
-        session.send_binary(&buf[..n]).await.map_err(|e| format!("sending to the relay failed: {e}"))?;
-    }
-}
-
-async fn relay_to_stdout(session: Arc<RelaySession>) -> Result<Ended, String> {
-    let mut stdout = tokio::io::stdout();
-    loop {
-        let f = session.read_frame().await?;
-        match f.opcode {
-            frame::OPCODE_BINARY if f.payload.is_empty() => {} // the relay's keepalive
-            frame::OPCODE_BINARY => {
-                if stdout.write_all(&f.payload).await.is_err() || stdout.flush().await.is_err() {
-                    return Ok(Ended::OutputGone);
-                }
-            }
-            frame::OPCODE_CLOSE => {
-                let (code, reason) = close_code_and_reason(&f.payload);
-                return Ok(Ended::Closed { code, reason });
-            }
-            frame::OPCODE_TEXT => return Err("the relay sent a text frame on the forward path".into()),
-            other => return Err(format!("the relay sent an unexpected frame (opcode {other:#x})")),
-        }
-    }
-}
-
-async fn finish(
-    ended: Result<Ended, String>,
-    session: &RelaySession,
-    target: &str,
-    v6: bool,
-    err: &mut dyn Write,
-) -> i32 {
-    match ended {
-        // 1000 is a normal end (the target closed). The relay uses 1001 for its
-        // own limits ("idle timeout", "session time cap"), which are not.
-        Ok(Ended::Closed { code: None | Some(1000), .. }) => 0,
-        Ok(Ended::Closed { code: Some(code), reason }) => {
-            // The hop first; `CODE REASON` stays as the relay wrote it.
-            let leg = podssh_ws::session::forward_close(Some(code), &reason);
-            let _ = writeln!(err, "podssh: {}: {code} {reason}", leg.what(target));
-            if let Some(remedy) = leg.remedy(&reason) {
-                let _ = writeln!(err, "podssh: {remedy}");
-            }
-            if let Some(note) = relay::ipv6_note(v6, &reason) {
-                let _ = writeln!(err, "podssh: {note}");
-            }
-            EX_UNAVAILABLE
-        }
-        Ok(Ended::OutputGone) => {
-            let _ = session.send_close(1000, "").await;
-            0
-        }
-        Err(e) => {
-            let _ = writeln!(err, "podssh: {e}");
-            EX_UNAVAILABLE
-        }
     }
 }

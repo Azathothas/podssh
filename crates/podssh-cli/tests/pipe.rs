@@ -50,9 +50,9 @@ fn each_address_is_checked_before_anything_starts() {
         (&["stdio", "-"][..], 64, "stdio on both sides"),
         (&["stdio"][..], 64, "missing B"),
         (&[][..], 64, "missing A and B"),
-        (&["stdio", "tcp:example.org:80"][..], 64, "the kinds are"),
+        (&["stdio", "udp:example.org:80"][..], 64, "the kinds are"),
         (&["stdio", "exec:sh -c 'exit"][..], 64, "does not close"),
-        (&["stdio", "relay:example.org:80"][..], 70, "not built yet"),
+        (&["stdio", "unix-connect:/run/x.sock"][..], 70, "not built yet"),
         (&["fd:x", "stdio"][..], 64, "fd:"),
     ] {
         let (rc, out, err) = pipe(args);

@@ -1,6 +1,7 @@
 //! The dial of `podssh ssh iroh:TICKET` (T-163): this client's key, an
 //! endpoint set up as podssh's other roads, and SSH over a session of the
-//! resumable layer, carried to a new link after each lost one.
+//! resumable layer, carried to a new link after each lost one. `podssh pipe
+//! iroh:` (T-175) sets up its dial the same way (`prepare`).
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -20,37 +21,33 @@ const PIPE: usize = 256 * 1024;
 /// How long the endpoint may take to close after the session.
 const CLOSE_LIMIT: Duration = Duration::from_secs(3);
 
-pub(super) async fn connect(
+/// A dial, set up: the dialer, its endpoint, how the node is shown, and
+/// this client's key as its allowlist names it.
+pub(crate) struct Prepared {
+    pub dialer: Dialer,
+    pub endpoint: iroh::Endpoint,
+    pub shown: String,
+    pub fingerprint: String,
+}
+
+/// Set up the dial of the node of the ticket `text`: this client's key,
+/// the relays (the ticket's first), and the endpoint; else the line that
+/// says why not.
+pub(crate) async fn prepare(
     text: &str,
     key: Option<&str>,
     relays: &[String],
     trust: &Trust,
-    opts: &podssh_ssh::options::Options,
-    log: Arc<Log>,
-) -> i32 {
-    let addr = match ticket::parse(text) {
-        Ok(addr) => addr,
-        Err(why) => {
-            log.error(&why);
-            return EXIT_FAILURE;
-        }
-    };
+    log: &Log,
+) -> Result<Prepared, String> {
+    let addr = ticket::parse(text)?;
     let shown = format!("{}{}", super::SCHEME, keys::fingerprint(&addr.id));
-    if let Err(refusal) = crate::pairs::online() {
-        log.error(&format!("{shown}: {}", refusal.message));
-        return EXIT_FAILURE;
-    }
+    crate::pairs::online().map_err(|refusal| format!("{shown}: {}", refusal.message))?;
     let place = match key {
         Some(file) => Place::File(file.into()),
         None => Place::Cache(keys::CLIENT_FILE.into()),
     };
-    let key = match keys::load(&place, &mut OsEntropy) {
-        Ok(key) => key,
-        Err(why) => {
-            log.error(&format!("{shown}: this client's key: {why}"));
-            return EXIT_FAILURE;
-        }
-    };
+    let key = keys::load(&place, &mut OsEntropy).map_err(|why| format!("{shown}: this client's key: {why}"))?;
     let fingerprint = keys::fingerprint(&key.public());
     let kept = key.path.as_ref().map(|p| p.display().to_string()).unwrap_or_default();
     if key.made {
@@ -81,16 +78,44 @@ pub(super) async fn connect(
         accepts: false,
         ..Options::default()
     };
-    let endpoint = match podssh_iroh::bind(&options).await {
-        Ok(endpoint) => endpoint,
-        Err(e) => {
-            log.error(&format!("{shown}: {e}"));
-            return EXIT_FAILURE;
-        }
-    };
+    let endpoint = podssh_iroh::bind(&options).await.map_err(|e| format!("{shown}: {e}"))?;
     let through: Vec<String> = addr.relay_urls().map(ToString::to_string).collect();
     log.verbose(&format!("connecting to {shown} over the iroh road, through {}", through.join(", ")));
     let dialer = Dialer::new(endpoint.clone(), addr);
+    Ok(Prepared { dialer, endpoint, shown, fingerprint })
+}
+
+/// What a session of the iroh road that failed says; nothing for a clean
+/// end. A refused key names itself, and what lets it in.
+pub(crate) fn why_failed(
+    carried: Result<podssh_relay::session::client::Outcome, Failure>,
+    fingerprint: &str,
+) -> Option<String> {
+    match carried {
+        Err(Failure::Refused) => Some(format!(
+            "the node refused this client's key {fingerprint}: it is not in the node's allowlist; the node's \
+             operator adds the key to the file of --iroh-allow"
+        )),
+        Err(Failure::Failed(why)) => Some(why),
+        Ok(outcome) => crate::layered::why_ended(outcome),
+    }
+}
+
+pub(super) async fn connect(
+    text: &str,
+    key: Option<&str>,
+    relays: &[String],
+    trust: &Trust,
+    opts: &podssh_ssh::options::Options,
+    log: Arc<Log>,
+) -> i32 {
+    let Prepared { dialer, endpoint, shown, fingerprint } = match prepare(text, key, relays, trust, &log).await {
+        Ok(prepared) => prepared,
+        Err(why) => {
+            log.error(&why);
+            return EXIT_FAILURE;
+        }
+    };
     let (ssh_end, layer_end) = tokio::io::duplex(PIPE);
     let say = |line: Line| match line {
         Line::Always(text) => log.info(&format!("{shown}: {text}")),
@@ -104,15 +129,7 @@ pub(super) async fn connect(
         podssh_ssh::run(ssh_end, opts, None, log.clone()),
         podssh_iroh::carry(&dialer, layer_end, settings, note)
     );
-    let why = match carried {
-        Err(Failure::Refused) => Some(format!(
-            "the node refused this client's key {fingerprint}: it is not in the node's allowlist; the node's \
-             operator adds the key to the file of --iroh-allow"
-        )),
-        Err(Failure::Failed(why)) => Some(why),
-        Ok(outcome) => crate::layered::why_ended(outcome),
-    };
-    if let (true, Some(why)) = (code == EXIT_FAILURE, why) {
+    if let (true, Some(why)) = (code == EXIT_FAILURE, why_failed(carried, &fingerprint)) {
         log.error(&format!("{shown}: {why}"));
     }
     dialer.close().await;

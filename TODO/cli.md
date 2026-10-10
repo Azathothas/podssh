@@ -37,7 +37,7 @@ OpenSSH 10.3p1 (`ssh -G -F none`, offline) gives `hostname 2001:db8::1` for
 Read: `parse_hop` already removes the brackets
 (`crates/podssh-cli/src/ssh/resolve.rs:415-463`). The refusal is `check_host`
 (`crates/podssh-ws/src/names.rs:8-24`, re-exported by `podssh_relay::relay`), called at
-`crates/podssh-cli/src/ssh/resolve.rs:276`, `crates/podssh-cli/src/proxy.rs:108`
+`crates/podssh-cli/src/ssh/resolve.rs:276`, `crates/podssh-cli/src/proxy.rs:106`
 and in `forward_path` (`crates/podssh-relay/src/relay.rs:139-152`); since this
 entry, each calls `check_target` there. Tests assert the refusal:
 `crates/podssh-relay/src/relay.rs:255`, and `crates/podssh-cli/tests/proxy.rs`
@@ -64,19 +64,19 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
 3. `forward_path` writes the literal in the measured form. `podssh ssh` uses
    the new check at `crates/podssh-cli/src/ssh/resolve.rs:276`, and refuses
    `-4` with an IPv6 literal (64).
-4. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:100-110`): `HOST PORT` takes
+4. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:98-108`): `HOST PORT` takes
    a bare literal (the `%h %p` form) or `[V6]`. One word takes `[V6]:PORT` and
    refuses `V6:PORT`: `2001:db8::1:22` is itself an address. Reuse the rule of
    `split_host_port` (`crates/podssh-ws/src/dial.rs:395-414`).
 5. Messages use `podssh_ws::dial::authority` (`crates/podssh-ws/src/dial.rs:375-382`),
    not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:42`,
-   `crates/podssh-cli/src/proxy.rs:90`, where it is used since this entry). `known_hosts` keeps the literal as
+   `crates/podssh-cli/src/proxy.rs:88`, where it is used since this entry). `known_hosts` keeps the literal as
    typed: `host_name` writes `[V6]:PORT` as OpenSSH does
    (`crates/podssh-ssh/src/known_hosts.rs:53-60`).
 6. Same commit: `docs/cli.md` (lines 62-75 at `3cbf215`), the help at
    `crates/podssh-cli/src/positionals.rs:20` and
    `crates/podssh-cli/src/positionals.rs:81`, an example in
-   `crates/podssh-cli/src/man/examples.rs:8-78`, `docs/relay.md`,
+   `crates/podssh-cli/src/man/examples.rs:8-82`, `docs/relay.md`,
    `docs/STATUS.md`. Use `2001:db8::/32` in offline tests only: the relay
    refuses that range.
 
@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs:452`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:439-440`).
+   (`docs/cli.md:454-455`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs:424-477`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:200-206`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:457` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:472` needs no change.
 
 ## Decision
 
@@ -492,11 +492,11 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:181-185`) read it.
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:28-167`)
-   and an example (`crates/podssh-cli/src/man/examples.rs:8-78`). Pitfall: the
+   and an example (`crates/podssh-cli/src/man/examples.rs:8-82`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:361-369`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:330-344`) that `--` ends the options.
-3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:100-105`): when HOST or PORT
+   (`crates/podssh-cli/src/man/notes.rs:371-379`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:340-354`) that `--` ends the options.
+3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:98-103`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
 4. Check `HostName` with the rule of the destination: one function for the
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts.rs:374-387`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:480-482`;
+   it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:495-497`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -958,7 +958,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
 3. `ONCE` and `repeated` refuse a second `-J`, `-W`, `--relay-host`,
    `--relay-addr` or `--ca-file` with exit 64 before anything connects
    (`crates/podssh-cli/src/ssh/args.rs:57-85`, called at
-   `crates/podssh-cli/src/tree.rs:369-373`).
+   `crates/podssh-cli/src/tree.rs:374-378`).
 4. `docs/cli.md:92-97` and a note of the manual
    (`crates/podssh-cli/src/man/notes.rs:69-71`) state the rule.
 
@@ -1044,7 +1044,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:163-166`
    names `podssh keygen -p`; `docs/cli.md:323-335`, the notes of `keygen`
-   (`crates/podssh-cli/src/man/notes.rs:291-299`), `docs/STATUS.md`.
+   (`crates/podssh-cli/src/man/notes.rs:301-309`), `docs/STATUS.md`.
 
 ## Decision
 
@@ -1401,7 +1401,7 @@ that `forward-remote` names `-W HOST:PORT`
    gives the rule. Same commit: `docs/STATUS.md`.
 
 Pitfall: the manual tests read these texts. `each_name_in_a_note_exists`
-checks each flag that a note names (`crates/podssh-cli/src/man/notes.rs:396-400`),
+checks each flag that a note names (`crates/podssh-cli/src/man/notes.rs:406-410`),
 and the parity tests compare the sentence of each row in `--help` and in the
 manual (`crates/podssh-cli/tests/man_flag_parity.rs`). Change the row and both
 notes in one commit.
@@ -1459,7 +1459,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:439-440` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:454-455` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1482,7 +1482,7 @@ one error for the flag and for the variable. Each caller maps it to 64, at
 `crates/podssh-cli/src/ssh/resolve.rs` line 183), and
 `crates/podssh-cli/src/doctor/mod.rs` lines 47-56 (read, not run). The code 78
 exists (`crates/podssh-cli/src/exitmap.rs:60`), and `podssh proxy` gives it for
-a bad proxy URL or token (`crates/podssh-cli/src/proxy.rs:158-171`).
+a bad proxy URL or token (`crates/podssh-cli/src/proxy.rs:160-173`).
 
 ## Approach
 
@@ -1575,7 +1575,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs:185`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:74`), called at
 `crates/podssh-ssh/src/auth.rs:184`, `crates/podssh-ssh/src/auth.rs:253`,
 `crates/podssh-ssh/src/keys.rs:212` and `crates/podssh-cli/src/keygen.rs:170`.
-Its refusals name the real remedies (`docs/cli.md:466-468`). Commands use
+Its refusals name the real remedies (`docs/cli.md:481-483`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:213-231`,
 `crates/podssh-cli/src/ts.rs:43-52`) and `refuse_jsonl_in_proxy`

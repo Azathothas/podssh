@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**266 entries: 136 open, 0 partial, 22 blocked, 108 done.**
+**266 entries: 135 open, 0 partial, 22 blocked, 109 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 13 | 15 |
-| P2 | 53 | 0 | 18 | 79 | 150 |
+| P2 | 52 | 0 | 18 | 80 | 150 |
 | P3 | 81 | 0 | 4 | 15 | 100 |
-| **All** | 136 | 0 | 22 | 108 | 266 |
+| **All** | 135 | 0 | 22 | 109 | 266 |
 
 ## Entries
 
@@ -248,7 +248,7 @@ repository and CI).
 | [T-172](roads.md) | P3 | S | backlog | research | open | Multipath TCP on the direct road |
 | [T-173](roads.md) | P3 | L | M8 | feature | blocked | Resumption in the relay for a standard sshd |
 | [T-174](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe A B` with local addresses |
-| [T-175](pipe.md) | P2 | M | M7 | feature | open | `podssh pipe` with remote addresses |
+| [T-175](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe` with remote addresses |
 | [T-176](pipe.md) | P2 | S | M7 | feature | open | `podssh pipe` with `unix-connect:PATH` |
 | [T-177](pipe.md) | P3 | M | M7 | feature | open | `podssh pipe` with a local listener after a probe |
 | [T-178](pipe.md) | P2 | M | M7 | feature | open | `--persist`: connect again and attach `tmux` again |
