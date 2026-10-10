@@ -32,7 +32,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:70-95`).
   Two hosts cannot be told apart.
 - Read: a host-key prompt waits for the user
-  (`crates/podssh-ssh/src/hostkey.rs:162-200`); N prompts at once cannot
+  (`crates/podssh-ssh/src/hostkey.rs:207-245`); N prompts at once cannot
   work. `known_hosts` is appended under a lock since T-029
   (`crates/podssh-ssh/src/known_hosts.rs:305-351`).
 - Read: with no cached token, each session mints one
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:29-77`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:689-750`); they cannot define a group.
+  (`docs/cli.md:698-759`); they cannot define a group.
 
 ## Approach
 
@@ -266,7 +266,7 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:78-88` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:83-93` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
 

@@ -3,7 +3,9 @@
 //! file that cannot be read refuses an unknown key and names the file; a key
 //! that cannot be recorded holds for this connection only, and podssh says
 //! why. And `--host-key-fingerprint` (T-031): the named key connects and is
-//! not recorded, and another is refused.
+//! not recorded, and another is refused. And host certificates (T-027): a
+//! server with a certificate from a CA of `known_hosts` connects under
+//! strict checking, with nothing recorded.
 
 mod cleanup;
 mod ssh_harness;
@@ -140,4 +142,67 @@ fn another_fingerprint_is_refused_with_both_named() {
     assert_eq!(out.status.code(), Some(255), "{err}");
     assert!(err.contains(wrong) && err.contains(&fingerprint_of(&dir)), "{err}");
     assert!(!known.exists(), "a refused key was recorded: {err}");
+}
+
+/// The server's host key in `dir`, signed by the CA of seed `ca` for
+/// `principal`, valid for an hour around now.
+fn host_certificate(dir: &Path, ca: u8, principal: &str) -> (russh::keys::Certificate, String) {
+    use russh::keys::ssh_key::certificate::{Builder, CertType};
+    use russh::keys::ssh_key::private::{Ed25519Keypair, PrivateKey};
+    let host = russh::keys::load_secret_key(dir.join("host_key"), None).expect("the host key");
+    let authority = PrivateKey::from(Ed25519Keypair::from_seed(&[ca; 32]));
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+    let mut builder = Builder::new([9u8; 16], host.public_key().key_data().clone(), now - 600, now + 3600).unwrap();
+    builder.cert_type(CertType::Host).unwrap();
+    builder.valid_principal(principal).unwrap();
+    builder.key_id("podssh-test").unwrap();
+    let cert = builder.sign(&authority).unwrap();
+    (cert, authority.public_key().to_openssh().unwrap())
+}
+
+/// The server, with the host key of `dir` and `certificates`, on a runtime of
+/// its own.
+fn server_with(dir: &Path, certificates: Vec<russh::keys::Certificate>) -> (tokio::runtime::Runtime, u16) {
+    let key = dir.join("host_key");
+    if !key.exists() {
+        let made = Command::new(env!("CARGO_BIN_EXE_podssh"))
+            .args(["keygen", "-q", "-t", "ed25519", "-N", "", "-f"])
+            .arg(&key)
+            .status()
+            .unwrap();
+        assert!(made.success());
+    }
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build().unwrap();
+    let port = runtime.block_on(ssh_harness::start_with(&key, certificates)).0;
+    (runtime, port)
+}
+
+#[test]
+fn a_host_certificate_from_a_known_ca_connects_under_strict_checking() {
+    let dir = scratch("certificate");
+    // A first start makes the host key; the certificate signs it.
+    drop(server_with(&dir, Vec::new()));
+    let (cert, ca) = host_certificate(&dir, 3, "127.0.0.1");
+    let (_runtime, port) = server_with(&dir, vec![cert]);
+    let known = dir.join("known_hosts");
+    std::fs::write(&known, format!("@cert-authority [127.0.0.1]:{port} {ca}\n")).unwrap();
+    let before = std::fs::read_to_string(&known).unwrap();
+    let out = ssh_with(port, Some(&known), Some(&dir), &["-o", "StrictHostKeyChecking=yes"]);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(0), "{err}");
+    assert_eq!(std::fs::read_to_string(&known).unwrap(), before, "nothing is recorded: {err}");
+}
+
+#[test]
+fn a_host_certificate_for_another_principal_is_refused() {
+    let dir = scratch("certificate-principal");
+    drop(server_with(&dir, Vec::new()));
+    let (cert, ca) = host_certificate(&dir, 3, "other.example");
+    let (_runtime, port) = server_with(&dir, vec![cert]);
+    let known = dir.join("known_hosts");
+    std::fs::write(&known, format!("@cert-authority [127.0.0.1]:{port} {ca}\n")).unwrap();
+    let out = ssh_with(port, Some(&known), Some(&dir), &["-o", "StrictHostKeyChecking=yes"]);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(255), "{err}");
+    assert!(err.contains("names other.example, not 127.0.0.1"), "{err}");
 }

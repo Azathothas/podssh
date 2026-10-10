@@ -886,7 +886,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:189-195`); the
 operator leg receives text frames (`docs/relay.md:269-272`). A host key is recorded under the target
-host, never the relay's name (`SECURITY.md:72-77`); `HostKeyAlias` exists
+host, never the relay's name (`SECURITY.md:72-82`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:388`). `podssh ssh` uses the exit codes of OpenSSH, and
 `podssh proxy` sysexits (`docs/cli.md:600-604`).
 
@@ -1145,7 +1145,7 @@ Read: credentials are HMAC tokens scoped to a name and a role, issued by the rel
 over a trusted channel (`:137-138`); the node chooses what to expose (`:245-246`).
 
 Read: `podssh ssh` checks host keys with `known_hosts`, and never records one under the relay's name
-(`SECURITY.md:46-50`, `:72-77`). `podssh serve` keeps its host key in a state file and takes
+(`SECURITY.md:46-50`, `:72-82`). `podssh serve` keeps its host key in a state file and takes
 authorized keys from a flag or a file (`docs/ROADMAP.md:177-182`, T-107).
 
 Read in the reports (not verified here): iroh-ssh warns about an ephemeral node key

@@ -6,11 +6,13 @@ mod cleanup;
 
 use std::path::PathBuf;
 
-use podssh_ssh::hostkey::{Policy, Verdict};
+use podssh_ssh::hostkey::{Offer, Policy, Verdict};
 use podssh_ssh::known_hosts::{append, host_name, lookup, lookup_all, recorded_algorithms, Lookup, Recorded};
 use podssh_ssh::log::Log;
 use podssh_ssh::options::{LogLevel, StrictHostKeyChecking};
-use russh::keys::ssh_key::PublicKey;
+use russh::keys::ssh_key::certificate::{Builder, CertType};
+use russh::keys::ssh_key::private::{Ed25519Keypair, PrivateKey};
+use russh::keys::ssh_key::{Certificate, HashAlg, PublicKey};
 
 const A: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFrY8o/Gih84gTH1Xe3+dWQIj69CTwHrBaBcbYacBdYS";
 const B: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFuCj635iAvbyqAVAq82WzngvdvUIT84jHdP+VKHDIxG";
@@ -264,4 +266,104 @@ fn concurrent_append_never_makes_the_file_unreadable() {
     }
     stop.store(true, std::sync::atomic::Ordering::SeqCst);
     writer.join().unwrap();
+}
+
+/// An Ed25519 key from a seed: a test's CA or host key, the same at each run.
+fn seeded(n: u8) -> PrivateKey {
+    PrivateKey::from(Ed25519Keypair::from_seed(&[n; 32]))
+}
+
+fn now() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs()
+}
+
+/// A certificate of the host key of seed `host`, signed by the CA of seed
+/// `ca`, of `kind`, for `principal`, valid from `after` to `before`.
+fn cert(host: u8, ca: u8, kind: CertType, principal: &str, after: u64, before: u64) -> Certificate {
+    let mut builder = Builder::new([7u8; 16], seeded(host).public_key().key_data().clone(), after, before).unwrap();
+    builder.cert_type(kind).unwrap();
+    builder.valid_principal(principal).unwrap();
+    builder.key_id("podssh-test").unwrap();
+    builder.sign(&seeded(ca)).unwrap()
+}
+
+/// The `@cert-authority` line of the CA of seed `ca`, for example.org.
+fn ca_line(marker: &str, ca: u8) -> String {
+    format!("{marker} example.org {}\n", seeded(ca).public_key().to_openssh().unwrap())
+}
+
+/// StrictHostKeyChecking=yes for example.org with `user` as the user file.
+fn strict(user: &std::path::Path) -> Policy {
+    Policy {
+        name: "example.org".into(),
+        strict: StrictHostKeyChecking::Yes,
+        user_files: vec![user.to_path_buf()],
+        no_user_file: None,
+        global_files: Vec::new(),
+        batch_mode: true,
+        pin: None,
+        fingerprints: Vec::new(),
+    }
+}
+
+fn offer(cert: Certificate) -> Offer {
+    Offer::Certificate(Box::new(cert))
+}
+
+/// A host key that a CA of known_hosts signed is accepted under strict
+/// checking, and nothing is recorded (T-027).
+#[test]
+fn cert_authority_signs_a_host_key_that_strict_checking_accepts() {
+    let f = file("ca-good", &ca_line("@cert-authority", 1));
+    let before = std::fs::read_to_string(&f).unwrap();
+    let log = Log::new(LogLevel::Quiet);
+    let good = cert(10, 1, CertType::Host, "example.org", now() - 60, now() + 3600);
+    assert_eq!(strict(&f).check_offer(&offer(good), &log), Verdict::Accept);
+    assert_eq!(std::fs::read_to_string(&f).unwrap(), before, "nothing is recorded");
+}
+
+/// A certificate whose CA no line names is checked as its plain key, which
+/// strict checking refuses; the refusal has both fingerprints.
+#[test]
+fn cert_authority_of_another_ca_falls_back_and_names_both_keys() {
+    let f = file("ca-other", &ca_line("@cert-authority", 2));
+    let log = Log::new(LogLevel::Quiet);
+    let theirs = cert(10, 1, CertType::Host, "example.org", now() - 60, now() + 3600);
+    let host_fp = seeded(10).public_key().fingerprint(HashAlg::Sha256).to_string();
+    let ca_fp = seeded(1).public_key().fingerprint(HashAlg::Sha256).to_string();
+    match strict(&f).check_offer(&offer(theirs), &log) {
+        Verdict::Reject(why) => assert!(why.contains(&host_fp) && why.contains(&ca_fp), "{why}"),
+        Verdict::Accept => panic!("a certificate of a CA that no line names was accepted under strict checking"),
+    }
+}
+
+/// From a CA of known_hosts, an expired certificate, one for another
+/// principal, a user certificate and one of a revoked CA are refused, each
+/// with the check that failed.
+#[test]
+fn cert_authority_refuses_a_certificate_that_fails_a_check() {
+    let f = file("ca-checks", &ca_line("@cert-authority", 1));
+    let log = Log::new(LogLevel::Quiet);
+    let (t, policy) = (now(), strict(&f));
+    let cases = [
+        (cert(10, 1, CertType::Host, "example.org", t - 7200, t - 3600), "has expired"),
+        (cert(10, 1, CertType::Host, "example.org", t + 3600, t + 7200), "is not valid yet"),
+        (cert(10, 1, CertType::Host, "other.example", t - 60, t + 3600), "names other.example, not example.org"),
+        (cert(10, 1, CertType::User, "example.org", t - 60, t + 3600), "is a user certificate"),
+    ];
+    for (offered, says) in cases {
+        match policy.check_offer(&offer(offered), &log) {
+            Verdict::Reject(why) => assert!(why.contains(says), "{says}: {why}"),
+            Verdict::Accept => panic!("accepted a certificate that {says}"),
+        }
+    }
+    let expired = cert(10, 1, CertType::Host, "example.org", t - 7200, t - 3600);
+    let Verdict::Reject(why) = policy.check_offer(&offer(expired), &log) else { panic!("accepted") };
+    assert!(why.contains("clock") && why.contains("podssh doctor"), "the expiry names the clock: {why}");
+    let revoked = file("ca-revoked", &(ca_line("@cert-authority", 1) + &ca_line("@revoked", 1)));
+    let good = cert(10, 1, CertType::Host, "example.org", t - 60, t + 3600);
+    match strict(&revoked).check_offer(&offer(good), &log) {
+        Verdict::Reject(why) => assert!(why.contains("marked @revoked"), "{why}"),
+        Verdict::Accept => panic!("accepted a certificate of a revoked CA"),
+    }
 }

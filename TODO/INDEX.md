@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**275 entries: 102 open, 0 partial, 22 blocked, 151 done.**
+**275 entries: 101 open, 0 partial, 22 blocked, 152 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 21 | 0 | 18 | 115 | 154 |
+| P2 | 20 | 0 | 18 | 116 | 154 |
 | P3 | 79 | 0 | 4 | 19 | 102 |
-| **All** | 102 | 0 | 22 | 151 | 275 |
+| **All** | 101 | 0 | 22 | 152 | 275 |
 
 ## Entries
 
@@ -100,7 +100,7 @@ repository and CI).
 | [T-024](ssh.md) | P2 | S | M3 | defect | done | The first line about a dropped session is generic; name the hop that broke (GitHub #17) |
 | [T-025](ssh.md) | P2 | M | backlog | feature | done | Try a dropped forward session again when it is safe, by the relay's close reason (GitHub #17) |
 | [T-026](ssh.md) | P2 | S | backlog | defect | done | A session that ends with no exit status never reads as a success |
-| [T-027](ssh.md) | P2 | M | backlog | feature | open | Host certificates and `@cert-authority` in `known_hosts` (GitHub #29) |
+| [T-027](ssh.md) | P2 | M | backlog | feature | done | Host certificates and `@cert-authority` in `known_hosts` (GitHub #29) |
 | [T-028](ssh.md) | P2 | S | backlog | defect | done | `accept-new` when `known_hosts` cannot be written: verify, and say that the key was not recorded |
 | [T-029](ssh.md) | P2 | S | backlog | defect | done | Two processes that record the same new host key at the same time |
 | [T-030](ssh.md) | P3 | S | backlog | chore | open | Each hop of a `-J` chain checks its own host key |

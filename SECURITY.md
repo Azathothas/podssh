@@ -71,7 +71,12 @@ Each rule is implemented.
   BEL or a bare CR. One shared function removes them.
 - **`known_hosts` is read as OpenSSH reads it.** Hashed host names use
   HMAC-SHA1 with the decoded salt. `@revoked` and `@cert-authority` are
-  markers, not key types. A revoked key is refused. A bad line is skipped.
+  markers, not key types. A revoked key is refused. A host that a
+  `@cert-authority` line names is asked for a certificate, which is checked
+  as OpenSSH checks it (T-027): the CA, the signature, the validity window,
+  the type, the principal and the critical options; it is accepted with no
+  record, and a certificate from a CA that no line names is checked as its
+  plain key. A CA line never makes a plain key known. A bad line is skipped.
   The message gives the line that matched. A key is recorded under the
   target host, never under the relay's name. A changed key is never replaced
   automatically: podssh gives the file, the line and both fingerprints.
@@ -128,9 +133,6 @@ Each rule is implemented.
 The open defects are entries in [TODO/INDEX.md](TODO/INDEX.md). These affect
 security:
 
-- podssh offers no host certificate algorithm, so a server shows its plain
-  key. podssh does not use `@cert-authority` lines: a host that only such a
-  line trusts is an unknown host (T-027, [TODO/ssh.md](TODO/ssh.md)).
 - A signature with an RSA user key, and an RSA key that `podssh keygen`
   makes, use the `rsa` crate, whose private-key operations are not
   constant-time (RUSTSEC-2023-0071, the Marvin attack; no fixed version). The

@@ -291,6 +291,17 @@ fn client_config(opts: &Options, policy: &Policy) -> Config {
         }
         preferred.key = Cow::Owned(order);
     }
+    // A host that a `@cert-authority` line names is asked for a certificate
+    // first, of each algorithm it may sign with but SHA-1 RSA (T-027).
+    if crate::hostcert::trusted_for(&files, &policy.name) {
+        let certs: Vec<Algorithm> = preferred
+            .key
+            .iter()
+            .filter(|a| !matches!(a, Algorithm::Rsa { hash: None } | Algorithm::Dsa | Algorithm::Other(_)))
+            .cloned()
+            .collect();
+        preferred.host_key_certificates = Cow::Owned(certs);
+    }
     if opts.compression {
         preferred.compression =
             Cow::Owned(vec![russh::compression::ZLIB_LEGACY, russh::compression::ZLIB, russh::compression::NONE]);

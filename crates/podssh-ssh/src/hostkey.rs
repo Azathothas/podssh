@@ -8,8 +8,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use russh::keys::ssh_key::PublicKey;
+use russh::keys::ssh_key::{Certificate, PublicKey};
 
+use crate::hostcert::CertCheck;
 use crate::known_hosts::{self, Lookup, Recorded, Unreadable};
 use crate::log::Log;
 use crate::options::StrictHostKeyChecking;
@@ -61,6 +62,14 @@ impl Pin {
     }
 }
 
+/// What a server offered as its host key: a plain key, or a certificate
+/// (T-027).
+#[derive(Debug, Clone)]
+pub enum Offer {
+    Key(PublicKey),
+    Certificate(Box<Certificate>),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Verdict {
     Accept,
@@ -77,6 +86,42 @@ impl Policy {
     /// A key that passes must also meet the run's pin.
     pub fn check(&self, key: &PublicKey, log: &Log) -> Verdict {
         let verdict = self.check_known(key, log);
+        self.pinned(verdict, key)
+    }
+
+    /// Check what the server offered (T-027): a plain key as [`Policy::check`];
+    /// a certificate against the `@cert-authority` lines, accepted with no
+    /// record when it is valid for this host; and as its plain key when no
+    /// line names its CA, as OpenSSH falls back. The fingerprints of
+    /// `--host-key-fingerprint` decide alone, as for a plain key.
+    pub fn check_offer(&self, offer: &Offer, log: &Log) -> Verdict {
+        let cert = match offer {
+            Offer::Key(key) => return self.check(key, log),
+            Offer::Certificate(cert) => cert,
+        };
+        let plain = PublicKey::new(cert.public_key().clone(), "");
+        if !self.fingerprints.is_empty() {
+            return self.check(&plain, log);
+        }
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+        match crate::hostcert::check(cert, &self.files(), &self.name, now) {
+            CertCheck::Valid => {
+                log.verbose(&format!("the host certificate of '{}' is valid, from a CA of known_hosts", self.name));
+                self.pinned(Verdict::Accept, &plain)
+            }
+            CertCheck::Invalid(why) => Verdict::Reject(why),
+            CertCheck::NoAuthority(why) => {
+                log.verbose(&why);
+                match self.check(&plain, log) {
+                    Verdict::Reject(refusal) => Verdict::Reject(format!("{why}.\n{refusal}")),
+                    accepted => accepted,
+                }
+            }
+        }
+    }
+
+    /// A key that passed must also meet the run's pin.
+    fn pinned(&self, verdict: Verdict, key: &PublicKey) -> Verdict {
         match (&verdict, &self.pin) {
             (Verdict::Accept, Some(pin)) => match pin.admit(&known_hosts::fingerprint(key)) {
                 Ok(()) => verdict,

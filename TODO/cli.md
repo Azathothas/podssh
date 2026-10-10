@@ -491,11 +491,11 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:181-185`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:32-198`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:32-200`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-95`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:389-397`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:358-372`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:391-399`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:360-374`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:98-103`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts.rs:405-418`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:675-677`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:684-686`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -960,7 +960,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:74-106`, called at
    `crates/podssh-cli/src/tree.rs:386-390`).
 4. `docs/cli.md:134-139` and a note of the manual
-   (`crates/podssh-cli/src/man/notes.rs:100-102`) state the rule.
+   (`crates/podssh-cli/src/man/notes.rs:102-104`) state the rule.
 
 ## Prove
 
@@ -1044,7 +1044,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:163-166`
    names `podssh keygen -p`; `docs/cli.md:375-387`, the notes of `keygen`
-   (`crates/podssh-cli/src/man/notes.rs:296-304`), `docs/STATUS.md`.
+   (`crates/podssh-cli/src/man/notes.rs:298-306`), `docs/STATUS.md`.
 
 ## Decision
 

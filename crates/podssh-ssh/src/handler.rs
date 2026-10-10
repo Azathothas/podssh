@@ -8,7 +8,7 @@ use russh::client::{ChannelOpenHandle, DisconnectReason, Handler, Msg, Session};
 use russh::keys::PublicKeyOrCertificate;
 use russh::{Channel, ChannelOpenFailure};
 
-use crate::hostkey::{Policy, Verdict};
+use crate::hostkey::{Offer, Policy, Verdict};
 use crate::log::Log;
 
 /// The last SSH_MSG_DISCONNECT of a server in this process, made safe: a
@@ -93,15 +93,18 @@ impl Handler for Client {
     type Error = russh::Error;
 
     async fn check_server_key(&mut self, key: &PublicKeyOrCertificate) -> Result<bool, Self::Error> {
-        // A host certificate is checked as its plain key: podssh does not
-        // trust certificate authorities (yet), and OpenSSH falls back the same
-        // way when no `@cert-authority` line matches.
-        let key = key.public_key();
+        // A host certificate is checked against the `@cert-authority` lines,
+        // and as its plain key when no line names its CA, as OpenSSH falls
+        // back (T-027).
+        let offer = match key {
+            PublicKeyOrCertificate::Certificate(cert) => Offer::Certificate(Box::new(cert.clone())),
+            plain => Offer::Key(plain.public_key()),
+        };
         let policy = self.policy.clone();
         let log = self.log.clone();
         // The check may wait for the user; keep it off the runtime's thread so
         // the relay's keepalive frames are still read meanwhile.
-        let verdict = tokio::task::spawn_blocking(move || policy.check(&key, &log))
+        let verdict = tokio::task::spawn_blocking(move || policy.check_offer(&offer, &log))
             .await
             .unwrap_or_else(|e| Verdict::Reject(format!("the host key check failed: {e}")));
         match verdict {

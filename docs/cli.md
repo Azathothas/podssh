@@ -660,6 +660,15 @@ rules behind it:
   watches does not stop podssh for ever.
 - `-o BatchMode=yes` makes each prompt a refusal.
 - A changed host key is refused, also on a terminal.
+- A host that a `@cert-authority` line names is asked for a host
+  certificate (T-027), which is checked as OpenSSH checks it: from a CA of
+  such a line, signed, within its validity window, a host certificate,
+  with the host (or `HostKeyAlias`) as a principal, and no critical option.
+  Then it is accepted, also under `StrictHostKeyChecking=yes`, and nothing
+  is recorded. A certificate that fails a check is refused with the check
+  (an expired one names this host's clock, which `podssh doctor` checks),
+  and one from a CA that no line names is checked as its plain key. podssh
+  asks for a principal where OpenSSH takes a certificate with none.
 - Under `accept-new` and `no`, a key that podssh cannot verify is refused
   (T-028): one that no readable file knows while a user `known_hosts` file
   exists and cannot be read (a directory, a FIFO, no permission), as a key

@@ -232,10 +232,17 @@ pub async fn start(key: &Path) -> u16 {
 
 /// [`start`], with the count of the TCP connections that the server took.
 pub async fn start_counting(key: &Path) -> (u16, Arc<AtomicUsize>) {
+    start_with(key, Vec::new()).await
+}
+
+/// [`start_counting`], with host certificates of the key that the server
+/// presents to a client that asks for one (T-027).
+pub async fn start_with(key: &Path, certificates: Vec<russh::keys::Certificate>) -> (u16, Arc<AtomicUsize>) {
     let connections = Arc::new(AtomicUsize::new(0));
     let counted = connections.clone();
     let mut config = server::Config::default();
     config.keys.push(russh::keys::load_secret_key(key, None).expect("the host key"));
+    config.certificates = certificates;
     config.auth_rejection_time = Duration::from_millis(10);
     config.auth_rejection_time_initial = Some(Duration::ZERO);
     let config = Arc::new(config);

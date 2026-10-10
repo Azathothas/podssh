@@ -226,6 +226,27 @@ env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile
     -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes \
     --host-key-fingerprint SHA256:JfDOvc6FaJOB34ANs+ou385/Kh+mMQhnUx0gHXVAfUI "$T" true </dev/null >"$W/out" 2>"$W/err"
 expect_rc "T-031: another fingerprint is refused" 255 $? "$W/err"
+# T-027: OpenSSH's host certificate, signed by a CA that known_hosts names,
+# under strict checking; nothing is recorded. Its own sshd, on port 2211.
+ssh-keygen -q -t ed25519 -N '' -C interop-ca -f "$W/ca_t027"
+ssh-keygen -q -s "$W/ca_t027" -I podssh-t027 -h -n 127.0.0.1 -V -5m:+1h "$W/host_ed25519.pub"
+sshd_conf 2211 "KbdInteractiveAuthentication no" "HostCertificate $W/host_ed25519-cert.pub"
+/usr/sbin/sshd -f "$W/sshd-2211.conf" -E "$W/sshd-2211.log" || cat "$W/sshd-2211.log"
+tries=0
+while ! python3 -c 'import socket; socket.create_connection(("127.0.0.1", 2211), 1).close()' 2>/dev/null; do
+    tries=$((tries + 1))
+    [ "$tries" -ge 50 ] && break
+    sleep 0.1
+done
+printf '@cert-authority [127.0.0.1]:2211 %s\n' "$(cat "$W/ca_t027.pub")" >"$W/kh_ca"
+cp "$W/kh_ca" "$W/kh_ca.before"
+# shellcheck disable=SC2086
+env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2211 -o UserKnownHostsFile="$W/kh_ca" \
+    -o StrictHostKeyChecking=yes -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes "$T" true \
+    </dev/null >"$W/out" 2>"$W/err"
+expect_rc "T-027: a host certificate from a CA of known_hosts, under StrictHostKeyChecking=yes" 0 $? "$W/err"
+cmp -s "$W/kh_ca" "$W/kh_ca.before" && ok "T-027: nothing was recorded" || bad "T-027: known_hosts changed" "$W/kh_ca"
+kill "$(cat "$W/sshd-2211.pid")" 2>/dev/null
 
 echo
 echo "== % tokens, against OpenSSH's own expansion (ssh -G)"

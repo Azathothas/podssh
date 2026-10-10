@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:181`).
+  do not run programs (`docs/STATUS.md:182`).
 
 ## Approach
 
@@ -161,13 +161,13 @@ local program to a target, and `podssh proxy` stays a second pump.
   its write side ends. That is right for SSH and wrong for a pipe: the relay
   has no half-close (`docs/relay.md:84-90`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
-  (`docs/STATUS.md:123`).
+  (`docs/STATUS.md:124`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:12-20`
   after the hops of `crates/podssh-ssh/src/run.rs:136-143`, but that code is
   private and gives only an exit code.
 - Read: `TODO/issues.md` (#26) says that a binary protocol through `-W` is
   measured. Only exec is measured with digests (`docs/STATUS.md:70`); `-W`
-  was checked with a banner of 16 bytes (`scripts/interop.sh:303-304`).
+  was checked with a banner of 16 bytes (`scripts/interop.sh:324-325`).
 - Read: `node:` needs T-084 (M4) and `iroh:` needs T-163 (M6); both are done
   before M7 starts.
 
@@ -315,7 +315,7 @@ not a listener, so `docs/target-environment.md:74-78` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:189-198`,
   `crates/podssh-cli/src/doctor/unix.rs:210-212`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:181`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:182`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -413,9 +413,9 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:437-439`).
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
   `AGENTS.md:192-197`, `docs/architecture.md:102-112`,
-  `docs/target-environment.md:74-78`, `SECURITY.md:78-88`, `README.md:37-42`.
+  `docs/target-environment.md:74-78`, `SECURITY.md:83-93`, `README.md:37-42`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:181`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:182`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs:137-231`). A bind that works does
@@ -587,7 +587,7 @@ running on the server (`docs/design.md:241-243`).
   each session (`crates/podssh-ssh/src/session.rs:111-127`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:194-200`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:189-190`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:190-191`).
 - Read: tmux is never assumed (`docs/target-environment.md:91-93`).
 
 ## Approach
@@ -612,7 +612,7 @@ running on the server (`docs/design.md:241-243`).
    cached token. A prompt with no terminal ends the loop
    (`docs/cli.md:649-651`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes.rs:32-114`), `docs/design.md:241-243`,
+   (`crates/podssh-cli/src/man/notes.rs:32-116`), `docs/design.md:241-243`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:32-33`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
@@ -724,13 +724,13 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
-  (`crates/podssh-cli/src/man/notes.rs:185-189`); a client that calls
+  (`crates/podssh-cli/src/man/notes.rs:187-191`); a client that calls
   `connect()` itself needs a listener (`docs/design.md:440-443`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:137`), then Close 1009 (`docs/relay.md:198`); public
   targets only (`docs/relay.md:139`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:188`).
+  0.7 MB/s (`docs/STATUS.md:189`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 

@@ -25,6 +25,7 @@ pub mod escape;
 pub mod exec;
 pub mod forward;
 pub mod handler;
+pub mod hostcert;
 pub mod hostkey;
 pub mod io;
 pub mod keygen;
