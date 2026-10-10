@@ -155,3 +155,50 @@ fn the_iroh_road_is_refused_in_a_build_without_it() {
         assert!(out.is_empty());
     }
 }
+
+/// `--irc` (T-252): PEER is a channel, the nick follows the grammar of IRC,
+/// and the flags of the roads do not go with it.
+#[test]
+fn the_irc_command_line_refuses_what_does_not_go_with_it() {
+    let home = scratch("chat-irc-usage");
+    for (args, says) in [
+        (vec!["--irc", "irc.example.org", "podssh"], "is not a channel"),
+        (vec!["--irc", "irc.example.org", "#a b"], "is not a channel"),
+        (vec!["--irc", "irc.example.org", "--listen", "#c"], "--listen is for the roads"),
+        (vec!["--irc", "irc.example.org", "--pair-file", "p", "#c"], "--pair-file is for the roads"),
+        (vec!["--irc", "irc.example.org", "--nick", "9lives", "#c"], "an IRC nick is a letter"),
+        (vec!["--irc", "irc.example.org", "--irc-plaintext", "--irc-ca-file", "f", "#c"], "--irc-plaintext turns off"),
+        (vec!["--irc", "irc.example.org:x", "#c"], "--irc"),
+        (vec!["--irc-plaintext", "lab"], "are for --irc SERVER"),
+    ] {
+        let (rc, out, err) = chat(&home, &args);
+        assert_eq!(rc, 64, "{args:?}: {err}");
+        assert!(err.contains(says), "{args:?}: {err}");
+        assert!(out.is_empty(), "{args:?}: stdout {out:?}");
+    }
+}
+
+/// A nick that the variable gives is checked as the flag's is; a bad one is
+/// a setting of the environment (78).
+#[test]
+fn a_bad_nick_of_the_variable_is_a_configuration_error() {
+    let home = scratch("chat-irc-nick");
+    let (rc, _, err) =
+        podssh(&home, &["chat", "--timeout", "5s", "--irc", "irc.example.org", "#c"], &[("PODSSH_NICK", "9lives")]);
+    assert_eq!(rc, 78, "{err}");
+    assert!(err.contains("PODSSH_NICK"), "{err}");
+}
+
+/// With a good command line, the chat goes as far as the network, which
+/// `PODSSH_OFFLINE` stops.
+#[test]
+fn the_irc_chat_reaches_the_network_and_no_further_offline() {
+    let home = scratch("chat-irc-offline");
+    for args in [vec!["--irc", "irc.example.org", "#c"], vec!["--irc", "irc.example.org:6667", "--irc-plaintext", "#c"]]
+    {
+        let (rc, out, err) = chat(&home, &args);
+        assert_eq!(rc, 69, "{args:?}: {err}");
+        assert!(err.contains("not attempted: PODSSH_OFFLINE is set"), "{args:?}: {err}");
+        assert!(out.is_empty());
+    }
+}

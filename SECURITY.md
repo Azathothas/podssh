@@ -137,10 +137,11 @@ security:
   default key, Ed25519, and ECDSA keys do not use it, and an agent keeps the
   key in its own process (T-257, [TODO/ssh.md](TODO/ssh.md)). The check of a
   server's RSA certificate uses only the public key.
-- The IRC client sends plain text through the relay. No command uses it
-  yet: `podssh chat` runs between two podssh ends over the end-to-end
-  channel (T-099), and IRC as its second transport waits for T-252, with TLS
-  inside the relay stream.
+- Over IRC (`podssh chat --irc`, T-252), the server and each user of the
+  channel read the messages: IRC has no end-to-end channel. TLS inside the
+  relay stream is the default, so the relay sees only TLS; `--irc-plaintext`
+  sends plain text, which the relay and each server read, and podssh says
+  so. Between two podssh ends, chat runs the end-to-end channel (T-099).
 - The first session to a node trusts the key that answers (trust on first
   use): a relay in the middle of that first session could have its own key
   pinned. Compare the fingerprint that the node says as it starts, or give

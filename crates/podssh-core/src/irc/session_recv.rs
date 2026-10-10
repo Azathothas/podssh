@@ -116,6 +116,14 @@ impl Session {
                     reason.as_ref().map(|r| r.as_str().to_string()).unwrap_or_default()
                 )));
             }
+            // The server's last word before it closes the link (T-252).
+            Command::Unknown { name, params, trailing } if name.eq_ignore_ascii_case("ERROR") => {
+                let words = trailing
+                    .as_ref()
+                    .map(|t| t.as_str().to_string())
+                    .unwrap_or_else(|| params.iter().map(|p| p.0.as_str()).collect::<Vec<_>>().join(" "));
+                events.push(Event::ServerError(words));
+            }
             Command::Unknown { name, params, .. } => {
                 // A file-transfer line rides on `PRIVMSG`, so it is recognised
                 // there; anything else unknown is reported by name so an

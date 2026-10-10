@@ -63,7 +63,7 @@ Recommendation: the server goes in crates/podssh-ssh/src/server/, and only
 the command line in crates/podssh-cli/src/serve.rs. `docs/design.md:28-30`
 gives `podssh-ssh` the "russh client and server"; the crate links aws-lc
 already (`crates/podssh-ssh/Cargo.toml:12-18`), holds the helpers to reuse,
-and is read by the variable test (`crates/podssh-cli/src/man/facts.rs:342-347`).
+and is read by the variable test (`crates/podssh-cli/src/man/facts.rs:344-349`).
 A new crate lost: it repeats the russh dependency and its C exception, and
 makes the helpers public. `podssh-cli` lost: it is the command line.
 
@@ -1255,7 +1255,7 @@ no reason (`docs/target-environment.md:63-64`).
    (`crates/podssh-cli/src/doctor/host.rs:10-25`) from the same function.
 6. T-108 runs the result. Never call `getpwuid`. Same commit: `--shell` in
    `crates/podssh-cli/src/flags.rs`, `SHELL` in
-   `crates/podssh-cli/src/man/facts.rs:45-132`, `docs/cli.md`.
+   `crates/podssh-cli/src/man/facts.rs:45-134`, `docs/cli.md`.
 
 ## Decision
 

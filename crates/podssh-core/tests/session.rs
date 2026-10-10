@@ -416,3 +416,19 @@ fn this_suite_exercises_a_session_and_not_a_socket() {
     // the network is slow, and a blocked gate is not a passing gate.
     let _ = Command::Ping { token: podssh_core::irc::Trailing::new("x") };
 }
+
+/// The server's `ERROR` is its last word as it closes the link (T-252):
+/// ergo 2.18.0 writes its text as a middle (`ERROR Quit`, the grammar's
+/// fixture), and RFC 2812 as a trailing.
+#[test]
+fn the_servers_error_is_said_with_its_words() {
+    for (line, words) in [
+        ("ERROR Quit\r\n", "Quit"),
+        ("ERROR :Closing Link: pa[127.0.0.1] (Quit: bye)\r\n", "Closing Link: pa[127.0.0.1] (Quit: bye)"),
+    ] {
+        let mut s = registered();
+        let (_, events) = s.on_bytes(line.as_bytes());
+        assert!(events.contains(&Event::ServerError(words.into())), "{line}: {events:?}");
+        assert!(!events.iter().any(|e| matches!(e, Event::Protocol(_))), "{events:?}");
+    }
+}

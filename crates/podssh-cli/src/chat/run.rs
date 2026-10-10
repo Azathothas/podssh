@@ -16,7 +16,7 @@ use super::args::{self, ChatArgs, Input, Peer, Side};
 use super::converse::{Ended, Once, Options};
 use super::lines::Lines;
 use super::output::{safe, Output};
-use super::{iroh, listen, reach};
+use super::{irc, iroh, listen, reach};
 use crate::exitmap::sysexits::{EX_NOPERM, EX_SOFTWARE, EX_TEMPFAIL, EX_UNAVAILABLE};
 use crate::exitmap::Fault;
 
@@ -46,6 +46,7 @@ pub fn run_chat(
         Side::Reach { peer: Peer::Iroh(ticket), ask } => {
             iroh::prepare_reach(ticket, ask, args).map(|ready| Ready::Iroh(Box::new(ready)))
         }
+        Side::Irc(plan) => irc::prepare(plan, opts.nick.clone(), args).map(|ready| Ready::Irc(Box::new(ready))),
     };
     let ready = match ready {
         Ok(ready) => ready,
@@ -76,6 +77,8 @@ enum Ready {
     Both(Box<iroh::Waiting>),
     /// `iroh:TICKET`.
     Iroh(Box<iroh::Reach>),
+    /// `--irc SERVER`.
+    Irc(Box<irc::Ready>),
 }
 
 impl Ready {
@@ -85,6 +88,7 @@ impl Ready {
             Ready::Reach(ready) => &ready.label,
             Ready::Both(ready) => ready.label(),
             Ready::Iroh(ready) => ready.label(),
+            Ready::Irc(ready) => &ready.label,
         }
     }
 }
@@ -119,6 +123,7 @@ async fn drive(
         Ready::Reach(ready) => reach::run(ready, &mut lines, &mut output, opts, until).await,
         Ready::Both(ready) => iroh::run_waiting(*ready, &mut lines, &mut output, opts, until).await,
         Ready::Iroh(ready) => iroh::run_reach(*ready, &mut lines, &mut output, opts, until).await,
+        Ready::Irc(ready) => irc::run(*ready, &mut lines, &mut output, opts, until).await,
     }
 }
 
@@ -203,7 +208,7 @@ pub(super) fn code(ended: &Ended, lost: usize) -> i32 {
         Ended::Done | Ended::Stopped | Ended::PeerLeft if lost == 0 => 0,
         Ended::Done | Ended::Stopped | Ended::PeerLeft => EX_UNAVAILABLE,
         Ended::TimedOut | Ended::Busy => EX_TEMPFAIL,
-        Ended::Declined => EX_NOPERM,
+        Ended::Declined | Ended::Refused(_) => EX_NOPERM,
         Ended::Damaged | Ended::Failed(_) => EX_SOFTWARE,
     }
 }
@@ -218,6 +223,7 @@ fn words(ended: &Ended) -> (&'static str, String) {
         Ended::Busy => ("busy", "the peer talks with another peer; a later try can work".into()),
         Ended::Declined => ("declined", "the peer declined the file".into()),
         Ended::Damaged => ("damaged", "the file arrived with another SHA-256, and the peer did not keep it".into()),
+        Ended::Refused(why) => ("refused", why.clone()),
         Ended::Failed(why) => ("failed", why.clone()),
     }
 }

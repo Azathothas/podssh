@@ -40,6 +40,12 @@ pub struct ChatArgs {
     pub relay_addr: Option<String>,
     pub ca_file: Option<String>,
     pub iroh_relay: Option<String>,
+    /// `SERVER[:PORT]` of an IRC network; PEER is then the channel.
+    pub irc: Option<String>,
+    /// With `--irc`: plain text, which the relay and each server read.
+    pub irc_plaintext: bool,
+    /// With `--irc`: the CAs of the server's TLS.
+    pub irc_ca_file: Option<String>,
 }
 
 impl ChatArgs {
@@ -63,6 +69,9 @@ impl ChatArgs {
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
             iroh_relay: get("iroh-relay"),
+            irc: get("irc"),
+            irc_plaintext: m.get_flag("irc-plaintext"),
+            irc_ca_file: get("irc-ca-file"),
         }
     }
 }
@@ -82,6 +91,8 @@ pub(super) enum Side {
     Listen { label: String, place: Place, allow: Option<PathBuf>, iroh: bool },
     /// The side that reaches the peer, with its channel's flags.
     Reach { peer: Peer, ask: crate::channel::Ask },
+    /// `--irc`: a channel of an IRC network (T-252).
+    Irc(super::irc::IrcPlan),
 }
 
 /// Where the user's lines come from.
@@ -119,8 +130,11 @@ pub(super) fn plan(args: &ChatArgs) -> Result<Plan, Refusal> {
             )));
         }
     }
-    let nick = nick(args.nick.as_deref())?;
     let side = side(args, given)?;
+    let nick = match side {
+        Side::Irc(_) => super::irc::plan::nick(args.nick.as_deref())?,
+        _ => nick(args.nick.as_deref())?,
+    };
     let opts = Options {
         nick,
         accept_dir: accept_dir(args.accept_dir.as_deref())?,
@@ -140,6 +154,12 @@ pub(super) fn plan(args: &ChatArgs) -> Result<Plan, Refusal> {
 
 /// The side, from `--listen` and PEER, with only its own flags.
 fn side(args: &ChatArgs, given: &str) -> Result<Side, Refusal> {
+    if let Some(server) = &args.irc {
+        return Ok(Side::Irc(super::irc::plan::plan(args, server, given)?));
+    }
+    if args.irc_plaintext || args.irc_ca_file.is_some() {
+        return Err(Refusal::usage("--irc-plaintext and --irc-ca-file are for --irc SERVER"));
+    }
     let label = given.strip_prefix("node://").or_else(|| given.strip_prefix("node:")).unwrap_or(given);
     let iroh_road = given.starts_with("iroh:");
     if args.iroh_relay.is_some() && !(args.iroh || (iroh_road && !args.listen)) {
@@ -179,11 +199,14 @@ fn side(args: &ChatArgs, given: &str) -> Result<Side, Refusal> {
     Ok(Side::Reach { peer: Peer::Pair(label.to_string()), ask })
 }
 
-/// The nick of `--nick`, else of the user's account, else `podssh`: what the
-/// peer sees, so it is checked as the peer would show it.
+/// The nick of `--nick`, else of `PODSSH_NICK`, else of the user's account,
+/// else `podssh`: what the peer sees, so it is checked as the peer would
+/// show it.
 fn nick(given: Option<&str>) -> Result<String, Refusal> {
-    let Some(nick) = given else {
-        let account = ["USER", "USERNAME"].iter().find_map(|name| std::env::var(name).ok());
+    let given =
+        given.map(str::to_string).or_else(|| std::env::var("PODSSH_NICK").ok().filter(|n| !n.trim().is_empty()));
+    let Some(nick) = given.as_deref() else {
+        let account = ["USER", "LOGNAME", "USERNAME"].iter().find_map(|name| std::env::var(name).ok());
         let usable =
             account.filter(|n| !n.trim().is_empty() && n.len() <= MAX_NICK && !n.chars().any(char::is_control));
         return Ok(usable.unwrap_or_else(|| "podssh".to_string()));

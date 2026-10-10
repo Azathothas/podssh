@@ -28,6 +28,19 @@ impl<W: AsyncWrite + Unpin> Output<W> {
         self.line(&line).await;
     }
 
+    /// A message of a user of an IRC channel, or to this client alone: a
+    /// line of stdout.
+    pub async fn said(&mut self, from: &str, to_me: bool, text: &str) {
+        let line = if self.jsonl {
+            serde_json::json!({ "event": "message", "from": from, "private": to_me, "text": text }).to_string()
+        } else if to_me {
+            format!("{} (to you): {}", safe(from), safe(text))
+        } else {
+            format!("{}: {}", safe(from), safe(text))
+        };
+        self.line(&line).await;
+    }
+
     /// A notice: a line of stderr, or with `--jsonl` the event as JSON on
     /// stdout, with `fields` beside its name.
     pub async fn notice(&mut self, event: &str, fields: serde_json::Value, line: String) {

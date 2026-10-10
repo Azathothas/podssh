@@ -62,6 +62,8 @@ pub enum Ended {
     TimedOut,
     /// Ctrl-C or SIGTERM.
     Stopped,
+    /// The server or the channel refused this client (IRC): why.
+    Refused(String),
     /// The peer broke the protocol, or the stream or the road failed: why.
     Failed(String),
 }

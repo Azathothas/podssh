@@ -111,6 +111,9 @@ pub enum Event {
     /// The server answered podssh's keepalive (`PONG :podssh-N`): a
     /// reception, which no user sees.
     Heartbeat { generation: u64 },
+    /// The server's `ERROR`, which it sends as it closes the link: its words,
+    /// as a ban, a limit or a timeout (T-252).
+    ServerError(String),
     /// An error podssh reports without a user message of its own.
     Protocol(String),
 }

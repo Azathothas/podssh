@@ -126,6 +126,31 @@ pub fn config_for(trust: &Trust) -> Result<Arc<ClientConfig>, WsError> {
     }
 }
 
+/// A TLS client over `stream`, a connection that is already open (a relay
+/// session to an IRC server, for `podssh chat --irc`): the certificate is
+/// checked against `server_name` and the roots of `trust`, within `limit`.
+/// A failure is the caller's to say, and never a fall back to plain text.
+pub async fn connect_over<S>(
+    stream: S,
+    server_name: &str,
+    trust: &Trust,
+    limit: std::time::Duration,
+) -> Result<tokio_rustls::client::TlsStream<S>, String>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    let config = config_for(trust).map_err(|e| e.to_string())?;
+    let name = rustls_pki_types::ServerName::try_from(server_name.to_string())
+        .map_err(|e| format!("{server_name:?} is not a valid server name: {e}"))?;
+    let connector = tokio_rustls::TlsConnector::from(config);
+    match tokio::time::timeout(limit, connector.connect(name, stream)).await {
+        Ok(Ok(tls)) => Ok(tls),
+        // rustls's text tells an unknown issuer from a name mismatch.
+        Ok(Err(e)) => Err(format!("the TLS handshake with {server_name} failed: {e}")),
+        Err(_) => Err(format!("the TLS handshake with {server_name} did not end within {} s", limit.as_secs())),
+    }
+}
+
 /// The default trust store: the compiled-in Mozilla roots, plus a
 /// `podssh-ca.pem` next to the binary, plus the first readable system bundle.
 /// Unreadable or unparsable extras are skipped; the compiled-in set is always

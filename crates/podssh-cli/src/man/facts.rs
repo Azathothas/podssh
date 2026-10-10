@@ -72,6 +72,7 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       flag wins, and an empty value is no value. A bad value is a configuration error (78).",
     ),
     (&["PODSSH_RELAY_TOKEN"], "A relay token to use in place of one podssh mints. podssh never prints it."),
+    (&["PODSSH_NICK"], "The nick of podssh chat, as --nick: the name that the peer sees. The flag wins."),
     (
         &["PODSSH_REPLAY_BUFFER"],
         "With a node that offers the resumable layer, the bytes that podssh keeps in each direction until \
@@ -104,8 +105,9 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (
         &["USER", "LOGNAME", "USERNAME"],
-        "The login name when none is given. With none of them set, uid 0 is root. podssh never reads \
-      the user database.",
+        "The login name when none is given, and the nick of podssh chat when neither --nick nor \
+      PODSSH_NICK gives one. With none of them set, uid 0 is root. podssh never reads the user \
+      database.",
     ),
     (&["XDG_CACHE_HOME", "LOCALAPPDATA", "TMPDIR"], "Where podssh keeps its cache (see FILES)."),
     (&["TERM"], "Sent to the server with a pty request; xterm-256color when it is not set."),

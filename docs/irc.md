@@ -69,6 +69,23 @@ offer (its name, size and SHA-256), the accept or the decline, its chunks of
 on the digest; and the word that the chat is busy. A length past its type's
 limit is refused before its body is read.
 
+## Over IRC
+
+`podssh chat --irc SERVER[:PORT] CHANNEL` talks in a channel of a network
+(T-252), through the relay's forward road: TLS inside the relay stream, port
+6697 by default, with the certificate checked against SERVER, and never a
+fall back to plain text. `--irc-plaintext` takes port 6667 and plain text,
+which the relay and each server read, and says so. The lines are those of
+the roads: each line a message to the channel; a channel's message is
+`NICK: TEXT`, and one to this client `NICK (to you): TEXT`. With
+`echo-message`, a message is delivered once the server echoes it; with none,
+nothing proves it, and podssh says so. The server and each user of the
+channel read the messages: IRC has no end-to-end channel. A lost connection
+is made again each 5 s with the burst of a reconnect, which rejoins the
+channel; a server's `ERROR` before the channel ends the run with its words,
+so that a throttle is not made longer by fast new tries. Files over IRC come
+next (T-097's chunks, accepted first).
+
 ## IRC: servers that accept the relay
 
 Measured on 2026-10-07 through relay version r2:
@@ -78,6 +95,16 @@ Measured on 2026-10-07 through relay version r2:
 | libera, OFTC, tilde | Closed before the welcome (`001`). They answer normally from a normal host, so they refuse the relay's addresses. |
 | rizon, snoonet | Dropped the connection with no message. |
 | `irc.undernet.org:6667` | **Works.** Two podssh clients exchanged messages byte for byte, and a message split across WebSocket frames was joined again. |
+
+Measured again on 2026-10-10 with `podssh chat --irc`, through the live
+relay, one short run each with a throwaway nick and channel (Q39):
+
+| Server | Result |
+| --- | --- |
+| `irc.libera.chat:6697`, TLS | **Works.** Joined and delivered in 14 s, the message proved by `echo-message`. |
+| `irc.oftc.net:6697`, TLS | **Works.** Joined in 15 s; no `echo-message`, so nothing proves a message. |
+| `irc.undernet.org:6697`, TLS | The TLS handshake ended with no answer (`tls handshake eof`), in 5 s. |
+| `irc.undernet.org:6667`, plain text | **Works.** Joined; a run just before got the server's `ERROR` at each try, likely its throttle after the TLS try and new tries each 5 s, which an `ERROR` before the channel now ends. |
 
 Undernet has no IRCv3: `CAP LS` gives `421`, and a message to yourself gives
 `401`. The server drops channel messages from a second connection of the

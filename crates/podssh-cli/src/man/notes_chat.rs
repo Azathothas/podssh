@@ -33,6 +33,17 @@ pub(super) const CHAT: &[&str] = &[
      takes the next one, and the side that reaches tries again each 5 s, as it does while the node is \
      not there, until stdin ended and each line went. --timeout bounds the run, and is required when \
      stdin or stdout is not a terminal.",
+    "With --irc SERVER[:PORT], podssh chat talks in the channel PEER (#name) of an IRC network, \
+     through the relay: TLS inside the relay stream, port 6697 by default, the certificate checked \
+     against SERVER; a failed handshake ends the run, and never falls back to plain text. \
+     --irc-plaintext takes port 6667 and plain text, which the relay and each server read, and podssh \
+     says so; --irc-ca-file gives the CAs of the server's TLS. The nick follows the grammar of IRC. \
+     Each line is a message to the channel; a message of the channel comes out as NICK: TEXT, and one \
+     to this client as NICK (to you): TEXT. With echo-message, a message is delivered once the server \
+     echoes it; a server with none gives no proof, which podssh says. The server and each user of the \
+     channel read the messages: IRC has no end-to-end channel. A lost connection is made again each \
+     5 s, and the channel joined again; a server's ERROR before the channel ends the run with its \
+     words. Files do not go over IRC yet.",
     "The channel is always on: chat has no --no-e2e. The side that waits proves its key, the file of \
      --key (default node-NAME.key in the cache) or a key of --ephemeral-key, and lets in the keys of \
      --allow FILE, else each peer with the pair's connect token. The side that reaches proves the key \
