@@ -2,6 +2,8 @@
 //! `ssh-keygen -H` (OpenSSH 10.3p1, 2026-10-08), markers, bad lines, ports,
 //! and appending without disturbing what is there.
 
+mod cleanup;
+
 use std::path::PathBuf;
 
 use podssh_ssh::known_hosts::{append, host_name, lookup, recorded_algorithms, Lookup};
@@ -25,6 +27,7 @@ fn key(text: &str) -> PublicKey {
 fn file(name: &str, content: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-kh-{}-{name}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
+    cleanup::at_test_end(&dir);
     let path = dir.join("known_hosts");
     std::fs::write(&path, content).unwrap();
     path
@@ -96,6 +99,7 @@ fn append_keeps_what_is_there_and_adds_a_missing_newline() {
 fn append_creates_the_directory_and_the_file() {
     let dir = std::env::temp_dir().join(format!("podssh-kh-{}-fresh", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
+    cleanup::at_test_end(&dir);
     let f = dir.join("sub").join("known_hosts");
     append(&f, "fresh.example", &key(A)).unwrap();
     assert_eq!(std::fs::read_to_string(&f).unwrap(), format!("fresh.example {A}\n"));

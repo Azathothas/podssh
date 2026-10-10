@@ -276,7 +276,7 @@ declares `libc` (`crates/podssh-probe/Cargo.toml` line 11 at `f8a94ca`), which n
 `crates/podssh-probe/src/facts.rs` lines 3-6 at `f8a94ca` name a "startup assertion" that no command runs;
 `crates/podssh-probe/src/relay_facts.rs` lines 261-289 at `f8a94ca` are that unused startup part. CI runs
 `scripts/check-relay-spec.py` live, with three plants (`.github/workflows/build.yml:174-191`).
-The gate runs the crate's tests with no C compiler (`scripts/gate.sh:117-124`). The build image
+The gate runs the crate's tests with no C compiler (`scripts/gate.sh:139-146`). The build image
 has no Python (`crates/podssh-probe/src/facts.rs:14-19`), so the crate is the only form of the
 check that the container gate can run.
 
@@ -783,7 +783,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:117`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:118`). That is one run, before 2026-10-09.
 
 ## Approach
 

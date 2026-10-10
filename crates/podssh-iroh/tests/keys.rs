@@ -3,6 +3,8 @@
 //! private, that is a symbolic link or that holds no key, refused with the
 //! reason and kept, as a new key would change a node's ticket.
 
+mod cleanup;
+
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Barrier};
 
@@ -14,6 +16,7 @@ fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-iroh-keys-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
+    cleanup::at_test_end(&dir);
     dir
 }
 

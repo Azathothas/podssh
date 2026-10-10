@@ -4,6 +4,8 @@
 //! each refusal of `podssh node --iroh` and `podssh ssh iroh:TICKET` before
 //! anything connects, a key file included.
 
+mod cleanup;
+
 use std::process::{Command, Stdio};
 
 /// iroh's own ticket: the test vector of iroh-tickets 1.0.0 (a key, the
@@ -37,6 +39,7 @@ fn scratch(name: &str) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-iroh-cli-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
+    cleanup::at_test_end(&dir);
     dir
 }
 

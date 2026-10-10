@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**271 entries: 124 open, 0 partial, 22 blocked, 125 done.**
+**271 entries: 123 open, 0 partial, 22 blocked, 126 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 3 | 0 | 0 | 15 | 18 |
+| P1 | 2 | 0 | 0 | 16 | 18 |
 | P2 | 41 | 0 | 18 | 93 | 152 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 124 | 0 | 22 | 125 | 271 |
+| **All** | 123 | 0 | 22 | 126 | 271 |
 
 ## Entries
 
@@ -343,6 +343,6 @@ repository and CI).
 | [T-269](ssh.md) | P1 | S | none | defect | done | A session can wait for ever when its link ends while it sends |
 | [T-270](resume.md) | P1 | S | none | defect | done | A resume whose far-end task starts late takes the session from a newer one |
 | [T-271](reverse.md) | P1 | S | none | defect | done | A client can reach a node before it is online, and a node takes a slow local side of the layer for a stopped one |
-| [T-272](repo.md) | P1 | S | none | defect | open | The tests leave their scratch directories in the temporary directory |
+| [T-272](repo.md) | P1 | S | none | defect | done | The tests leave their scratch directories in the temporary directory |
 | [T-273](config.md) | P2 | S | M8 | defect | open | The `%` tokens of `User` and `RemoteCommand`, as OpenSSH expands them |
 | [T-274](relay.md) | P2 | M | backlog | defect | open | On Windows, the owner and the writers of a private file are not checked |

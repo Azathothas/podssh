@@ -5,6 +5,10 @@
 // Each test binary uses a part of it.
 #![allow(dead_code)]
 
+// The one copy of the module in this crate's tests.
+#[path = "../cleanup/mod.rs"]
+mod cleanup;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -23,6 +27,7 @@ pub fn scratch(tag: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
     let dir = std::env::temp_dir().join(format!("podssh-node-{tag}-{}-{nanos}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
+    cleanup::at_test_end(&dir);
     dir
 }
 

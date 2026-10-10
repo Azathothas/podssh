@@ -77,6 +77,28 @@ run() {
     return $_rc
 }
 
+# The scratch of the tests (T-272): a run of the tests must leave no entry
+# podssh-* in the temporary directory, or the disk of a developer machine
+# fills, run after run. podssh-step.out is the log of run().
+scratch_list() {
+    find "${TMPDIR:-/tmp}" -maxdepth 1 -name 'podssh-*' ! -name 'podssh-step.out' 2>/dev/null | sort
+}
+
+# tests <label> <command...>: run(), and a failure when the run left scratch.
+tests() {
+    scratch_list >/tmp/gate-scratch.before
+    run "$@"
+    _trc=$?
+    scratch_list >/tmp/gate-scratch.after
+    _left=$(comm -13 /tmp/gate-scratch.before /tmp/gate-scratch.after)
+    if [ -n "$_left" ]; then
+        printf 'FAIL  the tests left in the temporary directory:\n%s\n' "$_left"
+        failed=1
+        return 1
+    fi
+    return $_trc
+}
+
 echo "== toolchain"
 rustc --version
 cargo --version
@@ -120,14 +142,14 @@ step_libs() {
         env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS --features podssh-relay/blocking
 
     # shellcheck disable=SC2086
-    run "library crates: tests, no C compiler" \
+    tests "library crates: tests, no C compiler" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast $LIBS --features podssh-relay/blocking
 
     # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
     # its tests run with the feature, and the binary must never enable it.
-    run "plain ws:// to the loopback: test (feature plain-ws, no C compiler)" \
+    tests "plain ws:// to the loopback: test (feature plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-ws --features plain-ws --test plain_loopback
-    run "the blocking facade against a stand-in relay (features blocking, plain-ws, no C compiler)" \
+    tests "the blocking facade against a stand-in relay (features blocking, plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features blocking,plain-ws --test blocking_plain
     run "the binary does not enable plain-ws" sh scripts/no-plain-ws.sh
 }
@@ -204,7 +226,7 @@ step_msrv_iroh() {
 # disagreement must be found, then the record of this tree. A count, a status
 # or a cited line that disagrees fails the gate. Pure Rust, no C.
 step_record() {
-    run "the work record: the checker's tests (plants included)" \
+    tests "the work record: the checker's tests (plants included)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-todo
     # The record's checker reads AGENTS.md for the ids it names, and would pass
     # with the file missing: a copy of the tree without it fails here first.
@@ -218,7 +240,7 @@ step_record() {
 # missing server fails rather than skips.
 step_ssh() {
     run "OpenSSH's sftp-server, for the SFTP client's tests" apk add --no-cache openssh-sftp-server
-    run "the SSH client and the CLI (need cc): tests" \
+    tests "the SSH client and the CLI (need cc): tests" \
         env PODSSH_TEST_SFTP_SERVER=/usr/lib/ssh/sftp-server \
         cargo test --locked --no-fail-fast -p podssh-ssh -p podssh-cli
 }
@@ -226,14 +248,14 @@ step_ssh() {
 # The Tailscale adapter (feature `ts`) links the vendored tailscale-rs fork,
 # which needs cc and cmake (aws-lc-sys). Built and tested on its own.
 step_ts() {
-    run "Tailscale adapter (feature ts, needs cc): tests" \
+    tests "Tailscale adapter (feature ts, needs cc): tests" \
         cargo test --locked --no-fail-fast -p podssh-ts -p podssh-cli --features podssh-cli/ts
 }
 
 step_iroh() {
     # With the test relay, so that the command line's test from end to end
     # (`tests/iroh_road.rs`) runs too.
-    run "the iroh road (feature iroh, needs cc): tests" \
+    tests "the iroh road (feature iroh, needs cc): tests" \
         cargo test --locked --no-fail-fast -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test
 }
 
@@ -244,7 +266,7 @@ step_iroh() {
 # minutes, most of them the two stalls.
 step_m6() {
     run "Python and openssl, for the stand-ins" apk add --no-cache python3 openssl
-    run "the exit of M6 (feature iroh, needs cc)" \
+    tests "the exit of M6 (feature iroh, needs cc)" \
         cargo test --locked -p podssh-cli --features podssh-cli/iroh-test --test m6_exit -- --ignored --test-threads 1
     grep -E '^test |^test result' /tmp/podssh-step.out
 }

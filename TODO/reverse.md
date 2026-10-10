@@ -445,7 +445,7 @@ Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it s
    it needs 1.88, and podbox follows (the operator's ruling of 2026-10-08). Write the result in
    `docs/design.md` (section 3).
 7. Document the facade in `docs/design.md` (lines 89-110 at `0d92eef`) and in the crate's header
-   (`crates/podssh-relay/src/lib.rs:1-20`); add the feature to the gate (`scripts/gate.sh:96`).
+   (`crates/podssh-relay/src/lib.rs:1-20`); add the feature to the gate (`scripts/gate.sh:118`).
 
 ## Decision
 
@@ -1000,9 +1000,9 @@ facade later, as an operator action (the operator's ruling of 2026-10-08).
 ## Premise
 
 Read: the box like the target sandbox has one CONNECT proxy for ports 443, 80 and 8443 as its only
-way out, refuses `bind` and UDP, and has no `/dev/ptmx` (`docs/development.md:278-320`,
+way out, refuses `bind` and UDP, and has no `/dev/ptmx` (`docs/development.md:298-340`,
 `scripts/test_in_box.sh`). It allows `connect()` to loopback, which the real sandbox refuses
-(`docs/development.md:319-320`, `docs/target-environment.md:22`).
+(`docs/development.md:339-340`, `docs/target-environment.md:22`).
 
 Read: in such a sandbox nothing can listen (`docs/target-environment.md:25`, `:74-77`), so a node
 there has no local TCP service to offer before `podssh serve` (M5). Its TARGET must be a host that
@@ -1222,7 +1222,7 @@ The resumable layer of M6 runs under SSH (`docs/design.md:220-232`).
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
 so that the relay cannot read a stream (`willykeenan/warren:src/noise.rs`).
 
-Read: the library crates must build with no C compiler (`AGENTS.md:195-197`, `scripts/gate.sh:96`).
+Read: the library crates must build with no C compiler (`AGENTS.md:195-197`, `scripts/gate.sh:118`).
 
 ## Approach
 

@@ -1,6 +1,8 @@
 //! The relay-token cache, in temporary directories: what it reuses, what it
 //! ignores, and where it falls back to.
 
+mod cleanup;
+
 use std::path::PathBuf;
 
 use podssh_relay::cache::{file_name, load_from, remove_from, store_in_first, valid_token, MIN_REMAINING_MS};
@@ -15,6 +17,7 @@ fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-token-cache-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
+    cleanup::at_test_end(&dir);
     dir
 }
 

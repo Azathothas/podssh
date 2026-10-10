@@ -71,6 +71,26 @@ NOTE: To limit WSL itself, the operator can set `memory=24GB` and
 `swap=8GB` under `[wsl2]` in `%USERPROFILE%\.wslconfig`, and restart WSL.
 No script changes this file.
 
+## Disk
+
+What grows on the developer machine, and what removes it:
+
+1. A run of `scripts/dev.sh` is a job of wsl-toolkit with
+   `--container-lifecycle ephemeral`: its container and its copy of the tree
+   (up to 10 GiB with a build) go when it ends. A run that was cut can leave
+   both; `wsl-toolkit gc --older-than 24h` lists them, and removes them with
+   `--apply`, for each job of the tool, not only podssh's. On 2026-10-10, 90
+   jobs of runs from before 2026-10-08 held 203 GiB.
+2. The base's disk image, `ext4.vhdx` in the tool's state directory, does
+   not shrink when the guest frees space. To give the space back, the
+   operator stops the distribution (`wsl --terminate wsl-toolkit`) and, in an
+   elevated shell, runs `diskpart` with `select vdisk file=PATH`,
+   `attach vdisk readonly`, `compact vdisk` and `detach vdisk`. A session
+   does not run `wsl.exe` (`AGENTS.md`, section 4).
+3. A run of the tests leaves nothing in the temporary directory, and the
+   gate fails when it does (T-272). `target/` is Cargo's; `cargo clean`
+   empties it.
+
 ## Checks
 
 ```sh
@@ -359,6 +379,12 @@ wrong: the tests built their input with the same assumptions as the code.
    `PODSSH_OFFLINE=1`, which makes each connection attempt fail at once
    with a message. The tests that run in the process use a destination that
    the relay cannot take, so podssh refuses it before it connects.
+6. Remove what a test makes. A scratch directory under the temporary
+   directory goes to `cleanup::at_test_end` (`tests/cleanup/mod.rs` of its
+   crate), which removes it when the test ends, also when it fails; the gate
+   fails when a run leaves an entry `podssh-*` there (T-272). A test that
+   starts podssh sets `PODSSH_SSH_CONFIG=none`, so that the `ssh_config` of
+   the machine cannot change it (T-043).
 
 ## Live tests
 

@@ -120,7 +120,7 @@ Read:
      image. Do this item after T-206;
    - no entry for `vendor/tailscale-rs`.
 2. Each pull request of Dependabot runs the whole CI: the gate, the plant and
-   the live check. The no-C steps of the gate (`scripts/gate.sh:117-124`) judge
+   the live check. The no-C steps of the gate (`scripts/gate.sh:139-146`) judge
    each update of a library crate's dependencies.
 3. Dependabot alerts and security updates: on since 2026-10-08, turned on
    with `gh api` and the operator's approval (`gh api
@@ -215,7 +215,7 @@ Read:
   the multi-platform index, not the digest of one platform's image.
 - The box uses two more moving tags, `alpine:3.20` and `python:3.12-alpine`
   (`scripts/test_in_box.sh` lines 39-40 at `e1ba5ba`).
-- `scripts/gate.sh:80-83` prints the toolchain of each run, so the logs show
+- `scripts/gate.sh:102-105` prints the toolchain of each run, so the logs show
   the drift.
 
 ## Approach
@@ -327,8 +327,8 @@ Read:
 - The help (`scripts/dev.sh` lines 331-366 at `912acd0`) says that the gate builds the default
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
-  and the release with neither (`scripts/gate.sh:117-124`,
-  `scripts/gate.sh:255-257`). The help omits the work record, interop, the man
+  and the release with neither (`scripts/gate.sh:139-146`,
+  `scripts/gate.sh:277-279`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
@@ -348,7 +348,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:98-304`).
+   (`scripts/gate.sh:120-326`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:465-510`): the
+5. docs/development.md, "Release builds" (`docs/development.md:491-536`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -930,14 +930,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:143-157`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:144-158`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-210` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:150`).
+  in a required property (17 properties, `docs/STATUS.md:151`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
@@ -964,7 +964,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:180`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:181`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -982,7 +982,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:151`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:152`,
 and the job must fail.
 
 ## Blocker
@@ -1430,7 +1430,7 @@ Read:
 - `crates/podssh-ssh/Cargo.toml:6-8` and `crates/podssh-cli/Cargo.toml:6-8`:
   1.89, the minimum of russh 0.64.1. `crates/podssh-ts/Cargo.toml:5-6`: 1.92,
   the minimum of the fork.
-- `scripts/gate.sh:80-83` prints the one toolchain of the gate.
+- `scripts/gate.sh:102-105` prints the one toolchain of the gate.
 - The workspace uses the resolver "2", which ignores `rust-version` when it
   picks versions.
 
@@ -1604,14 +1604,14 @@ the gate on any host that has a C++ compiler. The no-C rule held only because
 
 Read, in the tree as it is now:
 
-- `scripts/gate.sh:90-124`: the library crates build and test with
+- `scripts/gate.sh:112-146`: the library crates build and test with
   `CC=/nonexistent` and `CXX=/nonexistent`.
 - `scripts/plant.sh:100-145`: a crate in a temporary path whose build script
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:211-213` states the rule with `CXX`, and
-  `docs/STATUS.md:331` records the measurement. Rule 4 of
+- `docs/development.md:231-233` states the rule with `CXX`, and
+  `docs/STATUS.md:332` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -1642,7 +1642,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:331`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:332`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2035,7 +2035,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:171`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:172`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -2129,7 +2129,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:206-213`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:228-235`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -2845,7 +2845,7 @@ the oldest of 2026-09-28.
 **Milestone:** none
 **Priority:** P1
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2854,10 +2854,10 @@ On a developer machine they fill the disk, run after run.
 
 ## Premise
 
-Read on `c0cdd2b`: `file` (`crates/podssh-ssh/tests/known_hosts.rs:25-31`) makes
-`podssh-kh-PID-NAME` and never removes it; `scratch` (`crates/podssh-relay/tests/cache.rs:14-19`)
+Read on `c0cdd2b`: `file` (`crates/podssh-ssh/tests/known_hosts.rs:27-34`) makes
+`podssh-kh-PID-NAME` and never removes it; `scratch` (`crates/podssh-relay/tests/cache.rs:16-22`)
 removes its directory before a test, not after it; `scratch`
-(`crates/podssh-cli/tests/pair_harness/mod.rs:22-27`) makes a new name for each test, and nothing
+(`crates/podssh-cli/tests/pair_harness/mod.rs:26-32`) makes a new name for each test, and nothing
 removes it. Measured on 2026-10-10 in the temporary directory of the developer machine: 1097
 directories `podssh-kh-*`, 164 for each test of the token cache, about 104 for each test of the
 pair harness; 5245 entries `podssh-*` in all.
@@ -2872,6 +2872,17 @@ pair harness; 5245 entries `podssh-*` in all.
 3. A check that fails when a run of the tests leaves a new `podssh-*` entry in the temporary
    directory: a step that counts the entries before and after `cargo test`, in the gate.
 
+## Decision
+
+Decision (2026-10-10): each helper hands its directory to `cleanup::at_test_end`
+(`tests/cleanup/mod.rs` of its crate), which keeps it in a list local to the thread; the list
+is dropped when the test's thread ends, and removes each directory then. libtest runs each test
+on a thread of its own and joins it, so the removal is done before the test counts as done,
+also for a test that failed. Lost: the guard of the Approach, a value whose drop removes the
+directory. It changes each place that hands the path on, and in `scratch("x").join("y")` the
+guard is a temporary, dropped at the end of the statement: the directory would go before the
+test used it.
+
 ## Prove
 
 ```sh
@@ -2881,3 +2892,20 @@ cargo test --workspace --no-fail-fast
 
 The entries `podssh-*` of the temporary directory: as many after the run as before it. Planted:
 a scratch type that does not remove its directory; the check fails.
+
+## Done
+
+2026-10-10, in the commit that closes this entry. Measured first: after one run of the tests,
+72 entries `podssh-*` in the temporary directory, from seven helpers: the files of
+`crates/podssh-ssh/tests/known_hosts.rs`, the token cache (`crates/podssh-relay/tests/cache.rs`),
+the keys, relays and tickets of podssh-iroh, `crates/podssh-cli/tests/iroh_cli.rs` and the pairs'
+harness (`crates/podssh-cli/tests/pair_harness/mod.rs`). Each hands its directory to
+`cleanup::at_test_end`. In the gate, `tests` runs each step's tests as `run` does, lists the
+entries `podssh-*` of the temporary directory before and after, and fails with each entry that
+the run left (`scripts/gate.sh`).
+
+Native, Windows 11: `cargo test --workspace --no-fail-fast`, 1164 passed, 0 failed, 38
+ignored, and no entry `podssh-*` left in the temporary directory. Planted, the token cache's
+helper without the call: 9 entries left, one for each of its tests that makes a directory. clippy
+with `-D warnings` on the four crates' targets: no warning. Waits for T-251: the planted run of
+the gate's check; its first run on Linux is CI's at the push of this commit.
