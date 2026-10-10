@@ -15,6 +15,8 @@ pub mod forward;
 mod hop;
 pub mod iroh;
 pub mod keywords;
+mod local_bind;
+pub mod local_spec;
 pub mod node;
 pub mod options;
 pub mod persist;
@@ -96,7 +98,17 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
     code
 }
 
-async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
+async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i32 {
+    // -L and -D: each listener bound before anything connects (T-038).
+    if !resolved.local.is_empty() {
+        match local_bind::listeners(&resolved.local, resolved.gateway_ports, &log).await {
+            Ok(forwards) => resolved.options.local_forwards = forwards,
+            Err((code, line)) => {
+                log.error(&line);
+                return code;
+            }
+        }
+    }
     if let Some(name) = resolved.persist.as_deref() {
         return Box::pin(persist::run(&resolved, name, log)).await;
     }

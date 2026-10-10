@@ -40,6 +40,8 @@ pub struct Shown {
     pub identity_agent: Option<String>,
     /// `ForwardAgent` in effect: `no`, `yes`, or the path or `$NAME` as given.
     pub forward_agent: String,
+    /// `ClearAllForwardings`, given or implied by `-W`.
+    pub clear_all_forwardings: bool,
 }
 
 /// The lines of `ssh -G`.
@@ -54,7 +56,9 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
         format!("addressfamily {}", family(s.family)),
         format!("batchmode {}", yes(o.batch_mode)),
         format!("compression {}", yes(o.compression)),
+        format!("clearallforwardings {}", yes(s.clear_all_forwardings)),
         format!("exitonforwardfailure {}", yes(o.exit_on_forward_failure)),
+        format!("gatewayports {}", yes(resolved.gateway_ports)),
         format!("identitiesonly {}", yes(o.identities_only)),
         format!("kbdinteractiveauthentication {}", yes(s.kbd_interactive)),
         format!("passwordauthentication {}", yes(s.password)),
@@ -81,6 +85,10 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
     if let Some(list) = &s.preferred {
         out.push(format!("preferredauthentications {list}"));
     }
+    // -D, then -L, then -R, as OpenSSH writes them.
+    let socks = |spec: &&super::local_spec::LocalSpec| spec.target == podssh_ssh::local::Target::Socks;
+    out.extend(resolved.local.iter().filter(socks).map(|spec| spec.dumped()));
+    out.extend(resolved.local.iter().filter(|spec| !socks(spec)).map(|spec| spec.dumped()));
     // OpenSSH writes a port alone when no address was given, and each host
     // in brackets.
     for f in &o.remote_forwards {

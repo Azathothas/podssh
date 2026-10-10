@@ -1,9 +1,10 @@
 //! The hosts of a command line: a destination, a `-J` hop and a `-W`
-//! target, each read before anything connects.
+//! target, each read before anything connects; and the request of a run.
 
-use podssh_ssh::Hop;
+use podssh_ssh::{Hop, Request};
 
-use super::options::parse_port;
+use super::args::SshArgs;
+use super::options::{parse_port, Settings};
 
 /// `-W` takes `HOST:PORT` or `[ADDR]:PORT`. OpenSSH reads a value with a `/`
 /// as a Unix socket on the server, and refuses a value with no port: a host
@@ -74,4 +75,31 @@ pub(super) fn host_rule(original: &str, host: &str) -> Result<(), String> {
         return Err(format!("{original:?}: a host name cannot start with '-'"));
     }
     Ok(())
+}
+
+/// The request of a run: `-W`, `-N`, a subsystem, a command or a shell.
+pub(super) fn request(args: &SshArgs, settings: &Settings, remote_command: Option<&str>) -> Result<Request, String> {
+    if let Some(target) = &args.stdio_forward {
+        if !args.command.is_empty() {
+            return Err("-W cannot be combined with a remote command".into());
+        }
+        stdio_forward_form(target)?;
+        let hop = parse_hop(target)?;
+        if hop.user.is_some() {
+            return Err(format!("-W {target}: expected HOST:PORT"));
+        }
+        return Ok(Request::StdioForward { host: hop.host, port: hop.port });
+    }
+    let command =
+        if args.command.is_empty() { remote_command.unwrap_or_default().to_string() } else { args.command.join(" ") };
+    if args.no_command || settings.session_type.as_deref() == Some("none") {
+        return Ok(Request::Nothing);
+    }
+    if args.subsystem || settings.session_type.as_deref() == Some("subsystem") {
+        if command.trim().is_empty() {
+            return Err("-s needs the subsystem name as the command, for example: podssh ssh -s host sftp".into());
+        }
+        return Ok(Request::Subsystem(command.trim().to_string()));
+    }
+    Ok(if command.is_empty() { Request::Shell } else { Request::Exec(command) })
 }

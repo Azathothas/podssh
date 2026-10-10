@@ -15,6 +15,8 @@ use podssh_cli::tree::{parse, Parsed};
 /// line: `ssh -G -F none` with `EVERY`, for the keywords that podssh prints.
 #[rustfmt::skip]
 const EVERY: &[&str] = &[
+    "-g", "-L", "8082:db:5432", "-D", "1080", "-o", "DynamicForward 127.0.0.1:1081",
+    "-o", "LocalForward /tmp/l.sock db:22",
     "-A", "-p", "2222", "-l", "alice", "-i", "/tmp/podssh-k1", "-o", "UserKnownHostsFile=/tmp/podssh-kh",
     "-o", "GlobalKnownHostsFile=none", "-o", "ServerAliveInterval=30", "-o", "ConnectTimeout=7",
     "-o", "StrictHostKeyChecking=accept-new", "-o", "SendEnv=LANG", "-o", "SetEnv=A=1", "-o", "LogLevel=VERBOSE",
@@ -33,7 +35,9 @@ port 2222
 addressfamily inet
 batchmode yes
 compression yes
+clearallforwardings no
 exitonforwardfailure yes
+gatewayports yes
 identitiesonly yes
 kbdinteractiveauthentication yes
 passwordauthentication yes
@@ -51,6 +55,10 @@ identityagent none
 remotecommand uptime
 loglevel VERBOSE
 preferredauthentications password,publickey
+dynamicforward 1080
+dynamicforward [127.0.0.1]:1081
+localforward 8082 [db]:5432
+localforward /tmp/l.sock [db]:22
 remoteforward 8080 [localhost]:80
 remoteforward [0.0.0.0]:0 [::1]:443
 remoteforward []:8081 [web]:80
@@ -79,7 +87,9 @@ port 22
 addressfamily any
 batchmode no
 compression no
+clearallforwardings no
 exitonforwardfailure no
+gatewayports no
 identitiesonly no
 kbdinteractiveauthentication yes
 passwordauthentication yes

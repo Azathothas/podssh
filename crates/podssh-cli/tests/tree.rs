@@ -68,10 +68,10 @@ fn minus_p_is_a_tag_on_ssh_and_a_port_on_cp() {
 
 #[test]
 fn a_refused_flag_names_its_replacement() {
-    let p = parse(args(&["ssh", "-L", "8080:db:5432", "host"]));
+    let p = parse(args(&["ssh", "-w", "0:0", "host"]));
     let Parsed::Command { refused, .. } = &p else { panic!("{p:?}") };
     assert_eq!(refused.len(), 1, "{p:?}");
-    assert_eq!(refused[0].0, "-L SPEC");
+    assert_eq!(refused[0].0, "-w TUN");
     assert_eq!(refused[0].1, "-W HOST:PORT");
     assert!(p.needs_refusal());
 }
@@ -217,8 +217,8 @@ fn a_missing_value_names_the_flag() {
         assert!(m.starts_with(want), "{argv:?}: {m}");
         assert!(!m.contains("unknown flag"), "{argv:?}: {m}");
     }
-    let Parsed::Usage(m) = parse(args(&["ssh", "-L"])) else { panic!("-L") };
-    assert!(m.contains("-L SPEC is refused") && m.contains("Use -W HOST:PORT instead"), "{m}");
+    let Parsed::Usage(m) = parse(args(&["ssh", "-w"])) else { panic!("-w") };
+    assert!(m.contains("-w TUN is refused") && m.contains("Use -W HOST:PORT instead"), "{m}");
     // The control: a flag that does not exist is still an unknown flag.
     let Parsed::Usage(m) = parse(args(&["ssh", "--no-such-flag"])) else { panic!("control") };
     assert!(m.contains("unknown flag '--no-such-flag'"), "{m}");

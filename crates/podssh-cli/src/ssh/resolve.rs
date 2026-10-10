@@ -12,7 +12,7 @@ use podssh_ws::Trust;
 use podssh_relay::relay::{self, RelayList};
 
 use super::args::SshArgs;
-use super::hop::{host_rule, jump_hop, stdio_forward_form};
+use super::hop::{host_rule, jump_hop, request};
 use super::options::{parse_port, Settings};
 use super::tokens::{lower_host, Tokens, USER_REFUSES};
 use crate::relay_settings::Refusal;
@@ -62,6 +62,10 @@ pub struct Resolved {
     pub persist: Option<String>,
     /// What `-G` prints as it was given.
     pub shown: super::dump::Shown,
+    /// `-L` and `-D` (T-038), bound before anything connects, and whether
+    /// one with no address listens on each address (`-g`, `GatewayPorts`).
+    pub local: Vec<super::local_spec::LocalSpec>,
+    pub gateway_ports: bool,
 }
 
 /// What the process environment contributes, gathered once so it can be
@@ -407,7 +411,9 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     options.compression = args.compression || settings.compression.unwrap_or(false);
     options.log_level = log_level;
     options.stdin_null = args.stdin_null || settings.stdin_null.unwrap_or(false);
-    options.remote_forwards = super::forward::remote_forwards(&args.remote_forwards, &settings.remote_forwards)?;
+    let forwards =
+        super::local_spec::forwards(args, &settings, matches!(options.request, Request::StdioForward { .. }))?;
+    options.remote_forwards = forwards.remote;
     options.exit_on_forward_failure = settings.exit_on_forward_failure.unwrap_or(false);
     let shown = super::dump::Shown {
         host: target.host.clone(),
@@ -422,6 +428,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         home: env.home.clone(),
         identity_agent: agents.shown_identity,
         forward_agent: agents.shown_forward,
+        clear_all_forwardings: forwards.cleared,
     };
     let mut resolved = Resolved {
         options,
@@ -432,6 +439,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         warnings,
         persist: None,
         shown,
+        local: forwards.local,
+        gateway_ports: args.gateway_ports || settings.gateway_ports.unwrap_or(false),
     };
     super::persist::check(args, &mut resolved)?;
     Ok(resolved)
@@ -467,30 +476,4 @@ fn include_tokens(args: &SshArgs, cli: &Settings, target: &Hop, env: &Env, file:
             None => String::new(),
         },
     }
-}
-
-fn request(args: &SshArgs, settings: &Settings, remote_command: Option<&str>) -> Result<Request, String> {
-    if let Some(target) = &args.stdio_forward {
-        if !args.command.is_empty() {
-            return Err("-W cannot be combined with a remote command".into());
-        }
-        stdio_forward_form(target)?;
-        let hop = parse_hop(target)?;
-        if hop.user.is_some() {
-            return Err(format!("-W {target}: expected HOST:PORT"));
-        }
-        return Ok(Request::StdioForward { host: hop.host, port: hop.port });
-    }
-    let command =
-        if args.command.is_empty() { remote_command.unwrap_or_default().to_string() } else { args.command.join(" ") };
-    if args.no_command || settings.session_type.as_deref() == Some("none") {
-        return Ok(Request::Nothing);
-    }
-    if args.subsystem || settings.session_type.as_deref() == Some("subsystem") {
-        if command.trim().is_empty() {
-            return Err("-s needs the subsystem name as the command, for example: podssh ssh -s host sftp".into());
-        }
-        return Ok(Request::Subsystem(command.trim().to_string()));
-    }
-    Ok(if command.is_empty() { Request::Shell } else { Request::Exec(command) })
 }

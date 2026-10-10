@@ -75,7 +75,9 @@ where
         }
     };
     let handle = handles.last().expect("the destination");
-    let attempt = attach(handle, opts, relay, name, first, input, log).await;
+    // -L and -D serve on each new connection (T-038).
+    let work = attach(handle, opts, relay, name, first, input, log);
+    let attempt = crate::local::alongside(handle, &opts.local_forwards, log, work).await;
     disconnect_all(&handles).await;
     attempt
 }

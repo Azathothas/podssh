@@ -127,7 +127,7 @@ if [ "$RUN" = tt ]; then
         sh -c 'adduser -D -s /bin/sh tt && sed -i "s/^tt:!/tt:*/" /etc/shadow && mkdir -p /home/tt/.ssh &&
             cp /tt/key.pub /home/tt/.ssh/authorized_keys && chown -R tt:tt /home/tt/.ssh &&
             chmod 700 /home/tt/.ssh && chmod 600 /home/tt/.ssh/authorized_keys && ssh-keygen -A &&
-            exec /usr/sbin/sshd -D -e' >/dev/null || die "the SSH server did not start"
+            exec /usr/sbin/sshd -D -e -o PerSourcePenalties=no' >/dev/null || die "the SSH server did not start"
     TIP=$(podman inspect -f "{{(index .NetworkSettings.Networks \"$NET\").IPAddress}}" "$TARGET")
     [ -n "$TIP" ] || die "the SSH server has no address on $NET"
     ALLOW="--allow tt.box:22=$TIP:22"

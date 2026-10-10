@@ -150,9 +150,9 @@ fn an_unknown_keyword_is_refused_unless_ignore_unknown_names_it_first() {
     assert!(err.message.contains(&format!("{f}:4:")), "{}", err.message);
     resolve(&ssh(&["-F", &f, "-o", "IgnoreUnknown=Bar*", "alias"]), &h.env()).unwrap_or_else(|e| panic!("{e}"));
     // A keyword that -o refuses is refused in a file too, with its place.
-    let f = h.file("refused", "Host alias\n  LocalForward 8080 db:5432\n");
+    let f = h.file("refused", "Host alias\n  RevokedHostKeys /etc/ssh/revoked\n");
     let err = resolve_or_refuse(&ssh(&["-F", &f, "alias"]), &h.env()).unwrap_err();
-    assert!(err.message.contains(&format!("{f}:2:")) && err.message.contains("local listener"), "{}", err.message);
+    assert!(err.message.contains(&format!("{f}:2:")) && err.message.contains("@revoked"), "{}", err.message);
 }
 
 #[test]
@@ -280,7 +280,9 @@ Host *
 const SAME: &str = "addressfamily any
 batchmode no
 compression no
+clearallforwardings no
 exitonforwardfailure no
+gatewayports no
 identitiesonly no
 kbdinteractiveauthentication yes
 passwordauthentication yes

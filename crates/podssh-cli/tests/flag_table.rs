@@ -81,15 +81,18 @@ fn a_flag_refuses_only_when_its_row_says_so() {
 
 #[test]
 fn the_forwarding_rows_name_w_only_where_it_helps() {
-    // -L and -D need a local listener, so they are refused, and -W carries one
-    // connection in the same direction. -R needs no local listener (the
-    // server listens), and podssh carries it (T-035): its row names no -W.
+    // -L and -D listen here, after a probe of the bind (T-038), and -R makes
+    // the server listen (T-035): each is carried, and none names -W. -w, a
+    // tunnel device, stays refused, and -W carries one connection instead.
     let ssh = VERBS.iter().find(|v| v.name == "ssh").unwrap();
     for name in ["forward-local", "dynamic-forward"] {
         let row = ssh.flags.iter().find(|r| r.long == name).unwrap();
-        assert_eq!(row.kind, FlagKind::Refused, "{name}");
-        assert_eq!(row.instead, Some("-W HOST:PORT"), "{name} must name -W");
+        assert_eq!(row.kind, FlagKind::Supported, "{name}");
+        assert_eq!(row.instead, None, "{name}");
+        assert!(!row.help.contains("-W"), "{name} must not name -W: {}", row.help);
     }
+    let w = ssh.flags.iter().find(|r| r.long == "tunnel").unwrap();
+    assert_eq!((w.kind, w.instead), (FlagKind::Refused, Some("-W HOST:PORT")));
     let r = ssh.flags.iter().find(|r| r.long == "forward-remote").unwrap();
     assert_eq!(r.kind, FlagKind::Supported);
     assert_eq!(r.instead, None);

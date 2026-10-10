@@ -26,14 +26,17 @@ pub const HONOURED: &[Keyword] = &[
     kw("AddressFamily", "any|inet|inet6", "inet is -4 and inet6 is -6", "inet"),
     kw("BatchMode", "yes|no", "yes: never prompt; a prompt becomes an error", "yes"),
     kw("ChallengeResponseAuthentication", "yes|no", "the old name of KbdInteractiveAuthentication", "no"),
+    kw("ClearAllForwardings", "yes|no", "yes: no -L, -D or -R, from the command line or a file (default no)", "yes"),
     kw("Compression", "yes|no", "the same as -C", "yes"),
     kw("ConnectTimeout", "SECONDS", "the limit on the SSH handshake, and on each answer of the server while \
         podssh logs in (default 60)", "30"),
     kw("ConnectionAttempts", "1-100", "rounds over the relay hosts, or dials with --direct (default 1)", "3"),
+    kw("DynamicForward", "[BIND:]PORT|PATH", "the same as -D; repeatable", "1080"),
     kw("EscapeChar", "CHAR|^X|none", "the same as -e", "~"),
     kw("ExitOnForwardFailure", "yes|no", "yes: a forward of -R that the server refuses ends the run with 255", "yes"),
     kw("ForwardAgent", "yes|no|PATH|$NAME", "yes is -A: while the session lasts, the server may use the agent that \
         podssh logs in with; PATH, or the variable NAME, names another agent (default no)", "yes"),
+    kw("GatewayPorts", "yes|no", "the same as -g (default no)", "yes"),
     kw("GlobalKnownHostsFile", "FILE...|none", "the system known_hosts files", "/dev/null"),
     kw("HostKeyAlias", "NAME", "look up and record the host key under this name, in lowercase", "alias"),
     kw("HostName", "HOST", "the host to connect to, in place of the destination; %h is the host as typed", "%h.example.org"),
@@ -43,6 +46,7 @@ pub const HONOURED: &[Keyword] = &[
     kw("IdentityFile", "FILE", "the same as -i; repeatable", "~/.ssh/id_ed25519"),
     kw("IgnoreUnknown", "PATTERN,...", "unknown keywords to accept with no effect, when they come after it", "UseKeychain"),
     kw("KbdInteractiveAuthentication", "yes|no", "allow keyboard-interactive authentication", "yes"),
+    kw("LocalForward", "[BIND:]PORT HOST:HOSTPORT", "the same as -L, with a space between the two sides; repeatable", "8080 db:5432"),
     kw("LogLevel", "QUIET|FATAL|ERROR|INFO|VERBOSE|DEBUG|DEBUG2|DEBUG3", "how much podssh says on stderr (default INFO)", "VERBOSE"),
     kw("NumberOfPasswordPrompts", "N", "password attempts (default 3)", "2"),
     kw("PasswordAuthentication", "yes|no", "allow password authentication", "no"),
@@ -70,10 +74,10 @@ pub const HONOURED: &[Keyword] = &[
 pub const IGNORED: &[&str] = &[
     "AddKeysToAgent", "BindAddress", "BindInterface", "CanonicalDomains", "CanonicalizeFallbackLocal",
     "CanonicalizeHostname", "CanonicalizeMaxDots", "CanonicalizePermittedCNAMEs", "CASignatureAlgorithms",
-    "CertificateFile", "ChannelTimeout", "CheckHostIP", "Ciphers", "ClearAllForwardings",
+    "CertificateFile", "ChannelTimeout", "CheckHostIP", "Ciphers",
     "ControlMaster", "ControlPath", "ControlPersist", "EnableEscapeCommandline", "EnableSSHKeysign",
     "FingerprintHash", "ForwardX11", "ForwardX11Timeout",
-    "ForwardX11Trusted", "GatewayPorts", "GSSAPIAuthentication", "GSSAPIClientIdentity", "GSSAPIDelegateCredentials",
+    "ForwardX11Trusted", "GSSAPIAuthentication", "GSSAPIClientIdentity", "GSSAPIDelegateCredentials",
     "GSSAPIKeyExchange", "GSSAPIKexAlgorithms", "GSSAPIRenewalForcesRekey", "GSSAPIServerIdentity", "GSSAPITrustDns",
     "HashKnownHosts",
     "HostbasedAcceptedAlgorithms", "HostbasedAuthentication", "HostKeyAlgorithms", "IPQoS", "KexAlgorithms",
@@ -88,8 +92,6 @@ pub const IGNORED: &[&str] = &[
 #[rustfmt::skip]
 pub const REFUSED: &[(&str, &str)] = &[
     ("ProxyCommand", "podssh ssh reaches the host through the relay itself (none, and podssh proxy %h %p, are accepted); to use OpenSSH, give it ProxyCommand='podssh proxy %h %p'"),
-    ("LocalForward", "needs a local listener, which podssh ssh does not open yet; use -W HOST:PORT, or podssh pipe tcp-listen:"),
-    ("DynamicForward", "needs a local listener, which podssh ssh does not open yet; use -W HOST:PORT, or podssh pipe tcp-listen:"),
     ("ForkAfterAuthentication", "going to the background is not supported (=no is accepted); start podssh with &"),
     ("RevokedHostKeys", "mark the keys @revoked in a known_hosts file"),
     ("KnownHostsCommand", "list the keys in a known_hosts file"),
@@ -184,6 +186,8 @@ mod tests {
         assert_eq!(d("LogLevel"), "INFO");
         assert_eq!(o.log_level, podssh_ssh::LogLevel::Info);
         assert_eq!(d("ForwardAgent"), "no");
+        assert_eq!(d("GatewayPorts"), "no");
+        assert_eq!(d("ClearAllForwardings"), "no");
         assert_eq!(o.forward_agent, podssh_ssh::Agent::Off);
     }
 }

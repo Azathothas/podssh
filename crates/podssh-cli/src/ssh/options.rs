@@ -53,6 +53,12 @@ pub struct Settings {
     pub session_type: Option<String>,
     /// `RemoteForward`: each one given, as for `-R`.
     pub remote_forwards: Vec<podssh_ssh::RemoteForward>,
+    /// `LocalForward` and `DynamicForward` (T-038): each one given.
+    pub local_forwards: Vec<super::local_spec::LocalSpec>,
+    /// `GatewayPorts`: `-L` and `-D` with no address listen on each address.
+    pub gateway_ports: Option<bool>,
+    /// `ClearAllForwardings`: no `-L`, `-D` or `-R`, from any place.
+    pub clear_all_forwardings: Option<bool>,
     pub exit_on_forward_failure: Option<bool>,
     /// `IgnoreUnknown`: a pattern list of unknown keywords to accept without
     /// effect, when they come after it.
@@ -182,10 +188,11 @@ impl Settings {
                      to use OpenSSH with a relay, give ssh `-o ProxyCommand='podssh proxy %h %p'`"
                 ))
             }
-            "localforward" | "dynamicforward" => {
-                return Err(format!(
-                    "-o {name}: needs a local listener, which podssh ssh does not open yet; use -W HOST:PORT, or podssh pipe tcp-listen:"
-                ))
+            "localforward" => self.local_forwards.push(super::local_spec::local_keyword(value)?),
+            "dynamicforward" => self.local_forwards.push(super::local_spec::dynamic_keyword(value)?),
+            "gatewayports" => set(&mut self.gateway_ports, yes_no(value).ok_or_else(|| bad("expected yes or no"))?),
+            "clearallforwardings" => {
+                set(&mut self.clear_all_forwardings, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
             }
             "remoteforward" => self.remote_forwards.push(super::forward::parse_remote_keyword(value)?),
             "exitonforwardfailure" => {
@@ -261,6 +268,8 @@ impl Settings {
         send_env.extend(file.send_env);
         let mut remote_forwards = self.remote_forwards;
         remote_forwards.extend(file.remote_forwards);
+        let mut local_forwards = self.local_forwards;
+        local_forwards.extend(file.local_forwards);
         let mut ignored = self.ignored;
         ignored.extend(file.ignored);
         Settings {
@@ -298,6 +307,9 @@ impl Settings {
             stdin_null: self.stdin_null.or(file.stdin_null),
             session_type: self.session_type.or(file.session_type),
             remote_forwards,
+            local_forwards,
+            gateway_ports: self.gateway_ports.or(file.gateway_ports),
+            clear_all_forwardings: self.clear_all_forwardings.or(file.clear_all_forwardings),
             exit_on_forward_failure: self.exit_on_forward_failure.or(file.exit_on_forward_failure),
             ignore_unknown: self.ignore_unknown.or(file.ignore_unknown),
             ignored,
@@ -413,7 +425,8 @@ mod tests {
     fn bad_values_and_refused_keywords_are_errors() {
         assert!(Settings::default().apply("StrictHostKeyChecking=maybe").is_err());
         assert!(Settings::default().apply("ConnectTimeout=30x").is_err());
-        assert!(Settings::default().apply("LocalForward=8080 db:5432").unwrap_err().contains("-W"));
+        assert!(Settings::default().apply("LocalForward=8080").unwrap_err().contains("LocalForward"));
+        Settings::default().apply("LocalForward=8080 db:5432").unwrap();
         assert!(Settings::default().apply("ProxyCommand=nc %h %p").unwrap_err().contains("podssh proxy"));
         Settings::default().apply("ProxyCommand=none").unwrap();
     }

@@ -204,24 +204,26 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "no agent forwarding (the default; the last of -A and -a wins)", None),
     row(Some('k'), "no-gssapi-delegation", None, FlagKind::Supported,
         "no GSSAPI delegation (podssh never delegates credentials)", None),
-    // OpenSSH accepts -g with no -L; with no local listener it changes nothing.
-    row(Some('g'), "gateway-ports", None, FlagKind::Accepted,
-        "remote hosts may connect to local forwarded ports; podssh has none", None),
+    // T-038: -L and -D with no address listen on each address, not loopback.
+    row(Some('g'), "gateway-ports", None, FlagKind::Supported,
+        "remote hosts may connect to local forwarded ports: -L and -D with no address listen on each address", None),
     // Accepted and ignored. `ssh -G` proves it is a Tag and not a port, and
     // a user who has memorised `-P` must not be taught a second way to spell it.
     row(Some('P'), "tag", Some("TAG"), FlagKind::Accepted,
         "Tag, as OpenSSH ssh reads it", None),
-    // Refused rows. Each names what to type instead; none prints a usage block.
-    row(Some('L'), "forward-local", Some("SPEC"), FlagKind::Refused,
-        "podssh ssh opens no local listener yet, so -L is refused (podssh pipe tcp-listen: can)", Some("-W HOST:PORT")),
+    // T-038: a local listener that the user asks for, after a probe of the
+    // bind before anything connects.
+    row(Some('L'), "forward-local", Some("SPEC"), FlagKind::Supported,
+        "[BIND:]PORT:HOST:HOSTPORT or PATH:HOST:HOSTPORT: listen here; each connection goes on from the server", None),
     row(Some('R'), "forward-remote", Some("SPEC"), FlagKind::Supported,
         "[BIND:]PORT:HOST:HOSTPORT: the server listens; each connection goes on to HOST:HOSTPORT through the proxy", None),
-    row(Some('D'), "dynamic-forward", Some("SPEC"), FlagKind::Refused,
-        "podssh ssh opens no local listener yet, so -D is refused (podssh pipe tcp-listen: can)", Some("-W HOST:PORT")),
+    row(Some('D'), "dynamic-forward", Some("SPEC"), FlagKind::Supported,
+        "[BIND:]PORT or PATH: a SOCKS4 and SOCKS5 proxy here; each connection goes on from the server", None),
+    // Refused rows. Each names what to type instead; none prints a usage block.
     row(Some('B'), "bind-interface", Some("IFACE"), FlagKind::Refused,
-        "podssh never binds; the relay chooses the source address", Some("no flag")),
+        "podssh chooses no source address: the relay does, or the system with --direct", Some("no flag")),
     row(Some('b'), "bind-address", Some("ADDR"), FlagKind::Refused,
-        "podssh never binds; the relay chooses the source address", Some("no flag")),
+        "podssh chooses no source address: the relay does, or the system with --direct", Some("no flag")),
     // The rest of OpenSSH 10.3p1's flags, so that each one refuses by name.
     row(Some('c'), "cipher", Some("CIPHERS"), FlagKind::Refused,
         "podssh negotiates its own modern ciphers", Some("no flag")),

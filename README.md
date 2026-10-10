@@ -37,8 +37,9 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
   safe. See [SECURITY.md](SECURITY.md).
 - **Outbound only, unless you ask.** podssh opens outbound connections only
   (to the relay, or to the proxy that `HTTPS_PROXY` names). It listens only
-  on an address of `podssh pipe` that you name (`unix-listen:`,
-  `tcp-listen:`), after the bind shows that the host allows it. The iroh
+  on an address that you name, of `podssh pipe` (`unix-listen:`,
+  `tcp-listen:`) or of `podssh ssh -L` and `-D`, after the bind shows that
+  the host allows it. The iroh
   road, in a build with the feature `iroh`, binds UDP for direct paths only
   after a probe allows it.
 - **Fallbacks.** If one relay host fails, podssh tries the next one. If DNS
@@ -77,6 +78,8 @@ podssh ssh -i key -o StrictHostKeyChecking=accept-new user@example.org true
 podssh ssh -J user@bastion user@inner        # through a jump host
 podssh ssh -A user@build 'git pull'          # the server may use your agent while the session lasts
 podssh ssh -W db.internal:5432 user@bastion  # stdin and stdout to a TCP port; nothing listens
+podssh ssh -N -L 5432:db.internal:5432 user@bastion  # a local port to the database, if this host may listen
+podssh ssh -N -D 1080 user@bastion           # a SOCKS proxy on 127.0.0.1:1080
 podssh ssh -tt user@example.org < script.txt # a remote pty; local stdin is a pipe
 ```
 

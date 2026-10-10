@@ -167,6 +167,10 @@ where
             // to try again.
             retry::reached(Phase::Requested);
             let mut handle = handles.pop().expect("the destination");
+            // -L and -D serve while -N waits for the end (T-038).
+            if !opts.local_forwards.is_empty() {
+                crate::local::alongside(&handle, &opts.local_forwards, log, crate::local::closed(&handle)).await;
+            }
             let ended = (&mut handle).await;
             handles.push(handle);
             // -N ends only when the server or the network ends it, never
@@ -183,7 +187,10 @@ where
                 )),
             }
         }
-        _ => session::run(handles.last().expect("the destination"), opts, &host, log).await,
+        _ => {
+            let handle = handles.last().expect("the destination");
+            crate::local::alongside(handle, &opts.local_forwards, log, session::run(handle, opts, &host, log)).await
+        }
     };
     disconnect_all(&handles).await;
     result

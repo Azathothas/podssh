@@ -32,6 +32,7 @@ pub mod io;
 pub mod keygen;
 pub mod keys;
 pub mod known_hosts;
+pub mod local;
 pub mod log;
 pub mod options;
 pub mod persist;
@@ -45,14 +46,16 @@ pub mod run;
 pub mod session;
 pub mod sftp;
 pub mod signals;
+mod socks;
 pub mod terminal;
 
 /// A connection to one hop, logged in.
 pub type Connection = russh::client::Handle<handler::Client>;
 
+pub use local::LocalForward;
 pub use log::Log;
-// The russh that podssh links, for the agent of `podssh agent` (T-034).
 pub use options::{Agent, Hop, LogLevel, Method, Options, RemoteForward, Request, RequestTty, StrictHostKeyChecking};
 pub use relay_stream::{RelayEnd, RelayStatus};
 pub use run::{run, EXIT_FAILURE};
+// The russh that podssh links, for the agent of `podssh agent` (T-034).
 pub use russh;

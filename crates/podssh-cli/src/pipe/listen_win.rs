@@ -173,7 +173,7 @@ fn wsa_error() -> io::Error {
 
 impl Bound {
     /// The next client of this user; another user's is closed.
-    pub async fn accept(&mut self, say: &mut dyn FnMut(&str)) -> io::Result<End> {
+    pub async fn accept<F: FnMut(&str) + ?Sized>(&mut self, say: &mut F) -> io::Result<End> {
         loop {
             match &mut self.kind {
                 Kind::Socket { accepted, .. } => {

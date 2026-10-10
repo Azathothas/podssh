@@ -66,6 +66,11 @@ pub struct SshArgs {
     pub print_config: bool,
     /// Each `-R` spec, as given.
     pub remote_forwards: Vec<String>,
+    /// Each `-L` and each `-D` spec, as given (T-038).
+    pub local_forwards: Vec<String>,
+    pub dynamic_forwards: Vec<String>,
+    /// `-g`: `-L` and `-D` with no address listen on each address.
+    pub gateway_ports: bool,
     /// The last of `-A` and `-a`: whether the server may use the agent
     /// (T-036); `None` when neither was given.
     pub forward_agent: Option<bool>,
@@ -182,6 +187,9 @@ impl SshArgs {
             persist_name: one("persist-name"),
             print_config: flag("print-config"),
             remote_forwards: many("forward-remote"),
+            local_forwards: many("forward-local"),
+            dynamic_forwards: many("dynamic-forward"),
+            gateway_ports: flag("gateway-ports"),
             forward_agent,
         }
     }

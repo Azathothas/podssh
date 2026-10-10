@@ -82,8 +82,15 @@ const SSH: &[&str] = &[
      key that a passphrase opened and a password that the server took are kept for the run. Keys \
      typed meanwhile go to the session after the attach. With a command, -W, -N, -s, -T, node:// or \
      iroh:, --persist is refused (exit 64).",
-    "-L and -D are refused by name: podssh ssh opens no local listener yet. Use -W HOST:PORT, which \
-     carries one connection over the session, or podssh pipe with tcp-listen: and ssh:.",
+    "-L [BIND:]PORT:HOST:HOSTPORT listens here, and each connection that it takes goes on from the \
+     server; HOST:HOSTPORT may be a socket path on the server, and the listening side a socket path here \
+     (mode 0600). -D [BIND:]PORT, or a socket path, is a SOCKS4, SOCKS4a and SOCKS5 proxy, CONNECT only \
+     and no authentication; podssh answers a SOCKS client once the server opened its channel. A port with \
+     no address listens on 127.0.0.1 and ::1, or with -g (GatewayPorts) on each address; localhost is \
+     loopback, and an empty address or * each address, as in OpenSSH. Each listener is made before \
+     anything connects: one that cannot be made ends the run (exit 255), with the system's words and \
+     -W HOST:PORT, which needs none; PODSSH_LISTEN set to no turns listening off (exit 78). \
+     ClearAllForwardings yes drops each forward, and -W implies it, as in OpenSSH.",
     "-R [BIND:]PORT:HOST:HOSTPORT asks the server to listen; each connection that it takes reaches \
      HOST:HOSTPORT from this host, as one more outbound connection, through HTTPS_PROXY when it is set, \
      within 20 s. A port of 0 lets the server choose, and podssh prints it. A forward that the server \

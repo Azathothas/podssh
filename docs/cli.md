@@ -165,11 +165,41 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
 
 ## Forwarding
 
-- `-L` and `-D` need a local listener, so podssh refuses them. The refusal
-  of `-L` gives `-W HOST:PORT`. For `-D`, `-W` is only a partial answer: a
-  SOCKS proxy serves many connections, and `-W` serves one. T-038 adds
-  both, with a listener that opens only after a probe allows the bind
-  ([decisions.md](decisions.md), 2026-10-08).
+- `-L` and `-D` (T-038) listen here, as the operator ruled
+  ([decisions.md](decisions.md), 2026-10-08): a listener that the user
+  asks for, made before anything connects; the bind and the listen are the
+  probe. One that cannot be made ends the run (255) with the system's words
+  and `-W HOST:PORT`, which needs none; `PODSSH_LISTEN=no` refuses each
+  (78), as for `podssh pipe` and `podssh agent`.
+- The forms are OpenSSH's `parse_forward`: `-L [bind_address:]port:host:hostport`,
+  `-L [bind_address:]port:remote_socket`, `-L local_socket:host:hostport`,
+  `-L local_socket:remote_socket`; `-D [bind_address:]port` and, beyond
+  OpenSSH, `-D local_socket`; `-o LocalForward` with a space between the
+  two sides, and `-o DynamicForward`. A field in brackets is taken as it
+  is, a backslash makes the next character plain, a field with a `/` is a
+  socket path, and `${NAME}` is a variable. A port of 0, and a port that
+  is not a number, are refused (OpenSSH also looks a name up in the
+  services database).
+- The address: a port with no address listens on 127.0.0.1 and ::1, or with
+  `-g` or `GatewayPorts yes` on 0.0.0.0 and ::; `localhost` is loopback,
+  `""` and `*` each address, another is that address, as OpenSSH's
+  `channel_fwd_bind_addr` chooses for a client. One of two addresses may
+  fail, not both. A TCP port takes each local user, and other hosts when
+  it is not loopback, which podssh says without `-v`. A socket path is the
+  listener of `podssh pipe unix-listen:`: mode 0600, a client of another
+  user is closed, and a socket that nobody serves is removed first.
+- Each connection goes to the destination over a new channel:
+  `direct-tcpip` with the client's address as its originator, or
+  `direct-streamlocal@openssh.com` to a socket on the server. `-D` speaks
+  SOCKS4, SOCKS4a and SOCKS5 with CONNECT and no authentication, and
+  answers once the server opened the channel, with the reason of a refusal
+  (OpenSSH answers first); BIND, UDP ASSOCIATE and authentication are
+  refused. The channels of many connections open at the same time; a
+  server may take 60 s to open one, and a SOCKS client 30 s to ask.
+- `ClearAllForwardings yes` drops each `-L`, `-D` and `-R`, and `-W`
+  implies it, as in OpenSSH. `-G` prints `clearallforwardings`,
+  `gatewayports`, `dynamicforward` and `localforward` as OpenSSH 10.3p1
+  does.
 - `-R [bind_address:]port:host:hostport` (T-035) needs no local listener:
   the server listens, and podssh connects out for each connection that it
   takes, as one more outbound connection, through `HTTPS_PROXY` when it is

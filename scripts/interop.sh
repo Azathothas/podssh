@@ -30,7 +30,7 @@ expect_rc() {
 echo "== servers"
 # openssh-client-default is ssh itself, for the % tokens of `ssh -G`.
 apk add --no-cache openssh-server openssh-server-pam openssh-keygen openssh-sftp-server openssh-client-default \
-    dropbear python3 linux-pam openssl tmux >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
+    dropbear python3 linux-pam openssl tmux curl >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
 PW=$(head -c 18 /dev/urandom | base64 | tr -d '/+=')
 adduser -D -s /bin/sh podtest >/dev/null 2>&1 || true
 echo "podtest:$PW" | chpasswd >/dev/null 2>&1 || { echo "interop: chpasswd failed"; exit 1; }
@@ -67,6 +67,10 @@ sshd_conf() { # port extra-line...
         echo "AcceptEnv PODSSH_TEST_*"
         echo "AllowTcpForwarding yes"
         echo "Subsystem sftp /usr/lib/ssh/sftp-server"
+        # OpenSSH 9.8 and later refuse a source for a while after failed
+        # logins, which these tests make on purpose: a later login of the
+        # run would fail at random.
+        echo "PerSourcePenalties no"
         for line in "$@"; do echo "$line"; done
     } >"$W/sshd-$_port.conf"
 }
@@ -414,6 +418,8 @@ saved=$(p 2201 $K -o BatchMode=yes "$T" 'cat /tmp/pipe-vi' </dev/null 2>/dev/nul
 . "$HERE/interop-keygen.sh"
 # shellcheck source=scripts/interop-agent.sh
 . "$HERE/interop-agent.sh"
+# shellcheck source=scripts/interop-local.sh
+. "$HERE/interop-local.sh"
 # shellcheck source=scripts/interop-faults.sh
 . "$HERE/interop-faults.sh"
 # shellcheck source=scripts/interop-cp.sh

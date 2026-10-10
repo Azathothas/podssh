@@ -67,7 +67,7 @@ fn a_refusal_writes_nothing_to_stdout() {
         vec!["nonsense"],
         vec!["ssh", "--StrictHostKeyChekcing=no", "host"],
         vec!["ssh", "-Z", "host"],
-        vec!["ssh", "-L", "8080:db:5432", "host"],
+        vec!["ssh", "-w", "0:0", "host"],
         vec!["ssh", "-P", "22", "host"],
         vec!["--bogus"],
         vec!["-Z"],

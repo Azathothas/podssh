@@ -17,7 +17,7 @@ fn nothing_but_the_answer_reaches_stdout() {
         vec!["chatr"],
         vec!["xz"],
         vec!["ssh", "--StrictHostKeyChekcing=no", "host"],
-        vec!["ssh", "-L", "8080:db:5432", "host"],
+        vec!["ssh", "-w", "0:0", "host"],
         vec!["--bogus"],
         vec!["-Z"],
     ];
@@ -88,13 +88,13 @@ fn minus_p_on_ssh_prints_a_notice_and_still_refuses_the_missing_behaviour() {
 
 #[test]
 fn a_refused_flag_names_its_replacement_on_stderr() {
-    let p = crate::tree::parse(vec!["ssh", "-L", "8080:db:5432", "host"]);
+    let p = crate::tree::parse(vec!["ssh", "-w", "0:0", "host"]);
     let mut out: Vec<u8> = Vec::new();
     let mut err: Vec<u8> = Vec::new();
     let rc = run(&p, &mut Streams { out: &mut out, err: &mut err });
     assert_eq!(rc, 64);
     let text = String::from_utf8(err).unwrap();
-    assert!(text.contains("-L"), "{text}");
+    assert!(text.contains("-w"), "{text}");
     assert!(text.contains("-W HOST:PORT"), "{text}");
     assert!(!text.contains("Usage:"), "no usage header: {text}");
     assert!(!text.contains("For more information"), "no clap trailer: {text}");

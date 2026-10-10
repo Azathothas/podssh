@@ -4003,6 +4003,7 @@ name = "podssh-ssh"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "futures-util",
  "hmac 0.12.1",
  "libc",
  "podssh-ws",

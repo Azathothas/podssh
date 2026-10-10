@@ -169,12 +169,12 @@ fn plant_a_usage_dump_would_be_a_header_and_a_trailer() {
 /// error handling would break first.
 #[test]
 fn plant_a_usage_dump_on_a_refused_flag_would_bury_the_replacement() {
-    let p = parse(args(&["ssh", "-L", "8080:db:5432", "host"]));
+    let p = parse(args(&["ssh", "-w", "0:0", "host"]));
     let Parsed::Command { refused, .. } = &p else { panic!("{p:?}") };
     assert_eq!(refused.len(), 1);
-    assert_eq!(refused[0].0, "-L SPEC");
+    assert_eq!(refused[0].0, "-w TUN");
     // The refusal uses `usage_form()` — the short flag and its
-    // metavariable — not the help spelling `-L, --forward-local SPEC`. A
+    // metavariable — not the help spelling `-w, --tunnel TUN`. A
     // refusal is read on a terminal in a hurry and the shortest unambiguous
     // form of the flag the user typed is the one that belongs there. The
     // first version of this assertion expected the long form and failed,
@@ -312,7 +312,7 @@ fn plant_a_usage_dump_is_not_printed_on_the_p_path_either() {
     // a usage error before any network; the notice is printed before that.
     for input in [
         vec!["ssh", "-P", "22", "invalid!host"],
-        vec!["ssh", "-L", "8080:db:5432", "host"],
+        vec!["ssh", "-w", "0:0", "host"],
         vec!["ssh", "--StrictHostKeyChekcing=no", "host"],
     ] {
         let p = parse(args(&input));

@@ -79,8 +79,14 @@ LISTENERS = {
     # PODSSH_LISTEN turns it off. And the target of the tests of -R (T-035),
     # on the loopback, and the stand-in agent of the tests of -A (T-036), on
     # a socket in a scratch directory: test modules of src/ that reach the
-    # crate's own login.
-    "TcpListener": ["crates/podssh-cli/src/pipe/listen.rs", "crates/podssh-ssh/src/remote_tests.rs"],
+    # crate's own login. And -L and -D of `podssh ssh` (T-038), which the
+    # user asks for: the bind and the listen, before anything connects, are
+    # the probe, and PODSSH_LISTEN turns them off.
+    "TcpListener": [
+        "crates/podssh-cli/src/pipe/listen.rs",
+        "crates/podssh-ssh/src/remote_tests.rs",
+        "crates/podssh-cli/src/ssh/local_bind.rs",
+    ],
     "UnixListener": ["crates/podssh-cli/src/pipe/listen.rs", "crates/podssh-ssh/src/agent_forward_tests.rs"],
     # The iroh road (feature `iroh`, T-162), which the user selects: its probe
     # binds a UDP socket to port 0 and closes it, and only when the probe
@@ -105,6 +111,7 @@ LISTENERS = {
         "crates/podssh-cli/src/ssh/iroh/race.rs",
         "crates/podssh-ssh/src/remote_tests.rs",
         "crates/podssh-ssh/src/agent_forward_tests.rs",
+        "crates/podssh-cli/src/ssh/local_bind.rs",
     ],
     "listen(": ["crates/podssh-cli/src/pipe/listen_win.rs"],
     "socket2": [],

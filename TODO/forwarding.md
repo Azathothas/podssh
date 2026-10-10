@@ -206,7 +206,7 @@ remote host that must use the key, such as `git` on a build host.
 
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
-   (`crates/podssh-cli/src/ssh/keywords.rs:25-85`). Change the help of `-a`
+   (`crates/podssh-cli/src/ssh/keywords.rs:25-89`). Change the help of `-a`
    (`crates/podssh-cli/src/flags.rs:203-204`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
    before the shell or exec request (`crates/podssh-ssh/src/session.rs:95-109`).
@@ -338,10 +338,10 @@ X11 channel.
 
 - Measured, offline: `podssh ssh -X example.invalid true` gives "-X is
   refused. Leave it out. X11 forwarding is not supported.", exit 64; `-Y`
-  the same (`crates/podssh-cli/src/flags.rs:248-251`).
+  the same (`crates/podssh-cli/src/flags.rs:250-253`).
 - Measured, offline: `-o ForwardX11=yes` is accepted with no effect, as
   `ForwardAgent` is. Read: `ForwardX11Trusted`, `ForwardX11Timeout` and
-  `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:70-85`).
+  `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:74-89`).
 - Read: russh 0.64.1 has `Channel::request_x11` (`x11-req`), and its default
   handler accepts each `x11` channel. podssh's handler does not override it
   (`crates/podssh-ssh/src/handler.rs` lines 44-88 at `8d668b7`).
@@ -416,14 +416,14 @@ it (`SECURITY.md`, "Design rules").
 a local listener when the user asks for it and a probe at run time allows
 the bind; loopback and AF_UNIX by default; an address that the user sets;
 listening that the user can turn off; the same refusal where the probe
-fails. Also `docs/cli.md:168-172`; the totoshko88/RustConn report in GitHub
+fails. Also `docs/cli.md`, lines 168-172 at `97146aa`; the totoshko88/RustConn report in GitHub
 #24 (item 3) and the OthmaneBlial/MobaRust report in GitHub #21 (item 3);
 sandbox A of T-001 (`bind` refused for AF_INET, allowed for AF_UNIX).
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -436,11 +436,11 @@ AF_UNIX.
 
 - Measured, offline: `-L 8080:localhost:80` and `-D 1080` are refused with
   "podssh never binds a listener", exit 64
-  (`crates/podssh-cli/src/flags.rs:215-220`). Read: `-o LocalForward` and
-  `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs:185-189`).
+  (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`). Read: `-o LocalForward` and
+  `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
 - Read: `AGENTS.md:192-197` (no bind, no listen),
-  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:83-96` ("Nothing
-  listens") and `README.md:38-43` state the rule from before the ruling.
+  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:83-99` ("Nothing
+  listens") and `README.md:38-44` state the rule from before the ruling.
   `docs/design.md:437-439` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
@@ -467,18 +467,48 @@ AF_UNIX.
    Refuse BIND and UDP ASSOCIATE.
 4. The user sets the address as in OpenSSH: the `bind_address` of the spec,
    and a wildcard address only with `-g` or `GatewayPorts yes`, which have no
-   effect today (`crates/podssh-cli/src/flags.rs:208-209`,
-   `crates/podssh-cli/src/ssh/keywords.rs:76`). Remove an AF_UNIX socket at
+   effect today (`crates/podssh-cli/src/flags.rs`, lines 208-209 at `97146aa`,
+   `crates/podssh-cli/src/ssh/keywords.rs`, line 76 at `97146aa`). Remove an AF_UNIX socket at
    exit; with `StreamLocalBindUnlink`, remove a stale one first.
 5. The user turns listening off: `-o ClearAllForwardings=yes` for one run
    (OpenSSH's keyword, ignored today,
-   `crates/podssh-cli/src/ssh/keywords.rs:73`), and for a whole host a
+   `crates/podssh-cli/src/ssh/keywords.rs`, line 73 at `97146aa`), and for a whole host a
    variable that refuses each local listener (`-L`, `-D`, T-039, T-034). Add
    it to `VARIABLES` in `crates/podssh-cli/src/man/facts.rs`.
 6. In the same commit, change the rows, the keywords, the note at
-   `crates/podssh-cli/src/man/notes.rs:85-86`, the test at
-   `crates/podssh-cli/tests/flag_table.rs:82-98`, and the documents that the
+   `crates/podssh-cli/src/man/notes.rs`, lines 85-86 at `97146aa`, the test at
+   `crates/podssh-cli/tests/flag_table.rs:82-101`, and the documents that the
    Premise quotes.
+
+## Decision
+
+2026-10-11.
+
+- The address follows OpenSSH's `channel_fwd_bind_addr` for a client, not
+  step 4's "a wildcard address only with `-g`": a port with no address is
+  loopback, or each address with `-g`/`GatewayPorts yes`; an explicit `*`
+  or empty address is each address with no `-g`, as in OpenSSH, because
+  the user named it; `localhost` is loopback. Loopback is 127.0.0.1 and
+  ::1, each bound, one of them allowed to fail. Lost: `*` only with `-g`,
+  which would refuse an OpenSSH command line that works.
+- A listener that cannot be made ends the run before anything connects,
+  with exit 255 (the Prove's), the system's words and `-W HOST:PORT`: the
+  operator's "the same refusal where the probe fails". OpenSSH warns and
+  goes on unless `ExitOnForwardFailure`; a `-N` run would then sit with
+  nothing to do. `PODSSH_LISTEN=no` (step 5's variable, already that of
+  `podssh pipe` and `podssh agent`) refuses with 78.
+- `-D` answers a SOCKS client once the server opened the channel, with the
+  reason of a refusal (5 connect failed, 2 prohibited); OpenSSH answers
+  success first. A server may take 60 s to open, a client 30 s to ask.
+- A socket path on either side is carried: `direct-streamlocal@openssh.com`
+  to a socket on the server (russh has it), and `podssh pipe`'s
+  `unix-listen:` here, which removes a socket that nobody serves, so
+  `StreamLocalBindUnlink` stays a keyword with no effect. `-D PATH` goes
+  beyond OpenSSH: a sandbox that refuses AF_INET binds may allow AF_UNIX.
+- `ClearAllForwardings yes` drops `-R` too, and `-W` implies it, as in
+  OpenSSH: before this, `podssh ssh -W` with `-R` asked for the forward.
+- The listeners live in the CLI, which binds them; `podssh-ssh` serves
+  `Arc<dyn Listen>` and binds nothing (`crates/podssh-ssh/src/local.rs`).
 
 ## Prove
 
@@ -504,10 +534,60 @@ box fails.
 `tcp-listen:`, after the probe of the bind
 (`crates/podssh-cli/src/pipe/listen.rs`), which `-L` and `-D` can share.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
-and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs:215-220`,
-`crates/podssh-cli/src/ssh/options.rs:185-189`). `SECURITY.md:83-96` and
-`README.md:38-43` state the ruling now, as `AGENTS.md:192-197` and
+and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
+`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:83-99` and
+`README.md:38-44` state the ruling now, as `AGENTS.md:192-197` and
 `docs/target-environment.md:74-78` did already.
+
+## Done
+
+2026-10-11. `-L` and `-D` listen here, after the probe:
+
+- `crates/podssh-cli/src/ssh/local_spec.rs` reads the specs as OpenSSH's
+  `parse_forward` (brackets, `\`, a `/` makes a path, `${NAME}`, no port
+  0) and prints the lines of `-G` as OpenSSH 10.3p1 does, measured with
+  its `ssh -G` in the build image; `forwards` keeps the command line's
+  first, then the keywords', and clears all with `ClearAllForwardings` or
+  `-W`. `crates/podssh-cli/src/ssh/local_bind.rs` makes each listener
+  before anything connects (TCP on its addresses; a socket through
+  `podssh pipe`'s listener, whose `accept` now takes any callback, so its
+  future is `Send` when the callback is).
+- `crates/podssh-ssh/src/local.rs` serves them on the destination's
+  connection for as long as it lasts: with the session, with `-N` (which
+  now also waits on `closed`), and on each connection of `--persist`; the
+  channels open at the same time, each connection copied in a task of its
+  own. `crates/podssh-ssh/src/socks.rs` reads SOCKS4, SOCKS4a and SOCKS5
+  requests and writes the answers.
+- The command line: `-L`, `-D` and `-g` are supported; `LocalForward`,
+  `DynamicForward`, `GatewayPorts` and `ClearAllForwardings` are honoured
+  keywords; `-G` prints `clearallforwardings`, `gatewayports`,
+  `dynamicforward` and `localforward`. The tests that used `-L` as the
+  example of a refused flag use `-w TUN`, which still names `-W`. The
+  manual's note, `docs/cli.md` ("Forwarding"), `SECURITY.md` ("Nothing
+  listens"), README and the listener scan of `scripts/check-repo.py` say
+  so.
+
+Prove, native, Windows: `cargo test -p podssh-ssh -- local:: socks::`, 12
+passed against russh's server in the process (each connection of `-L` to
+its target with its originator, a socket of the server through
+streamlocal, SOCKS5 and SOCKS4a through `-D`, the server's refusal said to
+a SOCKS client as 5 and 2 and a connection of `-L` closed, serving that
+ends with its listeners, `closed`); `cargo test -p podssh-cli --lib`
+(the forms and their `-G` lines, the addresses), and `--test
+ssh_local_forward`, 4 passed through the binary to the test's SSH server
+(`-N -L` twice to a target, `-N -D` with SOCKS5, a port taken refuses with
+255 and `PODSSH_LISTEN=no` with 78 with nothing connected, `-W` clears
+`-L`); `tests/ssh_config.rs` and `tests/ssh_config_file.rs` hold the new
+lines of OpenSSH's `-G`. Plants: a listener that fails skipped, SOCKS
+answered before the channel, `-W` keeping the forwards, a wildcard default,
+a listening port of 0 taken, and `-N` serving nothing, each failed a test.
+
+In the build image (`sh scripts/dev.sh run`, a debug build): the tests of `local::`, `socks::` and `ssh_local_forward` passed on Linux, with the socket of `-L` made mode 0600 (5 passed); `scripts/interop.sh` 265 passed, 0 failed, with `scripts/interop-local.sh` against OpenSSH 10.3p1's sshd: `-N -L 127.0.0.1:2280:127.0.0.1:2203` gave Dropbear's banner, and so did a socket of `-L` (mode 0600); curl through `-D 127.0.0.1:2281` reached Dropbear with `--socks5-hostname` and `--socks4a`; `PODSSH_LISTEN=no` refused `-L` with 78. A run before it failed at random on an ECDSA login: OpenSSH's `PerSourcePenalties`, which each test sshd now turns off (`docs/STATUS.md`).
+
+Waits for T-251: the box (`scripts/test_in_box.sh`), where each bind is
+refused: `-L` on 127.0.0.1 must refuse before anything connects with the
+probe's error and 255, and the Prove's plant (skip the probe) must fail
+there.
 
 # T-039: Connection sharing: `ControlMaster`, `ControlPath`, `-O` and `-S` over an AF_UNIX socket
 
@@ -536,10 +616,10 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
 
 - Measured, offline: `-M`, `-S /tmp/ctl` and `-O check` are refused with
   "podssh keeps no control master: each run is one connection", exit 64
-  (`crates/podssh-cli/src/flags.rs:238-243`).
+  (`crates/podssh-cli/src/flags.rs:240-245`).
 - Measured, offline: `-o ControlMaster=auto -o ControlPath=/tmp/c` is
   accepted with no effect; only `-v` says so
-  (`crates/podssh-cli/src/ssh/keywords.rs:74`). A script that sets them still
+  (`crates/podssh-cli/src/ssh/keywords.rs:78`). A script that sets them still
   works, with one connection for each run.
 - Read: a control socket is a listener. `AGENTS.md:192-197` forbids it in the
   words from before the ruling. Sandbox A allowed a bind for AF_UNIX
@@ -624,8 +704,8 @@ Measured, offline, with `MSYS_NO_PATHCONV=1` and `PODSSH_OFFLINE=1`:
 Read:
 
 - `request` parses the value of `-W` with `parse_hop`
-  (`crates/podssh-cli/src/ssh/resolve.rs:472-482`), which reads a value with
-  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/hop.rs:40-53`).
+  (`crates/podssh-cli/src/ssh/hop.rs:81-91`), which reads a value with
+  no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/hop.rs:41-54`).
 - russh 0.64.1 has `Handle::channel_open_direct_streamlocal` (the channel
   `direct-streamlocal@openssh.com`). podssh opens only `direct-tcpip`
   (`crates/podssh-ssh/src/forward.rs:11-20`).
@@ -745,7 +825,7 @@ sessions (GitHub #17).
 ## Premise
 
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-70`,
-`crates/podssh-ssh/src/run.rs:165-185`). `podssh_relay::open` fails over and
+`crates/podssh-ssh/src/run.rs:165-189`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:177-212`,
 `crates/podssh-relay/src/open.rs:265-279`). With `-N`, no command runs, so a
@@ -815,9 +895,9 @@ at the connection step (exit 255), after the parse:
 | `db.internal:5432`, `[::1]:5432` | accepted | accepted |
 
 Read: `request` parses the value with `parse_hop`
-(`crates/podssh-cli/src/ssh/resolve.rs:472-482`), which reads a value with no
+(`crates/podssh-cli/src/ssh/resolve.rs`, lines 472-482 at `97146aa`), which reads a value with no
 `:` as a host on port 22, and splits a value at its one `:`
-(`crates/podssh-cli/src/ssh/hop.rs:40-53`). `forward::open` opens
+(`crates/podssh-cli/src/ssh/hop.rs:41-54`). `forward::open` opens
 `direct-tcpip` only (`crates/podssh-ssh/src/forward.rs:11-20`).
 
 ## Approach

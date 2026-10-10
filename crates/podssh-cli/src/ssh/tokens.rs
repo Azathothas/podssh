@@ -81,19 +81,10 @@ impl Tokens {
         let mut chars = value.chars();
         while let Some(c) = chars.next() {
             if variables && c == '$' && chars.as_str().starts_with('{') {
-                let rest = &chars.as_str()[1..];
-                let end = rest.find('}').ok_or_else(|| refuse("a ${ with no }".into()))?;
-                let name = &rest[..end];
-                // std may panic on such a name, which names no variable anyway.
-                if name.is_empty() || name.contains(['=', '\0']) {
-                    return Err(refuse(format!("${{{name}}} names no variable")));
-                }
-                match std::env::var(name) {
-                    Ok(v) => out.push_str(&v),
-                    Err(std::env::VarError::NotPresent) => return Err(refuse(format!("${{{name}}} is not set"))),
-                    Err(std::env::VarError::NotUnicode(_)) => return Err(refuse(format!("${{{name}}} is not UTF-8"))),
-                }
-                chars = rest[end + 1..].chars();
+                let after = &chars.as_str()[1..];
+                let (text, used) = variable(after).map_err(refuse)?;
+                out.push_str(&text);
+                chars = after[used..].chars();
                 continue;
             }
             if c != '%' {
@@ -141,6 +132,40 @@ impl Tokens {
             }
         }
         Ok(out)
+    }
+}
+
+/// `value` with each `${NAME}` made the variable's value, and nothing else
+/// replaced: the specs of `-L` and `-D`, as OpenSSH's `dollar_expand`.
+/// `setting` and `shown` name the option in a refusal.
+pub fn variables(setting: &str, shown: &str, value: &str) -> Result<String, String> {
+    let mut out = String::new();
+    let mut rest = value;
+    while let Some(at) = rest.find("${") {
+        out.push_str(&rest[..at]);
+        let after = &rest[at + 2..];
+        let (text, used) = variable(after).map_err(|why| format!("{setting}{shown}: {why}"))?;
+        out.push_str(&text);
+        rest = &after[used..];
+    }
+    out.push_str(rest);
+    Ok(out)
+}
+
+/// The value of the variable whose name begins `after`, the text after a
+/// `${`, and how much of `after` it took, its `}` included. A variable that
+/// is not set is refused, as OpenSSH refuses it.
+fn variable(after: &str) -> Result<(String, usize), String> {
+    let end = after.find('}').ok_or("a ${ with no }")?;
+    let name = &after[..end];
+    // std may panic on such a name, which names no variable anyway.
+    if name.is_empty() || name.contains(['=', '\0']) {
+        return Err(format!("${{{name}}} names no variable"));
+    }
+    match std::env::var(name) {
+        Ok(value) => Ok((value, end + 1)),
+        Err(std::env::VarError::NotPresent) => Err(format!("${{{name}}} is not set")),
+        Err(std::env::VarError::NotUnicode(_)) => Err(format!("${{{name}}} is not UTF-8")),
     }
 }
 

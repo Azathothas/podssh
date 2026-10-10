@@ -89,7 +89,7 @@ impl Listener {
 
     /// The next client: a peer of another user is closed with a line, and
     /// the wait goes on.
-    pub async fn accept(&mut self, say: &mut dyn FnMut(&str)) -> io::Result<End> {
+    pub async fn accept<F: FnMut(&str) + ?Sized>(&mut self, say: &mut F) -> io::Result<End> {
         match &mut self.kind {
             Kind::Tcp(listener) => {
                 let (stream, peer) = listener.accept().await?;
@@ -224,7 +224,7 @@ mod unix {
 
     impl Bound {
         /// The next client of this user; another user's is closed.
-        pub async fn accept(&mut self, say: &mut dyn FnMut(&str)) -> io::Result<End> {
+        pub async fn accept<F: FnMut(&str) + ?Sized>(&mut self, say: &mut F) -> io::Result<End> {
             loop {
                 let (stream, _) = self.listener.accept().await?;
                 match stream.peer_cred() {

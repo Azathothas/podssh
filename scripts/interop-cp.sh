@@ -137,6 +137,8 @@ for spec in "2205:Subsystem sftp /usr/bin/python3 $CW/flip.py" "2206:ForceComman
         echo "PidFile $W/sshd-$port.pid"
         echo "StrictModes no"
         echo "KbdInteractiveAuthentication no"
+        # No refusal of a source after failed logins (OpenSSH 9.8 and later).
+        echo "PerSourcePenalties no"
         [ "$port" = 2206 ] && echo "Subsystem sftp internal-sftp"
         echo "${spec#*:}"
     } >"$CW/sshd-$port.conf"
@@ -177,6 +179,7 @@ HostKey $W/host_ed25519
 PidFile $W/sshd-$port.pid
 StrictModes no
 KbdInteractiveAuthentication no
+PerSourcePenalties no
 EOF
 done
 cat >>"$CW/sshd-2208.conf" <<'EOF'
