@@ -921,6 +921,10 @@ and each server read the text (`SECURITY.md:112`).
 5. A test against a real IRC server in the gate (a container with an IRC
    daemon), and an ignored live test against one public network.
 
+Added by T-275 (2026-10-10): pace each line of a transfer with `transfer::Pace`, and on a close
+during a transfer say that a server may close a client that sends faster than it allows, then
+resume from the last acknowledged chunk on the next connection.
+
 ## Decision
 
 Recommendation: TLS by default, so that the relay sees only TLS. Plain text
@@ -944,7 +948,7 @@ gate's server must fail at the handshake.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -971,6 +975,14 @@ gives the next chunk at once after `Sender::acknowledge`.
 2. A close during a transfer says that the server may have closed a fast sender, and the
    transfer resumes from the last acknowledged chunk on the next connection.
 
+## Decision
+
+Decision (2026-10-10): five lines at once, then five a second, by default: half the rate at which
+InspIRCd 4.11.0 closed a sender, measured, and above none of the rates that slow a client down
+instead (ngircd 27, ergo 2.18.0, InspIRCd's own default). A caller sets another. Lost: no pace,
+which a server with no fake lag ends; and a pace learned from the server's lag, which a server
+that closes at once gives no time to learn.
+
 ## Prove
 
 ```sh
@@ -981,3 +993,27 @@ cargo test -p podssh-core --test transfer_relayed
 A test holds the pace: the time of each line, by a clock that the test gives. In the build image,
 `--test transfer_server -- --ignored` with `PODSSH_IRC_TRANSFER_BYTES=65536` passes through
 InspIRCd with its rate limit at 10 commands a second. Planted: no pace; that run is closed.
+
+## Correction
+
+2026-10-10: step 2 is the work of the command that runs a transfer over IRC, and none does yet:
+T-252 builds it, and its Approach now says to pace the lines and to say why a close during a
+transfer may come, then resume from the last acknowledged chunk, which the receiver's `accept`
+from a chunk index already allows. The defaults of undernet's ircu wait for Q39, with each live
+run on a public network.
+
+## Done
+
+2026-10-10, in the commit that closes this entry. `transfer::Pace`
+(`crates/podssh-core/src/irc/transfer/pace.rs`) gives the time that the next line of a transfer
+waits, by a clock that the caller gives: a burst, then a rate, five and five a second by default.
+The test of two clients through a real server paces each chunk and each acknowledgement.
+`docs/irc.md`, `docs/STATUS.md` and T-252 say so.
+
+Native, Windows 11: `cargo test -p podssh-core --test transfer_relayed`, 7 passed, the pace among
+them, by a clock that the test gives. `cargo test --workspace --no-fail-fast`: 1197 passed, 0
+failed, 39 ignored. clippy with `-D warnings`: no warning. In the build image, with
+InspIRCd 4.11.0 at `commandrate="10000"`, `threshold="100"` and `fakelag="no"`, `--test
+transfer_server -- --ignored` carried 64 KiB paced, in 246 chunks and 50 s, with the same SHA-256;
+planted, the same run at 1000 lines a second was closed. Paced, 2000 bytes crossed ngircd 27 and
+ergo 2.18.0.

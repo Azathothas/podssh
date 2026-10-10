@@ -6,7 +6,9 @@
 
 use podssh_core::irc::isupport::Isupport;
 use podssh_core::irc::message::{Command, Message};
-use podssh_core::irc::transfer::{chunk_bytes, chunk_line_length, Chunk, Line, Offer, Receiver, Sender};
+use std::time::{Duration, Instant};
+
+use podssh_core::irc::transfer::{chunk_bytes, chunk_line_length, Chunk, Line, Offer, Pace, Receiver, Sender};
 use podssh_core::irc::TransferLimits;
 
 /// The limits of InspIRCd 4.11.0's `005`: `NICKLEN=30`, `USERLEN=10` and
@@ -128,4 +130,40 @@ fn an_offer_names_its_chunk_size_and_the_receiver_checks_it() {
     let line = Line::Offer(offer(219, 5));
     assert_eq!(line.render(), "PODSSH1|offer|t1|f.bin|1000|5|219");
     assert_eq!(Line::parse(&line.render()), Some(line));
+}
+
+#[test]
+fn the_pace_holds_a_burst_then_a_rate() {
+    // By a clock that the test gives (T-275): five lines at once, then one
+    // each fifth of a second.
+    let start = Instant::now();
+    let at = |ms: u64| start + Duration::from_millis(ms);
+    let mut pace = Pace::new(5, 5);
+    for _ in 0..5 {
+        assert_eq!(pace.wait(at(0)), Duration::ZERO);
+        pace.sent(at(0));
+    }
+    assert_eq!(pace.wait(at(0)), Duration::from_millis(200));
+    assert_eq!(pace.wait(at(150)), Duration::from_millis(50));
+    pace.sent(at(200));
+    assert_eq!(pace.wait(at(200)), Duration::from_millis(200));
+    // A pause gives the burst back, and no more than the burst.
+    let mut times = Vec::new();
+    let mut now = at(10_000);
+    for _ in 0..7 {
+        now += pace.wait(now);
+        times.push(now.duration_since(at(10_000)).as_millis());
+        pace.sent(now);
+    }
+    assert_eq!(times, [0, 0, 0, 0, 0, 200, 400]);
+    // The default is under the rate at which InspIRCd closed a sender.
+    let mut pace = Pace::default();
+    let mut now = start;
+    let mut lines = 0;
+    while now < start + Duration::from_secs(10) {
+        now += pace.wait(now);
+        pace.sent(now);
+        lines += 1;
+    }
+    assert!(lines <= 5 + 5 * 10, "{lines} lines in 10 s");
 }

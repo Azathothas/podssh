@@ -1,9 +1,11 @@
 //! A file between two clients through a real IRC server (T-097): the
 //! sender's chunks and the receiver's acknowledgements cross the server,
 //! which relays each line with its sender's prefix, and the file arrives
-//! whole, with the same SHA-256. Ignored unless `PODSSH_IRC_SERVER` names a
-//! server, as HOST:PORT; `PODSSH_IRC_TRANSFER_BYTES` sets the size (2000 by
-//! default, as a server's flood control slows a client that sends fast).
+//! whole, with the same SHA-256. Each side paces its lines (T-275), so a
+//! server that closes a fast client lets this one through. Ignored unless
+//! `PODSSH_IRC_SERVER` names a server, as HOST:PORT;
+//! `PODSSH_IRC_TRANSFER_BYTES` sets the size (2000 by default, as a server's
+//! flood control slows a client that sends fast).
 
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -11,15 +13,26 @@ use std::time::{Duration, Instant};
 
 use podssh_core::irc::reap::ReapPolicy;
 use podssh_core::irc::session::{Registered, Server, Session};
-use podssh_core::irc::transfer::{chunk_bytes, Line, Receiver, Sender};
+use podssh_core::irc::transfer::{chunk_bytes, Line, Pace, Receiver, Sender};
 use podssh_core::irc::{Event, Message, TransferLimits};
 
 const LIMIT: Duration = Duration::from_secs(120);
 
-/// One client: its socket and its session.
+/// The pace of each side: the default, or `PODSSH_IRC_TRANSFER_PACE` lines a
+/// second with as many at once, as for the planted run with none.
+fn pace() -> Pace {
+    match std::env::var("PODSSH_IRC_TRANSFER_PACE").ok().and_then(|v| v.parse().ok()) {
+        Some(rate) => Pace::new(rate, rate),
+        None => Pace::default(),
+    }
+}
+
+/// One client: its socket, its session, and the pace of its transfer's
+/// lines (T-275).
 struct Client {
     stream: TcpStream,
     session: Session,
+    pace: Pace,
 }
 
 impl Client {
@@ -34,10 +47,17 @@ impl Client {
         };
         let stream = TcpStream::connect(address).expect("the server answers");
         stream.set_read_timeout(Some(Duration::from_millis(200))).unwrap();
-        let mut client = Client { stream, session: Session::new(server, ReapPolicy::default()) };
+        let mut client = Client { stream, session: Session::new(server, ReapPolicy::default()), pace: pace() };
         let burst = client.session.initial_burst();
         client.send(&burst);
         client
+    }
+
+    /// A transfer's line, when its turn comes.
+    fn send_paced(&mut self, message: Message) {
+        std::thread::sleep(self.pace.wait(Instant::now()));
+        self.pace.sent(Instant::now());
+        self.send(&[message]);
     }
 
     fn send(&mut self, messages: &[Message]) {
@@ -109,14 +129,14 @@ fn a_file_crosses_the_server_between_two_clients() {
     let mut written = Vec::new();
     while let Some((offset, len)) = sender.next_range() {
         let chunk = sender.next_chunk_message(&channel, &data[offset as usize..offset as usize + len]).unwrap();
-        a.send(&[chunk]);
+        a.send_paced(chunk);
         let bytes = b.until("chunk", |_, e| match e {
             Event::Transfer(Line::Chunk(c)) => Some(c.clone()),
             _ => None,
         });
         written.extend(receiver.accept(&bytes).expect("the chunk, whole and in order"));
         let ack = receiver.ack(&channel);
-        b.send(&[ack]);
+        b.send_paced(ack);
         let index = a.until("ack", |_, e| match e {
             Event::Transfer(Line::Ack(k)) => Some(k.index),
             _ => None,

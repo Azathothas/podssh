@@ -34,10 +34,12 @@
 //! kept going would lose everything it had sent. [`Sender`] therefore counts
 //! sessions and says so before the first byte of session 2.
 
+pub mod pace;
 pub mod recv;
 pub mod send;
 pub mod wire;
 
+pub use pace::Pace;
 pub use recv::{base_name, Receiver};
 pub use send::Sender;
 pub use wire::{

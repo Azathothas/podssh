@@ -48,9 +48,12 @@ test on the public networks again is the operator's question Q39.
 - Each chunk is acknowledged by its index, to the transfer's target, so the
   short last chunk ends the transfer. The receiver keeps no file: it gives
   each chunk's bytes to the caller as they come, and keeps their SHA-256.
-- A server that limits the rate of commands, and has no fake lag, closes a
-  sender that sends each chunk as soon as the last is acknowledged
-  (InspIRCd 4.11.0 at 10 commands a second, within a second); T-275.
+- Each line of a transfer, a chunk or an acknowledgement, waits its turn:
+  five at once, then five a second by default (T-275). A server that limits
+  the rate of commands with no fake lag closes a client that sends faster:
+  InspIRCd 4.11.0 at 10 commands a second closed an unpaced sender within a
+  second, and let a paced 64 KiB through, in 50 s (measured 2026-10-10).
+  ngircd 27 and ergo 2.18.0 slow a fast client down instead.
 
 ## Connection handling
 
