@@ -200,8 +200,7 @@ async fn run_target(
         return a;
     }
 
-    // Registration loop. One nick retry; a second 433 abandons the target.
-    let mut retried_nick = false;
+    // Registration loop. The session tries a nick in use again itself (T-095).
     loop {
         if Instant::now() >= deadline {
             eprintln!("podssh: {host}:{port}: target bound reached before 001.");
@@ -218,14 +217,6 @@ async fn run_target(
         }
         match irc.registered() {
             Registered::Yes => break,
-            Registered::Refused(podssh_core::irc::RegistrationFailure::NicknameInUse) if !retried_nick => {
-                retried_nick = true;
-                eprintln!("podssh: {host}:{port}: nick in use, retrying once.");
-                irc = new_session(host, port, format!("{nick_base}_"), policy);
-                if send_all(&mut runner, &burst_for(&mut irc, no_cap), &mut a).await.is_err() {
-                    return a;
-                }
-            }
             Registered::Refused(f) => {
                 eprintln!("podssh: {host}:{port}: registration refused: {f:?}");
                 return a;

@@ -100,6 +100,13 @@ pub fn parse_command(params: Vec<String>, trailing: Option<(String, bool)>) -> R
             }
             Command::Topic { channel: middle(0), topic: all.get(1).cloned() }
         }
+        "KICK" => {
+            arity(2)?;
+            if all.len() > 3 {
+                return Ok(whole);
+            }
+            Command::Kick { channel: middle(0), user: middle(1), reason: all.get(2).cloned() }
+        }
         "NAMES" => Command::Names { channels: all.iter().map(|t| Middle(t.value.clone())).collect() },
         "LIST" => Command::List { channels: all.iter().map(|t| Middle(t.value.clone())).collect() },
         "MODE" => {

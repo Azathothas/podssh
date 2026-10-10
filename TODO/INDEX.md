@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**271 entries: 120 open, 0 partial, 22 blocked, 129 done.**
+**271 entries: 119 open, 0 partial, 22 blocked, 130 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 38 | 0 | 18 | 96 | 152 |
+| P2 | 37 | 0 | 18 | 97 | 152 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 120 | 0 | 22 | 129 | 271 |
+| **All** | 119 | 0 | 22 | 130 | 271 |
 
 ## Entries
 
@@ -168,7 +168,7 @@ repository and CI).
 | [T-092](irc.md) | P2 | M | M8 | defect | done | I2: the client asks for each offered capability |
 | [T-093](irc.md) | P2 | S | M8 | defect | done | I3: text is not checked for CR, LF and NUL |
 | [T-094](irc.md) | P2 | S | M8 | defect | done | I4: trailing forms of JOIN, NICK and PRIVMSG are dropped |
-| [T-095](irc.md) | P2 | M | M8 | defect | open | I5: PART, KICK, 005, a new connection and 433 are handled incorrectly |
+| [T-095](irc.md) | P2 | M | M8 | defect | done | I5: PART, KICK, 005, a new connection and 433 are handled incorrectly |
 | [T-096](irc.md) | P2 | S | M8 | defect | done | I6: the line framing loses lines, and its buffer has no limit |
 | [T-097](irc.md) | P2 | M | M8 | defect | open | I7: file chunks are too long with the server's prefix, and the last acknowledgement is wrong |
 | [T-098](irc.md) | P3 | S | M8 | defect | open | I8: the keepalive sends a visible channel message |

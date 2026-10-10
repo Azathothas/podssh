@@ -42,6 +42,7 @@ impl Command {
                 vec![Middle(joined.join(","))]
             }
             Command::Topic { channel, .. } => vec![channel.clone()],
+            Command::Kick { channel, user, .. } => vec![channel.clone(), user.clone()],
             Command::Names { channels } | Command::List { channels } => channels.clone(),
             Command::Mode { target, flags, .. } => {
                 let mut out = vec![target.clone()];
@@ -125,6 +126,7 @@ impl Command {
             Command::Join { .. } => "JOIN".into(),
             Command::Part { .. } => "PART".into(),
             Command::Topic { .. } => "TOPIC".into(),
+            Command::Kick { .. } => "KICK".into(),
             Command::Names { .. } => "NAMES".into(),
             Command::List { .. } => "LIST".into(),
             Command::Mode { .. } => "MODE".into(),
@@ -145,6 +147,7 @@ pub(crate) fn trailing_of(command: &Command) -> Option<&Trailing> {
         Command::Ping { token } => Some(token),
         Command::Part { reason, .. } => reason.as_ref(),
         Command::Topic { topic, .. } => topic.as_ref(),
+        Command::Kick { reason, .. } => reason.as_ref(),
         Command::Quit { reason, .. } => reason.as_ref(),
         Command::User { realname, .. } => Some(realname),
         // **A `PONG` is written from its trailing, like every other

@@ -49,6 +49,7 @@ pub mod numeric;
 pub mod reap;
 pub mod session;
 pub mod session_parts;
+pub mod session_recv;
 pub mod session_send;
 pub mod tag;
 pub mod transfer;

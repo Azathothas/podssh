@@ -149,6 +149,13 @@ pub enum Command {
         channel: Middle,
         topic: Option<Trailing>,
     },
+    /// `KICK <channel> <user> [<reason>]`: ngircd 27 and InspIRCd 4.11.0
+    /// write the reason as the trailing, ergo 2.18.0 as a middle (T-095).
+    Kick {
+        channel: Middle,
+        user: Middle,
+        reason: Option<Trailing>,
+    },
     Names {
         channels: Vec<Middle>,
     },

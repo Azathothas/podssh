@@ -32,7 +32,7 @@ wait for `001` (`crates/podssh-core/src/irc/cap.rs`, lines 22-28 at `9460b4e`). 
 (`crates/podssh-core/src/irc/cap.rs`, lines 125-144 at `9460b4e`). A test asserts the wrong order
 (`crates/podssh-core/tests/session.rs`, lines 200-223 at `9460b4e`). A `421` for `CAP` before `001` sets `Refused`
 (`crates/podssh-core/src/irc/session.rs`, lines 318-322 at `9460b4e`), and the live probe can then drop the server
-(`crates/podssh-cli/examples/live_irc.rs:229-232`).
+(`crates/podssh-cli/examples/live_irc.rs:220-223`).
 
 Read: `docs/irc.md:20` says that libera, OFTC and tilde refuse the relay's addresses. They support
 `CAP`, so this defect alone explains "closed before `001`". The record does not say if that run
@@ -341,7 +341,7 @@ The last IRC parameter can come with or without a colon. The parser wants a midd
 Read: `JOIN` and `NICK` count middles only (`crates/podssh-core/src/irc/command.rs`, lines 49-51 at `93de442`,
 `crates/podssh-core/src/irc/command.rs`, lines 119-122 at `93de442`). `PRIVMSG` and `NOTICE` require a trailing
 (`crates/podssh-core/src/irc/command.rs`, lines 39-48 at `93de442`). A line that does not parse is dropped
-(`crates/podssh-core/src/irc/session.rs:314-325`). `JOIN` reads keys from the trailing
+(`crates/podssh-core/src/irc/session.rs`, lines 314-325 at `36166be`). `JOIN` reads keys from the trailing
 (`crates/podssh-core/src/irc/command.rs`, lines 60-64 at `93de442`), but the encoder writes them as a middle
 (`crates/podssh-core/src/irc/command_view.rs`, lines 28-39 at `93de442`), so a parsed `JOIN #c key` loses its key.
 `CAP` takes only `*` as a target (`crates/podssh-core/src/irc/command.rs`, lines 147-164 at `9460b4e`); a nick then
@@ -457,7 +457,7 @@ here on `3ee70dc` by reading the code.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -468,27 +468,27 @@ before it. A reconnect keeps the old state. A `433` during registration ends the
 
 ## Premise
 
-Read: `Session` has no field for its nick (`crates/podssh-core/src/irc/session.rs:162-182`), and
-`JOIN` and `PART` ignore the prefix (`crates/podssh-core/src/irc/session.rs:369-385`). The test
+Read: `Session` has no field for its nick (`crates/podssh-core/src/irc/session.rs`, lines 162-182 at `36166be`), and
+`JOIN` and `PART` ignore the prefix (`crates/podssh-core/src/irc/session.rs`, lines 369-385 at `36166be`). The test
 named for a kick sends another user's `PART` and expects the channel to go
-(`crates/podssh-core/tests/session.rs:163-172`): it asserts the defect. `KICK` has no variant
-(`crates/podssh-core/src/irc/message.rs:115-206`), and it ends as "unhandled command"
-(`crates/podssh-core/src/irc/session.rs:422-428`). Each `005` builds a new map
-(`crates/podssh-core/src/irc/session.rs:337-340`).
+(`crates/podssh-core/tests/session.rs`, lines 163-172 at `36166be`): it asserts the defect. `KICK` has no variant
+(`crates/podssh-core/src/irc/message.rs`, lines 115-206 at `36166be`), and it ends as "unhandled command"
+(`crates/podssh-core/src/irc/session.rs`, lines 422-428 at `36166be`). Each `005` builds a new map
+(`crates/podssh-core/src/irc/session.rs`, lines 337-340 at `36166be`).
 
-Read: `reconnect_burst` only adds `JOIN` lines (`crates/podssh-core/src/irc/session.rs:250-256`).
+Read: `reconnect_burst` only adds `JOIN` lines (`crates/podssh-core/src/irc/session.rs`, lines 250-256 at `36166be`).
 `registered` stays `Yes`, the reassembler keeps its `overflowed` flag, and `pending_pongs` keeps old
-tokens. `Negotiation::reconnect` has no caller (`crates/podssh-core/src/irc/cap.rs:232-241`). A
-`433` sets `Refused` and sends nothing (`crates/podssh-core/src/irc/session.rs:353-357`), against
-its comment (`crates/podssh-core/src/irc/session.rs:40-44`). A test asserts the refusal
-(`crates/podssh-core/tests/session.rs:243-252`), and the live probe works around it
-(`crates/podssh-cli/examples/live_irc.rs:221-228`).
+tokens. `Negotiation::reconnect` has no caller (`crates/podssh-core/src/irc/cap.rs`, lines 232-241 at `36166be`). A
+`433` sets `Refused` and sends nothing (`crates/podssh-core/src/irc/session.rs`, lines 353-357 at `36166be`), against
+its comment (`crates/podssh-core/src/irc/session.rs`, lines 40-44 at `36166be`). A test asserts the refusal
+(`crates/podssh-core/tests/session.rs`, lines 243-252 at `36166be`), and the live probe works around it
+(`crates/podssh-cli/examples/live_irc.rs`, lines 221-228 at `36166be`).
 
 ## Approach
 
-1. Keep the current nick: from the target of `001` (`crates/podssh-core/src/irc/numeric.rs:149-151`)
+1. Keep the current nick: from the target of `001` (`crates/podssh-core/src/irc/numeric.rs`, lines 149-151 at `36166be`)
    and from each `NICK` of that nick. Compare nicks with the server's `CASEMAPPING`
-   (`crates/podssh-core/src/irc/isupport.rs:138-154`), not with ASCII only.
+   (`crates/podssh-core/src/irc/isupport.rs`, lines 138-154 at `36166be`), not with ASCII only.
 2. Change the channel memory on `JOIN` and `PART` only for the current nick. The joins and parts of
    other users become events about them.
 3. Add `Command::Kick { channel, user, reason }`; forget the channel only when `user` is the current
@@ -498,7 +498,7 @@ its comment (`crates/podssh-core/src/irc/session.rs:40-44`). A test asserts the 
    new `Reassembler`, `pending_pongs` and `Isupport`. Keep `ChannelMemory`.
 6. On a `433` before `001`, send `NICK` with a suffix that fits `NICKLEN`, three times at most, and
    then report `Refused`. After `001`, a `433` is an event.
-7. Rewrite the two tests, remove the work-around, and update `docs/STATUS.md:308`, in one commit.
+7. Rewrite the two tests, remove the work-around, and update `docs/STATUS.md`, line 308 at `36166be`, in one commit.
 
 ## Prove
 
@@ -515,6 +515,36 @@ remove the prefix check on `PART`; that test must fail. The last command is live
 `--role send` and the same ID in a second shell, as two separate clients (`docs/irc.md:23-25`).
 Both must print `LIVE-IRC-OK`, so the reset does not break registration.
 
+## Correction
+
+2026-10-10: the Prove's `005` case wanted the lines that T-094 captured, and its log kept only
+ngircd's. The lines of this entry were captured again from the three servers in the build image:
+each sends several `005` lines (ngircd 27 two, InspIRCd 4.11.0 and ergo 2.18.0 three), with
+`CASEMAPPING` in the first and `NICKLEN` in a later one; a `KICK`'s reason comes as the trailing
+from ngircd and InspIRCd and as a middle from ergo (`KICK #t pb out`); a nick in use before
+registration is `433 * pa`, and the welcome after `NICK pa_` names `pa_`. The live run of the Prove
+goes to undernet, which waits for Q39.
+
+## Done
+
+2026-10-10, in the commit that closes this entry. The session keeps its nick
+(`crates/podssh-core/src/irc/session_recv.rs`): the target of `001`, then each `NICK` of it,
+compared by `CASEMAPPING` (`Isupport::same`). A `JOIN` or a `PART` changes the channels to rejoin
+only for that nick, and another user's is `Event::PeerJoined` or `Event::PeerLeft`. `KICK` has its
+command; a kick of this client forgets the channel (`Event::Kicked`), of another is
+`Event::PeerLeft`. The `005` lines add up, and `-TOKEN` takes one away. `reconnect_burst` starts a
+new connection: not registered, the negotiation again, a new reassembler, no pongs, no `005`, the
+wanted nick, and the same channels. A `433` before `001` sends `NICK` with `_`, `__` and `___`, cut
+to fit `NICKLEN`, then refuses; after `001` it is an event. The two tests that held the defects are
+rewritten, the live probe's own retry is gone, and `session.rs` gives its receive path to
+`session_recv.rs`, as it went over 500 lines. `docs/irc.md` and `docs/STATUS.md` say so.
+
+Native, Windows 11: `cargo test -p podssh-core --test own_nick`, 7 passed, on the captured lines;
+`cargo test -p podssh-core`, 115 passed, 0 failed, 1 ignored. Planted, a `PART` with no prefix
+check: `a_part_by_another_user_keeps_the_channel` fails. clippy with `-D warnings`: no warning.
+`cargo test --workspace --no-fail-fast`: 1190 passed, 0 failed, 38 ignored. In the build
+image, `--test irc_server -- --ignored` registered and joined on ngircd, InspIRCd and ergo. Waits
+for Q39 and T-251: the live pair on undernet.
 # T-096: I6: the line framing loses lines, and its buffer has no limit
 
 **Source:** the former defects page (`git show 3ee70dc:docs/defects.md`), row I6 (high). Confirmed
@@ -714,11 +744,11 @@ none, the relay cut it after 184 s (`docs/STATUS.md:120-121`).
 1. Send `PING :podssh-<generation>` when the client side is quiet for one period. Reuse
    `payload_plan_for` (`crates/podssh-core/src/irc/reap.rs:105-139`).
 2. Count the matching `PONG` as a reception (`received_since_last_beat`). A server answers
-   `PONG <server> :<token>`, so match the trailing (`crates/podssh-core/src/irc/command.rs:146-154`).
+   `PONG <server> :<token>`, so match the trailing (`crates/podssh-core/src/irc/command.rs:153-161`).
 3. Remove the `PRIVMSG` heartbeat and its parser
    (`crates/podssh-core/src/irc/session_send.rs:89-106`, `crates/podssh-core/src/irc/reap.rs:53-75`,
-   `crates/podssh-core/src/irc/session.rs:399-406`). No released podssh sends it.
-4. Rewrite the test at `crates/podssh-core/tests/session.rs:309-328`. Correct the comments at
+   `crates/podssh-core/src/irc/session_recv.rs:97-104`). No released podssh sends it.
+4. Rewrite the test at `crates/podssh-core/tests/session.rs:319-338`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs:5-29` and the test name at
    `crates/podssh-core/tests/transfer.rs:371-396`.
 5. Update `docs/STATUS.md:308` in the same commit.
@@ -745,7 +775,7 @@ with no channel message. With the keepalive off (the control), the relay must cl
 2026-10-10 (T-094), measured in the build image: to `PING :tok123`, ngircd 27 and InspIRCd 4.11.0
 answer `:srv PONG srv :tok123`, and ergo 2.18.0 answers `:ergo.test PONG ergo.test tok123`, the
 token as a middle. `Command::Pong` keeps the server and the token, the last parameter in either
-form (`crates/podssh-core/src/irc/command.rs:146-154`), so step 2 matches `token`, not only a
+form (`crates/podssh-core/src/irc/command.rs:153-161`), so step 2 matches `token`, not only a
 trailing; the three lines are in the fixture of the grammar.
 
 # T-099: `podssh chat` on the roads between two podssh ends, end-to-end encrypted

@@ -55,6 +55,42 @@ impl Isupport {
         Isupport { entries }
     }
 
+    /// **Add one `005` line to the lines before it** (T-095): each server
+    /// measured sends several (ngircd 27 two, InspIRCd 4.11.0 and ergo 2.18.0
+    /// three), with `CASEMAPPING` in the first and `NICKLEN` in a later one,
+    /// so a line that replaced the ones before would lose half of them. A
+    /// `-TOKEN` takes a token away.
+    pub fn merge(&mut self, params: &[String]) {
+        for token in params.iter().skip(1) {
+            if let Some(gone) = token.strip_prefix('-') {
+                self.entries.remove(&gone.to_ascii_uppercase());
+                continue;
+            }
+            match token.split_once('=') {
+                Some((key, value)) => self.entries.insert(key.to_ascii_uppercase(), Some(value.to_string())),
+                None => self.entries.insert(token.to_ascii_uppercase(), None),
+            };
+        }
+    }
+
+    /// **`a` and `b` name the same nick or channel on this network**, by its
+    /// `CASEMAPPING`: `ascii` folds `A-Z`; `rfc1459`, the default, also folds
+    /// `[]\~` to `{}|^`; `strict-rfc1459` folds `[]\` but not `~`.
+    pub fn same(&self, a: &str, b: &str) -> bool {
+        let mapping = self.casemapping().to_ascii_lowercase();
+        let fold = |c: char| -> char {
+            match (c, mapping.as_str()) {
+                (c, _) if c.is_ascii_uppercase() => c.to_ascii_lowercase(),
+                ('[', "rfc1459" | "strict-rfc1459") => '{',
+                (']', "rfc1459" | "strict-rfc1459") => '}',
+                ('\\', "rfc1459" | "strict-rfc1459") => '|',
+                ('~', "rfc1459") => '^',
+                (c, _) => c,
+            }
+        };
+        a.chars().map(fold).eq(b.chars().map(fold))
+    }
+
     /// An empty `005`, for a server that sent none. Every accessor then
     /// returns its RFC default, **which is a working client**, not a broken
     /// one — an `Isupport` that panicked here would make `005` mandatory, and

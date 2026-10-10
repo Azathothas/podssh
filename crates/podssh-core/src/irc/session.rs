@@ -23,11 +23,10 @@
 //! registration until the client ends the negotiation, so the answer to the
 //! request ends it ([`crate::irc::cap`], T-091).
 
-use crate::irc::cap::{Negotiation, Stage};
-use crate::irc::framing::Framed;
+use crate::irc::cap::Negotiation;
+use crate::irc::framing::{Framed, Reassembler};
 use crate::irc::isupport::Isupport;
 use crate::irc::message::{Command, Message, Prefix, Trailing};
-use crate::irc::numeric::Numeric as Code;
 use crate::irc::reap::ReapPolicy;
 use crate::irc::session_parts::{join_message, nick_message, user_message, ChannelMemory};
 use crate::irc::transfer::Line as TransferLine;
@@ -96,8 +95,15 @@ pub enum Event {
     Notice { from: Prefix, target: String, text: String },
     /// The user joined a channel.
     Joined { channel: String },
-    /// The user left, by `PART` or by `KICK`.
+    /// The user left, by its `PART`.
     Left { channel: String, reason: Option<String> },
+    /// The user was removed from a channel by `KICK`, and is not joined to
+    /// it again (T-095).
+    Kicked { channel: String, by: String, reason: Option<String> },
+    /// Another user joined a channel.
+    PeerJoined { nick: String, channel: String },
+    /// Another user left a channel, by `PART` or by `KICK`.
+    PeerLeft { nick: String, channel: String, reason: Option<String> },
     /// The server answered a numeric podssh acts on.
     Numeric { code: u16, text: Option<String> },
     /// A file-transfer line arrived.
@@ -162,37 +168,45 @@ impl std::error::Error for SessionError {}
 /// The IRC session. **No I/O, no clock, no state the relay knows about.**
 #[derive(Debug, Clone)]
 pub struct Session {
-    server: Server,
+    pub(crate) server: Server,
     pub(crate) registered: Registered,
-    negotiation: Negotiation,
-    isupport: Isupport,
+    pub(crate) negotiation: Negotiation,
+    pub(crate) isupport: Isupport,
     pub(crate) memory: ChannelMemory,
-    reassembler: crate::irc::framing::Reassembler,
+    reassembler: Reassembler,
     /// The `PONG` tokens podssh has not yet answered, **in arrival order.**
     /// A queue and not a set: **two `PING`s with the same token must get
     /// two `PONG`s**, and collapsing them into a set would answer a second
     /// ping that was a genuine retry with nothing.
-    pending_pongs: Vec<String>,
+    pub(crate) pending_pongs: Vec<String>,
     policy: ReapPolicy,
+    /// **This client's nick as the server knows it** (T-095): the one that
+    /// `001` names, then each `NICK` of it. A line about another nick is
+    /// about another user.
+    pub(crate) nick: String,
+    /// How many times a nick in use was tried again before `001`.
+    pub(crate) nick_tries: u8,
     /// The text of the last echo of a message to this client's own nick,
     /// while its second copy may follow: with `echo-message`, InspIRCd 4.11.0
     /// and ergo 2.18.0 send such a message back twice, as delivered and as
     /// echoed, one after the other.
-    last_self_echo: Option<String>,
+    pub(crate) last_self_echo: Option<String>,
 }
 
 impl Session {
     pub fn new(server: Server, policy: ReapPolicy) -> Self {
         Session {
-            server,
             registered: Registered::Pending,
             negotiation: Negotiation::new(),
             isupport: Isupport::empty(),
             memory: ChannelMemory::default(),
-            reassembler: crate::irc::framing::Reassembler::new(),
+            reassembler: Reassembler::new(),
             pending_pongs: Vec::new(),
             policy,
+            nick: server.nick.clone(),
+            nick_tries: 0,
             last_self_echo: None,
+            server,
         }
     }
 
@@ -202,6 +216,12 @@ impl Session {
 
     pub fn server(&self) -> &Server {
         &self.server
+    }
+
+    /// This client's nick as the server knows it: after a `433` before
+    /// `001`, or a `NICK`, it is not [`Server::nick`].
+    pub fn nick(&self) -> &str {
+        &self.nick
     }
 
     pub fn isupport(&self) -> &Isupport {
@@ -230,7 +250,7 @@ impl Session {
     /// list at all because it is not legal until `001`.
     pub fn initial_burst(&mut self) -> Vec<Message> {
         let mut out = vec![self.negotiation.cap_ls()];
-        out.push(nick_message(&self.server.nick));
+        out.push(nick_message(&self.nick));
         out.push(user_message(&self.server));
         out
     }
@@ -248,7 +268,20 @@ impl Session {
     /// they can notice they left. Sending them after `001` would be a
     /// **visible** gap, and "reconnect invisibly" is the entry's own phrase.
     pub fn reconnect_burst(&mut self) -> Vec<Message> {
-        let mut out = self.initial_burst();
+        // **A new connection, of which nothing of the old one holds but the
+        // channels** (T-095): not registered, a negotiation again (that keeps
+        // what the server refused), no half line, no old `PING`, no `005`, and
+        // the nick that the user wants again.
+        self.registered = Registered::Pending;
+        self.reassembler = Reassembler::new();
+        self.pending_pongs.clear();
+        self.isupport = Isupport::empty();
+        self.nick = self.server.nick.clone();
+        self.nick_tries = 0;
+        self.last_self_echo = None;
+        let mut out = vec![self.negotiation.reconnect()];
+        out.push(nick_message(&self.nick));
+        out.push(user_message(&self.server));
         for (i, channel) in self.memory.channels().iter().enumerate() {
             out.push(join_message(channel, self.memory.key_for(i)));
         }
@@ -310,162 +343,4 @@ impl Session {
             })
             .collect()
     }
-
-    fn on_line(&mut self, line: &str, out: &mut Vec<Message>, events: &mut Vec<Event>) {
-        let message = match Message::parse(line) {
-            Ok(m) => m,
-            // **A line that does not parse is reported, not fatal.** One
-            // malformed line from a peer is not a reason to drop a conversation,
-            // and a client that disconnects on a parse error is a client a
-            // misbehaving server can take offline at will.
-            Err(e) => {
-                events.push(Event::Protocol(format!("unparsed line dropped: {e}")));
-                return;
-            }
-        };
-        if let Some(next) = self.negotiation.observe(&message.command) {
-            out.push(next);
-        }
-        // A second copy follows its first at once, or is no second copy.
-        let previous_self_echo = self.last_self_echo.take();
-        match &message.command {
-            Command::Ping { token } => {
-                self.pending_pongs.push(token.as_str().to_string());
-            }
-            Command::Numeric(reply) => {
-                let code = reply.code;
-                if code == Code::RplIsupport as u16 {
-                    let params: Vec<String> = message.command.params().iter().map(|p| p.0.clone()).collect();
-                    self.isupport = Isupport::parse(&params);
-                }
-                // A `421` for `CAP` is a server with no `CAP`: it holds no
-                // registration, so it is no refusal, and no `CAP END` is due.
-                // MEASURED live 2026-10-07: undernet answers `CAP LS` with
-                // `421 Unknown command`, after 001.
-                let no_cap = code == Code::ErrUnknownCommand as u16
-                    && message.command.params().get(1).is_some_and(|p| p.0.eq_ignore_ascii_case("CAP"));
-                if no_cap {
-                    self.negotiation.unsupported();
-                }
-                // Registration-time numerics only count while Pending: a late
-                // one must not un-register a working session and fail every
-                // later send with NotRegistered.
-                if self.registered == Registered::Pending && !no_cap {
-                    if let Some(failure) = registration_failure(code) {
-                        self.registered = Registered::Refused(failure);
-                    }
-                }
-                if code == Code::RplWelcome as u16 {
-                    self.registered = Registered::Yes;
-                    // A server with `CAP` holds the welcome until `CAP END`, so
-                    // a welcome before any answer to `CAP LS` is a server with
-                    // none: InspIRCd 4 with no cap module answers nothing.
-                    if self.negotiation.stage() == Stage::LsSent {
-                        self.negotiation.unsupported();
-                    }
-                }
-                events.push(Event::Numeric { code, text: message.command.trailing().map(|t| t.as_str().to_string()) });
-            }
-            Command::Join { channels, .. } => {
-                for channel in channels {
-                    if channel.0.starts_with('#') {
-                        self.memory.remember(&channel.0, None);
-                        events.push(Event::Joined { channel: channel.0.clone() });
-                    }
-                }
-            }
-            Command::Part { channels, reason, .. } => {
-                for channel in channels {
-                    self.memory.forget(&channel.0);
-                    events.push(Event::Left {
-                        channel: channel.0.clone(),
-                        reason: reason.as_ref().map(|r| r.as_str().to_string()),
-                    });
-                }
-            }
-            Command::Privmsg { target, text } if self.is_echo(&message) => {
-                // Shown once: the second copy of a message to this client's
-                // own nick is dropped.
-                let to_self = target.0.eq_ignore_ascii_case(&self.server.nick);
-                if !(to_self && previous_self_echo.as_deref() == Some(text.as_str())) {
-                    if to_self {
-                        self.last_self_echo = Some(text.as_str().to_string());
-                    }
-                    events.push(Event::Echo { target: target.0.clone(), text: text.as_str().to_string() });
-                }
-            }
-            Command::Privmsg { target, text } => {
-                let from = message.prefix.clone().unwrap_or_default();
-                // **THE HEARTBEAT IS CONSUMED HERE, and nowhere else.** A
-                // heartbeat reaching the display path is a heartbeat in a user's
-                // scrollback, so the recognition and the suppression are one
-                // decision rather than two that can disagree.
-                if let Some(generation) = crate::irc::reap::parse_heartbeat(text.as_str()) {
-                    events.push(Event::Heartbeat { generation });
-                    return;
-                }
-                events.push(Event::Privmsg { from, target: target.0.clone(), text: text.as_str().to_string() });
-            }
-            Command::Notice { target, text } => {
-                events.push(Event::Notice {
-                    from: message.prefix.clone().unwrap_or_default(),
-                    target: target.0.clone(),
-                    text: text.as_str().to_string(),
-                });
-            }
-            Command::Quit { reason } => {
-                events.push(Event::Protocol(format!(
-                    "peer quit: {}",
-                    reason.as_ref().map(|r| r.as_str().to_string()).unwrap_or_default()
-                )));
-            }
-            Command::Unknown { name, params, .. } => {
-                // A file-transfer line rides on `PRIVMSG`, so it is recognised
-                // there; anything else unknown is reported by name so an
-                // operator can see what the network added.
-                let _ = params;
-                events.push(Event::Protocol(format!("unhandled command {name}")));
-            }
-            _ => {}
-        }
-        // **A `PRIVMSG` carrying `PODSSH1|…` is a transfer line, and it is
-        // consumed before the text is shown.** The reverse would put a
-        // `PODSSH1|chunk|…` line in a user's terminal on every chunk of every
-        // transfer.
-        // An echo of this client's own line is no line from a peer.
-        if let Command::Privmsg { text, .. } = &message.command {
-            if let Some(line) = crate::irc::transfer::Line::parse(text.as_str()).filter(|_| !self.is_echo(&message)) {
-                events.retain(|e| !matches!(e, Event::Privmsg { .. }));
-                events.push(Event::Transfer(line));
-            }
-        }
-    }
-
-    /// A message that this client sent, back from the server: with
-    /// `echo-message` on, it comes from this client's nick.
-    fn is_echo(&self, message: &Message) -> bool {
-        self.negotiation.enabled().iter().any(|c| c.eq_ignore_ascii_case(crate::irc::CAP_ECHO_MESSAGE))
-            && message.prefix.as_ref().is_some_and(|p| p.nick.eq_ignore_ascii_case(&self.server.nick))
-    }
-}
-
-/// **Map a registration-time numeric to a named failure, and `None` for
-/// everything else.** Only the codes RFC 2812 §6 uses during
-/// registration are named, so an unrelated `404` arriving mid-chat does
-/// not mark a working session refused.
-fn registration_failure(code: u16) -> Option<RegistrationFailure> {
-    Some(match code {
-        c if c == Code::ErrNicknameInUse as u16 => RegistrationFailure::NicknameInUse,
-        c if c == Code::ErrErroneousNickname as u16 => RegistrationFailure::NicknameErroneous,
-        c if c == Code::ErrPasswdMismatch as u16 => RegistrationFailure::PasswdMismatch,
-        c if c == Code::ErrNeedMoreParams as u16 => RegistrationFailure::NeedMoreParams,
-        c if c == Code::ErrUnknownCommand as u16 => RegistrationFailure::UnknownCommand,
-        other => {
-            if matches!(other, 432 | 433 | 436 | 461 | 464 | 421) {
-                RegistrationFailure::Other(other)
-            } else {
-                return None;
-            }
-        }
-    })
 }

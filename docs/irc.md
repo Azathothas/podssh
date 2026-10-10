@@ -3,7 +3,7 @@
 `podssh chat` lets two users on constrained hosts talk and exchange files.
 podssh speaks IRC itself, and the relay carries the bytes, as for SSH. No
 command uses the client yet. The client has known defects
-([TODO/irc.md](../TODO/irc.md), T-095, T-097 and T-098): among them,
+([TODO/irc.md](../TODO/irc.md), T-097 and T-098): among them,
 it sends plain text through the relay. Since T-091 the registration finishes
 on a server that holds it until `CAP END`: measured with ngircd 27 on the
 loopback of the build image, 2026-10-10.
@@ -42,7 +42,20 @@ test on the public networks again is the operator's question Q39.
 ## Connection handling
 
 - To connect again, send CAP, NICK and USER again and join the channels
-  again. Do not send QUIT first.
+  again. Do not send QUIT first. A new connection keeps nothing of the old
+  one but its channels: not the registration, the `005`, a half line or the
+  nick that a `433` gave (T-095).
+- The session knows its own nick: the one that `001` names, and each
+  `NICK` of it after, compared by the server's `CASEMAPPING`. Another
+  user's `JOIN` and `PART` are events about them, and keep the channels; a
+  `KICK` of this client forgets its channel, so a reconnect does not join
+  it again. A server writes the reason of a `KICK` as the trailing (ngircd
+  27, InspIRCd 4.11) or as a middle (ergo 2.18). Each server sends several
+  `005` lines, and they add up; a `-TOKEN` takes one away.
+- A nick in use before `001` (`433 * nick`) is tried again with `_`, `__`
+  and `___`, cut to fit `NICKLEN`, and refused after that; the welcome then
+  names the nick in use (measured 2026-10-10 with the three servers). After
+  `001`, a `433` is only an event.
 - Answer `PING` with its token, byte for byte.
 - A caller's text never changes a line: a CR, LF or NUL is refused, and so
   is a space in a target or a channel. podssh never removes a character, and

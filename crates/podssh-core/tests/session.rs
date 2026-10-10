@@ -161,13 +161,17 @@ fn a_channel_the_user_left_is_not_rejoined() {
 }
 
 #[test]
-fn a_channel_the_server_kicked_us_from_is_forgotten_on_its_own_echo() {
-    // **The server's `PART` is authoritative**, so a kick removes the room
-    // from memory even if the client never sent the `PART`.
+fn a_channel_the_server_kicked_us_from_is_forgotten_and_another_s_part_is_not_ours() {
+    // **A kick of this client removes the room from memory**, though the
+    // client never sent a `PART`; another user's `PART` is about them
+    // (T-095: the test asserted the defect, a channel lost to another's PART).
     let mut s = registered();
     let _ = s.send_join("#one", None);
     let (_, events) = s.on_bytes(b":op!u@h PART #one :you are out\r\n");
-    assert!(matches!(events.first(), Some(Event::Left { .. })), "got {events:?}");
+    assert!(matches!(events.first(), Some(Event::PeerLeft { .. })), "got {events:?}");
+    assert_eq!(s.memory().channels(), ["#one"], "another user's PART took the channel");
+    let (_, events) = s.on_bytes(b":op!u@h KICK #one alice :you are out\r\n");
+    assert!(matches!(events.first(), Some(Event::Kicked { .. })), "got {events:?}");
     assert!(s.memory().is_empty(), "a kicked channel is still remembered");
 }
 
@@ -244,11 +248,17 @@ fn a_nak_is_not_requested_again_after_a_reconnect() {
 fn a_433_is_reported_and_not_treated_as_fatal() {
     // **The one registration failure that is not a failure.** Somebody else
     // holds the nick; a client that treated it as fatal cannot connect to a
-    // network where its preferred name is taken.
+    // network where its preferred name is taken. It is tried again with a
+    // suffix, and refused after the last try (T-095).
     let mut s = Session::new(server(), ReapPolicy::default());
-    let (_, events) = s.on_bytes(b":irc.example.org 433 * alice :Nickname is already in use\r\n");
-    assert_eq!(s.registered(), Registered::Refused(RegistrationFailure::NicknameInUse));
+    let (out, events) = s.on_bytes(b":irc.example.org 433 * alice :Nickname is already in use\r\n");
+    assert_eq!(s.registered(), Registered::Pending);
+    assert_eq!(out.iter().map(|m| m.to_line()).collect::<Vec<_>>(), ["NICK alice_"]);
     assert!(events.iter().any(|e| matches!(e, Event::Numeric { code: 433, .. })), "got {events:?}");
+    for _ in 0..3 {
+        let _ = s.on_bytes(b":irc.example.org 433 * alice_ :Nickname is already in use\r\n");
+    }
+    assert_eq!(s.registered(), Registered::Refused(RegistrationFailure::NicknameInUse));
 }
 
 #[test]
