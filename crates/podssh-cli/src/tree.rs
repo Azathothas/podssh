@@ -341,6 +341,18 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         }));
     }
 
+    if verb.name == "agent" {
+        let get = |id: &str| matches.get_one::<String>(id).cloned();
+        return Parsed::Agent(Box::new(crate::agent::AgentArgs {
+            subcommand: get("subcommand"),
+            args: matches.get_many::<String>("args").map(|v| v.cloned().collect()).unwrap_or_default(),
+            socket: get("socket"),
+            lifetime: get("lifetime"),
+            all: matches.get_flag("all"),
+            refused,
+        }));
+    }
+
     if verb.name == "doctor" {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Doctor {

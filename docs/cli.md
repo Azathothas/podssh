@@ -550,6 +550,41 @@ commands. The rules behind them:
   program that is not found and 126 for one that cannot run; with neither,
   0.
 
+## `podssh agent`
+
+An SSH agent inside podssh (T-034), for a host with no `ssh-agent` and no
+OpenSSH program that runs; one binary, as the operator ruled (Q5).
+
+- `podssh agent` serves the agent protocol (russh's agent server) until
+  SIGINT, SIGTERM or SIGHUP, and stays in the foreground: start it with
+  `&`. It prints `SSH_AUTH_SOCK=PATH; export SSH_AUTH_SOCK;` and
+  `echo Agent pid N;`, as `ssh-agent -s` does. The socket is `agent.sock`
+  in a new directory of mode 0700 in `XDG_RUNTIME_DIR` or the temporary
+  directory, made mode 0600; a client of another uid is closed; both go at
+  the end. On Windows it is the named pipe
+  `\\.\pipe\podssh-agent-USER-PID`, which takes only processes of this
+  user. `--socket PATH` names another place. It binds through the listener
+  of `podssh pipe`: `PODSSH_LISTEN=no` refuses it (78), and a host that
+  refuses the bind gets the reason and the ways with no agent: key files
+  with `-i`, whose passphrase is asked on the terminal or through
+  `SSH_ASKPASS`.
+- `podssh agent add FILE...` sends each key, its passphrase asked on the
+  terminal or through `SSH_ASKPASS` (`-t SECONDS`, `--lifetime`: the key
+  leaves after that); `list` writes a line for each key as `ssh-add -l`
+  does (1 when there is none); `remove FILE...` or `remove --all`; `lock`
+  (the password asked twice) and `unlock`. They talk to the agent of
+  `SSH_AUTH_SOCK`, so they work with OpenSSH's agent too, and OpenSSH's
+  `ssh` and `ssh-add` work with podssh's.
+- Keys stay in the agent's memory only. A key added for a confirmation of
+  each use (`ssh-add -c`) is never used: nobody can confirm one. russh's
+  agent keeps no comment of a key, so `list` shows the size, the
+  fingerprint and the type.
+- Exit codes: 0; 1 (`list`, no key); 64 a usage error; 66 a key file that
+  cannot be read; 69 no agent answers at `SSH_AUTH_SOCK`; 70 the agent
+  refused a request; 73 the agent's directory could not be made; 77 a
+  passphrase or password that was wrong or did not come; 78
+  `PODSSH_LISTEN=no`; 129, 130 or 143 at the signal that ends the agent.
+
 ## `podssh chat`
 
 `podssh man chat` gives the command, and [irc.md](irc.md) the protocol. The

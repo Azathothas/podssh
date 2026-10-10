@@ -68,6 +68,9 @@ base64 = { workspace = true }
 
 # The relay token is wiped from memory when dropped.
 zeroize = { workspace = true }
+# The stream of an agent's clients that russh's agent server reads (T-034);
+# russh pulls it in already.
+futures-util = { version = "0.3", default-features = false }
 
 # MEASURED 2026-10-02, this machine (Git Bash on Windows) and in
 # `rust:1-alpine` via `sh scripts/dev.sh run`:

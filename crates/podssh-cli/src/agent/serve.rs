@@ -1,0 +1,272 @@
+//! The agent that serves (T-034): the probe and the bind of `podssh pipe`'s
+//! listener (a socket of mode 0600 whose peers of another user are closed,
+//! or on Windows a named pipe whose clients must run as this user), the line
+//! of `SSH_AUTH_SOCK`, then russh's agent server until SIGINT, SIGTERM or
+//! SIGHUP, which remove the socket and the directory that podssh made.
+
+use std::future::Future;
+use std::io::{self, Write};
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll};
+
+use podssh_ssh::russh::keys::agent::server::{self as agent_server, Agent};
+use podssh_ssh::russh::keys::PrivateKey;
+use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+
+use super::AgentArgs;
+use crate::exitmap::sysexits::{EX_CANTCREAT, EX_SOFTWARE};
+use crate::pipe::address::Address;
+use crate::pipe::listen::{self, Listener};
+use crate::pipe::pump::{End, Reader, Writer};
+
+/// Serve the agent protocol: the exit code, 128 and the signal's number when
+/// a signal ends it.
+pub async fn serve(args: &AgentArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
+    if let Err(refusal) = listen::allowed() {
+        let _ = writeln!(err, "podssh agent: {}", refusal.message);
+        return refusal.code;
+    }
+    let place = match Place::choose(args.socket.as_deref()) {
+        Ok(place) => place,
+        Err(line) => {
+            let _ = writeln!(err, "podssh agent: {line}");
+            return EX_CANTCREAT;
+        }
+    };
+    let bound = Listener::bind(&Address::UnixListen(place.path.clone()), &mut |line: &str| {
+        let _ = writeln!(err, "podssh agent: {line}");
+    })
+    .await;
+    let listener = match bound {
+        Ok(listener) => listener,
+        Err((code, line)) => {
+            let _ = writeln!(err, "podssh agent: {line}");
+            let _ = writeln!(
+                err,
+                "podssh agent: with no agent, podssh ssh takes key files with -i, and an encrypted key asks its \
+                 passphrase on the terminal or through SSH_ASKPASS"
+            );
+            return code;
+        }
+    };
+    // As `ssh-agent -s` prints them, for a shell that sources the lines.
+    let _ = writeln!(out, "SSH_AUTH_SOCK={}; export SSH_AUTH_SOCK;", place.path);
+    let _ = writeln!(out, "echo Agent pid {};", std::process::id());
+    let _ = out.flush();
+    let connections = Box::pin(futures_util::stream::unfold(listener, |mut listener| async move {
+        let mut said = |line: &str| eprintln!("podssh agent: {line}");
+        let next = listener.accept(&mut said).await.map(Duplex::from_end);
+        Some((next, listener))
+    }));
+    let mut stop = Stop::new();
+    let code = tokio::select! {
+        served = agent_server::serve(connections, Keys) => match served {
+            Ok(()) => 0,
+            Err(e) => {
+                let _ = writeln!(err, "podssh agent: the agent stopped: {e}");
+                EX_SOFTWARE
+            }
+        },
+        signal = stop.next() => signal,
+    };
+    // The listener, and with it the socket's file, went with the stream;
+    // the directory goes with `place`.
+    drop(place);
+    code
+}
+
+/// Where the agent serves: the socket's path, and the directory that podssh
+/// made for it, which goes at the end.
+struct Place {
+    path: String,
+    made: Option<std::path::PathBuf>,
+}
+
+impl Place {
+    /// `--socket`, else a new directory of mode 0700 in the user's runtime
+    /// directory or the temporary directory, else on Windows a named pipe of
+    /// this user and process.
+    fn choose(given: Option<&str>) -> Result<Place, String> {
+        if let Some(path) = given {
+            return Ok(Place { path: path.to_string(), made: None });
+        }
+        #[cfg(windows)]
+        {
+            let user: String =
+                std::env::var("USERNAME").unwrap_or_default().chars().filter(|c| c.is_ascii_alphanumeric()).collect();
+            Ok(Place { path: format!(r"\\.\pipe\podssh-agent-{user}-{}", std::process::id()), made: None })
+        }
+        #[cfg(not(windows))]
+        {
+            let base = std::env::var_os("XDG_RUNTIME_DIR")
+                .map(std::path::PathBuf::from)
+                .filter(|p| p.is_absolute())
+                .unwrap_or_else(std::env::temp_dir);
+            let dir = base.join(format!("podssh-agent-{}", std::process::id()));
+            private_dir(&dir)
+                .map_err(|e| format!("{}: a directory of mode 0700 could not be made: {e}", dir.display()))?;
+            Ok(Place { path: dir.join("agent.sock").display().to_string(), made: Some(dir) })
+        }
+    }
+}
+
+impl Drop for Place {
+    fn drop(&mut self) {
+        if let Some(dir) = &self.made {
+            let _ = std::fs::remove_dir(dir);
+        }
+    }
+}
+
+/// A new directory of mode 0700, of this user, never one that exists.
+#[cfg(unix)]
+fn private_dir(dir: &std::path::Path) -> io::Result<()> {
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt};
+    std::fs::DirBuilder::new().mode(0o700).create(dir)?;
+    let meta = std::fs::symlink_metadata(dir)?;
+    // SAFETY: geteuid cannot fail.
+    let uid = unsafe { libc::geteuid() };
+    if !meta.is_dir() || meta.uid() != uid || meta.mode() & 0o077 != 0 {
+        let _ = std::fs::remove_dir(dir);
+        return Err(io::Error::new(io::ErrorKind::PermissionDenied, "it is not a private directory of this user"));
+    }
+    Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn private_dir(dir: &std::path::Path) -> io::Result<()> {
+    std::fs::create_dir(dir)
+}
+
+/// The agent's behaviour beyond the store of keys: a key added with a
+/// confirmation of each use (`ssh-add -c`) is never used, as nobody here
+/// can confirm one.
+#[derive(Clone)]
+struct Keys;
+
+impl Agent for Keys {
+    fn confirm(self, _key: Arc<PrivateKey>) -> Box<dyn Future<Output = (Self, bool)> + Unpin + Send> {
+        eprintln!("podssh agent: refused a key added for a confirmation of each use (ssh-add -c): nobody can confirm");
+        Box::new(std::future::ready((self, false)))
+    }
+}
+
+/// One client, as one stream. russh's server asks for `Sync`; the mutex
+/// gives it, and is never contended, as only `&mut` reaches it.
+struct Duplex(Mutex<tokio::io::Join<Reader, Writer>>);
+
+impl Duplex {
+    fn from_end(end: End) -> Duplex {
+        Duplex(Mutex::new(tokio::io::join(end.read, end.write)))
+    }
+
+    fn inner(self: Pin<&mut Self>) -> Pin<&mut tokio::io::Join<Reader, Writer>> {
+        Pin::new(self.get_mut().0.get_mut().unwrap_or_else(|e| e.into_inner()))
+    }
+}
+
+impl AsyncRead for Duplex {
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+        self.inner().poll_read(cx, buf)
+    }
+}
+
+impl AsyncWrite for Duplex {
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+        self.inner().poll_write(cx, buf)
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.inner().poll_flush(cx)
+    }
+
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        self.inner().poll_shutdown(cx)
+    }
+}
+
+/// SIGINT, SIGTERM and SIGHUP, or Ctrl-C on Windows: 128 and the signal's
+/// number.
+struct Stop {
+    #[cfg(unix)]
+    signals: Option<(tokio::signal::unix::Signal, tokio::signal::unix::Signal, tokio::signal::unix::Signal)>,
+    #[cfg(windows)]
+    ctrl_c: Option<tokio::signal::windows::CtrlC>,
+}
+
+impl Stop {
+    fn new() -> Stop {
+        #[cfg(unix)]
+        {
+            use tokio::signal::unix::{signal, SignalKind};
+            let signals = match (
+                signal(SignalKind::interrupt()),
+                signal(SignalKind::terminate()),
+                signal(SignalKind::hangup()),
+            ) {
+                (Ok(int), Ok(term), Ok(hup)) => Some((int, term, hup)),
+                _ => None,
+            };
+            Stop { signals }
+        }
+        #[cfg(windows)]
+        {
+            Stop { ctrl_c: tokio::signal::windows::ctrl_c().ok() }
+        }
+    }
+
+    async fn next(&mut self) -> i32 {
+        #[cfg(unix)]
+        if let Some((int, term, hup)) = self.signals.as_mut() {
+            return tokio::select! {
+                Some(()) = int.recv() => 130,
+                Some(()) = term.recv() => 143,
+                Some(()) = hup.recv() => 129,
+                else => std::future::pending().await,
+            };
+        }
+        #[cfg(windows)]
+        if let Some(ctrl_c) = self.ctrl_c.as_mut() {
+            if ctrl_c.recv().await.is_some() {
+                return 130;
+            }
+        }
+        std::future::pending().await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The socket of a served agent is mode 0600 in a directory of mode 0700
+    /// that podssh made, and both go when the agent ends (T-034).
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn agent_socket_is_private_and_goes_at_the_end() {
+        use std::os::unix::fs::PermissionsExt;
+        let place = Place::choose(None).expect("a place");
+        let dir = place.made.clone().expect("a directory of its own");
+        let mode = |p: &std::path::Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&dir), 0o700);
+        let listener = Listener::bind(&Address::UnixListen(place.path.clone()), &mut |_: &str| {}).await.unwrap();
+        let socket = std::path::PathBuf::from(&place.path);
+        assert_eq!(mode(&socket), 0o600, "the socket");
+        drop(listener);
+        assert!(!socket.exists(), "the socket went with the listener");
+        drop(place);
+        assert!(!dir.exists(), "the directory went at the end");
+    }
+
+    /// On Windows the agent serves on a named pipe of this user and process.
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn agent_socket_is_a_pipe_of_this_user() {
+        let place = Place::choose(None).expect("a place");
+        assert!(place.path.starts_with(r"\\.\pipe\podssh-agent-"), "{}", place.path);
+        assert!(place.path.ends_with(&format!("-{}", std::process::id())), "{}", place.path);
+        let listener = Listener::bind(&Address::UnixListen(place.path.clone()), &mut |_: &str| {}).await.unwrap();
+        drop(listener);
+    }
+}

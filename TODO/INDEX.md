@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**275 entries: 101 open, 0 partial, 22 blocked, 152 done.**
+**275 entries: 100 open, 0 partial, 22 blocked, 153 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 20 | 0 | 18 | 116 | 154 |
+| P2 | 19 | 0 | 18 | 117 | 154 |
 | P3 | 79 | 0 | 4 | 19 | 102 |
-| **All** | 101 | 0 | 22 | 152 | 275 |
+| **All** | 100 | 0 | 22 | 153 | 275 |
 
 ## Entries
 
@@ -107,7 +107,7 @@ repository and CI).
 | [T-031](ssh.md) | P2 | S | backlog | feature | done | Accept only the host key that a fingerprint names, for scripts with no `known_hosts` |
 | [T-032](ssh.md) | P3 | S | backlog | feature | open | Run a remote command under `sudo` or `su`, with the password from `SSH_ASKPASS` |
 | [T-033](ssh.md) | P3 | M | backlog | feature | open | Record a session as asciicast v2, and play it again |
-| [T-034](ssh.md) | P2 | L | backlog | feature | open | `podssh agent`: an SSH agent inside podssh, with no separate binary |
+| [T-034](ssh.md) | P2 | L | backlog | feature | done | `podssh agent`: an SSH agent inside podssh, with no separate binary |
 | [T-035](forwarding.md) | P2 | M | M8 | feature | done | `-R`: remote forwarding, each connection made out through the proxy |
 | [T-036](forwarding.md) | P2 | M | backlog | feature | open | `-A`: agent forwarding, off by default as in OpenSSH |
 | [T-037](forwarding.md) | P3 | M | backlog | feature | open | `-X` and `-Y`: X11 forwarding to the display that `DISPLAY` names |

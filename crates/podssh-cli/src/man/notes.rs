@@ -25,6 +25,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "keygen" => KEYGEN,
         "man" => MAN,
         "ts" => TS,
+        "agent" => AGENT,
         _ => &[],
     }
 }
@@ -293,6 +294,18 @@ const STATUS: &[&str] = &[
     "It shows no token and no proxy credentials, opens no connection, asks no DNS and writes nothing. A \
      bad --relay-host or destination is a usage error (64), a bad PODSSH_RELAY a configuration error \
      (78). podssh doctor is the report that measures.",
+];
+
+const AGENT: &[&str] = &[
+    "podssh agent serves the agent protocol on a socket of mode 0600, in a new directory of mode 0700 of \
+     XDG_RUNTIME_DIR or the temporary directory (on Windows a named pipe of this user), until SIGINT, SIGTERM or \
+     SIGHUP, which remove both. It stays in the foreground: start it with &. It prints \
+     the lines of SSH_AUTH_SOCK and of its pid, as ssh-agent -s does. A client of another user is closed. \
+     PODSSH_LISTEN set to no refuses it (exit 78).",
+    "add FILE (with -t SECONDS for a lifetime), list, remove FILE or --all, lock and unlock talk to the agent of \
+     SSH_AUTH_SOCK, podssh's or OpenSSH's, as ssh-add does; a passphrase or a password is asked on the terminal or \
+     through SSH_ASKPASS. Keys live in the agent's memory only. A key that asks for a confirmation of each use is \
+     never used. list writes the size, the fingerprint and the type of each key, and exits 1 when there is none.",
 ];
 
 const KEYGEN: &[&str] = &[

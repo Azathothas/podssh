@@ -412,6 +412,8 @@ saved=$(p 2201 $K -o BatchMode=yes "$T" 'cat /tmp/pipe-vi' </dev/null 2>/dev/nul
 
 # shellcheck source=scripts/interop-keygen.sh
 . "$HERE/interop-keygen.sh"
+# shellcheck source=scripts/interop-agent.sh
+. "$HERE/interop-agent.sh"
 # shellcheck source=scripts/interop-faults.sh
 . "$HERE/interop-faults.sh"
 # shellcheck source=scripts/interop-cp.sh

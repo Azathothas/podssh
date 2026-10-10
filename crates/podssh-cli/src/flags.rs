@@ -253,12 +253,14 @@ pub const SSH_FLAGS: &[FlagRow] = &[
 ];
 
 // `cp`, `mv` and their aliases: their table is in `flags/copy.rs`.
+mod agent;
 mod chat;
 mod copy;
 mod node;
 mod operator;
 mod pipe;
 mod scp;
+pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
 pub use copy::CP_FLAGS;
 pub use node::NODE_FLAGS;
@@ -428,6 +430,8 @@ pub const VERBS: &[Verb] = &[
         about: "make an SSH key pair, or print a key's public key or fingerprint" },
     Verb { name: "ts", aliases: &["ts", "tailscale"], flags: TS_FLAGS,
         about: "the tailnet node and byte pipe, over DERP" },
+    Verb { name: "agent", aliases: &["agent", "ssh-agent"], flags: AGENT_FLAGS,
+        about: "an SSH agent inside podssh, and add, list, remove and lock its keys" },
 ];
 
 /// Every verb that dispatch refuses as "not implemented yet", with the roadmap

@@ -88,8 +88,11 @@ LISTENERS = {
     # The bind probes of `podssh doctor`, which close at once and never listen;
     # and the iroh road's probe and endpoint, as above, with the commands that
     # make the endpoint: `podssh node --iroh`, `podssh ssh iroh:` (T-163) and
-    # the race of `podssh ssh --iroh-ticket` (T-164).
+    # the race of `podssh ssh --iroh-ticket` (T-164). And `podssh agent`
+    # (T-034), which the user starts: it binds through `podssh pipe`'s
+    # listener, after PODSSH_LISTEN, and the bind is its probe.
     "bind(": [
+        "crates/podssh-cli/src/agent/serve.rs",
         "crates/podssh-cli/src/doctor/unix.rs",
         "crates/podssh-cli/src/pipe/listen.rs",
         "crates/podssh-cli/src/pipe/listen_win.rs",

@@ -46,6 +46,13 @@ pub fn add(cmd: Command, name: &str) -> Command {
                 .value_name("SECTION")
                 .help("one section only: a command, or environment, files, relay-facts, exit-status, examples or see-also"),
         ),
+        "agent" => cmd
+            .arg(
+                Arg::new("subcommand")
+                    .value_name("SUBCOMMAND")
+                    .help("add, list, remove, lock or unlock; with none, the agent serves"),
+            )
+            .arg(Arg::new("args").value_name("FILE").num_args(0..).help("the key files of add and remove")),
         "relay" => cmd
             .arg(
                 Arg::new("subcommand")

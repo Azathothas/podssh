@@ -82,10 +82,13 @@ Each rule is implemented.
   automatically: podssh gives the file, the line and both fingerprints.
 - **Nothing listens unless the user asks.** podssh opens outbound
   connections only, except `podssh pipe` with `unix-listen:` or
-  `tcp-listen:`, which the user names: a Unix socket is made mode 0600 and
-  takes only programs of the same user, a TCP port takes each local user
-  (and other hosts when its address is not loopback), podssh says so, and
-  `PODSSH_LISTEN=no` turns listening off. It never executes something that
+  `tcp-listen:`, which the user names, and `podssh agent`, which the user
+  starts (T-034): a Unix socket is made mode 0600 (the agent's in a new
+  directory of mode 0700) and takes only programs of the same user, a named
+  pipe on Windows only processes of the same user, a TCP port takes each
+  local user (and other hosts when its address is not loopback), podssh
+  says so, and `PODSSH_LISTEN=no` turns listening off. The agent's keys
+  live in its memory only. It never executes something that
   it receives over chat. `podssh doctor` binds a socket to test whether the
   host allows a bind, and closes it without listening. The iroh road, in a
   build with the feature `iroh`, binds UDP for its direct paths only after

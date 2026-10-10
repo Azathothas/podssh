@@ -20,6 +20,7 @@
 // A dependency that no code uses fails the build (the tests have their own).
 #![cfg_attr(not(test), deny(unused_crate_dependencies))]
 
+pub mod agent;
 pub mod channel;
 pub mod chat;
 pub mod clap_error;

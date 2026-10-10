@@ -50,6 +50,8 @@ pub mod terminal;
 pub type Connection = russh::client::Handle<handler::Client>;
 
 pub use log::Log;
+// The russh that podssh links, for the agent of `podssh agent` (T-034).
 pub use options::{Agent, Hop, LogLevel, Method, Options, RemoteForward, Request, RequestTty, StrictHostKeyChecking};
 pub use relay_stream::{RelayEnd, RelayStatus};
 pub use run::{run, EXIT_FAILURE};
+pub use russh;

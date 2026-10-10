@@ -47,7 +47,23 @@ impl server::Handler for Far {
 
     async fn auth_none(&mut self, user: &str) -> Result<Auth, Self::Error> {
         self.kick = user == "kick";
+        // A user named key-...: a key is needed, as from an agent (T-034).
+        if user.starts_with("key-") {
+            return Ok(Auth::Reject {
+                proceed_with_methods: Some(russh::MethodSet::from(&[russh::MethodKind::PublicKey][..])),
+                partial_success: false,
+            });
+        }
         Ok(Auth::Accept)
+    }
+
+    async fn auth_publickey_offered(&mut self, user: &str, _key: &russh::keys::PublicKey) -> Result<Auth, Self::Error> {
+        Ok(if user.starts_with("key-") { Auth::Accept } else { Auth::reject() })
+    }
+
+    async fn auth_publickey(&mut self, user: &str, _key: &russh::keys::PublicKey) -> Result<Auth, Self::Error> {
+        // russh checked the signature first: whoever holds a key gets in.
+        Ok(if user.starts_with("key-") { Auth::Accept } else { Auth::reject() })
     }
 
     async fn auth_succeeded(&mut self, session: &mut Session) -> Result<(), Self::Error> {
