@@ -44,8 +44,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --workspace --no-fail-fast`, again after T-105 (2026-10-10):
-  1217 passed, 0 failed, 39 ignored (the live tests, and the checks of
+- `cargo test --workspace --no-fail-fast`, again after T-277 (2026-10-10):
+  1221 passed, 0 failed, 39 ignored (the live tests, and the checks of
   faults and of the exit of M6). With the feature `iroh` and the test
   relay, `cargo test -p podssh-iroh -p podssh-cli --features
   podssh-cli/iroh-test`, after T-175: 394 passed, 0 failed, 29 ignored.
@@ -64,7 +64,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 273 entries: 114 open, 0 partial, 22 blocked, 137 done.
+`TODO/INDEX.md` holds 274 entries: 114 open, 0 partial, 22 blocked, 138 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

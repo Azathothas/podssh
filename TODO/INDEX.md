@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**273 entries: 114 open, 0 partial, 22 blocked, 137 done.**
+**274 entries: 114 open, 0 partial, 22 blocked, 138 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
 | P2 | 32 | 0 | 18 | 103 | 153 |
-| P3 | 80 | 0 | 4 | 17 | 101 |
-| **All** | 114 | 0 | 22 | 137 | 273 |
+| P3 | 80 | 0 | 4 | 18 | 102 |
+| **All** | 114 | 0 | 22 | 138 | 274 |
 
 ## Entries
 
@@ -348,3 +348,4 @@ repository and CI).
 | [T-274](relay.md) | P2 | M | backlog | defect | open | On Windows, the owner and the writers of a private file are not checked |
 | [T-275](irc.md) | P2 | S | M8 | defect | done | The transfer sends as fast as its acknowledgements come, and a server's rate limit closes it |
 | [T-276](repo.md) | P3 | S | none | chore | done | The fork's own clippy warns, and no podssh build shows it |
+| [T-277](repo.md) | P3 | S | none | chore | done | The record's check sees no citation that a commit left unmoved |

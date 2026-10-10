@@ -5,7 +5,8 @@
 //! Closing one entry moves several numbers in two files, so no number is
 //! typed by hand: the writer moves a status and derives the counts, and the
 //! reader, which the gate runs, checks that the files agree. When a cited
-//! file changes, `remap` moves its citations by a line diff against `HEAD`.
+//! file changes, `remap` moves its citations by a line diff against `HEAD`,
+//! or against the revision that `--base` names.
 
 pub mod check;
 pub mod diff;
@@ -23,7 +24,9 @@ pub const USAGE: &str = "usage: podssh-todo check
        podssh-todo counts
        podssh-todo next
        podssh-todo remap [--dry-run] FILE...   (after an edit of FILE: move its citations by a diff against HEAD)
-Options: --root DIR (default: the nearest directory above the current one with TODO/INDEX.md)";
+Options: --root DIR (default: the nearest directory above the current one with TODO/INDEX.md)
+         --base REV (default: HEAD): check and remap compare each file with its text in REV,
+                    as HEAD~1 for a commit that was made without them";
 
 /// The nearest directory at or above `start` that has `TODO/INDEX.md`.
 pub fn find_root(start: &Path) -> Option<PathBuf> {
@@ -35,12 +38,18 @@ pub fn find_root(start: &Path) -> Option<PathBuf> {
 pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io::Write) -> i32 {
     let mut words: Vec<&str> = Vec::new();
     let mut root: Option<PathBuf> = None;
+    let mut base: Option<&str> = None;
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--root" => match it.next() {
                 Some(d) => root = Some(PathBuf::from(d)),
                 None => return usage(err, "--root needs a directory"),
+            },
+            // A revision that starts with `-` would reach git as an option.
+            "--base" => match it.next() {
+                Some(r) if !r.is_empty() && !r.starts_with('-') => base = Some(r.as_str()),
+                _ => return usage(err, "--base needs a revision, as HEAD~1"),
             },
             "-h" | "--help" => {
                 let _ = writeln!(out, "{USAGE}");
@@ -54,16 +63,16 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
         None => return usage(err, "no TODO/INDEX.md here or above; give --root"),
     };
     match words.as_slice() {
-        ["check"] => report(&root, out, err),
+        ["check"] => report(&root, base, out, err),
         ["set", id, status] => match write::set_status(&root, id, status) {
-            Ok(()) => report(&root, out, err),
+            Ok(()) => report(&root, base, out, err),
             Err(e) => {
                 let _ = writeln!(err, "podssh-todo: {e}");
                 1
             }
         },
         ["counts"] => match write::counts(&root) {
-            Ok(()) => report(&root, out, err),
+            Ok(()) => report(&root, base, out, err),
             Err(e) => {
                 let _ = writeln!(err, "podssh-todo: {e}");
                 1
@@ -85,7 +94,7 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             if files.is_empty() || rest.iter().any(|w| w.starts_with('-') && *w != "--dry-run" && *w != "-n") {
                 return usage(err, "remap needs one FILE or more, and takes only --dry-run");
             }
-            remap_command(&root, &files, dry, out, err)
+            remap_command(&root, &files, dry, base, out, err)
         }
         _ => usage(err, "unknown command"),
     }
@@ -97,10 +106,12 @@ fn remap_command(
     root: &Path,
     files: &[String],
     dry: bool,
+    base: Option<&str>,
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
 ) -> i32 {
-    let head = |rel: &str| remap::git_head(root, rel);
+    let rev = base.unwrap_or("HEAD");
+    let head = |rel: &str| remap::git_at(root, rev, rel);
     let r = match remap::remap(root, files, &head, !dry) {
         Ok(r) => r,
         Err(e) => {
@@ -131,7 +142,7 @@ fn remap_command(
     if dry {
         0
     } else {
-        report(root, out, err)
+        report(root, base, out, err)
     }
 }
 
@@ -141,8 +152,8 @@ fn usage(err: &mut dyn std::io::Write, why: &str) -> i32 {
 }
 
 /// Run the reader and print what it found.
-fn report(root: &Path, out: &mut dyn std::io::Write, err: &mut dyn std::io::Write) -> i32 {
-    let r = check::check(root);
+fn report(root: &Path, base: Option<&str>, out: &mut dyn std::io::Write, err: &mut dyn std::io::Write) -> i32 {
+    let r = check::check(root, base);
     if r.problems.is_empty() {
         let _ = writeln!(out, "podssh-todo: the record agrees: {}", r.counts.phrase());
         0

@@ -181,7 +181,7 @@ fn a_file_that_is_not_in_head_moves_nothing() {
     t.write(LIB, &format!("line 0\n{SOURCE}"));
     let r = run(&t, &head, true);
     assert!(r.moved.is_empty(), "{r:#?}");
-    assert!(r.notes.iter().any(|n| n.contains("not in HEAD")), "{r:#?}");
+    assert!(r.notes.iter().any(|n| n.contains("no text in the base")), "{r:#?}");
 }
 
 #[test]
@@ -231,7 +231,7 @@ fn an_edit_with_no_remap_is_found_by_the_check() {
     t.write(LIB, &format!("line 0\n{SOURCE}"));
     let get = |rel: &str| Ok::<_, String>(head.get(rel).cloned());
     let forgotten = |changed: Option<Vec<String>>| -> Vec<String> {
-        check_with(t.path(), changed, &get)
+        check_with(t.path(), changed, &get, "HEAD")
             .problems
             .iter()
             .map(|p| p.to_string())
@@ -246,4 +246,49 @@ fn an_edit_with_no_remap_is_found_by_the_check() {
 
     remap(t.path(), &[LIB.to_string()], &get, true).unwrap();
     assert!(forgotten(Some(vec![LIB.to_string(), "TODO/area.md".to_string()])).is_empty());
+}
+
+/// The problems of the check that name a remap, given the files changed and
+/// their texts in the base.
+fn unmoved(t: &Tree, changed: &[&str], get: &podssh_todo::remap::Head) -> Vec<String> {
+    let changed = Some(changed.iter().map(|c| c.to_string()).collect());
+    check_with(t.path(), changed, get, "HEAD")
+        .problems
+        .iter()
+        .map(|p| p.to_string())
+        .filter(|p| p.contains("remap"))
+        .collect()
+}
+
+/// A changed file that is not text, as a binary fixture, is passed over with
+/// a note, so that the check still finds what an edit of another file left
+/// behind. The whole check stopped there before, and said nothing.
+#[test]
+fn a_changed_file_that_is_not_text_leaves_the_check_running() {
+    let t = Tree::new("remap-binary");
+    let head = snapshot(&t);
+    let bin = "crates/x/tests/fixture.bin";
+    std::fs::create_dir_all(t.path().join("crates/x/tests")).unwrap();
+    std::fs::write(t.path().join(bin), [0xff, 0xfe, 0x00, 0x80]).unwrap();
+    t.write(LIB, &format!("line 0\n{SOURCE}"));
+    let get = |rel: &str| Ok::<_, String>(head.get(rel).cloned());
+    let found = unmoved(&t, &[bin, LIB], &get);
+    assert_eq!(found.len(), 3, "{found:#?}");
+    assert!(found.iter().all(|p| p.contains("run `cargo todo remap crates/x/src/lib.rs`")), "{found:#?}");
+    let r = remap(t.path(), &[bin.to_string(), LIB.to_string()], &get, false).unwrap();
+    assert!(r.notes.iter().any(|n| n.contains("fixture.bin is not UTF-8 text")), "{r:#?}");
+    assert_eq!(r.moved.len(), 3, "{r:#?}");
+}
+
+/// A remap that cannot run is a problem of the check, not a pass.
+#[test]
+fn a_remap_that_fails_is_a_problem_of_the_check() {
+    let t = Tree::new("remap-fails");
+    let head = snapshot(&t);
+    t.write(LIB, &format!("line 0\n{SOURCE}"));
+    let get =
+        |rel: &str| if rel == LIB { Err("planted: git show failed".to_string()) } else { Ok(head.get(rel).cloned()) };
+    let found = unmoved(&t, &[LIB], &get);
+    assert_eq!(found.len(), 1, "{found:#?}");
+    assert!(found[0].starts_with("remap: ") && found[0].contains("could not run: planted"), "{found:#?}");
 }

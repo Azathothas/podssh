@@ -1,12 +1,14 @@
 //! `remap FILE...`: after an edit of FILE, move each citation of it in the
-//! documents by a line diff of FILE against its version in `HEAD`. A
-//! citation is `FILE:N` or `FILE:N-M` in a code span, or a bare `:N` that
-//! follows a citation of FILE in the same paragraph.
+//! documents by a line diff of FILE against its version in the base: `HEAD`,
+//! or the revision that `--base` names, as `HEAD~1` for a commit that was
+//! made without a remap. A citation is `FILE:N` or `FILE:N-M` in a code
+//! span, or a bare `:N` that follows a citation of FILE in the same
+//! paragraph.
 //!
-//! Each document is compared with `HEAD` too, and a line of it is rebuilt
-//! from its line in `HEAD`, where the numbers are `HEAD`'s. So a second run
-//! after a second edit gives the right numbers, not a second shift. A line
-//! that is new in this change is kept as it is: its writer used the new
+//! Each document is compared with the base too, and a line of it is rebuilt
+//! from its line in the base, where the numbers are the base's. So a second
+//! run after a second edit gives the right numbers, not a second shift. A
+//! line that is new in this change is kept as it is: its writer used the new
 //! numbers.
 
 use std::collections::{HashMap, HashSet};
@@ -18,7 +20,7 @@ use crate::diff::line_map;
 use crate::parse::lines_with_fences;
 use crate::refs::{citation, documents};
 
-/// The text of a file in `HEAD`; `Ok(None)` when `HEAD` has no such file.
+/// The text of a file in the base; `Ok(None)` when the base has no such file.
 pub type Head<'a> = dyn Fn(&str) -> Result<Option<String>, String> + 'a;
 
 /// What a run moved, and what a person must read.
@@ -47,35 +49,33 @@ struct Cite {
     moves: bool,
 }
 
-/// The text of `rel` in `HEAD`, read with `git show`.
-pub fn git_head(root: &Path, rel: &str) -> Result<Option<String>, String> {
+/// The text of `rel` in the revision `rev`, read with `git show`; `Ok(None)`
+/// when the revision has no such file, or none that is UTF-8 text, which no
+/// citation could name by its lines.
+pub fn git_at(root: &Path, rev: &str, rel: &str) -> Result<Option<String>, String> {
     let out = std::process::Command::new("git")
         .arg("-C")
         .arg(root)
-        .args(["show", &format!("HEAD:{rel}")])
+        .args(["show", &format!("{rev}:{rel}")])
         .output()
-        .map_err(|e| format!("git cannot run here ({e}); remap needs each file as it is in HEAD"))?;
+        .map_err(|e| format!("git cannot run here ({e}); remap needs each file as it is in {rev}"))?;
     if out.status.success() {
-        return String::from_utf8(out.stdout).map(Some).map_err(|_| format!("{rel}: its text in HEAD is not UTF-8"));
+        return Ok(String::from_utf8(out.stdout).ok());
     }
     let why = String::from_utf8_lossy(&out.stderr);
     if why.contains("does not exist in") || why.contains("exists on disk, but not in") {
         Ok(None)
     } else {
-        Err(format!("git show HEAD:{rel}: {}", why.trim()))
+        Err(format!("git show {rev}:{rel}: {}", why.trim()))
     }
 }
 
-/// The files of the tree that differ from `HEAD` and still exist, by
-/// `git diff --name-only HEAD`; `None` when git cannot say (no git, no
-/// repository, no `HEAD`).
-pub fn changed_since_head(root: &Path) -> Option<Vec<String>> {
-    let out = std::process::Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(["diff", "--name-only", "HEAD", "--"])
-        .output()
-        .ok()?;
+/// The files of the tree that differ from the revision `rev` and still
+/// exist, by `git diff --name-only REV`; `None` when git cannot say (no git,
+/// no repository, no such revision).
+pub fn changed_since(root: &Path, rev: &str) -> Option<Vec<String>> {
+    let out =
+        std::process::Command::new("git").arg("-C").arg(root).args(["diff", "--name-only", rev, "--"]).output().ok()?;
     if !out.status.success() {
         return None;
     }
@@ -91,9 +91,16 @@ pub fn remap(root: &Path, files: &[String], head: &Head, write: bool) -> Result<
     for f in files {
         let rel = f.replace('\\', "/");
         let rel = rel.trim_start_matches("./").to_string();
-        let now = fs::read_to_string(root.join(&rel)).map_err(|e| format!("{rel}: {e}"))?;
+        let bytes = fs::read(root.join(&rel)).map_err(|e| format!("{rel}: {e}"))?;
+        // A file that is not text, as a binary fixture, has no lines to
+        // cite. It is passed over, so that the other files still move and
+        // the check of a commit that changed it still runs.
+        let Ok(now) = String::from_utf8(bytes) else {
+            report.notes.push(format!("{rel} is not UTF-8 text: it has no lines to move"));
+            continue;
+        };
         match head(&rel)? {
-            None => report.notes.push(format!("{rel} is not in HEAD: a new file has no old line numbers")),
+            None => report.notes.push(format!("{rel} has no text in the base: a new file has no old line numbers")),
             Some(old) => {
                 let old: Vec<&str> = old.lines().collect();
                 let now: Vec<&str> = now.lines().collect();

@@ -75,16 +75,32 @@ pub fn load(root: &Path, problems: &mut Vec<Problem>) -> Option<Record> {
 }
 
 /// Run every check of the reader on the tree at `root`, and, when git can
-/// say which files changed since `HEAD`, the check that no citation of them
-/// was left behind by a forgotten `remap`.
-pub fn check(root: &Path) -> Report {
-    let head = |rel: &str| crate::remap::git_head(root, rel);
-    check_with(root, crate::remap::changed_since_head(root), &head)
+/// say which files changed since the base, the check that no citation of
+/// them was left behind by a forgotten `remap`. The base is `HEAD`, or the
+/// revision that `base` names: `HEAD~1` checks a commit that was made
+/// without the check, as CI does. A base that is named and that git cannot
+/// read is a problem: the check that it asks for did not run.
+pub fn check(root: &Path, base: Option<&str>) -> Report {
+    let rev = base.unwrap_or("HEAD");
+    let head = |rel: &str| crate::remap::git_at(root, rev, rel);
+    let changed = crate::remap::changed_since(root, rev);
+    let unread = base.is_some() && changed.is_none();
+    let mut report = check_with(root, changed, &head, rev);
+    if unread {
+        report.problems.push(Problem::new(
+            "--base",
+            0,
+            format!(
+                "git cannot compare the tree with `{rev}` here, so no citation that a change left behind can be found"
+            ),
+        ));
+    }
+    report
 }
 
-/// [`check`], given the files changed since `HEAD` (`None`: unknown) and
-/// their texts in `HEAD`, so a test needs no git.
-pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap::Head) -> Report {
+/// [`check`], given the files changed since the base `rev` (`None`:
+/// unknown) and their texts in it, so a test needs no git.
+pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap::Head, rev: &str) -> Report {
     let mut problems = Vec::new();
     let Some(record) = load(root, &mut problems) else {
         return Report { problems, counts: Counts::default() };
@@ -100,24 +116,36 @@ pub fn check_with(root: &Path, changed: Option<Vec<String>>, head: &crate::remap
     check_counts(&record, &mut problems);
     crate::refs::check(root, &record, &mut problems);
     if let Some(files) = changed.filter(|f| !f.is_empty()) {
-        unmoved(root, &files, head, &mut problems);
+        unmoved(root, &files, head, rev, &mut problems);
     }
     Report { problems, counts: Counts::of(&record.rows, None) }
 }
 
-/// A citation of a file that changed since `HEAD` which a remap would still
-/// move: the file was edited and its citations were not moved, so they name
-/// other lines now. The check of a cited line cannot see this, because the
-/// line still exists. A citation that a person must read is not counted:
-/// only `remap` decides those, and it lists them.
-fn unmoved(root: &Path, files: &[String], head: &crate::remap::Head, p: &mut Vec<Problem>) {
-    let Ok(r) = crate::remap::remap(root, files, head, false) else { return };
+/// A citation of a file that changed since the base `rev` which a remap
+/// would still move: the file was edited and its citations were not moved,
+/// so they name other lines now. The check of a cited line cannot see this,
+/// because the line still exists. A citation that a person must read is not
+/// counted: only `remap` decides those, and it lists them. A remap that
+/// fails is a problem, not a pass.
+fn unmoved(root: &Path, files: &[String], head: &crate::remap::Head, rev: &str, p: &mut Vec<Problem>) {
+    let r = match crate::remap::remap(root, files, head, false) {
+        Ok(r) => r,
+        Err(e) => {
+            p.push(Problem::new(
+                "remap",
+                0,
+                format!("the check of the citations of the files changed since {rev} could not run: {e}"),
+            ));
+            return;
+        }
+    };
+    let command = if rev == "HEAD" { "cargo todo remap".to_string() } else { format!("cargo todo remap --base {rev}") };
     for moved in r.moved {
         let Some((at, rest)) = moved.split_once(": ") else { continue };
         let path = rest.split(' ').next().unwrap_or(rest);
         p.push(Problem {
             at: at.to_string(),
-            what: format!("cites {rest}, as {path} changed since HEAD: run `cargo todo remap {path}`"),
+            what: format!("cites {rest}, as {path} changed since {rev}: run `{command} {path}`"),
         });
     }
 }

@@ -333,7 +333,7 @@ Read:
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
   462.
-- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:166-172`);
+- CI parses `scripts/*.sh` with dash (`.github/workflows/build.yml:183-189`);
   `scripts/check-scripts.py:53-57` finds the scripts under `scripts/` at any
   depth.
 
@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:499-544`): the
+5. docs/development.md, "Release builds" (`docs/development.md:500-545`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -1610,7 +1610,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:239-241` states the rule with `CXX`, and
+- `docs/development.md:240-242` states the rule with `CXX`, and
   `docs/STATUS.md:334` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -1696,7 +1696,7 @@ Read:
 3. A plant in the same script: a mode `--plant-empty` runs the checks on an
    empty temporary directory and must exit 1. The control is the real tree,
    which must exit 0. CI runs both, as it does for the relay check
-   (`.github/workflows/build.yml:179-191`).
+   (`.github/workflows/build.yml:196-208`).
 4. With T-207: the size check also reads `scripts/`, with its own floor.
 5. The checker of `TODO/` gets its own floor in its own change; this entry
    does not plan it.
@@ -2979,3 +2979,96 @@ fork tests, `reconnect` and `ping`, which T-104's Prove named and its commit did
   25 ignored; clippy with `-D warnings` on podssh's crates: no warning. The twenty patches
   give the vendored tree byte for byte on all 41 touched paths.
 - Waits for T-251: `scripts/ts-derp-prove.sh` in the build image.
+
+# T-277: The record's check sees no citation that a commit left unmoved
+
+**Source:** 2026-10-10: commit `dddcc8e` moved three cited lines of the doctor tests, and no check saw it.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`cargo todo check` finds a citation that an edit left behind only until the edit is committed:
+it compares the tree with `HEAD`. A commit made despite its failure leaves the citations naming
+other lines, and from then on no check sees it, the gate's in CI included, whose checkout equals
+`HEAD`; `remap` cannot repair it either, as it too diffs against `HEAD` alone. On 2026-10-10,
+commit `dddcc8e` moved the lines of `crates/podssh-cli/tests/doctor.rs` by seven, and three
+citations in `TODO/machine.md` and `TODO/ws.md` named the wrong lines until `832149e` moved them
+by hand. A second hole of the same check: a changed file that is not UTF-8 text, as a binary
+fixture, made the remap fail, and the check passed over the failure, so that a change with such a
+file was checked for no file.
+
+## Premise
+
+Read, at `832149e`: `crates/podssh-todo/src/check.rs` lines 80-83 give the check the files
+changed since `HEAD` and their texts there, from `crates/podssh-todo/src/remap.rs` lines 51-67
+(`git show HEAD:FILE`) and lines 72-84 (`git diff --name-only HEAD`). The check's `unmoved`
+returns with no problem when the remap fails (`check.rs` line 114), and the remap fails on a file
+that `fs::read_to_string` cannot read (`remap.rs` line 94). The gate runs the check on its
+checkout (`scripts/gate.sh` line 235), where no file differs from `HEAD`.
+
+## Approach
+
+1. A global option `--base REV` of `podssh-todo`: `check` and `remap` read the texts before the
+   edit from REV, and the files changed from `git diff --name-only REV`. `HEAD` stays the
+   default. A base that is named and that git cannot read is a problem, not a check skipped.
+2. A changed file that is not UTF-8 text is passed over with a note, and a remap that fails in
+   the check is a problem.
+3. CI's job `checks` fetches the last commit's parent and runs `cargo todo check --base HEAD~1`.
+4. `TODO/RULES.md` and `docs/development.md` say how to repair a commit made without the remap.
+
+## Decision
+
+Decided in the work (2026-10-10):
+- CI checks the last commit of a push against its parent, not the whole push against the commit
+  before it: a diff over several commits can align repeated lines otherwise than each commit's
+  own diff did, and would then fail on citations that each commit moved right. Each push here
+  carries one commit. Lost: the push's whole range, for that reason; a check of each commit of
+  the push in a worktree of its own, for its cost in each run.
+- The step runs in the job `checks`, on the runner, not in the gate: the build image has no git,
+  and in a developer's tree the gate's check against `HEAD` is the right one, as the tree holds
+  the change that is not committed yet.
+- A named base that git cannot read fails the check; the default base keeps its old leniency, as
+  the build image has no git to ask.
+- The tests with a real repository run git with no global or system configuration, so that no
+  hook, signing key or line-end rule of the machine reaches them; with no git on PATH they say
+  so and pass, as the gate's image has none, and the Windows job of CI runs them.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-todo
+cargo todo check --root WORKTREE --base HEAD~1
+```
+
+The second, in a worktree at `dddcc8e`, must exit 1 and name the three citations; at `832149e`,
+against `HEAD~1` and against `HEAD~2`, it must exit 0. Plants: `--base` ignored; a base that git
+cannot read let pass; a changed binary file failing the remap again; a failed remap passed over.
+Each must fail its test.
+
+## Done
+
+2026-10-10, in the commit that closes this entry. `podssh-todo --base REV`
+(`crates/podssh-todo/src/lib.rs`): `check::check` and `remap` read the base through
+`remap::git_at` and `remap::changed_since`; a named base that git cannot read is the problem
+`--base: git cannot compare the tree with ...`, and the command that a problem names is
+`cargo todo remap --base REV FILE`. A changed file that is not UTF-8 text is a note of the remap,
+and a remap that fails in the check is a problem. CI's job `checks` checks out two commits and
+runs `cargo todo check --base HEAD~1` (`.github/workflows/build.yml`). `TODO/RULES.md` and
+`docs/development.md` say how to repair a commit made without the remap.
+- Native, Windows 11: `cargo test -p podssh-todo`: 15 unit tests, 2 tests with a real repository
+  (`crates/podssh-todo/tests/base.rs`), 37 plant tests, 13 tests of the remap, the test of this
+  record and 7 tests of the writer: all pass. Planted, each fails its test: `--base` ignored
+  (`HEAD` used); a base that git cannot read let pass; a changed binary file failing the remap
+  again; a failed remap passed over.
+- On this repository's history, in worktrees: at `dddcc8e`, `podssh-todo check` against `HEAD`
+  exits 0, and with `--base HEAD~1` exits 1 and names the three citations, each with the move
+  that `832149e` made by hand; `podssh-todo remap --base HEAD~1 crates/podssh-cli/tests/doctor.rs`
+  there gives `TODO/machine.md` and `TODO/ws.md` byte for byte as `832149e` has them. At
+  `832149e`, against `HEAD~1` and against `HEAD~2`: exit 0.
+- `cargo test --workspace --no-fail-fast`: 1221 passed, 0 failed, 39 ignored.
+- CI runs the new step from the push of this commit on.

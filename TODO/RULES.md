@@ -76,7 +76,8 @@ finished.
   file or the line does not exist, also for a wrong case.
 - After an edit of a cited file, run `cargo todo remap FILE` in the same
   change. The checker fails on a file that changed since `HEAD` when a
-  citation of it would still move (T-254).
+  citation of it would still move (T-254). CI checks each pushed commit the
+  same way against its parent, with `cargo todo check --base HEAD~1` (T-277).
 - Write a file of another project as `owner/repo:path`.
 - Write a file that does not exist yet without backticks, or in a fenced
   command block.
@@ -113,6 +114,11 @@ that the change removed or changed does not move: it is listed for review,
 and you move it by hand. It starts from `HEAD` each time, so run it again
 after each later edit, and move citations by hand last: a later run computes
 each citation that it can move again.
+
+A commit made without the remap is repaired in a new commit, with the
+commit's parent as the base: `cargo todo remap --base HEAD~1 FILE` (or
+`--base COMMIT~1` for an older one) moves the citations by a diff against
+it, and `cargo todo check --base HEAD~1` finds what the commit left.
 
 The checker tests that each cited line exists, and that a citation which
 quotes its line (`` `FILE:N` says "TEXT" ``) holds that text there. Quote the

@@ -116,6 +116,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The parent of the last commit, for the check of its citations.
+          fetch-depth: 2
 
       # Resolve python by running it: a name that prints no version is not an
       # interpreter, and a check that did not run is not a pass.
@@ -138,6 +141,20 @@ jobs:
 
       - name: repository checks
         run: '"$PY" scripts/check-repo.py'
+
+      # The record's check compares the tree with HEAD, and a checkout has no
+      # change, so a commit made without the check would leave citations of an
+      # edited file that no later run sees. Compare the last commit with its
+      # parent, as the check before the commit does (T-277). A checkout with
+      # no parent fails: a check that did not run is not a pass.
+      - name: the last commit left no citation unmoved
+        run: |
+          set -eu
+          if ! git rev-parse -q --verify 'HEAD~1^{commit}' > /dev/null; then
+            echo "the checkout has no parent of HEAD: the step needs fetch-depth 2" >&2
+            exit 1
+          fi
+          cargo run --locked -q -p podssh-todo -- check --base HEAD~1
 
       # Each check must fail on an empty repository: a check that passes there
       # has lost its floor, and would pass a scan that read nothing.
