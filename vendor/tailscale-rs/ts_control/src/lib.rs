@@ -21,7 +21,10 @@ mod node;
 
 use std::fmt;
 
-pub use client::{FilterUpdate, PeerUpdate, RegistrationError, StateUpdate, connect, register};
+pub use client::{
+    FilterUpdate, LogoutError, PeerUpdate, RegistrationError, StateUpdate, connect, logout,
+    logout_body, register,
+};
 #[doc(inline)]
 pub use config::{Config, DEFAULT_CONTROL_SERVER};
 pub use control_dialer::{ControlDialer, TcpDialer, complete_connection};

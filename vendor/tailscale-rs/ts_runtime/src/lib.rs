@@ -205,7 +205,21 @@ forward!(
     control_runner::Ipv6,
     control_runner::SelfNode,
     control_runner::AuthUrl,
+    control_runner::Logout,
 );
+
+/// Ask the control runner of `runtime` to log this node out (podssh's patch 0016). A runtime that
+/// cannot take the request has stopped.
+pub async fn logout(runtime: &ActorRef<Runtime>) -> Result<(), ts_control::LogoutError> {
+    use kameo::error::SendError::HandlerError;
+
+    // The runtime's forward and the registry's each wrap the runner's own error.
+    match runtime.ask(control_runner::Logout).await {
+        Ok(()) => Ok(()),
+        Err(HandlerError(HandlerError(HandlerError(e)))) => Err(e),
+        Err(_) => Err(ts_control::LogoutError::Stopped),
+    }
+}
 forward!(
     PeerTracker,
     peer_tracker::PeerByName,

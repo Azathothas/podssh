@@ -360,6 +360,14 @@ const TS: &[&str] = &[
     "With --jsonl, the status is one JSON object on one line: the event, the node-key prefix, the \
      tailnet IP and the home region, never a key. --jsonl is refused with -W, whose stdout is the \
      stream to the peer.",
+    "Before the node starts, each mode is checked through the proxy (--ts-proxy, else the environment's), \
+     each step in 8 s: tcp by a TLS handshake with a stock DERP server of Tailscale's default map, read \
+     from login.tailscale.com, and relay by one with the relay host. --ts-mode auto takes the first of \
+     tcp and relay whose check passed, and says which it passed over; a forced mode is checked alone. \
+     With none ready, each check's reason is printed and the exit is 78.",
+    "An ephemeral node (--ts-ephemeral) logs out at the end of the run, after an error too, in 5 s at \
+     most and after the bound of --timeout: the tailnet then keeps no offline device. A node that is \
+     not ephemeral never logs out, so its key, and the relay's allowlist entry for it, stay.",
 ];
 
 #[cfg(test)]

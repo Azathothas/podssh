@@ -200,3 +200,120 @@ pub async fn register(
         Ok(())
     }
 }
+
+/// Why a logout did not happen (podssh's patch 0016).
+#[derive(Debug, thiserror::Error, Clone, Eq, PartialEq)]
+pub enum LogoutError {
+    /// The node has not registered with the control server: there is nothing to log out.
+    #[error("the node has not registered with the control server")]
+    NotRegistered,
+
+    /// The request could not be built or sent, or its answer could not be read.
+    #[error("the request failed: {0}")]
+    Request(#[from] RegistrationError),
+
+    /// The control server answered with a status that is not a success.
+    #[error("the control server answered HTTP {0}")]
+    Status(u16),
+
+    /// The control server answered with an error, as its response says it.
+    #[error("the control server refused: {0}")]
+    Refused(String),
+
+    /// No answer came within the time given.
+    #[error("no answer within the time given")]
+    Timeout,
+
+    /// The runtime that would send the request has stopped.
+    #[error("the runtime has stopped")]
+    Stopped,
+}
+
+/// The longest refusal text kept from a response: a server's text, shown to a user.
+const MAX_REFUSAL: usize = 200;
+
+/// The body of the request that logs this node out (podssh's patch 0016): this node's key, and an
+/// expiry in the past, which expires that key at once ([`RegisterRequest::expiry`]). The expiry is
+/// the one Go's client sends to log out (`time.Unix(123, 0)`). The control server finds the node
+/// by its key, so no auth key goes with it: Go's client attaches its key to each register
+/// request, and the key need not cross the network once more.
+pub fn logout_body(
+    config: &crate::Config,
+    node_keystate: &ts_keys::NodeState,
+) -> Result<String, RegistrationError> {
+    let client_name = config.format_client_name();
+    let request = RegisterRequest {
+        version: CapabilityVersion::CURRENT,
+        node_key: node_keystate.node_keys.public,
+        hostinfo: HostInfo {
+            hostname: config.hostname.as_deref(),
+            app: &client_name,
+            ipn_version: crate::PKG_VERSION,
+            ..Default::default()
+        },
+        nl_key: Some(node_keystate.network_lock_keys.public),
+        expiry: chrono::DateTime::from_timestamp(123, 0),
+        ephemeral: config.ephemeral,
+        ..Default::default()
+    };
+
+    Ok(serde_json::to_string(&request)?)
+}
+
+/// Log this node out (podssh's patch 0016): send [`logout_body`] to the control server, which
+/// expires the node key and deletes an ephemeral node at once.
+///
+/// Any success status is an answer, unless the body names an error. The answer is not read as a
+/// registration: it says the machine is no longer authorized (headscale answers so for an
+/// ephemeral node that it deleted).
+#[tracing::instrument(skip_all, fields(%control_url))]
+pub async fn logout(
+    config: &crate::Config,
+    control_url: &Url,
+    node_keystate: &ts_keys::NodeState,
+    http2_conn: &Http2<BytesBody>,
+) -> Result<(), LogoutError> {
+    let node_public_key = node_keystate.node_keys.public;
+    let body = logout_body(config, node_keystate)?;
+    let register_url = control_url
+        .join("machine/register")
+        .map_err(RegistrationError::from)?;
+
+    let response = http2_conn
+        .post(
+            &register_url,
+            [(
+                LOAD_BALANCER_HEADER_KEY.parse().unwrap(),
+                node_public_key.to_string().parse().unwrap(),
+            )],
+            Bytes::from(body).into(),
+        )
+        .await
+        .map_err(RegistrationError::from)?;
+
+    let status = response.status();
+    tracing::debug!(%status, "received logout response");
+
+    let body = response.collect_bytes().await.unwrap_or_default();
+    if !status.is_success() {
+        let shown = String::from_utf8_lossy(&body[..body.len().min(512)]).into_owned();
+        tracing::error!(body = %shown, %status, "logout failed");
+        return Err(LogoutError::Status(status.as_u16()));
+    }
+
+    let refusal = serde_json::from_slice::<serde_json::Value>(&body)
+        .ok()
+        .and_then(|doc| doc.get("Error")?.as_str().map(str::to_owned))
+        .unwrap_or_default();
+    if !refusal.is_empty() {
+        let shown: String = refusal
+            .chars()
+            .filter(|c| !c.is_control())
+            .take(MAX_REFUSAL)
+            .collect();
+        tracing::error!(error = %shown, "logout refused");
+        return Err(LogoutError::Refused(shown));
+    }
+
+    Ok(())
+}

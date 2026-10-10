@@ -17,7 +17,7 @@ pub use connect::{
 };
 pub use map_stream::{FilterUpdate, PeerUpdate, StateUpdate, map_stream, send_map_request};
 pub use ping::handle_ping;
-pub use register::{RegistrationError, register};
+pub use register::{LogoutError, RegistrationError, logout, logout_body, register};
 
 /// Type of the underlying http2 connection to the control server.
 pub type HttpConn = Http2<BytesBody>;

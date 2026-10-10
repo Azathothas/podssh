@@ -163,7 +163,7 @@ Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
 the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:283-284`,
-`crates/podssh-cli/src/ts.rs:186`). Credentials never go on argv
+`crates/podssh-cli/src/ts.rs:162`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
 ## Approach

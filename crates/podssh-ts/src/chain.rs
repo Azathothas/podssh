@@ -5,6 +5,8 @@
 //! forced single mode is a one-element slice — no `--order` in v1. Falling
 //! through happens only on pre-dial failures: a dial failing under a ready
 //! mode is reported, never retried elsewhere (that rule lives in dispatch).
+//! So a mode is ready only when its network check passed before the start
+//! (T-102): podssh-cli runs it, and passes its verdict in `reach`.
 
 use std::net::IpAddr;
 
@@ -35,24 +37,36 @@ pub struct ChainInputs {
     pub socks_endpoint: Option<String>,
     /// Auth key material is present (presence only — never the key itself).
     pub has_key: bool,
+    /// What the network check of each mode found: a TLS handshake through
+    /// the proxy with a stock DERP server for `tcp`, and with the relay host
+    /// for `relay`. A mode that is not here was not checked: `Unknown`.
+    pub reach: Vec<(TsMode, Verdict)>,
 }
 
-/// Probe one mode. `Tcp`/`Relay` need key material. `Tun`/`Socks` variants
-/// do not exist on `TsMode` yet — and the match below is exhaustive on
-/// purpose, so adding a variant fails compilation until its probe rule is
-/// written. A new mode that silently falls through would be the defect.
+impl ChainInputs {
+    /// The verdict of `mode`'s network check, `Unknown` when none ran.
+    pub fn reached(&self, mode: &TsMode) -> Verdict {
+        self.reach.iter().find(|(m, _)| m == mode).map_or(Verdict::Unknown, |(_, v)| v.clone())
+    }
+}
+
+/// Probe one mode. `Tcp`/`Relay` need key material, then a network check
+/// that passed. `Tun`/`Socks` variants do not exist on `TsMode` yet — and
+/// the match below is exhaustive on purpose, so adding a variant fails
+/// compilation until its probe rule is written. A new mode that silently
+/// falls through would be the defect.
 pub fn probe(mode: &TsMode, inputs: &ChainInputs) -> Verdict {
     match mode {
         TsMode::Tcp => {
             if inputs.has_key {
-                Verdict::Ok
+                inputs.reached(mode)
             } else {
                 Verdict::Fail("no auth key".to_string())
             }
         }
         TsMode::Relay { .. } => {
             if inputs.has_key {
-                Verdict::Ok
+                inputs.reached(mode)
             } else {
                 Verdict::Fail("no auth key".to_string())
             }

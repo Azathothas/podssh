@@ -275,7 +275,7 @@ pub const CHAT_FLAGS: &[FlagRow] = &[
 /// build without the feature refuses them, naming the feature.
 pub const TS_FLAGS: &[FlagRow] = &[
     row(None, "ts-mode", Some("MODE"), FlagKind::Supported,
-        "auto tun socks tcp relay: force one tailnet route, no fallback", None),
+        "auto tun socks tcp relay: auto takes the first of tcp, relay whose check passes", None),
     row(None, "ts-proxy", Some("URL"), FlagKind::Supported,
         "CONNECT proxy for every outbound TCP path", None),
     row(None, "ts-auth-key-file", Some("FILE"), FlagKind::Supported,
@@ -283,7 +283,7 @@ pub const TS_FLAGS: &[FlagRow] = &[
     row(None, "ts-state", Some("FILE"), FlagKind::Supported,
         "node key-state file, created when missing", None),
     row(None, "ts-ephemeral", None, FlagKind::Supported,
-        "register an ephemeral node", None),
+        "register an ephemeral node, logged out at the end of the run", None),
     row(None, "ts-relay", Some("HOST"), FlagKind::Supported,
         "DERP-over-WebSocket relay for relay mode", None),
     row(None, "ts-wait-allowlist", Some("DURATION"), FlagKind::Supported,

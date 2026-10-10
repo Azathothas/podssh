@@ -28,7 +28,8 @@ byte-identical on all 28 touched paths. Re-measured 2026-10-10 for all fifteen
 (podssh T-241): the chain applies to an export of pristine `f4781c4` made
 outside podssh's repository (`git apply` inside it reads each path from the
 repository's root and skips it), exit 0, and is byte-identical on all 29
-touched paths.
+touched paths. Re-measured 2026-10-10 for all sixteen (podssh T-102), the same
+way: exit 0, byte-identical on all 33 touched paths.
 
 ## The patch set
 
@@ -49,8 +50,9 @@ touched paths.
 | `0013-proxy-test-serial.patch` | `ts_http_util/tests/proxy.rs` | 1 | Increment-2 follow-up: the proxy suite flaked on Windows loopback (rotating 1–4 failures, `os error 10054` / truncated heads) because `configure` is process-global and parallel tests dialled each other's fake proxy. The four async tests now serialize on a poison-tolerant `SERIAL` mutex: 3/3 green guarded runs, 4/4 red with the guards stripped. |
 | `0014-device-options.patch` | `src/config.rs`, `src/lib.rs` | 2 | E39 increment 4b: `tailscale::Config` gains `pub options: ts_runtime::options::RuntimeOptions` (defaulting to stock in the hand-written `Default` impl), and `Device::new` threads `config.options.clone()` into `ts_runtime::Config` instead of `Default::default()` — replacing the increment-3 placeholder comment at the same site. Without it podssh-ts could select WS/pin/proxy but the runtime would never receive them. |
 | `0015-zeroize-auth-key.patch` | `ts_runtime/Cargo.toml`, `ts_runtime/src/lib.rs`, `ts_runtime/src/control_runner.rs`, `src/lib.rs`, `Cargo.lock` | 6 | podssh T-241: the auth key that `Device::new` takes by value is moved, with no copy, into a `zeroize::Zeroizing<String>` in `ts_runtime::Config` and in the control runner's `Params`, so each copy is cleared from memory when it is dropped; `ts_runtime` depends on the fork's workspace `zeroize`, and the lock says so. The public signature of `Device::new` is unchanged. |
+| `0016-logout.patch` | `ts_control/src/client/register.rs`, `ts_control/src/client/mod.rs`, `ts_control/src/lib.rs`, `ts_control/tests/logout.rs` (new), `ts_runtime/src/control_runner.rs`, `ts_runtime/src/lib.rs`, `src/lib.rs` | 7 | podssh T-102: a logout, which the fork lacked. `ts_control::logout_body` builds a register request with this node's key and an expiry in the past (Go's `time.Unix(123, 0)`), with no auth key (Go's client attaches its key to each register request; the control server finds the node by its key); `ts_control::logout` posts it to `machine/register` and takes any success status unless the body names an `Error`, and does not read the answer as a registration (headscale answers `MachineAuthorized: false` for an ephemeral node that it deleted); `LogoutError` says why one failed. The control runner answers a new `Logout` message over its registered connection, the runtime forwards it, and `Device::logout(timeout)` waits for the answer. Proven by `ts_control/tests/logout.rs` (2 tests: this node key, an expiry in the past, no auth key; with the expiry planted away, or planted a day ahead, the first fails). |
 
-`LOCAL-PATCHES.md` (this file) is fork bookkeeping and is not part of the fifteen
+`LOCAL-PATCHES.md` (this file) is fork bookkeeping and is not part of the sixteen
 patches; deleting it changes nothing that builds.
 
 ## What the patches deliberately do not do

@@ -224,6 +224,23 @@ impl ControlRunner {
         deleg
     }
 
+    /// Log this node out over the registered connection (podssh's patch 0016): the control
+    /// server expires the node key, and deletes an ephemeral node at once.
+    #[message]
+    pub async fn logout(&mut self) -> Result<(), ts_control::LogoutError> {
+        let RegState::Registered(conn) = &self.state else {
+            return Err(ts_control::LogoutError::NotRegistered);
+        };
+
+        ts_control::logout(
+            &self.params.config,
+            &self.params.config.server_url,
+            &self.params.env.keys,
+            conn,
+        )
+        .await
+    }
+
     /// Wait for a report of whether interactive auth is needed, and if so, what the URL is.
     #[message(ctx)]
     pub fn auth_url(

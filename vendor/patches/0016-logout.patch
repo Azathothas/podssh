@@ -1,0 +1,290 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index 19a01c3..cb60bb9 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -131,6 +131,8 @@ pub use config::Config;
+ #[doc(inline)]
+ pub use error::{Error, InternalErrorKind};
+ #[doc(inline)]
++pub use ts_control::LogoutError;
++#[doc(inline)]
+ pub use ts_control::Node as NodeInfo;
+ use ts_netstack_smoltcp::{CreateSocket, netcore::Channel};
+ use ts_runtime::Spawn;
+@@ -324,6 +326,18 @@ impl Device {
+             .map_err(Into::into)
+     }
+ 
++    /// Log this node out of the tailnet (podssh's patch 0016): a register request with this
++    /// node's key and an expiry in the past, which expires the key; the control server deletes
++    /// an ephemeral node at once. A node that is not ephemeral needs a new key, and a new
++    /// approval, to join again.
++    ///
++    /// Waits for the control server's answer for `timeout` at most.
++    pub async fn logout(&self, timeout: Duration) -> Result<(), LogoutError> {
++        tokio::time::timeout(timeout, ts_runtime::logout(&self.runtime))
++            .await
++            .unwrap_or(Err(LogoutError::Timeout))
++    }
++
+     /// Attempt to gracefully shut down this device's runtime.
+     ///
+     /// Reports whether the device was fully shut down before the timeout. It is still shut
+diff --git a/ts_control/src/client/mod.rs b/ts_control/src/client/mod.rs
+index ca1d5e9..d24b8d9 100644
+--- a/ts_control/src/client/mod.rs
++++ b/ts_control/src/client/mod.rs
+@@ -17,7 +17,7 @@ pub use connect::{
+ };
+ pub use map_stream::{FilterUpdate, PeerUpdate, StateUpdate, map_stream, send_map_request};
+ pub use ping::handle_ping;
+-pub use register::{RegistrationError, register};
++pub use register::{LogoutError, RegistrationError, logout, logout_body, register};
+ 
+ /// Type of the underlying http2 connection to the control server.
+ pub type HttpConn = Http2<BytesBody>;
+diff --git a/ts_control/src/client/register.rs b/ts_control/src/client/register.rs
+index 4011250..741aead 100644
+--- a/ts_control/src/client/register.rs
++++ b/ts_control/src/client/register.rs
+@@ -200,3 +200,120 @@ pub async fn register(
+         Ok(())
+     }
+ }
++
++/// Why a logout did not happen (podssh's patch 0016).
++#[derive(Debug, thiserror::Error, Clone, Eq, PartialEq)]
++pub enum LogoutError {
++    /// The node has not registered with the control server: there is nothing to log out.
++    #[error("the node has not registered with the control server")]
++    NotRegistered,
++
++    /// The request could not be built or sent, or its answer could not be read.
++    #[error("the request failed: {0}")]
++    Request(#[from] RegistrationError),
++
++    /// The control server answered with a status that is not a success.
++    #[error("the control server answered HTTP {0}")]
++    Status(u16),
++
++    /// The control server answered with an error, as its response says it.
++    #[error("the control server refused: {0}")]
++    Refused(String),
++
++    /// No answer came within the time given.
++    #[error("no answer within the time given")]
++    Timeout,
++
++    /// The runtime that would send the request has stopped.
++    #[error("the runtime has stopped")]
++    Stopped,
++}
++
++/// The longest refusal text kept from a response: a server's text, shown to a user.
++const MAX_REFUSAL: usize = 200;
++
++/// The body of the request that logs this node out (podssh's patch 0016): this node's key, and an
++/// expiry in the past, which expires that key at once ([`RegisterRequest::expiry`]). The expiry is
++/// the one Go's client sends to log out (`time.Unix(123, 0)`). The control server finds the node
++/// by its key, so no auth key goes with it: Go's client attaches its key to each register
++/// request, and the key need not cross the network once more.
++pub fn logout_body(
++    config: &crate::Config,
++    node_keystate: &ts_keys::NodeState,
++) -> Result<String, RegistrationError> {
++    let client_name = config.format_client_name();
++    let request = RegisterRequest {
++        version: CapabilityVersion::CURRENT,
++        node_key: node_keystate.node_keys.public,
++        hostinfo: HostInfo {
++            hostname: config.hostname.as_deref(),
++            app: &client_name,
++            ipn_version: crate::PKG_VERSION,
++            ..Default::default()
++        },
++        nl_key: Some(node_keystate.network_lock_keys.public),
++        expiry: chrono::DateTime::from_timestamp(123, 0),
++        ephemeral: config.ephemeral,
++        ..Default::default()
++    };
++
++    Ok(serde_json::to_string(&request)?)
++}
++
++/// Log this node out (podssh's patch 0016): send [`logout_body`] to the control server, which
++/// expires the node key and deletes an ephemeral node at once.
++///
++/// Any success status is an answer, unless the body names an error. The answer is not read as a
++/// registration: it says the machine is no longer authorized (headscale answers so for an
++/// ephemeral node that it deleted).
++#[tracing::instrument(skip_all, fields(%control_url))]
++pub async fn logout(
++    config: &crate::Config,
++    control_url: &Url,
++    node_keystate: &ts_keys::NodeState,
++    http2_conn: &Http2<BytesBody>,
++) -> Result<(), LogoutError> {
++    let node_public_key = node_keystate.node_keys.public;
++    let body = logout_body(config, node_keystate)?;
++    let register_url = control_url
++        .join("machine/register")
++        .map_err(RegistrationError::from)?;
++
++    let response = http2_conn
++        .post(
++            &register_url,
++            [(
++                LOAD_BALANCER_HEADER_KEY.parse().unwrap(),
++                node_public_key.to_string().parse().unwrap(),
++            )],
++            Bytes::from(body).into(),
++        )
++        .await
++        .map_err(RegistrationError::from)?;
++
++    let status = response.status();
++    tracing::debug!(%status, "received logout response");
++
++    let body = response.collect_bytes().await.unwrap_or_default();
++    if !status.is_success() {
++        let shown = String::from_utf8_lossy(&body[..body.len().min(512)]).into_owned();
++        tracing::error!(body = %shown, %status, "logout failed");
++        return Err(LogoutError::Status(status.as_u16()));
++    }
++
++    let refusal = serde_json::from_slice::<serde_json::Value>(&body)
++        .ok()
++        .and_then(|doc| doc.get("Error")?.as_str().map(str::to_owned))
++        .unwrap_or_default();
++    if !refusal.is_empty() {
++        let shown: String = refusal
++            .chars()
++            .filter(|c| !c.is_control())
++            .take(MAX_REFUSAL)
++            .collect();
++        tracing::error!(error = %shown, "logout refused");
++        return Err(LogoutError::Refused(shown));
++    }
++
++    Ok(())
++}
+diff --git a/ts_control/src/lib.rs b/ts_control/src/lib.rs
+index cd4f5e6..0f4c753 100644
+--- a/ts_control/src/lib.rs
++++ b/ts_control/src/lib.rs
+@@ -21,7 +21,10 @@ mod node;
+ 
+ use std::fmt;
+ 
+-pub use client::{FilterUpdate, PeerUpdate, RegistrationError, StateUpdate, connect, register};
++pub use client::{
++    FilterUpdate, LogoutError, PeerUpdate, RegistrationError, StateUpdate, connect, logout,
++    logout_body, register,
++};
+ #[doc(inline)]
+ pub use config::{Config, DEFAULT_CONTROL_SERVER};
+ pub use control_dialer::{ControlDialer, TcpDialer, complete_connection};
+diff --git a/ts_control/tests/logout.rs b/ts_control/tests/logout.rs
+new file mode 100644
+index 0000000..415f5d1
+--- /dev/null
++++ b/ts_control/tests/logout.rs
+@@ -0,0 +1,44 @@
++//! The request that logs a node out (podssh's patch 0016): this node's key, and an expiry in the
++//! past, which expires that key at once. No auth key goes with it.
++
++use ts_keys::NodeState;
++
++fn body(config: &ts_control::Config, keys: &NodeState) -> serde_json::Value {
++    let text = ts_control::logout_body(config, keys).expect("the request serializes");
++    serde_json::from_str(&text).expect("the body is JSON")
++}
++
++#[test]
++fn the_logout_names_this_node_key_and_an_expiry_in_the_past() {
++    let keys = NodeState::generate();
++    let config = ts_control::Config {
++        ephemeral: true,
++        ..Default::default()
++    };
++    let doc = body(&config, &keys);
++
++    assert_eq!(
++        doc["NodeKey"],
++        serde_json::to_value(keys.node_keys.public).unwrap(),
++        "this node's key: {doc}"
++    );
++    let expiry = doc["Expiry"].as_str().expect("an expiry");
++    let expiry = chrono::DateTime::parse_from_rfc3339(expiry).expect("an RFC 3339 time");
++    assert!(
++        expiry < chrono::Utc::now(),
++        "the expiry {expiry} is not in the past"
++    );
++    assert_eq!(doc["Ephemeral"], true);
++    assert!(doc.get("Auth").is_none(), "no auth key: {doc}");
++    assert!(doc.get("Followup").is_none(), "no followup: {doc}");
++}
++
++#[test]
++fn another_node_key_gives_another_request() {
++    let (one, two) = (NodeState::generate(), NodeState::generate());
++    let config = ts_control::Config::default();
++    let (a, b) = (body(&config, &one), body(&config, &two));
++    assert_ne!(a["NodeKey"], b["NodeKey"]);
++    // A node that is not ephemeral says nothing of it: the field is omitted when false.
++    assert!(a.get("Ephemeral").is_none(), "{a}");
++}
+diff --git a/ts_runtime/src/control_runner.rs b/ts_runtime/src/control_runner.rs
+index 4c59d94..680bc6b 100644
+--- a/ts_runtime/src/control_runner.rs
++++ b/ts_runtime/src/control_runner.rs
+@@ -224,6 +224,23 @@ impl ControlRunner {
+         deleg
+     }
+ 
++    /// Log this node out over the registered connection (podssh's patch 0016): the control
++    /// server expires the node key, and deletes an ephemeral node at once.
++    #[message]
++    pub async fn logout(&mut self) -> Result<(), ts_control::LogoutError> {
++        let RegState::Registered(conn) = &self.state else {
++            return Err(ts_control::LogoutError::NotRegistered);
++        };
++
++        ts_control::logout(
++            &self.params.config,
++            &self.params.config.server_url,
++            &self.params.env.keys,
++            conn,
++        )
++        .await
++    }
++
+     /// Wait for a report of whether interactive auth is needed, and if so, what the URL is.
+     #[message(ctx)]
+     pub fn auth_url(
+diff --git a/ts_runtime/src/lib.rs b/ts_runtime/src/lib.rs
+index 97f2427..bcfc328 100644
+--- a/ts_runtime/src/lib.rs
++++ b/ts_runtime/src/lib.rs
+@@ -205,7 +205,21 @@ forward!(
+     control_runner::Ipv6,
+     control_runner::SelfNode,
+     control_runner::AuthUrl,
++    control_runner::Logout,
+ );
++
++/// Ask the control runner of `runtime` to log this node out (podssh's patch 0016). A runtime that
++/// cannot take the request has stopped.
++pub async fn logout(runtime: &ActorRef<Runtime>) -> Result<(), ts_control::LogoutError> {
++    use kameo::error::SendError::HandlerError;
++
++    // The runtime's forward and the registry's each wrap the runner's own error.
++    match runtime.ask(control_runner::Logout).await {
++        Ok(()) => Ok(()),
++        Err(HandlerError(HandlerError(HandlerError(e)))) => Err(e),
++        Err(_) => Err(ts_control::LogoutError::Stopped),
++    }
++}
+ forward!(
+     PeerTracker,
+     peer_tracker::PeerByName,

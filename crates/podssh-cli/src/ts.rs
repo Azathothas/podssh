@@ -25,6 +25,8 @@ use podssh_ts::wait::{Deadline, FIRST_MAP_WAIT};
 use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
 use crate::pager::Tty;
 
+pub mod probe;
+
 /// The `ts` inputs, straight from `Parsed::Ts` — plain data, no fork types.
 pub struct TsArgs {
     pub destination: Option<String>,
@@ -119,10 +121,9 @@ async fn ts_async(
             return EXIT_USAGE;
         }
     };
-    // Chain inputs. `has_key` is presence only — readability is checked next,
-    // so a missing file cannot read as "no key configured". The presence
-    // check runs before the chain so a missing flag reads as an auth refusal
-    // (77, per r2) rather than a capability verdict (78).
+    // The key's presence, then its bytes: a missing flag reads as an auth
+    // refusal (77, per r2) rather than a capability verdict (78). Each local
+    // check runs before the chain, whose network checks take seconds.
     let key_path = match a.auth_key_file.as_deref() {
         None => {
             let _ = writeln!(
@@ -132,31 +133,6 @@ async fn ts_async(
             return crate::exitmap::Fault::Auth.code();
         }
         Some(p) => p,
-    };
-    let inputs = podssh_ts::chain::ChainInputs { addrs: vec![], socks_endpoint: None, has_key: true };
-    let modes = match &forced {
-        Some(m) => vec![m.clone()],
-        None => podssh_ts::chain::default_chain(relay_mode),
-    };
-    // One probe pass, one selection: `select_chain` returning `Some` is the
-    // same condition, so the mode below is the probed winner — never a
-    // default the probe did not bless.
-    let selected = match podssh_ts::chain::select_chain(&modes, &inputs) {
-        Some(m) => m,
-        None => {
-            for m in &modes {
-                let name = match m {
-                    podssh_ts::config::TsMode::Tcp => "tcp".to_string(),
-                    podssh_ts::config::TsMode::Relay { host, port } => {
-                        format!("relay {host}:{port}")
-                    }
-                };
-                let verdict = podssh_ts::chain::probe(m, &inputs);
-                let _ = writeln!(err, "podssh ts: mode {name}: {verdict:?}");
-            }
-            let _ = writeln!(err, "podssh ts: no mode is ready.");
-            return crate::exitmap::Fault::Capability.code();
-        }
     };
     // Auth key bytes: unreadable → 64 naming the path; empty → 77 naming
     // the file. Presence was checked above, so this is readability, not
@@ -203,6 +179,24 @@ async fn ts_async(
             return EXIT_USAGE;
         }
     }
+    let proxy = match probe::proxy_choice(a.proxy.as_deref()) {
+        Ok(p) => p,
+        Err(why) => {
+            let _ = writeln!(err, "podssh ts: --ts-proxy: {why}");
+            return EXIT_USAGE;
+        }
+    };
+    // Each mode's network check, in chain order, before anything registers:
+    // the selected mode is the first that passed, never a default that no
+    // check blessed (T-102).
+    let modes = match &forced {
+        Some(m) => vec![m.clone()],
+        None => podssh_ts::chain::default_chain(relay_mode),
+    };
+    let selected = match probe::select(&modes, &proxy, deadline, err).await {
+        Ok(m) => m,
+        Err(code) => return code,
+    };
     let cfg = podssh_ts::config::TsConfig {
         state_file: state_path.into(),
         control_url: None,
@@ -236,10 +230,30 @@ async fn ts_async(
     // The first network map may never come: each wait for it gets the
     // allowlist's window, else `FIRST_MAP_WAIT`, and never more than remains.
     let window = wait.unwrap_or(FIRST_MAP_WAIT);
-    if let Some(target) = a.w_target.as_deref() {
-        return pipe_form(&node, target, err, deadline, window).await;
+    let code = if let Some(target) = a.w_target.as_deref() {
+        pipe_form(&node, target, err, deadline, window).await
+    } else {
+        status_form(&node, out, err, deadline, window, wait.is_some(), a.jsonl).await
+    };
+    // Each form ends here, after an error too (T-102).
+    end(node, err).await;
+    code
+}
+
+/// How long the fork's actors get to stop at the end of a run.
+const STOP_WAIT: Duration = Duration::from_secs(2);
+
+/// Shut the node down; an ephemeral node logs out first, in 5 s at most and
+/// after `--timeout`'s bound, so a bound that passed still leaves no device
+/// behind. A logout that fails is said and changes no exit: the control
+/// server removes an offline ephemeral node itself, later.
+async fn end(node: podssh_ts::node::TsNode, err: &mut dyn Write) {
+    if let Some(Err(why)) = node.shutdown(Some(STOP_WAIT)).await.logout {
+        let _ = writeln!(
+            err,
+            "podssh ts: the ephemeral node was not logged out: {why}.\nThe control server removes it once it has been offline for a while."
+        );
     }
-    status_form(&node, out, err, deadline, window, wait.is_some(), a.jsonl).await
 }
 
 /// The status as one JSON object on one line, for `--jsonl`: the event and

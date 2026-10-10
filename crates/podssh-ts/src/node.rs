@@ -34,6 +34,10 @@ pub fn selection_to_options(
     })
 }
 
+/// How long an ephemeral node waits for the control server to take its
+/// logout, at the end of a run.
+pub const LOGOUT_WAIT: Duration = Duration::from_secs(5);
+
 /// A tailnet node: fork `Device` plus the state file it persists to.
 ///
 /// `dead_code` on `state_file`: it is retained for reconnect/identity
@@ -43,6 +47,18 @@ pub fn selection_to_options(
 pub struct TsNode {
     device: tailscale::Device,
     state_file: std::path::PathBuf,
+    /// Registered as ephemeral: only such a node logs out at its end.
+    ephemeral: bool,
+}
+
+/// How a [`TsNode::shutdown`] went.
+#[derive(Debug)]
+pub struct Shutdown {
+    /// The logout of an ephemeral node, with why it failed; `None` for a
+    /// node that is not ephemeral, which never logs out.
+    pub logout: Option<Result<(), String>>,
+    /// The fork stopped within the time given.
+    pub stopped: bool,
 }
 
 impl TsNode {
@@ -70,7 +86,7 @@ impl TsNode {
         fork_cfg.options =
             selection_to_options(&cfg.mode.runtime_selection(cfg.proxy_url.as_deref())).map_err(NodeError::Config)?;
         let device = tailscale::Device::new(&fork_cfg, Some(auth)).await.map_err(|e| NodeError::Fork(e.to_string()))?;
-        Ok(Self { device, state_file: cfg.state_file.clone() })
+        Ok(Self { device, state_file: cfg.state_file.clone(), ephemeral: cfg.ephemeral })
     }
 
     /// One machine-readable status: node-key prefix, tailnet IP, home region.
@@ -121,9 +137,16 @@ impl TsNode {
         crate::wait::within(limit, self.peer_ip(name)).await
     }
 
-    /// Shut the node down, waiting up to `timeout` for a clean stop.
-    pub async fn shutdown(self, timeout: Option<Duration>) -> bool {
-        self.device.shutdown(timeout).await
+    /// Shut the node down, waiting up to `timeout` for a clean stop. An
+    /// ephemeral node logs out first, in [`LOGOUT_WAIT`] at most, so the
+    /// tailnet does not keep an offline device until the control server
+    /// removes it. A node that is not ephemeral never logs out: its key, and
+    /// the relay's allowlist entry for that key, must outlive the run.
+    pub async fn shutdown(self, timeout: Option<Duration>) -> Shutdown {
+        let logout =
+            if self.ephemeral { Some(self.device.logout(LOGOUT_WAIT).await.map_err(|e| e.to_string())) } else { None };
+        let stopped = self.device.shutdown(timeout).await;
+        Shutdown { logout, stopped }
     }
 }
 

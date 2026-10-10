@@ -131,6 +131,8 @@ pub use config::Config;
 #[doc(inline)]
 pub use error::{Error, InternalErrorKind};
 #[doc(inline)]
+pub use ts_control::LogoutError;
+#[doc(inline)]
 pub use ts_control::Node as NodeInfo;
 use ts_netstack_smoltcp::{CreateSocket, netcore::Channel};
 use ts_runtime::Spawn;
@@ -322,6 +324,18 @@ impl Device {
             .await
             .map_err(ts_runtime::Error::from)
             .map_err(Into::into)
+    }
+
+    /// Log this node out of the tailnet (podssh's patch 0016): a register request with this
+    /// node's key and an expiry in the past, which expires the key; the control server deletes
+    /// an ephemeral node at once. A node that is not ephemeral needs a new key, and a new
+    /// approval, to join again.
+    ///
+    /// Waits for the control server's answer for `timeout` at most.
+    pub async fn logout(&self, timeout: Duration) -> Result<(), LogoutError> {
+        tokio::time::timeout(timeout, ts_runtime::logout(&self.runtime))
+            .await
+            .unwrap_or(Err(LogoutError::Timeout))
     }
 
     /// Attempt to gracefully shut down this device's runtime.
