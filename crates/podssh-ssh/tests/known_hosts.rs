@@ -132,6 +132,7 @@ fn accept_new(user: &std::path::Path) -> Policy {
         global_files: Vec::new(),
         batch_mode: true,
         pin: None,
+        fingerprints: Vec::new(),
     }
 }
 

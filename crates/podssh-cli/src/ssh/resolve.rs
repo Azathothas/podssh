@@ -151,6 +151,12 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     if let Some((flag, _)) = channel.iter().find(|(_, given)| *given).filter(|_| node.is_none() && iroh.is_none()) {
         return Err(format!("{flag} is for a node://NAME or iroh:TICKET destination").into());
     }
+    let fingerprints = args
+        .host_key_fingerprint
+        .as_deref()
+        .map(podssh_ssh::hostkey::parse_fingerprints)
+        .transpose()?
+        .unwrap_or_default();
     // The file's blocks for the host as typed (T-043): under the command
     // line, but for `User` and `Port`, which `user@host` and `host:PORT`
     // also beat.
@@ -387,6 +393,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     options.strict_host_key_checking = settings.strict.unwrap_or(StrictHostKeyChecking::Ask);
     options.user_known_hosts = user_known_hosts;
     options.no_user_known_hosts = no_user_known_hosts;
+    options.host_key_fingerprints = fingerprints;
     options.global_known_hosts = global_known_hosts;
     options.batch_mode = settings.batch_mode.unwrap_or(false);
     options.methods = methods;

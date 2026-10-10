@@ -89,6 +89,17 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   socket on the server, for OpenSSH) is refused until T-040 (exit 64). A
   `-J` hop keeps its own reading, where a host alone is port 22. `-V` prints
   the version and does not connect.
+- **`--host-key-fingerprint SHA256:B64[,...]` accepts only the keys that it
+  names** (T-031), for a script that got the server's fingerprint from its
+  operator and has no `known_hosts`: under each `StrictHostKeyChecking`,
+  `accept-new` included, another key is refused with exit 255 and both
+  fingerprints, and the named key is accepted and recorded nowhere. A
+  revoked or a changed key in `known_hosts` is refused first. The
+  fingerprint is the one that `ssh-keygen -l` prints; a value that is not
+  one, or a second flag, is a usage error (64). It holds for the
+  destination only: `-J` hops keep `known_hosts`. OpenSSH has no keyword
+  for it, so it is a flag, not an `-o` keyword that would break a file
+  that OpenSSH also reads.
 - **`--persist` keeps the work through a lost link** (T-178), against a
   standard sshd, where the resumable layer cannot help. After the login,
   podssh looks for tmux (`command -v tmux`) and refuses without it (exit

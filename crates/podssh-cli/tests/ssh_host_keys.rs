@@ -2,7 +2,8 @@
 //! written (T-028), against the test's SSH server on the loopback: a user
 //! file that cannot be read refuses an unknown key and names the file; a key
 //! that cannot be recorded holds for this connection only, and podssh says
-//! why.
+//! why. And `--host-key-fingerprint` (T-031): the named key connects and is
+//! not recorded, and another is refused.
 
 mod cleanup;
 mod ssh_harness;
@@ -38,9 +39,15 @@ fn server(dir: &Path) -> (tokio::runtime::Runtime, u16) {
 /// `podssh ssh --direct` under accept-new, with `known` as the user file
 /// when given, and `home` as the home directory when given.
 fn ssh(port: u16, known: Option<&Path>, home: Option<&Path>) -> Output {
+    ssh_with(port, known, home, &[])
+}
+
+/// [`ssh`], with more flags before the destination.
+fn ssh_with(port: u16, known: Option<&Path>, home: Option<&Path>, more: &[&str]) -> Output {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     cmd.args(["ssh", "--direct", "-p", &port.to_string(), "-o", "BatchMode=yes"]);
     cmd.args(["-o", "StrictHostKeyChecking=accept-new"]);
+    cmd.args(more);
     if let Some(known) = known {
         cmd.arg("-o").arg(format!("UserKnownHostsFile={}", known.display()));
     }
@@ -101,4 +108,36 @@ fn with_no_home_the_key_is_not_recorded_and_the_note_says_why() {
     assert_eq!(out.status.code(), Some(0), "{err}");
     let why = if cfg!(windows) { "neither HOME nor USERPROFILE is set" } else { "HOME is not set" };
     assert!(err.contains("for this connection only") && err.contains(why), "{err}");
+}
+
+/// The SHA-256 fingerprint of the server's key, as `ssh-keygen -l` prints it.
+fn fingerprint_of(dir: &Path) -> String {
+    let text = std::fs::read_to_string(dir.join("host_key.pub")).unwrap();
+    let key = russh::keys::ssh_key::PublicKey::from_openssh(text.trim()).unwrap();
+    key.fingerprint(russh::keys::HashAlg::Sha256).to_string()
+}
+
+#[test]
+fn the_named_fingerprint_connects_and_records_nothing() {
+    let dir = scratch("pinned");
+    let (_runtime, port) = server(&dir);
+    let known = dir.join("known_hosts");
+    let fp = fingerprint_of(&dir);
+    let out = ssh_with(port, Some(&known), Some(&dir), &["--host-key-fingerprint", &fp]);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(0), "{err}");
+    assert!(!known.exists(), "the named key was recorded: {err}");
+}
+
+#[test]
+fn another_fingerprint_is_refused_with_both_named() {
+    let dir = scratch("pinned-wrong");
+    let (_runtime, port) = server(&dir);
+    let known = dir.join("known_hosts");
+    let wrong = "SHA256:JfDOvc6FaJOB34ANs+ou385/Kh+mMQhnUx0gHXVAfUI";
+    let out = ssh_with(port, Some(&known), Some(&dir), &["--host-key-fingerprint", wrong]);
+    let err = String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(255), "{err}");
+    assert!(err.contains(wrong) && err.contains(&fingerprint_of(&dir)), "{err}");
+    assert!(!known.exists(), "a refused key was recorded: {err}");
 }

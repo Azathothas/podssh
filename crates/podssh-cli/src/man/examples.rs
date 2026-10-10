@@ -22,6 +22,11 @@ fn examples() -> Vec<(&'static str, String)> {
         ),
         ("an interactive program, from a host with no terminal", "podssh ssh -tt user@example.org top".into()),
         (
+            "a host whose key fingerprint the operator gave: that key only, and no known_hosts",
+            "podssh ssh --host-key-fingerprint SHA256:JfDOvc6FaJOB34ANs+ou385/Kh+mMQhnUx0gHXVAfUI user@example.org"
+                .into(),
+        ),
+        (
             "a shell in the server's tmux, attached again after a lost link",
             "podssh ssh --persist user@example.org".into(),
         ),

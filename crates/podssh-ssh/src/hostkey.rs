@@ -31,6 +31,9 @@ pub struct Policy {
     /// The key of the first connection of this run, which each later one
     /// must meet; `None` checks `known_hosts` alone.
     pub pin: Option<Pin>,
+    /// `--host-key-fingerprint`: when not empty, the only keys accepted, and
+    /// none is recorded (T-031). A revoked or changed key is refused first.
+    pub fingerprints: Vec<String>,
 }
 
 /// The destination's host key for one run of podssh, so that each new
@@ -95,17 +98,34 @@ impl Policy {
         let unseen: Vec<Unreadable> =
             unreadable.into_iter().filter(|file| self.user_files.contains(&file.path)).collect();
         match lookup {
-            Lookup::Known { path, line } => {
-                log.debug(&format!("host key for '{}' found at {}:{line}", self.name, path.display()));
-                Verdict::Accept
-            }
             Lookup::Revoked { path, line } => Verdict::Reject(revoked_message(&self.name, &kind, &fp, &path, line)),
             Lookup::Changed { path, line, recorded } => {
                 Verdict::Reject(changed_message(&self.name, &kind, &fp, &recorded, &path, line))
             }
+            // After a revoked or changed key, the fingerprints that the user
+            // gave decide alone, also for a key that known_hosts holds (T-031).
+            _ if !self.fingerprints.is_empty() => self.expected(&kind, &fp, log),
+            Lookup::Known { path, line } => {
+                log.debug(&format!("host key for '{}' found at {}:{line}", self.name, path.display()));
+                Verdict::Accept
+            }
             Lookup::OtherTypes(types) => self.unknown(key, &kind, &fp, Some(&types), &unseen, log),
             Lookup::Unknown => self.unknown(key, &kind, &fp, None, &unseen, log),
         }
+    }
+
+    /// A key that is neither revoked nor changed, against the fingerprints of
+    /// `--host-key-fingerprint`: one of them, or a refusal, never a record.
+    fn expected(&self, kind: &str, fp: &str, log: &Log) -> Verdict {
+        if self.fingerprints.iter().any(|expected| expected == fp) {
+            log.verbose(&format!("the {kind} host key of '{}' is {fp}, as --host-key-fingerprint names it", self.name));
+            return Verdict::Accept;
+        }
+        Verdict::Reject(format!(
+            "the {kind} host key of '{}' is {fp}, and --host-key-fingerprint names {}. Refusing to connect.",
+            self.name,
+            self.fingerprints.join(", ")
+        ))
     }
 
     fn unknown(
@@ -212,6 +232,25 @@ impl Policy {
     }
 }
 
+/// The fingerprints of `--host-key-fingerprint`, `SHA256:B64[,...]` as
+/// `ssh-keygen -l` prints them (T-031): each is a digest of 32 bytes, and a
+/// value that is not is refused before anything connects.
+pub fn parse_fingerprints(value: &str) -> Result<Vec<String>, String> {
+    use base64::Engine;
+    let mut out = Vec::new();
+    for item in value.split(',').map(str::trim) {
+        let body = item.strip_prefix("SHA256:").ok_or_else(|| {
+            format!("--host-key-fingerprint: '{item}' is not SHA256:B64, as ssh-keygen -l prints a fingerprint")
+        })?;
+        let body = body.trim_end_matches('=');
+        match base64::engine::general_purpose::STANDARD_NO_PAD.decode(body) {
+            Ok(digest) if digest.len() == 32 => out.push(format!("SHA256:{body}")),
+            _ => return Err(format!("--host-key-fingerprint: '{item}' is not the base64 of a SHA-256 digest")),
+        }
+    }
+    Ok(out)
+}
+
 fn revoked_message(name: &str, kind: &str, fp: &str, path: &Path, line: usize) -> String {
     format!(
         "the {kind} host key for '{name}' ({fp}) is marked as revoked at {}:{line}. Refusing to connect.",
@@ -248,7 +287,8 @@ fn unverifiable(name: &str, kind: &str, fp: &str, unseen: &[Unreadable]) -> Stri
     format!(
         "the {kind} host key for '{name}' ({fp}) cannot be verified: {} cannot be read, and a key recorded \
          there is not seen. Refusing to connect.\n  \
-         Make the file readable, or name a readable one with -o UserKnownHostsFile=FILE.",
+         Make the file readable, name a readable one with -o UserKnownHostsFile=FILE, or give the \
+         key's fingerprint with --host-key-fingerprint.",
         files.join(", ")
     )
 }
@@ -292,7 +332,10 @@ fn changed_message(
 mod tests {
     use std::path::Path;
 
-    use super::{not_recorded, NotRecorded, Pin};
+    use super::{not_recorded, parse_fingerprints, NotRecorded, Pin, Policy, Verdict};
+
+    const A: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFrY8o/Gih84gTH1Xe3+dWQIj69CTwHrBaBcbYacBdYS";
+    const B: &str = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIFuCj635iAvbyqAVAq82WzngvdvUIT84jHdP+VKHDIxG";
 
     /// The three reasons of a key that is not recorded each name the cause
     /// and the risk (T-028).
@@ -314,6 +357,71 @@ mod tests {
             assert!(text.contains("cannot tell a changed key"), "{text}");
             assert!(text.contains(fp) && text.contains("'h'"), "{text}");
             assert!(!text.contains("checked again"), "{text}");
+        }
+    }
+
+    /// `--host-key-fingerprint` (T-031): the named key is accepted and not
+    /// recorded, under each policy; another key is refused, also under
+    /// accept-new and no, and also when known_hosts holds it; a revoked or a
+    /// changed key is refused first, also when it is the named one.
+    #[test]
+    fn pinned_fingerprint_decides_alone_and_records_nothing() {
+        use crate::known_hosts::fingerprint;
+        use crate::log::Log;
+        use crate::options::{LogLevel, StrictHostKeyChecking};
+        use russh::keys::ssh_key::PublicKey;
+        let a = PublicKey::from_openssh(A).unwrap();
+        let b = PublicKey::from_openssh(B).unwrap();
+        let dir = std::env::temp_dir().join(format!("podssh-pinned-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let empty = dir.join("empty");
+        let policy = |file: &Path, strict| Policy {
+            name: "example.org".into(),
+            strict,
+            user_files: vec![file.to_path_buf()],
+            no_user_file: None,
+            global_files: Vec::new(),
+            batch_mode: true,
+            pin: None,
+            fingerprints: vec![fingerprint(&a)],
+        };
+        let log = Log::new(LogLevel::Quiet);
+        for strict in [StrictHostKeyChecking::AcceptNew, StrictHostKeyChecking::No, StrictHostKeyChecking::Yes] {
+            assert_eq!(policy(&empty, strict).check(&a, &log), Verdict::Accept, "{strict:?}");
+            assert!(!empty.exists(), "{strict:?}: a pinned key was recorded");
+            let Verdict::Reject(why) = policy(&empty, strict).check(&b, &log) else {
+                panic!("{strict:?}: another key was accepted")
+            };
+            assert!(why.contains(&fingerprint(&b)) && why.contains(&fingerprint(&a)), "{why}");
+        }
+        // known_hosts holds b: the named key still decides.
+        let holds_b = dir.join("holds_b");
+        std::fs::write(&holds_b, format!("example.org {B}\n")).unwrap();
+        assert!(matches!(policy(&holds_b, StrictHostKeyChecking::AcceptNew).check(&b, &log), Verdict::Reject(_)));
+        // A changed key (b recorded, a presented, of the same type) and a
+        // revoked one are refused, though a is the named key.
+        let Verdict::Reject(why) = policy(&holds_b, StrictHostKeyChecking::AcceptNew).check(&a, &log) else {
+            panic!("a changed key was accepted because it was named")
+        };
+        assert!(why.contains("has changed"), "{why}");
+        let revoked = dir.join("revoked");
+        std::fs::write(&revoked, format!("@revoked example.org {A}\n")).unwrap();
+        let Verdict::Reject(why) = policy(&revoked, StrictHostKeyChecking::AcceptNew).check(&a, &log) else {
+            panic!("a revoked key was accepted because it was named")
+        };
+        assert!(why.contains("revoked"), "{why}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The form of the fingerprints, as `ssh-keygen -l` prints them.
+    #[test]
+    fn pinned_fingerprint_values_are_digests_of_32_bytes() {
+        let one = "SHA256:JfDOvc6FaJOB34ANs+ou385/Kh+mMQhnUx0gHXVAfUI";
+        assert_eq!(parse_fingerprints(one).unwrap(), [one]);
+        assert_eq!(parse_fingerprints(&format!("{one}=")).unwrap(), [one], "padding is dropped");
+        for bad in ["", "SHA256:", "SHA256:abc", "sha256:JfDOvc6FaJOB34ANs+ou385/Kh+mMQhnUx0gHXVAfUI", "MD5:aa"] {
+            assert!(parse_fingerprints(bad).is_err(), "{bad:?}");
         }
     }
 

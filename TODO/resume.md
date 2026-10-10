@@ -817,10 +817,10 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:140-174`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:260-283`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:264-287`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:355-369`, and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:361-375`, and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -834,7 +834,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:355-369`.
+   `crates/podssh-cli/src/ssh/resolve.rs:361-375`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:218-233`,
    `crates/podssh-cli/src/man/facts.rs:257-266`), the note at
@@ -1320,7 +1320,7 @@ new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-5`,
 `crates/podssh-ssh/src/escape.rs:28-70`). The flag table has 469 lines, near
-the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-251`).
+the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-253`).
 
 ## Approach
 

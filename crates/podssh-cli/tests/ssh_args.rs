@@ -470,3 +470,25 @@ fn persist_runs_tmux_with_a_pty_and_refuses_what_it_cannot_serve() {
         assert!(refusal.message.contains(says), "{words:?}: {}", refusal.message);
     }
 }
+
+/// `--host-key-fingerprint` takes one fingerprint or a comma list; a value
+/// that is not one, or a second flag, is refused with 64 before anything
+/// connects (T-031).
+#[test]
+fn host_key_fingerprint_takes_a_list_and_refuses_the_rest() {
+    let (a, b) =
+        ("SHA256:JfDOvc6FaJOB34ANs+ou385/Kh+mMQhnUx0gHXVAfUI", "SHA256:VUboJ7IYSTmCLhGCEheSnddiuT81XC93dB+NN3yaHkw");
+    let r = resolve(&ssh(&["--host-key-fingerprint", a, "host"]), &env()).unwrap();
+    assert_eq!(r.options.host_key_fingerprints, [a]);
+    let r = resolve(&ssh(&["--host-key-fingerprint", &format!("{a}, {b}="), "host"]), &env()).unwrap();
+    assert_eq!(r.options.host_key_fingerprints, [a, b]);
+    for bad in ["SHA256:abc", "MD5:16:27:ac", &a[7..], "SHA256:", &format!("{a},")] {
+        let err = resolve_or_refuse(&ssh(&["--host-key-fingerprint", bad, "host"]), &env()).unwrap_err();
+        assert_eq!(err.code, 64, "{bad}");
+        assert!(err.message.contains("--host-key-fingerprint"), "{bad}: {}", err.message);
+    }
+    match parse(vec!["ssh", "--host-key-fingerprint", a, "--host-key-fingerprint", b, "host"]) {
+        Parsed::Usage(m) => assert!(m.contains("was given 2 times"), "{m}"),
+        other => panic!("a second --host-key-fingerprint was not refused: {other:?}"),
+    }
+}

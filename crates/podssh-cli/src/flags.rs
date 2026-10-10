@@ -162,6 +162,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "host key policy, as -o StrictHostKeyChecking; there is no --insecure", None),
     row(None, "UserKnownHostsFile", Some("FILE"), FlagKind::Supported,
         "known-hosts file to consult, as -o UserKnownHostsFile", None),
+    row(None, "host-key-fingerprint", Some("SHA256:B64[,...]"), FlagKind::Supported,
+        "accept only a host key of these fingerprints, also under accept-new, and record none; -J hops keep known_hosts", None),
     row(None, "LogLevel", Some("LEVEL"), FlagKind::Supported,
         "quiet, fatal, error, info, verbose, debug", None),
     row(None, "ConnectTimeout", Some("SECONDS"), FlagKind::Supported,

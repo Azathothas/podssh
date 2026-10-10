@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**274 entries: 106 open, 0 partial, 22 blocked, 146 done.**
+**274 entries: 105 open, 0 partial, 22 blocked, 147 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 25 | 0 | 18 | 110 | 153 |
+| P2 | 24 | 0 | 18 | 111 | 153 |
 | P3 | 79 | 0 | 4 | 19 | 102 |
-| **All** | 106 | 0 | 22 | 146 | 274 |
+| **All** | 105 | 0 | 22 | 147 | 274 |
 
 ## Entries
 
@@ -104,7 +104,7 @@ repository and CI).
 | [T-028](ssh.md) | P2 | S | backlog | defect | done | `accept-new` when `known_hosts` cannot be written: verify, and say that the key was not recorded |
 | [T-029](ssh.md) | P2 | S | backlog | defect | done | Two processes that record the same new host key at the same time |
 | [T-030](ssh.md) | P3 | S | backlog | chore | open | Each hop of a `-J` chain checks its own host key |
-| [T-031](ssh.md) | P2 | S | backlog | feature | open | Accept only the host key that a fingerprint names, for scripts with no `known_hosts` |
+| [T-031](ssh.md) | P2 | S | backlog | feature | done | Accept only the host key that a fingerprint names, for scripts with no `known_hosts` |
 | [T-032](ssh.md) | P3 | S | backlog | feature | open | Run a remote command under `sudo` or `su`, with the password from `SSH_ASKPASS` |
 | [T-033](ssh.md) | P3 | M | backlog | feature | open | Record a session as asciicast v2, and play it again |
 | [T-034](ssh.md) | P2 | L | backlog | feature | open | `podssh agent`: an SSH agent inside podssh, with no separate binary |

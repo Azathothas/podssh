@@ -287,6 +287,22 @@ env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile
 expect_rc "T-028: accept-new connects when the key cannot be recorded" 0 $? "$W/err"
 grep -q "not recorded" "$W/err" && grep -q "for this connection only" "$W/err" \
     && ok "T-028: the note says that the key was not recorded" || bad "T-028: no note" "$W/err"
+# T-031: the fingerprints of the server's two keys, as ssh-keygen prints them,
+# are the only keys accepted, and nothing is recorded; another is refused.
+fp=$(ssh-keygen -l -E sha256 -f "$W/host_ed25519.pub" | awk '{print $2}')
+fp="$fp,$(ssh-keygen -l -E sha256 -f "$W/host_rsa.pub" | awk '{print $2}')"
+: >"$W/kh_pinned"
+# shellcheck disable=SC2086
+env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile="$W/kh_pinned" \
+    -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes \
+    --host-key-fingerprint "$fp" "$T" true </dev/null >"$W/out" 2>"$W/err"
+expect_rc "T-031: the named fingerprint connects with an empty known_hosts" 0 $? "$W/err"
+[ ! -s "$W/kh_pinned" ] && ok "T-031: nothing was recorded" || bad "T-031: the key was recorded" "$W/kh_pinned"
+# shellcheck disable=SC2086
+env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile="$W/kh_pinned" \
+    -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes \
+    --host-key-fingerprint SHA256:JfDOvc6FaJOB34ANs+ou385/Kh+mMQhnUx0gHXVAfUI "$T" true </dev/null >"$W/out" 2>"$W/err"
+expect_rc "T-031: another fingerprint is refused" 255 $? "$W/err"
 
 echo
 echo "== % tokens, against OpenSSH's own expansion (ssh -G)"

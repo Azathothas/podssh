@@ -184,7 +184,7 @@ remote host that must use the key, such as `git` on a build host.
 - Measured, offline: `podssh ssh -A example.invalid true` gives "-A is
   refused. Use -J HOST (log in through the jump host) instead. agent
   forwarding is not supported.", exit 64
-  (`crates/podssh-cli/src/flags.rs:216-217`).
+  (`crates/podssh-cli/src/flags.rs:218-219`).
 - Measured, offline: `-o ForwardAgent=yes` is accepted with no effect; only
   `-v` says so ("-o ForwardAgent has no effect in podssh"). The keyword is
   in `IGNORED` (`crates/podssh-cli/src/ssh/keywords.rs:72`). So the flag
@@ -207,7 +207,7 @@ remote host that must use the key, such as `git` on a build host.
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
    (`crates/podssh-cli/src/ssh/keywords.rs:25-82`). Change the help of `-a`
-   (`crates/podssh-cli/src/flags.rs:198-199`).
+   (`crates/podssh-cli/src/flags.rs:200-201`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
    before the shell or exec request (`crates/podssh-ssh/src/session.rs:83-97`).
    Never to a jump hop.
@@ -265,7 +265,7 @@ X11 channel.
 
 - Measured, offline: `podssh ssh -X example.invalid true` gives "-X is
   refused. Leave it out. X11 forwarding is not supported.", exit 64; `-Y`
-  the same (`crates/podssh-cli/src/flags.rs:245-248`).
+  the same (`crates/podssh-cli/src/flags.rs:247-250`).
 - Measured, offline: `-o ForwardX11=yes` is accepted with no effect, as
   `ForwardAgent` is. Read: `ForwardX11Trusted`, `ForwardX11Timeout` and
   `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:67-82`).
@@ -295,7 +295,7 @@ X11 channel.
    allows. Else refuse `-X`, and name `-Y`.
 5. Move `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` and
    `XAuthLocation` to `HONOURED`. Change the help of `-x`
-   (`crates/podssh-cli/src/flags.rs:196-197`).
+   (`crates/podssh-cli/src/flags.rs:198-199`).
 6. On Windows, a `DISPLAY` such as `localhost:0` (VcXsrv, X410) is TCP port
    6000. The X server's connection is local and named by the user, as the
    agent's connection is (`crates/podssh-ssh/src/keys.rs:275-305`).
@@ -343,7 +343,7 @@ it (`SECURITY.md`, "Design rules").
 a local listener when the user asks for it and a probe at run time allows
 the bind; loopback and AF_UNIX by default; an address that the user sets;
 listening that the user can turn off; the same refusal where the probe
-fails. Also `docs/cli.md:151-155`; the totoshko88/RustConn report in GitHub
+fails. Also `docs/cli.md:162-166`; the totoshko88/RustConn report in GitHub
 #24 (item 3) and the OthmaneBlial/MobaRust report in GitHub #21 (item 3);
 sandbox A of T-001 (`bind` refused for AF_INET, allowed for AF_UNIX).
 **Category:** feature
@@ -363,7 +363,7 @@ AF_UNIX.
 
 - Measured, offline: `-L 8080:localhost:80` and `-D 1080` are refused with
   "podssh never binds a listener", exit 64
-  (`crates/podssh-cli/src/flags.rs:210-215`). Read: `-o LocalForward` and
+  (`crates/podssh-cli/src/flags.rs:212-217`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs:172-176`).
 - Read: `AGENTS.md:192-197` (no bind, no listen),
   `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:78-88` ("Nothing
@@ -394,7 +394,7 @@ AF_UNIX.
    Refuse BIND and UDP ASSOCIATE.
 4. The user sets the address as in OpenSSH: the `bind_address` of the spec,
    and a wildcard address only with `-g` or `GatewayPorts yes`, which have no
-   effect today (`crates/podssh-cli/src/flags.rs:203-204`,
+   effect today (`crates/podssh-cli/src/flags.rs:205-206`,
    `crates/podssh-cli/src/ssh/keywords.rs:73`). Remove an AF_UNIX socket at
    exit; with `StreamLocalBindUnlink`, remove a stale one first.
 5. The user turns listening off: `-o ClearAllForwardings=yes` for one run
@@ -431,7 +431,7 @@ box fails.
 `tcp-listen:`, after the probe of the bind
 (`crates/podssh-cli/src/pipe/listen.rs`), which `-L` and `-D` can share.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
-and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs:210-215`,
+and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs:212-217`,
 `crates/podssh-cli/src/ssh/options.rs:172-176`). `SECURITY.md:78-88` and
 `README.md:37-42` state the ruling now, as `AGENTS.md:192-197` and
 `docs/target-environment.md:74-78` did already.
@@ -463,7 +463,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
 
 - Measured, offline: `-M`, `-S /tmp/ctl` and `-O check` are refused with
   "podssh keeps no control master: each run is one connection", exit 64
-  (`crates/podssh-cli/src/flags.rs:235-240`).
+  (`crates/podssh-cli/src/flags.rs:237-242`).
 - Measured, offline: `-o ControlMaster=auto -o ControlPath=/tmp/c` is
   accepted with no effect; only `-v` says so
   (`crates/podssh-cli/src/ssh/keywords.rs:71`). A script that sets them still
@@ -551,7 +551,7 @@ Measured, offline, with `MSYS_NO_PATHCONV=1` and `PODSSH_OFFLINE=1`:
 Read:
 
 - `request` parses the value of `-W` with `parse_hop`
-  (`crates/podssh-cli/src/ssh/resolve.rs:466-476`), which reads a value with
+  (`crates/podssh-cli/src/ssh/resolve.rs:473-483`), which reads a value with
   no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/hop.rs:40-53`).
 - russh 0.64.1 has `Handle::channel_open_direct_streamlocal` (the channel
   `direct-streamlocal@openssh.com`). podssh opens only `direct-tcpip`
@@ -742,7 +742,7 @@ at the connection step (exit 255), after the parse:
 | `db.internal:5432`, `[::1]:5432` | accepted | accepted |
 
 Read: `request` parses the value with `parse_hop`
-(`crates/podssh-cli/src/ssh/resolve.rs:466-476`), which reads a value with no
+(`crates/podssh-cli/src/ssh/resolve.rs:473-483`), which reads a value with no
 `:` as a host on port 22, and splits a value at its one `:`
 (`crates/podssh-cli/src/ssh/hop.rs:40-53`). `forward::open` opens
 `direct-tcpip` only (`crates/podssh-ssh/src/forward.rs:11-20`).

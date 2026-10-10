@@ -226,6 +226,10 @@ pub struct Options {
     /// connection that a run opens again (`cp`, T-136); `None` for one
     /// connection.
     pub host_key_pin: Option<crate::hostkey::Pin>,
+    /// `--host-key-fingerprint`: the destination's key must be one of these,
+    /// whatever `known_hosts` and `StrictHostKeyChecking` say, and none is
+    /// recorded (T-031). Jump hops keep the normal policy.
+    pub host_key_fingerprints: Vec<String>,
     /// The login that worked, for each later connection of the run (`cp`,
     /// T-137): no second question for a passphrase or a password.
     pub remembered: Option<crate::remember::Remembered>,
@@ -291,6 +295,7 @@ impl Options {
             log_level: LogLevel::Info,
             stdin_null: false,
             host_key_pin: None,
+            host_key_fingerprints: Vec::new(),
             remembered: None,
         }
     }

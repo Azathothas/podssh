@@ -49,6 +49,9 @@ pub struct SshArgs {
     pub client_key: Option<String>,
     /// For `node://NAME`: the node's key or fingerprint, in place of the pins.
     pub node_key: Option<String>,
+    /// `--host-key-fingerprint`: the only host keys that the destination may
+    /// present (T-031), unparsed.
+    pub host_key_fingerprint: Option<String>,
     /// For `node://NAME`: no end-to-end channel (T-088).
     pub no_e2e: bool,
     /// For `iroh:TICKET`: the relays to try after the ticket's.
@@ -82,6 +85,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("iroh-key", "give one file"),
     ("client-key", "give one file"),
     ("node-key", "give one key"),
+    ("host-key-fingerprint", "give the fingerprints as one comma list"),
     ("iroh-relay", "give the relays as one comma list"),
     ("iroh-ticket", "give one ticket"),
     ("persist-name", "give one name"),
@@ -160,6 +164,7 @@ impl SshArgs {
             iroh_key: one("iroh-key"),
             client_key: one("client-key"),
             node_key: one("node-key"),
+            host_key_fingerprint: one("host-key-fingerprint"),
             no_e2e: flag("no-e2e"),
             iroh_relay: one("iroh-relay"),
             iroh_ticket: one("iroh-ticket"),
