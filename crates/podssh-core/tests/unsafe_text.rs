@@ -222,7 +222,8 @@ fn an_offer_name_with_a_bar_is_refused() {
         assert_eq!((e.field.as_str(), e.found.as_str()), (field, found), "{id:?} {name:?}");
     }
     // Why: a bar shifts each field after it, and the peer reads no offer.
-    let shifted = Line::Offer(Offer { transfer_id: "t1".into(), name: "a|b.bin".into(), total: 10, chunks: 1 });
+    let shifted =
+        Line::Offer(Offer { transfer_id: "t1".into(), name: "a|b.bin".into(), total: 10, chunks: 1, chunk_bytes: 320 });
     assert_eq!(Line::parse(&shifted.render()), None);
     // A deny's reason is read up to the next bar, so a bar would cut it
     // short; an empty reason is legal.
@@ -247,6 +248,7 @@ fn a_peer_file_name_becomes_a_base_name() {
         name: name.into(),
         total: 10,
         chunks: TransferLimits::default().chunk_count(10),
+        chunk_bytes: TransferLimits::default().chunk_bytes as u64,
     };
     for (sent, kept) in [
         ("f.bin", "f.bin"),

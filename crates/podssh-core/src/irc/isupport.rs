@@ -19,6 +19,14 @@ use std::collections::BTreeMap;
 
 /// **RFC 1459 §2.6 default**, used when a server sends no `NICKLEN`.
 pub const DEFAULT_NICKLEN: usize = 9;
+
+/// The user name's length when a server sends no `USERLEN`: 10, the limit
+/// that ngircd and InspIRCd keep, measured 2026-10-10.
+pub const DEFAULT_USERLEN: usize = 10;
+
+/// A host name's length when a server sends no `HOSTLEN`: 63, the longest
+/// label of DNS; InspIRCd 4.11.0 sends 64.
+pub const DEFAULT_HOSTLEN: usize = 63;
 /// **RFC 1459 §2.6 default**, used when a server sends no `CHANNELLEN`.
 pub const DEFAULT_CHANNELLEN: usize = 64;
 
@@ -125,6 +133,16 @@ impl Isupport {
     /// server enforces.
     pub fn nicklen(&self) -> usize {
         self.number("NICKLEN").unwrap_or(DEFAULT_NICKLEN)
+    }
+
+    /// **How long a user name may be**, `USERLEN`.
+    pub fn userlen(&self) -> usize {
+        self.number("USERLEN").unwrap_or(DEFAULT_USERLEN)
+    }
+
+    /// **How long a host name may be**, `HOSTLEN`.
+    pub fn hostlen(&self) -> usize {
+        self.number("HOSTLEN").unwrap_or(DEFAULT_HOSTLEN)
     }
 
     /// How many characters one channel name may have, `CHANNELLEN`.

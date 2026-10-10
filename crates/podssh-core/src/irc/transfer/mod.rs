@@ -14,13 +14,15 @@
 //! The offer, the accept, the chunks, the digest, the acknowledgement. **The
 //! payload is base64** because a raw chunk is not line-safe: the byte layer
 //! drops NUL and a `0x0a` inside a chunk would end the line and turn the rest
-//! of the file into a second message. Base64 expands by 4/3 and that
-//! expansion is **why the chunk is 320 bytes and not 512**, asserted against
-//! the real encoder rather than arithmetic on paper.
+//! of the file into a second message. Base64 expands by 4/3, and the server
+//! puts the sender's prefix in front of each line it relays, so **the chunk
+//! is sized for each transfer** ([`chunk_bytes`], T-097), at most 320 bytes,
+//! asserted against the real encoder rather than arithmetic on paper.
 //!
 //! ## The transfer is resumable, and the boundary is a property of the file
 //!
-//! **Chunk `i` is always bytes `[i*320, i*320+320)` of the file.** Not
+//! **Chunk `i` is always bytes `[i*c, i*c+c)` of the file**, `c` the
+//! offer's chunk size. Not
 //! "the next chunk in this session", and not "the next chunk after whatever
 //! arrived" — a resume that counted received chunks is a resume that silently
 //! corrupts the file if one chunk was lost, because the count and the offsets
@@ -39,5 +41,6 @@ pub mod wire;
 pub use recv::{base_name, Receiver};
 pub use send::Sender;
 pub use wire::{
-    as_privmsg, b64, check_field, chunk_line_length, deny, Accept, Ack, Chunk, Deny, Digest, Done, Line, Offer, MARKER,
+    as_privmsg, b64, check_field, chunk_bytes, chunk_line_length, deny, Accept, Ack, Chunk, Deny, Digest, Done, Line,
+    Offer, MARKER, MAX_CHUNK, MIN_CHUNK,
 };

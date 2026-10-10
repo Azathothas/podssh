@@ -66,17 +66,20 @@ fn a_renamed_fact_is_a_build_failure_and_not_a_default() {
 
 #[test]
 fn a_chunk_line_fits_the_rfc_limit_and_that_is_proved_not_assumed() {
-    // **THE 320 IS ARITHMETIC ON PAPER UNTIL THE WIRE IS ASKED.** Base64
-    // expands by 4/3 and a chunk becomes one `PRIVMSG` and RFC 2812 §2.3
-    // caps a message at 512 including the terminator.
-    let limits = TransferLimits::default();
-    let length = podssh_core::irc::transfer::chunk_line_length(&limits, "transfer-id", 99, 999_999);
+    // **THE CHUNK SIZE IS ARITHMETIC ON PAPER UNTIL THE WIRE IS ASKED.**
+    // Base64 expands by 4/3, a chunk becomes one `PRIVMSG`, the server puts
+    // the sender's prefix in front of it, and RFC 2812 §2.3 caps a message at
+    // 512 including the terminator (T-097).
+    let isupport = podssh_core::irc::isupport::Isupport::empty();
+    let size = podssh_core::irc::transfer::chunk_bytes(&isupport, "#c", "transfer-id", 999_999).expect("room");
+    let limits = TransferLimits { chunk_bytes: size, ..TransferLimits::default() };
+    let length = podssh_core::irc::transfer::chunk_line_length(&limits, &isupport, "#c", "transfer-id", 99, 999_999);
     assert!(length <= 512, "a chunk line is {length} bytes; the RFC's limit is 512");
     // **And raising the chunk size must break it**, because a test that
     // passes at any size is not a test.
     let greedy = TransferLimits { chunk_bytes: 512, ..limits };
     assert!(
-        podssh_core::irc::transfer::chunk_line_length(&greedy, "t", 0, 0) > 512,
+        podssh_core::irc::transfer::chunk_line_length(&greedy, &isupport, "#c", "t", 0, 0) > 512,
         "a 512-byte chunk cannot fit a 512-byte message; the limit is real"
     );
 }
@@ -146,6 +149,7 @@ fn a_chunk_sent_twice_is_refused_rather_than_written_out_of_place() {
     let mut receiver = Receiver::from_offer(&the_offer(&sender)).expect("a well-formed offer is accepted");
 
     let mut delivered: Vec<u8> = Vec::new();
+    let mut written: Vec<u8> = Vec::new();
     let mut index = 0u64;
     while let Some((offset, len)) = sender.next_range() {
         let message = sender
@@ -153,7 +157,7 @@ fn a_chunk_sent_twice_is_refused_rather_than_written_out_of_place() {
             .expect("the right number of bytes");
         let line = offer_text(&message).expect("a chunk line");
         let Line::Chunk(chunk) = line else { panic!("expected a chunk, got {line:?}") };
-        receiver.accept(&chunk).expect("in order");
+        written.extend(receiver.accept(&chunk).expect("in order"));
         delivered.extend_from_slice(&data[offset as usize..offset as usize + len]);
         // **Now send chunk 0 again**, after everything. It must be
         // refused, not absorbed.
@@ -165,7 +169,7 @@ fn a_chunk_sent_twice_is_refused_rather_than_written_out_of_place() {
                 payload: podssh_core::irc::transfer::b64::encode(&data[..limits.chunk_bytes]),
             };
             let err = receiver.accept(&duplicate).expect_err("a duplicate chunk must be refused, not written twice");
-            assert!(err.contains("expects"), "the refusal must name the expectation: {err}");
+            assert!(err.contains("refusing"), "the refusal must say so: {err}");
             assert_eq!(
                 receiver.bytes_received(),
                 delivered.len() as u64,
@@ -178,7 +182,8 @@ fn a_chunk_sent_twice_is_refused_rather_than_written_out_of_place() {
 
     assert!(sender.is_complete());
     assert!(receiver.is_complete(), "the receiver disagrees about completeness");
-    assert_eq!(receiver.finish().expect("complete"), data.as_slice());
+    receiver.finish().expect("complete");
+    assert_eq!(written, data, "the bytes given to the caller are the file");
     assert!(receiver.verify(&sender_digest(&data)), "the digest must match");
 }
 
@@ -344,7 +349,13 @@ fn a_wrong_digest_is_detected() {
 #[test]
 fn every_transfer_line_round_trips_byte_exactly() {
     for line in [
-        Line::Offer(Offer { transfer_id: "t1".into(), name: "file.bin".into(), total: 1000, chunks: 4 }),
+        Line::Offer(Offer {
+            transfer_id: "t1".into(),
+            name: "file.bin".into(),
+            total: 1000,
+            chunks: 4,
+            chunk_bytes: 320,
+        }),
         Line::Accept(podssh_core::irc::transfer::Accept { transfer_id: "t1".into(), from_chunk: 12 }),
         Line::Chunk(Chunk { transfer_id: "t1".into(), index: 3, offset: 960, payload: "QUJD".into() }),
         Line::Ack(podssh_core::irc::transfer::Ack { transfer_id: "t1".into(), index: 3 }),

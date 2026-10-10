@@ -38,6 +38,19 @@ test on the public networks again is the operator's question Q39.
 - The receiver keeps the sender's name for a file as a base name, with no
   directory, so the file goes where the receiver chose. A name with no base,
   or with a `:` (a drive or a stream on Windows), is refused (T-093).
+- The server puts the sender's prefix, `:nick!user@host `, in front of each
+  line it relays, so a chunk is sized for each transfer: the most that keeps
+  the relayed line within 512 bytes, from the server's `NICKLEN`,
+  `USERLEN` (one more for a `~`) and `HOSTLEN`, and the target's name;
+  between 48 and 320 bytes. The offer carries the size, and the receiver
+  checks it (T-097). Measured 2026-10-10 in the build image: chunks of 285
+  bytes on ngircd 27, 267 on InspIRCd 4.11.0 and on ergo 2.18.0.
+- Each chunk is acknowledged by its index, to the transfer's target, so the
+  short last chunk ends the transfer. The receiver keeps no file: it gives
+  each chunk's bytes to the caller as they come, and keeps their SHA-256.
+- A server that limits the rate of commands, and has no fake lag, closes a
+  sender that sends each chunk as soon as the last is acknowledged
+  (InspIRCd 4.11.0 at 10 commands a second, within a second); T-275.
 
 ## Connection handling
 

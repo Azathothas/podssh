@@ -647,7 +647,7 @@ here on `3ee70dc` by reading the code; the line lengths are computed from the fo
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -660,20 +660,20 @@ The transfer never ran against a real server.
 ## Premise
 
 Read: `chunk_line_length` measures a line to `#x` with no prefix
-(`crates/podssh-core/src/irc/transfer/wire.rs:271-282`), and the tests use it
-(`crates/podssh-core/tests/transfer.rs:67-82`).
+(`crates/podssh-core/src/irc/transfer/wire.rs`, lines 271-282 at `ab7292d`), and the tests use it
+(`crates/podssh-core/tests/transfer.rs`, lines 67-82 at `ab7292d`).
 
-Computed here from the format (`crates/podssh-core/src/irc/transfer/wire.rs:234-236`): a chunk of
+Computed here from the format (`crates/podssh-core/src/irc/transfer/wire.rs`, lines 234-236 at `ab7292d`): a chunk of
 320 bytes to `#podssh-1a2b`, with a 16-character id, chunk 196607 at offset 62914240, is 499 bytes
 on the wire. With the prefix `:podssh-1a2b3c!~podssh@203.0.113.77 ` the relayed line is 535 bytes;
 with a host name of 63 bytes, 586.
 
 Read: `ack` names `bytes_received / chunk_bytes - 1` and sends to `#transfer`
-(`crates/podssh-core/src/irc/transfer/recv.rs:182-187`). For 1000 bytes it names chunk 2 after
-chunk 3, but the sender waits for 3 (`crates/podssh-core/src/irc/transfer/send.rs:131-140`). No test
-calls `ack` (`crates/podssh-core/tests/transfer.rs:175-176`). `accept` writes the bytes before it
-checks the index (`crates/podssh-core/src/irc/transfer/recv.rs:165-177`). The receiver keeps the
-whole file in memory, for any total that the offer gives (`crates/podssh-core/src/irc/transfer/recv.rs:87-106`).
+(`crates/podssh-core/src/irc/transfer/recv.rs`, lines 182-187 at `ab7292d`). For 1000 bytes it names chunk 2 after
+chunk 3, but the sender waits for 3 (`crates/podssh-core/src/irc/transfer/send.rs`, lines 131-140 at `ab7292d`). No test
+calls `ack` (`crates/podssh-core/tests/transfer.rs`, lines 175-176 at `ab7292d`). `accept` writes the bytes before it
+checks the index (`crates/podssh-core/src/irc/transfer/recv.rs`, lines 165-177 at `ab7292d`). The receiver keeps the
+whole file in memory, for any total that the offer gives (`crates/podssh-core/src/irc/transfer/recv.rs`, lines 87-106 at `ab7292d`).
 
 ## Approach
 
@@ -684,7 +684,7 @@ whole file in memory, for any total that the offer gives (`crates/podssh-core/sr
 3. In `accept`, check the index before the bytes go into the file.
 4. Limit the receiver's memory: a size limit from the caller, or a sink that the caller owns. A
    file is taken only when the user accepts it (`docs/decisions.md:44`).
-5. Update `docs/irc.md:31-37` and `docs/STATUS.md:308` in the same commit.
+5. Update `docs/irc.md`, lines 31-37 at `ab7292d` and `docs/STATUS.md`, line 308 at `ab7292d` in the same commit.
 
 ## Decision
 
@@ -692,6 +692,14 @@ Recommendation: a chunk size for each offer, from the server's limits and the ta
 alternative, a smaller fixed chunk, lost because the prefix and the channel name differ by server
 and by channel (a channel name can take 200 bytes). One fixed size is too large on one server or
 slow on all.
+
+Decision (2026-10-10): the user name counts `USERLEN` and one more, also when the server sends
+`USERLEN`: a server that no ident answered puts a `~` before the name (ngircd 27 writes
+`pa!~pa@…`), which its `USERLEN` need not count. The host counts `HOSTLEN` when the server sends it
+(InspIRCd 4.11.0 sends 64), else 63. The receiver gives each chunk's bytes to the caller and keeps
+only their SHA-256, rather than a limit on the size that it keeps: a caller writes the file where
+the user accepted it anyway, and the receiver's memory is then one chunk whatever the offer says.
+Lost: a limit on the size, which would still hold up to that limit in memory.
 
 ## Prove
 
@@ -706,8 +714,36 @@ The new file crates/podssh-core/tests/transfer_relayed.rs holds
 chunk of 60 MiB), `the_last_ack_names_the_short_last_chunk` (1000 bytes; the sender completes on the
 receiver's acks), `the_ack_goes_to_the_transfer_target` and `a_wrong_index_writes_nothing`. Plant:
 measure without the prefix again; the first test must fail. Live: 1 MiB between two separate
-clients on undernet (`docs/irc.md:23-25`), with equal SHA-256, from a new file of the probe.
+clients on undernet (`docs/irc.md`, lines 23-25 at `ab7292d`), with equal SHA-256, from a new file of the probe.
 
+## Correction
+
+2026-10-10: measured in the build image, with two clients through each server: a chunk sized for
+the relayed line crosses ngircd 27, InspIRCd 4.11.0 and ergo 2.18.0 whole, at 285, 267 and 267
+bytes. The sender sends each chunk as soon as the last is acknowledged, and InspIRCd, at its rate
+limit of 10 commands a second with no fake lag, closed it within a second of a 64 KiB transfer;
+with no rate limit the 64 KiB arrived whole. The pace of the sender is T-275. The live run of the
+Prove goes to undernet, which waits for Q39.
+
+## Done
+
+2026-10-10, in the commit that closes this entry. `chunk_bytes` (`crates/podssh-core/src/irc/transfer/wire.rs`)
+sizes the chunks of a transfer: the most that keeps the line that the server relays, with the
+sender's longest prefix in front, within 512 bytes, from `NICKLEN`, `USERLEN` and `HOSTLEN` of the
+server's `005` and the target's name; a multiple of 3, between 48 and 320, else the transfer is
+refused. The offer carries the size, and the receiver checks it and the count of chunks. `ack`
+names the chunk just accepted by the count, and goes to the target that the caller names. `accept`
+checks the index before it takes a byte, and gives the bytes to the caller: the receiver keeps their
+SHA-256, and no file. `chunk_line_length` measures a line with the worst prefix. `docs/irc.md` and
+`docs/STATUS.md` say so.
+
+Native, Windows 11: `cargo test -p podssh-core --test transfer_relayed`, 6 passed; `cargo test -p
+podssh-core`, 121 passed, 0 failed, 2 ignored. Planted, a size without the prefix: chunks of 300
+bytes, a relayed line of 618, and the first test fails. clippy with `-D warnings`: no warning. `cargo
+test --workspace --no-fail-fast`: 1196 passed, 0 failed, 39 ignored. In the build image,
+`--test transfer_server -- --ignored` carried 2000 bytes between two clients through each of the
+three servers, and 64 KiB through InspIRCd with no rate limit, each with the same SHA-256. Waits for
+Q39 and T-251: 1 MiB on undernet.
 # T-098: I8: the keepalive sends a visible channel message
 
 **Source:** the former defects page (`git show 3ee70dc:docs/defects.md`), row I8 (medium).
@@ -750,7 +786,7 @@ none, the relay cut it after 184 s (`docs/STATUS.md:120-121`).
    `crates/podssh-core/src/irc/session_recv.rs:97-104`). No released podssh sends it.
 4. Rewrite the test at `crates/podssh-core/tests/session.rs:319-338`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs:5-29` and the test name at
-   `crates/podssh-core/tests/transfer.rs:371-396`.
+   `crates/podssh-core/tests/transfer.rs:382-407`.
 5. Update `docs/STATUS.md:308` in the same commit.
 
 Pitfall: a server can limit the rate of `PING` lines. One `PING` in 60 s is far below the usual
@@ -900,3 +936,48 @@ sh scripts/dev.sh check      # the gate's IRC server: text and one file with equ
 
 Planted defect: connect to port 6697 without TLS; the test against the
 gate's server must fail at the handshake.
+
+# T-275: The transfer sends as fast as its acknowledgements come, and a server's rate limit closes it
+
+**Source:** T-097 (2026-10-10), measured in the build image with InspIRCd 4.11.0.
+**Category:** defect
+**Milestone:** M8
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+A sender writes each chunk as soon as the last one is acknowledged. On a short path that is
+dozens of lines a second, and a server that limits the rate of commands, with no fake lag to
+slow the client down instead, closes the connection: the transfer ends with no word but the
+close.
+
+## Premise
+
+Measured on 2026-10-10 in the build image (`crates/podssh-core/tests/transfer_server.rs`, two
+clients on the loopback): through InspIRCd 4.11.0 with its connect class at `commandrate="10000"`
+(10 commands a second), `threshold="100"` and `fakelag="no"`, the sender of a 64 KiB transfer was
+closed within a second; with no rate limit the same transfer arrived whole, in 246 chunks. Read:
+the sender has no pace (`crates/podssh-core/src/irc/transfer/send.rs`); `Sender::next_chunk_message`
+gives the next chunk at once after `Sender::acknowledge`.
+
+## Approach
+
+1. A pace for the lines of a transfer, the sender's chunks and the receiver's acknowledgements:
+   a rate that a caller sets, with a default that a server's flood control takes (measure the
+   defaults of ngircd 27, InspIRCd 4.11.0, ergo 2.18.0 and undernet's ircu), and the time the
+   next line may go, so that a sans-IO caller waits it.
+2. A close during a transfer says that the server may have closed a fast sender, and the
+   transfer resumes from the last acknowledged chunk on the next connection.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-core --test transfer_relayed
+```
+
+A test holds the pace: the time of each line, by a clock that the test gives. In the build image,
+`--test transfer_server -- --ignored` with `PODSSH_IRC_TRANSFER_BYTES=65536` passes through
+InspIRCd with its rate limit at 10 commands a second. Planted: no pace; that run is closed.

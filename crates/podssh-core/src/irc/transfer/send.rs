@@ -71,6 +71,7 @@ impl Sender {
             name: self.name.clone(),
             total: self.total,
             chunks: self.chunks,
+            chunk_bytes: self.limits.chunk_bytes as u64,
         });
         as_privmsg(target, &line)
     }

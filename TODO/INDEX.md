@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**271 entries: 119 open, 0 partial, 22 blocked, 130 done.**
+**272 entries: 119 open, 0 partial, 22 blocked, 131 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 37 | 0 | 18 | 97 | 152 |
+| P2 | 37 | 0 | 18 | 98 | 153 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 119 | 0 | 22 | 130 | 271 |
+| **All** | 119 | 0 | 22 | 131 | 272 |
 
 ## Entries
 
@@ -170,7 +170,7 @@ repository and CI).
 | [T-094](irc.md) | P2 | S | M8 | defect | done | I4: trailing forms of JOIN, NICK and PRIVMSG are dropped |
 | [T-095](irc.md) | P2 | M | M8 | defect | done | I5: PART, KICK, 005, a new connection and 433 are handled incorrectly |
 | [T-096](irc.md) | P2 | S | M8 | defect | done | I6: the line framing loses lines, and its buffer has no limit |
-| [T-097](irc.md) | P2 | M | M8 | defect | open | I7: file chunks are too long with the server's prefix, and the last acknowledgement is wrong |
+| [T-097](irc.md) | P2 | M | M8 | defect | done | I7: file chunks are too long with the server's prefix, and the last acknowledgement is wrong |
 | [T-098](irc.md) | P3 | S | M8 | defect | open | I8: the keepalive sends a visible channel message |
 | [T-099](irc.md) | P2 | L | M8 | feature | open | `podssh chat` on the roads between two podssh ends, end-to-end encrypted |
 | [T-100](ts.md) | P2 | S | M8 | defect | done | C2: `podssh ts` waits for ever when no network map arrives |
@@ -346,3 +346,4 @@ repository and CI).
 | [T-272](repo.md) | P1 | S | none | defect | done | The tests leave their scratch directories in the temporary directory |
 | [T-273](config.md) | P2 | S | M8 | defect | done | The `%` tokens of `User` and `RemoteCommand`, as OpenSSH expands them |
 | [T-274](relay.md) | P2 | M | backlog | defect | open | On Windows, the owner and the writers of a private file are not checked |
+| [T-275](irc.md) | P2 | S | M8 | defect | open | The transfer sends as fast as its acknowledgements come, and a server's rate limit closes it |

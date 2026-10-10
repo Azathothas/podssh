@@ -5,8 +5,9 @@
 //! the IRC grammar — is not read every time somebody opens the protocol.
 
 use crate::irc::encode::{check_chars, Unsafe};
+use crate::irc::isupport::Isupport;
 use crate::irc::limits::TransferLimits;
-use crate::irc::message::{wire_len, Command, Message, Middle, Trailing};
+use crate::irc::message::{wire_len, Command, Message, Middle, Prefix, Trailing};
 
 /// **The marker, in every transfer line.** It is a plain `PRIVMSG` and
 /// not a `CTCP ACTION`, **deliberately**: podssh is not required to speak to
@@ -105,6 +106,10 @@ pub struct Offer {
     pub name: String,
     pub total: u64,
     pub chunks: u64,
+    /// **Bytes of file in each chunk, for this transfer** (T-097): the
+    /// sender's [`chunk_bytes`] for its target and its server, which the
+    /// receiver checks between [`MIN_CHUNK`] and [`MAX_CHUNK`].
+    pub chunk_bytes: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -152,7 +157,7 @@ pub struct Deny {
 /// downstream code ever re-reads a positional field out of a string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Line {
-    /// `PODSSH1|offer|<transfer-id>|<name>|<total>|<chunks>`
+    /// `PODSSH1|offer|<transfer-id>|<name>|<total>|<chunks>|<chunk-bytes>`
     Offer(Offer),
     /// `PODSSH1|accept|<transfer-id>|<from-chunk>`
     Accept(Accept),
@@ -188,6 +193,7 @@ impl Line {
                     name: f.next()?.to_string(),
                     total: f.next()?.parse().ok()?,
                     chunks: f.next()?.parse().ok()?,
+                    chunk_bytes: f.next()?.parse().ok()?,
                 })
             }
             "ACCEPT" => {
@@ -225,8 +231,8 @@ impl Line {
     /// the two halves of this protocol cannot drift apart.
     pub fn render(&self) -> String {
         match self {
-            Line::Offer(Offer { transfer_id, name, total, chunks }) => {
-                format!("{MARKER}|offer|{transfer_id}|{name}|{total}|{chunks}")
+            Line::Offer(Offer { transfer_id, name, total, chunks, chunk_bytes }) => {
+                format!("{MARKER}|offer|{transfer_id}|{name}|{total}|{chunks}|{chunk_bytes}")
             }
             Line::Accept(Accept { transfer_id, from_chunk }) => {
                 format!("{MARKER}|accept|{transfer_id}|{from_chunk}")
@@ -268,17 +274,67 @@ pub fn as_privmsg(target: &str, line: &Line) -> Message {
     }
 }
 
-/// **The chunk size is a property of the encoder, and this is where it is
-/// proved rather than asserted.** A chunk line's wire length is
-/// `512 - header` at most; [`TransferLimits::default`] says 320 raw bytes,
-/// and this function is what makes that number checkable against the real
-/// encoder ([`wire_len`], the length of [`Message::to_wire`]) rather than
-/// against arithmetic on paper.
-pub fn chunk_line_length(limits: &TransferLimits, transfer_id: &str, index: u64, offset: u64) -> usize {
+/// The fewest bytes of file in a chunk: below it a transfer to that target
+/// is refused, as a line that carries almost no file is mostly overhead.
+pub const MIN_CHUNK: usize = 48;
+
+/// The most bytes of file in a chunk.
+pub const MAX_CHUNK: usize = 320;
+
+/// **The bytes of file in each chunk of a transfer to `target`** (T-097):
+/// the most that keeps the line that the server relays within 512 bytes,
+/// with the sender's prefix in front of it, `:nick!user@host `, as long as
+/// the server's `005` lets it be: `NICKLEN`, `USERLEN` and one more for the
+/// `~` of a user that no ident answered, and `HOSTLEN`. A line as podssh
+/// writes it can fit, and the same line relayed not: a server that cuts it
+/// breaks the base64. Between [`MIN_CHUNK`] and [`MAX_CHUNK`], and a multiple
+/// of 3, so no payload has padding.
+pub fn chunk_bytes(isupport: &Isupport, target: &str, transfer_id: &str, total: u64) -> Result<usize, String> {
+    // `:nick!~user@host `, as long as each can be.
+    let prefix = 1 + isupport.nicklen() + 1 + 1 + isupport.userlen() + 1 + isupport.hostlen() + 1;
+    // The index and the offset are at most the total, in digits.
+    let digits = total.to_string().len();
+    let header = "PRIVMSG ".len() + target.len() + " :".len() + MARKER.len() + "|chunk|".len() + transfer_id.len();
+    let used = prefix + header + 1 + digits + 1 + digits + 1;
+    let room = 510usize.saturating_sub(used);
+    let bytes = (room / 4 * 3).min(MAX_CHUNK);
+    if bytes < MIN_CHUNK {
+        return Err(format!(
+            "a chunk to {target} could carry {bytes} bytes of file, under {MIN_CHUNK}: the target's name and the \
+             server's limits leave too little of a line"
+        ));
+    }
+    Ok(bytes)
+}
+
+/// The longest prefix that the server can put on a line of this client,
+/// without its `:` and its space.
+fn worst_prefix(isupport: &Isupport) -> Prefix {
+    Prefix {
+        nick: "n".repeat(isupport.nicklen()),
+        user: Some(format!("~{}", "u".repeat(isupport.userlen()))),
+        host: Some("h".repeat(isupport.hostlen())),
+    }
+}
+
+/// **The length of a chunk line as the receiver gets it**, with the worst
+/// prefix that the server can relay it with, measured with the real encoder
+/// ([`wire_len`], the length of [`Message::to_wire`]) rather than with
+/// arithmetic on paper.
+pub fn chunk_line_length(
+    limits: &TransferLimits,
+    isupport: &Isupport,
+    target: &str,
+    transfer_id: &str,
+    index: u64,
+    offset: u64,
+) -> usize {
     let payload_len = limits.chunk_bytes.div_ceil(3) * 4;
     let line =
         Line::Chunk(Chunk { transfer_id: transfer_id.to_string(), index, offset, payload: "A".repeat(payload_len) });
-    wire_len(&as_privmsg("#x", &line))
+    let mut relayed = as_privmsg(target, &line);
+    relayed.prefix = Some(worst_prefix(isupport));
+    wire_len(&relayed)
 }
 
 /// The refusal a peer sends, and **the reason string is the only part

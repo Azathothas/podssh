@@ -8,15 +8,20 @@
 //! and a digest that still passes if the sender hashes what it sent.
 //!
 //! **The offset rides in the chunk, and that is what makes a resume across
-//! a session boundary correct.** Chunk `i` is always bytes
-//! `[i*320, i*320+320)` of the file, so "which session am I in" changes
-//! which chunks are sent and never what a chunk means.
+//! a session boundary correct.** Chunk `i` is always bytes `[i*c, i*c+c)`
+//! of the file, `c` the offer's chunk size, so "which session am I in"
+//! changes which chunks are sent and never what a chunk means.
+//!
+//! **The receiver keeps no file** (T-097): [`Receiver::accept`] hands each
+//! chunk's bytes to the caller, which writes them where the user accepted
+//! the file, and the receiver keeps their SHA-256 as they pass. Its memory
+//! is one chunk, whatever total an offer names.
 
 use sha2::Digest as _;
 
 use crate::irc::limits::TransferLimits;
 use crate::irc::message::Message;
-use crate::irc::transfer::wire::{as_privmsg, b64, Ack, Chunk, Line, Offer};
+use crate::irc::transfer::wire::{as_privmsg, b64, Ack, Chunk, Line, Offer, MAX_CHUNK, MIN_CHUNK};
 
 /// **The peer's name for a file, as a base name only**: what follows its last
 /// `/` or `\`, so a caller that writes the file under it stays in its
@@ -73,7 +78,8 @@ pub struct Receiver {
     ///
     /// A counter is one line and cannot be wrong this way.
     chunks_accepted: u64,
-    sink: Vec<u8>,
+    /// The SHA-256 of the bytes accepted so far.
+    hasher: sha2::Sha256,
 }
 
 impl Receiver {
@@ -85,12 +91,19 @@ impl Receiver {
     /// cannot see it. [`Receiver::needs_new_session`] is the caller asking
     /// the question it must ask anyway.
     pub fn from_offer(line: &Offer) -> Result<Self, String> {
-        let expected = TransferLimits::default().chunk_count(line.total);
+        let chunk_bytes = usize::try_from(line.chunk_bytes).unwrap_or(usize::MAX);
+        if !(MIN_CHUNK..=MAX_CHUNK).contains(&chunk_bytes) {
+            return Err(format!(
+                "offer names chunks of {} bytes, and a chunk carries {MIN_CHUNK} to {MAX_CHUNK}",
+                line.chunk_bytes
+            ));
+        }
+        let limits = TransferLimits { chunk_bytes, ..TransferLimits::default() };
+        let expected = limits.chunk_count(line.total);
         if expected != line.chunks {
             return Err(format!(
-                "offer claims {} chunks for a file of {} bytes, and this build \
-                 computes {}; the sender's chunk size is not the receiver's",
-                line.chunks, line.total, expected
+                "offer claims {} chunks for a file of {} bytes in chunks of {}, which make {}",
+                line.chunks, line.total, line.chunk_bytes, expected
             ));
         }
         Ok(Receiver {
@@ -98,10 +111,10 @@ impl Receiver {
             name: base_name(&line.name)?,
             total: line.total,
             chunks: line.chunks,
-            limits: TransferLimits::default(),
+            limits,
             bytes_received: 0,
             chunks_accepted: 0,
-            sink: Vec::new(),
+            hasher: sha2::Sha256::new(),
         })
     }
 
@@ -128,18 +141,32 @@ impl Receiver {
         self.bytes_received >= self.limits.session_bytes as u64
     }
 
-    /// **Accept one chunk. `Err` for anything that does not belong.**
+    /// **Accept one chunk, and give its bytes to write. `Err` for anything
+    /// that does not belong**, and then nothing is given and nothing counted.
     ///
-    /// The three refusals, and each names its own cause:
+    /// The refusals, and each names its own cause:
     /// * a different transfer id — the wrong conversation;
+    /// * an index that is not the count of chunks accepted, checked before
+    ///   any byte is taken (T-097);
     /// * an offset that is not `bytes_received` — **the interesting one**, a
     ///   duplicate or a reordering, refused rather than absorbed;
     /// * a chunk that would run past `total` — a sender counting differently.
-    pub fn accept(&mut self, line: &Chunk) -> Result<(), String> {
+    pub fn accept(&mut self, line: &Chunk) -> Result<Vec<u8>, String> {
         if line.transfer_id != self.transfer_id {
             return Err(format!(
                 "chunk belongs to transfer {} and this receiver is {}",
                 line.transfer_id, self.transfer_id
+            ));
+        }
+        // **THE INDEX IS CHECKED TOO, and not only the offset, and first.**
+        // The offset is what makes the file correct; the index is what makes
+        // the *count* correct, and a chunk that arrives at the right offset
+        // with the wrong index would otherwise let the receiver claim a
+        // completeness it did not reach.
+        if line.index != self.chunks_accepted {
+            return Err(format!(
+                "chunk is numbered {} and this receiver has accepted {}; refusing it before its bytes",
+                line.index, self.chunks_accepted
             ));
         }
         if line.offset != self.bytes_received {
@@ -162,28 +189,19 @@ impl Receiver {
                 expected_len
             ));
         }
-        self.sink.extend_from_slice(&bytes);
+        self.hasher.update(&bytes);
         self.bytes_received += bytes.len() as u64;
-        // **THE INDEX IS CHECKED TOO, and not only the offset.** The
-        // offset is what makes the file correct; the index is what makes the
-        // *count* correct, and a chunk that arrives at the right offset
-        // with the wrong index would otherwise let the receiver claim a
-        // completeness it did not reach.
-        if line.index != self.chunks_accepted {
-            return Err(format!(
-                "chunk is numbered {} and this receiver has accepted {};                  the offset agreed and the index did not",
-                line.index, self.chunks_accepted
-            ));
-        }
         self.chunks_accepted += 1;
-        Ok(())
+        Ok(bytes)
     }
 
-    /// The acknowledgement for the chunk just accepted.
-    pub fn ack(&self) -> Message {
-        let index = self.bytes_received / self.limits.chunk_bytes as u64;
-        let line = Line::Ack(Ack { transfer_id: self.transfer_id.clone(), index: index.saturating_sub(1) });
-        as_privmsg("#transfer", &line)
+    /// **The acknowledgement of the chunk just accepted, to the transfer's
+    /// `target`** (T-097): it names that chunk by the count, so a short last
+    /// chunk is named as the sender waits for it, and goes where the
+    /// transfer is, not to a channel of its own.
+    pub fn ack(&self, target: &str) -> Message {
+        let index = self.chunks_accepted.saturating_sub(1);
+        as_privmsg(target, &Line::Ack(Ack { transfer_id: self.transfer_id.clone(), index }))
     }
 
     /// Is every chunk here? **The check is on the chunk count and
@@ -212,13 +230,13 @@ impl Receiver {
         self.chunks
     }
 
-    /// **The received bytes.** **Only when
-    /// [`Receiver::is_complete`]**, because handing back a partial file is
-    /// how a transfer that failed at chunk 90 of 100 becomes a file on the
-    /// user's disk that opens and is wrong.
-    pub fn finish(&self) -> Result<&[u8], String> {
+    /// **Whether the file that the caller wrote is whole.** `Err` until
+    /// [`Receiver::is_complete`], because a transfer that failed at chunk 90
+    /// of 100 must not become a file on the user's disk that opens and is
+    /// wrong: the caller keeps it aside until this is `Ok`.
+    pub fn finish(&self) -> Result<(), String> {
         if self.is_complete() {
-            Ok(&self.sink)
+            Ok(())
         } else {
             Err(format!("{} of {} bytes received; the file is not finished", self.bytes_received, self.total))
         }
@@ -226,8 +244,7 @@ impl Receiver {
 
     /// The SHA-256 of what arrived, for the `digest` line.
     pub fn sha256_hex(&self) -> String {
-        let digest = sha2::Sha256::digest(&self.sink);
-        hex::encode(digest)
+        hex::encode(self.hasher.clone().finalize())
     }
 
     /// Did the sender's digest match? **Compared against what arrived,

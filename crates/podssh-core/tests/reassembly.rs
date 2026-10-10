@@ -293,8 +293,10 @@ fn the_default_limit_is_far_enough_for_the_largest_line_the_entry_writes() {
     // parser's opinion of it. RFC 2812 §2.3 caps a message at 512 including
     // the terminator; a chunk line must land under that, and this test
     // fails if `TransferLimits::chunk_bytes` is ever raised past it.
-    let limits = podssh_core::irc::TransferLimits::default();
-    let length = podssh_core::irc::transfer::chunk_line_length(&limits, "t", 0, 0);
+    let isupport = podssh_core::irc::isupport::Isupport::empty();
+    let size = podssh_core::irc::transfer::chunk_bytes(&isupport, "#c", "t", 0).expect("room");
+    let limits = podssh_core::irc::TransferLimits { chunk_bytes: size, ..Default::default() };
+    let length = podssh_core::irc::transfer::chunk_line_length(&limits, &isupport, "#c", "t", 0, 0);
     assert!(length <= 512, "a chunk line is {length} bytes; RFC 2812 §2.3 caps a message at 512");
     // Two constants: checked when the test compiles.
     const {
