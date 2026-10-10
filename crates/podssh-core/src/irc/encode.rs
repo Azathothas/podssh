@@ -17,7 +17,7 @@ use std::fmt;
 
 use crate::irc::command::parse_command;
 use crate::irc::command_view::trailing_of;
-use crate::irc::message::{parse_prefix, split_params, Message, ParseError};
+use crate::irc::message::{parse_prefix, split_params, Command, Message, ParseError};
 use crate::irc::tag::{parse_tags, render_tags};
 
 /// A part of a message that would change the line it is written in.
@@ -62,6 +62,12 @@ pub fn check_chars(field: &str, value: &str, refused: &[char]) -> Result<(), Uns
         Some((at, c)) => Err(Unsafe { field: field.to_string(), found: format!("{} at byte {at}", named(c)) }),
         None => Ok(()),
     }
+}
+
+/// The place of a middle written with its `:`: the last parameter, when a
+/// middle field holds it (`JOIN :#t`, as ngircd writes it).
+fn colon_at(command: &Command, params: usize) -> Option<usize> {
+    (params > 0 && command.last_colon() && trailing_of(command).is_none()).then(|| params - 1)
 }
 
 /// A character as a refusal names it: the escape a reader can type back.
@@ -146,8 +152,13 @@ impl Message {
             out.push(' ');
         }
         out.push_str(&self.command.name());
-        for param in self.command.params() {
+        let params = self.command.params();
+        let colon = colon_at(&self.command, params.len());
+        for (i, param) in params.iter().enumerate() {
             out.push(' ');
+            if colon == Some(i) {
+                out.push(':');
+            }
             out.push_str(&param.0);
         }
         if let Some(trailing) = trailing_of(&self.command) {
@@ -173,8 +184,15 @@ impl Message {
         }
         let name = self.command.name();
         check_middle("the command", &name)?;
-        for (i, param) in self.command.params().iter().enumerate() {
-            check_middle(&format!("parameter {} of {name}", i + 1), &param.0)?;
+        let params = self.command.params();
+        let colon = colon_at(&self.command, params.len());
+        for (i, param) in params.iter().enumerate() {
+            let field = format!("parameter {} of {name}", i + 1);
+            if colon == Some(i) {
+                check_trailing(&field, &param.0)?;
+            } else {
+                check_middle(&field, &param.0)?;
+            }
         }
         if let Some(trailing) = trailing_of(&self.command) {
             let field = format!("the trailing of {name}");

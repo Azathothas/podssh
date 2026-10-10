@@ -129,13 +129,21 @@ pub enum Command {
         target: Middle,
         text: Trailing,
     },
+    /// `colon`, here and on `Part`, `Mode` and `Nick`: whether the wire
+    /// wrote the last parameter with its `:` where it sits in a middle
+    /// field. ngircd and InspIRCd write `JOIN :#t`, ergo `JOIN #t`; the
+    /// meaning is one, and the flag is kept so that a parsed line encodes to
+    /// its own bytes. podssh writes none.
     Join {
         channels: Vec<Middle>,
         key: Option<String>,
+        colon: bool,
     },
+    /// With a reason, the reason keeps its own `:`, and `colon` is false.
     Part {
         channels: Vec<Middle>,
         reason: Option<Trailing>,
+        colon: bool,
     },
     Topic {
         channel: Middle,
@@ -150,6 +158,7 @@ pub enum Command {
     Mode {
         target: Middle,
         flags: Vec<Middle>,
+        colon: bool,
     },
     Quit {
         reason: Option<Trailing>,
@@ -158,10 +167,15 @@ pub enum Command {
         token: Trailing,
     },
     Pong {
+        /// A server answers a client's `PING :t` with its own name first:
+        /// `:srv PONG srv :t` from ngircd and InspIRCd, `PONG srv t` from
+        /// ergo (measured 2026-10-10). podssh's own `PONG` names none.
+        server: Option<Middle>,
         token: Option<Trailing>,
     },
     Nick {
         nickname: Middle,
+        colon: bool,
     },
     User {
         user: Middle,

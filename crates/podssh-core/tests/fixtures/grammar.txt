@@ -5,10 +5,10 @@
 # contain any character except CRLF, and a one-pipe split would break on a
 # message that quotes one.
 #
-# **These are recorded lines, not invented ones.** They are the shapes
-# RFC 2812 §2.3, §3 and §6 specify and that public ircds emit; **nothing here
-# is a measurement of a real ircd**, because this machine cannot reach one
-# without a relay token and a CLI, and that limit is named on the entry.
+# **These are recorded lines, not invented ones.** Down to `# Captured`,
+# they are the shapes RFC 2812 §2.3, §3 and §6 specify and that public
+# ircds emit, and none of them is a measurement. The lines after
+# `# Captured` are measurements of real servers, byte for byte.
 #
 # **`grammar.txt` proves the parser against a table. It does not prove the
 # session** — a frame boundary landing mid-message cannot be written in this
@@ -42,3 +42,31 @@ CAP * NAK :multi-prefix ||| the server refusing one capability
 @time=2026-10-02T00:00:00.000Z :irc.example.org 376 alice :End of /MOTD command. ||| a tag before a server prefix before a numeric
 :irc.example.org 433 * alice :Nickname is already in use ||| 433 during registration
 :alice!u@host PRIVMSG #c :PODSSH1|offer|t1|file.bin|1000|4 ||| a file-transfer offer is an ordinary PRIVMSG
+
+# Captured on 2026-10-10 (T-094) from three servers, each on the loopback
+# of the build image, with clients that sent each form with and without
+# the colon of its last parameter: ngircd 27, ergo 2.18.0 and InspIRCd
+# 4.11.0. The last parameter comes either way, as each server chooses.
+:pa!~pa@127.0.0.1 JOIN :#t ||| ngircd 27: the channel of a JOIN as the trailing
+:pa!pa@127.0.0.1 JOIN :#t ||| InspIRCd 4.11.0: the channel of a JOIN as the trailing
+:pa!~u@mcevjy93nmghu.irc JOIN #t ||| ergo 2.18.0: the channel of a JOIN as a middle
+:pa!~pa@127.0.0.1 NICK :pa2 ||| ngircd 27: the new nick as the trailing
+:pa!~u@mcevjy93nmghu.irc NICK pa2 ||| ergo 2.18.0: the new nick as a middle
+:pa!~pa@127.0.0.1 TOPIC #t :newtopic ||| ngircd 27: the topic as the trailing
+:pa!~u@mcevjy93nmghu.irc TOPIC #t newtopic ||| ergo 2.18.0: the topic as a middle
+:pb!~pb@127.0.0.1 PART #t :bye ||| ngircd 27: the reason of a PART as the trailing
+:pb!~u@mcevjy93nmghu.irc PART #t bye ||| ergo 2.18.0: the reason of a PART as a middle, not a second channel
+:pa2!~u@mcevjy93nmghu.irc QUIT Quit ||| ergo 2.18.0: the reason of a QUIT as a middle
+:pb!~u@mcevjy93nmghu.irc QUIT :Quit: done ||| ergo 2.18.0: the reason of a QUIT as the trailing
+:pa!~pa@127.0.0.1 MODE #t +k secret ||| ngircd 27: a channel's key as a middle
+:pa!pa@127.0.0.1 MODE #t +k :secret ||| InspIRCd 4.11.0: a channel's key as the trailing
+:pa2!~pa@127.0.0.1 MODE pa2 :+i ||| ngircd 27: a user's mode as the trailing
+:pa!~pa@127.0.0.1 PRIVMSG #t :word ||| ngircd 27: a PRIVMSG sent as PRIVMSG #t word arrives with its colon
+:ergo.test 332 pc #t newtopic ||| ergo 2.18.0: the topic of 332 as a middle
+:irc.inspircd.test 333 pc #t pa :1791604586 ||| InspIRCd 4.11.0: the time of 333 as the trailing
+:irc.ngircd.test 333 pc #t pa 1791604412 ||| ngircd 27: the time of 333 as a middle
+:ergo.test 221 pa +Zi ||| ergo 2.18.0: a user's modes as a middle of 221
+ERROR Quit ||| ergo 2.18.0: the text of ERROR as a middle, an unknown command kept whole
+:irc.ngircd.test PONG irc.ngircd.test :tok123 ||| ngircd 27: the answer to PING :tok123, the server and then the token as the trailing
+:irc.inspircd.test PONG irc.inspircd.test :tok123 ||| InspIRCd 4.11.0: the answer to PING :tok123, the server and then the token as the trailing
+:ergo.test PONG ergo.test tok123 ||| ergo 2.18.0: the answer to PING :tok123, the server and then the token as a middle

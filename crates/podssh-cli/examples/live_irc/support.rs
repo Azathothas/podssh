@@ -5,12 +5,41 @@
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::io::Write as _;
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
 use podssh_core::irc::{Event, ReapPolicy, Server, Session};
 use podssh_ws::client::RelaySession;
 use podssh_ws::frame;
 use podssh_ws::session::close_code_and_reason;
+
+/// `--capture FILE`: each byte that a server sends, as it arrives, so that
+/// its lines can go into the grammar's fixture byte for byte. A line `# HOST:PORT`
+/// comes before each session's bytes.
+static CAPTURE: OnceLock<Mutex<std::fs::File>> = OnceLock::new();
+
+/// Create the capture file; 73 when it cannot be made, as the run would
+/// keep nothing that it measures.
+pub fn capture_to(path: &str) {
+    match std::fs::File::create(path) {
+        Ok(file) => {
+            let _ = CAPTURE.set(Mutex::new(file));
+        }
+        Err(e) => {
+            eprintln!("podssh: --capture {path}: {e}");
+            std::process::exit(73);
+        }
+    }
+}
+
+fn capture(bytes: &[u8]) {
+    if let Some(file) = CAPTURE.get() {
+        if let Ok(mut file) = file.lock() {
+            let _ = file.write_all(bytes);
+        }
+    }
+}
 
 /// A forward session as bytes in and bytes out, as `podssh proxy` carries
 /// it: the relay's empty keepalive frames skipped, a Close as the end.
@@ -119,6 +148,7 @@ pub async fn pump_once(runner: &mut LiveRunner, irc: &mut Session, a: &mut Attem
         Err(_) => return PumpOut::Timeout,
     };
     a.payloads += 1;
+    capture(&payload);
     // A payload not ending at a line ending is a message across a frame boundary.
     if !payload.ends_with(b"\n") {
         a.split_seen = true;
@@ -153,6 +183,7 @@ pub fn burst_for(irc: &mut Session, no_cap: bool) -> Vec<podssh_core::irc::Messa
 
 /// One fresh session: the initial burst and the nick-retry rebuild share it.
 pub fn new_session(host: &str, port: u16, nick: String, policy: ReapPolicy) -> Session {
+    capture(format!("# {host}:{port}\r\n").as_bytes());
     Session::new(
         Server {
             host: host.to_string(),
@@ -176,7 +207,10 @@ pub async fn send_all(runner: &mut LiveRunner, msgs: &[podssh_core::irc::Message
 }
 
 pub fn usage() -> ! {
-    eprintln!("usage: live_irc [--bundle <ca-pem>] [--target <host>] [--port <n>] [--nick <nick>] [--no-cap]");
+    eprintln!(
+        "usage: live_irc [--bundle <ca-pem>] [--target <host>] [--port <n>] [--nick <nick>] [--no-cap] \
+         [--capture <file>]"
+    );
     std::process::exit(64);
 }
 

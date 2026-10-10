@@ -171,6 +171,19 @@ fn a_channel_the_server_kicked_us_from_is_forgotten_on_its_own_echo() {
     assert!(s.memory().is_empty(), "a kicked channel is still remembered");
 }
 
+/// The lines that a server writes either way reach the session as their
+/// command (T-094): ngircd's echo of a `JOIN` is a join, and ergo's `PART`
+/// with its reason as a middle leaves one channel, not two.
+#[test]
+fn a_join_echo_and_a_part_in_either_form_reach_the_session() {
+    let mut s = registered();
+    let (_, events) = s.on_bytes(b":alice!~alice@127.0.0.1 JOIN :#t\r\n").expect("short");
+    assert_eq!(events, [Event::Joined { channel: "#t".into() }]);
+    let (_, events) = s.on_bytes(b":alice!~u@mcevjy93nmghu.irc PART #t bye\r\n").expect("short");
+    assert_eq!(events, [Event::Left { channel: "#t".into(), reason: Some("bye".into()) }]);
+    assert!(s.memory().is_empty());
+}
+
 #[test]
 fn a_duplicate_join_is_remembered_once() {
     // **Or a reconnect sends two `JOIN`s for one room** and the user sees

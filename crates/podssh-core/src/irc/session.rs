@@ -23,7 +23,7 @@
 //! registration until the client ends the negotiation, so the answer to the
 //! request ends it ([`crate::irc::cap`], T-091).
 
-use crate::irc::cap::Negotiation;
+use crate::irc::cap::{Negotiation, Stage};
 use crate::irc::isupport::Isupport;
 use crate::irc::message::{Command, Message, Prefix, Trailing};
 use crate::irc::numeric::Numeric as Code;
@@ -290,7 +290,7 @@ impl Session {
             .map(|token| Message {
                 tags: Vec::new(),
                 prefix: None,
-                command: Command::Pong { token: Some(Trailing::new(token)) },
+                command: Command::Pong { server: None, token: Some(Trailing::new(token)) },
             })
             .collect()
     }
@@ -339,6 +339,12 @@ impl Session {
                 }
                 if code == Code::RplWelcome as u16 {
                     self.registered = Registered::Yes;
+                    // A server with `CAP` holds the welcome until `CAP END`, so
+                    // a welcome before any answer to `CAP LS` is a server with
+                    // none: InspIRCd 4 with no cap module answers nothing.
+                    if self.negotiation.stage() == Stage::LsSent {
+                        self.negotiation.unsupported();
+                    }
                 }
                 events.push(Event::Numeric { code, text: message.command.trailing().map(|t| t.as_str().to_string()) });
             }
@@ -350,7 +356,7 @@ impl Session {
                     }
                 }
             }
-            Command::Part { channels, reason } => {
+            Command::Part { channels, reason, .. } => {
                 for channel in channels {
                     self.memory.forget(&channel.0);
                     events.push(Event::Left {

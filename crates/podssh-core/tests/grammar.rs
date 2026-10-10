@@ -9,7 +9,7 @@
 
 mod common;
 
-use podssh_core::irc::message::{Command, Message, Prefix};
+use podssh_core::irc::message::{Command, Message, Prefix, Trailing};
 
 const FIXTURE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/grammar.txt");
 
@@ -147,7 +147,7 @@ fn a_user_message_keeps_its_unused_parameter() {
 #[test]
 fn a_join_of_two_channels_is_one_message() {
     let m = Message::parse(":alice!u@host JOIN #one,#two").unwrap();
-    let Command::Join { channels, key } = &m.command else { panic!("expected a JOIN") };
+    let Command::Join { channels, key, .. } = &m.command else { panic!("expected a JOIN") };
     assert_eq!(channels.len(), 2);
     assert_eq!(channels[0].as_str(), "#one");
     assert_eq!(channels[1].as_str(), "#two");
@@ -212,6 +212,122 @@ fn a_malformed_line_is_an_error_and_not_a_message() {
             ParseError::NotUtf8 => "NotUtf8",
         };
         assert_eq!(name, want, "{line:?} failed as {name}, not {want}: {err}");
+    }
+}
+
+/// The text of each field, for the tests of the trailing forms.
+fn values(fields: &[podssh_core::irc::message::Middle]) -> Vec<&str> {
+    fields.iter().map(|m| m.as_str()).collect()
+}
+
+fn text(field: &Option<Trailing>) -> Option<&str> {
+    field.as_ref().map(|t| t.as_str())
+}
+
+/// **The last parameter comes with or without its `:`** (T-094), and a field
+/// reads the same either way. The lines are what ngircd 27, ergo 2.18.0 and
+/// InspIRCd 4.11.0 sent (the fixture's captured part); each encodes back to
+/// itself.
+#[test]
+fn the_trailing_forms_of_join_nick_and_privmsg_parse() {
+    let parse = |line: &str| {
+        let m = Message::parse(line).unwrap_or_else(|e| panic!("{line}: {e}"));
+        assert_eq!(m.to_line(), line);
+        m
+    };
+    for line in [":pa!~pa@127.0.0.1 JOIN :#t", ":pa!pa@127.0.0.1 JOIN :#t", ":pa!~u@mcevjy93nmghu.irc JOIN #t"] {
+        let Command::Join { channels, key, .. } = parse(line).command else { panic!("{line}: not a JOIN") };
+        assert_eq!((values(&channels), key), (vec!["#t"], None), "{line}");
+    }
+    for line in [":pa!~pa@127.0.0.1 NICK :pa2", ":pa!~u@mcevjy93nmghu.irc NICK pa2"] {
+        let Command::Nick { nickname, .. } = parse(line).command else { panic!("{line}: not a NICK") };
+        assert_eq!(nickname.as_str(), "pa2", "{line}");
+    }
+    for line in [":pb!~pb@127.0.0.1 PART #t :bye", ":pb!~u@mcevjy93nmghu.irc PART #t bye"] {
+        let Command::Part { channels, reason, .. } = parse(line).command else { panic!("{line}: not a PART") };
+        assert_eq!((values(&channels), text(&reason)), (vec!["#t"], Some("bye")), "{line}: bye is no channel");
+    }
+    for line in [":pa!~pa@127.0.0.1 TOPIC #t :newtopic", ":pa!~u@mcevjy93nmghu.irc TOPIC #t newtopic"] {
+        let Command::Topic { channel, topic } = parse(line).command else { panic!("{line}: not a TOPIC") };
+        assert_eq!((channel.as_str(), text(&topic)), ("#t", Some("newtopic")), "{line}");
+    }
+    for (line, want) in
+        [(":pa2!~u@mcevjy93nmghu.irc QUIT Quit", "Quit"), (":pb!~u@mcevjy93nmghu.irc QUIT :Quit: done", "Quit: done")]
+    {
+        let Command::Quit { reason } = parse(line).command else { panic!("{line}: not a QUIT") };
+        assert_eq!(text(&reason), Some(want), "{line}");
+    }
+    for (line, target, flags) in [
+        (":pa!~pa@127.0.0.1 MODE #t +k secret", "#t", vec!["+k", "secret"]),
+        (":pa!pa@127.0.0.1 MODE #t +k :secret", "#t", vec!["+k", "secret"]),
+        (":pa2!~pa@127.0.0.1 MODE pa2 :+i", "pa2", vec!["+i"]),
+    ] {
+        let Command::Mode { target: t, flags: f, .. } = parse(line).command else { panic!("{line}: not a MODE") };
+        assert_eq!((t.as_str(), values(&f)), (target, flags), "{line}");
+    }
+    // No server measured writes a text without its colon, and a client may:
+    // the text is the second parameter either way.
+    for line in [":a!u@h PRIVMSG #c word", ":a!u@h NOTICE #c word", ":pa!~pa@127.0.0.1 PRIVMSG #t :word"] {
+        let (Command::Privmsg { target, text } | Command::Notice { target, text }) = parse(line).command else {
+            panic!("{line}: not a PRIVMSG or a NOTICE")
+        };
+        assert_eq!((target.as_str(), text.as_str()), (line.split(' ').nth(2).unwrap(), "word"), "{line}");
+    }
+}
+
+/// A server answers a client's `PING` with its own name, then the token:
+/// what ngircd 27, InspIRCd 4.11.0 and ergo 2.18.0 answered to `PING :tok123`.
+#[test]
+fn a_server_s_pong_names_the_server_then_the_token() {
+    for (line, server) in [
+        (":irc.ngircd.test PONG irc.ngircd.test :tok123", "irc.ngircd.test"),
+        (":irc.inspircd.test PONG irc.inspircd.test :tok123", "irc.inspircd.test"),
+        (":ergo.test PONG ergo.test tok123", "ergo.test"),
+    ] {
+        let m = Message::parse(line).unwrap_or_else(|e| panic!("{line}: {e}"));
+        let Command::Pong { server: s, token } = &m.command else { panic!("{line}: {:?}", m.command) };
+        assert_eq!((s.as_ref().map(|s| s.as_str()), text(token)), (Some(server), Some("tok123")), "{line}");
+        assert_eq!(m.to_line(), line);
+    }
+    let own = Message::parse("PONG :aBcD1234").unwrap();
+    assert!(matches!(&own.command, Command::Pong { server: None, .. }), "{:?}", own.command);
+}
+
+#[test]
+fn a_parsed_join_keeps_its_key() {
+    for (line, channels, key) in [
+        ("JOIN #c key", vec!["#c"], Some("key")),
+        ("JOIN #c :key", vec!["#c"], Some("key")),
+        ("JOIN #a,#b k1,k2", vec!["#a", "#b"], Some("k1,k2")),
+        ("JOIN #c", vec!["#c"], None),
+    ] {
+        let m = Message::parse(line).unwrap();
+        let Command::Join { channels: c, key: k, .. } = &m.command else { panic!("{line}: not a JOIN") };
+        assert_eq!((values(c), k.as_deref()), (channels, key), "{line}");
+        assert_eq!(m.to_line(), line);
+    }
+    // podssh writes the key as a middle.
+    let written = podssh_core::irc::join_message("#c", Some("key"));
+    assert_eq!(written.to_wire().unwrap(), "JOIN #c key\r\n");
+}
+
+/// A known command with more parameters than its grammar is kept whole: no
+/// field reads a parameter that is not its own, and it encodes to its bytes.
+/// `extended-join`'s account and real name would otherwise be a key.
+#[test]
+fn a_known_command_with_more_parameters_than_its_grammar_is_kept_whole() {
+    for line in [
+        ":a!u@h JOIN #c account :Real Name",
+        ":a!u@h PRIVMSG #c word more",
+        ":a!u@h PART #c bye now",
+        ":a!u@h NICK b 1",
+        ":a!u@h QUIT bye now",
+        ":irc.example.org PONG irc.example.org a :token",
+    ] {
+        let m = Message::parse(line).unwrap_or_else(|e| panic!("{line}: {e}"));
+        let name = line.split(' ').nth(1).unwrap();
+        assert!(matches!(&m.command, Command::Unknown { name: n, .. } if n == name), "{line}: {:?}", m.command);
+        assert_eq!(m.to_line(), line);
     }
 }
 

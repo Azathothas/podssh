@@ -92,7 +92,9 @@ fn nul_cr_or_lf_in_each_parameter_is_refused() {
         ("parameter 2 of JOIN", Box::new(|v| podssh_core::irc::join_message("#c", Some(&format!("key{v}"))))),
         (
             "parameter 1 of PART",
-            Box::new(|v| message(Command::Part { channels: vec![Middle(format!("#c{v}"))], reason: None })),
+            Box::new(|v| {
+                message(Command::Part { channels: vec![Middle(format!("#c{v}"))], reason: None, colon: false })
+            }),
         ),
         (
             "the trailing of PART",
@@ -100,6 +102,7 @@ fn nul_cr_or_lf_in_each_parameter_is_refused() {
                 message(Command::Part {
                     channels: vec![Middle("#c".into())],
                     reason: Some(Trailing::new(format!("bye{v}"))),
+                    colon: false,
                 })
             }),
         ),
@@ -114,7 +117,10 @@ fn nul_cr_or_lf_in_each_parameter_is_refused() {
             }),
         ),
         ("the trailing of QUIT", Box::new(|v| Session::quit(&format!("bye{v}")))),
-        ("the trailing of PONG", Box::new(|v| message(Command::Pong { token: Some(Trailing::new(format!("t{v}"))) }))),
+        (
+            "the trailing of PONG",
+            Box::new(|v| message(Command::Pong { server: None, token: Some(Trailing::new(format!("t{v}"))) })),
+        ),
         ("parameter 1 of NICK", Box::new(|v| nick_message(&format!("alice{v}")))),
         ("parameter 1 of USER", Box::new(move |v| user_message(&with(|s, v| s.username += &v, v)))),
         ("the trailing of USER", Box::new(move |v| user_message(&with(|s, v| s.realname += &v, v)))),

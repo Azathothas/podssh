@@ -3,7 +3,7 @@
 `podssh chat` lets two users on constrained hosts talk and exchange files.
 podssh speaks IRC itself, and the relay carries the bytes, as for SSH. No
 command uses the client yet. The client has known defects
-([TODO/irc.md](../TODO/irc.md), T-092 and T-094 to T-098): among them, it
+([TODO/irc.md](../TODO/irc.md), T-092 and T-095 to T-098): among them, it
 sends plain text through the relay. Since T-091 the registration finishes on
 a server that holds it until `CAP END`: measured with ngircd 27 on the
 loopback of the build image, 2026-10-10.
@@ -47,3 +47,10 @@ test on the public networks again is the operator's question Q39.
 - A caller's text never changes a line: a CR, LF or NUL is refused, and so
   is a space in a target or a channel. podssh never removes a character, and
   never splits a message (T-093).
+- A server writes a command's last parameter with or without its colon, as
+  it chooses: ngircd 27 and InspIRCd 4 write `JOIN :#t` and `NICK :b`, ergo
+  2.18 `JOIN #t`, `PART #t bye` and `QUIT Quit` (measured 2026-10-10). podssh
+  reads each field by its place, and keeps a line with more parameters than
+  its command has whole (T-094).
+- A server with no `CAP` answers `421`, or nothing at all (InspIRCd 4 with no
+  cap module); its welcome then ends the negotiation (T-094).

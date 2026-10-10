@@ -62,7 +62,11 @@ impl ChannelMemory {
 }
 
 pub fn nick_message(nick: &str) -> Message {
-    Message { tags: Vec::new(), prefix: None, command: Command::Nick { nickname: Middle(nick.to_string()) } }
+    Message {
+        tags: Vec::new(),
+        prefix: None,
+        command: Command::Nick { nickname: Middle(nick.to_string()), colon: false },
+    }
 }
 
 /// `USER <user> <mode> <unused> :<realname>` **with the `<unused>`
@@ -85,6 +89,10 @@ pub fn join_message(channel: &str, key: Option<&str>) -> Message {
     Message {
         tags: Vec::new(),
         prefix: None,
-        command: Command::Join { channels: vec![Middle(channel.to_string())], key: key.map(|k| k.to_string()) },
+        command: Command::Join {
+            channels: vec![Middle(channel.to_string())],
+            key: key.map(|k| k.to_string()),
+            colon: false,
+        },
     }
 }

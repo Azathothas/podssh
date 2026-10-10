@@ -25,7 +25,7 @@ impl Command {
             Command::Privmsg { target, .. } | Command::Notice { target, .. } => {
                 vec![target.clone()]
             }
-            Command::Join { channels, key } => {
+            Command::Join { channels, key, .. } => {
                 // RFC 2812 §4.2.1 writes the channels comma-separated and the
                 // key list after a comma too, so re-encoding one JOIN produces
                 // one JOIN and not two.
@@ -43,7 +43,7 @@ impl Command {
             }
             Command::Topic { channel, .. } => vec![channel.clone()],
             Command::Names { channels } | Command::List { channels } => channels.clone(),
-            Command::Mode { target, flags } => {
+            Command::Mode { target, flags, .. } => {
                 let mut out = vec![target.clone()];
                 out.extend(flags.iter().cloned());
                 out
@@ -77,13 +77,26 @@ impl Command {
             // **A `PONG`'s token is the trailing, not a middle** — it
             // answers a `PING`, and a `PING`'s token is the trailing.
             // Writing it as a middle as well turns `PONG :aBcD1234` into
-            // `PONG aBcD1234`.
-            Command::Pong { .. } => Vec::new(),
-            Command::Nick { nickname } => vec![nickname.clone()],
+            // `PONG aBcD1234`. A server's answer names the server first.
+            Command::Pong { server, .. } => server.iter().cloned().collect(),
+            Command::Nick { nickname, .. } => vec![nickname.clone()],
             Command::User { user, mode, unused, .. } => {
                 vec![user.clone(), mode.clone(), unused.clone()]
             }
             Command::Unknown { params, .. } => params.clone(),
+        }
+    }
+
+    /// **Whether the last parameter is written with its `:`** where it sits
+    /// in a middle field: see `colon` on [`Command::Join`]. A trailing field
+    /// keeps its own (see [`Trailing`]).
+    pub fn last_colon(&self) -> bool {
+        match self {
+            Command::Join { colon, .. }
+            | Command::Part { colon, .. }
+            | Command::Mode { colon, .. }
+            | Command::Nick { colon, .. } => *colon,
+            _ => false,
         }
     }
 
@@ -137,7 +150,7 @@ pub(crate) fn trailing_of(command: &Command) -> Option<&Trailing> {
         // **A `PONG` is written from its trailing, like every other
         // command**, so the token arrives with its `:` and is echoed byte for
         // byte. This is the whole of the entry's PING/PONG plant.
-        Command::Pong { token } => token.as_ref(),
+        Command::Pong { token, .. } => token.as_ref(),
         Command::Cap { trailing, .. } => trailing.as_ref(),
         Command::Unknown { trailing, .. } => trailing.as_ref(),
         // A numeric's text lives on its `Replies`. Returning it from

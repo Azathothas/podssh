@@ -75,6 +75,20 @@ fn cap_end_is_not_sent_after_a_421_for_cap() {
     assert!(matches!(other.registered(), Registered::Refused(_)), "{:?}", other.registered());
 }
 
+/// InspIRCd 4 with no cap module answers nothing to `CAP LS`, not even `421`,
+/// and welcomes the client (captured on 2026-10-10): the negotiation ends
+/// there, with no `CAP END`.
+#[test]
+fn a_welcome_before_any_answer_to_cap_ls_ends_the_negotiation() {
+    let mut s = Session::new(server(), ReapPolicy::default());
+    let _ = s.initial_burst();
+    let welcome = b":irc.inspircd.test 001 pq :Welcome to the PodTest IRC Network pq!pq@127.0.0.1\r\n";
+    let lines = answer(&mut s, welcome);
+    assert!(lines.is_empty(), "no CAP END to a server with no CAP: {lines:?}");
+    assert_eq!(s.registered(), Registered::Yes);
+    assert_eq!(s.negotiation().stage(), Stage::Ended);
+}
+
 /// A server's `CAP` names its target, `*` or the client's nick, before the
 /// verb; ngircd names the nick in its `ACK`. Each reads as its verb, and
 /// goes back out as it came.

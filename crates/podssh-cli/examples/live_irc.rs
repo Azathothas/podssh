@@ -23,7 +23,7 @@ use podssh_relay::relay::{self, RelayList};
 use podssh_ws::Trust;
 use support::{Attempt, LiveRunner, PumpOut};
 
-use support::{burst_for, log_numerics, new_session, pump_once, random_hex6, send_all, usage};
+use support::{burst_for, capture_to, log_numerics, new_session, pump_once, random_hex6, send_all, usage};
 
 const REAPER_MS: u64 = 180_000;
 
@@ -76,6 +76,7 @@ async fn main() {
             // probe id both sides share; `--role send|listen` picks the half.
             "--pair" => pair_id = argv.next(),
             "--role" => role_arg = argv.next(),
+            "--capture" => capture_to(&argv.next().unwrap_or_else(|| usage())),
             _ => usage(),
         }
     }

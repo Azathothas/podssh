@@ -78,7 +78,11 @@ impl Session {
         Ok(vec![Message {
             tags: Vec::new(),
             prefix: None,
-            command: Command::Part { channels: vec![Middle(channel.to_string())], reason: reason.map(Trailing::new) },
+            command: Command::Part {
+                channels: vec![Middle(channel.to_string())],
+                reason: reason.map(Trailing::new),
+                colon: false,
+            },
         }])
     }
 

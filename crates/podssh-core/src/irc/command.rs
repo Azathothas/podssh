@@ -14,6 +14,15 @@
 //! * A **variable-arity** command — `CAP`, anything unknown — keeps its
 //!   parameters as a list. Flattening those into a tuple would mean picking
 //!   an arity, and the arity belongs to the peer, not to podssh.
+//!
+//! **Each field is read by its place in one list**: the middles, then the
+//! trailing. The last parameter comes with or without its `:`, as each
+//! server chooses: measured on 2026-10-10, ngircd 27 and InspIRCd 4 write
+//! `JOIN :#t` and `NICK :pa2`, and ergo 2.18 writes `JOIN #t`, `PART #t bye`
+//! and `QUIT Quit`. A parser that wants a middle here and a trailing there
+//! drops one server's lines, or reads a reason as a channel. A known command
+//! with more parameters than its grammar is kept whole, as `Unknown`, so no
+//! field reads a parameter that is not its own.
 
 use crate::irc::message::{CapVerb, Command, Middle, ParseError, Trailing};
 
@@ -26,75 +35,94 @@ pub fn parse_command(params: Vec<String>, trailing: Option<(String, bool)>) -> R
     let name = params.first().cloned().unwrap_or_default();
     let middles: Vec<Middle> = params[1..].iter().map(|p| Middle(p.clone())).collect();
     let trail = trailing.map(|(value, colon)| Trailing::as_written(value, colon));
-    let take_middle = |i: usize| -> Middle { middles.get(i).cloned().unwrap_or_else(|| Middle(String::new())) };
+    let all: Vec<Trailing> =
+        middles.iter().map(|m| Trailing::as_written(m.0.clone(), false)).chain(trail.clone()).collect();
+    // The last parameter came with its `:`; a middle field keeps that here.
+    let colon = trail.as_ref().is_some_and(|t| t.colon);
+    let middle = |i: usize| -> Middle { Middle(all.get(i).map(|t| t.value.clone()).unwrap_or_default()) };
     let arity = |need: usize| -> Result<(), ParseError> {
-        if middles.len() < need {
-            Err(ParseError::TooFewParams { command: name.clone(), need, got: middles.len() })
+        if all.len() < need {
+            Err(ParseError::TooFewParams { command: name.clone(), need, got: all.len() })
         } else {
             Ok(())
         }
     };
+    // RFC 2812 §4.2.1: `JOIN <channel>{,<channel>} [,<key>]`. One JOIN
+    // carries every channel the client joins at once, and splitting on ','
+    // here means a client asking for ten channels sends one message rather
+    // than ten. `PART` writes its channels the same way.
+    let channels = |i: usize| -> Vec<Middle> {
+        all.get(i)
+            .map(|t| t.value.split(',').filter(|s| !s.is_empty()).map(|c| Middle(c.to_string())).collect())
+            .unwrap_or_default()
+    };
+    let whole = Command::Unknown { name: name.clone(), params: middles.clone(), trailing: trail.clone() };
 
     Ok(match name.as_str() {
-        "PRIVMSG" => {
+        "PRIVMSG" | "NOTICE" => {
             arity(1)?;
-            let text = trail.ok_or_else(|| ParseError::MissingTrailing { command: name.clone() })?;
-            Command::Privmsg { target: take_middle(0), text }
-        }
-        "NOTICE" => {
-            arity(1)?;
-            let text = trail.ok_or_else(|| ParseError::MissingTrailing { command: name.clone() })?;
-            Command::Notice { target: take_middle(0), text }
+            if all.len() > 2 {
+                return Ok(whole);
+            }
+            // No server measured writes the text without its `:`, and a
+            // client may: the text is the second parameter either way.
+            let text = all.get(1).cloned().ok_or_else(|| ParseError::MissingTrailing { command: name.clone() })?;
+            if name == "PRIVMSG" {
+                Command::Privmsg { target: middle(0), text }
+            } else {
+                Command::Notice { target: middle(0), text }
+            }
         }
         "JOIN" => {
             arity(1)?;
-            // RFC 2812 §4.2.1: `JOIN <channel>{,<channel>} [,<key>]`. One
-            // JOIN carries every channel the client joins at once, and splitting
-            // on ',' here means a client asking for ten channels sends one
-            // message rather than ten.
-            let mut channels = Vec::new();
-            let mut keys = Vec::new();
-            for param in middles[0].0.split(',').filter(|s| !s.is_empty()) {
-                channels.push(Middle(param.to_string()));
+            // A third parameter is `extended-join`'s account and real name,
+            // which podssh does not ask for; read as keys, the real name
+            // would be a key.
+            if all.len() > 2 {
+                return Ok(whole);
             }
-            if let Some(trail) = trail {
-                for key in trail.as_str().split(',').filter(|s| !s.is_empty()) {
-                    keys.push(key.to_string());
-                }
-            }
-            Command::Join { channels, key: (!keys.is_empty()).then(|| keys.join(",")) }
+            Command::Join { channels: channels(0), key: all.get(1).map(|t| t.value.clone()), colon }
         }
         "PART" => {
             arity(1)?;
-            let mut channels = Vec::new();
-            for param in middles[0].0.split(',').filter(|s| !s.is_empty()) {
-                channels.push(Middle(param.to_string()));
+            if all.len() > 2 {
+                return Ok(whole);
             }
-            for extra in middles.iter().skip(1) {
-                for param in extra.0.split(',').filter(|s| !s.is_empty()) {
-                    channels.push(Middle(param.to_string()));
-                }
-            }
-            Command::Part { channels, reason: trail }
+            // ergo writes `PART #t bye`: the second parameter is the reason
+            // with or without its `:`, never a second channel.
+            let reason = all.get(1).cloned();
+            Command::Part { channels: channels(0), colon: colon && reason.is_none(), reason }
         }
         "TOPIC" => {
             arity(1)?;
-            Command::Topic { channel: take_middle(0), topic: trail }
+            if all.len() > 2 {
+                return Ok(whole);
+            }
+            Command::Topic { channel: middle(0), topic: all.get(1).cloned() }
         }
-        "NAMES" => Command::Names { channels: middles },
-        "LIST" => Command::List { channels: middles },
+        "NAMES" => Command::Names { channels: all.iter().map(|t| Middle(t.value.clone())).collect() },
+        "LIST" => Command::List { channels: all.iter().map(|t| Middle(t.value.clone())).collect() },
         "MODE" => {
             arity(1)?;
-            // **Mode flags are middles, never a trailing.** RFC 2812
-            // §4.2.2 writes `MODE <channel> {[+|-]|o|p|s|i|t|n|b|v} [limit]
-            // [user] [mask]`, and a flag list can be **followed by more
-            // middles** — `MODE #c +o alice +v bob`. Taking only the
-            // first would drop every flag after the first space, and taking
-            // the tail as a trailing would re-emit `+o alice +v bob` with a `:`
-            // in front of it, which a server parses as one parameter.
-            Command::Mode { target: take_middle(0), flags: middles[1..].to_vec() }
+            // **Mode flags are middles.** RFC 2812 §4.2.2 writes `MODE
+            // <channel> {[+|-]|o|p|s|i|t|n|b|v} [limit] [user] [mask]`, and a
+            // flag list can be **followed by more middles** — `MODE #c +o
+            // alice +v bob`. Taking only the first would drop every flag after
+            // the first space. The last may come as the trailing: InspIRCd
+            // writes `MODE #t +k :secret`, and ngircd `MODE pa2 :+i`.
+            Command::Mode {
+                target: middle(0),
+                flags: all[1..].iter().map(|t| Middle(t.value.clone())).collect(),
+                colon,
+            }
         }
-        "QUIT" => Command::Quit { reason: trail },
+        "QUIT" => {
+            if all.len() > 1 {
+                return Ok(whole);
+            }
+            // ergo writes `QUIT Quit`.
+            Command::Quit { reason: all.first().cloned() }
+        }
         "PING" => {
             // **The token is a trailing and nothing else.** RFC 2812 §2.3.2
             // allows `PING <server1> [<server2>]` with *no* trailing, and a
@@ -115,10 +143,21 @@ pub fn parse_command(params: Vec<String>, trailing: Option<(String, bool)>) -> R
             };
             Command::Ping { token }
         }
-        "PONG" => Command::Pong { token: trail },
+        "PONG" => {
+            if all.len() > 2 {
+                return Ok(whole);
+            }
+            // The token is the last parameter; a server's answer names the
+            // server before it.
+            let server = (all.len() == 2).then(|| middle(0));
+            Command::Pong { server, token: all.last().cloned() }
+        }
         "NICK" => {
             arity(1)?;
-            Command::Nick { nickname: take_middle(0) }
+            if all.len() > 1 {
+                return Ok(whole);
+            }
+            Command::Nick { nickname: middle(0), colon }
         }
         "USER" => {
             // RFC 1459 §4.1.2: `USER <user> <mode> <unused> :<realname>`.
@@ -127,8 +166,11 @@ pub fn parse_command(params: Vec<String>, trailing: Option<(String, bool)>) -> R
             // grammar needs five, which some servers answer with
             // `ERR_NEEDMOREPARAMS` during registration and nothing else.
             arity(3)?;
-            let realname = trail.ok_or_else(|| ParseError::MissingTrailing { command: name.clone() })?;
-            Command::User { user: take_middle(0), mode: take_middle(1), unused: take_middle(2), realname }
+            if all.len() > 4 {
+                return Ok(whole);
+            }
+            let realname = all.get(3).cloned().ok_or_else(|| ParseError::MissingTrailing { command: name.clone() })?;
+            Command::User { user: middle(0), mode: middle(1), unused: middle(2), realname }
         }
         "CAP" => {
             // **`CAP * <verb>` keeps its `*`, and that is a fact about the
@@ -183,6 +225,6 @@ pub fn parse_command(params: Vec<String>, trailing: Option<(String, bool)>) -> R
         // Anything else is kept whole. An IRC client that errors on `AWAY`, on
         // `ACCOUNT` or on a vendor extension is a client that breaks when the
         // peer adds a command, which is every vendor and every network.
-        _ => Command::Unknown { name, params: middles, trailing: trail },
+        _ => whole,
     })
 }
