@@ -25,6 +25,7 @@ use podssh_ts::wait::{Deadline, FIRST_MAP_WAIT};
 use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
 use crate::pager::Tty;
 
+pub mod links;
 pub mod probe;
 
 /// The `ts` inputs, straight from `Parsed::Ts` — plain data, no fork types.
@@ -198,6 +199,10 @@ async fn ts_async(
         Ok(m) => m,
         Err(code) => return code,
     };
+    // A drop of a link, and its return, are said on stderr while the node runs, from its start
+    // on: a start that waits says why (T-104).
+    let (link_events, changes) = tokio::sync::broadcast::channel(64);
+    let printer = tokio::spawn(links::print(changes));
     let cfg = podssh_ts::config::TsConfig {
         state_file: state_path.into(),
         control_url: None,
@@ -206,6 +211,9 @@ async fn ts_async(
         mode: selected,
         proxy_url: proxy.as_ref().map(podssh_ts::config::TsProxy::url),
         no_proxy: proxy.and_then(|p| p.no_proxy),
+        // While it waits for its key's admission, a refused node dials again (T-104).
+        retry_refused: wait.is_some(),
+        link_events: Some(link_events),
     };
 
     let started = if let Some(left) = deadline.remaining() {
@@ -238,6 +246,7 @@ async fn ts_async(
         status_form(&node, out, err, deadline, window, wait.is_some(), a.jsonl).await
     };
     // Each form ends here, after an error too (T-102).
+    printer.abort();
     end(node, err).await;
     code
 }

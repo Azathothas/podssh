@@ -42,6 +42,16 @@ pub enum Error {
     Http,
 }
 
+impl Error {
+    /// The WebSocket close that ended the connection, when one did (podssh's patch 0019).
+    pub fn ws_close(&self) -> Option<&crate::ws::WsClose> {
+        match self {
+            Error::IoFailure(e) => e.get_ref()?.downcast_ref(),
+            _ => None,
+        }
+    }
+}
+
 impl From<ts_http_util::Error> for Error {
     fn from(_: ts_http_util::Error) -> Self {
         Error::Http

@@ -47,6 +47,11 @@ pub struct Config {
     /// every outbound TCP path through CONNECT. podssh-ts feeds this from
     /// `TsConfig`; a device that names no options runs exactly as before.
     pub options: ts_runtime::options::RuntimeOptions,
+
+    /// Where the changes of the node's links go (podssh's patch 0019): a caller that hands its
+    /// own channel here hears those of the start too, before [`crate::Device::new`] returns.
+    /// `None` gives the device a channel of its own.
+    pub link_events: Option<tokio::sync::broadcast::Sender<crate::LinkEvent>>,
 }
 
 impl Config {
@@ -138,6 +143,7 @@ impl Default for Config {
             requested_tags: vec![],
             ephemeral: false,
             options: Default::default(),
+            link_events: None,
         }
     }
 }

@@ -97,6 +97,12 @@ pub type DefaultClient = Client<DefaultIo>;
 pub struct Client<Io> {
     read_conn: Mutex<FramedRead<ReadHalf<Io>, frame::Codec>>,
     write_conn: Mutex<FramedWrite<WriteHalf<Io>, frame::Codec>>,
+    /// When the last frame of any kind came: the link's liveness (podssh's patch 0019).
+    heard: std::sync::Mutex<tokio::time::Instant>,
+    /// Pongs received: the server answers pings, so its silence means a dead link.
+    pongs: std::sync::atomic::AtomicU64,
+    /// Pings sent, which give each ping its payload.
+    pings: std::sync::atomic::AtomicU64,
 }
 
 /// Establish and upgrade a http connection to the derp region, in the given mode.
@@ -221,6 +227,9 @@ where
         Ok(Self {
             read_conn: Mutex::new(fr),
             write_conn: Mutex::new(fw),
+            heard: std::sync::Mutex::new(tokio::time::Instant::now()),
+            pongs: Default::default(),
+            pings: Default::default(),
         })
     }
 
@@ -254,6 +263,27 @@ where
         Ok(())
     }
 
+    /// Send a ping, which the server answers with a pong (podssh's patch 0019).
+    pub async fn send_ping(&self) -> Result<(), Error> {
+        let n = self
+            .pings
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        self.send_frame(&Ping {
+            payload: n.to_be_bytes(),
+        })
+        .await
+    }
+
+    /// When the last frame of any kind came, as [`Client::recv_one`] read it.
+    pub fn last_heard(&self) -> tokio::time::Instant {
+        *self.heard.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// How many pongs have come.
+    pub fn pongs(&self) -> u64 {
+        self.pongs.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     /// Waits for a single data packet from a peer to arrive via this DERP server and returns it.
     /// DERP control messages (KeepAlive, Ping, etc) are handled inline and are not returned.
     pub async fn recv_one(&self) -> Result<(NodePublicKey, PacketMut), Error> {
@@ -270,6 +300,7 @@ where
                 })??
             };
             let frame = frame.get();
+            *self.heard.lock().unwrap_or_else(|e| e.into_inner()) = tokio::time::Instant::now();
 
             match frame.header.typ {
                 // TODO (dylan): handle other control message types
@@ -292,6 +323,13 @@ where
                     self.send_frame(&pong).await?;
 
                     tracing::trace!(payload = ?pong.payload, "pong");
+                }
+                // The answer to `send_ping` (podssh's patch 0019): it counts, and
+                // it was an error before, which ended the connection.
+                FrameType::Pong => {
+                    self.pongs
+                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    tracing::trace!("pong");
                 }
                 FrameType::PeerGone => {
                     let (gone, _rest) = frame.as_type::<PeerGone>().unwrap();

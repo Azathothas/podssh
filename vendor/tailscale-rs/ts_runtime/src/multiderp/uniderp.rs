@@ -26,6 +26,7 @@ use crate::{
     env::Env,
     multiderp::{Multiderp, SetRegionTransportId},
     peer_tracker::{PeerDb, PeerState},
+    reconnect::{self, Ended, Heard, Link, LinkChange, LinkKind},
     task::ErasedTask,
 };
 
@@ -69,10 +70,12 @@ impl Uniderp {
     }
 }
 
+/// Keep the region's link up (podssh's patch 0019): it ended at its first error, and the region
+/// stayed with no connection until its map changed. Only a refusal of this node's key ends it.
 async fn start_runner(mut runner: Runner) {
-    if let Err(e) = runner.run().await {
-        tracing::error!(error = %e, region_id = %runner.region_id, "running derp client");
-    }
+    let policy = runner.env.options.reconnect.clone();
+    let reason = reconnect::keep(&mut runner, &policy).await;
+    tracing::error!(%reason, region_id = %runner.region_id, "the DERP server refused this node's key; not dialling again");
 }
 
 impl kameo::Actor for Uniderp {
@@ -80,7 +83,10 @@ impl kameo::Actor for Uniderp {
     type Error = crate::Error;
 
     async fn on_start(args: Self::Args, slf: ActorRef<Self>) -> Result<Self, Self::Error> {
-        let (home_derp_tx, home_derp_rx) = watch::channel(false);
+        // With a pin, this runner is the node's only DERP link, the relay's, for each region
+        // (podssh's patch 0019): it stays up as home does.
+        let pinned = args.env.options.derp_pin().is_some();
+        let (home_derp_tx, home_derp_rx) = watch::channel(pinned);
 
         let (transport_id, from_dataplane, to_dataplane) = args
             .env
@@ -108,6 +114,7 @@ impl kameo::Actor for Uniderp {
             // `RuntimeOptions`, not a second default kept in step by hand.
             connect_mode: args.env.options.derp_mode(),
             derp_pin: args.env.options.derp_pin(),
+            env: args.env.clone(),
         };
 
         let task = Task::spawn_link(&slf, start_runner(runner.clone()).boxed()).await;
@@ -206,6 +213,11 @@ impl Message<DerpLatencyMeasurement> for Uniderp {
     type Reply = ();
 
     async fn handle(&mut self, msg: DerpLatencyMeasurement, _ctx: &mut Context<Self, Self::Reply>) {
+        // The pinned runner is home whatever the measurement says.
+        if self.runner_state.derp_pin.is_some() {
+            return;
+        }
+
         let Some(result) = msg.measurement.as_ref().first() else {
             tracing::trace!("received home derp measurement message but none was set");
             return;
@@ -239,19 +251,55 @@ struct Runner {
     /// Pinned `(host, port)` for the DERP socket, or `None` to dial the
     /// region's servers.
     derp_pin: Option<(String, u16)>,
+    /// The policy of a dial after a drop, and the watchers of the link.
+    env: Env,
+}
+
+/// The region's link, as [`reconnect::keep`] runs it.
+impl Link for Runner {
+    type Pending = Option<(DynEndpoint, Vec<PacketMut>)>;
+    type Transport = ts_derp::DefaultClient;
+
+    fn wait(&mut self) -> impl core::future::Future<Output = Self::Pending> + Send {
+        self.wait_for_activity()
+    }
+
+    async fn connect(&mut self, pending: Self::Pending) -> Result<Self::Transport, Ended> {
+        Runner::connect(self, pending)
+            .await
+            .map_err(|e| reconnect::ended_by(&e))
+    }
+
+    async fn run(&mut self, transport: Self::Transport) -> Ended {
+        match self.run_transport(transport).await {
+            Ok(()) => Ended::Quiet,
+            Err(e) => reconnect::ended_by(&e),
+        }
+    }
+
+    fn changed(&mut self, change: LinkChange) {
+        self.env
+            .link_changed(LinkKind::Derp(self.region_id.0.get()), change);
+    }
+}
+
+/// The DERP client's liveness, which [`reconnect::until_silent`] watches.
+impl Heard for ts_derp::DefaultClient {
+    fn last_heard(&self) -> tokio::time::Instant {
+        ts_derp::DefaultClient::last_heard(self)
+    }
+
+    fn pongs(&self) -> u64 {
+        ts_derp::DefaultClient::pongs(self)
+    }
+
+    async fn ping(&self) -> Result<(), String> {
+        self.send_ping().await.map_err(|e| e.to_string())
+    }
 }
 
 impl Runner {
     const INACTIVITY_TIMEOUT: Duration = Duration::from_secs(10);
-
-    #[tracing::instrument(skip_all, fields(region_id = %self.region_id))]
-    async fn run(&mut self) -> Result<(), ts_derp::Error> {
-        loop {
-            let pending = self.wait_for_activity().await;
-            let transport = self.connect(pending).await?;
-            self.run_transport(transport).await?;
-        }
-    }
 
     #[tracing::instrument(skip_all, level = "trace")]
     async fn wait_for_activity(&mut self) -> Option<(DynEndpoint, Vec<PacketMut>)> {
@@ -279,7 +327,7 @@ impl Runner {
     async fn connect(
         &self,
         pending: Option<(DynEndpoint, Vec<PacketMut>)>,
-    ) -> Result<impl UnderlayTransport<Error = ts_derp::Error> + 'static, ts_derp::Error> {
+    ) -> Result<ts_derp::DefaultClient, ts_derp::Error> {
         tracing::trace!("establishing derp connection");
 
         // ⛔ The pin bypasses the region's servers for the socket — but both
@@ -307,10 +355,18 @@ impl Runner {
     #[tracing::instrument(skip_all, fields(transport_id = ?self.transport_id), level = "trace")]
     async fn run_transport(
         &mut self,
-        transport: impl UnderlayTransport<Error = ts_derp::Error>,
+        transport: ts_derp::DefaultClient,
     ) -> Result<(), ts_derp::Error> {
         let mut last_activity = Instant::now();
         let mut from_dataplane = self.from_dataplane.lock().await;
+        // A link that died with no close is known by its silence (podssh's patch 0019); the
+        // pings run across the turns of the loop below.
+        let silent = reconnect::until_silent(
+            &transport,
+            reconnect::PING_EVERY,
+            reconnect::SILENT_ALLOWED,
+        );
+        tokio::pin!(silent);
 
         loop {
             let span = tracing::trace_span!("derp_loop");
@@ -357,6 +413,10 @@ impl Runner {
 
                 _ = self.home_derp_rx.changed() => {
                     tracing::trace!(is_home_derp = *self.home_derp_rx.borrow());
+                },
+
+                why = &mut silent => {
+                    return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, why).into());
                 },
             }
         }

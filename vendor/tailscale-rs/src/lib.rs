@@ -133,6 +133,8 @@ pub use error::{Error, InternalErrorKind};
 #[doc(inline)]
 pub use ts_control::LogoutError;
 #[doc(inline)]
+pub use ts_runtime::reconnect::{LinkChange, LinkEvent, LinkKind};
+#[doc(inline)]
 pub use ts_control::Node as NodeInfo;
 use ts_netstack_smoltcp::{CreateSocket, netcore::Channel};
 use ts_runtime::Spawn;
@@ -152,7 +154,12 @@ pub mod ssh;
 pub struct Device {
     runtime: ts_runtime::ActorRef<ts_runtime::Runtime>,
     channel: Channel,
+    /// Each change of the node's links (podssh's patch 0019).
+    link_events: tokio::sync::broadcast::Sender<LinkEvent>,
 }
+
+/// How many link changes wait for a slow receiver before it misses the oldest.
+const LINK_EVENTS: usize = 64;
 
 /// Whether this node is authorized to join the tailnet.
 pub enum AuthState {
@@ -192,6 +199,10 @@ impl Device {
         );
 
         let keys = (&config.key_state).into();
+        let link_events = config
+            .link_events
+            .clone()
+            .unwrap_or_else(|| tokio::sync::broadcast::channel(LINK_EVENTS).0);
         let rt = ts_runtime::Runtime::spawn(ts_runtime::Config {
             control_config: config.into(),
             // Moved into memory that is cleared on drop, with no copy
@@ -201,6 +212,7 @@ impl Device {
             // ⛔ Fed from `tailscale::Config::options` (patch 0014): stock
             // behavior until podssh-ts feeds non-default options.
             options: config.options.clone(),
+            link_events: Some(link_events.clone()),
         });
 
         rt.wait_for_startup_result()
@@ -215,7 +227,15 @@ impl Device {
         Ok(Self {
             runtime: rt,
             channel,
+            link_events,
         })
+    }
+
+    /// Each change of the node's links from now on: a drop, with the wait before the next
+    /// attempt; a new connection; a refusal of this node's key (podssh's patch 0019). A receiver
+    /// that falls behind misses the oldest changes.
+    pub fn link_events(&self) -> tokio::sync::broadcast::Receiver<LinkEvent> {
+        self.link_events.subscribe()
     }
 
     /// Report whether this node has been authorized to join the tailnet.

@@ -372,6 +372,10 @@ const TS: &[&str] = &[
     "An ephemeral node (--ts-ephemeral) logs out at the end of the run, after an error too, in 5 s at \
      most and after the bound of --timeout: the tailnet then keeps no offline device. A node that is \
      not ephemeral never logs out, so its key, and the relay's allowlist entry for it, stay.",
+    "A link that drops, to the control server or to DERP, is dialled again: after 1 s, 2 s, 4 s and so \
+     on up to 30 s, each by a random factor, and from 1 s again after a link of 60 s; a DERP link that \
+     answered a ping and then says nothing for 30 s is dead. A line on stderr says each drop and each \
+     return. The relay's close 1008 \"not authorized\" ends the link, unless --ts-wait-allowlist is given.",
 ];
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 mod uniderp;
 
 use std::{
-    collections::HashMap,
+    collections::{BTreeSet, HashMap},
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -37,6 +37,13 @@ pub struct Multiderp {
     env: Env,
     debounce_state: DebounceState,
     peer_state: Arc<PeerDb>,
+    /// With a pin, the one runner of every region (podssh's patch 0019): its region, and its
+    /// transport once it has one. A runner for each region would dial the relay with the same
+    /// key, and the relay closes the older of two such sockets, so two active regions would
+    /// replace each other's socket for as long as both were active.
+    pinned: Option<(RegionId, Option<UnderlayTransportId>)>,
+    /// The regions of the last map, which a pin maps to its one runner.
+    regions: BTreeSet<RegionId>,
 }
 
 impl kameo::Actor for Multiderp {
@@ -55,6 +62,8 @@ impl kameo::Actor for Multiderp {
             region_map: Default::default(),
             debounce_state: Default::default(),
             peer_state: Default::default(),
+            pinned: None,
+            regions: Default::default(),
         })
     }
 
@@ -120,6 +129,20 @@ impl Multiderp {
         self.debounce_state.publish_enqueued = true;
     }
 
+    /// With a pin, map each region of the map to the one runner's transport, or none until it
+    /// has one.
+    async fn map_pinned(&mut self, slf: &ActorRef<Self>) {
+        let transport = self.pinned.and_then(|(_, transport)| transport);
+        let map: HashMap<RegionId, UnderlayTransportId> = match transport {
+            Some(transport) => self.regions.iter().map(|region| (*region, transport)).collect(),
+            None => HashMap::new(),
+        };
+        if map != self.region_map {
+            self.region_map = map;
+            self.debounce_map_publish(slf).await;
+        }
+    }
+
     async fn do_map_publish(&mut self) {
         self.env
             .publish(DerpTransportMap(Arc::new(self.region_map.clone())))
@@ -143,6 +166,24 @@ impl Message<Arc<ts_control::StateUpdate>> for Multiderp {
             return;
         };
 
+        if self.env.options.derp_pin().is_some() {
+            self.regions = derp_map.keys().copied().collect();
+            // One runner, as the lowest region of the map, while that region is in it; started
+            // again when it is gone, as for any region.
+            let keep = self
+                .pinned
+                .is_some_and(|(region, _)| self.regions.contains(&region));
+            if !keep {
+                self.pinned = self.regions.first().map(|first| (*first, None));
+            }
+            if let Some((region, _)) = self.pinned {
+                self.ensure_region(ctx.actor_ref(), region, &derp_map[&region])
+                    .await;
+            }
+            self.map_pinned(ctx.actor_ref()).await;
+            return;
+        }
+
         for (id, region) in derp_map {
             self.ensure_region(ctx.actor_ref(), *id, region).await;
         }
@@ -162,6 +203,15 @@ impl Message<SetRegionTransportId> for Multiderp {
         SetRegionTransportId(region, id): SetRegionTransportId,
         _ctx: &mut Context<Self, Self::Reply>,
     ) {
+        // The pinned runner's transport serves each region.
+        if let Some((pinned, transport)) = &mut self.pinned
+            && *pinned == region
+        {
+            *transport = id;
+            self.map_pinned(_ctx.actor_ref()).await;
+            return;
+        }
+
         let pre = self.region_map.get(&region).copied();
 
         match id {

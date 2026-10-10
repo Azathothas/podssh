@@ -12,6 +12,9 @@ use std::time::Duration;
 use crate::config::{ConfigError, TsConfig};
 use crate::status::StatusFacts;
 
+/// The changes of the node's links, as the fork tells them (T-104).
+pub use tailscale::{LinkChange, LinkEvent, LinkKind};
+
 /// Convert the owned selection to fork types at the boundary. The proxy URL
 /// parses via the fork's own `ProxyConfig::from_url`, so the dialer and this
 /// validator never disagree on what a URL means.
@@ -27,6 +30,8 @@ pub fn selection_to_options(
         },
         // The fork's own reading of the URL, with its `no_proxy` list; its
         // refusal says why and never quotes the URL.
+        // The fork's backoff is podssh's, 1 s to 30 s with jitter (T-104).
+        reconnect: ts_runtime::reconnect::Reconnect { retry_refused: sel.retry_refused, ..Default::default() },
         proxy: match &sel.proxy_url {
             None => None,
             Some(u) => {
@@ -88,9 +93,11 @@ impl TsNode {
                 url.parse().map_err(|_| NodeError::Config(ConfigError::BadControlUrl(url.clone())))?;
         }
         fork_cfg.requested_hostname = cfg.hostname.clone();
+        fork_cfg.link_events = cfg.link_events.clone();
         fork_cfg.ephemeral = cfg.ephemeral;
         let mut selection = cfg.mode.runtime_selection(cfg.proxy_url.as_deref());
         selection.no_proxy = cfg.no_proxy.clone();
+        selection.retry_refused = cfg.retry_refused;
         fork_cfg.options = selection_to_options(&selection).map_err(NodeError::Config)?;
         let device = tailscale::Device::new(&fork_cfg, Some(auth)).await.map_err(|e| NodeError::Fork(e.to_string()))?;
         Ok(Self { device, state_file: cfg.state_file.clone(), ephemeral: cfg.ephemeral })
@@ -114,6 +121,12 @@ impl TsNode {
     /// the fork answers only once a map with the self node has come.
     pub async fn status_within(&self, limit: Duration) -> Result<StatusFacts, NodeError> {
         crate::wait::within(limit, self.status()).await
+    }
+
+    /// Each change of the node's links from now on: a drop, with the wait before the next
+    /// attempt, a new connection, a refusal of the node key (T-104).
+    pub fn link_events(&self) -> tokio::sync::broadcast::Receiver<LinkEvent> {
+        self.device.link_events()
     }
 
     /// Open a TCP stream to a tailnet peer through the in-process netstack.

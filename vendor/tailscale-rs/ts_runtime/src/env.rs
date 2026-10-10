@@ -42,6 +42,9 @@ pub struct Env {
     /// at startup; every actor that branches on `no_udp`, the DERP mode, the
     /// pin or the proxy reads this value rather than a second copy.
     pub options: Arc<crate::options::RuntimeOptions>,
+
+    /// Where each change of a link goes (podssh's patch 0019), or nowhere.
+    pub link_events: Option<tokio::sync::broadcast::Sender<crate::reconnect::LinkEvent>>,
 }
 
 impl Env {
@@ -56,6 +59,27 @@ impl Env {
             registry: Registry::spawn_default(),
             keys: Arc::new(keys),
             options: Arc::new(options),
+            link_events: None,
+        }
+    }
+
+    /// The same environment, telling `link_events` of each change of a link.
+    pub fn with_link_events(
+        mut self,
+        link_events: Option<tokio::sync::broadcast::Sender<crate::reconnect::LinkEvent>>,
+    ) -> Self {
+        self.link_events = link_events;
+        self
+    }
+
+    /// Tell the watchers that `link` changed. A watcher that is gone, or that lags, misses it.
+    pub fn link_changed(
+        &self,
+        link: crate::reconnect::LinkKind,
+        change: crate::reconnect::LinkChange,
+    ) {
+        if let Some(events) = &self.link_events {
+            drop(events.send(crate::reconnect::LinkEvent { link, change }));
         }
     }
 

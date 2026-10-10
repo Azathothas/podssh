@@ -39,6 +39,7 @@ impl TsMode {
                 derp_port: None,
                 proxy_url: proxy_url.map(str::to_string),
                 no_proxy: None,
+                retry_refused: false,
             },
             TsMode::Relay { host, port } => RuntimeSelection {
                 no_udp: true,
@@ -47,6 +48,7 @@ impl TsMode {
                 derp_port: Some(*port),
                 proxy_url: proxy_url.map(str::to_string),
                 no_proxy: None,
+                retry_refused: false,
             },
         }
     }
@@ -69,6 +71,9 @@ pub struct RuntimeSelection {
     pub proxy_url: Option<String>,
     /// The hosts that bypass that proxy, as a `no_proxy` list.
     pub no_proxy: Option<String>,
+    /// Dial DERP again after the relay refused this node's key (T-104): the node waits for its
+    /// key's admission.
+    pub retry_refused: bool,
 }
 
 impl std::fmt::Debug for RuntimeSelection {
@@ -80,6 +85,7 @@ impl std::fmt::Debug for RuntimeSelection {
             .field("derp_port", &self.derp_port)
             .field("proxy_url", &self.proxy_url.as_deref().map(redacted))
             .field("no_proxy", &self.no_proxy)
+            .field("retry_refused", &self.retry_refused)
             .finish()
     }
 }
@@ -103,6 +109,11 @@ pub struct TsConfig {
     pub proxy_url: Option<String>,
     /// The hosts that bypass that proxy, as a `no_proxy` list.
     pub no_proxy: Option<String>,
+    /// Dial again after a refusal of the node key, as while waiting for its admission
+    /// (`--ts-wait-allowlist`, T-104).
+    pub retry_refused: bool,
+    /// Where the changes of the node's links go from its start on (T-104), or `None`.
+    pub link_events: Option<tokio::sync::broadcast::Sender<crate::node::LinkEvent>>,
 }
 
 impl std::fmt::Debug for TsConfig {
@@ -115,6 +126,8 @@ impl std::fmt::Debug for TsConfig {
             .field("mode", &self.mode)
             .field("proxy_url", &self.proxy_url.as_deref().map(redacted))
             .field("no_proxy", &self.no_proxy)
+            .field("retry_refused", &self.retry_refused)
+            .field("link_events", &self.link_events.is_some())
             .finish()
     }
 }

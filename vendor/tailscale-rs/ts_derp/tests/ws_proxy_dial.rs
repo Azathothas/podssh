@@ -40,9 +40,11 @@ async fn ws_connect_dials_the_relay_by_name_through_the_proxy() {
         seen_task.lock().unwrap().push(first);
         // A tunnel that closes at once: the TLS handshake fails, after the
         // name went to the proxy.
-        let _ = stream
-            .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
-            .await;
+        drop(
+            stream
+                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                .await,
+        );
     });
 
     configure(Some(

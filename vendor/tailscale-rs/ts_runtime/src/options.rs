@@ -25,6 +25,8 @@ pub struct RuntimeOptions {
     /// CONNECT proxy for every outbound TCP path, or `None` for direct.
     /// Applied to the proxy dialer by [`RuntimeOptions::apply_proxy`].
     pub proxy: Option<ts_http_util::proxy::ProxyConfig>,
+    /// When each link is dialled again after a drop (podssh's patch 0019).
+    pub reconnect: crate::reconnect::Reconnect,
 }
 
 /// DERP transport selection and the lab pin.

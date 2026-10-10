@@ -27,6 +27,7 @@ pub mod options;
 mod packetfilter;
 mod path_discoverer;
 pub mod peer_tracker;
+pub mod reconnect;
 mod registry;
 mod retained_bus;
 mod route_updater;
@@ -59,6 +60,9 @@ pub struct Config {
     /// UDP actors, `derp` selects the transport and the lab pin, `proxy`
     /// routes every outbound TCP path through CONNECT.
     pub options: options::RuntimeOptions,
+    /// Where each change of a link goes: a drop, a new connection, a refusal (podssh's patch
+    /// 0019). `None` tells nobody.
+    pub link_events: Option<tokio::sync::broadcast::Sender<reconnect::LinkEvent>>,
 }
 
 impl kameo::Actor for Runtime {
@@ -69,7 +73,8 @@ impl kameo::Actor for Runtime {
         // ⛔ The proxy feeds the shared CONNECT dialer before any actor dials:
         // control, DERP and latency all route through it when set.
         config.options.apply_proxy();
-        let env = Env::new(config.keys, config.options.clone());
+        let env =
+            Env::new(config.keys, config.options.clone()).with_link_events(config.link_events);
         let no_udp = config.options.no_udp;
 
         env.bus.link(&slf).await;
@@ -158,14 +163,20 @@ impl kameo::Actor for Runtime {
             .spawn()
             .await;
 
+        // ⛔ Restarted for as long as the node runs (podssh's patch 0019), each restart after
+        // the backoff that the runner itself waits out: the default gave up after five restarts
+        // in 5 s, and a control server away for longer was gone for good.
         ControlRunner::supervise(
             &slf,
             control_runner::Params {
                 config: config.control_config,
                 auth_key: config.auth_key,
                 env: env.clone(),
+                restarts: Default::default(),
             },
         )
+        .restart_policy(kameo::supervision::RestartPolicy::Permanent)
+        .restart_limit(u32::MAX, std::time::Duration::from_secs(1))
         .spawn()
         .await;
 

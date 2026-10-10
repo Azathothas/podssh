@@ -36,6 +36,28 @@ HTTPS. Build it only with `--features ts`; see [development.md](development.md).
   over WebSocket to the relay too, by name and within 20 s (patch 0017).
   Credentials in `--ts-proxy` can be read in the list of processes, and
   `podssh ts` says so.
+
+## Connecting again (T-104, 2026-10-10)
+
+- Each link of the node is dialled again after a drop: the connection to the
+  control server, and the DERP link of each region (patch 0019). The wait is
+  podssh's backoff: 1 s, 2 s, 4 s … up to 30 s, each scaled by a random
+  factor in [0.5, 1.5), and from 1 s again after a link that lasted 60 s.
+  Before, a DERP link ended at its first error for good, and the control
+  connection was not dialled again at all while the node started.
+- A DERP link that answered a ping and then sends nothing for three pings
+  in a row, 10 s apart, is dead, as for podssh's own relay.
+- The relay's close 1008 "not authorized" ends the link: the node key is not
+  in the relay's allowlist. With `--ts-wait-allowlist`, the link is dialled
+  again instead, while the node waits for its key's admission.
+- With a pin (`relay` mode) one link serves each region, the relay's: the
+  relay closes the older of two sockets with one key, so a link for each
+  region would replace the others' for as long as they were active.
+- `podssh ts` writes one stderr line for each drop, with the wait before the
+  next attempt, one for each link that comes back, and one for a refusal,
+  from the start of the node on. Measured through `scripts/fake-proxy.py`
+  as `HTTPS_PROXY`, refusing the control server: an attempt after 1.3 s,
+  2.1 s, 5.4 s and 6.1 s, each said. The live drop test is T-106.
 - `--ts-ephemeral`: the node logs out at the end of the run, also after an
   error, in 5 s at most: a register request with its key and an expiry in
   the past (patch 0016), and the control server deletes the node. A node

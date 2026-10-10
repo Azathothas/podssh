@@ -1,0 +1,1487 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index b11600e..e598d2f 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -214,7 +214,7 @@ russh = { version = "0.60", optional = true, default-features = false, features
+ serde.workspace = true
+ serde_json.workspace = true
+ thiserror.workspace = true
+-tokio = { workspace = true, features = ["fs"] }
++tokio = { workspace = true, features = ["fs", "sync"] }
+ tracing.workspace = true
+ url.workspace = true
+ 
+diff --git a/src/config.rs b/src/config.rs
+index 2f9aa77..ee14a11 100644
+--- a/src/config.rs
++++ b/src/config.rs
+@@ -47,6 +47,11 @@ pub struct Config {
+     /// every outbound TCP path through CONNECT. podssh-ts feeds this from
+     /// `TsConfig`; a device that names no options runs exactly as before.
+     pub options: ts_runtime::options::RuntimeOptions,
++
++    /// Where the changes of the node's links go (podssh's patch 0019): a caller that hands its
++    /// own channel here hears those of the start too, before [`crate::Device::new`] returns.
++    /// `None` gives the device a channel of its own.
++    pub link_events: Option<tokio::sync::broadcast::Sender<crate::LinkEvent>>,
+ }
+ 
+ impl Config {
+@@ -138,6 +143,7 @@ impl Default for Config {
+             requested_tags: vec![],
+             ephemeral: false,
+             options: Default::default(),
++            link_events: None,
+         }
+     }
+ }
+diff --git a/src/lib.rs b/src/lib.rs
+index cb60bb9..b2ec1a3 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -133,6 +133,8 @@ pub use error::{Error, InternalErrorKind};
+ #[doc(inline)]
+ pub use ts_control::LogoutError;
+ #[doc(inline)]
++pub use ts_runtime::reconnect::{LinkChange, LinkEvent, LinkKind};
++#[doc(inline)]
+ pub use ts_control::Node as NodeInfo;
+ use ts_netstack_smoltcp::{CreateSocket, netcore::Channel};
+ use ts_runtime::Spawn;
+@@ -152,8 +154,13 @@ pub mod ssh;
+ pub struct Device {
+     runtime: ts_runtime::ActorRef<ts_runtime::Runtime>,
+     channel: Channel,
++    /// Each change of the node's links (podssh's patch 0019).
++    link_events: tokio::sync::broadcast::Sender<LinkEvent>,
+ }
+ 
++/// How many link changes wait for a slow receiver before it misses the oldest.
++const LINK_EVENTS: usize = 64;
++
+ /// Whether this node is authorized to join the tailnet.
+ pub enum AuthState {
+     /// The node has successfully registered with the control server.
+@@ -192,6 +199,10 @@ impl Device {
+         );
+ 
+         let keys = (&config.key_state).into();
++        let link_events = config
++            .link_events
++            .clone()
++            .unwrap_or_else(|| tokio::sync::broadcast::channel(LINK_EVENTS).0);
+         let rt = ts_runtime::Runtime::spawn(ts_runtime::Config {
+             control_config: config.into(),
+             // Moved into memory that is cleared on drop, with no copy
+@@ -201,6 +212,7 @@ impl Device {
+             // ⛔ Fed from `tailscale::Config::options` (patch 0014): stock
+             // behavior until podssh-ts feeds non-default options.
+             options: config.options.clone(),
++            link_events: Some(link_events.clone()),
+         });
+ 
+         rt.wait_for_startup_result()
+@@ -215,9 +227,17 @@ impl Device {
+         Ok(Self {
+             runtime: rt,
+             channel,
++            link_events,
+         })
+     }
+ 
++    /// Each change of the node's links from now on: a drop, with the wait before the next
++    /// attempt; a new connection; a refusal of this node's key (podssh's patch 0019). A receiver
++    /// that falls behind misses the oldest changes.
++    pub fn link_events(&self) -> tokio::sync::broadcast::Receiver<LinkEvent> {
++        self.link_events.subscribe()
++    }
++
+     /// Report whether this node has been authorized to join the tailnet.
+     ///
+     /// If the node is not authorized, the returned [`AuthState::NotAuthorized`] contains a URL the
+diff --git a/ts_derp/Cargo.toml b/ts_derp/Cargo.toml
+index 70099b8..f95c845 100644
+--- a/ts_derp/Cargo.toml
++++ b/ts_derp/Cargo.toml
+@@ -27,7 +27,8 @@ hex.workspace = true
+ serde.workspace = true
+ serde_json.workspace = true
+ thiserror.workspace = true
+-tokio.workspace = true
++# `time`: the liveness of a link, read by podssh's patch 0019.
++tokio = { workspace = true, features = ["time"] }
+ tokio-util.workspace = true
+ # WebSocket transport (src/ws.rs). Framing only: TLS stays in ts_tls_util, and
+ # no TLS backend of tungstenite is enabled.
+diff --git a/ts_derp/src/client.rs b/ts_derp/src/client.rs
+index 13fb144..a9a7220 100644
+--- a/ts_derp/src/client.rs
++++ b/ts_derp/src/client.rs
+@@ -97,6 +97,12 @@ pub type DefaultClient = Client<DefaultIo>;
+ pub struct Client<Io> {
+     read_conn: Mutex<FramedRead<ReadHalf<Io>, frame::Codec>>,
+     write_conn: Mutex<FramedWrite<WriteHalf<Io>, frame::Codec>>,
++    /// When the last frame of any kind came: the link's liveness (podssh's patch 0019).
++    heard: std::sync::Mutex<tokio::time::Instant>,
++    /// Pongs received: the server answers pings, so its silence means a dead link.
++    pongs: std::sync::atomic::AtomicU64,
++    /// Pings sent, which give each ping its payload.
++    pings: std::sync::atomic::AtomicU64,
+ }
+ 
+ /// Establish and upgrade a http connection to the derp region, in the given mode.
+@@ -221,6 +227,9 @@ where
+         Ok(Self {
+             read_conn: Mutex::new(fr),
+             write_conn: Mutex::new(fw),
++            heard: std::sync::Mutex::new(tokio::time::Instant::now()),
++            pongs: Default::default(),
++            pings: Default::default(),
+         })
+     }
+ 
+@@ -254,6 +263,27 @@ where
+         Ok(())
+     }
+ 
++    /// Send a ping, which the server answers with a pong (podssh's patch 0019).
++    pub async fn send_ping(&self) -> Result<(), Error> {
++        let n = self
++            .pings
++            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
++        self.send_frame(&Ping {
++            payload: n.to_be_bytes(),
++        })
++        .await
++    }
++
++    /// When the last frame of any kind came, as [`Client::recv_one`] read it.
++    pub fn last_heard(&self) -> tokio::time::Instant {
++        *self.heard.lock().unwrap_or_else(|e| e.into_inner())
++    }
++
++    /// How many pongs have come.
++    pub fn pongs(&self) -> u64 {
++        self.pongs.load(std::sync::atomic::Ordering::Relaxed)
++    }
++
+     /// Waits for a single data packet from a peer to arrive via this DERP server and returns it.
+     /// DERP control messages (KeepAlive, Ping, etc) are handled inline and are not returned.
+     pub async fn recv_one(&self) -> Result<(NodePublicKey, PacketMut), Error> {
+@@ -270,6 +300,7 @@ where
+                 })??
+             };
+             let frame = frame.get();
++            *self.heard.lock().unwrap_or_else(|e| e.into_inner()) = tokio::time::Instant::now();
+ 
+             match frame.header.typ {
+                 // TODO (dylan): handle other control message types
+@@ -293,6 +324,13 @@ where
+ 
+                     tracing::trace!(payload = ?pong.payload, "pong");
+                 }
++                // The answer to `send_ping` (podssh's patch 0019): it counts, and
++                // it was an error before, which ended the connection.
++                FrameType::Pong => {
++                    self.pongs
++                        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
++                    tracing::trace!("pong");
++                }
+                 FrameType::PeerGone => {
+                     let (gone, _rest) = frame.as_type::<PeerGone>().unwrap();
+ 
+diff --git a/ts_derp/src/error.rs b/ts_derp/src/error.rs
+index 127c8ef..c185124 100644
+--- a/ts_derp/src/error.rs
++++ b/ts_derp/src/error.rs
+@@ -42,6 +42,16 @@ pub enum Error {
+     Http,
+ }
+ 
++impl Error {
++    /// The WebSocket close that ended the connection, when one did (podssh's patch 0019).
++    pub fn ws_close(&self) -> Option<&crate::ws::WsClose> {
++        match self {
++            Error::IoFailure(e) => e.get_ref()?.downcast_ref(),
++            _ => None,
++        }
++    }
++}
++
+ impl From<ts_http_util::Error> for Error {
+     fn from(_: ts_http_util::Error) -> Self {
+         Error::Http
+diff --git a/ts_derp/src/ws.rs b/ts_derp/src/ws.rs
+index cdb2fe9..5ac378c 100644
+--- a/ts_derp/src/ws.rs
++++ b/ts_derp/src/ws.rs
+@@ -189,19 +189,75 @@ impl AsyncWrite for WsIo {
+     }
+ }
+ 
++/// A WebSocket close as the far end sent it (podssh's patch 0019). It travels inside the
++/// `io::Error` that a read returns, so a caller can tell a refusal, such as a relay's 1008 "not
++/// authorized", from a broken transport: [`crate::Error::ws_close`] finds it.
++#[derive(Debug, Clone, PartialEq, Eq)]
++pub struct WsClose {
++    /// The close code, or `None` when the far end sent no close frame.
++    pub code: Option<u16>,
++    /// The close reason, as sent.
++    pub reason: String,
++}
++
++impl core::fmt::Display for WsClose {
++    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
++        match self.code {
++            Some(code) => write!(f, "websocket closed: code={code} reason={:?}", self.reason),
++            None => write!(f, "websocket closed: no close frame"),
++        }
++    }
++}
++
++impl std::error::Error for WsClose {}
++
+ /// Describe a received close frame, including its code and reason.
+ fn close_error(frame: Option<CloseFrame<'static>>) -> io::Error {
+-    let message = match frame {
+-        Some(frame) => format!(
+-            "websocket closed: code={} reason={:?}",
+-            u16::from(frame.code),
+-            frame.reason
+-        ),
+-        None => "websocket closed: no close frame".to_owned(),
++    let close = match frame {
++        Some(frame) => WsClose {
++            code: Some(u16::from(frame.code)),
++            reason: frame.reason.to_string(),
++        },
++        None => WsClose {
++            code: None,
++            reason: String::new(),
++        },
+     };
+-    io::Error::new(io::ErrorKind::ConnectionAborted, message)
++    io::Error::new(io::ErrorKind::ConnectionAborted, close)
+ }
+ 
+ fn ws_io_error(e: tokio_tungstenite::tungstenite::Error) -> io::Error {
+     io::Error::other(e)
+ }
++
++#[cfg(test)]
++mod tests {
++    use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
++
++    use super::*;
++
++    /// podssh's patch 0019: a close keeps its code and its reason through `crate::Error`, and
++    /// its text is the one that it always had.
++    #[test]
++    fn a_close_keeps_its_code_and_reason() {
++        let frame = CloseFrame {
++            code: CloseCode::Policy,
++            reason: "not authorized".into(),
++        };
++        let e = crate::Error::from(close_error(Some(frame)));
++        assert_eq!(
++            e.ws_close(),
++            Some(&WsClose {
++                code: Some(1008),
++                reason: "not authorized".to_string()
++            })
++        );
++        assert_eq!(
++            e.to_string(),
++            "websocket closed: code=1008 reason=\"not authorized\""
++        );
++        let e = crate::Error::from(close_error(None));
++        assert_eq!(e.ws_close().and_then(|c| c.code), None);
++        assert_eq!(e.to_string(), "websocket closed: no close frame");
++    }
++}
+diff --git a/ts_derp/tests/ping.rs b/ts_derp/tests/ping.rs
+new file mode 100644
+index 0000000..700b4ba
+--- /dev/null
++++ b/ts_derp/tests/ping.rs
+@@ -0,0 +1,78 @@
++//! podssh's patch 0019: the client pings its server, and the server's pong is counted, where it
++//! was an unexpected frame that ended the connection. The server is a stand-in that speaks the
++//! DERP handshake over an in-memory pipe.
++
++use crypto_box::aead::{Aead, AeadCore, OsRng};
++use futures::{SinkExt, StreamExt};
++use tokio_util::codec::{FramedRead, FramedWrite};
++use ts_derp::frame::{self, RawFrame};
++use ts_keys::{DerpServerPublicKey, NodeKeyPair};
++
++#[tokio::test]
++async fn a_pong_is_counted_and_the_link_stays_up() {
++    let (client_io, server_io) = tokio::io::duplex(64 * 1024);
++    let server = tokio::spawn(async move {
++        let (read, write) = tokio::io::split(server_io);
++        let mut from_client = FramedRead::new(read, frame::Codec);
++        let mut to_client = FramedWrite::new(write, frame::Codec);
++        let secret = crypto_box::SecretKey::generate(&mut OsRng);
++
++        let key = frame::ServerKey {
++            magic: frame::Magic::MAGIC,
++            key: DerpServerPublicKey::from_bytes(*secret.public_key().as_bytes()),
++        };
++        let none: &[u8] = &[];
++        to_client
++            .send((RawFrame::from_body(&key, 0).unwrap(), none))
++            .await
++            .unwrap();
++
++        let info = from_client.next().await.unwrap().unwrap();
++        let (info, _) = info.get().as_type::<frame::ClientInfo>().unwrap();
++        let client_key = info.key;
++        let cbox = crypto_box::SalsaBox::new(&client_key.to_crypto_box(), &secret);
++        let nonce = crypto_box::SalsaBox::generate_nonce(&mut OsRng);
++        let payload = cbox.encrypt(&nonce, br#"{"version":2}"#.as_ref()).unwrap();
++        let server_info = frame::ServerInfo {
++            nonce: ts_derp::Nonce(nonce.into()),
++        };
++        to_client
++            .send((
++                RawFrame::from_body(&server_info, payload.len()).unwrap(),
++                &payload[..],
++            ))
++            .await
++            .unwrap();
++
++        // The client's ping, answered.
++        let ping = from_client.next().await.unwrap().unwrap();
++        let (&ping, _) = ping.get().as_type::<frame::Ping>().unwrap();
++        let pong: frame::Pong = ping.into();
++        to_client
++            .send((RawFrame::from_body(&pong, 0).unwrap(), none))
++            .await
++            .unwrap();
++
++        // A packet after the pong: the link outlived it.
++        let packet = frame::RecvPacket { src: client_key };
++        to_client
++            .send((RawFrame::from_body(&packet, 5).unwrap(), &b"hello"[..]))
++            .await
++            .unwrap();
++        // Held open until the test is done.
++        from_client.next().await;
++    });
++
++    let client = ts_derp::Client::handshake(client_io, &NodeKeyPair::random())
++        .await
++        .expect("the handshake with the stand-in");
++    let before = client.last_heard();
++    assert_eq!(client.pongs(), 0);
++    client.send_ping().await.unwrap();
++    let (_, packet) = client.recv_one().await.expect("the link outlives the pong");
++    assert_eq!(packet.as_ref(), b"hello");
++    assert_eq!(client.pongs(), 1);
++    assert!(client.last_heard() >= before);
++    drop(client);
++    server.await.unwrap();
++}
+diff --git a/ts_derp/tests/ws_proxy_dial.rs b/ts_derp/tests/ws_proxy_dial.rs
+index 81bcedc..b2429cb 100644
+--- a/ts_derp/tests/ws_proxy_dial.rs
++++ b/ts_derp/tests/ws_proxy_dial.rs
+@@ -40,9 +40,11 @@ async fn ws_connect_dials_the_relay_by_name_through_the_proxy() {
+         seen_task.lock().unwrap().push(first);
+         // A tunnel that closes at once: the TLS handshake fails, after the
+         // name went to the proxy.
+-        let _ = stream
+-            .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+-            .await;
++        drop(
++            stream
++                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
++                .await,
++        );
+     });
+ 
+     configure(Some(
+diff --git a/ts_runtime/Cargo.toml b/ts_runtime/Cargo.toml
+index 983d1f7..8c65604 100644
+--- a/ts_runtime/Cargo.toml
++++ b/ts_runtime/Cargo.toml
+@@ -37,7 +37,8 @@ ipnet.workspace = true
+ kameo = "0.21"
+ kameo_actors = "0.6"
+ thiserror.workspace = true
+-tokio.workspace = true
++# `time` and `sync`: the backoff, the liveness pings and the link events of podssh's patch 0019.
++tokio = { workspace = true, features = ["time", "sync"] }
+ tokio-util = { workspace = true, features = ["rt"] }
+ zeroize.workspace = true
+ tokio-stream = { workspace = true, features = ["time", "sync"] }
+@@ -52,6 +53,8 @@ itertools.workspace = true
+ zerocopy.workspace = true
+ 
+ [dev-dependencies]
++# `test-util`: a paused clock for the reconnect tests (podssh's patch 0019).
++tokio = { workspace = true, features = ["test-util", "time", "sync", "macros", "rt"] }
+ chrono.workspace = true
+ itertools.workspace = true
+ proptest.workspace = true
+diff --git a/ts_runtime/src/control_runner.rs b/ts_runtime/src/control_runner.rs
+index 680bc6b..cbe9e05 100644
+--- a/ts_runtime/src/control_runner.rs
++++ b/ts_runtime/src/control_runner.rs
+@@ -1,5 +1,11 @@
+ use core::net::{Ipv4Addr, Ipv6Addr};
+-use std::sync::Arc;
++use std::{
++    sync::{
++        Arc,
++        atomic::{AtomicU32, AtomicU64, Ordering},
++    },
++    time::Duration,
++};
+ 
+ use futures::StreamExt;
+ use kameo::{
+@@ -19,6 +25,7 @@ use crate::{
+     derp_latency::{DerpLatencyMeasurement, DerpLatencyMeasurer},
+     direct,
+     env::Env,
++    reconnect::{LinkChange, LinkKind},
+ };
+ 
+ /// Actor responsible for maintaining the connection to control.
+@@ -34,6 +41,37 @@ pub struct ControlRunner {
+ 
+     self_node: Option<Node>,
+     pending_node_requests: Vec<PendingNodeRequest>,
++
++    /// Since when the link has been up, once registered (podssh's patch 0019).
++    up_since: Option<tokio::time::Instant>,
++}
++
++/// The drops of the control link in a row, which each restart of the runner shares (podssh's
++/// patch 0019): the supervisor starts each from a clone of the same [`Params`].
++#[derive(Debug, Default)]
++pub(crate) struct Restarts {
++    /// Drops in a row, counted from 1 again after a link that lasted.
++    count: AtomicU32,
++    /// The wait that the next start waits out, in milliseconds.
++    next_wait_ms: AtomicU64,
++}
++
++impl Params {
++    /// The control link dropped: count it, set the wait of the next start by the backoff, and
++    /// tell the link's watchers. A link up for `stable_after` counts from 1 again.
++    fn dropped(&self, up_since: Option<tokio::time::Instant>, reason: String) {
++        let policy = &self.env.options.reconnect;
++        if up_since.is_some_and(|up| up.elapsed() >= policy.stable_after) {
++            self.restarts.count.store(0, Ordering::Relaxed);
++        }
++        let retry = self.restarts.count.fetch_add(1, Ordering::Relaxed) + 1;
++        let retry_in = policy.wait(retry);
++        self.restarts
++            .next_wait_ms
++            .store(retry_in.as_millis() as u64, Ordering::Relaxed);
++        self.env
++            .link_changed(LinkKind::Control, LinkChange::Dropped { reason, retry_in });
++    }
+ }
+ 
+ enum RegState {
+@@ -55,6 +93,9 @@ pub struct Params {
+ 
+     /// The [`Env`] for this actor.
+     pub(crate) env: Env,
++
++    /// The drops in a row, for the backoff of each restart (podssh's patch 0019).
++    pub(crate) restarts: Arc<Restarts>,
+ }
+ 
+ #[doc(hidden)]
+@@ -77,16 +118,38 @@ impl kameo::Actor for ControlRunner {
+     type Error = ControlRunnerError;
+ 
+     async fn on_start(params: Params, slf: ActorRef<Self>) -> Result<Self, Self::Error> {
+-        let client = params
+-            .env
+-            .ask::<DialerActor, _>(
+-                None,
+-                DialNext {
+-                    url: params.config.server_url.clone(),
+-                },
+-                true,
+-            )
+-            .await?;
++        // A restart after a drop waits out its backoff first (podssh's patch 0019).
++        let wait = params.restarts.next_wait_ms.swap(0, Ordering::Relaxed);
++        if wait > 0 {
++            tokio::time::sleep(Duration::from_millis(wait)).await;
++        }
++
++        // A dial that fails is tried again here, after its backoff, not by a restart: while the
++        // node starts, the runtime waits for this runner in its own start, and handles no
++        // restart until that ends.
++        let client = loop {
++            match params
++                .env
++                .ask::<DialerActor, _>(
++                    None,
++                    DialNext {
++                        url: params.config.server_url.clone(),
++                    },
++                    true,
++                )
++                .await
++            {
++                Ok(client) => break client,
++                Err(e) => {
++                    // The dialler keeps the cause in its log; the runtime's error names only
++                    // its actors.
++                    tracing::error!(error = %e, "dialling the control server");
++                    params.dropped(None, "the control server could not be reached".to_string());
++                    let wait = params.restarts.next_wait_ms.swap(0, Ordering::Relaxed);
++                    tokio::time::sleep(Duration::from_millis(wait)).await;
++                }
++            }
++        };
+ 
+         Task::supervise_with(&slf, {
+             let aref = slf.downgrade();
+@@ -161,6 +224,7 @@ impl kameo::Actor for ControlRunner {
+             endpoints: Default::default(),
+             self_node: None,
+             pending_node_requests: Default::default(),
++            up_since: None,
+         })
+     }
+ }
+@@ -370,6 +434,8 @@ impl Message<RegisterResult> for ControlRunner {
+             Ok(conn) => conn,
+             Err(e) => {
+                 tracing::error!(error = %e, "unable to register with control server");
++                self.params
++                    .dropped(self.up_since, format!("registration failed: {e}"));
+                 ctx.stop();
+                 return;
+             }
+@@ -398,6 +464,12 @@ impl Message<RegisterResult> for ControlRunner {
+         let stream = map_stream(reader).map(Arc::new);
+ 
+         ctx.actor_ref().attach_stream(stream.boxed(), (), ());
++
++        self.up_since = Some(tokio::time::Instant::now());
++        let again = self.params.restarts.count.load(Ordering::Relaxed) > 0;
++        self.params
++            .env
++            .link_changed(LinkKind::Control, LinkChange::Connected { again });
+     }
+ }
+ 
+@@ -425,6 +497,10 @@ impl Message<StreamMessage<Arc<StateUpdate>, (), ()>> for ControlRunner {
+ 
+             StreamMessage::Finished(_) => {
+                 tracing::error!("state update stream terminated");
++                self.params.dropped(
++                    self.up_since,
++                    "the control server ended the network map stream".to_string(),
++                );
+                 ctx.stop();
+                 return;
+             }
+diff --git a/ts_runtime/src/env.rs b/ts_runtime/src/env.rs
+index aa60861..94a1660 100644
+--- a/ts_runtime/src/env.rs
++++ b/ts_runtime/src/env.rs
+@@ -42,6 +42,9 @@ pub struct Env {
+     /// at startup; every actor that branches on `no_udp`, the DERP mode, the
+     /// pin or the proxy reads this value rather than a second copy.
+     pub options: Arc<crate::options::RuntimeOptions>,
++
++    /// Where each change of a link goes (podssh's patch 0019), or nowhere.
++    pub link_events: Option<tokio::sync::broadcast::Sender<crate::reconnect::LinkEvent>>,
+ }
+ 
+ impl Env {
+@@ -56,6 +59,27 @@ impl Env {
+             registry: Registry::spawn_default(),
+             keys: Arc::new(keys),
+             options: Arc::new(options),
++            link_events: None,
++        }
++    }
++
++    /// The same environment, telling `link_events` of each change of a link.
++    pub fn with_link_events(
++        mut self,
++        link_events: Option<tokio::sync::broadcast::Sender<crate::reconnect::LinkEvent>>,
++    ) -> Self {
++        self.link_events = link_events;
++        self
++    }
++
++    /// Tell the watchers that `link` changed. A watcher that is gone, or that lags, misses it.
++    pub fn link_changed(
++        &self,
++        link: crate::reconnect::LinkKind,
++        change: crate::reconnect::LinkChange,
++    ) {
++        if let Some(events) = &self.link_events {
++            drop(events.send(crate::reconnect::LinkEvent { link, change }));
+         }
+     }
+ 
+diff --git a/ts_runtime/src/lib.rs b/ts_runtime/src/lib.rs
+index bcfc328..9ee25b9 100644
+--- a/ts_runtime/src/lib.rs
++++ b/ts_runtime/src/lib.rs
+@@ -27,6 +27,7 @@ pub mod options;
+ mod packetfilter;
+ mod path_discoverer;
+ pub mod peer_tracker;
++pub mod reconnect;
+ mod registry;
+ mod retained_bus;
+ mod route_updater;
+@@ -59,6 +60,9 @@ pub struct Config {
+     /// UDP actors, `derp` selects the transport and the lab pin, `proxy`
+     /// routes every outbound TCP path through CONNECT.
+     pub options: options::RuntimeOptions,
++    /// Where each change of a link goes: a drop, a new connection, a refusal (podssh's patch
++    /// 0019). `None` tells nobody.
++    pub link_events: Option<tokio::sync::broadcast::Sender<reconnect::LinkEvent>>,
+ }
+ 
+ impl kameo::Actor for Runtime {
+@@ -69,7 +73,8 @@ impl kameo::Actor for Runtime {
+         // ⛔ The proxy feeds the shared CONNECT dialer before any actor dials:
+         // control, DERP and latency all route through it when set.
+         config.options.apply_proxy();
+-        let env = Env::new(config.keys, config.options.clone());
++        let env =
++            Env::new(config.keys, config.options.clone()).with_link_events(config.link_events);
+         let no_udp = config.options.no_udp;
+ 
+         env.bus.link(&slf).await;
+@@ -158,14 +163,20 @@ impl kameo::Actor for Runtime {
+             .spawn()
+             .await;
+ 
++        // ⛔ Restarted for as long as the node runs (podssh's patch 0019), each restart after
++        // the backoff that the runner itself waits out: the default gave up after five restarts
++        // in 5 s, and a control server away for longer was gone for good.
+         ControlRunner::supervise(
+             &slf,
+             control_runner::Params {
+                 config: config.control_config,
+                 auth_key: config.auth_key,
+                 env: env.clone(),
++                restarts: Default::default(),
+             },
+         )
++        .restart_policy(kameo::supervision::RestartPolicy::Permanent)
++        .restart_limit(u32::MAX, std::time::Duration::from_secs(1))
+         .spawn()
+         .await;
+ 
+diff --git a/ts_runtime/src/multiderp/mod.rs b/ts_runtime/src/multiderp/mod.rs
+index 048f9d5..f4f39b3 100644
+--- a/ts_runtime/src/multiderp/mod.rs
++++ b/ts_runtime/src/multiderp/mod.rs
+@@ -1,7 +1,7 @@
+ mod uniderp;
+ 
+ use std::{
+-    collections::HashMap,
++    collections::{BTreeSet, HashMap},
+     sync::Arc,
+     time::{Duration, Instant},
+ };
+@@ -37,6 +37,13 @@ pub struct Multiderp {
+     env: Env,
+     debounce_state: DebounceState,
+     peer_state: Arc<PeerDb>,
++    /// With a pin, the one runner of every region (podssh's patch 0019): its region, and its
++    /// transport once it has one. A runner for each region would dial the relay with the same
++    /// key, and the relay closes the older of two such sockets, so two active regions would
++    /// replace each other's socket for as long as both were active.
++    pinned: Option<(RegionId, Option<UnderlayTransportId>)>,
++    /// The regions of the last map, which a pin maps to its one runner.
++    regions: BTreeSet<RegionId>,
+ }
+ 
+ impl kameo::Actor for Multiderp {
+@@ -55,6 +62,8 @@ impl kameo::Actor for Multiderp {
+             region_map: Default::default(),
+             debounce_state: Default::default(),
+             peer_state: Default::default(),
++            pinned: None,
++            regions: Default::default(),
+         })
+     }
+ 
+@@ -120,6 +129,20 @@ impl Multiderp {
+         self.debounce_state.publish_enqueued = true;
+     }
+ 
++    /// With a pin, map each region of the map to the one runner's transport, or none until it
++    /// has one.
++    async fn map_pinned(&mut self, slf: &ActorRef<Self>) {
++        let transport = self.pinned.and_then(|(_, transport)| transport);
++        let map: HashMap<RegionId, UnderlayTransportId> = match transport {
++            Some(transport) => self.regions.iter().map(|region| (*region, transport)).collect(),
++            None => HashMap::new(),
++        };
++        if map != self.region_map {
++            self.region_map = map;
++            self.debounce_map_publish(slf).await;
++        }
++    }
++
+     async fn do_map_publish(&mut self) {
+         self.env
+             .publish(DerpTransportMap(Arc::new(self.region_map.clone())))
+@@ -143,6 +166,24 @@ impl Message<Arc<ts_control::StateUpdate>> for Multiderp {
+             return;
+         };
+ 
++        if self.env.options.derp_pin().is_some() {
++            self.regions = derp_map.keys().copied().collect();
++            // One runner, as the lowest region of the map, while that region is in it; started
++            // again when it is gone, as for any region.
++            let keep = self
++                .pinned
++                .is_some_and(|(region, _)| self.regions.contains(&region));
++            if !keep {
++                self.pinned = self.regions.first().map(|first| (*first, None));
++            }
++            if let Some((region, _)) = self.pinned {
++                self.ensure_region(ctx.actor_ref(), region, &derp_map[&region])
++                    .await;
++            }
++            self.map_pinned(ctx.actor_ref()).await;
++            return;
++        }
++
+         for (id, region) in derp_map {
+             self.ensure_region(ctx.actor_ref(), *id, region).await;
+         }
+@@ -162,6 +203,15 @@ impl Message<SetRegionTransportId> for Multiderp {
+         SetRegionTransportId(region, id): SetRegionTransportId,
+         _ctx: &mut Context<Self, Self::Reply>,
+     ) {
++        // The pinned runner's transport serves each region.
++        if let Some((pinned, transport)) = &mut self.pinned
++            && *pinned == region
++        {
++            *transport = id;
++            self.map_pinned(_ctx.actor_ref()).await;
++            return;
++        }
++
+         let pre = self.region_map.get(&region).copied();
+ 
+         match id {
+diff --git a/ts_runtime/src/multiderp/uniderp.rs b/ts_runtime/src/multiderp/uniderp.rs
+index ba8437c..345f6d2 100644
+--- a/ts_runtime/src/multiderp/uniderp.rs
++++ b/ts_runtime/src/multiderp/uniderp.rs
+@@ -26,6 +26,7 @@ use crate::{
+     env::Env,
+     multiderp::{Multiderp, SetRegionTransportId},
+     peer_tracker::{PeerDb, PeerState},
++    reconnect::{self, Ended, Heard, Link, LinkChange, LinkKind},
+     task::ErasedTask,
+ };
+ 
+@@ -69,10 +70,12 @@ impl Uniderp {
+     }
+ }
+ 
++/// Keep the region's link up (podssh's patch 0019): it ended at its first error, and the region
++/// stayed with no connection until its map changed. Only a refusal of this node's key ends it.
+ async fn start_runner(mut runner: Runner) {
+-    if let Err(e) = runner.run().await {
+-        tracing::error!(error = %e, region_id = %runner.region_id, "running derp client");
+-    }
++    let policy = runner.env.options.reconnect.clone();
++    let reason = reconnect::keep(&mut runner, &policy).await;
++    tracing::error!(%reason, region_id = %runner.region_id, "the DERP server refused this node's key; not dialling again");
+ }
+ 
+ impl kameo::Actor for Uniderp {
+@@ -80,7 +83,10 @@ impl kameo::Actor for Uniderp {
+     type Error = crate::Error;
+ 
+     async fn on_start(args: Self::Args, slf: ActorRef<Self>) -> Result<Self, Self::Error> {
+-        let (home_derp_tx, home_derp_rx) = watch::channel(false);
++        // With a pin, this runner is the node's only DERP link, the relay's, for each region
++        // (podssh's patch 0019): it stays up as home does.
++        let pinned = args.env.options.derp_pin().is_some();
++        let (home_derp_tx, home_derp_rx) = watch::channel(pinned);
+ 
+         let (transport_id, from_dataplane, to_dataplane) = args
+             .env
+@@ -108,6 +114,7 @@ impl kameo::Actor for Uniderp {
+             // `RuntimeOptions`, not a second default kept in step by hand.
+             connect_mode: args.env.options.derp_mode(),
+             derp_pin: args.env.options.derp_pin(),
++            env: args.env.clone(),
+         };
+ 
+         let task = Task::spawn_link(&slf, start_runner(runner.clone()).boxed()).await;
+@@ -206,6 +213,11 @@ impl Message<DerpLatencyMeasurement> for Uniderp {
+     type Reply = ();
+ 
+     async fn handle(&mut self, msg: DerpLatencyMeasurement, _ctx: &mut Context<Self, Self::Reply>) {
++        // The pinned runner is home whatever the measurement says.
++        if self.runner_state.derp_pin.is_some() {
++            return;
++        }
++
+         let Some(result) = msg.measurement.as_ref().first() else {
+             tracing::trace!("received home derp measurement message but none was set");
+             return;
+@@ -239,20 +251,56 @@ struct Runner {
+     /// Pinned `(host, port)` for the DERP socket, or `None` to dial the
+     /// region's servers.
+     derp_pin: Option<(String, u16)>,
++    /// The policy of a dial after a drop, and the watchers of the link.
++    env: Env,
+ }
+ 
+-impl Runner {
+-    const INACTIVITY_TIMEOUT: Duration = Duration::from_secs(10);
++/// The region's link, as [`reconnect::keep`] runs it.
++impl Link for Runner {
++    type Pending = Option<(DynEndpoint, Vec<PacketMut>)>;
++    type Transport = ts_derp::DefaultClient;
+ 
+-    #[tracing::instrument(skip_all, fields(region_id = %self.region_id))]
+-    async fn run(&mut self) -> Result<(), ts_derp::Error> {
+-        loop {
+-            let pending = self.wait_for_activity().await;
+-            let transport = self.connect(pending).await?;
+-            self.run_transport(transport).await?;
++    fn wait(&mut self) -> impl core::future::Future<Output = Self::Pending> + Send {
++        self.wait_for_activity()
++    }
++
++    async fn connect(&mut self, pending: Self::Pending) -> Result<Self::Transport, Ended> {
++        Runner::connect(self, pending)
++            .await
++            .map_err(|e| reconnect::ended_by(&e))
++    }
++
++    async fn run(&mut self, transport: Self::Transport) -> Ended {
++        match self.run_transport(transport).await {
++            Ok(()) => Ended::Quiet,
++            Err(e) => reconnect::ended_by(&e),
+         }
+     }
+ 
++    fn changed(&mut self, change: LinkChange) {
++        self.env
++            .link_changed(LinkKind::Derp(self.region_id.0.get()), change);
++    }
++}
++
++/// The DERP client's liveness, which [`reconnect::until_silent`] watches.
++impl Heard for ts_derp::DefaultClient {
++    fn last_heard(&self) -> tokio::time::Instant {
++        ts_derp::DefaultClient::last_heard(self)
++    }
++
++    fn pongs(&self) -> u64 {
++        ts_derp::DefaultClient::pongs(self)
++    }
++
++    async fn ping(&self) -> Result<(), String> {
++        self.send_ping().await.map_err(|e| e.to_string())
++    }
++}
++
++impl Runner {
++    const INACTIVITY_TIMEOUT: Duration = Duration::from_secs(10);
++
+     #[tracing::instrument(skip_all, level = "trace")]
+     async fn wait_for_activity(&mut self) -> Option<(DynEndpoint, Vec<PacketMut>)> {
+         tracing::trace!("waiting for packet activity or for this to become home derp");
+@@ -279,7 +327,7 @@ impl Runner {
+     async fn connect(
+         &self,
+         pending: Option<(DynEndpoint, Vec<PacketMut>)>,
+-    ) -> Result<impl UnderlayTransport<Error = ts_derp::Error> + 'static, ts_derp::Error> {
++    ) -> Result<ts_derp::DefaultClient, ts_derp::Error> {
+         tracing::trace!("establishing derp connection");
+ 
+         // ⛔ The pin bypasses the region's servers for the socket — but both
+@@ -307,10 +355,18 @@ impl Runner {
+     #[tracing::instrument(skip_all, fields(transport_id = ?self.transport_id), level = "trace")]
+     async fn run_transport(
+         &mut self,
+-        transport: impl UnderlayTransport<Error = ts_derp::Error>,
++        transport: ts_derp::DefaultClient,
+     ) -> Result<(), ts_derp::Error> {
+         let mut last_activity = Instant::now();
+         let mut from_dataplane = self.from_dataplane.lock().await;
++        // A link that died with no close is known by its silence (podssh's patch 0019); the
++        // pings run across the turns of the loop below.
++        let silent = reconnect::until_silent(
++            &transport,
++            reconnect::PING_EVERY,
++            reconnect::SILENT_ALLOWED,
++        );
++        tokio::pin!(silent);
+ 
+         loop {
+             let span = tracing::trace_span!("derp_loop");
+@@ -358,6 +414,10 @@ impl Runner {
+                 _ = self.home_derp_rx.changed() => {
+                     tracing::trace!(is_home_derp = *self.home_derp_rx.borrow());
+                 },
++
++                why = &mut silent => {
++                    return Err(std::io::Error::new(std::io::ErrorKind::TimedOut, why).into());
++                },
+             }
+         }
+     }
+diff --git a/ts_runtime/src/options.rs b/ts_runtime/src/options.rs
+index bd7d44c..c0c0f52 100644
+--- a/ts_runtime/src/options.rs
++++ b/ts_runtime/src/options.rs
+@@ -25,6 +25,8 @@ pub struct RuntimeOptions {
+     /// CONNECT proxy for every outbound TCP path, or `None` for direct.
+     /// Applied to the proxy dialer by [`RuntimeOptions::apply_proxy`].
+     pub proxy: Option<ts_http_util::proxy::ProxyConfig>,
++    /// When each link is dialled again after a drop (podssh's patch 0019).
++    pub reconnect: crate::reconnect::Reconnect,
+ }
+ 
+ /// DERP transport selection and the lab pin.
+diff --git a/ts_runtime/src/reconnect.rs b/ts_runtime/src/reconnect.rs
+new file mode 100644
+index 0000000..48b1bad
+--- /dev/null
++++ b/ts_runtime/src/reconnect.rs
+@@ -0,0 +1,225 @@
++//! Keep a link up (podssh's patch 0019): dial it again after a drop, with a capped backoff and
++//! jitter, and know a link that died with no close by its silence.
++//!
++//! A DERP region's runner ended at its first error and never dialled again, so the node lost its
++//! path to its peers with no message, and the control runner stopped for good after five restarts
++//! in 5 s. The loop here takes its steps from a [`Link`], so a test drives it with no network.
++
++use core::future::Future;
++use std::time::Duration;
++
++use tokio::time::{Instant, MissedTickBehavior};
++
++/// How a turn of a link ended.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub enum Ended {
++    /// The link closed with no fault: a region that is not home went quiet. The next turn waits
++    /// for a reason to connect, with no backoff.
++    Quiet,
++    /// The link failed, or could not be made: it is dialled again after a wait.
++    Failed(String),
++    /// The far end refused this node's key, as a DERP close 1008 "not authorized" does: not
++    /// dialled again, unless [`Reconnect::retry_refused`].
++    Refused(String),
++}
++
++/// What a DERP error means for its link: the relay's close 1008 "not authorized" refuses this
++/// node's key, and each other error is a drop.
++pub fn ended_by(e: &ts_derp::Error) -> Ended {
++    match e.ws_close() {
++        Some(close) if close.code == Some(1008) && close.reason.contains("not authorized") => {
++            Ended::Refused(e.to_string())
++        }
++        _ => Ended::Failed(e.to_string()),
++    }
++}
++
++/// When to dial a link again: podssh's backoff, 1 s, 2 s, 4 s … capped at 30 s, each scaled by a
++/// random factor in [0.5, 1.5) so that nodes that dropped together do not dial in step, and
++/// counted from 1 again after a link that lasted [`Reconnect::stable_after`].
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub struct Reconnect {
++    /// The first wait, before the random factor.
++    pub first: Duration,
++    /// The longest wait, before the random factor.
++    pub max: Duration,
++    /// A link up this long counts from the first wait again.
++    pub stable_after: Duration,
++    /// Dial again after a refusal too: the node waits for its key to be admitted.
++    pub retry_refused: bool,
++}
++
++impl Default for Reconnect {
++    fn default() -> Self {
++        Self {
++            first: Duration::from_secs(1),
++            max: Duration::from_secs(30),
++            stable_after: Duration::from_secs(60),
++            retry_refused: false,
++        }
++    }
++}
++
++impl Reconnect {
++    /// The wait before attempt `retry`, 1 for the first after a drop.
++    pub fn wait(&self, retry: u32) -> Duration {
++        let first = self.first.as_millis() as u64;
++        let max = self.max.as_millis() as u64;
++        let base = first
++            .saturating_mul(1u64 << retry.saturating_sub(1).min(5))
++            .min(max);
++        let factor: f64 = rand::random_range(0.5..1.5);
++        Duration::from_millis((base as f64 * factor) as u64)
++    }
++}
++
++/// Which link of the node changed.
++#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
++pub enum LinkKind {
++    /// The connection to the control server.
++    Control,
++    /// The DERP connection of a region, by its number.
++    Derp(u32),
++}
++
++/// How a link changed.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub enum LinkChange {
++    /// The link is up; `again` after a drop.
++    Connected {
++        /// Up again after a drop, not for the first time or after a quiet close.
++        again: bool,
++    },
++    /// The link dropped, or could not be made; the next attempt comes after `retry_in`.
++    Dropped {
++        /// Why.
++        reason: String,
++        /// The wait before the next attempt.
++        retry_in: Duration,
++    },
++    /// The far end refused this node's key; no attempt follows.
++    Refused {
++        /// Why, as the far end said it.
++        reason: String,
++    },
++}
++
++/// A change of one of the node's links, for whoever watches the node.
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub struct LinkEvent {
++    /// Which link.
++    pub link: LinkKind,
++    /// How it changed.
++    pub change: LinkChange,
++}
++
++/// The steps of a link that [`keep`] runs.
++pub trait Link {
++    /// What a wait gives the connect step: for a DERP region, a packet to send at once.
++    type Pending: Send;
++    /// A connected link.
++    type Transport: Send;
++
++    /// Wait for a reason to connect.
++    fn wait(&mut self) -> impl Future<Output = Self::Pending> + Send;
++
++    /// Connect.
++    fn connect(
++        &mut self,
++        pending: Self::Pending,
++    ) -> impl Future<Output = Result<Self::Transport, Ended>> + Send;
++
++    /// Run the connected link until it ends.
++    fn run(&mut self, transport: Self::Transport) -> impl Future<Output = Ended> + Send;
++
++    /// The link changed: tell its watchers.
++    fn changed(&mut self, change: LinkChange);
++}
++
++/// Run `link` for ever: wait for a reason to connect, connect, run until it ends, and again,
++/// waiting after a failure as `policy` says. Returns only on a refusal that `policy` does not
++/// retry, with its reason.
++pub async fn keep(link: &mut impl Link, policy: &Reconnect) -> String {
++    let mut retry = 0u32;
++    let mut again = false;
++    loop {
++        let pending = link.wait().await;
++        let ended = match link.connect(pending).await {
++            Ok(transport) => {
++                link.changed(LinkChange::Connected { again });
++                let up = Instant::now();
++                let ended = link.run(transport).await;
++                if up.elapsed() >= policy.stable_after {
++                    retry = 0;
++                }
++                ended
++            }
++            Err(ended) => ended,
++        };
++        match ended {
++            Ended::Quiet => again = false,
++            Ended::Refused(reason) if !policy.retry_refused => {
++                link.changed(LinkChange::Refused {
++                    reason: reason.clone(),
++                });
++                return reason;
++            }
++            Ended::Failed(reason) | Ended::Refused(reason) => {
++                retry = retry.saturating_add(1);
++                let retry_in = policy.wait(retry);
++                link.changed(LinkChange::Dropped { reason, retry_in });
++                tokio::time::sleep(retry_in).await;
++                again = true;
++            }
++        }
++    }
++}
++
++/// How often a connected link is pinged, and how many intervals of silence in a row mean it is
++/// dead: podssh's rule for its own relay, 30 s of nothing at all.
++pub const PING_EVERY: Duration = Duration::from_secs(10);
++/// See [`PING_EVERY`].
++pub const SILENT_ALLOWED: u32 = 3;
++
++/// What [`until_silent`] reads of a connected link.
++pub trait Heard: Sync {
++    /// When the last frame of any kind came.
++    fn last_heard(&self) -> Instant;
++
++    /// How many answers to pings have come.
++    fn pongs(&self) -> u64;
++
++    /// Send a ping.
++    fn ping(&self) -> impl Future<Output = Result<(), String>> + Send;
++}
++
++/// Ping `link` each `every`, and return why it is dead: nothing heard for `allowed` intervals in
++/// a row once it has answered a ping, or a ping that could not go out within an interval. A far
++/// end that never answered a ping is not declared dead here: its silence proves nothing.
++pub async fn until_silent(link: &impl Heard, every: Duration, allowed: u32) -> String {
++    let mut ticks = tokio::time::interval_at(Instant::now() + every, every);
++    ticks.set_missed_tick_behavior(MissedTickBehavior::Delay);
++    let mut last = link.last_heard();
++    let mut silent = 0u32;
++    loop {
++        ticks.tick().await;
++        let heard = link.last_heard();
++        if heard > last {
++            last = heard;
++            silent = 0;
++        } else if link.pongs() > 0 {
++            silent += 1;
++            if silent >= allowed {
++                return format!(
++                    "nothing came for {} s, though the far end answers pings",
++                    (every * allowed).as_secs()
++                );
++            }
++        }
++        match tokio::time::timeout(every, link.ping()).await {
++            Ok(Ok(())) => {}
++            Ok(Err(why)) => return why,
++            Err(_) => return format!("a ping could not go out in {} s", every.as_secs()),
++        }
++    }
++}
+diff --git a/ts_runtime/tests/reconnect.rs b/ts_runtime/tests/reconnect.rs
+new file mode 100644
+index 0000000..86f13cf
+--- /dev/null
++++ b/ts_runtime/tests/reconnect.rs
+@@ -0,0 +1,289 @@
++//! podssh's patch 0019: a link is dialled again after a drop, with a capped backoff, a refusal
++//! of the node key is not, a quiet close waits for activity, and a link that died with no close
++//! is known by its silence. The loop runs fake links under a paused clock: no network.
++
++// Named, not taken from the 2024 prelude: podssh-ts builds this file too, in edition 2021.
++use core::future::Future;
++use std::{
++    collections::VecDeque,
++    sync::{
++        Arc,
++        atomic::{AtomicU64, Ordering},
++    },
++    time::Duration,
++};
++
++use tokio::{sync::Mutex, time::Instant};
++use ts_runtime::reconnect::{self, Ended, Heard, Link, LinkChange, Reconnect};
++
++/// One turn of a fake link.
++enum Turn {
++    /// The connect fails so.
++    NoConnect(Ended),
++    /// The connect succeeds; the link runs this long, then ends so.
++    Up(Duration, Ended),
++    /// The connect succeeds, and the link runs until it falls silent.
++    Silent(Arc<FakeHeard>),
++}
++
++/// A link that plays its turns, and keeps when each connect came and each change it was told.
++struct Fake {
++    turns: VecDeque<Turn>,
++    /// When the waits for activity end, from the start; none left means at once, as for home.
++    activity: VecDeque<Duration>,
++    start: Instant,
++    connects: Vec<Duration>,
++    changes: Vec<LinkChange>,
++}
++
++impl Fake {
++    fn new(turns: Vec<Turn>) -> Self {
++        Self {
++            turns: turns.into(),
++            activity: VecDeque::new(),
++            start: Instant::now(),
++            connects: Vec::new(),
++            changes: Vec::new(),
++        }
++    }
++}
++
++enum Running {
++    For(Duration, Ended),
++    UntilSilent(Arc<FakeHeard>),
++}
++
++impl Link for Fake {
++    type Pending = ();
++    type Transport = Running;
++
++    fn wait(&mut self) -> impl Future<Output = ()> + Send {
++        let until = self.activity.pop_front().map(|at| self.start + at);
++        async move {
++            if let Some(until) = until {
++                tokio::time::sleep_until(until).await;
++            }
++        }
++    }
++
++    fn connect(&mut self, (): ()) -> impl Future<Output = Result<Running, Ended>> + Send {
++        self.connects.push(self.start.elapsed());
++        let turn = self.turns.pop_front();
++        async move {
++            match turn {
++                Some(Turn::NoConnect(ended)) => Err(ended),
++                Some(Turn::Up(lasts, ended)) => Ok(Running::For(lasts, ended)),
++                Some(Turn::Silent(heard)) => Ok(Running::UntilSilent(heard)),
++                // The play is over: the link stays down, and the test ends the loop.
++                None => std::future::pending().await,
++            }
++        }
++    }
++
++    async fn run(&mut self, running: Running) -> Ended {
++        match running {
++            Running::For(lasts, ended) => {
++                tokio::time::sleep(lasts).await;
++                ended
++            }
++            Running::UntilSilent(heard) => {
++                Ended::Failed(reconnect::until_silent(&*heard, reconnect::PING_EVERY, 3).await)
++            }
++        }
++    }
++
++    fn changed(&mut self, change: LinkChange) {
++        self.changes.push(change);
++    }
++}
++
++/// Run the loop until the play is over, and give back why it returned, if it did.
++async fn play(fake: &mut Fake, policy: &Reconnect) -> Option<String> {
++    tokio::time::timeout(Duration::from_secs(3600), reconnect::keep(fake, policy))
++        .await
++        .ok()
++}
++
++fn failed(why: &str) -> Ended {
++    Ended::Failed(why.to_string())
++}
++
++fn secs(at: Duration) -> f64 {
++    at.as_secs_f64()
++}
++
++#[tokio::test(start_paused = true)]
++async fn a_dropped_link_is_dialled_again_with_backoff() {
++    let mut fake = Fake::new(vec![
++        Turn::Up(Duration::from_secs(1), failed("the relay went away")),
++        Turn::NoConnect(failed("connection refused")),
++        Turn::NoConnect(failed("connection refused")),
++        Turn::Up(Duration::from_secs(5), failed("reset")),
++    ]);
++    assert_eq!(play(&mut fake, &Reconnect::default()).await, None);
++    let at: Vec<f64> = fake.connects.iter().copied().map(secs).collect();
++    assert_eq!(at.len(), 5, "connects at {at:?}");
++    // 1 s, then 2 s, then 4 s, each by a factor in [0.5, 1.5).
++    let gaps = [at[1] - 1.0, at[2] - at[1], at[3] - at[2]];
++    for (gap, base) in gaps.iter().zip([1.0, 2.0, 4.0]) {
++        assert!(
++            (0.5 * base..1.5 * base).contains(gap),
++            "a gap of {gap} s for {base} s: {at:?}"
++        );
++    }
++    assert!(matches!(
++        fake.changes[0],
++        LinkChange::Connected { again: false }
++    ));
++    assert!(
++        matches!(&fake.changes[1], LinkChange::Dropped { reason, .. } if reason == "the relay went away")
++    );
++    assert!(matches!(
++        fake.changes[4],
++        LinkChange::Connected { again: true }
++    ));
++}
++
++#[tokio::test(start_paused = true)]
++async fn the_wait_is_capped_and_a_link_that_lasted_counts_from_the_first_again() {
++    let policy = Reconnect::default();
++    for retry in 6..40 {
++        assert!(policy.wait(retry) < Duration::from_secs(45), "{retry}");
++    }
++    let mut fake = Fake::new(vec![
++        Turn::NoConnect(failed("down")),
++        Turn::NoConnect(failed("down")),
++        Turn::NoConnect(failed("down")),
++        Turn::Up(Duration::from_secs(61), failed("dropped after a minute")),
++    ]);
++    play(&mut fake, &policy).await;
++    let at: Vec<f64> = fake.connects.iter().copied().map(secs).collect();
++    // After a link of 61 s, the wait is the first one again: under 1.5 s.
++    let after = at[4] - at[3] - 61.0;
++    assert!((0.5..1.5).contains(&after), "{after} s: {at:?}");
++}
++
++#[tokio::test(start_paused = true)]
++async fn a_1008_not_authorized_is_not_retried_by_default() {
++    let refused = || Ended::Refused("websocket closed: code=1008 reason=\"not authorized\"".into());
++    let mut fake = Fake::new(vec![Turn::NoConnect(refused()), Turn::NoConnect(refused())]);
++    let reason = play(&mut fake, &Reconnect::default()).await;
++    assert!(reason.is_some_and(|r| r.contains("not authorized")));
++    assert_eq!(fake.connects.len(), 1);
++    assert!(matches!(&fake.changes[..], [LinkChange::Refused { .. }]));
++
++    // While the node waits for its key's admission, a refusal is dialled again.
++    let waiting = Reconnect {
++        retry_refused: true,
++        ..Reconnect::default()
++    };
++    let mut fake = Fake::new(vec![Turn::NoConnect(refused()), Turn::NoConnect(refused())]);
++    assert_eq!(play(&mut fake, &waiting).await, None);
++    assert_eq!(fake.connects.len(), 3);
++    assert!(matches!(fake.changes[0], LinkChange::Dropped { .. }));
++}
++
++#[test]
++fn the_relays_close_1008_not_authorized_is_a_refusal() {
++    let close = |code, reason: &str| {
++        ts_derp::Error::IoFailure(std::io::Error::new(
++            std::io::ErrorKind::ConnectionAborted,
++            ts_derp::ws::WsClose {
++                code: Some(code),
++                reason: reason.to_string(),
++            },
++        ))
++    };
++    assert!(matches!(
++        reconnect::ended_by(&close(1008, "not authorized")),
++        Ended::Refused(_)
++    ));
++    // Another 1008, another code, or no close at all is a drop.
++    for e in [
++        close(1008, "duplicate login"),
++        close(1011, "not authorized"),
++        ts_derp::Error::NoServerReachable,
++    ] {
++        assert!(matches!(reconnect::ended_by(&e), Ended::Failed(_)), "{e}");
++    }
++}
++
++/// A far end that answers the first ping, then nothing.
++struct FakeHeard {
++    heard: Mutex<Instant>,
++    pongs: AtomicU64,
++    answers: AtomicU64,
++}
++
++impl FakeHeard {
++    fn new(answers: u64) -> Arc<Self> {
++        Arc::new(Self {
++            heard: Mutex::new(Instant::now()),
++            pongs: AtomicU64::new(0),
++            answers: AtomicU64::new(answers),
++        })
++    }
++}
++
++impl Heard for FakeHeard {
++    fn last_heard(&self) -> Instant {
++        *self.heard.try_lock().expect("one reader at a time")
++    }
++
++    fn pongs(&self) -> u64 {
++        self.pongs.load(Ordering::Relaxed)
++    }
++
++    async fn ping(&self) -> Result<(), String> {
++        if self.answers.load(Ordering::Relaxed) > 0 {
++            self.answers.fetch_sub(1, Ordering::Relaxed);
++            self.pongs.fetch_add(1, Ordering::Relaxed);
++            *self.heard.lock().await = Instant::now();
++        }
++        Ok(())
++    }
++}
++
++#[tokio::test(start_paused = true)]
++async fn a_silent_link_is_dead_after_three_checks() {
++    let mut fake = Fake::new(vec![Turn::Silent(FakeHeard::new(1))]);
++    assert_eq!(play(&mut fake, &Reconnect::default()).await, None);
++    let at: Vec<f64> = fake.connects.iter().copied().map(secs).collect();
++    // Pinged at 10 s and answered; silent at 30, 40 and 50 s: dead at 50 s, and dialled again
++    // after the first wait.
++    assert!(
++        matches!(&fake.changes[1], LinkChange::Dropped { reason, .. } if reason.contains("30 s"))
++    );
++    assert!((50.5..51.5).contains(&at[1]), "{at:?}");
++}
++
++#[tokio::test(start_paused = true)]
++async fn a_far_end_that_never_answered_a_ping_is_not_declared_dead() {
++    let heard = FakeHeard::new(0);
++    let watched = tokio::time::timeout(
++        Duration::from_secs(600),
++        reconnect::until_silent(&*heard, reconnect::PING_EVERY, 3),
++    )
++    .await;
++    assert!(watched.is_err(), "declared dead: {watched:?}");
++}
++
++#[tokio::test(start_paused = true)]
++async fn a_non_home_inactivity_close_waits_for_activity() {
++    let mut fake = Fake::new(vec![
++        Turn::Up(Duration::from_secs(5), Ended::Quiet),
++        Turn::Up(Duration::from_secs(5), Ended::Quiet),
++    ]);
++    fake.activity = [Duration::ZERO, Duration::from_secs(100)].into();
++    assert_eq!(play(&mut fake, &Reconnect::default()).await, None);
++    // Connected at the first activity, and again only at the next: no backoff, no drop.
++    let at: Vec<f64> = fake.connects.iter().copied().map(secs).collect();
++    assert_eq!(&at[..2], &[0.0, 100.0]);
++    assert!(
++        fake.changes
++            .iter()
++            .all(|c| matches!(c, LinkChange::Connected { again: false })),
++        "{:?}",
++        fake.changes
++    );
++}

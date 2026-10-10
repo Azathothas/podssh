@@ -2915,3 +2915,49 @@ In CI at `84df12a` (run 38034478102), the check failed the step `iroh`: the run 
 the feature `iroh-test`, which the native run did not build. Its helper takes
 `cleanup::at_test_end` too, in the commit after `a5a6c6f`; with the feature, natively, the test
 passes and leaves nothing.
+
+# T-276: The fork's own clippy warns, and no podssh build shows it
+
+**Source:** T-104 (2026-10-10): clippy with the fork's own manifest.
+**Category:** chore
+**Milestone:** none
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+podssh builds the Tailscale fork as a path dependency outside its workspace, and cargo caps the
+lints of such a package, so no podssh build shows a warning of the fork. With the fork's own
+manifest, clippy warns in the crates that podssh's patches change, and T-102 and T-103 said "no
+warning" for them from podssh's builds.
+
+## Premise
+
+Read: `cargo clippy --manifest-path vendor/tailscale-rs/Cargo.toml -p ts_derp -p ts_runtime -p
+ts_http_util -p ts_tls_util -p ts_control -p tailscale --tests`, at T-104's commit: the `Err` of
+`ts_derp::Error` is very large, on each function that returns it
+(`vendor/tailscale-rs/ts_derp/src/client.rs:117`, twelve more), from its WebSocket variant of patch
+0003; the variants of `DefaultIo` differ in size (`vendor/tailscale-rs/ts_derp/src/client.rs:46`,
+patch 0009); an `if` can be collapsed (`vendor/tailscale-rs/ts_runtime/src/lib.rs:135`, patch
+0011); and the proxy tests hold a mutex guard across awaits, six times
+(`vendor/tailscale-rs/ts_http_util/tests/proxy.rs:80`, patches 0013 and 0017).
+
+## Approach
+
+1. Box the WebSocket error in `ts_derp::Error`, with its `From`, and the WebSocket stream in
+   `DefaultIo`.
+2. Collapse the `if` in `ts_runtime`.
+3. Give the proxy tests' `SERIAL` an async lock, as `crates/podssh-ts/tests/derp_proxy.rs` has.
+4. Run that clippy with `-D warnings` in `scripts/ts-derp-prove.sh`, so the build image checks it.
+   Add the patch and its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo clippy --manifest-path vendor/tailscale-rs/Cargo.toml -p ts_derp -p ts_runtime -p ts_http_util -p ts_tls_util -p ts_control -p tailscale --tests -- -D warnings
+cargo test --manifest-path vendor/tailscale-rs/Cargo.toml -p ts_derp -p ts_runtime -p ts_http_util -p ts_control
+```
+
+Plant: the WebSocket variant unboxed again; the clippy run must fail.

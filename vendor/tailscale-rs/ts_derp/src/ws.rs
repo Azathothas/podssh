@@ -189,19 +189,75 @@ impl AsyncWrite for WsIo {
     }
 }
 
+/// A WebSocket close as the far end sent it (podssh's patch 0019). It travels inside the
+/// `io::Error` that a read returns, so a caller can tell a refusal, such as a relay's 1008 "not
+/// authorized", from a broken transport: [`crate::Error::ws_close`] finds it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WsClose {
+    /// The close code, or `None` when the far end sent no close frame.
+    pub code: Option<u16>,
+    /// The close reason, as sent.
+    pub reason: String,
+}
+
+impl core::fmt::Display for WsClose {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self.code {
+            Some(code) => write!(f, "websocket closed: code={code} reason={:?}", self.reason),
+            None => write!(f, "websocket closed: no close frame"),
+        }
+    }
+}
+
+impl std::error::Error for WsClose {}
+
 /// Describe a received close frame, including its code and reason.
 fn close_error(frame: Option<CloseFrame<'static>>) -> io::Error {
-    let message = match frame {
-        Some(frame) => format!(
-            "websocket closed: code={} reason={:?}",
-            u16::from(frame.code),
-            frame.reason
-        ),
-        None => "websocket closed: no close frame".to_owned(),
+    let close = match frame {
+        Some(frame) => WsClose {
+            code: Some(u16::from(frame.code)),
+            reason: frame.reason.to_string(),
+        },
+        None => WsClose {
+            code: None,
+            reason: String::new(),
+        },
     };
-    io::Error::new(io::ErrorKind::ConnectionAborted, message)
+    io::Error::new(io::ErrorKind::ConnectionAborted, close)
 }
 
 fn ws_io_error(e: tokio_tungstenite::tungstenite::Error) -> io::Error {
     io::Error::other(e)
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
+
+    use super::*;
+
+    /// podssh's patch 0019: a close keeps its code and its reason through `crate::Error`, and
+    /// its text is the one that it always had.
+    #[test]
+    fn a_close_keeps_its_code_and_reason() {
+        let frame = CloseFrame {
+            code: CloseCode::Policy,
+            reason: "not authorized".into(),
+        };
+        let e = crate::Error::from(close_error(Some(frame)));
+        assert_eq!(
+            e.ws_close(),
+            Some(&WsClose {
+                code: Some(1008),
+                reason: "not authorized".to_string()
+            })
+        );
+        assert_eq!(
+            e.to_string(),
+            "websocket closed: code=1008 reason=\"not authorized\""
+        );
+        let e = crate::Error::from(close_error(None));
+        assert_eq!(e.ws_close().and_then(|c| c.code), None);
+        assert_eq!(e.to_string(), "websocket closed: no close frame");
+    }
 }

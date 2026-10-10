@@ -27,7 +27,8 @@ hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-tokio.workspace = true
+# `time`: the liveness of a link, read by podssh's patch 0019.
+tokio = { workspace = true, features = ["time"] }
 tokio-util.workspace = true
 # WebSocket transport (src/ws.rs). Framing only: TLS stays in ts_tls_util, and
 # no TLS backend of tungstenite is enabled.

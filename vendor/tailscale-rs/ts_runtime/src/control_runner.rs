@@ -1,5 +1,11 @@
 use core::net::{Ipv4Addr, Ipv6Addr};
-use std::sync::Arc;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicU32, AtomicU64, Ordering},
+    },
+    time::Duration,
+};
 
 use futures::StreamExt;
 use kameo::{
@@ -19,6 +25,7 @@ use crate::{
     derp_latency::{DerpLatencyMeasurement, DerpLatencyMeasurer},
     direct,
     env::Env,
+    reconnect::{LinkChange, LinkKind},
 };
 
 /// Actor responsible for maintaining the connection to control.
@@ -34,6 +41,37 @@ pub struct ControlRunner {
 
     self_node: Option<Node>,
     pending_node_requests: Vec<PendingNodeRequest>,
+
+    /// Since when the link has been up, once registered (podssh's patch 0019).
+    up_since: Option<tokio::time::Instant>,
+}
+
+/// The drops of the control link in a row, which each restart of the runner shares (podssh's
+/// patch 0019): the supervisor starts each from a clone of the same [`Params`].
+#[derive(Debug, Default)]
+pub(crate) struct Restarts {
+    /// Drops in a row, counted from 1 again after a link that lasted.
+    count: AtomicU32,
+    /// The wait that the next start waits out, in milliseconds.
+    next_wait_ms: AtomicU64,
+}
+
+impl Params {
+    /// The control link dropped: count it, set the wait of the next start by the backoff, and
+    /// tell the link's watchers. A link up for `stable_after` counts from 1 again.
+    fn dropped(&self, up_since: Option<tokio::time::Instant>, reason: String) {
+        let policy = &self.env.options.reconnect;
+        if up_since.is_some_and(|up| up.elapsed() >= policy.stable_after) {
+            self.restarts.count.store(0, Ordering::Relaxed);
+        }
+        let retry = self.restarts.count.fetch_add(1, Ordering::Relaxed) + 1;
+        let retry_in = policy.wait(retry);
+        self.restarts
+            .next_wait_ms
+            .store(retry_in.as_millis() as u64, Ordering::Relaxed);
+        self.env
+            .link_changed(LinkKind::Control, LinkChange::Dropped { reason, retry_in });
+    }
 }
 
 enum RegState {
@@ -55,6 +93,9 @@ pub struct Params {
 
     /// The [`Env`] for this actor.
     pub(crate) env: Env,
+
+    /// The drops in a row, for the backoff of each restart (podssh's patch 0019).
+    pub(crate) restarts: Arc<Restarts>,
 }
 
 #[doc(hidden)]
@@ -77,16 +118,38 @@ impl kameo::Actor for ControlRunner {
     type Error = ControlRunnerError;
 
     async fn on_start(params: Params, slf: ActorRef<Self>) -> Result<Self, Self::Error> {
-        let client = params
-            .env
-            .ask::<DialerActor, _>(
-                None,
-                DialNext {
-                    url: params.config.server_url.clone(),
-                },
-                true,
-            )
-            .await?;
+        // A restart after a drop waits out its backoff first (podssh's patch 0019).
+        let wait = params.restarts.next_wait_ms.swap(0, Ordering::Relaxed);
+        if wait > 0 {
+            tokio::time::sleep(Duration::from_millis(wait)).await;
+        }
+
+        // A dial that fails is tried again here, after its backoff, not by a restart: while the
+        // node starts, the runtime waits for this runner in its own start, and handles no
+        // restart until that ends.
+        let client = loop {
+            match params
+                .env
+                .ask::<DialerActor, _>(
+                    None,
+                    DialNext {
+                        url: params.config.server_url.clone(),
+                    },
+                    true,
+                )
+                .await
+            {
+                Ok(client) => break client,
+                Err(e) => {
+                    // The dialler keeps the cause in its log; the runtime's error names only
+                    // its actors.
+                    tracing::error!(error = %e, "dialling the control server");
+                    params.dropped(None, "the control server could not be reached".to_string());
+                    let wait = params.restarts.next_wait_ms.swap(0, Ordering::Relaxed);
+                    tokio::time::sleep(Duration::from_millis(wait)).await;
+                }
+            }
+        };
 
         Task::supervise_with(&slf, {
             let aref = slf.downgrade();
@@ -161,6 +224,7 @@ impl kameo::Actor for ControlRunner {
             endpoints: Default::default(),
             self_node: None,
             pending_node_requests: Default::default(),
+            up_since: None,
         })
     }
 }
@@ -370,6 +434,8 @@ impl Message<RegisterResult> for ControlRunner {
             Ok(conn) => conn,
             Err(e) => {
                 tracing::error!(error = %e, "unable to register with control server");
+                self.params
+                    .dropped(self.up_since, format!("registration failed: {e}"));
                 ctx.stop();
                 return;
             }
@@ -398,6 +464,12 @@ impl Message<RegisterResult> for ControlRunner {
         let stream = map_stream(reader).map(Arc::new);
 
         ctx.actor_ref().attach_stream(stream.boxed(), (), ());
+
+        self.up_since = Some(tokio::time::Instant::now());
+        let again = self.params.restarts.count.load(Ordering::Relaxed) > 0;
+        self.params
+            .env
+            .link_changed(LinkKind::Control, LinkChange::Connected { again });
     }
 }
 
@@ -425,6 +497,10 @@ impl Message<StreamMessage<Arc<StateUpdate>, (), ()>> for ControlRunner {
 
             StreamMessage::Finished(_) => {
                 tracing::error!("state update stream terminated");
+                self.params.dropped(
+                    self.up_since,
+                    "the control server ended the network map stream".to_string(),
+                );
                 ctx.stop();
                 return;
             }
