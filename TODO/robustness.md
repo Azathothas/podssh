@@ -443,10 +443,10 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:36-43` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:242-259`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:243-260`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:288`, enforced at
-  `crates/podssh-ssh/src/run.rs:196-202`); a reply, 30 s
+  `crates/podssh-ssh/src/run.rs:199-205`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability

@@ -24,7 +24,12 @@ const REPLY_WAIT: Duration = Duration::from_secs(30);
 pub async fn run(handle: &Handle<Client>, opts: &Options, host: &str, log: &Arc<Log>) -> Result<i32, String> {
     let mut input = io::Input::new(opts.stdin_null);
     let end = attach(handle, opts, host, log, &mut input).await?;
-    code(end, host)
+    // russh tells the handler why the connection failed, before the channel
+    // ends: a lost session says it.
+    code(end, host).map_err(|lost| match crate::handler::take_last_error() {
+        Some(cause) => format!("{lost}: {cause}"),
+        None => lost,
+    })
 }
 
 /// The exit code of a session that ended so, or the words of a lost link.

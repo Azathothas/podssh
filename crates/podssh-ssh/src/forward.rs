@@ -76,7 +76,11 @@ pub async fn stdio(handle: &Handle<Client>, host: &str, port: u16, log: &Log) ->
     // russh ends a channel's stream the same way whether the far side closed
     // it or the whole connection died; only the second is a failure.
     if code == 0 && handle.is_closed() {
-        log.error(&format!("the connection was lost while forwarding to {}", podssh_ws::dial::authority(host, port)));
+        let cause = crate::handler::take_last_error().map(|c| format!(": {c}")).unwrap_or_default();
+        log.error(&format!(
+            "the connection was lost while forwarding to {}{cause}",
+            podssh_ws::dial::authority(host, port)
+        ));
         return crate::run::EXIT_FAILURE;
     }
     code

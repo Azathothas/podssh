@@ -415,7 +415,7 @@ that can be missing. `podssh doctor` checks only this host.
 ## Premise
 
 - Read: an exec request runs one command through the shell of the server
-  (`crates/podssh-ssh/src/session.rs:88-91`), and its output goes to stdout
+  (`crates/podssh-ssh/src/session.rs:93-96`), and its output goes to stdout
   (`crates/podssh-ssh/src/io.rs:277-287`); podssh cannot read it.
 - Read: on Linux, `/proc/loadavg`, `/proc/meminfo`, `/proc/uptime` and
   `/proc/net/dev` hold the facts, and a POSIX shell reads them with `read`,

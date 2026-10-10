@@ -199,7 +199,7 @@ usable shell through `podssh serve`.
 | No proxy and no DNS | Uses an IP literal, a pinned address, the system resolver, then DNS over HTTPS by IP literal |
 | Latency | 60 s for the SSH handshake; 30 s for a pty or exec reply; 30 s for each SFTP reply with no file data, and 60 s for an SFTP read or write (T-133) |
 | A silent link | A ping every 10 s; dead after three checks with no frame (30 to 40 s). To a node, the resumable layer's heartbeat too: a link with nothing from the far end for 30 s is dead, and a new one replaces it (T-154) |
-| A stuck write | Fails after 60 s |
+| A stuck write | Fails after 60 s with no progress, on the relay road (the relay leg's limit) and with `--direct` (a writer around the TCP stream, T-227); the session ends with 255 |
 | The relay's idle cut | Keepalives every 60 s keep the session (MEASURED: 602 s with keepalives; cut at 184 s without). To a node, the layer's records each 10 s keep it, and SSH sends no keepalive unless asked (T-154) |
 | The relay's limits (12 h, 64 MiB) | The session ends, with the reason. To a node, the session moves to a new link before them, at 48 MiB or 11 h (T-155) |
 | A dropped connection | On the forward road, the session ends; `ssh` prints the relay's reason and exits 255; with `--persist`, it connects again and attaches the same tmux session on the server (T-178). `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136). To a node (`ssh node://`, `operator`), the resumable layer carries the session onto a new link, for 10 minutes (T-153) |

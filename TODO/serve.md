@@ -192,7 +192,7 @@ tells the user nothing.
   limit; `HTTPS_PROXY` when it is set) and
   `crates/podssh-ws/src/dial.rs:176-182` (loopback never through a proxy).
   The client copies a forward with half-close in
-  `crates/podssh-ssh/src/forward.rs:22-83`.
+  `crates/podssh-ssh/src/forward.rs:22-87`.
 - Read: in the measured sandbox, `connect()` to loopback failed with `EACCES`
   (`docs/target-environment.md:22`). Such a refusal must reach the client
   with its reason.
@@ -204,7 +204,7 @@ tells the user nothing.
    Do not add a second dialer.
 2. On success, accept, then copy between `channel.into_stream()` and the TCP
    stream in both directions. An EOF in one direction keeps the other open,
-   as `crates/podssh-ssh/src/forward.rs:22-83` does.
+   as `crates/podssh-ssh/src/forward.rs:22-87` does.
 3. On failure, reject with code 2 (connect failed) and the dial error in
    words: the errno, or the proxy's status and reason.
 4. Limits: 20 s for the dial; a stated maximum of open forwards for each
@@ -263,7 +263,7 @@ it there.
   read in reverse on the server; a second table would drift.
 - Read: doctor already opens a pty to test the host
   (`crates/podssh-cli/src/doctor/unix.rs:78-134`). The client continues
-  without a pty when the server refuses (`crates/podssh-ssh/src/session.rs:68-81`).
+  without a pty when the server refuses (`crates/podssh-ssh/src/session.rs:73-86`).
 - Read: the measured sandbox has no `/dev/ptmx` and no `/dev/pts`
   (`docs/target-environment.md:26`); there, T-111 applies.
 
@@ -490,10 +490,10 @@ out with matching digests.
   T-079), and the operator connects through the relay (T-084).
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:160-164`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
-  `docs/STATUS.md:178`). With no pty device, no podssh code can give the child
+  `docs/STATUS.md:179`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:45`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:188`; measured: `docs/STATUS.md:186`). 200 MiB each way
+  (`docs/relay.md:188`; measured: `docs/STATUS.md:187`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:19-26`).
@@ -885,7 +885,7 @@ example, a notice that the host is a sandbox that expires.
 - Read: a cage may have no `/etc/motd` and no `/var`
   (`docs/target-environment.md:16-29`); serve reads only what exists.
 - Read: podssh already makes server text safe for a terminal:
-  `crates/podssh-ssh/src/handler.rs:106-109` uses `podssh_ws::text::multi_line`.
+  `crates/podssh-ssh/src/handler.rs:116-119` uses `podssh_ws::text::multi_line`.
 - Read in the report of GitHub #19, not verified here: ssh-obi prints the
   MOTD before the login shell and honours `~/.hushlogin`.
 
@@ -1229,7 +1229,7 @@ no reason (`docs/target-environment.md:63-64`).
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
-- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:178`):
+- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:179`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
   (`crates/podssh-cli/src/doctor/host.rs:157-159`).
@@ -1280,7 +1280,7 @@ crates/podssh-ssh/tests/serve_shell.rs gives the function a directory `sh`,
 a data file `dash` (mode 0644), a data file with mode 0755 (the spawn fails),
 a link to a missing file and a good shell: each failure is named, and the
 good shell wins. A planted `exists()` test fails the directory case. In the
-gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:145`) is
+gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:146`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
 ## Blocker
@@ -1312,10 +1312,10 @@ criterion of M5 (T-113) needs them.
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
   (`crates/podssh-cli/src/doctor/unix.rs:78-93`). Both real sandboxes have no
-  `/dev/ptmx` (`docs/STATUS.md:178`), and the target has no `/dev/pts`
+  `/dev/ptmx` (`docs/STATUS.md:179`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp
-  filter (`docs/STATUS.md:157`). With `NoNewPrivs=1`, a process can add a
+  filter (`docs/STATUS.md:158`). With `NoNewPrivs=1`, a process can add a
   filter of its own; a filter is inherited by each child.
 - Read, not measured here: for a program, a tty is the success of the tty
   `ioctl` calls on its descriptors. musl's `isatty` calls `TIOCGWINSZ`;

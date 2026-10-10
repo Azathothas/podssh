@@ -477,7 +477,7 @@ Measured: `podssh ssh --json example.org true` exits 64 (unknown flag).
 Read: a session ends as `io::End` (`crates/podssh-ssh/src/io.rs:20-33`). The exit status and the
 signal are read in `handle_msg` (`:252-268`). The output goes straight to the process's
 stdout and stderr in `write_out` (`:277-287`), so nothing counts bytes. `session::run` maps
-the end to the exit code (`crates/podssh-ssh/src/session.rs:32-36`). The relay host is known
+the end to the exit code (`crates/podssh-ssh/src/session.rs:37-41`). The relay host is known
 at `crates/podssh-cli/src/ssh/transport.rs:56`, and the relay's close reason is in `RelayStatus`
 (`crates/podssh-ssh/src/relay_stream.rs:63-105`).
 

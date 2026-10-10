@@ -150,7 +150,10 @@ where
                     log.error(&format!("the server ended the connection to {host}{said}"));
                     Ok(EXIT_FAILURE)
                 }
-                Err(e) => Err(format!("connection to {host} lost: {}", describe(&e))),
+                Err(e) => Err(format!(
+                    "connection to {host} lost: {}",
+                    crate::handler::take_last_error().unwrap_or_else(|| describe(&e))
+                )),
             }
         }
         _ => session::run(handles.last().expect("the destination"), opts, &host, log).await,

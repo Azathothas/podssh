@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:178`).
+  do not run programs (`docs/STATUS.md:179`).
 
 ## Approach
 
@@ -161,7 +161,7 @@ local program to a target, and `podssh proxy` stays a second pump.
   its write side ends. That is right for SSH and wrong for a pipe: the relay
   has no half-close (`docs/relay.md:74-80`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
-  (`docs/STATUS.md:120`).
+  (`docs/STATUS.md:121`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:12-20`
   after the hops of `crates/podssh-ssh/src/run.rs:113-120`, but that code is
   private and gives only an exit code.
@@ -200,7 +200,7 @@ local program to a target, and `podssh proxy` stays a second pump.
    (`iroh:@FILE`), never from argv.
 6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:604`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
-   `crates/podssh-ssh/src/run.rs:163-229` a typed error, so that 77 is not
+   `crates/podssh-ssh/src/run.rs:166-232` a typed error, so that 77 is not
    guessed from a message.
 7. In the same commit: `docs/cli.md`, `docs/design.md:420-428`, the notes,
    the examples, `docs/STATUS.md`.
@@ -315,7 +315,7 @@ not a listener, so `docs/target-environment.md:74-78` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:189-198`,
   `crates/podssh-cli/src/doctor/unix.rs:210-212`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:178`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:179`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -415,7 +415,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:437-439`).
   `AGENTS.md:192-197`, `docs/architecture.md:102-112`,
   `docs/target-environment.md:74-78`, `SECURITY.md:78-88`, `README.md:37-42`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:178`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:179`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs:137-231`). A bind that works does
@@ -581,13 +581,13 @@ running on the server (`docs/design.md:241-243`).
 
 - Measured: `podssh ssh --persist host` exits 64 (`unknown flag '--persist'`).
 - Read: a lost link is `End::Lost` (`crates/podssh-ssh/src/io.rs:27-28`),
-  an error at `crates/podssh-ssh/src/session.rs:35`. An exit status, a
+  an error at `crates/podssh-ssh/src/session.rs:40`. An exit status, a
   close with no status, and `~.` are other ends
-  (`crates/podssh-ssh/src/session.rs:32-34`). Raw mode is entered once for
-  each session (`crates/podssh-ssh/src/session.rs:104-120`).
+  (`crates/podssh-ssh/src/session.rs:37-39`). Raw mode is entered once for
+  each session (`crates/podssh-ssh/src/session.rs:109-125`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:184-190`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:186-187`).
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:187-188`).
 - Read: tmux is never assumed (`docs/target-environment.md:90-92`).
 
 ## Approach
@@ -730,7 +730,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:127`), then Close 1009 (`docs/relay.md:188`); public
   targets only (`docs/relay.md:129`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:185`).
+  0.7 MB/s (`docs/STATUS.md:186`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 

@@ -98,7 +98,10 @@ pub async fn reach(resolved: &Resolved, log: &Arc<Log>) -> Result<Reached, NotRe
                 match dialled {
                     Ok(tcp) => {
                         let _ = tcp.set_nodelay(true);
-                        return Ok(Reached { stream: Box::new(tcp), relay: None });
+                        // A write that makes no progress fails as on the
+                        // relay leg, never a wait for ever (T-227).
+                        let stream = podssh_ws::write_limit::WriteLimit::new(tcp, podssh_ws::client::WRITE_TIMEOUT);
+                        return Ok(Reached { stream: Box::new(stream), relay: None });
                     }
                     Err(e) => log.error(&format!("could not connect to {target}: {e}")),
                 }

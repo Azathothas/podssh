@@ -260,6 +260,23 @@ got=$(wc -c <"$FK/out")
     && ok "faults: the connection to the relay ended with no Close: exit 255, and the relay is named" \
     || bad "faults: a cut: exit $rc, $got bytes" "$FK/err"
 
+# A stall below SSH with --direct (T-227): the forwarder passes the handshake,
+# then reads nothing more from podssh; the write fails after 60 s.
+python3 "$HERE/stall-forward.py" --listen 2297 --to 127.0.0.1:2201 --after 65536 >"$FK/stall.log" 2>&1 &
+echo $! >"$FK/stall-forward.pid"
+sleep 1
+head -c 20000000 /dev/zero >"$FK/twenty"
+start=$(date +%s)
+# shellcheck disable=SC2086
+timeout 300 env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2297 -o UserKnownHostsFile="$KH" \
+    -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes $K "$T" 'cat >/dev/null' \
+    <"$FK/twenty" >"$FK/out" 2>"$FK/err"
+rc=$?
+took=$(( $(date +%s) - start ))
+[ "$rc" = 255 ] && [ "$took" -le 90 ] && grep -q "no progress" "$FK/err" \
+    && ok "faults: a stuck write with --direct ends with 255 in ${took}s, and says so" \
+    || bad "faults: a stuck write with --direct: exit $rc in ${took}s" "$FK/err"
+
 for f in "$FK"/*.pid; do
     kill "$(cat "$f")" 2>/dev/null
 done

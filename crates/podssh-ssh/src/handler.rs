@@ -21,6 +21,16 @@ pub fn take_last_disconnect() -> Option<String> {
     LAST_DISCONNECT.lock().unwrap_or_else(|e| e.into_inner()).take()
 }
 
+/// Why the last connection of this process failed after its handshake, in
+/// words: russh gives the error to the handler alone, and a lost session
+/// names it (T-227: a write that made no progress, a reset).
+static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
+
+/// The last connection's error, taken.
+pub fn take_last_error() -> Option<String> {
+    LAST_ERROR.lock().unwrap_or_else(|e| e.into_inner()).take()
+}
+
 pub struct Client {
     policy: Arc<Policy>,
     log: Arc<Log>,
@@ -121,7 +131,10 @@ impl Handler for Client {
                 *self.disconnect.lock().unwrap_or_else(|e| e.into_inner()) = Some(said);
                 Ok(())
             }
-            DisconnectReason::Error(e) => Err(e),
+            DisconnectReason::Error(e) => {
+                *LAST_ERROR.lock().unwrap_or_else(|e| e.into_inner()) = Some(crate::run::describe(&e));
+                Err(e)
+            }
         }
     }
 

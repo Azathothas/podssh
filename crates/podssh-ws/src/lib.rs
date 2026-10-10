@@ -25,6 +25,7 @@ pub mod resolve;
 pub mod session;
 pub mod text;
 pub mod tls;
+pub mod write_limit;
 
 pub use client::{
     connect, doctor, https_get, https_post_json, ConnectError, Endpoint, WsClientConfig, DEFAULT_IDLE_TIMEOUT,

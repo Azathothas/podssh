@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**274 entries: 105 open, 0 partial, 22 blocked, 147 done.**
+**274 entries: 104 open, 0 partial, 22 blocked, 148 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 24 | 0 | 18 | 111 | 153 |
+| P2 | 23 | 0 | 18 | 112 | 153 |
 | P3 | 79 | 0 | 4 | 19 | 102 |
-| **All** | 105 | 0 | 22 | 147 | 274 |
+| **All** | 104 | 0 | 22 | 148 | 274 |
 
 ## Entries
 
@@ -298,7 +298,7 @@ repository and CI).
 | [T-224](repo.md) | P2 | S | none | chore | done | The gate finds a listener in the source: a scan with an allow-list (GitHub #33) |
 | [T-225](robustness.md) | P3 | M | backlog | chore | open | The interop gate takes each expected exit code from stock OpenSSH, beside the literal (GitHub #34) |
 | [T-226](reverse.md) | P2 | M | backlog | feature | blocked | Pairing grants that are signed and used once, not bearer tokens that can be replayed (GitHub #35) |
-| [T-227](ssh.md) | P2 | S | backlog | defect | open | `--direct` has no limit on a stuck write, but the relay leg fails after 60 s (GitHub #36) |
+| [T-227](ssh.md) | P2 | S | backlog | defect | done | `--direct` has no limit on a stuck write, but the relay leg fails after 60 s (GitHub #36) |
 | [T-228](ssh.md) | P2 | M | backlog | feature | open | A credential helper inside podssh, for passphrases and passwords |
 | [T-229](ssh.md) | P3 | L | backlog | feature | open | Hardware keys (FIDO2 `sk-` keys) in `podssh keygen`, the client and `podssh agent` |
 | [T-230](cli.md) | P2 | S | M3 | defect | done | The help and the manual say that `-R` is refused because podssh never binds |

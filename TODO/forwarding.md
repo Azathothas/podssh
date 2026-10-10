@@ -209,7 +209,7 @@ remote host that must use the key, such as `git` on a build host.
    (`crates/podssh-cli/src/ssh/keywords.rs:25-82`). Change the help of `-a`
    (`crates/podssh-cli/src/flags.rs:200-201`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
-   before the shell or exec request (`crates/podssh-ssh/src/session.rs:83-97`).
+   before the shell or exec request (`crates/podssh-ssh/src/session.rs:88-102`).
    Never to a jump hop.
 3. In the handler, accept `auth-agent@openssh.com` only when `-A` was given
    for this connection. For each such channel, connect to the agent with the
@@ -564,7 +564,7 @@ Read:
    to `Request::StdioForward` (`crates/podssh-ssh/src/options.rs:67-68`).
 2. Open a socket with `channel_open_direct_streamlocal` in
    `crates/podssh-ssh/src/forward.rs`, and use the copy loop of `stdio`
-   (`crates/podssh-ssh/src/forward.rs:22-83`) for both kinds.
+   (`crates/podssh-ssh/src/forward.rs:22-87`) for both kinds.
 3. A server that refuses the channel (OpenSSH with
    `AllowStreamLocalForwarding no`) gives its reason, and 255, as for TCP.
 4. Change the help of the `-W` row (`crates/podssh-cli/src/flags.rs:139-140`)
@@ -614,7 +614,7 @@ many bytes moved.
 
 ## Premise
 
-Read: today the only forward is `-W` (`crates/podssh-ssh/src/forward.rs:22-83`),
+Read: today the only forward is `-W` (`crates/podssh-ssh/src/forward.rs:22-87`),
 and it counts nothing. The escapes are `~.`, `~R`, `~?` and `~~`
 (`crates/podssh-ssh/src/escape.rs:1-13`); OpenSSH also has `~#`, which lists
 the forwarded connections. `podssh status` (T-051) runs in another process,
@@ -672,7 +672,7 @@ sessions (GitHub #17).
 ## Premise
 
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:38-47`,
-`crates/podssh-ssh/src/run.rs:141-155`). `podssh_relay::open` fails over and
+`crates/podssh-ssh/src/run.rs:141-158`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:177-212`,
 `crates/podssh-relay/src/open.rs:262-276`). With `-N`, no command runs, so a
