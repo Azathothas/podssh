@@ -783,7 +783,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:119`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:120`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -883,7 +883,7 @@ one of them can choose the relay that podssh trusts, or the host that `podssh ss
 Read on `c0cdd2b`: on each system but Unix, `owned_and_private`
 (`crates/podssh-relay/src/cache.rs:346-348`) and `owned_and_unwritable`
 (`crates/podssh-relay/src/cache/own.rs:136-139`) return `true`; so does `owner_alone_writes`
-(`crates/podssh-cli/src/ssh/config.rs:97-99`) since T-043. Windows keeps the owner and the
+(`crates/podssh-cli/src/ssh/config.rs:292-294`) since T-043. Windows keeps the owner and the
 writers of a file in its security descriptor, which podssh does not read.
 
 ## Approach

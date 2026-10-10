@@ -35,9 +35,9 @@ OpenSSH 10.3p1 (`ssh -G -F none`, offline) gives `hostname 2001:db8::1` for
 `[2001:db8::1]:8079`: it reads no port there.
 
 Read: `parse_hop` already removes the brackets
-(`crates/podssh-cli/src/ssh/resolve.rs:444-492`). The refusal is `check_host`
+(`crates/podssh-cli/src/ssh/hop.rs:29-77`). The refusal is `check_host`
 (`crates/podssh-ws/src/names.rs:8-24`, re-exported by `podssh_relay::relay`), called at
-`crates/podssh-cli/src/ssh/resolve.rs:289`, `crates/podssh-cli/src/proxy.rs:106`
+`crates/podssh-cli/src/ssh/resolve.rs:304`, `crates/podssh-cli/src/proxy.rs:106`
 and in `forward_path` (`crates/podssh-relay/src/relay.rs:139-152`); since this
 entry, each calls `check_target` there. Tests assert the refusal:
 `crates/podssh-relay/src/relay.rs:255`, and `crates/podssh-cli/tests/proxy.rs`
@@ -62,7 +62,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
    relay hosts, which are TLS names (`crates/podssh-relay/src/relay.rs:124-137`,
    `crates/podssh-relay/src/pool.rs:87`).
 3. `forward_path` writes the literal in the measured form. `podssh ssh` uses
-   the new check at `crates/podssh-cli/src/ssh/resolve.rs:289`, and refuses
+   the new check at `crates/podssh-cli/src/ssh/resolve.rs:304`, and refuses
    `-4` with an IPv6 literal (64).
 4. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:98-108`): `HOST PORT` takes
    a bare literal (the `%h %p` form) or `[V6]`. One word takes `[V6]:PORT` and
@@ -473,7 +473,7 @@ Measured offline (`PODSSH_OFFLINE=1`):
   name cannot start with '-'". `--relay-host=evil.example` there sets the relay.
 - `podssh proxy --relay-host=evil.example 22` is 64, `missing PORT`.
 - Exit 64: `ssh -- -oProxyCommand=x`, `ssh -- user@-x true`, `ssh -J=-x host`
-  (`crates/podssh-cli/src/ssh/resolve.rs:488-490`); `ssh --relay-host=-x host`,
+  (`crates/podssh-cli/src/ssh/hop.rs:73-75`); `ssh --relay-host=-x host`,
   `proxy -- -oX 22`, `proxy - 22` (`crates/podssh-ws/src/names.rs:17-19`).
   `ssh -- host -x` runs the command `-x`: `--` ends the options.
 - `ssh --direct -oHostName=-x host true` reaches the offline stop: `HostName`
@@ -482,7 +482,7 @@ Measured offline (`PODSSH_OFFLINE=1`):
   `-J -x host` (255), so it never gives such a `%h` to `podssh proxy`.
 
 Read: no option makes podssh start a program: `ProxyCommand` is refused and
-`LocalCommand` is ignored (`crates/podssh-cli/src/ssh/keywords.rs:75-85`). The
+`LocalCommand` is ignored (`crates/podssh-cli/src/ssh/keywords.rs:77-87`). The
 risk is a changed option (a host, a relay, a trust store), not a command.
 
 ## Approach
@@ -500,8 +500,8 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
 4. Check `HostName` with the rule of the destination: one function for the
-   checks at `crates/podssh-cli/src/ssh/resolve.rs:485-490`, also called at
-   `crates/podssh-cli/src/ssh/resolve.rs:139-146`.
+   checks at `crates/podssh-cli/src/ssh/hop.rs:70-75`, also called at
+   `crates/podssh-cli/src/ssh/resolve.rs:154-161`.
 5. Same commit: `docs/cli.md` (lines 62-75 at `3cbf215`; the `--` rule, and a host that starts
    with `-` is refused, as OpenSSH refuses it), `docs/STATUS.md`.
 

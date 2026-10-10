@@ -117,8 +117,15 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             vec!["~/.ssh/config".to_string()],
             "The user's ssh_config, read by podssh ssh, cp, mv, scp and sftp unless -F or PODSSH_SSH_CONFIG \
              names another file, or none. A missing file is no error. On Unix, a file that another user than \
-             you or root owns, or that others can change, is refused. Match and Include are refused by name, \
-             with the file and the line."
+             you or root owns, or that others can change, is refused, and so is each file that an Include \
+             reads. Match is refused by name, with the file and the line, but for Match all and Match final \
+             all."
+                .to_string(),
+        ),
+        (
+            vec![if cfg!(windows) { r"%ProgramData%\ssh\ssh_config" } else { "/etc/ssh/ssh_config" }.to_string()],
+            "The system's ssh_config, read after the user's, and not when -F or PODSSH_SSH_CONFIG names a \
+             file. A relative Include in it starts from its directory."
                 .to_string(),
         ),
         (

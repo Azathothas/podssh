@@ -317,7 +317,7 @@ fn parse_seconds(value: &str) -> Option<u64> {
 
 /// Space-separated values, as OpenSSH splits them: a space inside double
 /// quotes belongs to its value, and the quotes go.
-fn words(value: &str) -> Vec<String> {
+pub(super) fn words(value: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut word: Option<String> = None;
     let mut quoted = false;

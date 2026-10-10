@@ -247,6 +247,21 @@ for alias in openssh-alias dropbear-alias; do
         || bad "ssh -G -F FILE ($alias): exit $rc; not OpenSSH's: ${extra:-nothing}" "$W/err"
 done
 
+# Include and Match final all (T-044): the hosts of a file come from an
+# Include glob, read in sorted order, and Match final all fills what is unset.
+mkdir -p "$W/inc/d1" "$W/inc/d2"
+printf 'Host inc-alias\n  Port 2401\n  User podtest\n' >"$W/inc/d1/a.conf"
+printf 'Host inc-alias\n  Port 2400\n' >"$W/inc/d2/a.conf"
+printf 'Include %s/inc/d*/a.conf\nMatch final all\n  ConnectTimeout 9\n  User nobody\n' "$W" >"$W/inc/main"
+ssh -F "$W/inc/main" -G inc-alias </dev/null >"$W/ssh-G" 2>/dev/null
+env HOME="$home" PODSSH_OFFLINE=1 "$BIN" ssh -F "$W/inc/main" -G inc-alias </dev/null >"$W/podssh-G" 2>"$W/err"
+rc=$?
+extra=$(grep -v -E '^serveraliveinterval ' "$W/podssh-G" | grep -vxF -f "$W/ssh-G" | tr '\n' ';')
+[ "$rc" = 0 ] && [ -z "$extra" ] && grep -qx 'port 2401' "$W/podssh-G" && grep -qx 'user podtest' "$W/podssh-G" \
+    && grep -qx 'connecttimeout 9' "$W/podssh-G" \
+    && ok "ssh -G with Include and Match final all: each line that podssh prints is OpenSSH's" \
+    || bad "ssh -G with Include and Match final all: exit $rc; not OpenSSH's: ${extra:-nothing}" "$W/err"
+
 echo
 echo "== forwarding, jump hosts, subsystems, environment"
 # shellcheck disable=SC2086

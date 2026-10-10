@@ -585,8 +585,10 @@ commands. The rules behind them:
 
 ## `ssh_config` (milestone M8)
 
-`podssh ssh` reads `~/.ssh/config`, or the file of `-F FILE`, or of
-`PODSSH_SSH_CONFIG` when `-F` is not given; `-F none` reads no file (T-043).
+`podssh ssh` reads `~/.ssh/config` and then the system's file
+(`/etc/ssh/ssh_config`, `%ProgramData%\ssh\ssh_config` on Windows), or only
+the file of `-F FILE`, or of `PODSSH_SSH_CONFIG` when `-F` is not given;
+`-F none` reads no file (T-043, T-044).
 So do `cp`, `mv`, `scp`, `sftp` and the `ssh:` address of `pipe`, which reach
 a host as `podssh ssh` does. A line goes through the same parser as `-o`,
 and an error names the file and the line. The command line beats the file:
@@ -596,14 +598,18 @@ and an error names the file and the line. The command line beats the file:
 root's, and no one else may change it, checked on the file that a link
 names; a file that `-F` names is the user's choice, and is not checked.
 `ProxyCommand podssh proxy %h %p`, which a user of OpenSSH writes for
-podssh, is accepted, as `podssh ssh` takes that road anyway. `Match`, and
-`Include` in a block that applies, are refused by name until T-045 and
-T-044; the system file is read with T-044, as most of them start with
-`Include`.
+podssh, is accepted, as `podssh ssh` takes that road anyway. `Include` is
+read where it stands, with each file that it reads checked as
+`~/.ssh/config` is. `Match all` applies where it stands, and `Match final
+all` after the last line of the files, where it fills only what is still
+unset; each other `Match` is refused by name with the file and the line
+until T-045. The keywords of the GSSAPI patch of Debian and Fedora
+(`GSSAPIKexAlgorithms` in Fedora's crypto policy) are accepted with no
+effect, as podssh has no GSSAPI.
 
 These are the rules of OpenSSH 10.3p1, measured with `ssh -G`, and podssh
-follows them; `crates/podssh-cli/tests/ssh_config_file.rs` holds OpenSSH's
-lines for a fixture:
+follows them; `crates/podssh-cli/tests/ssh_config_file.rs` and
+`crates/podssh-cli/tests/ssh_config_include.rs` hold OpenSSH's results:
 
 - The first value obtained wins, from top to bottom. The most specific block
   does not win.
@@ -617,13 +623,26 @@ lines for a fixture:
   counts, and `-o IgnoreUnknown` beats the file's.
 - `HostName` takes `%h`, the host as typed, and `%%`; another token is an
   error. The result is lowercased.
-- `Include` is expanded where it appears, with globs in sorted order. A
-  relative `Include` starts from `~/.ssh` (user file) or `/etc/ssh` (system
-  file), not from the directory of the file that includes it.
+- `Include` is expanded where it appears, its arguments in order and the
+  names of a glob sorted; a wildcard may be in a directory part too. A
+  relative `Include` starts from `~/.ssh` (a user's file, also one of `-F`)
+  or `/etc/ssh` (the system's), not from the directory of the file that
+  includes it. It takes `~` and each `%` token but `%T`, with the values of
+  the moment: `%p` the port of `-p` or of an earlier `Port`, else 22; `%r`
+  the user of `-l` or of an earlier `User`, else the local user; `%h` an
+  earlier `HostName` as written, else the host as typed.
+- A file that an `Include` reads is checked as `~/.ssh/config` is, also
+  from a file of `-F`. A missing file is no error, and a directory that a
+  glob names is skipped. A `Host` line in an included file holds to the end
+  of that file. A chain of more than 16 includes is an error.
 - `*` matches across dots.
 - `Match` never overrides a value that is already set. podssh must refuse
   `Match` by name, not skip it, because `Match` can change the host that
-  podssh connects to.
+  podssh connects to. `Match all` applies where it stands; `Match final all`
+  applies after the last line, and fills only what is unset.
+- Debian 13 starts its system file with `Include
+  /etc/ssh/ssh_config.d/*.conf`; Fedora 42 includes its crypto policy from a
+  `Match final all` block.
 - A missing `-F` file is an error (255), and `-F` stops the reading of each
   other configuration file. A missing `~/.ssh/config` is not an error.
 - `~/.ssh/config` that is another user's than the user's or root's, or that

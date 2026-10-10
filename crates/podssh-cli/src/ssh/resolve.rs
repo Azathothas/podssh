@@ -12,9 +12,13 @@ use podssh_ws::Trust;
 use podssh_relay::relay::{self, RelayList};
 
 use super::args::SshArgs;
+use super::hop::{host_rule, jump_hop, stdio_forward_form};
 use super::options::{parse_port, Settings};
 use super::tokens::{lower_host, Tokens, USER_REFUSES};
 use crate::relay_settings::Refusal;
+
+// Its old home, for the callers that name it here.
+pub use super::hop::parse_hop;
 
 /// How the first hop is reached.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,6 +71,9 @@ pub struct Env {
     pub uid: Option<u32>,
     /// `PODSSH_SSH_CONFIG`: the file of `-F`, when `-F` is not given.
     pub ssh_config: Option<String>,
+    /// The system's `ssh_config`, read after `~/.ssh/config`; `None` reads
+    /// none, as in the tests.
+    pub system_config: Option<PathBuf>,
 }
 
 impl Env {
@@ -82,6 +89,7 @@ impl Env {
             local_host: super::tokens::local_host_name(),
             uid: super::tokens::local_uid(),
             ssh_config: var("PODSSH_SSH_CONFIG"),
+            system_config: Some(super::config::system_file()),
         }
     }
 }
@@ -133,7 +141,14 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     // line, but for `User` and `Port`, which `user@host` and `host:PORT`
     // also beat.
     let source = super::config::file(args.config.as_deref(), env.ssh_config.as_deref(), env.home.as_deref());
-    let filed = super::config::read(&source, &target.host, settings.ignore_unknown.clone()).map_err(Refusal::config)?;
+    let so_far = |file: &Settings| include_tokens(args, &settings, &target, env, file);
+    let ctx = super::config::Context {
+        host: &target.host,
+        home: env.home.as_deref(),
+        system: env.system_config.as_deref(),
+        tokens: &so_far,
+    };
+    let filed = super::config::read(&source, &ctx, settings.ignore_unknown.clone()).map_err(Refusal::config)?;
     let (file_user, file_port) = (filed.user.clone(), filed.port);
     let settings = settings.then_file(filed);
     let host = match settings.host_name.as_deref() {
@@ -394,24 +409,35 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     Ok(resolved)
 }
 
-/// `-W` takes `HOST:PORT` or `[ADDR]:PORT`. OpenSSH reads a value with a `/`
-/// as a Unix socket on the server, and refuses a value with no port: a host
-/// on port 22 would change the meaning of its command line. A `-J` hop is
-/// read elsewhere, where a host alone is port 22, as in OpenSSH.
-fn stdio_forward_form(target: &str) -> Result<(), String> {
-    if target.contains('/') {
-        return Err(format!("-W {target}: a Unix socket on the server is not supported yet"));
-    }
-    let port = match target.strip_prefix('[') {
-        Some(rest) => rest.split_once("]:").map(|(_, port)| port),
-        None if target.matches(':').count() > 1 => {
-            return Err(format!("-W {target}: expected HOST:PORT; an IPv6 address needs brackets: [ADDR]:PORT"))
-        }
-        None => target.split_once(':').map(|(_, port)| port),
-    };
-    match port {
-        Some(port) if !port.is_empty() => Ok(()),
-        _ => Err(format!("-W {target}: expected HOST:PORT")),
+/// The `%` tokens of an `Include`, with the values of the moment, as OpenSSH
+/// gives them: the command line's, else those of the lines read so far
+/// (`file`), else the defaults; none is lowercased yet.
+fn include_tokens(args: &SshArgs, cli: &Settings, target: &Hop, env: &Env, file: &Settings) -> Tokens {
+    let host = cli.host_name.clone().or_else(|| file.host_name.clone()).unwrap_or_else(|| target.host.clone());
+    let port = args.port.as_deref().and_then(parse_port).or(cli.port).or(Some(target.port).filter(|p| *p != 22));
+    let remote_user = args.login.clone().or_else(|| cli.user.clone()).or_else(|| target.user.clone());
+    let jump = args.jump.as_deref().or(cli.proxy_jump.as_deref()).or(file.proxy_jump.as_deref());
+    Tokens {
+        home: env.home.clone(),
+        host,
+        original: target.host.clone(),
+        port: port.or(file.port).unwrap_or(22),
+        remote_user: remote_user.or_else(|| file.user.clone()).or_else(|| env.user.clone()).unwrap_or_default(),
+        local_user: env.user.clone(),
+        local_host: env.local_host.clone(),
+        uid: env.uid,
+        alias: cli
+            .host_key_alias
+            .clone()
+            .or_else(|| file.host_key_alias.clone())
+            .unwrap_or_else(|| target.host.clone()),
+        jump: match jump {
+            Some("none") => "none".into(),
+            Some(list) => {
+                list.rsplit(',').next().and_then(|h| jump_hop(h.trim()).ok()).map(|h| h.host).unwrap_or_default()
+            }
+            None => String::new(),
+        },
     }
 }
 
@@ -439,54 +465,4 @@ fn request(args: &SshArgs, settings: &Settings, remote_command: Option<&str>) ->
         return Ok(Request::Subsystem(command.trim().to_string()));
     }
     Ok(if command.is_empty() { Request::Shell } else { Request::Exec(command) })
-}
-
-/// `[user@]host[:port]`, `[user@][v6]:port` or `ssh://[user@]host[:port]`.
-/// The `host:port` form is podssh's own (OpenSSH would read it as a host
-/// name), because the "did you mean" message suggests it.
-pub fn parse_hop(text: &str) -> Result<Hop, String> {
-    let original = text;
-    let text = text.strip_prefix("ssh://").map(|t| t.trim_end_matches('/')).unwrap_or(text);
-    let (user, rest) = match text.rsplit_once('@') {
-        Some((u, r)) if !u.is_empty() => (Some(u.to_string()), r),
-        Some(_) => return Err(format!("{original:?}: empty user name")),
-        None => (None, text),
-    };
-    let (host, port) = if let Some(inner) = rest.strip_prefix('[') {
-        let (h, after) = inner.split_once(']').ok_or_else(|| format!("{original:?}: unclosed '['"))?;
-        let port = match after.strip_prefix(':') {
-            Some(p) => parse_port(p).ok_or_else(|| format!("{original:?}: {p:?} is not a port"))?,
-            None if after.is_empty() => 22,
-            None => return Err(format!("{original:?}: unexpected text after ']'")),
-        };
-        (h.to_string(), port)
-    } else if rest.matches(':').count() == 1 {
-        let (h, p) = rest.split_once(':').unwrap_or((rest, "22"));
-        (h.to_string(), parse_port(p).ok_or_else(|| format!("{original:?}: {p:?} is not a port"))?)
-    } else {
-        (rest.to_string(), 22)
-    };
-    host_rule(original, &host)?;
-    Ok(Hop { user, host, port })
-}
-
-/// A `-J` hop, which a node cannot be yet.
-fn jump_hop(text: &str) -> Result<Hop, String> {
-    if text.starts_with(super::node::SCHEME) {
-        return Err(format!("-J {text}: a node cannot be a -J hop yet"));
-    }
-    parse_hop(text)
-}
-
-/// A host that a word names: not empty, and not starting with `-`, which a
-/// program would read as a flag (OpenSSH refuses it too). The same rule for a
-/// destination, a `-J` hop, a `-W` target and `-o HostName`.
-fn host_rule(original: &str, host: &str) -> Result<(), String> {
-    if host.is_empty() {
-        return Err(format!("{original:?}: no host"));
-    }
-    if host.starts_with('-') {
-        return Err(format!("{original:?}: a host name cannot start with '-'"));
-    }
-    Ok(())
 }

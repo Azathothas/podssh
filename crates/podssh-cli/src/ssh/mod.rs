@@ -11,6 +11,7 @@ pub mod args;
 pub mod config;
 pub mod dump;
 pub mod forward;
+mod hop;
 pub mod iroh;
 pub mod keywords;
 pub mod node;

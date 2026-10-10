@@ -125,17 +125,14 @@ fn a_missing_given_file_is_78_and_a_missing_default_is_nothing() {
 }
 
 #[test]
-fn match_and_include_are_refused_with_file_and_line() {
+fn match_is_refused_with_file_and_line() {
     let h = Home::new("match");
     let f = h.file("match", "Host alias\n  Port 2222\nMatch host alias\n  HostName elsewhere\n");
     let err = resolve_or_refuse(&ssh(&["-F", &f, "alias"]), &h.env()).unwrap_err();
     assert_eq!(err.code, 78, "{}", err.message);
     assert!(err.message.contains(&format!("{f}:3: Match")), "{}", err.message);
-    let f = h.file("include", "Include other\n");
-    let err = resolve_or_refuse(&ssh(&["-F", &f, "alias"]), &h.env()).unwrap_err();
-    assert!(err.message.contains(&format!("{f}:1: Include")), "{}", err.message);
-    // In a block that does not apply, Include is not reached; Match always is.
-    let f = h.file("other", "Host other\n  Include more\nHost alias\n  Port 2223\n");
+    // In a block that does not apply, an Include is not read (T-044).
+    let f = h.file("other", "Host other\n  Include /nonexistent/more\nHost alias\n  Port 2223\n");
     assert_eq!(resolve(&ssh(&["-F", &f, "alias"]), &h.env()).unwrap().options.destination.port, 2223);
 }
 

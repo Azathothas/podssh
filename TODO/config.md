@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:586-631`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:586-650`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -155,14 +155,14 @@ the new checks, where a `Host` alias of a `-F` file reaches OpenSSH and Dropbear
 
 # T-044: `Include` in `ssh_config`, expanded as OpenSSH expands it
 
-**Source:** `docs/cli.md:620-622` (measured with `ssh -G`); the `include/` module of lablup/bssh
+**Source:** `docs/cli.md`, lines 620-622 at `6192513` (measured with `ssh -G`); the `include/` module of lablup/bssh
 named in GitHub #22 (`lablup/bssh:src/ssh/ssh_config/`, read in the report, not verified here);
 ROADMAP M8. Measured again here with OpenSSH_10.3p1.
 **Category:** feature
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -172,7 +172,7 @@ name, so such a file cannot be used, and the system file cannot be read at all.
 
 ## Premise
 
-Read: `docs/cli.md:620-622`: `Include` is expanded where it appears, with globs in sorted
+Read: `docs/cli.md`, lines 620-622 at `6192513`: `Include` is expanded where it appears, with globs in sorted
 order, and a relative path starts from `~/.ssh` (user file) or `/etc/ssh` (system file).
 
 Measured here with `ssh -G -F FILE x` (OpenSSH_10.3p1 of Git for Windows, no network,
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:586-640`, FILES (`crates/podssh-cli/src/man/data.rs:91-177`) and the
+7. Change `docs/cli.md:586-659`, FILES (`crates/podssh-cli/src/man/data.rs:91-184`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -223,9 +223,63 @@ of `podssh ssh -G` (T-046) with the same keyword lines of OpenSSH's `ssh -G` for
 Planted defect: sort the names of a glob in reverse; the sorted-order fixture gives
 `port 2400`, and the test fails.
 
+## Correction
+
+Measured on 2026-10-10 with OpenSSH 10.3p1's `ssh -G` in the build image (Alpine), as a user
+whose home is a scratch directory, where the Approach reads otherwise:
+
+- A wildcard in a directory part works: `Include /tmp/inc/d*/a.conf` reads `d1/a.conf`, then
+  `d2/a.conf`. podssh expands it too, rather than refuse it.
+- `Include` takes `~` and each `%` token but `%T`, with the values of the moment: `%p` is the port
+  of `-p` or of an earlier `Port` line, else 22; `%r` the user of `-l` or of an earlier `User`
+  line, else the local user; `%h` an earlier `HostName` as written, else the host as typed; `%k`
+  an earlier `HostKeyAlias` as written; `%j` the host of `-J`; none is lowercased.
+- A relative path starts from `~/.ssh` for a file of `-F` too, and from `/etc/ssh` for the
+  system file. Arguments are read in order, and the names of a glob are sorted.
+- An included file is checked as `~/.ssh/config` is, also when a file of `-F` includes it: one
+  that others can write, or that another user than the user or root owns, is refused with "Bad
+  owner or permissions". A name that a glob matches and that is a directory is skipped. A
+  missing file is no error; `Include` with no argument is one.
+- A `Host` line in an included file holds to the end of that file; the line after the `Include`
+  is in the block of the file that includes it again.
+- The system files: Debian 13 starts `/etc/ssh/ssh_config` with `Include
+  /etc/ssh/ssh_config.d/*.conf`, then `Host *` with `SendEnv`, `HashKnownHosts` and
+  `GSSAPIAuthentication`; Fedora 42 has only the `Include`, and its `50-redhat.conf` holds `Match
+  final all`, which includes `/etc/crypto-policies/back-ends/openssh.config`. That file sets
+  `GSSAPIKexAlgorithms`, a keyword of the GSSAPI patch of the distributions that podssh did not
+  know. Debian 13's OpenSSH 10.0p2 knows `GSSAPIClientIdentity`, `GSSAPIServerIdentity`,
+  `GSSAPIKeyExchange`, `GSSAPIKexAlgorithms`, `GSSAPIRenewalForcesRekey` and `GSSAPITrustDns`, and
+  Fedora's `ssh -G` prints the four that have a default; podssh accepts the six with no effect,
+  as it has no GSSAPI.
+- `crates/podssh-cli/tests/ssh_config.rs` holds the tests of `-G` (T-046); the tests of this
+  entry go to a file of their own, `crates/podssh-cli/tests/ssh_config_include.rs`.
+
+## Done
+
+2026-10-10, in the commit that closes this entry. `Include` is read where it stands: its
+arguments in order, each with `~` and the `%` tokens of the moment, a relative path from
+`~/.ssh` or from the system's directory, and the names of a glob, also of one in a directory
+part, sorted (`crates/podssh-cli/src/ssh/config/glob.rs`). Each file that it reads is checked as
+`~/.ssh/config` is; a missing one is no error; a directory is skipped; a `Host` line in it holds
+to its end; more than 16 nested includes are an error that names the chain. The system's file
+is read after `~/.ssh/config`, and not with `-F`. `Match all` applies where it stands, and
+`Match final all` in a second pass that fills only what is unset; each other `Match` is still
+refused by name. The six keywords of the GSSAPI patch are accepted with no effect. FILES has the
+system's file, and `docs/cli.md` says each rule. `crates/podssh-cli/src/ssh/resolve.rs`, over 500
+lines with this entry, gives the reading of the hosts of a command line to
+`crates/podssh-cli/src/ssh/hop.rs`.
+
+Native, Windows 11: `cargo test -p podssh-cli --test ssh_config_include`, 9 passed (10 on Unix,
+where the check of an included file that others can change runs), each case with the result of
+OpenSSH 10.3p1, the system files of Fedora 42 and Debian 13 included. Planted, the names of a
+glob sorted in reverse: the test of the order fails. clippy with `-D warnings`: no warning.
+`cargo test --workspace --no-fail-fast`: {PASSED} passed, 0 failed, {IGNORED} ignored. In
+`scripts/interop.sh`, podssh's `-G` for a file with an `Include` glob and `Match final all` is
+compared with OpenSSH's; its first run is CI's, at the push of this commit.
+
 # T-045: `Match` in `ssh_config`
 
-**Source:** `docs/cli.md:624-626`; GitHub #22 (the `match_directive/` module of lablup/bssh,
+**Source:** `docs/cli.md:639-642`; GitHub #22 (the `match_directive/` module of lablup/bssh,
 and TeddyHuang-00/sshping issue #211 with PR #212, where a skipped `Match` changed the target;
 read in the reports, not verified here).
 **Category:** feature
@@ -242,13 +296,13 @@ block is worse: a skipped `Match` can change the host that podssh connects to.
 
 ## Premise
 
-Read: `docs/cli.md:624-626`: `Match` never overrides a value that is set, and podssh must refuse
+Read: `docs/cli.md:639-642`: `Match` never overrides a value that is set, and podssh must refuse
 it by name, not skip it. `-P TAG` is accepted and ignored today
 (`crates/podssh-cli/src/flags.rs:201-202`), so `Match tagged` would give the tag its meaning.
 The login name comes from the environment, never from the user database
-(`crates/podssh-cli/src/ssh/resolve.rs:76-96`); `Match localuser` needs it. podssh does no
+(`crates/podssh-cli/src/ssh/resolve.rs:83-104`); `Match localuser` needs it. podssh does no
 canonical pass: `CanonicalizeHostname` is accepted and ignored
-(`crates/podssh-cli/src/ssh/keywords.rs:67-80`). Measured with OpenSSH_10.3p1 (T-044):
+(`crates/podssh-cli/src/ssh/keywords.rs:67-82`). Measured with OpenSSH_10.3p1 (T-044):
 `Match all` applies where it stands, and `Match final all` fills only unset values.
 
 ## Approach
@@ -266,7 +320,7 @@ canonical pass: `CanonicalizeHostname` is accepted and ignored
 5. A value from a `Match` block follows the first-value rule
    (`crates/podssh-cli/src/ssh/options.rs:293-297`).
 6. `-G` (T-046) evaluates the same blocks and prints the result.
-7. Change `docs/cli.md:624-626` and the `ssh` notes in the same commit.
+7. Change `docs/cli.md:639-642` and the `ssh` notes in the same commit.
 
 ## Decision
 
@@ -316,14 +370,14 @@ refused. ... podssh reads no ssh_config, so it has no configuration to print."
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:104-395`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:112-410`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the defaults included.
 
 ## Approach
 
 1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:60-80`
    requires that pair. The reviewed set of short flags does not change.
-2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:34-94`), after `resolve` (lines 36-42 at `e8bbd4d`): with
+2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:35-95`), after `resolve` (lines 36-42 at `e8bbd4d`): with
    `-G`, print the settings and exit 0. Open nothing: no relay, no token, no pool refresh.
 3. Print from `Resolved` and its `Options`, not from `Settings`, so the defaults are shown.
 4. Print only keywords of OpenSSH that podssh applies
@@ -479,9 +533,9 @@ command, or edits a shell profile. No file states them once.
 Read: each command resolves the same settings in its own copy. Relay hosts (`--relay-host`,
 then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:83-101`)
 go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:62-74`), called in
-`crates/podssh-cli/src/ssh/resolve.rs:288`, `crates/podssh-cli/src/doctor/mod.rs:56-59` and
+`crates/podssh-cli/src/ssh/resolve.rs:303`, `crates/podssh-cli/src/doctor/mod.rs:56-59` and
 `crates/podssh-cli/src/proxy.rs:64-67`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
-`crates/podssh-cli/src/ssh/resolve.rs:301-304`, `crates/podssh-cli/src/doctor/mod.rs:60-65` and
+`crates/podssh-cli/src/ssh/resolve.rs:316-319`, `crates/podssh-cli/src/doctor/mod.rs:60-65` and
 `crates/podssh-cli/src/proxy.rs:75-79`. The pins of the flag and of the variable add up
 (`crates/podssh-cli/src/pins.rs:13-23`). The token cache uses the user's
 cache directory first (`crates/podssh-relay/src/cache.rs:372-381`). The decision named the
