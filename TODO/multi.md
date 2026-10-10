@@ -266,7 +266,7 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:69-79` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:70-80` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
 
@@ -773,7 +773,7 @@ a ticket, or a tool that asks an AI.
 6. podssh calls no AI service and no network address for this: the program
    decides what to do with the report.
 7. In the same commit: `docs/cli.md` (the hook), the notes of the manual,
-   `SECURITY.md:53-56` (what the report holds), `docs/STATUS.md`.
+   `SECURITY.md:53-57` (what the report holds), `docs/STATUS.md`.
 
 ## Decision
 

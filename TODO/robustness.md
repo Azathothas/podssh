@@ -53,7 +53,7 @@ compiler.
    consumes at most its input, and a control frame has FIN and 125 bytes or
    fewer (fails until T-063); `forward_path` after `parse_relay_list` has the
    form `/connect/HOST/PORT`; `one_line` leaves no control character
-   (`SECURITY.md:59-62`); `Reassembler::push` stays under a stated limit
+   (`SECURITY.md:60-63`); `Reassembler::push` stays under a stated limit
    (fails until T-096); the command line target calls `parse`, never the
    dispatch, so no target reaches the network.
 3. Reach a private parser through a wrapper under `#[cfg(fuzzing)]`, which
@@ -201,7 +201,7 @@ Read:
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
-  peer (`SECURITY.md:59-62`).
+  peer (`SECURITY.md:60-63`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
   discipline (`docs/terminal.md:81-177`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.

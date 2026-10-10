@@ -53,7 +53,7 @@ a self node with no home region (`crates/podssh-cli/src/ts.rs`, lines 288-320 at
    named constant of 20 s, "a design constant, not a measurement", as at
    `crates/podssh-cli/src/ts.rs`, lines 298-301 at `4c3b456`. The default stays fail-fast (`docs/decisions.md:42`).
 4. Apply the same limit to the address wait in `Device::tcp_connect`
-   (`vendor/tailscale-rs/src/lib.rs:272-276`). Keep one message and exit 78 for "no map in time".
+   (`vendor/tailscale-rs/src/lib.rs:274-278`). Keep one message and exit 78 for "no map in time".
 5. Correct the two comments, and update `docs/STATUS.md:303` in the same commit.
 
 ## Decision
@@ -235,9 +235,9 @@ Read: `probe` returns `Ok` for `Tcp` and `Relay` when `has_key` is true
 The decided chain is tun, socks, tcp, relay (`docs/decisions.md:42`), and the rule is to probe
 before use (`docs/target-environment.md:90-92`).
 
-Read: `ephemeral` goes into the register request (`crates/podssh-ts/src/node.rs:64`). The fork has
-no logout: `Device::shutdown` only stops the actors (`vendor/tailscale-rs/src/lib.rs:325-355`), and
-`podssh ts` never calls `TsNode::shutdown` (`crates/podssh-ts/src/node.rs:119-122`). The fork's own
+Read: `ephemeral` goes into the register request (`crates/podssh-ts/src/node.rs:69`). The fork has
+no logout: `Device::shutdown` only stops the actors (`vendor/tailscale-rs/src/lib.rs:327-357`), and
+`podssh ts` never calls `TsNode::shutdown` (`crates/podssh-ts/src/node.rs:124-127`). The fork's own
 type says that a register request with an expiry in the past expires the current node key
 (`vendor/tailscale-rs/ts_control_serde/src/register.rs:92-97`).
 
@@ -251,7 +251,7 @@ type says that a register request with an expiry in the past expires the current
    message and `Device::logout(timeout)`, as a new patch with its row in
    `vendor/tailscale-rs/LOCAL-PATCHES.md`.
 3. `TsNode::shutdown` logs out first when the node is ephemeral, in 5 s at most. `podssh ts` calls
-   it at the end of each form, also after an error (`crates/podssh-cli/src/ts.rs:228-238`). Never
+   it at the end of each form, also after an error (`crates/podssh-cli/src/ts.rs:232-242`). Never
    log out a node that is not ephemeral: its allowlist entry is lost (`docs/tailscale.md:23-24`).
 4. Update `docs/tailscale.md` and `docs/STATUS.md:306` in the same commit.
 
@@ -305,9 +305,9 @@ fourth path that goes direct keeps the route that cannot work
 the pin (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:285-292`), and so does the
 WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:135-141`).
 
-Read: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs:198-211`),
+Read: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs:200-213`),
 against the manual (`crates/podssh-cli/src/man/facts.rs:45-51`), the rule at
-`docs/target-environment.md:68-71` and `SECURITY.md:53-56`. A URL with no port means 80 in podssh
+`docs/target-environment.md:68-71` and `SECURITY.md:53-57`. A URL with no port means 80 in podssh
 (`crates/podssh-ws/src/dial.rs:70`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:39-41`).
 Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:25-26`).
 
@@ -372,7 +372,7 @@ The client ignores the timing of `KeepAlive` frames (`vendor/tailscale-rs/ts_der
 
 Read: `ControlRunner` stops when the map stream ends
 (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:409-412`), under the default supervision
-(`vendor/tailscale-rs/ts_runtime/src/lib.rs:160-169`): five restarts in 5 s at most, with no wait
+(`vendor/tailscale-rs/ts_runtime/src/lib.rs:161-170`): five restarts in 5 s at most, with no wait
 (`tqwewe/kameo:src/supervision.rs`). podssh's relay client has the rules to copy: a capped backoff
 with jitter (`crates/podssh-relay/src/open.rs:262-276`), and a ping every 10 s with three silent
 checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
@@ -416,7 +416,7 @@ first test must fail. The live drop test is part of T-106.
 # T-105: The fork shows the relay's `1008 not authorized` as a missing network map
 
 **Source:** `docs/tailscale.md:12-14` ("Repair this first"), and the comment at
-`crates/podssh-cli/src/ts.rs:299-302` (measured on 2026-10-07). Read here on `3ee70dc` in the fork.
+`crates/podssh-cli/src/ts.rs:301-304` (measured on 2026-10-07). Read here on `3ee70dc` in the fork.
 **Category:** defect
 **Milestone:** M8
 **Priority:** P2
@@ -438,11 +438,11 @@ and the handshake returns it (`vendor/tailscale-rs/ts_derp/src/client.rs:205-210
 passes it up (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:248-254`), and `start_runner`
 gives it to `tracing::error!` only (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:72-76`).
 No podssh crate installs a `tracing` subscriber, so the line goes nowhere. `classify_1008` and the
-exit 77 exist (`crates/podssh-ts/src/classify.rs:17-25`, `crates/podssh-cli/src/ts.rs:281-293`), but
+exit 77 exist (`crates/podssh-ts/src/classify.rs:17-25`, `crates/podssh-cli/src/ts.rs:283-295`), but
 they see only the error texts of `Device` calls.
 
 Read: the symptom is not always a missing map. The status line needs the home region of the self
-node (`crates/podssh-ts/src/node.rs:76-83`). Control sets it from the region that the node prefers
+node (`crates/podssh-ts/src/node.rs:81-88`). Control sets it from the region that the node prefers
 (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:276-289`), which comes from HTTPS latency
 checks of the stock DERP map (`vendor/tailscale-rs/ts_runtime/src/derp_latency.rs:37-58`), not from
 the relay. So a refused node can still print a status line and exit 0. This widens the defect.
@@ -454,11 +454,11 @@ the relay. So a refused node can still print a status line and exit 0. This wide
    returns it. The frame codec does not change.
 2. In `ts_runtime`, keep the newest DERP state of each region (connected, refused or failed), set
    in `start_runner` and later in the loop of T-104. `Device::derp_state()` returns it with no wait,
-   forwarded as `SelfNode` is (`vendor/tailscale-rs/src/lib.rs:287-294`).
+   forwarded as `SelfNode` is (`vendor/tailscale-rs/src/lib.rs:289-296`).
 3. In podssh-ts, add `NodeError::DerpRefused { code, reason }`. `status()` and `-W` read the state
    first, and `relay` mode prints a status line only with a connected home region.
-4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs:281-293`),
-   and remove the old comment at `crates/podssh-cli/src/ts.rs:299-302`.
+4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs:283-295`),
+   and remove the old comment at `crates/podssh-cli/src/ts.rs:301-304`.
 5. Add the patch and its row, and update `docs/tailscale.md:12-14` and `docs/STATUS.md:306`.
 
 ## Prove
@@ -499,9 +499,9 @@ Read: the ignored test makes a new state file in the temporary directory and rem
 (`docs/tailscale.md:23-24`). Its reason still names M5. On 2026-10-07, registration worked, no map
 came in 60 s, and only the operator can add a node key to the allowlist (`docs/tailscale.md:8-19`).
 
-Read: `podssh ts` has no form that accepts a connection (`crates/podssh-cli/src/ts.rs:235-238`), but
+Read: `podssh ts` has no form that accepts a connection (`crates/podssh-cli/src/ts.rs:239-242`), but
 the fork can listen in its own network stack, with no socket of the host
-(`vendor/tailscale-rs/src/lib.rs:260-269`). The fork's echo example takes the auth key on the
+(`vendor/tailscale-rs/src/lib.rs:262-271`). The fork's echo example takes the auth key on the
 command line (`vendor/tailscale-rs/examples/tcp_echo/main.rs:24-28`), which podssh must not do. With
 the pin, each region's runner dials the relay
 (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:285-292`), so two `relay` nodes meet there.
@@ -641,7 +641,7 @@ the manual's note say so (`crates/podssh-cli/src/flags.rs`, `crates/podssh-cli/s
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -652,42 +652,53 @@ fork also keeps its own copy for the whole session.
 
 ## Premise
 
-Read: `AuthKey` holds a plain `Vec<u8>` and has no `Drop` (`crates/podssh-ts/src/secret.rs:9-41`).
+Read: `AuthKey` holds a plain `Vec<u8>` and has no `Drop` (`crates/podssh-ts/src/secret.rs`, lines 9-41 at `160773e`).
 `expire` writes zeros in a plain loop and then clears the vector
-(`crates/podssh-ts/src/secret.rs:33-40`); only a test calls it (`crates/podssh-ts/tests/secret.rs:18-24`).
+(`crates/podssh-ts/src/secret.rs`, lines 33-40 at `160773e`); only a test calls it (`crates/podssh-ts/tests/secret.rs:18-24`).
 Known from the documentation of the `zeroize` crate, not verified here: a compiler can remove such
 writes, because nothing reads the bytes after them.
 
 Read: `podssh ts` reads the file into a plain buffer and trims it into a second copy
-(`crates/podssh-cli/src/ts.rs:164-171`, `crates/podssh-cli/src/ts.rs:255-261`). `TsNode::start` makes
-a third copy, a `String` that goes to the fork (`crates/podssh-ts/src/node.rs:54-55`,
-`crates/podssh-ts/src/node.rs:67`). The fork keeps it in its configuration and in the parameters of
-its control runner, for each registration (`vendor/tailscale-rs/ts_runtime/src/lib.rs:54`,
-`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:54`, `vendor/tailscale-rs/ts_runtime/src/control_runner.rs:108`).
+(`crates/podssh-cli/src/ts.rs`, lines 164-171 at `160773e`, `crates/podssh-cli/src/ts.rs`, lines 255-261 at `160773e`). `TsNode::start` makes
+a third copy, a `String` that goes to the fork (`crates/podssh-ts/src/node.rs`, lines 54-55 at `160773e`,
+`crates/podssh-ts/src/node.rs`, line 67 at `160773e`). The fork keeps it in its configuration and in the parameters of
+its control runner, for each registration (`vendor/tailscale-rs/ts_runtime/src/lib.rs`, line 54 at `160773e`,
+`vendor/tailscale-rs/ts_runtime/src/control_runner.rs`, line 54 at `160773e`, `vendor/tailscale-rs/ts_runtime/src/control_runner.rs`, line 108 at `160773e`).
 
 Read: the relay token is a `Zeroizing<String>` (`crates/podssh-relay/src/token.rs:29`), and
 `zeroize` is a workspace dependency (`Cargo.toml:159`), but podssh-ts does not use it
-(`crates/podssh-ts/Cargo.toml:10-14`). The fork already depends on it
-(`vendor/tailscale-rs/Cargo.toml:106`). The comment at `crates/podssh-ts/src/secret.rs:3-5` names a
+(`crates/podssh-ts/Cargo.toml`, lines 10-14 at `160773e`). The fork already depends on it
+(`vendor/tailscale-rs/Cargo.toml:106`). The comment at `crates/podssh-ts/src/secret.rs`, lines 3-5 at `160773e` names a
 model file that no longer exists.
 
 ## Approach
 
-1. Add `zeroize` from the workspace to `crates/podssh-ts/Cargo.toml:10-14`. Hold the bytes in
+1. Add `zeroize` from the workspace to `crates/podssh-ts/Cargo.toml`, lines 10-14 at `160773e`. Hold the bytes in
    `Zeroizing<Vec<u8>>`, give `AuthKey` a `Drop` that clears them, and mark it `ZeroizeOnDrop`.
    `expire` calls `zeroize()`.
-2. In `crates/podssh-cli/src/ts.rs:164-171`, read the file into `Zeroizing<Vec<u8>>`, and trim it
-   in place, not into a copy (`crates/podssh-cli/src/ts.rs:255-261`).
+2. In `crates/podssh-cli/src/ts.rs`, lines 164-171 at `160773e`, read the file into `Zeroizing<Vec<u8>>`, and trim it
+   in place, not into a copy (`crates/podssh-cli/src/ts.rs`, lines 255-261 at `160773e`).
 3. In `TsNode::start`, make the fork's `String` from the bytes with no other copy
-   (`crates/podssh-ts/src/node.rs:54-55`). Expire podssh's key when the start returns
-   (`crates/podssh-cli/src/ts.rs:213-227`), because podssh no longer needs it.
+   (`crates/podssh-ts/src/node.rs`, lines 54-55 at `160773e`). Expire podssh's key when the start returns
+   (`crates/podssh-cli/src/ts.rs`, lines 213-227 at `160773e`), because podssh no longer needs it.
 4. In the fork, hold the key as `Zeroizing<String>` in `Config` and in `Params`, as a new patch
    with its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`.
-5. Correct the comment at `crates/podssh-ts/src/secret.rs:3-5`, and name the tailnet key in the
-   rule at `SECURITY.md:53-56`, in the same commit.
+5. Correct the comment at `crates/podssh-ts/src/secret.rs`, lines 3-5 at `160773e`, and name the tailnet key in the
+   rule at `SECURITY.md`, lines 53-56 at `160773e`, in the same commit.
 
-Pitfall: `Device::new` takes the key by value (`crates/podssh-ts/src/node.rs:67`), so only the fork
+Pitfall: `Device::new` takes the key by value (`crates/podssh-ts/src/node.rs`, line 67 at `160773e`), so only the fork
 can clear its copy (step 4).
+
+## Decision
+
+2026-10-10, in the work:
+- `AuthKey::new` takes `impl Into<Zeroizing<Vec<u8>>>`: a buffer that clears itself goes in with
+  no copy, and a plain `Vec<u8>` still does. The trim works in place on that buffer.
+- The fork keeps the public signature `Device::new(&Config, Option<String>)`, and moves the
+  `String` into its `Zeroizing<String>` with no copy: its examples and its tests stay as they are.
+- A key that is not UTF-8 gives back its bytes in the error; they are cleared before the error
+  is returned. `std::fs::read` allocates its buffer for the file's size, and its own growth is
+  not under podssh's control: one buffer, which the `Zeroizing` clears.
 
 ## Prove
 
@@ -702,3 +713,35 @@ A new test in `crates/podssh-ts/tests/secret.rs`, `the_key_is_cleared_on_drop`, 
 build. `expire_zeros_and_locks` (`crates/podssh-ts/tests/secret.rs:18-24`) must still pass. The
 second command builds the fork with the new patch. A test that reads freed memory is not sound, so
 the rest of the proof is the type and a review of each copy that Premise names.
+
+## Correction
+
+2026-10-10: the fork's record of its patches named the user of the machine that measured it
+(`vendor/tailscale-rs/LOCAL-PATCHES.md`, which `scripts/check-repo.py` does not read, as it skips
+`vendor/`); `AGENTS.md` (section 4) forbids it, so the name is gone in this commit. Its old
+measurement also holds only outside podssh's repository: `git apply` inside it reads each patch's
+path from the repository's root and skips it, with exit 0.
+
+## Done
+
+2026-10-10. The tailnet auth key is held in `Zeroizing<Vec<u8>>` (`AuthKey`, which is
+`ZeroizeOnDrop` and clears its bytes in `expire` and on drop: `crates/podssh-ts/src/secret.rs`).
+`podssh ts` reads the file into such a buffer, trims it in place, and expires its key as soon as
+the start returns (`crates/podssh-cli/src/ts.rs`); `TsNode::start` makes the one copy that the
+fork takes, and clears it if it is not UTF-8 (`crates/podssh-ts/src/node.rs`). The fork holds the
+key in `Zeroizing<String>` in `ts_runtime::Config` and in its control runner's `Params`, patch
+`vendor/patches/0015-zeroize-auth-key.patch` with its row in
+`vendor/tailscale-rs/LOCAL-PATCHES.md`. `SECURITY.md` names the tailnet key in the rule of
+credentials.
+- Native, Windows 11: `cargo test -p podssh-ts --test secret`, 4 passed, with the new
+  `the_key_is_cleared_on_drop`; `expire_zeros_and_locks` passes. Planted, the `ZeroizeOnDrop`
+  marker removed: the test does not build (`AuthKey: ZeroizeOnDrop` is not satisfied). The chain
+  of the fork's fifteen patches applies to an export of pristine `f4781c4` and gives the vendored
+  tree byte for byte on all 29 touched paths. `cargo test -p podssh-ts -p podssh-cli --features
+  podssh-cli/ts --no-fail-fast`: 433 passed, 0 failed, 24 ignored. clippy with no
+  warning. `cargo test --workspace`: 1145 passed, 0 failed, 38 ignored.
+- The rest of the proof is the types and a review of each copy that the premise names: the
+  file's buffer and its trim (cleared), podssh's `AuthKey` (expired at the start's return, cleared
+  on drop), the one `String` for the fork (moved into `Zeroizing`), and the fork's copies in
+  `Config` and `Params` (cleared on drop). A test that reads freed memory would not be sound.
+

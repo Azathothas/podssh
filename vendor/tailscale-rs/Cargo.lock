@@ -6330,6 +6330,7 @@ dependencies = [
  "url",
  "yoke",
  "zerocopy",
+ "zeroize",
 ]
 
 [[package]]

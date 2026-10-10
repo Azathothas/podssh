@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**268 entries: 124 open, 0 partial, 22 blocked, 122 done.**
+**268 entries: 123 open, 0 partial, 22 blocked, 123 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 15 | 17 |
-| P2 | 42 | 0 | 18 | 90 | 150 |
+| P2 | 41 | 0 | 18 | 91 | 150 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 124 | 0 | 22 | 122 | 268 |
+| **All** | 123 | 0 | 22 | 123 | 268 |
 
 ## Entries
 
@@ -312,7 +312,7 @@ repository and CI).
 | [T-238](ssh.md) | P2 | S | M3 | defect | done | `%` tokens differ from OpenSSH: some stay literal, `%u` gives the remote user, and an unknown token is kept |
 | [T-239](forwarding.md) | P2 | S | M3 | defect | done | `-W` with a path, or with no port, is read as a TCP host on port 22 |
 | [T-240](ts.md) | P2 | S | M8 | defect | done | `podssh ts --jsonl` writes no JSON |
-| [T-241](ts.md) | P2 | S | M8 | defect | open | The tailnet auth key is not cleared from memory |
+| [T-241](ts.md) | P2 | S | M8 | defect | done | The tailnet auth key is not cleared from memory |
 | [T-242](ws.md) | P3 | S | backlog | defect | open | The frame decoder accepts a length that is not in the minimal form |
 | [T-243](relay.md) | P2 | S | backlog | feature | open | The user can choose the cache directory, and no directory is fixed in the code |
 | [T-244](repo.md) | P3 | M | none | chore | done | Code comments break `AGENTS.md` rule 6, and some name files and facts that are wrong |

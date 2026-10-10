@@ -4031,6 +4031,7 @@ dependencies = [
  "tokio",
  "ts_http_util",
  "ts_runtime",
+ "zeroize",
 ]
 
 [[package]]
@@ -6452,6 +6453,7 @@ dependencies = [
  "url",
  "yoke",
  "zerocopy",
+ "zeroize",
 ]
 
 [[package]]

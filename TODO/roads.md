@@ -59,7 +59,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:69-79`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:70-80`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -163,7 +163,7 @@ Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
 the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:283-284`,
-`crates/podssh-cli/src/ts.rs:184`). Credentials never go on argv
+`crates/podssh-cli/src/ts.rs:186`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
 ## Approach

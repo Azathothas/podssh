@@ -50,8 +50,9 @@ pub struct Runtime {
 pub struct Config {
     /// The control configuration to use.
     pub control_config: ts_control::Config,
-    /// The auth key to use to connect to the control server.
-    pub auth_key: Option<String>,
+    /// The auth key to use to connect to the control server, cleared from
+    /// memory when it is dropped.
+    pub auth_key: Option<zeroize::Zeroizing<String>>,
     /// The keys to use.
     pub keys: ts_keys::NodeState,
     /// ⛔ **Runtime options; default is stock behavior.** `no_udp` gates the

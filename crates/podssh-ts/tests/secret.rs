@@ -22,3 +22,15 @@ fn expire_zeros_and_locks() {
     key.expire();
     assert_eq!(key.expose(), Err("auth key already expired"));
 }
+
+/// The bytes are cleared when the key is dropped: the type says so, and the
+/// build fails without it (T-241). A test that read freed memory would not be
+/// sound, so this is the proof that a test can give.
+#[test]
+fn the_key_is_cleared_on_drop() {
+    fn cleared_on_drop<T: zeroize::ZeroizeOnDrop>() {}
+    cleared_on_drop::<AuthKey>();
+    // A buffer that clears itself goes in with no copy.
+    let key = AuthKey::new(zeroize::Zeroizing::new(b"tskey-auth-SECRET".to_vec())).unwrap();
+    assert_eq!(key.expose(), Ok(&b"tskey-auth-SECRET"[..]));
+}

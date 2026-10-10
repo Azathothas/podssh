@@ -1,0 +1,79 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 27237b9..56c2c09 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -6330,6 +6330,7 @@ dependencies = [
+  "url",
+  "yoke",
+  "zerocopy",
++ "zeroize",
+ ]
+ 
+ [[package]]
+diff --git a/src/lib.rs b/src/lib.rs
+index c79cbcd..19a01c3 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -192,7 +192,9 @@ impl Device {
+         let keys = (&config.key_state).into();
+         let rt = ts_runtime::Runtime::spawn(ts_runtime::Config {
+             control_config: config.into(),
+-            auth_key,
++            // Moved into memory that is cleared on drop, with no copy
++            // (podssh's patch 0015).
++            auth_key: auth_key.map(Into::into),
+             keys,
+             // ⛔ Fed from `tailscale::Config::options` (patch 0014): stock
+             // behavior until podssh-ts feeds non-default options.
+diff --git a/ts_runtime/Cargo.toml b/ts_runtime/Cargo.toml
+index 2ebd138..983d1f7 100644
+--- a/ts_runtime/Cargo.toml
++++ b/ts_runtime/Cargo.toml
+@@ -39,6 +39,7 @@ kameo_actors = "0.6"
+ thiserror.workspace = true
+ tokio.workspace = true
+ tokio-util = { workspace = true, features = ["rt"] }
++zeroize.workspace = true
+ tokio-stream = { workspace = true, features = ["time", "sync"] }
+ tracing.workspace = true
+ smallvec.workspace = true
+diff --git a/ts_runtime/src/control_runner.rs b/ts_runtime/src/control_runner.rs
+index 946265b..4c59d94 100644
+--- a/ts_runtime/src/control_runner.rs
++++ b/ts_runtime/src/control_runner.rs
+@@ -50,8 +50,8 @@ pub struct Params {
+     /// Control config.
+     pub(crate) config: ts_control::Config,
+ 
+-    /// Auth key (if needed).
+-    pub(crate) auth_key: Option<String>,
++    /// Auth key (if needed), cleared from memory when it is dropped.
++    pub(crate) auth_key: Option<zeroize::Zeroizing<String>>,
+ 
+     /// The [`Env`] for this actor.
+     pub(crate) env: Env,
+@@ -105,7 +105,7 @@ impl kameo::Actor for ControlRunner {
+                         let result = ts_control::register(
+                             &params.config,
+                             &params.config.server_url,
+-                            params.auth_key.as_deref(),
++                            params.auth_key.as_ref().map(|key| key.as_str()),
+                             followup,
+                             &params.env.keys,
+                             &client,
+diff --git a/ts_runtime/src/lib.rs b/ts_runtime/src/lib.rs
+index c80b9b1..97f2427 100644
+--- a/ts_runtime/src/lib.rs
++++ b/ts_runtime/src/lib.rs
+@@ -50,8 +50,9 @@ pub struct Runtime {
+ pub struct Config {
+     /// The control configuration to use.
+     pub control_config: ts_control::Config,
+-    /// The auth key to use to connect to the control server.
+-    pub auth_key: Option<String>,
++    /// The auth key to use to connect to the control server, cleared from
++    /// memory when it is dropped.
++    pub auth_key: Option<zeroize::Zeroizing<String>>,
+     /// The keys to use.
+     pub keys: ts_keys::NodeState,
+     /// ⛔ **Runtime options; default is stock behavior.** `no_udp` gates the

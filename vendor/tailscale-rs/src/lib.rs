@@ -192,7 +192,9 @@ impl Device {
         let keys = (&config.key_state).into();
         let rt = ts_runtime::Runtime::spawn(ts_runtime::Config {
             control_config: config.into(),
-            auth_key,
+            // Moved into memory that is cleared on drop, with no copy
+            // (podssh's patch 0015).
+            auth_key: auth_key.map(Into::into),
             keys,
             // ⛔ Fed from `tailscale::Config::options` (patch 0014): stock
             // behavior until podssh-ts feeds non-default options.

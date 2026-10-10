@@ -756,7 +756,7 @@ today (`crates/podssh-cli/src/flags.rs:257-269`,
 5. A test in two boxes through the live relay, built like the script of
    T-085: text, and files of 0, 1 and 5,000,000 bytes with equal digests.
 6. Docs in the same commit: `docs/irc.md` (a section on chat), `docs/cli.md`,
-   `docs/STATUS.md`, and the gap of plain text in `SECURITY.md:111`, which the
+   `docs/STATUS.md`, and the gap of plain text in `SECURITY.md:112`, which the
    roads do not have.
 
 ## Decision
@@ -798,7 +798,7 @@ run podssh, or who wants a public channel, has no chat.
 Read: the client is sans-IO, and T-091 to T-098 repair its defects. Measured
 on 2026-10-05: of seven public networks, only `irc.undernet.org:6667`
 accepted the relay's addresses (`docs/irc.md:13-25`). On port 6667 the relay
-and each server read the text (`SECURITY.md:111`).
+and each server read the text (`SECURITY.md:112`).
 
 ## Approach
 

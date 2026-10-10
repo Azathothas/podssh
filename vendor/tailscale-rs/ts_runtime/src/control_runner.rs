@@ -50,8 +50,8 @@ pub struct Params {
     /// Control config.
     pub(crate) config: ts_control::Config,
 
-    /// Auth key (if needed).
-    pub(crate) auth_key: Option<String>,
+    /// Auth key (if needed), cleared from memory when it is dropped.
+    pub(crate) auth_key: Option<zeroize::Zeroizing<String>>,
 
     /// The [`Env`] for this actor.
     pub(crate) env: Env,
@@ -105,7 +105,7 @@ impl kameo::Actor for ControlRunner {
                         let result = ts_control::register(
                             &params.config,
                             &params.config.server_url,
-                            params.auth_key.as_deref(),
+                            params.auth_key.as_ref().map(|key| key.as_str()),
                             followup,
                             &params.env.keys,
                             &client,

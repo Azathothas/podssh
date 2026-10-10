@@ -52,7 +52,12 @@ impl TsNode {
     /// the proof, not a unit test.
     pub async fn start(cfg: &TsConfig, key: &crate::secret::AuthKey) -> Result<Self, NodeError> {
         let raw = key.expose().map_err(|_| NodeError::KeyExpired)?;
-        let auth = String::from_utf8(raw.to_vec()).map_err(|_| NodeError::KeyNotUtf8)?;
+        // The one copy, which the fork takes by value and clears when it drops
+        // it; a copy that is not UTF-8 is cleared here.
+        let auth = String::from_utf8(raw.to_vec()).map_err(|e| {
+            zeroize::Zeroize::zeroize(&mut e.into_bytes());
+            NodeError::KeyNotUtf8
+        })?;
         let mut fork_cfg = tailscale::Config::default_with_key_file(&cfg.state_file)
             .await
             .map_err(|e| NodeError::Fork(e.to_string()))?;

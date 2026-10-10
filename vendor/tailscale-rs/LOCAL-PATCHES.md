@@ -16,7 +16,7 @@ for p in /path/to/podssh/vendor/patches/*.patch; do
 done
 ```
 
-MEASURED 2026-10-05, host AjamX Windows Git Bash: each of the eight patches
+MEASURED 2026-10-05, on Windows in Git Bash: each of the eight patches
 passes `git apply --check` against the pristine clone `.tmp/tailscale-rs`
 (exit 0 for all eight, read unpiped). No patch is applied there; the check does
 not write. ⛔ Re-measured 2026-10-06 for all thirteen: the full chain applies
@@ -24,7 +24,11 @@ for real to a scratch export of pristine `f4781c4` (`git apply`, exit 0) and
 reproduces the vendor tree byte-for-byte on all 27 touched paths
 (`diff -q` per path, exit 0) — which is how the missing 0010 lock hunk above
 was found. ⛔ Re-measured 2026-10-07 for all fourteen: chain applies exit 0,
-byte-identical on all 28 touched paths.
+byte-identical on all 28 touched paths. Re-measured 2026-10-10 for all fifteen
+(podssh T-241): the chain applies to an export of pristine `f4781c4` made
+outside podssh's repository (`git apply` inside it reads each path from the
+repository's root and skips it), exit 0, and is byte-identical on all 29
+touched paths.
 
 ## The patch set
 
@@ -44,8 +48,9 @@ byte-identical on all 28 touched paths.
 | `0012-derp-example-mode.patch` | `ts_derp/examples/ping.rs`, `ts_derp/examples/listen.rs` | 2 | Increment-1 follow-up: the two upstream examples still called the 2-argument `Client::connect` and broke `cargo test -p ts_derp` (which builds examples); both now pass `ConnectMode::TcpUpgrade`, keeping stock behavior. Found by increment 3's widened verification (whole-package suites, not `--test`-only). |
 | `0013-proxy-test-serial.patch` | `ts_http_util/tests/proxy.rs` | 1 | Increment-2 follow-up: the proxy suite flaked on Windows loopback (rotating 1–4 failures, `os error 10054` / truncated heads) because `configure` is process-global and parallel tests dialled each other's fake proxy. The four async tests now serialize on a poison-tolerant `SERIAL` mutex: 3/3 green guarded runs, 4/4 red with the guards stripped. |
 | `0014-device-options.patch` | `src/config.rs`, `src/lib.rs` | 2 | E39 increment 4b: `tailscale::Config` gains `pub options: ts_runtime::options::RuntimeOptions` (defaulting to stock in the hand-written `Default` impl), and `Device::new` threads `config.options.clone()` into `ts_runtime::Config` instead of `Default::default()` — replacing the increment-3 placeholder comment at the same site. Without it podssh-ts could select WS/pin/proxy but the runtime would never receive them. |
+| `0015-zeroize-auth-key.patch` | `ts_runtime/Cargo.toml`, `ts_runtime/src/lib.rs`, `ts_runtime/src/control_runner.rs`, `src/lib.rs`, `Cargo.lock` | 6 | podssh T-241: the auth key that `Device::new` takes by value is moved, with no copy, into a `zeroize::Zeroizing<String>` in `ts_runtime::Config` and in the control runner's `Params`, so each copy is cleared from memory when it is dropped; `ts_runtime` depends on the fork's workspace `zeroize`, and the lock says so. The public signature of `Device::new` is unchanged. |
 
-`LOCAL-PATCHES.md` (this file) is fork bookkeeping and is not part of the fourteen
+`LOCAL-PATCHES.md` (this file) is fork bookkeeping and is not part of the fifteen
 patches; deleting it changes nothing that builds.
 
 ## What the patches deliberately do not do

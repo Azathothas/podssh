@@ -50,9 +50,10 @@ Each rule is implemented.
   crate carries a verifier that accepts each certificate: a test scans the
   source of each one (T-065). The verifier that prints a chain for a
   diagnosis lives in an example of `podssh-ws`, outside each library.
-- **Credentials are not shown.** A relay token or a key never goes into
-  output, logs, URLs or command lines. The types that hold a token do not
-  print it, and a redaction removes the whole token. `podssh keygen` refuses
+- **Credentials are not shown.** A relay token, a tailnet auth key or a key
+  never goes into output, logs, URLs or command lines. The types that hold a
+  token or the tailnet key do not print it, and clear it from memory when
+  they drop it; a redaction removes the whole token. `podssh keygen` refuses
   a passphrase on the command line, and never prints a private key.
 - **On Windows, a file mode of 0600 has no effect.** The access control list
   of the profile directory protects the token cache and the keys.

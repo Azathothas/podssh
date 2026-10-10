@@ -413,7 +413,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:423-425`).
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
   `AGENTS.md:184-189`, `docs/architecture.md:102-112`,
-  `docs/target-environment.md:74-78`, `SECURITY.md:69-79`, `README.md:37-42`.
+  `docs/target-environment.md:74-78`, `SECURITY.md:70-80`, `README.md:37-42`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:170`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.

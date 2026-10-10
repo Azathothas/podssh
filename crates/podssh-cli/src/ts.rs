@@ -161,14 +161,16 @@ async fn ts_async(
     // Auth key bytes: unreadable → 64 naming the path; empty → 77 naming
     // the file. Presence was checked above, so this is readability, not
     // configuration.
-    let raw = match std::fs::read(key_path) {
-        Ok(b) => b,
+    // Read into memory that is cleared, and trimmed in place: no plain copy.
+    let mut raw = match std::fs::read(key_path) {
+        Ok(b) => zeroize::Zeroizing::new(b),
         Err(e) => {
             let _ = writeln!(err, "podssh ts: cannot read --ts-auth-key-file {key_path}: {e}");
             return EXIT_USAGE;
         }
     };
-    let key = match podssh_ts::secret::AuthKey::new(trim_key(&raw)) {
+    trim_key(&mut raw);
+    let mut key = match podssh_ts::secret::AuthKey::new(raw) {
         Ok(k) => k,
         Err(_) => {
             let _ = writeln!(err, "podssh ts: --ts-auth-key-file {key_path} is empty.");
@@ -225,6 +227,8 @@ async fn ts_async(
     } else {
         podssh_ts::node::TsNode::start(&cfg, &key).await
     };
+    // The fork holds its own copy now; podssh needs the key no more.
+    key.expire();
     let node = match started {
         Ok(n) => n,
         Err(e) => return node_error_exit(&e, err),
@@ -250,14 +254,12 @@ pub fn status_json(facts: &podssh_ts::status::StatusFacts) -> String {
     .to_string()
 }
 
-/// Strip trailing newline bytes: key files commonly end with one, and the key
-/// itself never contains it. Interior bytes are untouched.
-fn trim_key(raw: &[u8]) -> Vec<u8> {
-    let mut v = raw.to_vec();
-    while v.last().is_some_and(|b| *b == b'\n' || *b == b'\r') {
-        v.pop();
+/// Strip trailing newline bytes, in place: key files commonly end with one,
+/// and the key itself never contains it. Interior bytes are untouched.
+fn trim_key(raw: &mut Vec<u8>) {
+    while raw.last().is_some_and(|b| *b == b'\n' || *b == b'\r') {
+        raw.pop();
     }
-    v
 }
 
 /// Map a node failure to its exit. Fork strings carrying "not authorized"

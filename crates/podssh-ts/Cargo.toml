@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 tokio.workspace = true
+zeroize.workspace = true
 tailscale = { path = "../../vendor/tailscale-rs" }
 ts_runtime = { path = "../../vendor/tailscale-rs/ts_runtime" }
 ts_http_util = { path = "../../vendor/tailscale-rs/ts_http_util" }
