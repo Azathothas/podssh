@@ -121,7 +121,14 @@ fn a_command_that_does_not_work_says_so_in_both() {
     let top = help::top_level_help();
     let squeeze = |t: &str| t.split_whitespace().collect::<Vec<_>>().join(" ");
     let broken: Vec<_> = VERBS.iter().filter(|v| podssh_cli::flags::availability(v) != Availability::Works).collect();
+    // Since chat (T-099), each command works in a build with the feature
+    // ts; in another, ts does not, so this check has a command to check.
+    #[cfg(not(feature = "ts"))]
     assert!(!broken.is_empty(), "no command to check");
+    #[cfg(feature = "ts")]
+    if broken.is_empty() {
+        return;
+    }
     for v in broken {
         let region = regions.get(v.name).unwrap_or_else(|| panic!("no section for {}", v.name));
         assert!(man_items(region).is_empty(), "{}: the manual shows options", v.name);

@@ -7,8 +7,11 @@
 //! the one of `--pair-file`, the node serves the pair's road too, with one
 //! keeper of sessions for both, so that a session resumes on either road
 //! (T-164). Each session runs the resumable layer, and reaches TARGET only
-//! after its handshake. stdout stays empty: the lines are on stderr.
+//! after its handshake. stdout stays empty: the lines are on stderr. The
+//! roads serve any target: `podssh chat --listen NAME --iroh` serves its
+//! conversations on both (T-099).
 
+use std::future::Future;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -17,11 +20,13 @@ use std::time::Duration;
 use iroh::{PublicKey, RelayUrl};
 use podssh_iroh::keys::{self, Place};
 use podssh_iroh::{ticket, Allowlist, Options, Udp};
+use podssh_relay::e2e::ends;
 use podssh_relay::pair::Pair;
-use podssh_relay::reverse::{self, Layered, NodeConfig, TcpHandler, Wire};
+use podssh_relay::reverse::{self, Handler, Layered, NodeConfig, TcpHandler, Wire};
 use podssh_relay::session::keep::Keeper;
 use podssh_relay::session::{OsEntropy, Settings};
 use podssh_ws::{ProxyChoice, Trust};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::watch;
 
 use crate::exitmap::Fault;
@@ -38,7 +43,7 @@ const CLOSE_LIMIT: Duration = Duration::from_secs(5);
 
 /// Run the node; returns the process exit code.
 pub fn run(args: &NodeArgs, err: &mut dyn Write) -> i32 {
-    let ready = match prepare(args) {
+    let (ready, host, port) = match prepare(args) {
         Ok(ready) => ready,
         Err(refusal) => return refusal.report("node", err),
     };
@@ -51,29 +56,39 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     };
     // On the heap, as each large future here: Windows gives the main
     // thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(serve(ready, err)));
+    let code = runtime.block_on(Box::pin(serve_tcp(ready, host, port, err)));
     // A session may still be closing; the node has ended, so none is waited for.
     runtime.shutdown_background();
     code
 }
 
-/// Each check that needs no network, in order.
-struct Ready {
-    label: String,
-    host: String,
-    port: u16,
-    place: Place,
-    allow: Option<PathBuf>,
-    relays: Vec<RelayUrl>,
-    trust: Trust,
+/// Each check of a node of both roads that needs no network, done.
+pub(crate) struct Ready {
+    pub label: String,
+    pub place: Place,
+    pub allow: Option<PathBuf>,
+    pub relays: Vec<RelayUrl>,
+    pub trust: Trust,
     /// The pair's road: the pair, and whether it came from the store; or
     /// why there is none.
-    pair: Result<(Pair, bool), String>,
+    pub pair: Result<(Pair, bool), String>,
     /// The end-to-end channel on both roads (T-088); off with `--no-e2e`.
-    e2e: bool,
+    pub e2e: bool,
 }
 
-fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
+/// The flags of a node of both roads, as its command gives them.
+pub(crate) struct Flags<'a> {
+    pub label: &'a str,
+    pub place: Place,
+    pub allow: Option<PathBuf>,
+    pub iroh_relay: Option<&'a str>,
+    pub relay_addr: Option<&'a str>,
+    pub pair_file: Option<&'a str>,
+    pub ca_file: Option<&'a str>,
+    pub e2e: bool,
+}
+
+fn prepare(args: &NodeArgs) -> Result<(Ready, String, u16), Refusal> {
     let label = args.name.clone().ok_or("missing NAME: the node's name, which labels its key")?;
     crate::pairs::check_label(&label)?;
     let target = args.target.as_deref().ok_or("missing TARGET: the HOST:PORT that each session reaches")?;
@@ -82,29 +97,49 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     // One key for both roads (T-087), by the flags' names of T-087 or T-163.
     let flags = crate::node::key_flags(args)?;
     let place: Place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
-    // A bad flag is a usage error, a bad variable a configuration error.
-    let relays = match podssh_iroh::relays::from_environment(args.iroh_relay.as_deref()) {
-        Ok((relays, _)) => relays,
-        Err(why) if args.iroh_relay.is_some() => return Err(Refusal::usage(why)),
-        Err(why) => return Err(Refusal::config(why)),
-    };
-    crate::pins::apply(args.relay_addr.as_deref())?;
-    // A pair that `--pair-file` names must be good; a stored one may be
-    // missing or expired, and the node then serves the iroh road alone.
-    let pair = match &args.pair_file {
-        Some(file) => Ok((crate::pairs::usable(crate::pairs::from_file(file)?, &label)?, false)),
-        None => crate::pairs::stored(&label).map(|pair| (pair, true)).map_err(|refusal| refusal.message),
-    };
-    crate::pairs::online()?;
-    let trust = crate::pairs::trust(args.ca_file.as_deref());
-    let allow = flags.allow;
-    Ok(Ready { label, host, port, place, allow, relays, trust, pair, e2e: !args.no_e2e })
+    let ready = ready(Flags {
+        label: &label,
+        place,
+        allow: flags.allow,
+        iroh_relay: args.iroh_relay.as_deref(),
+        relay_addr: args.relay_addr.as_deref(),
+        pair_file: args.pair_file.as_deref(),
+        ca_file: args.ca_file.as_deref(),
+        e2e: !args.no_e2e,
+    })?;
+    Ok((ready, host, port))
 }
 
-async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, host, port, place, allow, relays, trust, pair, e2e } = ready;
-    // The pair's road needs these after the iroh road has taken its own.
-    let (label_text, host_pair, trust_pair) = (label.clone(), host.clone(), trust.clone());
+/// The relays, the pins and the pair of a node of both roads, in order.
+pub(crate) fn ready(flags: Flags<'_>) -> Result<Ready, Refusal> {
+    // A bad flag is a usage error, a bad variable a configuration error.
+    let relays = match podssh_iroh::relays::from_environment(flags.iroh_relay) {
+        Ok((relays, _)) => relays,
+        Err(why) if flags.iroh_relay.is_some() => return Err(Refusal::usage(why)),
+        Err(why) => return Err(Refusal::config(why)),
+    };
+    crate::pins::apply(flags.relay_addr)?;
+    // A pair that `--pair-file` names must be good; a stored one may be
+    // missing or expired, and the node then serves the iroh road alone.
+    let pair = match flags.pair_file {
+        Some(file) => Ok((crate::pairs::usable(crate::pairs::from_file(file)?, flags.label)?, false)),
+        None => crate::pairs::stored(flags.label).map(|pair| (pair, true)).map_err(|refusal| refusal.message),
+    };
+    crate::pairs::online()?;
+    let trust = crate::pairs::trust(flags.ca_file);
+    Ok(Ready {
+        label: flags.label.to_string(),
+        place: flags.place,
+        allow: flags.allow,
+        relays,
+        trust,
+        pair,
+        e2e: flags.e2e,
+    })
+}
+
+/// The node in front of TARGET: dialled once first, then each session's.
+async fn serve_tcp(ready: Ready, host: String, port: u16, err: &mut dyn Write) -> i32 {
     let target = podssh_ws::dial::authority(&host, port);
     let proxy = ProxyChoice::FromEnvironment;
     // TARGET first: a node that cannot reach it would serve no session.
@@ -115,15 +150,60 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             return refusal.report("node", err);
         }
     }
+    let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT };
+    let open = move || {
+        let host = host.clone();
+        async move {
+            podssh_ws::dial::dial(&host, port, &ProxyChoice::FromEnvironment, DIAL_LIMIT)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    };
+    let roads = Roads { verb: "node", serving: format!("serving {target}"), after: " until Ctrl-C", handler, open };
+    serve(ready, roads, crate::node::stop_signal(), err).await
+}
+
+/// What a node of both roads serves: its words, and each session's stream
+/// before the channel, on the pair's road (`handler`) and on the iroh road
+/// (`open`).
+pub(crate) struct Roads<H, O> {
+    /// The command, in each line: node, or chat.
+    pub verb: &'static str,
+    /// What the first line says that the node does.
+    pub serving: String,
+    /// The end of the first line.
+    pub after: &'static str,
+    pub handler: H,
+    pub open: O,
+}
+
+/// Serve both roads until `until`, or until both ended.
+pub(crate) async fn serve<H, O, F, A>(
+    ready: Ready,
+    roads: Roads<H, O>,
+    until: impl Future<Output = ()>,
+    err: &mut dyn Write,
+) -> i32
+where
+    H: Handler,
+    O: Fn() -> F + Clone + Send + Sync + 'static,
+    F: Future<Output = Result<A, String>> + Send + 'static,
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let Ready { label, place, allow, relays, trust, pair, e2e } = ready;
+    let Roads { verb, serving, after, handler, open: target } = roads;
+    // The pair's road needs these after the iroh road has taken its own.
+    let (label_text, trust_pair) = (label.clone(), trust.clone());
+    let proxy = ProxyChoice::FromEnvironment;
     let key = match keys::load(&place, &mut OsEntropy) {
         Ok(key) => key,
-        Err(why) => return Refusal::config(format!("the node's key: {why}")).report("node", err),
+        Err(why) => return Refusal::config(format!("the node's key: {why}")).report(verb, err),
     };
     // The first relay of the list that answers `/ping` is the home relay,
     // and the ticket names it for the run (T-165).
     let (home, missed) = podssh_iroh::relays::home(&relays, &trust, &proxy).await;
     for why in &missed {
-        let _ = writeln!(err, "podssh node: {label}: an iroh relay did not answer: {why}");
+        let _ = writeln!(err, "podssh {verb}: {label}: an iroh relay did not answer: {why}");
     }
     let options = Options {
         relays: home,
@@ -136,7 +216,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     };
     let endpoint = match Box::pin(podssh_iroh::bind(&options)).await {
         Ok(endpoint) => endpoint,
-        Err(e) => return Refusal::config(e.to_string()).report("node", err),
+        Err(e) => return Refusal::config(e.to_string()).report(verb, err),
     };
     let relay = match tokio::time::timeout(ONLINE_LIMIT, endpoint.online()).await {
         Ok(()) => ticket::home_relay(&endpoint),
@@ -153,7 +233,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             code: Fault::RelayUnreachable.code(),
         };
         let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
-        return refusal.report("node", err);
+        return refusal.report(verb, err);
     };
     let fingerprint = keys::fingerprint(&key.public());
     let kept = match (&key.path, key.made) {
@@ -169,28 +249,33 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         ),
         Err(why) => format!("the iroh road alone ({why})"),
     };
-    let _ = writeln!(err, "podssh node: {label}: serving {target} over {roads} until Ctrl-C");
-    let _ =
-        writeln!(err, "podssh node: {label}: key {fingerprint}, the node iroh:{} ({kept})", keys::name(&key.public()));
-    let _ = writeln!(err, "podssh node: {label}: ticket {}", ticket::of(&endpoint, &relay));
-    let _ = writeln!(err, "podssh node: {label}: {}", who_may(allow.as_deref()));
+    let _ = writeln!(err, "podssh {verb}: {label}: {serving} over {roads}{after}");
+    let _ = writeln!(
+        err,
+        "podssh {verb}: {label}: key {fingerprint}, the node iroh:{} ({kept})",
+        keys::name(&key.public())
+    );
+    let _ = writeln!(err, "podssh {verb}: {label}: ticket {}", ticket::of(&endpoint, &relay));
+    let _ = writeln!(err, "podssh {verb}: {label}: {}", who_may(allow.as_deref()));
+    let say = {
+        let label = label.clone();
+        move |line: String| eprintln!("podssh {verb}: {label}: {line}")
+    };
     // The channel of T-088 on both roads, with this node's key: a session
     // made on one road may resume on the other, so each session has it. On
     // the pair's road with no allowlist, each operator with the connect
     // token comes in.
     let channel = match e2e {
-        true => Some(crate::channel::node_end(
-            &label,
-            podssh_relay::identity::Identity::from_seed(&key.identity.seed()),
-            crate::channel::admit_of(allow.clone()),
-        )),
+        true => Some(ends::Node {
+            identity: Arc::new(podssh_relay::identity::Identity::from_seed(&key.identity.seed())),
+            admit: crate::channel::admit_of(allow.clone()),
+            say: Arc::new(say.clone()),
+        }),
         false => {
-            let _ = writeln!(err, "podssh node: {label}: no end-to-end channel (--no-e2e): the relay sees each byte");
+            let _ = writeln!(err, "podssh {verb}: {label}: no end-to-end channel (--no-e2e): the relay sees each byte");
             None
         }
     };
-
-    let say = move |line: String| eprintln!("podssh node: {label}: {line}");
     // A client needs the new ticket when the home relay changes.
     let follow = tokio::spawn(ticket::follow(endpoint.clone(), Some(relay), {
         let say = say.clone();
@@ -200,20 +285,13 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         let say = say.clone();
         move |key: &PublicKey| admits(allow.as_deref(), key, &say)
     };
-    // Each session of either road is a pipe (T-164): with the channel, TARGET
-    // is dialled once the operator's key is let in.
+    // Each session of either road is a pipe (T-164): with the channel, the
+    // target is reached once the operator's key is let in.
     let open = {
         let channel = channel.clone();
         move || {
-            let (host, channel) = (host.clone(), channel.clone());
-            async move {
-                let dial = move || async move {
-                    podssh_ws::dial::dial(&host, port, &ProxyChoice::FromEnvironment, DIAL_LIMIT)
-                        .await
-                        .map_err(|e| e.to_string())
-                };
-                crate::channel::piped(channel, dial).await
-            }
+            let (target, channel) = (target.clone(), channel.clone());
+            async move { crate::channel::piped(channel, target).await }
         }
     };
     let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings() };
@@ -248,19 +326,23 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             wire: Wire::Tls,
             say: Some(&say_pair),
         };
-        let tcp = TcpHandler { host: host_pair.clone(), port, timeout: DIAL_LIMIT };
-        let piped = crate::channel::Piped { inner: Arc::new(tcp), channel: channel.clone() };
+        let piped = crate::channel::Piped { inner: Arc::new(handler), channel: channel.clone() };
         let layered = Layered::with_keeper(piped, crate::layered::settings(), budget, keeper.clone());
         let exit = Box::pin(reverse::run(&mut config, Arc::new(layered), until_stopped(stopped.clone()))).await;
         if let Some((_, why)) = crate::node::ended(&label_text, exit) {
             say(format!("the pair's road ended: {why}; the iroh road goes on"));
         }
     };
-    let signal = async {
-        crate::node::stop_signal().await;
-        let _ = stop.send(true);
-    };
-    tokio::join!(iroh_road, pair_road, signal);
+    // Until the caller's end, or until both roads ended by themselves.
+    let both = async { tokio::join!(iroh_road, pair_road) };
+    tokio::pin!(both);
+    tokio::select! {
+        _ = &mut both => {}
+        () = until => {
+            let _ = stop.send(true);
+            both.await;
+        }
+    }
     follow.abort();
     let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
     say("stopped".into());

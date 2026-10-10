@@ -1,7 +1,8 @@
 //! The side of `podssh chat` that waits (T-099): the node of the pair NAME,
 //! whose every session, once the end-to-end channel let its key in, is a
 //! conversation; one at a time, and another peer is told that the chat is
-//! busy. While no peer is there, the user's lines wait.
+//! busy. While no peer is there, the user's lines wait. The door, the busy
+//! answer and the conversations serve the iroh road too (`iroh::listen`).
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -43,19 +44,7 @@ pub(super) struct Ready {
 }
 
 /// The pins, the pair, and this side's key, loaded or made.
-pub(super) fn prepare(
-    label: String,
-    place: &Place,
-    allow: Option<PathBuf>,
-    iroh: bool,
-    args: &ChatArgs,
-) -> Result<Ready, Refusal> {
-    if iroh {
-        return Err(Refusal {
-            message: "'--listen --iroh' is not implemented yet; nothing was done.".into(),
-            code: crate::exit_codes::EXIT_NOT_IMPLEMENTED,
-        });
-    }
+pub(super) fn prepare(label: String, place: &Place, allow: Option<PathBuf>, args: &ChatArgs) -> Result<Ready, Refusal> {
     crate::pins::apply(args.relay_addr.as_deref())?;
     let (pair, stored) = match &args.pair_file {
         Some(file) => (crate::pairs::usable(crate::pairs::from_file(file)?, &label)?, false),
@@ -125,7 +114,7 @@ pub(super) async fn run<W: AsyncWrite + Unpin>(
         exit
     };
     let talk_part = async {
-        let ended = talk(&label, &mut peers, lines, out, &opts, until, gone).await;
+        let ended = talk(&label, &mut peers, lines, out, &opts, until, gone, "the pair's road ended").await;
         // No peer from now on; the last one's session gets a while to close.
         peers.close();
         while let Ok(late) = peers.try_recv() {
@@ -144,7 +133,9 @@ pub(super) async fn run<W: AsyncWrite + Unpin>(
 
 /// The conversations, one peer at a time, until the run ends: its end, and
 /// how many messages of the last conversation went with no acknowledgement.
-async fn talk<W: AsyncWrite + Unpin>(
+/// `gone` flips when the roads ended, which `road` says.
+#[allow(clippy::too_many_arguments)]
+pub(super) async fn talk<W: AsyncWrite + Unpin>(
     label: &str,
     peers: &mut mpsc::Receiver<DuplexStream>,
     lines: &mut Lines,
@@ -152,8 +143,9 @@ async fn talk<W: AsyncWrite + Unpin>(
     opts: &Options,
     until: Until,
     gone: watch::Receiver<bool>,
+    road: &'static str,
 ) -> (Ended, usize) {
-    let road_ended = || Ended::Failed("the pair's road ended".into());
+    let road_ended = move || Ended::Failed(road.into());
     loop {
         let stream = tokio::select! {
             stream = peers.recv() => match stream {
@@ -196,12 +188,12 @@ async fn talk<W: AsyncWrite + Unpin>(
 }
 
 /// Once the flag is up, or its sender is gone.
-async fn flipped(mut flag: watch::Receiver<bool>) {
+pub(super) async fn flipped(mut flag: watch::Receiver<bool>) {
     let _ = flag.wait_for(|up| *up).await;
 }
 
 /// Another peer, while one talks: told that the chat is busy, then its end.
-fn busy(mut stream: DuplexStream, label: &str) {
+pub(super) fn busy(mut stream: DuplexStream, label: &str) {
     eprintln!("podssh chat: {label}: another peer came, and was told that the chat is busy");
     tokio::spawn(async move {
         let _ = stream.write_all(&Record::Busy.encode()).await;
@@ -214,28 +206,26 @@ fn busy(mut stream: DuplexStream, label: &str) {
 /// The handler of the side that waits: each session that the channel lets
 /// in goes to the conversations as a stream, counted while it is open.
 #[derive(Clone)]
-struct Door {
+pub(super) struct Door {
     peers: mpsc::Sender<DuplexStream>,
     open: Arc<watch::Sender<usize>>,
 }
 
 impl Door {
-    fn new() -> (Door, mpsc::Receiver<DuplexStream>) {
+    pub fn new() -> (Door, mpsc::Receiver<DuplexStream>) {
         let (peers, rx) = mpsc::channel(4);
         (Door { peers, open: Arc::new(watch::channel(0).0) }, rx)
     }
 
     /// Once no session is open, or after `limit`.
-    async fn closed(&self, limit: Duration) {
+    pub async fn closed(&self, limit: Duration) {
         let mut open = self.open.subscribe();
         let _ = tokio::time::timeout(limit, open.wait_for(|n| *n == 0)).await;
     }
-}
 
-impl Handler for Door {
-    type Stream = Counted;
-
-    fn open(&self, _: SessionId) -> Opening<Counted> {
+    /// A session's stream, its other end handed to the conversations; on
+    /// either road.
+    pub fn session(&self) -> Opening<Counted> {
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let (peers, open) = (self.peers.clone(), self.open.clone());
         Box::pin(async move {
@@ -246,8 +236,16 @@ impl Handler for Door {
     }
 }
 
+impl Handler for Door {
+    type Stream = Counted;
+
+    fn open(&self, _: SessionId) -> Opening<Counted> {
+        self.session()
+    }
+}
+
 /// A session's stream, counted while it is open.
-struct Counted {
+pub(super) struct Counted {
     stream: DuplexStream,
     open: Arc<watch::Sender<usize>>,
 }

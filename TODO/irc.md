@@ -34,7 +34,7 @@ wait for `001` (`crates/podssh-core/src/irc/cap.rs`, lines 22-28 at `9460b4e`). 
 (`crates/podssh-core/src/irc/session.rs`, lines 318-322 at `9460b4e`), and the live probe can then drop the server
 (`crates/podssh-cli/examples/live_irc.rs:220-223`).
 
-Read: `docs/irc.md:75` says that libera, OFTC and tilde refuse the relay's addresses. They support
+Read: `docs/irc.md:78` says that libera, OFTC and tilde refuse the relay's addresses. They support
 `CAP`, so this defect alone explains "closed before `001`". The record does not say if that run
 used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is not proven.
 
@@ -49,7 +49,7 @@ used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is n
 4. Correct the comments at `crates/podssh-core/src/irc/cap.rs`, lines 9-28 at `9460b4e` and
    `crates/podssh-core/src/irc/session.rs`, lines 22-24 at `9460b4e`, and remove the test at
    `crates/podssh-core/tests/session.rs`, lines 200-223 at `9460b4e`. Record the new network results in
-   `docs/irc.md:68-80`, and update `docs/STATUS.md:309`, in the same commit.
+   `docs/irc.md:71-83`, and update `docs/STATUS.md:309`, in the same commit.
 
 ## Prove
 
@@ -512,7 +512,7 @@ cargo run -q -p podssh-cli --example live_irc -- --target irc.undernet.org --pai
 The new file crates/podssh-core/tests/own_nick.rs has one test for each rule above, such as
 `a_part_by_another_user_keeps_the_channel`; its `005` case uses the lines captured in T-094. Plant:
 remove the prefix check on `PART`; that test must fail. The last command is live: run it with
-`--role send` and the same ID in a second shell, as two separate clients (`docs/irc.md:78-80`).
+`--role send` and the same ID in a second shell, as two separate clients (`docs/irc.md:81-83`).
 Both must print `LIVE-IRC-OK`, so the reset does not break registration.
 
 ## Correction
@@ -576,7 +576,7 @@ comes out (`crates/podssh-core/tests/reassembly.rs`, lines 231-247 at `016baab`)
 Read: a non-UTF-8 line is an error (`crates/podssh-core/src/irc/framing.rs`, lines 212-226 at `016baab`), which
 `Session::on_bytes` returns with `?` (`crates/podssh-core/src/irc/session.rs`, lines 268-269 at `016baab`). The live
 probe then ends the attempt (`crates/podssh-cli/examples/live_irc/support.rs`, lines 156-159 at `016baab`). The only
-network that took the relay is undernet (`docs/irc.md:77`); its use of Latin-1 is not measured.
+network that took the relay is undernet (`docs/irc.md:80`); its use of Latin-1 is not measured.
 
 ## Approach
 
@@ -824,14 +824,14 @@ hosts chat and share files (`docs/decisions.md:47`).
 **Milestone:** M8
 **Priority:** P2
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
 Two users on constrained hosts must chat and share files. `podssh chat` does
 not exist: it exits 70. The IRC client sends plain text that the relay and
 the IRC server read, and most public networks refused the relay
-(`docs/irc.md:68-80`).
+(`docs/irc.md:71-83`).
 
 ## Premise
 
@@ -928,7 +928,7 @@ defect: write a file with no accept; the script must fail.
 
 ## Done
 
-Partial, 2026-10-10: the plan is the Decision.
+2026-10-10.
 - Built: the protocol, `crates/podssh-core/src/chat/` (no I/O, no C): the records (a type, a
   32-bit length and a body; a length past its type's limit refused before the body), and the
   state of one conversation: a greeting with the version first, each message with its
@@ -961,14 +961,35 @@ Partial, 2026-10-10: the plan is the Decision.
   sent said; the manual's notes and EXIT STATUS. `cargo test -p podssh-cli --test chat_cli`: 7
   passed (each refusal and its code, the files, the pairs, the gate, the manual, no token); the
   unit tests of the queue (the line limit, the byte limit, `/quit` while no peer is there).
+  Since the iroh road, 8 passed: in a build without the feature, `iroh:TICKET` and `--iroh` exit
+  70 and name the feature.
 - Measured live, 2026-10-10, two processes of this host through the relay with a scratch cache
   and a new pair, revoked at the end: a message; files of 0, 1 and 5,000,000 bytes, each with an
   equal SHA-256; a second peer told that the chat is busy (75); a file with no accept, never
   written (75 at the sender's `--timeout`); no token in any output.
 - Written, waiting for T-251: `scripts/chat-in-boxes.sh`, the same run in two boxes like the
   sandbox, with its plant (`CHAT_PLANT=accept`).
-- Next: the iroh road (`iroh:TICKET`, `--listen --iroh`), which exits 70 until then; then the
-  full suites, and the entry closes.
+- Built: the iroh road, in a build with the feature `iroh`: `--listen NAME --iroh` serves both
+  roads through `node_iroh::serve`, now generic over what each session reaches (TARGET for `node
+  --iroh`, a conversation for chat), says its ticket, and lets in on the iroh road only the keys
+  of `--allow`; `chat iroh:TICKET` reaches it, the ticket's key checked in the channel, and tries
+  again each 5 s. `cargo test -p podssh-cli --features iroh-test --test chat_iroh`: 1 passed,
+  through iroh's relay server on the loopback: a key that the allowlist does not hold refused
+  (77) and said, then a message, a file of 300,000 bytes with an equal SHA-256, and `/quit`, which
+  ends the side that waits with 0. Planted, an iroh road that lets each key in fails it; the
+  channel's own allowlist still refused that key, with 77.
+- Repaired in the work: the runner's own definition of safe text, now podssh's one
+  (`podssh_ws::text::one_line`); `cargo todo remap`, which anchored a range by a blank end line
+  and could move a citation onto another section (a range now moves by its lines with text, two
+  tests, each failing with the old anchoring planted back); `dispatch.rs`, past 500 lines, split.
+- Suites, Windows, 2026-10-10: `cargo test`: 1289 passed, 0 failed, 41 ignored (with --workspace); with `podssh-cli/iroh-test` (and
+  `podssh-iroh`): 468 passed, 0 failed, 29 ignored. clippy with `-D warnings` in the default build and with `iroh-test`:
+  no warning.
+- CI's gate at `e02f5c6` failed in the step `ts`: `man_flag_parity` wanted a command that does
+  not work, and with `ts` none is left since chat. The guard allows that in a build with `ts`
+  alone: `cargo test -p podssh-cli --features ts --test man_flag_parity`, 5 passed.
+- Waits for T-251: the run of `scripts/chat-in-boxes.sh` in two boxes like the sandbox, and its
+  plant (`CHAT_PLANT=accept`).
 
 # T-252: `podssh chat --irc`: IRC as a second transport for chat
 
@@ -991,14 +1012,14 @@ run podssh, or who wants a public channel, has no chat.
 
 Read: the client is sans-IO, and T-091 to T-098 repair its defects. Measured
 on 2026-10-05: of seven public networks, only `irc.undernet.org:6667`
-accepted the relay's addresses (`docs/irc.md:68-80`). On port 6667 the relay
+accepted the relay's addresses (`docs/irc.md:71-83`). On port 6667 the relay
 and each server read the text (`SECURITY.md:140-143`).
 
 ## Approach
 
 1. After T-091 and T-092: measure the networks again through the relay, on
    port 6667, and on 6697 with TLS inside the relay stream. Record each
-   answer with its date in `docs/irc.md:68-80`.
+   answer with its date in `docs/irc.md:71-83`.
 2. `podssh chat --irc SERVER[:PORT] CHANNEL`: TLS inside the relay stream by
    default (port 6697). Plain text on 6667 only with a flag that names the
    risk, and one line about it on stderr. The nick comes from a flag or a

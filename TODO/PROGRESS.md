@@ -44,13 +44,13 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --workspace --no-fail-fast`, again after T-087 and T-088
-  (2026-10-10): 1257 passed, 0 failed, 41 ignored (the live tests, and the checks of
+- `cargo test --workspace --no-fail-fast`, again after T-099
+  (2026-10-10): 1289 passed, 0 failed, 41 ignored (the live tests, and the checks of
   faults and of the exit of M6). With the feature `iroh` and the test
   relay, `cargo test -p podssh-iroh -p podssh-cli --features
-  podssh-cli/iroh-test`, with the same: 446 passed, 0 failed, 29 ignored.
+  podssh-cli/iroh-test`, with the same: 468 passed, 0 failed, 29 ignored.
   With the feature `ts`, `cargo test -p podssh-ts -p podssh-cli --features
-  podssh-cli/ts`, after T-105: 493 passed, 0 failed, 25 ignored.
+  podssh-cli/ts`, after T-099: 520 passed, 0 failed, 25 ignored.
   CI's gate passed at `9460b4e` (T-271; run 38019504447).
 - `cargo test -p podssh-relay --all-features --no-fail-fast`, after T-270:
   181 passed, 0 failed, 14 ignored (the live tests).
@@ -64,7 +64,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 274 entries: 111 open, 1 partial, 22 blocked, 140 done.
+`TODO/INDEX.md` holds 274 entries: 111 open, 0 partial, 22 blocked, 141 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -79,8 +79,9 @@ the surface for agents: done.
 
 **M4:** T-085 (the exit measurement) is on hold (Q32).
 
-**Now:** T-099, which runs on the end-to-end channel between two podssh
-ends (done on 2026-10-10); then T-252 and T-098.
+**Now:** T-098, then T-252: the keepalive first, as a chat over IRC
+would otherwise put the client's keepalive message in its channel each
+60 s.
 
 **Then** M5, M6, M7 and M8, each in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"); then each `backlog` entry, in the order

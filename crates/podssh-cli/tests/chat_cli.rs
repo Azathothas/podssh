@@ -138,3 +138,20 @@ fn the_help_and_the_manual_give_the_peer_and_the_commands() {
     let exits = flat(&exits);
     assert!(exits.contains("podssh chat: the --timeout passed, or the peer talks with another peer"), "{exits}");
 }
+
+/// A build without the feature `iroh` refuses each side of the iroh road
+/// before anything connects, with exit 70 and the feature's name.
+#[cfg(not(feature = "iroh"))]
+#[test]
+fn the_iroh_road_is_refused_in_a_build_without_it() {
+    let home = scratch("chat-noiroh");
+    for (args, says) in [
+        (vec!["iroh:abcdef"], "iroh:abcdef: the iroh road is not in this build"),
+        (vec!["--listen", "--iroh", "lab"], "--iroh: the iroh road is not in this build"),
+    ] {
+        let (rc, out, err) = chat(&home, &args);
+        assert_eq!(rc, 70, "{args:?}: {err}");
+        assert!(err.contains(says) && err.contains("--features iroh"), "{args:?}: {err}");
+        assert!(out.is_empty());
+    }
+}

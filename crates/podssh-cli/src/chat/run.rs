@@ -16,7 +16,7 @@ use super::args::{self, ChatArgs, Input, Peer, Side};
 use super::converse::{Ended, Once, Options};
 use super::lines::Lines;
 use super::output::{safe, Output};
-use super::{listen, reach};
+use super::{iroh, listen, reach};
 use crate::exitmap::sysexits::{EX_NOPERM, EX_SOFTWARE, EX_TEMPFAIL, EX_UNAVAILABLE};
 use crate::exitmap::Fault;
 
@@ -36,13 +36,15 @@ pub fn run_chat(
         Err(refusal) => return refusal.report("chat", err),
     };
     let ready = match side {
-        Side::Listen { label, place, allow, iroh } => {
-            listen::prepare(label, &place, allow, iroh, args).map(|ready| Ready::Listen(Box::new(ready)))
+        Side::Listen { label, place, allow, iroh: false } => {
+            listen::prepare(label, &place, allow, args).map(|ready| Ready::Listen(Box::new(ready)))
+        }
+        Side::Listen { label, place, allow, iroh: true } => {
+            iroh::prepare_waiting(label, place, allow, args).map(|ready| Ready::Both(Box::new(ready)))
         }
         Side::Reach { peer: Peer::Pair(label), ask } => reach::prepare(label, &ask, args).map(Ready::Reach),
-        Side::Reach { peer: Peer::Iroh(_), .. } => {
-            let _ = writeln!(err, "{}", crate::refuse::not_implemented("chat iroh:TICKET"));
-            return crate::exit_codes::EXIT_NOT_IMPLEMENTED;
+        Side::Reach { peer: Peer::Iroh(ticket), ask } => {
+            iroh::prepare_reach(ticket, ask, args).map(|ready| Ready::Iroh(Box::new(ready)))
         }
     };
     let ready = match ready {
@@ -70,6 +72,10 @@ pub fn run_chat(
 enum Ready {
     Listen(Box<listen::Ready>),
     Reach(reach::Ready),
+    /// `--listen --iroh`: both roads.
+    Both(Box<iroh::Waiting>),
+    /// `iroh:TICKET`.
+    Iroh(Box<iroh::Reach>),
 }
 
 impl Ready {
@@ -77,6 +83,8 @@ impl Ready {
         match self {
             Ready::Listen(ready) => &ready.label,
             Ready::Reach(ready) => &ready.label,
+            Ready::Both(ready) => ready.label(),
+            Ready::Iroh(ready) => ready.label(),
         }
     }
 }
@@ -109,6 +117,8 @@ async fn drive(
     match ready {
         Ready::Listen(ready) => listen::run(*ready, &mut lines, &mut output, opts, until).await,
         Ready::Reach(ready) => reach::run(ready, &mut lines, &mut output, opts, until).await,
+        Ready::Both(ready) => iroh::run_waiting(*ready, &mut lines, &mut output, opts, until).await,
+        Ready::Iroh(ready) => iroh::run_reach(*ready, &mut lines, &mut output, opts, until).await,
     }
 }
 

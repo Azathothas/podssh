@@ -12,10 +12,10 @@ no installed `ssh`, and no TLS or crypto library of the system.
 > [!WARNING]
 > **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh cp`,
 > `podssh mv`, `podssh scp` and `podssh sftp` (files), `podssh doctor`,
-> `podssh keygen`, `podssh man`, `podssh status` and the reverse road
-> (`podssh node`, `podssh operator`, `podssh relay`) work. Tests run them
-> against OpenSSH and Dropbear servers, through the live relay, and in a
-> box like the target sandbox. Chat and the copy of directories are not
+> `podssh keygen`, `podssh man`, `podssh status`, the reverse road
+> (`podssh node`, `podssh operator`, `podssh relay`) and `podssh chat` work.
+> Tests run them against OpenSSH and Dropbear servers, through the live
+> relay, and in a box like the target sandbox. The copy of directories is not
 > available yet. The measured state is in [docs/STATUS.md](docs/STATUS.md).
 > The plan is in [docs/ROADMAP.md](docs/ROADMAP.md).
 
@@ -120,6 +120,17 @@ protocols:
 
 ```sh
 printf 'HEAD / HTTP/1.0\r\nHost: example.com\r\n\r\n' | podssh proxy example.com 80
+```
+
+`podssh chat` carries messages and files between two podssh ends, end to
+end encrypted: one side waits as the node of a pair, the other reaches it.
+Each line of stdin is a message; `/file PATH` offers a file, which the peer
+writes only once it accepts it (`/accept ID`).
+
+```sh
+podssh relay pair NAME --operator-file op.json  # once, on the side that waits
+podssh chat --listen NAME                       # the side that waits
+podssh chat NAME --pair-file op.json            # the other side, with op.json sent over a trusted channel
 ```
 
 `podssh man environment` lists each variable that podssh reads. The usual

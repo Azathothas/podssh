@@ -546,8 +546,10 @@ rules behind it:
 
 - **Two podssh ends, one road.** One side waits, `chat --listen NAME`, as
   the node of the pair NAME; the other reaches it, `chat NAME` (or
-  `node:NAME`, `node://NAME`), as its operator. A rendezvous where both
-  sides dial lost: the relay's contract has none.
+  `node:NAME`, `node://NAME`), as its operator. With `--iroh`, the side that
+  waits serves the iroh road too, as `node --iroh` does, and the other
+  reaches its ticket, `chat iroh:TICKET`. A rendezvous where both sides dial
+  lost: the relay's contract has none.
 - **Always the channel.** Chat runs the end-to-end channel of T-088 with the
   keys of T-087, and has no `--no-e2e`: the relay never reads a message.
   The flags of the keys are those of `node` (`--key`, `--ephemeral-key`,

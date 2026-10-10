@@ -177,11 +177,12 @@ fn offline(e: &ConnectError) -> bool {
 }
 
 /// The conversation and the session under it, until both ended; once the
-/// conversation ended, the session gets a while to close.
-async fn both(
+/// conversation ended, the session gets a while to close. The iroh road's
+/// side uses it too.
+pub(super) async fn both<K>(
     conversation: impl Future<Output = Summary>,
-    carried: impl Future<Output = Carried>,
-) -> (Summary, Option<Carried>) {
+    carried: impl Future<Output = K>,
+) -> (Summary, Option<K>) {
     tokio::pin!(conversation, carried);
     tokio::select! {
         summary = &mut conversation => (summary, tokio::time::timeout(CLOSE_WAIT, carried).await.ok()),

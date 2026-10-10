@@ -10,6 +10,7 @@ mod args;
 pub mod converse;
 pub mod files;
 pub mod input;
+mod iroh;
 pub mod lines;
 mod listen;
 pub mod output;

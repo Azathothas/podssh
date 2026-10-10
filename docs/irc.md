@@ -24,7 +24,10 @@ podssh chat NAME              # the side that reaches: its operator
 ```
 
 The side that reaches needs the pair too, or its operator's part in
-`--pair-file`. `podssh man chat` has each flag.
+`--pair-file`. In a build with the feature `iroh`, `--listen NAME --iroh`
+serves the iroh road too, and says its ticket, which the other side reaches
+as `podssh chat iroh:TICKET`; on the iroh road, only the keys of `--allow`
+come in, as on each node of that road. `podssh man chat` has each flag.
 
 - Each line of stdin is a message, and each message of the peer is a line of
   stdout, `NICK: TEXT`, with each control character and each direction
