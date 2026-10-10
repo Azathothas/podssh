@@ -3,9 +3,9 @@
 `podssh chat` lets two users on constrained hosts talk and exchange files.
 podssh speaks IRC itself, and the relay carries the bytes, as for SSH. No
 command uses the client yet. The client has known defects
-([TODO/irc.md](../TODO/irc.md), T-092 and T-095 to T-098): among them, it
-sends plain text through the relay. Since T-091 the registration finishes on
-a server that holds it until `CAP END`: measured with ngircd 27 on the
+([TODO/irc.md](../TODO/irc.md), T-092, T-095, T-097 and T-098): among them,
+it sends plain text through the relay. Since T-091 the registration finishes
+on a server that holds it until `CAP END`: measured with ngircd 27 on the
 loopback of the build image, 2026-10-10.
 
 The operator decides when chat starts, and whether it stays on IRC or moves
@@ -54,3 +54,7 @@ test on the public networks again is the operator's question Q39.
   its command has whole (T-094).
 - A server with no `CAP` answers `421`, or nothing at all (InspIRCd 4 with no
   cap module); its welcome then ends the negotiation (T-094).
+- One bad line costs no other (T-096): a line past 8 KiB is dropped whole and
+  reported, and the lines around it come through; a line with no end keeps
+  nothing of itself in memory; a line that is not UTF-8 is read as Latin-1,
+  the older encoding of IRC, and the caller is told.

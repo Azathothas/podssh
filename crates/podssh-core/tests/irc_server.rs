@@ -59,7 +59,7 @@ fn a_server_that_holds_the_registration_for_cap_end_welcomes_the_client() {
             Err(_) => continue,
         };
         let was = s.registered();
-        let (out, new) = s.on_bytes(&buf[..n]).expect("lines of the server");
+        let (out, new) = s.on_bytes(&buf[..n]);
         assert!(!matches!(s.registered(), Registered::Refused(_)), "refused: {:?}; sent {sent:?}", s.registered());
         send(&mut stream, out);
         // Once welcomed, the channel: the server's echo of the `JOIN` is the

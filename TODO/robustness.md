@@ -37,7 +37,7 @@ reasons (`crates/podssh-ws/src/session.rs:307`); PEM bundles
 (`crates/podssh-ssh/src/known_hosts.rs:120`); the escape filter
 (`crates/podssh-ssh/src/escape.rs:30`); IRC lines and frames
 (`crates/podssh-core/src/irc/encode.rs:88`,
-`crates/podssh-core/src/irc/framing.rs:92`); the command line
+`crates/podssh-core/src/irc/framing.rs:110`); the command line
 (`crates/podssh-cli/src/tree.rs:106`). No fuzz target exists. libFuzzer is
 C++, and the message of commit `a378863` says that `rust:1-alpine` has no C++
 compiler.

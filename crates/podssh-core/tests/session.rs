@@ -39,7 +39,7 @@ fn plant_a_truncated_stream_emits_no_partial_line() {
     let wire = b":bob!u@h PRIVMSG #c :the message that never ends\r\n";
     let keep = wire.len() - 20;
 
-    let (out, events) = s.on_bytes(&wire[..keep]).expect("short");
+    let (out, events) = s.on_bytes(&wire[..keep]);
     assert!(out.is_empty(), "PLANT: a truncated push wrote {:?}", out.iter().map(|m| m.to_line()).collect::<Vec<_>>());
     assert!(
         !events.iter().any(|e| matches!(e, Event::Privmsg { .. })),
@@ -63,7 +63,7 @@ fn a_clean_end_of_stream_is_not_reported_as_a_truncation() {
     // truncation would tell the user "the link dropped mid-message" on every
     // clean disconnect.
     let mut s = registered();
-    let _ = s.on_bytes(b"PING :aBcD1234\r\n").expect("short");
+    let _ = s.on_bytes(b"PING :aBcD1234\r\n");
     assert_eq!(s.on_stream_end(), None, "a clean end has nothing to report");
 }
 
@@ -72,7 +72,7 @@ fn a_truncation_is_reported_once_and_not_repeated() {
     // `take_rest` clears the buffer, so a reconnect that asks twice gets
     // `None` the second time and does not tell the user the same thing twice.
     let mut s = registered();
-    let _ = s.on_bytes(b":bob!u@h PRIVMSG #c :half").expect("short");
+    let _ = s.on_bytes(b":bob!u@h PRIVMSG #c :half");
     assert!(s.on_stream_end().is_some());
     assert_eq!(s.on_stream_end(), None, "the partial line is taken once");
 }
@@ -87,7 +87,7 @@ fn plant_an_idle_session_reconnects_and_rejoins_its_channels() {
     let mut s = registered();
     let _ = s.send_join("#one", None);
     let _ = s.send_join("#two", None);
-    let (out, _events) = s.on_bytes(b":alice!u@h JOIN #one\r\n:alice!u@h JOIN #two\r\n").expect("short");
+    let (out, _events) = s.on_bytes(b":alice!u@h JOIN #one\r\n:alice!u@h JOIN #two\r\n");
     assert!(out.is_empty(), "the server's own JOIN echoes need no reply");
     assert_eq!(s.memory().channels(), ["#one", "#two"]);
 
@@ -166,7 +166,7 @@ fn a_channel_the_server_kicked_us_from_is_forgotten_on_its_own_echo() {
     // from memory even if the client never sent the `PART`.
     let mut s = registered();
     let _ = s.send_join("#one", None);
-    let (_, events) = s.on_bytes(b":op!u@h PART #one :you are out\r\n").expect("short");
+    let (_, events) = s.on_bytes(b":op!u@h PART #one :you are out\r\n");
     assert!(matches!(events.first(), Some(Event::Left { .. })), "got {events:?}");
     assert!(s.memory().is_empty(), "a kicked channel is still remembered");
 }
@@ -177,9 +177,9 @@ fn a_channel_the_server_kicked_us_from_is_forgotten_on_its_own_echo() {
 #[test]
 fn a_join_echo_and_a_part_in_either_form_reach_the_session() {
     let mut s = registered();
-    let (_, events) = s.on_bytes(b":alice!~alice@127.0.0.1 JOIN :#t\r\n").expect("short");
+    let (_, events) = s.on_bytes(b":alice!~alice@127.0.0.1 JOIN :#t\r\n");
     assert_eq!(events, [Event::Joined { channel: "#t".into() }]);
-    let (_, events) = s.on_bytes(b":alice!~u@mcevjy93nmghu.irc PART #t bye\r\n").expect("short");
+    let (_, events) = s.on_bytes(b":alice!~u@mcevjy93nmghu.irc PART #t bye\r\n");
     assert_eq!(events, [Event::Left { channel: "#t".into(), reason: Some("bye".into()) }]);
     assert!(s.memory().is_empty());
 }
@@ -216,7 +216,7 @@ fn sasl_is_never_requested() {
     // receive.
     let mut s = Session::new(server(), ReapPolicy::default());
     let _ = s.initial_burst();
-    let (out, _) = s.on_bytes(b"CAP * LS :multi-prefix sasl znc.in/self-message\r\n").expect("short");
+    let (out, _) = s.on_bytes(b"CAP * LS :multi-prefix sasl znc.in/self-message\r\n");
     let req = out.iter().find(|m| m.to_line().starts_with("CAP REQ")).expect("a REQ must follow an LS");
     let text = req.to_line();
     assert!(!text.contains("sasl"), "sasl was requested: {text}");
@@ -229,12 +229,12 @@ fn a_nak_is_not_requested_again_after_a_reconnect() {
     // asking twice is how a client ends up in a `CAP` loop it never leaves.
     let mut s = Session::new(server(), ReapPolicy::default());
     let _ = s.initial_burst();
-    let _ = s.on_bytes(b"CAP * LS :multi-prefix sasl\r\n").expect("short");
-    let _ = s.on_bytes(b"CAP * NAK :multi-prefix\r\n").expect("short");
+    let _ = s.on_bytes(b"CAP * LS :multi-prefix sasl\r\n");
+    let _ = s.on_bytes(b"CAP * NAK :multi-prefix\r\n");
     assert_eq!(s.negotiation().refused(), ["multi-prefix"]);
 
     let _ = s.initial_burst();
-    let (out, _) = s.on_bytes(b"CAP * LS :multi-prefix\r\n").expect("short");
+    let (out, _) = s.on_bytes(b"CAP * LS :multi-prefix\r\n");
     let req = out.iter().find(|m| m.to_line().starts_with("CAP REQ")).map(|m| m.to_line()).unwrap_or_default();
     assert!(!req.contains("multi-prefix"), "a refused capability was re-requested: {req}");
 }
@@ -245,7 +245,7 @@ fn a_433_is_reported_and_not_treated_as_fatal() {
     // holds the nick; a client that treated it as fatal cannot connect to a
     // network where its preferred name is taken.
     let mut s = Session::new(server(), ReapPolicy::default());
-    let (_, events) = s.on_bytes(b":irc.example.org 433 * alice :Nickname is already in use\r\n").expect("short");
+    let (_, events) = s.on_bytes(b":irc.example.org 433 * alice :Nickname is already in use\r\n");
     assert_eq!(s.registered(), Registered::Refused(RegistrationFailure::NicknameInUse));
     assert!(events.iter().any(|e| matches!(e, Event::Numeric { code: 433, .. })), "got {events:?}");
 }
@@ -255,7 +255,7 @@ fn an_unrelated_error_does_not_mark_registration_refused() {
     // **A control for the numeric handling.** An unrelated `404` arriving
     // mid-chat must not flip a working session to refused.
     let mut s = registered();
-    let _ = s.on_bytes(b":irc.example.org 404 alice #c :Cannot send to channel\r\n").expect("short");
+    let _ = s.on_bytes(b":irc.example.org 404 alice #c :Cannot send to channel\r\n");
     assert_eq!(s.registered(), Registered::Yes, "an unrelated numeric refused registration");
 }
 
@@ -267,7 +267,7 @@ fn a_late_registration_numeric_does_not_unregister_a_working_session() {
     // while Pending; the 404-control above passes trivially (404 is not in
     // the refusal set), this one covers a numeric that is.
     let mut s = registered();
-    let _ = s.on_bytes(b":irc.example.org 421 alice CAP :Unknown command\r\n").expect("short");
+    let _ = s.on_bytes(b":irc.example.org 421 alice CAP :Unknown command\r\n");
     assert_eq!(s.registered(), Registered::Yes, "a late 421 unregistered the session");
     assert!(s.send_privmsg("#c", "hi").is_ok(), "sends still work after a late 421");
 }
@@ -280,8 +280,7 @@ fn isupport_is_read_from_005_and_not_assumed() {
     assert_eq!(s.isupport().nicklen(), 9, "RFC 1459 §2.6's default before any 005");
     let _ = s.on_bytes(
         b":irc.example.org 005 alice NICKLEN=20 CHANNELLEN=64 MAXTARGETS=4 CASEMAPPING=ascii PREFIX=(ov)@+ :are supported\r\n",
-    )
-    .expect("short");
+    );
     assert_eq!(s.isupport().nicklen(), 20);
     assert_eq!(s.isupport().maxtargets(), Some(4));
     assert!(s.isupport().is_ascii_casemapping());
@@ -298,7 +297,7 @@ fn a_notice_is_carried_but_marked_as_a_notice() {
     // the matching `PRIVMSG` except `NOTICE AUTH`. A client that displays
     // them puts a server's status messages in the middle of a conversation.
     let mut s = registered();
-    let (_, events) = s.on_bytes(b":irc.example.org NOTICE alice :*** Looking up your hostname\r\n").expect("short");
+    let (_, events) = s.on_bytes(b":irc.example.org NOTICE alice :*** Looking up your hostname\r\n");
     assert!(
         matches!(events.iter().find(|e| matches!(e, Event::Notice { .. })), Some(Event::Notice { text, .. }) if text == "*** Looking up your hostname"),
         "got {events:?}"
@@ -316,7 +315,7 @@ fn a_heartbeat_is_consumed_and_never_shown() {
     for generation in 1..=4u64 {
         let hb = s.heartbeat("#one", generation).expect("registered means a heartbeat");
         assert!(hb.to_line().starts_with("PRIVMSG #one :"), "the heartbeat is not a PRIVMSG: {}", hb.to_line());
-        let (_, events) = s.on_bytes(hb.to_wire().unwrap().as_bytes()).expect("short");
+        let (_, events) = s.on_bytes(hb.to_wire().unwrap().as_bytes());
         assert!(
             events.iter().all(|e| matches!(e, Event::Heartbeat { .. })),
             "generation {generation} produced {events:?}; a heartbeat must be \
@@ -333,7 +332,7 @@ fn a_transfer_line_is_consumed_and_never_shown_as_chat() {
     // consumed before the text is shown, or a 64 MiB transfer fills a user's
     // terminal with `PODSSH1|chunk|…` lines.
     let mut s = registered();
-    let (_, events) = s.on_bytes(b":alice!u@host PRIVMSG #c :PODSSH1|chunk|t1|0|0|QUJD\r\n").expect("short");
+    let (_, events) = s.on_bytes(b":alice!u@host PRIVMSG #c :PODSSH1|chunk|t1|0|0|QUJD\r\n");
     assert!(!events.iter().any(|e| matches!(e, Event::Privmsg { .. })), "a chunk was shown as chat: {events:?}");
     assert!(
         matches!(events.first(), Some(Event::Transfer(_))),
@@ -347,10 +346,10 @@ fn an_unparseable_line_is_reported_and_does_not_end_the_conversation() {
     // conversation** and a client that disconnects on a parse error is a
     // client a misbehaving server can take offline at will.
     let mut s = registered();
-    let (out, events) = s.on_bytes(b":bob!u@h PRIVMSG\r\n").expect("short");
+    let (out, events) = s.on_bytes(b":bob!u@h PRIVMSG\r\n");
     assert!(out.is_empty());
     assert!(events.iter().any(|e| matches!(e, Event::Protocol(_))), "got {events:?}");
-    let (_, events) = s.on_bytes(b":bob!u@h PRIVMSG #c :still here\r\n").expect("short");
+    let (_, events) = s.on_bytes(b":bob!u@h PRIVMSG #c :still here\r\n");
     assert!(matches!(events.first(), Some(Event::Privmsg { .. })), "one bad line cost the conversation: {events:?}");
 }
 

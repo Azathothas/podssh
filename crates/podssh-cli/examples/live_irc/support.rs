@@ -133,7 +133,8 @@ impl Attempt {
 }
 
 /// One receive-feed-respond step shared by every loop in the flow.
-/// Closed names the failed half: relay abort and session error differ.
+/// Closed names the failed half: the relay closed the session, or a write
+/// failed. A bad line of the server is an event, not an end.
 pub enum PumpOut {
     Events(Vec<Event>),
     Timeout,
@@ -153,10 +154,7 @@ pub async fn pump_once(runner: &mut LiveRunner, irc: &mut Session, a: &mut Attem
     if !payload.ends_with(b"\n") {
         a.split_seen = true;
     }
-    let (out, events) = match irc.on_bytes(&payload) {
-        Ok(v) => v,
-        Err(e) => return PumpOut::Closed("session", format!("{e}")),
-    };
+    let (out, events) = irc.on_bytes(&payload);
     if send_all(runner, &out, a).await.is_err() {
         return PumpOut::Closed("send", "write failed".into());
     }

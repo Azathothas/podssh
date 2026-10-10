@@ -25,12 +25,17 @@
 //! one that accepts it. **A lone `\r` is never a terminator**, because a
 //! `\r\n` arriving as two separate frames is the split this module exists for.
 //!
-//! **NUL is dropped.** RFC 2812 §2.3.1: *"Because of IRC's Scandinavian
-//! origin, the characters `{|}` are considered to be the lower case
-//! equivalents of `[]` ^" ... This is only one aspect of the protocol rules; a
-//! NUL in a message is stripped rather than truncated*, and several public
-//! ircds do exactly that. Dropping NUL is the documented behaviour; the
-//! parser never sees one.
+//! **NUL is dropped.** The grammar of RFC 2812 §2.3.1 allows no NUL in a
+//! message, and a NUL ends a string for a server written in C, so no server
+//! means one. Dropping it is the documented behaviour; the parser never sees
+//! one.
+//!
+//! **One bad line never costs another.** [`Reassembler::push`] hands out the
+//! lines and the losses together, in their order: a line past the limit is
+//! dropped whole and named, and the lines before and after it come out. A
+//! line that is not UTF-8 is read as Latin-1, each byte its own character, as
+//! older networks write it, and marked so: refusing it would end a session
+//! for one line of one user.
 
 use std::fmt;
 
@@ -46,20 +51,32 @@ pub const MAX_ALLOWED_LINE: usize = 512;
 /// the server for.
 pub const DEFAULT_MAX_LINE: usize = 8192;
 
+/// What one line of the stream became.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Framed {
+    /// A line of UTF-8.
+    Line(String),
+    /// A line that is not UTF-8, read as Latin-1: each byte is the character
+    /// of its value.
+    Latin1(String),
+    /// A line past the limit, dropped whole.
+    Lost(FrameError),
+}
+
 /// The reassembler. Push whatever the relay hands over, take whatever
 /// completed.
 ///
-/// **`push` is total and `take` is where the limit is enforced**, because a
-/// buffer that can grow without bound from a hostile peer is a denial of
-/// service and this type is on the receive path of a client that must survive
-/// a constrained sandbox.
+/// **The limit holds on the buffer as well as on a line**, because a buffer
+/// that can grow without bound from a hostile peer is a denial of service and
+/// this type is on the receive path of a client that must survive a
+/// constrained sandbox.
 #[derive(Debug, Clone)]
 pub struct Reassembler {
     buf: Vec<u8>,
-    /// Set by [`Reassembler::push`] when the buffer passed the limit. A
-    /// bool, not a truncation: **an over-long line is discarded whole**, and
-    /// the next `\n` resumes at a message boundary. Skipping to the next
-    /// newline is what keeps the tail of a 100 KB line from being parsed as a
+    /// Set while the rest of an over-long line arrives, which has no end
+    /// yet: **its bytes are dropped as they come**, so the buffer stays under
+    /// the limit, and the next `\n` resumes at a message boundary. Skipping
+    /// to it is what keeps the tail of a 100 KB line from being parsed as a
     /// fresh message.
     overflowed: bool,
     max_line: usize,
@@ -83,13 +100,14 @@ impl Reassembler {
         Reassembler { buf: Vec::new(), overflowed: false, max_line }
     }
 
-    /// Add a frame's payload. Returns the messages that completed inside it.
+    /// Add a frame's payload. Returns what each line that completed inside it
+    /// became, in order.
     ///
-    /// **Returns `Result`, because the caller needs to know.** A parser that
-    /// silently dropped an over-long line would let a peer truncate a
-    /// conversation with no word to anyone; the error names the line and the
-    /// limit, and the stream resumes cleanly at the next boundary.
-    pub fn push(&mut self, frame: &[u8]) -> Result<Vec<String>, FrameError> {
+    /// **A loss is in the list, because the caller needs to know.** A parser
+    /// that silently dropped an over-long line would let a peer truncate a
+    /// conversation with no word to anyone; [`Framed::Lost`] names the line
+    /// and the limit, and the stream resumes at the next boundary.
+    pub fn push(&mut self, frame: &[u8]) -> Vec<Framed> {
         self.buf.extend_from_slice(frame);
         self.drain()
     }
@@ -118,14 +136,13 @@ impl Reassembler {
         self.buf.len()
     }
 
-    /// Did the last push hit the length limit? **Never cleared** by a
-    /// later successful drain: it is a property of the stream, read once by
-    /// the caller.
+    /// Is the rest of an over-long line being skipped? Set when a line with
+    /// no end yet passes the limit, cleared at its end.
     pub fn overflowed(&self) -> bool {
         self.overflowed
     }
 
-    fn drain(&mut self) -> Result<Vec<String>, FrameError> {
+    fn drain(&mut self) -> Vec<Framed> {
         let mut out = Vec::new();
         loop {
             if self.overflowed {
@@ -135,9 +152,11 @@ impl Reassembler {
                         self.overflowed = false;
                         continue;
                     }
-                    // The rest of the over-long line has not arrived. Keep it,
-                    // keep skipping, and emit nothing.
-                    None => return Ok(out),
+                    // The rest of the over-long line: nothing of it is kept.
+                    None => {
+                        self.buf.clear();
+                        return out;
+                    }
                 }
             }
             match self.buf.iter().position(|&b| b == b'\n') {
@@ -172,33 +191,26 @@ impl Reassembler {
                     // line the RFC allows, and the boundary is exactly where
                     // such a bug shows.
                     if line.len() + 2 > self.max_line {
-                        // **And it is an `Err`, not a silent drop.** A
-                        // client that dropped an over-long line with no word to
-                        // anyone lets a peer truncate a conversation silently.
-                        // The flag is set as well, because `overflowed` is
-                        // how a caller learns the stream dropped something
-                        // after it has already handled the error.
-                        self.overflowed = true;
-                        return Err(FrameError::Overlong { bytes: line.len(), max_line: self.max_line });
+                        // **A loss in the list, not a silent drop**, and the
+                        // lines after it go on: the whole line is here, its
+                        // end with it, so nothing of it is left to skip.
+                        out.push(Framed::Lost(FrameError::Overlong { bytes: line.len(), max_line: self.max_line }));
+                        continue;
                     }
-                    match finish(line) {
-                        Ok(Some(text)) => out.push(text),
-                        Ok(None) => {}
-                        Err(e) => {
-                            // **The stream is still synchronised.** The
-                            // offending line has been consumed; the next one is
-                            // a fresh message. Returning here rather than
-                            // looping keeps one bad line from discarding the
-                            // good ones after it.
-                            return Err(e);
-                        }
+                    if let Some(framed) = finish(line) {
+                        out.push(framed);
                     }
                 }
                 None => {
-                    if self.buf.len() + 2 > self.max_line {
+                    // A legal line with no end yet holds at most its content
+                    // and the CR of its CRLF: `max_line - 1` bytes. One more,
+                    // and it is over; its bytes go from here on.
+                    if self.buf.len() >= self.max_line {
+                        out.push(Framed::Lost(FrameError::Overlong { bytes: self.buf.len(), max_line: self.max_line }));
+                        self.buf.clear();
                         self.overflowed = true;
                     }
-                    return Ok(out);
+                    return out;
                 }
             }
         }
@@ -206,35 +218,29 @@ impl Reassembler {
 }
 
 /// NUL is stripped, CRLF is already gone, and a bare LF's leading CR is
-/// gone. What is left must be UTF-8 — RFC 2812 §2.3.4 made UTF-8 the transfer
-/// encoding in 2000, so lossy decoding would silently corrupt a nick rather
-/// than fail.
-fn finish(line: Vec<u8>) -> Result<Option<String>, FrameError> {
-    let mut kept: Vec<u8> = Vec::with_capacity(line.len());
-    for b in line {
-        if b != 0 {
-            kept.push(b);
-        }
-    }
+/// gone. RFC 2812 (section 2.2) names no character set: UTF-8 is what IRC
+/// writes today, and what is not UTF-8 is read as Latin-1, the older one:
+/// each byte keeps a character, where U+FFFD for each would lose text a reader
+/// can read.
+fn finish(line: Vec<u8>) -> Option<Framed> {
+    let kept: Vec<u8> = line.into_iter().filter(|&b| b != 0).collect();
     if kept.is_empty() {
-        return Ok(None);
+        return None;
     }
-    match String::from_utf8(kept) {
-        Ok(text) => Ok(Some(text)),
-        Err(e) => Err(FrameError::NotUtf8 { detail: e.utf8_error().to_string() }),
-    }
+    Some(match String::from_utf8(kept) {
+        Ok(text) => Framed::Line(text),
+        Err(e) => Framed::Latin1(e.into_bytes().into_iter().map(char::from).collect()),
+    })
 }
 
-/// **A failure of the byte layer, named with the byte that failed.** The
-/// parser has its own error type; keeping them apart means a caller can tell
-/// "the peer sent bytes that are not a message" from "the peer sent bytes that
-/// are not text", which have different remedies.
+/// **A failure of the byte layer.** The parser has its own error type;
+/// keeping them apart means a caller can tell "the peer sent bytes that are
+/// not a message" from "the peer sent a line too long to hold".
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FrameError {
-    /// A line arrived past the configured limit, so it was discarded whole.
+    /// A line passed the configured limit, so it was dropped whole: `bytes`
+    /// is its length, or, for a line with no end yet, what had come of it.
     Overlong { bytes: usize, max_line: usize },
-    /// The line was not UTF-8.
-    NotUtf8 { detail: String },
 }
 
 impl fmt::Display for FrameError {
@@ -242,12 +248,9 @@ impl fmt::Display for FrameError {
         match self {
             FrameError::Overlong { bytes, max_line } => write!(
                 f,
-                "IRC line of {bytes} bytes exceeds the {max_line}-byte limit; \
-                 it was discarded and the stream resumed at the next line"
+                "an IRC line passed the {max_line}-byte limit at {bytes} bytes; \
+                 it was dropped whole, and the stream resumed at the next line"
             ),
-            FrameError::NotUtf8 { detail } => {
-                write!(f, "IRC line is not UTF-8: {detail}")
-            }
         }
     }
 }

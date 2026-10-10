@@ -3,7 +3,7 @@
 
 #![allow(dead_code)]
 
-use podssh_core::irc::framing::Reassembler;
+use podssh_core::irc::framing::{Framed, Reassembler};
 
 /// Read a fixture that is committed **with CRLF endings**, because a
 /// fixture rewritten by an editor to LF would stop testing the terminator the
@@ -25,5 +25,17 @@ pub fn fixture(name: &str) -> String {
 /// Push bytes through a fresh reassembler and return the lines.
 pub fn lines_from(bytes: &[u8]) -> Vec<String> {
     let mut r = Reassembler::new();
-    r.push(bytes).expect("fixture bytes must not overflow").to_vec()
+    texts(r.push(bytes))
+}
+
+/// The text of each line that a push completed, for the cases that hold no
+/// lost line and no Latin-1: either one fails the test, named.
+pub fn texts(framed: Vec<Framed>) -> Vec<String> {
+    framed
+        .into_iter()
+        .map(|f| match f {
+            Framed::Line(text) => text,
+            other => panic!("not a line of UTF-8: {other:?}"),
+        })
+        .collect()
 }

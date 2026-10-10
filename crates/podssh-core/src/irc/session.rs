@@ -24,6 +24,7 @@
 //! request ends it ([`crate::irc::cap`], T-091).
 
 use crate::irc::cap::{Negotiation, Stage};
+use crate::irc::framing::Framed;
 use crate::irc::isupport::Isupport;
 use crate::irc::message::{Command, Message, Prefix, Trailing};
 use crate::irc::numeric::Numeric as Code;
@@ -116,8 +117,6 @@ pub enum SessionError {
     /// the reconnect path can say "the link dropped mid-message" instead of
     /// printing half a `PRIVMSG` and pretending the peer went quiet.
     TruncatedMidLine { partial: String, pending_bytes: usize },
-    /// A line was not UTF-8, or was over the length limit.
-    Frame(crate::irc::framing::FrameError),
     /// The session is not registered and cannot send user traffic.
     NotRegistered,
     /// The message would exceed the 512-byte line limit.
@@ -141,7 +140,6 @@ impl std::fmt::Display for SessionError {
                 "the IRC stream ended mid-line with {pending_bytes} byte(s) buffered; \
                  the partial line is NOT shown and the session reconnects"
             ),
-            SessionError::Frame(e) => write!(f, "{e}"),
             SessionError::Unsafe(e) => write!(f, "{e}"),
             SessionError::NotRegistered => {
                 write!(f, "not registered yet; a server drops traffic sent before 001")
@@ -264,19 +262,27 @@ impl Session {
 
     /// **Feed one frame's bytes.** Returns what to write next and what
     /// to show, **in that order**: a `PONG` that arrives after the text
-    /// it should precede is a dropped client.
-    pub fn on_bytes(&mut self, frame: &[u8]) -> Result<(Vec<Message>, Vec<Event>), SessionError> {
-        let lines = self.reassembler.push(frame).map_err(SessionError::Frame)?;
+    /// it should precede is a dropped client. A line that the byte layer
+    /// lost, or read as Latin-1, is an [`Event::Protocol`], and the session
+    /// goes on: one line from one peer does not end it.
+    pub fn on_bytes(&mut self, frame: &[u8]) -> (Vec<Message>, Vec<Event>) {
         let mut out = Vec::new();
         let mut events = Vec::new();
-        for line in lines {
-            self.on_line(&line, &mut out, &mut events);
+        for framed in self.reassembler.push(frame) {
+            match framed {
+                Framed::Line(line) => self.on_line(&line, &mut out, &mut events),
+                Framed::Latin1(line) => {
+                    events.push(Event::Protocol("a line that is not UTF-8 was read as Latin-1".into()));
+                    self.on_line(&line, &mut out, &mut events);
+                }
+                Framed::Lost(e) => events.push(Event::Protocol(e.to_string())),
+            }
         }
         // **PONGs are drained after the whole frame**, so a frame carrying
         // `PING a` then `PING b` produces `PONG a`, `PONG b` and a frame
         // carrying nothing else produces nothing.
         out.extend(self.take_pongs());
-        Ok((out, events))
+        (out, events)
     }
 
     /// The queued `PONG`s, in arrival order. **The token is used

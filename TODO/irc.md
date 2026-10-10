@@ -216,7 +216,7 @@ covers it.
    character, escaped.
 3. Refuse a transfer name or reason with `|`, CR, LF or NUL. On receive, give the caller a base
    name only (`crates/podssh-core/src/irc/transfer/recv.rs`, lines 89-91 at `c3eb09d`).
-4. Update the callers (`crates/podssh-cli/examples/live_irc/support.rs:199-207`) and
+4. Update the callers (`crates/podssh-cli/examples/live_irc/support.rs:197-205`) and
    `docs/STATUS.md:304` in the same commit.
 
 ## Decision
@@ -302,7 +302,7 @@ The last IRC parameter can come with or without a colon. The parser wants a midd
 Read: `JOIN` and `NICK` count middles only (`crates/podssh-core/src/irc/command.rs`, lines 49-51 at `93de442`,
 `crates/podssh-core/src/irc/command.rs`, lines 119-122 at `93de442`). `PRIVMSG` and `NOTICE` require a trailing
 (`crates/podssh-core/src/irc/command.rs`, lines 39-48 at `93de442`). A line that does not parse is dropped
-(`crates/podssh-core/src/irc/session.rs:298-309`). `JOIN` reads keys from the trailing
+(`crates/podssh-core/src/irc/session.rs:304-315`). `JOIN` reads keys from the trailing
 (`crates/podssh-core/src/irc/command.rs`, lines 60-64 at `93de442`), but the encoder writes them as a middle
 (`crates/podssh-core/src/irc/command_view.rs`, lines 28-39 at `93de442`), so a parsed `JOIN #c key` loses its key.
 `CAP` takes only `*` as a target (`crates/podssh-core/src/irc/command.rs`, lines 147-164 at `9460b4e`); a nick then
@@ -429,19 +429,19 @@ before it. A reconnect keeps the old state. A `433` during registration ends the
 
 ## Premise
 
-Read: `Session` has no field for its nick (`crates/podssh-core/src/irc/session.rs:160-175`), and
-`JOIN` and `PART` ignore the prefix (`crates/podssh-core/src/irc/session.rs:351-367`). The test
+Read: `Session` has no field for its nick (`crates/podssh-core/src/irc/session.rs:158-173`), and
+`JOIN` and `PART` ignore the prefix (`crates/podssh-core/src/irc/session.rs:357-373`). The test
 named for a kick sends another user's `PART` and expects the channel to go
 (`crates/podssh-core/tests/session.rs:163-172`): it asserts the defect. `KICK` has no variant
 (`crates/podssh-core/src/irc/message.rs:115-206`), and it ends as "unhandled command"
-(`crates/podssh-core/src/irc/session.rs:393-399`). Each `005` builds a new map
-(`crates/podssh-core/src/irc/session.rs:319-322`).
+(`crates/podssh-core/src/irc/session.rs:399-405`). Each `005` builds a new map
+(`crates/podssh-core/src/irc/session.rs:325-328`).
 
-Read: `reconnect_burst` only adds `JOIN` lines (`crates/podssh-core/src/irc/session.rs:242-248`).
+Read: `reconnect_burst` only adds `JOIN` lines (`crates/podssh-core/src/irc/session.rs:240-246`).
 `registered` stays `Yes`, the reassembler keeps its `overflowed` flag, and `pending_pongs` keeps old
 tokens. `Negotiation::reconnect` has no caller (`crates/podssh-core/src/irc/cap.rs:204-213`). A
-`433` sets `Refused` and sends nothing (`crates/podssh-core/src/irc/session.rs:335-339`), against
-its comment (`crates/podssh-core/src/irc/session.rs:39-43`). A test asserts the refusal
+`433` sets `Refused` and sends nothing (`crates/podssh-core/src/irc/session.rs:341-345`), against
+its comment (`crates/podssh-core/src/irc/session.rs:40-44`). A test asserts the refusal
 (`crates/podssh-core/tests/session.rs:242-251`), and the live probe works around it
 (`crates/podssh-cli/examples/live_irc.rs:221-228`).
 
@@ -484,7 +484,7 @@ here on `3ee70dc` by reading the code and its tests.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -496,17 +496,17 @@ line in Latin-1, which older networks carry, ends the session.
 ## Premise
 
 Read: `drain` returns `Err` on a long or non-UTF-8 line, and the lines in `out` are lost
-(`crates/podssh-core/src/irc/framing.rs:128-195`); the comment at
-`crates/podssh-core/src/irc/framing.rs:188-192` says the opposite. After a complete long line, it
-sets `overflowed` (`crates/podssh-core/src/irc/framing.rs:174-183`), although the LF of that line is
-gone (`crates/podssh-core/src/irc/framing.rs:145`). The next push then skips the next complete line
-(`crates/podssh-core/src/irc/framing.rs:131-137`). The control test shows it: `PING :after` never
-comes out (`crates/podssh-core/tests/reassembly.rs:231-247`). With no LF, the bytes stay and grow
-(`crates/podssh-core/src/irc/framing.rs:197-202`, `crates/podssh-core/src/irc/framing.rs:92-95`).
+(`crates/podssh-core/src/irc/framing.rs`, lines 128-195 at `016baab`); the comment at
+`crates/podssh-core/src/irc/framing.rs`, lines 188-192 at `016baab` says the opposite. After a complete long line, it
+sets `overflowed` (`crates/podssh-core/src/irc/framing.rs`, lines 174-183 at `016baab`), although the LF of that line is
+gone (`crates/podssh-core/src/irc/framing.rs`, line 145 at `016baab`). The next push then skips the next complete line
+(`crates/podssh-core/src/irc/framing.rs`, lines 131-137 at `016baab`). The control test shows it: `PING :after` never
+comes out (`crates/podssh-core/tests/reassembly.rs`, lines 231-247 at `016baab`). With no LF, the bytes stay and grow
+(`crates/podssh-core/src/irc/framing.rs`, lines 197-202 at `016baab`, `crates/podssh-core/src/irc/framing.rs`, lines 92-95 at `016baab`).
 
-Read: a non-UTF-8 line is an error (`crates/podssh-core/src/irc/framing.rs:212-226`), which
-`Session::on_bytes` returns with `?` (`crates/podssh-core/src/irc/session.rs:268-269`). The live
-probe then ends the attempt (`crates/podssh-cli/examples/live_irc/support.rs:156-159`). The only
+Read: a non-UTF-8 line is an error (`crates/podssh-core/src/irc/framing.rs`, lines 212-226 at `016baab`), which
+`Session::on_bytes` returns with `?` (`crates/podssh-core/src/irc/session.rs`, lines 268-269 at `016baab`). The live
+probe then ends the attempt (`crates/podssh-cli/examples/live_irc/support.rs`, lines 156-159 at `016baab`). The only
 network that took the relay is undernet (`docs/irc.md:22`); its use of Latin-1 is not measured.
 
 ## Approach
@@ -516,15 +516,25 @@ network that took the relay is undernet (`docs/irc.md:22`); its use of Latin-1 i
    the next LF, so the buffer stays at `max_line` or less.
 3. Decode a non-UTF-8 line as Latin-1, and mark it, so the caller can say so.
 4. In `Session::on_bytes`, turn each line error into `Event::Protocol`, and go on
-   (`crates/podssh-core/src/irc/session.rs:265-280`).
-5. Correct the comments at `crates/podssh-core/src/irc/framing.rs:28-33` (the quote is about case
-   mapping) and `crates/podssh-core/src/irc/framing.rs:121-126`. Update `docs/STATUS.md:304`.
+   (`crates/podssh-core/src/irc/session.rs`, lines 265-280 at `016baab`).
+5. Correct the comments at `crates/podssh-core/src/irc/framing.rs`, lines 28-33 at `016baab` (the quote is about case
+   mapping) and `crates/podssh-core/src/irc/framing.rs`, lines 121-126 at `016baab`. Update `docs/STATUS.md:304`.
 
 ## Decision
 
 Recommendation: Latin-1 when UTF-8 fails. Each byte keeps its character, and Latin-1 is the usual
 older encoding on IRC. U+FFFD for each bad byte lost because it destroys text that the user can
 read. Keeping the error lost because one line from one user then ends the session.
+
+2026-10-10, in the work:
+- `push` returns what each line became, in order: `Framed::Line`, `Framed::Latin1` or
+  `Framed::Lost`. `Session::on_bytes` then cannot fail, so it returns the messages and the events
+  and no `Result`, and `SessionError::Frame` is gone. Keeping a `Result` that never fails lost: its
+  caller would still handle an error that cannot come.
+- A line with no end yet is over the limit once the buffer holds `max_line` bytes: a legal one
+  holds its content and the CR of its CRLF, `max_line - 1` at most. The old check, the buffer
+  plus 2, took a legal line at the limit that a frame split after its CR for an over-long one.
+  Such a line is reported once, when it passes the limit, with what had come of it.
 
 ## Prove
 
@@ -534,11 +544,31 @@ cargo test -p podssh-core --test reassembly
 cargo test -p podssh-core --test framing_limits
 ```
 
-Change the test at `crates/podssh-core/tests/reassembly.rs:225-256` to expect `PING :after`. The new
+Change the test at `crates/podssh-core/tests/reassembly.rs`, lines 225-256 at `016baab` to expect `PING :after`. The new
 file crates/podssh-core/tests/framing_limits.rs holds `lines_before_a_bad_line_are_kept`,
 `an_endless_line_keeps_the_buffer_at_the_limit` (1 MiB with no LF in 64 KiB pushes; `pending_len()`
 stays at `DEFAULT_MAX_LINE` or less) and `latin1_text_is_decoded` (the byte `0xe9` becomes U+00E9).
 Plant: set `overflowed` after a complete long line again; the changed test must fail.
+
+## Done
+
+2026-10-10. The reassembler hands out the lines and the losses together, in their order
+(`crates/podssh-core/src/irc/framing.rs`): a line past the limit is `Framed::Lost`, and the lines
+before and after it come out; `overflowed` is set only for a line with no end yet, and while it is
+set no byte of that line is kept, so the buffer holds `max_line - 1` bytes at most. A line that is
+not UTF-8 is read as Latin-1 and marked `Framed::Latin1`. `Session::on_bytes` turns each loss and
+each Latin-1 line into an `Event::Protocol` and goes on (`crates/podssh-core/src/irc/session.rs`);
+the live probe no longer ends an attempt on a bad line. The comments that said the opposite, or
+quoted RFC 2812 for what it does not say, are corrected.
+- Native, Windows 11: `cargo test -p podssh-core --test reassembly`, 16 passed, the control now
+  expecting `PING :after`; `--test framing_limits`, 4 passed: `lines_before_a_bad_line_are_kept`,
+  `an_endless_line_keeps_the_buffer_at_the_limit` (1 MiB with no LF in 64 KiB pushes,
+  `pending_len()` at `DEFAULT_MAX_LINE` or less), `latin1_text_is_decoded` (`0xe9` is U+00E9, and the
+  session reads the line and says so) and `a_line_at_the_limit_split_after_its_cr_is_kept`.
+  Planted, `overflowed` set after a complete long line: the changed test fails, and two others;
+  planted, the bytes of a skipped line kept: the buffer test fails at 65536 bytes held.
+  `cargo test -p podssh-core --no-fail-fast`: 100 passed, 0 failed, 1 ignored. clippy with no
+  warning. `cargo test --workspace`: 1137 passed, 0 failed, 38 ignored.
 
 # T-097: I7: file chunks are too long with the server's prefix, and the last acknowledgement is wrong
 
@@ -648,8 +678,8 @@ none, the relay cut it after 184 s (`docs/STATUS.md:116-117`).
    `PONG <server> :<token>`, so match the trailing (`crates/podssh-core/src/irc/command.rs:146-154`).
 3. Remove the `PRIVMSG` heartbeat and its parser
    (`crates/podssh-core/src/irc/session_send.rs:89-106`, `crates/podssh-core/src/irc/reap.rs:53-75`,
-   `crates/podssh-core/src/irc/session.rs:370-377`). No released podssh sends it.
-4. Rewrite the test at `crates/podssh-core/tests/session.rs:309-328`. Correct the comments at
+   `crates/podssh-core/src/irc/session.rs:376-383`). No released podssh sends it.
+4. Rewrite the test at `crates/podssh-core/tests/session.rs:308-327`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs:5-29` and the test name at
    `crates/podssh-core/tests/transfer.rs:371-396`.
 5. Update `docs/STATUS.md:304` in the same commit.

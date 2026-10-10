@@ -21,7 +21,7 @@ fn server() -> Server {
 
 /// What podssh writes for `bytes`, as lines.
 fn answer(s: &mut Session, bytes: &[u8]) -> Vec<String> {
-    let (out, _) = s.on_bytes(bytes).expect("a short line");
+    let (out, _) = s.on_bytes(bytes);
     out.iter().map(|m| m.to_line()).collect()
 }
 

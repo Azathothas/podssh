@@ -54,7 +54,7 @@ pub mod tag;
 pub mod transfer;
 
 pub use encode::Unsafe;
-pub use framing::{FrameError, Reassembler, DEFAULT_MAX_LINE, MAX_ALLOWED_LINE};
+pub use framing::{FrameError, Framed, Reassembler, DEFAULT_MAX_LINE, MAX_ALLOWED_LINE};
 pub use limits::TransferLimits;
 pub use message::{Command, Message, ParseError, Prefix, Tag, Trailing};
 pub use reap::{payload_plan_for, PayloadPlan, ReapPolicy};

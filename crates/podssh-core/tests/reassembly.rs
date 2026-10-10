@@ -12,7 +12,7 @@
 
 mod common;
 
-use podssh_core::irc::framing::{FrameError, Reassembler, DEFAULT_MAX_LINE};
+use podssh_core::irc::framing::{FrameError, Framed, Reassembler, DEFAULT_MAX_LINE};
 use podssh_core::irc::message::{Command, Message};
 
 const LONG: &str = ":alice!u@host PRIVMSG #ops :the quick brown fox jumps over the lazy dog";
@@ -27,7 +27,7 @@ fn plant_a_message_split_across_two_frames_reassembles() {
     let at = bytes.len() / 2;
 
     let mut r = Reassembler::new();
-    let first = r.push(&bytes[..at]).expect("the first half is not over-long");
+    let first = common::texts(r.push(&bytes[..at]));
     assert!(
         first.is_empty(),
         "PLANT: the first half produced {:?}. A frame boundary means nothing on \
@@ -36,7 +36,7 @@ fn plant_a_message_split_across_two_frames_reassembles() {
     );
     assert_eq!(r.pending_len(), at, "the half is buffered, not dropped");
 
-    let second = r.push(&bytes[at..]).expect("the second half completes the line");
+    let second = common::texts(r.push(&bytes[at..]));
     assert_eq!(second, vec![LONG.to_string()], "PLANT: the message did not reassemble");
     assert_eq!(r.pending_len(), 0);
 }
@@ -57,11 +57,11 @@ fn every_split_of_one_message_reassembles() {
     let mut checked = 0usize;
     for at in 1..bytes.len() {
         let mut r = Reassembler::new();
-        let mut out = r.push(&bytes[..at]).unwrap_or_else(|e| panic!("split at {at}: {e}"));
+        let mut out = common::texts(r.push(&bytes[..at]));
         if at < bytes.len() - 2 {
             assert!(out.is_empty(), "a split at byte {at} produced {out:?} from the first half");
         }
-        out.extend(r.push(&bytes[at..]).unwrap_or_else(|e| panic!("split at {at}: {e}")));
+        out.extend(common::texts(r.push(&bytes[at..])));
         assert_eq!(out, vec![LONG.to_string()], "a split at byte {at} did not reassemble");
         assert_eq!(r.pending_len(), 0, "a split at byte {at} left bytes buffered");
         checked += 1;
@@ -84,7 +84,7 @@ fn a_message_split_into_three_frames_still_reassembles() {
         let mut r = Reassembler::new();
         let mut out = Vec::new();
         for part in [&bytes[..a], &bytes[a..b], &bytes[b..]] {
-            out.extend(r.push(part).expect("no over-long line"));
+            out.extend(common::texts(r.push(part)));
         }
         assert_eq!(
             out,
@@ -104,8 +104,8 @@ fn a_crlf_split_across_two_frames_is_still_one_terminator() {
     for at in 1..wire.len() {
         let mut r = Reassembler::new();
         let mut out = Vec::new();
-        out.extend(r.push(&wire[..at]).expect("short"));
-        out.extend(r.push(&wire[at..]).expect("short"));
+        out.extend(common::texts(r.push(&wire[..at])));
+        out.extend(common::texts(r.push(&wire[at..])));
         assert_eq!(out, vec!["PING :tok".to_string()], "a split at byte {at} did not produce exactly one line");
     }
 }
@@ -116,21 +116,21 @@ fn a_bare_lf_is_a_terminator_and_a_lone_cr_is_not() {
     // that emits a bare LF is real, and a client that drops the message is worse
     // than one that accepts it.
     let mut r = Reassembler::new();
-    assert_eq!(r.push(b"JOIN #one\n").unwrap(), vec!["JOIN #one".to_string()]);
+    assert_eq!(common::texts(r.push(b"JOIN #one\n")), vec!["JOIN #one".to_string()]);
 
     // **A lone `\r` is never a terminator**, because a CRLF arriving as two
     // separate frames is the split this module exists for.
     let mut r = Reassembler::new();
-    assert!(r.push(b"JOIN #one\r").unwrap().is_empty());
+    assert!(common::texts(r.push(b"JOIN #one\r")).is_empty());
     assert_eq!(r.pending_len(), 10);
-    assert_eq!(r.push(b"\n").unwrap(), vec!["JOIN #one".to_string()]);
+    assert_eq!(common::texts(r.push(b"\n")), vec!["JOIN #one".to_string()]);
 }
 
 #[test]
 fn a_lone_cr_inside_a_line_is_content() {
     let mut r = Reassembler::new();
     assert_eq!(
-        r.push(b"PRIVMSG #c :a\rb\r\n").unwrap(),
+        common::texts(r.push(b"PRIVMSG #c :a\rb\r\n")),
         vec!["PRIVMSG #c :a\rb".to_string()],
         "a CR that is not part of a CRLF is content, not a terminator"
     );
@@ -147,7 +147,7 @@ fn plant_a_stream_truncated_mid_line_emits_no_partial_line() {
     let wire = b":alice!u@host PRIVMSG #ops :hello there world\r\n";
     let keep = wire.len() - 15;
     let mut r = Reassembler::new();
-    let out = r.push(&wire[..keep]).expect("short");
+    let out = common::texts(r.push(&wire[..keep]));
     assert!(
         out.is_empty(),
         "PLANT: a truncated push emitted {:?}; a partial line must not be \
@@ -175,7 +175,7 @@ fn plant_a_stream_truncated_at_every_offset_never_emits_a_partial_line() {
     let wire = b":alice!u@host PRIVMSG #ops :hello there world\r\n";
     for at in 1..wire.len() {
         let mut r = Reassembler::new();
-        let out = r.push(&wire[..at]).expect("short");
+        let out = common::texts(r.push(&wire[..at]));
         assert!(
             out.is_empty(),
             "PLANT: a stream truncated at byte {at} emitted {:?}; every \
@@ -189,7 +189,7 @@ fn plant_a_stream_truncated_at_every_offset_never_emits_a_partial_line() {
 fn a_clean_end_of_stream_takes_nothing() {
     let wire = b"PING :aBcD1234\r\n";
     let mut r = Reassembler::new();
-    assert_eq!(r.push(wire).unwrap(), vec!["PING :aBcD1234".to_string()]);
+    assert_eq!(common::texts(r.push(wire)), vec!["PING :aBcD1234".to_string()]);
     // **Nothing pending, so nothing to take**, and the reconnect path can
     // tell a clean end from a truncation.
     assert_eq!(r.take_rest(), None);
@@ -224,35 +224,29 @@ fn a_truncated_line_does_not_parse_as_a_message_even_if_it_is_handed_over() {
 #[test]
 fn an_over_long_line_is_discarded_and_the_stream_resynchronises() {
     // **Not a plant: this is the control for one.** The line past the limit
-    // is dropped whole, and **the tail of an over-long line is dropped with
-    // it** rather than parsed as a fresh message — skipping to the next
-    // newline is what keeps 40 KB of one line from becoming forty thousand
-    // messages.
+    // is dropped whole and named, and the line after it comes out: the long
+    // line arrived with its end, so nothing of it is left to skip.
     let mut r = Reassembler::with_max_line(64);
     let long = "P".repeat(500);
-    let err = r
-        .push(format!("{long}\r\nPING :after\r\n").as_bytes())
-        .expect_err("a 500-byte line complete with its CRLF must not pass a 64-byte limit");
-    match err {
-        FrameError::Overlong { bytes, max_line } => {
-            assert_eq!((bytes, max_line), (500, 64), "the error must name the line and the limit");
-        }
-        other => panic!("expected Overlong, got {other:?}"),
-    }
-    assert!(r.overflowed(), "the overrun must be observable, not silent");
+    let out = r.push(format!("{long}\r\nPING :after\r\n").as_bytes());
+    assert_eq!(
+        out,
+        [Framed::Lost(FrameError::Overlong { bytes: 500, max_line: 64 }), Framed::Line("PING :after".into())],
+        "the loss names the line and the limit, and the next line is whole"
+    );
+    assert!(!r.overflowed(), "nothing of a line that ended is left to skip");
+    assert_eq!(common::texts(r.push(b"PING :next\r\n")), ["PING :next"]);
 
-    // **The tail of an over-long line is dropped with it** — not parsed
-    // as a fresh message — and the message *after* it parses normally.
-    let out = r.push(b"PING :next\r\n").expect("short");
-    assert_eq!(out, vec!["PING :next".to_string()], "the stream must resynchronise");
-
-    // **And the same when the terminator has not arrived**, which is the
-    // other failure mode the check has to cover and the one that would
-    // otherwise let the buffer grow without bound.
+    // **The tail of an over-long line with no end yet is dropped with it**
+    // rather than parsed as a fresh message — which is what keeps 40 KB of
+    // one line from becoming forty thousand messages — and nothing of it is
+    // held, so the buffer cannot grow.
     let mut r = Reassembler::with_max_line(64);
-    assert!(r.push(long.as_bytes()).unwrap().is_empty());
+    assert_eq!(r.push(long.as_bytes()), [Framed::Lost(FrameError::Overlong { bytes: 500, max_line: 64 })]);
     assert!(r.overflowed(), "an unterminated over-long line must be flagged");
-    assert!(r.push(b"PING :tail\r\n").unwrap().is_empty(), "the rest of it is skipped");
+    assert_eq!(r.pending_len(), 0);
+    assert!(r.push(b"PING :tail\r\n").is_empty(), "the rest of it is skipped");
+    assert!(!r.overflowed());
 }
 
 #[test]
@@ -263,25 +257,24 @@ fn a_line_at_exactly_the_limit_is_accepted() {
     // smallest limit that accepts it and eleven is the largest that refuses it.
     let line = "0123456789"; // ten bytes; twelve with the CRLF
     let mut r = Reassembler::with_max_line(12);
-    let out = r.push(format!("{line}\r\n").as_bytes()).expect("at the limit is inside");
+    let out = common::texts(r.push(format!("{line}\r\n").as_bytes()));
     assert_eq!(out, vec![line.to_string()]);
 
     let mut r = Reassembler::with_max_line(11);
-    let err = r.push(format!("{line}\r\n").as_bytes()).expect_err("one over must fail");
-    match err {
-        FrameError::Overlong { bytes, max_line } => {
-            assert_eq!((bytes, max_line), (10, 11), "the error must name the line and the limit");
-        }
-        other => panic!("expected Overlong, got {other:?}"),
-    }
+    assert_eq!(
+        r.push(format!("{line}\r\n").as_bytes()),
+        [Framed::Lost(FrameError::Overlong { bytes: 10, max_line: 11 })],
+        "one over is lost, and the loss names the line and the limit"
+    );
 }
 
 #[test]
 fn nul_is_stripped_and_never_truncates() {
-    // RFC 2812 §2.3.1: NUL in a message is **stripped**, not truncated.
+    // RFC 2812 §2.3.1 allows no NUL in a message; podssh strips it rather
+    // than cut the line there.
     let mut r = Reassembler::new();
     assert_eq!(
-        r.push(b"PRIVMSG #c :a\0b\0c\r\n").unwrap(),
+        common::texts(r.push(b"PRIVMSG #c :a\0b\0c\r\n")),
         vec!["PRIVMSG #c :abc".to_string()],
         "NUL must be dropped and the rest of the line kept"
     );
@@ -290,7 +283,7 @@ fn nul_is_stripped_and_never_truncates() {
 #[test]
 fn an_empty_line_is_no_message_at_all() {
     let mut r = Reassembler::new();
-    assert!(r.push(b"\r\n\r\n").unwrap().is_empty(), "a blank line is not a message");
+    assert!(common::texts(r.push(b"\r\n\r\n")).is_empty(), "a blank line is not a message");
     assert_eq!(r.pending_len(), 0);
 }
 
@@ -322,8 +315,8 @@ fn the_suite_is_not_vacuous() {
     let bytes = format!("{LONG}\r\n").into_bytes();
     for at in 1..bytes.len() {
         let mut r = Reassembler::new();
-        let mut out = r.push(&bytes[..at]).unwrap();
-        out.extend(r.push(&bytes[at..]).unwrap());
+        let mut out = common::texts(r.push(&bytes[..at]));
+        out.extend(common::texts(r.push(&bytes[at..])));
         assert_eq!(out.len(), 1);
         count += 1;
     }

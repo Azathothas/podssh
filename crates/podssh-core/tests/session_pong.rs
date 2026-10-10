@@ -26,9 +26,7 @@ fn plant_a_ping_with_a_token_gets_a_pong_that_echoes_it_byte_for_byte() {
         "-_.!~*'()/",
         "",
     ] {
-        let (out, _events) = s
-            .on_bytes(format!("PING :{token}\r\n").as_bytes())
-            .unwrap_or_else(|e| panic!("a PING must not error: {e}"));
+        let (out, _events) = s.on_bytes(format!("PING :{token}\r\n").as_bytes());
         let pongs: Vec<String> = out.iter().map(|m| m.to_line()).collect();
         assert_eq!(
             pongs,
@@ -45,7 +43,7 @@ fn plant_the_control_a_pong_is_not_sent_when_nothing_pinged() {
     // sent produces a `PONG` on every frame, and the first symptom is an
     // infinite echo between two such clients.
     let mut s = registered();
-    let (out, events) = s.on_bytes(b":bob!u@h PRIVMSG #c :hello\r\n").expect("short");
+    let (out, events) = s.on_bytes(b":bob!u@h PRIVMSG #c :hello\r\n");
     assert!(out.is_empty(), "a PRIVMSG needs no reply; got {:?}", out.iter().map(|m| m.to_line()).collect::<Vec<_>>());
     assert_eq!(events.len(), 1, "the PRIVMSG is the only event");
 }
@@ -56,7 +54,7 @@ fn a_ping_with_no_colon_is_still_answered_with_its_token() {
     // client that only looked for a trailing sees no token and answers
     // nothing, and the server times it out.
     let mut s = registered();
-    let (out, _) = s.on_bytes(b"PING 12345\r\n").expect("short");
+    let (out, _) = s.on_bytes(b"PING 12345\r\n");
     assert_eq!(
         out.iter().map(|m| m.to_line()).collect::<Vec<_>>(),
         vec!["PONG :12345".to_string()],
@@ -70,7 +68,7 @@ fn two_pings_get_two_pongs_in_arrival_order() {
     // get two `PONG`s, and collapsing them into a set would answer a
     // genuine retry with nothing.
     let mut s = registered();
-    let (out, _) = s.on_bytes(b"PING :same\r\nPING :same\r\nPING :other\r\n").expect("short");
+    let (out, _) = s.on_bytes(b"PING :same\r\nPING :same\r\nPING :other\r\n");
     assert_eq!(
         out.iter().map(|m| m.to_line()).collect::<Vec<_>>(),
         vec!["PONG :same".to_string(), "PONG :same".to_string(), "PONG :other".to_string()],
@@ -83,6 +81,6 @@ fn a_pong_echoed_back_by_the_server_is_not_answered_again() {
     // **The infinite echo, prevented.** A `PONG` from the peer is not a
     // `PING`; answering it produces a loop between two podssh peers.
     let mut s = registered();
-    let (out, _) = s.on_bytes(b"PONG :aBcD1234\r\n").expect("short");
+    let (out, _) = s.on_bytes(b"PONG :aBcD1234\r\n");
     assert!(out.is_empty(), "a PONG must never be answered");
 }
