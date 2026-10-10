@@ -123,7 +123,7 @@ here on `3ee70dc` by reading the pipe and its tests.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -135,27 +135,27 @@ with exit 70, not as a clean end.
 ## Premise
 
 Read: `pipe_streams` races the two directions and returns when the first ends; on the local end it
-reports `down: None` (`crates/podssh-ts/src/pipe.rs:62-93`). Its comment calls this the behaviour
-of an OpenSSH `ProxyCommand` (`crates/podssh-ts/src/pipe.rs:51-61`). The test
+reports `down: None` (`crates/podssh-ts/src/pipe.rs`, lines 62-93 at `1ee321d`). Its comment calls this the behaviour
+of an OpenSSH `ProxyCommand` (`crates/podssh-ts/src/pipe.rs`, lines 51-61 at `1ee321d`). The test
 `local_eof_first_cuts_the_down_leg` asserts it, and checks nothing about the remote's bytes
-(`crates/podssh-ts/tests/pipe.rs:62-95`). The next test accepts the same
-(`crates/podssh-ts/tests/pipe.rs:97-122`).
+(`crates/podssh-ts/tests/pipe.rs`, lines 62-95 at `1ee321d`). The next test accepts the same
+(`crates/podssh-ts/tests/pipe.rs`, lines 97-122 at `1ee321d`).
 
 Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/src/pipe/relay.rs:94-108`),
 and a closed stdout is a clean end there (`crates/podssh-cli/src/pipe/relay.rs:197-201`) and in the rules
-(`docs/cli.md:540`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:404-407`).
+(`docs/cli.md:540`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs`, lines 404-407 at `1ee321d`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
 (`docs/relay.md:186`). An earlier version of the pipe waited with no limit, and hung
-(`crates/podssh-ts/src/pipe.rs:77-81`).
+(`crates/podssh-ts/src/pipe.rs`, lines 77-81 at `1ee321d`).
 
 ## Approach
 
 1. On the end of stdin, shut down the write half of the stream, as today
-   (`crates/podssh-ts/src/pipe.rs:69-73`), and keep copying the stream to stdout.
+   (`crates/podssh-ts/src/pipe.rs`, lines 69-73 at `1ee321d`), and keep copying the stream to stdout.
 2. End the pipe when the stream ends, when stdout closes, or after 15 s with no bytes from the
    stream. Name the 15 s as a constant: the value of the relay's rule.
-3. Report exact counts in both directions (`crates/podssh-ts/src/pipe.rs:34-49`). A closed stdout is
-   a clean end with exit 0 (`crates/podssh-cli/src/ts.rs:391-408`).
+3. Report exact counts in both directions (`crates/podssh-ts/src/pipe.rs`, lines 34-49 at `1ee321d`). A closed stdout is
+   a clean end with exit 0 (`crates/podssh-cli/src/ts.rs`, lines 391-408 at `1ee321d`).
 4. Rewrite the two tests, and update `docs/STATUS.md:306` in the same commit.
 
 ## Decision
@@ -164,6 +164,16 @@ Recommendation: keep reading after the end of stdin, with an idle limit of 15 s,
 and the relay's forward road do. The alternative, no limit, lost because a peer that never closes
 then holds the pipe for ever, which was measured. `ssh` stops its `ProxyCommand` at the end of a
 session, so the limit matters only for scripts.
+
+2026-10-10, in the work:
+- The counts are exact in both directions: each leg counts its bytes as they go, so a leg that
+  the end drops mid-copy still reports what it moved; `PipeEnds` says whether stdin ended and why
+  the pipe ended (`End`).
+- The end of the stream still ends the pipe at once, as before: the remote has said all it will.
+- The idle limit runs only after the end of stdin: before it, an interactive session may be silent
+  for as long as its user is.
+- A write error on stdout that means its reader left (`BrokenPipe`, `ConnectionReset`,
+  `ConnectionAborted`) is the clean end; any other stays a failure, with 70.
 
 ## Prove
 
@@ -178,6 +188,26 @@ writes after the local end; the bytes arrive, and `down` is exact),
 `a_silent_peer_ends_the_pipe_after_the_idle_limit` (under `tokio::time::pause()`) and
 `a_closed_stdout_is_a_clean_end`. Plant: return at once on the local end again; the first test must
 fail. T-106 checks the real binary: a request through `podssh ts -W` gets its reply on stdout.
+
+## Done
+
+2026-10-10. At the end of stdin the pipe shuts the stream's write half and reads on: it ends when
+the stream ends, when stdout closes, or when the stream sends nothing for 15 s
+(`IDLE_AFTER_EOF`, the relay's rule), and it reports exact counts both ways and why it ended
+(`crates/podssh-ts/src/pipe.rs`). `podssh ts -W` exits 0 at each of these ends, a closed stdout
+with them, and says which on stderr (`crates/podssh-cli/src/ts.rs`).
+- Native, Windows 11: `cargo test -p podssh-ts --test pipe`, 8 passed: the new
+  `a_reply_after_local_eof_reaches_stdout` (the peer answers only after it has read the whole
+  request and its end; the reply arrives, up 5 and down 5), `a_silent_peer_ends_the_pipe_after_the_idle_limit`
+  and `the_idle_limit_counts_from_the_last_byte_of_the_stream` under a paused clock (15 s, and
+  20 s plus 15 for a reply in two parts 10 s apart), and `a_closed_stdout_is_a_clean_end`; the two
+  old tests that asserted the cut, rewritten. Planted, a return at the end of stdin: the first
+  test fails, and three others; planted, a closed stdout as an error: its test fails.
+  `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts --no-fail-fast`: 430
+  passed, 0 failed, 24 ignored. clippy with no warning. `cargo test --workspace`:
+  1143 passed, 0 failed, 38 ignored.
+- The real binary with a request and its reply through `podssh ts -W` is T-106's check, which
+  waits for the relay's operator.
 
 # T-102: C9: the automatic mode always selects tcp, and ephemeral nodes are not logged out
 

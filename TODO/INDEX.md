@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**268 entries: 126 open, 0 partial, 22 blocked, 120 done.**
+**268 entries: 125 open, 0 partial, 22 blocked, 121 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 15 | 17 |
-| P2 | 44 | 0 | 18 | 88 | 150 |
+| P2 | 43 | 0 | 18 | 89 | 150 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 126 | 0 | 22 | 120 | 268 |
+| **All** | 125 | 0 | 22 | 121 | 268 |
 
 ## Entries
 
@@ -174,7 +174,7 @@ repository and CI).
 | [T-098](irc.md) | P3 | S | M8 | defect | open | I8: the keepalive sends a visible channel message |
 | [T-099](irc.md) | P2 | L | M8 | feature | open | `podssh chat` on the roads between two podssh ends, end-to-end encrypted |
 | [T-100](ts.md) | P2 | S | M8 | defect | done | C2: `podssh ts` waits for ever when no network map arrives |
-| [T-101](ts.md) | P2 | S | M8 | defect | open | C3: a local end of input cuts the reply in the `podssh-ts` pipe |
+| [T-101](ts.md) | P2 | S | M8 | defect | done | C3: a local end of input cuts the reply in the `podssh-ts` pipe |
 | [T-102](ts.md) | P2 | M | M8 | defect | open | C9: the automatic mode always selects tcp, and ephemeral nodes are not logged out |
 | [T-103](ts.md) | P2 | M | M8 | defect | open | The DERP dial of the Tailscale fork does not use the proxy |
 | [T-104](ts.md) | P2 | M | M8 | feature | open | `podssh ts` connects again after a drop |

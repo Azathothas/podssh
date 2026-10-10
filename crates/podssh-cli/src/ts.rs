@@ -392,13 +392,16 @@ async fn pipe_form(
     let mut stdout = tokio::io::stdout();
     match podssh_ts::pipe::pipe_streams(&mut stdin, &mut stdout, stream).await {
         Ok(ends) => {
-            let _ = writeln!(
-                err,
-                "podssh ts: pipe closed: up={}, down={}, first={:?}.",
-                opt(ends.up),
-                opt(ends.down),
-                ends.first
-            );
+            let why = match ends.end {
+                podssh_ts::pipe::End::RemoteEof => "the peer closed the stream".to_string(),
+                // Its reader left: a clean end, as for `podssh proxy`.
+                podssh_ts::pipe::End::StdoutClosed => "stdout closed".to_string(),
+                podssh_ts::pipe::End::Idle => format!(
+                    "the peer sent nothing for {} s after the end of input",
+                    podssh_ts::pipe::IDLE_AFTER_EOF.as_secs()
+                ),
+            };
+            let _ = writeln!(err, "podssh ts: pipe closed: up={}, down={}: {why}.", ends.up, ends.down);
             0
         }
         Err(e) => {
@@ -406,9 +409,4 @@ async fn pipe_form(
             EXIT_NOT_IMPLEMENTED
         }
     }
-}
-
-/// A count for stderr: a number, or `?` when that leg never ran to EOF.
-fn opt(n: Option<u64>) -> String {
-    n.map(|v| v.to_string()).unwrap_or_else(|| "?".to_string())
 }

@@ -1,11 +1,15 @@
-//! Pipe tests: byte equality both ways, exact counts, EOF propagation.
+//! Pipe tests: byte equality both ways, exact counts, EOF propagation, and
+//! how the `-W` pipe ends.
 //!
 //! `tokio::io::duplex` stands in for stdin and the tailnet stream: the
 //! bytes are what is pinned, not the transport.
 
+use std::time::Duration;
+
 use podssh_ts::pipe::copy_bidirectional;
-use podssh_ts::pipe::{pipe_streams, FirstEnd};
+use podssh_ts::pipe::{pipe_streams, End, PipeEnds, IDLE_AFTER_EOF};
 use tokio::io::{split, AsyncReadExt, AsyncWriteExt};
+use tokio::time::Instant;
 
 #[tokio::test]
 async fn bytes_survive_both_directions_exactly() {
@@ -59,72 +63,65 @@ async fn empty_sides_copy_zero_bytes() {
     assert_eq!((up, down), (0, 0));
 }
 
+/// A request on stdin, then its end; the reply comes after it (T-101). The
+/// pipe reads on after the end of stdin, so the reply reaches stdout, and
+/// both counts are exact.
 #[tokio::test]
-async fn local_eof_first_cuts_the_down_leg() {
-    // local stdin: 5 bytes, then write-side shutdown (EOF after the drain).
+async fn a_reply_after_local_eof_reaches_stdout() {
     let (mut local_r, lr_peer) = tokio::io::duplex(64);
     let (_lr_pr, mut lr_pw) = split(lr_peer);
     lr_pw.write_all(b"hello").await.unwrap();
     lr_pw.shutdown().await.unwrap();
-    // local stdout: the down leg may or may not have been polled before the
-    // up leg won — `select!` starts polling at a random branch — so nothing
-    // is asserted about local delivery here. The winner's counts and the
-    // stream's bytes are the deterministic parts.
-    let (mut local_w, _lw_peer) = tokio::io::duplex(64);
-    // stream: 5 bytes waiting but NEVER EOFs during the pipe, so the down
-    // leg is still pending when the up leg completes — LocalEof wins by
-    // construction, not by scheduling luck.
+    let (mut local_w, lw_peer) = tokio::io::duplex(64);
+    let (mut lw_pr, _lw_pw) = split(lw_peer);
+    // The peer reads the whole request, sees its end, and only then answers
+    // and closes: the reply comes after the local end, by construction.
     let (stream_side, s_peer) = tokio::io::duplex(64);
-    let (mut s_pr, mut s_pw) = split(s_peer);
-    s_pw.write_all(b"world").await.unwrap();
+    let peer = tokio::spawn(async move {
+        let (mut s_pr, mut s_pw) = split(s_peer);
+        let mut request = Vec::new();
+        s_pr.read_to_end(&mut request).await.unwrap();
+        s_pw.write_all(b"world").await.unwrap();
+        s_pw.shutdown().await.unwrap();
+        request
+    });
 
     let ends = pipe_streams(&mut local_r, &mut local_w, stream_side).await.unwrap();
-    assert_eq!(ends.up, Some(5));
-    assert_eq!(ends.down, None);
-    assert_eq!(ends.first, FirstEnd::LocalEof);
-
-    // The stream carried all local bytes: the up leg ran to EOF, so its
-    // writes always happened — unlike the down leg, which may never have
-    // been polled. Dropping the local ends first lets the collector see EOF.
-    drop(local_r);
+    assert_eq!(ends, PipeEnds { up: 5, down: 5, local_eof: true, end: End::RemoteEof });
+    assert_eq!(peer.await.unwrap(), b"hello");
     drop(local_w);
-    drop(s_pw);
-    let mut got_stream = Vec::new();
-    s_pr.read_to_end(&mut got_stream).await.unwrap();
-    assert_eq!(got_stream, b"hello");
+    let mut got = Vec::new();
+    lw_pr.read_to_end(&mut got).await.unwrap();
+    assert_eq!(got, b"world");
 }
 
 #[tokio::test]
-async fn both_sides_eof_the_winner_is_complete_with_exact_counts() {
-    // Both legs fed and shut: first completion is scheduling, so the test
-    // matches on it — whichever direction won ran to EOF with exact counts,
-    // and the loser is honestly `None`. No scheduling assumption either way.
+async fn both_sides_end_and_the_counts_are_exact() {
     let (mut local_r, lr_peer) = tokio::io::duplex(64);
-    let (_lr_pr2, mut lr_pw2) = split(lr_peer);
-    lr_pw2.write_all(b"hello").await.unwrap();
-    lr_pw2.shutdown().await.unwrap();
+    let (_lr_pr, mut lr_pw) = split(lr_peer);
+    lr_pw.write_all(b"hello").await.unwrap();
+    lr_pw.shutdown().await.unwrap();
     let (mut local_w, _lw_peer) = tokio::io::duplex(64);
     let (stream_side, s_peer) = tokio::io::duplex(64);
-    let (_s_pr2, mut s_pw2) = split(s_peer);
-    s_pw2.write_all(b"world").await.unwrap();
-    s_pw2.shutdown().await.unwrap();
+    let peer = tokio::spawn(async move {
+        let (mut s_pr, mut s_pw) = split(s_peer);
+        let mut request = [0u8; 5];
+        s_pr.read_exact(&mut request).await.unwrap();
+        s_pw.write_all(b"world").await.unwrap();
+        s_pw.shutdown().await.unwrap();
+        // Hold the read half: the stream's end is its write side alone.
+        (s_pr, request)
+    });
 
     let ends = pipe_streams(&mut local_r, &mut local_w, stream_side).await.unwrap();
-    match ends.first {
-        FirstEnd::LocalEof => {
-            assert_eq!(ends.up, Some(5));
-            assert_eq!(ends.down, None);
-        }
-        FirstEnd::RemoteEof => {
-            assert_eq!(ends.up, None);
-            assert_eq!(ends.down, Some(5));
-        }
-    }
+    // Which end came first is scheduling; the stream's end ends the pipe.
+    assert_eq!((ends.up, ends.down, ends.end), (5, 5, End::RemoteEof), "{ends:?}");
+    assert_eq!(&peer.await.unwrap().1, b"hello");
 }
 
 #[tokio::test]
-async fn remote_eof_first_cuts_the_up_leg() {
-    // local stdin: open but silent — the up leg never completes.
+async fn remote_eof_first_ends_the_pipe() {
+    // local stdin: open but silent — it never ends.
     let (mut local_r, _lr_peer) = tokio::io::duplex(64);
     let (mut local_w, lw_peer) = tokio::io::duplex(64);
     let (lw_pr, _lw_pw) = split(lw_peer);
@@ -134,8 +131,66 @@ async fn remote_eof_first_cuts_the_up_leg() {
     drop(s_peer);
 
     let ends = pipe_streams(&mut local_r, &mut local_w, stream_side).await.unwrap();
-    assert_eq!(ends.up, None);
-    assert_eq!(ends.down, Some(0));
-    assert_eq!(ends.first, FirstEnd::RemoteEof);
+    assert_eq!(ends, PipeEnds { up: 0, down: 0, local_eof: false, end: End::RemoteEof });
     drop(lw_pr);
+}
+
+/// A peer that takes the request and never answers nor closes: the pipe ends
+/// at the idle limit after the end of stdin, not never.
+#[tokio::test(start_paused = true)]
+async fn a_silent_peer_ends_the_pipe_after_the_idle_limit() {
+    let (mut local_r, lr_peer) = tokio::io::duplex(64);
+    let (_lr_pr, mut lr_pw) = split(lr_peer);
+    lr_pw.write_all(b"req").await.unwrap();
+    lr_pw.shutdown().await.unwrap();
+    let (mut local_w, _lw_peer) = tokio::io::duplex(64);
+    let (stream_side, _s_peer) = tokio::io::duplex(64);
+
+    let started = Instant::now();
+    let ends = tokio::time::timeout(Duration::from_secs(3600), pipe_streams(&mut local_r, &mut local_w, stream_side))
+        .await
+        .expect("the idle limit ends the pipe")
+        .unwrap();
+    assert_eq!(ends, PipeEnds { up: 3, down: 0, local_eof: true, end: End::Idle });
+    assert_eq!(started.elapsed(), IDLE_AFTER_EOF);
+}
+
+/// Each byte from the stream restarts the idle limit: a reply that comes in
+/// parts, 10 s apart, is read whole.
+#[tokio::test(start_paused = true)]
+async fn the_idle_limit_counts_from_the_last_byte_of_the_stream() {
+    let (mut local_r, lr_peer) = tokio::io::duplex(64);
+    let (_lr_pr, mut lr_pw) = split(lr_peer);
+    lr_pw.shutdown().await.unwrap();
+    let (mut local_w, _lw_peer) = tokio::io::duplex(64);
+    let (stream_side, s_peer) = tokio::io::duplex(64);
+    let peer = tokio::spawn(async move {
+        let (s_pr, mut s_pw) = split(s_peer);
+        for part in [b"a", b"b"] {
+            tokio::time::sleep(Duration::from_secs(10)).await;
+            s_pw.write_all(part).await.unwrap();
+        }
+        (s_pr, s_pw)
+    });
+
+    let started = Instant::now();
+    let ends = pipe_streams(&mut local_r, &mut local_w, stream_side).await.unwrap();
+    assert_eq!(ends, PipeEnds { up: 0, down: 2, local_eof: true, end: End::Idle });
+    assert_eq!(started.elapsed(), Duration::from_secs(20) + IDLE_AFTER_EOF);
+    drop(peer);
+}
+
+/// stdout's reader left: the pipe ends cleanly, and the bytes that could not
+/// be written are not counted.
+#[tokio::test]
+async fn a_closed_stdout_is_a_clean_end() {
+    let (mut local_r, _lr_peer) = tokio::io::duplex(64);
+    let (mut local_w, lw_peer) = tokio::io::duplex(64);
+    drop(lw_peer);
+    let (stream_side, s_peer) = tokio::io::duplex(64);
+    let (_s_pr, mut s_pw) = split(s_peer);
+    s_pw.write_all(b"world").await.unwrap();
+
+    let ends = pipe_streams(&mut local_r, &mut local_w, stream_side).await.unwrap();
+    assert_eq!(ends, PipeEnds { up: 0, down: 0, local_eof: false, end: End::StdoutClosed });
 }

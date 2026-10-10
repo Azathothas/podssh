@@ -1,11 +1,24 @@
-//! The `-W` byte pipe: stdin↔stream until EOF, bytes only on stdout.
+//! The `-W` byte pipe: stdin↔stream, bytes only on stdout.
 //!
 //! Diagnostics never touch stdout — the caller owns the streams, and this
 //! function only returns counts. A framing byte on stdout would corrupt the
 //! stream for anything downstream (`ssh -o ProxyCommand`), so the byte
 //! equality is pinned in `tests/pipe.rs`, not trusted to review.
 
-use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
+use std::cell::Cell;
+use std::io;
+use std::time::Duration;
+
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+
+/// How long the pipe reads on after the end of stdin while the stream sends
+/// nothing: the relay's own rule for a half-closed forward session, which it
+/// closes after 15 s with no byte from the target. A request on stdin gets its
+/// reply, and a peer that never closes does not hold the pipe.
+pub const IDLE_AFTER_EOF: Duration = Duration::from_secs(15);
+
+/// One read of either leg.
+const CHUNK: usize = 16 * 1024;
 
 /// Copy both directions until EOF on either side. Returns `(to_remote,
 /// from_remote)` byte counts. Any I/O error aborts with the error — a
@@ -22,72 +35,109 @@ where
     tokio::io::copy_bidirectional(a, b).await
 }
 
-/// Which direction ended the pipe first.
+/// Why a `-W` pipe ended.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum FirstEnd {
-    /// Local stdin hit EOF first (the normal `-W` ending).
-    LocalEof,
-    /// The remote stream hit EOF first.
+pub enum End {
+    /// The stream ended.
     RemoteEof,
+    /// stdout's reader left: a clean end, as for `podssh proxy`.
+    StdoutClosed,
+    /// After the end of stdin, the stream sent nothing for
+    /// [`IDLE_AFTER_EOF`].
+    Idle,
 }
 
-/// How a `-W` pipe ended: per-direction byte counts (`None` when that
-/// direction did not run to EOF) and which end finished first.
-///
-/// `down: None` does NOT mean zero bytes arrived: when local EOF wins,
-/// the down leg is cancelled mid-drain, and bytes it already delivered to
-/// local stdout are real but uncounted. `None` means "incomplete", and the
-/// count beside it is the only number reported.
+/// How a `-W` pipe ended: the bytes of each direction, exact, and why.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PipeEnds {
-    /// Bytes local→remote, or `None` when the remote ended first.
-    pub up: Option<u64>,
-    /// Bytes remote→local, or `None` when the local side ended first.
-    pub down: Option<u64>,
-    /// Which end finished first.
-    pub first: FirstEnd,
+    /// Bytes stdin→stream.
+    pub up: u64,
+    /// Bytes stream→stdout.
+    pub down: u64,
+    /// stdin ended, and the stream's write half was shut down.
+    pub local_eof: bool,
+    /// Why the pipe ended.
+    pub end: End,
 }
 
-/// Shuttle `local_r → stream → local_w` until either direction ends.
+/// Shuttle `local_r → stream → local_w`.
 ///
 /// The local side stays split (read + write halves) because stdin is not
-/// writable and stdout is not readable. First completion wins, faithful to
-/// `ssh` ProxyCommand semantics: on local EOF the stream's write half is
-/// shut down (clean FIN to the remote) and the pipe returns at once — the
-/// down leg is cancelled mid-drain and reported `down: None`. On remote EOF
-/// first the pipe returns with `up: None`. A peer that never closes holds
-/// the pipe — `ssh` kills its ProxyCommand on session end, so the
-/// supervisor bounds it, and that bound is named here rather than hidden
-/// behind a grace constant nobody measured.
-pub async fn pipe_streams<LR, LW, S>(local_r: &mut LR, local_w: &mut LW, stream: S) -> std::io::Result<PipeEnds>
+/// writable and stdout is not readable. At the end of stdin the stream's
+/// write half is shut down (a clean FIN to the remote), and the pipe reads
+/// on, so a reply that comes after the request is delivered, as `podssh
+/// proxy` and the relay's forward road deliver it. The pipe ends when the
+/// stream ends, when stdout closes, or, once stdin has ended, when the
+/// stream sends nothing for [`IDLE_AFTER_EOF`]: an earlier revision waited
+/// with no limit and hung whenever the remote never closed — measured, 30 s
+/// timeout, exit 124.
+pub async fn pipe_streams<LR, LW, S>(local_r: &mut LR, local_w: &mut LW, stream: S) -> io::Result<PipeEnds>
 where
     LR: AsyncRead + Unpin,
     LW: AsyncWrite + Unpin,
     S: AsyncRead + AsyncWrite + Unpin,
 {
     let (mut rd, mut wr) = tokio::io::split(stream);
-    let up_fut = async {
-        let n = tokio::io::copy(local_r, &mut wr).await?;
-        wr.shutdown().await?;
-        Ok::<u64, std::io::Error>(n)
-    };
-    let down_fut = async { tokio::io::copy(&mut rd, local_w).await };
-    tokio::pin!(up_fut);
-    tokio::pin!(down_fut);
-    // No `down_fut.await` on the up-win arm: the down leg can only finish
-    // on stream EOF, and awaiting it here reintroduces the exact hang this
-    // function exists to avoid (the losing future is cancelled by the
-    // select). An earlier revision awaited it and hung forever whenever the
-    // remote never closed — measured, 30 s timeout, exit 124.
-    let ends = tokio::select! {
-        r = &mut up_fut => {
-            let up = r?;
-            PipeEnds { up: Some(up), down: None, first: FirstEnd::LocalEof }
+    // Counted as the bytes go, so a leg that the end drops mid-copy still
+    // reports what it moved.
+    let up = Cell::new(0u64);
+    let up_leg = async {
+        let mut buf = vec![0u8; CHUNK];
+        loop {
+            let n = local_r.read(&mut buf).await?;
+            if n == 0 {
+                break;
+            }
+            wr.write_all(&buf[..n]).await?;
+            up.set(up.get() + n as u64);
         }
-        r = &mut down_fut => {
-            let down = r?;
-            PipeEnds { up: None, down: Some(down), first: FirstEnd::RemoteEof }
+        wr.shutdown().await
+    };
+    tokio::pin!(up_leg);
+    let mut local_eof = false;
+    let mut down = 0u64;
+    let mut buf = vec![0u8; CHUNK];
+    let end = loop {
+        // A new limit for each wait: each byte from the stream restarts it.
+        let eof = local_eof;
+        let idle = async move {
+            if eof {
+                tokio::time::sleep(IDLE_AFTER_EOF).await
+            } else {
+                std::future::pending::<()>().await
+            }
+        };
+        tokio::select! {
+            r = &mut up_leg, if !local_eof => {
+                r?;
+                local_eof = true;
+            }
+            r = rd.read(&mut buf) => {
+                let n = r?;
+                if n == 0 {
+                    break End::RemoteEof;
+                }
+                match write_out(local_w, &buf[..n]).await {
+                    Ok(()) => down += n as u64,
+                    Err(e) if closed(&e) => break End::StdoutClosed,
+                    Err(e) => return Err(e),
+                }
+            }
+            () = idle => break End::Idle,
         }
     };
-    Ok(ends)
+    Ok(PipeEnds { up: up.get(), down, local_eof, end })
+}
+
+/// Write and flush: a byte that waits in a buffer has not been delivered.
+async fn write_out<W: AsyncWrite + Unpin>(w: &mut W, bytes: &[u8]) -> io::Result<()> {
+    w.write_all(bytes).await?;
+    w.flush().await
+}
+
+/// A write error that means stdout's reader left — EPIPE on Unix, and on
+/// Windows a pipe being closed, which Rust names `BrokenPipe` too: the end
+/// of the pipe, not a failure.
+fn closed(e: &io::Error) -> bool {
+    matches!(e.kind(), io::ErrorKind::BrokenPipe | io::ErrorKind::ConnectionReset | io::ErrorKind::ConnectionAborted)
 }
