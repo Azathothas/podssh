@@ -7,6 +7,8 @@
 //! cargo test -p podssh-cli --test doctor -- --ignored
 //! ```
 
+mod cleanup;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -33,11 +35,16 @@ struct Run {
     err: String,
 }
 
-/// A fresh directory to stand in for HOME.
+/// A fresh directory to stand in for HOME, removed when the test ends. The
+/// count of the calls tells apart two tests that run at once, as the time
+/// alone may not (two calls can read the same clock, as on Windows).
 fn scratch_home() -> PathBuf {
+    static CALLS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
-    let dir = std::env::temp_dir().join(format!("podssh-doctor-test-{}-{nanos}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("podssh-doctor-test-{}-{call}-{nanos}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
+    cleanup::at_test_end(&dir);
     dir
 }
 

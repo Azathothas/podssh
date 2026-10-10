@@ -3,8 +3,11 @@
 //! command line, the files and the refusals, and that no private key is ever
 //! printed.
 
+mod cleanup;
+
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU32, Ordering};
 
 struct Run {
     code: i32,
@@ -12,10 +15,17 @@ struct Run {
     err: String,
 }
 
+/// A directory of one test's own, removed when the test ends. The count of
+/// the calls tells apart two tests that run at once: the time alone did not,
+/// as two calls can read the same clock (CI on Windows, 2026-10-10, where one
+/// test found the key that another had written).
 fn scratch() -> PathBuf {
+    static CALLS: AtomicU32 = AtomicU32::new(0);
+    let call = CALLS.fetch_add(1, Ordering::Relaxed);
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
-    let dir = std::env::temp_dir().join(format!("podssh-keygen-test-{}-{nanos}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("podssh-keygen-test-{}-{call}-{nanos}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
+    cleanup::at_test_end(&dir);
     dir
 }
 
