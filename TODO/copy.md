@@ -41,7 +41,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
   reads and writes of 261120 bytes, 3195 handles. No extension gives a
   digest.
 - Read: that server exits at the end of its input without its last reply
-  (`scripts/interop.sh:386-388`).
+  (`scripts/interop.sh:309-311`).
 
 ## Approach
 
@@ -332,7 +332,7 @@ a script expects, and its login shell may not be a POSIX shell.
 
 - Read: an exec with no pty carries bytes unchanged: 262144, 262145 and
   5,000,000 bytes up and back with equal digests on OpenSSH and Dropbear
-  (`docs/STATUS.md:70`, `scripts/interop.sh:212-224`), and 300 KB up and
+  (`docs/STATUS.md:70`, `scripts/interop.sh:135-147`), and 300 KB up and
   5 MB down through the relay (`docs/STATUS.md:71`).
 - Read: a command goes as one string, never as a shell request
   (`crates/podssh-ssh/src/options.rs:63-64`), with no pty when stdin is not

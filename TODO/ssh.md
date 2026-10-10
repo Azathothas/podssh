@@ -35,7 +35,7 @@ Read:
   `Permission denied (publickey,keyboard-interactive).`, the note about
   keyboard-interactive, then the wrong note.
 - The gate's check "password with BatchMode" runs this case against OpenSSH
-  (`scripts/interop.sh:247-249`). It only looks for the password note, so its
+  (`scripts/interop.sh:170-172`). It only looks for the password note, so its
   output holds the wrong note today (inferred, not measured).
 
 ## Approach
@@ -70,7 +70,7 @@ a pure function that builds the notes from the methods, the server's first
 list and the keys offered: no key note when `publickey` is off or not
 accepted, and the old note when keys were tried and failed. Planted defect:
 put back the unconditional `notes.extend`, and the test fails. The second
-runs the gate, where `scripts/interop.sh:247-249` also asserts that the
+runs the gate, where `scripts/interop.sh:170-172` also asserts that the
 output has `publickey was not tried` and not `no key was offered`.
 
 ## Done
@@ -437,10 +437,17 @@ of a closed stdout (the status so far, or 0) failed
 (0) failed `a_dash_n_session_that_the_server_ends_is_255_with_its_words`.
 
 Waits for T-251, which names both: the run of `scripts/interop.sh` in the
-build image, which compares the codes of OpenSSH's `ssh` and of podssh for
+build image, whose `scripts/interop-status.sh` compares the codes of OpenSSH's `ssh` and of podssh for
 the four cases of step 1 and asserts that `-N` and `yes` never give 0; and
 the check of the Tailscale row with `ssh -v`, as the two tailnet hosts were
 offline on 2026-10-11.
+
+2026-10-11, in the build image (`sh scripts/dev.sh run`, a debug build of the binary): `scripts/interop.sh` 237 passed, 0 failed, in 480 s: the four cases give OpenSSH's codes (255, 255, 0
+and 0), and `-N` and `yes` never 0. Before it, CI's step `release` at
+`bc59415` hung until its limit: the block's new sshd took port 2205, which
+`scripts/interop-cp.sh` uses, and its clients had no time limit. Repaired:
+port 2210, the sshd stopped after the block, and each client ended at 60 s.
+The planted runs in the build image wait for T-251.
 
 # T-027: Host certificates and `@cert-authority` in `known_hosts` (GitHub #29)
 
@@ -669,6 +676,8 @@ old words failed the second.
 
 Waits for T-251: the two cases of `scripts/interop.sh` in the build image,
 and the FIFO test, which CI's Linux steps run at each push.
+2026-10-11, in the build image (`sh scripts/dev.sh run`, a debug build of the binary): `scripts/interop.sh` 237 passed, 0 failed, in 480 s: both cases pass (255 and the file named; 0 and
+the note).
 
 # T-029: Two processes that record the same new host key at the same time
 
@@ -787,7 +796,7 @@ Read: each hop gets its own name for the check, its host and its port, as
 destination only (`crates/podssh-ssh/src/run.rs:177-180`). The order of
 host-key algorithms comes from the keys recorded for that hop
 (`crates/podssh-ssh/src/run.rs:239-261`). The gate's check "-J through
-OpenSSH to Dropbear" (`scripts/interop.sh:383-384`) passes only when this
+OpenSSH to Dropbear" (`scripts/interop.sh:306-307`) passes only when this
 holds: both hops are 127.0.0.1, both keys are Ed25519 and differ, and each
 is recorded under its own port.
 
@@ -935,6 +944,7 @@ no fingerprint matches (the Prove's plant), and the check after the arm of
 a known key, each failed the policy's test.
 
 Waits for T-251: the two cases of `scripts/interop.sh` in the build image.
+2026-10-11, in the build image (`sh scripts/dev.sh run`, a debug build of the binary): `scripts/interop.sh` 237 passed, 0 failed, in 480 s: both cases pass (0 and nothing recorded; 255).
 
 # T-032: Run a remote command under `sudo` or `su`, with the password from `SSH_ASKPASS`
 
@@ -1293,6 +1303,8 @@ failed at once; it is repaired.
 Waits for T-251: step 1's measurement and step 4's fault in the gate,
 `scripts/stall-forward.py` between podssh and OpenSSH in
 `scripts/interop-faults.sh` (255 within 90 s, the stuck write named).
+2026-10-11, in the build image (`sh scripts/dev.sh run`, a debug build of the binary): `scripts/interop.sh` 237 passed, 0 failed, in 480 s: the fault ends with 255 in 60 s, and names the
+stuck write. The run on an unchanged tree waits for T-251.
 
 # T-228: A credential helper inside podssh, for passphrases and passwords
 

@@ -167,7 +167,7 @@ local program to a target, and `podssh proxy` stays a second pump.
   private and gives only an exit code.
 - Read: `TODO/issues.md` (#26) says that a binary protocol through `-W` is
   measured. Only exec is measured with digests (`docs/STATUS.md:70`); `-W`
-  was checked with a banner of 16 bytes (`scripts/interop.sh:380-381`).
+  was checked with a banner of 16 bytes (`scripts/interop.sh:303-304`).
 - Read: `node:` needs T-084 (M4) and `iroh:` needs T-163 (M6); both are done
   before M7 starts.
 

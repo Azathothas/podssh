@@ -625,7 +625,7 @@ rules behind it:
   the server's words when it sent some. `-W` gives 0 when the far end
   closes and when stdout closes, and 255 when the connection died. These
   are the codes of OpenSSH's `ssh`, and the gate compares both clients
-  (`scripts/interop.sh`). A status above 255 gives 255: OpenSSH passes the
+  (`scripts/interop-status.sh`). A status above 255 gives 255: OpenSSH passes the
   value to `exit()`, where 256 reads as 0.
 
 ## Prompts and time limits

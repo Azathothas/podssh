@@ -112,10 +112,10 @@ counted and typed by hand.
 ## Premise
 
 Read: `scripts/interop.sh:22-24` defines `ok`, `bad` and `skipped`, and
-`scripts/interop.sh:491-492` fails only when a check failed. With no
+`scripts/interop.sh:414-415` fails only when a check failed. With no
 `sshd.pam` in the image, the PAM check becomes `skip` and the gate stays
-green (`scripts/interop.sh:253-259`). A name carries values of the run (the
-seconds at `scripts/interop.sh:402`, the tty at `:386`), so it is not a
+green (`scripts/interop.sh:176-182`). A name carries values of the run (the
+seconds at `scripts/interop.sh:325`, the tty at `:309`), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
