@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**274 entries: 114 open, 0 partial, 22 blocked, 138 done.**
+**274 entries: 112 open, 2 partial, 22 blocked, 138 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 32 | 0 | 18 | 103 | 153 |
+| P2 | 30 | 2 | 18 | 103 | 153 |
 | P3 | 80 | 0 | 4 | 18 | 102 |
-| **All** | 114 | 0 | 22 | 138 | 274 |
+| **All** | 112 | 2 | 22 | 138 | 274 |
 
 ## Entries
 
@@ -160,8 +160,8 @@ repository and CI).
 | [T-084](reverse.md) | P2 | M | M4 | feature | done | `podssh operator NAME` and `podssh ssh NODE` |
 | [T-085](reverse.md) | P2 | M | M4 | measurement | blocked | M4 exit: two sessions at once into a node in another sandbox, and the facade for podbox |
 | [T-086](reverse.md) | P3 | M | backlog | feature | blocked | Pairing by a short one-time code, given out of band |
-| [T-087](reverse.md) | P2 | M | backlog | feature | open | Node identity and access: a node key, an allowlist, an expected fingerprint, revocation |
-| [T-088](reverse.md) | P2 | L | backlog | feature | open | End-to-end encryption between two podssh ends |
+| [T-087](reverse.md) | P2 | M | backlog | feature | partial | Node identity and access: a node key, an allowlist, an expected fingerprint, revocation |
+| [T-088](reverse.md) | P2 | L | backlog | feature | partial | End-to-end encryption between two podssh ends |
 | [T-089](reverse.md) | P3 | M | backlog | feature | open | A node offers several named targets, each with its own grant |
 | [T-090](reverse.md) | P3 | M | backlog | feature | open | Find a node by name with no payload leak |
 | [T-091](irc.md) | P2 | S | M8 | defect | done | I1: `CAP END` is sent only after 001 |

@@ -64,7 +64,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 274 entries: 114 open, 0 partial, 22 blocked, 138 done.
+`TODO/INDEX.md` holds 274 entries: 112 open, 2 partial, 22 blocked, 138 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -78,6 +78,10 @@ then take the next one. Each session runs unattended until the goal of
 the surface for agents: done.
 
 **M4:** T-085 (the exit measurement) is on hold (Q32).
+
+**Now:** T-087 and T-088 (`backlog`), together, as T-099 of M8 needs
+the channel of T-088 and its keys (rule 3 of the index); then T-099, T-252
+and T-098.
 
 **Then** M5, M6, M7 and M8, each in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"); then each `backlog` entry, in the order

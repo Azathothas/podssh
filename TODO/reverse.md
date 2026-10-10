@@ -1130,7 +1130,7 @@ verified here.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1180,6 +1180,34 @@ identity then covers each TARGET and each road. The alternative, identity throug
 (`podssh serve` with `known_hosts` and `authorized_keys`), lost as the only answer: a raw TCP TARGET
 (T-083) and chat (T-099) have no SSH. Keep SSH's keys for SSH targets.
 
+Decided in the work (2026-10-10):
+- One Ed25519 key for each role, the same on both roads: a node's for each label, a client's for
+  each user. They are the key files of T-163, kept now by `podssh-relay` (no C) under names of no
+  road, `node-LABEL.key` and `client.key`; a file under the names of T-163 is still found and used.
+  Lost: new keys for the pair's road, which would give one node two identities and two pins.
+- A key is shown by its SHA256 fingerprint, in OpenSSH's form (the digest of the key's SSH encoding
+  as `ssh-ed25519`), on both roads. An allowlist line, `--node-key` and a pin take the fingerprint
+  or the key itself (iroh's hex or base32). Lost: iroh's hex alone (64 digits, which no SSH tool
+  shows); fingerprints alone (an iroh ticket carries the key).
+- The node's allowlist is `--allow FILE`, for each road, with `--iroh-allow` as its other name.
+  With none, the pair's road lets in each operator that holds the connect token, as before (the
+  token is the credential), and the node says each operator's fingerprint; a named file that is
+  missing or cannot be read lets nobody in. The iroh road still needs the file (T-163). Lost: a
+  default file whose presence turns on the refusal: a file in a cache directory must not change
+  who gets in unseen.
+- The operator pins in `known-nodes`, in the cache's directories: one line for each label, `LABEL
+  FINGERPRINT`. The first sight pins (trust on first use, as the relay's contract asks of a connect
+  token); a changed key refuses, with the file, the line and both fingerprints, and is never
+  replaced. `--node-key KEY` checks against that key, and neither reads nor writes the pins; with
+  an iroh ticket, the ticket's key is the one expected. Lost: a pin in the pair file, which would
+  rewrite a file that the user names, and gives two places to look.
+- A changed node key, and an operator key that the node refuses, exit 77 for `podssh operator` and
+  `podssh pipe node:` (the code of a refused host key in `cp`), and 255 for `podssh ssh` (OpenSSH's
+  code). Lost: a new code: 76 (`EX_PROTOCOL`) says a fault of the protocol, which this is not, and
+  warren's 7 is outside sysexits.
+- Approach 7 waits for T-107, which the operator holds: whether the node key is also the host key
+  of `podssh serve` is decided there.
+
 ## Prove
 
 ```sh
@@ -1193,6 +1221,24 @@ allowlist gets a `reject` and no byte of the TARGET; a removal applies to the ne
 file has mode 0600 and is never printed. Plant: skip the allowlist check; the refusal test must
 fail. Live: a second node with another key under the same label is refused by the operator.
 
+## Correction
+
+2026-10-10, read in the tree:
+- T-163 keeps an Ed25519 key for each role of the iroh road already, in a private file of the
+  cache's directories (`crates/podssh-iroh/src/keys.rs`), and an allowlist of client keys
+  (`crates/podssh-iroh/src/allow.rs`). This entry shares them, rather than making keys of its own.
+- A refused operator cannot get `reject {id, "not allowed"}`: the node answers `ready` before it
+  knows the operator's key, which only the channel's handshake gives (the operator's input waits for
+  `ready`, and with the layer `ready` goes out at once, `crates/podssh-relay/src/reverse/layered.rs`).
+  The refusal is the channel's verdict, encrypted, then the session's close.
+- The features `identity` and `e2e` of the Prove are not made: the keys and the channel build in
+  each build of `podssh-relay`, with no C, and the commands drop them.
+
+## Done
+
+Partial, 2026-10-10: the plan is the Decision, with T-088, whose channel carries this entry's
+proof; the two are built together. Nothing is built yet.
+
 # T-088: End-to-end encryption between two podssh ends
 
 **Source:** GitHub #18 (report on warren; read in the report, not verified here);
@@ -1201,7 +1247,7 @@ fail. Live: a second node with another key under the same label is refused by th
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -1249,6 +1295,32 @@ TCP, `pipe`, `cp` and chat, with the keys of T-087. The alternative, "only SSH c
 road" (each payload as a channel of `podssh serve`, T-109), lost: it needs an SSH server at the far
 end for each use, and a raw `podssh node` TARGET (M4) stays readable by the relay until M5.
 
+Decided in the work (2026-10-10):
+- Noise XX, not IK: at the first contact the operator has no node key to start from (trust on first
+  use, T-087), and XX carries both static keys encrypted. One pattern for each session, for half a
+  round trip more: `Noise_XX_25519_ChaChaPoly_SHA256`. Lost: IK, which needs the node key first,
+  with XX as a fallback (two patterns to test).
+- The library is `snow` 0.10 with its own resolver, and only ChaChaPoly, SHA-256 and Curve25519
+  (`default-features = false`): its feature `std` turns on `ring`, which compiles C. Lost: a
+  handshake written here, which would be protocol code that only podssh tests.
+- The channel runs above the resumable layer: one handshake for each session, and a resume carries
+  the same channel on, as the layer gives each byte once and in order. The relay sees the layer's
+  records (offsets, acknowledgements, heartbeats) and ciphertext. Lost: a channel for each link,
+  under the layer: a handshake at each resume, with the resume's proof inside it, for nothing that
+  the relay learns less.
+- The Noise static key is derived from the Ed25519 seed (HKDF-SHA256, a label of its own), and the
+  Ed25519 key signs it; the Ed25519 key and the signature go in the handshake's encrypted payloads.
+  The identity is then T-087's key on both roads, and no key does two jobs. Lost: the Ed25519 key's
+  Montgomery form as the Noise key, one key for signatures and for key exchange, which
+  `ed25519-dalek` advises against.
+- On the wire: `podssh-e2e/1` and a newline, then frames of a 2-byte length and one Noise message
+  (65535 bytes at most). Each message of the transport has a type: the node's verdict (let in, or
+  refused with the reason), data, or the clean end of one direction. A stream that ends with no
+  such end is a cut, never a clean end: the relay can drop the last frames.
+- On by default between two podssh ends, on both roads, the facade for podbox included. `--no-e2e`
+  turns it off, at both ends: an end with the channel refuses a peer without it, and never falls
+  back to plain text, which the relay could force.
+
 ## Prove
 
 ```sh
@@ -1263,6 +1335,21 @@ dropped frame, a repeated frame and a frame out of order each end the session wi
 node key fails the handshake. A stand-in relay that records the payloads it carries finds no
 plaintext marker. Plant: skip the tag check; the flipped-bit test must fail. The gate shows no C;
 the live test runs one session through the real relay.
+
+## Correction
+
+2026-10-10, read in the tree:
+- T-151 closed without the choice of Approach 4 (its entry names no channel); this entry makes it
+  (the Decision), and `docs/design.md` (section 5) records it.
+- The channel lives in crates/podssh-relay/src/e2e/ (new), not under `reverse/`: a node serves the
+  iroh road's sessions with the same keeper as the pair's (T-164), so the channel serves both.
+- XX replaces IK (the Decision), and the vectors are those of `Noise_XX_25519_ChaChaPoly_SHA256`.
+- No feature `e2e` is made (T-087's correction); the commands drop it.
+
+## Done
+
+Partial, 2026-10-10: the plan is the Decision; built with T-087, whose keys it proves. Nothing is
+built yet.
 
 # T-089: A node offers several named targets, each with its own grant
 
