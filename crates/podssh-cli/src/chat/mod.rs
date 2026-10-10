@@ -6,10 +6,18 @@
 //! file is written only once the user accepts it, and nothing that arrives is
 //! run.
 
+mod args;
 pub mod converse;
 pub mod files;
 pub mod input;
+pub mod lines;
+mod listen;
 pub mod output;
+mod reach;
+mod run;
 mod talk;
 
-pub use converse::{converse, Ended, Once, Options, Summary};
+pub use args::ChatArgs;
+pub use converse::{converse, converse_until, Ended, Once, Options, Summary};
+pub use lines::Lines;
+pub use run::run_chat;

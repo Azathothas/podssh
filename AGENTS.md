@@ -158,8 +158,10 @@ Do not call `wsl.exe`. Do not use `wsl --shutdown`, `--terminate` or
 
 WARNING: A relay token and a private key are credentials. Do not put a
 credential in output, logs, URLs, argv, commits or issues. Mint a relay
-token, use it and discard it in one shell. Do not read or print the `.env/`
-directory.
+token, use it and discard it in one shell. Use a file of `.env/` only by
+passing its path to podssh (the operator, 2026-10-10: the tailnet auth key
+for `podssh ts --ts-auth-key-file`); never print its contents, and keep
+`.env/` ignored by git.
 
 WARNING: GitHub is public. Push only verified work to `main`. Publish the
 releases that section 2 names, and comment on and close issues as
@@ -170,7 +172,11 @@ operator's machine into a file of the repository.
 Test targets that a session may use (the operator, 2026-10-08): the live
 relay, railway.new, GitHub's SSH endpoint, the two tailnet hosts of
 [docs/STATUS.md](docs/STATUS.md) (with `--direct`), the Podman box
-(`scripts/test_in_box.sh`) and GitHub Actions. Use throwaway keys, and
+(`scripts/test_in_box.sh`) and GitHub Actions. Since 2026-10-10 (Q38, Q39):
+n0's public iroh relays and the operator's SSH host of
+`PODSSH_THROUGHPUT_SSH`, for the throughput run; and the IRC networks
+undernet, libera and OFTC, with short runs and a throwaway nick and
+channel. Use throwaway keys, and
 delete them after the test. Keep keys and scratch files in `.work/`, which
 git ignores, or outside the repository. Never print the claim URL of
 railway.new.

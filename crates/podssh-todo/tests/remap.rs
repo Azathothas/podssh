@@ -280,6 +280,41 @@ fn a_changed_file_that_is_not_text_leaves_the_check_running() {
     assert_eq!(r.moved.len(), 3, "{r:#?}");
 }
 
+/// A blank line is no anchor: here the diff can match the blank first line
+/// of the cited range with a blank line of the new part above it. The range
+/// moves by its first and last lines with text, and keeps its blank margin.
+#[test]
+fn a_range_that_starts_at_a_blank_line_moves_by_its_first_line_with_text() {
+    let t = Tree::new("remap-blank-start");
+    // The last line changes too, so that the blank line is not in the
+    // common tail, which would anchor it.
+    t.write(LIB, "intro\n\n## Servers\nbody 1\nbody 2\nfooter\n");
+    t.write("docs/notes.md", "# Notes\n\nThe servers: `crates/x/src/lib.rs:2-5`.\n");
+    let head = snapshot(&t);
+    t.write(LIB, "a new intro\n\na new part\n\nits end\n\n## Servers\nbody 1\nbody 2\na new footer\n");
+    let r = run(&t, &head, true);
+    let notes = t.read("docs/notes.md");
+    assert!(notes.contains("The servers: `crates/x/src/lib.rs:6-9`."), "{notes} {r:#?}");
+    assert!(r.review.is_empty(), "{r:#?}");
+}
+
+/// When the first line with text of a range changed, the range is listed for
+/// review and not moved; a person's move of it then stands.
+#[test]
+fn a_range_whose_first_line_with_text_changed_is_listed_for_review() {
+    let t = Tree::new("remap-blank-review");
+    t.write(LIB, "intro\n\n## Servers\nbody 1\nbody 2\n");
+    t.write("docs/notes.md", "# Notes\n\nThe servers: `crates/x/src/lib.rs:2-5`.\n");
+    let head = snapshot(&t);
+    t.write(LIB, "a new intro\n\na new part\n\nits end\n\n## The servers\nbody 1\nbody 2\n");
+    let r = run(&t, &head, true);
+    assert!(t.read("docs/notes.md").contains("`crates/x/src/lib.rs:2-5`"), "{r:#?}");
+    assert!(r.review.iter().any(|l| l.contains("lib.rs 2-5:") && l.contains("by hand")), "{r:#?}");
+    t.write("docs/notes.md", "# Notes\n\nThe servers: `crates/x/src/lib.rs:6-9`.\n");
+    let get = |rel: &str| Ok::<_, String>(head.get(rel).cloned());
+    assert!(unmoved(&t, &[LIB], &get).is_empty(), "a person's move is taken for a stale citation");
+}
+
 /// A remap that cannot run is a problem of the check, not a pass.
 #[test]
 fn a_remap_that_fails_is_a_problem_of_the_check() {

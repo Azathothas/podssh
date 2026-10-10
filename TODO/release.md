@@ -111,6 +111,12 @@ The box models the target sandbox (`scripts/test_in_box.sh`).
    - `podssh cp` of 200 MiB each way, with equal digests;
    - a session that survives a killed relay connection (T-156);
    - `podssh pipe` with `stdio`, `exec:` and `unix-connect:`.
+   - the live parts that the entries left to this check, each named in its
+     `## Done`: among them the throughput run of T-157 with
+     `PODSSH_THROUGHPUT_MIB=100` (500 MiB a direction in each cell, n0's iroh
+     relays and the operator's SSH host: the operator, 2026-10-10, Q38), the
+     IRC runs on undernet, libera and OFTC (Q39), the Tailscale runs with the
+     auth key file of `.env/` (Q40), and `scripts/chat-in-boxes.sh` (T-099).
 3. Hosts: this Windows host (the Windows binary, natively), a fresh Linux
    container, and the box like the target sandbox. The other targets: the
    short form (`--version`, `man --no-pager`, `keygen`, `proxy github.com

@@ -49,6 +49,16 @@ struct Cite {
     moves: bool,
 }
 
+/// The line map of a file: each old line's new number, and which old lines
+/// are blank. A blank line is no anchor: a diff may match it with any other
+/// blank line, also one in a part that the edit added.
+struct FileMap {
+    to: Vec<Option<usize>>,
+    blank: Vec<bool>,
+}
+
+type Maps = HashMap<String, FileMap>;
+
 /// The text of `rel` in the revision `rev`, read with `git show`; `Ok(None)`
 /// when the revision has no such file, or none that is UTF-8 text, which no
 /// citation could name by its lines.
@@ -87,7 +97,7 @@ pub fn changed_since(root: &Path, rev: &str) -> Option<Vec<String>> {
 /// only report what would move.
 pub fn remap(root: &Path, files: &[String], head: &Head, write: bool) -> Result<Report, String> {
     let mut report = Report::default();
-    let mut maps: HashMap<String, Vec<Option<usize>>> = HashMap::new();
+    let mut maps: Maps = HashMap::new();
     for f in files {
         let rel = f.replace('\\', "/");
         let rel = rel.trim_start_matches("./").to_string();
@@ -104,7 +114,8 @@ pub fn remap(root: &Path, files: &[String], head: &Head, write: bool) -> Result<
             Some(old) => {
                 let old: Vec<&str> = old.lines().collect();
                 let now: Vec<&str> = now.lines().collect();
-                maps.insert(rel, line_map(&old, &now));
+                let blank = old.iter().map(|l| l.trim().is_empty()).collect();
+                maps.insert(rel, FileMap { to: line_map(&old, &now), blank });
             }
         }
     }
@@ -143,7 +154,7 @@ fn remap_doc(
     now: &str,
     old: &str,
     names: &HashSet<&str>,
-    maps: &HashMap<String, Vec<Option<usize>>>,
+    maps: &Maps,
     report: &mut Report,
 ) -> Option<String> {
     let now_lines: Vec<&str> = now.lines().collect();
@@ -227,7 +238,7 @@ fn rebuild(
     mine: &[Cite],
     was: &str,
     theirs: &[Cite],
-    maps: &HashMap<String, Vec<Option<usize>>>,
+    maps: &Maps,
     at: &str,
     report: &mut Report,
 ) -> String {
@@ -276,24 +287,32 @@ fn rebuild(
 /// are unchanged: a range moves by its ends, also when a line inside it
 /// changed (`changed_inside` lists that for review), so that it keeps naming
 /// the same part of the file.
-fn moved_range(c: &Cite, maps: &HashMap<String, Vec<Option<usize>>>) -> Option<(usize, Option<usize>)> {
+fn moved_range(c: &Cite, maps: &Maps) -> Option<(usize, Option<usize>)> {
     let map = maps.get(&c.path)?;
     let end = c.last.unwrap_or(c.first);
-    if c.first == 0 || end < c.first || end > map.len() {
+    if c.first == 0 || end < c.first || end > map.to.len() {
         return None;
     }
+    // A range moves by its first and last lines with text, and keeps its
+    // blank margins: a blank end could have matched any blank line.
+    let text = |n: &usize| !map.blank[n - 1];
+    let first = (c.first..=end).find(text).unwrap_or(c.first);
+    let start = map.to[first - 1]?.checked_sub(first - c.first).filter(|n| *n > 0)?;
     let last = match c.last {
-        Some(l) => Some(map[l - 1]?),
+        Some(l) => {
+            let at = (c.first..=l).rev().find(text).unwrap_or(l);
+            Some(map.to[at - 1]? + (l - at))
+        }
         None => None,
     };
-    Some((map[c.first - 1]?, last))
+    Some((start, last))
 }
 
 /// Whether the change removed or changed a line inside a cited range.
-fn changed_inside(c: &Cite, maps: &HashMap<String, Vec<Option<usize>>>) -> bool {
+fn changed_inside(c: &Cite, maps: &Maps) -> bool {
     let Some(map) = maps.get(&c.path) else { return false };
-    let end = c.last.unwrap_or(c.first).min(map.len());
-    (c.first.max(1)..=end).any(|n| map[n - 1].is_none())
+    let end = c.last.unwrap_or(c.first).min(map.to.len());
+    (c.first.max(1)..=end).any(|n| map.to[n - 1].is_none())
 }
 
 /// The citations on each line of a text; those of `names` move. A blank

@@ -217,7 +217,7 @@ fn podssh(args: &[&str]) -> (i32, Vec<u8>, Vec<u8>) {
 /// T-138), so the gate asks each for a `--timeout` (64), and with one a
 /// missing operand is 64.
 #[test]
-fn not_implemented_before_the_timeout() {
+fn the_timeout_comes_before_the_operands() {
     for verb in ["cp", "mv"] {
         let (rc, out, err) = podssh(&[verb]);
         let err = String::from_utf8(err).unwrap();
@@ -230,9 +230,13 @@ fn not_implemented_before_the_timeout() {
     }
     let (rc, out, err) = podssh(&["chat"]);
     let err = String::from_utf8(err).unwrap();
-    assert_eq!(rc, 70, "chat: {err}");
+    assert_eq!(rc, 64, "chat: {err}");
     assert!(out.is_empty(), "chat: a refusal writes nothing to stdout");
-    assert!(err.contains("not implemented yet") && !err.contains("--send"), "chat: {err}");
+    assert!(err.contains("podssh chat: --timeout DURATION is required when"), "chat: {err}");
+    let (rc, _, err) = podssh(&["chat", "--timeout", "30s"]);
+    let err = String::from_utf8(err).unwrap();
+    assert_eq!(rc, 64, "chat with no peer: {err}");
+    assert!(err.contains("podssh chat: missing PEER"), "{err}");
     let (rc, _, err) = podssh(&["cp", "--timeout", "30x"]);
     assert_eq!(rc, 64, "{}", String::from_utf8_lossy(&err));
 }
@@ -251,20 +255,20 @@ fn the_timeout_refusal_names_the_verb() {
 /// `30x` is rejected by the binary before anything is attempted.
 #[test]
 fn garbage_timeout_is_64_immediately() {
-    let (rc, _, err) = podssh(&["chat", "--send", "#chan hi", "--timeout", "30x"]);
+    let (rc, _, err) = podssh(&["chat", "--send", "hi", "--timeout", "30x", "peer"]);
     assert_eq!(rc, 64);
     assert!(String::from_utf8(err).unwrap().contains("--timeout"));
 }
 
-/// A valid `--timeout` passes the gate. `chat` itself is not built yet (M8),
-/// so the run lands on the unimplemented refusal (70) — **not** on
-/// 64, and never on 0, and never a hang.
+/// A valid `--timeout` passes the gate, and the verb itself says what its
+/// command line lacks — never 0, and never a hang.
 #[test]
-fn valid_timeout_passes_the_gate_and_reaches_the_unbuilt_verb() {
-    let (rc, out, err) = podssh(&["chat", "--send", "#chan hi", "--timeout", "30s"]);
-    assert_eq!(rc, 70, "chat parses but is not implemented yet");
+fn valid_timeout_passes_the_gate_and_reaches_the_verb() {
+    let (rc, out, err) = podssh(&["chat", "--send", "hi", "--timeout", "30s"]);
+    let err = String::from_utf8(err).unwrap();
+    assert_eq!(rc, 64, "chat with no peer: {err}");
     assert!(out.is_empty());
-    assert!(String::from_utf8(err).unwrap().contains("not implemented yet"));
+    assert!(err.contains("missing PEER") && !err.contains("is required when"), "{err}");
 }
 
 /// **`--jsonl` under `proxy` names the SSH stream.** Not the generic

@@ -6,6 +6,7 @@
 //! that send files at once cannot wait on each other.
 
 use std::collections::{HashMap, VecDeque};
+use std::future::Future;
 use std::path::PathBuf;
 
 use podssh_core::chat::{record::MAX_CHUNK, Decoder, Record, Session};
@@ -13,6 +14,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
 
 use super::files::Incoming;
+use super::lines::Lines;
 use super::output::Output;
 use super::talk::Talk;
 
@@ -52,9 +54,15 @@ pub enum Ended {
     PeerLeft,
     /// The side that waits has another peer.
     Busy,
-    /// `--file`: the peer declined the file, or it arrived damaged.
-    Refused(String),
-    /// The peer broke the protocol, or the stream failed: why.
+    /// `--file`: the peer declined the file.
+    Declined,
+    /// `--file`: the file arrived with another SHA-256, and was not kept.
+    Damaged,
+    /// The `--timeout` passed.
+    TimedOut,
+    /// Ctrl-C or SIGTERM.
+    Stopped,
+    /// The peer broke the protocol, or the stream or the road failed: why.
     Failed(String),
 }
 
@@ -63,21 +71,41 @@ pub enum Ended {
 pub struct Summary {
     pub ended: Ended,
     pub undelivered: Vec<String>,
+    /// The peer's nick, once it greeted: with none, no peer was there.
+    pub peer: Option<String>,
 }
 
-/// Talk over `stream`: the user's lines come from `lines` (closed for
+/// Talk over `stream`: the user's lines come from `lines` (none are read for
 /// `--send` and `--file`), and what the user sees goes to `out`.
-pub async fn converse<S, W>(stream: S, lines: mpsc::Receiver<String>, out: &mut Output<W>, opts: Options) -> Summary
+pub async fn converse<S, W>(stream: S, lines: &mut Lines, out: &mut Output<W>, opts: Options) -> Summary
 where
     S: AsyncRead + AsyncWrite + Unpin + Send,
     W: AsyncWrite + Unpin,
+{
+    converse_until(stream, lines, out, opts, std::future::pending()).await
+}
+
+/// [`converse`], which an end from outside stops too: when `until` comes
+/// first, the conversation ends with its end, and its summary still lists
+/// the messages that went with no acknowledgement.
+pub async fn converse_until<S, W, U>(
+    stream: S,
+    lines: &mut Lines,
+    out: &mut Output<W>,
+    opts: Options,
+    until: U,
+) -> Summary
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send,
+    W: AsyncWrite + Unpin,
+    U: Future<Output = Ended>,
 {
     let (from_peer, to_peer) = tokio::io::split(stream);
     let (control, control_rx) = mpsc::unbounded_channel();
     let (chunks, chunks_rx) = mpsc::channel(CHUNKS_QUEUED);
     let writer = write_records(to_peer, control_rx, chunks_rx);
     let talk = Talk::new(control, opts);
-    let conversation = run(talk, from_peer, lines, chunks, out);
+    let conversation = run(talk, from_peer, lines, chunks, out, until);
     let (written, summary) = tokio::join!(writer, conversation);
     match (written, summary.ended.clone()) {
         (Err(e), Ended::Done) => Summary { ended: Ended::Failed(format!("the stream failed: {e}")), ..summary },
@@ -105,17 +133,20 @@ async fn write_records<W: AsyncWrite + Unpin>(
     to_peer.shutdown().await
 }
 
-async fn run<R, W>(
+async fn run<R, W, U>(
     mut talk: Talk,
     mut from_peer: R,
-    mut lines: mpsc::Receiver<String>,
+    lines: &mut Lines,
     chunks: mpsc::Sender<Record>,
     out: &mut Output<W>,
+    until: U,
 ) -> Summary
 where
     R: AsyncRead + Unpin,
     W: AsyncWrite + Unpin,
+    U: Future<Output = Ended>,
 {
+    tokio::pin!(until);
     let mut decoder = Decoder::new();
     let mut buf = vec![0u8; 64 * 1024];
     let mut input_open = matches!(talk.opts.once, Once::No);
@@ -152,6 +183,7 @@ where
                 },
                 Err(_) => break Ended::Failed("the writer ended".into()),
             },
+            ended = &mut until => break ended,
         }
     };
     drop(chunks);

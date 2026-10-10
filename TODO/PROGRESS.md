@@ -115,40 +115,12 @@ rules.
 
 The operator settled Q31 to Q37 on 2026-10-09.
 
-**Q38 (2026-10-10, T-157, for its live run in T-251).** Which targets may
-the throughput method reach? The test targets of `AGENTS.md` (section 4)
-are the live relay, railway.new, GitHub's SSH endpoint, the two tailnet
-hosts, the Podman box and GitHub Actions. T-157's cells also need (a) a
-public SSH server that runs `head` and `cat` for the forward road and the
-direct road, and (b) n0's public iroh relays, the iroh road's default
-(2026-10-08). Recommendation: allow (b), the road's own default, for runs of
-20 MiB each way, 5 runs a cell; for (a), a host of the operator's, named in
-`PODSSH_THROUGHPUT_SSH` where the run is made, as the tailnet hosts are
-named in `docs/STATUS.md`. Until the operator rules, the method runs those
-cells only when their variable is set, and none of them is set in a
-session: T-157 closes with its native tests, and its live run waits for
-T-251 and this answer.
-
-**Q39 (2026-10-10, T-091 to T-098, T-252).** May a session test the IRC
-client on public networks? The Proves of T-091 to T-098 run
-`examples/live_irc.rs` against undernet, libera and OFTC through the live
-relay, and these are not among the test targets of `AGENTS.md` (section 4).
-Recommendation: allow undernet, which accepted the relay on 2026-10-07, and
-libera and OFTC to measure whether they still refuse it, each run short, with
-a throwaway nick and no channel but a throwaway one. Until the operator
-rules, each of those entries closes with its native tests and a run against
-real servers on the loopback of the build image (ngircd, and others that
-Alpine packages); their live runs wait for T-251 and this answer.
-
-**Q40 (2026-10-10, T-100 to T-105, T-240, T-241).** Which file may a
-session pass to `podssh ts --ts-auth-key-file` for the live runs of the
-Tailscale entries? The key is in `.env/`, which `AGENTS.md` (section 4)
-forbids a session to read or print, and no document names the file.
-Recommendation: name the path in `docs/tailscale.md`, with the rule that a
-session passes it to podssh and never reads it; podssh reads it into memory
-that it clears (T-241). Until the operator rules, each of those entries
-closes with its native tests, and its live run waits for T-251 and this
-answer.
+The operator settled Q38 to Q40 on 2026-10-10 (`docs/decisions.md`): the
+throughput run may reach n0's iroh relays with about 500 MiB a direction in
+each cell, and the operator's SSH host (T-157, run in T-251); the IRC client
+may be tested on undernet, libera and OFTC (T-091 to T-098, T-252); and a
+session passes the files of `.env/` to podssh by their paths, never printing
+them (T-100 to T-105, T-240, T-241).
 
 ## Operator actions
 

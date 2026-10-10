@@ -566,7 +566,7 @@ key is kept under `iroh:` and the node's key.
 MEASURED on the loopback (T-157, the debug build, 2026-10-10): SSH through
 iroh's relay server, p50 34.6 MiB/s up and 25.6 MiB/s down, where `--direct`
 to the same server gives 165.9 and 106.3: the iroh road's own limit on this
-machine, before any network. Through n0's relays: not measured (T-251, Q38).
+machine, before any network. Through n0's relays: not measured yet (T-251).
 
 What iroh then gives, when both ends run podssh:
 

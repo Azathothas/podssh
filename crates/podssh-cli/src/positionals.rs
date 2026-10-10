@@ -36,9 +36,11 @@ pub fn add(cmd: Command, name: &str) -> Command {
                 .value_name("DESTINATION")
                 .help("[user@]host[:path], or sftp://[user@]host[:port][/path]"),
         ),
-        "chat" => cmd
-            .arg(Arg::new("channel").value_name("CHANNEL").help("channel to join"))
-            .arg(Arg::new("message").value_name("MESSAGE").num_args(0..).help("message to send")),
+        "chat" => cmd.arg(
+            Arg::new("peer")
+                .value_name("PEER")
+                .help("the peer: NAME, node:NAME or node://NAME, the node of a pair; iroh:TICKET; with --listen, the label of the pair that this side serves"),
+        ),
         "man" => cmd.arg(
             Arg::new("section")
                 .value_name("SECTION")

@@ -66,7 +66,9 @@ impl Talk {
     }
 
     /// The end, when it came: the one thing done, or stdin ended with each
-    /// message acknowledged and each file gone.
+    /// message acknowledged and each file gone. A side that takes each file
+    /// (`--accept-dir`) stays until the peer leaves: its files may come after
+    /// its own input ended.
     pub fn finished(&self, input_open: bool) -> Option<Ended> {
         if self.once.is_some() {
             return self.once_done.then_some(Ended::Done);
@@ -75,7 +77,7 @@ impl Talk {
             && self.files.ours.is_empty()
             && self.files.writing.is_empty()
             && self.files.sending.is_empty();
-        (!input_open && idle).then_some(Ended::Done)
+        (!input_open && idle && self.opts.accept_dir.is_none()).then_some(Ended::Done)
     }
 
     pub fn sending(&self) -> bool {
@@ -276,7 +278,7 @@ impl Talk {
                 self.files.ours.remove(&id);
                 out.notice("declined", json!({ "id": id }), format!("{} declined file {id}", safe(&self.peer()))).await;
                 if self.once == Some(id) {
-                    return Some(Ended::Refused("the peer declined the file".into()));
+                    return Some(Ended::Declined);
                 }
             }
             Event::Bytes { id, data, .. } => {
@@ -300,7 +302,7 @@ impl Talk {
                 out.notice("sent", json!({ "id": id, "whole": whole }), line).await;
                 if self.once == Some(id) {
                     if !whole {
-                        return Some(Ended::Refused("the file arrived damaged".into()));
+                        return Some(Ended::Damaged);
                     }
                     self.once_done = true;
                 }
@@ -322,6 +324,6 @@ impl Talk {
             file.abandon();
         }
         let undelivered = self.session.undelivered().into_iter().map(|(_, text)| text.to_string()).collect();
-        Summary { ended, undelivered }
+        Summary { ended, undelivered, peer: self.session.peer().map(str::to_string) }
     }
 }

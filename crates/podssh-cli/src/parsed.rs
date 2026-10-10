@@ -41,6 +41,8 @@ pub enum Parsed {
         cp: Option<Box<crate::cp::CpArgs>>,
         /// `sftp`'s; `None` for every other verb.
         sftp: Option<Box<crate::sftp::SftpArgs>>,
+        /// `chat`'s; `None` for every other verb.
+        chat: Option<Box<crate::chat::ChatArgs>>,
     },
     /// A usage error. The message never contains a usage block.
     Usage(String),

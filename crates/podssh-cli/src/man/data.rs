@@ -19,7 +19,11 @@ pub enum Code {
 pub fn exit_codes() -> Vec<(Code, String)> {
     let row = |code: i32, what: &str| (Code::Value(code), what.to_string());
     vec![
-        row(0, "Success. For podssh ssh: the remote command exited 0."),
+        row(
+            0,
+            "Success. For podssh ssh: the remote command exited 0. For podssh chat: each message was \
+             acknowledged, and the one thing of --send or --file is done.",
+        ),
         row(
             crate::doctor::EXIT_FAILED,
             "podssh doctor: a check failed. podssh relay spec: a fact of the relay's document disagrees. \
@@ -32,14 +36,15 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             sysexits::EX_NOINPUT,
             "podssh cp and mv: a source is missing or cannot be read. podssh mv: a source that changed \
-             during the move, which stays.",
+             during the move, which stays. podssh chat: the file of --file or --sendfile cannot be read.",
         ),
         row(
             sysexits::EX_UNAVAILABLE,
             "podssh proxy: no relay host could be reached, or the relay ended the session abnormally. \
              podssh node, operator and relay: the relay or TARGET could not be reached, the node did not take \
              the session, the pair was stopped, or another node serves it. podssh cp and mv: no connection to \
-             the server, or it has neither SFTP nor the sh and the tools of a copy by exec.",
+             the server, or it has neither SFTP nor the sh and the tools of a copy by exec. podssh chat: \
+             the same of the relay and the pair, or a message went with no acknowledgement; each is said.",
         ),
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,
@@ -47,12 +52,19 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              relay closed the node or the session for a fault (1003, 1008 or 1009), or the end-to-end \
              channel failed (a peer with no channel, a message that failed its check). podssh cp and mv: the \
              digests of a copy differ, or the session broke; the destination was not changed. podssh mv: \
-             the copy is verified and its source could not be removed; the data is in both places.",
+             the copy is verified and its source could not be removed; the data is in both places. podssh \
+             chat: the peer broke the protocol, the channel failed, or the file of --file arrived with \
+             another SHA-256.",
         ),
-        row(sysexits::EX_CANTCREAT, "podssh cp and mv: the destination cannot be written."),
+        row(
+            sysexits::EX_CANTCREAT,
+            "podssh cp and mv: the destination cannot be written. podssh chat: the directory of \
+             --accept-dir is not there.",
+        ),
         row(
             sysexits::EX_TEMPFAIL,
-            "podssh cp and mv: the --timeout passed before the copy ended; a later try can work.",
+            "podssh cp and mv: the --timeout passed before the copy ended; a later try can work. podssh \
+             chat: the --timeout passed, or the peer talks with another peer; a later try can work.",
         ),
         row(
             sysexits::EX_NOPERM,
@@ -60,15 +72,16 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              podssh node, operator and relay: the relay refused the pair, or the pair expired. podssh \
              operator and pipe node:: the node's key is not the one pinned in known-nodes or named by \
              --node-key, or the node's allowlist refused this client's key. podssh cp and mv: the server \
-             refused the login, or podssh did not accept its host key.",
+             refused the login, or podssh did not accept its host key. podssh chat: the same of the pair \
+             and of the keys, or the peer declined the file of --file.",
         ),
         row(
             sysexits::EX_CONFIG,
             "A setting of the environment cannot be used: PODSSH_RELAY or PODSSH_RELAY_ADDR (podssh ssh, \
              cp, proxy and doctor). For podssh proxy also a proxy URL that is not http://, or a \
              PODSSH_RELAY_TOKEN that is not a token. The same value as a flag is a usage error (64). \
-             podssh node, operator and relay: no pair is stored under the label, the pair cannot be read \
-             or stored, or a node cannot connect as it is set up.",
+             podssh node, operator, relay and chat: no pair is stored under the label, the pair cannot be \
+             read or stored, or a node cannot connect as it is set up.",
         ),
         row(
             podssh_ssh::EXIT_FAILURE,

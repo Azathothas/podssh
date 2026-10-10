@@ -539,6 +539,36 @@ commands. The rules behind them:
   program that is not found and 126 for one that cannot run; with neither,
   0.
 
+## `podssh chat`
+
+`podssh man chat` gives the command, and [irc.md](irc.md) the protocol. The
+rules behind it:
+
+- **Two podssh ends, one road.** One side waits, `chat --listen NAME`, as
+  the node of the pair NAME; the other reaches it, `chat NAME` (or
+  `node:NAME`, `node://NAME`), as its operator. A rendezvous where both
+  sides dial lost: the relay's contract has none.
+- **Always the channel.** Chat runs the end-to-end channel of T-088 with the
+  keys of T-087, and has no `--no-e2e`: the relay never reads a message.
+  The flags of the keys are those of `node` (`--key`, `--ephemeral-key`,
+  `--allow`) at the side that waits, and of `operator` (`--client-key`,
+  `--node-key`) at the side that reaches; a flag of the other side is a
+  usage error.
+- **Lines in, lines out.** stdin and stdout carry lines, so that a script or
+  an agent can talk; there is no TUI. A line that starts with `/` is a
+  command, and `//` sends a literal `/`. Notices go to stderr, and
+  `--jsonl` puts each event on stdout as one JSON object.
+- **A file only once accepted.** `/accept`, or `--accept-dir` for a script,
+  is the only way a file is written, under a temporary name, checked
+  against its SHA-256, then given its name, never over a file that is there.
+- **The one thing of a script.** `--send`, `--sendfile` and `--file` each
+  give a run its one thing, and at most one is given. `--timeout` is
+  required with no terminal: a run that waits for a peer has nobody to stop
+  it.
+- **Nothing lost unsaid.** A message that the peer did not acknowledge is
+  said when its conversation ends, and the exit is then 69. The lines that
+  wait for a peer stay in memory, 1000 lines or 1 MiB at most.
+
 ## Exit codes
 
 `podssh man exit-status` gives each code. The rules behind them:
@@ -561,6 +591,14 @@ commands. The rules behind them:
   unchanged), or a verified move whose source could not be removed, 73 a
   destination that cannot be written, 75 the `--timeout` passed, 77 a login
   or a host key refused, 78 a setting of the environment.
+- `podssh chat` uses sysexits too: 0 when each message was acknowledged
+  and the one thing of `--send` or `--file` is done, 64 a usage error, 66 a
+  file of `--file` or `--sendfile` that cannot be read, 69 the relay out of
+  reach, or a message with no acknowledgement, 70 a peer that broke the
+  protocol, a failed channel, or a file that arrived damaged, 73 a missing
+  `--accept-dir`, 75 the `--timeout` passed, or the peer talks with
+  another, 77 a key or a pair refused, or the file of `--file` declined, 78
+  a setting or a pair that cannot be used.
 - A command that is not implemented exits 70. It never exits 0.
 - A closed stdout (EPIPE) ends the session cleanly.
 

@@ -232,7 +232,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "ssh" => "[OPTIONS] [--] [user@]host [COMMAND...]",
         "cp" | "mv" | "scp" => "[OPTIONS] SRC... DST",
         "sftp" => "[OPTIONS] DESTINATION",
-        "chat" => "[OPTIONS] [CHANNEL] [MESSAGE]",
+        "chat" => "[OPTIONS] PEER",
         "man" => "[OPTIONS] [SECTION]",
         "relay" => "[OPTIONS] SUBCOMMAND NAME",
         "node" => "[OPTIONS] NAME TARGET",

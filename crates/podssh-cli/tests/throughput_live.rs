@@ -21,7 +21,11 @@
 //! found (the control of the relay), the reverse road through the live relay
 //! (a pair, and `podssh node` in front of the test's server), and with
 //! `iroh-test` the iroh road through iroh's relay server on the loopback.
-//! Only when a variable names their target (Q38, `TODO/PROGRESS.md`):
+//! `PODSSH_THROUGHPUT_MIB` sets the MiB of each run in each direction (20
+//! by default); the live run of T-251 takes 100, 500 MiB a direction in a
+//! cell (the operator, 2026-10-10: Q38).
+//!
+//! Only when a variable names their target (Q38, `docs/decisions.md`):
 //! `PODSSH_THROUGHPUT_SSH` (`USER@HOST[:PORT]`, a POSIX server, with the key
 //! of `PODSSH_THROUGHPUT_KEY`) for the forward road through the live relay
 //! and the direct road; `PODSSH_THROUGHPUT_IROH_RELAY` for the iroh road
@@ -33,9 +37,19 @@ mod throughput_harness;
 use throughput_harness::{measure, Cell, Far, Session};
 
 const MIB: u64 = 1 << 20;
-/// Each run's bytes, in each direction.
-const BYTES: u64 = 20 * MIB;
+/// Each run's MiB in each direction, when `PODSSH_THROUGHPUT_MIB` sets none.
+const RUN_MIB: u64 = 20;
 const RUNS: usize = 5;
+
+/// Each run's bytes, in each direction: a size that does not parse is said
+/// and not used, so that a run never measures an unknown size.
+fn run_bytes() -> u64 {
+    let Ok(text) = std::env::var("PODSSH_THROUGHPUT_MIB") else { return RUN_MIB * MIB };
+    match text.trim().parse::<u64>() {
+        Ok(mib) if (1..=4096).contains(&mib) => mib * MIB,
+        _ => panic!("PODSSH_THROUGHPUT_MIB={text:?}: MiB from 1 to 4096"),
+    }
+}
 
 /// The minimum, the 50th and 95th percentiles, and the maximum.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -129,7 +143,7 @@ fn table(session: &Session, cells: Vec<Result<Cell, (String, String)>>) -> Strin
                 continue;
             }
         };
-        match measure(session, &cell, RUNS, BYTES) {
+        match measure(session, &cell, RUNS, run_bytes()) {
             Ok((ups, downs)) => table.push_str(&report(&cell, &ups, &downs, None)),
             Err(why) => table.push_str(&report(&cell, &[], &[], Some(&why))),
         }
@@ -151,7 +165,7 @@ fn loopback_cells(session: &Session) -> Vec<Result<Cell, (String, String)>> {
 }
 
 #[test]
-#[ignore = "a measurement: 200 MiB a cell through this machine's loopback"]
+#[ignore = "a measurement: 200 MiB a cell, by default, through this machine's loopback"]
 fn throughput_on_the_loopback() {
     let session = Session::start("loopback");
     let cells = loopback_cells(&session);

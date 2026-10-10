@@ -393,7 +393,8 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     let cp = matches!(verb.name, "cp" | "mv" | "scp")
         .then(|| Box::new(crate::cp::CpArgs::from_matches(&matches, verb.name)));
     let sftp = (verb.name == "sftp").then(|| Box::new(crate::sftp::SftpArgs::from_matches(&matches)));
-    Parsed::Command { verb: verb.name, refused, tag, timeout, jsonl, ssh, keygen, cp, sftp }
+    let chat = (verb.name == "chat").then(|| Box::new(crate::chat::ChatArgs::from_matches(&matches)));
+    Parsed::Command { verb: verb.name, refused, tag, timeout, jsonl, ssh, keygen, cp, sftp, chat }
 }
 
 /// Whether an argument id was actually supplied, under either spelling.

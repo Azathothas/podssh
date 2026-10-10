@@ -19,6 +19,7 @@ pub mod facts;
 pub mod json;
 pub mod model;
 pub mod notes;
+mod notes_chat;
 mod notes_pair;
 pub mod roff;
 pub mod text;

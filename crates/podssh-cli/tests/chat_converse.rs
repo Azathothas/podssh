@@ -14,7 +14,7 @@ use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
 use podssh_cli::chat::output::Output;
-use podssh_cli::chat::{converse, Ended, Once, Options, Summary};
+use podssh_cli::chat::{converse, Ended, Lines, Once, Options, Summary};
 use tokio::io::{AsyncWrite, DuplexStream};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
@@ -63,7 +63,7 @@ struct Side {
 
 impl Side {
     fn start(stream: DuplexStream, nick: &str, accept_dir: Option<&Path>, here: &Path, once: Once) -> Side {
-        let (tx, rx) = mpsc::channel(64);
+        let (tx, mut lines) = Lines::channel(64);
         let stdout = Sink::default();
         let notes = Arc::new(Mutex::new(Vec::new()));
         let opts = Options {
@@ -75,7 +75,7 @@ impl Side {
         let (out_sink, kept) = (stdout.clone(), notes.clone());
         let task = tokio::spawn(async move {
             let mut out = Output::new(out_sink, false, move |line| kept.lock().unwrap().push(line));
-            converse(stream, rx, &mut out, opts).await
+            converse(stream, &mut lines, &mut out, opts).await
         });
         let lines = matches!(once, Once::No).then_some(tx);
         Side { lines, stdout, notes, task }
@@ -128,7 +128,7 @@ async fn two_sides_talk_and_each_message_is_acknowledged() {
     a.wait_for("bo: hi there").await;
     assert!(!a.stdout.text().contains('\u{1b}'), "the peer's words reach the terminal unsafe");
     let (a, b) = (a.end().await, b.end().await);
-    assert_eq!(a, Summary { ended: Ended::Done, undelivered: vec![] });
+    assert_eq!(a, Summary { ended: Ended::Done, undelivered: vec![], peer: Some("bo".into()) });
     assert!(b.undelivered.is_empty() && matches!(b.ended, Ended::Done | Ended::PeerLeft), "{b:?}");
 }
 
@@ -183,7 +183,7 @@ async fn send_and_file_end_once_done() {
     let a = Side::start(a_end, "ana", None, &here, Once::Send("ping".into()));
     let b = Side::start(b_end, "bo", None, &here, Once::No);
     b.wait_for("ana: ping").await;
-    assert_eq!(a.end().await, Summary { ended: Ended::Done, undelivered: vec![] });
+    assert_eq!(a.end().await, Summary { ended: Ended::Done, undelivered: vec![], peer: Some("bo".into()) });
     let _ = b.end().await;
 
     std::fs::write(here.join("report.txt"), b"the report").unwrap();
@@ -208,7 +208,8 @@ async fn a_message_with_no_acknowledgement_is_said_at_the_end() {
     tokio::time::sleep(Duration::from_millis(200)).await;
     drop(b_end);
     let summary = a.end().await;
-    assert_eq!(summary, Summary { ended: Ended::PeerLeft, undelivered: vec!["never acknowledged".into()] });
+    let lost = vec!["never acknowledged".to_string()];
+    assert_eq!(summary, Summary { ended: Ended::PeerLeft, undelivered: lost, peer: Some("ghost".into()) });
 }
 
 /// The same conversation over the end-to-end channel, as the roads carry it.

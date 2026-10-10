@@ -237,6 +237,7 @@ pub fn require_timeout(verb: &str, attachment: Attachment, raw: Option<&str>) ->
             };
             let example = match verb {
                 "ts" => "podssh ts --timeout 30s -W HOST:PORT".to_string(),
+                "chat" => "podssh chat --timeout 60s --send MESSAGE NAME".to_string(),
                 _ => format!("podssh {verb} --timeout 30s ..."),
             };
             Err(Refusal {

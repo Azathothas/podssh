@@ -67,8 +67,8 @@ Each rule is implemented.
   of the profile directory protects the token cache and the keys.
 - **Text from a peer is made safe before it goes to a terminal.** Close
   reasons, HTTP error bodies, SSH banners and disconnect messages,
-  keyboard-interactive prompts and IRC text can contain ESC, BEL or a bare
-  CR. One shared function removes them.
+  keyboard-interactive prompts, chat messages and IRC text can contain ESC,
+  BEL or a bare CR. One shared function removes them.
 - **`known_hosts` is read as OpenSSH reads it.** Hashed host names use
   HMAC-SHA1 with the decoded salt. `@revoked` and `@cert-authority` are
   markers, not key types. A revoked key is refused. A bad line is skipped.
@@ -99,6 +99,13 @@ Each rule is implemented.
   for each session, and dials its target only after it let the key in. No
   end falls back to plain text: one with the channel refuses a peer
   without it.
+- **Chat writes a file only once the user accepts it, and runs nothing**
+  (T-099). `podssh chat` always runs the end-to-end channel, so the relay
+  reads no message and no file. A file goes under a temporary name into the
+  directory that the user chose, is checked against the SHA-256 of its
+  offer, and takes its name only then, never over a file that is there; its
+  name is the last part of the offered one, so it never goes out of that
+  directory. The lines that wait for a peer stay in memory, never on disk.
 - **A node of the iroh road lets in only the keys of its allowlist.** Its
   ticket is an address, not a credential, so it may go on a command line.
   Each end's key is its identity, in a private file that podssh makes once
@@ -130,7 +137,10 @@ security:
   default key, Ed25519, and ECDSA keys do not use it, and an agent keeps the
   key in its own process (T-257, [TODO/ssh.md](TODO/ssh.md)). The check of a
   server's RSA certificate uses only the public key.
-- The IRC client sends plain text through the relay. No command uses it yet.
+- The IRC client sends plain text through the relay. No command uses it
+  yet: `podssh chat` runs between two podssh ends over the end-to-end
+  channel (T-099), and IRC as its second transport waits for T-252, with TLS
+  inside the relay stream.
 - The first session to a node trusts the key that answers (trust on first
   use): a relay in the middle of that first session could have its own key
   pinned. Compare the fingerprint that the node says as it starts, or give

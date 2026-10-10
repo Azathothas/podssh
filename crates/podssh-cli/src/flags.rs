@@ -251,31 +251,18 @@ pub const SSH_FLAGS: &[FlagRow] = &[
 ];
 
 // `cp`, `mv` and their aliases: their table is in `flags/copy.rs`.
+mod chat;
 mod copy;
 mod node;
 mod operator;
 mod pipe;
 mod scp;
+pub use chat::CHAT_FLAGS;
 pub use copy::CP_FLAGS;
 pub use node::NODE_FLAGS;
 pub use operator::PAIR_FLAGS;
 pub use pipe::PIPE_FLAGS;
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
-
-/// **`chat` and its `irc` alias.** `--jsonl` and `--timeout` feed the gate of runs
-/// with no terminal, and appear in the tree because a flag that does not parse cannot be refused.
-pub const CHAT_FLAGS: &[FlagRow] = &[
-    row(None, "send", Some("MESSAGE"), FlagKind::Supported,
-        "send one message and exit; never prompts", None),
-    row(None, "sendfile", Some("FILE"), FlagKind::Supported,
-        "send each line of a file as a message", None),
-    row(None, "jsonl", None, FlagKind::Supported,
-        "one JSON object per event on stdout", None),
-    row(None, "timeout", Some("DURATION"), FlagKind::Supported,
-        "bound the run; required when stdin is not a TTY (default: env PODSSH_TIMEOUT)", None),
-    row(None, "nick", Some("NICK"), FlagKind::Supported,
-        "nickname to use", None),
-];
 
 /// **`ts` and its `tailscale` alias (Tailscale, the cargo feature `ts`).** The
 /// spelling: `ts`-prefixed flags; `-W` is the byte-pipe target with ssh's own
@@ -418,7 +405,7 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "operator", aliases: &["operator"], flags: PAIR_FLAGS,
         about: "reverse mode, operator side: raw bytes to a named node" },
     Verb { name: "chat", aliases: &["chat", "irc"], flags: CHAT_FLAGS,
-        about: "the IRC client" },
+        about: "messages and files with another podssh, end to end encrypted" },
     Verb { name: "cp", aliases: &["cp"], flags: CP_FLAGS,
         about: "copy files to or from a remote host" },
     Verb { name: "scp", aliases: &["scp"], flags: SCP_FLAGS,
@@ -449,8 +436,9 @@ pub const VERBS: &[Verb] = &[
 /// `man`, `ts`) is handled before this table is consulted. When a verb gets
 /// its own arm, remove its row here and add it to `DISPATCHED` in
 /// `tests/flag_table.rs`; dispatch treats a verb with neither an arm nor a row
-/// as an internal error, never as success.
-pub const VERB_OWNER: &[(&str, &str)] = &[("chat", "M8")];
+/// as an internal error, never as success. Each verb has its arm now; the
+/// table stays for a verb that parses before it works.
+pub const VERB_OWNER: &[(&str, &str)] = &[];
 
 /// Whether a verb does something in this binary. `--help` and the manual
 /// both show it, so neither can offer a command that only refuses.

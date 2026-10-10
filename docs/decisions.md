@@ -52,6 +52,9 @@ The newest decision is first in each section.
 
 | Date | Decision |
 | --- | --- |
+| 2026-10-10 | **Longer throughput runs, and their targets** (Q38; T-157, run in T-251). The live run of the throughput method may reach n0's public iroh relays, with about 500 MiB in each direction in each cell, for a measurement that means something; and a public SSH server of the operator's, named in `PODSSH_THROUGHPUT_SSH` where the run is made. Once podssh has the Cloudflare road (T-264, T-170), it is measured too. A run that long waits for the checks of `v1.0.0` (Q35). |
+| 2026-10-10 | **The IRC client may be tested on public networks** (Q39; T-091 to T-098, T-252). undernet, libera and OFTC, through the live relay: short runs, with a throwaway nick and a throwaway channel. |
+| 2026-10-10 | **Sessions use the files of `.env/`** (Q40; T-100 to T-105, T-240, T-241). A session passes a file of `.env/` to podssh by its path, as the tailnet auth key to `podssh ts --ts-auth-key-file`, and never prints its contents; `.env/` stays ignored by git. |
 | 2026-10-09 | **Entries on hold** (Q32). T-085, T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248 have the status `blocked` and a `## Blocker` that names the operator. A session skips them until the operator lifts the hold, and the goal of [AGENTS.md](../AGENTS.md) leaves them out, as it leaves out the relay's entries. |
 | 2026-10-09 | **Live tests: short ones with each entry, long ones at the release** (Q35). An entry runs the live tests of its Prove that take a few minutes and a few MiB. A live test of more than 5 minutes or 100 MiB waits for the checks of `v1.0.0` (T-251), and the entry's `## Done` says so. |
 | 2026-10-09 | **A test that fails at random is repaired first** (Q36). No quarantine: the session stays on it until it passes 20 runs in a row, and does other work only then (T-262). |

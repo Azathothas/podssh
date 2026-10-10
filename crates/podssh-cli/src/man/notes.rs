@@ -3,6 +3,7 @@
 //! keep a name that the code has dropped. Numbers are not repeated here; the
 //! tables that hold them are in the manual already.
 
+use super::notes_chat::CHAT;
 use super::notes_pair::{NODE, OPERATOR};
 
 /// The notes of the verb `name`, one paragraph each.
@@ -17,6 +18,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "pipe" => PIPE,
         "node" => NODE,
         "operator" => OPERATOR,
+        "chat" => CHAT,
         "relay" => RELAY,
         "doctor" => DOCTOR,
         "status" => STATUS,

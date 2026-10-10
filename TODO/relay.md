@@ -109,7 +109,7 @@ that minted it".
 
 # T-058: `podssh relay status`, `info`, `spec` and `trace`
 
-**Source:** `crates/podssh-cli/src/positionals.rs:47-53` (the subcommands that the parser
+**Source:** `crates/podssh-cli/src/positionals.rs:49-55` (the subcommands that the parser
 declares); `docs/relay.md:286-292`; the tester of sandbox A, who used `curl` and a minted token
 on `/trace` (`report-podssh-sandbox-KTM-2026-10-08.txt`, outside the repository).
 **Category:** feature
@@ -160,7 +160,7 @@ token header (`crates/podssh-ws/src/client.rs:271-282`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags.rs:319-330`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags.rs:306-317`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:213-231` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
@@ -666,7 +666,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:110`,
    108-113, 122-132), the test of lines 365-377 at `22c3b88`, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:256-275`).
+   notes (`crates/podssh-cli/src/man/notes.rs:258-277`).
 
 ## Decision
 

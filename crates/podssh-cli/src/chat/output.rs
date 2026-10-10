@@ -1,6 +1,7 @@
 //! What the user sees: each message of the peer as a line of stdout, and each
 //! notice as a line of stderr; or, with `--jsonl`, each event as one JSON
-//! object on stdout. The peer's words are made safe for a terminal: no
+//! object on stdout, with the peer's words as they came. On a terminal, the
+//! peer's words are made safe by podssh's one definition of safe text: no
 //! control character and no direction override reaches it.
 
 use tokio::io::{AsyncWrite, AsyncWriteExt};
@@ -52,9 +53,9 @@ impl<W: AsyncWrite + Unpin> Output<W> {
     }
 }
 
-/// The peer's words, safe for a terminal: each control character and each
-/// direction override becomes U+FFFD.
+/// The peer's words, safe for a terminal, as each line that podssh prints
+/// from a peer: each control character and each direction override goes,
+/// and each run of whitespace is one space.
 pub fn safe(text: &str) -> String {
-    let unsafe_char = |c: char| c.is_control() || matches!(c, '\u{202a}'..='\u{202e}' | '\u{2066}'..='\u{2069}');
-    text.chars().map(|c| if unsafe_char(c) { '\u{fffd}' } else { c }).collect()
+    podssh_ws::text::one_line(text)
 }
