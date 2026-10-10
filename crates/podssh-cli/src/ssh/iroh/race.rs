@@ -153,6 +153,7 @@ pub(in crate::ssh) async fn connect(
     pair_file: Option<&str>,
     trust: &Trust,
     race_road: &Race,
+    ask: &crate::channel::Ask,
     opts: &podssh_ssh::options::Options,
     log: Arc<Log>,
 ) -> i32 {
@@ -171,6 +172,17 @@ pub(in crate::ssh) async fn connect(
         Ok(addr) => addr,
         Err(why) => {
             log.error(&why);
+            return EXIT_FAILURE;
+        }
+    };
+    // The channel of T-088, to the node that the ticket names, on whichever
+    // road wins: the node has one key for both.
+    let say_line = |line: String| log.info(&format!("{shown}: {line}"));
+    let ticket_key = podssh_iroh::keys::identity_key(&addr.id);
+    let channel = match ask.operator(crate::channel::Expect::Ticket(ticket_key), &say_line) {
+        Ok(channel) => channel,
+        Err(why) => {
+            log.error(&format!("{shown}: {why}"));
             return EXIT_FAILURE;
         }
     };
@@ -263,11 +275,30 @@ pub(in crate::ssh) async fn connect(
     };
     let note = |note: Note| say(layered::line_of(note));
     let (ssh_end, layer_end) = tokio::io::duplex(PIPE);
+    let me = channel.as_ref().map(|c| c.identity.clone());
+    let pin_say = {
+        let (log, shown) = (log.clone(), shown.clone());
+        move |line: String| log.info(&format!("{shown}: {line}"))
+    };
+    let (layer_app, session) = crate::channel::around(layer_end, channel, pin_say);
+    let session = async move {
+        match session {
+            Some(session) => session.await.err(),
+            None => None,
+        }
+    };
     let mut entropy = OsEntropy;
-    let (code, outcome) = tokio::join!(
+    let (code, outcome, failed) = tokio::join!(
         Box::pin(podssh_ssh::run(ssh_end, opts, None, log.clone())),
-        Box::pin(resume::run(client, layer_end, connect, note, &mut entropy))
+        Box::pin(resume::run(client, layer_app, connect, note, &mut entropy)),
+        session
     );
+    if let Some((_, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, me.as_deref())) {
+        log.error(&format!("{shown}: {why}"));
+        let _ = layered::last(&legs).await;
+        iroh.close().await;
+        return EXIT_FAILURE;
+    }
     if let (true, Some(why)) = (code == EXIT_FAILURE, layered::why_ended(outcome)) {
         log.error(&format!("{shown}: {why}"));
     }

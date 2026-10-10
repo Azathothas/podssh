@@ -69,6 +69,8 @@ struct Ready {
     /// The pair's road: the pair, and whether it came from the store; or
     /// why there is none.
     pair: Result<(Pair, bool), String>,
+    /// The end-to-end channel on both roads (T-088); off with `--no-e2e`.
+    e2e: bool,
 }
 
 fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
@@ -77,14 +79,9 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     let target = args.target.as_deref().ok_or("missing TARGET: the HOST:PORT that each session reaches")?;
     let (host, port) =
         crate::proxy::parse_target(Some(target), None).map_err(|why| Refusal::usage(format!("TARGET: {why}")))?;
-    let place = match (&args.iroh_key, args.iroh_ephemeral) {
-        (Some(_), true) => {
-            return Err(Refusal::usage("--iroh-ephemeral keeps the key in no file, and --iroh-key names one"))
-        }
-        (Some(file), false) => Place::File(file.into()),
-        (None, true) => Place::Ephemeral,
-        (None, false) => keys::node_place(&label),
-    };
+    // One key for both roads (T-087), by the flags' names of T-087 or T-163.
+    let flags = crate::node::key_flags(args)?;
+    let place: Place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
     // A bad flag is a usage error, a bad variable a configuration error.
     let relays = match podssh_iroh::relays::from_environment(args.iroh_relay.as_deref()) {
         Ok((relays, _)) => relays,
@@ -100,12 +97,12 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     };
     crate::pairs::online()?;
     let trust = crate::pairs::trust(args.ca_file.as_deref());
-    let allow = args.iroh_allow.as_ref().map(PathBuf::from);
-    Ok(Ready { label, host, port, place, allow, relays, trust, pair })
+    let allow = flags.allow;
+    Ok(Ready { label, host, port, place, allow, relays, trust, pair, e2e: !args.no_e2e })
 }
 
 async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, host, port, place, allow, relays, trust, pair } = ready;
+    let Ready { label, host, port, place, allow, relays, trust, pair, e2e } = ready;
     // The pair's road needs these after the iroh road has taken its own.
     let (label_text, host_pair, trust_pair) = (label.clone(), host.clone(), trust.clone());
     let target = podssh_ws::dial::authority(&host, port);
@@ -177,6 +174,21 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         writeln!(err, "podssh node: {label}: key {fingerprint}, the node iroh:{} ({kept})", keys::name(&key.public()));
     let _ = writeln!(err, "podssh node: {label}: ticket {}", ticket::of(&endpoint, &relay));
     let _ = writeln!(err, "podssh node: {label}: {}", who_may(allow.as_deref()));
+    // The channel of T-088 on both roads, with this node's key: a session
+    // made on one road may resume on the other, so each session has it. On
+    // the pair's road with no allowlist, each operator with the connect
+    // token comes in.
+    let channel = match e2e {
+        true => Some(crate::channel::node_end(
+            &label,
+            podssh_relay::identity::Identity::from_seed(&key.identity.seed()),
+            crate::channel::admit_of(allow.clone()),
+        )),
+        false => {
+            let _ = writeln!(err, "podssh node: {label}: no end-to-end channel (--no-e2e): the relay sees each byte");
+            None
+        }
+    };
 
     let say = move |line: String| eprintln!("podssh node: {label}: {line}");
     // A client needs the new ticket when the home relay changes.
@@ -188,12 +200,20 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         let say = say.clone();
         move |key: &PublicKey| admits(allow.as_deref(), key, &say)
     };
-    let open = move || {
-        let host = host.clone();
-        async move {
-            podssh_ws::dial::dial(&host, port, &ProxyChoice::FromEnvironment, DIAL_LIMIT)
-                .await
-                .map_err(|e| e.to_string())
+    // Each session of either road is a pipe (T-164): with the channel, TARGET
+    // is dialled once the operator's key is let in.
+    let open = {
+        let channel = channel.clone();
+        move || {
+            let (host, channel) = (host.clone(), channel.clone());
+            async move {
+                let dial = move || async move {
+                    podssh_ws::dial::dial(&host, port, &ProxyChoice::FromEnvironment, DIAL_LIMIT)
+                        .await
+                        .map_err(|e| e.to_string())
+                };
+                crate::channel::piped(channel, dial).await
+            }
         }
     };
     let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings() };
@@ -229,7 +249,8 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
             say: Some(&say_pair),
         };
         let tcp = TcpHandler { host: host_pair.clone(), port, timeout: DIAL_LIMIT };
-        let layered = Layered::with_keeper(tcp, crate::layered::settings(), budget, keeper.clone());
+        let piped = crate::channel::Piped { inner: Arc::new(tcp), channel: channel.clone() };
+        let layered = Layered::with_keeper(piped, crate::layered::settings(), budget, keeper.clone());
         let exit = Box::pin(reverse::run(&mut config, Arc::new(layered), until_stopped(stopped.clone()))).await;
         if let Some((_, why)) = crate::node::ended(&label_text, exit) {
             say(format!("the pair's road ended: {why}; the iroh road goes on"));
@@ -249,7 +270,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
 /// Who may connect, as the node starts.
 fn who_may(allow: Option<&std::path::Path>) -> String {
     let Some(path) = allow else {
-        return "no client may connect: --iroh-allow FILE names the client keys that may, one on each line".into();
+        return "no client may connect over the iroh road: --allow FILE names the client keys that may, one on each line".into();
     };
     match Allowlist::read(path) {
         Ok(list) if list.bad_lines().is_empty() => {
@@ -271,7 +292,7 @@ fn who_may(allow: Option<&std::path::Path>) -> String {
 fn admits(allow: Option<&std::path::Path>, key: &PublicKey, say: &impl Fn(String)) -> bool {
     let shown = keys::fingerprint(key);
     let Some(path) = allow else {
-        say(format!("refused the client key {shown}: no --iroh-allow file"));
+        say(format!("refused the client key {shown}: no --allow file"));
         return false;
     };
     match Allowlist::read(path) {

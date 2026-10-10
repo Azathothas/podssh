@@ -41,6 +41,10 @@ pub struct Carried {
     pub why: Option<String>,
     /// How the last leg ended, if it did in time.
     pub leg: Option<LegOutcome>,
+    /// What the end-to-end channel says of its failure (T-088): a refused
+    /// key, a changed node key, a message that failed its check. It says
+    /// more than the layer and the leg.
+    pub channel: Option<(crate::exitmap::Fault, String)>,
 }
 
 /// The layer's settings, with the replay buffer of `PODSSH_REPLAY_BUFFER`.
@@ -67,7 +71,7 @@ where
     let legs = Mutex::new(Some(first));
     let client = match client::start(link, Ask::New, settings(), &mut OsEntropy).await {
         Ok(client) => client,
-        Err(e) => return Carried { why: Some(e.to_string()), leg: last(&legs).await },
+        Err(e) => return Carried { why: Some(e.to_string()), leg: last(&legs).await, channel: None },
     };
     say(Line::Verbose(client.found().to_string()));
     if let Found::Layer { features, .. } = client.found() {
@@ -88,7 +92,35 @@ where
         outcome = &mut session => outcome,
         () = warn_of_expiry(expires_ms, say) => session.await,
     };
-    Carried { why: why_ended(outcome), leg: last(&legs).await }
+    Carried { why: why_ended(outcome), leg: last(&legs).await, channel: None }
+}
+
+/// [`carry`], with the end-to-end channel of T-088 around `app` (none with
+/// `--no-e2e`): the channel's session runs beside the layer, and its
+/// failure goes into [`Carried::channel`]. `pin_say` gets the line of a
+/// node's key pinned at its first sight.
+#[allow(clippy::too_many_arguments)]
+pub async fn carry_through<A>(
+    config: &OperatorConfig<'_>,
+    link: DuplexStream,
+    first: JoinHandle<LegOutcome>,
+    app: A,
+    expires_ms: Option<i64>,
+    say: &(dyn Fn(Line) + Sync),
+    channel: Option<crate::channel::Operator>,
+    pin_say: impl Fn(String) + Send + 'static,
+) -> Carried
+where
+    A: crate::channel::Bytes + 'static,
+{
+    let me = channel.as_ref().map(|c| c.identity.clone());
+    let (stream, session) = crate::channel::around(app, channel, pin_say);
+    let Some(session) = session else { return carry(config, link, first, stream, expires_ms, say).await };
+    let (mut carried, outcome) = tokio::join!(carry(config, link, first, stream, expires_ms, say), session);
+    if let Err(e) = outcome {
+        carried.channel = crate::channel::judged(&e, me.as_deref());
+    }
+    carried
 }
 
 /// What the layer says of a session that did not end well: `None` for a

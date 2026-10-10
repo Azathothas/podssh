@@ -417,9 +417,23 @@ commands. The rules behind them:
 - **The exit codes follow the faults of E24**
   (`crates/podssh-cli/src/exitmap.rs`): 69 for a relay or TARGET out of
   reach, a stopped pair, or a pair that another node serves; 77 for a
-  refused or expired pair; 78 for no stored pair, or a node that cannot
-  connect as it is set up; 70 for a fault of the node that the relay closed
-  (`1003`, `1009`).
+  refused or expired pair, a node key that differs from its pin or from
+  `--node-key`, and an operator key that the node's allowlist refuses; 78
+  for no stored pair, or a node that cannot connect as it is set up; 70 for
+  a fault of the node that the relay closed (`1003`, `1009`), or a failure
+  of the end-to-end channel.
+- **Each session runs the end-to-end channel** (T-088): Noise XX above the
+  resumable layer, on both roads, in which each end proves its key
+  (T-087). The node's key is `node-NAME.key` in the cache, or the file of
+  `--key`; `--ephemeral-key` keeps none. The node says its fingerprint as it
+  starts, and `--allow FILE` lets in only the operator keys of FILE, read
+  again for each session. A client's key is `client.key`, or the file of
+  `--client-key`. The operator pins the node's key at its first sight in
+  `known-nodes`, and refuses a changed key with both fingerprints; `--node-key
+  KEY` names the key instead, and reads and writes no pin. `--no-e2e`,
+  given at both ends, carries the bytes with no channel. A conflict of these
+  flags (`--key` with `--iroh-key`, `--node-key` with `--no-e2e`) is a usage
+  error (64), before anything is read.
 - **`--pair-file FILE`** uses a pair of the store's form, which must be a
   regular file of the user that nobody else can read, as ssh reads a key.
   The store is not used. For `operator` and `ssh node://NAME`, the operator's
@@ -429,15 +443,16 @@ commands. The rules behind them:
   session. Its codes are those of `node`. `ssh node://NAME` runs the SSH
   client over the same leg, and keeps the codes of OpenSSH (255).
 - **`node --iroh` needs no pair** (T-163, a build with the feature
-  `iroh`). NAME labels the node's key (`iroh-node-NAME.key` in the cache,
-  or the file of `--iroh-key`; `--iroh-ephemeral` keeps none). The node
-  prints its key and its ticket on stderr. A client's key gets in only from
-  the file of `--iroh-allow`; with no such file, none does. `ssh
-  iroh:TICKET` dials the ticket with this user's key (`iroh-client.key`, or
-  `--iroh-key`), prints the key when it is new and when a node refuses it,
-  and records the host key under `iroh:` and the node's key. A flag of the
-  iroh road with no `--iroh`, or `--iroh-key` with no iroh destination, is
-  a usage error (64); in a build without the feature, `--iroh` and an iroh
+  `iroh`). Its key is the node's key of each road (`--iroh-key` and
+  `--iroh-ephemeral` are `--key` and `--ephemeral-key` by their earlier
+  names). The node prints its key's fingerprint and its ticket on stderr. A
+  client's key gets in only from the file of `--allow` (or `--iroh-allow`);
+  with no such file, none does. `ssh iroh:TICKET` dials the ticket with this
+  user's key (`client.key`, or `--client-key`), prints its fingerprint when
+  it is new and when a node refuses it, and records the host key under
+  `iroh:` and the node's key in hex. `--iroh-relay` with no `--iroh`, and
+  the flags of the channel with a destination that is no podssh end, are
+  usage errors (64); in a build without the feature, `--iroh` and an iroh
   destination exit 70 and name the feature.
 - **`node --iroh` with a pair serves both roads** (T-164), with one keeper,
   and `ssh node://NAME --iroh-ticket TICKET` races them: the iroh road

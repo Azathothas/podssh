@@ -31,7 +31,7 @@ the rest is read. `bound` wraps only `TsNode::start` and `tcp_connect`
 (`crates/podssh-cli/src/ts.rs`, lines 207-221 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, lines 353-363 at `4c3b456`), not `node.status()`
 or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs`, line 289 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, line 344 at `4c3b456`). The
 module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs`, lines 9-14 at `4c3b456`),
-and `docs/cli.md:572-574` makes that a rule.
+and `docs/cli.md:587-589` makes that a rule.
 
 Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs`, lines 76-79 at `4c3b456`), whose reply
 waits in a queue until a map with the self node arrives
@@ -143,7 +143,7 @@ of an OpenSSH `ProxyCommand` (`crates/podssh-ts/src/pipe.rs`, lines 51-61 at `1e
 
 Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/src/pipe/relay.rs:94-108`),
 and a closed stdout is a clean end there (`crates/podssh-cli/src/pipe/relay.rs:197-201`) and in the rules
-(`docs/cli.md:550`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs`, lines 404-407 at `1ee321d`).
+(`docs/cli.md:565`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs`, lines 404-407 at `1ee321d`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
 (`docs/relay.md:186`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs`, lines 77-81 at `1ee321d`).
@@ -382,7 +382,7 @@ WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:141-147`)
 
 Read, at `0b6f4b8`: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs`
 lines 176-207), against the manual (`crates/podssh-cli/src/man/facts.rs:45-51`), the rule at
-`docs/target-environment.md:68-71` and `SECURITY.md:53-57`. A URL with no port means 80 in podssh
+`docs/target-environment.md:68-71` and `SECURITY.md:61-65`. A URL with no port means 80 in podssh
 (`crates/podssh-ws/src/dial.rs:70`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs`, lines
 39-41 at `0b6f4b8`).
 Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:78-79`).
@@ -399,7 +399,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:169-184`), so apply `NO_PROXY` for each host in
    the new function.
-4. Update `crates/podssh-cli/src/flags.rs:279-280`, `docs/tailscale.md:78-79` and
+4. Update `crates/podssh-cli/src/flags.rs:287-288`, `docs/tailscale.md:78-79` and
    `docs/STATUS.md:310` in the same commit.
 
 Added by T-102 (2026-10-10): the checks of each mode before the start already take `--ts-proxy`,
@@ -549,7 +549,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:310` and `crates/podssh-cli/src/man/notes.rs:360-385`.
+   `docs/tailscale.md`, `docs/STATUS.md:310` and `crates/podssh-cli/src/man/notes.rs:312-337`.
 
 ## Decision
 
@@ -801,7 +801,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:64`, `docs/tailscale.md:8-24` and
-   `crates/podssh-cli/src/man/notes.rs:360-385`.
+   `crates/podssh-cli/src/man/notes.rs:312-337`.
 
 ## Prove
 

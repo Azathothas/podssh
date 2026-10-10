@@ -87,6 +87,11 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
 /// operator's first message, this node's proof, then the operator's.
 pub async fn respond<T: AsyncRead + AsyncWrite + Unpin>(mut transport: T, me: &Identity) -> Result<Asked<T>, Error> {
     let mut state = builder(me)?.build_responder().map_err(noise)?;
+    // The node speaks first, as the operator does: a client of the layer
+    // waits for the far end's first byte before it sends (T-153), so a node
+    // with no layer that waited for the operator would wait for ever.
+    transport.write_all(MAGIC).await.map_err(Error::Io)?;
+    transport.flush().await.map_err(Error::Io)?;
     let mut message = Vec::new();
     within("the operator's first message of the channel", async {
         read_magic(&mut transport).await?;
@@ -99,7 +104,6 @@ pub async fn respond<T: AsyncRead + AsyncWrite + Unpin>(mut transport: T, me: &I
     state.read_message(&message, &mut payload).map_err(not_noise("the operator's first message"))?;
     let mut out = vec![0u8; MAX_MESSAGE];
     let n = state.write_message(&proof(me), &mut out).map_err(noise)?;
-    transport.write_all(MAGIC).await.map_err(Error::Io)?;
     write_frame(&mut transport, &out[..n]).await?;
     within("the operator's proof of its key", async { whole(read_frame(&mut transport, &mut message).await?) }).await?;
     let k = state.read_message(&message, &mut payload).map_err(not_noise("the operator's proof"))?;

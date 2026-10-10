@@ -124,6 +124,29 @@ Synchronous code (podbox) runs the node and the operator through
 session of the node as a reader and a writer, and an operator session runs
 over a reader and a writer, such as standard input and output.
 
+## The end-to-end channel
+
+Between two podssh ends, each session's bytes run the channel of T-088
+(`crates/podssh-relay/src/e2e/`) above the resumable layer, so the relay
+carries ciphertext. The legs keep their framing: the channel's bytes are the
+session's bytes.
+
+1. Each end sends `podssh-e2e/1` and a newline first, the node at once: a
+   client of the layer sends nothing before the far end's first byte.
+2. Then frames: a 2-byte length (big-endian) and one message of
+   `Noise_XX_25519_ChaChaPoly_SHA256`, 65535 bytes at most. The second and
+   third messages of the handshake carry their sender's Ed25519 key and its
+   signature of the sender's Noise static key.
+3. The node's first message after the handshake is its verdict: let in, or
+   refused (a key that is not in its allowlist, a target out of reach, or
+   another reason). The node dials TARGET only after it let the key in.
+4. Each later message is data, or the clean end of one direction; the
+   stream under the channel is shut when both directions ended. A stream
+   that ends with no such end is a cut. A message that fails its check ends
+   the session: the relay can drop, repeat, move or change one.
+5. `--no-e2e` at both ends carries the bytes as before; an end with the
+   channel refuses a peer without it, by the first bytes that it sends.
+
 ## Exit codes
 
 1. A session that never got `ready` never exits 0.

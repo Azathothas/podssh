@@ -31,11 +31,17 @@ pub enum Transport {
     /// The node of a pair, through the operator's leg of the reverse road
     /// (`node://NAME`, T-084); raced with its iroh road when `race` names
     /// one (T-164).
-    Node { label: String, pair_file: Option<String>, trust: Trust, race: Option<super::iroh::Race> },
+    Node {
+        label: String,
+        pair_file: Option<String>,
+        trust: Trust,
+        race: Option<super::iroh::Race>,
+        channel: crate::channel::Ask,
+    },
     /// A node over the iroh road (`iroh:TICKET`, T-163), with this client's
     /// key file when `--iroh-key` names one, and the relays to try after the
     /// ticket's (T-165).
-    Iroh { ticket: String, key: Option<String>, relays: Vec<String>, trust: Trust },
+    Iroh { ticket: String, key: Option<String>, relays: Vec<String>, trust: Trust, channel: crate::channel::Ask },
 }
 
 /// A command line, resolved.
@@ -132,10 +138,18 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         return Err("--iroh-ticket is for a node://NAME destination, whose pair it races with".into());
     }
     let iroh_road = iroh.is_some() || args.iroh_ticket.is_some();
-    for (flag, given) in [("--iroh-key", args.iroh_key.is_some()), ("--iroh-relay", args.iroh_relay.is_some())] {
-        if given && !iroh_road {
-            return Err(format!("{flag} is for an iroh:TICKET destination, or --iroh-ticket").into());
-        }
+    if args.iroh_relay.is_some() && !iroh_road {
+        return Err("--iroh-relay is for an iroh:TICKET destination, or --iroh-ticket".into());
+    }
+    // The channel's flags are for a destination of two podssh ends (T-087).
+    let channel = [
+        ("--client-key", args.client_key.is_some()),
+        ("--iroh-key", args.iroh_key.is_some()),
+        ("--node-key", args.node_key.is_some()),
+        ("--no-e2e", args.no_e2e),
+    ];
+    if let Some((flag, _)) = channel.iter().find(|(_, given)| *given).filter(|_| node.is_none() && iroh.is_none()) {
+        return Err(format!("{flag} is for a node://NAME or iroh:TICKET destination").into());
     }
     // The file's blocks for the host as typed (T-043): under the command
     // line, but for `User` and `Port`, which `user@host` and `host:PORT`

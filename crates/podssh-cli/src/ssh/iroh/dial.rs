@@ -21,13 +21,17 @@ const PIPE: usize = 256 * 1024;
 /// How long the endpoint may take to close after the session.
 const CLOSE_LIMIT: Duration = Duration::from_secs(3);
 
-/// A dial, set up: the dialer, its endpoint, how the node is shown, and
-/// this client's key as its allowlist names it.
+/// A dial, set up: the dialer, its endpoint, how the node is shown, this
+/// client's key as its allowlist names it, and the two keys of the
+/// end-to-end channel (T-088): this client's, and the one that the ticket
+/// names.
 pub(crate) struct Prepared {
     pub dialer: Dialer,
     pub endpoint: iroh::Endpoint,
     pub shown: String,
     pub fingerprint: String,
+    pub identity: Arc<podssh_relay::identity::Identity>,
+    pub node: podssh_relay::identity::PublicKey,
 }
 
 /// Set up the dial of the node of the ticket `text`: this client's key,
@@ -49,6 +53,7 @@ pub(crate) async fn prepare(
     };
     let key = keys::load(&place, &mut OsEntropy).map_err(|why| format!("{shown}: this client's key: {why}"))?;
     let fingerprint = keys::fingerprint(&key.public());
+    let node = keys::identity_key(&addr.id);
     let kept = key.path.as_ref().map(|p| p.display().to_string()).unwrap_or_default();
     if key.made {
         log.info(&format!(
@@ -82,7 +87,8 @@ pub(crate) async fn prepare(
     let through: Vec<String> = addr.relay_urls().map(ToString::to_string).collect();
     log.verbose(&format!("connecting to {shown} over the iroh road, through {}", through.join(", ")));
     let dialer = Dialer::new(endpoint.clone(), addr);
-    Ok(Prepared { dialer, endpoint, shown, fingerprint })
+    let identity = Arc::new(key.identity);
+    Ok(Prepared { dialer, endpoint, shown, fingerprint, identity, node })
 }
 
 /// What a session of the iroh road that failed says; nothing for a clean
@@ -94,7 +100,7 @@ pub(crate) fn why_failed(
     match carried {
         Err(Failure::Refused) => Some(format!(
             "the node refused this client's key {fingerprint}: it is not in the node's allowlist; the node's \
-             operator adds the key to the file of --iroh-allow"
+             operator adds the key to the file of --allow"
         )),
         Err(Failure::Failed(why)) => Some(why),
         Ok(outcome) => crate::layered::why_ended(outcome),
@@ -106,16 +112,18 @@ pub(super) async fn connect(
     key: Option<&str>,
     relays: &[String],
     trust: &Trust,
+    ask: &crate::channel::Ask,
     opts: &podssh_ssh::options::Options,
     log: Arc<Log>,
 ) -> i32 {
-    let Prepared { dialer, endpoint, shown, fingerprint } = match prepare(text, key, relays, trust, &log).await {
-        Ok(prepared) => prepared,
-        Err(why) => {
-            log.error(&why);
-            return EXIT_FAILURE;
-        }
-    };
+    let Prepared { dialer, endpoint, shown, fingerprint, identity, node } =
+        match prepare(text, key, relays, trust, &log).await {
+            Ok(prepared) => prepared,
+            Err(why) => {
+                log.error(&why);
+                return EXIT_FAILURE;
+            }
+        };
     let (ssh_end, layer_end) = tokio::io::duplex(PIPE);
     let say = |line: Line| match line {
         Line::Always(text) => log.info(&format!("{shown}: {text}")),
@@ -125,10 +133,31 @@ pub(super) async fn connect(
     let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings() };
     // The SSH client and the layer in one task: when the client closes its
     // end, the layer sends `CLOSE` on the link that it has.
-    let (code, carried) = tokio::join!(
+    // The channel of T-088, to the node that the ticket names.
+    let me = identity.clone();
+    let channel = ask.with(identity, crate::channel::Expect::Ticket(node));
+    let pin_say = {
+        let (log, shown) = (log.clone(), shown.clone());
+        move |line: String| log.info(&format!("{shown}: {line}"))
+    };
+    let (layer_app, session) = crate::channel::around(layer_end, channel, pin_say);
+    let session = async move {
+        match session {
+            Some(session) => session.await.err(),
+            None => None,
+        }
+    };
+    let (code, carried, failed) = tokio::join!(
         podssh_ssh::run(ssh_end, opts, None, log.clone()),
-        podssh_iroh::carry(&dialer, layer_end, settings, note)
+        podssh_iroh::carry(&dialer, layer_app, settings, note),
+        session
     );
+    if let Some((_, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, Some(&me))) {
+        log.error(&format!("{shown}: {why}"));
+        dialer.close().await;
+        let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
+        return EXIT_FAILURE;
+    }
     if let (true, Some(why)) = (code == EXIT_FAILURE, why_failed(carried, &fingerprint)) {
         log.error(&format!("{shown}: {why}"));
     }

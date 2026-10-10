@@ -254,6 +254,20 @@ The fault-injection harness in the gate (`scripts/interop-faults.sh`) tests
 layer 1. Layers 2 and 3 need it extended: latency, jitter, limited
 bandwidth, a changed address.
 
+### The end-to-end channel above layer 2 (T-088)
+
+When both ends run podssh, each session runs a Noise XX channel above layer 2
+(`crates/podssh-relay/src/e2e/`), on both roads: one handshake for a session,
+which a resume carries on, as the layer gives each byte once and in order.
+The relay sees the layer's records (offsets, acknowledgements, heartbeats) and
+ciphertext. A channel for each link, under the layer, lost: a handshake at each
+resume, with the resume's proof inside it, for nothing that the relay learns
+less. Each end proves its Ed25519 key of T-087 in the handshake: the Noise
+static key is derived from the key's seed and signed by it. The layer's own
+exchange (the resume secret, from X25519) stays unauthenticated: an active
+relay could take part in a resume, but it reads and writes ciphertext only,
+and each change that it makes ends the session.
+
 ### The records and the handshake of layer 2 (T-151)
 
 The layer is the `session` module of `podssh-relay`: sans-IO, but for its

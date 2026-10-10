@@ -8,11 +8,12 @@
 //! (T-163, `node_iroh`).
 
 use std::io::Write;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_relay::pair::Pair;
-use podssh_relay::reverse::{self, Exit, Layered, NodeConfig, Settings, TcpHandler, Wire};
+use podssh_relay::reverse::{self, E2e, Exit, Layered, NodeConfig, Settings, TcpHandler, Wire};
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
 
@@ -38,12 +39,20 @@ pub struct NodeArgs {
     pub plain: bool,
     /// Serve the iroh road, with no pair.
     pub iroh: bool,
-    /// The node's key file on the iroh road.
+    /// The node's key file, by its earlier name (T-163).
     pub iroh_key: Option<String>,
-    /// The file of the client keys that may connect over the iroh road.
+    /// The allowlist, by its earlier name (T-163).
     pub iroh_allow: Option<String>,
-    /// A key for this run only.
+    /// A key for this run only, by its earlier name (T-163).
     pub iroh_ephemeral: bool,
+    /// The node's key file, on each road (T-087).
+    pub key: Option<String>,
+    /// The operator keys that may come in, on each road (T-087).
+    pub allow: Option<String>,
+    /// A key for this run only.
+    pub ephemeral_key: bool,
+    /// No end-to-end channel (T-088).
+    pub no_e2e: bool,
     /// The iroh relays, in place of the variable and the table.
     pub iroh_relay: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
@@ -51,14 +60,10 @@ pub struct NodeArgs {
 
 /// Run the verb; returns the process exit code.
 pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
-    let iroh_only = [
-        ("--iroh-key", args.iroh_key.is_some()),
-        ("--iroh-allow", args.iroh_allow.is_some()),
-        ("--iroh-ephemeral", args.iroh_ephemeral),
-        ("--iroh-relay", args.iroh_relay.is_some()),
-    ];
-    if let Some((flag, _)) = iroh_only.iter().find(|(_, given)| *given).filter(|_| !args.iroh) {
-        return Refusal::usage(format!("{flag} is for the iroh road: add --iroh")).report("node", err);
+    // The key and the allowlist serve each road (T-087); the relays are the
+    // iroh road's alone.
+    if args.iroh_relay.is_some() && !args.iroh {
+        return Refusal::usage("--iroh-relay is for the iroh road: add --iroh").report("node", err);
     }
     if args.plain && args.iroh {
         let why = "--plain is for the pair's road: the iroh road always runs the resumable layer";
@@ -96,6 +101,32 @@ struct Ready {
     port: u16,
     trust: Trust,
     plain: bool,
+    /// The node's key, for the end-to-end channel; `None` with `--no-e2e`.
+    key: Option<podssh_relay::identity::file::Key>,
+    allow: Option<PathBuf>,
+}
+
+/// The node's key and allowlist, by their names of T-087 or of T-163.
+pub(crate) struct KeyFlags {
+    pub key: Option<String>,
+    pub ephemeral: bool,
+    pub allow: Option<PathBuf>,
+}
+
+/// The flags of the node's key and allowlist; each by one of its two names.
+pub(crate) fn key_flags(args: &NodeArgs) -> Result<KeyFlags, Refusal> {
+    let both = |a: &str, b: &str| Refusal::usage(format!("{a} and {b} are one flag by two names: give one"));
+    if args.key.is_some() && args.iroh_key.is_some() {
+        return Err(both("--key", "--iroh-key"));
+    }
+    if args.allow.is_some() && args.iroh_allow.is_some() {
+        return Err(both("--allow", "--iroh-allow"));
+    }
+    Ok(KeyFlags {
+        key: args.key.clone().or_else(|| args.iroh_key.clone()),
+        ephemeral: args.ephemeral_key || args.iroh_ephemeral,
+        allow: args.allow.as_ref().or(args.iroh_allow.as_ref()).map(PathBuf::from),
+    })
 }
 
 fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
@@ -104,6 +135,17 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     let target = args.target.as_deref().ok_or("missing TARGET: the HOST:PORT that each session reaches")?;
     let (host, port) =
         crate::proxy::parse_target(Some(target), None).map_err(|why| Refusal::usage(format!("TARGET: {why}")))?;
+    // The channel's flags are usage errors, said before anything is read.
+    let flags = key_flags(args)?;
+    if args.no_e2e && (flags.key.is_some() || flags.ephemeral || flags.allow.is_some()) {
+        return Err(Refusal::usage(
+            "--key, --ephemeral-key and --allow are the node's side of the end-to-end channel, which --no-e2e turns off",
+        ));
+    }
+    let place = match args.no_e2e {
+        true => None,
+        false => Some(crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?),
+    };
     crate::pins::apply(args.relay_addr.as_deref())?;
     let (pair, stored) = match &args.pair_file {
         Some(file) => (pairs::usable(pairs::from_file(file)?, &label)?, false),
@@ -111,11 +153,16 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     };
     pairs::online()?;
     let trust = pairs::trust(args.ca_file.as_deref());
-    Ok(Ready { label, pair, stored, host, port, trust, plain: args.plain })
+    // The key is made only once the node goes online.
+    let key = match place {
+        Some(place) => Some(crate::channel::load_node_key(&place)?),
+        None => None,
+    };
+    Ok(Ready { label, pair, stored, host, port, trust, plain: args.plain, key, allow: flags.allow })
 }
 
 async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, pair, stored, host, port, trust, plain } = ready;
+    let Ready { label, pair, stored, host, port, trust, plain, key, allow } = ready;
     let target = podssh_ws::dial::authority(&host, port);
     let proxy = ProxyChoice::FromEnvironment;
     // TARGET first: a node that cannot reach it would serve no session.
@@ -133,6 +180,14 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         pair.relay.host,
         pairs::utc(pair.expires_ms)
     );
+    // The channel of T-088: the node's key and who may come in, said now.
+    let channel = match key {
+        Some(key) => Some(crate::channel::node(&label, key, allow, err)),
+        None => {
+            let _ = writeln!(err, "podssh node: {label}: no end-to-end channel (--no-e2e): the relay sees each byte");
+            None
+        }
+    };
     // As the operator's lines, written from inside the node as they come.
     let say = |line: String| eprintln!("podssh node: {label}: {line}");
     let mut config = NodeConfig {
@@ -149,16 +204,24 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         say: Some(&say),
     };
     let tcp = TcpHandler { host, port, timeout: DIAL_LIMIT };
-    let exit = if plain {
-        // TARGET at `open`, its bytes as they come: an operator that does not
-        // speak the layer can use the node, and a lost leg ends the session.
-        Box::pin(reverse::run(&mut config, Arc::new(tcp), stop_signal())).await
-    } else {
-        // Each session runs the resumable layer (T-153): a client that loses
-        // its leg resumes the session on a new one, with the same connection
-        // to TARGET, which is dialled only after the layer's handshake.
-        let handler = Arc::new(Layered::new(tcp, crate::layered::settings(), reverse::layered::NODE_BUDGET));
-        Box::pin(reverse::run(&mut config, handler, stop_signal())).await
+    let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
+    // TARGET at `open` with no layer: an operator that does not speak the
+    // layer can use the node, and a lost leg ends the session. With the
+    // layer (T-153), a client that loses its leg resumes the session on a
+    // new one, with the same connection to TARGET, dialled only after the
+    // layer's handshake. The channel (T-088) runs above the layer, and
+    // reaches TARGET only once the operator's key is let in.
+    let exit = match (plain, channel) {
+        (true, None) => Box::pin(reverse::run(&mut config, Arc::new(tcp), stop_signal())).await,
+        (true, Some(node)) => Box::pin(reverse::run(&mut config, Arc::new(E2e::new(tcp, node)), stop_signal())).await,
+        (false, None) => {
+            let handler = Arc::new(Layered::new(tcp, settings, budget));
+            Box::pin(reverse::run(&mut config, handler, stop_signal())).await
+        }
+        (false, Some(node)) => {
+            let handler = Arc::new(Layered::new(E2e::new(tcp, node), settings, budget));
+            Box::pin(reverse::run(&mut config, handler, stop_signal())).await
+        }
     };
     finish(&label, exit, err)
 }

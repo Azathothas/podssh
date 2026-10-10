@@ -9,9 +9,12 @@
 mod stand_in;
 
 use std::io::{Read, Write};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use podssh_relay::blocking::{Client, Config, Local, NodeOptions, Operator, Stopper};
+use podssh_relay::blocking::{Client, Config, Local, NodeChannel, NodeOptions, Operator, OperatorChannel, Stopper};
+use podssh_relay::e2e::ends;
+use podssh_relay::identity::{Identity, KeyName};
 use podssh_relay::relay::{Relay, RelayList, DEFAULT_RELAY_HOST};
 use podssh_relay::reverse::{Exit, Outcome};
 use stand_in::{pipe, Shared};
@@ -55,14 +58,23 @@ fn a_node_and_two_operator_sessions_at_once_through_the_facade() {
     // The operator's side holds the name and the connect token, as an
     // operator file does.
     let (name, connect) = (pair.name.clone(), pair.connect_token().to_string());
-    let to = Operator::new(&relay, &name, &connect);
+    // The end-to-end channel, with keys of the test's own, kept in no file.
+    let node_key = Arc::new(Identity::from_seed(&[0x4e; 32]));
+    let to = Operator::new(&relay, &name, &connect).with_channel(OperatorChannel::With {
+        identity: Arc::new(Identity::from_seed(&[0x4f; 32])),
+        node: KeyName::Key(node_key.public()),
+    });
+    let options = NodeOptions {
+        channel: NodeChannel::With(ends::Node::open_to_all(node_key, Arc::new(|_: String| {}))),
+        ..NodeOptions::default()
+    };
     let stopper = Stopper::new();
     let echo = |_: &str| {
         let (reader, writer) = pipe();
         Ok(Local::new(reader, writer))
     };
     std::thread::scope(|s| {
-        let node = s.spawn(|| client.run_node(&mut pair, echo, &NodeOptions::default(), &stopper));
+        let node = s.spawn(|| client.run_node(&mut pair, echo, &options, &stopper));
         std::thread::sleep(Duration::from_secs(2));
         let sessions: Vec<_> = [1u8, 2]
             .into_iter()

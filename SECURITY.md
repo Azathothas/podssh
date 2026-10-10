@@ -35,6 +35,14 @@ only after the key exchange. Thus the strict key exchange (the fix for
 Terrapin, CVE-2023-48795) is important when a relay is in the path. russh
 uses it.
 
+Between two podssh ends (a node and its operator, on either road), each
+session runs the end-to-end channel (T-088): Noise XX above the resumable
+layer. The relay then sees the layer's records (offsets, acknowledgements,
+heartbeats), ciphertext, and the time and the volume. It can still drop,
+delay, repeat or change a frame, but each such fault ends the session: it
+cannot read a byte, or change one unseen. `--no-e2e`, given at both ends,
+turns the channel off.
+
 The host-key check makes a relay in the middle safe:
 
 - podssh refuses an unknown host key unless you accept it;
@@ -78,6 +86,19 @@ Each rule is implemented.
   build with the feature `iroh`, binds UDP for its direct paths only after
   a probe allows it; with no UDP, its relay carries each byte, and a peer
   is accepted only with the ALPN of podssh's sessions.
+- **Each end of a road between two podssh ends proves its key** (T-087).
+  A node has one Ed25519 key for each label and a client one for each user,
+  in the private files of the cache, the same on each road; a key is shown
+  by its SHA256 fingerprint, as OpenSSH shows one. The channel's Noise key
+  is derived from the key and signed by it, so the handshake proves the key
+  itself. An operator pins a node's key at its first sight (`known-nodes`)
+  and refuses a key that differs, with both fingerprints, the file and the
+  line; it never replaces a pin. `--node-key` and an iroh ticket name the
+  key instead. The operator checks the node's key before it proves its
+  own. A node with `--allow` lets in only the keys of its allowlist, read
+  for each session, and dials its target only after it let the key in. No
+  end falls back to plain text: one with the channel refuses a peer
+  without it.
 - **A node of the iroh road lets in only the keys of its allowlist.** Its
   ticket is an address, not a credential, so it may go on a command line.
   Each end's key is its identity, in a private file that podssh makes once
@@ -110,3 +131,9 @@ security:
   key in its own process (T-257, [TODO/ssh.md](TODO/ssh.md)). The check of a
   server's RSA certificate uses only the public key.
 - The IRC client sends plain text through the relay. No command uses it yet.
+- The first session to a node trusts the key that answers (trust on first
+  use): a relay in the middle of that first session could have its own key
+  pinned. Compare the fingerprint that the node says as it starts, or give
+  it with `--node-key`; an iroh ticket names the key (T-087).
+- The end-to-end channel is podssh's own framing over the `snow` crate. No
+  third party has audited it (T-088).

@@ -29,6 +29,17 @@ pub async fn open(label: &str, args: &SshArgs, say: &mut dyn FnMut(&str)) -> Res
         say(&format!("{shown}: {}", refusal.message));
         refusal.code
     };
+    // The channel of T-088: this client's key, and the node's by the pins of
+    // the label or by --node-key.
+    let ask = match crate::channel::Ask::of(
+        args.client_key.as_deref(),
+        args.iroh_key.as_deref(),
+        args.node_key.as_deref(),
+        args.no_e2e,
+    ) {
+        Ok(ask) => ask,
+        Err(why) => return Err(refused(say, Refusal::usage(why))),
+    };
     let part = match crate::pairs::operator_part(label, args.pair_file.as_deref()).and_then(|part| {
         crate::pairs::online()?;
         Ok(part)
@@ -37,6 +48,11 @@ pub async fn open(label: &str, args: &SshArgs, say: &mut dyn FnMut(&str)) -> Res
         Err(refusal) => return Err(refused(say, refusal)),
     };
     let trust = crate::pairs::trust(args.ca_file.as_deref());
+    let say_line = |line: String| eprintln!("podssh pipe: {shown}: {line}");
+    let channel = match ask.operator(crate::channel::Expect::Pinned(label.to_string()), &say_line) {
+        Ok(channel) => channel,
+        Err(why) => return Err(refused(say, Refusal::config(why))),
+    };
     let (ours, theirs) = tokio::io::duplex(PIPE);
     let (started, has_started) = oneshot::channel();
     let (task_label, task_shown) = (label.to_string(), shown.clone());
@@ -69,7 +85,11 @@ pub async fn open(label: &str, args: &SshArgs, say: &mut dyn FnMut(&str)) -> Res
                 eprintln!("podssh pipe: {task_shown}: {text}");
             }
         };
-        Some(crate::layered::carry(&config, link, leg, theirs, Some(part.expires_ms), &say).await)
+        let pin_shown = task_shown.clone();
+        let pin_say = move |line: String| eprintln!("podssh pipe: {pin_shown}: {line}");
+        let carried =
+            crate::layered::carry_through(&config, link, leg, theirs, Some(part.expires_ms), &say, channel, pin_say);
+        Some(carried.await)
     });
     match has_started.await {
         Ok(Ok(())) => {

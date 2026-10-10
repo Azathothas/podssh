@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:231`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:132-134`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:155-157`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:73-134`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:73-157`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:129-134`).
+   the code and the reason (`docs/reverse.md:152-157`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:541`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:556`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:316`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -882,13 +882,13 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 `PODSSH_OFFLINE`); `podssh ssh -T node://lab true` gives `"//lab" is not a port` and exit 64.
 
 Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/hop.rs:29-77`).
-`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-39`, chosen at `:276-321`).
+`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-45`, chosen at `:290-335`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:189-195`); the
 operator leg receives text frames (`docs/relay.md:259-262`). A host key is recorded under the target
-host, never the relay's name (`SECURITY.md:64-69`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:361`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:537-541`).
+host, never the relay's name (`SECURITY.md:72-77`); `HostKeyAlias` exists
+(`crates/podssh-cli/src/ssh/resolve.rs:375`). `podssh ssh` uses the exit codes of OpenSSH, and
+`podssh proxy` sysexits (`docs/cli.md:552-556`).
 
 ## Approach
 
@@ -896,21 +896,21 @@ host, never the relay's name (`SECURITY.md:64-69`); `HostKeyAlias` exists
    `operator::run` (T-080) on stdin and stdout: a byte pipe as `podssh proxy`
    (`crates/podssh-cli/src/pipe/relay.rs:86-205`). stdout carries data only; never 0 without `ready`.
 2. `podssh ssh node://[user@]NAME`: `parse_hop` reads `node://` as it reads `ssh://`; add
-   `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:23-39`).
+   `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:23-45`).
 3. For a node, `connect_and_run` opens the operator leg and waits for `ready` (T-080), then gives
    russh the raw stream. Do not give the leg to `relay_stream::spawn` as it is: reuse its pump after
    `ready`, with text frames read as control.
 4. Host keys: record and check the node's key under the name `node://NAME`, which no DNS name can be;
    `-o HostKeyAlias` still wins.
 5. Refuse by name a node as a `-J` hop, and `-W` through a node; record them for later.
-6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-245`,
+6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-251`,
    lines 418-419 at `3cbf215`). Update the manual's examples and notes, `docs/cli.md` (lines 62-75 at `3cbf215`) and `docs/reverse.md`.
 
 ## Decision
 
 Recommendation: `node://[user@]NAME`, read as `ssh://` is (`crates/podssh-cli/src/ssh/hop.rs:34`),
 because it changes no destination that works today (measured above). The alternative `node:NAME`, the
-address form of `podssh pipe` (`docs/design.md:413`), lost: `podssh ssh node:22` already means host
+address form of `podssh pipe` (`docs/design.md:427`), lost: `podssh ssh node:22` already means host
 `node`, port 22. A flag such as `--node NAME` lost: `podssh ssh` takes its destination as a word, as
 OpenSSH does.
 
@@ -1130,7 +1130,7 @@ verified here.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1145,7 +1145,7 @@ Read: credentials are HMAC tokens scoped to a name and a role, issued by the rel
 over a trusted channel (`:137-138`); the node chooses what to expose (`:245-246`).
 
 Read: `podssh ssh` checks host keys with `known_hosts`, and never records one under the relay's name
-(`SECURITY.md:38-42`, `:64-69`). `podssh serve` keeps its host key in a state file and takes
+(`SECURITY.md:46-50`, `:72-77`). `podssh serve` keeps its host key in a state file and takes
 authorized keys from a flag or a file (`docs/ROADMAP.md:177-182`, T-107).
 
 Read in the reports (not verified here): iroh-ssh warns about an ephemeral node key
@@ -1153,7 +1153,7 @@ Read in the reports (not verified here): iroh-ssh warns about an ephemeral node 
 default-deny allowlist (`arjun988/GPU-Share:crates/gpumesh-core/src/node.rs`); warren pins a key on
 first sight, has `trust NAME --expect FINGERPRINT` and revocation, and exits 7 on a mismatch
 (`willykeenan/warren:src/cli.rs`); zuko stores device authorization for each peer
-(`adonm/zuko:src/store.rs`). iroh identifies endpoints by Ed25519 keys (`docs/design.md:440-442`).
+(`adonm/zuko:src/store.rs`). iroh identifies endpoints by Ed25519 keys (`docs/design.md:454-456`).
 
 ## Approach
 
@@ -1236,32 +1236,58 @@ fail. Live: a second node with another key under the same label is refused by th
 
 ## Done
 
-Partial, 2026-10-10: the plan is the Decision, with T-088, whose channel carries this entry's
-proof; the two are built together.
-- Built: the identity of each end, `crates/podssh-relay/src/identity/` (no C). The key files of
-  T-163 moved there from `podssh-iroh`, named `node-LABEL.key` and `client.key`, with the names of
-  T-163 still read; a key is shown by its SHA256 fingerprint, the one that OpenSSH 10.3p1 gives;
-  a key is read in iroh's hex and base32; the Noise key is derived from the seed and signed by the
-  identity; a node's allowlist takes keys or fingerprints, read again for each session; an
-  operator's pins are in `known-nodes`. The iroh road runs on them: the same key files, a key
-  shown by its fingerprint and taken by its allowlist, and the node's name `iroh:` and its hex
-  kept in the known hosts. `cargo test -p podssh-relay --test identity --test identity_file`: 16
-  passed on Windows (two more run on Unix only), each check failing on its planted defect (the
-  fingerprint, base32's last bits, the signature, a changed pin, the allowlist, T-163's names);
-  `cargo test -p podssh-iroh --test keys --test tickets` and the iroh road's tests of the command
-  line pass.
-- Next: the command line (`--allow`, `--node-key`, `--key`, `--no-e2e`), the pins of an operator,
-  the allowlist on the pair's road, the exits, the manual and the documents; the live test.
-
+2026-10-10, built with T-088, whose channel carries the proof, in `8e31960` (the libraries) and the
+commit that closes this entry (the ends of `podssh`). The identity of each end is
+`crates/podssh-relay/src/identity/` (no C): one Ed25519 key for each role, the key files of T-163
+moved from `podssh-iroh` and named `node-LABEL.key` and `client.key`, with the names of T-163 still
+read; a key shown by its SHA256 fingerprint, as OpenSSH shows one; a node's allowlist of keys or
+fingerprints (`--allow`, read again for each session); an operator's pins (`known-nodes`: the first
+sight pins, a changed key is refused with both fingerprints, the file and the line, and no pin is
+replaced). In `podssh`: `node --key`, `--ephemeral-key`, `--allow` (with the flags of T-163 as their
+other names, now of each road), and `--no-e2e`; `operator`, `ssh node://`, `ssh iroh:` and `pipe
+node:`/`iroh:` take `--client-key`, `--node-key` and `--no-e2e`; an iroh ticket names the node's key
+on its paths. A changed node key and a refused operator key exit 77 (`operator`, `pipe`) and 255
+(`ssh`); a conflict of the flags is a usage error, 64, before anything is read. The node says its
+key's fingerprint as it starts, and each operator's key as it comes in or is refused. The facade for
+podbox has the same, on by default (`NodeChannel`, `OperatorChannel`). The manual, `docs/cli.md`,
+`SECURITY.md` and `docs/STATUS.md` say so.
+- Native, Windows 11: `cargo test -p podssh-relay --test identity --test identity_file`: 16 passed
+  (two more run on Unix only): the fingerprint of a throwaway key equal to OpenSSH 10.3p1's
+  `ssh-keygen -lf`; iroh's hex and base32; the Noise key derived and signed; the allowlist read
+  again; the pins. `cargo test -p podssh-cli --test channel_cli`: 5 passed: each conflict of the
+  flags is 64 and makes no key; a node key that differs is refused with both keys; each failure of
+  the channel has its exit. The refusals of the channel, with no byte of the target, are T-088's
+  tests (`a_node_lets_in_only_its_allowlist_and_its_target_sees_no_one_else`). Planted, each check
+  fails its test: the fingerprint's encoding, base32's last bits, the signature, a changed pin
+  taken, the allowlist skipped, T-163's names not read, the node's admission skipped, a refused key
+  exiting 70, a conflict of the flags let through, a named key not checked.
+- Live, the live relay: `cargo test -p podssh-relay --features pair --test reverse_live --
+  --ignored a_changed_node_key_is_refused`: a first node's key pinned at its first sight; a second
+  node with another key under the same pair refused, the line naming both fingerprints and the pin's
+  file and line, and the second node's handshake ended before the operator's proof. `cargo test -p
+  podssh-cli --test node_live -- --ignored node_command_serves_a_tcp_target`: GitHub's SSH banner
+  through `podssh node`, to an operator that expected the key that the node said; planted, the
+  channel dropped at the operator, the banner was the node's magic and nothing of the target. By
+  hand, the binaries through railway.new: `ssh node://` pinned the node's key and logged in through
+  the node; `podssh operator` read the SSH banner and exited 0 (railway.new then refused anonymous
+  trials, "temporarily disabled", so `node_live`'s `ssh_to_a_node` could not check `exit 3`; it now
+  names that refusal).
+- `cargo test --workspace --no-fail-fast`: 1257 passed, 0 failed, 41 ignored. With the
+  iroh road: 446 passed, 0 failed, 29 ignored. clippy with `-D warnings`, default, with
+  the iroh road and with `ts`: no warning.
+- CI's gate at `8e31960` (run 38057438513): its step `libs` built and tested the library crates with
+  `CC=/nonexistent` in the build image, the tests of the identity on Linux with them (the key file's
+  mode 0600, an allowlist that others can change refused); `msrv` checked Rust 1.85. The push of
+  this commit runs the gate again.
 # T-088: End-to-end encryption between two podssh ends
 
 **Source:** GitHub #18 (report on warren; read in the report, not verified here);
-`docs/design.md:601-607`, `:620-624`.
+`docs/design.md:615-621`, `:634-638`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** L
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1275,8 +1301,8 @@ Read: the relay sees the target, the time and volume of the traffic, and the sta
 connection; after the key exchange it sees only ciphertext (`SECURITY.md:21-31`). It can drop, delay
 or add frames (`SECURITY.md:33-36`).
 
-Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:601-607`);
-for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:623-625`).
+Read: the road between two podssh ends carries SSH, `cp`, `pipe` and chat (`docs/design.md:615-621`);
+for chat, the operator chose the roads, end to end encrypted, after M6 (`docs/design.md:637-639`).
 The resumable layer of M6 runs under SSH (`docs/design.md:220-232`).
 
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
@@ -1362,28 +1388,44 @@ the live test runs one session through the real relay.
 
 ## Done
 
-Partial, 2026-10-10: the plan is the Decision; built with T-087, whose keys it proves.
-- Built: the channel, `crates/podssh-relay/src/e2e/`: Noise XX through `snow` 0.10 with
-  ChaChaPoly, SHA-256 and Curve25519 only (`cargo tree -p podssh-relay -i ring` prints nothing, and
-  `CC=/nonexistent cargo build -p podssh-relay --features blocking,plain-ws` passes); each end's
-  proof of its key; the node's verdict; data and the clean end of each direction, with the
-  half-close of TCP, which the layer alone does not give; a node's end, which reaches its target
-  only once the operator's key is let in, and an operator's, which checks the node's key before it
-  proves its own; `podssh_relay::reverse::E2e`, a node's handler over another.
-  `cargo test -p podssh-relay --features pair --test e2e --test e2e_faults --test e2e_layered`: 17
-  passed, and 10 runs in a row: snow, set up with the channel's pattern, gives the cacophony
-  vector; 3 MiB through a stand-in relay that recorded no plain text; a changed bit, a dropped, a
-  repeated and a moved frame, and a cut, each end the session with no byte of the bad frame given
-  on; an operator that refuses the node's key says nothing of its own; a node's refusals cost its
-  target no connection; a peer with no channel is refused at both ends; a replayed proof of another
-  key is refused; 8 MiB each way above the layer through cut links, with one handshake and one
-  connection to the target. Planted, each check fails its test: the tag's check skipped (a bad
-  frame passed over), the signature's check skipped, the operator's check skipped, a cut taken for
-  an end, the node's admission skipped, the magic not checked.
-- Next: the channel in each end of `podssh` (`node`, `operator`, `ssh node://`, `pipe node:`, the
-  race of the roads, the iroh road, the facade), on by default with `--no-e2e`; `docs/design.md`
-  (section 5), `SECURITY.md` and `docs/reverse.md`; the live test.
-
+2026-10-10, built with T-087, in `8e31960` (the libraries) and the commit that closes this
+entry. The channel is `crates/podssh-relay/src/e2e/`: Noise XX through `snow` 0.10 with ChaChaPoly,
+SHA-256 and Curve25519 only (no `ring`, no `cc` in the tree); each end sends its magic first, the
+node at once; the handshake with each end's proof of its key; the node's verdict (let in, or
+refused: not allowed, no target, other); data, and the clean end of each direction, with the stream
+shut when both ended (the half-close of TCP, which the layer alone lacks); a cut is never an end.
+It runs above the resumable layer, one handshake for each session (`docs/design.md`, section 5),
+on both roads: the node's handler `podssh_relay::reverse::E2e`, and in `podssh` each session of the
+node is a pipe whose channel reaches TARGET once the operator's key is let in, on the iroh road too,
+as one keeper serves both. Each client of a node runs it: `operator`, `ssh node://` (and its race),
+`ssh iroh:`, `pipe node:` and `pipe iroh:`, and the facade. On by default; `--no-e2e` at both ends
+turns it off, and an end with the channel refuses a peer without it. `docs/reverse.md`,
+`SECURITY.md`, the manual and `docs/STATUS.md` say so.
+- Native, Windows 11: `cargo test -p podssh-relay --features pair --test e2e --test e2e_faults --test
+  e2e_layered`: 19 passed, and 10 runs in a row: the cacophony vector of
+  `Noise_XX_25519_ChaChaPoly_SHA256`; 3 MiB through a stand-in relay that recorded no plain text; a
+  changed bit, a dropped, a repeated and a moved frame, and a cut, each ending the session with no
+  byte of the bad frame given on; a wrong node key refused before this end's proof; a replayed proof
+  of another key refused; a peer with no channel refused at both ends; a stream that ends before the
+  peer's magic is a cut, so the road's reason is said (the iroh road's suite found the defect: a
+  client that the node's allowlist refused was told that the node spoke no channel); the node speaks
+  first; 8 MiB
+  each way above the layer through cut links, with one handshake and one connection to the target.
+  `cargo test -p podssh-cli --test node_plain`: a node with no layer and the channel, through the
+  stand-in relay of the tests, in 2 s (before the node spoke first, the layer's client and the node
+  waited for each other for 30 s). `cargo tree -p podssh-relay -i ring` prints nothing, and
+  `CC=/nonexistent cargo build -p podssh-relay --features blocking,plain-ws` passes. Planted, each
+  check fails its test: the tag's check skipped (a bad frame passed over), the signature's check
+  skipped, the operator's check skipped, a cut taken for an end, the admission skipped, the magic
+  not checked, the node silent first, an end before the magic taken for a peer with no channel.
+- Live, the live relay: `cargo test -p podssh-relay --features pair --test reverse_live -- --ignored
+  e2e_through_the_live_relay`: 1 MiB each way over the channel, a clean close. `--features blocking
+  --test blocking_live -- --ignored`: the facade's node and two operator sessions at once over the
+  channel, 1 MiB each way. The binaries: see T-087.
+- The gate, as `sh scripts/dev.sh check` runs it, passed in CI at `8e31960` (run 38057438513): the
+  step `libs` built and tested `podssh-relay` with the channel and `snow` with `CC=/nonexistent` in
+  the build image, `msrv` checked it on Rust 1.85, and `plant` still failed on a planted C crate.
+  The push of this commit runs the gate again.
 # T-089: A node offers several named targets, each with its own grant
 
 **Source:** GitHub #19 (report on syq) and GitHub #18 (report on warren); read in the reports, not
@@ -1537,7 +1579,7 @@ Measured: `grep -rni sshsig crates scripts docs Cargo.toml` finds nothing (exit 
 tests of primitives (`crates/podssh-ws/tests/crypto_vectors.rs:125-159`,
 `crates/podssh-ws/tests/signatures.rs:29-163`); the comment's `crypto_vectors.rs:192` is not one. Read: the
 issue's "rule 8" is rule 6 (`docs/architecture.md:124-126`), and its "section 2" sentence about an allowlist of
-keys is in section 7 (`docs/design.md:564-565`). Read in the report (not verified here): syq signs a grant in a
+keys is in section 7 (`docs/design.md:578-579`). Read in the report (not verified here): syq signs a grant in a
 fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and `fsync` (lines 55 at `22c3b88` and
 1416-1492 of `greaber/syq:src/delegation.rs`). The reporter's correction: a signed grant leaks as a token does
 (lines 11-12 at `22c3b88`); signing buys scope, single use and non-repudiation, not safety after a leak.
@@ -1545,7 +1587,7 @@ fixed namespace and redeems it at most once with `flock`, `O_EXCL`, `linkat` and
 Read, what a leaked token gives today. `connect_token`: sessions to the node; an SSH server's own
 authentication still stands, but a raw TCP TARGET (T-083) has no other gate. `node_token`: an impersonated node
 while the real one is away (one socket for each name, and a new node gets the new sessions: `:152-156` of the
-contract); for SSH, the operator's host-key check finds it (`SECURITY.md:38-42`). `stop_token`: a denial of
+contract); for SSH, the operator's host-key check finds it (`SECURITY.md:46-50`). `stop_token`: a denial of
 service; the node, its sessions and the pair end (`docs/relay.md:270-274`).
 
 ## Approach
@@ -1685,7 +1727,7 @@ session through a node loses a link that it need not lose.
 - Measured: CI's step `m6` at `a220c13` failed in that test with `relay close 1011: node
   unavailable`; the step had passed at each push since T-156.
 - Read: `podssh node` prints its `serving` line after its probe of TARGET, before its socket to
-  the relay opens (`crates/podssh-cli/src/node.rs:130-135`), and the tests waited for that line
+  the relay opens (`crates/podssh-cli/src/node.rs:177-182`), and the tests waited for that line
   (`crates/podssh-cli/tests/m6_exit.rs:99`, `crates/podssh-cli/tests/node_plain.rs:45`,
   `crates/podssh-cli/tests/pipe_remote.rs:198`).
 - Measured, native, 2026-10-10: on a host at 42 % of its CPU, the control lost a link in each of

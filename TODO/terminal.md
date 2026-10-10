@@ -688,7 +688,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
    pty, serve with the line discipline), list the bytes that podssh acts on,
    the bytes that it refuses, and say that each other byte passes unchanged.
 2. Put the same list in the manual's notes for `ssh`
-   (`crates/podssh-cli/src/man/notes.rs:6-26`), and for `serve` when it
+   (`crates/podssh-cli/src/man/notes.rs:8-28`), and for `serve` when it
    exists.
 3. A drift test: each escape command of `crates/podssh-ssh/src/escape.rs:8-13`
    is in the note, and the note names no other.

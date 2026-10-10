@@ -1279,7 +1279,7 @@ warning, and the gate checks the format and the lints".
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
-(`docs/design.md:445-447`) show that a dependency can get one.
+(`docs/design.md:459-461`) show that a dependency can get one.
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -2217,7 +2217,7 @@ Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
 
 Read: `libc` (line 44) is used only in code under `cfg(unix)`
 (`crates/podssh-cli/src/ssh/tokens.rs:164`, `crates/podssh-cli/src/ssh/tokens.rs:181`,
-`crates/podssh-cli/src/ssh/resolve.rs:103`,
+`crates/podssh-cli/src/ssh/resolve.rs:109`,
 the module of `crates/podssh-cli/src/doctor/unix.rs`). T-060 decides whether a
 command uses `podssh-probe`.
 

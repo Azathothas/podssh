@@ -293,6 +293,10 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             iroh_key: get("iroh-key"),
             iroh_allow: get("iroh-allow"),
             iroh_ephemeral: matches.get_flag("iroh-ephemeral"),
+            key: get("key"),
+            allow: get("allow"),
+            ephemeral_key: matches.get_flag("ephemeral-key"),
+            no_e2e: matches.get_flag("no-e2e"),
             iroh_relay: get("iroh-relay"),
             refused,
         }));
@@ -316,6 +320,9 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
             pair_file: get("pair-file"),
+            client_key: get("client-key"),
+            node_key: get("node-key"),
+            no_e2e: matches.get_flag("no-e2e"),
             refused,
         }));
     }

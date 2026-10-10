@@ -143,7 +143,7 @@ Read, a related gap that the former defects page did not list: `Classified::mess
 for a matched row, never the received reason (crates/podssh-transport/src/closes.rs at `e8bbd4d` lines
 119-150). The test that says the reason survives only checks that the message is not empty
 (crates/podssh-transport/tests/closes.rs at `e8bbd4d` lines 255-258). The rules want the code and the reason
-(`docs/relay.md:192-200`, `docs/reverse.md:132-134`).
+(`docs/relay.md:192-200`, `docs/reverse.md:155-157`).
 
 ## Approach
 
@@ -447,7 +447,7 @@ Read: the contract: `403 missing or wrong token` needs a new token; a `403` that
 is a policy refusal; `503` means that the relay does not issue or check tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:116-119`). On
 the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:174-176`),
-also after `POST /v1/stop` (`docs/reverse.md:145-147`). A `409` from `/v1/pair` means "pair again"
+also after `POST /v1/stop` (`docs/reverse.md:168-170`). A `409` from `/v1/pair` means "pair again"
 (`docs/relay.md:230-232`); a `409` on `/v1/node/<name>` means "exit" (docs/reverse.md, line 19 at `fb228e9`; since T-261, only at a node's first registration).
 
 Read: the forward path already follows the contract in `podssh-relay`. It mints once again after a
@@ -469,7 +469,7 @@ lines 53-76 at `4b6e917`, and the test at line 300 at `4b6e917`).
 4. Update crates/podssh-transport/tests/closes.rs at `e8bbd4d` (lines 129-149) and the texts of
    crates/podssh-transport/src/error.rs at `e8bbd4d` (lines 170-184). Close this entry in place.
 5. Pitfall: the body comes from the network. Keep it out of format strings and remove control
-   characters before it reaches a terminal (`SECURITY.md:60-63`).
+   characters before it reaches a terminal (`SECURITY.md:68-71`).
 
 ## Decision
 

@@ -44,7 +44,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,
             "The command is not implemented yet, or podssh failed inside. podssh node and operator: the \
-             relay closed the node or the session for a fault (1003, 1008 or 1009). podssh cp and mv: the \
+             relay closed the node or the session for a fault (1003, 1008 or 1009), or the end-to-end \
+             channel failed (a peer with no channel, a message that failed its check). podssh cp and mv: the \
              digests of a copy differ, or the session broke; the destination was not changed. podssh mv: \
              the copy is verified and its source could not be removed; the data is in both places.",
         ),
@@ -56,8 +57,10 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             sysexits::EX_NOPERM,
             "podssh proxy: the relay or the proxy refused (a token, a blocked address, a proxy's 403 or 407). \
-             podssh node, operator and relay: the relay refused the pair, or the pair expired. podssh cp and \
-             mv: the server refused the login, or podssh did not accept its host key.",
+             podssh node, operator and relay: the relay refused the pair, or the pair expired. podssh \
+             operator and pipe node:: the node's key is not the one pinned in known-nodes or named by \
+             --node-key, or the node's allowlist refused this client's key. podssh cp and mv: the server \
+             refused the login, or podssh did not accept its host key.",
         ),
         row(
             sysexits::EX_CONFIG,
@@ -69,8 +72,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         ),
         row(
             podssh_ssh::EXIT_FAILURE,
-            "podssh ssh: the connection, the host key or the authentication failed, or the session ended \
-             with no exit status. OpenSSH uses the same code.",
+            "podssh ssh: the connection, the host key, a node's key or the authentication failed, or the \
+             session ended with no exit status. OpenSSH uses the same code.",
         ),
         (
             Code::Remote,
@@ -145,6 +148,35 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             ),
         ),
         (
+            vec![
+                podssh_relay::identity::file::node_file("NAME"),
+                podssh_relay::identity::file::CLIENT_FILE.to_string(),
+            ],
+            "The keys of the ends of a road between two podssh ends (T-087), in the cache, the same on each \
+             road: a node's under its NAME, and this user's as a client; --key and --client-key name other \
+             files. Each holds the secret key in hex, has mode 0600, and is made when it is missing. podssh \
+             refuses one that is a symbolic link, another user's, or that others can read, and never \
+             replaces it: a new key would change the node's identity, which operators pinned, and its \
+             ticket. The names of an earlier podssh, iroh-node-NAME.key and iroh-client.key, are still read."
+                .to_string(),
+        ),
+        (
+            vec![podssh_relay::identity::pins::FILE.to_string()],
+            "The node keys that an operator has met, in the cache: one line for each key of a label, LABEL \
+             KEY, the key as its fingerprint (SHA256:...) or itself. The first sight of a label's node \
+             writes its line; a node whose key matches no line of its label is refused, and no line is ever \
+             replaced: remove one, or add one for a new key. A file of the user that others cannot change."
+                .to_string(),
+        ),
+        (
+            vec!["the file of --allow".to_string()],
+            "The operator keys that may come in to podssh node, on each road: one key on each line, as its \
+             fingerprint (SHA256:...) or in iroh's hex or base32, then a comment if any; # starts a comment \
+             line. Read again for each session. A file of the user that others cannot change; others may \
+             read it."
+                .to_string(),
+        ),
+        (
             vec![podssh_ws::bundle::BUNDLE_FILE_NAME.to_string()],
             "CA certificates in the directory of the podssh binary, added to the trust store.".to_string(),
         ),
@@ -153,34 +185,5 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             "The system CA bundles. The first one that podssh can read is added to the trust store.".to_string(),
         ),
     ];
-    [rows, iroh_files()].concat()
-}
-
-/// The files of the iroh road: none in a build without it.
-#[cfg(not(feature = "iroh"))]
-fn iroh_files() -> Vec<(Vec<String>, String)> {
-    Vec::new()
-}
-
-/// The files of the iroh road, in a build that has it.
-#[cfg(feature = "iroh")]
-fn iroh_files() -> Vec<(Vec<String>, String)> {
-    vec![
-        (
-            vec![podssh_iroh::keys::node_file("NAME"), podssh_iroh::keys::CLIENT_FILE.to_string()],
-            "The keys of the iroh road, in the cache, or in the file of --iroh-key: a node's under its NAME, \
-             and this user's as a client. Each holds the secret key in hex, has mode 0600, and is made when \
-             it is missing. podssh refuses one that is a symbolic link, another user's, or that others can \
-             read, and never replaces it: a new key would change the node's ticket. The names of an earlier \
-             podssh, iroh-node-NAME.key and iroh-client.key, are still read."
-                .to_string(),
-        ),
-        (
-            vec!["the file of --iroh-allow".to_string()],
-            "The client keys that may connect to podssh node --iroh: one key on each line, as its \
-             fingerprint (SHA256:...) or in iroh's hex or base32, then a comment if any; # starts a comment \
-             line. A file of the user that others cannot change; others may read it."
-                .to_string(),
-        ),
-    ]
+    rows
 }

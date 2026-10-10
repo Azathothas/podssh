@@ -195,6 +195,20 @@ async fn a_target_that_cannot_be_reached_is_the_nodes_refusal_with_the_reason() 
     );
 }
 
+/// The node speaks first: a client of the resumable layer waits for the far
+/// end's first byte before it sends (T-153), so a node with no layer that
+/// waited for the operator would wait as long as the client, and fail.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn the_node_speaks_first() {
+    let (node_end, _lines) = node(identity(2), |_| Ok(()));
+    let (mut operator, link) = tokio::io::duplex(PIPE);
+    tokio::spawn(async move { ends::serve_node(link, &node_end, e2e_harness::echo(Arc::default())).await });
+    let mut first = [0u8; MAGIC.len()];
+    let spoke = tokio::time::timeout(std::time::Duration::from_secs(5), operator.read_exact(&mut first)).await;
+    assert!(spoke.is_ok(), "the node waited for the operator to speak first");
+    assert_eq!(&first, MAGIC);
+}
+
 /// No fallback to plain text: each end refuses a peer with no channel, and
 /// names what it sent.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
@@ -213,6 +227,30 @@ async fn a_peer_with_no_channel_is_refused_at_both_ends() {
     tokio::time::timeout(LIMIT, ends::serve_node(link, &node_end, e2e_harness::echo(opened.clone()))).await.unwrap();
     assert_eq!(opened.load(Ordering::SeqCst), 0);
     assert!(lines.lock().unwrap().join("\n").contains("does not speak podssh's end-to-end channel"));
+}
+
+/// A stream that ends before the peer said anything, as when a road refuses
+/// the key or loses the link, is a cut, whose reason is the road's: not a
+/// peer with no channel.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_stream_that_ends_before_the_magic_is_a_cut() {
+    for sent in [&[][..], &MAGIC[..5]] {
+        let (_app, app_end) = tokio::io::duplex(PIPE);
+        let (mut cipher, session) = ends::operator(app_end, identity(1), |_| Ok(()));
+        let session = tokio::spawn(session);
+        // The road takes the operator's first bytes, as a refusing node's
+        // road does, then ends the stream.
+        let mut first = [0u8; MAGIC.len()];
+        cipher.read_exact(&mut first).await.unwrap();
+        let mut len = [0u8; 2];
+        cipher.read_exact(&mut len).await.unwrap();
+        let mut message = vec![0u8; usize::from(u16::from_be_bytes(len))];
+        cipher.read_exact(&mut message).await.unwrap();
+        cipher.write_all(sent).await.unwrap();
+        drop(cipher);
+        let outcome = tokio::time::timeout(LIMIT, session).await.unwrap().unwrap();
+        assert!(matches!(outcome, Err(Error::Cut)), "{} bytes of the magic, then the end: {outcome:?}", sent.len());
+    }
 }
 
 /// A node that replays another node's proof, its key and signature, with a

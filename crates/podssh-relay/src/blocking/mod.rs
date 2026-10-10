@@ -11,15 +11,20 @@
 //!   writer, such as standard input and output;
 //! - [`Client::open_forward`]: a forward session, as a [`Forward`] stream.
 //!
+//! A node's and an operator's sessions run the end-to-end channel of T-088
+//! by default, as podssh's own ends do ([`NodeChannel`], [`OperatorChannel`]).
+//!
 //! No call runs on a thread that runs a tokio runtime (an async task, or
 //! `spawn_blocking`): blocking there would stall that runtime, so the call
 //! returns [`Error::InsideRuntime`], and nothing panics. Use the async
 //! functions of this crate there.
 
 mod bridge;
+mod channel;
 mod forward;
 
 pub use bridge::{BlockingHandler, Local};
+pub use channel::{NodeChannel, OperatorChannel};
 pub use forward::{Closed, Forward};
 
 use std::future::Future;
@@ -79,6 +84,11 @@ pub enum Error {
     /// No relay host opened the forward session to `target`: each attempt,
     /// in order.
     Open { target: String, failure: Failure },
+    /// The key of the end-to-end channel could not be read or made.
+    Key(String),
+    /// The end-to-end channel failed: a refused key, a changed node key, a
+    /// message that failed its check (T-088).
+    Channel(crate::e2e::Error),
 }
 
 impl std::fmt::Display for Error {
@@ -92,6 +102,8 @@ impl std::fmt::Display for Error {
             Error::Pair(e) => write!(f, "{e}"),
             Error::Connect(e) => write!(f, "{e}"),
             Error::Open { target, failure } => write!(f, "{}", failure.lines(target).join("; ")),
+            Error::Key(why) => write!(f, "the end-to-end channel's key: {why}"),
+            Error::Channel(e) => write!(f, "{e}"),
         }
     }
 }
@@ -149,6 +161,8 @@ pub struct NodeOptions {
     /// on with, or `None` to end the node. It may call the client
     /// ([`Client::pair`]).
     pub repair: Option<Arc<dyn Fn() -> Option<Pair> + Send + Sync>>,
+    /// The end-to-end channel of each session; on by default.
+    pub channel: NodeChannel,
 }
 
 impl std::fmt::Debug for NodeOptions {
@@ -157,23 +171,32 @@ impl std::fmt::Debug for NodeOptions {
             .field("label", &self.label)
             .field("settings", &self.settings)
             .field("repair", &self.repair.is_some())
+            .field("channel", &self.channel)
             .finish()
     }
 }
 
 /// Where an operator session goes: a node's name on a relay, with the pair's
 /// connect token.
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Operator<'a> {
     pub relay: &'a Relay,
     pub name: &'a str,
     pub connect_token: &'a str,
     pub limits: OperatorLimits,
+    /// The end-to-end channel of the session; on by default.
+    pub channel: OperatorChannel,
 }
 
 impl<'a> Operator<'a> {
     pub fn new(relay: &'a Relay, name: &'a str, connect_token: &'a str) -> Operator<'a> {
-        Operator { relay, name, connect_token, limits: OperatorLimits::default() }
+        Operator { relay, name, connect_token, limits: OperatorLimits::default(), channel: OperatorChannel::default() }
+    }
+
+    /// The same, with this channel.
+    pub fn with_channel(mut self, channel: OperatorChannel) -> Operator<'a> {
+        self.channel = channel;
+        self
     }
 
     /// The operator's side of `pair`.
@@ -189,6 +212,7 @@ impl std::fmt::Debug for Operator<'_> {
             .field("name", &self.name)
             .field("connect_token", &"<redacted>")
             .field("limits", &self.limits)
+            .field("channel", &self.channel)
             .finish()
     }
 }
@@ -279,8 +303,15 @@ impl Client {
             wire: self.config.wire,
             say: None,
         };
-        let handler = Arc::new(bridge::Bridged(Arc::new(handler)));
-        let exit = runtime.block_on(reverse::run(&mut config, handler, stopper.stopped()));
+        let channel = options.channel.end(options.label.as_deref(), &pair.name).map_err(Error::Key)?;
+        let handler = bridge::Bridged(Arc::new(handler));
+        let exit = match channel {
+            Some(node) => {
+                let handler = Arc::new(reverse::E2e::new(handler, node));
+                runtime.block_on(reverse::run(&mut config, handler, stopper.stopped()))
+            }
+            None => runtime.block_on(reverse::run(&mut config, Arc::new(handler), stopper.stopped())),
+        };
         *pair = config.pair;
         Ok(exit)
     }
@@ -308,7 +339,22 @@ impl Client {
             limits: to.limits,
             wire: self.config.wire,
         };
-        let outcome = runtime.block_on(reverse::operator::run(&config, bridged.stream));
+        let outcome = match to.channel.end(to.name).map_err(Error::Key)? {
+            Some((identity, check)) => {
+                let (cipher, session) = crate::e2e::ends::operator(bridged.stream, identity, check);
+                let (outcome, ended) =
+                    runtime.block_on(async { tokio::join!(reverse::operator::run(&config, cipher), session) });
+                // A cut, or a failed stream, is the leg's to tell.
+                if let Err(e) = ended {
+                    if !matches!(e, crate::e2e::Error::Cut | crate::e2e::Error::Io(_)) {
+                        bridged.output_done.wait(to.limits.close_limit);
+                        return Err(Error::Channel(e));
+                    }
+                }
+                outcome
+            }
+            None => runtime.block_on(reverse::operator::run(&config, bridged.stream)),
+        };
         bridged.output_done.wait(to.limits.close_limit);
         outcome.map_err(Error::Connect)
     }

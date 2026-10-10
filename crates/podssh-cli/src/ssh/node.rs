@@ -75,7 +75,8 @@ pub(super) fn transport(r: &Ask<'_>, env: &Env, race: Option<super::iroh::Race>)
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,
     };
-    Ok(Transport::Node { label: r.label.to_string(), pair_file: r.args.pair_file.clone(), trust, race })
+    let channel = super::iroh::channel_ask(r.args).map_err(|why| format!("{SCHEME}{}: {why}", r.label))?;
+    Ok(Transport::Node { label: r.label.to_string(), pair_file: r.args.pair_file.clone(), trust, race, channel })
 }
 
 /// SSH over the operator's leg to the node of the pair under `label`.
@@ -83,10 +84,21 @@ pub(super) async fn connect(
     label: &str,
     pair_file: Option<&str>,
     trust: &Trust,
+    ask: &crate::channel::Ask,
     opts: &podssh_ssh::options::Options,
     log: Arc<Log>,
 ) -> i32 {
     let shown = format!("{SCHEME}{label}");
+    // The channel of T-088: this client's key, and the node's by the pins of
+    // the label or by --node-key.
+    let say_line = |line: String| log.info(&format!("{shown}: {line}"));
+    let channel = match ask.operator(crate::channel::Expect::Pinned(label.to_string()), &say_line) {
+        Ok(channel) => channel,
+        Err(why) => {
+            log.error(&format!("{shown}: {why}"));
+            return EXIT_FAILURE;
+        }
+    };
     let part = match crate::pairs::operator_part(label, pair_file).and_then(|part| {
         crate::pairs::online()?;
         Ok(part)
@@ -126,10 +138,20 @@ pub(super) async fn connect(
     };
     // The SSH client and the layer in one task: when the client closes its
     // end, the layer sends `CLOSE`, and the last leg its Close.
+    let pin_say = {
+        let (log, shown) = (log.clone(), shown.clone());
+        move |line: String| log.info(&format!("{shown}: {line}"))
+    };
     let (code, carried) = tokio::join!(
         podssh_ssh::run(ssh_end, opts, None, log.clone()),
-        crate::layered::carry(&config, link_end, leg, layer_end, Some(part.expires_ms), &say)
+        crate::layered::carry_through(&config, link_end, leg, layer_end, Some(part.expires_ms), &say, channel, pin_say)
     );
+    // A refused key, or a changed node key, is the session's end whatever
+    // the SSH client saw after it.
+    if let Some((_, why)) = &carried.channel {
+        log.error(&format!("{shown}: {why}"));
+        return EXIT_FAILURE;
+    }
     if code == EXIT_FAILURE {
         let why = carried.why.or_else(|| carried.leg.as_ref().and_then(explain));
         if let Some(why) = why {

@@ -56,11 +56,17 @@ mod built {
             refusal.code
         })?;
         let log = Log::new(LogLevel::from_flags(args.verbose, args.quiet));
-        let Prepared { dialer, endpoint, shown, fingerprint } =
-            dial::prepare(ticket, args.iroh_key.as_deref(), &relays, trust, &log).await.map_err(|why| {
+        let ask = crate::ssh::iroh::channel_ask(args).map_err(|why| {
+            say(&why);
+            crate::exitmap::sysexits::EX_USAGE
+        })?;
+        let Prepared { dialer, endpoint, shown, fingerprint, identity, node } =
+            dial::prepare(ticket, ask.client_key.as_deref(), &relays, trust, &log).await.map_err(|why| {
                 say(&why);
                 EX_UNAVAILABLE
             })?;
+        // The channel of T-088, to the node that the ticket names.
+        let channel = ask.with(identity.clone(), crate::channel::Expect::Ticket(node));
         let (ours, theirs) = tokio::io::duplex(PIPE);
         let task = tokio::spawn(async move {
             // The pipe's own bytes are on stdout: each line goes to stderr.
@@ -70,9 +76,21 @@ mod built {
                 }
             };
             let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings() };
-            let carried = podssh_iroh::carry(&dialer, theirs, settings, note).await;
+            let pin_shown = shown.clone();
+            let pin_say = move |line: String| eprintln!("podssh pipe: {pin_shown}: {line}");
+            let (layer_app, session) = crate::channel::around(theirs, channel, pin_say);
+            let session = async move {
+                match session {
+                    Some(session) => session.await.err(),
+                    None => None,
+                }
+            };
+            let (carried, failed) = tokio::join!(podssh_iroh::carry(&dialer, layer_app, settings, note), session);
             dialer.close().await;
             let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
+            if let Some((fault, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, Some(&identity))) {
+                return Some((fault.code(), vec![format!("{shown}: {why}")]));
+            }
             let code = if matches!(carried, Err(Failure::Refused)) { EX_NOPERM } else { EX_UNAVAILABLE };
             dial::why_failed(carried, &fingerprint).map(|why| (code, vec![format!("{shown}: {why}")]))
         });

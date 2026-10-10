@@ -27,14 +27,27 @@ pub struct OperatorArgs {
     pub ca_file: Option<String>,
     /// A pair, or its operator's part, in a file.
     pub pair_file: Option<String>,
+    /// This operator's key file (T-087).
+    pub client_key: Option<String>,
+    /// The node's key or fingerprint, in place of the pins (T-087).
+    pub node_key: Option<String>,
+    /// No end-to-end channel (T-088).
+    pub no_e2e: bool,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
 /// Run the verb; returns the process exit code.
 pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
-    let (label, part) = match prepare(args) {
+    let (label, part, ask) = match prepare(args) {
         Ok(ready) => ready,
         Err(refusal) => return refusal.report("operator", err),
+    };
+    // The channel of T-088: this operator's key, and the node's by the pins
+    // of the label or by --node-key.
+    let say_line = |line: String| eprintln!("podssh operator: {label}: {line}");
+    let channel = match ask.operator(crate::channel::Expect::Pinned(label.clone()), &say_line) {
+        Ok(channel) => channel,
+        Err(why) => return Refusal::config(why).report("operator", err),
     };
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,
@@ -67,7 +80,11 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
     let ran = runtime.block_on(async {
         let (link, leg_end) = tokio::io::duplex(PIPE);
         let first = operator::start(&config, leg_end).await?;
-        Ok::<_, ConnectError>(crate::layered::carry(&config, link, first, io, Some(part.expires_ms), &say).await)
+        let shown = label.clone();
+        let pin_say = move |line: String| eprintln!("podssh operator: {shown}: {line}");
+        let carried =
+            crate::layered::carry_through(&config, link, first, io, Some(part.expires_ms), &say, channel, pin_say);
+        Ok::<_, ConnectError>(carried.await)
     });
     // A read on stdin may still be blocked in a helper thread; the session
     // has ended, so it is not waited for.
@@ -88,22 +105,36 @@ pub fn run_operator(args: &OperatorArgs, err: &mut dyn Write) -> i32 {
 /// that says why, or `None` for a clean end. `podssh pipe node:` judges by
 /// it too.
 pub(crate) fn judged(label: &str, carried: &Carried) -> Option<(i32, String)> {
+    // The channel's verdict first: a refused key is a refusal, whatever the
+    // layer and the leg say of the end that followed it.
+    if let Some((fault, why)) = &carried.channel {
+        return Some((fault.code(), why.clone()));
+    }
     match carried {
         Carried { why: Some(why), .. } => Some((Fault::SessionFault.code(), why.clone())),
-        Carried { why: None, leg: Some(outcome) } => verdict(label, outcome).map(|(fault, why)| (fault.code(), why)),
-        Carried { why: None, leg: None } => {
+        Carried { why: None, leg: Some(outcome), .. } => {
+            verdict(label, outcome).map(|(fault, why)| (fault.code(), why))
+        }
+        Carried { why: None, leg: None, .. } => {
             Some((Fault::RelayUnreachable.code(), "the relay did not end the session in time".to_string()))
         }
     }
 }
 
-fn prepare(args: &OperatorArgs) -> Result<(String, podssh_relay::pair::OperatorPart), Refusal> {
+fn prepare(args: &OperatorArgs) -> Result<(String, podssh_relay::pair::OperatorPart, crate::channel::Ask), Refusal> {
     let label = args.name.clone().ok_or("missing NAME: the label of a pair (podssh relay pair NAME)")?;
     pairs::check_label(&label)?;
+    let ask = crate::channel::Ask::of(args.client_key.as_deref(), None, args.node_key.as_deref(), args.no_e2e)
+        .map_err(Refusal::usage)?;
+    if args.no_e2e && args.client_key.is_some() {
+        return Err(Refusal::usage(
+            "--client-key is this operator's key in the end-to-end channel, which --no-e2e turns off",
+        ));
+    }
     crate::pins::apply(args.relay_addr.as_deref())?;
     let part = pairs::operator_part(&label, args.pair_file.as_deref())?;
     pairs::online()?;
-    Ok((label, part))
+    Ok((label, part, ask))
 }
 
 /// The fault for each end of the session, by the table of `exitmap`; none

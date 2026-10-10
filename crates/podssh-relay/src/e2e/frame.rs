@@ -31,7 +31,10 @@ pub async fn read_magic<R: AsyncRead + Unpin>(r: &mut R) -> Result<(), Error> {
     while n < got.len() {
         let k = r.read(&mut got[n..]).await.map_err(Error::Io)?;
         if k == 0 {
-            return Err(Error::NotChannel(if n == 0 { "nothing".into() } else { shown(&got[..n]) }));
+            // An end with nothing but the magic's start is a cut, whose reason
+            // is the road's (a refused key, a lost link): this peer said
+            // nothing that is not the channel's.
+            return Err(Error::Cut);
         }
         n += k;
         if got[..n] != MAGIC[..n] {

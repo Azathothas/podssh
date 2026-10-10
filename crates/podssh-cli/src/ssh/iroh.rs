@@ -96,7 +96,14 @@ pub(super) fn transport(dest: &Destination, r: &Ask<'_>, trust: Trust) -> Result
         return Err(Refusal::usage(format!("{}: {why}", dest.shown)));
     }
     let relays = relays(r.args.iroh_relay.as_deref())?;
-    Ok(Transport::Iroh { ticket: dest.ticket.clone(), key: r.args.iroh_key.clone(), relays, trust })
+    let channel = channel_ask(r.args).map_err(|why| Refusal::usage(format!("{}: {why}", dest.shown)))?;
+    let key = channel.client_key.clone();
+    Ok(Transport::Iroh { ticket: dest.ticket.clone(), key, relays, trust, channel })
+}
+
+/// The end-to-end channel that the command line asks of a node (T-088).
+pub(crate) fn channel_ask(args: &super::args::SshArgs) -> Result<crate::channel::Ask, String> {
+    crate::channel::Ask::of(args.client_key.as_deref(), args.iroh_key.as_deref(), args.node_key.as_deref(), args.no_e2e)
 }
 
 /// The iroh road of a race with a pair's reverse road (T-164): the node's
@@ -114,7 +121,8 @@ pub(super) fn race(args: &super::args::SshArgs) -> Result<Option<Race>, Refusal>
     let Some(ticket) = &args.iroh_ticket else { return Ok(None) };
     shown(ticket).map_err(Refusal::usage)?;
     let relays = relays(args.iroh_relay.as_deref())?;
-    Ok(Some(Race { ticket: ticket.clone(), key: args.iroh_key.clone(), relays }))
+    let key = args.client_key.clone().or_else(|| args.iroh_key.clone());
+    Ok(Some(Race { ticket: ticket.clone(), key, relays }))
 }
 
 /// The relays of `--iroh-relay`, else of the variable, else of the table: a
@@ -141,10 +149,11 @@ pub(super) async fn connect(
     key: Option<&str>,
     relays: &[String],
     trust: &Trust,
+    ask: &crate::channel::Ask,
     opts: &podssh_ssh::options::Options,
     log: std::sync::Arc<podssh_ssh::Log>,
 ) -> i32 {
-    dial::connect(ticket, key, relays, trust, opts, log).await
+    dial::connect(ticket, key, relays, trust, ask, opts, log).await
 }
 
 #[cfg(not(feature = "iroh"))]
@@ -153,6 +162,7 @@ pub(super) async fn connect(
     _: Option<&str>,
     _: &[String],
     _: &Trust,
+    _: &crate::channel::Ask,
     _: &podssh_ssh::options::Options,
     log: std::sync::Arc<podssh_ssh::Log>,
 ) -> i32 {
@@ -167,10 +177,11 @@ pub(super) async fn race_connect(
     pair_file: Option<&str>,
     trust: &Trust,
     race_road: &Race,
+    ask: &crate::channel::Ask,
     opts: &podssh_ssh::options::Options,
     log: std::sync::Arc<podssh_ssh::Log>,
 ) -> i32 {
-    race::connect(label, pair_file, trust, race_road, opts, log).await
+    race::connect(label, pair_file, trust, race_road, ask, opts, log).await
 }
 
 #[cfg(not(feature = "iroh"))]
@@ -179,6 +190,7 @@ pub(super) async fn race_connect(
     _: Option<&str>,
     _: &Trust,
     _: &Race,
+    _: &crate::channel::Ask,
     _: &podssh_ssh::options::Options,
     log: std::sync::Arc<podssh_ssh::Log>,
 ) -> i32 {

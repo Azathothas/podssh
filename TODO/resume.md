@@ -778,9 +778,9 @@ no `GREETING`, and that the default node greets.
 2026-10-10. `podssh node NAME TARGET --plain` carries each session's bytes
 as they are, with no resumable layer: the node's handler is then the TCP
 handler alone, which dials TARGET at `open`
-(`crates/podssh-cli/src/node.rs:152-163`). The node's first line names its
-mode (`crates/podssh-cli/src/node.rs:129`). `--plain` with `--iroh` is
-refused with 64 (`crates/podssh-cli/src/node.rs:63-66`): the iroh road
+(`crates/podssh-cli/src/node.rs`, lines 152-163 at `8e31960`). The node's first line names its
+mode (`crates/podssh-cli/src/node.rs:176`). `--plain` with `--iroh` is
+refused with 64 (`crates/podssh-cli/src/node.rs:68-71`): the iroh road
 always runs the layer. The flag's row, the manual's note of `node`,
 `docs/reverse.md` and `docs/cli.md`.
 - Native: `cargo test -p podssh-cli -- plain`, 3 passed. The argument test:
@@ -820,7 +820,7 @@ sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:257-279`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:334-348`, and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:348-362`, and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -834,11 +834,11 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:334-348`.
+   `crates/podssh-cli/src/ssh/resolve.rs:348-362`.
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:216-231`,
    `crates/podssh-cli/src/man/facts.rs:255-264`), the note at
-   `crates/podssh-cli/src/man/notes.rs:92`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes.rs:98`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:569-589`; the two
+sandbox, before a default depends on it); `docs/design.md:583-603`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:569-589`). A session carries 64 MiB at most, both directions
+(`docs/design.md:583-603`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:127`).
 
 ## Approach
@@ -1320,7 +1320,7 @@ new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-5`,
 `crates/podssh-ssh/src/escape.rs:28-70`). The flag table has 469 lines, near
-the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-245`).
+the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-251`).
 
 ## Approach
 

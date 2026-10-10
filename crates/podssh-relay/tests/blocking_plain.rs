@@ -11,10 +11,18 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 
-use podssh_relay::blocking::{Client, Closed, Config, Local, NodeOptions, Operator, Stopper};
+use podssh_relay::blocking::{
+    Client, Closed, Config, Local, NodeChannel, NodeOptions, Operator, OperatorChannel, Stopper,
+};
 use podssh_relay::reverse::{Exit, Outcome, Settings, Wire};
 use podssh_ws::frame;
 use stand_in::{data, open, pipe, ready, test_pair, Shared, StandIn, CONNECT, ID1, ID2, LIMIT, NAME, NODE};
+
+/// The stand-in relay plays each session's far end with bytes in plain, so
+/// the node runs with no end-to-end channel, as one for such operators does.
+fn plain_node() -> NodeOptions {
+    NodeOptions { channel: NodeChannel::Off, ..NodeOptions::default() }
+}
 
 fn client() -> Client {
     Client::new(Config { wire: Wire::PlainLoopback, timeout: LIMIT, ..Config::default() }).expect("a client")
@@ -43,7 +51,7 @@ fn a_node_carries_two_sessions_and_stops() {
         }
     };
     std::thread::scope(|s| {
-        let node = s.spawn(|| client.run_node(&mut pair, handler, &NodeOptions::default(), &stopper));
+        let node = s.spawn(|| client.run_node(&mut pair, handler, &plain_node(), &stopper));
         let _guard = StopOnPanic(&stopper);
         let (head, mut peer) = stand_in.accept();
         assert!(head.starts_with(&format!("GET /v1/node/{NAME} HTTP/1.1\r\n")), "{head}");
@@ -82,7 +90,7 @@ fn an_operator_keeps_its_input_until_ready_and_gives_back_the_last_bytes() {
     let (stand_in, relay) = StandIn::new();
     let client = client();
     let out = Shared::default();
-    let to = Operator::new(&relay, NAME, CONNECT);
+    let to = Operator::new(&relay, NAME, CONNECT).with_channel(OperatorChannel::Off);
     std::thread::scope(|s| {
         let writer = out.clone();
         let session = s.spawn(|| client.run_operator(&to, Cursor::new(b"early bytes".to_vec()), writer));
@@ -107,7 +115,7 @@ fn an_operator_keeps_its_input_until_ready_and_gives_back_the_last_bytes() {
 fn a_close_after_ready_names_its_code_and_reason() {
     let (stand_in, relay) = StandIn::new();
     let client = client();
-    let to = Operator::new(&relay, NAME, CONNECT);
+    let to = Operator::new(&relay, NAME, CONNECT).with_channel(OperatorChannel::Off);
     // An input that stays open until the session ended.
     let (input, mut input_end) = pipe();
     std::thread::scope(|s| {
@@ -127,7 +135,7 @@ fn a_close_after_ready_names_its_code_and_reason() {
 fn two_operator_sessions_at_once_on_one_client() {
     let (stand_in, relay) = StandIn::new();
     let client = client();
-    let to = Operator::new(&relay, NAME, CONNECT);
+    let to = Operator::new(&relay, NAME, CONNECT).with_channel(OperatorChannel::Off);
     let payloads = [vec![1u8; 300 * 1024], vec![2u8; 200 * 1024]];
     std::thread::scope(|s| {
         let sessions: Vec<_> = payloads
@@ -255,8 +263,7 @@ fn a_stop_before_the_node_runs_ends_it_at_once() {
     let stopper = Stopper::new();
     stopper.stop();
     let started = Instant::now();
-    let exit =
-        in_time(move || client().run_node(&mut test_pair(&relay, NAME, 0), echo, &NodeOptions::default(), &stopper));
+    let exit = in_time(move || client().run_node(&mut test_pair(&relay, NAME, 0), echo, &plain_node(), &stopper));
     assert!(matches!(exit, Ok(Exit::Stopped)), "{exit:?}");
     assert!(started.elapsed() < LIMIT, "at once: {:?}", started.elapsed());
 }
@@ -266,9 +273,8 @@ fn a_stop_before_the_node_runs_ends_it_at_once() {
 #[test]
 fn a_node_that_cannot_connect_as_set_up_exits() {
     let relay = podssh_relay::relay::Relay { host: "relay.example.org".into(), port: 443 };
-    let exit = in_time(move || {
-        client().run_node(&mut test_pair(&relay, NAME, 0), echo, &NodeOptions::default(), &Stopper::new())
-    });
+    let exit =
+        in_time(move || client().run_node(&mut test_pair(&relay, NAME, 0), echo, &plain_node(), &Stopper::new()));
     assert!(matches!(&exit, Ok(Exit::Unusable(why)) if why.contains("loopback")), "{exit:?}");
 }
 
@@ -323,7 +329,7 @@ fn conflict_after_a_loss_connects_again_and_serves() {
         }
     });
     let exit = in_time_within(REJOIN_LIMIT, move || {
-        client().run_node(&mut test_pair(&relay, NAME, 0), echo, &NodeOptions::default(), &stopper)
+        client().run_node(&mut test_pair(&relay, NAME, 0), echo, &plain_node(), &stopper)
     });
     assert!(matches!(exit, Ok(Exit::Stopped)), "{exit:?}");
 }
@@ -336,9 +342,8 @@ fn conflict_at_the_first_registration_exits() {
     std::thread::spawn(move || loop {
         stand_in.refuse(409, "reverse: a node is connected under this name");
     });
-    let exit = in_time(move || {
-        client().run_node(&mut test_pair(&relay, NAME, 0), echo, &NodeOptions::default(), &Stopper::new())
-    });
+    let exit =
+        in_time(move || client().run_node(&mut test_pair(&relay, NAME, 0), echo, &plain_node(), &Stopper::new()));
     assert!(matches!(exit, Ok(Exit::NameInUse)), "{exit:?}");
 }
 
@@ -359,6 +364,7 @@ fn conflict_past_the_limit_after_a_loss_exits() {
     });
     let options = NodeOptions {
         settings: Settings { rejoin: Duration::from_secs(2), ..Settings::default() },
+        channel: NodeChannel::Off,
         ..NodeOptions::default()
     };
     let exit = in_time_within(REJOIN_LIMIT, move || {
@@ -380,6 +386,7 @@ fn an_expired_pair_is_replaced_by_the_hook_and_given_back() {
     let hook_relay = relay.clone();
     let options = NodeOptions {
         repair: Some(Arc::new(move || Some(test_pair(&hook_relay, next_name, 0)))),
+        channel: NodeChannel::Off,
         ..NodeOptions::default()
     };
     let client = client();

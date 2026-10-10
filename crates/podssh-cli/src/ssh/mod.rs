@@ -99,14 +99,14 @@ async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
         return Box::pin(persist::run(&resolved, name, log)).await;
     }
     let opts = &resolved.options;
-    if let Transport::Node { label, pair_file, trust, race } = &resolved.transport {
+    if let Transport::Node { label, pair_file, trust, race, channel } = &resolved.transport {
         if let Some(race) = race {
-            return Box::pin(iroh::race_connect(label, pair_file.as_deref(), trust, race, opts, log)).await;
+            return Box::pin(iroh::race_connect(label, pair_file.as_deref(), trust, race, channel, opts, log)).await;
         }
-        return Box::pin(node::connect(label, pair_file.as_deref(), trust, opts, log)).await;
+        return Box::pin(node::connect(label, pair_file.as_deref(), trust, channel, opts, log)).await;
     }
-    if let Transport::Iroh { ticket, key, relays, trust } = &resolved.transport {
-        return Box::pin(iroh::connect(ticket, key.as_deref(), relays, trust, opts, log)).await;
+    if let Transport::Iroh { ticket, key, relays, trust, channel } = &resolved.transport {
+        return Box::pin(iroh::connect(ticket, key.as_deref(), relays, trust, channel, opts, log)).await;
     }
     let reached = match transport::reach(&resolved, &log).await {
         Ok(reached) => reached,

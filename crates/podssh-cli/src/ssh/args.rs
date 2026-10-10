@@ -43,8 +43,14 @@ pub struct SshArgs {
     pub direct: bool,
     /// For `node://NAME`: a pair, or its operator's part, in a file.
     pub pair_file: Option<String>,
-    /// For `iroh:TICKET`: this client's key file.
+    /// For `iroh:TICKET`: this client's key file, by its earlier name.
     pub iroh_key: Option<String>,
+    /// For `node://NAME` and `iroh:TICKET`: this client's key file (T-087).
+    pub client_key: Option<String>,
+    /// For `node://NAME`: the node's key or fingerprint, in place of the pins.
+    pub node_key: Option<String>,
+    /// For `node://NAME`: no end-to-end channel (T-088).
+    pub no_e2e: bool,
     /// For `iroh:TICKET`: the relays to try after the ticket's.
     pub iroh_relay: Option<String>,
     /// For `node://NAME`: the node's iroh ticket, to race with the pair.
@@ -74,6 +80,8 @@ pub const ONCE: &[(&str, &str)] = &[
     ("ca-file", "give one file"),
     ("pair-file", "give one file"),
     ("iroh-key", "give one file"),
+    ("client-key", "give one file"),
+    ("node-key", "give one key"),
     ("iroh-relay", "give the relays as one comma list"),
     ("iroh-ticket", "give one ticket"),
     ("persist-name", "give one name"),
@@ -150,6 +158,9 @@ impl SshArgs {
             direct: flag("direct"),
             pair_file: one("pair-file"),
             iroh_key: one("iroh-key"),
+            client_key: one("client-key"),
+            node_key: one("node-key"),
+            no_e2e: flag("no-e2e"),
             iroh_relay: one("iroh-relay"),
             iroh_ticket: one("iroh-ticket"),
             persist: flag("persist"),

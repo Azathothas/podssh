@@ -50,7 +50,7 @@ core: the handshake, a host key that does not change, and key authentication.
    `$HOME/.ssh/authorized_keys`. Lines with options wait for T-114. No usable
    key: exit 78. Invariant: no setting accepts each key. `auth_publickey`
    compares `key_data()`; the login name selects nothing.
-5. The verb: rows in `crates/podssh-cli/src/flags.rs:408-445` and
+5. The verb: rows in `crates/podssh-cli/src/flags.rs:405-442` and
    `crates/podssh-cli/src/positionals.rs:8-103`, an arm beside
    `crates/podssh-cli/src/dispatch.rs:194-258`, the manual, `docs/cli.md`,
    `docs/STATUS.md`. The first source is `--stdio`, as `sshd -i`: OpenSSH
@@ -1101,7 +1101,7 @@ default of russh refuses each `tcpip-forward` with no reason.
 - Read: the cage refuses `bind` (`docs/target-environment.md:25`; the box:
   `scripts/box/probe.sh:86-91`). The operator's ruling on Q1 (2026-10-08)
   allows a listener only when the user asks and a probe allows the bind.
-- Read: `docs/design.md:423-425` allows a listener on the far side. The relay
+- Read: `docs/design.md:437-439` allows a listener on the far side. The relay
   is a listener that podssh does not run: a node name takes operator
   sessions (`docs/relay.md:234-258`).
 - Read in the report of GitHub #18, not verified here: sandhole publishes
@@ -1225,7 +1225,7 @@ no reason (`docs/target-environment.md:63-64`).
 ## Premise
 
 - Read: no source in `crates/` reads `SHELL` or selects a shell; `serve` is
-  not a verb (`crates/podssh-cli/src/flags.rs:408-445`). The line numbers in
+  not a verb (`crates/podssh-cli/src/flags.rs:405-442`). The line numbers in
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.

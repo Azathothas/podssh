@@ -9,13 +9,31 @@
 mod live_harness;
 
 use std::process::Stdio;
+use std::sync::mpsc::Receiver;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use live_harness::{command, echo_server, lines_of, run, scratch, Cleanup, LIMIT};
+use podssh_cli::channel::{Expect, Operator};
+use podssh_relay::identity::{Identity, KeyName};
 use podssh_relay::relay::parse_relay;
 use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome, Wire};
 use podssh_ws::{ProxyChoice, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+/// The operator's end of the channel (T-088), with a key of the test's own,
+/// to the node whose key its start lines say (T-087): the line after the
+/// one of what it serves.
+fn channel_to(lines: &Receiver<String>) -> Operator {
+    let line = lines.recv_timeout(LIMIT).expect("the node says its key");
+    let key = line
+        .split(": key ")
+        .nth(1)
+        .and_then(|rest| rest.split_whitespace().next())
+        .and_then(KeyName::parse)
+        .unwrap_or_else(|| panic!("no key in {line:?}"));
+    Operator { identity: Arc::new(Identity::from_seed(&[0x33; 32])), expect: Expect::Named(key) }
+}
 
 #[test]
 #[ignore = "the live relay: run with --ignored"]
@@ -37,6 +55,7 @@ fn node_command_serves_a_tcp_target() {
     cleanup.node = Some(node);
     let first = lines.recv_timeout(LIMIT).expect("the node says what it serves");
     assert!(first.contains("serving github.com:22"), "{first}");
+    let channel = channel_to(&lines);
     std::thread::sleep(Duration::from_secs(2));
 
     let part: serde_json::Value = serde_json::from_slice(&std::fs::read(&operator_file).unwrap()).unwrap();
@@ -74,7 +93,8 @@ fn node_command_serves_a_tcp_target() {
             got
         };
         let say = |_: podssh_cli::layered::Line| {};
-        let carry = podssh_cli::layered::carry(&config, link, first, app, None, &say);
+        let carry =
+            podssh_cli::layered::carry_through(&config, link, first, app, None, &say, Some(channel), |_: String| {});
         let (carried, banner) = tokio::join!(tokio::time::timeout(LIMIT, carry), read);
         (banner, carried)
     });
@@ -82,6 +102,7 @@ fn node_command_serves_a_tcp_target() {
     let outcome = carried.leg.expect("the leg's end");
     eprintln!("through the node: {}; {outcome:?}", String::from_utf8_lossy(&banner).trim_end());
     assert!(banner.starts_with(b"SSH-2.0-"), "{:?}", String::from_utf8_lossy(&banner));
+    assert_eq!(carried.channel, None, "the channel's end");
     assert_eq!(carried.why, None);
     assert!(matches!(outcome, Outcome::LocalEnd | Outcome::Ended { code: 1000, .. }), "{outcome:?}");
 
@@ -155,8 +176,11 @@ fn ssh_to_a_node() {
     // railway.new can answer an anonymous visitor with its limit instead of
     // running the command; the login through the node then worked, and the
     // check cannot be made.
+    // Its words change: on 2026-10-10 it refused anonymous trials as
+    // "temporarily disabled", in JSON with the status "refused".
+    let words = out.to_ascii_lowercase();
     assert!(
-        !out.contains("visitors are limited"),
+        !["limit", "temporarily disabled", "\"status\":\"refused\""].iter().any(|w| words.contains(w)),
         "railway.new limited this anonymous visitor (its exit {rc}): the login through the node worked, but \
          `exit 3` did not run; try again later"
     );
@@ -232,6 +256,7 @@ fn an_idle_session_through_a_node_lives_10_minutes() {
     cleanup.node = Some(node);
     let first = lines.recv_timeout(LIMIT).expect("the node says what it serves");
     assert!(first.contains(&format!("serving {target}")), "{first}");
+    let channel = channel_to(&lines);
     std::thread::sleep(Duration::from_secs(2));
 
     let part: serde_json::Value = serde_json::from_slice(&std::fs::read(&operator_file).unwrap()).unwrap();
@@ -272,7 +297,8 @@ fn an_idle_session_through_a_node_lives_10_minutes() {
             }
             let _ = user.shutdown().await;
         };
-        let carry = podssh_cli::layered::carry(&config, link, first, app, None, &say);
+        let carry =
+            podssh_cli::layered::carry_through(&config, link, first, app, None, &say, Some(channel), |_: String| {});
         let (carried, ()) = tokio::join!(carry, user_side);
         carried
     });
@@ -333,6 +359,7 @@ fn move_200mib_each_way_through_a_node() {
     cleanup.node = Some(node);
     let first = lines.recv_timeout(LIMIT).expect("the node says what it serves");
     assert!(first.contains(&format!("serving {target}")), "{first}");
+    let channel = channel_to(&lines);
     std::thread::sleep(Duration::from_secs(2));
 
     let part: serde_json::Value = serde_json::from_slice(&std::fs::read(&operator_file).unwrap()).unwrap();
@@ -390,7 +417,8 @@ fn move_200mib_each_way_through_a_node() {
             let (sent, received) = tokio::join!(write, read);
             (sent, received)
         };
-        let carry = podssh_cli::layered::carry(&config, link, first, app, None, &say);
+        let carry =
+            podssh_cli::layered::carry_through(&config, link, first, app, None, &say, Some(channel), |_: String| {});
         tokio::pin!(carry);
         // The user's side ends its bytes once each came back, and the session
         // then ends.

@@ -176,8 +176,14 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
     row(None, "pair-file", Some("FILE"), FlagKind::Supported,
         "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),
+    row(None, "client-key", Some("FILE"), FlagKind::Supported,
+        "node://NAME and iroh:TICKET: this client's key in FILE, made when missing (default: client.key in the cache)", None),
+    row(None, "node-key", Some("KEY"), FlagKind::Supported,
+        "node://NAME: the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes", None),
+    row(None, "no-e2e", None, FlagKind::Supported,
+        "node://NAME: no end-to-end channel, to a node that runs none either; the relay then sees each byte", None),
     row(None, "iroh-key", Some("FILE"), FlagKind::Supported,
-        "iroh:TICKET: this client's key in FILE, made when missing (default: iroh-client.key in the cache); a build with the feature iroh", None),
+        "the same as --client-key, by its earlier name", None),
     row(None, "iroh-relay", Some("URLS"), FlagKind::Supported,
         "iroh:TICKET: the iroh relays to try after the ticket's, https://HOST[:PORT][,...] (default: env PODSSH_IROH_RELAY, else n0's)", None),
     row(None, "iroh-ticket", Some("TICKET"), FlagKind::Supported,
@@ -247,10 +253,12 @@ pub const SSH_FLAGS: &[FlagRow] = &[
 // `cp`, `mv` and their aliases: their table is in `flags/copy.rs`.
 mod copy;
 mod node;
+mod operator;
 mod pipe;
 mod scp;
 pub use copy::CP_FLAGS;
 pub use node::NODE_FLAGS;
+pub use operator::PAIR_FLAGS;
 pub use pipe::PIPE_FLAGS;
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
 
@@ -319,17 +327,6 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "pair: write the operator's part of the pair to FILE, a new file that only its owner can read", None),
     row(None, "document", Some("FILE"), FlagKind::Supported,
         "spec: check FILE, a copy of the relay's document, and read nothing from the network", None),
-];
-
-/// `node` and `operator` (T-083, T-084): a service and a pipe, with no
-/// `--timeout`.
-pub const PAIR_FLAGS: &[FlagRow] = &[
-    row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
-        "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
-    row(None, "ca-file", Some("FILE"), FlagKind::Supported,
-        "trust only the CA certificates in FILE (default: env SSL_CERT_FILE, else system and built-in roots)", None),
-    row(None, "pair-file", Some("FILE"), FlagKind::Supported,
-        "use the pair in FILE, a private file, not the one stored under NAME (operator: its operator's part will do)", None),
 ];
 
 /// **`proxy`.** It is **not an SSH client** (`podssh man proxy`), so not an alias of `ssh`,
