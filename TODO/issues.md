@@ -113,7 +113,7 @@ corrects a claim that the code does not support.
 | #33 | `check-repo.py` passes with nothing to check; no scan for a listener | closed | T-223 (the commit "Each repository check has a floor, and fails on an empty tree"), T-224 (the commit "The repository check finds a listener outside its allowance"); the floors of `cargo todo check` are in T-204 (done). Closed on 2026-10-09 with a comment that names them |
 | #34 | The expected exit codes, from stock OpenSSH | open | T-225 |
 | #35 | Signed pairing grants that are used once | open | T-226 (it waits for the relay's operator) |
-| #36 | `--direct` has no limit on a stuck write | open | T-227 |
+| #36 | `--direct` has no limit on a stuck write | closed (`f502fba`, 2026-10-11) | T-227 |
 
 ## The reports on other projects (in #18 to #25, and in #29 to #36)
 

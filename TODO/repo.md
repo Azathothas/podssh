@@ -3083,7 +3083,7 @@ annotations, not opened).
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -3140,6 +3140,8 @@ the image `ubuntu-24.04`.
 
 ## Done
 
-Partial, 2026-10-11: each workflow names `ubuntu-24.04` or `windows-2025`,
-and the grep of the Prove finds no line. The run of the push that carries
-the change is read next; it closes the entry.
+2026-10-11. Each workflow names `ubuntu-24.04` or `windows-2025` (`0804e38`),
+and the grep of the Prove finds no line. Run 38081754484, at `4dd52f8`, the
+first push that carries the change, passed each job; its Linux jobs ran on
+the image `ubuntu-24.04`. After `v1.0.0`, a move of the runners is a change
+of its own, with a run of the gate.
