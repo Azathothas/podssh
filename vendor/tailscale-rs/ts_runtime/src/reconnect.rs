@@ -6,7 +6,11 @@
 //! in 5 s. The loop here takes its steps from a [`Link`], so a test drives it with no network.
 
 use core::future::Future;
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use tokio::time::{Instant, MissedTickBehavior};
 
@@ -96,6 +100,9 @@ pub enum LinkChange {
         reason: String,
         /// The wait before the next attempt.
         retry_in: Duration,
+        /// The far end refused the node's key, and the node waits for its admission (podssh's
+        /// patch 0021).
+        refused: bool,
     },
     /// The far end refused this node's key; no attempt follows.
     Refused {
@@ -111,6 +118,58 @@ pub struct LinkEvent {
     pub link: LinkKind,
     /// How it changed.
     pub change: LinkChange,
+}
+
+/// The newest state of a link, as its last change said it (podssh's patch 0021).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LinkState {
+    /// Up.
+    Connected,
+    /// Down, and dialled again after a wait.
+    Failed {
+        /// Why.
+        reason: String,
+        /// The far end refused the node's key, and the node waits for its admission.
+        refused: bool,
+    },
+    /// The far end refused the node's key, and the link is not dialled again.
+    Refused {
+        /// Why, as the far end said it.
+        reason: String,
+    },
+}
+
+/// The newest state of each link of the node, kept as each change comes and read with no wait
+/// (podssh's patch 0021): a refusal is a fact that a caller needs at once, not after a network map
+/// that may never come.
+#[derive(Clone, Debug, Default)]
+pub struct LinkStates(Arc<Mutex<HashMap<LinkKind, LinkState>>>);
+
+impl LinkStates {
+    /// Keep what `change` says of `link`.
+    pub fn changed(&self, link: LinkKind, change: &LinkChange) {
+        let state = match change {
+            LinkChange::Connected { .. } => LinkState::Connected,
+            LinkChange::Dropped {
+                reason, refused, ..
+            } => LinkState::Failed {
+                reason: reason.clone(),
+                refused: *refused,
+            },
+            LinkChange::Refused { reason } => LinkState::Refused {
+                reason: reason.clone(),
+            },
+        };
+        self.0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(link, state);
+    }
+
+    /// The state of each link that has changed, as it is now.
+    pub fn now(&self) -> HashMap<LinkKind, LinkState> {
+        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
+    }
 }
 
 /// The steps of a link that [`keep`] runs.
@@ -156,6 +215,7 @@ pub async fn keep(link: &mut impl Link, policy: &Reconnect) -> String {
             }
             Err(ended) => ended,
         };
+        let refused = matches!(ended, Ended::Refused(_));
         match ended {
             Ended::Quiet => again = false,
             Ended::Refused(reason) if !policy.retry_refused => {
@@ -167,7 +227,11 @@ pub async fn keep(link: &mut impl Link, policy: &Reconnect) -> String {
             Ended::Failed(reason) | Ended::Refused(reason) => {
                 retry = retry.saturating_add(1);
                 let retry_in = policy.wait(retry);
-                link.changed(LinkChange::Dropped { reason, retry_in });
+                link.changed(LinkChange::Dropped {
+                    reason,
+                    retry_in,
+                    refused,
+                });
                 tokio::time::sleep(retry_in).await;
                 again = true;
             }

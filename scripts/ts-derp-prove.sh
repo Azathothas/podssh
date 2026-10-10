@@ -107,9 +107,10 @@ m1c=$?
 echo "M1C_EXIT=$m1c"
 
 # A dropped link is dialled again, a silent one is dead, and a pong is
-# counted (podssh T-104, patch 0019).
-echo "== M1d: the reconnect loop and the pings, offline =="
-cargo test -p ts_runtime --test reconnect && cargo test -p ts_derp --test ping
+# counted (podssh T-104, patch 0019); a close keeps its code and reason, as a
+# refusal of the node key needs (podssh T-105, patch 0021).
+echo "== M1d: the reconnect loop, the pings and the close, offline =="
+cargo test -p ts_runtime --test reconnect && cargo test -p ts_derp --test ping && cargo test -p ts_derp --test ws_close
 m1d=$?
 echo "M1D_EXIT=$m1d"
 if [ "$m0" -ne 0 ] || [ "$m1b" -ne 0 ] || [ "$m1c" -ne 0 ] || [ "$m1d" -ne 0 ]; then

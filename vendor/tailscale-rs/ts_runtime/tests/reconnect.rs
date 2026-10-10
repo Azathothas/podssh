@@ -14,7 +14,9 @@ use std::{
 };
 
 use tokio::{sync::Mutex, time::Instant};
-use ts_runtime::reconnect::{self, Ended, Heard, Link, LinkChange, Reconnect};
+use ts_runtime::reconnect::{
+    self, Ended, Heard, Link, LinkChange, LinkKind, LinkState, LinkStates, Reconnect,
+};
 
 /// One turn of a fake link.
 enum Turn {
@@ -34,6 +36,8 @@ struct Fake {
     start: Instant,
     connects: Vec<Duration>,
     changes: Vec<LinkChange>,
+    /// Where the changes are kept as states, as the runtime keeps them (patch 0021).
+    states: Option<LinkStates>,
 }
 
 impl Fake {
@@ -44,6 +48,7 @@ impl Fake {
             start: Instant::now(),
             connects: Vec::new(),
             changes: Vec::new(),
+            states: None,
         }
     }
 }
@@ -93,6 +98,9 @@ impl Link for Fake {
     }
 
     fn changed(&mut self, change: LinkChange) {
+        if let Some(states) = &self.states {
+            states.changed(LinkKind::Derp(1), &change);
+        }
         self.changes.push(change);
     }
 }
@@ -285,5 +293,59 @@ async fn a_non_home_inactivity_close_waits_for_activity() {
             .all(|c| matches!(c, LinkChange::Connected { again: false })),
         "{:?}",
         fake.changes
+    );
+}
+
+/// podssh's patch 0021: the newest state of the link says a refusal at once, and a refusal that is
+/// dialled again, while the node waits for its key's admission, as a failure that was a refusal.
+#[tokio::test(start_paused = true)]
+async fn a_refusal_leaves_the_link_refused_and_a_retried_one_failed() {
+    let refused = || Ended::Refused("websocket closed: code=1008 reason=\"not authorized\"".into());
+    let states = LinkStates::default();
+    let mut fake = Fake::new(vec![
+        Turn::Up(Duration::from_secs(1), failed("reset")),
+        Turn::NoConnect(refused()),
+    ]);
+    fake.states = Some(states.clone());
+    play(&mut fake, &Reconnect::default()).await;
+    assert!(
+        matches!(
+            states.now().get(&LinkKind::Derp(1)),
+            Some(LinkState::Refused { reason }) if reason.contains("not authorized")
+        ),
+        "{:?}",
+        states.now()
+    );
+
+    let waiting = Reconnect {
+        retry_refused: true,
+        ..Reconnect::default()
+    };
+    let states = LinkStates::default();
+    let mut fake = Fake::new(vec![Turn::NoConnect(refused())]);
+    fake.states = Some(states.clone());
+    play(&mut fake, &waiting).await;
+    assert!(
+        matches!(
+            states.now().get(&LinkKind::Derp(1)),
+            Some(LinkState::Failed { refused: true, .. })
+        ),
+        "{:?}",
+        states.now()
+    );
+
+    // Up, the link says so.
+    let states = LinkStates::default();
+    let mut fake = Fake::new(vec![Turn::Up(Duration::from_secs(600), Ended::Quiet)]);
+    fake.states = Some(states.clone());
+    tokio::time::timeout(
+        Duration::from_secs(5),
+        play(&mut fake, &Reconnect::default()),
+    )
+    .await
+    .ok();
+    assert_eq!(
+        states.now().get(&LinkKind::Derp(1)),
+        Some(&LinkState::Connected)
     );
 }

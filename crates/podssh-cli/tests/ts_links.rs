@@ -28,7 +28,11 @@ fn a_first_connection_says_nothing_and_a_return_says_so() {
 
 #[test]
 fn a_drop_says_why_and_when_the_next_attempt_comes() {
-    let dropped = LinkChange::Dropped { reason: "connection reset".into(), retry_in: Duration::from_millis(1340) };
+    let dropped = LinkChange::Dropped {
+        reason: "connection reset".into(),
+        retry_in: Duration::from_millis(1340),
+        refused: false,
+    };
     assert_eq!(
         line(LinkKind::Control, dropped).as_deref(),
         Some("podssh ts: the connection to the control server dropped (connection reset); trying again in 1.3 s.")

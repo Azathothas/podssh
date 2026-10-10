@@ -18,8 +18,13 @@ pub fn link_line(event: &LinkEvent) -> Option<String> {
     match &event.change {
         LinkChange::Connected { again: false } => None,
         LinkChange::Connected { again: true } => Some(format!("podssh ts: {link} is up again.")),
-        LinkChange::Dropped { reason, retry_in } => Some(format!(
+        LinkChange::Dropped { reason, retry_in, refused: false } => Some(format!(
             "podssh ts: {link} dropped ({}); trying again in {:.1} s.",
+            safe(reason),
+            retry_in.as_secs_f32()
+        )),
+        LinkChange::Dropped { reason, retry_in, refused: true } => Some(format!(
+            "podssh ts: {link} was refused ({}): the node waits for its key's admission, trying again in {:.1} s.",
             safe(reason),
             retry_in.as_secs_f32()
         )),

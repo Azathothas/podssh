@@ -133,11 +133,11 @@ pub use error::{Error, InternalErrorKind};
 #[doc(inline)]
 pub use ts_control::LogoutError;
 #[doc(inline)]
-pub use ts_runtime::reconnect::{LinkChange, LinkEvent, LinkKind};
-#[doc(inline)]
 pub use ts_control::Node as NodeInfo;
 use ts_netstack_smoltcp::{CreateSocket, netcore::Channel};
 use ts_runtime::Spawn;
+#[doc(inline)]
+pub use ts_runtime::reconnect::{LinkChange, LinkEvent, LinkKind, LinkState};
 
 #[cfg(feature = "axum")]
 pub mod axum;
@@ -156,6 +156,8 @@ pub struct Device {
     channel: Channel,
     /// Each change of the node's links (podssh's patch 0019).
     link_events: tokio::sync::broadcast::Sender<LinkEvent>,
+    /// The newest state of each link (podssh's patch 0021).
+    link_states: ts_runtime::reconnect::LinkStates,
 }
 
 /// How many link changes wait for a slow receiver before it misses the oldest.
@@ -203,6 +205,7 @@ impl Device {
             .link_events
             .clone()
             .unwrap_or_else(|| tokio::sync::broadcast::channel(LINK_EVENTS).0);
+        let link_states = ts_runtime::reconnect::LinkStates::default();
         let rt = ts_runtime::Runtime::spawn(ts_runtime::Config {
             control_config: config.into(),
             // Moved into memory that is cleared on drop, with no copy
@@ -213,6 +216,7 @@ impl Device {
             // behavior until podssh-ts feeds non-default options.
             options: config.options.clone(),
             link_events: Some(link_events.clone()),
+            link_states: link_states.clone(),
         });
 
         rt.wait_for_startup_result()
@@ -228,7 +232,15 @@ impl Device {
             runtime: rt,
             channel,
             link_events,
+            link_states,
         })
+    }
+
+    /// The newest state of each link of the node, as it is now, with no wait (podssh's patch
+    /// 0021): a link that never changed is not there. A DERP link that the relay refused says so
+    /// here before any network map.
+    pub fn link_states(&self) -> std::collections::HashMap<LinkKind, LinkState> {
+        self.link_states.now()
     }
 
     /// Each change of the node's links from now on: a drop, with the wait before the next

@@ -69,8 +69,14 @@ impl Params {
         self.restarts
             .next_wait_ms
             .store(retry_in.as_millis() as u64, Ordering::Relaxed);
-        self.env
-            .link_changed(LinkKind::Control, LinkChange::Dropped { reason, retry_in });
+        self.env.link_changed(
+            LinkKind::Control,
+            LinkChange::Dropped {
+                reason,
+                retry_in,
+                refused: false,
+            },
+        );
     }
 }
 

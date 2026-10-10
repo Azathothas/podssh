@@ -12,8 +12,34 @@ use std::time::Duration;
 use crate::config::{ConfigError, TsConfig};
 use crate::status::StatusFacts;
 
-/// The changes of the node's links, as the fork tells them (T-104).
-pub use tailscale::{LinkChange, LinkEvent, LinkKind};
+/// The changes of the node's links, as the fork tells them (T-104), and their newest states
+/// (T-105).
+pub use tailscale::{LinkChange, LinkEvent, LinkKind, LinkState};
+
+/// How often a wait for the DERP link reads its state again.
+const DERP_POLL: Duration = Duration::from_millis(250);
+
+/// Whether the node's DERP links let it speak to its peers, by their newest states (T-105). A
+/// refusal is `DerpRefused` in each mode. In `relay` mode (`pinned`) the relay is the node's only
+/// DERP link, so a link that is not up is `DerpPending`, with the last failure; in `tcp` mode the
+/// stock DERP servers are not needed to start.
+pub fn derp_verdict(states: &std::collections::HashMap<LinkKind, LinkState>, pinned: bool) -> Result<(), NodeError> {
+    let derp = || states.iter().filter(|(link, _)| matches!(link, LinkKind::Derp(_))).map(|(_, state)| state);
+    if let Some(LinkState::Refused { reason }) = derp().find(|state| matches!(state, LinkState::Refused { .. })) {
+        return Err(NodeError::DerpRefused { reason: reason.clone() });
+    }
+    if !pinned || derp().any(|state| *state == LinkState::Connected) {
+        return Ok(());
+    }
+    let last = derp().find_map(|state| match state {
+        LinkState::Failed { reason, refused } => Some((reason.clone(), *refused)),
+        _ => None,
+    });
+    Err(NodeError::DerpPending {
+        refused: last.as_ref().is_some_and(|(_, refused)| *refused),
+        last: last.map(|(reason, _)| reason),
+    })
+}
 
 /// Convert the owned selection to fork types at the boundary. The proxy URL
 /// parses via the fork's own `ProxyConfig::from_url`, so the dialer and this
@@ -60,6 +86,8 @@ pub struct TsNode {
     state_file: std::path::PathBuf,
     /// Registered as ephemeral: only such a node logs out at its end.
     ephemeral: bool,
+    /// In `relay` mode: the relay is the node's only DERP link (T-105).
+    pinned: bool,
 }
 
 /// How a [`TsNode::shutdown`] went.
@@ -100,7 +128,8 @@ impl TsNode {
         selection.retry_refused = cfg.retry_refused;
         fork_cfg.options = selection_to_options(&selection).map_err(NodeError::Config)?;
         let device = tailscale::Device::new(&fork_cfg, Some(auth)).await.map_err(|e| NodeError::Fork(e.to_string()))?;
-        Ok(Self { device, state_file: cfg.state_file.clone(), ephemeral: cfg.ephemeral })
+        let pinned = matches!(cfg.mode, crate::config::TsMode::Relay { .. });
+        Ok(Self { device, state_file: cfg.state_file.clone(), ephemeral: cfg.ephemeral, pinned })
     }
 
     /// One machine-readable status: node-key prefix, tailnet IP, home region.
@@ -127,6 +156,26 @@ impl TsNode {
     /// attempt, a new connection, a refusal of the node key (T-104).
     pub fn link_events(&self) -> tokio::sync::broadcast::Receiver<LinkEvent> {
         self.device.link_events()
+    }
+
+    /// The newest state of each link of the node, with no wait (T-105).
+    pub fn link_states(&self) -> std::collections::HashMap<LinkKind, LinkState> {
+        self.device.link_states()
+    }
+
+    /// Wait, at most `limit`, until the DERP links let the node speak to its peers
+    /// ([`derp_verdict`]): a refusal at once, else a link that is not up when the limit passes.
+    pub async fn derp_ready_within(&self, limit: Duration) -> Result<(), NodeError> {
+        let until = tokio::time::Instant::now() + limit;
+        loop {
+            match derp_verdict(&self.link_states(), self.pinned) {
+                Err(NodeError::DerpPending { .. }) if tokio::time::Instant::now() < until => {
+                    let left = until.saturating_duration_since(tokio::time::Instant::now());
+                    tokio::time::sleep(left.min(DERP_POLL)).await;
+                }
+                verdict => return verdict,
+            }
+        }
     }
 
     /// Open a TCP stream to a tailnet peer through the in-process netstack.
@@ -189,4 +238,18 @@ pub enum NodeError {
     /// Kept until M5 proves `start` live, though no caller constructs it:
     /// removing it is part of the M5 landing.
     NotYet(&'static str),
+    /// The relay closed a DERP link and will not take it again: its reason, as a close 1008 "not
+    /// authorized" for a key that is not in its allowlist (T-105).
+    DerpRefused {
+        /// The close, as the fork says it.
+        reason: String,
+    },
+    /// In `relay` mode, the relay's DERP link is not up (T-105).
+    DerpPending {
+        /// Why the last attempt failed, if one did.
+        last: Option<String>,
+        /// That failure was a refusal of the key, dialled again while the node waits for its
+        /// admission.
+        refused: bool,
+    },
 }

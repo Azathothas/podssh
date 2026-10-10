@@ -1,0 +1,467 @@
+diff --git a/src/lib.rs b/src/lib.rs
+index b2ec1a3..0db437d 100644
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -133,11 +133,11 @@ pub use error::{Error, InternalErrorKind};
+ #[doc(inline)]
+ pub use ts_control::LogoutError;
+ #[doc(inline)]
+-pub use ts_runtime::reconnect::{LinkChange, LinkEvent, LinkKind};
+-#[doc(inline)]
+ pub use ts_control::Node as NodeInfo;
+ use ts_netstack_smoltcp::{CreateSocket, netcore::Channel};
+ use ts_runtime::Spawn;
++#[doc(inline)]
++pub use ts_runtime::reconnect::{LinkChange, LinkEvent, LinkKind, LinkState};
+ 
+ #[cfg(feature = "axum")]
+ pub mod axum;
+@@ -156,6 +156,8 @@ pub struct Device {
+     channel: Channel,
+     /// Each change of the node's links (podssh's patch 0019).
+     link_events: tokio::sync::broadcast::Sender<LinkEvent>,
++    /// The newest state of each link (podssh's patch 0021).
++    link_states: ts_runtime::reconnect::LinkStates,
+ }
+ 
+ /// How many link changes wait for a slow receiver before it misses the oldest.
+@@ -203,6 +205,7 @@ impl Device {
+             .link_events
+             .clone()
+             .unwrap_or_else(|| tokio::sync::broadcast::channel(LINK_EVENTS).0);
++        let link_states = ts_runtime::reconnect::LinkStates::default();
+         let rt = ts_runtime::Runtime::spawn(ts_runtime::Config {
+             control_config: config.into(),
+             // Moved into memory that is cleared on drop, with no copy
+@@ -213,6 +216,7 @@ impl Device {
+             // behavior until podssh-ts feeds non-default options.
+             options: config.options.clone(),
+             link_events: Some(link_events.clone()),
++            link_states: link_states.clone(),
+         });
+ 
+         rt.wait_for_startup_result()
+@@ -228,9 +232,17 @@ impl Device {
+             runtime: rt,
+             channel,
+             link_events,
++            link_states,
+         })
+     }
+ 
++    /// The newest state of each link of the node, as it is now, with no wait (podssh's patch
++    /// 0021): a link that never changed is not there. A DERP link that the relay refused says so
++    /// here before any network map.
++    pub fn link_states(&self) -> std::collections::HashMap<LinkKind, LinkState> {
++        self.link_states.now()
++    }
++
+     /// Each change of the node's links from now on: a drop, with the wait before the next
+     /// attempt; a new connection; a refusal of this node's key (podssh's patch 0019). A receiver
+     /// that falls behind misses the oldest changes.
+diff --git a/ts_derp/src/ws.rs b/ts_derp/src/ws.rs
+index 5ac378c..395edca 100644
+--- a/ts_derp/src/ws.rs
++++ b/ts_derp/src/ws.rs
+@@ -40,14 +40,28 @@ pub const SUBPROTOCOL: &str = "derp";
+ /// one message. Reads concatenate the payloads of consecutive binary messages.
+ /// A close frame is reported as an error carrying the WebSocket close code and
+ /// reason, so the caller can distinguish a refusal from a transport failure.
+-pub struct WsIo {
+-    stream: WebSocketStream<TlsStream<TcpStream>>,
++///
++/// The stream under the WebSocket is TLS over TCP, as [`connect`] dials it;
++/// [`WsIo::new`] takes another, as a test's in-memory pipe (podssh's patch 0021).
++pub struct WsIo<S = TlsStream<TcpStream>> {
++    stream: WebSocketStream<S>,
+     /// Payload of the binary message currently being drained.
+     read_buf: Vec<u8>,
+     /// How much of `read_buf` has already been handed to the caller.
+     read_off: usize,
+ }
+ 
++impl<S> WsIo<S> {
++    /// DERP over the WebSocket `stream`, whose upgrade is done.
++    pub fn new(stream: WebSocketStream<S>) -> Self {
++        Self {
++            stream,
++            read_buf: Vec::new(),
++            read_off: 0,
++        }
++    }
++}
++
+ /// Dial a DERP server over WebSocket, offering the `derp` subprotocol.
+ ///
+ /// The URL dialled is `wss://{hostname}:{port}/derp`, matching the Go client's
+@@ -96,14 +110,10 @@ pub async fn connect_with_subprotocol(
+         "derp websocket upgrade complete"
+     );
+ 
+-    Ok(WsIo {
+-        stream,
+-        read_buf: Vec::new(),
+-        read_off: 0,
+-    })
++    Ok(WsIo::new(stream))
+ }
+ 
+-impl AsyncRead for WsIo {
++impl<S: AsyncRead + AsyncWrite + Unpin> AsyncRead for WsIo<S> {
+     fn poll_read(
+         self: Pin<&mut Self>,
+         cx: &mut Context<'_>,
+@@ -154,7 +164,7 @@ impl AsyncRead for WsIo {
+     }
+ }
+ 
+-impl AsyncWrite for WsIo {
++impl<S: AsyncRead + AsyncWrite + Unpin> AsyncWrite for WsIo<S> {
+     fn poll_write(
+         self: Pin<&mut Self>,
+         cx: &mut Context<'_>,
+diff --git a/ts_derp/tests/ws_close.rs b/ts_derp/tests/ws_close.rs
+new file mode 100644
+index 0000000..9355867
+--- /dev/null
++++ b/ts_derp/tests/ws_close.rs
+@@ -0,0 +1,47 @@
++//! podssh's patch 0021: a WebSocket close keeps its code and its reason through `ts_derp::Error`,
++//! as the relay's refusal of a node key, a close 1008 "not authorized", needs. The close comes
++//! from a WebSocket server over an in-memory pipe.
++
++use futures::StreamExt;
++use tokio::io::AsyncReadExt;
++use tokio_tungstenite::tungstenite::protocol::{CloseFrame, frame::coding::CloseCode};
++use ts_derp::ws::{WsClose, WsIo};
++
++#[tokio::test]
++async fn a_close_1008_keeps_its_code_and_reason() {
++    let (client_io, server_io) = tokio::io::duplex(4096);
++    let server = tokio::spawn(async move {
++        let mut ws = tokio_tungstenite::accept_async(server_io).await.unwrap();
++        ws.close(Some(CloseFrame {
++            code: CloseCode::Policy,
++            reason: "not authorized".into(),
++        }))
++        .await
++        .unwrap();
++        // Until the client's answer to the close.
++        while let Some(Ok(_)) = ws.next().await {}
++    });
++
++    let (client_ws, _) = tokio_tungstenite::client_async("ws://relay.invalid/derp", client_io)
++        .await
++        .expect("the upgrade over the pipe");
++    let mut io = WsIo::new(client_ws);
++    let mut buf = [0u8; 16];
++    let read = io.read(&mut buf).await.expect_err("the server closed");
++    let e = ts_derp::Error::from(read);
++
++    assert_eq!(
++        e.ws_close(),
++        Some(&WsClose {
++            code: Some(1008),
++            reason: "not authorized".to_string(),
++        })
++    );
++    // The text that it always had.
++    assert_eq!(
++        e.to_string(),
++        "websocket closed: code=1008 reason=\"not authorized\""
++    );
++    drop(io);
++    server.await.unwrap();
++}
+diff --git a/ts_runtime/src/control_runner.rs b/ts_runtime/src/control_runner.rs
+index cbe9e05..47d06b0 100644
+--- a/ts_runtime/src/control_runner.rs
++++ b/ts_runtime/src/control_runner.rs
+@@ -69,8 +69,14 @@ impl Params {
+         self.restarts
+             .next_wait_ms
+             .store(retry_in.as_millis() as u64, Ordering::Relaxed);
+-        self.env
+-            .link_changed(LinkKind::Control, LinkChange::Dropped { reason, retry_in });
++        self.env.link_changed(
++            LinkKind::Control,
++            LinkChange::Dropped {
++                reason,
++                retry_in,
++                refused: false,
++            },
++        );
+     }
+ }
+ 
+diff --git a/ts_runtime/src/env.rs b/ts_runtime/src/env.rs
+index 94a1660..054b440 100644
+--- a/ts_runtime/src/env.rs
++++ b/ts_runtime/src/env.rs
+@@ -45,6 +45,9 @@ pub struct Env {
+ 
+     /// Where each change of a link goes (podssh's patch 0019), or nowhere.
+     pub link_events: Option<tokio::sync::broadcast::Sender<crate::reconnect::LinkEvent>>,
++
++    /// The newest state of each link (podssh's patch 0021).
++    pub link_states: crate::reconnect::LinkStates,
+ }
+ 
+ impl Env {
+@@ -60,9 +63,16 @@ impl Env {
+             keys: Arc::new(keys),
+             options: Arc::new(options),
+             link_events: None,
++            link_states: Default::default(),
+         }
+     }
+ 
++    /// The same environment, keeping the state of each link in `link_states`.
++    pub fn with_link_states(mut self, link_states: crate::reconnect::LinkStates) -> Self {
++        self.link_states = link_states;
++        self
++    }
++
+     /// The same environment, telling `link_events` of each change of a link.
+     pub fn with_link_events(
+         mut self,
+@@ -78,6 +88,7 @@ impl Env {
+         link: crate::reconnect::LinkKind,
+         change: crate::reconnect::LinkChange,
+     ) {
++        self.link_states.changed(link, &change);
+         if let Some(events) = &self.link_events {
+             drop(events.send(crate::reconnect::LinkEvent { link, change }));
+         }
+diff --git a/ts_runtime/src/lib.rs b/ts_runtime/src/lib.rs
+index 033a8cc..2e60dce 100644
+--- a/ts_runtime/src/lib.rs
++++ b/ts_runtime/src/lib.rs
+@@ -63,6 +63,8 @@ pub struct Config {
+     /// Where each change of a link goes: a drop, a new connection, a refusal (podssh's patch
+     /// 0019). `None` tells nobody.
+     pub link_events: Option<tokio::sync::broadcast::Sender<reconnect::LinkEvent>>,
++    /// Where the newest state of each link is kept (podssh's patch 0021).
++    pub link_states: reconnect::LinkStates,
+ }
+ 
+ impl kameo::Actor for Runtime {
+@@ -73,8 +75,9 @@ impl kameo::Actor for Runtime {
+         // ⛔ The proxy feeds the shared CONNECT dialer before any actor dials:
+         // control, DERP and latency all route through it when set.
+         config.options.apply_proxy();
+-        let env =
+-            Env::new(config.keys, config.options.clone()).with_link_events(config.link_events);
++        let env = Env::new(config.keys, config.options.clone())
++            .with_link_events(config.link_events)
++            .with_link_states(config.link_states);
+         let no_udp = config.options.no_udp;
+ 
+         env.bus.link(&slf).await;
+diff --git a/ts_runtime/src/reconnect.rs b/ts_runtime/src/reconnect.rs
+index 48b1bad..54f636f 100644
+--- a/ts_runtime/src/reconnect.rs
++++ b/ts_runtime/src/reconnect.rs
+@@ -6,7 +6,11 @@
+ //! in 5 s. The loop here takes its steps from a [`Link`], so a test drives it with no network.
+ 
+ use core::future::Future;
+-use std::time::Duration;
++use std::{
++    collections::HashMap,
++    sync::{Arc, Mutex},
++    time::Duration,
++};
+ 
+ use tokio::time::{Instant, MissedTickBehavior};
+ 
+@@ -96,6 +100,9 @@ pub enum LinkChange {
+         reason: String,
+         /// The wait before the next attempt.
+         retry_in: Duration,
++        /// The far end refused the node's key, and the node waits for its admission (podssh's
++        /// patch 0021).
++        refused: bool,
+     },
+     /// The far end refused this node's key; no attempt follows.
+     Refused {
+@@ -113,6 +120,58 @@ pub struct LinkEvent {
+     pub change: LinkChange,
+ }
+ 
++/// The newest state of a link, as its last change said it (podssh's patch 0021).
++#[derive(Clone, Debug, PartialEq, Eq)]
++pub enum LinkState {
++    /// Up.
++    Connected,
++    /// Down, and dialled again after a wait.
++    Failed {
++        /// Why.
++        reason: String,
++        /// The far end refused the node's key, and the node waits for its admission.
++        refused: bool,
++    },
++    /// The far end refused the node's key, and the link is not dialled again.
++    Refused {
++        /// Why, as the far end said it.
++        reason: String,
++    },
++}
++
++/// The newest state of each link of the node, kept as each change comes and read with no wait
++/// (podssh's patch 0021): a refusal is a fact that a caller needs at once, not after a network map
++/// that may never come.
++#[derive(Clone, Debug, Default)]
++pub struct LinkStates(Arc<Mutex<HashMap<LinkKind, LinkState>>>);
++
++impl LinkStates {
++    /// Keep what `change` says of `link`.
++    pub fn changed(&self, link: LinkKind, change: &LinkChange) {
++        let state = match change {
++            LinkChange::Connected { .. } => LinkState::Connected,
++            LinkChange::Dropped {
++                reason, refused, ..
++            } => LinkState::Failed {
++                reason: reason.clone(),
++                refused: *refused,
++            },
++            LinkChange::Refused { reason } => LinkState::Refused {
++                reason: reason.clone(),
++            },
++        };
++        self.0
++            .lock()
++            .unwrap_or_else(|e| e.into_inner())
++            .insert(link, state);
++    }
++
++    /// The state of each link that has changed, as it is now.
++    pub fn now(&self) -> HashMap<LinkKind, LinkState> {
++        self.0.lock().unwrap_or_else(|e| e.into_inner()).clone()
++    }
++}
++
+ /// The steps of a link that [`keep`] runs.
+ pub trait Link {
+     /// What a wait gives the connect step: for a DERP region, a packet to send at once.
+@@ -156,6 +215,7 @@ pub async fn keep(link: &mut impl Link, policy: &Reconnect) -> String {
+             }
+             Err(ended) => ended,
+         };
++        let refused = matches!(ended, Ended::Refused(_));
+         match ended {
+             Ended::Quiet => again = false,
+             Ended::Refused(reason) if !policy.retry_refused => {
+@@ -167,7 +227,11 @@ pub async fn keep(link: &mut impl Link, policy: &Reconnect) -> String {
+             Ended::Failed(reason) | Ended::Refused(reason) => {
+                 retry = retry.saturating_add(1);
+                 let retry_in = policy.wait(retry);
+-                link.changed(LinkChange::Dropped { reason, retry_in });
++                link.changed(LinkChange::Dropped {
++                    reason,
++                    retry_in,
++                    refused,
++                });
+                 tokio::time::sleep(retry_in).await;
+                 again = true;
+             }
+diff --git a/ts_runtime/tests/reconnect.rs b/ts_runtime/tests/reconnect.rs
+index 86f13cf..c0ec867 100644
+--- a/ts_runtime/tests/reconnect.rs
++++ b/ts_runtime/tests/reconnect.rs
+@@ -14,7 +14,9 @@ use std::{
+ };
+ 
+ use tokio::{sync::Mutex, time::Instant};
+-use ts_runtime::reconnect::{self, Ended, Heard, Link, LinkChange, Reconnect};
++use ts_runtime::reconnect::{
++    self, Ended, Heard, Link, LinkChange, LinkKind, LinkState, LinkStates, Reconnect,
++};
+ 
+ /// One turn of a fake link.
+ enum Turn {
+@@ -34,6 +36,8 @@ struct Fake {
+     start: Instant,
+     connects: Vec<Duration>,
+     changes: Vec<LinkChange>,
++    /// Where the changes are kept as states, as the runtime keeps them (patch 0021).
++    states: Option<LinkStates>,
+ }
+ 
+ impl Fake {
+@@ -44,6 +48,7 @@ impl Fake {
+             start: Instant::now(),
+             connects: Vec::new(),
+             changes: Vec::new(),
++            states: None,
+         }
+     }
+ }
+@@ -93,6 +98,9 @@ impl Link for Fake {
+     }
+ 
+     fn changed(&mut self, change: LinkChange) {
++        if let Some(states) = &self.states {
++            states.changed(LinkKind::Derp(1), &change);
++        }
+         self.changes.push(change);
+     }
+ }
+@@ -287,3 +295,57 @@ async fn a_non_home_inactivity_close_waits_for_activity() {
+         fake.changes
+     );
+ }
++
++/// podssh's patch 0021: the newest state of the link says a refusal at once, and a refusal that is
++/// dialled again, while the node waits for its key's admission, as a failure that was a refusal.
++#[tokio::test(start_paused = true)]
++async fn a_refusal_leaves_the_link_refused_and_a_retried_one_failed() {
++    let refused = || Ended::Refused("websocket closed: code=1008 reason=\"not authorized\"".into());
++    let states = LinkStates::default();
++    let mut fake = Fake::new(vec![
++        Turn::Up(Duration::from_secs(1), failed("reset")),
++        Turn::NoConnect(refused()),
++    ]);
++    fake.states = Some(states.clone());
++    play(&mut fake, &Reconnect::default()).await;
++    assert!(
++        matches!(
++            states.now().get(&LinkKind::Derp(1)),
++            Some(LinkState::Refused { reason }) if reason.contains("not authorized")
++        ),
++        "{:?}",
++        states.now()
++    );
++
++    let waiting = Reconnect {
++        retry_refused: true,
++        ..Reconnect::default()
++    };
++    let states = LinkStates::default();
++    let mut fake = Fake::new(vec![Turn::NoConnect(refused())]);
++    fake.states = Some(states.clone());
++    play(&mut fake, &waiting).await;
++    assert!(
++        matches!(
++            states.now().get(&LinkKind::Derp(1)),
++            Some(LinkState::Failed { refused: true, .. })
++        ),
++        "{:?}",
++        states.now()
++    );
++
++    // Up, the link says so.
++    let states = LinkStates::default();
++    let mut fake = Fake::new(vec![Turn::Up(Duration::from_secs(600), Ended::Quiet)]);
++    fake.states = Some(states.clone());
++    tokio::time::timeout(
++        Duration::from_secs(5),
++        play(&mut fake, &Reconnect::default()),
++    )
++    .await
++    .ok();
++    assert_eq!(
++        states.now().get(&LinkKind::Derp(1)),
++        Some(&LinkState::Connected)
++    );
++}

@@ -5,7 +5,7 @@ crate crates/podssh-ts/, and the fork vendor/tailscale-rs with its patches in ve
 of it is behind the cargo feature `ts`: the default binary refuses `podssh ts` with exit 70. The
 fork builds aws-lc and uses much memory, so run one build at a time with `CARGO_BUILD_JOBS=4`
 (`AGENTS.md`, section 4). The fork's own tests run in the build image through
-`scripts/ts-derp-prove.sh:82-130`.
+`scripts/ts-derp-prove.sh:82-131`.
 
 # T-100: C2: `podssh ts` waits for ever when no network map arrives
 
@@ -35,8 +35,8 @@ and `docs/cli.md:572-574` makes that a rule.
 
 Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs`, lines 76-79 at `4c3b456`), whose reply
 waits in a queue until a map with the self node arrives
-(`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:272-289`,
-`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:538-552`). `peer_ip()` waits for the first
+(`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:278-295`,
+`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:544-558`). `peer_ip()` waits for the first
 peer update (`vendor/tailscale-rs/ts_runtime/src/peer_tracker/mod.rs:74-98`), against its comment
 "never a hang" (`crates/podssh-ts/src/node.rs`, lines 90-92 at `4c3b456`). The wait loop handles only `NetmapPending`,
 a self node with no home region (`crates/podssh-cli/src/ts.rs`, lines 288-320 at `4c3b456`).
@@ -47,13 +47,13 @@ a self node with no home region (`crates/podssh-cli/src/ts.rs`, lines 288-320 at
    and give each later wait only the time that remains.
 2. Add `TsNode::status_within(limit)` and `TsNode::peer_ip_within(limit)`: the fork call inside
    `tokio::time::timeout`, and `NodeError::NetmapPending` when the limit passes. A dropped query
-   leaves its reply sender queued (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:282-286`);
+   leaves its reply sender queued (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:288-292`);
    a later send must not panic.
 3. With no `--timeout` (a terminal), limit the first map wait by `--ts-wait-allowlist`, else by a
    named constant of 20 s, "a design constant, not a measurement", as at
    `crates/podssh-cli/src/ts.rs`, lines 298-301 at `4c3b456`. The default stays fail-fast (`docs/decisions.md:42`).
 4. Apply the same limit to the address wait in `Device::tcp_connect`
-   (`vendor/tailscale-rs/src/lib.rs:296-300`). Keep one message and exit 78 for "no map in time".
+   (`vendor/tailscale-rs/src/lib.rs:308-312`). Keep one message and exit 78 for "no map in time".
 5. Correct the two comments, and update `docs/STATUS.md:307` in the same commit.
 
 ## Decision
@@ -81,7 +81,7 @@ The new file crates/podssh-ts/tests/netmap_wait.rs gives the limit a future that
 (`std::future::pending`) under `tokio::time::pause()`, and checks the time that remains for each
 wait. Plant: await with no limit; an outer `tokio::time::timeout` must then fail the test. An
 offline test cannot reach the fork's queue: with a silent control server, the start itself waits
-(`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:130-152`). The second command is the feature
+(`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:136-158`). The second command is the feature
 suite (226 passed, `docs/STATUS.md:324`). The third is live, with a `ts` build, while no map comes
 (`docs/tailscale.md:10-11`): it must print `exit=78` after about 20 s, not `exit=124`.
 
@@ -253,7 +253,7 @@ current node key (`vendor/tailscale-rs/ts_control_serde/src/register.rs:92-97`).
 3. `TsNode::shutdown` logs out first when the node is ephemeral, in 5 s at most. `podssh ts` calls
    it at the end of each form, also after an error (`crates/podssh-cli/src/ts.rs`, lines 232-242 at
    `c17e64f`). Never
-   log out a node that is not ephemeral: its allowlist entry is lost (`docs/tailscale.md:70-71`).
+   log out a node that is not ephemeral: its allowlist entry is lost (`docs/tailscale.md:76-77`).
 4. Update `docs/tailscale.md` and `docs/STATUS.md:310` in the same commit.
 
 ## Decision
@@ -385,7 +385,7 @@ lines 176-207), against the manual (`crates/podssh-cli/src/man/facts.rs:45-51`),
 `docs/target-environment.md:68-71` and `SECURITY.md:53-57`. A URL with no port means 80 in podssh
 (`crates/podssh-ws/src/dial.rs:70`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs`, lines
 39-41 at `0b6f4b8`).
-Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:72-73`).
+Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:78-79`).
 
 ## Approach
 
@@ -399,7 +399,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:169-184`), so apply `NO_PROXY` for each host in
    the new function.
-4. Update `crates/podssh-cli/src/flags.rs:279-280`, `docs/tailscale.md:72-73` and
+4. Update `crates/podssh-cli/src/flags.rs:279-280`, `docs/tailscale.md:78-79` and
    `docs/STATUS.md:310` in the same commit.
 
 Added by T-102 (2026-10-10): the checks of each mode before the start already take `--ts-proxy`,
@@ -549,7 +549,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:310` and `crates/podssh-cli/src/man/notes.rs:357-379`.
+   `docs/tailscale.md`, `docs/STATUS.md:310` and `crates/podssh-cli/src/man/notes.rs:357-382`.
 
 ## Decision
 
@@ -640,13 +640,13 @@ a refusal (`crates/podssh-cli/src/ts/links.rs`), and `--ts-wait-allowlist` retri
 
 # T-105: The fork shows the relay's `1008 not authorized` as a missing network map
 
-**Source:** `docs/tailscale.md:12-14` ("Repair this first"), and the comment at
-`crates/podssh-cli/src/ts.rs:332-335` (measured on 2026-10-07). Read here on `3ee70dc` in the fork.
+**Source:** `docs/tailscale.md`, lines 12-14 at `d345b14` ("Repair this first"), and the comment at
+`crates/podssh-cli/src/ts.rs`, lines 332-335 at `d345b14` (measured on 2026-10-07). Read here on `3ee70dc` in the fork.
 **Category:** defect
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -657,40 +657,60 @@ allowlist. The exit is 78, not the 77 that `podssh ts` gives for a refused key.
 
 ## Premise
 
-Read: the transport turns a close into an `io::Error` with the text
-`websocket closed: code=1008 reason="not authorized"` (`vendor/tailscale-rs/ts_derp/src/ws.rs:214-227`),
+Read, at `d345b14` for the code that T-104 and this entry changed: the transport turns a close
+into an `io::Error` with the text
+`websocket closed: code=1008 reason="not authorized"` (`vendor/tailscale-rs/ts_derp/src/ws.rs:224-237`),
 and the handshake returns it (`vendor/tailscale-rs/ts_derp/src/client.rs:211-216`). The runner
 passes it up (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs`, lines 248-254 at `a3c196e`), and `start_runner`
 gives it to `tracing::error!` only (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs`, lines 72-76 at `a3c196e`).
 No podssh crate installs a `tracing` subscriber, so the line goes nowhere. `classify_1008` and the
-exit 77 exist (`crates/podssh-ts/src/classify.rs:17-25`, `crates/podssh-cli/src/ts.rs:314-326`), but
+exit 77 exist (`crates/podssh-ts/src/classify.rs:17-25`, `crates/podssh-cli/src/ts.rs` lines 314-326), but
 they see only the error texts of `Device` calls.
 
+Correction (2026-10-10): the exit 77 lives in `crates/podssh-cli/src/ts/exits.rs` now, moved out of
+`crates/podssh-cli/src/ts.rs` by this entry.
+
 Read: the symptom is not always a missing map. The status line needs the home region of the self
-node (`crates/podssh-ts/src/node.rs:111-118`). Control sets it from the region that the node prefers
-(`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:357-370`), which comes from HTTPS latency
+node (`crates/podssh-ts/src/node.rs:140-147`). Control sets it from the region that the node prefers
+(`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:363-376`), which comes from HTTPS latency
 checks of the stock DERP map (`vendor/tailscale-rs/ts_runtime/src/derp_latency.rs:37-58`), not from
 the relay. So a refused node can still print a status line and exit 0. This widens the defect.
 
 ## Approach
 
 1. In `ts_derp`, `WsIo` puts a typed `WsClose { code, reason }` inside its `io::Error`
-   (`vendor/tailscale-rs/ts_derp/src/ws.rs:214-227`), and `ts_derp::Error` gets a method that
+   (`vendor/tailscale-rs/ts_derp/src/ws.rs:224-237`), and `ts_derp::Error` gets a method that
    returns it. The frame codec does not change.
 2. In `ts_runtime`, keep the newest DERP state of each region (connected, refused or failed), set
    in `start_runner` and later in the loop of T-104. `Device::derp_state()` returns it with no wait,
-   forwarded as `SelfNode` is (`vendor/tailscale-rs/src/lib.rs:311-318`).
+   forwarded as `SelfNode` is (`vendor/tailscale-rs/src/lib.rs:323-330`).
 3. In podssh-ts, add `NodeError::DerpRefused { code, reason }`. `status()` and `-W` read the state
    first, and `relay` mode prints a status line only with a connected home region.
-4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs:314-326`),
-   and remove the old comment at `crates/podssh-cli/src/ts.rs:332-335`.
-5. Add the patch and its row, and update `docs/tailscale.md:12-14` and `docs/STATUS.md:310`.
+4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs`, lines 314-326 at `d345b14`),
+   and remove the old comment at `crates/podssh-cli/src/ts.rs`, lines 332-335 at `d345b14`.
+5. Add the patch and its row, and update `docs/tailscale.md`, lines 12-14 at `d345b14` and `docs/STATUS.md:310`.
 
 Added by T-104 (2026-10-10): step 1 is done, in patch 0019: `WsIo` puts a typed `WsClose { code,
 reason }` in its `io::Error`, and `ts_derp::Error::ws_close` finds it, with a unit test of the close
 in `vendor/tailscale-rs/ts_derp/src/ws.rs`. The node's link changes (`Device::link_events`) already
 carry a refusal, `LinkChange::Refused`, which `podssh ts` writes on stderr: the state of step 2 can
 come from them.
+
+## Decision
+
+Decided in the work (2026-10-10):
+- The newest state of each link is a shared map that the runtime writes as each change comes,
+  and that `Device::link_states` reads with no message. A message forwarded as `SelfNode` is lost:
+  `SelfNode` waits for the network map, and a refusal must not.
+- In `relay` mode the relay is the node's only DERP link (T-104), so "a connected home region" is
+  that link: the status line and `-W` wait for it within the window of the network map, and a
+  refusal ends the wait at once. In `tcp` mode a DERP link that is down does not stop the start:
+  UDP may carry the node; a refusal is 77 there too.
+- Under `--ts-wait-allowlist` a refusal is dialled again (T-104), and a link whose last failure was
+  a refusal at the end of the wait is 77, not 78.
+- `ts_derp::ws::WsIo` takes its stream as a type parameter, TLS over TCP by default, so the test
+  of the close runs through a real WebSocket over an in-memory pipe.
+- The message of a missing network map no longer guesses at the allowlist: a refusal is said apart.
 
 ## Prove
 
@@ -703,12 +723,41 @@ cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts --no-fail-fast
 The fork test vendor/tailscale-rs/ts_derp/tests/ws_close.rs checks that a close 1008 keeps its code
 and reason through `ts_derp::Error`. A runtime test with a fake connect that returns it expects the
 state "refused", and a podssh-ts test maps that state to exit 77. Plant: keep only the text; the
-first test must fail. The live step M3 (`scripts/ts-derp-prove.sh:119-122`) must still see the
+first test must fail. The live step M3 (`scripts/ts-derp-prove.sh:120-123`) must still see the
 refusal. Live, with a `ts` build: an ephemeral node with a new state file exits 77 and names 1008.
+
+## Done
+
+2026-10-10, in the commit that closes this entry. Patch `vendor/patches/0021-link-states.patch`,
+with its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`: the runtime keeps the newest state of each
+link (`reconnect::LinkStates`: connected, failed, refused), set at each change, and
+`Device::link_states` reads it with no wait; a drop says whether it was a refusal dialled again.
+`WsIo` is generic over its stream. podssh-ts: `derp_verdict` and `TsNode::derp_ready_within`
+(`crates/podssh-ts/src/node.rs`) give `NodeError::DerpRefused` and, in `relay` mode,
+`NodeError::DerpPending`; `podssh ts` waits for the relay's link before the status line and `-W`,
+and maps a refused key to 77 with what it needs (`crates/podssh-cli/src/ts/exits.rs`). The old
+comment of `no_map` is gone. `docs/tailscale.md`, the manual and `docs/STATUS.md` say so, and
+`scripts/ts-derp-prove.sh` runs `ws_close`.
+- Native, Windows 11: the fork's `cargo test --manifest-path vendor/tailscale-rs/Cargo.toml -p
+  ts_derp --test ws_close`, 1 passed: a WebSocket server over a pipe closes 1008 "not authorized",
+  and `ts_derp::Error::ws_close` gives the code and the reason, with the old text; planted, the close
+  as text only: it fails. `-p ts_runtime --test reconnect`, 8 passed, with
+  `a_refusal_leaves_the_link_refused_and_a_retried_one_failed`. `cargo test -p podssh-ts --test
+  derp_state`, 3 passed; planted, the refusal ignored: it fails. `cargo test -p podssh-cli --features
+  ts --test ts_exits`, 3 passed; planted, each close read as another session: it fails. The fork's
+  suites of the touched crates: 60 passed, and its clippy with `-D warnings`: no warning.
+  `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts --no-fail-fast`: 493
+  passed, 0 failed, 25 ignored. `cargo test --workspace --no-fail-fast`: 1217
+  passed, 0 failed, 39 ignored. clippy with `-D warnings`: no warning. The twenty-one
+  patches give the vendored tree byte for byte on all 42 touched paths.
+- Live, this machine: the fork's example `ws_handshake` (step M3): the relay refused a fresh key
+  with 1008 "not authorized", and without the subprotocol the upgrade with HTTP 426.
+- Waits for T-251: `scripts/ts-derp-prove.sh` in the build image. Waits for T-251 and Q40: the live
+  run, an ephemeral node with a new state file that exits 77 and names 1008.
 
 # T-106: The live test of `podssh ts` with two nodes
 
-**Source:** `docs/ROADMAP.md:247-250` ("then the tests with two nodes"), `docs/tailscale.md:17`.
+**Source:** `docs/ROADMAP.md:247-250` ("then the tests with two nodes"), `docs/tailscale.md:22`.
 Read here on `3ee70dc`.
 **Category:** measurement
 **Milestone:** M8
@@ -727,16 +776,16 @@ host or from a sandbox.
 
 Read: the ignored test makes a new state file in the temporary directory and removes it
 (`crates/podssh-cli/tests/ts_behave.rs:228-255`); a new state file is a new node key
-(`docs/tailscale.md:70-71`). Its reason still names M5. On 2026-10-07, registration worked, no map
-came in 60 s, and only the operator can add a node key to the allowlist (`docs/tailscale.md:8-18`).
+(`docs/tailscale.md:76-77`). Its reason still names M5. On 2026-10-07, registration worked, no map
+came in 60 s, and only the operator can add a node key to the allowlist (`docs/tailscale.md:8-24`).
 
-Read: `podssh ts` has no form that accepts a connection (`crates/podssh-cli/src/ts.rs:243-247`), but
+Read: `podssh ts` has no form that accepts a connection (`crates/podssh-cli/src/ts.rs:246-250`), but
 the fork can listen in its own network stack, with no socket of the host
-(`vendor/tailscale-rs/src/lib.rs:284-293`). The fork's echo example takes the auth key on the
+(`vendor/tailscale-rs/src/lib.rs:296-305`). The fork's echo example takes the auth key on the
 command line (`vendor/tailscale-rs/examples/tcp_echo/main.rs:24-28`), which podssh must not do. With
 the pin, each region's runner dials the relay
 (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:333-340`), so two `relay` nodes meet there.
-Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:72-73`).
+Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:78-79`).
 
 ## Approach
 
@@ -751,8 +800,8 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
    same port. The pipe must go on, and stderr must show the drop and the new connection.
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
-6. Record each result with its date in `docs/STATUS.md:64`, `docs/tailscale.md:8-18` and
-   `crates/podssh-cli/src/man/notes.rs:357-379`.
+6. Record each result with its date in `docs/STATUS.md:64`, `docs/tailscale.md:8-24` and
+   `crates/podssh-cli/src/man/notes.rs:357-382`.
 
 ## Prove
 
@@ -772,7 +821,7 @@ static binary built with `--features ts`. Each command must exit 0 with the two 
 
 The relay's operator: the node keys of the two kept state files on the relay's allowlist, with a
 Tailscale admin token and the relay's deployment credential that only the operator has
-(`docs/tailscale.md:15-16`). T-103, T-104 and T-105 are done first. Sessions skip this entry until
+(`docs/tailscale.md:20-21`). T-103, T-104 and T-105 are done first. Sessions skip this entry until
 then (the operator's ruling of 2026-10-08).
 
 # T-240: `podssh ts --jsonl` writes no JSON

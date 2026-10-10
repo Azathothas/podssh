@@ -9,13 +9,19 @@ HTTPS. Build it only with `--features ts`; see [development.md](development.md).
 
 - Probe nodes registered with the tailnet (the control login works), but no
   network map arrived within 60 s.
-- The fork does not give the relay's `1008 "not authorized"` to its `Device`
-  API. Thus a node key that is not in the relay's allowlist looks like a
-  network map that has not arrived yet. Repair this first.
+- 2026-10-07: the fork did not give the relay's `1008 "not authorized"` to
+  its `Device` API, so a node key that is not in the relay's allowlist looked
+  like a network map that had not arrived yet. Since T-105 (2026-10-10), the
+  fork keeps the newest state of each link (patch 0021): `podssh ts` exits 77
+  at the relay's refusal and says what the key needs, at once, or at the end
+  of `--ts-wait-allowlist`, which dials the relay again while the node waits
+  for its key's admission. In `relay` mode, the status line and `-W` wait,
+  within the same limit, for the relay's DERP link to come up.
 - The operator adds node keys to the allowlist. This needs a Tailscale admin
   token and a deployment credential for the relay.
 - The live test with two nodes has never passed.
-- More open defects: T-100 (formerly C2) in [TODO/ts.md](../TODO/ts.md).
+- The open work of `podssh ts`: T-106, the live test with two nodes, which
+  waits for the relay's operator ([TODO/ts.md](../TODO/ts.md)).
 
 ## The choice of a mode, and the end of a run (T-102, 2026-10-10)
 

@@ -376,6 +376,9 @@ const TS: &[&str] = &[
      on up to 30 s, each by a random factor, and from 1 s again after a link of 60 s; a DERP link that \
      answered a ping and then says nothing for 30 s is dead. A line on stderr says each drop and each \
      return. The relay's close 1008 \"not authorized\" ends the link, unless --ts-wait-allowlist is given.",
+    "A node key that the relay refuses ends the run with exit 77, and the line says what the key \
+     needs: at once, or at the end of --ts-wait-allowlist. In relay mode, the status line and -W wait, \
+     within the same limit, for the relay's DERP link to come up.",
 ];
 
 #[cfg(test)]

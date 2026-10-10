@@ -25,8 +25,11 @@ use podssh_ts::wait::{Deadline, FIRST_MAP_WAIT};
 use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
 use crate::pager::Tty;
 
+pub mod exits;
 pub mod links;
 pub mod probe;
+
+use exits::{no_map, node_error_exit};
 
 /// The `ts` inputs, straight from `Parsed::Ts` — plain data, no fork types.
 pub struct TsArgs {
@@ -293,53 +296,6 @@ fn trim_key(raw: &mut Vec<u8>) {
     }
 }
 
-/// Map a node failure to its exit. Fork strings carrying "not authorized"
-/// split 77 via `classify_1008`; everything else is 70.
-fn node_error_exit(e: &podssh_ts::node::NodeError, err: &mut dyn Write) -> i32 {
-    use podssh_ts::node::NodeError;
-    match e {
-        NodeError::Config(c) => {
-            let _ = writeln!(err, "podssh ts: bad configuration: {c}");
-            EXIT_USAGE
-        }
-        NodeError::KeyExpired | NodeError::KeyNotUtf8 => {
-            let _ = writeln!(err, "podssh ts: the auth key is unusable: {e:?}");
-            crate::exitmap::Fault::Auth.code()
-        }
-        NodeError::NetmapPending => no_map(err),
-        NodeError::NotYet(what) => {
-            let _ = writeln!(err, "podssh ts: not yet: {what}");
-            EXIT_NOT_IMPLEMENTED
-        }
-        NodeError::Fork(text) => {
-            let _ = writeln!(err, "podssh ts: the tailnet engine failed: {text}");
-            match podssh_ts::classify::classify_1008(Some(text)) {
-                podssh_ts::classify::Fault::NotAuthorized => {
-                    let _ = writeln!(
-                        err,
-                        "The relay refused the node key (1008 \"not authorized\").\nSync the allowlist, or pass --ts-wait-allowlist to wait for admission."
-                    );
-                    crate::exitmap::Fault::Auth.code()
-                }
-                podssh_ts::classify::Fault::Session => EXIT_NOT_IMPLEMENTED,
-            }
-        }
-    }
-}
-
-/// No network map within the wait: 78, and one message for each wait.
-fn no_map(err: &mut dyn Write) -> i32 {
-    // MEASURED 2026-10-07: an allowlisted-but-unsynced node sits here, not on
-    // the 1008 arm — the fork never surfaces the relay's close through the
-    // Device API, so "no netmap" IS the unlisted-key symptom and the message
-    // must name the sync, not just the wait.
-    let _ = writeln!(
-        err,
-        "podssh ts: no netmap yet. Pass --ts-wait-allowlist DURATION to wait\nfor relay admission instead of failing fast. If the wait expires, the relay's\nallowlist likely lacks this node's key: sync it, then retry with the\nsame --ts-state file so the node keeps its key."
-    );
-    crate::exitmap::Fault::Capability.code()
-}
-
 /// Bare `podssh ts`: one machine-readable line on stdout. The first network
 /// map is awaited for `window`, never past the deadline; with
 /// `--ts-wait-allowlist` (`poll`), a map with no home region yet is polled
@@ -354,6 +310,11 @@ async fn status_form(
     jsonl: bool,
 ) -> i32 {
     let until = tokio::time::Instant::now() + deadline.limit(window);
+    // In `relay` mode the relay is the only DERP link: no status line without it, and a key that
+    // it refuses is said at once (T-105).
+    if let Err(e) = node.derp_ready_within(until.saturating_duration_since(tokio::time::Instant::now())).await {
+        return node_error_exit(&e, err);
+    }
     loop {
         let left = until.saturating_duration_since(tokio::time::Instant::now());
         match node.status_within(left).await {
@@ -415,6 +376,9 @@ async fn pipe_form(
         }
     };
     if let Err(e) = node.address_within(deadline.limit(window)).await {
+        return node_error_exit(&e, err);
+    }
+    if let Err(e) = node.derp_ready_within(deadline.limit(window)).await {
         return node_error_exit(&e, err);
     }
     let open = if let Some(left) = deadline.remaining() {

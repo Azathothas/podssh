@@ -40,12 +40,26 @@ pub const SUBPROTOCOL: &str = "derp";
 /// one message. Reads concatenate the payloads of consecutive binary messages.
 /// A close frame is reported as an error carrying the WebSocket close code and
 /// reason, so the caller can distinguish a refusal from a transport failure.
-pub struct WsIo {
-    stream: WebSocketStream<TlsStream<TcpStream>>,
+///
+/// The stream under the WebSocket is TLS over TCP, as [`connect`] dials it;
+/// [`WsIo::new`] takes another, as a test's in-memory pipe (podssh's patch 0021).
+pub struct WsIo<S = TlsStream<TcpStream>> {
+    stream: WebSocketStream<S>,
     /// Payload of the binary message currently being drained.
     read_buf: Vec<u8>,
     /// How much of `read_buf` has already been handed to the caller.
     read_off: usize,
+}
+
+impl<S> WsIo<S> {
+    /// DERP over the WebSocket `stream`, whose upgrade is done.
+    pub fn new(stream: WebSocketStream<S>) -> Self {
+        Self {
+            stream,
+            read_buf: Vec::new(),
+            read_off: 0,
+        }
+    }
 }
 
 /// Dial a DERP server over WebSocket, offering the `derp` subprotocol.
@@ -96,14 +110,10 @@ pub async fn connect_with_subprotocol(
         "derp websocket upgrade complete"
     );
 
-    Ok(WsIo {
-        stream,
-        read_buf: Vec::new(),
-        read_off: 0,
-    })
+    Ok(WsIo::new(stream))
 }
 
-impl AsyncRead for WsIo {
+impl<S: AsyncRead + AsyncWrite + Unpin> AsyncRead for WsIo<S> {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -154,7 +164,7 @@ impl AsyncRead for WsIo {
     }
 }
 
-impl AsyncWrite for WsIo {
+impl<S: AsyncRead + AsyncWrite + Unpin> AsyncWrite for WsIo<S> {
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,

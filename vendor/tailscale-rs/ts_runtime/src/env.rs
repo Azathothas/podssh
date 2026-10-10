@@ -45,6 +45,9 @@ pub struct Env {
 
     /// Where each change of a link goes (podssh's patch 0019), or nowhere.
     pub link_events: Option<tokio::sync::broadcast::Sender<crate::reconnect::LinkEvent>>,
+
+    /// The newest state of each link (podssh's patch 0021).
+    pub link_states: crate::reconnect::LinkStates,
 }
 
 impl Env {
@@ -60,7 +63,14 @@ impl Env {
             keys: Arc::new(keys),
             options: Arc::new(options),
             link_events: None,
+            link_states: Default::default(),
         }
+    }
+
+    /// The same environment, keeping the state of each link in `link_states`.
+    pub fn with_link_states(mut self, link_states: crate::reconnect::LinkStates) -> Self {
+        self.link_states = link_states;
+        self
     }
 
     /// The same environment, telling `link_events` of each change of a link.
@@ -78,6 +88,7 @@ impl Env {
         link: crate::reconnect::LinkKind,
         change: crate::reconnect::LinkChange,
     ) {
+        self.link_states.changed(link, &change);
         if let Some(events) = &self.link_events {
             drop(events.send(crate::reconnect::LinkEvent { link, change }));
         }

@@ -63,6 +63,8 @@ pub struct Config {
     /// Where each change of a link goes: a drop, a new connection, a refusal (podssh's patch
     /// 0019). `None` tells nobody.
     pub link_events: Option<tokio::sync::broadcast::Sender<reconnect::LinkEvent>>,
+    /// Where the newest state of each link is kept (podssh's patch 0021).
+    pub link_states: reconnect::LinkStates,
 }
 
 impl kameo::Actor for Runtime {
@@ -73,8 +75,9 @@ impl kameo::Actor for Runtime {
         // ⛔ The proxy feeds the shared CONNECT dialer before any actor dials:
         // control, DERP and latency all route through it when set.
         config.options.apply_proxy();
-        let env =
-            Env::new(config.keys, config.options.clone()).with_link_events(config.link_events);
+        let env = Env::new(config.keys, config.options.clone())
+            .with_link_events(config.link_events)
+            .with_link_states(config.link_states);
         let no_udp = config.options.no_udp;
 
         env.bus.link(&slf).await;
