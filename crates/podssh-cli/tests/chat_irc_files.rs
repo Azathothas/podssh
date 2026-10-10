@@ -6,6 +6,8 @@
 //! is tested: the offer to the channel, the accept, the chunks between the two
 //! nicks alone, the digest and the word that the file was kept.
 
+mod cleanup;
+
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -26,6 +28,7 @@ fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-chat-irc-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
+    cleanup::at_test_end(&dir);
     dir
 }
 

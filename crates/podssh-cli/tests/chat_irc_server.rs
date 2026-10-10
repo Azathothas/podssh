@@ -6,6 +6,8 @@
 //! port, which must fail. `PODSSH_IRC_PLANT=plaintext` is the planted defect:
 //! each run then skips the TLS, and the test must fail at the handshake.
 
+mod cleanup;
+
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -29,6 +31,8 @@ impl Server {
         let home = std::env::temp_dir().join(format!("podssh-chat-irc-server-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&home);
         std::fs::create_dir_all(home.join("inbox")).unwrap();
+        // The test's own thread calls this, so the directory goes as it ends.
+        cleanup::at_test_end(&home);
         Some(Server { address, ca, plant, home })
     }
 

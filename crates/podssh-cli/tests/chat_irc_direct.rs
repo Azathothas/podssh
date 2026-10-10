@@ -3,6 +3,8 @@
 //! answers with the lines that ngircd 27 wrote (podssh-core's tests). The
 //! message goes to the channel, and the run ends with a `QUIT`.
 
+mod cleanup;
+
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::process::{Command, Stdio};
@@ -46,6 +48,7 @@ fn a_direct_chat_sends_its_message_and_quits() {
     let server = serve(listener);
     let home = std::env::temp_dir().join(format!("podssh-chat-direct-{}", std::process::id()));
     std::fs::create_dir_all(&home).unwrap();
+    cleanup::at_test_end(&home);
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
     cmd.args(["chat", "--irc", &format!("127.0.0.1:{port}"), "--direct", "--irc-plaintext", "--nick", "pa"]);
     cmd.args(["--timeout", "20s", "--send", "hello from podssh", "#t"]);
