@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**268 entries: 125 open, 0 partial, 22 blocked, 121 done.**
+**268 entries: 124 open, 0 partial, 22 blocked, 122 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 15 | 17 |
-| P2 | 43 | 0 | 18 | 89 | 150 |
+| P2 | 42 | 0 | 18 | 90 | 150 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 125 | 0 | 22 | 121 | 268 |
+| **All** | 124 | 0 | 22 | 122 | 268 |
 
 ## Entries
 
@@ -311,7 +311,7 @@ repository and CI).
 | [T-237](ssh.md) | P2 | S | M3 | defect | done | The client accepts each channel that the server opens; OpenSSH refuses a channel that it did not ask for |
 | [T-238](ssh.md) | P2 | S | M3 | defect | done | `%` tokens differ from OpenSSH: some stay literal, `%u` gives the remote user, and an unknown token is kept |
 | [T-239](forwarding.md) | P2 | S | M3 | defect | done | `-W` with a path, or with no port, is read as a TCP host on port 22 |
-| [T-240](ts.md) | P2 | S | M8 | defect | open | `podssh ts --jsonl` writes no JSON |
+| [T-240](ts.md) | P2 | S | M8 | defect | done | `podssh ts --jsonl` writes no JSON |
 | [T-241](ts.md) | P2 | S | M8 | defect | open | The tailnet auth key is not cleared from memory |
 | [T-242](ws.md) | P3 | S | backlog | defect | open | The frame decoder accepts a length that is not in the minimal form |
 | [T-243](relay.md) | P2 | S | backlog | feature | open | The user can choose the cache directory, and no directory is fixed in the code |

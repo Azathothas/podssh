@@ -350,9 +350,13 @@ const MAN: &[&str] = &[
     "The manual is the same in each environment: it shows no setting of this host.",
 ];
 
-const TS: &[&str] =
-    &["Experimental. podssh ts joins a tailnet, with DERP over a WebSocket relay. The live test with two \
-     nodes has not passed yet."];
+const TS: &[&str] = &[
+    "Experimental. podssh ts joins a tailnet, with DERP over a WebSocket relay. The live test with two \
+     nodes has not passed yet.",
+    "With --jsonl, the status is one JSON object on one line: the event, the node-key prefix, the \
+     tailnet IP and the home region, never a key. --jsonl is refused with -W, whose stdout is the \
+     stream to the peer.",
+];
 
 #[cfg(test)]
 mod tests {

@@ -33,6 +33,26 @@ fn scratch_key(name: &str) -> std::path::PathBuf {
     path
 }
 
+/// `--jsonl` gives the status as one JSON object on one line: the event and
+/// the three facts, nothing else, and never a key (T-240).
+#[test]
+fn the_jsonl_status_is_one_json_object_of_the_three_facts() {
+    let facts = podssh_ts::status::StatusFacts {
+        nodekey_prefix: "0123abcd".into(),
+        tailnet_ip: "100.64.0.7".into(),
+        home_region: 900,
+    };
+    let line = podssh_cli::ts::status_json(&facts);
+    assert!(!line.contains('\n'), "{line}");
+    let value: serde_json::Value = serde_json::from_str(&line).expect("one JSON object");
+    let object = value.as_object().expect("an object");
+    assert_eq!(object.len(), 4, "{line}");
+    assert_eq!(object["event"], "status");
+    assert_eq!(object["nodekey_prefix"], "0123abcd");
+    assert_eq!(object["tailnet_ip"], "100.64.0.7");
+    assert_eq!(object["home_region"], 900);
+}
+
 #[test]
 fn ts_without_a_key_file_is_77_naming_the_flag() {
     for argv in [vec!["ts", "--timeout", "30s"], vec!["ts", "-W", "peer:22", "--timeout", "30s"]] {

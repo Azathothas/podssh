@@ -391,7 +391,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:306` and `crates/podssh-cli/src/man/notes.rs:353-355`.
+   `docs/tailscale.md`, `docs/STATUS.md:306` and `crates/podssh-cli/src/man/notes.rs:353-359`.
 
 ## Decision
 
@@ -416,7 +416,7 @@ first test must fail. The live drop test is part of T-106.
 # T-105: The fork shows the relay's `1008 not authorized` as a missing network map
 
 **Source:** `docs/tailscale.md:12-14` ("Repair this first"), and the comment at
-`crates/podssh-cli/src/ts.rs:287-290` (measured on 2026-10-07). Read here on `3ee70dc` in the fork.
+`crates/podssh-cli/src/ts.rs:299-302` (measured on 2026-10-07). Read here on `3ee70dc` in the fork.
 **Category:** defect
 **Milestone:** M8
 **Priority:** P2
@@ -438,7 +438,7 @@ and the handshake returns it (`vendor/tailscale-rs/ts_derp/src/client.rs:205-210
 passes it up (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:248-254`), and `start_runner`
 gives it to `tracing::error!` only (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:72-76`).
 No podssh crate installs a `tracing` subscriber, so the line goes nowhere. `classify_1008` and the
-exit 77 exist (`crates/podssh-ts/src/classify.rs:17-25`, `crates/podssh-cli/src/ts.rs:269-281`), but
+exit 77 exist (`crates/podssh-ts/src/classify.rs:17-25`, `crates/podssh-cli/src/ts.rs:281-293`), but
 they see only the error texts of `Device` calls.
 
 Read: the symptom is not always a missing map. The status line needs the home region of the self
@@ -457,8 +457,8 @@ the relay. So a refused node can still print a status line and exit 0. This wide
    forwarded as `SelfNode` is (`vendor/tailscale-rs/src/lib.rs:287-294`).
 3. In podssh-ts, add `NodeError::DerpRefused { code, reason }`. `status()` and `-W` read the state
    first, and `relay` mode prints a status line only with a connected home region.
-4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs:269-281`),
-   and remove the old comment at `crates/podssh-cli/src/ts.rs:287-290`.
+4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs:281-293`),
+   and remove the old comment at `crates/podssh-cli/src/ts.rs:299-302`.
 5. Add the patch and its row, and update `docs/tailscale.md:12-14` and `docs/STATUS.md:306`.
 
 ## Prove
@@ -495,7 +495,7 @@ host or from a sandbox.
 ## Premise
 
 Read: the ignored test makes a new state file in the temporary directory and removes it
-(`crates/podssh-cli/tests/ts_behave.rs:208-235`); a new state file is a new node key
+(`crates/podssh-cli/tests/ts_behave.rs:228-255`); a new state file is a new node key
 (`docs/tailscale.md:23-24`). Its reason still names M5. On 2026-10-07, registration worked, no map
 came in 60 s, and only the operator can add a node key to the allowlist (`docs/tailscale.md:8-19`).
 
@@ -521,7 +521,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:64`, `docs/tailscale.md:8-19` and
-   `crates/podssh-cli/src/man/notes.rs:353-355`.
+   `crates/podssh-cli/src/man/notes.rs:353-359`.
 
 ## Prove
 
@@ -552,7 +552,7 @@ the default binary.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -569,24 +569,24 @@ build ("'ts' is not available in this build"), so the parser accepts the flag. T
 `podssh proxy --jsonl example.invalid 22 </dev/null` exits 64: "--jsonl is refused in ProxyCommand
 mode."
 
-Read: the row is at `crates/podssh-cli/src/flags.rs:293-294`. `podssh ts` reads the flag once, in
-`resolve_tty` (`crates/podssh-cli/src/ts.rs:48`), which only makes the run non-interactive
-(`crates/podssh-cli/src/non_interactive.rs:61-76`). The status form writes plain text
-(`crates/podssh-cli/src/ts.rs:314-316`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
-stream (`crates/podssh-cli/src/ts.rs:391-393`). `proxy --jsonl` is refused at parse, with the reason
-(`crates/podssh-cli/src/tree.rs:179-187`, `crates/podssh-cli/src/non_interactive.rs:309-320`).
+Read: the row is at `crates/podssh-cli/src/flags.rs`, lines 293-294 at `efee2fc`. `podssh ts` reads the flag once, in
+`resolve_tty` (`crates/podssh-cli/src/ts.rs`, line 48 at `efee2fc`), which only makes the run non-interactive
+(`crates/podssh-cli/src/non_interactive.rs`, lines 61-76 at `efee2fc`). The status form writes plain text
+(`crates/podssh-cli/src/ts.rs`, lines 314-316 at `efee2fc`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
+stream (`crates/podssh-cli/src/ts.rs`, lines 391-393 at `efee2fc`). `proxy --jsonl` is refused at parse, with the reason
+(`crates/podssh-cli/src/tree.rs`, lines 179-187 at `efee2fc`, `crates/podssh-cli/src/non_interactive.rs`, lines 309-320 at `efee2fc`).
 `serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:53`).
 
 ## Approach
 
 1. Refuse `--jsonl` with `-W` at parse, with exit 64 and the reason, next to the `proxy` refusal
-   (`crates/podssh-cli/src/tree.rs:179-187`): stdout carries the stream. Refuse `--jsonl=` too.
+   (`crates/podssh-cli/src/tree.rs`, lines 179-187 at `efee2fc`): stdout carries the stream. Refuse `--jsonl=` too.
 2. In the status form, write the status as one JSON object on one line, with `serde_json`:
    `{"event":"status","nodekey_prefix":...,"tailnet_ip":...,"home_region":...}`. Never the key.
 3. Keep errors on stderr as text; the exit code stays the result. T-104 and T-105 add events (a
    drop, a new connection, a refusal) to this form when their states exist.
-4. Change the help text of the row (`crates/podssh-cli/src/flags.rs:293-294`) and the notes of the
-   manual (`crates/podssh-cli/src/man/notes.rs:353-355`) in the same commit. The tests of the manual
+4. Change the help text of the row (`crates/podssh-cli/src/flags.rs`, lines 293-294 at `efee2fc`) and the notes of the
+   manual (`crates/podssh-cli/src/man/notes.rs`, lines 353-355 at `efee2fc`) in the same commit. The tests of the manual
    compare the row with the help.
 
 ## Decision
@@ -595,6 +595,10 @@ Recommendation: refuse the flag with `-W`, and write JSON in the status form. Th
 the one event of that form today, so the change is small, and scripts get what the help promises.
 The alternative, refuse `--jsonl` in each form until a stream of events exists, lost because the
 status form has a result to give now.
+
+2026-10-10, in the work: `-W` is any argument that starts with `-W`, so `-W HOST:PORT` and
+`-WHOST:PORT` are both refused with `--jsonl`, in either order. The JSON is made in podssh-cli with
+`serde_json`, from `StatusFacts`, which has no field for a key.
 
 ## Prove
 
@@ -611,6 +615,24 @@ test of the JSON status object (one line, the three facts, no other text) in
 `crates/podssh-cli/tests/ts_behave.rs`. Plant: remove the refusal; the parse test must fail. The
 second command runs the tests of the manual in the default build. The last command uses the
 default binary, before anything connects: it must print the refusal and `exit=64`.
+
+## Done
+
+2026-10-10. `podssh ts -W ... --jsonl` (and `--jsonl=`) is refused at parse with 64 and the reason,
+next to the refusal under `proxy` (`crates/podssh-cli/src/tree.rs`,
+`crates/podssh-cli/src/non_interactive.rs`). The status form with `--jsonl` writes one JSON object
+on one line: `{"event":"status","nodekey_prefix":...,"tailnet_ip":...,"home_region":...}`
+(`status_json` in `crates/podssh-cli/src/ts.rs`); errors stay text on stderr. The help row and
+the manual's note say so (`crates/podssh-cli/src/flags.rs`, `crates/podssh-cli/src/man/notes.rs`).
+- Native, Windows 11: `cargo test -p podssh-cli --test ts_parse`, 6 passed, with the new
+  `ts_w_with_jsonl_is_refused_at_parse` (five spellings, and the status form that takes the flag);
+  `the_jsonl_status_is_one_json_object_of_the_three_facts` in `ts_behave.rs` (one line, four keys).
+  Planted, the refusal removed: the parse test fails. The default binary:
+  `timeout 20 target/debug/podssh ts -W peer.invalid:22 --jsonl --timeout 5s </dev/null` printed
+  the refusal, `exit=64`. `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts
+  --no-fail-fast`: 432 passed, 0 failed, 24 ignored. clippy with no warning.
+  `cargo test --workspace`: 1144 passed, 0 failed, 38 ignored, the tests of the manual
+  with them.
 
 # T-241: The tailnet auth key is not cleared from memory
 
@@ -637,7 +659,7 @@ Known from the documentation of the `zeroize` crate, not verified here: a compil
 writes, because nothing reads the bytes after them.
 
 Read: `podssh ts` reads the file into a plain buffer and trims it into a second copy
-(`crates/podssh-cli/src/ts.rs:164-171`, `crates/podssh-cli/src/ts.rs:243-249`). `TsNode::start` makes
+(`crates/podssh-cli/src/ts.rs:164-171`, `crates/podssh-cli/src/ts.rs:255-261`). `TsNode::start` makes
 a third copy, a `String` that goes to the fork (`crates/podssh-ts/src/node.rs:54-55`,
 `crates/podssh-ts/src/node.rs:67`). The fork keeps it in its configuration and in the parameters of
 its control runner, for each registration (`vendor/tailscale-rs/ts_runtime/src/lib.rs:54`,
@@ -655,7 +677,7 @@ model file that no longer exists.
    `Zeroizing<Vec<u8>>`, give `AuthKey` a `Drop` that clears them, and mark it `ZeroizeOnDrop`.
    `expire` calls `zeroize()`.
 2. In `crates/podssh-cli/src/ts.rs:164-171`, read the file into `Zeroizing<Vec<u8>>`, and trim it
-   in place, not into a copy (`crates/podssh-cli/src/ts.rs:243-249`).
+   in place, not into a copy (`crates/podssh-cli/src/ts.rs:255-261`).
 3. In `TsNode::start`, make the fork's `String` from the bytes with no other copy
    (`crates/podssh-ts/src/node.rs:54-55`). Expire podssh's key when the start returns
    (`crates/podssh-cli/src/ts.rs:213-227`), because podssh no longer needs it.

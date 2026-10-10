@@ -235,7 +235,19 @@ async fn ts_async(
     if let Some(target) = a.w_target.as_deref() {
         return pipe_form(&node, target, err, deadline, window).await;
     }
-    status_form(&node, out, err, deadline, window, wait.is_some()).await
+    status_form(&node, out, err, deadline, window, wait.is_some(), a.jsonl).await
+}
+
+/// The status as one JSON object on one line, for `--jsonl`: the event and
+/// the three facts, never a key (`StatusFacts` has no field for one).
+pub fn status_json(facts: &podssh_ts::status::StatusFacts) -> String {
+    serde_json::json!({
+        "event": "status",
+        "nodekey_prefix": facts.nodekey_prefix,
+        "tailnet_ip": facts.tailnet_ip,
+        "home_region": facts.home_region,
+    })
+    .to_string()
 }
 
 /// Strip trailing newline bytes: key files commonly end with one, and the key
@@ -306,13 +318,15 @@ async fn status_form(
     deadline: Deadline,
     window: Duration,
     poll: bool,
+    jsonl: bool,
 ) -> i32 {
     let until = tokio::time::Instant::now() + deadline.limit(window);
     loop {
         let left = until.saturating_duration_since(tokio::time::Instant::now());
         match node.status_within(left).await {
             Ok(facts) => {
-                let _ = writeln!(out, "{}", facts.render());
+                let line = if jsonl { status_json(&facts) } else { facts.render() };
+                let _ = writeln!(out, "{line}");
                 return 0;
             }
             Err(podssh_ts::node::NodeError::NetmapPending) => {

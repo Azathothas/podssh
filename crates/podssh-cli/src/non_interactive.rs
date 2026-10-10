@@ -306,6 +306,19 @@ pub fn gate_prompt(attachment: Attachment, site: &PromptSite) -> Result<(), Refu
     }
 }
 
+/// `--jsonl` with `ts -W`: refused, reason on stderr.
+///
+/// Stdout there is the byte stream to the peer; a JSON line lands in it.
+pub fn refuse_jsonl_with_ts_w() -> Refusal {
+    Refusal {
+        fault: Fault::Usage,
+        message: "podssh: --jsonl is refused with ts -W.\n\
+                  Stdout there is the byte stream to the peer, and a JSON line would \
+                  land in it. Diagnostics stay on stderr."
+            .into(),
+    }
+}
+
 /// `--jsonl` under ProxyCommand: refused, reason on stderr.
 ///
 /// Stdout there is the SSH stream; a JSON line lands mid-version-string.

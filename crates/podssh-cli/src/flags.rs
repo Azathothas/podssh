@@ -291,7 +291,7 @@ pub const TS_FLAGS: &[FlagRow] = &[
     row(Some('W'), "stdio-forward", Some("HOST:PORT"), FlagKind::Supported,
         "byte pipe over the tailnet: stdio becomes the stream", None),
     row(None, "jsonl", None, FlagKind::Supported,
-        "one JSON object per event on stdout", None),
+        "the status as one JSON object on stdout; refused with -W", None),
     row(None, "timeout", Some("DURATION"), FlagKind::Supported,
         "bound the run; required when stdin is not a TTY (default: env PODSSH_TIMEOUT)", None),
 ];

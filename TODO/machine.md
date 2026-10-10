@@ -147,7 +147,7 @@ manual do not keep the kind and the `instead` of a flag.
 5. The JSON is the same on each host: no path from `HOME` (`docs/cli.md:41-42`).
 6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:300-307`), the field to
    `man::Request` (`crates/podssh-cli/src/man/mod.rs:27-34`), and the parse
-   (`crates/podssh-cli/src/tree.rs:247-255`). JSON for `--help` stays with T-010.
+   (`crates/podssh-cli/src/tree.rs:251-259`). JSON for `--help` stays with T-010.
 
 ## Prove
 

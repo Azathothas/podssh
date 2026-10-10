@@ -26,6 +26,31 @@ fn ts_good_modes_parse_with_empty_refusals() {
     }
 }
 
+/// `--jsonl` with `-W` is refused at parse, as under `proxy`: stdout there is
+/// the stream to the peer (T-240). Each spelling of each flag.
+#[test]
+fn ts_w_with_jsonl_is_refused_at_parse() {
+    for argv in [
+        &["ts", "-W", "peer:22", "--jsonl", "--timeout", "5s"][..],
+        &["ts", "--jsonl", "-W", "peer:22"],
+        &["ts", "-Wpeer:22", "--jsonl"],
+        &["ts", "-W", "peer:22", "--jsonl=1"],
+        &["tailscale", "-W", "peer:22", "--jsonl"],
+    ] {
+        let owned: Vec<String> = argv.iter().map(|s| s.to_string()).collect();
+        match parse(owned) {
+            Parsed::Usage(message) => {
+                assert!(message.contains("--jsonl is refused with ts -W"), "{argv:?}: {message}");
+                assert!(message.contains("byte stream"), "the reason: {message}");
+            }
+            other => panic!("{argv:?}: expected the refusal, got {other:?}"),
+        }
+    }
+    // The status form takes it.
+    let owned = vec!["ts".to_string(), "--jsonl".to_string(), "--timeout".to_string(), "5s".to_string()];
+    assert!(matches!(parse(owned), Parsed::Ts { jsonl: true, .. }));
+}
+
 #[test]
 fn ts_bad_mode_is_usage_naming_the_values() {
     for argv in

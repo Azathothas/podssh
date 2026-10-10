@@ -196,7 +196,7 @@ measured: the debug binary has no `ts`).
 4. Change the tests that use `chat` for the gate
    (`crates/podssh-cli/src/dispatch.rs:424-477`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
-   that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:200-206`).
+   that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
 5. Same commit: `docs/STATUS.md`. `docs/cli.md:539` needs no change.
 
 ## Decision
@@ -379,7 +379,7 @@ Measured offline:
 Read: `parse` returns at the first word when it is `-h`, `--help`, `-V` or
 `--version` (`crates/podssh-cli/src/tree.rs` lines 266-272 at `56b466b`), and never reads the
 rest. For a verb, clap reads each word before `--help` is answered
-(`crates/podssh-cli/src/tree.rs:219-228`), so an unknown word is refused there.
+(`crates/podssh-cli/src/tree.rs:223-232`), so an unknown word is refused there.
 
 ## Approach
 
@@ -494,8 +494,8 @@ risk is a changed option (a host, a relay, a trust store), not a command.
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:28-182`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-90`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:400-408`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:369-383`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:404-412`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:373-387`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:98-103`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -630,7 +630,7 @@ is used, an empty value is unset, and `30x` from the variable is 78 and names
 `PODSSH_TIMEOUT`. The second checks ENVIRONMENT against the source in both
 directions. The third runs the binary of a `ts` build: with
 `PODSSH_TIMEOUT=30s`, `podssh ts` passes the gate and stops at the missing key
-file (77, as `crates/podssh-cli/tests/ts_behave.rs:36-44`); without it, 64.
+file (77, as `crates/podssh-cli/tests/ts_behave.rs:56-64`); without it, 64.
 Plant: drop the variable from the reader; the third test gets 64.
 
 ## Correction
@@ -958,7 +958,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
 3. `ONCE` and `repeated` refuse a second `-J`, `-W`, `--relay-host`,
    `--relay-addr` or `--ca-file` with exit 64 before anything connects
    (`crates/podssh-cli/src/ssh/args.rs:63-92`, called at
-   `crates/podssh-cli/src/tree.rs:375-379`).
+   `crates/podssh-cli/src/tree.rs:379-383`).
 4. `docs/cli.md:123-128` and a note of the manual
    (`crates/podssh-cli/src/man/notes.rs:84-86`) state the rule.
 
@@ -1401,7 +1401,7 @@ that `forward-remote` names `-W HOST:PORT`
    gives the rule. Same commit: `docs/STATUS.md`.
 
 Pitfall: the manual tests read these texts. `each_name_in_a_note_exists`
-checks each flag that a note names (`crates/podssh-cli/src/man/notes.rs:435-439`),
+checks each flag that a note names (`crates/podssh-cli/src/man/notes.rs:439-443`),
 and the parity tests compare the sentence of each row in `--help` and in the
 manual (`crates/podssh-cli/tests/man_flag_parity.rs`). Change the row and both
 notes in one commit.
@@ -1579,7 +1579,7 @@ Its refusals name the real remedies (`docs/cli.md:548-550`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:213-231`,
 `crates/podssh-cli/src/ts.rs:48-57`) and `refuse_jsonl_in_proxy`
-(`crates/podssh-cli/src/tree.rs:183-187`).
+(`crates/podssh-cli/src/tree.rs:183-186`).
 
 ## Approach
 

@@ -180,10 +180,14 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
     // the reason, because the generic unknown-flag text cannot say why JSON
     // cannot go where the SSH byte stream goes. Exact spellings only — a
     // positional that merely contains the substring is somebody's hostname.
-    if verb.name == "proxy"
-        && rest.iter().any(|a| a == "--jsonl" || a.to_str().is_some_and(|s| s.starts_with("--jsonl=")))
-    {
+    let names_jsonl = rest.iter().any(|a| a == "--jsonl" || a.to_str().is_some_and(|s| s.starts_with("--jsonl=")));
+    if verb.name == "proxy" && names_jsonl {
         return Parsed::Usage(crate::non_interactive::refuse_jsonl_in_proxy().message);
+    }
+    // The same with `ts -W`, whose stdout is the stream to the peer.
+    let stdio_forward = rest.iter().any(|a| a.to_str().is_some_and(|s| s.starts_with("-W")));
+    if verb.name == "ts" && names_jsonl && stdio_forward {
+        return Parsed::Usage(crate::non_interactive::refuse_jsonl_with_ts_w().message);
     }
 
     // `--ts-mode` values are closed: auto tun socks tcp relay. Anything else
