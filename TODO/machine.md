@@ -47,7 +47,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    `crates/podssh-cli/src/dispatch.rs:120-135`. `tree.rs` has 454 lines and `dispatch.rs` 448:
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
-   tokens today (`crates/podssh-cli/tests/doctor.rs:123-147`).
+   tokens today (`crates/podssh-cli/tests/doctor.rs:130-154`).
 6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:301-320`) and
    `docs/cli.md:315-333` in the same commit.
 
@@ -72,7 +72,7 @@ echo "exit=$?"
 cargo test -p podssh-cli --test doctor -- --ignored  # the live relay, on request
 ```
 
-The new tests run the binary offline, as `crates/podssh-cli/tests/doctor.rs:91-112` does: stdout
+The new tests run the binary offline, as `crates/podssh-cli/tests/doctor.rs:98-119` does: stdout
 is one JSON object; each text line has an item with the same check, status and detail; the
 counts agree; a planted proxy password and a planted token do not appear. Planted defect: leave
 the last check out of the JSON; the parity test fails.

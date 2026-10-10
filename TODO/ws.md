@@ -664,7 +664,7 @@ makes the error `DialError::BadProxy` (`:232`), which stops the failover at once
 (`crates/podssh-relay/src/open.rs:65`) and gives exit 78 in `podssh proxy`
 (`crates/podssh-cli/src/proxy.rs:164`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs:101-107`). Two tests assert the refusal:
-`crates/podssh-cli/tests/doctor.rs:133-140` and `crates/podssh-ws/tests/dial.rs:50-58`.
+`crates/podssh-cli/tests/doctor.rs:140-147` and `crates/podssh-ws/tests/dial.rs:50-58`.
 
 ## Approach
 
