@@ -12,3 +12,8 @@ tokio.workspace = true
 tailscale = { path = "../../vendor/tailscale-rs" }
 ts_runtime = { path = "../../vendor/tailscale-rs/ts_runtime" }
 ts_http_util = { path = "../../vendor/tailscale-rs/ts_http_util" }
+
+[dev-dependencies]
+# `test-util` gives the tests a paused clock: a wait for a network map that
+# never comes ends at its limit with no real seconds spent.
+tokio = { workspace = true, features = ["macros", "rt", "test-util"] }

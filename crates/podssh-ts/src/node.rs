@@ -82,17 +82,38 @@ impl TsNode {
         Ok(StatusFacts { nodekey_prefix: hex, tailnet_ip: ip.to_string(), home_region: region })
     }
 
+    /// [`TsNode::status`], waiting at most `limit` for the first network map:
+    /// the fork answers only once a map with the self node has come.
+    pub async fn status_within(&self, limit: Duration) -> Result<StatusFacts, NodeError> {
+        crate::wait::within(limit, self.status()).await
+    }
+
     /// Open a TCP stream to a tailnet peer through the in-process netstack.
     pub async fn tcp_connect(&self, remote: SocketAddr) -> Result<tailscale::netstack::TcpStream, NodeError> {
         self.device.tcp_connect(remote).await.map_err(|e| NodeError::Fork(e.to_string()))
     }
 
+    /// This node's tailnet address, waiting at most `limit` for the first
+    /// network map. The fork's `tcp_connect` asks for the address first, and
+    /// waits for the map with no limit of its own.
+    pub async fn address_within(&self, limit: Duration) -> Result<std::net::Ipv4Addr, NodeError> {
+        let address = async { self.device.ipv4_addr().await.map_err(|e| NodeError::Fork(e.to_string())) };
+        crate::wait::within(limit, address).await
+    }
+
     /// Resolve a peer name to its tailnet IPv4 via the netmap. `None` means
     /// the netmap has no such peer — a route error for the caller, never a
-    /// dial attempt and never a hang.
+    /// dial attempt. The fork answers after the first peer update of the
+    /// control server, and with none it waits for ever:
+    /// [`TsNode::peer_ip_within`] gives that wait its limit.
     pub async fn peer_ip(&self, name: &str) -> Result<Option<std::net::IpAddr>, NodeError> {
         let peer = self.device.peer_by_name(name).await.map_err(|e| NodeError::Fork(e.to_string()))?;
         Ok(peer.map(|p| std::net::IpAddr::V4(p.tailnet_address.ipv4.addr())))
+    }
+
+    /// [`TsNode::peer_ip`], waiting at most `limit` for the first network map.
+    pub async fn peer_ip_within(&self, name: &str, limit: Duration) -> Result<Option<std::net::IpAddr>, NodeError> {
+        crate::wait::within(limit, self.peer_ip(name)).await
     }
 
     /// Shut the node down, waiting up to `timeout` for a clean stop.
@@ -113,8 +134,9 @@ pub enum NodeError {
     KeyExpired,
     /// The auth key bytes are not UTF-8.
     KeyNotUtf8,
-    /// The netmap has not arrived yet: no home region to report. The caller
-    /// retries under `--ts-wait-allowlist` or fails fast — never invents one.
+    /// The netmap has not arrived yet, or not within the limit of a wait: no
+    /// home region to report. The caller retries under `--ts-wait-allowlist`
+    /// or fails fast — never invents one.
     NetmapPending,
     /// Kept until M5 proves `start` live, though no caller constructs it:
     /// removing it is part of the M5 landing.

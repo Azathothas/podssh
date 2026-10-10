@@ -9,13 +9,18 @@
 //! This module is the first sync→async bridge in the CLI: dispatch is
 //! synchronous, `TsNode` is async, so a current-thread runtime is built per
 //! invocation and driven with `block_on`. The `--timeout` bound (required
-//! with no TTY) caps the whole operation; on a terminal with no `--timeout`
-//! the start attempt is unbounded — a human can interrupt — while the netmap
-//! wait still defaults to fail-fast.
+//! with no TTY) caps the whole operation: one deadline, made when the run
+//! starts, and each wait gets what remains of it. On a terminal with no
+//! `--timeout` the start attempt is unbounded — a human can interrupt —
+//! while each wait for the first network map (the status, a peer's name, the
+//! node's own address) is limited by `--ts-wait-allowlist`, else by
+//! `FIRST_MAP_WAIT`: the fork waits for ever when no map comes.
 
 use std::io::Write;
 use std::net::SocketAddr;
 use std::time::Duration;
+
+use podssh_ts::wait::{Deadline, FIRST_MAP_WAIT};
 
 use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
 use crate::pager::Tty;
@@ -81,6 +86,7 @@ async fn ts_async(
     bound: Option<Duration>,
     wait: Option<Duration>,
 ) -> i32 {
+    let deadline = Deadline::after(bound);
     // The host form needs an SSH session over the tailnet, which is not built yet.
     // It names the session rather than the tailnet: the node may be fine.
     if a.destination.is_some() && a.w_target.is_none() {
@@ -204,8 +210,8 @@ async fn ts_async(
         proxy_url: a.proxy.clone(),
     };
 
-    let started = if let Some(b) = bound {
-        match tokio::time::timeout(b, podssh_ts::node::TsNode::start(&cfg, &key)).await {
+    let started = if let Some(left) = deadline.remaining() {
+        match tokio::time::timeout(left, podssh_ts::node::TsNode::start(&cfg, &key)).await {
             Ok(r) => r,
             Err(_) => {
                 let _ = writeln!(err, "podssh ts: start did not finish within the bound.");
@@ -223,10 +229,13 @@ async fn ts_async(
         Ok(n) => n,
         Err(e) => return node_error_exit(&e, err),
     };
+    // The first network map may never come: each wait for it gets the
+    // allowlist's window, else `FIRST_MAP_WAIT`, and never more than remains.
+    let window = wait.unwrap_or(FIRST_MAP_WAIT);
     if let Some(target) = a.w_target.as_deref() {
-        return pipe_form(&node, target, err, bound).await;
+        return pipe_form(&node, target, err, deadline, window).await;
     }
-    status_form(&node, out, err, wait).await
+    status_form(&node, out, err, deadline, window, wait.is_some()).await
 }
 
 /// Strip trailing newline bytes: key files commonly end with one, and the key
@@ -252,10 +261,7 @@ fn node_error_exit(e: &podssh_ts::node::NodeError, err: &mut dyn Write) -> i32 {
             let _ = writeln!(err, "podssh ts: the auth key is unusable: {e:?}");
             crate::exitmap::Fault::Auth.code()
         }
-        NodeError::NetmapPending => {
-            let _ = writeln!(err, "podssh ts: the netmap has not arrived.");
-            crate::exitmap::Fault::Capability.code()
-        }
+        NodeError::NetmapPending => no_map(err),
         NodeError::NotYet(what) => {
             let _ = writeln!(err, "podssh ts: not yet: {what}");
             EXIT_NOT_IMPLEMENTED
@@ -276,44 +282,48 @@ fn node_error_exit(e: &podssh_ts::node::NodeError, err: &mut dyn Write) -> i32 {
     }
 }
 
-/// Bare `podssh ts`: one machine-readable line on stdout, or a bounded wait
-/// for the netmap (`--ts-wait-allowlist`; fail-fast default = one attempt).
+/// No network map within the wait: 78, and one message for each wait.
+fn no_map(err: &mut dyn Write) -> i32 {
+    // MEASURED 2026-10-07: an allowlisted-but-unsynced node sits here, not on
+    // the 1008 arm — the fork never surfaces the relay's close through the
+    // Device API, so "no netmap" IS the unlisted-key symptom and the message
+    // must name the sync, not just the wait.
+    let _ = writeln!(
+        err,
+        "podssh ts: no netmap yet. Pass --ts-wait-allowlist DURATION to wait\nfor relay admission instead of failing fast. If the wait expires, the relay's\nallowlist likely lacks this node's key: sync it, then retry with the\nsame --ts-state file so the node keeps its key."
+    );
+    crate::exitmap::Fault::Capability.code()
+}
+
+/// Bare `podssh ts`: one machine-readable line on stdout. The first network
+/// map is awaited for `window`, never past the deadline; with
+/// `--ts-wait-allowlist` (`poll`), a map with no home region yet is polled
+/// until the window ends, and with none the first answer decides.
 async fn status_form(
     node: &podssh_ts::node::TsNode,
     out: &mut dyn Write,
     err: &mut dyn Write,
-    wait: Option<Duration>,
+    deadline: Deadline,
+    window: Duration,
+    poll: bool,
 ) -> i32 {
-    let deadline = wait.map(|w| tokio::time::Instant::now() + w);
+    let until = tokio::time::Instant::now() + deadline.limit(window);
     loop {
-        match node.status().await {
+        let left = until.saturating_duration_since(tokio::time::Instant::now());
+        match node.status_within(left).await {
             Ok(facts) => {
                 let _ = writeln!(out, "{}", facts.render());
                 return 0;
             }
             Err(podssh_ts::node::NodeError::NetmapPending) => {
-                let left = deadline.map(|d| d.saturating_duration_since(tokio::time::Instant::now()));
-                match left {
-                    Some(d) if !d.is_zero() => {
-                        // 2 s poll cadence: a v1 design constant, not a
-                        // measurement — short enough to notice admission,
-                        // long enough to not spin on the runtime.
-                        tokio::time::sleep(std::cmp::min(d, Duration::from_secs(2))).await;
-                        continue;
-                    }
-                    _ => {
-                        // MEASURED 2026-10-07: an allowlisted-but-unsynced
-                        // node sits here, not on the 1008 arm — the fork never
-                        // surfaces the relay's close through the Device API,
-                        // so "no netmap" IS the unlisted-key symptom and the
-                        // message must name the sync, not just the wait.
-                        let _ = writeln!(
-                            err,
-                            "podssh ts: no netmap yet. Pass --ts-wait-allowlist DURATION to wait\nfor relay admission instead of failing fast. If the wait expires, the relay's\nallowlist likely lacks this node's key: sync it, then retry with the\nsame --ts-state file so the node keeps its key."
-                        );
-                        return crate::exitmap::Fault::Capability.code();
-                    }
+                let left = until.saturating_duration_since(tokio::time::Instant::now());
+                if !poll || left.is_zero() {
+                    return no_map(err);
                 }
+                // 2 s poll cadence: a v1 design constant, not a measurement —
+                // short enough to notice admission, long enough to not spin on
+                // the runtime.
+                tokio::time::sleep(std::cmp::min(left, Duration::from_secs(2))).await;
             }
             Err(e) => return node_error_exit(&e, err),
         }
@@ -322,8 +332,15 @@ async fn status_form(
 
 /// `podssh ts -W HOST:PORT`: stdio becomes the stream. HOST is a tailnet IP
 /// literal or a peer name from the netmap; anything else is a route error
-/// (78), never a hang.
-async fn pipe_form(node: &podssh_ts::node::TsNode, target: &str, err: &mut dyn Write, bound: Option<Duration>) -> i32 {
+/// (78), never a hang. The peer's name and the node's own address each wait
+/// for the first network map for `window`, never past the deadline.
+async fn pipe_form(
+    node: &podssh_ts::node::TsNode,
+    target: &str,
+    err: &mut dyn Write,
+    deadline: Deadline,
+    window: Duration,
+) -> i32 {
     let (host, port) = match target.rsplit_once(':') {
         Some((h, p)) if !h.is_empty() => (h, p),
         _ => {
@@ -341,7 +358,7 @@ async fn pipe_form(node: &podssh_ts::node::TsNode, target: &str, err: &mut dyn W
     let ip: std::net::IpAddr = if let Ok(ip) = host.parse() {
         ip
     } else {
-        match node.peer_ip(host).await {
+        match node.peer_ip_within(host, deadline.limit(window)).await {
             Ok(Some(ip)) => ip,
             Ok(None) => {
                 let _ = writeln!(err, "podssh ts: {host:?} is not in the netmap: no route.");
@@ -350,8 +367,11 @@ async fn pipe_form(node: &podssh_ts::node::TsNode, target: &str, err: &mut dyn W
             Err(e) => return node_error_exit(&e, err),
         }
     };
-    let open = if let Some(b) = bound {
-        match tokio::time::timeout(b, node.tcp_connect(SocketAddr::new(ip, port))).await {
+    if let Err(e) = node.address_within(deadline.limit(window)).await {
+        return node_error_exit(&e, err);
+    }
+    let open = if let Some(left) = deadline.remaining() {
+        match tokio::time::timeout(left, node.tcp_connect(SocketAddr::new(ip, port))).await {
             Ok(r) => r,
             Err(_) => {
                 let _ = writeln!(err, "podssh ts: connect to {target} did not finish within the bound.");

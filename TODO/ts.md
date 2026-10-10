@@ -15,7 +15,7 @@ here on `3ee70dc` by reading the command and the fork.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -28,22 +28,22 @@ map arrives, `podssh ts` and `podssh ts -W PEER:PORT` wait for ever, also in a s
 
 Measured: `podssh ts --timeout 5s </dev/null` exits 70 ("'ts' is not available in this build"), so
 the rest is read. `bound` wraps only `TsNode::start` and `tcp_connect`
-(`crates/podssh-cli/src/ts.rs:207-221`, `crates/podssh-cli/src/ts.rs:353-363`), not `node.status()`
-or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs:289`, `crates/podssh-cli/src/ts.rs:344`). The
-module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs:9-14`),
+(`crates/podssh-cli/src/ts.rs`, lines 207-221 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, lines 353-363 at `4c3b456`), not `node.status()`
+or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs`, line 289 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, line 344 at `4c3b456`). The
+module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs`, lines 9-14 at `4c3b456`),
 and `docs/cli.md:562-564` makes that a rule.
 
-Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs:76-79`), whose reply
+Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs`, lines 76-79 at `4c3b456`), whose reply
 waits in a queue until a map with the self node arrives
 (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:208-225`,
 `vendor/tailscale-rs/ts_runtime/src/control_runner.rs:445-459`). `peer_ip()` waits for the first
 peer update (`vendor/tailscale-rs/ts_runtime/src/peer_tracker/mod.rs:74-98`), against its comment
-"never a hang" (`crates/podssh-ts/src/node.rs:90-92`). The wait loop handles only `NetmapPending`,
-a self node with no home region (`crates/podssh-cli/src/ts.rs:288-320`).
+"never a hang" (`crates/podssh-ts/src/node.rs`, lines 90-92 at `4c3b456`). The wait loop handles only `NetmapPending`,
+a self node with no home region (`crates/podssh-cli/src/ts.rs`, lines 288-320 at `4c3b456`).
 
 ## Approach
 
-1. Make one deadline from `--timeout` at the start of `ts_async` (`crates/podssh-cli/src/ts.rs:77-83`),
+1. Make one deadline from `--timeout` at the start of `ts_async` (`crates/podssh-cli/src/ts.rs`, lines 77-83 at `4c3b456`),
    and give each later wait only the time that remains.
 2. Add `TsNode::status_within(limit)` and `TsNode::peer_ip_within(limit)`: the fork call inside
    `tokio::time::timeout`, and `NodeError::NetmapPending` when the limit passes. A dropped query
@@ -51,10 +51,22 @@ a self node with no home region (`crates/podssh-cli/src/ts.rs:288-320`).
    a later send must not panic.
 3. With no `--timeout` (a terminal), limit the first map wait by `--ts-wait-allowlist`, else by a
    named constant of 20 s, "a design constant, not a measurement", as at
-   `crates/podssh-cli/src/ts.rs:298-301`. The default stays fail-fast (`docs/decisions.md:42`).
+   `crates/podssh-cli/src/ts.rs`, lines 298-301 at `4c3b456`. The default stays fail-fast (`docs/decisions.md:42`).
 4. Apply the same limit to the address wait in `Device::tcp_connect`
    (`vendor/tailscale-rs/src/lib.rs:272-276`). Keep one message and exit 78 for "no map in time".
 5. Correct the two comments, and update `docs/STATUS.md:303` in the same commit.
+
+## Decision
+
+2026-10-10, in the work:
+- The deadline and the limited wait live in podssh-ts (`crates/podssh-ts/src/wait.rs`), where a
+  test with a paused clock reaches them without a fork. With `--timeout`, each wait gets what
+  remains of it and no window of its own; without, `--ts-wait-allowlist`, else `FIRST_MAP_WAIT`.
+- Step 4 is done from podssh, not in the fork: the pipe asks for the node's own address with the
+  limit (`TsNode::address_within`) before `tcp_connect`, whose own ask then has its answer. A
+  patch of the fork lost: one more local patch to carry, for what podssh can do from outside.
+- `--ts-wait-allowlist` gives the window of the pipe's waits too: it is how long a run waits for
+  the relay to admit its key, whichever form runs.
 
 ## Prove
 
@@ -72,6 +84,36 @@ offline test cannot reach the fork's queue: with a silent control server, the st
 (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:79-89`). The second command is the feature
 suite (226 passed, `docs/STATUS.md:320`). The third is live, with a `ts` build, while no map comes
 (`docs/tailscale.md:10-11`): it must print `exit=78` after about 20 s, not `exit=124`.
+
+## Correction
+
+2026-10-10: the claim of step 2 holds. A reply that the fork sends after a wait gave up goes
+nowhere: kameo 0.21.1's `ReplySender::send` discards the result of its send (`let _ =
+self.tx.send(...)`, in `src/reply.rs` of the crate). The count of the feature suite is now
+424 passed, 0 failed, 24 ignored before this entry (`docs/STATUS.md:320` said 226 at T-060). The
+live command needs a tailnet auth key file, and no document names one: the key is in `.env/`,
+which a session may not read. Which file a session may pass to `--ts-auth-key-file` is the
+operator's question Q40 (`TODO/PROGRESS.md`).
+
+## Done
+
+2026-10-10. One deadline from `--timeout`, made when the run starts, and each later wait gets
+what remains (`crates/podssh-cli/src/ts.rs`, `crates/podssh-ts/src/wait.rs`). The status, a
+peer's name and the node's own address each wait for the first network map at most
+`--ts-wait-allowlist`, else `FIRST_MAP_WAIT` (20 s, a design constant), and never past the
+deadline (`TsNode::status_within`, `peer_ip_within` and `address_within` in
+`crates/podssh-ts/src/node.rs`); a wait that passes its limit is `NetmapPending`: one message, and
+exit 78. The comments that said the bound caps the run, and that a lookup never hangs, now say
+what holds.
+- Native, Windows 11: `cargo test -p podssh-ts --test netmap_wait`, 3 passed, under a paused clock:
+  a wait for a map that never comes (`std::future::pending`) ends at its limit; after a start of
+  5 s, a bound of 20 s leaves the map wait 15 s, and the run ends at 20 s; with no bound, the
+  window stays. Planted, a wait with no limit: the outer timeout of an hour fails two tests.
+  `cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts --no-fail-fast`: 427
+  passed, 0 failed, 24 ignored. clippy with no warning. `cargo test --workspace`:
+  1140 passed, 0 failed, 38 ignored.
+- The live command of the Prove waits for Q40 and T-251.
+
 
 # T-101: C3: a local end of input cuts the reply in the `podssh-ts` pipe
 
@@ -101,7 +143,7 @@ of an OpenSSH `ProxyCommand` (`crates/podssh-ts/src/pipe.rs:51-61`). The test
 
 Read: `podssh proxy` keeps receiving after the end of stdin (`crates/podssh-cli/src/pipe/relay.rs:94-108`),
 and a closed stdout is a clean end there (`crates/podssh-cli/src/pipe/relay.rs:197-201`) and in the rules
-(`docs/cli.md:540`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:384-387`).
+(`docs/cli.md:540`). `podssh ts -W` exits 70 on each copy error (`crates/podssh-cli/src/ts.rs:404-407`).
 The relay closes a half-closed forward session after 15 s with no bytes from the target
 (`docs/relay.md:186`). An earlier version of the pipe waited with no limit, and hung
 (`crates/podssh-ts/src/pipe.rs:77-81`).
@@ -113,7 +155,7 @@ The relay closes a half-closed forward session after 15 s with no bytes from the
 2. End the pipe when the stream ends, when stdout closes, or after 15 s with no bytes from the
    stream. Name the 15 s as a constant: the value of the relay's rule.
 3. Report exact counts in both directions (`crates/podssh-ts/src/pipe.rs:34-49`). A closed stdout is
-   a clean end with exit 0 (`crates/podssh-cli/src/ts.rs:371-388`).
+   a clean end with exit 0 (`crates/podssh-cli/src/ts.rs:391-408`).
 4. Rewrite the two tests, and update `docs/STATUS.md:306` in the same commit.
 
 ## Decision
@@ -158,14 +200,14 @@ the tailnet keeps an offline device until the control server removes it.
 
 Read: `probe` returns `Ok` for `Tcp` and `Relay` when `has_key` is true
 (`crates/podssh-ts/src/chain.rs:44-61`), which `podssh ts` always sets
-(`crates/podssh-cli/src/ts.rs:130`). The first ready mode of `tcp`, `relay` wins
+(`crates/podssh-cli/src/ts.rs:136`). The first ready mode of `tcp`, `relay` wins
 (`crates/podssh-ts/src/chain.rs:63-76`), and a test asserts it (`crates/podssh-ts/tests/chain.rs:26-31`).
 The decided chain is tun, socks, tcp, relay (`docs/decisions.md:42`), and the rule is to probe
 before use (`docs/target-environment.md:90-92`).
 
 Read: `ephemeral` goes into the register request (`crates/podssh-ts/src/node.rs:64`). The fork has
 no logout: `Device::shutdown` only stops the actors (`vendor/tailscale-rs/src/lib.rs:325-355`), and
-`podssh ts` never calls `TsNode::shutdown` (`crates/podssh-ts/src/node.rs:98-101`). The fork's own
+`podssh ts` never calls `TsNode::shutdown` (`crates/podssh-ts/src/node.rs:119-122`). The fork's own
 type says that a register request with an expiry in the past expires the current node key
 (`vendor/tailscale-rs/ts_control_serde/src/register.rs:92-97`).
 
@@ -179,7 +221,7 @@ type says that a register request with an expiry in the past expires the current
    message and `Device::logout(timeout)`, as a new patch with its row in
    `vendor/tailscale-rs/LOCAL-PATCHES.md`.
 3. `TsNode::shutdown` logs out first when the node is ephemeral, in 5 s at most. `podssh ts` calls
-   it at the end of each form, also after an error (`crates/podssh-cli/src/ts.rs:222-229`). Never
+   it at the end of each form, also after an error (`crates/podssh-cli/src/ts.rs:228-238`). Never
    log out a node that is not ephemeral: its allowlist entry is lost (`docs/tailscale.md:23-24`).
 4. Update `docs/tailscale.md` and `docs/STATUS.md:306` in the same commit.
 
@@ -233,7 +275,7 @@ fourth path that goes direct keeps the route that cannot work
 the pin (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:285-292`), and so does the
 WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:135-141`).
 
-Read: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs:192-205`),
+Read: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs:198-211`),
 against the manual (`crates/podssh-cli/src/man/facts.rs:45-51`), the rule at
 `docs/target-environment.md:68-71` and `SECURITY.md:53-56`. A URL with no port means 80 in podssh
 (`crates/podssh-ws/src/dial.rs:70`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:39-41`).
@@ -344,7 +386,7 @@ first test must fail. The live drop test is part of T-106.
 # T-105: The fork shows the relay's `1008 not authorized` as a missing network map
 
 **Source:** `docs/tailscale.md:12-14` ("Repair this first"), and the comment at
-`crates/podssh-cli/src/ts.rs:305-309` (measured on 2026-10-07). Read here on `3ee70dc` in the fork.
+`crates/podssh-cli/src/ts.rs:287-290` (measured on 2026-10-07). Read here on `3ee70dc` in the fork.
 **Category:** defect
 **Milestone:** M8
 **Priority:** P2
@@ -366,7 +408,7 @@ and the handshake returns it (`vendor/tailscale-rs/ts_derp/src/client.rs:205-210
 passes it up (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:248-254`), and `start_runner`
 gives it to `tracing::error!` only (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:72-76`).
 No podssh crate installs a `tracing` subscriber, so the line goes nowhere. `classify_1008` and the
-exit 77 exist (`crates/podssh-ts/src/classify.rs:17-25`, `crates/podssh-cli/src/ts.rs:263-275`), but
+exit 77 exist (`crates/podssh-ts/src/classify.rs:17-25`, `crates/podssh-cli/src/ts.rs:269-281`), but
 they see only the error texts of `Device` calls.
 
 Read: the symptom is not always a missing map. The status line needs the home region of the self
@@ -385,8 +427,8 @@ the relay. So a refused node can still print a status line and exit 0. This wide
    forwarded as `SelfNode` is (`vendor/tailscale-rs/src/lib.rs:287-294`).
 3. In podssh-ts, add `NodeError::DerpRefused { code, reason }`. `status()` and `-W` read the state
    first, and `relay` mode prints a status line only with a connected home region.
-4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs:263-275`),
-   and remove the old comment at `crates/podssh-cli/src/ts.rs:305-309`.
+4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs:269-281`),
+   and remove the old comment at `crates/podssh-cli/src/ts.rs:287-290`.
 5. Add the patch and its row, and update `docs/tailscale.md:12-14` and `docs/STATUS.md:306`.
 
 ## Prove
@@ -427,7 +469,7 @@ Read: the ignored test makes a new state file in the temporary directory and rem
 (`docs/tailscale.md:23-24`). Its reason still names M5. On 2026-10-07, registration worked, no map
 came in 60 s, and only the operator can add a node key to the allowlist (`docs/tailscale.md:8-19`).
 
-Read: `podssh ts` has no form that accepts a connection (`crates/podssh-cli/src/ts.rs:226-229`), but
+Read: `podssh ts` has no form that accepts a connection (`crates/podssh-cli/src/ts.rs:235-238`), but
 the fork can listen in its own network stack, with no socket of the host
 (`vendor/tailscale-rs/src/lib.rs:260-269`). The fork's echo example takes the auth key on the
 command line (`vendor/tailscale-rs/examples/tcp_echo/main.rs:24-28`), which podssh must not do. With
@@ -498,10 +540,10 @@ build ("'ts' is not available in this build"), so the parser accepts the flag. T
 mode."
 
 Read: the row is at `crates/podssh-cli/src/flags.rs:293-294`. `podssh ts` reads the flag once, in
-`resolve_tty` (`crates/podssh-cli/src/ts.rs:43`), which only makes the run non-interactive
+`resolve_tty` (`crates/podssh-cli/src/ts.rs:48`), which only makes the run non-interactive
 (`crates/podssh-cli/src/non_interactive.rs:61-76`). The status form writes plain text
-(`crates/podssh-cli/src/ts.rs:290-292`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
-stream (`crates/podssh-cli/src/ts.rs:371-373`). `proxy --jsonl` is refused at parse, with the reason
+(`crates/podssh-cli/src/ts.rs:314-316`, `crates/podssh-ts/src/status.rs:17-21`), and `-W` writes the
+stream (`crates/podssh-cli/src/ts.rs:391-393`). `proxy --jsonl` is refused at parse, with the reason
 (`crates/podssh-cli/src/tree.rs:179-187`, `crates/podssh-cli/src/non_interactive.rs:309-320`).
 `serde_json` is already a dependency of the binary (`crates/podssh-cli/Cargo.toml:53`).
 
@@ -565,7 +607,7 @@ Known from the documentation of the `zeroize` crate, not verified here: a compil
 writes, because nothing reads the bytes after them.
 
 Read: `podssh ts` reads the file into a plain buffer and trims it into a second copy
-(`crates/podssh-cli/src/ts.rs:158-165`, `crates/podssh-cli/src/ts.rs:234-240`). `TsNode::start` makes
+(`crates/podssh-cli/src/ts.rs:164-171`, `crates/podssh-cli/src/ts.rs:243-249`). `TsNode::start` makes
 a third copy, a `String` that goes to the fork (`crates/podssh-ts/src/node.rs:54-55`,
 `crates/podssh-ts/src/node.rs:67`). The fork keeps it in its configuration and in the parameters of
 its control runner, for each registration (`vendor/tailscale-rs/ts_runtime/src/lib.rs:54`,
@@ -582,11 +624,11 @@ model file that no longer exists.
 1. Add `zeroize` from the workspace to `crates/podssh-ts/Cargo.toml:10-14`. Hold the bytes in
    `Zeroizing<Vec<u8>>`, give `AuthKey` a `Drop` that clears them, and mark it `ZeroizeOnDrop`.
    `expire` calls `zeroize()`.
-2. In `crates/podssh-cli/src/ts.rs:158-165`, read the file into `Zeroizing<Vec<u8>>`, and trim it
-   in place, not into a copy (`crates/podssh-cli/src/ts.rs:234-240`).
+2. In `crates/podssh-cli/src/ts.rs:164-171`, read the file into `Zeroizing<Vec<u8>>`, and trim it
+   in place, not into a copy (`crates/podssh-cli/src/ts.rs:243-249`).
 3. In `TsNode::start`, make the fork's `String` from the bytes with no other copy
    (`crates/podssh-ts/src/node.rs:54-55`). Expire podssh's key when the start returns
-   (`crates/podssh-cli/src/ts.rs:207-221`), because podssh no longer needs it.
+   (`crates/podssh-cli/src/ts.rs:213-227`), because podssh no longer needs it.
 4. In the fork, hold the key as `Zeroizing<String>` in `Config` and in `Params`, as a new patch
    with its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`.
 5. Correct the comment at `crates/podssh-ts/src/secret.rs:3-5`, and name the tailnet key in the

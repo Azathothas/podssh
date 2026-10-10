@@ -11,3 +11,4 @@ pub mod node;
 pub mod pipe;
 pub mod secret;
 pub mod status;
+pub mod wait;

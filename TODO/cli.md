@@ -178,7 +178,7 @@ Read: dispatch runs the `--timeout` gate (`crates/podssh-cli/src/dispatch.rs` li
 before the refusal of a verb that is not implemented
 (`crates/podssh-cli/src/dispatch.rs:249-257`). `require_timeout` writes the
 fixed text and has no verb to name (`crates/podssh-cli/src/non_interactive.rs` lines 194-201 at `37ace00`).
-`podssh ts` uses the same function (`crates/podssh-cli/src/ts.rs:43-52`), so a
+`podssh ts` uses the same function (`crates/podssh-cli/src/ts.rs:48-57`), so a
 build with the `ts` feature shows the chat example for `ts` too (read, not
 measured: the debug binary has no `ts`).
 
@@ -192,7 +192,7 @@ measured: the debug binary has no `ts`).
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
    "--jsonl was given".
-3. Pass `"ts"` from `crates/podssh-cli/src/ts.rs:43-52`.
+3. Pass `"ts"` from `crates/podssh-cli/src/ts.rs:48-57`.
 4. Change the tests that use `chat` for the gate
    (`crates/podssh-cli/src/dispatch.rs:424-477`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
@@ -594,7 +594,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    (`crates/podssh-ws/src/dial.rs:159-173`): the flag, else a `PODSSH_TIMEOUT`
    that is not empty, else nothing. It returns the text and its source.
 2. Call it at both gate sites: `crates/podssh-cli/src/dispatch.rs:213-231` and
-   `crates/podssh-cli/src/ts.rs:43-52`. Parse with `parse_timeout`
+   `crates/podssh-cli/src/ts.rs:48-57`. Parse with `parse_timeout`
    (`crates/podssh-cli/src/non_interactive.rs:173-219`): a whole duration,
    never zero.
 3. A malformed value names its source: `--timeout` (exit 64), or
@@ -1578,7 +1578,7 @@ The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:74`), called at
 Its refusals name the real remedies (`docs/cli.md:548-550`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:213-231`,
-`crates/podssh-cli/src/ts.rs:43-52`) and `refuse_jsonl_in_proxy`
+`crates/podssh-cli/src/ts.rs:48-57`) and `refuse_jsonl_in_proxy`
 (`crates/podssh-cli/src/tree.rs:183-187`).
 
 ## Approach
