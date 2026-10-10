@@ -909,7 +909,18 @@ defect: write a file with no accept; the script must fail.
 
 ## Done
 
-Partial, 2026-10-10: the plan is the Decision; nothing is built yet.
+Partial, 2026-10-10: the plan is the Decision.
+- Built: the protocol, `crates/podssh-core/src/chat/` (no I/O, no C): the records (a type, a
+  32-bit length and a body; a length past its type's limit refused before the body), and the
+  state of one conversation: a greeting with the version first, each message with its
+  acknowledgement and the list of those with none, and the files each way, whose bytes reach the
+  caller only once this side accepted them, in order, within their size, with their SHA-256
+  checked at the end; `safe_name` keeps an offered name's last part. `cargo test -p podssh-core
+  --test chat`: 8 passed; planted, each check fails its test (bytes before the accept, the order,
+  the digest, the length's limit, the name's last part).
+- Next: the runner in `podssh` (stdin and stdout, the files that the user accepts), the command
+  line, the two sides on the roads, the manual and the documents; the live test, and the script
+  of two boxes.
 
 # T-252: `podssh chat --irc`: IRC as a second transport for chat
 
