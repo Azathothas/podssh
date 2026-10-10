@@ -824,7 +824,7 @@ hosts chat and share files (`docs/decisions.md:47`).
 **Milestone:** M8
 **Priority:** P2
 **Effort:** L
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -870,6 +870,32 @@ The operator ruled on 2026-10-08: the roads first, end to end encrypted, and
 IRC as a second transport (T-252). The roads won because both users run
 podssh, and no third party reads the text.
 
+Decided in the work (2026-10-10):
+- One side waits and the other reaches it, as on each road: `podssh chat --listen NAME` serves
+  the pair NAME as its node (with `--iroh`, the iroh road too, and a ticket), and `podssh chat
+  NAME` (or `node:NAME`, `node://NAME`) or `podssh chat iroh:TICKET` reaches it. Lost: both
+  users dialling a rendezvous, which the relay's contract does not have.
+- Chat always runs the channel of T-088, with the keys of T-087: `--key`, `--allow` at the side
+  that waits, `--client-key` and `--node-key` at the side that reaches; there is no `--no-e2e`.
+  One peer at a time: a second is told that the chat is busy.
+- The protocol is a sans-IO module of `podssh-core` (no C), records of a type, a 32-bit length
+  and a body: a greeting with a version and a nick; text with an id, and its acknowledgement; a
+  file's offer (its name, size and SHA-256), the accept or the decline, its chunks of 64 KiB at
+  most, and the receiver's word on the digest. Lost: lines of JSON, a third more bytes for a file
+  in base64; the chunks of T-097, which IRC's line limits shape.
+- stdin and stdout carry lines: each line of stdin is a message, and each message of the peer is
+  a line of stdout; `/file PATH`, `/accept ID [PATH]` and `/decline ID` act on files, and a line
+  that starts with `//` sends a literal `/`. Notices go to stderr; `--jsonl` puts each event on
+  stdout as JSON. `--send MESSAGE` sends one message and exits once it is acknowledged; `--file
+  PATH` offers one file and exits once it arrived whole; `--accept-dir DIR` is the user's accept
+  of each file, into DIR, for a script.
+- A file is written only once the user accepts it, under a temporary name in its directory,
+  checked against its SHA-256, then renamed; never over a file that is there, and never out of
+  the directory (the name is its last part, made safe). Nothing that arrives is run.
+- A line with no acknowledgement when the session ends is said, as not delivered. While no peer
+  is there (the side that waits, or the node offline), the lines wait in memory, at most 1000
+  lines or 1 MiB, and the side that reaches tries again each 5 s; podssh says so.
+
 ## Prove
 
 ```sh
@@ -880,6 +906,10 @@ sh scripts/chat-in-boxes.sh path/to/podssh   # two boxes, the live relay, text a
 The script exits 0 when each line and each file arrives once, with equal
 digests, and a file that the user did not accept is not written. Planted
 defect: write a file with no accept; the script must fail.
+
+## Done
+
+Partial, 2026-10-10: the plan is the Decision; nothing is built yet.
 
 # T-252: `podssh chat --irc`: IRC as a second transport for chat
 

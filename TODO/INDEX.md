@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**274 entries: 112 open, 0 partial, 22 blocked, 140 done.**
+**274 entries: 111 open, 1 partial, 22 blocked, 140 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 30 | 0 | 18 | 105 | 153 |
+| P2 | 29 | 1 | 18 | 105 | 153 |
 | P3 | 80 | 0 | 4 | 18 | 102 |
-| **All** | 112 | 0 | 22 | 140 | 274 |
+| **All** | 111 | 1 | 22 | 140 | 274 |
 
 ## Entries
 
@@ -172,7 +172,7 @@ repository and CI).
 | [T-096](irc.md) | P2 | S | M8 | defect | done | I6: the line framing loses lines, and its buffer has no limit |
 | [T-097](irc.md) | P2 | M | M8 | defect | done | I7: file chunks are too long with the server's prefix, and the last acknowledgement is wrong |
 | [T-098](irc.md) | P3 | S | M8 | defect | open | I8: the keepalive sends a visible channel message |
-| [T-099](irc.md) | P2 | L | M8 | feature | open | `podssh chat` on the roads between two podssh ends, end-to-end encrypted |
+| [T-099](irc.md) | P2 | L | M8 | feature | partial | `podssh chat` on the roads between two podssh ends, end-to-end encrypted |
 | [T-100](ts.md) | P2 | S | M8 | defect | done | C2: `podssh ts` waits for ever when no network map arrives |
 | [T-101](ts.md) | P2 | S | M8 | defect | done | C3: a local end of input cuts the reply in the `podssh-ts` pipe |
 | [T-102](ts.md) | P2 | M | M8 | defect | done | C9: the automatic mode always selects tcp, and ephemeral nodes are not logged out |
