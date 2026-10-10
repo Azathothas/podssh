@@ -123,7 +123,7 @@ fn a_file_crosses_the_server_between_two_clients() {
     let offer = sender.offer(&channel);
     a.send(&[offer]);
     let mut receiver = b.until("offer", |_, e| match e {
-        Event::Transfer(Line::Offer(o)) => Some(Receiver::from_offer(o).expect("the offer is accepted")),
+        Event::Transfer { line: Line::Offer(o), .. } => Some(Receiver::from_offer(o).expect("the offer is accepted")),
         _ => None,
     });
     let mut written = Vec::new();
@@ -131,14 +131,14 @@ fn a_file_crosses_the_server_between_two_clients() {
         let chunk = sender.next_chunk_message(&channel, &data[offset as usize..offset as usize + len]).unwrap();
         a.send_paced(chunk);
         let bytes = b.until("chunk", |_, e| match e {
-            Event::Transfer(Line::Chunk(c)) => Some(c.clone()),
+            Event::Transfer { line: Line::Chunk(c), .. } => Some(c.clone()),
             _ => None,
         });
         written.extend(receiver.accept(&bytes).expect("the chunk, whole and in order"));
         let ack = receiver.ack(&channel);
         b.send_paced(ack);
         let index = a.until("ack", |_, e| match e {
-            Event::Transfer(Line::Ack(k)) => Some(k.index),
+            Event::Transfer { line: Line::Ack(k), .. } => Some(k.index),
             _ => None,
         });
         assert!(sender.acknowledge(index), "the ack named {index}");

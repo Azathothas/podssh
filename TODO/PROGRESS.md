@@ -64,7 +64,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 274 entries: 109 open, 1 partial, 22 blocked, 142 done.
+`TODO/INDEX.md` holds 274 entries: 109 open, 0 partial, 22 blocked, 143 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -79,14 +79,15 @@ the surface for agents: done.
 
 **M4:** T-085 (the exit measurement) is on hold (Q32).
 
-**Now:** T-252, IRC as the second transport of chat, on the keepalive
-that no user sees.
+**Now:** the `backlog` entries, in the order of `TODO/INDEX.md` ("The
+order, and the argument for it"): M3 to M8 are done, but for the entries on
+hold and those of the relay's operator. First the P2 entries of effort S
+(T-026, T-028, T-029, T-031, T-227, T-243), then the other P2 entries, then
+P3.
 
-**Then** M5, M6, M7 and M8, each in the order of `TODO/INDEX.md` ("The
-order, and the argument for it"); then each `backlog` entry, in the order
-of the index; then M9: T-218, T-210 and T-211, then T-251 (the check, and
-its run before the tag), and last T-250 (the one release). Between milestone
-entries: the `none` entries of `TODO/repo.md`, the highest priority first.
+**Then** M9: T-218, T-210 and T-211, then T-251 (the check, and its run
+before the tag), and last T-250 (the one release). Between entries: the
+`none` entries of `TODO/repo.md`, the highest priority first.
 
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253 and T-255;

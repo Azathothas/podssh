@@ -43,7 +43,13 @@ pub(super) const CHAT: &[&str] = &[
      echoes it; a server with none gives no proof, which podssh says. The server and each user of the \
      channel read the messages: IRC has no end-to-end channel. A lost connection is made again each \
      5 s, and the channel joined again; a server's ERROR before the channel ends the run with its \
-     words. Files do not go over IRC yet.",
+     words. With --direct, podssh connects to SERVER over TCP, through HTTPS_PROXY when it is set, \
+     not through the relay.",
+    "Over IRC, /file PATH offers the file to the channel; the transfer then runs between the two \
+     nicks alone, in chunks that each server can relay, each line in its turn so that a server's rate \
+     limit does not close the link, and with the SHA-256 of the file at the end. One file goes at a \
+     time: another accept meanwhile is told that this side is busy. A file is written only once \
+     accepted, under a temporary name, and kept only whole, as on the roads.",
     "The channel is always on: chat has no --no-e2e. The side that waits proves its key, the file of \
      --key (default node-NAME.key in the cache) or a key of --ephemeral-key, and lets in the keys of \
      --allow FILE, else each peer with the pair's connect token. The side that reaches proves the key \

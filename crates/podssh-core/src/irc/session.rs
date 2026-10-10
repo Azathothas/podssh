@@ -106,8 +106,9 @@ pub enum Event {
     PeerLeft { nick: String, channel: String, reason: Option<String> },
     /// The server answered a numeric podssh acts on.
     Numeric { code: u16, text: Option<String> },
-    /// A file-transfer line arrived.
-    Transfer(TransferLine),
+    /// A file-transfer line arrived: who sent it, to whom (a channel, or
+    /// this client alone), and the line (T-252 routes a transfer by them).
+    Transfer { from: Prefix, target: String, line: TransferLine },
     /// The server answered podssh's keepalive (`PONG :podssh-N`): a
     /// reception, which no user sees.
     Heartbeat { generation: u64 },

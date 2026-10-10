@@ -22,6 +22,9 @@ pub struct IrcPlan {
     /// TLS inside the relay stream; plain text only with `--irc-plaintext`.
     pub tls: bool,
     pub channel: String,
+    /// TCP to the server, through `HTTPS_PROXY` when it is set, not the
+    /// relay (`--direct`).
+    pub direct: bool,
 }
 
 /// The checks of `--irc`, in order: the flags that do not go with it, the
@@ -49,7 +52,7 @@ pub fn plan(args: &ChatArgs, server: &str, channel: &str) -> Result<IrcPlan, Ref
     let tls = !args.irc_plaintext;
     let (host, port) = server_and_port(server, if tls { TLS_PORT } else { PLAIN_PORT })?;
     check_channel(channel)?;
-    Ok(IrcPlan { server: host, port, tls, channel: channel.to_string() })
+    Ok(IrcPlan { server: host, port, tls, channel: channel.to_string(), direct: args.direct })
 }
 
 /// `SERVER` or `SERVER:PORT` (`[IPV6]:PORT`), the port by default.

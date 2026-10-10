@@ -34,7 +34,7 @@ wait for `001` (`crates/podssh-core/src/irc/cap.rs`, lines 22-28 at `9460b4e`). 
 (`crates/podssh-core/src/irc/session.rs`, lines 318-322 at `9460b4e`), and the live probe can then drop the server
 (`crates/podssh-cli/examples/live_irc.rs:220-223`).
 
-Read: `docs/irc.md:95` says that libera, OFTC and tilde refuse the relay's addresses. They support
+Read: `docs/irc.md:106` says that libera, OFTC and tilde refuse the relay's addresses. They support
 `CAP`, so this defect alone explains "closed before `001`". The record does not say if that run
 used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is not proven.
 
@@ -49,7 +49,7 @@ used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is n
 4. Correct the comments at `crates/podssh-core/src/irc/cap.rs`, lines 9-28 at `9460b4e` and
    `crates/podssh-core/src/irc/session.rs`, lines 22-24 at `9460b4e`, and remove the test at
    `crates/podssh-core/tests/session.rs`, lines 200-223 at `9460b4e`. Record the new network results in
-   `docs/irc.md:88-110`, and update `docs/STATUS.md:309`, in the same commit.
+   `docs/irc.md:99-121`, and update `docs/STATUS.md:309`, in the same commit.
 
 ## Prove
 
@@ -512,7 +512,7 @@ cargo run -q -p podssh-cli --example live_irc -- --target irc.undernet.org --pai
 The new file crates/podssh-core/tests/own_nick.rs has one test for each rule above, such as
 `a_part_by_another_user_keeps_the_channel`; its `005` case uses the lines captured in T-094. Plant:
 remove the prefix check on `PART`; that test must fail. The last command is live: run it with
-`--role send` and the same ID in a second shell, as two separate clients (`docs/irc.md:108-110`).
+`--role send` and the same ID in a second shell, as two separate clients (`docs/irc.md:119-121`).
 Both must print `LIVE-IRC-OK`, so the reset does not break registration.
 
 ## Correction
@@ -576,7 +576,7 @@ comes out (`crates/podssh-core/tests/reassembly.rs`, lines 231-247 at `016baab`)
 Read: a non-UTF-8 line is an error (`crates/podssh-core/src/irc/framing.rs`, lines 212-226 at `016baab`), which
 `Session::on_bytes` returns with `?` (`crates/podssh-core/src/irc/session.rs`, lines 268-269 at `016baab`). The live
 probe then ends the attempt (`crates/podssh-cli/examples/live_irc/support.rs`, lines 156-159 at `016baab`). The only
-network that took the relay is undernet (`docs/irc.md:97`); its use of Latin-1 is not measured.
+network that took the relay is undernet (`docs/irc.md:108`); its use of Latin-1 is not measured.
 
 ## Approach
 
@@ -845,7 +845,7 @@ hosts chat and share files (`docs/decisions.md:47`).
 Two users on constrained hosts must chat and share files. `podssh chat` does
 not exist: it exits 70. The IRC client sends plain text that the relay and
 the IRC server read, and most public networks refused the relay
-(`docs/irc.md:88-110`).
+(`docs/irc.md:99-121`).
 
 ## Premise
 
@@ -1015,7 +1015,7 @@ T-098.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -1026,14 +1026,14 @@ run podssh, or who wants a public channel, has no chat.
 
 Read: the client is sans-IO, and T-091 to T-098 repair its defects. Measured
 on 2026-10-05: of seven public networks, only `irc.undernet.org:6667`
-accepted the relay's addresses (`docs/irc.md:88-110`). On port 6667 the relay
+accepted the relay's addresses (`docs/irc.md:99-121`). On port 6667 the relay
 and each server read the text (`SECURITY.md:140-144`).
 
 ## Approach
 
 1. After T-091 and T-092: measure the networks again through the relay, on
    port 6667, and on 6697 with TLS inside the relay stream. Record each
-   answer with its date in `docs/irc.md:88-110`.
+   answer with its date in `docs/irc.md:99-121`.
 2. `podssh chat --irc SERVER[:PORT] CHANNEL`: TLS inside the relay stream by
    default (port 6697). Plain text on 6667 only with a flag that names the
    risk, and one line about it on stderr. The nick comes from a flag or a
@@ -1086,7 +1086,7 @@ gate's server must fail at the handshake.
 
 ## Done
 
-Partial, 2026-10-10: stage A, text, is done; files, then the gate's server, come next.
+2026-10-10.
 - Built: `crates/podssh-cli/src/chat/irc.rs` (the relay session and TLS inside it, a new
   connection each 5 s), `chat/irc/plan.rs` (the server and its port, the channel, the nick by the
   grammar of IRC, the flags of the roads refused), `chat/irc/talk.rs` (the conversation over any
@@ -1106,8 +1106,25 @@ Partial, 2026-10-10: stage A, text, is done; files, then the gate's server, come
   sent (libera with `echo-message`); undernet's 6697 gave no TLS (`tls handshake eof`), and its
   6667 joined in plain text, after a run that met its `ERROR` at each new try. The table is in
   `docs/irc.md`.
-- Next: files over IRC (T-097's chunks, each accepted first, paced as T-275 says); then the
-  gate's IRC server for text and a file, whose run waits for T-251, and the plant of the Prove.
+- Built: files over IRC, `chat/irc/files.rs`: the offer to the channel, then the accept, the
+  chunks, their acks, the digest and the receiver's `done` or `deny` between the two nicks alone,
+  each line paced (T-275); one file at a time, another accept told busy; a file written only once
+  accepted, under a temporary name, and kept only whole; `Event::Transfer` of the client names
+  its sender and target. `--direct`: TCP to the server, through `HTTPS_PROXY` when set.
+- `cargo test -p podssh-cli --test chat_irc_files`: 3 passed, two conversations through a relay of
+  the test that routes each `PRIVMSG` as a server does: files of 0, 1 and 2000 bytes with equal
+  digests into `--accept-dir`; a file with no accept never written, and its decline said; a chunk
+  damaged on the way, the file not kept and its sender ending with 70. Planted, each fails its
+  test: a file taken with no accept, a damaged file kept. `--test chat_irc_direct`: 1 passed, the
+  binary with `--direct` against a server on the loopback that answers with ngircd's lines;
+  planted, `--direct` ignored fails it.
+- Measured live, 2026-10-10: 1000 bytes between two podssh processes on libera over TLS through the
+  relay, in 18 s with the connection, with an equal SHA-256.
+- Written, waiting for T-251: `scripts/irc-in-image.sh`, ngircd in the build image with plain text
+  on 6667 and TLS on 6697 with a test CA; it runs the client's server tests and
+  `--test chat_irc_server` (a message and a file over TLS, and plain text to the TLS port, which
+  must fail); with `IRC_PLANT=plaintext`, the planted defect of the Prove, each chat run skips its
+  TLS and the test must fail. The step of the gate comes once it passed there.
 
 # T-275: The transfer sends as fast as its acknowledgements come, and a server's rate limit closes it
 

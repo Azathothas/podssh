@@ -116,7 +116,9 @@ The box models the target sandbox (`scripts/test_in_box.sh`).
      `PODSSH_THROUGHPUT_MIB=100` (500 MiB a direction in each cell, n0's iroh
      relays and the operator's SSH host: the operator, 2026-10-10, Q38), the
      IRC runs on undernet, libera and OFTC (Q39), the Tailscale runs with the
-     auth key file of `.env/` (Q40), and `scripts/chat-in-boxes.sh` (T-099).
+     auth key file of `.env/` (Q40), `scripts/chat-in-boxes.sh` (T-099), and
+     `scripts/irc-in-image.sh` with its plant (T-252), whose step then joins
+     the gate.
 3. Hosts: this Windows host (the Windows binary, natively), a fresh Linux
    container, and the box like the target sandbox. The other targets: the
    short form (`--version`, `man --no-pager`, `keygen`, `proxy github.com

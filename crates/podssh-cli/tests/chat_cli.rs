@@ -170,6 +170,7 @@ fn the_irc_command_line_refuses_what_does_not_go_with_it() {
         (vec!["--irc", "irc.example.org", "--irc-plaintext", "--irc-ca-file", "f", "#c"], "--irc-plaintext turns off"),
         (vec!["--irc", "irc.example.org:x", "#c"], "--irc"),
         (vec!["--irc-plaintext", "lab"], "are for --irc SERVER"),
+        (vec!["--direct", "lab"], "are for --irc SERVER"),
     ] {
         let (rc, out, err) = chat(&home, &args);
         assert_eq!(rc, 64, "{args:?}: {err}");

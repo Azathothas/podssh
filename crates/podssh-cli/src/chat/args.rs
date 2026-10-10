@@ -46,6 +46,8 @@ pub struct ChatArgs {
     pub irc_plaintext: bool,
     /// With `--irc`: the CAs of the server's TLS.
     pub irc_ca_file: Option<String>,
+    /// With `--irc`: TCP to the server, not the relay.
+    pub direct: bool,
 }
 
 impl ChatArgs {
@@ -72,6 +74,7 @@ impl ChatArgs {
             irc: get("irc"),
             irc_plaintext: m.get_flag("irc-plaintext"),
             irc_ca_file: get("irc-ca-file"),
+            direct: m.get_flag("direct"),
         }
     }
 }
@@ -157,8 +160,8 @@ fn side(args: &ChatArgs, given: &str) -> Result<Side, Refusal> {
     if let Some(server) = &args.irc {
         return Ok(Side::Irc(super::irc::plan::plan(args, server, given)?));
     }
-    if args.irc_plaintext || args.irc_ca_file.is_some() {
-        return Err(Refusal::usage("--irc-plaintext and --irc-ca-file are for --irc SERVER"));
+    if args.irc_plaintext || args.irc_ca_file.is_some() || args.direct {
+        return Err(Refusal::usage("--irc-plaintext, --irc-ca-file and --direct are for --irc SERVER"));
     }
     let label = given.strip_prefix("node://").or_else(|| given.strip_prefix("node:")).unwrap_or(given);
     let iroh_road = given.starts_with("iroh:");

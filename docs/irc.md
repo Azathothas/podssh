@@ -83,8 +83,19 @@ nothing proves it, and podssh says so. The server and each user of the
 channel read the messages: IRC has no end-to-end channel. A lost connection
 is made again each 5 s with the burst of a reconnect, which rejoins the
 channel; a server's `ERROR` before the channel ends the run with its words,
-so that a throttle is not made longer by fast new tries. Files over IRC come
-next (T-097's chunks, accepted first).
+so that a throttle is not made longer by fast new tries. `--direct` connects
+over TCP, through `HTTPS_PROXY` when it is set, not through the relay.
+
+A file goes as on the roads, accepted first and kept only whole: `/file
+PATH` offers it to the channel, and the transfer then runs between the two
+nicks alone, in T-097's chunks, sized for what the server relays, each line
+in its turn as T-275 says, with the SHA-256 of the file at the end; the
+receiver answers with `done`, or with `deny` and its reason. One file goes at
+a time; another accept meanwhile is told that this side is busy. Measured
+live on 2026-10-10: 1000 bytes between two podssh processes on libera over
+TLS, in 18 s with the connection, with an equal SHA-256. `scripts/irc-in-image.sh`
+runs the client and the chat against ngircd in the build image, plain text
+and TLS with a test CA (its run waits for T-251).
 
 ## IRC: servers that accept the relay
 

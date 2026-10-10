@@ -4,6 +4,7 @@
 //! relay and each server then read. A lost connection is made again each
 //! 5 s, and the session rejoins the channel.
 
+mod files;
 pub mod plan;
 mod talk;
 
@@ -26,11 +27,13 @@ use super::output::Output;
 use super::reach::RETRY;
 use super::run::{self, Until};
 use crate::channel::Bytes;
-use crate::exitmap::sysexits::{EX_NOPERM, EX_UNAVAILABLE};
+use crate::exitmap::sysexits::{EX_CONFIG, EX_NOPERM, EX_UNAVAILABLE};
 use crate::relay_settings::Refusal;
 
 /// The bound on the TLS handshake with the server.
 const TLS_LIMIT: Duration = Duration::from_secs(30);
+/// The bound on a direct dial of the server.
+const DIAL_LIMIT: Duration = Duration::from_secs(20);
 
 /// The chat over IRC, once each check that needs no network passed.
 pub(super) struct Ready {
@@ -76,8 +79,12 @@ pub(super) async fn run<W: AsyncWrite + Unpin>(
         realname: "podssh".into(),
     };
     let mut session = Session::new(user, ReapPolicy::default());
-    let irc =
-        IrcOptions { channel: ready.plan.channel.clone(), once: opts.once.clone(), stays: opts.accept_dir.is_some() };
+    let irc = IrcOptions {
+        channel: ready.plan.channel.clone(),
+        once: opts.once.clone(),
+        accept_dir: opts.accept_dir.clone(),
+        here: opts.here.clone(),
+    };
     let mut first = true;
     // Whether "tries again" was said since the last connection that joined.
     let mut said = false;
@@ -125,14 +132,22 @@ enum Unreached {
     Final(i32, String),
 }
 
-/// A relay session to the server, and TLS inside it unless plain text was
-/// asked for.
+/// A relay session to the server (with `--direct`, TCP), and TLS inside it
+/// unless plain text was asked for.
 async fn connect(ready: &Ready) -> Result<Box<dyn Bytes>, Unreached> {
     let target = &ready.label;
-    let request = Request { relays: &ready.relays, path: &ready.path, trust: &ready.trust, target, rounds: 1 };
-    let opened = podssh_relay::open(&request, &mut |note: &str| eprintln!("podssh chat: {target}: {note}"))
-        .await
-        .map_err(|failure| {
+    let stream: Box<dyn Bytes> = if ready.plan.direct {
+        let proxy = podssh_ws::ProxyChoice::FromEnvironment;
+        match podssh_ws::dial::dial(&ready.plan.server, ready.plan.port, &proxy, DIAL_LIMIT).await {
+            Ok(tcp) => Box::new(tcp),
+            Err(podssh_ws::DialError::BadProxy(why)) => return Err(Unreached::Final(EX_CONFIG, why)),
+            Err(e) => return Err(Unreached::Again(format!("{target}: {e}"))),
+        }
+    } else {
+        let request = Request { relays: &ready.relays, path: &ready.path, trust: &ready.trust, target, rounds: 1 };
+        let opened = podssh_relay::open(&request, &mut |note: &str| eprintln!("podssh chat: {target}: {note}"))
+            .await
+            .map_err(|failure| {
             let code = crate::proxy::sysexit(failure.last());
             let why = failure.lines(target).join("; ");
             if code == EX_UNAVAILABLE {
@@ -141,9 +156,10 @@ async fn connect(ready: &Ready) -> Result<Box<dyn Bytes>, Unreached> {
                 Unreached::Final(code, why)
             }
         })?;
-    let (stream, _) = podssh_ssh::relay_stream::spawn(opened.session);
+        Box::new(podssh_ssh::relay_stream::spawn(opened.session).0)
+    };
     if !ready.plan.tls {
-        return Ok(Box::new(stream));
+        return Ok(stream);
     }
     // A failed handshake is final: never a fall back to plain text. A
     // certificate that is not trusted is a refusal; another end is a port

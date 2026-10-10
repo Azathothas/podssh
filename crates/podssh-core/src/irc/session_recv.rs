@@ -137,10 +137,11 @@ impl Session {
         // consumed before the text is shown.** The reverse would put a
         // `PODSSH1|chunk|…` line in a user's terminal on every chunk of every
         // transfer. An echo of this client's own line is no line from a peer.
-        if let Command::Privmsg { text, .. } = &message.command {
+        if let Command::Privmsg { target, text } = &message.command {
             if let Some(line) = crate::irc::transfer::Line::parse(text.as_str()).filter(|_| !self.is_echo(&message)) {
                 events.retain(|e| !matches!(e, Event::Privmsg { .. }));
-                events.push(Event::Transfer(line));
+                let from = message.prefix.clone().unwrap_or_default();
+                events.push(Event::Transfer { from, target: target.0.clone(), line });
             }
         }
     }

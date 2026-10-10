@@ -112,7 +112,7 @@ struct Run {
 fn start(end: DuplexStream, nick: &str, channel: &str, once: Once, mut lines: Lines) -> Run {
     let (stdout, notes) = (Sink::default(), Arc::new(Mutex::new(Vec::new())));
     let (sink, kept) = (stdout.clone(), notes.clone());
-    let opts = IrcOptions { channel: channel.into(), once, stays: false };
+    let opts = IrcOptions { channel: channel.into(), once, accept_dir: None, here: std::env::temp_dir() };
     let mut session = session(nick);
     let task = tokio::spawn(async move {
         let mut out = Output::new(sink, false, move |line| kept.lock().unwrap().push(line));
@@ -254,7 +254,12 @@ async fn a_reconnect_rejoins_once() {
     let (ours, theirs) = tokio::io::duplex(64 * 1024);
     drop(tx);
     let mut lines = Lines::none();
-    let opts = IrcOptions { channel: "#t".into(), once: Once::No, stays: true };
+    let opts = IrcOptions {
+        channel: "#t".into(),
+        once: Once::No,
+        accept_dir: Some(std::env::temp_dir()),
+        here: std::env::temp_dir(),
+    };
     let notes = Arc::new(Mutex::new(Vec::new()));
     let kept = notes.clone();
     let task = tokio::spawn(async move {

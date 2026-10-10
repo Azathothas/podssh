@@ -568,9 +568,10 @@ rules behind it:
   required with no terminal: a run that waits for a peer has nobody to stop
   it.
 - **IRC second.** `--irc SERVER` talks in a channel of a network, with TLS
-  inside the relay stream unless `--irc-plaintext` names the risk; the
-  flags of the roads' keys do not go with it, and PEER is the channel. The
-  server and each user of the channel read the messages.
+  inside the relay stream unless `--irc-plaintext` names the risk, and over
+  TCP with `--direct`, as `ssh --direct`; the flags of the roads' keys do
+  not go with it, and PEER is the channel. The server and each user of the
+  channel read the messages; a file goes between two nicks alone.
 - **Nothing lost unsaid.** A message that the peer did not acknowledge is
   said when its conversation ends, and the exit is then 69. The lines that
   wait for a peer stay in memory, 1000 lines or 1 MiB at most.

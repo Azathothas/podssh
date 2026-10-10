@@ -343,7 +343,7 @@ fn a_transfer_line_is_consumed_and_never_shown_as_chat() {
     let (_, events) = s.on_bytes(b":alice!u@host PRIVMSG #c :PODSSH1|chunk|t1|0|0|QUJD\r\n");
     assert!(!events.iter().any(|e| matches!(e, Event::Privmsg { .. })), "a chunk was shown as chat: {events:?}");
     assert!(
-        matches!(events.first(), Some(Event::Transfer(_))),
+        matches!(events.first(), Some(Event::Transfer { .. })),
         "the chunk did not become a transfer event: {events:?}"
     );
 }

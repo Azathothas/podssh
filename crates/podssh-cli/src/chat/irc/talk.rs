@@ -6,6 +6,7 @@
 
 use std::collections::VecDeque;
 use std::future::Future;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use podssh_core::irc::{Event, Message, Registered, Session};
@@ -14,6 +15,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 
+use super::files::{Files, Heard};
 use crate::chat::converse::{Ended, Once};
 use crate::chat::input::{self, Act};
 use crate::chat::lines::Lines;
@@ -29,9 +31,12 @@ const FLUSH: Duration = Duration::from_secs(5);
 pub struct IrcOptions {
     pub channel: String,
     pub once: Once,
-    /// The user takes each file (`--accept-dir`): the run stays until it is
-    /// ended, as a file can come from anyone in the channel.
-    pub stays: bool,
+    /// The user takes each file into this directory (`--accept-dir`): the
+    /// run stays until it is ended, as a file can come from anyone in the
+    /// channel.
+    pub accept_dir: Option<PathBuf>,
+    /// Where an accept with no path puts a file.
+    pub here: PathBuf,
 }
 
 /// How one connection's conversation ended.
@@ -63,7 +68,7 @@ where
     let (mut from_server, to_server) = tokio::io::split(stream);
     let (tx, rx) = mpsc::unbounded_channel::<Vec<u8>>();
     let writer = tokio::spawn(write_lines(to_server, rx));
-    let mut talk = Talk { session, tx, opts, out_of_band: Vec::new(), state: State::new(opts) };
+    let mut talk = Talk { session, tx, opts, out_of_band: Vec::new(), state: State::new(opts), files: Files::new() };
     // A reconnect's burst rejoins the channels that the session remembers.
     talk.state.join_sent =
         !first && talk.session.memory().channels().iter().any(|c| c.eq_ignore_ascii_case(&opts.channel));
@@ -77,6 +82,7 @@ where
             break ended;
         }
         let reading = talk.state.joined && talk.state.input_open;
+        let paced = talk.files.paced().then(|| talk.files.next_at(Instant::now()));
         tokio::select! {
             ended = &mut until => break ended,
             read = from_server.read(&mut buf) => match read {
@@ -102,6 +108,12 @@ where
                 None => talk.state.input_open = false,
             },
             _ = tick.tick() => talk.keepalive(),
+            // A transfer's next line, in its turn.
+            () = tokio::time::sleep_until(paced.unwrap_or_else(Instant::now)), if paced.is_some() => {
+                if let Some(line) = talk.files.take_paced(Instant::now()) {
+                    talk.send(&line);
+                }
+            }
         }
     };
     // The user's own end says goodbye; a lost connection cannot.
@@ -110,6 +122,7 @@ where
     }
     let undelivered = talk.state.pending.iter().cloned().collect();
     let joined = talk.state.ever_joined;
+    talk.files.abandon();
     drop(talk);
     let _ = tokio::time::timeout(FLUSH, writer).await;
     IrcSummary { ended, undelivered, joined }
@@ -136,6 +149,9 @@ struct State {
     /// Whether the server echoes each message, once registration said.
     echo: Option<bool>,
     once_sent: bool,
+    /// The number of the file of `--file`, and its end once it came.
+    once_file: Option<u64>,
+    file_end: Option<Ended>,
     last_send: Instant,
     last_recv: Instant,
     received_since_beat: bool,
@@ -153,6 +169,8 @@ impl State {
             pending: VecDeque::new(),
             echo: None,
             once_sent: false,
+            once_file: None,
+            file_end: None,
             last_send: now,
             last_recv: now,
             received_since_beat: false,
@@ -168,6 +186,7 @@ struct Talk<'a> {
     /// Lines that could not be written as IRC lines, said once.
     out_of_band: Vec<String>,
     state: State,
+    files: Files,
 }
 
 impl Talk<'_> {
@@ -194,9 +213,11 @@ impl Talk<'_> {
         let idle = self.state.pending.is_empty();
         match &self.opts.once {
             Once::Send(_) => (self.state.once_sent && idle).then_some(Ended::Done),
-            Once::File(_) => None,
-            Once::No => (!self.state.input_open && lines.done() && idle && !self.opts.stays && self.state.joined)
-                .then_some(Ended::Done),
+            Once::File(_) => self.state.file_end.clone(),
+            Once::No => {
+                let stays = self.opts.accept_dir.is_some();
+                (!self.state.input_open && lines.done() && idle && !stays && self.state.joined).then_some(Ended::Done)
+            }
         }
     }
 
@@ -260,12 +281,63 @@ impl Talk<'_> {
         None
     }
 
-    /// The one message of `--send`, once the channel is joined.
+    /// The one message of `--send`, or the one file of `--file`, once the
+    /// channel is joined.
     async fn once<W: AsyncWrite + Unpin>(&mut self, out: &mut Output<W>) {
-        let Once::Send(text) = self.opts.once.clone() else { return };
-        if self.state.joined && !self.state.once_sent {
-            self.state.once_sent = true;
-            self.say(&text, out).await;
+        if !self.state.joined || self.state.once_sent {
+            return;
+        }
+        match self.opts.once.clone() {
+            Once::Send(text) => {
+                self.state.once_sent = true;
+                self.say(&text, out).await;
+            }
+            Once::File(path) => {
+                self.state.once_sent = true;
+                self.state.once_file = self.offer(&path, out).await;
+                if self.state.once_file.is_none() {
+                    self.state.file_end = Some(Ended::Failed(format!("{}: not offered", path.display())));
+                }
+            }
+            Once::No => {}
+        }
+    }
+
+    /// Offer a file to the channel: its number, once offered.
+    async fn offer<W: AsyncWrite + Unpin>(&mut self, path: &std::path::Path, out: &mut Output<W>) -> Option<u64> {
+        let channel = self.opts.channel.clone();
+        match self.files.offer(path, &channel, self.session.isupport()).await {
+            Ok((id, message)) => {
+                self.send(&message);
+                let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                let line = format!("offered {name} to {channel} as file {id}; it goes once someone takes it");
+                out.notice("offered", json!({ "id": id, "name": name }), line).await;
+                Some(id)
+            }
+            Err(why) => {
+                out.notice("error", json!({ "error": why }), why.clone()).await;
+                None
+            }
+        }
+    }
+
+    /// Take the peer's file `id`, into `to` or the directory of the run.
+    async fn take<W: AsyncWrite + Unpin>(&mut self, id: u64, to: Option<&std::path::Path>, out: &mut Output<W>) {
+        let dir = self.opts.accept_dir.clone().unwrap_or_else(|| self.opts.here.clone());
+        match self.files.accept(id, to, &dir).await {
+            Ok((shown, message)) => {
+                self.send(&message);
+                out.notice("accepted", json!({ "id": id, "path": shown }), format!("taking file {id} into {shown}"))
+                    .await;
+            }
+            Err(why) => {
+                if self.opts.accept_dir.is_some() {
+                    if let Ok(denied) = self.files.decline(id) {
+                        self.send(&denied);
+                    }
+                }
+                out.notice("error", json!({ "id": id, "error": why }), format!("file {id}: {why}")).await;
+            }
         }
     }
 
@@ -291,10 +363,17 @@ impl Talk<'_> {
             Ok(Act::Nothing) => {}
             Ok(Act::Quit) => return Some(Ended::Done),
             Ok(Act::Say(text)) => self.say(&text, out).await,
-            Ok(Act::Offer(_) | Act::Accept { .. } | Act::Decline(_)) => {
-                let why = "files over IRC come with the next part of T-252; nothing was sent";
-                out.notice("error", json!({ "error": why }), why.to_string()).await;
+            Ok(Act::Offer(path)) => {
+                self.offer(&path, out).await;
             }
+            Ok(Act::Accept { id, to }) => self.take(id, to.as_deref(), out).await,
+            Ok(Act::Decline(id)) => match self.files.decline(id) {
+                Ok(denied) => {
+                    self.send(&denied);
+                    out.notice("declined", json!({ "id": id }), format!("declined file {id}")).await;
+                }
+                Err(why) => out.notice("error", json!({ "error": why }), why.clone()).await,
+            },
             Err(why) => out.notice("error", json!({ "error": why }), why.clone()).await,
         }
         None
@@ -352,10 +431,50 @@ impl Talk<'_> {
                 }
                 out.notice("server-error", json!({ "error": words }), why).await;
             }
+            Event::Transfer { from, line, .. } => {
+                if from.nick.eq_ignore_ascii_case(self.session.nick()) {
+                    return None;
+                }
+                for heard in self.files.heard(&from.nick, line).await {
+                    self.heard(heard, out).await;
+                }
+            }
             Event::Protocol(why) => out.notice("protocol", json!({ "error": why }), why.clone()).await,
             _ => {}
         }
         None
+    }
+}
+
+impl Talk<'_> {
+    /// What a transfer line brought: a notice, an offer that waits or that
+    /// `--accept-dir` takes, or the end of this side's file.
+    async fn heard<W: AsyncWrite + Unpin>(&mut self, heard: Heard, out: &mut Output<W>) {
+        match heard {
+            Heard::Notice(event, fields, line) => out.notice(event, fields, line).await,
+            Heard::Offered(id) => {
+                let Some((from, name, size)) = self.files.described(id) else { return };
+                let line =
+                    format!("{from} offers {name} ({size} bytes) as file {id}: /accept {id} [PATH] or /decline {id}");
+                out.notice("offer", json!({ "id": id, "from": from, "name": name, "size": size }), line).await;
+                if self.opts.accept_dir.is_some() {
+                    self.take(id, None, out).await;
+                }
+            }
+            Heard::Arrived(id) => {
+                out.notice("sent", json!({ "id": id, "whole": true }), format!("file {id} arrived whole")).await;
+                if self.state.once_file == Some(id) {
+                    self.state.file_end = Some(Ended::Done);
+                }
+            }
+            Heard::Damaged(id) => {
+                let line = format!("file {id} arrived with another SHA-256, and was not kept");
+                out.notice("sent", json!({ "id": id, "whole": false }), line).await;
+                if self.state.once_file == Some(id) {
+                    self.state.file_end = Some(Ended::Damaged);
+                }
+            }
+        }
     }
 }
 

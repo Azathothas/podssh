@@ -128,7 +128,7 @@ fn each_echo_is_shown_once_and_is_no_peer_s_message() {
         .collect();
     assert_eq!(echoes, ["hello channel", "hello self", "PODSSH1|x"], "{events:?}");
     assert!(
-        !events.iter().any(|e| matches!(e, Event::Privmsg { .. } | Event::Transfer(_))),
+        !events.iter().any(|e| matches!(e, Event::Privmsg { .. } | Event::Transfer { .. })),
         "an echo read as a peer's: {events:?}"
     );
     // A peer's message is still a message.

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**274 entries: 109 open, 1 partial, 22 blocked, 142 done.**
+**274 entries: 109 open, 0 partial, 22 blocked, 143 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 28 | 1 | 18 | 106 | 153 |
+| P2 | 28 | 0 | 18 | 107 | 153 |
 | P3 | 79 | 0 | 4 | 19 | 102 |
-| **All** | 109 | 1 | 22 | 142 | 274 |
+| **All** | 109 | 0 | 22 | 143 | 274 |
 
 ## Entries
 
@@ -323,7 +323,7 @@ repository and CI).
 | [T-249](repo.md) | P2 | M | none | chore | done | A cited line that moved still exists, so the checker does not see a stale citation |
 | [T-250](release.md) | P1 | M | M9 | release | open | Publish v1.0.0, the first stable release |
 | [T-251](release.md) | P1 | M | M9 | measurement | open | The check of a release from end to end, with no human |
-| [T-252](irc.md) | P2 | M | M8 | feature | partial | `podssh chat --irc`: IRC as a second transport for chat |
+| [T-252](irc.md) | P2 | M | M8 | feature | done | `podssh chat --irc`: IRC as a second transport for chat |
 | [T-253](relay.md) | P2 | M | backlog | defect | blocked | The relay's egress reaches no IPv6 host |
 | [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |
 | [T-255](relay.md) | P2 | M | M4 | measurement | blocked | The relay's side drops reverse sockets at random, with no Close |

@@ -46,6 +46,8 @@ pub const CHAT_FLAGS: &[FlagRow] = &[
         "chat in the channel PEER of the IRC network at SERVER[:PORT], through the relay, with TLS inside the relay stream (default port 6697)", None),
     row(None, "irc-plaintext", None, FlagKind::Supported,
         "with --irc: plain text, port 6667 by default, which the relay and each server read; podssh says so", None),
+    row(None, "direct", None, FlagKind::Supported,
+        "with --irc: connect to SERVER over TCP, through HTTPS_PROXY when it is set, not through the relay", None),
     row(None, "irc-ca-file", Some("FILE"), FlagKind::Supported,
         "with --irc: trust only the CA certificates in FILE for the server's TLS (default: the system and built-in roots)", None),
     row(None, "iroh-relay", Some("URLS"), FlagKind::Supported,
