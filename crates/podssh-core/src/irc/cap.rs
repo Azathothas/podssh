@@ -11,21 +11,23 @@
 //!
 //! ```text
 //! client → CAP LS 302
-//! server → CAP * LS :multi-prefix sasl
-//! client → CAP REQ :multi-prefix          (or REQ :-multiprefix)
-//! server → CAP * ACK :multi-prefix
 //! client → NICK …
 //! client → USER …
-//! client → CAP END                        ← only after 001
+//! server → CAP * LS :multi-prefix sasl
+//! client → CAP REQ :multi-prefix
+//! server → CAP * ACK :multi-prefix        (or NAK)
+//! client → CAP END                        ← the answer to the request
+//! server → 001 …
 //! ```
 //!
-//! **`CAP END` may not be sent before `001`.** IRCv3 §4 says registration is
-//! incomplete until `CAP END`, and a client that sends it immediately — before
-//! the server's welcome — races the server's own state and is answered with
-//! `ERR_NEEDMOREPARAMS` or silently ignored, on some servers and not on
-//! others. So [`Negotiation`] refuses to produce `CAP END` until
-//! [`Negotiation::observe`] has seen `001`, and [`Negotiation::on_registration`]
-//! is the only thing that unblocks it.
+//! **`CAP END` comes before `001`, and `001` waits for it.** A server that
+//! answers `CAP LS` holds the registration until the client ends the
+//! negotiation (IRCv3, "Capability Negotiation"), so a client that waited for
+//! `001` first would wait for ever, and the server would close the connection
+//! at its registration limit (T-091; measured with ngircd 27, whose `001`
+//! comes only after `CAP END`). So `CAP END` answers the server's `ACK` or
+//! `NAK` of the request, and goes at once when nothing is wanted. A server
+//! with no `CAP` answers `421`, holds nothing, and gets no `CAP END`.
 //!
 //! **`sasl` is never requested.** podssh's IRC leg authenticates nothing, and
 //! a client that advertises a mechanism it cannot complete gets a server that
@@ -46,9 +48,8 @@ pub enum Stage {
     LsSent,
     /// `CAP REQ` sent, waiting for `ACK` or `NAK`.
     ReqSent,
-    /// Waiting for `001` before `CAP END` may be written.
-    AwaitingWelcome,
-    /// `CAP END` written; registration is ordinary IRC from here.
+    /// `CAP END` written, or the server has no `CAP`: registration is
+    /// ordinary IRC from here.
     Ended,
 }
 
@@ -129,8 +130,7 @@ impl Negotiation {
                     }
                 }
                 self.enabled.sort();
-                self.stage = Stage::AwaitingWelcome;
-                None
+                self.end()
             }
             CapVerb::Nak => {
                 for name in names {
@@ -139,8 +139,7 @@ impl Negotiation {
                     }
                 }
                 self.refused.sort();
-                self.stage = Stage::AwaitingWelcome;
-                None
+                self.end()
             }
             // A `CAP LS` arriving *after* registration is legal: it is how a
             // server introduces a capability it added while the client was
@@ -168,28 +167,38 @@ impl Negotiation {
         }
     }
 
-    /// **`CAP REQ` for everything worth having.** Refused capabilities are
-    /// excluded, so a reconnect does not re-request what the server has
-    /// already refused — which is the second half of why
-    /// [`Negotiation::observe`] records a `NAK`.
+    /// **`CAP REQ` for everything worth having**, or `CAP END` at once when
+    /// that is nothing: an empty request would wait for an answer that ends
+    /// nothing. Refused capabilities are excluded, so a reconnect does not
+    /// re-request what the server has already refused — which is the second
+    /// half of why [`Negotiation::observe`] records a `NAK`.
     fn request_message(&mut self) -> Message {
         let wanted: Vec<String> =
             self.offered.iter().filter(|o| !self.refused.iter().any(|r| r.eq_ignore_ascii_case(o))).cloned().collect();
+        if wanted.is_empty() {
+            self.stage = Stage::Ended;
+            return cap_message(CapVerb::End, &[], None);
+        }
         self.requested = wanted.clone();
         self.stage = Stage::ReqSent;
         cap_message(CapVerb::Req, &[], Some(Trailing::new(wanted.join(" "))))
     }
 
-    /// **`001` arrived.** **This is the only thing that makes `CAP END`
-    /// legal**, and it is a separate call rather than a flag read by the
-    /// encoder, because the encoder has no way to know whether the welcome
-    /// has been seen and must not be told to guess.
-    pub fn on_registration(&mut self) -> Option<Message> {
-        if self.stage == Stage::Ended {
+    /// **The answer to the request ends the negotiation**: `CAP END`, once.
+    /// An `ACK` or `NAK` that answers no request of this negotiation (a later
+    /// one) ends nothing.
+    fn end(&mut self) -> Option<Message> {
+        if self.stage != Stage::ReqSent {
             return None;
         }
         self.stage = Stage::Ended;
         Some(cap_message(CapVerb::End, &[], None))
+    }
+
+    /// **The server has no `CAP`**: it answered `CAP LS` with `421`, so it
+    /// holds no registration, and no `CAP END` is due.
+    pub fn unsupported(&mut self) {
+        self.stage = Stage::Ended;
     }
 
     /// Reset for a fresh connection, **keeping what the server refused** —

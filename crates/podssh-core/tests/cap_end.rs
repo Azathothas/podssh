@@ -1,0 +1,97 @@
+//! `CAP END` answers the server, not its `001` (T-091). A server that answers
+//! `CAP LS` holds the registration until the client ends the negotiation:
+//! the lines here are what ngircd 27 sent a client that registered with
+//! `CAP LS 302` (captured on 2026-10-10), and its `001` came only after the
+//! client's `CAP END`. A server with no `CAP` answers `421`, and holds
+//! nothing.
+
+use podssh_core::irc::cap::Stage;
+use podssh_core::irc::reap::ReapPolicy;
+use podssh_core::irc::session::{Registered, Server, Session};
+
+fn server() -> Server {
+    Server {
+        host: "irc.ngircd.test".into(),
+        port: 6667,
+        nick: "podtest".into(),
+        username: "podtest".into(),
+        realname: "podssh test".into(),
+    }
+}
+
+/// What podssh writes for `bytes`, as lines.
+fn answer(s: &mut Session, bytes: &[u8]) -> Vec<String> {
+    let (out, _) = s.on_bytes(bytes).expect("a short line");
+    out.iter().map(|m| m.to_line()).collect()
+}
+
+const LS: &[u8] = b":irc.ngircd.test CAP * LS :multi-prefix\r\n";
+const ACK: &[u8] = b":irc.ngircd.test CAP podtest ACK :multi-prefix\r\n";
+const NAK: &[u8] = b":irc.ngircd.test CAP podtest NAK :multi-prefix\r\n";
+const WELCOME: &[u8] =
+    b":irc.ngircd.test 001 podtest :Welcome to the Internet Relay Network podtest!~podtest@127.0.0.1\r\n";
+
+#[test]
+fn cap_end_follows_the_answer_to_the_request() {
+    for (answered, verb) in [(ACK, "ACK"), (NAK, "NAK")] {
+        let mut s = Session::new(server(), ReapPolicy::default());
+        let burst: Vec<String> = s.initial_burst().iter().map(|m| m.to_line()).collect();
+        assert!(!burst.iter().any(|l| l.starts_with("CAP END")), "{burst:?}");
+        let lines = answer(&mut s, LS);
+        assert_eq!(lines, ["CAP REQ :multi-prefix"], "the request, and no end before its answer");
+        let lines = answer(&mut s, answered);
+        assert_eq!(lines, ["CAP END"], "the {verb} of the request ends the negotiation");
+        assert_eq!(s.negotiation().stage(), Stage::Ended);
+        // The server's `001` comes only now, and asks for nothing more.
+        assert!(answer(&mut s, WELCOME).is_empty());
+        assert_eq!(s.registered(), Registered::Yes);
+    }
+}
+
+#[test]
+fn cap_end_is_sent_at_once_when_nothing_is_wanted() {
+    let mut s = Session::new(server(), ReapPolicy::default());
+    let _ = s.initial_burst();
+    // `sasl` is never asked for, so this list leaves nothing to ask.
+    let lines = answer(&mut s, b":irc.ngircd.test CAP * LS :sasl\r\n");
+    assert_eq!(lines, ["CAP END"], "no empty request, which would wait for an answer that ends nothing");
+    assert_eq!(s.negotiation().stage(), Stage::Ended);
+}
+
+#[test]
+fn cap_end_is_not_sent_after_a_421_for_cap() {
+    let mut s = Session::new(server(), ReapPolicy::default());
+    let _ = s.initial_burst();
+    let lines = answer(&mut s, b":irc.example.org 421 podtest CAP :Unknown command\r\n");
+    assert!(lines.is_empty(), "a server with no CAP holds nothing, and gets no CAP END: {lines:?}");
+    assert_eq!(s.registered(), Registered::Pending, "a 421 for CAP is no refusal of the registration");
+    assert_eq!(s.negotiation().stage(), Stage::Ended);
+    assert!(answer(&mut s, b":irc.example.org 001 podtest :Welcome\r\n").is_empty());
+    assert_eq!(s.registered(), Registered::Yes);
+    // A 421 for another command, before 001, is still a refusal.
+    let mut other = Session::new(server(), ReapPolicy::default());
+    let _ = other.initial_burst();
+    let _ = answer(&mut other, b":irc.example.org 421 podtest FOO :Unknown command\r\n");
+    assert!(matches!(other.registered(), Registered::Refused(_)), "{:?}", other.registered());
+}
+
+/// A server's `CAP` names its target, `*` or the client's nick, before the
+/// verb; ngircd names the nick in its `ACK`. Each reads as its verb, and
+/// goes back out as it came.
+#[test]
+fn a_server_s_cap_names_its_target_a_star_or_the_nick() {
+    use podssh_core::irc::message::{CapVerb, Command, Message};
+    for (line, target, verb) in [
+        (":irc.ngircd.test CAP * LS :multi-prefix", "*", CapVerb::Ls),
+        (":irc.ngircd.test CAP podtest ACK :multi-prefix", "podtest", CapVerb::Ack),
+        (":irc.ngircd.test CAP podtest NAK :multi-prefix", "podtest", CapVerb::Nak),
+    ] {
+        let message = Message::parse(line).expect(line);
+        let Command::Cap { target: Some(t), subcommand, .. } = &message.command else { panic!("{line}: {message:?}") };
+        assert_eq!((t.0.as_str(), *subcommand), (target, verb), "{line}");
+        assert_eq!(message.to_line(), line);
+    }
+    // A client's own CAP starts with its verb.
+    let ls = Message::parse("CAP LS 302").unwrap();
+    assert!(matches!(ls.command, Command::Cap { target: None, subcommand: CapVerb::Ls, .. }), "{ls:?}");
+}

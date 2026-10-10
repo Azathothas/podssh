@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**268 entries: 131 open, 0 partial, 22 blocked, 115 done.**
+**268 entries: 130 open, 0 partial, 22 blocked, 116 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 15 | 17 |
-| P2 | 49 | 0 | 18 | 83 | 150 |
+| P2 | 48 | 0 | 18 | 84 | 150 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 131 | 0 | 22 | 115 | 268 |
+| **All** | 130 | 0 | 22 | 116 | 268 |
 
 ## Entries
 
@@ -164,7 +164,7 @@ repository and CI).
 | [T-088](reverse.md) | P2 | L | backlog | feature | open | End-to-end encryption between two podssh ends |
 | [T-089](reverse.md) | P3 | M | backlog | feature | open | A node offers several named targets, each with its own grant |
 | [T-090](reverse.md) | P3 | M | backlog | feature | open | Find a node by name with no payload leak |
-| [T-091](irc.md) | P2 | S | M8 | defect | open | I1: `CAP END` is sent only after 001 |
+| [T-091](irc.md) | P2 | S | M8 | defect | done | I1: `CAP END` is sent only after 001 |
 | [T-092](irc.md) | P2 | M | M8 | defect | open | I2: the client asks for each offered capability |
 | [T-093](irc.md) | P2 | S | M8 | defect | open | I3: text is not checked for CR, LF and NUL |
 | [T-094](irc.md) | P2 | S | M8 | defect | open | I4: trailing forms of JOIN, NICK and PRIVMSG are dropped |

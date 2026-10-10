@@ -44,8 +44,8 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --no-fail-fast`, again after T-271 (2026-10-10):
-  1119 passed, 0 failed, 37 ignored (the live tests, and the checks of
+- `cargo test --no-fail-fast`, again after T-091 (2026-10-10):
+  1122 passed, 0 failed, 38 ignored (the live tests, and the checks of
   faults and of the exit of M6). With the feature `iroh` and the test
   relay, `cargo test -p podssh-iroh -p podssh-cli --features
   podssh-cli/iroh-test`, after T-175: 394 passed, 0 failed, 29 ignored.
@@ -62,7 +62,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 268 entries: 131 open, 0 partial, 22 blocked, 115 done.
+`TODO/INDEX.md` holds 268 entries: 130 open, 0 partial, 22 blocked, 116 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -123,6 +123,17 @@ named in `docs/STATUS.md`. Until the operator rules, the method runs those
 cells only when their variable is set, and none of them is set in a
 session: T-157 closes with its native tests, and its live run waits for
 T-251 and this answer.
+
+**Q39 (2026-10-10, T-091 to T-098, T-252).** May a session test the IRC
+client on public networks? The Proves of T-091 to T-098 run
+`examples/live_irc.rs` against undernet, libera and OFTC through the live
+relay, and these are not among the test targets of `AGENTS.md` (section 4).
+Recommendation: allow undernet, which accepted the relay on 2026-10-07, and
+libera and OFTC to measure whether they still refuse it, each run short, with
+a throwaway nick and no channel but a throwaway one. Until the operator
+rules, each of those entries closes with its native tests and a run against
+real servers on the loopback of the build image (ngircd, and others that
+Alpine packages); their live runs wait for T-251 and this answer.
 
 ## Operator actions
 

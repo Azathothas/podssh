@@ -319,7 +319,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:304` and `crates/podssh-cli/src/man/notes.rs:353-355`.
+   `docs/tailscale.md`, `docs/STATUS.md:306` and `crates/podssh-cli/src/man/notes.rs:353-355`.
 
 ## Decision
 

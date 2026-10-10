@@ -19,9 +19,9 @@
 //! skips the rejoins leaves the user in a window they are watching and not in
 //! the room they are talking in.
 //!
-//! **`CAP END` comes after `001`, never before.** IRCv3 §4: registration
-//! is incomplete until `CAP END`, and a client that writes it immediately
-//! races the server's state and is refused on some servers and not on others.
+//! **`CAP END` comes before `001`.** A server that answers `CAP LS` holds the
+//! registration until the client ends the negotiation, so the answer to the
+//! request ends it ([`crate::irc::cap`], T-091).
 
 use crate::irc::cap::Negotiation;
 use crate::irc::isupport::Isupport;
@@ -310,25 +310,25 @@ impl Session {
                     let params: Vec<String> = message.command.params().iter().map(|p| p.0.clone()).collect();
                     self.isupport = Isupport::parse(&params);
                 }
-                // Registration-time numerics only count while Pending: a
-                // late 421 — MEASURED live 2026-10-07, undernet answers CAP
-                // LS with `421 Unknown command` AFTER 001 (no IRCv3) — must
-                // not un-register a working session and fail every later
-                // send with NotRegistered.
-                if self.registered == Registered::Pending {
+                // A `421` for `CAP` is a server with no `CAP`: it holds no
+                // registration, so it is no refusal, and no `CAP END` is due.
+                // MEASURED live 2026-10-07: undernet answers `CAP LS` with
+                // `421 Unknown command`, after 001.
+                let no_cap = code == Code::ErrUnknownCommand as u16
+                    && message.command.params().get(1).is_some_and(|p| p.0.eq_ignore_ascii_case("CAP"));
+                if no_cap {
+                    self.negotiation.unsupported();
+                }
+                // Registration-time numerics only count while Pending: a late
+                // one must not un-register a working session and fail every
+                // later send with NotRegistered.
+                if self.registered == Registered::Pending && !no_cap {
                     if let Some(failure) = registration_failure(code) {
                         self.registered = Registered::Refused(failure);
                     }
                 }
                 if code == Code::RplWelcome as u16 {
                     self.registered = Registered::Yes;
-                    // **THE ORDERING, and it is the one IRCv3 requires.**
-                    // `001` is what makes `CAP END` legal, so `CAP END` is
-                    // produced here and not before. A client that emitted it
-                    // with the initial burst is refused on some servers.
-                    if let Some(end) = self.negotiation.on_registration() {
-                        out.push(end);
-                    }
                 }
                 events.push(Event::Numeric { code, text: message.command.trailing().map(|t| t.as_str().to_string()) });
             }

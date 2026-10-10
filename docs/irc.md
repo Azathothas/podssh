@@ -3,8 +3,9 @@
 `podssh chat` lets two users on constrained hosts talk and exchange files.
 podssh speaks IRC itself, and the relay carries the bytes, as for SSH. No
 command uses the client yet. The client has known defects ([TODO/irc.md](../TODO/irc.md),
-T-091 to T-098): the registration does not finish on IRCv3 servers, and the client
-sends plain text through the relay.
+T-092 to T-098): among them, it sends plain text through the relay. Since
+T-091 the registration finishes on a server that holds it until `CAP END`:
+measured with ngircd 27 on the loopback of the build image, 2026-10-10.
 
 The operator decides when chat starts, and whether it stays on IRC or moves
 to the roads between two podssh ends ([design.md](design.md), section 8).
@@ -21,7 +22,10 @@ Measured on 2026-10-07 through relay version r2:
 
 Undernet has no IRCv3: `CAP LS` gives `421`, and a message to yourself gives
 `401`. The server drops channel messages from a second connection of the
-same user, so a live test needs two separate clients.
+same user, so a live test needs two separate clients. These runs came before
+T-091, whose client could not register where the server holds the
+registration for `CAP END`, as a server of IRCv3 does; whether a session may
+test on the public networks again is the operator's question Q39.
 
 ## Files
 

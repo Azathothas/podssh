@@ -14,7 +14,7 @@ here on `3ee70dc` by reading the code.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -26,29 +26,29 @@ client cannot register on a server that supports `CAP`.
 ## Premise
 
 Read: the comment says that registration is incomplete until `CAP END`, and then makes `CAP END`
-wait for `001` (`crates/podssh-core/src/irc/cap.rs:22-28`). Only `on_registration` makes `CAP END`
-(`crates/podssh-core/src/irc/cap.rs:187-193`), and only `001` calls it
-(`crates/podssh-core/src/irc/session.rs:323-332`). `ACK` and `NAK` send nothing
-(`crates/podssh-core/src/irc/cap.rs:125-144`). A test asserts the wrong order
-(`crates/podssh-core/tests/session.rs:200-223`). A `421` for `CAP` before `001` sets `Refused`
-(`crates/podssh-core/src/irc/session.rs:318-322`), and the live probe can then drop the server
+wait for `001` (`crates/podssh-core/src/irc/cap.rs`, lines 22-28 at `9460b4e`). Only `on_registration` makes `CAP END`
+(`crates/podssh-core/src/irc/cap.rs`, lines 187-193 at `9460b4e`), and only `001` calls it
+(`crates/podssh-core/src/irc/session.rs`, lines 323-332 at `9460b4e`). `ACK` and `NAK` send nothing
+(`crates/podssh-core/src/irc/cap.rs`, lines 125-144 at `9460b4e`). A test asserts the wrong order
+(`crates/podssh-core/tests/session.rs`, lines 200-223 at `9460b4e`). A `421` for `CAP` before `001` sets `Refused`
+(`crates/podssh-core/src/irc/session.rs`, lines 318-322 at `9460b4e`), and the live probe can then drop the server
 (`crates/podssh-cli/examples/live_irc.rs:228-231`).
 
-Read: `docs/irc.md:18` says that libera, OFTC and tilde refuse the relay's addresses. They support
+Read: `docs/irc.md:19` says that libera, OFTC and tilde refuse the relay's addresses. They support
 `CAP`, so this defect alone explains "closed before `001`". The record does not say if that run
 used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is not proven.
 
 ## Approach
 
 1. Send `CAP END` when the server answers the last `CAP REQ` with `ACK` or `NAK`, and at once when
-   nothing is wanted (`crates/podssh-core/src/irc/cap.rs:125-144`, `crates/podssh-core/src/irc/cap.rs:175-181`).
+   nothing is wanted (`crates/podssh-core/src/irc/cap.rs`, lines 125-144 at `9460b4e`, `crates/podssh-core/src/irc/cap.rs:175-185`).
    Send it after the last line of a list (T-092). Invariant: `CAP END` never waits for `001`.
-2. Remove the `001` gate (`crates/podssh-core/src/irc/cap.rs:183-193`,
-   `crates/podssh-core/src/irc/session.rs:325-331`). `Stage::Ended` still stops a second `CAP END`.
+2. Remove the `001` gate (`crates/podssh-core/src/irc/cap.rs`, lines 183-193 at `9460b4e`,
+   `crates/podssh-core/src/irc/session.rs`, lines 325-331 at `9460b4e`). `Stage::Ended` still stops a second `CAP END`.
 3. Read a `421` for `CAP` as "no `CAP` here": send no `CAP END`, and do not set `Refused`.
-4. Correct the comments at `crates/podssh-core/src/irc/cap.rs:9-28` and
-   `crates/podssh-core/src/irc/session.rs:22-24`, and remove the test at
-   `crates/podssh-core/tests/session.rs:200-223`. Record the new network results in
+4. Correct the comments at `crates/podssh-core/src/irc/cap.rs`, lines 9-28 at `9460b4e` and
+   `crates/podssh-core/src/irc/session.rs`, lines 22-24 at `9460b4e`, and remove the test at
+   `crates/podssh-core/tests/session.rs`, lines 200-223 at `9460b4e`. Record the new network results in
    `docs/irc.md:12-24`, and update `docs/STATUS.md:304`, in the same commit.
 
 ## Prove
@@ -67,6 +67,37 @@ fail. The last command is live; it takes a token as `podssh ssh` does, never pri
 `LIVE-IRC-OK`. With no `--bundle FILE`, it uses podssh's own trust
 (`crates/podssh-cli/examples/live_irc.rs:86-91`).
 Then run it with `--target irc.libera.chat` and `--target irc.oftc.net`, and record the results.
+
+## Correction
+
+2026-10-10: undernet, libera and OFTC are not among the test targets of `AGENTS.md` (section
+4), so the live runs were not made; whether a session may make them is the operator's question
+Q39 (`TODO/PROGRESS.md`). The registration was measured against a real server instead: ngircd
+27 on the loopback of the build image, which holds the registration until `CAP END`. It also
+addresses its `ACK` to the client's nick (`CAP podtest ACK :multi-prefix`), which the parser
+read as a verb named `podtest`; step 3 of T-094 repairs that, and is done here, as the repair of
+this entry registers on no such server without it.
+
+## Done
+
+2026-10-10. `CAP END` answers the server's `ACK` or `NAK` of the request, and goes at once when
+nothing is wanted, with no empty `CAP REQ`; the `001` gate is gone
+(`crates/podssh-core/src/irc/cap.rs`, `crates/podssh-core/src/irc/session.rs`). A `421` for
+`CAP` is a server with no `CAP`: no `CAP END`, and no refusal of the registration. A server's
+`CAP` that names the nick as its target keeps its verb
+(`crates/podssh-core/src/irc/command.rs`). The comments say the order that the protocol needs,
+and the test that asserted the old order is gone.
+- Native, Windows 11: `cargo test -p podssh-core --test cap_end`, 4 passed, over the lines
+  that ngircd 27 sent a client (captured in the build image): the `ACK` and the `NAK` each end
+  the negotiation, a list that leaves nothing to ask ends it at once, a `421` for `CAP` is no
+  refusal while one for another command is, and a `CAP` to a nick keeps its verb. Planted, the
+  `001` gate: the first test fails. `cargo test --workspace`: 1122 passed, 0 failed,
+  38 ignored.
+- In the build image, with ngircd 27 on the loopback: `PODSSH_IRC_SERVER=127.0.0.1:6668 cargo
+  test -p podssh-core --test irc_server -- --ignored` registered (`001`). Planted, the `001`
+  gate: no `001` in 15 s, the server still waiting after `CAP REQ`, as the defect was. clippy
+  with no warning.
+- `docs/irc.md` and `docs/STATUS.md` say so. The live runs of the Prove wait for Q39 and T-251.
 
 # T-092: I2: the client asks for each offered capability
 
@@ -89,13 +120,13 @@ can also turn on capabilities that change the lines it reads, such as `extended-
 ## Premise
 
 Read: `observe` keeps each token except one equal to `sasl`, so `sasl=PLAIN` passes, and it sends
-a `REQ` for each `LS` line (`crates/podssh-core/src/irc/cap.rs:114-124`). `request_message` asks for
-each offered token (`crates/podssh-core/src/irc/cap.rs:175-181`). `cap_parts` reads the middle
-parameters as names (`crates/podssh-core/src/irc/cap.rs:242-251`), so in `CAP * LS * :a b` the
+a `REQ` for each `LS` line (`crates/podssh-core/src/irc/cap.rs:115-125`). `request_message` asks for
+each offered token (`crates/podssh-core/src/irc/cap.rs:175-185`). `cap_parts` reads the middle
+parameters as names (`crates/podssh-core/src/irc/cap.rs:251-260`), so in `CAP * LS * :a b` the
 second `*` is a name. podssh needs only `znc.in/self-message`
 (`crates/podssh-core/src/irc/mod.rs:63-71`). With `extended-join`, the real name in a `JOIN` echo is
 read as keys (`crates/podssh-core/src/irc/command.rs:60-64`). The one test of the filter uses one
-line with no values (`crates/podssh-core/tests/session.rs:225-237`).
+line with no values (`crates/podssh-core/tests/session.rs:199-211`).
 
 Known from `ircv3/ircv3-specifications:extensions/capability-negotiation.md`, not read in this
 session: a `REQ` is all or nothing, a `302` list uses `name=value`, and a line with `*` before its
@@ -103,14 +134,14 @@ trailing is not the last.
 
 ## Approach
 
-1. Parse each token as `name[=value]` (`crates/podssh-core/src/irc/cap.rs:242-251`). Add up the
+1. Parse each token as `name[=value]` (`crates/podssh-core/src/irc/cap.rs:251-260`). Add up the
    lines while a line has the `*` marker, and answer only after the last line.
 2. Ask only for names in a constant list of capabilities that podssh implements, next to
    `CAP_SELF_MESSAGE` (`crates/podssh-core/src/irc/mod.rs:63-71`). Never send a value. With no
    wanted name, end at once (T-091).
 3. On `ACK`, enable only the names asked for; a `-` prefix turns one off
-   (`crates/podssh-core/src/irc/cap.rs:125-134`). Read `NEW` and `DEL` only with `cap-notify`, and
-   correct the comment at `crates/podssh-core/src/irc/cap.rs:145-149`, which says `LS`.
+   (`crates/podssh-core/src/irc/cap.rs:126-134`). Read `NEW` and `DEL` only with `cap-notify`, and
+   correct the comment at `crates/podssh-core/src/irc/cap.rs:144-148`, which says `LS`.
 4. Update `docs/STATUS.md:304` in the same commit.
 
 ## Decision
@@ -225,8 +256,8 @@ Read: `JOIN` and `NICK` count middles only (`crates/podssh-core/src/irc/command.
 (`crates/podssh-core/src/irc/session.rs:288-299`). `JOIN` reads keys from the trailing
 (`crates/podssh-core/src/irc/command.rs:60-64`), but the encoder writes them as a middle
 (`crates/podssh-core/src/irc/command_view.rs:28-39`), so a parsed `JOIN #c key` loses its key.
-`CAP` takes only `*` as a target (`crates/podssh-core/src/irc/command.rs:147-164`); a nick then
-stands where the verb must be, and `observe` sends nothing (`crates/podssh-core/src/irc/cap.rs:167`).
+`CAP` takes only `*` as a target (`crates/podssh-core/src/irc/command.rs`, lines 147-164 at `9460b4e`); a nick then
+stands where the verb must be, and `observe` sends nothing (`crates/podssh-core/src/irc/cap.rs:166`).
 
 Read: the fixture has none of these forms, and no line in it was captured from a real server
 (`crates/podssh-core/tests/fixtures/grammar.txt:8-11`). Which server sends which form is not
@@ -263,6 +294,14 @@ The test `every_fixture_line_parses_and_re_encodes_to_itself` must pass over the
 Plant: require a middle for `JOIN` again; the first test must fail. The second command runs the
 session tests on the new parser.
 
+## Correction
+
+2026-10-10 (T-091): step 3 is done. A `CAP` whose second parameter is a verb takes the first as
+its target, `*` or a nick (`crates/podssh-core/src/irc/command.rs`), as ngircd 27 answers
+`CAP podtest ACK :multi-prefix`; `a_server_s_cap_names_its_target_a_star_or_the_nick` in
+`crates/podssh-core/tests/cap_end.rs` checks it over ngircd's lines, and stands for the test
+`a_cap_reply_to_a_nick_keeps_its_verb` of the Prove.
+
 # T-095: I5: PART, KICK, 005, a new connection and 433 are handled incorrectly
 
 **Source:** the former defects page (`git show 3ee70dc:docs/defects.md`), row I5 (high). Confirmed
@@ -285,17 +324,17 @@ before it. A reconnect keeps the old state. A `433` during registration ends the
 Read: `Session` has no field for its nick (`crates/podssh-core/src/irc/session.rs:150-165`), and
 `JOIN` and `PART` ignore the prefix (`crates/podssh-core/src/irc/session.rs:335-351`). The test
 named for a kick sends another user's `PART` and expects the channel to go
-(`crates/podssh-core/tests/session.rs:164-173`): it asserts the defect. `KICK` has no variant
+(`crates/podssh-core/tests/session.rs:163-172`): it asserts the defect. `KICK` has no variant
 (`crates/podssh-core/src/irc/message.rs:115-192`), and it ends as "unhandled command"
 (`crates/podssh-core/src/irc/session.rs:377-383`). Each `005` builds a new map
 (`crates/podssh-core/src/irc/session.rs:309-312`).
 
 Read: `reconnect_burst` only adds `JOIN` lines (`crates/podssh-core/src/irc/session.rs:232-238`).
 `registered` stays `Yes`, the reassembler keeps its `overflowed` flag, and `pending_pongs` keeps old
-tokens. `Negotiation::reconnect` has no caller (`crates/podssh-core/src/irc/cap.rs:195-204`). A
-`433` sets `Refused` and sends nothing (`crates/podssh-core/src/irc/session.rs:318-322`), against
+tokens. `Negotiation::reconnect` has no caller (`crates/podssh-core/src/irc/cap.rs:204-213`). A
+`433` sets `Refused` and sends nothing (`crates/podssh-core/src/irc/session.rs:325-329`), against
 its comment (`crates/podssh-core/src/irc/session.rs:39-43`). A test asserts the refusal
-(`crates/podssh-core/tests/session.rs:255-264`), and the live probe works around it
+(`crates/podssh-core/tests/session.rs:229-238`), and the live probe works around it
 (`crates/podssh-cli/examples/live_irc.rs:220-227`).
 
 ## Approach
@@ -360,7 +399,7 @@ comes out (`crates/podssh-core/tests/reassembly.rs:231-247`). With no LF, the by
 Read: a non-UTF-8 line is an error (`crates/podssh-core/src/irc/framing.rs:212-226`), which
 `Session::on_bytes` returns with `?` (`crates/podssh-core/src/irc/session.rs:258-259`). The live
 probe then ends the attempt (`crates/podssh-cli/examples/live_irc/support.rs:126-129`). The only
-network that took the relay is undernet (`docs/irc.md:20`); its use of Latin-1 is not measured.
+network that took the relay is undernet (`docs/irc.md:21`); its use of Latin-1 is not measured.
 
 ## Approach
 
@@ -438,7 +477,7 @@ whole file in memory, for any total that the offer gives (`crates/podssh-core/sr
 3. In `accept`, check the index before the bytes go into the file.
 4. Limit the receiver's memory: a size limit from the caller, or a sink that the caller owns. A
    file is taken only when the user accepts it (`docs/decisions.md:44`).
-5. Update `docs/irc.md:26-32` and `docs/STATUS.md:304` in the same commit.
+5. Update `docs/irc.md:30-36` and `docs/STATUS.md:304` in the same commit.
 
 ## Decision
 
@@ -502,7 +541,7 @@ none, the relay cut it after 184 s (`docs/STATUS.md:116-117`).
 3. Remove the `PRIVMSG` heartbeat and its parser
    (`crates/podssh-core/src/irc/session_send.rs:62-79`, `crates/podssh-core/src/irc/reap.rs:53-75`,
    `crates/podssh-core/src/irc/session.rs:354-361`). No released podssh sends it.
-4. Rewrite the test at `crates/podssh-core/tests/session.rs:322-341`. Correct the comments at
+4. Rewrite the test at `crates/podssh-core/tests/session.rs:296-315`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs:5-29` and the test name at
    `crates/podssh-core/tests/transfer.rs:371-396`.
 5. Update `docs/STATUS.md:304` in the same commit.

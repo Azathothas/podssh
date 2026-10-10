@@ -6,7 +6,6 @@
 //! the WebSocket client's, and already proven. **What these tests cannot prove is named at
 //! the bottom of this file.**
 
-use podssh_core::irc::cap::Stage;
 use podssh_core::irc::message::Command;
 use podssh_core::irc::reap::ReapPolicy;
 use podssh_core::irc::session::{Event, Registered, RegistrationFailure, Server, Session, SessionError};
@@ -195,31 +194,6 @@ fn the_initial_burst_is_cap_nick_user_in_that_order() {
         "CAP LS must precede NICK/USER so the capability list arrives before \
          registration, and CAP END must not be among them"
     );
-}
-
-#[test]
-fn cap_end_is_not_written_until_001_arrives() {
-    // **THE ORDERING IRCv3 §4 REQUIRES.** Registration is incomplete
-    // until `CAP END`, and a client that emits it immediately races the
-    // server's own state — refused on some servers and ignored on others,
-    // which is the worst of both.
-    let mut s = Session::new(server(), ReapPolicy::default());
-    let _ = s.initial_burst();
-    let (out, _) = s.on_bytes(b"CAP * LS :multi-prefix\r\n").expect("short");
-    let lines: Vec<String> = out.iter().map(|m| m.to_line()).collect();
-    assert!(!lines.iter().any(|l| l.starts_with("CAP END")), "CAP END was written before 001: {lines:?}");
-    assert_eq!(s.negotiation().stage(), Stage::ReqSent);
-
-    let (out, _) = s.on_bytes(b"CAP * ACK :multi-prefix\r\n").expect("short");
-    assert!(
-        !out.iter().map(|m| m.to_line()).any(|l| l.starts_with("CAP END")),
-        "CAP END was written on ACK rather than on 001"
-    );
-
-    let (out, _) = s.on_bytes(b":irc.example.org 001 alice :Welcome\r\n").expect("short");
-    let lines: Vec<String> = out.iter().map(|m| m.to_line()).collect();
-    assert_eq!(lines, vec!["CAP END".to_string()], "001 must be what unlocks CAP END, and nothing else");
-    assert_eq!(s.negotiation().stage(), Stage::Ended);
 }
 
 #[test]

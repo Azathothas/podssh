@@ -143,8 +143,17 @@ pub fn parse_command(params: Vec<String>, trailing: Option<(String, bool)>) -> R
             // arrives this way, so the bug is not an edge case.
             //
             // The `*` is kept as the first **arg** and
-            // [`CapVerb`](crate::irc::message::CapVerb) stays a verb.
-            let (target, rest) = if middles.first().map(|m| m.0.as_str()) == Some("*") {
+            // [`CapVerb`](crate::irc::message::CapVerb) stays a verb. Once
+            // the client has a nick, a server names it there instead:
+            // ngircd answers `CAP podtest ACK :multi-prefix` (T-091, T-094).
+            // So the first is the target when the second is a verb; a
+            // client's own `CAP` starts with its verb.
+            let verb_at = |i: usize| {
+                middles.get(i).is_some_and(|m| {
+                    matches!(m.0.as_str(), "LS" | "REQ" | "ACK" | "NAK" | "LIST" | "DEL" | "NEW" | "END")
+                })
+            };
+            let (target, rest) = if middles.first().map(|m| m.0.as_str()) == Some("*") || verb_at(1) {
                 (Some(middles[0].clone()), &middles[1..])
             } else {
                 (None, &middles[..])
