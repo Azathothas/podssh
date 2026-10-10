@@ -70,7 +70,9 @@ sshd_conf() { # port extra-line...
         for line in "$@"; do echo "$line"; done
     } >"$W/sshd-$_port.conf"
 }
-sshd_conf 2201 "KbdInteractiveAuthentication no"
+# PermitListen: the one port that -R may take on 2201, so that another is
+# refused by sshd itself, whatever ports the kernel lets a user bind.
+sshd_conf 2201 "KbdInteractiveAuthentication no" "PermitListen 2290"
 sshd_conf 2202 "KbdInteractiveAuthentication no" "PermitTTY no"
 sshd_conf 2204 "KbdInteractiveAuthentication yes" "PasswordAuthentication no" "UsePAM yes"
 /usr/sbin/sshd -f "$W/sshd-2201.conf" -E "$W/sshd-2201.log" || { cat "$W/sshd-2201.log"; exit 1; }
@@ -276,13 +278,15 @@ case $banner in
     SSH-2.0-dropbear*) ok "-R: OpenSSH's port 2290 reaches Dropbear's banner through podssh" ;;
     *) bad "-R: port 2290 gave '$banner'" "$W/rerr" ;;
 esac
-# A port that OpenSSH refuses (podtest is not root), with ExitOnForwardFailure.
+# A port that sshd refuses (PermitListen), with ExitOnForwardFailure. Not a
+# port under 1024: a kernel that lets a user bind one (Docker's default)
+# gave the forward, and the run waited for its time limit.
 # shellcheck disable=SC2086
 timeout 20 env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile="$KH" \
-    -o IdentityAgent=none $K -o BatchMode=yes -o ExitOnForwardFailure=yes -N -R 22:127.0.0.1:2203 "$T" \
+    -o IdentityAgent=none $K -o BatchMode=yes -o ExitOnForwardFailure=yes -N -R 2291:127.0.0.1:2203 "$T" \
     </dev/null >"$W/out" 2>"$W/err"
 rc=$?
-[ "$rc" = 255 ] && grep -q "remote port forwarding failed for listen port 22" "$W/err" \
+[ "$rc" = 255 ] && grep -q "remote port forwarding failed for listen port 2291" "$W/err" \
     && ok "-R to a port that OpenSSH refuses, with ExitOnForwardFailure: exit 255, named" \
     || bad "-R refused: exit $rc" "$W/err"
 

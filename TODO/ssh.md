@@ -35,7 +35,7 @@ Read:
   `Permission denied (publickey,keyboard-interactive).`, the note about
   keyboard-interactive, then the wrong note.
 - The gate's check "password with BatchMode" runs this case against OpenSSH
-  (`scripts/interop.sh:166-168`). It only looks for the password note, so its
+  (`scripts/interop.sh:168-170`). It only looks for the password note, so its
   output holds the wrong note today (inferred, not measured).
 
 ## Approach
@@ -70,7 +70,7 @@ a pure function that builds the notes from the methods, the server's first
 list and the keys offered: no key note when `publickey` is off or not
 accepted, and the old note when keys were tried and failed. Planted defect:
 put back the unconditional `notes.extend`, and the test fails. The second
-runs the gate, where `scripts/interop.sh:166-168` also asserts that the
+runs the gate, where `scripts/interop.sh:168-170` also asserts that the
 output has `publickey was not tried` and not `no key was offered`.
 
 ## Done
@@ -676,7 +676,7 @@ Read: each hop gets its own name for the check, its host and its port, as
 destination only (`crates/podssh-ssh/src/run.rs:168-171`). The order of
 host-key algorithms comes from the keys recorded for that hop
 (`crates/podssh-ssh/src/run.rs:228-250`). The gate's check "-J through
-OpenSSH to Dropbear" (`scripts/interop.sh:235-236`) passes only when this
+OpenSSH to Dropbear" (`scripts/interop.sh:237-238`) passes only when this
 holds: both hops are 127.0.0.1, both keys are Ed25519 and differ, and each
 is recorded under its own port.
 

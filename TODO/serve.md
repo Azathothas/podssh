@@ -303,7 +303,7 @@ The test file crates/podssh-ssh/tests/serve_pty.rs applies modes and sizes to
 a real pty and reads them back. In the gate, the pty driver
 `scripts/interop-pty.py` gets a mode that runs OpenSSH's `ssh -t` against
 `podssh serve --stdio`: size, resize, Ctrl-C, `vi`, `less`, `top`, an exit
-status and `~.`. The `-tt` cases of `scripts/interop.sh:289-317` run against
+status and `~.`. The `-tt` cases of `scripts/interop.sh:293-321` run against
 serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 
 ## Blocker
@@ -379,7 +379,7 @@ sh scripts/test_in_box.sh target/x86_64-unknown-linux-musl/release/podssh
 The test file crates/podssh-ssh/tests/serve_line.rs uses `--pty line`: Ctrl-C
 ends `sleep 30` within 5 s, the next line runs, and output lines end in CR
 LF. The gate runs the same through OpenSSH's `ssh -tt`, in the shape of
-`scripts/interop.sh:298-307`: `AFTER-5` and exit 9 within 15 s. In the box
+`scripts/interop.sh:302-311`: `AFTER-5` and exit 9 within 15 s. In the box
 (no `/dev/ptmx`), a new step drives `podssh serve --stdio` with
 `podman exec -i` from OpenSSH on the host. A planted serve that signals the
 shell's pid and not its group fails the 15 s check.
@@ -424,7 +424,7 @@ default since OpenSSH 9.0), need an SFTP subsystem on the server.
   `subsystem_request` must answer (`Eugeny/russh:russh/src/server/mod.rs`,
   lines 686-696 at `22c3b88`).
 - Read: the client reaches an SFTP subsystem already: `-s sftp` gets
-  `SSH_FXP_VERSION` from OpenSSH's `sftp-server` (`scripts/interop.sh:237-244`).
+  `SSH_FXP_VERSION` from OpenSSH's `sftp-server` (`scripts/interop.sh:239-246`).
 - Read in the report of GitHub #20, not verified here: tty7 issue #1126 is an
   SFTP wait that did not end; GitHub #15 is the same class in podssh.
 

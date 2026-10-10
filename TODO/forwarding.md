@@ -126,6 +126,14 @@ server opens, as administratively prohibited, in one place: `unasked` in
 only for its own requests, and reads an accepted channel at once or closes
 it (`SECURITY.md`, "Design rules").
 
+2026-10-10, CI at `c0cdd2b` (run 38029691616): the check of the Prove that
+`-R 22:127.0.0.1:2203` is refused failed in the job `gate (release)`. Its
+Docker lets a user bind a port under 1024, so OpenSSH gave the forward,
+and the check waited for its limit (exit 143); in the build image of the
+developer machine the kernel refused the port. The check now asks for port
+2291, which `PermitListen 2290` of the server on port 2201 refuses whatever
+the kernel allows (`scripts/interop.sh`).
+
 ## Done
 
 2026-10-10. `-R [bind_address:]port:host:hostport` and `-o RemoteForward=[bind_address:]port

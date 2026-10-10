@@ -112,10 +112,10 @@ counted and typed by hand.
 ## Premise
 
 Read: `scripts/interop.sh:22-24` defines `ok`, `bad` and `skipped`, and
-`scripts/interop.sh:341-342` fails only when a check failed. With no
+`scripts/interop.sh:345-346` fails only when a check failed. With no
 `sshd.pam` in the image, the PAM check becomes `skip` and the gate stays
-green (`scripts/interop.sh:172-178`). A name carries values of the run (the
-seconds at `scripts/interop.sh:254`, the tty at `:238`), so it is not a
+green (`scripts/interop.sh:174-180`). A name carries values of the run (the
+seconds at `scripts/interop.sh:256`, the tty at `:240`), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
@@ -565,7 +565,7 @@ nobody measures again.
 
 Read, each claim of GitHub #34 at the lines as they are now:
 
-- The matrix is at `scripts/interop.sh:113-122`. It expects 3, 0, 1, 127 and
+- The matrix is at `scripts/interop.sh:115-124`. It expects 3, 0, 1, 127 and
   143, against OpenSSH (port 2201) and Dropbear (port 2203). `grep -c` gives
   13 lines with `expect_rc`: the comment, the definition
   (`scripts/interop.sh:25-28`) and 11 calls. `scripts/interop-keygen.sh` has 6
@@ -587,7 +587,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 
 1. Settle the client first: in the gate's container, run `command -v ssh`
    before the package line. If it is missing, add the client package to
-   `scripts/interop.sh:32`, and print its version (as `:97` does for the
+   `scripts/interop.sh:32`, and print its version (as `:99` does for the
    servers).
 2. For each call of `podssh ssh` in the matrix and in the refusals (lines
    146-196), run the stock `ssh` first, with the same server, port, key,

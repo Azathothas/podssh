@@ -738,7 +738,7 @@ on it. podssh cannot select a behaviour without that fact.
    record whether the channel ends within 5 s, and with which status or
    signal.
 2. Run it in the gate's container against OpenSSH's sshd and Dropbear
-   (`scripts/interop.sh:73-84`). Run it by hand against Tailscale SSH
+   (`scripts/interop.sh:73-86`). Run it by hand against Tailscale SSH
    (`--direct`) and `railway.new` through the relay, with a throwaway key,
    as in `docs/STATUS.md:71`.
 3. Record a table (server, version, result) in `docs/terminal.md` in place of
