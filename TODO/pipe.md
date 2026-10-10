@@ -1,11 +1,11 @@
 The work of milestone M7, `podssh pipe` and `--persist`, and the backlog of
 streams that `pipe` can carry: desktop streams and Telnet, a published HTTP
-service, serial devices and USB/IP. The design is `docs/design.md:387-427`;
+service, serial devices and USB/IP. The design is `docs/design.md:387-428`;
 the milestone is `docs/ROADMAP.md:231-240`.
 
 # T-174: `podssh pipe A B` with local addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:404-427`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:404-428`;
 GitHub #26 (Nemo-010, 2026-10-08). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M7
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:464`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:473`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:153-211` a typed error, so that 77 is not
    guessed from a message.
@@ -284,8 +284,8 @@ of `ssh`'s: `-i`, `-o`, `-v`, `-q`, the relay's, `--direct`, `--pair-file`,
   warning, and the tests of the pipe and of proxy.
 - `scripts/interop-pipe.sh` in the gate's step `release`: the late reply
   through the stand-in relay with `relay:` and with `proxy`, and 5,000,000
-  bytes through OpenSSH with `ssh:` to a digest server; the result at the
-  push goes into `docs/STATUS.md`.
+  bytes through OpenSSH with `ssh:` to a digest server. Each passed in CI at
+  b20de13 (2026-10-10; `docs/STATUS.md`).
 
 # T-176: `podssh pipe` with `unix-connect:PATH`
 
@@ -297,7 +297,7 @@ verified here).
 **Milestone:** M7
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -349,9 +349,44 @@ path exits 69 and names it; a path of 200 bytes exits 64. On Windows, the
 address exits 64. Plant: drop the shutdown at the end of input; the server
 never answers, and the test fails at its limit of 10 s.
 
+## Correction
+
+2026-10-10: the Prove's "On Windows, the address exits 64" was written
+before the operator's ruling of 2026-10-08 (Q24, `docs/decisions.md:23`),
+which step 4 of the Approach follows: on Windows, `unix-connect:` reaches
+an AF_UNIX socket or a named pipe (`\\.\pipe\NAME`), each tried when the
+pipe starts. So the Prove on Windows is the one of Unix, through an AF_UNIX
+socket, and a named pipe's greeting comes through too. A named pipe has no
+half-close: its server's bytes come until it closes.
+
+## Done
+
+2026-10-10. `unix-connect:PATH` is an address of `podssh pipe`
+(`crates/podssh-cli/src/pipe/unix.rs`). A name that does not fit a socket's
+address (107 bytes on Linux and Windows, 103 elsewhere) exits 64 before the
+call; `@NAME` is Linux's abstract namespace, and exits 64 elsewhere. The
+connect's error names the path: 69 for a missing socket or one that nobody
+serves, 77 for one that this user may not use. At the end of input, the
+write side is shut down. On Windows, a `\\.\pipe\` path is a named pipe
+(a pipe whose instances are busy is asked again for 5 s), and another path
+an AF_UNIX socket by WinSock (`windows-sys`, which tokio already builds),
+whose shutdown is the half-close. With T-174 and T-175, the first item of
+ROADMAP M7 is done; T-040 gives the remote form.
+- Native, Windows 11: `cargo test -p podssh-cli --test pipe`, 7 passed:
+  1,000,000 bytes through an AF_UNIX socket to a server that reads to the
+  end of its input gave its digest back; a missing socket exits 69 and
+  names its path; a name of 200 bytes exits 64; a named pipe's greeting
+  came through. The unit tests of the names and of the codes. Planted, no
+  shutdown at the end of input: the digest test failed at its limit ("no
+  end within 10 s"). `cargo test --workspace`: 1097 passed, 0 failed,
+  37 ignored.
+- Linux, in the build image (`sh scripts/dev.sh run`): clippy with no
+  warning; the tests of the pipe through a Unix socket, and `@NAME` in the
+  abstract namespace.
+
 # T-177: `podssh pipe` with a local listener after a probe
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:421-427`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:422-428`;
 GitHub #26 (a local-only mode, as the `--local` of bunflared; read in the
 report, not verified here); sandbox A of T-001.
 **Category:** feature
@@ -363,9 +398,9 @@ report, not verified here); sandbox A of T-001.
 ## Problem
 
 Desktop clients, browsers and database clients call `connect()` themselves:
-they need a local port or socket (`docs/design.md:424-427`). podssh refuses
+they need a local port or socket (`docs/design.md:425-428`). podssh refuses
 each listener. The design allows one for `pipe`, locally, after a probe
-shows that an AF_UNIX or loopback bind works (`docs/design.md:421-423`).
+shows that an AF_UNIX or loopback bind works (`docs/design.md:422-424`).
 
 ## Premise
 
@@ -497,7 +532,7 @@ running on the server (`docs/design.md:241-243`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:481-483`). After the attach, send the window size again.
+   (`docs/cli.md:490-492`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes.rs:28-83`), `docs/design.md:241-243`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -549,7 +584,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 
 - Read: a byte pipe carries each TCP protocol
   (`crates/podssh-cli/src/man/notes.rs:154-158`); a client that calls
-  `connect()` itself needs a listener (`docs/design.md:424-427`), which
+  `connect()` itself needs a listener (`docs/design.md:425-428`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:127`), then Close 1009 (`docs/relay.md:188`); public
@@ -580,7 +615,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
    form a to `crates/podssh-cli/src/man/examples.rs:8-82`; its ProxyCommand
    parses (`crates/podssh-cli/src/man/examples.rs:182-189`). Link the table
-   from `docs/design.md:424-427`.
+   from `docs/design.md:425-428`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
 ## Prove

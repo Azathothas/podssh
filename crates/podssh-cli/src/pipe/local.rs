@@ -28,7 +28,12 @@ pub fn open(address: &Address) -> Result<End, Unopened> {
         Address::Fd(n) => descriptor(*n),
         Address::Exec(words) => exec(words, &socketpair),
         // A remote address goes to its road (`remote`), never here.
-        Address::Relay { .. } | Address::Tcp { .. } | Address::Ssh { .. } | Address::Node(_) | Address::Iroh(_) => {
+        Address::Relay { .. }
+        | Address::Tcp { .. }
+        | Address::Ssh { .. }
+        | Address::Node(_)
+        | Address::Iroh(_)
+        | Address::Unix(_) => {
             Err(Unopened { code: crate::exit_codes::EXIT_SOFTWARE, why: "a remote address is not a local end".into() })
         }
     }

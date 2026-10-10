@@ -28,6 +28,9 @@ pub enum Address {
     Node(String),
     /// The TARGET of a node of the iroh road, by its ticket.
     Iroh(String),
+    /// A local socket: a path, `@NAME` in Linux's abstract namespace, or on
+    /// Windows a named pipe.
+    Unix(String),
 }
 
 /// The kinds that an unknown kind lists.
@@ -41,11 +44,11 @@ pub const KINDS: &[&str] = &[
     "ssh:[USER@]HOP[,HOP...],HOST:PORT",
     "node:NAME",
     "iroh:TICKET",
+    "unix-connect:PATH",
 ];
 
-/// The kinds of later entries: a local socket (T-176), listeners (T-177)
-/// and a serial line (T-181).
-const LATER: &[&str] = &["unix-connect", "unix-listen", "tcp-listen", "serial"];
+/// The kinds of later entries: listeners (T-177) and a serial line (T-181).
+const LATER: &[&str] = &["unix-listen", "tcp-listen", "serial"];
 
 /// A and B, each checked: no side starts before both are good.
 pub fn both(a: Option<&str>, b: Option<&str>) -> Result<(Address, Address), Refusal> {
@@ -86,6 +89,7 @@ pub fn parse(text: &str) -> Result<Address, Refusal> {
             Ok(Address::Node(rest.to_string()))
         }
         "iroh" => iroh(rest),
+        "unix-connect" => unix(rest),
         "stdio" => Err(Refusal::usage("stdio takes nothing after it")),
         later if LATER.contains(&later) => Err(Refusal {
             message: format!("{later}: addresses are not built yet; the kinds are {kinds}"),
@@ -107,6 +111,28 @@ fn ssh(rest: &str) -> Result<Address, Refusal> {
     }
     let (host, port) = target("ssh", last)?;
     Ok(Address::Ssh { hops: hops.iter().map(|h| h.to_string()).collect(), host, port })
+}
+
+/// `unix-connect:PATH`: a name that fits a socket's address, checked before
+/// the call; `@NAME` on Linux alone. A named pipe of Windows has room for
+/// more.
+fn unix(rest: &str) -> Result<Address, Refusal> {
+    if rest.is_empty() {
+        return Err(Refusal::usage("unix-connect: names no socket"));
+    }
+    if rest.starts_with('@') && !cfg!(target_os = "linux") {
+        return Err(Refusal::usage(format!("unix-connect:{rest}: the abstract namespace is Linux's")));
+    }
+    let pipe = rest.to_ascii_lowercase().replace('/', "\\").starts_with(r"\\.\pipe\");
+    // The name's NUL, or the abstract name's leading one.
+    let room = super::unix::SUN_PATH - 1;
+    if !(cfg!(windows) && pipe) && rest.len() > room {
+        let has = rest.len();
+        return Err(Refusal::usage(format!(
+            "unix-connect:{rest}: a socket's name holds {room} bytes, and this has {has}"
+        )));
+    }
+    Ok(Address::Unix(rest.to_string()))
 }
 
 /// `iroh:TICKET`, in a build with the feature `iroh`.
@@ -202,7 +228,7 @@ mod tests {
         assert!(refusal.message.contains("exec:CMD"), "{}", refusal.message);
         assert_eq!(code("example.org"), 64);
         assert_eq!(code("stdio:x"), 64);
-        for later in ["unix-connect:/run/x.sock", "tcp-listen:2222", "serial:/dev/ttyS0"] {
+        for later in ["unix-listen:/run/x.sock", "tcp-listen:2222", "serial:/dev/ttyS0"] {
             assert_eq!(code(later), 70, "{later}");
         }
     }
@@ -231,6 +257,22 @@ mod tests {
         assert_eq!(parse("node:lab").unwrap(), Address::Node("lab".into()));
         if !cfg!(feature = "iroh") {
             assert_eq!(code("iroh:endpointabc"), 70);
+        }
+    }
+
+    #[test]
+    fn a_socket_s_name_must_fit_its_address() {
+        assert_eq!(parse("unix-connect:/run/podman.sock").unwrap(), Address::Unix("/run/podman.sock".into()));
+        assert_eq!(code(&format!("unix-connect:/{}", "x".repeat(200))), 64);
+        assert_eq!(code("unix-connect:"), 64);
+        if cfg!(target_os = "linux") {
+            assert_eq!(parse("unix-connect:@podssh").unwrap(), Address::Unix("@podssh".into()));
+        } else {
+            assert_eq!(code("unix-connect:@podssh"), 64);
+        }
+        if cfg!(windows) {
+            let long = format!(r"\\.\pipe\{}", "p".repeat(150));
+            assert!(parse(&format!("unix-connect:{long}")).is_ok(), "a named pipe has room for more");
         }
     }
 

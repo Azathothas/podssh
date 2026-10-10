@@ -90,6 +90,11 @@ clap = { version = "4.6.7", default-features = false, features = [
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
 
+# AF_UNIX on Windows for `podssh pipe unix-connect:` (T-176), which the
+# standard library has not: the version that tokio and podssh-ssh build.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Networking_WinSock"] }
+
 # The live IRC example only.
 [dev-dependencies]
 podssh-core = { path = "../podssh-core" }

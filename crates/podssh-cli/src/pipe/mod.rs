@@ -17,6 +17,7 @@ pub mod pump;
 pub mod relay;
 pub mod remote;
 pub mod ssh;
+pub mod unix;
 
 use crate::exit_codes::EXIT_SOFTWARE;
 
@@ -82,6 +83,12 @@ async fn run(a: address::Address, b: address::Address, settings: &remote::Settin
 async fn open(address: &address::Address, settings: &remote::Settings, err: &mut dyn Write) -> Result<pump::End, i32> {
     if remote::is_remote(address) {
         return remote::open(address, settings, err).await;
+    }
+    if let address::Address::Unix(path) = address {
+        let mut say = |line: &str| {
+            let _ = writeln!(err, "podssh pipe: {line}");
+        };
+        return unix::open(path, &mut say).await;
     }
     local::open(address).map_err(|unopened| {
         let _ = writeln!(err, "podssh pipe: {}", unopened.why);

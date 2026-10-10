@@ -415,10 +415,19 @@ commands. The rules behind them:
   already: stdin and stdout (`-` or `stdio`), a descriptor that the caller
   opened (`fd:N`, 3 or more, on Unix), a program (`exec:CMD`), or a road
   (T-175): `relay:HOST:PORT`, `tcp:HOST:PORT`,
-  `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME` and `iroh:TICKET`. Both
-  addresses are checked before anything starts; an unknown kind is a usage
-  error (64) that lists the kinds, and a kind of a later entry
-  (`unix-connect:`, `unix-listen:`, `tcp-listen:`, `serial:`) exits 70.
+  `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME` and `iroh:TICKET`; or a
+  local socket (T-176), `unix-connect:PATH`. Both addresses are checked
+  before anything starts; an unknown kind is a usage error (64) that lists
+  the kinds, and a kind of a later entry (`unix-listen:`, `tcp-listen:`,
+  `serial:`) exits 70.
+- **A local socket, by its name.** `unix-connect:PATH` connects, which the
+  rule of no listener allows; `@NAME` is Linux's abstract namespace. A name
+  that does not fit a socket's address is refused first (64). A missing
+  socket, or one that nobody serves, exits 69, and one that this user may
+  not use 77; each line names the path and the error. On Windows, a
+  `\\.\pipe\` path is a named pipe, and another path an AF_UNIX socket
+  (Windows 10 1803 and later), each tried when the pipe starts: where one
+  fails, the line says why (the operator's ruling of 2026-10-08).
 - **The roads, as the other commands take them.** `relay:` is what
   `podssh proxy` carries: since T-175, proxy runs the pipe of `stdio` and
   `relay:`, with its words and codes. `tcp:` dials as `ssh --direct` does.
@@ -433,10 +442,10 @@ commands. The rules behind them:
   sandbox's seccomp) and on Windows. Its stderr is podssh's.
 - **Half-close, as `podssh proxy` does.** When one side's input ends, the
   other side's write half is shut, and the other direction goes on: a reply
-  still comes back. `tcp:` and `ssh:` pass it on as TCP and SSH do; the
-  relay has no half-close, so `relay:` sends no Close, and the target's
-  bytes come until it closes; `node:` and `iroh:` end their session, whose
-  layer has no half-close. A writer whose reader is gone ends the pipe; a
+  still comes back. `tcp:`, `ssh:` and `unix-connect:` pass it on as TCP,
+  SSH and a socket do; the relay has no half-close, so `relay:` sends no
+  Close, and the target's bytes come until it closes, as a named pipe's do;
+  `node:` and `iroh:` end their session, whose layer has no half-close. A writer whose reader is gone ends the pipe; a
   program that exited after its output ended ends it too, and so does a
   road that ended, as the other side's input may never end. podssh waits
   for each program, as a shell does.
