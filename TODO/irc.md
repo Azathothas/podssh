@@ -918,9 +918,22 @@ Partial, 2026-10-10: the plan is the Decision.
   checked at the end; `safe_name` keeps an offered name's last part. `cargo test -p podssh-core
   --test chat`: 8 passed; planted, each check fails its test (bytes before the accept, the order,
   the digest, the length's limit, the name's last part).
-- Next: the runner in `podssh` (stdin and stdout, the files that the user accepts), the command
-  line, the two sides on the roads, the manual and the documents; the live test, and the script
-  of two boxes.
+- Built: the runner, `crates/podssh-cli/src/chat/`: one conversation over any byte stream, the
+  user's lines in (`/file`, `/accept`, `/decline`, `/quit`, `//` for a literal `/`) and the peer's
+  messages out, made safe for a terminal, or each event as JSON; a writer that drains the small
+  records and, when there is room, the chunks of a file, so that a side never stops reading for a
+  full queue; files accepted into a temporary file beside their path, kept under their name once
+  whole, never over a file that is there, and the peer told whether each was kept; `--send` and
+  `--file`, which end once done; the messages with no acknowledgement, listed at the end. `cargo
+  test -p podssh-cli --test chat_converse`: 8 passed, and 10 runs in a row (over a pipe, and over
+  the channel of T-088): messages both ways; files of 0, 1 and 200,000 bytes with equal digests;
+  a file with no accept never written; a declined file; a file of a name that is there, declined
+  and the one there kept; a file whose digest differs, not kept. Planted, each fails its test (a
+  file taken with no accept, a path that is there taken, a damaged file kept). The work found two
+  defects of the runner, repaired before this commit: a declined offer stayed open to an accept,
+  which made a temporary file; and the peer heard of a file before it had its name.
+- Next: the command line, the two sides on the roads, the manual and the documents; the live
+  test, and the script of two boxes.
 
 # T-252: `podssh chat --irc`: IRC as a second transport for chat
 

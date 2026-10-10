@@ -21,6 +21,7 @@
 #![cfg_attr(not(test), deny(unused_crate_dependencies))]
 
 pub mod channel;
+pub mod chat;
 pub mod clap_error;
 pub mod cp;
 pub mod dispatch;
