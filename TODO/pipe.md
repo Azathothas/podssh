@@ -413,7 +413,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:437-439`).
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
   `AGENTS.md:192-197`, `docs/architecture.md:102-112`,
-  `docs/target-environment.md:74-78`, `SECURITY.md:83-96`, `README.md:37-42`.
+  `docs/target-environment.md:74-78`, `SECURITY.md:83-96`, `README.md:38-43`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:183`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -718,7 +718,7 @@ verified here.
 ## Problem
 
 Users ask how to carry RDP, VNC and Telnet. The documents show SSH and one
-HTTP request (`README.md:118-123`). They do not say which clients work with
+HTTP request (`README.md:119-124`). They do not say which clients work with
 no listener, or that the relay ends a desktop stream after 64 MiB.
 
 ## Premise
@@ -752,7 +752,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 3. Telnet: `podssh proxy HOST 23` carries the bytes, but a person needs a
    client that answers the IAC options: form a or b with
    `telnet 127.0.0.1 PORT`.
-4. Write a table "Other TCP protocols" after `README.md:118-123`: the
+4. Write a table "Other TCP protocols" after `README.md:119-124`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
    form a to `crates/podssh-cli/src/man/examples.rs:8-95`; its ProxyCommand
    parses (`crates/podssh-cli/src/man/examples.rs:195-202`). Link the table

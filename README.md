@@ -10,10 +10,11 @@ an HTTP proxy is their only way out. podssh needs no root, no `LD_PRELOAD`,
 no installed `ssh`, and no TLS or crypto library of the system.
 
 > [!WARNING]
-> **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh cp`,
-> `podssh mv`, `podssh scp` and `podssh sftp` (files), `podssh doctor`,
-> `podssh keygen`, `podssh man`, `podssh status`, the reverse road
-> (`podssh node`, `podssh operator`, `podssh relay`) and `podssh chat` work.
+> **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh pipe`,
+> `podssh cp`, `podssh mv`, `podssh scp` and `podssh sftp` (files),
+> `podssh doctor`, `podssh keygen`, `podssh agent`, `podssh man`,
+> `podssh status`, the reverse road (`podssh node`, `podssh operator`,
+> `podssh relay`) and `podssh chat` work.
 > Tests run them against OpenSSH and Dropbear servers, through the live
 > relay, and in a box like the target sandbox. The copy of directories is not
 > available yet. The measured state is in [docs/STATUS.md](docs/STATUS.md).

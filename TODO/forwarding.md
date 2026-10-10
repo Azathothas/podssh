@@ -367,7 +367,7 @@ AF_UNIX.
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs:172-176`).
 - Read: `AGENTS.md:192-197` (no bind, no listen),
   `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:83-96` ("Nothing
-  listens") and `README.md:37-42` state the rule from before the ruling.
+  listens") and `README.md:38-43` state the rule from before the ruling.
   `docs/design.md:437-439` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
@@ -433,7 +433,7 @@ box fails.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs:212-217`,
 `crates/podssh-cli/src/ssh/options.rs:172-176`). `SECURITY.md:83-96` and
-`README.md:37-42` state the ruling now, as `AGENTS.md:192-197` and
+`README.md:38-43` state the ruling now, as `AGENTS.md:192-197` and
 `docs/target-environment.md:74-78` did already.
 
 # T-039: Connection sharing: `ControlMaster`, `ControlPath`, `-O` and `-S` over an AF_UNIX socket

@@ -685,7 +685,7 @@ Read:
    each binary with `actions/attest-build-provenance`, pinned by commit SHA,
    for a tag `v*` only. Give these jobs `id-token: write` and
    `attestations: write`. A run by hand makes no attestation.
-2. Tell the user how to check, in `README.md` (`:52-53`) and in the
+2. Tell the user how to check, in `README.md` (`:53-54`) and in the
    release notes: `gh attestation verify FILE --repo Azathothas/podssh`.
 3. Let `podssh --version` name the commit: the workflows set a variable at
    compile time (`option_env!`, no build script, no `git` call); a local build
@@ -732,7 +732,7 @@ Read:
   `sha256sum`, and `.github/workflows/release.yml:155-171` publishes it with
   the binaries. No signature is published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:89`). `README.md:52-53` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:89`). `README.md:53-54` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
