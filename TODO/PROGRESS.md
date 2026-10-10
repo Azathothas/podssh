@@ -44,27 +44,29 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --workspace --no-fail-fast`, again after T-099
-  (2026-10-10): 1289 passed, 0 failed, 41 ignored (the live tests, and the checks of
+- `cargo test --workspace --no-fail-fast`, again after T-026
+  (2026-10-11): 1316 passed, 0 failed, 43 ignored (the live tests, and the checks of
   faults and of the exit of M6). With the feature `iroh` and the test
   relay, `cargo test -p podssh-iroh -p podssh-cli --features
   podssh-cli/iroh-test`, with the same: 468 passed, 0 failed, 29 ignored.
   With the feature `ts`, `cargo test -p podssh-ts -p podssh-cli --features
   podssh-cli/ts`, after T-099: 520 passed, 0 failed, 25 ignored.
-  CI's gate passed at `9460b4e` (T-271; run 38019504447).
+  CI's gate passed at `14f6cde` (run 38073235063); at `8cf2587` three steps
+  failed on directories that a test left (run 38074648006), repaired in
+  `c29fa82`.
 - `cargo test -p podssh-relay --all-features --no-fail-fast`, after T-270:
   181 passed, 0 failed, 14 ignored (the live tests).
 - `sh scripts/dev.sh check` (after T-212): green; interop 103 of 103. The steps that
   later changes touched, each alone in the build image after them: green.
-- `cargo test -p podssh-todo`: 71 passed: 15 unit tests, 37 plant tests (35
-  planted disagreements and two controls), 11 tests of the remap, 7 tests of
-  the writer, and the test of this record.
+- `cargo test -p podssh-todo` (2026-10-11): 77 passed: 15 unit tests, 37
+  plant tests (35 planted disagreements and two controls), 15 tests of the
+  remap, 2 of `--base`, 7 tests of the writer, and the test of this record.
 - `cargo todo check`: the record agrees. `python scripts/check-repo.py`: ok.
 - `cargo clippy -p podssh-todo --all-targets -- -D warnings`: no warning.
 
 ## Counts
 
-`TODO/INDEX.md` holds 274 entries: 109 open, 0 partial, 22 blocked, 143 done.
+`TODO/INDEX.md` holds 274 entries: 108 open, 0 partial, 22 blocked, 144 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -82,8 +84,7 @@ the surface for agents: done.
 **Now:** the `backlog` entries, in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"): M3 to M8 are done, but for the entries on
 hold and those of the relay's operator. First the P2 entries of effort S
-(T-026, T-028, T-029, T-031, T-227, T-243), then the other P2 entries, then
-P3.
+(T-028, T-029, T-031, T-227, T-243), then the other P2 entries, then P3.
 
 **Then** M9: T-218, T-210 and T-211, then T-251 (the check, and its run
 before the tag), and last T-250 (the one release). Between entries: the

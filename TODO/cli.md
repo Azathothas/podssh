@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts.rs:386-399`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:632-634`;
+   it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:640-642`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -1106,7 +1106,7 @@ Read: podssh matches hashed lines with HMAC-SHA1
 with their numbers (`crates/podssh-ssh/src/known_hosts.rs:97-116`), and
 appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs:203-236`).
 The default files are the ones of `podssh ssh`
-(`crates/podssh-cli/src/man/data.rs:122`).
+(`crates/podssh-cli/src/man/data.rs:123`).
 
 ## Approach
 
@@ -1575,7 +1575,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs:185`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:74`), called at
 `crates/podssh-ssh/src/auth.rs:184`, `crates/podssh-ssh/src/auth.rs:253`,
 `crates/podssh-ssh/src/keys.rs:212` and `crates/podssh-cli/src/keygen.rs:170`.
-Its refusals name the real remedies (`docs/cli.md:618-620`). Commands use
+Its refusals name the real remedies (`docs/cli.md:626-628`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:213-231`,
 `crates/podssh-cli/src/ts.rs:54-63`) and `refuse_jsonl_in_proxy`

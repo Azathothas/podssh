@@ -112,10 +112,10 @@ counted and typed by hand.
 ## Premise
 
 Read: `scripts/interop.sh:22-24` defines `ok`, `bad` and `skipped`, and
-`scripts/interop.sh:379-380` fails only when a check failed. With no
+`scripts/interop.sh:458-459` fails only when a check failed. With no
 `sshd.pam` in the image, the PAM check becomes `skip` and the gate stays
-green (`scripts/interop.sh:174-180`). A name carries values of the run (the
-seconds at `scripts/interop.sh:290`, the tty at `:274`), so it is not a
+green (`scripts/interop.sh:253-259`). A name carries values of the run (the
+seconds at `scripts/interop.sh:369`, the tty at `:353`), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
@@ -443,10 +443,10 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:36-43` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:238-255`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:239-256`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:280`, enforced at
-  `crates/podssh-ssh/src/run.rs:188-194`); a reply, 30 s
+  `crates/podssh-ssh/src/run.rs:194-200`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability
@@ -574,7 +574,8 @@ Read, each claim of GitHub #34 at the lines as they are now:
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
   `scripts/sandbox-check.sh:196-209` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
-- `crates/podssh-ssh/src/io.rs:209-214` maps an exit status that does not fit
+- `crates/podssh-ssh/src/io.rs:252-257`, with `crates/podssh-ssh/src/io.rs:45-47`,
+  maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:70`, `docs/STATUS.md:72`).
 - A correction to the framing of #34: for a signal, podssh differs from
@@ -617,7 +618,7 @@ sh scripts/dev.sh check     # interop: for each case, the code of OpenSSH, of po
 
 The interop section shows, for each case, the reference code, podssh's code
 and the literal, and the signal row as a named difference. Planted defect 1:
-map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:214`; the literal
+map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:257`; the literal
 check of 143 must fail, and the table must report its signal row as broken.
 Planted defect 2: let the reference run `true` in place of `exit 3`; the
 derived check must fail.

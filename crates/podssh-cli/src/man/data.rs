@@ -85,8 +85,9 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         ),
         row(
             podssh_ssh::EXIT_FAILURE,
-            "podssh ssh: the connection, the host key, a node's key or the authentication failed, or the \
-             session ended with no exit status. OpenSSH uses the same code.",
+            "podssh ssh: the connection, the host key, a node's key or the authentication failed, the \
+             session ended with no exit status (also when stdout closed and none came within 5 s), or the \
+             server ended a run of -N. OpenSSH uses the same code.",
         ),
         (
             Code::Remote,

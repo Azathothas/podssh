@@ -607,7 +607,15 @@ rules behind it:
   another, 77 a key or a pair refused, or the file of `--file` declined, 78
   a setting or a pair that cannot be used.
 - A command that is not implemented exits 70. It never exits 0.
-- A closed stdout (EPIPE) ends the session cleanly.
+- `podssh ssh` never ends as a success with no exit status (T-026). When
+  stdout closes (EPIPE), podssh stops writing, sends the end of input, and
+  waits 5 s at most for the status: it gives that status, or 255 with a
+  note. `-N` ends only when the server or the network ends it: 255, with
+  the server's words when it sent some. `-W` gives 0 when the far end
+  closes and when stdout closes, and 255 when the connection died. These
+  are the codes of OpenSSH's `ssh`, and the gate compares both clients
+  (`scripts/interop.sh`). A status above 255 gives 255: OpenSSH passes the
+  value to `exit()`, where 256 reads as 0.
 
 ## Prompts and time limits
 

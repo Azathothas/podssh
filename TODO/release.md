@@ -118,7 +118,10 @@ The box models the target sandbox (`scripts/test_in_box.sh`).
      IRC runs on undernet, libera and OFTC (Q39), the Tailscale runs with the
      auth key file of `.env/` (Q40), `scripts/chat-in-boxes.sh` (T-099), and
      `scripts/irc-in-image.sh` with its plant (T-252), whose step then joins
-     the gate.
+     the gate, and the exit status of an interactive login shell on a
+     tailnet host with `--direct` (T-026): `exit 7` through `podssh ssh -tt`
+     and through OpenSSH's `ssh -v -tt`, whose log names each `exit-status`
+     request; its result corrects that row of `docs/STATUS.md`.
 3. Hosts: this Windows host (the Windows binary, natively), a fresh Linux
    container, and the box like the target sandbox. The other targets: the
    short form (`--version`, `man --no-pager`, `keygen`, `proxy github.com

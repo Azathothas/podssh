@@ -142,8 +142,14 @@ where
             let mut handle = handles.pop().expect("the destination");
             let ended = (&mut handle).await;
             handles.push(handle);
+            // -N ends only when the server or the network ends it, never
+            // as a success: OpenSSH says so too, with 255 (T-026).
             match ended {
-                Ok(()) => Ok(0),
+                Ok(()) => {
+                    let said = crate::handler::take_last_disconnect().map(|s| format!(": {s}")).unwrap_or_default();
+                    log.error(&format!("the server ended the connection to {host}{said}"));
+                    Ok(EXIT_FAILURE)
+                }
                 Err(e) => Err(format!("connection to {host} lost: {}", describe(&e))),
             }
         }

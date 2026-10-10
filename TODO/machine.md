@@ -474,9 +474,9 @@ byte counts and no name of the relay host.
 
 Measured: `podssh ssh --json example.org true` exits 64 (unknown flag).
 
-Read: a session ends as `io::End` (`crates/podssh-ssh/src/io.rs:19-32`). The exit status and the
-signal are read in `handle_msg` (`:209-225`). The output goes straight to the process's
-stdout and stderr in `write_out` (`:234-244`), so nothing counts bytes. `session::run` maps
+Read: a session ends as `io::End` (`crates/podssh-ssh/src/io.rs:20-33`). The exit status and the
+signal are read in `handle_msg` (`:252-268`). The output goes straight to the process's
+stdout and stderr in `write_out` (`:277-287`), so nothing counts bytes. `session::run` maps
 the end to the exit code (`crates/podssh-ssh/src/session.rs:32-36`). The relay host is known
 at `crates/podssh-cli/src/ssh/transport.rs:56`, and the relay's close reason is in `RelayStatus`
 (`crates/podssh-ssh/src/relay_stream.rs:63-105`).
@@ -490,7 +490,7 @@ at `crates/podssh-cli/src/ssh/transport.rs:56`, and the relay's close reason is 
    ("connect", "host-key", "auth", "relay"); `bytes` (stdin, stdout, stderr); `duration_ms`;
    `relay` (host, close code and reason), or null with `--direct`.
 2. Count the bytes in one place: make the output sink of `io::pump` a parameter
-   (`crates/podssh-ssh/src/io.rs:105-113`, and `write_out` at `crates/podssh-ssh/src/io.rs:234-244`). T-055 needs the same change.
+   (`crates/podssh-ssh/src/io.rs:131-139`, and `write_out` at `crates/podssh-ssh/src/io.rs:277-287`). T-055 needs the same change.
 3. stdout and stderr stay byte for byte as now; the command's output never goes into the JSON.
 4. Write the file on each path, also after a failure before the session: at the end of
    `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:90-94`). Mode 0600. Refuse `-`: stdout is data.
@@ -538,9 +538,9 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:614-630`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:622-638`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
-process's stdout (`crates/podssh-ssh/src/io.rs:234-244`), which an MCP server over stdio uses for
+process's stdout (`crates/podssh-ssh/src/io.rs:277-287`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:102-112`), and stdio needs no listener.
 
 ## Approach

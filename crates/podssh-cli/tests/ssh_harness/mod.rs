@@ -35,13 +35,31 @@ struct Far {
     echoes: Vec<ChannelId>,
     holds: Vec<ChannelId>,
     quits: Vec<ChannelId>,
+    /// The channels of `spew` and `spew-mute`: their writers stop at the
+    /// client's end of input, and `spew` then gives the status 7.
+    spews: HashMap<ChannelId, (Arc<std::sync::atomic::AtomicBool>, bool)>,
+    /// The user `kick`: the server ends the connection after the login.
+    kick: bool,
 }
 
 impl server::Handler for Far {
     type Error = russh::Error;
 
-    async fn auth_none(&mut self, _user: &str) -> Result<Auth, Self::Error> {
+    async fn auth_none(&mut self, user: &str) -> Result<Auth, Self::Error> {
+        self.kick = user == "kick";
         Ok(Auth::Accept)
+    }
+
+    async fn auth_succeeded(&mut self, session: &mut Session) -> Result<(), Self::Error> {
+        if self.kick {
+            let handle = session.handle();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_millis(500)).await;
+                let _ =
+                    handle.disconnect(russh::Disconnect::ByApplication, "kicked by the test".into(), "en".into()).await;
+            });
+        }
+        Ok(())
     }
 
     async fn channel_open_direct_tcpip(
@@ -106,6 +124,21 @@ impl server::Handler for Far {
                     let _ = handle.close(channel).await;
                 });
             }
+            (Some(spew @ ("spew" | "spew-mute")), _) => {
+                // Bytes until the client's end of input; then `spew` gives
+                // its status, and `spew-mute` none.
+                let stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+                self.spews.insert(channel, (stop.clone(), spew == "spew"));
+                let handle = session.handle();
+                tokio::spawn(async move {
+                    let block = vec![0x79_u8; BLOCK];
+                    while !stop.load(Ordering::SeqCst) {
+                        if handle.data(channel, block.clone()).await.is_err() {
+                            return;
+                        }
+                    }
+                });
+            }
             (Some("sink"), _) => {
                 self.sinks.insert(channel, 0);
                 session.data(channel, b"R\n".as_slice())?;
@@ -146,6 +179,15 @@ impl server::Handler for Far {
     }
 
     async fn channel_eof(&mut self, channel: ChannelId, session: &mut Session) -> Result<(), Self::Error> {
+        if let Some((stop, status)) = self.spews.remove(&channel) {
+            stop.store(true, Ordering::SeqCst);
+            if status {
+                session.exit_status_request(channel, 7)?;
+            }
+            session.eof(channel)?;
+            session.close(channel)?;
+            return Ok(());
+        }
         let echoed = self.echoes.iter().position(|c| *c == channel).map(|at| self.echoes.remove(at)).is_some();
         if echoed {
             session.exit_status_request(channel, 0)?;

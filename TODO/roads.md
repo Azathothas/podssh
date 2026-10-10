@@ -185,7 +185,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:278-279`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:428`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:107-202`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:108-203`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-134`).
 
 ## Decision
@@ -668,7 +668,7 @@ not verified here: iroh-ssh checks that a local sshd answers before it accepts
 Recommendation: the client records the host key of sshd under the name that
 the user gives to `podssh ssh` (the roost's name), as OpenSSH does for a host
 with a `ProxyCommand`. `podssh ssh` names a host this way today
-(`crates/podssh-ssh/src/run.rs:167-179`). The alternative, the address of sshd
+(`crates/podssh-ssh/src/run.rs:173-185`). The alternative, the address of sshd
 behind the roost (`127.0.0.1`), lost: each roost would share one name, and one
 key would replace another.
 

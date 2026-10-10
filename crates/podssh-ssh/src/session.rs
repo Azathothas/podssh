@@ -162,3 +162,41 @@ fn environment(opts: &Options) -> Vec<(String, String)> {
     }
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Each end of a session gives its code, and none with no status gives 0
+    /// (T-026).
+    #[test]
+    fn exit_code_of_end_is_never_a_success_with_no_status() {
+        assert_eq!(code(io::End::Status(0), "h"), Ok(0));
+        assert_eq!(code(io::End::Status(7), "h"), Ok(7));
+        assert_eq!(code(io::End::Status(141), "h"), Ok(141));
+        assert_eq!(code(io::End::NoStatus, "h"), Ok(NO_STATUS));
+        assert_eq!(code(io::End::Terminated, "h"), Ok(NO_STATUS));
+        assert_eq!(code(io::End::Escaped(crate::escape::Command::Disconnect), "h"), Ok(NO_STATUS));
+        assert!(code(io::End::Lost, "h").unwrap_err().contains("was lost before the session ended"));
+        assert_eq!(NO_STATUS, 255);
+    }
+
+    /// A status above 255 is no success: OpenSSH's 256 would read as 0.
+    #[test]
+    fn exit_code_of_end_with_a_status_above_255() {
+        assert_eq!(io::status_code(0), 0);
+        assert_eq!(io::status_code(255), 255);
+        assert_eq!(io::status_code(256), 255);
+        assert_eq!(io::status_code(u32::MAX), 255);
+        assert_eq!(code(io::End::Status(io::status_code(256)), "h"), Ok(255));
+    }
+
+    /// A closed stdout ends with the status that came before or after it,
+    /// within the wait, and with 255 when none came.
+    #[test]
+    fn exit_code_of_end_after_a_closed_stdout() {
+        assert_eq!(code(io::end_with(Some(0)), "h"), Ok(0));
+        assert_eq!(code(io::end_with(Some(7)), "h"), Ok(7));
+        assert_eq!(code(io::end_with(None), "h"), Ok(NO_STATUS));
+    }
+}

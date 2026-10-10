@@ -4,6 +4,7 @@
 //! lost link, and it reads on where the last one stopped.
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use russh::client::{Handle, Msg};
 use russh::{Channel, ChannelMsg};
@@ -34,6 +35,31 @@ pub enum End {
 /// What a user types while `--persist` connects again waits for the next
 /// session, this much at most.
 pub const QUEUE: usize = 64 * 1024;
+
+/// How long the exit status may take once stdout's reader has gone (T-026):
+/// the session then ends with it, or with none.
+pub const STATUS_WAIT: Duration = Duration::from_secs(5);
+
+/// The exit code of an `exit-status` request. A status above 255 gives 255:
+/// OpenSSH passes the value to `exit()`, where 256 would read as a success.
+pub fn status_code(exit_status: u32) -> i32 {
+    i32::try_from(exit_status).unwrap_or(255).min(255)
+}
+
+/// How a session ends once it may: with its status, or with none. A closed
+/// stdout and a Close both end so, whether the status came before or after.
+pub fn end_with(status: Option<i32>) -> End {
+    status.map(End::Status).unwrap_or(End::NoStatus)
+}
+
+/// Whether stdout's reader has gone, and since when: the channel's data then
+/// goes nowhere, the server hears the end of input, and the status is
+/// awaited for a while, never read as a success.
+#[derive(Default)]
+struct Out {
+    gone: Option<tokio::time::Instant>,
+    told: bool,
+}
 
 /// The local input of a run. It is read on its own task from the first
 /// session on, so that a session after a lost link reads on where the last
@@ -113,8 +139,9 @@ pub async fn pump(
 ) -> End {
     let (mut reader, writer) = channel.split();
     let mut status: Option<i32> = None;
+    let mut out = Out::default();
     for msg in early {
-        if let Some(end) = handle_msg(msg, &mut status, log).await {
+        if let Some(end) = handle_msg(msg, &mut status, &mut out, log).await {
             return end;
         }
     }
@@ -150,7 +177,7 @@ pub async fn pump(
                                 }
                                 msg = reader.wait() => match msg {
                                     Some(m) => {
-                                        if let Some(end) = handle_msg(m, &mut status, log).await {
+                                        if let Some(end) = handle_msg(m, &mut status, &mut out, log).await {
                                             return end;
                                         }
                                     }
@@ -181,12 +208,27 @@ pub async fn pump(
             },
             msg = reader.wait() => match msg {
                 Some(m) => {
-                    if let Some(end) = handle_msg(m, &mut status, log).await {
+                    if let Some(end) = handle_msg(m, &mut status, &mut out, log).await {
                         return end;
+                    }
+                    // stdout's reader went: the server hears the end of input.
+                    if out.gone.is_some() && !out.told {
+                        out.told = true;
+                        reading = false;
+                        let _ = writer.eof().await;
                     }
                 }
                 None => return status.map(End::Status).unwrap_or(End::Lost),
             },
+            () = sleep_until(out.gone.map(|at| at + STATUS_WAIT)), if out.gone.is_some() => {
+                if status.is_none() {
+                    log.info(&format!(
+                        "stdout was closed, and no exit status came within {} s",
+                        STATUS_WAIT.as_secs()
+                    ));
+                }
+                return end_with(status);
+            }
             Some(size) = resize.next() => {
                 let _ = writer.window_change(size.cols, size.rows, size.px_width, size.px_height).await;
             }
@@ -195,19 +237,20 @@ pub async fn pump(
     }
 }
 
-async fn handle_msg(msg: ChannelMsg, status: &mut Option<i32>, log: &Log) -> Option<End> {
+async fn handle_msg(msg: ChannelMsg, status: &mut Option<i32>, out: &mut Out, log: &Log) -> Option<End> {
     match msg {
         ChannelMsg::Data { data } => {
-            if write_out(&data, false).await.is_err() {
-                // Whoever reads our stdout has gone (EPIPE): end quietly.
-                return Some(End::Status(status.unwrap_or(0)));
+            // Whoever reads our stdout has gone (EPIPE): the data goes
+            // nowhere, and the exit status is awaited (T-026).
+            if out.gone.is_none() && write_out(&data, false).await.is_err() {
+                out.gone = Some(tokio::time::Instant::now());
             }
         }
         ChannelMsg::ExtendedData { data, .. } => {
             let _ = write_out(&data, true).await;
         }
         ChannelMsg::ExitStatus { exit_status } => {
-            *status = Some(i32::try_from(exit_status).unwrap_or(255).min(255));
+            *status = Some(status_code(exit_status));
         }
         ChannelMsg::ExitSignal { signal_name, core_dumped, error_message, .. } => {
             let name = signals::name(&signal_name);
@@ -223,7 +266,7 @@ async fn handle_msg(msg: ChannelMsg, status: &mut Option<i32>, log: &Log) -> Opt
             }
             log.info(&note);
         }
-        ChannelMsg::Close => return Some(status.map(End::Status).unwrap_or(End::NoStatus)),
+        ChannelMsg::Close => return Some(end_with(*status)),
         // Eof: the server sends nothing more, but the exit status and the
         // close are still to come.
         _ => {}
@@ -240,6 +283,14 @@ async fn write_out(data: &[u8], to_stderr: bool) -> std::io::Result<()> {
         let mut out = tokio::io::stdout();
         out.write_all(data).await?;
         out.flush().await
+    }
+}
+
+/// Until `at`, or for ever with none.
+async fn sleep_until(at: Option<tokio::time::Instant>) {
+    match at {
+        Some(at) => tokio::time::sleep_until(at).await,
+        None => std::future::pending().await,
     }
 }
 

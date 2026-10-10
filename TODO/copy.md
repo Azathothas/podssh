@@ -41,7 +41,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
   reads and writes of 261120 bytes, 3195 handles. No extension gives a
   digest.
 - Read: that server exits at the end of its input without its last reply
-  (`scripts/interop.sh:274-276`).
+  (`scripts/interop.sh:353-355`).
 
 ## Approach
 
@@ -64,7 +64,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
    extension list for T-134.
 6. Each `SSH_FX_*` status gives a sentence with the path; the server's text
    goes through `podssh_ws::text::one_line`
-   (`crates/podssh-ssh/src/io.rs:219`).
+   (`crates/podssh-ssh/src/io.rs:262`).
 7. No EOF before the last reply. Fail at once on a reply id that no request
    has, and on a `READ` reply longer than its request.
 
@@ -332,7 +332,7 @@ a script expects, and its login shell may not be a POSIX shell.
 
 - Read: an exec with no pty carries bytes unchanged: 262144, 262145 and
   5,000,000 bytes up and back with equal digests on OpenSSH and Dropbear
-  (`docs/STATUS.md:70`, `scripts/interop.sh:133-145`), and 300 KB up and
+  (`docs/STATUS.md:70`, `scripts/interop.sh:212-224`), and 300 KB up and
   5 MB down through the relay (`docs/STATUS.md:71`).
 - Read: a command goes as one string, never as a shell request
   (`crates/podssh-ssh/src/options.rs:63-64`), with no pty when stdin is not
@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:183`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:184`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -503,7 +503,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
 2. Within a run: after a relay close, a lost connection or a failed
    request, open a new session (T-137's path) and continue at the offset.
    Check first that the host key is the one of the first session (pin it in
-   memory, `crates/podssh-ssh/src/handler.rs:75-94`), and that the source's
+   memory, `crates/podssh-ssh/src/handler.rs:85-104`), and that the source's
    size and mtime are the same; else start over and say so.
 3. Invariant: the attempts are bounded. At most 5 in a row with no new
    acknowledged byte, with `podssh_relay::open::backoff`
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:182`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:183`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -1065,7 +1065,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:201-205` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:181`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:182`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1171,7 +1171,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:181`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:182`).
 
 ## Premise
 
@@ -1358,7 +1358,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:181`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:182`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -1368,7 +1368,7 @@ uplink of a shared host.
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
   (`crates/podssh-cli/src/flags/copy.rs:27-28`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
-  (`crates/podssh-ssh/src/io.rs:323-356`); no copy code exists yet.
+  (`crates/podssh-ssh/src/io.rs:374-407`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
   `-l limit`. OpenSSH's manual gives the unit as Kbit/s (not read here).
 
@@ -1555,8 +1555,8 @@ which needs support in the terminal client.
 ## Premise
 
 - Read: `podssh ssh` writes the remote output to stdout as it comes
-  (`crates/podssh-ssh/src/io.rs:198-205`) and passes the local keys through
-  the escape filter (`crates/podssh-ssh/src/io.rs:130-181`). Nothing looks
+  (`crates/podssh-ssh/src/io.rs:240-248`) and passes the local keys through
+  the escape filter (`crates/podssh-ssh/src/io.rs:157-208`). Nothing looks
   for a ZMODEM header.
 - Not verified here: ZMODEM escapes its control bytes, so it crosses a pty;
   whether a ZMODEM crate in pure Rust exists and is maintained.

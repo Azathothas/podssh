@@ -11,6 +11,16 @@ use russh::{Channel, ChannelOpenFailure};
 use crate::hostkey::{Policy, Verdict};
 use crate::log::Log;
 
+/// The last SSH_MSG_DISCONNECT of a server in this process, made safe: a
+/// run of `-N` says it once the connection ended (T-026). A process runs
+/// one chain of connections, so one is enough.
+static LAST_DISCONNECT: Mutex<Option<String>> = Mutex::new(None);
+
+/// The last server's words of a disconnect, taken.
+pub fn take_last_disconnect() -> Option<String> {
+    LAST_DISCONNECT.lock().unwrap_or_else(|e| e.into_inner()).take()
+}
+
 pub struct Client {
     policy: Arc<Policy>,
     log: Arc<Log>,
@@ -107,6 +117,7 @@ impl Handler for Client {
                 } else {
                     format!("{text} ({:?})", info.reason_code)
                 };
+                *LAST_DISCONNECT.lock().unwrap_or_else(|e| e.into_inner()) = Some(said.clone());
                 *self.disconnect.lock().unwrap_or_else(|e| e.into_inner()) = Some(said);
                 Ok(())
             }
