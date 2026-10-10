@@ -5,12 +5,12 @@
 //! `StrictHostKeyChecking` says; a revoked key too. An unknown key is accepted
 //! only when the policy or the user says so, and is then recorded.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use russh::keys::ssh_key::PublicKey;
 
-use crate::known_hosts::{self, Lookup};
+use crate::known_hosts::{self, Lookup, Unreadable};
 use crate::log::Log;
 use crate::options::StrictHostKeyChecking;
 use crate::prompt::{self, PromptError};
@@ -23,6 +23,9 @@ pub struct Policy {
     pub strict: StrictHostKeyChecking,
     /// Read in order; new keys go into the first.
     pub user_files: Vec<PathBuf>,
+    /// Why `user_files` is empty, for the note on a key that is not
+    /// recorded: `HOME` is not set, or `UserKnownHostsFile` is none.
+    pub no_user_file: Option<&'static str>,
     pub global_files: Vec<PathBuf>,
     pub batch_mode: bool,
     /// The key of the first connection of this run, which each later one
@@ -83,7 +86,15 @@ impl Policy {
     fn check_known(&self, key: &PublicKey, log: &Log) -> Verdict {
         let kind = known_hosts::key_type(key);
         let fp = known_hosts::fingerprint(key);
-        match known_hosts::lookup(&self.files(), &self.name, key) {
+        let (lookup, unreadable) = known_hosts::lookup_all(&self.files(), &self.name, key);
+        for file in &unreadable {
+            log.verbose(&format!("{} cannot be read: {}", file.path.display(), file.error));
+        }
+        // The user's files are where keys are recorded: a key that is not
+        // seen there, as one of them cannot be read, is not known to be new.
+        let unseen: Vec<Unreadable> =
+            unreadable.into_iter().filter(|file| self.user_files.contains(&file.path)).collect();
+        match lookup {
             Lookup::Known { path, line } => {
                 log.debug(&format!("host key for '{}' found at {}:{line}", self.name, path.display()));
                 Verdict::Accept
@@ -96,33 +107,46 @@ impl Policy {
             Lookup::Changed { path, line, recorded } => {
                 Verdict::Reject(changed_message(&self.name, &kind, &fp, &recorded, &path, line))
             }
-            Lookup::OtherTypes(types) => self.unknown(key, &kind, &fp, Some(&types), log),
-            Lookup::Unknown => self.unknown(key, &kind, &fp, None, log),
+            Lookup::OtherTypes(types) => self.unknown(key, &kind, &fp, Some(&types), &unseen, log),
+            Lookup::Unknown => self.unknown(key, &kind, &fp, None, &unseen, log),
         }
     }
 
-    fn unknown(&self, key: &PublicKey, kind: &str, fp: &str, other: Option<&[String]>, log: &Log) -> Verdict {
+    fn unknown(
+        &self,
+        key: &PublicKey,
+        kind: &str,
+        fp: &str,
+        other: Option<&[String]>,
+        unseen: &[Unreadable],
+        log: &Log,
+    ) -> Verdict {
         let accept_hint = "if it is the right key, connect once with -o StrictHostKeyChecking=accept-new";
+        let note = unseen_note(unseen);
         match self.strict {
             StrictHostKeyChecking::Yes => Verdict::Reject(format!(
                 "no {kind} host key is known for '{}' and StrictHostKeyChecking is yes.\n  \
-                 The server's key fingerprint is {fp};\n  {accept_hint}.",
+                 The server's key fingerprint is {fp};\n  {accept_hint}.{note}",
                 self.name
             )),
+            // A key that is not seen cannot be called new (T-028).
+            StrictHostKeyChecking::AcceptNew | StrictHostKeyChecking::No if !unseen.is_empty() => {
+                Verdict::Reject(unverifiable(&self.name, kind, fp, unseen))
+            }
             StrictHostKeyChecking::AcceptNew | StrictHostKeyChecking::No => {
-                self.record(key, kind, log);
+                self.record(key, kind, fp, log);
                 Verdict::Accept
             }
             StrictHostKeyChecking::Ask if self.batch_mode => Verdict::Reject(format!(
                 "host key verification failed: '{}' is not a known host and BatchMode forbids asking.\n  \
-                 Its {kind} key fingerprint is {fp};\n  {accept_hint}.",
+                 Its {kind} key fingerprint is {fp};\n  {accept_hint}.{note}",
                 self.name
             )),
-            StrictHostKeyChecking::Ask => self.ask(key, kind, fp, other, log),
+            StrictHostKeyChecking::Ask => self.ask(key, kind, fp, other, &note, log),
         }
     }
 
-    fn ask(&self, key: &PublicKey, kind: &str, fp: &str, other: Option<&[String]>, log: &Log) -> Verdict {
+    fn ask(&self, key: &PublicKey, kind: &str, fp: &str, other: Option<&[String]>, note: &str, log: &Log) -> Verdict {
         let mut question = format!(
             "The authenticity of host '{}' can't be established.\n{kind} key fingerprint is {fp}.\n",
             self.name
@@ -132,6 +156,10 @@ impl Policy {
                 "Keys of other types ({}) are known for this host; this one is not.\n",
                 types.join(", ")
             ));
+        }
+        if !note.is_empty() {
+            question.push_str(note.trim_start());
+            question.push('\n');
         }
         question.push_str("Are you sure you want to continue connecting (yes/no/[fingerprint])? ");
         loop {
@@ -149,7 +177,7 @@ impl Policy {
             };
             let answer = answer.trim();
             if answer.eq_ignore_ascii_case("yes") || answer == fp {
-                self.record(key, kind, log);
+                self.record(key, kind, fp, log);
                 return Verdict::Accept;
             }
             if answer.eq_ignore_ascii_case("no") || answer.is_empty() {
@@ -159,25 +187,62 @@ impl Policy {
         }
     }
 
-    fn record(&self, key: &PublicKey, kind: &str, log: &Log) {
+    fn record(&self, key: &PublicKey, kind: &str, fp: &str, log: &Log) {
         let Some(path) = self.user_files.first() else {
-            log.info(&format!(
-                "the {kind} key for '{}' was accepted but not recorded: no known_hosts file is configured",
-                self.name
-            ));
+            let why = self.no_user_file.unwrap_or("no known_hosts file is configured");
+            log.info(&not_recorded(&self.name, kind, fp, &NotRecorded::NoFile(why)));
             return;
         };
         match known_hosts::append(path, &self.name, key) {
             Ok(()) => {
                 log.info(&format!("Warning: Permanently added '{}' ({kind}) to the list of known hosts.", self.name))
             }
-            Err(e) => log.error(&format!(
-                "could not record the host key for '{}' in {}: {e}; it will be checked again next time",
-                self.name,
-                path.display()
-            )),
+            Err(e) => log.info(&not_recorded(&self.name, kind, fp, &NotRecorded::Write { path, error: &e })),
         }
     }
+}
+
+/// Why a key that was accepted is not recorded.
+#[derive(Debug)]
+pub enum NotRecorded<'a> {
+    /// No user file: the words say why.
+    NoFile(&'a str),
+    /// The first user file could not be written.
+    Write { path: &'a Path, error: &'a std::io::Error },
+}
+
+/// The note on a key that is accepted for this connection only (T-028): a
+/// later run meets the same question, and cannot tell a changed key.
+pub fn not_recorded(name: &str, kind: &str, fp: &str, why: &NotRecorded<'_>) -> String {
+    let why = match why {
+        NotRecorded::NoFile(why) => why.to_string(),
+        NotRecorded::Write { path, error } => format!("{} could not be written: {error}", path.display()),
+    };
+    format!(
+        "the {kind} key of '{name}' ({fp}) is accepted for this connection only: it was not recorded, as {why}. \
+         The next run cannot tell a changed key from a new one."
+    )
+}
+
+/// The refusal of a key that no readable file knows, while a user file
+/// cannot be read: the key may be recorded there, or a changed one.
+fn unverifiable(name: &str, kind: &str, fp: &str, unseen: &[Unreadable]) -> String {
+    let files: Vec<String> = unseen.iter().map(|f| format!("{} ({})", f.path.display(), f.error)).collect();
+    format!(
+        "the {kind} host key for '{name}' ({fp}) cannot be verified: {} cannot be read, and a key recorded \
+         there is not seen. Refusing to connect.\n  \
+         Make the file readable, or name a readable one with -o UserKnownHostsFile=FILE.",
+        files.join(", ")
+    )
+}
+
+/// One line for each user file that cannot be read, for a refusal or the
+/// question; empty when each could be read.
+fn unseen_note(unseen: &[Unreadable]) -> String {
+    unseen
+        .iter()
+        .map(|f| format!("\n  {} cannot be read ({}): a key recorded there is not seen.", f.path.display(), f.error))
+        .collect()
 }
 
 fn changed_message(
@@ -208,7 +273,32 @@ fn changed_message(
 
 #[cfg(test)]
 mod tests {
-    use super::Pin;
+    use std::path::Path;
+
+    use super::{not_recorded, NotRecorded, Pin};
+
+    /// The three reasons of a key that is not recorded each name the cause
+    /// and the risk (T-028).
+    #[test]
+    fn not_recorded_names_the_cause_and_the_risk() {
+        let fp = "SHA256:abc";
+        let home = not_recorded("h", "ED25519", fp, &NotRecorded::NoFile("HOME is not set"));
+        let none = not_recorded("h", "ED25519", fp, &NotRecorded::NoFile("UserKnownHostsFile is none"));
+        let error = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "Permission denied");
+        let path = Path::new("/ro/known_hosts");
+        let write = not_recorded("h", "ED25519", fp, &NotRecorded::Write { path, error: &error });
+        for (text, cause) in [
+            (&home, "HOME is not set"),
+            (&none, "UserKnownHostsFile is none"),
+            (&write, "/ro/known_hosts could not be written: Permission denied"),
+        ] {
+            assert!(text.contains("accepted for this connection only"), "{text}");
+            assert!(text.contains("not recorded") && text.contains(cause), "{text}");
+            assert!(text.contains("cannot tell a changed key"), "{text}");
+            assert!(text.contains(fp) && text.contains("'h'"), "{text}");
+            assert!(!text.contains("checked again"), "{text}");
+        }
+    }
 
     #[test]
     fn a_pin_keeps_the_first_key_and_refuses_another() {

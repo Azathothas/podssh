@@ -34,7 +34,7 @@ reasons (`crates/podssh-ws/src/session.rs:307`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:92`);
 `known_hosts` lines, in a private function
-(`crates/podssh-ssh/src/known_hosts.rs:120`); the escape filter
+(`crates/podssh-ssh/src/known_hosts.rs:198`); the escape filter
 (`crates/podssh-ssh/src/escape.rs:30`); IRC lines and frames
 (`crates/podssh-core/src/irc/encode.rs:88`,
 `crates/podssh-core/src/irc/framing.rs:110`); the command line
@@ -112,10 +112,10 @@ counted and typed by hand.
 ## Premise
 
 Read: `scripts/interop.sh:22-24` defines `ok`, `bad` and `skipped`, and
-`scripts/interop.sh:458-459` fails only when a check failed. With no
+`scripts/interop.sh:475-476` fails only when a check failed. With no
 `sshd.pam` in the image, the PAM check becomes `skip` and the gate stays
 green (`scripts/interop.sh:253-259`). A name carries values of the run (the
-seconds at `scripts/interop.sh:369`, the tty at `:353`), so it is not a
+seconds at `scripts/interop.sh:386`, the tty at `:370`), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
@@ -290,7 +290,7 @@ Read, the bounds today:
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
   `crates/podssh-relay/src/open.rs:25-29`, `crates/podssh-ssh/src/session.rs:21`.
 - No limit: a `known_hosts` file is read whole
-  (`crates/podssh-ssh/src/known_hosts.rs:101-106`); the IRC buffer (T-096).
+  (`crates/podssh-ssh/src/known_hosts.rs:162-168`); the IRC buffer (T-096).
 - Two texts disagreed until T-024. The comment on the SSH window
   (`crates/podssh-ssh/src/run.rs` lines 25-28 at `80f20bf`) said that the
   relay drops a frame when more than 1 MiB waits (`1011 relay
@@ -368,7 +368,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:69`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:107-183`, `crates/podssh-ws/src/names.rs:8-57`).
-- `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:145-201`).
+- `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:223-279`).
 - The escape filter, which keeps its state from one read to the next
   (`crates/podssh-ssh/src/escape.rs:30-70`).
 - The sanitizer (`crates/podssh-ws/src/text.rs:12-57`).
@@ -443,10 +443,10 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:36-43` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:239-256`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:240-257`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
-  (`crates/podssh-ssh/src/options.rs:280`, enforced at
-  `crates/podssh-ssh/src/run.rs:194-200`); a reply, 30 s
+  (`crates/podssh-ssh/src/options.rs:284`, enforced at
+  `crates/podssh-ssh/src/run.rs:195-201`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability

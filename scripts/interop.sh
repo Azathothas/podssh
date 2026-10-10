@@ -270,6 +270,23 @@ env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile
     -o StrictHostKeyChecking=no -o IdentityAgent=none $K "$T" true </dev/null >"$W/out" 2>"$W/err"
 expect_rc "a changed key is refused even with StrictHostKeyChecking=no" 255 $? "$W/err"
 grep -q "HAS CHANGED" "$W/err" && ok "the changed-key warning is shown" || bad "no warning" "$W/err"
+# T-028: a user file that cannot be read is no empty file under accept-new,
+# and a key that cannot be recorded is said to hold for this connection only.
+mkdir -p "$W/kh_dir"
+# shellcheck disable=SC2086
+env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile="$W/kh_dir" \
+    -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes "$T" true \
+    </dev/null >"$W/out" 2>"$W/err"
+expect_rc "T-028: accept-new refuses a key when the user file cannot be read" 255 $? "$W/err"
+grep -q "kh_dir" "$W/err" && grep -q "cannot be verified" "$W/err" \
+    && ok "T-028: the refusal names the file that cannot be read" || bad "T-028: the file is not named" "$W/err"
+# shellcheck disable=SC2086
+env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile=/proc/podssh-known-hosts \
+    -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes "$T" true \
+    </dev/null >"$W/out" 2>"$W/err"
+expect_rc "T-028: accept-new connects when the key cannot be recorded" 0 $? "$W/err"
+grep -q "not recorded" "$W/err" && grep -q "for this connection only" "$W/err" \
+    && ok "T-028: the note says that the key was not recorded" || bad "T-028: no note" "$W/err"
 
 echo
 echo "== % tokens, against OpenSSH's own expansion (ssh -G)"

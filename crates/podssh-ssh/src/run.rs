@@ -179,6 +179,7 @@ where
         name: known_hosts::host_name(&alias, hop.port),
         strict: opts.strict_host_key_checking,
         user_files: opts.user_known_hosts.clone(),
+        no_user_file: opts.no_user_known_hosts,
         global_files: opts.global_known_hosts.clone(),
         batch_mode: opts.batch_mode,
         pin: if is_destination { opts.host_key_pin.clone() } else { None },

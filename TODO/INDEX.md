@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**274 entries: 108 open, 0 partial, 22 blocked, 144 done.**
+**274 entries: 107 open, 0 partial, 22 blocked, 145 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 27 | 0 | 18 | 108 | 153 |
+| P2 | 26 | 0 | 18 | 109 | 153 |
 | P3 | 79 | 0 | 4 | 19 | 102 |
-| **All** | 108 | 0 | 22 | 144 | 274 |
+| **All** | 107 | 0 | 22 | 145 | 274 |
 
 ## Entries
 
@@ -101,7 +101,7 @@ repository and CI).
 | [T-025](ssh.md) | P2 | M | backlog | feature | open | Try a dropped forward session again when it is safe, by the relay's close reason (GitHub #17) |
 | [T-026](ssh.md) | P2 | S | backlog | defect | done | A session that ends with no exit status never reads as a success |
 | [T-027](ssh.md) | P2 | M | backlog | feature | open | Host certificates and `@cert-authority` in `known_hosts` (GitHub #29) |
-| [T-028](ssh.md) | P2 | S | backlog | defect | open | `accept-new` when `known_hosts` cannot be written: verify, and say that the key was not recorded |
+| [T-028](ssh.md) | P2 | S | backlog | defect | done | `accept-new` when `known_hosts` cannot be written: verify, and say that the key was not recorded |
 | [T-029](ssh.md) | P2 | S | backlog | defect | open | Two processes that record the same new host key at the same time |
 | [T-030](ssh.md) | P3 | S | backlog | chore | open | Each hop of a `-J` chain checks its own host key |
 | [T-031](ssh.md) | P2 | S | backlog | feature | open | Accept only the host key that a fingerprint names, for scripts with no `known_hosts` |

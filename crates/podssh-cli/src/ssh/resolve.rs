@@ -236,6 +236,13 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     )?;
     let global_known_hosts =
         known("-o GlobalKnownHostsFile=", &settings.global_known_hosts, default_global_known_hosts())?;
+    // Why no user file is read: a key accepted then is not recorded (T-028).
+    let no_user_known_hosts = match &settings.user_known_hosts {
+        Some(files) if files.iter().any(|f| f.eq_ignore_ascii_case("none")) => Some("UserKnownHostsFile is none"),
+        None if env.home.is_none() && cfg!(windows) => Some("neither HOME nor USERPROFILE is set"),
+        None if env.home.is_none() => Some("HOME is not set"),
+        _ => None,
+    };
 
     let mut methods = settings
         .preferred_auth
@@ -379,6 +386,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     options.agent = agent;
     options.strict_host_key_checking = settings.strict.unwrap_or(StrictHostKeyChecking::Ask);
     options.user_known_hosts = user_known_hosts;
+    options.no_user_known_hosts = no_user_known_hosts;
     options.global_known_hosts = global_known_hosts;
     options.batch_mode = settings.batch_mode.unwrap_or(false);
     options.methods = methods;

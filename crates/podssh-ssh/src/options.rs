@@ -186,6 +186,9 @@ pub struct Options {
     pub strict_host_key_checking: StrictHostKeyChecking,
     /// `UserKnownHostsFile`: read, and the first one is where new keys go.
     pub user_known_hosts: Vec<PathBuf>,
+    /// Why `user_known_hosts` is empty, when it is: the note on a key that
+    /// is accepted and not recorded says it.
+    pub no_user_known_hosts: Option<&'static str>,
     /// `GlobalKnownHostsFile`: read only.
     pub global_known_hosts: Vec<PathBuf>,
     /// `BatchMode`: never prompt.
@@ -270,6 +273,7 @@ impl Options {
             agent: Agent::FromEnvironment,
             strict_host_key_checking: StrictHostKeyChecking::Ask,
             user_known_hosts: Vec::new(),
+            no_user_known_hosts: None,
             global_known_hosts: Vec::new(),
             batch_mode: false,
             methods: vec![Method::PublicKey, Method::KeyboardInteractive, Method::Password],

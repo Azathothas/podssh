@@ -637,6 +637,13 @@ rules behind it:
   watches does not stop podssh for ever.
 - `-o BatchMode=yes` makes each prompt a refusal.
 - A changed host key is refused, also on a terminal.
+- Under `accept-new` and `no`, a key that podssh cannot verify is refused
+  (T-028): one that no readable file knows while a user `known_hosts` file
+  exists and cannot be read (a directory, a FIFO, no permission), as a key
+  recorded there is not seen. A key that is accepted and not recorded
+  (`HOME` is not set, `UserKnownHostsFile none`, or the write failed) holds
+  for this connection only, and podssh says so: the next run cannot tell a
+  changed key from a new one. `UserKnownHostsFile /dev/null` reads as empty.
 - A duration is parsed as a whole string. A malformed duration is an error,
   never zero. A time limit applies to the whole operation, not only to the
   dial.

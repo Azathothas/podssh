@@ -48,7 +48,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:130-154`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:258-277`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:261-280`) and
    `docs/cli.md:315-333` in the same commit.
 
 ## Decision
@@ -220,7 +220,7 @@ has a local source that
 opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:83-101`,
 `crates/podssh-relay/src/pool.rs:48-61`); the token cache
 (`crates/podssh-relay/src/cache.rs:78-97`, which returns the token itself in `Cached`, lines
-29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:54-60`, 90-98); the attachment
+29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:62-68`, 90-98); the attachment
 (`crates/podssh-cli/src/non_interactive.rs:74-76`); the proxy, shown with no credentials
 (`crates/podssh-ws/src/dial.rs:43-48`, 131-134).
 
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:85-88` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:336-347`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:258-277`) and `docs/cli.md:315-333` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:261-280`) and `docs/cli.md:315-333` in the same commit.
 
 ## Decision
 

@@ -8,7 +8,7 @@
 //! and keeps line numbers so a message can point at the line that matched.
 
 use std::fs::OpenOptions;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
@@ -50,6 +50,14 @@ pub enum Lookup {
     Unknown,
 }
 
+/// A `known_hosts` file that exists and cannot be read: a key recorded there
+/// is not seen, so a key that is not found cannot be called new (T-028).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Unreadable {
+    pub path: PathBuf,
+    pub error: String,
+}
+
 /// The name a host is filed under: `host` on port 22, `[host]:port` otherwise.
 pub fn host_name(host: &str, port: u16) -> String {
     if port == 22 {
@@ -60,9 +68,20 @@ pub fn host_name(host: &str, port: u16) -> String {
 }
 
 /// Look `key` up for `name` (see [`host_name`]) across `files`, in order.
-/// Missing or unreadable files are skipped: having no `known_hosts` is normal.
+/// Missing files are skipped: having no `known_hosts` is normal. A file that
+/// cannot be read is skipped too; [`lookup_all`] names it.
 pub fn lookup(files: &[PathBuf], name: &str, key: &PublicKey) -> Lookup {
-    let entries = entries_for(files, name);
+    lookup_all(files, name, key).0
+}
+
+/// [`lookup`], and each file that exists and cannot be read.
+pub fn lookup_all(files: &[PathBuf], name: &str, key: &PublicKey) -> (Lookup, Vec<Unreadable>) {
+    let (entries, unreadable) = scan(files, name);
+    (judge(&entries, key), unreadable)
+}
+
+/// What the entries of a host say about `key`.
+fn judge(entries: &[Entry], key: &PublicKey) -> Lookup {
     if let Some(e) = entries.iter().find(|e| e.marker == Some(Marker::Revoked) && e.key.key_data() == key.key_data()) {
         return Lookup::Revoked { path: e.path.clone(), line: e.line };
     }
@@ -96,13 +115,22 @@ pub fn recorded_algorithms(files: &[PathBuf], name: &str) -> Vec<russh::keys::Al
 
 /// Every parsable entry in `files` whose host patterns match `name`.
 pub fn entries_for(files: &[PathBuf], name: &str) -> Vec<Entry> {
+    scan(files, name).0
+}
+
+/// [`entries_for`], and each file that exists and cannot be read.
+pub fn scan(files: &[PathBuf], name: &str) -> (Vec<Entry>, Vec<Unreadable>) {
     let mut out = Vec::new();
+    let mut unreadable = Vec::new();
     for path in files {
-        let Ok(mut file) = std::fs::File::open(path) else { continue };
-        let mut raw = Vec::new();
-        if file.read_to_end(&mut raw).is_err() {
-            continue;
-        }
+        let raw = match read_file(path) {
+            Ok(Some(raw)) => raw,
+            Ok(None) => continue,
+            Err(error) => {
+                unreadable.push(Unreadable { path: path.clone(), error });
+                continue;
+            }
+        };
         let text = String::from_utf8_lossy(&raw);
         for (index, line) in text.lines().enumerate() {
             if let Some((marker, patterns, key)) = parse_line(line) {
@@ -112,7 +140,57 @@ pub fn entries_for(files: &[PathBuf], name: &str) -> Vec<Entry> {
             }
         }
     }
-    out
+    (out, unreadable)
+}
+
+/// The bytes of one file: `None` when it is missing, which is normal, and
+/// the error when it exists and cannot be read. The type is read before the
+/// open: an open of a FIFO for reading blocks, and a device can be endless.
+fn read_file(path: &Path) -> Result<Option<Vec<u8>>, String> {
+    if is_null_device(path) {
+        // `UserKnownHostsFile /dev/null` is a common way to keep nothing.
+        return Ok(Some(Vec::new()));
+    }
+    let missing = |e: &std::io::Error| matches!(e.kind(), ErrorKind::NotFound | ErrorKind::NotADirectory);
+    match std::fs::metadata(path) {
+        Err(e) if missing(&e) => return Ok(None),
+        Err(e) => return Err(e.to_string()),
+        Ok(meta) if meta.is_dir() => return Err("it is a directory".into()),
+        Ok(meta) if !meta.is_file() => return Err("it is not a regular file".into()),
+        Ok(_) => {}
+    }
+    let mut raw = Vec::new();
+    match std::fs::File::open(path).and_then(|mut file| file.read_to_end(&mut raw)) {
+        Ok(_) => Ok(Some(raw)),
+        // Removed between the two looks: missing.
+        Err(e) if missing(&e) => Ok(None),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+/// The null device, by its name, or on Unix by its device number too.
+fn is_null_device(path: &Path) -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{FileTypeExt, MetadataExt};
+        if path == Path::new("/dev/null") {
+            return true;
+        }
+        match (std::fs::metadata(path), std::fs::metadata("/dev/null")) {
+            (Ok(meta), Ok(null)) => meta.file_type().is_char_device() && meta.rdev() == null.rdev(),
+            _ => false,
+        }
+    }
+    #[cfg(windows)]
+    {
+        let text = path.as_os_str().to_string_lossy().to_ascii_lowercase();
+        matches!(text.trim_end_matches(':'), "nul" | r"\\.\nul")
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = path;
+        false
+    }
 }
 
 /// One line: `[marker] patterns keytype base64 [comment]`. `None` for blank

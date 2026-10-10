@@ -60,7 +60,10 @@ const SSH: &[&str] = &[
     "Host keys are checked against the known_hosts files. On a terminal, podssh asks about an unknown \
      key. With no terminal and no SSH_ASKPASS, it refuses the key and names the remedy: \
      -o StrictHostKeyChecking=accept-new records a new key with no question. A changed key is always \
-     refused, and podssh shows both fingerprints.",
+     refused, and podssh shows both fingerprints. Under accept-new and no, a user known_hosts file that \
+     exists and cannot be read makes an unknown key a refusal, as a key recorded there is not seen. A \
+     key that cannot be recorded (no HOME, UserKnownHostsFile none, a failed write) holds for this \
+     connection only, and podssh says so.",
     "Authentication tries the agent and the identity files, then keyboard-interactive and password. \
      Prompts go to the terminal or to SSH_ASKPASS. With -o BatchMode=yes, each prompt is an error.",
     "-t asks for a pty when there is a local terminal. -tt asks for one also when there is none, so \

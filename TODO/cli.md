@@ -37,7 +37,7 @@ OpenSSH 10.3p1 (`ssh -G -F none`, offline) gives `hostname 2001:db8::1` for
 Read: `parse_hop` already removes the brackets
 (`crates/podssh-cli/src/ssh/hop.rs:29-77`). The refusal is `check_host`
 (`crates/podssh-ws/src/names.rs:8-24`, re-exported by `podssh_relay::relay`), called at
-`crates/podssh-cli/src/ssh/resolve.rs:318`, `crates/podssh-cli/src/proxy.rs:106`
+`crates/podssh-cli/src/ssh/resolve.rs:325`, `crates/podssh-cli/src/proxy.rs:106`
 and in `forward_path` (`crates/podssh-relay/src/relay.rs:139-152`); since this
 entry, each calls `check_target` there. Tests assert the refusal:
 `crates/podssh-relay/src/relay.rs:255`, and `crates/podssh-cli/tests/proxy.rs`
@@ -62,7 +62,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
    relay hosts, which are TLS names (`crates/podssh-relay/src/relay.rs:124-137`,
    `crates/podssh-relay/src/pool.rs:87`).
 3. `forward_path` writes the literal in the measured form. `podssh ssh` uses
-   the new check at `crates/podssh-cli/src/ssh/resolve.rs:318`, and refuses
+   the new check at `crates/podssh-cli/src/ssh/resolve.rs:325`, and refuses
    `-4` with an IPv6 literal (64).
 4. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:98-108`): `HOST PORT` takes
    a bare literal (the `%h %p` form) or `[V6]`. One word takes `[V6]:PORT` and
@@ -72,7 +72,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
    not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:42`,
    `crates/podssh-cli/src/proxy.rs:88`, where it is used since this entry). `known_hosts` keeps the literal as
    typed: `host_name` writes `[V6]:PORT` as OpenSSH does
-   (`crates/podssh-ssh/src/known_hosts.rs:53-60`).
+   (`crates/podssh-ssh/src/known_hosts.rs:61-68`).
 6. Same commit: `docs/cli.md` (lines 62-75 at `3cbf215`), the help at
    `crates/podssh-cli/src/positionals.rs:20` and
    `crates/podssh-cli/src/positionals.rs:83`, an example in
@@ -491,11 +491,11 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:181-185`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:32-195`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:32-198`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-90`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:384-392`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:353-367`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:387-395`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:356-370`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:98-103`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts.rs:386-399`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:640-642`;
+   it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:647-649`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -960,7 +960,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:71-102`, called at
    `crates/podssh-cli/src/tree.rs:386-390`).
 4. `docs/cli.md:123-128` and a note of the manual
-   (`crates/podssh-cli/src/man/notes.rs:97-99`) state the rule.
+   (`crates/podssh-cli/src/man/notes.rs:100-102`) state the rule.
 
 ## Prove
 
@@ -1044,7 +1044,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:163-166`
    names `podssh keygen -p`; `docs/cli.md:364-376`, the notes of `keygen`
-   (`crates/podssh-cli/src/man/notes.rs:291-299`), `docs/STATUS.md`.
+   (`crates/podssh-cli/src/man/notes.rs:294-302`), `docs/STATUS.md`.
 
 ## Decision
 
@@ -1102,9 +1102,9 @@ on a scratch file that holds one public host key (offline):
   keeps `FILE.old`, and warns that `FILE.old` holds the names.
 
 Read: podssh matches hashed lines with HMAC-SHA1
-(`crates/podssh-ssh/src/known_hosts.rs:142-176`), finds the lines of a host
-with their numbers (`crates/podssh-ssh/src/known_hosts.rs:97-116`), and
-appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs:203-236`).
+(`crates/podssh-ssh/src/known_hosts.rs:220-254`), finds the lines of a host
+with their numbers (`scan`, `crates/podssh-ssh/src/known_hosts.rs:121-144`), and
+appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs:281-314`).
 The default files are the ones of `podssh ssh`
 (`crates/podssh-cli/src/man/data.rs:123`).
 
@@ -1113,7 +1113,7 @@ The default files are the ones of `podssh ssh`
 1. Rows in `KEYGEN_FLAGS` (`crates/podssh-cli/src/flags.rs:357-377`):
    `-F HOST`, `-R HOST` and `-H`. `-f FILE` selects the file; else the first
    user `known_hosts` file. Accept `[host]:port`, as `host_name` writes it
-   (`crates/podssh-ssh/src/known_hosts.rs:53-60`).
+   (`crates/podssh-ssh/src/known_hosts.rs:61-68`).
 2. `-F`: reuse `entries_for`, and print the lines of OpenSSH; exit 1 when no
    line matches.
 3. `-R` and `-H`: one rewrite: a new file in the same directory (`create_new`,
@@ -1185,7 +1185,7 @@ that crate as `russh::keys::ssh_key` (`crates/podssh-ssh/src/keygen.rs:11-14`).
 3. `verify`, `check-novalidate`, `find-principals`, `match-principals`: parse
    the allowed-signers format of ssh-keygen(1) (principals, `namespaces=`,
    `valid-after=`, `valid-before=`, `cert-authority`), with the pattern
-   matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:179-201`).
+   matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:257-279`).
    Print the lines and the exit codes of OpenSSH.
 4. Refuse `-r` (a key revocation list) by name until podssh reads one.
 5. Same commit: `docs/cli.md:364-376`, the notes of `keygen`, `docs/STATUS.md`.

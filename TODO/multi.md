@@ -32,9 +32,9 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:70-95`).
   Two hosts cannot be told apart.
 - Read: a host-key prompt waits for the user
-  (`crates/podssh-ssh/src/hostkey.rs:125-160`); N prompts at once cannot
+  (`crates/podssh-ssh/src/hostkey.rs:149-188`); N prompts at once cannot
   work. `known_hosts` is appended with no lock
-  (`crates/podssh-ssh/src/known_hosts.rs:206-236`).
+  (`crates/podssh-ssh/src/known_hosts.rs:284-314`).
 - Read: with no cached token, each session mints one
   (`crates/podssh-relay/src/token.rs:131-150`); the relay allows 120 attempts
   with no token for each minute and address (`docs/relay.md:128`).
@@ -54,10 +54,10 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    (`crates/podssh-ssh/src/log.rs:12-15`). Each line gets `HOST: `. With
    `--output-dir`, the bytes go unchanged to `HOST.out` and `HOST.err`, and
    the status to `HOST.status`.
-4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/resolve.rs:383`).
+4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/resolve.rs:391`).
    An unknown host key refuses that host and gives its fingerprint and
    `-o StrictHostKeyChecking=accept-new`. stdin is not read
-   (`crates/podssh-cli/src/ssh/resolve.rs:397`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:405`).
 5. Get the token once, before the fan-out. Serialize `known_hosts::append`
    in the process with a mutex; T-029 covers two processes.
 6. The exit status: the largest status of the hosts, and 255 for a host that
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:29-77`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:654-715`); they cannot define a group.
+  (`docs/cli.md:661-722`); they cannot define a group.
 
 ## Approach
 
@@ -305,7 +305,7 @@ command must be shown, with its values in it, before it runs.
 
 - Read: the remote command is the words of the command line joined with
   spaces, as OpenSSH joins them
-  (`crates/podssh-cli/src/ssh/resolve.rs:470-471`); podssh quotes nothing.
+  (`crates/podssh-cli/src/ssh/resolve.rs:478-479`); podssh quotes nothing.
 - Read: podssh can ask on the controlling terminal or through `SSH_ASKPASS`,
   and refuses when nobody can answer (`crates/podssh-ssh/src/prompt.rs:48-82`).
 - Read: no settings file exists yet; T-048 adds it.
@@ -472,8 +472,8 @@ name is copied by hand.
 ## Premise
 
 - Read: `podssh ssh -t HOST -- docker exec -it NAME sh` works today, as a
-  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:256-264`,
-  `crates/podssh-cli/src/ssh/resolve.rs:470-481`). Only the list is missing.
+  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:263-271`,
+  `crates/podssh-cli/src/ssh/resolve.rs:478-489`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
   finds it (`AGENTS.md:198-202`). Here the programs run on the server, for a
   request of the user.

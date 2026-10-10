@@ -403,7 +403,7 @@ AF_UNIX.
    variable that refuses each local listener (`-L`, `-D`, T-039, T-034). Add
    it to `VARIABLES` in `crates/podssh-cli/src/man/facts.rs`.
 6. In the same commit, change the rows, the keywords, the note at
-   `crates/podssh-cli/src/man/notes.rs:79-80`, the test at
+   `crates/podssh-cli/src/man/notes.rs:82-83`, the test at
    `crates/podssh-cli/tests/flag_table.rs:82-98`, and the documents that the
    Premise quotes.
 
@@ -551,7 +551,7 @@ Measured, offline, with `MSYS_NO_PATHCONV=1` and `PODSSH_OFFLINE=1`:
 Read:
 
 - `request` parses the value of `-W` with `parse_hop`
-  (`crates/podssh-cli/src/ssh/resolve.rs:458-468`), which reads a value with
+  (`crates/podssh-cli/src/ssh/resolve.rs:466-476`), which reads a value with
   no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/hop.rs:40-53`).
 - russh 0.64.1 has `Handle::channel_open_direct_streamlocal` (the channel
   `direct-streamlocal@openssh.com`). podssh opens only `direct-tcpip`
@@ -742,7 +742,7 @@ at the connection step (exit 255), after the parse:
 | `db.internal:5432`, `[::1]:5432` | accepted | accepted |
 
 Read: `request` parses the value with `parse_hop`
-(`crates/podssh-cli/src/ssh/resolve.rs:458-468`), which reads a value with no
+(`crates/podssh-cli/src/ssh/resolve.rs:466-476`), which reads a value with no
 `:` as a host on port 22, and splits a value at its one `:`
 (`crates/podssh-cli/src/ssh/hop.rs:40-53`). `forward::open` opens
 `direct-tcpip` only (`crates/podssh-ssh/src/forward.rs:11-20`).
