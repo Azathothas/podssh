@@ -72,6 +72,19 @@ fn text(seen: &Arc<Mutex<Vec<u8>>>) -> String {
     String::from_utf8_lossy(&seen.lock().unwrap()).into_owned()
 }
 
+/// All that `seen` will hold, once its stream has ended: a process ends
+/// before its reader has taken the last bytes from the pipe, so what the
+/// reader holds when the exit is seen can be short, or nothing. The
+/// collector's thread drops its handle at the end of the stream.
+fn all(seen: &Arc<Mutex<Vec<u8>>>) -> String {
+    let started = Instant::now();
+    while Arc::strong_count(seen) > 1 {
+        assert!(started.elapsed() < LIMIT, "the stream did not end: {:?}", text(seen));
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    text(seen)
+}
+
 /// Wait until `seen` holds `want`, or panic with `what`.
 fn wait_for(seen: &Arc<Mutex<Vec<u8>>>, want: &str, what: &str) {
     let started = Instant::now();
@@ -133,9 +146,9 @@ fn both_ways(listen: &str, connect: Option<&str>) -> String {
     wait_for(&client_out, "from the server\n", "the server's bytes at the client");
     assert_eq!(ended(&mut client, "the client"), 0, "{}", text(&client_err));
     assert_eq!(ended(&mut server, "the server"), 0, "{}", text(&server_err));
-    assert_eq!(text(&server_out), "from the client\n");
-    assert_eq!(text(&client_out), "from the server\n");
-    text(&server_err)
+    assert_eq!(all(&server_out), "from the client\n");
+    assert_eq!(all(&client_out), "from the server\n");
+    all(&server_err)
 }
 
 #[test]
@@ -191,7 +204,7 @@ fn podssh_listen_no_turns_listening_off_before_anything_binds() {
         let mut server = spawn(&[&listen, "stdio"], &[("PODSSH_LISTEN", "no")]);
         let err = collect(server.stderr.take().unwrap());
         assert_eq!(ended(&mut server, "the server"), 78, "{}", text(&err));
-        assert!(text(&err).contains("PODSSH_LISTEN=no"), "{}", text(&err));
+        assert!(all(&err).contains("PODSSH_LISTEN=no"), "{}", text(&err));
     }
     assert!(!std::path::Path::new(&path).exists(), "nothing was bound");
     let mut keep = spawn(&["--keep-listening", "stdio", "exec:x"], &[]);
@@ -214,7 +227,7 @@ fn a_file_that_is_not_a_socket_is_kept_and_a_socket_that_answers_is_another_s() 
     let mut second = spawn(&[&format!("unix-listen:{path}"), "stdio"], &[]);
     let second_err = collect(second.stderr.take().unwrap());
     assert_eq!(ended(&mut second, "the second server"), 69, "{}", text(&second_err));
-    assert!(text(&second_err).contains("listens on it already"), "{}", text(&second_err));
+    assert!(all(&second_err).contains("listens on it already"), "{}", text(&second_err));
     let _ = first.kill();
     let _ = first.wait();
     let _ = std::fs::remove_file(&path);
@@ -247,7 +260,7 @@ fn keep_listening_joins_each_client_to_a_new_instance_of_the_other_side() {
         let out = collect(client.stdout.take().unwrap());
         drop(client.stdin.take());
         assert_eq!(ended(&mut client, "a client"), 0, "client {n}: {}", text(&server_err));
-        assert!(text(&out).starts_with("podssh "), "client {n}: {:?}", text(&out));
+        assert!(all(&out).starts_with("podssh "), "client {n}: {:?}", text(&out));
     }
     assert!(server.try_wait().unwrap().is_none(), "the server still listens");
     #[cfg(unix)]

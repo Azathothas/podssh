@@ -108,8 +108,14 @@ impl Run {
             }
             std::thread::sleep(Duration::from_millis(20));
         };
-        // The readers catch up with the last bytes.
-        std::thread::sleep(Duration::from_millis(200));
+        // A process ends before its readers have taken the last bytes from
+        // the pipes; each reader drops its handle at the end of its stream.
+        for seen in [&self.out, &self.err] {
+            let reading = Instant::now();
+            while Arc::strong_count(seen) > 1 && reading.elapsed() < LIMIT {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+        }
         let err = self.err.lock().unwrap().clone();
         let _ = std::fs::remove_dir_all(&self.home);
         (code, err)
