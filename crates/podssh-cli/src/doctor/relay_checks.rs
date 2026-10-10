@@ -163,7 +163,13 @@ async fn token_check(report: &mut Report<'_>, at: &Relay, trust: &Trust) -> bool
             let detail = match (token.origin, &token.cache_warning) {
                 (Origin::Environment, _) => format!("from {} (not shown)", token::TOKEN_ENV),
                 (Origin::Cache, _) => format!("a cached token minted at {minted} (not shown)"),
-                (Origin::Minted, None) => format!("minted at {} and cached (not shown)", at.host),
+                (Origin::Minted, None) if podssh_relay::cache::chosen() == podssh_relay::cache::Chosen::Nothing => {
+                    format!("minted at {} (not shown), and not cached: PODSSH_CACHE_DIR is none", at.host)
+                }
+                (Origin::Minted, None) => match &token.cache_note {
+                    Some(note) => format!("minted at {} and cached (not shown); {note}", at.host),
+                    None => format!("minted at {} and cached (not shown)", at.host),
+                },
                 (Origin::Minted, Some(why)) => {
                     format!("minted at {} (not shown), but it could not be cached: {why}", at.host)
                 }

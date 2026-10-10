@@ -31,6 +31,9 @@ pub struct Token {
     /// Set when a minted token could not be cached (podssh then mints on
     /// every run), so the caller can say so once.
     pub cache_warning: Option<String>,
+    /// Set when the token was cached, but not where `PODSSH_CACHE_DIR` said
+    /// (T-243), so the caller can say so once.
+    pub cache_note: Option<String>,
     /// The relay that minted it (`host` or `host:port`), when known.
     pub minted_at: Option<String>,
 }
@@ -136,17 +139,43 @@ pub async fn obtain(ctx: &MintContext<'_>, fresh: bool) -> Result<Token, TokenEr
                 return Err(TokenError::BadEnvironment);
             }
             let secret = Zeroizing::new(value);
-            return Ok(Token { secret, origin: Origin::Environment, cache_warning: None, minted_at: None });
+            return Ok(Token {
+                secret,
+                origin: Origin::Environment,
+                cache_warning: None,
+                cache_note: None,
+                minted_at: None,
+            });
         }
         if let Some(cached) = token_cache::load(&key, now_ms()).filter(|c| usable(&key, c.minted_at.as_deref())) {
             let secret = Zeroizing::new(cached.token);
-            return Ok(Token { secret, origin: Origin::Cache, cache_warning: None, minted_at: cached.minted_at });
+            return Ok(Token {
+                secret,
+                origin: Origin::Cache,
+                cache_warning: None,
+                cache_note: None,
+                minted_at: cached.minted_at,
+            });
         }
     }
     let (token, expires) = mint(ctx).await?;
     let minted_at = relay_name(ctx.relay);
-    let cache_warning = token_cache::store(&key, &token, expires, &minted_at).err();
-    Ok(Token { secret: Zeroizing::new(token), origin: Origin::Minted, cache_warning, minted_at: Some(minted_at) })
+    let chosen = token_cache::chosen();
+    let (cache_warning, cache_note) = match chosen {
+        // The user keeps no file: a token is minted on each run, as asked.
+        token_cache::Chosen::Nothing => (None, None),
+        _ => match token_cache::store_noted(&key, &token, expires, &minted_at) {
+            Ok(stored) => (None, token_cache::chosen_note(&chosen, &stored)),
+            Err(why) => (Some(why), None),
+        },
+    };
+    Ok(Token {
+        secret: Zeroizing::new(token),
+        origin: Origin::Minted,
+        cache_warning,
+        cache_note,
+        minted_at: Some(minted_at),
+    })
 }
 
 #[derive(Deserialize)]

@@ -68,6 +68,7 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "relays_from": relays_from,
         "pool": pool_state(&relays),
         "token": token_state(&relays),
+        "cache": cache_state(),
         "proxy": proxy_state(&relays),
         "offline": podssh_relay::open::offline(),
         "attachment": if attachment.is_non_interactive() { "pipe" } else { "terminal" },
@@ -87,6 +88,19 @@ fn pool_state(relays: &RelayList) -> Value {
         Some((fetched_ms, hosts)) => json!({ "cached": true, "fetched_ms": fetched_ms, "hosts": hosts }),
         None => json!({ "cached": false, "fetched_ms": null, "hosts": 0 }),
     }
+}
+
+/// The cache's directories in the order podssh tries them, and what chose
+/// them (T-243): PODSSH_CACHE_DIR, none, or the usual places.
+fn cache_state() -> Value {
+    let from = match cache::chosen() {
+        cache::Chosen::Unset => "default".to_string(),
+        cache::Chosen::Nothing => "none".to_string(),
+        cache::Chosen::Dir(_) => cache::DIR_ENV.to_string(),
+        cache::Chosen::Relative(_) => format!("default ({} is relative, and not used)", cache::DIR_ENV),
+    };
+    let dirs: Vec<String> = cache::candidate_dirs().iter().map(|d| d.display().to_string()).collect();
+    json!({ "from": from, "dirs": dirs })
 }
 
 /// Where the token would come from, never the token: the variable, the

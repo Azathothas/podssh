@@ -304,7 +304,7 @@ X11 channel.
 
 Recommendation: refuse before the connection when the probe fails. podssh's
 rule is an error that tells what to do, never a silent fallback
-(`docs/target-environment.md:90-92`). The alternative, OpenSSH's way (a debug
+(`docs/target-environment.md:91-93`). The alternative, OpenSSH's way (a debug
 line, then a session with no X11), lost: the user asked for X11 and would
 not see why it is missing.
 
@@ -473,7 +473,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   (T-001); the Podman box refuses each `bind`
   (`scripts/box/seccomp.json:5-10`).
 - Read: the relay's limits apply to the shared connection: all the sessions
-  of a master share one 64 MiB and one 12 h (`docs/relay.md:121-127`).
+  of a master share one 64 MiB and one 12 h (`docs/relay.md:131-137`).
 
 ## Approach
 
@@ -675,7 +675,7 @@ Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:38-47`,
 `crates/podssh-ssh/src/run.rs:141-158`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:177-212`,
-`crates/podssh-relay/src/open.rs:262-276`). With `-N`, no command runs, so a
+`crates/podssh-relay/src/open.rs:265-279`). With `-N`, no command runs, so a
 new connection has no side effect on the server. `docs/design.md:238-243`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.

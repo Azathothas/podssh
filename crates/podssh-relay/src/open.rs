@@ -220,6 +220,9 @@ async fn try_host(relay: &Relay, req: &Request<'_>, notes: &mut dyn FnMut(&str))
     if let Some(why) = token.cache_warning.take() {
         notes(&format!("the relay token could not be cached, so one is minted per run: {why}"));
     }
+    if let Some(note) = token.cache_note.take() {
+        notes(&note);
+    }
     if token.origin == Origin::Minted && !req.relays.explicit {
         spawn_pool_refresh(relay.clone(), primary.to_string(), req.trust.clone());
     }

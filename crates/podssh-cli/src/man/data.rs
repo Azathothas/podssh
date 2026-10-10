@@ -113,10 +113,12 @@ pub fn files() -> Vec<(Vec<String>, String)> {
         paths(podssh_ssh::options::default_global_known_hosts())
     };
     let cache = if cfg!(windows) {
-        r"%LOCALAPPDATA%\podssh, else podssh-USER in the temporary directory, else .podssh in the working directory"
+        "%PODSSH_CACHE_DIR%, else %LOCALAPPDATA%\\podssh, else podssh-USER in the temporary directory (%TMP%, \
+         %TEMP%, else the one Windows gives), else .podssh in the working directory"
     } else {
-        "$XDG_CACHE_HOME/podssh (else ~/.cache/podssh), else $TMPDIR/podssh-UID (else /tmp), else \
-         /dev/shm/podssh-UID, else ./.podssh"
+        "$PODSSH_CACHE_DIR, else $XDG_CACHE_HOME/podssh (else ~/.cache/podssh), else \
+         $XDG_RUNTIME_DIR/podssh, else podssh-UID in $TMPDIR (else $TMP, $TEMP, and only then /tmp and \
+         /dev/shm), else ./.podssh"
     };
     let rows = vec![
         (

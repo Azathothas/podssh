@@ -282,7 +282,7 @@ Read, the bounds today:
   proxy (`crates/podssh-ws/src/dial.rs:18`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:124`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:33`). A cache
-  file: 64 KiB (`crates/podssh-relay/src/cache.rs:22`).
+  file: 64 KiB (`crates/podssh-relay/src/cache.rs:28`).
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:29`). The relay pipe:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:30-33`). Pump buffers: 32 KiB
@@ -297,7 +297,7 @@ Read, the bounds today:
   backpressure`): the row of the reverse path in the relay's document
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). It
   now gives the forward path's rule (`crates/podssh-ssh/src/run.rs:25-28`):
-  `docs/relay.md:201-205` says that backpressure closes with `1013` at
+  `docs/relay.md:211-215` says that backpressure closes with `1013` at
   2 MiB and drops no frame. T-062 measures whether that check operates.
 
 ## Approach
@@ -443,7 +443,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:36-43` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:243-260`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:244-261`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:288`, enforced at
   `crates/podssh-ssh/src/run.rs:199-205`); a reply, 30 s

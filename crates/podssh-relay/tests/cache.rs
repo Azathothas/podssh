@@ -5,7 +5,10 @@ mod cleanup;
 
 use std::path::PathBuf;
 
-use podssh_relay::cache::{file_name, load_from, remove_from, store_in_first, valid_token, MIN_REMAINING_MS};
+use podssh_relay::cache::{
+    candidate_dirs_from, chosen_from, chosen_note, file_name, load_from, remove_from, store_in_first, store_noting,
+    valid_token, Chosen, MIN_REMAINING_MS,
+};
 use podssh_relay::relay::{parse_relay, DEFAULT_RELAY_HOST};
 use podssh_relay::token::{relay_name, token_key, usable};
 
@@ -204,4 +207,110 @@ fn a_failover_files_the_token_under_the_host_that_minted_it() {
     let cached = load_from(&[dir], &token_key(&live), NOW).unwrap();
     assert_eq!(cached.minted_at.as_deref(), Some(DEFAULT_RELAY_HOST));
     assert!(usable(&token_key(&live), cached.minted_at.as_deref()));
+}
+
+/// An environment for [`candidate_dirs_from`]: each pair is a variable.
+fn env<'a>(pairs: &'a [(&'a str, PathBuf)]) -> impl Fn(&str) -> Option<std::ffi::OsString> + 'a {
+    move |name| pairs.iter().find(|(n, _)| *n == name).map(|(_, v)| v.clone().into_os_string())
+}
+
+/// The order of T-243: the directory of PODSSH_CACHE_DIR, the user's cache
+/// directory, the runtime directory, the temporary directory with the
+/// user's tag, the working directory.
+#[test]
+fn the_order_follows_the_environment() {
+    let root = scratch("order");
+    let user_cache = if cfg!(windows) { "LOCALAPPDATA" } else { "XDG_CACHE_HOME" };
+    let pairs = [
+        ("PODSSH_CACHE_DIR", root.join("chosen")),
+        (user_cache, root.join("cache")),
+        ("XDG_RUNTIME_DIR", root.join("run")),
+        ("TMPDIR", root.join("tmp")),
+    ];
+    let dirs = candidate_dirs_from(&env(&pairs), Some(root.join("work")));
+    assert_eq!(dirs.len(), 5, "{dirs:?}");
+    assert_eq!(dirs[0], root.join("chosen"));
+    assert_eq!(dirs[1], root.join("cache").join("podssh"));
+    assert_eq!(dirs[2], root.join("run").join("podssh"));
+    assert!(dirs[3].starts_with(root.join("tmp")), "{dirs:?}");
+    assert!(dirs[3].file_name().unwrap().to_string_lossy().starts_with("podssh-"), "{dirs:?}");
+    assert_eq!(dirs[4], root.join("work").join(".podssh"));
+    // With no variable, the user's places are missing, never guessed.
+    let bare = candidate_dirs_from(&env(&[]), None);
+    assert!(!bare.iter().any(|d| d.ends_with("podssh") && !d.to_string_lossy().contains("podssh-")), "{bare:?}");
+}
+
+/// PODSSH_CACHE_DIR=none gives no directory, and a store says why; a
+/// relative path is not used.
+#[test]
+fn none_keeps_no_file_and_a_relative_path_is_not_used() {
+    let root = scratch("none");
+    for spelling in ["none", "NONE"] {
+        let pairs = [("PODSSH_CACHE_DIR", PathBuf::from(spelling)), ("TMPDIR", root.clone())];
+        assert_eq!(chosen_from(&env(&pairs)), Chosen::Nothing);
+        assert!(candidate_dirs_from(&env(&pairs), Some(root.clone())).is_empty());
+    }
+    let err = store_noting(&[], "relay.example", b"x").unwrap_err();
+    assert!(err.contains("PODSSH_CACHE_DIR is none"), "{err}");
+    let pairs = [("PODSSH_CACHE_DIR", PathBuf::from("relative/dir")), ("TMPDIR", root.clone())];
+    assert_eq!(chosen_from(&env(&pairs)), Chosen::Relative("relative/dir".into()));
+    let dirs = candidate_dirs_from(&env(&pairs), None);
+    assert!(!dirs.iter().any(|d| d.ends_with("dir")), "{dirs:?}");
+    assert_eq!(chosen_from(&env(&[("PODSSH_CACHE_DIR", PathBuf::new())])), Chosen::Unset);
+}
+
+/// A named directory that refuses a write is skipped, the next one takes
+/// the file, and the note names the refusal.
+#[test]
+fn a_refused_cache_dir_is_named_and_the_next_one_takes_the_file() {
+    let root = scratch("refused");
+    let blocked = root.join("blocked");
+    std::fs::write(&blocked, b"a file where the directory should be").unwrap();
+    let chosen = blocked.join("cache");
+    let next = root.join("next");
+    let stored = store_noting(&[chosen.clone(), next.clone()], "relay.example", b"body").unwrap();
+    assert!(stored.path.starts_with(&next), "{stored:?}");
+    let note = chosen_note(&Chosen::Dir(chosen.clone()), &stored).expect("a note");
+    assert!(note.contains("PODSSH_CACHE_DIR could not be used") && note.contains("blocked"), "{note}");
+    // A choice that was followed says nothing.
+    let followed = store_noting(std::slice::from_ref(&next), "relay.example", b"body").unwrap();
+    assert_eq!(chosen_note(&Chosen::Dir(next), &followed), None);
+}
+
+/// With no variable that names the temporary directory, the fixed places
+/// of Unix come last, after each place that the environment gives.
+#[cfg(unix)]
+#[test]
+fn with_no_temporary_variable_the_fixed_places_come_last() {
+    let root = scratch("fixed");
+    let pairs = [("XDG_CACHE_HOME", root.join("cache"))];
+    let dirs = candidate_dirs_from(&env(&pairs), Some(root.join("work")));
+    let n = dirs.len();
+    assert!(dirs[n - 3].starts_with("/tmp") && dirs[n - 2].starts_with("/dev/shm"), "{dirs:?}");
+    assert_eq!(dirs[0], root.join("cache").join("podssh"));
+}
+
+/// No absolute path stays in the code of the cache's module but the temporary
+/// directory's two fixed places, in their one list (T-243, and the
+/// operator's ruling of 2026-10-08).
+#[test]
+fn the_scan_finds_no_other_absolute_path_in_the_cache() {
+    let code =
+        [include_str!("../src/cache.rs"), include_str!("../src/cache/dirs.rs"), include_str!("../src/cache/own.rs")]
+            .concat();
+    let mut found = Vec::new();
+    for (i, _) in code.match_indices('"') {
+        let rest = &code[i + 1..];
+        let Some(end) = rest.find('"') else { continue };
+        let word = &rest[..end];
+        let windows = word.len() > 2 && word.as_bytes()[1] == b':' && word.as_bytes()[0].is_ascii_alphabetic();
+        if word.starts_with('/') && word.len() > 1 || windows {
+            found.push(word.to_string());
+        }
+    }
+    found.sort();
+    found.dedup();
+    assert_eq!(found, ["/dev/shm", "/tmp"], "{found:?}");
+    let fixed = code.lines().filter(|l| l.contains("\"/tmp\"") || l.contains("\"/dev/shm\"")).count();
+    assert_eq!(fixed, 1, "the fixed places are in one list");
 }

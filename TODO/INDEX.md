@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**275 entries: 104 open, 1 partial, 22 blocked, 148 done.**
+**275 entries: 103 open, 1 partial, 22 blocked, 149 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 23 | 1 | 18 | 112 | 154 |
+| P2 | 22 | 1 | 18 | 113 | 154 |
 | P3 | 79 | 0 | 4 | 19 | 102 |
-| **All** | 104 | 1 | 22 | 148 | 275 |
+| **All** | 103 | 1 | 22 | 149 | 275 |
 
 ## Entries
 
@@ -314,7 +314,7 @@ repository and CI).
 | [T-240](ts.md) | P2 | S | M8 | defect | done | `podssh ts --jsonl` writes no JSON |
 | [T-241](ts.md) | P2 | S | M8 | defect | done | The tailnet auth key is not cleared from memory |
 | [T-242](ws.md) | P3 | S | backlog | defect | open | The frame decoder accepts a length that is not in the minimal form |
-| [T-243](relay.md) | P2 | S | backlog | feature | open | The user can choose the cache directory, and no directory is fixed in the code |
+| [T-243](relay.md) | P2 | S | backlog | feature | done | The user can choose the cache directory, and no directory is fixed in the code |
 | [T-244](repo.md) | P3 | M | none | chore | done | Code comments break `AGENTS.md` rule 6, and some name files and facts that are wrong |
 | [T-245](repo.md) | P2 | S | none | chore | blocked | The box refuses each bind, but sandbox A allows an AF_UNIX bind |
 | [T-246](repo.md) | P3 | S | none | chore | done | `scripts/dev.sh` excludes each file named `agents.md` from the container copy, with no reason given |

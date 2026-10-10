@@ -1,18 +1,24 @@
 //! Small private files podssh keeps between runs: a minted relay token, and
 //! the relay's pool of hosts.
 //!
-//! Operator decision (2026-10-01): the cache lives in the first usable of the
-//! user's cache directory, the temporary directory, `/dev/shm`, and the
-//! working directory. Each file is readable by its owner only. A cached file
-//! that is a symlink, belongs to another user, or is readable by anyone else
-//! is ignored rather than trusted. Nothing here ever prints a token.
+//! The operator's decisions (2026-10-01, 2026-10-08; T-243): the cache lives
+//! in the first usable of the directory that `PODSSH_CACHE_DIR` names, the
+//! user's cache directory, the user's runtime directory, the temporary
+//! directory, and the working directory; `PODSSH_CACHE_DIR=none` keeps no
+//! file. Each place comes from the environment, but the temporary
+//! directory's fixed places, tried last. Each file is readable by its owner
+//! only. A cached file that is a symlink, belongs to another user, or is
+//! readable by anyone else is ignored rather than trusted. Nothing here ever
+//! prints a token.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+mod dirs;
 mod own;
+pub use dirs::{candidate_dirs, candidate_dirs_from, chosen, chosen_from, Chosen, DIR_ENV};
 pub use own::{create_file_in_first, create_private, read_own, Others};
 
 /// A cached token is reused only while it has at least this long left.
@@ -56,23 +62,6 @@ impl std::fmt::Debug for Cached {
 /// characters and no whitespace (it goes into an HTTP header).
 pub fn valid_token(token: &str) -> bool {
     (8..=4096).contains(&token.len()) && token.bytes().all(|b| b.is_ascii_graphic())
-}
-
-/// The directories tried, in order.
-pub fn candidate_dirs() -> Vec<PathBuf> {
-    let mut dirs = Vec::new();
-    if let Some(dir) = user_cache_dir() {
-        dirs.push(dir.join("podssh"));
-    }
-    let tag = user_tag();
-    dirs.push(std::env::temp_dir().join(format!("podssh-{tag}")));
-    if cfg!(unix) {
-        dirs.push(PathBuf::from(format!("/dev/shm/podssh-{tag}")));
-    }
-    if let Ok(cwd) = std::env::current_dir() {
-        dirs.push(cwd.join(".podssh"));
-    }
-    dirs
 }
 
 /// The cached token for `relay_host` with at least [`MIN_REMAINING_MS`] left
@@ -149,14 +138,32 @@ pub fn store_file(name: &str, body: &[u8]) -> Result<PathBuf, String> {
 
 /// [`store_file`] over explicit directories (for tests).
 pub fn store_file_in_first(dirs: &[PathBuf], name: &str, body: &[u8]) -> Result<PathBuf, String> {
-    let mut reasons = Vec::new();
+    store_noting(dirs, name, body).map(|stored| stored.path)
+}
+
+/// Where a file went, and why each directory before it refused it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Stored {
+    pub path: PathBuf,
+    /// `DIR: reason`, for each directory that refused the file first.
+    pub refused: Vec<String>,
+}
+
+/// [`store_file_in_first`], with the refusals of the directories that came
+/// first: a directory that the user named and that refused says why
+/// (T-243).
+pub fn store_noting(dirs: &[PathBuf], name: &str, body: &[u8]) -> Result<Stored, String> {
+    if dirs.is_empty() {
+        return Err(format!("{DIR_ENV} is none, so podssh keeps no file such as {name}"));
+    }
+    let mut refused = Vec::new();
     for dir in dirs {
         match write_private(dir, name, body) {
-            Ok(path) => return Ok(path),
-            Err(e) => reasons.push(format!("{}: {e}", dir.display())),
+            Ok(path) => return Ok(Stored { path, refused }),
+            Err(e) => refused.push(format!("{}: {e}", dir.display())),
         }
     }
-    Err(format!("no directory would take {name} ({})", reasons.join("; ")))
+    Err(format!("no directory would take {name} ({})", refused.join("; ")))
 }
 
 /// Save a token under `key` (see `token::token_key`), with the relay that
@@ -180,6 +187,34 @@ pub fn store_in_first(
     let entry = Entry { token: token.to_string(), expires: expires_ms, minted_at: Some(minted_at.to_string()) };
     let body = serde_json::to_vec(&entry).map_err(|e| e.to_string())?;
     store_file_in_first(dirs, &file_name(key), &body)
+}
+
+/// [`store`], with the refusals of the directories that came first.
+pub fn store_noted(key: &str, token: &str, expires_ms: i64, minted_at: &str) -> Result<Stored, String> {
+    if !valid_token(token) {
+        return Err("refusing to cache something that is not a relay token".into());
+    }
+    let entry = Entry { token: token.to_string(), expires: expires_ms, minted_at: Some(minted_at.to_string()) };
+    let body = serde_json::to_vec(&entry).map_err(|e| e.to_string())?;
+    store_noting(&candidate_dirs(), &file_name(key), &body)
+}
+
+/// What to say of `PODSSH_CACHE_DIR` once a file went to `stored`: a
+/// relative path that was not used, or the named directory's refusal
+/// (T-243). Nothing when the choice was followed, or there was none.
+pub fn chosen_note(chosen: &Chosen, stored: &Stored) -> Option<String> {
+    match chosen {
+        Chosen::Relative(value) => Some(format!(
+            "{DIR_ENV}={value} is not an absolute path, so it was not used; the file went to {}",
+            stored.path.display()
+        )),
+        Chosen::Dir(dir) if !stored.path.starts_with(dir) => Some(format!(
+            "{DIR_ENV} could not be used ({}); the file went to {}",
+            stored.refused.first().map_or("refused", String::as_str),
+            stored.path.display()
+        )),
+        _ => None,
+    }
 }
 
 /// Forget the cached token for `relay_host` everywhere it is ours to delete.
@@ -351,31 +386,4 @@ fn owned_and_private(_meta: &std::fs::Metadata) -> bool {
 fn euid() -> u32 {
     // SAFETY: geteuid has no preconditions and cannot fail.
     unsafe { libc::geteuid() }
-}
-
-/// A per-user tag for shared directories such as `/tmp`.
-fn user_tag() -> String {
-    #[cfg(unix)]
-    {
-        euid().to_string()
-    }
-    #[cfg(not(unix))]
-    {
-        std::env::var("USERNAME")
-            .ok()
-            .map(|u| u.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>())
-            .filter(|u| !u.is_empty())
-            .unwrap_or_else(|| "user".to_string())
-    }
-}
-
-/// The per-user cache directory: `%LOCALAPPDATA%` on Windows, else
-/// `$XDG_CACHE_HOME` or `$HOME/.cache`. Only absolute paths count.
-fn user_cache_dir() -> Option<PathBuf> {
-    let absolute = |name: &str| std::env::var_os(name).map(PathBuf::from).filter(|p| p.is_absolute());
-    if cfg!(windows) {
-        absolute("LOCALAPPDATA")
-    } else {
-        absolute("XDG_CACHE_HOME").or_else(|| absolute("HOME").map(|h| h.join(".cache")))
-    }
 }

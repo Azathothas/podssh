@@ -33,7 +33,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
   `crates/podssh-ts/src/pipe.rs`; the new pump must not repeat it.
 - Read: `exec:` starts the user's own program. The operator accepted it on
   2026-10-08 (`docs/decisions.md`). On sandbox A, `/tmp` and `$HOME`
-  do not run programs (`docs/STATUS.md:179`).
+  do not run programs (`docs/STATUS.md:180`).
 
 ## Approach
 
@@ -159,9 +159,9 @@ local program to a target, and `podssh proxy` stays a second pump.
   (`crates/podssh-cli/src/proxy.rs:43-94`).
 - Read: `crates/podssh-ssh/src/relay_stream.rs:133-136` sends Close 1000 when
   its write side ends. That is right for SSH and wrong for a pipe: the relay
-  has no half-close (`docs/relay.md:74-80`), so a Close cuts a reply on its
+  has no half-close (`docs/relay.md:84-90`), so a Close cuts a reply on its
   way. Measured live for proxy: the full reply after stdin closed
-  (`docs/STATUS.md:121`).
+  (`docs/STATUS.md:122`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:12-20`
   after the hops of `crates/podssh-ssh/src/run.rs:113-120`, but that code is
   private and gives only an exit code.
@@ -315,7 +315,7 @@ not a listener, so `docs/target-environment.md:74-78` allows it.
 - Read: `sun_path` holds 104 to 108 bytes, and doctor refuses a longer name
   before the call (`crates/podssh-cli/src/doctor/unix.rs:189-198`,
   `crates/podssh-cli/src/doctor/unix.rs:210-212`).
-- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:179`); a connect
+- Read: sandbox A allows an AF_UNIX bind (`docs/STATUS.md:180`); a connect
   was not measured. The attempt is the probe, and its errno is the message.
 
 ## Approach
@@ -415,7 +415,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:437-439`).
   `AGENTS.md:192-197`, `docs/architecture.md:102-112`,
   `docs/target-environment.md:74-78`, `SECURITY.md:78-88`, `README.md:37-42`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
-  (`docs/STATUS.md:179`). The box refuses each `bind`, AF_UNIX too
+  (`docs/STATUS.md:180`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
 - Read: doctor binds, closes, and never listens
   (`crates/podssh-cli/src/doctor/unix.rs:137-231`). A bind that works does
@@ -430,7 +430,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:437-439`).
 2. podssh listens only for a `-listen:` address that the user gives.
    `PODSSH_LISTEN=no` turns listening off: each such address then exits 78
    before any bind. Add the variable to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-134`); the settings file of T-048
+   (`crates/podssh-cli/src/man/facts.rs:45-143`); the settings file of T-048
    can set the same.
 3. The attempt is the probe: socket, bind, listen. EACCES or EPERM exits 77
    with the errno and an address that needs no listener; another error exits
@@ -586,9 +586,9 @@ running on the server (`docs/design.md:241-243`).
   (`crates/podssh-ssh/src/session.rs:37-39`). Raw mode is entered once for
   each session (`crates/podssh-ssh/src/session.rs:109-125`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
-  (`docs/relay.md:184-190`). Sandbox A measured the cap at 67,107,943 bytes,
-  and one close `1011` in 180 short sessions (`docs/STATUS.md:187-188`).
-- Read: tmux is never assumed (`docs/target-environment.md:90-92`).
+  (`docs/relay.md:194-200`). Sandbox A measured the cap at 67,107,943 bytes,
+  and one close `1011` in 180 short sessions (`docs/STATUS.md:188-189`).
+- Read: tmux is never assumed (`docs/target-environment.md:91-93`).
 
 ## Approach
 
@@ -605,7 +605,7 @@ running on the server (`docs/design.md:241-243`).
    1006, 1009 or 1011. Never after an exit status, `~.`, a detach of tmux
    (exit 0), or a failure of the host key or the authentication.
 5. Between attempts: leave raw mode, print one line for each attempt, and
-   wait with `crates/podssh-relay/src/open.rs:270-276` (jittered, 30 s at
+   wait with `crates/podssh-relay/src/open.rs:273-279` (jittered, 30 s at
    most); 10 attempts or 5 minutes at most. Ctrl-C stops the wait with 255.
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
@@ -621,7 +621,7 @@ running on the server (`docs/design.md:241-243`).
 
 Recommendation: refuse `--persist` when the probe finds no tmux, because a
 new shell after a drop looks like the old one and has lost its state: a
-silent change of behaviour (`docs/target-environment.md:90-92`). The
+silent change of behaviour (`docs/target-environment.md:91-93`). The
 alternative, a new shell with a warning, lost for that reason.
 
 2026-10-10, for the same reason: after a loss, `tmux has-session -t =NAME`
@@ -728,9 +728,9 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
   `connect()` itself needs a listener (`docs/design.md:440-443`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
-  (`docs/relay.md:127`), then Close 1009 (`docs/relay.md:188`); public
-  targets only (`docs/relay.md:129`). Through the proxy of sandbox A: 0.5 to
-  0.7 MB/s (`docs/STATUS.md:186`).
+  (`docs/relay.md:137`), then Close 1009 (`docs/relay.md:198`); public
+  targets only (`docs/relay.md:139`). Through the proxy of sandbox A: 0.5 to
+  0.7 MB/s (`docs/STATUS.md:187`).
 - Not measured: no RDP, VNC or Telnet client ran through podssh. Each claim
   about a client below is to verify.
 
@@ -788,14 +788,14 @@ and sandhole. Read in the reports, not verified here.
 
 A developer in a sandbox runs a web application and wants a URL for it. The
 relay carries TCP to public targets and reverse sessions to named nodes
-(`docs/relay.md:234-276`). It has no endpoint that takes public HTTPS for a
+(`docs/relay.md:244-286`). It has no endpoint that takes public HTTPS for a
 name, and podssh alone cannot add one.
 
 ## Premise
 
 - Read: the relay is the operator's Cloudflare Worker, another project, and
   its document is the contract (`docs/relay.md:3-16`). It has no publish
-  endpoint (`docs/relay.md:58-85`, `docs/relay.md:234-292`).
+  endpoint (`docs/relay.md:68-95`, `docs/relay.md:244-302`).
 - Read: on the measured sandbox, `connect()` to loopback fails with EACCES
   (`docs/target-environment.md:22`). A node there cannot reach a server on
   127.0.0.1; it can reach a Unix socket (T-176) or a program (`exec:`,
@@ -811,7 +811,7 @@ When the relay's operator adds the endpoint:
 
 1. The relay's operator publishes it in the contract first: a name, a public
    host name, and each incoming connection as a reverse session
-   (`open {id}`, `ready {id}`; `docs/relay.md:242-262`).
+   (`open {id}`, `ready {id}`; `docs/relay.md:252-272`).
 2. podssh uses the node runner (T-079) and `podssh node` (T-083):
    `podssh node NAME TARGET --publish`, TARGET each address of T-174 to
    T-176. podssh parses no HTTP: the bytes pass, WebSocket upgrades too.
@@ -919,7 +919,7 @@ and with which limits.
   SSH exec channel, and says that USB/IP needs kernel modules on the server.
 - Read: an exec channel carries binary data with equal digests
   (`docs/STATUS.md:70`), and `pipe` carries a TCP stream (T-174, T-175).
-- Read: through the relay, a session ends at 64 MiB (`docs/relay.md:127`);
+- Read: through the relay, a session ends at 64 MiB (`docs/relay.md:137`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
   privilege (`AGENTS.md:190-191`). The recipe uses the user's own `usbip` and

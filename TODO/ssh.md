@@ -139,7 +139,7 @@ Read:
   (`crates/podssh-ssh/src/handler.rs` lines 31-59 at `80f20bf`), and the
   default of russh 0.64.1 drops the reason.
 - The relay's contract gives no close codes for the forward path;
-  `docs/relay.md:179-191` lists them, read from the relay's source.
+  `docs/relay.md:189-201` lists them, read from the relay's source.
   `1011 write failed: ...` means that the relay could not write to the
   target. The KTM report saw it with 0 bytes, on a target that the relay
   could dial but not use (read in the report, not verified here).
@@ -147,8 +147,8 @@ Read:
   MiB queued". That row is in the contract's table of reverse close codes
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:160-166`, row
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). On the
-  forward path, backpressure closes with `1013` at 2 MiB (`docs/relay.md:190`,
-  `docs/relay.md:201-205`). The comment on the SSH window
+  forward path, backpressure closes with `1013` at 2 MiB (`docs/relay.md:200`,
+  `docs/relay.md:211-215`). The comment on the SSH window
   (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`) also cites the
   reverse row.
 
@@ -157,7 +157,7 @@ Read:
 1. Classify a forward-path close in one place, next to
    `close_code_and_reason` (`crates/podssh-ws/src/session.rs:306-314`), which
    `podssh ssh` and `podssh proxy` both use. Map the code and the reason of
-   `docs/relay.md:184-191` to a hop. Relay to target: `1011` with
+   `docs/relay.md:194-201` to a hop. Relay to target: `1011` with
    `connect failed`, `write failed`, `target closed before sending anything`
    or `wrong target banner`, and `1013 target write backlog`. Client to
    relay: `1011` with `client send failed` or `client error`,
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:146` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:256`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:257`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -194,7 +194,7 @@ cargo test -p podssh-ssh -- first_line
 sh scripts/dev.sh check
 ```
 
-The first test has one case for each row of `docs/relay.md:184-191`, and one
+The first test has one case for each row of `docs/relay.md:194-201`, and one
 for an unknown code. The second builds the first line from each kind of
 `RelayEnd`, from a server disconnect, and from a bare russh error. In the
 gate, a new stand-in relay in `scripts/interop-faults.sh` (mode
@@ -288,7 +288,7 @@ Read:
    link from the relay to the target: try once more, then stop. Never retry
    `1001`, `1009` or `1013`.
 4. Wait with the jittered backoff that exists
-   (`crates/podssh-relay/src/open.rs:262-276`). Bound the whole by the rounds
+   (`crates/podssh-relay/src/open.rs:265-279`). Bound the whole by the rounds
    of `ConnectionAttempts` (`crates/podssh-cli/src/ssh/resolve.rs:431`) and
    the deadline of each host.
 5. Never prompt again without a person: under `BatchMode`, or with no
@@ -453,7 +453,7 @@ The planted runs in the build image wait for T-251.
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
 lablup/bssh report in GitHub #18, #20 and #22 (item 8, "`@cert-authority`
-rejection"); the known gap in `docs/STATUS.md:312` and `SECURITY.md:131-133`.
+rejection"); the known gap in `docs/STATUS.md:313` and `SECURITY.md:131-133`.
 Each claim read again here on `3ee70dc`.
 **Category:** feature
 **Milestone:** backlog
@@ -519,7 +519,7 @@ back to the plain key only when no CA line matches.
    (`crates/podssh-cli/src/doctor/clock.rs`).
 6. Keep the test `a_cert_authority_line_does_not_make_a_key_known`: a CA line
    never makes a plain key known. Correct `crates/podssh-ssh/src/handler.rs:96-98`.
-   When certificates work, change `docs/STATUS.md:312` and `SECURITY.md:131-133`.
+   When certificates work, change `docs/STATUS.md:313` and `SECURITY.md:131-133`.
 
 GitHub #29 notes that the bssh report in #18, #20 and #22 asks podssh to
 keep refusing a certificate that no trusted CA signed. Verification keeps
@@ -618,9 +618,9 @@ Not measured here: each case needs a server.
 
 Recommendation: no other place for host keys; say clearly that the key was
 not recorded. A fallback directory moves the trust without the user's
-choice, and `docs/target-environment.md:90-92` forbids a silent fallback
+choice, and `docs/target-environment.md:91-93` forbids a silent fallback
 that changes the behaviour. The alternative, the token cache's chain of
-directories (`docs/target-environment.md:85-89`), lost: a key recorded in
+directories (`docs/target-environment.md`, lines 85-89 at `4dd52f8`), lost: a key recorded in
 `$TMPDIR` or `/dev/shm` is invisible to the user and to OpenSSH, and it
 outlives the user's intent.
 
@@ -1135,7 +1135,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
 1. A verb `podssh agent` in the same binary. It probes, then listens on an
    AF_UNIX socket of mode 0600, in a directory of mode 0700 that it makes,
    with the owner checks of the token cache
-   (`crates/podssh-relay/src/cache.rs:1-8`). On Windows: a named pipe that
+   (`crates/podssh-relay/src/cache.rs:1-12`). On Windows: a named pipe that
    only the user can open. It prints the line
    `SSH_AUTH_SOCK=PATH; export SSH_AUTH_SOCK;` on stdout, as `ssh-agent -s`
    does.
@@ -1341,7 +1341,7 @@ Read:
   (`crates/podssh-ssh/src/auth.rs:231-274`), and the answers of
   keyboard-interactive (`crates/podssh-ssh/src/auth.rs:176-229`).
 - podssh stores no credential but the relay token cache, readable by the
-  owner only (`crates/podssh-relay/src/cache.rs:1-8`).
+  owner only (`crates/podssh-relay/src/cache.rs:1-12`).
 - russh's agent server has no handler for the extension message (27), so a
   store in `podssh agent` (T-034) needs a handler of podssh's own.
 
@@ -1493,7 +1493,7 @@ Read, at `9fefff2`:
   limit (`wait_recv_reply`), and keepalives start only after the
   authentication succeeds. So nothing ends the wait on the direct road.
 - On the relay road, nothing moves while podssh waits, so the relay closes
-  the session after 180 s with no payload (`docs/relay.md:125`). The relay's
+  the session after 180 s with no payload (`docs/relay.md:135`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
   `docs/cli.md:645-648`). A person who types slowly must not meet a limit
@@ -1610,7 +1610,7 @@ Read:
   reads it. Then it queues the data and ignores a failed send. The default
   callback drops its `Channel`, so such data is read and thrown away, and the
   window never closes. Each byte crosses the relay and counts toward its
-  64 MiB (`docs/relay.md:127`).
+  64 MiB (`docs/relay.md:137`).
 - A channel that podssh keeps and does not read is worse: its queue fills
   (`channel_buffer_size`), and then the whole session stops reading.
 - Nothing connects such a channel to a local service today, so no data

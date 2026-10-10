@@ -84,9 +84,10 @@ should name them:
    against a static binary and looks like an authentication failure.
 5. **Depend on nothing installed:** not `ssh`, not `curl`, not a CA bundle,
    not a writable `$HOME`. Ship one static binary with trust roots in it.
-   For each file that podssh writes, use a fallback chain (the token cache:
-   the configuration directory, then `$TMPDIR`, then `/dev/shm`, then the
-   working directory).
+   For each file that podssh writes, use a fallback chain (the token cache,
+   T-243: the directory of `PODSSH_CACHE_DIR`, the user's cache directory,
+   the user's runtime directory, the temporary directory, then the working
+   directory; `PODSSH_CACHE_DIR=none` keeps no file).
 6. **Probe; do not assume.** Use a capability only after a check on the
    running host. A failed probe gives an error that tells what to do, never a
    silent fallback that changes the behaviour.

@@ -31,7 +31,7 @@ core: the handshake, a host key that does not change, and key authentication.
   connection over any stream, as `crates/podssh-ssh/src/run.rs:31-36` does.
   To reuse: `crates/podssh-ssh/src/keygen.rs:60-130` (a key, mode 0600, never
   over a file), `crates/podssh-ssh/src/known_hosts.rs:238-241` (a key line),
-  `crates/podssh-relay/src/cache.rs:61-76` (the directories).
+  `crates/podssh-relay/src/cache/dirs.rs:50-87` (the directories).
 
 ## Approach
 
@@ -41,7 +41,7 @@ core: the handshake, a host key that does not change, and key authentication.
    waits (podssh: 30 s, `crates/podssh-ssh/src/session.rs:18-21`).
 2. russh settings: `publickey` only (the default also offers `password`);
    the 512 KiB window of `crates/podssh-ssh/src/run.rs:25-29`; no inactivity
-   cut (russh: 600 s); a keepalive every 60 s (`docs/relay.md:187`).
+   cut (russh: 600 s); a keepalive every 60 s (`docs/relay.md:197`).
 3. Host key: `--host-key FILE`, else a file in the first usable directory of
    the cache chain, made with `keygen::generate` and `keygen::write_pair`.
    Invariant: never overwritten; the loser of a `create_new` race reads the
@@ -63,7 +63,7 @@ Recommendation: the server goes in crates/podssh-ssh/src/server/, and only
 the command line in crates/podssh-cli/src/serve.rs. `docs/design.md:28-30`
 gives `podssh-ssh` the "russh client and server"; the crate links aws-lc
 already (`crates/podssh-ssh/Cargo.toml:12-18`), holds the helpers to reuse,
-and is read by the variable test (`crates/podssh-cli/src/man/facts.rs:344-349`).
+and is read by the variable test (`crates/podssh-cli/src/man/facts.rs:353-358`).
 A new crate lost: it repeats the russh dependency and its C exception, and
 makes the helpers public. `podssh-cli` lost: it is the command line.
 
@@ -490,10 +490,10 @@ out with matching digests.
   T-079), and the operator connects through the relay (T-084).
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:160-164`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
-  `docs/STATUS.md:179`). With no pty device, no podssh code can give the child
+  `docs/STATUS.md:180`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:45`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:188`; measured: `docs/STATUS.md:187`). 200 MiB each way
+  (`docs/relay.md:198`; measured: `docs/STATUS.md:188`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:19-26`).
@@ -571,7 +571,7 @@ so a key with limits cannot be used at all.
 - Read: the patterns of `from=` are those of `known_hosts`, which
   `crates/podssh-ssh/src/known_hosts.rs:244-267` matches (negation included).
 - Read: on the reverse road, serve does not know the client's address: the
-  stream comes from the relay (`docs/relay.md:234-258`).
+  stream comes from the relay (`docs/relay.md:244-268`).
 - Read in the reports of GitHub #21 and #18, not verified here: agent-ssh-cli
   checks regex lists before exec; sandhole limits local forwarding.
 
@@ -822,7 +822,7 @@ must slow the child down, and a client that is gone must end the session.
   buffer of 100 messages (T-108).
 - Read: the comment on the SSH window said that the relay drops a frame
   past 1 MiB with 1011 (`crates/podssh-ssh/src/run.rs` lines 25-29 at
-  `80f20bf`); `docs/relay.md:201-205` says that it closes with 1013 at
+  `80f20bf`); `docs/relay.md:211-215` says that it closes with 1013 at
   2 MiB. T-024 corrected the comment; T-062 measures whether the relay's
   check operates.
 
@@ -1043,7 +1043,7 @@ own scope; serve does nothing like it.
 ## Premise
 
 - Read: podssh must not assume systemd, and starts a program only when a probe
-  found it (`AGENTS.md:190-202`, `docs/target-environment.md:90-92`).
+  found it (`AGENTS.md:190-202`, `docs/target-environment.md:91-93`).
 - Read: T-110 and T-111 start each child with `setsid`, in serve's cgroup.
 - Read in the report of GitHub #19, not verified here: ssh-obi moves its pty
   children into a transient scope when systemd is there, and works without
@@ -1103,7 +1103,7 @@ default of russh refuses each `tcpip-forward` with no reason.
   allows a listener only when the user asks and a probe allows the bind.
 - Read: `docs/design.md:437-439` allows a listener on the far side. The relay
   is a listener that podssh does not run: a node name takes operator
-  sessions (`docs/relay.md:234-258`).
+  sessions (`docs/relay.md:244-268`).
 - Read in the report of GitHub #18, not verified here: sandhole publishes
   services through a stock `ssh -R`.
 
@@ -1229,10 +1229,10 @@ no reason (`docs/target-environment.md:63-64`).
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
-- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:179`):
+- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:180`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
-  (`crates/podssh-cli/src/doctor/host.rs:157-159`).
+  (`crates/podssh-cli/src/doctor/host.rs:174-176`).
 - Read in the report, not verified here: `rssh-org/rssh:src-tauri/src/terminal/pty.rs`
   checks the exec bit; a directory `sh` and a data file `dash` pass `exists()`.
 
@@ -1249,13 +1249,13 @@ no reason (`docs/target-environment.md:63-64`).
 3. One line names each failure and why, for example
    `SHELL=/x: not executable (noexec mount); /bin/bash: no such file`.
 4. Probe at each session start, with no cache: the answer can change in the
-   same image (`docs/target-environment.md:90-92`). Probe at the start of
+   same image (`docs/target-environment.md:91-93`). Probe at the start of
    serve too (see Decision).
 5. doctor gets a `shell` line in its host checks
    (`crates/podssh-cli/src/doctor/host.rs:10-25`) from the same function.
 6. T-108 runs the result. Never call `getpwuid`. Same commit: `--shell` in
    `crates/podssh-cli/src/flags.rs`, `SHELL` in
-   `crates/podssh-cli/src/man/facts.rs:45-134`, `docs/cli.md`.
+   `crates/podssh-cli/src/man/facts.rs:45-143`, `docs/cli.md`.
 
 ## Decision
 
@@ -1263,7 +1263,7 @@ Recommendation: a shell that the operator names is strict: when it fails,
 serve refuses (exit 78 at the start, failure for a session) and uses no
 other. `SHELL` and the list fall back in order, and the line names each
 failure, so no probe changes the behaviour in silence
-(`docs/target-environment.md:90-92`). At the start, no usable shell is exit
+(`docs/target-environment.md:91-93`). At the start, no usable shell is exit
 78, unless `--no-shell` says that the node serves only SFTP and forwards.
 Starting with a warning lost: that is the login that ends at once.
 
@@ -1280,7 +1280,7 @@ crates/podssh-ssh/tests/serve_shell.rs gives the function a directory `sh`,
 a data file `dash` (mode 0644), a data file with mode 0755 (the spawn fails),
 a link to a missing file and a good shell: each failure is named, and the
 good shell wins. A planted `exists()` test fails the directory case. In the
-gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:146`) is
+gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:147`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
 ## Blocker
@@ -1312,10 +1312,10 @@ criterion of M5 (T-113) needs them.
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
   (`crates/podssh-cli/src/doctor/unix.rs:78-93`). Both real sandboxes have no
-  `/dev/ptmx` (`docs/STATUS.md:179`), and the target has no `/dev/pts`
+  `/dev/ptmx` (`docs/STATUS.md:180`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp
-  filter (`docs/STATUS.md:158`). With `NoNewPrivs=1`, a process can add a
+  filter (`docs/STATUS.md:159`). With `NoNewPrivs=1`, a process can add a
   filter of its own; a filter is inherited by each child.
 - Read, not measured here: for a program, a tty is the success of the tty
   `ioctl` calls on its descriptors. musl's `isatty` calls `TIOCGWINSZ`;

@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:677-750`, FILES (`crates/podssh-cli/src/man/data.rs:108-203`) and the
+7. Change `docs/cli.md:677-750`, FILES (`crates/podssh-cli/src/man/data.rs:108-205`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -384,7 +384,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    (`crates/podssh-cli/src/ssh/keywords.rs:25-62`), and `host`, `hostname`, `user`, `port`,
    `identityfile` and `proxyjump`. Spell each value as `ssh -G` does (`true` or `yes`).
 5. Keep a list in the test of the values that differ on purpose, each with its reason:
-   `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:125`) and `connecttimeout 60`.
+   `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:135`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
 7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:32-114`) and `docs/cli.md:48-143`
@@ -538,7 +538,8 @@ go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:62
 `crates/podssh-cli/src/ssh/resolve.rs:343-346`, `crates/podssh-cli/src/doctor/mod.rs:60-65` and
 `crates/podssh-cli/src/proxy.rs:75-79`. The pins of the flag and of the variable add up
 (`crates/podssh-cli/src/pins.rs:13-23`). The token cache uses the user's
-cache directory first (`crates/podssh-relay/src/cache.rs:372-381`). The decision named the
+cache directory first, after the directory of `PODSSH_CACHE_DIR` (T-243;
+`crates/podssh-relay/src/cache/dirs.rs:59-87`). The decision named the
 configuration directory first; the operator corrected it on 2026-10-08 (`docs/decisions.md:48`, T-243).
 
 ## Approach
@@ -561,7 +562,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:45-134`, 98-142), `docs/relay.md:30-56` and
+   FILES (`crates/podssh-cli/src/man/facts.rs:45-143`, 98-142), `docs/relay.md:30-56` and
    `docs/cli.md`. The cache directory is the work of T-243.
 
 ## Decision

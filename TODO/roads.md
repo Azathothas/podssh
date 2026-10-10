@@ -171,8 +171,8 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:280-281`,
 1. Keys: one Ed25519 secret key for each role (node, client), in a private
    file. `--iroh-key FILE` names the file, as `--ts-state` does; with no flag,
    it goes to the first usable directory of the cache chain
-   (`crates/podssh-relay/src/cache.rs:61-76`). Reuse the private-file code of
-   the token cache (`crates/podssh-relay/src/cache.rs:259-284`: mode 0600, no
+   (`crates/podssh-relay/src/cache.rs`, lines 61-76 at `4dd52f8`). Reuse the private-file code of
+   the token cache (`crates/podssh-relay/src/cache.rs:294-319`: mode 0600, no
    symbolic link, the owner checked); do not write a second copy.
 2. Print the fingerprint of the public key, never the secret key. A node key
    persists, and a node warns when it makes a new one, because its ticket
@@ -185,8 +185,8 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:280-281`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:428`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:108-203`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-134`).
+   (`crates/podssh-cli/src/man/data.rs:108-205`), and each new variable to
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-143`).
 
 ## Decision
 
@@ -510,9 +510,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-134`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-143`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:171-291`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:180-300`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -852,13 +852,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:179-200`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:189-210`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-cli/src/doctor/relay_checks.rs:22-24`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:129`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:139`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -1171,7 +1171,7 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:113-115`).
+   URL or in output (`docs/relay.md:123-125`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
    `crates/podssh-relay/src/pool.rs:79-88`).

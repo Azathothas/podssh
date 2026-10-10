@@ -55,6 +55,16 @@ sends a cached token to a deployment that did not mint it (T-057). A cache
 entry that does not name the host that minted it (written before
 2026-10-08) is not used.
 
+The cache is the first directory that takes a file (T-243): the one of
+`PODSSH_CACHE_DIR`, the user's cache directory, the user's runtime
+directory, the temporary directory (`TMPDIR`, `TMP` or `TEMP`; on Unix the
+fixed `/tmp` and `/dev/shm` only when none is set), then `.podssh` in the
+working directory. Each place comes from the environment, and a directory
+that refuses a write is skipped. A named directory that is skipped, or a
+relative `PODSSH_CACHE_DIR`, is said once on stderr, with the reason.
+`PODSSH_CACHE_DIR=none` keeps no file: a token is minted on each run, and
+`podssh doctor` says so. `podssh status` shows the directories in order.
+
 ## The forward path: what `podssh proxy` and `podssh ssh` use
 
 ```

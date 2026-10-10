@@ -92,9 +92,22 @@ fn probe_dir(dir: &Path) -> std::io::Result<()> {
 }
 
 /// The first token cache directory podssh can write, in the order
-/// `podssh-relay` tries them. With none, a token is minted on every run:
-/// podssh still works, but the relay limits how fast tokens are minted.
+/// `podssh-relay` tries them, and what chose it. With none, a token is
+/// minted on every run: podssh still works, but the relay limits how fast
+/// tokens are minted.
 fn token_cache(report: &mut Report<'_>) {
+    use podssh_relay::cache::{Chosen, DIR_ENV};
+    let chosen = podssh_relay::cache::chosen();
+    match &chosen {
+        Chosen::Nothing => {
+            report.ok("token cache", format!("{DIR_ENV} is none: podssh keeps no file, and mints a token on each run"));
+            return;
+        }
+        Chosen::Relative(value) => {
+            report.ok("token cache", format!("{DIR_ENV}={value} is not an absolute path, so podssh does not use it"))
+        }
+        Chosen::Dir(_) | Chosen::Unset => {}
+    }
     let mut refused = Vec::new();
     for dir in podssh_relay::cache::candidate_dirs() {
         let existed = dir.is_dir();
@@ -107,7 +120,11 @@ fn token_cache(report: &mut Report<'_>) {
             Ok(()) => {
                 let skipped =
                     if refused.is_empty() { String::new() } else { format!(" (before it: {})", refused.join("; ")) };
-                report.ok("token cache", format!("{} can be written{skipped}", dir.display()));
+                let from = match &chosen {
+                    Chosen::Dir(named) if dir == *named => format!(", as {DIR_ENV} names it"),
+                    _ => String::new(),
+                };
+                report.ok("token cache", format!("{} can be written{from}{skipped}", dir.display()));
                 return;
             }
             Err(e) => refused.push(format!("{}: {e}", dir.display())),

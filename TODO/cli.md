@@ -494,8 +494,8 @@ risk is a changed option (a host, a relay, a trust store), not a command.
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:32-198`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-95`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:387-395`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:356-370`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:389-397`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:358-372`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:98-103`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -600,9 +600,9 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
 3. A malformed value names its source: `--timeout` (exit 64), or
    `PODSSH_TIMEOUT` (exit 78, see Decision). The variable never bounds `ssh`
    or `proxy`.
-4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-134`),
+4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-143`),
    which `each_variable_in_the_source_is_documented` requires
-   (`crates/podssh-cli/src/man/facts.rs:386-399`); "default: env
+   (`crates/podssh-cli/src/man/facts.rs:395-408`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
    it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:663-665`;
    `docs/STATUS.md`.
@@ -1044,7 +1044,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:163-166`
    names `podssh keygen -p`; `docs/cli.md:375-387`, the notes of `keygen`
-   (`crates/podssh-cli/src/man/notes.rs:294-302`), `docs/STATUS.md`.
+   (`crates/podssh-cli/src/man/notes.rs:296-304`), `docs/STATUS.md`.
 
 ## Decision
 
@@ -1106,7 +1106,7 @@ Read: podssh matches hashed lines with HMAC-SHA1
 with their numbers (`scan`, `crates/podssh-ssh/src/known_hosts.rs:138-168`), and
 appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs:305-351`).
 The default files are the ones of `podssh ssh`
-(`crates/podssh-cli/src/man/data.rs:123`).
+(`crates/podssh-cli/src/man/data.rs:125`).
 
 ## Approach
 

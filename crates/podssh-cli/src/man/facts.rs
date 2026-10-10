@@ -109,7 +109,16 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       PODSSH_NICK gives one. With none of them set, uid 0 is root. podssh never reads the user \
       database.",
     ),
-    (&["XDG_CACHE_HOME", "LOCALAPPDATA", "TMPDIR"], "Where podssh keeps its cache (see FILES)."),
+    (
+        &["PODSSH_CACHE_DIR"],
+        "The directory of podssh's cache, tried before the others; none keeps no file, and a token is \
+      then minted on each run. A relative path is not used, and podssh says so. A directory that refuses \
+      a write is skipped, and podssh says why (see FILES).",
+    ),
+    (
+        &["XDG_CACHE_HOME", "LOCALAPPDATA", "XDG_RUNTIME_DIR", "TMPDIR", "TMP", "TEMP"],
+        "Where podssh keeps its cache (see FILES).",
+    ),
     (&["TERM"], "Sent to the server with a pty request; xterm-256color when it is not set."),
     (
         &["COLUMNS", "LINES"],
@@ -425,17 +434,37 @@ mod tests {
         assert_eq!(variables_read(code), vec!["PLANTED_NAME", "Plain"]);
     }
 
-    /// The cache directories are the ones FILES describes: the user's cache
-    /// directory when there is one, the temporary directory, /dev/shm on Unix,
-    /// and the working directory, last.
+    /// The cache directories are the ones FILES describes (T-243): the one of
+    /// PODSSH_CACHE_DIR, the user's cache directory, the user's runtime
+    /// directory, the temporary directory, and the working directory, last.
     #[test]
     fn the_cache_directories_are_the_ones_described() {
-        let dirs = podssh_relay::cache::candidate_dirs();
-        let last: Vec<String> = dirs.iter().map(|d| d.file_name().unwrap().to_string_lossy().into_owned()).collect();
-        assert_eq!(last.last().map(String::as_str), Some(".podssh"), "{last:?}");
-        let tagged = last.iter().filter(|n| n.starts_with("podssh-")).count();
-        assert_eq!(tagged, if cfg!(unix) { 2 } else { 1 }, "{last:?}");
-        assert!(last.len() <= tagged + 2, "{last:?}");
+        let root = std::env::temp_dir();
+        let named = |n: &str| root.join(n).into_os_string();
+        let user_cache = if cfg!(windows) { "LOCALAPPDATA" } else { "XDG_CACHE_HOME" };
+        let var = |name: &str| match name {
+            "PODSSH_CACHE_DIR" => Some(named("chosen")),
+            "XDG_RUNTIME_DIR" => Some(named("run")),
+            "TMPDIR" => Some(named("tmp")),
+            other if other == user_cache => Some(named("cache")),
+            _ => None,
+        };
+        let dirs = podssh_relay::cache::candidate_dirs_from(&var, Some(root.join("work")));
+        let parents: Vec<String> =
+            dirs.iter().map(|d| d.strip_prefix(&root).map(|p| p.display().to_string()).unwrap_or_default()).collect();
+        let tagged = parents[3].clone();
+        assert!(tagged.starts_with(&format!("tmp{}podssh-", std::path::MAIN_SEPARATOR)), "{parents:?}");
+        let sep = std::path::MAIN_SEPARATOR;
+        assert_eq!(
+            parents,
+            [
+                "chosen".to_string(),
+                format!("cache{sep}podssh"),
+                format!("run{sep}podssh"),
+                tagged,
+                format!("work{sep}.podssh")
+            ],
+        );
     }
 
     #[test]

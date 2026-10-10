@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:188`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:189`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -490,8 +490,8 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
   any offset. The far file's size is no proof: with requests in flight
   (T-140), a later write can land while an earlier one fails.
 - Read: the cache directories keep private files of mode 0600
-  (`crates/podssh-relay/src/cache.rs:62-76`,
-  `crates/podssh-relay/src/cache.rs:135-161`).
+  (`crates/podssh-relay/src/cache.rs`, lines 62-76 at `4dd52f8`,
+  `crates/podssh-relay/src/cache.rs:124-168`).
 - Read: after a drop, the relay closes the target's TCP connection within
   15 s (`docs/design.md:208-211`), so a far `cat` can write for a while.
 
@@ -507,7 +507,7 @@ GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
    size and mtime are the same; else start over and say so.
 3. Invariant: the attempts are bounded. At most 5 in a row with no new
    acknowledged byte, with `podssh_relay::open::backoff`
-   (`crates/podssh-relay/src/open.rs:268-276`). Stop at once on a refused
+   (`crates/podssh-relay/src/open.rs:271-279`). Stop at once on a refused
    authentication, a changed host key, a policy refusal or the `--timeout`
    deadline.
 4. Across runs: the same command continues when the side file matches the
@@ -616,7 +616,7 @@ the offset of the copy, in this run or the next".
 # T-137: `podssh cp` opens a new relay session before the relay's limits
 
 **Source:** ROADMAP M5 ("Open a new relay session before the limits of the
-relay (64 MiB, 12 h)"), `docs/relay.md:121-129`; the KTM sandbox report of
+relay (64 MiB, 12 h)"), `docs/relay.md:131-139`; the KTM sandbox report of
 2026-10-08 (`report-podssh-sandbox-KTM-2026-10-08.txt`, not in the
 repository).
 **Category:** feature
@@ -628,7 +628,7 @@ repository).
 ## Problem
 
 The relay ends a session after 64 MiB in both directions together, or after
-12 h (`docs/relay.md:126-127`). A larger copy breaks in a request with
+12 h (`docs/relay.md:136-137`). A larger copy breaks in a request with
 `1009 session byte cap`. T-136 continues after it, but each cut costs a
 broken SSH connection, a wait and an error line, and on the exec road an
 old writer can race the new one.
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:187`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:188`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -657,7 +657,7 @@ old writer can race the new one.
    ways; 11 h 30 min) go in `crates/podssh-relay/src/relay.rs`, beside
    `RELAY_IDLE_SECS`. A variable `PODSSH_SESSION_BUDGET` can lower the byte
    budget (a relay with smaller caps, the tests), never raise it; add it to
-   `crates/podssh-cli/src/man/facts.rs:45-134`.
+   `crates/podssh-cli/src/man/facts.rs:45-143`.
 2. Count the payload bytes both ways in the relay stream (an atomic counter
    beside `RelayStatus`), and keep the session's start time.
 3. Invariant: no session passes a budget. Before a data request that would
@@ -670,7 +670,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:172-291`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:181-300`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -678,7 +678,7 @@ old writer can race the new one.
 
 Recommendation: a budget of 60 MiB counted by podssh, as `podssh-core`
 uses for IRC: the relay counts bytes that podssh has not yet received, and
-can hold 2 MiB queued (`docs/relay.md:190`). Waiting for `1009` (T-136
+can hold 2 MiB queued (`docs/relay.md:200`). Waiting for `1009` (T-136
 alone) lost: each cut breaks a request in flight. Credentials stay in
 memory for the run, never on disk; asking again lost: a 200 MiB copy would
 ask four times, and with no terminal it could not ask at all.
@@ -704,7 +704,7 @@ sh scripts/dev.sh check                    # interop-cp.sh through a small cap
 ```
 
 A new stand-in relay mode closes with `1009` at 4,000,000 bytes counted in
-both directions, as the relay counts (`docs/relay.md:127`). With
+both directions, as the relay counts (`docs/relay.md:137`). With
 `PODSSH_SESSION_BUDGET=3000000`, an upload and a download of 10,000,000
 bytes finish with equal digests, no `1009` on stderr, and 4 sessions or
 more. Plant: count one direction only; the upload then meets `1009`.
@@ -1062,10 +1062,10 @@ trip is long, so such a copy uses a small part of what the path carries.
   (1 MiB queued, `1011`, a dropped frame;
   `crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:185`). T-024
   corrected it to the forward path's rule
-  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:201-205` gives
+  (`crates/podssh-ssh/src/run.rs:25-28`): `docs/relay.md:211-215` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:186`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:187`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1120,7 +1120,7 @@ stream.
   not. The operator accepted more than one outbound connection for the iroh
   road (`docs/design.md:610-613`), and on 2026-10-08 for one copy when the
   user asks (`docs/decisions.md`).
-- Read: the cap of 64 MiB is for each session (`docs/relay.md:127`).
+- Read: the cap of 64 MiB is for each session (`docs/relay.md:137`).
 - Not measured: whether one relay session, or the path itself, limits the
   rate. T-157 measures it.
 
@@ -1171,7 +1171,7 @@ must fail.
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:186`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:187`).
 
 ## Premise
 
@@ -1358,7 +1358,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:186`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:187`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -1628,7 +1628,7 @@ host, and the copy back then destroys that change with no word.
   probe (`crates/podssh-cli/src/pager.rs:96`) and runs it with
   `run_program` (`crates/podssh-cli/src/pager.rs:134`).
 - Read: `VISUAL` and `EDITOR` are not in the manual's variables
-  (`crates/podssh-cli/src/man/facts.rs:45-134`).
+  (`crates/podssh-cli/src/man/facts.rs:45-143`).
 - Read: the relay cuts a session after 180 s with no payload
   (`crates/podssh-relay/src/relay.rs:19-21`); an editor stays open longer.
 
@@ -1638,7 +1638,7 @@ host, and the copy back then destroys that change with no word.
    with the connection flags that T-134 gives `cp`. It needs a terminal on
    stdin and stdout; else exit 64.
 2. Download with T-134 into a new directory of mode 0700 in the cache
-   directories (`crates/podssh-relay/src/cache.rs:62-76`), as a file of
+   directories (`crates/podssh-relay/src/cache/dirs.rs:50-87`), as a file of
    mode 0600 that keeps the far name's extension. Record the far size,
    mtime and SHA-256.
 3. Close the session while the editor runs (Decision).

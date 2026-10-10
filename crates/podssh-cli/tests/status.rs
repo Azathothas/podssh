@@ -36,6 +36,7 @@ fn status(home: &Path, args: &[&str], set: &[(&str, &str)]) -> (i32, String, Str
         "PODSSH_RELAY",
         "PODSSH_RELAY_ADDR",
         "PODSSH_RELAY_TOKEN",
+        "PODSSH_CACHE_DIR",
         "https_proxy",
         "HTTPS_PROXY",
         "all_proxy",
@@ -150,4 +151,25 @@ fn a_known_host_key_is_found_and_an_unknown_one_is_not() {
     assert_eq!(doc["host"]["name"], "[unknown.example]:2222");
     assert_eq!(doc["host"]["known"], false);
     let _ = std::fs::remove_dir_all(&home);
+}
+
+/// The cache's directories, and what chose them (T-243): the directory of
+/// PODSSH_CACHE_DIR first, none for no directory, else the usual places.
+#[test]
+fn the_cache_shows_its_directories_and_what_chose_them() {
+    let home = scratch("cache-dir");
+    let chosen = home.join("chosen");
+    let (code, out, err) = status(&home, &[], &[("PODSSH_CACHE_DIR", chosen.to_str().unwrap())]);
+    assert_eq!(code, 0, "{err}");
+    let doc = one_line(&out);
+    assert_eq!(doc["cache"]["from"], "PODSSH_CACHE_DIR");
+    assert_eq!(doc["cache"]["dirs"][0], chosen.display().to_string());
+    assert_eq!(doc["cache"]["dirs"][1], cache_dir(&home).display().to_string());
+    let (code, out, err) = status(&home, &[], &[("PODSSH_CACHE_DIR", "none")]);
+    assert_eq!(code, 0, "{err}");
+    let doc = one_line(&out);
+    assert_eq!(doc["cache"]["from"], "none");
+    assert_eq!(doc["cache"]["dirs"], serde_json::json!([]));
+    let (_, out, _) = status(&home, &[], &[]);
+    assert_eq!(one_line(&out)["cache"]["from"], "default");
 }
