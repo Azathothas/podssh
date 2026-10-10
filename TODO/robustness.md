@@ -443,7 +443,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:36-43` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:231-248`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:232-249`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:248`, enforced at
   `crates/podssh-ssh/src/run.rs:183-189`); a reply, 30 s
@@ -574,11 +574,11 @@ Read, each claim of GitHub #34 at the lines as they are now:
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
   `scripts/sandbox-check.sh:174-187` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
-- `crates/podssh-ssh/src/io.rs:137-142` maps an exit status that does not fit
+- `crates/podssh-ssh/src/io.rs:209-214` maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:70`, `docs/STATUS.md:72`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:471-472` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:492-493` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -595,14 +595,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:471-472`). A difference that the table does not name fails,
+   `docs/cli.md:492-493`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:471-472` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:492-493` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed
@@ -617,7 +617,7 @@ sh scripts/dev.sh check     # interop: for each case, the code of OpenSSH, of po
 
 The interop section shows, for each case, the reference code, podssh's code
 and the literal, and the signal row as a named difference. Planted defect 1:
-map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:142`; the literal
+map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:214`; the literal
 check of 143 must fail, and the table must report its signal row as broken.
 Planted defect 2: let the reference run `true` in place of `exit 3`; the
 derived check must fail.

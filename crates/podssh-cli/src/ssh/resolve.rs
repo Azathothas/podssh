@@ -48,6 +48,8 @@ pub struct Resolved {
     pub notes: Vec<String>,
     /// Warnings the user should see without -v.
     pub warnings: Vec<String>,
+    /// `--persist`: the tmux session that a new connection attaches again.
+    pub persist: Option<String>,
 }
 
 /// What the process environment contributes, gathered once so it can be
@@ -352,14 +354,17 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     options.compression = args.compression || settings.compression.unwrap_or(false);
     options.log_level = log_level;
     options.stdin_null = args.stdin_null || settings.stdin_null.unwrap_or(false);
-    Ok(Resolved {
+    let mut resolved = Resolved {
         options,
         transport,
         log_file,
         connection_attempts: settings.connection_attempts.unwrap_or(1),
         notes,
         warnings,
-    })
+        persist: None,
+    };
+    super::persist::check(args, &mut resolved)?;
+    Ok(resolved)
 }
 
 /// `-W` takes `HOST:PORT` or `[ADDR]:PORT`. OpenSSH reads a value with a `/`

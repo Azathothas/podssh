@@ -57,6 +57,16 @@ const SSH: &[&str] = &[
     "-t asks for a pty when there is a local terminal. -tt asks for one also when there is none, so \
      interactive programs work from a host with no pty. In a session with a pty, ~. at the start of a \
      line ends the session (see -e).",
+    "--persist runs the shell in tmux on the server, as tmux new-session -A -s NAME with a pty (NAME is \
+     podssh, or the one of --persist-name). podssh looks for tmux after the login and refuses without \
+     it (exit 255): a new shell after a lost link would look like the old one. When the link is lost \
+     (no exit status; through the relay, a broken link or a close for its limits or its link to the \
+     server), podssh connects again, 10 times at most in 5 minutes, and attaches the same session; one \
+     that is gone is not started again. An exit status, a detach, ~., a refused host key or login, and \
+     Ctrl-C during the wait end the run. The logins after the first ask nothing (as BatchMode=yes); a \
+     key that a passphrase opened and a password that the server took are kept for the run. Keys \
+     typed meanwhile go to the session after the attach. With a command, -W, -N, -s, -T, node:// or \
+     iroh:, --persist is refused (exit 64).",
     "-L and -D are refused by name: each needs a local listener, and podssh never listens on a port. \
      Use -W HOST:PORT, which carries one connection over the session. -R is refused by name too: \
      remote forwarding is not implemented yet.",

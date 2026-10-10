@@ -30,7 +30,7 @@ expect_rc() {
 echo "== servers"
 # openssh-client-default is ssh itself, for the % tokens of `ssh -G`.
 apk add --no-cache openssh-server openssh-server-pam openssh-keygen openssh-sftp-server openssh-client-default \
-    dropbear python3 linux-pam openssl >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
+    dropbear python3 linux-pam openssl tmux >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
 PW=$(head -c 18 /dev/urandom | base64 | tr -d '/+=')
 adduser -D -s /bin/sh podtest >/dev/null 2>&1 || true
 echo "podtest:$PW" | chpasswd >/dev/null 2>&1 || { echo "interop: chpasswd failed"; exit 1; }

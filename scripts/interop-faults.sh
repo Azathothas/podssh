@@ -9,7 +9,7 @@ echo "== faults (a stand-in relay and proxy, OpenSSH behind them)"
 FK="$W/faults"
 mkdir -p "$FK"
 NAMES="relay-a relay-r503 relay-silent relay-hole relay-dead relay-stall relay-close relay-cap relay-kill relay-hshake
-relay-delay relay-jitter relay-rate relay-cut"
+relay-delay relay-jitter relay-rate relay-cut relay-persist"
 SAN=$(for n in $NAMES; do printf 'DNS:%s.test,' "$n"; done)
 PINS=$(for n in $NAMES; do printf '%s.test=127.0.0.1,' "$n"; done)
 SAN=${SAN%,}
@@ -35,7 +35,7 @@ fi
 # the connection ended with no Close after 1,000,000 bytes.
 for spec in a:normal r503:refuse:503 silent:silent hole:blackhole dead:normal stall:stall:12 \
         close:close:300000:1011 cap:close:1:1009 kill:normal hshake:close:1:1011 \
-        delay:delay:2000 jitter:jitter:0:1500:7 rate:rate:65536 cut:cut:1000000; do
+        delay:delay:2000 jitter:jitter:0:1500:7 rate:rate:65536 cut:cut:1000000 persist:normal; do
     name=${spec%%:*}
     python3 "$HERE/fake-relay.py" --cert "$FK/relay.pem" --key "$FK/relay.key" --keepalive 2 \
         --port-file "$FK/$name.port" --mode "${spec#*:}" >"$FK/$name.log" 2>&1 &
@@ -45,7 +45,7 @@ port() { cat "$FK/$1.port" 2>/dev/null; }
 tries=0
 while [ "$tries" -lt 30 ]; do
     missing=0
-    for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut; do
+    for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist; do
         [ -s "$FK/$n.port" ] || missing=1
     done
     [ "$missing" = 0 ] && break
@@ -166,6 +166,41 @@ took=$(( $(date +%s) - start ))
 [ "$rc" = 255 ] && [ "$took" -lt 30 ] && grep -qi "relay" "$FK/err" \
     && ok "faults: the relay host killed mid-session: exit 255 after ${took}s, and the relay is named" \
     || bad "faults: a relay killed mid-session: exit $rc after ${took}s" "$FK/err"
+
+# --persist (T-178): the first relay host dies under a tmux session; podssh
+# connects again through the next host and attaches the same session, whose
+# variable is still set. Then, with tmux off PATH, it refuses and names it.
+_term=${TERM-}
+TERM=xterm
+export TERM
+{
+    sleep 4
+    printf 'MARK=kept\n'
+    sleep 2
+    kill "$(cat "$FK/persist.pid")" 2>/dev/null
+    sleep 12
+    # shellcheck disable=SC2016  # $MARK is the far shell's
+    printf 'echo M=$MARK\n'
+    sleep 3
+    printf 'tmux kill-session\n'
+    sleep 3
+} | r "relay-persist.test:$(port persist),relay-a.test:$(port a)" --persist "$T" >"$FK/out" 2>"$FK/err"
+rc=$?
+[ "$rc" = 0 ] && grep -q 'M=kept' "$FK/out" && grep -q 'connecting again' "$FK/err" \
+    && ok "faults: --persist: a relay host killed under tmux, and the same session attached through the next" \
+    || bad "faults: --persist after a killed relay host: exit $rc" "$FK/err"
+tmuxbin=$(command -v tmux)
+if [ -n "$tmuxbin" ] && mv "$tmuxbin" "$tmuxbin.off"; then
+    r "relay-a.test:$(port a)" --persist "$T" </dev/null >"$FK/out" 2>"$FK/err"
+    rc=$?
+    mv "$tmuxbin.off" "$tmuxbin"
+    [ "$rc" = 255 ] && grep -q 'no tmux on PATH' "$FK/err" \
+        && ok "faults: --persist with tmux off PATH: exit 255, and tmux is named" \
+        || bad "faults: --persist with no tmux: exit $rc" "$FK/err"
+else
+    bad "faults: --persist: tmux is not in the image" /dev/null
+fi
+if [ -n "$_term" ]; then TERM=$_term; else unset TERM; fi
 
 # A server that stalls after the key exchange (T-236): the stand-in passes
 # OpenSSH's bytes up to its NEWKEYS, then drops them. On --direct nothing

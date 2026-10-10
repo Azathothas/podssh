@@ -89,6 +89,27 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   socket on the server, for OpenSSH) is refused until T-040 (exit 64). A
   `-J` hop keeps its own reading, where a host alone is port 22. `-V` prints
   the version and does not connect.
+- **`--persist` keeps the work through a lost link** (T-178), against a
+  standard sshd, where the resumable layer cannot help. After the login,
+  podssh looks for tmux (`command -v tmux`) and refuses without it (exit
+  255): a new shell after a loss would look like the old one and have lost
+  its state. The session is `tmux new-session -A -s NAME`, with a pty as
+  `-tt` asks; NAME is `podssh`, or the one of `--persist-name` (letters,
+  digits, `_` and `-`, 32 at most). A lost link is a session that ended
+  with no exit status: with `--direct`, or through the relay when its link
+  broke (the ping watcher) or it closed with 1001, 1006, 1009 or 1011. Then
+  podssh connects again, 10 times at most within 5 minutes of the loss,
+  after the jittered wait of the relay's failover, checks that the session
+  is still there (`tmux has-session`), and attaches it. A session that is
+  gone ends the run (255), as do an exit status, a detach of tmux (0), `~.`,
+  a refused host key or login, and Ctrl-C during the wait. The logins after
+  the first ask nothing (as `BatchMode=yes`): the input belongs to the
+  session, and a key that a passphrase opened and a password that the
+  server took are kept for the run. Keys typed during the wait go to the
+  session after the attach, 64 KiB at most. With a command, `-W`, `-N`,
+  `-s`, `-T`, `RemoteCommand`, `node://` or `iroh:`, `--persist` is a usage
+  error (64). The first connection's failure is final, as without
+  `--persist`.
 - **A repeated value follows OpenSSH** (measured with `ssh -G`): the first
   `-p` and `-l`, the last `-e`, `-E` and `-F`, and the first value of each
   `-o` keyword. A second `-J` or `-W` is an error, as in OpenSSH. podssh's

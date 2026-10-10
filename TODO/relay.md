@@ -160,7 +160,7 @@ token header (`crates/podssh-ws/src/client.rs:271-282`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags.rs:307-318`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags.rs:311-322`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:213-231` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
@@ -589,8 +589,8 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
-   (`crates/podssh-cli/src/flags.rs:112-241`, 323-343) and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:61-71`); the variable to VARIABLES and the modes to THE
+   (`crates/podssh-cli/src/flags.rs:112-245`, 323-343) and to `ONCE`
+   (`crates/podssh-cli/src/ssh/args.rs:65-76`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:45-122`, 170-183); both to `docs/relay.md:30-48`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
@@ -666,7 +666,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:105`,
    108-113, 122-132), the test of lines 365-377 at `22c3b88`, the comment of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:270-289`).
+   notes (`crates/podssh-cli/src/man/notes.rs:280-299`).
 
 ## Decision
 
@@ -783,7 +783,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:114`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:115`). That is one run, before 2026-10-09.
 
 ## Approach
 

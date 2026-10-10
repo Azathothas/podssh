@@ -1,5 +1,7 @@
 //! Copying between the local stdin/stdout/stderr and a session channel, with
 //! window-size changes and the escape character, until the channel closes.
+//! The input outlives a session: `--persist` attaches a new one after a
+//! lost link, and it reads on where the last one stopped.
 
 use std::sync::Arc;
 
@@ -29,13 +31,84 @@ pub enum End {
     Terminated,
 }
 
+/// What a user types while `--persist` connects again waits for the next
+/// session, this much at most.
+pub const QUEUE: usize = 64 * 1024;
+
+/// The local input of a run. It is read on its own task from the first
+/// session on, so that a session after a lost link reads on where the last
+/// one stopped, and what came between them waits in a queue.
+#[derive(Default)]
+pub struct Input {
+    /// `-n`: nothing is read, and the far side sees the end of input at once.
+    null: bool,
+    rx: Option<mpsc::Receiver<Vec<u8>>>,
+    /// The input has ended: a later session sees its end after the queue.
+    ended: bool,
+    queued: Vec<u8>,
+    /// Bytes that did not fit the queue.
+    dropped: usize,
+}
+
+impl Input {
+    /// The input of a run; none with `null` (`-n`).
+    pub fn new(null: bool) -> Self {
+        Input { null, ..Input::default() }
+    }
+
+    /// Whether a session has input to read.
+    fn open(&self) -> bool {
+        !self.null && !(self.ended && self.queued.is_empty())
+    }
+
+    /// The next bytes: the queue first, then what is read; `None` at the
+    /// end. The task that reads starts at the first call, after the login,
+    /// so that it takes nothing that a prompt reads.
+    async fn next(&mut self) -> Option<Vec<u8>> {
+        if !self.queued.is_empty() {
+            return Some(std::mem::take(&mut self.queued));
+        }
+        if self.ended {
+            return None;
+        }
+        let read = self.rx.get_or_insert_with(spawn_stdin).recv().await;
+        if read.is_none() {
+            self.ended = true;
+        }
+        read
+    }
+
+    /// Between two sessions: keep what is read for the next one, [`QUEUE`]
+    /// bytes at most. It never returns; the wait drops it when it ends.
+    pub async fn queue(&mut self) {
+        loop {
+            match self.rx.as_mut() {
+                Some(rx) if !self.ended => match rx.recv().await {
+                    Some(bytes) => {
+                        let kept = bytes.len().min(QUEUE.saturating_sub(self.queued.len()));
+                        self.queued.extend_from_slice(&bytes[..kept]);
+                        self.dropped += bytes.len() - kept;
+                    }
+                    None => self.ended = true,
+                },
+                _ => std::future::pending::<()>().await,
+            }
+        }
+    }
+
+    /// The bytes that did not fit the queue since the last call.
+    pub fn take_dropped(&mut self) -> usize {
+        std::mem::take(&mut self.dropped)
+    }
+}
+
 pub async fn pump(
     handle: &Handle<Client>,
     channel: Channel<Msg>,
     early: Vec<ChannelMsg>,
     mut escapes: Option<Escapes>,
     pty: bool,
-    stdin_null: bool,
+    input: &mut Input,
     log: &Arc<Log>,
 ) -> End {
     let (mut reader, writer) = channel.split();
@@ -45,17 +118,16 @@ pub async fn pump(
             return end;
         }
     }
-    let mut input = if stdin_null {
+    // False once this session's input has ended, or its channel takes no more.
+    let mut reading = input.open();
+    if !reading {
         let _ = writer.eof().await;
-        None
-    } else {
-        Some(spawn_stdin())
-    };
+    }
     let mut resize = Resize::new(pty);
     let mut stop = Termination::new(pty && terminal::raw_active());
     loop {
         tokio::select! {
-            chunk = recv(&mut input) => match chunk {
+            chunk = next(input, reading) => match chunk {
                 Some(bytes) => {
                     let (data, commands) = match escapes.as_mut() {
                         Some(e) => e.feed(&bytes),
@@ -72,7 +144,7 @@ pub async fn pump(
                                 sent = &mut send => {
                                     if sent.is_err() {
                                         // The channel is closing; keep reading for its status.
-                                        input = None;
+                                        reading = false;
                                     }
                                     break;
                                 }
@@ -103,7 +175,7 @@ pub async fn pump(
                     }
                 }
                 None => {
-                    input = None;
+                    reading = false;
                     let _ = writer.eof().await;
                 }
             },
@@ -191,11 +263,11 @@ fn spawn_stdin() -> mpsc::Receiver<Vec<u8>> {
     rx
 }
 
-async fn recv(input: &mut Option<mpsc::Receiver<Vec<u8>>>) -> Option<Vec<u8>> {
-    match input {
-        Some(rx) => rx.recv().await,
-        None => std::future::pending().await,
+async fn next(input: &mut Input, reading: bool) -> Option<Vec<u8>> {
+    if !reading {
+        return std::future::pending().await;
     }
+    input.next().await
 }
 
 /// Window-size changes: SIGWINCH on Unix, polling on Windows (a console has

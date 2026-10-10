@@ -32,6 +32,7 @@ pub mod keys;
 pub mod known_hosts;
 pub mod log;
 pub mod options;
+pub mod persist;
 pub mod probe;
 pub mod prompt;
 pub mod relay_stream;

@@ -202,7 +202,7 @@ usable shell through `podssh serve`.
 | A stuck write | Fails after 60 s |
 | The relay's idle cut | Keepalives every 60 s keep the session (MEASURED: 602 s with keepalives; cut at 184 s without). To a node, the layer's records each 10 s keep it, and SSH sends no keepalive unless asked (T-154) |
 | The relay's limits (12 h, 64 MiB) | The session ends, with the reason. To a node, the session moves to a new link before them, at 48 MiB or 11 h (T-155) |
-| A dropped connection | On the forward road, the session ends; `ssh` prints the relay's reason and exits 255. `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136). To a node (`ssh node://`, `operator`), the resumable layer carries the session onto a new link, for 10 minutes (T-153) |
+| A dropped connection | On the forward road, the session ends; `ssh` prints the relay's reason and exits 255; with `--persist`, it connects again and attaches the same tmux session on the server (T-178). `cp` and `mv` go on over a new connection, at the offset of the copy, 5 times in a row at most with no new byte (T-136). To a node (`ssh node://`, `operator`), the resumable layer carries the session onto a new link, for 10 minutes (T-153) |
 | A changed client address | The session is lost |
 
 The relay has no resumption on either path (READ, in the relay's source and
@@ -240,7 +240,7 @@ session on it ends.
    relay. The options, the least costly first:
    - automatic reconnection with a new authentication, and `tmux new -A` to
      attach again for interactive sessions (only on request; tmux is probed,
-     never assumed; M7);
+     never assumed): `podssh ssh --persist` since T-178;
    - a relay feature: a Durable Object that owns the target socket across
      client reconnections, a resume token in the `101` response, and offset
      framing as a protocol version that the client selects. This is a

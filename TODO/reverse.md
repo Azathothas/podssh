@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:473`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:494`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:306`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -758,7 +758,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:153` there), examples in
-   `crates/podssh-cli/src/man/examples.rs:8-75`; update `docs/cli.md`, `docs/reverse.md` and
+   `crates/podssh-cli/src/man/examples.rs:8-79`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
    T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:38`), so keep the two apart. Never
@@ -881,14 +881,14 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 `podssh ssh -T node:22 true` reaches the connect step for host `node`, port 22 (exit 255 from
 `PODSSH_OFFLINE`); `podssh ssh -T node://lab true` gives `"//lab" is not a port` and exit 64.
 
-Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/resolve.rs:415-463`).
-`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:19-35`, chosen at `:248-293`).
+Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/resolve.rs:420-468`).
+`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:19-35`, chosen at `:250-295`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:189-195`); the
 operator leg receives text frames (`docs/relay.md:259-262`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:63-68`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:332`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:469-473`).
+(`crates/podssh-cli/src/ssh/resolve.rs:334`). `podssh ssh` uses the exit codes of OpenSSH, and
+`podssh proxy` sysexits (`docs/cli.md:490-494`).
 
 ## Approach
 
@@ -903,12 +903,12 @@ host, never the relay's name (`SECURITY.md:63-68`); `HostKeyAlias` exists
 4. Host keys: record and check the node's key under the name `node://NAME`, which no DNS name can be;
    `-o HostKeyAlias` still wins.
 5. Refuse by name a node as a `-J` hop, and `-W` through a node; record them for later.
-6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-241`,
+6. Flags: `--pair-file FILE` for `operator` and `ssh` (`crates/podssh-cli/src/flags.rs:112-245`,
    lines 418-419 at `3cbf215`). Update the manual's examples and notes, `docs/cli.md` (lines 62-75 at `3cbf215`) and `docs/reverse.md`.
 
 ## Decision
 
-Recommendation: `node://[user@]NAME`, read as `ssh://` is (`crates/podssh-cli/src/ssh/resolve.rs:420`),
+Recommendation: `node://[user@]NAME`, read as `ssh://` is (`crates/podssh-cli/src/ssh/resolve.rs:425`),
 because it changes no destination that works today (measured above). The alternative `node:NAME`, the
 address form of `podssh pipe` (`docs/design.md:413`), lost: `podssh ssh node:22` already means host
 `node`, port 22. A flag such as `--node NAME` lost: `podssh ssh` takes its destination as a word, as

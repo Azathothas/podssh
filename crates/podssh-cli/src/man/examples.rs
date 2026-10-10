@@ -21,6 +21,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh ssh -p 2222 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new user@example.org".into(),
         ),
         ("an interactive program, from a host with no terminal", "podssh ssh -tt user@example.org top".into()),
+        (
+            "a shell in the server's tmux, attached again after a lost link",
+            "podssh ssh --persist user@example.org".into(),
+        ),
         ("through a jump host", "podssh ssh -J user@bastion.example.org user@inner.example.org".into()),
         (
             "a host from a script: -- before it, so it is never read as a flag",

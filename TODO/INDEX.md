@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**267 entries: 134 open, 0 partial, 22 blocked, 111 done.**
+**267 entries: 133 open, 0 partial, 22 blocked, 112 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 14 | 16 |
-| P2 | 51 | 0 | 18 | 81 | 150 |
+| P2 | 50 | 0 | 18 | 82 | 150 |
 | P3 | 81 | 0 | 4 | 15 | 100 |
-| **All** | 134 | 0 | 22 | 111 | 267 |
+| **All** | 133 | 0 | 22 | 112 | 267 |
 
 ## Entries
 
@@ -251,7 +251,7 @@ repository and CI).
 | [T-175](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe` with remote addresses |
 | [T-176](pipe.md) | P2 | S | M7 | feature | done | `podssh pipe` with `unix-connect:PATH` |
 | [T-177](pipe.md) | P3 | M | M7 | feature | open | `podssh pipe` with a local listener after a probe |
-| [T-178](pipe.md) | P2 | M | M7 | feature | open | `--persist`: connect again and attach `tmux` again |
+| [T-178](pipe.md) | P2 | M | M7 | feature | done | `--persist`: connect again and attach `tmux` again |
 | [T-179](pipe.md) | P3 | S | backlog | docs | open | Desktop streams and Telnet through `proxy` and `pipe` |
 | [T-180](pipe.md) | P3 | L | backlog | feature | blocked | Publish a local HTTP service at `https://NAME` through the relay |
 | [T-181](pipe.md) | P3 | S | backlog | feature | open | A `serial:` address for a local serial device |

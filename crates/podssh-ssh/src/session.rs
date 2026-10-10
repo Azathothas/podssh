@@ -22,6 +22,30 @@ const REPLY_WAIT: Duration = Duration::from_secs(30);
 
 /// Run `opts.request` on a new session channel.
 pub async fn run(handle: &Handle<Client>, opts: &Options, host: &str, log: &Arc<Log>) -> Result<i32, String> {
+    let mut input = io::Input::new(opts.stdin_null);
+    let end = attach(handle, opts, host, log, &mut input).await?;
+    code(end, host)
+}
+
+/// The exit code of a session that ended so, or the words of a lost link.
+pub fn code(end: io::End, host: &str) -> Result<i32, String> {
+    match end {
+        io::End::Status(code) => Ok(code),
+        io::End::NoStatus | io::End::Escaped(_) | io::End::Terminated => Ok(NO_STATUS),
+        io::End::Lost => Err(format!("the connection to {host} was lost before the session ended")),
+    }
+}
+
+/// `opts.request` on a new session channel with `input`, until the session
+/// ends: how it ended. `--persist` reads a lost link in it, and keeps the
+/// input for the next session.
+pub async fn attach(
+    handle: &Handle<Client>,
+    opts: &Options,
+    host: &str,
+    log: &Arc<Log>,
+    input: &mut io::Input,
+) -> Result<io::End, String> {
     let mut channel =
         handle.channel_open_session().await.map_err(|e| format!("the server refused to open a session: {e}"))?;
     for (name, value) in environment(opts) {
@@ -92,16 +116,12 @@ pub async fn run(handle: &Handle<Client>, opts: &Options, host: &str, log: &Arc<
         (true, Some(c)) => Some(Escapes::new(c)),
         _ => None,
     };
-    let end = io::pump(handle, channel, early, escapes, pty, opts.stdin_null, log).await;
+    let end = io::pump(handle, channel, early, escapes, pty, input, log).await;
     drop(raw);
     if pty && stdin_tty {
         log.info(&format!("Connection to {host} closed."));
     }
-    match end {
-        io::End::Status(code) => Ok(code),
-        io::End::NoStatus | io::End::Escaped(_) | io::End::Terminated => Ok(NO_STATUS),
-        io::End::Lost => Err(format!("the connection to {host} was lost before the session ended")),
-    }
+    Ok(end)
 }
 
 /// Wait for the reply to a request sent with `want_reply`. Messages that

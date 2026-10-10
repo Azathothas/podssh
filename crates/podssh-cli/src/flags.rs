@@ -182,6 +182,10 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "iroh:TICKET: the iroh relays to try after the ticket's, https://HOST[:PORT][,...] (default: env PODSSH_IROH_RELAY, else n0's)", None),
     row(None, "iroh-ticket", Some("TICKET"), FlagKind::Supported,
         "node://NAME: race the iroh road to TICKET, first, with the pair's road; the first that answers carries the session; a build with the feature iroh", None),
+    row(None, "persist", None, FlagKind::Supported,
+        "run the shell in the server's tmux, and after a lost link connect again and attach it again; tmux is probed", None),
+    row(None, "persist-name", Some("NAME"), FlagKind::Supported,
+        "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
     // These two disable things podssh never does, so they need no work.
     row(Some('x'), "no-x11", None, FlagKind::Supported,
         "no X11 forwarding (podssh never forwards X11)", None),

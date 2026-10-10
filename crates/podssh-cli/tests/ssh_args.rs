@@ -384,3 +384,36 @@ fn node_destinations() {
         assert!(err.contains(says), "{words:?}: {err}");
     }
 }
+
+/// `--persist` (T-178) runs tmux in the shell's place with a pty, as `-tt`
+/// asks; each command line that it cannot serve is a usage error, before
+/// anything connects.
+#[test]
+fn persist_runs_tmux_with_a_pty_and_refuses_what_it_cannot_serve() {
+    let r = resolve(&ssh(&["--persist", "host"]), &env()).unwrap();
+    assert_eq!(r.options.request, Request::Exec("tmux new-session -A -s podssh".into()));
+    assert_eq!(r.options.request_tty, RequestTty::Force);
+    assert_eq!(r.persist.as_deref(), Some("podssh"));
+    let r = resolve(&ssh(&["--persist", "--persist-name", "build-2_x", "--direct", "host"]), &env()).unwrap();
+    assert_eq!(r.options.request, Request::Exec("tmux new-session -A -s build-2_x".into()));
+    assert_eq!(resolve(&ssh(&["host"]), &env()).unwrap().persist, None);
+    let long = "n".repeat(33);
+    for (words, says) in [
+        (vec!["--persist", "host", "uptime"], "a remote command"),
+        (vec!["--persist", "-W", "h:22", "host"], "-W"),
+        (vec!["--persist", "-N", "host"], "-N"),
+        (vec!["--persist", "-s", "host", "sftp"], "-s"),
+        (vec!["--persist", "-o", "RemoteCommand=top", "host"], "RemoteCommand"),
+        (vec!["--persist", "-o", "SessionType=none", "host"], "SessionType"),
+        (vec!["--persist", "-T", "host"], "-T"),
+        (vec!["--persist", "-o", "RequestTTY=no", "host"], "RequestTTY=no"),
+        (vec!["--persist", "node://lab"], "standard sshd"),
+        (vec!["--persist-name", "x", "host"], "give --persist too"),
+        (vec!["--persist", "--persist-name", "a.b", "host"], "letters, digits"),
+        (vec!["--persist", "--persist-name", &long, "host"], "32 at most"),
+    ] {
+        let refusal = resolve_or_refuse(&ssh(&words), &env()).expect_err(&format!("{words:?}"));
+        assert_eq!(refusal.code, 64, "{words:?}: {}", refusal.message);
+        assert!(refusal.message.contains(says), "{words:?}: {}", refusal.message);
+    }
+}

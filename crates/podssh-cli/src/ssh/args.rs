@@ -49,6 +49,10 @@ pub struct SshArgs {
     pub iroh_relay: Option<String>,
     /// For `node://NAME`: the node's iroh ticket, to race with the pair.
     pub iroh_ticket: Option<String>,
+    /// `--persist`: tmux on the server, attached again after a lost link.
+    pub persist: bool,
+    /// The tmux session of `--persist`.
+    pub persist_name: Option<String>,
 }
 
 /// The long-only rows that are spellings of `-o NAME=VALUE`.
@@ -68,6 +72,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("iroh-key", "give one file"),
     ("iroh-relay", "give the relays as one comma list"),
     ("iroh-ticket", "give one ticket"),
+    ("persist-name", "give one name"),
 ];
 
 /// The refusal for a flag of [`ONCE`] given more than once, if there is one.
@@ -143,6 +148,8 @@ impl SshArgs {
             iroh_key: one("iroh-key"),
             iroh_relay: one("iroh-relay"),
             iroh_ticket: one("iroh-ticket"),
+            persist: flag("persist"),
+            persist_name: one("persist-name"),
         }
     }
 }

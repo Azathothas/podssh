@@ -256,7 +256,7 @@ fn client_config(opts: &Options, policy: &Policy) -> Config {
 
 /// `host`, or `host:port` when the port is not 22 (`[v6]:port` for an
 /// IPv6 address).
-fn display(hop: &Hop) -> String {
+pub(crate) fn display(hop: &Hop) -> String {
     if hop.port == 22 {
         hop.host.clone()
     } else {

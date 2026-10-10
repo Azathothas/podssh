@@ -12,6 +12,7 @@ pub mod iroh;
 pub mod keywords;
 pub mod node;
 pub mod options;
+pub mod persist;
 pub mod resolve;
 pub mod tokens;
 pub mod transport;
@@ -82,6 +83,9 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
 }
 
 async fn connect_and_run(resolved: Resolved, log: Arc<Log>) -> i32 {
+    if let Some(name) = resolved.persist.as_deref() {
+        return Box::pin(persist::run(&resolved, name, log)).await;
+    }
     let opts = &resolved.options;
     if let Transport::Node { label, pair_file, trust, race } = &resolved.transport {
         if let Some(race) = race {
