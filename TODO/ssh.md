@@ -1319,6 +1319,15 @@ kill the socket and its directory are gone.
 Waits for T-251: the box (`scripts/test_in_box.sh`), where each bind is
 refused and `podssh agent` must refuse with the probe's reason.
 
+CI at `f7d5640` failed in each Linux step of the gate: `tests/agent_cli.rs`
+ended the agent through its guard, whose kill is SIGKILL, so the agent
+could not remove its socket, and the test's check of the socket failed and
+`/tmp/podssh-agent-PID` stayed (the check of T-272). The test now sends
+SIGTERM, as a user does, waits for exit 143, checks that the socket and
+its directory are gone, and gives the agent `TMPDIR` in its scratch
+directory, so a failure leaves nothing outside it. In the build image,
+2026-10-11: 3 passed, and nothing was left in `/tmp`.
+
 # T-227: `--direct` has no limit on a stuck write, but the relay leg fails after 60 s (GitHub #36)
 
 **Source:** GitHub #36 (2026-10-08): read by the reporter and marked

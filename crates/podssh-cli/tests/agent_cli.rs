@@ -2,7 +2,7 @@
 //! `SSH_AUTH_SOCK`; `add` sends a key, `list` shows it, and `podssh ssh`
 //! logs in with it, with no `-i`, to the test's SSH server, which needs a
 //! key for a user named `key-...`; `remove` takes it back, and then the
-//! login fails. The agent ends at a kill, and its socket goes.
+//! login fails. The agent ends at SIGTERM, and its socket goes.
 
 mod cleanup;
 mod ssh_harness;
@@ -23,13 +23,21 @@ fn scratch(name: &str) -> PathBuf {
 }
 
 /// podssh with a clean environment: `home` as HOME, and `sock` as
-/// SSH_AUTH_SOCK when given.
+/// SSH_AUTH_SOCK when given. The agent's directory goes in `home` too, so a
+/// test that fails leaves nothing outside its scratch directory.
 fn podssh(home: &Path, sock: Option<&str>, args: &[&str]) -> Command {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
-    cmd.args(args).env("HOME", home).env("USERPROFILE", home).env("PODSSH_SSH_CONFIG", "none");
-    for name in
-        ["PODSSH_OFFLINE", "HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy", "SSH_ASKPASS", "PODSSH_LISTEN"]
-    {
+    cmd.args(args).env("HOME", home).env("USERPROFILE", home).env("PODSSH_SSH_CONFIG", "none").env("TMPDIR", home);
+    for name in [
+        "PODSSH_OFFLINE",
+        "HTTPS_PROXY",
+        "https_proxy",
+        "ALL_PROXY",
+        "all_proxy",
+        "SSH_ASKPASS",
+        "PODSSH_LISTEN",
+        "XDG_RUNTIME_DIR",
+    ] {
         cmd.env_remove(name);
     }
     match sock {
@@ -141,9 +149,28 @@ fn agent_serves_and_podssh_ssh_logs_in_with_its_key() {
     let without = login(Some(&sock));
     assert_eq!(without.status.code(), Some(255), "no key: {}", String::from_utf8_lossy(&without.stderr));
 
-    drop(running);
+    // SIGTERM, as a user ends it: the agent removes its socket and its
+    // directory, and exits 143. A kill of the guard could not let it.
     #[cfg(unix)]
-    assert!(!Path::new(&sock).exists(), "the socket went: {sock}");
+    {
+        let mut running = running;
+        // SAFETY: a signal to the child that this test started and still holds.
+        unsafe { libc::kill(running.0.id() as i32, libc::SIGTERM) };
+        let deadline = Instant::now() + LIMIT;
+        let status = loop {
+            if let Some(status) = running.0.try_wait().unwrap() {
+                break status;
+            }
+            assert!(Instant::now() < deadline, "the agent did not end at SIGTERM within {LIMIT:?}");
+            std::thread::sleep(Duration::from_millis(50));
+        };
+        assert_eq!(status.code(), Some(143), "the agent's exit at SIGTERM");
+        let dir = Path::new(&sock).parent().expect("the socket's directory");
+        assert!(!Path::new(&sock).exists() && !dir.exists(), "the socket or its directory stayed: {sock}");
+        assert!(dir.starts_with(&home), "the agent's directory is in the test's: {}", dir.display());
+    }
+    #[cfg(not(unix))]
+    drop(running);
 }
 
 #[test]
