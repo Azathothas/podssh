@@ -8,6 +8,7 @@
 //! 64, and a bad relay variable 78, before anything is attempted.
 
 pub mod args;
+pub mod dump;
 pub mod iroh;
 pub mod keywords;
 pub mod node;
@@ -49,6 +50,14 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
         Ok(r) => r,
         Err(refusal) => return refusal.report("ssh", err),
     };
+    // -G: the settings, and nothing opened: no relay, no token, no pool.
+    if args.print_config {
+        let mut out = std::io::stdout().lock();
+        for line in dump::lines(&resolved) {
+            let _ = writeln!(out, "{line}");
+        }
+        return 0;
+    }
     let log = match &resolved.log_file {
         Some(path) => match Log::to_file(resolved.options.log_level, path) {
             Ok(log) => log,

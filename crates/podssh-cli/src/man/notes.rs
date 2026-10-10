@@ -72,6 +72,11 @@ const SSH: &[&str] = &[
      refused by name too: remote forwarding is not implemented yet.",
     "-P is the tag of OpenSSH on ssh, not a port, and podssh ignores it. On scp and sftp, -P is the port. \
      Use -p for the port of ssh.",
+    "-G prints the settings in effect, as ssh -G does: a line of keyword and value for each keyword of \
+     OpenSSH that podssh applies, defaults included, then exits 0 with nothing opened. The defaults \
+     that differ from OpenSSH's do on purpose: ServerAliveInterval and ConnectTimeout are 60, and no \
+     identity file of a security key is tried. podssh's own settings, such as the relay hosts, print no \
+     line, as OpenSSH knows no keyword for them.",
     "Paths in -i and in the IdentityFile, UserKnownHostsFile, GlobalKnownHostsFile and IdentityAgent \
      keywords take the tokens of OpenSSH: %% %C %d %h %i %j %k %L %l %n %p %r %u, with OpenSSH's values. \
      %u is the local user and %r the remote one. An unknown token is refused (exit 64). -E FILE is opened \

@@ -110,6 +110,16 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `-s`, `-T`, `RemoteCommand`, `node://` or `iroh:`, `--persist` is a usage
   error (64). The first connection's failure is final, as without
   `--persist`.
+- **`-G` prints the settings in effect** (T-046), as OpenSSH's `ssh -G`
+  does: a line of `keyword value` for each keyword of OpenSSH that podssh
+  applies, with the defaults, in OpenSSH's order and spelling (`true` and
+  `false` where OpenSSH writes them), then exit 0 with nothing opened: no
+  relay, no token. A script can compare the two line by line. The defaults
+  that differ do on purpose: `serveraliveinterval 60` (the relay's idle
+  cut) and `connecttimeout 60`, and podssh tries no `_sk` identity file, as
+  it has no security keys. podssh's own settings (relay hosts, `--ca-file`)
+  print no line, as OpenSSH knows no such keyword; `podssh status` shows
+  them.
 - **A repeated value follows OpenSSH** (measured with `ssh -G`): the first
   `-p` and `-l`, the last `-e`, `-E` and `-F`, and the first value of each
   `-o` keyword. A second `-J` or `-W` is an error, as in OpenSSH. podssh's

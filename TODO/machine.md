@@ -48,8 +48,8 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:123-147`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:291-310`) and
-   `docs/cli.md:295-313` in the same commit.
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:296-315`) and
+   `docs/cli.md:305-323` in the same commit.
 
 ## Decision
 
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:85-88` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags.rs:352-363`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:291-310`) and `docs/cli.md:295-313` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:296-315`) and `docs/cli.md:305-323` in the same commit.
 
 ## Decision
 
@@ -493,7 +493,7 @@ at `crates/podssh-cli/src/ssh/transport.rs:56`, and the relay's close reason is 
    (`crates/podssh-ssh/src/io.rs:105-113`, and `write_out` at `crates/podssh-ssh/src/io.rs:234-244`). T-055 needs the same change.
 3. stdout and stderr stay byte for byte as now; the command's output never goes into the JSON.
 4. Write the file on each path, also after a failure before the session: at the end of
-   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:78-82`). Mode 0600. Refuse `-`: stdout is data.
+   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:87-91`). Mode 0600. Refuse `-`: stdout is data.
 5. Add the row to `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-245`; the set of short flags
    does not change), and change the `ssh` notes and `docs/cli.md` in the same commit.
 
@@ -538,7 +538,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:532-548`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:542-558`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:234-244`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:102-112`), and stdio needs no listener.

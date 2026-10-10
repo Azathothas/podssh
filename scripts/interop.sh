@@ -209,6 +209,23 @@ got=$(ls -d "$TOK"/* 2>/dev/null)
     && ok "% tokens: podssh expands %C %L %l %i %u %r %h %p %n %j %k as ssh -G does" \
     || bad "% tokens: exit $rc; podssh wrote ${got:-nothing}; ssh -G gives ${want:-nothing}" "$W/err"
 
+# podssh ssh -G (T-046): each line that podssh prints is one of OpenSSH's,
+# but for the defaults that differ on purpose. HOME is the one that OpenSSH
+# reads from the user database.
+home=$(awk -F: -v u="$(id -un)" '$1 == u {print $6}' /etc/passwd)
+for args in "-p 2222 -l alice example.org" \
+        "-l alice -o ServerAliveInterval=30 -o ConnectTimeout=7 -o StrictHostKeyChecking=accept-new -o SendEnv=LANG -o LogLevel=VERBOSE -e % -4 -J u@b:2200,c -o RemoteCommand=uptime -o IdentityAgent=none EXAMPLE.org"; do
+    # shellcheck disable=SC2086
+    ssh -F /dev/null -G $args </dev/null >"$W/ssh-G" 2>/dev/null
+    # shellcheck disable=SC2086
+    env HOME="$home" PODSSH_OFFLINE=1 "$BIN" ssh -F none -G $args </dev/null >"$W/podssh-G" 2>"$W/err"
+    rc=$?
+    extra=$(grep -v -E '^(serveraliveinterval|connecttimeout) ' "$W/podssh-G" | grep -vxF -f "$W/ssh-G" | tr '\n' ';')
+    [ "$rc" = 0 ] && [ -s "$W/podssh-G" ] && [ -z "$extra" ] && [ ! -s "$W/err" ] \
+        && ok "ssh -G: each line that podssh prints is OpenSSH's ($args)" \
+        || bad "ssh -G ($args): exit $rc; not OpenSSH's: ${extra:-nothing}" "$W/err"
+done
+
 echo
 echo "== forwarding, jump hosts, subsystems, environment"
 # shellcheck disable=SC2086

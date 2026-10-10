@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**267 entries: 132 open, 0 partial, 22 blocked, 113 done.**
+**267 entries: 131 open, 0 partial, 22 blocked, 114 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 14 | 16 |
-| P2 | 50 | 0 | 18 | 82 | 150 |
+| P2 | 49 | 0 | 18 | 83 | 150 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 132 | 0 | 22 | 113 | 267 |
+| **All** | 131 | 0 | 22 | 114 | 267 |
 
 ## Entries
 
@@ -119,7 +119,7 @@ repository and CI).
 | [T-043](config.md) | P2 | M | M8 | feature | open | Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22) |
 | [T-044](config.md) | P2 | M | M8 | feature | open | `Include` in `ssh_config`, expanded as OpenSSH expands it |
 | [T-045](config.md) | P3 | M | backlog | feature | open | `Match` in `ssh_config` |
-| [T-046](config.md) | P2 | S | M8 | feature | open | `podssh ssh -G`: print the settings in effect (GitHub #14, #22) |
+| [T-046](config.md) | P2 | S | M8 | feature | done | `podssh ssh -G`: print the settings in effect (GitHub #14, #22) |
 | [T-047](config.md) | P3 | M | backlog | feature | open | Import host lists from other clients into `ssh_config` |
 | [T-048](config.md) | P3 | M | backlog | feature | open | A podssh settings file for its own defaults, below flags and variables |
 | [T-049](machine.md) | P2 | S | backlog | feature | done | `podssh doctor --json` (GitHub #9) |

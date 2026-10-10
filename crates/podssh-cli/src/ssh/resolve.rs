@@ -50,6 +50,8 @@ pub struct Resolved {
     pub warnings: Vec<String>,
     /// `--persist`: the tmux session that a new connection attaches again.
     pub persist: Option<String>,
+    /// What `-G` prints as it was given.
+    pub shown: super::dump::Shown,
 }
 
 /// What the process environment contributes, gathered once so it can be
@@ -354,6 +356,18 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     options.compression = args.compression || settings.compression.unwrap_or(false);
     options.log_level = log_level;
     options.stdin_null = args.stdin_null || settings.stdin_null.unwrap_or(false);
+    let shown = super::dump::Shown {
+        host: target.host.clone(),
+        hostname: lower_host(&host),
+        family,
+        pubkey: settings.pubkey.unwrap_or(true),
+        password: settings.password.unwrap_or(true),
+        kbd_interactive: settings.kbd_interactive.unwrap_or(true),
+        preferred: settings.preferred_auth.as_ref().map(|m| m.iter().map(|m| m.name()).collect::<Vec<_>>().join(",")),
+        remote_command: settings.remote_command.clone(),
+        proxy_jump: proxy_jump.filter(|j| *j != "none").map(str::to_string),
+        home: env.home.clone(),
+    };
     let mut resolved = Resolved {
         options,
         transport,
@@ -362,6 +376,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         notes,
         warnings,
         persist: None,
+        shown,
     };
     super::persist::check(args, &mut resolved)?;
     Ok(resolved)
