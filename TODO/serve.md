@@ -188,9 +188,9 @@ tells the user nothing.
   handle sends `AdministrativelyProhibited`
   (`Eugeny/russh:russh/src/lib_inner.rs`, lines 570-620). A refusal can carry
   a reason with `ChannelOpenFailure::Other`.
-- Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs:204-222` (a time
+- Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs:224-242` (a time
   limit; `HTTPS_PROXY` when it is set) and
-  `crates/podssh-ws/src/dial.rs:156-162` (loopback never through a proxy).
+  `crates/podssh-ws/src/dial.rs:176-182` (loopback never through a proxy).
   The client copies a forward with half-close in
   `crates/podssh-ssh/src/forward.rs:22-83`.
 - Read: in the measured sandbox, `connect()` to loopback failed with `EACCES`
@@ -214,7 +214,7 @@ tells the user nothing.
 
 Pitfalls: `direct-streamlocal@openssh.com` (AF_UNIX) stays refused here; T-040
 is the client side. A host name that `check_name` refuses
-(`crates/podssh-ws/src/dial.rs:384-393`) gets that reason, not a generic one.
+(`crates/podssh-ws/src/dial.rs:404-413`) gets that reason, not a generic one.
 
 ## Prove
 

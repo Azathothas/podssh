@@ -5,7 +5,7 @@ crate crates/podssh-ts/, and the fork vendor/tailscale-rs with its patches in ve
 of it is behind the cargo feature `ts`: the default binary refuses `podssh ts` with exit 70. The
 fork builds aws-lc and uses much memory, so run one build at a time with `CARGO_BUILD_JOBS=4`
 (`AGENTS.md`, section 4). The fork's own tests run in the build image through
-`scripts/ts-derp-prove.sh:82-100`.
+`scripts/ts-derp-prove.sh:82-114`.
 
 # T-100: C2: `podssh ts` waits for ever when no network map arrives
 
@@ -244,16 +244,16 @@ current node key (`vendor/tailscale-rs/ts_control_serde/src/register.rs:92-97`).
 ## Approach
 
 1. Probe each mode before `TsNode::start`, through the proxy of T-103, in 8 s per step as
-   `podssh doctor` does (`crates/podssh-cli/src/doctor/net.rs:12-13`): for `tcp`, a TLS handshake to
+   `podssh doctor` does (`crates/podssh-cli/src/doctor/net.rs:14-15`): for `tcp`, a TLS handshake to
    a stock DERP server on port 443; for `relay`, one to the relay host. Dial with
-   `crates/podssh-ws/src/dial.rs:204-207`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
+   `crates/podssh-ws/src/dial.rs:224-227`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
 2. Add a logout to the fork: a register request with an expiry in the past, a `ControlRunner`
    message and `Device::logout(timeout)`, as a new patch with its row in
    `vendor/tailscale-rs/LOCAL-PATCHES.md`.
 3. `TsNode::shutdown` logs out first when the node is ephemeral, in 5 s at most. `podssh ts` calls
    it at the end of each form, also after an error (`crates/podssh-cli/src/ts.rs`, lines 232-242 at
    `c17e64f`). Never
-   log out a node that is not ephemeral: its allowlist entry is lost (`docs/tailscale.md:43-44`).
+   log out a node that is not ephemeral: its allowlist entry is lost (`docs/tailscale.md:48-49`).
 4. Update `docs/tailscale.md` and `docs/STATUS.md:310` in the same commit.
 
 ## Decision
@@ -355,7 +355,7 @@ Confirmed here on `3ee70dc` by reading the fork and the command.
 **Milestone:** M8
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -366,41 +366,64 @@ each other podssh command, and a proxy password in `--ts-proxy` is on the comman
 
 ## Premise
 
-Read: `ws::connect_with_subprotocol` opens `TcpStream::connect((hostname, port))`
-(`vendor/tailscale-rs/ts_derp/src/ws.rs:63-68`). The other three dial sites check the proxy first
-(`vendor/tailscale-rs/ts_derp/src/dial.rs:191-204`, `vendor/tailscale-rs/ts_http_util/src/lib.rs:126-141`,
-`vendor/tailscale-rs/ts_control/src/control_dialer.rs:82-86`), and the proxy module warns that a
-fourth path that goes direct keeps the route that cannot work
-(`vendor/tailscale-rs/ts_http_util/src/proxy.rs:9-12`). `relay` mode reaches `ws::connect` through
+Read, at `0b6f4b8`: `ws::connect_with_subprotocol` opens `TcpStream::connect((hostname, port))`
+(`vendor/tailscale-rs/ts_derp/src/ws.rs` lines 63-68). The other three dial sites check the proxy
+first (`vendor/tailscale-rs/ts_derp/src/dial.rs` lines 191-204, `vendor/tailscale-rs/ts_http_util/src/lib.rs`
+lines 126-141, `vendor/tailscale-rs/ts_control/src/control_dialer.rs` lines 82-86), and the proxy module
+warns that a fourth path that goes direct keeps the route that cannot work
+(`vendor/tailscale-rs/ts_http_util/src/proxy.rs` lines 9-12). `relay` mode reaches `ws::connect` through
 the pin (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:285-292`), and so does the
 WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:135-141`).
 
-Read: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs:176-207`),
-against the manual (`crates/podssh-cli/src/man/facts.rs:45-51`), the rule at
+Read, at `0b6f4b8`: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs`
+lines 176-207), against the manual (`crates/podssh-cli/src/man/facts.rs:45-51`), the rule at
 `docs/target-environment.md:68-71` and `SECURITY.md:53-57`. A URL with no port means 80 in podssh
-(`crates/podssh-ws/src/dial.rs:70`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:39-41`).
-Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:45-46`).
+(`crates/podssh-ws/src/dial.rs:70`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs`, lines
+39-41 at `0b6f4b8`).
+Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:50-51`).
 
 ## Approach
 
 1. In the fork, write one function that opens TCP to a host name: through the proxy when one is
-   set, else direct, in 20 s at most (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:36-37`). Call
+   set, else direct, in 20 s at most (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:43-44`). Call
    it from `ws::connect_with_subprotocol` and from `dial_by_ipusage`, so one branch serves both.
 2. Add it as a new patch with its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`, replace the stale
-   text at `vendor/README.md:62-75`, and check that the whole chain of patches still applies.
+   text at `vendor/README.md`, lines 62-75 at `0b6f4b8`, and check that the whole chain of patches still applies.
 3. In `podssh ts`, take `--ts-proxy`, else `podssh_ws::dial::proxy_from_env`
-   (`crates/podssh-ws/src/dial.rs:149-173`). Give the fork a URL with an explicit port, and never
+   (`crates/podssh-ws/src/dial.rs:169-193`). Give the fork a URL with an explicit port, and never
    print its credentials. The fork has one proxy for each process
-   (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:105-120`), so apply `NO_PROXY` for each host in
+   (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:169-184`), so apply `NO_PROXY` for each host in
    the new function.
-4. Update `crates/podssh-cli/src/flags.rs:279-280`, `docs/tailscale.md:45-46` and
+4. Update `crates/podssh-cli/src/flags.rs:279-280`, `docs/tailscale.md:50-51` and
    `docs/STATUS.md:310` in the same commit.
 
 Added by T-102 (2026-10-10): the checks of each mode before the start already take `--ts-proxy`,
 else the environment's proxy (`crates/podssh-cli/src/ts/probe.rs`); give the fork the same choice.
 The fork's `ProxyConfig::from_url` sends the user name and the password as `url::Url` gives them,
-percent-encoded (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:75-78`), where podssh-ws decodes
+percent-encoded (`vendor/tailscale-rs/ts_http_util/src/proxy.rs`, lines 75-78 at `0b6f4b8`), where podssh-ws decodes
 them: decode them in the new function, and test a password with `%40` in it.
+
+## Decision
+
+Decided in the work (2026-10-10):
+- A URL with no port means port 80 in `podssh ts` too, the flag's as each variable's, as in each
+  podssh command, and the fork gets the port written. The fork's 8080 for the flag lost: one URL
+  would name two ports in podssh.
+- The `no_proxy` list goes to the fork with a proxy that the environment named, in its
+  `ProxyConfig`, and the fork applies it for each host by podssh's rules; a test compares the two
+  readings case by case. The flag names one proxy for each host, as podssh-ws's explicit proxy.
+  Reading `NO_PROXY` in the fork lost: the fork would read a variable that podssh did not choose.
+- The fork still sends a loopback host through its proxy unless the list names it, where podssh-ws
+  never does: no node dials a loopback host, and the fork's tests reach their stand-ins so.
+- Credentials in `--ts-proxy` are warned of, not refused: the flag stays usable where no variable
+  can be set. Refusing lost: it breaks each script that passes them today.
+- Repaired here, found in the work: the fork's refusals quoted the proxy URL, with its password, and
+  podssh-ts quoted it too, as did the `Debug` of the fork's `ProxyConfig` (Base64) and of podssh's
+  `TsConfig`; none does now. A proxy at an IPv6 address kept its brackets in the fork, so the dial to
+  it could not resolve on Linux; the address goes without them now. The fork's TLS took rustls's
+  process default provider, which a build with two providers lacks: `cargo test --workspace`, whose
+  iroh test relay turns on `ring`, panicked in the first TLS of the new tests, and so would a podssh
+  built with the features `ts` and `iroh-test`. The fork names aws-lc-rs now, patch 0018.
 
 ## Prove
 
@@ -416,8 +439,52 @@ which follows `vendor/tailscale-rs/ts_derp/tests/proxy_dial.rs:14-67`: the call
 `ws::connect("relay.invalid", 443)` must send `CONNECT relay.invalid:443` to a fake proxy, then fail
 at TLS, not at the name. Plant: remove the proxy branch; the fake sees nothing, and the test fails.
 A new test in crates/podssh-ts/tests/config.rs checks the choice: the flag, then the variables in
-the order of `crates/podssh-ws/src/dial.rs:164`. Live: with `HTTPS_PROXY` naming
+the order of `crates/podssh-ws/src/dial.rs:163`. Live: with `HTTPS_PROXY` naming
 `scripts/fake-proxy.py`, `podssh ts --ts-mode relay` must make its log list the relay host.
+
+## Done
+
+2026-10-10, in the commit that closes this entry. The fork has one dial by host name,
+`ts_http_util::proxy::dial`: through the proxy when it `applies` to the host, else direct, within
+20 s either way. `ws::connect_with_subprotocol` and `dial_by_ipusage` use it, and each of the four
+dial sites asks `applies(host)`; the proxy's `no_proxy` list goes direct; the fork decodes the
+proxy's credentials, and none of its refusals quotes the URL. Patch
+`vendor/patches/0017-proxy-dial.patch` with its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`, and
+`vendor/patches/0018-tls-provider.patch`, the fork's TLS on a named provider; the stale text of
+`vendor/README.md` is replaced. `podssh ts` takes `--ts-proxy`, else the first of the
+variables that each podssh command reads, in its order, with `no_proxy`
+(`podssh_ts::config::choose_proxy`, with podssh-ws's reading and its `PROXY_VARS`), gives the fork
+a URL with its port written, uses the same proxy for its checks before the start, and says when
+`--ts-proxy` holds credentials. The help of `--ts-proxy`, the manual, `docs/tailscale.md` and
+`docs/STATUS.md` say so; `scripts/ts-derp-prove.sh` runs the fork's new tests.
+- Native, Windows 11: `cargo test -p podssh-ts --test config`, 7 passed, with the choice: the flag,
+  then the variables in the order of podssh-ws's `PROXY_VARS`, an empty one skipped, `no_proxy`
+  before `NO_PROXY`; the port and the credentials as podssh reads them; a bad proxy named by its
+  source, its password quoted nowhere. `cargo test -p podssh-ts --test derp_proxy`, 5
+  passed, through stand-ins on the loopback: `ws::connect("relay.invalid", 443)` sends `CONNECT
+  relay.invalid:443` to the proxy; a host on the list goes direct to its stand-in relay; the
+  credentials reach the proxy as typed; a proxy at `[::1]` is reached; and the fork's `no_proxy`
+  rules equal podssh-ws's in 21 cases. Planted, one at a time: the old direct dial, a list never
+  read, the credentials as `url` gives them, a matcher that keeps the port, and the brackets kept:
+  each fails its test. The fork's own tests, with the fork's manifest and lock: `cargo test
+  --manifest-path vendor/tailscale-rs/Cargo.toml -p ts_derp` with `ws_proxy_dial`, `proxy_dial`,
+  `connect_mode` and `wire_compat`, 9 passed; `-p ts_http_util --test proxy`, 8 passed; `-p
+  ts_control --test logout`, 2 passed. `cargo test -p podssh-ts -p podssh-cli --features
+  podssh-cli/ts --no-fail-fast`: 476 passed, 0 failed, 25 ignored. clippy with `-D
+  warnings`: no warning, also in the fork's crates. `cargo test --workspace --no-fail-fast`:
+  1206 passed, 0 failed, 39 ignored; before patch
+  0018, two of the new tests panicked there. The eighteen patches give the vendored tree byte for
+  byte on all 36 touched paths. Live, `ts_derp`'s example `ws_handshake` with the fork's manifest:
+  TLS and the WebSocket upgrade to the relay, its server key, then its close 1008 for a fresh key.
+- Live, this machine: with `HTTPS_PROXY` naming `scripts/fake-proxy.py`, which let only the relay
+  host through, `podssh ts --ts-mode relay` passed its check through the proxy (`200 CONNECT
+  tcp.ts.relay.ajam.dev:443` in the proxy's log) and started the node, and the node's own dial to
+  the control server went through the same proxy (`403 CONNECT controlplane.tailscale.com:443`),
+  which refused it there: nothing reached Tailscale, and the run ended at its bound of 20 s with
+  exit 78.
+- Waits for T-251: `scripts/ts-derp-prove.sh` in the build image. Waits for T-251 and Q40: the
+  relay host in the log of the fake proxy from the node's own DERP dial, which comes after the node
+  has registered.
 
 # T-104: `podssh ts` connects again after a drop
 
@@ -467,7 +534,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:310` and `crates/podssh-cli/src/man/notes.rs:357-371`.
+   `docs/tailscale.md`, `docs/STATUS.md:310` and `crates/podssh-cli/src/man/notes.rs:357-375`.
 
 ## Decision
 
@@ -492,7 +559,7 @@ first test must fail. The live drop test is part of T-106.
 # T-105: The fork shows the relay's `1008 not authorized` as a missing network map
 
 **Source:** `docs/tailscale.md:12-14` ("Repair this first"), and the comment at
-`crates/podssh-cli/src/ts.rs:315-318` (measured on 2026-10-07). Read here on `3ee70dc` in the fork.
+`crates/podssh-cli/src/ts.rs:323-326` (measured on 2026-10-07). Read here on `3ee70dc` in the fork.
 **Category:** defect
 **Milestone:** M8
 **Priority:** P2
@@ -509,16 +576,16 @@ allowlist. The exit is 78, not the 77 that `podssh ts` gives for a refused key.
 ## Premise
 
 Read: the transport turns a close into an `io::Error` with the text
-`websocket closed: code=1008 reason="not authorized"` (`vendor/tailscale-rs/ts_derp/src/ws.rs:190-201`),
+`websocket closed: code=1008 reason="not authorized"` (`vendor/tailscale-rs/ts_derp/src/ws.rs:192-203`),
 and the handshake returns it (`vendor/tailscale-rs/ts_derp/src/client.rs:205-210`). The runner
 passes it up (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:248-254`), and `start_runner`
 gives it to `tracing::error!` only (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:72-76`).
 No podssh crate installs a `tracing` subscriber, so the line goes nowhere. `classify_1008` and the
-exit 77 exist (`crates/podssh-ts/src/classify.rs:17-25`, `crates/podssh-cli/src/ts.rs:297-309`), but
+exit 77 exist (`crates/podssh-ts/src/classify.rs:17-25`, `crates/podssh-cli/src/ts.rs:305-317`), but
 they see only the error texts of `Device` calls.
 
 Read: the symptom is not always a missing map. The status line needs the home region of the self
-node (`crates/podssh-ts/src/node.rs:97-104`). Control sets it from the region that the node prefers
+node (`crates/podssh-ts/src/node.rs:104-111`). Control sets it from the region that the node prefers
 (`vendor/tailscale-rs/ts_runtime/src/control_runner.rs:293-306`), which comes from HTTPS latency
 checks of the stock DERP map (`vendor/tailscale-rs/ts_runtime/src/derp_latency.rs:37-58`), not from
 the relay. So a refused node can still print a status line and exit 0. This widens the defect.
@@ -526,15 +593,15 @@ the relay. So a refused node can still print a status line and exit 0. This wide
 ## Approach
 
 1. In `ts_derp`, `WsIo` puts a typed `WsClose { code, reason }` inside its `io::Error`
-   (`vendor/tailscale-rs/ts_derp/src/ws.rs:190-201`), and `ts_derp::Error` gets a method that
+   (`vendor/tailscale-rs/ts_derp/src/ws.rs:192-203`), and `ts_derp::Error` gets a method that
    returns it. The frame codec does not change.
 2. In `ts_runtime`, keep the newest DERP state of each region (connected, refused or failed), set
    in `start_runner` and later in the loop of T-104. `Device::derp_state()` returns it with no wait,
    forwarded as `SelfNode` is (`vendor/tailscale-rs/src/lib.rs:291-298`).
 3. In podssh-ts, add `NodeError::DerpRefused { code, reason }`. `status()` and `-W` read the state
    first, and `relay` mode prints a status line only with a connected home region.
-4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs:297-309`),
-   and remove the old comment at `crates/podssh-cli/src/ts.rs:315-318`.
+4. In podssh-cli, map it through `classify_1008` to exit 77 (`crates/podssh-cli/src/ts.rs:305-317`),
+   and remove the old comment at `crates/podssh-cli/src/ts.rs:323-326`.
 5. Add the patch and its row, and update `docs/tailscale.md:12-14` and `docs/STATUS.md:310`.
 
 ## Prove
@@ -548,7 +615,7 @@ cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts --no-fail-fast
 The fork test vendor/tailscale-rs/ts_derp/tests/ws_close.rs checks that a close 1008 keeps its code
 and reason through `ts_derp::Error`. A runtime test with a fake connect that returns it expects the
 state "refused", and a podssh-ts test maps that state to exit 77. Plant: keep only the text; the
-first test must fail. The live step M3 (`scripts/ts-derp-prove.sh:89-92`) must still see the
+first test must fail. The live step M3 (`scripts/ts-derp-prove.sh:103-106`) must still see the
 refusal. Live, with a `ts` build: an ephemeral node with a new state file exits 77 and names 1008.
 
 # T-106: The live test of `podssh ts` with two nodes
@@ -572,16 +639,16 @@ host or from a sandbox.
 
 Read: the ignored test makes a new state file in the temporary directory and removes it
 (`crates/podssh-cli/tests/ts_behave.rs:228-255`); a new state file is a new node key
-(`docs/tailscale.md:43-44`). Its reason still names M5. On 2026-10-07, registration worked, no map
+(`docs/tailscale.md:48-49`). Its reason still names M5. On 2026-10-07, registration worked, no map
 came in 60 s, and only the operator can add a node key to the allowlist (`docs/tailscale.md:8-18`).
 
-Read: `podssh ts` has no form that accepts a connection (`crates/podssh-cli/src/ts.rs:233-237`), but
+Read: `podssh ts` has no form that accepts a connection (`crates/podssh-cli/src/ts.rs:235-239`), but
 the fork can listen in its own network stack, with no socket of the host
 (`vendor/tailscale-rs/src/lib.rs:264-273`). The fork's echo example takes the auth key on the
 command line (`vendor/tailscale-rs/examples/tcp_echo/main.rs:24-28`), which podssh must not do. With
 the pin, each region's runner dials the relay
 (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:285-292`), so two `relay` nodes meet there.
-Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:45-46`).
+Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:50-51`).
 
 ## Approach
 
@@ -597,7 +664,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:64`, `docs/tailscale.md:8-18` and
-   `crates/podssh-cli/src/man/notes.rs:357-371`.
+   `crates/podssh-cli/src/man/notes.rs:357-375`.
 
 ## Prove
 

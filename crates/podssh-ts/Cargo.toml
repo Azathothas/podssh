@@ -8,6 +8,9 @@ license.workspace = true
 publish.workspace = true
 
 [dependencies]
+# The proxy as each podssh command reads it: its URL, the variables and
+# their order (T-103).
+podssh-ws = { path = "../podssh-ws" }
 tokio.workspace = true
 zeroize.workspace = true
 tailscale = { path = "../../vendor/tailscale-rs" }
@@ -18,3 +21,6 @@ ts_http_util = { path = "../../vendor/tailscale-rs/ts_http_util" }
 # `test-util` gives the tests a paused clock: a wait for a network map that
 # never comes ends at its limit with no real seconds spent.
 tokio = { workspace = true, features = ["macros", "rt", "test-util"] }
+# The fork's DERP dial over WebSocket, tested through a stand-in proxy here,
+# where podssh's workspace builds it (T-103).
+ts_derp = { path = "../../vendor/tailscale-rs/ts_derp" }

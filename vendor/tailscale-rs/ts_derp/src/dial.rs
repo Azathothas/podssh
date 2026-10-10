@@ -197,7 +197,7 @@ async fn dial_by_ipusage(
     // ⛔ Under proxy the dial plan is ignored: CONNECT by hostname, port =
     // `https_port`, and `FixedAddr` is never consulted. Falling through to a
     // direct dial would hang where direct is dropped.
-    if ts_http_util::proxy::is_configured() {
+    if ts_http_util::proxy::applies(&hostname) {
         return ts_http_util::proxy::connect(&hostname, port)
             .await
             .map(Some);
@@ -209,6 +209,7 @@ async fn dial_by_ipusage(
 
             TcpStream::connect((ip, port)).await.map(Some)
         }
-        IpUsage::UseDns => TcpStream::connect((hostname, port)).await.map(Some),
+        // By name, as `ws::connect` dials: one function, with its bound.
+        IpUsage::UseDns => ts_http_util::proxy::dial(&hostname, port).await.map(Some),
     }
 }

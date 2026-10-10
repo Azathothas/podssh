@@ -45,7 +45,24 @@ fn a_bad_proxy_url_is_named_not_swallowed() {
         derp_ws: true,
         derp_host: Some("tcp.ts.relay.ajam.dev".to_string()),
         derp_port: Some(443),
-        proxy_url: Some("socks5://proxy.example:1080".to_string()),
+        proxy_url: Some("socks5://user:secret@proxy.example:1080".to_string()),
+        no_proxy: None,
     };
-    assert!(matches!(selection_to_options(&sel), Err(ConfigError::BadProxyUrl(_))));
+    let Err(ConfigError::BadProxyUrl(why)) = selection_to_options(&sel) else { panic!("accepted") };
+    // The fork's refusal says why, and quotes no URL (patch 0017).
+    assert!(why.contains("socks5"), "{why}");
+    assert!(!why.contains("secret"), "the password is quoted: {why}");
+}
+
+#[test]
+fn the_no_proxy_list_rides_into_the_forks_proxy() {
+    let mut sel = TsMode::default_relay().runtime_selection(Some("http://127.0.0.1:3128"));
+    sel.no_proxy = Some("internal.example, .corp.example".to_string());
+    let proxy = selection_to_options(&sel).unwrap().proxy.expect("a proxy");
+    assert!(proxy.bypasses("internal.example") && proxy.bypasses("a.corp.example"));
+    assert!(!proxy.bypasses("tcp.ts.relay.ajam.dev"));
+    // Its Debug shows no credentials (patch 0017).
+    let sel = TsMode::Tcp.runtime_selection(Some("http://user:secret@127.0.0.1:3128"));
+    let shown = format!("{:?} {sel:?}", selection_to_options(&sel).unwrap().proxy);
+    assert!(!shown.contains("secret") && !shown.contains("dXNlcjpzZWNyZXQ"), "{shown}");
 }

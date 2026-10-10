@@ -25,10 +25,16 @@ pub fn selection_to_options(
             override_host: sel.derp_host.clone(),
             override_port: sel.derp_port,
         },
+        // The fork's own reading of the URL, with its `no_proxy` list; its
+        // refusal says why and never quotes the URL.
         proxy: match &sel.proxy_url {
             None => None,
             Some(u) => {
-                Some(ts_http_util::proxy::ProxyConfig::from_url(u).map_err(|_| ConfigError::BadProxyUrl(u.clone()))?)
+                let config = ts_http_util::proxy::ProxyConfig::from_url(u).map_err(ConfigError::BadProxyUrl)?;
+                Some(match &sel.no_proxy {
+                    Some(list) => config.with_no_proxy(list),
+                    None => config,
+                })
             }
         },
     })
@@ -83,8 +89,9 @@ impl TsNode {
         }
         fork_cfg.requested_hostname = cfg.hostname.clone();
         fork_cfg.ephemeral = cfg.ephemeral;
-        fork_cfg.options =
-            selection_to_options(&cfg.mode.runtime_selection(cfg.proxy_url.as_deref())).map_err(NodeError::Config)?;
+        let mut selection = cfg.mode.runtime_selection(cfg.proxy_url.as_deref());
+        selection.no_proxy = cfg.no_proxy.clone();
+        fork_cfg.options = selection_to_options(&selection).map_err(NodeError::Config)?;
         let device = tailscale::Device::new(&fork_cfg, Some(auth)).await.map_err(|e| NodeError::Fork(e.to_string()))?;
         Ok(Self { device, state_file: cfg.state_file.clone(), ephemeral: cfg.ephemeral })
     }

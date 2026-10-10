@@ -78,14 +78,26 @@ impl HttpProxy {
     /// its credentials escaped again: for a library that takes a URL, as
     /// the iroh road's relay dial does. Never for a message.
     pub fn url_at(&self, addr: std::net::SocketAddr) -> String {
-        let userinfo = match &self.credentials {
+        format!("http://{}{addr}", self.userinfo())
+    }
+
+    /// The proxy as an `http://` URL by its name, with its port always
+    /// written and its credentials escaped again: for a library that dials
+    /// the proxy itself and reads a missing port its own way, as the tailnet
+    /// fork does (8080). Never for a message.
+    pub fn url(&self) -> String {
+        format!("http://{}{}", self.userinfo(), authority(&self.host, self.port))
+    }
+
+    /// `user:password@`, escaped, or nothing.
+    fn userinfo(&self) -> String {
+        match &self.credentials {
             Some(credentials) => {
                 let (user, password) = credentials.split_once(':').unwrap_or((credentials, ""));
                 format!("{}:{}@", percent_encode(user), percent_encode(password))
             }
             None => String::new(),
-        };
-        format!("http://{userinfo}{addr}")
+        }
     }
 }
 
@@ -146,6 +158,14 @@ impl std::fmt::Display for DialError {
 
 impl std::error::Error for DialError {}
 
+/// The variables that name a proxy, in the order podssh reads them: the
+/// first that is set, and not empty, is the proxy.
+pub const PROXY_VARS: [&str; 4] = ["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"];
+
+/// The variables that list the hosts that bypass the proxy, in the order
+/// podssh reads them.
+pub const NO_PROXY_VARS: [&str; 2] = ["no_proxy", "NO_PROXY"];
+
 /// The proxy, if any, the process environment selects for `target_host`.
 pub fn proxy_from_env(target_host: &str) -> Result<Option<HttpProxy>, String> {
     proxy_from_vars(target_host, |name| std::env::var(name).ok())
@@ -161,10 +181,10 @@ pub fn proxy_from_vars(target_host: &str, var: impl Fn(&str) -> Option<String>) 
         return Ok(None);
     }
     let get = |names: &[&str]| names.iter().find_map(|n| var(n).filter(|v| !v.trim().is_empty()));
-    let Some(url) = get(&["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"]) else {
+    let Some(url) = get(&PROXY_VARS) else {
         return Ok(None);
     };
-    if let Some(list) = get(&["no_proxy", "NO_PROXY"]) {
+    if let Some(list) = get(&NO_PROXY_VARS) {
         if no_proxy_matches(&list, target_host) {
             return Ok(None);
         }

@@ -6,10 +6,17 @@
 //! always the **hostname** (never a dial-plan IP, never `FixedAddr`), and the
 //! local resolver is never consulted.
 //!
-//! ⛔ **One dialer for all three sites.** Control (`ControlTcpDialer`), DERP
-//! (`dial_by_ipusage`) and `dial_tcp` all route through [`connect`] when a
-//! proxy is configured. A fourth dial path that goes direct is how a sandbox
-//! node silently keeps the one route that cannot work.
+//! ⛔ **One dialer for all four sites.** Control (`ControlTcpDialer`), DERP
+//! (`dial_by_ipusage`), DERP over WebSocket (`ws::connect_with_subprotocol`)
+//! and `dial_tcp` all ask [`applies`] for their host, and go through
+//! [`connect`] when it says so; [`dial`] makes that choice for a caller that
+//! has a host name and no plan (podssh's patch 0017). A fifth dial path that
+//! goes direct is how a sandbox node silently keeps the one route that cannot
+//! work.
+//!
+//! A host that the proxy's `no_proxy` list names goes direct
+//! ([`ProxyConfig::with_no_proxy`]): the process has one proxy, and the list
+//! is how a user keeps one host off it.
 //!
 //! ⛔ **No silent fallback to direct.** If the proxy refuses (403, like the
 //! sandbox's port-22 refusal) or is unreachable, [`connect`] returns the
@@ -41,7 +48,7 @@ pub const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(
 pub const DEFAULT_PORT: u16 = 8080;
 
 /// A configured proxy: where it is, and what it answers to.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct ProxyConfig {
     /// Proxy hostname. Dialed by name — never resolved locally first, because
     /// on the target there is nothing to resolve with.
@@ -51,38 +58,95 @@ pub struct ProxyConfig {
     /// `Proxy-Authorization` value (`Basic …`), if the proxy needs one.
     /// Stored encoded so the password is never re-derived per connection.
     auth_header: Option<String>,
+    /// The entries of the `no_proxy` list: hosts that go direct.
+    no_proxy: Vec<String>,
+}
+
+/// The credentials are not shown: Base64 is not a secret's cover (podssh's
+/// patch 0017).
+impl std::fmt::Debug for ProxyConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProxyConfig")
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field(
+                "auth_header",
+                &self.auth_header.as_ref().map(|_| "<redacted>"),
+            )
+            .field("no_proxy", &self.no_proxy)
+            .finish()
+    }
 }
 
 impl ProxyConfig {
     /// Parse `http://[user:pass@]host[:port]`. Only the `http` scheme names a
     /// CONNECT proxy; anything else is refused rather than reinterpreted.
+    ///
+    /// The user name and the password are percent-decoded, as the proxy
+    /// expects them, and no error quotes the URL, which may hold them
+    /// (podssh's patch 0017).
     pub fn from_url(url: &str) -> Result<Self, String> {
         let parsed =
-            url::Url::parse(url).map_err(|e| format!("proxy URL {url:?} does not parse: {e}"))?;
+            url::Url::parse(url).map_err(|e| format!("the proxy URL does not parse: {e}"))?;
         if parsed.scheme() != "http" {
             return Err(format!(
-                "proxy URL {url:?} is not http: only http:// names a CONNECT proxy"
+                "the proxy URL is {}://, not http://: only http:// names a CONNECT proxy",
+                parsed.scheme()
             ));
         }
-        let host = parsed
-            .host_str()
-            .ok_or_else(|| format!("proxy URL {url:?} names no host"))?
-            .to_string();
+        // An IPv6 address without the URL's brackets, as a socket address
+        // takes it: `[::1]` resolves nowhere.
+        let host = match parsed.host() {
+            Some(url::Host::Ipv6(address)) => address.to_string(),
+            Some(_) => parsed.host_str().unwrap_or_default().to_string(),
+            None => return Err("the proxy URL names no host".to_string()),
+        };
         if host.is_empty() {
-            return Err(format!("proxy URL {url:?} names no host"));
+            return Err("the proxy URL names no host".to_string());
         }
         let port = parsed.port().unwrap_or(DEFAULT_PORT);
         let auth_header = match (parsed.username(), parsed.password()) {
             ("", _) => None,
             (user, pass) => {
-                let credentials = format!("{user}:{}", pass.unwrap_or(""));
+                let credentials = format!(
+                    "{}:{}",
+                    percent_decode(user)?,
+                    percent_decode(pass.unwrap_or(""))?
+                );
                 Some(format!(
                     "Basic {}",
                     base64::engine::general_purpose::STANDARD.encode(credentials)
                 ))
             }
         };
-        Ok(Self { host, port, auth_header })
+        Ok(Self {
+            host,
+            port,
+            auth_header,
+            no_proxy: Vec::new(),
+        })
+    }
+
+    /// The same proxy, with `list` as its `no_proxy` list (podssh's patch
+    /// 0017): entries apart at commas or white space; `*` is every host;
+    /// `example.com`, `.example.com` and `*.example.com` each name
+    /// `example.com` and its subdomains; a `:port` on an entry is ignored;
+    /// case does not count. These are podssh's rules for the same variable.
+    pub fn with_no_proxy(mut self, list: &str) -> Self {
+        self.no_proxy = list
+            .split(|c: char| c == ',' || c.is_whitespace())
+            .map(str::trim)
+            .filter(|entry| !entry.is_empty())
+            .map(str::to_owned)
+            .collect();
+        self
+    }
+
+    /// Whether `host` goes direct, by the `no_proxy` list.
+    pub fn bypasses(&self, host: &str) -> bool {
+        self.no_proxy
+            .iter()
+            .any(|entry| no_proxy_entry_matches(entry, host))
     }
 
     /// The first of `HTTPS_PROXY` / `https_proxy` / `HTTP_PROXY` / `http_proxy`
@@ -114,9 +178,113 @@ pub fn configure(config: Option<ProxyConfig>) {
     *slot().lock().expect("proxy slot poisoned") = config;
 }
 
-/// Whether a proxy is configured. The three dial sites branch on this.
+/// Whether a proxy is configured.
 pub fn is_configured() -> bool {
     slot().lock().expect("proxy slot poisoned").is_some()
+}
+
+/// Whether a dial to `host` goes through the proxy: one is configured, and
+/// its `no_proxy` list does not name the host. The dial sites branch on this
+/// (podssh's patch 0017).
+pub fn applies(host: &str) -> bool {
+    slot()
+        .lock()
+        .expect("proxy slot poisoned")
+        .as_ref()
+        .is_some_and(|config| !config.bypasses(host))
+}
+
+/// Open TCP to `host:port` by name: through the proxy when it
+/// [`applies`], else direct, each within [`CONNECT_TIMEOUT`] (podssh's patch
+/// 0017). A direct dial had no bound, and waited as long as the system
+/// lets a connect wait.
+pub async fn dial(host: &str, port: u16) -> io::Result<TcpStream> {
+    if applies(host) {
+        return connect(host, port).await;
+    }
+    tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect((host, port)))
+        .await
+        .map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::TimedOut,
+                format!(
+                    "connect to {host}:{port} timed out after {} s",
+                    CONNECT_TIMEOUT.as_secs()
+                ),
+            )
+        })?
+}
+
+/// Whether a `no_proxy` list names `host`, by the rules of
+/// [`ProxyConfig::with_no_proxy`].
+pub fn no_proxy_matches(list: &str, host: &str) -> bool {
+    list.split(|c: char| c == ',' || c.is_whitespace())
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+        .any(|entry| no_proxy_entry_matches(entry, host))
+}
+
+fn no_proxy_entry_matches(entry: &str, host: &str) -> bool {
+    if entry == "*" {
+        return true;
+    }
+    let host = host
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+    let entry = without_port(entry)
+        .trim_start_matches("*.")
+        .trim_start_matches('.')
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+    !entry.is_empty() && (host == entry || host.ends_with(&format!(".{entry}")))
+}
+
+/// An entry without its `:port`: `[v6]`, `[v6]:port` and `host:port` lose
+/// it; a bare IPv6 address, or a port that is not a number, keeps the entry
+/// whole.
+fn without_port(entry: &str) -> &str {
+    if let Some(rest) = entry.strip_prefix('[') {
+        return match rest.split_once(']') {
+            Some((host, "")) => host,
+            Some((host, after))
+                if after
+                    .strip_prefix(':')
+                    .is_some_and(|p| p.parse::<u16>().is_ok()) =>
+            {
+                host
+            }
+            _ => entry,
+        };
+    }
+    match entry.rsplit_once(':') {
+        Some((host, port)) if !host.contains(':') && port.parse::<u16>().is_ok() => host,
+        _ => entry,
+    }
+}
+
+/// `%XX` escapes decoded, as in a URL's user name and password.
+fn percent_decode(s: &str) -> Result<String, String> {
+    let bytes = s.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' {
+            let value = s
+                .get(i + 1..i + 3)
+                .and_then(|hex| u8::from_str_radix(hex, 16).ok())
+                .ok_or_else(|| {
+                    "a % escape in the proxy credentials is not two hex digits".to_string()
+                })?;
+            out.push(value);
+            i += 3;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).map_err(|_| "the proxy credentials are not UTF-8".to_string())
 }
 
 /// Dial `host:port` through the configured proxy. `host` is a hostname —
@@ -134,16 +302,17 @@ pub async fn connect(host: &str, port: u16) -> io::Result<TcpStream> {
         .lock()
         .expect("proxy slot poisoned")
         .clone()
-        .ok_or_else(|| {
-            io::Error::new(io::ErrorKind::NotConnected, "no proxy configured")
-        })?;
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotConnected, "no proxy configured"))?;
 
     tokio::time::timeout(CONNECT_TIMEOUT, connect_via(&config, host, port))
         .await
         .map_err(|_| {
             io::Error::new(
                 io::ErrorKind::TimedOut,
-                format!("CONNECT {host}:{port} via {}:{} timed out", config.host, config.port),
+                format!(
+                    "CONNECT {host}:{port} via {}:{} timed out",
+                    config.host, config.port
+                ),
             )
         })?
 }
@@ -180,14 +349,17 @@ async fn connect_via(config: &ProxyConfig, host: &str, port: u16) -> io::Result<
     let mut headers = [httparse::EMPTY_HEADER; 16];
     let mut response = httparse::Response::new(&mut headers);
     let status = match response.parse(&head).map_err(|e| {
-        io::Error::new(io::ErrorKind::InvalidData, format!("proxy response does not parse: {e}"))
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("proxy response does not parse: {e}"),
+        )
     })? {
         httparse::Status::Complete(_) => response.code.unwrap_or(0),
         httparse::Status::Partial => {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidData,
                 "proxy response head is partial",
-            ))
+            ));
         }
     };
     if !(200..300).contains(&status) {

@@ -4,7 +4,9 @@
 use std::time::{Duration, Instant};
 
 use podssh_relay::relay::RelayList;
-use podssh_ws::dial::{self, HttpProxy, ProxyChoice};
+// The variables podssh reads for a proxy, in the order it reads them: the
+// dialer's own list, so this report names the one that the dialer takes.
+use podssh_ws::dial::{self, HttpProxy, ProxyChoice, PROXY_VARS};
 use podssh_ws::Trust;
 
 use super::Report;
@@ -15,9 +17,6 @@ const PROBE: Duration = Duration::from_secs(8);
 /// A host every proxy and resolver can be asked about. Its port 22 tells an
 /// egress that lets SSH out from one that allows only HTTPS.
 const REFERENCE_HOST: &str = "github.com";
-
-/// The variables podssh reads for a proxy, in the order it reads them.
-const PROXY_VARS: [&str; 4] = ["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"];
 
 fn var(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|v| !v.trim().is_empty())

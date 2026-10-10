@@ -660,7 +660,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs:4-8`).
    (`crates/podssh-relay/src/cache.rs:315-332`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
-   (`crates/podssh-ws/src/dial.rs:159-173`), so that the tests can set it.
+   (`crates/podssh-ws/src/dial.rs:179-193`), so that the tests can set it.
 5. `doctor` names the directory in use and the variable that chose it; `status` (T-051) shows
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.

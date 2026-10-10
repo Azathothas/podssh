@@ -477,7 +477,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:142-147`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
 (`crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
-(`crates/podssh-ws/src/dial.rs:175-183`).
+(`crates/podssh-ws/src/dial.rs:195-203`).
 
 ## Approach
 
@@ -659,23 +659,23 @@ given as `ALL_PROXY=socks5h://...`, cannot reach the relay: podssh refuses the s
 Read: `HttpProxy::parse` refuses each scheme but `http`, with "proxy scheme socks5:// is not
 supported; podssh speaks HTTP CONNECT to an http:// proxy"
 (`crates/podssh-ws/src/dial.rs:53-63`). `proxy_from_vars` reads `https_proxy`, `HTTPS_PROXY`,
-`all_proxy` and `ALL_PROXY` (`:164`), and parses the first that is set (`:172`). `dial`
-makes the error `DialError::BadProxy` (`:212`), which stops the failover at once
+`all_proxy` and `ALL_PROXY` (`:163`, read at `:184`), and parses the first that is set (`:192`). `dial`
+makes the error `DialError::BadProxy` (`:232`), which stops the failover at once
 (`crates/podssh-relay/src/open.rs:65`) and gives exit 78 in `podssh proxy`
 (`crates/podssh-cli/src/proxy.rs:164`). `doctor` reports it as `FAIL`
-(`crates/podssh-cli/src/doctor/net.rs:102-108`). Two tests assert the refusal:
+(`crates/podssh-cli/src/doctor/net.rs:101-107`). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs:133-140` and `crates/podssh-ws/tests/dial.rs:50-58`.
 
 ## Approach
 
 1. A proxy type with two forms, HTTP and SOCKS5, in `dial.rs`; `ProxyChoice::Via` takes it
-   (`crates/podssh-ws/src/dial.rs:92-101`). Parse `socks5://` and `socks5h://` with an optional
-   `user:password@`, decoded as for HTTP (`:416-444`).
+   (`crates/podssh-ws/src/dial.rs:104-113`). Parse `socks5://` and `socks5h://` with an optional
+   `user:password@`, decoded as for HTTP (`:436-464`).
 2. The SOCKS5 exchange (RFC 1928): offer the method 0x00, and 0x02 only with credentials; the
    user and password of RFC 1929, each of 1 to 255 bytes; CONNECT with the address type 3, the
    host name, so the client needs no DNS (`crates/podssh-ws/src/dial.rs:5-8`). Read exactly the
    length of the reply: the bytes after it belong to TLS, as `read_head_exact` keeps them
-   (`:336-359`). Bound each step.
+   (`:356-379`). Bound each step.
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
@@ -684,7 +684,7 @@ makes the error `DialError::BadProxy` (`:212`), which stops the failover at once
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (`dial.rs:39-44`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:161-185`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:160-184`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
 7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-51`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.

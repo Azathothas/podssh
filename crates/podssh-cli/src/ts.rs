@@ -171,21 +171,22 @@ async fn ts_async(
             return EXIT_USAGE;
         }
     }
-    // Proxy: validated with the fork's own parser (the same one the dialer
-    // uses), so the validator and the dialer never disagree.
-    if let Some(u) = a.proxy.as_deref() {
-        if podssh_ts::config::parse_proxy_url(u).is_err() {
-            let _ = writeln!(err, "podssh ts: --ts-proxy {u:?} is not an http:// URL with a host.");
-            return EXIT_USAGE;
-        }
-    }
-    let proxy = match probe::proxy_choice(a.proxy.as_deref()) {
+    // The proxy of each connection: `--ts-proxy`, else the environment's,
+    // as each podssh command reads it (T-103). No message quotes its URL,
+    // which may hold a password.
+    let proxy = match podssh_ts::config::choose_proxy(a.proxy.as_deref(), |n| std::env::var(n).ok()) {
         Ok(p) => p,
-        Err(why) => {
-            let _ = writeln!(err, "podssh ts: --ts-proxy: {why}");
+        Err(e) => {
+            let _ = writeln!(err, "podssh ts: {e}");
             return EXIT_USAGE;
         }
     };
+    if a.proxy.as_deref().is_some_and(holds_credentials) {
+        let _ = writeln!(
+            err,
+            "podssh ts: --ts-proxy holds credentials, which other users of this host can read\nin its list of processes. HTTPS_PROXY names the proxy as well."
+        );
+    }
     // Each mode's network check, in chain order, before anything registers:
     // the selected mode is the first that passed, never a default that no
     // check blessed (T-102).
@@ -193,7 +194,7 @@ async fn ts_async(
         Some(m) => vec![m.clone()],
         None => podssh_ts::chain::default_chain(relay_mode),
     };
-    let selected = match probe::select(&modes, &proxy, deadline, err).await {
+    let selected = match probe::select(&modes, &probe::proxy_choice(proxy.as_ref()), deadline, err).await {
         Ok(m) => m,
         Err(code) => return code,
     };
@@ -203,7 +204,8 @@ async fn ts_async(
         hostname: None,
         ephemeral: a.ephemeral,
         mode: selected,
-        proxy_url: a.proxy.clone(),
+        proxy_url: proxy.as_ref().map(podssh_ts::config::TsProxy::url),
+        no_proxy: proxy.and_then(|p| p.no_proxy),
     };
 
     let started = if let Some(left) = deadline.remaining() {
@@ -268,6 +270,12 @@ pub fn status_json(facts: &podssh_ts::status::StatusFacts) -> String {
     .to_string()
 }
 
+/// Whether a proxy URL holds a user name or a password.
+fn holds_credentials(url: &str) -> bool {
+    let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
+    rest[..rest.find(['/', '?', '#']).unwrap_or(rest.len())].contains('@')
+}
+
 /// Strip trailing newline bytes, in place: key files commonly end with one,
 /// and the key itself never contains it. Interior bytes are untouched.
 fn trim_key(raw: &mut Vec<u8>) {
@@ -282,7 +290,7 @@ fn node_error_exit(e: &podssh_ts::node::NodeError, err: &mut dyn Write) -> i32 {
     use podssh_ts::node::NodeError;
     match e {
         NodeError::Config(c) => {
-            let _ = writeln!(err, "podssh ts: bad configuration: {c:?}");
+            let _ = writeln!(err, "podssh ts: bad configuration: {c}");
             EXIT_USAGE
         }
         NodeError::KeyExpired | NodeError::KeyNotUtf8 => {

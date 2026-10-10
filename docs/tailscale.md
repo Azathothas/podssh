@@ -28,9 +28,14 @@ HTTPS. Build it only with `--features ts`; see [development.md](development.md).
   alone. With none ready, the exit is 78, with each reason. Measured from
   this machine (direct): the `tcp` check passed in 1.5 s, the `relay` check
   in 0.4 s.
-- The proxy of the checks is `--ts-proxy` (with the port 8080 that the fork
-  gives a URL with none), else the environment's, as for each other podssh
-  command. The fork itself takes only `--ts-proxy` until T-103.
+- The proxy of the node and of its checks is `--ts-proxy`, else the
+  environment's (`https_proxy`, `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY`, with
+  `no_proxy`), as for each other podssh command; a URL with no port means
+  port 80, and the fork gets the port written (T-103, 2026-10-10). Each
+  connection of the node goes through it: to the control server, and to DERP,
+  over WebSocket to the relay too, by name and within 20 s (patch 0017).
+  Credentials in `--ts-proxy` can be read in the list of processes, and
+  `podssh ts` says so.
 - `--ts-ephemeral`: the node logs out at the end of the run, also after an
   error, in 5 s at most: a register request with its key and an expiry in
   the past (patch 0016), and the control server deletes the node. A node

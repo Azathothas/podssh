@@ -6,9 +6,9 @@
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use ts_http_util::proxy::{ProxyConfig, configure, connect};
+use ts_http_util::proxy::{ProxyConfig, applies, configure, connect, dial};
 
-/// ⛔ The four async tests hold this for their whole body. `configure` sets
+/// ⛔ Each async test holds this for its whole body. `configure` sets
 /// one global dialer; without the guard, neighbours interleave configure and
 /// `connect` and read each other's listeners. Poison-tolerant: a panicking
 /// test must not wedge the rest of the suite.
@@ -179,9 +179,73 @@ fn proxy_urls_parse_and_bad_ones_are_refused() {
     let config = ProxyConfig::from_url("http://proxy.example").unwrap();
     assert_eq!(config.port, 8080);
 
+    // podssh's patch 0017: an IPv6 proxy is dialled by its address.
+    let config = ProxyConfig::from_url("http://[::1]:3128").unwrap();
+    assert_eq!((config.host.as_str(), config.port), ("::1", 3128));
+
     assert!(ProxyConfig::from_url("socks5://proxy.example:1080").is_err());
     assert!(ProxyConfig::from_url("http://:3128").is_err());
     assert!(ProxyConfig::from_url("not a url").is_err());
+}
+
+/// podssh's patch 0017: the user name and the password reach the proxy as
+/// typed, not as the URL escapes them.
+#[tokio::test]
+async fn escaped_credentials_reach_the_proxy_decoded() {
+    let _serial = serial();
+    // `us@er:p:s s`, in Base64.
+    let (port, _) = fake_proxy(
+        "HTTP/1.1 200 Connection Established\r\n\r\n",
+        Some("Basic dXNAZXI6cDpzIHM="),
+    )
+    .await;
+    configure(Some(
+        ProxyConfig::from_url(&format!("http://us%40er:p%3As%20s@127.0.0.1:{port}")).unwrap(),
+    ));
+    let _reset = ResetOnDrop;
+    let mut stream = connect("relay.example", 443).await.unwrap();
+    stream.write_all(b"ok").await.unwrap();
+    let mut back = [0u8; 2];
+    stream.read_exact(&mut back).await.unwrap();
+    assert_eq!(&back, b"ok");
+}
+
+/// podssh's patch 0017: a host on the `no_proxy` list goes direct, through
+/// [`dial`], and the other hosts go through the proxy.
+#[tokio::test]
+async fn a_host_on_the_no_proxy_list_is_dialled_direct() {
+    let _serial = serial();
+    let (port, seen) =
+        fake_proxy("HTTP/1.1 200 Connection Established\r\n\r\n", None).await;
+    let direct = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let direct_port = direct.local_addr().unwrap().port();
+    configure(Some(config(port).with_no_proxy("example.org, 127.0.0.1:9")));
+    let _reset = ResetOnDrop;
+
+    assert!(!applies("127.0.0.1"));
+    assert!(!applies("www.EXAMPLE.org"));
+    assert!(applies("relay.example"));
+    let (dialled, accepted) = tokio::join!(dial("127.0.0.1", direct_port), direct.accept());
+    dialled.unwrap();
+    accepted.unwrap();
+    assert!(seen.lock().unwrap().is_empty(), "the proxy was asked");
+}
+
+/// podssh's patch 0017: no refusal quotes the URL, which may hold a
+/// password, and the Debug form hides the credentials.
+#[test]
+fn no_message_shows_the_credentials() {
+    for url in [
+        "socks5://user:secret@proxy.example:1080",
+        "http://user:secret@",
+        "http://user:%zz@proxy.example:3128",
+    ] {
+        let why = ProxyConfig::from_url(url).unwrap_err();
+        assert!(!why.contains("secret") && !why.contains("%zz"), "{why}");
+    }
+    let config = ProxyConfig::from_url("http://user:secret@proxy.example:3128").unwrap();
+    let shown = format!("{config:?}");
+    assert!(!shown.contains("secret") && !shown.contains("dXNlcjpzZWNyZXQ"), "{shown}");
 }
 
 /// Resets the global when the test returns, pass or fail, so no proxy leaks

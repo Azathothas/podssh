@@ -82,7 +82,7 @@ impl TcpDialer for ControlTcpDialer<'_> {
         // ⛔ Under proxy the dial plan is skipped altogether: CONNECT by
         // hostname, and the proxy resolves. A plan that names IPs is a plan
         // for a network this host does not have.
-        if ts_http_util::proxy::is_configured() {
+        if ts_http_util::proxy::applies(host) {
             return ts_http_util::proxy::connect(host, port).await;
         }
         match self {

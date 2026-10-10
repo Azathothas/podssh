@@ -9,11 +9,11 @@ use std::io::Write;
 use std::time::Duration;
 
 use podssh_ts::chain::{select_chain, ChainInputs, Verdict};
-use podssh_ts::config::TsMode;
+use podssh_ts::config::{TsMode, TsProxy, PROXY_FLAG};
 use podssh_ts::wait::Deadline;
 use podssh_ws::client::open_tls;
 use podssh_ws::dial::authority;
-use podssh_ws::{ConnectError, HttpProxy, ProxyChoice, Trust};
+use podssh_ws::{ConnectError, ProxyChoice, Trust};
 
 /// The bound on each step, as on each probe of `podssh doctor`.
 pub const STEP: Duration = Duration::from_secs(8);
@@ -30,14 +30,15 @@ const MAP_MAX: usize = 1024 * 1024;
 /// server that is down does not make the stock tailnet unreachable.
 pub const DERP_TRIES: usize = 3;
 
-/// The proxy of the checks: `--ts-proxy`, read with the port that the fork
-/// gives a URL with none (8080), so the check goes where the node will;
-/// else the environment's, for each host, as each other podssh command
-/// reads it.
-pub fn proxy_choice(flag: Option<&str>) -> Result<ProxyChoice, String> {
-    let Some(url) = flag else { return Ok(ProxyChoice::FromEnvironment) };
-    let explicit = podssh_ts::config::parse_proxy_url(url).map_err(|_| format!("{url:?} is not an http:// URL"))?;
-    HttpProxy::parse(&explicit).map(ProxyChoice::Via)
+/// The proxy of the checks, the node's own (T-103): the flag's for each
+/// host; the environment's, with its `no_proxy` list, as each podssh command
+/// reads it; else none.
+pub fn proxy_choice(proxy: Option<&TsProxy>) -> ProxyChoice {
+    match proxy {
+        Some(p) if p.source == PROXY_FLAG => ProxyChoice::Via(p.proxy.clone()),
+        Some(_) => ProxyChoice::FromEnvironment,
+        None => ProxyChoice::Direct,
+    }
 }
 
 /// Check the modes in chain order until one is ready, and return it; a

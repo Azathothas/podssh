@@ -5,7 +5,7 @@ use std::sync::{Arc, LazyLock};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_rustls::{
     TlsConnector,
-    rustls::{ClientConfig, RootCertStore},
+    rustls::{ClientConfig, ConfigBuilder, RootCertStore, WantsVerifier, crypto::CryptoProvider},
 };
 pub use tokio_rustls::{client::TlsStream, rustls::pki_types::ServerName};
 use url::Url;
@@ -21,6 +21,19 @@ static ROOT_CERT_STORE: LazyLock<Arc<RootCertStore>> = LazyLock::new(|| {
         roots: webpki_roots::TLS_SERVER_ROOTS.into(),
     })
 });
+
+/// The crypto provider of each TLS config here, named rather than taken from the process default
+/// (podssh's patch 0018): rustls has no default when its build holds two providers, as a build
+/// beside a crate that turns on `ring` does, and each config built without one then panics.
+static PROVIDER: LazyLock<Arc<CryptoProvider>> =
+    LazyLock::new(|| Arc::new(tokio_rustls::rustls::crypto::aws_lc_rs::default_provider()));
+
+/// A client config builder on [`PROVIDER`], with rustls's safe default protocol versions.
+pub(crate) fn config_builder() -> std::io::Result<ConfigBuilder<ClientConfig, WantsVerifier>> {
+    ClientConfig::builder_with_provider(PROVIDER.clone())
+        .with_safe_default_protocol_versions()
+        .map_err(std::io::Error::other)
+}
 
 /// Establishes a TLS stream with a server over an existing connection.
 ///
@@ -45,7 +58,7 @@ where
     Io: AsyncRead + AsyncWrite + Unpin,
 {
     // TODO(npry): custom tls cert verifier to support commonname overrides and self-signed certs
-    let mut rustls_config = ClientConfig::builder()
+    let mut rustls_config = config_builder()?
         .with_root_certificates(ROOT_CERT_STORE.clone())
         .with_no_client_auth();
 

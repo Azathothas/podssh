@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**272 entries: 117 open, 0 partial, 22 blocked, 133 done.**
+**272 entries: 116 open, 0 partial, 22 blocked, 134 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 35 | 0 | 18 | 100 | 153 |
+| P2 | 34 | 0 | 18 | 101 | 153 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 117 | 0 | 22 | 133 | 272 |
+| **All** | 116 | 0 | 22 | 134 | 272 |
 
 ## Entries
 
@@ -176,7 +176,7 @@ repository and CI).
 | [T-100](ts.md) | P2 | S | M8 | defect | done | C2: `podssh ts` waits for ever when no network map arrives |
 | [T-101](ts.md) | P2 | S | M8 | defect | done | C3: a local end of input cuts the reply in the `podssh-ts` pipe |
 | [T-102](ts.md) | P2 | M | M8 | defect | done | C9: the automatic mode always selects tcp, and ephemeral nodes are not logged out |
-| [T-103](ts.md) | P2 | M | M8 | defect | open | The DERP dial of the Tailscale fork does not use the proxy |
+| [T-103](ts.md) | P2 | M | M8 | defect | done | The DERP dial of the Tailscale fork does not use the proxy |
 | [T-104](ts.md) | P2 | M | M8 | feature | open | `podssh ts` connects again after a drop |
 | [T-105](ts.md) | P2 | M | M8 | defect | open | The fork shows the relay's `1008 not authorized` as a missing network map |
 | [T-106](ts.md) | P2 | M | M8 | measurement | blocked | The live test of `podssh ts` with two nodes |

@@ -59,21 +59,31 @@ fn a_map_that_cannot_be_read_names_no_server() {
     }
 }
 
+/// The checks go where the node goes (T-103): the flag's proxy for each
+/// host, the environment's with its own `no_proxy` rules, or none.
 #[test]
-fn the_checks_use_the_flags_proxy_with_the_forks_port_else_the_environments() {
-    assert_eq!(proxy_choice(None), Ok(ProxyChoice::FromEnvironment));
-    // A URL with no port means 8080 to the fork, so the check goes there too.
-    let Ok(ProxyChoice::Via(proxy)) = proxy_choice(Some("http://proxy.example")) else { panic!("a proxy") };
-    assert_eq!((proxy.host.as_str(), proxy.port), ("proxy.example", 8080));
-    let Ok(ProxyChoice::Via(proxy)) = proxy_choice(Some("http://u:p@proxy.example:3128/")) else { panic!("a proxy") };
-    assert_eq!((proxy.host.as_str(), proxy.port), ("proxy.example", 3128));
-    assert!(proxy_choice(Some("socks5://proxy.example:1080")).is_err());
+fn the_checks_use_the_nodes_proxy() {
+    use podssh_ts::config::choose_proxy;
+    let vars = |pairs: &'static [(&'static str, &'static str)]| {
+        move |name: &str| pairs.iter().find(|(n, _)| *n == name).map(|(_, v)| v.to_string())
+    };
+    let flag = choose_proxy(Some("http://u:p@proxy.example"), vars(&[])).unwrap();
+    let ProxyChoice::Via(proxy) = proxy_choice(flag.as_ref()) else { panic!("the flag's proxy") };
+    assert_eq!((proxy.host.as_str(), proxy.port), ("proxy.example", 80));
+    let env = choose_proxy(None, vars(&[("HTTPS_PROXY", "http://proxy.example:3128")])).unwrap();
+    assert_eq!(proxy_choice(env.as_ref()), ProxyChoice::FromEnvironment);
+    assert_eq!(proxy_choice(None), ProxyChoice::Direct);
 }
 
 /// `podssh ts` with a key file, a state file to be, and a proxy that
 /// refuses each connection; its exit, stdout, stderr, and whether the node
 /// started (the fork makes the state file when it starts).
 fn refused_run(mode: &str) -> (i32, String, String, bool) {
+    refused_run_through(mode, "http://127.0.0.1:1")
+}
+
+/// [`refused_run`] through `proxy`, which must refuse as port 1 does.
+fn refused_run_through(mode: &str, proxy: &str) -> (i32, String, String, bool) {
     let dir = std::env::temp_dir().join(format!("podssh-ts-probe-{mode}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     cleanup::at_test_end(&dir);
@@ -90,7 +100,7 @@ fn refused_run(mode: &str) -> (i32, String, String, bool) {
         state.to_str().unwrap(),
         // Port 1 on the loopback: nothing listens, so each dial is refused.
         "--ts-proxy",
-        "http://127.0.0.1:1",
+        proxy,
         "--timeout",
         "60s",
     ];
@@ -112,6 +122,17 @@ fn no_mode_is_ready_when_no_check_passes_and_no_node_starts() {
         "{err}"
     );
     assert!(err.contains("podssh ts: no mode is ready."), "{err}");
+    assert!(!started, "the node started: the state file was made");
+}
+
+/// Credentials on the command line are said to be readable there, and
+/// shown nowhere (T-103).
+#[test]
+fn a_proxy_password_on_the_command_line_is_warned_of_and_never_shown() {
+    let (rc, out, err, started) = refused_run_through("relay", "http://user:secret@127.0.0.1:1");
+    assert_eq!(rc, 78, "{err}");
+    assert!(err.contains("podssh ts: --ts-proxy holds credentials"), "{err}");
+    assert!(!err.contains("secret") && !out.contains("secret"), "{err}");
     assert!(!started, "the node started: the state file was made");
 }
 

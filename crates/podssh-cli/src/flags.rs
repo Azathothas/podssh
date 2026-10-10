@@ -277,7 +277,7 @@ pub const TS_FLAGS: &[FlagRow] = &[
     row(None, "ts-mode", Some("MODE"), FlagKind::Supported,
         "auto tun socks tcp relay: auto takes the first of tcp, relay whose check passes", None),
     row(None, "ts-proxy", Some("URL"), FlagKind::Supported,
-        "CONNECT proxy for every outbound TCP path", None),
+        "CONNECT proxy for each connection; default: the environment's", None),
     row(None, "ts-auth-key-file", Some("FILE"), FlagKind::Supported,
         "tailnet auth key file; never passed on argv", None),
     row(None, "ts-state", Some("FILE"), FlagKind::Supported,

@@ -86,6 +86,20 @@ cargo test -p ts_derp --test wire_compat
 m1=$?
 echo "M1_EXIT=$m1"
 
+# Offline too, so a failure is a failure of M1: the DERP dial over WebSocket
+# goes through the proxy, and the proxy's no_proxy list and credentials are
+# read as podssh reads them (podssh T-103, patch 0017).
+echo "== M1b: the DERP dial over WebSocket through a fake proxy =="
+cargo test -p ts_derp --test ws_proxy_dial
+m1b=$?
+echo "M1B_EXIT=$m1b"
+cargo test -p ts_http_util --test proxy
+m1c=$?
+echo "M1C_EXIT=$m1c"
+if [ "$m1b" -ne 0 ] || [ "$m1c" -ne 0 ]; then
+    m1=1
+fi
+
 echo "== M3: live DERP-over-WebSocket handshake (expect close 1008 not authorized) =="
 cargo run -p ts_derp --example ws_handshake -- --host tcp.ts.relay.ajam.dev
 m3=$?

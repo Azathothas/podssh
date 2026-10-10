@@ -441,7 +441,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:140-147` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:112-114`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5414`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5416`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -1067,7 +1067,7 @@ Read:
   fails. So the relay road ends a stuck write in about 60 to 130 s.
 - The direct road gives russh the TCP stream with only `nodelay` set
   (`crates/podssh-cli/src/ssh/transport.rs:99-101`,
-  `crates/podssh-ws/src/dial.rs:219-221`).
+  `crates/podssh-ws/src/dial.rs:239-241`).
 - russh takes SSH window credit before it writes, so a remote program that
   stops reading makes the session idle, not stuck (GitHub #36). Only a stall
   below SSH causes the hang.

@@ -4027,8 +4027,10 @@ version = "0.1.0"
 name = "podssh-ts"
 version = "0.1.0"
 dependencies = [
+ "podssh-ws",
  "tailscale",
  "tokio",
+ "ts_derp",
  "ts_http_util",
  "ts_runtime",
  "zeroize",

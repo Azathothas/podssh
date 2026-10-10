@@ -38,6 +38,7 @@ impl TsMode {
                 derp_host: None,
                 derp_port: None,
                 proxy_url: proxy_url.map(str::to_string),
+                no_proxy: None,
             },
             TsMode::Relay { host, port } => RuntimeSelection {
                 no_udp: true,
@@ -45,6 +46,7 @@ impl TsMode {
                 derp_host: Some(host.clone()),
                 derp_port: Some(*port),
                 proxy_url: proxy_url.map(str::to_string),
+                no_proxy: None,
             },
         }
     }
@@ -52,7 +54,8 @@ impl TsMode {
 
 /// The fork runtime selection, field for field, without naming fork types:
 /// `podssh-ts` owns this struct and `node.rs` converts it at the boundary.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// Its `Debug` shows no proxy credentials.
+#[derive(Clone, PartialEq, Eq)]
 pub struct RuntimeSelection {
     /// Gate the UDP actors off (DirectActor, Stunner, netmon).
     pub no_udp: bool,
@@ -64,10 +67,26 @@ pub struct RuntimeSelection {
     pub derp_port: Option<u16>,
     /// CONNECT proxy URL for every outbound TCP path, or `None` for direct.
     pub proxy_url: Option<String>,
+    /// The hosts that bypass that proxy, as a `no_proxy` list.
+    pub no_proxy: Option<String>,
+}
+
+impl std::fmt::Debug for RuntimeSelection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RuntimeSelection")
+            .field("no_udp", &self.no_udp)
+            .field("derp_ws", &self.derp_ws)
+            .field("derp_host", &self.derp_host)
+            .field("derp_port", &self.derp_port)
+            .field("proxy_url", &self.proxy_url.as_deref().map(redacted))
+            .field("no_proxy", &self.no_proxy)
+            .finish()
+    }
 }
 
 /// Everything `TsNode` needs: state path, control plane, identity, mode.
-#[derive(Clone, Debug)]
+/// Its `Debug` shows no proxy credentials.
+#[derive(Clone)]
 pub struct TsConfig {
     /// Node key-state file. No default: the caller names one, and the file
     /// must persist or the node key — and its allowlist entry — rotates.
@@ -82,46 +101,102 @@ pub struct TsConfig {
     pub mode: TsMode,
     /// CONNECT proxy URL, or `None` for direct.
     pub proxy_url: Option<String>,
+    /// The hosts that bypass that proxy, as a `no_proxy` list.
+    pub no_proxy: Option<String>,
+}
+
+impl std::fmt::Debug for TsConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TsConfig")
+            .field("state_file", &self.state_file)
+            .field("control_url", &self.control_url)
+            .field("hostname", &self.hostname)
+            .field("ephemeral", &self.ephemeral)
+            .field("mode", &self.mode)
+            .field("proxy_url", &self.proxy_url.as_deref().map(redacted))
+            .field("no_proxy", &self.no_proxy)
+            .finish()
+    }
+}
+
+/// A proxy URL with its credentials, if any, replaced.
+fn redacted(url: &str) -> String {
+    let (scheme, rest) = match url.split_once("://") {
+        Some((scheme, rest)) => (format!("{scheme}://"), rest),
+        None => (String::new(), url),
+    };
+    let authority = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+    match rest[..authority].rfind('@') {
+        Some(at) => format!("{scheme}<redacted>@{}", &rest[at + 1..]),
+        None => url.to_string(),
+    }
 }
 
 /// Why a `TsConfig` cannot become a fork `Config`.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ConfigError {
-    /// The proxy URL does not parse as an `http://` URL with a host.
+    /// The proxy URL was refused: what named it, and why. Never the URL,
+    /// which may hold a password.
     BadProxyUrl(String),
     /// The control URL does not parse as a URL.
     BadControlUrl(String),
 }
 
-/// Check a CONNECT proxy URL the way the fork's dialer needs it:
-/// `http://host[:port]`, default port 8080, credentials allowed.
-/// Anything else is a named `BadProxyUrl`, before anything dials.
-pub fn parse_proxy_url(url: &str) -> Result<String, ConfigError> {
-    let rest = url.strip_prefix("http://").ok_or_else(|| ConfigError::BadProxyUrl(url.to_string()))?;
-    let (authority, _) = match rest.find('/') {
-        Some(i) => (&rest[..i], &rest[i..]),
-        None => (rest, ""),
-    };
-    let (userinfo, hostport) = match authority.rfind('@') {
-        Some(i) => (&authority[..i], &authority[i + 1..]),
-        None => ("", authority),
-    };
-    if hostport.is_empty() || hostport.starts_with(':') {
-        return Err(ConfigError::BadProxyUrl(url.to_string()));
-    }
-    let (host, port) = match hostport.rfind(':') {
-        Some(i) if !hostport[..i].is_empty() && hostport[i + 1..].chars().all(|c| c.is_ascii_digit()) => {
-            let port: u16 = hostport[i + 1..].parse().map_err(|_| ConfigError::BadProxyUrl(url.to_string()))?;
-            (&hostport[..i], port)
+impl std::fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConfigError::BadProxyUrl(why) => write!(f, "{why}"),
+            ConfigError::BadControlUrl(url) => write!(f, "the control URL {url:?} does not parse"),
         }
-        _ => (hostport, 8080),
+    }
+}
+
+/// The proxy that each connection of the node goes through, as
+/// [`choose_proxy`] found it. Its `Debug` and its `Display` show no
+/// credentials (podssh-ws's `HttpProxy`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TsProxy {
+    /// The proxy, as each podssh command reads it.
+    pub proxy: podssh_ws::HttpProxy,
+    /// The `no_proxy` list, for a proxy that the environment named: a flag
+    /// names one proxy for each host.
+    pub no_proxy: Option<String>,
+    /// What named the proxy: `--ts-proxy`, or the variable.
+    pub source: &'static str,
+}
+
+impl TsProxy {
+    /// The URL for the fork: `http://[USER:PASSWORD@]HOST:PORT`, the port
+    /// always written, as podssh reads a URL with none (80, where the fork
+    /// would read 8080), and the credentials escaped. Never for a message.
+    pub fn url(&self) -> String {
+        self.proxy.url()
+    }
+}
+
+/// What names the proxy when `--ts-proxy` does.
+pub const PROXY_FLAG: &str = "--ts-proxy";
+
+/// The proxy of the node: `--ts-proxy` (`flag`), else the first of the
+/// variables that each podssh command reads, in its order, that is set and
+/// not empty, with the `no_proxy` list; `None` for direct. `var` reads a
+/// variable, so a test gives its own.
+pub fn choose_proxy(flag: Option<&str>, var: impl Fn(&str) -> Option<String>) -> Result<Option<TsProxy>, ConfigError> {
+    let set = |name: &str| var(name).filter(|value| !value.trim().is_empty());
+    let (raw, source) = match flag {
+        Some(url) => (url.to_string(), PROXY_FLAG),
+        None => match podssh_ws::dial::PROXY_VARS.iter().find_map(|name| set(name).map(|value| (value, *name))) {
+            Some(found) => found,
+            None => return Ok(None),
+        },
     };
-    if host.is_empty() {
-        return Err(ConfigError::BadProxyUrl(url.to_string()));
-    }
-    if userinfo.is_empty() {
-        Ok(format!("http://{host}:{port}"))
-    } else {
-        Ok(format!("http://{userinfo}@{host}:{port}"))
-    }
+    // podssh-ws's reading, as for each other command: a bare `host:port`,
+    // the port 80 for an `http://` URL with none, the credentials decoded.
+    let proxy =
+        podssh_ws::HttpProxy::parse(&raw).map_err(|why| ConfigError::BadProxyUrl(format!("{source}: {why}")))?;
+    let no_proxy = match flag {
+        Some(_) => None,
+        None => podssh_ws::dial::NO_PROXY_VARS.iter().find_map(|name| set(name)),
+    };
+    Ok(Some(TsProxy { proxy, no_proxy, source }))
 }

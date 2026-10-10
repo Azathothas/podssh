@@ -59,17 +59,15 @@ pristine tree is the cheap way to detect drift. `Cargo.lock` is patched by
 `0008`; regenerate it with `cargo update -p ts_derp` in the vendored tree after
 a re-pin, and the diff should show only dependency-resolution changes.
 
-### What this tree currently provides (first increment)
+### What this tree provides
 
-- `ts_derp::ws` — a WebSocket transport for DERP (`connect`,
-  `connect_with_subprotocol`, `WsIo`), usable with the unchanged
-  `ts_derp::Client::handshake`.
-- `ts_derp/tests/wire_compat.rs` — offline proof that the ClientInfo JSON is
-  exactly what the relay's parser expects (snake_case, no `meshKey`).
-- `ts_derp/examples/ws_handshake.rs` — live handshake probe: expects
-  WebSocket close `1008 "not authorized"` for an unallowlisted key, and HTTP
-  426 without the `derp` subprotocol (negative control).
+`tailscale-rs/LOCAL-PATCHES.md` describes each patch, with its proof. In
+short: DERP over a WebSocket to a pinned relay (`ts_derp::ws`), with the
+ClientInfo JSON that the relay's parser expects; one HTTP CONNECT proxy for
+each connection of the node, to the control server and to DERP, over the
+WebSocket too, by host name, with a `no_proxy` list and a bound on each dial;
+the runtime options that gate UDP off and pin the relay; the tailnet auth key
+in memory that is cleared; and a logout.
 
-Not yet done here (see the stage-2 report's patch groups P1–P3): wiring the
-WebSocket transport into `DefaultClient`/`ts_runtime`, the CONNECT proxy
-dialer, force-DERP / no-UDP runtime gating, and the home-region override.
+Not done here: the home-region override, and connecting again after a drop
+(T-104).

@@ -133,7 +133,7 @@ async fn dial_tcp(url: &url::Url) -> Result<TcpStream, Error> {
     // ⛔ Under proxy the CONNECT authority is the hostname: the proxy resolves,
     // and the local resolver is dead on the target. No fallback to direct —
     // direct is dropped there, so a fallback is a hang wearing a retry loop.
-    if crate::proxy::is_configured() {
+    if crate::proxy::applies(host) {
         return crate::proxy::connect(host, port).await.map_err(|e| {
             tracing::error!(error = %e, %url, "dialing tcp via proxy");
             Error::Io

@@ -65,7 +65,9 @@ pub async fn connect_with_subprotocol(
     port: u16,
     subprotocol: Option<&str>,
 ) -> Result<WsIo, Error> {
-    let tcp = TcpStream::connect((hostname, port)).await?;
+    // Through the proxy when one applies, within a bound either way, as each
+    // other dial site (podssh's patch 0017).
+    let tcp = ts_http_util::proxy::dial(hostname, port).await?;
 
     let server_name = ServerName::try_from(hostname.to_owned()).map_err(|e| {
         tracing::error!(error = %e, %hostname, "invalid DERP server hostname");
