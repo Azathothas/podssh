@@ -220,7 +220,7 @@ has a local source that
 opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:83-101`,
 `crates/podssh-relay/src/pool.rs:48-61`); the token cache
 (`crates/podssh-relay/src/cache.rs:78-97`, which returns the token itself in `Cached`, lines
-29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:62-68`, 90-98); the attachment
+29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:79-85`, 90-98); the attachment
 (`crates/podssh-cli/src/non_interactive.rs:74-76`); the proxy, shown with no credentials
 (`crates/podssh-ws/src/dial.rs:43-48`, 131-134).
 

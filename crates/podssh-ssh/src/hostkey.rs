@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 
 use russh::keys::ssh_key::PublicKey;
 
-use crate::known_hosts::{self, Lookup, Unreadable};
+use crate::known_hosts::{self, Lookup, Recorded, Unreadable};
 use crate::log::Log;
 use crate::options::StrictHostKeyChecking;
 use crate::prompt::{self, PromptError};
@@ -99,11 +99,7 @@ impl Policy {
                 log.debug(&format!("host key for '{}' found at {}:{line}", self.name, path.display()));
                 Verdict::Accept
             }
-            Lookup::Revoked { path, line } => Verdict::Reject(format!(
-                "the {kind} host key for '{}' ({fp}) is marked as revoked at {}:{line}. Refusing to connect.",
-                self.name,
-                path.display()
-            )),
+            Lookup::Revoked { path, line } => Verdict::Reject(revoked_message(&self.name, &kind, &fp, &path, line)),
             Lookup::Changed { path, line, recorded } => {
                 Verdict::Reject(changed_message(&self.name, &kind, &fp, &recorded, &path, line))
             }
@@ -133,10 +129,7 @@ impl Policy {
             StrictHostKeyChecking::AcceptNew | StrictHostKeyChecking::No if !unseen.is_empty() => {
                 Verdict::Reject(unverifiable(&self.name, kind, fp, unseen))
             }
-            StrictHostKeyChecking::AcceptNew | StrictHostKeyChecking::No => {
-                self.record(key, kind, fp, log);
-                Verdict::Accept
-            }
+            StrictHostKeyChecking::AcceptNew | StrictHostKeyChecking::No => self.record(key, kind, fp, log),
             StrictHostKeyChecking::Ask if self.batch_mode => Verdict::Reject(format!(
                 "host key verification failed: '{}' is not a known host and BatchMode forbids asking.\n  \
                  Its {kind} key fingerprint is {fp};\n  {accept_hint}.{note}",
@@ -177,8 +170,7 @@ impl Policy {
             };
             let answer = answer.trim();
             if answer.eq_ignore_ascii_case("yes") || answer == fp {
-                self.record(key, kind, fp, log);
-                return Verdict::Accept;
+                return self.record(key, kind, fp, log);
             }
             if answer.eq_ignore_ascii_case("no") || answer.is_empty() {
                 return Verdict::Reject("host key verification failed.".into());
@@ -187,19 +179,44 @@ impl Policy {
         }
     }
 
-    fn record(&self, key: &PublicKey, kind: &str, fp: &str, log: &Log) {
+    /// Record an accepted key in the first user file. Another run may have
+    /// recorded the host meanwhile (T-029): the same key is known then, and
+    /// another key of the type is refused as changed.
+    fn record(&self, key: &PublicKey, kind: &str, fp: &str, log: &Log) -> Verdict {
         let Some(path) = self.user_files.first() else {
             let why = self.no_user_file.unwrap_or("no known_hosts file is configured");
             log.info(&not_recorded(&self.name, kind, fp, &NotRecorded::NoFile(why)));
-            return;
+            return Verdict::Accept;
         };
         match known_hosts::append(path, &self.name, key) {
-            Ok(()) => {
-                log.info(&format!("Warning: Permanently added '{}' ({kind}) to the list of known hosts.", self.name))
+            Ok(Recorded::Written { locked }) => {
+                if !locked {
+                    log.verbose(&format!("{} takes no lock: the key went in without one", path.display()));
+                }
+                log.info(&format!("Warning: Permanently added '{}' ({kind}) to the list of known hosts.", self.name));
+                Verdict::Accept
             }
-            Err(e) => log.info(&not_recorded(&self.name, kind, fp, &NotRecorded::Write { path, error: &e })),
+            Ok(Recorded::Already { line }) => {
+                log.debug(&format!("the key of '{}' was recorded meanwhile at {}:{line}", self.name, path.display()));
+                Verdict::Accept
+            }
+            Ok(Recorded::Changed { line, recorded }) => {
+                Verdict::Reject(changed_message(&self.name, kind, fp, &recorded, path, line))
+            }
+            Ok(Recorded::Revoked { line }) => Verdict::Reject(revoked_message(&self.name, kind, fp, path, line)),
+            Err(e) => {
+                log.info(&not_recorded(&self.name, kind, fp, &NotRecorded::Write { path, error: &e }));
+                Verdict::Accept
+            }
         }
     }
+}
+
+fn revoked_message(name: &str, kind: &str, fp: &str, path: &Path, line: usize) -> String {
+    format!(
+        "the {kind} host key for '{name}' ({fp}) is marked as revoked at {}:{line}. Refusing to connect.",
+        path.display()
+    )
 }
 
 /// Why a key that was accepted is not recorded.

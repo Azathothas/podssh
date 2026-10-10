@@ -7,7 +7,7 @@ mod cleanup;
 use std::path::PathBuf;
 
 use podssh_ssh::hostkey::{Policy, Verdict};
-use podssh_ssh::known_hosts::{append, host_name, lookup, lookup_all, recorded_algorithms, Lookup};
+use podssh_ssh::known_hosts::{append, host_name, lookup, lookup_all, recorded_algorithms, Lookup, Recorded};
 use podssh_ssh::log::Log;
 use podssh_ssh::options::{LogLevel, StrictHostKeyChecking};
 use russh::keys::ssh_key::PublicKey;
@@ -193,4 +193,74 @@ fn an_unreadable_fifo_never_blocks_the_lookup() {
     assert!(matches!(found, Lookup::Unknown), "{found:?}");
     assert_eq!(unreadable.len(), 1, "{unreadable:?}");
     assert!(unreadable[0].error.contains("not a regular file"), "{unreadable:?}");
+}
+
+/// A run records a host that another run recorded since its lookup (T-029):
+/// the same key adds no line, another key of the type is refused as changed,
+/// a key revoked meanwhile is refused, and a key of another type is added.
+#[test]
+fn recorded_meanwhile_the_same_key_adds_nothing_and_another_is_refused() {
+    let f = file("meanwhile", &format!("example.org {A}\n@revoked example.org {C}\n"));
+    let before = std::fs::read_to_string(&f).unwrap();
+    assert!(matches!(append(&f, "example.org", &key(A)).unwrap(), Recorded::Already { line: 1 }));
+    match append(&f, "example.org", &key(B)).unwrap() {
+        Recorded::Changed { line, recorded } => {
+            assert_eq!(line, 1);
+            assert_eq!(recorded.key_data(), key(A).key_data());
+        }
+        other => panic!("another key of the type was not refused: {other:?}"),
+    }
+    assert!(matches!(append(&f, "example.org", &key(C)).unwrap(), Recorded::Revoked { line: 2 }));
+    assert_eq!(std::fs::read_to_string(&f).unwrap(), before, "nothing was to be written");
+    assert!(matches!(append(&f, "other.example", &key(B)).unwrap(), Recorded::Written { .. }));
+    assert_eq!(std::fs::read_to_string(&f).unwrap().lines().count(), 3);
+}
+
+/// Sixteen runs record one new key at the same moment: the file gets one
+/// line for it, and each other run finds it there (T-029).
+#[test]
+fn concurrent_append_of_one_new_key_writes_one_line() {
+    let f = file("concurrent", "");
+    let start = std::sync::Arc::new(std::sync::Barrier::new(16));
+    let runs: Vec<_> = (0..16)
+        .map(|_| {
+            let (f, start) = (f.clone(), start.clone());
+            std::thread::spawn(move || {
+                start.wait();
+                append(&f, "race.example", &key(A)).unwrap()
+            })
+        })
+        .collect();
+    let results: Vec<Recorded> = runs.into_iter().map(|run| run.join().unwrap()).collect();
+    let written = results.iter().filter(|r| matches!(r, Recorded::Written { .. })).count();
+    let already = results.iter().filter(|r| matches!(r, Recorded::Already { line: 1 })).count();
+    assert_eq!((written, already), (1, 15), "{results:?}");
+    let text = std::fs::read_to_string(&f).unwrap();
+    assert_eq!(text.lines().filter(|l| l.starts_with("race.example ")).count(), 1, "{text}");
+}
+
+/// The lock refuses no reader: a lookup while another run holds the file's
+/// lock reads it, on Windows too, where a lock of the file's bytes would
+/// refuse the read (T-029).
+#[test]
+fn concurrent_append_never_makes_the_file_unreadable() {
+    let f = file("readers", &format!("example.org {A}\n"));
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let writer = {
+        let (f, stop) = (f.clone(), stop.clone());
+        std::thread::spawn(move || {
+            let mut n = 0;
+            while !stop.load(std::sync::atomic::Ordering::SeqCst) {
+                append(&f, &format!("host{n}.example"), &key(B)).unwrap();
+                n += 1;
+            }
+        })
+    };
+    for _ in 0..200 {
+        let (found, unreadable) = lookup_all(std::slice::from_ref(&f), "example.org", &key(A));
+        assert!(unreadable.is_empty(), "{unreadable:?}");
+        assert!(matches!(found, Lookup::Known { line: 1, .. }), "{found:?}");
+    }
+    stop.store(true, std::sync::atomic::Ordering::SeqCst);
+    writer.join().unwrap();
 }

@@ -7,6 +7,8 @@
 //! on one malformed key. This one skips what it cannot parse, line by line,
 //! and keeps line numbers so a message can point at the line that matched.
 
+mod lock;
+
 use std::fs::OpenOptions;
 use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -56,6 +58,21 @@ pub enum Lookup {
 pub struct Unreadable {
     pub path: PathBuf,
     pub error: String,
+}
+
+/// What [`append`] found in the file under its lock (T-029).
+#[derive(Debug)]
+pub enum Recorded {
+    /// The line was written; `locked` is false when the file system takes
+    /// no locks, and the line went in without one.
+    Written { locked: bool },
+    /// Another run recorded the same key meanwhile: nothing was written.
+    Already { line: usize },
+    /// Another run recorded another key of the type meanwhile: nothing was
+    /// written, and the key is refused as changed.
+    Changed { line: usize, recorded: PublicKey },
+    /// The key was marked `@revoked` meanwhile: nothing was written.
+    Revoked { line: usize },
 }
 
 /// The name a host is filed under: `host` on port 22, `[host]:port` otherwise.
@@ -131,16 +148,23 @@ pub fn scan(files: &[PathBuf], name: &str) -> (Vec<Entry>, Vec<Unreadable>) {
                 continue;
             }
         };
-        let text = String::from_utf8_lossy(&raw);
-        for (index, line) in text.lines().enumerate() {
-            if let Some((marker, patterns, key)) = parse_line(line) {
-                if matches(patterns, name) {
-                    out.push(Entry { path: path.clone(), line: index + 1, marker, key });
-                }
+        out.extend(parse_entries(path, &raw, name));
+    }
+    (out, unreadable)
+}
+
+/// The parsable entries of one file's bytes whose patterns match `name`.
+fn parse_entries(path: &Path, raw: &[u8], name: &str) -> Vec<Entry> {
+    let mut out = Vec::new();
+    let text = String::from_utf8_lossy(raw);
+    for (index, line) in text.lines().enumerate() {
+        if let Some((marker, patterns, key)) = parse_line(line) {
+            if matches(patterns, name) {
+                out.push(Entry { path: path.to_path_buf(), line: index + 1, marker, key });
             }
         }
     }
-    (out, unreadable)
+    out
 }
 
 /// The bytes of one file: `None` when it is missing, which is normal, and
@@ -278,10 +302,14 @@ pub fn wildcard(pattern: &[u8], text: &[u8]) -> bool {
     p == pattern.len()
 }
 
-/// Append `name keytype base64` to `path`. The directory is created (mode
-/// 0700) and the file too (0600) when missing. Existing content is never
-/// rewritten: comments and lines podssh cannot parse stay exactly as they are.
-pub fn append(path: &Path, name: &str, key: &PublicKey) -> std::io::Result<()> {
+/// Append `name keytype base64` to `path`, unless a line for `name` came
+/// since the lookup: two runs that meet a new host at once record it once,
+/// and a second key of the type is refused, never recorded (T-029). The lock
+/// is held for the read and the write only, and waited for 5 s at most. The
+/// directory is created (mode 0700) and the file too (0600) when missing.
+/// Existing content is never rewritten: comments and lines podssh cannot
+/// parse stay exactly as they are.
+pub fn append(path: &Path, name: &str, key: &PublicKey) -> std::io::Result<Recorded> {
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         let mut builder = std::fs::DirBuilder::new();
         builder.recursive(true);
@@ -293,24 +321,33 @@ pub fn append(path: &Path, name: &str, key: &PublicKey) -> std::io::Result<()> {
     options.read(true).append(true).create(true);
     #[cfg(unix)]
     std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
-    let mut file = options.open(path)?;
+    let file = options.open(path)?;
     let bare = PublicKey::new(key.key_data().clone(), "");
     let encoded = bare.to_openssh().map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
+    let held = lock::hold(&file, lock::WAIT)?;
+    // Read again under the lock: another run may have recorded the host since
+    // this one's lookup.
+    let mut handle = &file;
+    let mut raw = Vec::new();
+    handle.seek(SeekFrom::Start(0))?;
+    handle.read_to_end(&mut raw)?;
+    match judge(&parse_entries(path, &raw, name), key) {
+        Lookup::Known { line, .. } => return Ok(Recorded::Already { line }),
+        Lookup::Changed { line, recorded, .. } => return Ok(Recorded::Changed { line, recorded }),
+        Lookup::Revoked { line, .. } => return Ok(Recorded::Revoked { line }),
+        Lookup::OtherTypes(_) | Lookup::Unknown => {}
+    }
     let mut line = String::new();
-    if file.seek(SeekFrom::End(0))? > 0 {
-        file.seek(SeekFrom::End(-1))?;
-        let mut last = [0u8; 1];
-        file.read_exact(&mut last)?;
-        if last[0] != b'\n' {
-            line.push('\n');
-        }
+    if raw.last().is_some_and(|last| *last != b'\n') {
+        line.push('\n');
     }
     line.push_str(name);
     line.push(' ');
     line.push_str(encoded.trim());
     line.push('\n');
-    file.write_all(line.as_bytes())?;
-    file.flush()
+    handle.write_all(line.as_bytes())?;
+    handle.flush()?;
+    Ok(Recorded::Written { locked: held.is_some() })
 }
 
 /// The short type name OpenSSH prints: `ED25519`, `ECDSA`, `RSA`.

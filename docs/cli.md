@@ -644,6 +644,11 @@ rules behind it:
   (`HOME` is not set, `UserKnownHostsFile none`, or the write failed) holds
   for this connection only, and podssh says so: the next run cannot tell a
   changed key from a new one. `UserKnownHostsFile /dev/null` reads as empty.
+- Two runs that meet a new host at once record its key once (T-029): the
+  first user file is locked for the write, and read again under the lock. A
+  second key of the type that another run recorded meanwhile is refused as
+  changed. The lock refuses no reader, OpenSSH included: an advisory `flock`
+  on Unix, and on Windows one byte past any end of the file.
 - A duration is parsed as a whole string. A malformed duration is an error,
   never zero. A time limit applies to the whole operation, not only to the
   dial.
