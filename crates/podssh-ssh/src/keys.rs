@@ -272,7 +272,9 @@ fn warn_if_readable_by_others(path: &Path, log: &Log) {
     let _ = (path, log);
 }
 
-async fn connect_agent(choice: &Agent) -> Result<Option<DynAgent>, String> {
+/// The agent of `choice`, or `None` when none runs: for the login, and
+/// for each agent channel of `-A` (T-036).
+pub(crate) async fn connect_agent(choice: &Agent) -> Result<Option<DynAgent>, String> {
     match choice {
         Agent::Off => Ok(None),
         #[cfg(unix)]

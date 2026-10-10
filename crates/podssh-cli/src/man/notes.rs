@@ -89,6 +89,13 @@ const SSH: &[&str] = &[
      within 20 s. A port of 0 lets the server choose, and podssh prints it. A forward that the server \
      refuses is a warning; with -o ExitOnForwardFailure=yes it ends the run (exit 255). A socket path and \
      the server's SOCKS proxy (-R [BIND:]PORT) are refused by name (exit 64).",
+    "-A forwards the agent, off by default as in OpenSSH; -a turns it off, and the last of the two wins, \
+     over the keyword ForwardAgent. podssh asks for it on the session, never on a jump host, and joins each \
+     agent channel that the server opens to the agent that podssh logs in with (IdentityAgent, else \
+     SSH_AUTH_SOCK); ForwardAgent with a path or $NAME names another agent. While the session lasts, the \
+     server, and root on it, can use each key of the agent, though it cannot read one. podssh does not bind \
+     the agent to the server's host key, as OpenSSH does, so the hosts that an agent limits a key to do \
+     not hold over it. An agent channel that a server opens with no -A is refused, with a warning.",
     "-P is the tag of OpenSSH on ssh, not a port, and podssh ignores it. On scp and sftp, -P is the port. \
      Use -p for the port of ssh.",
     "-G prints the settings in effect, as ssh -G does: a line of keyword and value for each keyword of \
@@ -96,9 +103,11 @@ const SSH: &[&str] = &[
      that differ from OpenSSH's do on purpose: ServerAliveInterval and ConnectTimeout are 60, and no \
      identity file of a security key is tried. podssh's own settings, such as the relay hosts, print no \
      line, as OpenSSH knows no keyword for them.",
-    "Paths in -i and in the IdentityFile, UserKnownHostsFile, GlobalKnownHostsFile and IdentityAgent \
-     keywords take the tokens of OpenSSH: %% %C %d %h %i %j %k %L %l %n %p %r %u, with OpenSSH's values. \
-     %u is the local user and %r the remote one. An unknown token is refused (exit 64). -E FILE is opened \
+    "Paths in -i and in the IdentityFile, UserKnownHostsFile, GlobalKnownHostsFile, IdentityAgent and \
+     ForwardAgent keywords take the tokens of OpenSSH: %% %C %d %h %i %j %k %L %l %n %p %r %u, with \
+     OpenSSH's values. %u is the local user and %r the remote one. An unknown token is refused (exit 64). \
+     ${NAME} in them is the variable NAME, which must be set (exit 64); a whole $NAME as IdentityAgent or \
+     ForwardAgent is the variable that holds the path, and no agent when it is not set. -E FILE is opened \
      as typed.",
     "A repeated value follows OpenSSH: the first -p and -l, the last -e, -E and -F, and the first value \
      of each -o keyword. A second -J or -W is refused, and so is a second --relay-host, --relay-addr or \

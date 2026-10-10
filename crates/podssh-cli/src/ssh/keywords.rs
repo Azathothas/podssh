@@ -32,11 +32,14 @@ pub const HONOURED: &[Keyword] = &[
     kw("ConnectionAttempts", "1-100", "rounds over the relay hosts, or dials with --direct (default 1)", "3"),
     kw("EscapeChar", "CHAR|^X|none", "the same as -e", "~"),
     kw("ExitOnForwardFailure", "yes|no", "yes: a forward of -R that the server refuses ends the run with 255", "yes"),
+    kw("ForwardAgent", "yes|no|PATH|$NAME", "yes is -A: while the session lasts, the server may use the agent that \
+        podssh logs in with; PATH, or the variable NAME, names another agent (default no)", "yes"),
     kw("GlobalKnownHostsFile", "FILE...|none", "the system known_hosts files", "/dev/null"),
     kw("HostKeyAlias", "NAME", "look up and record the host key under this name, in lowercase", "alias"),
     kw("HostName", "HOST", "the host to connect to, in place of the destination; %h is the host as typed", "%h.example.org"),
     kw("IdentitiesOnly", "yes|no", "yes: use only the identity files, not the other keys of the agent", "yes"),
-    kw("IdentityAgent", "PATH|SSH_AUTH_SOCK|none", "the agent socket (a named pipe on Windows); none: no agent", "none"),
+    kw("IdentityAgent", "PATH|$NAME|SSH_AUTH_SOCK|none", "the agent socket (a named pipe on Windows), or the variable \
+        NAME that holds its path; none: no agent", "none"),
     kw("IdentityFile", "FILE", "the same as -i; repeatable", "~/.ssh/id_ed25519"),
     kw("IgnoreUnknown", "PATTERN,...", "unknown keywords to accept with no effect, when they come after it", "UseKeychain"),
     kw("KbdInteractiveAuthentication", "yes|no", "allow keyboard-interactive authentication", "yes"),
@@ -69,7 +72,7 @@ pub const IGNORED: &[&str] = &[
     "CanonicalizeHostname", "CanonicalizeMaxDots", "CanonicalizePermittedCNAMEs", "CASignatureAlgorithms",
     "CertificateFile", "ChannelTimeout", "CheckHostIP", "Ciphers", "ClearAllForwardings",
     "ControlMaster", "ControlPath", "ControlPersist", "EnableEscapeCommandline", "EnableSSHKeysign",
-    "FingerprintHash", "ForwardAgent", "ForwardX11", "ForwardX11Timeout",
+    "FingerprintHash", "ForwardX11", "ForwardX11Timeout",
     "ForwardX11Trusted", "GatewayPorts", "GSSAPIAuthentication", "GSSAPIClientIdentity", "GSSAPIDelegateCredentials",
     "GSSAPIKeyExchange", "GSSAPIKexAlgorithms", "GSSAPIRenewalForcesRekey", "GSSAPIServerIdentity", "GSSAPITrustDns",
     "HashKnownHosts",
@@ -180,5 +183,7 @@ mod tests {
         assert_eq!(o.strict_host_key_checking, podssh_ssh::StrictHostKeyChecking::Ask);
         assert_eq!(d("LogLevel"), "INFO");
         assert_eq!(o.log_level, podssh_ssh::LogLevel::Info);
+        assert_eq!(d("ForwardAgent"), "no");
+        assert_eq!(o.forward_agent, podssh_ssh::Agent::Off);
     }
 }

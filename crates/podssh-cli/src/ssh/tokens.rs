@@ -1,6 +1,7 @@
 //! The `%` tokens of ssh_config(5) in file names (`IdentityFile`,
-//! `UserKnownHostsFile`, `GlobalKnownHostsFile`, `IdentityAgent`), in `User`
-//! and in `RemoteCommand`, with the values that OpenSSH 10.3p1 gives them
+//! `UserKnownHostsFile`, `GlobalKnownHostsFile`, `IdentityAgent`,
+//! `ForwardAgent`), where `${NAME}` is a variable too, in `User` and in
+//! `RemoteCommand`, with the values that OpenSSH 10.3p1 gives them
 //! (`DEFAULT_CLIENT_PERCENT_EXPAND_ARGS` in its `sshconnect.h`). An unknown
 //! token is refused, as OpenSSH refuses it: a path that silently means
 //! another file is worse than an error.
@@ -56,22 +57,45 @@ impl Tokens {
         Some(sha.finalize().iter().map(|b| format!("{b:02x}")).collect())
     }
 
-    /// `path` with each token replaced, then a leading `~` made the home
-    /// directory. `setting` names the option in a refusal, as `-i ` or
-    /// `-o IdentityFile=`.
+    /// `path` with each `${NAME}` and each token replaced, then a leading `~`
+    /// made the home directory, as OpenSSH reads a file name. `setting` names
+    /// the option in a refusal, as `-i ` or `-o IdentityFile=`.
     pub fn expand(&self, setting: &str, path: &str) -> Result<PathBuf, String> {
-        Ok(tilde(&self.text(setting, path, &[])?, self.home.as_deref()))
+        Ok(tilde(&self.replace(setting, path, &[], true)?, self.home.as_deref()))
     }
 
     /// `value` with each token replaced, and no `~`: `RemoteCommand`, or
     /// `User`, which takes neither `%r`, the user itself, nor `%C`, made of
     /// it (`USER_REFUSES`). A token in `refused` is refused by name.
     pub fn text(&self, setting: &str, value: &str, refused: &[char]) -> Result<String, String> {
+        self.replace(setting, value, refused, false)
+    }
+
+    /// The tokens, and with `variables` each `${NAME}` too, in one pass as
+    /// OpenSSH makes it: a variable's value takes no token. A variable that
+    /// is not set is refused, as OpenSSH refuses it.
+    fn replace(&self, setting: &str, value: &str, refused: &[char], variables: bool) -> Result<String, String> {
         let refuse = |why: String| format!("{setting}{value}: {why}");
         let missing = |token: &str, what: &str| refuse(format!("{token} needs {what}"));
         let mut out = String::new();
         let mut chars = value.chars();
         while let Some(c) = chars.next() {
+            if variables && c == '$' && chars.as_str().starts_with('{') {
+                let rest = &chars.as_str()[1..];
+                let end = rest.find('}').ok_or_else(|| refuse("a ${ with no }".into()))?;
+                let name = &rest[..end];
+                // std may panic on such a name, which names no variable anyway.
+                if name.is_empty() || name.contains(['=', '\0']) {
+                    return Err(refuse(format!("${{{name}}} names no variable")));
+                }
+                match std::env::var(name) {
+                    Ok(v) => out.push_str(&v),
+                    Err(std::env::VarError::NotPresent) => return Err(refuse(format!("${{{name}}} is not set"))),
+                    Err(std::env::VarError::NotUnicode(_)) => return Err(refuse(format!("${{{name}}} is not UTF-8"))),
+                }
+                chars = rest[end + 1..].chars();
+                continue;
+            }
             if c != '%' {
                 out.push(c);
                 continue;

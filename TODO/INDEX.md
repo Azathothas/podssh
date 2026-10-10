@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**275 entries: 100 open, 0 partial, 22 blocked, 153 done.**
+**276 entries: 100 open, 0 partial, 22 blocked, 154 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 19 | 0 | 18 | 117 | 154 |
-| P3 | 79 | 0 | 4 | 19 | 102 |
-| **All** | 100 | 0 | 22 | 153 | 275 |
+| P2 | 18 | 0 | 18 | 118 | 154 |
+| P3 | 80 | 0 | 4 | 19 | 103 |
+| **All** | 100 | 0 | 22 | 154 | 276 |
 
 ## Entries
 
@@ -109,7 +109,7 @@ repository and CI).
 | [T-033](ssh.md) | P3 | M | backlog | feature | open | Record a session as asciicast v2, and play it again |
 | [T-034](ssh.md) | P2 | L | backlog | feature | done | `podssh agent`: an SSH agent inside podssh, with no separate binary |
 | [T-035](forwarding.md) | P2 | M | M8 | feature | done | `-R`: remote forwarding, each connection made out through the proxy |
-| [T-036](forwarding.md) | P2 | M | backlog | feature | open | `-A`: agent forwarding, off by default as in OpenSSH |
+| [T-036](forwarding.md) | P2 | M | backlog | feature | done | `-A`: agent forwarding, off by default as in OpenSSH |
 | [T-037](forwarding.md) | P3 | M | backlog | feature | open | `-X` and `-Y`: X11 forwarding to the display that `DISPLAY` names |
 | [T-038](forwarding.md) | P2 | M | backlog | feature | open | `-L` and `-D` when a probe shows that a local bind is allowed |
 | [T-039](forwarding.md) | P2 | M | backlog | feature | open | Connection sharing: `ControlMaster`, `ControlPath`, `-O` and `-S` over an AF_UNIX socket |
@@ -350,3 +350,4 @@ repository and CI).
 | [T-276](repo.md) | P3 | S | none | chore | done | The fork's own clippy warns, and no podssh build shows it |
 | [T-277](repo.md) | P3 | S | none | chore | done | The record's check sees no citation that a commit left unmoved |
 | [T-278](repo.md) | P2 | S | none | chore | done | CI's `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19: name the runners' systems through `v1.0.0` |
+| [T-279](forwarding.md) | P3 | M | backlog | defect | open | `-A` binds the forwarded agent to the server's host key, as OpenSSH does |

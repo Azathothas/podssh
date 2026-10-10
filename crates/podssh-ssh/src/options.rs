@@ -70,13 +70,14 @@ pub enum Request {
     Nothing,
 }
 
-/// Where agent keys come from (`IdentityAgent`).
+/// An agent: where keys come from (`IdentityAgent`), and the one that the
+/// destination's server may use (`-A`, `ForwardAgent`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Agent {
     /// `SSH_AUTH_SOCK`; on Windows, also the OpenSSH agent's named pipe and
     /// Pageant.
     FromEnvironment,
-    /// `IdentityAgent none`.
+    /// No agent: `IdentityAgent none`, or no forwarding.
     Off,
     /// `IdentityAgent PATH` (a Unix socket, or a named pipe on Windows).
     Path(PathBuf),
@@ -183,6 +184,9 @@ pub struct Options {
     /// other keys.
     pub identities_only: bool,
     pub agent: Agent,
+    /// `-A` and `ForwardAgent` (T-036): the agent that the destination's
+    /// server may use while the session lasts. Off by default, as in OpenSSH.
+    pub forward_agent: Agent,
     pub strict_host_key_checking: StrictHostKeyChecking,
     /// `UserKnownHostsFile`: read, and the first one is where new keys go.
     pub user_known_hosts: Vec<PathBuf>,
@@ -275,6 +279,7 @@ impl Options {
             identity_files: Vec::new(),
             identities_only: false,
             agent: Agent::FromEnvironment,
+            forward_agent: Agent::Off,
             strict_host_key_checking: StrictHostKeyChecking::Ask,
             user_known_hosts: Vec::new(),
             no_user_known_hosts: None,

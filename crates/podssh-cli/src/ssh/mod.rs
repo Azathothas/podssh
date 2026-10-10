@@ -7,6 +7,7 @@
 //! number when it was killed, 255 for podssh's own failures. A usage error is
 //! 64, and a bad relay variable 78, before anything is attempted.
 
+mod agents;
 pub mod args;
 pub mod config;
 pub mod dump;

@@ -19,8 +19,8 @@ pub enum Parsed {
         /// `FlagRow::usage_form` builds a `String`: the spelling carries the
         /// metavariable, and the table is `&'static` data that must not be
         /// copied per parse. The third element is the row's own reason, so
-        /// `-A` is refused with "agent forwarding is not supported", not
-        /// with `-L`'s listener sentence.
+        /// `-B` is refused with "podssh never binds", not with `-L`'s
+        /// listener sentence.
         refused: Vec<(String, &'static str, &'static str)>,
         /// `-P TAG` on `ssh`: accepted, ignored, and it says so.
         tag: Option<String>,

@@ -153,3 +153,9 @@ security:
   it with `--node-key`; an iroh ticket names the key (T-087).
 - The end-to-end channel is podssh's own framing over the `snow` crate. No
   third party has audited it (T-088).
+- With `-A` (T-036), the server, and root on it, can use each key of the
+  agent while the session lasts, as with OpenSSH. podssh does not bind the
+  forwarded agent to the server's host key (`session-bind@openssh.com`),
+  so an OpenSSH agent takes the server's requests as local ones, and the
+  limits of `ssh-add -h` do not hold over the forward (T-279). Agent
+  forwarding is off unless asked for.

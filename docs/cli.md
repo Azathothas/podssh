@@ -143,8 +143,8 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   instead says "Leave it out."
 - **`%` tokens are OpenSSH's** (ssh_config(5); the values of
   `DEFAULT_CLIENT_PERCENT_EXPAND_ARGS` in OpenSSH 10.3p1). In `-i`,
-  `IdentityFile`, `UserKnownHostsFile`, `GlobalKnownHostsFile` and
-  `IdentityAgent`: `%%`, `%C` (the SHA-1 of `%l%h%p%r%j`), `%d`, `%h` (the
+  `IdentityFile`, `UserKnownHostsFile`, `GlobalKnownHostsFile`,
+  `IdentityAgent` and `ForwardAgent`: `%%`, `%C` (the SHA-1 of `%l%h%p%r%j`), `%d`, `%h` (the
   host, lowercased unless it is an address), `%i` (the user id), `%j` (the
   host of the last jump), `%k` (`HostKeyAlias`, else `%n`), `%L`, `%l`
   (the local host name, and its first label for `%L`), `%n` (the host as
@@ -156,6 +156,12 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   OpenSSH (T-273). `HostKeyAlias` is lowercased, as OpenSSH lowercases it.
   `-E FILE` is opened with the name as typed, as OpenSSH opens it. The gate
   compares the tokens with `ssh -G`.
+- **`${NAME}` in those paths is a variable**, in the same pass as the
+  tokens, so a variable's value takes no token; a variable that is not set
+  is refused (exit 64), as OpenSSH 10.3p1 refuses it (T-036). A whole
+  `$NAME` as the value of `IdentityAgent` or `ForwardAgent` is OpenSSH's
+  older form: the variable that holds the path, and no agent when it is not
+  set; `-G` prints it as given. Elsewhere `$NAME` is part of a file name.
 
 ## Forwarding
 
@@ -177,8 +183,30 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   4, has no field for one), so podssh names the port: a warning, or with
   `-o ExitOnForwardFailure=yes` the end of the run (exit 255). A channel
   that the server opens for a port that podssh did not ask for is refused.
-- Agent forwarding (`-A`) is not implemented yet. It is in the scope of
-  podssh, off by default as in OpenSSH (T-036).
+- `-A` forwards the agent (T-036), off by default as in OpenSSH; `-a`
+  turns it off, and the last of the two wins, over `-o ForwardAgent`, whose
+  first value wins. podssh asks for it on the destination's session
+  (`auth-agent-req@openssh.com`) before the shell or the command, never on
+  a jump host of `-J`, and joins each agent channel that the server then
+  opens to a new connection to the agent: the one that podssh logs in with
+  (`IdentityAgent`, else `SSH_AUTH_SOCK`; on Windows also OpenSSH's named
+  pipe, then Pageant), as OpenSSH forwards the agent of `IdentityAgent`, or
+  the one of `-o ForwardAgent=PATH` or `$NAME`. It is one more connection
+  to a local socket or pipe; nothing listens. An agent that does not answer
+  within 10 s refuses that channel, and podssh says so once.
+- **The risk:** while the session lasts, the server, and root on it, can
+  use each key of the agent, though it cannot read one. podssh does not
+  bind the agent to the server's host key (OpenSSH's
+  `session-bind@openssh.com`: russh keeps no copy of the server's signature
+  of the key exchange, T-279), so the limits that `ssh-add -h` sets do not
+  hold over podssh's forward. Forward only to a server that you trust, or
+  use `-J`, which needs no agent on the server. `podssh scp`, `podssh sftp`
+  and `podssh cp` run nothing on the server that would use an agent:
+  their `-A` is accepted and forwards none.
+- A channel that the server opens for the agent with no `-A`, or on a jump
+  host, is refused as administratively prohibited, with a warning, as
+  OpenSSH refuses it. A server that refuses the request says so, and the
+  session goes on without the agent.
 
 ## A word with no subcommand
 

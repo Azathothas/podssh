@@ -77,10 +77,11 @@ LISTENERS = {
     # The listening side of `podssh pipe`, which the user asks for with
     # unix-listen: or tcp-listen: (T-177): the bind itself is the probe, and
     # PODSSH_LISTEN turns it off. And the target of the tests of -R (T-035),
-    # on the loopback, in a test module of src/ that reaches the crate's
-    # own login.
+    # on the loopback, and the stand-in agent of the tests of -A (T-036), on
+    # a socket in a scratch directory: test modules of src/ that reach the
+    # crate's own login.
     "TcpListener": ["crates/podssh-cli/src/pipe/listen.rs", "crates/podssh-ssh/src/remote_tests.rs"],
-    "UnixListener": ["crates/podssh-cli/src/pipe/listen.rs"],
+    "UnixListener": ["crates/podssh-cli/src/pipe/listen.rs", "crates/podssh-ssh/src/agent_forward_tests.rs"],
     # The iroh road (feature `iroh`, T-162), which the user selects: its probe
     # binds a UDP socket to port 0 and closes it, and only when the probe
     # allowed it does the endpoint bind UDP for direct paths.
@@ -103,6 +104,7 @@ LISTENERS = {
         "crates/podssh-cli/src/ssh/iroh/dial.rs",
         "crates/podssh-cli/src/ssh/iroh/race.rs",
         "crates/podssh-ssh/src/remote_tests.rs",
+        "crates/podssh-ssh/src/agent_forward_tests.rs",
     ],
     "listen(": ["crates/podssh-cli/src/pipe/listen_win.rs"],
     "socket2": [],

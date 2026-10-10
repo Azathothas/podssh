@@ -14,7 +14,7 @@ use crate::handler::Client;
 use crate::hostkey::Policy;
 use crate::known_hosts;
 use crate::log::Log;
-use crate::options::{Hop, Options, Request};
+use crate::options::{Agent, Hop, Options, Request};
 use crate::relay_stream::{RelayEnd, RelayStatus};
 use crate::retry::{Phase, Retry};
 use crate::{auth, forward, retry, session};
@@ -216,7 +216,9 @@ where
         fingerprints: if is_destination { opts.host_key_fingerprints.clone() } else { Vec::new() },
     };
     let config = Arc::new(client_config(opts, &policy));
-    let client = Client::new(policy, log.clone());
+    // Only the destination may use the agent (-A), never a jump hop.
+    let forwarded = if is_destination { opts.forward_agent.clone() } else { Agent::Off };
+    let client = Client::new(policy, log.clone()).forwarding_agent(forwarded);
     let refusal = client.refusal();
     let disconnect = client.disconnect();
     let forwards = client.forwards();

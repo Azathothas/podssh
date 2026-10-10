@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use podssh_ssh::options::{default_global_known_hosts, default_identity_files, default_user_known_hosts};
-use podssh_ssh::{Agent, Hop, LogLevel, Method, Options, Request, RequestTty, StrictHostKeyChecking};
+use podssh_ssh::{Hop, LogLevel, Method, Options, Request, RequestTty, StrictHostKeyChecking};
 use podssh_ws::Trust;
 
 use podssh_relay::relay::{self, RelayList};
@@ -280,11 +280,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             .ok_or_else(|| format!("-e {e}: expected none, a character or ^X"))?,
         None => settings.escape_char.unwrap_or(Some(b'~')),
     };
-    let agent = match settings.identity_agent.as_deref() {
-        None | Some("SSH_AUTH_SOCK") => Agent::FromEnvironment,
-        Some(v) if v.eq_ignore_ascii_case("none") => Agent::Off,
-        Some(path) => Agent::Path(expand("-o IdentityAgent=", path)?),
-    };
+    let agents = super::agents::choose(args.forward_agent, &settings, &expand)?;
     let mut log_level = settings.log_level.unwrap_or(LogLevel::Info);
     if args.quiet > 0 {
         log_level = LogLevel::Quiet;
@@ -358,7 +354,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         None => Some(Duration::from_secs(60)),
     };
     let notes: Vec<String> = settings.ignored.iter().map(|k| format!("-o {k} has no effect in podssh")).collect();
-    let mut warnings = Vec::new();
+    let mut warnings: Vec<String> = agents.warning.clone().into_iter().collect();
     let idle = relay::RELAY_IDLE_SECS;
     if resumable {
         if keepalive_interval.is_some() {
@@ -389,7 +385,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     options.jump = jump;
     options.identity_files = identity_files;
     options.identities_only = settings.identities_only.unwrap_or(false);
-    options.agent = agent;
+    options.agent = agents.identity.clone();
+    options.forward_agent = agents.forward.clone();
     options.strict_host_key_checking = settings.strict.unwrap_or(StrictHostKeyChecking::Ask);
     options.user_known_hosts = user_known_hosts;
     options.no_user_known_hosts = no_user_known_hosts;
@@ -423,6 +420,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         remote_command,
         proxy_jump: proxy_jump.filter(|j| *j != "none").map(str::to_string),
         home: env.home.clone(),
+        identity_agent: agents.shown_identity,
+        forward_agent: agents.shown_forward,
     };
     let mut resolved = Resolved {
         options,

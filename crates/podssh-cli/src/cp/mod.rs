@@ -126,6 +126,9 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
                 // question (T-137).
                 r.options.host_key_pin = Some(podssh_ssh::hostkey::Pin::default());
                 r.options.remembered = Some(podssh_ssh::remember::Remembered::default());
+                // A copy runs nothing on the server that would use the agent
+                // (T-036), so no agent channel is ever accepted.
+                r.options.forward_agent = podssh_ssh::Agent::Off;
                 resolved.push(r);
             }
             Err(refusal) => return refusal.report(verb, err),

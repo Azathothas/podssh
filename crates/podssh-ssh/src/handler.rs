@@ -8,8 +8,10 @@ use russh::client::{ChannelOpenHandle, DisconnectReason, Handler, Msg, Session};
 use russh::keys::PublicKeyOrCertificate;
 use russh::{Channel, ChannelOpenFailure};
 
+use crate::agent_forward::Forward;
 use crate::hostkey::{Offer, Policy, Verdict};
 use crate::log::Log;
+use crate::options::Agent;
 
 /// The last SSH_MSG_DISCONNECT of a server in this process, made safe: a
 /// run of `-N` says it once the connection ended (T-026). A process runs
@@ -43,6 +45,9 @@ pub struct Client {
     /// The forwards of `-R` that the server took: a `forwarded-tcpip`
     /// channel is accepted for these only.
     forwards: crate::remote::Table,
+    /// The agent that this server may use (`-A`): an agent channel is
+    /// accepted only when it is on, which it is for the destination alone.
+    agent: Forward,
 }
 
 impl Client {
@@ -53,7 +58,14 @@ impl Client {
             refusal: Arc::new(Mutex::new(None)),
             disconnect: Arc::new(Mutex::new(None)),
             forwards: Arc::new(Mutex::new(Vec::new())),
+            agent: Forward::new(Agent::Off),
         }
+    }
+
+    /// Let this server use `agent` (T-036): the destination's, with `-A`.
+    pub fn forwarding_agent(mut self, agent: Agent) -> Self {
+        self.agent = Forward::new(agent);
+        self
     }
 
     /// A handle on the forwards that the server took, to fill after the login.
@@ -73,10 +85,10 @@ impl Client {
 
     /// The one place that refuses a channel that the server opens and podssh
     /// did not ask for, as OpenSSH refuses it; russh would accept it, and read
-    /// and drop its data with no end. -R (T-035) accepts its own channels
-    /// before this; -A and -X (T-036, T-037) will each accept their own kind,
-    /// only for their own requests, and must read an accepted channel at once
-    /// or close it: a channel kept unread stops the whole session.
+    /// and drop its data with no end. -R and -A (T-035, T-036) accept their
+    /// own channels before this; -X (T-037) will accept its own kind, only
+    /// for its own requests. Each reads an accepted channel at once or closes
+    /// it: a channel kept unread stops the whole session.
     async fn unasked(&self, kind: &str, reply: ChannelOpenHandle) {
         match kind {
             "auth-agent@openssh.com" => {
@@ -176,11 +188,15 @@ impl Handler for Client {
 
     async fn server_channel_open_agent_forward(
         &mut self,
-        _channel: Channel<Msg>,
+        channel: Channel<Msg>,
         reply: ChannelOpenHandle,
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
-        self.unasked("auth-agent@openssh.com", reply).await;
+        if self.agent.is_on() {
+            crate::agent_forward::join(self.agent.clone(), channel, reply, self.log.clone());
+        } else {
+            self.unasked("auth-agent@openssh.com", reply).await;
+        }
         Ok(())
     }
 

@@ -19,6 +19,11 @@ pub struct Settings {
     pub identity_files: Vec<String>,
     pub identities_only: Option<bool>,
     pub identity_agent: Option<String>,
+    /// `ForwardAgent`: whether to forward the agent (the first value; a path
+    /// is yes), and the first path or `$NAME` given, which OpenSSH keeps
+    /// apart from it (T-036).
+    pub forward_agent: Option<bool>,
+    pub forward_agent_path: Option<String>,
     pub strict: Option<StrictHostKeyChecking>,
     pub user_known_hosts: Option<Vec<String>>,
     pub global_known_hosts: Option<Vec<String>>,
@@ -79,6 +84,14 @@ impl Settings {
             "identityfile" => self.identity_files.push(unquote(value)),
             "identitiesonly" => set(&mut self.identities_only, yes_no(value).ok_or_else(|| bad("expected yes or no"))?),
             "identityagent" => set(&mut self.identity_agent, unquote(value)),
+            "forwardagent" => match (yes_no(value), unquote(value)) {
+                (Some(on), _) => set(&mut self.forward_agent, on),
+                (None, path) if path.is_empty() => return Err(bad("expected yes, no, a path or $NAME")),
+                (None, path) => {
+                    set(&mut self.forward_agent, true);
+                    set(&mut self.forward_agent_path, path);
+                }
+            },
             "stricthostkeychecking" => set(
                 &mut self.strict,
                 StrictHostKeyChecking::parse(value).ok_or_else(|| bad("expected yes, accept-new, no or ask"))?,
@@ -258,6 +271,8 @@ impl Settings {
             identity_files,
             identities_only: self.identities_only.or(file.identities_only),
             identity_agent: self.identity_agent.or(file.identity_agent),
+            forward_agent: self.forward_agent.or(file.forward_agent),
+            forward_agent_path: self.forward_agent_path.or(file.forward_agent_path),
             strict: self.strict.or(file.strict),
             user_known_hosts: self.user_known_hosts.or(file.user_known_hosts),
             global_known_hosts: self.global_known_hosts.or(file.global_known_hosts),

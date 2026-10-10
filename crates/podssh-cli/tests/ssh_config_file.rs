@@ -295,6 +295,7 @@ serveraliveinterval 30
 loglevel INFO";
 const FILES: &str = "globalknownhostsfile none
 userknownhostsfile /kh/user
+forwardagent no
 connecttimeout 7
 escapechar ~";
 

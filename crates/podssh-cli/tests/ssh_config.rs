@@ -15,7 +15,7 @@ use podssh_cli::tree::{parse, Parsed};
 /// line: `ssh -G -F none` with `EVERY`, for the keywords that podssh prints.
 #[rustfmt::skip]
 const EVERY: &[&str] = &[
-    "-p", "2222", "-l", "alice", "-i", "/tmp/podssh-k1", "-o", "UserKnownHostsFile=/tmp/podssh-kh",
+    "-A", "-p", "2222", "-l", "alice", "-i", "/tmp/podssh-k1", "-o", "UserKnownHostsFile=/tmp/podssh-kh",
     "-o", "GlobalKnownHostsFile=none", "-o", "ServerAliveInterval=30", "-o", "ConnectTimeout=7",
     "-o", "StrictHostKeyChecking=accept-new", "-o", "SendEnv=LANG", "-o", "SetEnv=A=1", "-o", "LogLevel=VERBOSE",
     "-o", "HostKeyAlias=al", "-J", "u@b:2200,c", "-e", "%", "-4", "-o", "RemoteCommand=uptime",
@@ -60,6 +60,7 @@ globalknownhostsfile none
 userknownhostsfile /tmp/podssh-kh
 sendenv LANG
 setenv A=1
+forwardagent yes
 connecttimeout 7
 escapechar %
 proxyjump u@b:2200,c";
@@ -99,6 +100,7 @@ identityfile ~/.ssh/id_ed25519
 identityfile ~/.ssh/id_ed25519_sk
 globalknownhostsfile /etc/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts2
 userknownhostsfile /tmp/podssh-kh
+forwardagent no
 connecttimeout none
 escapechar ~";
 

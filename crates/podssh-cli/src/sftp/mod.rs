@@ -123,6 +123,8 @@ pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, er
     };
     resolved.options.host_key_pin = Some(podssh_ssh::hostkey::Pin::default());
     resolved.options.remembered = Some(podssh_ssh::remember::Remembered::default());
+    // sftp-server uses no agent (T-036): no agent channel is ever accepted.
+    resolved.options.forward_agent = podssh_ssh::Agent::Off;
     let log = Arc::new(Log::new(resolved.options.log_level));
     for note in &resolved.notes {
         log.verbose(note);

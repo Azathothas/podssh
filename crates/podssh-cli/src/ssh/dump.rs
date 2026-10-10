@@ -8,7 +8,7 @@
 
 use std::path::{Path, PathBuf};
 
-use podssh_ssh::{Agent, LogLevel, Request, RequestTty, StrictHostKeyChecking};
+use podssh_ssh::{LogLevel, Request, RequestTty, StrictHostKeyChecking};
 
 use super::resolve::Resolved;
 
@@ -35,6 +35,11 @@ pub struct Shown {
     /// HOME: a path under it is printed with `~`, as OpenSSH prints its
     /// default identity files.
     pub home: Option<PathBuf>,
+    /// `IdentityAgent`, when one was given: a whole `$NAME` as given, as
+    /// OpenSSH keeps it, else the path.
+    pub identity_agent: Option<String>,
+    /// `ForwardAgent` in effect: `no`, `yes`, or the path or `$NAME` as given.
+    pub forward_agent: String,
 }
 
 /// The lines of `ssh -G`.
@@ -66,10 +71,8 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
     if let Some(alias) = &o.host_key_alias {
         out.push(format!("hostkeyalias {alias}"));
     }
-    match &o.agent {
-        Agent::FromEnvironment => {}
-        Agent::Off => out.push("identityagent none".into()),
-        Agent::Path(path) => out.push(format!("identityagent {}", path.display())),
+    if let Some(agent) = &s.identity_agent {
+        out.push(format!("identityagent {agent}"));
     }
     if let Some(command) = &s.remote_command {
         out.push(format!("remotecommand {command}"));
@@ -94,6 +97,7 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
     out.push(format!("userknownhostsfile {}", files(&o.user_known_hosts)));
     out.extend(o.send_env.iter().map(|pattern| format!("sendenv {pattern}")));
     out.extend(o.set_env.iter().map(|(name, value)| format!("setenv {name}={value}")));
+    out.push(format!("forwardagent {}", s.forward_agent));
     out.push(format!("connecttimeout {}", o.connect_timeout.as_secs()));
     out.push(format!("escapechar {}", escape_char(o.escape_char)));
     if let Some(jump) = &s.proxy_jump {

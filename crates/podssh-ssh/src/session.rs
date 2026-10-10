@@ -12,7 +12,7 @@ use crate::escape::Escapes;
 use crate::handler::Client;
 use crate::io;
 use crate::log::Log;
-use crate::options::{Options, Request, RequestTty};
+use crate::options::{Agent, Options, Request, RequestTty};
 use crate::terminal;
 
 /// The exit code when the session ends without an exit status (OpenSSH: 255).
@@ -83,6 +83,11 @@ pub async fn attach(
         if !pty {
             log.info("the server did not grant a pseudo-terminal; continuing without one");
         }
+    }
+
+    // Before the shell or the command, as OpenSSH asks (T-036).
+    if opts.forward_agent != Agent::Off {
+        crate::agent_forward::request(&mut channel, &mut early, log).await?;
     }
 
     // From here a drop is no failure to try again: the server may run it.

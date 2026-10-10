@@ -66,6 +66,9 @@ pub struct SshArgs {
     pub print_config: bool,
     /// Each `-R` spec, as given.
     pub remote_forwards: Vec<String>,
+    /// The last of `-A` and `-a`: whether the server may use the agent
+    /// (T-036); `None` when neither was given.
+    pub forward_agent: Option<bool>,
 }
 
 /// The long-only rows that are spellings of `-o NAME=VALUE`.
@@ -132,6 +135,13 @@ impl SshArgs {
         let count = |id: &str| if has(id) { m.try_get_one::<u8>(id).ok().flatten().copied().unwrap_or(0) } else { 0 };
         let long_options =
             OPTION_FLAGS.iter().flat_map(|name| many(name).into_iter().map(move |v| format!("{name}={v}"))).collect();
+        // The last of -A and -a wins, as in OpenSSH, where each sets the
+        // option as it comes.
+        let at = |id: &str| if flag(id) { m.indices_of(id).and_then(|i| i.max()) } else { None };
+        let forward_agent = match (at("forward-agent"), at("no-agent-forwarding")) {
+            (Some(yes), Some(no)) => Some(yes > no),
+            (yes, no) => yes.map(|_| true).or(no.map(|_| false)),
+        };
         SshArgs {
             destination: one("destination"),
             command: many("remote-command"),
@@ -172,6 +182,7 @@ impl SshArgs {
             persist_name: one("persist-name"),
             print_config: flag("print-config"),
             remote_forwards: many("forward-remote"),
+            forward_agent,
         }
     }
 }

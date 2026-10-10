@@ -75,6 +75,7 @@ podssh ssh user@example.org                  # an interactive shell
 podssh ssh user@example.org 'uname -a'       # a command; its exit status is podssh's
 podssh ssh -i key -o StrictHostKeyChecking=accept-new user@example.org true
 podssh ssh -J user@bastion user@inner        # through a jump host
+podssh ssh -A user@build 'git pull'          # the server may use your agent while the session lasts
 podssh ssh -W db.internal:5432 user@bastion  # stdin and stdout to a TCP port; nothing listens
 podssh ssh -tt user@example.org < script.txt # a remote pty; local stdin is a pipe
 ```

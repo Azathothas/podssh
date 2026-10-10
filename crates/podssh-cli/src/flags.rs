@@ -194,11 +194,14 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "run the shell in the server's tmux, and after a lost link connect again and attach it again; tmux is probed", None),
     row(None, "persist-name", Some("NAME"), FlagKind::Supported,
         "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
-    // These two disable things podssh never does, so they need no work.
+    // -x and -k disable things podssh never does, so they need no work.
     row(Some('x'), "no-x11", None, FlagKind::Supported,
         "no X11 forwarding (podssh never forwards X11)", None),
+    // T-036: the last of -A and -a wins, as in OpenSSH.
+    row(Some('A'), "forward-agent", None, FlagKind::Supported,
+        "forward the agent: while the session lasts, the server may use its keys (ForwardAgent=yes)", None),
     row(Some('a'), "no-agent-forwarding", None, FlagKind::Supported,
-        "no agent forwarding (podssh never forwards the agent)", None),
+        "no agent forwarding (the default; the last of -A and -a wins)", None),
     row(Some('k'), "no-gssapi-delegation", None, FlagKind::Supported,
         "no GSSAPI delegation (podssh never delegates credentials)", None),
     // OpenSSH accepts -g with no -L; with no local listener it changes nothing.
@@ -215,8 +218,6 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "[BIND:]PORT:HOST:HOSTPORT: the server listens; each connection goes on to HOST:HOSTPORT through the proxy", None),
     row(Some('D'), "dynamic-forward", Some("SPEC"), FlagKind::Refused,
         "podssh ssh opens no local listener yet, so -D is refused (podssh pipe tcp-listen: can)", Some("-W HOST:PORT")),
-    row(Some('A'), "forward-agent", None, FlagKind::Refused,
-        "agent forwarding is not supported", Some("-J HOST (log in through the jump host)")),
     row(Some('B'), "bind-interface", Some("IFACE"), FlagKind::Refused,
         "podssh never binds; the relay chooses the source address", Some("no flag")),
     row(Some('b'), "bind-address", Some("ADDR"), FlagKind::Refused,
