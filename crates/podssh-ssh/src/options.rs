@@ -165,6 +165,10 @@ pub struct Hop {
 pub struct Options {
     /// The destination.
     pub destination: Hop,
+    /// `-R` and `RemoteForward`, asked of the destination after the login.
+    pub remote_forwards: Vec<RemoteForward>,
+    /// `ExitOnForwardFailure`: a forward that the server refuses ends the run.
+    pub exit_on_forward_failure: bool,
     /// The name the destination's host key is filed under (`HostKeyAlias`);
     /// `None` uses its host name.
     pub host_key_alias: Option<String>,
@@ -224,12 +228,40 @@ pub struct Options {
     pub remembered: Option<crate::remember::Remembered>,
 }
 
+/// One remote forward: the server listens at `bind:port`, and podssh
+/// connects each connection that it takes to `host:host_port`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemoteForward {
+    /// The address that the server binds, as given: `None` when none was,
+    /// which `-G` prints as OpenSSH does.
+    pub bind: Option<String>,
+    /// The port that the server binds; 0 lets it choose.
+    pub port: u16,
+    pub host: String,
+    pub host_port: u16,
+}
+
+impl RemoteForward {
+    /// The address sent to the server, as OpenSSH sends it: `localhost` when
+    /// none was given, and the empty string (each interface, as the server's
+    /// `GatewayPorts` allows) for an empty one or `*`.
+    pub fn sent_address(&self) -> &str {
+        match self.bind.as_deref() {
+            None => "localhost",
+            Some("") | Some("*") => "",
+            Some(address) => address,
+        }
+    }
+}
+
 impl Options {
     /// Defaults for a destination, as OpenSSH's, except that keepalives are on
     /// (every 60 s): the relay cuts a connection after 180 s without traffic.
     pub fn new(destination: Hop, user: String) -> Self {
         Options {
             destination,
+            remote_forwards: Vec::new(),
+            exit_on_forward_failure: false,
             host_key_alias: None,
             jump: Vec::new(),
             user,

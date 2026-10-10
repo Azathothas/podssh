@@ -303,7 +303,7 @@ The test file crates/podssh-ssh/tests/serve_pty.rs applies modes and sizes to
 a real pty and reads them back. In the gate, the pty driver
 `scripts/interop-pty.py` gets a mode that runs OpenSSH's `ssh -t` against
 `podssh serve --stdio`: size, resize, Ctrl-C, `vi`, `less`, `top`, an exit
-status and `~.`. The `-tt` cases of `scripts/interop.sh:257-285` run against
+status and `~.`. The `-tt` cases of `scripts/interop.sh:289-317` run against
 serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 
 ## Blocker
@@ -379,7 +379,7 @@ sh scripts/test_in_box.sh target/x86_64-unknown-linux-musl/release/podssh
 The test file crates/podssh-ssh/tests/serve_line.rs uses `--pty line`: Ctrl-C
 ends `sleep 30` within 5 s, the next line runs, and output lines end in CR
 LF. The gate runs the same through OpenSSH's `ssh -tt`, in the shape of
-`scripts/interop.sh:266-275`: `AFTER-5` and exit 9 within 15 s. In the box
+`scripts/interop.sh:298-307`: `AFTER-5` and exit 9 within 15 s. In the box
 (no `/dev/ptmx`), a new step drives `podssh serve --stdio` with
 `podman exec -i` from OpenSSH on the host. A planted serve that signals the
 shell's pid and not its group fails the 15 s check.
@@ -885,7 +885,7 @@ example, a notice that the host is a sandbox that expires.
 - Read: a cage may have no `/etc/motd` and no `/var`
   (`docs/target-environment.md:16-29`); serve reads only what exists.
 - Read: podssh already makes server text safe for a terminal:
-  `crates/podssh-ssh/src/handler.rs:88-91` uses `podssh_ws::text::multi_line`.
+  `crates/podssh-ssh/src/handler.rs:96-99` uses `podssh_ws::text::multi_line`.
 - Read in the report of GitHub #19, not verified here: ssh-obi prints the
   MOTD before the login shell and honours `~/.hushlogin`.
 

@@ -37,6 +37,7 @@ pub mod probe;
 pub mod prompt;
 pub mod relay_stream;
 pub mod remember;
+pub mod remote;
 pub mod run;
 pub mod session;
 pub mod sftp;
@@ -47,6 +48,6 @@ pub mod terminal;
 pub type Connection = russh::client::Handle<handler::Client>;
 
 pub use log::Log;
-pub use options::{Agent, Hop, LogLevel, Method, Options, Request, RequestTty, StrictHostKeyChecking};
+pub use options::{Agent, Hop, LogLevel, Method, Options, RemoteForward, Request, RequestTty, StrictHostKeyChecking};
 pub use relay_stream::{RelayEnd, RelayStatus};
 pub use run::{run, EXIT_FAILURE};

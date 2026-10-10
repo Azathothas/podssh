@@ -68,8 +68,12 @@ const SSH: &[&str] = &[
      typed meanwhile go to the session after the attach. With a command, -W, -N, -s, -T, node:// or \
      iroh:, --persist is refused (exit 64).",
     "-L and -D are refused by name: podssh ssh opens no local listener yet. Use -W HOST:PORT, which \
-     carries one connection over the session, or podssh pipe with tcp-listen: and ssh:. -R is \
-     refused by name too: remote forwarding is not implemented yet.",
+     carries one connection over the session, or podssh pipe with tcp-listen: and ssh:.",
+    "-R [BIND:]PORT:HOST:HOSTPORT asks the server to listen; each connection that it takes reaches \
+     HOST:HOSTPORT from this host, as one more outbound connection, through HTTPS_PROXY when it is set, \
+     within 20 s. A port of 0 lets the server choose, and podssh prints it. A forward that the server \
+     refuses is a warning; with -o ExitOnForwardFailure=yes it ends the run (exit 255). A socket path and \
+     the server's SOCKS proxy (-R [BIND:]PORT) are refused by name (exit 64).",
     "-P is the tag of OpenSSH on ssh, not a port, and podssh ignores it. On scp and sftp, -P is the port. \
      Use -p for the port of ssh.",
     "-G prints the settings in effect, as ssh -G does: a line of keyword and value for each keyword of \
@@ -423,16 +427,18 @@ mod tests {
         out
     }
 
-    /// -R needs no local listener: the server listens. Its sentence must not
-    /// borrow the cause of -L and -D.
+    /// The note about -R says that the server listens (T-035), and neither
+    /// borrows the cause of -L and -D nor offers -W.
     #[test]
-    fn the_note_about_r_names_no_listener() {
+    fn the_note_about_r_says_that_the_server_listens() {
         let sentences: Vec<&str> =
             for_verb("ssh").iter().flat_map(|n| n.split(". ")).filter(|s| s.contains("-R")).collect();
-        assert_eq!(sentences.len(), 1, "{sentences:#?}");
-        assert!(sentences[0].contains("not implemented yet"), "{}", sentences[0]);
-        for word in ["never", "listen", "bind", "-W"] {
-            assert!(!sentences[0].contains(word), "{word}: {}", sentences[0]);
+        assert!(!sentences.is_empty(), "{sentences:#?}");
+        assert!(sentences[0].contains("asks the server to listen"), "{}", sentences[0]);
+        for sentence in sentences {
+            for word in ["never", "local listener", "-W", "not implemented"] {
+                assert!(!sentence.contains(word), "{word}: {sentence}");
+            }
         }
     }
 

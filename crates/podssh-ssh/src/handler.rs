@@ -20,6 +20,9 @@ pub struct Client {
     /// The server's SSH_MSG_DISCONNECT, made safe for a terminal: russh keeps
     /// no reason, and the server's words name the cause of a drop.
     disconnect: Arc<Mutex<Option<String>>>,
+    /// The forwards of `-R` that the server took: a `forwarded-tcpip`
+    /// channel is accepted for these only.
+    forwards: crate::remote::Table,
 }
 
 impl Client {
@@ -29,7 +32,13 @@ impl Client {
             log,
             refusal: Arc::new(Mutex::new(None)),
             disconnect: Arc::new(Mutex::new(None)),
+            forwards: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// A handle on the forwards that the server took, to fill after the login.
+    pub fn forwards(&self) -> crate::remote::Table {
+        self.forwards.clone()
     }
 
     /// A handle on the server's disconnect, to read after a drop.
@@ -42,13 +51,12 @@ impl Client {
         self.refusal.clone()
     }
 
-    /// The one place that decides on a channel that the server opens. podssh
-    /// asks for none yet, so each is refused, as OpenSSH refuses a channel
-    /// that it did not ask for; russh would accept it, and read and drop its
-    /// data with no end. -R, -A and -X (T-035, T-036, T-037) will each accept
-    /// their own kind here, only for their own requests, and must read an
-    /// accepted channel at once or close it: a channel kept unread stops the
-    /// whole session.
+    /// The one place that refuses a channel that the server opens and podssh
+    /// did not ask for, as OpenSSH refuses it; russh would accept it, and read
+    /// and drop its data with no end. -R (T-035) accepts its own channels
+    /// before this; -A and -X (T-036, T-037) will each accept their own kind,
+    /// only for their own requests, and must read an accepted channel at once
+    /// or close it: a channel kept unread stops the whole session.
     async fn unasked(&self, kind: &str, reply: ChannelOpenHandle) {
         match kind {
             "auth-agent@openssh.com" => {
@@ -108,15 +116,23 @@ impl Handler for Client {
 
     async fn server_channel_open_forwarded_tcpip(
         &mut self,
-        _channel: Channel<Msg>,
-        _connected_address: &str,
-        _connected_port: u32,
+        channel: Channel<Msg>,
+        connected_address: &str,
+        connected_port: u32,
         _originator_address: &str,
         _originator_port: u32,
         reply: ChannelOpenHandle,
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
-        self.unasked("forwarded-tcpip", reply).await;
+        match crate::remote::find(&self.forwards, connected_address, connected_port) {
+            // Asked for: joined at once, as a channel kept unread stops the
+            // whole session.
+            Some(forward) => {
+                reply.accept().await;
+                tokio::spawn(crate::remote::join(channel, forward, self.log.clone()));
+            }
+            None => self.unasked("forwarded-tcpip", reply).await,
+        }
         Ok(())
     }
 

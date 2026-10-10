@@ -263,7 +263,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
 /// `man` and every other verb refuse in the same words.
 ///
 /// The third line is the row's own reason, because the causes differ: `-L`
-/// needs a local listener, and `-R`, which needs none, is not implemented yet.
+/// and `-D` need a local listener, and `-A` is not supported.
 fn refusals(verb: &str, refused: &[(String, &'static str, &'static str)], err: &mut dyn Write) -> bool {
     if refused.is_empty() {
         return false;

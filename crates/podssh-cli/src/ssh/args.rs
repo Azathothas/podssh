@@ -55,6 +55,8 @@ pub struct SshArgs {
     pub persist_name: Option<String>,
     /// `-G`: print the settings, and connect to nothing.
     pub print_config: bool,
+    /// Each `-R` spec, as given.
+    pub remote_forwards: Vec<String>,
 }
 
 /// The long-only rows that are spellings of `-o NAME=VALUE`.
@@ -153,6 +155,7 @@ impl SshArgs {
             persist: flag("persist"),
             persist_name: one("persist-name"),
             print_config: flag("print-config"),
+            remote_forwards: many("forward-remote"),
         }
     }
 }

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**268 entries: 123 open, 0 partial, 22 blocked, 123 done.**
+**268 entries: 122 open, 0 partial, 22 blocked, 124 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 15 | 17 |
-| P2 | 41 | 0 | 18 | 91 | 150 |
+| P2 | 40 | 0 | 18 | 92 | 150 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 123 | 0 | 22 | 123 | 268 |
+| **All** | 122 | 0 | 22 | 124 | 268 |
 
 ## Entries
 
@@ -108,7 +108,7 @@ repository and CI).
 | [T-032](ssh.md) | P3 | S | backlog | feature | open | Run a remote command under `sudo` or `su`, with the password from `SSH_ASKPASS` |
 | [T-033](ssh.md) | P3 | M | backlog | feature | open | Record a session as asciicast v2, and play it again |
 | [T-034](ssh.md) | P2 | L | backlog | feature | open | `podssh agent`: an SSH agent inside podssh, with no separate binary |
-| [T-035](forwarding.md) | P2 | M | M8 | feature | open | `-R`: remote forwarding, each connection made out through the proxy |
+| [T-035](forwarding.md) | P2 | M | M8 | feature | done | `-R`: remote forwarding, each connection made out through the proxy |
 | [T-036](forwarding.md) | P2 | M | backlog | feature | open | `-A`: agent forwarding, off by default as in OpenSSH |
 | [T-037](forwarding.md) | P3 | M | backlog | feature | open | `-X` and `-Y`: X11 forwarding to the display that `DISPLAY` names |
 | [T-038](forwarding.md) | P2 | M | backlog | feature | open | `-L` and `-D` when a probe shows that a local bind is allowed |

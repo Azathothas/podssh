@@ -76,8 +76,10 @@ LISTENER_RULE = "no listener unless the user asks for it and a probe at run time
 LISTENERS = {
     # The listening side of `podssh pipe`, which the user asks for with
     # unix-listen: or tcp-listen: (T-177): the bind itself is the probe, and
-    # PODSSH_LISTEN turns it off.
-    "TcpListener": ["crates/podssh-cli/src/pipe/listen.rs"],
+    # PODSSH_LISTEN turns it off. And the target of the tests of -R (T-035),
+    # on the loopback, in a test module of src/ that reaches the crate's
+    # own login.
+    "TcpListener": ["crates/podssh-cli/src/pipe/listen.rs", "crates/podssh-ssh/src/remote_tests.rs"],
     "UnixListener": ["crates/podssh-cli/src/pipe/listen.rs"],
     # The iroh road (feature `iroh`, T-162), which the user selects: its probe
     # binds a UDP socket to port 0 and closes it, and only when the probe
@@ -97,6 +99,7 @@ LISTENERS = {
         "crates/podssh-cli/src/node_iroh.rs",
         "crates/podssh-cli/src/ssh/iroh/dial.rs",
         "crates/podssh-cli/src/ssh/iroh/race.rs",
+        "crates/podssh-ssh/src/remote_tests.rs",
     ],
     "listen(": ["crates/podssh-cli/src/pipe/listen_win.rs"],
     "socket2": [],

@@ -9,6 +9,7 @@
 
 pub mod args;
 pub mod dump;
+pub mod forward;
 pub mod iroh;
 pub mod keywords;
 pub mod node;

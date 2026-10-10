@@ -817,7 +817,7 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:140-174`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:227-247`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:257-279`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
 `crates/podssh-cli/src/ssh/resolve.rs:310-324`, and `podssh ssh` exits 255.
@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:211-226`,
    `crates/podssh-cli/src/man/facts.rs:250-259`), the note at
-   `crates/podssh-cli/src/man/notes.rs:87`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes.rs:91`, `docs/relay.md`, `README.md`.
 
 ## Decision
 

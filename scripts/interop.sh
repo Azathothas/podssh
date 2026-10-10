@@ -253,6 +253,38 @@ rc=$?
 took=$(( $(date +%s) - start ))
 [ "$rc" -ne 0 ] && [ "$took" -ge 3 ] && ok "-N stays connected until stopped (${took}s, exit $rc)" \
     || bad "-N ended by itself: exit $rc after ${took}s" "$W/err"
+# -R (T-035): OpenSSH listens on 2290 for podssh, and each connection that it
+# takes reaches Dropbear's port from this host, through podssh.
+# shellcheck disable=SC2086
+p 2201 $K -o BatchMode=yes -N -R 127.0.0.1:2290:127.0.0.1:2203 "$T" </dev/null >"$W/out" 2>"$W/rerr" &
+rpid=$!
+banner=""
+i=0
+while [ $i -lt 50 ]; do
+    banner=$(python3 -c '
+import socket
+s = socket.create_connection(("127.0.0.1", 2290), timeout=2)
+print(s.recv(32).decode(errors="replace").strip())
+' 2>/dev/null)
+    case $banner in SSH-2.0-dropbear*) break ;; esac
+    i=$((i + 1))
+    sleep 0.2
+done
+kill "$rpid" 2>/dev/null
+wait "$rpid" 2>/dev/null
+case $banner in
+    SSH-2.0-dropbear*) ok "-R: OpenSSH's port 2290 reaches Dropbear's banner through podssh" ;;
+    *) bad "-R: port 2290 gave '$banner'" "$W/rerr" ;;
+esac
+# A port that OpenSSH refuses (podtest is not root), with ExitOnForwardFailure.
+# shellcheck disable=SC2086
+timeout 20 env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile="$KH" \
+    -o IdentityAgent=none $K -o BatchMode=yes -o ExitOnForwardFailure=yes -N -R 22:127.0.0.1:2203 "$T" \
+    </dev/null >"$W/out" 2>"$W/err"
+rc=$?
+[ "$rc" = 255 ] && grep -q "remote port forwarding failed for listen port 22" "$W/err" \
+    && ok "-R to a port that OpenSSH refuses, with ExitOnForwardFailure: exit 255, named" \
+    || bad "-R refused: exit $rc" "$W/err"
 
 echo
 echo "== pseudo-terminals without a local terminal (pipes only, as on a host with no /dev/ptmx)"

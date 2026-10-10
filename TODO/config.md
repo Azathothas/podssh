@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:576-597`. Today podssh reads no configuration file.
+`docs/cli.md:583-604`. Today podssh reads no configuration file.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -25,7 +25,7 @@ Measured on `3ee70dc` (`target/debug/podssh.exe`, `PODSSH_OFFLINE=1`): with
 `-o Match=all` exits 64 ("an ssh_config block keyword, not an option"). Read: each `-F` but
 `none`, `/dev/null` and `NUL` is refused (`crates/podssh-cli/src/ssh/resolve.rs:108-115`).
 `Settings::apply` keeps the first value of a keyword
-(`crates/podssh-cli/src/ssh/options.rs:182-186`), the rule of `docs/cli.md:581-582`. A
+(`crates/podssh-cli/src/ssh/options.rs:188-192`), the rule of `docs/cli.md:588-589`. A
 `-o User` or `-o Port` beats `user@host` and `host:PORT`
 (`crates/podssh-cli/src/ssh/resolve.rs:144-154`), so a file value in that `Settings` would beat
 them too, which is wrong. An unknown `%` token stays as text (`resolve.rs:303-306`).
@@ -34,25 +34,25 @@ them too, which is wrong. An unknown `%` token stays as text (`resolve.rs:303-30
 
 1. A reader in a new module, crates/podssh-cli/src/ssh/config.rs: records of file, line,
    keyword and value under their `Host` line, applied through `Settings::apply` (one path for a
-   file line and `-o`). Each error names FILE:LINE; a bad file exits 78 (`docs/cli.md:521-524`).
+   file line and `-o`). Each error names FILE:LINE; a bad file exits 78 (`docs/cli.md:528-531`).
 2. File values go into a second `Settings`, merged after the command line: `-l`, `-o User`,
    `user@host`, then the file; `-p`, `-o Port`, `host:PORT`, then the file. `IdentityFile` adds
-   to `-i` (`docs/cli.md:584`).
+   to `-i` (`docs/cli.md:591`).
 3. `-F FILE` alone; `-F none` nothing; else `~/.ssh/config`, with the home from `HOME` or
    `USERPROFILE` (`crates/podssh-cli/src/ssh/resolve.rs:71-83`). Only a missing `-F` file is an
-   error (`docs/cli.md:592-593`).
+   error (`docs/cli.md:599-600`).
 4. `Host` patterns through `known_hosts::wildcard`
    (`crates/podssh-ssh/src/known_hosts.rs:179-201`); not `matches`, which accepts `|1|` hashes.
-5. Refuse `Match`, and `Include` until T-044, by name with FILE:LINE (`docs/cli.md:589-591`).
+5. Refuse `Match`, and `Include` until T-044, by name with FILE:LINE (`docs/cli.md:596-598`).
    In a block that applies, refuse each option that `-o` refuses
-   (`crates/podssh-cli/src/ssh/keywords.rs:82-88`), but accept a `ProxyCommand` that runs
+   (`crates/podssh-cli/src/ssh/keywords.rs:84-89`), but accept a `ProxyCommand` that runs
    podssh itself (`proxy %h %p`: the path of `podssh ssh` anyway). Honour `IgnoreUnknown`.
 6. Refuse a file that another user owns or can write, as OpenSSH does, on the opened file
    (`crates/podssh-relay/src/cache/own.rs:22-62`, `Others::Read`, since T-163). An unknown `%`
    token is an error.
 7. In the same commit: the `-F` row (`crates/podssh-cli/src/flags.rs:143-144`), VARIABLES and
    FILES (`crates/podssh-cli/src/man/facts.rs:45-127`, 98-142), the `ssh` notes,
-   `docs/cli.md:576-597` and `docs/STATUS.md`.
+   `docs/cli.md:583-604` and `docs/STATUS.md`.
 
 ## Decision
 
@@ -81,7 +81,7 @@ and a skipped `Match`; a test fails for each.
 
 # T-044: `Include` in `ssh_config`, expanded as OpenSSH expands it
 
-**Source:** `docs/cli.md:585-587` (measured with `ssh -G`); the `include/` module of lablup/bssh
+**Source:** `docs/cli.md:592-594` (measured with `ssh -G`); the `include/` module of lablup/bssh
 named in GitHub #22 (`lablup/bssh:src/ssh/ssh_config/`, read in the report, not verified here);
 ROADMAP M8. Measured again here with OpenSSH_10.3p1.
 **Category:** feature
@@ -98,7 +98,7 @@ name, so such a file cannot be used, and the system file cannot be read at all.
 
 ## Premise
 
-Read: `docs/cli.md:585-587`: `Include` is expanded where it appears, with globs in sorted
+Read: `docs/cli.md:592-594`: `Include` is expanded where it appears, with globs in sorted
 order, and a relative path starts from `~/.ssh` (user file) or `/etc/ssh` (system file).
 
 Measured here with `ssh -G -F FILE x` (OpenSSH_10.3p1 of Git for Windows, no network,
@@ -132,7 +132,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:576-597`, FILES (`crates/podssh-cli/src/man/data.rs:91-169`) and the
+7. Change `docs/cli.md:583-604`, FILES (`crates/podssh-cli/src/man/data.rs:91-169`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -151,7 +151,7 @@ Planted defect: sort the names of a glob in reverse; the sorted-order fixture gi
 
 # T-045: `Match` in `ssh_config`
 
-**Source:** `docs/cli.md:589-591`; GitHub #22 (the `match_directive/` module of lablup/bssh,
+**Source:** `docs/cli.md:596-598`; GitHub #22 (the `match_directive/` module of lablup/bssh,
 and TeddyHuang-00/sshping issue #211 with PR #212, where a skipped `Match` changed the target;
 read in the reports, not verified here).
 **Category:** feature
@@ -168,13 +168,13 @@ block is worse: a skipped `Match` can change the host that podssh connects to.
 
 ## Premise
 
-Read: `docs/cli.md:589-591`: `Match` never overrides a value that is set, and podssh must refuse
+Read: `docs/cli.md:596-598`: `Match` never overrides a value that is set, and podssh must refuse
 it by name, not skip it. `-P TAG` is accepted and ignored today
 (`crates/podssh-cli/src/flags.rs:201-202`), so `Match tagged` would give the tag its meaning.
 The login name comes from the environment, never from the user database
 (`crates/podssh-cli/src/ssh/resolve.rs:74-93`); `Match localuser` needs it. podssh does no
 canonical pass: `CanonicalizeHostname` is accepted and ignored
-(`crates/podssh-cli/src/ssh/keywords.rs:64-77`). Measured with OpenSSH_10.3p1 (T-044):
+(`crates/podssh-cli/src/ssh/keywords.rs:66-79`). Measured with OpenSSH_10.3p1 (T-044):
 `Match all` applies where it stands, and `Match final all` fills only unset values.
 
 ## Approach
@@ -190,9 +190,9 @@ canonical pass: `CanonicalizeHostname` is accepted and ignored
 4. Keep `exec` and `localnetwork` refused by name (Decision). Refuse by name each other criterion
    of the installed ssh_config(5) that this entry does not evaluate.
 5. A value from a `Match` block follows the first-value rule
-   (`crates/podssh-cli/src/ssh/options.rs:182-186`).
+   (`crates/podssh-cli/src/ssh/options.rs:188-192`).
 6. `-G` (T-046) evaluates the same blocks and prints the result.
-7. Change `docs/cli.md:589-591` and the `ssh` notes in the same commit.
+7. Change `docs/cli.md:596-598` and the `ssh` notes in the same commit.
 
 ## Decision
 
@@ -242,24 +242,24 @@ refused. ... podssh reads no ssh_config, so it has no configuration to print."
 lines of `keyword value`, the keyword in lower case: `port 2222`, `user alice`,
 `pubkeyauthentication true`, `batchmode no`, `connecttimeout none`, `serveraliveinterval 30`,
 `identityfile ~/.ssh/id_rsa` (with `~`), and others. Read: `resolve::resolve`
-(`crates/podssh-cli/src/ssh/resolve.rs:101-383`) decides each setting before any connection; its
+(`crates/podssh-cli/src/ssh/resolve.rs:101-385`) decides each setting before any connection; its
 result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the defaults included.
 
 ## Approach
 
 1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:60-80`
    requires that pair. The reviewed set of short flags does not change.
-2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:32-92`), after `resolve` (lines 36-42 at `e8bbd4d`): with
+2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:33-93`), after `resolve` (lines 36-42 at `e8bbd4d`): with
    `-G`, print the settings and exit 0. Open nothing: no relay, no token, no pool refresh.
 3. Print from `Resolved` and its `Options`, not from `Settings`, so the defaults are shown.
 4. Print only keywords of OpenSSH that podssh applies
-   (`crates/podssh-cli/src/ssh/keywords.rs:25-59`), and `host`, `hostname`, `user`, `port`,
+   (`crates/podssh-cli/src/ssh/keywords.rs:25-61`), and `host`, `hostname`, `user`, `port`,
    `identityfile` and `proxyjump`. Spell each value as `ssh -G` does (`true` or `yes`).
 5. Keep a list in the test of the values that differ on purpose, each with its reason:
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:125`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:28-98`) and `docs/cli.md:48-132`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:28-102`) and `docs/cli.md:48-132`
    in the same commit.
 
 ## Decision
@@ -360,8 +360,8 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
    (`crates/podssh-cli/src/flags.rs:412-456`), the arguments, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:229-242`), the manual's notes and examples, and
-   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-113`).
+   (`crates/podssh-cli/src/help.rs:230-243`), the manual's notes and examples, and
+   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:107-110`).
 
 ## Decision
 

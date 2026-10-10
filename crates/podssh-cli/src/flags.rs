@@ -203,8 +203,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     // Refused rows. Each names what to type instead; none prints a usage block.
     row(Some('L'), "forward-local", Some("SPEC"), FlagKind::Refused,
         "podssh ssh opens no local listener yet, so -L is refused (podssh pipe tcp-listen: can)", Some("-W HOST:PORT")),
-    row(Some('R'), "forward-remote", Some("SPEC"), FlagKind::Refused,
-        "remote forwarding is not implemented yet", Some("no flag")),
+    row(Some('R'), "forward-remote", Some("SPEC"), FlagKind::Supported,
+        "[BIND:]PORT:HOST:HOSTPORT: the server listens; each connection goes on to HOST:HOSTPORT through the proxy", None),
     row(Some('D'), "dynamic-forward", Some("SPEC"), FlagKind::Refused,
         "podssh ssh opens no local listener yet, so -D is refused (podssh pipe tcp-listen: can)", Some("-W HOST:PORT")),
     row(Some('A'), "forward-agent", None, FlagKind::Refused,

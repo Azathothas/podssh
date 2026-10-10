@@ -41,7 +41,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    required positionals (`crates/podssh-cli/src/positionals.rs:7-103`), a
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-137`), a
    dispatch arm, and `pipe` in `DISPATCHED`
-   (`crates/podssh-cli/tests/flag_table.rs:110-113`). No `--timeout` row: the
+   (`crates/podssh-cli/tests/flag_table.rs:107-110`). No `--timeout` row: the
    gate at `crates/podssh-cli/src/dispatch.rs:213-231` would require it.
 2. The grammar, in a new crates/podssh-cli/src/pipe/address.rs: `KIND:REST`.
    An unknown kind exits 64 and lists the kinds. `-` is `stdio`; `stdio` on
@@ -163,7 +163,7 @@ local program to a target, and `podssh proxy` stays a second pump.
   way. Measured live for proxy: the full reply after stdin closed
   (`docs/STATUS.md:112`).
 - Read: `-W` opens its stream with `crates/podssh-ssh/src/forward.rs:12-20`
-  after the hops of `crates/podssh-ssh/src/run.rs:109-116`, but that code is
+  after the hops of `crates/podssh-ssh/src/run.rs:113-120`, but that code is
   private and gives only an exit code.
 - Read: `TODO/issues.md` (#26) says that a binary protocol through `-W` is
   measured. Only exec is measured with digests (`docs/STATUS.md:70`); `-W`
@@ -188,19 +188,19 @@ local program to a target, and `podssh proxy` stays a second pump.
 4. `ssh:[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each
    other item a hop, read as `-J` reads it
    (`crates/podssh-cli/src/ssh/resolve.rs:155-159`,
-   `crates/podssh-cli/src/ssh/resolve.rs:435-483`). Make
-   `crates/podssh-ssh/src/run.rs:109-116` a public `connect_chain` that `-W`
+   `crates/podssh-cli/src/ssh/resolve.rs:437-485`). Make
+   `crates/podssh-ssh/src/run.rs:113-120` a public `connect_chain` that `-W`
    and the pipe both use; keep each handle alive until the pipe ends. The
    options: `-i`, `-o NAME=VALUE` through
-   `crates/podssh-cli/src/ssh/options.rs:55-174` (a keyword of a session,
+   `crates/podssh-cli/src/ssh/options.rs:58-180` (a keyword of a session,
    such as `RequestTTY` or `RemoteCommand`, exits 64), `--direct`,
    `--relay-host`, `--relay-addr` and `--ca-file`.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:531`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:538`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
-   `crates/podssh-ssh/src/run.rs:153-211` a typed error, so that 77 is not
+   `crates/podssh-ssh/src/run.rs:157-221` a typed error, so that 77 is not
    guessed from a message.
 7. In the same commit: `docs/cli.md`, `docs/design.md:406-414`, the notes,
    the examples, `docs/STATUS.md`.
@@ -241,7 +241,7 @@ a reply that comes within 15 s of silence; a target that waits for the end of
 its input sees no end.
 
 2026-10-09 (T-133): the hop chain is a public function now,
-`podssh_ssh::run::connect_hops` (`crates/podssh-ssh/src/run.rs:105-118`): it
+`podssh_ssh::run::connect_hops` (`crates/podssh-ssh/src/run.rs:109-122`): it
 returns each handle, authenticated, for `ssh` and for SFTP. So the Premise's
 "that code is private" no longer holds, and the step that makes it a public
 `connect_chain` is done under that name.
@@ -448,12 +448,12 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:423-425`).
 7. Move the bind code of `crates/podssh-cli/src/doctor/unix.rs:200-231` to a
    module that doctor and pipe share; doctor stays bind-and-close. In the
    same commit, change each sentence that says podssh never listens: the
-   five documents, `crates/podssh-cli/src/help.rs:213-214`,
-   `crates/podssh-cli/src/man/notes.rs:70-72`, the reasons of the `-L` and
+   five documents, `crates/podssh-cli/src/help.rs`, lines 213-214 at `a9299c4`,
+   `crates/podssh-cli/src/man/notes.rs`, lines 70-72 at `a9299c4`, the reasons of the `-L` and
    `-D` rows (`crates/podssh-cli/src/flags.rs:204-209`; keep `-W HOST:PORT`
-   as what to use, which `crates/podssh-cli/tests/flag_table.rs:82-101`
-   asserts), `crates/podssh-cli/src/ssh/keywords.rs:83-84`,
-   `crates/podssh-cli/src/ssh/options.rs:157-161`,
+   as what to use, which `crates/podssh-cli/tests/flag_table.rs:82-98`
+   asserts), `crates/podssh-cli/src/ssh/keywords.rs:85-86`,
+   `crates/podssh-cli/src/ssh/options.rs:160-164`,
    `crates/podssh-cli/src/doctor/unix.rs:164` and
    `crates/podssh-cli/src/doctor/unix.rs:186`.
 8. `unix-listen:` with `exec:` is the local-only mode that GitHub #26 asks
@@ -600,7 +600,7 @@ running on the server (`docs/design.md:241-243`).
    uses the same function.
 3. The session runs `tmux new-session -A -s NAME` with a pty, as `-tt` does.
    `-A` attaches when the session exists; that makes a second run safe.
-4. A loop around `crates/podssh-cli/src/ssh/mod.rs:94-131`. Connect again
+4. A loop around `crates/podssh-cli/src/ssh/mod.rs:95-132`. Connect again
    only for a lost link: `End::Lost`, the ping watcher, or the relay's 1001,
    1006, 1009 or 1011. Never after an exit status, `~.`, a detach of tmux
    (exit 0), or a failure of the host key or the authentication.
@@ -610,9 +610,9 @@ running on the server (`docs/design.md:241-243`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:548-550`). After the attach, send the window size again.
+   (`docs/cli.md:555-557`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes.rs:28-98`), `docs/design.md:241-243`,
+   (`crates/podssh-cli/src/man/notes.rs:28-102`), `docs/design.md:241-243`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:32-33`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
@@ -724,7 +724,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
-  (`crates/podssh-cli/src/man/notes.rs:169-173`); a client that calls
+  (`crates/podssh-cli/src/man/notes.rs:173-177`); a client that calls
   `connect()` itself needs a listener (`docs/design.md:426-429`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together

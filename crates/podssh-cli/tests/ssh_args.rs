@@ -322,6 +322,56 @@ fn percent_tokens_follow_openssh() {
 /// `-W` takes `HOST:PORT` or `[ADDR]:PORT` only: OpenSSH reads a path as a
 /// Unix socket on the server and refuses a value with no port, so podssh
 /// must not read either as a host on port 22.
+/// `-R` and `RemoteForward` (T-035): OpenSSH's TCP forms, the command
+/// line's first; the socket and SOCKS forms refused by name, with 64.
+#[test]
+fn remote_forward_specs_resolve_and_the_forms_not_carried_are_refused() {
+    use podssh_ssh::RemoteForward;
+    let forward = |bind: Option<&str>, port, host: &str, host_port| RemoteForward {
+        bind: bind.map(str::to_string),
+        port,
+        host: host.into(),
+        host_port,
+    };
+    let words = [
+        "-R",
+        "8080:localhost:80",
+        "-R",
+        "0.0.0.0:0:[::1]:443",
+        "-o",
+        "RemoteForward=9090 db:5432",
+        "-o",
+        "ExitOnForwardFailure=yes",
+        "-N",
+        "host",
+    ];
+    let r = resolve(&ssh(&words), &env()).unwrap_or_else(|e| panic!("{e}"));
+    assert_eq!(
+        r.options.remote_forwards,
+        [
+            forward(None, 8080, "localhost", 80),
+            forward(Some("0.0.0.0"), 0, "::1", 443),
+            forward(None, 9090, "db", 5432)
+        ]
+    );
+    assert!(r.options.exit_on_forward_failure);
+    let r = resolve(&ssh(&["host"]), &env()).unwrap();
+    assert!(r.options.remote_forwards.is_empty() && !r.options.exit_on_forward_failure);
+    for (words, says) in [
+        (&["-R", "8080", "host"][..], "the server's SOCKS proxy"),
+        (&["-R", "0.0.0.0:8080", "host"], "the server's SOCKS proxy"),
+        (&["-R", "8080:/run/app.sock", "host"], "a Unix socket"),
+        (&["-R", "/tmp/s:web:80", "host"], "a Unix socket"),
+        (&["-R", "8080:web:http", "host"], "not a port"),
+        (&["-o", "RemoteForward=8080", "host"], "the server's SOCKS proxy"),
+        (&["-o", "ExitOnForwardFailure=maybe", "host"], "expected yes or no"),
+    ] {
+        let err = resolve_or_refuse(&ssh(words), &env()).unwrap_err();
+        assert_eq!(err.code, 64, "{words:?}");
+        assert!(err.message.contains(says), "{words:?}: {}", err.message);
+    }
+}
+
 #[test]
 fn stdio_forward_form_is_host_and_port() {
     for (value, says) in [

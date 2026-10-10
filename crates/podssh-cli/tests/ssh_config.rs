@@ -22,7 +22,9 @@ const EVERY: &[&str] = &[
     "-o", "PreferredAuthentications=password,publickey", "-o", "IdentityAgent=none", "-o", "Compression=yes",
     "-o", "BatchMode=yes", "-o", "IdentitiesOnly=yes", "-o", "NumberOfPasswordPrompts=2",
     "-o", "ConnectionAttempts=3", "-o", "ServerAliveCountMax=5", "-o", "StdinNull=yes", "-o", "RequestTTY=force",
-    "-o", "PubkeyAuthentication=no", "EXAMPLE.org",
+    "-o", "PubkeyAuthentication=no",
+    "-R", "8080:localhost:80", "-R", "0.0.0.0:0:[::1]:443", "-R", ":8081:web:80", "-o", "RemoteForward 9090 db:5432",
+    "-o", "ExitOnForwardFailure=yes", "EXAMPLE.org",
 ];
 const EVERY_OPENSSH: &str = "host EXAMPLE.org
 user alice
@@ -31,6 +33,7 @@ port 2222
 addressfamily inet
 batchmode yes
 compression yes
+exitonforwardfailure yes
 identitiesonly yes
 kbdinteractiveauthentication yes
 passwordauthentication yes
@@ -48,6 +51,10 @@ identityagent none
 remotecommand uptime
 loglevel VERBOSE
 preferredauthentications password,publickey
+remoteforward 8080 [localhost]:80
+remoteforward [0.0.0.0]:0 [::1]:443
+remoteforward []:8081 [web]:80
+remoteforward 9090 [db]:5432
 identityfile /tmp/podssh-k1
 globalknownhostsfile none
 userknownhostsfile /tmp/podssh-kh
@@ -71,6 +78,7 @@ port 22
 addressfamily any
 batchmode no
 compression no
+exitonforwardfailure no
 identitiesonly no
 kbdinteractiveauthentication yes
 passwordauthentication yes

@@ -150,12 +150,19 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   SOCKS proxy serves many connections, and `-W` serves one. T-038 adds
   both, with a listener that opens only after a probe allows the bind
   ([decisions.md](decisions.md), 2026-10-08).
-- `-R` does not need a local listener: the server listens, and podssh
-  connects out for each connection. It is not implemented yet. Its refusal
-  must not say that podssh never binds. On the measured sandbox, a
-  connection back to loopback is refused, so `-R` must go through the proxy
-  or fail with a clear message.
-- When a server refuses `tcpip-forward`, podssh gives the server's reason.
+- `-R [bind_address:]port:host:hostport` (T-035) needs no local listener:
+  the server listens, and podssh connects out for each connection that it
+  takes, as one more outbound connection, through `HTTPS_PROXY` when it is
+  set and within 20 s. On the measured sandbox a connection back to
+  loopback is refused; podssh then closes that channel, and says why on
+  stderr. `-o RemoteForward=[bind_address:]port host:hostport` is the same,
+  and each one is kept. A port of 0 lets the server choose, and podssh
+  prints it, as OpenSSH does. A socket path, and the server's SOCKS proxy
+  (`-R [bind_address:]port`), are refused by name (exit 64).
+- A server that refuses `tcpip-forward` gives no reason (RFC 4254, section
+  4, has no field for one), so podssh names the port: a warning, or with
+  `-o ExitOnForwardFailure=yes` the end of the run (exit 255). A channel
+  that the server opens for a port that podssh did not ask for is refused.
 - Agent forwarding (`-A`) is not implemented yet. It is in the scope of
   podssh, off by default as in OpenSSH (T-036).
 

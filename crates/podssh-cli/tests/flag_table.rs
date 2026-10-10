@@ -83,8 +83,7 @@ fn a_flag_refuses_only_when_its_row_says_so() {
 fn the_forwarding_rows_name_w_only_where_it_helps() {
     // -L and -D need a local listener, so they are refused, and -W carries one
     // connection in the same direction. -R needs no local listener (the
-    // server listens), and -W carries the other direction: its refusal names
-    // neither.
+    // server listens), and podssh carries it (T-035): its row names no -W.
     let ssh = VERBS.iter().find(|v| v.name == "ssh").unwrap();
     for name in ["forward-local", "dynamic-forward"] {
         let row = ssh.flags.iter().find(|r| r.long == name).unwrap();
@@ -92,12 +91,10 @@ fn the_forwarding_rows_name_w_only_where_it_helps() {
         assert_eq!(row.instead, Some("-W HOST:PORT"), "{name} must name -W");
     }
     let r = ssh.flags.iter().find(|r| r.long == "forward-remote").unwrap();
-    assert_eq!(r.kind, FlagKind::Refused);
-    assert_eq!(r.instead, Some("no flag"), "-R has nothing to use instead");
-    assert!(r.help.contains("not implemented yet"), "{}", r.help);
-    for word in ["-W", "never", "listen", "bind"] {
-        assert!(!r.help.contains(word), "-R must not say {word}: {}", r.help);
-    }
+    assert_eq!(r.kind, FlagKind::Supported);
+    assert_eq!(r.instead, None);
+    assert!(r.help.contains("the server listens") && r.help.contains("proxy"), "{}", r.help);
+    assert!(!r.help.contains("-W"), "-R must not name -W: {}", r.help);
 }
 
 #[test]

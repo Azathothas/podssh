@@ -171,7 +171,7 @@ fn fault_of(code: i32) -> Fault {
 /// A connection that failed, as the fault of `cp`.
 fn hop_failure(e: HopError) -> Failed {
     let fault = match e {
-        HopError::Unreachable(_) => Fault::RelayUnreachable,
+        HopError::Unreachable(_) | HopError::Forward(_) => Fault::RelayUnreachable,
         HopError::HostKey(_) | HopError::Auth(_) => Fault::Auth,
     };
     Failed::new(fault, e.to_string())

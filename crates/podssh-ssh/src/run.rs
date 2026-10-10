@@ -86,12 +86,16 @@ pub enum HopError {
     HostKey(String),
     /// The server refused each way of logging in.
     Auth(String),
+    /// The destination refused a forward of `-R`, with `ExitOnForwardFailure`.
+    Forward(String),
 }
 
 impl std::fmt::Display for HopError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HopError::Unreachable(m) | HopError::HostKey(m) | HopError::Auth(m) => write!(f, "{m}"),
+            HopError::Unreachable(m) | HopError::HostKey(m) | HopError::Auth(m) | HopError::Forward(m) => {
+                write!(f, "{m}")
+            }
         }
     }
 }
@@ -177,6 +181,7 @@ where
     let client = Client::new(policy, log.clone());
     let refusal = client.refusal();
     let disconnect = client.disconnect();
+    let forwards = client.forwards();
     let label = display(hop);
     log.verbose(&format!("SSH handshake with {label}"));
     let handshake = russh::client::connect_stream(config, stream, client);
@@ -207,6 +212,11 @@ where
         auth::AuthError::Broke(m) => HopError::Unreachable(m),
     })?;
     log.verbose(&format!("authenticated to {label} as {user}"));
+    // The forwards of `-R` are the destination's; asked again after each new
+    // connection of a run (`--persist`).
+    if is_destination && !opts.remote_forwards.is_empty() {
+        crate::remote::request(&handle, &forwards, opts, log).await.map_err(HopError::Forward)?;
+    }
     Ok(handle)
 }
 

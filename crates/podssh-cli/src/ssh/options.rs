@@ -46,6 +46,9 @@ pub struct Settings {
     pub stdin_null: Option<bool>,
     /// `SessionType`: `none`, `subsystem` or `default`.
     pub session_type: Option<String>,
+    /// `RemoteForward`: each one given, as for `-R`.
+    pub remote_forwards: Vec<podssh_ssh::RemoteForward>,
+    pub exit_on_forward_failure: Option<bool>,
     /// Keywords accepted without effect, for a verbose note.
     pub ignored: Vec<String>,
 }
@@ -159,7 +162,10 @@ impl Settings {
                     "-o {name}: needs a local listener, which podssh ssh does not open yet; use -W HOST:PORT, or podssh pipe tcp-listen:"
                 ))
             }
-            "remoteforward" => return Err(format!("-o {name}: remote forwarding is not implemented yet")),
+            "remoteforward" => self.remote_forwards.push(super::forward::parse_remote_keyword(value)?),
+            "exitonforwardfailure" => {
+                set(&mut self.exit_on_forward_failure, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
+            }
             "forkafterauthentication" if yes_no(value) == Some(true) => {
                 return Err(format!("-o {name}: going to the background is not supported; run podssh with `&`"))
             }

@@ -99,7 +99,7 @@ pub async fn open(
 /// that was refused, as `podssh proxy` gives 77 for a refusal.
 fn hop_code(e: &HopError) -> i32 {
     match e {
-        HopError::Unreachable(_) => EX_UNAVAILABLE,
+        HopError::Unreachable(_) | HopError::Forward(_) => EX_UNAVAILABLE,
         HopError::HostKey(_) | HopError::Auth(_) => EX_NOPERM,
     }
 }

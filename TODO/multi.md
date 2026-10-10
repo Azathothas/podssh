@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:94-131`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:95-132`,
    `crates/podssh-ssh/src/run.rs:34-49`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:105-244` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -66,13 +66,13 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    summary on stderr gives each host and its status.
 7. In the same commit: `crates/podssh-cli/src/flags.rs:412-445`,
    `crates/podssh-cli/src/positionals.rs:7-103`, a `Parsed` variant,
-   `crates/podssh-cli/tests/flag_table.rs:110-113`, the notes, an example,
+   `crates/podssh-cli/tests/flag_table.rs:107-110`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:527-530`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:534-537`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -113,10 +113,10 @@ is not a shell. A set of hosts has no name.
   and `podssh ssh '@web' true` exits 64 (`"@web": empty user name`). Thus
   `{` and a leading `@` are free.
 - Read: each host is checked before a connection
-  (`crates/podssh-cli/src/ssh/resolve.rs:435-483`,
+  (`crates/podssh-cli/src/ssh/resolve.rs:437-485`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:576-593`); they cannot define a group.
+  (`docs/cli.md:583-600`); they cannot define a group.
 
 ## Approach
 
@@ -244,7 +244,7 @@ and read the screen, over several of its own calls. Each run of
   the address and can turn listening off.
 - Read: `-M`, `-O` and `-S` are refused by name
   (`crates/podssh-cli/src/flags.rs:229-234`); `ControlMaster` is ignored
-  (`crates/podssh-cli/src/ssh/keywords.rs:68`).
+  (`crates/podssh-cli/src/ssh/keywords.rs:70`).
 - Read: with no listener, T-055 (`podssh mcp` over stdin and stdout) gives
   an agent tools for the life of one process.
 
@@ -305,7 +305,7 @@ command must be shown, with its values in it, before it runs.
 
 - Read: the remote command is the words of the command line joined with
   spaces, as OpenSSH joins them
-  (`crates/podssh-cli/src/ssh/resolve.rs:418-422`); podssh quotes nothing.
+  (`crates/podssh-cli/src/ssh/resolve.rs:420-424`); podssh quotes nothing.
 - Read: podssh can ask on the controlling terminal or through `SSH_ASKPASS`,
   and refuses when nobody can answer (`crates/podssh-ssh/src/prompt.rs:48-82`).
 - Read: no settings file exists yet; T-048 adds it.
@@ -473,7 +473,7 @@ name is copied by hand.
 
 - Read: `podssh ssh -t HOST -- docker exec -it NAME sh` works today, as a
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:218-226`,
-  `crates/podssh-cli/src/ssh/resolve.rs:418-432`). Only the list is missing.
+  `crates/podssh-cli/src/ssh/resolve.rs:420-434`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
   finds it (`AGENTS.md:190-194`). Here the programs run on the server, for a
   request of the user.
@@ -504,7 +504,7 @@ name is copied by hand.
 Recommendation: a verb that lists, and prints the `podssh ssh` command. The
 alternative, a destination such as `docker:NAME@HOST`, lost: `podssh ssh`
 takes the destinations of OpenSSH, and a new form in
-`crates/podssh-cli/src/ssh/resolve.rs:435-483` breaks that parity.
+`crates/podssh-cli/src/ssh/resolve.rs:437-485` breaks that parity.
 
 ## Prove
 
@@ -540,7 +540,7 @@ expect rule.
 
 - Measured: `podssh ssh -o LocalCommand=true -o PermitLocalCommand=yes -v user@host.invalid true`
   prints `-o LocalCommand has no effect in podssh`, and the same for
-  `PermitLocalCommand` (`crates/podssh-cli/src/ssh/keywords.rs:72-73`).
+  `PermitLocalCommand` (`crates/podssh-cli/src/ssh/keywords.rs:74-75`).
 - Read: remote output arrives at `crates/podssh-ssh/src/io.rs:198-205`, and
   input leaves at `crates/podssh-ssh/src/io.rs:130-176`. An expect rule goes
   between them.
@@ -551,8 +551,8 @@ expect rule.
 ## Approach
 
 1. `LocalCommand`: move it and `PermitLocalCommand` from IGNORED to
-   HONOURED (`crates/podssh-cli/src/ssh/keywords.rs:25-59`), with fields in
-   `crates/podssh-cli/src/ssh/options.rs:13-51`. Run it when OpenSSH runs it
+   HONOURED (`crates/podssh-cli/src/ssh/keywords.rs:25-61`), with fields in
+   `crates/podssh-cli/src/ssh/options.rs:13-54`. Run it when OpenSSH runs it
    (check the order in the container). Expand the tokens with `Tokens::expand`
    (`crates/podssh-cli/src/ssh/tokens.rs:61-109`), which has `%p` and `%n`
    since T-238.
@@ -631,7 +631,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:127`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:527-530`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:534-537`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -740,14 +740,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:124-126`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-53`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:321-323`).
+  credentials or tokens (`docs/cli.md:328-330`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:280-295`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:527-530`), which is not a failure of podssh.
+  status (`docs/cli.md:534-537`), which is not a failure of podssh.
 
 ## Approach
 

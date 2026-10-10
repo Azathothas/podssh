@@ -48,6 +48,7 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
         format!("addressfamily {}", family(s.family)),
         format!("batchmode {}", yes(o.batch_mode)),
         format!("compression {}", yes(o.compression)),
+        format!("exitonforwardfailure {}", yes(o.exit_on_forward_failure)),
         format!("identitiesonly {}", yes(o.identities_only)),
         format!("kbdinteractiveauthentication {}", yes(s.kbd_interactive)),
         format!("passwordauthentication {}", yes(s.password)),
@@ -75,6 +76,15 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
     out.push(format!("loglevel {}", log_level(o.log_level)));
     if let Some(list) = &s.preferred {
         out.push(format!("preferredauthentications {list}"));
+    }
+    // OpenSSH writes a port alone when no address was given, and each host
+    // in brackets.
+    for f in &o.remote_forwards {
+        let listen = match &f.bind {
+            None => f.port.to_string(),
+            Some(bind) => format!("[{bind}]:{}", f.port),
+        };
+        out.push(format!("remoteforward {listen} [{}]:{}", f.host, f.host_port));
     }
     for file in &o.identity_files {
         out.push(format!("identityfile {}", shown_path(file, s.home.as_deref())));
