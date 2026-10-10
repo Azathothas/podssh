@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:529`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:531`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:153-211` a typed error, so that 77 is not
    guessed from a message.
@@ -550,8 +550,10 @@ only the code of Windows builds a `SOCKADDR_UN`, in one function that
   Planted, the bind with no umask: the check of the mode failed (0755).
 - The gate (`scripts/interop-pipe.sh`): `tcp-listen:` with `exec:cat` and
   equal digests, and a client of another user (`su podtest`) closed at
-  `@NAME` while this user's is served; the result at the push goes into
-  `docs/STATUS.md`. The box's step (`scripts/sandbox-check.sh`, `unix-listen
+  `@NAME` while this user's is served. At `a220c13` (run 38016375327) both
+  failed before they began: they ran after the pipe section had removed its
+  directory. The removal is the section's last step since T-271's commit,
+  and the result at that push goes into `docs/STATUS.md`. The box's step (`scripts/sandbox-check.sh`, `unix-listen
   exit=77`) runs with the checks of the release (T-251).
 
 # T-178: `--persist`: connect again and attach `tmux` again
@@ -607,7 +609,7 @@ running on the server (`docs/design.md:241-243`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:546-548`). After the attach, send the window size again.
+   (`docs/cli.md:548-550`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes.rs:28-98`), `docs/design.md:241-243`,
    `docs/STATUS.md`, and tmux in the interop image

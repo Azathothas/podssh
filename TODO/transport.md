@@ -143,7 +143,7 @@ Read, a related gap that the former defects page did not list: `Classified::mess
 for a matched row, never the received reason (crates/podssh-transport/src/closes.rs at `e8bbd4d` lines
 119-150). The test that says the reason survives only checks that the message is not empty
 (crates/podssh-transport/tests/closes.rs at `e8bbd4d` lines 255-258). The rules want the code and the reason
-(`docs/relay.md:192-200`, `docs/reverse.md:127-129`).
+(`docs/relay.md:192-200`, `docs/reverse.md:132-134`).
 
 ## Approach
 
@@ -377,7 +377,7 @@ flow control that podssh uses (`docs/relay.md:202-203`).
 1. Delete crates/podssh-transport/src/backpressure/mod.rs at `e8bbd4d`, `ledger.rs`, both test files, and the
    lines crates/podssh-transport/src/lib.rs line 34 at `e8bbd4d` and line 52.
 2. Keep no part of it. The runners of T-079 and T-080 bound their queues with bounded channels
-   and the relay's caps (`docs/reverse.md:68-74`), not with a ledger.
+   and the relay's caps (`docs/reverse.md:73-79`), not with a ledger.
 3. Check with `git grep` that no script or test still names the deleted files.
 4. Update the line counts of the crate in `docs/STATUS.md` (line 215 at `e8bbd4d`), and close this
    entry in place.
@@ -447,7 +447,7 @@ Read: the contract: `403 missing or wrong token` needs a new token; a `403` that
 is a policy refusal; `503` means that the relay does not issue or check tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:97-103`, `docs/relay.md:116-119`). On
 the reverse path each failed authentication is `403 reverse: forbidden` (`docs/relay.md:174-176`),
-also after `POST /v1/stop` (`docs/reverse.md:140-142`). A `409` from `/v1/pair` means "pair again"
+also after `POST /v1/stop` (`docs/reverse.md:145-147`). A `409` from `/v1/pair` means "pair again"
 (`docs/relay.md:230-232`); a `409` on `/v1/node/<name>` means "exit" (docs/reverse.md, line 19 at `fb228e9`; since T-261, only at a node's first registration).
 
 Read: the forward path already follows the contract in `podssh-relay`. It mints once again after a
@@ -697,7 +697,7 @@ cargo test -p podssh-relay --no-fail-fast
 2026-10-09, with T-082, in the commit "The codecs of the reverse road in podssh-relay".
 
 - The trait `Transport`, `target_for`, `backoff.rs` and its two tests went with the crate. The
-  node runner waits with `podssh_relay::open::backoff` (`crates/podssh-relay/src/reverse/node.rs:187-193`).
+  node runner waits with `podssh_relay::open::backoff` (`crates/podssh-relay/src/reverse/node.rs:205-211`).
 - Step 1 said to keep `Control`, `LegShape` and `Limits` for `socket.rs`. They went with it: no runner
   used that layer (T-082, Decision 2). The runners read `control::NodeInbound` and keep
   `control::NodeLimits`.

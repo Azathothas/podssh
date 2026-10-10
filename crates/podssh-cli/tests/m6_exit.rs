@@ -97,6 +97,8 @@ impl Stand {
         let lines = lines_of(&mut node);
         self.session.keep(node);
         wait_for(&lines, "serving").expect("the node starts");
+        // The relay has the node's socket only from this line on.
+        wait_for(&lines, "online").expect("the node is online");
         label
     }
 }
@@ -313,9 +315,10 @@ fn with_no_fault_the_layer_carries_the_session() {
     let child =
         stand.command(&args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
     let (code, whole, err) = echo(child, &stand.start);
-    assert_eq!(code, 0, "{err}");
-    assert!(whole, "the bytes came back changed: {err}");
-    assert!(!err.contains("resuming the session"), "{err}");
+    let home = &stand.session.home;
+    assert_eq!(code, 0, "{err}{}", logs(home));
+    assert!(whole, "the bytes came back changed: {err}{}", logs(home));
+    assert!(!err.contains("resuming the session"), "{err}{}", logs(home));
 }
 
 /// The iroh road (T-162 to T-165): iroh's relay server under a name that only

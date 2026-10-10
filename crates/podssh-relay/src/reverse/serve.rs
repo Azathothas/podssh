@@ -18,7 +18,6 @@ use podssh_ws::session::{close_code_and_reason, RelaySession};
 use podssh_ws::SessionError;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::oneshot;
 
 use super::closes::RelayClose;
@@ -87,10 +86,13 @@ enum Out {
 /// Why a node ends a session whose local side reads no more.
 const STALLED: &str = "the node's local side does not read";
 
-/// The local side of a session: where its data goes, and its two copies,
-/// which stop at once when it stalls.
+/// The local side of a session: where its data goes, the bytes that wait for
+/// it and how many may, and its two copies, which stop at once when it
+/// stalls.
 struct Route {
-    data: mpsc::Sender<Vec<u8>>,
+    data: mpsc::UnboundedSender<Vec<u8>>,
+    waiting: Arc<AtomicUsize>,
+    limit: usize,
     copies: [tokio::task::AbortHandle; 2],
 }
 
@@ -179,26 +181,27 @@ fn routes_len(routes: &Routes) -> usize {
     routes.lock().unwrap_or_else(|e| e.into_inner()).len()
 }
 
-/// Give a frame's payload to its session without waiting. A full queue means
-/// that the local side reads no more; waiting for it would stop every session
-/// of the socket, as the relay has no flow control for one session. So that
-/// session ends here: true when it did.
+/// Give a frame's payload to its session without waiting. A queue that holds
+/// its handler's bytes already means that the local side reads no more;
+/// waiting for it would stop every session of the socket, as the relay has
+/// no flow control for one session. So that session ends here: true when it
+/// did.
 fn offer(routes: &Routes, id: SessionId, payload: &[u8]) -> bool {
     let mut routes = routes.lock().unwrap_or_else(|e| e.into_inner());
     let Some(route) = routes.get(&id) else { return false };
-    match route.data.try_send(payload.to_vec()) {
-        Err(TrySendError::Full(_)) => {
-            if let Some(route) = routes.remove(&id) {
-                for copy in route.copies {
-                    copy.abort();
-                }
+    if route.waiting.load(Ordering::SeqCst) + payload.len() > route.limit {
+        if let Some(route) = routes.remove(&id) {
+            for copy in route.copies {
+                copy.abort();
             }
-            true
         }
-        // Sent; or the local writer is gone, and the session's own end tells
-        // the relay.
-        Ok(()) | Err(TrySendError::Closed(_)) => false,
+        return true;
     }
+    route.waiting.fetch_add(payload.len(), Ordering::SeqCst);
+    // Sent; or the local writer is gone, and the session's own end tells the
+    // relay.
+    let _ = route.data.send(payload.to_vec());
+    false
 }
 
 /// Open the local side of `id`, and only then queue `ready`; on a refusal or
@@ -228,14 +231,20 @@ async fn open<H: Handler>(
         }
     };
     let (mut local_read, mut local_write) = tokio::io::split(stream);
-    let (in_tx, mut in_rx) = mpsc::channel::<Vec<u8>>(32);
-    let to_local = tokio::spawn(async move {
-        while let Some(bytes) = in_rx.recv().await {
-            if local_write.write_all(&bytes).await.is_err() {
-                break;
+    let (in_tx, mut in_rx) = mpsc::unbounded_channel::<Vec<u8>>();
+    let (waiting, limit) = (Arc::new(AtomicUsize::new(0)), handler.queue_bytes());
+    let to_local = tokio::spawn({
+        let waiting = waiting.clone();
+        async move {
+            while let Some(bytes) = in_rx.recv().await {
+                if local_write.write_all(&bytes).await.is_err() {
+                    break;
+                }
+                // Written: the bytes wait no more.
+                waiting.fetch_sub(bytes.len(), Ordering::SeqCst);
             }
+            let _ = local_write.shutdown().await;
         }
-        let _ = local_write.shutdown().await;
     });
     // The local reader starts once `ready` is queued: the writer drops data
     // of a session that is not readied.
@@ -262,7 +271,7 @@ async fn open<H: Handler>(
         }
     });
     // The route exists before `ready`, so the first bytes after it find it.
-    let route = Route { data: in_tx, copies: [to_local.abort_handle(), from_local.abort_handle()] };
+    let route = Route { data: in_tx, waiting, limit, copies: [to_local.abort_handle(), from_local.abort_handle()] };
     routes.lock().unwrap_or_else(|e| e.into_inner()).insert(id, route);
     opening.fetch_sub(1, Ordering::SeqCst);
     let _ = tx.send(Out::Ready(id)).await;

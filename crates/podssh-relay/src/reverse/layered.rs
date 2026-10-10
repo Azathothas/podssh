@@ -81,4 +81,11 @@ impl<H: Handler> Handler for Layered<H> {
         });
         Box::pin(async move { Ok(theirs) })
     }
+
+    /// The layer's window, and as much again: the client sends that much
+    /// with no acknowledgement, and a far end that reads it slowly is not a
+    /// stopped one (T-271).
+    fn queue_bytes(&self) -> usize {
+        2 * self.settings.replay_capacity
+    }
 }

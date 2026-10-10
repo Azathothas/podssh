@@ -26,7 +26,19 @@ pub type Opening<S> = Pin<Box<dyn Future<Output = Result<S, String>> + Send>>;
 pub trait Handler: Send + Sync + 'static {
     type Stream: AsyncRead + AsyncWrite + Send + Unpin + 'static;
     fn open(&self, id: SessionId) -> Opening<Self::Stream>;
+
+    /// The bytes that may wait for a session's local side before the node
+    /// takes it for stalled and ends the session. A handler with its own
+    /// flow control holds its window, so that a slow local side is not
+    /// taken for a stopped one.
+    fn queue_bytes(&self) -> usize {
+        QUEUE_BYTES
+    }
 }
+
+/// The bytes that may wait for a local side with no flow control of its own:
+/// the relay has none for one session, so a stalled one ends.
+pub const QUEUE_BYTES: usize = 1 << 20;
 
 /// Asked when the pair expires; a new pair to go on with, or `None` to stop.
 pub type RepairHook = Arc<dyn Fn() -> Pin<Box<dyn Future<Output = Option<Pair>> + Send>> + Send + Sync>;
@@ -134,6 +146,12 @@ where
         let next = match connected {
             Ok(socket) => {
                 retry = 0;
+                // Only now can an operator reach the node: a user, and a
+                // test, wait for this line, not for the start.
+                if let Some(say) = config.say {
+                    let again = if lost.is_some() { " again" } else { "" };
+                    say(format!("online{again}: the relay takes this pair's sessions"));
+                }
                 let end = match socket {
                     Socket::Tls(session) => serve(session, handler.clone(), config.settings, &mut stop).await,
                     #[cfg(feature = "plain-ws")]

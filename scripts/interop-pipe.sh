@@ -99,8 +99,6 @@ got=$(cut -c1-64 <"$PD/out")
 [ "$rc" = 0 ] && [ "$got" = "$want" ] \
     && ok "pipe ssh: through OpenSSH: 5,000,000 bytes, and the far end's digest is equal" \
     || bad "pipe ssh: exit $rc, digest '$got'" "$PD/err"
-kill "$late_pid" "$digest_pid" "$relay_pid" 2>/dev/null
-rm -rf "$PD"
 
 # The listeners (T-177). A TCP port, one client, through a program: equal
 # digests, and the listener ends with the session.
@@ -133,3 +131,6 @@ rm -f /tmp/podssh-other
 grep -q "closed a client of uid" "$PD/listen.err" && [ -z "$other" ] && [ "$mine" = "from this user" ] && [ "$lrc" = 0 ] \
     && ok "pipe unix-listen: a client of another user is closed, and this user's is served" \
     || bad "pipe unix-listen and another user: other '$other', mine '$mine', listener exit $lrc" "$PD/listen.err"
+
+kill "$late_pid" "$digest_pid" "$relay_pid" 2>/dev/null
+rm -rf "$PD"

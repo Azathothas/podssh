@@ -43,10 +43,17 @@ struct Local {
     /// When set, `open` waits for this before it returns.
     wait: Option<Arc<Notify>>,
     refuse: Option<String>,
+    /// The bytes that may wait for a local side, as a handler with a window
+    /// of its own (the resumable layer) sets them.
+    queue: Option<usize>,
 }
 
 impl Handler for Local {
     type Stream = DuplexStream;
+
+    fn queue_bytes(&self) -> usize {
+        self.queue.unwrap_or(podssh_relay::reverse::QUEUE_BYTES)
+    }
 
     fn open(&self, id: SessionId) -> Opening<DuplexStream> {
         let (ends, wait, refuse) = (self.ends.clone(), self.wait.clone(), self.refuse.clone());
@@ -229,6 +236,39 @@ async fn a_local_side_that_does_not_read_ends_its_session_and_not_the_others() {
     stop.notify_one();
     let last = text_of(&relay.expect().await);
     assert!(last.contains(B) && !last.contains(A), "only B was still live: {last}");
+    assert_eq!(relay.expect().await.opcode, frame::OPCODE_CLOSE);
+    assert!(matches!(task.await.unwrap(), End::Stopped));
+}
+
+/// A handler with a window of its own (the resumable layer's, T-271): a
+/// local side that reads late, not one that stopped, keeps its session, and
+/// each byte comes.
+#[tokio::test]
+async fn a_slow_local_side_keeps_its_session_within_its_handler_s_window() {
+    let (mut relay, stop, task, ends) = start(Local { queue: Some(4 << 20), ..Local::default() });
+    relay.text(HELLO).await;
+    relay.text(&open(A)).await;
+    relay.expect().await;
+    let mut a = local(&ends, A).await;
+    // 2.5 MiB that nobody reads yet: more than the queue of a handler with no
+    // window holds, and less than this one's.
+    let chunk = vec![b'a'; 65536];
+    tokio::time::timeout(Duration::from_secs(20), async {
+        for _ in 0..40 {
+            relay.data(A, &chunk).await;
+        }
+    })
+    .await
+    .expect("the node took each frame");
+    let mut got = vec![0u8; 40 * 65536];
+    tokio::time::timeout(LIMIT, a.read_exact(&mut got)).await.expect("each byte, late").unwrap();
+    assert!(got.iter().all(|b| *b == b'a'));
+    a.write_all(b"from a").await.unwrap();
+    let f = relay.expect().await;
+    assert_eq!(f.opcode, frame::OPCODE_BINARY, "A was not closed: {}", text_of(&f));
+    assert_eq!(&f.payload[32..], b"from a");
+    stop.notify_one();
+    assert!(text_of(&relay.expect().await).contains(A), "A was still live at the stop");
     assert_eq!(relay.expect().await.opcode, frame::OPCODE_CLOSE);
     assert!(matches!(task.await.unwrap(), End::Stopped));
 }

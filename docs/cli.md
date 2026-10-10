@@ -395,7 +395,9 @@ commands. The rules behind them:
   script needs no `--timeout` (T-058's decision). `--relay-host` names the
   control host: the first host of the list.
 - **A node dials TARGET first,** once, and exits 69 when it cannot; else
-  each operator would get a `reject`. It runs until Ctrl-C or SIGTERM
+  each operator would get a `reject`. It says `online` once the relay has
+  its socket, and `online again` after a loss: an operator reaches it from
+  that line on, not from the first (T-271). It runs until Ctrl-C or SIGTERM
   (exit 0). Its stdout stays empty.
 - **`node --plain`** carries each session's bytes as they are, with no
   resumable layer, for an operator that does not speak it (T-263): a lost

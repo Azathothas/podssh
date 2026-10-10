@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**267 entries: 131 open, 0 partial, 22 blocked, 114 done.**
+**268 entries: 131 open, 0 partial, 22 blocked, 115 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 14 | 16 |
+| P1 | 2 | 0 | 0 | 15 | 17 |
 | P2 | 49 | 0 | 18 | 83 | 150 |
 | P3 | 80 | 0 | 4 | 16 | 100 |
-| **All** | 131 | 0 | 22 | 114 | 267 |
+| **All** | 131 | 0 | 22 | 115 | 268 |
 
 ## Entries
 
@@ -342,3 +342,4 @@ repository and CI).
 | [T-268](repo.md) | P1 | S | none | defect | done | A pull that Docker Hub refuses fails a job of CI before its check |
 | [T-269](ssh.md) | P1 | S | none | defect | done | A session can wait for ever when its link ends while it sends |
 | [T-270](resume.md) | P1 | S | none | defect | done | A resume whose far-end task starts late takes the session from a newer one |
+| [T-271](reverse.md) | P1 | S | none | defect | done | A client can reach a node before it is online, and a node takes a slow local side of the layer for a stopped one |

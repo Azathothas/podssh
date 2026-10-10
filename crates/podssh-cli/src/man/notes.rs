@@ -227,7 +227,8 @@ const NODE: &[&str] = &[
     "podssh node serves TARGET, a TCP service, to the operators of the pair stored under NAME (see \
      podssh relay). Each session that an operator opens is one connection to TARGET, from this host, \
      through HTTPS_PROXY unless TARGET is on the loopback. podssh dials TARGET once at the start, and \
-     exits when it cannot.",
+     exits when it cannot. It says online once the relay has its socket, and online again after a \
+     loss: an operator reaches it from that line on.",
     "Each session runs the resumable layer: an operator that loses its link to the relay resumes the \
      session on a new link, and the node keeps the session and its connection to TARGET for 10 minutes \
      after a loss. TARGET is dialled only once the operator's handshake is done. The node keeps at most \

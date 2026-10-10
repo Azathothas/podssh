@@ -43,6 +43,11 @@ podssh's node (`podssh_relay::reverse`, feature `pair`, T-079) keeps these
 rules. One task writes to the socket and holds the state of each session, so
 no frame goes out without its id, before its `ready` or after its `close`; a
 late byte of a closed session is dropped, and the other sessions go on. A
+session whose local side reads no more ends alone, with `close {id}` and the
+reason, so that the socket's reader never waits for it: 1 MiB may wait for a
+local side, and with the resumable layer twice its window, which its client
+sends with no acknowledgement, so that a slow local side is not taken for a
+stopped one (T-271). The node says `online` once the relay has its socket. A
 session over the limit gets `reject` at once, and the handler has 10 s to
 open the local side. It acts on each end by its code and reason: `409`,
 exit, but after a loss connect again until the resume deadline, with a line

@@ -105,7 +105,18 @@ fn the_iroh_road_wins_when_both_answer_and_the_pair_s_road_when_iroh_cannot() {
     session.keep(node);
     let serving = wait_for(&lines, "serving").expect("the node starts");
     assert!(serving.contains("the pair's road"), "the node serves both roads: {serving}");
-    let ticket_line = wait_for(&lines, "ticket iroh:").expect("the node's ticket");
+    // The ticket, and the pair's road online, which takes sessions only from
+    // that line on: in either order.
+    let (mut ticket_line, mut online) = (None, false);
+    while ticket_line.is_none() || !online {
+        let line = wait_for(&lines, "").expect("the node's ticket, and its pair's road online");
+        if line.contains("ticket iroh:") {
+            ticket_line = Some(line);
+        } else if line.contains("online") {
+            online = true;
+        }
+    }
+    let ticket_line = ticket_line.expect("seen above");
     let ticket = ticket_line[ticket_line.find("iroh:").unwrap()..].trim().to_string();
     // The node dialled TARGET once at its start.
     let before = session.connections.load(Ordering::SeqCst);

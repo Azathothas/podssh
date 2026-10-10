@@ -43,6 +43,8 @@ fn through_a_node(tag: &str, extra: &[&str]) -> Option<(i32, String, String, Str
     let lines = lines_of(&mut node);
     session.keep(node);
     let first = wait_for(&lines, "serving").expect("the node starts");
+    // The relay has the node's socket only from this line on.
+    wait_for(&lines, "online").expect("the node is online");
     let mut args = vec!["ssh".to_string(), "-v".into()];
     args.extend(session.common());
     args.extend(pins);

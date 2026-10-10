@@ -58,7 +58,9 @@ impl Cell {
             .arg(mode)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
+            // Its errors, and with FAKE_RELAY_DEBUG each frame, for a test
+            // that fails to show.
+            .stderr(log(&s.home.join(format!("fake-relay-{}.log", mode.replace(':', "-")))))
             .spawn()
             .map_err(|e| (name.clone(), format!("the stand-in relay: {e}")))?;
         s.keep(child);
@@ -296,4 +298,9 @@ mod iroh {
         args.push(format!("tester@{ticket}"));
         Ok(Cell { name, args, far: Far::Test })
     }
+}
+
+/// A log file for a stand-in's stderr, or nothing where it cannot be made.
+fn log(path: &std::path::Path) -> Stdio {
+    std::fs::File::create(path).map(Stdio::from).unwrap_or_else(|_| Stdio::null())
 }

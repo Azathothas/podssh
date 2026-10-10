@@ -196,6 +196,8 @@ fn node_reaches_the_target_of_a_node_over_the_reverse_road() {
     let lines = throughput_harness::lines_of(&mut node);
     session.keep(node);
     throughput_harness::wait_for(&lines, "serving").expect("the node starts");
+    // The relay has the node's socket only from this line on.
+    throughput_harness::wait_for(&lines, "online").expect("the node is online");
     let mut args = vec!["pipe".to_string(), "stdio".into(), "node:lab".into()];
     args.extend(pin);
     let (code, err) = echoed(command(&args));
