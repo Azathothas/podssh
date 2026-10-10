@@ -6,6 +6,7 @@
 //! start of the node, the same command logs in and runs.
 #![cfg(feature = "iroh-test")]
 
+mod cleanup;
 mod ssh_harness;
 
 use std::io::{BufRead, BufReader, Write};
@@ -23,6 +24,7 @@ fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-iroh-road-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
+    cleanup::at_test_end(&dir);
     dir
 }
 

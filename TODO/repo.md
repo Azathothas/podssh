@@ -2908,4 +2908,10 @@ Native, Windows 11: `cargo test --workspace --no-fail-fast`, 1164 passed, 0 fail
 ignored, and no entry `podssh-*` left in the temporary directory. Planted, the token cache's
 helper without the call: 9 entries left, one for each of its tests that makes a directory. clippy
 with `-D warnings` on the four crates' targets: no warning. Waits for T-251: the planted run of
-the gate's check; its first run on Linux is CI's at the push of this commit.
+the gate's check.
+
+In CI at `84df12a` (run 38034478102), the check failed the step `iroh`: the run left
+`/tmp/podssh-iroh-road-e2e-PID`, from `crates/podssh-cli/tests/iroh_road.rs`, whose tests need
+the feature `iroh-test`, which the native run did not build. Its helper takes
+`cleanup::at_test_end` too, in the commit after `a5a6c6f`; with the feature, natively, the test
+passes and leaves nothing.
