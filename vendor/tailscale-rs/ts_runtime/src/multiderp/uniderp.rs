@@ -361,11 +361,8 @@ impl Runner {
         let mut from_dataplane = self.from_dataplane.lock().await;
         // A link that died with no close is known by its silence (podssh's patch 0019); the
         // pings run across the turns of the loop below.
-        let silent = reconnect::until_silent(
-            &transport,
-            reconnect::PING_EVERY,
-            reconnect::SILENT_ALLOWED,
-        );
+        let silent =
+            reconnect::until_silent(&transport, reconnect::PING_EVERY, reconnect::SILENT_ALLOWED);
         tokio::pin!(silent);
 
         loop {

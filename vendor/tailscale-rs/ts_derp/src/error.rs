@@ -25,9 +25,10 @@ pub enum Error {
     #[error("no reachable DERP server in the region")]
     NoServerReachable,
 
-    /// The WebSocket transport failed.
+    /// The WebSocket transport failed. Boxed: as a value it made each `Result` of this crate
+    /// large (podssh's patch 0020).
     #[error(transparent)]
-    WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
+    WebSocket(Box<tokio_tungstenite::tungstenite::Error>),
 
     /// Unsupported derp protocol version.
     #[error("unsupported DERP protocol version {0}, only supported version is {1}")]
@@ -49,6 +50,12 @@ impl Error {
             Error::IoFailure(e) => e.get_ref()?.downcast_ref(),
             _ => None,
         }
+    }
+}
+
+impl From<tokio_tungstenite::tungstenite::Error> for Error {
+    fn from(e: tokio_tungstenite::tungstenite::Error) -> Self {
+        Error::WebSocket(Box::new(e))
     }
 }
 

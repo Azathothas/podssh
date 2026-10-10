@@ -81,6 +81,15 @@ fi
 
 cd "${TS_PROVE_WORK:-/work}/vendor/tailscale-rs" || exit 71
 
+# podssh builds the fork as a path dependency outside its workspace, and
+# cargo caps the lints of such a package: no podssh build shows a warning of
+# the fork. Its own clippy, warnings denied, on the crates that podssh's
+# patches change (podssh T-276); a failure is a failure of M1.
+echo "== M0: the fork's clippy, warnings denied =="
+cargo clippy -p ts_derp -p ts_runtime -p ts_http_util -p ts_tls_util -p ts_control -p tailscale --tests -- -D warnings
+m0=$?
+echo "M0_EXIT=$m0"
+
 echo "== M1: the ClientInfo wire bytes the relay's mesh check depends on =="
 cargo test -p ts_derp --test wire_compat
 m1=$?
@@ -96,7 +105,14 @@ echo "M1B_EXIT=$m1b"
 cargo test -p ts_http_util --test proxy
 m1c=$?
 echo "M1C_EXIT=$m1c"
-if [ "$m1b" -ne 0 ] || [ "$m1c" -ne 0 ]; then
+
+# A dropped link is dialled again, a silent one is dead, and a pong is
+# counted (podssh T-104, patch 0019).
+echo "== M1d: the reconnect loop and the pings, offline =="
+cargo test -p ts_runtime --test reconnect && cargo test -p ts_derp --test ping
+m1d=$?
+echo "M1D_EXIT=$m1d"
+if [ "$m0" -ne 0 ] || [ "$m1b" -ne 0 ] || [ "$m1c" -ne 0 ] || [ "$m1d" -ne 0 ]; then
     m1=1
 fi
 

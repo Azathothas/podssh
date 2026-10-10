@@ -132,12 +132,10 @@ impl kameo::Actor for Runtime {
         // ⛔ netmon binds AF_NETLINK, whose permissibility on the target is
         // UNKNOWN (the sandprobe never tried it). Gated with the UDP set:
         // DERP-only needs no interface watcher.
-        if !no_udp {
-            if let Some(mon) = ts_netmon::platform_mon() {
-                netmon::NetmonActor::supervise(&slf, (env.clone(), Arc::new(mon)))
-                    .spawn()
-                    .await;
-            }
+        if !no_udp && let Some(mon) = ts_netmon::platform_mon() {
+            netmon::NetmonActor::supervise(&slf, (env.clone(), Arc::new(mon)))
+                .spawn()
+                .await;
         }
 
         PeerTracker::supervise(&slf, env.clone()).spawn().await;

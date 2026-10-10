@@ -5,7 +5,7 @@ crate crates/podssh-ts/, and the fork vendor/tailscale-rs with its patches in ve
 of it is behind the cargo feature `ts`: the default binary refuses `podssh ts` with exit 70. The
 fork builds aws-lc and uses much memory, so run one build at a time with `CARGO_BUILD_JOBS=4`
 (`AGENTS.md`, section 4). The fork's own tests run in the build image through
-`scripts/ts-derp-prove.sh:82-114`.
+`scripts/ts-derp-prove.sh:82-130`.
 
 # T-100: C2: `podssh ts` waits for ever when no network map arrives
 
@@ -545,7 +545,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:84-86`).
    two sockets must not replace each other for ever (`crates/podssh-ts/src/classify.rs:3-6`).
 3. Do not retry `1008 "not authorized"`, except under `--ts-wait-allowlist` (`docs/decisions.md:42`);
    it goes to the state of T-105. The inactivity close of a region that is not home is no error
-   (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:407-412`).
+   (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:404-409`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
@@ -593,6 +593,9 @@ drives the loop with fakes under `tokio::time::pause()`: `a_dropped_link_is_dial
 first test must fail. The live drop test is part of T-106.
 
 ## Correction
+
+2026-10-10 (found in T-276): the Prove names a step of `scripts/ts-derp-prove.sh` for the fork's
+test `reconnect`, and this entry's commit did not add it; T-276 did, with the test `ping`.
 
 2026-10-10: the control connection was not even restarted five times at start. A failed start of
 the control runner reaches its supervisor, the runtime, as a link that died, but the runtime is then
@@ -700,7 +703,7 @@ cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts --no-fail-fast
 The fork test vendor/tailscale-rs/ts_derp/tests/ws_close.rs checks that a close 1008 keeps its code
 and reason through `ts_derp::Error`. A runtime test with a fake connect that returns it expects the
 state "refused", and a podssh-ts test maps that state to exit 77. Plant: keep only the text; the
-first test must fail. The live step M3 (`scripts/ts-derp-prove.sh:103-106`) must still see the
+first test must fail. The live step M3 (`scripts/ts-derp-prove.sh:119-122`) must still see the
 refusal. Live, with a `ts` build: an ephemeral node with a new state file exits 77 and names 1008.
 
 # T-106: The live test of `podssh ts` with two nodes

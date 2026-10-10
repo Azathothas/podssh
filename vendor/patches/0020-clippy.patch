@@ -1,0 +1,280 @@
+diff --git a/ts_derp/examples/ws_handshake.rs b/ts_derp/examples/ws_handshake.rs
+index 7db5290..3cf9c06 100644
+--- a/ts_derp/examples/ws_handshake.rs
++++ b/ts_derp/examples/ws_handshake.rs
+@@ -99,9 +99,8 @@ async fn main() -> ExitCode {
+             println!("UNEXPECTED: the handshake succeeded; a fresh key cannot be allowlisted");
+             ExitCode::FAILURE
+         }
+-        Ok(Err(err)) => match (subprotocol, err) {
+-            (None, Error::WebSocket(tungstenite::Error::Http(response))) => {
+-                let status = response.status().as_u16();
++        Ok(Err(err)) => match (subprotocol, upgrade_status(&err), err) {
++            (None, Some(status), _) => {
+                 println!("websocket handshake refused: HTTP {status}");
+                 if status == 426 {
+                     println!("PASS: without the derp subprotocol the relay refuses the upgrade with 426");
+@@ -114,12 +113,11 @@ async fn main() -> ExitCode {
+                     ExitCode::FAILURE
+                 }
+             }
+-            (None, err) => {
++            (None, None, err) => {
+                 println!("FAIL: expected HTTP 426 without the subprotocol, got: {err}");
+                 ExitCode::FAILURE
+             }
+-            (Some(_), Error::WebSocket(tungstenite::Error::Http(response))) => {
+-                let status = response.status().as_u16();
++            (Some(_), Some(status), _) => {
+                 println!("websocket handshake refused: HTTP {status}");
+                 if status == 429 || status == 503 {
+                     println!("???? relay returned {status}; inconclusive, not a result");
+@@ -129,7 +127,7 @@ async fn main() -> ExitCode {
+                     ExitCode::FAILURE
+                 }
+             }
+-            (Some(_), err) => {
++            (Some(_), None, err) => {
+                 let text = err.to_string();
+                 println!("handshake outcome: {text}");
+ 
+@@ -235,3 +233,15 @@ impl AsyncWrite for TapIo {
+         Pin::new(&mut self.get_mut().inner).poll_shutdown(cx)
+     }
+ }
++
++/// The HTTP status that refused the WebSocket upgrade, under the boxed WebSocket error (podssh's
++/// patch 0020), or `None` for any other failure.
++fn upgrade_status(err: &Error) -> Option<u16> {
++    match err {
++        Error::WebSocket(e) => match e.as_ref() {
++            tungstenite::Error::Http(response) => Some(response.status().as_u16()),
++            _ => None,
++        },
++        _ => None,
++    }
++}
+diff --git a/ts_derp/src/client.rs b/ts_derp/src/client.rs
+index a9a7220..60f782e 100644
+--- a/ts_derp/src/client.rs
++++ b/ts_derp/src/client.rs
+@@ -46,8 +46,8 @@ pub enum ConnectMode {
+ pub enum DefaultIo {
+     /// TCP + HTTP/1.1 `Upgrade: DERP`.
+     Http(ts_http_util::Upgraded),
+-    /// DERP over WebSocket.
+-    Ws(WsIo),
++    /// DERP over WebSocket. Boxed: it is far larger than the other arm (podssh's patch 0020).
++    Ws(Box<WsIo>),
+ }
+ 
+ impl AsyncRead for DefaultIo {
+@@ -143,7 +143,7 @@ pub async fn connect<'c>(
+                 return Ok(None);
+             };
+             let io = crate::ws::connect(&server.hostname, server.https_port).await?;
+-            Ok(Some(DefaultIo::Ws(io)))
++            Ok(Some(DefaultIo::Ws(Box::new(io))))
+         }
+     }
+ }
+@@ -380,7 +380,7 @@ impl Client<DefaultIo> {
+         node_keypair: &NodeKeyPair,
+     ) -> Result<Self, Error> {
+         let io = crate::ws::connect(hostname, port).await?;
+-        Client::handshake(DefaultIo::Ws(io), node_keypair).await
++        Client::handshake(DefaultIo::Ws(Box::new(io)), node_keypair).await
+     }
+ }
+ 
+diff --git a/ts_derp/src/error.rs b/ts_derp/src/error.rs
+index c185124..b9b6ed2 100644
+--- a/ts_derp/src/error.rs
++++ b/ts_derp/src/error.rs
+@@ -25,9 +25,10 @@ pub enum Error {
+     #[error("no reachable DERP server in the region")]
+     NoServerReachable,
+ 
+-    /// The WebSocket transport failed.
++    /// The WebSocket transport failed. Boxed: as a value it made each `Result` of this crate
++    /// large (podssh's patch 0020).
+     #[error(transparent)]
+-    WebSocket(#[from] tokio_tungstenite::tungstenite::Error),
++    WebSocket(Box<tokio_tungstenite::tungstenite::Error>),
+ 
+     /// Unsupported derp protocol version.
+     #[error("unsupported DERP protocol version {0}, only supported version is {1}")]
+@@ -52,6 +53,12 @@ impl Error {
+     }
+ }
+ 
++impl From<tokio_tungstenite::tungstenite::Error> for Error {
++    fn from(e: tokio_tungstenite::tungstenite::Error) -> Self {
++        Error::WebSocket(Box::new(e))
++    }
++}
++
+ impl From<ts_http_util::Error> for Error {
+     fn from(_: ts_http_util::Error) -> Self {
+         Error::Http
+diff --git a/ts_http_util/Cargo.toml b/ts_http_util/Cargo.toml
+index 84482fa..75360a8 100644
+--- a/ts_http_util/Cargo.toml
++++ b/ts_http_util/Cargo.toml
+@@ -30,6 +30,8 @@ tracing.workspace = true
+ url.workspace = true
+ 
+ [dev-dependencies]
++# `sync`: the async lock of the proxy tests (podssh's patch 0020).
++tokio = { workspace = true, features = ["sync"] }
+ tracing-test = { workspace = true, features = ["no-env-filter"] }
+ ts_test_util.workspace = true
+ 
+diff --git a/ts_http_util/tests/proxy.rs b/ts_http_util/tests/proxy.rs
+index b4c65e2..ff50777 100644
+--- a/ts_http_util/tests/proxy.rs
++++ b/ts_http_util/tests/proxy.rs
+@@ -10,12 +10,13 @@ use ts_http_util::proxy::{ProxyConfig, applies, configure, connect, dial};
+ 
+ /// ⛔ Each async test holds this for its whole body. `configure` sets
+ /// one global dialer; without the guard, neighbours interleave configure and
+-/// `connect` and read each other's listeners. Poison-tolerant: a panicking
+-/// test must not wedge the rest of the suite.
+-static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
++/// `connect` and read each other's listeners. An async lock, as each test
++/// holds it across its awaits; a test that panics poisons nothing (podssh's
++/// patch 0020).
++static SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+ 
+-fn serial() -> std::sync::MutexGuard<'static, ()> {
+-    SERIAL.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
++async fn serial() -> tokio::sync::MutexGuard<'static, ()> {
++    SERIAL.lock().await
+ }
+ 
+ /// A fake proxy: records CONNECT authorities, answers per `respond`, then
+@@ -77,7 +78,7 @@ fn config(port: u16) -> ProxyConfig {
+ /// never happens: the assertion on the count fails, and so does the echo.
+ #[tokio::test]
+ async fn connect_issues_one_connect_and_echoes_bytes() {
+-    let _serial = serial();
++    let _serial = serial().await;
+     let (port, seen) = fake_proxy("HTTP/1.1 200 Connection Established\r\n\r\n", None).await;
+     configure(Some(config(port)));
+     let _reset = ResetOnDrop;
+@@ -95,7 +96,7 @@ async fn connect_issues_one_connect_and_echoes_bytes() {
+ /// fallback dial follows it (the fallback would hang where direct is dropped).
+ #[tokio::test]
+ async fn a_proxy_refusal_is_a_named_error_not_a_fallback() {
+-    let _serial = serial();
++    let _serial = serial().await;
+     let (port, seen) =
+         fake_proxy("HTTP/1.1 403 Forbidden\r\n\r\n", None).await;
+     configure(Some(config(port)));
+@@ -112,7 +113,7 @@ async fn a_proxy_refusal_is_a_named_error_not_a_fallback() {
+ /// Without credentials the proxy answers 407; with them, 200.
+ #[tokio::test]
+ async fn proxy_authorization_is_sent_when_configured() {
+-    let _serial = serial();
++    let _serial = serial().await;
+     let (port, _) = fake_proxy(
+         "HTTP/1.1 200 Connection Established\r\n\r\n",
+         Some("Basic dXNlcjpwYXNz"),
+@@ -144,7 +145,7 @@ async fn proxy_authorization_is_sent_when_configured() {
+ /// allocation: the 16 KiB bound fires.
+ #[tokio::test]
+ async fn an_endless_response_head_is_refused_at_the_bound() {
+-    let _serial = serial();
++    let _serial = serial().await;
+     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+     let port = listener.local_addr().unwrap().port();
+     tokio::spawn(async move {
+@@ -192,7 +193,7 @@ fn proxy_urls_parse_and_bad_ones_are_refused() {
+ /// typed, not as the URL escapes them.
+ #[tokio::test]
+ async fn escaped_credentials_reach_the_proxy_decoded() {
+-    let _serial = serial();
++    let _serial = serial().await;
+     // `us@er:p:s s`, in Base64.
+     let (port, _) = fake_proxy(
+         "HTTP/1.1 200 Connection Established\r\n\r\n",
+@@ -214,9 +215,8 @@ async fn escaped_credentials_reach_the_proxy_decoded() {
+ /// [`dial`], and the other hosts go through the proxy.
+ #[tokio::test]
+ async fn a_host_on_the_no_proxy_list_is_dialled_direct() {
+-    let _serial = serial();
+-    let (port, seen) =
+-        fake_proxy("HTTP/1.1 200 Connection Established\r\n\r\n", None).await;
++    let _serial = serial().await;
++    let (port, seen) = fake_proxy("HTTP/1.1 200 Connection Established\r\n\r\n", None).await;
+     let direct = TcpListener::bind("127.0.0.1:0").await.unwrap();
+     let direct_port = direct.local_addr().unwrap().port();
+     configure(Some(config(port).with_no_proxy("example.org, 127.0.0.1:9")));
+@@ -245,7 +245,10 @@ fn no_message_shows_the_credentials() {
+     }
+     let config = ProxyConfig::from_url("http://user:secret@proxy.example:3128").unwrap();
+     let shown = format!("{config:?}");
+-    assert!(!shown.contains("secret") && !shown.contains("dXNlcjpzZWNyZXQ"), "{shown}");
++    assert!(
++        !shown.contains("secret") && !shown.contains("dXNlcjpzZWNyZXQ"),
++        "{shown}"
++    );
+ }
+ 
+ /// Resets the global when the test returns, pass or fail, so no proxy leaks
+diff --git a/ts_runtime/src/lib.rs b/ts_runtime/src/lib.rs
+index 9ee25b9..033a8cc 100644
+--- a/ts_runtime/src/lib.rs
++++ b/ts_runtime/src/lib.rs
+@@ -132,12 +132,10 @@ impl kameo::Actor for Runtime {
+         // ⛔ netmon binds AF_NETLINK, whose permissibility on the target is
+         // UNKNOWN (the sandprobe never tried it). Gated with the UDP set:
+         // DERP-only needs no interface watcher.
+-        if !no_udp {
+-            if let Some(mon) = ts_netmon::platform_mon() {
+-                netmon::NetmonActor::supervise(&slf, (env.clone(), Arc::new(mon)))
+-                    .spawn()
+-                    .await;
+-            }
++        if !no_udp && let Some(mon) = ts_netmon::platform_mon() {
++            netmon::NetmonActor::supervise(&slf, (env.clone(), Arc::new(mon)))
++                .spawn()
++                .await;
+         }
+ 
+         PeerTracker::supervise(&slf, env.clone()).spawn().await;
+diff --git a/ts_runtime/src/multiderp/mod.rs b/ts_runtime/src/multiderp/mod.rs
+index f4f39b3..5ae3429 100644
+--- a/ts_runtime/src/multiderp/mod.rs
++++ b/ts_runtime/src/multiderp/mod.rs
+@@ -134,7 +134,11 @@ impl Multiderp {
+     async fn map_pinned(&mut self, slf: &ActorRef<Self>) {
+         let transport = self.pinned.and_then(|(_, transport)| transport);
+         let map: HashMap<RegionId, UnderlayTransportId> = match transport {
+-            Some(transport) => self.regions.iter().map(|region| (*region, transport)).collect(),
++            Some(transport) => self
++                .regions
++                .iter()
++                .map(|region| (*region, transport))
++                .collect(),
+             None => HashMap::new(),
+         };
+         if map != self.region_map {
+diff --git a/ts_runtime/src/multiderp/uniderp.rs b/ts_runtime/src/multiderp/uniderp.rs
+index 345f6d2..e4b4aea 100644
+--- a/ts_runtime/src/multiderp/uniderp.rs
++++ b/ts_runtime/src/multiderp/uniderp.rs
+@@ -361,11 +361,8 @@ impl Runner {
+         let mut from_dataplane = self.from_dataplane.lock().await;
+         // A link that died with no close is known by its silence (podssh's patch 0019); the
+         // pings run across the turns of the loop below.
+-        let silent = reconnect::until_silent(
+-            &transport,
+-            reconnect::PING_EVERY,
+-            reconnect::SILENT_ALLOWED,
+-        );
++        let silent =
++            reconnect::until_silent(&transport, reconnect::PING_EVERY, reconnect::SILENT_ALLOWED);
+         tokio::pin!(silent);
+ 
+         loop {

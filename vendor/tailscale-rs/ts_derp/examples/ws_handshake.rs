@@ -99,9 +99,8 @@ async fn main() -> ExitCode {
             println!("UNEXPECTED: the handshake succeeded; a fresh key cannot be allowlisted");
             ExitCode::FAILURE
         }
-        Ok(Err(err)) => match (subprotocol, err) {
-            (None, Error::WebSocket(tungstenite::Error::Http(response))) => {
-                let status = response.status().as_u16();
+        Ok(Err(err)) => match (subprotocol, upgrade_status(&err), err) {
+            (None, Some(status), _) => {
                 println!("websocket handshake refused: HTTP {status}");
                 if status == 426 {
                     println!("PASS: without the derp subprotocol the relay refuses the upgrade with 426");
@@ -114,12 +113,11 @@ async fn main() -> ExitCode {
                     ExitCode::FAILURE
                 }
             }
-            (None, err) => {
+            (None, None, err) => {
                 println!("FAIL: expected HTTP 426 without the subprotocol, got: {err}");
                 ExitCode::FAILURE
             }
-            (Some(_), Error::WebSocket(tungstenite::Error::Http(response))) => {
-                let status = response.status().as_u16();
+            (Some(_), Some(status), _) => {
                 println!("websocket handshake refused: HTTP {status}");
                 if status == 429 || status == 503 {
                     println!("???? relay returned {status}; inconclusive, not a result");
@@ -129,7 +127,7 @@ async fn main() -> ExitCode {
                     ExitCode::FAILURE
                 }
             }
-            (Some(_), err) => {
+            (Some(_), None, err) => {
                 let text = err.to_string();
                 println!("handshake outcome: {text}");
 
@@ -233,5 +231,17 @@ impl AsyncWrite for TapIo {
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         Pin::new(&mut self.get_mut().inner).poll_shutdown(cx)
+    }
+}
+
+/// The HTTP status that refused the WebSocket upgrade, under the boxed WebSocket error (podssh's
+/// patch 0020), or `None` for any other failure.
+fn upgrade_status(err: &Error) -> Option<u16> {
+    match err {
+        Error::WebSocket(e) => match e.as_ref() {
+            tungstenite::Error::Http(response) => Some(response.status().as_u16()),
+            _ => None,
+        },
+        _ => None,
     }
 }

@@ -46,6 +46,14 @@ cargo test -p podssh-ws --features plain-ws --test plain_loopback   # plain ws:/
 - The workspace builds and tests natively on Windows (MSVC) and Linux. The
   static Linux binary needs the musl target. The container gate builds it.
   CI's job `windows` runs the default tests on `windows-2025` at each push.
+- The Tailscale fork in `vendor/tailscale-rs` is a workspace of its own:
+  podssh's builds cap its lints, and cargo does not test a crate of it that
+  has dev-dependencies. Run its clippy and its tests with its manifest, in a
+  target directory of their own: `cargo clippy --manifest-path
+  vendor/tailscale-rs/Cargo.toml --target-dir .work/fork-target -p ts_derp
+  -p ts_runtime -p ts_http_util -p ts_tls_util -p ts_control -p tailscale
+  --all-targets -- -D warnings`, and `cargo test` the same way.
+  `scripts/ts-derp-prove.sh` runs both in the build image (T-276).
 
 ## Memory
 

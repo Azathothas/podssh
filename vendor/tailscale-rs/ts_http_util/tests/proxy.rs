@@ -10,12 +10,13 @@ use ts_http_util::proxy::{ProxyConfig, applies, configure, connect, dial};
 
 /// ⛔ Each async test holds this for its whole body. `configure` sets
 /// one global dialer; without the guard, neighbours interleave configure and
-/// `connect` and read each other's listeners. Poison-tolerant: a panicking
-/// test must not wedge the rest of the suite.
-static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+/// `connect` and read each other's listeners. An async lock, as each test
+/// holds it across its awaits; a test that panics poisons nothing (podssh's
+/// patch 0020).
+static SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-fn serial() -> std::sync::MutexGuard<'static, ()> {
-    SERIAL.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+async fn serial() -> tokio::sync::MutexGuard<'static, ()> {
+    SERIAL.lock().await
 }
 
 /// A fake proxy: records CONNECT authorities, answers per `respond`, then
@@ -77,7 +78,7 @@ fn config(port: u16) -> ProxyConfig {
 /// never happens: the assertion on the count fails, and so does the echo.
 #[tokio::test]
 async fn connect_issues_one_connect_and_echoes_bytes() {
-    let _serial = serial();
+    let _serial = serial().await;
     let (port, seen) = fake_proxy("HTTP/1.1 200 Connection Established\r\n\r\n", None).await;
     configure(Some(config(port)));
     let _reset = ResetOnDrop;
@@ -95,7 +96,7 @@ async fn connect_issues_one_connect_and_echoes_bytes() {
 /// fallback dial follows it (the fallback would hang where direct is dropped).
 #[tokio::test]
 async fn a_proxy_refusal_is_a_named_error_not_a_fallback() {
-    let _serial = serial();
+    let _serial = serial().await;
     let (port, seen) =
         fake_proxy("HTTP/1.1 403 Forbidden\r\n\r\n", None).await;
     configure(Some(config(port)));
@@ -112,7 +113,7 @@ async fn a_proxy_refusal_is_a_named_error_not_a_fallback() {
 /// Without credentials the proxy answers 407; with them, 200.
 #[tokio::test]
 async fn proxy_authorization_is_sent_when_configured() {
-    let _serial = serial();
+    let _serial = serial().await;
     let (port, _) = fake_proxy(
         "HTTP/1.1 200 Connection Established\r\n\r\n",
         Some("Basic dXNlcjpwYXNz"),
@@ -144,7 +145,7 @@ async fn proxy_authorization_is_sent_when_configured() {
 /// allocation: the 16 KiB bound fires.
 #[tokio::test]
 async fn an_endless_response_head_is_refused_at_the_bound() {
-    let _serial = serial();
+    let _serial = serial().await;
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     tokio::spawn(async move {
@@ -192,7 +193,7 @@ fn proxy_urls_parse_and_bad_ones_are_refused() {
 /// typed, not as the URL escapes them.
 #[tokio::test]
 async fn escaped_credentials_reach_the_proxy_decoded() {
-    let _serial = serial();
+    let _serial = serial().await;
     // `us@er:p:s s`, in Base64.
     let (port, _) = fake_proxy(
         "HTTP/1.1 200 Connection Established\r\n\r\n",
@@ -214,9 +215,8 @@ async fn escaped_credentials_reach_the_proxy_decoded() {
 /// [`dial`], and the other hosts go through the proxy.
 #[tokio::test]
 async fn a_host_on_the_no_proxy_list_is_dialled_direct() {
-    let _serial = serial();
-    let (port, seen) =
-        fake_proxy("HTTP/1.1 200 Connection Established\r\n\r\n", None).await;
+    let _serial = serial().await;
+    let (port, seen) = fake_proxy("HTTP/1.1 200 Connection Established\r\n\r\n", None).await;
     let direct = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let direct_port = direct.local_addr().unwrap().port();
     configure(Some(config(port).with_no_proxy("example.org, 127.0.0.1:9")));
@@ -245,7 +245,10 @@ fn no_message_shows_the_credentials() {
     }
     let config = ProxyConfig::from_url("http://user:secret@proxy.example:3128").unwrap();
     let shown = format!("{config:?}");
-    assert!(!shown.contains("secret") && !shown.contains("dXNlcjpzZWNyZXQ"), "{shown}");
+    assert!(
+        !shown.contains("secret") && !shown.contains("dXNlcjpzZWNyZXQ"),
+        "{shown}"
+    );
 }
 
 /// Resets the global when the test returns, pass or fail, so no proxy leaks

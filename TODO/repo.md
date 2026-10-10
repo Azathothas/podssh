@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:491-536`): the
+5. docs/development.md, "Release builds" (`docs/development.md:499-544`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -1610,7 +1610,7 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:231-233` states the rule with `CXX`, and
+- `docs/development.md:239-241` states the rule with `CXX`, and
   `docs/STATUS.md:334` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
@@ -2923,7 +2923,7 @@ passes and leaves nothing.
 **Milestone:** none
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2934,14 +2934,14 @@ warning" for them from podssh's builds.
 
 ## Premise
 
-Read: `cargo clippy --manifest-path vendor/tailscale-rs/Cargo.toml -p ts_derp -p ts_runtime -p
-ts_http_util -p ts_tls_util -p ts_control -p tailscale --tests`, at T-104's commit: the `Err` of
+Read, at `ade87b9`: `cargo clippy --manifest-path vendor/tailscale-rs/Cargo.toml -p ts_derp -p
+ts_runtime -p ts_http_util -p ts_tls_util -p ts_control -p tailscale --tests`: the `Err` of
 `ts_derp::Error` is very large, on each function that returns it
-(`vendor/tailscale-rs/ts_derp/src/client.rs:117`, twelve more), from its WebSocket variant of patch
-0003; the variants of `DefaultIo` differ in size (`vendor/tailscale-rs/ts_derp/src/client.rs:46`,
-patch 0009); an `if` can be collapsed (`vendor/tailscale-rs/ts_runtime/src/lib.rs:135`, patch
-0011); and the proxy tests hold a mutex guard across awaits, six times
-(`vendor/tailscale-rs/ts_http_util/tests/proxy.rs:80`, patches 0013 and 0017).
+(`vendor/tailscale-rs/ts_derp/src/client.rs` line 117, twelve more), from its WebSocket variant of
+patch 0003; the variants of `DefaultIo` differ in size (`vendor/tailscale-rs/ts_derp/src/client.rs`
+line 46, patch 0009); an `if` can be collapsed (`vendor/tailscale-rs/ts_runtime/src/lib.rs` line
+135, patch 0011); and the proxy tests hold a mutex guard across awaits, six times
+(`vendor/tailscale-rs/ts_http_util/tests/proxy.rs` line 80, patches 0013 and 0017).
 
 ## Approach
 
@@ -2961,3 +2961,21 @@ cargo test --manifest-path vendor/tailscale-rs/Cargo.toml -p ts_derp -p ts_runti
 ```
 
 Plant: the WebSocket variant unboxed again; the clippy run must fail.
+
+## Done
+
+2026-10-10, in the commit that closes this entry. Patch `vendor/patches/0020-clippy.patch`, with
+its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`: `ts_derp::Error::WebSocket` boxes its error,
+with a `From` for the unboxed one, and `DefaultIo::Ws` its stream; the example `ws_handshake`, which
+matched through the error, reads the upgrade's status through the box; the netmon gate is one
+`if`; the proxy tests' `SERIAL` is an async lock; two lines of patch 0019 are formatted.
+`scripts/ts-derp-prove.sh` runs the clippy with `-D warnings` as step M0, and step M1d runs T-104's
+fork tests, `reconnect` and `ping`, which T-104's Prove named and its commit did not add.
+- Native, Windows 11: `cargo clippy --manifest-path vendor/tailscale-rs/Cargo.toml -p ts_derp -p
+  ts_runtime -p ts_http_util -p ts_tls_util -p ts_control -p tailscale --all-targets -- -D
+  warnings`: exit 0. Planted, the WebSocket variant unboxed again: exit 101, the large `Err` on each
+  function of `ts_derp`. The fork's suites of the touched crates: 58 passed. `cargo test -p
+  podssh-ts -p podssh-cli --features podssh-cli/ts --no-fail-fast`: 486 passed, 0 failed,
+  25 ignored; clippy with `-D warnings` on podssh's crates: no warning. The twenty patches
+  give the vendored tree byte for byte on all 41 touched paths.
+- Waits for T-251: `scripts/ts-derp-prove.sh` in the build image.

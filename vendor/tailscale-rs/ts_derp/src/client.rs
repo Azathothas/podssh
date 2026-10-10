@@ -46,8 +46,8 @@ pub enum ConnectMode {
 pub enum DefaultIo {
     /// TCP + HTTP/1.1 `Upgrade: DERP`.
     Http(ts_http_util::Upgraded),
-    /// DERP over WebSocket.
-    Ws(WsIo),
+    /// DERP over WebSocket. Boxed: it is far larger than the other arm (podssh's patch 0020).
+    Ws(Box<WsIo>),
 }
 
 impl AsyncRead for DefaultIo {
@@ -143,7 +143,7 @@ pub async fn connect<'c>(
                 return Ok(None);
             };
             let io = crate::ws::connect(&server.hostname, server.https_port).await?;
-            Ok(Some(DefaultIo::Ws(io)))
+            Ok(Some(DefaultIo::Ws(Box::new(io))))
         }
     }
 }
@@ -380,7 +380,7 @@ impl Client<DefaultIo> {
         node_keypair: &NodeKeyPair,
     ) -> Result<Self, Error> {
         let io = crate::ws::connect(hostname, port).await?;
-        Client::handshake(DefaultIo::Ws(io), node_keypair).await
+        Client::handshake(DefaultIo::Ws(Box::new(io)), node_keypair).await
     }
 }
 

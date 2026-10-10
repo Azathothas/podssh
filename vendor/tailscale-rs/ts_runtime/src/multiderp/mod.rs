@@ -134,7 +134,11 @@ impl Multiderp {
     async fn map_pinned(&mut self, slf: &ActorRef<Self>) {
         let transport = self.pinned.and_then(|(_, transport)| transport);
         let map: HashMap<RegionId, UnderlayTransportId> = match transport {
-            Some(transport) => self.regions.iter().map(|region| (*region, transport)).collect(),
+            Some(transport) => self
+                .regions
+                .iter()
+                .map(|region| (*region, transport))
+                .collect(),
             None => HashMap::new(),
         };
         if map != self.region_map {

@@ -30,6 +30,8 @@ tracing.workspace = true
 url.workspace = true
 
 [dev-dependencies]
+# `sync`: the async lock of the proxy tests (podssh's patch 0020).
+tokio = { workspace = true, features = ["sync"] }
 tracing-test = { workspace = true, features = ["no-env-filter"] }
 ts_test_util.workspace = true
 
