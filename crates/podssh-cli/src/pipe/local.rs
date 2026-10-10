@@ -33,9 +33,12 @@ pub fn open(address: &Address) -> Result<End, Unopened> {
         | Address::Ssh { .. }
         | Address::Node(_)
         | Address::Iroh(_)
-        | Address::Unix(_) => {
-            Err(Unopened { code: crate::exit_codes::EXIT_SOFTWARE, why: "a remote address is not a local end".into() })
-        }
+        | Address::Unix(_)
+        | Address::UnixListen(_)
+        | Address::TcpListen { .. } => Err(Unopened {
+            code: crate::exit_codes::EXIT_SOFTWARE,
+            why: "a remote or listening address is not a local end".into(),
+        }),
     }
 }
 

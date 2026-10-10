@@ -59,6 +59,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh pipe stdio ssh:user@bastion.example.org,db.internal:5432".into(),
         ),
         (
+            "the same service on a local port, for a client that connects: one client, then the port closes",
+            "podssh pipe tcp-listen:5432 ssh:user@bastion.example.org,db.internal:5432".into(),
+        ),
+        (
             "offer a service of this host to an operator outside: a pair, with its operator's part in a file",
             "podssh relay pair lab --operator-file lab-operator.json".into(),
         ),

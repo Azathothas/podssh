@@ -28,7 +28,7 @@ server listens, and the client connects out for each connection.
   release.", exit 64. `-o 'RemoteForward=8080 localhost:80'` gives "remote
   forwarding is not implemented yet", exit 64.
 - Read: the row and the refusals are `crates/podssh-cli/src/flags.rs:206-207`,
-  `crates/podssh-cli/src/ssh/options.rs:160` and
+  `crates/podssh-cli/src/ssh/options.rs:162` and
   `crates/podssh-cli/src/ssh/keywords.rs:85`. `-W` is not a substitute: it
   carries the other direction.
 - Read: the manual's note says "-L, -R and -D are refused by name: podssh
@@ -313,11 +313,11 @@ AF_UNIX.
 - Measured, offline: `-L 8080:localhost:80` and `-D 1080` are refused with
   "podssh never binds a listener", exit 64
   (`crates/podssh-cli/src/flags.rs:204-209`). Read: `-o LocalForward` and
-  `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs:157-159`).
+  `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs:157-161`).
 - Read: `AGENTS.md:184-189` (no bind, no listen),
-  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:69-75` ("Nothing
-  listens") and `README.md:38` state the rule from before the ruling.
-  `docs/design.md:422-424` already allows a local listener for `pipe` after
+  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:69-79` ("Nothing
+  listens") and `README.md:37-42` state the rule from before the ruling.
+  `docs/design.md:423-425` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.
@@ -373,6 +373,17 @@ Python reaches 127.0.0.1:2203 through `-D 127.0.0.1:2281`. In the box, where
 with the probe's error, exit 255. With the variable of step 5 set, `-L` is
 refused on any host. Planted defect: skip the probe, and the check in the
 box fails.
+
+## Correction
+
+2026-10-10 (T-177): `podssh pipe` listens now, on `unix-listen:` and
+`tcp-listen:`, after the probe of the bind
+(`crates/podssh-cli/src/pipe/listen.rs`), which `-L` and `-D` can share.
+The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
+and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs:204-209`,
+`crates/podssh-cli/src/ssh/options.rs:157-161`). `SECURITY.md:69-79` and
+`README.md:37-42` state the ruling now, as `AGENTS.md:184-189` and
+`docs/target-environment.md:74-78` did already.
 
 # T-039: Connection sharing: `ControlMaster`, `ControlPath`, `-O` and `-S` over an AF_UNIX socket
 

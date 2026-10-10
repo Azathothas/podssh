@@ -171,6 +171,28 @@ case $(uname -s) in
         ;;
 esac
 
+say "a listener of podssh pipe (unix-listen:), within 5 s"
+# The target sandbox allows an AF_UNIX bind, and the box refuses each bind:
+# the step records which. A refusal is 77 and leaves no file; a listener
+# that SIGTERM ends removes its file.
+lsock="$T/listen.sock"
+timeout 5 "$B" pipe "unix-listen:$lsock" stdio </dev/null >"$T/listen.out" 2>"$T/listen.err"
+rc=$?
+echo "unix-listen exit=$rc"
+head -n 2 "$T/listen.err"
+ok=no
+case $rc in
+    77)
+        [ ! -e "$lsock" ] && has 'need no listener' "$T/listen.err" && ok=yes
+        verdict "a listener" "$ok" "refused: exit 77, the error named, and no file left"
+        ;;
+    124 | 143)
+        has 'listening on' "$T/listen.err" && [ ! -e "$lsock" ] && ok=yes
+        verdict "a listener" "$ok" "listened until SIGTERM, which removed its file"
+        ;;
+    *) verdict "a listener" no "exit $rc (want 77 where the host refuses the bind, else a listener that SIGTERM ends)" ;;
+esac
+
 say "OpenSSH with podssh as its ProxyCommand"
 if ! command -v ssh >/dev/null; then
     verdict OpenSSH skip "no ssh on this host"

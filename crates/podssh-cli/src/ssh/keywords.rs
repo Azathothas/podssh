@@ -80,8 +80,8 @@ pub const IGNORED: &[&str] = &[
 #[rustfmt::skip]
 pub const REFUSED: &[(&str, &str)] = &[
     ("ProxyCommand", "podssh ssh reaches the host through the relay itself (ProxyCommand=none is accepted); to use OpenSSH, give it ProxyCommand='podssh proxy %h %p'"),
-    ("LocalForward", "needs a local listener, and podssh never listens; use -W HOST:PORT"),
-    ("DynamicForward", "needs a local listener, and podssh never listens; use -W HOST:PORT"),
+    ("LocalForward", "needs a local listener, which podssh ssh does not open yet; use -W HOST:PORT, or podssh pipe tcp-listen:"),
+    ("DynamicForward", "needs a local listener, which podssh ssh does not open yet; use -W HOST:PORT, or podssh pipe tcp-listen:"),
     ("RemoteForward", "remote forwarding is not implemented yet"),
     ("ForkAfterAuthentication", "going to the background is not supported (=no is accepted); start podssh with &"),
     ("RevokedHostKeys", "mark the keys @revoked in a known_hosts file"),

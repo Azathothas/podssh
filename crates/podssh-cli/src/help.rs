@@ -210,8 +210,8 @@ pub fn verb_notes(verb: &Verb) -> String {
     let mut s = String::new();
     if verb.name == "ssh" {
         s.push('\n');
-        s.push_str("-L and -D are refused by name: each needs a local listener, and podssh\n");
-        s.push_str("  never binds one. Use -W HOST:PORT, which carries one connection.\n");
+        s.push_str("-L and -D are refused by name: podssh ssh opens no local listener yet.\n");
+        s.push_str("  Use -W HOST:PORT, which carries one connection, or podssh pipe tcp-listen:.\n");
         s.push_str("-R is refused by name: remote forwarding is not implemented yet.\n");
         s.push_str("-P on ssh is OpenSSH's Tag, not a port, and is ignored. On scp and\n");
         s.push_str("  sftp, -P is the port. The meaning is per-verb.\n");

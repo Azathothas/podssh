@@ -539,7 +539,7 @@ credential that a later commit removed, is not found.
 Read:
 
 - `scripts/check-repo.py:50-63` defines the shapes (a relay token, a Tailscale
-  key, a private key block); `scripts/check-repo.py:184-205` scans the tracked
+  key, a private key block); `scripts/check-repo.py:190-211` scans the tracked
   files outside `vendor/`. It reads no history.
 - `docs/decisions.md` (the repository is public): its history was
   replaced by one commit on 2026-10-08, so a scan of the whole history is
@@ -675,7 +675,7 @@ Read:
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
-- `crates/podssh-cli/src/man/facts.rs:391-407`: the drift test of the manual
+- `crates/podssh-cli/src/man/facts.rs:396-412`: the drift test of the manual
   counts each quoted upper-case name with `_` in the sources as a variable
   (except `CARGO_` names).
 
@@ -685,7 +685,7 @@ Read:
    each binary with `actions/attest-build-provenance`, pinned by commit SHA,
    for a tag `v*` only. Give these jobs `id-token: write` and
    `attestations: write`. A run by hand makes no attestation.
-2. Tell the user how to check, in `README.md` (`:50-51`) and in the
+2. Tell the user how to check, in `README.md` (`:52-53`) and in the
    release notes: `gh attestation verify FILE --repo Azathothas/podssh`.
 3. Let `podssh --version` name the commit: the workflows set a variable at
    compile time (`option_env!`, no build script, no `git` call); a local build
@@ -732,7 +732,7 @@ Read:
   `sha256sum`, and `.github/workflows/release.yml:155-171` publishes it with
   the binaries. No signature is published.
 - The notes drafted for the dropped beta told the user that `SHA256SUMS`
-  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:89`). `README.md:50-51` gives no step to check a download.
+  holds the sums (`git show b1b111b:docs/releases/v0.1.0-beta.1.md`, `:89`). `README.md:52-53` gives no step to check a download.
 - AGENTS.md, section 4: a private key is a credential. The repository has no
   signing key today.
 
@@ -934,7 +934,7 @@ Read:
 - `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
-  `scripts/sandbox-check.sh:85-188` prints the exit code of each step and does
+  `scripts/sandbox-check.sh:85-210` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
   in a required property (17 properties, `docs/STATUS.md:148`).
@@ -1279,7 +1279,7 @@ warning, and the gate checks the format and the lints".
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
-(`docs/design.md:444-446`) show that a dependency can get one.
+(`docs/design.md:445-447`) show that a dependency can get one.
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1671,7 +1671,7 @@ repository (one `README.md`, no `crates/`) printed four `ok` lines and exited
 
 Read:
 
-- `scripts/check-repo.py:123`: the size check walks `crates/` with `rglob`; a
+- `scripts/check-repo.py:129`: the size check walks `crates/` with `rglob`; a
   missing directory yields nothing. (#33 cites line 56 at `22c3b88`; the walk is at 57
   now.)
 - `scripts/check-repo.py` lines 100-129, 132-153 and 156-161 at `e892b0f`: the links, the credentials and the line

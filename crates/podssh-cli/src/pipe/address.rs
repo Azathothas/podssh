@@ -2,7 +2,9 @@
 //! checked before anything starts. `-` is `stdio`. The local kinds are
 //! `stdio`, `fd:N` (Unix) and `exec:CMD`; the remote ones `relay:HOST:PORT`,
 //! `tcp:HOST:PORT`, `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME` and
-//! `iroh:TICKET`. The kinds of later entries are known, and refused as not
+//! `iroh:TICKET`; a local socket `unix-connect:PATH` (T-176); and the
+//! listeners `unix-listen:PATH` and `tcp-listen:[ADDR:]PORT` (T-177), one
+//! side at most. The kinds of later entries are known, and refused as not
 //! built yet, so that a script gets 70 and not a usage error.
 
 use crate::exit_codes::EXIT_NOT_IMPLEMENTED;
@@ -31,6 +33,17 @@ pub enum Address {
     /// A local socket: a path, `@NAME` in Linux's abstract namespace, or on
     /// Windows a named pipe.
     Unix(String),
+    /// A local socket that podssh listens on, by the same names.
+    UnixListen(String),
+    /// A TCP port that podssh listens on: 127.0.0.1, or the address given.
+    TcpListen { host: String, port: u16 },
+}
+
+impl Address {
+    /// Whether this side waits for a client to connect.
+    pub fn listens(&self) -> bool {
+        matches!(self, Address::UnixListen(_) | Address::TcpListen { .. })
+    }
 }
 
 /// The kinds that an unknown kind lists.
@@ -45,10 +58,12 @@ pub const KINDS: &[&str] = &[
     "node:NAME",
     "iroh:TICKET",
     "unix-connect:PATH",
+    "unix-listen:PATH",
+    "tcp-listen:[ADDR:]PORT",
 ];
 
-/// The kinds of later entries: listeners (T-177) and a serial line (T-181).
-const LATER: &[&str] = &["unix-listen", "tcp-listen", "serial"];
+/// The kinds of later entries: a serial line (T-181).
+const LATER: &[&str] = &["serial"];
 
 /// A and B, each checked: no side starts before both are good.
 pub fn both(a: Option<&str>, b: Option<&str>) -> Result<(Address, Address), Refusal> {
@@ -56,6 +71,9 @@ pub fn both(a: Option<&str>, b: Option<&str>) -> Result<(Address, Address), Refu
     let b = parse(b.ok_or("missing B: the second address")?)?;
     if a == Address::Stdio && b == Address::Stdio {
         return Err(Refusal::usage("stdio on both sides joins stdin to stdout; name another address"));
+    }
+    if a.listens() && b.listens() {
+        return Err(Refusal::usage("one side may listen; the other names where its bytes go"));
     }
     Ok((a, b))
 }
@@ -89,7 +107,9 @@ pub fn parse(text: &str) -> Result<Address, Refusal> {
             Ok(Address::Node(rest.to_string()))
         }
         "iroh" => iroh(rest),
-        "unix-connect" => unix(rest),
+        "unix-connect" => socket_name(kind, rest).map(Address::Unix),
+        "unix-listen" => socket_name(kind, rest).map(Address::UnixListen),
+        "tcp-listen" => tcp_port(rest),
         "stdio" => Err(Refusal::usage("stdio takes nothing after it")),
         later if LATER.contains(&later) => Err(Refusal {
             message: format!("{later}: addresses are not built yet; the kinds are {kinds}"),
@@ -113,26 +133,46 @@ fn ssh(rest: &str) -> Result<Address, Refusal> {
     Ok(Address::Ssh { hops: hops.iter().map(|h| h.to_string()).collect(), host, port })
 }
 
-/// `unix-connect:PATH`: a name that fits a socket's address, checked before
-/// the call; `@NAME` on Linux alone. A named pipe of Windows has room for
-/// more.
-fn unix(rest: &str) -> Result<Address, Refusal> {
+/// The PATH of `unix-connect:` and `unix-listen:`: a name that fits a
+/// socket's address, checked before the call; `@NAME` on Linux alone. A
+/// named pipe of Windows has room for more.
+fn socket_name(kind: &str, rest: &str) -> Result<String, Refusal> {
     if rest.is_empty() {
-        return Err(Refusal::usage("unix-connect: names no socket"));
+        return Err(Refusal::usage(format!("{kind}: names no socket")));
     }
     if rest.starts_with('@') && !cfg!(target_os = "linux") {
-        return Err(Refusal::usage(format!("unix-connect:{rest}: the abstract namespace is Linux's")));
+        return Err(Refusal::usage(format!("{kind}:{rest}: the abstract namespace is Linux's")));
     }
     let pipe = rest.to_ascii_lowercase().replace('/', "\\").starts_with(r"\\.\pipe\");
     // The name's NUL, or the abstract name's leading one.
     let room = super::unix::SUN_PATH - 1;
     if !(cfg!(windows) && pipe) && rest.len() > room {
         let has = rest.len();
-        return Err(Refusal::usage(format!(
-            "unix-connect:{rest}: a socket's name holds {room} bytes, and this has {has}"
-        )));
+        return Err(Refusal::usage(format!("{kind}:{rest}: a socket's name holds {room} bytes, and this has {has}")));
     }
-    Ok(Address::Unix(rest.to_string()))
+    Ok(rest.to_string())
+}
+
+/// `tcp-listen:PORT` on 127.0.0.1, or `tcp-listen:ADDR:PORT` on an address
+/// of this host: an IP literal (an IPv6 one in brackets) or `localhost`.
+/// Port 0 asks the system for a free one, and podssh says which.
+fn tcp_port(rest: &str) -> Result<Address, Refusal> {
+    let bad = |why: &str| Refusal::usage(format!("tcp-listen:{rest}: {why}"));
+    let (host, port) = match rest.rsplit_once(':') {
+        None => ("127.0.0.1", rest),
+        Some((host, port)) => (host, port),
+    };
+    let port: u16 = port.parse().map_err(|_| bad("PORT is a number from 0 to 65535"))?;
+    let host = match host.strip_prefix('[').and_then(|h| h.strip_suffix(']')) {
+        Some(v6) => v6.parse::<std::net::Ipv6Addr>().map_err(|_| bad("not an IPv6 address"))?.to_string(),
+        None if host.eq_ignore_ascii_case("localhost") => "127.0.0.1".to_string(),
+        None if host.contains(':') => return Err(bad("an IPv6 address goes in brackets: [ADDR]:PORT")),
+        None => host
+            .parse::<std::net::Ipv4Addr>()
+            .map_err(|_| bad("ADDR is an address of this host, as 127.0.0.1, [::1] or localhost; no name is resolved"))?
+            .to_string(),
+    };
+    Ok(Address::TcpListen { host, port })
 }
 
 /// `iroh:TICKET`, in a build with the feature `iroh`.
@@ -228,9 +268,29 @@ mod tests {
         assert!(refusal.message.contains("exec:CMD"), "{}", refusal.message);
         assert_eq!(code("example.org"), 64);
         assert_eq!(code("stdio:x"), 64);
-        for later in ["unix-listen:/run/x.sock", "tcp-listen:2222", "serial:/dev/ttyS0"] {
-            assert_eq!(code(later), 70, "{later}");
+        assert_eq!(code("serial:/dev/ttyS0"), 70);
+    }
+
+    #[test]
+    fn a_listener_is_a_socket_or_a_port_of_this_host_and_one_side_at_most() {
+        let tcp = |host: &str, port| Address::TcpListen { host: host.into(), port };
+        assert_eq!(parse("tcp-listen:2222").unwrap(), tcp("127.0.0.1", 2222));
+        assert_eq!(parse("tcp-listen:0").unwrap(), tcp("127.0.0.1", 0));
+        assert_eq!(parse("tcp-listen:localhost:80").unwrap(), tcp("127.0.0.1", 80));
+        assert_eq!(parse("tcp-listen:[::1]:22").unwrap(), tcp("::1", 22));
+        assert_eq!(parse("tcp-listen:0.0.0.0:8080").unwrap(), tcp("0.0.0.0", 8080));
+        for bad in ["tcp-listen:", "tcp-listen:x", "tcp-listen:70000", "tcp-listen:example.org:80", "tcp-listen:::1:22"]
+        {
+            assert_eq!(code(bad), 64, "{bad}");
         }
+        assert_eq!(code("tcp-listen:[x]:22"), 64);
+        assert_eq!(parse("unix-listen:/tmp/s.sock").unwrap(), Address::UnixListen("/tmp/s.sock".into()));
+        assert_eq!(code("unix-listen:"), 64);
+        assert_eq!(code(&format!("unix-listen:/{}", "x".repeat(200))), 64);
+        assert!(parse("tcp-listen:1").unwrap().listens());
+        assert!(!parse("unix-connect:/tmp/s").unwrap().listens());
+        assert_eq!(both(Some("unix-listen:/tmp/a"), Some("tcp-listen:1")).unwrap_err().code, 64);
+        assert!(both(Some("tcp-listen:1"), Some("stdio")).is_ok());
     }
 
     #[test]

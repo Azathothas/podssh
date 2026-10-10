@@ -74,8 +74,11 @@ IMAGE_BY_TAG = re.compile(r"\b(?:rust|alpine|python):[0-9][\w.-]*")
 # flag that asks for it and the probe that allows it.
 LISTENER_RULE = "no listener unless the user asks for it and a probe at run time allows the bind"
 LISTENERS = {
-    "TcpListener": [],
-    "UnixListener": [],
+    # The listening side of `podssh pipe`, which the user asks for with
+    # unix-listen: or tcp-listen: (T-177): the bind itself is the probe, and
+    # PODSSH_LISTEN turns it off.
+    "TcpListener": ["crates/podssh-cli/src/pipe/listen.rs"],
+    "UnixListener": ["crates/podssh-cli/src/pipe/listen.rs"],
     # The iroh road (feature `iroh`, T-162), which the user selects: its probe
     # binds a UDP socket to port 0 and closes it, and only when the probe
     # allowed it does the endpoint bind UDP for direct paths.
@@ -86,13 +89,16 @@ LISTENERS = {
     # the race of `podssh ssh --iroh-ticket` (T-164).
     "bind(": [
         "crates/podssh-cli/src/doctor/unix.rs",
+        "crates/podssh-cli/src/pipe/listen.rs",
+        "crates/podssh-cli/src/pipe/listen_win.rs",
+        "crates/podssh-cli/src/pipe/serve.rs",
         "crates/podssh-iroh/src/probe.rs",
         "crates/podssh-iroh/src/endpoint.rs",
         "crates/podssh-cli/src/node_iroh.rs",
         "crates/podssh-cli/src/ssh/iroh/dial.rs",
         "crates/podssh-cli/src/ssh/iroh/race.rs",
     ],
-    "listen(": [],
+    "listen(": ["crates/podssh-cli/src/pipe/listen_win.rs"],
     "socket2": [],
 }
 # Rule 6 of AGENTS.md in the code: the four markers (written here as escapes,

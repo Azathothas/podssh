@@ -1,11 +1,11 @@
 The work of milestone M7, `podssh pipe` and `--persist`, and the backlog of
 streams that `pipe` can carry: desktop streams and Telnet, a published HTTP
-service, serial devices and USB/IP. The design is `docs/design.md:387-428`;
+service, serial devices and USB/IP. The design is `docs/design.md:387-429`;
 the milestone is `docs/ROADMAP.md:231-240`.
 
 # T-174: `podssh pipe A B` with local addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:404-428`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:404-429`;
 GitHub #26 (Nemo-010, 2026-10-08). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M7
@@ -69,8 +69,8 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
    (`crates/podssh-cli/src/man/notes.rs:7-26`), two examples
-   (`crates/podssh-cli/src/man/examples.rs:8-86`; its test at
-   `crates/podssh-cli/src/man/examples.rs:209-220` learns the new variant),
+   (`crates/podssh-cli/src/man/examples.rs:8-90`; its test at
+   `crates/podssh-cli/src/man/examples.rs:213-224` learns the new variant),
    `docs/design.md:406-414`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:198-199`).
 
@@ -192,13 +192,13 @@ local program to a target, and `podssh proxy` stays a second pump.
    `crates/podssh-ssh/src/run.rs:109-116` a public `connect_chain` that `-W`
    and the pipe both use; keep each handle alive until the pipe ends. The
    options: `-i`, `-o NAME=VALUE` through
-   `crates/podssh-cli/src/ssh/options.rs:55-172` (a keyword of a session,
+   `crates/podssh-cli/src/ssh/options.rs:55-174` (a keyword of a session,
    such as `RequestTTY` or `RemoteCommand`, exits 64), `--direct`,
    `--relay-host`, `--relay-addr` and `--ca-file`.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:494`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:519`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:153-211` a typed error, so that 77 is not
    guessed from a message.
@@ -389,21 +389,21 @@ ROADMAP M7 is done; T-040 gives the remote form.
 
 # T-177: `podssh pipe` with a local listener after a probe
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:422-428`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:423-429`;
 GitHub #26 (a local-only mode, as the `--local` of bunflared; read in the
 report, not verified here); sandbox A of T-001.
 **Category:** feature
 **Milestone:** M7
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
 Desktop clients, browsers and database clients call `connect()` themselves:
-they need a local port or socket (`docs/design.md:425-428`). podssh refuses
+they need a local port or socket (`docs/design.md:426-429`). podssh refuses
 each listener. The design allows one for `pipe`, locally, after a probe
-shows that an AF_UNIX or loopback bind works (`docs/design.md:422-424`).
+shows that an AF_UNIX or loopback bind works (`docs/design.md:423-425`).
 
 ## Premise
 
@@ -413,7 +413,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:422-424`).
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
   `AGENTS.md:184-189`, `docs/architecture.md:102-112`,
-  `docs/target-environment.md:74-78`, `SECURITY.md:69-75`, `README.md:37-40`.
+  `docs/target-environment.md:74-78`, `SECURITY.md:69-79`, `README.md:37-42`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:169`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -430,7 +430,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:422-424`).
 2. podssh listens only for a `-listen:` address that the user gives.
    `PODSSH_LISTEN=no` turns listening off: each such address then exits 78
    before any bind. Add the variable to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-122`); the settings file of T-048
+   (`crates/podssh-cli/src/man/facts.rs:45-127`); the settings file of T-048
    can set the same.
 3. The attempt is the probe: socket, bind, listen. EACCES or EPERM exits 77
    with the errno and an address that needs no listener; another error exits
@@ -453,7 +453,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:422-424`).
    `-D` rows (`crates/podssh-cli/src/flags.rs:204-209`; keep `-W HOST:PORT`
    as what to use, which `crates/podssh-cli/tests/flag_table.rs:82-101`
    asserts), `crates/podssh-cli/src/ssh/keywords.rs:83-84`,
-   `crates/podssh-cli/src/ssh/options.rs:157-159`,
+   `crates/podssh-cli/src/ssh/options.rs:157-161`,
    `crates/podssh-cli/src/doctor/unix.rs:164` and
    `crates/podssh-cli/src/doctor/unix.rs:186`.
 8. `unix-listen:` with `exec:` is the local-only mode that GitHub #26 asks
@@ -465,6 +465,21 @@ Recommendation: one connection by default, because a listener that stays
 after its first use is a service that the user can forget. The alternative,
 a listener that stays until Ctrl-C (the `fork` of socat), lost as the
 default; it is the flag `--keep-listening`.
+
+2026-10-10: one side may listen, and two listeners exit 64: their clients
+would come in no order that joins them. On Windows `unix-listen:` makes an
+AF_UNIX socket, or a named pipe for `\\.\pipe\NAME`, and the peer check
+is the user of the client's process token (`SIO_AF_UNIX_GETPEERPID`,
+`GetNamedPipeClientProcessId`); a client whose user cannot be read is
+closed. The alternative, no `unix-listen:` on Windows, lost: the operator
+ruled for both kinds of socket there (Q24). A named pipe has no
+half-close, so its listening side closes it at the end of its input, and
+the client reads the rest; `unix-connect:` reads until the server closes
+(T-176), so podssh at both ends of a pipe ends. The listener's lines
+(where it listens, a client that connected or was closed) follow `-q`; a
+failure's line is always written, as the pipe's other failures are. A
+signal ends `--keep-listening` with 128 and its number, as it ends the
+mode of one client.
 
 ## Prove
 
@@ -481,6 +496,63 @@ no file; `PODSSH_LISTEN=no` exits 78 and binds nothing. In the gate, `tcp-listen
 digests, and a client of another uid (`su podtest`) is closed. A new step of
 `scripts/sandbox-check.sh` (limit 5 s) records the refusal in the box.
 Plant: bind with no umask; the check of the mode must fail.
+
+## Correction
+
+2026-10-10: three of the five documents already say what the ruling
+allows: `AGENTS.md:184-189`, `docs/architecture.md:102-112` and
+`docs/target-environment.md:74-78` name a listener that the user asks for,
+after a probe. `SECURITY.md` and `README.md` still said that nothing
+listens, and change here. Step 4's umask 077 makes a socket's file mode
+0700 on Linux, as a socket is made 0777 less the umask; umask 0177, as
+ssh-agent makes its socket, gives the 0600 that step 4 asks for. Step 7:
+the listener binds with the standard library's `UnixListener::bind` and
+`bind_addr`, which build the address, so doctor keeps its own probe, and
+only the code of Windows builds a `SOCKADDR_UN`, in one function that
+`unix-connect:` and `unix-listen:` share
+(`crates/podssh-cli/src/pipe/unix.rs`).
+
+## Done
+
+2026-10-10. `podssh pipe` listens on `unix-listen:PATH` and
+`tcp-listen:[ADDR:]PORT` (`crates/podssh-cli/src/pipe/listen.rs`,
+`crates/podssh-cli/src/pipe/listen_win.rs` on Windows,
+`crates/podssh-cli/src/pipe/serve.rs`).
+- The bind is the probe: 77 for a host that refuses it, with the error and
+  the addresses that need no listener; 69 else; `PODSSH_LISTEN=no` gives 78
+  before any bind. A socket's file is made mode 0600 and goes when the
+  listener drops: at the end, and at SIGINT and SIGTERM, after which podssh
+  exits with 128 and the signal's number. A client of another user is
+  closed (`peer_cred`, or on Windows the client's token user). A path that
+  is not a socket is kept (64), a socket that answers is another's (69),
+  and one that nobody serves is replaced. A TCP port says who can connect.
+- One client by default; `--keep-listening` takes each in turn, 8 at once,
+  each with its own instance of the other side. On Windows one thread
+  accepts on an AF_UNIX socket for the listener's life, and a named pipe's
+  next instance is made before a client is handed on, so a wait that is
+  given up loses no client.
+- Where podssh said that it never listens, it now says where it does:
+  `SECURITY.md`, `README.md`, the help of `ssh`, the note and the rows of
+  `-L` and `-D` (`-W HOST:PORT` stays what to use), the refusals of
+  `LocalForward` and `DynamicForward`, and doctor's two lines;
+  `PODSSH_LISTEN` is in ENVIRONMENT, and an example joins a local port to a
+  service behind an SSH hop.
+- Native, Windows 11: `cargo test -p podssh-cli --test pipe_listen`, 6
+  passed, and 10 runs in a row: podssh at both ends through a TCP port, an
+  AF_UNIX socket and a named pipe, bytes both ways and each end of input;
+  `PODSSH_LISTEN=no`; a file kept and a live socket refused;
+  `--keep-listening` with two clients, each with its own program. The unit
+  tests of the grammar, of the codes and of a token's user. `cargo test
+  --workspace`: 1114 passed, 0 failed, 37 ignored.
+- Linux, in the build image (`sh scripts/dev.sh run`): clippy with no
+  warning; `--test pipe_listen`, 8 passed, with the mode 0600, `@NAME`, a
+  stale socket replaced, and SIGTERM giving 143 and removing the file.
+  Planted, the bind with no umask: the check of the mode failed (0755).
+- The gate (`scripts/interop-pipe.sh`): `tcp-listen:` with `exec:cat` and
+  equal digests, and a client of another user (`su podtest`) closed at
+  `@NAME` while this user's is served; the result at the push goes into
+  `docs/STATUS.md`. The box's step (`scripts/sandbox-check.sh`, `unix-listen
+  exit=77`) runs with the checks of the release (T-251).
 
 # T-178: `--persist`: connect again and attach `tmux` again
 
@@ -535,7 +607,7 @@ running on the server (`docs/design.md:241-243`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:511-513`). After the attach, send the window size again.
+   (`docs/cli.md:536-538`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes.rs:28-93`), `docs/design.md:241-243`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -623,9 +695,9 @@ and after a lost link connects again and attaches the same session
   warning; the same tests.
 - `scripts/interop-faults.sh` in the gate's step `release`, with tmux in
   the image: `--persist` through two stand-in relays to OpenSSH, the first
-  killed under the session; then tmux off `PATH`. The result at the push
-  goes into `docs/STATUS.md`; the plant (tmux without `-A`) waits for
-  T-251.
+  killed under the session; then tmux off `PATH`. Both passed in CI at
+  `9ae8d4a` (run 38013370692: interop 212 passed, 0 failed, 2 more than
+  before); the plant (tmux without `-A`) waits for T-251.
 
 # T-179: Desktop streams and Telnet through `proxy` and `pipe`
 
@@ -643,14 +715,14 @@ verified here.
 ## Problem
 
 Users ask how to carry RDP, VNC and Telnet. The documents show SSH and one
-HTTP request (`README.md:116-121`). They do not say which clients work with
+HTTP request (`README.md:118-123`). They do not say which clients work with
 no listener, or that the relay ends a desktop stream after 64 MiB.
 
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
   (`crates/podssh-cli/src/man/notes.rs:164-168`); a client that calls
-  `connect()` itself needs a listener (`docs/design.md:425-428`), which
+  `connect()` itself needs a listener (`docs/design.md:426-429`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:127`), then Close 1009 (`docs/relay.md:188`); public
@@ -677,11 +749,11 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 3. Telnet: `podssh proxy HOST 23` carries the bytes, but a person needs a
    client that answers the IAC options: form a or b with
    `telnet 127.0.0.1 PORT`.
-4. Write a table "Other TCP protocols" after `README.md:116-121`: the
+4. Write a table "Other TCP protocols" after `README.md:118-123`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
-   form a to `crates/podssh-cli/src/man/examples.rs:8-86`; its ProxyCommand
-   parses (`crates/podssh-cli/src/man/examples.rs:186-193`). Link the table
-   from `docs/design.md:425-428`.
+   form a to `crates/podssh-cli/src/man/examples.rs:8-90`; its ProxyCommand
+   parses (`crates/podssh-cli/src/man/examples.rs:190-197`). Link the table
+   from `docs/design.md:426-429`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
 ## Prove

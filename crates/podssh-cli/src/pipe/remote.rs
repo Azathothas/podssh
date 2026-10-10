@@ -15,6 +15,7 @@ use crate::exitmap::sysexits::{EX_CONFIG, EX_NOPERM, EX_UNAVAILABLE};
 use crate::relay_settings::Refusal;
 
 /// The roads' settings, read once both addresses are checked.
+#[derive(Clone)]
 pub struct Settings {
     pub relays: Option<RelayList>,
     pub trust: Trust,

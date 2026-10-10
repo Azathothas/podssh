@@ -1,21 +1,26 @@
 //! `podssh pipe A B` (T-174, T-175): join two byte streams, as socat does,
-//! with no listener. Each address is `KIND:REST` (`address`); both are
-//! checked before anything starts. The pump (`pump`) copies both ways; the
-//! local ends are stdin and stdout, an inherited descriptor, and a child
-//! (`local`); the remote ends open a road (`remote`, `relay`). A road that
-//! failed gives the pipe's exit code, as `podssh proxy` gives it; else a
-//! child's status, B's when both are children, as a shell gives it; with
-//! neither, a clean end gives 0.
+//! with no listener unless one side asks for one (T-177). Each address is
+//! `KIND:REST` (`address`); both are checked before anything starts. The
+//! pump (`pump`) copies both ways; the local ends are stdin and stdout, an
+//! inherited descriptor, and a child (`local`); the remote ends open a road
+//! (`remote`, `relay`); a listening side (`listen`, `serve`) joins each
+//! client to the other side. A road that failed gives the pipe's exit code,
+//! as `podssh proxy` gives it; else a child's status, B's when both are
+//! children, as a shell gives it; with neither, a clean end gives 0.
 
 use std::io::Write;
 
 pub mod address;
 pub mod iroh;
+pub mod listen;
+#[cfg(windows)]
+pub mod listen_win;
 pub mod local;
 pub mod node;
 pub mod pump;
 pub mod relay;
 pub mod remote;
+pub mod serve;
 pub mod ssh;
 pub mod unix;
 
@@ -30,6 +35,8 @@ pub struct PipeArgs {
     /// relay, the trust, `--direct`, the keys and the options of an SSH
     /// hop, a pair's file and the iroh road's key and relays.
     pub ssh: crate::ssh::args::SshArgs,
+    /// `--keep-listening`: each client in turn, not only the first.
+    pub keep_listening: bool,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -39,6 +46,18 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
         Ok(both) => both,
         Err(refusal) => return refusal.report("pipe", err),
     };
+    let listening = a.listens() || b.listens();
+    if args.keep_listening && !listening {
+        let refusal = crate::relay_settings::Refusal::usage(
+            "--keep-listening is for a listening side: unix-listen:PATH or tcp-listen:[ADDR:]PORT",
+        );
+        return refusal.report("pipe", err);
+    }
+    if listening {
+        if let Err(refusal) = listen::allowed() {
+            return refusal.report("pipe", err);
+        }
+    }
     let settings = match remote::settings(args, [&a, &b]) {
         Ok(settings) => settings,
         Err(refusal) => return refusal.report("pipe", err),
@@ -50,7 +69,14 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
             return EXIT_SOFTWARE;
         }
     };
-    let code = runtime.block_on(run(a, b, &settings, err));
+    let code = if listening {
+        let (listening, other, listener_is_a) = if a.listens() { (&a, &b, true) } else { (&b, &a, false) };
+        let quiet = args.ssh.quiet > 0;
+        let serve = serve::Serve { listening, other, listener_is_a, keep: args.keep_listening, quiet };
+        runtime.block_on(serve::run(serve, &settings, err))
+    } else {
+        runtime.block_on(run(a, b, &settings, err))
+    };
     // A read of stdin may still wait in its thread; the pipe has ended.
     runtime.shutdown_background();
     code

@@ -80,7 +80,7 @@ async fn connect(path: &str) -> io::Result<End> {
 
 /// `\\.\pipe\NAME`, either slash.
 #[cfg(windows)]
-fn is_named_pipe(path: &str) -> bool {
+pub(super) fn is_named_pipe(path: &str) -> bool {
     let lower = path.to_ascii_lowercase().replace('/', "\\");
     lower.starts_with(r"\\.\pipe\")
 }
@@ -101,31 +101,49 @@ async fn named_pipe(path: &str) -> io::Result<tokio::net::windows::named_pipe::N
     }
 }
 
-/// An AF_UNIX stream socket connected to `path`, by WinSock: Rust's
-/// standard library has none on Windows. A connected socket of any family
-/// carries bytes as a TCP one does, so it is handed on as one.
+/// WinSock, started for this process: WSAStartup counts its callers; the
+/// standard library calls it too, and a second call is harmless.
 #[cfg(windows)]
-fn af_unix(path: &str) -> io::Result<std::net::TcpStream> {
-    use std::os::windows::io::FromRawSocket;
+pub(super) fn wsa_start() -> io::Result<()> {
     use windows_sys::Win32::Networking::WinSock as ws;
+    // SAFETY: an all-zero WSADATA is valid for WSAStartup to fill.
     let mut data: ws::WSADATA = unsafe { std::mem::zeroed() };
-    // SAFETY: WSAStartup counts its callers; the standard library calls it
-    // too, and a second call is harmless.
+    // SAFETY: as above.
     let rc = unsafe { ws::WSAStartup(0x0202, &mut data) };
     if rc != 0 {
         return Err(io::Error::from_raw_os_error(rc));
     }
-    // SAFETY: a plain socket call; the handle is owned below, or closed.
-    let socket = unsafe { ws::socket(ws::AF_UNIX as i32, ws::SOCK_STREAM, 0) };
-    if socket == ws::INVALID_SOCKET {
-        return Err(io::Error::from_raw_os_error(unsafe { ws::WSAGetLastError() }));
-    }
-    // SAFETY: an all-zero SOCKADDR_UN is valid; the name was checked to fit.
+    Ok(())
+}
+
+/// The address of an AF_UNIX socket at `path`, whose name was checked to
+/// fit.
+#[cfg(windows)]
+pub(super) fn sockaddr(path: &str) -> windows_sys::Win32::Networking::WinSock::SOCKADDR_UN {
+    use windows_sys::Win32::Networking::WinSock as ws;
+    // SAFETY: an all-zero SOCKADDR_UN is valid.
     let mut addr: ws::SOCKADDR_UN = unsafe { std::mem::zeroed() };
     addr.sun_family = ws::AF_UNIX;
     for (slot, byte) in addr.sun_path.iter_mut().zip(path.as_bytes()) {
         *slot = *byte as _;
     }
+    addr
+}
+
+/// An AF_UNIX stream socket connected to `path`, by WinSock: Rust's
+/// standard library has none on Windows. A connected socket of any family
+/// carries bytes as a TCP one does, so it is handed on as one.
+#[cfg(windows)]
+pub(super) fn af_unix(path: &str) -> io::Result<std::net::TcpStream> {
+    use std::os::windows::io::FromRawSocket;
+    use windows_sys::Win32::Networking::WinSock as ws;
+    wsa_start()?;
+    // SAFETY: a plain socket call; the handle is owned below, or closed.
+    let socket = unsafe { ws::socket(ws::AF_UNIX as i32, ws::SOCK_STREAM, 0) };
+    if socket == ws::INVALID_SOCKET {
+        return Err(io::Error::from_raw_os_error(unsafe { ws::WSAGetLastError() }));
+    }
+    let addr = sockaddr(path);
     let len = std::mem::size_of::<ws::SOCKADDR_UN>() as i32;
     // SAFETY: `addr` is a SOCKADDR_UN of `len` bytes.
     let rc = unsafe { ws::connect(socket, (&addr as *const ws::SOCKADDR_UN).cast(), len) };

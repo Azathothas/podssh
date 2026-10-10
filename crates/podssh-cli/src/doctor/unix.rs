@@ -161,7 +161,7 @@ pub(super) fn bind_inet() -> Verdict {
     unsafe { libc::close(fd) };
     match bound {
         Ok(port) => ok(format!("bound 127.0.0.1:{port} and closed it without listening")),
-        Err(e) => ok(format!("refused: {e}; podssh never listens, so nothing depends on it")),
+        Err(e) => ok(format!("refused: {e}; only podssh pipe tcp-listen: would listen, and it says so")),
     }
 }
 
@@ -183,7 +183,7 @@ pub(super) fn bind_unix() -> Verdict {
     } else {
         String::new()
     };
-    ok(format!("{file_text}{abstract_text}; podssh never listens"))
+    ok(format!("{file_text}{abstract_text}; podssh listens only for podssh pipe unix-listen:"))
 }
 
 fn socket_path() -> PathBuf {

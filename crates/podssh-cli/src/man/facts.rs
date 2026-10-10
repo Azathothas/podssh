@@ -115,6 +115,11 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     (&["LESS"], "Options for less. podssh man sets FRX when it starts less and LESS is not set."),
     (&["PATH"], "Where podssh man looks for less, and where podssh doctor looks for directories that run programs."),
     (
+        &["PODSSH_LISTEN"],
+        "no: podssh pipe listens on nothing, and unix-listen: and tcp-listen: exit 78 before any bind. \
+      Else they listen where the bind works.",
+    ),
+    (
         &["PODSSH_OFFLINE"],
         "Forbid each network connection. Test suites set it. podssh doctor then shows the network \
       checks as one ???? line.",

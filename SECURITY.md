@@ -66,13 +66,17 @@ Each rule is implemented.
   The message gives the line that matched. A key is recorded under the
   target host, never under the relay's name. A changed key is never replaced
   automatically: podssh gives the file, the line and both fingerprints.
-- **Nothing listens.** podssh opens outbound connections only. It never
-  executes something that it receives over chat. `podssh doctor` binds a
-  socket to test whether the host allows a bind, and closes it without
-  listening. The iroh road, in a build with the feature `iroh`, binds UDP
-  for its direct paths only after a probe allows it; with no UDP, its relay
-  carries each byte, and a peer is accepted only with the ALPN of podssh's
-  sessions.
+- **Nothing listens unless the user asks.** podssh opens outbound
+  connections only, except `podssh pipe` with `unix-listen:` or
+  `tcp-listen:`, which the user names: a Unix socket is made mode 0600 and
+  takes only programs of the same user, a TCP port takes each local user
+  (and other hosts when its address is not loopback), podssh says so, and
+  `PODSSH_LISTEN=no` turns listening off. It never executes something that
+  it receives over chat. `podssh doctor` binds a socket to test whether the
+  host allows a bind, and closes it without listening. The iroh road, in a
+  build with the feature `iroh`, binds UDP for its direct paths only after
+  a probe allows it; with no UDP, its relay carries each byte, and a peer
+  is accepted only with the ALPN of podssh's sessions.
 - **A node of the iroh road lets in only the keys of its allowlist.** Its
   ticket is an address, not a credential, so it may go on a command line.
   Each end's key is its identity, in a private file that podssh makes once

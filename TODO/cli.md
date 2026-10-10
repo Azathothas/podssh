@@ -76,7 +76,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
 6. Same commit: `docs/cli.md` (lines 62-75 at `3cbf215`), the help at
    `crates/podssh-cli/src/positionals.rs:20` and
    `crates/podssh-cli/src/positionals.rs:81`, an example in
-   `crates/podssh-cli/src/man/examples.rs:8-86`, `docs/relay.md`,
+   `crates/podssh-cli/src/man/examples.rs:8-90`, `docs/relay.md`,
    `docs/STATUS.md`. Use `2001:db8::/32` in offline tests only: the relay
    refuses that range.
 
@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs:456`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:484-485`).
+   (`docs/cli.md:509-510`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs:424-477`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:200-206`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:502` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:527` needs no change.
 
 ## Decision
 
@@ -492,10 +492,10 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:181-185`) read it.
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:28-177`)
-   and an example (`crates/podssh-cli/src/man/examples.rs:8-86`). Pitfall: the
+   and an example (`crates/podssh-cli/src/man/examples.rs:8-90`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:383-391`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:352-366`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:394-402`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:363-377`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:98-103`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -600,11 +600,11 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
 3. A malformed value names its source: `--timeout` (exit 64), or
    `PODSSH_TIMEOUT` (exit 78, see Decision). The variable never bounds `ssh`
    or `proxy`.
-4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-122`),
+4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-127`),
    which `each_variable_in_the_source_is_documented` requires
-   (`crates/podssh-cli/src/man/facts.rs:374-387`); "default: env
+   (`crates/podssh-cli/src/man/facts.rs:379-392`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:525-527`;
+   it (`crates/podssh-cli/src/flags.rs:169-170`); `docs/cli.md:550-552`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -958,7 +958,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
 3. `ONCE` and `repeated` refuse a second `-J`, `-W`, `--relay-host`,
    `--relay-addr` or `--ca-file` with exit 64 before anything connects
    (`crates/podssh-cli/src/ssh/args.rs:61-90`, called at
-   `crates/podssh-cli/src/tree.rs:374-378`).
+   `crates/podssh-cli/src/tree.rs:375-379`).
 4. `docs/cli.md:113-118` and a note of the manual
    (`crates/podssh-cli/src/man/notes.rs:79-81`) state the rule.
 
@@ -1044,7 +1044,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:163-166`
    names `podssh keygen -p`; `docs/cli.md:344-356`, the notes of `keygen`
-   (`crates/podssh-cli/src/man/notes.rs:313-321`), `docs/STATUS.md`.
+   (`crates/podssh-cli/src/man/notes.rs:324-332`), `docs/STATUS.md`.
 
 ## Decision
 
@@ -1380,7 +1380,7 @@ Measured offline:
 Read: the texts are at `crates/podssh-cli/src/help.rs` (lines 205-206 at
 `25ab0e7`), `crates/podssh-cli/src/man/notes.rs` (lines 31-32 at `25ab0e7`)
 and in the `-R` row (`crates/podssh-cli/src/flags.rs` lines 194-195 at
-`25ab0e7`). The keyword's text is at `crates/podssh-cli/src/ssh/options.rs:160`.
+`25ab0e7`). The keyword's text is at `crates/podssh-cli/src/ssh/options.rs:162`.
 A test keeps the wrong replacement: `the_forwarding_rows_all_name_w` asserts
 that `forward-remote` names `-W HOST:PORT`
 (`crates/podssh-cli/tests/flag_table.rs` lines 68-77 at `25ab0e7`).
@@ -1401,7 +1401,7 @@ that `forward-remote` names `-W HOST:PORT`
    gives the rule. Same commit: `docs/STATUS.md`.
 
 Pitfall: the manual tests read these texts. `each_name_in_a_note_exists`
-checks each flag that a note names (`crates/podssh-cli/src/man/notes.rs:418-422`),
+checks each flag that a note names (`crates/podssh-cli/src/man/notes.rs:429-433`),
 and the parity tests compare the sentence of each row in `--help` and in the
 manual (`crates/podssh-cli/tests/man_flag_parity.rs`). Change the row and both
 notes in one commit.
@@ -1459,7 +1459,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:484-485` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:509-510` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1575,7 +1575,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs:185`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:74`), called at
 `crates/podssh-ssh/src/auth.rs:184`, `crates/podssh-ssh/src/auth.rs:253`,
 `crates/podssh-ssh/src/keys.rs:212` and `crates/podssh-cli/src/keygen.rs:170`.
-Its refusals name the real remedies (`docs/cli.md:511-513`). Commands use
+Its refusals name the real remedies (`docs/cli.md:536-538`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:213-231`,
 `crates/podssh-cli/src/ts.rs:43-52`) and `refuse_jsonl_in_proxy`

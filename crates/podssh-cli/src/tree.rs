@@ -300,6 +300,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             a: get("a"),
             b: get("b"),
             ssh: crate::ssh::args::SshArgs::from_matches(&matches),
+            keep_listening: matches.get_flag("keep-listening"),
             refused,
         }));
     }

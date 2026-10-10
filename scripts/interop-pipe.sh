@@ -101,3 +101,35 @@ got=$(cut -c1-64 <"$PD/out")
     || bad "pipe ssh: exit $rc, digest '$got'" "$PD/err"
 kill "$late_pid" "$digest_pid" "$relay_pid" 2>/dev/null
 rm -rf "$PD"
+
+# The listeners (T-177). A TCP port, one client, through a program: equal
+# digests, and the listener ends with the session.
+"$BIN" pipe tcp-listen:127.0.0.1:0 exec:cat 2>"$PD/listen.err" &
+lpid=$!
+tries=0
+while ! grep -q "listening on" "$PD/listen.err" 2>/dev/null && [ "$tries" -lt 50 ]; do sleep 0.2; tries=$((tries + 1)); done
+at=$(sed -n 's/.*listening on \([^ ]*\): .*/\1/p' "$PD/listen.err" | head -n 1)
+env -u https_proxy -u HTTPS_PROXY "$BIN" pipe stdio "tcp:$at" <"$PD/in" >"$PD/out" 2>"$PD/err"
+rc=$?
+wait "$lpid"
+lrc=$?
+[ "$rc" = 0 ] && [ "$lrc" = 0 ] && cmp -s "$PD/in" "$PD/out" \
+    && ok "pipe tcp-listen: one client through exec:cat, 5,000,000 bytes back, unchanged" \
+    || bad "pipe tcp-listen: client exit $rc, listener exit $lrc" "$PD/listen.err"
+
+# A client of another user is closed: the abstract namespace has no file to
+# guard it, so the peer check does; then this user's client is served.
+cp "$BIN" /tmp/podssh-other && chmod 755 /tmp/podssh-other
+name="@podssh-interop-$$"
+"$BIN" pipe "unix-listen:$name" exec:cat 2>"$PD/listen.err" &
+lpid=$!
+tries=0
+while ! grep -q "listening on" "$PD/listen.err" 2>/dev/null && [ "$tries" -lt 50 ]; do sleep 0.2; tries=$((tries + 1)); done
+other=$(printf 'from another user\n' | timeout 30 su podtest -s /bin/sh -c "/tmp/podssh-other pipe stdio unix-connect:$name" 2>"$PD/other.err")
+mine=$(printf 'from this user\n' | timeout 30 "$BIN" pipe stdio "unix-connect:$name" 2>"$PD/err")
+wait "$lpid"
+lrc=$?
+rm -f /tmp/podssh-other
+grep -q "closed a client of uid" "$PD/listen.err" && [ -z "$other" ] && [ "$mine" = "from this user" ] && [ "$lrc" = 0 ] \
+    && ok "pipe unix-listen: a client of another user is closed, and this user's is served" \
+    || bad "pipe unix-listen and another user: other '$other', mine '$mine', listener exit $lrc" "$PD/listen.err"

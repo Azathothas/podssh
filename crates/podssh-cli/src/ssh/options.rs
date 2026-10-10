@@ -155,7 +155,9 @@ impl Settings {
                 ))
             }
             "localforward" | "dynamicforward" => {
-                return Err(format!("-o {name}: needs a local listener, and podssh never listens; use -W HOST:PORT"))
+                return Err(format!(
+                    "-o {name}: needs a local listener, which podssh ssh does not open yet; use -W HOST:PORT, or podssh pipe tcp-listen:"
+                ))
             }
             "remoteforward" => return Err(format!("-o {name}: remote forwarding is not implemented yet")),
             "forkafterauthentication" if yes_no(value) == Some(true) => {

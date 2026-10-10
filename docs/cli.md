@@ -432,15 +432,40 @@ commands. The rules behind them:
 
 `podssh man pipe` gives the command (T-174). The rules behind it:
 
-- **No listener.** `podssh pipe A B` joins two byte streams that exist
-  already: stdin and stdout (`-` or `stdio`), a descriptor that the caller
-  opened (`fd:N`, 3 or more, on Unix), a program (`exec:CMD`), or a road
-  (T-175): `relay:HOST:PORT`, `tcp:HOST:PORT`,
+- **No listener unless one side asks for one.** `podssh pipe A B` joins
+  two byte streams that exist already: stdin and stdout (`-` or `stdio`), a
+  descriptor that the caller opened (`fd:N`, 3 or more, on Unix), a program
+  (`exec:CMD`), or a road (T-175): `relay:HOST:PORT`, `tcp:HOST:PORT`,
   `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME` and `iroh:TICKET`; or a
-  local socket (T-176), `unix-connect:PATH`. Both addresses are checked
-  before anything starts; an unknown kind is a usage error (64) that lists
-  the kinds, and a kind of a later entry (`unix-listen:`, `tcp-listen:`,
-  `serial:`) exits 70.
+  local socket (T-176), `unix-connect:PATH`; or, on one side at most, a
+  listener (T-177): `unix-listen:PATH` or `tcp-listen:[ADDR:]PORT`. Both
+  addresses are checked before anything starts; an unknown kind is a usage
+  error (64) that lists the kinds, and `serial:`, the kind of a later
+  entry, exits 70.
+- **A listener only when asked, and only where a probe allows it** (the
+  operator's ruling of 2026-10-08). `PODSSH_LISTEN=no` turns listening off:
+  a listening address then exits 78 before any bind. The bind itself is
+  the probe: a host that refuses it gives 77, and the line names the error
+  and the addresses that need no listener; another failure gives 69.
+  `unix-listen:PATH` takes the names of `unix-connect:`; a socket's file is
+  made mode 0600 (umask 0177, as ssh-agent makes its socket), and a client
+  of another user is closed before a byte passes (`SO_PEERCRED`, or on
+  Windows the user of the client's process token), which also guards
+  `@NAME`, which has no file. `tcp-listen:PORT` listens on 127.0.0.1 and
+  `tcp-listen:ADDR:PORT` on an IP address of this host (`[::1]`, or
+  `localhost`); a TCP port takes each user of this host, and other hosts
+  too when ADDR is not loopback, and podssh says which; port 0 asks the
+  system for a free port, and the line names it. The first client is
+  joined to a new instance of the other side, which opens only then; the
+  listener closes, and its file goes, as soon as the client connects, and
+  the pipe ends with that session's status. `--keep-listening` takes each
+  client in turn, 8 at once, each with its own instance of the other side
+  (a new relay session, a new program), until SIGINT or SIGTERM. A signal
+  removes the socket's file, and podssh exits with 128 and its number. A
+  path that is a file and not a socket is kept (64); a socket that answers
+  is another program's (69); one that nobody serves is replaced. A named
+  pipe has no half-close: its listening side closes it at the end of its
+  input, and the client reads the rest, then its end.
 - **A local socket, by its name.** `unix-connect:PATH` connects, which the
   rule of no listener allows; `@NAME` is Linux's abstract namespace. A name
   that does not fit a socket's address is refused first (64). A missing

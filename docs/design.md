@@ -416,8 +416,9 @@ needs `bind`, which the measured sandbox refuses for TCP.
 Since T-174 and T-175, `podssh pipe` has the local addresses (`-`,
 `stdio`, `fd:N`, `exec:CMD`), the roads (`relay:`, `ssh:`, `node:`,
 `iroh:`) and `tcp:HOST:PORT`, the direct road through `HTTPS_PROXY`;
-since T-176, `unix-connect:PATH`, with a named pipe or AF_UNIX on Windows.
-The listeners exit 70 until T-177.
+since T-176, `unix-connect:PATH`, with a named pipe or AF_UNIX on Windows;
+since T-177, the listeners `unix-listen:PATH` and `tcp-listen:[ADDR:]PORT`,
+after a probe, for one client or, with `--keep-listening`, each in turn.
 
 A listener exists only where it is allowed: on the far side (a node, or SSH
 `-R`, where the server listens), or locally after a probe shows that an

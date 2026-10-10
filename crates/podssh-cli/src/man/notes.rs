@@ -67,9 +67,9 @@ const SSH: &[&str] = &[
      key that a passphrase opened and a password that the server took are kept for the run. Keys \
      typed meanwhile go to the session after the attach. With a command, -W, -N, -s, -T, node:// or \
      iroh:, --persist is refused (exit 64).",
-    "-L and -D are refused by name: each needs a local listener, and podssh never listens on a port. \
-     Use -W HOST:PORT, which carries one connection over the session. -R is refused by name too: \
-     remote forwarding is not implemented yet.",
+    "-L and -D are refused by name: podssh ssh opens no local listener yet. Use -W HOST:PORT, which \
+     carries one connection over the session, or podssh pipe with tcp-listen: and ssh:. -R is \
+     refused by name too: remote forwarding is not implemented yet.",
     "-P is the tag of OpenSSH on ssh, not a port, and podssh ignores it. On scp and sftp, -P is the port. \
      Use -p for the port of ssh.",
     "Paths in -i and in the IdentityFile, UserKnownHostsFile, GlobalKnownHostsFile and IdentityAgent \
@@ -177,7 +177,8 @@ const PROXY: &[&str] = &[
 ];
 
 const PIPE: &[&str] = &[
-    "podssh pipe A B joins two byte streams, as socat does, with no listener: what A gives goes to B, \
+    "podssh pipe A B joins two byte streams, as socat does, with no listener unless one side asks for \
+     one: what A gives goes to B, \
      and what B gives goes to A. Each address is KIND:REST: - or stdio (stdin and stdout), fd:N (a \
      descriptor that podssh inherited, 3 or more, on Unix), or exec:CMD (a program); relay:HOST:PORT \
      (TCP through the relay, as podssh proxy carries it), tcp:HOST:PORT (TCP from this host, through \
@@ -186,6 +187,15 @@ const PIPE: &[&str] = &[
      the iroh road), or unix-connect:PATH (a local socket; @NAME in Linux's abstract namespace; on \
      Windows a Unix socket or a named pipe, \\\\.\\pipe\\NAME). Both are checked before anything \
      starts, and stdio on both sides is refused.",
+    "unix-listen:PATH (by the names of unix-connect:) and tcp-listen:[ADDR:]PORT (on 127.0.0.1, or on \
+     ADDR, an address of this host; port 0 asks for a free one) listen, one side at most. The bind is \
+     the probe: a host that refuses it gives 77, and the line names the error. A Unix socket is made \
+     mode 0600 and takes only this user's programs: a client of another user is closed. A TCP port \
+     takes each user of this host, and other hosts too when ADDR is not loopback; podssh says which. \
+     The first client is joined to a new instance of the other side, then the listener closes and its \
+     file goes; --keep-listening takes each client in turn, 8 at once, until SIGINT or SIGTERM, after \
+     which the file goes too. A path that is a file and not a socket is kept (64), and a socket that \
+     answers is another program's (69). PODSSH_LISTEN set to no turns listening off (78).",
     "The hops of ssh: log in as podssh ssh logs in: through the relay, or with --direct, with -i and \
      -o; an -o of a session (RequestTTY, RemoteCommand) is refused. node: takes the pair stored under \
      NAME, or the one of --pair-file. iroh: takes this client's key of --iroh-key, and the relays of \
@@ -197,14 +207,15 @@ const PIPE: &[&str] = &[
     "When one side's input ends, the other side gets the end of its input, and the other direction goes \
      on, so that a reply still comes back: tcp:, ssh: and unix-connect: pass it on as a half-close. The \
      relay has no half-close, so relay: sends nothing at the end of input, and the target's bytes come \
-     until it closes, as a named pipe's do; node: and iroh: end their session. The pipe ends when both \
+     until it closes, as a named pipe's do, whose listening side closes it at its end of input; node: \
+     and iroh: end their session. The pipe ends when both \
      have ended, when a side's reader is gone, when a program has exited and its output has ended, or \
      when a road has ended. podssh waits for each program, as a shell does.",
     "A road that failed gives the exit status, as podssh proxy gives it: 69 for a road out of reach, 77 \
      for a refusal (of the relay, a proxy, a host key or a login) and 78 for a setting that cannot be \
      used. Else the status is the program's (B's when both are programs), 128 + N for a signal, 127 for \
-     a program that is not found and 126 for one that cannot run; with neither, 0. The addresses \
-     unix-listen:, tcp-listen: and serial: are not built yet, and exit 70.",
+     a program that is not found and 126 for one that cannot run; with neither, 0. The address serial: \
+     is not built yet, and exits 70.",
 ];
 
 const NODE: &[&str] = &[
