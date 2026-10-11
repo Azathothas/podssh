@@ -8,10 +8,10 @@ use std::sync::Mutex;
 use russh::Pty;
 use windows_sys::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::System::Console::{
-    GetConsoleMode, GetConsoleScreenBufferInfo, GetStdHandle, ReadConsoleW, SetConsoleMode, CONSOLE_SCREEN_BUFFER_INFO,
-    DISABLE_NEWLINE_AUTO_RETURN, ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT,
-    ENABLE_VIRTUAL_TERMINAL_INPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, STD_ERROR_HANDLE, STD_INPUT_HANDLE,
-    STD_OUTPUT_HANDLE,
+    GetConsoleMode, GetConsoleScreenBufferInfo, GetStdHandle, ReadConsoleW, SetConsoleCtrlHandler, SetConsoleMode,
+    CONSOLE_SCREEN_BUFFER_INFO, DISABLE_NEWLINE_AUTO_RETURN, ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT,
+    ENABLE_PROCESSED_INPUT, ENABLE_VIRTUAL_TERMINAL_INPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, STD_ERROR_HANDLE,
+    STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
 };
 use zeroize::Zeroizing;
 
@@ -70,6 +70,15 @@ fn restore_saved() {
     }
 }
 
+/// Ctrl-Break, a closed window, logoff and shutdown end podssh through the
+/// console's default handler, which runs no destructor (T-295): the modes go
+/// back first, and the default handler then ends podssh, as before. Ctrl-C
+/// is a key in raw mode, and comes here only from another process.
+unsafe extern "system" fn restore_then_end(_event: u32) -> windows_sys::core::BOOL {
+    restore_saved();
+    0
+}
+
 /// The console in raw mode, with VT sequences both ways, until dropped.
 pub struct RawMode(());
 
@@ -100,6 +109,8 @@ impl RawMode {
             }
         }
         super::set_raw_active(true);
+        // SAFETY: a handler with no state of its own, removed on drop.
+        unsafe { SetConsoleCtrlHandler(Some(restore_then_end), 1) };
         let previous = std::panic::take_hook();
         std::panic::set_hook(Box::new(move |info| {
             restore_saved();
@@ -111,6 +122,8 @@ impl RawMode {
 
 impl Drop for RawMode {
     fn drop(&mut self) {
+        // SAFETY: the handler that `enter` added.
+        unsafe { SetConsoleCtrlHandler(Some(restore_then_end), 0) };
         restore_saved();
     }
 }

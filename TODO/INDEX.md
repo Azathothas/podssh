@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**292 entries: 66 open, 0 partial, 24 blocked, 202 done.**
+**292 entries: 65 open, 0 partial, 24 blocked, 203 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
-| P2 | 5 | 0 | 18 | 135 | 158 |
+| P2 | 4 | 0 | 18 | 136 | 158 |
 | P3 | 59 | 0 | 6 | 44 | 109 |
-| **All** | 66 | 0 | 24 | 202 | 292 |
+| **All** | 65 | 0 | 24 | 203 | 292 |
 
 ## Entries
 
@@ -366,4 +366,4 @@ repository and CI).
 | [T-292](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius |
 | [T-293](terminal.md) | P3 | M | backlog | feature | open | Ctrl-C with no remote pty sends `signal INT` to the command |
 | [T-294](terminal.md) | P1 | S | none | defect | done | Output that is not UTF-8 stops the session's output in a Windows console |
-| [T-295](terminal.md) | P2 | S | none | defect | open | Ctrl-Break leaves the Windows console raw |
+| [T-295](terminal.md) | P2 | S | none | defect | done | Ctrl-Break leaves the Windows console raw |

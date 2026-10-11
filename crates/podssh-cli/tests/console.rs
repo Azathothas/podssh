@@ -3,8 +3,7 @@
 //! the console shows of the server's output, what reaches the server of a
 //! resize, and the console's input mode after the session, read by a process
 //! of the console around podssh (`console_wrapper`): also after a byte of
-//! output that is not UTF-8 (T-294). The test of Ctrl-Break states what its
-//! fix must give, and is ignored until it lands (T-295).
+//! output that is not UTF-8 (T-294), and after Ctrl-Break (T-295).
 #![cfg(windows)]
 
 mod cleanup;
@@ -210,7 +209,6 @@ fn the_escape_leaves_the_console_mode_as_it_was() {
 /// Ctrl-Break, a signal of the console in each mode, ends podssh and leaves
 /// the console's input mode as it was (T-295).
 #[test]
-#[ignore = "fails until T-295: the default handler ends podssh with the console raw"]
 fn ctrl_break_leaves_the_console_mode_as_it_was() {
     let home = scratch("break");
     let (_runtime, port) = server(&home);
