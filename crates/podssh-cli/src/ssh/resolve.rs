@@ -66,6 +66,8 @@ pub struct Resolved {
     /// one with no address listens on each address (`-g`, `GatewayPorts`).
     pub local: Vec<super::local_spec::LocalSpec>,
     pub gateway_ports: bool,
+    /// `-M`, `-S`, `-O` and the control keywords (T-039).
+    pub control: super::control::Plan,
 }
 
 /// What the process environment contributes, gathered once so it can be
@@ -285,6 +287,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         None => settings.escape_char.unwrap_or(Some(b'~')),
     };
     let agents = super::agents::choose(args.forward_agent, &settings, &expand)?;
+    let control = super::control::plan(args, &settings, &expand)?;
     let mut log_level = settings.log_level.unwrap_or(LogLevel::Info);
     if args.quiet > 0 {
         log_level = LogLevel::Quiet;
@@ -441,6 +444,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         shown,
         local: forwards.local,
         gateway_ports: args.gateway_ports || settings.gateway_ports.unwrap_or(false),
+        control,
     };
     super::persist::check(args, &mut resolved)?;
     Ok(resolved)

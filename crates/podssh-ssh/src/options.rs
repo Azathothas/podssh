@@ -171,6 +171,9 @@ pub struct Options {
     /// `-L` and `-D` (T-038), each with the listeners that the caller bound
     /// before the connection; served on the destination's connection.
     pub local_forwards: Vec<crate::local::LocalForward>,
+    /// The control socket that this run serves as a master (T-039).
+    #[cfg(unix)]
+    pub control: Option<crate::mux::ControlSlot>,
     /// `ExitOnForwardFailure`: a forward that the server refuses ends the run.
     pub exit_on_forward_failure: bool,
     /// The name the destination's host key is filed under (`HostKeyAlias`);
@@ -276,6 +279,8 @@ impl Options {
             destination,
             remote_forwards: Vec::new(),
             local_forwards: Vec::new(),
+            #[cfg(unix)]
+            control: None,
             exit_on_forward_failure: false,
             host_key_alias: None,
             jump: Vec::new(),

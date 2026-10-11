@@ -72,7 +72,7 @@ finished.
 ### Citations are checked
 
 - Write a path of this repository in backticks, with a line or a range where
-  it matters: `crates/podssh-cli/src/tree.rs:52`. The checker fails when the
+  it matters: `crates/podssh-cli/src/tree.rs:53`. The checker fails when the
   file or the line does not exist, also for a wrong case.
 - After an edit of a cited file, run `cargo todo remap FILE` in the same
   change. The checker fails on a file that changed since `HEAD` when a

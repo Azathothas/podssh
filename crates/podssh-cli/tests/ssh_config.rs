@@ -16,7 +16,8 @@ use podssh_cli::tree::{parse, Parsed};
 #[rustfmt::skip]
 const EVERY: &[&str] = &[
     "-g", "-L", "8082:db:5432", "-D", "1080", "-o", "DynamicForward 127.0.0.1:1081",
-    "-o", "LocalForward /tmp/l.sock db:22",
+    "-o", "LocalForward /tmp/l.sock db:22", "-o", "ControlMaster=auto", "-o", "ControlPath=/tmp/podssh-ctl",
+    "-o", "ControlPersist=10m",
     "-A", "-p", "2222", "-l", "alice", "-i", "/tmp/podssh-k1", "-o", "UserKnownHostsFile=/tmp/podssh-kh",
     "-o", "GlobalKnownHostsFile=none", "-o", "ServerAliveInterval=30", "-o", "ConnectTimeout=7",
     "-o", "StrictHostKeyChecking=accept-new", "-o", "SendEnv=LANG", "-o", "SetEnv=A=1", "-o", "LogLevel=VERBOSE",
@@ -35,6 +36,7 @@ port 2222
 addressfamily inet
 batchmode yes
 compression yes
+controlmaster auto
 clearallforwardings no
 exitonforwardfailure yes
 gatewayports yes
@@ -50,6 +52,7 @@ connectionattempts 3
 numberofpasswordprompts 2
 serveralivecountmax 5
 serveraliveinterval 30
+controlpath /tmp/podssh-ctl
 hostkeyalias al
 identityagent none
 remotecommand uptime
@@ -70,6 +73,7 @@ sendenv LANG
 setenv A=1
 forwardagent yes
 connecttimeout 7
+controlpersist 600
 escapechar %
 proxyjump u@b:2200,c";
 
@@ -87,6 +91,7 @@ port 22
 addressfamily any
 batchmode no
 compression no
+controlmaster false
 clearallforwardings no
 exitonforwardfailure no
 gatewayports no
@@ -112,6 +117,7 @@ globalknownhostsfile /etc/ssh/ssh_known_hosts /etc/ssh/ssh_known_hosts2
 userknownhostsfile /tmp/podssh-kh
 forwardagent no
 connecttimeout none
+controlpersist no
 escapechar ~";
 
 /// The lines that differ on purpose, podssh's first: keepalives keep the

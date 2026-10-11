@@ -2,7 +2,7 @@ This file holds the defects of the line discipline in `crates/podssh-terminal`,
 the rows L1 to L5 of the former defects page (`git show 3ee70dc:docs/defects.md`),
 as T-125 to T-129. `podssh serve` needs the crate on a host with no
 `/dev/ptmx` (T-111), so they come before it. No command uses the crate yet
-(`docs/STATUS.md:322`), so each defect is P2 at most. Three small terminal
+(`docs/STATUS.md:323`), so each defect is P2 at most. Three small terminal
 items for the backlog follow.
 
 # T-125: L1: the mode selection of the line discipline is the wrong way round
@@ -52,7 +52,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    discipline (T-111); a client flag can select it later. Invariant: the
    absence of a pty alone never selects `Cooked`.
 5. Rewrite the tests above to the new table. Same commit:
-   `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:322`, and the module notes
+   `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:323`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-46`,
    `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
    from the lines that you change (`AGENTS.md:208-209`).
@@ -139,7 +139,7 @@ writes over the rows above it.
   `Session::on_resize` gives the size to `Window` only
   (`crates/podssh-terminal/src/session.rs` lines 214-219).
 - Read: `podssh-ssh` has a raw mode and a size that work, and the gate checks
-  them (`crates/podssh-ssh/src/terminal/unix.rs:12-76`,
+  them (`crates/podssh-ssh/src/terminal/unix.rs:12-77`,
   `crates/podssh-ssh/src/terminal/windows.rs:31-111`, `docs/STATUS.md:70`).
 - Read, at `7e4a518`: the crate has its own `TERM` rule: it replaces `dumb` and
   `unknown`, and reads `PODSSH_TERM`
@@ -160,7 +160,7 @@ writes over the rows above it.
 4. One `TERM` rule: remove the crate's selection, because the caller sends
    the `TERM` of the request. Remove the unused `libc` dependency.
 5. Same commit: `docs/terminal.md` (who owns raw mode and the size),
-   `docs/STATUS.md:322`.
+   `docs/STATUS.md:323`.
 
 ## Decision
 
@@ -285,7 +285,7 @@ character takes two cells and counts as one.
   (`crates/podssh-terminal/src/echo.rs` lines 212-224), so a line that is not UTF-8
   comes back changed when it is recalled.
 - Read: the client sends `IUTF8` in its pty modes
-  (`crates/podssh-ssh/src/terminal/unix.rs:145-151`), so serve (T-111) knows
+  (`crates/podssh-ssh/src/terminal/unix.rs:151-157`), so serve (T-111) knows
   from `pty-req` whether the terminal is UTF-8. `unicode-width` is not in
   `Cargo.lock`.
 
@@ -299,7 +299,7 @@ character takes two cells and counts as one.
 3. Backspace, Ctrl-W, Ctrl-D and the arrows act on whole characters; the
    rubout and the arrow echo use the cell count (`ESC [ n D`).
 4. The history keeps bytes (`Vec<u8>`), not lossy strings.
-5. Same commit: `docs/terminal.md:81-119` (the rules), `docs/STATUS.md:322`.
+5. Same commit: `docs/terminal.md:81-119` (the rules), `docs/STATUS.md:323`.
 
 ## Decision
 
@@ -411,7 +411,7 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
    CSI state. Invariant: an escape never consumes Ctrl-C, Ctrl-D or Enter.
 3. A printable byte after a lone `ESC`: see Decision.
 4. Rewrite the tests that pin the loss. Same commit: `docs/terminal.md`
-   lines 104-111 at `a7648ff`, `docs/STATUS.md:322`.
+   lines 104-111 at `a7648ff`, `docs/STATUS.md:323`.
 
 ## Decision
 
@@ -556,7 +556,7 @@ that arrives during an edit is written over the edited line.
    output is written, then the prompt and the line are drawn again with the
    cursor in place. Invariant: output never changes the line under edit.
 5. Rewrite the tests that pin the old behaviour. Same commit:
-   `docs/terminal.md` lines 142-151 at `cb94460`, `docs/STATUS.md:322`.
+   `docs/terminal.md` lines 142-151 at `cb94460`, `docs/STATUS.md:323`.
 
 ## Decision
 

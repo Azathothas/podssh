@@ -30,6 +30,18 @@ pub struct Bound {
 /// it for each channel that the server opens.
 pub type Table = Arc<Mutex<Vec<Bound>>>;
 
+/// The destination's table, where a control master adds the forwards of
+/// `-O forward -R` (T-039): a process runs one chain of connections.
+static DESTINATION: Mutex<Option<Table>> = Mutex::new(None);
+
+pub fn set_destination(table: Table) {
+    *DESTINATION.lock().unwrap_or_else(|e| e.into_inner()) = Some(table);
+}
+
+pub fn destination() -> Option<Table> {
+    DESTINATION.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
 /// Ask the server for each forward of `opts`, after the login. A refused one
 /// ends the run when `ExitOnForwardFailure` asks for it, as in OpenSSH, and
 /// is a warning else.

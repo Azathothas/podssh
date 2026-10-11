@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**276 entries: 99 open, 0 partial, 22 blocked, 155 done.**
+**276 entries: 98 open, 0 partial, 22 blocked, 156 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 17 | 0 | 18 | 119 | 154 |
+| P2 | 16 | 0 | 18 | 120 | 154 |
 | P3 | 80 | 0 | 4 | 19 | 103 |
-| **All** | 99 | 0 | 22 | 155 | 276 |
+| **All** | 98 | 0 | 22 | 156 | 276 |
 
 ## Entries
 
@@ -112,7 +112,7 @@ repository and CI).
 | [T-036](forwarding.md) | P2 | M | backlog | feature | done | `-A`: agent forwarding, off by default as in OpenSSH |
 | [T-037](forwarding.md) | P3 | M | backlog | feature | open | `-X` and `-Y`: X11 forwarding to the display that `DISPLAY` names |
 | [T-038](forwarding.md) | P2 | M | backlog | feature | done | `-L` and `-D` when a probe shows that a local bind is allowed |
-| [T-039](forwarding.md) | P2 | M | backlog | feature | open | Connection sharing: `ControlMaster`, `ControlPath`, `-O` and `-S` over an AF_UNIX socket |
+| [T-039](forwarding.md) | P2 | M | backlog | feature | done | Connection sharing: `ControlMaster`, `ControlPath`, `-O` and `-S` over an AF_UNIX socket |
 | [T-040](forwarding.md) | P3 | S | backlog | feature | open | `-W` to a Unix socket on the server (streamlocal) |
 | [T-041](forwarding.md) | P3 | S | backlog | feature | open | The forwards of a session: a list and byte counts |
 | [T-042](forwarding.md) | P3 | S | backlog | feature | open | `-R` forwards come back after a drop |

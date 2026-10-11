@@ -56,6 +56,7 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
         format!("addressfamily {}", family(s.family)),
         format!("batchmode {}", yes(o.batch_mode)),
         format!("compression {}", yes(o.compression)),
+        format!("controlmaster {}", resolved.control.mode.shown()),
         format!("clearallforwardings {}", yes(s.clear_all_forwardings)),
         format!("exitonforwardfailure {}", yes(o.exit_on_forward_failure)),
         format!("gatewayports {}", yes(resolved.gateway_ports)),
@@ -72,6 +73,9 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
         format!("serveralivecountmax {}", o.keepalive_max),
         format!("serveraliveinterval {}", o.keepalive_interval.map_or(0, |d| d.as_secs())),
     ];
+    if let Some(path) = &resolved.control.path {
+        out.push(format!("controlpath {}", path.display()));
+    }
     if let Some(alias) = &o.host_key_alias {
         out.push(format!("hostkeyalias {alias}"));
     }
@@ -107,6 +111,7 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
     out.extend(o.set_env.iter().map(|(name, value)| format!("setenv {name}={value}")));
     out.push(format!("forwardagent {}", s.forward_agent));
     out.push(format!("connecttimeout {}", o.connect_timeout.as_secs()));
+    out.push(format!("controlpersist {}", resolved.control.persist.shown()));
     out.push(format!("escapechar {}", escape_char(o.escape_char)));
     if let Some(jump) = &s.proxy_jump {
         out.push(format!("proxyjump {jump}"));

@@ -34,6 +34,7 @@ pub mod keys;
 pub mod known_hosts;
 pub mod local;
 pub mod log;
+pub mod mux;
 pub mod options;
 pub mod persist;
 pub mod probe;

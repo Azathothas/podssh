@@ -280,6 +280,7 @@ Host *
 const SAME: &str = "addressfamily any
 batchmode no
 compression no
+controlmaster false
 clearallforwardings no
 exitonforwardfailure no
 gatewayports no
@@ -299,6 +300,7 @@ const FILES: &str = "globalknownhostsfile none
 userknownhostsfile /kh/user
 forwardagent no
 connecttimeout 7
+controlpersist no
 escapechar ~";
 
 /// Each case: the words, then OpenSSH's lines before `SAME`, its

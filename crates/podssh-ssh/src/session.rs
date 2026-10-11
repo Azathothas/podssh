@@ -155,7 +155,9 @@ pub(crate) async fn wait_reply(channel: &mut Channel<Msg>, early: &mut Vec<Chann
 }
 
 /// `SetEnv` pairs, then local variables matching a `SendEnv` pattern.
-fn environment(opts: &Options) -> Vec<(String, String)> {
+/// The variables of `SetEnv` and `SendEnv`, as a session sends them; a
+/// client of a control master sends them too (T-039).
+pub fn environment(opts: &Options) -> Vec<(String, String)> {
     let mut out = opts.set_env.clone();
     if opts.send_env.is_empty() {
         return out;

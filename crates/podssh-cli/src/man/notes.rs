@@ -103,6 +103,13 @@ const SSH: &[&str] = &[
      server, and root on it, can use each key of the agent, though it cannot read one. podssh does not bind \
      the agent to the server's host key, as OpenSSH does, so the hosts that an agent limits a key to do \
      not hold over it. An agent channel that a server opens with no -A is refused, with a warning.",
+    "-M with -S PATH (or ControlMaster and ControlPath) makes this run the control master, on Unix: other \
+     runs with -S PATH go through its one connection, as with OpenSSH, whose ssh -O check and clients \
+     work with it; a second -M asks before each request. -O check, forward, cancel, exit and stop speak to the \
+     master. With no master there, a run connects alone, and ControlMaster auto makes it the master. \
+     The socket is made mode 0600 before anything connects, and goes with the master. ControlPersist keeps \
+     a -N master with no client for that long; podssh does not go to the background. On Windows, -M, -S \
+     and -O are refused (exit 64).",
     "-P is the tag of OpenSSH on ssh, not a port, and podssh ignores it. On scp and sftp, -P is the port. \
      Use -p for the port of ssh.",
     "-G prints the settings in effect, as ssh -G does: a line of keyword and value for each keyword of \

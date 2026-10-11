@@ -82,8 +82,9 @@ Each rule is implemented.
   automatically: podssh gives the file, the line and both fingerprints.
 - **Nothing listens unless the user asks.** podssh opens outbound
   connections only, except `podssh pipe` with `unix-listen:` or
-  `tcp-listen:` and `podssh ssh` with `-L` or `-D` (T-038), which the user
-  names, and `podssh agent`, which the user starts (T-034): each listener
+  `tcp-listen:`, `podssh ssh` with `-L` or `-D` (T-038) and the control
+  socket of `-M` (T-039), which the user names, and `podssh agent`, which
+  the user starts (T-034): each listener
   is made before anything connects, and refuses the run when it cannot be;
   a port of `-L` or `-D` with no address is loopback only; a Unix socket
   is made mode 0600 (the agent's in a new

@@ -17,7 +17,9 @@ publish.workspace = true
 [dependencies]
 russh = { version = "0.64.1", default-features = false, features = ["aws-lc-rs", "rsa", "flate2"] }
 podssh-ws = { path = "../podssh-ws" }
-tokio = { workspace = true, features = ["signal", "process"] }
+# fs: a descriptor that a control client passes and epoll does not take
+# (a regular file) is read and written on tokio's blocking threads (T-039).
+tokio = { workspace = true, features = ["signal", "process", "fs"] }
 zeroize = { workspace = true }
 base64 = { workspace = true }
 hmac = { workspace = true }

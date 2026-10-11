@@ -28,6 +28,11 @@ pub const HONOURED: &[Keyword] = &[
     kw("ChallengeResponseAuthentication", "yes|no", "the old name of KbdInteractiveAuthentication", "no"),
     kw("ClearAllForwardings", "yes|no", "yes: no -L, -D or -R, from the command line or a file (default no)", "yes"),
     kw("Compression", "yes|no", "the same as -C", "yes"),
+    kw("ControlMaster", "yes|no|ask|auto|autoask", "be the master of ControlPath (yes is -M, ask is -MM; auto: when \
+        none answers); Unix only (default no)", "auto"),
+    kw("ControlPath", "PATH|none", "the control socket: a run goes through its master when one answers (the same \
+        as -S); it takes the tokens", "/tmp/cm-%C"),
+    kw("ControlPersist", "yes|no|TIME", "how long a -N master stays with no client (default no)", "10m"),
     kw("ConnectTimeout", "SECONDS", "the limit on the SSH handshake, and on each answer of the server while \
         podssh logs in (default 60)", "30"),
     kw("ConnectionAttempts", "1-100", "rounds over the relay hosts, or dials with --direct (default 1)", "3"),
@@ -75,7 +80,7 @@ pub const IGNORED: &[&str] = &[
     "AddKeysToAgent", "BindAddress", "BindInterface", "CanonicalDomains", "CanonicalizeFallbackLocal",
     "CanonicalizeHostname", "CanonicalizeMaxDots", "CanonicalizePermittedCNAMEs", "CASignatureAlgorithms",
     "CertificateFile", "ChannelTimeout", "CheckHostIP", "Ciphers",
-    "ControlMaster", "ControlPath", "ControlPersist", "EnableEscapeCommandline", "EnableSSHKeysign",
+    "EnableEscapeCommandline", "EnableSSHKeysign",
     "FingerprintHash", "ForwardX11", "ForwardX11Timeout",
     "ForwardX11Trusted", "GSSAPIAuthentication", "GSSAPIClientIdentity", "GSSAPIDelegateCredentials",
     "GSSAPIKeyExchange", "GSSAPIKexAlgorithms", "GSSAPIRenewalForcesRekey", "GSSAPIServerIdentity", "GSSAPITrustDns",
@@ -188,6 +193,9 @@ mod tests {
         assert_eq!(d("ForwardAgent"), "no");
         assert_eq!(d("GatewayPorts"), "no");
         assert_eq!(d("ClearAllForwardings"), "no");
+        assert_eq!(d("ControlMaster"), "no");
+        assert_eq!(d("ControlPersist"), "no");
+        assert_eq!(r.control, crate::ssh::control::Plan::default());
         assert_eq!(o.forward_agent, podssh_ssh::Agent::Off);
     }
 }

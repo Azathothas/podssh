@@ -29,7 +29,8 @@ use clap::{Arg, ArgAction, ArgMatches, Command};
 /// first occurrence.
 fn counted(long: &str) -> bool {
     // `-tt` is how OpenSSH forces a pty without a local terminal.
-    matches!(long, "verbose" | "quiet" | "force-tty")
+    // `-MM` asks before each use of the master, as in OpenSSH.
+    matches!(long, "verbose" | "quiet" | "force-tty" | "control-master")
 }
 
 /// Value flags a user may give more than once, each value kept, in order.

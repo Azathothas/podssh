@@ -160,16 +160,34 @@ where
     let result = match &opts.request {
         Request::StdioForward { host, port } => {
             retry::reached(Phase::Requested);
-            Ok(forward::stdio(handles.last().expect("the destination"), host, *port, log).await)
+            let handle = handles.last().expect("the destination");
+            with_master(handle, opts, log, async { Ok(forward::stdio(handle, host, *port, log).await) }, Ok(0)).await
         }
         Request::Nothing => {
             // The wait of -N is its request: a drop after it is no failure
             // to try again.
             retry::reached(Phase::Requested);
             let mut handle = handles.pop().expect("the destination");
-            // -L and -D serve while -N waits for the end (T-038).
-            if !opts.local_forwards.is_empty() {
-                crate::local::alongside(&handle, &opts.local_forwards, log, crate::local::closed(&handle)).await;
+            // -L, -D and a control master serve while -N waits for the end
+            // (T-038, T-039); a master may end the run itself.
+            if !opts.local_forwards.is_empty() || masters(opts) {
+                let wait = crate::local::alongside(&handle, &opts.local_forwards, log, crate::local::closed(&handle));
+                let closed = with_master(
+                    &handle,
+                    opts,
+                    log,
+                    async {
+                        wait.await;
+                        true
+                    },
+                    false,
+                )
+                .await;
+                if !closed {
+                    handles.push(handle);
+                    disconnect_all(&handles).await;
+                    return Ok(0);
+                }
             }
             let ended = (&mut handle).await;
             handles.push(handle);
@@ -189,11 +207,52 @@ where
         }
         _ => {
             let handle = handles.last().expect("the destination");
-            crate::local::alongside(handle, &opts.local_forwards, log, session::run(handle, opts, &host, log)).await
+            let session =
+                crate::local::alongside(handle, &opts.local_forwards, log, session::run(handle, opts, &host, log));
+            with_master(handle, opts, log, session, Ok(0)).await
         }
     };
     disconnect_all(&handles).await;
     result
+}
+
+/// Whether this run serves a control socket (T-039).
+fn masters(opts: &Options) -> bool {
+    #[cfg(unix)]
+    return opts.control.is_some();
+    #[cfg(not(unix))]
+    {
+        let _ = opts;
+        false
+    }
+}
+
+/// `work` on `handle`, with the run's control master served meanwhile
+/// (T-039); `ended` when a client said `-O exit`, or the master was idle
+/// for its `ControlPersist`.
+async fn with_master<T>(
+    handle: &Handle<Client>,
+    opts: &Options,
+    log: &Arc<Log>,
+    work: impl std::future::Future<Output = T>,
+    ended: T,
+) -> T {
+    #[cfg(unix)]
+    {
+        let control = opts.control.as_ref().and_then(crate::mux::ControlSlot::take);
+        match crate::mux::alongside(handle, control, log, work).await {
+            crate::mux::Mastered::Done(out) => out,
+            crate::mux::Mastered::Ended(why) => {
+                log.verbose(&format!("the control master ended the run: {why:?}"));
+                ended
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (handle, opts, log, ended);
+        work.await
+    }
 }
 
 /// The SSH handshake and login for one hop.
@@ -229,6 +288,9 @@ where
     let refusal = client.refusal();
     let disconnect = client.disconnect();
     let forwards = client.forwards();
+    if is_destination {
+        crate::remote::set_destination(forwards.clone());
+    }
     let label = display(hop);
     log.verbose(&format!("SSH handshake with {label}"));
     let handshake = russh::client::connect_stream(config, stream, client);

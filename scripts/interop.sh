@@ -420,6 +420,8 @@ saved=$(p 2201 $K -o BatchMode=yes "$T" 'cat /tmp/pipe-vi' </dev/null 2>/dev/nul
 . "$HERE/interop-agent.sh"
 # shellcheck source=scripts/interop-local.sh
 . "$HERE/interop-local.sh"
+# shellcheck source=scripts/interop-control.sh
+. "$HERE/interop-control.sh"
 # shellcheck source=scripts/interop-faults.sh
 . "$HERE/interop-faults.sh"
 # shellcheck source=scripts/interop-cp.sh

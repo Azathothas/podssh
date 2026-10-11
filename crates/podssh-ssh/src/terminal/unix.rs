@@ -10,21 +10,22 @@ use zeroize::Zeroizing;
 use super::Size;
 
 pub fn size() -> Option<Size> {
-    for fd in [libc::STDOUT_FILENO, libc::STDIN_FILENO, libc::STDERR_FILENO] {
-        // SAFETY: an all-zero winsize is valid, and TIOCGWINSZ only writes
-        // into the struct passed.
-        let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
-        let rc = unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
-        if rc == 0 && ws.ws_col > 0 && ws.ws_row > 0 {
-            return Some(Size {
-                cols: ws.ws_col.into(),
-                rows: ws.ws_row.into(),
-                px_width: ws.ws_xpixel.into(),
-                px_height: ws.ws_ypixel.into(),
-            });
-        }
-    }
-    None
+    [libc::STDOUT_FILENO, libc::STDIN_FILENO, libc::STDERR_FILENO].into_iter().find_map(size_of_fd)
+}
+
+/// The window size of the terminal behind `fd`: for podssh's own terminal,
+/// and for a client's that a control master holds (T-039).
+pub fn size_of_fd(fd: libc::c_int) -> Option<Size> {
+    // SAFETY: an all-zero winsize is valid, and TIOCGWINSZ only writes into
+    // the struct passed.
+    let mut ws: libc::winsize = unsafe { std::mem::zeroed() };
+    let rc = unsafe { libc::ioctl(fd, libc::TIOCGWINSZ, &mut ws) };
+    (rc == 0 && ws.ws_col > 0 && ws.ws_row > 0).then(|| Size {
+        cols: ws.ws_col.into(),
+        rows: ws.ws_row.into(),
+        px_width: ws.ws_xpixel.into(),
+        px_height: ws.ws_ypixel.into(),
+    })
 }
 
 /// The settings to put back, kept where a panic hook can reach them: the
@@ -79,9 +80,14 @@ impl Drop for RawMode {
 /// pty behaves like the local terminal (the erase key above all). Empty when
 /// stdin is not a terminal, as OpenSSH sends.
 pub fn pty_modes() -> Vec<(Pty, u32)> {
+    pty_modes_of(libc::STDIN_FILENO)
+}
+
+/// The modes of the terminal behind `fd`, as [`pty_modes`] gives them.
+pub fn pty_modes_of(fd: libc::c_int) -> Vec<(Pty, u32)> {
     // SAFETY: tcgetattr writes into a struct we own.
     let mut t: libc::termios = unsafe { std::mem::zeroed() };
-    if unsafe { libc::tcgetattr(libc::STDIN_FILENO, &mut t) } != 0 {
+    if unsafe { libc::tcgetattr(fd, &mut t) } != 0 {
         return Vec::new();
     }
     // A disabled special character is 0 in termios and 255 on the wire.

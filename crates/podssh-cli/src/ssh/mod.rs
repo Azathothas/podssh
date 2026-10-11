@@ -10,6 +10,7 @@
 mod agents;
 pub mod args;
 pub mod config;
+pub mod control;
 pub mod dump;
 pub mod forward;
 mod hop;
@@ -99,6 +100,16 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
 }
 
 async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i32 {
+    // Connection sharing first (T-039): a master that answers takes the
+    // run and its forwards, or this run becomes the master.
+    #[cfg(unix)]
+    if let control::Start::Exit(code) = control::start(&mut resolved, &log).await {
+        return code;
+    }
+    #[cfg(not(unix))]
+    if resolved.control.path.is_some() {
+        log.verbose("ControlPath has no effect on Windows: each run is one connection");
+    }
     // -L and -D: each listener bound before anything connects (T-038).
     if !resolved.local.is_empty() {
         match local_bind::listeners(&resolved.local, resolved.gateway_ports, &log).await {

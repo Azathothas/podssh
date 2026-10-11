@@ -60,6 +60,10 @@ pub struct Settings {
     /// `ClearAllForwardings`: no `-L`, `-D` or `-R`, from any place.
     pub clear_all_forwardings: Option<bool>,
     pub exit_on_forward_failure: Option<bool>,
+    /// `ControlMaster`, `ControlPath` and `ControlPersist` (T-039).
+    pub control_master: Option<super::control::Mode>,
+    pub control_path: Option<String>,
+    pub control_persist: Option<super::control::Persist>,
     /// `IgnoreUnknown`: a pattern list of unknown keywords to accept without
     /// effect, when they come after it.
     pub ignore_unknown: Option<String>,
@@ -195,6 +199,15 @@ impl Settings {
                 set(&mut self.clear_all_forwardings, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
             }
             "remoteforward" => self.remote_forwards.push(super::forward::parse_remote_keyword(value)?),
+            "controlmaster" => set(
+                &mut self.control_master,
+                super::control::Mode::parse(value).ok_or_else(|| bad("expected yes, no, ask, auto or autoask"))?,
+            ),
+            "controlpath" => set(&mut self.control_path, unquote(value)),
+            "controlpersist" => set(
+                &mut self.control_persist,
+                super::control::Persist::parse(value).ok_or_else(|| bad("expected yes, no or a time"))?,
+            ),
             "exitonforwardfailure" => {
                 set(&mut self.exit_on_forward_failure, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
             }
@@ -311,6 +324,9 @@ impl Settings {
             gateway_ports: self.gateway_ports.or(file.gateway_ports),
             clear_all_forwardings: self.clear_all_forwardings.or(file.clear_all_forwardings),
             exit_on_forward_failure: self.exit_on_forward_failure.or(file.exit_on_forward_failure),
+            control_master: self.control_master.or(file.control_master),
+            control_path: self.control_path.or(file.control_path),
+            control_persist: self.control_persist.or(file.control_persist),
             ignore_unknown: self.ignore_unknown.or(file.ignore_unknown),
             ignored,
         }
@@ -435,8 +451,8 @@ mod tests {
     fn ignored_keywords_are_accepted_and_remembered() {
         let mut s = Settings::default();
         s.apply("UpdateHostKeys=yes").unwrap();
-        s.apply("ControlMaster=auto").unwrap();
-        assert_eq!(s.ignored, vec!["UpdateHostKeys", "ControlMaster"]);
+        s.apply("HashKnownHosts=yes").unwrap();
+        assert_eq!(s.ignored, vec!["UpdateHostKeys", "HashKnownHosts"]);
     }
 
     #[test]

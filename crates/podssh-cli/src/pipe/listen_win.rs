@@ -66,7 +66,7 @@ impl Drop for Bound {
 }
 
 /// Listen on `path`: a named pipe by its prefix, else an AF_UNIX socket.
-pub fn bind(path: &str, say: &mut dyn FnMut(&str)) -> Result<Bound, Unbound> {
+pub fn bind<F: FnMut(&str) + ?Sized>(path: &str, say: &mut F) -> Result<Bound, Unbound> {
     let shown = format!("unix-listen:{path}");
     // SAFETY: the pseudo-handle of this process needs no closing.
     let ours = token_user(unsafe { GetCurrentProcess() }).map_err(|e| {

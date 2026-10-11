@@ -71,6 +71,10 @@ pub struct SshArgs {
     pub dynamic_forwards: Vec<String>,
     /// `-g`: `-L` and `-D` with no address listen on each address.
     pub gateway_ports: bool,
+    /// `-M` (`-MM` asks), `-S PATH` and `-O CMD` (T-039).
+    pub control_master: u8,
+    pub control_path: Option<String>,
+    pub control_command: Option<String>,
     /// The last of `-A` and `-a`: whether the server may use the agent
     /// (T-036); `None` when neither was given.
     pub forward_agent: Option<bool>,
@@ -97,6 +101,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("iroh-relay", "give the relays as one comma list"),
     ("iroh-ticket", "give one ticket"),
     ("persist-name", "give one name"),
+    ("control-command", "give one command, as OpenSSH asks"),
 ];
 
 /// The refusal for a flag of [`ONCE`] given more than once, if there is one.
@@ -190,6 +195,9 @@ impl SshArgs {
             local_forwards: many("forward-local"),
             dynamic_forwards: many("dynamic-forward"),
             gateway_ports: flag("gateway-ports"),
+            control_master: count("control-master"),
+            control_path: last("control-path"),
+            control_command: one("control-command"),
             forward_agent,
         }
     }

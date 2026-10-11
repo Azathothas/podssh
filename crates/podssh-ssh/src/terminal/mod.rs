@@ -20,6 +20,8 @@ mod windows;
 use windows as platform;
 
 pub use platform::{pty_modes, read_line, RawMode};
+#[cfg(unix)]
+pub use platform::{pty_modes_of, size_of_fd};
 
 /// A window size, in characters and (when known) pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -80,6 +80,7 @@ podssh ssh -A user@build 'git pull'          # the server may use your agent whi
 podssh ssh -W db.internal:5432 user@bastion  # stdin and stdout to a TCP port; nothing listens
 podssh ssh -N -L 5432:db.internal:5432 user@bastion  # a local port to the database, if this host may listen
 podssh ssh -N -D 1080 user@bastion           # a SOCKS proxy on 127.0.0.1:1080
+podssh ssh -M -N -S /tmp/cm-%C user@host &   # Unix: later runs with -S /tmp/cm-%C share this connection
 podssh ssh -tt user@example.org < script.txt # a remote pty; local stdin is a pipe
 ```
 

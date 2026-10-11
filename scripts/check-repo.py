@@ -87,7 +87,15 @@ LISTENERS = {
         "crates/podssh-ssh/src/remote_tests.rs",
         "crates/podssh-cli/src/ssh/local_bind.rs",
     ],
-    "UnixListener": ["crates/podssh-cli/src/pipe/listen.rs", "crates/podssh-ssh/src/agent_forward_tests.rs"],
+    # The control socket of `podssh ssh -M` (T-039), which the user asks for:
+    # pipe/listen.rs makes it before anything connects (the probe), and the
+    # master serves it; its tests make one in a scratch directory.
+    "UnixListener": [
+        "crates/podssh-cli/src/pipe/listen.rs",
+        "crates/podssh-ssh/src/agent_forward_tests.rs",
+        "crates/podssh-ssh/src/mux/master.rs",
+        "crates/podssh-ssh/src/mux/tests.rs",
+    ],
     # The iroh road (feature `iroh`, T-162), which the user selects: its probe
     # binds a UDP socket to port 0 and closes it, and only when the probe
     # allowed it does the endpoint bind UDP for direct paths.
@@ -112,6 +120,7 @@ LISTENERS = {
         "crates/podssh-ssh/src/remote_tests.rs",
         "crates/podssh-ssh/src/agent_forward_tests.rs",
         "crates/podssh-cli/src/ssh/local_bind.rs",
+        "crates/podssh-ssh/src/mux/tests.rs",
     ],
     "listen(": ["crates/podssh-cli/src/pipe/listen_win.rs"],
     "socket2": [],

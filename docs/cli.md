@@ -238,6 +238,49 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   OpenSSH refuses it. A server that refuses the request says so, and the
   session goes on without the agent.
 
+## Connection sharing
+
+`-M`, `-S`, `-O`, `ControlMaster`, `ControlPath` and `ControlPersist`
+(T-039), on Unix: OpenSSH's control socket and its protocol
+(`PROTOCOL.mux` version 4), so OpenSSH's `ssh -O check` and its clients
+work with a podssh master, and podssh's client with an OpenSSH master. A
+client passes its stdin, stdout and stderr to the master (SCM_RIGHTS),
+which Windows cannot: there `-M`, `-S` and `-O` are refused (64), and the
+keywords have no effect.
+
+- A master: `-M` (`-MM` asks), or `ControlMaster yes`, `ask`, `auto` or
+  `autoask` with `ControlPath` or `-S`. The socket is made before anything
+  connects, as `-L` is: `podssh pipe`'s socket of mode 0600, after a
+  socket that nobody serves is removed; a client of another user is closed
+  (root may use it, as in OpenSSH); the socket goes when the master ends.
+  A socket that cannot be made refuses the run with `-M` (255), and with
+  `auto` it is said and the run connects alone; `PODSSH_LISTEN=no`
+  refuses a master as each listener.
+- A client: `-S PATH`, or `ControlPath` with `ControlMaster no`, `auto` or
+  `autoask`. When a master answers, the run goes through it: its `-L`,
+  `-D` and `-R` first, as OpenSSH's client sends them, then its session or
+  its `-W`; with `-N`, the forwards stay with the master and the run ends.
+  When none answers, the run connects alone, and with `auto` it becomes the
+  master. A session with a pty puts the local terminal in raw mode and
+  relays SIGWINCH to the master, which reads the new size from the terminal
+  it holds; the exit code is the master's EXIT_MESSAGE, or 255 with none.
+- The master serves sessions (a pty, the environment, a subsystem, the
+  escape character of the client), `-W`, `-O check`, `exit` (the master
+  ends with 0), `stop` (no new client; the socket goes), and `forward` and
+  `cancel` of `-L`, `-D` and `-R`, which it serves on its own connection.
+  `-O proxy` is refused. `ControlMaster ask` confirms each request that
+  changes something on the terminal or through `SSH_ASKPASS`.
+- `ControlPersist yes|TIME` keeps a `-N` master for that long with no
+  client (`0` is forever, as in OpenSSH). podssh does not go to the
+  background, so a master with its own session ends with it, once its
+  clients' sessions have ended: start a lasting master with
+  `podssh ssh -M -N -S PATH HOST &`. `--persist` does not take part.
+- Every client shares the master's one relay session, and its limits
+  (`docs/relay.md`); a drop of the master ends each client's session.
+- Read from OpenSSH 10.3p1's own bytes (`scripts/mux-capture.py`): each
+  `bool` of `PROTOCOL.mux` is a `uint32`, and the port of a stdio forward
+  a `uint32`, not the string that the document says.
+
 ## A word with no subcommand
 
 `podssh example.org` never connects. podssh selects a suggestion in two

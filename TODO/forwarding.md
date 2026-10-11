@@ -206,7 +206,7 @@ remote host that must use the key, such as `git` on a build host.
 
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
-   (`crates/podssh-cli/src/ssh/keywords.rs:25-89`). Change the help of `-a`
+   (`crates/podssh-cli/src/ssh/keywords.rs:25-94`). Change the help of `-a`
    (`crates/podssh-cli/src/flags.rs:203-204`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
    before the shell or exec request (`crates/podssh-ssh/src/session.rs:95-109`).
@@ -338,10 +338,10 @@ X11 channel.
 
 - Measured, offline: `podssh ssh -X example.invalid true` gives "-X is
   refused. Leave it out. X11 forwarding is not supported.", exit 64; `-Y`
-  the same (`crates/podssh-cli/src/flags.rs:250-253`).
+  the same (`crates/podssh-cli/src/flags.rs:251-254`).
 - Measured, offline: `-o ForwardX11=yes` is accepted with no effect, as
   `ForwardAgent` is. Read: `ForwardX11Trusted`, `ForwardX11Timeout` and
-  `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:74-89`).
+  `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:79-94`).
 - Read: russh 0.64.1 has `Channel::request_x11` (`x11-req`), and its default
   handler accepts each `x11` channel. podssh's handler does not override it
   (`crates/podssh-ssh/src/handler.rs` lines 44-88 at `8d668b7`).
@@ -439,7 +439,7 @@ AF_UNIX.
   (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
 - Read: `AGENTS.md:192-197` (no bind, no listen),
-  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:83-99` ("Nothing
+  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:83-100` ("Nothing
   listens") and `README.md:38-44` state the rule from before the ruling.
   `docs/design.md:437-439` already allows a local listener for `pipe` after
   a probe.
@@ -535,7 +535,7 @@ box fails.
 (`crates/podssh-cli/src/pipe/listen.rs`), which `-L` and `-D` can share.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
-`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:83-99` and
+`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:83-100` and
 `README.md:38-44` state the ruling now, as `AGENTS.md:192-197` and
 `docs/target-environment.md:74-78` did already.
 
@@ -603,7 +603,7 @@ connections and `stop-daemon`); the ImKKingshuk/USBoverSSH report in GitHub
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -616,10 +616,10 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
 
 - Measured, offline: `-M`, `-S /tmp/ctl` and `-O check` are refused with
   "podssh keeps no control master: each run is one connection", exit 64
-  (`crates/podssh-cli/src/flags.rs:240-245`).
+  (`crates/podssh-cli/src/flags.rs`, lines 240-245 at `5fb9c1e`).
 - Measured, offline: `-o ControlMaster=auto -o ControlPath=/tmp/c` is
   accepted with no effect; only `-v` says so
-  (`crates/podssh-cli/src/ssh/keywords.rs:78`). A script that sets them still
+  (`crates/podssh-cli/src/ssh/keywords.rs`, line 78 at `5fb9c1e`). A script that sets them still
   works, with one connection for each run.
 - Read: a control socket is a listener. `AGENTS.md:192-197` forbids it in the
   words from before the ruling. Sandbox A allowed a bind for AF_UNIX
@@ -654,6 +654,34 @@ OpenSSH's source), so that `ssh -O check` and the scripts that use it work
 with a podssh master. The alternative, a podssh protocol, lost: it serves
 podssh clients only, and the `-O` commands would need a second meaning.
 
+2026-10-11, while doing it:
+
+- No master in the background. OpenSSH forks a master with its own
+  session away for `ControlPersist`; podssh does not go to the background,
+  and starting itself again as a helper is the helper process that rule 3
+  of `AGENTS.md` forbids. So `ControlPersist` keeps a `-N` master with no
+  client for its time (0 and yes forever), and a master with its own
+  session ends with it, after the sessions of its clients, as OpenSSH's
+  master waits for them; the manual and `docs/cli.md` say to start a
+  lasting master with `-M -N &`. Lost: a fork, or a second podssh process.
+- The wire as OpenSSH 10.3p1 writes it, read from its bytes, over the
+  document: each `bool` is a `uint32`, and the port of
+  `MUX_C_NEW_STDIO_FWD` a `uint32`; SESSION_OPENED comes once the session's
+  request is answered (OpenSSH sends it once the requests are sent), so a
+  refused one is a FAILURE the client can name.
+- A client run's `-L`, `-D` and `-R` go to the master first, as OpenSSH's
+  client sends them, and a `-N` client then ends: its forwards stay with
+  the master. `-O proxy` is refused: podssh's client speaks no SSH
+  connection protocol of its own.
+- `ControlMaster ask` and `autoask` confirm each request that changes
+  something (a session, a stdio forward, a forward, `exit`, `stop`) through
+  the prompt of passwords, on the terminal or through `SSH_ASKPASS`;
+  nobody to ask is a refusal.
+- On Windows, `-M`, `-S` and `-O` are refused with exit 64; the three
+  keywords, which an OpenSSH configuration often holds, have no effect,
+  said with `-v`. `--persist` does not take part: its loop would need a
+  new master for each link.
+
 ## Prove
 
 ```sh
@@ -670,6 +698,65 @@ gate, a master `-M -N -S $W/ctl` serves `podssh ssh -S $W/ctl ... 'exit 3'`
 the box (`scripts/test_in_box.sh`), `-M` is refused with the probe's reason.
 Planted defect: let the client open its own relay session, and the log shows
 two upgrades.
+
+## Done
+
+2026-10-11. Connection sharing on Unix, with OpenSSH's control protocol:
+
+- `crates/podssh-ssh/src/mux/`: `proto.rs` (each message, both ways),
+  `wire.rs` (packets read exactly; each descriptor with its byte, as
+  OpenSSH's `mm_send_fd`), `master.rs` (the accept loop, a client of this
+  user or root only, `-O check`, `exit`, `stop`, the forwards with `fwd.rs`,
+  `ControlPersist`, `ask`), `msession.rs` (a session on the passed
+  descriptors: a pty from the client's terminal, its modes and size, a
+  window change at each SIGWINCH relayed to the master, the escape
+  character, TTY_ALLOC_FAIL and EXIT_MESSAGE; and a stdio forward),
+  `afd.rs` (a passed descriptor polled, its flags put back after; a
+  regular file on blocking threads), `client.rs` (a session with this
+  process's stdin, stdout and stderr, raw mode, SIGWINCH to the master;
+  a stdio forward; the `-O` requests). `run_inner` serves a master beside
+  the session, `-W` or `-N`.
+- The command line: `-M` (counted), `-S`, `-O` and the keywords
+  `ControlMaster`, `ControlPath` and `ControlPersist` (OpenSSH's time
+  format); `-G` prints `controlmaster`, `controlpath` and `controlpersist`
+  where OpenSSH 10.3p1 does. `crates/podssh-cli/src/ssh/control.rs` and
+  `control_unix.rs` start a run: an `-O` request; a run through a master
+  that answers; or this run as the master, its socket made before anything
+  connects by `podssh pipe`'s listener (`control_socket`). The listener's
+  `bind` and `accept` take any callback now, so a master's futures are
+  `Send`.
+- `scripts/mux-capture.py` relays a control socket and logs each message:
+  the bytes of `proto_tests.rs` came from OpenSSH's own client and master.
+- Documents: `docs/cli.md` ("Connection sharing"), the manual's note,
+  `SECURITY.md`, the flags' help; the listener scan of
+  `scripts/check-repo.py` allows the master's socket.
+
+Prove, native, Windows: `cargo test -p podssh-ssh -- mux_protocol`, 4
+passed (the codec on OpenSSH's bytes), and `cargo test -p podssh-cli --test
+ssh_control` (the refusal of `-M`, `-S` and `-O` with 64, nothing
+connected). In the build image (`sh scripts/dev.sh run`, a debug build),
+2026-10-11: `cargo test -p podssh-ssh --lib -- mux`, 9 passed (descriptors
+across a socket, a master with a session on pipes whose flags it put back,
+a stdio forward, `-O forward` and `cancel` of a remote and a local
+forward, `-O stop`, `-O exit`, `ControlPersist`); `cargo test -p podssh-cli
+--test ssh_control`, 3 passed: a `-M -N -S` master served two runs with
+their status and output over one TCP connection, `-O check` named its pid,
+`-O exit` ended it with 0 and its socket went; with `ControlPath` and no
+master a run connected alone, and with `ControlMaster auto` it was the
+master of a second run; `-O check` with no master gave 255. `cargo clippy`
+of both crates, with no warning. Plants, in the image: the client
+connecting alone (two connections where one was due), a `bool` written as
+one byte, the flags left non-blocking, the socket left after the master,
+and the client taking no exit message, each failed a test.
+`scripts/interop.sh` 278 passed, 0 failed, with
+`scripts/interop-control.sh` against OpenSSH 10.3p1: its `ssh -O check`
+found a podssh master, its client went through it with exit 3 and got a
+pty, podssh's client and `-W` went through it, its `-O exit` ended it with
+0; podssh's `-O check` found an OpenSSH master, podssh's client went
+through it with exit 4 and its output, and podssh's `-O exit` ended it.
+
+Waits for T-251: the box (`scripts/test_in_box.sh`), where each bind is
+refused: `-M` must refuse with the probe's reason.
 
 # T-040: `-W` to a Unix socket on the server (streamlocal)
 
@@ -825,7 +912,7 @@ sessions (GitHub #17).
 ## Premise
 
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-70`,
-`crates/podssh-ssh/src/run.rs:165-189`). `podssh_relay::open` fails over and
+`crates/podssh-ssh/src/run.rs:166-207`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:177-212`,
 `crates/podssh-relay/src/open.rs:265-279`). With `-N`, no command runs, so a

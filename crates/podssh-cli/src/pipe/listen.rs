@@ -38,6 +38,13 @@ pub fn allowed() -> Result<(), Refusal> {
     }
 }
 
+/// The control socket of `podssh ssh -M` (T-039): a socket of mode 0600,
+/// as `unix-listen:` makes it, after a socket that nobody serves is removed.
+#[cfg(unix)]
+pub(crate) fn control_socket(path: &str) -> Result<tokio::net::UnixListener, Unbound> {
+    unix::control(path)
+}
+
 /// A refused bind is a refusal of this host (77); the others are out of
 /// reach (69).
 pub(super) fn code(e: &io::Error) -> i32 {
@@ -75,7 +82,7 @@ pub type Unbound = (i32, String);
 impl Listener {
     /// Bind `address` and listen. `say` hears who can connect; a failure
     /// gives its code and line.
-    pub async fn bind(address: &Address, say: &mut dyn FnMut(&str)) -> Result<Listener, Unbound> {
+    pub async fn bind<F: FnMut(&str) + ?Sized>(address: &Address, say: &mut F) -> Result<Listener, Unbound> {
         let kind = match address {
             Address::TcpListen { host, port } => Kind::Tcp(tcp(host, *port, say).await?),
             #[cfg(unix)]
@@ -108,7 +115,7 @@ impl Listener {
 
 /// `tcp-listen:`: one line of who can connect, with the port that the
 /// system chose for port 0.
-async fn tcp(host: &str, port: u16, say: &mut dyn FnMut(&str)) -> Result<tokio::net::TcpListener, Unbound> {
+async fn tcp<F: FnMut(&str) + ?Sized>(host: &str, port: u16, say: &mut F) -> Result<tokio::net::TcpListener, Unbound> {
     let shown = podssh_ws::dial::authority(host, port);
     let listener = match tokio::net::TcpListener::bind((host, port)).await {
         Ok(listener) => listener,
@@ -150,7 +157,7 @@ mod unix {
     }
 
     /// Listen on `path`, or on `@NAME` in Linux's abstract namespace.
-    pub fn bind(path: &str, say: &mut dyn FnMut(&str)) -> Result<Bound, Unbound> {
+    pub fn bind<F: FnMut(&str) + ?Sized>(path: &str, say: &mut F) -> Result<Bound, Unbound> {
         let shown = format!("unix-listen:{path}");
         // SAFETY: geteuid cannot fail.
         let uid = unsafe { libc::geteuid() };
@@ -173,6 +180,16 @@ mod unix {
                 Err((code(&e), refused(&shown, &e)))
             }
         }
+    }
+
+    /// The control socket of a master: a file only, no abstract name.
+    pub fn control(path: &str) -> Result<tokio::net::UnixListener, Unbound> {
+        let file = PathBuf::from(path);
+        stale(&file).map_err(|(rc, line)| (rc, format!("{path}: {line}")))?;
+        listen_file(&file).map_err(|e| {
+            let _ = std::fs::remove_file(&file);
+            (code(&e), refused(path, &e))
+        })
     }
 
     /// Socket, bind and listen on a file, under umask 0177, as ssh-agent
