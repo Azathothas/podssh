@@ -471,6 +471,18 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   tasks share 1.5 MiB in flight, below the 2 MiB queued that close a
   session, and a task takes a chunk only while the session may carry it
   whole. The copy by exec goes in one stream, and `-v` says so.
+- **`--delta`** (T-142): over an older version of the same file on the
+  other side, only the blocks of 1 MiB that changed go. The SHA-256 of each
+  far block comes from one command over exec (`dd` into `sha256sum`,
+  `shasum` or `openssl`), that of each local block is read here. The
+  temporary file is made from the old one where it is (`copy-data` inside
+  the server for a copy up, a copy on this disk for a copy down), only the
+  blocks that differ cross, and the size is set. The digest of the whole
+  file then decides: a difference falls back once to a full copy, and says
+  so. A server with no command, no `dd`, no digest tool, or for a copy up
+  no `copy-data`, gets a full copy, and `-v` says why; `-v` says the blocks
+  sent and their bytes. A copy that broke goes on in full where it was. The
+  full copy stays the default.
 - `-r` and `-p` are refused by name until a copy of a directory (T-143)
   and the times (T-146) exist.
 - **A server with no SFTP subsystem gets a copy by exec**

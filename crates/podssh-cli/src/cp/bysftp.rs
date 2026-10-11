@@ -12,6 +12,7 @@ use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
 use super::chunks;
+use super::delta;
 use super::digest::{self, Sum};
 use super::link::Meter;
 use super::pipe::Shape;
@@ -64,6 +65,13 @@ pub async fn up(
         Some(target) => target.clone(),
         None => transfer::remote_target(sftp, dest, name, many).await?,
     };
+    // Over an older version, only the blocks that changed (T-142); a copy
+    // that broke goes on where it was instead.
+    if shape.delta && progress.temp.is_none() {
+        if let Some(done) = delta::up(sftp, handle, local, source, &target, &before, shape.pipe, log).await? {
+            return Ok(done);
+        }
+    }
     // Write on in the temporary file when it holds the bytes below the offset.
     let mut kept = None;
     if let Some(temp) = progress.temp.clone() {
@@ -240,6 +248,12 @@ pub async fn down(
         None => transfer::local_target(dest, name, many)?,
     };
     let size = attrs.size.unwrap_or(0);
+    // Over an older version here, only the blocks that changed (T-142).
+    if shape.delta && progress.temp.is_none() {
+        if let Some(done) = delta::down(sftp, handle, source, &target, size, attrs.permissions, pipe, log).await? {
+            return Ok(done);
+        }
+    }
     let chunked = shape.tasks > 1 && size > chunks::CHUNK;
     let (temp, file, start) = resume::local_temp(&target, size, progress, chunked)?;
     let shown = temp.display().to_string();

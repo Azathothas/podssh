@@ -112,7 +112,7 @@ impl<'a> State<'a> {
                     let handle = self.link.handle();
                     let mut progress = Progress::default();
                     let meter = &self.link.meter;
-                    let shape = crate::cp::pipe::Shape { pipe: self.pipe, tasks: 1 };
+                    let shape = crate::cp::pipe::Shape { pipe: self.pipe, ..Default::default() };
                     bysftp::down(sftp, handle, source, &shown, many, self.log, &mut progress, meter, shape).await?;
                 }
             }
@@ -126,7 +126,7 @@ impl<'a> State<'a> {
                 let shown = source.display().to_string();
                 let mut progress = Progress::default();
                 let (handle, meter) = (self.link.handle(), &self.link.meter);
-                let shape = crate::cp::pipe::Shape { pipe: self.pipe, tasks: 1 };
+                let shape = crate::cp::pipe::Shape { pipe: self.pipe, ..Default::default() };
                 bysftp::up(sftp, handle, &shown, &dest, false, self.log, &mut progress, meter, shape).await?;
             }
             Command::Rename { from, to } => {

@@ -301,6 +301,14 @@ each:
 Through the stand-in the tasks share 1.5 MiB in flight, three windows; a
 copy up on the loopback is bound by the far `sftp-server`'s writes.
 
+`cp --delta` (T-142; the build image, 2026-10-12; `scripts/interop.sh`, the
+checks `cp.delta.up` and `cp.delta.down`, against OpenSSH and BusyBox's `dd`
+and `sha256sum`): a file of 20 MiB with 1 MiB changed went up with 1048576
+bytes sent, and the server's copy, with another 1 MiB changed, came down
+with 1048576 bytes fetched; the digests agree each way, and no full copy
+followed. Planted, blocks compared by their presence only: no block went,
+the digests then differed, a full copy followed, and both checks failed.
+
 ## `podssh keygen`, measured
 
 | Check | Result |

@@ -22,6 +22,7 @@
 pub mod byexec;
 pub(crate) mod bysftp;
 pub(crate) mod chunks;
+pub mod delta;
 mod digest;
 pub(crate) mod link;
 mod moving;
@@ -65,6 +66,8 @@ pub struct CpArgs {
     pub sftp_options: Vec<String>,
     /// `--parallel K` of `cp` and `mv`: the tasks of one file (T-141).
     pub parallel: Option<String>,
+    /// `--delta` of `cp` and `mv`: only the blocks that changed (T-142).
+    pub delta: bool,
 }
 
 impl CpArgs {
@@ -90,7 +93,8 @@ impl CpArgs {
         } else {
             None
         };
-        CpArgs { paths, ssh, moving: verb == "mv", verb, sftp_options, parallel }
+        let delta = m.try_get_one::<bool>("delta").ok().flatten().copied().unwrap_or(false);
+        CpArgs { paths, ssh, moving: verb == "mv", verb, sftp_options, parallel, delta }
     }
 }
 
@@ -114,7 +118,7 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
         }
     };
     let shape = pipe::pipeline(None, None, &args.sftp_options)
-        .and_then(|pipe| Ok(pipe::Shape { pipe, tasks: pipe::tasks(args.parallel.as_deref())? }));
+        .and_then(|pipe| Ok(pipe::Shape { pipe, tasks: pipe::tasks(args.parallel.as_deref())?, delta: args.delta }));
     plan.shape = match shape {
         Ok(shape) => shape,
         Err(why) => {

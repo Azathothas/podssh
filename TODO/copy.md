@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:226-244` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1226-1229`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1238-1241`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1267,7 +1267,7 @@ differ", and the destination was not changed. The measurement:
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** L
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1308,6 +1308,19 @@ only between podssh ends. A probed `rsync` on the far side lost: podssh
 would have to speak rsync's large protocol, which changes between versions,
 where fixed blocks need only `dd` and a digest tool.
 
+2026-10-12, the calls made in the work: `crates/podssh-cli/src/cp/delta.rs`.
+One command reads each far block, a loop of `dd` into the first digest
+tool that the server has, after a marker line, so that a banner of the
+login is never taken for a digest; a command per block would cost a round
+trip each. The far file's digests and the local ones make the plan; for a
+copy down the old version is the local file, copied on this disk into the
+temporary file. A copy that broke goes on in full where it was (its side
+file), not by blocks. The rolling delta between podssh ends (step 3) is
+T-150's, which is parked. The measurement shows the gain in bytes (1 MiB of
+20 sent), but `--delta` needs exec, `dd` and, up, `copy-data`, and reads
+the whole far file: the full copy stays the default, and the flag is the
+user's choice.
+
 ## Prove
 
 ```sh
@@ -1320,9 +1333,30 @@ payload (T-137's counter, shown at `-v`), and the digests are equal. Plant:
 compare the blocks by size only; the changed block is then not sent, and
 the final digest check must fail the copy.
 
+## Correction
+
+The plant's last words assumed no fallback. With step 5's fallback, the
+digest check fails the delta, and a full copy follows and succeeds: the
+check of the gate fails on that ("a full copy follows"), not on the copy's
+exit.
+
+## Done
+
+2026-10-12. `cargo test -p podssh-cli --test cp_delta`: 5 passed (an equal
+file sends no block; a changed block is the only one sent; a grown file
+sends its new blocks and its changed last one; a shrunk file keeps its
+blocks and its size cuts the rest; the local blocks are the digest of each
+MiB); the unit tests read the script's digests after its marker and keep
+the script free of a single quote. In the build image, `scripts/interop.sh`
+against OpenSSH: `cp.delta.up`, 1048576 bytes sent of 20 MiB, and
+`cp.delta.down`, 1048576 bytes fetched, each with equal digests and no full
+copy. Planted defect: blocks compared by their presence only; both checks
+failed, as no block went and a full copy followed. `-v` says the blocks
+sent and their bytes; `docs/cli.md` and `docs/STATUS.md` say the rest.
+
 # T-143: Copy directories: `-r`, `--exclude`, an ignore file, `--dry-run`
 
-**Source:** the `-r` row (`crates/podssh-cli/src/flags/copy.rs:25-26`);
+**Source:** the `-r` row (`crates/podssh-cli/src/flags/copy.rs:27-28`);
 GitHub #21 (syq's `--dry-run`, parsync's `--exclude`, slingshot's copy with
 no build output) and GitHub #18 (quic-ssh's `qsh cp -r`), read in the
 issues.
@@ -1394,7 +1428,7 @@ drop the name check; that case must then fail.
 ## Correction
 
 2026-10-09 (T-134): `-r` is refused by name now
-(`crates/podssh-cli/src/flags/copy.rs:25-26`), and `podssh cp` copies files
+(`crates/podssh-cli/src/flags/copy.rs:27-28`), and `podssh cp` copies files
 (`crates/podssh-cli/src/cp/`): this entry builds on its temporary name, its
 digest check and its rename for each file of a tree.
 
@@ -1468,7 +1502,7 @@ uplink of a shared host.
 
 - Read: stdout carries answers only, and messages go to stderr
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
-  (`crates/podssh-cli/src/flags/copy.rs:29-30`).
+  (`crates/podssh-cli/src/flags/copy.rs:31-32`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
   (`crates/podssh-ssh/src/io.rs:461-494`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
@@ -1862,16 +1896,16 @@ program writes on, such as a log, need not end at all.
 ## Premise
 
 Read at `a22e3ec`: the copy up over SFTP reads the source until a read
-gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:120-141`), and each read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:128-149`), and each read
 waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
-(`crates/podssh-cli/src/cp/bysftp.rs:194-197`), but only once the read
+(`crates/podssh-cli/src/cp/bysftp.rs:202-205`), but only once the read
 ends. The copy up by exec reads the same way
 (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:307-338`) and with `cat`
+(`crates/podssh-cli/src/cp/bysftp.rs:321-352`) and with `cat`
 (`crates/podssh-cli/src/cp/byexec.rs:329-364`); and so do the far digests
 that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
 `crates/podssh-cli/src/cp/byexec.rs:298-325`).
@@ -1907,7 +1941,7 @@ bound fails the native test.
 
 2026-10-10. Each road of the copy reads what the source held at the start,
 and stops with 66, "the file changed while it was read", at the first byte
-past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:120-141`) and by
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:128-149`) and by
 exec (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); down by exec
 past the size that `wc -c` gave; down over SFTP after a second look at the
 far size, so that a file of `/proc` goes on as before. The far digest by

@@ -7,17 +7,20 @@ use podssh_ssh::sftp::Pipeline;
 
 use super::chunks::MOST_TASKS;
 
-/// How a copy goes: the requests in flight of each SFTP session (T-140), and
-/// the tasks of one file, each with a session of its own (T-141).
+/// How a copy goes: the requests in flight of each SFTP session (T-140), the
+/// tasks of one file, each with a session of its own (T-141), and whether
+/// only the changed blocks go (T-142).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Shape {
     pub pipe: Pipeline,
     pub tasks: usize,
+    /// Only the blocks that changed, over an older version (T-142).
+    pub delta: bool,
 }
 
 impl Default for Shape {
     fn default() -> Self {
-        Shape { pipe: Pipeline::default(), tasks: 1 }
+        Shape { pipe: Pipeline::default(), tasks: 1, delta: false }
     }
 }
 

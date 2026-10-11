@@ -102,7 +102,7 @@ impl<'a> Shared<'a> {
 }
 
 /// Write `data` into `file` at `at`.
-fn write_at(file: &std::fs::File, at: u64, data: &[u8]) -> std::io::Result<()> {
+pub(super) fn write_at(file: &std::fs::File, at: u64, data: &[u8]) -> std::io::Result<()> {
     #[cfg(unix)]
     {
         std::os::unix::fs::FileExt::write_all_at(file, data, at)
@@ -118,7 +118,7 @@ fn write_at(file: &std::fs::File, at: u64, data: &[u8]) -> std::io::Result<()> {
 }
 
 /// Fill `buf` from `file` at `at`; the bytes read, fewer at its end.
-fn read_at(file: &std::fs::File, at: u64, buf: &mut [u8]) -> std::io::Result<usize> {
+pub(super) fn read_at(file: &std::fs::File, at: u64, buf: &mut [u8]) -> std::io::Result<usize> {
     let mut done = 0;
     while done < buf.len() {
         #[cfg(unix)]

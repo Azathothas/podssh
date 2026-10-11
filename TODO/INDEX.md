@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**294 entries: 65 open, 0 partial, 24 blocked, 205 done.**
+**294 entries: 64 open, 0 partial, 24 blocked, 206 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 59 | 0 | 6 | 46 | 111 |
-| **All** | 65 | 0 | 24 | 205 | 294 |
+| P3 | 58 | 0 | 6 | 47 | 111 |
+| **All** | 64 | 0 | 24 | 206 | 294 |
 
 ## Entries
 
@@ -215,7 +215,7 @@ repository and CI).
 | [T-139](copy.md) | P2 | L | M5 | feature | done | `podssh scp` and `podssh sftp` with the command lines of OpenSSH |
 | [T-140](copy.md) | P3 | M | backlog | feature | done | Pipelined SFTP |
 | [T-141](copy.md) | P3 | M | backlog | feature | done | Parallel transfer in chunks |
-| [T-142](copy.md) | P3 | L | backlog | feature | open | Delta copy: only the blocks that changed |
+| [T-142](copy.md) | P3 | L | backlog | feature | done | Delta copy: only the blocks that changed |
 | [T-143](copy.md) | P3 | M | backlog | feature | open | Copy directories: `-r`, `--exclude`, an ignore file, `--dry-run` |
 | [T-144](copy.md) | P3 | S | backlog | feature | open | `podssh cp --delete`: make the target a mirror |
 | [T-145](copy.md) | P3 | S | backlog | feature | open | Progress, cancellation and a bandwidth limit for copies |

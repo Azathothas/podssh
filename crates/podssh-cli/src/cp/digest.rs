@@ -34,7 +34,7 @@ pub fn hex(sum: &Sum) -> String {
 }
 
 /// A digest from 64 hex digits.
-fn from_hex(text: &str) -> Option<Sum> {
+pub(super) fn from_hex(text: &str) -> Option<Sum> {
     if text.len() != 64 || !text.is_ascii() {
         return None;
     }

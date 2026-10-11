@@ -63,6 +63,30 @@ rc=$?
     && ok cp.parallel.down "cp --parallel 4 down, 25000000 bytes: the digests agree" \
     || bad cp.parallel.down "cp --parallel 4 down: exit $rc" "$CW/err"
 
+# --delta (T-142): over an older version, only the blocks of 1 MiB that
+# changed go: -v says how many bytes, and no full copy follows.
+# delta_sent: the bytes that -v says the delta sent.
+delta_sent() { sed -n 's/.*delta: [0-9]* of [0-9]* blocks sent, \([0-9]*\) bytes.*/\1/p' "$CW/err"; }
+head -c 20971520 /dev/urandom >"$CW/up/d20"
+c 2201 "$CW/up/d20" "$T:cp/d20" >/dev/null 2>"$CW/err"
+dd if=/dev/urandom of="$CW/up/d20" bs=1048576 seek=7 count=1 conv=notrunc 2>/dev/null
+c 2201 --delta -v "$CW/up/d20" "$T:cp/d20" >"$CW/out" 2>"$CW/err"
+rc=$?
+sent=$(delta_sent)
+[ "$rc" = 0 ] && [ "$(sum "$CW/up/d20")" = "$(sum "$RD/d20")" ] && [ -n "$sent" ] && [ "$sent" -lt 3145728 ] \
+    && ! grep -q "a full copy follows" "$CW/err" \
+    && ok cp.delta.up "cp --delta up, 1 MiB of 20 changed: $sent bytes sent, the digests agree" \
+    || bad cp.delta.up "cp --delta up: exit $rc, ${sent:-no} bytes sent" "$CW/err"
+cp "$RD/d20" "$CW/down/d20"
+dd if=/dev/urandom of="$RD/d20" bs=1048576 seek=3 count=1 conv=notrunc 2>/dev/null
+c 2201 --delta -v "$T:cp/d20" "$CW/down/d20" >"$CW/out" 2>"$CW/err"
+rc=$?
+sent=$(delta_sent)
+[ "$rc" = 0 ] && [ "$(sum "$RD/d20")" = "$(sum "$CW/down/d20")" ] && [ -n "$sent" ] && [ "$sent" -lt 3145728 ] \
+    && ! grep -q "a full copy follows" "$CW/err" \
+    && ok cp.delta.down "cp --delta down, 1 MiB of 20 changed: $sent bytes fetched, the digests agree" \
+    || bad cp.delta.down "cp --delta down: exit $rc, ${sent:-no} bytes fetched" "$CW/err"
+
 # Over an existing file, each way; then several sources into a directory.
 head -c 70000 /dev/urandom >"$CW/up/new"
 c 2201 "$CW/up/new" "$T:cp/f262145" >/dev/null 2>"$CW/err"
