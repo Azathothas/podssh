@@ -1743,6 +1743,7 @@ dependencies = [
  "russh-sftp",
  "sha1 0.10.7",
  "sha2 0.10.9",
+ "signature 3.0.0",
  "tokio",
  "windows-sys 0.61.2",
  "zeroize",

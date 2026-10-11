@@ -350,6 +350,10 @@ const KEYGEN: &[&str] = &[
      against SIGNERS, an allowed-signers file, and says Good or Could not verify signature. (exit 1). -Y \
      check-novalidate, find-principals and match-principals are those of ssh-keygen. A signature never \
      replaces a file.",
+    "podssh keygen -s CA -I ID [-n NAMES] [-V INTERVAL] [-z SERIAL] [-O OPTION] [-h] FILE.pub certifies each \
+     key into FILE-cert.pub, as ssh-keygen -s does (-U: the CA is in the agent), and podssh keygen -L -f \
+     FILE prints a certificate. -V here is a validity, such as +52w or 20260101:20270101; the version is \
+     podssh -V. A certificate replaces the one that is there, as OpenSSH's does.",
     "podssh asks for the passphrase two times, on the terminal or through SSH_ASKPASS. -N '' makes a key \
      with no passphrase. A passphrase given with -N is refused, because each process on the host can \
      read a command line. With no terminal and no SSH_ASKPASS, podssh stops at once and names -N ''.",

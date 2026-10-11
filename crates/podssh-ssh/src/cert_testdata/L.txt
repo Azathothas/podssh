@@ -1,0 +1,17 @@
+        Type: ssh-ed25519-cert-v01@openssh.com user certificate
+        Public key: ED25519-CERT SHA256:jcfa39ZBlXiyrU25jt3zO42Jg8f9gJ7wxhKjkQhvVJE
+        Signing CA: ED25519 SHA256:cDLekShXh27pWGHLGD0MV1ctSxavHqiShNenyQ9WmvU (using ssh-ed25519)
+        Key ID: "kat id"
+        Serial: 42
+        Valid: from 2026-01-01T05:45:00 to 2027-01-01T05:45:00
+        Principals: 
+                alice
+                bob
+        Critical Options: 
+                force-command /bin/true
+                source-address 192.0.2.0/24,2001:db8::/32
+                verify-required
+                y@example.com UNKNOWN FLAG OPTION
+        Extensions: 
+                permit-pty
+                x@example.com UNKNOWN OPTION: 0000000176 (len 5)

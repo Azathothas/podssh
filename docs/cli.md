@@ -586,6 +586,18 @@ GitHub #23): the time of each step, the round trip, and the throughput.
   `valid-before=`, and a failure exits 1 where OpenSSH exits 255. A
   signature made with a certificate, and `cert-authority` lines, are not
   read yet (T-289); `-r`, a revocation list, is refused.
+- `-s CA -I ID` certifies each FILE, a public key, into `FILE-cert.pub`
+  (PROTOCOL.certkeys), and `-L` prints a certificate, with the lines and the
+  messages of `ssh-keygen` (T-021): `-n` the principals, `-V` the validity
+  (`+52w`, or FROM:TO of `+TIME`, `-TIME`, `YYYYMMDD[HHMM[SS]][Z]`, `always`
+  and `forever`), `-z` the serial, `-h` a host certificate, `-O` its
+  options (`clear`, the `permit-` and `no-` flags, `force-command=`,
+  `source-address=`, `verify-required`, `extension:` and `critical:`), `-U`
+  a CA in the agent, and `-t rsa-sha2-256` the signature of an RSA CA
+  (SHA-512 by default, through aws-lc-rs). As OpenSSH does, a certificate
+  replaces the one that is there: it is public, and made again at each
+  renewal. A failure exits 1 where OpenSSH exits 255; `-D` (PKCS#11) is
+  refused.
 - DSA is refused, because OpenSSH 10 removed it.
 - An RSA key is made by aws-lc-rs, whose RSA is constant-time, never by the
   `rsa` crate, whose private-key operations are not (RUSTSEC-2023-0071, the

@@ -10,14 +10,17 @@
 use std::path::{Path, PathBuf};
 
 /// Each of these names a private-key operation of `rsa`, or a way to one.
-const FORBIDDEN: [&str; 5] =
-    ["RsaKeypair::random", "pkcs1v15", "try_sign", "sign_with_hash_alg", "authenticate_openssh_cert"];
+const FORBIDDEN: [&str; 4] = ["RsaKeypair::random", "pkcs1v15", "sign_with_hash_alg", "authenticate_openssh_cert"];
 
 /// What may appear in one file only: the file, and the text.
-const ONLY_IN: [(&str, &str); 5] = [
+const ONLY_IN: [(&str, &str); 6] = [
     // russh signs a key that it holds; podssh hands it only keys that are
     // not RSA, through one function.
     ("podssh-ssh/src/rsa_key.rs", "PrivateKeyWithHashAlg::new"),
+    // The signer of a certificate (T-021) signs through aws-lc-rs or an
+    // agent; a `try_sign` of a `PrivateKey` elsewhere would sign an RSA key
+    // through `rsa`.
+    ("podssh-ssh/src/rsa_key.rs", "try_sign"),
     ("podssh-ssh/src/rsa_key.rs", "RsaKeypair"),
     ("podssh-ssh/src/rsa_key.rs", "RsaPrivateKey"),
     // russh's agent server signs the keys that it holds; podssh agent's

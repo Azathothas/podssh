@@ -196,7 +196,7 @@ fn signer(path: &Path, agent_only: bool) -> Result<Signing, String> {
 
 /// The public key of `-f`: the file's when it is one, else `FILE.pub`, else
 /// the half of a private key that needs no passphrase to read.
-fn public_key(path: &Path, text: &str) -> Option<PublicKey> {
+pub(crate) fn public_key(path: &Path, text: &str) -> Option<PublicKey> {
     if let Some(key) = public_line(text) {
         return Some(key);
     }
@@ -213,7 +213,7 @@ fn public_line(text: &str) -> Option<PublicKey> {
 }
 
 /// The private key of `-f`, its passphrase asked when it has one.
-fn open_private(path: &Path, text: &str) -> Result<PrivateKey, String> {
+pub(crate) fn open_private(path: &Path, text: &str) -> Result<PrivateKey, String> {
     let shown = path.display();
     match podssh_ssh::key_file::decode(text, None) {
         Ok(key) => return Ok(key),
@@ -244,7 +244,7 @@ fn with_agent(public: &PublicKey, namespace: &str, hash: HashAlg, prehash: &[u8]
     block_on(sshsig::sign_with_agent(&Agent::FromEnvironment, public, namespace, hash, prehash))
 }
 
-fn block_on<F: std::future::Future>(future: F) -> F::Output {
+pub(crate) fn block_on<F: std::future::Future>(future: F) -> F::Output {
     tokio::runtime::Builder::new_current_thread().enable_all().build().expect("a runtime").block_on(future)
 }
 

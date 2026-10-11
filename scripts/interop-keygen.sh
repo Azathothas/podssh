@@ -191,6 +191,54 @@ for t in ed25519 ecdsa rsa; do
         || bad "keygen.sign.both_refuse.${t}" "$refused of 4 refusals of changed data or another namespace, $t"
 done
 
+# Certificates (T-021): ssh-keygen -L reads each certificate of keygen -s;
+# an sshd that trusts the CAs of keygen (TrustedUserCAKeys, and no
+# authorized_keys) lets OpenSSH's ssh in with a user certificate of each, and
+# refuses one that has expired or names another principal.
+"$BIN" keygen -q -t ed25519 -N '' -C interop-user-ca -f "$KG/user_ca" >/dev/null 2>&1
+"$BIN" keygen -q -t rsa -N '' -C interop-user-ca-rsa -f "$KG/user_ca_rsa" >/dev/null 2>&1
+cat "$KG/user_ca.pub" "$KG/user_ca_rsa.pub" >"$KG/trusted_cas"
+sshd_conf 2212 "KbdInteractiveAuthentication no" "TrustedUserCAKeys $KG/trusted_cas" "AuthorizedKeysFile none"
+/usr/sbin/sshd -f "$W/sshd-2212.conf" -E "$W/sshd-2212.log" || cat "$W/sshd-2212.log"
+tries=0
+while ! python3 -c 'import socket; socket.create_connection(("127.0.0.1", 2212), 1).close()' 2>/dev/null; do
+    tries=$((tries + 1))
+    [ "$tries" -ge 50 ] && break
+    sleep 0.1
+done
+cert_login() { # KEY: OpenSSH's ssh with KEY, and KEY-cert.pub beside it
+    ssh -F /dev/null -p 2212 -i "$1" -o IdentitiesOnly=yes -o BatchMode=yes -o PreferredAuthentications=publickey \
+        -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null "$T" true </dev/null >"$KG/out" 2>&1
+}
+for ca in user_ca user_ca_rsa; do
+    key="$KG/certkey_$ca"
+    "$BIN" keygen -q -t ed25519 -N '' -f "$key" >/dev/null 2>&1
+    "$BIN" keygen -q -s "$KG/$ca" -I "interop-$ca" -n podtest -V -5m:+1h "$key.pub" >"$KG/out" 2>"$KG/err"
+    expect_rc "keygen.cert.make.${ca}" "keygen -s with the CA $ca" 0 $? "$KG/err"
+    ssh-keygen -L -f "$key-cert.pub" >"$KG/out" 2>&1 && grep -q "Key ID: \"interop-$ca\"" "$KG/out" \
+        && grep -q '^ *podtest$' "$KG/out" \
+        && ok "keygen.cert.openssh_reads.${ca}" "ssh-keygen -L reads the certificate of keygen -s ($ca)" \
+        || bad "keygen.cert.openssh_reads.${ca}" "ssh-keygen -L did not read the certificate ($ca)" "$KG/out"
+    cert_login "$key"
+    expect_rc "keygen.cert.login.${ca}" "sshd lets OpenSSH's ssh in with a user certificate of keygen -s ($ca)" \
+        0 $? "$KG/out"
+done
+key="$KG/certkey_user_ca"
+"$BIN" keygen -q -s "$KG/user_ca" -I expired -n podtest -V -2h:-1h "$key.pub" >/dev/null 2>&1
+cert_login "$key" && expired=took || expired=refused
+[ "$expired" = refused ] && ok keygen.cert.expired_refused "sshd refuses a certificate of keygen -s that has expired" \
+    || bad keygen.cert.expired_refused "sshd took a certificate that had expired" "$KG/out"
+"$BIN" keygen -q -s "$KG/user_ca" -I other -n someone-else -V -5m:+1h "$key.pub" >/dev/null 2>&1
+cert_login "$key" && other=took || other=refused
+[ "$other" = refused ] && ok keygen.cert.principal_refused "sshd refuses a certificate of keygen -s for another principal" \
+    || bad keygen.cert.principal_refused "sshd took a certificate for another principal" "$KG/out"
+"$BIN" keygen -q -t ed25519 -N '' -f "$KG/hostkey_cert" >/dev/null 2>&1
+"$BIN" keygen -q -s "$KG/user_ca" -I host-cert -h -n 127.0.0.1 "$KG/hostkey_cert.pub" >/dev/null 2>&1
+ssh-keygen -L -f "$KG/hostkey_cert-cert.pub" 2>&1 | grep -q 'host certificate' \
+    && ok keygen.cert.host_openssh_reads "ssh-keygen -L reads a host certificate of keygen -s -h" \
+    || bad keygen.cert.host_openssh_reads "ssh-keygen -L did not read the host certificate" "$KG/hostkey_cert-cert.pub"
+kill "$(cat "$W/sshd-2212.pid")" 2>/dev/null
+
 # Refusals leave nothing behind.
 before=$(sha256sum <"$KG/id_ed25519")
 "$BIN" keygen -N '' -q -f "$KG/id_ed25519" >"$KG/out" 2>"$KG/err"

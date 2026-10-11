@@ -61,8 +61,14 @@ pub struct KeygenArgs {
     pub identity: Option<String>,
     pub options: Vec<String>,
     pub agent_key: bool,
-    /// The files that `-Y sign` signs.
+    /// The files that `-Y sign` signs, or the public keys that `-s`
+    /// certifies.
     pub files: Vec<String>,
+    /// `-V`, `-z`, `-h` and `-L`: certificates (T-021).
+    pub validity: Option<String>,
+    pub serial: Option<String>,
+    pub host_certificate: bool,
+    pub print_certificate: bool,
 }
 
 impl KeygenArgs {
@@ -102,6 +108,10 @@ impl KeygenArgs {
             options: many("option"),
             agent_key: flag("agent-key"),
             files: many("files"),
+            validity: one("validity"),
+            serial: one("serial"),
+            host_certificate: flag("host-certificate"),
+            print_certificate: flag("print-certificate"),
         }
     }
 }
@@ -133,19 +143,49 @@ pub fn run_keygen(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -
             let _ = writeln!(err, "podssh keygen: -Y cannot go with -p, -c, -y or -l");
             return EXIT_USAGE;
         }
+        if args.validity.is_some() || args.serial.is_some() || args.host_certificate || args.print_certificate {
+            let _ = writeln!(err, "podssh keygen: -V, -z, -h and -L go with -s (a certificate), not with -Y");
+            return EXIT_USAGE;
+        }
         return crate::keygen_sign::run(args, out, err);
+    }
+    let others = args.find_host.is_some()
+        || args.remove_host.is_some()
+        || args.hash_hosts
+        || args.change_passphrase
+        || args.change_comment
+        || args.print_public
+        || args.fingerprint;
+    if args.signature_file.is_some() {
+        if others || args.print_certificate {
+            let _ = writeln!(err, "podssh keygen: -s cannot go with -F, -R, -H, -p, -c, -y, -l or -L");
+            return EXIT_USAGE;
+        }
+        return crate::keygen_cert::sign(args, err);
+    }
+    let certificate_only =
+        [(args.validity.is_some(), "-V"), (args.serial.is_some(), "-z"), (args.host_certificate, "-h")];
+    if let Some((_, flag)) = certificate_only.iter().find(|(given, _)| *given) {
+        let _ = writeln!(err, "podssh keygen: {flag} goes with -s (a certificate)");
+        return EXIT_USAGE;
     }
     let lone = [
         (args.namespace.is_some(), "-n"),
-        (args.signature_file.is_some(), "-s"),
         (args.identity.is_some(), "-I"),
         (!args.options.is_empty(), "-O"),
         (args.agent_key, "-U"),
         (!args.files.is_empty(), "a FILE argument"),
     ];
     if let Some((_, flag)) = lone.iter().find(|(given, _)| *given) {
-        let _ = writeln!(err, "podssh keygen: {flag} goes with -Y (SSH signatures)");
+        let _ = writeln!(err, "podssh keygen: {flag} goes with -Y (SSH signatures) or -s (a certificate)");
         return EXIT_USAGE;
+    }
+    if args.print_certificate {
+        if others {
+            let _ = writeln!(err, "podssh keygen: -L cannot go with -F, -R, -H, -p, -c, -y or -l");
+            return EXIT_USAGE;
+        }
+        return crate::keygen_cert::print(args, out, err);
     }
     if args.find_host.is_some() || args.remove_host.is_some() || args.hash_hosts {
         let why = if args.find_host.is_some() && args.remove_host.is_some() {

@@ -12,8 +12,9 @@ use aws_lc_rs::signature::{RsaEncoding, RSA_PKCS1_SHA256, RSA_PKCS1_SHA512};
 use crypto_bigint::{BoxedUint, NonZero};
 use russh::keys::agent::AgentIdentity;
 use russh::keys::ssh_key::private::{KeypairData, RsaKeypair, RsaPrivateKey};
-use russh::keys::ssh_key::public::RsaPublicKey;
+use russh::keys::ssh_key::public::{KeyData, RsaPublicKey};
 use russh::keys::ssh_key::Mpint;
+use russh::keys::ssh_key::Signature;
 use std::sync::Arc;
 
 use russh::keys::{HashAlg, PrivateKey, PrivateKeyWithHashAlg};
@@ -59,11 +60,50 @@ impl RsaSigner {
     }
 
     /// The signature of `data` with SHA-512 (`rsa-sha2-512`), as an SSH
-    /// signature of OpenSSH's takes it (T-020).
+    /// signature of OpenSSH's takes it (T-020), and a certificate by
+    /// default (T-021).
     pub(crate) fn sign_sha512(&self, data: &[u8]) -> Result<Vec<u8>, SignError> {
         let mut signature = vec![0u8; self.pair.public_modulus_len()];
         self.pair.sign(&RSA_PKCS1_SHA512, &SystemRandom::new(), data, &mut signature).map_err(|_| SignError::Failed)?;
         Ok(signature)
+    }
+
+    /// The same with SHA-256 (`rsa-sha2-256`), for `-s` with
+    /// `-t rsa-sha2-256` (T-021).
+    pub(crate) fn sign_sha256(&self, data: &[u8]) -> Result<Vec<u8>, SignError> {
+        let mut signature = vec![0u8; self.pair.public_modulus_len()];
+        self.pair.sign(&RSA_PKCS1_SHA256, &SystemRandom::new(), data, &mut signature).map_err(|_| SignError::Failed)?;
+        Ok(signature)
+    }
+}
+
+/// A signer that ssh-key's certificate builder calls (T-021): the closure
+/// signs, through aws-lc-rs for an RSA CA, or with an agent's signature. It
+/// is in this file, the one where podssh's own code names `try_sign`
+/// (T-257): a `PrivateKey`'s would sign an RSA key through `rsa`.
+pub(crate) struct Detached {
+    key: KeyData,
+    sign: Box<SignWith>,
+}
+
+/// What signs for a [`Detached`]: the data, to its signature.
+type SignWith = dyn Fn(&[u8]) -> Result<Signature, String>;
+
+impl Detached {
+    pub(crate) fn new(key: KeyData, sign: impl Fn(&[u8]) -> Result<Signature, String> + 'static) -> Detached {
+        Detached { key, sign: Box::new(sign) }
+    }
+}
+
+impl signature::Signer<Signature> for Detached {
+    fn try_sign(&self, msg: &[u8]) -> Result<Signature, signature::Error> {
+        (self.sign)(msg).map_err(|_| signature::Error::new())
+    }
+}
+
+impl From<&Detached> for KeyData {
+    fn from(detached: &Detached) -> KeyData {
+        detached.key.clone()
     }
 }
 

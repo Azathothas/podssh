@@ -236,3 +236,38 @@ fn keygen_signs_with_the_agents_key() {
     assert!(String::from_utf8_lossy(&refused.stderr).contains("the agent does not hold the key"));
     drop(running);
 }
+
+/// `podssh keygen -s CA.pub -U` certifies a key with the CA that the agent
+/// holds (T-021): `-L` names that CA.
+#[test]
+fn keygen_certifies_with_the_agents_ca() {
+    let home = scratch("cert");
+    let ca = home.join("ca");
+    let user = home.join("user");
+    for key in [&ca, &user] {
+        let made = Command::new(env!("CARGO_BIN_EXE_podssh"))
+            .args(["keygen", "-q", "-t", "ed25519", "-N", "", "-f"])
+            .arg(key)
+            .status()
+            .unwrap();
+        assert!(made.success());
+    }
+    let (running, sock) = agent(&home, &[]);
+    let added = ran(podssh(&home, Some(&sock), &["agent", "add", ca.to_str().unwrap()]));
+    assert_eq!(added.status.code(), Some(0), "{}", String::from_utf8_lossy(&added.stderr));
+    let ca_pub = format!("{}.pub", ca.display());
+    let user_pub = format!("{}.pub", user.display());
+    let signed =
+        ran(podssh(&home, Some(&sock), &["keygen", "-q", "-s", &ca_pub, "-U", "-I", "by-agent", "-n", "a", &user_pub]));
+    assert_eq!(signed.status.code(), Some(0), "{}", String::from_utf8_lossy(&signed.stderr));
+    let fingerprint = String::from_utf8_lossy(&ran(podssh(&home, None, &["keygen", "-l", "-f", &ca_pub])).stdout)
+        .split_whitespace()
+        .nth(1)
+        .unwrap_or_default()
+        .to_string();
+    let cert = format!("{}-cert.pub", user.display());
+    let shown = String::from_utf8_lossy(&ran(podssh(&home, None, &["keygen", "-L", "-f", &cert])).stdout).into_owned();
+    assert!(shown.contains(&format!("Signing CA: ED25519 {fingerprint} (using ssh-ed25519)")), "{shown}");
+    assert!(shown.contains("Key ID: \"by-agent\""), "{shown}");
+    drop(running);
+}

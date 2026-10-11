@@ -230,6 +230,11 @@ pub fn verb_notes(verb: &Verb) -> String {
         s.push_str("-P on ssh is OpenSSH's Tag, not a port, and is ignored. On scp and\n");
         s.push_str("  sftp, -P is the port. The meaning is per-verb.\n");
     }
+    if verb.name == "keygen" {
+        s.push('\n');
+        s.push_str("-V here is the validity of a certificate, with -s; podssh -V prints the version.\n");
+        s.push_str("-n, -s, -I, -O and -U mean one thing with -Y and another with -s, as in ssh-keygen.\n");
+    }
     if matches!(verb.name, "cp" | "mv" | "scp" | "sftp") {
         s.push('\n');
         s.push_str("-P here is the port, as on scp and sftp. On ssh it is a Tag.\n");

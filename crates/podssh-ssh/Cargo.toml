@@ -62,6 +62,10 @@ pkcs8 = { version = "0.11", default-features = false, features = ["encryption"] 
 # russh-sftp's), so nothing new is compiled.
 sha2 = { workspace = true }
 chrono = "0.4.45"
+# The signer that ssh-key's certificate builder calls (T-021): an RSA CA
+# signs through aws-lc-rs, and a CA in an agent through the agent. The
+# version that ssh-key builds.
+signature = { version = "3", default-features = false }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
