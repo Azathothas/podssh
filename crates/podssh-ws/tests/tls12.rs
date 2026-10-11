@@ -70,11 +70,14 @@ impl Drop for Scratch {
 /// The files that a test's server and client read.
 const FILES: [&str; 5] = ["ca.pem", "ecdsa.pem", "ecdsa.key", "rsa.pem", "rsa.key"];
 
+/// Each of [`FILES`] with its bytes.
+type Files = Vec<(&'static str, Vec<u8>)>;
+
 /// A CA, and a leaf for `localhost` with each key, as bytes: made once for
 /// this test binary, in a directory that goes at once; `None` when this host
 /// has no openssl.
 fn certificates() -> Option<&'static [(&'static str, Vec<u8>)]> {
-    static MADE: OnceLock<Option<Vec<(&'static str, Vec<u8>)>>> = OnceLock::new();
+    static MADE: OnceLock<Option<Files>> = OnceLock::new();
     MADE.get_or_init(|| {
         let made = Scratch::new("make").and_then(|dir| {
             make(&dir.0)?;
