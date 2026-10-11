@@ -65,7 +65,7 @@ pub enum Request {
     /// A subsystem by name (`-s`), such as `sftp`.
     Subsystem(String),
     /// `-W HOST:PORT`: stdin and stdout become a TCP stream opened by the server.
-    StdioForward { host: String, port: u16 },
+    StdioForward(StdioTarget),
     /// `-N`: stay connected and run nothing.
     Nothing,
 }
@@ -159,6 +159,25 @@ pub enum Elevate {
     Sudo,
     /// `su -c`, with a pty: su reads a terminal alone.
     Su,
+}
+
+/// Where `-W` reaches from the server (T-040).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum StdioTarget {
+    /// `HOST:PORT`: a TCP connection (`direct-tcpip`).
+    Tcp { host: String, port: u16 },
+    /// `/PATH`: a Unix socket on the server (`direct-streamlocal@openssh.com`).
+    Socket(String),
+}
+
+impl StdioTarget {
+    /// As a message names it: `HOST:PORT`, or the path.
+    pub fn shown(&self) -> String {
+        match self {
+            StdioTarget::Tcp { host, port } => podssh_ws::dial::authority(host, *port),
+            StdioTarget::Socket(path) => path.clone(),
+        }
+    }
 }
 
 /// One `-J` hop, or the final destination.

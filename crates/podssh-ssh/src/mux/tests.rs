@@ -217,7 +217,8 @@ async fn mux_master_serves_check_a_session_and_a_stdio_forward() {
             drop(stdin_w);
             let (mut out_r, out_w) = std::io::pipe().unwrap();
             let c = client::connect(&path).await.expect("a master");
-            assert_eq!(c.stdio_on("db.internal", 5432, [stdin_r.as_raw_fd(), out_w.as_raw_fd()], &log).await, 0);
+            let db = crate::options::StdioTarget::Tcp { host: "db.internal".into(), port: 5432 };
+            assert_eq!(c.stdio_on(&db, [stdin_r.as_raw_fd(), out_w.as_raw_fd()], &log).await, 0);
             drop((stdin_r, out_w));
             let mut got = String::new();
             out_r.read_to_string(&mut got).unwrap();

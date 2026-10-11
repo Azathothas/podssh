@@ -65,7 +65,8 @@ pub type Connection = russh::client::Handle<handler::Client>;
 pub use local::LocalForward;
 pub use log::Log;
 pub use options::{
-    Agent, Elevate, Hop, LogLevel, Method, Options, RemoteForward, Request, RequestTty, StrictHostKeyChecking,
+    Agent, Elevate, Hop, LogLevel, Method, Options, RemoteForward, Request, RequestTty, StdioTarget,
+    StrictHostKeyChecking,
 };
 pub use relay_stream::{RelayEnd, RelayStatus};
 pub use run::{run, EXIT_FAILURE};

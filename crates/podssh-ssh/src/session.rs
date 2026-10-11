@@ -119,7 +119,7 @@ pub async fn attach(
             channel.request_subsystem(true, name.as_str()).await.map_err(|e| e.to_string())?;
             format!("the subsystem '{name}'")
         }
-        Request::StdioForward { .. } | Request::Nothing => unreachable!("not a session request"),
+        Request::StdioForward(_) | Request::Nothing => unreachable!("not a session request"),
     };
     if !wait_reply(&mut channel, &mut early).await? {
         return Err(format!("the server refused to start {what}"));

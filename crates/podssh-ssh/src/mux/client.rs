@@ -14,6 +14,7 @@ use tokio::signal::unix::{signal, SignalKind};
 use super::proto::{Fwd, Message, NewSession, NO_ESCAPE, VERSION};
 use super::wire;
 use crate::log::Log;
+use crate::options::StdioTarget;
 
 /// Why no master was used.
 #[derive(Debug)]
@@ -168,15 +169,21 @@ impl MuxClient {
         code
     }
 
-    /// `-W HOST:PORT` through the master: 0 once it closes the connection.
-    pub async fn stdio(self, host: &str, port: u16, log: &Log) -> i32 {
-        self.stdio_on(host, port, [0, 1], log).await
+    /// `-W HOST:PORT` or `-W /PATH` through the master: 0 once it closes the
+    /// connection.
+    pub async fn stdio(self, target: &StdioTarget, log: &Log) -> i32 {
+        self.stdio_on(target, [0, 1], log).await
     }
 
-    /// [`stdio`](Self::stdio) with these descriptors.
-    pub async fn stdio_on(mut self, host: &str, port: u16, fds: [i32; 2], log: &Log) -> i32 {
+    /// [`stdio`](Self::stdio) with these descriptors. A socket goes as
+    /// OpenSSH's client sends it: its path, and the port `PORT_STREAMLOCAL`.
+    pub async fn stdio_on(mut self, target: &StdioTarget, fds: [i32; 2], log: &Log) -> i32 {
         let rid = self.next();
-        let request = Message::NewStdioFwd { rid, host: host.to_string(), port: u32::from(port) };
+        let (host, port) = match target {
+            StdioTarget::Tcp { host, port } => (host.clone(), u32::from(*port)),
+            StdioTarget::Socket(path) => (path.clone(), super::proto::PORT_STREAMLOCAL),
+        };
+        let request = Message::NewStdioFwd { rid, host, port };
         if let Err(why) = self.send_with(request, &fds).await {
             log.error(&format!("control master: {why}"));
             return crate::run::EXIT_FAILURE;

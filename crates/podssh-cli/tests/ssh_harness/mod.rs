@@ -23,7 +23,8 @@
 //! rule, and only `su-...` is granted a pty. `x11-probe` (T-037) opens an
 //! `x11` channel to the client with the cookie of its `x11-req`, sends an X
 //! client's first packet on it, and prints the X server's status and that
-//! cookie.
+//! cookie. A direct-streamlocal channel to the socket `/echo` (T-040) sends
+//! back what it gets; to another socket it is refused.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -36,6 +37,12 @@ use std::time::Duration;
 
 use russh::server::{self, Auth, Msg, Session};
 use russh::{Channel, ChannelId};
+
+mod sudo;
+mod x11;
+
+use sudo::{elevation, Elevated};
+use x11::x11_probe;
 
 /// What `greet` prints.
 pub const GREETING: &str = "hello over the iroh road\n";
@@ -71,24 +78,6 @@ struct Far {
     elevated: HashMap<ChannelId, Elevated>,
     /// The cookie of the client's `x11-req`, in hexadecimal.
     x11_cookie: Option<String>,
-}
-
-/// A command of sudo (with its prompt) or of su (with none), until it starts.
-struct Elevated {
-    prompt: Option<String>,
-    started: String,
-    line: Vec<u8>,
-}
-
-/// The prompt of `sudo -S -k -p PROMPT -- sh -c '...'` (none for `su -c`),
-/// and the marker that the command prints as it starts.
-fn elevation(command: &str) -> Option<(Option<String>, String)> {
-    let started = command.split("printf %s ").nth(1)?.split_whitespace().next()?.to_string();
-    if let Some(rest) = command.strip_prefix("sudo -S -k -p ") {
-        Some((Some(rest.split_whitespace().next()?.to_string()), started))
-    } else {
-        command.starts_with("su -c ").then_some((None, started))
-    }
 }
 
 impl server::Handler for Far {
@@ -152,6 +141,27 @@ impl server::Handler for Far {
             }
             Err(_) => reply.reject(russh::ChannelOpenFailure::ConnectFailed).await,
         }
+        Ok(())
+    }
+
+    async fn channel_open_direct_streamlocal(
+        &mut self,
+        channel: Channel<Msg>,
+        socket_path: &str,
+        reply: server::ChannelOpenHandle,
+        _session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        if socket_path != "/echo" {
+            reply.reject(russh::ChannelOpenFailure::ConnectFailed).await;
+            return Ok(());
+        }
+        reply.accept().await;
+        tokio::spawn(async move {
+            use tokio::io::AsyncWriteExt;
+            let (mut from, mut to) = tokio::io::split(channel.into_stream());
+            let _ = tokio::io::copy(&mut from, &mut to).await;
+            let _ = to.shutdown().await;
+        });
         Ok(())
     }
 
@@ -422,30 +432,6 @@ impl server::Handler for Far {
         }
         Ok(())
     }
-}
-
-/// An X client's first packet on a new `x11` channel to the client, with
-/// `cookie` (hexadecimal): the X server's first byte of answer, or `none`
-/// when the channel was refused or closed.
-async fn x11_probe(handle: &server::Handle, cookie: &str) -> String {
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    let Ok(channel) = handle.channel_open_x11("127.0.0.1", 6010).await else { return "refused".into() };
-    let cookie: Vec<u8> =
-        (0..cookie.len() / 2).filter_map(|i| u8::from_str_radix(&cookie[2 * i..2 * i + 2], 16).ok()).collect();
-    let name = b"MIT-MAGIC-COOKIE-1";
-    let mut setup = vec![b'l', 0, 11, 0, 0, 0];
-    setup.extend_from_slice(&(name.len() as u16).to_le_bytes());
-    setup.extend_from_slice(&(cookie.len() as u16).to_le_bytes());
-    setup.extend_from_slice(&[0, 0]);
-    setup.extend_from_slice(name);
-    setup.extend_from_slice(&[0, 0]);
-    setup.extend_from_slice(&cookie);
-    let mut stream = channel.into_stream();
-    let mut status = [0u8; 1];
-    if stream.write_all(&setup).await.is_err() || stream.read_exact(&mut status).await.is_err() {
-        return "none".into();
-    }
-    status[0].to_string()
 }
 
 /// The server on the loopback, with the host key in `key`, on the current

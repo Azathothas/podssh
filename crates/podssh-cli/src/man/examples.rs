@@ -25,6 +25,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ("log in to a host, through the relay", "podssh ssh user@example.org".into()),
         ("run one command; podssh exits with its exit status", "podssh ssh user@example.org 'uname -a'".into()),
         (
+            "a Unix socket on the server, on stdin and stdout",
+            "podssh ssh -W /run/postgresql/.s.PGSQL.5432 user@db.example.org".into(),
+        ),
+        (
             "keep what a session showed, with its timing, and show it again twice as fast",
             "podssh ssh -tt --record top.cast user@example.org top && podssh play --speed 2 top.cast".into(),
         ),

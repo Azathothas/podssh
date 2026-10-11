@@ -17,6 +17,7 @@ harness hostkeys interop 4 scripts/interop-hostkeys.sh
 harness sudo interop 3 scripts/interop-sudo.sh
 harness recording interop 3 scripts/interop-recording.sh
 harness x11 interop 3 scripts/interop-x11.sh
+harness stdio interop 2 scripts/interop-stdio.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -471,3 +472,5 @@ x11.trusted pass
 x11.spoofed pass
 x11.untrusted env-allowed an Xvfb with the SECURITY extension
 x11.no_display pass
+stdio.socket pass
+stdio.socket_refused pass

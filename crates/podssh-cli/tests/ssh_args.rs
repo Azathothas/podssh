@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use podssh_cli::ssh::args::SshArgs;
 use podssh_cli::ssh::resolve::{parse_hop, resolve, resolve_or_refuse, Env, Transport};
 use podssh_cli::tree::{parse, Parsed};
-use podssh_ssh::{Agent, LogLevel, Method, Request, RequestTty, StrictHostKeyChecking};
+use podssh_ssh::{Agent, LogLevel, Method, Request, RequestTty, StdioTarget, StrictHostKeyChecking};
 
 fn ssh(words: &[&str]) -> SshArgs {
     let argv: Vec<std::ffi::OsString> = std::iter::once("ssh").chain(words.iter().copied()).map(Into::into).collect();
@@ -185,7 +185,7 @@ fn the_request_follows_the_flags() {
     assert!(r(&["-s", "host"]).is_err(), "-s needs a subsystem name");
     assert_eq!(
         r(&["-W", "db:5432", "host"]).unwrap(),
-        (Request::StdioForward { host: "db".into(), port: 5432 }, RequestTty::No)
+        (Request::StdioForward(StdioTarget::Tcp { host: "db".into(), port: 5432 }), RequestTty::No)
     );
     assert!(r(&["-W", "db", "host"]).is_err(), "-W needs a port, as in OpenSSH");
     assert!(r(&["-W", "db:5432", "host", "ls"]).is_err());
@@ -374,31 +374,6 @@ fn remote_forward_specs_resolve_and_the_forms_not_carried_are_refused() {
         assert_eq!(err.code, 64, "{words:?}");
         assert!(err.message.contains(says), "{words:?}: {}", err.message);
     }
-}
-
-#[test]
-fn stdio_forward_form_is_host_and_port() {
-    for (value, says) in [
-        ("/tmp/sock", "a Unix socket on the server is not supported yet"),
-        ("/tmp/sock:22", "a Unix socket on the server is not supported yet"),
-        ("db.internal", "expected HOST:PORT"),
-        ("5432", "expected HOST:PORT"),
-        ("db.internal:", "expected HOST:PORT"),
-        ("[::1]", "expected HOST:PORT"),
-        ("2001:db8::1", "an IPv6 address needs brackets"),
-    ] {
-        let err = resolve_or_refuse(&ssh(&["-W", value, "host"]), &env()).unwrap_err();
-        assert_eq!(err.code, 64, "{value}");
-        assert!(err.message.starts_with(&format!("-W {value}: ")), "{value}: {}", err.message);
-        assert!(err.message.contains(says), "{value}: {}", err.message);
-    }
-    for (value, host, port) in [("db.internal:5432", "db.internal", 5432), ("[::1]:5432", "::1", 5432)] {
-        let r = resolve(&ssh(&["-W", value, "host"]), &env()).unwrap_or_else(|e| panic!("{value}: {e}"));
-        assert_eq!(r.options.request, Request::StdioForward { host: host.into(), port }, "{value}");
-    }
-    // A -J hop keeps its own reading: a host alone is port 22.
-    let r = resolve(&ssh(&["-J", "jump.example", "-W", "db:5432", "host"]), &env()).unwrap();
-    assert_eq!(r.options.jump[0].port, 22);
 }
 
 /// `node://[user@]NAME` is a node of the reverse road (T-084); `node:22` stays

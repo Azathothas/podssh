@@ -127,7 +127,7 @@ async fn through(mut mux: MuxClient, resolved: &Resolved, log: &Arc<Log>) -> i32
     match &opts.request {
         // The forwards stay with the master, as OpenSSH's client leaves them.
         Request::Nothing => 0,
-        Request::StdioForward { host, port } => mux.stdio(host, *port, log).await,
+        Request::StdioForward(target) => mux.stdio(target, log).await,
         request => {
             let stdin_tty = podssh_ssh::terminal::stdin_is_terminal();
             let tty = match opts.request_tty {

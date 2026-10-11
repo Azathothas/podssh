@@ -1,12 +1,14 @@
-//! `-W HOST:PORT`: the server opens a TCP connection and podssh's stdin and
-//! stdout become that stream. Nothing listens locally, which is why this is
-//! the forwarding podssh offers. Also how `-J` reaches each next hop.
+//! `-W HOST:PORT`, or `-W /PATH` (T-040): the server opens a TCP connection,
+//! or one to a Unix socket on it, and podssh's stdin and stdout become that
+//! stream. Nothing listens locally, which is why this is the forwarding
+//! podssh offers. Also how `-J` reaches each next hop.
 
 use russh::client::Handle;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use crate::handler::Client;
 use crate::log::Log;
+use crate::options::StdioTarget;
 
 /// Open `host:port` from the server; the caller wraps the channel in a stream.
 pub async fn open(
@@ -19,10 +21,25 @@ pub async fn open(
     )
 }
 
+/// Open `target` from the server: a TCP connection, or a Unix socket on it.
+pub async fn open_target(
+    handle: &Handle<Client>,
+    target: &StdioTarget,
+) -> Result<russh::ChannelStream<russh::client::Msg>, String> {
+    match target {
+        StdioTarget::Tcp { host, port } => open(handle, host, *port).await,
+        StdioTarget::Socket(path) => handle
+            .channel_open_direct_streamlocal(path.as_str())
+            .await
+            .map(|c| c.into_stream())
+            .map_err(|e| format!("the server could not open a connection to the socket {path}: {e}")),
+    }
+}
+
 /// Copy stdin to the stream and the stream to stdout until the far side
 /// closes. Returns the exit code: 0 for a normal close.
-pub async fn stdio(handle: &Handle<Client>, host: &str, port: u16, log: &Log) -> i32 {
-    let stream = match open(handle, host, port).await {
+pub async fn stdio(handle: &Handle<Client>, target: &StdioTarget, log: &Log) -> i32 {
+    let stream = match open_target(handle, target).await {
         Ok(s) => s,
         Err(why) => {
             log.error(&why);
@@ -77,10 +94,7 @@ pub async fn stdio(handle: &Handle<Client>, host: &str, port: u16, log: &Log) ->
     // it or the whole connection died; only the second is a failure.
     if code == 0 && handle.is_closed() {
         let cause = crate::handler::take_last_error().map(|c| format!(": {c}")).unwrap_or_default();
-        log.error(&format!(
-            "the connection was lost while forwarding to {}{cause}",
-            podssh_ws::dial::authority(host, port)
-        ));
+        log.error(&format!("the connection was lost while forwarding to {}{cause}", target.shown()));
         return crate::run::EXIT_FAILURE;
     }
     code

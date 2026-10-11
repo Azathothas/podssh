@@ -93,11 +93,15 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   that it did not write puts `--` before it: `podssh ssh -- "$HOST" COMMAND`,
   `podssh proxy -- "$HOST" PORT`.
 - `-N` alone is valid. `-W HOST:PORT` is a stdio forward: no session, and
-  exit when the forward fails. `-W` takes `HOST:PORT` or `[ADDR]:PORT` only:
-  a value with no port is refused, as OpenSSH refuses it, and a path (a Unix
-  socket on the server, for OpenSSH) is refused until T-040 (exit 64). A
-  `-J` hop keeps its own reading, where a host alone is port 22. `-V` prints
-  the version and does not connect.
+  exit when the forward fails. `-W` takes `HOST:PORT`, `[ADDR]:PORT`, or
+  `/PATH`, a Unix socket on the server (T-040), which the server opens as
+  `direct-streamlocal@openssh.com`, as OpenSSH's `-W /PATH` does; through a
+  control master too. A value with no port is refused, as OpenSSH refuses
+  it, and so is a relative path (exit 64); a server that refuses the socket
+  (`AllowStreamLocalForwarding no`) gives its reason, and 255. In Git Bash,
+  `MSYS_NO_PATHCONV=1` keeps a path as it is typed. A `-J` hop keeps its own
+  reading, where a host alone is port 22. `-V` prints the version and does
+  not connect.
 - **`cf://[user@]HOST` is a service that `cloudflared` publishes (T-264).**
   HOST is the DNS name of a tunnel's `ssh://` or `tcp://` rule. podssh opens
   the WebSocket to `wss://HOST/` that `cloudflared access tcp` opens, with

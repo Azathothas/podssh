@@ -451,7 +451,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   (`xdpyinfo` through `-Y`), `x11.spoofed` (the server's `xauth list` holds
   no real cookie), `x11.untrusted` (`-X`, env-allowed for an Xvfb with no
   SECURITY extension) and `x11.no_display`. The gate runs them at this push.
-- `docs/cli.md:295-318`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:299-322`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -496,7 +496,7 @@ AF_UNIX.
   `crates/podssh-cli/src/doctor/unix.rs:169-186`). A seccomp filter can allow
   `bind` and refuse `listen`, so the probe for `-L` must also listen once.
 - Read: the remote end exists: `forward::open` opens `direct-tcpip`
-  (`crates/podssh-ssh/src/forward.rs:11-20`).
+  (`crates/podssh-ssh/src/forward.rs:13-22`).
 
 ## Approach
 
@@ -813,7 +813,7 @@ in the reports. Measured here on `3ee70dc`, and with OpenSSH 10.3p1.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -837,24 +837,24 @@ Measured, offline, with `MSYS_NO_PATHCONV=1` and `PODSSH_OFFLINE=1`:
 Read:
 
 - `request` parses the value of `-W` with `parse_hop`
-  (`crates/podssh-cli/src/ssh/hop.rs:81-91`), which reads a value with
+  (`crates/podssh-cli/src/ssh/hop.rs`, lines 81-91 at `f6af943`), which reads a value with
   no `:` as a host on port 22 (`crates/podssh-cli/src/ssh/hop.rs:41-54`).
 - russh 0.64.1 has `Handle::channel_open_direct_streamlocal` (the channel
   `direct-streamlocal@openssh.com`). podssh opens only `direct-tcpip`
-  (`crates/podssh-ssh/src/forward.rs:11-20`).
+  (`crates/podssh-ssh/src/forward.rs:13-22`).
 
 ## Approach
 
 1. T-239 refuses a path and a value with no port now (M3). This entry turns
    the refusal of a path into the streamlocal channel. Add a kind of target
-   to `Request::StdioForward` (`crates/podssh-ssh/src/options.rs:67-68`).
+   to `Request::StdioForward` (`crates/podssh-ssh/src/options.rs`, lines 67-68 at `f6af943`).
 2. Open a socket with `channel_open_direct_streamlocal` in
    `crates/podssh-ssh/src/forward.rs`, and use the copy loop of `stdio`
-   (`crates/podssh-ssh/src/forward.rs:22-87`) for both kinds.
+   (`crates/podssh-ssh/src/forward.rs:39-101`) for both kinds.
 3. A server that refuses the channel (OpenSSH with
    `AllowStreamLocalForwarding no`) gives its reason, and 255, as for TCP.
 4. Change the help of the `-W` row (`crates/podssh-cli/src/flags.rs:139-140`)
-   and `docs/cli.md:95-100` (T-239 refuses a path there until this entry), and
+   and `docs/cli.md:95-104` (T-239 refuses a path there until this entry), and
    add an example to the manual. A local socket
    is the work of T-176 (`pipe`).
 
@@ -865,6 +865,13 @@ Recommendation: OpenSSH's own spelling, `-W /path`, which OpenSSH accepts
 `docs/cli.md:8-10` promises. The alternative, a podssh prefix such as
 `unix:/path`, lost: no other client reads it, and podssh would still read
 `-W /path` differently from OpenSSH.
+
+Taken, with these calls made in the work (2026-10-11). A value that starts
+with `/` is a socket's path, whole, as OpenSSH reads a lone path; a value
+with a `/` elsewhere is refused (64). Through a control master the path goes
+as OpenSSH's client sends it, with the port `PORT_STREAMLOCAL`, and the master
+opens the socket. In Git Bash, `MSYS_NO_PATHCONV=1` keeps the path as typed;
+the docs say so.
 
 ## Prove
 
@@ -879,6 +886,32 @@ The first test parses `/tmp/s`, `host:5432` and `[::1]:5432`, and refuses
 server in Python on the server's side, and pipes `ping` through
 `-W $W/echo.sock`: the output is `ping`, exit 0. Planted defect: read a path
 as a TCP host again, and the gate's check fails with the server's error.
+
+## Done
+
+2026-10-11. The target of `-W` is `StdioTarget`, TCP or a socket
+(`crates/podssh-ssh/src/options.rs:164-181`), opened by `open_target`
+(`crates/podssh-ssh/src/forward.rs:24-37`); through a control master
+(`crates/podssh-ssh/src/mux/client.rs:171-186`,
+`crates/podssh-ssh/src/mux/msession.rs:235-242`). The command line reads a
+path at `crates/podssh-cli/src/ssh/hop.rs:86-89`, and the row of `-W` says so
+(`crates/podssh-cli/src/flags.rs:139-140`).
+- `cargo test -p podssh-cli --test ssh_stdio_socket`: 2 passed. The test of
+  the Prove, `stdio_forward_socket_or_host_and_port`, is in this file, as
+  `ssh_args.rs` reached 500 lines: `/tmp/s`, a socket's path with a `:` in it,
+  `host:5432` and `[::1]:5432` are read, and `foo`, `tmp/sock` and the other
+  forms with no port are refused with 64. Against the test's server, `-W
+  /echo` sends back what stdin gave, and a socket that the server refuses ends
+  with 255 and names the socket. Planted, a path not read as a socket (the
+  Prove's plant): the test of the reading failed; restored. In the build
+  image the tests of the mux, with the socket's form, passed.
+- `scripts/interop-stdio.sh:1-45`, a new harness of two checks against
+  OpenSSH's sshd: `stdio.socket` (a Python echo server on a Unix socket of the
+  box answers `ping`) and `stdio.socket_refused`. The gate runs them at this
+  push.
+- `docs/cli.md:95-104`, a note and an example of the manual.
+- `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
+  578 passed, 0 failed, 31 ignored; clippy; rustfmt.
 
 # T-041: The forwards of a session: a list and byte counts
 
@@ -900,7 +933,7 @@ many bytes moved.
 
 ## Premise
 
-Read: today the only forward is `-W` (`crates/podssh-ssh/src/forward.rs:22-87`),
+Read: today the only forward is `-W` (`crates/podssh-ssh/src/forward.rs:39-101`),
 and it counts nothing. The escapes are `~.`, `~R`, `~?` and `~~`
 (`crates/podssh-ssh/src/escape.rs:1-13`); OpenSSH also has `~#`, which lists
 the forwarded connections. `podssh status` (T-051) runs in another process,
@@ -1031,7 +1064,7 @@ Read: `request` parses the value with `parse_hop`
 (`crates/podssh-cli/src/ssh/resolve.rs`, lines 472-482 at `97146aa`), which reads a value with no
 `:` as a host on port 22, and splits a value at its one `:`
 (`crates/podssh-cli/src/ssh/hop.rs:41-54`). `forward::open` opens
-`direct-tcpip` only (`crates/podssh-ssh/src/forward.rs:11-20`).
+`direct-tcpip` only (`crates/podssh-ssh/src/forward.rs:13-22`).
 
 ## Approach
 
@@ -1043,7 +1076,7 @@ Read: `request` parses the value with `parse_hop`
    refuses `-W 5432`, whose meaning in OpenSSH is not known here.
 3. Keep `HOST:PORT` and `[v6]:PORT`. A `-J` hop keeps its own parse, where a
    host alone means port 22, as in OpenSSH.
-4. Add the rule to `docs/cli.md:95-100`. The help of the `-W` row
+4. Add the rule to `docs/cli.md:95-104`. The help of the `-W` row
    (`crates/podssh-cli/src/flags.rs:139-140`) already says `HOST:PORT`.
 
 ## Prove

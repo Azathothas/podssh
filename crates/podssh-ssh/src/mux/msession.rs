@@ -212,8 +212,10 @@ async fn take(msg: ChannelMsg, status: &mut Option<i32>, out: &mut Passed, err: 
 }
 
 /// `-W HOST:PORT` through the master: a direct-tcpip channel and the
-/// client's stdin and stdout. The client hears SESSION_OPENED, and exits 0
-/// when the master closes the control connection, as OpenSSH's does.
+/// client's stdin and stdout, or for the port `PORT_STREAMLOCAL` a
+/// direct-streamlocal channel to the socket of `host` (T-040). The client
+/// hears SESSION_OPENED, and exits 0 when the master closes the control
+/// connection, as OpenSSH's does.
 #[allow(clippy::too_many_arguments)]
 pub async fn stdio(
     handle: &Handle<Client>,
@@ -230,7 +232,14 @@ pub async fn stdio(
         (Ok(input), Ok(output)) => (input, output),
         _ => return failure(stream, rid, "the master could not use the client's descriptors".into()).await,
     };
-    let opened = tokio::time::timeout(OPEN_LIMIT, handle.channel_open_direct_tcpip(host, port, "127.0.0.1", 0)).await;
+    let opening = async {
+        if port == super::proto::PORT_STREAMLOCAL {
+            handle.channel_open_direct_streamlocal(host).await
+        } else {
+            handle.channel_open_direct_tcpip(host, port, "127.0.0.1", 0).await
+        }
+    };
+    let opened = tokio::time::timeout(OPEN_LIMIT, opening).await;
     let channel = match opened {
         Ok(Ok(channel)) => channel,
         Ok(Err(e)) => return failure(stream, rid, format!("stdio forwarding failed: {e}")).await,
@@ -241,5 +250,6 @@ pub async fn stdio(
     }
     let local = tokio::io::join(input, output);
     crate::agent_forward::splice(local, channel.into_stream(), GRACE).await;
-    log.verbose(&format!("a shared stdio forward to {host}:{port} ended"));
+    let shown = if port == super::proto::PORT_STREAMLOCAL { host.to_string() } else { format!("{host}:{port}") };
+    log.verbose(&format!("a shared stdio forward to {shown} ended"));
 }

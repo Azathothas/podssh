@@ -17,7 +17,7 @@ use crate::relay_settings::Refusal;
 /// Check `--record`, and keep its file in `resolved`.
 pub fn check(args: &SshArgs, resolved: &mut Resolved) -> Result<(), Refusal> {
     let Some(file) = args.record.as_deref() else { return Ok(()) };
-    if matches!(resolved.options.request, Request::StdioForward { .. } | Request::Nothing) {
+    if matches!(resolved.options.request, Request::StdioForward(_) | Request::Nothing) {
         return Err("--record keeps the output of a session, and -W and -N open none".into());
     }
     if resolved.persist.is_some() {

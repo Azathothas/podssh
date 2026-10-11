@@ -114,7 +114,8 @@ const SSH: &[&str] = &[
      loopback, and an empty address or * each address, as in OpenSSH. Each listener is made before \
      anything connects: one that cannot be made ends the run (exit 255), with the system's words and \
      -W HOST:PORT, which needs none; PODSSH_LISTEN set to no turns listening off (exit 78). \
-     ClearAllForwardings yes drops each forward, and -W implies it, as in OpenSSH.",
+     ClearAllForwardings yes drops each forward, and -W implies it, as in OpenSSH. -W /PATH reaches a \
+     Unix socket on the server, as OpenSSH's -W does.",
     "-R [BIND:]PORT:HOST:HOSTPORT asks the server to listen; each connection that it takes reaches \
      HOST:HOSTPORT from this host, as one more outbound connection, through HTTPS_PROXY when it is set, \
      within 20 s. A port of 0 lets the server choose, and podssh prints it. A forward that the server \

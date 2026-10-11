@@ -164,10 +164,10 @@ where
     let mut handles = connect_hops(stream, opts, log).await.map_err(|e| e.to_string())?;
     let host = display(&opts.destination);
     let result = match &opts.request {
-        Request::StdioForward { host, port } => {
+        Request::StdioForward(target) => {
             retry::reached(Phase::Requested);
             let handle = handles.last().expect("the destination");
-            with_master(handle, opts, log, async { Ok(forward::stdio(handle, host, *port, log).await) }, Ok(0)).await
+            with_master(handle, opts, log, async { Ok(forward::stdio(handle, target, log).await) }, Ok(0)).await
         }
         Request::Nothing => {
             // The wait of -N is its request: a drop after it is no failure

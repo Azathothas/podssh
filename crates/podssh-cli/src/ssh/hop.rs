@@ -1,7 +1,7 @@
 //! The hosts of a command line: a destination, a `-J` hop and a `-W`
 //! target, each read before anything connects; and the request of a run.
 
-use podssh_ssh::{Hop, Request};
+use podssh_ssh::{Hop, Request, StdioTarget};
 
 use super::args::SshArgs;
 use super::options::{parse_port, Settings};
@@ -12,7 +12,7 @@ use super::options::{parse_port, Settings};
 /// read elsewhere, where a host alone is port 22, as in OpenSSH.
 pub(super) fn stdio_forward_form(target: &str) -> Result<(), String> {
     if target.contains('/') {
-        return Err(format!("-W {target}: a Unix socket on the server is not supported yet"));
+        return Err(format!("-W {target}: expected HOST:PORT, or the absolute path of a Unix socket on the server"));
     }
     let port = match target.strip_prefix('[') {
         Some(rest) => rest.split_once("]:").map(|(_, port)| port),
@@ -83,12 +83,16 @@ pub(super) fn request(args: &SshArgs, settings: &Settings, remote_command: Optio
         if !args.command.is_empty() {
             return Err("-W cannot be combined with a remote command".into());
         }
+        // A path is a Unix socket on the server, as OpenSSH reads it (T-040).
+        if target.starts_with('/') {
+            return Ok(Request::StdioForward(StdioTarget::Socket(target.clone())));
+        }
         stdio_forward_form(target)?;
         let hop = parse_hop(target)?;
         if hop.user.is_some() {
             return Err(format!("-W {target}: expected HOST:PORT"));
         }
-        return Ok(Request::StdioForward { host: hop.host, port: hop.port });
+        return Ok(Request::StdioForward(StdioTarget::Tcp { host: hop.host, port: hop.port }));
     }
     let command =
         if args.command.is_empty() { remote_command.unwrap_or_default().to_string() } else { args.command.join(" ") };

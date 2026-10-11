@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**287 entries: 79 open, 0 partial, 22 blocked, 186 done.**
+**287 entries: 78 open, 0 partial, 22 blocked, 187 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 135 | 157 |
-| P3 | 73 | 0 | 4 | 29 | 106 |
-| **All** | 79 | 0 | 22 | 186 | 287 |
+| P3 | 72 | 0 | 4 | 30 | 106 |
+| **All** | 78 | 0 | 22 | 187 | 287 |
 
 ## Entries
 
@@ -113,7 +113,7 @@ repository and CI).
 | [T-037](forwarding.md) | P3 | M | backlog | feature | done | `-X` and `-Y`: X11 forwarding to the display that `DISPLAY` names |
 | [T-038](forwarding.md) | P2 | M | backlog | feature | done | `-L` and `-D` when a probe shows that a local bind is allowed |
 | [T-039](forwarding.md) | P2 | M | backlog | feature | done | Connection sharing: `ControlMaster`, `ControlPath`, `-O` and `-S` over an AF_UNIX socket |
-| [T-040](forwarding.md) | P3 | S | backlog | feature | open | `-W` to a Unix socket on the server (streamlocal) |
+| [T-040](forwarding.md) | P3 | S | backlog | feature | done | `-W` to a Unix socket on the server (streamlocal) |
 | [T-041](forwarding.md) | P3 | S | backlog | feature | open | The forwards of a session: a list and byte counts |
 | [T-042](forwarding.md) | P3 | S | backlog | feature | open | `-R` forwards come back after a drop |
 | [T-043](config.md) | P2 | M | M8 | feature | done | Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22) |

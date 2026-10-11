@@ -239,7 +239,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     let login = super::login::login(&args.identity_files, &settings, &tokens, env)?;
 
     let request = request(args, &settings, remote_command.as_deref())?;
-    let request_tty = if matches!(request, Request::StdioForward { .. } | Request::Nothing) || args.no_tty {
+    let request_tty = if matches!(request, Request::StdioForward(_) | Request::Nothing) || args.no_tty {
         RequestTty::No
     } else {
         match args.tty {
@@ -278,7 +278,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         port: args.port.is_some() || settings.port.is_some(),
         jumps: jump.len(),
         family,
-        forward: matches!(request, Request::StdioForward { .. }),
+        forward: matches!(request, Request::StdioForward(_)),
     };
     let transport = if let Some((_, label)) = &node {
         let race = super::iroh::race(args)?;
@@ -377,8 +377,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     options.compression = args.compression || settings.compression.unwrap_or(false);
     options.log_level = log_level;
     options.stdin_null = args.stdin_null || settings.stdin_null.unwrap_or(false);
-    let forwards =
-        super::local_spec::forwards(args, &settings, matches!(options.request, Request::StdioForward { .. }))?;
+    let forwards = super::local_spec::forwards(args, &settings, matches!(options.request, Request::StdioForward(_)))?;
     options.remote_forwards = forwards.remote;
     options.exit_on_forward_failure = settings.exit_on_forward_failure.unwrap_or(false);
     let shown = super::dump::Shown {
@@ -416,7 +415,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     super::recording::check(args, &mut resolved)?;
     // X11 goes on a session alone, as OpenSSH asks for it; a run with it
     // makes a connection of its own, as a master's session would not ask.
-    if !matches!(resolved.options.request, Request::StdioForward { .. } | Request::Nothing) {
+    if !matches!(resolved.options.request, Request::StdioForward(_) | Request::Nothing) {
         resolved.x11 = super::x11::plan(args, &settings);
     }
     if resolved.x11.is_some() && resolved.control.path.take().is_some() {

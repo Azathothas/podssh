@@ -137,7 +137,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     row(Some('6'), "ipv6-only", None, FlagKind::Supported,
         "use IPv6 only; forwarded to the relay's ?family=6", None),
     row(Some('W'), "stdio-forward", Some("HOST:PORT"), FlagKind::Supported,
-        "stdin and stdout become a connection the server opens to HOST:PORT", None),
+        "stdin and stdout become a connection the server opens to HOST:PORT, or to the Unix socket /PATH on it", None),
     row(Some('E'), "log-file", Some("LOGFILE"), FlagKind::Supported,
         "append podssh's own messages to a file instead of stderr", None),
     row(Some('F'), "config", Some("CONFIG"), FlagKind::Supported,
