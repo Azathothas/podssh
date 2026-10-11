@@ -10,6 +10,7 @@ use std::io::{BufRead, BufReader};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
@@ -45,22 +46,50 @@ fn openssl(args: &[&str]) -> Result<(), String> {
     }
 }
 
-/// A CA, and a leaf for `localhost` with each key, made once for this test
-/// binary; `None` when this host has no openssl.
-fn certificates() -> Option<&'static Path> {
-    static DIR: OnceLock<Option<PathBuf>> = OnceLock::new();
-    DIR.get_or_init(|| {
-        let dir = std::env::temp_dir().join(format!("podssh-tls12-{}", std::process::id()));
+/// A directory of the temporary directory, removed when it is dropped: the
+/// gate fails a run of the tests that leaves one (T-272).
+struct Scratch(PathBuf);
+
+impl Scratch {
+    fn new(what: &str) -> Result<Scratch, String> {
+        static NEXT: AtomicUsize = AtomicUsize::new(0);
+        let n = NEXT.fetch_add(1, Ordering::Relaxed);
+        let dir = std::env::temp_dir().join(format!("podssh-tls12-{}-{what}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(&dir).ok()?;
-        let made = make(&dir);
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        Ok(Scratch(dir))
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// The files that a test's server and client read.
+const FILES: [&str; 5] = ["ca.pem", "ecdsa.pem", "ecdsa.key", "rsa.pem", "rsa.key"];
+
+/// A CA, and a leaf for `localhost` with each key, as bytes: made once for
+/// this test binary, in a directory that goes at once; `None` when this host
+/// has no openssl.
+fn certificates() -> Option<&'static [(&'static str, Vec<u8>)]> {
+    static MADE: OnceLock<Option<Vec<(&'static str, Vec<u8>)>>> = OnceLock::new();
+    MADE.get_or_init(|| {
+        let made = Scratch::new("make").and_then(|dir| {
+            make(&dir.0)?;
+            FILES
+                .iter()
+                .map(|name| std::fs::read(dir.0.join(name)).map(|b| (*name, b)).map_err(|e| e.to_string()))
+                .collect()
+        });
         if let Err(why) = &made {
             if std::env::var_os("PODSSH_TEST_OPENSSL").is_some() {
                 panic!("PODSSH_TEST_OPENSSL is set, and openssl could not make the certificates: {why}");
             }
             eprintln!("did not run: {why}");
         }
-        made.ok().map(|_| dir)
+        made.ok()
     })
     .as_deref()
 }
@@ -196,12 +225,18 @@ async fn exchange(port: u16, ca: PathBuf) -> Result<(ProtocolVersion, CipherSuit
 }
 
 fn agreed(key: Key, extra: &[&str]) -> Option<Result<(ProtocolVersion, CipherSuite), String>> {
-    let dir = certificates()?;
-    let (_server, port) = server(dir, key, extra);
+    let files = certificates()?;
+    // Declared before the server, so dropped after it: the server ends
+    // before its files go.
+    let dir = Scratch::new("run").expect("a scratch directory");
+    for (name, bytes) in files {
+        std::fs::write(dir.0.join(name), bytes).expect("the certificates written");
+    }
+    let (_server, port) = server(&dir.0, key, extra);
     let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     Some(
         runtime
-            .block_on(async { tokio::time::timeout(LIMIT * 3, exchange(port, dir.join("ca.pem"))).await })
+            .block_on(async { tokio::time::timeout(LIMIT * 3, exchange(port, dir.0.join("ca.pem"))).await })
             .unwrap_or(Err("the exchange passed its limit".into())),
     )
 }

@@ -258,7 +258,8 @@ fn runs_in(file: &std::path::Path) -> usize {
 fn a_drop_before_the_request_is_tried_again_and_the_command_runs_once() {
     let session = Session::start("dropfirst");
     let Some(cell) = cell(&session, "dropfirst:20:1011") else { return };
-    let file = throughput_harness::scratch("dropfirst").join("ran");
+    // In the home, which the session removes when it ends.
+    let file = session.home.join("ran");
     let ran = ssh(&session, &cell, &[], &format!("append {} 5 0", file.display()), None);
     assert_eq!(ran.code, 5, "{}", ran.err);
     assert_eq!(ran.err.matches("so podssh tries once more").count(), 1, "{}", ran.err);
@@ -273,7 +274,8 @@ fn a_drop_before_the_request_is_tried_again_and_the_command_runs_once() {
 fn a_drop_after_the_request_is_not_tried_again() {
     let session = Session::start("dropafter");
     let Some(cell) = cell(&session, "dropfirstat:3:1011") else { return };
-    let file = throughput_harness::scratch("dropafter").join("ran");
+    // In the home, which the session removes when it ends.
+    let file = session.home.join("ran");
     let ran = ssh(&session, &cell, &[], &format!("append {} 0 30", file.display()), None);
     assert_eq!(ran.code, 255, "{}", ran.err);
     assert!(!ran.err.contains("so podssh tries"), "{}", ran.err);
