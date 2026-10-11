@@ -1,14 +1,16 @@
 //! The escape character of an interactive session (ssh(1), ESCAPE
 //! CHARACTERS): recognised only at the start of a line, and only when a pty
-//! was allocated. podssh implements `~.` (disconnect), `~R` (re-key), `~?`
-//! (help) and `~~` (a literal `~`); any other character after `~` is sent as
-//! typed, with the `~`.
+//! was allocated. podssh implements `~.` (disconnect), `~R` (re-key), `~#`
+//! (the forwards and their counts, T-041), `~?` (help) and `~~` (a literal
+//! `~`); any other character after `~` is sent as typed, with the `~`.
 
 /// Something the user asked for with an escape.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Command {
     Disconnect,
     Rekey,
+    /// `~#`: the forwards of the session, with what each carried.
+    List,
     Help,
 }
 
@@ -40,6 +42,10 @@ impl Escapes {
                     }
                     b'R' => {
                         commands.push(Command::Rekey);
+                        continue;
+                    }
+                    b'#' => {
+                        commands.push(Command::List);
                         continue;
                     }
                     b'?' => {
@@ -74,7 +80,7 @@ impl Escapes {
         let e = self.escape as char;
         format!(
             "Supported escape sequences:\n {e}.   - terminate connection\n {e}R   - request rekey\n \
-             {e}?   - this message\n {e}{e}   - send the escape character by typing it twice\n\
+             {e}#   - list forwarded connections\n {e}?   - this message\n {e}{e}   - send the escape character by typing it twice\n\
              (Note that escapes are only recognized immediately after newline.)\n"
         )
     }

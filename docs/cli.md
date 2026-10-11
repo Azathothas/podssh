@@ -180,6 +180,12 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   character cut between two reads is written whole. `-N`, `-W` and
   `--persist` cannot go with it (64), and such a run makes a connection of
   its own, with no `ControlPath`.
+- **`~#` lists the forwards of the session** (T-041), in a session with a
+  pty, as OpenSSH's `~#` lists its connections: for each `-L`, `-D`, `-R`
+  and `-W`, as it was written, the connections it carried, those open and
+  those that failed, and the bytes toward the server and from it, counted as
+  they pass. With `-v` the end of a run prints the same lines. A forward
+  asked for again on a new connection (`--persist`) keeps its counts.
 - **`-G` prints the settings in effect** (T-046), as OpenSSH's `ssh -G`
   does: a line of `keyword value` for each keyword of OpenSSH that podssh
   applies, with the defaults, in OpenSSH's order and spelling (`true` and

@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:299-322`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:305-328`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -857,7 +857,7 @@ Read:
    to `Request::StdioForward` (`crates/podssh-ssh/src/options.rs`, lines 67-68 at `f6af943`).
 2. Open a socket with `channel_open_direct_streamlocal` in
    `crates/podssh-ssh/src/forward.rs`, and use the copy loop of `stdio`
-   (`crates/podssh-ssh/src/forward.rs:39-101`) for both kinds.
+   (`crates/podssh-ssh/src/forward.rs:39-106`) for both kinds.
 3. A server that refuses the channel (OpenSSH with
    `AllowStreamLocalForwarding no`) gives its reason, and 255, as for TCP.
 4. Change the help of the `-W` row (`crates/podssh-cli/src/flags.rs:139-140`)
@@ -912,7 +912,7 @@ path at `crates/podssh-cli/src/ssh/hop.rs:86-89`, and the row of `-W` says so
   with 255 and names the socket. Planted, a path not read as a socket (the
   Prove's plant): the test of the reading failed; restored. In the build
   image the tests of the mux, with the socket's form, passed.
-- `scripts/interop-stdio.sh:1-45`, a new harness of two checks against
+- `scripts/interop-stdio.sh:1-47`, a new harness of two checks against
   OpenSSH's sshd: `stdio.socket` (a Python echo server on a Unix socket of the
   box answers `ping`) and `stdio.socket_refused`. The gate runs them at this
   push.
@@ -930,7 +930,7 @@ statistics in real time), and the yituorou/meatshell report in GitHub #21
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -940,9 +940,9 @@ many bytes moved.
 
 ## Premise
 
-Read: today the only forward is `-W` (`crates/podssh-ssh/src/forward.rs:39-101`),
+Read: today the only forward is `-W` (`crates/podssh-ssh/src/forward.rs:39-106`),
 and it counts nothing. The escapes are `~.`, `~R`, `~?` and `~~`
-(`crates/podssh-ssh/src/escape.rs:1-13`); OpenSSH also has `~#`, which lists
+(`crates/podssh-ssh/src/escape.rs:1-15`); OpenSSH also has `~#`, which lists
 the forwarded connections. `podssh status` (T-051) runs in another process,
 so it cannot see the forwards of a session without a state file or a
 listener.
@@ -952,8 +952,8 @@ listener.
 1. Count, for each forward: the connections opened, closed and failed, and
    the bytes in each direction. Keep the counters in the forward's own task;
    put no lock on the data path.
-2. Add `~#` to the escapes (`crates/podssh-ssh/src/escape.rs:7-13`) and to its
-   help (`crates/podssh-ssh/src/escape.rs:72-80`): one line for each forward,
+2. Add `~#` to the escapes (`crates/podssh-ssh/src/escape.rs:7-15`) and to its
+   help (`crates/podssh-ssh/src/escape.rs:78-86`): one line for each forward,
    with its counts.
 3. At the end of a session, with `-v`, print one line for each forward. Do
    not call it "Transferred": OpenSSH's line of that name counts the bytes of
@@ -962,6 +962,18 @@ listener.
    command line of `~C`.
 5. Give the counts to the machine-readable result of T-054 when it exists.
    This entry depends on T-035.
+
+## Decision
+
+Taken, with these calls made in the work (2026-10-11). The bytes are counted
+as they are read, on atomics, so that `~#` shows a connection that is still
+open; no lock is on the data path. The table is the process's, as a process
+runs one chain of connections, and a forward asked for again on a new
+connection (`--persist`) keeps its counts. Each forward is listed from its
+start, under the name the user wrote (`-L` and `-D` as given, `-R` and `-W`
+rebuilt from their parts), with no connection yet. The channels of X11 and of
+the agent are not listed: the user asked for no forward there. The stop
+action of step 4 is T-291.
 
 ## Prove
 
@@ -976,6 +988,36 @@ reads its counters. In the gate, a run with `-v`, `-W` and 262144 bytes up
 prints a line with 262144 bytes sent, and `scripts/interop-pty.py` types
 `~#` in a session with a `-R` forward and reads the list. Planted defect:
 count each chunk twice, and the unit test fails.
+
+## Done
+
+2026-10-11. The counts, the table and the listing in
+`crates/podssh-ssh/src/tally.rs:1-169`; `-L` and `-D` count at
+`crates/podssh-ssh/src/local.rs:128`, `crates/podssh-ssh/src/local.rs:170` and
+`crates/podssh-ssh/src/local.rs:194`, `-R` at
+`crates/podssh-ssh/src/remote.rs:62`, `crates/podssh-ssh/src/remote.rs:91`
+and `crates/podssh-ssh/src/remote.rs:103`, `-W` at
+`crates/podssh-ssh/src/forward.rs:42` and
+`crates/podssh-ssh/src/forward.rs:52`; `~#` at
+`crates/podssh-ssh/src/escape.rs:47` and `crates/podssh-ssh/src/io.rs:232`,
+and the lines of `-v` at `crates/podssh-ssh/src/run.rs:222`.
+- `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
+  1000 down through a forward's copy, counted once, with one connection; one
+  name, one forward, across connections and a failure; the listing in the
+  order of first use; `~#` asked and named in `~?`. Planted, each chunk
+  counted twice (the Prove's plant): the first test failed; restored.
+- `cargo test -p podssh-cli --test ssh_stdio_socket`: 2 passed: against the
+  test's server, `-v -W` to a TCP echo server of the test ends with the line
+  `-W 127.0.0.1:PORT: 1 connection (0 open, 0 failed), 262144 bytes up, 262144
+  bytes down`, and a socket that the server refused with `1 failed`.
+- In the gate at this push: `stdio.counts` (`scripts/interop-stdio.sh`, `-v
+  -W` through OpenSSH's sshd to a TCP echo server, 262144 bytes each way) and
+  `pty.forwards` (`scripts/interop-pty.py`, `~#` in a session with `-R
+  0:127.0.0.1:2201`).
+- `docs/cli.md:183-188` and the manual's note of `-t` say what `~#` and `-v`
+  print.
+- `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
+  578 passed, 0 failed, 31 ignored; clippy; rustfmt.
 
 # T-042: `-R` forwards come back after a drop
 
@@ -1186,3 +1228,52 @@ signature against the host key. In the gate, `scripts/interop.sh` adds a
 key to OpenSSH's `ssh-agent` with `ssh-add -h` for another host, and
 `podssh ssh -A ... 'ssh-add -l'` lists no usable key for this one (OpenSSH
 refuses its use). Planted defect: send no bind, and the unit test fails.
+
+# T-291: The escape `~C`: add and stop the forwards of a running session
+
+**Source:** the work of T-041 (2026-10-11), its step 4; the OthmaneBlial/MobaRust
+report in GitHub #21 (item 3, a stop action). Read in the report and in ssh(1).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The forwards of a session are fixed as it starts: a user cannot add a `-L`
+or a `-R` to a running session, nor stop one that is no longer wanted, as
+OpenSSH's escape `~C` allows. `~#` (T-041) lists the forwards and their
+counts, and cannot change them.
+
+## Premise
+
+Read: the escapes are `~.`, `~R`, `~#`, `~?` and `~~`
+(`crates/podssh-ssh/src/escape.rs:9-15`). The listeners of `-L` and `-D` are
+served from the start of the session (`crates/podssh-ssh/src/local.rs:125-146`),
+and `-R` is asked for after the login (`crates/podssh-ssh/src/remote.rs:48-71`).
+ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,
+`-D`, `-KL`, `-KR` and `-KD` (read in the manual, not measured here).
+
+## Approach
+
+1. `~C` reads one line on the terminal, as a prompt does, with OpenSSH's
+   commands; `help` lists them, and another word is refused with a line.
+2. `-L` and `-D`: bind a new listener as T-038 binds one, and serve it on
+   the session's connection; `-KL PORT` and `-KD PORT` close its listener,
+   and the connections that it carried go on, as in OpenSSH.
+3. `-R`: `tcpip-forward`, as T-035 asks; `-KR [BIND:]PORT`:
+   `cancel-tcpip-forward`.
+4. `~#` lists the forwards so changed; `~?` names `~C`.
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh -- escape_command
+sh scripts/dev.sh check
+```
+
+The unit test parses each command of `~C`, and refuses another. In the gate,
+`scripts/interop-pty.py` adds a `-R` with `~C`, the server's port answers,
+then `-KR` closes it, and the port refuses. Plant: ignore `-KR`; the check
+of the refusal fails.

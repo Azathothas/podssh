@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:1108-1185`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:1114-1191`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:1108-1194`, FILES (`crates/podssh-cli/src/man/data.rs:119-218`) and the
+7. Change `docs/cli.md:1114-1200`, FILES (`crates/podssh-cli/src/man/data.rs:119-218`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -279,7 +279,7 @@ compared with OpenSSH's; its first run is CI's, at the push of this commit.
 
 # T-045: `Match` in `ssh_config`
 
-**Source:** `docs/cli.md:1174-1177`; GitHub #22 (the `match_directive/` module of lablup/bssh,
+**Source:** `docs/cli.md:1180-1183`; GitHub #22 (the `match_directive/` module of lablup/bssh,
 and TeddyHuang-00/sshping issue #211 with PR #212, where a skipped `Match` changed the target;
 read in the reports, not verified here).
 **Category:** feature
@@ -296,7 +296,7 @@ block is worse: a skipped `Match` can change the host that podssh connects to.
 
 ## Premise
 
-Read: `docs/cli.md:1174-1177`: `Match` never overrides a value that is set, and podssh must refuse
+Read: `docs/cli.md:1180-1183`: `Match` never overrides a value that is set, and podssh must refuse
 it by name, not skip it. `-P TAG` is accepted and ignored today
 (`crates/podssh-cli/src/flags.rs:220-221`), so `Match tagged` would give the tag its meaning.
 The login name comes from the environment, never from the user database
@@ -320,7 +320,7 @@ canonical pass: `CanonicalizeHostname` is accepted and ignored
 5. A value from a `Match` block follows the first-value rule
    (`crates/podssh-cli/src/ssh/options.rs:355-359`).
 6. `-G` (T-046) evaluates the same blocks and prints the result.
-7. Change `docs/cli.md:1174-1177` and the `ssh` notes in the same commit.
+7. Change `docs/cli.md:1180-1183` and the `ssh` notes in the same commit.
 
 ## Decision
 
@@ -387,7 +387,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:150`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:39-171`) and `docs/cli.md:48-202`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:39-172`) and `docs/cli.md:48-208`
    in the same commit.
 
 ## Decision
@@ -683,8 +683,8 @@ settings (read in the manual).
 Read: the hops come from `-J` or `ProxyJump` as text
 (`crates/podssh-cli/src/ssh/resolve.rs`, lines 201-205 at `b0177cf`), parsed by `jump_hop` alone
 (`crates/podssh-cli/src/ssh/hop.rs:60-65`). Each hop logs in as its own user or the destination's
-(`crates/podssh-ssh/src/run.rs:301`), with the identities of the destination
-(`crates/podssh-ssh/src/run.rs:350`).
+(`crates/podssh-ssh/src/run.rs:305`), with the identities of the destination
+(`crates/podssh-ssh/src/run.rs:354`).
 
 ## Approach
 
@@ -732,7 +732,7 @@ the check fail.
 login, made as the destination's, in `crates/podssh-cli/src/ssh/login.rs:1-93`. The options of
 each hop are `Options::jump_options` (`crates/podssh-ssh/src/options.rs:213-217`), which
 `connect_hops` gives each hop with the run's memory of its logins
-(`crates/podssh-ssh/src/run.rs:128-151`, `crates/podssh-ssh/src/run.rs:264-275`); `BatchMode` of a
+(`crates/podssh-ssh/src/run.rs:128-151`, `crates/podssh-ssh/src/run.rs:268-279`); `BatchMode` of a
 try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:315-323`).
 - `cargo test -p podssh-cli --test ssh_config_file -- jump`: 2 passed. `-J bastion` takes the
   bastion's `HostName`, `Port`, `User`, `IdentityFile` and `HostKeyAlias` and the command line's
@@ -745,7 +745,7 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:315-323`
 - `scripts/interop.sh:321-331`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
-- `docs/cli.md:75-81` and `docs/cli.md:1132-1144`, and the manual's file `~/.ssh/config`, say what
+- `docs/cli.md:75-81` and `docs/cli.md:1138-1150`, and the manual's file `~/.ssh/config`, say what
   a hop takes.
 - `cargo test -p podssh-ssh`: 142 passed; `cargo test -p podssh-cli`: 565 passed, 0 failed,
   31 ignored; clippy; rustfmt.

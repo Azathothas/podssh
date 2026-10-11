@@ -123,6 +123,10 @@ fn next<'a>(forward: &'a LocalForward, listener: &'a Arc<dyn Listen>) -> Next<'a
 /// Each listener's connections, until no listener is left: a listener whose
 /// accept fails is closed with a line. Channels open at the same time.
 pub async fn serve(handle: &Handle<Client>, forwards: &[LocalForward], log: &Arc<Log>) {
+    // In the list of ~# from now on (T-041).
+    for forward in forwards {
+        crate::tally::of(&forward.shown);
+    }
     let mut accepting: FuturesUnordered<Next> =
         forwards.iter().flat_map(|f| f.listeners.iter().map(move |l| next(f, l))).collect();
     let mut opening = FuturesUnordered::new();
@@ -163,9 +167,11 @@ async fn carry(handle: &Handle<Client>, forward: &LocalForward, conn: Accepted, 
         },
         other => (other.clone(), None),
     };
+    let counts = crate::tally::of(&forward.shown);
     let channel = match tokio::time::timeout(OPEN_LIMIT, open(handle, &target, from)).await {
         Ok(Ok(channel)) => channel,
         failed => {
+            counts.failed();
             let (why, refusal) = match failed {
                 Ok(Err(e)) => (open_failure(&e), refusal_of(&e)),
                 _ => (format!("no answer within {} s", OPEN_LIMIT.as_secs()), socks::Refusal::General),
@@ -184,9 +190,8 @@ async fn carry(handle: &Handle<Client>, forward: &LocalForward, conn: Accepted, 
     }
     log.verbose(&format!("{}: a connection to {target}", forward.shown));
     tokio::spawn(async move {
-        let mut local = tokio::io::join(read, write);
-        let mut remote = channel.into_stream();
-        let _ = tokio::io::copy_bidirectional(&mut local, &mut remote).await;
+        let local = tokio::io::join(read, write);
+        let _ = crate::tally::copy(local, channel.into_stream(), &counts).await;
     });
 }
 

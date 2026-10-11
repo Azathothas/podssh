@@ -68,11 +68,11 @@ fn stdio_forward_socket_or_host_and_port() {
     assert_eq!(r.options.jump[0].port, 22);
 }
 
-/// `podssh ssh --direct -W PATH u@127.0.0.1` with `input`: the exit code,
+/// `podssh ssh --direct -v -W PATH u@127.0.0.1` with `input`: the exit code,
 /// stdout and stderr.
 fn stdio(dir: &std::path::Path, port: u16, path: &str, input: &[u8]) -> (Option<i32>, Vec<u8>, String) {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
-    cmd.args(["ssh", "--direct", "-p", &port.to_string(), "-o", "BatchMode=yes"]);
+    cmd.args(["ssh", "--direct", "-v", "-p", &port.to_string(), "-o", "BatchMode=yes"]);
     cmd.args(["-o", "StrictHostKeyChecking=accept-new", "-o"]);
     cmd.arg(format!("UserKnownHostsFile={}", dir.join("known_hosts").display()));
     cmd.args(["-W", path, "u@127.0.0.1"]);
@@ -109,4 +109,21 @@ fn stdio_forward_socket_reaches_the_servers_socket() {
     let (code, _, err) = stdio(&dir, port, "/no-such.sock", b"");
     assert_eq!(code, Some(255), "{err}");
     assert!(err.contains("could not open a connection to the socket /no-such.sock"), "{err}");
+    assert!(err.contains("-W /no-such.sock: 0 connections (0 open, 1 failed)"), "{err}");
+
+    // T-041: with -v, the end of the run says what -W carried, each way.
+    let echo = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let target = format!("127.0.0.1:{}", echo.local_addr().unwrap().port());
+    std::thread::spawn(move || {
+        if let Ok((mut conn, _)) = echo.accept() {
+            let mut back = conn.try_clone().unwrap();
+            let _ = std::io::copy(&mut conn, &mut back);
+            let _ = back.shutdown(std::net::Shutdown::Write);
+        }
+    });
+    let sent = vec![0x42u8; 262_144];
+    let (code, out, err) = stdio(&dir, port, &target, &sent);
+    assert_eq!((code, out.len()), (Some(0), sent.len()), "{err}");
+    let line = format!("-W {target}: 1 connection (0 open, 0 failed), 262144 bytes up, 262144 bytes down");
+    assert!(err.contains(&line), "{err}");
 }

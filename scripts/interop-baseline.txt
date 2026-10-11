@@ -17,7 +17,7 @@ harness hostkeys interop 4 scripts/interop-hostkeys.sh
 harness sudo interop 3 scripts/interop-sudo.sh
 harness recording interop 3 scripts/interop-recording.sh
 harness x11 interop 3 scripts/interop-x11.sh
-harness stdio interop 2 scripts/interop-stdio.sh
+harness stdio interop 3 scripts/interop-stdio.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -31,7 +31,7 @@ harness mv interop 18 scripts/interop-mv.sh
 harness sftp interop 5 scripts/interop-sftp.sh
 harness resume interop 9 scripts/interop-resume.sh
 harness pipe interop 9 scripts/interop-pipe.sh
-harness pty interop 12 scripts/interop-pty.py
+harness pty interop 13 scripts/interop-pty.py
 harness man man 7 scripts/interop-man.sh
 harness conpty conpty 14 scripts/interop-conpty.py
 
@@ -433,6 +433,7 @@ pty.restore.shell pass
 pty.second pass
 pty.escape_disconnect pass
 pty.restore.escape pass
+pty.forwards pass
 
 # scripts/interop-man.sh
 man.roff pass
@@ -474,3 +475,4 @@ x11.untrusted env-allowed an Xvfb with the SECURITY extension
 x11.no_display pass
 stdio.socket pass
 stdio.socket_refused pass
+stdio.counts pass

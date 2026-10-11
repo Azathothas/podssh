@@ -87,7 +87,8 @@ const SSH: &[&str] = &[
      Prompts go to the terminal or to SSH_ASKPASS. With -o BatchMode=yes, each prompt is an error.",
     "-t asks for a pty when there is a local terminal. -tt asks for one also when there is none, so \
      interactive programs work from a host with no pty. In a session with a pty, ~. at the start of a \
-     line ends the session (see -e).",
+     line ends the session, and ~# lists the forwards of the session, with the connections and bytes of \
+     each (see -e); with -v, the end of a run prints the same lines.",
     "--sudo runs the command as root with sudo -S, with no pty, and --su with su -c, in a pty: the password \
      is asked here, on the terminal or through SSH_ASKPASS, never taken from the command line. podssh \
      answers one prompt, holds its input until the command starts, and asks nothing when sudo asks \

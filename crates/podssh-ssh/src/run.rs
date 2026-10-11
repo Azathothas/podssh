@@ -218,6 +218,10 @@ where
             with_master(handle, opts, log, session, Ok(0)).await
         }
     };
+    // What each forward carried (T-041), with -v.
+    for line in crate::tally::lines() {
+        log.verbose(&line);
+    }
     disconnect_all(&handles).await;
     result
 }

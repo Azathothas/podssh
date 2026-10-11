@@ -58,6 +58,8 @@ pub async fn request(handle: &Handle<Client>, table: &Table, opts: &Options, log
                     ));
                 }
                 table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { port, forward: forward.clone() });
+                // In the list of ~# from now on (T-041).
+                crate::tally::of(&name(forward));
             }
             Err(_) if opts.exit_on_forward_failure => {
                 return Err(format!("Error: remote port forwarding failed for listen port {}", forward.port));
@@ -86,20 +88,27 @@ pub fn find(table: &Table, address: &str, port: u32) -> Option<RemoteForward> {
 /// that fails closes this channel only, and says why.
 pub async fn join(channel: Channel<Msg>, forward: RemoteForward, log: Arc<Log>) {
     let target = podssh_ws::dial::authority(&forward.host, forward.host_port);
+    let counts = crate::tally::of(&name(&forward));
     let choice = podssh_ws::dial::ProxyChoice::FromEnvironment;
-    let mut tcp = match podssh_ws::dial::dial(&forward.host, forward.host_port, &choice, DIAL_LIMIT).await {
+    let tcp = match podssh_ws::dial::dial(&forward.host, forward.host_port, &choice, DIAL_LIMIT).await {
         Ok(tcp) => tcp,
         Err(e) => {
+            counts.failed();
             log.info(&format!("remote forward to {target}: cannot connect: {e}"));
             let _ = channel.close().await;
             return;
         }
     };
     let _ = tcp.set_nodelay(true);
-    let mut stream = channel.into_stream();
-    if let Err(e) = tokio::io::copy_bidirectional(&mut stream, &mut tcp).await {
+    if let Err(e) = crate::tally::copy(tcp, channel.into_stream(), &counts).await {
         log.verbose(&format!("remote forward to {target} ended: {e}"));
     }
+}
+
+/// A remote forward as `-R` writes it, for the lines of its counts (T-041).
+pub fn name(forward: &RemoteForward) -> String {
+    let bind = forward.bind.as_deref().map(|b| format!("{b}:")).unwrap_or_default();
+    format!("-R {bind}{}:{}", forward.port, podssh_ws::dial::authority(&forward.host, forward.host_port))
 }
 
 #[cfg(test)]

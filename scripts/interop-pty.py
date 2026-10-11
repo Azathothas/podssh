@@ -2,8 +2,8 @@
 """podssh in a real local pty, against the interop OpenSSH server on port 2201.
 
 Checks raw mode, the window size and a resize, Ctrl-C, full-screen programs
-(vi, less, top), the ~. escape, the exit status, and that the local terminal
-is restored afterwards. Prints one `ok` or `FAIL` line per check; exits 1 if
+(vi, less, top), the ~. and ~# escapes, the exit status, and that the local
+terminal is restored afterwards. Prints one `ok` or `FAIL` line per check; exits 1 if
 any check failed. Called by scripts/interop.sh with: PODSSH KNOWN_HOSTS KEY.
 """
 
@@ -22,9 +22,16 @@ SSH = (
     f"'{BIN}' ssh --direct -p 2201 -o UserKnownHostsFile='{KNOWN_HOSTS}' "
     f"-o IdentityAgent=none -o IdentitiesOnly=yes -o BatchMode=yes -i '{KEY}' -t podtest@127.0.0.1"
 )
+
+
 # After podssh exits, the local shell reports the terminal's settings and the
-# exit status, so a terminal left in raw mode is visible.
-WRAPPER = f"{SSH}; rc=$?; echo; echo STTY: $(stty -a | tr '\\n' ' '); echo RC=$rc"
+# exit status, so a terminal left in raw mode is visible. `extra` goes before
+# the host: more flags of podssh ssh.
+def wrapper(extra=""):
+    ssh = SSH.replace(" -t podtest@", f" {extra} -t podtest@") if extra else SSH
+    return f"{ssh}; rc=$?; echo; echo STTY: $(stty -a | tr '\\n' ' '); echo RC=$rc"
+
+
 fails = 0
 
 
@@ -44,11 +51,11 @@ def check(name, text, condition, detail=b""):
 
 
 class Terminal:
-    def __init__(self, rows, cols):
+    def __init__(self, rows, cols, extra=""):
         pid, fd = pty.fork()
         if pid == 0:
             env = dict(os.environ, TERM="xterm-256color")
-            os.execve("/bin/sh", ["/bin/sh", "-c", WRAPPER], env)
+            os.execve("/bin/sh", ["/bin/sh", "-c", wrapper(extra)], env)
         self.pid, self.fd, self.buf = pid, fd, b""
         self.resize(rows, cols)
 
@@ -149,5 +156,14 @@ t.send(b"\r~.")
 status = t.finish()
 check("pty.escape_disconnect", "~. disconnects (exit 255)", status == 255, t.buf)
 check("pty.restore.escape", "the terminal is restored after ~.", t.restored(), t.buf)
+
+# ~# lists the forwards of the session, with their counts (T-041).
+t = Terminal(24, 80, "-R 0:127.0.0.1:2201")
+ready = marker(t, "FWD", 4, 4)
+t.send(b"\r~#")
+listed = t.expect(b"-R 0:127.0.0.1:2201: 0 connections (0 open, 0 failed)")
+check("pty.forwards", "~# lists the forwards of the session", ready and listed, t.buf)
+t.send(b"\rexit\r")
+t.finish()
 
 sys.exit(1 if fails else 0)

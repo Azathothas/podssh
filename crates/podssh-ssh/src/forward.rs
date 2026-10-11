@@ -39,13 +39,17 @@ pub async fn open_target(
 /// Copy stdin to the stream and the stream to stdout until the far side
 /// closes. Returns the exit code: 0 for a normal close.
 pub async fn stdio(handle: &Handle<Client>, target: &StdioTarget, log: &Log) -> i32 {
+    let counts = crate::tally::of(&format!("-W {}", target.shown()));
     let stream = match open_target(handle, target).await {
         Ok(s) => s,
         Err(why) => {
+            counts.failed();
             log.error(&why);
             return crate::run::EXIT_FAILURE;
         }
     };
+    let _connection = counts.connection();
+    let stream = crate::tally::Counted::down(stream, &counts);
     let (mut from_far, mut to_far) = tokio::io::split(stream);
     let up = async move {
         let mut stdin = tokio::io::stdin();
@@ -57,6 +61,7 @@ pub async fn stdio(handle: &Handle<Client>, target: &StdioTarget, log: &Log) -> 
                     if to_far.write_all(&buf[..n]).await.is_err() {
                         return;
                     }
+                    counts.add_up(n as u64);
                 }
             }
         }

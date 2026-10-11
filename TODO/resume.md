@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:274-289`,
    `crates/podssh-cli/src/man/facts.rs:316-325`), the note at
-   `crates/podssh-cli/src/man/notes.rs:160`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes.rs:161`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1319,7 +1319,7 @@ process. A new process cannot continue that byte stream, so an attach is a
 new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-5`,
-`crates/podssh-ssh/src/escape.rs:28-70`). The flag table has 469 lines, near
+`crates/podssh-ssh/src/escape.rs:30-76`). The flag table has 469 lines, near
 the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-265`).
 
 ## Approach
@@ -1337,7 +1337,7 @@ the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-265`).
    verified here). Refuse an attach from inside the same shell.
 5. Put the new rows of the flag table in a new file, so that `flags.rs` stays
    under 500 lines. Add `~d` to the help of `~?`
-   (`crates/podssh-ssh/src/escape.rs:72-80`) and to the manual.
+   (`crates/podssh-ssh/src/escape.rs:78-86`) and to the manual.
 6. Against a standard sshd, use `--persist` with tmux (T-178).
 
 ## Decision

@@ -229,6 +229,7 @@ pub async fn pump(
                                     log.banner(&e.help());
                                 }
                             }
+                            Command::List => log.banner(&crate::tally::listing()),
                         }
                     }
                 }
