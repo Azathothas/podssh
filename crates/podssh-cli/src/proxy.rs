@@ -42,8 +42,25 @@ pub struct ProxyArgs {
     pub ca_file: Option<String>,
 }
 
-/// Run the verb; returns the process exit code.
+/// Run the verb; returns the process exit code. A run that named its
+/// destination adds its line to the session log, when it is on (T-056).
 pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
+    let (started, start_ms) = (std::time::Instant::now(), crate::pairs::now_ms());
+    let log = match crate::session_log::place() {
+        Ok(place) => place,
+        Err(refusal) => return refusal.report("proxy", err),
+    };
+    let code = proxy(args, err);
+    let line = crate::session_log::proxy_line(start_ms, started.elapsed().as_millis() as u64, code);
+    if let Some(line) = line.filter(|_| log != crate::session_log::Place::Off) {
+        if let Err(why) = crate::session_log::append(&log, &line) {
+            let _ = writeln!(err, "podssh proxy: the session log: {why}");
+        }
+    }
+    code
+}
+
+fn proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     match args.target.as_deref().map(crate::ssh::cloudflare::destination) {
         Some(Ok(Some((None, host)))) => return run_cloudflare(&host, args, err),
         Some(Ok(Some((Some(_), _)))) => {
@@ -76,6 +93,7 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             return EXIT_USAGE;
         }
     };
+    crate::session_log::target(&host, Some(port), "relay");
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("proxy", err);
     }
@@ -134,6 +152,7 @@ fn run_cloudflare(host: &str, args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh proxy: {why}");
         return EXIT_USAGE;
     }
+    crate::session_log::target(host, None, "cloudflare");
     if podssh_relay::open::offline() {
         let _ =
             writeln!(err, "podssh: {} is set, so podssh does not connect anywhere", podssh_relay::open::OFFLINE_ENV);
@@ -161,9 +180,11 @@ fn run_cloudflare(host: &str, args: &ProxyArgs, err: &mut dyn Write) -> i32 {
         let proxy = podssh_ws::ProxyChoice::FromEnvironment;
         match podssh_ws::cloudflare::connect(host, &access, &trust, &proxy, timeout, idle).await {
             Ok(session) => {
+                crate::session_log::opened(None);
                 let shown = format!("{}{host}", crate::ssh::cloudflare::SCHEME);
                 let carried = crate::pipe::relay::carry(session, shown, false, true);
                 let pumped = crate::pipe::pump::pump(crate::pipe::local::stdio(), carried).await;
+                crate::session_log::carried(pumped.carried.0, pumped.carried.1);
                 crate::pipe::report(pumped, "podssh", err).await
             }
             Err(e) => {
@@ -234,8 +255,10 @@ async fn session(road: &Road<'_>, path: &str, target: &str, v6: bool, err: &mut 
     .await;
     match opened {
         Ok(opened) => {
+            crate::session_log::opened(Some(&opened.relay.host));
             let relayed = crate::pipe::relay::carry(opened.session, target.to_string(), v6, false);
             let pumped = crate::pipe::pump::pump(crate::pipe::local::stdio(), relayed).await;
+            crate::session_log::carried(pumped.carried.0, pumped.carried.1);
             crate::pipe::report(pumped, "podssh", err).await
         }
         Err(failure) => {

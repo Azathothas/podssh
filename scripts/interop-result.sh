@@ -67,3 +67,16 @@ rc=$?
 p 2201 -S "$RW/ctl" -O exit "$T" </dev/null >/dev/null 2>&1
 kill "$master" 2>/dev/null
 wait "$master" 2>/dev/null
+# The session log (T-056): a line for the run, and never its command.
+SL="$RW/sessions.jsonl"
+export PODSSH_SESSION_LOG="$SL"
+# shellcheck disable=SC2086
+p 2201 $K -o BatchMode=yes "$T" 'echo SECRET-WORD' </dev/null >"$RW/out" 2>"$RW/err"
+rc=$?
+unset PODSSH_SESSION_LOG
+[ "$rc" = 0 ] && [ "$(wc -l <"$SL")" -eq 1 ] && ! grep -q SECRET-WORD "$SL" \
+    && python3 -c 'import json, sys
+r = json.loads(open(sys.argv[1]).readline())
+sys.exit(0 if (r["verb"], r["port"], r["via"], r["exit"], r["end"]) == ("ssh", 2201, "direct", 0, "status") else 1)' "$SL" \
+    && ok result.session_log "PODSSH_SESSION_LOG: one line for a run of echo SECRET-WORD, and no SECRET-WORD in it" \
+    || bad result.session_log "the session log after exit $rc" "$SL"

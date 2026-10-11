@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:1268-1364`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:1295-1391`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:1268-1373`, FILES (`crates/podssh-cli/src/man/data.rs:119-233`) and the
+7. Change `docs/cli.md:1295-1400`, FILES (`crates/podssh-cli/src/man/data.rs:119-243`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -454,7 +454,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
 
 1. Make the `-G` row Supported, with no `instead`; `crates/podssh-cli/tests/flag_table.rs:60-80`
    requires that pair. The reviewed set of short flags does not change.
-2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:48-121`), after `resolve` (lines 36-42 at `e8bbd4d`): with
+2. In `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:49-138`), after `resolve` (lines 36-42 at `e8bbd4d`): with
    `-G`, print the settings and exit 0. Open nothing: no relay, no token, no pool refresh.
 3. Print from `Resolved` and its `Options`, not from `Settings`, so the defaults are shown.
 4. Print only keywords of OpenSSH that podssh applies
@@ -674,7 +674,7 @@ Read: each command resolves the same settings in its own copy. Relay hosts (`--r
 then `PODSSH_RELAY`, then the default and the pool: `crates/podssh-relay/src/relay.rs:83-101`)
 go through one function since T-231 (`crates/podssh-cli/src/relay_settings.rs:65-87`), called in
 `crates/podssh-cli/src/ssh/resolve.rs`, line 314 at `99743e6`, `crates/podssh-cli/src/doctor/mod.rs:60-63` and
-`crates/podssh-cli/src/proxy.rs:82-85`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
+`crates/podssh-cli/src/proxy.rs:100-103`. Trust (`--ca-file`, then `SSL_CERT_FILE`) in
 `crates/podssh-cli/src/ssh/resolve.rs`, lines 328-331 at `99743e6`, `crates/podssh-cli/src/doctor/mod.rs:71-78` and
 `crates/podssh-cli/src/proxy.rs`, lines 100-104 at `99743e6`. The pins of the flag and of the variable add up
 (`crates/podssh-cli/src/pins.rs:15-31`). The token cache uses the user's
@@ -702,7 +702,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:45-169`, 98-142), `docs/relay.md:30-74` and
+   FILES (`crates/podssh-cli/src/man/facts.rs:45-175`, 98-142), `docs/relay.md:30-74` and
    `docs/cli.md`. The cache directory is the work of T-243.
 
 ## Decision
@@ -753,18 +753,18 @@ the file before the variable; the precedence test fails.
 
 ## Done
 
-2026-10-12. The settings file in `crates/podssh-cli/src/settings.rs:1-227`:
-its places at `crates/podssh-cli/src/settings.rs:89-112`, its checks at
-`crates/podssh-cli/src/settings.rs:135-159`, its lines at
-`crates/podssh-cli/src/settings.rs:161-211`; the relay hosts and the
+2026-10-12. The settings file in `crates/podssh-cli/src/settings.rs:1-234`:
+its places at `crates/podssh-cli/src/settings.rs:92-115`, its checks at
+`crates/podssh-cli/src/settings.rs:138-162`, its lines at
+`crates/podssh-cli/src/settings.rs:164-218`; the relay hosts and the
 failover below the flag and the variable at
 `crates/podssh-cli/src/relay_settings.rs:70-84` and
 `crates/podssh-cli/src/relay_settings.rs:97-107`, the pins and the refusal
 of a bad file at `crates/podssh-cli/src/pins.rs:13-31`, the CA file at
-`crates/podssh-cli/src/settings.rs:213-223` and, for `podssh ssh`,
+`crates/podssh-cli/src/settings.rs:220-230` and, for `podssh ssh`,
 `crates/podssh-cli/src/ssh/resolve.rs:122-126`; `status` at
 `crates/podssh-cli/src/status.rs:62` and
-`crates/podssh-cli/src/status.rs:71`, `doctor` at
+`crates/podssh-cli/src/status.rs:75`, `doctor` at
 `crates/podssh-cli/src/doctor/mod.rs:76` and
 `crates/podssh-cli/src/doctor/mod.rs:96`.
 - `cargo test -p podssh-cli --test settings`: 4 passed here, and 5 in the
@@ -946,7 +946,7 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:330-338`
 - `scripts/interop.sh:324-334`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
-- `docs/cli.md:76-82` and `docs/cli.md:1297-1309`, and the manual's file `~/.ssh/config`, say what
+- `docs/cli.md:76-82` and `docs/cli.md:1324-1336`, and the manual's file `~/.ssh/config`, say what
   a hop takes.
 - `cargo test -p podssh-ssh`: 142 passed; `cargo test -p podssh-cli`: 565 passed, 0 failed,
   31 ignored; clippy; rustfmt.

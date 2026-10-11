@@ -62,6 +62,10 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         (None, None, Some(_)) => "the settings file",
         (None, None, None) => "default and pool",
     };
+    let session_log = match session_log_state() {
+        Ok(state) => state,
+        Err(refusal) => return refusal.report("status", err),
+    };
     let attachment = crate::non_interactive::resolve_tty(tty, false);
     let line = json!({
         "schema": SCHEMA,
@@ -78,10 +82,26 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "stdin_tty": tty.stdin,
         "stdout_tty": tty.stdout,
         "host": host,
+        "session_log": session_log,
     });
     let _ = writeln!(out, "{line}");
     let _ = out.flush();
     0
+}
+
+/// The session log (T-056): its file, and its last line in short form; null
+/// when it is off.
+fn session_log_state() -> Result<Value, crate::relay_settings::Refusal> {
+    let place = crate::session_log::place()?;
+    if place == crate::session_log::Place::Off {
+        return Ok(Value::Null);
+    }
+    let file = crate::session_log::file(&place);
+    let last = file.as_deref().and_then(crate::session_log::last).map(|l| {
+        json!({ "start": l["start"], "verb": l["verb"], "host": l["host"], "port": l["port"], "via": l["via"],
+            "end": l["end"], "exit": l["exit"] })
+    });
+    Ok(json!({ "file": file.map(|p| p.display().to_string()), "last": last }))
 }
 
 /// The pool of the default relay that the cache holds, if any.

@@ -13,6 +13,7 @@
 
 use std::future::Future;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::process::Child;
@@ -67,14 +68,17 @@ pub enum Flow {
     Gone,
 }
 
-/// What the pump hands back of each side.
+/// What the pump hands back of each side, and the bytes that went from A
+/// to B and from B to A.
 pub struct Pumped {
     pub a: Left,
     pub b: Left,
+    pub carried: (u64, u64),
 }
 
-/// Copy `from` to `to` until `from` ends, then shut `to` down.
-pub async fn copy(mut from: Reader, mut to: Writer) -> Flow {
+/// Copy `from` to `to` until `from` ends, then shut `to` down; `count`
+/// holds the bytes written.
+pub async fn copy(mut from: Reader, mut to: Writer, count: &AtomicU64) -> Flow {
     let mut buf = vec![0u8; CHUNK];
     loop {
         // A read that fails is an end of input, as `podssh proxy` reads stdin.
@@ -87,6 +91,7 @@ pub async fn copy(mut from: Reader, mut to: Writer) -> Flow {
         if to.write_all(&buf[..n]).await.is_err() || to.flush().await.is_err() {
             return Flow::Gone;
         }
+        count.fetch_add(n as u64, Ordering::Relaxed);
     }
 }
 
@@ -96,8 +101,9 @@ pub async fn copy(mut from: Reader, mut to: Writer) -> Flow {
 pub async fn pump(a: End, b: End) -> Pumped {
     let End { read: a_read, write: a_write, child: mut a_child, last_word: a_last, ending: a_ending } = a;
     let End { read: b_read, write: b_write, child: mut b_child, last_word: b_last, ending: b_ending } = b;
-    let a_to_b = copy(a_read, b_write);
-    let b_to_a = copy(b_read, a_write);
+    let counts = [AtomicU64::new(0), AtomicU64::new(0)];
+    let a_to_b = copy(a_read, b_write, &counts[0]);
+    let b_to_a = copy(b_read, a_write, &counts[1]);
     tokio::pin!(a_to_b);
     tokio::pin!(b_to_a);
     // Whether A's output, and B's, has ended.
@@ -123,7 +129,8 @@ pub async fn pump(a: End, b: End) -> Pumped {
             break;
         }
     }
-    Pumped { a: Left { child: a_child, ending: a_ending }, b: Left { child: b_child, ending: b_ending } }
+    let carried = (counts[0].load(Ordering::Relaxed), counts[1].load(Ordering::Relaxed));
+    Pumped { a: Left { child: a_child, ending: a_ending }, b: Left { child: b_child, ending: b_ending }, carried }
 }
 
 /// When a side whose output ended has said all that it will: at once when

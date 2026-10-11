@@ -71,6 +71,7 @@ pub mod relay_diag;
 mod relay_diag_text;
 pub mod relay_settings;
 pub mod relay_spec;
+pub mod session_log;
 pub mod settings;
 pub mod sftp;
 pub mod ssh;

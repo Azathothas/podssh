@@ -70,7 +70,7 @@ pair (`crates/podssh-relay/src/cache.rs` lines 126-153 and 221-240 at `9811e0d`)
 8. Use the control host only (`tcp.ssh.relay.ajam.dev`, or one host that the user names). No failover
    to pool hosts until a measurement shows that they serve `/v1/*`.
 9. In the same commit: `docs/relay.md` (lines 192-214 at `3632dcb`), `docs/reverse.md` (lines 46-53 at
-   `3632dcb`), and the FILES section of the manual (`crates/podssh-cli/src/man/facts.rs:200`).
+   `3632dcb`), and the FILES section of the manual (`crates/podssh-cli/src/man/facts.rs:206`).
 
 ## Decision
 
@@ -300,7 +300,7 @@ The relay sends no keepalives on reverse sockets (`docs/reverse.md:28-36`).
 Read: the codecs: `encode_operator_frame` and `chunk_for_bare`
 (crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`, lines 125-133), and `parse_operator_control`
 (crates/podssh-transport/src/control.rs lines 223-230 at `e8bbd4d`). `podssh proxy` has the pump to follow: stdin and
-stdout, liveness, the close reason (`crates/podssh-cli/src/pipe/relay.rs:97-220`).
+stdout, liveness, the close reason (`crates/podssh-cli/src/pipe/relay.rs:97-223`).
 
 Read in a local copy of podbox at `5bd8cb0`: `run_operator` waits 20 s for `ready`, queues at most
 1 MiB of input before it, sends a Close after the end of input and waits 10 s for the answer, and
@@ -425,7 +425,7 @@ through `curl` (`docs/design.md:153-154`).
 
 Read: `podssh-relay` declares the workspace minimum, Rust 1.88 (`crates/podssh-relay/Cargo.toml:5-6`,
 `Cargo.toml` lines 45-48 at `0d92eef`), above podbox's 1.85. `podssh proxy` already runs async code from sync code with
-a current-thread runtime and `shutdown_background` (`crates/podssh-cli/src/proxy.rs:105-119`).
+a current-thread runtime and `shutdown_background` (`crates/podssh-cli/src/proxy.rs:123-137`).
 
 Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it supplies
 (`docs/design.md:146-150`); that is T-066, not this entry.
@@ -750,14 +750,14 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:1161`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:1188`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
-   `crates/podssh-cli/src/man/facts.rs:384`.
+   `crates/podssh-cli/src/man/facts.rs:390`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
    `crates/podssh-cli/src/doctor/relay_checks.rs:40-76` (zuko's doctor checks its ticket and state).
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`). New variables go in `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:200` there), examples in
+   (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:206` there), examples in
    `crates/podssh-cli/src/man/examples.rs:8-120`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
@@ -888,13 +888,13 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:287-290`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:83-93`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:386`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:1157-1161`).
+`podssh proxy` sysexits (`docs/cli.md:1184-1188`).
 
 ## Approach
 
 1. `podssh operator NAME`: load the operator's part of the pair under NAME (T-078, T-083), and run
    `operator::run` (T-080) on stdin and stdout: a byte pipe as `podssh proxy`
-   (`crates/podssh-cli/src/pipe/relay.rs:97-220`). stdout carries data only; never 0 without `ready`.
+   (`crates/podssh-cli/src/pipe/relay.rs:97-223`). stdout carries data only; never 0 without `ready`.
 2. `podssh ssh node://[user@]NAME`: `parse_hop` reads `node://` as it reads `ssh://`; add
    `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:23-48`).
 3. For a node, `connect_and_run` opens the operator leg and waits for `ready` (T-080), then gives

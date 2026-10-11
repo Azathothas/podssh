@@ -75,6 +75,12 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (&["PODSSH_RELAY_ADDR"], "Addresses to use in place of DNS, as --relay-addr, after the flag's addresses."),
     (
+        &["PODSSH_SESSION_LOG"],
+        "A line for each session of podssh ssh and podssh proxy, at its end (see FILES): 1 or yes in the cache, \
+      an absolute path in that file, 0 or no for none; over SessionLog of the settings file; off by default. \
+      Another value is refused (78).",
+    ),
+    (
         &["PODSSH_SETTINGS"],
         "The file of podssh's own settings (see FILES), an absolute path that must exist; none reads none. \
       The flags and the other variables beat the file.",

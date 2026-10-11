@@ -216,12 +216,22 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             } else {
                 vec!["$XDG_CONFIG_HOME/podssh/settings".to_string(), crate::settings::BESIDE_BINARY.to_string()]
             },
-            "podssh's own settings: RelayHost, RelayAddr (each line adds), RelayFailover and CaFile, as Keyword \
-             value lines, below the flags and the variables. The file of PODSSH_SETTINGS, else the first of these \
+            "podssh's own settings: RelayHost, RelayAddr (each line adds), RelayFailover, CaFile and SessionLog, \
+             as Keyword value lines, below the flags and the variables. The file of PODSSH_SETTINGS, else the first of these \
              that exists (~/.config/podssh/settings with no XDG_CONFIG_HOME; the second beside the podssh \
              binary); never one of the working directory. A symbolic link, a file of another user than you or \
              root, one that others can change, and a bad line are refused (78) by each command that reaches the \
              relay. podssh never writes it, and no keyword holds a token."
+                .to_string(),
+        ),
+        (
+            vec![crate::session_log::FILE.to_string(), crate::session_log::OLD_FILE.to_string()],
+            "The log of the sessions of this host, in the cache, when PODSSH_SESSION_LOG or SessionLog asks for \
+             it: a JSON line for each run of podssh ssh and podssh proxy that named a destination, at its end, \
+             with its start, duration, verb, host, port, relay host or road, end, exit code, bytes and the \
+             relay's close code; never a command, an environment value, a token or a password. Mode 0600, \
+             opened to append with no symbolic link followed, a line in one write; at 1 MiB it becomes the \
+             second name, and a new file starts. podssh status shows the last line."
                 .to_string(),
         ),
         (

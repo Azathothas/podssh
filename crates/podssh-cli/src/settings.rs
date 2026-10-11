@@ -2,7 +2,7 @@
 //! below the flags and the variables, above the built-in defaults. The
 //! file has `Keyword value` lines, `#` comments and `Keyword=value` too, as
 //! an `ssh_config` has: `RelayHost`, `RelayAddr` (which adds up), `RelayFailover`
-//! and `CaFile`. It is found once for the process: the file that
+//! and `CaFile`, and `SessionLog` (T-056). It is found once for the process: the file that
 //! `PODSSH_SETTINGS` names (`none` names none), else the first that exists
 //! of `$XDG_CONFIG_HOME/podssh/settings` (`~/.config/podssh/settings`, and
 //! `%APPDATA%\podssh\settings` on Windows) and `podssh.settings` next to the
@@ -26,6 +26,7 @@ pub const KEYWORDS: &[(&str, &str)] = &[
     ("RelayAddr", "HOST=IP[,...]: addresses for relay hosts, as --relay-addr; each line adds to the others"),
     ("RelayFailover", "MODE: how the relay hosts are tried, as --relay-failover"),
     ("CaFile", "FILE: trust only the CA certificates in FILE, as --ca-file and SSL_CERT_FILE; ~ is the home"),
+    ("SessionLog", "yes, no or FILE: a line for each session of this host, as PODSSH_SESSION_LOG; ~ is the home"),
 ];
 /// The largest file read.
 const MAX_FILE: u64 = 1 << 20;
@@ -48,6 +49,8 @@ pub struct Defaults {
     pub relay_addr: Vec<Value>,
     pub relay_failover: Option<Value>,
     pub ca_file: Option<Value>,
+    /// `SessionLog` (T-056).
+    pub session_log: Option<Value>,
 }
 
 impl Defaults {
@@ -197,6 +200,10 @@ pub fn parse(text: &str, file: &str, home: Option<&Path>) -> Result<Defaults, St
             "cafile" => {
                 let text = crate::ssh::tokens::tilde(&value.text, home).display().to_string();
                 d.ca_file.get_or_insert(Value { text, ..value });
+            }
+            "sessionlog" => {
+                crate::session_log::parse(text, home).map_err(|why| format!("{at}: SessionLog {why}"))?;
+                d.session_log.get_or_insert(value);
             }
             _ => {
                 let names: Vec<&str> = KEYWORDS.iter().map(|(k, _)| *k).collect();

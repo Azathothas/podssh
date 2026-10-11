@@ -1129,8 +1129,8 @@ A file states podssh's own settings once (T-048), below the flags and the
 variables and above the built-in defaults: `RelayHost` (as `--relay-host`
 and `PODSSH_RELAY`), `RelayAddr` (as `--relay-addr` and `PODSSH_RELAY_ADDR`;
 each line adds to the flag's and the variable's pins), `RelayFailover` (as
-`--relay-failover`) and `CaFile` (as `--ca-file` and `SSL_CERT_FILE`; `~` is
-the home). It has `Keyword value` lines, `Keyword=value` too, and `#`
+`--relay-failover`), `CaFile` (as `--ca-file` and `SSL_CERT_FILE`; `~` is
+the home) and `SessionLog` (as `PODSSH_SESSION_LOG`, below). It has `Keyword value` lines, `Keyword=value` too, and `#`
 comments, read as an `ssh_config` line is; the first value of a keyword
 wins. The file is the one that `PODSSH_SETTINGS` names, an absolute path
 that must exist (`none` reads none); else the first that exists of
@@ -1143,6 +1143,33 @@ keyword and a bad value are refused (78, with the file and the line) by each
 command that reaches the relay. podssh never writes the file, and no
 keyword holds a token. `podssh status` gives its path as `settings` and
 `relays_from: "the settings file"`, and `podssh doctor` names it.
+
+## The log of the sessions
+
+When the user asks for it, podssh keeps a line for each session of this
+host (T-056): `PODSSH_SESSION_LOG=1` (or `yes`) keeps it in the cache, as
+`sessions.jsonl` in the first directory of the cache that takes it; an
+absolute path keeps it in that file; `0` or `no` keeps none, also over
+`SessionLog` in the settings file, which takes the same values. It is off
+by default, and another value is refused (78) before anything connects.
+
+Each run of `podssh ssh` and `podssh proxy` that named a destination adds
+one JSON line at its end: `start` (UTC), `duration_ms`, `verb`, `host`,
+`port`, `via` (the relay host, or `direct`, `node`, `iroh`, `cloudflare`,
+or `relay` when no relay host answered), `end`, `exit`, `failure` and
+`bytes` as `--result-file` has them (T-054; a proxy ends `closed` or
+`failed`), and the relay's `close_code`. A line never holds a command, an
+environment value, a token or a password; an `-O` request, `-G` and a usage
+error add none.
+
+The file has mode 0600 (on Windows, an access list of its own), is opened
+to append with no symbolic link followed, and takes each line in one write,
+so that two runs at once give two whole lines. A file that is another
+user's, or that others can read, is refused, and the run says so on stderr
+with its exit code unchanged. At 1 MiB the file becomes `sessions.1.jsonl`
+(the name with `.1` before its extension), and a new file starts.
+`podssh status` gives the file and the last line, in short, as
+`session_log`.
 
 ## Exit codes
 

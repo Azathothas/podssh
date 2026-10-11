@@ -126,7 +126,7 @@ Read: the data is in tables already. Commands and flags: `VERBS`
 and the availability (lines 443-451 at `22c3b88`). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:204-208`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:25-110`, with the stated defaults (lines 99-104 at `22c3b88`).
-Variables: `crates/podssh-cli/src/man/facts.rs:45-169`. The files and the exit codes were text
+Variables: `crates/podssh-cli/src/man/facts.rs:45-175`. The files and the exit codes were text
 blocks only (`crates/podssh-cli/src/man/facts.rs` lines 100-145 and 231-271 at `332ee58`), and the blocks of the
 manual do not keep the kind and the `instead` of a flag.
 
@@ -545,7 +545,7 @@ at `crates/podssh-cli/src/ssh/transport.rs:79`, and the relay's close reason is 
    (`crates/podssh-ssh/src/io.rs:156-165`, and `write_out` at `crates/podssh-ssh/src/io.rs:339-352`). T-055 needs the same change.
 3. stdout and stderr stay byte for byte as now; the command's output never goes into the JSON.
 4. Write the file on each path, also after a failure before the session: at the end of
-   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:116-120`). Mode 0600. Refuse `-`: stdout is data.
+   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:133-137`). Mode 0600. Refuse `-`: stdout is data.
 5. Add the row to `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-268`; the set of short flags
    does not change), and change the `ssh` notes and `docs/cli.md` in the same commit.
 
@@ -625,9 +625,9 @@ failure at `crates/podssh-ssh/src/run.rs:136-146` and
 `crates/podssh-cli/src/ssh/result.rs:15-46`, the channel's verdict at
 `crates/podssh-cli/src/ssh/result.rs:48-58`, the file at
 `crates/podssh-cli/src/ssh/result.rs:60-74`, written at the end of
-`run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:46-59`); the relay host at
+`run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:47-71`); the relay host at
 `crates/podssh-cli/src/ssh/transport.rs:80` and its close at
-`crates/podssh-cli/src/ssh/mod.rs:179`. The flag in `SSH_FLAGS`
+`crates/podssh-cli/src/ssh/mod.rs:207`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:197`), its note at
 `crates/podssh-cli/src/man/notes_ssh.rs:145-155`, and `docs/cli.md`.
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1206-1231`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1233-1258`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:339-352`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:116-126`), and stdio needs no listener.
@@ -818,7 +818,7 @@ report, not verified here).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -847,8 +847,37 @@ replaces a whole file (lines 178-197 at `22c3b88`), and no function appends to o
    two processes do not mix their lines.
 5. A size limit: at 1 MiB, rename the file to `sessions.1.jsonl`, and start a new one.
 6. `podssh status` (T-051) shows the last line in short form.
-7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:45-169`; the tests require
+7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:45-175`; the tests require
    it) and the file to FILES, in the same commit.
+
+## Decision
+
+2026-10-12, the calls made in the work:
+
+- `PODSSH_SESSION_LOG` takes `1` or `yes` (the cache), an absolute path
+  (that file; `~` is the home), and `0` or `no` (none), and beats
+  `SessionLog` of the settings file, which takes the same values; an
+  empty variable is unset. Another value is refused (78) before anything
+  connects, as each variable's is, and `podssh status` refuses it alike.
+- A line is one of a run that named its destination: an `-O` request,
+  `-G` and a usage error add none. `via` is the relay host that answered,
+  else the road: `relay` (no relay host answered), `direct`, `node`,
+  `iroh` or `cloudflare`.
+- `podssh proxy` has no SSH session: its line ends `closed` or `failed`,
+  its `failure` is `relay` when no session opened, when the relay closed
+  with another code than 1000, or when it exits with another code than 0,
+  and its bytes are those of the pump, which counts each way now
+  (`stdin` sent, `stdout` received).
+- A file that a path names keeps its directory as it is: podssh makes the
+  file private when it makes it, and refuses one that is a symbolic link,
+  another user's, or that others can read, as the cache's files. A line
+  that cannot be written is a line on stderr, and the exit code stays the
+  run's.
+- The file is moved aside by the run that finds it full, before its line:
+  two runs that find it full at the same moment can each move a file
+  aside, and the second then replaces `sessions.1.jsonl` with a file of
+  few lines. The log is a record for its user, not an audit trail; T-116
+  is the audit log of `serve`.
 
 ## Prove
 
@@ -862,3 +891,45 @@ Without the variable, no file appears. With it, each run adds one line, the mode
 Unix, and two runs at the same time give two whole lines. In the gate,
 `podssh ssh host 'echo SECRET-WORD'` adds a line, and the file does not contain `SECRET-WORD`.
 Planted defect: log the command; that test fails.
+
+## Done
+
+2026-10-12. The log in `crates/podssh-cli/src/session_log.rs:1-252`: its
+values at `crates/podssh-cli/src/session_log.rs:44-75`, the facts of a run
+at `crates/podssh-cli/src/session_log.rs:97-118`, the lines of `ssh` and
+`proxy` at `crates/podssh-cli/src/session_log.rs:122-160`, the file, its
+checks and its move aside at `crates/podssh-cli/src/session_log.rs:163-232`,
+and its last line at `crates/podssh-cli/src/session_log.rs:235-252`. The
+line of `podssh ssh` at the end of `run_ssh`, from its result
+(`crates/podssh-cli/src/ssh/mod.rs:49-71`), and its destination at
+`crates/podssh-cli/src/ssh/mod.rs:105`; that of `podssh proxy` at
+`crates/podssh-cli/src/proxy.rs:47-61`, its destination at
+`crates/podssh-cli/src/proxy.rs:96` and `crates/podssh-cli/src/proxy.rs:155`,
+its session at `crates/podssh-cli/src/proxy.rs:258-261`; the bytes of the
+pump at `crates/podssh-cli/src/pipe/pump.rs:94` and
+`crates/podssh-cli/src/pipe/pump.rs:104-132`, and the relay's close at
+`crates/podssh-cli/src/pipe/relay.rs:198`. `SessionLog` at
+`crates/podssh-cli/src/settings.rs:204-207`, and `podssh status` at
+`crates/podssh-cli/src/status.rs:94-105`. The variable in VARIABLES, the
+two files in FILES, and `docs/cli.md`.
+
+The test `crates/podssh-cli/tests/session_log.rs`, 4 tests, against the
+test's SSH server: with no variable and with `0`, no file appears; with
+`1` and `yes`, each run adds one line with its verb, host, port, `via
+direct`, end, exit and bytes, and the run of `exit 0 SECRET-WORD` leaves no
+`SECRET-WORD` and no `exit 0` in the file; the mode is 0600 on Unix;
+`podssh status` gives the file and the last line, and null with the log
+off; two runs at once give two whole lines in the file that a path names;
+`SessionLog yes` in the settings file turns it on and `PODSSH_SESSION_LOG=no`
+off; a bad value of either exits 78 and names it; a proxy that could not
+open, offline, adds a line that ends `failed` with `relay`, and a usage
+error adds none. The unit tests, 5: the values, the order of the variable
+and the file, three lines appended at 0600 and a full log moved aside, a
+symbolic link and a file that others read refused (Unix), and the lines of
+both verbs. Planted defect: the command line in each line; the test failed
+at the check of `SECRET-WORD`. In the build image, `scripts/interop-result.sh`
+with the new `result.session_log`, 10 passed, 0 failed: a run of
+`echo SECRET-WORD` against OpenSSH adds one line, of `ssh` to port 2201,
+`direct`, exit 0, with no `SECRET-WORD`; there, clippy with `-D warnings`
+and the tests of the log: no warning, no failure. Here, clippy: no warning;
+the suites of `podssh-cli` and `podssh-ssh`: 803 passed, 0 failed, 31 ignored (the live tests).

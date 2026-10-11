@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:123-193`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:151-221`,
    `crates/podssh-ssh/src/run.rs:35-80`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:156-352` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:1157-1160`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:1184-1187`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:1268-1361`); they cannot define a group.
+  (`docs/cli.md:1295-1388`); they cannot define a group.
 
 ## Approach
 
@@ -638,7 +638,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:155`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:1157-1160`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:1184-1187`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -754,13 +754,13 @@ a ticket, or a tool that asks an AI.
   (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:296-311`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:1157-1160`), which is not a failure of podssh.
+  status (`docs/cli.md:1184-1187`), which is not a failure of podssh.
 
 ## Approach
 
 1. A variable `PODSSH_ERROR_PROGRAM`: one program, with no shell and no
    arguments, as `SSH_ASKPASS`. Add it to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-169`).
+   (`crates/podssh-cli/src/man/facts.rs:45-175`).
 2. When: only when podssh itself fails: a usage error (64), a configuration
    error (78), 69, 70, 77, or 255 for a failure of podssh. Never after a
    success, and never for the status of a remote command or of an `exec:`

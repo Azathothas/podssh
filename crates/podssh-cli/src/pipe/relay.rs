@@ -194,6 +194,9 @@ impl Ending for RelayEnding {
     fn finish(self: Box<Self>) -> Pin<Box<dyn Future<Output = Verdict> + Send>> {
         Box::pin(async move {
             let RelayEnding { session, status, down, target, v6 } = *self;
+            if let Some(Ended::Closed { code, .. }) = status.get() {
+                crate::session_log::closed(code);
+            }
             match status.get() {
                 // 1000 is a normal end (the target closed). The relay uses
                 // 1001 for its own limits, which are not.

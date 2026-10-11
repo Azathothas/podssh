@@ -40,20 +40,32 @@ use podssh_ssh::retry::Retry;
 use podssh_ssh::{Log, EXIT_FAILURE};
 
 use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
+use crate::session_log::Place;
 use args::SshArgs;
 use resolve::{Env, Resolved, Transport};
 
 /// Run `podssh ssh`; returns the process exit code. With `--result-file`,
 /// the run's result is written at its end, on each path (T-054).
 pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
-    let started = std::time::Instant::now();
+    let (started, start_ms) = (std::time::Instant::now(), crate::pairs::now_ms());
     if args.result_file.as_deref() == Some("-") {
         let _ = writeln!(err, "podssh ssh: --result-file -: stdout carries the command's output; name a file");
         return EXIT_USAGE;
     }
+    // The session log (T-056): a value that is not one is refused first.
+    let log = match crate::session_log::place() {
+        Ok(place) => place,
+        Err(refusal) => return refusal.report("ssh", err),
+    };
     let code = run(args, err);
+    let object = result::object(code, started);
     if let Some(path) = &args.result_file {
-        result::write(path, &result::object(code, started), err);
+        result::write(path, &object, err);
+    }
+    if let Some(line) = crate::session_log::ssh_line(start_ms, &object).filter(|_| log != Place::Off) {
+        if let Err(why) = crate::session_log::append(&log, &line) {
+            let _ = writeln!(err, "podssh ssh: the session log: {why}");
+        }
     }
     code
 }
@@ -87,6 +99,11 @@ fn run(args: &SshArgs, err: &mut dyn Write) -> i32 {
         }
         return 0;
     }
+    // The destination of the session log; an -O request is no session.
+    if resolved.control.command.is_none() {
+        let destination = &resolved.options.destination;
+        crate::session_log::target(&destination.host, Some(destination.port), road(&resolved.transport));
+    }
     let log = match &resolved.log_file {
         Some(path) => match Log::to_file(resolved.options.log_level, path) {
             Ok(log) => log,
@@ -118,6 +135,17 @@ fn run(args: &SshArgs, err: &mut dyn Write) -> i32 {
     // it, or podssh would hang after the session has ended.
     runtime.shutdown_background();
     code
+}
+
+/// The road of a run, as the session log names it when no relay host does.
+fn road(transport: &Transport) -> &'static str {
+    match transport {
+        Transport::Relay { .. } => "relay",
+        Transport::Direct => "direct",
+        Transport::Node { .. } => "node",
+        Transport::Iroh { .. } => "iroh",
+        Transport::Cloudflare { .. } => "cloudflare",
+    }
 }
 
 async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i32 {
