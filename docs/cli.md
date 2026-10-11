@@ -601,7 +601,9 @@ before anything else; `podssh doctor` is the report that measures.
   be used), `proxy` (the variable, `HOST:PORT` and the kind, `http` or
   `socks5`), `offline`, `attachment`, `stdin_tty`, `stdout_tty`,
   and `host` for a destination (its name in `known_hosts`, whether a key is
-  recorded, the key types).
+  recorded, the key types); `session_log` (T-056) and `relay_failures`, the
+  relay hosts that each run tries last now, with `ago_s` and the `reason`
+  (T-059).
 - It never holds a token: it reads the cache entry without its token field
   (`cache::peek`). It shows no proxy credentials, opens no connection, asks
   no DNS and writes nothing.

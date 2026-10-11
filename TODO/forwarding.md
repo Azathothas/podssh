@@ -60,7 +60,7 @@ server listens, and the client connects out for each connection.
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
    `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:116-122`), with the
-   limit of 20 s (`crates/podssh-relay/src/open.rs:27-29`).
+   limit of 20 s (`crates/podssh-relay/src/open.rs:28-30`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
 5. A failed dial closes that channel only, and says why on stderr: the
@@ -679,7 +679,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   (T-001); the Podman box refuses each `bind`
   (`scripts/box/seccomp.json:5-10`).
 - Read: the relay's limits apply to the shared connection: all the sessions
-  of a master share one 64 MiB and one 12 h (`docs/relay.md:149-155`).
+  of a master share one 64 MiB and one 12 h (`docs/relay.md:156-162`).
 
 ## Approach
 
@@ -1057,8 +1057,8 @@ sessions (GitHub #17).
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-78`,
 `crates/podssh-ssh/src/run.rs:196-238`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
-(`crates/podssh-relay/src/open.rs:187-233`,
-`crates/podssh-relay/src/open.rs:335-349`). With `-N`, no command runs, so a
+(`crates/podssh-relay/src/open.rs:188-247`,
+`crates/podssh-relay/src/open.rs:349-363`). With `-N`, no command runs, so a
 new connection has no side effect on the server. `docs/design.md:250-257`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.
@@ -1129,7 +1129,7 @@ In the fault harness (`scripts/interop-faults.sh`), a run with the new flag,
 `--relay-host` set to `relay-kill` then `relay-a`, and
 `-N -R 127.0.0.1:2291:127.0.0.1:2203` carries a connection to port 2291.
 Then the stand-in relay `relay-kill` stops, as at
-`scripts/interop-faults.sh:215-225`. Within 60 s, a new connection to port
+`scripts/interop-faults.sh:240-250`. Within 60 s, a new connection to port
 2291 reads Dropbear's banner again. Planted defect: no new connection, and
 the second read fails.
 
@@ -1167,7 +1167,7 @@ first loss (`crates/podssh-cli/src/ssh/persist.rs:163-172`); the rule of
 - In the build image (`sh scripts/dev.sh run`), `cargo clippy --all-targets
   -p podssh-ssh -p podssh-cli -- -D warnings` passed.
 - In the gate at this push: `faults.persist.tunnel`
-  (`scripts/interop-faults.sh:263-303`): `--persist -N -R
+  (`scripts/interop-faults.sh:288-328`): `--persist -N -R
   127.0.0.1:2290:127.0.0.1:2203` through the stand-in relays `relay-tunnel`
   and `relay-a`; port 2290 reads Dropbear's banner, `relay-tunnel` is
   killed, and within 60 s port 2290 reads it again through the next.

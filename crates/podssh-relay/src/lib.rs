@@ -30,6 +30,7 @@ pub mod blocking;
 pub mod cache;
 pub mod e2e;
 pub mod failover;
+pub mod failures;
 pub mod health;
 pub mod identity;
 pub mod open;

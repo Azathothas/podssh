@@ -93,6 +93,9 @@ pub struct Raced<T, E> {
     pub failed: Vec<(usize, E)>,
     /// Attempts that opened and were not kept, for the caller to close.
     pub dismissed: Vec<(usize, T)>,
+    /// Attempts before the one kept that had neither opened nor failed when
+    /// it was kept: hosts that said nothing while a later one opened (T-059).
+    pub silent: Vec<usize>,
     /// An error that every host would give ended the round.
     pub stopped: bool,
 }
@@ -145,7 +148,7 @@ where
     E: Send + 'static,
 {
     let mut notes = Notes { out: notes, ended: (0..n).map(|_| None).collect(), next: 0 };
-    let mut out = Raced { kept: None, failed: Vec::new(), dismissed: Vec::new(), stopped: false };
+    let mut out = Raced { kept: None, failed: Vec::new(), dismissed: Vec::new(), silent: Vec::new(), stopped: false };
     if n == 0 {
         return out;
     }
@@ -238,6 +241,10 @@ where
             Err(e) if e.is_panic() => std::panic::resume_unwind(e.into_panic()),
             Err(_) => {}
         }
+    }
+    // Those that ran until the end, before the one kept.
+    if let Some((kept, _)) = &out.kept {
+        out.silent = (0..*kept).filter(|i| running[*i]).collect();
     }
     out.failed.sort_by_key(|(i, _)| *i);
     if let Some(pos) = stopper.and_then(|s| out.failed.iter().position(|(i, _)| *i == s)) {

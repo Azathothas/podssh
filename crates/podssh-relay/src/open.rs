@@ -21,6 +21,7 @@ use podssh_ws::{connect, ConnectError, Endpoint, ProxyChoice, RelaySession, Trus
 use rand::Rng;
 
 use crate::failover::{self, Attempt, MintGate, Mode, SERIAL_STEP, STAGGER};
+use crate::failures::{self, Records};
 use crate::relay::{Relay, RelayList};
 use crate::token::{self, MintContext, Origin, TokenError};
 
@@ -189,7 +190,13 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
     if offline() {
         return Err(Failure { attempts: vec![(req.relays.primary().host.clone(), OpenError::Offline)] });
     }
-    let hosts = &req.relays.hosts;
+    // A host that failed lately goes last (T-059).
+    let mut records = Records::load();
+    let (order, moved) = failures::order(&req.relays.hosts, &records, crate::pool::now_ms());
+    for note in moved {
+        notes(&note);
+    }
+    let hosts: &Vec<Relay> = &order.iter().map(|&i| req.relays.hosts[i].clone()).collect();
     let shared = Arc::new(Shared {
         path: req.path.to_string(),
         trust: req.trust.clone(),
@@ -220,6 +227,13 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
             tokio::spawn(async move {
                 let _ = session.send_close(1000, "").await;
             });
+        }
+        let reasons = raced.failed.iter().filter_map(|(i, e)| failures::reason(e).map(|r| (hosts[*i].host.clone(), r)));
+        let silent = raced.silent.iter().map(|i| (hosts[*i].host.clone(), failures::SILENT.to_string()));
+        let failed: Vec<(String, String)> = reasons.chain(silent).collect();
+        let opened = raced.kept.as_ref().map(|(i, _)| hosts[*i].host.as_str());
+        if records.update(&failed, opened, crate::pool::now_ms()) {
+            records.store();
         }
         attempts.extend(raced.failed.into_iter().map(|(i, e)| (hosts[i].host.clone(), e)));
         if let Some((i, session)) = raced.kept {

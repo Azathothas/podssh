@@ -28,6 +28,7 @@ struct Outcome {
     kept: Option<usize>,
     failed: Vec<usize>,
     dismissed: Vec<usize>,
+    silent: Vec<usize>,
     stopped: bool,
     started: Vec<(usize, u128)>,
     ended: u128,
@@ -66,6 +67,7 @@ async fn run(hosts: &[Host], mode: Mode) -> Outcome {
         kept: raced.kept.map(|(i, _)| i),
         failed: raced.failed.iter().map(|(i, _)| *i).collect(),
         dismissed: raced.dismissed.iter().map(|(i, _)| *i).collect(),
+        silent: raced.silent.clone(),
         stopped: raced.stopped,
         started,
         ended: t0.elapsed().as_millis(),
@@ -83,6 +85,21 @@ async fn staggered_starts_the_next_host_when_the_first_is_silent() {
     assert_eq!(o.ended, D + 100, "the silent host costs the stagger, not its whole step");
     assert!(o.failed.is_empty() && o.dismissed.is_empty(), "{o:?}");
     assert_eq!(o.notes, ["host 1"], "the silent attempt ended with no notes");
+}
+
+/// The hosts before the one kept that said nothing, which a later run tries
+/// last (T-059): not one that failed, nor one after the host kept.
+#[tokio::test(start_paused = true)]
+async fn the_hosts_that_said_nothing_before_the_one_kept() {
+    assert_eq!(run(&[Host::Silent, Host::Opens(100)], Mode::Staggered).await.silent, [0]);
+    let o = run(&[Host::Silent, Host::Fails(10), Host::Opens(10)], Mode::Parallel).await;
+    assert_eq!((o.kept, o.silent.clone()), (Some(2), vec![0]), "{o:?}");
+    let o = run(&[Host::Fails(100), Host::Opens(100), Host::Silent], Mode::Parallel).await;
+    assert_eq!((o.kept, o.silent.clone()), (Some(1), vec![]), "{o:?}");
+    let o = run(&[Host::Fails(100), Host::Opens(100)], Mode::Serial).await;
+    assert!(o.silent.is_empty(), "{o:?}");
+    let o = run(&[Host::Silent, Host::Silent], Mode::Staggered).await;
+    assert_eq!((o.kept, o.silent.clone()), (None, vec![]), "none kept: {o:?}");
 }
 
 #[tokio::test(start_paused = true)]

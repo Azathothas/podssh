@@ -96,6 +96,17 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         Some(path) => report.ok("settings", format!("podssh's settings are read from {}", path.display())),
         None => report.ok("settings", "no settings file; the flags, the variables and the defaults hold".to_string()),
     }
+    // The relay hosts that a run tries last now (T-059).
+    let records = podssh_relay::failures::Records::load();
+    let recent = podssh_relay::failures::recent(&records, crate::pairs::now_ms());
+    let window = podssh_relay::failures::WINDOW.as_secs() / 60;
+    let failed: Vec<String> = recent.iter().map(|(host, ago, why)| format!("{host} ({ago} s ago: {why})")).collect();
+    match failed.is_empty() {
+        true => report.ok("failed relays", format!("no relay host failed in the last {window} min")),
+        false => {
+            report.ok("failed relays", format!("tried last for {window} min after a failure: {}", failed.join(", ")))
+        }
+    }
     agent::check(&mut report);
     #[cfg(feature = "iroh")]
     iroh::udp(&mut report);

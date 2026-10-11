@@ -58,7 +58,14 @@ The code is in `crates/podssh-relay/`.
    a mint that another has in flight, and then reads the token that it
    cached, or mints at its own host when the first is the silent one.
 5. An error that another host can repair (a host that is down, a time-out, a
-   proxy 5xx, a relay 503) goes to the next host. An error that each host
+   proxy 5xx, a relay 503) goes to the next host. Such a host, and one that
+   said nothing while a host after it opened, is tried last for 10 minutes,
+   in each run (T-059): the record is `relay-failures.json` in the cache,
+   with when each host failed and why in a few words, and a host that opens
+   leaves it. It holds for a list that the user named too, as its order is
+   a preference: a note says "trying HOST last: it failed N s ago (WHY)",
+   and no host is left out. A record from the future, of a clock that
+   moved, is ignored; a 502, which is the target's, records nothing. An error that each host
    gives (a policy refusal, a target that does not resolve, a bad token in
    the environment, a proxy that wants credentials) stops each attempt at
    once.

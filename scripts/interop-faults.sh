@@ -127,10 +127,12 @@ RC=
 
 # T-220: a first host that says nothing, in each mode of failover. The next
 # host starts after 2 s (staggered), at once (parallel), or when the first
-# host's step of 5 s ends (serial).
+# host's step of 5 s ends (serial). Each run has a cache of its own: a host
+# that failed in a run before would be tried last (T-059).
 for spec in staggered:5 parallel:5 serial:10; do
     mode=${spec%%:*}
     for case in silent hole; do
+        RC="$FK/cache-$mode-$case"
         start=$(date +%s)
         r "relay-$case.test:$(port "$case"),relay-a.test:$(port a)" --relay-failover "$mode" "$T" 'echo failed-over' \
             >"$FK/out" 2>"$FK/err" </dev/null
@@ -142,6 +144,29 @@ for spec in staggered:5 parallel:5 serial:10; do
                 "$FK/err"
     done
 done
+RC=
+
+# T-059: a host that failed is tried last in the next run, also in a list
+# that the user named, with a note; one alone in its list is still tried.
+RC="$FK/cache-recorded"
+for run in first second; do
+    start=$(date +%s)
+    r "relay-silent.test:$(port silent),relay-a.test:$(port a)" --relay-failover serial "$T" 'echo failed-over' \
+        >"$FK/out" 2>"$FK/err" </dev/null
+    rc=$?
+    took=$(( $(date +%s) - start ))
+    [ "$rc" = 0 ] || break
+done
+[ "$run" = second ] && [ "$rc" = 0 ] && [ "$took" -lt 3 ] && grep -q "trying relay-silent.test last: it failed" "$FK/err" \
+    && ok faults.recorded.reorder "a silent host that failed is tried last by the next run, which took ${took}s" \
+    || bad faults.recorded.reorder "the $run run: exit $rc after ${took}s" "$FK/err"
+r "relay-dead.test:$(port dead),relay-a.test:$(port a)" "$T" true >"$FK/out" 2>"$FK/err" </dev/null
+r "relay-dead.test:$(port dead)" "$T" true >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+[ "$rc" = 255 ] && grep -q "could not connect to relay-dead.test" "$FK/err" && ! grep -q " last: it failed" "$FK/err" \
+    && ok faults.recorded.still_tried "a host that failed, alone in its list, is still tried" \
+    || bad faults.recorded.still_tried "the recorded host alone: exit $rc" "$FK/err"
+RC=
 
 # Two hosts of one deployment, in parallel, the first opening 500 ms after
 # the second: one token is minted for both, the first is kept, and the

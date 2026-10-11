@@ -83,10 +83,19 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "stdout_tty": tty.stdout,
         "host": host,
         "session_log": session_log,
+        "relay_failures": relay_failures(),
     });
     let _ = writeln!(out, "{line}");
     let _ = out.flush();
     0
+}
+
+/// The relay hosts that each run tries last now (T-059), with the seconds
+/// since each failed and why.
+fn relay_failures() -> Value {
+    let records = podssh_relay::failures::Records::load();
+    let recent = podssh_relay::failures::recent(&records, crate::pairs::now_ms());
+    recent.into_iter().map(|(host, ago_s, reason)| json!({ "host": host, "ago_s": ago_s, "reason": reason })).collect()
 }
 
 /// The session log (T-056): its file, and its last line in short form; null

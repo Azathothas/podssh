@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**289 entries: 71 open, 0 partial, 23 blocked, 195 done.**
+**289 entries: 70 open, 0 partial, 23 blocked, 196 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 135 | 157 |
-| P3 | 65 | 0 | 5 | 38 | 108 |
-| **All** | 71 | 0 | 23 | 195 | 289 |
+| P3 | 64 | 0 | 5 | 39 | 108 |
+| **All** | 70 | 0 | 23 | 196 | 289 |
 
 ## Entries
 
@@ -132,7 +132,7 @@ repository and CI).
 | [T-056](machine.md) | P3 | S | backlog | feature | done | A log of the sessions of this host, when the user asks for it |
 | [T-057](relay.md) | P1 | S | M3 | defect | done | The relay token is cached under the first configured host, not the host that minted it (GitHub #3) |
 | [T-058](relay.md) | P2 | M | backlog | feature | done | `podssh relay status`, `info`, `spec` and `trace` |
-| [T-059](relay.md) | P3 | S | backlog | feature | open | A relay host that failed recently is tried last, also in the next run |
+| [T-059](relay.md) | P3 | S | backlog | feature | done | A relay host that failed recently is tried last, also in the next run |
 | [T-060](relay.md) | P3 | S | none | chore | done | P1: no command uses `podssh-probe` |
 | [T-061](relay.md) | P3 | S | M4 | measurement | done | Measure whether the relay's idle cut applies to reverse sockets |
 | [T-062](relay.md) | P3 | S | backlog | measurement | open | Measure whether the relay's backpressure close (1013) operates |

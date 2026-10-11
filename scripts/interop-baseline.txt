@@ -25,7 +25,7 @@ harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
-harness faults interop 33 scripts/interop-faults.sh
+harness faults interop 35 scripts/interop-faults.sh
 harness ping interop 3 scripts/interop-ping.sh
 harness relay interop 4 scripts/interop-relay.sh
 harness socks interop 4 scripts/interop-socks.sh
@@ -261,6 +261,8 @@ faults.tls12 pass
 faults.failover.dead pass
 faults.failover.r503 pass
 faults.failover.token_cache pass
+faults.recorded.reorder pass
+faults.recorded.still_tried pass
 faults.failover_mode.parallel.hole pass
 faults.failover_mode.parallel.silent pass
 faults.failover_mode.serial.hole pass

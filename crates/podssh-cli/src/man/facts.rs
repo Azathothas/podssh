@@ -269,6 +269,17 @@ fn relay() -> Vec<Block> {
             ),
         ),
         item(
+            vec![lit("A host that failed")],
+            format!(
+                "A relay host that failed with an error that another host can repair, or that said nothing \
+                 while a host after it opened, is tried last for {} min, in each run and each mode, also in \
+                 a list that you named; a note says so, and no host is left out. The record is {} in the \
+                 cache; a host that opens leaves it. podssh status and podssh doctor show it.",
+                podssh_relay::failures::WINDOW.as_secs() / 60,
+                podssh_relay::failures::FILE
+            ),
+        ),
+        item(
             vec![lit("A dropped session")],
             "podssh ssh tries a session again when the relay dropped it before any request reached the \
              destination: during the SSH handshake or the login, before the command, the shell, the \
