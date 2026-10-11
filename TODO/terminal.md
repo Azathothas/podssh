@@ -2,7 +2,7 @@ This file holds the defects of the line discipline in `crates/podssh-terminal`,
 the rows L1 to L5 of the former defects page (`git show 3ee70dc:docs/defects.md`),
 as T-125 to T-129. `podssh serve` needs the crate on a host with no
 `/dev/ptmx` (T-111), so they come before it. No command uses the crate yet
-(`docs/STATUS.md:358`), so each defect is P2 at most. Three small terminal
+(`docs/STATUS.md:359`), so each defect is P2 at most. Three small terminal
 items for the backlog follow.
 
 # T-125: L1: the mode selection of the line discipline is the wrong way round
@@ -52,7 +52,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    discipline (T-111); a client flag can select it later. Invariant: the
    absence of a pty alone never selects `Cooked`.
 5. Rewrite the tests above to the new table. Same commit:
-   `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:358`, and the module notes
+   `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:359`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-46`,
    `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
    from the lines that you change (`AGENTS.md:207-208`).
@@ -160,7 +160,7 @@ writes over the rows above it.
 4. One `TERM` rule: remove the crate's selection, because the caller sends
    the `TERM` of the request. Remove the unused `libc` dependency.
 5. Same commit: `docs/terminal.md` (who owns raw mode and the size),
-   `docs/STATUS.md:358`.
+   `docs/STATUS.md:359`.
 
 ## Decision
 
@@ -299,7 +299,7 @@ character takes two cells and counts as one.
 3. Backspace, Ctrl-W, Ctrl-D and the arrows act on whole characters; the
    rubout and the arrow echo use the cell count (`ESC [ n D`).
 4. The history keeps bytes (`Vec<u8>`), not lossy strings.
-5. Same commit: `docs/terminal.md:107-145` (the rules), `docs/STATUS.md:358`.
+5. Same commit: `docs/terminal.md:107-145` (the rules), `docs/STATUS.md:359`.
 
 ## Decision
 
@@ -411,7 +411,7 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
    CSI state. Invariant: an escape never consumes Ctrl-C, Ctrl-D or Enter.
 3. A printable byte after a lone `ESC`: see Decision.
 4. Rewrite the tests that pin the loss. Same commit: `docs/terminal.md`
-   lines 104-111 at `a7648ff`, `docs/STATUS.md:358`.
+   lines 104-111 at `a7648ff`, `docs/STATUS.md:359`.
 
 ## Decision
 
@@ -556,7 +556,7 @@ that arrives during an edit is written over the edited line.
    output is written, then the prompt and the line are drawn again with the
    cursor in place. Invariant: output never changes the line under edit.
 5. Rewrite the tests that pin the old behaviour. Same commit:
-   `docs/terminal.md` lines 142-151 at `cb94460`, `docs/STATUS.md:358`.
+   `docs/terminal.md` lines 142-151 at `cb94460`, `docs/STATUS.md:359`.
 
 ## Decision
 
@@ -736,12 +736,13 @@ escape`: 7 passed; the manual's tests of `podssh-cli`: 42 passed.
 
 # T-131: Which servers honour the `signal` request for Ctrl-C with no remote pty
 
-**Source:** `docs/terminal.md:205-209` (section "Open").
+**Source:** the section "Open" of `docs/terminal.md`, now the section "Ctrl-C
+with no remote pty" (`docs/terminal.md:205-234`).
 **Category:** measurement
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -752,7 +753,9 @@ on it. podssh cannot select a behaviour without that fact.
 
 ## Premise
 
-- Read: `docs/terminal.md:205-209` records the question as open.
+- Read: the section "Open" of `docs/terminal.md` recorded the question as
+  open; the table and the decision took its place
+  (`docs/terminal.md:205-234`).
 - Read: podssh's client never sends a `signal` request: no call in
   `crates/podssh-ssh/src`. With no remote pty, the local terminal stays in
   its normal mode (`docs/terminal.md:24`), so Ctrl-C stops podssh itself.
@@ -776,6 +779,22 @@ on it. podssh cannot select a behaviour without that fact.
    `signal INT` on Ctrl-C when there is no remote pty. A change of the client
    is a new entry.
 
+## Decision
+
+2026-10-12, the calls made in the work: the test logs in with podssh's own
+client (`connect_hops`), so that the requests are podssh's. It runs two
+commands, not one: `exec sleep 30`, where `sleep` is the process that the
+server started, and `sleep 30; true`, where a shell waits for its child;
+only the second tells a server that signals the process group (OpenSSH)
+from one that signals its process alone (Dropbear). The test has two
+servers of its own: one that ignores the request (russh's default, the
+plant) and one that acts on it, so that both readings show. A check in the
+build image with OpenSSH's client, ended after 1 s, measured what each
+server does when its client leaves: both kept the command running. The
+tailnet's hosts were offline and `railway.new` refused an anonymous visitor
+(Q42), so neither is measured. With the table the client will send
+`signal INT` on Ctrl-C with no remote pty: T-293, a new entry.
+
 ## Prove
 
 ```sh
@@ -787,6 +806,25 @@ The test prints one line for each server, and exits 0 when each server was
 measured, whether it acted or not. A russh server in the test that ignores
 the request must read as "ignored"; that is the plant. The grep shows the
 recorded table.
+
+## Done
+
+2026-10-12. `crates/podssh-ssh/tests/signal_request.rs`: `measure` at
+`crates/podssh-ssh/tests/signal_request.rs:105-157`, the test's servers at
+`crates/podssh-ssh/tests/signal_request.rs:250-292`, and the ignored
+`each_named_server`, which measures the servers that
+`PODSSH_SIGNAL_TARGETS` names. On Windows, `cargo test -p podssh-ssh --test
+signal_request`: 2 passed (the server that ignores reads as ignored, the one
+that acts as `INT`), 1 ignored. In the build image, with OpenSSH on 2201,
+Dropbear on 2203 and a throwaway key, `-- --ignored --nocapture`: 1 passed,
+one line per server and command. The server that ignores: "ignored: the
+command still ran 5 s after the request"; OpenSSH 10.3p1: both commands
+ended by `INT` 0 ms after the request, and its log shows `killpg`; Dropbear
+2026.91: `exec sleep 30` ended by `INT`, and `sleep 30; true` was ignored,
+with the shell and `sleep` still running after the test. Planted defect: no
+`signal` sent; the test of the server that acts failed. The table and the
+decision: `docs/terminal.md`, section "Ctrl-C with no remote pty", and a row
+of `docs/STATUS.md`. The client's change: T-293.
 
 # T-132: Compare the Windows console handling with csshw's
 
@@ -812,7 +850,7 @@ find a case that the 14 console checks of podssh do not cover.
   `crates/podssh-ssh/src/terminal/windows.rs:115-138` (pty modes),
   `crates/podssh-ssh/src/terminal/windows.rs:142-181` (prompts), and the size
   poll every 500 ms (`crates/podssh-ssh/src/io.rs:401-449`). The checks of
-  `scripts/interop-conpty.py` pass 14 of 14 (`docs/STATUS.md:77`).
+  `scripts/interop-conpty.py` pass 14 of 14 (`docs/STATUS.md:78`).
 - Read: podssh sets no console code page, and remote output goes through
   Rust's standard output (`crates/podssh-ssh/src/io.rs:339-352`). Rust's
   documentation of `std::io::Stdout` says that a console refuses bytes that
@@ -844,5 +882,62 @@ grep -n 'UTF-8' docs/terminal.md
 
 The first grep shows the table, and the second the measured result for
 output that is not UTF-8 in a console. The ConPTY run that measured it uses
-a server, as in `docs/STATUS.md:77`, and its output is recorded in
+a server, as in `docs/STATUS.md:78`, and its output is recorded in
 `docs/STATUS.md`.
+
+# T-293: Ctrl-C with no remote pty sends `signal INT` to the command
+
+**Source:** T-131: `docs/terminal.md`, section "Ctrl-C with no remote pty".
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+With no remote pty, Ctrl-C ends podssh and the command on the server runs
+on: OpenSSH 10.3p1 and Dropbear 2026.91 each kept `sleep` running after its
+client had ended (T-131). The protocol's `signal` request stops the command
+on OpenSSH, with each process of its group, and on Dropbear when the
+command is the process that the server started. podssh never sends it.
+
+## Premise
+
+- Measured (T-131): the table of `docs/terminal.md`, section "Ctrl-C with no
+  remote pty", by `crates/podssh-ssh/tests/signal_request.rs`.
+- Read: with no remote pty the local terminal keeps its mode
+  (`crates/podssh-ssh/src/session.rs:131`), so Ctrl-C is SIGINT to podssh,
+  or `CTRL_C_EVENT` in a Windows console, and it ends podssh. No code of
+  `crates/podssh-ssh/src` sends a `signal` request.
+- Read: OpenSSH's client sends none either; OpenSSH's sshd refuses one for
+  a subsystem (`sftp`).
+
+## Approach
+
+1. In a session with no remote pty that runs a command or a shell (not
+   `-N`, `-W` or `-s`), the first Ctrl-C while the channel is open sends
+   `signal INT` and does not end podssh. podssh then waits up to 2 s for the
+   channel's end; the command's status or signal is the exit code, as for
+   each command.
+2. A second Ctrl-C, or the end of the wait, ends podssh as one Ctrl-C does
+   now. `-v` logs the request and how the wait ended.
+3. A flag keeps OpenSSH's behaviour: no request, and Ctrl-C ends podssh at
+   once. A SIGINT that was ignored when podssh started stays ignored, as in
+   OpenSSH's client.
+4. The manual's note of ssh, `docs/terminal.md` and `docs/cli.md` say it.
+
+## Prove
+
+```sh
+CARGO_BUILD_JOBS=4 cargo test -p podssh-cli --test ssh_interrupt
+```
+
+Against the test's SSH server on the loopback, podssh runs a command with
+no pty and gets SIGINT: the server gets `signal INT`, ends the command by
+it, and podssh exits 130. A server that ignores the request: podssh ends
+within 3 s, as now. A second SIGINT ends podssh at once. With the flag, the
+server gets no request. In the build image, OpenSSH's `sleep 30` runs no
+more after the Ctrl-C (`ps`). On Windows, a check of
+`scripts/interop-conpty.py` sends Ctrl-C to `-T` and finds the command's
+end. Planted defect: no request sent; the first test fails.

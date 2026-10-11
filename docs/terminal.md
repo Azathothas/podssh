@@ -52,7 +52,7 @@ the manual read; a test holds the manual's note to it.
   bracketed paste.
 - **A client with no pty:** podssh reads no byte; stdin is the command's
   data, escapes are off, and Ctrl-C is the local terminal's, which ends
-  podssh (whether a server honours the protocol's `signal` request is T-131).
+  podssh ("Ctrl-C with no remote pty" below).
 - **A session through a control master** (T-039): the master reads its
   escapes, with the escape character that the client sent.
 - **The line discipline of `podssh serve`**, when serve exists (T-107 to
@@ -202,11 +202,36 @@ Newlines: in the line discipline, each `\n` of the program's output becomes
 terminal is raw. Never change newlines when the remote side has a pty, or
 for command output that goes to a pipe or a file.
 
-## Open
+## Ctrl-C with no remote pty
 
-- **Ctrl-C with no remote pty.** There, `0x03` is only a byte. The only
-  mechanism of the protocol is the `signal` request (RFC 4254, section 6.9),
-  and a server can ignore it. It is not known which servers honour it.
+With no remote pty, Ctrl-C is the local terminal's, and it ends podssh;
+`0x03` would be only a byte of the command's input. The command on the
+server runs on: in the build image, OpenSSH 10.3p1 and Dropbear 2026.91
+each still ran `sleep` after their client had ended. The protocol's one
+way to stop it is the `signal` request (RFC 4254, section 6.9), which a
+server may ignore. `crates/podssh-ssh/tests/signal_request.rs` measures
+what a server does with it (T-131): podssh's client logs in, runs a command
+with no pty, sends `signal INT` after 1 s, and reads what ends the channel
+within 5 s. In `exec sleep 30`, `sleep` is the process that the server
+started; in `sleep 30; true`, a shell waits for its child.
+
+| Server, 2026-10-12 | `exec sleep 30` | `sleep 30; true` |
+| --- | --- | --- |
+| OpenSSH 10.3p1, the build image | Ended by `INT` at once; the channel closed. | The same: sshd signals the session's process group (its log: `session_signal_req: signal INT, killpg(...)`). |
+| Dropbear 2026.91, the build image | Ended by `INT` at once; the channel closed. | Ignored: Dropbear signals the process that it started (`kill`, `mkj/dropbear:src/svr-chansession.c`, line 468 at `17549ea`), here the shell, which waits for `sleep`. Both still ran after the client left. |
+| russh 0.64.1 with its default handler (the test's own server) | Ignored. | Not run. |
+| Tailscale SSH | Not measured: the tailnet's hosts were offline. | |
+| `railway.new` | Not measured: it refused an anonymous visitor (Q42). | |
+
+Decision: the client sends `signal INT` on Ctrl-C when the session has no
+remote pty and runs a command or a shell (T-293). OpenSSH then stops the
+command and each process of its group, and Dropbear a command that is the
+process that it started. A server may ignore the request, so podssh waits
+a short time for the end, and a second Ctrl-C ends podssh at once, as one
+Ctrl-C does now; the command's status or signal is podssh's exit code, as
+for each command. A flag keeps OpenSSH's behaviour, whose client sends no
+request. With a remote pty nothing changes: Ctrl-C is a byte, and the
+remote pty's line discipline signals the foreground group.
 
 ## Tests
 
