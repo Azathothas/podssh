@@ -6,7 +6,9 @@
 //! A passphrase is asked for (terminal or `SSH_ASKPASS`) and never taken
 //! from the command line, where every process on the host can read it; `-N ''`
 //! makes a key without one. A private key is never printed, and an existing
-//! key is never overwritten.
+//! key is never overwritten by another key: `-p` and `-c` (T-018) change the
+//! passphrase or the comment of a key, and replace the file only with the
+//! same key, read back and compared first.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -43,6 +45,11 @@ pub struct KeygenArgs {
     pub quiet: bool,
     pub print_public: bool,
     pub fingerprint: bool,
+    /// `-p` and `-c`: change the passphrase, or the comment, of a key.
+    pub change_passphrase: bool,
+    pub change_comment: bool,
+    /// `-P` as given: only `-P ''` is taken.
+    pub old_passphrase: NewPassphrase,
 }
 
 impl KeygenArgs {
@@ -51,11 +58,12 @@ impl KeygenArgs {
     pub fn from_matches(m: &ArgMatches) -> Self {
         let one = |id: &str| m.try_get_one::<String>(id).ok().flatten().cloned();
         let flag = |id: &str| m.try_get_one::<bool>(id).ok().flatten().copied().unwrap_or(false);
-        let passphrase = match m.try_get_one::<String>("new-passphrase").ok().flatten() {
+        let given = |id: &str| match m.try_get_one::<String>(id).ok().flatten() {
             None => NewPassphrase::Absent,
             Some(p) if p.is_empty() => NewPassphrase::Empty,
             Some(_) => NewPassphrase::Given,
         };
+        let passphrase = given("new-passphrase");
         KeygenArgs {
             key_type: one("type"),
             bits: one("bits"),
@@ -65,6 +73,9 @@ impl KeygenArgs {
             quiet: m.try_get_one::<u8>("quiet").ok().flatten().is_some_and(|n| *n > 0),
             print_public: flag("print-public"),
             fingerprint: flag("fingerprint"),
+            change_passphrase: flag("change-passphrase"),
+            change_comment: flag("change-comment"),
+            old_passphrase: given("old-passphrase"),
         }
     }
 }
@@ -78,6 +89,34 @@ pub fn run_keygen(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -
              Leave -N out to be asked for one (terminal or SSH_ASKPASS), or use -N '' for a key without one."
         );
         return EXIT_USAGE;
+    }
+    if args.old_passphrase == NewPassphrase::Given {
+        let _ = writeln!(
+            err,
+            "podssh keygen: a passphrase on the command line is refused: every process on this host can read it.\n  \
+             Leave -P out to be asked for the old one (terminal or SSH_ASKPASS), or use -P '' for a key without one."
+        );
+        return EXIT_USAGE;
+    }
+    if args.change_passphrase || args.change_comment {
+        let why = if args.change_passphrase && args.change_comment {
+            Some("-p and -c cannot be combined")
+        } else if args.print_public || args.fingerprint {
+            Some("-p and -c cannot go with -y or -l")
+        } else if args.change_comment && args.passphrase != NewPassphrase::Absent {
+            Some("-c keeps the passphrase: -N is for -p")
+        } else {
+            None
+        };
+        if let Some(why) = why {
+            let _ = writeln!(err, "podssh keygen: {why}");
+            return EXIT_USAGE;
+        }
+        let Some(file) = &args.file else {
+            let _ = writeln!(err, "podssh keygen: -p and -c change the key in -f FILE");
+            return EXIT_USAGE;
+        };
+        return crate::keygen_change::change(args, Path::new(file), out, err);
     }
     if args.print_public || args.fingerprint {
         if args.print_public && args.fingerprint {
@@ -128,7 +167,7 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
         return EXIT_FAILED;
     }
     let passphrase = match args.passphrase {
-        NewPassphrase::Absent => match ask_new_passphrase() {
+        NewPassphrase::Absent => match ask_new_passphrase("Enter passphrase (empty for no passphrase): ") {
             Ok(p) => p,
             Err(why) => {
                 let _ = writeln!(err, "podssh keygen: {why}");
@@ -166,7 +205,7 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
 }
 
 /// A new passphrase, asked twice. Empty means none.
-fn ask_new_passphrase() -> Result<Zeroizing<String>, String> {
+pub(crate) fn ask_new_passphrase(first: &str) -> Result<Zeroizing<String>, String> {
     if !prompt::can_ask() {
         return Err(
             "there is no terminal and no SSH_ASKPASS to ask for a passphrase; use -N '' for a key without one".into()
@@ -178,7 +217,7 @@ fn ask_new_passphrase() -> Result<Zeroizing<String>, String> {
         }
         _ => format!("the passphrase: {e}"),
     };
-    let first = prompt::ask("Enter passphrase (empty for no passphrase): ", false).map_err(why)?;
+    let first = prompt::ask(first, false).map_err(why)?;
     let second = prompt::ask("Enter same passphrase again: ", false).map_err(why)?;
     if *first != *second {
         return Err("the passphrases do not match".into());

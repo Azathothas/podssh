@@ -542,11 +542,23 @@ GitHub #23): the time of each step, the round trip, and the throughput.
 
 - The `ssh-keygen` of OpenSSH does not run without a user database entry,
   so podssh makes keys itself, in the formats of OpenSSH.
-- A private key is never written over an existing file.
-- A passphrase given with `-N` is refused (exit 64), because each process
-  on the host can read a command line. `-N ''` is accepted. With no
-  terminal and no `SSH_ASKPASS`, podssh refuses at once and names `-N ''`;
-  it does not wait.
+- A new key is never written over an existing file.
+- `-p` changes the passphrase of the key in `-f FILE`, and `-c` its comment,
+  in the key and in `FILE.pub` (T-018). The file is replaced only with the
+  same key: the new text goes to a new private file beside it, which is
+  read back, opened with the new passphrase and compared by its public
+  key, and only then renamed over the file. No copy of the old file is
+  kept: it holds the key under the passphrase that the user wants gone.
+- `-p` and `-c` read each format that `podssh ssh -i` reads, and write the
+  format of OpenSSH, as `ssh-keygen -p` does. Measured with keys that
+  OpenSSH's `ssh-keygen -m` made: PEM (RSA, also encrypted, and ECDSA) and
+  PKCS#8 became keys of OpenSSH with the same public key, and so did the
+  plain keys of PuTTY. An encrypted key of PKCS#8 or of PuTTY, and an
+  encrypted ECDSA key in PEM, are not read yet (T-287).
+- A passphrase given with `-N` or `-P` is refused (exit 64), because each
+  process on the host can read a command line. `-N ''` and `-P ''` are
+  accepted. With no terminal and no `SSH_ASKPASS`, podssh refuses at once
+  and names `-N ''` (and `-P ''` for `-p` and `-c`); it does not wait.
 - DSA is refused, because OpenSSH 10 removed it.
 - An RSA key is made by aws-lc-rs, whose RSA is constant-time, never by the
   `rsa` crate, whose private-key operations are not (RUSTSEC-2023-0071, the

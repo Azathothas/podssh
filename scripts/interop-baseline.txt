@@ -13,7 +13,7 @@ support scripts/interop-conpty-msys2.py
 harness ssh interop 71 scripts/interop.sh
 harness limits interop 2 scripts/interop-limits.sh
 harness status interop 6 scripts/interop-status.sh
-harness keygen interop 28 scripts/interop-keygen.sh
+harness keygen interop 35 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
@@ -140,6 +140,13 @@ keygen.enc.openssh_decrypts pass
 keygen.enc.wrong_passphrase pass
 keygen.enc.derive_pub pass
 keygen.enc.login pass
+keygen.change.passphrase pass
+keygen.change.openssh_decrypts pass
+keygen.change.old_refused pass
+keygen.change.mode pass
+keygen.change.login pass
+keygen.change.comment pass
+keygen.change.openssh_comment pass
 keygen.refuse.overwrite pass
 keygen.refuse.overwrite_unchanged pass
 keygen.refuse.argv_passphrase pass

@@ -39,6 +39,7 @@ pub mod exitmap;
 pub mod flags;
 pub mod help;
 pub mod keygen;
+pub mod keygen_change;
 pub mod layered;
 // The manual (`man/`) and the pager that shows it on a terminal.
 pub mod man;

@@ -331,8 +331,13 @@ const AGENT: &[&str] = &[
 ];
 
 const KEYGEN: &[&str] = &[
-    "The keys are in the formats of OpenSSH. The private key has mode 0600 and never replaces a file \
-     that exists; the public key goes to FILE.pub. podssh prints the SHA-256 fingerprint.",
+    "The keys are in the formats of OpenSSH. The private key has mode 0600, and a new key never replaces \
+     a file that exists; the public key goes to FILE.pub. podssh prints the SHA-256 fingerprint.",
+    "podssh keygen -p -f FILE changes the passphrase of a key: podssh asks for the old one, then for the new \
+     one two times. podssh keygen -c -f FILE changes its comment, to -C COMMENT or to one that podssh asks \
+     for, in the key and in FILE.pub. The file is replaced only with the same key, read back and compared \
+     first, and no copy of the old file is kept. A key in another format that podssh ssh -i reads is written \
+     in the format of OpenSSH. -P '' is for a key with no passphrase; a passphrase given with -P is refused.",
     "podssh asks for the passphrase two times, on the terminal or through SSH_ASKPASS. -N '' makes a key \
      with no passphrase. A passphrase given with -N is refused, because each process on the host can \
      read a command line. With no terminal and no SSH_ASKPASS, podssh stops at once and names -N ''.",

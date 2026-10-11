@@ -29,7 +29,7 @@ core: the handshake, a host key that does not change, and key authentication.
   (`Eugeny/russh:russh/src/lib_inner.rs`, lines 69-70 at `22c3b88`), so
   `crates/podssh-ssh/Cargo.toml:18` has it. `run_stream` serves one
   connection over any stream, as `crates/podssh-ssh/src/run.rs:32-37` does.
-  To reuse: `crates/podssh-ssh/src/keygen.rs:59-130` (a key, mode 0600, never
+  To reuse: `crates/podssh-ssh/src/keygen.rs:59-136` (a key, mode 0600, never
   over a file), `crates/podssh-ssh/src/known_hosts.rs:256-259` (a key line),
   `crates/podssh-relay/src/cache/dirs.rs:50-87` (the directories).
 
@@ -50,7 +50,7 @@ core: the handshake, a host key that does not change, and key authentication.
    `$HOME/.ssh/authorized_keys`. Lines with options wait for T-114. No usable
    key: exit 78. Invariant: no setting accepts each key. `auth_publickey`
    compares `key_data()`; the login name selects nothing.
-5. The verb: rows in `crates/podssh-cli/src/flags.rs:353-394` and
+5. The verb: rows in `crates/podssh-cli/src/flags.rs:359-400` and
    `crates/podssh-cli/src/positionals.rs:8-127`, an arm beside
    `crates/podssh-cli/src/dispatch.rs:200-267`, the manual, `docs/cli.md`,
    `docs/STATUS.md`. The first source is `--stdio`, as `sshd -i`: OpenSSH
@@ -490,10 +490,10 @@ out with matching digests.
   T-079), and the operator connects through the relay (T-084).
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:160-164`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
-  `docs/STATUS.md:199`). With no pty device, no podssh code can give the child
+  `docs/STATUS.md:200`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:45`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:213`; measured: `docs/STATUS.md:207`). 200 MiB each way
+  (`docs/relay.md:213`; measured: `docs/STATUS.md:208`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:19-26`).
@@ -1265,11 +1265,11 @@ no reason (`docs/target-environment.md:63-64`).
 ## Premise
 
 - Read: no source in `crates/` reads `SHELL` or selects a shell; `serve` is
-  not a verb (`crates/podssh-cli/src/flags.rs:353-394`). The line numbers in
+  not a verb (`crates/podssh-cli/src/flags.rs:359-400`). The line numbers in
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
-- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:199`):
+- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:200`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
   (`crates/podssh-cli/src/doctor/host.rs:174-176`).
@@ -1320,7 +1320,7 @@ crates/podssh-ssh/tests/serve_shell.rs gives the function a directory `sh`,
 a data file `dash` (mode 0644), a data file with mode 0755 (the spawn fails),
 a link to a missing file and a good shell: each failure is named, and the
 good shell wins. A planted `exists()` test fails the directory case. In the
-gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:166`) is
+gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:167`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
 ## Blocker
@@ -1352,10 +1352,10 @@ criterion of M5 (T-113) needs them.
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
   (`crates/podssh-cli/src/doctor/unix.rs:78-93`). Both real sandboxes have no
-  `/dev/ptmx` (`docs/STATUS.md:199`), and the target has no `/dev/pts`
+  `/dev/ptmx` (`docs/STATUS.md:200`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp
-  filter (`docs/STATUS.md:178`). With `NoNewPrivs=1`, a process can add a
+  filter (`docs/STATUS.md:179`). With `NoNewPrivs=1`, a process can add a
   filter of its own; a filter is inherited by each child.
 - Read, not measured here: for a program, a tty is the success of the tty
   `ioctl` calls on its descriptors. musl's `isatty` calls `TIOCGWINSZ`;

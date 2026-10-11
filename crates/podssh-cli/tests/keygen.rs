@@ -176,3 +176,129 @@ fn usage_errors_exit_64_with_nothing_on_stdout() {
     assert!(!Path::new(&key).exists());
     std::fs::remove_dir_all(&dir).unwrap();
 }
+
+/// An askpass program in `dir`: a question with "old" in it, and the
+/// question of `-y`, get `PODSSH_TEST_OLD`; each other gets
+/// `PODSSH_TEST_NEW`.
+fn askpass(dir: &Path) -> String {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let path = dir.join("askpass");
+        let script =
+            "#!/bin/sh\ncase \"$1\" in\n  *old*|\"Enter passphrase: \") printf '%s\\n' \"$PODSSH_TEST_OLD\" ;;\n  \
+                      *) printf '%s\\n' \"$PODSSH_TEST_NEW\" ;;\nesac\n";
+        std::fs::write(&path, script).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
+        path.to_string_lossy().into_owned()
+    }
+    #[cfg(windows)]
+    {
+        // `echo(` prints an empty answer as an empty line, not "ECHO is off."
+        let path = dir.join("askpass.cmd");
+        let script = "@echo off\r\necho %~1| findstr /I /C:\"old\" >nul && (echo(%PODSSH_TEST_OLD%& exit /b 0)\r\n\
+                      if \"%~1\"==\"Enter passphrase: \" (echo(%PODSSH_TEST_OLD%& exit /b 0)\r\n\
+                      echo(%PODSSH_TEST_NEW%\r\n";
+        std::fs::write(&path, script).unwrap();
+        path.to_string_lossy().into_owned()
+    }
+}
+
+/// `podssh ARGS` with `askpass` to answer, `old` and `new` its answers.
+fn podssh_asked(args: &[&str], askpass: &str, old: &str, new: &str) -> Run {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(args)
+        .env("PODSSH_OFFLINE", "1")
+        .env("SSH_ASKPASS", askpass)
+        .env("SSH_ASKPASS_REQUIRE", "force")
+        .env("PODSSH_TEST_OLD", old)
+        .env("PODSSH_TEST_NEW", new)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    detach(&mut cmd);
+    let output = cmd.output().expect("the podssh binary runs");
+    Run {
+        code: output.status.code().unwrap_or(-1),
+        out: String::from_utf8_lossy(&output.stdout).into_owned(),
+        err: String::from_utf8_lossy(&output.stderr).into_owned(),
+    }
+}
+
+/// The key part of a public key line: its type and its base64.
+fn key_part(line: &str) -> String {
+    line.split_whitespace().take(2).collect::<Vec<_>>().join(" ")
+}
+
+/// `-p` asks for the old passphrase and the new one two times, and the
+/// file keeps its key: `-y` with the new passphrase prints the same public
+/// key, and the old passphrase no longer opens it (T-018).
+#[test]
+fn change_passphrase_keeps_the_key() {
+    let dir = scratch();
+    let key = file(&dir, "k");
+    let ask = askpass(&dir);
+    assert_eq!(podssh(&["keygen", "-q", "-N", "", "-C", "the-comment", "-f", &key]).code, 0);
+    let public = key_part(&std::fs::read_to_string(format!("{key}.pub")).unwrap());
+    let run = podssh_asked(&["keygen", "-p", "-f", &key], &ask, "", "first passphrase");
+    assert_eq!(run.code, 0, "{}", run.err);
+    assert!(run.out.contains("new passphrase"), "{}", run.out);
+    let run = podssh_asked(&["keygen", "-p", "-f", &key], &ask, "first passphrase", "second-one");
+    assert_eq!(run.code, 0, "{}", run.err);
+    let shown = podssh_asked(&["keygen", "-y", "-f", &key], &ask, "second-one", "");
+    assert_eq!(shown.code, 0, "{}", shown.err);
+    assert_eq!(key_part(&shown.out), public, "the key changed");
+    assert!(shown.out.contains("the-comment"), "the comment is kept: {}", shown.out);
+    let old = podssh_asked(&["keygen", "-y", "-f", &key], &ask, "first passphrase", "");
+    assert_eq!(old.code, 1, "the old passphrase still opens the key");
+    assert!(old.err.contains("incorrect passphrase"), "{}", old.err);
+    let wrong = podssh_asked(&["keygen", "-p", "-f", &key], &ask, "not it", "third");
+    assert_eq!(wrong.code, 1, "{}", wrong.err);
+    let left: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name()).collect();
+    assert_eq!(left.len(), 3, "a file was left beside the key: {left:?}");
+}
+
+/// A passphrase on the command line, old or new, is refused, and the file
+/// is not touched; with nobody to ask, an encrypted key is refused at once.
+#[test]
+fn change_refuses_a_passphrase_on_the_command_line() {
+    let dir = scratch();
+    let key = file(&dir, "k");
+    let ask = askpass(&dir);
+    assert_eq!(podssh_asked(&["keygen", "-q", "-f", &key], &ask, "", "a passphrase").code, 0);
+    let before = std::fs::read(&key).unwrap();
+    for args in [
+        vec!["keygen", "-p", "-P", "secret", "-f", &key],
+        vec!["keygen", "-p", "-N", "secret", "-f", &key],
+        vec!["keygen", "-c", "-P", "secret", "-C", "x", "-f", &key],
+        vec!["keygen", "-p", "-c", "-f", &key],
+        vec!["keygen", "-p"],
+    ] {
+        let run = podssh(&args);
+        assert_eq!(run.code, 64, "{args:?}: {}", run.err);
+    }
+    let run = podssh(&["keygen", "-p", "-N", "", "-f", &key]);
+    assert_eq!(run.code, 1, "{}", run.err);
+    assert!(run.err.contains("-P ''") && run.err.contains("-N ''"), "{}", run.err);
+    assert_eq!(std::fs::read(&key).unwrap(), before, "the key file changed");
+}
+
+/// `-c -C NEW` changes the comment in the key and in FILE.pub, and keeps
+/// the key and its passphrase.
+#[test]
+fn change_comment_in_the_key_and_in_its_public_file() {
+    let dir = scratch();
+    let key = file(&dir, "k");
+    let ask = askpass(&dir);
+    assert_eq!(podssh_asked(&["keygen", "-q", "-C", "old-comment", "-f", &key], &ask, "", "pass").code, 0);
+    let public = key_part(&std::fs::read_to_string(format!("{key}.pub")).unwrap());
+    let run = podssh_asked(&["keygen", "-c", "-C", "new-comment", "-f", &key], &ask, "pass", "");
+    assert_eq!(run.code, 0, "{}", run.err);
+    assert!(run.out.contains("Old comment: old-comment"), "{}", run.out);
+    let line = std::fs::read_to_string(format!("{key}.pub")).unwrap();
+    assert!(line.trim_end().ends_with(" new-comment"), "{line}");
+    assert_eq!(key_part(&line), public);
+    let shown = podssh_asked(&["keygen", "-y", "-f", &key], &ask, "pass", "");
+    assert_eq!(shown.code, 0, "the passphrase was kept: {}", shown.err);
+    assert!(shown.out.trim_end().ends_with(" new-comment"), "{}", shown.out);
+}

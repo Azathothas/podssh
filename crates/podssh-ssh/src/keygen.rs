@@ -72,12 +72,18 @@ pub fn generate(kind: KeyKind, comment: &str) -> Result<PrivateKey, String> {
 }
 
 /// `key` encrypted with `passphrase` as OpenSSH encrypts keys (bcrypt-pbkdf
-/// and AES-256-CTR); unchanged when the passphrase is empty.
+/// and AES-256-CTR); unchanged when the passphrase is empty. Its public half
+/// keeps the comment, which ssh-key's `encrypt` drops: the file holds the
+/// comment only inside the encrypted part, but `FILE.pub` is written from the
+/// public half.
 pub fn protect(key: PrivateKey, passphrase: &str) -> Result<PrivateKey, String> {
     if passphrase.is_empty() {
         return Ok(key);
     }
-    key.encrypt(&mut rand::rng(), passphrase).map_err(|e| format!("could not encrypt the key: {e}"))
+    let mut locked =
+        key.encrypt(&mut rand::rng(), passphrase).map_err(|e| format!("could not encrypt the key: {e}"))?;
+    locked.set_comment(key.comment().clone());
+    Ok(locked)
 }
 
 /// `FILE.pub` for `FILE`.
@@ -162,7 +168,7 @@ pub fn read_key_file(path: &Path) -> Result<KeyFile, String> {
     }
     if start.starts_with("-----BEGIN") {
         return Err(format!(
-            "{shown}: a PEM key; podssh keygen reads OpenSSH private keys (`ssh-keygen -p -f FILE` converts one)"
+            "{shown}: a PEM key; podssh keygen reads OpenSSH private keys (`podssh keygen -p -f FILE` converts one)"
         ));
     }
     let line = start
@@ -288,5 +294,19 @@ mod tests {
         assert!(locked.decrypt("wrong").is_err());
         assert_eq!(locked.decrypt("open sesame").unwrap().public_key(), key.public_key());
         assert!(!protect(key, "").unwrap().is_encrypted());
+    }
+
+    /// The public half of an encrypted key keeps its comment, so `FILE.pub`
+    /// has it; the file itself carries the comment in its encrypted part.
+    #[test]
+    fn an_encrypted_key_keeps_its_comment() {
+        let key = generate(KeyKind::Ed25519, "kept@podssh").unwrap();
+        let locked = protect(key.clone(), "open sesame").unwrap();
+        assert_eq!(locked.comment().as_str_lossy(), "kept@podssh");
+        assert!(locked.public_key().to_openssh().unwrap().ends_with(" kept@podssh"));
+        let text = locked.to_openssh(LineEnding::LF).unwrap();
+        let read = PrivateKey::from_openssh(text.as_bytes()).unwrap();
+        assert_eq!(read.comment().as_str_lossy(), "", "the comment is only inside the encrypted part");
+        assert_eq!(read.decrypt("open sesame").unwrap().public_key(), key.public_key());
     }
 }

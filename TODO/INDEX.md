@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**283 entries: 87 open, 0 partial, 22 blocked, 174 done.**
+**285 entries: 88 open, 0 partial, 22 blocked, 175 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 20 | 22 |
-| P2 | 4 | 0 | 18 | 133 | 155 |
-| P3 | 81 | 0 | 4 | 20 | 105 |
-| **All** | 87 | 0 | 22 | 174 | 283 |
+| P1 | 3 | 0 | 0 | 20 | 23 |
+| P2 | 5 | 0 | 18 | 133 | 156 |
+| P3 | 80 | 0 | 4 | 21 | 105 |
+| **All** | 88 | 0 | 22 | 175 | 285 |
 
 ## Entries
 
@@ -91,7 +91,7 @@ repository and CI).
 | [T-015](cli.md) | P1 | S | M3 | defect | done | The manual showed blank flag names under groff and mandoc (GitHub #4, audit C7) |
 | [T-016](cli.md) | P1 | S | M3 | defect | done | Each flag of OpenSSH 10.3p1 answers by name (GitHub #5, audit C10) |
 | [T-017](cli.md) | P0 | S | M3 | defect | done | A repeated flag follows OpenSSH; `-J` and `-W` only once (GitHub #16) |
-| [T-018](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -p` and `-c`: change the passphrase and the comment of a key |
+| [T-018](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -p` and `-c`: change the passphrase and the comment of a key |
 | [T-019](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -F`, `-R` and `-H`: find, remove and hash `known_hosts` entries |
 | [T-020](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -Y`: SSH signatures |
 | [T-021](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -s`: user and host certificates |
@@ -358,3 +358,5 @@ repository and CI).
 | [T-284](ssh.md) | P1 | S | none | defect | done | `podssh agent` signs with a key added for a confirmation of each use |
 | [T-285](ssh.md) | P2 | S | none | defect | done | A login waits out its limit after the agent fails to sign |
 | [T-286](repo.md) | P1 | S | none | defect | done | Two tests of the record's interop share one scratch tree, and one removes it under the other |
+| [T-287](ssh.md) | P2 | S | none | defect | open | An encrypted key of PKCS#8 or of PuTTY is never asked for, and an encrypted ECDSA key in PEM is refused with its passphrase |
+| [T-288](cli.md) | P1 | S | none | defect | open | On Windows, `podssh keygen` writes a private key with the access list of its directory |

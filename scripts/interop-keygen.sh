@@ -62,6 +62,33 @@ SSH_ASKPASS="$W/askpass-passphrase" SSH_ASKPASS_REQUIRE=force \
     p 2201 -i "$KG/id_enc" "$T" true </dev/null >"$KG/out" 2>"$KG/err"
 expect_rc keygen.enc.login "keygen: the encrypted key logs in" 0 $? "$KG/err"
 
+# -p and -c (T-018): OpenSSH opens the same key with the new passphrase and
+# not with the old one, reads the new comment, and sshd still accepts the key.
+printf '#!/bin/sh\ncase "$1" in\n  "Enter old passphrase: ") echo "open sesame" ;;\n  *) echo "new words" ;;\nesac\n' \
+    >"$W/askpass-change"
+chmod 700 "$W/askpass-change"
+SSH_ASKPASS="$W/askpass-change" SSH_ASKPASS_REQUIRE=force \
+    "$BIN" keygen -p -q -f "$KG/id_enc" </dev/null >"$KG/out" 2>"$KG/err"
+expect_rc keygen.change.passphrase "keygen -p: the old passphrase asked, then the new one" 0 $? "$KG/err"
+theirs=$(ssh-keygen -y -P 'new words' -f "$KG/id_enc" 2>"$KG/err" | cut -d' ' -f1,2)
+[ -n "$theirs" ] && [ "$theirs" = "$want" ] \
+    && ok keygen.change.openssh_decrypts "keygen -p: OpenSSH opens the same key with the new passphrase" \
+    || bad keygen.change.openssh_decrypts "keygen -p: ssh-keygen -y -P gave '$theirs'" "$KG/err"
+! ssh-keygen -y -P 'open sesame' -f "$KG/id_enc" >/dev/null 2>&1 \
+    && ok keygen.change.old_refused "keygen -p: the old passphrase no longer opens the key" \
+    || bad keygen.change.old_refused "keygen -p: OpenSSH opened the key with the old passphrase"
+[ "$(stat -c %a "$KG/id_enc")" = 600 ] && ok keygen.change.mode "keygen -p: the key is still mode 600" \
+    || bad keygen.change.mode "keygen -p: mode $(stat -c %a "$KG/id_enc")"
+SSH_ASKPASS="$W/askpass-change" SSH_ASKPASS_REQUIRE=force \
+    p 2201 -i "$KG/id_enc" "$T" true </dev/null >"$KG/out" 2>"$KG/err"
+expect_rc keygen.change.login "keygen -p: sshd accepts the key, opened with the new passphrase" 0 $? "$KG/err"
+"$BIN" keygen -c -C kg-renamed -q -f "$KG/id_ed25519" </dev/null >"$KG/out" 2>"$KG/err"
+expect_rc keygen.change.comment "keygen -c -C: the comment of a key with no passphrase" 0 $? "$KG/err"
+theirs=$(ssh-keygen -y -f "$KG/id_ed25519" 2>"$KG/err")
+[ "${theirs##* }" = kg-renamed ] && [ "$(cut -d' ' -f3 "$KG/id_ed25519.pub")" = kg-renamed ] \
+    && ok keygen.change.openssh_comment "keygen -c: OpenSSH reads the new comment, and the .pub has it" \
+    || bad keygen.change.openssh_comment "keygen -c: ssh-keygen -y gave '$theirs'" "$KG/id_ed25519.pub"
+
 # Refusals leave nothing behind.
 before=$(sha256sum <"$KG/id_ed25519")
 "$BIN" keygen -N '' -q -f "$KG/id_ed25519" >"$KG/out" 2>"$KG/err"
