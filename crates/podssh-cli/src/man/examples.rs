@@ -29,6 +29,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh ssh -W /run/postgresql/.s.PGSQL.5432 user@db.example.org".into(),
         ),
         (
+            "Host blocks for the hosts of an Ansible inventory, added to the user's ssh_config",
+            "podssh config import ansible inventory.ini >> ~/.ssh/config".into(),
+        ),
+        (
             "keep what a session showed, with its timing, and show it again twice as fast",
             "podssh ssh -tt --record top.cast user@example.org top && podssh play --speed 2 top.cast".into(),
         ),
@@ -246,6 +250,7 @@ mod tests {
                     Parsed::Status { .. } => "status",
                     Parsed::Ping(_) => "ping",
                     Parsed::Play(_) => "play",
+                    Parsed::Config(_) => "config",
                     Parsed::Man { .. } => "man",
                     Parsed::Node(_) => "node",
                     Parsed::Relay(_) => "relay",

@@ -137,3 +137,16 @@ rc=$?
 [ "$rc" = 78 ] && grep -q "/exec:3: Match exec" "$MW/err" && [ ! -e "$MW/ran" ] \
     && ok match.exec_refused "Match exec: refused with its file and line (78), and nothing ran" \
     || bad match.exec_refused "Match exec: exit $rc" "$MW/err"
+# podssh config import (T-047): OpenSSH reads the blocks that podssh made of
+# the fixture inventory, and gives a host the settings of its block.
+"$BIN" config import ansible "$HERE/../crates/podssh-cli/tests/fixtures/ansible/inventory.ini" \
+    >"$MW/imported" 2>"$MW/err"
+rc=$?
+unread=""
+for h in $(sed -n 's/^Host //p' "$MW/imported"); do
+    ssh -F "$MW/imported" -G "$h" </dev/null >"$MW/ssh-G" 2>>"$MW/err" || unread="$unread $h"
+done
+ssh -F "$MW/imported" -G web1.example.org </dev/null >"$MW/ssh-G" 2>>"$MW/err"
+[ "$rc" = 0 ] && [ -z "$unread" ] && grep -qx 'port 2200' "$MW/ssh-G" && grep -qx 'user deploy' "$MW/ssh-G" \
+    && ok match.config_import "config import: OpenSSH reads each block that podssh made of an Ansible inventory" \
+    || bad match.config_import "config import: exit $rc; OpenSSH could not read:${unread:- the block of web1}" "$MW/err"

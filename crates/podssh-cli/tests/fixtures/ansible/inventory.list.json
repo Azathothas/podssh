@@ -1,0 +1,151 @@
+{
+    "_meta": {
+        "hostvars": {
+            "db-a.example.org": {
+                "ansible_become_password": "not-a-real-secret-2",
+                "ansible_port": 2201,
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_user": "dba"
+            },
+            "db-b.example.org": {
+                "ansible_become_password": "not-a-real-secret-2",
+                "ansible_port": 2201,
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_user": "dba"
+            },
+            "db-c.example.org": {
+                "ansible_become_password": "not-a-real-secret-2",
+                "ansible_port": 2201,
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_user": "dba"
+            },
+            "db-legacy.example.org": {
+                "ansible_become_password": "not-a-real-secret-2",
+                "ansible_port": 2201,
+                "ansible_ssh_host": "192.0.2.60",
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_ssh_port": 2022,
+                "ansible_ssh_user": "legacy",
+                "ansible_user": "dba"
+            },
+            "foo.example.org": {
+                "ansible_password": "not-a-real-secret-1",
+                "ansible_port": 2200,
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_ssh_private_key_file": "~/.ssh/web_ed25519",
+                "ansible_user": "produser"
+            },
+            "jumper": {
+                "ansible_host": "192.0.2.50",
+                "ansible_port": 5555,
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_user": "admin"
+            },
+            "mail.example.org": {
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_user": "admin"
+            },
+            "node1.example.org": {
+                "ansible_ssh_common_args": "-o ProxyJump=bastion.example.org",
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_user": "admin"
+            },
+            "node3.example.org": {
+                "ansible_ssh_common_args": "-o ProxyJump=bastion.example.org",
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_user": "admin"
+            },
+            "node5.example.org": {
+                "ansible_ssh_common_args": "-o ProxyJump=bastion.example.org",
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_user": "admin"
+            },
+            "web1.example.org": {
+                "ansible_port": 2200,
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_ssh_private_key_file": "~/.ssh/web_ed25519",
+                "ansible_user": "deploy"
+            },
+            "web2.example.org": {
+                "ansible_port": 2222,
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_ssh_private_key_file": "~/.ssh/web_ed25519",
+                "ansible_user": "produser"
+            },
+            "win1.example.org": {
+                "ansible_connection": "winrm",
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_user": "Administrator"
+            },
+            "www01.example.org": {
+                "ansible_port": 2200,
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_ssh_private_key_file": "~/.ssh/web_ed25519",
+                "ansible_user": "produser"
+            },
+            "www02.example.org": {
+                "ansible_port": 2200,
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_ssh_private_key_file": "~/.ssh/web_ed25519",
+                "ansible_user": "produser"
+            },
+            "www03.example.org": {
+                "ansible_port": 2200,
+                "ansible_ssh_pass": "not-a-real-secret-3",
+                "ansible_ssh_private_key_file": "~/.ssh/web_ed25519",
+                "ansible_user": "produser"
+            }
+        },
+        "profile": "inventory_legacy"
+    },
+    "all": {
+        "children": [
+            "ungrouped",
+            "windows",
+            "edge",
+            "prod"
+        ]
+    },
+    "dbservers": {
+        "hosts": [
+            "db-a.example.org",
+            "db-b.example.org",
+            "db-c.example.org",
+            "db-legacy.example.org"
+        ]
+    },
+    "edge": {
+        "hosts": [
+            "node1.example.org",
+            "node3.example.org",
+            "node5.example.org"
+        ]
+    },
+    "prod": {
+        "children": [
+            "webservers",
+            "dbservers"
+        ]
+    },
+    "ungrouped": {
+        "hosts": [
+            "mail.example.org",
+            "jumper"
+        ]
+    },
+    "webservers": {
+        "hosts": [
+            "web1.example.org",
+            "web2.example.org",
+            "www01.example.org",
+            "www02.example.org",
+            "www03.example.org",
+            "foo.example.org"
+        ]
+    },
+    "windows": {
+        "hosts": [
+            "win1.example.org"
+        ]
+    }
+}

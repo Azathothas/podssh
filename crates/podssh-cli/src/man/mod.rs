@@ -20,6 +20,7 @@ pub mod json;
 pub mod model;
 pub mod notes;
 mod notes_chat;
+mod notes_config;
 mod notes_keygen;
 mod notes_pair;
 mod notes_ping;

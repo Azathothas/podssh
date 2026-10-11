@@ -1009,6 +1009,37 @@ is one edit from `relay` and would confuse the suggestion of a mistyped
 command. A recording sends its control sequences to the terminal again:
 play only a file that you trust.
 
+## `podssh config`
+
+`podssh config import ansible FILE` (T-047) prints a `Host` block of
+`ssh_config` for each host of an Ansible inventory in its INI form (FILE,
+or `-` for stdin), and a summary on stderr. It writes no file: you add what
+it printed, as `podssh config import ansible hosts.ini >> ~/.ssh/config`.
+The inventory is read as Ansible's `ini` plugin reads it, which
+`tests/config_import.rs` checks against what Ansible itself made of a
+fixture: hosts before any section are ungrouped, `[G:vars]` and
+`[G:children]` give a group's variables and children, `host:PORT` gives a
+port, and a range names several hosts (`www[01:03]`, `db-[a:c]`,
+`n[1:9:2]`). A host's variables are those of `all`, then of its groups from
+the farthest parent to the nearest, then its own line's, the later winning.
+`ansible_host`, `ansible_port`, `ansible_user` and
+`ansible_ssh_private_key_file` give `HostName`, `Port`, `User` and
+`IdentityFile`; of a variable and its `ansible_ssh_` name, the latter wins,
+as Ansible's ssh connection takes it.
+The `-o` options of `ansible_ssh_common_args` and `ansible_ssh_extra_args`,
+which Ansible gives to ssh after those, follow as lines of the block, and
+`-J` as `ProxyJump`; `ProxyCommand` and the other keywords that run a
+command, and each other flag, are named in a comment, with no value.
+
+A password or a passphrase (a variable whose name holds `pass`) is never
+imported and never printed: the summary counts it. A host whose
+`ansible_connection` is not `ssh` gets a comment and no block. A host name
+that a `Host` line cannot hold (a space, `*`, `?`, `!`, `"` or `#`) is refused by
+name on stderr. A bad line ends the run with its number (65); a file that
+cannot be read gives 66. The formats of PuTTY, MobaXterm, Remmina,
+FinalShell, mRemoteNG and Termius, and Ansible's YAML, are refused by name
+(64) until a real export of each is at hand to test against (T-292).
+
 ## Exit codes
 
 `podssh man exit-status` gives each code. The rules behind them:

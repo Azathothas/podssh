@@ -66,7 +66,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 288 entries: 76 open, 0 partial, 22 blocked, 190 done.
+`TODO/INDEX.md` holds 289 entries: 75 open, 0 partial, 23 blocked, 191 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -133,6 +133,13 @@ each cell, and the operator's SSH host (T-157, run in T-251); the IRC client
 may be tested on undernet, libera and OFTC (T-091 to T-098, T-252); and a
 session passes the files of `.env/` to podssh by their paths, never printing
 them (T-100 to T-105, T-240, T-241).
+
+Q41 (2026-10-12, blocks T-292): `podssh config import` reads an Ansible
+inventory (T-047); each other format must be read from a real export of its
+program, and none of those programs is here. Recommendation: send one
+export of each (PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG, Termius),
+each with a host that has a password; or allow a session to download PuTTY
+and MobaXterm's portable build to make them.
 
 ## Operator actions
 

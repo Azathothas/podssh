@@ -268,6 +268,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
 // `cp`, `mv` and their aliases: their table is in `flags/copy.rs`.
 mod agent;
 mod chat;
+mod config;
 mod copy;
 mod keygen;
 mod node;
@@ -279,6 +280,7 @@ mod relay;
 mod scp;
 pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
+pub use config::CONFIG_FLAGS;
 pub use copy::CP_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
 pub use node::NODE_FLAGS;
@@ -382,6 +384,8 @@ pub const VERBS: &[Verb] = &[
         about: "a short check of the path: each step to the relay, pings, and with a host the echo and throughput" },
     Verb { name: "play", aliases: &["play"], flags: PLAY_FLAGS,
         about: "play a recording of podssh ssh --record again, with its timing" },
+    Verb { name: "config", aliases: &["config"], flags: CONFIG_FLAGS,
+        about: "ssh_config blocks from the host list of another tool: import" },
 ];
 
 /// **The verbs by purpose, in the order that `--help` and the manual print
@@ -396,6 +400,7 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("The reverse road", &["node", "operator"]),
     ("Messages", &["chat"]),
     ("Recordings", &["play"]),
+    ("Settings", &["config"]),
     ("The relay", &["relay"]),
     ("This manual", &["man"]),
 ];

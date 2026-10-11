@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:1133-1229`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:1164-1260`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:1133-1238`, FILES (`crates/podssh-cli/src/man/data.rs:119-219`) and the
+7. Change `docs/cli.md:1164-1269`, FILES (`crates/podssh-cli/src/man/data.rs:119-219`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -464,7 +464,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:150`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:39-180`) and `docs/cli.md:48-227`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:41-182`) and `docs/cli.md:48-227`
    in the same commit.
 
 ## Decision
@@ -531,7 +531,7 @@ of `~/.ssh/config` into its own store). Read in the reports, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -541,7 +541,7 @@ work.
 
 ## Premise
 
-Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:346-385`).
+Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:348-389`).
 `serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:53`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
@@ -564,8 +564,8 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
    a comment line. Never drop it silently.
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
-   (`crates/podssh-cli/src/flags.rs:346-413`), the arguments, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:248-262`), the manual's notes and examples, and
+   (`crates/podssh-cli/src/flags.rs:348-418`), the arguments, `usage_tail`
+   (`crates/podssh-cli/src/help.rs:248-263`), the manual's notes and examples, and
    `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-113`).
 
 ## Decision
@@ -574,6 +574,33 @@ Recommendation: a new verb, `podssh config`, with the subcommand `import`. The f
 `podssh ssh` copy those of OpenSSH, so an `--import` flag there would be a flag that OpenSSH
 does not have. A `config` verb can also hold later subcommands for T-048. The alternative, a
 separate program, lost because podssh is one binary.
+
+2026-10-12, the calls made in the work:
+
+- The Ansible INI inventory alone is read here: it is the one format whose
+  bytes could be made and read by its own program on the machines of this
+  work (ansible-core 2.21.0 in the build image). PuTTY, MobaXterm, Remmina,
+  FinalShell, mRemoteNG and Termius need a real export of each, which only
+  the operator can give: they, and Ansible's YAML, are refused by name, and
+  are T-292, blocked on Q41.
+- What a host gets is what Ansible's own ssh used: the fixture inventory
+  went through `ansible-inventory --list` and `ansible all -m ping -vvv`,
+  and the test compares each block with the command line of ssh that
+  Ansible ran for that host. Measured there: a child group beats its
+  parent, a `[G:vars]` value loses its quotes, and of a variable and its
+  `ansible_ssh_` name the latter wins (`ansible_ssh_port` and
+  `ansible_ssh_user` over `ansible_port` and `ansible_user`).
+- `ansible_ssh_common_args` goes to ssh's command line, measured: its `-o`
+  options, and `-J`, become lines of the block, after Ansible's own
+  settings, as on that command line, where the first value wins. A keyword
+  that runs a command (`ProxyCommand` and the like), and each other flag,
+  are named in a comment with no value, as a command can hold a secret.
+- A secret is any variable whose name holds `pass`; it is counted for each
+  host, as Ansible's listing gives it to each host (21 in the fixture).
+- A host name that a `Host` line cannot hold is refused by name, with no
+  alias made up: an alias would be a name that the user did not choose.
+- `ansible_group_priority` is not read; groups of one depth go by name, as
+  Ansible orders them with no priority set.
 
 ## Prove
 
@@ -587,6 +614,42 @@ The fixtures are real exports, one for each format, each with a password field. 
 the `Host` blocks, check that no password appears on stdout or stderr, and check that a bad name
 is refused or made safe. In the gate, OpenSSH's `ssh -G -F OUTPUT ALIAS` exits 0 for each
 output. Planted defect: copy the password field into a comment; the secret test fails.
+
+## Done
+
+2026-10-12. `podssh config import ansible FILE`: the verb at
+`crates/podssh-cli/src/config_import/mod.rs:30-92`, the inventory at
+`crates/podssh-cli/src/config_import/ansible.rs:1-270`, the blocks at
+`crates/podssh-cli/src/config_import/mod.rs:204-248`, with the secrets at
+`crates/podssh-cli/src/config_import/mod.rs:94-98` and the options of
+`ansible_ssh_common_args` at
+`crates/podssh-cli/src/config_import/mod.rs:100-153`; the verb in the
+tables at `crates/podssh-cli/src/flags.rs:387-388`,
+`crates/podssh-cli/src/positionals.rs:109-114`,
+`crates/podssh-cli/src/tree.rs:368-374` and
+`crates/podssh-cli/src/dispatch.rs:114-115`.
+- `cargo test -p podssh-cli --test config_import`: 5 passed. The fixture
+  `crates/podssh-cli/tests/fixtures/ansible/inventory.ini`, read by
+  ansible-core 2.21.0 in the build image (`inventory.list.json` and
+  `ssh-exec.txt` beside it, as captured): each of the 15 hosts that
+  Ansible's ssh reached gets the `Port`, `User`, `IdentityFile` and
+  `ProxyJump` of its command line, and its address; no password is printed,
+  and the summary counts the 21 that Ansible's listing holds; the groups
+  are in each comment, and the host of `ansible_connection=winrm` gets a
+  comment and no block; podssh's own `-G` reads what it printed; stdin, a
+  bad line (65), a missing file (66), a name that a `Host` line cannot
+  hold, and the formats refused by name (64).
+- `cargo test -p podssh-cli -- config_import`: 5 passed: ranges, ports,
+  the words of a line, the order of the groups, a bad line.
+- Planted, the Prove's plant: each password copied into a comment; the
+  test of the secrets failed; restored.
+- In the gate, `match.config_import` (`scripts/interop-match.sh:140-152`):
+  OpenSSH's `ssh -G` reads each block that podssh made of the fixture; it
+  passed here against OpenSSH 10.3p1 of Git for Windows.
+- `docs/cli.md`, the manual's notes and an example; the verb is in the
+  group Settings, as T-048 will be.
+- `cargo test -p podssh-cli`: 600 passed, 0 failed, 31
+  ignored; clippy; rustfmt.
 
 # T-048: A podssh settings file for its own defaults, below flags and variables
 
@@ -822,7 +885,62 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:330-338`
 - `scripts/interop.sh:324-334`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
-- `docs/cli.md:76-82` and `docs/cli.md:1162-1174`, and the manual's file `~/.ssh/config`, say what
+- `docs/cli.md:76-82` and `docs/cli.md:1193-1205`, and the manual's file `~/.ssh/config`, say what
   a hop takes.
 - `cargo test -p podssh-ssh`: 142 passed; `cargo test -p podssh-cli`: 565 passed, 0 failed,
   31 ignored; clippy; rustfmt.
+
+# T-292: `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius
+
+**Source:** the work of T-047 (2026-10-12): its step 2 asks for each format
+from a real export of its program; GitHub #22 and #24, the reports that
+T-047 names (read in the reports, not verified here).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** blocked
+
+## Problem
+
+`podssh config import` reads an Ansible INI inventory alone (T-047). A user
+who keeps hosts in PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG or
+Termius types each host again.
+
+## Premise
+
+Read: `podssh config import putty FILE` and the others, and Ansible's YAML,
+are refused by name with exit 64 (`crates/podssh-cli/src/config_import/mod.rs`).
+`AGENTS.md`, section 6, rule 2, and T-047's premise: each format is read
+from a real export of its program. None of these programs is on the
+machines of this work, and a session downloads no program to make one.
+
+## Approach
+
+1. Each format as T-047 reads the inventory: the same writer, the same
+   counting of secrets, and a comment for what has no keyword.
+2. mRemoteNG's XML and Ansible's YAML need a parser: decide the crate, or
+   keep them refused (Decision).
+3. Each export a fixture under `crates/podssh-cli/tests/fixtures/`, kept
+   byte for byte.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-cli --test config_import
+```
+
+For each format, the blocks of its fixture, and no password on stdout or
+stderr. Planted defect: copy a password field into a comment; the test of
+the secret fails.
+
+## Blocker
+
+The operator (Q41): a real export of each program, each with a host that
+has a password, so that the tests prove that no password is imported: a
+PuTTY `.reg` export of `HKCU\Software\SimonTatham\PuTTY\Sessions`, a
+MobaXterm sessions export, Remmina `.remmina` files, FinalShell's
+`conn/*.json`, an mRemoteNG `confCons.xml`, and a Termius export if it has
+one; or leave to download PuTTY and MobaXterm's portable build to make
+them.

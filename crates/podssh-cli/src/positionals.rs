@@ -106,6 +106,12 @@ pub fn add(cmd: Command, name: &str) -> Command {
                 .help("a host to log in to for the echo and the throughput; with none, the relay leg alone"),
         ),
         "play" => cmd.arg(Arg::new("file").value_name("FILE").help("the recording: an asciicast v2 file")),
+        "config" => cmd.arg(Arg::new("subcommand").value_name("SUBCOMMAND").help("import")).arg(
+            Arg::new("args")
+                .value_name("FORMAT FILE")
+                .num_args(0..)
+                .help("import: the format, ansible (an INI inventory), and the file, - for stdin"),
+        ),
         "status" => cmd.arg(
             Arg::new("destination")
                 .value_name("[user@]host")

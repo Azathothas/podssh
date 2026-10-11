@@ -100,6 +100,8 @@ pub enum Parsed {
     Ping(Box<crate::ping::PingArgs>),
     /// `podssh play FILE` (T-033).
     Play(Box<crate::play::PlayArgs>),
+    /// `podssh config import FORMAT FILE` (T-047).
+    Config(Box<crate::config_import::ConfigArgs>),
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
     Doctor {
         relay_host: Option<String>,
@@ -166,6 +168,7 @@ impl Parsed {
             Parsed::Status { refused, .. } => !refused.is_empty(),
             Parsed::Ping(args) => !args.refused.is_empty(),
             Parsed::Play(args) => !args.refused.is_empty(),
+            Parsed::Config(args) => !args.refused.is_empty(),
             Parsed::Node(args) => !args.refused.is_empty(),
             Parsed::Operator(args) => !args.refused.is_empty(),
             Parsed::Pipe(args) => !args.refused.is_empty(),

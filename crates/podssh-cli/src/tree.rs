@@ -365,6 +365,14 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         }));
     }
 
+    if verb.name == "config" {
+        return Parsed::Config(Box::new(crate::config_import::ConfigArgs {
+            subcommand: matches.get_one::<String>("subcommand").cloned(),
+            args: matches.get_many::<String>("args").map(|v| v.cloned().collect()).unwrap_or_default(),
+            refused,
+        }));
+    }
+
     if verb.name == "play" {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Play(Box::new(crate::play::PlayArgs {

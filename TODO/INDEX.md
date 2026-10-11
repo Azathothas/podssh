@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**288 entries: 76 open, 0 partial, 22 blocked, 190 done.**
+**289 entries: 75 open, 0 partial, 23 blocked, 191 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 135 | 157 |
-| P3 | 70 | 0 | 4 | 33 | 107 |
-| **All** | 76 | 0 | 22 | 190 | 288 |
+| P3 | 69 | 0 | 5 | 34 | 108 |
+| **All** | 75 | 0 | 23 | 191 | 289 |
 
 ## Entries
 
@@ -120,7 +120,7 @@ repository and CI).
 | [T-044](config.md) | P2 | M | M8 | feature | done | `Include` in `ssh_config`, expanded as OpenSSH expands it |
 | [T-045](config.md) | P3 | M | backlog | feature | done | `Match` in `ssh_config` |
 | [T-046](config.md) | P2 | S | M8 | feature | done | `podssh ssh -G`: print the settings in effect (GitHub #14, #22) |
-| [T-047](config.md) | P3 | M | backlog | feature | open | Import host lists from other clients into `ssh_config` |
+| [T-047](config.md) | P3 | M | backlog | feature | done | Import host lists from other clients into `ssh_config` |
 | [T-048](config.md) | P3 | M | backlog | feature | open | A podssh settings file for its own defaults, below flags and variables |
 | [T-049](machine.md) | P2 | S | backlog | feature | done | `podssh doctor --json` (GitHub #9) |
 | [T-050](machine.md) | P2 | S | backlog | feature | done | `podssh man --json`: the commands, flags, keywords, variables and exit codes as data (GitHub #10) |
@@ -363,3 +363,4 @@ repository and CI).
 | [T-289](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -Y` with certificates: a signature made with a certificate, and `cert-authority` lines |
 | [T-290](config.md) | P2 | M | none | defect | done | A `-J` hop takes the `ssh_config` block of its own name, as OpenSSH's jump host does |
 | [T-291](forwarding.md) | P3 | M | backlog | feature | open | The escape `~C`: add and stop the forwards of a running session |
+| [T-292](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius |

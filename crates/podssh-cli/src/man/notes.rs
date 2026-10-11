@@ -4,6 +4,7 @@
 //! tables that hold them are in the manual already.
 
 use super::notes_chat::CHAT;
+use super::notes_config::CONFIG;
 use super::notes_keygen::KEYGEN;
 use super::notes_pair::{NODE, OPERATOR};
 use super::notes_ping::PING;
@@ -28,6 +29,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "status" => STATUS,
         "ping" => PING,
         "play" => PLAY,
+        "config" => CONFIG,
         "keygen" => KEYGEN,
         "man" => MAN,
         "ts" => TS,
