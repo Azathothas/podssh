@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**285 entries: 86 open, 0 partial, 22 blocked, 177 done.**
+**285 entries: 85 open, 0 partial, 22 blocked, 178 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 134 | 156 |
-| P3 | 80 | 0 | 4 | 21 | 105 |
-| **All** | 86 | 0 | 22 | 177 | 285 |
+| P3 | 79 | 0 | 4 | 22 | 105 |
+| **All** | 85 | 0 | 22 | 178 | 285 |
 
 ## Entries
 
@@ -92,7 +92,7 @@ repository and CI).
 | [T-016](cli.md) | P1 | S | M3 | defect | done | Each flag of OpenSSH 10.3p1 answers by name (GitHub #5, audit C10) |
 | [T-017](cli.md) | P0 | S | M3 | defect | done | A repeated flag follows OpenSSH; `-J` and `-W` only once (GitHub #16) |
 | [T-018](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -p` and `-c`: change the passphrase and the comment of a key |
-| [T-019](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -F`, `-R` and `-H`: find, remove and hash `known_hosts` entries |
+| [T-019](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -F`, `-R` and `-H`: find, remove and hash `known_hosts` entries |
 | [T-020](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -Y`: SSH signatures |
 | [T-021](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -s`: user and host certificates |
 | [T-022](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -e`, `-i` and `-m`: convert key formats |

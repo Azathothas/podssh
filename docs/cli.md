@@ -564,6 +564,17 @@ GitHub #23): the time of each step, the round trip, and the throughput.
   process on the host can read a command line. `-N ''` and `-P ''` are
   accepted. With no terminal and no `SSH_ASKPASS`, podssh refuses at once
   and names `-N ''` (and `-P ''` for `-p` and `-c`); it does not wait.
+- `-F HOST`, `-R HOST` and `-H` find, remove and hash the lines of a
+  `known_hosts` file (`-f FILE`, else `~/.ssh/known_hosts`), with the lines
+  and the messages of OpenSSH's `ssh-keygen` (T-019); a host on another port
+  than 22 is `[HOST]:PORT`. `-R` and `-H` keep the old text in `FILE.old`,
+  and put the new one in place whole, under the lock of `podssh ssh`: a run
+  that waited for it meanwhile writes its line to the new file. Each line
+  that is not changed stays byte for byte. Two calls differ from OpenSSH's,
+  so that nothing is lost: `-R` keeps a line that names the host through a
+  wildcard, as its key is for other hosts too, and says so; and a line that
+  is no line of a host key stays as it is, where OpenSSH refuses to rewrite
+  the file.
 - DSA is refused, because OpenSSH 10 removed it.
 - An RSA key is made by aws-lc-rs, whose RSA is constant-time, never by the
   `rsa` crate, whose private-key operations are not (RUSTSEC-2023-0071, the

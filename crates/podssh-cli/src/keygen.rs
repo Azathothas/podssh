@@ -50,6 +50,10 @@ pub struct KeygenArgs {
     pub change_comment: bool,
     /// `-P` as given: only `-P ''` is taken.
     pub old_passphrase: NewPassphrase,
+    /// `-F HOST`, `-R HOST` and `-H`: the lines of `known_hosts` (T-019).
+    pub find_host: Option<String>,
+    pub remove_host: Option<String>,
+    pub hash_hosts: bool,
 }
 
 impl KeygenArgs {
@@ -76,6 +80,9 @@ impl KeygenArgs {
             change_passphrase: flag("change-passphrase"),
             change_comment: flag("change-comment"),
             old_passphrase: given("old-passphrase"),
+            find_host: one("find-host"),
+            remove_host: one("remove-host"),
+            hash_hosts: flag("hash-hosts"),
         }
     }
 }
@@ -97,6 +104,22 @@ pub fn run_keygen(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -
              Leave -P out to be asked for the old one (terminal or SSH_ASKPASS), or use -P '' for a key without one."
         );
         return EXIT_USAGE;
+    }
+    if args.find_host.is_some() || args.remove_host.is_some() || args.hash_hosts {
+        let why = if args.find_host.is_some() && args.remove_host.is_some() {
+            Some("-F and -R cannot be combined")
+        } else if args.remove_host.is_some() && args.hash_hosts {
+            Some("-R and -H cannot be combined: -H hashes the file, and with -F prints the lines hashed")
+        } else if args.change_passphrase || args.change_comment || args.print_public || args.fingerprint {
+            Some("-F, -R and -H cannot go with -p, -c, -y or -l")
+        } else {
+            None
+        };
+        if let Some(why) = why {
+            let _ = writeln!(err, "podssh keygen: {why}");
+            return EXIT_USAGE;
+        }
+        return crate::keygen_hosts::run(args, out, err);
     }
     if args.change_passphrase || args.change_comment {
         let why = if args.change_passphrase && args.change_comment {

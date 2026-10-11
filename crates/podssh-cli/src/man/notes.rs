@@ -340,6 +340,10 @@ const KEYGEN: &[&str] = &[
      for, in the key and in FILE.pub. The file is replaced only with the same key, read back and compared \
      first, and no copy of the old file is kept. A key in another format that podssh ssh -i reads is written \
      in the format of OpenSSH. -P '' is for a key with no passphrase; a passphrase given with -P is refused.",
+    "podssh keygen -F HOST prints the lines of HOST in known_hosts (-f FILE, else ~/.ssh/known_hosts), -R HOST \
+     removes them, and -H hashes each host name, as ssh-keygen does; a host on another port is [HOST]:PORT. -R \
+     and -H keep the old text as FILE.old. -R keeps a line that names the host through a wildcard, as its key \
+     is for other hosts too.",
     "podssh asks for the passphrase two times, on the terminal or through SSH_ASKPASS. -N '' makes a key \
      with no passphrase. A passphrase given with -N is refused, because each process on the host can \
      read a command line. With no terminal and no SSH_ASKPASS, podssh stops at once and names -N ''.",

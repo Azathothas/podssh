@@ -341,6 +341,12 @@ pub const KEYGEN_FLAGS: &[FlagRow] = &[
         "print the public key of the private key in -f FILE", None),
     row(Some('l'), "fingerprint", None, FlagKind::Supported,
         "print the fingerprint of the key in -f FILE", None),
+    row(Some('F'), "find-host", Some("HOST"), FlagKind::Supported,
+        "print the lines of HOST ([HOST]:PORT for another port) in known_hosts: -f FILE, else ~/.ssh/known_hosts", None),
+    row(Some('R'), "remove-host", Some("HOST"), FlagKind::Supported,
+        "remove the keys of HOST from known_hosts; the old text stays in FILE.old", None),
+    row(Some('H'), "hash-hosts", None, FlagKind::Supported,
+        "hash each host name of known_hosts; with -F, print the lines hashed", None),
 ];
 
 /// One verb: its names, its flags, and the flag table its `-P` belongs to.

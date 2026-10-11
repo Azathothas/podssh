@@ -4,6 +4,7 @@
 //! each reader meanwhile, OpenSSH's among them.
 
 use std::fs::File;
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 /// How long a writer waits for another one to finish: a read and one line.
@@ -92,4 +93,50 @@ fn unlock(file: &File) {
     // SAFETY: as in `try_once`; Windows asks for each lock to be undone
     // before the handle closes.
     unsafe { UnlockFileEx(file.as_raw_handle(), 0, 1, 0, &mut at) };
+}
+
+/// Whether `file` is the file that `path` names now: a writer that waited
+/// for the lock while a rewrite put another file in its place holds the
+/// old one (T-019).
+#[cfg(unix)]
+pub fn same_file(file: &File, path: &Path) -> std::io::Result<bool> {
+    use std::os::unix::fs::MetadataExt;
+    let now = match std::fs::metadata(path) {
+        Ok(now) => now,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(e),
+    };
+    let held = file.metadata()?;
+    Ok(held.dev() == now.dev() && held.ino() == now.ino())
+}
+
+#[cfg(windows)]
+pub fn same_file(file: &File, path: &Path) -> std::io::Result<bool> {
+    let now = match File::open(path) {
+        Ok(now) => now,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(e) => return Err(e),
+    };
+    Ok(file_id(file)? == file_id(&now)?)
+}
+
+/// The volume and the index of an open file, which no other file shares.
+#[cfg(windows)]
+fn file_id(file: &File) -> std::io::Result<(u32, u32, u32)> {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION};
+    // SAFETY: zeros are a valid BY_HANDLE_FILE_INFORMATION, which the call
+    // fills.
+    let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+    // SAFETY: the handle is open while `file` lives, and `info` outlives the
+    // call.
+    if unsafe { GetFileInformationByHandle(file.as_raw_handle(), &mut info) } == 0 {
+        return Err(std::io::Error::last_os_error());
+    }
+    Ok((info.dwVolumeSerialNumber, info.nFileIndexHigh, info.nFileIndexLow))
+}
+
+#[cfg(not(any(unix, windows)))]
+pub fn same_file(_: &File, _: &Path) -> std::io::Result<bool> {
+    Ok(true)
 }

@@ -7,9 +7,10 @@
 //! on one malformed key. This one skips what it cannot parse, line by line,
 //! and keeps line numbers so a message can point at the line that matched.
 
+pub mod edit;
 mod lock;
 
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::io::{ErrorKind, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
@@ -168,9 +169,9 @@ fn parse_entries(path: &Path, raw: &[u8], name: &str) -> Vec<Entry> {
     let mut out = Vec::new();
     let text = String::from_utf8_lossy(raw);
     for (index, line) in text.lines().enumerate() {
-        if let Some((marker, patterns, key)) = parse_line(line) {
-            if matches(patterns, name) {
-                out.push(Entry { path: path.to_path_buf(), line: index + 1, marker, key });
+        if let Some(parsed) = parse_line(line) {
+            if matches(parsed.patterns, name) {
+                out.push(Entry { path: path.to_path_buf(), line: index + 1, marker: parsed.marker, key: parsed.key });
             }
         }
     }
@@ -235,14 +236,23 @@ pub fn fuzz_parse_line(line: &str) -> bool {
     parse_line(line).is_some()
 }
 
+/// A line of a host key.
+struct ParsedLine<'a> {
+    marker: Option<Marker>,
+    patterns: &'a str,
+    /// The line from its key type to its end, its spacing kept.
+    from_key: &'a str,
+    key: PublicKey,
+}
+
 /// One line: `[marker] patterns keytype base64 [comment]`. `None` for blank
 /// lines, comments, unknown markers and anything that does not parse.
-fn parse_line(line: &str) -> Option<(Option<Marker>, &str, PublicKey)> {
-    let line = line.trim();
-    if line.is_empty() || line.starts_with('#') {
+fn parse_line(line: &str) -> Option<ParsedLine<'_>> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.starts_with('#') {
         return None;
     }
-    let mut fields = line.split_whitespace();
+    let mut fields = trimmed.split_whitespace();
     let mut first = fields.next()?;
     let marker = match first {
         "@cert-authority" => Some(Marker::CertAuthority),
@@ -256,7 +266,9 @@ fn parse_line(line: &str) -> Option<(Option<Marker>, &str, PublicKey)> {
     let key_type = fields.next()?;
     let blob = fields.next()?;
     let key = PublicKey::from_openssh(&format!("{key_type} {blob}")).ok()?;
-    Some((marker, first, key))
+    // `key_type` is a slice of `line`: where it starts there.
+    let at = key_type.as_ptr() as usize - line.as_ptr() as usize;
+    Some(ParsedLine { marker, patterns: first, from_key: &line[at..], key })
 }
 
 /// Whether `name` matches a comma-separated pattern list: hashed entries
@@ -339,13 +351,35 @@ pub fn append(path: &Path, name: &str, key: &PublicKey) -> std::io::Result<Recor
     options.read(true).append(true).create(true);
     #[cfg(unix)]
     std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
-    let file = options.open(path)?;
     let bare = PublicKey::new(key.key_data().clone(), "");
     let encoded = bare.to_openssh().map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
-    let held = lock::hold(&file, lock::WAIT)?;
+    for _ in 0..3 {
+        let file = options.open(path)?;
+        if let Some(recorded) = append_locked(path, &file, name, key, &encoded)? {
+            return Ok(recorded);
+        }
+    }
+    Err(std::io::Error::other("another file took its place each time podssh had waited for its lock"))
+}
+
+/// [`append`] on the file opened at `path`: `None` when another file took
+/// the path while this run waited for the lock (the rewrite of `podssh keygen
+/// -R` or `-H`, T-019), so that the caller opens the path again; the line
+/// would go to the file that was replaced.
+fn append_locked(
+    path: &Path,
+    file: &File,
+    name: &str,
+    key: &PublicKey,
+    encoded: &str,
+) -> std::io::Result<Option<Recorded>> {
+    let held = lock::hold(file, lock::WAIT)?;
+    if held.is_some() && !lock::same_file(file, path)? {
+        return Ok(None);
+    }
     // Read again under the lock: another run may have recorded the host since
     // this one's lookup.
-    let mut handle = &file;
+    let mut handle = file;
     let mut raw = Vec::new();
     handle.seek(SeekFrom::Start(0))?;
     handle.take(MAX_FILE + 1).read_to_end(&mut raw)?;
@@ -353,9 +387,9 @@ pub fn append(path: &Path, name: &str, key: &PublicKey) -> std::io::Result<Recor
         return Err(std::io::Error::new(ErrorKind::InvalidData, too_large()));
     }
     match judge(&parse_entries(path, &raw, name), key) {
-        Lookup::Known { line, .. } => return Ok(Recorded::Already { line }),
-        Lookup::Changed { line, recorded, .. } => return Ok(Recorded::Changed { line, recorded }),
-        Lookup::Revoked { line, .. } => return Ok(Recorded::Revoked { line }),
+        Lookup::Known { line, .. } => return Ok(Some(Recorded::Already { line })),
+        Lookup::Changed { line, recorded, .. } => return Ok(Some(Recorded::Changed { line, recorded })),
+        Lookup::Revoked { line, .. } => return Ok(Some(Recorded::Revoked { line })),
         Lookup::OtherTypes(_) | Lookup::Unknown => {}
     }
     let mut line = String::new();
@@ -368,7 +402,7 @@ pub fn append(path: &Path, name: &str, key: &PublicKey) -> std::io::Result<Recor
     line.push('\n');
     handle.write_all(line.as_bytes())?;
     handle.flush()?;
-    Ok(Recorded::Written { locked: held.is_some() })
+    Ok(Some(Recorded::Written { locked: held.is_some() }))
 }
 
 /// The short type name OpenSSH prints: `ED25519`, `ECDSA`, `RSA`.

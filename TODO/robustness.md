@@ -36,7 +36,7 @@ reasons (`crates/podssh-ws/src/session.rs:371`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:95`);
 `known_hosts` lines, in a private function
-(`crates/podssh-ssh/src/known_hosts.rs:240`); the escape filter
+(`crates/podssh-ssh/src/known_hosts.rs:250`); the escape filter
 (`crates/podssh-ssh/src/escape.rs:30`); IRC lines and frames
 (`crates/podssh-core/src/irc/encode.rs:88`,
 `crates/podssh-core/src/irc/framing.rs:110`); the command line
@@ -515,7 +515,7 @@ fail.
 its constant and file, and what podssh does past it; the relay's forward path, russh's queue of
 a channel and the replay buffers of M6 among them. The upgrade's bound has a name,
 `UPGRADE_HEAD` (`crates/podssh-ws/src/client.rs:38`); `known_hosts` has a bound of 16 MiB, in
-both of its reads (`crates/podssh-ssh/src/known_hosts.rs:24`); the pool's request takes a stream
+both of its reads (`crates/podssh-ssh/src/known_hosts.rs:25`); the pool's request takes a stream
 (`pool::request`), so that a test can serve it. `scripts/interop-limits.sh` measures a session
 whose output nobody reads; `scripts/interop-baseline.txt` has its two ids.
 - `cargo test -p podssh-ws --test limits`: 6 passed. Against a peer that never stops, the heads
@@ -568,7 +568,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:82`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:107-183`, `crates/podssh-ws/src/names.rs:8-57`).
-- `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:265-321`).
+- `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:277-333`).
 - The escape filter, which keeps its state from one read to the next
   (`crates/podssh-ssh/src/escape.rs:30-70`).
 - The sanitizer (`crates/podssh-ws/src/text.rs:12-57`).
@@ -643,7 +643,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:266-284`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:267-285`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:302`, enforced at
   `crates/podssh-ssh/src/run.rs:297-303`); a reply, 30 s
@@ -779,7 +779,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:71`, `docs/STATUS.md:75`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:877-878` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:888-889` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -796,14 +796,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:877-878`). A difference that the table does not name fails,
+   `docs/cli.md:888-889`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:877-878` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:888-889` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed

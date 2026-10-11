@@ -114,6 +114,47 @@ for l in pem pkcs8; do
         || bad "keygen.formats.same_key_${l}" "keygen -p of $l: ssh-keygen -y gave '$theirs'" "$KG/err"
 done
 
+# known_hosts (T-019): keygen -F prints what ssh-keygen -F prints; OpenSSH
+# finds each host that keygen -H hashed, and keygen each that ssh-keygen -H
+# hashed; keygen -R leaves the file that ssh-keygen -R leaves.
+KH="$KG/known_hosts"
+k1=$(cut -d' ' -f1,2 "$KG/id_ed25519.pub")
+k2=$(cut -d' ' -f1,2 "$KG/id_ecdsa.pub")
+printf '# hosts\none.example %s\ntwo.example,192.0.2.2 %s a comment\n[three.example]:2222 %s\n*.wild.example %s\n@revoked one.example %s\n' \
+    "$k1" "$k2" "$k1" "$k2" "$k2" >"$KH.plain"
+ours=$(for h in one.example 192.0.2.2 '[three.example]:2222' x.wild.example missing.example; do
+    "$BIN" keygen -F "$h" -f "$KH.plain"; echo "exit $?"; done 2>&1)
+theirs=$(for h in one.example 192.0.2.2 '[three.example]:2222' x.wild.example missing.example; do
+    ssh-keygen -F "$h" -f "$KH.plain"; echo "exit $?"; done 2>&1)
+[ "$ours" = "$theirs" ] && ok keygen.known_hosts.find_output "keygen -F prints the lines and the codes of ssh-keygen -F" \
+    || bad keygen.known_hosts.find_output "keygen -F: '$ours'; ssh-keygen -F: '$theirs'"
+cp "$KH.plain" "$KH"
+"$BIN" keygen -H -f "$KH" >"$KG/out" 2>"$KG/err"
+expect_rc keygen.known_hosts.hash "keygen -H hashes the file" 0 $? "$KG/err"
+found=0
+for h in one.example two.example 192.0.2.2 '[three.example]:2222'; do
+    ssh-keygen -F "$h" -f "$KH" >/dev/null 2>&1 && found=$((found + 1))
+done
+[ "$found" = 4 ] && ! grep -q 'two\.example' "$KH" \
+    && ok keygen.known_hosts.openssh_finds_hashed "ssh-keygen -F finds each host that keygen -H hashed" \
+    || bad keygen.known_hosts.openssh_finds_hashed "ssh-keygen -F found $found of 4 hosts that keygen -H hashed" "$KH"
+cp "$KH.plain" "$KH.theirs"
+ssh-keygen -H -f "$KH.theirs" >/dev/null 2>&1
+found=0
+for h in one.example two.example 192.0.2.2 '[three.example]:2222'; do
+    "$BIN" keygen -F "$h" -f "$KH.theirs" >/dev/null 2>&1 && found=$((found + 1))
+done
+[ "$found" = 4 ] && ok keygen.known_hosts.finds_openssh_hashed "keygen -F finds each host that ssh-keygen -H hashed" \
+    || bad keygen.known_hosts.finds_openssh_hashed "keygen -F found $found of 4 hosts that ssh-keygen -H hashed" "$KH.theirs"
+cp "$KH.plain" "$KH.ours"
+cp "$KH.plain" "$KH.openssh"
+"$BIN" keygen -R two.example -f "$KH.ours" >"$KG/out" 2>"$KG/err"
+expect_rc keygen.known_hosts.remove "keygen -R removes a host" 0 $? "$KG/err"
+ssh-keygen -R two.example -f "$KH.openssh" >/dev/null 2>&1
+cmp -s "$KH.ours" "$KH.openssh" && cmp -s "$KH.ours.old" "$KH.plain" \
+    && ok keygen.known_hosts.removed_as_openssh "keygen -R leaves the file that ssh-keygen -R leaves, and FILE.old" \
+    || bad keygen.known_hosts.removed_as_openssh "keygen -R left another file than ssh-keygen -R" "$KH.ours"
+
 # Refusals leave nothing behind.
 before=$(sha256sum <"$KG/id_ed25519")
 "$BIN" keygen -N '' -q -f "$KG/id_ed25519" >"$KG/out" 2>"$KG/err"
