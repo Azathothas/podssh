@@ -239,6 +239,25 @@ impl Sftp {
         Ok(within(self.limits.metadata, &what, self.raw.lstat(path)).await?.attrs)
     }
 
+    /// What the symbolic link `path` names.
+    pub async fn readlink(&self, path: &str) -> Result<String, SftpError> {
+        let what = format!("readlink {path}");
+        let name = within(self.limits.metadata, &what, self.raw.readlink(path)).await?;
+        match name.files.as_slice() {
+            [one] => Ok(one.filename.clone()),
+            other => Err(SftpError::Protocol(format!("{what}: {} names, not one", other.len()))),
+        }
+    }
+
+    /// A symbolic link at `link` that names `target`. OpenSSH's sftp-server
+    /// reads the request's two paths the other way round from the draft, the
+    /// target first, and every server that podssh meets is OpenSSH's: they go
+    /// in its order.
+    pub async fn symlink(&self, link: &str, target: &str) -> Result<(), SftpError> {
+        let what = format!("symlink {link}");
+        within(self.limits.metadata, &what, self.raw.symlink(target, link)).await.map(|_| ())
+    }
+
     /// The absolute name of `path` on the server.
     pub async fn realpath(&self, path: &str) -> Result<String, SftpError> {
         let what = format!("realpath {path}");

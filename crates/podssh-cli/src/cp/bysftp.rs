@@ -55,6 +55,9 @@ pub async fn up(
     let pipe = shape.pipe;
     let local = Path::new(source);
     let before = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
+    if before.is_dir() {
+        return Err(failed(Fault::NoInput, format!("{source}: a directory; -r copies it")));
+    }
     if !before.is_file() {
         return Err(failed(Fault::NoInput, format!("{source}: not a regular file; podssh cp copies files")));
     }
@@ -236,6 +239,9 @@ pub async fn down(
 ) -> Result<Done, Failed> {
     let pipe = shape.pipe;
     let attrs = sftp.stat(source).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
+    if attrs.is_dir() {
+        return Err(failed(Fault::NoInput, format!("{source}: a directory; -r copies it")));
+    }
     if !attrs.is_regular() {
         return Err(failed(Fault::NoInput, format!("{source}: not a regular file; podssh cp copies files")));
     }

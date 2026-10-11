@@ -483,8 +483,24 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   no `copy-data`, gets a full copy, and `-v` says why; `-v` says the blocks
   sent and their bytes. A copy that broke goes on in full where it was. The
   full copy stays the default.
-- `-r` and `-p` are refused by name until a copy of a directory (T-143)
-  and the times (T-146) exist.
+- **`-r`** (T-143) copies a directory and what it holds, depth first with
+  `lstat`, 64 levels at most: each file as one copy goes (a temporary name,
+  the digest, the rename), each symbolic link as a link, and a device, a
+  FIFO or a socket skipped with a note; a directory gets its mode after its
+  files. `scp -r` follows links, as OpenSSH's does, and refuses a loop.
+  Each name that a far listing gives must be one component: `.`, `..`, a
+  `/` or a NUL, and here on Windows a `\`, a `:`, a device's name or a
+  trailing dot or space, are refused (70), so nothing is written outside
+  the target. Into a directory that exists the copy goes under it, with the
+  source's name; else it is the destination. An item that fails is
+  reported, the rest goes on, and the exit is not zero. `--exclude PATTERN`
+  (repeatable; `*` and `?` within a name; with a `/`, from the root of the
+  copy) and `--exclude-from FILE` (a pattern a line; `#` starts a comment)
+  leave paths out; `--dry-run` says each action (`mkdir`, `copy`, `link`,
+  `skip`; with `--jsonl` an object each) and changes nothing. `mv -r`
+  removes the source once each item of it is copied. A directory goes up or
+  down, over SFTP, not between two servers. `-p` is refused by name until
+  the times are kept (T-146).
 - **A server with no SFTP subsystem gets a copy by exec**
   (`crates/podssh-cli/src/cp/byexec.rs`), and podssh says so once. Each
   step is one command on a channel with no pty, `sh -c 'SCRIPT' sh PATH...`:

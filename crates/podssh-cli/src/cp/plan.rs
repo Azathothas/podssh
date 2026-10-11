@@ -3,6 +3,7 @@
 
 use super::operand::{parse, Operand, Remote};
 use super::pipe::Shape;
+use super::tree::Tree;
 
 /// Which way the bytes go.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,6 +27,9 @@ pub struct Plan {
     /// The requests in flight and their size, on the SFTP road (T-140), and
     /// the tasks of one file (T-141).
     pub shape: Shape,
+    /// `-r`: each source that is a directory goes with what it holds
+    /// (T-143).
+    pub tree: Option<Tree>,
 }
 
 impl Plan {
@@ -76,7 +80,7 @@ pub fn plan(paths: &[String], windows: bool) -> Result<Plan, String> {
     if direction == Direction::Across && sources.len() > 1 {
         return Err("a copy from server to server takes one source at a time".into());
     }
-    Ok(Plan { direction, sources, destination, shape: Shape::default() })
+    Ok(Plan { direction, sources, destination, shape: Shape::default(), tree: None })
 }
 
 #[cfg(test)]

@@ -32,6 +32,8 @@ pub mod plan;
 pub(crate) mod resume;
 mod session;
 pub(crate) mod transfer;
+pub mod tree;
+mod tree_copy;
 
 use std::io::Write;
 use std::sync::Arc;
@@ -68,6 +70,11 @@ pub struct CpArgs {
     pub parallel: Option<String>,
     /// `--delta` of `cp` and `mv`: only the blocks that changed (T-142).
     pub delta: bool,
+    /// `-r`, each `--exclude`, `--exclude-from` and `--dry-run` (T-143).
+    pub recursive: bool,
+    pub excludes: Vec<String>,
+    pub exclude_from: Option<String>,
+    pub dry_run: bool,
 }
 
 impl CpArgs {
@@ -93,8 +100,28 @@ impl CpArgs {
         } else {
             None
         };
-        let delta = m.try_get_one::<bool>("delta").ok().flatten().copied().unwrap_or(false);
-        CpArgs { paths, ssh, moving: verb == "mv", verb, sftp_options, parallel, delta }
+        let flag = |id: &str| m.try_get_one::<bool>(id).ok().flatten().copied().unwrap_or(false);
+        let many = |id: &str| -> Vec<String> {
+            if m.try_contains_id(id).unwrap_or(false) {
+                m.get_many::<String>(id).map(|v| v.cloned().collect()).unwrap_or_default()
+            } else {
+                Vec::new()
+            }
+        };
+        let exclude_from = many("exclude-from").pop();
+        CpArgs {
+            paths,
+            ssh,
+            moving: verb == "mv",
+            verb,
+            sftp_options,
+            parallel,
+            delta: flag("delta"),
+            recursive: flag("recursive"),
+            excludes: many("exclude"),
+            exclude_from,
+            dry_run: flag("dry-run"),
+        }
     }
 }
 
@@ -105,6 +132,26 @@ struct Outcome {
     failed: Option<(String, Failed)>,
     /// The first leg of a move between servers: each source as it was.
     recorded: Vec<Before>,
+    /// The actions of a dry run (T-143), in their order.
+    planned: Vec<tree_copy::Planned>,
+}
+
+/// What `-r` and its flags ask for (T-143); `None` without `-r`. `scp -r`
+/// follows links, as OpenSSH's does; `cp -r` copies them as links.
+fn tree_of(args: &CpArgs) -> Result<Option<tree::Tree>, String> {
+    if !args.recursive {
+        if args.dry_run || !args.excludes.is_empty() || args.exclude_from.is_some() {
+            return Err("--dry-run, --exclude and --exclude-from go with -r".into());
+        }
+        return Ok(None);
+    }
+    let mut excludes = args.excludes.clone();
+    if let Some(file) = &args.exclude_from {
+        excludes.extend(
+            tree::read_excludes(std::path::Path::new(file)).map_err(|e| format!("--exclude-from {file}: {e}"))?,
+        );
+    }
+    Ok(Some(tree::Tree { excludes, dry_run: args.dry_run, follow: args.verb == "scp" }))
 }
 
 /// Run `podssh cp` or `podssh mv`; returns the process exit code.
@@ -121,6 +168,13 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
         .and_then(|pipe| Ok(pipe::Shape { pipe, tasks: pipe::tasks(args.parallel.as_deref())?, delta: args.delta }));
     plan.shape = match shape {
         Ok(shape) => shape,
+        Err(why) => {
+            let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
+            return Fault::Usage.code();
+        }
+    };
+    plan.tree = match tree_of(args) {
+        Ok(tree) => tree,
         Err(why) => {
             let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
             return Fault::Usage.code();
@@ -201,8 +255,23 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     report(&outcome, jsonl, out, &log)
 }
 
-/// Print each file done and the failure; the exit code.
+/// Print each action of a dry run, each file done and the failure; the exit
+/// code.
 fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &Log) -> i32 {
+    for (action, from, to) in &outcome.planned {
+        if jsonl {
+            let line = serde_json::json!({ "event": "plan", "action": action, "source": from, "destination": to });
+            let _ = writeln!(out, "{line}");
+        } else {
+            let line = match *action {
+                "mkdir" => format!("mkdir {to}"),
+                "copy" => format!("copy {from} -> {to}"),
+                "link" => format!("link {from} -> {to}"),
+                _ => format!("skip {from}: {to}"),
+            };
+            let _ = writeln!(out, "{line}");
+        }
+    }
     for done in &outcome.done {
         let sha256 = done.sum.as_ref().map(digest::hex);
         if jsonl {
@@ -293,6 +362,7 @@ async fn across(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>, after: After
         sources: vec![source],
         destination,
         shape: plan.shape,
+        tree: None,
     };
     let down = leg(Operand::Remote(from.clone()), Operand::Local(local.display().to_string()), Direction::Down);
     let first = if moving { After::Record } else { After::Keep };

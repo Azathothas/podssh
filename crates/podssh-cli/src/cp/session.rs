@@ -13,7 +13,7 @@ use super::pipe::Shape;
 use super::plan::{Direction, Plan};
 use super::resume::{self, Before, Progress, TRIES};
 use super::transfer::{self, Cause, Done, Failed};
-use super::{bysftp, Outcome};
+use super::{bysftp, tree_copy, Outcome};
 use crate::exitmap::Fault;
 use crate::ssh::resolve::Resolved;
 
@@ -48,6 +48,19 @@ pub(super) async fn session(
     let mut link = Some(first);
     let many = plan.sources.len() > 1;
     for source in &plan.sources {
+        // -r: a directory goes with what it holds (T-143).
+        if let Some(tree) = &plan.tree {
+            if tree_copy::is_dir(&link, source, tree).await {
+                let moving = after == After::Remove;
+                let dest = &plan.destination;
+                tree_copy::copy(&mut link, resolved, source, dest, many, tree, log, plan.shape, moving, &mut outcome)
+                    .await;
+                if link.is_none() {
+                    break;
+                }
+                continue;
+            }
+        }
         let name = named.clone().unwrap_or_else(|| shown(source));
         let (mut done, before) =
             match attempts(&mut link, resolved, source, &plan.destination, many, log, plan.shape).await {
@@ -96,7 +109,7 @@ pub(super) async fn session(
 /// Gives the file done and its source as it was before the copy; `link` is
 /// `None` when the last connection broke.
 #[allow(clippy::too_many_arguments)]
-async fn attempts(
+pub(super) async fn attempts(
     link: &mut Option<Link>,
     resolved: &Resolved,
     source: &Operand,

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**294 entries: 64 open, 0 partial, 24 blocked, 206 done.**
+**295 entries: 64 open, 0 partial, 24 blocked, 207 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 58 | 0 | 6 | 47 | 111 |
-| **All** | 64 | 0 | 24 | 206 | 294 |
+| P3 | 58 | 0 | 6 | 48 | 112 |
+| **All** | 64 | 0 | 24 | 207 | 295 |
 
 ## Entries
 
@@ -216,7 +216,7 @@ repository and CI).
 | [T-140](copy.md) | P3 | M | backlog | feature | done | Pipelined SFTP |
 | [T-141](copy.md) | P3 | M | backlog | feature | done | Parallel transfer in chunks |
 | [T-142](copy.md) | P3 | L | backlog | feature | done | Delta copy: only the blocks that changed |
-| [T-143](copy.md) | P3 | M | backlog | feature | open | Copy directories: `-r`, `--exclude`, an ignore file, `--dry-run` |
+| [T-143](copy.md) | P3 | M | backlog | feature | done | Copy directories: `-r`, `--exclude`, an ignore file, `--dry-run` |
 | [T-144](copy.md) | P3 | S | backlog | feature | open | `podssh cp --delete`: make the target a mirror |
 | [T-145](copy.md) | P3 | S | backlog | feature | open | Progress, cancellation and a bandwidth limit for copies |
 | [T-146](copy.md) | P3 | M | backlog | feature | open | Keep the metadata of a copy |
@@ -369,3 +369,4 @@ repository and CI).
 | [T-295](terminal.md) | P2 | S | none | defect | done | Ctrl-Break leaves the Windows console raw |
 | [T-296](copy.md) | P3 | M | backlog | feature | open | `cp`, `scp` and `sftp` to a node |
 | [T-297](copy.md) | P3 | M | backlog | feature | open | `cp --parallel K` copies several small files at once |
+| [T-298](copy.md) | P3 | S | backlog | feature | open | `sftp`'s `-r`: `get -r` and `put -r` of a directory |

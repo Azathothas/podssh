@@ -97,6 +97,9 @@ struct Far {
     watches: Vec<ChannelId>,
     /// Where `sftp-server` runs, and the stdin of each that runs (T-140).
     sftp_root: Option<PathBuf>,
+    /// The user `evil-...`: each listing of its `sftp-server` names
+    /// `../escape` too (T-143).
+    evil: bool,
     sftps: HashMap<ChannelId, tokio::process::ChildStdin>,
 }
 
@@ -111,6 +114,7 @@ impl server::Handler for Far {
         self.su = user.starts_with("su-");
         self.nopass = user.starts_with("sudo-nopass-");
         self.pty = user.starts_with("pty-");
+        self.evil = user.starts_with("evil-");
         // A user named key-...: a key is needed, as from an agent (T-034).
         if user.starts_with("key-") {
             return Ok(Auth::Reject {
@@ -173,7 +177,7 @@ impl server::Handler for Far {
         name: &str,
         session: &mut Session,
     ) -> Result<(), Self::Error> {
-        if let Some(stdin) = sftp::start(name, self.sftp_root.as_deref(), channel, session)? {
+        if let Some(stdin) = sftp::start(name, self.sftp_root.as_deref(), self.evil, channel, session)? {
             self.sftps.insert(channel, stdin);
         }
         Ok(())

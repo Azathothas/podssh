@@ -309,6 +309,19 @@ with 1048576 bytes fetched; the digests agree each way, and no full copy
 followed. Planted, blocks compared by their presence only: no block went,
 the digests then differed, a full copy followed, and both checks failed.
 
+`cp -r` (T-143; Windows 11, 2026-10-12, `cargo test -p podssh-cli --test
+cp_tree`, 3 passed; the build image, `scripts/interop.sh`, `cp.tree.*`
+against OpenSSH): a tree with levels, an empty directory, names with a
+space, a link and a FIFO goes up and comes down with the lists of digests
+equal and the link a link; the FIFO is skipped with a note and an exit
+that is not zero; `--dry-run` says each action and changes nothing;
+`--exclude` leaves out a name anywhere and a path from the root; `mv -r`
+leaves the tree there and removes the source. A server whose listings name
+`../escape` (the test's server, for a user `evil-...`) is refused, nothing
+is written outside the target, and the rest of the tree comes. Planted, no
+check of the names: the file that `../escape` names is written outside the
+target, and the test fails.
+
 ## `podssh keygen`, measured
 
 | Check | Result |

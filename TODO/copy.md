@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:226-244` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1238-1241`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1254-1257`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1364,7 +1364,7 @@ issues.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1431,6 +1431,32 @@ drop the name check; that case must then fail.
 (`crates/podssh-cli/src/flags/copy.rs:27-28`), and `podssh cp` copies files
 (`crates/podssh-cli/src/cp/`): this entry builds on its temporary name, its
 digest check and its rename for each file of a tree.
+
+## Done
+
+2026-10-12. `crates/podssh-cli/src/cp/tree.rs` (the walks, the names, the
+patterns) and `crates/podssh-cli/src/cp/tree_copy.rs` (each item, through
+the copy of one file with its continuation after a break). The calls made:
+a far listing's `.` and `..` are passed over and each other name that is
+not one component is refused before any `lstat` (70); a directory comes
+before what it holds; into a directory that exists the copy goes under it;
+a loop is found by canonical paths here and `realpath` there, also with no
+link followed (a junction); a link on the server is made with SFTP's
+`symlink` in OpenSSH's order of its two paths, and one here on Windows
+needs the right to make it, else it is reported; a tree goes up or down
+over SFTP only; `mv -r` removes the source after a tree copied whole; a
+directory without `-r` says "a directory; -r copies it". `sftp`'s own `-r`
+(its `get -r` and `put -r`) stays refused by name: T-298, new.
+`cargo test -p podssh-cli --test cp_tree`: 3 passed (a tree up, into a new
+name, and down, under a directory that exists, equal to the source; a dry
+run says `mkdir`, `copy` and the paths and changes nothing; `--exclude` of
+a name and of a path from the root; `mv -r`; a listing that names
+`../escape` refused with nothing written outside the target and the rest
+of the tree there; the tree flags need `-r`); the unit tests of the names,
+the patterns, an exclude file and a local walk. In the build image against
+OpenSSH: `cp.tree.dry_run`, `cp.tree.up` (a link a link, a FIFO skipped and
+an exit not zero, the lists of digests equal) and `cp.tree.down`. Planted
+defect: no check of the names; the test of `../escape` failed.
 
 # T-144: `podssh cp --delete`: make the target a mirror
 
@@ -1502,7 +1528,7 @@ uplink of a shared host.
 
 - Read: stdout carries answers only, and messages go to stderr
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
-  (`crates/podssh-cli/src/flags/copy.rs:31-32`).
+  (`crates/podssh-cli/src/flags/copy.rs:37-38`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
   (`crates/podssh-ssh/src/io.rs:461-494`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
@@ -1896,16 +1922,16 @@ program writes on, such as a log, need not end at all.
 ## Premise
 
 Read at `a22e3ec`: the copy up over SFTP reads the source until a read
-gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:128-149`), and each read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:131-152`), and each read
 waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
-(`crates/podssh-cli/src/cp/bysftp.rs:202-205`), but only once the read
+(`crates/podssh-cli/src/cp/bysftp.rs:205-208`), but only once the read
 ends. The copy up by exec reads the same way
 (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:321-352`) and with `cat`
+(`crates/podssh-cli/src/cp/bysftp.rs:327-358`) and with `cat`
 (`crates/podssh-cli/src/cp/byexec.rs:329-364`); and so do the far digests
 that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
 `crates/podssh-cli/src/cp/byexec.rs:298-325`).
@@ -1941,7 +1967,7 @@ bound fails the native test.
 
 2026-10-10. Each road of the copy reads what the source held at the start,
 and stops with 66, "the file changed while it was read", at the first byte
-past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:128-149`) and by
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:131-152`) and by
 exec (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); down by exec
 past the size that `wc -c` gave; down over SFTP after a second look at the
 far size, so that a file of `/proc` goes on as before. The far digest by
@@ -2060,3 +2086,42 @@ Against the test's server, 50 small files with `--parallel 8` arrive, each
 equal to its source, with at most 8 SFTP sessions at once (the server
 counts them); the report lists them in their order. Planted defect: two
 files into one temporary name; a digest check fails.
+
+# T-298: `sftp`'s `-r`: `get -r` and `put -r` of a directory
+
+**Source:** T-143: `podssh cp -r` copies trees; `sftp -r` and the `-r` of
+`get` and `put` stay refused by name (`crates/podssh-cli/src/flags/scp.rs`).
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+OpenSSH's `sftp -r` and the `-r` of its `get` and `put` copy directories.
+`podssh sftp` refuses both by name, so a batch of OpenSSH's that copies a
+tree fails here.
+
+## Premise
+
+- Read: `crates/podssh-cli/src/cp/tree_copy.rs` copies a tree over one
+  connection (T-143); `podssh sftp`'s `get` and `put` copy one file each
+  (`crates/podssh-cli/src/sftp/run.rs`).
+
+## Approach
+
+1. `sftp -r`, and `get -r` and `put -r` (also `-R`), copy a directory with
+   T-143's walk, its checks of names and its copy of each file.
+2. The batch's line and the report are as for one file; an item that fails
+   is reported, and the command fails at its end.
+
+## Prove
+
+```sh
+CARGO_BUILD_JOBS=4 cargo test -p podssh-cli --test copy_pipeline -- tree
+```
+
+A batch `put -r dir` and `get -r dir back` against the test's server
+copies the tree both ways, equal to the source. Planted defect: `-r`
+ignored; the test fails on the directory.

@@ -63,6 +63,35 @@ rc=$?
     && ok cp.parallel.down "cp --parallel 4 down, 25000000 bytes: the digests agree" \
     || bad cp.parallel.down "cp --parallel 4 down: exit $rc" "$CW/err"
 
+# -r (T-143): a tree with levels, an empty directory, a name with a space,
+# a link and a FIFO goes up and comes down; the lists of digests agree, the
+# link stays a link, and the FIFO is skipped with a note (an exit not zero).
+# A dry run changes nothing.
+lists() { (cd "$1" && find . -type f -exec sha256sum {} + | sort); }
+TR="$CW/tree"
+mkdir -p "$TR/a/b c" "$TR/empty"
+head -c 300000 /dev/urandom >"$TR/a/b c/f one"
+printf top >"$TR/top"
+ln -s "a/b c/f one" "$TR/link"
+mkfifo "$TR/fifo"
+c 2201 -r --dry-run "$TR" "$T:cp/tree" >"$CW/out" 2>"$CW/err"
+rc=$?
+[ "$rc" = 0 ] && grep -q "^skip .*fifo" "$CW/out" && grep -q "^link " "$CW/out" && [ ! -e "$RD/tree" ] \
+    && ok cp.tree.dry_run "cp -r --dry-run: each action said, and nothing changed" \
+    || bad cp.tree.dry_run "cp -r --dry-run: exit $rc" "$CW/out"
+c 2201 -r "$TR" "$T:cp/tree" >"$CW/out" 2>"$CW/err"
+rc=$?
+[ "$rc" != 0 ] && grep -q "fifo: not copied" "$CW/err" && [ "$(lists "$TR")" = "$(lists "$RD/tree")" ] \
+    && [ -L "$RD/tree/link" ] && [ -d "$RD/tree/empty" ] \
+    && ok cp.tree.up "cp -r up: the digests agree, the link is a link, the FIFO skipped" \
+    || bad cp.tree.up "cp -r up: exit $rc" "$CW/err"
+c 2201 -r "$T:cp/tree" "$CW/down/" >"$CW/out" 2>"$CW/err"
+rc=$?
+[ "$rc" = 0 ] && [ "$(lists "$RD/tree")" = "$(lists "$CW/down/tree")" ] && [ -L "$CW/down/tree/link" ] \
+    && [ -d "$CW/down/tree/empty" ] \
+    && ok cp.tree.down "cp -r down: the digests agree, the link is a link" \
+    || bad cp.tree.down "cp -r down: exit $rc" "$CW/err"
+
 # --delta (T-142): over an older version, only the blocks of 1 MiB that
 # changed go: -v says how many bytes, and no full copy follows.
 # delta_sent: the bytes that -v says the delta sent.
