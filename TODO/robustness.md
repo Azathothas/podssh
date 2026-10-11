@@ -765,7 +765,7 @@ nobody measures again.
 
 Read, each claim of GitHub #34 at the lines as they are now:
 
-- The matrix is at `scripts/interop.sh:111-121`. It expects 3, 0, 1, 127 and
+- The matrix is at `scripts/interop.sh:114-124`. It expects 3, 0, 1, 127 and
   143, against OpenSSH (port 2201) and Dropbear (port 2203). `grep -c` gives
   17 lines with `expect_rc`, each a call; the helper is
   `scripts/interop-lib.sh:53-60` (T-199). `scripts/interop-keygen.sh` has 6

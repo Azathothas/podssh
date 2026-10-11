@@ -78,7 +78,7 @@ r() {
     _relays=$1
     shift
     # shellcheck disable=SC2086
-    env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY -u all_proxy -u ALL_PROXY ${RP:+https_proxy=$RP} \
+    ${as_job:-} env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY -u all_proxy -u ALL_PROXY ${RP:+https_proxy=$RP} \
         ${RC:+XDG_CACHE_HOME=$RC} \
         HOME="$W" "$BIN" ssh --relay-host "$_relays" --relay-addr "$PINS" --ca-file "$FK/ca.pem" -p 2201 \
         -o UserKnownHostsFile="$KH" -o StrictHostKeyChecking=accept-new \
@@ -285,8 +285,9 @@ while time.time() < limit:
 print(line)
 EOF
 }
-r "relay-tunnel.test:$(port tunnel),relay-a.test:$(port a)" --persist -N -R 127.0.0.1:2290:127.0.0.1:2203 "$T" \
-    </dev/null >"$FK/out" 2>"$FK/tunnel.err" &
+# As one process, so that kill ends podssh (see p in scripts/interop.sh).
+(as_job=exec r "relay-tunnel.test:$(port tunnel),relay-a.test:$(port a)" --persist -N -R 127.0.0.1:2290:127.0.0.1:2203 \
+    "$T") </dev/null >"$FK/out" 2>"$FK/tunnel.err" &
 tunnel=$!
 first=$(tunnel_banner 30)
 kill "$(cat "$FK/tunnel.pid")" 2>/dev/null

@@ -1167,12 +1167,23 @@ first loss (`crates/podssh-cli/src/ssh/persist.rs:163-172`); the rule of
 - In the build image (`sh scripts/dev.sh run`), `cargo clippy --all-targets
   -p podssh-ssh -p podssh-cli -- -D warnings` passed.
 - In the gate at this push: `faults.persist.tunnel`
-  (`scripts/interop-faults.sh:263-302`): `--persist -N -R
+  (`scripts/interop-faults.sh:263-303`): `--persist -N -R
   127.0.0.1:2290:127.0.0.1:2203` through the stand-in relays `relay-tunnel`
   and `relay-a`; port 2290 reads Dropbear's banner, `relay-tunnel` is
   killed, and within 60 s port 2290 reads it again through the next.
   Port 2291, which the Prove names, is the one that `PermitListen` refuses
   for T-035's check of a refusal.
+- Correction, 2026-10-12: at `4b2f621` and `ec7f018` the gate failed this
+  check: the run's first login was refused (`Permission denied ()`), and
+  port 2290 answered all the same, through the podssh of T-035's check,
+  which the gate had left running: a function run with `&` is a shell of
+  its own, and `kill` ended that shell alone. The same podssh made OpenSSH
+  refuse port 2290 to `pty.forwards` (T-041). `p` of `scripts/interop.sh`
+  and `r` of `scripts/interop-faults.sh` now take `as_job=exec`, so that
+  podssh is the job's own process, and the two runs in the background use
+  it. In the build image, the whole of `scripts/interop.sh`, with a debug
+  build, then passed this check and `pty.forwards`. Why the login was
+  refused in CI is not known.
 - `docs/cli.md`, the manual's notes of `--persist`, `docs/design.md` and
   the bounds of `docs/architecture.md` say what `--persist -N` does.
 - `cargo test -p podssh-ssh`: 161 passed; `cargo test -p podssh-cli`:

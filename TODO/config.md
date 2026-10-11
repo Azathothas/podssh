@@ -742,7 +742,7 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:330-338`
   hop that reads no block (the Prove's plant): both tests failed; restored.
 - `cargo test -p podssh-ssh --lib -- run::`: 3 passed, among them a hop's own options with the
   run's memory, else the connection's, its own `HostKeyAlias`, and `set_batch_mode` for each hop.
-- `scripts/interop.sh:321-331`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
+- `scripts/interop.sh:324-334`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
 - `docs/cli.md:75-81` and `docs/cli.md:1155-1167`, and the manual's file `~/.ssh/config`, say what

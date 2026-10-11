@@ -96,11 +96,14 @@ apk info -v openssh-server dropbear 2>/dev/null | sed 's/^/server: /'
 
 # p PORT [podssh ssh arguments...]: podssh with a fresh environment: no
 # agent, test keys only, this run's known_hosts, never a prompt on a terminal.
+# With as_job=exec, podssh takes the place of the shell that runs p: a
+# function run with & is a shell of its own, and kill would end that shell
+# alone and leave podssh running.
 KH="$W/known_hosts"
 p() {
     _port=$1
     shift
-    env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p "$_port" \
+    ${as_job:-} env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p "$_port" \
         -o UserKnownHostsFile="$KH" -o StrictHostKeyChecking=accept-new \
         -o IdentityAgent=none -o IdentitiesOnly=yes "$@"
 }
@@ -379,7 +382,7 @@ took=$(( $(date +%s) - start ))
 # -R (T-035): OpenSSH listens on 2290 for podssh, and each connection that it
 # takes reaches Dropbear's port from this host, through podssh.
 # shellcheck disable=SC2086
-p 2201 $K -o BatchMode=yes -N -R 127.0.0.1:2290:127.0.0.1:2203 "$T" </dev/null >"$W/out" 2>"$W/rerr" &
+(as_job=exec p 2201 $K -o BatchMode=yes -N -R 127.0.0.1:2290:127.0.0.1:2203 "$T") </dev/null >"$W/out" 2>"$W/rerr" &
 rpid=$!
 banner=""
 i=0
