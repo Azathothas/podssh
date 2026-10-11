@@ -393,6 +393,21 @@ pub const VERBS: &[Verb] = &[
         about: "a short check of the path: each step to the relay, pings, and with a host the echo and throughput" },
 ];
 
+/// **The verbs by purpose, in the order that `--help` and the manual print
+/// them** (T-013). Each verb is in one group, as a test of the flag table
+/// holds; a purpose does not change between releases and builds, as a list
+/// of the commands that work would.
+pub const GROUPS: &[(&str, &[&str])] = &[
+    ("Connect", &["ssh", "proxy", "pipe", "ts"]),
+    ("Copy files", &["cp", "mv", "scp", "sftp"]),
+    ("Keys", &["keygen", "agent"]),
+    ("Check this host and the path", &["doctor", "status", "ping"]),
+    ("The reverse road", &["node", "operator"]),
+    ("Messages", &["chat"]),
+    ("The relay", &["relay"]),
+    ("This manual", &["man"]),
+];
+
 /// Every verb that dispatch refuses as "not implemented yet", with the roadmap
 /// milestone (docs/ROADMAP.md) that builds it. The milestone is for
 /// maintainers; users only see that the verb is not implemented.

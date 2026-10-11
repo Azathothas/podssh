@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**283 entries: 88 open, 0 partial, 22 blocked, 173 done.**
+**283 entries: 87 open, 0 partial, 22 blocked, 174 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 20 | 22 |
 | P2 | 4 | 0 | 18 | 133 | 155 |
-| P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 88 | 0 | 22 | 173 | 283 |
+| P3 | 81 | 0 | 4 | 20 | 105 |
+| **All** | 87 | 0 | 22 | 174 | 283 |
 
 ## Entries
 
@@ -86,7 +86,7 @@ repository and CI).
 | [T-010](cli.md) | P2 | S | M3 | defect | done | `podssh --help` with other words prints the help and drops the words silently (GitHub #10) |
 | [T-011](cli.md) | P2 | S | M3 | defect | done | A host or target that starts with `-` can be read as a flag |
 | [T-012](cli.md) | P2 | S | backlog | feature | done | `PODSSH_TIMEOUT` gives the default of `--timeout` (GitHub #12) |
-| [T-013](cli.md) | P3 | S | backlog | feature | open | The help groups the commands by purpose |
+| [T-013](cli.md) | P3 | S | backlog | feature | done | The help groups the commands by purpose |
 | [T-014](cli.md) | P2 | M | M3 | feature | done | `podssh man` writes the whole manual from the binary (GitHub #1) |
 | [T-015](cli.md) | P1 | S | M3 | defect | done | The manual showed blank flag names under groff and mandoc (GitHub #4, audit C7) |
 | [T-016](cli.md) | P1 | S | M3 | defect | done | Each flag of OpenSSH 10.3p1 answers by name (GitHub #5, audit C10) |

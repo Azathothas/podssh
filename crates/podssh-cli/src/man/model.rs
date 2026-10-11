@@ -118,12 +118,17 @@ fn intro() -> Vec<Block> {
          needs no installed ssh, no root, no pty, no DNS and no user database entry.",
     )];
     blocks.push(Block::Sub("Commands".into()));
-    blocks.push(Block::Table(
-        VERBS
-            .iter()
-            .map(|v| (vec![lit(v.name)], format!("{}{}", v.about, crate::help::availability_note(v))))
-            .collect(),
-    ));
+    // By purpose (T-013): each group's name, then its verbs.
+    for (group, names) in crate::flags::GROUPS {
+        blocks.push(Block::Line(vec![text(*group)]));
+        blocks.push(Block::Table(
+            names
+                .iter()
+                .filter_map(|n| VERBS.iter().find(|v| v.name == *n))
+                .map(|v| (vec![lit(v.name)], format!("{}{}", v.about, crate::help::availability_note(v))))
+                .collect(),
+        ));
+    }
     blocks.push(Block::Sub("Options before a command".into()));
     blocks.push(Block::Table(
         crate::flags::TOP_OPTIONS

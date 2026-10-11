@@ -487,8 +487,8 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
    a comment line. Never drop it silently.
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
-   (`crates/podssh-cli/src/flags.rs:357-406`), the arguments, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:230-243`), the manual's notes and examples, and
+   (`crates/podssh-cli/src/flags.rs:357-421`), the arguments, `usage_tail`
+   (`crates/podssh-cli/src/help.rs:243-256`), the manual's notes and examples, and
    `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-113`).
 
 ## Decision

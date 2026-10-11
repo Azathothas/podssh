@@ -393,9 +393,9 @@ rest. For a verb, clap reads each word before `--help` is answered
 3. Keep the verb level as it is: `podssh ssh --help host` prints the help of
    `ssh`, after clap has checked each word.
 4. If the top-level help text changes (`TOP_OPTIONS`,
-   `crates/podssh-cli/src/flags.rs:431-434`), update its test
+   `crates/podssh-cli/src/flags.rs:446-449`), update its test
    `no_top_level_option_runs_into_its_description`
-   (`crates/podssh-cli/src/help.rs:295-310`). Same commit: `docs/cli.md:55-59`,
+   (`crates/podssh-cli/src/help.rs:308-323`). Same commit: `docs/cli.md:55-59`,
    `docs/STATUS.md`.
 5. The JSON that GitHub #10 asks for is T-050. This entry only stops the drop.
 
@@ -487,10 +487,10 @@ risk is a changed option (a host, a relay, a trust store), not a command.
 
 ## Approach
 
-1. Document `--`: `usage_tail` (`crates/podssh-cli/src/help.rs:230-243`) gives
+1. Document `--`: `usage_tail` (`crates/podssh-cli/src/help.rs:243-256`) gives
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
-   manual (`crates/podssh-cli/src/man/model.rs:181-185`) read it.
+   manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:36-234`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-111`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
@@ -670,7 +670,7 @@ the report, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -687,10 +687,10 @@ node, operator, chat, cp, mv, man, relay, status, doctor, keygen, ts. Seven
 lines say "(not implemented yet)" and `ts` says "(not in this build)".
 `podssh man --no-pager` shows the same order under "Commands".
 
-Read: one table, `VERBS` (`crates/podssh-cli/src/flags.rs:353-394`), has no
+Read, at `3a78cff`: one table, `VERBS` (`crates/podssh-cli/src/flags.rs:353-394`), has no
 group. Four places render it: `top_level_help`
-(`crates/podssh-cli/src/help.rs:132-146`), the start of the manual
-(`crates/podssh-cli/src/man/model.rs:120-126`), `unknown_verb`
+(`crates/podssh-cli/src/help.rs`, lines 132-146), the start of the manual
+(`crates/podssh-cli/src/man/model.rs`, lines 120-126), `unknown_verb`
 (`crates/podssh-cli/src/refuse.rs:121-125`) and `no_arguments`
 (`crates/podssh-cli/src/refuse.rs:150-161`).
 
@@ -702,12 +702,12 @@ group. Four places render it: `top_level_help`
    is in exactly one group, as `every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub`
    does for owners (`crates/podssh-cli/tests/flag_table.rs:104`).
 2. Render the groups in `--help` and in the manual's "Commands" table. Keep
-   the availability note of each line (`crates/podssh-cli/src/help.rs:153-160`).
+   the availability note of each line (`crates/podssh-cli/src/help.rs:166-173`).
 3. Keep the two refusal lists flat, or raise their limit with a reason:
    `a_refusal_is_a_line_not_a_usage_dump` allows 18 lines
    (`crates/podssh-cli/src/refuse.rs:238-239`), and the list for
    `example.org` has 17.
-4. Update `scripts/interop-man.sh:35-36` in the same commit. It reads the
+4. Update `scripts/interop-man.sh` (lines 35-36 at `3a78cff`) in the same commit. It reads the
    `SUBCOMMANDS:` block up to the first blank line, and takes the first word
    of each line as a verb. A heading or a blank line between groups breaks it.
 5. Same commit: `docs/STATUS.md`.
@@ -720,6 +720,17 @@ For example: "Connect" (ssh, proxy, ts), "This host" (doctor, keygen, status),
 relay, chat and man. Purpose does not change between releases and builds. The
 alternative, the working commands first, lost: the groups would move with
 each milestone and with the `ts` feature.
+
+Taken, with these calls made in the work (2026-10-11). One list of groups, `GROUPS` in
+`crates/podssh-cli/src/flags.rs`, beside `VERBS`, so that a test can find a verb listed twice,
+which a field of `Verb` could not be. Eighteen commands are in eight groups: Connect (ssh,
+proxy, pipe, ts), Copy files (cp, mv, scp, sftp), Keys (keygen, agent), Check this host and the
+path (doctor, status, ping), The reverse road (node, operator), Messages (chat), The relay
+(relay) and This manual (man). `--help` prints each group's name two spaces in, and its verbs four
+spaces in, with no blank line, so the block still ends at the end of the list; the manual's
+"Commands" has each group's name, then its table. The two refusals keep their flat lists.
+`scripts/interop-man.sh` takes as a verb each line of the block with four spaces before a
+letter, where it took the first word of each line: a group's name of two words is no verb.
 
 ## Prove
 
@@ -735,6 +746,25 @@ third check the help, the refusals and the manual against the table. The gate
 runs `scripts/interop-man.sh` with its planted page, so a block that the
 script cannot read fails there. Plant: put one verb in two groups; the first
 test fails.
+
+## Correction
+
+Measured at `3a78cff`: `podssh --help` lists 18 commands (ssh, proxy, pipe, node, operator, chat,
+cp, scp, sftp, mv, man, relay, status, doctor, keygen, ts, agent, ping), and none says "(not
+implemented yet)"; only `ts` says "(not in this build)" in a build without the feature. The
+problem of one long list stands; the mix of working and missing commands is gone.
+
+## Done
+
+2026-10-11. `GROUPS` in `crates/podssh-cli/src/flags.rs:396-409`; `--help`
+(`crates/podssh-cli/src/help.rs:132-159`) and the manual's "Commands"
+(`crates/podssh-cli/src/man/model.rs:120-131`) print the commands in their groups.
+- `cargo test -p podssh-cli --test flag_table -- each_verb_is_in_one_group`: 1 passed. Planted:
+  `ssh` also in "Copy files"; the test failed.
+- `cargo test -p podssh-cli`: 538 passed, 0 failed, 31 ignored (the help, the refusals, the
+  manual and the parity of the flags among them); clippy. `scripts/interop-man.sh`'s new reading
+  of the block gave the same 17 verbs (all but `ts`, not in this build); the gate runs it with its
+  planted page at this push.
 
 # T-014: `podssh man` writes the whole manual from the binary (GitHub #1)
 
@@ -834,7 +864,7 @@ roff source and not a renderer, so CI stayed green.
    (`crates/podssh-cli/src/man/roff.rs:1-13`). A flag is a `.TP` term in bold.
 2. The gate renders the page with groff and mandoc, and finds each flag
    spelling of `--help` in both (`scripts/interop-man.sh`). A planted page
-   must fail (`scripts/interop-man.sh:112-123`).
+   must fail (`scripts/interop-man.sh:114-125`).
 3. `docs/cli.md:28-32` states the rule.
 
 ## Prove
@@ -1242,7 +1272,7 @@ as plain keys (`docs/STATUS.md`, section "Components"). T-027 covers that side.
    `-O OPTION` (repeatable), `-h` (a host certificate) and `-L`. `-h` is free:
    a verb declares only `--help` (`crates/podssh-cli/src/tree.rs:79-88`). `-V`
    is a validity here, not the version: say so in `--help`, as the help says
-   it for `-P` (`crates/podssh-cli/src/help.rs:211-223`).
+   it for `-P` (`crates/podssh-cli/src/help.rs:224-236`).
 2. Read the CA key as `-y` reads a private key (a passphrase by prompt or
    `SSH_ASKPASS`).
 3. Build the certificate with the builder of the library, and write
@@ -1636,7 +1666,7 @@ user reads options such as `--timeout` and `-r`, and then gets exit 70.
 Measured offline: `podssh node`, `operator`, `chat` (also `irc`), `cp` (also
 `scp`), `mv`, `relay`, `status` and `ts`, each with `--help`, exit 0, and the
 text has no "not implemented" and no "not in this build". Controls:
-`podssh --help` marks each of them (`crates/podssh-cli/src/help.rs:138`), and
+`podssh --help` marks each of them (`crates/podssh-cli/src/help.rs:151`), and
 the manual says "Not implemented yet. The command exits 70 and does nothing."
 with no options (`crates/podssh-cli/src/man/model.rs` lines 188-200 at
 `fdbba30`).
@@ -1650,14 +1680,14 @@ passes.
 ## Approach
 
 1. In `verb_help`, for a verb that is not `Works`
-   (`crates/podssh-cli/src/flags.rs:419-427`): the title with the note, the
+   (`crates/podssh-cli/src/flags.rs:434-442`): the title with the note, the
    sentence of the manual, and no option but `--help`, as the manual does.
 2. Keep that sentence in one place, so that `--help` and the manual
    (`crates/podssh-cli/src/man/model.rs` lines 188-200 at `fdbba30`) cannot
    differ.
 3. Extend `a_command_that_does_not_work_says_so_in_both` to the help of each
    such verb.
-4. `scripts/interop-man.sh:35-36` already skips these verbs (it drops each line
+4. `scripts/interop-man.sh:37-38` already skips these verbs (it drops each line
    with "(not "). Same commit: `docs/STATUS.md`.
 
 ## Decision
@@ -1734,7 +1764,7 @@ and `find` takes the first match (`crates/podssh-cli/src/man/model.rs:61-67`).
 The SECTION help names `relay` (`crates/podssh-cli/src/positionals.rs` line
 37 at `02e4e1f`).
 `each_verb_and_alias_finds_its_section` passes, because the command wins
-(`crates/podssh-cli/src/man/model.rs:322-331`).
+(`crates/podssh-cli/src/man/model.rs:327-336`).
 
 ## Approach
 
@@ -1745,7 +1775,7 @@ The SECTION help names `relay` (`crates/podssh-cli/src/positionals.rs` line
    finds its own section.
 4. Change the SECTION help (`crates/podssh-cli/src/positionals.rs:47`):
    `the_section_argument_names_each_topic` requires each topic key in it
-   (`crates/podssh-cli/src/man/model.rs:389-400`). Same commit: `docs/STATUS.md`.
+   (`crates/podssh-cli/src/man/model.rs:394-405`). Same commit: `docs/STATUS.md`.
 
 ## Decision
 
@@ -1812,7 +1842,7 @@ option starts after 4 spaces and its long name after 8; `--help` again starts
 after 4, with its text at character 13.
 
 Read: `--help` has a line of its own, `format!("{:<12}{}", "    --help", ...)`
-(`crates/podssh-cli/src/help.rs:202`), outside `flag_line`
+(`crates/podssh-cli/src/help.rs:215`), outside `flag_line`
 (`crates/podssh-cli/src/help.rs:72-81`). `flag_column` measures only the
 verb's own rows (`crates/podssh-cli/src/help.rs:33-38`).
 
@@ -1824,9 +1854,9 @@ verb's own rows (`crates/podssh-cli/src/help.rs:33-38`).
 2. Keep `--help` as the last line of the block, with no blank line before it:
    `options_block` stops at the first blank line
    (`crates/podssh-cli/tests/man_extract/mod.rs:35-52`).
-   `scripts/interop-man.sh:46-48` reads an option line at any indent.
+   `scripts/interop-man.sh:48-50` reads an option line at any indent.
 3. Add `--help` to the layout test `no_flag_runs_into_its_description`
-   (`crates/podssh-cli/src/help.rs:356-391`), or add a test that each
+   (`crates/podssh-cli/src/help.rs:369-404`), or add a test that each
    long-only line and `--help` start in one column.
 4. The block before a command (`  -h, --help`) is another table and stays as
    it is. Same commit: `docs/STATUS.md`.

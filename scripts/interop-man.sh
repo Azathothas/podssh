@@ -32,8 +32,10 @@ ok man.roff "podssh man --roff exited 0"
 # The flags that --help shows for each command that works: one spelling per
 # line, "-x, --long" or "--long".
 "$B" --help >"$W/help.txt"
+# A verb's line has four spaces before its name; a group's name has two
+# (T-013), and an alias line more than four.
 verbs=$(sed -n '/^SUBCOMMANDS:/,/^$/p' "$W/help.txt" | grep -v '(not ' |
-    awk 'NF > 1 && $1 != "SUBCOMMANDS:" && $1 != "aliases:" { print $1 }')
+    awk '/^    [a-z]/ { print $1 }')
 : >"$W/flags.raw"
 # The verbs come from the binary, not a literal list, so no id names one; a
 # failed --help counts against man.flags.

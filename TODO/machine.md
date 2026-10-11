@@ -124,7 +124,7 @@ and prints the text help, so it drops `--json` silently (T-010).
 Read: the data is in tables already. Commands and flags: `VERBS`
 (`crates/podssh-cli/src/flags.rs:357-394`), each row with its kind and `instead` (lines 19-47 at `22c3b88`),
 and the availability (lines 443-451 at `22c3b88`). Arguments: the parser
-(`crates/podssh-cli/src/man/model.rs:199-203`). Keywords:
+(`crates/podssh-cli/src/man/model.rs:204-208`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:25-106`, with the stated defaults (lines 99-104 at `22c3b88`).
 Variables: `crates/podssh-cli/src/man/facts.rs:45-162`. The files and the exit codes were text
 blocks only (`crates/podssh-cli/src/man/facts.rs` lines 100-145 and 231-271 at `332ee58`), and the blocks of the

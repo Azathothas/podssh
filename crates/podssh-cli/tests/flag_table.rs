@@ -147,3 +147,19 @@ fn every_alias_resolves_and_every_verb_has_at_least_its_own_name() {
         }
     }
 }
+
+/// Each verb is in one group of `--help` and of the manual, and each group
+/// names verbs that there are (T-013): a verb in no group would vanish from
+/// the help, and one in two would be listed twice.
+#[test]
+fn each_verb_is_in_one_group() {
+    let grouped: Vec<&str> = podssh_cli::flags::GROUPS.iter().flat_map(|(_, names)| names.iter().copied()).collect();
+    for v in VERBS {
+        let times = grouped.iter().filter(|n| **n == v.name).count();
+        assert_eq!(times, 1, "{} is in {times} groups", v.name);
+    }
+    for name in &grouped {
+        assert!(VERBS.iter().any(|v| v.name == *name), "the group names {name}, which is no verb");
+    }
+    assert!(podssh_cli::flags::GROUPS.iter().all(|(_, names)| !names.is_empty()), "an empty group");
+}

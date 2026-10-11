@@ -134,7 +134,20 @@ pub fn top_level_help() -> String {
     for v in VERBS {
         w = w.max(v.name.len());
     }
-    for v in VERBS {
+    // By purpose (T-013): each group's name, then its verbs, with no blank
+    // line, so that the block ends where the list ends.
+    let grouped = crate::flags::GROUPS.iter().flat_map(|(group, names)| {
+        let verbs = names.iter().filter_map(|n| VERBS.iter().find(|v| v.name == *n));
+        std::iter::once(Err(*group)).chain(verbs.map(Ok))
+    });
+    for item in grouped {
+        let v = match item {
+            Ok(v) => v,
+            Err(group) => {
+                s.push_str(&format!("  {group}\n"));
+                continue;
+            }
+        };
         s.push_str(&format!("    {:w$}  {}{}\n", v.name, v.about, availability_note(v)));
         // Aliases are printed beside the verb they resolve to, because a user
         // who types `podssh irc` and gets help for `chat` deserves to know
