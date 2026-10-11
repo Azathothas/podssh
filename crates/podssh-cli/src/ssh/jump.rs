@@ -105,11 +105,19 @@ impl Chain<'_> {
         let env = self.env;
         let source = super::config::file(self.args.config.as_deref(), env.ssh_config.as_deref(), env.home.as_deref());
         let so_far = |file: &Settings| include_tokens(target, env, file);
+        // The hop's process of OpenSSH has its -l, and -W, a session of none.
+        let given = super::config::Given {
+            user: target.user.as_deref(),
+            local_user: env.user.as_deref(),
+            session: Some("none"),
+            ..Default::default()
+        };
         let ctx = super::config::Context {
             host: &target.host,
             home: env.home.as_deref(),
             system: env.system_config.as_deref(),
             tokens: &so_far,
+            given,
         };
         let file = super::config::read(&source, &ctx, self.cli.ignore_unknown.clone()).map_err(Refusal::config)?;
         let (user, port) = (file.user.clone(), file.port);

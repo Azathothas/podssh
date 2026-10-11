@@ -57,6 +57,8 @@ pub struct Settings {
     pub stdin_null: Option<bool>,
     /// `SessionType`: `none`, `subsystem` or `default`.
     pub session_type: Option<String>,
+    /// `Tag`, which `Match tagged` reads (T-045).
+    pub tag: Option<String>,
     /// `RemoteForward`: each one given, as for `-R`.
     pub remote_forwards: Vec<podssh_ssh::RemoteForward>,
     /// `LocalForward` and `DynamicForward` (T-038): each one given.
@@ -97,7 +99,7 @@ impl Settings {
             "port" => set(&mut self.port, parse_port(value).ok_or_else(|| bad("not a port"))?),
             "hostname" => set(&mut self.host_name, value.to_string()),
             "hostkeyalias" => set(&mut self.host_key_alias, value.to_string()),
-            "identityfile" => self.identity_files.push(unquote(value)),
+            "identityfile" => add(&mut self.identity_files, unquote(value)),
             "identitiesonly" => set(&mut self.identities_only, yes_no(value).ok_or_else(|| bad("expected yes or no"))?),
             "identityagent" => set(&mut self.identity_agent, unquote(value)),
             "forwardagent" => match (yes_no(value), unquote(value)) {
@@ -165,11 +167,16 @@ impl Settings {
                 podssh_ssh::escape::parse_escape_char(value).ok_or_else(|| bad("expected none, a character or ^X"))?,
             ),
             "setenv" => {
+                let mut pairs: Vec<(String, String)> = Vec::new();
                 for pair in words(value) {
                     let (n, v) = pair.split_once('=').ok_or_else(|| bad("expected NAME=VALUE"))?;
-                    if !self.set_env.iter().any(|(k, _)| k == n) {
-                        self.set_env.push((n.to_string(), v.to_string()));
+                    if !pairs.iter().any(|(k, _)| k == n) {
+                        pairs.push((n.to_string(), v.to_string()));
                     }
+                }
+                // The first SetEnv holds whole, as in OpenSSH (T-045).
+                if self.set_env.is_empty() {
+                    self.set_env = pairs;
                 }
             }
             "sendenv" => self.send_env.extend(words(value)),
@@ -187,6 +194,7 @@ impl Settings {
                 },
             ),
             "stdinnull" => set(&mut self.stdin_null, yes_no(value).ok_or_else(|| bad("expected yes or no"))?),
+            "tag" => set(&mut self.tag, value.to_string()),
             "sessiontype" => match value.to_ascii_lowercase().as_str() {
                 v @ ("none" | "subsystem" | "default") => set(&mut self.session_type, v.to_string()),
                 _ => return Err(bad("expected none, subsystem or default")),
@@ -194,7 +202,7 @@ impl Settings {
             "proxycommand" if value.eq_ignore_ascii_case("none") => {}
             // The ssh_config of OpenSSH users names podssh itself; podssh ssh
             // takes that road anyway, so the line must not stop it.
-            "proxycommand" if runs_podssh_proxy(value) == Some(true) => self.ignored.push(name.to_string()),
+            "proxycommand" if runs_podssh_proxy(value) == Some(true) => add(&mut self.ignored, name.to_string()),
             "proxycommand" if runs_podssh_proxy(value) == Some(false) => {
                 return Err(format!(
                     "-o {name}={value}: podssh ssh reaches the host through the relay itself; it accepts \
@@ -239,8 +247,8 @@ impl Settings {
                 return Err(format!("-o {name}: an ssh_config block keyword, not an option"))
             }
             "ignoreunknown" => set(&mut self.ignore_unknown, value.to_string()),
-            k if keywords::is_ignored(k) => self.ignored.push(name.to_string()),
-            k if self.ignores_unknown(k) => self.ignored.push(name.to_string()),
+            k if keywords::is_ignored(k) => add(&mut self.ignored, name.to_string()),
+            k if self.ignores_unknown(k) => add(&mut self.ignored, name.to_string()),
             _ => return Err(unknown(name)),
         }
         Ok(())
@@ -289,9 +297,9 @@ impl Settings {
     /// `host:PORT` come between the command line's and the file's.
     pub fn then_file(self, file: Settings) -> Settings {
         let mut identity_files = self.identity_files;
-        identity_files.extend(file.identity_files);
-        let mut set_env = self.set_env;
-        set_env.extend(file.set_env);
+        file.identity_files.into_iter().for_each(|f| add(&mut identity_files, f));
+        // The first SetEnv holds whole: the command line's, else the file's.
+        let set_env = if self.set_env.is_empty() { file.set_env } else { self.set_env };
         let mut send_env = self.send_env;
         send_env.extend(file.send_env);
         let mut remote_forwards = self.remote_forwards;
@@ -299,7 +307,7 @@ impl Settings {
         let mut local_forwards = self.local_forwards;
         local_forwards.extend(file.local_forwards);
         let mut ignored = self.ignored;
-        ignored.extend(file.ignored);
+        file.ignored.into_iter().for_each(|k| add(&mut ignored, k));
         Settings {
             user: self.user,
             port: self.port,
@@ -338,6 +346,7 @@ impl Settings {
             address_family: self.address_family.or(file.address_family),
             stdin_null: self.stdin_null.or(file.stdin_null),
             session_type: self.session_type.or(file.session_type),
+            tag: self.tag.or(file.tag),
             remote_forwards,
             local_forwards,
             gateway_ports: self.gateway_ports.or(file.gateway_ports),
@@ -355,6 +364,13 @@ impl Settings {
 fn set<T>(slot: &mut Option<T>, value: T) {
     if slot.is_none() {
         *slot = Some(value);
+    }
+}
+
+/// Add to a list what it lacks, as OpenSSH adds a key file once (T-045).
+fn add<T: PartialEq>(list: &mut Vec<T>, item: T) {
+    if !list.contains(&item) {
+        list.push(item);
     }
 }
 

@@ -42,6 +42,8 @@ pub struct Shown {
     pub forward_agent: String,
     /// `ClearAllForwardings`, given or implied by `-W`.
     pub clear_all_forwardings: bool,
+    /// `-P` or `Tag` (T-045).
+    pub tag: Option<String>,
 }
 
 /// The lines of `ssh -G`.
@@ -88,6 +90,9 @@ pub fn lines(resolved: &Resolved) -> Vec<String> {
     out.push(format!("loglevel {}", log_level(o.log_level)));
     if let Some(list) = &s.preferred {
         out.push(format!("preferredauthentications {list}"));
+    }
+    if let Some(tag) = &s.tag {
+        out.push(format!("tag {tag}"));
     }
     // -D, then -L, then -R, as OpenSSH writes them.
     let socks = |spec: &&super::local_spec::LocalSpec| spec.target == podssh_ssh::local::Target::Socks;

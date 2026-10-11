@@ -200,10 +200,10 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
             )
         }
         Parsed::Command { verb, refused, tag, timeout, jsonl, ssh, keygen, cp, sftp, chat } => {
-            // `-P TAG` on ssh: accepted, ignored, and it says so on stderr so
-            // a user who meant a port learns before the connection fails.
-            if let Some(t) = tag {
-                let _ = writeln!(s.err, "{}", crate::refuse::accepted_tag_notice(t));
+            // `-P TAG` on ssh is a Tag (T-045); one that is a number was most
+            // likely meant as a port, and the note says so before it connects.
+            if let Some(notice) = tag.as_deref().and_then(crate::refuse::tag_notice) {
+                let _ = writeln!(s.err, "{notice}");
             }
             // The `--timeout` gate, computed once and passed down: the attachment from
             // the probed TTY and `--jsonl`, then the required `--timeout`.

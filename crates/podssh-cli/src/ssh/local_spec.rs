@@ -70,6 +70,15 @@ pub fn forwards(args: &SshArgs, settings: &Settings, stdio: bool) -> Result<Forw
         .chain(args.dynamic_forwards.iter().map(|spec| dynamic(spec)))
         .collect::<Result<Vec<_>, _>>()?;
     local_forwards.extend(settings.local_forwards.iter().cloned());
+    // A forward given twice is kept once, as OpenSSH keeps it (T-045): a
+    // second listener on its port would fail.
+    let mut seen: Vec<(Listen, Target)> = Vec::new();
+    local_forwards.retain(|f| {
+        let key = (f.listen.clone(), f.target.clone());
+        let new = !seen.contains(&key);
+        seen.push(key);
+        new
+    });
     let cleared = stdio || settings.clear_all_forwardings == Some(true);
     if cleared {
         return Ok(Forwards { remote: Vec::new(), local: Vec::new(), cleared });

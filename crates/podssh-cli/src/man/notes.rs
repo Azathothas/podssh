@@ -150,8 +150,8 @@ const SSH: &[&str] = &[
      The socket is made mode 0600 before anything connects, and goes with the master. ControlPersist keeps \
      a -N master with no client for that long; podssh does not go to the background. On Windows, -M, -S \
      and -O are refused (exit 64).",
-    "-P is the tag of OpenSSH on ssh, not a port, and podssh ignores it. On scp and sftp, -P is the port. \
-     Use -p for the port of ssh.",
+    "-P on ssh is the Tag of OpenSSH, which Match tagged reads, not a port; a tag that is a number gets \
+     a note on stderr. On scp and sftp, -P is the port. Use -p for the port of ssh.",
     "-G prints the settings in effect, as ssh -G does: a line of keyword and value for each keyword of \
      OpenSSH that podssh applies, defaults included, then exits 0 with nothing opened. The defaults \
      that differ from OpenSSH's do on purpose: ServerAliveInterval and ConnectTimeout are 60, and no \

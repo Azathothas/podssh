@@ -185,6 +185,18 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         home: env.home.as_deref(),
         system: env.system_config.as_deref(),
         tokens: &so_far,
+        given: super::config::Given {
+            host_name: settings.host_name.as_deref(),
+            user: args.login.as_deref().or(settings.user.as_deref()).or(target.user.as_deref()),
+            local_user: env.user.as_deref(),
+            tag: args.tag.as_deref().or(settings.tag.as_deref()),
+            command: args.command.join(" "),
+            session: match (args.no_command || args.stdio_forward.is_some(), args.subsystem) {
+                (true, _) => Some("none"),
+                (false, true) => Some("subsystem"),
+                (false, false) => settings.session_type.as_deref(),
+            },
+        },
     };
     let filed = super::config::read(&source, &ctx, settings.ignore_unknown.clone()).map_err(Refusal::config)?;
     let (file_user, file_port) = (filed.user.clone(), filed.port);
@@ -394,6 +406,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         identity_agent: agents.shown_identity,
         forward_agent: agents.shown_forward,
         clear_all_forwardings: forwards.cleared,
+        tag: args.tag.clone().or_else(|| settings.tag.clone()),
     };
     let mut resolved = Resolved {
         options,

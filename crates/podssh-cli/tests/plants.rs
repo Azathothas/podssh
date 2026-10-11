@@ -134,11 +134,10 @@ fn a_bare_hostname_gets_no_suggestion_rather_than_a_wrong_one() {
 /// `ssh -G -P mytag example.org` emits `tag mytag`, `ssh -G -P2222 example.org`
 /// emits `port 22` and `tag 2222`, and `ssh` usage prints `[-P tag]`.
 ///
-/// So `-P 22` on `ssh` **parses**, prints a notice that says it is ignored
-/// and points at `-p`, and **exits 2 only because `ssh` itself has no
-/// behaviour yet** — never because `-P` was refused. The refusal it is not
-/// is the finding, and the notice is what keeps a user who meant a port from
-/// waiting for a connection that will use 22.
+/// So `-P 22` on `ssh` **parses**, and prints a note that it is a Tag,
+/// which `Match tagged` reads (T-045), and points at `-p` — never a refusal
+/// of `-P`. The refusal it is not is the finding, and the note is what keeps
+/// a user who meant a port from waiting for a connection that will use 22.
 #[test]
 fn plant_a_usage_dump_on_ssh_p_would_bury_the_answer() {
     let p = parse(args(&["ssh", "-P", "22", "host"]));
@@ -153,14 +152,16 @@ fn plant_a_usage_dump_on_ssh_p_would_bury_the_answer() {
 /// header and a `For more information, try '--help'` trailer and this fails.
 #[test]
 fn plant_a_usage_dump_would_be_a_header_and_a_trailer() {
-    let notice = podssh_cli::refuse::accepted_tag_notice("22");
-    assert!(notice.contains("accepted and ignored"), "{notice}");
+    let notice = podssh_cli::refuse::tag_notice("22").expect("a tag that is a number gets the note");
+    assert!(notice.contains("is a Tag"), "{notice}");
     assert!(notice.contains("For a port use -p"), "{notice}");
     assert!(notice.contains("scp and sftp, -P is the port"), "{notice}");
     assert!(!notice.contains("Usage:"), "{notice}");
     assert!(!notice.contains("For more information"), "{notice}");
     // Three lines. A usage dump on this same surface is about thirty.
     assert!(notice.lines().count() <= 4, "{notice}");
+    // A tag that is a word is what -P is for (T-045): no note.
+    assert_eq!(podssh_cli::refuse::tag_notice("work"), None);
 }
 
 /// **The refusal that is still a refusal: `-L` names `-W` and prints no
@@ -198,7 +199,7 @@ fn plant_a_usage_dump_on_a_refused_flag_would_bury_the_replacement() {
 
 #[test]
 fn plant_a_global_p_rule_would_break_one_verb_or_the_other() {
-    // ssh: a Tag. Accepted, ignored, and it says so.
+    // ssh: a Tag, which Match tagged reads (T-045).
     let on_ssh = parse(args(&["ssh", "-P", "mytag", "host"]));
     let Parsed::Command { verb, refused, tag, .. } = &on_ssh else { panic!("{on_ssh:?}") };
     assert_eq!(*verb, "ssh");
@@ -230,7 +231,8 @@ fn the_two_p_meanings_are_different_rows_in_the_table() {
     assert_eq!(ssh.arg, Some("TAG"), "ssh's -P is a Tag, MEASURED via `ssh -G -P`");
     assert_eq!(cp.arg, Some("PORT"), "scp's usage prints [-P port]");
     assert_ne!(ssh.long, cp.long, "the two rows are distinguishable in --help");
-    assert_eq!(ssh.kind, FlagKind::Accepted);
+    // Honoured since T-045: the tag that `Match tagged` reads.
+    assert_eq!(ssh.kind, FlagKind::Supported);
     assert_eq!(cp.kind, FlagKind::Supported);
     // And the lowercase spelling is on `ssh` alone, because that is where
     // OpenSSH puts the port. `scp -p` is "preserve", and podssh matches it.

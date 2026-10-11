@@ -215,10 +215,11 @@ pub const SSH_FLAGS: &[FlagRow] = &[
     // T-038: -L and -D with no address listen on each address, not loopback.
     row(Some('g'), "gateway-ports", None, FlagKind::Supported,
         "remote hosts may connect to local forwarded ports: -L and -D with no address listen on each address", None),
-    // Accepted and ignored. `ssh -G` proves it is a Tag and not a port, and
-    // a user who has memorised `-P` must not be taught a second way to spell it.
-    row(Some('P'), "tag", Some("TAG"), FlagKind::Accepted,
-        "Tag, as OpenSSH ssh reads it", None),
+    // The Tag that `Match tagged` reads (T-045). `ssh -G` proves it is a Tag
+    // and not a port, and a user who has memorised `-P` must not be taught a
+    // second way to spell it.
+    row(Some('P'), "tag", Some("TAG"), FlagKind::Supported,
+        "the Tag that Match tagged reads, as OpenSSH's -P; not a port, which is -p", None),
     // T-038: a local listener that the user asks for, after a probe of the
     // bind before anything connects.
     row(Some('L'), "forward-local", Some("SPEC"), FlagKind::Supported,

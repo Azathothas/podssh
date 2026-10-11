@@ -162,7 +162,7 @@ fn the_p_split_is_visible_in_the_binarys_output() {
     assert_ne!(rc, 0);
     assert!(out.is_empty(), "ssh -P wrote to stdout: {out:?}");
     let err = String::from_utf8_lossy(&err);
-    assert!(err.contains("accepted and ignored"), "{err}");
+    assert!(err.contains("-P 22 is a Tag"), "{err}");
     assert!(err.contains("For a port use -p"), "{err}");
 
     // `cp` works (T-134), so a piped `cp` with no `--timeout` meets the
@@ -178,7 +178,7 @@ fn the_p_split_is_visible_in_the_binarys_output() {
     let err = String::from_utf8_lossy(&err);
     assert_eq!(rc, 69, "offline, no server answers: {err}");
     assert!(out.is_empty(), "cp -P wrote to stdout: {out:?}");
-    assert!(!err.contains("accepted and ignored"), "on cp, -P is the port and there is nothing to warn about: {err}");
+    assert!(!err.contains("is a Tag"), "on cp, -P is the port and there is nothing to warn about: {err}");
 }
 
 /// **No usage block, anywhere, from the real binary.** Plant 3 in its

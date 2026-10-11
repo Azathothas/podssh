@@ -73,17 +73,21 @@ fn chat_with_nothing_refuses_and_is_not_zero() {
     assert!(String::from_utf8(err).unwrap().contains("--timeout"));
 }
 
+/// `-P` on ssh is the Tag of `Match tagged` (T-045): a tag that is a number
+/// gets a note that `-p` is the port, and another tag none.
 #[test]
-fn minus_p_on_ssh_prints_a_notice_and_still_refuses_the_missing_behaviour() {
-    // A destination the relay cannot take: ssh stops before any network.
-    let p = crate::tree::parse(vec!["ssh", "-P", "mytag", "invalid!host"]);
-    let mut out: Vec<u8> = Vec::new();
-    let mut err: Vec<u8> = Vec::new();
-    let rc = run(&p, &mut Streams { out: &mut out, err: &mut err });
-    assert_ne!(rc, 0);
-    let text = String::from_utf8(err).unwrap();
-    assert!(text.contains("accepted and ignored"), "{text}");
-    assert!(text.contains("For a port use -p"), "{text}");
+fn minus_p_on_ssh_with_a_number_prints_a_notice() {
+    for (tag, noted) in [("22", true), ("mytag", false)] {
+        // A destination the relay cannot take: ssh stops before any network.
+        let p = crate::tree::parse(vec!["ssh", "-P", tag, "invalid!host"]);
+        let mut out: Vec<u8> = Vec::new();
+        let mut err: Vec<u8> = Vec::new();
+        let rc = run(&p, &mut Streams { out: &mut out, err: &mut err });
+        assert_ne!(rc, 0);
+        let text = String::from_utf8(err).unwrap();
+        assert_eq!(text.contains(&format!("-P {tag} is a Tag")), noted, "{text}");
+        assert_eq!(text.contains("For a port use -p"), noted, "{text}");
+    }
 }
 
 #[test]

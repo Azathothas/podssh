@@ -50,8 +50,9 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
 - **`-P` has a different meaning for each command.** For `ssh`, `-P` is a
   tag: `ssh -G -P mytag x` prints `tag mytag`, and `-P2222` keeps port 22
   and sets the tag 2222. For `scp` and `sftp`, `-P` is the port. Thus
-  `podssh ssh -P TAG` accepts the tag, ignores it, and says on stderr that
-  `-p` is the port. For `cp`, `mv`, `scp` and `sftp`, `-P` is the port.
+  `podssh ssh -P TAG` sets the tag that `Match tagged` reads (T-045), and a
+  tag that is a number gets a note on stderr that `-p` is the port. For
+  `cp`, `mv`, `scp` and `sftp`, `-P` is the port.
 - **No option is dropped silently.** An unknown flag is an error that names
   the nearest real flag (exit 64). A known flag with no value names the flag,
   in both spellings, and the value that it needs (exit 64). A dropped option
@@ -220,7 +221,8 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   comma list gives several hosts or addresses, and no relay or trust store
   is chosen by its place on the command line.
 - Each flag in the usage of OpenSSH 10.3p1 has a row: supported, accepted
-  with no effect (`-P`, `-g`), or refused by name with what to use instead.
+  with no effect (such as `scp -3`), or refused by name with what to use
+  instead.
   `tests/flag_table.rs` holds the reviewed set. A refusal with nothing to use
   instead says "Leave it out."
 - **`%` tokens are OpenSSH's** (ssh_config(5); the values of
@@ -1145,10 +1147,15 @@ names; a file that `-F` names is the user's choice, and is not checked.
 `ProxyCommand podssh proxy %h %p`, which a user of OpenSSH writes for
 podssh, is accepted, as `podssh ssh` takes that road anyway. `Include` is
 read where it stands, with each file that it reads checked as
-`~/.ssh/config` is. `Match all` applies where it stands, and `Match final
-all` after the last line of the files, where it fills only what is still
-unset; each other `Match` is refused by name with the file and the line
-until T-045. The keywords of the GSSAPI patch of Debian and Fedora
+`~/.ssh/config` is. A `Match` line starts a block that applies when each of
+its criteria holds (T-045): `all`, `host`, `originalhost`, `user`,
+`localuser`, `tagged`, `command`, `sessiontype`, `version` (it matches
+`OpenSSH_10.3p1`, the release whose reading podssh follows), `final` and
+`canonical`, each with `!`, and each with a comma list of patterns but the
+last two and `all`. `Match exec` and `Match localnetwork` are refused by
+name with the file and the line (78), and run nothing, where they would
+decide the block: podssh runs no program for a configuration, and probes no
+interface. `Tag` and `-P` set the tag of `Match tagged`. The keywords of the GSSAPI patch of Debian and Fedora
 (`GSSAPIKexAlgorithms` in Fedora's crypto policy) are accepted with no
 effect, as podssh has no GSSAPI.
 
@@ -1166,8 +1173,9 @@ for each hop too, where OpenSSH's command line holds for the destination
 only.
 
 These are the rules of OpenSSH 10.3p1, measured with `ssh -G`, and podssh
-follows them; `crates/podssh-cli/tests/ssh_config_file.rs` and
-`crates/podssh-cli/tests/ssh_config_include.rs` hold OpenSSH's results:
+follows them; `crates/podssh-cli/tests/ssh_config_file.rs`,
+`crates/podssh-cli/tests/ssh_config_include.rs` and
+`crates/podssh-cli/tests/ssh_config_match.rs` hold OpenSSH's results:
 
 - The first value obtained wins, from top to bottom. The most specific block
   does not win.
@@ -1194,10 +1202,23 @@ follows them; `crates/podssh-cli/tests/ssh_config_file.rs` and
   glob names is skipped. A `Host` line in an included file holds to the end
   of that file. A chain of more than 16 includes is an error.
 - `*` matches across dots.
-- `Match` never overrides a value that is already set. podssh must refuse
-  `Match` by name, not skip it, because `Match` can change the host that
-  podssh connects to. `Match all` applies where it stands; `Match final all`
-  applies after the last line, and fills only what is unset.
+- `Match` never overrides a value that is already set. Its block applies
+  when each criterion holds. `host` and `originalhost` match with no regard
+  to case, the others with it, and `criterion=patterns` reads as `criterion
+  patterns`. `host` is the host after a `HostName` read so far, also one
+  that a `Match` block set; `user` is the user of `-l`, `-o User` or
+  `user@host`, else of a `User` read so far, else the local user; `tagged`
+  with no tag, and `command` with no command, match `""`. `RemoteCommand` is
+  no command for `command` and `sessiontype`. `all` stands alone, or after
+  one criterion: `Match all host h` is an error.
+- A `Match` with `final` and no `!`, also one whose other criterion fails,
+  asks for a final pass: each file is read again, `Host` lines and `Match
+  host` see the host after `HostName`, lowercased, `final` and `canonical`
+  hold, and the blocks that apply then fill what is still unset; a
+  `HostName` in that pass is not taken. A `HostName` alone asks for no final
+  pass, and with none `canonical` never holds. A key file and a forward
+  given twice are kept once, `SendEnv` adds up, and the first `SetEnv` line
+  holds whole.
 - Debian 13 starts its system file with `Include
   /etc/ssh/ssh_config.d/*.conf`; Fedora 42 includes its crypto policy from a
   `Match final all` block.

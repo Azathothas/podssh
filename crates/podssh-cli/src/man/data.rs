@@ -149,7 +149,8 @@ pub fn files() -> Vec<(Vec<String>, String)> {
              names another file, or none. A missing file is no error. A file that another user than you or \
              root owns (on Windows, than you, SYSTEM or the Administrators), or that others can change (on \
              Windows, as its access list says), is refused, and so is each file that an Include reads. Match \
-             is refused by name, with the file and the line, but for Match all and Match final all. Each hop of \
+             is read as OpenSSH 10.3p1 reads it, but Match exec and Match localnetwork, which are refused by \
+             name, with the file and the line, where they would decide, and run nothing. Each hop of \
              -J reads the blocks of its own name, as OpenSSH's jump host does, and logs in as its user@, its \
              User, else the local user."
                 .to_string(),

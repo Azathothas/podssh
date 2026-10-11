@@ -80,23 +80,22 @@ pub fn missing_value(verb: &str, row: &FlagRow) -> String {
     )
 }
 
-/// The message for `-P` on `ssh`, which is **accepted and ignored**, so it
-/// has to say why it did nothing.
+/// The note for `-P` on `ssh`, whose value is a Tag, which `Match tagged`
+/// reads (T-045), not a port: a tag that is a number was most likely meant
+/// as one, so podssh says so before it connects; another tag needs no note.
 ///
-/// The entry's premise said this should be refused, because `ssh -P` was
-/// measured to print `option requires an argument -- P`. **That measurement
-/// was correct and it was about the wrong thing**: it showed `-P` takes an
-/// argument, not that it is absent. MEASURED 2026-10-02, this machine,
-/// OpenSSH_10.3p1: `ssh -G -P mytag example.org` prints `tag mytag`, and
-/// without `-P` there is no `tag` line. `-P` is a real OpenSSH `ssh` flag
-/// whose value is a Tag, and refusing it would refuse a flag a user has
-/// memorised.
-pub fn accepted_tag_notice(tag: &str) -> String {
-    format!(
-        "podssh ssh: -P {tag} accepted and ignored.\n  \
-         On OpenSSH's ssh, -P is a Tag, not a port; it does not change the connection.\n  \
+/// MEASURED 2026-10-02, this machine, OpenSSH_10.3p1: `ssh -G -P mytag
+/// example.org` prints `tag mytag`, and without `-P` there is no `tag`
+/// line. `-P` is a real OpenSSH `ssh` flag whose value is a Tag, and
+/// refusing it would refuse a flag a user has memorised.
+pub fn tag_notice(tag: &str) -> Option<String> {
+    if tag.is_empty() || !tag.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some(format!(
+        "podssh ssh: -P {tag} is a Tag, which Match tagged reads, not a port.\n  \
          For a port use -p. On scp and sftp, -P is the port."
-    )
+    ))
 }
 
 /// The message for an unknown verb, and it carries the whole subcommand list

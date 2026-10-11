@@ -18,6 +18,7 @@ harness sudo interop 3 scripts/interop-sudo.sh
 harness recording interop 3 scripts/interop-recording.sh
 harness x11 interop 3 scripts/interop-x11.sh
 harness stdio interop 3 scripts/interop-stdio.sh
+harness match interop 17 scripts/interop-match.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -477,3 +478,20 @@ x11.no_display pass
 stdio.socket pass
 stdio.socket_refused pass
 stdio.counts pass
+match.basics pass
+match.basics_upper pass
+match.hostname pass
+match.users pass
+match.users_l pass
+match.users_at pass
+match.tagged pass
+match.tagged_p pass
+match.tagged_p2 pass
+match.shell pass
+match.exec pass
+match.none pass
+match.subsystem pass
+match.final pass
+match.final_upper pass
+match.accumulate pass
+match.exec_refused pass

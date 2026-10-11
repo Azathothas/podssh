@@ -28,7 +28,12 @@ pub fn parse_remote_keyword(value: &str) -> Result<RemoteForward, String> {
 /// keeps both.
 pub fn remote_forwards(command_line: &[String], keyword: &[RemoteForward]) -> Result<Vec<RemoteForward>, String> {
     let mut forwards = command_line.iter().map(|spec| parse_remote(spec)).collect::<Result<Vec<_>, _>>()?;
-    forwards.extend(keyword.iter().cloned());
+    // One given twice is asked for once, as OpenSSH keeps it (T-045).
+    for forward in keyword {
+        if !forwards.contains(forward) {
+            forwards.push(forward.clone());
+        }
+    }
     Ok(forwards)
 }
 

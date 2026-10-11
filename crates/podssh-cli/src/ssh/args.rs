@@ -68,6 +68,8 @@ pub struct SshArgs {
     pub sudo: bool,
     /// `--record FILE`: the session's output in an asciicast v2 file (T-033).
     pub record: Option<String>,
+    /// `-P TAG`: the tag that `Match tagged` reads (T-045).
+    pub tag: Option<String>,
     pub su: bool,
     /// `-G`: print the settings, and connect to nothing.
     pub print_config: bool,
@@ -213,6 +215,7 @@ impl SshArgs {
             persist_name: one("persist-name"),
             sudo: flag("sudo"),
             record: one("record"),
+            tag: one("tag").filter(|t| !t.is_empty()),
             su: flag("su"),
             print_config: flag("print-config"),
             remote_forwards: many("forward-remote"),

@@ -223,12 +223,12 @@ pub fn verb_notes(verb: &Verb) -> String {
     let mut s = String::new();
     if verb.name == "ssh" {
         s.push('\n');
-        s.push_str("-L and -D are refused by name: podssh ssh opens no local listener yet.\n");
-        s.push_str("  Use -W HOST:PORT, which carries one connection, or podssh pipe tcp-listen:.\n");
+        s.push_str("-L and -D listen here, and each connection that they take goes on from\n");
+        s.push_str("  the server; -W HOST:PORT carries one connection, with no listener.\n");
         s.push_str("-R [BIND:]PORT:HOST:HOSTPORT: the server listens, and each connection\n");
         s.push_str("  reaches HOST:HOSTPORT from here, through HTTPS_PROXY when it is set.\n");
-        s.push_str("-P on ssh is OpenSSH's Tag, not a port, and is ignored. On scp and\n");
-        s.push_str("  sftp, -P is the port. The meaning is per-verb.\n");
+        s.push_str("-P on ssh is OpenSSH's Tag, which Match tagged reads, not a port. On\n");
+        s.push_str("  scp and sftp, -P is the port. The meaning is per-verb.\n");
     }
     if verb.name == "keygen" {
         s.push('\n');
@@ -418,15 +418,19 @@ mod tests {
         assert!(cp.contains("-P here is the port"), "{cp}");
     }
 
-    /// **`-P` says it once.** The row's own help ended with the same
+    /// **An accepted flag says it once.** `-P`'s row ended with the same
     /// sentence [`help_text`] appends for [`FlagKind::Accepted`], so `--help`
     /// and the man page both printed *"accepted and ignored (accepted and
     /// ignored)"* — and the parity gate reproduced the duplication in both
-    /// renderers, because both walk this function.
+    /// renderers, because both walk this function. `-P` is honoured since
+    /// T-045; scp's `-3` is accepted.
     #[test]
     fn an_accepted_flag_says_it_once() {
-        let ssh = verb_help(VERBS.iter().find(|v| v.name == "ssh").unwrap());
-        let line = ssh.lines().find(|l| l.contains("--tag")).expect("-P, --tag is in the ssh help");
+        let scp = verb_help(VERBS.iter().find(|v| v.name == "scp").unwrap());
+        let line = scp.lines().find(|l| l.contains("--through-this-host")).expect("-3 is in the scp help");
         assert_eq!(line.matches("accepted and ignored").count(), 1, "the sentence must appear once: {line:?}");
+        let ssh = verb_help(VERBS.iter().find(|v| v.name == "ssh").unwrap());
+        let tag = ssh.lines().find(|l| l.contains("--tag")).expect("-P, --tag is in the ssh help");
+        assert!(!tag.contains("accepted and ignored"), "{tag:?}");
     }
 }

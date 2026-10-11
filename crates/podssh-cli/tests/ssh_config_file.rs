@@ -129,10 +129,14 @@ fn a_missing_given_file_is_78_and_a_missing_default_is_nothing() {
 #[test]
 fn match_is_refused_with_file_and_line() {
     let h = Home::new("match");
+    // Read since T-045 (tests/ssh_config_match.rs): Match host applies.
     let f = h.file("match", "Host alias\n  Port 2222\nMatch host alias\n  HostName elsewhere\n");
+    assert_eq!(resolve(&ssh(&["-F", &f, "alias"]), &h.env()).unwrap().options.destination.host, "elsewhere");
+    // Match exec, which podssh does not run, is refused with its place.
+    let f = h.file("exec", "Host alias\n  Port 2222\nMatch exec true\n  HostName elsewhere\n");
     let err = resolve_or_refuse(&ssh(&["-F", &f, "alias"]), &h.env()).unwrap_err();
     assert_eq!(err.code, 78, "{}", err.message);
-    assert!(err.message.contains(&format!("{f}:3: Match")), "{}", err.message);
+    assert!(err.message.contains(&format!("{f}:3: Match exec")), "{}", err.message);
     // In a block that does not apply, an Include is not read (T-044).
     let f = h.file("other", "Host other\n  Include /nonexistent/more\nHost alias\n  Port 2223\n");
     assert_eq!(resolve(&ssh(&["-F", &f, "alias"]), &h.env()).unwrap().options.destination.port, 2223);

@@ -150,9 +150,11 @@ fn match_all_applies_where_it_stands_and_match_final_all_fills_what_is_unset() {
     assert_eq!(user_port(&["-F", &f, "x"]), ("hu".into(), 2111));
     let f = h.file("f9c", "Match final all\n  Port 2112\nHost x\n  Port 2113\n");
     assert_eq!(user_port(&["-F", &f, "x"]), ("lu0".into(), 2113));
-    // Each other Match is still refused by name.
+    // Each other Match is read since T-045, but exec and localnetwork.
     let f = h.file("f9d", "Match host x\n  Port 2114\n");
-    assert!(resolve(&ssh(&["-F", &f, "x"]), &h.env()).unwrap_err().contains(&format!("{f}:1: Match")));
+    assert_eq!(user_port(&["-F", &f, "x"]), ("lu0".into(), 2114));
+    let f = h.file("f9e", "Match localnetwork 10.0.0.0/8\n  Port 2114\n");
+    assert!(resolve(&ssh(&["-F", &f, "x"]), &h.env()).unwrap_err().contains(&format!("{f}:1: Match localnetwork")));
 }
 
 #[test]

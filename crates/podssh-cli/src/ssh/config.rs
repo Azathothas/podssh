@@ -4,13 +4,16 @@
 //! line starts a block that applies when one of its patterns matches the
 //! host as typed, case and all, and none of its negated ones does; the first
 //! value obtained wins, and the command line beats the files. `Include` is
-//! read where it stands. `Match all` applies where it stands and `Match
-//! final all` after the last line; each other `Match` is refused by name
-//! with FILE:LINE until T-045, as it can change the host that podssh
-//! connects to, so a skipped one would be a silent change of the
-//! destination.
+//! read where it stands. A `Match` line starts a block that applies when
+//! its criteria hold (T-045, `matching`); one with `final` asks for a final
+//! pass, in which OpenSSH 10.3p1 reads each file again with the host after
+//! `HostName`, lowercased, so that `Host` lines match that host, `final`
+//! and `canonical` hold, and the values still unset are filled (measured).
 
 mod glob;
+mod matching;
+
+pub use matching::Given;
 
 use std::path::{Path, PathBuf};
 
@@ -63,6 +66,8 @@ pub struct Context<'a> {
     /// The `%` tokens of an `Include`, with the values of the moment: the
     /// command line's, and those of the lines read so far.
     pub tokens: &'a dyn Fn(&Settings) -> Tokens,
+    /// What `Match` reads of the command line (T-045).
+    pub given: Given<'a>,
 }
 
 /// A chain of includes stops here, as in OpenSSH (`READCONF_MAX_DEPTH`).
@@ -87,16 +92,20 @@ pub fn read(source: &Source, ctx: &Context, ignore_unknown: Option<String>) -> R
         ctx,
         out: Settings { ignore_unknown, ..Settings::default() },
         pass: Pass::First,
-        saw_final: false,
+        wants_final: false,
+        final_host: String::new(),
         chain: Vec::new(),
     };
-    for pass in [Pass::First, Pass::Final] {
-        if pass == Pass::Final && !reader.saw_final {
-            break;
-        }
-        reader.pass = pass;
+    for (path, kind) in &files {
+        reader.file(path, *kind, true)?;
+    }
+    if reader.wants_final {
+        // A name is lowercased, as OpenSSH lowercases it; an address is not.
+        let host = reader.host_now()?;
+        reader.final_host = if host.parse::<std::net::IpAddr>().is_ok() { host } else { host.to_ascii_lowercase() };
+        reader.pass = Pass::Final;
         for (path, kind) in &files {
-            reader.file(path, *kind, Block::First)?;
+            reader.file(path, *kind, true)?;
         }
     }
     Ok(reader.out)
@@ -113,22 +122,12 @@ enum Kind {
 }
 
 /// The first pass reads each block that applies; the second, only when a
-/// `Match final all` was met, reads those blocks, so that they fill only
-/// what is still unset, as OpenSSH's final pass does.
+/// `Match` with `final` asked for it, reads each file again, so that the
+/// blocks that apply then fill what is still unset, as OpenSSH's final pass
+/// does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Pass {
     First,
-    Final,
-}
-
-/// The block that a line is in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Block {
-    /// A `Host` that does not apply.
-    Off,
-    /// The top of a file, a `Host` that applies, or `Match all`.
-    First,
-    /// `Match final all`.
     Final,
 }
 
@@ -136,15 +135,18 @@ struct Reader<'a> {
     ctx: &'a Context<'a>,
     out: Settings,
     pass: Pass,
-    saw_final: bool,
+    /// A `Match` asked for the final pass.
+    wants_final: bool,
+    /// The host of the final pass.
+    final_host: String,
     /// The files being read, for the message of a loop.
     chain: Vec<String>,
 }
 
 impl Reader<'_> {
-    /// Read `path` in `block`, the block of the line that names it: a `Host`
-    /// line in it holds to its end only.
-    fn file(&mut self, path: &Path, kind: Kind, block: Block) -> Result<(), String> {
+    /// Read `path` in the block of the line that names it, which applies: a
+    /// `Host` line in it holds to its end only.
+    fn file(&mut self, path: &Path, kind: Kind, active: bool) -> Result<(), String> {
         let shown = path.display().to_string();
         let checked = matches!(kind, Kind::User | Kind::Included { .. });
         let Some(text) = read_file(path, checked)? else {
@@ -158,12 +160,12 @@ impl Reader<'_> {
         }
         self.chain.push(shown.clone());
         let system = matches!(kind, Kind::System | Kind::Included { system: true });
-        let read = self.lines(&shown, &text, system, block);
+        let read = self.lines(&shown, &text, system, active);
         self.chain.pop();
         read
     }
 
-    fn lines(&mut self, file: &str, text: &str, system: bool, mut block: Block) -> Result<(), String> {
+    fn lines(&mut self, file: &str, text: &str, system: bool, mut active: bool) -> Result<(), String> {
         for (i, raw) in text.lines().enumerate() {
             let n = i + 1;
             let line = raw.trim();
@@ -174,44 +176,67 @@ impl Reader<'_> {
             let value = uncomment(value).trim_end();
             let at = |why: &str| format!("{file}:{n}: {}", why.strip_prefix("-o ").unwrap_or(why));
             match keyword.to_ascii_lowercase().as_str() {
-                "host" => block = if host_matches(value, self.ctx.host) { Block::First } else { Block::Off },
-                "match" => block = self.matched(value).map_err(|why| at(&why))?,
-                // An `Include` of a block read in neither pass is not read:
-                // a block for another host must not stop each connection.
-                "include" if block == Block::First || (self.pass == Pass::Final && block == Block::Final) => {
-                    self.include(value, system, block).map_err(|why| at(&why))?
+                "host" => {
+                    let host = if self.pass == Pass::Final { self.final_host.as_str() } else { self.ctx.host };
+                    active = host_matches(value, host);
                 }
+                "match" => active = self.matched(value).map_err(|why| at(&why))?,
+                // An `Include` of a block that does not apply is not read: a
+                // block for another host must not stop each connection.
+                "include" if active => self.include(value, system).map_err(|why| at(&why))?,
                 "include" => {}
-                _ if self.applies(block) => self.out.apply(&format!("{keyword}={value}")).map_err(|why| at(&why))?,
+                // The final pass keeps the host of the first, as OpenSSH sets
+                // it before it reads again: a `HostName` there is not taken.
+                "hostname" if self.pass == Pass::Final => {}
+                _ if active => self.out.apply(&format!("{keyword}={value}")).map_err(|why| at(&why))?,
                 _ => {}
             }
         }
         Ok(())
     }
 
-    fn applies(&self, block: Block) -> bool {
-        match self.pass {
-            Pass::First => block == Block::First,
-            Pass::Final => block == Block::Final,
+    /// The host after `HostName`, the command line's or the files' so far,
+    /// with `%h` given; the host as typed with none.
+    fn host_now(&self) -> Result<String, String> {
+        match self.ctx.given.host_name.or(self.out.host_name.as_deref()) {
+            Some(name) => super::tokens::host_name(name, self.ctx.host),
+            None => Ok(self.ctx.host.to_string()),
         }
     }
 
-    fn matched(&mut self, value: &str) -> Result<Block, String> {
-        let words: Vec<String> = value.split_whitespace().map(str::to_ascii_lowercase).collect();
-        match words.iter().map(String::as_str).collect::<Vec<_>>()[..] {
-            ["all"] => Ok(Block::First),
-            ["final", "all"] => {
-                self.saw_final = true;
-                Ok(Block::Final)
-            }
-            _ => Err(MATCH_REFUSED.to_string()),
-        }
+    /// Whether the block of a `Match` line applies, as its criteria see the
+    /// command line and the lines read so far.
+    fn matched(&mut self, value: &str) -> Result<bool, String> {
+        let host = match self.pass {
+            Pass::First => self.host_now()?,
+            Pass::Final => self.final_host.clone(),
+        };
+        let given = &self.ctx.given;
+        let session = match given.session.or(self.out.session_type.as_deref()) {
+            Some("none") => "none",
+            Some("subsystem") => "subsystem",
+            _ if !given.command.is_empty() => "exec",
+            _ => "shell",
+        };
+        let seen = matching::Seen {
+            host: &host,
+            original: self.ctx.host,
+            user: given.user.or(self.out.user.as_deref()).or(given.local_user),
+            local_user: given.local_user,
+            tag: given.tag.or(self.out.tag.as_deref()).unwrap_or(""),
+            command: &given.command,
+            session,
+            final_pass: self.pass == Pass::Final,
+        };
+        let outcome = matching::evaluate(value, &seen)?;
+        self.wants_final |= outcome.wants_final;
+        Ok(outcome.applies)
     }
 
     /// Each file that an `Include` names, in order: its `%` tokens and `~`
     /// expanded, a relative path from `~/.ssh`, or from the system's
     /// directory for a system file, and a glob's names sorted.
-    fn include(&mut self, value: &str, system: bool, block: Block) -> Result<(), String> {
+    fn include(&mut self, value: &str, system: bool) -> Result<(), String> {
         let names = super::options::words(value);
         if names.is_empty() {
             return Err("Include needs a file".into());
@@ -234,16 +259,12 @@ impl Reader<'_> {
                 if found.is_dir() {
                     continue;
                 }
-                self.file(&found, Kind::Included { system }, block)?;
+                self.file(&found, Kind::Included { system }, true)?;
             }
         }
         Ok(())
     }
 }
-
-const MATCH_REFUSED: &str =
-    "Match is not read yet, but for Match all and Match final all; podssh refuses it rather than skip it, as it can \
-     change the host";
 
 /// The largest file read: far above any configuration, and a bound on a
 /// device or a pipe that never ends.

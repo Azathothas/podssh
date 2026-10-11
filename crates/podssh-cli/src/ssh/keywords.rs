@@ -71,6 +71,7 @@ pub const HONOURED: &[Keyword] = &[
     kw("SessionType", "none|subsystem|default", "none is -N and subsystem is -s", "none"),
     kw("SetEnv", "NAME=VALUE...", "set these variables on the server", "A=1"),
     kw("StdinNull", "yes|no", "the same as -n", "yes"),
+    kw("Tag", "NAME", "the tag that Match tagged reads; the same as -P", "work"),
     kw("StrictHostKeyChecking", "yes|accept-new|no|ask", "what to do with an unknown host key (default ask); a changed key is refused with each value", "accept-new"),
     kw("User", "USER", "the same as -l, but it takes the % tokens, not %C or %r", "user"),
     kw("UserKnownHostsFile", "FILE...|none", "the user's known_hosts files; a new host key goes to the first", "/dev/null"),
@@ -92,7 +93,7 @@ pub const IGNORED: &[&str] = &[
     "LocalCommand", "LogVerbose", "MACs", "NoHostAuthenticationForLocalhost", "ObscureKeystrokeTiming",
     "PermitLocalCommand", "PubkeyAcceptedAlgorithms", "PubkeyAcceptedKeyTypes", "RekeyLimit",
     "RequiredRSASize", "SecurityKeyProvider", "StreamLocalBindMask", "StreamLocalBindUnlink",
-    "SyslogFacility", "Tag", "TCPKeepAlive", "Tunnel", "TunnelDevice", "UpdateHostKeys", "VerifyHostKeyDNS",
+    "SyslogFacility", "TCPKeepAlive", "Tunnel", "TunnelDevice", "UpdateHostKeys", "VerifyHostKeyDNS",
     "VersionAddendum", "VisualHostKey", "WarnWeakCrypto",
 ];
 
