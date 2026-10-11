@@ -27,10 +27,10 @@ Read:
 
 - `resolve` removes `publickey` from the methods when `PubkeyAuthentication`
   is `no` (`crates/podssh-cli/src/ssh/resolve.rs:263-271`). The chain then
-  never offers a key (`crates/podssh-ssh/src/auth.rs:107-109`).
+  never offers a key (`crates/podssh-ssh/src/auth.rs:111-113`).
 - The denial adds the notes of the keys with no condition
   (`crates/podssh-ssh/src/auth.rs` line 115 at `475aea9`). `PublicKeys::notes` writes "no key
-  was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:95-108`).
+  was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:96-109`).
 - The reporter's output (GitHub #7): the line
   `Permission denied (publickey,keyboard-interactive).`, the note about
   keyboard-interactive, then the wrong note.
@@ -52,9 +52,9 @@ Read:
 3. When the server does not accept `publickey`, say nothing about keys:
    `-i FILE` cannot help.
 4. Give the note about skipped encrypted keys
-   (`crates/podssh-ssh/src/keys.rs:109-115`) the same condition as step 1.
-5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:102`),
-   so that only the notes change. No document changes: `docs/cli.md:850-893`
+   (`crates/podssh-ssh/src/keys.rs:110-116`) the same condition as step 1.
+5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:106`),
+   so that only the notes change. No document changes: `docs/cli.md:879-922`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:203` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:270`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:271`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -295,13 +295,13 @@ Read:
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:793-848`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:822-877`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:803-806`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:832-835`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:793-848`, and the measurement in
+5. Write the measured rule in `docs/cli.md:822-877`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:226-233` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:197`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5434`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5435`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:850-893` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:879-922` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -1209,9 +1209,9 @@ runs: with no user database entry, OpenSSH's programs stop at once
 - Read: podssh uses an agent that `SSH_AUTH_SOCK` names, today. On Unix it
   connects to that socket, or to `IdentityAgent PATH`; on Windows it tries
   the named pipe of `SSH_AUTH_SOCK`, then the pipe of the OpenSSH agent, then
-  Pageant (`crates/podssh-ssh/src/keys.rs:275-307`, `connect_agent`). It offers the agent's
-  keys first (`crates/podssh-ssh/src/keys.rs:119-171`), and skips the agent's
-  certificates (`crates/podssh-ssh/src/keys.rs:127-130`).
+  Pageant (`crates/podssh-ssh/src/keys.rs:290-327`, `connect_agent`). It offers the agent's
+  keys first (`crates/podssh-ssh/src/keys.rs:120-172`), and skips the agent's
+  certificates (`crates/podssh-ssh/src/keys.rs:128-131`).
 - Read: russh 0.64.1, which the binary links, has an agent server
   (`russh::keys::agent::server::serve`): identities, signatures, add and
   remove, lock, and the lifetime and confirm constraints. It has no handler
@@ -1472,7 +1472,7 @@ here on `3ee70dc`.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1484,16 +1484,15 @@ clients store credentials; podssh stores none.
 
 ## Premise
 
-Read:
-
+Read, at `4cfbd5f`:
 - A prompt goes to `SSH_ASKPASS` or to the terminal; with neither, podssh
   refuses and names the remedy (`crates/podssh-ssh/src/prompt.rs:47-82`).
   The askpass program's answer is zeroized
   (`crates/podssh-ssh/src/prompt.rs:94-111`).
 - The prompts for a credential: the passphrase of a key file
-  (`crates/podssh-ssh/src/keys.rs:211-236`), the password
-  (`crates/podssh-ssh/src/auth.rs:231-274`), and the answers of
-  keyboard-interactive (`crates/podssh-ssh/src/auth.rs:176-229`).
+  (`crates/podssh-ssh/src/keys.rs`, lines 211-236), the password
+  (`crates/podssh-ssh/src/auth.rs`, lines 231-274), and the answers of
+  keyboard-interactive (the same file, lines 176-229).
 - podssh stores no credential but the relay token cache, readable by the
   owner only (`crates/podssh-relay/src/cache.rs:1-12`).
 - russh's agent server has no handler for the extension message (27), so a
@@ -1529,6 +1528,23 @@ alternative, a file encrypted with a passphrase, lost for now: it adds a
 format, a key derivation and the case of a lost passphrase. It can be a
 later step if a credential must outlive a restart of the agent.
 
+Taken, with these calls made in the work (2026-10-11). The store is
+`crates/podssh-ssh/src/credential_store.rs`, a layer in front of russh's agent server: it reads
+each message of a client, answers the four requests of the store itself, and passes each other
+message to russh's server, and its answer back. It reads the answers to a lock and an unlock
+(22 and 23), and while the agent is locked the store answers FAILURE. A frame over 256 KiB ends
+the connection, as OpenSSH's agent bounds its own. A password's name is `USER@HOST:PORT`, the
+host in lower case and an IPv6 address in brackets; a passphrase's is the key file's absolute
+path. `add-password` names the user, the host and the port as `podssh ssh` would log in, its
+ssh_config read; `add-passphrase` keeps only a passphrase that opens its file, and refuses a
+file that needs none, with 65. keyboard-interactive takes a kept password only for a round of
+one prompt with no echo whose text holds "password", in any case; a round of other prompts goes
+to the terminal as before. The same prompt asked again, or a failure, is a refusal, and the
+agent forgets the password. `IdentityAgent none` asks no agent, so no store either. A question
+to the store has 5 s, its connection included. An agent that answers FAILURE or
+EXTENSION_FAILURE (28), or closes the connection at the question, has no store, and the prompt
+goes on.
+
 ## Prove
 
 ```sh
@@ -1545,6 +1561,46 @@ podtest from stdin, and runs `podssh ssh` to port 2201 with
 During the run,
 `ps -ef` shows the password in no argv, and the output of `-vvv` does not
 hold it. Planted defect: log the value at `-vvv`, and that check fails.
+
+## Done
+
+2026-10-11. `podssh agent add-password [USER@]HOST[:PORT]` and `add-passphrase FILE` keep a
+server's password and a key file's passphrase in the memory of `podssh agent`, for its life or
+`-t SECONDS`. `podssh ssh` asks the agent of `SSH_AUTH_SOCK` before the prompt of a key file's
+passphrase, of a password, and of the one password prompt of keyboard-interactive, also under
+`BatchMode`, and the agent forgets what a server or a key file refuses. `podssh doctor` has a line
+`agent`: none runs, the count that `podssh agent` keeps, or an agent with no store. `docs/cli.md`
+gives the extension messages and the exit codes; the manual's EXIT STATUS has 65 and the 69 of
+`podssh agent`.
+- `cargo test -p podssh-ssh --lib -- credential_store`: 6 passed, on Windows and in the build
+  image: a password and a passphrase kept and found under their names, and none for another host,
+  port, user or kind; a refused password forgotten; a locked agent silent until the unlock, with
+  the agent's own messages passed to its server; an agent with no store, which answers FAILURE or
+  28, or closes the connection; a lifetime; a frame over the bound.
+- `cargo test -p podssh-cli --test agent_store`: 4 passed, on Windows and in the build image,
+  against russh's server on the loopback, which takes only a password or only
+  keyboard-interactive. `add-password` took the password on stdin, and `podssh ssh -o
+  BatchMode=yes -o PubkeyAuthentication=no`, with no `SSH_ASKPASS`, logged in by each method;
+  `-vvv` named the agent as the source of the password, never the value. A refused password was
+  forgotten: in two runs the server saw it once. `podssh doctor` said that the agent keeps 1, and
+  named no user, host or secret. Planted: the value in a debug line beside the line that names the
+  source; the tests of the password and of keyboard-interactive failed.
+- The doctor's tests failed in their first run on this host, where no agent runs: russh's stream
+  to Pageant opens when no Pageant runs, and closes at the first request, so the line said FAIL.
+  podssh now asks for Pageant's window first (`crates/podssh-ssh/src/keys.rs:312-316`), which also
+  spares `podssh ssh` that stream, and reads an agent that closes the connection at the store's
+  question as one with no store (`crates/podssh-ssh/src/credential_store.rs:310-317`). The
+  doctor's tests: 10 passed, on Windows and in the build image.
+- `cargo test -p podssh-ssh -p podssh-cli`: 630 passed, 0 failed, 31 ignored, on Windows; clippy
+  with all features.
+- In the build image, the step `release` (a static build): interop 312 passed, 0 failed, and the
+  agent harness 22 of 22, at its floor (`scripts/interop-baseline.txt`, 333 ids). podtest's
+  password, from stdin, logged in to OpenSSH's sshd on port 2201 under `BatchMode`, with no
+  `SSH_ASKPASS` and no keys; `ps -ef` showed it in no argv during the run, and `-vvv` said "the
+  password for podtest@127.0.0.1:2201 from podssh agent", never the value. After `remove --all`,
+  the kept passphrase of `id_enc` opened it under `BatchMode`. That run's tree lacked what came
+  after it: the Pageant check, the closed connection and 28 as no store, the doctor's test, the
+  name of 65, and texts. The plant in the gate waits for T-251.
 
 # T-229: Hardware keys (FIDO2 `sk-` keys) in `podssh keygen`, the client and `podssh agent`
 
@@ -1574,7 +1630,7 @@ with the key file of one, and has no agent to hold one.
   them (`crates/podssh-ssh/src/known_hosts.rs:382-383`), and `ssh-key`
   0.7.0-rc.11 has their algorithms.
 - Read: podssh offers each key that an agent lists
-  (`crates/podssh-ssh/src/keys.rs:119-171`), so an `sk-` key in OpenSSH's
+  (`crates/podssh-ssh/src/keys.rs:120-172`), so an `sk-` key in OpenSSH's
   `ssh-agent`, with its device present, can work today. Not measured.
 - Read: `-I` (PKCS#11) is refused by name
   (`crates/podssh-cli/src/flags.rs:238-239`).
@@ -1650,7 +1706,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:150`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:864-867`). A person who types slowly must not meet a limit
+  `docs/cli.md:893-896`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -1667,14 +1723,14 @@ Not measured: it needs a server that stalls.
    (line 148 at `8d668b7` there), keyboard-interactive (`crates/podssh-ssh/src/auth.rs`
    lines 162-165 and 194 at `8d668b7`) and the password (lines 214-218 at `8d668b7` there).
 3. Do not count a local prompt: each prompt runs before its request
-   (`crates/podssh-ssh/src/auth.rs:169-174`). Pitfall: an agent that asks its
+   (`crates/podssh-ssh/src/auth.rs:173-178`). Pitfall: an agent that asks its
    user to confirm a signature (`ssh-add -c`) runs inside the agent request.
 4. On expiry, end with 255, and name the step, as "HOST did not answer the
    publickey request within 60 s".
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:36-37`,
    `crates/podssh-cli/src/flags.rs:169-170`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:891-893` asks for a limit on the whole operation.
+   `docs/cli.md:920-922` asks for a limit on the whole operation.
 
 ## Decision
 

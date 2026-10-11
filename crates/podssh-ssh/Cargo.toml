@@ -45,6 +45,10 @@ windows-sys = { version = "0.61", features = [
     "Win32_System_Console",
     "Win32_System_IO",
 ] }
+# Whether Pageant runs (T-228): russh's stream to Pageant opens when none
+# does, and closes at the first request. The version that russh pulls in, so
+# nothing new is compiled.
+pageant = { version = "0.2.4", default-features = false, features = ["wmmessage"] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "signal", "process"] }

@@ -47,7 +47,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    `crates/podssh-cli/src/dispatch.rs:125-141`. `tree.rs` has 454 lines and `dispatch.rs` 448:
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
-   tokens today (`crates/podssh-cli/tests/doctor.rs:130-155`).
+   tokens today (`crates/podssh-cli/tests/doctor.rs:131-156`).
 6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:271-291`) and
    `docs/cli.md:427-445` in the same commit.
 
@@ -72,7 +72,7 @@ echo "exit=$?"
 cargo test -p podssh-cli --test doctor -- --ignored  # the live relay, on request
 ```
 
-The new tests run the binary offline, as `crates/podssh-cli/tests/doctor.rs:98-119` does: stdout
+The new tests run the binary offline, as `crates/podssh-cli/tests/doctor.rs:99-120` does: stdout
 is one JSON object; each text line has an item with the same check, status and detail; the
 counts agree; a planted proxy password and a planted token do not appear. Planted defect: leave
 the last check out of the JSON; the parity test fails.
@@ -316,7 +316,7 @@ session to `github.com:22` and checks the host key against GitHub's published ke
 banner step. The script's `ssh` steps trust the key on first use (`accept-new`, line 65), not by
 equality, and its `-tt` step never reaches a pty request: GitHub refuses the key before a
 channel opens. `keygen::generate` makes a key in memory (`crates/podssh-ssh/src/keygen.rs:62-72`),
-and `crates/podssh-ssh/src/keys.rs:85-88` offers a key to the server.
+and `crates/podssh-ssh/src/keys.rs:86-89` offers a key to the server.
 
 ## Approach
 
@@ -590,7 +590,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:852-868`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:881-897`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:277-287`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:116-126`), and stdio needs no listener.

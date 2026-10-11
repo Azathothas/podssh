@@ -317,7 +317,7 @@ where
         Ok(Ok(handle)) => handle,
     };
     retry::reached(Phase::Auth);
-    auth::authenticate(&mut handle, &user, &hop.host, opts, log).await.map_err(|e| match e {
+    auth::authenticate(&mut handle, &user, &hop.host, hop.port, opts, log).await.map_err(|e| match e {
         auth::AuthError::Refused(m) => HopError::Auth(m),
         auth::AuthError::Broke(m) => HopError::Unreachable(m),
     })?;

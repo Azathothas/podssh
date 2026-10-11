@@ -27,6 +27,7 @@ const STEERING: &[&str] = &[
     "PODSSH_RELAY_ADDR",
     "PODSSH_RELAY_TOKEN",
     "SSL_CERT_FILE",
+    "SSH_AUTH_SOCK",
 ];
 
 struct Run {

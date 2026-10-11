@@ -747,11 +747,40 @@ OpenSSH program that runs; one binary, as the operator ruled (Q5).
   each use (`ssh-add -c`) is never used: nobody can confirm one. russh's
   agent keeps no comment of a key, so `list` shows the size, the
   fingerprint and the type.
-- Exit codes: 0; 1 (`list`, no key); 64 a usage error; 66 a key file that
-  cannot be read; 69 no agent answers at `SSH_AUTH_SOCK`; 70 the agent
-  refused a request; 73 the agent's directory could not be made; 77 a
-  passphrase or password that was wrong or did not come; 78
-  `PODSSH_LISTEN=no`; 129, 130 or 143 at the signal that ends the agent.
+- A store of credentials (T-228): `podssh agent add-password
+  [USER@]HOST[:PORT]` keeps a server's password, under the user, host and
+  port that `podssh ssh` logs in with (its ssh_config read), and
+  `add-passphrase FILE` the passphrase of a key file that the agent does not
+  hold, once it opens the file. The secret comes from stdin when stdin is no
+  terminal, else from the terminal or `SSH_ASKPASS`; never from the command
+  line. `-t SECONDS` ends it. Only podssh's agent keeps them, in its memory,
+  and tells them to its own user only. `podssh ssh` asks the agent of
+  `SSH_AUTH_SOCK` (none with `IdentityAgent none`) before each prompt for a
+  key file's passphrase, a password, or the password that keyboard-interactive
+  asks for with one prompt with no echo; `BatchMode` forbids the prompt, not
+  the question. A secret that a server or a key file refuses is forgotten,
+  and never tried twice. `-v` names where a secret came from, never its
+  value; `podssh doctor` says how many the agent keeps, never which; a
+  locked agent tells none.
+- The agent protocol carries them in its extension message (27,
+  draft-miller-ssh-agent, section 3.8), under these names, which podssh
+  agent answers before russh's server: `store@podssh` (kind, name, secret,
+  a lifetime in seconds or 0), `lookup@podssh` (kind, name: SUCCESS, a
+  byte 1 and the secret, or a byte 0), `forget@podssh` (kind, name) and
+  `count@podssh` (SUCCESS and a count). A kind is `password`, whose name is
+  `USER@HOST:PORT`, the host in lower case, or `passphrase`, whose name is
+  the key file's absolute path. Another agent answers FAILURE or
+  EXTENSION_FAILURE (28), or closes the connection: podssh reads each as an
+  agent with no store, and goes on to the prompt. On Windows, with no
+  `SSH_AUTH_SOCK` and no OpenSSH agent, podssh asks Pageant only when its
+  window is there.
+- Exit codes: 0; 1 (`list`, no key); 64 a usage error; 65 a passphrase
+  that does not open its file, or a file that needs none; 66 a key file
+  that cannot be read, or no secret came; 69 no agent answers at
+  `SSH_AUTH_SOCK`, or it keeps no passwords; 70 the agent refused a
+  request; 73 the agent's directory could not be made; 77 a passphrase or
+  password that was wrong or did not come; 78 `PODSSH_LISTEN=no`; 129, 130
+  or 143 at the signal that ends the agent.
 
 ## `podssh chat`
 

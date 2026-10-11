@@ -15,6 +15,7 @@ use russh::keys::{HashAlg, PrivateKey, PrivateKeyWithHashAlg, PublicKey};
 
 use crate::answer::{within, within_signing, AgentTime, Timed};
 use crate::auth::Step;
+use crate::credential_store::{self, Target};
 use crate::handler::Client;
 use crate::log::Log;
 use crate::options::{Agent, Options};
@@ -209,6 +210,20 @@ impl PublicKeys {
     }
 
     async fn decrypt(&mut self, path: &Path) -> Option<PrivateKey> {
+        // The passphrase that podssh agent keeps (T-228): BatchMode forbids
+        // a prompt, not this. One that does not open the key is forgotten.
+        let target = Target::passphrase(path);
+        if let Some(stored) = credential_store::stored(&self.agent_choice, &target, &self.log).await {
+            match russh::keys::load_secret_key(path, Some(stored.as_str())) {
+                Ok(key) => {
+                    if let Some(memory) = &self.remembered {
+                        memory.keep_key(path, &key);
+                    }
+                    return Some(key);
+                }
+                Err(_) => credential_store::forget(&self.agent_choice, &target, &self.log).await,
+            }
+        }
         if !self.can_prompt || !prompt::can_ask() {
             self.skipped_encrypted.push(path.to_path_buf());
             return None;
@@ -293,6 +308,11 @@ pub(crate) async fn connect_agent(choice: &Agent) -> Result<Option<DynAgent>, St
                 .unwrap_or_else(|| r"\\.\pipe\openssh-ssh-agent".into());
             if let Ok(a) = AgentClient::connect_named_pipe(&pipe).await {
                 return Ok(Some(a.dynamic()));
+            }
+            // The stream to Pageant opens when no Pageant runs, and closes
+            // at the first request: ask for its window first.
+            if !pageant::wmmessage::is_pageant_running() {
+                return Ok(None);
             }
             match AgentClient::connect_pageant().await {
                 Ok(a) => Ok(Some(a.dynamic())),

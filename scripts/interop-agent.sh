@@ -42,6 +42,46 @@ if [ -n "$sock" ] && [ -S "$sock" ]; then
     expect_rc agent.forward "podssh ssh -A forwards podssh agent: ssh-add -l on the server" 0 $? "$AG/err4"
     grep -q "$want" "$AG/out" && ok agent.forward_key "the server sees id_enc ($want) through the forward" ||
         bad agent.forward_key "the forward of podssh agent did not list $want" "$AG/out"
+
+    # T-228: podtest's password, from stdin, kept by the agent. podssh ssh
+    # logs in with it under BatchMode with no SSH_ASKPASS, and no argv of
+    # the run and no line of -vvv holds it.
+    printf '%s\n' "$PW" | timeout 20 env SSH_AUTH_SOCK="$sock" HOME="$W" "$BIN" agent add-password "$T:2201" \
+        >"$AG/out" 2>"$AG/err5"
+    expect_rc agent.store.add_password "podssh agent add-password takes the password from stdin" 0 $? "$AG/err5"
+    rm -f "$AG/rc6"
+    (
+        timeout 30 env -u SSH_ASKPASS SSH_AUTH_SOCK="$sock" HOME="$W" "$BIN" ssh -vvv --direct -p 2201 \
+            -o UserKnownHostsFile="$KH" -o PubkeyAuthentication=no -o BatchMode=yes "$T" 'sleep 2; echo stored-login' \
+            </dev/null >"$AG/out" 2>"$AG/err6"
+        echo $? >"$AG/rc6"
+    ) &
+    in_argv=0
+    while [ ! -s "$AG/rc6" ]; do
+        ps -ef 2>/dev/null | grep -F -- "$PW" | grep -v grep >/dev/null && in_argv=1
+        sleep 0.2
+    done
+    rc=$(cat "$AG/rc6")
+    [ "$rc" = 0 ] && [ "$(cat "$AG/out")" = stored-login ] && [ "$in_argv" = 0 ] && ! grep -qF -- "$PW" "$AG/err6" \
+        && grep -q "the password for podtest@127.0.0.1:2201 from podssh agent" "$AG/err6" \
+        && ok agent.store.password \
+            "BatchMode and no SSH_ASKPASS: the password that podssh agent keeps logs in, in no argv and not in -vvv" \
+        || bad agent.store.password "the kept password: exit $rc, seen in an argv: $in_argv" "$AG/err6"
+
+    # T-228: id_enc's passphrase, kept by the agent, which then holds no key:
+    # podssh ssh -i opens the file with it under BatchMode.
+    timeout 20 env SSH_AUTH_SOCK="$sock" HOME="$W" "$BIN" agent remove --all </dev/null >/dev/null 2>&1
+    printf 'open sesame\n' | timeout 20 env SSH_AUTH_SOCK="$sock" HOME="$W" "$BIN" agent add-passphrase "$W/id_enc" \
+        >"$AG/out" 2>"$AG/err7"
+    expect_rc agent.store.add_passphrase "podssh agent add-passphrase takes id_enc's passphrase from stdin" 0 $? \
+        "$AG/err7"
+    timeout 30 env -u SSH_ASKPASS SSH_AUTH_SOCK="$sock" HOME="$W" "$BIN" ssh -v --direct -p 2201 \
+        -o UserKnownHostsFile="$KH" -o BatchMode=yes -o IdentitiesOnly=yes -i "$W/id_enc" "$T" true \
+        </dev/null >"$AG/out" 2>"$AG/err8"
+    rc=$?
+    [ "$rc" = 0 ] && grep -q "the passphrase for $W/id_enc from podssh agent" "$AG/err8" \
+        && ok agent.store.passphrase "BatchMode: the passphrase that podssh agent keeps opens id_enc" \
+        || bad agent.store.passphrase "the kept passphrase: exit $rc" "$AG/err8"
 else
     bad agent.serve "podssh agent did not say SSH_AUTH_SOCK" "$AG/err"
 fi

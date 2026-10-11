@@ -98,7 +98,7 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     (
         &["SSH_AUTH_SOCK"],
         "The SSH agent's socket. On Windows, a named pipe; with none set, podssh tries the pipe of the \
-      OpenSSH agent, then Pageant.",
+      OpenSSH agent, then Pageant when its window is there.",
     ),
     (
         &["SSH_ASKPASS", "SSH_ASKPASS_REQUIRE", "DISPLAY", "WAYLAND_DISPLAY"],

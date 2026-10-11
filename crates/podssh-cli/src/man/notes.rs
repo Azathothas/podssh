@@ -314,6 +314,13 @@ const AGENT: &[&str] = &[
      SSH_AUTH_SOCK, podssh's or OpenSSH's, as ssh-add does; a passphrase or a password is asked on the terminal or \
      through SSH_ASKPASS. Keys live in the agent's memory only. A key that asks for a confirmation of each use is \
      never used. list writes the size, the fingerprint and the type of each key, and exits 1 when there is none.",
+    "add-password [USER@]HOST[:PORT] and add-passphrase FILE (with -t SECONDS for a lifetime) give podssh's agent a \
+     server's password or a key file's passphrase, from stdin when stdin is no terminal, else from the terminal or \
+     SSH_ASKPASS, never from the command line; a passphrase must open its file. The agent keeps each in its memory \
+     only, and tells it only to its own user. podssh ssh asks the agent of SSH_AUTH_SOCK before each prompt for a \
+     password, a passphrase or a password of keyboard-interactive, also with BatchMode, and the agent forgets one \
+     that a server refuses; -v names where a secret came from, never its value. podssh doctor says how many the \
+     agent keeps, never which. A locked agent tells none.",
 ];
 
 const KEYGEN: &[&str] = &[

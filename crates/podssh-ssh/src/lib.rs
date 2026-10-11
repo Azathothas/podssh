@@ -22,6 +22,7 @@
 mod agent_forward;
 mod answer;
 pub mod auth;
+pub mod credential_store;
 pub mod escape;
 pub mod exec;
 pub mod forward;

@@ -2,23 +2,24 @@
 //! listener (a socket of mode 0600 whose peers of another user are closed,
 //! or on Windows a named pipe whose clients must run as this user), the line
 //! of `SSH_AUTH_SOCK`, then russh's agent server until SIGINT, SIGTERM or
-//! SIGHUP, which remove the socket and the directory that podssh made.
+//! SIGHUP, which remove the socket and the directory that podssh made. In
+//! front of russh's server, the store of passwords and passphrases answers
+//! its own requests (T-228).
 
 use std::future::Future;
-use std::io::{self, Write};
-use std::pin::Pin;
-use std::sync::{Arc, Mutex};
-use std::task::{Context, Poll};
+use std::io::Write;
+use std::sync::Arc;
 
+use podssh_ssh::credential_store::{self, Store};
 use podssh_ssh::russh::keys::agent::server::{self as agent_server, Agent};
 use podssh_ssh::russh::keys::PrivateKey;
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
+use tokio::io::DuplexStream;
 
 use super::AgentArgs;
 use crate::exitmap::sysexits::{EX_CANTCREAT, EX_SOFTWARE};
 use crate::pipe::address::Address;
 use crate::pipe::listen::{self, Listener};
-use crate::pipe::pump::{End, Reader, Writer};
+use crate::pipe::pump::End;
 
 /// Serve the agent protocol: the exit code, 128 and the signal's number when
 /// a signal ends it.
@@ -54,10 +55,14 @@ pub async fn serve(args: &AgentArgs, out: &mut dyn Write, err: &mut dyn Write) -
     let _ = writeln!(out, "SSH_AUTH_SOCK={}; export SSH_AUTH_SOCK;", place.path);
     let _ = writeln!(out, "echo Agent pid {};", std::process::id());
     let _ = out.flush();
-    let connections = Box::pin(futures_util::stream::unfold(listener, |mut listener| async move {
-        let mut said = |line: &str| eprintln!("podssh agent: {line}");
-        let next = listener.accept(&mut said).await.map(Duplex::from_end);
-        Some((next, listener))
+    let store = Arc::new(Store::default());
+    let connections = Box::pin(futures_util::stream::unfold(listener, move |mut listener| {
+        let store = store.clone();
+        async move {
+            let mut said = |line: &str| eprintln!("podssh agent: {line}");
+            let next = listener.accept(&mut said).await.map(|end| front(end, store));
+            Some((next, listener))
+        }
     }));
     let mut stop = Stop::new();
     let code = tokio::select! {
@@ -121,7 +126,7 @@ impl Drop for Place {
 
 /// A new directory of mode 0700, of this user, never one that exists.
 #[cfg(unix)]
-fn private_dir(dir: &std::path::Path) -> io::Result<()> {
+fn private_dir(dir: &std::path::Path) -> std::io::Result<()> {
     use std::os::unix::fs::{DirBuilderExt, MetadataExt};
     std::fs::DirBuilder::new().mode(0o700).create(dir)?;
     let meta = std::fs::symlink_metadata(dir)?;
@@ -129,13 +134,14 @@ fn private_dir(dir: &std::path::Path) -> io::Result<()> {
     let uid = unsafe { libc::geteuid() };
     if !meta.is_dir() || meta.uid() != uid || meta.mode() & 0o077 != 0 {
         let _ = std::fs::remove_dir(dir);
-        return Err(io::Error::new(io::ErrorKind::PermissionDenied, "it is not a private directory of this user"));
+        let why = "it is not a private directory of this user";
+        return Err(std::io::Error::new(std::io::ErrorKind::PermissionDenied, why));
     }
     Ok(())
 }
 
 #[cfg(not(any(unix, windows)))]
-fn private_dir(dir: &std::path::Path) -> io::Result<()> {
+fn private_dir(dir: &std::path::Path) -> std::io::Result<()> {
     std::fs::create_dir(dir)
 }
 
@@ -152,38 +158,15 @@ impl Agent for Keys {
     }
 }
 
-/// One client, as one stream. russh's server asks for `Sync`; the mutex
-/// gives it, and is never contended, as only `&mut` reaches it.
-struct Duplex(Mutex<tokio::io::Join<Reader, Writer>>);
-
-impl Duplex {
-    fn from_end(end: End) -> Duplex {
-        Duplex(Mutex::new(tokio::io::join(end.read, end.write)))
-    }
-
-    fn inner(self: Pin<&mut Self>) -> Pin<&mut tokio::io::Join<Reader, Writer>> {
-        Pin::new(self.get_mut().0.get_mut().unwrap_or_else(|e| e.into_inner()))
-    }
-}
-
-impl AsyncRead for Duplex {
-    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
-        self.inner().poll_read(cx, buf)
-    }
-}
-
-impl AsyncWrite for Duplex {
-    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
-        self.inner().poll_write(cx, buf)
-    }
-
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.inner().poll_flush(cx)
-    }
-
-    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.inner().poll_shutdown(cx)
-    }
+/// One client: the store answers its own requests, and russh's server, at
+/// the other end of the pipe returned, the others.
+fn front(end: End, store: Arc<Store>) -> DuplexStream {
+    let (ours, theirs) = tokio::io::duplex(credential_store::MAX_FRAME);
+    let client = tokio::io::join(end.read, end.write);
+    tokio::spawn(async move {
+        let _ = credential_store::serve_client(client, ours, &store).await;
+    });
+    theirs
 }
 
 /// SIGINT, SIGTERM and SIGHUP, or Ctrl-C on Windows: 128 and the signal's

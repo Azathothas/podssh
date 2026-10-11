@@ -50,9 +50,14 @@ pub fn add(cmd: Command, name: &str) -> Command {
             .arg(
                 Arg::new("subcommand")
                     .value_name("SUBCOMMAND")
-                    .help("add, list, remove, lock or unlock; with none, the agent serves"),
+                    .help("add, add-password, add-passphrase, list, remove, lock or unlock; with none, the agent serves"),
             )
-            .arg(Arg::new("args").value_name("FILE").num_args(0..).help("the key files of add and remove")),
+            .arg(
+                Arg::new("args")
+                    .value_name("FILE")
+                    .num_args(0..)
+                    .help("the key files of add, add-passphrase and remove; [USER@]HOST[:PORT] for add-password"),
+            ),
         "relay" => cmd
             .arg(
                 Arg::new("subcommand")

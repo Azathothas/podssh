@@ -35,6 +35,11 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             "A usage error: an unknown command or flag, a bad value, a missing argument. podssh did nothing.",
         ),
         row(
+            sysexits::EX_DATAERR,
+            "podssh agent add-passphrase: the passphrase does not open the key file, or the file needs none; \
+             nothing is kept.",
+        ),
+        row(
             sysexits::EX_NOINPUT,
             "podssh cp and mv: a source is missing or cannot be read. podssh mv: a source that changed \
              during the move, which stays. podssh chat: the file of --file or --sendfile cannot be read.",
@@ -46,7 +51,9 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              the session, the pair was stopped, or another node serves it. podssh cp and mv: no connection to \
              the server, or it has neither SFTP nor the sh and the tools of a copy by exec. podssh chat: \
              the same of the relay and the pair, or a message went with no acknowledgement; each is said. \
-             podssh ping: no relay host answered, or PODSSH_OFFLINE is set. podssh relay status: no relay              host answered; podssh relay trace: the relay would not dial the target.",
+             podssh ping: no relay host answered, or PODSSH_OFFLINE is set. podssh relay status: no relay \
+             host answered; podssh relay trace: the relay would not dial the target. podssh agent: no agent \
+             answers at SSH_AUTH_SOCK, or the agent keeps no passwords.",
         ),
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,
@@ -71,8 +78,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             sysexits::EX_NOPERM,
             "podssh proxy: the relay or the proxy refused (a token, a blocked address, a proxy's 403 or 407). \
-             podssh node, operator and relay: the relay refused the pair, or the pair expired; for relay              trace, the token. podssh \
-             operator and pipe node:: the node's key is not the one pinned in known-nodes or named by \
+             podssh node, operator and relay: the relay refused the pair, or the pair expired; for relay \
+             trace, the token. podssh operator and pipe node:: the node's key is not the one pinned in known-nodes or named by \
              --node-key, or the node's allowlist refused this client's key. podssh cp and mv: the server \
              refused the login, or podssh did not accept its host key. podssh chat: the same of the pair \
              and of the keys, or the peer declined the file of --file.",

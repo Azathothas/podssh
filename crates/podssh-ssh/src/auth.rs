@@ -14,6 +14,7 @@ use russh::client::{AuthResult, Handle, KeyboardInteractiveAuthResponse};
 use russh::MethodKind;
 
 use crate::answer::within;
+use crate::credential_store::{self, Target};
 use crate::handler::Client;
 use crate::keys::PublicKeys;
 use crate::log::Log;
@@ -80,15 +81,18 @@ impl std::fmt::Display for AuthError {
     }
 }
 
-/// Log in as `user` on the host called `host` in prompts. On failure, the
-/// message to print, and whether the server refused.
+/// Log in as `user` on the host called `host` in prompts, at `port`. On
+/// failure, the message to print, and whether the server refused.
 pub async fn authenticate(
     handle: &mut Handle<Client>,
     user: &str,
     host: &str,
+    port: u16,
     opts: &Options,
     log: &Arc<Log>,
 ) -> Result<(), AuthError> {
+    // The key of a password that podssh agent keeps (T-228).
+    let stored = Target::password(user, host, port);
     let limit = opts.connect_timeout;
     let none = within(limit, host, "the first request to log in", handle.authenticate_none(user)).await?;
     let mut allowed: Vec<MethodKind> = match none {
@@ -114,7 +118,7 @@ pub async fn authenticate(
                 if kbd_rounds > opts.password_prompts.max(1) {
                     Step::Exhausted
                 } else {
-                    keyboard_interactive(handle, user, host, opts, log, &mut notes).await?
+                    keyboard_interactive(handle, user, host, &stored, opts, log, &mut notes).await?
                 }
             }
             Method::Password => {
@@ -122,7 +126,7 @@ pub async fn authenticate(
                 if password_tries > opts.password_prompts.max(1) {
                     Step::Exhausted
                 } else {
-                    password(handle, user, host, opts, &mut notes).await?
+                    password(handle, user, host, &stored, opts, log, &mut notes).await?
                 }
             }
         };
@@ -177,14 +181,22 @@ async fn keyboard_interactive(
     handle: &mut Handle<Client>,
     user: &str,
     host: &str,
+    target: &Target,
     opts: &Options,
     log: &Log,
     notes: &mut Vec<String>,
 ) -> Result<Step, String> {
-    if opts.batch_mode || !prompt::can_ask() {
+    let can_ask = !opts.batch_mode && prompt::can_ask();
+    // The password that podssh agent keeps answers one prompt for a password
+    // with no echo, as PAM asks (T-228); BatchMode forbids a prompt, not it.
+    let mut stored = credential_store::stored(&opts.agent, target, log).await;
+    if !can_ask && stored.is_none() {
         notes.push("keyboard-interactive was skipped: there is no terminal or SSH_ASKPASS to answer it".into());
         return Ok(Step::Exhausted);
     }
+    // The prompt that the stored password answered, until the server shows
+    // whether it took it.
+    let mut answered: Option<String> = None;
     let fail = |e: russh::Error| format!("keyboard-interactive authentication failed: {e}");
     let limit = opts.connect_timeout;
     let start = handle.authenticate_keyboard_interactive_start(user, None::<String>);
@@ -194,10 +206,13 @@ async fn keyboard_interactive(
         match response {
             KeyboardInteractiveAuthResponse::Success => return Ok(Step::Success),
             KeyboardInteractiveAuthResponse::Failure { remaining_methods, partial_success } => {
+                if answered.is_some() {
+                    credential_store::forget(&opts.agent, target, log).await;
+                }
                 return Ok(Step::Failure {
                     remaining: remaining_methods.iter().copied().collect(),
                     partial: partial_success,
-                })
+                });
             }
             KeyboardInteractiveAuthResponse::InfoRequest { name, instructions, prompts } => {
                 for text in [name, instructions] {
@@ -206,14 +221,34 @@ async fn keyboard_interactive(
                         log.banner(&text);
                     }
                 }
+                // The same prompt again: the server did not take the stored
+                // password. Another prompt: it did, and asks for more.
+                if let Some(text) = answered.take() {
+                    if prompts.iter().any(|p| p.prompt == text) {
+                        credential_store::forget(&opts.agent, target, log).await;
+                    }
+                }
+                let asks_password = prompts.len() == 1
+                    && !prompts[0].echo
+                    && prompts[0].prompt.to_ascii_lowercase().contains("password");
                 let mut answers = Vec::with_capacity(prompts.len());
-                for p in prompts {
-                    let shown = podssh_ws::text::multi_line(&p.prompt);
-                    match ask(shown, p.echo).await {
-                        Ok(answer) => answers.push(answer.to_string()),
-                        Err(e) => {
-                            notes.push(format!("keyboard-interactive was abandoned: {e}"));
-                            return Ok(Step::Exhausted);
+                if let (true, Some(secret)) = (asks_password, stored.take()) {
+                    answered = Some(prompts[0].prompt.clone());
+                    answers.push(secret.to_string());
+                } else if !prompts.is_empty() && !can_ask {
+                    notes.push(
+                        "keyboard-interactive was abandoned: there is no terminal or SSH_ASKPASS to answer it".into(),
+                    );
+                    return Ok(Step::Exhausted);
+                } else {
+                    for p in prompts {
+                        let shown = podssh_ws::text::multi_line(&p.prompt);
+                        match ask(shown, p.echo).await {
+                            Ok(answer) => answers.push(answer.to_string()),
+                            Err(e) => {
+                                notes.push(format!("keyboard-interactive was abandoned: {e}"));
+                                return Ok(Step::Exhausted);
+                            }
                         }
                     }
                 }
@@ -232,7 +267,9 @@ async fn password(
     handle: &mut Handle<Client>,
     user: &str,
     host: &str,
+    target: &Target,
     opts: &Options,
+    log: &Log,
     notes: &mut Vec<String>,
 ) -> Result<Step, String> {
     // The password that the server took earlier in this run goes first: a
@@ -249,6 +286,22 @@ async fn password(
             }
             memory.forget_password();
         }
+    }
+    // The password that podssh agent keeps (T-228): BatchMode forbids a
+    // prompt, not this. One that the server refuses is forgotten.
+    if let Some(stored) = credential_store::stored(&opts.agent, target, log).await {
+        let step =
+            within(opts.connect_timeout, host, "the password", handle.authenticate_password(user, stored.as_str()))
+                .await?
+                .map(Step::from)
+                .map_err(|e| format!("password authentication failed: {e}"))?;
+        if matches!(step, Step::Success) {
+            if let Some(memory) = &opts.remembered {
+                memory.keep_password(stored.as_str());
+            }
+            return Ok(step);
+        }
+        credential_store::forget(&opts.agent, target, log).await;
     }
     if opts.batch_mode || !prompt::can_ask() {
         notes.push("password authentication was skipped: there is no terminal or SSH_ASKPASS to ask on".into());

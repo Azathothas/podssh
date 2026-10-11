@@ -4006,6 +4006,7 @@ dependencies = [
  "futures-util",
  "hmac 0.12.1",
  "libc",
+ "pageant",
  "podssh-ws",
  "rand 0.10.3",
  "russh",

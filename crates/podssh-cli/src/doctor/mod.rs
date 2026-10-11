@@ -21,6 +21,7 @@ use podssh_relay::failover::Mode;
 use podssh_relay::relay::{self, RelayList};
 use podssh_ws::{Trust, Verdict};
 
+mod agent;
 pub(crate) mod clock;
 mod host;
 #[cfg(feature = "iroh")]
@@ -89,6 +90,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
 
     report.section("this host");
     host::check(&mut report);
+    agent::check(&mut report);
     #[cfg(feature = "iroh")]
     iroh::udp(&mut report);
 

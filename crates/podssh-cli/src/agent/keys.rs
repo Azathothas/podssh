@@ -19,7 +19,7 @@ use crate::exitmap::sysexits::{EX_NOINPUT, EX_NOPERM, EX_SOFTWARE, EX_UNAVAILABL
 type Agent = AgentClient<Box<dyn AgentStream + Send + Unpin + 'static>>;
 
 /// The agent of `SSH_AUTH_SOCK`; on Windows, else OpenSSH's named pipe.
-async fn connect(err: &mut dyn Write) -> Result<Agent, i32> {
+pub(super) async fn connect(err: &mut dyn Write) -> Result<Agent, i32> {
     let named = std::env::var("SSH_AUTH_SOCK").ok().filter(|v| !v.is_empty());
     #[cfg(unix)]
     let Some(place) = named
