@@ -481,6 +481,14 @@ python scripts/interop-conpty-msys2.py --plant                   # builds the pl
 `MSYS2_ROOT` names a directory other than `C:\msys64`. Exit 2 means that the
 checks did not run (no MSYS2, or the server did not start).
 
+A console check that failed at random is repaired, then passes 20 runs in a
+row (Q36). The workflow `conpty-repeat` runs the checks on CI's Windows
+runner, run after run, and the first that fails ends it (T-283):
+
+```sh
+gh workflow run conpty-repeat.yml -f runs=20
+```
+
 `scripts/capture-close.py` captures the payload of a Close that the live
 relay sends, with a client of the Python standard library: bytes that podssh
 did not make, for a fixture of the Close parser

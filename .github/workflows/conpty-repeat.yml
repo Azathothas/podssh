@@ -1,0 +1,48 @@
+name: conpty repeat
+
+# The console checks against MSYS2's sshd (scripts/interop-conpty-msys2.py),
+# as the job windows of build.yml runs them, many times in a row: a check
+# that failed at random is repaired, and then passes 20 runs in a row
+# before other work (Q36, docs/decisions.md). Only this runner has the
+# server, so the runs are here. Started by hand only:
+#   gh workflow run conpty-repeat.yml -f runs=20
+
+on:
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: "How many runs in a row (1 to 50)"
+        required: true
+        default: "20"
+
+permissions:
+  contents: read
+
+jobs:
+  conpty:
+    runs-on: windows-2025
+    timeout-minutes: 120
+    env:
+      CARGO_BUILD_JOBS: 4
+    steps:
+      - uses: actions/checkout@v7
+      # aws-lc's build wants NASM on Windows, as in the release.
+      - uses: ilammy/setup-nasm@v1
+      - name: build podssh
+        run: cargo build --locked -p podssh-cli
+      # The input reaches the loop through the environment, never through
+      # the shell's text. The first run installs MSYS2's packages; each run
+      # must pass, and the first that fails ends the job.
+      - name: the console checks, run after run
+        env:
+          RUNS: ${{ inputs.runs }}
+        run: |
+          $runs = [int]$env:RUNS
+          if ($runs -lt 1 -or $runs -gt 50) { Write-Output "runs must be 1 to 50, not $env:RUNS"; exit 2 }
+          for ($i = 1; $i -le $runs; $i++) {
+            $install = @()
+            if ($i -eq 1) { $install = @("--install") }
+            python scripts/interop-conpty-msys2.py @install --log ".work/conpty-$i.log" target/debug/podssh.exe
+            if ($LASTEXITCODE -ne 0) { Write-Output "run $i of $runs failed"; exit 1 }
+            Write-Output "run $i of $runs passed"
+          }

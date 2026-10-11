@@ -239,13 +239,21 @@ t.send(b"\x1b", 1.0)
 t.send(b":wq\r", 1.0)
 t.send(b"cat /tmp/podssh-conpty-vi\r")
 check("conpty.vi", "vi edits and saves a file", drawn and t.expect("hello from a windows console") and marker(t, "VI", 5, 5), t)
-t.send(b"seq 1 500 | less\r", 1.5)
-t.send(b"G", 0.5)
-t.send(b"q", 0.5)
-check("conpty.less", "less pages and quits", marker(t, "LESS", 6, 6), t)
-t.send(b"top\r", 2.0)
-t.send(b"q", 0.5)
-check("conpty.top", "top draws and quits", marker(t, "TOP", 7, 7), t)
+# The same for less and top: a key typed before the program has drawn
+# reaches the shell's line discipline, and the program then reads the first
+# key of the next command as its own (CI at 88493e3: "cho: command not
+# found"). Wait for what each draws: a line LINE-N, which the typed command
+# does not hold, the last line after G, and top's load average.
+t.send(b"seq 1 500 | sed 's/^/LINE-/' | less\r")
+paged = t.expect("LINE-2", 30)
+t.send(b"G")
+paged = paged and t.expect("LINE-500", 30)
+t.send(b"q", 1.0)
+check("conpty.less", "less pages and quits", paged and marker(t, "LESS", 6, 6), t)
+t.send(b"top\r")
+drawn = t.expect("oad average", 30)
+t.send(b"q", 1.0)
+check("conpty.top", "top draws and quits", drawn and marker(t, "TOP", 7, 7), t)
 t.send(b"rm -f /tmp/podssh-conpty-vi; exit\r")
 check("conpty.exit", "podssh exits with the shell", exit_status(t) is not None, t)
 check("conpty.restore.shell", "the console's input mode is restored afterwards", restored(t), t)

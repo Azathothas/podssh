@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:548-593`): the
+5. docs/development.md, "Release builds" (`docs/development.md:556-601`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -1031,8 +1031,8 @@ Read:
   run by hand.
   `docs/STATUS.md:77`: `scripts/interop-conpty.py` passes 14 of 14 against a
   Tailscale SSH server, by hand.
-- `scripts/interop-conpty.py:219-267` needs a server with a POSIX shell,
-  `stty`, `vi`, `less`, `top`, `seq` and `/tmp`.
+- `scripts/interop-conpty.py:219-275` needs a server with a POSIX shell,
+  `stty`, `vi`, `less`, `top`, `seq`, `sed` and `/tmp`.
 - The code for Windows: `crates/podssh-ssh/src/terminal/windows.rs`,
   `crates/podssh-ssh/src/prompt.rs:89`, and the `cfg(not(unix))` branches of
   `crates/podssh-relay/src/cache.rs:328-382`.
@@ -3145,3 +3145,45 @@ and the grep of the Prove finds no line. Run 38081754484, at `4dd52f8`, the
 first push that carries the change, passed each job; its Linux jobs ran on
 the image `ubuntu-24.04`. After `v1.0.0`, a move of the runners is a change
 of its own, with a run of the gate.
+
+# T-283: The console checks type into `less` and `top` before they have drawn
+
+**Source:** CI, the run of `88493e3` (2026-10-11, run 38130453481): the job `windows` failed
+`conpty.less` of `scripts/interop-conpty.py` against MSYS2's sshd, a check that passed in each run
+before it.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** partial
+
+## Problem
+
+The console checks typed `G` and `q` into `less`, and `q` into `top`, after a pause of a fixed
+length, not after the program had drawn. On a slow runner the keys reached the shell's line
+discipline before `less` had set its own modes, and `less` then read the first key of the next
+command as its own: the shell ran `cho LESS-$((6+6))`. A check that fails at random hides a real
+failure.
+
+## Premise
+
+Read, at `88493e3`: the check of `less` sends `seq 1 500 | less`, then `G` 1.5 s later and `q`
+0.5 s after that (`scripts/interop-conpty.py`, lines 242-245); the check of `top` sends `q` 2 s
+after `top` (lines 246-248). The check of `vi` waits for vi's status line before it types, for the
+same reason (lines 232-236). The failed run's screen: `seq 1 500 | less`, then
+`Gqecho LESS-$((6+6))` on the shell's line, then `-bash: cho: command not found`.
+
+## Approach
+
+Wait for what each program draws before each key: each line of `less` says `LINE-N`
+(`sed 's/^/LINE-/'`), which the typed command does not hold, and `LINE-500` comes only after `G`;
+`top` draws its load average. A workflow started by hand runs the console checks run after run on
+`windows-2025`, the one runner that has the server, for the 20 runs of Q36.
+
+## Prove
+
+```sh
+gh workflow run conpty-repeat.yml -f runs=20
+```
+
+The workflow passes 20 runs in a row, and the job `windows` of the push passes.

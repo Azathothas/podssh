@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**279 entries: 91 open, 0 partial, 22 blocked, 166 done.**
+**280 entries: 91 open, 1 partial, 22 blocked, 166 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 17 | 19 |
+| P1 | 2 | 1 | 0 | 17 | 20 |
 | P2 | 7 | 0 | 18 | 129 | 154 |
 | P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 91 | 0 | 22 | 166 | 279 |
+| **All** | 91 | 1 | 22 | 166 | 280 |
 
 ## Entries
 
@@ -354,3 +354,4 @@ repository and CI).
 | [T-280](roads.md) | P3 | M | backlog | feature | open | The iroh road through a SOCKS5 proxy |
 | [T-281](ts.md) | P3 | M | backlog | feature | open | `podssh ts` through a SOCKS5 proxy |
 | [T-282](pipe.md) | P1 | S | none | defect | done | On Windows a session that `--persist` attaches again waits for a key |
+| [T-283](repo.md) | P1 | S | none | defect | partial | The console checks type into `less` and `top` before they have drawn |

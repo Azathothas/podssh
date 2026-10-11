@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """interop-conpty.py against the OpenSSH server of MSYS2, on 127.0.0.1.
 
-The console checks need a server with a POSIX shell, stty, vi, less, top and
-seq. MSYS2 has each of them, and the Windows runners of CI have MSYS2. For
+The console checks need a server with a POSIX shell, stty, vi, less, top, seq
+and sed. MSYS2 has each of them, and the Windows runners of CI have MSYS2. For
 one run, this script makes a user key with `podssh keygen` and a host key,
 starts MSYS2's sshd on a free port of 127.0.0.1 (a key login for the current
 user only), runs interop-conpty.py against it with --direct, stops the
@@ -99,7 +99,7 @@ def install():
 
 
 def require_programs():
-    r = msys("for p in /usr/bin/sshd ssh-keygen vi less top seq stty cygpath kill id; do "
+    r = msys("for p in /usr/bin/sshd ssh-keygen vi less top seq sed stty cygpath kill id; do "
              "command -v \"$p\" >/dev/null || echo \"missing: $p\"; done", 60)
     missing = re.findall(r"missing: (\S+)", r.stdout)
     if r.returncode != 0 or missing:
