@@ -34,14 +34,20 @@ rc=$?
 [ "$rc" = 0 ] && grep -q MIT-MAGIC-COOKIE-1 "$W/out" && ! grep -q "$X11_COOKIE" "$W/out" \
     && ok x11.spoofed "-Y: the server holds a spoofed cookie, never the real one" \
     || bad x11.spoofed "-Y: exit $rc; the server's cookies: $(cat "$W/out")" "$W/err"
+# Whether this Xvfb takes an untrusted cookie of xauth at all, without
+# podssh: when it does not, -X cannot work here, and the check is env.
+rm -f "$W/xauth-untrusted"
+XAUTHORITY="$W/xauthority" xauth -f "$W/xauth-untrusted" generate :9 MIT-MAGIC-COOKIE-1 untrusted timeout 120 \
+    >"$W/untrusted.log" 2>&1 && XAUTHORITY="$W/xauth-untrusted" xdpyinfo >/dev/null 2>>"$W/untrusted.log"
+direct=$?
 x11_run -X 'xdpyinfo >/dev/null && echo x11-ok'
 rc=$?
-if [ "$rc" = 255 ] && grep -q 'could not make an untrusted cookie' "$W/err"; then
-    unmet x11.untrusted "-X: this Xvfb makes no untrusted cookie (no SECURITY extension)"
+if [ "$direct" != 0 ]; then
+    unmet x11.untrusted "-X: this Xvfb takes no untrusted cookie of xauth, even with no podssh: $(tr '\n' ' ' <"$W/untrusted.log")"
 elif [ "$rc" = 0 ] && grep -qx x11-ok "$W/out"; then
     ok x11.untrusted "-X: an untrusted cookie of xauth, and xdpyinfo reaches the Xvfb"
 else
-    bad x11.untrusted "-X: exit $rc, output '$(cat "$W/out")'" "$W/err"
+    bad x11.untrusted "-X: exit $rc, output '$(cat "$W/out")', where the Xvfb takes the cookie with no podssh" "$W/err"
 fi
 # shellcheck disable=SC2086
 env -u SSH_AUTH_SOCK -u DISPLAY HOME="$W" "$BIN" ssh --direct -p 2213 -o UserKnownHostsFile="$KH" \

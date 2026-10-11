@@ -446,11 +446,18 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   each restored: the real cookie in `x11-req` (the Prove's plant) failed the
   channel's test; the first packet passed on as it came failed it and the
   swap's unit test.
-- `scripts/interop-x11.sh:1-55`, a new harness of four checks against
+- `scripts/interop-x11.sh:1-61`, a new harness of four checks against
   OpenSSH's sshd with `X11Forwarding` and an Xvfb in the box: `x11.trusted`
   (`xdpyinfo` through `-Y`), `x11.spoofed` (the server's `xauth list` holds
   no real cookie), `x11.untrusted` (`-X`, env-allowed for an Xvfb with no
   SECURITY extension) and `x11.no_display`. The gate runs them at this push.
+- At `f2631b4` the gate passed `x11.trusted`, `x11.spoofed` and
+  `x11.no_display`, and failed `x11.untrusted`: the Xvfb refused the
+  untrusted cookie of `xauth` that podssh put in place ("Invalid
+  MIT-MAGIC-COOKIE-1 key"). The check now asks first, with no podssh, whether
+  this Xvfb takes an untrusted cookie of `xauth` at all
+  (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
+  does and podssh's `-X` fails.
 - `docs/cli.md:299-322`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
