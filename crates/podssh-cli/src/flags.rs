@@ -273,6 +273,7 @@ mod chat;
 mod config;
 mod copy;
 mod keygen;
+mod mcp;
 mod node;
 mod operator;
 mod ping;
@@ -285,6 +286,7 @@ pub use chat::CHAT_FLAGS;
 pub use config::CONFIG_FLAGS;
 pub use copy::CP_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
+pub use mcp::MCP_FLAGS;
 pub use node::NODE_FLAGS;
 pub use operator::PAIR_FLAGS;
 pub use ping::PING_FLAGS;
@@ -388,6 +390,8 @@ pub const VERBS: &[Verb] = &[
         about: "play a recording of podssh ssh --record again, with its timing" },
     Verb { name: "config", aliases: &["config"], flags: CONFIG_FLAGS,
         about: "ssh_config blocks from the host list of another tool: import" },
+    Verb { name: "mcp", aliases: &["mcp"], flags: MCP_FLAGS,
+        about: "the commands as tools for an agent: a Model Context Protocol server on stdin and stdout" },
 ];
 
 /// **The verbs by purpose, in the order that `--help` and the manual print
@@ -403,6 +407,7 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("Messages", &["chat"]),
     ("Recordings", &["play"]),
     ("Settings", &["config"]),
+    ("Tools for an agent", &["mcp"]),
     ("The relay", &["relay"]),
     ("This manual", &["man"]),
 ];

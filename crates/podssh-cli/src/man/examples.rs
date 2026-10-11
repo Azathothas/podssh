@@ -33,6 +33,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh config import ansible inventory.ini >> ~/.ssh/config".into(),
         ),
         (
+            "tools for an agent, run by its MCP client: commands on the web hosts but web9",
+            "podssh mcp --allow-host 'web*.example.org' --allow-host '!web9.example.org'".into(),
+        ),
+        (
             "keep what a session showed, with its timing, and show it again twice as fast",
             "podssh ssh -tt --record top.cast user@example.org top && podssh play --speed 2 top.cast".into(),
         ),
@@ -251,6 +255,7 @@ mod tests {
                     Parsed::Ping(_) => "ping",
                     Parsed::Play(_) => "play",
                     Parsed::Config(_) => "config",
+                    Parsed::Mcp(_) => "mcp",
                     Parsed::Man { .. } => "man",
                     Parsed::Node(_) => "node",
                     Parsed::Relay(_) => "relay",

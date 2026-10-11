@@ -44,11 +44,11 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
 3. One model and two renderers, as `podssh man` has (`crates/podssh-cli/src/man/model.rs`).
 4. Add the row to `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:45-58`), read it into
    `Parsed::Doctor` (`crates/podssh-cli/src/tree.rs` lines 172-181 and 384-392 at `c6f09a8`), and pass it on in
-   `crates/podssh-cli/src/dispatch.rs:129-145`. `tree.rs` has 454 lines and `dispatch.rs` 448:
+   `crates/podssh-cli/src/dispatch.rs:132-148`. `tree.rs` has 454 lines and `dispatch.rs` 448:
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:131-156`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:168-188`) and
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:170-190`) and
    `docs/cli.md:559-577` in the same commit.
 
 ## Decision
@@ -56,7 +56,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
 Recommendation: `--json` writes one JSON document when a one-shot report is complete (`doctor`,
 `man`, `status`, `relay`, `ping`); `--jsonl` stays for the events of a long run (`chat`, `cp`,
 `ts`: `crates/podssh-cli/src/flags.rs`, lines 272-273 at `7aa955a`, `crates/podssh-cli/src/flags/copy.rs:27-28`,
-`crates/podssh-cli/src/flags.rs:317-318`). `--jsonl` also makes the run
+`crates/podssh-cli/src/flags.rs:319-320`). `--jsonl` also makes the run
 non-interactive and starts the `--timeout` rule
 (`crates/podssh-cli/src/non_interactive.rs:62-70`, 187-203), which a bounded report does not
 need. `--jsonl` everywhere lost for that reason. `--format json` lost because podssh's other
@@ -122,7 +122,7 @@ Measured: `podssh man --json` exits 64 ("unknown flag '--json'"). `podssh --help
 and prints the text help, so it drops `--json` silently (T-010).
 
 Read: the data is in tables already. Commands and flags: `VERBS`
-(`crates/podssh-cli/src/flags.rs:350-391`), each row with its kind and `instead` (lines 19-47 at `22c3b88`),
+(`crates/podssh-cli/src/flags.rs:352-395`), each row with its kind and `instead` (lines 19-47 at `22c3b88`),
 and the availability (lines 443-451 at `22c3b88`). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:204-208`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:25-110`, with the stated defaults (lines 99-104 at `22c3b88`).
@@ -145,8 +145,8 @@ manual do not keep the kind and the `instead` of a flag.
    `--roff` is a usage error (64). No pager for JSON
    (`crates/podssh-cli/src/man/mod.rs` lines 73-78 at `332ee58`).
 5. The JSON is the same on each host: no path from `HOME` (`docs/cli.md:41-42`).
-6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:324-331`), the field to
-   `man::Request` (`crates/podssh-cli/src/man/mod.rs:35-42`), and the parse
+6. Add the row to `MAN_FLAGS` (`crates/podssh-cli/src/flags.rs:326-333`), the field to
+   `man::Request` (`crates/podssh-cli/src/man/mod.rs:36-43`), and the parse
    (`crates/podssh-cli/src/tree.rs:262-270`). JSON for `--help` stays with T-010.
 
 ## Prove
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:86-118` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:45-58`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:168-188`) and `docs/cli.md:559-577` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:170-190`) and `docs/cli.md:559-577` in the same commit.
 
 ## Decision
 
@@ -430,7 +430,7 @@ against 64 MiB for each session (`docs/relay.md:155`). The stand-in relay answer
 4. `--size SIZE`: 8 MiB in each direction by default. Refuse more than 30 MiB (exit 64), so both
    directions stay under the relay's 64 MiB.
 5. A time limit on each step and on the whole run. `--json` as T-049 decides.
-6. Add the verb to the tables (`crates/podssh-cli/src/flags.rs:350-391`), to the help and the
+6. Add the verb to the tables (`crates/podssh-cli/src/flags.rs:352-395`), to the help and the
    manual, and to `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-113`).
 
 ## Decision
@@ -663,7 +663,7 @@ here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1148-1173`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1206-1231`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:339-352`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:116-126`), and stdio needs no listener.
@@ -703,6 +703,54 @@ Recommendation: no destination by default; the user names the allowed hosts when
 that the model read can ask it to reach another host with the user's keys. The alternative,
 each host that `podssh ssh` reaches, lost for that reason.
 
+2026-10-12, the calls made in the work:
+
+- Each call runs this binary again, as a child with pipes (`podssh ssh`,
+  `status`, `doctor --json`, `man --json`), in place of the sink of step
+  4: the records of `podssh-ssh` are the process's (the result of T-054,
+  the counts of T-041, the phase of a try, the handler's last error), one
+  chain of connections for each process, so one process could not run two
+  calls at once. A child per call runs four at once, ends with its call at
+  the limit or at a cancellation, and a stray write of the session path
+  reaches the call's stdout, never the protocol's. The sink of `io::pump`
+  stays as it is.
+- The protocol has moved since the entry was written: its revision
+  2026-07-28 has no handshake, each request names its version and the
+  client's capabilities in `_meta`, `server/discover` is required, and
+  each result carries `resultType`. podssh serves both eras, as that
+  revision lets a server do: a request with its version is answered by
+  itself; `initialize` chooses a revision of the handshake (2025-11-25,
+  2025-06-18, 2025-03-26 or 2024-11-05) for the rest of the process; a
+  request with neither is refused (-32602), and an unknown version gets
+  -32022 with the versions that podssh has.
+- The options of each session come before `-F FILE`, as the first value
+  of a keyword holds: `BatchMode=yes`, `StrictHostKeyChecking=yes`,
+  `ClearAllForwardings=yes`, `ForwardAgent=no`, `ForwardX11=no`,
+  `ControlMaster=no`, `ControlPath=none`, `-T` and `-e none`. With no
+  forward and no agent, an allowed host cannot carry a call to another;
+  with no shared connection, each result has its bytes and its status.
+  The server takes `-F FILE` and `--direct` for its sessions, and nothing
+  else of `ssh`: the rest is in the user's `ssh_config`.
+- A pattern of `--allow-host` is `[USER@]HOST` with `*` and `?`, as a
+  `Host` line has them, and `!` excludes; the host is matched as the call
+  names it, with no regard to case, before `HostName`. A destination is
+  `[user@]host` with no port and no path: the port is the configuration's
+  too. A pattern with `USER@` lets in only a destination that names that
+  user, and an exclusion with one also excludes a destination that names
+  none, whose user the configuration gives.
+- `status` takes a destination only within `--allow-host`: it says whether
+  `known_hosts` holds a host's key, which `HashKnownHosts` hides.
+- An argument that a tool does not have is refused, as a misspelt one
+  would be ignored; a wrong argument is the call's error (`isError`),
+  which the agent can correct, as the revision 2026-07-28 has it, and an
+  unknown tool is a protocol error. `isError` is true when podssh failed
+  or the limit passed, not for a command whose status is not 0.
+- At the end of stdin, the calls in flight have 2 s, and then end with
+  their children: a client that closes stdin waits a short while before
+  it ends the server, and no child may outlive it. SIGTERM, SIGINT and
+  SIGHUP (Ctrl-C, Ctrl-Break and the close of the console on Windows)
+  end them at once.
+
 ## Prove
 
 ```sh
@@ -715,6 +763,52 @@ Offline: `initialize` and `tools/list` answer; a call to a host outside `--allow
 error result and no connection; each line on stdout parses as JSON-RPC. In the gate: `ssh_exec`
 of `echo hi; exit 3` gives status 3 and the stdout "hi". Planted defect: a `println!` in the
 session path; the test that parses each stdout line fails.
+
+## Done
+
+2026-10-12. `podssh mcp` in `crates/podssh-cli/src/mcp/mod.rs:59-100`, its
+lines and its calls in flight at `crates/podssh-cli/src/mcp/mod.rs:107-183`,
+the signals that end it at `crates/podssh-cli/src/mcp/mod.rs:187-213`, a
+call at `crates/podssh-cli/src/mcp/mod.rs:216-245`. The messages in
+`crates/podssh-cli/src/mcp/protocol.rs:68-101`, the two eras at
+`crates/podssh-cli/src/mcp/protocol.rs:111-166` and
+`crates/podssh-cli/src/mcp/protocol.rs:186-218`, the answers at
+`crates/podssh-cli/src/mcp/protocol.rs:230-243`. The tools at
+`crates/podssh-cli/src/mcp/tools.rs:37-115`, the command line of a call at
+`crates/podssh-cli/src/mcp/tools.rs:130-206`, with the options of each
+session at `crates/podssh-cli/src/mcp/tools.rs:186-204`, and its result at
+`crates/podssh-cli/src/mcp/tools.rs:227-261`. The child of a call at
+`crates/podssh-cli/src/mcp/child.rs:63-122`, its streams at
+`crates/podssh-cli/src/mcp/child.rs:125-157`. The patterns of
+`--allow-host` at `crates/podssh-cli/src/mcp/allow.rs:36-124`. The flags in
+`crates/podssh-cli/src/flags/mcp.rs`, the risk and the rest in the manual
+(`crates/podssh-cli/src/man/notes_mcp.rs:4-27`), and `docs/cli.md`.
+
+The test `crates/podssh-cli/tests/mcp.rs`, 4 tests, over the stdin and the
+stdout of `podssh mcp`, reads each line of stdout as one JSON-RPC answer:
+the handshake of 2025-06-18, the list (`ssh_exec`, `status`, `doctor`,
+`man`), `ping`, -32700, -32600, -32601 and -32602, and `server/discover`
+and `tools/call` of `man` in the revision 2026-07-28; a host outside
+`--allow-host` is refused with an error result, and a listener behind it
+gets no connection, nor does one with no `--allow-host`, where `ssh_exec`
+is not offered; a bad pattern exits 64, and a missing `-F` file 78.
+Against the test's SSH server: an unknown host key fails with `host-key`;
+with its fingerprint, `exit 3` gives the exit 3, the status 3, the stdout
+`out` and the stderr `err!`, and the same JSON as text; `cat` gives its
+stdin back; 1,500,000 bytes are cut at 1 MiB with `truncated`; a call past
+its limit of 1 s ends with `timed_out`; a cancelled call gets no answer
+while `ping` gets one; and the end of stdin with a call in flight ends the
+server with 0. The unit tests: 17, of the patterns, the messages, the
+command line of each tool and the results. Planted defects: a `println!`
+in the call path failed 3 tests, each at the line that is not JSON-RPC;
+a `println!` in the session path reached the call's stdout, not the
+protocol's, and failed the test of `ssh_exec`. In the build image, the new
+`scripts/interop-mcp.sh`, 4 passed, 0 failed: `ssh_exec` to OpenSSH and to
+Dropbear gives the status 3 and the stdout `hi`, a host outside
+`--allow-host` gets an error result, and each line of stdout is one
+JSON-RPC answer; there, clippy with `-D warnings` and the tests of `mcp`:
+no warning, no failure. Here, clippy: no warning; the suites of
+`podssh-cli` and `podssh-ssh`: 795 passed, 0 failed, 31 ignored (the live tests).
 
 # T-056: A log of the sessions of this host, when the user asks for it
 

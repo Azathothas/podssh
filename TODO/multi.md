@@ -64,15 +64,15 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:350-391`,
-   `crates/podssh-cli/src/positionals.rs:7-141`, a `Parsed` variant,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:352-395`,
+   `crates/podssh-cli/src/positionals.rs:7-143`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:110-113`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:1099-1102`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:1157-1160`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:1210-1303`); they cannot define a group.
+  (`docs/cli.md:1268-1361`); they cannot define a group.
 
 ## Approach
 
@@ -367,7 +367,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:154`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:247-249`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:250-252`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -638,7 +638,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:155`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:1099-1102`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:1157-1160`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -752,9 +752,9 @@ a ticket, or a tool that asks an AI.
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:293-308`.
+  `crates/podssh-cli/src/dispatch.rs:296-311`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:1099-1102`), which is not a failure of podssh.
+  status (`docs/cli.md:1157-1160`), which is not a failure of podssh.
 
 ## Approach
 

@@ -20,6 +20,7 @@ harness x11 interop 3 scripts/interop-x11.sh
 harness stdio interop 3 scripts/interop-stdio.sh
 harness match interop 18 scripts/interop-match.sh
 harness result interop 9 scripts/interop-result.sh
+harness mcp interop 4 scripts/interop-mcp.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -506,3 +507,7 @@ result.dropbear.signal pass
 result.dropbear.bytes pass
 result.dropbear.auth pass
 result.shared pass
+mcp.openssh.exec pass
+mcp.dropbear.exec pass
+mcp.refused pass
+mcp.lines pass

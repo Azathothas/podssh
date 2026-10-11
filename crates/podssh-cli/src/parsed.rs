@@ -102,6 +102,8 @@ pub enum Parsed {
     Play(Box<crate::play::PlayArgs>),
     /// `podssh config import FORMAT FILE` (T-047).
     Config(Box<crate::config_import::ConfigArgs>),
+    /// `podssh mcp` (T-055).
+    Mcp(Box<crate::mcp::McpArgs>),
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
     Doctor {
         relay_host: Option<String>,
@@ -169,6 +171,7 @@ impl Parsed {
             Parsed::Ping(args) => !args.refused.is_empty(),
             Parsed::Play(args) => !args.refused.is_empty(),
             Parsed::Config(args) => !args.refused.is_empty(),
+            Parsed::Mcp(args) => !args.refused.is_empty(),
             Parsed::Node(args) => !args.refused.is_empty(),
             Parsed::Operator(args) => !args.refused.is_empty(),
             Parsed::Pipe(args) => !args.refused.is_empty(),

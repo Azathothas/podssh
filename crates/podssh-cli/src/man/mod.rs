@@ -22,6 +22,7 @@ pub mod notes;
 mod notes_chat;
 mod notes_config;
 mod notes_keygen;
+mod notes_mcp;
 mod notes_pair;
 mod notes_ping;
 mod notes_play;

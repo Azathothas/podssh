@@ -1065,6 +1065,64 @@ cannot be read gives 66. The formats of PuTTY, MobaXterm, Remmina,
 FinalShell, mRemoteNG and Termius, and Ansible's YAML, are refused by name
 (64) until a real export of each is at hand to test against (T-292).
 
+## `podssh mcp`
+
+`podssh mcp` (T-055) is a server of the Model Context Protocol on stdin and
+stdout, for an agent whose MCP client starts it: each line of stdin is one
+JSON-RPC 2.0 message and each line of stdout one answer, as the protocol's
+stdio transport has them, and podssh's own words go to stderr. It serves a
+client of the revision 2026-07-28, whose requests name their version in
+`_meta` (`server/discover`, `tools/list`, `tools/call`), and one that opens
+with `initialize` (the revisions 2025-11-25, 2025-06-18, 2025-03-26 and
+2024-11-05; `ping` too). It ends at the end of stdin: the calls then in
+flight have 2 s to end, and end with their children after it; SIGTERM,
+SIGINT and SIGHUP, or Ctrl-C and the close of the console on Windows, end
+them at once.
+
+The tools:
+
+- **`ssh_exec`** runs one command on a host: `destination` (`[user@]host`)
+  and `command`, and at will `stdin` (text), `timeout_seconds` (1 to 3600,
+  default 60) and `host_key_fingerprint`. Its result (`structuredContent`,
+  and the same JSON as text) has `exit` (podssh's exit code), `status`,
+  `signal`, `end` and `failure` as `--result-file` gives them (T-054),
+  `stdout` and `stderr` (at most 1 MiB each; `truncated` says that more
+  came; output that is not UTF-8 comes as base64, as its `_encoding` says),
+  `timed_out` and `duration_ms`. A status that is not 0 is the command's:
+  `isError` is true only when podssh failed, or the limit passed.
+- **`status`**, **`doctor`** and **`man`** give the JSON of `podssh
+  status` (with a `destination`, which must be allowed), `podssh doctor
+  --json` (with `full`) and `podssh man --json` (with a `section`).
+
+**The risk, and the hosts allowed.** An agent with `ssh_exec` runs commands
+on each allowed host as you, with your keys and your `ssh_config`. The words
+of a call come from a model, and text that the model read can ask it for a
+command or for a host. So `ssh_exec` reaches no host unless
+`--allow-host PATTERN` lets it in, and is not offered with none. A pattern
+is `[USER@]HOST` with `*` and `?`, as a `Host` line has them; `!PATTERN`
+excludes what it matches; a pattern with `USER@` lets in only a destination
+that names that user. The host is matched as the call names it, with no
+regard to case, before the `HostName` of your configuration: name each
+host, or the fewest patterns that hold them. A destination is a host with
+no port and no path: they come from your configuration.
+
+Each call runs `podssh ssh` again, as a child with pipes, so that a
+session's output never reaches the protocol's stdout and calls run at once
+(four, and the others wait). The child gets `-o BatchMode=yes` (no prompt,
+ever), `-o StrictHostKeyChecking=yes` (a host whose key `known_hosts` does
+not hold is refused, unless `host_key_fingerprint` names its key, as
+`--host-key-fingerprint` does), `-o ClearAllForwardings=yes`,
+`-o ForwardAgent=no`, `-o ForwardX11=no`, `-o ControlMaster=no`,
+`-o ControlPath=none`, `-T` and `-e none`, before `-F FILE` and
+`--direct` when `podssh mcp` has them: the first value of a keyword holds,
+so a file cannot undo these. A call past its limit, or one that the client
+cancels (`notifications/cancelled`), ends with its child; a cancelled call
+gets no answer.
+
+`podssh mcp` exits 0 at the end of stdin, 64 for a pattern that is not one
+(empty, with a space or a comma, or `USER@` with no host), and 78 for a
+`-F` file that does not exist.
+
 ## podssh's settings file
 
 A file states podssh's own settings once (T-048), below the flags and the

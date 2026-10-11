@@ -48,6 +48,8 @@ pub mod keygen_sign;
 pub mod layered;
 // The manual (`man/`) and the pager that shows it on a terminal.
 pub mod man;
+// `podssh mcp`: the commands as tools for an agent (T-055).
+pub mod mcp;
 pub mod node;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.
 #[cfg(feature = "iroh")]

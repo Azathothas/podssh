@@ -35,7 +35,7 @@ fn counted(long: &str) -> bool {
 
 /// Value flags a user may give more than once, each value kept, in order.
 fn appended(long: &str) -> bool {
-    matches!(long, "option" | "identity-file")
+    matches!(long, "option" | "identity-file" | "allow-host")
 }
 
 /// Value flags whose value may start with `-`, as getopt takes the next
@@ -369,6 +369,15 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         return Parsed::Config(Box::new(crate::config_import::ConfigArgs {
             subcommand: matches.get_one::<String>("subcommand").cloned(),
             args: matches.get_many::<String>("args").map(|v| v.cloned().collect()).unwrap_or_default(),
+            refused,
+        }));
+    }
+
+    if verb.name == "mcp" {
+        return Parsed::Mcp(Box::new(crate::mcp::McpArgs {
+            allow_host: matches.get_many::<String>("allow-host").map(|v| v.cloned().collect()).unwrap_or_default(),
+            config: matches.get_one::<String>("config").cloned(),
+            direct: matches.get_flag("direct"),
             refused,
         }));
     }

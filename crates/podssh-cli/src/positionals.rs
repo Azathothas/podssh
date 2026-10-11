@@ -125,6 +125,8 @@ pub fn add(cmd: Command, name: &str) -> Command {
                 .help("with -Y sign: the files to sign, each to FILE.sig; with none, standard input to standard output"),
         ),
         "doctor" => cmd,
+        // `mcp` reads its messages on stdin, and takes no word.
+        "mcp" => cmd,
         // `ts` takes its three forms: bare (status), `[user@]host` (a session)
         // and `-W` (a byte pipe).
         "ts" => cmd
