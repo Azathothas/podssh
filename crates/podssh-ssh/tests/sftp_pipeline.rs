@@ -325,7 +325,7 @@ async fn pipelined_copies_agree_through_replies_out_of_order() {
     let (sftp, _child, seen) = start(&server, &dir, Plan { reorder: true, ..Plan::default() }).await;
     let want = data(3_000_000);
     std::fs::write(dir.join("down.bin"), &want).expect("written");
-    for pipe in [Pipeline::default(), Pipeline { requests: 16, len: 32 * 1024 }] {
+    for pipe in [Pipeline::default(), Pipeline { requests: 16, len: 32 * 1024, ..Pipeline::default() }] {
         assert_eq!(download(&sftp, "down.bin", pipe).await, want, "each byte came back, {pipe:?}");
         assert_eq!(upload(&sftp, "up.bin", &want, 0, pipe).await, Ok(want.len() as u64), "{pipe:?}");
         assert_eq!(std::fs::read(dir.join("up.bin")).expect("on disk"), want, "the disk agrees, {pipe:?}");
@@ -346,7 +346,7 @@ async fn pipelined_reads_ask_again_for_the_rest_of_a_short_read() {
     let (sftp, _child, _seen) = start(&server, &dir, Plan { short_read: Some(1), ..Plan::default() }).await;
     let want = data(1_000_000);
     std::fs::write(dir.join("down.bin"), &want).expect("written");
-    let pipe = Pipeline { requests: 8, len: 32 * 1024 };
+    let pipe = Pipeline { requests: 8, len: 32 * 1024, ..Pipeline::default() };
     assert_eq!(download(&sftp, "down.bin", pipe).await, want, "each byte came back in order");
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -361,9 +361,9 @@ async fn the_window_bounds_the_bytes_in_flight() {
     let want = data(4_000_000);
     std::fs::write(dir.join("down.bin"), &want).expect("written");
     for (pipe, requests) in [
-        (Pipeline { requests: 64, len: 0 }, None),
-        (Pipeline { requests: 64, len: 32 * 1024 }, Some(16)),
-        (Pipeline { requests: 4, len: 32 * 1024 }, Some(4)),
+        (Pipeline { requests: 64, len: 0, ..Pipeline::default() }, None),
+        (Pipeline { requests: 64, len: 32 * 1024, ..Pipeline::default() }, Some(16)),
+        (Pipeline { requests: 4, len: 32 * 1024, ..Pipeline::default() }, Some(4)),
     ] {
         let (sftp, _child, seen) = start(&server, &dir, Plan::default()).await;
         assert_eq!(download(&sftp, "down.bin", pipe).await, want);
@@ -385,7 +385,7 @@ async fn one_request_waits_for_each_reply() {
     let (sftp, _child, seen) = start(&server, &dir, Plan::default()).await;
     let want = data(700_000);
     std::fs::write(dir.join("down.bin"), &want).expect("written");
-    let pipe = Pipeline { requests: 1, len: 0 };
+    let pipe = Pipeline { requests: 1, len: 0, ..Pipeline::default() };
     assert_eq!(download(&sftp, "down.bin", pipe).await, want);
     assert_eq!(upload(&sftp, "up.bin", &want, 0, pipe).await, Ok(want.len() as u64));
     assert_eq!(seen.lock().unwrap().max_requests, 1);
@@ -401,7 +401,7 @@ async fn a_failed_write_keeps_the_acknowledged_part_contiguous() {
     let server = need_server!();
     let dir = scratch("failed");
     let want = data(2_000_000);
-    let pipe = Pipeline { requests: 8, len: 32 * 1024 };
+    let pipe = Pipeline { requests: 8, len: 32 * 1024, ..Pipeline::default() };
     let (sftp, _child, _seen) = start(&server, &dir, Plan { fail_write: Some(1), ..Plan::default() }).await;
     let (why, acked) = upload(&sftp, "up.bin", &want, 0, pipe).await.expect_err("the planted failure");
     assert!(why.contains("write at 32768"), "{why}");

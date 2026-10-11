@@ -53,11 +53,14 @@ pub struct Pipeline {
     /// The bytes of each request; 0 for the server's size
     /// ([`Sftp::read_len`], [`Sftp::write_len`]), which also bounds it.
     pub len: u32,
+    /// The bytes in flight at most, [`IN_FLIGHT`] at most: less when the
+    /// copy's tasks share the room of one relay session (T-141).
+    pub in_flight: u32,
 }
 
 impl Default for Pipeline {
     fn default() -> Self {
-        Pipeline { requests: DEFAULT_REQUESTS, len: 0 }
+        Pipeline { requests: DEFAULT_REQUESTS, len: 0, in_flight: IN_FLIGHT }
     }
 }
 
@@ -71,9 +74,10 @@ impl Pipeline {
     }
 
     /// The requests in flight for blocks of `len`: as many as asked, while
-    /// their bytes stay within [`IN_FLIGHT`]; one at least.
+    /// their bytes stay within [`Pipeline::in_flight`] and [`IN_FLIGHT`]; one
+    /// at least.
     pub fn depth(&self, len: u32) -> usize {
-        let by_window = (IN_FLIGHT / len.max(1)).max(1) as usize;
+        let by_window = (self.in_flight.min(IN_FLIGHT) / len.max(1)).max(1) as usize;
         self.requests.clamp(1, MAX_REQUESTS).min(by_window)
     }
 }
