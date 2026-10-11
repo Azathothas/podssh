@@ -9,6 +9,10 @@ use zeroize::Zeroizing;
 
 use super::Size;
 
+pub fn is_console(_stderr: bool) -> bool {
+    false
+}
+
 pub fn size() -> Option<Size> {
     [libc::STDOUT_FILENO, libc::STDIN_FILENO, libc::STDERR_FILENO].into_iter().find_map(size_of_fd)
 }

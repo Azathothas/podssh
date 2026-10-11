@@ -337,7 +337,7 @@ Read:
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
   peer (`SECURITY.md:79-82`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
-  discipline (`docs/terminal.md:146-242`). T-127 (the cursor counts bytes) and
+  discipline (`docs/terminal.md:149-245`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
 - Read in the message of commit `a378863`: `rio-vt` needs `simdutf`, a C++
   library, so it cannot be a dependency of a library crate.
@@ -363,7 +363,7 @@ Read:
    in the gate's container (installed with apk, as `scripts/interop-man.sh:22`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
-6. docs/terminal.md, section "Tests" (`docs/terminal.md:275`), names the
+6. docs/terminal.md, section "Tests" (`docs/terminal.md:278`), names the
    oracle.
 
 ## Decision
@@ -643,7 +643,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:287-305`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:288-306`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:370`, enforced at
   `crates/podssh-ssh/src/run.rs:356-362`); a reply, 30 s
@@ -774,7 +774,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
   `scripts/sandbox-check.sh:204-217` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
-- `crates/podssh-ssh/src/io.rs:306-313`, with `crates/podssh-ssh/src/io.rs:47-49`,
+- `crates/podssh-ssh/src/io.rs:309-316`, with `crates/podssh-ssh/src/io.rs:48-50`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:71`, `docs/STATUS.md:75`).
@@ -818,7 +818,7 @@ sh scripts/dev.sh check     # interop: for each case, the code of OpenSSH, of po
 
 The interop section shows, for each case, the reference code, podssh's code
 and the literal, and the signal row as a named difference. Planted defect 1:
-map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:313`; the literal
+map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:316`; the literal
 check of 143 must fail, and the table must report its signal row as broken.
 Planted defect 2: let the reference run `true` in place of `exit 3`; the
 derived check must fail.

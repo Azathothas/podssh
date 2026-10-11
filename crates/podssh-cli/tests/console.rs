@@ -2,9 +2,9 @@
 //! (`conpty_harness`), against the test's SSH server on the loopback: what
 //! the console shows of the server's output, what reaches the server of a
 //! resize, and the console's input mode after the session, read by a process
-//! of the console around podssh (`console_wrapper`). Two tests state what a
-//! fix must give, and are ignored until it lands: output after a byte that is
-//! not UTF-8 (T-294), and Ctrl-Break (T-295).
+//! of the console around podssh (`console_wrapper`): also after a byte of
+//! output that is not UTF-8 (T-294). The test of Ctrl-Break states what its
+//! fix must give, and is ignored until it lands (T-295).
 #![cfg(windows)]
 
 mod cleanup;
@@ -164,7 +164,6 @@ fn text_that_is_not_ascii_shows_as_sent() {
 /// Output after a byte that is not UTF-8 still shows, the byte as U+FFFD,
 /// as a terminal of Linux shows it (T-294).
 #[test]
-#[ignore = "fails until T-294: the console's writer refuses the byte, and podssh then drops each later byte"]
 fn output_after_a_byte_that_is_not_utf8_shows() {
     let home = scratch("bytes");
     let (_runtime, port) = server(&home);

@@ -104,7 +104,10 @@ terminfo database of the server must resolve the name.
   redirected.
 - podssh sets no code page. Output goes to the console through Rust's
   standard output, which writes the console in UTF-16, so text in UTF-8
-  shows whatever the code page is.
+  shows whatever the code page is. That writer refuses a byte that is not
+  UTF-8, so podssh first writes each such sequence as U+FFFD, as a terminal
+  of Linux shows it, and keeps a character that the end of a message cuts
+  for the next one (T-294). A pipe or a file gets the bytes unchanged.
 
 `scripts/interop-conpty.py` checks these items in a real pseudo console
 against a server with a shell, and `crates/podssh-cli/tests/console.rs`
@@ -116,7 +119,7 @@ What a pseudo console showed (T-132, 2026-10-12, Windows 11,
 | Item | Measured | |
 | --- | --- | --- |
 | Text in UTF-8 that is not ASCII (`héllo € ✓`) | Shows as sent. | No fault. |
-| A byte that is not UTF-8 (`0xff`) in the output | The text before it shows; the byte and each later byte of the session are lost, and the session goes on. Rust's console writer refuses the byte (`rust-lang/rust:library/std/src/sys/stdio/windows.rs`, `write`), and podssh takes the refusal as a stdout that is gone. | Fault: T-294. |
+| A byte that is not UTF-8 (`0xff`) in the output | Before T-294, the text before it showed, and the byte and each later byte of the session were lost while the session went on: Rust's console writer refuses the byte (`rust-lang/rust:library/std/src/sys/stdio/windows.rs`, `write`), and podssh took the refusal for a stdout that is gone. Since T-294 the byte shows as U+FFFD, and the output goes on. | Fault, repaired: T-294. |
 | Ctrl-Break in a session with a pty | podssh ends with `0xC000013A`, and the console's input mode stays raw: `0x3f0`, where it was `0x1f7`. | Fault: T-295. |
 | `~.` in the same session | The mode is `0x1f7` again. | No fault. |
 | A resize | Reaches the server 450 to 505 ms after it. | Kept: the poll costs 500 ms at most; an event of the console would need `ReadConsoleInputW` in place of the stream of bytes that podssh reads. |

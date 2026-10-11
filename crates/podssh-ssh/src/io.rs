@@ -17,6 +17,7 @@ use crate::handler::Client;
 use crate::log::Log;
 use crate::record::Recorder;
 use crate::signals;
+use crate::terminal::text::Consoles;
 use crate::terminal::{self, Size};
 
 /// How a session ended.
@@ -61,6 +62,8 @@ pub fn end_with(status: Option<i32>) -> End {
 struct Out {
     gone: Option<tokio::time::Instant>,
     told: bool,
+    /// The text of stdout and of stderr for a Windows console (T-294).
+    consoles: Consoles,
 }
 
 /// What a session's output passes through on its way out: the filter of an
@@ -165,7 +168,7 @@ pub async fn pump(
 ) -> End {
     let (mut reader, writer) = channel.split();
     let mut status: Option<i32> = None;
-    let mut out = Out::default();
+    let mut out = Out { consoles: Consoles::of_this_process(), ..Out::default() };
     // False once this session's input has ended, or its channel takes no more.
     let mut reading = input.open();
     // An elevated command's input waits for it to start (T-032).
@@ -292,7 +295,7 @@ async fn handle_msg(
 ) -> Option<End> {
     match msg {
         ChannelMsg::Data { data } => {
-            let data = through.out(&data, false, log);
+            let data = out.consoles.text(false, through.out(&data, false, log));
             // Whoever reads our stdout has gone (EPIPE): the data goes
             // nowhere, and the exit status is awaited (T-026).
             if out.gone.is_none() && write_out(&data, false).await.is_err() {
@@ -300,7 +303,7 @@ async fn handle_msg(
             }
         }
         ChannelMsg::ExtendedData { data, .. } => {
-            let data = through.out(&data, true, log);
+            let data = out.consoles.text(true, through.out(&data, true, log));
             let _ = write_out(&data, true).await;
         }
         ChannelMsg::ExitStatus { exit_status } => {
@@ -325,7 +328,14 @@ async fn handle_msg(
         ChannelMsg::Close => {
             // A command that never started: what su said, its refusal.
             if let Some(e) = through.elevated.as_mut().filter(|e| !e.started()) {
-                let _ = write_out(&e.finish(), true).await;
+                let _ = write_out(&out.consoles.text(true, e.finish()), true).await;
+            }
+            // A sequence that the end cut, for a console (T-294).
+            for stderr in [false, true] {
+                let tail = out.consoles.finish(stderr);
+                if !tail.is_empty() {
+                    let _ = write_out(&tail, stderr).await;
+                }
             }
             return Some(end_with(*status));
         }

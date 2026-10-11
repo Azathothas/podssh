@@ -19,6 +19,7 @@ use unix as platform;
 mod windows;
 #[cfg(windows)]
 use windows as platform;
+pub(crate) mod text;
 
 pub use platform::{pty_modes, read_line, RawMode};
 #[cfg(unix)]
@@ -57,6 +58,12 @@ pub fn stdin_is_terminal() -> bool {
 
 pub fn stdout_is_terminal() -> bool {
     std::io::stdout().is_terminal()
+}
+
+/// Whether stdout, or stderr, is a Windows console, whose writer takes UTF-8
+/// only (T-294). Never on Unix, where a terminal takes each byte.
+pub fn is_console(stderr: bool) -> bool {
+    platform::is_console(stderr)
 }
 
 /// The terminal's size, if one can be measured.

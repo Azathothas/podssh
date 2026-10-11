@@ -10,7 +10,8 @@ use windows_sys::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
 use windows_sys::Win32::System::Console::{
     GetConsoleMode, GetConsoleScreenBufferInfo, GetStdHandle, ReadConsoleW, SetConsoleMode, CONSOLE_SCREEN_BUFFER_INFO,
     DISABLE_NEWLINE_AUTO_RETURN, ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT,
-    ENABLE_VIRTUAL_TERMINAL_INPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE,
+    ENABLE_VIRTUAL_TERMINAL_INPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, STD_ERROR_HANDLE, STD_INPUT_HANDLE,
+    STD_OUTPUT_HANDLE,
 };
 use zeroize::Zeroizing;
 
@@ -26,6 +27,10 @@ fn console_mode(h: HANDLE) -> Option<u32> {
     let mut mode = 0u32;
     // SAFETY: `mode` is a valid out pointer; a non-console handle fails.
     (unsafe { GetConsoleMode(h, &mut mode) } != 0).then_some(mode)
+}
+
+pub fn is_console(stderr: bool) -> bool {
+    std_handle(if stderr { STD_ERROR_HANDLE } else { STD_OUTPUT_HANDLE }).and_then(console_mode).is_some()
 }
 
 pub fn size() -> Option<Size> {
