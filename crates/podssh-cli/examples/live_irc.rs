@@ -171,7 +171,7 @@ async fn run_target(
             return a;
         }
     };
-    let request = Request { relays, path: &path, trust, target: &a.target, rounds: 1 };
+    let request = Request { relays, path: &path, trust, target: &a.target, rounds: 1, failover: Default::default() };
     let opened = match podssh_relay::open(&request, &mut |note: &str| eprintln!("podssh: {note}")).await {
         Ok(opened) => opened,
         Err(failure) => {

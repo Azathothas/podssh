@@ -366,7 +366,9 @@ impl Client {
     pub fn open_forward(&self, relays: &RelayList, host: &str, port: u16) -> Result<Forward<'_>, Error> {
         let path = forward_path(host, port).map_err(Error::BadTarget)?;
         let target = podssh_ws::dial::authority(host, port);
-        let request = Request { relays, path: &path, trust: &self.config.trust, target: &target, rounds: 1 };
+        // The default order of the hosts, staggered (T-220), as `podssh ssh` has it.
+        let failover = crate::failover::Mode::default();
+        let request = Request { relays, path: &path, trust: &self.config.trust, target: &target, rounds: 1, failover };
         let mut notes = Vec::new();
         let opened = self.block_on(crate::open::open(&request, &mut |note: &str| notes.push(note.to_string())))?;
         let opened = opened.map_err(|failure| Error::Open { target, failure })?;

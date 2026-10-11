@@ -71,6 +71,8 @@ pub enum Parsed {
         port: Option<String>,
         /// `--relay-host`.
         relay_host: Option<String>,
+        /// `--relay-failover`.
+        relay_failover: Option<String>,
         /// `--relay-addr`.
         relay_addr: Option<String>,
         /// `--ca-file`.
@@ -99,6 +101,7 @@ pub enum Parsed {
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
     Doctor {
         relay_host: Option<String>,
+        relay_failover: Option<String>,
         relay_addr: Option<String>,
         ca_file: Option<String>,
         /// `--json`: one JSON object at the end, in place of the text.

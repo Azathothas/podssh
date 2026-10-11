@@ -19,13 +19,24 @@ fn run_case(argv: &[&str]) -> (i32, String, String) {
 
 #[test]
 fn the_positionals_and_options_reach_the_verb() {
-    let p = parse(args(&["proxy", "--relay-host", "relay.example:8443", "--ca-file", "ca.pem", "host.example", "22"]));
+    let p = parse(args(&[
+        "proxy",
+        "--relay-host",
+        "relay.example:8443",
+        "--relay-failover",
+        "serial",
+        "--ca-file",
+        "ca.pem",
+        "host.example",
+        "22",
+    ]));
     assert_eq!(
         p,
         Parsed::Proxy {
             target: Some("host.example".into()),
             port: Some("22".into()),
             relay_host: Some("relay.example:8443".into()),
+            relay_failover: Some("serial".into()),
             relay_addr: None,
             ca_file: Some("ca.pem".into()),
             refused: vec![],
@@ -152,20 +163,21 @@ fn podssh_with(argv: &[&str], vars: &[(&str, &str)]) -> (i32, String) {
     (status.code().unwrap_or(-1), err)
 }
 
-/// A bad PODSSH_RELAY or PODSSH_RELAY_ADDR is a configuration error (78),
+/// A bad PODSSH_RELAY, PODSSH_RELAY_ADDR or PODSSH_RELAY_FAILOVER is a configuration error (78),
 /// and the message names the variable; the command line is right. The same
 /// value as a flag stays a usage error (64).
 #[test]
 fn a_bad_variable_is_a_configuration_error() {
     let commands: [&[&str]; 3] = [&["proxy", "example.org", "22"], &["ssh", "-l", "u", "host", "true"], &["doctor"]];
-    for (var, value) in [("PODSSH_RELAY", "bad host!"), ("PODSSH_RELAY_ADDR", "nonsense")] {
+    let vars = [("PODSSH_RELAY", "bad host!"), ("PODSSH_RELAY_ADDR", "nonsense"), ("PODSSH_RELAY_FAILOVER", "fast")];
+    for (var, value) in vars {
         for argv in commands {
             let (rc, err) = podssh_with(argv, &[(var, value)]);
             assert_eq!(rc, 78, "{var} {argv:?}: {err}");
             assert!(err.contains(&format!("{var}: ")), "{var} {argv:?}: {err}");
         }
     }
-    for flag in [["--relay-host", "bad host!"], ["--relay-addr", "nonsense"]] {
+    for flag in [["--relay-host", "bad host!"], ["--relay-addr", "nonsense"], ["--relay-failover", "fast"]] {
         let argv = ["proxy", flag[0], flag[1], "example.org", "22"];
         let (rc, err) = podssh_with(&argv, &[]);
         assert_eq!(rc, 64, "{argv:?}: {err}");

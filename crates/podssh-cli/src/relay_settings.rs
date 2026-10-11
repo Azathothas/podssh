@@ -6,6 +6,7 @@
 
 use std::io::Write;
 
+use podssh_relay::failover::{Mode, MODE_ENV};
 use podssh_relay::relay::{self, RelayList};
 
 use crate::exit_codes::EXIT_USAGE;
@@ -71,6 +72,21 @@ pub fn relays(flag: Option<&str>, env: Option<String>) -> Result<RelayList, Refu
             Refusal::usage(format!("--relay-host: {why}"))
         }
     })
+}
+
+/// How the relay hosts are tried (T-220): `--relay-failover`, else
+/// `PODSSH_RELAY_FAILOVER` (`env`), else `staggered`.
+pub fn failover(flag: Option<&str>, env: Option<String>) -> Result<Mode, Refusal> {
+    match flag {
+        Some(word) => Mode::parse(word)
+            .ok_or_else(|| Refusal::usage(format!("--relay-failover: {word:?} is not a mode: give {}", Mode::NAMES))),
+        None => Mode::from_env(env).map_err(Refusal::config),
+    }
+}
+
+/// [`failover`] with no flag: the variable of the process.
+pub fn failover_of_env() -> Result<Mode, Refusal> {
+    failover(None, std::env::var(MODE_ENV).ok())
 }
 
 #[cfg(test)]

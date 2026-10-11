@@ -98,6 +98,14 @@ rc=$?
 if [ "$rc" = 0 ]; then ok=yes; else ok=no; fi
 verdict doctor "$ok" "exit $rc (want 0: no check failed)"
 
+say "podssh ping --count 3 (each step to each relay host)"
+# The time each host takes to open, through this host's proxy: the stagger
+# of the failover's modes, 2 s, is set by it (T-220).
+timeout 300 "$B" ping --count 3
+rc=$?
+if [ "$rc" = 0 ]; then ok=yes; else ok=no; fi
+verdict ping "$ok" "exit $rc (want 0: each relay host gave its steps)"
+
 say "podssh proxy github.com 22 (GitHub's SSH banner, then exit 0)"
 # After its banner the server waits for key exchange, and podssh rightly
 # keeps the connection open while the server does; eight zero bytes (a

@@ -17,6 +17,7 @@
 
 use std::io::Write;
 
+use podssh_relay::failover::Mode;
 use podssh_relay::relay::{self, RelayList};
 use podssh_ws::{Trust, Verdict};
 
@@ -38,6 +39,8 @@ pub const EXIT_FAILED: i32 = 1;
 #[derive(Debug, Clone, Default)]
 pub struct DoctorArgs {
     pub relay_host: Option<String>,
+    /// `--relay-failover`: how the relay check tries the hosts (T-220).
+    pub relay_failover: Option<String>,
     pub relay_addr: Option<String>,
     pub ca_file: Option<String>,
     /// `--json`: one JSON object on stdout when every check has run.
@@ -55,6 +58,13 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     }
     let relays = match crate::relay_settings::relays(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok()) {
         Ok(r) => r,
+        Err(refusal) => return refusal.report("doctor", err),
+    };
+    let failover = match crate::relay_settings::failover(
+        args.relay_failover.as_deref(),
+        std::env::var(podssh_relay::failover::MODE_ENV).ok(),
+    ) {
+        Ok(mode) => mode,
         Err(refusal) => return refusal.report("doctor", err),
     };
     let cert_env = std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty());
@@ -96,7 +106,7 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     }
     match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(runtime) => {
-            runtime.block_on(network(&mut report, &relays, &trust, args.full));
+            runtime.block_on(network(&mut report, &relays, &trust, failover, args.full));
             // A probe may have left a task behind (a relay leg still closing);
             // the report is done, so none is waited for.
             runtime.shutdown_background();
@@ -106,10 +116,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
     report.finish()
 }
 
-async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, full: bool) {
+async fn network(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode, full: bool) {
     net::check_network(report, relays).await;
     report.section("relay");
-    relay_checks::check(report, relays, trust, full).await;
+    relay_checks::check(report, relays, trust, failover, full).await;
     #[cfg(feature = "iroh")]
     {
         report.section("iroh");

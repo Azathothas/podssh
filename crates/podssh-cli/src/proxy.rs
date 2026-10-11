@@ -16,6 +16,7 @@ use std::io::Write;
 
 use podssh_ws::Trust;
 
+use podssh_relay::failover::Mode;
 use podssh_relay::open::{OpenError, Request};
 use podssh_relay::relay::{self, RelayList};
 use podssh_relay::token::TokenError;
@@ -33,6 +34,8 @@ pub struct ProxyArgs {
     pub port: Option<String>,
     /// `--relay-host`.
     pub relay_host: Option<String>,
+    /// `--relay-failover`.
+    pub relay_failover: Option<String>,
     /// `--relay-addr`.
     pub relay_addr: Option<String>,
     /// `--ca-file`.
@@ -47,7 +50,10 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             let _ = writeln!(err, "podssh proxy: {why}");
             // `--relay-host=-x 22` takes the HOST for its value: say how a
             // HOST that starts with - gets through.
-            let flags = args.relay_host.is_some() || args.relay_addr.is_some() || args.ca_file.is_some();
+            let flags = args.relay_host.is_some()
+                || args.relay_failover.is_some()
+                || args.relay_addr.is_some()
+                || args.ca_file.is_some();
             if flags && (args.target.is_none() || args.port.is_none()) {
                 let _ = writeln!(err, "podssh proxy: a HOST that starts with - is read as a flag; put -- before it");
             }
@@ -63,6 +69,13 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     }
     let relays = match crate::relay_settings::relays(args.relay_host.as_deref(), std::env::var(relay::RELAY_ENV).ok()) {
         Ok(r) => r,
+        Err(refusal) => return refusal.report("proxy", err),
+    };
+    let failover = match crate::relay_settings::failover(
+        args.relay_failover.as_deref(),
+        std::env::var(podssh_relay::failover::MODE_ENV).ok(),
+    ) {
+        Ok(mode) => mode,
         Err(refusal) => return refusal.report("proxy", err),
     };
     let path = match relay::forward_path(&host, port) {
@@ -86,7 +99,8 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     };
     let v6 = relay::is_ipv6_literal(&host);
     let target = podssh_ws::dial::authority(&host, port);
-    let code = runtime.block_on(session(&relays, &path, &trust, &target, v6, err));
+    let road = Road { relays: &relays, trust: &trust, failover };
+    let code = runtime.block_on(session(&road, &path, &target, v6, err));
     // A read on stdin may still be blocked in a helper thread; do not wait
     // for it, or podssh would hang after the session has ended.
     runtime.shutdown_background();
@@ -135,8 +149,15 @@ fn one_word(target: &str) -> Result<(String, String), String> {
     Ok((host.to_string(), port.to_string()))
 }
 
-async fn session(relays: &RelayList, path: &str, trust: &Trust, target: &str, v6: bool, err: &mut dyn Write) -> i32 {
-    let request = Request { relays, path, trust, target, rounds: 1 };
+/// The relay hosts, the trust of their TLS, and how the hosts are tried.
+struct Road<'a> {
+    relays: &'a RelayList,
+    trust: &'a Trust,
+    failover: Mode,
+}
+
+async fn session(road: &Road<'_>, path: &str, target: &str, v6: bool, err: &mut dyn Write) -> i32 {
+    let request = Request { relays: road.relays, path, trust: road.trust, target, rounds: 1, failover: road.failover };
     let opened = podssh_relay::open(&request, &mut |note: &str| {
         let _ = writeln!(err, "podssh: {note}");
     })

@@ -16,7 +16,14 @@ async fn open_github() -> podssh_relay::Opened {
     let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
     let relays = relay::select_relays(None, std::env::var(relay::RELAY_ENV).ok(), &pool).unwrap();
     let path = relay::forward_path("github.com", 22).unwrap();
-    let request = Request { relays: &relays, path: &path, trust: &Trust::Default, target: "github.com:22", rounds: 1 };
+    let request = Request {
+        relays: &relays,
+        path: &path,
+        trust: &Trust::Default,
+        target: "github.com:22",
+        rounds: 1,
+        failover: Default::default(),
+    };
     match podssh_relay::open(&request, &mut |note: &str| eprintln!("note: {note}")).await {
         Ok(opened) => opened,
         Err(failure) => panic!("no session: {:?}", failure.lines("github.com:22")),
@@ -66,7 +73,14 @@ async fn ipv6_the_relay_takes_the_bare_literal() {
     let target = "[2001:4860:4860::8888]:853";
     let path = relay::forward_path("2001:4860:4860::8888", 853).unwrap();
     assert_eq!(path, "/connect/2001:4860:4860::8888/853");
-    let request = Request { relays: &relays, path: &path, trust: &Trust::Default, target, rounds: 1 };
+    let request = Request {
+        relays: &relays,
+        path: &path,
+        trust: &Trust::Default,
+        target,
+        rounds: 1,
+        failover: Default::default(),
+    };
     let opened = match podssh_relay::open(&request, &mut |note: &str| eprintln!("note: {note}")).await {
         Ok(opened) => opened,
         Err(failure) => panic!("the relay refused the literal: {:?}", failure.lines(target)),

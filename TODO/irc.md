@@ -49,7 +49,7 @@ used `--no-cap` (`crates/podssh-cli/examples/live_irc.rs:72-74`). The claim is n
 4. Correct the comments at `crates/podssh-core/src/irc/cap.rs`, lines 9-28 at `9460b4e` and
    `crates/podssh-core/src/irc/session.rs`, lines 22-24 at `9460b4e`, and remove the test at
    `crates/podssh-core/tests/session.rs`, lines 200-223 at `9460b4e`. Record the new network results in
-   `docs/irc.md:99-121`, and update `docs/STATUS.md:326`, in the same commit.
+   `docs/irc.md:99-121`, and update `docs/STATUS.md:328`, in the same commit.
 
 ## Prove
 
@@ -256,7 +256,7 @@ covers it.
 3. Refuse a transfer name or reason with `|`, CR, LF or NUL. On receive, give the caller a base
    name only (`crates/podssh-core/src/irc/transfer/recv.rs`, lines 89-91 at `c3eb09d`).
 4. Update the callers (`crates/podssh-cli/examples/live_irc/support.rs:197-205`) and
-   `docs/STATUS.md:326` in the same commit.
+   `docs/STATUS.md:328` in the same commit.
 
 ## Decision
 
@@ -361,7 +361,7 @@ measured here.
 3. `CAP`: when the second parameter is a verb, the first is the target, `*` or a nick.
 4. Capture these forms from real servers into the fixture, with the server, version and date. Add
    the capture option to `crates/podssh-cli/examples/live_irc/support.rs`, because the probe's main
-   file has 473 lines. Update `docs/STATUS.md:326`. T-198 fuzzes this parser later.
+   file has 473 lines. Update `docs/STATUS.md:328`. T-198 fuzzes this parser later.
 
 ## Decision
 
@@ -587,7 +587,7 @@ network that took the relay is undernet (`docs/irc.md:108`); its use of Latin-1 
 4. In `Session::on_bytes`, turn each line error into `Event::Protocol`, and go on
    (`crates/podssh-core/src/irc/session.rs`, lines 265-280 at `016baab`).
 5. Correct the comments at `crates/podssh-core/src/irc/framing.rs`, lines 28-33 at `016baab` (the quote is about case
-   mapping) and `crates/podssh-core/src/irc/framing.rs`, lines 121-126 at `016baab`. Update `docs/STATUS.md:326`.
+   mapping) and `crates/podssh-core/src/irc/framing.rs`, lines 121-126 at `016baab`. Update `docs/STATUS.md:328`.
 
 ## Decision
 
@@ -769,7 +769,7 @@ with the text `\u{200b}podssh/N` (`crates/podssh-core/src/irc/reap.rs`, lines 53
 
 Read: the module says that IRC `PONG` lines cannot keep a session open
 (`crates/podssh-core/src/irc/reap.rs:5-15`). The relay's rule is about its own keepalives, the
-empty frames every 25 s (`docs/relay.md:82-83`, `docs/relay.md:135`). An IRC `PING` and its `PONG`
+empty frames every 25 s (`docs/relay.md:97-98`, `docs/relay.md:150`). An IRC `PING` and its `PONG`
 are bytes of the stream, so they are payload.
 
 Measured on SSH, not on IRC: payload keepalives every 60 s kept a relay session for 602 s; with
@@ -787,7 +787,7 @@ none, the relay cut it after 184 s (`docs/STATUS.md:137-138`).
 4. Rewrite the test at `crates/podssh-core/tests/session.rs`, lines 319-338 at `94f6243`. Correct the comments at
    `crates/podssh-core/src/irc/reap.rs`, lines 5-29 at `94f6243` and the test name at
    `crates/podssh-core/tests/transfer.rs`, lines 382-407 at `94f6243`.
-5. Update `docs/STATUS.md:326` in the same commit.
+5. Update `docs/STATUS.md:328` in the same commit.
 
 Pitfall: a server can limit the rate of `PING` lines. One `PING` in 60 s is far below the usual
 limits (not measured).
@@ -804,7 +804,7 @@ The new file crates/podssh-core/tests/keepalive.rs holds `the_keepalive_is_a_pin
 and `a_matching_pong_counts_as_a_reception`. Plant: return the `PRIVMSG` heartbeat; the first test
 must fail. Live: give the probe an idle mode. An idle session on undernet must stay open for 10 min
 with no channel message. With the keepalive off (the control), the relay must close it at about
-180 s with `1001 idle timeout` (`docs/relay.md:197`).
+180 s with `1001 idle timeout` (`docs/relay.md:212`).
 
 ## Correction
 

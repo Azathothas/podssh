@@ -59,8 +59,8 @@ server listens, and the client connects out for each connection.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
-   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:107-113`), with the
-   limit of 20 s (`crates/podssh-relay/src/open.rs:23-25`).
+   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:114-120`), with the
+   limit of 20 s (`crates/podssh-relay/src/open.rs:27-29`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
 5. A failed dial closes that channel only, and says why on stderr: the
@@ -207,7 +207,7 @@ remote host that must use the key, such as `git` on a build host.
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
    (`crates/podssh-cli/src/ssh/keywords.rs:25-94`). Change the help of `-a`
-   (`crates/podssh-cli/src/flags.rs:203-204`, the row `no-agent-forwarding`).
+   (`crates/podssh-cli/src/flags.rs:205-206`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
    before the shell or exec request (`crates/podssh-ssh/src/session.rs:95-109`).
    Never to a jump hop.
@@ -338,7 +338,7 @@ X11 channel.
 
 - Measured, offline: `podssh ssh -X example.invalid true` gives "-X is
   refused. Leave it out. X11 forwarding is not supported.", exit 64; `-Y`
-  the same (`crates/podssh-cli/src/flags.rs:251-254`).
+  the same (`crates/podssh-cli/src/flags.rs:253-256`).
 - Measured, offline: `-o ForwardX11=yes` is accepted with no effect, as
   `ForwardAgent` is. Read: `ForwardX11Trusted`, `ForwardX11Timeout` and
   `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:79-94`).
@@ -368,7 +368,7 @@ X11 channel.
    allows. Else refuse `-X`, and name `-Y`.
 5. Move `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` and
    `XAuthLocation` to `HONOURED`. Change the help of `-x`
-   (`crates/podssh-cli/src/flags.rs:198-199`).
+   (`crates/podssh-cli/src/flags.rs:200-201`).
 6. On Windows, a `DISPLAY` such as `localhost:0` (VcXsrv, X410) is TCP port
    6000. The X server's connection is local and named by the user, as the
    agent's connection is (`crates/podssh-ssh/src/keys.rs:275-307`, `connect_agent`).
@@ -626,7 +626,7 @@ OpenSSH shares one connection through a control socket (`-M`, `-S`, `-O`,
   (T-001); the Podman box refuses each `bind`
   (`scripts/box/seccomp.json:5-10`).
 - Read: the relay's limits apply to the shared connection: all the sessions
-  of a master share one 64 MiB and one 12 h (`docs/relay.md:131-137`).
+  of a master share one 64 MiB and one 12 h (`docs/relay.md:146-152`).
 
 ## Approach
 
@@ -914,8 +914,8 @@ sessions (GitHub #17).
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-70`,
 `crates/podssh-ssh/src/run.rs:166-207`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
-(`crates/podssh-relay/src/open.rs:177-212`,
-`crates/podssh-relay/src/open.rs:265-279`). With `-N`, no command runs, so a
+(`crates/podssh-relay/src/open.rs:187-233`,
+`crates/podssh-relay/src/open.rs:335-349`). With `-N`, no command runs, so a
 new connection has no side effect on the server. `docs/design.md:238-243`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.
@@ -946,7 +946,7 @@ In the fault harness (`scripts/interop-faults.sh`), a run with the new flag,
 `--relay-host` set to `relay-kill` then `relay-a`, and
 `-N -R 127.0.0.1:2291:127.0.0.1:2203` carries a connection to port 2291.
 Then the stand-in relay `relay-kill` stops, as at
-`scripts/interop-faults.sh:173-183`. Within 60 s, a new connection to port
+`scripts/interop-faults.sh:215-225`. Within 60 s, a new connection to port
 2291 reads Dropbear's banner again. Planted defect: no new connection, and
 the second read fails.
 

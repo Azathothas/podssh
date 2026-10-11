@@ -265,6 +265,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             target: get("target"),
             port: get("port"),
             relay_host: get("relay-host"),
+            relay_failover: get("relay-failover"),
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
             refused,
@@ -370,6 +371,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Doctor {
             relay_host: get("relay-host"),
+            relay_failover: get("relay-failover"),
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
             json: matches.get_flag("json"),

@@ -1,8 +1,10 @@
 //! Opening a forward session through the relay, with failover.
 //!
-//! The hosts of a [`RelayList`] are tried in order, each with one attempt
-//! bounded by [`HOST_DEADLINE`]: a token from the environment, the cache or a
-//! fresh mint (re-minted once when the relay rejects a cached one), then the
+//! The hosts of a [`RelayList`] are tried in the order of the list, as the
+//! mode of [`crate::failover`] says: by default the next host starts when the
+//! one before it has not opened within 2 s. Each host has one attempt bounded
+//! by [`HOST_DEADLINE`]: a token from the environment, the cache or a fresh
+//! mint (re-minted once when the relay rejects a cached one), then the
 //! WebSocket upgrade. A failure that another host might not share (a dead
 //! host, a proxy that refuses or cannot reach one name, a relay error) moves
 //! on to the next host; one that every host would repeat (a policy refusal, a
@@ -11,12 +13,14 @@
 //! Shared by `podssh proxy` and `podssh ssh`, which differ only in how they
 //! report a failure.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_ws::dial::DialError;
 use podssh_ws::{connect, ConnectError, Endpoint, ProxyChoice, RelaySession, Trust, WsClientConfig};
 use rand::Rng;
 
+use crate::failover::{self, Attempt, MintGate, Mode, SERIAL_STEP, STAGGER};
 use crate::relay::{Relay, RelayList};
 use crate::token::{self, MintContext, Origin, TokenError};
 
@@ -137,6 +141,8 @@ pub struct Request<'a> {
     pub target: &'a str,
     /// Rounds over the whole list (`ConnectionAttempts`); at least one.
     pub rounds: u32,
+    /// How the hosts of a round are tried (T-220).
+    pub failover: Mode,
 }
 
 /// An open session and the host that gave it.
@@ -174,14 +180,25 @@ impl Failure {
     }
 }
 
-/// Open a forward session, failing over across `req.relays`. `notes` receives
-/// progress worth a user's attention (a host failing, a retry, a token that
-/// could not be cached).
+/// Open a forward session, failing over across `req.relays` as
+/// `req.failover` says. `notes` receives progress worth a user's attention (a
+/// host failing, a retry, a token that could not be cached), each host's in
+/// the order of the list.
 pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Opened, Failure> {
     let mut attempts: Vec<(String, OpenError)> = Vec::new();
     if offline() {
         return Err(Failure { attempts: vec![(req.relays.primary().host.clone(), OpenError::Offline)] });
     }
+    let hosts = &req.relays.hosts;
+    let shared = Arc::new(Shared {
+        path: req.path.to_string(),
+        trust: req.trust.clone(),
+        target: req.target.to_string(),
+        primary: req.relays.primary().host.clone(),
+        explicit: req.relays.explicit,
+        several: hosts.len() > 1,
+    });
+    let gate = MintGate::default();
     let rounds = req.rounds.max(1);
     for round in 1..=rounds {
         if round > 1 {
@@ -189,48 +206,98 @@ pub async fn open(req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<Open
             notes(&format!("retrying in {:.1} s (round {round} of {rounds})", wait.as_secs_f32()));
             tokio::time::sleep(wait).await;
         }
-        for relay in &req.relays.hosts {
-            let result = tokio::time::timeout(HOST_DEADLINE, try_host(relay, req, notes))
-                .await
-                .unwrap_or(Err(OpenError::Deadline));
-            match result {
-                Ok(session) => return Ok(Opened { session, relay: relay.clone() }),
-                Err(e) => {
-                    let stop = !e.another_host_may_help();
-                    if !stop && req.relays.hosts.len() > 1 {
-                        notes(&format!("{}: {}", relay.host, e.lines(req.target).first().cloned().unwrap_or_default()));
-                    }
-                    attempts.push((relay.host.clone(), e));
-                    if stop {
-                        return Err(Failure { attempts });
-                    }
-                }
-            }
+        let start = |i: usize| {
+            // In `serial`, a host with a successor has a short step.
+            let last = i + 1 == hosts.len();
+            let step = if req.failover == Mode::Serial && !last { SERIAL_STEP } else { CONNECT_TIMEOUT };
+            attempt(hosts[i].clone(), shared.clone(), gate.clone(), step)
+        };
+        let stops = |e: &OpenError| !e.another_host_may_help();
+        let raced = failover::race(hosts.len(), req.failover, start, stops, notes).await;
+        // A session that is not kept is closed at once, so that the relay
+        // frees the socket of its target.
+        for (_, session) in raced.dismissed {
+            tokio::spawn(async move {
+                let _ = session.send_close(1000, "").await;
+            });
+        }
+        attempts.extend(raced.failed.into_iter().map(|(i, e)| (hosts[i].host.clone(), e)));
+        if let Some((i, session)) = raced.kept {
+            return Ok(Opened { session, relay: hosts[i].clone() });
+        }
+        if raced.stopped {
+            break;
         }
     }
     Err(Failure { attempts })
 }
 
-/// One host: a token, then the upgrade.
-async fn try_host(relay: &Relay, req: &Request<'_>, notes: &mut dyn FnMut(&str)) -> Result<RelaySession, OpenError> {
+/// What the attempts of one run share.
+struct Shared {
+    path: String,
+    trust: Trust,
+    /// `host:port`, for messages.
+    target: String,
+    /// The first host: the key of the cached pool.
+    primary: String,
+    /// Whether the user named the hosts.
+    explicit: bool,
+    /// Whether there is more than one host, so that a failure names its own.
+    several: bool,
+}
+
+/// One host within [`HOST_DEADLINE`], each step within `step`, with its
+/// notes: a host that fails names itself when there are others.
+async fn attempt(
+    relay: Relay,
+    shared: Arc<Shared>,
+    gate: MintGate,
+    step: Duration,
+) -> Attempt<RelaySession, OpenError> {
+    let mut notes = Vec::new();
+    let result = tokio::time::timeout(HOST_DEADLINE, try_host(&relay, &shared, &gate, step, &mut notes))
+        .await
+        .unwrap_or(Err(OpenError::Deadline));
+    if let Err(e) = &result {
+        if e.another_host_may_help() && shared.several {
+            notes.push(format!("{}: {}", relay.host, e.lines(&shared.target).first().cloned().unwrap_or_default()));
+        }
+    }
+    Attempt { result, notes }
+}
+
+/// One host: a token, then the upgrade. A token is read or minted in the
+/// turn of its deployment ([`MintGate`]): of two attempts, the second reads
+/// the token that the first cached, or mints at its own host when the first
+/// is still silent after [`STAGGER`].
+async fn try_host(
+    relay: &Relay,
+    shared: &Shared,
+    gate: &MintGate,
+    step: Duration,
+    notes: &mut Vec<String>,
+) -> Result<RelaySession, OpenError> {
     let proxy = ProxyChoice::FromEnvironment;
-    let primary = req.relays.primary().host.as_str();
-    let ctx = MintContext { relay, trust: req.trust, proxy: &proxy, timeout: CONNECT_TIMEOUT };
-    let mut token = token::obtain(&ctx, false).await.map_err(OpenError::Token)?;
+    let ctx = MintContext { relay, trust: &shared.trust, proxy: &proxy, timeout: step };
+    let key = token::token_key(relay);
+    let mut token = {
+        let _turn = gate.hold(&key, STAGGER).await;
+        token::obtain(&ctx, false).await.map_err(OpenError::Token)?
+    };
     if let Some(why) = token.cache_warning.take() {
-        notes(&format!("the relay token could not be cached, so one is minted per run: {why}"));
+        notes.push(format!("the relay token could not be cached, so one is minted per run: {why}"));
     }
     if let Some(note) = token.cache_note.take() {
-        notes(&note);
+        notes.push(note);
     }
-    if token.origin == Origin::Minted && !req.relays.explicit {
-        spawn_pool_refresh(relay.clone(), primary.to_string(), req.trust.clone());
+    if token.origin == Origin::Minted && !shared.explicit {
+        spawn_pool_refresh(relay.clone(), shared.primary.clone(), shared.trust.clone());
     }
     let config = WsClientConfig {
-        endpoint: Endpoint { host: relay.host.clone(), port: relay.port, path: req.path.to_string() },
-        trust: req.trust.clone(),
+        endpoint: Endpoint { host: relay.host.clone(), port: relay.port, path: shared.path.clone() },
+        trust: shared.trust.clone(),
         server_name: relay.host.clone(),
-        timeout: CONNECT_TIMEOUT,
+        timeout: step,
         idle_timeout: Some(podssh_ws::DEFAULT_IDLE_TIMEOUT),
         proxy: proxy.clone(),
     };
@@ -239,8 +306,11 @@ async fn try_host(relay: &Relay, req: &Request<'_>, notes: &mut dyn FnMut(&str))
     // Not for a policy refusal, which a new token cannot fix.
     if let Err(ConnectError::Refused { status: 403, body }) = &result {
         if token.origin == Origin::Cache && !is_policy_refusal(body) {
-            crate::cache::remove(&token::token_key(relay));
-            token = token::obtain(&ctx, true).await.map_err(OpenError::Token)?;
+            crate::cache::remove(&key);
+            token = {
+                let _turn = gate.hold(&key, STAGGER).await;
+                token::obtain(&ctx, true).await.map_err(OpenError::Token)?
+            };
             result = connect(&config, token.secret()).await;
         }
     }

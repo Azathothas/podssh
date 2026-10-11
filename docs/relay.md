@@ -40,11 +40,26 @@ The code is in `crates/podssh-relay/`.
    mint, when the cache is older than 7 days.
 3. For each host, podssh gets a token, then opens the WebSocket. Each step
    has a limit of 20 s, and the whole attempt has a limit of 45 s.
-4. An error that another host can repair (a host that is down, a time-out, a
+4. The hosts overlap, as `--relay-failover MODE` or `PODSSH_RELAY_FAILOVER`
+   says (the flag wins; T-220). `staggered`, the default: the next host
+   starts when the attempt before it has not opened within 2 s, or at once
+   when it failed; the first attempt that opens is kept, and of two that
+   opened together, the earlier in the list. `parallel`: each host starts at
+   once; an attempt that opens waits at most 2 s for each host before it
+   that still runs, and then the earliest that opened is kept. `serial`:
+   one host at a time, as before T-220, with a limit of 5 s for each step of
+   a host that has a successor. A session that opened and is not kept gets
+   a Close at once, so the relay frees its target's socket; the target saw
+   one short connection, as the relay dials it before the upgrade. One token
+   is minted at a time for each deployment: an attempt waits at most 2 s for
+   a mint that another has in flight, and then reads the token that it
+   cached, or mints at its own host when the first is the silent one.
+5. An error that another host can repair (a host that is down, a time-out, a
    proxy 5xx, a relay 503) goes to the next host. An error that each host
    gives (a policy refusal, a target that does not resolve, a bad token in
-   the environment, a proxy that wants credentials) stops at once.
-5. `ConnectionAttempts` repeats the whole list, with a backoff of 1 s that
+   the environment, a proxy that wants credentials) stops each attempt at
+   once.
+6. `ConnectionAttempts` repeats the whole list, with a backoff of 1 s that
    doubles up to 30 s, scaled by a random factor from 0.5 to 1.5.
 
 A token is cached for its relay deployment, with the host that minted it.

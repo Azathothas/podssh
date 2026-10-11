@@ -137,6 +137,7 @@ in [ROADMAP.md](ROADMAP.md).
 | An idle session: `ServerAliveInterval=60`, remote `sleep 600` | It stays up: 602 s, exit 0. |
 | The same with `ServerAliveInterval=0` (the control) | The relay cuts it after 184 s (its idle limit is 180 s); `ssh` exits 255. |
 | Failover: `--relay-host "tcp.ssh.relay.ajam.dev:9,tcp-eu-west-3.ssh.relay.ajam.dev"` to `github.com:22` | The first host times out after 20 s and is named. The second host, from the pool, accepts the token cached for the default host and gives GitHub's banner. |
+| The order of the relay hosts (T-220, 2026-10-11): `--relay-failover` and `PODSSH_RELAY_FAILOVER`, `staggered` by default | The next host starts when the one before it has not opened within 2 s, or at once when it failed. In the build image a silent first host costs 2 s with `staggered` and `parallel` and 5 s with `serial`, where it cost 20 s; two hosts of one deployment mint one token, and the session not kept gets a Close. The stagger against the open times of the live relay's hosts (`podssh ping --count 3`): 179 to 791 ms from this host, 102 to 437 ms in the Podman box through its proxy. `cargo test -p podssh-relay --test failover`: 11 passed |
 | Liveness: the relay answers WebSocket pings | 3 pongs for 3 pings (`cargo test -p podssh-relay --test live -- --ignored`). |
 | A 50 s idle session through `podssh proxy` with `ServerAliveInterval=0` | It stays up under the ping watcher (10 s), exit 0. |
 | DNS over HTTPS: `github.com` through each of 1.1.1.1, 8.8.8.8, 1.0.0.1 and 8.8.4.4 | Each answers through verified TLS (`cargo test -p podssh-ws --test live_doh -- --ignored`). A name that does not exist stops the lookup at the first answer (NXDOMAIN). |
@@ -261,8 +262,9 @@ behind them.
 | None (the control) | The stand-in carried a session. |
 | The first relay host is down (connection refused) | Failed over to the next host at once. |
 | The first host answers the upgrade with 503 | Failed over at once. |
-| The first host completes TLS, then does not answer | Failed over after the 20 s limit. |
-| The first host accepts TCP and does not start TLS | Failed over after the 20 s limit. |
+| The first host completes TLS, then does not answer | Since T-220 (2026-10-11, the build image): the session went through the next host in 2 s with `staggered`, the default, and with `parallel`, and in 5 s with `serial`. Before, after the 20 s limit. |
+| The first host accepts TCP and does not start TLS | The same since T-220: 2 s, 2 s and 5 s. Before, after the 20 s limit. |
+| Two hosts of one deployment in `parallel`, the first opening 500 ms after the second (T-220, 2026-10-11) | One token minted for both; the first host kept, as the earlier in the list; the second's session got a Close at once. |
 | The proxy answers 502 for the first host | Failed over to the next host through the proxy. |
 | The proxy answers 502 for each host | Exit 255; the proxy's answer is shown. |
 | A Close with 1011 during a 5 MB transfer | `ssh` exits 255 with the relay's reason; 351,575 bytes had arrived. |

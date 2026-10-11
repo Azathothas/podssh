@@ -24,6 +24,7 @@ fn env() -> Env {
         home: Some(PathBuf::from("/home/u")),
         user: Some("envuser".into()),
         relay: None,
+        relay_failover: None,
         ssl_cert_file: None,
         local_host: Some("box.example.org".into()),
         uid: Some(1000),

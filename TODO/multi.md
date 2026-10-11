@@ -37,7 +37,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   (`crates/podssh-ssh/src/known_hosts.rs:323-372`).
 - Read: with no cached token, each session mints one
   (`crates/podssh-relay/src/token.rs:134-179`); the relay allows 120 attempts
-  with no token for each minute and address (`docs/relay.md:138`).
+  with no token for each minute and address (`docs/relay.md:153`).
 
 ## Approach
 
@@ -54,17 +54,17 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    (`crates/podssh-ssh/src/log.rs:12-15`). Each line gets `HOST: `. With
    `--output-dir`, the bytes go unchanged to `HOST.out` and `HOST.err`, and
    the status to `HOST.status`.
-4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/resolve.rs:402`).
+4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/resolve.rs:407`).
    An unknown host key refuses that host and gives its fingerprint and
    `-o StrictHostKeyChecking=accept-new`. stdin is not read
-   (`crates/podssh-cli/src/ssh/resolve.rs:416`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:421`).
 5. Get the token once, before the fan-out. Serialize `known_hosts::append`
    in the process with a mutex; T-029 covers two processes.
 6. The exit status: the largest status of the hosts, and 255 for a host that
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:408-445`,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:357-394`,
    `crates/podssh-cli/src/positionals.rs:7-122`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:110-113`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
@@ -365,9 +365,9 @@ short numbered list helps a person; a script must still get the usage error.
 ## Premise
 
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
-  (`crates/podssh-cli/src/ssh/resolve.rs:135`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:139`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:241-243`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:243-245`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -479,7 +479,7 @@ name is copied by hand.
 ## Premise
 
 - Read: `podssh ssh -t HOST -- docker exec -it NAME sh` works today, as a
-  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:275-283`,
+  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:279-287`,
   `crates/podssh-cli/src/ssh/hop.rs:93-104`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
   finds it (`AGENTS.md:197-201`). Here the programs run on the server, for a
@@ -636,7 +636,7 @@ of the command.
    changed.
 3. Then one exec on the same SSH connection: `cd DIR && COMMAND`, with DIR
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
-   (`docs/relay.md:137`), run the exec on a new session (T-137).
+   (`docs/relay.md:152`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
    (`docs/cli.md:803-806`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
@@ -679,7 +679,7 @@ outlives the session, show it later, or stop it.
 ## Premise
 
 - Read: a session ends with its connection (`docs/design.md:205`), and `-f`
-  is refused (`crates/podssh-cli/src/flags.rs:232-233`).
+  is refused (`crates/podssh-cli/src/flags.rs:234-235`).
 - Read: tmux is never assumed; T-178 probes it with `command -v tmux`.
 - Read: `podssh serve` (T-107, M5) runs on the far end only where the user
   starts it.
@@ -752,7 +752,7 @@ a ticket, or a tool that asks an AI.
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:287-302`.
+  `crates/podssh-cli/src/dispatch.rs:289-304`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
   status (`docs/cli.md:803-806`), which is not a failure of podssh.
 
@@ -760,7 +760,7 @@ a ticket, or a tool that asks an AI.
 
 1. A variable `PODSSH_ERROR_PROGRAM`: one program, with no shell and no
    arguments, as `SSH_ASKPASS`. Add it to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-146`).
+   (`crates/podssh-cli/src/man/facts.rs:45-151`).
 2. When: only when podssh itself fails: a usage error (64), a configuration
    error (78), 69, 70, 77, or 255 for a failure of podssh. Never after a
    success, and never for the status of a remote command or of an `exec:`
@@ -833,7 +833,7 @@ queue, no wait for a result, and no way to get the output back.
   queue on the client dies with it, and a client that waits must not need a
   listener (`docs/target-environment.md:74-78`).
 - Read: the output comes back with `cp` (T-134), within 64 MiB for each
-  relay session (`docs/relay.md:137`); T-137 opens a new session.
+  relay session (`docs/relay.md:152`); T-137 opens a new session.
 - Read in the report: GPU-Share places jobs by idle time and free VRAM. No
   such logic here: a count of slots is the only limit.
 

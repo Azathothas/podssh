@@ -9,6 +9,7 @@ use podssh_ssh::options::{default_global_known_hosts, default_identity_files, de
 use podssh_ssh::{Hop, LogLevel, Method, Options, Request, RequestTty, StrictHostKeyChecking};
 use podssh_ws::Trust;
 
+use podssh_relay::failover::Mode;
 use podssh_relay::relay::{self, RelayList};
 
 use super::args::SshArgs;
@@ -25,7 +26,7 @@ pub use super::hop::parse_hop;
 pub enum Transport {
     /// Through the relay hosts, in order; `family` is 4 or 6 when one was
     /// asked for.
-    Relay { relays: RelayList, trust: Trust, family: Option<u8> },
+    Relay { relays: RelayList, trust: Trust, family: Option<u8>, failover: Mode },
     /// A TCP connection, through `HTTPS_PROXY` when one is set (`--direct`).
     Direct,
     /// The node of a pair, through the operator's leg of the reverse road
@@ -77,6 +78,8 @@ pub struct Env {
     pub home: Option<PathBuf>,
     pub user: Option<String>,
     pub relay: Option<String>,
+    /// `PODSSH_RELAY_FAILOVER` (T-220).
+    pub relay_failover: Option<String>,
     pub ssl_cert_file: Option<String>,
     /// The local host name and user id, for the `%` tokens.
     pub local_host: Option<String>,
@@ -97,6 +100,7 @@ impl Env {
             home,
             user,
             relay: var(relay::RELAY_ENV),
+            relay_failover: var(podssh_relay::failover::MODE_ENV),
             ssl_cert_file: var("SSL_CERT_FILE"),
             local_host: super::tokens::local_host_name(),
             uid: super::tokens::local_uid(),
@@ -331,6 +335,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         Transport::Direct
     } else {
         let relays = crate::relay_settings::relays(args.relay_host.as_deref(), env.relay.clone())?;
+        let failover = crate::relay_settings::failover(args.relay_failover.as_deref(), env.relay_failover.clone())?;
         relay::check_target(&first).map_err(|why| format!("cannot reach {first} through the relay: {why}"))?;
         // The relay dials a literal as it is; a family of the other kind
         // cannot apply to it.
@@ -347,7 +352,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             Some(file) => Trust::File(file.into()),
             None => Trust::Default,
         };
-        Transport::Relay { relays, trust, family }
+        Transport::Relay { relays, trust, family, failover }
     };
 
     // A node runs the resumable layer, whose heartbeat finds a dead link and

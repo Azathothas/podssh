@@ -11,6 +11,7 @@ mod talk;
 use std::time::Duration;
 
 use podssh_core::irc::{ReapPolicy, Server, Session};
+use podssh_relay::failover::Mode;
 use podssh_relay::open::Request;
 use podssh_relay::relay::{self, RelayList};
 use podssh_ws::Trust;
@@ -41,6 +42,8 @@ pub(super) struct Ready {
     plan: IrcPlan,
     nick: String,
     relays: RelayList,
+    /// `PODSSH_RELAY_FAILOVER` (T-220).
+    failover: Mode,
     path: String,
     trust: Trust,
     irc_trust: Trust,
@@ -50,13 +53,14 @@ pub(super) struct Ready {
 pub(super) fn prepare(plan: IrcPlan, nick: String, args: &ChatArgs) -> Result<Ready, Refusal> {
     crate::pins::apply(args.relay_addr.as_deref())?;
     let relays = crate::relay_settings::relays(None, std::env::var(relay::RELAY_ENV).ok())?;
+    let failover = crate::relay_settings::failover_of_env()?;
     let path = relay::forward_path(&plan.server, plan.port).map_err(Refusal::usage)?;
     crate::pairs::online()?;
     let ca = args.ca_file.clone().or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
     let trust = ca.map_or(Trust::Default, |file| Trust::File(file.into()));
     let irc_trust = args.irc_ca_file.as_ref().map_or(Trust::Default, |file| Trust::File(file.into()));
     let label = podssh_ws::dial::authority(&plan.server, plan.port);
-    Ok(Ready { label, plan, nick, relays, path, trust, irc_trust })
+    Ok(Ready { label, plan, nick, relays, failover, path, trust, irc_trust })
 }
 
 /// Each connection to the server, until the run ends.
@@ -144,7 +148,14 @@ async fn connect(ready: &Ready) -> Result<Box<dyn Bytes>, Unreached> {
             Err(e) => return Err(Unreached::Again(format!("{target}: {e}"))),
         }
     } else {
-        let request = Request { relays: &ready.relays, path: &ready.path, trust: &ready.trust, target, rounds: 1 };
+        let request = Request {
+            relays: &ready.relays,
+            path: &ready.path,
+            trust: &ready.trust,
+            target,
+            rounds: 1,
+            failover: ready.failover,
+        };
         let opened = podssh_relay::open(&request, &mut |note: &str| eprintln!("podssh chat: {target}: {note}"))
             .await
             .map_err(|failure| {

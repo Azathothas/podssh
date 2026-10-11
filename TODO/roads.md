@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:470-478`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:419-427`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -162,7 +162,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:578-579`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:288-289`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:292-293`,
 `crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:288-289`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:428`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:112-209`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-146`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-151`).
 
 ## Decision
 
@@ -351,7 +351,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 (`docs/design.md:615-621`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:55-62`). The relay opener tries one host at a time
-(`crates/podssh-relay/src/open.rs:177-212`), and no code races two roads.
+(`crates/podssh-relay/src/open.rs:187-233`), and no code races two roads.
 
 ## Approach
 
@@ -510,9 +510,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-146`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-151`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:183-316`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:188-338`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -832,7 +832,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
 (`docs/relay.md:1-21`, `README.md:30-33`). The stand-in serves the forward
-path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:92-109`). The
+path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:102-120`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the
 reverse path and its close table
@@ -852,13 +852,13 @@ the part of podssh:
    server of their own, on port 443.
 2. The forward path: `/connect/<host>/<port>`, the token header, `/v1/mint`,
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
-   262144 bytes), the close codes of `docs/relay.md:189-210`, and `/health`
+   262144 bytes), the close codes of `docs/relay.md:204-225`, and `/health`
    with the service name that `doctor` checks
    (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.
-4. The targets: public addresses only, the ranges of `docs/relay.md:139`,
+4. The targets: public addresses only, the ranges of `docs/relay.md:154`,
    checked after the name resolves. TLS with a certificate that the relay's
    owner gives. Rate limits and quotas for each address and each token.
 5. The part of podssh: no change in the client, because the contract is the
@@ -1171,7 +1171,7 @@ The part of podssh, when the start condition holds:
 2. The client uses it only when the relay says that it offers it (a field of
    `/relays.json` or `/health`, read at run time). Never assume it.
 3. Keep the resume token in memory only. Send it back in a header, never in a
-   URL or in output (`docs/relay.md:123-125`).
+   URL or in output (`docs/relay.md:138-140`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
    `crates/podssh-relay/src/pool.rs:82-91`).

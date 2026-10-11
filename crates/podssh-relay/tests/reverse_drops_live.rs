@@ -331,7 +331,14 @@ async fn forward_holder(until: Instant) -> Tally {
     let trust = Trust::Default;
     while Instant::now() + REOPEN_GAP < until {
         let opened_at = Instant::now();
-        let request = Request { relays: &relays, path: &path, trust: &trust, target: "github.com:22", rounds: 1 };
+        let request = Request {
+            relays: &relays,
+            path: &path,
+            trust: &trust,
+            target: "github.com:22",
+            rounds: 1,
+            failover: Default::default(),
+        };
         match podssh_relay::open(&request, &mut |_: &str| {}).await {
             Ok(opened) => {
                 tally.sessions += 1;

@@ -47,7 +47,7 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
     let first = opts.jump.first().unwrap_or(&opts.destination);
     let target = podssh_ws::dial::authority(&first.host, first.port);
     match &resolved.transport {
-        Transport::Relay { relays, trust, family } => {
+        Transport::Relay { relays, trust, family, failover } => {
             let turned;
             let relays = if skip == 0 {
                 relays
@@ -65,7 +65,14 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
             }
             let hosts: Vec<&str> = relays.hosts.iter().map(|r| r.host.as_str()).collect();
             log.verbose(&format!("connecting to {target} through the relay ({})", hosts.join(", ")));
-            let request = Request { relays, path: &path, trust, target: &target, rounds: resolved.connection_attempts };
+            let request = Request {
+                relays,
+                path: &path,
+                trust,
+                target: &target,
+                rounds: resolved.connection_attempts,
+                failover: *failover,
+            };
             let note_log = log.clone();
             match podssh_relay::open(&request, &mut |note: &str| note_log.info(note)).await {
                 Ok(opened) => {

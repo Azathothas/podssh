@@ -64,6 +64,11 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (&["PODSSH_RELAY"], "The relay hosts, as --relay-host. The flag wins."),
     (
+        &["PODSSH_RELAY_FAILOVER"],
+        "How the relay hosts are tried, as --relay-failover: staggered (the default), parallel or serial. \
+      The flag wins; another word is a configuration error (78).",
+    ),
+    (
         &["PODSSH_SSH_CONFIG"],
         "The ssh_config file of podssh ssh, as -F: none reads no file. The flag wins. A process manager \
       sets it once, also where the home cannot be written.",
@@ -182,7 +187,7 @@ fn files() -> Vec<Block> {
 }
 
 fn relay() -> Vec<Block> {
-    use podssh_relay::{open, pool, relay};
+    use podssh_relay::{failover, open, pool, relay};
     let secs = |d: std::time::Duration| d.as_secs();
     let doh: Vec<&str> = podssh_ws::resolve::DOH_RESOLVERS.iter().map(|(ip, _)| *ip).collect();
     let every = secs(podssh_ws::client::LIVENESS_EVERY);
@@ -212,13 +217,30 @@ fn relay() -> Vec<Block> {
             format!(
                 "Each host gets one attempt of {} s or less, and each step (TCP, the proxy, TLS, the \
                  WebSocket upgrade) {} s or less. An error that another host can repair goes to the next \
-                 host. An error that each host would give (such as a refused target) stops at once. \
-                 ConnectionAttempts repeats the whole round, after a random wait that starts near {} s and \
-                 doubles to near {} s.",
+                 host. An error that each host would give (such as a refused target) stops each attempt at \
+                 once. ConnectionAttempts repeats the whole round, after a random wait that starts near {} s \
+                 and doubles to near {} s.",
                 secs(open::HOST_DEADLINE),
                 secs(open::CONNECT_TIMEOUT),
                 secs(open::BACKOFF_FIRST),
                 secs(open::BACKOFF_MAX)
+            ),
+        ),
+        item(
+            vec![lit("--relay-failover MODE")],
+            format!(
+                "How the hosts are tried; also PODSSH_RELAY_FAILOVER, and the flag wins. staggered, the \
+                 default: the next host starts when the one before it has not opened within {} s, or at \
+                 once when it failed; the first that opens is kept, and of two that opened together the \
+                 earlier in the list. parallel: each host starts at once, and one that opened waits up to {} \
+                 s for the hosts before it. serial: one host at a time, each step of a host with a successor \
+                 {} s or less. A session that opened and is not kept is closed at once. One token is minted \
+                 at a time for each deployment: an attempt waits up to {} s for a mint in flight, then reads \
+                 its token, or mints at its own host.",
+                secs(failover::STAGGER),
+                secs(failover::STAGGER),
+                secs(failover::SERIAL_STEP),
+                secs(failover::STAGGER)
             ),
         ),
         item(

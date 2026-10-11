@@ -46,6 +46,11 @@ Modes:
                    behaves (T-025)
   dropfirstat:SECONDS:CODE
                    the same, SECONDS after the first session's upgrade
+  slowopen:MS      behave, with each upgrade answered MS milliseconds late:
+                   a host that opens after another (T-220)
+
+Each mint, each upgrade and each Close from the client is a line on stdout
+(`mint`, `upgrade`, `close CODE`), so a harness counts them (T-220).
 """
 
 import argparse
@@ -74,6 +79,11 @@ REASONS = {
 args = None
 
 
+def event(line):
+    """One line on stdout, as it happens, for the harness to count."""
+    print(line, flush=True)
+
+
 async def handle(reader, writer):
     try:
         head = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 30)
@@ -91,6 +101,7 @@ async def handle(reader, writer):
             pass
         elif method == "POST" and path == "/v1/mint":
             await reader.readexactly(int(headers.get("content-length", "0")))
+            event("mint")
             body = json.dumps({"token": TOKEN, "expires": int(time.time() * 1000) + 3600_000,
                                "scope": "forward"}).encode()
             writer.write(response(200, "OK", body, [("Content-Type", "application/json")]))
@@ -198,8 +209,11 @@ async def connect(reader, writer, path, headers):
     except (OSError, asyncio.TimeoutError) as e:
         writer.write(response(502, "Bad Gateway", f"relay: cannot reach {host}:{port}: {e}".encode()))
         return
+    if args.mode.startswith("slowopen:"):
+        await asyncio.sleep(int(args.mode.split(":")[1]) / 1000)
     writer.write(upgraded(headers))
     await writer.drain()
+    event("upgrade")
     UPGRADED["count"] += 1
     await pump(reader, writer, t_reader, t_writer, first=UPGRADED["count"] == 1)
 
@@ -356,6 +370,7 @@ async def pump(reader, writer, t_reader, t_writer, first=False):
             elif opcode == 0x9:
                 await send_client(frame(0xA, data))
             elif opcode == 0x8:
+                event(f"close {int.from_bytes(data[:2], 'big') if len(data) >= 2 else 1005}")
                 await send_client(close_frame(1000, "client closed"), last=True)
                 return
             elif opcode == 0x1:

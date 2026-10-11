@@ -5,6 +5,7 @@
 
 use std::io::Write;
 
+use podssh_relay::failover::Mode;
 use podssh_relay::relay::{self, RelayList};
 use podssh_ws::{ProxyChoice, Trust};
 
@@ -18,6 +19,8 @@ use crate::relay_settings::Refusal;
 #[derive(Clone)]
 pub struct Settings {
     pub relays: Option<RelayList>,
+    /// How the relay hosts are tried (T-220).
+    pub failover: Mode,
     pub trust: Trust,
     /// What an SSH hop, a node and the iroh road read: `pipe`'s flags.
     pub ssh: crate::ssh::args::SshArgs,
@@ -40,6 +43,10 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
     } else {
         None
     };
+    let failover = crate::relay_settings::failover(
+        args.ssh.relay_failover.as_deref(),
+        std::env::var(podssh_relay::failover::MODE_ENV).ok(),
+    )?;
     let ca_file =
         args.ssh.ca_file.clone().or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
     let trust = match ca_file {
@@ -49,7 +56,7 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
     if addresses.iter().any(|a| matches!(a, Address::Ssh { .. })) {
         super::ssh::check_options(&args.ssh.options)?;
     }
-    Ok(Settings { relays, trust, ssh: args.ssh.clone() })
+    Ok(Settings { relays, failover, trust, ssh: args.ssh.clone() })
 }
 
 /// Open a remote end: the end, or the exit code once its lines are written.
@@ -60,7 +67,7 @@ pub async fn open(address: &Address, settings: &Settings, err: &mut dyn Write) -
     match address {
         Address::Relay { host, port } => {
             let relays = settings.relays.as_ref().expect("the relay hosts, read with the addresses");
-            let road = super::relay::Road { relays, trust: &settings.trust };
+            let road = super::relay::Road { relays, trust: &settings.trust, failover: settings.failover };
             super::relay::open(&road, host, *port, &mut say).await
         }
         Address::Tcp { host, port } => tcp(host, *port, &mut say).await,

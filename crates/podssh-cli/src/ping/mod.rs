@@ -113,7 +113,7 @@ pub fn run(args: &PingArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     };
     let legs = match &resolved {
         Some(r) => match &r.transport {
-            Transport::Relay { relays, trust, family } => {
+            Transport::Relay { relays, trust, family, .. } => {
                 Some(Legs { relays: relays.clone(), trust: trust.clone(), target, family: *family })
             }
             _ => None,

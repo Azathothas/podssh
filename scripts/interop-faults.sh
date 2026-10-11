@@ -14,6 +14,12 @@ SAN=$(for n in $NAMES; do printf 'DNS:%s.test,' "$n"; done)
 PINS=$(for n in $NAMES; do printf '%s.test=127.0.0.1,' "$n"; done)
 SAN=${SAN%,}
 PINS=${PINS%,}
+# Two hosts of the default relay's deployment, which share one token (T-220).
+DEPLOYED="tcp-test-a.ssh.relay.ajam.dev tcp-test-b.ssh.relay.ajam.dev"
+for n in $DEPLOYED; do
+    SAN="$SAN,DNS:$n"
+    PINS="$PINS,$n=127.0.0.1"
+done
 printf 'subjectAltName=%s\nbasicConstraints=CA:FALSE\nkeyUsage=critical,digitalSignature\nextendedKeyUsage=serverAuth\n' \
     "$SAN" >"$FK/ext"
 # A config of its own, so no host's default openssl.cnf adds extensions (Git
@@ -36,7 +42,7 @@ fi
 for spec in a:normal r503:refuse:503 silent:silent hole:blackhole dead:normal stall:stall:12 \
         close:close:300000:1011 cap:close:1:1009 kill:normal hshake:close:1:1011 \
         delay:delay:2000 jitter:jitter:0:1500:7 rate:rate:65536 cut:cut:1000000 persist:normal \
-        dropfirst:dropfirst:20:1011 dropafter:dropfirstat:3:1011 tls12:tls12; do
+        dropfirst:dropfirst:20:1011 dropafter:dropfirstat:3:1011 tls12:tls12 slowopen:slowopen:500; do
     name=${spec%%:*}
     python3 "$HERE/fake-relay.py" --cert "$FK/relay.pem" --key "$FK/relay.key" --keepalive 2 \
         --port-file "$FK/$name.port" --mode "${spec#*:}" >"$FK/$name.log" 2>&1 &
@@ -46,7 +52,8 @@ port() { cat "$FK/$1.port" 2>/dev/null; }
 tries=0
 while [ "$tries" -lt 30 ]; do
     missing=0
-    for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist dropfirst dropafter tls12; do
+    for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist dropfirst dropafter tls12 \
+            slowopen; do
         [ -s "$FK/$n.port" ] || missing=1
     done
     [ "$missing" = 0 ] && break
@@ -93,8 +100,7 @@ rc=$?
     || bad faults.tls12 "TLS 1.2: exit $rc" "$FK/err"
 
 files() { n=0; for f in "$@"; do [ -e "$f" ] && n=$((n + 1)); done; echo "$n"; }
-for spec in "dead:a relay host that is down" "r503:a relay host answering 503" \
-        "silent:a relay host that never answers after TLS" "hole:a relay host that never starts TLS"; do
+for spec in "dead:a relay host that is down" "r503:a relay host answering 503"; do
     name=${spec%%:*}
     # After the dead host, relay-a.test mints the token; a cache of its own
     # shows where the token is filed (GitHub #3).
@@ -118,6 +124,42 @@ for spec in "dead:a relay host that is down" "r503:a relay host answering 503" \
     fi
 done
 RC=
+
+# T-220: a first host that says nothing, in each mode of failover. The next
+# host starts after 2 s (staggered), at once (parallel), or when the first
+# host's step of 5 s ends (serial).
+for spec in staggered:5 parallel:5 serial:10; do
+    mode=${spec%%:*}
+    for case in silent hole; do
+        start=$(date +%s)
+        r "relay-$case.test:$(port "$case"),relay-a.test:$(port a)" --relay-failover "$mode" "$T" 'echo failed-over' \
+            >"$FK/out" 2>"$FK/err" </dev/null
+        rc=$?
+        took=$(( $(date +%s) - start ))
+        [ "$rc" = 0 ] && [ "$(cat "$FK/out")" = failed-over ] && [ "$took" -lt "${spec#*:}" ] \
+            && ok "faults.failover_mode.${spec%%:*}.${case}" "$mode, a $case first host: the next host in ${took}s" \
+            || bad "faults.failover_mode.${spec%%:*}.${case}" "$mode, a $case first host: exit $rc after ${took}s" \
+                "$FK/err"
+    done
+done
+
+# Two hosts of one deployment, in parallel, the first opening 500 ms after
+# the second: one token is minted for both, the first is kept, and the
+# second gets a Close. An empty cache of its own makes the run mint.
+events() { grep -c "^$1" "$FK/slowopen.log" "$FK/a.log" | awk -F: '{n += $NF} END {print n + 0}'; }
+mints=$(events mint)
+closes=$(grep -c '^close ' "$FK/a.log")
+RC="$FK/cache-deployed"
+r "tcp-test-a.ssh.relay.ajam.dev:$(port slowopen),tcp-test-b.ssh.relay.ajam.dev:$(port a)" --relay-failover parallel \
+    "$T" 'echo one-session' >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+RC=
+sleep 1
+mints=$(( $(events mint) - mints ))
+closes=$(( $(grep -c '^close ' "$FK/a.log") - closes ))
+[ "$rc" = 0 ] && [ "$(cat "$FK/out")" = one-session ] && [ "$mints" = 1 ] && [ "$closes" = 1 ] \
+    && ok faults.failover_mode.one_mint "parallel, two hosts of one deployment: one mint, and the other session closed" \
+    || bad faults.failover_mode.one_mint "parallel, one deployment: exit $rc, $mints mints, $closes closes" "$FK/err"
 
 RP="http://127.0.0.1:$(port proxy)"
 r "relay-bad.test:443,relay-a.test:$(port a)" "$T" 'echo via-the-proxy' >"$FK/out" 2>"$FK/err" </dev/null

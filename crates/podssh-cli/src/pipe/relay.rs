@@ -16,6 +16,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
+use podssh_relay::failover::Mode;
 use podssh_relay::open::Request;
 use podssh_relay::relay::RelayList;
 use podssh_ws::session::close_code_and_reason;
@@ -59,6 +60,7 @@ impl Status {
 pub struct Road<'a> {
     pub relays: &'a RelayList,
     pub trust: &'a Trust,
+    pub failover: Mode,
 }
 
 /// A session to `host:port` through the relay, `path` already checked: the
@@ -69,7 +71,14 @@ pub async fn open(road: &Road<'_>, host: &str, port: u16, say: &mut dyn FnMut(&s
         crate::exit_codes::EXIT_USAGE
     })?;
     let target = podssh_ws::dial::authority(host, port);
-    let request = Request { relays: road.relays, path: &path, trust: road.trust, target: &target, rounds: 1 };
+    let request = Request {
+        relays: road.relays,
+        path: &path,
+        trust: road.trust,
+        target: &target,
+        rounds: 1,
+        failover: road.failover,
+    };
     match podssh_relay::open(&request, &mut |note: &str| say(note)).await {
         Ok(opened) => Ok(carry(opened.session, target, podssh_relay::relay::is_ipv6_literal(host))),
         Err(failure) => {

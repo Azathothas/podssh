@@ -5,6 +5,7 @@
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use podssh_relay::failover::Mode;
 use podssh_relay::health::HealthError;
 use podssh_relay::open::Request;
 use podssh_relay::relay::{Relay, RelayList};
@@ -36,7 +37,7 @@ const GITHUB_KEYS: [&str; 3] = [
 /// Skew beyond which this host's clock is called wrong.
 const CLOCK_LIMIT: i64 = 3600;
 
-pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, full: bool) {
+pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode, full: bool) {
     let mut answered: Option<(&Relay, Option<String>)> = None;
     for relay in &relays.hosts {
         match health(relay, trust).await {
@@ -58,10 +59,10 @@ pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &T
         return;
     };
     if token_check(report, relay, trust).await {
-        let host_key = forward(report, relays, trust).await;
+        let host_key = forward(report, relays, trust, failover).await;
         if full {
             match host_key {
-                Some(key) => login(report, relays, trust, &key).await,
+                Some(key) => login(report, relays, trust, failover, &key).await,
                 None => report.unknown("login", "not attempted: the forward check found no host key of GitHub's"),
             }
         }
@@ -146,10 +147,11 @@ async fn token_check(report: &mut Report<'_>, at: &Relay, trust: &Trust) -> bool
 async fn open_github(
     relays: &RelayList,
     trust: &Trust,
+    failover: Mode,
 ) -> Result<(tokio::io::DuplexStream, RelayStatus, String), String> {
     let target = dial::authority(FORWARD_HOST, 22);
     let path = podssh_relay::relay::forward_path(FORWARD_HOST, 22)?;
-    let request = Request { relays, path: &path, trust, target: &target, rounds: 1 };
+    let request = Request { relays, path: &path, trust, target: &target, rounds: 1, failover };
     // Its progress notes repeat what the relay lines above already say.
     let opened = podssh_relay::open(&request, &mut |_: &str| {})
         .await
@@ -169,9 +171,9 @@ async fn open_github(
 /// GitHub's published host keys: then the relay path works end to end and
 /// nothing in between answered in GitHub's place. Gives the fingerprint
 /// that passed.
-async fn forward(report: &mut Report<'_>, relays: &RelayList, trust: &Trust) -> Option<String> {
+async fn forward(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode) -> Option<String> {
     let target = dial::authority(FORWARD_HOST, 22);
-    let (stream, status, via) = match open_github(relays, trust).await {
+    let (stream, status, via) = match open_github(relays, trust, failover).await {
         Ok(opened) => opened,
         Err(why) => {
             report.fail("forward", why);
@@ -206,9 +208,9 @@ async fn forward(report: &mut Report<'_>, relays: &RelayList, trust: &Trust) -> 
 /// for the check and never written, which GitHub refuses. The host key must
 /// be the one that `forward` identified. Then the handshake, the host key
 /// and the authentication path work end to end, with no account.
-async fn login(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, host_key: &str) {
+async fn login(report: &mut Report<'_>, relays: &RelayList, trust: &Trust, failover: Mode, host_key: &str) {
     let target = dial::authority(FORWARD_HOST, 22);
-    let (stream, status, via) = match open_github(relays, trust).await {
+    let (stream, status, via) = match open_github(relays, trust, failover).await {
         Ok(opened) => opened,
         Err(why) => return report.fail("login", why),
     };

@@ -307,11 +307,11 @@ Read; the lines of `podssh-ws` are those of `c56792f`. `open_tls` builds the tru
 the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 at `723d90b`, through
 `crates/podssh-ws/src/tls.rs` lines 153-180 at `723d90b`). `WsClientConfig` carries only a `Trust`
 (`client.rs` lines 47-61 at `723d90b`). The same `Trust` goes through `podssh-relay`: `Request`
-(`crates/podssh-relay/src/open.rs:130-140`), `MintContext`
+(`crates/podssh-relay/src/open.rs:134-146`), `MintContext`
 (`crates/podssh-relay/src/token.rs:94-99`), the pool refresh
 (`crates/podssh-relay/src/pool.rs:120-128`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
-HTTP/1.1 only (`docs/relay.md:216`). The `tls12` feature of `rustls` is on in the workspace
+HTTP/1.1 only (`docs/relay.md:231`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
 
 ## Approach
@@ -430,7 +430,7 @@ requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
    (`crates/podssh-relay/src/health.rs:98-101`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:265-281`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:287-303`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -510,7 +510,7 @@ Read: `connect` always calls `open_tls` (`crates/podssh-ws/src/client.rs` lines 
 `23b5d82`). `RelaySession` is
 generic over its stream (`crates/podssh-ws/src/session.rs:33`), so a session over `TcpStream`
 is possible. `podssh-relay` gives the TLS type back (`Opened`,
-`crates/podssh-relay/src/open.rs:142-147`). The tests use in-memory streams
+`crates/podssh-relay/src/open.rs:148-153`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
 (`crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
 (`crates/podssh-ws/src/dial.rs:120-128`).
@@ -601,11 +601,11 @@ Read; the lines of the files that this entry changed are those of `723d90b`. `se
 `read_frame` (170-221) and `write` (223-228) return `Result<_, String>`; `watch_liveness`
 returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs` lines 95-96 and 138-140 at `23b5d82` put it in `RelayEnd::Failed`;
-`crates/podssh-cli/src/pipe/relay.rs:94-166` prints it; `podssh-transport` makes a write error
+`crates/podssh-cli/src/pipe/relay.rs:103-175` prints it; `podssh-transport` makes a write error
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
-WebSocket Close"), and `scripts/interop-faults.sh:169` ("pings unanswered").
+WebSocket Close"), and `scripts/interop-faults.sh:211` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach
@@ -697,8 +697,8 @@ socks5:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy"
 (`crates/podssh-ws/src/dial.rs`, lines 53-63). `proxy_from_vars` reads `https_proxy`,
 `HTTPS_PROXY`, `all_proxy` and `ALL_PROXY` (lines 163 and 184), and parses the first that is set
 (line 192). `dial` makes the error `DialError::BadProxy` (line 232), which stops the failover at
-once (`crates/podssh-relay/src/open.rs:65`) and gives exit 78 in `podssh proxy`
-(`crates/podssh-cli/src/proxy.rs:164`). `doctor` reports it as `FAIL`
+once (`crates/podssh-relay/src/open.rs:69`) and gives exit 78 in `podssh proxy`
+(`crates/podssh-cli/src/proxy.rs:185`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs`, lines 101-107). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs`, lines 144-153, and `crates/podssh-ws/tests/dial.rs`, lines
 50-58.
@@ -716,8 +716,8 @@ once (`crates/podssh-relay/src/open.rs:65`) and gives exit 78 in `podssh proxy`
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
-   (`crates/podssh-relay/src/open.rs:57-79`) and the exit codes of `podssh proxy`
-   (`crates/podssh-cli/src/proxy.rs:160-173`) already treat: a refused user or password as 407
+   (`crates/podssh-relay/src/open.rs:61-83`) and the exit codes of `podssh proxy`
+   (`crates/podssh-cli/src/proxy.rs:181-194`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).

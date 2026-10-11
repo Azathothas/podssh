@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**279 entries: 93 open, 0 partial, 22 blocked, 164 done.**
+**279 entries: 92 open, 0 partial, 22 blocked, 165 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 17 | 19 |
-| P2 | 9 | 0 | 18 | 127 | 154 |
+| P2 | 8 | 0 | 18 | 128 | 154 |
 | P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 93 | 0 | 22 | 164 | 279 |
+| **All** | 92 | 0 | 22 | 165 | 279 |
 
 ## Entries
 
@@ -291,7 +291,7 @@ repository and CI).
 | [T-217](repo.md) | P3 | S | none | chore | done | The declared minimum Rust versions, checked in CI |
 | [T-218](repo.md) | P2 | M | M9 | release | open | More release targets: macOS, Linux armv7 and riscv64, and Windows aarch64 |
 | [T-219](repo.md) | P2 | S | none | chore | done | The no-C gate also stops C++ |
-| [T-220](relay.md) | P2 | M | backlog | feature | open | A silent first relay host costs a full dial before the next host is tried (GitHub #30) |
+| [T-220](relay.md) | P2 | M | backlog | feature | done | A silent first relay host costs a full dial before the next host is tried (GitHub #30) |
 | [T-221](resume.md) | P3 | M | backlog | feature | open | Replayed output after dropped bytes starts at a boundary of the terminal grammar (GitHub #31) |
 | [T-222](serve.md) | P2 | S | M5 | feature | blocked | `podssh serve` finds a shell with no passwd entry and no `/etc/shells`, and names each candidate that failed (GitHub #32) |
 | [T-223](repo.md) | P3 | S | none | defect | done | `scripts/check-repo.py` passes when it finds nothing to check (GitHub #33) |
