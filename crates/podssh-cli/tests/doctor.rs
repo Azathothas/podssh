@@ -143,12 +143,26 @@ fn a_proxy_is_named_and_its_credentials_never_appear() {
 
 #[test]
 fn an_unusable_proxy_fails_without_echoing_its_credentials() {
-    let run = doctor(&[], &[("HTTPS_PROXY", "socks5://alice:s3cr3t-pass@proxy.example:1080")], &[], true);
+    // SOCKS5 is taken since T-070; SOCKS4 has no authentication, and is not.
+    let run = doctor(&[], &[("HTTPS_PROXY", "socks4://alice:s3cr3t-pass@proxy.example:1080")], &[], true);
     assert_eq!(run.code, 1, "{}", run.out);
     // Windows reads variable names without regard to case, so the name
     // reported can be either spelling.
     let lower = run.out.to_ascii_lowercase();
     assert!(lower.contains("  fail  proxy          https_proxy is set but cannot be used"), "{}", run.out);
+    assert!(!run.out.contains("s3cr3t") && !run.out.contains("alice"), "{}", run.out);
+}
+
+/// A SOCKS5 proxy is named as one (T-070), with no credentials shown.
+#[test]
+fn a_socks5_proxy_is_named_and_its_credentials_never_appear() {
+    let run = doctor(&[], &[("ALL_PROXY", "socks5h://alice:s3cr3t-pass@proxy.example:1080")], &[], true);
+    let lower = run.out.to_ascii_lowercase();
+    assert!(
+        lower.contains("all_proxy names the socks5 proxy proxy.example:1080 with credentials (not shown)"),
+        "{}",
+        run.out
+    );
     assert!(!run.out.contains("s3cr3t") && !run.out.contains("alice"), "{}", run.out);
 }
 

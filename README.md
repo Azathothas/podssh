@@ -141,7 +141,9 @@ podssh chat NAME --pair-file op.json            # the other side, with op.json s
 
 `podssh man environment` lists each variable that podssh reads. The usual
 one is `HTTPS_PROXY`: podssh sends the relay's name in `CONNECT`, so it
-needs no DNS through a proxy.
+needs no DNS through a proxy. A SOCKS5 proxy works too
+(`ALL_PROXY=socks5h://HOST:PORT`, with a user and a password if it needs
+them).
 
 podssh mints a relay token when it first needs one (`POST /v1/mint`, no
 account), and caches it for its lifetime in the user's cache directory. Only

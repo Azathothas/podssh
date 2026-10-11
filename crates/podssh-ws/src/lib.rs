@@ -21,8 +21,10 @@ pub mod http;
 pub mod names;
 #[cfg(feature = "plain-ws")]
 pub mod plain;
+pub mod proxy;
 pub mod resolve;
 pub mod session;
+mod socks5;
 pub mod text;
 pub mod tls;
 pub mod write_limit;
@@ -31,7 +33,7 @@ pub use client::{
     connect, doctor, https_get, https_post_json, ConnectError, Endpoint, WsClientConfig, DEFAULT_IDLE_TIMEOUT,
     DEFAULT_TIMEOUT, LIVENESS_ALLOWED, LIVENESS_EVERY,
 };
-pub use dial::{DialError, HttpProxy, ProxyChoice};
+pub use dial::{DialError, HttpProxy, Proxy, ProxyChoice, ProxyKind};
 pub use error::{SessionError, Verdict, WsError};
 pub use frame::Frame;
 pub use session::RelaySession;

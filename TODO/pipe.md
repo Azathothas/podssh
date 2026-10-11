@@ -175,7 +175,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:104-106`).
+   pump does not know the road (`docs/architecture.md:113-115`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:98-108` does;
    open with `crates/podssh-relay/src/open.rs:180-212`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:806`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:807`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:259-335` a typed error, so that 77 is not
    guessed from a message.
@@ -208,7 +208,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 ## Decision
 
 Recommendation: add `tcp:HOST:PORT`, the direct road through `HTTPS_PROXY`
-with `crates/podssh-ws/src/dial.rs:227-242`, because `ssh --direct` uses the
+with `crates/podssh-ws/src/dial.rs:152-168`, because `ssh --direct` uses the
 same dialer and socat users expect it. The alternative, no direct address,
 lost: a host with egress would then have only `relay:`, and its 64 MiB limit.
 
@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:437-439`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:191-196`, `docs/architecture.md:107-117`,
+  `AGENTS.md:191-196`, `docs/architecture.md:116-126`,
   `docs/target-environment.md:74-78`, `SECURITY.md:85-102`, `README.md:38-44`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:188`). The box refuses each `bind`, AF_UNIX too
@@ -430,7 +430,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:437-439`).
 2. podssh listens only for a `-listen:` address that the user gives.
    `PODSSH_LISTEN=no` turns listening off: each such address then exits 78
    before any bind. Add the variable to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-143`); the settings file of T-048
+   (`crates/podssh-cli/src/man/facts.rs:45-146`); the settings file of T-048
    can set the same.
 3. The attempt is the probe: socket, bind, listen. EACCES or EPERM exits 77
    with the errno and an address that needs no listener; another error exits
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:191-196`, `docs/architecture.md:107-117` and
+allows: `AGENTS.md:191-196`, `docs/architecture.md:116-126` and
 `docs/target-environment.md:74-78` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:241-243`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:855-857`). After the attach, send the window size again.
+   (`docs/cli.md:856-858`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes.rs:36-143`), `docs/design.md:241-243`,
    `docs/STATUS.md`, and tmux in the interop image

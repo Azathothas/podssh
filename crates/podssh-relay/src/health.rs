@@ -106,7 +106,8 @@ pub async fn fetch(
     };
     let opened = match through {
         Some(proxy) => {
-            format!("CONNECT {} through {}", dial::authority(host, relay.port), proxy_reached(&proxy, &peer))
+            let request = proxy.kind.request();
+            format!("{request} {} through {}", dial::authority(host, relay.port), proxy_reached(&proxy, &peer))
         }
         None => format!("TCP {peer}"),
     };

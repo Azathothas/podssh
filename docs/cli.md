@@ -465,7 +465,8 @@ before anything else; `podssh doctor` is the report that measures.
 
 - The line: `schema`, `podssh`, `relays` and `relays_from`, `pool`,
   `token` (its source, the relay that it is for, its expiry, whether it can
-  be used), `proxy`, `offline`, `attachment`, `stdin_tty`, `stdout_tty`,
+  be used), `proxy` (the variable, `HOST:PORT` and the kind, `http` or
+  `socks5`), `offline`, `attachment`, `stdin_tty`, `stdout_tty`,
   and `host` for a destination (its name in `known_hosts`, whether a key is
   recorded, the key types).
 - It never holds a token: it reads the cache entry without its token field

@@ -136,3 +136,18 @@ async fn with_no_relay_that_answers_iroh_gets_them_all() {
     assert_eq!(missed.len(), 2, "{missed:?}");
     assert!(missed[1].contains("localhost"), "{missed:?}");
 }
+
+/// A SOCKS5 proxy, which the other roads take since T-070, is refused by
+/// name before anything binds: iroh dials its relay through an HTTP CONNECT
+/// proxy only. The proxy's password is never quoted.
+#[tokio::test]
+async fn a_socks5_proxy_is_refused_by_name() {
+    let proxy = podssh_ws::Proxy::parse("socks5h://u:s3cret@proxy.example:1080").expect("a proxy URL");
+    let relays = vec![A.parse().expect("a relay URL")];
+    let options = Options { relays, proxy: ProxyChoice::Via(proxy), udp: Udp::Off, ..Options::default() };
+    let Err(podssh_iroh::BindError::Proxy(why)) = podssh_iroh::bind(&options).await else {
+        panic!("a SOCKS5 proxy was taken for the iroh relay")
+    };
+    assert!(why.contains("SOCKS5") && why.contains("HTTP CONNECT"), "{why}");
+    assert!(!why.contains("s3cret"), "the password is quoted: {why}");
+}

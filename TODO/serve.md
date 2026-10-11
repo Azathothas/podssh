@@ -63,7 +63,7 @@ Recommendation: the server goes in crates/podssh-ssh/src/server/, and only
 the command line in crates/podssh-cli/src/serve.rs. `docs/design.md:28-30`
 gives `podssh-ssh` the "russh client and server"; the crate links aws-lc
 already (`crates/podssh-ssh/Cargo.toml:12-18`), holds the helpers to reuse,
-and is read by the variable test (`crates/podssh-cli/src/man/facts.rs:366-371`).
+and is read by the variable test (`crates/podssh-cli/src/man/facts.rs:369-374`).
 A new crate lost: it repeats the russh dependency and its C exception, and
 makes the helpers public. `podssh-cli` lost: it is the command line.
 
@@ -188,9 +188,9 @@ tells the user nothing.
   handle sends `AdministrativelyProhibited`
   (`Eugeny/russh:russh/src/lib_inner.rs`, lines 570-620). A refusal can carry
   a reason with `ChannelOpenFailure::Other`.
-- Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs:224-242` (a time
+- Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs:149-168` (a time
   limit; `HTTPS_PROXY` when it is set) and
-  `crates/podssh-ws/src/dial.rs:176-182` (loopback never through a proxy).
+  `crates/podssh-ws/src/dial.rs:101-107` (loopback never through a proxy).
   The client copies a forward with half-close in
   `crates/podssh-ssh/src/forward.rs:22-87`.
 - Read: in the measured sandbox, `connect()` to loopback failed with `EACCES`
@@ -214,7 +214,7 @@ tells the user nothing.
 
 Pitfalls: `direct-streamlocal@openssh.com` (AF_UNIX) stays refused here; T-040
 is the client side. A host name that `check_name` refuses
-(`crates/podssh-ws/src/dial.rs:404-413`) gets that reason, not a generic one.
+(`crates/podssh-ws/src/dial.rs:335-344`) gets that reason, not a generic one.
 
 ## Prove
 
@@ -1161,7 +1161,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:191-196`, `docs/architecture.md:107-117`).
+  (`AGENTS.md:191-196`, `docs/architecture.md:116-126`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
   TCP and an AF_UNIX socket to test the host, and closes them at once
@@ -1187,7 +1187,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:191-196` and `docs/architecture.md:107-117`, which then name this
+   `AGENTS.md:191-196` and `docs/architecture.md:116-126`, which then name this
    exception and the ruling.
 
 ## Prove
@@ -1255,7 +1255,7 @@ no reason (`docs/target-environment.md:63-64`).
    (`crates/podssh-cli/src/doctor/host.rs:10-25`) from the same function.
 6. T-108 runs the result. Never call `getpwuid`. Same commit: `--shell` in
    `crates/podssh-cli/src/flags.rs`, `SHELL` in
-   `crates/podssh-cli/src/man/facts.rs:45-143`, `docs/cli.md`.
+   `crates/podssh-cli/src/man/facts.rs:45-146`, `docs/cli.md`.
 
 ## Decision
 

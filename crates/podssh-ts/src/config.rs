@@ -207,6 +207,13 @@ pub fn choose_proxy(flag: Option<&str>, var: impl Fn(&str) -> Option<String>) ->
     // the port 80 for an `http://` URL with none, the credentials decoded.
     let proxy =
         podssh_ws::HttpProxy::parse(&raw).map_err(|why| ConfigError::BadProxyUrl(format!("{source}: {why}")))?;
+    // The fork's DERP dial speaks HTTP CONNECT only (T-070).
+    if proxy.kind != podssh_ws::ProxyKind::Http {
+        return Err(ConfigError::BadProxyUrl(format!(
+            "{source}: {proxy} is a SOCKS5 proxy, and podssh ts reaches DERP through an HTTP CONNECT proxy only \
+             (http://)"
+        )));
+    }
     let no_proxy = match flag {
         Some(_) => None,
         None => podssh_ws::dial::NO_PROXY_VARS.iter().find_map(|name| set(name)),

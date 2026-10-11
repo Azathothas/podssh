@@ -125,17 +125,19 @@ fn token_state(relays: &RelayList) -> Value {
     }
 }
 
-/// The proxy that podssh would use for the first relay host: the variable
-/// and `host:port`, never the credentials. A setting that cannot be used is
-/// said, as the doctor says it.
+/// The proxy that podssh would use for the first relay host: the variable,
+/// `host:port` and its kind (`http` or `socks5`), never the credentials. A
+/// setting that cannot be used is said, as the doctor says it.
 fn proxy_state(relays: &RelayList) -> Value {
     let primary = &relays.primary().host;
     let named = PROXY_VARS.iter().find_map(|n| var(n).map(|v| (*n, v)));
     match (named, podssh_ws::dial::proxy_from_env(primary)) {
         (None, _) => Value::Null,
-        (Some((name, _)), Err(why)) => json!({ "variable": name, "proxy": null, "error": why }),
-        (Some((name, _)), Ok(None)) => json!({ "variable": name, "proxy": null, "error": null }),
-        (Some((name, _)), Ok(Some(proxy))) => json!({ "variable": name, "proxy": proxy.to_string(), "error": null }),
+        (Some((name, _)), Err(why)) => json!({ "variable": name, "proxy": null, "kind": null, "error": why }),
+        (Some((name, _)), Ok(None)) => json!({ "variable": name, "proxy": null, "kind": null, "error": null }),
+        (Some((name, _)), Ok(Some(proxy))) => {
+            json!({ "variable": name, "proxy": proxy.to_string(), "kind": proxy.kind.name(), "error": null })
+        }
     }
 }
 

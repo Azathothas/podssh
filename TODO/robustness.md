@@ -28,8 +28,10 @@ acceptance on rare input stays hidden. The release build aborts on a panic
 Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/frame.rs:113`); HTTP heads and chunked bodies
 (`crates/podssh-ws/src/http.rs:110`, line 183 at `e892b0f`); the upgrade answer
-(`crates/podssh-ws/src/handshake.rs:175`); proxy URLs, `NO_PROXY` and the
-CONNECT status (`crates/podssh-ws/src/dial.rs:53`, lines 178 and 334 at `22c3b88`); close
+(`crates/podssh-ws/src/handshake.rs:175`); proxy URLs
+(`crates/podssh-ws/src/proxy.rs:82`), `NO_PROXY` and the CONNECT status
+(`crates/podssh-ws/src/dial.rs`, lines 178 and 334 at `22c3b88`); since T-070 (2026-10-11), a
+SOCKS5 proxy's answers (`crates/podssh-ws/src/socks5.rs:156`); close
 reasons (`crates/podssh-ws/src/session.rs:335`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:92`);
@@ -279,7 +281,7 @@ Read, the bounds today:
   180-194). A message in fragments: 16 MiB
   (`crates/podssh-ws/src/session.rs:29`, checked at lines 240-242 at `23b5d82`).
 - A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:8`), for the
-  proxy (`crates/podssh-ws/src/dial.rs:18`) and for the upgrade
+  proxy (`crates/podssh-ws/src/dial.rs:21`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:124`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:33`). A cache
   file: 64 KiB (`crates/podssh-relay/src/cache.rs:28`).
@@ -579,7 +581,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:70`, `docs/STATUS.md:72`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:804-805` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:805-806` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -596,14 +598,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:804-805`). A difference that the table does not name fails,
+   `docs/cli.md:805-806`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:804-805` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:805-806` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed

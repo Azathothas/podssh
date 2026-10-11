@@ -176,3 +176,29 @@ fn the_cache_shows_its_directories_and_what_chose_them() {
     let (_, out, _) = status(&home, &[], &[]);
     assert_eq!(one_line(&out)["cache"]["from"], "default");
 }
+
+/// The proxy: its variable, HOST:PORT and its kind, never its user or its
+/// password (T-070); a setting that cannot be used gives its error.
+#[test]
+fn the_proxy_is_named_with_its_kind_and_no_credentials() {
+    let home = scratch("proxy");
+    for (url, shown, kind) in [
+        ("http://alice:s3cret@proxy.example:3128", "proxy.example:3128", "http"),
+        ("socks5h://alice:s3cret@proxy.example:1080", "proxy.example:1080", "socks5"),
+        ("socks5://alice:s3cret@proxy.example", "proxy.example:1080", "socks5"),
+    ] {
+        let (rc, out, err) = status(&home, &[], &[("ALL_PROXY", url)]);
+        assert_eq!(rc, 0, "{err}");
+        let doc = one_line(&out);
+        // Windows reads variable names without regard to case.
+        assert_eq!(doc["proxy"]["variable"].as_str().map(str::to_ascii_lowercase).as_deref(), Some("all_proxy"));
+        assert_eq!((doc["proxy"]["proxy"].as_str(), doc["proxy"]["kind"].as_str()), (Some(shown), Some(kind)), "{out}");
+        assert!(!out.contains("s3cret") && !out.contains("alice"), "{out}");
+    }
+    let (rc, out, err) = status(&home, &[], &[("ALL_PROXY", "socks4://alice:s3cret@proxy.example:1080")]);
+    assert_eq!(rc, 0, "{err}");
+    let doc = one_line(&out);
+    assert!(doc["proxy"]["error"].as_str().is_some_and(|why| why.contains("SOCKS4")), "{out}");
+    assert_eq!((doc["proxy"]["proxy"].clone(), doc["proxy"]["kind"].clone()), (Value::Null, Value::Null), "{out}");
+    assert!(!out.contains("s3cret") && !out.contains("alice"), "{out}");
+}

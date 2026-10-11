@@ -163,7 +163,9 @@ async fn open(
     token: &str,
 ) -> Result<RelaySession, ConnectError> {
     let how = match podssh_ws::dial::proxy_from_env(&relay.host) {
-        Ok(Some(proxy)) => format!("CONNECT through {}", podssh_ws::dial::authority(&proxy.host, proxy.port)),
+        Ok(Some(proxy)) => {
+            format!("{} through {}", proxy.kind.request(), podssh_ws::dial::authority(&proxy.host, proxy.port))
+        }
         _ => "DNS and TCP".to_string(),
     };
     let started = Instant::now();

@@ -131,6 +131,13 @@ async fn proxy_url(choice: &ProxyChoice, mode: &RelayMode) -> Result<Option<url:
             None => return Ok(None),
         },
     };
+    // iroh dials its relay through an HTTP CONNECT proxy only (T-070).
+    if proxy.kind != podssh_ws::ProxyKind::Http {
+        return Err(BindError::Proxy(format!(
+            "{proxy} is a SOCKS5 proxy, and the iroh road reaches its relay through an HTTP CONNECT proxy only \
+             (http://)"
+        )));
+    }
     let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
     let addrs = podssh_ws::resolve::resolve(&proxy.host, proxy.port, deadline)
         .await

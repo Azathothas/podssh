@@ -295,7 +295,8 @@ const STATUS: &[&str] = &[
      port) and relays_from (--relay-host, PODSSH_RELAY, or the default and its pool), pool (cached, when \
      it was fetched, how many hosts), token (source: PODSSH_RELAY_TOKEN, cache or none; the relay that it \
      is for; when it expires; whether it can be used), cache (from: PODSSH_CACHE_DIR, none or default; \
-     dirs: the directories in the order podssh tries them), proxy (the variable and HOST:PORT), offline, \
+     dirs: the directories in the order podssh tries them), proxy (the variable, HOST:PORT and the kind, \
+     http or socks5), offline, \
      attachment, stdin_tty and stdout_tty, and host for a destination (its name in known_hosts, whether \
      a key is recorded, the key types).",
     "It shows no token and no proxy credentials, opens no connection, asks no DNS and writes nothing. A \

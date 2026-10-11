@@ -109,3 +109,13 @@ fn a_bad_proxy_is_named_by_its_source_and_never_quoted() {
         assert!(!why.contains("secret"), "the password is quoted: {why}");
     }
 }
+
+/// A SOCKS5 proxy, which each other command takes since T-070, is refused
+/// here by name: the fork's DERP dial speaks HTTP CONNECT only.
+#[test]
+fn a_socks5_proxy_is_refused_by_name() {
+    let set: &'static [(&'static str, &'static str)] = &[("ALL_PROXY", "socks5h://u:secret@proxy.example:1080")];
+    let Err(ConfigError::BadProxyUrl(why)) = choose_proxy(None, vars(set)) else { panic!("accepted") };
+    assert!(why.starts_with("ALL_PROXY: ") && why.contains("SOCKS5") && why.contains("HTTP CONNECT"), "{why}");
+    assert!(!why.contains("secret"), "the password is quoted: {why}");
+}

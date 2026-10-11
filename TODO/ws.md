@@ -137,7 +137,7 @@ row, panic the same way: `rng.fill_bytes` for the X25519 secret
    range), and compute the shared secret with the `diffie_hellman` function of `elliptic-curve`
    0.13. Check the API of `p256` 0.13.2 first. No generator that can panic goes in.
 4. Make the source a parameter in the tests, so a failing source can be planted.
-5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:364-388`
+5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:367-391`
    does, and fails on `fill_bytes(` or `OsRng` outside `random.rs`.
 
 ## Decision
@@ -232,7 +232,7 @@ cannot look for that word alone.
    (`crates/podssh-ws/examples/inspect_peer_chain.rs`), and remove `pub mod probe;`. Keep each
    file under 500 lines.
 2. Add the test that `probe.rs` (lines 9-12 at `510d86f`) promised: a scan of the source of `podssh-ws`,
-   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:364-388`
+   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:367-391`
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
@@ -430,7 +430,7 @@ requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
    (`crates/podssh-relay/src/health.rs:98-101`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:262-278`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:265-281`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -513,7 +513,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:142-147`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
 (`crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
-(`crates/podssh-ws/src/dial.rs:195-203`).
+(`crates/podssh-ws/src/dial.rs:120-128`).
 
 ## Approach
 
@@ -683,7 +683,7 @@ reports, not verified here. No SOCKS proxy was measured on a target host.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -692,37 +692,39 @@ given as `ALL_PROXY=socks5h://...`, cannot reach the relay: podssh refuses the s
 
 ## Premise
 
-Read: `HttpProxy::parse` refuses each scheme but `http`, with "proxy scheme socks5:// is not
-supported; podssh speaks HTTP CONNECT to an http:// proxy"
-(`crates/podssh-ws/src/dial.rs:53-63`). `proxy_from_vars` reads `https_proxy`, `HTTPS_PROXY`,
-`all_proxy` and `ALL_PROXY` (`:163`, read at `:184`), and parses the first that is set (`:192`). `dial`
-makes the error `DialError::BadProxy` (`:232`), which stops the failover at once
-(`crates/podssh-relay/src/open.rs:65`) and gives exit 78 in `podssh proxy`
+Read, at `dab5669`: `HttpProxy::parse` refuses each scheme but `http`, with "proxy scheme
+socks5:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy"
+(`crates/podssh-ws/src/dial.rs`, lines 53-63). `proxy_from_vars` reads `https_proxy`,
+`HTTPS_PROXY`, `all_proxy` and `ALL_PROXY` (lines 163 and 184), and parses the first that is set
+(line 192). `dial` makes the error `DialError::BadProxy` (line 232), which stops the failover at
+once (`crates/podssh-relay/src/open.rs:65`) and gives exit 78 in `podssh proxy`
 (`crates/podssh-cli/src/proxy.rs:164`). `doctor` reports it as `FAIL`
-(`crates/podssh-cli/src/doctor/net.rs:101-107`). Two tests assert the refusal:
-`crates/podssh-cli/tests/doctor.rs:140-147` and `crates/podssh-ws/tests/dial.rs:50-58`.
+(`crates/podssh-cli/src/doctor/net.rs`, lines 101-107). Two tests assert the refusal:
+`crates/podssh-cli/tests/doctor.rs`, lines 144-153, and `crates/podssh-ws/tests/dial.rs`, lines
+50-58.
 
 ## Approach
 
 1. A proxy type with two forms, HTTP and SOCKS5, in `dial.rs`; `ProxyChoice::Via` takes it
-   (`crates/podssh-ws/src/dial.rs:104-113`). Parse `socks5://` and `socks5h://` with an optional
-   `user:password@`, decoded as for HTTP (`:436-464`).
+   (`crates/podssh-ws/src/dial.rs:27-36`). Parse `socks5://` and `socks5h://` with an optional
+   `user:password@`, decoded as for HTTP (now `crates/podssh-ws/src/proxy.rs:170-188`).
 2. The SOCKS5 exchange (RFC 1928): offer the method 0x00, and 0x02 only with credentials; the
    user and password of RFC 1929, each of 1 to 255 bytes; CONNECT with the address type 3, the
-   host name, so the client needs no DNS (`crates/podssh-ws/src/dial.rs:5-8`). Read exactly the
+   host name, so the client needs no DNS (`crates/podssh-ws/src/dial.rs:6-9`). Read exactly the
    length of the reply: the bytes after it belong to TLS, as `read_head_exact` keeps them
-   (`:356-379`). Bound each step.
+   (`:287-310`). Bound each step.
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
    (`crates/podssh-relay/src/open.rs:57-79`) and the exit codes of `podssh proxy`
    (`crates/podssh-cli/src/proxy.rs:160-173`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
-5. Credentials never in output: `Display` shows the host and port only (`dial.rs:39-44`).
+5. Credentials never in output: `Display` shows the host and port only (now
+   `crates/podssh-ws/src/proxy.rs:70-75`).
 6. `doctor` names the SOCKS5 proxy, and its proxy checks
-   (`crates/podssh-cli/src/doctor/net.rs:160-184`) work for both forms. The two tests above
+   (`crates/podssh-cli/src/doctor/net.rs:166-190`) work for both forms. The two tests above
    plant `ftp://` and `socks4://` instead; `socks4` and `socks4a` are refused by name.
-7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-51`),
+7. Change the proxy variables in VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-54`),
    `docs/architecture.md` and `docs/cli.md` in the same commit.
 
 ## Decision
@@ -731,6 +733,19 @@ Recommendation: send the host name for `socks5://` too, with the 0x08 fallback a
 resolves the name on the client for `socks5://`, but the hosts that podssh is made for often
 have no DNS (`docs/STATUS.md`, "In the operator's real sandboxes, measured"), so a local lookup
 fails first there. Following curl lost for that reason.
+
+Decided in the work (2026-10-11):
+- The answer to the user and password is taken with the version 1 of RFC 1929, or with SOCKS's
+  own 5, which a few servers send; curl reads the status alone. Refusing a 5, as Go's x/net and
+  PySocks do, lost: the status decides, and the hosts that podssh is for do not choose their
+  proxy.
+- The iroh road and `podssh ts` refuse a SOCKS5 proxy by name, as their dials (iroh's relay
+  client, the fork's DERP dial) speak CONNECT only; a SOCKS5 dial in each is T-280 and T-281. A
+  quiet direct connection in its place lost: such a host often has no other way out, and the
+  setting would be ignored with no word.
+- `podssh status` gives the proxy's kind (`http` or `socks5`), and `relay status`, `doctor` and
+  `ping` say `SOCKS5 CONNECT` for a request through one, so that the protocol of the egress is
+  known with no connection.
 
 ## Prove
 
@@ -741,11 +756,45 @@ cargo test -p podssh-cli --test doctor
 sh scripts/dev.sh check   # interop: through the SOCKS5 server of OpenSSH (ssh -D)
 ```
 
-A stand-in on 127.0.0.1, as in `crates/podssh-ws/tests/dial.rs:95-117`, checks the bytes: the
+A stand-in on 127.0.0.1, as in `crates/podssh-ws/tests/dial.rs:101-123`, checks the bytes: the
 greeting, the user and password, and a CONNECT with the address type 3 and the relay's name. In
 the gate, the SOCKS5 server of OpenSSH (`ssh -N -D 127.0.0.1:PORT` to the test server) carries a
 session to the stand-in relay, and a password in the proxy URL never appears in the output.
 Planted defect: send the address (type 1); the stand-in refuses it, and the test fails.
+
+## Done
+
+2026-10-11, in the commit that closes this entry.
+- `Proxy` (`crates/podssh-ws/src/proxy.rs`) has two kinds: HTTP CONNECT (`http://`, or a bare
+  `host:port`; port 80) and SOCKS5 (`socks5://` and `socks5h://`; port 1080); `HttpProxy` is its
+  old name. The user and the password are split before they are decoded, so an escaped `:` stays
+  in the user; for SOCKS5 each has 1 to 255 bytes. `socks4` and `socks4a` are refused by name.
+- `crates/podssh-ws/src/socks5.rs`: the greeting offers 0x00, and 0x02 only with credentials;
+  RFC 1929; CONNECT with the address type 3 and the name, so this host needs no DNS; the reply
+  read to exactly its end; on reply 8, one more try with an address that podssh resolves in its
+  own order; each step within the dial's limit. A refused password, or no method that podssh
+  offered, is a 407; reply 2 a 403; replies 1 and 3 to 6 a 502; reply 7 and a broken answer a
+  fault of the protocol. So the failover and the exit codes treat SOCKS5 as HTTP.
+- The iroh road and `podssh ts` refuse a SOCKS5 proxy by name (T-280, T-281). `doctor` names
+  the SOCKS5 proxy; `podssh status` gives `kind`; `relay status`, `doctor` and `ping` say
+  `SOCKS5 CONNECT`. The manual's VARIABLES and its note on `status`, `docs/architecture.md`,
+  `docs/cli.md` and `README.md` say it.
+- Native, Windows 11: `CC=/nonexistent cargo test -p podssh-ws`, each suite passed: `--test
+  socks5` 9 (the greeting, RFC 1929 and CONNECT by name, byte for byte, through a stand-in; each
+  reply mapped; a bound name and an IPv6 address read to their end; one more try with an address
+  on reply 8; an answer to the password with the version 5), `--test dial` 14. `cargo test -p
+  podssh-cli --test doctor` 10, `--test status` 5, `--test ping` 11, `--test relay` 9, `--lib`
+  204; `cargo test -p podssh-relay --lib` 20; `cargo test -p podssh-iroh --features test-relay
+  --test relays` 7; `cargo test -p podssh-ts --test config` 8. `cargo clippy --all-targets` with
+  `-D warnings`: the default crates, and with the feature `iroh-test`. `cargo test --workspace
+  --no-fail-fast`: 1443 passed, 0 failed, 49 ignored, and no scratch left.
+- Planted, then restored: the name sent as the address 127.0.0.1 (type 1) failed
+  `a_tunnel_goes_by_name_and_needs_no_dns` and the test of reply 8 (7 passed, 2 failed).
+- Waits for T-251: `scripts/interop-socks.sh`, which `scripts/interop-faults.sh` runs in the
+  build image: OpenSSH's `ssh -D` as the SOCKS5 proxy carries `podssh ssh` to the stand-in relay
+  and `relay status` to its `/health`, ssh's own `-vv` log shows each request with the relay's
+  name, and the password of the proxy URL appears in no output. CI runs it at each push, in the
+  step `release`; the clippy run with the feature `ts` is CI's too (step `lint`).
 
 # T-242: The frame decoder accepts a length that is not in the minimal form
 

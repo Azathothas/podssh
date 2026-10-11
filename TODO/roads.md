@@ -43,7 +43,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    for `ts`. The default build and the releases stay without the feature.
 2. The endpoint: the `Minimal` preset, no pkarr or DNS discovery, and the
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
-   (`crates/podssh-ws/src/dial.rs:169-193`), so `ALL_PROXY` and `NO_PROXY` act
+   (`crates/podssh-ws/src/dial.rs:94-118`), so `ALL_PROXY` and `NO_PROXY` act
    as on the other roads; iroh's own selection ignores both
    (`docs/design.md:471`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:288-289`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:428`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:112-209`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-143`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-146`).
 
 ## Decision
 
@@ -510,9 +510,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-143`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-146`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:180-313`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:183-316`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -1099,8 +1099,8 @@ whether MPTCP helps podssh on any road.
 ## Premise
 
 Read: `--direct` connects with a plain `TcpStream::connect`
-(`crates/podssh-ws/src/dial.rs:247-292`, the call at
-`crates/podssh-ws/src/dial.rs:265`). Through a proxy, MPTCP can reach only the
+(`crates/podssh-ws/src/dial.rs:173-223`, the call at
+`crates/podssh-ws/src/dial.rs:196`). Through a proxy, MPTCP can reach only the
 proxy. `podssh-ws` has no `libc` dependency (`crates/podssh-ws/Cargo.toml`).
 Read in the report, not verified here: RustConn uses MPTCP. Not known:
 whether the relay's edge or a target server accepts MPTCP. Linux offers it
@@ -1198,3 +1198,52 @@ relay offers the feature.
 The relay's operator: resumption in the relay is work of the relay project. After M6 (T-156), the
 operator and the relay's operator decide question 1 of `docs/design.md` section 8. Sessions skip
 this entry (the operator's ruling of 2026-10-08).
+
+# T-280: The iroh road through a SOCKS5 proxy
+
+**Source:** found in T-070 (2026-10-11): each other road takes a SOCKS5 proxy for the egress
+since then; the iroh road refuses one by name.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A host whose only way out is a SOCKS5 proxy (`ALL_PROXY=socks5h://...`) reaches the relay and the
+pair's road since T-070, but not the iroh road: iroh's relay client tunnels through an HTTP CONNECT
+proxy only, so podssh refuses the setting for the iroh road before anything binds.
+
+## Premise
+
+- Read: podssh refuses a SOCKS5 proxy for the iroh road by name
+  (`crates/podssh-iroh/src/endpoint.rs:134-140`); the test `a_socks5_proxy_is_refused_by_name`
+  asserts it (`crates/podssh-iroh/tests/relays.rs:144`).
+- Read: iroh-relay 1.3.0's client opens its relay connection through a proxy in
+  `dial_url_proxy`: TCP to the proxy, TLS to it for each scheme but `http`, then an HTTP `CONNECT`
+  (`n0-computer/iroh:iroh-relay/src/client/tls.rs`). A `socks5h://` URL would be taken as a proxy
+  that speaks TLS.
+
+## Approach
+
+1. Find a hook of iroh 1.x that lets the caller open the relay's TCP stream (a dialer, or a relay
+   transport of its own); if one exists, open the stream with `podssh_ws::dial::dial`, which
+   speaks SOCKS5 since T-070.
+2. Else carry a patch of `iroh-relay` that adds SOCKS5 to `dial_url_proxy`, as
+   `vendor/tailscale-rs` is carried with its patches in `vendor/patches/`, or ask upstream
+   (n0-computer/iroh) for it. Write the choice in `## Decision`.
+3. Remove the refusal; the manual's VARIABLES (`crates/podssh-cli/src/man/facts.rs:46-54`) and
+   `docs/architecture.md` say that the iroh road takes SOCKS5 too.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-iroh --features test-relay --test proxy_env
+```
+
+A stand-in SOCKS5 proxy on the loopback, as in `crates/podssh-ws/tests/socks5.rs`, is the only
+way to iroh's relay server on the loopback, which it reaches by name: the endpoint goes online
+through it, and the stand-in saw the relay's name with the address type 3. Planted defect: the
+refusal restored, and the test fails.

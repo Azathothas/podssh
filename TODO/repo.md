@@ -675,7 +675,7 @@ Read:
 - The KTM tester could not tell from an artifact which commit made it, and
   moved the checkout one commit ahead (the KTM report, section 1a; read in
   the report).
-- `crates/podssh-cli/src/man/facts.rs:425-441`: the drift test of the manual
+- `crates/podssh-cli/src/man/facts.rs:428-444`: the drift test of the manual
   counts each quoted upper-case name with `_` in the sources as a variable
   (except `CARGO_` names).
 
@@ -1759,7 +1759,7 @@ a reviewer can see it.
 
 ## Premise
 
-Read: the rule as written is rule 3 of `docs/architecture.md:107-117` (the
+Read: the rule as written is rule 3 of `docs/architecture.md:116-126` (the
 bind check of `podssh doctor` is the one exception), rule 3 of
 `docs/target-environment.md:74-78`, and rule 2 of AGENTS.md, section 5. The
 operator ruled on 2026-10-08 (`docs/decisions.md`): Q1 allows a local
@@ -1774,7 +1774,7 @@ Measured with grep over `git ls-files 'crates/*'`: three files hold a
 listener or a bind. `crates/podssh-cli/src/doctor/unix.rs:151` and line 226 at `22c3b88`
 are the bind probes of `doctor`, which close at once and never listen
 (`crates/podssh-cli/src/doctor/mod.rs:15-16`). The test servers are in
-`crates/podssh-ws/tests/dial.rs:96` and
+`crates/podssh-ws/tests/dial.rs:102` and
 `crates/podssh-ws/tests/hostname_verification.rs:55`. No file uses
 `UdpSocket`, `UnixListener` or `socket2`. The model of a sweep with a floor
 that skips comments and test modules is
@@ -1844,7 +1844,7 @@ allowance".
   files, and a plant at each run (one `TcpListener::bind` in
   `crates/podssh-ws/src` of a temporary tree must be found). It prints the
   files read and the uses within the allowance.
-- The documents already state the rule as ruled (`docs/architecture.md:107-117`,
+- The documents already state the rule as ruled (`docs/architecture.md:116-126`,
   `docs/target-environment.md:74-78`, `AGENTS.md`, section 5): nothing to
   change there. `docs/development.md`, "Checks": the scan.
 - Prove: `python scripts/check-repo.py`: exit 0, "265 Rust files read; 32

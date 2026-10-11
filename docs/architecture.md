@@ -39,7 +39,16 @@ hosts: the default host and up to three hosts of the pool, or the list that
 the user gives. For each host, `podssh-ws` connects:
 
 1. Through `HTTPS_PROXY` when it is set: `CONNECT` with the host name, so
-   the proxy resolves the name.
+   the proxy resolves the name. The proxy can be HTTP (`http://`) or SOCKS5
+   (`socks5://`, `socks5h://`; T-070): podssh sends the host name to a
+   SOCKS5 proxy too (address type 3), with the user and password of RFC
+   1929 when the URL has them, reads its reply to exactly its length, and
+   tries once more with an address that it resolves itself when the proxy
+   takes no names (reply 8). A SOCKS5 refusal is read as the HTTP case of
+   the same meaning, 403 for its rules, 407 for its authentication and 502
+   for the rest, so the failover and the exit codes are the same. SOCKS4,
+   which has no authentication, is refused. The iroh road and the tailnet
+   take an HTTP proxy only, as their dials speak `CONNECT` alone.
 2. Else directly. The address comes from, in order: an IP literal, a pinned
    address (`--relay-addr`), the system resolver, DNS over HTTPS by IP
    literal.

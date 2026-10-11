@@ -146,7 +146,7 @@ writes over the rows above it.
   (`git show 7e4a518:crates/podssh-terminal/src/term.rs`, lines 47-53). The documented rule
   sends `TERM` unchanged (`docs/terminal.md:60-65`). The
   manual does not name `PODSSH_TERM`, and its variable test does not read
-  this crate (`crates/podssh-cli/src/man/facts.rs:366-371`).
+  this crate (`crates/podssh-cli/src/man/facts.rs:369-374`).
 
 ## Approach
 
@@ -165,7 +165,7 @@ writes over the rows above it.
 ## Decision
 
 Recommendation: the crate stays sans-IO and takes the size as input
-(`docs/architecture.md:99-103`); raw mode stays in `podssh-ssh`. The two
+(`docs/architecture.md:108-112`); raw mode stays in `podssh-ssh`. The two
 callers differ: the client measures its own terminal, and serve (T-111) has
 no terminal and gets the size from `pty-req` and `window-change`. Raw mode in
 the crate lost: serve has nothing to make raw, and the client's working code

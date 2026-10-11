@@ -49,7 +49,13 @@ fn a_proxy_as_a_url_at_its_address_keeps_its_credentials() {
 
 #[test]
 fn unsupported_proxy_schemes_are_refused_by_name() {
-    for url in ["https://proxy.example:443", "socks5://proxy.example:1080"] {
+    // SOCKS5 is taken since T-070 (`tests/socks5.rs`); SOCKS4 is refused by name.
+    for url in [
+        "https://proxy.example:443",
+        "socks4://proxy.example:1080",
+        "socks4a://proxy.example:1080",
+        "ftp://proxy.example",
+    ] {
         let err = HttpProxy::parse(url).unwrap_err();
         assert!(err.contains("not supported"), "{url}: {err}");
     }

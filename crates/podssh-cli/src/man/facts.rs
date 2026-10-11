@@ -45,9 +45,12 @@ pub fn sections() -> Vec<Section> {
 pub const VARIABLES: &[(&[&str], &str)] = &[
     (
         &["https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"],
-        "The HTTP CONNECT proxy for each connection, as http://[USER:PASSWORD@]HOST:PORT. The first one \
-      that is set is used, in this order. podssh sends host names to the proxy, so it needs no DNS, and \
-      it never shows the proxy's credentials.",
+        "The proxy for each connection: an HTTP CONNECT proxy, as http://[USER:PASSWORD@]HOST:PORT (port \
+      80 when none is given), or a SOCKS5 proxy, as socks5:// or socks5h://[USER:PASSWORD@]HOST:PORT \
+      (port 1080), with the user and password of RFC 1929. The first one that is set is used, in this \
+      order. podssh sends host names to the proxy, for SOCKS5 too, so it needs no DNS; a SOCKS5 proxy \
+      that takes no names gets one more try with an address. It never shows the proxy's credentials. \
+      SOCKS4 is refused. The iroh road and podssh ts take an HTTP CONNECT proxy only.",
     ),
     (
         &["http_proxy", "HTTP_PROXY"],

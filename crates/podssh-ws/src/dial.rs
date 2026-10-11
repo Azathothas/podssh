@@ -1,6 +1,7 @@
 //! Opening the TCP connection to the relay: directly, or through an HTTP
-//! CONNECT proxy named by the environment (`https_proxy`, `HTTPS_PROXY`,
-//! `all_proxy`, `ALL_PROXY`, minus anything `no_proxy`/`NO_PROXY` excludes).
+//! CONNECT proxy or a SOCKS5 proxy (T-070, `socks5.rs`) named by the
+//! environment (`https_proxy`, `HTTPS_PROXY`, `all_proxy`, `ALL_PROXY`, minus
+//! anything `no_proxy`/`NO_PROXY` excludes).
 //!
 //! On the hosts podssh is for, the proxy is often the only way out: a direct
 //! `connect()` is refused or silently dropped and DNS does not resolve, while
@@ -14,92 +15,14 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
+pub use crate::proxy::{HttpProxy, Proxy, ProxyKind};
+
 /// The longest CONNECT response head podssh reads before giving up.
 const MAX_PROXY_RESPONSE: usize = 16 * 1024;
 /// How long one address may take to connect before the next is tried as
 /// well (RFC 8305's attempt delay): an address that never answers, as an
 /// IPv6 address with no route can, does not hold the whole dial (T-265).
 pub const ATTEMPT_DELAY: Duration = Duration::from_millis(250);
-
-/// An HTTP proxy that tunnels with `CONNECT`.
-#[derive(Clone, PartialEq, Eq)]
-pub struct HttpProxy {
-    pub host: String,
-    pub port: u16,
-    /// `user:password`, percent-decoded, sent as Basic auth. Never displayed.
-    credentials: Option<String>,
-}
-
-impl std::fmt::Debug for HttpProxy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("HttpProxy")
-            .field("host", &self.host)
-            .field("port", &self.port)
-            .field("credentials", &self.credentials.as_ref().map(|_| "<redacted>"))
-            .finish()
-    }
-}
-
-impl std::fmt::Display for HttpProxy {
-    /// `host:port` only: the credentials never appear in a message.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", authority(&self.host, self.port))
-    }
-}
-
-impl HttpProxy {
-    /// Parse `http://[user:pass@]host[:port][/]`, or a bare `host:port`. The
-    /// port defaults to 80, as for any `http://` URL.
-    pub fn parse(url: &str) -> Result<HttpProxy, String> {
-        let url = url.trim();
-        let rest = match url.split_once("://") {
-            Some((scheme, rest)) if scheme.eq_ignore_ascii_case("http") => rest,
-            Some((scheme, _)) => {
-                return Err(format!(
-                    "proxy scheme {scheme}:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy"
-                ))
-            }
-            None => url,
-        };
-        let rest = rest.split(['/', '?', '#']).next().unwrap_or_default();
-        let (credentials, hostport) = match rest.rsplit_once('@') {
-            Some((userinfo, hostport)) => (Some(percent_decode(userinfo)?), hostport),
-            None => (None, rest),
-        };
-        let (host, port) = split_host_port(hostport)?;
-        let port = port.unwrap_or(80);
-        if host.is_empty() {
-            return Err("the proxy URL names no host".into());
-        }
-        Ok(HttpProxy { host, port, credentials })
-    }
-
-    /// The proxy as an `http://` URL at `addr`, its resolved address, with
-    /// its credentials escaped again: for a library that takes a URL, as
-    /// the iroh road's relay dial does. Never for a message.
-    pub fn url_at(&self, addr: std::net::SocketAddr) -> String {
-        format!("http://{}{addr}", self.userinfo())
-    }
-
-    /// The proxy as an `http://` URL by its name, with its port always
-    /// written and its credentials escaped again: for a library that dials
-    /// the proxy itself and reads a missing port its own way, as the tailnet
-    /// fork does (8080). Never for a message.
-    pub fn url(&self) -> String {
-        format!("http://{}{}", self.userinfo(), authority(&self.host, self.port))
-    }
-
-    /// `user:password@`, escaped, or nothing.
-    fn userinfo(&self) -> String {
-        match &self.credentials {
-            Some(credentials) => {
-                let (user, password) = credentials.split_once(':').unwrap_or((credentials, ""));
-                format!("{}:{}@", percent_encode(user), percent_encode(password))
-            }
-            None => String::new(),
-        }
-    }
-}
 
 /// How to reach the relay.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -109,7 +32,7 @@ pub enum ProxyChoice {
     /// Connect directly and ignore the environment.
     Direct,
     /// Use this proxy.
-    Via(HttpProxy),
+    Via(Proxy),
 }
 
 /// Why a connection could not be opened. Every message names what failed and
@@ -129,9 +52,11 @@ pub enum DialError {
     Timeout { step: String, after: Duration },
     /// The proxy itself could not be reached.
     ProxyUnreachable { proxy: String, detail: String },
-    /// The proxy answered CONNECT with a status other than 2xx.
+    /// The proxy answered CONNECT with a status other than 2xx; a SOCKS5
+    /// proxy's refusal carries the HTTP status of the same case (403 for its
+    /// rules, 407 for its authentication, 502 for the rest).
     ProxyRefused { proxy: String, target: String, status: u16, reason: String },
-    /// The proxy did not answer like an HTTP proxy.
+    /// The proxy did not answer as its protocol says.
     ProxyProtocol { proxy: String, detail: String },
 }
 
@@ -150,7 +75,7 @@ impl std::fmt::Display for DialError {
                 write!(f, "the proxy {proxy} refused CONNECT {target}: {status} {reason}")
             }
             DialError::ProxyProtocol { proxy, detail } => {
-                write!(f, "the proxy {proxy} did not answer like an HTTP proxy: {detail}")
+                write!(f, "the proxy {proxy} did not answer as its protocol says: {detail}")
             }
         }
     }
@@ -167,7 +92,7 @@ pub const PROXY_VARS: [&str; 4] = ["https_proxy", "HTTPS_PROXY", "all_proxy", "A
 pub const NO_PROXY_VARS: [&str; 2] = ["no_proxy", "NO_PROXY"];
 
 /// The proxy, if any, the process environment selects for `target_host`.
-pub fn proxy_from_env(target_host: &str) -> Result<Option<HttpProxy>, String> {
+pub fn proxy_from_env(target_host: &str) -> Result<Option<Proxy>, String> {
     proxy_from_vars(target_host, |name| std::env::var(name).ok())
 }
 
@@ -176,7 +101,7 @@ pub fn proxy_from_env(target_host: &str) -> Result<Option<HttpProxy>, String> {
 /// A loopback target never goes through a proxy (as in Go's net/http): the
 /// proxy's loopback is not this host's, and podbox measured a proxy answering
 /// 405 to `CONNECT 127.0.0.1`.
-pub fn proxy_from_vars(target_host: &str, var: impl Fn(&str) -> Option<String>) -> Result<Option<HttpProxy>, String> {
+pub fn proxy_from_vars(target_host: &str, var: impl Fn(&str) -> Option<String>) -> Result<Option<Proxy>, String> {
     if is_loopback(target_host) {
         return Ok(None);
     }
@@ -189,7 +114,7 @@ pub fn proxy_from_vars(target_host: &str, var: impl Fn(&str) -> Option<String>) 
             return Ok(None);
         }
     }
-    HttpProxy::parse(&url).map(Some)
+    Proxy::parse(&url).map(Some)
 }
 
 /// `localhost`, `*.localhost`, `127.0.0.0/8` and `::1`, with or without
@@ -234,6 +159,7 @@ pub async fn dial(host: &str, port: u16, proxy: &ProxyChoice, timeout: Duration)
     let deadline = Instant::now() + timeout;
     let stream = match proxy {
         None => connect_direct(host, port, deadline, timeout).await?,
+        Some(p) if p.kind == ProxyKind::Socks5 => crate::socks5::connect(&p, host, port, deadline, timeout).await?,
         Some(p) => connect_via(&p, host, port, deadline, timeout).await?,
     };
     // A keystroke and an echo must not wait for Nagle.
@@ -244,7 +170,12 @@ pub async fn dial(host: &str, port: u16, proxy: &ProxyChoice, timeout: Duration)
 /// Resolve and connect: the addresses in the order of [`interleave`], each
 /// started [`ATTEMPT_DELAY`] after the one before, or at once when the one
 /// before failed; the first that connects wins, and the others stop.
-async fn connect_direct(host: &str, port: u16, deadline: Instant, budget: Duration) -> Result<TcpStream, DialError> {
+pub(crate) async fn connect_direct(
+    host: &str,
+    port: u16,
+    deadline: Instant,
+    budget: Duration,
+) -> Result<TcpStream, DialError> {
     let target = authority(host, port);
     // Pinned addresses, the system resolver, then DNS over HTTPS: a host with
     // a broken resolver but working TCP egress still gets there.
@@ -310,7 +241,7 @@ pub fn interleave(addrs: Vec<std::net::SocketAddr>) -> Vec<std::net::SocketAddr>
 
 /// Connect to the proxy and ask it for a tunnel to `host:port`.
 async fn connect_via(
-    proxy: &HttpProxy,
+    proxy: &Proxy,
     host: &str,
     port: u16,
     deadline: Instant,
@@ -328,8 +259,8 @@ async fn connect_via(
 
     let mut request =
         format!("CONNECT {target} HTTP/1.1\r\nHost: {target}\r\nUser-Agent: podssh/{}\r\n", env!("CARGO_PKG_VERSION"));
-    if let Some(credentials) = &proxy.credentials {
-        let encoded = base64::engine::general_purpose::STANDARD.encode(credentials.as_bytes());
+    if let Some((user, password)) = proxy.credentials() {
+        let encoded = base64::engine::general_purpose::STANDARD.encode(format!("{user}:{password}").as_bytes());
         request.push_str(&format!("Proxy-Authorization: Basic {encoded}\r\n"));
     }
     request.push_str("\r\n");
@@ -402,7 +333,7 @@ pub fn authority(host: &str, port: u16) -> String {
 }
 
 /// Refuse a name that would break a request line or a header.
-fn check_name(host: &str) -> Result<(), DialError> {
+pub(crate) fn check_name(host: &str) -> Result<(), DialError> {
     if host.is_empty() {
         return Err(DialError::InvalidTarget("the host name is empty".into()));
     }
@@ -414,7 +345,7 @@ fn check_name(host: &str) -> Result<(), DialError> {
 
 /// Split `host`, `host:port`, `[v6]` or `[v6]:port`. A bare IPv6 literal with
 /// no brackets is returned whole, with no port.
-fn split_host_port(s: &str) -> Result<(String, Option<u16>), String> {
+pub(crate) fn split_host_port(s: &str) -> Result<(String, Option<u16>), String> {
     if let Some(rest) = s.strip_prefix('[') {
         let (host, after) = rest.split_once(']').ok_or_else(|| format!("unterminated [ in {s:?}"))?;
         let port = match after.strip_prefix(':') {
@@ -431,34 +362,4 @@ fn split_host_port(s: &str) -> Result<(String, Option<u16>), String> {
         }
         _ => Ok((s.to_string(), None)),
     }
-}
-
-/// Decode `%XX` escapes in proxy credentials.
-/// Each byte but the unreserved ones of RFC 3986 as a `%` escape.
-fn percent_encode(s: &str) -> String {
-    s.bytes()
-        .map(|b| match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'.' | b'_' | b'~' => (b as char).to_string(),
-            _ => format!("%{b:02X}"),
-        })
-        .collect()
-}
-
-fn percent_decode(s: &str) -> Result<String, String> {
-    let bytes = s.as_bytes();
-    let mut out = Vec::with_capacity(bytes.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b'%' {
-            let hex = s.get(i + 1..i + 3).ok_or("a % escape is cut short in the proxy credentials")?;
-            let value = u8::from_str_radix(hex, 16)
-                .map_err(|_| "a % escape in the proxy credentials is not hex".to_string())?;
-            out.push(value);
-            i += 3;
-        } else {
-            out.push(bytes[i]);
-            i += 1;
-        }
-    }
-    String::from_utf8(out).map_err(|_| "the proxy credentials are not UTF-8".to_string())
 }

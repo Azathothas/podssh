@@ -31,7 +31,7 @@ the rest is read. `bound` wraps only `TsNode::start` and `tcp_connect`
 (`crates/podssh-cli/src/ts.rs`, lines 207-221 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, lines 353-363 at `4c3b456`), not `node.status()`
 or `node.peer_ip()` (`crates/podssh-cli/src/ts.rs`, line 289 at `4c3b456`, `crates/podssh-cli/src/ts.rs`, line 344 at `4c3b456`). The
 module comment says that the bound caps the whole operation (`crates/podssh-cli/src/ts.rs`, lines 9-14 at `4c3b456`),
-and `docs/cli.md:890-892` makes that a rule.
+and `docs/cli.md:891-893` makes that a rule.
 
 Read: `status()` calls `Device::self_node()` (`crates/podssh-ts/src/node.rs`, lines 76-79 at `4c3b456`), whose reply
 waits in a queue until a map with the self node arrives
@@ -246,7 +246,7 @@ current node key (`vendor/tailscale-rs/ts_control_serde/src/register.rs:92-97`).
 1. Probe each mode before `TsNode::start`, through the proxy of T-103, in 8 s per step as
    `podssh doctor` does (`crates/podssh-cli/src/doctor/net.rs:14-15`): for `tcp`, a TLS handshake to
    a stock DERP server on port 443; for `relay`, one to the relay host. Dial with
-   `crates/podssh-ws/src/dial.rs:224-227`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
+   `crates/podssh-ws/src/dial.rs:149-152`. `Unknown` is never ready (`crates/podssh-ts/src/chain.rs:15-24`).
 2. Add a logout to the fork: a register request with an expiry in the past, a `ControlRunner`
    message and `Device::logout(timeout)`, as a new patch with its row in
    `vendor/tailscale-rs/LOCAL-PATCHES.md`.
@@ -381,9 +381,9 @@ the pin (`vendor/tailscale-rs/ts_runtime/src/multiderp/uniderp.rs:333-340`), and
 WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:141-147`).
 
 Read, at `0b6f4b8`: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs`
-lines 176-207), against the manual (`crates/podssh-cli/src/man/facts.rs:45-51`), the rule at
+lines 176-207), against the manual (`crates/podssh-cli/src/man/facts.rs:45-54`), the rule at
 `docs/target-environment.md:68-71` and `SECURITY.md:63-67`. A URL with no port means 80 in podssh
-(`crates/podssh-ws/src/dial.rs:70`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs`, lines
+(`crates/podssh-ws/src/proxy.rs:114`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs`, lines
 39-41 at `0b6f4b8`).
 Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:78-79`).
 
@@ -395,7 +395,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 2. Add it as a new patch with its row in `vendor/tailscale-rs/LOCAL-PATCHES.md`, replace the stale
    text at `vendor/README.md`, lines 62-75 at `0b6f4b8`, and check that the whole chain of patches still applies.
 3. In `podssh ts`, take `--ts-proxy`, else `podssh_ws::dial::proxy_from_env`
-   (`crates/podssh-ws/src/dial.rs:169-193`). Give the fork a URL with an explicit port, and never
+   (`crates/podssh-ws/src/dial.rs:94-118`). Give the fork a URL with an explicit port, and never
    print its credentials. The fork has one proxy for each process
    (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:169-184`), so apply `NO_PROXY` for each host in
    the new function.
@@ -444,7 +444,7 @@ which follows `vendor/tailscale-rs/ts_derp/tests/proxy_dial.rs:14-67`: the call
 `ws::connect("relay.invalid", 443)` must send `CONNECT relay.invalid:443` to a fake proxy, then fail
 at TLS, not at the name. Plant: remove the proxy branch; the fake sees nothing, and the test fails.
 A new test in crates/podssh-ts/tests/config.rs checks the choice: the flag, then the variables in
-the order of `crates/podssh-ws/src/dial.rs:163`. Live: with `HTTPS_PROXY` naming
+the order of `crates/podssh-ws/src/dial.rs:88`. Live: with `HTTPS_PROXY` naming
 `scripts/fake-proxy.py`, `podssh ts --ts-mode relay` must make its log list the relay host.
 
 ## Correction
@@ -549,7 +549,7 @@ checks allowed (`crates/podssh-ws/src/client.rs:31-32`, `docs/relay.md:94-96`).
 4. Ping every 10 s; three silent intervals mean a dead link, after the relay answered one ping.
 5. Restart `ControlRunner` with the same backoff and no count limit. podssh-cli prints one stderr
    line for each drop and each new connection. Add the patch and its row, and update
-   `docs/tailscale.md`, `docs/STATUS.md:325` and `crates/podssh-cli/src/man/notes.rs:341-366`.
+   `docs/tailscale.md`, `docs/STATUS.md:325` and `crates/podssh-cli/src/man/notes.rs:342-367`.
 
 ## Decision
 
@@ -801,7 +801,7 @@ Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` 
 5. Repair the ignored test: the key and state paths come from variables that only the test reads,
    and the state stays. Name M8 in its reason.
 6. Record each result with its date in `docs/STATUS.md:64`, `docs/tailscale.md:8-24` and
-   `crates/podssh-cli/src/man/notes.rs:341-366`.
+   `crates/podssh-cli/src/man/notes.rs:342-367`.
 
 ## Prove
 
@@ -1025,3 +1025,49 @@ credentials.
   on drop), the one `String` for the fork (moved into `Zeroizing`), and the fork's copies in
   `Config` and `Params` (cleared on drop). A test that reads freed memory would not be sound.
 
+
+# T-281: `podssh ts` through a SOCKS5 proxy
+
+**Source:** found in T-070 (2026-10-11): each other road takes a SOCKS5 proxy for the egress
+since then; `podssh ts` refuses one by name.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podssh ts` reaches DERP through an HTTP CONNECT proxy only (T-103). On a host whose only way out
+is a SOCKS5 proxy, it refuses the setting, where `podssh ssh` and `podssh proxy` work since T-070.
+
+## Premise
+
+- Read: `choose_proxy` refuses a SOCKS5 proxy by name (`crates/podssh-ts/src/config.rs:210-216`);
+  the test `a_socks5_proxy_is_refused_by_name` asserts it (`crates/podssh-ts/tests/config.rs:116`).
+- Read: the fork's `ProxyConfig::from_url` takes `http://` alone
+  (`vendor/tailscale-rs/ts_http_util/src/proxy.rs:91-96`), and its test asserts that `socks5://`
+  is refused (`vendor/tailscale-rs/ts_http_util/tests/proxy.rs:187`). Its dial, from podssh's
+  patch `vendor/patches/0017-proxy-dial.patch`, sends `CONNECT`.
+
+## Approach
+
+1. A patch of the fork, the next number in `vendor/patches/`: `ProxyConfig` takes `socks5://` and
+   `socks5h://`, and its dial speaks SOCKS5 as `crates/podssh-ws/src/socks5.rs` does (the name
+   with the address type 3, RFC 1929, the reply read to its end). Or the fork takes a dialer from
+   podssh, which calls `podssh_ws::dial::dial`. Write the choice in `## Decision`.
+2. Remove the refusal in `choose_proxy`; the manual's VARIABLES
+   (`crates/podssh-cli/src/man/facts.rs:46-54`) and `docs/tailscale.md` say that `podssh ts`
+   takes SOCKS5 too.
+
+## Prove
+
+```sh
+export CARGO_BUILD_JOBS=4
+cargo test -p podssh-ts --test config
+cargo test -p podssh-cli --features ts --test ts_probe
+```
+
+A stand-in SOCKS5 proxy before a stand-in DERP server on the loopback, as
+`crates/podssh-cli/tests/ts_probe.rs` puts a CONNECT proxy there: the probe of DERP passes through
+it by name. Planted defect: the refusal restored, and the test fails.
