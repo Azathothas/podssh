@@ -1302,6 +1302,12 @@ session starts with the size of its start
   OpenSSH's sshd in the box: `recording.session` (exit 3, Python's
   `json.loads` reads each line, mode 600), `recording.no_overwrite` and
   `recording.play`. The gate runs them at this push.
+- At `e58ebcd` the gate's step release failed: the three checks ran `podssh
+  ping` (`podssh: unknown flag '-t'`, 64), as `scripts/interop-ping.sh`,
+  sourced by the faults harness before them, had put its own helper `p` in
+  place of the one of `scripts/interop.sh`. The next commit names that helper
+  `ping_via` (`scripts/interop-ping.sh:10-16`), so that each later harness
+  gets `podssh ssh`.
 - `docs/cli.md:167-178` and `docs/cli.md:969-981`, the manual's notes and an
   example, say what the flag and the verb do, and their risks.
 - `cargo test -p podssh-ssh`: 151 passed; `cargo test -p podssh-cli`:
