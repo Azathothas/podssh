@@ -54,7 +54,14 @@ pub async fn add(args: &AgentArgs, _out: &mut dyn Write, err: &mut dyn Write) ->
             Err(code) => return code,
         };
         if let Err(e) = agent.add_identity(&key, &constraints).await {
-            let _ = writeln!(err, "podssh agent: the agent refused {file}: {e}");
+            // podssh agent keeps no RSA key (T-257); another agent may.
+            let why = if key.algorithm().is_rsa() {
+                "; podssh agent keeps no RSA key, as russh's agent server would sign with it through the rsa \
+                 crate, which is not constant-time: use an Ed25519 key, or OpenSSH's ssh-agent"
+            } else {
+                ""
+            };
+            let _ = writeln!(err, "podssh agent: the agent refused {file}: {e}{why}");
             return EX_SOFTWARE;
         }
         let _ = writeln!(err, "Identity added: {file} ({})", key.comment());

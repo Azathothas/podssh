@@ -322,7 +322,7 @@ pub const KEYGEN_FLAGS: &[FlagRow] = &[
     row(Some('t'), "type", Some("TYPE"), FlagKind::Supported,
         "key type: ed25519 (the default), ecdsa or rsa", None),
     row(Some('b'), "bits", Some("BITS"), FlagKind::Supported,
-        "key size: ecdsa 256 (the default), 384 or 521; rsa 2048 to 16384 (default 3072)", None),
+        "key size: ecdsa 256 (the default), 384 or 521; rsa 2048, 3072 (the default), 4096 or 8192", None),
     row(Some('f'), "file", Some("FILE"), FlagKind::Supported,
         "the private key's file; the public key goes to FILE.pub (default ~/.ssh/id_TYPE)", None),
     row(Some('N'), "new-passphrase", Some("PHRASE"), FlagKind::Supported,

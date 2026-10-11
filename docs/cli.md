@@ -530,6 +530,10 @@ GitHub #23): the time of each step, the round trip, and the throughput.
   terminal and no `SSH_ASKPASS`, podssh refuses at once and names `-N ''`;
   it does not wait.
 - DSA is refused, because OpenSSH 10 removed it.
+- An RSA key is made by aws-lc-rs, whose RSA is constant-time, never by the
+  `rsa` crate, whose private-key operations are not (RUSTSEC-2023-0071, the
+  Marvin attack): 2048, 3072 (the default), 4096 or 8192 bits, the sizes
+  that aws-lc-rs makes (T-257).
 - The comment comes from the environment, never from the user database.
 
 ## `podssh node`, `podssh operator` and `podssh relay`
@@ -746,7 +750,10 @@ OpenSSH program that runs; one binary, as the operator ruled (Q5).
 - Keys stay in the agent's memory only. A key added for a confirmation of
   each use (`ssh-add -c`) is never used: nobody can confirm one. russh's
   agent keeps no comment of a key, so `list` shows the size, the
-  fingerprint and the type.
+  fingerprint and the type. podssh agent keeps no RSA key (T-257): russh's
+  agent server would sign with it through the `rsa` crate, which is not
+  constant-time, so `podssh agent add` of an RSA key fails with the reason
+  (exit 70); OpenSSH's `ssh-agent` keeps one.
 - A store of credentials (T-228): `podssh agent add-password
   [USER@]HOST[:PORT]` keeps a server's password, under the user, host and
   port that `podssh ssh` logs in with (its ssh_config read), and

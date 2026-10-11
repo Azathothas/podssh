@@ -8,7 +8,6 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use russh::keys::ssh_key::private::RsaKeypair;
 use russh::keys::ssh_key::public::KeyData;
 use russh::keys::ssh_key::LineEnding;
 use russh::keys::{Algorithm, EcdsaCurve, HashAlg, PrivateKey, PublicKey};
@@ -40,8 +39,8 @@ impl KeyKind {
             ("ecdsa", Some(521)) => Ok(KeyKind::Ecdsa(EcdsaCurve::NistP521)),
             ("ecdsa", Some(b)) => Err(format!("an ecdsa key has 256, 384 or 521 bits, not {b}")),
             ("rsa", None) => Ok(KeyKind::Rsa(3072)),
-            ("rsa", Some(b @ 2048..=16384)) => Ok(KeyKind::Rsa(b as usize)),
-            ("rsa", Some(b)) => Err(format!("an rsa key has 2048 to 16384 bits here, not {b}")),
+            ("rsa", Some(b @ (2048 | 3072 | 4096 | 8192))) => Ok(KeyKind::Rsa(b as usize)),
+            ("rsa", Some(b)) => Err(format!("an rsa key has 2048, 3072, 4096 or 8192 bits here, not {b}")),
             ("dsa", _) => Err("DSA keys are not made: OpenSSH 10 removed DSA".into()),
             (other, _) => Err(format!("unknown key type {other:?}: ed25519 (the default), ecdsa or rsa")),
         }
@@ -61,12 +60,13 @@ impl KeyKind {
 /// by the operating system), carrying `comment`.
 pub fn generate(kind: KeyKind, comment: &str) -> Result<PrivateKey, String> {
     let mut rng = rand::rng();
-    let made = match kind {
-        KeyKind::Ed25519 => PrivateKey::random(&mut rng, Algorithm::Ed25519),
-        KeyKind::Ecdsa(curve) => PrivateKey::random(&mut rng, Algorithm::Ecdsa { curve }),
-        KeyKind::Rsa(bits) => RsaKeypair::random(&mut rng, bits).map(PrivateKey::from),
+    let failed = |e: russh::keys::ssh_key::Error| format!("could not make the key: {e}");
+    let mut key = match kind {
+        KeyKind::Ed25519 => PrivateKey::random(&mut rng, Algorithm::Ed25519).map_err(failed)?,
+        KeyKind::Ecdsa(curve) => PrivateKey::random(&mut rng, Algorithm::Ecdsa { curve }).map_err(failed)?,
+        // aws-lc-rs makes it, never the `rsa` crate (T-257).
+        KeyKind::Rsa(bits) => PrivateKey::from(crate::rsa_key::generate(bits)?),
     };
-    let mut key = made.map_err(|e| format!("could not make the key: {e}"))?;
     key.set_comment(comment);
     Ok(key)
 }
@@ -239,8 +239,16 @@ mod tests {
         assert_eq!(KeyKind::parse(Some("ECDSA"), Some("384")).unwrap(), KeyKind::Ecdsa(EcdsaCurve::NistP384));
         assert_eq!(KeyKind::parse(Some("rsa"), None).unwrap(), KeyKind::Rsa(3072));
         assert_eq!(KeyKind::parse(Some("rsa"), Some("4096")).unwrap(), KeyKind::Rsa(4096));
-        for (t, b) in [("ed25519", "255"), ("ecdsa", "300"), ("rsa", "1024"), ("dsa", "1024"), ("x", "1"), ("rsa", "z")]
-        {
+        for (t, b) in [
+            ("ed25519", "255"),
+            ("ecdsa", "300"),
+            ("rsa", "1024"),
+            ("rsa", "2500"),
+            ("rsa", "16384"),
+            ("dsa", "1024"),
+            ("x", "1"),
+            ("rsa", "z"),
+        ] {
             assert!(KeyKind::parse(Some(t), Some(b)).is_err(), "{t} {b}");
         }
     }

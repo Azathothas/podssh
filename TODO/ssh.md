@@ -30,7 +30,7 @@ Read:
   never offers a key (`crates/podssh-ssh/src/auth.rs:111-113`).
 - The denial adds the notes of the keys with no condition
   (`crates/podssh-ssh/src/auth.rs` line 115 at `475aea9`). `PublicKeys::notes` writes "no key
-  was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:96-109`).
+  was offered" when nothing was offered (`crates/podssh-ssh/src/keys.rs:125-138`).
 - The reporter's output (GitHub #7): the line
   `Permission denied (publickey,keyboard-interactive).`, the note about
   keyboard-interactive, then the wrong note.
@@ -52,9 +52,9 @@ Read:
 3. When the server does not accept `publickey`, say nothing about keys:
    `-i FILE` cannot help.
 4. Give the note about skipped encrypted keys
-   (`crates/podssh-ssh/src/keys.rs:110-116`) the same condition as step 1.
+   (`crates/podssh-ssh/src/keys.rs:139-145`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:106`),
-   so that only the notes change. No document changes: `docs/cli.md:879-922`
+   so that only the notes change. No document changes: `docs/cli.md:886-929`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:203` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:271`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:272`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -295,13 +295,13 @@ Read:
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:822-877`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:829-884`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:832-835`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:839-842`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:822-877`, and the measurement in
+5. Write the measured rule in `docs/cli.md:829-884`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:226-233` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:197`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5435`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5437`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:879-922` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:886-929` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -1209,9 +1209,9 @@ runs: with no user database entry, OpenSSH's programs stop at once
 - Read: podssh uses an agent that `SSH_AUTH_SOCK` names, today. On Unix it
   connects to that socket, or to `IdentityAgent PATH`; on Windows it tries
   the named pipe of `SSH_AUTH_SOCK`, then the pipe of the OpenSSH agent, then
-  Pageant (`crates/podssh-ssh/src/keys.rs:290-327`, `connect_agent`). It offers the agent's
-  keys first (`crates/podssh-ssh/src/keys.rs:120-172`), and skips the agent's
-  certificates (`crates/podssh-ssh/src/keys.rs:128-131`).
+  Pageant (`crates/podssh-ssh/src/keys.rs:320-357`, `connect_agent`). It offers the agent's
+  keys first (`crates/podssh-ssh/src/keys.rs:149-201`), and skips the agent's
+  certificates (`crates/podssh-ssh/src/keys.rs:157-160`).
 - Read: russh 0.64.1, which the binary links, has an agent server
   (`russh::keys::agent::server::serve`): identities, signatures, add and
   remove, lock, and the lifetime and confirm constraints. It has no handler
@@ -1587,9 +1587,9 @@ gives the extension messages and the exit codes; the manual's EXIT STATUS has 65
   source; the tests of the password and of keyboard-interactive failed.
 - The doctor's tests failed in their first run on this host, where no agent runs: russh's stream
   to Pageant opens when no Pageant runs, and closes at the first request, so the line said FAIL.
-  podssh now asks for Pageant's window first (`crates/podssh-ssh/src/keys.rs:312-316`), which also
+  podssh now asks for Pageant's window first (`crates/podssh-ssh/src/keys.rs:342-346`), which also
   spares `podssh ssh` that stream, and reads an agent that closes the connection at the store's
-  question as one with no store (`crates/podssh-ssh/src/credential_store.rs:310-317`). The
+  question as one with no store (`crates/podssh-ssh/src/credential_store.rs:314-321`). The
   doctor's tests: 10 passed, on Windows and in the build image.
 - `cargo test -p podssh-ssh -p podssh-cli`: 630 passed, 0 failed, 31 ignored, on Windows; clippy
   with all features.
@@ -1630,7 +1630,7 @@ with the key file of one, and has no agent to hold one.
   them (`crates/podssh-ssh/src/known_hosts.rs:382-383`), and `ssh-key`
   0.7.0-rc.11 has their algorithms.
 - Read: podssh offers each key that an agent lists
-  (`crates/podssh-ssh/src/keys.rs:120-172`), so an `sk-` key in OpenSSH's
+  (`crates/podssh-ssh/src/keys.rs:149-201`), so an `sk-` key in OpenSSH's
   `ssh-agent`, with its device present, can work today. Not measured.
 - Read: `-I` (PKCS#11) is refused by name
   (`crates/podssh-cli/src/flags.rs:238-239`).
@@ -1706,7 +1706,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:150`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:893-896`). A person who types slowly must not meet a limit
+  `docs/cli.md:900-903`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -1730,7 +1730,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:36-37`,
    `crates/podssh-cli/src/flags.rs:169-170`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:920-922` asks for a limit on the whole operation.
+   `docs/cli.md:927-929` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -1994,7 +1994,7 @@ the remote user again, and both checks fail.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2008,8 +2008,8 @@ makes its keys with the same crate.
 
 Read: `rsa` 0.10.0-rc.18 comes into `podssh-ssh` through russh 0.64.1 and
 ssh-key 0.7.0-rc.11 (`cargo tree -i rsa@0.10.0-rc.18`); `podssh keygen` makes
-an RSA key with `RsaKeypair::random` (`crates/podssh-ssh/src/keygen.rs:67`),
-and its default is Ed25519 (`crates/podssh-ssh/src/keygen.rs:34`). `rsa`
+an RSA key with `RsaKeypair::random` (`crates/podssh-ssh/src/keygen.rs`, line 67 at `ff75425`),
+and its default is Ed25519 (`crates/podssh-ssh/src/keygen.rs:33`). `rsa`
 0.9.10 comes into `podssh-ws`, which only verifies signatures with public keys
 (`crates/podssh-ws/src/crypto/rsa_sig.rs:10-12`): the attack needs the private
 key. The binary already links aws-lc-rs, whose RSA is constant-time, for the
@@ -2029,6 +2029,26 @@ ciphers of russh (`docs/decisions.md`, the SSH client).
    the graph for verification, with its reason changed to say that no
    private-key operation uses it; remove the gap from `SECURITY.md`.
 
+## Decision
+
+Taken, with these calls made in the work (2026-10-11). A key file's RSA key is read into an
+aws-lc-rs key pair (`crates/podssh-ssh/src/rsa_key.rs`): its PKCS#1 form is built from the OpenSSH
+key, whose mpints are the contents of DER integers, with d mod (p - 1) and d mod (q - 1) computed
+in constant time by crypto-bigint, and aws-lc-rs checks the key as it parses it. It signs each
+login on the path that an agent takes, and puts the signature after the data as an agent does.
+aws-lc-rs signs no SHA-1 and takes keys of 2048 to 8192 bits, so a key file is offered to no
+server that lists only `ssh-rsa`, and at no other size; each refusal comes before the request, as
+russh waits for the signature of a key that the server took and drops each other message.
+`podssh keygen -t rsa` makes 2048, 3072, 4096 or 8192 bits, the sizes that aws-lc-rs makes, and
+reads its PKCS#8 back into ssh-key's types. The one way to russh's own signing is `russh_key`,
+which hands it a key that is not RSA. Beyond the Approach: russh's agent server signs a key that
+it holds through `rsa`, and with SHA-1, so the front of `podssh agent` answers FAILURE to a
+request to add an RSA key, and `podssh agent add` names the reason. The `ssh-keygen -Y verify` of
+step 3 needs a signature in SSHSIG form, which podssh does not make (T-020): russh's server in the
+tests, and OpenSSH's sshd in the gate, verify the signatures of the logins instead. The sweep
+cannot see a `russh_key` that lets an RSA key through; the login with a key of 1024 bits, which
+aws-lc-rs refuses and the `rsa` crate would sign, finds that plant.
+
 ## Prove
 
 ```sh
@@ -2039,6 +2059,29 @@ sh scripts/dev.sh check     # the interop logins, an RSA key among them
 
 Both pass, and no private-key operation of the `rsa` crate is left in the
 source. Planted defect: sign with `RsaKeypair` again; the sweep must fail.
+
+## Done
+
+2026-10-11. An RSA user key signs through aws-lc-rs, `podssh keygen -t rsa` makes its key there,
+and `podssh agent` keeps no RSA key; `deny.toml` gives the new reason for RUSTSEC-2023-0071, and
+`SECURITY.md` has the rule in place of the gap.
+- `cargo test -p podssh-ssh --lib -- rsa_key credential_store keygen`: 18 passed, on Windows. A
+  key that aws-lc-rs made, through OpenSSH's format and back, signs with SHA-512 and SHA-256, and
+  aws-lc-rs's verifier takes each signature; its CRT exponents are those that aws-lc-rs wrote; a
+  key whose d does not match its primes is refused; SHA-1 is never signed; a key of 1024 bits, and
+  each size that aws-lc-rs does not make, is refused. Against russh's server in the process, which
+  checks that a signature has the algorithm of its request and verifies it, the key logged in with
+  SHA-512 and with SHA-256, and was offered to no server that lists only `ssh-rsa`, nor at 1024
+  bits, the reason in the log. The agent's front answered FAILURE to three requests to add an RSA
+  key, and russh's server saw only the Ed25519 key.
+- `cargo test -p podssh-ssh --test no_rsa_private_op`: 2 passed: no private-key operation of `rsa`
+  in the source, and each of eight planted lines found.
+- Planted: russh's own signing for each key in `keys.rs`, as before T-257: the sweep named
+  `keys.rs:86`, and the login at 1024 bits failed. A `russh_key` that lets an RSA key through: the
+  login at 1024 bits failed.
+- `cargo test -p podssh-ssh -p podssh-cli`: 640 passed, 0 failed, 31 ignored, on Windows; clippy
+  with all features. The logins of the gate with an RSA key (`ssh.auth.key.rsa`, OpenSSH's sshd)
+  run in CI at this push.
 
 # T-269: A session can wait for ever when its link ends while it sends
 

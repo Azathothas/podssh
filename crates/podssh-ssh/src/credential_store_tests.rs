@@ -139,3 +139,42 @@ async fn credential_store_refuses_a_frame_past_its_bound() {
     let (served, ()) = tokio::join!(serving, sending);
     assert_eq!(served.unwrap_err().kind(), io::ErrorKind::InvalidData);
 }
+
+/// A request to add an RSA key gets FAILURE from the front, and russh's
+/// server never sees it: it would sign with the key through the `rsa`
+/// crate (T-257). A request to add another key goes on.
+#[tokio::test]
+async fn agent_front_refuses_an_rsa_key() {
+    let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let (mut client, served) = tokio::io::duplex(MAX_FRAME);
+    let (to_agent, mut agent) = tokio::io::duplex(MAX_FRAME);
+    let log = seen.clone();
+    tokio::spawn(async move {
+        while let Ok(Some(request)) = read_frame(&mut agent).await {
+            log.lock().unwrap().push(request.to_vec());
+            if write_frame(&mut agent, &[SUCCESS]).await.is_err() {
+                return;
+            }
+        }
+    });
+    let store = Store::default();
+    tokio::spawn(async move { serve_client(served, to_agent, &store).await });
+    let add = |typ: u8, kind: &[u8]| {
+        let mut request = vec![typ];
+        put_string(&mut request, kind);
+        request.extend_from_slice(b"the parts of the key");
+        request
+    };
+    for (request, answer) in [
+        (add(17, b"ssh-rsa"), FAILURE),
+        (add(25, b"ssh-rsa"), FAILURE),
+        (add(17, b"ssh-rsa-cert-v01@openssh.com"), FAILURE),
+        (add(17, b"ssh-ed25519"), SUCCESS),
+    ] {
+        write_frame(&mut client, &request).await.unwrap();
+        assert_eq!(read_frame(&mut client).await.unwrap().unwrap().as_slice(), [answer]);
+    }
+    let seen = seen.lock().unwrap();
+    assert_eq!(seen.len(), 1, "russh's server saw an RSA key");
+    assert_eq!(&seen[0][5..16], b"ssh-ed25519");
+}

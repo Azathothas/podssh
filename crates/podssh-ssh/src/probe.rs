@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use russh::client::{AuthResult, Config, Handler};
-use russh::keys::{PrivateKeyWithHashAlg, PublicKey, PublicKeyOrCertificate};
+use russh::keys::{PublicKey, PublicKeyOrCertificate};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::keygen::{self, KeyKind};
@@ -94,7 +94,7 @@ where
             (Ok(_), None) => return Err("the server sent no host key".to_string()),
             (Err(e), _) => return Err(crate::run::describe(&e)),
         };
-        let offered = PrivateKeyWithHashAlg::new(Arc::new(key), None);
+        let offered = crate::rsa_key::russh_key(key, None).map_err(|_| "the key of the check is RSA".to_string())?;
         match handle.authenticate_publickey(user, offered).await {
             Ok(AuthResult::Success) => Ok(Login::Accepted { key: host }),
             Ok(AuthResult::Failure { remaining_methods, .. }) => Ok(Login::Refused {

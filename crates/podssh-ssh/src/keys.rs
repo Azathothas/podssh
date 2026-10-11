@@ -11,7 +11,7 @@ use std::time::Duration;
 use russh::client::Handle;
 use russh::keys::agent::client::{AgentClient, AgentStream};
 use russh::keys::agent::AgentIdentity;
-use russh::keys::{HashAlg, PrivateKey, PrivateKeyWithHashAlg, PublicKey};
+use russh::keys::{HashAlg, PrivateKey, PublicKey};
 
 use crate::answer::{within, within_signing, AgentTime, Timed};
 use crate::auth::Step;
@@ -21,6 +21,7 @@ use crate::log::Log;
 use crate::options::{Agent, Options};
 use crate::prompt::{self, PromptError};
 use crate::remember::Remembered;
+use crate::rsa_key::{self, RsaSigner, SignError};
 
 type DynAgent = AgentClient<Box<dyn AgentStream + Send + Unpin + 'static>>;
 
@@ -82,11 +83,39 @@ impl PublicKeys {
                 continue;
             }
             let hash = self.hash_for(handle, &public).await;
-            self.log.debug(&format!("offering {} key {}", crate::known_hosts::key_type(&public), path.display()));
-            let call = handle.authenticate_publickey(user, PrivateKeyWithHashAlg::new(Arc::new(key), hash));
-            let result = within(self.limit, &self.host, "the publickey request", call)
-                .await?
-                .map_err(|e| format!("public key authentication failed: {e}"))?;
+            let result = match rsa_key::russh_key(key, hash) {
+                Ok(key) => {
+                    let kind = crate::known_hosts::key_type(&public);
+                    self.log.debug(&format!("offering {kind} key {}", path.display()));
+                    let call = handle.authenticate_publickey(user, key);
+                    within(self.limit, &self.host, "the publickey request", call)
+                        .await?
+                        .map_err(|e| format!("public key authentication failed: {e}"))?
+                }
+                // An RSA key signs through aws-lc-rs, never through the
+                // `rsa` crate, and never with SHA-1 (T-257). Each refusal
+                // comes before the request: russh waits for the signature
+                // of a key that the server took, whatever else comes.
+                Err(key) => {
+                    let mut signer = match RsaSigner::of(&key) {
+                        Ok(signer) => signer,
+                        Err(why) => {
+                            self.log.info(&format!("could not use the key file {}: {why}", path.display()));
+                            continue;
+                        }
+                    };
+                    drop(key);
+                    if hash.is_none() {
+                        self.log.info(&format!("skipped the key file {}: {}", path.display(), SignError::Sha1));
+                        continue;
+                    }
+                    self.log.debug(&format!("offering rsa key {}", path.display()));
+                    let call = handle.authenticate_publickey_with(user, public.clone(), hash, &mut signer);
+                    within(self.limit, &self.host, "the publickey request", call)
+                        .await?
+                        .map_err(|e| format!("public key authentication failed: {e}"))?
+                }
+            };
             self.offered.push(public);
             return Ok(Step::from(result));
         }
@@ -172,7 +201,8 @@ impl PublicKeys {
     }
 
     /// The hash for an RSA signature: the best the server lists, else
-    /// SHA-512 (no RSA key is ever signed with SHA-1 unless the server asks).
+    /// SHA-512. `None`, SHA-1, only when the server lists nothing better: an
+    /// agent may sign with it, a key file never does (T-257).
     async fn hash_for(&mut self, handle: &Handle<Client>, key: &PublicKey) -> Option<HashAlg> {
         if !key.algorithm().is_rsa() {
             return None;

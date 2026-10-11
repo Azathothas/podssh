@@ -44,6 +44,7 @@ pub mod relay_stream;
 pub mod remember;
 pub mod remote;
 pub mod retry;
+mod rsa_key;
 pub mod run;
 pub mod session;
 pub mod sftp;

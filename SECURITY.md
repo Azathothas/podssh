@@ -128,6 +128,16 @@ Each rule is implemented.
   its public half only. The node reads its allowlist for each connection,
   refuses an allowlist that others can change, and closes a refused
   connection before any stream, so a refused client never reaches TARGET.
+- **podssh signs nothing and makes no key with the `rsa` crate.** Its
+  private-key operations are not constant-time (RUSTSEC-2023-0071, the
+  Marvin attack; no fixed version). An RSA user key signs each login through
+  aws-lc-rs, whose RSA is constant-time, never with SHA-1, at 2048 to 8192
+  bits; `podssh keygen -t rsa` makes its key there; and `podssh agent` keeps
+  no RSA key, as russh's agent server would sign with it through `rsa`. A
+  test reads the source for each way back (T-257). The `rsa` crate stays for
+  the check of a server's RSA certificate, with the public key only, and in
+  russh's reader of an RSA key in a PEM or PKCS#8 file, which computes with
+  the key once, as it reads it.
 - **A channel that podssh did not ask for is refused.** A server can open
   channels toward the client (`forwarded-tcpip`, agent, X11, `session`,
   `direct-tcpip` and the two streamlocal kinds). podssh asks for none, so
@@ -142,12 +152,6 @@ Each rule is implemented.
 The open defects are entries in [TODO/INDEX.md](TODO/INDEX.md). These affect
 security:
 
-- A signature with an RSA user key, and an RSA key that `podssh keygen`
-  makes, use the `rsa` crate, whose private-key operations are not
-  constant-time (RUSTSEC-2023-0071, the Marvin attack; no fixed version). The
-  default key, Ed25519, and ECDSA keys do not use it, and an agent keeps the
-  key in its own process (T-257, [TODO/ssh.md](TODO/ssh.md)). The check of a
-  server's RSA certificate uses only the public key.
 - Over IRC (`podssh chat --irc`, T-252), the server and each user of the
   channel read the messages: IRC has no end-to-end channel. TLS inside the
   relay stream is the default, so the relay sees only TLS; `--irc-plaintext`

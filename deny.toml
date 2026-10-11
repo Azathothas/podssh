@@ -29,9 +29,12 @@ yanked = "deny"
 ignore = [
   # Marvin: the private-key operations of `rsa` are not constant-time, and no
   # fixed version exists. podssh-ws only verifies RSA signatures, with public
-  # keys. podssh-ssh signs with an RSA user key, and podssh keygen makes one,
-  # through russh and ssh-key: T-257 moves both to aws-lc-rs. Read 2026-10-09.
-  { id = "RUSTSEC-2023-0071", reason = "no fixed version; podssh-ws verifies only; RSA signing moves to aws-lc-rs in T-257" },
+  # keys. Since T-257 an RSA user key signs, and podssh keygen makes one,
+  # through aws-lc-rs, and podssh agent keeps no RSA key; a test of
+  # podssh-ssh reads the source for each way back. russh's reader of a PEM or
+  # PKCS#8 RSA key still computes with it once. Read 2026-10-09 and
+  # 2026-10-11.
+  { id = "RUSTSEC-2023-0071", reason = "no fixed version; rsa only verifies, and russh reads a PEM key with it once; RSA signing and keygen use aws-lc-rs (T-257)" },
   # paste is unmaintained, not open to an attack: a proc-macro, which runs
   # at build time only, that only the Tailscale fork brings (through
   # stun-rs). The fork's own deny.toml ignores it too. Read 2026-10-09.

@@ -4002,7 +4002,9 @@ dependencies = [
 name = "podssh-ssh"
 version = "0.1.0"
 dependencies = [
+ "aws-lc-rs",
  "base64 0.22.1",
+ "crypto-bigint 0.7.5",
  "futures-util",
  "hmac 0.12.1",
  "libc",

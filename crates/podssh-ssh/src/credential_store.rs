@@ -4,7 +4,8 @@
 //! extension message (draft-miller-ssh-agent, section 3.8), with the names
 //! of [`STORE`], [`LOOKUP`], [`FORGET`] and [`COUNT`]. russh's agent server
 //! answers no extension, so [`serve_client`] stands in front of it: it
-//! answers the store's requests itself and passes each other message on. An
+//! answers the store's requests itself, refuses an RSA key (T-257), and
+//! passes each other message on. An
 //! agent that is not podssh's answers `SSH_AGENT_FAILURE` or
 //! `SSH_AGENT_EXTENSION_FAILURE`, or closes the connection at the question,
 //! which a client reads as no store. A locked agent (`ssh-add -x`) tells
@@ -195,7 +196,9 @@ impl Store {
 
 /// Serve one client of the agent until it goes: each request of the store
 /// is answered here, and each other message goes to `agent`, the agent's own
-/// server, whose answer goes back to the client.
+/// server, whose answer goes back to the client. A request to add an RSA key
+/// gets FAILURE here: russh's server would sign with it through the `rsa`
+/// crate, which is not constant-time (T-257).
 pub async fn serve_client<C, A>(mut client: C, mut agent: A, store: &Store) -> io::Result<()>
 where
     C: AsyncRead + AsyncWrite + Unpin,
@@ -205,6 +208,7 @@ where
         let Some(request) = read_frame(&mut client).await? else { return Ok(()) };
         let answer = match store.answer(&request) {
             Some(answer) => answer,
+            None if crate::rsa_key::adds_rsa_key(&request) => Zeroizing::new(vec![FAILURE]),
             None => {
                 write_frame(&mut agent, &request).await?;
                 let answer = read_frame(&mut agent)

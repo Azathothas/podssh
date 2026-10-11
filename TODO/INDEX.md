@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**280 entries: 91 open, 1 partial, 22 blocked, 166 done.**
+**280 entries: 90 open, 0 partial, 22 blocked, 168 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 1 | 0 | 17 | 20 |
-| P2 | 7 | 0 | 18 | 129 | 154 |
+| P1 | 2 | 0 | 0 | 18 | 20 |
+| P2 | 6 | 0 | 18 | 130 | 154 |
 | P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 91 | 1 | 22 | 166 | 280 |
+| **All** | 90 | 0 | 22 | 168 | 280 |
 
 ## Entries
 
@@ -328,7 +328,7 @@ repository and CI).
 | [T-254](repo.md) | P2 | S | none | defect | done | `cargo todo check` passes when a cited file was edited and `remap` was not run |
 | [T-255](relay.md) | P2 | M | M4 | measurement | blocked | The relay's side drops reverse sockets at random, with no Close |
 | [T-256](reverse.md) | P2 | S | M4 | defect | done | A local side that does not read stops every session of the node |
-| [T-257](ssh.md) | P2 | M | backlog | defect | open | An RSA user key signs through the `rsa` crate, which is open to a timing attack |
+| [T-257](ssh.md) | P2 | M | backlog | defect | done | An RSA user key signs through the `rsa` crate, which is open to a timing attack |
 | [T-258](repo.md) | P3 | S | none | defect | done | Line numbers written as plain text in the record are not moved |
 | [T-259](repo.md) | P2 | S | none | defect | done | One dropped connection fails a live TLS test, and with it the gate |
 | [T-260](repo.md) | P3 | S | none | chore | done | The open pull requests of Dependabot, #37 to #42 |
@@ -354,4 +354,4 @@ repository and CI).
 | [T-280](roads.md) | P3 | M | backlog | feature | open | The iroh road through a SOCKS5 proxy |
 | [T-281](ts.md) | P3 | M | backlog | feature | open | `podssh ts` through a SOCKS5 proxy |
 | [T-282](pipe.md) | P1 | S | none | defect | done | On Windows a session that `--persist` attaches again waits for a key |
-| [T-283](repo.md) | P1 | S | none | defect | partial | The console checks type into `less` and `top` before they have drawn |
+| [T-283](repo.md) | P1 | S | none | defect | done | The console checks type into `less` and `top` before they have drawn |

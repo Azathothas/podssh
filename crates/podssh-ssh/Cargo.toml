@@ -34,6 +34,14 @@ russh-sftp = { version = "3.0.1", default-features = false }
 # The channels of -L and -D open at the same time (T-038): the version that
 # russh pulls in, so nothing new is compiled.
 futures-util = { version = "0.3", default-features = false, features = ["alloc"] }
+# RSA signatures and RSA keys through aws-lc-rs, whose RSA is constant-time
+# (T-257); the `rsa` crate's private-key operations are not
+# (RUSTSEC-2023-0071). The version and features that russh pulls in.
+aws-lc-rs = "1.16.2"
+# The CRT exponents of an OpenSSH RSA key, d mod (p - 1) and d mod (q - 1),
+# in constant time, for its PKCS#1 form (T-257). The features that `rsa`
+# asks for, so nothing new is compiled.
+crypto-bigint = { version = "0.7.3", default-features = false, features = ["alloc", "zeroize"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
