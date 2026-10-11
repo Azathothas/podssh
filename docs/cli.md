@@ -450,6 +450,17 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   a source that changed while it was read.
 - Several sources go into a directory. A copy from server to server goes
   through a temporary file on this host, one connection at a time.
+- **Requests in flight** (T-140): on the SFTP road, the reads and the
+  writes of a copy go with up to 64 requests in flight, each of the
+  server's size (`limits@openssh.com`, else 32 KiB), and never more than
+  512 KiB in flight, the window that podssh gives a server: of OpenSSH's
+  255 KiB, two. Replies may come in any order; each block is written in
+  the file's order, so a copy that breaks goes on from the end of the part
+  that the server acknowledged, and a short read is asked again for its
+  rest. No reply within 60 s of the last one is a failure. The second read
+  of a far digest goes the same way. `-v` says the size and the requests
+  of each copy, and its rate before the digest. `scp -X` and `sftp -R`,
+  `-B` and `-X` set them.
 - `-r` and `-p` are refused by name until a copy of a directory (T-143)
   and the times (T-146) exist.
 - **A server with no SFTP subsystem gets a copy by exec**
@@ -537,6 +548,12 @@ renamed.
   by name with what to use instead. `-s`, `-R` and `-B` are switches on
   `scp` and take a value on `sftp`, so each verb has its own table.
   `scp -B` is `BatchMode=yes`; `sftp -s NAME` names the subsystem.
+- **The requests in flight and their size** (T-140): `sftp -R COUNT` and
+  `-B BYTES`, and `-X nrequests=COUNT` and `-X buffer=BYTES` of both, as
+  OpenSSH reads them (`K`, `M` and `G` scale a size; the last of each
+  wins). A count is 1 or more, and a size 1 to 256K bytes; out of range is
+  a usage error (64) that names the flag. podssh keeps 64 requests and 512
+  KiB in flight at most, and the size within the server's limit.
 - **A URI operand**, `scp://[user@]host[:port][/path]` (or `sftp://`), is
   read as OpenSSH's `parse_uri` reads it: the path after the first `/` is
   under the login directory, `//` makes it absolute, the user and the path

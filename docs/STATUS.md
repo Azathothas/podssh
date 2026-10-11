@@ -264,6 +264,28 @@ here and in a sandbox (the live run of T-251, with 500 MiB a direction in
 each cell, `PODSSH_THROUGHPUT_MIB=100`, as the operator ruled on 2026-10-10:
 Q38).
 
+SFTP by the requests in flight and their size (T-140; Windows 11, the debug
+build, 2026-10-12; `PODSSH_THROUGHPUT_MIB=10 cargo test -p podssh-cli --test
+throughput_live -- --ignored --nocapture sftp_throughput`): one `podssh
+sftp` puts 10 MiB, another gets them back, each with `-R` and `-B`; the rate
+is the one that `-v` says, from the first request to the last reply, before
+the digest. The far end is Git for Windows' `sftp-server` behind the test's
+SSH server. "In flight" is what the window of 512 KiB lets through. In MiB/s,
+put / get, one run each:
+
+| Requests x bytes (in flight) | Loopback, `--direct` | The stand-in relay, 50 ms each way |
+| --- | --- | --- |
+| 1 x 32768 (1) | 2.01 / 2.00 | 0.22 / 0.22 |
+| 4 x 32768 (4) | 5.43 / 7.75 | 0.88 / 0.82 |
+| 16 x 32768 (16) | 5.75 / 27.96 | 3.39 / 1.84 |
+| 64 x 32768 (16) | 6.57 / 29.39 | 3.40 / 1.85 |
+| 1 x 261120 (1) | 7.29 / 14.94 | 1.38 / 1.37 |
+| 2 x 261120 (2), the default with OpenSSH | 10.20 / 27.35 | 2.74 / 1.77 |
+
+Through a round trip of 100 ms the requests in flight multiply the rate,
+until the window of 512 KiB bounds a download near 1.8 MiB/s. The live relay
+waits for `sftp` to name a node (T-296).
+
 ## `podssh keygen`, measured
 
 | Check | Result |

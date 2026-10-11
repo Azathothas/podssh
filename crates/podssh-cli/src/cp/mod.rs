@@ -25,6 +25,7 @@ mod digest;
 pub(crate) mod link;
 mod moving;
 pub mod operand;
+pub(crate) mod pipe;
 pub mod plan;
 pub(crate) mod resume;
 mod session;
@@ -59,6 +60,8 @@ pub struct CpArgs {
     pub moving: bool,
     /// The verb that the user typed, for messages: `cp`, `mv` or `scp`.
     pub verb: &'static str,
+    /// scp's `-X NAME=VALUE`, for its SFTP requests (T-140).
+    pub sftp_options: Vec<String>,
 }
 
 impl CpArgs {
@@ -74,7 +77,12 @@ impl CpArgs {
         if m.try_get_one::<bool>("batch-mode").ok().flatten().copied().unwrap_or(false) {
             ssh.options.push("BatchMode=yes".into());
         }
-        CpArgs { paths, ssh, moving: verb == "mv", verb }
+        let sftp_options = if m.try_contains_id("sftp-option").unwrap_or(false) {
+            m.get_many::<String>("sftp-option").map(|v| v.cloned().collect()).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        CpArgs { paths, ssh, moving: verb == "mv", verb, sftp_options }
     }
 }
 
@@ -90,8 +98,15 @@ struct Outcome {
 /// Run `podssh cp` or `podssh mv`; returns the process exit code.
 pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let verb = args.verb;
-    let plan = match plan::plan(&args.paths, cfg!(windows)) {
+    let mut plan = match plan::plan(&args.paths, cfg!(windows)) {
         Ok(plan) => plan,
+        Err(why) => {
+            let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
+            return Fault::Usage.code();
+        }
+    };
+    plan.pipe = match pipe::pipeline(None, None, &args.sftp_options) {
+        Ok(pipe) => pipe,
         Err(why) => {
             let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
             return Fault::Usage.code();
@@ -259,7 +274,12 @@ async fn across(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>, after: After
         return Outcome { failed: Some((from.path.clone(), failed)), ..Outcome::default() };
     }
     let local = dir.join(if name.is_empty() { "file" } else { &name });
-    let leg = |source: Operand, destination: Operand, direction| Plan { direction, sources: vec![source], destination };
+    let leg = |source: Operand, destination: Operand, direction| Plan {
+        direction,
+        sources: vec![source],
+        destination,
+        pipe: plan.pipe,
+    };
     let down = leg(Operand::Remote(from.clone()), Operand::Local(local.display().to_string()), Direction::Down);
     let first = if moving { After::Record } else { After::Keep };
     let mut outcome = session(&down, &resolved[0], log, None, first).await.expect("a copy down needs no copy-data");

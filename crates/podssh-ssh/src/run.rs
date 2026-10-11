@@ -27,7 +27,7 @@ pub const EXIT_FAILURE: i32 = 255;
 /// closes a session when 2 MiB wait for a slow receiver (`1013 client receive
 /// backlog`); a window of 512 KiB keeps the server from ever having that much
 /// in flight (russh's default is 2 MiB).
-const WINDOW: u32 = 512 * 1024;
+pub(crate) const WINDOW: u32 = 512 * 1024;
 
 /// Run `opts` over `stream`, which reaches the first `-J` hop or, without one,
 /// the destination. `relay` is the relay leg's status, when there is one, so a

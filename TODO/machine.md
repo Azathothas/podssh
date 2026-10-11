@@ -49,7 +49,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:131-156`).
 6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:170-190`) and
-   `docs/cli.md:559-577` in the same commit.
+   `docs/cli.md:576-594` in the same commit.
 
 ## Decision
 
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:86-118` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:45-58`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:170-190`) and `docs/cli.md:559-577` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:170-190`) and `docs/cli.md:576-594` in the same commit.
 
 ## Decision
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1254-1279`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1271-1296`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:349-362`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:116-126`), and stdio needs no listener.

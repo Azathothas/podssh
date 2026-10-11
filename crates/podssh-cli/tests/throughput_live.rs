@@ -34,7 +34,8 @@
 mod ssh_harness;
 mod throughput_harness;
 
-use throughput_harness::{measure, Cell, Far, Session};
+use podssh_ssh::sftp::Pipeline;
+use throughput_harness::{measure, sftp_run, Cell, Far, Session};
 
 const MIB: u64 = 1 << 20;
 /// Each run's MiB in each direction, when `PODSSH_THROUGHPUT_MIB` sets none.
@@ -180,4 +181,50 @@ fn throughput_on_each_road() {
     cells.push(Cell::reverse(&session));
     cells.extend(Cell::named(&session));
     println!("\n{}", table(&session, cells));
+}
+
+/// The pipelines of the SFTP cells (T-140): requests in flight, and the
+/// bytes of each; 261120 is OpenSSH's limit, which the window holds twice.
+const PIPES: [(usize, u32); 6] = [(1, 32768), (4, 32768), (16, 32768), (64, 32768), (1, 261120), (2, 261120)];
+
+/// SFTP by the requests in flight and their size (T-140): a put and a get of
+/// the run's bytes for each pipeline, on the loopback, and through the
+/// stand-in relay with 50 ms each way, a round trip of a far relay; the rate
+/// of each is what podssh's `-v` says. The live relay carries SFTP to the
+/// test's server when `sftp` can name a node (T-296).
+#[test]
+#[ignore = "a measurement: SFTP on the loopback, and through the stand-in relay with a delay"]
+fn sftp_throughput_by_requests_in_flight() {
+    if ssh_harness::sftp::server_path().is_none() {
+        println!("did not run: no sftp-server here; PODSSH_TEST_SFTP_SERVER names one");
+        return;
+    }
+    let session = Session::start("sftp");
+    let bytes = run_bytes();
+    println!(
+        "
+{} MiB a copy
+",
+        bytes >> 20
+    );
+    println!("| Cell | Requests | Bytes each | In flight | Put MiB/s | Get MiB/s |");
+    println!("| --- | --- | --- | --- | --- | --- |");
+    let delayed = Cell::fake_relay_mode(&session, "delay:50", "forward road, the stand-in relay, 50 ms each way");
+    let node = Err(("reverse road, the live relay".to_string(), "podssh sftp names no node yet (T-296)".to_string()));
+    for cell in [Ok(Cell::direct(&session)), delayed, node] {
+        let cell = match cell {
+            Ok(cell) => cell,
+            Err((name, why)) => {
+                println!("| {name} | skipped: {why} | | | | |");
+                continue;
+            }
+        };
+        for (requests, len) in PIPES {
+            let depth = Pipeline { requests, len }.depth(len);
+            match sftp_run(&session, &cell, requests, len, bytes) {
+                Ok((up, down)) => println!("| {} | {requests} | {len} | {depth} | {up:.2} | {down:.2} |", cell.name),
+                Err(why) => println!("| {} | {requests} | {len} | {depth} | failed: {why} | |", cell.name),
+            }
+        }
+    }
 }

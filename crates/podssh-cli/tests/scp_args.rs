@@ -25,17 +25,9 @@ fn podssh(args: &[&str]) -> (i32, Vec<u8>, String) {
 
 #[test]
 fn each_scp_letter_that_podssh_does_not_carry_is_refused_by_name() {
-    for flag in [
-        &["-O"][..],
-        &["-R"],
-        &["-r"],
-        &["-p"],
-        &["-S", "ssh"],
-        &["-D", "/x"],
-        &["-X", "nrequests=4"],
-        &["-l", "100"],
-        &["-c", "aes128-ctr"],
-    ] {
+    for flag in
+        [&["-O"][..], &["-R"], &["-r"], &["-p"], &["-S", "ssh"], &["-D", "/x"], &["-l", "100"], &["-c", "aes128-ctr"]]
+    {
         let mut args = vec!["scp"];
         args.extend_from_slice(flag);
         args.extend_from_slice(&["a", "host:b"]);
@@ -59,6 +51,8 @@ fn scp_goes_on_to_connect_with_its_own_letters_and_no_timeout() {
         &["a", "scp://u@host:2222/dir/b"],
         &["scp://host//srv/a", "."],
         &["--direct", "a", "host:b"],
+        // SFTP's requests in flight and their size (T-140).
+        &["-X", "nrequests=4", "-X", "buffer=64K", "a", "host:b"],
     ] {
         let mut args = vec!["scp"];
         args.extend_from_slice(words);
@@ -87,17 +81,7 @@ fn scp_refuses_as_cp_does_in_its_own_name() {
 
 #[test]
 fn each_sftp_letter_that_podssh_does_not_carry_is_refused_by_name() {
-    for flag in [
-        &["-B", "32768"][..],
-        &["-R", "16"],
-        &["-r"],
-        &["-p"],
-        &["-l", "100"],
-        &["-S", "ssh"],
-        &["-D", "/x"],
-        &["-X", "buffer=4"],
-        &["-c", "aes128-ctr"],
-    ] {
+    for flag in [&["-r"][..], &["-p"], &["-l", "100"], &["-S", "ssh"], &["-D", "/x"], &["-c", "aes128-ctr"]] {
         let mut args = vec!["sftp"];
         args.extend_from_slice(flag);
         args.push("host");
@@ -130,6 +114,8 @@ fn sftp_asks_for_its_destination_and_for_commands_with_no_terminal() {
         &["host:dir/file"],
         &["sftp://u@host:2222/x"],
         &["-s", "sftp", "-b", shown.as_str(), "host"],
+        // SFTP's requests in flight and their size (T-140).
+        &["-B", "32768", "-R", "16", "-X", "buffer=4", "-b", shown.as_str(), "host"],
     ] {
         let mut args = vec!["sftp"];
         args.extend_from_slice(words);
@@ -137,4 +123,23 @@ fn sftp_asks_for_its_destination_and_for_commands_with_no_terminal() {
         assert_eq!(rc, 69, "{words:?}: {err}");
     }
     let _ = std::fs::remove_file(&batch);
+}
+
+/// A size or a count out of range is a usage error that names its flag, for
+/// sftp and for scp, before anything connects (T-140).
+#[test]
+fn sftp_requests_and_their_size_out_of_range_are_refused_by_flag() {
+    for (verb, words, says) in [
+        ("sftp", &["-R", "0", "host:f"][..], "-R 0: give one request or more"),
+        ("sftp", &["-B", "0", "host:f"], "-B 0: the buffer is 1 to 262144 bytes"),
+        ("sftp", &["-B", "300K", "host:f"], "-B 300K: the buffer is 1 to 262144 bytes"),
+        ("sftp", &["-X", "fast", "host:f"], "-X fast: the options are buffer=BYTES and nrequests=COUNT"),
+        ("scp", &["-X", "nrequests=0", "a", "host:b"], "-X nrequests=0: give one request or more"),
+    ] {
+        let mut args = vec![verb];
+        args.extend_from_slice(words);
+        let (rc, _, err) = podssh(&args);
+        assert_eq!(rc, 64, "{verb} {words:?}: {err}");
+        assert!(err.contains(says) && err.contains("Nothing has been attempted"), "{verb} {words:?}: {err}");
+    }
 }

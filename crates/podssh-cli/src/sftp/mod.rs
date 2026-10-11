@@ -35,6 +35,11 @@ pub struct SftpArgs {
     pub batch: Option<String>,
     /// `-s NAME`, the subsystem.
     pub subsystem: Option<String>,
+    /// `-B BYTES`, `-R COUNT` and each `-X NAME=VALUE`: the size of each
+    /// read or write, and the requests in flight (T-140).
+    pub buffer: Option<String>,
+    pub requests: Option<String>,
+    pub sftp_options: Vec<String>,
 }
 
 impl SftpArgs {
@@ -52,6 +57,13 @@ impl SftpArgs {
             ssh: SshArgs::from_matches(m),
             batch: one("batch-file"),
             subsystem: one("subsystem-name"),
+            buffer: one("buffer-size"),
+            requests: one("requests"),
+            sftp_options: if m.try_contains_id("sftp-option").unwrap_or(false) {
+                m.get_many::<String>("sftp-option").map(|v| v.cloned().collect()).unwrap_or_default()
+            } else {
+                Vec::new()
+            },
         }
     }
 }
@@ -97,6 +109,10 @@ pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, er
         Ok(server) => server,
         Err(why) => return refuse(err, &why),
     };
+    let pipe = match crate::cp::pipe::pipeline(args.buffer.as_deref(), args.requests.as_deref(), &args.sftp_options) {
+        Ok(pipe) => pipe,
+        Err(why) => return refuse(err, &why),
+    };
     // With no terminal the commands come from -b; a destination with a path
     // can still name one file to fetch.
     if args.batch.is_none() && !tty.stdin && server.path.is_empty() {
@@ -140,17 +156,19 @@ pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, er
         }
     };
     let subsystem = args.subsystem.as_deref().unwrap_or("sftp");
-    let code = runtime.block_on(session(&resolved, &server, subsystem, script, tty.stdin, &log, out));
+    let code = runtime.block_on(session(&resolved, &server, subsystem, pipe, script, tty.stdin, &log, out));
     runtime.shutdown_background();
     code
 }
 
 /// The SFTP session: the destination's path first, then the batch or the
 /// prompt.
+#[allow(clippy::too_many_arguments)]
 async fn session(
     resolved: &crate::ssh::resolve::Resolved,
     server: &Remote,
     subsystem: &str,
+    pipe: podssh_ssh::sftp::Pipeline,
     script: Option<Vec<String>>,
     interactive: bool,
     log: &Arc<Log>,
@@ -164,7 +182,7 @@ async fn session(
         }
     };
     let code: Result<i32, crate::cp::transfer::Failed> = async {
-        let mut state = State::new(&link, log).await?;
+        let mut state = State::new(&link, log, pipe).await?;
         // A path that names a file is fetched at once; a directory is where
         // the commands start.
         if !server.path.is_empty() {

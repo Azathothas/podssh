@@ -1,6 +1,8 @@
 //! What a `cp` command line asks for: which way the bytes go, the server, and
 //! each source. Each refusal here is a usage error, before anything connects.
 
+use podssh_ssh::sftp::Pipeline;
+
 use super::operand::{parse, Operand, Remote};
 
 /// Which way the bytes go.
@@ -22,6 +24,8 @@ pub struct Plan {
     pub sources: Vec<Operand>,
     /// The destination.
     pub destination: Operand,
+    /// The requests in flight and their size, on the SFTP road (T-140).
+    pub pipe: Pipeline,
 }
 
 impl Plan {
@@ -72,7 +76,7 @@ pub fn plan(paths: &[String], windows: bool) -> Result<Plan, String> {
     if direction == Direction::Across && sources.len() > 1 {
         return Err("a copy from server to server takes one source at a time".into());
     }
-    Ok(Plan { direction, sources, destination })
+    Ok(Plan { direction, sources, destination, pipe: Pipeline::default() })
 }
 
 #[cfg(test)]

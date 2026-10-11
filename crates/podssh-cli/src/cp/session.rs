@@ -4,6 +4,7 @@
 
 use std::sync::Arc;
 
+use podssh_ssh::sftp::Pipeline;
 use podssh_ssh::Log;
 
 use super::link::{self, Link, Road};
@@ -48,17 +49,18 @@ pub(super) async fn session(
     let many = plan.sources.len() > 1;
     for source in &plan.sources {
         let name = named.clone().unwrap_or_else(|| shown(source));
-        let (mut done, before) = match attempts(&mut link, resolved, source, &plan.destination, many, log).await {
-            Ok(pair) => pair,
-            Err(failed) => {
-                outcome.failed.get_or_insert((name, failed));
-                // No connection is left for the next file.
-                if link.is_none() {
-                    break;
+        let (mut done, before) =
+            match attempts(&mut link, resolved, source, &plan.destination, many, log, plan.pipe).await {
+                Ok(pair) => pair,
+                Err(failed) => {
+                    outcome.failed.get_or_insert((name, failed));
+                    // No connection is left for the next file.
+                    if link.is_none() {
+                        break;
+                    }
+                    continue;
                 }
-                continue;
-            }
-        };
+            };
         if let Some(n) = &named {
             done.source = n.clone();
         }
@@ -93,6 +95,7 @@ pub(super) async fn session(
 /// login, a host key that changed, or any other answer ends it at once.
 /// Gives the file done and its source as it was before the copy; `link` is
 /// `None` when the last connection broke.
+#[allow(clippy::too_many_arguments)]
 async fn attempts(
     link: &mut Option<Link>,
     resolved: &Resolved,
@@ -100,6 +103,7 @@ async fn attempts(
     dest: &Operand,
     many: bool,
     log: &Arc<Log>,
+    pipe: Pipeline,
 ) -> Result<(Done, Before), Failed> {
     let server = format!("{}@{}", resolved.options.user, resolved.options.destination.host);
     let side = resume::side_name(&server, resolved.options.destination.port, &shown(source), &shown(dest));
@@ -159,7 +163,7 @@ async fn attempts(
         }
         let p = progress.as_mut().expect("set above");
         continued |= p.temp.is_some() && p.offset > 0;
-        match copy(&current, source, dest, many, log, p).await {
+        match copy(&current, source, dest, many, log, p, pipe).await {
             Ok(done) => {
                 *link = Some(current);
                 return Ok((done, first.take().expect("set at the first attempt")));
@@ -246,14 +250,15 @@ async fn copy(
     many: bool,
     log: &Log,
     progress: &mut Progress,
+    pipe: Pipeline,
 ) -> Result<Done, Failed> {
     let handle = link.handle();
     match (&link.road, source, dest) {
         (Road::Sftp(sftp), Operand::Local(path), Operand::Remote(dest)) => {
-            bysftp::up(sftp, handle, path, &dest.path, many, log, progress, &link.meter).await
+            bysftp::up(sftp, handle, path, &dest.path, many, log, progress, &link.meter, pipe).await
         }
         (Road::Sftp(sftp), Operand::Remote(src), Operand::Local(dest)) => {
-            bysftp::down(sftp, handle, &src.path, dest, many, log, progress, &link.meter).await
+            bysftp::down(sftp, handle, &src.path, dest, many, log, progress, &link.meter, pipe).await
         }
         (Road::Sftp(sftp), Operand::Remote(src), Operand::Remote(dest)) => {
             transfer::within(sftp, handle, &src.path, &dest.path, log).await

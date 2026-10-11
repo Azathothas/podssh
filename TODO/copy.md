@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:226-244` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1199-1202`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1216-1219`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1043,7 +1043,7 @@ in the issues).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1084,6 +1084,41 @@ trip is long, so such a copy uses a small part of what the path carries.
    T-133's reply limit, then report the first error.
 5. `podssh sftp -R` and `-B` (T-139) set N and the size.
 
+## Decision
+
+2026-10-12, the calls made in the work:
+
+- The requests in flight are in `crates/podssh-ssh/src/sftp/pipeline.rs`
+  (`Reads`, `Writes`, `Pipeline`), which `cp`, `mv`, `scp`, `sftp` and the
+  second read of a far digest use. Each block comes out in the file's
+  order (a queue in the order of the requests), so the part that a write
+  acknowledged is always contiguous, and the next attempt writes on at its
+  end; a short read asks for its rest before the blocks after it.
+- The limit of each wait runs from the last reply, not from each request's
+  start: a request behind others on a slow link is not failed for their
+  bytes. russh-sftp's own limit on each request, from its start, is then a
+  backstop of 64 times the limit, which each wait of podssh bounds first.
+- The bound is 512 KiB in flight both ways, the window that podssh gives a
+  server (`crates/podssh-ssh/src/run.rs:30`). The server's window, which
+  an upload's invariant names, is not known through russh; russh never
+  sends past it, so a write beyond it waits in podssh, not on the wire.
+- The default is OpenSSH's: 64 requests, each of the server's size, as many
+  as the window holds: 2 of OpenSSH's 255 KiB, 16 of 32 KiB. The
+  measurement through a round trip of 100 ms gives 2.74 / 1.77 MiB/s for 2
+  x 255 KiB and 3.39 / 1.84 for 16 x 32 KiB, so the server's size stays.
+- The relay's meter (T-137) passes a request only while the session may
+  carry its bytes and a window more, which the requests in flight may still
+  bring.
+- The measurement went through the stand-in relay with 50 ms each way, not
+  the live relay: `podssh sftp` reads `node://NAME` as the host `node`, and
+  the live relay reaches the test's server only as a node; T-296, new, makes
+  `cp`, `scp` and `sftp` name a node, and its Prove runs the cell. The
+  test's SSH server gained the subsystem `sftp` (OpenSSH's `sftp-server`).
+- The tests are in `crates/podssh-ssh/tests/sftp_pipeline.rs`, not
+  `sftp_client.rs`, which would pass 500 lines; their names hold
+  `pipelined` and `window`. `sftp -R`, `-B` and `-X`, and `scp -X`, take
+  OpenSSH's forms.
+
 ## Prove
 
 ```sh
@@ -1096,6 +1131,30 @@ stream double and compares the digests. The window test counts the bytes in
 flight. A new row of `docs/STATUS.md` gives the throughput for each N.
 Plant: take the offset from the far file's size; a test with one failed
 early write then fails its digest.
+
+## Done
+
+2026-10-12. `crates/podssh-ssh/src/sftp/pipeline.rs`, used by
+`crates/podssh-cli/src/cp/bysftp.rs` and `crates/podssh-cli/src/cp/digest.rs`;
+the flags in `crates/podssh-cli/src/flags/scp.rs`, read by
+`crates/podssh-cli/src/cp/pipe.rs`. `cargo test -p podssh-ssh --test
+sftp_pipeline`: 5 passed, against Git for Windows' `sftp-server` through a
+double that reorders, cuts and fails replies: copies through replies out of
+order agree with the disk (more than 10 replies out of order, more than 2
+requests in flight); a short read is asked again for its rest; never more
+than 512 KiB in flight, and 16 or 4 requests of 32 KiB as asked; one request
+at a time when asked; a failed write leaves the acknowledged part at the
+end of the write before it while the far file is longer, and a second
+attempt from there makes the file whole. `cargo test -p podssh-cli --test
+copy_pipeline`: 2 passed (`cp` up and down, and `sftp` put and get with
+`-R`, `-B` and `-X`, against the test's server, whose subsystem `sftp` runs
+`sftp-server`); `--test scp_args`: 6 passed, with refusals that name the
+flag. Planted defects: the acknowledged part taken from the far end after
+a failure (the test of the failed write failed: 294912 for 32768); blocks
+handed on as their replies came (the test of replies out of order failed).
+The measurement: `docs/STATUS.md`, "Throughput, measured": through a round
+trip of 100 ms, 0.22 MiB/s with one request of 32 KiB, 2.74 / 1.77 with the
+default for OpenSSH. The live relay's figure waits for T-296.
 
 # T-141: Parallel transfer in chunks
 
@@ -1760,18 +1819,18 @@ program writes on, such as a log, need not end at all.
 ## Premise
 
 Read at `a22e3ec`: the copy up over SFTP reads the source until a read
-gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:84-100`), and each read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:103-124`), and each read
 waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
-(`crates/podssh-cli/src/cp/bysftp.rs:103-106`), but only once the read
+(`crates/podssh-cli/src/cp/bysftp.rs:134-137`), but only once the read
 ends. The copy up by exec reads the same way
 (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:191-217`) and with `cat`
+(`crates/podssh-cli/src/cp/bysftp.rs:229-260`) and with `cat`
 (`crates/podssh-cli/src/cp/byexec.rs:329-364`); and so do the far digests
-that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-104`,
+that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
 `crates/podssh-cli/src/cp/byexec.rs:298-325`).
 
 ## Approach
@@ -1805,7 +1864,7 @@ bound fails the native test.
 
 2026-10-10. Each road of the copy reads what the source held at the start,
 and stops with 66, "the file changed while it was read", at the first byte
-past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:84-100`) and by
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:103-124`) and by
 exec (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); down by exec
 past the size that `wc -c` gave; down over SFTP after a second look at the
 far size, so that a file of `/proc` goes on as before. The far digest by
@@ -1824,3 +1883,58 @@ message on each road.
   T-268): the step `release`, interop 203 passed, 0 failed; each of the six
   new checks of a source that grows gives 66 and no copy, "mv of a source
   that grows" gives 66, and no temporary file stays. The whole run passed.
+
+# T-296: `cp`, `scp` and `sftp` to a node
+
+**Source:** T-140: the throughput method's SFTP cell on the reverse road
+(`crates/podssh-cli/tests/throughput_live.rs`), which `podssh sftp` cannot
+reach.
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`podssh ssh node://[user@]NAME` reaches the node of a pair through the
+relay (T-084), but `podssh cp`, `scp` and `sftp` read `node://user@NAME` as
+the host `node`. A user cannot copy a file to or from a node, and the
+throughput of SFTP through the live relay cannot be measured: the live
+relay reaches the test's server only as a node.
+
+## Premise
+
+- Measured (T-140, 2026-10-12): `podssh sftp -b BATCH node://tester@LABEL`
+  exits 69 with "podssh: node: no connection to the server".
+- Read: `crates/podssh-cli/src/cp/operand.rs` reads `[user@]host:path` and
+  the URIs `scp://` and `sftp://`; `crates/podssh-cli/src/sftp/mod.rs`
+  reads its destination with it. `ssh` resolves `node://` in
+  `crates/podssh-cli/src/ssh/resolve.rs`.
+- Read: `node://NAME/ROUTE` names a route of a node (T-089), so a path
+  after the first `/` would mean two things.
+
+## Approach
+
+1. An operand `node://[user@]NAME[/ROUTE]:PATH` for `cp`, `mv` and `scp`,
+   the path after the first `:` after the name, and a destination
+   `node://[user@]NAME[/ROUTE][:PATH]` for `sftp`: the server is the node,
+   reached as `ssh node://` reaches it.
+2. A port, `-J` and `--direct` with a node are refused, as for `ssh`
+   (exit 64).
+3. The throughput method's SFTP cell on the reverse road runs; its figures
+   go into `docs/STATUS.md` beside those of T-140.
+4. `docs/cli.md` and the manual say it.
+
+## Prove
+
+```sh
+CARGO_BUILD_JOBS=4 cargo test -p podssh-cli --test node_copy
+CARGO_BUILD_JOBS=4 cargo test -p podssh-cli --test throughput_live -- --ignored --nocapture sftp_throughput
+```
+
+Through the stand-in relay and a pair, as `tests/node_routes.rs` runs them,
+`cp` up and down and `sftp` get and put to a node agree with the disk; a
+route is taken; a port with a node is refused. The second command measures
+through the live relay. Planted defect: a node operand read as a host; the
+first test fails.

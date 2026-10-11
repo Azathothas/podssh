@@ -26,14 +26,16 @@
 //! cookie. A direct-streamlocal channel to the socket `/echo` (T-040) sends
 //! back what it gets; to another socket it is refused. `exit N` and `kill NAME` end as a
 //! shell's do (T-054, `ends.rs`). `bytes HEX...` sends chosen bytes, and a
-//! user named `pty-...` gets a pty, for `watch` (T-132, `console.rs`).
+//! user named `pty-...` gets a pty, for `watch` (T-132, `console.rs`). The
+//! subsystem `sftp` is OpenSSH's `sftp-server` in the directory of the host
+//! key, when this machine has one (T-140, `sftp.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
 
 use std::collections::HashMap;
-use std::path::Path;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::path::PathBuf;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -42,9 +44,15 @@ use russh::{Channel, ChannelId};
 
 mod console;
 mod ends;
+mod forward;
+mod serve;
+pub mod sftp;
 mod sudo;
 mod x11;
 
+// Each test binary uses a part of it.
+#[allow(unused_imports)]
+pub use serve::{start, start_counting, start_with};
 use sudo::{elevation, Elevated};
 use x11::x11_probe;
 
@@ -87,6 +95,9 @@ struct Far {
     pty: bool,
     pty_size: (u32, u32),
     watches: Vec<ChannelId>,
+    /// Where `sftp-server` runs, and the stdin of each that runs (T-140).
+    sftp_root: Option<PathBuf>,
+    sftps: HashMap<ChannelId, tokio::process::ChildStdin>,
 }
 
 impl server::Handler for Far {
@@ -141,16 +152,7 @@ impl server::Handler for Far {
         reply: server::ChannelOpenHandle,
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
-        match tokio::net::TcpStream::connect(format!("{host}:{port}")).await {
-            Ok(mut tcp) => {
-                reply.accept().await;
-                tokio::spawn(async move {
-                    let mut stream = channel.into_stream();
-                    let _ = tokio::io::copy_bidirectional(&mut stream, &mut tcp).await;
-                });
-            }
-            Err(_) => reply.reject(russh::ChannelOpenFailure::ConnectFailed).await,
-        }
+        forward::tcpip(channel, host, port, reply).await;
         Ok(())
     }
 
@@ -161,17 +163,19 @@ impl server::Handler for Far {
         reply: server::ChannelOpenHandle,
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
-        if socket_path != "/echo" {
-            reply.reject(russh::ChannelOpenFailure::ConnectFailed).await;
-            return Ok(());
+        forward::streamlocal(channel, socket_path, reply).await;
+        Ok(())
+    }
+
+    async fn subsystem_request(
+        &mut self,
+        channel: ChannelId,
+        name: &str,
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        if let Some(stdin) = sftp::start(name, self.sftp_root.as_deref(), channel, session)? {
+            self.sftps.insert(channel, stdin);
         }
-        reply.accept().await;
-        tokio::spawn(async move {
-            use tokio::io::AsyncWriteExt;
-            let (mut from, mut to) = tokio::io::split(channel.into_stream());
-            let _ = tokio::io::copy(&mut from, &mut to).await;
-            let _ = to.shutdown().await;
-        });
         Ok(())
     }
 
@@ -381,6 +385,10 @@ impl server::Handler for Far {
     }
 
     async fn data(&mut self, channel: ChannelId, data: &[u8], session: &mut Session) -> Result<(), Self::Error> {
+        if let Some(stdin) = self.sftps.get_mut(&channel) {
+            sftp::input(stdin, data).await;
+            return Ok(());
+        }
         if let Some(elevated) = self.elevated.remove(&channel) {
             match sudo::password(elevated, data, channel, session)? {
                 sudo::Read::Waiting(elevated) => {
@@ -423,6 +431,10 @@ impl server::Handler for Far {
     }
 
     async fn channel_eof(&mut self, channel: ChannelId, session: &mut Session) -> Result<(), Self::Error> {
+        // The server's stdin closes, and it ends.
+        if self.sftps.remove(&channel).is_some() {
+            return Ok(());
+        }
         // sudo with no password to read: a refusal.
         if self.elevated.remove(&channel).is_some() {
             session.extended_data(channel, 1, b"sudo: 1 incorrect password attempt\n".to_vec())?;
@@ -455,42 +467,4 @@ impl server::Handler for Far {
         }
         Ok(())
     }
-}
-
-/// The server on the loopback, with the host key in `key`, on the current
-/// runtime: its port.
-pub async fn start(key: &Path) -> u16 {
-    start_counting(key).await.0
-}
-
-/// [`start`], with the count of the TCP connections that the server took.
-pub async fn start_counting(key: &Path) -> (u16, Arc<AtomicUsize>) {
-    start_with(key, Vec::new()).await
-}
-
-/// [`start_counting`], with host certificates of the key that the server
-/// presents to a client that asks for one (T-027).
-pub async fn start_with(key: &Path, certificates: Vec<russh::keys::Certificate>) -> (u16, Arc<AtomicUsize>) {
-    let connections = Arc::new(AtomicUsize::new(0));
-    let counted = connections.clone();
-    let mut config = server::Config::default();
-    config.keys.push(russh::keys::load_secret_key(key, None).expect("the host key"));
-    config.certificates = certificates;
-    config.auth_rejection_time = Duration::from_millis(10);
-    config.auth_rejection_time_initial = Some(Duration::ZERO);
-    let config = Arc::new(config);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
-    let port = listener.local_addr().unwrap().port();
-    tokio::spawn(async move {
-        while let Ok((stream, _)) = listener.accept().await {
-            counted.fetch_add(1, Ordering::SeqCst);
-            let config = config.clone();
-            tokio::spawn(async move {
-                if let Ok(session) = server::run_stream(config, stream, Far::default()).await {
-                    let _ = session.await;
-                }
-            });
-        }
-    });
-    (port, connections)
 }

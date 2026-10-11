@@ -1,12 +1,13 @@
 //! The SFTP road's copy of one file, up or down, and its continuation after a
 //! broken connection (T-136): the temporary file stays, and the next attempt
 //! writes on at the offset below which each byte is in it. The digest covers
-//! the whole file, the bytes of each attempt.
+//! the whole file, the bytes of each attempt. The reads and the writes go
+//! with requests in flight together (T-140), as `pipe` says.
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use podssh_ssh::sftp::{FileAttributes, OpenFlags, Sftp};
+use podssh_ssh::sftp::{FileAttributes, OpenFlags, Pipeline, Reads, Sftp, Writes, IN_FLIGHT};
 use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
@@ -18,6 +19,20 @@ use crate::exitmap::Fault;
 
 fn failed(fault: Fault, message: String) -> Failed {
     Failed::new(fault, message)
+}
+
+/// What `-v` says of a copy's bytes: how many, in how long, and how fast,
+/// before the far digest; `scripts` and the throughput method read it.
+fn rate(source: &str, bytes: u64, took: std::time::Duration) -> String {
+    let secs = took.as_secs_f64().max(1e-6);
+    format!("{source}: {bytes} bytes in {secs:.3} s, {:.2} MiB/s", bytes as f64 / secs / f64::from(1 << 20))
+}
+
+/// Whether the relay session may carry `n` more bytes (T-137), with room for
+/// a window of requests that are in flight and not yet counted: the failure
+/// that says it may not.
+fn spent(meter: &Meter, n: u64) -> Option<Failed> {
+    meter.spent(n + u64::from(IN_FLIGHT))
 }
 
 /// Copy the local file `source` to `dest` on the server, or write on in the
@@ -32,6 +47,7 @@ pub async fn up(
     log: &Log,
     progress: &mut Progress,
     meter: &Meter,
+    pipe: Pipeline,
 ) -> Result<Done, Failed> {
     let local = Path::new(source);
     let before = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
@@ -80,24 +96,39 @@ pub async fn up(
         resume::hash_prefix(&mut reader, &mut hasher, progress.offset)
             .map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
         let mut offset = progress.offset;
-        let mut buf = vec![0u8; sftp.write_len() as usize];
-        loop {
-            let n = reader.read(&mut buf).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
+        let started = (std::time::Instant::now(), offset);
+        let mut writes = Writes::new(sftp, &file, offset, pipe);
+        log.verbose(&format!("{source}: writes of {} bytes, {} in flight", writes.block(), writes.depth()));
+        let mut buf = vec![0u8; writes.block() as usize];
+        let sent = loop {
+            let n = match reader.read(&mut buf) {
+                Ok(n) => n,
+                Err(e) => break Err(failed(Fault::NoInput, format!("{source}: {e}"))),
+            };
             if n == 0 {
-                break;
+                break Ok(());
             }
             if offset + n as u64 > before.len() {
-                return Err(transfer::changed(source));
+                break Err(transfer::changed(source));
             }
             // Before the relay's limits, a new session goes on (T-137).
-            if let Some(spent) = meter.spent(n as u64) {
-                return Err(spent);
+            if let Some(spent) = spent(meter, n as u64) {
+                break Err(spent);
             }
             hasher.update(&buf[..n]);
-            sftp.write(&file, offset, &buf[..n]).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+            if let Err(e) = writes.send(buf[..n].to_vec()).await {
+                break Err(transfer::from_sftp(e, Side::Destination));
+            }
             offset += n as u64;
-            progress.advance(offset);
-        }
+            progress.advance(writes.acked());
+        };
+        // Each write in flight ends first: the next attempt writes on at the
+        // end of the part that the server acknowledged.
+        let finished = writes.finish().await;
+        progress.advance(writes.acked());
+        sent?;
+        finished.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+        log.verbose(&rate(source, offset - started.1, started.0.elapsed()));
         sftp.fsync(&file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
         sftp.close(&file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
         let after = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
@@ -150,6 +181,7 @@ pub async fn down(
     log: &Log,
     progress: &mut Progress,
     meter: &Meter,
+    pipe: Pipeline,
 ) -> Result<Done, Failed> {
     let attrs = sftp.stat(source).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
     if !attrs.is_regular() {
@@ -188,14 +220,25 @@ pub async fn down(
         // size tells a file that grows, which a read would follow while it
         // grows (T-267), from a file of /proc, which says 0 and has bytes.
         let mut looked = false;
+        let started = std::time::Instant::now();
+        let mut reads = Reads::new(sftp, &file, start, pipe);
+        log.verbose(&format!("{source}: reads of {} bytes, {} in flight", reads.block(), reads.depth()));
+        // A read below the size of the start goes out only while the relay
+        // session may carry it (T-137); the failure that stopped them.
+        let mut stopped = None;
         let read = loop {
-            if offset < size {
-                if let Some(spent) = meter.spent(u64::from(sftp.read_len())) {
-                    break Err(spent);
-                }
-            }
-            match sftp.read(&file, offset, sftp.read_len()).await {
-                Ok(Some(data)) if !data.is_empty() => {
+            let next = {
+                let mut allow = |at: u64, len: u32| {
+                    if at >= size {
+                        return true;
+                    }
+                    stopped = spent(meter, u64::from(len));
+                    stopped.is_none()
+                };
+                reads.next(&mut allow).await
+            };
+            match next {
+                Ok(Some(data)) => {
                     if !looked && offset + data.len() as u64 > size {
                         looked = true;
                         match sftp.stat(source).await {
@@ -211,12 +254,14 @@ pub async fn down(
                     offset += data.len() as u64;
                     progress.advance(offset);
                 }
-                Ok(_) => break Ok(()),
+                Ok(None) => break stopped.take().map_or(Ok(()), Err),
                 Err(e) => break Err(transfer::from_sftp(e, Side::Source)),
             }
         };
+        drop(reads);
         let _ = sftp.close(&file).await;
         read?;
+        log.verbose(&rate(source, offset - start, started.elapsed()));
         if let Some(f) = out.take() {
             f.sync_all().map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
         }

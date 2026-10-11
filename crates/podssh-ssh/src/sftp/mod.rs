@@ -19,8 +19,10 @@
 //! place of each bad byte, so such a name can be listed but not named back.
 
 mod error;
+mod pipeline;
 
 pub use error::{sentence, SftpError};
+pub use pipeline::{Pipeline, Reads, Writes, DEFAULT_REQUESTS, IN_FLIGHT, MAX_REQUESTS};
 pub use russh_sftp::protocol::{FileAttributes, OpenFlags};
 
 use std::collections::BTreeMap;
@@ -30,7 +32,7 @@ use std::time::Duration;
 use russh::client::Handle;
 use russh_sftp::client::error::Error as Raw;
 use russh_sftp::client::{Config, RawSftpSession};
-use russh_sftp::protocol::StatusCode;
+use russh_sftp::protocol::{Data, StatusCode};
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::handler::Client;
@@ -118,6 +120,22 @@ async fn within<T>(limit: Duration, what: &str, future: impl Future<Output = Res
     }
 }
 
+/// A read's reply: its data, or `None` at the end of the file. A reply
+/// longer than `len` breaks the protocol.
+fn read_reply(offset: u64, len: u32, got: Result<Data, Raw>, limit: Duration) -> Result<Option<Vec<u8>>, SftpError> {
+    let what = format!("read at {offset}");
+    match got {
+        Ok(data) if data.data.len() > len as usize => {
+            Err(SftpError::Protocol(format!("{what}: {} bytes in reply to a read of {len}", data.data.len())))
+        }
+        Ok(data) => Ok(Some(data.data)),
+        Err(e) => match SftpError::from_raw(&what, e, limit) {
+            SftpError::Status { code, .. } if code == StatusCode::Eof as u32 => Ok(None),
+            other => Err(other),
+        },
+    }
+}
+
 /// Two strings as SSH writes them, for an extension's request.
 fn ssh_strings(parts: &[&str]) -> Vec<u8> {
     let mut out = Vec::new();
@@ -168,9 +186,12 @@ impl Sftp {
     where
         S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     {
-        // The library's own limit on each request is the longer one; each
-        // metadata request gets the shorter one here.
-        let config = Config { request_timeout_secs: limits.data.as_secs().max(1), ..Config::default() };
+        // Each request has a limit of its own here; the library's limit on
+        // each, from its start, only stops one that nothing else stops. A
+        // copy's requests in flight together (T-140) wait for the replies
+        // before theirs, so it is the longest wait of one of them.
+        let backstop = limits.data.as_secs().max(1) * MAX_REQUESTS as u64;
+        let config = Config { request_timeout_secs: backstop, ..Config::default() };
         let mut raw = RawSftpSession::new_with_config(stream, config);
         let version = within(limits.metadata, "the SFTP version exchange", raw.init()).await?;
         if version.version != 3 {
@@ -247,14 +268,9 @@ impl Sftp {
     /// Up to `len` bytes at `offset`; `None` at the end of the file. A reply
     /// longer than `len` breaks the protocol.
     pub async fn read(&self, file: &FileHandle, offset: u64, len: u32) -> Result<Option<Vec<u8>>, SftpError> {
-        let what = format!("read at {offset}");
-        match within(self.limits.data, &what, self.raw.read(file.0.as_str(), offset, len)).await {
-            Ok(data) if data.data.len() > len as usize => {
-                Err(SftpError::Protocol(format!("{what}: {} bytes in reply to a read of {len}", data.data.len())))
-            }
-            Ok(data) => Ok(Some(data.data)),
-            Err(SftpError::Status { code, .. }) if code == StatusCode::Eof as u32 => Ok(None),
-            Err(e) => Err(e),
+        match tokio::time::timeout(self.limits.data, self.raw.read(file.0.as_str(), offset, len)).await {
+            Err(_) => Err(SftpError::Timeout { what: format!("read at {offset}"), limit: self.limits.data }),
+            Ok(got) => read_reply(offset, len, got, self.limits.data),
         }
     }
 

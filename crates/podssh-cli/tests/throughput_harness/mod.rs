@@ -8,6 +8,7 @@
 #![allow(dead_code)]
 
 mod cells;
+mod sftp;
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -17,6 +18,8 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 pub use cells::Cell;
+#[allow(unused_imports)]
+pub use sftp::sftp_run;
 
 const MIB: f64 = 1_048_576.0;
 const BLOCK: usize = 64 * 1024;

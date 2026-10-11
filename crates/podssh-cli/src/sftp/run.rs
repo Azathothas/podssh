@@ -6,7 +6,7 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use podssh_ssh::sftp::{FileAttributes, Sftp};
+use podssh_ssh::sftp::{FileAttributes, Pipeline, Sftp};
 use podssh_ssh::Log;
 
 use super::commands::{self, Command};
@@ -31,6 +31,8 @@ pub struct State<'a> {
     pub lcwd: PathBuf,
     home: String,
     log: &'a Log,
+    /// The requests in flight of each get and put (T-140).
+    pipe: Pipeline,
 }
 
 fn failed(fault: Fault, message: String) -> Failed {
@@ -39,13 +41,13 @@ fn failed(fault: Fault, message: String) -> Failed {
 
 impl<'a> State<'a> {
     /// A session at the login directory, and at this host's directory.
-    pub async fn new(link: &'a Link, log: &'a Log) -> Result<State<'a>, Failed> {
+    pub async fn new(link: &'a Link, log: &'a Log, pipe: Pipeline) -> Result<State<'a>, Failed> {
         let Road::Sftp(sftp) = &link.road else {
             return Err(failed(Fault::RelayUnreachable, "the server has no SFTP subsystem".into()));
         };
         let home = sftp.realpath(".").await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
         let lcwd = std::env::current_dir().map_err(|e| failed(Fault::CantCreate, format!("this directory: {e}")))?;
-        Ok(State { link, sftp, cwd: home.clone(), lcwd, home, log })
+        Ok(State { link, sftp, cwd: home.clone(), lcwd, home, log, pipe })
     }
 
     /// `path` under the directory there.
@@ -109,7 +111,8 @@ impl<'a> State<'a> {
                     let shown = dest.display().to_string();
                     let handle = self.link.handle();
                     let mut progress = Progress::default();
-                    bysftp::down(sftp, handle, source, &shown, many, self.log, &mut progress, &self.link.meter).await?;
+                    let meter = &self.link.meter;
+                    bysftp::down(sftp, handle, source, &shown, many, self.log, &mut progress, meter, self.pipe).await?;
                 }
             }
             Command::Put { local, remote } => {
@@ -121,8 +124,8 @@ impl<'a> State<'a> {
                 let _ = writeln!(out, "Uploading {} to {dest}", source.display());
                 let shown = source.display().to_string();
                 let mut progress = Progress::default();
-                bysftp::up(sftp, self.link.handle(), &shown, &dest, false, self.log, &mut progress, &self.link.meter)
-                    .await?;
+                let (handle, meter) = (self.link.handle(), &self.link.meter);
+                bysftp::up(sftp, handle, &shown, &dest, false, self.log, &mut progress, meter, self.pipe).await?;
             }
             Command::Rename { from, to } => {
                 let (from, to) = (self.there(from), self.there(to));

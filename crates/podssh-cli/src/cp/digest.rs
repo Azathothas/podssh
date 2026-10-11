@@ -12,7 +12,7 @@ use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
 
-use podssh_ssh::sftp::{FileAttributes, OpenFlags, Sftp, SftpError};
+use podssh_ssh::sftp::{FileAttributes, OpenFlags, Pipeline, Reads, Sftp, SftpError};
 use podssh_ssh::Connection;
 use sha2::{Digest, Sha256};
 
@@ -75,27 +75,32 @@ pub async fn by_command(handle: &Connection, path: &str, size: u64) -> Option<(S
     read_answer(&got.stdout)
 }
 
-/// The digest of `path` on the server, by reading it again over SFTP: the
-/// copy's `size` bytes and one more at most, so that a file that grows ends
-/// the read, and its longer digest fails the comparison (T-267).
+/// The digest of `path` on the server, by reading it again over SFTP, with
+/// requests in flight together (T-140): the copy's `size` bytes and one more
+/// at most, so that a file that grows ends the read, and its longer digest
+/// fails the comparison (T-267).
 pub async fn by_reading(sftp: &Sftp, path: &str, size: u64) -> Result<Sum, SftpError> {
     let file = sftp.open_file(path, OpenFlags::READ, FileAttributes::default()).await?;
     let mut hasher = Sha256::new();
     let mut offset = 0u64;
-    let read = loop {
-        if offset > size {
-            break Ok(());
-        }
-        let want = u64::from(sftp.read_len()).min(size + 1 - offset) as u32;
-        match sftp.read(&file, offset, want).await {
-            Ok(Some(data)) if !data.is_empty() => {
-                hasher.update(&data);
-                offset += data.len() as u64;
+    let read = {
+        let mut reads = Reads::new(sftp, &file, 0, Pipeline::default());
+        // No read starts past the byte after the copy's size.
+        let mut allow = |at: u64, _: u32| at <= size;
+        loop {
+            if offset > size {
+                break Ok(());
             }
-            // An empty reply would loop for ever: it ends the read, and a
-            // short digest then fails the comparison.
-            Ok(_) => break Ok(()),
-            Err(e) => break Err(e),
+            match reads.next(&mut allow).await {
+                Ok(Some(data)) => {
+                    let take = (size + 1 - offset).min(data.len() as u64) as usize;
+                    hasher.update(&data[..take]);
+                    offset += data.len() as u64;
+                }
+                // The end: a short digest then fails the comparison.
+                Ok(None) => break Ok(()),
+                Err(e) => break Err(e),
+            }
         }
     };
     let _ = sftp.close(&file).await;
