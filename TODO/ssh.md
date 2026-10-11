@@ -54,7 +54,7 @@ Read:
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:139-145`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:106`),
-   so that only the notes change. No document changes: `docs/cli.md:886-929`
+   so that only the notes change. No document changes: `docs/cli.md:887-930`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:203` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:272`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:273`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -295,13 +295,13 @@ Read:
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:829-884`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:830-885`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:839-842`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:840-843`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:829-884`, and the measurement in
+5. Write the measured rule in `docs/cli.md:830-885`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:886-929` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:887-930` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -1589,7 +1589,7 @@ gives the extension messages and the exit codes; the manual's EXIT STATUS has 65
   to Pageant opens when no Pageant runs, and closes at the first request, so the line said FAIL.
   podssh now asks for Pageant's window first (`crates/podssh-ssh/src/keys.rs:342-346`), which also
   spares `podssh ssh` that stream, and reads an agent that closes the connection at the store's
-  question as one with no store (`crates/podssh-ssh/src/credential_store.rs:314-321`). The
+  question as one with no store (`crates/podssh-ssh/src/credential_store.rs:344-351`). The
   doctor's tests: 10 passed, on Windows and in the build image.
 - `cargo test -p podssh-ssh -p podssh-cli`: 630 passed, 0 failed, 31 ignored, on Windows; clippy
   with all features.
@@ -1706,7 +1706,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:150`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:900-903`). A person who types slowly must not meet a limit
+  `docs/cli.md:901-904`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -1730,7 +1730,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:36-37`,
    `crates/podssh-cli/src/flags.rs:169-170`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:927-929` asks for a limit on the whole operation.
+   `docs/cli.md:928-930` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -2155,3 +2155,104 @@ relay stream each task's end with the link stops the other
   when a channel or a direct connection ends. `cargo test --workspace`:
   1069 passed, 0 failed, 30 ignored.
 - CI, the run of `3022d13` (37999580675): each job passed.
+
+# T-284: `podssh agent` signs with a key added for a confirmation of each use
+
+**Source:** the planning of T-257 (2026-10-11): a read of russh's agent server.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+`ssh-add -c` adds a key that an agent may use only after the user confirms each use. `docs/cli.md`
+says that `podssh agent` never uses such a key, as nobody can confirm one; it signs with it,
+unasked. Each process that reaches the agent, a server through `-A` among them, signs with a key
+that the user meant to guard.
+
+## Premise
+
+Read in russh 0.64.1's `src/keys/agent/server.rs` (the local cargo registry): the server keeps the
+constraint of a key (lines 296-297), and when a request to sign names such a key, it takes a future
+that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
+
+Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:155-158`), and is never
+called. `docs/cli.md:750-751` says that the key "is never used".
+
+## Approach
+
+1. The front of `podssh agent` (`serve_client`, beside the refusal of an RSA key of T-257) reads a
+   request to add a key with constraints (25) as russh's server reads it: the key, the comment,
+   then each constraint. It answers FAILURE to one that asks for a confirmation (2), so that the
+   agent holds no key that could sign unasked; `ssh-add -c` fails, as with an agent that cannot
+   confirm. A request that does not parse goes on to russh's server, which refuses it.
+2. `docs/cli.md`: such a key is refused when it is added.
+3. In the gate, OpenSSH's `ssh-add -c` to `podssh agent` fails, and `ssh-add -l` lists nothing.
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh --lib -- credential_store
+```
+
+A request to add an Ed25519 key with the confirm constraint gets FAILURE, and russh's server never
+sees it; one with the lifetime constraint alone goes on. Planted: the front passes the confirm
+constraint on; the test fails.
+
+## Done
+
+2026-10-11. The front of `podssh agent` reads a request to add a key with constraints as russh's
+server reads it, and answers FAILURE to one with the confirm constraint
+(`crates/podssh-ssh/src/credential_store.rs:237-253`); `docs/cli.md` says that such a key is
+refused as it is added.
+- `cargo test -p podssh-ssh --lib -- credential_store`: 8 passed, on Windows. Requests to add an
+  Ed25519 key with the confirm constraint, alone and after a lifetime, got FAILURE, and russh's
+  server saw neither; with a lifetime alone, and with none, the key went on. Planted: the front
+  passes the confirm constraint on; the test failed.
+- `scripts/interop-agent.sh` has the check `agent.confirm_refused`: OpenSSH's `ssh-add -c` to
+  `podssh agent` fails, and `ssh-add -l` lists no key (the baseline: 334 ids, the agent's floor
+  23). It runs in CI's gate at this push.
+
+# T-285: A login waits out its limit after the agent fails to sign
+
+**Source:** the planning of T-257 (2026-10-11): a read of russh's client.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+When the server takes the offer of an agent's key and the agent then fails to sign (it refuses,
+its key is gone, or it closes), podssh logs "the agent could not sign" and offers the next key.
+russh drops that request, as it still waits for the first signature: the login waits until
+`ConnectTimeout` and fails, where it could go on with the next key or method.
+
+## Premise
+
+Read in russh 0.64.1's `src/client/encrypted.rs` (the local cargo registry): after the client asks
+its caller for a signature, it takes the caller's messages until one is a signature, and drops each
+other (lines 287-299).
+
+Read: podssh offers the next key after a signature that failed
+(`crates/podssh-ssh/src/keys.rs:198`).
+
+## Approach
+
+1. When the agent fails to sign, give russh a signature that cannot verify (the algorithm's name
+   and no bytes), so that russh sends the request and the server refuses it; then go on with the
+   next key, as after any refusal. `-v` says "the agent could not sign", as now.
+2. A test with russh's server in the process and an agent that refuses to sign: the login goes on
+   with the next key, a key file, at once, under a limit of 10 s.
+
+## Prove
+
+```sh
+cargo test -p podssh-ssh --lib -- agent_sign
+```
+
+Before the repair the test runs into its limit; after it, the key file logs in. Planted: give russh
+the agent's error, as now; the test fails.

@@ -748,7 +748,8 @@ OpenSSH program that runs; one binary, as the operator ruled (Q5).
   `SSH_AUTH_SOCK`, so they work with OpenSSH's agent too, and OpenSSH's
   `ssh` and `ssh-add` work with podssh's.
 - Keys stay in the agent's memory only. A key added for a confirmation of
-  each use (`ssh-add -c`) is never used: nobody can confirm one. russh's
+  each use (`ssh-add -c`) is refused as it is added: nobody can confirm one,
+  and russh's agent server would sign with it unasked (T-284). russh's
   agent keeps no comment of a key, so `list` shows the size, the
   fingerprint and the type. podssh agent keeps no RSA key (T-257): russh's
   agent server would sign with it through the `rsa` crate, which is not

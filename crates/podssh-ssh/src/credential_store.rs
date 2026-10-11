@@ -4,8 +4,9 @@
 //! extension message (draft-miller-ssh-agent, section 3.8), with the names
 //! of [`STORE`], [`LOOKUP`], [`FORGET`] and [`COUNT`]. russh's agent server
 //! answers no extension, so [`serve_client`] stands in front of it: it
-//! answers the store's requests itself, refuses an RSA key (T-257), and
-//! passes each other message on. An
+//! answers the store's requests itself, refuses an RSA key (T-257) and a key
+//! for a confirmation of each use (T-284), and passes each other message
+//! on. An
 //! agent that is not podssh's answers `SSH_AGENT_FAILURE` or
 //! `SSH_AGENT_EXTENSION_FAILURE`, or closes the connection at the question,
 //! which a client reads as no store. A locked agent (`ssh-add -x`) tells
@@ -40,6 +41,9 @@ const LOCK: u8 = 22;
 const UNLOCK: u8 = 23;
 const EXTENSION: u8 = 27;
 const EXTENSION_FAILURE: u8 = 28;
+const ADD_CONSTRAINED: u8 = 25;
+const CONSTRAIN_LIFETIME: u8 = 1;
+const CONSTRAIN_CONFIRM: u8 = 2;
 
 /// What a credential opens.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -198,7 +202,9 @@ impl Store {
 /// is answered here, and each other message goes to `agent`, the agent's own
 /// server, whose answer goes back to the client. A request to add an RSA key
 /// gets FAILURE here: russh's server would sign with it through the `rsa`
-/// crate, which is not constant-time (T-257).
+/// crate, which is not constant-time (T-257). So does a request to add a key
+/// for a confirmation of each use, which russh's server would use unasked
+/// (T-284).
 pub async fn serve_client<C, A>(mut client: C, mut agent: A, store: &Store) -> io::Result<()>
 where
     C: AsyncRead + AsyncWrite + Unpin,
@@ -208,7 +214,9 @@ where
         let Some(request) = read_frame(&mut client).await? else { return Ok(()) };
         let answer = match store.answer(&request) {
             Some(answer) => answer,
-            None if crate::rsa_key::adds_rsa_key(&request) => Zeroizing::new(vec![FAILURE]),
+            None if crate::rsa_key::adds_rsa_key(&request) || adds_confirmed_key(&request) => {
+                Zeroizing::new(vec![FAILURE])
+            }
             None => {
                 write_frame(&mut agent, &request).await?;
                 let answer = read_frame(&mut agent)
@@ -220,6 +228,28 @@ where
         };
         write_frame(&mut client, &answer).await?;
     }
+}
+
+/// Whether an agent's request adds a key for a confirmation of each use
+/// (`ssh-add -c`): russh's agent server keeps the constraint and signs with
+/// the key unasked, so the front refuses it (T-284). The request is read as
+/// russh's server reads it: the key, its comment, then each constraint.
+fn adds_confirmed_key(request: &[u8]) -> bool {
+    use russh::keys::ssh_encoding::Decode;
+    let Some((&ADD_CONSTRAINED, mut rest)) = request.split_first() else { return false };
+    let key = russh::keys::ssh_key::private::KeypairData::decode(&mut rest);
+    if key.is_err() || String::decode(&mut rest).is_err() {
+        return false;
+    }
+    while let Some((&constraint, after)) = rest.split_first() {
+        match constraint {
+            CONSTRAIN_CONFIRM => return true,
+            CONSTRAIN_LIFETIME if after.len() >= 4 => rest = &after[4..],
+            // russh's server refuses any other constraint itself.
+            _ => return false,
+        }
+    }
+    false
 }
 
 /// Why the store of an agent could not answer.

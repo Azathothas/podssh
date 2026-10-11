@@ -938,7 +938,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:139`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:140`). That is one run, before 2026-10-09.
 
 ## Approach
 

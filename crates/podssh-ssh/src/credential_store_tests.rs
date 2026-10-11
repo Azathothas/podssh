@@ -178,3 +178,46 @@ async fn agent_front_refuses_an_rsa_key() {
     assert_eq!(seen.len(), 1, "russh's server saw an RSA key");
     assert_eq!(&seen[0][5..16], b"ssh-ed25519");
 }
+
+/// A request to add a key for a confirmation of each use (`ssh-add -c`)
+/// gets FAILURE from the front, and russh's server, which would sign with
+/// it unasked, never sees it; with a lifetime alone, or none, the key goes
+/// on (T-284).
+#[tokio::test]
+async fn agent_front_refuses_a_key_for_confirmation() {
+    use russh::keys::ssh_encoding::Encode;
+    let seen = Arc::new(std::sync::Mutex::new(Vec::new()));
+    let (mut client, served) = tokio::io::duplex(MAX_FRAME);
+    let (to_agent, mut agent) = tokio::io::duplex(MAX_FRAME);
+    let log = seen.clone();
+    tokio::spawn(async move {
+        while let Ok(Some(request)) = read_frame(&mut agent).await {
+            log.lock().unwrap().push(request.to_vec());
+            if write_frame(&mut agent, &[SUCCESS]).await.is_err() {
+                return;
+            }
+        }
+    });
+    let store = Store::default();
+    tokio::spawn(async move { serve_client(served, to_agent, &store).await });
+    let key = russh::keys::PrivateKey::random(&mut rand::rng(), russh::keys::Algorithm::Ed25519).unwrap();
+    let add = |constraints: &[u8]| {
+        let mut request = vec![ADD_CONSTRAINED];
+        key.key_data().encode(&mut request).unwrap();
+        put_string(&mut request, b"a comment");
+        request.extend_from_slice(constraints);
+        request
+    };
+    for (request, answer) in [
+        (add(&[CONSTRAIN_CONFIRM]), FAILURE),
+        (add(&[CONSTRAIN_LIFETIME, 0, 0, 0, 60, CONSTRAIN_CONFIRM]), FAILURE),
+        (add(&[CONSTRAIN_LIFETIME, 0, 0, 0, 60]), SUCCESS),
+        (add(&[]), SUCCESS),
+    ] {
+        write_frame(&mut client, &request).await.unwrap();
+        assert_eq!(read_frame(&mut client).await.unwrap().unwrap().as_slice(), [answer]);
+    }
+    let seen = seen.lock().unwrap();
+    assert_eq!(seen.len(), 2, "russh's server saw a key for confirmation");
+    assert!(seen.iter().all(|r| !r.ends_with(&[CONSTRAIN_CONFIRM])));
+}

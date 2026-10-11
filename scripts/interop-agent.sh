@@ -82,6 +82,16 @@ if [ -n "$sock" ] && [ -S "$sock" ]; then
     [ "$rc" = 0 ] && grep -q "the passphrase for $W/id_enc from podssh agent" "$AG/err8" \
         && ok agent.store.passphrase "BatchMode: the passphrase that podssh agent keeps opens id_enc" \
         || bad agent.store.passphrase "the kept passphrase: exit $rc" "$AG/err8"
+
+    # T-284: a key for a confirmation of each use is refused as it is added:
+    # nobody can confirm, and russh's agent server would sign with it unasked.
+    timeout 20 env SSH_AUTH_SOCK="$sock" ssh-add -c "$W/id_ed25519" </dev/null >"$AG/out" 2>&1
+    rc=$?
+    confirmed=$(ssh-keygen -l -f "$W/id_ed25519.pub" | awk '{print $2}')
+    timeout 20 env SSH_AUTH_SOCK="$sock" ssh-add -l >"$AG/list2" 2>&1
+    [ "$rc" != 0 ] && ! grep -q "$confirmed" "$AG/list2" \
+        && ok agent.confirm_refused "OpenSSH's ssh-add -c: podssh agent refuses the key, and holds none" \
+        || bad agent.confirm_refused "ssh-add -c: exit $rc" "$AG/list2"
 else
     bad agent.serve "podssh agent did not say SSH_AUTH_SOCK" "$AG/err"
 fi
