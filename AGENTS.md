@@ -256,7 +256,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | `crates/podssh-probe` | Facts about the relay document (tests only) |
 | `crates/podssh-ts` | The Tailscale adapter (feature `ts`) |
 | `crates/podssh-iroh` | The iroh road (feature `iroh`): the endpoint as podssh sets it up, the UDP probe, the session streams, the far end and its allowlist, the client, the keys and the tickets |
-| `crates/podssh-todo` | The checker of the work record: `cargo todo check` (the gate runs it), `cargo todo set`, `counts`, `next` |
+| `crates/podssh-todo` | The checker of the work record: `cargo todo check` (the gate runs it), `cargo todo set`, `counts`, `next`; `cargo todo interop`, the ids of the interop harnesses and a run's logs against `scripts/interop-baseline.txt` |
 | `vendor/tailscale-rs` | A fork with local patches (`vendor/patches/`). It is outside the workspace and the 500-line rule. |
 | `scripts/dev.sh` (with `scripts/dev-wsl.sh`), `scripts/gate.sh` | Container runs, and the build gate that CI also runs |
 | `scripts/interop*.sh`, `scripts/interop-pty.py`, `scripts/interop-conpty.py` | Tests against OpenSSH and Dropbear, faults, groff and mandoc (`interop-man.sh`), and terminals on Linux and Windows |

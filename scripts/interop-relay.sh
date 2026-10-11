@@ -15,23 +15,24 @@ rl() {
 rl status >"$FK/relay.out" 2>"$FK/relay.err" </dev/null
 rc=$?
 [ "$rc" = 0 ] && grep -q '^relay-a.test: tcp-ssh-relay fake at edge TEST, ' "$FK/relay.out" \
-    && ok "relay status: the stand-in's /health, verified" \
-    || bad "relay status: exit $rc: $(cat "$FK/relay.out")" "$FK/relay.err"
+    && ok relay.status "the stand-in's /health, verified" \
+    || bad relay.status "exit $rc: $(cat "$FK/relay.out")" "$FK/relay.err"
 
 rl info 127.0.0.1 2201 >"$FK/relay.out" 2>"$FK/relay.err" </dev/null
 rc=$?
 [ "$rc" = 0 ] && grep -q '^pool, best first: 1 hosts$' "$FK/relay.out" \
     && grep -q "^for 127.0.0.1:2201: wss://relay-a.test:$(port a)/connect/127.0.0.1/2201$" "$FK/relay.out" \
-    && ok "relay info: the pool, and the URL for a target" \
-    || bad "relay info: exit $rc: $(cat "$FK/relay.out")" "$FK/relay.err"
+    && ok relay.info "the pool, and the URL for a target" \
+    || bad relay.info "exit $rc: $(cat "$FK/relay.out")" "$FK/relay.err"
 
 # The stand-in dials only with the token in its header, as the relay does.
 rl trace 127.0.0.1 2201 >"$FK/relay.out" 2>"$FK/relay.err" </dev/null
 rc=$?
 [ "$rc" = 0 ] && grep -q '^banner: SSH-2.0-OpenSSH' "$FK/relay.out" \
-    && ok "relay trace: OpenSSH's banner through the stand-in, the token in its header" \
-    || bad "relay trace: exit $rc: $(cat "$FK/relay.out")" "$FK/relay.err"
+    && ok relay.trace.banner "OpenSSH's banner through the stand-in, the token in its header" \
+    || bad relay.trace.banner "exit $rc: $(cat "$FK/relay.out")" "$FK/relay.err"
 
 rl trace 'a&b' 22 >"$FK/relay.out" 2>"$FK/relay.err" </dev/null
 rc=$?
-[ "$rc" = 64 ] && ok "relay trace: a HOST of a&b exits 64" || bad "relay trace a&b: exit $rc" "$FK/relay.err"
+[ "$rc" = 64 ] && ok relay.trace.bad_host "a HOST of a&b exits 64" \
+    || bad relay.trace.bad_host "a&b: exit $rc" "$FK/relay.err"

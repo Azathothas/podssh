@@ -331,16 +331,21 @@ step_release() {
     fi
 
     # The binary against real OpenSSH and Dropbear servers (installed with apk
-    # into this throwaway container).
+    # into this throwaway container), then the man page against groff and
+    # mandoc. Each result line is shown, and each id is scored against
+    # scripts/interop-baseline.txt (T-199): a check that is gone, failed,
+    # skipped or new fails the step.
     if [ -f "$B" ]; then
+        mkdir -p /tmp/gate-interop
         run "interop: OpenSSH and Dropbear" sh scripts/interop.sh "$B"
-        cat /tmp/podssh-step.out | grep -E '^(ok|FAIL|skip) |^interop:' | tail -80
-    fi
-
-    # The man page against groff and mandoc (installed with apk the same way).
-    if [ -f "$B" ]; then
+        cp /tmp/podssh-step.out /tmp/gate-interop/interop.log
+        grep -E '^(ok|FAIL|skip|env) |^interop:' /tmp/gate-interop/interop.log
         run "man page: groff and mandoc" sh scripts/interop-man.sh "$B"
-        grep -E '^(ok|FAIL) ' /tmp/podssh-step.out
+        cp /tmp/podssh-step.out /tmp/gate-interop/man.log
+        grep -E '^(ok|FAIL|skip|env) ' /tmp/gate-interop/man.log
+        run "interop: each id against its baseline" cargo run --locked -q -p podssh-todo -- \
+            interop --logs /tmp/gate-interop/interop.log /tmp/gate-interop/man.log
+        grep -E '^score ' /tmp/podssh-step.out
     fi
 }
 

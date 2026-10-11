@@ -26,12 +26,12 @@ c() {
         -o IdentityAgent=none -o IdentitiesOnly=yes -o BatchMode=yes $K --timeout 120s "$@"
 }
 sum() { sha256sum "$1" | cut -d' ' -f1; }
-# No temporary file stays behind, here or on the server.
+# no_part ID TEXT: no temporary file stays behind, here or on the server.
 no_part() {
     if find "$RD" "$CW/down" -name '*.podssh-*.part' | grep -q .; then
-        bad "$1: a temporary file stayed" ; find "$RD" "$CW/down" -name '*.podssh-*.part'
+        bad "$1" "$2: a temporary file stayed" ; find "$RD" "$CW/down" -name '*.podssh-*.part'
     else
-        ok "$1: no temporary file stayed"
+        ok "$1" "$2: no temporary file stayed"
     fi
 }
 
@@ -40,11 +40,13 @@ for n in 0 1 262145 5000000; do
     c 2201 "$CW/up/f$n" "$T:cp/f$n" >"$CW/out" 2>"$CW/err"
     rc=$?
     [ "$rc" = 0 ] && [ "$(sum "$CW/up/f$n")" = "$(sum "$RD/f$n")" ] \
-        && ok "cp up, $n bytes: the digests agree" || bad "cp up, $n bytes: exit $rc" "$CW/err"
+        && ok "cp.sftp.up.${n}" "cp up, $n bytes: the digests agree" \
+        || bad "cp.sftp.up.${n}" "cp up, $n bytes: exit $rc" "$CW/err"
     c 2201 "$T:cp/f$n" "$CW/down/f$n" >"$CW/out" 2>"$CW/err"
     rc=$?
     [ "$rc" = 0 ] && [ "$(sum "$RD/f$n")" = "$(sum "$CW/down/f$n")" ] \
-        && ok "cp down, $n bytes: the digests agree" || bad "cp down, $n bytes: exit $rc" "$CW/err"
+        && ok "cp.sftp.down.${n}" "cp down, $n bytes: the digests agree" \
+        || bad "cp.sftp.down.${n}" "cp down, $n bytes: exit $rc" "$CW/err"
 done
 
 # Over an existing file, each way; then several sources into a directory.
@@ -52,17 +54,18 @@ head -c 70000 /dev/urandom >"$CW/up/new"
 c 2201 "$CW/up/new" "$T:cp/f262145" >/dev/null 2>"$CW/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(sum "$CW/up/new")" = "$(sum "$RD/f262145")" ] \
-    && ok "cp up over an existing file replaces it" || bad "cp up over a file: exit $rc" "$CW/err"
+    && ok cp.over.up "cp up over an existing file replaces it" || bad cp.over.up "cp up over a file: exit $rc" "$CW/err"
 c 2201 "$T:cp/f1" "$CW/down/f262145" >/dev/null 2>"$CW/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(sum "$RD/f1")" = "$(sum "$CW/down/f262145")" ] \
-    && ok "cp down over an existing file replaces it" || bad "cp down over a file: exit $rc" "$CW/err"
+    && ok cp.over.down "cp down over an existing file replaces it" || bad cp.over.down "cp down over a file: exit $rc" "$CW/err"
 mkdir -p "$RD/many"
 chown podtest:podtest "$RD/many"
 c 2201 "$CW/up/f1" "$CW/up/new" "$T:cp/many" >/dev/null 2>"$CW/err"
 rc=$?
 [ "$rc" = 0 ] && [ -f "$RD/many/f1" ] && [ "$(sum "$CW/up/new")" = "$(sum "$RD/many/new")" ] \
-    && ok "cp up of two files into a directory" || bad "cp up into a directory: exit $rc" "$CW/err"
+    && ok cp.many_into_dir "cp up of two files into a directory" \
+    || bad cp.many_into_dir "cp up into a directory: exit $rc" "$CW/err"
 
 # --jsonl: one object, with the digest that sha256sum gives.
 c 2201 --jsonl "$CW/up/f1" "$T:cp/j1" >"$CW/out" 2>"$CW/err"
@@ -70,27 +73,29 @@ rc=$?
 want=$(sum "$CW/up/f1")
 [ "$rc" = 0 ] && [ "$(wc -l <"$CW/out")" = 1 ] && grep -q '"event":"done"' "$CW/out" \
     && grep -q "\"sha256\":\"$want\"" "$CW/out" && grep -q '"verified_by":"sha256sum"' "$CW/out" \
-    && ok "cp --jsonl prints one done object with the SHA-256" || bad "cp --jsonl: exit $rc" "$CW/out"
+    && ok cp.jsonl "cp --jsonl prints one done object with the SHA-256" || bad cp.jsonl "cp --jsonl: exit $rc" "$CW/out"
 
 # On one server, copy-data: no byte comes through here.
 c 2201 --jsonl "$T:cp/f262145" "$T:cp/within" >"$CW/out" 2>"$CW/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(sum "$RD/f262145")" = "$(sum "$RD/within")" ] && grep -q '"verified_by":"sha256sum"' "$CW/out" \
-    && ok "cp within one server, by copy-data" || bad "cp within one server: exit $rc" "$CW/err"
+    && ok cp.within.copy_data "cp within one server, by copy-data" \
+    || bad cp.within.copy_data "cp within one server: exit $rc" "$CW/err"
 # Two names of this server are two servers: the copy goes through here.
 c 2201 "$T:cp/f1" "podtest@localhost:cp/across" >/dev/null 2>"$CW/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(sum "$RD/f1")" = "$(sum "$RD/across")" ] \
-    && ok "cp from server to server, through this host" || bad "cp from server to server: exit $rc" "$CW/err"
+    && ok cp.server_to_server "cp from server to server, through this host" \
+    || bad cp.server_to_server "cp from server to server: exit $rc" "$CW/err"
 
 # The exit codes of a missing source and of a destination that cannot be made.
 c 2201 "$CW/up/missing" "$T:cp/x" >/dev/null 2>"$CW/err"
-expect_rc "cp up of a missing source" 66 $? "$CW/err"
+expect_rc cp.missing_source.up "cp up of a missing source" 66 $? "$CW/err"
 c 2201 "$T:cp/missing" "$CW/down/x" >/dev/null 2>"$CW/err"
-expect_rc "cp down of a missing source" 66 $? "$CW/err"
+expect_rc cp.missing_source.down "cp down of a missing source" 66 $? "$CW/err"
 c 2201 "$CW/up/f1" "$T:/nonexistent-dir/x" >/dev/null 2>"$CW/err"
-expect_rc "cp up into a directory that does not exist" 73 $? "$CW/err"
-no_part "cp, each case above"
+expect_rc cp.missing_dir "cp up into a directory that does not exist" 73 $? "$CW/err"
+no_part cp.no_part.sftp "cp, each case above"
 
 # The planted defect: a subsystem that flips one data byte each way.
 cat >"$CW/flip.py" <<'EOF'
@@ -142,7 +147,14 @@ for spec in "2205:Subsystem sftp /usr/bin/python3 $CW/flip.py" "2206:ForceComman
         [ "$port" = 2206 ] && echo "Subsystem sftp internal-sftp"
         echo "${spec#*:}"
     } >"$CW/sshd-$port.conf"
-    /usr/sbin/sshd -f "$CW/sshd-$port.conf" -E "$CW/sshd-$port.log" || bad "sshd on $port did not start" "$CW/sshd-$port.log"
+done
+# Started in a loop of literal words, which the ids name (the words above
+# hold $CW).
+for srv in flip:2205 internal_sftp:2206; do
+    port=${srv#*:}
+    /usr/sbin/sshd -f "$CW/sshd-$port.conf" -E "$CW/sshd-$port.log" \
+        && ok "cp.sshd.${srv%%:*}" "sshd on $port started" \
+        || bad "cp.sshd.${srv%%:*}" "sshd on $port did not start" "$CW/sshd-$port.log"
 done
 sleep 1
 
@@ -152,19 +164,21 @@ chown podtest:podtest "$RD/kept"
 c 2205 "$CW/up/f262145" "$T:cp/kept" >/dev/null 2>"$CW/err"
 rc=$?
 [ "$rc" = 70 ] && cmp -s "$CW/old" "$RD/kept" && grep -q "the digests differ" "$CW/err" \
-    && ok "a flipped byte up: exit 70, the destination as it was" || bad "a flipped byte up: exit $rc" "$CW/err"
+    && ok cp.flip.up "a flipped byte up: exit 70, the destination as it was" \
+    || bad cp.flip.up "a flipped byte up: exit $rc" "$CW/err"
 cp "$CW/old" "$CW/down/kept"
 c 2205 "$T:cp/f262145" "$CW/down/kept" >/dev/null 2>"$CW/err"
 rc=$?
 [ "$rc" = 70 ] && cmp -s "$CW/old" "$CW/down/kept" && grep -q "the digests differ" "$CW/err" \
-    && ok "a flipped byte down: exit 70, the destination as it was" || bad "a flipped byte down: exit $rc" "$CW/err"
-no_part "cp through the flipping subsystem"
+    && ok cp.flip.down "a flipped byte down: exit 70, the destination as it was" \
+    || bad cp.flip.down "a flipped byte down: exit $rc" "$CW/err"
+no_part cp.no_part.flip "cp through the flipping subsystem"
 
 # No exec (ForceCommand internal-sftp): the far digest is a second read.
 c 2206 --jsonl "$CW/up/f262145" "$T:cp/r2" >"$CW/out" 2>"$CW/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(sum "$CW/up/f262145")" = "$(sum "$RD/r2")" ] && grep -q '"verified_by":"read again"' "$CW/out" \
-    && ok "cp with no exec verifies by a second read" || bad "cp with no exec: exit $rc" "$CW/out"
+    && ok cp.read_again "cp with no exec verifies by a second read" || bad cp.read_again "cp with no exec: exit $rc" "$CW/out"
 
 # The copy by exec (T-135): no Subsystem line, so each step is a command.
 # 2208's ForceCommand prints a line before each command, as a login's
@@ -188,15 +202,19 @@ EOF
 cat >>"$CW/sshd-2209.conf" <<'EOF'
 ForceCommand sh -c "$SSH_ORIGINAL_COMMAND" | tr '\r' '\n'
 EOF
-for port in 2207 2208 2209; do
-    /usr/sbin/sshd -f "$CW/sshd-$port.conf" -E "$CW/sshd-$port.log" || bad "sshd on $port did not start" "$CW/sshd-$port.log"
+for srv in exec:2207 banner:2208 cr:2209; do
+    port=${srv#*:}
+    /usr/sbin/sshd -f "$CW/sshd-$port.conf" -E "$CW/sshd-$port.log" \
+        && ok "cp.sshd.${srv%%:*}" "sshd on $port started" \
+        || bad "cp.sshd.${srv%%:*}" "sshd on $port did not start" "$CW/sshd-$port.log"
 done
 sleep 1
 
 # Each size both ways, on OpenSSH with no SFTP, with the banner, with the
 # changed \r, and on Dropbear (which may find an sftp-server: the case names
 # the road it took).
-for port in 2207 2208 2209 2203; do
+for srv in exec:2207 banner:2208 cr:2209 dropbear:2203; do
+    port=${srv#*:}
     how="raw through cat"
     [ "$port" = 2209 ] && how="through base64"
     for n in 0 1 5000000; do
@@ -205,13 +223,15 @@ for port in 2207 2208 2209 2203; do
         road=sftp
         grep -q "by exec" "$CW/err" && road=exec
         [ "$rc" = 0 ] && [ "$(sum "$CW/up/f$n")" = "$(sum "$RD/x$port-$n")" ] \
-            && ok "cp up on port $port, $n bytes, by $road: the digests agree" || bad "cp up on port $port, $n bytes: exit $rc" "$CW/err"
+            && ok "cp.${srv%%:*}.up.${n}" "cp up on port $port, $n bytes, by $road: the digests agree" \
+            || bad "cp.${srv%%:*}.up.${n}" "cp up on port $port, $n bytes: exit $rc" "$CW/err"
         [ "$port" = 2203 ] || { [ "$road" = exec ] && grep -q "the bytes go $how" "$CW/err"; } \
-            || bad "cp up on port $port did not name the exec road and '$how'" "$CW/err"
+            || bad "cp.${srv%%:*}.up.${n}" "cp up on port $port did not name the exec road and '$how'" "$CW/err"
         c "$port" -v "$T:cp/x$port-$n" "$CW/down/x$port-$n" >/dev/null 2>"$CW/err"
         rc=$?
         [ "$rc" = 0 ] && [ "$(sum "$RD/x$port-$n")" = "$(sum "$CW/down/x$port-$n")" ] \
-            && ok "cp down on port $port, $n bytes, by $road: the digests agree" || bad "cp down on port $port, $n bytes: exit $rc" "$CW/err"
+            && ok "cp.${srv%%:*}.down.${n}" "cp down on port $port, $n bytes, by $road: the digests agree" \
+            || bad "cp.${srv%%:*}.down.${n}" "cp down on port $port, $n bytes: exit $rc" "$CW/err"
     done
 done
 
@@ -219,10 +239,12 @@ done
 c 2207 "$T:cp/x2207-5000000" "$T:cp/within-exec" >/dev/null 2>"$CW/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(sum "$RD/x2207-5000000")" = "$(sum "$RD/within-exec")" ] \
-    && ok "cp within one server by exec, through this host" || bad "cp within one server by exec: exit $rc" "$CW/err"
+    && ok cp.within.exec "cp within one server by exec, through this host" \
+    || bad cp.within.exec "cp within one server by exec: exit $rc" "$CW/err"
 
 # Names that a far shell must get as one word: a space, a quote, a leading -.
-for name in "a b" "it's" "-lead"; do
+for spec in "space:a b" "quote:it's" "dash:-lead"; do
+    name=${spec#*:}
     cp "$CW/up/f262145" "$CW/up/$name"
     c 2207 "$CW/up/$name" "$T:cp/" >/dev/null 2>"$CW/err"
     rc=$?
@@ -230,29 +252,32 @@ for name in "a b" "it's" "-lead"; do
     rc2=$?
     [ "$rc" = 0 ] && [ "$rc2" = 0 ] && [ "$(sum "$CW/up/$name")" = "$(sum "$RD/$name")" ] \
         && [ "$(sum "$CW/up/$name")" = "$(sum "$CW/down/$name")" ] \
-        && ok "cp by exec of the name '$name', both ways" || bad "cp by exec of '$name': exit $rc and $rc2" "$CW/err"
+        && ok "cp.exec.name.${spec%%:*}" "cp by exec of the name '$name', both ways" \
+        || bad "cp.exec.name.${spec%%:*}" "cp by exec of '$name': exit $rc and $rc2" "$CW/err"
 done
 # A name that is not UTF-8 is refused before anything connects.
 c 2207 "$CW/up/$(printf 'n\377')" "$T:cp/" >/dev/null 2>"$CW/err"
-expect_rc "cp of a name that is not UTF-8" 64 $? "$CW/err"
+expect_rc cp.not_utf8 "cp of a name that is not UTF-8" 64 $? "$CW/err"
 # A directory where the file would go: 73 on both roads, and nothing goes
 # into it (mv would move the file inside).
 mkdir -p "$RD/d2/f1"
 chown -R podtest:podtest "$RD/d2"
-for port in 2201 2207; do
+for srv in sftp:2201 exec:2207; do
+    port=${srv#*:}
     c "$port" "$CW/up/f1" "$T:cp/d2/" >/dev/null 2>"$CW/err"
-    expect_rc "cp up onto the name of a directory, port $port" 73 $? "$CW/err"
+    expect_rc "cp.onto_dir.${srv%%:*}" "cp up onto the name of a directory, port $port" 73 $? "$CW/err"
 done
-[ -z "$(ls -A "$RD/d2/f1")" ] && ok "cp put nothing into the directory of that name" \
-    || bad "cp put a file into the directory of that name"
+[ -z "$(ls -A "$RD/d2/f1")" ] && ok cp.onto_dir.untouched "cp put nothing into the directory of that name" \
+    || bad cp.onto_dir.untouched "cp put a file into the directory of that name"
 # A far file that the login cannot read is a source that cannot be read: 66
 # on both roads, as a missing one.
 cp "$CW/up/f1" "$RD/noread"
 chown podtest:podtest "$RD/noread"
 chmod 000 "$RD/noread"
-for port in 2201 2207; do
+for srv in sftp:2201 exec:2207; do
+    port=${srv#*:}
     c "$port" "$T:cp/noread" "$CW/down/noread$port" >/dev/null 2>"$CW/err"
-    expect_rc "cp down of a far file that cannot be read, port $port" 66 $? "$CW/err"
+    expect_rc "cp.unreadable.${srv%%:*}" "cp down of a far file that cannot be read, port $port" 66 $? "$CW/err"
 done
 # A source that grows during the copy: the copy reads what the source held
 # at the start, then stops with 66, on each road and each way, and leaves no
@@ -260,12 +285,13 @@ done
 head -c 5000000 /dev/urandom >"$CW/up/grow"
 (while :; do printf x >>"$CW/up/grow"; done) &
 grower=$!
-for port in 2201 2207; do
+for srv in sftp:2201 exec:2207; do
+    port=${srv#*:}
     c "$port" "$CW/up/grow" "$T:cp/grown$port" >/dev/null 2>"$CW/err"
     rc=$?
     [ "$rc" = 66 ] && [ ! -e "$RD/grown$port" ] && grep -q "changed while it was read" "$CW/err" \
-        && ok "cp up of a source that grows, port $port: exit 66, and no copy" \
-        || bad "cp up of a source that grows, port $port: exit $rc" "$CW/err"
+        && ok "cp.grow.up.${srv%%:*}" "cp up of a source that grows, port $port: exit 66, and no copy" \
+        || bad "cp.grow.up.${srv%%:*}" "cp up of a source that grows, port $port: exit $rc" "$CW/err"
 done
 kill "$grower" 2>/dev/null
 wait "$grower" 2>/dev/null
@@ -273,17 +299,18 @@ head -c 5000000 /dev/urandom >"$RD/growfar"
 chown podtest:podtest "$RD/growfar"
 (while :; do printf x >>"$RD/growfar"; done) &
 grower=$!
-for port in 2201 2206 2207 2209; do
+for srv in sftp:2201 internal_sftp:2206 exec:2207 cr:2209; do
+    port=${srv#*:}
     c "$port" "$T:cp/growfar" "$CW/down/grown$port" >/dev/null 2>"$CW/err"
     rc=$?
     [ "$rc" = 66 ] && [ ! -e "$CW/down/grown$port" ] && grep -q "changed while it was read" "$CW/err" \
-        && ok "cp down of a far file that grows, port $port: exit 66, and no copy" \
-        || bad "cp down of a far file that grows, port $port: exit $rc" "$CW/err"
+        && ok "cp.grow.down.${srv%%:*}" "cp down of a far file that grows, port $port: exit 66, and no copy" \
+        || bad "cp.grow.down.${srv%%:*}" "cp down of a far file that grows, port $port: exit $rc" "$CW/err"
 done
 kill "$grower" 2>/dev/null
 wait "$grower" 2>/dev/null
 rm -f "$CW/up/grow" "$RD/growfar"
-no_part "cp by exec"
+no_part cp.no_part.exec "cp by exec"
 
 # podssh mv, while these servers run (T-138).
 # shellcheck source=scripts/interop-mv.sh

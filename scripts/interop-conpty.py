@@ -82,13 +82,15 @@ kernel32.CloseHandle.argtypes = [wt.HANDLE]
 fails = 0
 
 
-def check(name, condition, term):
+# check(ID, TEXT, ...): `ok ID TEXT` or `FAIL ID TEXT`, as scripts/interop-lib.sh
+# prints them; the ids are in scripts/interop-baseline.txt (T-199).
+def check(name, text, condition, term):
     global fails
     if condition:
-        print(f"ok    {name}")
+        print(f"ok    {name} {text}")
     else:
         fails += 1
-        print(f"FAIL  {name}")
+        print(f"FAIL  {name} {text}")
         for line in term.text()[-800:].splitlines():
             print(f"      | {line!r}")
     sys.stdout.flush()
@@ -215,17 +217,17 @@ def restored(t):
 
 
 t = Terminal(session_command(), 40, 100)
-check("a shell in a Windows pseudo console", marker(t, "READY", 1, 2), t)
+check("conpty.shell", "a shell in a Windows pseudo console", marker(t, "READY", 1, 2), t)
 t.send(b"stty size\r")
-check("the window size is sent (40x100)", t.expect("40 100"), t)
+check("conpty.size", "the window size is sent (40x100)", t.expect("40 100"), t)
 t.resize(50, 120)
 time.sleep(1.5)
 t.send(b"stty size\r")
-check("a resize reaches the server (50x120)", t.expect("50 120"), t)
+check("conpty.resize", "a resize reaches the server (50x120)", t.expect("50 120"), t)
 t.send(b"sleep 30\r", 1.5)
 start = time.time()
 t.send(b"\x03")
-check("Ctrl-C interrupts the remote command, not podssh", marker(t, "INT", 3, 4) and time.time() - start < 10, t)
+check("conpty.ctrl_c", "Ctrl-C interrupts the remote command, not podssh", marker(t, "INT", 3, 4) and time.time() - start < 10, t)
 t.send(b"rm -f /tmp/podssh-conpty-vi\r", 0.5)
 t.send(b"vi /tmp/podssh-conpty-vi\r")
 # Keys typed before vi has drawn the new file reach the shell's line
@@ -236,32 +238,32 @@ t.send(b"ihello from a windows console", 0.5)
 t.send(b"\x1b", 1.0)
 t.send(b":wq\r", 1.0)
 t.send(b"cat /tmp/podssh-conpty-vi\r")
-check("vi edits and saves a file", drawn and t.expect("hello from a windows console") and marker(t, "VI", 5, 5), t)
+check("conpty.vi", "vi edits and saves a file", drawn and t.expect("hello from a windows console") and marker(t, "VI", 5, 5), t)
 t.send(b"seq 1 500 | less\r", 1.5)
 t.send(b"G", 0.5)
 t.send(b"q", 0.5)
-check("less pages and quits", marker(t, "LESS", 6, 6), t)
+check("conpty.less", "less pages and quits", marker(t, "LESS", 6, 6), t)
 t.send(b"top\r", 2.0)
 t.send(b"q", 0.5)
-check("top draws and quits", marker(t, "TOP", 7, 7), t)
+check("conpty.top", "top draws and quits", marker(t, "TOP", 7, 7), t)
 t.send(b"rm -f /tmp/podssh-conpty-vi; exit\r")
-check("podssh exits with the shell", exit_status(t) is not None, t)
-check("the console's input mode is restored afterwards", restored(t), t)
+check("conpty.exit", "podssh exits with the shell", exit_status(t) is not None, t)
+check("conpty.restore.shell", "the console's input mode is restored afterwards", restored(t), t)
 t.close()
 
 # The exit status of a command: a login shell's is not reported by every
 # server (Tailscale SSH reports none, to OpenSSH's own client too; measured
 # 2026-10-08).
 t = Terminal(session_command("exit 7"), 24, 80)
-check("a command's exit status comes back through a pty (7)", exit_status(t) == 7, t)
-check("the console's input mode is restored after it", restored(t), t)
+check("conpty.exit_status", "a command's exit status comes back through a pty (7)", exit_status(t) == 7, t)
+check("conpty.restore.status", "the console's input mode is restored after it", restored(t), t)
 t.close()
 
 t = Terminal(session_command(), 24, 80)
-check("a second shell", marker(t, "AGAIN", 2, 2), t)
+check("conpty.second", "a second shell", marker(t, "AGAIN", 2, 2), t)
 t.send(b"\r~.")
-check("~. disconnects (exit 255)", exit_status(t) == 255, t)
-check("the console's input mode is restored after ~.", restored(t), t)
+check("conpty.escape_disconnect", "~. disconnects (exit 255)", exit_status(t) == 255, t)
+check("conpty.restore.escape", "the console's input mode is restored after ~.", restored(t), t)
 t.close()
 
 sys.exit(1 if fails else 0)

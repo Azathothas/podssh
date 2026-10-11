@@ -605,7 +605,7 @@ returns a `String` (142-166). The callers keep or pass the text:
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
-WebSocket Close"), and `scripts/interop-faults.sh:161` ("pings unanswered").
+WebSocket Close"), and `scripts/interop-faults.sh:169` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach

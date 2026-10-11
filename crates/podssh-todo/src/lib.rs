@@ -10,6 +10,7 @@
 
 pub mod check;
 pub mod diff;
+pub mod interop;
 pub mod model;
 pub mod numbers;
 pub mod parse;
@@ -24,6 +25,8 @@ pub const USAGE: &str = "usage: podssh-todo check
        podssh-todo counts
        podssh-todo next
        podssh-todo remap [--dry-run] FILE...   (after an edit of FILE: move its citations by a diff against HEAD)
+       podssh-todo interop [--logs LOG...]     (the ids of the interop harnesses against scripts/interop-baseline.txt,
+                                                and with logs, each run's results; a log's file stem names its run)
 Options: --root DIR (default: the nearest directory above the current one with TODO/INDEX.md)
          --base REV (default: HEAD): check and remap compare each file with its text in REV,
                     as HEAD~1 for a commit that was made without them";
@@ -96,6 +99,9 @@ pub fn run(args: &[String], out: &mut dyn std::io::Write, err: &mut dyn std::io:
             }
             remap_command(&root, &files, dry, base, out, err)
         }
+        ["interop"] => interop_command(&root, &[], out, err),
+        ["interop", "--logs", logs @ ..] if !logs.is_empty() => interop_command(&root, logs, out, err),
+        ["interop", ..] => usage(err, "interop takes only --logs LOG..."),
         _ => usage(err, "unknown command"),
     }
 }
@@ -143,6 +149,46 @@ fn remap_command(
         0
     } else {
         report(root, base, out, err)
+    }
+}
+
+/// Check the interop harnesses against their baseline, and score the logs
+/// named, each a run named by its file's stem (T-199).
+fn interop_command(root: &Path, logs: &[&str], out: &mut dyn std::io::Write, err: &mut dyn std::io::Write) -> i32 {
+    let checked = interop::check(root);
+    let mut problems = checked.problems;
+    if !logs.is_empty() {
+        let mut runs = Vec::new();
+        for log in logs {
+            let path = Path::new(log);
+            let run = path.file_stem().and_then(|s| s.to_str()).unwrap_or_default().to_string();
+            match std::fs::read_to_string(path) {
+                Ok(text) => runs.push(interop::Log { shown: log.to_string(), run, text }),
+                Err(e) => problems.push(model::Problem::new(log, 0, format!("cannot be read: {e}"))),
+            }
+        }
+        let (rows, more) = interop::score(&checked.baseline, &runs);
+        let _ = writeln!(out, "score harness pass fail env skip missing floor");
+        for row in rows {
+            let _ = writeln!(out, "{row}");
+        }
+        problems.extend(more);
+    }
+    if problems.is_empty() {
+        let harnesses = checked.baseline.harnesses.len();
+        let _ = writeln!(
+            out,
+            "podssh-todo: interop: {} ids of {harnesses} harnesses meet {}",
+            checked.ids,
+            interop::BASELINE
+        );
+        0
+    } else {
+        for p in &problems {
+            let _ = writeln!(err, "{p}");
+        }
+        let _ = writeln!(err, "podssh-todo: {} problems in the interop checks", problems.len());
+        1
     }
 }
 

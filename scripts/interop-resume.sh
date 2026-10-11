@@ -42,22 +42,27 @@ went() { grep -c "continuing .* at byte [1-9]" "$1"; }
 
 # Down, then up, of 5,000,000 bytes, on each road: 4 sessions or more, and
 # -v names each offset.
-for port in 2201 2207; do
+for srv in sftp:2201 exec:2207; do
+    port=${srv#*:}
     src=f5000000
     [ "$port" = 2207 ] && src=x2207-5000000
     rcp close "$port" -v "$T:cp/$src" "$RW/down/d$port" >/dev/null 2>"$RW/err"
     rc=$?
     n=$(went "$RW/err")
     [ "$rc" = 0 ] && [ "$(sum "$RD/$src")" = "$(sum "$RW/down/d$port")" ] && [ "$n" -ge 3 ] \
-        && ok "cp down on port $port through a relay that cuts each 1.5 MB: equal digests, $n continuations" \
-        || bad "cp down on port $port through a relay that cuts: exit $rc, $n continuations" "$RW/err"
+        && ok "resume.cut.down.${srv%%:*}" \
+            "cp down on port $port through a relay that cuts each 1.5 MB: equal digests, $n continuations" \
+        || bad "resume.cut.down.${srv%%:*}" \
+            "cp down on port $port through a relay that cuts: exit $rc, $n continuations" "$RW/err"
     head -c 5000000 /dev/urandom >"$RW/u$port"
     rcp cap "$port" -v "$RW/u$port" "$T:cp/r-up$port" >/dev/null 2>"$RW/err"
     rc=$?
     n=$(went "$RW/err")
     [ "$rc" = 0 ] && [ "$(sum "$RW/u$port")" = "$(sum "$RD/r-up$port")" ] && [ "$n" -ge 3 ] \
-        && ok "cp up on port $port through a relay that cuts each 1.5 MB both ways: equal digests, $n continuations" \
-        || bad "cp up on port $port through a relay that cuts: exit $rc, $n continuations" "$RW/err"
+        && ok "resume.cut.up.${srv%%:*}" \
+            "cp up on port $port through a relay that cuts each 1.5 MB both ways: equal digests, $n continuations" \
+        || bad "resume.cut.up.${srv%%:*}" \
+            "cp up on port $port through a relay that cuts: exit $rc, $n continuations" "$RW/err"
 done
 
 # A copy up that SIGINT stops goes on when the same command runs again. A
@@ -94,8 +99,8 @@ first=$?
 rcp a 2201 -v "$RW/big" "$T:cp/r-big" >/dev/null 2>"$RW/err2"
 rc=$?
 [ "$first" != 0 ] && [ "$rc" = 0 ] && [ "$(went "$RW/err2")" -ge 1 ] && [ "$(sum "$RW/big")" = "$(sum "$RD/r-big")" ] \
-    && ok "cp stopped by SIGINT (exit $first) goes on at an offset when run again: equal digests" \
-    || bad "cp stopped by SIGINT and run again: exit $first, then $rc" "$RW/err2"
+    && ok resume.sigint "cp stopped by SIGINT (exit $first) goes on at an offset when run again: equal digests" \
+    || bad resume.sigint "cp stopped by SIGINT and run again: exit $first, then $rc" "$RW/err2"
 
 # Before the relay's limits (T-137): with a budget of 3,000,000 bytes, 10,000,000
 # go up and down through the relay that ends each session at 4,000,000 with
@@ -106,14 +111,14 @@ rcp kill 2201 -v "$RW/b10" "$T:cp/r-b10" >/dev/null 2>"$RW/err"
 rc=$?
 n=$(grep -c "near its limits" "$RW/err")
 [ "$rc" = 0 ] && [ "$(sum "$RW/b10")" = "$(sum "$RD/r-b10")" ] && [ "$n" -ge 3 ] && ! grep -q "a new connection in" "$RW/err" \
-    && ok "cp up under a budget of 3,000,000 bytes: $n new sessions before the cap, no break" \
-    || bad "cp up under a budget: exit $rc, $n new sessions" "$RW/err"
+    && ok resume.budget.up "cp up under a budget of 3,000,000 bytes: $n new sessions before the cap, no break" \
+    || bad resume.budget.up "cp up under a budget: exit $rc, $n new sessions" "$RW/err"
 rcp kill 2201 -v "$T:cp/r-b10" "$RW/down/b10" >/dev/null 2>"$RW/err"
 rc=$?
 n=$(grep -c "near its limits" "$RW/err")
 [ "$rc" = 0 ] && [ "$(sum "$RW/b10")" = "$(sum "$RW/down/b10")" ] && [ "$n" -ge 3 ] && ! grep -q "a new connection in" "$RW/err" \
-    && ok "cp down under a budget of 3,000,000 bytes: $n new sessions before the cap, no break" \
-    || bad "cp down under a budget: exit $rc, $n new sessions" "$RW/err"
+    && ok resume.budget.down "cp down under a budget of 3,000,000 bytes: $n new sessions before the cap, no break" \
+    || bad resume.budget.down "cp down under a budget: exit $rc, $n new sessions" "$RW/err"
 unset PODSSH_SESSION_BUDGET
 
 # A key that a passphrase opens is asked for once, however many sessions the
@@ -129,15 +134,16 @@ env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY -u all_proxy -u ALL_PROXY XDG
 rc=$?
 asked=$(wc -l <"$RW/asked")
 [ "$rc" = 0 ] && [ "$asked" = 1 ] && [ "$(went "$RW/err")" -ge 3 ] && [ "$(sum "$RD/f5000000")" = "$(sum "$RW/down/enc")" ] \
-    && ok "cp over sessions that the relay cuts asks for a key's passphrase once" \
-    || bad "cp with an encrypted key over sessions that the relay cuts: exit $rc, asked $asked times" "$RW/err"
+    && ok resume.passphrase_once "cp over sessions that the relay cuts asks for a key's passphrase once" \
+    || bad resume.passphrase_once \
+        "cp with an encrypted key over sessions that the relay cuts: exit $rc, asked $asked times" "$RW/err"
 
 # Nothing stays behind: no temporary file, and no side file.
 if find "$RD" "$RW/down" -name '*.podssh-*.part' | grep -q . || ls "$RW"/cache/podssh/podssh-cp-*.resume >/dev/null 2>&1; then
-    bad "cp went on: a temporary or side file stayed"
+    bad resume.nothing_left "cp went on: a temporary or side file stayed"
     find "$RD" "$RW/down" "$RW/cache" -name '*.part' -o -name '*.resume'
 else
-    ok "cp went on: no temporary file and no side file stayed"
+    ok resume.nothing_left "cp went on: no temporary file and no side file stayed"
 fi
 for name in close cap a kill; do
     [ -f "$RW/$name.pid" ] && kill "$(cat "$RW/$name.pid")" 2>/dev/null

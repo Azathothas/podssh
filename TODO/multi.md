@@ -714,7 +714,7 @@ export CARGO_BUILD_JOBS=4
 sh scripts/dev.sh check   # interop.sh, with tmux in the image: the jobs below
 ```
 
-The image of `scripts/interop.sh` gets tmux (`scripts/interop.sh:32-33`).
+The image of `scripts/interop.sh` gets tmux (`scripts/interop.sh:24-25`).
 Two jobs `sleep 300` start; `list` shows two IDs; a `stop` of one leaves the
 other in `list`; `log` shows the output of a job that prints. With tmux off
 `PATH`, `start` exits 255 and names tmux. Plant: stop by the prefix

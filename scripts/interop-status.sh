@@ -82,12 +82,12 @@ kill "$(cat "$W/sshd-2210.pid")" 2>/dev/null
 for case in n yes wfar wout; do
     want=$(cat "$W/rc-$case-o")
     got=$(cat "$W/rc-$case-p")
-    expect_rc "T-026: '$case' as OpenSSH's client" "$want" "$got" "$W/err-$case-p"
+    expect_rc "status.as_openssh.${case}" "T-026: '$case' as OpenSSH's client" "$want" "$got" "$W/err-$case-p"
     echo "T-026: '$case': podssh $got, OpenSSH $want" >>"$W/t026.txt"
 done
 for case in n yes; do
     got=$(cat "$W/rc-$case-p")
-    [ "$got" != 0 ] && ok "T-026: '$case' with no status is no success (exit $got)" ||
-        bad "T-026: '$case' gave 0 with no status" "$W/err-$case-p"
+    [ "$got" != 0 ] && ok "status.no_success.${case}" "T-026: '$case' with no status is no success (exit $got)" ||
+        bad "status.no_success.${case}" "T-026: '$case' gave 0 with no status" "$W/err-$case-p"
 done
 cat "$W/t026.txt"

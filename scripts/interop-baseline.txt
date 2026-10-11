@@ -1,0 +1,388 @@
+# The result that each check of the interop harnesses must give (T-199).
+# `cargo todo interop` reads the ids of the scripts and compares them with
+# this file; with `--logs`, it scores a run's lines against it. Change it in
+# the commit that adds, removes or renames a check.
+#
+#   support FILE                   a file of helpers, which prints no id
+#   harness PREFIX RUN FLOOR FILE  the ids PREFIX.* of FILE, in the log RUN.log;
+#                                  a run passes FLOOR of them at least
+#   ID pass                        the check must print ok
+#   ID env-allowed REASON          ok, or env when the host lacks REASON
+support scripts/interop-lib.sh
+support scripts/interop-conpty-msys2.py
+harness ssh interop 71 scripts/interop.sh
+harness status interop 6 scripts/interop-status.sh
+harness keygen interop 28 scripts/interop-keygen.sh
+harness agent interop 18 scripts/interop-agent.sh
+harness local interop 6 scripts/interop-local.sh
+harness control interop 13 scripts/interop-control.sh
+harness faults interop 27 scripts/interop-faults.sh
+harness ping interop 3 scripts/interop-ping.sh
+harness relay interop 4 scripts/interop-relay.sh
+harness socks interop 4 scripts/interop-socks.sh
+harness cp interop 68 scripts/interop-cp.sh
+harness mv interop 18 scripts/interop-mv.sh
+harness sftp interop 5 scripts/interop-sftp.sh
+harness resume interop 9 scripts/interop-resume.sh
+harness pipe interop 9 scripts/interop-pipe.sh
+harness pty interop 12 scripts/interop-pty.py
+harness man man 7 scripts/interop-man.sh
+harness conpty conpty 14 scripts/interop-conpty.py
+
+# scripts/interop.sh
+ssh.exit.dropbear.0 pass
+ssh.exit.dropbear.1 pass
+ssh.exit.dropbear.127 pass
+ssh.exit.dropbear.143 pass
+ssh.exit.dropbear.3 pass
+ssh.exit.openssh.0 pass
+ssh.exit.openssh.1 pass
+ssh.exit.openssh.127 pass
+ssh.exit.openssh.143 pass
+ssh.exit.openssh.3 pass
+ssh.exit.signal_named pass
+ssh.stream.apart pass
+ssh.stream.dropbear.262144.up pass
+ssh.stream.dropbear.262145.up pass
+ssh.stream.dropbear.5000000.up pass
+ssh.stream.openssh.262144.up pass
+ssh.stream.openssh.262145.up pass
+ssh.stream.openssh.5000000.up pass
+ssh.stream.dropbear.262144.roundtrip pass
+ssh.stream.dropbear.262145.roundtrip pass
+ssh.stream.dropbear.5000000.roundtrip pass
+ssh.stream.openssh.262144.roundtrip pass
+ssh.stream.openssh.262145.roundtrip pass
+ssh.stream.openssh.5000000.roundtrip pass
+ssh.auth.key.ecdsa pass
+ssh.auth.key.rsa pass
+ssh.auth.encrypted_askpass pass
+ssh.auth.encrypted_batch pass
+ssh.auth.encrypted_named pass
+ssh.auth.password.dropbear pass
+ssh.auth.password.openssh pass
+ssh.auth.wrong_password.dropbear pass
+ssh.auth.wrong_password.openssh pass
+ssh.auth.permission_denied pass
+ssh.auth.password_batch pass
+ssh.auth.password_batch_named pass
+ssh.auth.keys_off_note pass
+ssh.auth.kbdint_pam pass
+ssh.hostkey.recorded pass
+ssh.hostkey.strict_known pass
+ssh.hostkey.changed_refused pass
+ssh.hostkey.changed_warning pass
+ssh.hostkey.unreadable_refused pass
+ssh.hostkey.unreadable_named pass
+ssh.hostkey.unrecordable_connects pass
+ssh.hostkey.unrecordable_note pass
+ssh.hostkey.pinned_connects pass
+ssh.hostkey.pinned_unrecorded pass
+ssh.hostkey.pinned_other_refused pass
+ssh.hostkey.cert_accepted pass
+ssh.hostkey.cert_unrecorded pass
+ssh.config.tokens pass
+ssh.config.g.long pass
+ssh.config.g.short pass
+ssh.config.alias.dropbear-alias pass
+ssh.config.alias.openssh-alias pass
+ssh.config.g_file.dropbear-alias pass
+ssh.config.g_file.openssh-alias pass
+ssh.config.include pass
+ssh.forward.w_banner pass
+ssh.forward.jump pass
+ssh.forward.subsystem_sftp pass
+ssh.forward.setenv pass
+ssh.forward.no_command pass
+ssh.forward.remote pass
+ssh.forward.remote_refused pass
+ssh.pty.tt pass
+ssh.pty.permittty_no pass
+ssh.pty.ctrl_c pass
+ssh.pty.vi pass
+ssh.pty.driver pass
+
+# scripts/interop-status.sh
+status.as_openssh.n pass
+status.as_openssh.wfar pass
+status.as_openssh.wout pass
+status.as_openssh.yes pass
+status.no_success.n pass
+status.no_success.yes pass
+
+# scripts/interop-keygen.sh
+keygen.make.ecdsa pass
+keygen.make.ed25519 pass
+keygen.make.rsa pass
+keygen.quiet.ecdsa pass
+keygen.quiet.ed25519 pass
+keygen.quiet.rsa pass
+keygen.openssh_reads.ecdsa pass
+keygen.openssh_reads.ed25519 pass
+keygen.openssh_reads.rsa pass
+keygen.fingerprint.ecdsa pass
+keygen.fingerprint.ed25519 pass
+keygen.fingerprint.rsa pass
+keygen.derive_pub.ecdsa pass
+keygen.derive_pub.ed25519 pass
+keygen.derive_pub.rsa pass
+keygen.login.ecdsa pass
+keygen.login.ed25519 pass
+keygen.login.rsa pass
+keygen.modes pass
+keygen.enc.make pass
+keygen.enc.openssh_decrypts pass
+keygen.enc.wrong_passphrase pass
+keygen.enc.derive_pub pass
+keygen.enc.login pass
+keygen.refuse.overwrite pass
+keygen.refuse.overwrite_unchanged pass
+keygen.refuse.argv_passphrase pass
+keygen.refuse.argv_nothing_written pass
+
+# scripts/interop-agent.sh
+agent.serve pass
+agent.socket_mode pass
+agent.dir_mode pass
+agent.add pass
+agent.list pass
+agent.list_key pass
+agent.login pass
+agent.forward pass
+agent.forward_key pass
+agent.kill_cleanup pass
+agent.openssh.add pass
+agent.openssh.forward pass
+agent.openssh.forward_key pass
+agent.openssh.no_forward pass
+agent.openssh.last_wins pass
+agent.openssh.forward_path pass
+agent.openssh.forward_path_key pass
+agent.openssh.jump pass
+
+# scripts/interop-local.sh
+local.l.port pass
+local.l.socket pass
+local.l.socket_mode pass
+local.d.socks4a pass
+local.d.socks5h pass
+local.listen_no pass
+
+# scripts/interop-control.sh
+control.podssh_master.check pass
+control.podssh_master.status pass
+control.podssh_master.pty pass
+control.podssh_master.podssh_client pass
+control.podssh_master.stdio_forward pass
+control.podssh_master.exit pass
+control.podssh_master.ended pass
+control.openssh_master.start pass
+control.openssh_master.check pass
+control.openssh_master.status pass
+control.openssh_master.output pass
+control.openssh_master.exit pass
+control.openssh_master.gone pass
+
+# scripts/interop-faults.sh
+faults.certs pass
+faults.standins pass
+faults.control pass
+faults.tls12 pass
+faults.failover.dead pass
+faults.failover.hole pass
+faults.failover.r503 pass
+faults.failover.silent pass
+faults.failover.token_cache pass
+faults.proxy_502.failover pass
+faults.proxy_502.every_host pass
+faults.close_1011.transfer pass
+faults.close_1011.handshake pass
+faults.close_1009.podssh_proxy pass
+faults.stall pass
+faults.kill pass
+faults.persist.reattach pass
+faults.persist.no_tmux pass
+faults.kex_stall pass
+faults.delay.session pass
+faults.delay.control pass
+faults.jitter pass
+faults.rate pass
+faults.cut pass
+faults.stuck_write pass
+faults.drop.handshake pass
+faults.drop.after_start pass
+
+# scripts/interop-ping.sh
+ping.relay_leg pass
+ping.openssh pass
+ping.json pass
+
+# scripts/interop-relay.sh
+relay.status pass
+relay.info pass
+relay.trace.banner pass
+relay.trace.bad_host pass
+
+# scripts/interop-socks.sh
+socks.hosts pass
+socks.listen pass
+socks.session pass
+socks.relay_status pass
+
+# scripts/interop-cp.sh
+cp.sftp.up.0 pass
+cp.sftp.up.1 pass
+cp.sftp.up.262145 pass
+cp.sftp.up.5000000 pass
+cp.sftp.down.0 pass
+cp.sftp.down.1 pass
+cp.sftp.down.262145 pass
+cp.sftp.down.5000000 pass
+cp.over.up pass
+cp.over.down pass
+cp.many_into_dir pass
+cp.jsonl pass
+cp.within.copy_data pass
+cp.server_to_server pass
+cp.missing_source.up pass
+cp.missing_source.down pass
+cp.missing_dir pass
+cp.no_part.sftp pass
+cp.sshd.flip pass
+cp.sshd.internal_sftp pass
+cp.flip.up pass
+cp.flip.down pass
+cp.no_part.flip pass
+cp.read_again pass
+cp.sshd.banner pass
+cp.sshd.cr pass
+cp.sshd.exec pass
+cp.banner.up.0 pass
+cp.banner.up.1 pass
+cp.banner.up.5000000 pass
+cp.cr.up.0 pass
+cp.cr.up.1 pass
+cp.cr.up.5000000 pass
+cp.dropbear.up.0 pass
+cp.dropbear.up.1 pass
+cp.dropbear.up.5000000 pass
+cp.exec.up.0 pass
+cp.exec.up.1 pass
+cp.exec.up.5000000 pass
+cp.banner.down.0 pass
+cp.banner.down.1 pass
+cp.banner.down.5000000 pass
+cp.cr.down.0 pass
+cp.cr.down.1 pass
+cp.cr.down.5000000 pass
+cp.dropbear.down.0 pass
+cp.dropbear.down.1 pass
+cp.dropbear.down.5000000 pass
+cp.exec.down.0 pass
+cp.exec.down.1 pass
+cp.exec.down.5000000 pass
+cp.within.exec pass
+cp.exec.name.dash pass
+cp.exec.name.quote pass
+cp.exec.name.space pass
+cp.not_utf8 pass
+cp.onto_dir.exec pass
+cp.onto_dir.sftp pass
+cp.onto_dir.untouched pass
+cp.unreadable.exec pass
+cp.unreadable.sftp pass
+cp.grow.up.exec pass
+cp.grow.up.sftp pass
+cp.grow.down.cr pass
+cp.grow.down.exec pass
+cp.grow.down.internal_sftp pass
+cp.grow.down.sftp pass
+cp.no_part.exec pass
+
+# scripts/interop-mv.sh
+mv.up.exec pass
+mv.up.sftp pass
+mv.notice.exec pass
+mv.notice.sftp pass
+mv.down.exec pass
+mv.down.sftp pass
+mv.rename.exec pass
+mv.rename.sftp pass
+mv.same_file.exec pass
+mv.same_file.sftp pass
+mv.flip.up pass
+mv.flip.down pass
+mv.grow pass
+mv.unremovable.exec pass
+mv.unremovable.sftp pass
+mv.server_to_server pass
+mv.jsonl pass
+mv.no_part pass
+
+# scripts/interop-sftp.sh
+sftp.scp.up pass
+sftp.scp.down_uri pass
+sftp.batch.each_command pass
+sftp.batch.ends_at_failure pass
+sftp.fetch_file pass
+
+# scripts/interop-resume.sh
+resume.cut.down.exec pass
+resume.cut.down.sftp pass
+resume.cut.up.exec pass
+resume.cut.up.sftp pass
+resume.sigint pass
+resume.budget.up pass
+resume.budget.down pass
+resume.passphrase_once pass
+resume.nothing_left pass
+
+# scripts/interop-pipe.sh
+pipe.exec_cat pass
+pipe.fd pass
+pipe.exit.status pass
+pipe.exit.signal pass
+pipe.relay.late_reply pass
+pipe.proxy.late_reply pass
+pipe.ssh.digest pass
+pipe.listen.tcp pass
+pipe.listen.unix_other_user pass
+
+# scripts/interop-pty.py
+pty.shell pass
+pty.size pass
+pty.resize pass
+pty.ctrl_c pass
+pty.vi pass
+pty.less pass
+pty.top pass
+pty.exit_status pass
+pty.restore.shell pass
+pty.second pass
+pty.escape_disconnect pass
+pty.restore.escape pass
+
+# scripts/interop-man.sh
+man.roff pass
+man.flags pass
+man.render.flags pass
+man.render.groff_warnings pass
+man.render.name pass
+man.lint pass
+man.plant pass
+
+# scripts/interop-conpty.py
+conpty.shell pass
+conpty.size pass
+conpty.resize pass
+conpty.ctrl_c pass
+conpty.vi pass
+conpty.less pass
+conpty.top pass
+conpty.exit pass
+conpty.restore.shell pass
+conpty.exit_status pass
+conpty.restore.status pass
+conpty.second pass
+conpty.escape_disconnect pass
+conpty.restore.escape pass

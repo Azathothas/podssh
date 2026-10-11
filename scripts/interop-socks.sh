@@ -11,7 +11,8 @@ echo "== a SOCKS5 proxy for the egress (OpenSSH's ssh -D)"
 # connection would resolve it too, so the proof that the proxy carried the
 # session is ssh's own log of each SOCKS5 request.
 grep -q ' relay-a.test$' /etc/hosts || echo "127.0.0.1 relay-a.test" >>/etc/hosts \
-    || bad "socks5: /etc/hosts could not name relay-a.test" /etc/hosts
+    && ok socks.hosts "/etc/hosts names relay-a.test" \
+    || bad socks.hosts "/etc/hosts could not name relay-a.test" /etc/hosts
 
 SX="$FK/socks"
 mkdir -p "$SX"
@@ -27,7 +28,8 @@ for _ in range(100):
         sys.exit(0)
     except OSError:
         time.sleep(0.1)
-sys.exit(1)' || bad "socks5: OpenSSH's ssh -D did not listen on 127.0.0.1:2292" "$SX/ssh.log"
+sys.exit(1)' && ok socks.listen "OpenSSH's ssh -D listens on 127.0.0.1:2292" \
+    || bad socks.listen "OpenSSH's ssh -D did not listen on 127.0.0.1:2292" "$SX/ssh.log"
 
 # The lines of ssh's log for a SOCKS5 request to the stand-in by its name:
 # OpenSSH 10.3p1 writes "channel N: dynamic request: socks5 host NAME port
@@ -51,9 +53,10 @@ rc=$?
 after=$(socks_requests)
 [ "$rc" = 0 ] && [ "$(cat "$SX/out")" = through-socks5 ] && [ "${after:-0}" -gt "${before:-0}" ] \
     && ! grep -q pw-never-shown "$SX/out" "$SX/err" \
-    && ok "socks5: OpenSSH's ssh -D carries a session to the relay by its name, and the proxy's password is never shown" \
-    || bad "socks5: a session through ssh -D: exit $rc, ${before:-0} then ${after:-0} requests: $(cat "$SX/out")" \
-        "$SX/err"
+    && ok socks.session \
+        "OpenSSH's ssh -D carries a session to the relay by its name, and the proxy's password is never shown" \
+    || bad socks.session \
+        "a session through ssh -D: exit $rc, ${before:-0} then ${after:-0} requests: $(cat "$SX/out")" "$SX/err"
 
 before=$(socks_requests)
 env -u https_proxy -u HTTPS_PROXY -u all_proxy ALL_PROXY="$PROXY_URL" HOME="$W" "$BIN" relay status \
@@ -62,9 +65,9 @@ rc=$?
 after=$(socks_requests)
 [ "$rc" = 0 ] && grep -q "opened SOCKS5 CONNECT relay-a.test:$(port a) through 127.0.0.1:2292" "$SX/out" \
     && [ "${after:-0}" -gt "${before:-0}" ] && ! grep -q pw-never-shown "$SX/out" "$SX/err" \
-    && ok "socks5: relay status reads /health through ssh -D, and names the proxy" \
-    || bad "socks5: relay status through ssh -D: exit $rc, ${before:-0} then ${after:-0} requests: $(cat "$SX/out")" \
-        "$SX/err"
+    && ok socks.relay_status "relay status reads /health through ssh -D, and names the proxy" \
+    || bad socks.relay_status \
+        "relay status through ssh -D: exit $rc, ${before:-0} then ${after:-0} requests: $(cat "$SX/out")" "$SX/err"
 
 kill "$SX_PID" 2>/dev/null
 wait "$SX_PID" 2>/dev/null

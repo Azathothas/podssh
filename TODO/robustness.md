@@ -154,7 +154,11 @@ after T-063). Planted defect: remove the length guard of
   `http_chunked` crashed after 6.9 M inputs.
 - Native, Windows: `cargo test -p podssh-core` and `-p podssh-ws`, each suite passed (185 in
   podssh-ws); `cargo clippy --all-targets -D warnings` for the five crates that changed.
-- Waits: the first run of `.github/workflows/fuzz.yml` in CI, started by hand after the push.
+- CI, `.github/workflows/fuzz.yml`, started by hand: the run of `5a88857` (38115715408) built
+  the targets for musl, the default of cargo-fuzz's release binary, where the sanitizer does
+  not work; `scripts/fuzz.sh` names the host's target since `6529789`, whose run (38115798595)
+  passed: 18 targets, 120 s each, with the address sanitizer on glibc and no crash, from 0.5 M
+  inputs (cli_args) to 50.6 M (ws_frame).
 
 # T-199: A scored interop harness
 
@@ -166,7 +170,7 @@ verified here.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -178,16 +182,16 @@ counted and typed by hand.
 
 ## Premise
 
-Read: `scripts/interop.sh:22-24` defines `ok`, `bad` and `skipped`, and
-`scripts/interop.sh:445-446` fails only when a check failed. With no
+Read, at `b81480d`: `scripts/interop.sh` defines `ok`, `bad` and `skipped`
+(lines 22-24), and fails only when a check failed (lines 445-446). With no
 `sshd.pam` in the image, the PAM check becomes `skip` and the gate stays
-green (`scripts/interop.sh:180-186`). A name carries values of the run (the
-seconds at `scripts/interop.sh:350`, the tty at `:334`), so it is not a
-stable key. The formats differ: `ok` and four spaces in
-`scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
-`scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
-(`scripts/gate.sh:337`). The totals are typed in `docs/STATUS.md:21`, line 57 at `3cbf215`
-and line 196 at `22c3b88`.
+green (lines 180-186). A name carries values of the run (the seconds at
+line 350, the tty at line 391), so it is not a stable key. The formats
+differ: `ok` and four spaces in `scripts/interop.sh` (line 22) and
+`scripts/interop-pty.py` (line 34), three in `scripts/interop-man.sh` (line
+23). The gate shows the last 80 result lines only (`scripts/gate.sh`, line
+337). The totals are typed in `docs/STATUS.md` (line 21 at `b81480d`, line
+57 at `3cbf215` and line 196 at `22c3b88`).
 
 ## Approach
 
@@ -225,18 +229,78 @@ too) sees a new or a deleted check; with the logs named by a variable, the
 gate scores them. A Python scorer beside `scripts/check-repo.py` lost: its
 static half would run only where the gate runs.
 
+Taken otherwise, with these calls made in the work (2026-10-11). The scorer
+is a command of the record's checker, `cargo todo interop`
+(`crates/podssh-todo/src/interop/mod.rs`): with no log, it compares the ids
+that the scripts can print with the baseline; with `--logs FILE...`, it
+scores a run, each log by its name (`interop.log` is the run `interop`).
+`crates/podssh-todo/tests/interop.rs` runs the check on this repository's
+scripts, so each `cargo test` of the workspace sees a new or a deleted
+check, on Windows too. A test of `podssh-cli` lost: the step `release` has
+the logs and builds no test of the CLI, and the test would build the CLI
+only to read text; `podssh-todo` already reads the repository's text, and
+builds with no C compiler. An id is read as the scripts are written
+(`crates/podssh-todo/src/interop/words.rs`): the first word after `ok`,
+`bad`, `expect_rc`, `skipped`, `unmet` or `no_part`, quoted or not, outside
+comments and heredocs, with `${VAR}` and `${VAR%%:*}` taken from the
+nearest `for VAR in WORDS` above, whose words must be literal; in Python,
+the literal first argument of `check(`. Each line that printed only on a
+failure became a pair, so that each id prints one line in each run. The
+PAM check is `pass` in the baseline, not `env-allowed`: `scripts/interop.sh`
+installs `openssh-server-pam` itself, so a missing `sshd.pam` is the change
+of the host that the scorer must catch.
+
 ## Prove
 
 ```sh
-cargo test -p podssh-cli --test interop_score    # the ids of the scripts equal the baseline
-sh scripts/dev.sh check                           # the gate scores each harness against the baseline
+cargo test -p podssh-todo --test interop                     # the ids of the scripts equal the baseline
+cargo todo interop                                           # the same check, by hand
+sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh release'  # the step scores each harness against the baseline
 ```
 
-The test passes with no log, and the gate prints the table and exits 0.
-Planted defect 1: delete one `ok` call from `scripts/interop.sh`; the test
-must fail and name the id. Planted defect 2: remove `/usr/sbin/sshd.pam` in
-the container before the interop step; the PAM check becomes `env`, and the
-scorer must fail.
+The test passes with no log, and the step prints a row `score` for each
+harness and exits 0. Planted defect 1: delete the check
+`ssh.exit.signal_named` from `scripts/interop.sh`; `cargo todo interop` must
+fail and name the id. Planted defect 2: the PAM check gives `env`, as with
+no `/usr/sbin/sshd.pam` in the container; the scorer must fail.
+
+## Correction
+
+2026-10-11: the Premise named the tty at line 334 of `scripts/interop.sh`,
+which at `b81480d` was a comment of the `-s sftp` check; the tty was at line
+391. The Premise now reads at `b81480d`, the tree before this entry's work.
+
+## Done
+
+2026-10-11. Each check of the harnesses prints `VERDICT ID TEXT`
+(`scripts/interop-lib.sh`, which `scripts/interop.sh` and
+`scripts/interop-man.sh` source; `check()` in the two pty scripts), with an
+id of the harness's prefix: 322 ids in 18 harnesses. A loop's label stands
+in the id for a value (`ssh.exit.${srv%%:*}.${spec%%:*}`), and a check that
+printed only on a failure is now a pair. The PAM case prints `env` when
+`sshd.pam` is missing. `scripts/interop-baseline.txt` names each harness
+with its run and floor, and each id with `pass`. `cargo todo interop`
+(`crates/podssh-todo/src/interop/`) checks the scripts against it, and with
+`--logs` scores a run; the step `release` of `scripts/gate.sh` shows every
+result line and scores the logs of the interop and man runs; CI's job
+`windows` scores the console checks (`--log` of
+`scripts/interop-conpty-msys2.py`). `docs/development.md` says that the
+baseline changes with its check.
+- `cargo test -p podssh-todo`: each suite passed, `tests/interop.rs` 11 (the
+  repository's own scripts against the baseline, and a planted case of each
+  disagreement and of each way a run misses it). `cargo todo interop`: "322
+  ids of 18 harnesses meet scripts/interop-baseline.txt".
+- In the build image, `sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh
+  release'` (11 min): interop 301 passed, 0 failed, 0 skipped, 0 env; the
+  man page 7 of 7; each harness at its floor (ssh 71, status 6, keygen 28,
+  agent 18, local 6, control 13, faults 27, ping 3, relay 4, socks 4, cp 68,
+  mv 18, sftp 5, resume 9, pipe 9, pty 12, man 7); "gate green (release)".
+- Planted defect 1: with `ssh.exit.signal_named` deleted from
+  `scripts/interop.sh`, `cargo todo interop` exits 1: "ssh.exit.signal_named
+  is printed by no line of scripts/interop.sh". Planted defect 2, on the
+  lines of that run: with the PAM check as `env`, the scorer exits 1:
+  "ssh.auth.kbdint_pam gave env, where ok is due", and ssh passed 70 checks,
+  under its floor of 71.
 
 # T-200: A terminal oracle
 
@@ -293,7 +357,7 @@ Read:
    also with UTF-8 text. These cases are the regression tests of T-127 and
    T-129.
 5. Calibrate the model once: a fixed corpus of sequences goes through `tmux`
-   in the gate's container (installed with apk, as `scripts/interop-man.sh:20`
+   in the gate's container (installed with apk, as `scripts/interop-man.sh:22`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
 6. docs/terminal.md, section "Tests" (`docs/terminal.md:185`), names the
@@ -376,7 +440,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:387-390`): a proxy head that never ends stops at
+   (`docs/development.md:399-402`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -510,7 +574,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:36-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:252-269`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:254-271`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:302`, enforced at
   `crates/podssh-ssh/src/run.rs:297-303`); a reply, 30 s
@@ -632,10 +696,10 @@ nobody measures again.
 
 Read, each claim of GitHub #34 at the lines as they are now:
 
-- The matrix is at `scripts/interop.sh:119-128`. It expects 3, 0, 1, 127 and
+- The matrix is at `scripts/interop.sh:111-121`. It expects 3, 0, 1, 127 and
   143, against OpenSSH (port 2201) and Dropbear (port 2203). `grep -c` gives
-  13 lines with `expect_rc`: the comment, the definition
-  (`scripts/interop.sh:25-28`) and 11 calls. `scripts/interop-keygen.sh` has 6
+  17 lines with `expect_rc`, each a call; the helper is
+  `scripts/interop-lib.sh:53-60` (T-199). `scripts/interop-keygen.sh` has 6
   more, for `podssh keygen`.
 - `scripts/interop.sh` (lines 31-32 at `5c7a1ad`) installed `openssh-server`,
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
@@ -644,7 +708,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io.rs:252-257`, with `crates/podssh-ssh/src/io.rs:45-47`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:70`, `docs/STATUS.md:72`).
+  (`docs/STATUS.md:71`, `docs/STATUS.md:74`).
 - A correction to the framing of #34: for a signal, podssh differs from
   OpenSSH on purpose. `docs/cli.md:805-806` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
@@ -655,7 +719,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 
 1. Settle the client first: in the gate's container, run `command -v ssh`
    before the package line. If it is missing, add the client package to
-   `scripts/interop.sh:32`, and print its version (as `:103` does for the
+   `scripts/interop.sh:24`, and print its version (as `:95` does for the
    servers).
 2. For each call of `podssh ssh` in the matrix and in the refusals (lines
    146-196), run the stock `ssh` first, with the same server, port, key,

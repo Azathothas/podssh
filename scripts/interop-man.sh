@@ -14,21 +14,20 @@
 
 set -u
 B=${1:?usage: sh scripts/interop-man.sh path/to/podssh}
+# shellcheck source=scripts/interop-lib.sh
+. "$(dirname "$0")/interop-lib.sh"
 W=$(mktemp -d)
 trap 'rm -rf "$W"' EXIT
 
 apk add --no-cache groff mandoc >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
 
-failed=0
-ok() { echo "ok   $*"; }
-fail() { echo "FAIL $*"; failed=1; }
-
 "$B" man --roff >"$W/podssh.1"
 rc=$?
 if [ "$rc" -ne 0 ]; then
-    echo "FAIL podssh man --roff exited $rc"
+    bad man.roff "podssh man --roff exited $rc"
     exit 1
 fi
+ok man.roff "podssh man --roff exited 0"
 
 # The flags that --help shows for each command that works: one spelling per
 # line, "-x, --long" or "--long".
@@ -36,9 +35,12 @@ fi
 verbs=$(sed -n '/^SUBCOMMANDS:/,/^$/p' "$W/help.txt" | grep -v '(not ' |
     awk 'NF > 1 && $1 != "SUBCOMMANDS:" && $1 != "aliases:" { print $1 }')
 : >"$W/flags.raw"
+# The verbs come from the binary, not a literal list, so no id names one; a
+# failed --help counts against man.flags.
+broken=
 for v in $verbs; do
     if ! "$B" "$v" --help >"$W/verb.txt"; then
-        fail "podssh $v --help"
+        broken="$broken $v"
         continue
     fi
     sed -n '/^OPTIONS:/,/^$/p' "$W/verb.txt" |
@@ -47,10 +49,12 @@ for v in $verbs; do
 done
 sort -u "$W/flags.raw" >"$W/flags.txt"
 count=$(wc -l <"$W/flags.txt")
-if [ "$count" -ge 20 ]; then
-    ok "$count flag spellings from the --help of:" $verbs
+if [ -n "$broken" ]; then
+    bad man.flags "podssh VERB --help failed for:$broken"
+elif [ "$count" -ge 20 ]; then
+    ok man.flags "$count flag spellings from the --help of: $(printf '%s' "$verbs" | tr '\n' ' ')"
 else
-    fail "only $count flag spellings from --help"
+    bad man.flags "only $count flag spellings from --help"
 fi
 
 bs=$(printf '\b')
@@ -77,33 +81,32 @@ if render "$W/podssh.1"; then
     missing "$W/podssh.1"
     n=$(wc -l <"$W/podssh.1.missing")
     if [ "$n" -eq 0 ]; then
-        ok "groff and mandoc show each of the $count flag spellings"
+        ok man.render.flags "groff and mandoc show each of the $count flag spellings"
     else
-        fail "$n flag spellings are missing from a rendering:"
+        bad man.render.flags "$n flag spellings are missing from a rendering:"
         cat "$W/podssh.1.missing"
     fi
     if [ -s "$W/podssh.1.groff.err" ]; then
-        fail "groff -ww warns:"
-        head -20 "$W/podssh.1.groff.err"
+        bad man.render.groff_warnings "groff -ww warns:" "$W/podssh.1.groff.err"
     else
-        ok "groff -ww: no warnings"
+        ok man.render.groff_warnings "groff -ww: no warnings"
     fi
     if grep -q '^ *podssh - ' "$W/podssh.1.groff" && grep -q '^ *podssh - ' "$W/podssh.1.mandoc"; then
-        ok "both show the NAME line"
+        ok man.render.name "both show the NAME line"
     else
-        fail "a rendering has no NAME line 'podssh - ...'"
+        bad man.render.name "a rendering has no NAME line 'podssh - ...'"
     fi
 else
-    fail "groff or mandoc could not render the page"
+    # A page that does not render shows no flag spelling.
+    bad man.render.flags "groff or mandoc could not render the page"
 fi
 
 mandoc -Tlint -W error "$W/podssh.1" >"$W/lint.txt" 2>&1
 rc=$?
 if [ "$rc" -eq 0 ]; then
-    ok "mandoc -Tlint: no errors"
+    ok man.lint "mandoc -Tlint: no errors"
 else
-    fail "mandoc -Tlint exited $rc:"
-    head -20 "$W/lint.txt"
+    bad man.lint "mandoc -Tlint exited $rc:" "$W/lint.txt"
 fi
 
 # The plant: the same page without the term of --port. The check must fail.
@@ -111,12 +114,12 @@ grep -vF '\fB\-\-port\fR' "$W/podssh.1" >"$W/planted.1"
 if render "$W/planted.1"; then
     missing "$W/planted.1"
     if grep -qF -- '--port' "$W/planted.1.missing"; then
-        ok "the planted page fails: $(wc -l <"$W/planted.1.missing") spellings missing"
+        ok man.plant "the planted page fails: $(wc -l <"$W/planted.1.missing") spellings missing"
     else
-        fail "the planted page passed: the check is vacuous"
+        bad man.plant "the planted page passed: the check is vacuous"
     fi
 else
-    fail "the planted page did not render"
+    bad man.plant "the planted page did not render"
 fi
 
-exit $failed
+[ "$fail" -eq 0 ] || exit 1

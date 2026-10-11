@@ -45,31 +45,34 @@ stop() {
 lf -L 127.0.0.1:2280:127.0.0.1:2203
 got=$(banner 2280)
 case $got in
-SSH-2.0-dropbear*) ok "-L 127.0.0.1:2280:127.0.0.1:2203 gives Dropbear's banner ($got)" ;;
-*) bad "-L on a port gave '$got'" "$LF/err" ;;
+SSH-2.0-dropbear*) ok local.l.port "-L 127.0.0.1:2280:127.0.0.1:2203 gives Dropbear's banner ($got)" ;;
+*) bad local.l.port "-L on a port gave '$got'" "$LF/err" ;;
 esac
 stop
 
 lf -L "$LF/l.sock:127.0.0.1:2203"
 got=$(banner "$LF/l.sock")
 case $got in
-SSH-2.0-dropbear*) ok "-L PATH:127.0.0.1:2203 gives Dropbear's banner on the socket" ;;
-*) bad "-L on a socket gave '$got'" "$LF/err" ;;
+SSH-2.0-dropbear*) ok local.l.socket "-L PATH:127.0.0.1:2203 gives Dropbear's banner on the socket" ;;
+*) bad local.l.socket "-L on a socket gave '$got'" "$LF/err" ;;
 esac
-[ "$(stat -c %a "$LF/l.sock" 2>/dev/null)" = 600 ] && ok "the socket of -L is mode 0600" ||
-    bad "the socket of -L is mode $(stat -c %a "$LF/l.sock" 2>/dev/null)" "$LF/err"
+[ "$(stat -c %a "$LF/l.sock" 2>/dev/null)" = 600 ] && ok local.l.socket_mode "the socket of -L is mode 0600" ||
+    bad local.l.socket_mode "the socket of -L is mode $(stat -c %a "$LF/l.sock" 2>/dev/null)" "$LF/err"
 stop
 
 lf -D 127.0.0.1:2281
 banner 2281 >/dev/null 2>&1
-for flag in --socks5-hostname --socks4a; do
+# LABEL:FLAG, as a flag that starts with - is no part of an id.
+for spec in socks5h:--socks5-hostname socks4a:--socks4a; do
+    flag=${spec#*:}
     timeout 20 curl -s --max-time 3 "$flag" 127.0.0.1:2281 telnet://127.0.0.1:2203 </dev/null >"$LF/curl" 2>&1
-    grep -q "SSH-2.0-dropbear" "$LF/curl" && ok "curl $flag through -D 127.0.0.1:2281 reaches Dropbear" ||
-        bad "curl $flag through -D did not reach Dropbear" "$LF/curl"
+    grep -q "SSH-2.0-dropbear" "$LF/curl" &&
+        ok "local.d.${spec%%:*}" "curl $flag through -D 127.0.0.1:2281 reaches Dropbear" ||
+        bad "local.d.${spec%%:*}" "curl $flag through -D did not reach Dropbear" "$LF/curl"
 done
 stop
 
 timeout 20 env -u SSH_AUTH_SOCK PODSSH_LISTEN=no HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile="$KH" \
     -o IdentityAgent=none -o BatchMode=yes -i "$W/id_ed25519" -N -L 127.0.0.1:2282:127.0.0.1:2203 "$T" \
     </dev/null >"$LF/out" 2>"$LF/err"
-expect_rc "PODSSH_LISTEN=no refuses -L before anything connects" 78 $? "$LF/err"
+expect_rc local.listen_no "PODSSH_LISTEN=no refuses -L before anything connects" 78 $? "$LF/err"

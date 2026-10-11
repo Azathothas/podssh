@@ -35,7 +35,7 @@ Read:
   `Permission denied (publickey,keyboard-interactive).`, the note about
   keyboard-interactive, then the wrong note.
 - The gate's check "password with BatchMode" runs this case against OpenSSH
-  (`scripts/interop.sh:174-176`). It only looks for the password note, so its
+  (`scripts/interop.sh:174-177`). It only looks for the password note, so its
   output holds the wrong note today (inferred, not measured).
 
 ## Approach
@@ -70,7 +70,7 @@ a pure function that builds the notes from the methods, the server's first
 list and the keys offered: no key note when `publickey` is off or not
 accepted, and the old note when keys were tried and failed. Planted defect:
 put back the unconditional `notes.extend`, and the test fails. The second
-runs the gate, where `scripts/interop.sh:174-176` also asserts that the
+runs the gate, where `scripts/interop.sh:174-177` also asserts that the
 output has `publickey was not tried` and not `no key was offered`.
 
 ## Done
@@ -172,16 +172,16 @@ Read:
    disconnect, then `describe`. Example: "railway.new: the relay lost its
    connection to railway.new:22 (relay close 1011: write failed: Network
    connection lost.)". Keep the code and the reason verbatim:
-   `scripts/interop-faults.sh:134` looks for them.
+   `scripts/interop-faults.sh:140` looks for them.
 4. Write a second line that says what to do. For the hop from the relay to
    the target: another relay host (`--relay-host`), and
    `podssh relay trace HOST:PORT` when T-058 exists.
 5. Use the same classification in `podssh proxy`
    (`crates/podssh-cli/src/proxy.rs` lines 252-280 at `80f20bf`). Keep `CODE REASON` in its line:
-   `scripts/interop-faults.sh:153` looks for `1009 session byte cap`.
+   `scripts/interop-faults.sh:161` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:265`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:267`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -409,7 +409,7 @@ Read:
 
 1. Measure first, in `scripts/interop.sh`, with the `ssh` of OpenSSH as the
    control: the client is in the image since T-238 (`openssh-client-default`,
-   `scripts/interop.sh:32-33`). Compare the exit codes of both clients for:
+   `scripts/interop.sh:24-25`). Compare the exit codes of both clients for:
    `-N` ended by the server (sshd with `UnusedConnectionTimeout 2`); `'yes'`
    into `head -c 1` (a closed stdout); `-W` when the far end closes; `-W`
    when stdout closes.
@@ -889,7 +889,7 @@ Read: each hop gets its own name for the check, its host and its port, as
 destination only (`crates/podssh-ssh/src/run.rs:270-273`). The order of
 host-key algorithms comes from the keys recorded for that hop
 (`crates/podssh-ssh/src/run.rs:342-364`). The gate's check "-J through
-OpenSSH to Dropbear" (`scripts/interop.sh:331-332`) passes only when this
+OpenSSH to Dropbear" (`scripts/interop.sh:341-342`) passes only when this
 holds: both hops are 127.0.0.1, both keys are Ed25519 and differ, and each
 is recorded under its own port.
 
@@ -1895,7 +1895,7 @@ The test expands each token for a fixed user, host and port, and refuses
 `%Q` with exit 64. In the gate, `scripts/interop.sh` compares podssh's
 expansion of `%C`, `%L`, `%l`, `%i` and `%u` with the `ControlPath` that
 `ssh -G` prints in the same container; add `openssh-client` to the packages
-(`scripts/interop.sh:32-33`) when T-026 has not. Planted defect: map `%u` to
+(`scripts/interop.sh:24-25`) when T-026 has not. Planted defect: map `%u` to
 the remote user again, and both checks fail.
 
 ## Done

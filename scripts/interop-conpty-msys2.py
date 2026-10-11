@@ -8,11 +8,13 @@ starts MSYS2's sshd on a free port of 127.0.0.1 (a key login for the current
 user only), runs interop-conpty.py against it with --direct, stops the
 server, and deletes the keys.
 
-Usage: python scripts/interop-conpty-msys2.py [--install] PODSSH_EXE
+Usage: python scripts/interop-conpty-msys2.py [--install] [--log FILE] PODSSH_EXE
        python scripts/interop-conpty-msys2.py [--install] --plant
 
   --install  install openssh, vim, less and procps-ng with MSYS2's pacman
              first (CI). Without it, MSYS2 is used as it is.
+  --log FILE write the result lines of interop-conpty.py to FILE, for
+             `cargo todo interop --logs FILE` (T-199).
   --plant    build a podssh that leaves the console raw (the restore of
              crates/podssh-ssh/src/terminal/windows.rs disabled), run the
              checks with it, then put the source back and build again. The
@@ -41,14 +43,13 @@ ROOT = Path(__file__).resolve().parent.parent
 MSYS2 = Path(os.environ.get("MSYS2_ROOT", r"C:\msys64"))
 BASH = MSYS2 / "usr" / "bin" / "bash.exe"
 PACKAGES = "openssh vim less procps-ng"
+# --log FILE: where the result lines of interop-conpty.py go too.
+LOG = None
 # Each check of interop-conpty.py: fewer `ok` lines is a failure, so a check
 # that someone deletes is seen.
 CHECKS = 14
-RESTORE_CHECKS = {
-    "the console's input mode is restored afterwards",
-    "the console's input mode is restored after it",
-    "the console's input mode is restored after ~.",
-}
+# By their ids (scripts/interop-baseline.txt, T-199).
+RESTORE_CHECKS = {"conpty.restore.shell", "conpty.restore.status", "conpty.restore.escape"}
 # The plant: the restore finds nothing to put back, so podssh leaves the
 # console as it set it.
 PLANT_FILE = ROOT / "crates" / "podssh-ssh" / "src" / "terminal" / "windows.rs"
@@ -197,8 +198,11 @@ def run_checks(podssh, port, key, scratch, user):
     print(r.stdout, end="", flush=True)
     if r.stderr.strip():
         print(r.stderr, end="", flush=True)
-    passed = re.findall(r"^ok\s+(.+?)\s*$", r.stdout, re.M)
-    failed = re.findall(r"^FAIL\s+(.+?)\s*$", r.stdout, re.M)
+    if LOG:
+        # The lines of interop-conpty.py alone, for `cargo todo interop --logs`.
+        LOG.write_text(r.stdout, encoding="utf-8", newline="\n")
+    passed = re.findall(r"^ok\s+(\S+)", r.stdout, re.M)
+    failed = re.findall(r"^FAIL\s+(\S+)", r.stdout, re.M)
     return r.returncode, passed, failed
 
 
@@ -225,6 +229,14 @@ def session(podssh, scratch):
 
 
 def main(argv):
+    global LOG
+    if "--log" in argv:
+        at = argv.index("--log")
+        if at + 1 >= len(argv):
+            print(__doc__)
+            return 2
+        LOG = Path(argv[at + 1])
+        argv = argv[:at] + argv[at + 2:]
     flags = {a for a in argv if a in ("--install", "--plant")}
     rest = [a for a in argv if a not in flags]
     planted = "--plant" in flags

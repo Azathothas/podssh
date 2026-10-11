@@ -707,7 +707,7 @@ group. Four places render it: `top_level_help`
    `a_refusal_is_a_line_not_a_usage_dump` allows 18 lines
    (`crates/podssh-cli/src/refuse.rs:238-239`), and the list for
    `example.org` has 17.
-4. Update `scripts/interop-man.sh:36-37` in the same commit. It reads the
+4. Update `scripts/interop-man.sh:35-36` in the same commit. It reads the
    `SUBCOMMANDS:` block up to the first blank line, and takes the first word
    of each line as a verb. A heading or a blank line between groups breaks it.
 5. Same commit: `docs/STATUS.md`.
@@ -834,7 +834,7 @@ roff source and not a renderer, so CI stayed green.
    (`crates/podssh-cli/src/man/roff.rs:1-13`). A flag is a `.TP` term in bold.
 2. The gate renders the page with groff and mandoc, and finds each flag
    spelling of `--help` in both (`scripts/interop-man.sh`). A planted page
-   must fail (`scripts/interop-man.sh:109-120`).
+   must fail (`scripts/interop-man.sh:112-123`).
 3. `docs/cli.md:28-32` states the rule.
 
 ## Prove
@@ -1657,7 +1657,7 @@ passes.
    differ.
 3. Extend `a_command_that_does_not_work_says_so_in_both` to the help of each
    such verb.
-4. `scripts/interop-man.sh:36-37` already skips these verbs (it drops each line
+4. `scripts/interop-man.sh:35-36` already skips these verbs (it drops each line
    with "(not "). Same commit: `docs/STATUS.md`.
 
 ## Decision
@@ -1824,7 +1824,7 @@ verb's own rows (`crates/podssh-cli/src/help.rs:33-38`).
 2. Keep `--help` as the last line of the block, with no blank line before it:
    `options_block` stops at the first blank line
    (`crates/podssh-cli/tests/man_extract/mod.rs:35-52`).
-   `scripts/interop-man.sh:44-46` reads an option line at any indent.
+   `scripts/interop-man.sh:46-48` reads an option line at any indent.
 3. Add `--help` to the layout test `no_flag_runs_into_its_description`
    (`crates/podssh-cli/src/help.rs:356-391`), or add a test that each
    long-only line and `--help` start in one column.

@@ -28,13 +28,15 @@ WRAPPER = f"{SSH}; rc=$?; echo; echo STTY: $(stty -a | tr '\\n' ' '); echo RC=$r
 fails = 0
 
 
-def check(name, condition, detail=b""):
+# check(ID, TEXT, ...): `ok ID TEXT` or `FAIL ID TEXT`, as scripts/interop-lib.sh
+# prints them; the ids are in scripts/interop-baseline.txt (T-199).
+def check(name, text, condition, detail=b""):
     global fails
     if condition:
-        print(f"ok    {name}")
+        print(f"ok    {name} {text}")
     else:
         fails += 1
-        print(f"FAIL  {name}")
+        print(f"FAIL  {name} {text}")
         tail = detail[-800:].decode("utf-8", "replace")
         for line in tail.splitlines():
             print(f"      | {line!r}")
@@ -112,40 +114,40 @@ def marker(t, word, a, b):
 
 
 t = Terminal(40, 100)
-check("a shell over a local pty", marker(t, "READY", 1, 2), t.buf)
+check("pty.shell", "a shell over a local pty", marker(t, "READY", 1, 2), t.buf)
 t.send(b"stty size\r")
-check("the window size is sent (40x100)", t.expect(b"40 100"), t.buf)
+check("pty.size", "the window size is sent (40x100)", t.expect(b"40 100"), t.buf)
 t.resize(50, 120)
 time.sleep(1)
 t.send(b"stty size\r")
-check("a resize reaches the server (50x120)", t.expect(b"50 120"), t.buf)
+check("pty.resize", "a resize reaches the server (50x120)", t.expect(b"50 120"), t.buf)
 t.send(b"sleep 30\r", 1.5)
 start = time.time()
 t.send(b"\x03")
-check("Ctrl-C interrupts the remote command", marker(t, "INT", 3, 4) and time.time() - start < 10, t.buf)
+check("pty.ctrl_c", "Ctrl-C interrupts the remote command", marker(t, "INT", 3, 4) and time.time() - start < 10, t.buf)
 t.send(b"rm -f /tmp/podssh-vi\r", 0.5)
 t.send(b"vi /tmp/podssh-vi\r", 1.5)
 t.send(b"ihello from vi\x1b", 0.5)
 t.send(b":wq\r", 1.0)
 t.send(b"cat /tmp/podssh-vi\r")
-check("vi edits and saves a file", t.expect(b"hello from vi") and marker(t, "VI", 5, 5), t.buf)
+check("pty.vi", "vi edits and saves a file", t.expect(b"hello from vi") and marker(t, "VI", 5, 5), t.buf)
 t.send(b"seq 1 500 | less\r", 1.5)
 t.send(b"G", 0.5)
 t.send(b"q", 0.5)
-check("less pages and quits", marker(t, "LESS", 6, 6), t.buf)
+check("pty.less", "less pages and quits", marker(t, "LESS", 6, 6), t.buf)
 t.send(b"top\r", 2.0)
 t.send(b"q", 0.5)
-check("top draws and quits", marker(t, "TOP", 7, 7), t.buf)
+check("pty.top", "top draws and quits", marker(t, "TOP", 7, 7), t.buf)
 t.send(b"exit 7\r")
 status = t.finish()
-check("the exit status comes back (7)", status == 7, t.buf)
-check("the local terminal is restored", t.restored(), t.buf)
+check("pty.exit_status", "the exit status comes back (7)", status == 7, t.buf)
+check("pty.restore.shell", "the local terminal is restored", t.restored(), t.buf)
 
 t = Terminal(24, 80)
-check("a second session", marker(t, "AGAIN", 2, 2), t.buf)
+check("pty.second", "a second session", marker(t, "AGAIN", 2, 2), t.buf)
 t.send(b"\r~.")
 status = t.finish()
-check("~. disconnects (exit 255)", status == 255, t.buf)
-check("the terminal is restored after ~.", t.restored(), t.buf)
+check("pty.escape_disconnect", "~. disconnects (exit 255)", status == 255, t.buf)
+check("pty.restore.escape", "the terminal is restored after ~.", t.restored(), t.buf)
 
 sys.exit(1 if fails else 0)

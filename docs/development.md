@@ -266,7 +266,7 @@ dependencies that these minimums allow. The other steps make sure that:
    relay host, which ends each connection to it. About 15 minutes;
    natively, `cargo test -p podssh-cli --features iroh-test --test m6_exit
    -- --ignored --test-threads 1`.
-6. (`release`, with 7 to 10) The static musl binary has no dynamic
+6. (`release`, with 7 to 11) The static musl binary has no dynamic
    dependencies and no program interpreter.
 7. The binary works against real servers. `scripts/interop.sh` installs
    OpenSSH and Dropbear in the container, starts them on 127.0.0.1, and runs
@@ -292,6 +292,18 @@ dependencies that these minimums allow. The other steps make sure that:
 10. The man page renders (`scripts/interop-man.sh`): groff and mandoc show
    each flag that `--help` shows, groff gives no warning, and `mandoc -Tlint`
    gives no error. A planted page, with one flag's term removed, must fail.
+11. Each check of 7 to 10 prints one line, `VERDICT ID TEXT`
+   (`scripts/interop-lib.sh`), with an id that does not change from run to
+   run, and the step scores the logs against `scripts/interop-baseline.txt`
+   (T-199, `cargo todo interop --logs FILE...`). An id that must pass and
+   gave `FAIL`, `skip` or `env` (a missing precondition of the host), an id
+   with no line or with two, an id that the baseline does not name, and a
+   harness under its floor of passes each fail the step; it prints a row
+   `score PREFIX pass fail env skip missing floor` for each harness. With no
+   log, `cargo todo interop` checks that the scripts print exactly the ids of
+   the baseline, and the tests of `podssh-todo` run that check on each
+   system. The job `windows` of CI scores the console checks the same way.
+   Change the baseline in the commit that adds, removes or renames a check.
 
 NOTE: The stand-ins are part of this repository. They test how podssh
 handles each fault. The live tests show that podssh works with the real

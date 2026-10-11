@@ -21,11 +21,12 @@ head -c 262145 /dev/urandom >"$SW/s1"
 o scp -B "$SW/s1" "$T:cp/scp1" </dev/null >/dev/null 2>"$CW/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(sum "$SW/s1")" = "$(sum "$RD/scp1")" ] \
-    && ok "scp -B copies up with equal digests" || bad "scp up: exit $rc" "$CW/err"
+    && ok sftp.scp.up "scp -B copies up with equal digests" || bad sftp.scp.up "scp up: exit $rc" "$CW/err"
 o scp "scp://${T}:2201/cp/scp1" "$SW/s2" </dev/null >/dev/null 2>"$CW/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(sum "$SW/s1")" = "$(sum "$SW/s2")" ] \
-    && ok "scp from a scp:// URI copies down with equal digests" || bad "scp down from a URI: exit $rc" "$CW/err"
+    && ok sftp.scp.down_uri "scp from a scp:// URI copies down with equal digests" \
+    || bad sftp.scp.down_uri "scp down from a URI: exit $rc" "$CW/err"
 
 # sftp -b: each kind of command, and what it leaves on both sides.
 cat >"$SW/batch" <<EOF
@@ -48,15 +49,16 @@ o sftp -b "$SW/batch" "$T" </dev/null >"$SW/out" 2>"$CW/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(sum "$SW/s1")" = "$(sum "$SW/back")" ] && [ ! -e /home/podtest/sftpdir ] \
     && grep -q "^sftp> put" "$SW/out" && ! grep -q "^sftp> rm b" "$SW/out" && grep -q "^-rw------- " "$SW/out" \
-    && ok "sftp -b runs each command, echoes each line but @, and goes on past -rm" \
-    || bad "sftp -b: exit $rc" "$SW/out"
+    && ok sftp.batch.each_command "sftp -b runs each command, echoes each line but @, and goes on past -rm" \
+    || bad sftp.batch.each_command "sftp -b: exit $rc" "$SW/out"
 # A command that fails ends the batch, with no later command run.
 printf 'rm nothing-here\nmkdir never\n' | o sftp -b - "$T" >"$SW/out" 2>"$CW/err"
 rc=$?
 [ "$rc" != 0 ] && [ ! -e /home/podtest/never ] \
-    && ok "sftp -b - ends the batch at a failed command (exit $rc)" || bad "sftp -b -: exit $rc" "$CW/err"
+    && ok sftp.batch.ends_at_failure "sftp -b - ends the batch at a failed command (exit $rc)" \
+    || bad sftp.batch.ends_at_failure "sftp -b -: exit $rc" "$CW/err"
 # A destination that names a file is fetched at once.
 (cd "$SW" && o sftp "$T:cp/scp1" </dev/null >/dev/null 2>"$CW/err")
 rc=$?
 [ "$rc" = 0 ] && [ "$(sum "$SW/s1")" = "$(sum "$SW/scp1")" ] \
-    && ok "sftp host:file fetches the file" || bad "sftp host:file: exit $rc" "$CW/err"
+    && ok sftp.fetch_file "sftp host:file fetches the file" || bad sftp.fetch_file "sftp host:file: exit $rc" "$CW/err"

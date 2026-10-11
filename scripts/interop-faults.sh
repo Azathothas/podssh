@@ -26,9 +26,9 @@ if openssl req -config "$FK/req.cnf" -x509 -newkey ec -pkeyopt ec_paramgen_curve
         -keyout "$FK/relay.key" -out "$FK/relay.csr" >>"$FK/openssl.log" 2>&1 \
     && openssl x509 -req -in "$FK/relay.csr" -CA "$FK/ca.pem" -CAkey "$FK/ca.key" -CAcreateserial \
         -days 2 -extfile "$FK/ext" -out "$FK/relay.pem" >>"$FK/openssl.log" 2>&1; then
-    :
+    ok faults.certs "the test certificates are made"
 else
-    bad "faults: the test certificates could not be made" "$FK/openssl.log"
+    bad faults.certs "the test certificates could not be made" "$FK/openssl.log"
 fi
 
 # The shapes of T-203: 2 s each way, a jitter of 0 to 1.5 s, 64 KiB/s, and
@@ -53,7 +53,8 @@ while [ "$tries" -lt 30 ]; do
     sleep 1
     tries=$((tries + 1))
 done
-[ "$missing" = 0 ] || bad "faults: the stand-in relays did not start" "$FK/a.log"
+[ "$missing" = 0 ] && ok faults.standins "the stand-in relays started" \
+    || bad faults.standins "the stand-in relays did not start" "$FK/a.log"
 # A relay host that has died: its port now refuses connections.
 kill "$(cat "$FK/dead.pid")" 2>/dev/null
 python3 "$HERE/fake-proxy.py" --port-file "$FK/proxy.port" --log "$FK/proxy.log" \
@@ -81,13 +82,15 @@ r() {
 r "relay-a.test:$(port a)" "$T" 'echo through-the-stand-in' >"$FK/out" 2>"$FK/err" </dev/null
 rc=$?
 [ "$rc" = 0 ] && [ "$(cat "$FK/out")" = through-the-stand-in ] \
-    && ok "faults: the stand-in relay carries a session (control)" || bad "faults: the control: exit $rc" "$FK/err"
+    && ok faults.control "the stand-in relay carries a session (control)" \
+    || bad faults.control "the control: exit $rc" "$FK/err"
 
 # T-067: a relay host behind a proxy that speaks only TLS 1.2.
 r "relay-tls12.test:$(port tls12)" "$T" 'echo over-tls12' >"$FK/out" 2>"$FK/err" </dev/null
 rc=$?
 [ "$rc" = 0 ] && [ "$(cat "$FK/out")" = over-tls12 ] \
-    && ok "faults: a stand-in relay that speaks only TLS 1.2 carries a session" || bad "faults: TLS 1.2: exit $rc" "$FK/err"
+    && ok faults.tls12 "a stand-in relay that speaks only TLS 1.2 carries a session" \
+    || bad faults.tls12 "TLS 1.2: exit $rc" "$FK/err"
 
 files() { n=0; for f in "$@"; do [ -e "$f" ] && n=$((n + 1)); done; echo "$n"; }
 for spec in "dead:a relay host that is down" "r503:a relay host answering 503" \
@@ -102,14 +105,16 @@ for spec in "dead:a relay host that is down" "r503:a relay host answering 503" \
     rc=$?
     took=$(( $(date +%s) - start ))
     [ "$rc" = 0 ] && [ "$(cat "$FK/out")" = failed-over ] && [ "$took" -lt 60 ] \
-        && ok "faults: ${spec#*:}: failed over to the next host (${took}s)" \
-        || bad "faults: ${spec#*:}: exit $rc after ${took}s" "$FK/err"
+        && ok "faults.failover.${spec%%:*}" "${spec#*:}: failed over to the next host (${took}s)" \
+        || bad "faults.failover.${spec%%:*}" "${spec#*:}: exit $rc after ${took}s" "$FK/err"
     if [ "$name" = dead ]; then
         on_dead=$(files "$RC/podssh"/relay-token-relay-dead.test*)
         on_a=$(files "$RC/podssh"/relay-token-relay-a.test*)
         [ "$on_dead" = 0 ] && [ "$on_a" = 1 ] \
-            && ok "faults: the token minted by the second host is cached for that host, not the first" \
-            || bad "faults: token files after the failover: $on_dead for the dead host, $on_a for relay-a.test" "$FK/err"
+            && ok faults.failover.token_cache \
+                "the token minted by the second host is cached for that host, not the first" \
+            || bad faults.failover.token_cache \
+                "token files after the failover: $on_dead for the dead host, $on_a for relay-a.test" "$FK/err"
     fi
 done
 RC=
@@ -119,13 +124,14 @@ r "relay-bad.test:443,relay-a.test:$(port a)" "$T" 'echo via-the-proxy' >"$FK/ou
 rc=$?
 grep -q "^502 CONNECT relay-bad.test:443" "$FK/proxy.log" && grep -q "^200 CONNECT relay-a.test" "$FK/proxy.log" \
     && [ "$rc" = 0 ] && [ "$(cat "$FK/out")" = via-the-proxy ] \
-    && ok "faults: a proxy answering 502 for one relay host: failed over to the next, through the proxy" \
-    || bad "faults: proxy 502: exit $rc" "$FK/err"
+    && ok faults.proxy_502.failover \
+        "a proxy answering 502 for one relay host: failed over to the next, through the proxy" \
+    || bad faults.proxy_502.failover "proxy 502: exit $rc" "$FK/err"
 r "relay-bad.test:443" "$T" true >"$FK/out" 2>"$FK/err" </dev/null
 rc=$?
 [ "$rc" = 255 ] && grep -q "502" "$FK/err" \
-    && ok "faults: with every host behind a 502, exit 255 and the proxy's answer is shown" \
-    || bad "faults: only a 502 host: exit $rc" "$FK/err"
+    && ok faults.proxy_502.every_host "with every host behind a 502, exit 255 and the proxy's answer is shown" \
+    || bad faults.proxy_502.every_host "only a 502 host: exit $rc" "$FK/err"
 RP=
 
 r "relay-close.test:$(port close)" "$T" 'head -c 5000000 /dev/zero' >"$FK/out" 2>"$FK/err" </dev/null
@@ -133,8 +139,9 @@ rc=$?
 got=$(wc -c <"$FK/out")
 [ "$rc" = 255 ] && grep -q "1011" "$FK/err" && grep -q "write failed: fault injection" "$FK/err" \
     && [ "$got" -lt 5000000 ] \
-    && ok "faults: closed mid-transfer with 1011: exit 255 with the relay's reason ($got of 5000000 bytes arrived)" \
-    || bad "faults: closed mid-transfer: exit $rc, $got bytes" "$FK/err"
+    && ok faults.close_1011.transfer \
+        "closed mid-transfer with 1011: exit 255 with the relay's reason ($got of 5000000 bytes arrived)" \
+    || bad faults.close_1011.transfer "closed mid-transfer: exit $rc, $got bytes" "$FK/err"
 
 # A drop during the SSH handshake (GitHub #17): the first line names the hop
 # that broke, and keeps the relay's code and reason as the relay wrote them.
@@ -144,23 +151,24 @@ first=$(head -n 1 "$FK/err")
 want="the relay lost its connection to 127.0.0.1:2201 (relay close 1011: write failed: fault injection)"
 case $first in *"$want"*) named=yes ;; *) named=no ;; esac
 [ "$rc" = 255 ] && [ "$named" = yes ] && ! grep -q "closed unexpectedly" "$FK/err" \
-    && ok "faults: closed with 1011 during the handshake: the first line names the relay's link to the target" \
-    || bad "faults: closed during the handshake: exit $rc; first line: $first" "$FK/err"
+    && ok faults.close_1011.handshake \
+        "closed with 1011 during the handshake: the first line names the relay's link to the target" \
+    || bad faults.close_1011.handshake "closed during the handshake: exit $rc; first line: $first" "$FK/err"
 
 env -u SSH_AUTH_SOCK -u https_proxy -u HTTPS_PROXY HOME="$W" "$BIN" proxy --relay-host "relay-cap.test:$(port cap)" \
     --relay-addr "$PINS" --ca-file "$FK/ca.pem" 127.0.0.1 2201 </dev/null >"$FK/out" 2>"$FK/err"
 rc=$?
 [ "$rc" = 69 ] && grep -q "1009 session byte cap" "$FK/err" \
-    && ok "faults: podssh proxy, closed with 1009: exit 69 with the relay's reason" \
-    || bad "faults: podssh proxy and 1009: exit $rc" "$FK/err"
+    && ok faults.close_1009.podssh_proxy "podssh proxy, closed with 1009: exit 69 with the relay's reason" \
+    || bad faults.close_1009.podssh_proxy "podssh proxy and 1009: exit $rc" "$FK/err"
 
 start=$(date +%s)
 r "relay-stall.test:$(port stall)" "$T" 'sleep 120' >"$FK/out" 2>"$FK/err" </dev/null
 rc=$?
 took=$(( $(date +%s) - start ))
 [ "$rc" = 255 ] && grep -q "pings unanswered" "$FK/err" && [ "$took" -ge 25 ] && [ "$took" -lt 80 ] \
-    && ok "faults: a relay that stalls (no frames, no pongs) is declared dead by the ping watcher (${took}s)" \
-    || bad "faults: a stalled relay: exit $rc after ${took}s" "$FK/err"
+    && ok faults.stall "a relay that stalls (no frames, no pongs) is declared dead by the ping watcher (${took}s)" \
+    || bad faults.stall "a stalled relay: exit $rc after ${took}s" "$FK/err"
 
 start=$(date +%s)
 r "relay-kill.test:$(port kill)" "$T" 'sleep 60' >"$FK/out" 2>"$FK/err" </dev/null &
@@ -171,8 +179,8 @@ wait "$session"
 rc=$?
 took=$(( $(date +%s) - start ))
 [ "$rc" = 255 ] && [ "$took" -lt 30 ] && grep -qi "relay" "$FK/err" \
-    && ok "faults: the relay host killed mid-session: exit 255 after ${took}s, and the relay is named" \
-    || bad "faults: a relay killed mid-session: exit $rc after ${took}s" "$FK/err"
+    && ok faults.kill "the relay host killed mid-session: exit 255 after ${took}s, and the relay is named" \
+    || bad faults.kill "a relay killed mid-session: exit $rc after ${took}s" "$FK/err"
 
 # --persist (T-178): the first relay host dies under a tmux session; podssh
 # connects again through the next host and attaches the same session, whose
@@ -194,18 +202,19 @@ export TERM
 } | r "relay-persist.test:$(port persist),relay-a.test:$(port a)" --persist "$T" >"$FK/out" 2>"$FK/err"
 rc=$?
 [ "$rc" = 0 ] && grep -q 'M=kept' "$FK/out" && grep -q 'connecting again' "$FK/err" \
-    && ok "faults: --persist: a relay host killed under tmux, and the same session attached through the next" \
-    || bad "faults: --persist after a killed relay host: exit $rc" "$FK/err"
+    && ok faults.persist.reattach \
+        "--persist: a relay host killed under tmux, and the same session attached through the next" \
+    || bad faults.persist.reattach "--persist after a killed relay host: exit $rc" "$FK/err"
 tmuxbin=$(command -v tmux)
 if [ -n "$tmuxbin" ] && mv "$tmuxbin" "$tmuxbin.off"; then
     r "relay-a.test:$(port a)" --persist "$T" </dev/null >"$FK/out" 2>"$FK/err"
     rc=$?
     mv "$tmuxbin.off" "$tmuxbin"
     [ "$rc" = 255 ] && grep -q 'no tmux on PATH' "$FK/err" \
-        && ok "faults: --persist with tmux off PATH: exit 255, and tmux is named" \
-        || bad "faults: --persist with no tmux: exit $rc" "$FK/err"
+        && ok faults.persist.no_tmux "--persist with tmux off PATH: exit 255, and tmux is named" \
+        || bad faults.persist.no_tmux "--persist with no tmux: exit $rc" "$FK/err"
 else
-    bad "faults: --persist: tmux is not in the image" /dev/null
+    bad faults.persist.no_tmux "--persist: tmux is not in the image" /dev/null
 fi
 if [ -n "$_term" ]; then TERM=$_term; else unset TERM; fi
 
@@ -226,8 +235,9 @@ timeout 90 env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p "$(port kexstal
 rc=$?
 took=$(( $(date +%s) - start ))
 [ "$rc" = 255 ] && [ "$took" -lt 60 ] && grep -q "did not answer the first request to log in within 10 s" "$FK/err" \
-    && ok "faults: a server that stalls after the key exchange: exit 255 after ${took}s, and the wait is named" \
-    || bad "faults: a server that stalls after the key exchange: exit $rc after ${took}s" "$FK/err"
+    && ok faults.kex_stall \
+        "a server that stalls after the key exchange: exit 255 after ${took}s, and the wait is named" \
+    || bad faults.kex_stall "a server that stalls after the key exchange: exit $rc after ${took}s" "$FK/err"
 
 # The shapes of the traffic (T-203). Each check shows that its fault was
 # there: the planted control of the delay fails with a limit of 5 s, the
@@ -235,20 +245,20 @@ took=$(( $(date +%s) - start ))
 r "relay-delay.test:$(port delay)" "$T" 'echo late' >"$FK/out" 2>"$FK/err" </dev/null
 rc=$?
 [ "$rc" = 0 ] && [ "$(cat "$FK/out")" = late ] \
-    && ok "faults: 2 s each way: a command and its exit status come back" \
-    || bad "faults: 2 s each way: exit $rc" "$FK/err"
+    && ok faults.delay.session "2 s each way: a command and its exit status come back" \
+    || bad faults.delay.session "2 s each way: exit $rc" "$FK/err"
 r "relay-delay.test:$(port delay)" -o ConnectTimeout=5 "$T" 'echo late' >"$FK/out" 2>"$FK/err" </dev/null
 rc=$?
 [ "$rc" = 255 ] && grep -q "did not finish within 5 s" "$FK/err" \
-    && ok "faults: the planted control: with a limit of 5 s, the delayed handshake does not finish" \
-    || bad "faults: the planted control of the delay: exit $rc" "$FK/err"
+    && ok faults.delay.control "the planted control: with a limit of 5 s, the delayed handshake does not finish" \
+    || bad faults.delay.control "the planted control of the delay: exit $rc" "$FK/err"
 
 head -c 5000000 /dev/urandom >"$FK/sent"
 r "relay-jitter.test:$(port jitter)" "$T" 'cat' >"$FK/out" 2>"$FK/err" <"$FK/sent"
 rc=$?
 [ "$rc" = 0 ] && cmp -s "$FK/sent" "$FK/out" \
-    && ok "faults: a jitter of 0 to 1.5 s: 5,000,000 bytes up and back, unchanged" \
-    || bad "faults: a jitter of 0 to 1.5 s: exit $rc, $(wc -c <"$FK/out") bytes back" "$FK/err"
+    && ok faults.jitter "a jitter of 0 to 1.5 s: 5,000,000 bytes up and back, unchanged" \
+    || bad faults.jitter "a jitter of 0 to 1.5 s: exit $rc, $(wc -c <"$FK/out") bytes back" "$FK/err"
 
 start=$(date +%s)
 r "relay-rate.test:$(port rate)" "$T" 'head -c 2000000 /dev/zero' >"$FK/out" 2>"$FK/err" </dev/null
@@ -257,15 +267,15 @@ took=$(( $(date +%s) - start ))
 got=$(wc -c <"$FK/out")
 # 2,000,000 bytes at 65,536 a second: 30.5 s, and 46 s with half again.
 [ "$rc" = 0 ] && [ "$got" = 2000000 ] && [ "$took" -ge 27 ] && [ "$took" -le 46 ] \
-    && ok "faults: at 64 KiB/s, 2,000,000 bytes in ${took}s, where 30.5 s is computed" \
-    || bad "faults: at 64 KiB/s: exit $rc, $got bytes in ${took}s" "$FK/err"
+    && ok faults.rate "at 64 KiB/s, 2,000,000 bytes in ${took}s, where 30.5 s is computed" \
+    || bad faults.rate "at 64 KiB/s: exit $rc, $got bytes in ${took}s" "$FK/err"
 
 r "relay-cut.test:$(port cut)" "$T" 'head -c 5000000 /dev/zero' >"$FK/out" 2>"$FK/err" </dev/null
 rc=$?
 got=$(wc -c <"$FK/out")
 [ "$rc" = 255 ] && [ "$got" -lt 5000000 ] && grep -q "relay" "$FK/err" \
-    && ok "faults: the connection to the relay ended with no Close: exit 255, and the relay is named" \
-    || bad "faults: a cut: exit $rc, $got bytes" "$FK/err"
+    && ok faults.cut "the connection to the relay ended with no Close: exit 255, and the relay is named" \
+    || bad faults.cut "a cut: exit $rc, $got bytes" "$FK/err"
 
 # A stall below SSH with --direct (T-227): the forwarder passes the handshake,
 # then reads nothing more from podssh; the write fails after 60 s.
@@ -281,8 +291,8 @@ timeout 300 env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2297 -o UserKn
 rc=$?
 took=$(( $(date +%s) - start ))
 [ "$rc" = 255 ] && [ "$took" -le 90 ] && grep -q "no progress" "$FK/err" \
-    && ok "faults: a stuck write with --direct ends with 255 in ${took}s, and says so" \
-    || bad "faults: a stuck write with --direct: exit $rc in ${took}s" "$FK/err"
+    && ok faults.stuck_write "a stuck write with --direct ends with 255 in ${took}s, and says so" \
+    || bad faults.stuck_write "a stuck write with --direct: exit $rc in ${took}s" "$FK/err"
 
 # T-025: a drop of the relay before any request is tried again, once, and
 # the command runs once; a drop after the command started is not.
@@ -292,14 +302,14 @@ r "relay-dropfirst.test:$(port dropfirst)" "$T" "echo ran >> $RAN; exit 5" >"$FK
 rc=$?
 runs=$(grep -c . "$RAN" 2>/dev/null)
 [ "$rc" = 5 ] && [ "$(grep -c 'so podssh tries once more' "$FK/err")" = 1 ] && [ "$runs" = 1 ] \
-    && ok "faults: a drop during the handshake is tried once more, and the command runs once (exit 5)" \
-    || bad "faults: a drop during the handshake: exit $rc, ${runs:-0} runs" "$FK/err"
+    && ok faults.drop.handshake "a drop during the handshake is tried once more, and the command runs once (exit 5)" \
+    || bad faults.drop.handshake "a drop during the handshake: exit $rc, ${runs:-0} runs" "$FK/err"
 r "relay-dropafter.test:$(port dropafter)" "$T" "echo ran >> $RAN-after; sleep 30" >"$FK/out" 2>"$FK/err" </dev/null
 rc=$?
 runs=$(grep -c . "$RAN-after" 2>/dev/null)
 [ "$rc" = 255 ] && ! grep -q "so podssh tries" "$FK/err" && [ "$runs" = 1 ] \
-    && ok "faults: a drop after the command started is not tried again (exit 255, one run)" \
-    || bad "faults: a drop after the request: exit $rc, ${runs:-0} runs" "$FK/err"
+    && ok faults.drop.after_start "a drop after the command started is not tried again (exit 255, one run)" \
+    || bad faults.drop.after_start "a drop after the request: exit $rc, ${runs:-0} runs" "$FK/err"
 
 # shellcheck source=scripts/interop-ping.sh
 . "$HERE/interop-ping.sh"

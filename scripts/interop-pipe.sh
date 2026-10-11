@@ -13,20 +13,21 @@ head -c 5000000 /dev/urandom >"$PD/in"
 "$BIN" pipe stdio exec:cat <"$PD/in" >"$PD/out" 2>"$PD/err"
 rc=$?
 [ "$rc" = 0 ] && cmp -s "$PD/in" "$PD/out" \
-    && ok "pipe stdio exec:cat: 5,000,000 bytes back, unchanged" || bad "pipe stdio exec:cat: exit $rc" "$PD/err"
+    && ok pipe.exec_cat "pipe stdio exec:cat: 5,000,000 bytes back, unchanged" \
+    || bad pipe.exec_cat "pipe stdio exec:cat: exit $rc" "$PD/err"
 
 # A descriptor that the caller opened.
 printf 'from a descriptor\n' >"$PD/fd3"
 "$BIN" pipe fd:3 stdio 3<"$PD/fd3" </dev/null >"$PD/out" 2>"$PD/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(cat "$PD/out")" = "from a descriptor" ] \
-    && ok "pipe fd:3 stdio reads the descriptor" || bad "pipe fd:3 stdio: exit $rc" "$PD/err"
+    && ok pipe.fd "pipe fd:3 stdio reads the descriptor" || bad pipe.fd "pipe fd:3 stdio: exit $rc" "$PD/err"
 
 # The program's status, as a shell gives it.
 "$BIN" pipe stdio "exec:sh -c 'exit 7'" </dev/null >/dev/null 2>"$PD/err"
-expect_rc "pipe gives the program's status" 7 $? "$PD/err"
+expect_rc pipe.exit.status "pipe gives the program's status" 7 $? "$PD/err"
 "$BIN" pipe stdio "exec:sh -c 'kill -TERM \$\$'" </dev/null >/dev/null 2>"$PD/err"
-expect_rc "pipe gives 128 + the signal that ended the program" 143 $? "$PD/err"
+expect_rc pipe.exit.signal "pipe gives 128 + the signal that ended the program" 143 $? "$PD/err"
 
 # The remote ends (T-175): a target that answers 1 s after it accepts, one
 # that reads to the end of its input and answers with its SHA-256, and a
@@ -80,12 +81,14 @@ RP="--relay-host relay-a.test:$(cat "$PD/relay.port") --relay-addr relay-a.test=
 "$BIN" pipe $RP stdio "relay:127.0.0.1:$(cat "$PD/late.port")" </dev/null >"$PD/out" 2>"$PD/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(cat "$PD/out")" = "the late reply" ] \
-    && ok "pipe relay: a reply after the end of input comes back" || bad "pipe relay: late reply: exit $rc" "$PD/err"
+    && ok pipe.relay.late_reply "pipe relay: a reply after the end of input comes back" \
+    || bad pipe.relay.late_reply "pipe relay: late reply: exit $rc" "$PD/err"
 # shellcheck disable=SC2086
 "$BIN" proxy $RP 127.0.0.1 "$(cat "$PD/late.port")" </dev/null >"$PD/out" 2>"$PD/err"
 rc=$?
 [ "$rc" = 0 ] && [ "$(cat "$PD/out")" = "the late reply" ] \
-    && ok "proxy, on the same pipe: the late reply comes back" || bad "proxy: late reply: exit $rc" "$PD/err"
+    && ok pipe.proxy.late_reply "proxy, on the same pipe: the late reply comes back" \
+    || bad pipe.proxy.late_reply "proxy: late reply: exit $rc" "$PD/err"
 
 # Through OpenSSH, as -W asks: the end of input passes on as a half-close,
 # and the digest server's answer comes back.
@@ -97,8 +100,8 @@ env -u SSH_AUTH_SOCK HOME="$W" "$BIN" pipe --direct -o UserKnownHostsFile="$KH" 
 rc=$?
 got=$(cut -c1-64 <"$PD/out")
 [ "$rc" = 0 ] && [ "$got" = "$want" ] \
-    && ok "pipe ssh: through OpenSSH: 5,000,000 bytes, and the far end's digest is equal" \
-    || bad "pipe ssh: exit $rc, digest '$got'" "$PD/err"
+    && ok pipe.ssh.digest "pipe ssh: through OpenSSH: 5,000,000 bytes, and the far end's digest is equal" \
+    || bad pipe.ssh.digest "pipe ssh: exit $rc, digest '$got'" "$PD/err"
 
 # The listeners (T-177). A TCP port, one client, through a program: equal
 # digests, and the listener ends with the session.
@@ -112,8 +115,8 @@ rc=$?
 wait "$lpid"
 lrc=$?
 [ "$rc" = 0 ] && [ "$lrc" = 0 ] && cmp -s "$PD/in" "$PD/out" \
-    && ok "pipe tcp-listen: one client through exec:cat, 5,000,000 bytes back, unchanged" \
-    || bad "pipe tcp-listen: client exit $rc, listener exit $lrc" "$PD/listen.err"
+    && ok pipe.listen.tcp "pipe tcp-listen: one client through exec:cat, 5,000,000 bytes back, unchanged" \
+    || bad pipe.listen.tcp "pipe tcp-listen: client exit $rc, listener exit $lrc" "$PD/listen.err"
 
 # A client of another user is closed: the abstract namespace has no file to
 # guard it, so the peer check does; then this user's client is served.
@@ -129,8 +132,9 @@ wait "$lpid"
 lrc=$?
 rm -f /tmp/podssh-other
 grep -q "closed a client of uid" "$PD/listen.err" && [ -z "$other" ] && [ "$mine" = "from this user" ] && [ "$lrc" = 0 ] \
-    && ok "pipe unix-listen: a client of another user is closed, and this user's is served" \
-    || bad "pipe unix-listen and another user: other '$other', mine '$mine', listener exit $lrc" "$PD/listen.err"
+    && ok pipe.listen.unix_other_user "pipe unix-listen: a client of another user is closed, and this user's is served" \
+    || bad pipe.listen.unix_other_user \
+        "pipe unix-listen and another user: other '$other', mine '$mine', listener exit $lrc" "$PD/listen.err"
 
 kill "$late_pid" "$digest_pid" "$relay_pid" 2>/dev/null
 rm -rf "$PD"
