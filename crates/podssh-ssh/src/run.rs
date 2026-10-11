@@ -363,7 +363,7 @@ where
     // connection of a run (`--persist`).
     if is_destination && !opts.remote_forwards.is_empty() {
         retry::reached(Phase::Requested);
-        crate::remote::request(&handle, &forwards, opts, log).await.map_err(HopError::Forward)?;
+        crate::remote::request(&handle, &forwards, opts, log).await?;
     }
     Ok(handle)
 }

@@ -197,3 +197,5 @@ session whose output nobody reads.
 | A server's answer to a pty or a session request | 30 s | `REPLY_WAIT`, `crates/podssh-ssh/src/session.rs` | Taken as a refusal: "the server refused to start a shell" (or the command, or the subsystem) |
 | The exit status once stdout's reader has gone | 5 s | `STATUS_WAIT`, `crates/podssh-ssh/src/io.rs` | The session ends with no status, exit 255 |
 | New connections of `--persist` after a loss | 10, within 300 s | `ATTEMPTS`, `WITHIN`, `crates/podssh-cli/src/ssh/persist.rs` | "...; gave up after N new connections in S s", exit 255 |
+| A connection of `--persist` that starts a new count after its loss | 30 s up | `STEADY`, `crates/podssh-cli/src/ssh/persist.rs` | Its loss counts in the round of the loss before it (T-042) |
+| A forward of `-R` that the server refuses after a loss of `--persist -N` | Asked again for 120 s, with the relay's wait between | `FORWARDS_AGAIN`, `crates/podssh-cli/src/ssh/persist.rs` | "Warning: remote port forwarding failed for listen port N", or with `ExitOnForwardFailure` the end of the run (255) |

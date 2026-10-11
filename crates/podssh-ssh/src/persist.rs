@@ -2,6 +2,8 @@
 //! tmux, then the session `tmux new-session -A -s NAME` with a pty, and how
 //! it ended, so that the caller connects again after a lost link, and only
 //! then. tmux keeps the shell on the server while no client is attached.
+//! With `-N` (T-042), a connection carries the forwards alone, and nothing
+//! is kept on the server: each loss asks for them again.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -52,6 +54,13 @@ pub fn link_lost(relay: Option<&RelayEnd>) -> bool {
     }
 }
 
+/// Whether a connection of `-N` that ended may be made again (T-042): as
+/// [`link_lost`], and after the server's own close (1000) too, as a forward
+/// keeps nothing on the server that its restart would lose.
+pub fn forwards_lost(relay: Option<&RelayEnd>) -> bool {
+    link_lost(relay) || matches!(relay, Some(RelayEnd::Closed { code: Some(1000), .. }))
+}
+
 /// One connection over `stream`: log in, look for tmux (`first`) or for the
 /// session NAME (after a loss), then attach it with `input`.
 pub async fn attempt<S>(
@@ -80,6 +89,47 @@ where
     let attempt = crate::local::alongside(handle, &opts.local_forwards, log, work).await;
     disconnect_all(&handles).await;
     attempt
+}
+
+/// One connection of `--persist` with `-N` (T-042) over `stream`: log in,
+/// ask for each forward of `-R` (asked again for a while after a loss, as
+/// `opts.forwards_again` says), and serve them with `-L` and `-D` until the
+/// connection ends. `first`: the run's first connection.
+pub async fn carry<S>(stream: S, opts: &Options, relay: Option<&RelayStatus>, first: bool, log: &Arc<Log>) -> Attempt
+where
+    S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
+    let handles = match connect_hops(stream, opts, log).await {
+        Ok(handles) => handles,
+        Err(HopError::Unreachable(why)) => return Attempt::Lost { attached: false, why },
+        Err(refused) => {
+            log.error(&refused.to_string());
+            return Attempt::Failed;
+        }
+    };
+    let handle = handles.last().expect("the destination");
+    let host = display(&opts.destination);
+    if !first {
+        log.info(&format!("connected to {host} again; its forwards serve again"));
+    }
+    crate::local::alongside(handle, &opts.local_forwards, log, crate::local::closed(handle)).await;
+    let lost = match (crate::handler::take_last_disconnect(), crate::handler::take_last_error()) {
+        (Some(said), _) => format!("the server ended the connection to {host}: {said}"),
+        (None, Some(error)) => format!("connection to {host} lost: {error}"),
+        (None, None) => format!("the connection to {host} was lost"),
+    };
+    disconnect_all(&handles).await;
+    let end = relay.and_then(RelayStatus::get);
+    let hop = opts.jump.first().unwrap_or(&opts.destination);
+    let mut lines = failure_lines(&lost, end.as_ref(), &podssh_ws::dial::authority(&hop.host, hop.port));
+    if forwards_lost(end.as_ref()) {
+        // The first line names the hop that broke (T-024).
+        return Attempt::Lost { attached: true, why: lines.remove(0) };
+    }
+    for line in &lines {
+        log.error(line);
+    }
+    Attempt::Failed
 }
 
 async fn attach(
@@ -167,6 +217,19 @@ mod tests {
         }
         for code in [1000, 1008, 1013] {
             assert!(!link_lost(Some(&closed(code))), "{code}");
+        }
+    }
+
+    /// A connection of `-N` comes back after the server's own close too,
+    /// and not after a close that would come again (T-042).
+    #[test]
+    fn the_forwards_come_back_after_a_loss_and_the_servers_close() {
+        assert!(forwards_lost(None), "--direct");
+        for code in [1000, 1001, 1006, 1009, 1011] {
+            assert!(forwards_lost(Some(&closed(code))), "{code}");
+        }
+        for code in [1008, 1013] {
+            assert!(!forwards_lost(Some(&closed(code))), "{code}");
         }
     }
 

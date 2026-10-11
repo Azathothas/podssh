@@ -817,7 +817,7 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:194-231`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:314-353`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:329-369`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
 `crates/podssh-cli/src/ssh/resolve.rs:334-348` (the `warnings` of keepalives), and `podssh ssh` exits 255.
@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:274-289`,
    `crates/podssh-cli/src/man/facts.rs:316-325`), the note at
-   `crates/podssh-cli/src/man/notes.rs:161`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes.rs:169`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1032,7 +1032,7 @@ handshake takes the offsets only after the old one stopped.
 
 # T-156: M6 exit: a session survives a stopped relay host, a new address and a stall of 3 minutes
 
-**Source:** ROADMAP M6, exit criteria; `docs/design.md:265-267` (the harness
+**Source:** ROADMAP M6, exit criteria; `docs/design.md:267-269` (the harness
 must grow for layer 2).
 **Category:** measurement
 **Milestone:** M6
@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:595-615`; the two
+sandbox, before a default depends on it); `docs/design.md:597-617`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:595-615`). A session carries 64 MiB at most, both directions
+(`docs/design.md:597-617`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:152`).
 
 ## Approach
@@ -1433,7 +1433,7 @@ second.
 
 # T-160: Local echo and prediction for high latency
 
-**Source:** `docs/design.md:262-263`; GitHub #19 and GitHub #18 (Nemo-010,
+**Source:** `docs/design.md:264-265`; GitHub #19 and GitHub #18 (Nemo-010,
 2026-10-08: quic-ssh's prediction, `VLOD-ZDOV/quic-ssh:src/client/predict.rs`;
 rose's prediction, GPL, of which only the specification may be read).
 **Category:** feature
@@ -1452,7 +1452,7 @@ later.
 
 Read: an interactive echo for high latency is a later option on top of layer
 2; it needs podssh at both ends, and it cannot use UDP here
-(`docs/design.md:262-263`). podssh passes the bytes of a remote pty unchanged
+(`docs/design.md:264-265`). podssh passes the bytes of a remote pty unchanged
 and has no model of the remote screen (`docs/terminal.md:20-25`). A
 prediction needs the place of the cursor, and needs to know when the far end
 echoed a key. Only a podssh far end can tell when a key reached the pty and

@@ -3,7 +3,8 @@
 //! attaches the same session again, and its variable is still there; a
 //! session that ends with a status, a server with no tmux, and a session
 //! that is gone after the loss each end the run, with no new connection to
-//! attach.
+//! attach. With `-N` (T-042), a link dropped under a forward of `-R` asks
+//! for it again on a new connection.
 
 mod tmux_harness;
 
@@ -26,7 +27,7 @@ struct Run {
     err: Arc<Mutex<String>>,
     tmux: Arc<Mutex<Tmux>>,
     home: std::path::PathBuf,
-    _runtime: tokio::runtime::Runtime,
+    runtime: tokio::runtime::Runtime,
 }
 
 /// Read `from` into `into` as it comes, on a thread of its own.
@@ -44,6 +45,11 @@ fn collect(mut from: impl Read + Send + 'static, into: Arc<Mutex<String>>) {
 
 impl Run {
     fn start(tag: &str, installed: bool) -> Run {
+        Run::start_with(tag, installed, &[])
+    }
+
+    /// With `extra` before the destination.
+    fn start_with(tag: &str, installed: bool, extra: &[&str]) -> Run {
         let home = std::env::temp_dir().join(format!("podssh-persist-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&home);
         std::fs::create_dir_all(&home).unwrap();
@@ -56,7 +62,9 @@ impl Run {
         let known = format!("UserKnownHostsFile={}", home.join("known_hosts").display());
         let mut child = podssh(&home)
             .args(["ssh", "--direct", "--persist", "-p", &port.to_string(), "-o", "BatchMode=yes"])
-            .args(["-o", "StrictHostKeyChecking=accept-new", "-o", &known, "tester@127.0.0.1"])
+            .args(["-o", "StrictHostKeyChecking=accept-new", "-o", &known])
+            .args(extra)
+            .arg("tester@127.0.0.1")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -66,7 +74,7 @@ impl Run {
         collect(child.stdout.take().unwrap(), out.clone());
         collect(child.stderr.take().unwrap(), err.clone());
         let stdin = child.stdin.take();
-        Run { child, stdin, out, err, tmux, home, _runtime: runtime }
+        Run { child, stdin, out, err, tmux, home, runtime }
     }
 
     fn send(&mut self, line: &str) {
@@ -129,6 +137,63 @@ impl Run {
     fn counts(&self) -> (usize, usize) {
         let tmux = self.tmux.lock().unwrap();
         (tmux.connections, tmux.attaches)
+    }
+
+    /// Wait until the server has taken `count` forwards.
+    fn wait_for_forwards(&mut self, count: usize) {
+        let started = Instant::now();
+        while self.tmux.lock().unwrap().forwards.len() < count {
+            if started.elapsed() > LIMIT || self.child.try_wait().unwrap().is_some() {
+                let _ = self.child.kill();
+                panic!("no forward {count}; stderr: {:?}", self.err.lock().unwrap());
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    /// What a connection on the port of forward `i` reads, through its own
+    /// connection: one line.
+    fn through(&self, i: usize) -> String {
+        let (port, handle) = self.tmux.lock().unwrap().forwards[i].clone();
+        let read = async move {
+            let mut channel = handle
+                .channel_open_forwarded_tcpip("127.0.0.1", port, "192.0.2.1", 40000)
+                .await
+                .expect("podssh takes the channel of its forward");
+            let mut got = Vec::new();
+            while let Some(msg) = channel.wait().await {
+                match msg {
+                    russh::ChannelMsg::Data { data } => got.extend_from_slice(&data),
+                    russh::ChannelMsg::Eof | russh::ChannelMsg::Close => break,
+                    _ => {}
+                }
+                if got.ends_with(b"\n") {
+                    break;
+                }
+            }
+            String::from_utf8_lossy(&got).into_owned()
+        };
+        self.runtime.block_on(async { tokio::time::timeout(LIMIT, read).await }).expect("the target answers in time")
+    }
+
+    /// The server drops the connection of forward `i`.
+    fn drop_link(&self, i: usize) {
+        let handle = self.tmux.lock().unwrap().forwards[i].1.clone();
+        let reason = russh::Disconnect::ByApplication;
+        let _ = self.runtime.block_on(handle.disconnect(reason, "the test drops the link".into(), String::new()));
+    }
+
+    /// End a run that would not end on its own: its stderr.
+    fn stop(mut self) -> String {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+        let reading = Instant::now();
+        while Arc::strong_count(&self.err) > 1 && reading.elapsed() < LIMIT {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let err = self.err.lock().unwrap().clone();
+        let _ = std::fs::remove_dir_all(&self.home);
+        err
     }
 }
 
@@ -201,4 +266,36 @@ fn a_session_gone_after_the_loss_is_not_started_again() {
     assert!(err.contains("the tmux session podssh is gone from the server"), "{err}");
     let tmux = tmux.lock().unwrap();
     assert_eq!((tmux.connections, tmux.attaches), (2, 1), "{err}");
+}
+
+/// `--persist -N -R` (T-042): the server drops the link under a forward;
+/// podssh connects again and asks for it again, and a connection on the
+/// server's port reaches the target through the new connection. The first
+/// request of the new connection is refused, as by a server that still holds
+/// the port for the old one: podssh asks again.
+#[test]
+fn a_lost_link_asks_for_the_remote_forward_again() {
+    let target = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let target_port = target.local_addr().unwrap().port();
+    std::thread::spawn(move || {
+        for mut stream in target.incoming().flatten() {
+            let _ = stream.write_all(b"the target answers\n");
+        }
+    });
+    let forward = format!("2291:127.0.0.1:{target_port}");
+    let mut run = Run::start_with("forwards", true, &["-N", "-R", &forward]);
+    run.wait_for_forwards(1);
+    assert_eq!(run.through(0), "the target answers\n");
+    run.tmux.lock().unwrap().refuse_forwards = 1;
+    run.drop_link(0);
+    run.wait_for("stderr", "connecting again in");
+    run.wait_for_forwards(2);
+    assert_eq!(run.through(1), "the target answers\n");
+    run.wait_for("stderr", "again; its forwards serve again");
+    let tmux = run.tmux.clone();
+    let err = run.stop();
+    assert!(err.contains("the test drops the link"), "the drop is named: {err}");
+    assert!(err.contains(&format!("the server refused -R {forward}, which it may still hold")), "{err}");
+    let tmux = tmux.lock().unwrap();
+    assert_eq!((tmux.connections, tmux.forward_requests, tmux.attaches), (2, 3, 0), "{err}");
 }

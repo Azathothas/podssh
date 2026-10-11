@@ -61,8 +61,8 @@ pub struct Resolved {
     pub notes: Vec<String>,
     /// Warnings the user should see without -v.
     pub warnings: Vec<String>,
-    /// `--persist`: the tmux session that a new connection attaches again.
-    pub persist: Option<String>,
+    /// `--persist`: what a new connection after a loss keeps (T-178, T-042).
+    pub persist: Option<super::persist::Kept>,
     /// What `-G` prints as it was given.
     pub shown: super::dump::Shown,
     /// `-L` and `-D` (T-038), bound before anything connects, and whether

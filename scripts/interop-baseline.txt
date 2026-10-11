@@ -22,7 +22,7 @@ harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
-harness faults interop 32 scripts/interop-faults.sh
+harness faults interop 33 scripts/interop-faults.sh
 harness ping interop 3 scripts/interop-ping.sh
 harness relay interop 4 scripts/interop-relay.sh
 harness socks interop 4 scripts/interop-socks.sh
@@ -274,6 +274,7 @@ faults.stall pass
 faults.kill pass
 faults.persist.reattach pass
 faults.persist.no_tmux pass
+faults.persist.tunnel pass
 faults.kex_stall pass
 faults.delay.session pass
 faults.delay.control pass

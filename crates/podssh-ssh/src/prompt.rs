@@ -69,6 +69,14 @@ pub fn ask(prompt: &str, echo: bool) -> Result<Zeroizing<String>, PromptError> {
     }
 }
 
+/// Whether [`ask`] asks the program of `SSH_ASKPASS` and never the terminal
+/// (`SSH_ASKPASS_REQUIRE=force`): a run with no person at it may still ask
+/// (T-042).
+pub fn askpass_only() -> bool {
+    std::env::var_os("SSH_ASKPASS").is_some_and(|v| !v.is_empty())
+        && std::env::var("SSH_ASKPASS_REQUIRE").unwrap_or_default().eq_ignore_ascii_case("force")
+}
+
 /// Whether [`ask`] could reach anyone, without asking: used to skip a method
 /// rather than start it and fail halfway.
 pub fn can_ask() -> bool {

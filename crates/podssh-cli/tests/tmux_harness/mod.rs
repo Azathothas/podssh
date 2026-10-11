@@ -6,7 +6,9 @@
 //! its one variable, `echo M=$MARK` prints it, `tmux kill-session` ends the
 //! session (exit 0), `drop` ends the connection with no word, as a lost link
 //! does, and `forget` does the same after the session ends, as a server
-//! that restarted.
+//! that restarted. The server takes each forward of `-R` (T-042), after
+//! refusing as many as the test asks, and keeps the connection's handle, so
+//! that a test opens its channels and drops it.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -29,6 +31,12 @@ pub struct Tmux {
     pub attaches: usize,
     /// Each TCP connection that the server took.
     pub connections: usize,
+    /// Each `tcpip-forward` request, taken or refused.
+    pub forward_requests: usize,
+    /// How many requests for a forward to refuse before taking them.
+    pub refuse_forwards: usize,
+    /// Each forward taken: its port, and the handle of its connection.
+    pub forwards: Vec<(u32, server::Handle)>,
 }
 
 /// One connection: the channels with a pty, and each attached session with
@@ -120,6 +128,22 @@ impl server::Handler for Far {
             ["tmux", "new-session", ..] => finish(session, channel, "", "open terminal failed: not a terminal\n", 1),
             _ => finish(session, channel, "", "sh: not found\n", 127),
         }
+    }
+
+    async fn tcpip_forward(
+        &mut self,
+        _address: &str,
+        port: &mut u32,
+        session: &mut Session,
+    ) -> Result<bool, Self::Error> {
+        let mut tmux = self.tmux();
+        tmux.forward_requests += 1;
+        if tmux.refuse_forwards > 0 {
+            tmux.refuse_forwards -= 1;
+            return Ok(false);
+        }
+        tmux.forwards.push((*port, session.handle()));
+        Ok(true)
     }
 
     async fn data(&mut self, channel: ChannelId, data: &[u8], session: &mut Session) -> Result<(), Self::Error> {

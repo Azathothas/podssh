@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 
 use podssh_cli::ssh::args::SshArgs;
+use podssh_cli::ssh::persist::Kept;
 use podssh_cli::ssh::resolve::{parse_hop, resolve, resolve_or_refuse, Env, Transport};
 use podssh_cli::tree::{parse, Parsed};
 use podssh_ssh::{Agent, LogLevel, Method, Request, RequestTty, StdioTarget, StrictHostKeyChecking};
@@ -415,14 +416,23 @@ fn node_destinations() {
 }
 
 /// `--persist` (T-178) runs tmux in the shell's place with a pty, as `-tt`
-/// asks; each command line that it cannot serve is a usage error, before
-/// anything connects.
+/// asks, and with `-N` keeps the forwards (T-042); each command line that it
+/// cannot serve is a usage error, before anything connects.
 #[test]
 fn persist_runs_tmux_with_a_pty_and_refuses_what_it_cannot_serve() {
     let r = resolve(&ssh(&["--persist", "host"]), &env()).unwrap();
     assert_eq!(r.options.request, Request::Exec("tmux new-session -A -s podssh".into()));
     assert_eq!(r.options.request_tty, RequestTty::Force);
-    assert_eq!(r.persist.as_deref(), Some("podssh"));
+    assert_eq!(r.persist, Some(Kept::Tmux("podssh".into())));
+    for words in [
+        vec!["--persist", "-N", "-R", "2291:127.0.0.1:22", "host"],
+        vec!["--persist", "-N", "-L", "8080:db:5432", "host"],
+        vec!["--persist", "-o", "SessionType=none", "-D", "1080", "host"],
+    ] {
+        let r = resolve(&ssh(&words), &env()).unwrap();
+        assert_eq!(r.persist, Some(Kept::Forwards), "{words:?}");
+        assert_eq!((r.options.request, r.options.request_tty), (Request::Nothing, RequestTty::No), "{words:?}");
+    }
     let r = resolve(&ssh(&["--persist", "--persist-name", "build-2_x", "--direct", "host"]), &env()).unwrap();
     assert_eq!(r.options.request, Request::Exec("tmux new-session -A -s build-2_x".into()));
     assert_eq!(resolve(&ssh(&["host"]), &env()).unwrap().persist, None);
@@ -430,10 +440,11 @@ fn persist_runs_tmux_with_a_pty_and_refuses_what_it_cannot_serve() {
     for (words, says) in [
         (vec!["--persist", "host", "uptime"], "a remote command"),
         (vec!["--persist", "-W", "h:22", "host"], "-W"),
-        (vec!["--persist", "-N", "host"], "-N"),
+        (vec!["--persist", "-N", "host"], "give -R, -L or -D"),
+        (vec!["--persist", "--persist-name", "x", "-N", "-D", "1080", "host"], "-N runs none"),
         (vec!["--persist", "-s", "host", "sftp"], "-s"),
         (vec!["--persist", "-o", "RemoteCommand=top", "host"], "RemoteCommand"),
-        (vec!["--persist", "-o", "SessionType=none", "host"], "SessionType"),
+        (vec!["--persist", "-o", "SessionType=none", "host"], "give -R, -L or -D"),
         (vec!["--persist", "-T", "host"], "-T"),
         (vec!["--persist", "-o", "RequestTTY=no", "host"], "RequestTTY=no"),
         (vec!["--persist", "node://lab"], "standard sshd"),

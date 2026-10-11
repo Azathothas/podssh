@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:305-328`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:322-345`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -494,7 +494,7 @@ AF_UNIX.
 - Read: `AGENTS.md:191-196` (no bind, no listen),
   `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:94-111` ("Nothing
   listens") and `README.md:38-44` state the rule from before the ruling.
-  `docs/design.md:449-451` already allows a local listener for `pipe` after
+  `docs/design.md:451-453` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.
@@ -995,8 +995,8 @@ count each chunk twice, and the unit test fails.
 `crates/podssh-ssh/src/tally.rs:1-169`; `-L` and `-D` count at
 `crates/podssh-ssh/src/local.rs:128`, `crates/podssh-ssh/src/local.rs:170` and
 `crates/podssh-ssh/src/local.rs:194`, `-R` at
-`crates/podssh-ssh/src/remote.rs:62`, `crates/podssh-ssh/src/remote.rs:91`
-and `crates/podssh-ssh/src/remote.rs:103`, `-W` at
+`crates/podssh-ssh/src/remote.rs:108`, `crates/podssh-ssh/src/remote.rs:135`
+and `crates/podssh-ssh/src/remote.rs:147`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:52`; `~#` at
 `crates/podssh-ssh/src/escape.rs:47` and `crates/podssh-ssh/src/io.rs:232`,
@@ -1014,7 +1014,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:222`.
   -W` through OpenSSH's sshd to a TCP echo server, 262144 bytes each way) and
   `pty.forwards` (`scripts/interop-pty.py`, `~#` in a session with `-R
   0:127.0.0.1:2201`).
-- `docs/cli.md:183-188` and the manual's note of `-t` say what `~#` and `-v`
+- `docs/cli.md:200-205` and the manual's note of `-t` say what `~#` and `-v`
   print.
 - `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1037,7 +1037,7 @@ Read in the report.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1053,7 +1053,7 @@ Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-70`,
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:187-233`,
 `crates/podssh-relay/src/open.rs:335-349`). With `-N`, no command runs, so a
-new connection has no side effect on the server. `docs/design.md:250-255`
+new connection has no side effect on the server. `docs/design.md:250-257`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.
 
@@ -1073,6 +1073,46 @@ T-153 (M6) resumes a session when both ends run podssh.
 5. Print each drop and each return on stderr, with the hop that T-024 names.
    This entry depends on T-035.
 
+## Decision
+
+Taken, with these calls made in the work (2026-10-11).
+
+- The flag is `--persist`, as step 1 asks: with `-N` (or `SessionType=none`)
+  no tmux runs, and the forwards come back. `-L` and `-D` are taken too, and
+  not `-R` alone: their listeners are bound once, before anything connects
+  (T-038), and serve on each new connection, so that refusing them would be
+  a rule with no reason. `-N` with no forward exits 64 (nothing would come
+  back), and so does `--persist-name` with `-N`, as no tmux runs.
+- The server's own close (the relay's 1000, or a disconnect) is a loss too
+  in this mode: a forward keeps nothing on the server that its restart would
+  lose, and a server that restarted is the case where a tunnel must come
+  back. A close of the relay that would come again (1008, 1013 and the
+  others that T-178 does not repair) ends the run with the lines of T-024.
+  With tmux, the classes of T-178 stay.
+- A connection that lasted less than 30 s (`STEADY`; autossh's gate time is
+  30 s too) starts no new round of 10 attempts within 5 minutes: a link that
+  falls again and again gives up, as one that cannot connect does, where
+  each loss started a new round. This holds for tmux too, whose loop could
+  connect again for ever, a second apart, under a link that fell at once.
+- A forward that the server refuses after a loss is asked again in the same
+  connection, with the jittered wait of `open` (1 s, doubled up to 30 s),
+  for 2 minutes from the first refusal (`FORWARDS_AGAIN`); the forwards
+  that the server took serve meanwhile, and `-L` and `-D` serve after it,
+  their clients waiting in the listener's queue. Then the line of T-035: a
+  warning, or with `ExitOnForwardFailure` the end of the run (255). The
+  first connection asks once, as without `--persist`, and with tmux a
+  refused forward stays as T-178 left it: asking again would hold the
+  attach.
+- The logins after the first run in batch mode, as with tmux, and use the
+  login that the run kept (T-136); with `SSH_ASKPASS_REQUIRE=force` and
+  `SSH_ASKPASS`, its program may still ask, as no input belongs to a
+  session here and the program asks no person at a terminal.
+- Each loss is the first line of T-024, which names the hop that broke,
+  with the wait and the attempt; each return is "connected to HOST again;
+  its forwards serve again", and a port that the server chose is printed
+  for each connection. With `-v`, the counts of the forwards (T-041) close
+  a run of `--persist`, over all its connections.
+
 ## Prove
 
 ```sh
@@ -1086,6 +1126,51 @@ Then the stand-in relay `relay-kill` stops, as at
 `scripts/interop-faults.sh:215-225`. Within 60 s, a new connection to port
 2291 reads Dropbear's banner again. Planted defect: no new connection, and
 the second read fails.
+
+## Done
+
+2026-10-11. `podssh ssh --persist -N` keeps the forwards through a lost
+link: the mode at `crates/podssh-cli/src/ssh/persist.rs:38-45` and
+`crates/podssh-cli/src/ssh/persist.rs:95-106`; each connection in
+`crates/podssh-ssh/src/persist.rs:94-133`, which asks for the forwards,
+serves `-L` and `-D`, and tells a loss from an end
+(`crates/podssh-ssh/src/persist.rs:57-62`); a refused `-R` asked again in
+`crates/podssh-ssh/src/remote.rs:46-115`, as `Options::forwards_again` says
+(`crates/podssh-ssh/src/options.rs:292-301`), which the loop sets after the
+first loss (`crates/podssh-cli/src/ssh/persist.rs:163-172`); the rule of
+`STEADY` at `crates/podssh-cli/src/ssh/persist.rs:142-148`.
+- `cargo test -p podssh-cli --test persist`: 5 passed. The new test runs
+  `--direct --persist -N -R 2291:127.0.0.1:PORT` against the test's server
+  (`tests/tmux_harness`, which now takes forwards): a channel of the
+  forward reads the target's line; the server drops the link; podssh
+  connects again, its first request for the forward is refused, as by a
+  server that still holds the port, and asked again; a channel through the
+  new connection reads the line again. Two connections, three requests.
+- `cargo test -p podssh-ssh -- remote:: persist::`: 9 passed, 3 of them new:
+  a forward refused twice after a loss is asked until the server takes it,
+  with a line for each wait, and once with no loss, as before; one refused
+  for the whole time ends as T-035 says, a warning or with
+  `ExitOnForwardFailure` the end of the run; the classes of an end of `-N`.
+- `cargo test -p podssh-cli --test ssh_args -- persist`: `-N` with `-R` or
+  `-L`, and `SessionType=none` with `-D`, keep the forwards, with no pty;
+  `-N` with no forward and `--persist-name` with `-N` exit 64.
+- Planted, each restored: no new connection (`forwards_lost` never holds),
+  the Prove's plant: the test of the drop failed with no "connecting again";
+  a refused forward never asked again: the two new tests of `remote` and the
+  test of the drop failed.
+- In the build image (`sh scripts/dev.sh run`), `cargo clippy --all-targets
+  -p podssh-ssh -p podssh-cli -- -D warnings` passed.
+- In the gate at this push: `faults.persist.tunnel`
+  (`scripts/interop-faults.sh:263-302`): `--persist -N -R
+  127.0.0.1:2290:127.0.0.1:2203` through the stand-in relays `relay-tunnel`
+  and `relay-a`; port 2290 reads Dropbear's banner, `relay-tunnel` is
+  killed, and within 60 s port 2290 reads it again through the next.
+  Port 2291, which the Prove names, is the one that `PermitListen` refuses
+  for T-035's check of a refusal.
+- `docs/cli.md`, the manual's notes of `--persist`, `docs/design.md` and
+  the bounds of `docs/architecture.md` say what `--persist -N` does.
+- `cargo test -p podssh-ssh`: 161 passed; `cargo test -p podssh-cli`:
+  579 passed, 0 failed, 31 ignored; clippy; rustfmt.
 
 # T-239: `-W` with a path, or with no port, is read as a TCP host on port 22
 
@@ -1260,7 +1345,7 @@ counts, and cannot change them.
 Read: the escapes are `~.`, `~R`, `~#`, `~?` and `~~`
 (`crates/podssh-ssh/src/escape.rs:9-15`). The listeners of `-L` and `-D` are
 served from the start of the session (`crates/podssh-ssh/src/local.rs:125-146`),
-and `-R` is asked for after the login (`crates/podssh-ssh/src/remote.rs:48-71`).
+and `-R` is asked for after the login (`crates/podssh-ssh/src/remote.rs:46-110`).
 ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,
 `-D`, `-KL`, `-KR` and `-KD` (read in the manual, not measured here).
 

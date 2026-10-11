@@ -9,7 +9,7 @@ echo "== faults (a stand-in relay and proxy, OpenSSH behind them)"
 FK="$W/faults"
 mkdir -p "$FK"
 NAMES="relay-a relay-r503 relay-silent relay-hole relay-dead relay-stall relay-close relay-cap relay-kill relay-hshake
-relay-delay relay-jitter relay-rate relay-cut relay-persist relay-dropfirst relay-dropafter relay-tls12"
+relay-delay relay-jitter relay-rate relay-cut relay-persist relay-dropfirst relay-dropafter relay-tls12 relay-tunnel"
 SAN=$(for n in $NAMES; do printf 'DNS:%s.test,' "$n"; done)
 PINS=$(for n in $NAMES; do printf '%s.test=127.0.0.1,' "$n"; done)
 SAN=${SAN%,}
@@ -42,7 +42,7 @@ fi
 for spec in a:normal r503:refuse:503 silent:silent hole:blackhole dead:normal stall:stall:12 \
         close:close:300000:1011 cap:close:1:1009 kill:normal hshake:close:1:1011 \
         delay:delay:2000 jitter:jitter:0:1500:7 rate:rate:65536 cut:cut:1000000 persist:normal \
-        dropfirst:dropfirst:20:1011 dropafter:dropfirstat:3:1011 tls12:tls12 slowopen:slowopen:500; do
+        dropfirst:dropfirst:20:1011 dropafter:dropfirstat:3:1011 tls12:tls12 slowopen:slowopen:500 tunnel:normal; do
     name=${spec%%:*}
     python3 "$HERE/fake-relay.py" --cert "$FK/relay.pem" --key "$FK/relay.key" --keepalive 2 \
         --port-file "$FK/$name.port" --mode "${spec#*:}" >"$FK/$name.log" 2>&1 &
@@ -53,7 +53,7 @@ tries=0
 while [ "$tries" -lt 30 ]; do
     missing=0
     for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist dropfirst dropafter tls12 \
-            slowopen; do
+            slowopen tunnel; do
         [ -s "$FK/$n.port" ] || missing=1
     done
     [ "$missing" = 0 ] && break
@@ -259,6 +259,47 @@ else
     bad faults.persist.no_tmux "--persist: tmux is not in the image" /dev/null
 fi
 if [ -n "$_term" ]; then TERM=$_term; else unset TERM; fi
+
+# --persist -N (T-042): the first relay host dies under a session that only
+# carries a -R; podssh connects again through the next host and asks for it
+# again, and OpenSSH's port 2290 (the one PermitListen allows) reaches
+# Dropbear through the new connection.
+# tunnel_banner SECONDS: the first line of a connection to port 2290, tried
+# every 0.2 s until it is Dropbear's or the time is up.
+tunnel_banner() {
+    timeout $(($1 + 10)) python3 - "$1" <<'EOF'
+import socket, sys, time
+limit = time.time() + int(sys.argv[1])
+line = ""
+while time.time() < limit:
+    try:
+        s = socket.create_connection(("127.0.0.1", 2290), 2)
+        s.settimeout(5)
+        line = s.recv(256).decode(errors="replace").strip()
+        s.close()
+    except OSError:
+        line = ""
+    if line.startswith("SSH-2.0-dropbear"):
+        break
+    time.sleep(0.2)
+print(line)
+EOF
+}
+r "relay-tunnel.test:$(port tunnel),relay-a.test:$(port a)" --persist -N -R 127.0.0.1:2290:127.0.0.1:2203 "$T" \
+    </dev/null >"$FK/out" 2>"$FK/tunnel.err" &
+tunnel=$!
+first=$(tunnel_banner 30)
+kill "$(cat "$FK/tunnel.pid")" 2>/dev/null
+second=$(tunnel_banner 60)
+kill "$tunnel" 2>/dev/null
+wait "$tunnel" 2>/dev/null
+case $first in SSH-2.0-dropbear*) ;; *) first="" ;; esac
+case $second in SSH-2.0-dropbear*) ;; *) second="" ;; esac
+[ -n "$first" ] && [ -n "$second" ] && grep -q 'connecting again' "$FK/tunnel.err" \
+    && grep -q 'again; its forwards serve again' "$FK/tunnel.err" \
+    && ok faults.persist.tunnel \
+        "--persist -N -R: a relay host killed under the forward, and port 2290 reaches Dropbear through the next" \
+    || bad faults.persist.tunnel "--persist -N -R: before the kill '$first', after it '$second'" "$FK/tunnel.err"
 
 # A server that stalls after the key exchange (T-236): the stand-in passes
 # OpenSSH's bytes up to its NEWKEYS, then drops them. On --direct nothing

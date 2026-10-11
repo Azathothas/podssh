@@ -5,7 +5,7 @@
 //! is refused, in the handler.
 
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use russh::client::{Handle, Msg};
 use russh::Channel;
@@ -13,6 +13,7 @@ use russh::Channel;
 use crate::handler::Client;
 use crate::log::Log;
 use crate::options::{Options, RemoteForward};
+use crate::run::HopError;
 
 /// The bound on a connection to a forward's target: the bound on each step
 /// of reaching a relay host.
@@ -44,30 +45,73 @@ pub fn destination() -> Option<Table> {
 
 /// Ask the server for each forward of `opts`, after the login. A refused one
 /// ends the run when `ExitOnForwardFailure` asks for it, as in OpenSSH, and
-/// is a warning else.
-pub async fn request(handle: &Handle<Client>, table: &Table, opts: &Options, log: &Log) -> Result<(), String> {
+/// is a warning else. After a loss of `--persist`, a refused one is asked
+/// again first, as `opts.forwards_again` says (T-042).
+pub async fn request(handle: &Handle<Client>, table: &Table, opts: &Options, log: &Log) -> Result<(), HopError> {
+    let mut refused: Vec<&RemoteForward> = Vec::new();
     for forward in &opts.remote_forwards {
-        match handle.tcpip_forward(forward.sent_address(), u32::from(forward.port)).await {
-            Ok(chosen) => {
-                // The server names a port only when it chose one.
-                let port = if forward.port == 0 { chosen } else { u32::from(forward.port) };
-                if forward.port == 0 {
-                    log.info(&format!(
-                        "Allocated port {port} for remote forward to {}:{}",
-                        forward.host, forward.host_port
-                    ));
-                }
-                table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { port, forward: forward.clone() });
-                // In the list of ~# from now on (T-041).
-                crate::tally::of(&name(forward));
+        if !ask(handle, table, forward, log).await {
+            if opts.exit_on_forward_failure && opts.forwards_again.is_none() {
+                return Err(HopError::Forward(failed("Error", forward)));
             }
-            Err(_) if opts.exit_on_forward_failure => {
-                return Err(format!("Error: remote port forwarding failed for listen port {}", forward.port));
-            }
-            Err(_) => log.info(&format!("Warning: remote port forwarding failed for listen port {}", forward.port)),
+            refused.push(forward);
         }
     }
+    if let Some(again) = opts.forwards_again.filter(|_| !refused.is_empty()) {
+        let started = Instant::now();
+        let mut round = 0;
+        while !refused.is_empty() && started.elapsed() < again.within && !handle.is_closed() {
+            round += 1;
+            let wait = (again.wait)(round).min(again.within.saturating_sub(started.elapsed()));
+            let names: Vec<String> = refused.iter().map(|f| name(f)).collect();
+            log.info(&format!(
+                "the server refused {}, which it may still hold for the lost connection; asking again in {:.1} s",
+                names.join(", "),
+                wait.as_secs_f64()
+            ));
+            tokio::time::sleep(wait).await;
+            let mut still = Vec::new();
+            for forward in refused {
+                if !ask(handle, table, forward, log).await {
+                    still.push(forward);
+                }
+            }
+            refused = still;
+        }
+    }
+    if !refused.is_empty() && handle.is_closed() {
+        return Err(HopError::Unreachable("the connection was lost while the forwards were asked for".into()));
+    }
+    for forward in refused {
+        if opts.exit_on_forward_failure {
+            return Err(HopError::Forward(failed("Error", forward)));
+        }
+        log.info(&failed("Warning", forward));
+    }
     Ok(())
+}
+
+/// Ask the server for one forward: whether it took it, which is then in
+/// `table`.
+async fn ask(handle: &Handle<Client>, table: &Table, forward: &RemoteForward, log: &Log) -> bool {
+    let Ok(chosen) = handle.tcpip_forward(forward.sent_address(), u32::from(forward.port)).await else {
+        return false;
+    };
+    // The server names a port only when it chose one; it may choose another
+    // on each connection of a run.
+    let port = if forward.port == 0 { chosen } else { u32::from(forward.port) };
+    if forward.port == 0 {
+        log.info(&format!("Allocated port {port} for remote forward to {}:{}", forward.host, forward.host_port));
+    }
+    table.lock().unwrap_or_else(|e| e.into_inner()).push(Bound { port, forward: forward.clone() });
+    // In the list of ~# from now on (T-041).
+    crate::tally::of(&name(forward));
+    true
+}
+
+/// OpenSSH's line for a forward that the server refused.
+fn failed(level: &str, forward: &RemoteForward) -> String {
+    format!("{level}: remote port forwarding failed for listen port {}", forward.port)
 }
 
 /// The forward that a channel for `address:port` belongs to, if podssh asked

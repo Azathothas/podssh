@@ -102,11 +102,12 @@ const SSH: &[&str] = &[
      it (exit 255): a new shell after a lost link would look like the old one. When the link is lost \
      (no exit status; through the relay, a broken link or a close for its limits or its link to the \
      server), podssh connects again, 10 times at most in 5 minutes, and attaches the same session; one \
-     that is gone is not started again. An exit status, a detach, ~., a refused host key or login, and \
-     Ctrl-C during the wait end the run. The logins after the first ask nothing (as BatchMode=yes); a \
-     key that a passphrase opened and a password that the server took are kept for the run. Keys \
-     typed meanwhile go to the session after the attach. With a command, -W, -N, -s, -T, node:// or \
-     iroh:, --persist is refused (exit 64).",
+     that is gone is not started again. A connection that lasted less than 30 s starts no new count. \
+     An exit status, a detach, ~., a refused host key or login, and Ctrl-C during the wait end the \
+     run. The logins after the first ask nothing (as BatchMode=yes); a key that a passphrase opened \
+     and a password that the server took are kept for the run. Keys typed meanwhile go to the \
+     session after the attach. With a command, -W, -s, -T, node:// or iroh:, --persist is refused \
+     (exit 64).",
     "-L [BIND:]PORT:HOST:HOSTPORT listens here, and each connection that it takes goes on from the \
      server; HOST:HOSTPORT may be a socket path on the server, and the listening side a socket path here \
      (mode 0600). -D [BIND:]PORT, or a socket path, is a SOCKS4, SOCKS4a and SOCKS5 proxy, CONNECT only \
@@ -122,6 +123,13 @@ const SSH: &[&str] = &[
      within 20 s. A port of 0 lets the server choose, and podssh prints it. A forward that the server \
      refuses is a warning; with -o ExitOnForwardFailure=yes it ends the run (exit 255). A socket path and \
      the server's SOCKS proxy (-R [BIND:]PORT) are refused by name (exit 64).",
+    "--persist -N keeps the forwards: no tmux runs, and after a loss, the server's own close too, podssh \
+     connects again and asks for each -R again; -L and -D keep their listeners. A forward refused after \
+     a loss is asked again for 2 minutes, as the server may hold its port for the old connection, then \
+     refused as on the first connection (see ExitOnForwardFailure); a port that the server chose may \
+     change, and the new one is printed. The logins after the first ask nothing, unless \
+     SSH_ASKPASS_REQUIRE is force and SSH_ASKPASS names a program to ask. With no forward, or \
+     --persist-name, -N with --persist is refused (exit 64).",
     "-A forwards the agent, off by default as in OpenSSH; -a turns it off, and the last of the two wins, \
      over the keyword ForwardAgent. podssh asks for it on the session, never on a jump host, and joins each \
      agent channel that the server opens to the agent that podssh logs in with (IdentityAgent, else \

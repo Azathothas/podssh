@@ -294,7 +294,7 @@ Done in `eacd94e`:
 1. `crates/podssh-ssh/src/terminal/ctty.rs:17-44` trusts `/dev/tty` only when
    the kernel names it: `isatty`, the same session (`tcgetsid` equal to
    `getsid(0)`), and `tty_nr` not 0 in `/proc/self/stat`.
-2. `crates/podssh-ssh/src/prompt.rs:74-86` asks only on that terminal.
+2. `crates/podssh-ssh/src/prompt.rs:82-94` asks only on that terminal.
 3. With stdin, stdout and stderr all redirected, a prompt on the terminal
    waits 60 s at most (`crates/podssh-ssh/src/terminal/mod.rs:71-77`), then
    refuses with the remedy (`crates/podssh-ssh/src/terminal/unix.rs:169-233`).

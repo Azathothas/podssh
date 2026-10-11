@@ -146,8 +146,8 @@ async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i32 {
             }
         }
     }
-    if let Some(name) = resolved.persist.as_deref() {
-        return Box::pin(persist::run(&resolved, name, log)).await;
+    if let Some(kept) = resolved.persist.clone() {
+        return Box::pin(persist::run(&resolved, &kept, log)).await;
     }
     let opts = &resolved.options;
     if let Transport::Node { label, pair_file, trust, race, channel } = &resolved.transport {

@@ -141,17 +141,34 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   with no exit status: with `--direct`, or through the relay when its link
   broke (the ping watcher) or it closed with 1001, 1006, 1009 or 1011. Then
   podssh connects again, 10 times at most within 5 minutes of the loss,
-  after the jittered wait of the relay's failover, checks that the session
+  after the jittered wait of the relay's failover (a connection that lasted
+  less than 30 s starts no new count: a link that falls again and again
+  gives up, T-042), checks that the session
   is still there (`tmux has-session`), and attaches it. A session that is
   gone ends the run (255), as do an exit status, a detach of tmux (0), `~.`,
   a refused host key or login, and Ctrl-C during the wait. The logins after
   the first ask nothing (as `BatchMode=yes`): the input belongs to the
   session, and a key that a passphrase opened and a password that the
   server took are kept for the run. Keys typed during the wait go to the
-  session after the attach, 64 KiB at most. With a command, `-W`, `-N`,
-  `-s`, `-T`, `RemoteCommand`, `node://` or `iroh:`, `--persist` is a usage
-  error (64). The first connection's failure is final, as without
-  `--persist`.
+  session after the attach, 64 KiB at most. With a command, `-W`, `-s`,
+  `-T`, `RemoteCommand`, `node://` or `iroh:`, `--persist` is a usage error
+  (64). The first connection's failure is final, as without `--persist`.
+- **`--persist -N` keeps the forwards through a lost link** (T-042), as a
+  tunnel that must last: no tmux runs. After a loss podssh connects again,
+  as above, and asks the server for each `-R` again; `-L` and `-D` keep
+  their listeners, which serve on the new connection. The server's own close
+  is a loss too, as a forward keeps nothing on the server that its restart
+  would lose; a close of the relay that would come again (1008, 1013) ends
+  the run. After a loss, a forward that the server refuses is asked again,
+  with the same wait, for 2 minutes at most, as the server may hold its
+  port until it sees the old connection dead; then it is refused as on the
+  first connection: a warning, or with `ExitOnForwardFailure` the end of the
+  run (255). A port that the server chose (`-R 0:...`) can change, and
+  podssh prints the new one. Each loss is a line on stderr that names the
+  hop that broke, and each return a line. The logins after the first ask
+  nothing (as `BatchMode=yes`), unless `SSH_ASKPASS_REQUIRE=force` names a
+  program of `SSH_ASKPASS` to ask. With `-N` and no forward, or with
+  `--persist-name`, it is a usage error (64).
 - **`--sudo` and `--su` run the remote command as root** (T-032), with the
   password asked here, on the terminal or through `SSH_ASKPASS`, never on
   the command line. `--sudo` sends `sudo -S -k -p PROMPT -- sh -c '...'`

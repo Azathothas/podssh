@@ -204,6 +204,10 @@ pub struct Options {
     pub control: Option<crate::mux::ControlSlot>,
     /// `ExitOnForwardFailure`: a forward that the server refuses ends the run.
     pub exit_on_forward_failure: bool,
+    /// After a loss of `podssh ssh --persist` (T-042): a forward of `-R`
+    /// that the server refuses is asked again, as [`Again`] says; `None`
+    /// asks once, as OpenSSH does.
+    pub forwards_again: Option<Again>,
     /// The name the destination's host key is filed under (`HostKeyAlias`);
     /// `None` uses its host name.
     pub host_key_alias: Option<String>,
@@ -285,6 +289,17 @@ pub struct Options {
     pub remembered: Option<crate::remember::Remembered>,
 }
 
+/// How a forward of `-R` that the server refused is asked again after a
+/// loss (T-042): the server may hold its port for the lost connection until
+/// it sees that connection dead.
+#[derive(Debug, Clone, Copy)]
+pub struct Again {
+    /// How long, from the first refusal, at most.
+    pub within: Duration,
+    /// The wait before round N, from 1.
+    pub wait: fn(u32) -> Duration,
+}
+
 /// One remote forward: the server listens at `bind:port`, and podssh
 /// connects each connection that it takes to `host:host_port`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -332,6 +347,7 @@ impl Options {
             #[cfg(unix)]
             control: None,
             exit_on_forward_failure: false,
+            forwards_again: None,
             host_key_alias: None,
             jump: Vec::new(),
             jump_options: Vec::new(),

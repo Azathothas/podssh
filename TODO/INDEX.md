@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**288 entries: 78 open, 0 partial, 22 blocked, 188 done.**
+**288 entries: 77 open, 0 partial, 22 blocked, 189 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 135 | 157 |
-| P3 | 72 | 0 | 4 | 31 | 107 |
-| **All** | 78 | 0 | 22 | 188 | 288 |
+| P3 | 71 | 0 | 4 | 32 | 107 |
+| **All** | 77 | 0 | 22 | 189 | 288 |
 
 ## Entries
 
@@ -115,7 +115,7 @@ repository and CI).
 | [T-039](forwarding.md) | P2 | M | backlog | feature | done | Connection sharing: `ControlMaster`, `ControlPath`, `-O` and `-S` over an AF_UNIX socket |
 | [T-040](forwarding.md) | P3 | S | backlog | feature | done | `-W` to a Unix socket on the server (streamlocal) |
 | [T-041](forwarding.md) | P3 | S | backlog | feature | done | The forwards of a session: a list and byte counts |
-| [T-042](forwarding.md) | P3 | S | backlog | feature | open | `-R` forwards come back after a drop |
+| [T-042](forwarding.md) | P3 | S | backlog | feature | done | `-R` forwards come back after a drop |
 | [T-043](config.md) | P2 | M | M8 | feature | done | Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22) |
 | [T-044](config.md) | P2 | M | M8 | feature | done | `Include` in `ssh_config`, expanded as OpenSSH expands it |
 | [T-045](config.md) | P3 | M | backlog | feature | open | `Match` in `ssh_config` |

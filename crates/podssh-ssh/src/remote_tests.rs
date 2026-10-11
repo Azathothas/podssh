@@ -12,17 +12,18 @@ use russh::{Channel, ChannelMsg, ChannelOpenFailure};
 use tokio::sync::oneshot;
 
 use crate::log::Log;
-use crate::options::{Agent, Hop, LogLevel, Options, RemoteForward, StrictHostKeyChecking};
+use crate::options::{Again, Agent, Hop, LogLevel, Options, RemoteForward, StrictHostKeyChecking};
 use crate::run::HopError;
 
 /// The port that the server chooses for a forward that asks for 0.
 const CHOSEN: u32 = 4242;
 
 /// Lets anyone in, gives its session handle to the test, and takes each
-/// forward when `take` is set: the requests it saw are kept.
+/// forward after refusing the first `refuse` requests: the requests it saw
+/// are kept.
 struct Forwarder {
     handle: Option<oneshot::Sender<server::Handle>>,
-    take: bool,
+    refuse: usize,
     asked: Arc<Mutex<Vec<(String, u32)>>>,
 }
 
@@ -46,11 +47,12 @@ impl server::Handler for Forwarder {
         port: &mut u32,
         _session: &mut ServerSession,
     ) -> Result<bool, Self::Error> {
-        self.asked.lock().unwrap().push((address.to_string(), *port));
+        let mut asked = self.asked.lock().unwrap();
+        asked.push((address.to_string(), *port));
         if *port == 0 {
             *port = CHOSEN;
         }
-        Ok(self.take)
+        Ok(asked.len() > self.refuse)
     }
 }
 
@@ -63,6 +65,12 @@ struct Run {
 
 /// Log in with `forwards`, the server taking them or not.
 async fn log_in(forwards: Vec<RemoteForward>, take: bool, exit_on_failure: bool) -> Run {
+    log_in_again(forwards, if take { 0 } else { usize::MAX }, exit_on_failure, None).await
+}
+
+/// Log in with `forwards`, the server refusing the first `refuse` requests,
+/// and a refused one asked again as `again` says.
+async fn log_in_again(forwards: Vec<RemoteForward>, refuse: usize, exit_on_failure: bool, again: Option<Again>) -> Run {
     let (client_end, server_end) = tokio::io::duplex(1 << 16);
     let mut config = server::Config::default();
     config.keys.push(PrivateKey::random(&mut rand::rng(), Algorithm::Ed25519).expect("a host key"));
@@ -70,7 +78,7 @@ async fn log_in(forwards: Vec<RemoteForward>, take: bool, exit_on_failure: bool)
     config.auth_rejection_time_initial = Some(Duration::ZERO);
     let (tx, rx) = oneshot::channel();
     let asked = Arc::new(Mutex::new(Vec::new()));
-    let forwarder = Forwarder { handle: Some(tx), take, asked: asked.clone() };
+    let forwarder = Forwarder { handle: Some(tx), refuse, asked: asked.clone() };
     let config = Arc::new(config);
     tokio::spawn(async move {
         if let Ok(session) = server::run_stream(config, server_end, forwarder).await {
@@ -89,6 +97,7 @@ async fn log_in(forwards: Vec<RemoteForward>, take: bool, exit_on_failure: bool)
     opts.batch_mode = true;
     opts.remote_forwards = forwards;
     opts.exit_on_forward_failure = exit_on_failure;
+    opts.forwards_again = again;
     let log = Arc::new(Log::to_file(LogLevel::Info, &log_file).expect("a log file"));
     let client = crate::run::connect(client_end, &hop, true, &opts, &log).await;
     let server = match &client {
@@ -192,6 +201,51 @@ async fn a_refused_forward_warns_or_ends_the_run() {
         let run = log_in(vec![forward(22, "127.0.0.1", 2203)], false, true).await;
         match run.client {
             Err(HopError::Forward(m)) => assert_eq!(m, "Error: remote port forwarding failed for listen port 22"),
+            Err(e) => panic!("another error: {e}"),
+            Ok(_) => panic!("ExitOnForwardFailure did not end the run"),
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(60), test).await.expect("the test ends within 60 s");
+}
+
+/// After a loss of `--persist` (T-042), a forward that the server refuses
+/// is asked again until it takes it, as the old connection may hold its
+/// port; with no loss, once, as OpenSSH asks.
+#[tokio::test]
+async fn a_forward_refused_after_a_loss_is_asked_again_until_the_server_takes_it() {
+    let test = async {
+        let again = Again { within: Duration::from_secs(20), wait: |_| Duration::from_millis(20) };
+        let run = log_in_again(vec![forward(2291, "127.0.0.1", 2203)], 2, true, Some(again)).await;
+        assert!(run.client.is_ok(), "{}", run.logged);
+        assert_eq!(run.asked.lock().unwrap().len(), 3, "{}", run.logged);
+        let said = "the server refused -R 2291:127.0.0.1:2203, which it may still hold for the lost connection; \
+                    asking again in";
+        assert_eq!(run.logged.matches(said).count(), 2, "{}", run.logged);
+        assert!(!run.logged.contains("remote port forwarding failed"), "{}", run.logged);
+
+        let run = log_in_again(vec![forward(2291, "127.0.0.1", 2203)], 2, false, None).await;
+        assert_eq!(run.asked.lock().unwrap().len(), 1, "{}", run.logged);
+        assert!(run.logged.contains("Warning: remote port forwarding failed for listen port 2291"), "{}", run.logged);
+    };
+    tokio::time::timeout(Duration::from_secs(60), test).await.expect("the test ends within 60 s");
+}
+
+/// A forward that the server still refuses when the time is up is refused
+/// as on the first connection: a warning, or with `ExitOnForwardFailure`
+/// the end of the run (T-042).
+#[tokio::test]
+async fn a_forward_refused_for_the_whole_time_warns_or_ends_the_run() {
+    let test = async {
+        let again = Again { within: Duration::from_millis(300), wait: |_| Duration::from_millis(40) };
+        let run = log_in_again(vec![forward(2291, "127.0.0.1", 2203)], usize::MAX, false, Some(again)).await;
+        assert!(run.client.is_ok(), "the run goes on: {}", run.logged);
+        assert!(run.asked.lock().unwrap().len() > 2, "{}", run.logged);
+        assert!(run.logged.contains("Warning: remote port forwarding failed for listen port 2291"), "{}", run.logged);
+
+        let run = log_in_again(vec![forward(2291, "127.0.0.1", 2203)], usize::MAX, true, Some(again)).await;
+        assert!(run.asked.lock().unwrap().len() > 2, "{}", run.logged);
+        match run.client {
+            Err(HopError::Forward(m)) => assert_eq!(m, "Error: remote port forwarding failed for listen port 2291"),
             Err(e) => panic!("another error: {e}"),
             Ok(_) => panic!("ExitOnForwardFailure did not end the run"),
         }
