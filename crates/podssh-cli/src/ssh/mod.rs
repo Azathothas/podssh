@@ -13,6 +13,7 @@ pub mod cloudflare;
 pub mod config;
 pub mod control;
 pub mod dump;
+mod elevate;
 pub mod forward;
 mod hop;
 pub mod iroh;

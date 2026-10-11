@@ -148,6 +148,22 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `-s`, `-T`, `RemoteCommand`, `node://` or `iroh:`, `--persist` is a usage
   error (64). The first connection's failure is final, as without
   `--persist`.
+- **`--sudo` and `--su` run the remote command as root** (T-032), with the
+  password asked here, on the terminal or through `SSH_ASKPASS`, never on
+  the command line. `--sudo` sends `sudo -S -k -p PROMPT -- sh -c '...'`
+  with no pty, PROMPT a marker of this run, and the command prints a second
+  marker as it starts: podssh answers that prompt once, holds its own input
+  until the command starts, and removes both markers from the output. With
+  a `NOPASSWD` rule there is no prompt, and podssh asks nothing. A second
+  prompt is a refused password: podssh ends the input, and sudo exits with
+  its refusal. `--su` sends `su -c '...'` in a pty, as su reads a terminal
+  alone; its prompt is its output that ends with no newline before the
+  command starts, and that output is shown only when su refuses. The
+  remote shell must read POSIX quoting. When neither a prompt nor the
+  command's start comes within 30 s, podssh stops with 255. Each needs a
+  command; `--sudo` with `-t`, `--su` with `-T`, or both at once, are usage
+  errors (64). Such a run makes a connection of its own, with no
+  `ControlPath`, and with `BatchMode` a prompt ends the input.
 - **`-G` prints the settings in effect** (T-046), as OpenSSH's `ssh -G`
   does: a line of `keyword value` for each keyword of OpenSSH that podssh
   applies, with the defaults, in OpenSSH's order and spelling (`true` and

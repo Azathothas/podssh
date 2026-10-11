@@ -196,6 +196,10 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "run the shell in the server's tmux, and after a lost link connect again and attach it again; tmux is probed", None),
     row(None, "persist-name", Some("NAME"), FlagKind::Supported,
         "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
+    row(None, "sudo", None, FlagKind::Supported,
+        "run the command as root with sudo -S, with no pty; the password is asked here (terminal or SSH_ASKPASS)", None),
+    row(None, "su", None, FlagKind::Supported,
+        "run the command as root with su -c, in a pty; the password is asked here (terminal or SSH_ASKPASS)", None),
     // -x and -k disable things podssh never does, so they need no work.
     row(Some('x'), "no-x11", None, FlagKind::Supported,
         "no X11 forwarding (podssh never forwards X11)", None),

@@ -12,7 +12,7 @@ use crate::escape::Escapes;
 use crate::handler::Client;
 use crate::io;
 use crate::log::Log;
-use crate::options::{Agent, Options, Request, RequestTty};
+use crate::options::{Agent, Elevate, Options, Request, RequestTty};
 use crate::terminal;
 
 /// The exit code when the session ends without an exit status (OpenSSH: 255).
@@ -92,13 +92,24 @@ pub async fn attach(
 
     // From here a drop is no failure to try again: the server may run it.
     crate::retry::reached(crate::retry::Phase::Requested);
+    let mut elevated = None;
     let what = match &opts.request {
         Request::Shell => {
             channel.request_shell(true).await.map_err(|e| e.to_string())?;
             "a shell".to_string()
         }
         Request::Exec(command) => {
-            channel.exec(true, command.as_bytes()).await.map_err(|e| e.to_string())?;
+            let line = match opts.elevate {
+                Some(how) => {
+                    let markers = crate::elevate::Markers::new();
+                    let line = crate::elevate::command(how, command, &markers);
+                    let may_ask = !opts.batch_mode && crate::prompt::can_ask();
+                    elevated = Some(crate::elevate::Elevated::new(how, markers, question(how, opts, host), may_ask));
+                    line
+                }
+                None => command.clone(),
+            };
+            channel.exec(true, line.as_bytes()).await.map_err(|e| e.to_string())?;
             "the command".to_string()
         }
         Request::Subsystem(name) => {
@@ -128,12 +139,23 @@ pub async fn attach(
         (true, Some(c)) => Some(Escapes::new(c)),
         _ => None,
     };
-    let end = io::pump(handle, channel, early, escapes, pty, input, log).await;
+    let end = io::pump(handle, channel, early, escapes, pty, input, elevated, log).await;
     drop(raw);
     if pty && stdin_tty {
         log.info(&format!("Connection to {host} closed."));
     }
     Ok(end)
+}
+
+/// The question for the password of `--sudo` or `--su` (T-032).
+fn question(how: Elevate, opts: &Options, host: &str) -> String {
+    match how {
+        Elevate::Sudo => {
+            let user = opts.destination.user.as_deref().unwrap_or(&opts.user);
+            format!("[sudo] password for {user}@{host}: ")
+        }
+        Elevate::Su => format!("[su] password of root@{host}: "),
+    }
 }
 
 /// Wait for the reply to a request sent with `want_reply`. Messages that

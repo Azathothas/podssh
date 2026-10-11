@@ -22,7 +22,7 @@ mkdir -p "$W"
 echo "== servers"
 # openssh-client-default is ssh itself, for the % tokens of `ssh -G`.
 apk add --no-cache openssh-server openssh-server-pam openssh-keygen openssh-sftp-server openssh-client-default \
-    dropbear python3 linux-pam openssl tmux curl >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
+    dropbear python3 linux-pam openssl tmux curl sudo >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
 PW=$(head -c 18 /dev/urandom | base64 | tr -d '/+=')
 adduser -D -s /bin/sh podtest >/dev/null 2>&1 || true
 echo "podtest:$PW" | chpasswd >/dev/null 2>&1 || { echo "interop: chpasswd failed"; exit 1; }
@@ -455,6 +455,8 @@ saved=$(p 2201 $K -o BatchMode=yes "$T" 'cat /tmp/pipe-vi' </dev/null 2>/dev/nul
 . "$HERE/interop-cp.sh"
 # shellcheck source=scripts/interop-pipe.sh
 . "$HERE/interop-pipe.sh"
+# shellcheck source=scripts/interop-sudo.sh
+. "$HERE/interop-sudo.sh"
 
 echo
 echo "== an interactive terminal (a local pty, driven by scripts/interop-pty.py)"

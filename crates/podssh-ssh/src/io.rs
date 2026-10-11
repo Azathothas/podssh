@@ -7,10 +7,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use russh::client::{Handle, Msg};
-use russh::{Channel, ChannelMsg};
+use russh::{Channel, ChannelMsg, ChannelWriteHalf};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
+use crate::elevate::Elevated;
 use crate::escape::{Command, Escapes};
 use crate::handler::Client;
 use crate::log::Log;
@@ -128,6 +129,7 @@ impl Input {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn pump(
     handle: &Handle<Client>,
     channel: Channel<Msg>,
@@ -135,26 +137,32 @@ pub async fn pump(
     mut escapes: Option<Escapes>,
     pty: bool,
     input: &mut Input,
+    mut elevated: Option<Elevated>,
     log: &Arc<Log>,
 ) -> End {
     let (mut reader, writer) = channel.split();
     let mut status: Option<i32> = None;
     let mut out = Out::default();
+    // False once this session's input has ended, or its channel takes no more.
+    let mut reading = input.open();
+    // An elevated command's input waits for it to start (T-032).
+    let mut held = elevated.is_some();
     for msg in early {
-        if let Some(end) = handle_msg(msg, &mut status, &mut out, log).await {
+        if let Some(end) = handle_msg(msg, &mut status, &mut out, elevated.as_mut(), log).await {
             return end;
         }
     }
-    // False once this session's input has ended, or its channel takes no more.
-    let mut reading = input.open();
-    if !reading {
+    if let Some(e) = elevated.as_mut() {
+        e.act(&writer, &mut held, !reading, log).await;
+    }
+    if !reading && !held {
         let _ = writer.eof().await;
     }
     let mut resize = Resize::new(pty);
     let mut stop = Termination::new(pty && terminal::raw_active());
     loop {
         tokio::select! {
-            chunk = next(input, reading) => match chunk {
+            chunk = next(input, reading && !held) => match chunk {
                 Some(bytes) => {
                     let (data, commands) = match escapes.as_mut() {
                         Some(e) => e.feed(&bytes),
@@ -177,7 +185,7 @@ pub async fn pump(
                                 }
                                 msg = reader.wait() => match msg {
                                     Some(m) => {
-                                        if let Some(end) = handle_msg(m, &mut status, &mut out, log).await {
+                                        if let Some(end) = handle_msg(m, &mut status, &mut out, elevated.as_mut(), log).await {
                                             return end;
                                         }
                                     }
@@ -208,8 +216,11 @@ pub async fn pump(
             },
             msg = reader.wait() => match msg {
                 Some(m) => {
-                    if let Some(end) = handle_msg(m, &mut status, &mut out, log).await {
+                    if let Some(end) = handle_msg(m, &mut status, &mut out, elevated.as_mut(), log).await {
                         return end;
+                    }
+                    if let Some(e) = elevated.as_mut() {
+                        e.act(&writer, &mut held, !reading, log).await;
                     }
                     // stdout's reader went: the server hears the end of input.
                     if out.gone.is_some() && !out.told {
@@ -229,6 +240,13 @@ pub async fn pump(
                 }
                 return end_with(status);
             }
+            expired = elevating(&mut elevated, &writer, log) => if expired {
+                log.error(&format!(
+                    "the remote command neither asked for a password nor started within {} s",
+                    crate::elevate::WAIT.as_secs()
+                ));
+                return End::NoStatus;
+            },
             Some(size) = resize.next() => {
                 let _ = writer.window_change(size.cols, size.rows, size.px_width, size.px_height).await;
             }
@@ -237,9 +255,19 @@ pub async fn pump(
     }
 }
 
-async fn handle_msg(msg: ChannelMsg, status: &mut Option<i32>, out: &mut Out, log: &Log) -> Option<End> {
+async fn handle_msg(
+    msg: ChannelMsg,
+    status: &mut Option<i32>,
+    out: &mut Out,
+    mut elevated: Option<&mut Elevated>,
+    log: &Log,
+) -> Option<End> {
     match msg {
         ChannelMsg::Data { data } => {
+            let data = match elevated.as_deref_mut() {
+                Some(e) => e.feed(&data, false),
+                None => data.to_vec(),
+            };
             // Whoever reads our stdout has gone (EPIPE): the data goes
             // nowhere, and the exit status is awaited (T-026).
             if out.gone.is_none() && write_out(&data, false).await.is_err() {
@@ -247,6 +275,10 @@ async fn handle_msg(msg: ChannelMsg, status: &mut Option<i32>, out: &mut Out, lo
             }
         }
         ChannelMsg::ExtendedData { data, .. } => {
+            let data = match elevated.as_deref_mut() {
+                Some(e) => e.feed(&data, true),
+                None => data.to_vec(),
+            };
             let _ = write_out(&data, true).await;
         }
         ChannelMsg::ExitStatus { exit_status } => {
@@ -266,7 +298,13 @@ async fn handle_msg(msg: ChannelMsg, status: &mut Option<i32>, out: &mut Out, lo
             }
             log.info(&note);
         }
-        ChannelMsg::Close => return Some(end_with(*status)),
+        ChannelMsg::Close => {
+            // A command that never started: what su said, its refusal.
+            if let Some(e) = elevated.filter(|e| !e.started()) {
+                let _ = write_out(&e.finish(), true).await;
+            }
+            return Some(end_with(*status));
+        }
         // Eof: the server sends nothing more, but the exit status and the
         // close are still to come.
         _ => {}
@@ -283,6 +321,15 @@ async fn write_out(data: &[u8], to_stderr: bool) -> std::io::Result<()> {
         let mut out = tokio::io::stdout();
         out.write_all(data).await?;
         out.flush().await
+    }
+}
+
+/// An elevated command's question and time (T-032): true when its time is
+/// up; for ever with none.
+async fn elevating(elevated: &mut Option<Elevated>, writer: &ChannelWriteHalf<Msg>, log: &Log) -> bool {
+    match elevated {
+        Some(e) => e.next(writer, log).await,
+        None => std::future::pending().await,
     }
 }
 

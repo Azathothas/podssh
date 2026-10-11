@@ -207,9 +207,9 @@ remote host that must use the key, such as `git` on a build host.
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
    (`crates/podssh-cli/src/ssh/keywords.rs:25-94`). Change the help of `-a`
-   (`crates/podssh-cli/src/flags.rs:205-206`, the row `no-agent-forwarding`).
+   (`crates/podssh-cli/src/flags.rs:209-210`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
-   before the shell or exec request (`crates/podssh-ssh/src/session.rs:95-109`).
+   before the shell or exec request (`crates/podssh-ssh/src/session.rs:96-120`).
    Never to a jump hop.
 3. In the handler, accept `auth-agent@openssh.com` only when `-A` was given
    for this connection. For each such channel, connect to the agent with the
@@ -338,7 +338,7 @@ X11 channel.
 
 - Measured, offline: `podssh ssh -X example.invalid true` gives "-X is
   refused. Leave it out. X11 forwarding is not supported.", exit 64; `-Y`
-  the same (`crates/podssh-cli/src/flags.rs:253-256`).
+  the same (`crates/podssh-cli/src/flags.rs:257-260`).
 - Measured, offline: `-o ForwardX11=yes` is accepted with no effect, as
   `ForwardAgent` is. Read: `ForwardX11Trusted`, `ForwardX11Timeout` and
   `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:79-94`).
@@ -368,7 +368,7 @@ X11 channel.
    allows. Else refuse `-X`, and name `-Y`.
 5. Move `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` and
    `XAuthLocation` to `HONOURED`. Change the help of `-x`
-   (`crates/podssh-cli/src/flags.rs:200-201`).
+   (`crates/podssh-cli/src/flags.rs:204-205`).
 6. On Windows, a `DISPLAY` such as `localhost:0` (VcXsrv, X410) is TCP port
    6000. The X server's connection is local and named by the user, as the
    agent's connection is (`crates/podssh-ssh/src/keys.rs:334-371`, `connect_agent`).

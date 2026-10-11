@@ -14,6 +14,7 @@ harness ssh interop 72 scripts/interop.sh
 harness limits interop 2 scripts/interop-limits.sh
 harness status interop 6 scripts/interop-status.sh
 harness hostkeys interop 4 scripts/interop-hostkeys.sh
+harness sudo interop 3 scripts/interop-sudo.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -458,3 +459,6 @@ hostkeys.jump_names pass
 hostkeys.jump_changed pass
 hostkeys.alias_no_port pass
 hostkeys.alias_read pass
+sudo.password pass
+sudo.wrong pass
+sudo.nopass pass

@@ -86,6 +86,11 @@ const SSH: &[&str] = &[
     "-t asks for a pty when there is a local terminal. -tt asks for one also when there is none, so \
      interactive programs work from a host with no pty. In a session with a pty, ~. at the start of a \
      line ends the session (see -e).",
+    "--sudo runs the command as root with sudo -S, with no pty, and --su with su -c, in a pty: the password \
+     is asked here, on the terminal or through SSH_ASKPASS, never taken from the command line. podssh \
+     answers one prompt, holds its input until the command starts, and asks nothing when sudo asks \
+     nothing; a second prompt, a wrong password, ends the input. The remote shell must read POSIX \
+     quoting.",
     "--persist runs the shell in tmux on the server, as tmux new-session -A -s NAME with a pty (NAME is \
      podssh, or the one of --persist-name). podssh looks for tmux after the login and refuses without \
      it (exit 255): a new shell after a lost link would look like the old one. When the link is lost \

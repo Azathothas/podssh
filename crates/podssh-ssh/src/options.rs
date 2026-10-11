@@ -152,6 +152,15 @@ impl LogLevel {
     }
 }
 
+/// `--sudo` and `--su` (T-032): the remote command runs as root.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Elevate {
+    /// `sudo -S`, with no pty.
+    Sudo,
+    /// `su -c`, with a pty: su reads a terminal alone.
+    Su,
+}
+
 /// One `-J` hop, or the final destination.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hop {
@@ -225,6 +234,8 @@ pub struct Options {
     /// the server during the authentication.
     pub connect_timeout: Duration,
     pub request: Request,
+    /// `--sudo` or `--su`: the command of `request` runs as root (T-032).
+    pub elevate: Option<Elevate>,
     pub request_tty: RequestTty,
     /// `EscapeChar`; `None` is `none`.
     pub escape_char: Option<u8>,
@@ -317,6 +328,7 @@ impl Options {
             keepalive_max: 3,
             connect_timeout: Duration::from_secs(60),
             request: Request::Shell,
+            elevate: None,
             request_tty: RequestTty::Auto,
             escape_char: Some(b'~'),
             set_env: Vec::new(),

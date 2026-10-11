@@ -406,5 +406,6 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         control,
     };
     super::persist::check(args, &mut resolved)?;
+    super::elevate::check(args, &mut resolved)?;
     Ok(resolved)
 }

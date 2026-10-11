@@ -64,6 +64,9 @@ pub struct SshArgs {
     pub persist: bool,
     /// The tmux session of `--persist`.
     pub persist_name: Option<String>,
+    /// `--sudo` and `--su`: the remote command runs as root (T-032).
+    pub sudo: bool,
+    pub su: bool,
     /// `-G`: print the settings, and connect to nothing.
     pub print_config: bool,
     /// Each `-R` spec, as given.
@@ -194,6 +197,8 @@ impl SshArgs {
             iroh_ticket: one("iroh-ticket"),
             persist: flag("persist"),
             persist_name: one("persist-name"),
+            sudo: flag("sudo"),
+            su: flag("su"),
             print_config: flag("print-config"),
             remote_forwards: many("forward-remote"),
             local_forwards: many("forward-local"),

@@ -16,6 +16,11 @@
 //! `bare-early-...` the channel closes before the server's reply to the
 //! command, an order that RFC 4254 does not forbid. For `late-...`, `cat`
 //! echoes its first bytes 1 s late, as a shell that is still starting it.
+//! For the users `sudo-...` and `su-...` (T-032), `sudo -S -k -p PROMPT --
+//! sh -c '...'` and `su -c '...'` run as sudo and su run them, with the
+//! password `secret`: the prompt, then the command's marker, then `0` and its
+//! input echoed, as `id -u; cat` as root; `sudo-nopass-...` has a NOPASSWD
+//! rule, and only `su-...` is granted a pty.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -56,6 +61,29 @@ struct Far {
     /// The user `late-...`, and the channels of `cat` that have not echoed yet.
     late: bool,
     late_echoes: Vec<ChannelId>,
+    /// The users `su-...` and `sudo-nopass-...`, and the commands of sudo
+    /// and su that wait for their password.
+    su: bool,
+    nopass: bool,
+    elevated: HashMap<ChannelId, Elevated>,
+}
+
+/// A command of sudo (with its prompt) or of su (with none), until it starts.
+struct Elevated {
+    prompt: Option<String>,
+    started: String,
+    line: Vec<u8>,
+}
+
+/// The prompt of `sudo -S -k -p PROMPT -- sh -c '...'` (none for `su -c`),
+/// and the marker that the command prints as it starts.
+fn elevation(command: &str) -> Option<(Option<String>, String)> {
+    let started = command.split("printf %s ").nth(1)?.split_whitespace().next()?.to_string();
+    if let Some(rest) = command.strip_prefix("sudo -S -k -p ") {
+        Some((Some(rest.split_whitespace().next()?.to_string()), started))
+    } else {
+        command.starts_with("su -c ").then_some((None, started))
+    }
 }
 
 impl server::Handler for Far {
@@ -66,6 +94,8 @@ impl server::Handler for Far {
         self.bare = user.starts_with("bare-");
         self.early = user.starts_with("bare-early-");
         self.late = user.starts_with("late-");
+        self.su = user.starts_with("su-");
+        self.nopass = user.starts_with("sudo-nopass-");
         // A user named key-...: a key is needed, as from an agent (T-034).
         if user.starts_with("key-") {
             return Ok(Auth::Reject {
@@ -130,6 +160,24 @@ impl server::Handler for Far {
         Ok(())
     }
 
+    async fn pty_request(
+        &mut self,
+        channel: ChannelId,
+        _term: &str,
+        _cols: u32,
+        _rows: u32,
+        _px_width: u32,
+        _px_height: u32,
+        _modes: &[(russh::Pty, u32)],
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        // No reply for the others, as before.
+        if self.su {
+            session.channel_success(channel)?;
+        }
+        Ok(())
+    }
+
     async fn exec_request(
         &mut self,
         channel: ChannelId,
@@ -149,6 +197,20 @@ impl server::Handler for Far {
             return Ok(());
         }
         session.channel_success(channel)?;
+        if let Some((prompt, started)) = elevation(&command) {
+            if self.nopass && prompt.is_some() {
+                session.extended_data(channel, 1, started.into_bytes())?;
+                session.data(channel, b"0\n".as_slice())?;
+                self.echoes.push(channel);
+                return Ok(());
+            }
+            match &prompt {
+                Some(prompt) => session.extended_data(channel, 1, prompt.clone().into_bytes())?,
+                None => session.data(channel, b"Password: ".as_slice())?,
+            }
+            self.elevated.insert(channel, Elevated { prompt, started, line: Vec::new() });
+            return Ok(());
+        }
         if let Some(rest) = command.strip_prefix("append ") {
             // `append PATH STATUS DELAY`: a line in the file at once, then
             // the status after DELAY seconds (T-025). A command that ran twice
@@ -240,6 +302,36 @@ impl server::Handler for Far {
     }
 
     async fn data(&mut self, channel: ChannelId, data: &[u8], session: &mut Session) -> Result<(), Self::Error> {
+        if let Some(elevated) = self.elevated.get_mut(&channel) {
+            elevated.line.extend_from_slice(data);
+            let Some(end) = elevated.line.iter().position(|b| *b == b'\n') else { return Ok(()) };
+            let Elevated { prompt, started, line } = self.elevated.remove(&channel).expect("the command");
+            // The password alone: any other input is held until the start.
+            let password = String::from_utf8_lossy(&line[..end]).trim_end_matches('\r').to_string();
+            let right = password == "secret" && end + 1 == line.len();
+            match (prompt, right) {
+                (Some(_), true) => {
+                    session.extended_data(channel, 1, started.into_bytes())?;
+                    session.data(channel, b"0\n".as_slice())?;
+                    self.echoes.push(channel);
+                }
+                (None, true) => {
+                    session.data(channel, format!("\r\n{started}0\n").into_bytes())?;
+                    self.echoes.push(channel);
+                }
+                (Some(prompt), false) => {
+                    session.extended_data(channel, 1, format!("Sorry, try again.\n{prompt}").into_bytes())?;
+                    self.elevated.insert(channel, Elevated { prompt: Some(prompt), started, line: Vec::new() });
+                }
+                (None, false) => {
+                    session.data(channel, b"\r\nsu: Authentication failure\r\n".as_slice())?;
+                    session.exit_status_request(channel, 1)?;
+                    session.eof(channel)?;
+                    session.close(channel)?;
+                }
+            }
+            return Ok(());
+        }
         if self.holds.contains(&channel) {
             // The session's loop waits here: no window adjustment goes out.
             tokio::time::sleep(Duration::from_secs(2)).await;
@@ -266,6 +358,14 @@ impl server::Handler for Far {
     }
 
     async fn channel_eof(&mut self, channel: ChannelId, session: &mut Session) -> Result<(), Self::Error> {
+        // sudo with no password to read: a refusal.
+        if self.elevated.remove(&channel).is_some() {
+            session.extended_data(channel, 1, b"sudo: 1 incorrect password attempt\n".to_vec())?;
+            session.exit_status_request(channel, 1)?;
+            session.eof(channel)?;
+            session.close(channel)?;
+            return Ok(());
+        }
         if let Some((stop, status)) = self.spews.remove(&channel) {
             stop.store(true, Ordering::SeqCst);
             if status {
