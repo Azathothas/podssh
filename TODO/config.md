@@ -48,7 +48,7 @@ them too, which is wrong. An unknown `%` token stays as text (`crates/podssh-cli
    (`crates/podssh-cli/src/ssh/keywords.rs`, lines 84-89 at `c0cdd2b`), but accept a `ProxyCommand` that runs
    podssh itself (`proxy %h %p`: the path of `podssh ssh` anyway). Honour `IgnoreUnknown`.
 6. Refuse a file that another user owns or can write, as OpenSSH does, on the opened file
-   (`crates/podssh-relay/src/cache/own.rs:22-62`, `Others::Read`, since T-163). An unknown `%`
+   (`crates/podssh-relay/src/cache/own.rs:22-54`, `Others::Read`, since T-163). An unknown `%`
    token is an error.
 7. In the same commit: the `-F` row (`crates/podssh-cli/src/flags.rs`, lines 143-144 at `c0cdd2b`), VARIABLES and
    FILES (`crates/podssh-cli/src/man/facts.rs`, lines 45-127 and 98-142 at `c0cdd2b`), the `ssh` notes,
@@ -114,8 +114,8 @@ Approach read otherwise:
   when another user owns it or others can write it. `read_own` refuses a link, a file of root's
   and a file over 64 KiB. The reader is podssh's own (`crates/podssh-cli/src/ssh/config.rs`): it
   follows a link, reads a pipe and at most 4 MiB, and on Unix checks `~/.ssh/config` alone: the
-  user's or root's, with no write for the group or others. On Windows no file is checked, as for
-  the files of the cache: T-274.
+  user's or root's, with no write for the group or others. On Windows no file was checked, as for
+  the files of the cache, until T-274, which reads the owner and the access list.
 - A `Host` pattern matches the host as typed, with its case: `Host MyHost` applies to `MyHost`,
   and not to `myhost` or `MYHOST`. Only the first `IgnoreUnknown` counts, and `-o
   IgnoreUnknown` beats the file's; `-o` did not know the keyword. A `#` that starts a word
@@ -558,7 +558,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
    names relay hosts decides where tokens go.
 4. Refuse a file that is a symbolic link, or that another user owns or can write, with an error
    that names it. Check the opened file, as `read_own` does with `Others::Read`
-   (`crates/podssh-relay/src/cache/own.rs:22-62`, since T-163).
+   (`crates/podssh-relay/src/cache/own.rs:22-54`, since T-163).
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and

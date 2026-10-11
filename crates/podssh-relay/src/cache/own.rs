@@ -6,7 +6,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use super::{create_new_private, make_private_dir, open_no_follow, owned_and_private, MAX_FILE};
+use super::{closed, create_new_private, make_private_dir, open_no_follow, MAX_FILE};
 
 /// What users other than the owner may do with a file that [`read_own`]
 /// reads.
@@ -47,15 +47,7 @@ pub fn read_own(path: &Path, others: Others) -> Result<Option<String>, String> {
     if meta.len() > MAX_FILE {
         return Err(format!("{shown} is larger than a file of the cache can be"));
     }
-    match others {
-        Others::NoAccess if !owned_and_private(&meta) => {
-            return Err(format!("{shown} is another user's, or others can read it; make it private (chmod 600)"))
-        }
-        Others::Read if !owned_and_unwritable(&meta) => {
-            return Err(format!("{shown} is another user's, or others can change it; chmod go-w"))
-        }
-        _ => {}
-    }
+    closed(path, &file, others)?;
     let mut text = String::new();
     std::io::Read::read_to_string(&mut &file, &mut text).map_err(|e| format!("{shown}: {e}"))?;
     Ok(Some(text))
@@ -125,15 +117,4 @@ pub fn create_file_in_first(dirs: &[PathBuf], name: &str, body: &[u8]) -> Result
         }
     }
     Err(format!("no directory would take {name} ({})", reasons.join("; ")))
-}
-
-#[cfg(unix)]
-fn owned_and_unwritable(meta: &std::fs::Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt;
-    meta.uid() == super::euid() && meta.mode() & 0o022 == 0
-}
-
-#[cfg(not(unix))]
-fn owned_and_unwritable(_meta: &std::fs::Metadata) -> bool {
-    true
 }

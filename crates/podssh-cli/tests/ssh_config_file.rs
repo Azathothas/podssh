@@ -29,6 +29,8 @@ impl Home {
     fn new(name: &str) -> Home {
         let dir = std::env::temp_dir().join(format!("podssh-config-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
+        // Private, as a user's home is: the file is checked (T-274).
+        podssh_relay::cache::private_dir(&dir).expect("a scratch home");
         std::fs::create_dir_all(dir.join(".ssh")).expect("a scratch home");
         Home(dir)
     }
@@ -332,4 +334,32 @@ fn podssh_reads_the_fixture_as_openssh_10_3_reads_it() {
         let theirs: Vec<&str> = theirs.lines().filter(|l| !l.is_empty()).collect();
         assert_eq!(ours, theirs, "{words:?}");
     }
+}
+
+/// On Windows the owner and the access list of the user's file are checked,
+/// as OpenSSH for Windows checks them (T-274): the user's own file is read,
+/// also when others may read it; when the group Users may write it, it is
+/// refused with 78, and the refusal names the group. A file that -F names is
+/// the user's choice.
+#[cfg(windows)]
+#[test]
+fn on_windows_the_default_file_must_be_closed_to_writers() {
+    let h = Home::new("acl");
+    let config = h.file(".ssh/config", "Host alias\n  Port 2222\n");
+    let icacls = |grant: &str| {
+        let out = std::process::Command::new("icacls").args([&config, "/grant", grant]).output().expect("icacls runs");
+        assert!(out.status.success(), "icacls {grant}");
+    };
+    assert_eq!(resolve(&ssh(&["alias"]), &h.env()).unwrap().options.destination.port, 2222);
+    icacls("*S-1-5-32-545:(R)");
+    assert_eq!(resolve(&ssh(&["alias"]), &h.env()).unwrap().options.destination.port, 2222, "others may read it");
+    icacls("*S-1-5-32-545:(W)");
+    let err = resolve_or_refuse(&ssh(&["alias"]), &h.env()).unwrap_err();
+    assert_eq!(err.code, 78, "{}", err.message);
+    assert!(
+        err.message.contains("bad owner or permissions") && err.message.contains("S-1-5-32-545"),
+        "{}",
+        err.message
+    );
+    assert_eq!(resolve(&ssh(&["-F", &config, "alias"]), &h.env()).unwrap().options.destination.port, 2222);
 }

@@ -886,7 +886,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:189-195`); the
 operator leg receives text frames (`docs/relay.md:284-287`). A host key is recorded under the target
-host, never the relay's name (`SECURITY.md:74-84`); `HostKeyAlias` exists
+host, never the relay's name (`SECURITY.md:82-92`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:403`). `podssh ssh` uses the exit codes of OpenSSH, and
 `podssh proxy` sysexits (`docs/cli.md:858-862`).
 
@@ -1145,7 +1145,7 @@ Read: credentials are HMAC tokens scoped to a name and a role, issued by the rel
 over a trusted channel (`:137-138`); the node chooses what to expose (`:245-246`).
 
 Read: `podssh ssh` checks host keys with `known_hosts`, and never records one under the relay's name
-(`SECURITY.md:46-50`, `:74-84`). `podssh serve` keeps its host key in a state file and takes
+(`SECURITY.md:46-50`, `:82-92`). `podssh serve` keeps its host key in a state file and takes
 authorized keys from a flag or a file (`docs/ROADMAP.md:177-182`, T-107).
 
 Read in the reports (not verified here): iroh-ssh warns about an ephemeral node key
@@ -1604,7 +1604,7 @@ T-107), and the relay stays a separate project (`docs/decisions.md`). The two sh
    start of the session: a change of the framing in crates/podssh-transport/src/framing/legs.rs lines 60-76 at `e8bbd4d`. The
    node checks the grant before it dials the TARGET, so the dial moves after `ready` (`docs/reverse.md:16`):
    the seam of T-088 and T-089. Spent nonces are create-new private files
-   (`crates/podssh-relay/src/cache.rs:336-349`).
+   (`crates/podssh-relay/src/cache.rs:338-356`).
 3. Both shapes: an SSHSIG signature in a fixed podssh namespace, which `ssh-keygen -Y verify` can check
    (T-020), with the keys of T-087, in pure Rust (`AGENTS.md:202-204`).
 4. Relations: T-078 makes the pair that a grant protects; T-086 can deliver a grant in place of the

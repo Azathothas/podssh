@@ -1712,6 +1712,7 @@ dependencies = [
  "sha2 0.10.9",
  "snow",
  "tokio",
+ "windows-sys 0.61.2",
  "x25519-dalek",
  "zeroize",
 ]
@@ -1720,10 +1721,13 @@ dependencies = [
 name = "podssh-ssh"
 version = "0.1.0"
 dependencies = [
+ "aws-lc-rs",
  "base64",
+ "crypto-bigint 0.7.5",
  "futures-util",
  "hmac 0.12.1",
  "libc",
+ "pageant",
  "podssh-ws",
  "rand 0.10.3",
  "russh",

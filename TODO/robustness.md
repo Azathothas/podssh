@@ -55,7 +55,7 @@ compiler.
    consumes at most its input, and a control frame has FIN and 125 bytes or
    fewer (fails until T-063); `forward_path` after `parse_relay_list` has the
    form `/connect/HOST/PORT`; `one_line` leaves no control character
-   (`SECURITY.md:70-73`); `Reassembler::push` stays under a stated limit
+   (`SECURITY.md:78-81`); `Reassembler::push` stays under a stated limit
    (fails until T-096); the command line target calls `parse`, never the
    dispatch, so no target reaches the network.
 3. Reach a private parser through a wrapper under `#[cfg(fuzzing)]`, which
@@ -335,7 +335,7 @@ Read:
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
-  peer (`SECURITY.md:70-73`).
+  peer (`SECURITY.md:78-81`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
   discipline (`docs/terminal.md:81-177`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
@@ -416,7 +416,7 @@ Read, the bounds today:
   proxy (`crates/podssh-ws/src/dial.rs:21`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:124`).
 - The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:36`). A cache
-  file: 64 KiB (`crates/podssh-relay/src/cache.rs:29`).
+  file: 64 KiB (`crates/podssh-relay/src/cache.rs:33`).
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:30`). The relay pipe:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:30-33`). Pump buffers: 32 KiB
@@ -494,7 +494,7 @@ fail.
   covers both reads.
 - A pool body past its bound, and a file of the cache past its bound, are dropped with no word:
   the refresh's error goes nowhere (`crates/podssh-relay/src/open.rs:331`), and the cache reads a
-  file that it cannot use as none (`crates/podssh-relay/src/cache.rs:297-299`). Each is made again,
+  file that it cannot use as none (`crates/podssh-relay/src/cache.rs:299-301`). Each is made again,
   so the table says so, and nothing is added.
 - `PODSSH_REPLAY_BUFFER` above 16 MiB gives 4 MiB, the default, not 16 MiB
   (`crates/podssh-relay/src/session/replay.rs:27-31`), as its comment says: another value is
@@ -643,7 +643,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:261-279`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:262-280`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:302`, enforced at
   `crates/podssh-ssh/src/run.rs:297-303`); a reply, 30 s

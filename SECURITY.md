@@ -65,8 +65,16 @@ Each rule is implemented.
   token or the tailnet key do not print it, and clear it from memory when
   they drop it; a redaction removes the whole token. `podssh keygen` refuses
   a passphrase on the command line, and never prints a private key.
-- **On Windows, a file mode of 0600 has no effect.** The access control list
-  of the profile directory protects the token cache and the keys.
+- **On Windows, the owner and the access list of a private file are
+  checked** (T-274), as OpenSSH for Windows checks them: the owner is the
+  user, SYSTEM, the Administrators or TrustedInstaller, and a file that
+  another principal may change is refused, `~/.ssh/config` and each file
+  that it includes among them. A file of the cache, a key and a pair file
+  are refused when another principal may read them too. Unlike OpenSSH
+  10.0p2, the right to change the access list counts as a write. podssh
+  makes its own files and directories with an access list of their own,
+  which lets in the user, SYSTEM and the Administrators alone, whatever the
+  directory above them lets in.
 - **Text from a peer is made safe before it goes to a terminal.** Close
   reasons, HTTP error bodies, SSH banners and disconnect messages,
   keyboard-interactive prompts, chat messages and IRC text can contain ESC,

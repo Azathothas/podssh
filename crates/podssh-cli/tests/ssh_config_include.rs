@@ -28,6 +28,8 @@ impl Home {
     fn new(name: &str) -> Home {
         let dir = std::env::temp_dir().join(format!("podssh-include-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
+        // Private, as a user's home is: each file is checked (T-274).
+        podssh_relay::cache::private_dir(&dir).expect("a scratch home");
         std::fs::create_dir_all(dir.join(".ssh")).expect("a scratch home");
         std::fs::create_dir_all(dir.join("etc")).expect("a scratch system directory");
         Home(dir)

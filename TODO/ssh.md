@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:203` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:275`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:276`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:226-233` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:197`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5437`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5438`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -1247,7 +1247,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
    (`crates/podssh-cli/src/flags.rs:357-394`), in
    `crates/podssh-cli/src/positionals.rs` and in `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`); `docs/cli.md`;
-   "Nothing listens" in `SECURITY.md:85-102`; `docs/STATUS.md`.
+   "Nothing listens" in `SECURITY.md:93-110`; `docs/STATUS.md`.
 
 ## Decision
 

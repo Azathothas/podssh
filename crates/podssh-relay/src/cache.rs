@@ -16,6 +16,10 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(any(windows, test))]
+mod closed;
+#[cfg(windows)]
+mod closed_win;
 mod dirs;
 mod own;
 pub use dirs::{candidate_dirs, candidate_dirs_from, chosen, chosen_from, Chosen, DIR_ENV};
@@ -260,9 +264,7 @@ pub fn read_private(path: &Path) -> Result<String, String> {
     if meta.len() > MAX_FILE {
         return Err(format!("{shown} is larger than a file of the cache can be"));
     }
-    if !owned_and_private(&meta) {
-        return Err(format!("{shown} is another user's, or others can read it; make it private (chmod 600)"));
-    }
+    closed(path, &file, Others::NoAccess)?;
     let mut text = String::new();
     std::io::Read::read_to_string(&mut &file, &mut text).map_err(|e| format!("{shown}: {e}"))?;
     Ok(text)
@@ -341,11 +343,23 @@ pub fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
     std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).custom_flags(libc::O_NOFOLLOW).open(path)
 }
 
-/// A new file; on Windows the access control list of the profile directory
-/// keeps it private (`SECURITY.md`).
-#[cfg(not(unix))]
+/// A new file that only its owner, SYSTEM and the Administrators may open
+/// (an access list of its own, T-274), never one that exists.
+#[cfg(windows)]
+pub fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
+    closed_win::create_new_private(path)
+}
+
+#[cfg(not(any(unix, windows)))]
 pub fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
     std::fs::OpenOptions::new().write(true).create_new(true).open(path)
+}
+
+/// Make `dir` a private directory of this user, as the cache's are: for the
+/// tests of each crate, whose scratch directories hold files that podssh
+/// checks (T-274).
+pub fn private_dir(dir: &Path) -> std::io::Result<()> {
+    make_private_dir(dir)
 }
 
 /// Create `dir` (mode 0700) if needed and make sure it is a real directory of
@@ -367,20 +381,48 @@ fn make_private_dir(dir: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-#[cfg(not(unix))]
+/// `dir` made, and given an access list of its own when its list lets
+/// anyone else in (T-274).
+#[cfg(windows)]
+fn make_private_dir(dir: &Path) -> std::io::Result<()> {
+    closed_win::make_private_dir(dir)
+}
+
+#[cfg(not(any(unix, windows)))]
 fn make_private_dir(dir: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(dir)
 }
 
-#[cfg(unix)]
-fn owned_and_private(meta: &std::fs::Metadata) -> bool {
-    use std::os::unix::fs::MetadataExt;
-    meta.uid() == euid() && meta.mode() & 0o077 == 0
-}
-
-#[cfg(not(unix))]
-fn owned_and_private(_meta: &std::fs::Metadata) -> bool {
-    true
+/// Whether `file`, opened at `path`, is this user's and closed to the other
+/// users beyond `others`: the refusal, with its remedy, when it is not. On
+/// Unix the owner and the mode say it; on Windows the owner and the access
+/// list, as OpenSSH for Windows reads them (T-274).
+pub fn closed(path: &Path, file: &std::fs::File, others: Others) -> Result<(), String> {
+    let shown = path.display();
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let meta = file.metadata().map_err(|e| format!("{shown}: {e}"))?;
+        let (open, why) = match others {
+            Others::NoAccess => (0o077, "others can read it; make it private (chmod 600)"),
+            Others::Read => (0o022, "others can change it; chmod go-w"),
+        };
+        if meta.uid() != euid() || meta.mode() & open != 0 {
+            return Err(format!("{shown} is another user's, or {why}"));
+        }
+        Ok(())
+    }
+    #[cfg(windows)]
+    {
+        closed_win::closed(file, others).map_err(|why| {
+            format!("{shown}: {why}; make it private: icacls \"{shown}\" /inheritance:r /grant:r \"%USERNAME%:F\"")
+        })
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = (shown, file, others);
+        Ok(())
+    }
 }
 
 #[cfg(unix)]

@@ -19,7 +19,7 @@ const TOKEN: &str = "ephm1.1900000000000.forward.TESTONLYNOTACREDENTIAL";
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-token-cache-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    podssh_relay::cache::private_dir(&dir).unwrap();
     cleanup::at_test_end(&dir);
     dir
 }
@@ -313,4 +313,61 @@ fn the_scan_finds_no_other_absolute_path_in_the_cache() {
     assert_eq!(found, ["/dev/shm", "/tmp"], "{found:?}");
     let fixed = code.lines().filter(|l| l.contains("\"/tmp\"") || l.contains("\"/dev/shm\"")).count();
     assert_eq!(fixed, 1, "the fixed places are in one list");
+}
+
+/// `icacls FILE ARGS`, as a user would open a file to others.
+#[cfg(windows)]
+fn icacls(file: &std::path::Path, args: &[&str]) {
+    let out = std::process::Command::new("icacls").arg(file).args(args).output().expect("icacls runs");
+    assert!(out.status.success(), "icacls {args:?}: {}", String::from_utf8_lossy(&out.stdout));
+}
+
+/// On Windows the owner and the access list say whether a file is closed,
+/// as OpenSSH for Windows reads them (T-274). podssh's own token file is read
+/// back, and ignored once the group Users (S-1-5-32-545) may read it. A list
+/// that the group may read is still read as a file that others may read,
+/// and refused as a secret; one that it may write, append to, or whose access
+/// list it may change is refused.
+#[cfg(windows)]
+#[test]
+fn on_windows_a_file_that_others_may_open_is_not_trusted() {
+    use podssh_relay::cache::{read_own, Others};
+    let dir = scratch("win-acl");
+    let path =
+        store_in_first(std::slice::from_ref(&dir), "relay.example", TOKEN, NOW + MIN_REMAINING_MS * 2, "relay.example")
+            .unwrap();
+    assert!(load_from(std::slice::from_ref(&dir), "relay.example", NOW).is_some(), "podssh's own file is read");
+    icacls(&path, &["/grant", "*S-1-5-32-545:(R)"]);
+    assert!(load_from(std::slice::from_ref(&dir), "relay.example", NOW).is_none(), "a token that others may read");
+
+    let list = dir.join("list");
+    std::fs::write(&list, "a list\n").unwrap();
+    assert_eq!(read_own(&list, Others::Read).unwrap().as_deref(), Some("a list\n"));
+    icacls(&list, &["/grant", "*S-1-5-32-545:(R)"]);
+    assert_eq!(read_own(&list, Others::Read).unwrap().as_deref(), Some("a list\n"), "others may read a list");
+    let why = read_own(&list, Others::NoAccess).unwrap_err();
+    assert!(why.contains("others can read it") && why.contains("S-1-5-32-545"), "{why}");
+    for right in ["W", "AD", "WDAC"] {
+        let file = dir.join(format!("open-{right}"));
+        std::fs::write(&file, "x").unwrap();
+        icacls(&file, &["/grant", &format!("*S-1-5-32-545:({right})")]);
+        let why = read_own(&file, Others::Read).unwrap_err();
+        assert!(why.contains("others can change it") && why.contains("the group Users"), "{right}: {why}");
+    }
+}
+
+/// A directory that others may open is made private: it gets an access list
+/// of its own, and the file in it, which others could change, is closed.
+#[cfg(windows)]
+#[test]
+fn on_windows_a_directory_open_to_others_is_made_private() {
+    use podssh_relay::cache::{read_own, Others};
+    let dir = scratch("win-dir").join("open");
+    std::fs::create_dir_all(&dir).unwrap();
+    icacls(&dir, &["/grant", "*S-1-5-32-545:(OI)(CI)(M)"]);
+    let file = dir.join("list");
+    std::fs::write(&file, "x").unwrap();
+    assert!(read_own(&file, Others::Read).unwrap_err().contains("others can change it"));
+    podssh_relay::cache::private_dir(&dir).unwrap();
+    assert_eq!(read_own(&file, Others::NoAccess).unwrap().as_deref(), Some("x"), "closed now");
 }

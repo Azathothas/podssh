@@ -266,10 +266,8 @@ fn read_file(path: &Path, checked: bool) -> Result<Option<String>, String> {
     if meta.is_dir() {
         return Err(format!("{shown} is a directory, not an ssh_config file"));
     }
-    if checked && !owner_alone_writes(&meta) {
-        return Err(format!(
-            "{shown}: bad owner or permissions; it must be yours or root's, and no one else may change it (chmod go-w)"
-        ));
+    if checked {
+        owner_alone_writes(path, &file, &meta)?;
     }
     let mut bytes = Vec::new();
     std::io::Read::read_to_end(&mut std::io::Read::take(file, MAX_FILE + 1), &mut bytes)
@@ -281,16 +279,23 @@ fn read_file(path: &Path, checked: bool) -> Result<Option<String>, String> {
 }
 
 #[cfg(unix)]
-fn owner_alone_writes(meta: &std::fs::Metadata) -> bool {
+fn owner_alone_writes(path: &Path, _file: &std::fs::File, meta: &std::fs::Metadata) -> Result<(), String> {
     use std::os::unix::fs::MetadataExt;
-    (meta.uid() == 0 || Some(meta.uid()) == super::tokens::local_uid()) && meta.mode() & 0o022 == 0
+    if (meta.uid() == 0 || Some(meta.uid()) == super::tokens::local_uid()) && meta.mode() & 0o022 == 0 {
+        return Ok(());
+    }
+    Err(format!(
+        "{}: bad owner or permissions; it must be yours or root's, and no one else may change it (chmod go-w)",
+        path.display()
+    ))
 }
 
-// Windows keeps the owner and the writers in an access list, which podssh
-// does not read yet, as for the files of its cache (T-274).
+// Windows keeps the owner and the writers in an access list, which the
+// cache's check reads, as OpenSSH for Windows does (T-274).
 #[cfg(not(unix))]
-fn owner_alone_writes(_meta: &std::fs::Metadata) -> bool {
-    true
+fn owner_alone_writes(path: &Path, file: &std::fs::File, _meta: &std::fs::Metadata) -> Result<(), String> {
+    podssh_relay::cache::closed(path, file, podssh_relay::cache::Others::Read)
+        .map_err(|why| format!("bad owner or permissions: {why}"))
 }
 
 /// A keyword and its arguments: `Keyword value` or `Keyword=value`.

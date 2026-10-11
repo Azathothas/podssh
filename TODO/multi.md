@@ -266,7 +266,7 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:85-102` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:93-110` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
 

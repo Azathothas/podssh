@@ -45,6 +45,19 @@ plain-ws = ["podssh-ws/plain-ws"]
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
 
+# The owner and the access list of a private file, and the files and
+# directories that podssh makes with an access list of their own (T-274).
+# Bindings with no C code (windows-link's raw-dylib), the version that tokio
+# pulls in.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Security_Authorization",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Threading",
+] }
+
 [dev-dependencies]
 # `test-util` gives the tests a paused clock: the heartbeat's 200 s of idle
 # time pass at once (T-154).

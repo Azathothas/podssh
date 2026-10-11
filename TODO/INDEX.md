@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**283 entries: 89 open, 0 partial, 22 blocked, 172 done.**
+**283 entries: 88 open, 0 partial, 22 blocked, 173 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 20 | 22 |
-| P2 | 5 | 0 | 18 | 132 | 155 |
+| P2 | 4 | 0 | 18 | 133 | 155 |
 | P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 89 | 0 | 22 | 172 | 283 |
+| **All** | 88 | 0 | 22 | 173 | 283 |
 
 ## Entries
 
@@ -345,7 +345,7 @@ repository and CI).
 | [T-271](reverse.md) | P1 | S | none | defect | done | A client can reach a node before it is online, and a node takes a slow local side of the layer for a stopped one |
 | [T-272](repo.md) | P1 | S | none | defect | done | The tests leave their scratch directories in the temporary directory |
 | [T-273](config.md) | P2 | S | M8 | defect | done | The `%` tokens of `User` and `RemoteCommand`, as OpenSSH expands them |
-| [T-274](relay.md) | P2 | M | backlog | defect | open | On Windows, the owner and the writers of a private file are not checked |
+| [T-274](relay.md) | P2 | M | backlog | defect | done | On Windows, the owner and the writers of a private file are not checked |
 | [T-275](irc.md) | P2 | S | M8 | defect | done | The transfer sends as fast as its acknowledgements come, and a server's rate limit closes it |
 | [T-276](repo.md) | P3 | S | none | chore | done | The fork's own clippy warns, and no podssh build shows it |
 | [T-277](repo.md) | P3 | S | none | chore | done | The record's check sees no citation that a commit left unmoved |

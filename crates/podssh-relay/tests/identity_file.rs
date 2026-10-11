@@ -16,7 +16,7 @@ use podssh_relay::session::{Entropy, NoRandom, OsEntropy};
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-identity-file-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    podssh_relay::cache::private_dir(&dir).unwrap();
     cleanup::at_test_end(&dir);
     dir
 }

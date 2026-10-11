@@ -46,7 +46,7 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
    (`crates/podssh-relay/src/token.rs` lines 84-112 at `2da855f`), the removal after a 403
    (`crates/podssh-relay/src/open.rs:307-315`), and the token check of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 142-165 at `2da855f`).
-3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:31-40`), with a
+3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:35-44`), with a
    serde default for old files. `doctor` says "a cached token minted at HOST (not shown)". Use
    an old entry only under the default key, where it was right.
 4. Change in the same commit: `docs/relay.md` (lines 43-45 at `2da855f`), the comments at `relay.rs:36-37` and
@@ -275,7 +275,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 1. After a host fails with an error that another host can repair (`another_host_may_help`,
    `crates/podssh-relay/src/open.rs:61-83`), write a record (host, time, class) into a private
    file `relay-failures-KEY.json` with `cache::store_file`
-   (`crates/podssh-relay/src/cache.rs:134-168`). Remove the record when the host succeeds.
+   (`crates/podssh-relay/src/cache.rs:138-172`). Remove the record when the host succeeds.
 2. At the start of `open` (`crates/podssh-relay/src/open.rs:187-233`), move each host whose
    record is younger than a fixed window (10 min) to the end of the list, in its old order.
    Never remove a host: each host is still tried.
@@ -762,7 +762,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    then the platform's temporary directory (`std::env::temp_dir`) with the user's tag; then the
    working directory. No path literal stays in `cache.rs`.
 3. Probe each as now: a missing directory is made with mode 0700
-   (`crates/podssh-relay/src/cache.rs:351-368`), and one that refuses a write is skipped. When the
+   (`crates/podssh-relay/src/cache.rs:365-382`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
    (`crates/podssh-ws/src/dial.rs:104-118`), so that the tests can set it.
@@ -938,7 +938,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:142`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:143`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -1025,7 +1025,7 @@ cache are.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1035,11 +1035,11 @@ one of them can choose the relay that podssh trusts, or the host that `podssh ss
 
 ## Premise
 
-Read on `c0cdd2b`: on each system but Unix, `owned_and_private`
-(`crates/podssh-relay/src/cache.rs:382-384`) and `owned_and_unwritable`
-(`crates/podssh-relay/src/cache/own.rs:136-139`) return `true`; so does `owner_alone_writes`
-(`crates/podssh-cli/src/ssh/config.rs:292-294`) since T-043. Windows keeps the owner and the
-writers of a file in its security descriptor, which podssh does not read.
+Read, at `32cae31`, as on `c0cdd2b`: on each system but Unix, `owned_and_private`
+(`crates/podssh-relay/src/cache.rs`, lines 382-384) and `owned_and_unwritable`
+(`crates/podssh-relay/src/cache/own.rs`, lines 136-139) return `true`; so does `owner_alone_writes`
+(`crates/podssh-cli/src/ssh/config.rs`, lines 292-294) since T-043. Windows keeps the owner and
+the writers of a file in its security descriptor, which podssh does not read.
 
 ## Approach
 
@@ -1049,6 +1049,30 @@ writers of a file in its security descriptor, which podssh does not read.
    account may write, append to, or whose access list another account may change; for the cache,
    also one that another account may read. Measure what OpenSSH for Windows accepts, and follow it.
 3. One function for the cache and for `~/.ssh/config`, with the reason in the refusal.
+
+## Decision
+
+Taken, with these calls made in the work (2026-10-11). One function, `podssh_relay::cache::closed`,
+reads the opened file for the cache, the files of podssh's own (`read_own`), a pair file and
+`~/.ssh/config` with each file that it includes; on Windows it reads the owner and the access list
+through the handle, not the path again. The owner must be the user, SYSTEM, the Administrators or
+TrustedInstaller. An entry that allows another principal to write, append, change an attribute,
+delete, or change the access list or the owner refuses the file, and so do the generic write and
+all; for a file that holds a secret, so does one that lets another principal read its data. A
+deny entry, and an entry for the children alone (inherit-only), do not count; no access list at
+all refuses. No account name is looked up, as that can wait on a domain controller: a principal
+is named by its SID, and a few by their well-known names. Measured with OpenSSH for Windows 10.0p2
+(`ssh -G -F` of a file that includes another, in a directory of `%LOCALAPPDATA%`): the included
+file was read when the group Users may read it, and refused when it may write (W), append (AD)
+or modify (M) it; one that inherits this host's `%TEMP%`, where a local group of a sandbox may
+modify, was refused too. With (WDAC) alone OpenSSH read it; podssh refuses it, as the right to
+change the access list is the right to give oneself write. podssh makes its own directories and
+files with an access list of their own, which lets in the user, SYSTEM and the Administrators
+alone: a directory whose list lets anyone else in gets a protected list, which its files then
+inherit, and a new private file is made with its list in one call (`CreateFileW`), with no moment
+open to others. The tests' scratch directories, made in the temporary directory, are made private
+the same way (`cache::private_dir`), as this host's `%TEMP%` lets that group change each file
+made in it. Left out: a path longer than `MAX_PATH` for a new private file, and SID history.
 
 ## Prove
 
@@ -1060,3 +1084,29 @@ cargo test -p podssh-cli --test ssh_config_file
 
 On Windows, also in CI on `windows-2025`: a file that the group Users may write is refused, and
 the user's own file is read. Planted: a check that returns `true`; a test fails.
+
+## Done
+
+2026-10-11. On Windows `closed` (`crates/podssh-relay/src/cache.rs:400-426`) reads the owner and
+the access list of the opened file (`crates/podssh-relay/src/cache/closed_win.rs:45-49`) and judges
+them by the rules of the Decision (`crates/podssh-relay/src/cache/closed.rs:45-65`); podssh's
+directories and files are made private (`crates/podssh-relay/src/cache/closed_win.rs:207-274`).
+`SECURITY.md` and the manual's FILES say so.
+- `cargo test -p podssh-relay --lib -- closed`: the 4 tests of the rules passed, on Windows: an
+  owner that is the user, SYSTEM or the Administrators; another owner, and no list, refused; a
+  writer refused for each right, and a reader for a secret; a deny entry, an inherit-only entry,
+  and the right to read attributes alone let nobody in.
+- `cargo test -p podssh-relay --test cache`: on Windows, podssh's own token file was read back, and
+  ignored once the group Users (S-1-5-32-545) may read it; a list that the group may read was read
+  as a file that others may read, and refused as a secret, naming the group; with (W), (AD) and
+  (WDAC) it was refused; a directory that the group may modify was made private, and its file then
+  read as a secret. `cargo test -p podssh-cli --test ssh_config_file`: the user's own file was read,
+  and read again when the group may read it; when the group may write it, it exited 78, "bad owner
+  or permissions", naming the group; with `-F` the same file was read.
+- Planted: `closed` of Windows that takes each file; the three tests of Windows failed. `judge`
+  that takes each list; two tests of the rules failed.
+- The tests that wrote files into this host's `%TEMP%` (5 of `podssh-relay`, 10 of `podssh-cli`)
+  failed on the check until their scratch directories were made private.
+- `cargo test -p podssh-relay --all-features`: 243 passed, 0 failed, 16 ignored;
+  `cargo test -p podssh-cli`: 537 passed, 0 failed, 31 ignored; clippy with all features, and of
+  `podssh-relay` for Linux too. CI's job `windows` on `windows-2025` runs the tests at this push.

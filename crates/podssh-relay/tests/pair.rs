@@ -41,7 +41,7 @@ fn no_token(text: &str) {
 fn scratch(tag: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
     let dir = std::env::temp_dir().join(format!("podssh-pair-{tag}-{}-{nanos}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    podssh_relay::cache::private_dir(&dir).unwrap();
     dir
 }
 

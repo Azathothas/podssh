@@ -26,7 +26,8 @@ pub const FORWARD: &str = "ephm1.9999999999999.forward.TESTONLYNOTACREDENTIALNOD
 pub fn scratch(tag: &str) -> PathBuf {
     let nanos = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().subsec_nanos();
     let dir = std::env::temp_dir().join(format!("podssh-node-{tag}-{}-{nanos}", std::process::id()));
-    std::fs::create_dir_all(&dir).unwrap();
+    // Private, as the files that podssh checks are (T-274).
+    podssh_relay::cache::private_dir(&dir).unwrap();
     cleanup::at_test_end(&dir);
     dir
 }
