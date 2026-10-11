@@ -137,6 +137,7 @@ impl MuxClient {
             Ok(pid) => pid,
             Err(why) => {
                 log.error(&format!("control master: {why}"));
+                crate::outcome::failed("session");
                 return crate::run::EXIT_FAILURE;
             }
         };
@@ -154,12 +155,17 @@ impl MuxClient {
         };
         if let Err(why) = self.send_with(Message::NewSession(asked), &fds).await {
             log.error(&format!("control master: {why}"));
+            crate::outcome::failed("session");
             return crate::run::EXIT_FAILURE;
         }
         let sid = match self.opened(rid, log).await {
             Some(sid) => sid,
-            None => return crate::run::EXIT_FAILURE,
+            None => {
+                crate::outcome::failed("session");
+                return crate::run::EXIT_FAILURE;
+            }
         };
+        crate::outcome::shared();
         let mut raw = if request.tty { crate::terminal::RawMode::enter().ok() } else { None };
         let code = self.wait(sid, pid, &mut raw, log).await;
         drop(raw);
@@ -186,11 +192,14 @@ impl MuxClient {
         let request = Message::NewStdioFwd { rid, host, port };
         if let Err(why) = self.send_with(request, &fds).await {
             log.error(&format!("control master: {why}"));
+            crate::outcome::failed("forward");
             return crate::run::EXIT_FAILURE;
         }
         if self.opened(rid, log).await.is_none() {
+            crate::outcome::failed("forward");
             return crate::run::EXIT_FAILURE;
         }
+        crate::outcome::shared();
         loop {
             match wire::read(&mut self.stream).await {
                 Ok(None) | Err(_) => return 0,
@@ -242,6 +251,7 @@ impl MuxClient {
                     }
                     Ok(Some(other)) => {
                         log.error(&format!("control master: unexpected {other:?}"));
+                        crate::outcome::failed("session");
                         return crate::run::EXIT_FAILURE;
                     }
                     Ok(None) | Err(_) => break,
@@ -253,10 +263,12 @@ impl MuxClient {
                 }
                 Some(()) = recv_any(&mut stop) => {
                     log.verbose("control master: exiting on a signal");
+                    crate::outcome::shared_ended("terminated");
                     return crate::run::EXIT_FAILURE;
                 }
             }
         }
+        crate::outcome::shared_ended(if code.is_some() { "shared" } else { "no-status" });
         code.unwrap_or_else(|| {
             log.verbose("the control master ended the session with no status");
             crate::run::EXIT_FAILURE

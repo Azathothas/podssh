@@ -468,6 +468,8 @@ saved=$(p 2201 $K -o BatchMode=yes "$T" 'cat /tmp/pipe-vi' </dev/null 2>/dev/nul
 . "$HERE/interop-stdio.sh"
 # shellcheck source=scripts/interop-match.sh
 . "$HERE/interop-match.sh"
+# shellcheck source=scripts/interop-result.sh
+. "$HERE/interop-result.sh"
 
 echo
 echo "== an interactive terminal (a local pty, driven by scripts/interop-pty.py)"

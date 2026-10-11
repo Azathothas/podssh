@@ -120,6 +120,7 @@ async fn through(mut mux: MuxClient, resolved: &Resolved, log: &Arc<Log>) -> i32
             Ok(None) => {}
             Err(why) => {
                 log.error(&format!("Master refused forwarding request: {why}"));
+                podssh_ssh::outcome::failed("forward");
                 return EXIT_FAILURE;
             }
         }

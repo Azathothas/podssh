@@ -152,8 +152,9 @@ pub(super) async fn connect(
         podssh_iroh::carry(&dialer, layer_app, settings, note),
         session
     );
-    if let Some((_, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, Some(&me))) {
+    if let Some((fault, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, Some(&me))) {
         log.error(&format!("{shown}: {why}"));
+        crate::ssh::result::channel_failed(&fault);
         dialer.close().await;
         let _ = tokio::time::timeout(CLOSE_LIMIT, endpoint.close()).await;
         return EXIT_FAILURE;

@@ -170,6 +170,30 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   nothing (as `BatchMode=yes`), unless `SSH_ASKPASS_REQUIRE=force` names a
   program of `SSH_ASKPASS` to ask. With `-N` and no forward, or with
   `--persist-name`, it is a usage error (64).
+- **`--result-file FILE` writes the result of the run as JSON** (T-054), at
+  its end, also when it failed before it connected, so that a script tells
+  the remote command's status from a failure of podssh with no parsing of
+  stderr: `schema`, `exit` (the code that podssh exits with), `status` (the
+  remote exit status, or null), `signal` (`name` and `core_dumped`, or
+  null), `end` (`status`, `signal`, `no-status`, `lost`, `escaped`,
+  `terminated`, `failed`, or `shared`; null with no session, as with `-W`),
+  `failure` (`connect`, `host-key`, `auth`, `forward`, `relay`, `session`,
+  `usage`, `config` or `not-built`, or null: `connect` also when podssh got
+  no session for another cause), `bytes` (`stdin`, `stdout`
+  and `stderr`, as they passed), `duration_ms`, and `relay` (`host`,
+  `close_code` and `reason`, or null with no relay). A signal ends with
+  128 + its number, as in OpenSSH, and `status` is then null. `-N` ends
+  `lost` when the server or the network ends the connection. A run through
+  a control master (T-039) ends `shared`: the master tells the exit code
+  alone, a status or 128 + a signal, and carries the bytes, which are then
+  null. stdout and stderr stay byte for byte as they are: the command's
+  output never goes into the file. A new file is made for its owner alone
+  (mode 0600 on Unix); `-` is refused (64), as stdout is the command's. A
+  file that cannot be written is a line on stderr, and the exit code stays
+  the run's. No file is written after a flag that podssh does not know,
+  which ends it before it reads the others (64), nor when a signal kills
+  podssh, as it kills OpenSSH's `ssh`: only a session on a terminal ends at
+  SIGTERM or SIGHUP, as `terminated`, and writes it.
 - **`--sudo` and `--su` run the remote command as root** (T-032), with the
   password asked here, on the terminal or through `SSH_ASKPASS`, never on
   the command line. `--sudo` sends `sudo -S -k -p PROMPT -- sh -c '...'`

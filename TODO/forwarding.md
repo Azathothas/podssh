@@ -59,7 +59,7 @@ server listens, and the client connects out for each connection.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
-   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:115-121`), with the
+   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:116-122`), with the
    limit of 20 s (`crates/podssh-relay/src/open.rs:27-29`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
@@ -207,9 +207,9 @@ remote host that must use the key, such as `git` on a build host.
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
    (`crates/podssh-cli/src/ssh/keywords.rs:25-98`). Change the help of `-a`
-   (`crates/podssh-cli/src/flags.rs:211-212`, the row `no-agent-forwarding`).
+   (`crates/podssh-cli/src/flags.rs:213-214`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
-   before the shell or exec request (`crates/podssh-ssh/src/session.rs:99-123`).
+   before the shell or exec request (`crates/podssh-ssh/src/session.rs:100-124`).
    Never to a jump hop.
 3. In the handler, accept `auth-agent@openssh.com` only when `-A` was given
    for this connection. For each such channel, connect to the agent with the
@@ -368,7 +368,7 @@ X11 channel.
    allows. Else refuse `-X`, and name `-Y`.
 5. Move `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` and
    `XAuthLocation` to `HONOURED`. Change the help of `-x`
-   (`crates/podssh-cli/src/flags.rs:206-207`).
+   (`crates/podssh-cli/src/flags.rs:208-209`).
 6. On Windows, a `DISPLAY` such as `localhost:0` (VcXsrv, X410) is TCP port
    6000. The X server's connection is local and named by the user, as the
    agent's connection is (`crates/podssh-ssh/src/keys.rs:334-371`, `connect_agent`).
@@ -427,11 +427,11 @@ it (`SECURITY.md`, "Design rules").
 
 2026-10-11. The display, the authority file, the probe, the request and the
 swap of the cookie in `crates/podssh-ssh/src/x11.rs:1-339`; the session asks
-(`crates/podssh-ssh/src/session.rs:92-94`) and the handler joins an `x11`
+(`crates/podssh-ssh/src/session.rs:93-95`) and the handler joins an `x11`
 channel when the destination's run asked
 (`crates/podssh-ssh/src/handler.rs:249-262`). The plan and the probe of the
 command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
-`crates/podssh-cli/src/flags.rs:260-263`, and the keywords, honoured now, at
+`crates/podssh-cli/src/flags.rs:262-265`, and the keywords, honoured now, at
 `crates/podssh-cli/src/ssh/keywords.rs:44-46` and
 `crates/podssh-cli/src/ssh/keywords.rs:78`.
 - `cargo test -p podssh-ssh --lib -- x11`: 4 passed: `DISPLAY` as Xlib reads
@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:324-347`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:348-371`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -857,7 +857,7 @@ Read:
    to `Request::StdioForward` (`crates/podssh-ssh/src/options.rs`, lines 67-68 at `f6af943`).
 2. Open a socket with `channel_open_direct_streamlocal` in
    `crates/podssh-ssh/src/forward.rs`, and use the copy loop of `stdio`
-   (`crates/podssh-ssh/src/forward.rs:39-106`) for both kinds.
+   (`crates/podssh-ssh/src/forward.rs:39-110`) for both kinds.
 3. A server that refuses the channel (OpenSSH with
    `AllowStreamLocalForwarding no`) gives its reason, and 255, as for TCP.
 4. Change the help of the `-W` row (`crates/podssh-cli/src/flags.rs:139-140`)
@@ -899,7 +899,7 @@ as a TCP host again, and the gate's check fails with the server's error.
 2026-10-11. The target of `-W` is `StdioTarget`, TCP or a socket
 (`crates/podssh-ssh/src/options.rs:164-181`), opened by `open_target`
 (`crates/podssh-ssh/src/forward.rs:24-37`); through a control master
-(`crates/podssh-ssh/src/mux/client.rs:171-186`,
+(`crates/podssh-ssh/src/mux/client.rs:177-192`,
 `crates/podssh-ssh/src/mux/msession.rs:242-249`). The command line reads a
 path at `crates/podssh-cli/src/ssh/hop.rs:86-89`, and the row of `-W` says so
 (`crates/podssh-cli/src/flags.rs:139-140`).
@@ -940,7 +940,7 @@ many bytes moved.
 
 ## Premise
 
-Read: today the only forward is `-W` (`crates/podssh-ssh/src/forward.rs:39-106`),
+Read: today the only forward is `-W` (`crates/podssh-ssh/src/forward.rs:39-110`),
 and it counts nothing. The escapes are `~.`, `~R`, `~?` and `~~`
 (`crates/podssh-ssh/src/escape.rs:1-15`); OpenSSH also has `~#`, which lists
 the forwarded connections. `podssh status` (T-051) runs in another process,
@@ -998,9 +998,9 @@ count each chunk twice, and the unit test fails.
 `crates/podssh-ssh/src/remote.rs:108`, `crates/podssh-ssh/src/remote.rs:135`
 and `crates/podssh-ssh/src/remote.rs:147`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
-`crates/podssh-ssh/src/forward.rs:52`; `~#` at
-`crates/podssh-ssh/src/escape.rs:47` and `crates/podssh-ssh/src/io.rs:232`,
-and the lines of `-v` at `crates/podssh-ssh/src/run.rs:222`.
+`crates/podssh-ssh/src/forward.rs:53`; `~#` at
+`crates/podssh-ssh/src/escape.rs:47` and `crates/podssh-ssh/src/io.rs:233`,
+and the lines of `-v` at `crates/podssh-ssh/src/run.rs:247`.
 - `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
   1000 down through a forward's copy, counted once, with one connection; one
   name, one forward, across connections and a failure; the listing in the
@@ -1014,7 +1014,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:222`.
   -W` through OpenSSH's sshd to a TCP echo server, 262144 bytes each way) and
   `pty.forwards` (`scripts/interop-pty.py`, `~#` in a session with `-R
   0:127.0.0.1:2201`).
-- `docs/cli.md:201-206` and the manual's note of `-t` say what `~#` and `-v`
+- `docs/cli.md:225-230` and the manual's note of `-t` say what `~#` and `-v`
   print.
 - `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1054,8 +1054,8 @@ sessions (GitHub #17).
 
 ## Premise
 
-Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-70`,
-`crates/podssh-ssh/src/run.rs:172-213`). `podssh_relay::open` fails over and
+Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-78`,
+`crates/podssh-ssh/src/run.rs:196-238`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:187-233`,
 `crates/podssh-relay/src/open.rs:335-349`). With `-N`, no command runs, so a

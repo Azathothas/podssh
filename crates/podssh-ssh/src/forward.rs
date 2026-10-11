@@ -45,6 +45,7 @@ pub async fn stdio(handle: &Handle<Client>, target: &StdioTarget, log: &Log) -> 
         Err(why) => {
             counts.failed();
             log.error(&why);
+            crate::outcome::failed("forward");
             return crate::run::EXIT_FAILURE;
         }
     };
@@ -62,6 +63,7 @@ pub async fn stdio(handle: &Handle<Client>, target: &StdioTarget, log: &Log) -> 
                         return;
                     }
                     counts.add_up(n as u64);
+                    crate::outcome::stdin(n);
                 }
             }
         }
@@ -78,9 +80,11 @@ pub async fn stdio(handle: &Handle<Client>, target: &StdioTarget, log: &Log) -> 
                     if stdout.write_all(&buf[..n]).await.is_err() || stdout.flush().await.is_err() {
                         return 0;
                     }
+                    crate::outcome::output(n, false);
                 }
                 Err(e) => {
                     log.error(&format!("the forwarded connection failed: {e}"));
+                    crate::outcome::failed("forward");
                     return crate::run::EXIT_FAILURE;
                 }
             }

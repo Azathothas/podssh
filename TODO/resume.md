@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:281-296`,
    `crates/podssh-cli/src/man/facts.rs:323-332`), the note at
-   `crates/podssh-cli/src/man/notes.rs:171`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes_ssh.rs:134`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1320,7 +1320,7 @@ new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-5`,
 `crates/podssh-ssh/src/escape.rs:30-76`). The flag table has 469 lines, near
-the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-266`).
+the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-268`).
 
 ## Approach
 

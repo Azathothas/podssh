@@ -27,6 +27,7 @@ pub mod options;
 pub mod persist;
 mod recording;
 pub mod resolve;
+pub mod result;
 pub mod tokens;
 pub mod transport;
 pub mod x11;
@@ -42,8 +43,22 @@ use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
 use args::SshArgs;
 use resolve::{Env, Resolved, Transport};
 
-/// Run `podssh ssh`; returns the process exit code.
+/// Run `podssh ssh`; returns the process exit code. With `--result-file`,
+/// the run's result is written at its end, on each path (T-054).
 pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
+    let started = std::time::Instant::now();
+    if args.result_file.as_deref() == Some("-") {
+        let _ = writeln!(err, "podssh ssh: --result-file -: stdout carries the command's output; name a file");
+        return EXIT_USAGE;
+    }
+    let code = run(args, err);
+    if let Some(path) = &args.result_file {
+        result::write(path, &result::object(code, started), err);
+    }
+    code
+}
+
+fn run(args: &SshArgs, err: &mut dyn Write) -> i32 {
     if args.version {
         let _ = writeln!(err, "podssh {} (SSH: russh, aws-lc-rs)", env!("CARGO_PKG_VERSION"));
         return 0;
@@ -160,6 +175,9 @@ async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i32 {
         return Box::pin(iroh::connect(ticket, key.as_deref(), relays, trust, channel, opts, log)).await;
     }
     let (code, relay) = Box::pin(tries(&resolved, &log)).await;
+    if let Some(end) = relay.as_ref().and_then(podssh_ssh::RelayStatus::get) {
+        podssh_ssh::outcome::relay_end(&end);
+    }
     // A relay that ends the session on an IPv6 target may have no route
     // there: the note names --direct.
     if let (true, Some(status), Transport::Relay { family, .. }) = (code != 0, relay, &resolved.transport) {
@@ -201,6 +219,8 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
                 for line in &failure.lines {
                     log.error(line);
                 }
+                let leg = if matches!(resolved.transport, Transport::Relay { .. }) { "relay" } else { "connect" };
+                podssh_ssh::outcome::failure_is(leg);
                 return (EXIT_FAILURE, None);
             }
         };

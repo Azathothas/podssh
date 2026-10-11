@@ -24,7 +24,8 @@
 //! `x11` channel to the client with the cookie of its `x11-req`, sends an X
 //! client's first packet on it, and prints the X server's status and that
 //! cookie. A direct-streamlocal channel to the socket `/echo` (T-040) sends
-//! back what it gets; to another socket it is refused.
+//! back what it gets; to another socket it is refused. `exit N` and `kill NAME` end as a
+//! shell's do (T-054, `ends.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -38,6 +39,7 @@ use std::time::Duration;
 use russh::server::{self, Auth, Msg, Session};
 use russh::{Channel, ChannelId};
 
+mod ends;
 mod sudo;
 mod x11;
 
@@ -239,6 +241,9 @@ impl server::Handler for Far {
             }
             self.elevated.insert(channel, Elevated { prompt, started, line: Vec::new() });
             return Ok(());
+        }
+        if let Some(ended) = ends::ended(&command, channel, session) {
+            return ended;
         }
         if command == "x11-probe" {
             let cookie = self.x11_cookie.clone().unwrap_or_default();

@@ -41,6 +41,7 @@ pub mod local;
 pub mod log;
 pub mod mux;
 pub mod options;
+pub mod outcome;
 pub mod persist;
 pub mod probe;
 pub mod prompt;

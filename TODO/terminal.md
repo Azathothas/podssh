@@ -674,7 +674,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
 - Read: in a session with a pty, the client acts only on the escape
   character at the start of a line: `~.`, `~R`, `~?` and `~~`
   (`crates/podssh-ssh/src/escape.rs:1-15`, `crates/podssh-ssh/src/escape.rs:32-76`).
-  Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:188-219`).
+  Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:188-220`).
 - Read: the line discipline acts on the arrows, Home, End and its control
   keys, and refuses other sequences (`docs/terminal.md:121-158`). T-128 and
   T-129 change that list.
@@ -688,7 +688,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
    pty, serve with the line discipline), list the bytes that podssh acts on,
    the bytes that it refuses, and say that each other byte passes unchanged.
 2. Put the same list in the manual's notes for `ssh`
-   (`crates/podssh-cli/src/man/notes.rs:14-39`), and for `serve` when it
+   (`crates/podssh-cli/src/man/notes.rs:15-40`), and for `serve` when it
    exists.
 3. A drift test: each escape command of `crates/podssh-ssh/src/escape.rs:8-15`
    is in the note, and the note names no other.
@@ -782,14 +782,14 @@ find a case that the 14 console checks of podssh do not cover.
   (raw mode, restored on drop and on panic),
   `crates/podssh-ssh/src/terminal/windows.rs:115-138` (pty modes),
   `crates/podssh-ssh/src/terminal/windows.rs:142-181` (prompts), and the size
-  poll every 500 ms (`crates/podssh-ssh/src/io.rs:395-443`). The checks of
+  poll every 500 ms (`crates/podssh-ssh/src/io.rs:401-449`). The checks of
   `scripts/interop-conpty.py` pass 14 of 14 (`docs/STATUS.md:77`).
 - Read: podssh sets no console code page, and remote output goes through
-  Rust's standard output (`crates/podssh-ssh/src/io.rs:336-346`). Rust's
+  Rust's standard output (`crates/podssh-ssh/src/io.rs:339-352`). Rust's
   documentation of `std::io::Stdout` says that a console refuses bytes that
   are not UTF-8. podssh then takes stdout as closed: it stops writing,
   sends the end of input, and waits for the exit status
-  (`crates/podssh-ssh/src/io.rs:293-300`). Not measured.
+  (`crates/podssh-ssh/src/io.rs:294-301`). Not measured.
 - Read in the report of GitHub #24, not verified here: csshw handles console
   color and ConPTY quirks in `whme/csshw:src/utils/windows.rs`.
 

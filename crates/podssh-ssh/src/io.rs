@@ -195,6 +195,7 @@ pub async fn pump(
                         // The send waits for the channel's window, which a
                         // connection that ended never opens: the channel's
                         // messages are read meanwhile, and its end ends this.
+                        crate::outcome::stdin(data.len());
                         let send = writer.data_bytes(data);
                         tokio::pin!(send);
                         loop {
@@ -303,10 +304,12 @@ async fn handle_msg(
             let _ = write_out(&data, true).await;
         }
         ChannelMsg::ExitStatus { exit_status } => {
+            crate::outcome::status(exit_status);
             *status = Some(status_code(exit_status));
         }
         ChannelMsg::ExitSignal { signal_name, core_dumped, error_message, .. } => {
             let name = signals::name(&signal_name);
+            crate::outcome::signal(&name, core_dumped);
             *status = Some(signals::number(&signal_name).map_or(255, |n| 128 + n));
             let mut note = format!("the remote command was killed by signal {name}");
             if core_dumped {
@@ -337,12 +340,15 @@ async fn write_out(data: &[u8], to_stderr: bool) -> std::io::Result<()> {
     if to_stderr {
         let mut err = tokio::io::stderr();
         err.write_all(data).await?;
-        err.flush().await
+        err.flush().await?;
     } else {
         let mut out = tokio::io::stdout();
         out.write_all(data).await?;
-        out.flush().await
+        out.flush().await?;
     }
+    // What `--result-file` counts (T-054).
+    crate::outcome::output(data.len(), to_stderr);
+    Ok(())
 }
 
 /// An elevated command's question and time (T-032): true when its time is

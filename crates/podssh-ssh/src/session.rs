@@ -34,6 +34,7 @@ pub async fn run(handle: &Handle<Client>, opts: &Options, host: &str, log: &Arc<
 
 /// The exit code of a session that ended so, or the words of a lost link.
 pub fn code(end: io::End, host: &str) -> Result<i32, String> {
+    crate::outcome::ended(&end);
     match end {
         io::End::Status(code) => Ok(code),
         io::End::NoStatus | io::End::Escaped(_) | io::End::Terminated => Ok(NO_STATUS),

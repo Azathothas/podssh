@@ -19,6 +19,7 @@ harness recording interop 3 scripts/interop-recording.sh
 harness x11 interop 3 scripts/interop-x11.sh
 harness stdio interop 3 scripts/interop-stdio.sh
 harness match interop 18 scripts/interop-match.sh
+harness result interop 9 scripts/interop-result.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -496,3 +497,12 @@ match.final_upper pass
 match.accumulate pass
 match.exec_refused pass
 match.config_import pass
+result.openssh.status pass
+result.openssh.signal pass
+result.openssh.bytes pass
+result.openssh.auth pass
+result.dropbear.status pass
+result.dropbear.signal pass
+result.dropbear.bytes pass
+result.dropbear.auth pass
+result.shared pass

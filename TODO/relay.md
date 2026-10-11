@@ -645,8 +645,8 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    (line 186 at `22c3b88`) stays a note of the run. `Failure` keeps each error; `Opened.relay` and the log
    name the host that was kept. tokio's `select!` and `JoinSet` need no new crate and no C.
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
-   (`crates/podssh-cli/src/flags.rs:112-266`, 323-343) and to `ONCE`
-   (`crates/podssh-cli/src/ssh/args.rs:103-120`); the variable to VARIABLES and the modes to THE
+   (`crates/podssh-cli/src/flags.rs:112-268`, 323-343) and to `ONCE`
+   (`crates/podssh-cli/src/ssh/args.rs:105-122`); the variable to VARIABLES and the modes to THE
    RELAY (`crates/podssh-cli/src/man/facts.rs:45-169`, 170-183); both to `docs/relay.md:30-66`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
@@ -772,7 +772,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:137-146`,
    `crates/podssh-cli/src/man/data.rs:126-133`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:310-330`).
+   notes (`crates/podssh-cli/src/man/notes.rs:168-188`).
 
 ## Decision
 

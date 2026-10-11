@@ -77,6 +77,7 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
             match podssh_relay::open(&request, &mut |note: &str| note_log.info(note)).await {
                 Ok(opened) => {
                     log.verbose(&format!("the relay host {} opened the session", opened.relay.host));
+                    podssh_ssh::outcome::relay_host(&opened.relay.host);
                     let (stream, status) = podssh_ssh::relay_stream::spawn(opened.session);
                     Ok(Reached { stream: Box::new(stream), relay: Some(status) })
                 }

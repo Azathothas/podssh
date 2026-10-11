@@ -194,6 +194,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "node://NAME: race the iroh road to TICKET, first, with the pair's road; the first that answers carries the session; a build with the feature iroh", None),
     row(None, "persist", None, FlagKind::Supported,
         "run the shell in the server's tmux, and after a lost link connect again and attach it again; tmux is probed", None),
+    row(None, "result-file", Some("FILE"), FlagKind::Supported,
+        "at the end, one JSON object in FILE: the exit, the remote status or signal, the end, the failure, the bytes and the relay", None),
     row(None, "persist-name", Some("NAME"), FlagKind::Supported,
         "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
     row(None, "sudo", None, FlagKind::Supported,

@@ -50,7 +50,7 @@ core: the handshake, a host key that does not change, and key authentication.
    `$HOME/.ssh/authorized_keys`. Lines with options wait for T-114. No usable
    key: exit 78. Invariant: no setting accepts each key. `auth_publickey`
    compares `key_data()`; the login name selects nothing.
-5. The verb: rows in `crates/podssh-cli/src/flags.rs:344-389` and
+5. The verb: rows in `crates/podssh-cli/src/flags.rs:346-391` and
    `crates/podssh-cli/src/positionals.rs:8-141`, an arm beside
    `crates/podssh-cli/src/dispatch.rs:204-271`, the manual, `docs/cli.md`,
    `docs/STATUS.md`. The first source is `--stdio`, as `sshd -i`: OpenSSH
@@ -110,7 +110,7 @@ and stderr apart, and an environment that a cage can give.
   lines 601-667). russh also gives each data message to the kept `Channel`,
   and waits when 100 wait unread (`Eugeny/russh:russh/src/server/encrypted.rs`,
   lines 1350-1356): an unread channel stops the whole connection.
-- Read: the client side to match is `crates/podssh-ssh/src/io.rs:285-334`;
+- Read: the client side to match is `crates/podssh-ssh/src/io.rs:286-337`;
   `crates/podssh-ssh/src/signals.rs:26-64` maps names to numbers only;
   `tokio` with `process` is a dependency (`crates/podssh-ssh/Cargo.toml:22`).
 
@@ -192,7 +192,7 @@ tells the user nothing.
   limit; `HTTPS_PROXY` when it is set) and
   `crates/podssh-ws/src/dial.rs:101-107` (loopback never through a proxy).
   The client copies a forward with half-close in
-  `crates/podssh-ssh/src/forward.rs:39-106`.
+  `crates/podssh-ssh/src/forward.rs:39-110`.
 - Read: in the measured sandbox, `connect()` to loopback failed with `EACCES`
   (`docs/target-environment.md:22`). Such a refusal must reach the client
   with its reason.
@@ -204,7 +204,7 @@ tells the user nothing.
    Do not add a second dialer.
 2. On success, accept, then copy between `channel.into_stream()` and the TCP
    stream in both directions. An EOF in one direction keeps the other open,
-   as `crates/podssh-ssh/src/forward.rs:39-106` does.
+   as `crates/podssh-ssh/src/forward.rs:39-110` does.
 3. On failure, reject with code 2 (connect failed) and the dial error in
    words: the errno, or the proxy's status and reason.
 4. Limits: 20 s for the dial; a stated maximum of open forwards for each
@@ -263,7 +263,7 @@ it there.
   read in reverse on the server; a second table would drift.
 - Read: doctor already opens a pty to test the host
   (`crates/podssh-cli/src/doctor/unix.rs:78-134`). The client continues
-  without a pty when the server refuses (`crates/podssh-ssh/src/session.rs:73-86`).
+  without a pty when the server refuses (`crates/podssh-ssh/src/session.rs:74-87`).
 - Read: the measured sandbox has no `/dev/ptmx` and no `/dev/pts`
   (`docs/target-environment.md:26`); there, T-111 applies.
 
@@ -765,7 +765,7 @@ a restart ends each session on it (`docs/design.md:220-223`).
 ## Premise
 
 - Read: the client ends its session properly on SIGTERM and SIGHUP
-  (`crates/podssh-ssh/src/io.rs:445-478`). The server has no such handling.
+  (`crates/podssh-ssh/src/io.rs:451-484`). The server has no such handling.
 - Read: russh can end a connection with a reason: `Handle::disconnect`
   (`Eugeny/russh:russh/src/server/session.rs`, line 457 at `22c3b88`).
 - Read: in `--stdio` mode one process serves one connection. The node mode
@@ -1265,7 +1265,7 @@ no reason (`docs/target-environment.md:63-64`).
 ## Premise
 
 - Read: no source in `crates/` reads `SHELL` or selects a shell; `serve` is
-  not a verb (`crates/podssh-cli/src/flags.rs:344-389`). The line numbers in
+  not a verb (`crates/podssh-cli/src/flags.rs:346-391`). The line numbers in
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.

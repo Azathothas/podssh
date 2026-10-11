@@ -1,0 +1,69 @@
+# --result-file (T-054) against OpenSSH's sshd on port 2201 and Dropbear on
+# port 2203: the remote status, a signal, 5,000,000 bytes each way, and a
+# refused login, each in the JSON object of the run, while stdout stays as
+# it is; and a run through a podssh control master (T-039). Sourced by
+# scripts/interop.sh; uses ok, bad, p, $W, $K and $T.
+
+echo
+echo "== --result-file (T-054, OpenSSH, then Dropbear)"
+RW="$W/result"
+mkdir -p "$RW"
+# result_of FILE EXPR: whether the object in FILE meets the Python EXPR on r.
+result_of() {
+    python3 -c 'import json, sys; r = json.load(open(sys.argv[1])); sys.exit(0 if eval(sys.argv[2]) else 1)' "$1" "$2" \
+        2>/dev/null
+}
+head -c 5000000 /dev/urandom >"$RW/blob"
+want=$(sha256sum <"$RW/blob" | cut -c1-64)
+for srv in openssh:2201 dropbear:2203; do
+    port=${srv#*:}
+    # shellcheck disable=SC2086
+    p "$port" $K -o BatchMode=yes --result-file "$RW/exit.json" "$T" 'echo out; exit 3' </dev/null \
+        >"$RW/out" 2>"$RW/err"
+    rc=$?
+    [ "$rc" = 3 ] && [ "$(cat "$RW/out")" = out ] && result_of "$RW/exit.json" \
+        'r["exit"] == 3 and r["status"] == 3 and r["end"] == "status" and r["bytes"]["stdout"] == 4' \
+        && ok "result.${srv%%:*}.status" "port $port: exit 3 gives the status 3, and 4 bytes of stdout" \
+        || bad "result.${srv%%:*}.status" "port $port: exit $rc, $(cat "$RW/exit.json" 2>/dev/null)" "$RW/err"
+    # shellcheck disable=SC2016,SC2086
+    p "$port" $K -o BatchMode=yes --result-file "$RW/kill.json" "$T" 'kill -TERM $$' </dev/null \
+        >"$RW/out" 2>"$RW/err"
+    rc=$?
+    [ "$rc" = 143 ] && result_of "$RW/kill.json" \
+        'r["exit"] == 143 and r["status"] is None and r["end"] == "signal" and r["signal"]["name"] == "TERM"' \
+        && ok "result.${srv%%:*}.signal" "port $port: kill -TERM gives the signal TERM and exit 143" \
+        || bad "result.${srv%%:*}.signal" "port $port: exit $rc, $(cat "$RW/kill.json" 2>/dev/null)" "$RW/err"
+    # shellcheck disable=SC2086
+    p "$port" $K -o BatchMode=yes --result-file "$RW/bytes.json" "$T" cat <"$RW/blob" >"$RW/out" 2>"$RW/err"
+    rc=$?
+    got=$(sha256sum <"$RW/out" | cut -c1-64)
+    [ "$rc" = 0 ] && [ "$got" = "$want" ] && result_of "$RW/bytes.json" \
+        'r["bytes"] == {"stdin": 5000000, "stdout": 5000000, "stderr": 0}' \
+        && ok "result.${srv%%:*}.bytes" "port $port: 5,000,000 bytes up and back, the same digest, and counted" \
+        || bad "result.${srv%%:*}.bytes" "port $port: exit $rc, $got, $(cat "$RW/bytes.json" 2>/dev/null)" "$RW/err"
+    p "$port" -o BatchMode=yes -o PasswordAuthentication=no --result-file "$RW/auth.json" "$T" true </dev/null \
+        >"$RW/out" 2>"$RW/err"
+    rc=$?
+    [ "$rc" = 255 ] && result_of "$RW/auth.json" 'r["exit"] == 255 and r["end"] == "failed" and r["failure"] == "auth"' \
+        && ok "result.${srv%%:*}.auth" "port $port: a login that no key opens gives the end failed and the class auth" \
+        || bad "result.${srv%%:*}.auth" "port $port: exit $rc, $(cat "$RW/auth.json" 2>/dev/null)" "$RW/err"
+done
+# Through a podssh control master: the master tells the exit code alone,
+# and carries the bytes.
+# shellcheck disable=SC2086
+(as_job=exec p 2201 $K -o BatchMode=yes -M -N -S "$RW/ctl" "$T" </dev/null >"$RW/master.out" 2>"$RW/master.err") &
+master=$!
+tries=0
+until [ -S "$RW/ctl" ] || [ "$tries" -ge 100 ]; do
+    sleep 0.1
+    tries=$((tries + 1))
+done
+p 2201 -S "$RW/ctl" --result-file "$RW/shared.json" "$T" 'echo out; exit 3' </dev/null >"$RW/out" 2>"$RW/err"
+rc=$?
+[ "$rc" = 3 ] && [ "$(cat "$RW/out")" = out ] && result_of "$RW/shared.json" \
+    'r["exit"] == 3 and r["end"] == "shared" and r["status"] is None and r["bytes"] is None and r["failure"] is None' \
+    && ok result.shared "through a podssh control master: exit 3, the end shared, and the bytes null" \
+    || bad result.shared "through a control master: exit $rc, $(cat "$RW/shared.json" 2>/dev/null)" "$RW/err"
+p 2201 -S "$RW/ctl" -O exit "$T" </dev/null >/dev/null 2>&1
+kill "$master" 2>/dev/null
+wait "$master" 2>/dev/null

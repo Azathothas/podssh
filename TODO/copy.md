@@ -64,7 +64,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
    extension list for T-134.
 6. Each `SSH_FX_*` status gives a sentence with the path; the server's text
    goes through `podssh_ws::text::one_line`
-   (`crates/podssh-ssh/src/io.rs:315`).
+   (`crates/podssh-ssh/src/io.rs:318`).
 7. No EOF before the last reply. Fail at once on a reply id that no request
    has, and on a `READ` reply longer than its request.
 
@@ -183,7 +183,7 @@ leave a short or wrong file under the destination's name.
 ## Approach
 
 1. `CpArgs` in a new module crates/podssh-cli/src/cp/, read as `SshArgs` is
-   (`crates/podssh-cli/src/ssh/args.rs:139-232`). An operand is remote when a
+   (`crates/podssh-cli/src/ssh/args.rs:141-235`). An operand is remote when a
    `:` comes before any `/`; on Windows, `C:\x` is local. Fewer than two
    operands, or none remote, exit 64.
 2. Build an `SshArgs` (host, `-P` as the port, `-i`, `-o`) for
@@ -336,7 +336,7 @@ a script expects, and its login shell may not be a POSIX shell.
   5 MB down through the relay (`docs/STATUS.md:74`).
 - Read: a command goes as one string, never as a shell request
   (`crates/podssh-ssh/src/options.rs:63-64`), with no pty when stdin is not
-  a terminal (`crates/podssh-ssh/src/session.rs:62-72`).
+  a terminal (`crates/podssh-ssh/src/session.rs:63-73`).
 - Read: the gate's Dropbear has no SFTP setting (`scripts/interop.sh:80-82`);
   whether it finds an `sftp-server` is not measured.
 - Not measured: the login shell runs the command, so a start-up file that
@@ -755,7 +755,7 @@ relay's limits, and logs in as the first session did".
 
 **Source:** ROADMAP M5 ("Across hosts, `mv` is copy, verify, delete; podssh
 says first that it is not atomic"); the description of `mv` in
-`crates/podssh-cli/src/flags.rs:367-368`.
+`crates/podssh-cli/src/flags.rs:369-370`.
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -773,7 +773,7 @@ user must know this before the move starts.
 
 - Measured on `3ee70dc`, offline: `podssh mv --timeout 30s a b` exits 70
   (`'mv' is not implemented yet; nothing was done.`).
-- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:367-368`),
+- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:369-370`),
   so the operands and options of T-134 apply.
 - Measured (T-133's offline probe): `posix-rename@openssh.com` replaces in
   one step; `SSH_FXP_RENAME` refuses an existing target.
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:223-241` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1069-1072`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1093-1096`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1368,7 +1368,7 @@ uplink of a shared host.
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
   (`crates/podssh-cli/src/flags/copy.rs:27-28`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
-  (`crates/podssh-ssh/src/io.rs:445-478`); no copy code exists yet.
+  (`crates/podssh-ssh/src/io.rs:451-484`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
   `-l limit`. OpenSSH's manual gives the unit as Kbit/s (not read here).
 
@@ -1555,8 +1555,8 @@ which needs support in the terminal client.
 ## Premise
 
 - Read: `podssh ssh` writes the remote output to stdout as it comes
-  (`crates/podssh-ssh/src/io.rs:285-300`) and passes the local keys through
-  the escape filter (`crates/podssh-ssh/src/io.rs:188-240`). Nothing looks
+  (`crates/podssh-ssh/src/io.rs:286-301`) and passes the local keys through
+  the escape filter (`crates/podssh-ssh/src/io.rs:188-241`). Nothing looks
   for a ZMODEM header.
 - Not verified here: ZMODEM escapes its control bytes, so it crosses a pty;
   whether a ZMODEM crate in pure Rust exists and is maintained.
@@ -1634,7 +1634,7 @@ host, and the copy back then destroys that change with no word.
 
 ## Approach
 
-1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:348-389`),
+1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:350-391`),
    with the connection flags that T-134 gives `cp`. It needs a terminal on
    stdin and stdout; else exit 64.
 2. Download with T-134 into a new directory of mode 0700 in the cache

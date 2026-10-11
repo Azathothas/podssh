@@ -70,6 +70,8 @@ pub struct SshArgs {
     pub record: Option<String>,
     /// `-P TAG`: the tag that `Match tagged` reads (T-045).
     pub tag: Option<String>,
+    /// `--result-file FILE`: the run's result as JSON (T-054).
+    pub result_file: Option<String>,
     pub su: bool,
     /// `-G`: print the settings, and connect to nothing.
     pub print_config: bool,
@@ -216,6 +218,7 @@ impl SshArgs {
             sudo: flag("sudo"),
             record: one("record"),
             tag: one("tag").filter(|t| !t.is_empty()),
+            result_file: one("result-file"),
             su: flag("su"),
             print_config: flag("print-config"),
             remote_forwards: many("forward-remote"),

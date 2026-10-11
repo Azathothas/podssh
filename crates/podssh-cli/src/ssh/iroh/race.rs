@@ -293,8 +293,9 @@ pub(in crate::ssh) async fn connect(
         Box::pin(resume::run(client, layer_app, connect, note, &mut entropy)),
         session
     );
-    if let Some((_, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, me.as_deref())) {
+    if let Some((fault, why)) = failed.as_ref().and_then(|e| crate::channel::judged(e, me.as_deref())) {
         log.error(&format!("{shown}: {why}"));
+        crate::ssh::result::channel_failed(&fault);
         let _ = layered::last(&legs).await;
         iroh.close().await;
         return EXIT_FAILURE;

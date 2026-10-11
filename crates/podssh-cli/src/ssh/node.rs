@@ -129,6 +129,7 @@ pub(super) async fn connect(
         Ok(leg) => leg,
         Err(e) => {
             log.error(&format!("{shown}: {}", crate::pairs::connect_refusal(&e, label).message));
+            podssh_ssh::outcome::failed("relay");
             return EXIT_FAILURE;
         }
     };
@@ -148,8 +149,9 @@ pub(super) async fn connect(
     );
     // A refused key, or a changed node key, is the session's end whatever
     // the SSH client saw after it.
-    if let Some((_, why)) = &carried.channel {
+    if let Some((fault, why)) = &carried.channel {
         log.error(&format!("{shown}: {why}"));
+        super::result::channel_failed(fault);
         return EXIT_FAILURE;
     }
     if code == EXIT_FAILURE {

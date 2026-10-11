@@ -65,6 +65,14 @@ where
             let first = opts.jump.first().unwrap_or(&opts.destination);
             let target = podssh_ws::dial::authority(&first.host, first.port);
             let end = relay.and_then(|r| r.get());
+            // The class of `--result-file` (T-054): the relay's abnormal
+            // close first, as the lines below name it first.
+            match &end {
+                Some(RelayEnd::Failed(_)) => crate::outcome::failure_is("relay"),
+                Some(RelayEnd::Closed { code: Some(code), .. }) if *code != 1000 => crate::outcome::failure_is("relay"),
+                _ if retry::phase() >= Phase::Ready => crate::outcome::failed("session"),
+                _ => crate::outcome::failed("connect"),
+            }
             let lines = failure_lines(&message, end.as_ref(), &target);
             Outcome { code: EXIT_FAILURE, retry: retry::retry_phase(retry::phase(), end.as_ref()), lines }
         }
@@ -125,6 +133,18 @@ impl std::fmt::Display for HopError {
 
 impl std::error::Error for HopError {}
 
+impl HopError {
+    /// Its class in `--result-file` (T-054).
+    pub fn class(&self) -> &'static str {
+        match self {
+            HopError::Unreachable(_) => "connect",
+            HopError::HostKey(_) => "host-key",
+            HopError::Auth(_) => "auth",
+            HopError::Forward(_) => "forward",
+        }
+    }
+}
+
 /// The SSH connection to each `-J` hop in turn, the destination last, each
 /// authenticated: for a session (`ssh`) and for SFTP (`cp`). Every handle
 /// stays alive until the end, since each hop's channel runs inside the
@@ -133,6 +153,7 @@ pub async fn connect_hops<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Resul
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
+    crate::outcome::fresh();
     let hops: Vec<(&Hop, Cow<'_, Options>)> = opts
         .jump
         .iter()
@@ -161,7 +182,10 @@ async fn run_inner<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Result<i32, 
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let mut handles = connect_hops(stream, opts, log).await.map_err(|e| e.to_string())?;
+    let mut handles = connect_hops(stream, opts, log).await.map_err(|e| {
+        crate::outcome::failed(e.class());
+        e.to_string()
+    })?;
     let host = display(&opts.destination);
     let result = match &opts.request {
         Request::StdioForward(target) => {
@@ -201,6 +225,7 @@ where
             // as a success: OpenSSH says so too, with 255 (T-026).
             match ended {
                 Ok(()) => {
+                    crate::outcome::ended(&crate::io::End::Lost);
                     let said = crate::handler::take_last_disconnect().map(|s| format!(": {s}")).unwrap_or_default();
                     log.error(&format!("the server ended the connection to {host}{said}"));
                     Ok(EXIT_FAILURE)
