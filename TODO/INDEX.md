@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**285 entries: 88 open, 0 partial, 22 blocked, 175 done.**
+**285 entries: 87 open, 0 partial, 22 blocked, 176 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 3 | 0 | 0 | 20 | 23 |
+| P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 5 | 0 | 18 | 133 | 156 |
 | P3 | 80 | 0 | 4 | 21 | 105 |
-| **All** | 88 | 0 | 22 | 175 | 285 |
+| **All** | 87 | 0 | 22 | 176 | 285 |
 
 ## Entries
 
@@ -359,4 +359,4 @@ repository and CI).
 | [T-285](ssh.md) | P2 | S | none | defect | done | A login waits out its limit after the agent fails to sign |
 | [T-286](repo.md) | P1 | S | none | defect | done | Two tests of the record's interop share one scratch tree, and one removes it under the other |
 | [T-287](ssh.md) | P2 | S | none | defect | open | An encrypted key of PKCS#8 or of PuTTY is never asked for, and an encrypted ECDSA key in PEM is refused with its passphrase |
-| [T-288](cli.md) | P1 | S | none | defect | open | On Windows, `podssh keygen` writes a private key with the access list of its directory |
+| [T-288](cli.md) | P1 | S | none | defect | done | On Windows, `podssh keygen` writes a private key with the access list of its directory |

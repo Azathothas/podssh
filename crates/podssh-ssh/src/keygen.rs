@@ -4,7 +4,7 @@
 //! harness checks them with OpenSSH's `ssh-keygen -y` and `-l`, and logs in
 //! with them). A private key is never printed.
 
-use std::fs::OpenOptions;
+use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -93,23 +93,29 @@ pub fn public_path(path: &Path) -> PathBuf {
     PathBuf::from(name)
 }
 
-/// Write `key` to `path` (mode 0600, never over an existing file) and its
-/// public half to `path.pub` (mode 0644, replacing one that is there, as
-/// `ssh-keygen` does). A missing directory is created with mode 0700.
-pub fn write_pair(key: &PrivateKey, path: &Path) -> Result<PathBuf, String> {
+/// How the files of a key pair are made (T-288): the private key a new file
+/// that only its owner may open, `FILE.pub` a new file that each may read
+/// and only its owner may change, and a missing directory private. On Unix
+/// the modes 0600, 0644 and 0700; on Windows access lists of their own, as
+/// OpenSSH's `ssh-keygen` makes them. podssh-relay makes them
+/// (`create_new_private`, `create_new_public` and `private_dir` of its
+/// `cache`), and this crate does not depend on it: the caller passes them.
+#[derive(Clone, Copy)]
+pub struct KeyFiles {
+    pub private: fn(&Path) -> std::io::Result<File>,
+    pub public: fn(&Path) -> std::io::Result<File>,
+    pub dir: fn(&Path) -> std::io::Result<()>,
+}
+
+/// Write `key` to `path` (never over an existing file) and its public half
+/// to `path.pub` (in place of one that is there, as `ssh-keygen` does), each
+/// made by `files`, which also makes a missing directory.
+pub fn write_pair(key: &PrivateKey, path: &Path, files: KeyFiles) -> Result<PathBuf, String> {
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty() && !d.exists()) {
-        let mut builder = std::fs::DirBuilder::new();
-        builder.recursive(true);
-        #[cfg(unix)]
-        std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
-        builder.create(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
+        (files.dir)(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
     }
     let private = key.to_openssh(LineEnding::LF).map_err(|e| format!("could not encode the key: {e}"))?;
-    let mut options = OpenOptions::new();
-    options.write(true).create_new(true);
-    #[cfg(unix)]
-    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
-    let mut file = options.open(path).map_err(|e| match e.kind() {
+    let mut file = (files.private)(path).map_err(|e| match e.kind() {
         std::io::ErrorKind::AlreadyExists => {
             format!(
                 "{} already exists; podssh keygen never overwrites a key (remove it, or choose another -f)",
@@ -123,16 +129,25 @@ pub fn write_pair(key: &PrivateKey, path: &Path) -> Result<PathBuf, String> {
         let _ = std::fs::remove_file(path);
         return Err(format!("could not write {}: {e}", path.display()));
     }
-    let public = public_path(path);
     let line = key.public_key().to_openssh().map_err(|e| format!("could not encode the public key: {e}"))?;
-    let mut options = OpenOptions::new();
-    options.write(true).create(true).truncate(true);
-    #[cfg(unix)]
-    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o644);
-    options.open(&public).and_then(|mut f| f.write_all(format!("{line}\n").as_bytes())).map_err(|e| {
+    write_public(path, &line, files).map_err(|(public, e)| {
         format!("the private key is in {}, but {} could not be written: {e}", path.display(), public.display())
-    })?;
-    Ok(public)
+    })
+}
+
+/// Write `line` to `FILE.pub` for the key at `path`: a new file made by
+/// `files`, in place of one that is there, so that it never keeps an
+/// access list that lets others change it, and never writes through a link.
+pub fn write_public(path: &Path, line: &str, files: KeyFiles) -> Result<PathBuf, (PathBuf, std::io::Error)> {
+    let public = public_path(path);
+    let written = match std::fs::remove_file(&public) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e),
+        _ => (files.public)(&public).and_then(|mut f| f.write_all(format!("{line}\n").as_bytes())),
+    };
+    match written {
+        Ok(()) => Ok(public),
+        Err(e) => Err((public, e)),
+    }
 }
 
 /// What a key file holds.
@@ -259,13 +274,36 @@ mod tests {
         }
     }
 
+    /// Makers of std's for the tests of this crate, which does not depend on
+    /// podssh-relay: the CLI's own tests check the makers that it passes.
+    fn std_files() -> KeyFiles {
+        fn private(path: &Path) -> std::io::Result<File> {
+            let mut options = std::fs::OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+            options.open(path)
+        }
+        fn public(path: &Path) -> std::io::Result<File> {
+            std::fs::OpenOptions::new().write(true).create_new(true).open(path)
+        }
+        fn dir(path: &Path) -> std::io::Result<()> {
+            let mut builder = std::fs::DirBuilder::new();
+            builder.recursive(true);
+            #[cfg(unix)]
+            std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+            builder.create(path)
+        }
+        KeyFiles { private, public, dir }
+    }
+
     #[test]
     fn a_pair_is_written_once_readable_and_never_over_an_existing_key() {
         let dir = std::env::temp_dir().join(format!("podssh-keygen-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let path = dir.join("sub").join("id_ed25519");
         let key = generate(KeyKind::Ed25519, "test@podssh").unwrap();
-        let public = write_pair(&key, &path).unwrap();
+        let public = write_pair(&key, &path, std_files()).unwrap();
         assert_eq!(public, dir.join("sub").join("id_ed25519.pub"));
         let KeyFile::Private(read) = read_key_file(&path).unwrap() else { panic!("not a private key") };
         assert_eq!(read.public_key(), key.public_key());
@@ -280,7 +318,7 @@ mod tests {
         }
         // The planted mistake: a second key over the first.
         let before = std::fs::read(&path).unwrap();
-        let again = write_pair(&generate(KeyKind::Ed25519, "").unwrap(), &path).unwrap_err();
+        let again = write_pair(&generate(KeyKind::Ed25519, "").unwrap(), &path, std_files()).unwrap_err();
         assert!(again.contains("already exists"), "{again}");
         assert_eq!(std::fs::read(&path).unwrap(), before);
         std::fs::remove_dir_all(&dir).unwrap();

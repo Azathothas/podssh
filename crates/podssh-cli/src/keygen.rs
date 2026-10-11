@@ -187,7 +187,7 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
             return EXIT_FAILED;
         }
     };
-    match keygen::write_pair(&key, &path) {
+    match keygen::write_pair(&key, &path, KEY_FILES) {
         Ok(public) => {
             if !args.quiet {
                 let _ = writeln!(out, "Your identification has been saved in {}", path.display());
@@ -203,6 +203,15 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
         }
     }
 }
+
+/// The files of a key pair (T-288): the private key closed to others, its
+/// `.pub` that others may read and not change, and a missing directory
+/// private; on Windows each with an access list of its own.
+pub(crate) const KEY_FILES: keygen::KeyFiles = keygen::KeyFiles {
+    private: podssh_relay::cache::create_new_private,
+    public: podssh_relay::cache::create_new_public,
+    dir: podssh_relay::cache::private_dir,
+};
 
 /// A new passphrase, asked twice. Empty means none.
 pub(crate) fn ask_new_passphrase(first: &str) -> Result<Zeroizing<String>, String> {

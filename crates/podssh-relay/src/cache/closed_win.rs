@@ -179,7 +179,18 @@ impl Drop for Descriptor {
 fn private_descriptor(inherit: bool) -> io::Result<Descriptor> {
     let user = user_sid().map_err(io::Error::other)?;
     let flags = if inherit { "OICI" } else { "" };
-    let sddl = format!("D:P(A;{flags};FA;;;SY)(A;{flags};FA;;;BA)(A;{flags};FA;;;{user})");
+    descriptor(&format!("D:P(A;{flags};FA;;;SY)(A;{flags};FA;;;BA)(A;{flags};FA;;;{user})"))
+}
+
+/// The access list of a file that each may read and only those of the
+/// private list may change, as OpenSSH for Windows makes a `.pub` file
+/// (T-288): the private list, and reading for Everyone.
+fn public_descriptor() -> io::Result<Descriptor> {
+    let user = user_sid().map_err(io::Error::other)?;
+    descriptor(&format!("D:P(A;;FA;;;SY)(A;;FA;;;BA)(A;;FA;;;{user})(A;;FR;;;WD)"))
+}
+
+fn descriptor(sddl: &str) -> io::Result<Descriptor> {
     let wide: Vec<u16> = sddl.encode_utf16().chain(Some(0)).collect();
     let mut descriptor: PSECURITY_DESCRIPTOR = std::ptr::null_mut();
     // SAFETY: `wide` ends with a NUL; `descriptor` receives an allocation
@@ -205,7 +216,16 @@ fn wide(path: &Path) -> Vec<u16> {
 /// A new file of this user that nobody else may open, never one that
 /// exists, and so never through a link.
 pub(crate) fn create_new_private(path: &Path) -> io::Result<File> {
-    let descriptor = private_descriptor(false)?;
+    create_new(path, &private_descriptor(false)?)
+}
+
+/// A new file of this user that each may read and nobody else may change,
+/// never one that exists (T-288).
+pub(crate) fn create_new_public(path: &Path) -> io::Result<File> {
+    create_new(path, &public_descriptor()?)
+}
+
+fn create_new(path: &Path, descriptor: &Descriptor) -> io::Result<File> {
     let attributes = SECURITY_ATTRIBUTES {
         nLength: std::mem::size_of::<SECURITY_ATTRIBUTES>() as u32,
         lpSecurityDescriptor: descriptor.0,

@@ -355,6 +355,27 @@ pub fn create_new_private(path: &Path) -> std::io::Result<std::fs::File> {
     std::fs::OpenOptions::new().write(true).create_new(true).open(path)
 }
 
+#[cfg(unix)]
+/// A new file that each may read and only its owner may change (mode 0644),
+/// never one that exists and never through a symlink (T-288).
+pub fn create_new_public(path: &Path) -> std::io::Result<std::fs::File> {
+    use std::os::unix::fs::OpenOptionsExt;
+    std::fs::OpenOptions::new().write(true).create_new(true).mode(0o644).custom_flags(libc::O_NOFOLLOW).open(path)
+}
+
+/// A new file that each may read and only its owner, SYSTEM and the
+/// Administrators may change, as OpenSSH for Windows makes a `.pub` file
+/// (T-288), never one that exists.
+#[cfg(windows)]
+pub fn create_new_public(path: &Path) -> std::io::Result<std::fs::File> {
+    closed_win::create_new_public(path)
+}
+
+#[cfg(not(any(unix, windows)))]
+pub fn create_new_public(path: &Path) -> std::io::Result<std::fs::File> {
+    std::fs::OpenOptions::new().write(true).create_new(true).open(path)
+}
+
 /// Make `dir` a private directory of this user, as the cache's are: for the
 /// tests of each crate, whose scratch directories hold files that podssh
 /// checks (T-274).

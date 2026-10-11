@@ -543,6 +543,12 @@ GitHub #23): the time of each step, the round trip, and the throughput.
 - The `ssh-keygen` of OpenSSH does not run without a user database entry,
   so podssh makes keys itself, in the formats of OpenSSH.
 - A new key is never written over an existing file.
+- Only its owner may open the private key: mode 0600, and on Windows an
+  access list of its own for the user, SYSTEM and the Administrators, with
+  nothing from the directory above, as OpenSSH's `ssh-keygen` makes it;
+  OpenSSH for Windows refuses a key that others may open. Each may read
+  `FILE.pub`, and only its owner may change it (mode 0644; on Windows,
+  Everyone reads it). A missing directory is made private (T-288).
 - `-p` changes the passphrase of the key in `-f FILE`, and `-c` its comment,
   in the key and in `FILE.pub` (T-018). The file is replaced only with the
   same key: the new text goes to a new private file beside it, which is

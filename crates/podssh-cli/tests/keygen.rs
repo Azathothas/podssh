@@ -302,3 +302,66 @@ fn change_comment_in_the_key_and_in_its_public_file() {
     assert_eq!(shown.code, 0, "the passphrase was kept: {}", shown.err);
     assert!(shown.out.trim_end().ends_with(" new-comment"), "{}", shown.out);
 }
+
+/// A new key is a file that only its owner may open, and its `.pub` one that
+/// others may read and not change, also in a directory that lets others in
+/// (T-288): on Windows the group Users may modify each file of the scratch
+/// directory, and OpenSSH's own `ssh-keygen`, which refuses a key that
+/// others may open, uses the key when it is installed. A missing directory
+/// is made private, and `-c` writes the `.pub` again as a new file of the
+/// same kind.
+#[test]
+fn a_new_key_is_private() {
+    use podssh_relay::cache::{closed, Others};
+    let dir = scratch();
+    #[cfg(windows)]
+    {
+        let out = Command::new("icacls").arg(&dir).args(["/grant", "*S-1-5-32-545:(OI)(CI)(M)"]).output().unwrap();
+        assert!(out.status.success(), "icacls: {}", String::from_utf8_lossy(&out.stdout));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+    let open = |path: &Path| {
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true);
+        // A directory opens on Windows with FILE_FLAG_BACKUP_SEMANTICS.
+        #[cfg(windows)]
+        std::os::windows::fs::OpenOptionsExt::custom_flags(&mut options, 0x0200_0000);
+        options.open(path).unwrap()
+    };
+    let key = dir.join("k");
+    let public = dir.join("k.pub");
+    let shown = key.to_string_lossy().into_owned();
+    let run = podssh(&["keygen", "-q", "-N", "", "-C", "closed", "-f", &shown]);
+    assert_eq!(run.code, 0, "{}", run.err);
+    closed(&key, &open(&key), Others::NoAccess).expect("the key is closed to others");
+    closed(&public, &open(&public), Others::Read).expect("others may not change the .pub");
+    #[cfg(windows)]
+    {
+        let openssh = Path::new(r"C:\Windows\System32\OpenSSH\ssh-keygen.exe");
+        if openssh.exists() {
+            let out = Command::new(openssh).args(["-y", "-f"]).arg(&key).output().unwrap();
+            assert!(out.status.success(), "OpenSSH refused the key: {}", String::from_utf8_lossy(&out.stderr));
+            assert!(String::from_utf8_lossy(&out.stdout).starts_with("ssh-ed25519 "));
+        }
+    }
+    let run = podssh(&["keygen", "-c", "-C", "renamed", "-q", "-f", &shown]);
+    assert_eq!(run.code, 0, "{}", run.err);
+    closed(&public, &open(&public), Others::Read).expect("others may not change the new .pub");
+    assert!(std::fs::read_to_string(&public).unwrap().trim_end().ends_with(" renamed"));
+
+    let sub = dir.join("sub");
+    let run = podssh(&["keygen", "-q", "-N", "", "-f", &sub.join("k").to_string_lossy()]);
+    assert_eq!(run.code, 0, "{}", run.err);
+    closed(&sub, &open(&sub), Others::NoAccess).expect("the new directory is closed to others");
+    closed(&sub.join("k"), &open(&sub.join("k")), Others::NoAccess).expect("the key is closed to others");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o777;
+        assert_eq!((mode(&key), mode(&public), mode(&sub)), (0o600, 0o644, 0o700));
+    }
+}

@@ -72,9 +72,10 @@ Each rule is implemented.
   that it includes among them. A file of the cache, a key and a pair file
   are refused when another principal may read them too. Unlike OpenSSH
   10.0p2, the right to change the access list counts as a write. podssh
-  makes its own files and directories with an access list of their own,
-  which lets in the user, SYSTEM and the Administrators alone, whatever the
-  directory above them lets in.
+  makes its own files and directories, and the keys of `podssh keygen`
+  (T-288), with an access list of their own, which lets in the user, SYSTEM
+  and the Administrators alone, whatever the directory above them lets in;
+  a key's `.pub` also lets Everyone read it.
 - **Text from a peer is made safe before it goes to a terminal.** Close
   reasons, HTTP error bodies, SSH banners and disconnect messages,
   keyboard-interactive prompts, chat messages and IRC text can contain ESC,

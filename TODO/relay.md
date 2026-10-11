@@ -762,7 +762,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    then the platform's temporary directory (`std::env::temp_dir`) with the user's tag; then the
    working directory. No path literal stays in `cache.rs`.
 3. Probe each as now: a missing directory is made with mode 0700
-   (`crates/podssh-relay/src/cache.rs:365-382`), and one that refuses a write is skipped. When the
+   (`crates/podssh-relay/src/cache.rs:386-403`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
    (`crates/podssh-ws/src/dial.rs:104-118`), so that the tests can set it.
@@ -938,7 +938,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:145`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:146`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -1087,10 +1087,10 @@ the user's own file is read. Planted: a check that returns `true`; a test fails.
 
 ## Done
 
-2026-10-11. On Windows `closed` (`crates/podssh-relay/src/cache.rs:400-426`) reads the owner and
+2026-10-11. On Windows `closed` (`crates/podssh-relay/src/cache.rs:421-447`) reads the owner and
 the access list of the opened file (`crates/podssh-relay/src/cache/closed_win.rs:45-49`) and judges
 them by the rules of the Decision (`crates/podssh-relay/src/cache/closed.rs:45-65`); podssh's
-directories and files are made private (`crates/podssh-relay/src/cache/closed_win.rs:207-274`).
+directories and files are made private (`crates/podssh-relay/src/cache/closed_win.rs:218-294`).
 `SECURITY.md` and the manual's FILES say so.
 - `cargo test -p podssh-relay --lib -- closed`: the 4 tests of the rules passed, on Windows: an
   owner that is the user, SYSTEM or the Administrators; another owner, and no list, refused; a

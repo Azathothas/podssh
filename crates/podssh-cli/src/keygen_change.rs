@@ -70,10 +70,9 @@ fn run(args: &KeygenArgs, path: &Path, out: &mut dyn Write) -> Result<(), Failed
     let key = keygen::protect(key, &passphrase).map_err(failed)?;
     replace(path, &key, &original, &passphrase).map_err(failed)?;
     if args.change_comment {
-        let public = keygen::public_path(path);
         let line =
             key.public_key().to_openssh().map_err(|e| failed(format!("could not encode the public key: {e}")))?;
-        std::fs::write(&public, format!("{line}\n")).map_err(|e| {
+        keygen::write_public(path, &line, crate::keygen::KEY_FILES).map_err(|(public, e)| {
             failed(format!(
                 "the key in {shown} has the new comment, but {} could not be written: {e}",
                 public.display()
