@@ -42,7 +42,7 @@ them too, which is wrong. An unknown `%` token stays as text (`crates/podssh-cli
    `USERPROFILE` (`crates/podssh-cli/src/ssh/resolve.rs`, lines 71-83 at `c0cdd2b`). Only a missing `-F` file is an
    error (`docs/cli.md`, lines 599-600 at `c0cdd2b`).
 4. `Host` patterns through `known_hosts::wildcard`
-   (`crates/podssh-ssh/src/known_hosts.rs:288-310`); not `matches`, which accepts `|1|` hashes.
+   (`crates/podssh-ssh/src/known_hosts.rs:299-321`); not `matches`, which accepts `|1|` hashes.
 5. Refuse `Match`, and `Include` until T-044, by name with FILE:LINE (`docs/cli.md`, lines 596-598 at `c0cdd2b`).
    In a block that applies, refuse each option that `-o` refuses
    (`crates/podssh-cli/src/ssh/keywords.rs`, lines 84-89 at `c0cdd2b`), but accept a `ProxyCommand` that runs
@@ -188,7 +188,7 @@ Measured here with `ssh -G -F FILE x` (OpenSSH_10.3p1 of Git for Windows, no net
   of `Host x`.
 
 No glob code exists in podssh. `known_hosts::wildcard`
-(`crates/podssh-ssh/src/known_hosts.rs:288-310`) matches `*` and `?`.
+(`crates/podssh-ssh/src/known_hosts.rs:299-321`) matches `*` and `?`.
 
 ## Approach
 
@@ -309,7 +309,7 @@ canonical pass: `CanonicalizeHostname` is accepted and ignored
 
 1. Evaluate the criteria `all`, `host`, `originalhost`, `user`, `localuser`, `tagged`,
    `canonical` and `final`, each with `!` negation and with comma lists of patterns, through
-   `known_hosts::wildcard` (`crates/podssh-ssh/src/known_hosts.rs:288-310`).
+   `known_hosts::wildcard` (`crates/podssh-ssh/src/known_hosts.rs:299-321`).
 2. `originalhost` matches the name as typed. `host` matches the name after a `HostName` of an
    earlier block. Measure each order with `ssh -G`, and keep the case of sshping PR #212 (a
    `Match` that sets `HostName`) as a test.

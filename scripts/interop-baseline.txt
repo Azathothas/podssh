@@ -11,6 +11,7 @@
 support scripts/interop-lib.sh
 support scripts/interop-conpty-msys2.py
 harness ssh interop 71 scripts/interop.sh
+harness limits interop 2 scripts/interop-limits.sh
 harness status interop 6 scripts/interop-status.sh
 harness keygen interop 28 scripts/interop-keygen.sh
 harness agent interop 18 scripts/interop-agent.sh
@@ -101,6 +102,10 @@ ssh.pty.permittty_no pass
 ssh.pty.ctrl_c pass
 ssh.pty.vi pass
 ssh.pty.driver pass
+
+# scripts/interop-limits.sh
+limits.fast_reader pass
+limits.slow_reader pass
 
 # scripts/interop-status.sh
 status.as_openssh.n pass

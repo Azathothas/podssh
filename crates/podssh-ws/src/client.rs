@@ -34,6 +34,9 @@ pub const LIVENESS_ALLOWED: u32 = 3;
 /// Bound on one write to an open session.
 pub const WRITE_TIMEOUT: Duration = Duration::from_secs(60);
 
+/// The largest head of the relay's answer to the upgrade (T-201).
+pub const UPGRADE_HEAD: usize = 16 * 1024;
+
 /// What to connect to.
 #[derive(Debug, Clone)]
 pub struct Endpoint {
@@ -219,7 +222,7 @@ where
         if let Some(end) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
             break end + 4;
         }
-        if buf.len() > 16 * 1024 {
+        if buf.len() > UPGRADE_HEAD {
             return Err(ConnectError::Upgrade("no end of the response headers within 16 KiB".into()));
         }
         let n = tls.read(&mut chunk).await.map_err(io)?;

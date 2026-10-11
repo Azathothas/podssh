@@ -309,7 +309,7 @@ the configuration on each call (`crates/podssh-ws/src/client.rs` lines 187-207 a
 (`client.rs` lines 47-61 at `723d90b`). The same `Trust` goes through `podssh-relay`: `Request`
 (`crates/podssh-relay/src/open.rs:130-140`), `MintContext`
 (`crates/podssh-relay/src/token.rs:94-99`), the pool refresh
-(`crates/podssh-relay/src/pool.rs:117-126`), and the `https_*` functions (`client.rs` lines
+(`crates/podssh-relay/src/pool.rs:120-128`), and the `https_*` functions (`client.rs` lines
 261-287). podssh's configuration offers no ALPN (`tls.rs` lines 174-177 at `723d90b`), because the upgrade is
 HTTP/1.1 only (`docs/relay.md:216`). The `tls12` feature of `rustls` is on in the workspace
 (`[workspace.dependencies]` of `Cargo.toml`).
@@ -822,7 +822,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (`:80-88`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:387-396`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:390-399`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach

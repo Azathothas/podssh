@@ -18,6 +18,16 @@ use hmac::{Hmac, Mac};
 use russh::keys::ssh_key::PublicKey;
 use sha1::Sha1;
 
+/// The largest file that podssh reads, far above a real one, whose line is
+/// about 100 bytes: a bound on the memory of each lookup (T-201). A larger
+/// file cannot be read, and its name says so.
+pub const MAX_FILE: u64 = 16 << 20;
+
+/// Why a file over [`MAX_FILE`] cannot be read.
+fn too_large() -> String {
+    format!("it is larger than {} MiB, which no known_hosts file is", MAX_FILE >> 20)
+}
+
 /// A marker at the start of a line.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Marker {
@@ -184,7 +194,8 @@ fn read_file(path: &Path) -> Result<Option<Vec<u8>>, String> {
         Ok(_) => {}
     }
     let mut raw = Vec::new();
-    match std::fs::File::open(path).and_then(|mut file| file.read_to_end(&mut raw)) {
+    match std::fs::File::open(path).and_then(|file| file.take(MAX_FILE + 1).read_to_end(&mut raw)) {
+        Ok(_) if raw.len() as u64 > MAX_FILE => Err(too_large()),
         Ok(_) => Ok(Some(raw)),
         // Removed between the two looks: missing.
         Err(e) if missing(&e) => Ok(None),
@@ -337,7 +348,10 @@ pub fn append(path: &Path, name: &str, key: &PublicKey) -> std::io::Result<Recor
     let mut handle = &file;
     let mut raw = Vec::new();
     handle.seek(SeekFrom::Start(0))?;
-    handle.read_to_end(&mut raw)?;
+    handle.take(MAX_FILE + 1).read_to_end(&mut raw)?;
+    if raw.len() as u64 > MAX_FILE {
+        return Err(std::io::Error::new(ErrorKind::InvalidData, too_large()));
+    }
     match judge(&parse_entries(path, &raw, name), key) {
         Lookup::Known { line, .. } => return Ok(Recorded::Already { line }),
         Lookup::Changed { line, recorded, .. } => return Ok(Recorded::Changed { line, recorded }),

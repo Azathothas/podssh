@@ -34,9 +34,9 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
 SOCKS5 proxy's answers (`crates/podssh-ws/src/socks5.rs:156`); close
 reasons (`crates/podssh-ws/src/session.rs:335`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
-(`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:92`);
+(`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:95`);
 `known_hosts` lines, in a private function
-(`crates/podssh-ssh/src/known_hosts.rs:229`); the escape filter
+(`crates/podssh-ssh/src/known_hosts.rs:240`); the escape filter
 (`crates/podssh-ssh/src/escape.rs:30`); IRC lines and frames
 (`crates/podssh-core/src/irc/encode.rs:88`,
 `crates/podssh-core/src/irc/framing.rs:110`); the command line
@@ -301,6 +301,9 @@ baseline changes with its check.
   lines of that run: with the PAM check as `env`, the scorer exits 1:
   "ssh.auth.kbdint_pam gave env, where ok is due", and ssh passed 70 checks,
   under its floor of 71.
+- CI at `72ca309` (run 38118496778): every job passed; the step `release`
+  scored interop 301 of 301 and the man page 7 of 7, and the job `windows`
+  the console checks, conpty 14 of 14, each at its floor.
 
 # T-200: A terminal oracle
 
@@ -393,7 +396,7 @@ read in the reports, not verified here.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -412,16 +415,16 @@ Read, the bounds today:
 - A response head: 16 KiB for HTTP (`crates/podssh-ws/src/http.rs:8`), for the
   proxy (`crates/podssh-ws/src/dial.rs:21`) and for the upgrade
   (`crates/podssh-ws/src/handshake.rs:124`).
-- The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:33`). A cache
-  file: 64 KiB (`crates/podssh-relay/src/cache.rs:28`).
+- The pool document: 256 KiB (`crates/podssh-relay/src/pool.rs:36`). A cache
+  file: 64 KiB (`crates/podssh-relay/src/cache.rs:29`).
 - The SSH window: 512 KiB (`crates/podssh-ssh/src/run.rs:30`). The relay pipe:
   256 KiB each way, frames of 64 KiB
   (`crates/podssh-ssh/src/relay_stream.rs:30-33`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/pipe/pump.rs:21`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
   `crates/podssh-relay/src/open.rs:25-29`, `crates/podssh-ssh/src/session.rs:21`.
-- No limit: a `known_hosts` file is read whole
-  (`crates/podssh-ssh/src/known_hosts.rs:186-192`); the IRC buffer (T-096).
+- No limit: a `known_hosts` file was read whole (`crates/podssh-ssh/src/known_hosts.rs`,
+  lines 186-192 at `72ca309`); the IRC buffer (T-096).
 - Two texts disagreed until T-024. The comment on the SSH window
   (`crates/podssh-ssh/src/run.rs` lines 25-28 at `80f20bf`) said that the
   relay drops a frame when more than 1 MiB waits (`1011 relay
@@ -440,7 +443,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:399-402`): a proxy head that never ends stops at
+   (`docs/development.md:401-404`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -466,10 +469,76 @@ sh scripts/dev.sh check                    # interop: the slow reader stays unde
 ```
 
 Each command exits 0. Planted defect: set `WINDOW`
-(`crates/podssh-ssh/src/run.rs:30`) to 64 MiB; the slow-reader check must
-fail. If it does not, the bound is somewhere else: find it before anybody
-trusts the check. A second plant: remove the check at
-`crates/podssh-ws/src/session.rs:300-302`; the fragment test must fail.
+(`crates/podssh-ssh/src/run.rs:30`) to 64 MiB, and russh's queue of a
+channel (`channel_buffer_size`, `crates/podssh-ssh/src/run.rs:380-389`) to
+2^20 messages; the slow-reader check must fail. The window alone is not
+enough: the queue is a second bound (Correction). A second plant: remove the
+check at `crates/podssh-ws/src/session.rs:300-302`; the fragment test must
+fail.
+
+## Correction
+
+2026-10-11, read against the Premise; each holds at the cited lines:
+
+- The frame's bound refuses a 64-bit length (`crates/podssh-ws/src/frame.rs:171-173`). The check
+  after it (`crates/podssh-ws/src/frame.rs:179-183`) cannot fire: a shorter length is at most 65535.
+- The upgrade that podssh sends is `client::upgrade`, whose bound was a literal; it is
+  `UPGRADE_HEAD` now (`crates/podssh-ws/src/client.rs:38`). `MAX_HANDSHAKE_RESPONSE`
+  (`crates/podssh-ws/src/handshake.rs:124`) bounds `handshake::handshake`, which no command calls.
+- The steps of the connection wait `CONNECT_TIMEOUT` each (`crates/podssh-relay/src/open.rs:25`).
+  `DEFAULT_TIMEOUT` (`crates/podssh-ws/src/client.rs:21`) is a default for an embedder, which no
+  command of podssh takes.
+- The IRC buffer has a bound since T-096: 8192 bytes for a line
+  (`crates/podssh-core/src/irc/framing.rs:52`).
+- `known_hosts` was read whole a second time, under the lock of a record (`append`); the bound
+  covers both reads.
+- A pool body past its bound, and a file of the cache past its bound, are dropped with no word:
+  the refresh's error goes nowhere (`crates/podssh-relay/src/open.rs:261`), and the cache reads a
+  file that it cannot use as none (`crates/podssh-relay/src/cache.rs:297-299`). Each is made again,
+  so the table says so, and nothing is added.
+- `PODSSH_REPLAY_BUFFER` above 16 MiB gives 4 MiB, the default, not 16 MiB
+  (`crates/podssh-relay/src/session/replay.rs:27-31`), as its comment says: another value is
+  ignored. The table says so.
+- The window is not the only bound of a reader that takes nothing: russh queues at most 100
+  messages of a channel (`channel_buffer_size`, its default, which
+  `crates/podssh-ssh/src/run.rs:380-389` leaves), each of 32 KiB at most, and its task then reads
+  no more from the server. Measured in the build image on 2026-10-11, with the Prove's plant: the
+  window at 64 MiB gave a peak of 8948 KiB, held by the queue; the queue at 2^20 messages as well
+  gave 62708 KiB, and even a reader that took each byte held 62084 KiB, as the server outran the
+  output.
+  So the check compares no reader with another: its ceiling is half of what the server writes,
+  and the plant is both bounds.
+
+## Done
+
+2026-10-11. `docs/architecture.md`, "Limits": each bound of memory and of time, with its value,
+its constant and file, and what podssh does past it; the relay's forward path, russh's queue of
+a channel and the replay buffers of M6 among them. The upgrade's bound has a name,
+`UPGRADE_HEAD` (`crates/podssh-ws/src/client.rs:38`); `known_hosts` has a bound of 16 MiB, in
+both of its reads (`crates/podssh-ssh/src/known_hosts.rs:24`); the pool's request takes a stream
+(`pool::request`), so that a test can serve it. `scripts/interop-limits.sh` measures a session
+whose output nobody reads; `scripts/interop-baseline.txt` has its two ids.
+- `cargo test -p podssh-ws --test limits`: 6 passed. Against a peer that never stops, the heads
+  of the upgrade, of HTTP and of a proxy's CONNECT stop at 16 KiB, and the peer wrote less than
+  the bound and 8 KiB before podssh stopped reading; a body of each framing is read at its bound
+  and refused one byte past it; a frame of 262144 bytes is read, and a header of one byte more
+  ends the session with a Close 1002 before its payload; 16 MiB of fragments are read whole, and
+  one byte more ends the session with a Close 1009.
+- `cargo test -p podssh-relay --test limits`: 3 passed. A pool of 256 KiB is read and one byte
+  more refused, an endless pool body stops past the bound, and a file of the cache of 64 KiB is
+  read and one byte more ignored, the pool's and a token's.
+- `cargo test -p podssh-ssh --test known_hosts`: 17 passed. A file of 16 MiB is read; one byte
+  more is unreadable, with its reason, and a record into it is refused, the file unchanged.
+- Planted, natively: without the check of fragments
+  (`crates/podssh-ws/src/session.rs:300-302`), a message of 16777217 bytes came through, and the
+  test failed; without the bound of `known_hosts`, the larger file was read, and the test failed.
+- In the build image, `scripts/interop-limits.sh` alone with the Prove's plants: as the code is, a
+  reader that took each byte peaked at 6884 KiB, and one that took nothing for 30 s at 7460 KiB,
+  under the ceiling of 24414 KiB; with the window at 64 MiB, 9444 and 8948 KiB, held by russh's
+  queue; with the queue at 2^20 messages as well, 62084 and 62708 KiB, and both checks failed. The
+  step `release` (`sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh release'`): interop 303
+  passed, 0 failed, the reader that took each byte at 6836 KiB and the other at 7160 KiB, each
+  harness at its floor (limits 2), and "gate green (release)".
 
 # T-202: Property tests for the state machines
 
@@ -499,7 +568,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:77`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:107-183`, `crates/podssh-ws/src/names.rs:8-57`).
-- `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:254-310`).
+- `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:265-321`).
 - The escape filter, which keeps its state from one read to the next
   (`crates/podssh-ssh/src/escape.rs:30-70`).
 - The sanitizer (`crates/podssh-ws/src/text.rs:12-57`).
@@ -574,7 +643,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:36-44` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:254-271`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:255-272`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:302`, enforced at
   `crates/podssh-ssh/src/run.rs:297-303`); a reply, 30 s
@@ -602,7 +671,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate, item 9 since T-156,
-   `docs/development.md:279-291`) and the faults table of docs/STATUS.md.
+   `docs/development.md:281-293`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 
@@ -708,7 +777,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io.rs:252-257`, with `crates/podssh-ssh/src/io.rs:45-47`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:71`, `docs/STATUS.md:74`).
+  (`docs/STATUS.md:71`, `docs/STATUS.md:75`).
 - A correction to the framing of #34: for a signal, podssh differs from
   OpenSSH on purpose. `docs/cli.md:805-806` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the

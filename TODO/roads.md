@@ -172,7 +172,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:288-289`,
    file. `--iroh-key FILE` names the file, as `--ts-state` does; with no flag,
    it goes to the first usable directory of the cache chain
    (`crates/podssh-relay/src/cache.rs`, lines 61-76 at `4dd52f8`). Reuse the private-file code of
-   the token cache (`crates/podssh-relay/src/cache.rs:294-319`: mode 0600, no
+   the token cache (`crates/podssh-relay/src/cache.rs:295-320`: mode 0600, no
    symbolic link, the owner checked); do not write a second copy.
 2. Print the fingerprint of the public key, never the secret key. A node key
    persists, and a node warns when it makes a new one, because its ticket
@@ -486,7 +486,7 @@ operator's Cloudflare account.
 Read: the decision of the operator (`docs/decisions.md`, 2026-10-08). The
 forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
-(`crates/podssh-relay/src/pool.rs:18-27`); the same shape fits the iroh
+(`crates/podssh-relay/src/pool.rs:20-29`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
 published (`docs/design.md:595-597`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
@@ -916,7 +916,7 @@ on TCP, and registers with Cap'n Proto RPC. Read: the measured proxy allows
 and the sandbox refuses UDP (`docs/target-environment.md:23`). If the edge
 needs port 7844, a cage cannot publish a tunnel. A client in a cage can still
 reach the tunnel's name on port 443 with `podssh-ws`
-(`crates/podssh-ws/src/client.rs:156-179`).
+(`crates/podssh-ws/src/client.rs:159-182`).
 
 ## Approach
 
@@ -972,7 +972,7 @@ Cloudflare Access. From a cage, podssh cannot reach it: the client is
 ## Premise
 
 Read: podssh's WebSocket client sends its credential in one fixed header,
-`X-Relay-Token` (`crates/podssh-ws/src/client.rs:156-179`,
+`X-Relay-Token` (`crates/podssh-ws/src/client.rs:159-182`,
 `crates/podssh-ws/src/handshake.rs:3`), through `HTTPS_PROXY`, with podssh's
 own TLS provider; the measured proxy allows `CONNECT` to port 443
 (`docs/target-environment.md:21`). Not verified here (to read in the source
@@ -1174,7 +1174,7 @@ The part of podssh, when the start condition holds:
    URL or in output (`docs/relay.md:123-125`).
 4. A resume must reach the same Durable Object, so only hosts of one
    deployment can resume a session (the rule of the pool:
-   `crates/podssh-relay/src/pool.rs:79-88`).
+   `crates/podssh-relay/src/pool.rs:82-91`).
 5. Test against the relay's implementation, live, and against the stand-in
    relay with the same state machine.
 6. When the relay's version changes, update the pinned contract and

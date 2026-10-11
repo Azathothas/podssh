@@ -9,8 +9,10 @@
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use podssh_ws::{https_get, ProxyChoice, Trust};
+use podssh_ws::client::open_tls;
+use podssh_ws::{dial, http, ProxyChoice, Trust};
 use serde::{Deserialize, Serialize};
+use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::cache;
 use crate::relay::{check_host, Relay, DEFAULT_RELAY_HOST};
@@ -29,8 +31,9 @@ pub const SEED: &[&str] = &[
 /// A cached pool older than this is still used, and refreshed at the next mint.
 pub const STALE_AFTER_MS: i64 = 7 * 24 * 3600 * 1000;
 
-/// The largest `/relays.json` read.
-const MAX_BODY: usize = 256 * 1024;
+/// The largest `/relays.json` read: the pool is a short list, and a larger
+/// body is refused before it takes more of podssh's memory (T-201).
+pub const MAX_BODY: usize = 256 * 1024;
 
 #[derive(Serialize, Deserialize)]
 struct CachedPool {
@@ -121,17 +124,32 @@ pub async fn refresh(
     proxy: &ProxyChoice,
     timeout: Duration,
 ) -> Result<usize, String> {
-    let response = https_get(&relay.host, relay.port, "/relays.json", MAX_BODY, trust, proxy, timeout)
+    let mut tls =
+        open_tls(&relay.host, relay.port, &relay.host, trust, proxy, timeout).await.map_err(|e| e.to_string())?;
+    let host_header = if relay.port == 443 { relay.host.clone() } else { dial::authority(&relay.host, relay.port) };
+    let hosts = tokio::time::timeout(timeout, request(&mut tls, &host_header, primary))
         .await
-        .map_err(|e| e.to_string())?;
-    if !(200..300).contains(&response.status) {
-        return Err(format!("the pool request answered HTTP {}", response.status));
-    }
-    let hosts = parse_pool(&response.body, primary)?;
+        .map_err(|_| format!("the pool request took more than {} s", timeout.as_secs()))??;
     let body =
         serde_json::to_vec(&CachedPool { fetched_ms: now_ms(), hosts: hosts.clone() }).map_err(|e| e.to_string())?;
     cache::store_file(&file_name(primary), &body)?;
     Ok(hosts.len())
+}
+
+/// The hosts of `primary`'s deployment that `/relays.json` lists, asked for
+/// over `stream`, with the body read up to [`MAX_BODY`] bytes.
+pub async fn request<S>(stream: &mut S, host_header: &str, primary: &str) -> Result<Vec<String>, String>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let accept = [("Accept", "application/json")];
+    let response = http::exchange(stream, "GET", host_header, "/relays.json", &accept, b"", MAX_BODY)
+        .await
+        .map_err(|e| format!("the pool request failed: {e}"))?;
+    if !(200..300).contains(&response.status) {
+        return Err(format!("the pool request answered HTTP {}", response.status));
+    }
+    parse_pool(&response.body, primary)
 }
 
 pub(crate) fn now_ms() -> i64 {

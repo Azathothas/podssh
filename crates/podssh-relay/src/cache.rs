@@ -25,7 +25,8 @@ pub use own::{create_file_in_first, create_private, read_own, Others};
 pub const MIN_REMAINING_MS: i64 = 10 * 60 * 1000;
 
 /// The largest cache file read (a pool of a few hundred host names fits).
-const MAX_FILE: u64 = 64 * 1024;
+/// A larger one is not read: a cache file is ignored, and made again (T-201).
+pub const MAX_FILE: u64 = 64 * 1024;
 
 #[derive(Serialize, Deserialize)]
 struct Entry {

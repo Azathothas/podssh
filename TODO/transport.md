@@ -180,7 +180,7 @@ The first test feeds the double a Close with code 1001 and `pair expired`. It as
 `TransportError::Closed` with that code and reason, and `retry() == Retry::NewPair`; with
 `operator stopped reverse relay` it asserts `Retry::Never`. Add one Close payload captured from
 the live relay (for example `1000 target closed` through `podssh proxy`) as a fixture, so the
-parser also meets bytes that podssh did not make (`docs/development.md:390-392`). The second test
+parser also meets bytes that podssh did not make (`docs/development.md:392-394`). The second test
 asserts that an unmatched `4000 x` and a node's `1011 connection refused` both show their own code
 and reason. Plant: delete the new 0x8 arm; the first test must fail with `Unexpected`.
 
@@ -550,7 +550,7 @@ Read: `LegTarget::path` formats `/connect/{host}/{port}`, `/v1/node/{name}` and
 `github.com` and `podssh` (crates/podssh-transport/tests/endpoints.rs at `e8bbd4d` lines 70-85).
 
 Read: `WsClientConfig::validate` refuses whitespace and a query string that is not a connect knob,
-but not `#`, `/` or `..` in a segment (`crates/podssh-ws/src/client.rs:68-87`).
+but not `#`, `/` or `..` in a segment (`crates/podssh-ws/src/client.rs:71-90`).
 
 Read: the commands already check the forward path. `podssh_relay::relay::forward_path` calls
 `check_host`: letters, digits, `.`, `-` and `_`, no leading `-` or `.`, at most 253 characters

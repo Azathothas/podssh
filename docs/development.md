@@ -273,7 +273,9 @@ dependencies that these minimums allow. The other steps make sure that:
    `podssh ssh --direct` against them: exit statuses and signals, streams
    and digests, each authentication method, host keys, `-W`, `-J`, `-s`,
    ptys through pipes, and a real pty (`scripts/interop-pty.py`: resize,
-   Ctrl-C, `vi`, `less`, `top`, `~.`).
+   Ctrl-C, `vi`, `less`, `top`, `~.`). A session whose output nobody reads
+   for 30 s, while the server writes 50 MB, must peak under half of that
+   (`scripts/interop-limits.sh`, T-201).
 8. OpenSSH accepts the keys of `podssh keygen` (`scripts/interop-keygen.sh`):
    its `ssh-keygen` reads them and its `sshd` accepts them for login.
 9. podssh handles a relay that fails (`scripts/interop-faults.sh`). A

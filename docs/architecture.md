@@ -146,3 +146,54 @@ These rules apply to each change. The reasons are in
    status, 128 plus a signal number, or 255 for its own failures.
 9. **Files have 500 lines or fewer.** Split a file by responsibility. Do not
    remove comments to make it fit.
+
+## Limits
+
+What a peer or a file can make podssh hold, and how long podssh waits for
+each step (T-201). Each bound is a constant in the file named. Past a bound
+podssh stops reading and says why, or the writer waits for the reader; no
+buffer grows without a bound. `cargo test -p podssh-ws --test limits` and
+`cargo test -p podssh-relay --test limits` push a peer in the process past
+each bound of the connection, and `scripts/interop-limits.sh` measures a
+session whose output nobody reads.
+
+### Memory
+
+| What | Bound | Where | Past it |
+| --- | --- | --- | --- |
+| A frame from the relay | 262144 bytes | `FORWARD_MAX_FRAME`, `crates/podssh-ws/src/frame.rs` | Known from the frame's header, before its payload: the session ends with a Close 1002, "frame length N exceeds the forward cap of 262144". `podssh ssh` then exits 255, `podssh proxy` 69 |
+| A message in fragments | 16 MiB | `MAX_MESSAGE`, `crates/podssh-ws/src/session.rs` | The fragment that would pass it is not kept: a Close 1009, "a fragmented message exceeded 16777216 bytes", and the same exit codes |
+| The head of the relay's answer to the upgrade | 16 KiB | `UPGRADE_HEAD`, `crates/podssh-ws/src/client.rs` | "the WebSocket upgrade failed: no end of the response headers within 16 KiB", and the next relay host; with none left, `podssh ssh` exits 255, `podssh proxy` 69 |
+| The head of an HTTPS answer: a token's mint, the pool, a pair's call | 16 KiB | `MAX_HEAD`, `crates/podssh-ws/src/http.rs` | "no end of the response headers within 16 KiB"; a mint that fails so moves to the next relay host |
+| The body of an HTTPS answer | The caller's: 64 KiB for a mint, 256 KiB for the pool, 4096 bytes of a refused upgrade | `crates/podssh-ws/src/http.rs`, and each caller | "the response body is larger than allowed": from the length before the body, from the chunks, or from the bytes before the close. A refused upgrade is then named by its status line alone |
+| The head of a proxy's answer to CONNECT | 16 KiB | `MAX_PROXY_RESPONSE`, `crates/podssh-ws/src/dial.rs` | "the proxy PROXY did not answer as its protocol says: no end of headers within 16384 bytes", and the next relay host |
+| The pool, `/relays.json` | 256 KiB | `MAX_BODY`, `crates/podssh-relay/src/pool.rs` | The refresh after a mint fails with no word: the cached pool, or the default relay's seed, stays |
+| A file of the cache: a token, the pool | 64 KiB | `MAX_FILE`, `crates/podssh-relay/src/cache.rs` | Not read, as a file that the cache makes again: the token is minted again, and the pool is fetched at the next mint |
+| A `known_hosts` file | 16 MiB | `MAX_FILE`, `crates/podssh-ssh/src/known_hosts.rs` | "FILE cannot be read (it is larger than 16 MiB, which no known_hosts file is)": no key of it is trusted, and a user file past it records no new key, so `accept-new` refuses an unknown one (exit 255) |
+| An `ssh_config` file | 4 MiB | `MAX_FILE`, `crates/podssh-cli/src/ssh/config.rs` | "FILE is larger than 4 MiB, which no ssh_config is", exit 78 |
+| The SSH window of a channel | 512 KiB | `WINDOW`, `crates/podssh-ssh/src/run.rs` | The server waits until podssh reads: a session whose output nobody read for 30 s, while the server wrote 50 MB, peaked at 7460 KiB, and one whose reader took each byte at 6884 KiB (`scripts/interop-limits.sh`) |
+| russh's queue of a channel | 100 messages of 32 KiB at most | russh's `channel_buffer_size`, which `crates/podssh-ssh/src/run.rs` leaves at its default | The connection's task waits, and reads no more from the server: a second bound behind the window. Measured: with the window at 64 MiB the peak was 8948 KiB; without both, 62708 KiB |
+| What the relay holds for a slow podssh, on the forward path | 2 MiB, by the relay's document; whether its check operates is not measured (T-062) | The relay's: [relay.md](relay.md) | A Close 1013, "client receive backlog"; the window of 512 KiB keeps a server from having that much in flight |
+| The relay stream of `podssh ssh` | 256 KiB each way, frames of 64 KiB | `PIPE`, `CHUNK`, `crates/podssh-ssh/src/relay_stream.rs` | The writer waits |
+| The relay end of `podssh proxy` | 256 KiB each way, frames of 32 KiB | `PIPE`, `CHUNK`, `crates/podssh-cli/src/pipe/relay.rs` | The writer waits |
+| A read of `podssh pipe` | 32 KiB | `CHUNK`, `crates/podssh-cli/src/pipe/pump.rs` | One read at a time |
+| What is typed while `--persist` connects again | 64 KiB | `QUEUE`, `crates/podssh-ssh/src/io.rs` | The rest is dropped, and podssh says how many bytes |
+| The replay buffer of a resumable session | 4 MiB each way; `PODSSH_REPLAY_BUFFER` gives 4 to 16 MiB, and another value is ignored | `crates/podssh-relay/src/session/replay.rs` | The writer waits for the peer's `ACK`; no byte is dropped |
+| The replay buffers of a node | 64 MiB | `NODE_BUDGET`, `crates/podssh-relay/src/reverse/layered.rs` | A new resumable session is closed: "this node keeps as many resumable sessions as its budget allows (64 MiB of replay buffers)" |
+| What waits for a node's local side | 1 MiB for a side with no flow control; a handler with its own keeps its window | `QUEUE_BYTES`, `crates/podssh-relay/src/reverse/node.rs` | That session ends with its reason, and the others go on (T-256) |
+| An operator's input before the node is ready | 1 MiB | `QUEUE_BEFORE_READY`, `crates/podssh-relay/src/reverse/operator.rs` | A Close 1000, and "more than 1048576 bytes of input came before the node was ready" |
+| An IRC line | 8192 bytes | `DEFAULT_MAX_LINE`, `crates/podssh-core/src/irc/framing.rs` | The line is dropped to its end, and counted as lost |
+
+### Time
+
+| What | Bound | Where | Past it |
+| --- | --- | --- | --- |
+| Each step of reaching a relay host: the proxy and TCP, TLS, the upgrade, a mint | 20 s | `CONNECT_TIMEOUT`, `crates/podssh-relay/src/open.rs` | The next relay host |
+| One relay host, its mint included | 45 s | `HOST_DEADLINE`, `crates/podssh-relay/src/open.rs` | "the relay host did not answer within 45 s", and the next relay host |
+| The SSH handshake | `ConnectTimeout`, 60 s when none is set | `crates/podssh-ssh/src/run.rs` | "HOST: the SSH handshake did not finish within N s", exit 255 |
+| Nothing from the relay | 90 s | `DEFAULT_IDLE_TIMEOUT`, `crates/podssh-ws/src/client.rs` | "no data from the relay for 90s": the session ends |
+| The relay's answer to a ping | A ping each 10 s; 3 intervals with nothing | `LIVENESS_EVERY`, `LIVENESS_ALLOWED`, `crates/podssh-ws/src/client.rs` | The link is dead ("pings unanswered"): a session of the forward road ends (255), and the resumable layer moves its session to a new link |
+| One write to the relay | 60 s | `WRITE_TIMEOUT`, `crates/podssh-ws/src/client.rs` | "sending to the relay stalled for 60s": the session ends |
+| A server's answer to a pty or a session request | 30 s | `REPLY_WAIT`, `crates/podssh-ssh/src/session.rs` | Taken as a refusal: "the server refused to start a shell" (or the command, or the subsystem) |
+| The exit status once stdout's reader has gone | 5 s | `STATUS_WAIT`, `crates/podssh-ssh/src/io.rs` | The session ends with no status, exit 255 |
+| New connections of `--persist` after a loss | 10, within 300 s | `ATTEMPTS`, `WITHIN`, `crates/podssh-cli/src/ssh/persist.rs` | "...; gave up after N new connections in S s", exit 255 |

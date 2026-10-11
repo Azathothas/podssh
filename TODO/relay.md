@@ -40,13 +40,13 @@ the token is stored under A; in the next run, A answers and gets B's token in `X
 
 1. Add `token_key(relay)` to `podssh-relay`: the default host for the default host and for each
    host that `pool::same_deployment(DEFAULT_RELAY_HOST, host)` accepts; else the host itself,
-   with the port when it is not 443. `same_deployment` (`crates/podssh-relay/src/pool.rs:83-88`)
+   with the port when it is not 443. `same_deployment` (`crates/podssh-relay/src/pool.rs:86-91`)
    is the one rule that already decides where a token may go.
 2. Use the key of the host in use at each place: the load and the store through `MintContext`
    (`crates/podssh-relay/src/token.rs` lines 84-112 at `2da855f`), the removal after a 403
    (`crates/podssh-relay/src/open.rs:240-245`), and the token check of `doctor`
    (`crates/podssh-cli/src/doctor/relay_checks.rs` lines 142-165 at `2da855f`).
-3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:30-39`), with a
+3. Store the minting host in the cache entry (`crates/podssh-relay/src/cache.rs:31-40`), with a
    serde default for old files. `doctor` says "a cached token minted at HOST (not shown)". Use
    an old entry only under the default key, where it was right.
 4. Change in the same commit: `docs/relay.md` (lines 43-45 at `2da855f`), the comments at `relay.rs:36-37` and
@@ -133,8 +133,8 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
 (`docs/relay.md:187-188`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:80-93`) already makes a verified `/health`
-request; `crates/podssh-relay/src/pool.rs:117-135` fetches `/relays.json`. `https_get` sends no
-token header (`crates/podssh-ws/src/client.rs:266-277`); `https_request` takes headers (lines
+request; `crates/podssh-relay/src/pool.rs:120-137` fetches `/relays.json`. `https_get` sends no
+token header (`crates/podssh-ws/src/client.rs:269-280`); `https_request` takes headers (lines
 282-303).
 
 ## Approach
@@ -142,7 +142,7 @@ token header (`crates/podssh-ws/src/client.rs:266-277`); `https_request` takes h
 1. `relay status`: `/health` on each host of the list. Move `health` into `podssh-relay`, so
    `doctor` and `relay` share one path, and podbox can use it.
 2. `relay info [HOST PORT]`: `/relays.json?host=&port=`, the pool and the limits, read with
-   `crates/podssh-relay/src/pool.rs:92-113`.
+   `crates/podssh-relay/src/pool.rs:95-116`.
 3. `relay spec`: the `/health` version and `/llms-full.txt`, checked against the pinned facts by
    `verdict_from` (`crates/podssh-probe/src/relay_facts.rs:276-290`), or `--document FILE`.
    This is T-060.
@@ -207,7 +207,7 @@ status' with no NAME, the relay's own state, is not implemented yet"), `relay in
 `relay trace github.com 22` 64 ("one word too many"), as a subcommand took one NAME; `--timeout`
 is an unknown flag (64). `spec` is T-060's and done (step 3), and the tests of `spec` read
 `--document`, so the stand-in needs no `/llms-full.txt`. `https_with_token` already sends a token
-in a header (`crates/podssh-ws/src/client.rs:279-301`), for the pairing calls. On the live relay,
+in a header (`crates/podssh-ws/src/client.rs:282-304`), for the pairing calls. On the live relay,
 2026-10-11: `/trace` alone answers without a token with the caller's address, city, coordinates
 and network; a target trace answers `target` with `ok`, `road`, `dialed`, `address_family`,
 `connect_ms`, `first_byte_ms`, `bytes_seen`, `verdict` and `banner`, or `error` alone for a
@@ -275,7 +275,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 1. After a host fails with an error that another host can repair (`another_host_may_help`,
    `crates/podssh-relay/src/open.rs:57-79`), write a record (host, time, class) into a private
    file `relay-failures-KEY.json` with `cache::store_file`
-   (`crates/podssh-relay/src/cache.rs:133-167`). Remove the record when the host succeeds.
+   (`crates/podssh-relay/src/cache.rs:134-168`). Remove the record when the host succeeds.
 2. At the start of `open` (`crates/podssh-relay/src/open.rs:180-212`), move each host whose
    record is younger than a fixed window (10 min) to the end of the list, in its old order.
    Never remove a host: each host is still tried.
@@ -716,7 +716,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    then the platform's temporary directory (`std::env::temp_dir`) with the user's tag; then the
    working directory. No path literal stays in `cache.rs`.
 3. Probe each as now: a missing directory is made with mode 0700
-   (`crates/podssh-relay/src/cache.rs:350-367`), and one that refuses a write is skipped. When the
+   (`crates/podssh-relay/src/cache.rs:351-368`), and one that refuses a write is skipped. When the
    directory of `PODSSH_CACHE_DIR` is skipped, say so once on stderr, with the reason.
 4. Take the environment as a parameter, as `dial::proxy_from_vars` does
    (`crates/podssh-ws/src/dial.rs:104-118`), so that the tests can set it.
@@ -892,7 +892,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:136`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:137`). That is one run, before 2026-10-09.
 
 ## Approach
 
@@ -990,7 +990,7 @@ one of them can choose the relay that podssh trusts, or the host that `podssh ss
 ## Premise
 
 Read on `c0cdd2b`: on each system but Unix, `owned_and_private`
-(`crates/podssh-relay/src/cache.rs:381-383`) and `owned_and_unwritable`
+(`crates/podssh-relay/src/cache.rs:382-384`) and `owned_and_unwritable`
 (`crates/podssh-relay/src/cache/own.rs:136-139`) return `true`; so does `owner_alone_writes`
 (`crates/podssh-cli/src/ssh/config.rs:292-294`) since T-043. Windows keeps the owner and the
 writers of a file in its security descriptor, which podssh does not read.

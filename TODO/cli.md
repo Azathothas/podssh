@@ -60,7 +60,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
    text that `std::net::Ipv6Addr` parses. A zone id does not parse, so the rule
    of `crates/podssh-relay/src/relay.rs:139-145` holds. Keep `check_host` for
    relay hosts, which are TLS names (`crates/podssh-relay/src/relay.rs:124-137`,
-   `crates/podssh-relay/src/pool.rs:87`).
+   `crates/podssh-relay/src/pool.rs:90`).
 3. `forward_path` writes the literal in the measured form. `podssh ssh` uses
    the new check at `crates/podssh-cli/src/ssh/resolve.rs:334`, and refuses
    `-4` with an IPv6 literal (64).
@@ -72,7 +72,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
    not `host:port` (`crates/podssh-cli/src/ssh/transport.rs:48`,
    `crates/podssh-cli/src/proxy.rs:88`, where it is used since this entry). `known_hosts` keeps the literal as
    typed: `host_name` writes `[V6]:PORT` as OpenSSH does
-   (`crates/podssh-ssh/src/known_hosts.rs:78-85`).
+   (`crates/podssh-ssh/src/known_hosts.rs:88-95`).
 6. Same commit: `docs/cli.md` (lines 62-75 at `3cbf215`), the help at
    `crates/podssh-cli/src/positionals.rs:20` and
    `crates/podssh-cli/src/positionals.rs:95`, an example in
@@ -1102,9 +1102,9 @@ on a scratch file that holds one public host key (offline):
   keeps `FILE.old`, and warns that `FILE.old` holds the names.
 
 Read: podssh matches hashed lines with HMAC-SHA1
-(`crates/podssh-ssh/src/known_hosts.rs:251-285`), finds the lines of a host
-with their numbers (`scan`, `crates/podssh-ssh/src/known_hosts.rs:138-168`), and
-appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs:312-358`).
+(`crates/podssh-ssh/src/known_hosts.rs:262-296`), finds the lines of a host
+with their numbers (`scan`, `crates/podssh-ssh/src/known_hosts.rs:148-178`), and
+appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs:323-372`).
 The default files are the ones of `podssh ssh`
 (`crates/podssh-cli/src/man/data.rs:129`).
 
@@ -1113,7 +1113,7 @@ The default files are the ones of `podssh ssh`
 1. Rows in `KEYGEN_FLAGS` (`crates/podssh-cli/src/flags.rs:369-389`):
    `-F HOST`, `-R HOST` and `-H`. `-f FILE` selects the file; else the first
    user `known_hosts` file. Accept `[host]:port`, as `host_name` writes it
-   (`crates/podssh-ssh/src/known_hosts.rs:78-85`).
+   (`crates/podssh-ssh/src/known_hosts.rs:88-95`).
 2. `-F`: reuse `entries_for`, and print the lines of OpenSSH; exit 1 when no
    line matches.
 3. `-R` and `-H`: one rewrite: a new file in the same directory (`create_new`,
@@ -1185,7 +1185,7 @@ that crate as `russh::keys::ssh_key` (`crates/podssh-ssh/src/keygen.rs:11-14`).
 3. `verify`, `check-novalidate`, `find-principals`, `match-principals`: parse
    the allowed-signers format of ssh-keygen(1) (principals, `namespaces=`,
    `valid-after=`, `valid-before=`, `cert-authority`), with the pattern
-   matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:288-310`).
+   matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:299-321`).
    Print the lines and the exit codes of OpenSSH.
 4. Refuse `-r` (a key revocation list) by name until podssh reads one.
 5. Same commit: `docs/cli.md:521-533`, the notes of `keygen`, `docs/STATUS.md`.

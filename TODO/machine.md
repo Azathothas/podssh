@@ -218,9 +218,9 @@ Read, at `c6f09a8`: the verb has no flags (`crates/podssh-cli/src/flags.rs` line
 owner row (line 429) and no arguments (`crates/podssh-cli/src/positionals.rs` line 50). Each fact
 has a local source that
 opens no connection: the relay list (`crates/podssh-relay/src/relay.rs:83-101`,
-`crates/podssh-relay/src/pool.rs:48-61`); the token cache
-(`crates/podssh-relay/src/cache.rs:67-86`, which returns the token itself in `Cached`, lines
-29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:79-85`, 90-98); the attachment
+`crates/podssh-relay/src/pool.rs:51-64`); the token cache
+(`crates/podssh-relay/src/cache.rs:68-87`, which returns the token itself in `Cached`, lines
+29-33); a host key (`crates/podssh-ssh/src/known_hosts.rs:89-95`, 90-98); the attachment
 (`crates/podssh-cli/src/non_interactive.rs:74-76`); the proxy, shown with no credentials
 (its `Display`, `crates/podssh-ws/src/proxy.rs:70-75` since T-070).
 
@@ -652,7 +652,7 @@ host, and how they ended. Each of these facts is lost when the process ends.
 Read: podssh keeps no record of a session. `-E LOGFILE` appends podssh's own messages, which is
 another purpose (`crates/podssh-cli/src/flags.rs:141-142`). The cache directories and the rules
 for private files are in `crates/podssh-relay/src/cache/dirs.rs:50-87` and
-`crates/podssh-relay/src/cache.rs:171-297`. `write_private`
+`crates/podssh-relay/src/cache.rs:172-298`. `write_private`
 replaces a whole file (lines 178-197 at `22c3b88`), and no function appends to one.
 
 ## Approach

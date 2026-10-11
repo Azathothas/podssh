@@ -146,6 +146,9 @@ for size in 262144 262145 5000000; do
             || bad "ssh.stream.${srv%%:*}.${size}.roundtrip" "port $port: $size bytes round trip" "$W/err"
     done
 done
+# The memory of a session whose output nobody reads (T-201).
+# shellcheck source=scripts/interop-limits.sh
+. "$HERE/interop-limits.sh"
 
 echo
 echo "== authentication"

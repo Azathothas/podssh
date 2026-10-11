@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**279 entries: 94 open, 0 partial, 22 blocked, 163 done.**
+**279 entries: 93 open, 0 partial, 22 blocked, 164 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 17 | 19 |
-| P2 | 10 | 0 | 18 | 126 | 154 |
+| P2 | 9 | 0 | 18 | 127 | 154 |
 | P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 94 | 0 | 22 | 163 | 279 |
+| **All** | 93 | 0 | 22 | 164 | 279 |
 
 ## Entries
 
@@ -272,7 +272,7 @@ repository and CI).
 | [T-198](robustness.md) | P2 | M | backlog | chore | done | Fuzz each parser |
 | [T-199](robustness.md) | P2 | M | backlog | chore | done | A scored interop harness |
 | [T-200](robustness.md) | P3 | M | backlog | chore | open | A terminal oracle |
-| [T-201](robustness.md) | P2 | M | backlog | chore | open | Resource limits, stated and tested |
+| [T-201](robustness.md) | P2 | M | backlog | chore | done | Resource limits, stated and tested |
 | [T-202](robustness.md) | P3 | S | backlog | chore | open | Property tests for the state machines |
 | [T-203](robustness.md) | P2 | M | M6 | chore | done | The fault-injection harness: latency, jitter, bandwidth, a new address |
 | [T-204](repo.md) | P2 | M | none | chore | done | Adopt the todo model, with a Rust checker in the gate |

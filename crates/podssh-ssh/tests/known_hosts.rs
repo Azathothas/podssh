@@ -7,7 +7,7 @@ mod cleanup;
 use std::path::PathBuf;
 
 use podssh_ssh::hostkey::{Offer, Policy, Verdict};
-use podssh_ssh::known_hosts::{append, host_name, lookup, lookup_all, recorded_algorithms, Lookup, Recorded};
+use podssh_ssh::known_hosts::{append, host_name, lookup, lookup_all, recorded_algorithms, Lookup, Recorded, MAX_FILE};
 use podssh_ssh::log::Log;
 use podssh_ssh::options::{LogLevel, StrictHostKeyChecking};
 use russh::keys::ssh_key::certificate::{Builder, CertType};
@@ -196,6 +196,32 @@ fn an_unreadable_fifo_never_blocks_the_lookup() {
     assert!(matches!(found, Lookup::Unknown), "{found:?}");
     assert_eq!(unreadable.len(), 1, "{unreadable:?}");
     assert!(unreadable[0].error.contains("not a regular file"), "{unreadable:?}");
+}
+
+/// A file of `MAX_FILE` bytes is read; one byte more and it cannot be read,
+/// with the reason, and neither the lookup nor the record holds more than
+/// the bound (T-201).
+#[test]
+fn a_file_over_16_mib_is_named_and_not_read() {
+    let dir = scratch("too-large");
+    let user = dir.join("known_hosts");
+    let entry = format!("example.org {A}\n");
+    let sized = |size: u64| {
+        let pad = size as usize - entry.len();
+        format!("{entry}#{}\n", "x".repeat(pad - 2))
+    };
+    std::fs::write(&user, sized(MAX_FILE)).unwrap();
+    let (found, unreadable) = lookup_all(std::slice::from_ref(&user), "example.org", &key(A));
+    assert!(matches!(found, Lookup::Known { line: 1, .. }) && unreadable.is_empty(), "{found:?} {unreadable:?}");
+
+    std::fs::write(&user, sized(MAX_FILE + 1)).unwrap();
+    let (found, unreadable) = lookup_all(std::slice::from_ref(&user), "example.org", &key(A));
+    assert!(matches!(found, Lookup::Unknown), "{found:?}");
+    assert_eq!(unreadable.len(), 1, "{unreadable:?}");
+    assert!(unreadable[0].error.contains("larger than 16 MiB"), "{unreadable:?}");
+    let refused = append(&user, "example.org", &key(B)).expect_err("a record into a file past the bound");
+    assert!(refused.to_string().contains("larger than 16 MiB"), "{refused}");
+    assert_eq!(std::fs::metadata(&user).unwrap().len(), MAX_FILE + 1, "the file is as it was");
 }
 
 /// A run records a host that another run recorded since its lookup (T-029):
