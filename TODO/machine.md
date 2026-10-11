@@ -629,7 +629,7 @@ failure at `crates/podssh-ssh/src/run.rs:136-146` and
 `crates/podssh-cli/src/ssh/transport.rs:80` and its close at
 `crates/podssh-cli/src/ssh/mod.rs:207`. The flag in `SSH_FLAGS`
 (`crates/podssh-cli/src/flags.rs:197`), its note at
-`crates/podssh-cli/src/man/notes_ssh.rs:145-155`, and `docs/cli.md`.
+`crates/podssh-cli/src/man/notes_ssh.rs:151-161`, and `docs/cli.md`.
 
 The test `crates/podssh-cli/tests/ssh_result.rs`, against the test server,
 whose `exit N` and `kill NAME` are in

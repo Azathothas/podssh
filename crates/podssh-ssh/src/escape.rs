@@ -14,6 +14,17 @@ pub enum Command {
     Help,
 }
 
+/// Each escape, after the escape character: its key, what it asks, and its
+/// words in the help of `~?`, which are OpenSSH's. The input, the help and
+/// the manual's note of the terminal (T-130) read this table, and no other
+/// list of escapes.
+pub const ESCAPES: &[(u8, Command, &str)] = &[
+    (b'.', Command::Disconnect, "terminate connection"),
+    (b'R', Command::Rekey, "request rekey"),
+    (b'#', Command::List, "list forwarded connections"),
+    (b'?', Command::Help, "this message"),
+];
+
 /// The escape state across reads from stdin.
 #[derive(Debug, Clone)]
 pub struct Escapes {
@@ -35,23 +46,15 @@ impl Escapes {
         for &b in input {
             if self.pending {
                 self.pending = false;
-                match b {
-                    b'.' => {
-                        commands.push(Command::Disconnect);
+                if let Some(&(_, command, _)) = ESCAPES.iter().find(|(key, ..)| *key == b) {
+                    commands.push(command);
+                    // Nothing after ~. is sent.
+                    if command == Command::Disconnect {
                         return (out, commands);
                     }
-                    b'R' => {
-                        commands.push(Command::Rekey);
-                        continue;
-                    }
-                    b'#' => {
-                        commands.push(Command::List);
-                        continue;
-                    }
-                    b'?' => {
-                        commands.push(Command::Help);
-                        continue;
-                    }
+                    continue;
+                }
+                match b {
                     b if b == self.escape => {
                         out.push(b);
                         self.at_line_start = false;
@@ -75,14 +78,16 @@ impl Escapes {
         (out, commands)
     }
 
-    /// The text `~?` prints.
+    /// The text `~?` prints, in OpenSSH's words.
     pub fn help(&self) -> String {
         let e = self.escape as char;
-        format!(
-            "Supported escape sequences:\n {e}.   - terminate connection\n {e}R   - request rekey\n \
-             {e}#   - list forwarded connections\n {e}?   - this message\n {e}{e}   - send the escape character by typing it twice\n\
-             (Note that escapes are only recognized immediately after newline.)\n"
-        )
+        let mut text = String::from("Supported escape sequences:\n");
+        for (key, _, words) in ESCAPES {
+            text.push_str(&format!(" {e}{}   - {words}\n", *key as char));
+        }
+        text.push_str(&format!(" {e}{e}   - send the escape character by typing it twice\n"));
+        text.push_str("(Note that escapes are only recognized immediately after newline.)\n");
+        text
     }
 }
 
@@ -132,6 +137,22 @@ mod tests {
         let mut e = Escapes::new(b'~');
         assert_eq!(e.feed(b"~").0, b"");
         assert_eq!(e.feed(b"/tmp").0, b"~/tmp");
+    }
+
+    /// `~?` lists each escape of the table, in OpenSSH's words.
+    #[test]
+    fn the_help_lists_each_escape_in_openssh_s_words() {
+        let help = Escapes::new(b'~').help();
+        let want = "Supported escape sequences:\n ~.   - terminate connection\n ~R   - request rekey\n \
+                    ~#   - list forwarded connections\n ~?   - this message\n ~~   - send the escape \
+                    character by typing it twice\n(Note that escapes are only recognized immediately after \
+                    newline.)\n";
+        assert_eq!(help, want);
+        let mut e = Escapes::new(b'~');
+        for (key, command, _) in ESCAPES {
+            assert_eq!(e.feed(&[b'~', *key]).1, vec![*command], "~{}", *key as char);
+            e = Escapes::new(b'~');
+        }
     }
 
     #[test]

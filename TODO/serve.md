@@ -239,7 +239,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 # T-110: `podssh serve`: a real pty when `/dev/ptmx` exists
 
 **Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:185-189`,
-`docs/terminal.md:48-58`; GitHub #20 (bound every PTY wait).
+`docs/terminal.md:74-84`; GitHub #20 (bound every PTY wait).
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -277,7 +277,7 @@ it there.
    `crates/podssh-ssh/src/terminal/unix.rs:82-159` to a shared module and
    read it both ways. Skip a mode that the kernel refuses.
 3. Size: `TIOCSWINSZ` on the master from `pty-req` and each `window-change`.
-   A zero size becomes 80x24 (`docs/terminal.md:51-52`).
+   A zero size becomes 80x24 (`docs/terminal.md:77-78`).
 4. The child: `setsid`, `ioctl(TIOCSCTTY)`, the slave on descriptors 0 to 2,
    then exec, in `pre_exec`. The parent closes its copy of the slave, or the
    master never sees the end. `TERM` from the request (empty:
@@ -332,14 +332,14 @@ command, and the session must end.
 ## Premise
 
 - Read: `crates/podssh-terminal` holds podbox's echo, editing and history
-  rules (`docs/terminal.md:81-119`), and reports Ctrl-C and Ctrl-\ as
+  rules (`docs/terminal.md:107-145`), and reports Ctrl-C and Ctrl-\ as
   `Event::Signal` (`crates/podssh-terminal/src/echo.rs:421-423`). No command
   uses it, and it has the defects T-125 to T-129, which come first.
 - Read, at `cb94460`: the crate refuses to add `\r` before `\n`
   (`crates/podssh-terminal/src/echo.rs` lines 31-37,
   `crates/podssh-terminal/src/passthrough.rs:56-74`). Here the child writes
   to a pipe and the client's terminal is raw: the case where a lone `\n`
-  must become `\r\n` (`docs/terminal.md:174-177`).
+  must become `\r\n` (`docs/terminal.md:200-203`).
 - Read: a signal to the group also stops a shell that does not catch it
   (`crates/podssh-terminal/src/session.rs:36-46`). Not measured yet: which
   shell mode survives.
@@ -488,7 +488,7 @@ out with matching digests.
 
 - Read: `podssh serve` runs in the sandbox as a node (T-107 on the runner of
   T-079), and the operator connects through the relay (T-084).
-- Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:160-164`).
+- Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:186-190`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
   `docs/STATUS.md:221`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:45`).

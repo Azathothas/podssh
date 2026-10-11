@@ -51,9 +51,15 @@ pub const SSH: &[&str] = &[
     "Authentication tries the agent and the identity files, then keyboard-interactive and password. \
      Prompts go to the terminal or to SSH_ASKPASS. With -o BatchMode=yes, each prompt is an error.",
     "-t asks for a pty when there is a local terminal. -tt asks for one also when there is none, so \
-     interactive programs work from a host with no pty. In a session with a pty, ~. at the start of a \
-     line ends the session, and ~# lists the forwards of the session, with the connections and bytes of \
-     each (see -e); with -v, the end of a run prints the same lines.",
+     interactive programs work from a host with no pty.",
+    "What podssh reads from the terminal: in a session with a pty, the escape character (~, or that of \
+     -e; -e none turns it off) at the start of a line, and the key after it: ~. ends the session, ~R asks \
+     for a re-key, ~# lists the forwards of the session with the connections and bytes of each (with -v, \
+     the end of a run prints the same lines), ~? lists the escapes, and ~~ sends one ~; another key goes \
+     with the ~ before it. Each other byte passes unchanged, as the remote side reads it: Ctrl-C, Ctrl-Z, \
+     Ctrl-D, Escape, the sequences of the keys, the mouse and a paste. A resize of the terminal sends the \
+     new size. With no pty, podssh reads no byte: stdin is the command's data, and Ctrl-C is the local \
+     terminal's, which stops podssh. A session through a control master has its escapes at the master.",
     "--sudo runs the command as root with sudo -S, with no pty, and --su with su -c, in a pty: the password \
      is asked here, on the terminal or through SSH_ASKPASS, never taken from the command line. podssh \
      answers one prompt, holds its input until the command starts, and asks nothing when sudo asks \

@@ -327,6 +327,23 @@ mod tests {
         out
     }
 
+    /// The note of what podssh reads from the terminal names each escape of
+    /// the code, and no other (T-130): `~` and a key, with `~~`.
+    #[test]
+    fn the_terminal_note_names_each_escape() {
+        let note = for_verb("ssh").iter().find(|n| n.contains("passes unchanged")).expect("the terminal's note");
+        let named: std::collections::BTreeSet<char> = note
+            .as_bytes()
+            .windows(2)
+            .filter(|w| w[0] == b'~' && w[1].is_ascii_graphic() && !b",;)".contains(&w[1]))
+            .map(|w| w[1] as char)
+            .collect();
+        let mut escapes: std::collections::BTreeSet<char> =
+            podssh_ssh::escape::ESCAPES.iter().map(|(key, ..)| *key as char).collect();
+        escapes.insert('~');
+        assert_eq!(named, escapes, "the note: {note}");
+    }
+
     /// The note about -R says that the server listens (T-035), and neither
     /// borrows the cause of -L and -D nor offers -W.
     #[test]

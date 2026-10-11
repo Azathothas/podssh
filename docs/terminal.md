@@ -34,6 +34,32 @@ In each other case the session is transparent: each byte goes both ways as
 it came, with no echo and no refusal. The absence of a pty alone never
 selects it (T-125). No command uses the crate yet (milestone M5).
 
+## What podssh reads from the terminal
+
+podssh acts on few bytes of the terminal, and passes each other one
+unchanged (T-130). The escapes are one table,
+`crates/podssh-ssh/src/escape.rs` (`ESCAPES`), which the input, `~?` and
+the manual read; a test holds the manual's note to it.
+
+- **A client with a pty** (the local terminal raw): the escape character,
+  `~` unless `-e` names another (`-e none`: none), at the start of a line,
+  and the key after it: `~.` ends the session and sends nothing after it,
+  `~R` asks for a re-key, `~#` lists the forwards with what each carried,
+  `~?` lists the escapes, and `~~` sends one `~`; another key goes with the
+  `~` before it. A resize sends the new size. Each other byte passes
+  unchanged, as the remote side reads it: Ctrl-C, Ctrl-Z, Ctrl-D, Ctrl-S,
+  Ctrl-Q, Escape, the sequences of the keys, of the mouse and of a
+  bracketed paste.
+- **A client with no pty:** podssh reads no byte; stdin is the command's
+  data, escapes are off, and Ctrl-C is the local terminal's, which ends
+  podssh (whether a server honours the protocol's `signal` request is T-131).
+- **A session through a control master** (T-039): the master reads its
+  escapes, with the escape character that the client sent.
+- **The line discipline of `podssh serve`**, when serve exists (T-107 to
+  T-113): the keys and sequences that it acts on and those that it refuses
+  are in "When podssh supplies the line discipline" below; each other byte
+  passes unchanged.
+
 ## `-t`, `-T` and `RequestTTY`
 
 - The default of OpenSSH is `RequestTTY auto`: a pty for an interactive

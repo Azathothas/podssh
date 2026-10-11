@@ -491,7 +491,7 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-156` and `crates/podssh-cli/src/man/notes.rs:44-126`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-162` and `crates/podssh-cli/src/man/notes.rs:44-126`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-127`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:308-316`); teach `flag_exists`
@@ -990,7 +990,7 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
    (`crates/podssh-cli/src/ssh/args.rs:101-136`, called at
    `crates/podssh-cli/src/tree.rs:450-454`).
 4. `docs/cli.md:241-246` and a note of the manual
-   (`crates/podssh-cli/src/man/notes_ssh.rs:131-133`) state the rule.
+   (`crates/podssh-cli/src/man/notes_ssh.rs:137-139`) state the rule.
 
 ## Prove
 

@@ -37,7 +37,7 @@ reasons (`crates/podssh-ws/src/session.rs:371`); PEM bundles
 (`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:95`);
 `known_hosts` lines, in a private function
 (`crates/podssh-ssh/src/known_hosts.rs:250`); the escape filter
-(`crates/podssh-ssh/src/escape.rs:32`); IRC lines and frames
+(`crates/podssh-ssh/src/escape.rs:43`); IRC lines and frames
 (`crates/podssh-core/src/irc/encode.rs:88`,
 `crates/podssh-core/src/irc/framing.rs:110`); the command line
 (`crates/podssh-cli/src/tree.rs:117`). No fuzz target exists. libFuzzer is
@@ -331,13 +331,13 @@ byte test that a person wrote with the same mistake.
 Read:
 
 - `crates/podssh-ssh/src/log.rs:70-83` turns LF into CR LF when the terminal
-  is raw. The help of `~?` (`crates/podssh-ssh/src/escape.rs:79-86`) goes
+  is raw. The help of `~?` (`crates/podssh-ssh/src/escape.rs:82-91`) goes
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
   peer (`SECURITY.md:79-82`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
-  discipline (`docs/terminal.md:81-177`). T-127 (the cursor counts bytes) and
+  discipline (`docs/terminal.md:107-203`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
 - Read in the message of commit `a378863`: `rio-vt` needs `simdutf`, a C++
   library, so it cannot be a dependency of a library crate.
@@ -363,7 +363,7 @@ Read:
    in the gate's container (installed with apk, as `scripts/interop-man.sh:22`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
-6. docs/terminal.md, section "Tests" (`docs/terminal.md:185`), names the
+6. docs/terminal.md, section "Tests" (`docs/terminal.md:211`), names the
    oracle.
 
 ## Decision
@@ -570,7 +570,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:107-183`, `crates/podssh-ws/src/names.rs:8-57`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:277-333`).
 - The escape filter, which keeps its state from one read to the next
-  (`crates/podssh-ssh/src/escape.rs:32-76`).
+  (`crates/podssh-ssh/src/escape.rs:43-79`).
 - The sanitizer (`crates/podssh-ws/src/text.rs:12-57`).
 
 Read: no crate uses a library for property tests. `proptest` is pure Rust;

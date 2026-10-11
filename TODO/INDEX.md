@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**289 entries: 67 open, 0 partial, 24 blocked, 198 done.**
+**289 entries: 66 open, 0 partial, 24 blocked, 199 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 135 | 157 |
-| P3 | 61 | 0 | 6 | 41 | 108 |
-| **All** | 67 | 0 | 24 | 198 | 289 |
+| P3 | 60 | 0 | 6 | 42 | 108 |
+| **All** | 66 | 0 | 24 | 199 | 289 |
 
 ## Entries
 
@@ -203,7 +203,7 @@ repository and CI).
 | [T-127](terminal.md) | P2 | S | M5 | defect | done | L3: the cursor counts bytes, not characters |
 | [T-128](terminal.md) | P2 | S | M5 | defect | done | L4: `ESC O x` keys ring the bell, and a single Escape removes the next key |
 | [T-129](terminal.md) | P2 | M | M5 | defect | done | L5: Delete, Home and End, Ctrl-Z, Ctrl-S, Ctrl-Q, and remote output over the edited line |
-| [T-130](terminal.md) | P3 | S | backlog | docs | open | State which terminal sequences podssh reads and which it passes unchanged |
+| [T-130](terminal.md) | P3 | S | backlog | docs | done | State which terminal sequences podssh reads and which it passes unchanged |
 | [T-131](terminal.md) | P3 | S | backlog | measurement | open | Which servers honour the `signal` request for Ctrl-C with no remote pty |
 | [T-132](terminal.md) | P3 | S | backlog | research | open | Compare the Windows console handling with csshw's |
 | [T-133](copy.md) | P2 | M | M5 | feature | done | An SFTP client in the process, the base of `cp` |
