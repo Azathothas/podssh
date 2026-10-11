@@ -262,6 +262,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
 mod agent;
 mod chat;
 mod copy;
+mod keygen;
 mod node;
 mod operator;
 mod ping;
@@ -271,6 +272,7 @@ mod scp;
 pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
 pub use copy::CP_FLAGS;
+pub use keygen::KEYGEN_FLAGS;
 pub use node::NODE_FLAGS;
 pub use operator::PAIR_FLAGS;
 pub use ping::PING_FLAGS;
@@ -313,64 +315,6 @@ pub const MAN_FLAGS: &[FlagRow] = &[
         "write the manual as a man(7) page instead of text, for man -l; never paged", None),
     row(None, "json", None, FlagKind::Supported,
         "write the tables (commands, flags, keywords, variables, files, exit codes) as JSON; never paged", None),
-];
-
-/// `keygen` takes the `ssh-keygen` flags scripts use. `-N` exists so that
-/// `-N ''` works; a non-empty passphrase there is refused, because every
-/// process on the host can read a command line.
-pub const KEYGEN_FLAGS: &[FlagRow] = &[
-    row(Some('t'), "type", Some("TYPE"), FlagKind::Supported,
-        "key type: ed25519 (the default), ecdsa or rsa; with -s, the signature of an RSA CA: rsa-sha2-512 (the default) or rsa-sha2-256", None),
-    row(Some('b'), "bits", Some("BITS"), FlagKind::Supported,
-        "key size: ecdsa 256 (the default), 384 or 521; rsa 2048, 3072 (the default), 4096 or 8192", None),
-    row(Some('f'), "file", Some("FILE"), FlagKind::Supported,
-        "the private key's file; the public key goes to FILE.pub (default ~/.ssh/id_TYPE); with -Y sign the key that signs, with -Y verify, find-principals and match-principals the allowed-signers file", None),
-    row(Some('N'), "new-passphrase", Some("PHRASE"), FlagKind::Supported,
-        "-N '' for a key with no passphrase; without -N, podssh asks (terminal or SSH_ASKPASS)", None),
-    row(Some('P'), "old-passphrase", Some("PHRASE"), FlagKind::Supported,
-        "with -p or -c: -P '' for a key with no passphrase; without -P, podssh asks for the old one", None),
-    row(Some('p'), "change-passphrase", None, FlagKind::Supported,
-        "change the passphrase of the key in -f FILE: the old one is asked, then the new one two times", None),
-    row(Some('c'), "change-comment", None, FlagKind::Supported,
-        "change the comment of the key in -f FILE to -C COMMENT, or to one that podssh asks for", None),
-    row(Some('C'), "comment", Some("COMMENT"), FlagKind::Supported,
-        "the key's comment (default USER@HOST)", None),
-    row(Some('q'), "quiet", None, FlagKind::Supported,
-        "print nothing but errors", None),
-    row(Some('y'), "print-public", None, FlagKind::Supported,
-        "print the public key of the private key in -f FILE", None),
-    row(Some('l'), "fingerprint", None, FlagKind::Supported,
-        "print the fingerprint of the key in -f FILE", None),
-    row(Some('F'), "find-host", Some("HOST"), FlagKind::Supported,
-        "print the lines of HOST ([HOST]:PORT for another port) in known_hosts: -f FILE, else ~/.ssh/known_hosts", None),
-    row(Some('R'), "remove-host", Some("HOST"), FlagKind::Supported,
-        "remove the keys of HOST from known_hosts; the old text stays in FILE.old", None),
-    row(Some('H'), "hash-hosts", None, FlagKind::Supported,
-        "hash each host name of known_hosts; with -F, print the lines hashed", None),
-    row(Some('Y'), "signature", Some("OP"), FlagKind::Supported,
-        "SSH signatures: sign, verify, check-novalidate, find-principals or match-principals", None),
-    row(Some('n'), "namespace", Some("NAME"), FlagKind::Supported,
-        "with -Y: the namespace of the signature, such as git or file; with -s: the principals of the certificate, NAME[,NAME...]", None),
-    row(Some('s'), "signature-file", Some("FILE"), FlagKind::Supported,
-        "with -Y verify, check-novalidate and find-principals: the signature; without -Y: the CA's key, which signs each FILE (a public key) to FILE-cert.pub", None),
-    row(Some('I'), "identity", Some("ID"), FlagKind::Supported,
-        "with -s: the key id of the certificate; with -Y verify and match-principals: the principal to look for in the allowed signers", None),
-    row(Some('O'), "option", Some("OPTION"), FlagKind::Supported,
-        "with -Y: hashalg=sha256 or sha512 (sign), verify-time=TIME and print-pubkey (verify); with -s: clear, permit-*, no-*, force-command=CMD, source-address=LIST, verify-required, extension:NAME[=VALUE], critical:NAME[=VALUE]", None),
-    row(Some('U'), "agent-key", None, FlagKind::Supported,
-        "the key is in the agent (SSH_AUTH_SOCK), which signs: the key of -f with -Y sign, the CA's with -s; the file may hold the public key", None),
-    row(Some('V'), "validity", Some("INTERVAL"), FlagKind::Supported,
-        "with -s: the validity of the certificate: +52w, or FROM:TO of +TIME, -TIME, YYYYMMDD[HHMM[SS]][Z], always and forever (podssh -V prints the version)", None),
-    row(Some('z'), "serial", Some("SERIAL"), FlagKind::Supported,
-        "with -s: the serial of the certificate, 0 to 2^64-1", None),
-    row(Some('h'), "host-certificate", None, FlagKind::Supported,
-        "with -s: a host certificate, not a user certificate", None),
-    row(Some('L'), "print-certificate", None, FlagKind::Supported,
-        "print the certificate in -f FILE", None),
-    row(Some('D'), "pkcs11", Some("PROVIDER"), FlagKind::Refused,
-        "podssh reads no PKCS#11 token", Some("no flag")),
-    row(Some('r'), "revocation-list", Some("FILE"), FlagKind::Refused,
-        "podssh reads no key revocation list yet", Some("no flag")),
 ];
 
 /// One verb: its names, its flags, and the flag table its `-P` belongs to.

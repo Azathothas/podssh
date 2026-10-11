@@ -146,7 +146,7 @@ fn refused<T>(why: String) -> Result<T, Error> {
 }
 
 /// The bytes of the first PEM block of `text`, its headers left out.
-fn der(text: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
+pub(crate) fn der(text: &str) -> Result<Zeroizing<Vec<u8>>, Error> {
     let body: String = text
         .lines()
         .map(str::trim)
@@ -206,6 +206,32 @@ fn open_pem(text: &str, pem: &Pem, passphrase: &str) -> Result<PrivateKey, Error
     let encoded = Zeroizing::new(STANDARD.encode(&data[..]));
     let plain = Zeroizing::new(format!("-----BEGIN {0}-----\n{1}\n-----END {0}-----\n", pem.label, *encoded));
     russh::keys::decode_secret_key(&plain, None)
+}
+
+/// `der` as a PEM block of `label`, encrypted as OpenSSH's `ssh-keygen -m
+/// PEM` encrypts it: AES-128-CBC, its key from MD5 of the passphrase and the
+/// IV (T-022).
+pub(crate) fn encrypt_pem(label: &str, der: &[u8], passphrase: &str) -> Result<Zeroizing<String>, String> {
+    use aes::cipher::BlockModeEncrypt;
+    let iv: [u8; 16] = rand::random();
+    let key = bytes_to_key(passphrase.as_bytes(), &iv[..8], 16);
+    let mut buf = Zeroizing::new(der.to_vec());
+    buf.resize(der.len() + 16 - der.len() % 16, 0);
+    let len = cbc::Encryptor::<aes::Aes128>::new_from_slices(&key, &iv)
+        .map_err(|_| "the key of the passphrase".to_string())?
+        .encrypt_padded::<Pkcs7>(&mut buf, der.len())
+        .map_err(|_| "the padding".to_string())?
+        .len();
+    buf.truncate(len);
+    let iv: String = iv.iter().map(|b| format!("{b:02X}")).collect();
+    let body = Zeroizing::new(STANDARD.encode(&buf[..]));
+    let mut out = format!("-----BEGIN {label}-----\nProc-Type: 4,ENCRYPTED\nDEK-Info: AES-128-CBC,{iv}\n\n");
+    for line in body.as_bytes().chunks(64) {
+        out.push_str(std::str::from_utf8(line).unwrap_or_default());
+        out.push('\n');
+    }
+    out.push_str(&format!("-----END {label}-----\n"));
+    Ok(Zeroizing::new(out))
 }
 
 /// `data` decrypted in place; the length of the plain text, its padding

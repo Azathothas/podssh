@@ -41,6 +41,7 @@ pub mod help;
 pub mod keygen;
 pub mod keygen_cert;
 pub mod keygen_change;
+pub mod keygen_convert;
 pub mod keygen_hosts;
 pub mod keygen_sign;
 pub mod layered;

@@ -224,20 +224,68 @@ for ca in user_ca user_ca_rsa; do
         0 $? "$KG/out"
 done
 key="$KG/certkey_user_ca"
-"$BIN" keygen -q -s "$KG/user_ca" -I expired -n podtest -V -2h:-1h "$key.pub" >/dev/null 2>&1
+# Each refusal counts only once its certificate is made: with none, the login
+# fails for want of one.
+"$BIN" keygen -q -s "$KG/user_ca" -I expired -n podtest -V -2h:-1h "$key.pub" >"$KG/out" 2>&1 && made=yes || made=no
 cert_login "$key" && expired=took || expired=refused
-[ "$expired" = refused ] && ok keygen.cert.expired_refused "sshd refuses a certificate of keygen -s that has expired" \
-    || bad keygen.cert.expired_refused "sshd took a certificate that had expired" "$KG/out"
-"$BIN" keygen -q -s "$KG/user_ca" -I other -n someone-else -V -5m:+1h "$key.pub" >/dev/null 2>&1
+[ "$made" = yes ] && [ "$expired" = refused ] \
+    && ok keygen.cert.expired_refused "sshd refuses a certificate of keygen -s that has expired" \
+    || bad keygen.cert.expired_refused "made: $made; sshd's answer: $expired" "$KG/out"
+"$BIN" keygen -q -s "$KG/user_ca" -I other -n someone-else -V -5m:+1h "$key.pub" >"$KG/out" 2>&1 && made=yes || made=no
 cert_login "$key" && other=took || other=refused
-[ "$other" = refused ] && ok keygen.cert.principal_refused "sshd refuses a certificate of keygen -s for another principal" \
-    || bad keygen.cert.principal_refused "sshd took a certificate for another principal" "$KG/out"
+[ "$made" = yes ] && [ "$other" = refused ] \
+    && ok keygen.cert.principal_refused "sshd refuses a certificate of keygen -s for another principal" \
+    || bad keygen.cert.principal_refused "made: $made; sshd's answer: $other" "$KG/out"
 "$BIN" keygen -q -t ed25519 -N '' -f "$KG/hostkey_cert" >/dev/null 2>&1
 "$BIN" keygen -q -s "$KG/user_ca" -I host-cert -h -n 127.0.0.1 "$KG/hostkey_cert.pub" >/dev/null 2>&1
 ssh-keygen -L -f "$KG/hostkey_cert-cert.pub" 2>&1 | grep -q 'host certificate' \
     && ok keygen.cert.host_openssh_reads "ssh-keygen -L reads a host certificate of keygen -s -h" \
     || bad keygen.cert.host_openssh_reads "ssh-keygen -L did not read the host certificate" "$KG/hostkey_cert-cert.pub"
 kill "$(cat "$W/sshd-2212.pid")" 2>/dev/null
+
+# Formats of other systems (T-022): OpenSSH's ssh-keygen -i reads what
+# keygen -e writes, and keygen -i what ssh-keygen -e writes (PKCS8 for ECDSA
+# and RSA, RFC 4716 for Ed25519); keygen -y reads the key that ssh-keygen
+# -m PEM wrote; OpenSSH reads each key that keygen -m writes.
+for t in ecdsa rsa; do
+    key="$KG/id_$t"
+    want=$(cut -d' ' -f1,2 "$key.pub")
+    "$BIN" keygen -e -m PKCS8 -f "$key.pub" >"$KG/ours.pkcs8" 2>"$KG/err"
+    theirs=$(ssh-keygen -i -m PKCS8 -f "$KG/ours.pkcs8" 2>"$KG/err" | cut -d' ' -f1,2)
+    [ -n "$theirs" ] && [ "$theirs" = "$want" ] \
+        && ok "keygen.convert.openssh_imports.${t}" "ssh-keygen -i -m PKCS8 reads keygen -e -m PKCS8 ($t)" \
+        || bad "keygen.convert.openssh_imports.${t}" "ssh-keygen -i -m PKCS8 gave '$theirs' ($t)" "$KG/err"
+    ssh-keygen -e -m PKCS8 -f "$key.pub" >"$KG/theirs.pkcs8" 2>/dev/null
+    ours=$("$BIN" keygen -i -m PKCS8 -f "$KG/theirs.pkcs8" 2>"$KG/err" | cut -d' ' -f1,2)
+    [ -n "$ours" ] && [ "$ours" = "$want" ] \
+        && ok "keygen.convert.imports_openssh.${t}" "keygen -i -m PKCS8 reads ssh-keygen -e -m PKCS8 ($t)" \
+        || bad "keygen.convert.imports_openssh.${t}" "keygen -i -m PKCS8 gave '$ours' ($t)" "$KG/err"
+    ssh-keygen -q -t "$t" -m PEM -N '' -f "$KG/pem_$t"
+    ours=$("$BIN" keygen -y -f "$KG/pem_$t" 2>"$KG/err" | cut -d' ' -f1,2)
+    theirs=$(ssh-keygen -y -f "$KG/pem_$t" 2>/dev/null | cut -d' ' -f1,2)
+    [ -n "$ours" ] && [ "$ours" = "$theirs" ] \
+        && ok "keygen.convert.y_of_pem.${t}" "keygen -y prints the key of a PEM key of ssh-keygen -m PEM ($t)" \
+        || bad "keygen.convert.y_of_pem.${t}" "keygen -y gave '$ours' ($t)" "$KG/err"
+done
+key="$KG/id_ed25519"
+want=$(cut -d' ' -f1,2 "$key.pub")
+"$BIN" keygen -e -f "$key.pub" >"$KG/ours.rfc" 2>"$KG/err"
+theirs=$(ssh-keygen -i -f "$KG/ours.rfc" 2>/dev/null | cut -d' ' -f1,2)
+ssh-keygen -e -f "$key.pub" >"$KG/theirs.rfc" 2>/dev/null
+ours=$("$BIN" keygen -i -f "$KG/theirs.rfc" 2>>"$KG/err" | cut -d' ' -f1,2)
+[ -n "$ours" ] && [ "$ours" = "$want" ] && [ "$theirs" = "$want" ] \
+    && ok keygen.convert.rfc4716_both "each tool reads the other's RFC 4716 export of an Ed25519 key" \
+    || bad keygen.convert.rfc4716_both "RFC 4716: ssh-keygen -i gave '$theirs', keygen -i '$ours'" "$KG/err"
+for f in pem pkcs8; do
+    SSH_ASKPASS="$W/askpass-passphrase" SSH_ASKPASS_REQUIRE=force \
+        "$BIN" keygen -q -t rsa -m "$f" -f "$KG/m_$f" </dev/null >"$KG/out" 2>"$KG/err"
+    expect_rc "keygen.convert.m_make.${f}" "keygen -m $f makes an RSA key with a passphrase" 0 $? "$KG/err"
+    want=$(cut -d' ' -f1,2 "$KG/m_$f.pub")
+    theirs=$(ssh-keygen -y -P 'open sesame' -f "$KG/m_$f" 2>"$KG/err" | cut -d' ' -f1,2)
+    [ -n "$theirs" ] && [ "$theirs" = "$want" ] \
+        && ok "keygen.convert.openssh_reads_m.${f}" "ssh-keygen -y reads the key of keygen -m $f, with its passphrase" \
+        || bad "keygen.convert.openssh_reads_m.${f}" "ssh-keygen -y gave '$theirs' for keygen -m $f" "$KG/err"
+done
 
 # Refusals leave nothing behind.
 before=$(sha256sum <"$KG/id_ed25519")

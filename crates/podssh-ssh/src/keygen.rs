@@ -111,10 +111,17 @@ pub struct KeyFiles {
 /// to `path.pub` (in place of one that is there, as `ssh-keygen` does), each
 /// made by `files`, which also makes a missing directory.
 pub fn write_pair(key: &PrivateKey, path: &Path, files: KeyFiles) -> Result<PathBuf, String> {
+    let private = key.to_openssh(LineEnding::LF).map_err(|e| format!("could not encode the key: {e}"))?;
+    let line = key.public_key().to_openssh().map_err(|e| format!("could not encode the public key: {e}"))?;
+    write_texts(path, &private, &line, files)
+}
+
+/// [`write_pair`] of a private key's text in any format (`-m`, T-022) and a
+/// public key's line.
+pub fn write_texts(path: &Path, private: &str, line: &str, files: KeyFiles) -> Result<PathBuf, String> {
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty() && !d.exists()) {
         (files.dir)(dir).map_err(|e| format!("could not create {}: {e}", dir.display()))?;
     }
-    let private = key.to_openssh(LineEnding::LF).map_err(|e| format!("could not encode the key: {e}"))?;
     let mut file = (files.private)(path).map_err(|e| match e.kind() {
         std::io::ErrorKind::AlreadyExists => {
             format!(
@@ -129,8 +136,7 @@ pub fn write_pair(key: &PrivateKey, path: &Path, files: KeyFiles) -> Result<Path
         let _ = std::fs::remove_file(path);
         return Err(format!("could not write {}: {e}", path.display()));
     }
-    let line = key.public_key().to_openssh().map_err(|e| format!("could not encode the public key: {e}"))?;
-    write_public(path, &line, files).map_err(|(public, e)| {
+    write_public(path, line, files).map_err(|(public, e)| {
         format!("the private key is in {}, but {} could not be written: {e}", path.display(), public.display())
     })
 }
@@ -181,10 +187,15 @@ pub fn read_key_file(path: &Path) -> Result<KeyFile, String> {
             .map(KeyFile::Private)
             .map_err(|e| format!("{shown}: not a usable OpenSSH private key: {e}"));
     }
-    if start.starts_with("-----BEGIN") {
-        return Err(format!(
-            "{shown}: a PEM key; podssh keygen reads OpenSSH private keys (`podssh keygen -p -f FILE` converts one)"
-        ));
+    if start.starts_with("-----BEGIN") || start.starts_with("PuTTY-User-Key-File-") {
+        // Each other format that `podssh ssh -i` reads (T-022).
+        return match crate::key_file::decode(start, None) {
+            Ok(key) => Ok(KeyFile::Private(key)),
+            Err(russh::keys::Error::KeyIsEncrypted) => {
+                Err(format!("{shown} is encrypted: podssh keygen -y asks for its passphrase"))
+            }
+            Err(e) => Err(format!("{shown}: not a key that podssh reads: {e}")),
+        };
     }
     let line = start
         .lines()

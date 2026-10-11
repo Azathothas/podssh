@@ -12,7 +12,6 @@ use std::path::{Path, PathBuf};
 
 use podssh_ssh::keygen;
 use podssh_ssh::prompt;
-use podssh_ssh::russh::keys::ssh_key::LineEnding;
 use podssh_ssh::russh::keys::{PrivateKey, PublicKey};
 use zeroize::Zeroizing;
 
@@ -21,7 +20,7 @@ use crate::keygen::{KeygenArgs, NewPassphrase, EXIT_FAILED};
 
 /// `-p` or `-c` on the key in `path`.
 pub fn change(args: &KeygenArgs, path: &Path, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    match run(args, path, out) {
+    match run(args, path, out, err) {
         Ok(()) => 0,
         Err((code, why)) => {
             let _ = writeln!(err, "podssh keygen: {why}");
@@ -32,7 +31,7 @@ pub fn change(args: &KeygenArgs, path: &Path, out: &mut dyn Write, err: &mut dyn
 
 type Failed = (i32, String);
 
-fn run(args: &KeygenArgs, path: &Path, out: &mut dyn Write) -> Result<(), Failed> {
+fn run(args: &KeygenArgs, path: &Path, out: &mut dyn Write, err: &mut dyn Write) -> Result<(), Failed> {
     let failed = |why: String| (EXIT_FAILED, why);
     let shown = path.display();
     // A comment that cannot be used is refused before any question.
@@ -67,8 +66,9 @@ fn run(args: &KeygenArgs, path: &Path, out: &mut dyn Write) -> Result<(), Failed
         }
         passphrase
     };
-    let key = keygen::protect(key, &passphrase).map_err(failed)?;
-    replace(path, &key, &original, &passphrase).map_err(failed)?;
+    let format = args.format.as_deref().and_then(|f| podssh_ssh::convert::Format::parse(f).ok());
+    let text = crate::keygen_convert::private_text(&key, format, &passphrase, err).map_err(failed)?;
+    replace(path, &text, &original, &passphrase).map_err(failed)?;
     if args.change_comment {
         let line =
             key.public_key().to_openssh().map_err(|e| failed(format!("could not encode the public key: {e}")))?;
@@ -126,10 +126,10 @@ fn open(path: &Path, text: &str, given: NewPassphrase) -> Result<(PrivateKey, Ze
 
 /// Put `key` in place of the file at `path`, whole or not at all, and only
 /// when it is the key of `original`: a new private file beside it, read back,
-/// opened with `passphrase` and compared, then renamed over the file.
-fn replace(path: &Path, key: &PrivateKey, original: &PublicKey, passphrase: &str) -> Result<(), String> {
+/// opened with `passphrase` and compared, then renamed over the file. `text`
+/// is the key in OpenSSH's format, or in that of `-m` (T-022).
+fn replace(path: &Path, text: &str, original: &PublicKey, passphrase: &str) -> Result<(), String> {
     let shown = path.display();
-    let text = Zeroizing::new(key.to_openssh(LineEnding::LF).map_err(|e| format!("could not encode the key: {e}"))?);
     let new = beside(path);
     let mut file = podssh_relay::cache::create_new_private(&new)
         .map_err(|e| format!("{shown} is unchanged: {} could not be made: {e}", new.display()))?;
@@ -156,11 +156,13 @@ fn beside(path: &Path) -> PathBuf {
 /// `passphrase`.
 fn same_key(new: &Path, original: &PublicKey, passphrase: &str) -> Result<(), String> {
     let text = Zeroizing::new(std::fs::read_to_string(new).map_err(|e| format!("the new file cannot be read: {e}"))?);
-    let key = PrivateKey::from_openssh(text.as_bytes()).map_err(|e| format!("the new file is no key: {e}"))?;
-    let key = if key.is_encrypted() {
-        key.decrypt(passphrase.as_bytes()).map_err(|_| "the new passphrase does not open the new file".to_string())?
-    } else {
-        key
+    let key = match podssh_ssh::key_file::decode(&text, (!passphrase.is_empty()).then_some(passphrase)) {
+        Ok(key) => key,
+        Err(podssh_ssh::russh::keys::Error::KeyIsEncrypted) => {
+            return Err("the new passphrase does not open the new file".into());
+        }
+        Err(_) if !passphrase.is_empty() => return Err("the new passphrase does not open the new file".into()),
+        Err(e) => return Err(format!("the new file is no key: {e}")),
     };
     if key.public_key().key_data() != original.key_data() {
         return Err("the new file holds another key".into());
@@ -172,6 +174,7 @@ fn same_key(new: &Path, original: &PublicKey, passphrase: &str) -> Result<(), St
 mod tests {
     use super::*;
     use podssh_ssh::keygen::{generate, KeyKind};
+    use podssh_ssh::russh::keys::ssh_key::LineEnding;
 
     /// A directory of the test's own, private, removed at the end.
     fn scratch() -> PathBuf {
@@ -191,9 +194,11 @@ mod tests {
         let text = key.to_openssh(LineEnding::LF).unwrap();
         std::fs::write(&path, text.as_bytes()).unwrap();
         let other = generate(KeyKind::Ed25519, "mine").unwrap();
+        let other = other.to_openssh(LineEnding::LF).unwrap();
         let refused = replace(&path, &other, key.public_key(), "").unwrap_err();
         assert!(refused.contains("another key"), "{refused}");
         let locked = keygen::protect(key.clone(), "right").unwrap();
+        let locked = locked.to_openssh(LineEnding::LF).unwrap();
         let refused = replace(&path, &locked, key.public_key(), "wrong").unwrap_err();
         assert!(refused.contains("does not open"), "{refused}");
         assert_eq!(std::fs::read(&path).unwrap(), text.as_bytes(), "the file changed");

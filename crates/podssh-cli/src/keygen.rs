@@ -14,6 +14,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use clap::ArgMatches;
+use podssh_ssh::convert::Format;
 use podssh_ssh::keygen::{self, KeyFile, KeyKind};
 use podssh_ssh::prompt;
 use zeroize::Zeroizing;
@@ -69,6 +70,10 @@ pub struct KeygenArgs {
     pub serial: Option<String>,
     pub host_certificate: bool,
     pub print_certificate: bool,
+    /// `-e`, `-i` and `-m`: the formats of other systems (T-022).
+    pub export: bool,
+    pub import: bool,
+    pub format: Option<String>,
 }
 
 impl KeygenArgs {
@@ -112,6 +117,9 @@ impl KeygenArgs {
             serial: one("serial"),
             host_certificate: flag("host-certificate"),
             print_certificate: flag("print-certificate"),
+            export: flag("export"),
+            import: flag("import"),
+            format: one("format"),
         }
     }
 }
@@ -186,6 +194,35 @@ pub fn run_keygen(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -
             return EXIT_USAGE;
         }
         return crate::keygen_cert::print(args, out, err);
+    }
+    let format = match args.format.as_deref().map(Format::parse).transpose() {
+        Ok(format) => format,
+        Err(why) => {
+            let _ = writeln!(err, "podssh keygen: {why}");
+            return EXIT_USAGE;
+        }
+    };
+    if args.export || args.import {
+        if (args.export && args.import) || others {
+            let _ =
+                writeln!(err, "podssh keygen: -e and -i go alone: not together, nor with -F, -R, -H, -p, -c, -y or -l");
+            return EXIT_USAGE;
+        }
+        return if args.export {
+            crate::keygen_convert::export(args, format, out, err)
+        } else {
+            crate::keygen_convert::import(args, format, out, err)
+        };
+    }
+    let format_with_others = args.find_host.is_some()
+        || args.remove_host.is_some()
+        || args.hash_hosts
+        || args.change_comment
+        || args.print_public
+        || args.fingerprint;
+    if format.is_some() && format_with_others {
+        let _ = writeln!(err, "podssh keygen: -m goes with -e, -i, -p or a new key");
+        return EXIT_USAGE;
     }
     if args.find_host.is_some() || args.remove_host.is_some() || args.hash_hosts {
         let why = if args.find_host.is_some() && args.remove_host.is_some() {
@@ -284,15 +321,20 @@ fn generate(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 
     if !args.quiet {
         let _ = writeln!(out, "Generating public/private {} key pair.", kind.name());
     }
-    let made = keygen::generate(kind, &comment).and_then(|key| keygen::protect(key, &passphrase));
-    let key = match made {
-        Ok(key) => key,
+    let format = args.format.as_deref().and_then(|f| Format::parse(f).ok());
+    let made = keygen::generate(kind, &comment).and_then(|key| {
+        let text = crate::keygen_convert::private_text(&key, format, &passphrase, err)?;
+        let line = key.public_key().to_openssh().map_err(|e| format!("could not encode the public key: {e}"))?;
+        Ok((key, text, line))
+    });
+    let (key, text, line) = match made {
+        Ok(made) => made,
         Err(why) => {
             let _ = writeln!(err, "podssh keygen: {why}");
             return EXIT_FAILED;
         }
     };
-    match keygen::write_pair(&key, &path, KEY_FILES) {
+    match keygen::write_texts(&path, &text, &line, KEY_FILES) {
         Ok(public) => {
             if !args.quiet {
                 let _ = writeln!(out, "Your identification has been saved in {}", path.display());
@@ -342,34 +384,13 @@ pub(crate) fn ask_new_passphrase(first: &str) -> Result<Zeroizing<String>, Strin
 /// `-y`: the public key of the private key in `path`, decrypted first when
 /// it is encrypted, so the line printed is derived from the private key.
 fn print_public(path: &Path, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    let key = match keygen::read_key_file(path) {
+    let key = match crate::keygen_convert::load_key(path, true) {
         Ok(KeyFile::Private(key)) => key,
-        Ok(KeyFile::Public(_)) => {
-            let _ = writeln!(err, "podssh keygen: {} holds a public key; -y reads a private key", path.display());
-            return EXIT_FAILED;
-        }
+        Ok(KeyFile::Public(_)) => return EXIT_FAILED,
         Err(why) => {
             let _ = writeln!(err, "podssh keygen: {why}");
             return EXIT_FAILED;
         }
-    };
-    let key = if key.is_encrypted() {
-        let passphrase = match prompt::ask("Enter passphrase: ", false) {
-            Ok(p) => p,
-            Err(e) => {
-                let _ = writeln!(err, "podssh keygen: {} is encrypted, and its passphrase: {e}", path.display());
-                return EXIT_FAILED;
-            }
-        };
-        match key.decrypt(passphrase.as_bytes()) {
-            Ok(key) => key,
-            Err(_) => {
-                let _ = writeln!(err, "podssh keygen: {}: incorrect passphrase", path.display());
-                return EXIT_FAILED;
-            }
-        }
-    } else {
-        key
     };
     match key.public_key().to_openssh() {
         Ok(line) => {
@@ -386,7 +407,7 @@ fn print_public(path: &Path, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
 /// `-l`: the fingerprint line `ssh-keygen -l` prints, for a public key line
 /// or the public half of a private key.
 fn print_fingerprint(path: &Path, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
-    match keygen::read_key_file(path) {
+    match crate::keygen_convert::load_key(path, false) {
         Ok(key) => {
             let _ = writeln!(out, "{}", keygen::fingerprint_line(key.public_key()));
             0
@@ -400,7 +421,7 @@ fn print_fingerprint(path: &Path, out: &mut dyn Write, err: &mut dyn Write) -> i
 
 /// `user@host`, as `ssh-keygen` names a key, from the environment (never the
 /// user database, which some hosts lack).
-fn default_comment() -> String {
+pub(crate) fn default_comment() -> String {
     match (crate::ssh::resolve::Env::from_process().user, crate::ssh::tokens::local_host_name()) {
         (Some(user), Some(host)) => format!("{user}@{host}"),
         (Some(user), None) => user,

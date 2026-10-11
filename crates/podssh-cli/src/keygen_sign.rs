@@ -207,7 +207,7 @@ pub(crate) fn public_key(path: &Path, text: &str) -> Option<PublicKey> {
     PrivateKey::from_openssh(text.trim_start()).ok().map(|key| PublicKey::new(key.public_key().key_data().clone(), ""))
 }
 
-fn public_line(text: &str) -> Option<PublicKey> {
+pub(crate) fn public_line(text: &str) -> Option<PublicKey> {
     let line = text.lines().map(str::trim).find(|l| !l.is_empty() && !l.starts_with('#'))?;
     PublicKey::from_openssh(line).ok()
 }

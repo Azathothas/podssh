@@ -91,6 +91,20 @@ fn a_host_certificate_and_a_new_one_in_place() {
     assert_eq!((plain.code, plain.err), (1, format!("{user}:1 is not a certificate\n")));
 }
 
+/// A validity that starts with `-` is the value of `-V`, as getopt takes
+/// it: in CI the box's `-V -5m:+1h` was refused as flags (T-021).
+#[test]
+fn a_validity_may_start_with_a_hyphen() {
+    let dir = scratch();
+    let (ca, user) = ca_and_user(&dir);
+    for spec in ["-5m:+1h", "-2h:-1h"] {
+        let run = podssh(&["keygen", "-q", "-s", &ca, "-I", "x", "-n", "a", "-V", spec, &user]);
+        assert_eq!(run.code, 0, "-V {spec}: {}", run.err);
+    }
+    let shown = podssh(&["keygen", "-L", "-f", &file(&dir, "user-cert.pub")]).out;
+    assert!(shown.contains("        Valid: from "), "{shown}");
+}
+
 /// `-O` sets the options of the certificate, which `-L` names.
 #[test]
 fn a_certificate_takes_options() {

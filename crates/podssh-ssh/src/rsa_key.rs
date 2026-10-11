@@ -77,6 +77,13 @@ impl RsaSigner {
     }
 }
 
+/// The PKCS#1 form of the RSA key of a key file, for `-m PEM` and `-m
+/// PKCS8` (T-022).
+pub(crate) fn pkcs1_der(key: &PrivateKey) -> Result<Zeroizing<Vec<u8>>, String> {
+    let KeypairData::Rsa(rsa) = key.key_data() else { return Err("it is not an RSA key".into()) };
+    pkcs1(rsa)
+}
+
 /// A signer that ssh-key's certificate builder calls (T-021): the closure
 /// signs, through aws-lc-rs for an RSA CA, or with an agent's signature. It
 /// is in this file, the one where podssh's own code names `try_sign`

@@ -38,6 +38,13 @@ fn appended(long: &str) -> bool {
     matches!(long, "option" | "identity-file")
 }
 
+/// Value flags whose value may start with `-`, as getopt takes the next
+/// word whatever it is: `keygen -V -5m:+1h` (T-021), where clap read the
+/// value as flags and refused it with 64.
+fn takes_hyphen_value(long: &str) -> bool {
+    matches!(long, "validity")
+}
+
 /// A pod name in the parser's grammar. `ssh`/`cp` take their own so that a
 /// token the top level did not consume is reported against the verb the user
 /// actually typed, naming that verb's flags.
@@ -62,6 +69,9 @@ fn add_flag(cmd: Command, row: &'static FlagRow, keep_each: bool) -> Command {
         // `ssh` keeps each value of a repeated flag, and `ssh::args` picks one
         // the way OpenSSH does, or refuses the repeat.
         Some(a) if keep_each || appended(row.long) => arg.value_name(a).num_args(1).action(ArgAction::Append),
+        Some(a) if takes_hyphen_value(row.long) => {
+            arg.value_name(a).num_args(1).action(ArgAction::Set).allow_hyphen_values(true)
+        }
         Some(a) => arg.value_name(a).num_args(1).action(ArgAction::Set),
         None if counted(row.long) => arg.action(ArgAction::Count),
         None => arg.action(ArgAction::SetTrue),

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**286 entries: 84 open, 0 partial, 22 blocked, 180 done.**
+**286 entries: 83 open, 0 partial, 22 blocked, 181 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 134 | 156 |
-| P3 | 78 | 0 | 4 | 24 | 106 |
-| **All** | 84 | 0 | 22 | 180 | 286 |
+| P3 | 77 | 0 | 4 | 25 | 106 |
+| **All** | 83 | 0 | 22 | 181 | 286 |
 
 ## Entries
 
@@ -95,7 +95,7 @@ repository and CI).
 | [T-019](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -F`, `-R` and `-H`: find, remove and hash `known_hosts` entries |
 | [T-020](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -Y`: SSH signatures |
 | [T-021](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -s`: user and host certificates |
-| [T-022](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -e`, `-i` and `-m`: convert key formats |
+| [T-022](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -e`, `-i` and `-m`: convert key formats |
 | [T-023](ssh.md) | P2 | S | M3 | defect | done | With `PubkeyAuthentication=no`, the denial still says "no key was offered; use -i FILE" (GitHub #7) |
 | [T-024](ssh.md) | P2 | S | M3 | defect | done | The first line about a dropped session is generic; name the hop that broke (GitHub #17) |
 | [T-025](ssh.md) | P2 | M | backlog | feature | done | Try a dropped forward session again when it is safe, by the relay's close reason (GitHub #17) |

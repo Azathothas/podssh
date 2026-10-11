@@ -4,6 +4,7 @@
 //! tables that hold them are in the manual already.
 
 use super::notes_chat::CHAT;
+use super::notes_keygen::KEYGEN;
 use super::notes_pair::{NODE, OPERATOR};
 use super::notes_ping::PING;
 use super::notes_relay::RELAY;
@@ -328,37 +329,6 @@ const AGENT: &[&str] = &[
      password, a passphrase or a password of keyboard-interactive, also with BatchMode, and the agent forgets one \
      that a server refuses; -v names where a secret came from, never its value. podssh doctor says how many the \
      agent keeps, never which. A locked agent tells none.",
-];
-
-const KEYGEN: &[&str] = &[
-    "The keys are in the formats of OpenSSH. The private key has mode 0600, and on Windows an access list \
-     of its own that lets in only the user, SYSTEM and the Administrators, as the keys of OpenSSH have; a new \
-     key never replaces a file that exists. The public key goes to FILE.pub, which others may read and not \
-     change. podssh prints the SHA-256 fingerprint.",
-    "podssh keygen -p -f FILE changes the passphrase of a key: podssh asks for the old one, then for the new \
-     one two times. podssh keygen -c -f FILE changes its comment, to -C COMMENT or to one that podssh asks \
-     for, in the key and in FILE.pub. The file is replaced only with the same key, read back and compared \
-     first, and no copy of the old file is kept. A key in another format that podssh ssh -i reads is written \
-     in the format of OpenSSH. -P '' is for a key with no passphrase; a passphrase given with -P is refused.",
-    "podssh keygen -F HOST prints the lines of HOST in known_hosts (-f FILE, else ~/.ssh/known_hosts), -R HOST \
-     removes them, and -H hashes each host name, as ssh-keygen does; a host on another port is [HOST]:PORT. -R \
-     and -H keep the old text as FILE.old. -R keeps a line that names the host through a wildcard, as its key \
-     is for other hosts too.",
-    "podssh keygen -Y sign -f KEY -n NAMESPACE FILE signs FILE to FILE.sig, or standard input to standard \
-     output, as ssh-keygen -Y sign does for git; the agent signs when it holds the key of KEY (-U: the agent \
-     alone). -Y verify -f SIGNERS -I PRINCIPAL -n NAMESPACE -s FILE.sig checks the data on standard input \
-     against SIGNERS, an allowed-signers file, and says Good or Could not verify signature. (exit 1). -Y \
-     check-novalidate, find-principals and match-principals are those of ssh-keygen. A signature never \
-     replaces a file.",
-    "podssh keygen -s CA -I ID [-n NAMES] [-V INTERVAL] [-z SERIAL] [-O OPTION] [-h] FILE.pub certifies each \
-     key into FILE-cert.pub, as ssh-keygen -s does (-U: the CA is in the agent), and podssh keygen -L -f \
-     FILE prints a certificate. -V here is a validity, such as +52w or 20260101:20270101; the version is \
-     podssh -V. A certificate replaces the one that is there, as OpenSSH's does.",
-    "podssh asks for the passphrase two times, on the terminal or through SSH_ASKPASS. -N '' makes a key \
-     with no passphrase. A passphrase given with -N is refused, because each process on the host can \
-     read a command line. With no terminal and no SSH_ASKPASS, podssh stops at once and names -N ''.",
-    "DSA keys are refused: OpenSSH 10 removed them. The default comment is USER@HOST from the \
-     environment, never from the user database.",
 ];
 
 const MAN: &[&str] = &[

@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:903-904`).
+   (`docs/cli.md:912-913`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:933` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:942` needs no change.
 
 ## Decision
 
@@ -379,11 +379,11 @@ Measured offline:
 Read: `parse` returns at the first word when it is `-h`, `--help`, `-V` or
 `--version` (`crates/podssh-cli/src/tree.rs` lines 266-272 at `56b466b`), and never reads the
 rest. For a verb, clap reads each word before `--help` is answered
-(`crates/podssh-cli/src/tree.rs:224-233`), so an unknown word is refused there.
+(`crates/podssh-cli/src/tree.rs:234-243`), so an unknown word is refused there.
 
 ## Approach
 
-1. At `crates/podssh-cli/src/tree.rs:130-142`: `-h` or `--help` alone is
+1. At `crates/podssh-cli/src/tree.rs:140-152`: `-h` or `--help` alone is
    `Parsed::Help("")`. With one more word that names a verb
    (`crate::flags::verb_for`), it is `Parsed::Help` of that verb, as
    `podssh VERB --help` is. Any other word is `Parsed::Usage`:
@@ -393,7 +393,7 @@ rest. For a verb, clap reads each word before `--help` is answered
 3. Keep the verb level as it is: `podssh ssh --help host` prints the help of
    `ssh`, after clap has checked each word.
 4. If the top-level help text changes (`TOP_OPTIONS`,
-   `crates/podssh-cli/src/flags.rs:482-485`), update its test
+   `crates/podssh-cli/src/flags.rs:426-429`), update its test
    `no_top_level_option_runs_into_its_description`
    (`crates/podssh-cli/src/help.rs:313-328`). Same commit: `docs/cli.md:55-59`,
    `docs/STATUS.md`.
@@ -491,11 +491,11 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] [user@]host [COMMAND...]` for `ssh` and
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
-2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:36-234`)
+2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:37-235`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-111`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:447-455`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:416-430`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:417-425`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:386-400`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:182-187`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
@@ -581,7 +581,7 @@ Measured offline: `PODSSH_TIMEOUT=5s podssh mv` and
 Read: the `--timeout` rows are those of `cp` and `mv`
 (`crates/podssh-cli/src/flags/copy.rs:29-30`), `chat`
 (`crates/podssh-cli/src/flags.rs`, lines 274-275 at `7aa955a`), `ts`
-(`crates/podssh-cli/src/flags.rs:304-305`) and `relay`
+(`crates/podssh-cli/src/flags.rs:306-307`) and `relay`
 (`crates/podssh-cli/src/flags.rs` lines 317-318 at `af0a163`). Each but `ts` exits 70
 (`crates/podssh-cli/src/flags.rs` lines 436-443 at `af0a163`), and `ts` needs its feature. So the
 variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:57-70`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:1006-1008`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:1015-1017`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -687,7 +687,7 @@ node, operator, chat, cp, mv, man, relay, status, doctor, keygen, ts. Seven
 lines say "(not implemented yet)" and `ts` says "(not in this build)".
 `podssh man --no-pager` shows the same order under "Commands".
 
-Read, at `3a78cff`: one table, `VERBS` (`crates/podssh-cli/src/flags.rs:389-430`), has no
+Read, at `3a78cff`: one table, `VERBS` (`crates/podssh-cli/src/flags.rs:333-374`), has no
 group. Four places render it: `top_level_help`
 (`crates/podssh-cli/src/help.rs`, lines 132-146), the start of the manual
 (`crates/podssh-cli/src/man/model.rs`, lines 120-126), `unknown_verb`
@@ -697,7 +697,7 @@ group. Four places render it: `top_level_help`
 ## Approach
 
 1. Add the group to the table in `crates/podssh-cli/src/flags.rs`: a field of
-   `Verb` (`crates/podssh-cli/src/flags.rs:376-387`), or one list of groups. A
+   `Verb` (`crates/podssh-cli/src/flags.rs:320-331`), or one list of groups. A
    new test in `crates/podssh-cli/tests/flag_table.rs` asserts that each verb
    is in exactly one group, as `every_verb_has_an_owner_so_no_verb_can_be_a_silent_stub`
    does for owners (`crates/podssh-cli/tests/flag_table.rs:104`).
@@ -756,7 +756,7 @@ problem of one long list stands; the mix of working and missing commands is gone
 
 ## Done
 
-2026-10-11. `GROUPS` in `crates/podssh-cli/src/flags.rs:432-445`; `--help`
+2026-10-11. `GROUPS` in `crates/podssh-cli/src/flags.rs:376-389`; `--help`
 (`crates/podssh-cli/src/help.rs:132-159`) and the manual's "Commands"
 (`crates/podssh-cli/src/man/model.rs:120-131`) print the commands in their groups.
 - `cargo test -p podssh-cli --test flag_table -- each_verb_is_in_one_group`: 1 passed. Planted:
@@ -981,16 +981,16 @@ Read then: each value flag but `-i` and `-o` was `ArgAction::Set`.
 ## Approach
 
 1. The value flags of `ssh` keep each value (`ArgAction::Append`,
-   `crates/podssh-cli/src/tree.rs:61-68`).
+   `crates/podssh-cli/src/tree.rs:68-78`).
 2. `SshArgs::from_matches` picks the value as OpenSSH does: the first `-p` and
    `-l`, the last `-e`, `-E` and `-F`, and the first value of each `-o`
    keyword (`crates/podssh-cli/src/ssh/args.rs:127-207`).
 3. `ONCE` and `repeated` refuse a second `-J`, `-W`, `--relay-host`,
    `--relay-addr` or `--ca-file` with exit 64 before anything connects
    (`crates/podssh-cli/src/ssh/args.rs:88-122`, called at
-   `crates/podssh-cli/src/tree.rs:413-417`).
+   `crates/podssh-cli/src/tree.rs:423-427`).
 4. `docs/cli.md:152-157` and a note of the manual
-   (`crates/podssh-cli/src/man/notes.rs:136-138`) state the rule.
+   (`crates/podssh-cli/src/man/notes.rs:137-139`) state the rule.
 
 ## Prove
 
@@ -1048,33 +1048,33 @@ with `unknown flag`. The usage of OpenSSH 10.3p1 (`ssh-keygen -?`, offline):
 and `-c [-a rounds] [-C comment] [-f keyfile] [-P passphrase]`.
 
 Read: `KEYGEN_FLAGS` has generation, `-y` and `-l`
-(`crates/podssh-cli/src/flags.rs:318-374`). The parts exist: decryption with a
-prompt (`crates/podssh-cli/src/keygen.rs:342-373`), a new passphrase asked
-twice (`crates/podssh-cli/src/keygen.rs:321-340`), encryption as OpenSSH does
+(`crates/podssh-cli/src/flags/keygen.rs:7-70`). The parts exist: decryption with a
+prompt (`crates/podssh-cli/src/keygen.rs`, lines 342-373 at `8290fe1`), a new passphrase asked
+twice (`crates/podssh-cli/src/keygen.rs:363-382`), encryption as OpenSSH does
 it (`crates/podssh-ssh/src/keygen.rs:74-87`), and the refusal of a passphrase
-on argv (`crates/podssh-cli/src/keygen.rs:121-128`).
+on argv (`crates/podssh-cli/src/keygen.rs:129-136`).
 
 ## Approach
 
 1. Rows in `KEYGEN_FLAGS`: `-p`, `-c` and `-P PHRASE`. `-P` follows `-N`: only
    `-P ''` is accepted; another value is refused (64) and not kept
-   (`NewPassphrase`, `crates/podssh-cli/src/keygen.rs:26-34`).
+   (`NewPassphrase`, `crates/podssh-cli/src/keygen.rs:27-35`).
 2. Read the key with each format that `podssh ssh -i` reads:
    `russh::keys::decode_secret_key`, the reader behind `load_secret_key`
    (`crates/podssh-ssh/src/keys.rs`, line 231 at `fe19445`). Ask for the old passphrase on the
    terminal or through `SSH_ASKPASS`, as `-y` does. With neither, refuse at
-   once and name `-P ''` and `-N ''` (as `crates/podssh-cli/src/keygen.rs:323-327`).
+   once and name `-P ''` and `-N ''` (as `crates/podssh-cli/src/keygen.rs:365-369`).
 3. `-p`: ask for the new passphrase twice (or take `-N ''`), and encrypt with
    `keygen::protect`. `-c`: take `-C` or ask; refuse a control character, as
-   `crates/podssh-cli/src/keygen.rs:250-253` does. Write the OpenSSH format.
+   `crates/podssh-cli/src/keygen.rs:287-290` does. Write the OpenSSH format.
 4. A new invariant beside "never over an existing file" (`docs/cli.md:545`):
    write a new file in the same directory (`create_new`, mode 0600), read it
    back, decrypt it with the new passphrase, compare its public key with the
    original, then rename it over the original. Never write a different key
    over the file. For `-c`, write `FILE.pub` again.
-5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:184-187`
-   names `podssh keygen -p`; `docs/cli.md:539-606`, the notes of `keygen`
-   (`crates/podssh-cli/src/man/notes.rs:333-362`), `docs/STATUS.md`.
+5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs` (lines 184-187 at `8290fe1`)
+   names `podssh keygen -p`; `docs/cli.md:539-615`, the notes of `keygen`
+   (`crates/podssh-cli/src/man/notes_keygen.rs:4-37`), `docs/STATUS.md`.
 
 ## Decision
 
@@ -1112,9 +1112,9 @@ the compare of step 4 and write a fresh key; the public-key test fails.
 
 ## Done
 
-2026-10-11. `podssh keygen -p` and `-c` in `crates/podssh-cli/src/keygen_change.rs:22-88`, their
-flags at `crates/podssh-cli/src/flags.rs:330-335` and their refusals at
-`crates/podssh-cli/src/keygen.rs:129-136` and `:206-225`; `keygen::protect` keeps the comment
+2026-10-11. `podssh keygen -p` and `-c` in `crates/podssh-cli/src/keygen_change.rs:21-88`, their
+flags at `crates/podssh-cli/src/flags/keygen.rs:20-25` and their refusals at
+`crates/podssh-cli/src/keygen.rs:137-144` and `:243-262`; `keygen::protect` keeps the comment
 (`crates/podssh-ssh/src/keygen.rs:74-87`).
 - `cargo test -p podssh-cli --test keygen -- change`: 3 passed; `cargo test -p podssh-cli --lib --
   keygen_change`: 1 passed; `cargo test -p podssh-ssh --lib -- keygen`: 5 passed. Planted, each
@@ -1179,7 +1179,7 @@ The default files are the ones of `podssh ssh`
 
 ## Approach
 
-1. Rows in `KEYGEN_FLAGS` (`crates/podssh-cli/src/flags.rs:318-374`):
+1. Rows in `KEYGEN_FLAGS` (`crates/podssh-cli/src/flags/keygen.rs:7-70`):
    `-F HOST`, `-R HOST` and `-H`. `-f FILE` selects the file; else the first
    user `known_hosts` file. Accept `[host]:port`, as `host_name` writes it
    (`crates/podssh-ssh/src/known_hosts.rs:89-96`).
@@ -1192,7 +1192,7 @@ The default files are the ones of `podssh ssh`
    it, and say so.
 4. `-H`: a random salt of 20 bytes and the HMAC-SHA1 of `hashed_matches`, so
    podssh and OpenSSH both find the result.
-5. Same commit: `docs/cli.md:539-606`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:539-615`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfall: a rewrite can lose a key that `podssh ssh` appends at the same moment
 (T-029). Read the file again just before the rename, and refuse if it changed.
@@ -1242,7 +1242,7 @@ Plant: drop the comment lines in the rewrite; the byte test fails.
 `crates/podssh-ssh/src/known_hosts/edit.rs:89-288`, on the bytes of the file;
 `append` opens the file again when a rewrite took its place
 (`crates/podssh-ssh/src/known_hosts.rs:342-406`); the flags at
-`crates/podssh-cli/src/flags.rs:344-349`, and the command in
+`crates/podssh-cli/src/flags/keygen.rs:34-39`, and the command in
 `crates/podssh-cli/src/keygen_hosts.rs:23-180`.
 - `cargo test -p podssh-ssh --lib -- known_hosts`: 8 passed on Windows (9 in the build image, with
   the link): the lines found are those that `ssh-keygen -F` printed; `-R` keeps every other line
@@ -1314,7 +1314,7 @@ that crate as `russh::keys::ssh_key` (`crates/podssh-ssh/src/keygen.rs:11-13`).
    matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:311-333`).
    Print the lines and the exit codes of OpenSSH.
 4. Refuse `-r` (a key revocation list) by name until podssh reads one.
-5. Same commit: `docs/cli.md:539-606`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:539-615`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: read the signed file as bytes, never as text. A namespace that does
 not match is a failure, never a warning.
@@ -1365,7 +1365,7 @@ OpenSSH's verify with `-n git` then fails.
 2026-10-11. Signatures and allowed signers in `crates/podssh-ssh/src/sshsig.rs:1-335`; an RSA key
 signs through `RsaSigner::sign_sha512` (`crates/podssh-ssh/src/rsa_key.rs:62-69`), and the keys of
 the agent come from `agent_keys` (`crates/podssh-ssh/src/keys.rs:326-332`). The command is
-`crates/podssh-cli/src/keygen_sign.rs:1-405`, its flags at `crates/podssh-cli/src/flags.rs:350-361` and `:372-373`.
+`crates/podssh-cli/src/keygen_sign.rs:1-405`, its flags at `crates/podssh-cli/src/flags/keygen.rs:40-51` and `:68-69`.
 - `cargo test -p podssh-ssh --lib -- sshsig`: 6 passed: the signatures of OpenSSH's (Ed25519 in
   `git`; RSA in `file` with SHA-256) verify, and refuse another namespace and changed data with
   OpenSSH's words; each kind of key signs with each hash, an RSA key with `rsa-sha2-512`; the lines
@@ -1425,7 +1425,7 @@ as plain keys (`docs/STATUS.md`, section "Components"). T-027 covers that side.
 
 1. Rows: `-s CA`, `-I ID`, `-n PRINCIPALS`, `-V INTERVAL`, `-z SERIAL`,
    `-O OPTION` (repeatable), `-h` (a host certificate) and `-L`. `-h` is free:
-   a verb declares only `--help` (`crates/podssh-cli/src/tree.rs:79-88`). `-V`
+   a verb declares only `--help` (`crates/podssh-cli/src/tree.rs:89-98`). `-V`
    is a validity here, not the version: say so in `--help`, as the help says
    it for `-P` (`crates/podssh-cli/src/help.rs:224-241`).
 2. Read the CA key as `-y` reads a private key (a passphrase by prompt or
@@ -1437,7 +1437,7 @@ as plain keys (`docs/STATUS.md`, section "Components"). T-027 covers that side.
    `force-command=`, `source-address=`, and the `no-` and `permit-` options;
    refuse the others by name.
 5. `-L`: print the certificate as `ssh-keygen -L` does.
-6. Same commit: `docs/cli.md:539-606`, the notes of `keygen`, `docs/STATUS.md`.
+6. Same commit: `docs/cli.md:539-615`, the notes of `keygen`, `docs/STATUS.md`.
 
 ## Decision
 
@@ -1486,9 +1486,9 @@ the `sshd` login check fails.
 ## Done
 
 2026-10-11. Certificates in `crates/podssh-ssh/src/cert.rs:1-424`, signed by an RSA CA through
-`Detached` (`crates/podssh-ssh/src/rsa_key.rs:80-108`); the command in
+`Detached` (`crates/podssh-ssh/src/rsa_key.rs:87-115`); the command in
 `crates/podssh-cli/src/keygen_cert.rs:1-199`, its new flags at
-`crates/podssh-cli/src/flags.rs:362-371`.
+`crates/podssh-cli/src/flags/keygen.rs:52-59` and `:66-67`.
 - `cargo test -p podssh-ssh --lib -- cert::`: 5 passed: `-L` of a certificate of OpenSSH's prints
   the lines that OpenSSH printed for it (each kind of option among them); `-V`, `-z` and `-O` as
   ssh-keygen takes them, and their refusals in its words; an Ed25519, an ECDSA and an RSA CA
@@ -1512,6 +1512,12 @@ the `sshd` login check fails.
 - `cargo test -p podssh-ssh`: 137 passed; `cargo test -p podssh-cli`: 558 passed, 0 failed, 31
   ignored; clippy; rustfmt. In the build image: the tests of `cert`, `keygen_cert`, `agent_cli`,
   `keygen_sign` and the check of T-257 passed.
+- At `8290fe1` the gate's step release failed in CI: in the box, `-V -5m:+1h` was refused with 64,
+  as clap read a value that starts with `-` as flags, where getopt takes the next word; the checks
+  of an expired certificate and of another principal then passed with no certificate made. The next
+  commit lets `-V` take such a value (`crates/podssh-cli/src/tree.rs:41-46`), tests it
+  (`a_validity_may_start_with_a_hyphen`; planted, the old parse failed it with 64), and counts
+  each of the two refusals only once its certificate is made.
 
 # T-022: `podssh keygen -e`, `-i` and `-m`: convert key formats
 
@@ -1521,7 +1527,7 @@ the `sshd` login check fails.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1541,7 +1547,7 @@ Measured offline: `podssh keygen -e -f k.pub`, `-i -f k.pub` and
 with `-p`.
 
 Read: `read_key_file` takes only an OpenSSH private key or a public key line
-(`crates/podssh-ssh/src/keygen.rs:174-195`). `podssh ssh -i` loads a key with
+(`crates/podssh-ssh/src/keygen.rs`, lines 174-195 at `8290fe1`). `podssh ssh -i` loads a key with
 `russh::keys::load_secret_key` (`crates/podssh-ssh/src/keys.rs`, line 231 at `fe19445`), which
 calls `decode_secret_key`: OpenSSH, PKCS#1 RSA, PKCS#8 (also encrypted), SEC1
 EC and PuTTY PPK. russh also has `encode_pkcs8_pem` and
@@ -1559,7 +1565,7 @@ keys/format/mod.rs, read in the local cargo registry).
    public key in that format, and write the OpenSSH line to stdout.
 4. `-m` with a new key and with `-p` (T-018): write the private key in that
    format; use `encode_pkcs8_pem_encrypted` when there is a passphrase.
-5. Same commit: `docs/cli.md:539-606`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:539-615`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: no new C dependency. A format that a key type does not have (PEM
 for Ed25519) is refused by name.
@@ -1571,11 +1577,28 @@ format goes through `-p` (T-018). podssh never prints a private key
 (`crates/podssh-cli/src/keygen.rs:6-9`). The alternative, `-i` prints the
 private key on stdout as `ssh-keygen` does, lost for that reason.
 
+Taken, with these calls made in the work (2026-10-11), after a measure of the
+`ssh-keygen` of OpenSSH for Windows 10.0p2. `-e` writes OpenSSH's forms: RFC
+4716 with its comment `N-bit TYPE, converted by USER@HOST from OpenSSH` and lines
+of 70; PKCS8, a SubjectPublicKeyInfo; PEM, PKCS#1 for RSA and a
+SubjectPublicKeyInfo for ECDSA; an Ed25519 key has RFC 4716 only, and the others
+are refused by name, as OpenSSH refuses them. `-i` reads each, its RFC 4716
+headers passed over (continued with `\`), and a PEM block of `PUBLIC KEY` or
+`RSA PUBLIC KEY` under either `-m PKCS8` or `-m PEM`. `-m` with a new key or
+`-p` writes PEM (PKCS#1, SEC1) encrypted with AES-128-CBC as OpenSSH writes it,
+or PKCS#8 encrypted with PBES2 (PBKDF2 with HMAC-SHA256, 100 000 rounds,
+AES-256-CBC), where OpenSSH's has 2048 rounds; an Ed25519 key keeps OpenSSH's
+format, as `ssh-keygen` does, and podssh says so. `-y`, `-l` and `-e` read a key
+in each format of T-287 through one loader of the CLI, which asks for the
+passphrase; `-l` and `-e` read the public half of an OpenSSH key, or `FILE.pub`,
+with no question. `read_key_file` of the library reads the other formats too, for
+an unencrypted key. A failure exits 1 (OpenSSH 255) and a usage error 64.
+
 ## Prove
 
 ```sh
-cargo test -p podssh-ssh --lib -- keygen
-cargo test -p podssh-cli --test keygen -- convert
+cargo test -p podssh-ssh --lib -- convert
+cargo test -p podssh-cli --test keygen_convert
 sh scripts/dev.sh check
 ```
 
@@ -1588,11 +1611,43 @@ the last check fails.
 ## Correction
 
 Read after T-018 (2026-10-11): the message of `read_key_file` names `podssh keygen -p -f FILE`
-(`crates/podssh-ssh/src/keygen.rs:184-187`), which writes a key of PEM, PKCS#8 or PuTTY in the
+(`crates/podssh-ssh/src/keygen.rs`, lines 184-187 at `8290fe1`), which writes a key of PEM, PKCS#8 or PuTTY in the
 format of OpenSSH; `-y` and `-l` still refuse such a file. Since T-287 (2026-10-11), each key
 file is read through `podssh_ssh::key_file` (`crates/podssh-ssh/src/key_file.rs:25-42`), which asks
 for the passphrase of an encrypted key of each format and opens an encrypted PEM key of RSA or
 ECDSA; `-y` can read through it.
+
+## Done
+
+2026-10-11. The forms of other systems in `crates/podssh-ssh/src/convert.rs:1-318`, an encrypted
+PEM key written by `encrypt_pem` (`crates/podssh-ssh/src/key_file.rs:211-235`); the command in
+`crates/podssh-cli/src/keygen_convert.rs:1-72`, the key loader and the text of `-m` at
+`crates/podssh-cli/src/keygen_convert.rs:74-143`, and the flags at `crates/podssh-cli/src/flags/keygen.rs:60-65`.
+- `cargo test -p podssh-ssh --lib -- convert`: 3 passed: `-e` writes, byte for byte, what OpenSSH's
+  `ssh-keygen -e` wrote for its Ed25519, ECDSA (P-256, P-384, P-521) and RSA keys in each form,
+  and `-i` reads each back; the refusals name their reason; `-m PEM` and `-m PKCS8` keys of RSA and
+  each curve read back through `key_file`, plain and encrypted.
+- `cargo test -p podssh-cli --test keygen_convert`: 4 passed. Planted, each restored: `-y` reading
+  OpenSSH's format alone (the Prove's plant, in the loader that `-y` uses now) failed two tests; an
+  RSA SubjectPublicKeyInfo named as ECDSA failed the test of OpenSSH's bytes; `-m` ignored for a
+  new key failed the test of the forms.
+- Beside the `ssh-keygen` of OpenSSH for Windows 10.0p2 (2026-10-11), 51 of 51 checks held: `-e`
+  wrote what OpenSSH wrote in each form for Ed25519, ECDSA and RSA (the comment of RFC 4716
+  apart), and refused Ed25519's PKCS8 and PEM; each tool read the other's exports (OpenSSH's `-i`
+  of PKCS8 and PEM exits with no word in this build, and the box checks it); `-y` and `-l` read
+  OpenSSH's PEM and PKCS8 keys, plain and encrypted, `-l` with no `.pub`; OpenSSH read the keys of
+  `-m PEM` and `-m PKCS8`, plain and encrypted, and of `-p -m PEM`.
+- `scripts/interop-keygen.sh` has eleven new checks, `keygen.convert.*` (the floor of keygen is
+  79): against OpenSSH in the box, each tool reads the other's PKCS8 exports of ECDSA and RSA and
+  RFC 4716 exports of Ed25519, `-y` reads the keys of `ssh-keygen -m PEM`, and OpenSSH reads the
+  keys of `-m pem` and `-m pkcs8` with their passphrase. The gate runs them at this push.
+- `cargo test -p podssh-ssh`: 140 passed; `cargo test -p podssh-cli`: 563 passed, 0 failed, 31
+  ignored; clippy; rustfmt. In the build image: the tests of `convert`, `key_file`, `keygen`,
+  `cert`, each `keygen_*` test file, `flag_table` and the manual passed.
+- `flags.rs`, `keygen.rs` and `man/notes.rs` of the CLI had gone over 500 lines: the flags and
+  the notes of `keygen` moved to `crates/podssh-cli/src/flags/keygen.rs:1-70` and
+  `crates/podssh-cli/src/man/notes_keygen.rs:1-37`, as those of the other commands are, and the
+  key loader to `keygen_convert.rs`; the manual did not change.
 
 # T-230: The help and the manual say that `-R` is refused because podssh never binds
 
@@ -1707,7 +1762,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:903-904` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:912-913` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1822,12 +1877,12 @@ flag (`crates/podssh-cli/tests/non_interactive.rs:185`).
 
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:74`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
-`crates/podssh-ssh/src/keys.rs:263` and `crates/podssh-cli/src/keygen.rs:323`.
-Its refusals name the real remedies (`docs/cli.md:971-973`). Commands use
+`crates/podssh-ssh/src/keys.rs:263` and `crates/podssh-cli/src/keygen.rs:365`.
+Its refusals name the real remedies (`docs/cli.md:980-982`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:219-237`,
 `crates/podssh-cli/src/ts.rs:54-63`) and `refuse_jsonl_in_proxy`
-(`crates/podssh-cli/src/tree.rs:184-187`).
+(`crates/podssh-cli/src/tree.rs:194-197`).
 
 ## Approach
 
@@ -1898,7 +1953,7 @@ passes.
 ## Approach
 
 1. In `verb_help`, for a verb that is not `Works`
-   (`crates/podssh-cli/src/flags.rs:470-478`): the title with the note, the
+   (`crates/podssh-cli/src/flags.rs:414-422`): the title with the note, the
    sentence of the manual, and no option but `--help`, as the manual does.
 2. Keep that sentence in one place, so that `--help` and the manual
    (`crates/podssh-cli/src/man/model.rs` lines 188-200 at `fdbba30`) cannot
@@ -2147,8 +2202,8 @@ write the key with `OpenOptions`, as now; the test fails.
 ## Done
 
 2026-10-11. `write_pair` makes the files of a key pair with the makers that its caller passes,
-`KeyFiles` (`crates/podssh-ssh/src/keygen.rs:96-151`), and the CLI passes podssh-relay's
-(`crates/podssh-cli/src/keygen.rs:312-319`): the private key by `create_new_private`, a missing
+`KeyFiles` (`crates/podssh-ssh/src/keygen.rs:96-157`), and the CLI passes podssh-relay's
+(`crates/podssh-cli/src/keygen.rs:354-361`): the private key by `create_new_private`, a missing
 directory by `private_dir`, and `FILE.pub` by the new `create_new_public`
 (`crates/podssh-relay/src/cache.rs:358-377`), on Windows with an access list of its own that lets
 Everyone read it, as OpenSSH's `ssh-keygen` makes it. `FILE.pub` is removed and made again, so

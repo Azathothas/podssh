@@ -62,3 +62,4 @@ crates/podssh-ws/tests/fixtures/rsa/msg -text
 # on Windows at b37abb3.
 crates/podssh-ssh/src/sshsig_testdata/** -text
 crates/podssh-ssh/src/cert_testdata/** -text
+crates/podssh-ssh/src/convert_testdata/** -text

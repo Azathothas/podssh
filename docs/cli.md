@@ -598,6 +598,15 @@ GitHub #23): the time of each step, the round trip, and the throughput.
   replaces the one that is there: it is public, and made again at each
   renewal. A failure exits 1 where OpenSSH exits 255; `-D` (PKCS#11) is
   refused.
+- `-e` prints a public key in the format of `-m`: RFC4716 (the default),
+  PKCS8 or PEM; `-i` reads one and prints it as a line of OpenSSH; `-m PEM`
+  or `-m PKCS8` with a new key or `-p` writes the private key in that format,
+  encrypted as OpenSSH encrypts it (T-022). An Ed25519 key has a form of
+  RFC 4716 only: `-e` refuses the others by name, and a new key or `-p`
+  keeps OpenSSH's format and says so, as `ssh-keygen` writes it. `-i`
+  imports public keys only: podssh never prints a private key. `-y` and
+  `-l` read a key in each format that `podssh ssh -i` reads, and ask for its
+  passphrase.
 - DSA is refused, because OpenSSH 10 removed it.
 - An RSA key is made by aws-lc-rs, whose RSA is constant-time, never by the
   `rsa` crate, whose private-key operations are not (RUSTSEC-2023-0071, the
