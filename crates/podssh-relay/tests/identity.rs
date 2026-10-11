@@ -174,6 +174,42 @@ fn an_allowlist_that_others_can_change_is_refused() {
     assert!(why.contains("others can change it"), "{why}");
 }
 
+/// A new pair of a label from the node's same key (T-090): the label maps
+/// to the newest pair, and the pin of the label holds, with no new trust
+/// step, as a pin names a label and a key, never a pair; a new pair whose
+/// node has another key is refused. The pins hold no token: the pair's
+/// private file alone does.
+#[cfg(feature = "pair")]
+#[test]
+fn a_new_pair_from_a_pinned_key_needs_no_new_trust() {
+    use podssh_relay::pair;
+    use podssh_relay::relay::Relay;
+    let base = scratch("new-pair");
+    let dirs = [base.clone()];
+    let relay = Relay { host: "relay.example.org".into(), port: 443 };
+    let now = 1_760_000_000_000_i64;
+    let pair_of = |name: &str, token: &str| {
+        let body = format!(
+            r#"{{"name":"{name}","node_token":"{token}n","connect_token":"{token}c","stop_token":"{token}s","expires":{}}}"#,
+            now + 72 * 3600 * 1000
+        );
+        pair::parse(&relay, body.as_bytes(), now).unwrap()
+    };
+    let (node, other) = (key(OPENSSH_KEY), key(IROH_HEX));
+    pair::store_in_first(&dirs, "lab", &pair_of("p-first-pair-0001", "testonlyfirsttoken")).unwrap();
+    assert_eq!(pins::check_in(&dirs, "lab", &node), Ok(Seen::Pinned(base.join(pins::FILE))), "the first sight");
+    pair::store_in_first(&dirs, "lab", &pair_of("p-second-pair-0002", "testonlysecondtoken")).unwrap();
+    let newest = pair::load_from(&dirs, "lab").unwrap().expect("the label's pair");
+    assert_eq!(newest.name, "p-second-pair-0002", "the label maps to the newest pair");
+    assert_eq!(pins::check_in(&dirs, "lab", &node), Ok(Seen::Known), "no new trust step for the same key");
+    assert!(matches!(pins::check_in(&dirs, "lab", &other), Err(PinError::Changed { .. })), "another key is refused");
+    let pinned = std::fs::read_to_string(base.join(pins::FILE)).unwrap();
+    for token in ["testonlyfirsttoken", "testonlysecondtoken"] {
+        assert!(!pinned.contains(token), "the pins hold a token: {pinned}");
+    }
+    assert!(!pinned.contains("p-first-pair") && !pinned.contains("p-second-pair"), "a pin names no pair: {pinned}");
+}
+
 #[test]
 fn the_first_sight_pins_and_a_changed_key_is_refused_with_both_and_kept() {
     let base = scratch("pins");

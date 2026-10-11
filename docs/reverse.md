@@ -151,6 +151,33 @@ session's bytes.
    the session: the relay can drop, repeat, move or change one.
 5. `--no-e2e` at both ends carries the bytes as before; an end with the
    channel refuses a peer without it, by the first bytes that it sends.
+6. The operator's proof of its key may name a route of the node (T-089),
+   encrypted with it: the relay never sees which. The node refuses a route
+   that it does not have, or that the key may not use, before it dials.
+
+## Finding a node
+
+A pair's name is random and lasts 72 hours at most, so podssh finds a node
+by a name of the user's own, and by its key, and asks no directory
+(T-090):
+
+- **A label, on the operator's host.** `podssh relay pair NAME` keeps the
+  pair under the label NAME (`pair-NAME.json`, private), and each command
+  finds the pair by it; a new pair kept under the same label takes the old
+  one's place, so a script stays the same. Nobody but the user sees the
+  label: the relay sees the pair's random name, and when each end connects.
+- **The node's key, pinned by label.** The node's key stays across its
+  pairs (`node-NAME.key`), and the operator pins it by label at its first
+  sight (`known-nodes`, T-087): a new pair of the same node needs no new
+  trust step, and a node with another key is refused. The pins name a
+  label and a key, never a pair or a token; the relay sees ciphertext.
+- **A new pair reaches its operators** in the operator's part that `podssh
+  relay pair --operator-file` writes, which the user hands on. Its delivery
+  through the relay waits for the relay's operator (T-086).
+- **No directory, and no mDNS.** A directory in the relay would give it a
+  list of each node and when it is online, and needs its operator; mDNS
+  would announce a node to its network, and the sandboxes that podssh
+  serves refuse UDP. Neither exists.
 
 ## Exit codes
 

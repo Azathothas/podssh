@@ -169,6 +169,36 @@ fn a_pair_file_is_used_in_place_of_the_store() {
     no_token(&err);
 }
 
+/// A label maps to the newest pair (T-090): a new pair kept under the same
+/// label takes the old one's place, and each command finds it by the label,
+/// so a script stays the same; no output names a token.
+#[test]
+fn labels_survive_a_new_pair() {
+    let home = scratch("labels");
+    let doctor = |home: &std::path::Path| {
+        let (_, out, err) = podssh(home, &["doctor"], &[]);
+        no_token(&out);
+        no_token(&err);
+        out.lines().find(|l| l.contains("pair lab ")).unwrap_or_default().to_string()
+    };
+    store(&home, "lab", EXPIRED);
+    let old = doctor(&home);
+    assert!(old.starts_with("  FAIL") && old.contains("podssh relay pair lab"), "{old}");
+    // The new pair, kept as `podssh relay pair lab` keeps it.
+    store(&home, "lab", 0);
+    let new = doctor(&home);
+    assert!(new.starts_with("  ????") && new.contains("expires"), "the label's pair is the new one: {new}");
+    // The operator and the node find it by the label: offline, they go as
+    // far as the network, past the store.
+    for args in [&["operator", "lab"][..], &["node", "lab", "127.0.0.1:22"][..]] {
+        let (rc, out, err) = podssh(&home, args, &[]);
+        assert_eq!(rc, 69, "{args:?}: {err}");
+        assert!(!err.contains("expired") && !err.contains("no pair"), "{args:?}: {err}");
+        no_token(&out);
+        no_token(&err);
+    }
+}
+
 #[test]
 fn doctor_has_a_line_for_each_stored_pair() {
     let home = scratch("doctor");

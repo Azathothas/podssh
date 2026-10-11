@@ -191,7 +191,7 @@ verified here).
    send an empty binary frame: under 32 bytes is `1009 bad multiplex frame` (`:182` of the contract).
    Pitfall: no idle read limit while no probe exists; the forward opener sets 90 s
    (`crates/podssh-relay/src/open.rs:315`), and a quiet socket would reconnect.
-6. Close actions, by code and reason (`docs/reverse.md:160-162`): `409`, exit, no retry;
+6. Close actions, by code and reason (`docs/reverse.md:187-189`): `409`, exit, no retry;
    `1001 operator stopped reverse relay`, exit and delete the pair; `1001 pair expired`, or a `403` after the
    stored expiry, a re-pair hook that is off by default; `1003` and `1009`, exit with the reason, never a loop;
    any other close, connect again with `open::backoff`.
@@ -271,7 +271,7 @@ sessions at once with T-080, compare the digests of 1 MiB each way, and stop the
 
 # T-080: The operator runner
 
-**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:78-162`.
+**Source:** ROADMAP M4 (`docs/ROADMAP.md:150-158`); `docs/design.md` lines 94-97 at `0d92eef`; `docs/reverse.md:78-189`.
 Read here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -318,7 +318,7 @@ fails on each close but `1000` (`Azathothas/podbox:crates/podbox-ssh/src/mux.rs`
    a text `close` keeps its reason. Never send a text frame.
 5. Outcome: `NeverReady { code, reason }`, `Ended { code, reason }` or `LocalEnd`. Never ready is a
    failure; `1000` after `ready` is success; each other code after `ready` is a failure that names
-   the code and the reason (`docs/reverse.md:157-162`).
+   the code and the reason (`docs/reverse.md:184-189`).
 6. End of input: send a Close `1000`, and wait up to 10 s for the relay's answer, so the last bytes
    arrive.
 7. Liveness as in T-079: `watch_liveness` only if the relay answers a Ping on this leg; no idle read
@@ -1578,7 +1578,7 @@ the reports, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1622,6 +1622,17 @@ anyone and need no change of the relay. The alternative, a directory in the rela
 needs the relay's operator, and it gives the relay a list of all nodes. mDNS lost as a default:
 the target sandbox refuses UDP.
 
+2026-10-12, the calls made in the work: steps 1 and 2 were built by T-083
+and T-087, and this entry proves them and states them (step 5). The pins
+name a label and a key, never a pair, so a new pair from the same node key
+needs no new trust step with no code of its own; the node keeps its key
+across its pairs (`node-NAME.key`). The delivery of a new operator's part
+through the relay waits for T-086 (the relay's operator); a file does it
+now. No directory and no mDNS are built, as the Decision says; mDNS as an
+option is not built either, as no sandbox that podssh serves lets UDP out.
+The relay's test runs with the feature `pair` alone: there is no feature
+`identity`.
+
 ## Prove
 
 ```sh
@@ -1633,6 +1644,24 @@ cargo test -p podssh-relay --features pair,identity --test identity -- a_new_pai
 Offline: a label maps to the newest pair; a new pair with the same node key updates the operator's
 label with no prompt; a new pair with another key is refused (T-087); no file, output or log holds a
 token outside the private store. Plant: accept a new key with a new pair; the second test must fail.
+
+## Done
+
+2026-10-12. `docs/reverse.md`, "Finding a node": what a label, a pin, a
+new pair's operator's part, a directory and mDNS show to whom. The test
+`labels_survive_a_new_pair` (`crates/podssh-cli/tests/node.rs`): an
+expired pair under `lab` is a FAIL of `doctor`; a new pair kept under the
+same label takes its place, `doctor` gives its expiry, and `operator lab`
+and `node lab` find it and go as far as the network (69, offline), with no
+word of an expired or missing pair; no output names a token. The test
+`a_new_pair_from_a_pinned_key_needs_no_new_trust`
+(`crates/podssh-relay/tests/identity.rs`, feature `pair`): the first pair
+pins the node's key by label; after a second pair under the label, the
+label's pair is the second, the same key is known with no new pin, another
+key is refused, and the pins hold no token and no pair's name. Planted
+defect: a changed key accepted with a new pair; the second test failed.
+`cargo test -p podssh-relay --features pair --test identity`: 10 passed,
+0 failed; `cargo test -p podssh-cli --test node`: 11 passed, 0 failed.
 
 # T-226: Pairing grants that are signed and used once, not bearer tokens that can be replayed (GitHub #35)
 
