@@ -158,10 +158,10 @@ check("pty.escape_disconnect", "~. disconnects (exit 255)", status == 255, t.buf
 check("pty.restore.escape", "the terminal is restored after ~.", t.restored(), t.buf)
 
 # ~# lists the forwards of the session, with their counts (T-041).
-t = Terminal(24, 80, "-R 0:127.0.0.1:2201")
+t = Terminal(24, 80, "-R 127.0.0.1:2290:127.0.0.1:2201")
 ready = marker(t, "FWD", 4, 4)
 t.send(b"\r~#")
-listed = t.expect(b"-R 0:127.0.0.1:2201: 0 connections (0 open, 0 failed)")
+listed = t.expect(b"-R 127.0.0.1:2290:127.0.0.1:2201: 0 connections (0 open, 0 failed)")
 check("pty.forwards", "~# lists the forwards of the session", ready and listed, t.buf)
 t.send(b"\rexit\r")
 t.finish()

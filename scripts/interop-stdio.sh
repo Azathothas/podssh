@@ -52,15 +52,17 @@ import sys
 server = socket.socket()
 server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 server.bind(("127.0.0.1", int(sys.argv[1])))
-server.listen(1)
-conn, _ = server.accept()
+server.listen(4)
+# Each connection in turn: wait_ports takes one before podssh does.
 while True:
-    data = conn.recv(65536)
-    if not data:
-        break
-    conn.sendall(data)
-conn.shutdown(socket.SHUT_WR)
-conn.close()
+    conn, _ = server.accept()
+    while True:
+        data = conn.recv(65536)
+        if not data:
+            break
+        conn.sendall(data)
+    conn.shutdown(socket.SHUT_WR)
+    conn.close()
 ' 2215 &
 ECHO=$!
 wait_ports 2215

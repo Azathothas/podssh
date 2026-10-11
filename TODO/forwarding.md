@@ -900,7 +900,7 @@ as a TCP host again, and the gate's check fails with the server's error.
 (`crates/podssh-ssh/src/options.rs:164-181`), opened by `open_target`
 (`crates/podssh-ssh/src/forward.rs:24-37`); through a control master
 (`crates/podssh-ssh/src/mux/client.rs:171-186`,
-`crates/podssh-ssh/src/mux/msession.rs:235-242`). The command line reads a
+`crates/podssh-ssh/src/mux/msession.rs:242-249`). The command line reads a
 path at `crates/podssh-cli/src/ssh/hop.rs:86-89`, and the row of `-W` says so
 (`crates/podssh-cli/src/flags.rs:139-140`).
 - `cargo test -p podssh-cli --test ssh_stdio_socket`: 2 passed. The test of
@@ -1027,6 +1027,12 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:222`.
   `crates/podssh-ssh/src/mux/msession.rs:160-165`). In the build image
   (`sh scripts/dev.sh run`), `cargo clippy --all-targets -p podssh-ssh -p
   podssh-cli -- -D warnings` passed.
+- Correction: at `f80e7f3` the gate failed both checks of this entry, each
+  for its harness. `stdio.counts`: `wait_ports` took the one connection that
+  the echo server of port 2215 accepted, so podssh's was refused; the
+  server now serves each connection in turn. `pty.forwards`: OpenSSH's
+  `PermitListen 2290` refused `-R 0`, so `~#` had no forward to list; the
+  check asks for port 2290.
 
 # T-042: `-R` forwards come back after a drop
 
