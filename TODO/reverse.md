@@ -445,7 +445,7 @@ Read: podbox keeps `ring` and TLS 1.2 through a `rustls::ClientConfig` that it s
    it needs 1.88, and podbox follows (the operator's ruling of 2026-10-08). Write the result in
    `docs/design.md` (section 3).
 7. Document the facade in `docs/design.md` (lines 89-110 at `0d92eef`) and in the crate's header
-   (`crates/podssh-relay/src/lib.rs:1-26`); add the feature to the gate (`scripts/gate.sh:118`).
+   (`crates/podssh-relay/src/lib.rs:1-26`); add the feature to the gate (`scripts/gate.sh:133`).
 
 ## Decision
 
@@ -1309,7 +1309,7 @@ The resumable layer of M6 runs under SSH (`docs/design.md:220-232`).
 Read in the report (GitHub #18, not verified here): warren uses `Noise_IK_25519_ChaChaPoly_BLAKE2s`
 so that the relay cannot read a stream (`willykeenan/warren:src/noise.rs`).
 
-Read: the library crates must build with no C compiler (`AGENTS.md:202-204`, `scripts/gate.sh:118`).
+Read: the library crates must build with no C compiler (`AGENTS.md:202-204`, `scripts/gate.sh:133`).
 
 ## Approach
 

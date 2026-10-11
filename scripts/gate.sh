@@ -77,6 +77,21 @@ run() {
     return $_rc
 }
 
+# retry3 COMMAND...: a download, tried three times, 10 s and then 20 s apart:
+# one failed DNS lookup on a runner failed a whole run (CI at 0d3d13a,
+# rustup's channel file in step msrv_ts).
+retry3() {
+    _try=1
+    until "$@"; do
+        if [ "$_try" -ge 3 ]; then
+            return 1
+        fi
+        echo "podssh: try $_try of 3 failed: $*; again in $((_try * 10)) s"
+        sleep $((_try * 10))
+        _try=$((_try + 1))
+    done
+}
+
 # The scratch of the tests (T-272): a run of the tests must leave no entry
 # podssh-* in the temporary directory, or the disk of a developer machine
 # fills, run after run. podssh-step.out is the log of run().
@@ -121,7 +136,7 @@ LIBS="-p podssh-ws -p podssh-relay -p podssh-core -p podssh-terminal -p podssh-p
 # no build. The image has the minimal profile of rustup, so the two
 # components are added at each run.
 step_lint() {
-    run "rustfmt and clippy: the components" rustup component add rustfmt clippy
+    run "rustfmt and clippy: the components" retry3 rustup component add rustfmt clippy
     # shellcheck disable=SC2086  # $PKGS is a list of flags
     run "the format of the code" cargo fmt $PKGS -- --check
     # shellcheck disable=SC2086
@@ -143,7 +158,7 @@ step_libs() {
 
     # The TLS 1.2 suites (T-067) are checked against OpenSSL's s_server, each
     # alone; named, so that a missing openssl fails rather than skips.
-    run "openssl, for the TLS 1.2 checks against its s_server" apk add --no-cache openssl
+    run "openssl, for the TLS 1.2 checks against its s_server" retry3 apk add --no-cache openssl
     # shellcheck disable=SC2086
     tests "library crates: tests, no C compiler" \
         env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 \
@@ -183,7 +198,7 @@ step_msrv() {
     rust_version Cargo.toml
     MSRV=$RV
     run "Rust $MSRV, the declared minimum of the library crates: install" \
-        rustup toolchain install "$MSRV" --profile minimal
+        retry3 rustup toolchain install "$MSRV" --profile minimal
     # shellcheck disable=SC2086
     run "library crates and podssh-todo: check on Rust $MSRV (no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo "+$MSRV" check --locked $LIBS -p podssh-todo \
@@ -197,10 +212,10 @@ step_msrv_ssh() {
     rust_version crates/podssh-cli/Cargo.toml
     CLI_RUST=$RV
     run "Rust $SSH_RUST, the declared minimum of podssh-ssh: install" \
-        rustup toolchain install "$SSH_RUST" --profile minimal
+        retry3 rustup toolchain install "$SSH_RUST" --profile minimal
     run "podssh-ssh: check on Rust $SSH_RUST" cargo "+$SSH_RUST" check --locked --all-targets -p podssh-ssh
     run "Rust $CLI_RUST, the declared minimum of podssh-cli: install" \
-        rustup toolchain install "$CLI_RUST" --profile minimal
+        retry3 rustup toolchain install "$CLI_RUST" --profile minimal
     run "podssh-cli: check on Rust $CLI_RUST" cargo "+$CLI_RUST" check --locked --all-targets -p podssh-cli
 }
 
@@ -210,7 +225,7 @@ step_msrv_ts() {
     rust_version crates/podssh-ts/Cargo.toml
     TS_RUST=$RV
     run "Rust $TS_RUST, the declared minimum of podssh-ts: install" \
-        rustup toolchain install "$TS_RUST" --profile minimal
+        retry3 rustup toolchain install "$TS_RUST" --profile minimal
     run "podssh-ts and podssh-cli with the feature ts: check on Rust $TS_RUST" \
         cargo "+$TS_RUST" check --locked --all-targets -p podssh-ts -p podssh-cli --features podssh-cli/ts
 }
@@ -221,7 +236,7 @@ step_msrv_iroh() {
     rust_version crates/podssh-iroh/Cargo.toml
     IROH_RUST=$RV
     run "Rust $IROH_RUST, the declared minimum of podssh-iroh: install" \
-        rustup toolchain install "$IROH_RUST" --profile minimal
+        retry3 rustup toolchain install "$IROH_RUST" --profile minimal
     run "podssh-iroh and podssh-cli with the feature iroh: check on Rust $IROH_RUST" \
         cargo "+$IROH_RUST" check --locked --all-targets -p podssh-iroh -p podssh-cli --features podssh-cli/iroh
 }
@@ -243,7 +258,7 @@ step_record() {
 # installed with apk into this throwaway container, and named, so that a
 # missing server fails rather than skips.
 step_ssh() {
-    run "OpenSSH's sftp-server, for the SFTP client's tests" apk add --no-cache openssh-sftp-server
+    run "OpenSSH's sftp-server, for the SFTP client's tests" retry3 apk add --no-cache openssh-sftp-server
     tests "the SSH client and the CLI (need cc): tests" \
         env PODSSH_TEST_SFTP_SERVER=/usr/lib/ssh/sftp-server \
         cargo test --locked --no-fail-fast -p podssh-ssh -p podssh-cli
@@ -269,7 +284,7 @@ step_iroh() {
 # proxies; the same faults end a session of the forward road. About 10
 # minutes, most of them the two stalls.
 step_m6() {
-    run "Python and openssl, for the stand-ins" apk add --no-cache python3 openssl
+    run "Python and openssl, for the stand-ins" retry3 apk add --no-cache python3 openssl
     tests "the exit of M6 (feature iroh, needs cc)" \
         cargo test --locked -p podssh-cli --features podssh-cli/iroh-test --test m6_exit -- --ignored --test-threads 1
     grep -E '^test |^test result' /tmp/podssh-step.out

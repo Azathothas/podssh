@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**276 entries: 95 open, 0 partial, 22 blocked, 159 done.**
+**276 entries: 94 open, 1 partial, 22 blocked, 159 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 13 | 0 | 18 | 123 | 154 |
+| P2 | 12 | 1 | 18 | 123 | 154 |
 | P3 | 80 | 0 | 4 | 19 | 103 |
-| **All** | 95 | 0 | 22 | 159 | 276 |
+| **All** | 94 | 1 | 22 | 159 | 276 |
 
 ## Entries
 
@@ -143,7 +143,7 @@ repository and CI).
 | [T-067](ws.md) | P2 | M | backlog | feature | done | TLS 1.2, for intercepting proxies |
 | [T-068](ws.md) | P3 | S | M4 | feature | done | Plain `ws://` to loopback, for tests only |
 | [T-069](ws.md) | P2 | S | M4 | feature | done | Typed session errors in `podssh-ws` |
-| [T-070](ws.md) | P2 | M | backlog | feature | open | A SOCKS5 proxy for the egress |
+| [T-070](ws.md) | P2 | M | backlog | feature | partial | A SOCKS5 proxy for the egress |
 | [T-071](transport.md) | P2 | S | M4 | defect | done | T1: `send_text` sends a binary frame, so the node leg cannot work |
 | [T-072](transport.md) | P2 | S | M4 | defect | done | T2: a received Close frame loses its code and reason |
 | [T-073](transport.md) | P2 | S | M4 | defect | done | T5: the `ready` gate is not enforced |

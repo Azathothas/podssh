@@ -119,7 +119,7 @@ seconds at `scripts/interop.sh:350`, the tty at `:334`), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
-(`scripts/gate.sh:322`). The totals are typed in `docs/STATUS.md:21`, line 57 at `3cbf215`
+(`scripts/gate.sh:337`). The totals are typed in `docs/STATUS.md:21`, line 57 at `3cbf215`
 and line 196 at `22c3b88`.
 
 ## Approach
@@ -212,7 +212,7 @@ Read:
 
 1. A model of a VT terminal for the tests: the `vt100` crate (pure Rust, over
    `vte`) as a dev-dependency. The gate's library test step runs under
-   `CC=/nonexistent` and `CXX=/nonexistent` (`scripts/gate.sh:148-150`), so it
+   `CC=/nonexistent` and `CXX=/nonexistent` (`scripts/gate.sh:163-165`), so it
    shows that no C or C++ comes with it.
 2. A helper: bytes in, screen out (rows, cursor, attributes). Each case
    compares screens, not bytes.
@@ -380,7 +380,7 @@ the gate must show it.
 
 1. `proptest` as a dev-dependency of podssh-ws, podssh-relay and podssh-ssh.
    The gate's library test step runs under `CC=/nonexistent` and
-   `CXX=/nonexistent` (`scripts/gate.sh:148-150`), so it shows that no C comes
+   `CXX=/nonexistent` (`scripts/gate.sh:163-165`), so it shows that no C comes
    with it. Commit the regression files of proptest as seeds.
 2. One test file for each crate (tests/properties.rs), with these properties:
    - frames: for each opcode, FIN, role, mask and payload up to 262144 bytes,
