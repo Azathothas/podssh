@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:203` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:273`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:274`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -1209,8 +1209,8 @@ runs: with no user database entry, OpenSSH's programs stop at once
 - Read: podssh uses an agent that `SSH_AUTH_SOCK` names, today. On Unix it
   connects to that socket, or to `IdentityAgent PATH`; on Windows it tries
   the named pipe of `SSH_AUTH_SOCK`, then the pipe of the OpenSSH agent, then
-  Pageant (`crates/podssh-ssh/src/keys.rs:320-357`, `connect_agent`). It offers the agent's
-  keys first (`crates/podssh-ssh/src/keys.rs:149-201`), and skips the agent's
+  Pageant (`crates/podssh-ssh/src/keys.rs:326-363`, `connect_agent`). It offers the agent's
+  keys first (`crates/podssh-ssh/src/keys.rs:149-207`), and skips the agent's
   certificates (`crates/podssh-ssh/src/keys.rs:157-160`).
 - Read: russh 0.64.1, which the binary links, has an agent server
   (`russh::keys::agent::server::serve`): identities, signatures, add and
@@ -1587,7 +1587,7 @@ gives the extension messages and the exit codes; the manual's EXIT STATUS has 65
   source; the tests of the password and of keyboard-interactive failed.
 - The doctor's tests failed in their first run on this host, where no agent runs: russh's stream
   to Pageant opens when no Pageant runs, and closes at the first request, so the line said FAIL.
-  podssh now asks for Pageant's window first (`crates/podssh-ssh/src/keys.rs:342-346`), which also
+  podssh now asks for Pageant's window first (`crates/podssh-ssh/src/keys.rs:348-352`), which also
   spares `podssh ssh` that stream, and reads an agent that closes the connection at the store's
   question as one with no store (`crates/podssh-ssh/src/credential_store.rs:344-351`). The
   doctor's tests: 10 passed, on Windows and in the build image.
@@ -1630,7 +1630,7 @@ with the key file of one, and has no agent to hold one.
   them (`crates/podssh-ssh/src/known_hosts.rs:382-383`), and `ssh-key`
   0.7.0-rc.11 has their algorithms.
 - Read: podssh offers each key that an agent lists
-  (`crates/podssh-ssh/src/keys.rs:149-201`), so an `sk-` key in OpenSSH's
+  (`crates/podssh-ssh/src/keys.rs:149-207`), so an `sk-` key in OpenSSH's
   `ssh-agent`, with its device present, can work today. Not measured.
 - Read: `-I` (PKCS#11) is refused by name
   (`crates/podssh-cli/src/flags.rs:238-239`).
@@ -2222,7 +2222,7 @@ refused as it is added.
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2238,7 +2238,7 @@ its caller for a signature, it takes the caller's messages until one is a signat
 other (lines 287-299).
 
 Read: podssh offers the next key after a signature that failed
-(`crates/podssh-ssh/src/keys.rs:198`).
+(`crates/podssh-ssh/src/keys.rs:204`).
 
 ## Approach
 
@@ -2256,3 +2256,17 @@ cargo test -p podssh-ssh --lib -- agent_sign
 
 Before the repair the test runs into its limit; after it, the key file logs in. Planted: give russh
 the agent's error, as now; the test fails.
+
+## Done
+
+2026-10-11. When the agent fails to sign, the signer keeps the reason and gives russh a signature
+that each server decodes and none verifies, of the key's own kind: Ed25519 64 bytes of zero, RSA
+zeros of the modulus's length, ECDSA r and s of 1 (`crates/podssh-ssh/src/answer.rs:48-99`); an
+empty one, the first try, made russh's server close the session, as it cannot decode it. The login
+says why at `-v` and goes on with the next key (`crates/podssh-ssh/src/keys.rs:196`).
+- `cargo test -p podssh-ssh --lib -- agent_sign`: 1 passed, on Windows: for an Ed25519, an ECDSA
+  and an RSA key whose agent refuses to sign, russh's server in the process refused the signature
+  that stood in, and a key file logged in at once on the same connection. Planted: the agent's
+  error given to russh, as before; the request of the key file got no answer within the limit of
+  10 s, and the test failed.
+- `cargo test -p podssh-ssh`: 111 passed, 0 failed; clippy with all features.

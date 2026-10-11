@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**282 entries: 91 open, 0 partial, 22 blocked, 169 done.**
+**282 entries: 90 open, 0 partial, 22 blocked, 170 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 19 | 21 |
-| P2 | 7 | 0 | 18 | 130 | 155 |
+| P2 | 6 | 0 | 18 | 131 | 155 |
 | P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 91 | 0 | 22 | 169 | 282 |
+| **All** | 90 | 0 | 22 | 170 | 282 |
 
 ## Entries
 
@@ -356,4 +356,4 @@ repository and CI).
 | [T-282](pipe.md) | P1 | S | none | defect | done | On Windows a session that `--persist` attaches again waits for a key |
 | [T-283](repo.md) | P1 | S | none | defect | done | The console checks type into `less` and `top` before they have drawn |
 | [T-284](ssh.md) | P1 | S | none | defect | done | `podssh agent` signs with a key added for a confirmation of each use |
-| [T-285](ssh.md) | P2 | S | none | defect | open | A login waits out its limit after the agent fails to sign |
+| [T-285](ssh.md) | P2 | S | none | defect | done | A login waits out its limit after the agent fails to sign |

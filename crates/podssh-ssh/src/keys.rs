@@ -188,9 +188,15 @@ impl PublicKeys {
             let AgentState::Ready(agent, _) = &mut self.agent else { return Ok(None) };
             self.log.debug(&format!("offering agent key {}", crate::known_hosts::fingerprint(&key)));
             let time = Arc::new(Mutex::new(AgentTime::default()));
-            let mut timed = Timed { inner: agent, time: time.clone() };
+            let mut timed = Timed { inner: agent, time: time.clone(), failed: None };
             let call = handle.authenticate_publickey_with(user, key.clone(), hash, &mut timed);
-            match within_signing(self.limit, &self.host, "the publickey request", &time, call).await? {
+            let answer = within_signing(self.limit, &self.host, "the publickey request", &time, call).await?;
+            // The agent failed, and the server refused the signature that
+            // stood in for it: the next key goes on (T-285).
+            if let Some(why) = timed.failed.take() {
+                self.log.verbose(&format!("the agent could not sign: {why}"));
+            }
+            match answer {
                 Ok(result) => {
                     self.offered.push(key);
                     return Ok(Some(Step::from(result)));

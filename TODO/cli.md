@@ -1031,7 +1031,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:74-81`).
    (`NewPassphrase`, `crates/podssh-cli/src/keygen.rs:24-32`).
 2. Read the key with each format that `podssh ssh -i` reads:
    `russh::keys::decode_secret_key`, the reader behind `load_secret_key`
-   (`crates/podssh-ssh/src/keys.rs:225`). Ask for the old passphrase on the
+   (`crates/podssh-ssh/src/keys.rs:231`). Ask for the old passphrase on the
    terminal or through `SSH_ASKPASS`, as `-y` does. With neither, refuse at
    once and name `-P ''` and `-N ''` (as `crates/podssh-cli/src/keygen.rs:169-174`).
 3. `-p`: ask for the new passphrase twice (or take `-N ''`), and encrypt with
@@ -1303,7 +1303,7 @@ with `-p`.
 
 Read: `read_key_file` takes only an OpenSSH private key or a public key line
 (`crates/podssh-ssh/src/keygen.rs:153-174`). `podssh ssh -i` loads a key with
-`russh::keys::load_secret_key` (`crates/podssh-ssh/src/keys.rs:225`), which
+`russh::keys::load_secret_key` (`crates/podssh-ssh/src/keys.rs:231`), which
 calls `decode_secret_key`: OpenSSH, PKCS#1 RSA, PKCS#8 (also encrypted), SEC1
 EC and PuTTY PPK. russh also has `encode_pkcs8_pem` and
 `encode_pkcs8_pem_encrypted` (russh 0.64.1, `Cargo.lock`; its
@@ -1574,7 +1574,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs:185`).
 
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:74`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
-`crates/podssh-ssh/src/keys.rs:257` and `crates/podssh-cli/src/keygen.rs:170`.
+`crates/podssh-ssh/src/keys.rs:263` and `crates/podssh-cli/src/keygen.rs:170`.
 Its refusals name the real remedies (`docs/cli.md:893-895`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:219-237`,

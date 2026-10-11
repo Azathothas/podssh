@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use russh::keys::agent::AgentIdentity;
-use russh::keys::HashAlg;
+use russh::keys::{Algorithm, HashAlg};
 use tokio::time::Instant;
 
 /// The message when `host` did not answer `what` within `limit`.
@@ -34,16 +34,21 @@ pub(crate) struct AgentTime {
     spent: Duration,
 }
 
-/// An agent whose signing time is kept in an [`AgentTime`].
+/// An agent whose signing time is kept in an [`AgentTime`]. When the agent
+/// fails to sign, `failed` keeps the reason, and russh gets a signature that
+/// cannot verify: once the server took the key, russh waits for a signature
+/// and drops each other request, so the server must refuse this one for the
+/// login to go on with the next key (T-285).
 pub(crate) struct Timed<'a, S> {
     pub inner: &'a mut S,
     pub time: Arc<Mutex<AgentTime>>,
+    pub failed: Option<String>,
 }
 
 impl<S> russh::Signer for Timed<'_, S>
 where
     S: russh::Signer + Send,
-    S::Error: Send,
+    S::Error: Send + std::fmt::Display,
 {
     type Error = S::Error;
 
@@ -53,14 +58,44 @@ where
         hash_alg: Option<HashAlg>,
         to_sign: Vec<u8>,
     ) -> Result<Vec<u8>, Self::Error> {
+        let unsigned = to_sign.clone();
         self.time.lock().unwrap_or_else(|e| e.into_inner()).since = Some(Instant::now());
         let signed = self.inner.auth_sign(key, hash_alg, to_sign).await;
         let mut time = self.time.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(start) = time.since.take() {
             time.spent += start.elapsed();
         }
-        signed
+        match signed {
+            Ok(data) => Ok(data),
+            Err(e) => {
+                self.failed = Some(e.to_string());
+                Ok(unverifiable(unsigned, key, hash_alg))
+            }
+        }
     }
+}
+
+/// `to_sign`, then a signature of the key's algorithm that each server
+/// decodes and none verifies: a server that cannot decode a signature may
+/// close the session (russh's does). Ed25519: 64 bytes of zero; RSA: zeros
+/// of the modulus's length; ECDSA: r and s of 1.
+fn unverifiable(mut to_sign: Vec<u8>, key: &AgentIdentity, hash: Option<HashAlg>) -> Vec<u8> {
+    let public = key.public_key();
+    let (name, signature) = match public.algorithm() {
+        Algorithm::Rsa { .. } => {
+            let size = public.key_data().rsa().and_then(|k| k.n().as_positive_bytes()).map_or(256, <[u8]>::len);
+            (Algorithm::Rsa { hash }.to_string(), vec![0u8; size])
+        }
+        algorithm @ Algorithm::Ecdsa { .. } => (algorithm.to_string(), vec![0, 0, 0, 1, 1, 0, 0, 0, 1, 1]),
+        other => (other.to_string(), vec![0u8; 64]),
+    };
+    let blob = 4 + name.len() + 4 + signature.len();
+    to_sign.extend_from_slice(&(blob as u32).to_be_bytes());
+    to_sign.extend_from_slice(&(name.len() as u32).to_be_bytes());
+    to_sign.extend_from_slice(name.as_bytes());
+    to_sign.extend_from_slice(&(signature.len() as u32).to_be_bytes());
+    to_sign.extend_from_slice(&signature);
+    to_sign
 }
 
 /// As [`within`], but the time in `time` (the agent's) does not count, and
