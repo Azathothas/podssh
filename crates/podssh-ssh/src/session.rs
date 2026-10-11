@@ -139,7 +139,16 @@ pub async fn attach(
         (true, Some(c)) => Some(Escapes::new(c)),
         _ => None,
     };
-    let end = io::pump(handle, channel, early, escapes, pty, input, elevated, log).await;
+    // `--record` (T-033): the output from here on, with the size of now.
+    let record = opts.record.as_ref().and_then(|target| target.take()).and_then(|file| {
+        let size = terminal::size().unwrap_or_else(terminal::fallback_size);
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+        crate::record::Recorder::start(file, size, &terminal::term_name(), now)
+            .map_err(|e| log.info(&format!("--record: the file could not be written: {e}")))
+            .ok()
+    });
+    let through = io::Through { elevated, record };
+    let end = io::pump(handle, channel, early, escapes, pty, input, through, log).await;
     drop(raw);
     if pty && stdin_tty {
         log.info(&format!("Connection to {host} closed."));

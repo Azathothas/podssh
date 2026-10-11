@@ -71,6 +71,8 @@ pub struct Resolved {
     pub gateway_ports: bool,
     /// `-M`, `-S`, `-O` and the control keywords (T-039).
     pub control: super::control::Plan,
+    /// `--record FILE` (T-033), made as the run starts.
+    pub record: Option<PathBuf>,
 }
 
 /// What the process environment contributes, gathered once so it can be
@@ -404,8 +406,10 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         local: forwards.local,
         gateway_ports: args.gateway_ports || settings.gateway_ports.unwrap_or(false),
         control,
+        record: None,
     };
     super::persist::check(args, &mut resolved)?;
     super::elevate::check(args, &mut resolved)?;
+    super::recording::check(args, &mut resolved)?;
     Ok(resolved)
 }

@@ -44,6 +44,7 @@ pub mod options;
 pub mod persist;
 pub mod probe;
 pub mod prompt;
+pub mod record;
 pub mod relay_stream;
 pub mod remember;
 pub mod remote;

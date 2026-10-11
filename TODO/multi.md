@@ -28,7 +28,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 - Measured: `podssh each a,b -- true` exits 64 (`unknown subcommand 'each'`),
   and `podssh ssh 'web1,web2' true` exits 64 (`',' is not allowed`).
 - Read: remote output goes straight to the stdout and stderr of the process
-  (`crates/podssh-ssh/src/io.rs:315-325`), and podssh's own messages go to
+  (`crates/podssh-ssh/src/io.rs:335-345`), and podssh's own messages go to
   stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:70-95`).
   Two hosts cannot be told apart.
 - Read: a host-key prompt waits for the user
@@ -47,9 +47,9 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:106-153`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:107-164`,
    `crates/podssh-ssh/src/run.rs:35-72`). Invariant: no second SSH client.
-3. Sinks: give `crates/podssh-ssh/src/io.rs:133-325` a sink for stdout and
+3. Sinks: give `crates/podssh-ssh/src/io.rs:156-345` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
    (`crates/podssh-ssh/src/log.rs:12-15`). Each line gets `HOST: `. With
    `--output-dir`, the bytes go unchanged to `HOST.out` and `HOST.err`, and
@@ -57,22 +57,22 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/login.rs:86`).
    An unknown host key refuses that host and gives its fingerprint and
    `-o StrictHostKeyChecking=accept-new`. stdin is not read
-   (`crates/podssh-cli/src/ssh/resolve.rs:375`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:377`).
 5. Get the token once, before the fan-out. Serialize `known_hosts::append`
    in the process with a mutex; T-029 covers two processes.
 6. The exit status: the largest status of the hosts, and 255 for a host that
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:341-378`,
-   `crates/podssh-cli/src/positionals.rs:7-134`, a `Parsed` variant,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:345-384`,
+   `crates/podssh-cli/src/positionals.rs:7-135`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:110-113`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:943-946`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:969-972`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:1054-1128`); they cannot define a group.
+  (`docs/cli.md:1080-1154`); they cannot define a group.
 
 ## Approach
 
@@ -174,8 +174,8 @@ a broadcast needs a stop that works at once.
 ## Premise
 
 - Read: a session reads stdin on its own task and sends each chunk to one
-  channel (`crates/podssh-ssh/src/io.rs:345-365`,
-  `crates/podssh-ssh/src/io.rs:165-216`).
+  channel (`crates/podssh-ssh/src/io.rs:365-385`,
+  `crates/podssh-ssh/src/io.rs:188-239`).
 - Read: escapes work only at the start of a line, and only with a pty
   (`crates/podssh-ssh/src/escape.rs:1-5`).
 - Read: each session can live in one process, so a broadcast needs no
@@ -365,9 +365,9 @@ short numbered list helps a person; a script must still get the usage error.
 ## Premise
 
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
-  (`crates/podssh-cli/src/ssh/resolve.rs:141`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:143`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:243-245`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:245-247`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -423,7 +423,7 @@ that can be missing. `podssh doctor` checks only this host.
 
 - Read: an exec request runs one command through the shell of the server
   (`crates/podssh-ssh/src/session.rs:101-114`), and its output goes to stdout
-  (`crates/podssh-ssh/src/io.rs:315-325`); podssh cannot read it.
+  (`crates/podssh-ssh/src/io.rs:335-345`); podssh cannot read it.
 - Read: on Linux, `/proc/loadavg`, `/proc/meminfo`, `/proc/uptime` and
   `/proc/net/dev` hold the facts, and a POSIX shell reads them with `read`,
   with no other tool.
@@ -437,7 +437,7 @@ that can be missing. `podssh doctor` checks only this host.
    built-ins of the shell, and `df -P` only when `command -v df` finds it.
    No text of the user goes into the script.
 3. Read the output with the sink of T-183
-   (`crates/podssh-ssh/src/io.rs:133-325`), parse it, and print one line for
+   (`crates/podssh-ssh/src/io.rs:156-345`), parse it, and print one line for
    each fact: load, memory and swap, uptime, network bytes (two samples,
    1 s apart), disk, processes. `--json` gives one object, in the shape of
    T-049.
@@ -479,7 +479,7 @@ name is copied by hand.
 ## Premise
 
 - Read: `podssh ssh -t HOST -- docker exec -it NAME sh` works today, as a
-  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:238-246`,
+  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:240-248`,
   `crates/podssh-cli/src/ssh/hop.rs:93-104`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
   finds it (`AGENTS.md:197-201`). Here the programs run on the server, for a
@@ -548,8 +548,8 @@ expect rule.
 - Measured: `podssh ssh -o LocalCommand=true -o PermitLocalCommand=yes -v user@host.invalid true`
   prints `-o LocalCommand has no effect in podssh`, and the same for
   `PermitLocalCommand` (`crates/podssh-cli/src/ssh/keywords.rs:89-90`).
-- Read: remote output arrives at `crates/podssh-ssh/src/io.rs:258-276`, and
-  input leaves at `crates/podssh-ssh/src/io.rs:165-211`. An expect rule goes
+- Read: remote output arrives at `crates/podssh-ssh/src/io.rs:284-299`, and
+  input leaves at `crates/podssh-ssh/src/io.rs:188-234`. An expect rule goes
   between them.
 - Read from memory, to verify against OpenSSH 10.3p1: OpenSSH runs
   `LocalCommand` after the connection, with the user's shell, only with
@@ -638,7 +638,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:152`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:943-946`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:969-972`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -679,7 +679,7 @@ outlives the session, show it later, or stop it.
 ## Premise
 
 - Read: a session ends with its connection (`docs/design.md:217`), and `-f`
-  is refused (`crates/podssh-cli/src/flags.rs:238-239`).
+  is refused (`crates/podssh-cli/src/flags.rs:240-241`).
 - Read: tmux is never assumed; T-178 probes it with `command -v tmux`.
 - Read: `podssh serve` (T-107, M5) runs on the far end only where the user
   starts it.
@@ -747,14 +747,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:138-140`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:486-488`).
+  credentials or tokens (`docs/cli.md:498-500`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:289-304`.
+  `crates/podssh-cli/src/dispatch.rs:291-306`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:943-946`), which is not a failure of podssh.
+  status (`docs/cli.md:969-972`), which is not a failure of podssh.
 
 ## Approach
 

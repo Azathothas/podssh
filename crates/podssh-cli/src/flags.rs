@@ -198,6 +198,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
     row(None, "sudo", None, FlagKind::Supported,
         "run the command as root with sudo -S, with no pty; the password is asked here (terminal or SSH_ASKPASS)", None),
+    row(None, "record", Some("FILE"), FlagKind::Supported,
+        "keep the session's output, with its timing, in FILE as asciicast v2 (mode 0600, never over a file); podssh play shows it again", None),
     row(None, "su", None, FlagKind::Supported,
         "run the command as root with su -c, in a pty; the password is asked here (terminal or SSH_ASKPASS)", None),
     // -x and -k disable things podssh never does, so they need no work.
@@ -271,6 +273,7 @@ mod node;
 mod operator;
 mod ping;
 mod pipe;
+mod play;
 mod relay;
 mod scp;
 pub use agent::AGENT_FLAGS;
@@ -281,6 +284,7 @@ pub use node::NODE_FLAGS;
 pub use operator::PAIR_FLAGS;
 pub use ping::PING_FLAGS;
 pub use pipe::PIPE_FLAGS;
+pub use play::PLAY_FLAGS;
 pub use relay::{DOCTOR_FLAGS, PROXY_FLAGS, RELAY_FLAGS, STATUS_FLAGS};
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
 
@@ -375,6 +379,8 @@ pub const VERBS: &[Verb] = &[
         about: "an SSH agent inside podssh, and add, list, remove and lock its keys" },
     Verb { name: "ping", aliases: &["ping"], flags: PING_FLAGS,
         about: "a short check of the path: each step to the relay, pings, and with a host the echo and throughput" },
+    Verb { name: "play", aliases: &["play"], flags: PLAY_FLAGS,
+        about: "play a recording of podssh ssh --record again, with its timing" },
 ];
 
 /// **The verbs by purpose, in the order that `--help` and the manual print
@@ -388,6 +394,7 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("Check this host and the path", &["doctor", "status", "ping"]),
     ("The reverse road", &["node", "operator"]),
     ("Messages", &["chat"]),
+    ("Recordings", &["play"]),
     ("The relay", &["relay"]),
     ("This manual", &["man"]),
 ];

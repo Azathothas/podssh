@@ -15,6 +15,7 @@ use crate::elevate::Elevated;
 use crate::escape::{Command, Escapes};
 use crate::handler::Client;
 use crate::log::Log;
+use crate::record::Recorder;
 use crate::signals;
 use crate::terminal::{self, Size};
 
@@ -60,6 +61,28 @@ pub fn end_with(status: Option<i32>) -> End {
 struct Out {
     gone: Option<tokio::time::Instant>,
     told: bool,
+}
+
+/// What a session's output passes through on its way out: the filter of an
+/// elevated command (T-032), then the recording (T-033).
+#[derive(Default)]
+pub struct Through {
+    pub elevated: Option<Elevated>,
+    pub record: Option<Recorder>,
+}
+
+impl Through {
+    fn out(&mut self, data: &[u8], stderr: bool, log: &Log) -> Vec<u8> {
+        let data = match self.elevated.as_mut() {
+            Some(e) => e.feed(data, stderr),
+            None => data.to_vec(),
+        };
+        if let Some(Err(e)) = self.record.as_mut().map(|r| r.output(&data)) {
+            log.info(&format!("--record stopped: {e}"));
+            self.record = None;
+        }
+        data
+    }
 }
 
 /// The local input of a run. It is read on its own task from the first
@@ -137,7 +160,7 @@ pub async fn pump(
     mut escapes: Option<Escapes>,
     pty: bool,
     input: &mut Input,
-    mut elevated: Option<Elevated>,
+    mut through: Through,
     log: &Arc<Log>,
 ) -> End {
     let (mut reader, writer) = channel.split();
@@ -146,13 +169,13 @@ pub async fn pump(
     // False once this session's input has ended, or its channel takes no more.
     let mut reading = input.open();
     // An elevated command's input waits for it to start (T-032).
-    let mut held = elevated.is_some();
+    let mut held = through.elevated.is_some();
     for msg in early {
-        if let Some(end) = handle_msg(msg, &mut status, &mut out, elevated.as_mut(), log).await {
+        if let Some(end) = handle_msg(msg, &mut status, &mut out, &mut through, log).await {
             return end;
         }
     }
-    if let Some(e) = elevated.as_mut() {
+    if let Some(e) = through.elevated.as_mut() {
         e.act(&writer, &mut held, !reading, log).await;
     }
     if !reading && !held {
@@ -185,7 +208,7 @@ pub async fn pump(
                                 }
                                 msg = reader.wait() => match msg {
                                     Some(m) => {
-                                        if let Some(end) = handle_msg(m, &mut status, &mut out, elevated.as_mut(), log).await {
+                                        if let Some(end) = handle_msg(m, &mut status, &mut out, &mut through, log).await {
                                             return end;
                                         }
                                     }
@@ -216,10 +239,10 @@ pub async fn pump(
             },
             msg = reader.wait() => match msg {
                 Some(m) => {
-                    if let Some(end) = handle_msg(m, &mut status, &mut out, elevated.as_mut(), log).await {
+                    if let Some(end) = handle_msg(m, &mut status, &mut out, &mut through, log).await {
                         return end;
                     }
-                    if let Some(e) = elevated.as_mut() {
+                    if let Some(e) = through.elevated.as_mut() {
                         e.act(&writer, &mut held, !reading, log).await;
                     }
                     // stdout's reader went: the server hears the end of input.
@@ -240,7 +263,7 @@ pub async fn pump(
                 }
                 return end_with(status);
             }
-            expired = elevating(&mut elevated, &writer, log) => if expired {
+            expired = elevating(&mut through.elevated, &writer, log) => if expired {
                 log.error(&format!(
                     "the remote command neither asked for a password nor started within {} s",
                     crate::elevate::WAIT.as_secs()
@@ -249,6 +272,9 @@ pub async fn pump(
             },
             Some(size) = resize.next() => {
                 let _ = writer.window_change(size.cols, size.rows, size.px_width, size.px_height).await;
+                if let Some(r) = through.record.as_mut() {
+                    let _ = r.resize(size);
+                }
             }
             _ = stop.next() => return End::Terminated,
         }
@@ -259,15 +285,12 @@ async fn handle_msg(
     msg: ChannelMsg,
     status: &mut Option<i32>,
     out: &mut Out,
-    mut elevated: Option<&mut Elevated>,
+    through: &mut Through,
     log: &Log,
 ) -> Option<End> {
     match msg {
         ChannelMsg::Data { data } => {
-            let data = match elevated.as_deref_mut() {
-                Some(e) => e.feed(&data, false),
-                None => data.to_vec(),
-            };
+            let data = through.out(&data, false, log);
             // Whoever reads our stdout has gone (EPIPE): the data goes
             // nowhere, and the exit status is awaited (T-026).
             if out.gone.is_none() && write_out(&data, false).await.is_err() {
@@ -275,10 +298,7 @@ async fn handle_msg(
             }
         }
         ChannelMsg::ExtendedData { data, .. } => {
-            let data = match elevated.as_deref_mut() {
-                Some(e) => e.feed(&data, true),
-                None => data.to_vec(),
-            };
+            let data = through.out(&data, true, log);
             let _ = write_out(&data, true).await;
         }
         ChannelMsg::ExitStatus { exit_status } => {
@@ -300,7 +320,7 @@ async fn handle_msg(
         }
         ChannelMsg::Close => {
             // A command that never started: what su said, its refusal.
-            if let Some(e) = elevated.filter(|e| !e.started()) {
+            if let Some(e) = through.elevated.as_mut().filter(|e| !e.started()) {
                 let _ = write_out(&e.finish(), true).await;
             }
             return Some(end_with(*status));

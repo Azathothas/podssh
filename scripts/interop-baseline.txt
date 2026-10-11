@@ -15,6 +15,7 @@ harness limits interop 2 scripts/interop-limits.sh
 harness status interop 6 scripts/interop-status.sh
 harness hostkeys interop 4 scripts/interop-hostkeys.sh
 harness sudo interop 3 scripts/interop-sudo.sh
+harness recording interop 3 scripts/interop-recording.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -462,3 +463,6 @@ hostkeys.alias_read pass
 sudo.password pass
 sudo.wrong pass
 sudo.nopass pass
+recording.session pass
+recording.no_overwrite pass
+recording.play pass

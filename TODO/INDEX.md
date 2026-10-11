@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**287 entries: 81 open, 0 partial, 22 blocked, 184 done.**
+**287 entries: 80 open, 0 partial, 22 blocked, 185 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 135 | 157 |
-| P3 | 75 | 0 | 4 | 27 | 106 |
-| **All** | 81 | 0 | 22 | 184 | 287 |
+| P3 | 74 | 0 | 4 | 28 | 106 |
+| **All** | 80 | 0 | 22 | 185 | 287 |
 
 ## Entries
 
@@ -106,7 +106,7 @@ repository and CI).
 | [T-030](ssh.md) | P3 | S | backlog | chore | done | Each hop of a `-J` chain checks its own host key |
 | [T-031](ssh.md) | P2 | S | backlog | feature | done | Accept only the host key that a fingerprint names, for scripts with no `known_hosts` |
 | [T-032](ssh.md) | P3 | S | backlog | feature | done | Run a remote command under `sudo` or `su`, with the password from `SSH_ASKPASS` |
-| [T-033](ssh.md) | P3 | M | backlog | feature | open | Record a session as asciicast v2, and play it again |
+| [T-033](ssh.md) | P3 | M | backlog | feature | done | Record a session as asciicast v2, and play it again |
 | [T-034](ssh.md) | P2 | L | backlog | feature | done | `podssh agent`: an SSH agent inside podssh, with no separate binary |
 | [T-035](forwarding.md) | P2 | M | M8 | feature | done | `-R`: remote forwarding, each connection made out through the proxy |
 | [T-036](forwarding.md) | P2 | M | backlog | feature | done | `-A`: agent forwarding, off by default as in OpenSSH |

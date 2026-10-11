@@ -59,6 +59,7 @@ pub mod parsed;
 pub mod ping;
 pub mod pins;
 pub mod pipe;
+pub mod play;
 pub mod positionals;
 pub mod proxy;
 pub mod refuse;

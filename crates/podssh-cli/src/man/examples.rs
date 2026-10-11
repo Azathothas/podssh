@@ -25,6 +25,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ("log in to a host, through the relay", "podssh ssh user@example.org".into()),
         ("run one command; podssh exits with its exit status", "podssh ssh user@example.org 'uname -a'".into()),
         (
+            "keep what a session showed, with its timing, and show it again twice as fast",
+            "podssh ssh -tt --record top.cast user@example.org top && podssh play --speed 2 top.cast".into(),
+        ),
+        (
             "a port, a key, and a new host key recorded with no question",
             "podssh ssh -p 2222 -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=accept-new user@example.org".into(),
         ),
@@ -237,6 +241,7 @@ mod tests {
                     Parsed::Doctor { .. } => "doctor",
                     Parsed::Status { .. } => "status",
                     Parsed::Ping(_) => "ping",
+                    Parsed::Play(_) => "play",
                     Parsed::Man { .. } => "man",
                     Parsed::Node(_) => "node",
                     Parsed::Relay(_) => "relay",

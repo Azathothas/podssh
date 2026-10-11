@@ -256,6 +256,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "node" => "[OPTIONS] NAME TARGET",
         "operator" => "[OPTIONS] NAME",
         "proxy" => "[OPTIONS] [--] HOST PORT",
+        "play" => "[OPTIONS] FILE",
         _ => "[OPTIONS]",
     }
 }

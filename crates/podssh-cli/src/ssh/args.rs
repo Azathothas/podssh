@@ -66,6 +66,8 @@ pub struct SshArgs {
     pub persist_name: Option<String>,
     /// `--sudo` and `--su`: the remote command runs as root (T-032).
     pub sudo: bool,
+    /// `--record FILE`: the session's output in an asciicast v2 file (T-033).
+    pub record: Option<String>,
     pub su: bool,
     /// `-G`: print the settings, and connect to nothing.
     pub print_config: bool,
@@ -107,6 +109,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("iroh-relay", "give the relays as one comma list"),
     ("iroh-ticket", "give one ticket"),
     ("persist-name", "give one name"),
+    ("record", "give one file"),
     ("control-command", "give one command, as OpenSSH asks"),
 ];
 
@@ -198,6 +201,7 @@ impl SshArgs {
             persist: flag("persist"),
             persist_name: one("persist-name"),
             sudo: flag("sudo"),
+            record: one("record"),
             su: flag("su"),
             print_config: flag("print-config"),
             remote_forwards: many("forward-remote"),

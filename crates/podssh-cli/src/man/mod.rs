@@ -23,6 +23,7 @@ mod notes_chat;
 mod notes_keygen;
 mod notes_pair;
 mod notes_ping;
+mod notes_play;
 mod notes_relay;
 pub mod roff;
 pub mod text;

@@ -7,6 +7,7 @@ use super::notes_chat::CHAT;
 use super::notes_keygen::KEYGEN;
 use super::notes_pair::{NODE, OPERATOR};
 use super::notes_ping::PING;
+use super::notes_play::PLAY;
 use super::notes_relay::RELAY;
 
 /// The notes of the verb `name`, one paragraph each.
@@ -26,6 +27,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "doctor" => DOCTOR,
         "status" => STATUS,
         "ping" => PING,
+        "play" => PLAY,
         "keygen" => KEYGEN,
         "man" => MAN,
         "ts" => TS,
@@ -91,6 +93,9 @@ const SSH: &[&str] = &[
      answers one prompt, holds its input until the command starts, and asks nothing when sudo asks \
      nothing; a second prompt, a wrong password, ends the input. The remote shell must read POSIX \
      quoting.",
+    "--record FILE keeps what the session showed, with its timing, as asciicast v2, for podssh play: never \
+     what was typed, and never the command line. The file is closed to others and never written over (exit \
+     255); the output can hold a secret that a program printed.",
     "--persist runs the shell in tmux on the server, as tmux new-session -A -s NAME with a pty (NAME is \
      podssh, or the one of --persist-name). podssh looks for tmux after the login and refuses without \
      it (exit 255): a new shell after a lost link would look like the old one. When the link is lost \

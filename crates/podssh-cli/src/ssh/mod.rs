@@ -25,6 +25,7 @@ mod login;
 pub mod node;
 pub mod options;
 pub mod persist;
+mod recording;
 pub mod resolve;
 pub mod tokens;
 pub mod transport;
@@ -104,6 +105,16 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
 }
 
 async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i32 {
+    // The file of --record, before anything connects (T-033).
+    if let Some(path) = resolved.record.clone() {
+        match recording::create(&path) {
+            Ok(target) => resolved.options.record = Some(target),
+            Err(why) => {
+                log.error(&why);
+                return podssh_ssh::EXIT_FAILURE;
+            }
+        }
+    }
     // Connection sharing first (T-039): a master that answers takes the
     // run and its forwards, or this run becomes the master.
     #[cfg(unix)]

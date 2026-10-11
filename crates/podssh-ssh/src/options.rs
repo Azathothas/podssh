@@ -236,6 +236,8 @@ pub struct Options {
     pub request: Request,
     /// `--sudo` or `--su`: the command of `request` runs as root (T-032).
     pub elevate: Option<Elevate>,
+    /// `--record FILE`: the session's output, with its timing (T-033).
+    pub record: Option<crate::record::Target>,
     pub request_tty: RequestTty,
     /// `EscapeChar`; `None` is `none`.
     pub escape_char: Option<u8>,
@@ -329,6 +331,7 @@ impl Options {
             connect_timeout: Duration::from_secs(60),
             request: Request::Shell,
             elevate: None,
+            record: None,
             request_tty: RequestTty::Auto,
             escape_char: Some(b'~'),
             set_env: Vec::new(),

@@ -365,6 +365,16 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         }));
     }
 
+    if verb.name == "play" {
+        let get = |id: &str| matches.get_one::<String>(id).cloned();
+        return Parsed::Play(Box::new(crate::play::PlayArgs {
+            file: get("file"),
+            speed: get("speed"),
+            idle_limit: get("idle-limit"),
+            refused,
+        }));
+    }
+
     if verb.name == "agent" {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Agent(Box::new(crate::agent::AgentArgs {

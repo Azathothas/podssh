@@ -164,6 +164,18 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   command; `--sudo` with `-t`, `--su` with `-T`, or both at once, are usage
   errors (64). Such a run makes a connection of its own, with no
   `ControlPath`, and with `BatchMode` a prompt ends the input.
+- **`--record FILE` keeps what the session showed** (T-033), with its
+  timing, in an asciicast v2 file that `podssh play` and asciinema play
+  again: the header (version 2, the terminal's size, the time of the start
+  and `TERM`), then an `o` event for each output and an `r` event for each
+  new size. The file is made as the run starts, closed to others (mode
+  0600, or an access list of its own on Windows), and never over a file
+  that exists (255); `-G` makes none. Nothing typed is recorded, and the
+  header holds no command line, which can hold a secret; the output can
+  hold one (a key that was printed, a password that a program echoed). A
+  character cut between two reads is written whole. `-N`, `-W` and
+  `--persist` cannot go with it (64), and such a run makes a connection of
+  its own, with no `ControlPath`.
 - **`-G` prints the settings in effect** (T-046), as OpenSSH's `ssh -G`
   does: a line of `keyword value` for each keyword of OpenSSH that podssh
   applies, with the defaults, in OpenSSH's order and spelling (`true` and
@@ -929,6 +941,20 @@ rules behind it:
 - **Nothing lost unsaid.** A message that the peer did not acknowledge is
   said when its conversation ends, and the exit is then 69. The lines that
   wait for a peer stay in memory, 1000 lines or 1 MiB at most.
+
+## `podssh play`
+
+`podssh play [OPTIONS] FILE` (T-033) writes the output of a recording again,
+on stdout, with its timing: a file of `podssh ssh --record`, or another
+asciicast v2 file. `--speed FACTOR` plays it faster or slower, and
+`--idle-limit SECONDS` cuts each wait to that many seconds, as the file's
+`idle_time_limit` does when it has one. An event of another kind than
+output (`r`, `i`, `m`) is passed over. A file of another version, and a
+line that is no event, are refused (exit 1, the line named); a missing
+FILE and a bad value are usage errors (64). The name is not `replay`, which
+is one edit from `relay` and would confuse the suggestion of a mistyped
+command. A recording sends its control sequences to the terminal again:
+play only a file that you trust.
 
 ## Exit codes
 
