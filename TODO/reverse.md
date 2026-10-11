@@ -162,7 +162,7 @@ no `hello` comes (crates/podssh-transport/src/control.rs lines 111-137 at `e8bbd
 T-075 and T-076 (each repaired 2026-10-09).
 
 Read: `RelaySession` has text, binary, Ping and Close writes and a liveness watcher
-(`crates/podssh-ws/src/session.rs:81-174`); `podssh_relay::open::backoff` has a jitter
+(`crates/podssh-ws/src/session.rs:102-195`); `podssh_relay::open::backoff` has a jitter
 (`crates/podssh-relay/src/open.rs:265-279`). Not measured: whether the relay answers a Ping on a reverse socket
 (`docs/relay.md:93-95` is the forward path), and its idle cut there (`docs/relay.md` lines 191-192 at `cd75137`, T-061). A node
 that connects again ends each operator session on it (`docs/design.md:208-211`).
@@ -230,7 +230,7 @@ cargo test -p podssh-relay --features pair --test reverse_live -- --ignored node
 ```
 
 Offline: the runner runs over an in-memory stream, against a scripted relay that writes real WebSocket frames
-(`RelaySession::new` takes any stream: `crates/podssh-ws/src/session.rs:65-69`). The cases: two mixed sessions
+(`RelaySession::new` takes any stream: `crates/podssh-ws/src/session.rs:73-77`). The cases: two mixed sessions
 with exact bytes; late bytes after `close` dropped, the socket kept; no data before `ready`; one exit on `409`;
 the hook on `1001 pair expired`; exit and a deleted pair on `1001 operator stopped reverse relay`. Plant: send
 `ready` before the handler returns; that test must fail. Live: pair (T-078), run an echo node, open two
@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:740`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:784`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:337`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -758,7 +758,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:174` there), examples in
-   `crates/podssh-cli/src/man/examples.rs:8-88`; update `docs/cli.md`, `docs/reverse.md` and
+   `crates/podssh-cli/src/man/examples.rs:8-96`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
    T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:38`), so keep the two apart. Never
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:269-272`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:72-82`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:391`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:736-740`).
+`podssh proxy` sysexits (`docs/cli.md:780-784`).
 
 ## Approach
 

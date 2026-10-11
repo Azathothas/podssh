@@ -262,6 +262,7 @@ mod chat;
 mod copy;
 mod node;
 mod operator;
+mod ping;
 mod pipe;
 mod scp;
 pub use agent::AGENT_FLAGS;
@@ -269,6 +270,7 @@ pub use chat::CHAT_FLAGS;
 pub use copy::CP_FLAGS;
 pub use node::NODE_FLAGS;
 pub use operator::PAIR_FLAGS;
+pub use ping::PING_FLAGS;
 pub use pipe::PIPE_FLAGS;
 pub use scp::{SCP_FLAGS, SFTP_FLAGS};
 
@@ -436,6 +438,8 @@ pub const VERBS: &[Verb] = &[
         about: "the tailnet node and byte pipe, over DERP" },
     Verb { name: "agent", aliases: &["agent", "ssh-agent"], flags: AGENT_FLAGS,
         about: "an SSH agent inside podssh, and add, list, remove and lock its keys" },
+    Verb { name: "ping", aliases: &["ping"], flags: PING_FLAGS,
+        about: "a short check of the path: each step to the relay, pings, and with a host the echo and throughput" },
 ];
 
 /// Every verb that dispatch refuses as "not implemented yet", with the roadmap

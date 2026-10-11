@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:464-472`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:468-476`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -162,7 +162,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:578-579`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:286-287`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:288-289`,
 `crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -185,7 +185,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:286-287`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:428`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:108-205`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:112-209`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-143`).
 
 ## Decision
@@ -372,7 +372,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:33-140`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:35-142`).
 
 ## Decision
 

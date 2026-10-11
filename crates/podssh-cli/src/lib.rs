@@ -51,6 +51,7 @@ pub mod operator;
 pub mod pager;
 mod pairs;
 pub mod parsed;
+pub mod ping;
 pub mod pins;
 pub mod pipe;
 pub mod positionals;

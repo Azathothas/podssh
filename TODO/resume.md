@@ -815,7 +815,7 @@ keepalives must not end a session that the layer would resume.
 Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 `crates/podssh-relay/src/open.rs:234`), a limit that counts on the relay's
 frame each 25 s. The ping watcher acts only after a first Pong
-(`crates/podssh-ws/src/session.rs:140-174`); Pongs and the idle cut on reverse
+(`crates/podssh-ws/src/session.rs:161-195`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:274-301`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
@@ -828,7 +828,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
    answers `PONG`. A record is payload, so it resets the relay's idle cut on
    each road.
 2. Any record counts as life, as for the ping watcher
-   (`crates/podssh-ws/src/session.rs:140-149`). After 3 silent intervals the
+   (`crates/podssh-ws/src/session.rs:161-170`). After 3 silent intervals the
    link is dead, and T-153 resumes: 30 to 40 s. Both ends send, so the read
    limit of 90 s also holds on reverse sockets.
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:237-252`,
    `crates/podssh-cli/src/man/facts.rs:276-285`), the note at
-   `crates/podssh-cli/src/man/notes.rs:129`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes.rs:131`, `docs/relay.md`, `README.md`.
 
 ## Decision
 

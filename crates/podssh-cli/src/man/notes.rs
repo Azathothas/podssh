@@ -5,6 +5,7 @@
 
 use super::notes_chat::CHAT;
 use super::notes_pair::{NODE, OPERATOR};
+use super::notes_ping::PING;
 
 /// The notes of the verb `name`, one paragraph each.
 pub fn for_verb(name: &str) -> &'static [&'static str] {
@@ -22,6 +23,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "relay" => RELAY,
         "doctor" => DOCTOR,
         "status" => STATUS,
+        "ping" => PING,
         "keygen" => KEYGEN,
         "man" => MAN,
         "ts" => TS,

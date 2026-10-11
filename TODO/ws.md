@@ -737,7 +737,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (`:80-88`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:392-401`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:387-396`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach
@@ -748,7 +748,7 @@ minimal. The only caller in the code is `next_event`, for the frames of the rela
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
    connection. Since T-063 the session sends that Close for each error of the decoder
-   (`crates/podssh-ws/src/session.rs:240-247`), so this entry needs no new path.
+   (`crates/podssh-ws/src/session.rs:268-275`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,

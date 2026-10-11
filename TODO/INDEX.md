@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**276 entries: 98 open, 0 partial, 22 blocked, 156 done.**
+**276 entries: 97 open, 0 partial, 22 blocked, 157 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 16 | 0 | 18 | 120 | 154 |
+| P2 | 15 | 0 | 18 | 121 | 154 |
 | P3 | 80 | 0 | 4 | 19 | 103 |
-| **All** | 98 | 0 | 22 | 156 | 276 |
+| **All** | 97 | 0 | 22 | 157 | 276 |
 
 ## Entries
 
@@ -126,7 +126,7 @@ repository and CI).
 | [T-050](machine.md) | P2 | S | backlog | feature | done | `podssh man --json`: the commands, flags, keywords, variables and exit codes as data (GitHub #10) |
 | [T-051](machine.md) | P2 | M | backlog | feature | done | `podssh status`: one line of JSON about the state of this host (GitHub #11) |
 | [T-052](machine.md) | P2 | M | backlog | feature | done | `podssh doctor --full`: the end-to-end checks of `sandbox-check.sh`, in the binary (GitHub #13) |
-| [T-053](machine.md) | P2 | M | backlog | feature | open | `podssh ping`: a short check of the path, with latency and throughput |
+| [T-053](machine.md) | P2 | M | backlog | feature | done | `podssh ping`: a short check of the path, with latency and throughput |
 | [T-054](machine.md) | P3 | M | backlog | feature | open | A machine-readable result for `podssh ssh`: exit status, signal and byte counts |
 | [T-055](machine.md) | P3 | M | backlog | feature | open | `podssh mcp`: the commands as tools for an agent, over stdin and stdout |
 | [T-056](machine.md) | P3 | S | backlog | feature | open | A log of the sessions of this host, when the user asks for it |

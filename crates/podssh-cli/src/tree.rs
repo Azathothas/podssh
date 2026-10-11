@@ -342,6 +342,17 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         }));
     }
 
+    if verb.name == "ping" {
+        return Parsed::Ping(Box::new(crate::ping::PingArgs {
+            ssh: crate::ssh::args::SshArgs::from_matches(&matches),
+            size: matches.get_one::<String>("size").cloned(),
+            count: matches.get_one::<String>("count").cloned(),
+            target: matches.get_one::<String>("target").cloned(),
+            json: matches.get_flag("json"),
+            refused,
+        }));
+    }
+
     if verb.name == "agent" {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Agent(Box::new(crate::agent::AgentArgs {

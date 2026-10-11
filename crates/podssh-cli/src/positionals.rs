@@ -90,6 +90,11 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .help("the host that the relay connects to, or an IPv6 address; HOST:PORT or [IPV6]:PORT in one word also works"),
             )
             .arg(Arg::new("port").value_name("PORT").help("the TCP port on that host")),
+        "ping" => cmd.arg(
+            Arg::new("destination")
+                .value_name("[user@]host")
+                .help("a host to log in to for the echo and the throughput; with none, the relay leg alone"),
+        ),
         "status" => cmd.arg(
             Arg::new("destination")
                 .value_name("[user@]host")

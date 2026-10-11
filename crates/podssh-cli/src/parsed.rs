@@ -94,6 +94,8 @@ pub enum Parsed {
     /// `podssh relay SUBCOMMAND NAME` (T-083).
     Relay(Box<crate::relay_cmd::RelayArgs>),
     Agent(Box<crate::agent::AgentArgs>),
+    /// `podssh ping` (T-053).
+    Ping(Box<crate::ping::PingArgs>),
     /// `podssh doctor`: the relay settings to check, as `proxy` takes them.
     Doctor {
         relay_host: Option<String>,
@@ -157,6 +159,7 @@ impl Parsed {
             Parsed::Proxy { refused, .. } => !refused.is_empty(),
             Parsed::Doctor { refused, .. } => !refused.is_empty(),
             Parsed::Status { refused, .. } => !refused.is_empty(),
+            Parsed::Ping(args) => !args.refused.is_empty(),
             Parsed::Node(args) => !args.refused.is_empty(),
             Parsed::Operator(args) => !args.refused.is_empty(),
             Parsed::Pipe(args) => !args.refused.is_empty(),

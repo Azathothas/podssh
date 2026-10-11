@@ -22,7 +22,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             0,
             "Success. For podssh ssh: the remote command exited 0. For podssh chat: each message was \
-             acknowledged, and the one thing of --send or --file is done.",
+             acknowledged, and the one thing of --send or --file is done. For podssh ping: a relay host \
+             gave its measures, or with a destination each measure has its number.",
         ),
         row(
             crate::doctor::EXIT_FAILED,
@@ -44,7 +45,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              podssh node, operator and relay: the relay or TARGET could not be reached, the node did not take \
              the session, the pair was stopped, or another node serves it. podssh cp and mv: no connection to \
              the server, or it has neither SFTP nor the sh and the tools of a copy by exec. podssh chat: \
-             the same of the relay and the pair, or a message went with no acknowledgement; each is said.",
+             the same of the relay and the pair, or a message went with no acknowledgement; each is said. \
+             podssh ping: no relay host answered, or PODSSH_OFFLINE is set.",
         ),
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,
@@ -87,12 +89,14 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             podssh_ssh::EXIT_FAILURE,
             "podssh ssh: the connection, the host key, a node's key or the authentication failed, the \
              session ended with no exit status (also when stdout closed and none came within 5 s), or the \
-             server ended a run of -N. OpenSSH uses the same code.",
+             server ended a run of -N. OpenSSH uses the same code. podssh ping: the destination could \
+             not be reached or logged in to, or a measure broke.",
         ),
         (
             Code::Remote,
             "podssh ssh: the exit status of the remote command, unchanged. When signal N stopped the \
-             command, 128 + N."
+             command, 128 + N. podssh ping: the status of the remote program of a measure that failed, \
+             127 when the host lacks it."
                 .to_string(),
         ),
     ]

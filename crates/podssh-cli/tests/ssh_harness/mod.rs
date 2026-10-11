@@ -9,6 +9,13 @@
 //! closes its channel, as a command that reads no input (`head`, `true`)
 //! does while a large file comes. A direct-tcpip channel (`-W`, `podssh pipe
 //! ssh:`) reaches its HOST:PORT from the server, each way with its half-close.
+//! The commands of `podssh ping` (T-053) run as a POSIX server runs them:
+//! `cat` echoes, `head -c N /dev/zero` sends N zero bytes, and
+//! `cat > /dev/null` reads to the end of its input, each then exiting 0;
+//! for a user named `bare-...`, a host with neither, they exit 127, and for
+//! `bare-early-...` the channel closes before the server's reply to the
+//! command, an order that RFC 4254 does not forbid. For `late-...`, `cat`
+//! echoes its first bytes 1 s late, as a shell that is still starting it.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -40,6 +47,15 @@ struct Far {
     spews: HashMap<ChannelId, (Arc<std::sync::atomic::AtomicBool>, bool)>,
     /// The user `kick`: the server ends the connection after the login.
     kick: bool,
+    /// The channels of `cat > /dev/null`: read to the end, say nothing.
+    drains: Vec<ChannelId>,
+    /// The user `bare-...`: a host with no `cat` and no `head`; and
+    /// `bare-early-...`, whose server ends their channels before its reply.
+    bare: bool,
+    early: bool,
+    /// The user `late-...`, and the channels of `cat` that have not echoed yet.
+    late: bool,
+    late_echoes: Vec<ChannelId>,
 }
 
 impl server::Handler for Far {
@@ -47,6 +63,9 @@ impl server::Handler for Far {
 
     async fn auth_none(&mut self, user: &str) -> Result<Auth, Self::Error> {
         self.kick = user == "kick";
+        self.bare = user.starts_with("bare-");
+        self.early = user.starts_with("bare-early-");
+        self.late = user.starts_with("late-");
         // A user named key-...: a key is needed, as from an agent (T-034).
         if user.starts_with("key-") {
             return Ok(Auth::Reject {
@@ -117,8 +136,19 @@ impl server::Handler for Far {
         data: &[u8],
         session: &mut Session,
     ) -> Result<(), Self::Error> {
-        session.channel_success(channel)?;
         let command = String::from_utf8_lossy(data).into_owned();
+        let program = command.split_whitespace().next().unwrap_or_default();
+        if self.bare && matches!(program, "cat" | "head") {
+            if !self.early {
+                session.channel_success(channel)?;
+            }
+            session.extended_data(channel, 1, format!("sh: {program}: not found\n").into_bytes())?;
+            session.exit_status_request(channel, 127)?;
+            session.eof(channel)?;
+            session.close(channel)?;
+            return Ok(());
+        }
+        session.channel_success(channel)?;
         if let Some(rest) = command.strip_prefix("append ") {
             // `append PATH STATUS DELAY`: a line in the file at once, then
             // the status after DELAY seconds (T-025). A command that ran twice
@@ -139,14 +169,31 @@ impl server::Handler for Far {
             });
             return Ok(());
         }
+        if command == "cat" {
+            self.echoes.push(channel);
+            if self.late {
+                self.late_echoes.push(channel);
+            }
+            return Ok(());
+        }
+        if command == "cat > /dev/null" {
+            self.drains.push(channel);
+            return Ok(());
+        }
+        let zeros = command.strip_prefix("head -c ").and_then(|r| r.strip_suffix(" /dev/zero"));
+        let command = match zeros.and_then(|n| n.parse::<u64>().ok()) {
+            Some(n) => format!("source {n} zero"),
+            None => command,
+        };
         let mut words = command.split_whitespace();
         match (words.next(), words.next().and_then(|n| n.parse::<u64>().ok())) {
             (Some("source"), Some(bytes)) => {
                 // From a task: the session's loop must go on, to take the
                 // client's window adjustments while the bytes go out.
                 let handle = session.handle();
+                let fill = if words.next() == Some("zero") { 0 } else { 0x5a_u8 };
                 tokio::spawn(async move {
-                    let block = vec![0x5a_u8; BLOCK];
+                    let block = vec![fill; BLOCK];
                     let mut left = bytes;
                     while left > 0 {
                         let n = left.min(BLOCK as u64) as usize;
@@ -208,6 +255,10 @@ impl server::Handler for Far {
         if let Some(bytes) = self.sinks.get_mut(&channel) {
             *bytes += data.len() as u64;
         }
+        if let Some(at) = self.late_echoes.iter().position(|c| *c == channel) {
+            self.late_echoes.remove(at);
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
         if self.echoes.contains(&channel) {
             session.data(channel, data.to_vec())?;
         }
@@ -225,7 +276,8 @@ impl server::Handler for Far {
             return Ok(());
         }
         let echoed = self.echoes.iter().position(|c| *c == channel).map(|at| self.echoes.remove(at)).is_some();
-        if echoed {
+        let drained = self.drains.iter().position(|c| *c == channel).map(|at| self.drains.remove(at)).is_some();
+        if echoed || drained {
             session.exit_status_request(channel, 0)?;
             session.eof(channel)?;
             session.close(channel)?;

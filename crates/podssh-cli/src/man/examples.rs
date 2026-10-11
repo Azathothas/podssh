@@ -14,6 +14,14 @@ fn examples() -> Vec<(&'static str, String)> {
             "the state of this host as one line of JSON, and whether a host's key is known",
             "podssh status github.com".into(),
         ),
+        (
+            "how good the path is: each step to each relay host, and the round trip of WebSocket pings",
+            "podssh ping".into(),
+        ),
+        (
+            "and through a host: the login, the echo through cat, and 8 MiB down and up",
+            "podssh ping user@example.org".into(),
+        ),
         ("log in to a host, through the relay", "podssh ssh user@example.org".into()),
         ("run one command; podssh exits with its exit status", "podssh ssh user@example.org 'uname -a'".into()),
         (
@@ -220,6 +228,7 @@ mod tests {
                     Parsed::Proxy { .. } => "proxy",
                     Parsed::Doctor { .. } => "doctor",
                     Parsed::Status { .. } => "status",
+                    Parsed::Ping(_) => "ping",
                     Parsed::Man { .. } => "man",
                     Parsed::Node(_) => "node",
                     Parsed::Relay(_) => "relay",

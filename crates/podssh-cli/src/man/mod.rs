@@ -21,6 +21,7 @@ pub mod model;
 pub mod notes;
 mod notes_chat;
 mod notes_pair;
+mod notes_ping;
 pub mod roff;
 pub mod text;
 

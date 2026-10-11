@@ -204,12 +204,7 @@ pub async fn open_tls(
 /// and any bytes that arrived after the response head (the relay dials the
 /// target first, so its first frame can share a segment with the headers). On
 /// any other status, reads a little of the body for the error message.
-pub(crate) async fn upgrade<S>(
-    mut tls: S,
-    host_header: &str,
-    path: &str,
-    token: &str,
-) -> Result<(S, Vec<u8>), ConnectError>
+pub async fn upgrade<S>(mut tls: S, host_header: &str, path: &str, token: &str) -> Result<(S, Vec<u8>), ConnectError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {

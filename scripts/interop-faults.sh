@@ -295,6 +295,9 @@ runs=$(grep -c . "$RAN-after" 2>/dev/null)
     && ok "faults: a drop after the command started is not tried again (exit 255, one run)" \
     || bad "faults: a drop after the request: exit $rc, ${runs:-0} runs" "$FK/err"
 
+# shellcheck source=scripts/interop-ping.sh
+. "$HERE/interop-ping.sh"
+
 for f in "$FK"/*.pid; do
     kill "$(cat "$f")" 2>/dev/null
 done

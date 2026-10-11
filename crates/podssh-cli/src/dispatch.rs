@@ -106,6 +106,8 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Pipe(args) => crate::pipe::run_pipe(args, s.err),
         Parsed::Relay(args) if refusals("relay", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Relay(args) => crate::relay_cmd::run_relay(args, s.out, s.err),
+        Parsed::Ping(args) if refusals("ping", &args.refused, s.err) => EXIT_USAGE,
+        Parsed::Ping(args) => crate::ping::run(args, s.out, s.err),
         Parsed::Agent(args) if refusals("agent", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Agent(args) => crate::agent::run(args, s.out, s.err),
         Parsed::Status { relay_host, relay_addr, destination, refused } => {

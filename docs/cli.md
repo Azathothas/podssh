@@ -473,6 +473,50 @@ before anything else; `podssh doctor` is the report that measures.
   no DNS and writes nothing.
 - A bad flag or destination is 64, a bad variable 78, as for `doctor`.
 
+## `podssh ping`
+
+`podssh ping [OPTIONS] [[user@]host]` is a short check of the path (T-053,
+GitHub #23): the time of each step, the round trip, and the throughput.
+
+- With no destination, the relay leg of each relay host: the token (from
+  `PODSSH_RELAY_TOKEN`, the cache, or minted), DNS and TCP or CONNECT
+  through the proxy, TLS, and the WebSocket upgrade, which the relay
+  answers once it reached the target, each with its time; then `--count`
+  WebSocket pings (10 by default, at most 100), each with its sequence and
+  its send time in its payload and matched to its pong, as the minimum,
+  p50, p95 and maximum. A ping with no pong in 5 s is lost; a leg with no
+  pong at all fails.
+- The leg's target is `--target HOST:PORT`, else `github.com:22`, the
+  reference that `podssh doctor` reaches too. It is never the destination:
+  its server would see a connection that sends no SSH bytes, and OpenSSH's
+  `PerSourcePenalties` (9.8 and later) count those against the relay's
+  address, which other users share.
+- With a destination, the run is resolved as `podssh ssh` resolves it
+  (`ssh_config`, `-J`, `-i`, `-o`, `--direct`). Through the relay, the legs
+  come first; then the time to log in (through the pool and the failover of
+  `ssh`, with the relay's steps to the destination), the echo of one byte
+  at a time through `cat`, `--count` times after one that is not counted
+  (the first can wait for the shell to start `cat`), and the throughput
+  down with `head -c SIZE /dev/zero` and up with `cat > /dev/null`, each
+  line naming its command. These programs are an assumption about the host, so they
+  run only for a destination.
+- `--size` is 8 MiB each way by default, and at most 30 MiB, so that both
+  ways stay under the relay's 64 MiB for one session (`docs/relay.md`).
+- Each step has a limit: 20 s for a step to the relay, 60 s for a wait of a
+  measure, and 600 s for the whole run. A program that the host lacks ends
+  the run with its status (127), never with a hang, also when the status
+  comes before the server's reply to the command.
+- `--json` writes one JSON object when the run ends, in the shape of
+  `doctor --json`: `schema` (1), `podssh`, `count`, `size`, `relays` (each
+  with its steps in milliseconds, `pings` with `min_ms`, `p50_ms`, `p95_ms`
+  and `max_ms`, `pings_lost` and `error`), `destination` and `exit`.
+- 0 when the path works: a relay host gave its measures, or each measure
+  through the destination has its number. 64 for a bad flag, before
+  anything connects; 69 when no relay host answered, or with
+  `PODSSH_OFFLINE`. With a destination: the code of `podssh ssh` when it
+  cannot be reached or logged in to, the status of a remote program that
+  failed, and 255 for a measure that broke.
+
 ## `podssh keygen`
 
 `podssh man keygen` gives the flags. The rules behind them:
@@ -753,6 +797,10 @@ rules behind it:
   `--accept-dir`, 75 the `--timeout` passed, or the peer talks with
   another, 77 a key or a pair refused, or the file of `--file` declined, 78
   a setting or a pair that cannot be used.
+- `podssh ping` gives 69 when no relay host answers, and with a
+  destination the codes of `podssh ssh`: 255 for a failure of podssh, and
+  the status of the remote program of a measure (127 when the host lacks
+  it).
 - A command that is not implemented exits 70. It never exits 0.
 - A drop of the relay before any request reached the destination is tried
   again (T-025): during the SSH handshake or the login, before the

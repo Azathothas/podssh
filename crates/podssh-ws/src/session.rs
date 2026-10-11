@@ -38,9 +38,17 @@ pub struct RelaySession<S = RelayStream> {
     /// [`RelaySession::watch_liveness`].
     pongs: AtomicU64,
     heard: AtomicU64,
+    /// The payload of each Pong with when it came, the last [`PONGS_KEPT`],
+    /// for `podssh ping`, which matches each Pong to its Ping (T-053); and a
+    /// permit for each Pong, for the one who waits.
+    pong_log: std::sync::Mutex<std::collections::VecDeque<(Vec<u8>, std::time::Instant)>>,
+    pong_seen: tokio::sync::Notify,
     /// Bound on one write.
     write_timeout: Duration,
 }
+
+/// The Pongs that [`RelaySession::take_pongs`] keeps for the one who reads.
+pub const PONGS_KEPT: usize = 64;
 
 struct Reader<S> {
     half: ReadHalf<S>,
@@ -74,8 +82,21 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             close_sent: AtomicBool::new(false),
             pongs: AtomicU64::new(0),
             heard: AtomicU64::new(0),
+            pong_log: std::sync::Mutex::new(std::collections::VecDeque::new()),
+            pong_seen: tokio::sync::Notify::new(),
             write_timeout,
         }
+    }
+
+    /// The Pongs that came since the last call, each with its payload and
+    /// when it came; [`RelaySession::read_frame`] must be running.
+    pub fn take_pongs(&self) -> Vec<(Vec<u8>, std::time::Instant)> {
+        self.pong_log.lock().unwrap_or_else(|e| e.into_inner()).drain(..).collect()
+    }
+
+    /// Until a Pong comes, or one came since the last wait.
+    pub async fn pong_arrived(&self) {
+        self.pong_seen.notified().await;
     }
 
     /// Send one binary frame.
@@ -198,6 +219,13 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
                 }
                 Some(Event::Frame(f)) if f.opcode == frame::OPCODE_PONG => {
                     self.pongs.fetch_add(1, Ordering::SeqCst);
+                    let mut log = self.pong_log.lock().unwrap_or_else(|e| e.into_inner());
+                    if log.len() == PONGS_KEPT {
+                        log.pop_front();
+                    }
+                    log.push_back((f.payload, std::time::Instant::now()));
+                    drop(log);
+                    self.pong_seen.notify_one();
                 }
                 Some(Event::Frame(f)) if f.opcode == frame::OPCODE_CLOSE => {
                     reader.close_received = true;

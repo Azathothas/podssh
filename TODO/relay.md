@@ -134,7 +134,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`docs/relay.md:187-188`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:82-138`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:117-135` fetches `/relays.json`. `https_get` sends no
-token header (`crates/podssh-ws/src/client.rs:271-282`); `https_request` takes headers (lines
+token header (`crates/podssh-ws/src/client.rs:266-277`); `https_request` takes headers (lines
 282-303).
 
 ## Approach
@@ -160,8 +160,8 @@ token header (`crates/podssh-ws/src/client.rs:271-282`); `https_request` takes h
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags.rs:314-325`), and bound each request in the code, as `doctor`
-does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:215-233` stops
+(`crates/podssh-cli/src/flags.rs:316-327`), and bound each request in the code, as `doctor`
+does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:217-235` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
 
@@ -395,7 +395,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
 1. A live test, ignored by default, in a new file crates/podssh-relay/tests/live_reverse.rs:
    `POST /v1/pair`; a node socket to `/v1/node/NAME`; an operator socket to `/v1/connect/NAME`;
    the node answers `open` with `ready`. Send `ready` with `RelaySession::send_text`
-   (`crates/podssh-ws/src/session.rs:87-91`), which sends a real text frame; since T-071,
+   (`crates/podssh-ws/src/session.rs:108-112`), which sends a real text frame; since T-071,
    `Leg::send_control` over `WsSocket` sends one too.
 2. Three runs of 240 s: (a) no payload and no pings; (b) WebSocket pings every 20 s from both
    ends; (c) one byte of payload every 60 s. For each socket, record the time, the code and the
@@ -668,9 +668,9 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:112-121`,
-   `crates/podssh-cli/src/man/data.rs:115-122`), the test of lines 365-377 at `22c3b88`, the comment
+   `crates/podssh-cli/src/man/data.rs:119-126`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:287-307`).
+   notes (`crates/podssh-cli/src/man/notes.rs:289-309`).
 
 ## Decision
 
@@ -836,7 +836,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:133`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:134`). That is one run, before 2026-10-09.
 
 ## Approach
 
