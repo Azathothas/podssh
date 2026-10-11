@@ -66,7 +66,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 289 entries: 70 open, 0 partial, 23 blocked, 196 done.
+`TODO/INDEX.md` holds 289 entries: 69 open, 0 partial, 24 blocked, 196 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -95,7 +95,9 @@ before the tag), and last T-250 (the one release). Between entries: the
 and the entries that the operator holds (status `blocked`, Q32): T-085,
 T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
-T-124 and T-150, "Parked open work"), which waits as they wait.
+T-124 and T-150, "Parked open work"), which waits as they wait; and the
+entries that wait for an answer of the operator: T-292 (Q41) and T-062
+(Q42).
 
 ## Parked open work
 
@@ -140,6 +142,15 @@ program, and none of those programs is here. Recommendation: send one
 export of each (PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG, Termius),
 each with a host that has a password; or allow a session to download PuTTY
 and MobaXterm's portable build to make them.
+
+Q42 (2026-10-12, blocks T-062): whether the relay's backpressure close
+(1013) operates needs a target that sends much data fast through the
+relay's forward path, read slowly. From this host no allowed target does:
+railway.new refuses an anonymous visitor, GitHub's SSH endpoint sends its
+banner only, and `PODSSH_THROUGHPUT_SSH` is not set here. Recommendation:
+set `PODSSH_THROUGHPUT_SSH` and `PODSSH_THROUGHPUT_KEY` where a session
+runs, and allow this measurement on that host (less than 64 MiB, and 5
+minutes); or name another target.
 
 ## Operator actions
 

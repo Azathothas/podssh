@@ -599,7 +599,7 @@ window (`crates/podssh-ssh/src/run.rs` lines 25-29 at `80f20bf`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** blocked
 
 ## Problem
 
@@ -646,6 +646,17 @@ cargo test -p podssh-relay --test live_backpressure -- --ignored --nocapture   #
 The control: the same target, read at full speed, ends with 1000 `target closed` and the full
 size, which shows that the target and the path work. The slow run then gives the answer, and
 `docs/STATUS.md` records it with the date.
+
+## Blocker
+
+The operator (Q42, 2026-10-12): a target that sends much data fast through the relay's forward
+path, approved for this measurement. From this host none of the targets that `AGENTS.md`
+allows does: railway.new refuses an anonymous visitor (exit 13, `docs/STATUS.md`), GitHub's
+SSH endpoint sends its banner and then waits, the relay has no endpoint that sends data (its
+document names `/trace` alone), and `PODSSH_THROUGHPUT_SSH`, the operator's SSH host of the
+throughput run (Q38), is not set here. With that host, the target is a command that writes
+48 MiB on it, and the session needs a client with a window larger than the data (russh, in a
+test of `podssh-cli`), so that no SSH window stands between the relay and the slow reader.
 
 ## Correction
 
