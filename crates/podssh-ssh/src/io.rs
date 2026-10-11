@@ -296,6 +296,9 @@ async fn sleep_until(at: Option<tokio::time::Instant>) {
 
 /// Read stdin on its own task. The receiver yields `None` at end of input.
 fn spawn_stdin() -> mpsc::Receiver<Vec<u8>> {
+    // Asked before the task reads: on Windows the question would wait for
+    // the pending read.
+    let _ = crate::terminal::stdin_is_terminal();
     let (tx, rx) = mpsc::channel(8);
     tokio::spawn(async move {
         let mut stdin = tokio::io::stdin();

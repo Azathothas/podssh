@@ -174,7 +174,7 @@ a broadcast needs a stop that works at once.
 ## Premise
 
 - Read: a session reads stdin on its own task and sends each chunk to one
-  channel (`crates/podssh-ssh/src/io.rs:298-315`,
+  channel (`crates/podssh-ssh/src/io.rs:298-318`,
   `crates/podssh-ssh/src/io.rs:157-208`).
 - Read: escapes work only at the start of a line, and only with a pty
   (`crates/podssh-ssh/src/escape.rs:1-5`).
@@ -382,9 +382,9 @@ short numbered list helps a person; a script must still get the usage error.
    patterns, no negations), in the order of the files. With no names, keep
    exit 64.
 3. Read a number, or a text that filters the list, with `read_line`
-   (`crates/podssh-ssh/src/terminal/mod.rs:22`). Empty input or Ctrl-D exits
+   (`crates/podssh-ssh/src/terminal/mod.rs:23`). Empty input or Ctrl-D exits
    64. The prompt has the limit of a terminal that nobody watches
-   (`crates/podssh-ssh/src/terminal/mod.rs:60-71`).
+   (`crates/podssh-ssh/src/terminal/mod.rs:67-78`).
 4. The chosen name takes the normal path, as if the user typed it.
 5. In the same commit: the notes of ssh, `docs/cli.md`, `docs/STATUS.md`.
    This entry depends on T-043.

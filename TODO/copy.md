@@ -1368,7 +1368,7 @@ uplink of a shared host.
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
   (`crates/podssh-cli/src/flags/copy.rs:27-28`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
-  (`crates/podssh-ssh/src/io.rs:374-407`); no copy code exists yet.
+  (`crates/podssh-ssh/src/io.rs:377-410`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
   `-l limit`. OpenSSH's manual gives the unit as Kbit/s (not read here).
 

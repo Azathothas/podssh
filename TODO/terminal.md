@@ -782,7 +782,7 @@ find a case that the 14 console checks of podssh do not cover.
   (raw mode, restored on drop and on panic),
   `crates/podssh-ssh/src/terminal/windows.rs:115-138` (pty modes),
   `crates/podssh-ssh/src/terminal/windows.rs:142-181` (prompts), and the size
-  poll every 500 ms (`crates/podssh-ssh/src/io.rs:324-372`). The checks of
+  poll every 500 ms (`crates/podssh-ssh/src/io.rs:327-375`). The checks of
   `scripts/interop-conpty.py` pass 14 of 14 (`docs/STATUS.md:74`).
 - Read: podssh sets no console code page, and remote output goes through
   Rust's standard output (`crates/podssh-ssh/src/io.rs:277-287`). Rust's

@@ -77,10 +77,15 @@ impl Run {
 
     /// Wait until `what` holds `text`.
     fn wait_for(&mut self, what: &str, text: &str) {
+        self.wait_for_count(what, text, 1);
+    }
+
+    /// Wait until `what` holds `text` `count` times.
+    fn wait_for_count(&mut self, what: &str, text: &str, count: usize) {
         let started = Instant::now();
         loop {
             let seen = if what == "stdout" { &self.out } else { &self.err };
-            if seen.lock().unwrap().contains(text) {
+            if seen.lock().unwrap().matches(text).count() >= count {
                 return;
             }
             if started.elapsed() > LIMIT || self.child.try_wait().unwrap().is_some() {
@@ -147,6 +152,10 @@ fn a_lost_link_attaches_the_same_tmux_session_again() {
     run.send("MARK=kept");
     run.send("drop");
     run.wait_for("stderr", "attaching the tmux session podssh again");
+    // Nothing is typed until the session is attached again: on Windows the
+    // question whether stdin is a terminal waited for a read of the pipe
+    // that the input's task had pending, which only the next line ended.
+    run.wait_for_count("stdout", "[podssh] attached", 2);
     run.send("echo M=$MARK");
     run.wait_for("stdout", "M=kept");
     run.send("tmux kill-session");

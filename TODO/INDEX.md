@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**278 entries: 95 open, 0 partial, 22 blocked, 161 done.**
+**279 entries: 95 open, 0 partial, 22 blocked, 162 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 16 | 18 |
+| P1 | 2 | 0 | 0 | 17 | 19 |
 | P2 | 11 | 0 | 18 | 125 | 154 |
 | P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 95 | 0 | 22 | 161 | 278 |
+| **All** | 95 | 0 | 22 | 162 | 279 |
 
 ## Entries
 
@@ -353,3 +353,4 @@ repository and CI).
 | [T-279](forwarding.md) | P3 | M | backlog | defect | open | `-A` binds the forwarded agent to the server's host key, as OpenSSH does |
 | [T-280](roads.md) | P3 | M | backlog | feature | open | The iroh road through a SOCKS5 proxy |
 | [T-281](ts.md) | P3 | M | backlog | feature | open | `podssh ts` through a SOCKS5 proxy |
+| [T-282](pipe.md) | P1 | S | none | defect | done | On Windows a session that `--persist` attaches again waits for a key |

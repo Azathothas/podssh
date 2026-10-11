@@ -281,7 +281,7 @@ it there.
 4. The child: `setsid`, `ioctl(TIOCSCTTY)`, the slave on descriptors 0 to 2,
    then exec, in `pre_exec`. The parent closes its copy of the slave, or the
    master never sees the end. `TERM` from the request (empty:
-   `xterm-256color`, as `crates/podssh-ssh/src/terminal/mod.rs:89-94`);
+   `xterm-256color`, as `crates/podssh-ssh/src/terminal/mod.rs:96-101`);
    `SSH_TTY` names the slave.
 5. I/O: the master is read without blocking through tokio's `AsyncFd`; output
    goes through the channel's writer (T-118). `EIO` after the child is gone
@@ -765,7 +765,7 @@ a restart ends each session on it (`docs/design.md:208-211`).
 ## Premise
 
 - Read: the client ends its session properly on SIGTERM and SIGHUP
-  (`crates/podssh-ssh/src/io.rs:374-407`). The server has no such handling.
+  (`crates/podssh-ssh/src/io.rs:377-410`). The server has no such handling.
 - Read: russh can end a connection with a reason: `Handle::disconnect`
   (`Eugeny/russh:russh/src/server/session.rs`, line 457 at `22c3b88`).
 - Read: in `--stdio` mode one process serves one connection. The node mode

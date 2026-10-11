@@ -952,3 +952,70 @@ python scripts/check-repo.py         # the links of the table
 A row of `docs/STATUS.md` gives `usbip port` on the client after the attach,
 with the date and the commands. Plant: delete "64 MiB" from the row; the
 first command must fail.
+
+
+# T-282: On Windows a session that `--persist` attaches again waits for a key
+
+**Source:** CI, the run of `5a88857` (2026-10-11): the job `windows` failed
+`a_lost_link_attaches_the_same_tmux_session_again` of
+`crates/podssh-cli/tests/persist.rs`, which passed in the runs before and
+after it; on Windows, 1 of 30 runs of the test binary failed, six at once.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+After a lost link, `podssh ssh --persist` connected again and logged
+"attaching the tmux session podssh again", and then the session did not
+attach: the test typed its next line after that log line, and waited 30 s
+for the answer. Where stdin is a pipe on Windows, as under MSYS2's mintty,
+a session attached again waited until the user typed. A check that fails at
+random hides a real failure.
+
+## Premise
+
+Read: the input outlives a session, and its task reads stdin from the first
+session on (`crates/podssh-ssh/src/io.rs:100`); each session asks whether
+stdin is a terminal before its pty request
+(`crates/podssh-ssh/src/session.rs:61`). std's answer on Windows, for a
+handle that is no console, asks a pipe's name (`GetFileInformationByHandleEx`
+with `FileNameInfo`, the check for an MSYS2 pty), and the name of a pipe
+opened for synchronous reads waits while another thread's read of it is
+pending. Measured on 2026-10-11, with a program of 20 lines whose thread
+reads a piped stdin: `GetFileType` and `GetConsoleMode` answered at once,
+and `is_terminal` after 2.5 s, when the parent wrote a line. In the test,
+the line typed after the log line ended the pending read, and the question
+was answered; the task then read again, and when its read took the pipe
+before the waiting question did, the question waited for a line that the
+test never typed.
+
+## Approach
+
+Ask once whether stdin is a terminal, and keep the answer; the input's task
+asks before it reads. After the loss, the test types nothing until the
+second session is attached, so that the defect fails each run, not one run
+in thirty.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test persist
+```
+
+With the test's wait and without the repair, the test fails each run on
+Windows ("no \"[podssh] attached\" on stdout" after 30 s). With the repair,
+runs of the test binary, six at once, all pass.
+
+## Done
+
+2026-10-11. `crates/podssh-ssh/src/terminal/mod.rs:53-56`:
+`stdin_is_terminal` asks once and keeps the answer;
+`crates/podssh-ssh/src/io.rs:301`: the input's task asks before it reads.
+`crates/podssh-cli/tests/persist.rs:158`: after the loss, the test waits for
+the second "[podssh] attached" before it types. Without the repair the test
+failed (exit 101, after 31.4 s); with it, `cargo test -p podssh-cli --test
+persist`: 4 passed, and 48 runs of the test binary, six at once: 48 passed,
+the slowest in 1.66 s.

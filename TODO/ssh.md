@@ -1140,7 +1140,7 @@ and no player.
 - Read: each output of a session passes `handle_msg`
   (`crates/podssh-ssh/src/io.rs:240-251`), and each window change passes the
   resize branch (`crates/podssh-ssh/src/io.rs:232-234`). The size at the start
-  is `terminal::size` (`crates/podssh-ssh/src/terminal/mod.rs:56`).
+  is `terminal::size` (`crates/podssh-ssh/src/terminal/mod.rs:63`).
   `podssh-ssh` has no JSON dependency
   (`crates/podssh-ssh/Cargo.toml:17-30`).
 - Measured, offline: `podssh ssh --record /tmp/s.cast example.invalid` gives

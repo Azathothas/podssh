@@ -7,6 +7,7 @@
 
 use std::io::IsTerminal;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
 
 #[cfg(unix)]
 pub mod ctty;
@@ -44,8 +45,14 @@ pub(crate) fn set_raw_active(on: bool) {
     RAW.store(on, Ordering::SeqCst);
 }
 
+/// Whether stdin is a terminal, asked once and kept. The input's task asks
+/// before it reads (`io::Input`): on Windows std's answer for a pipe asks
+/// the pipe's name, which waits while another thread's read of it is
+/// pending, and a session attached again after a lost link (`--persist`)
+/// waited so for the next key.
 pub fn stdin_is_terminal() -> bool {
-    std::io::stdin().is_terminal()
+    static STDIN: OnceLock<bool> = OnceLock::new();
+    *STDIN.get_or_init(|| std::io::stdin().is_terminal())
 }
 
 pub fn stdout_is_terminal() -> bool {
