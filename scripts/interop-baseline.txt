@@ -10,7 +10,7 @@
 #   ID env-allowed REASON          ok, or env when the host lacks REASON
 support scripts/interop-lib.sh
 support scripts/interop-conpty-msys2.py
-harness ssh interop 71 scripts/interop.sh
+harness ssh interop 72 scripts/interop.sh
 harness limits interop 2 scripts/interop-limits.sh
 harness status interop 6 scripts/interop-status.sh
 harness hostkeys interop 4 scripts/interop-hostkeys.sh
@@ -90,6 +90,7 @@ ssh.config.alias.dropbear-alias pass
 ssh.config.alias.openssh-alias pass
 ssh.config.g_file.dropbear-alias pass
 ssh.config.g_file.openssh-alias pass
+ssh.config.jump_alias pass
 ssh.config.include pass
 ssh.forward.w_banner pass
 ssh.forward.jump pass

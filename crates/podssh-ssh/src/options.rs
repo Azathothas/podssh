@@ -182,6 +182,11 @@ pub struct Options {
     /// Hops to go through first (`-J`), in order; the caller's stream reaches
     /// the first one.
     pub jump: Vec<Hop>,
+    /// The options of each hop of `jump`, in order, as the caller resolved
+    /// them from the hop's own blocks of `ssh_config` (T-290); each has the
+    /// hop as its destination. Empty: the connection's options hold for each
+    /// hop.
+    pub jump_options: Vec<Options>,
     /// The login name when a hop does not name one.
     pub user: String,
     /// Key files to try, in order. Empty means the caller found none.
@@ -272,6 +277,16 @@ impl RemoteForward {
 }
 
 impl Options {
+    /// `BatchMode` from now on, for the destination and each hop with options
+    /// of its own: a run that tries again, or connects again after a loss,
+    /// asks nothing.
+    pub fn set_batch_mode(&mut self) {
+        self.batch_mode = true;
+        for hop in &mut self.jump_options {
+            hop.batch_mode = true;
+        }
+    }
+
     /// Defaults for a destination, as OpenSSH's, except that keepalives are on
     /// (every 60 s): the relay cuts a connection after 180 s without traffic.
     pub fn new(destination: Hop, user: String) -> Self {
@@ -284,6 +299,7 @@ impl Options {
             exit_on_forward_failure: false,
             host_key_alias: None,
             jump: Vec::new(),
+            jump_options: Vec::new(),
             user,
             identity_files: Vec::new(),
             identities_only: false,

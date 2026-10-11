@@ -133,13 +133,19 @@ pub async fn connect_hops<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Resul
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let hops: Vec<&Hop> = opts.jump.iter().chain(std::iter::once(&opts.destination)).collect();
+    let hops: Vec<(&Hop, Cow<'_, Options>)> = opts
+        .jump
+        .iter()
+        .enumerate()
+        .map(|(i, hop)| (hop, hop_options(opts, i)))
+        .chain(std::iter::once((&opts.destination, Cow::Borrowed(opts))))
+        .collect();
     let last = hops.len() - 1;
-    let mut handles: Vec<Handle<Client>> = vec![connect(stream, hops[0], last == 0, opts, log).await?];
-    for (i, hop) in hops.iter().enumerate().skip(1) {
+    let mut handles: Vec<Handle<Client>> = vec![connect(stream, hops[0].0, last == 0, &hops[0].1, log).await?];
+    for (i, (hop, hop_opts)) in hops.iter().enumerate().skip(1) {
         let previous = handles.last().expect("one handle per hop so far");
         let channel = forward::open(previous, &hop.host, hop.port).await.map_err(HopError::Unreachable)?;
-        handles.push(connect(channel, hop, i == last, opts, log).await?);
+        handles.push(connect(channel, hop, i == last, hop_opts, log).await?);
     }
     Ok(handles)
 }
@@ -255,13 +261,28 @@ async fn with_master<T>(
     }
 }
 
+/// The options of hop `i` of `-J`: its own, when the caller resolved them
+/// (T-290), with the run's memory of its logins, which each hop shares as
+/// it did before; else the connection's.
+fn hop_options(opts: &Options, i: usize) -> Cow<'_, Options> {
+    match opts.jump_options.get(i) {
+        Some(own) => {
+            let mut own = own.clone();
+            own.remembered = opts.remembered.clone();
+            Cow::Owned(own)
+        }
+        None => Cow::Borrowed(opts),
+    }
+}
+
 /// The name that `known_hosts` files the key of `hop` under (T-030): `host`,
-/// or `[host]:port` off port 22, each hop its own; for the destination,
-/// `HostKeyAlias` as it is, with no port, as OpenSSH files it. A jump hop
-/// never takes the alias: its key is another server's.
+/// or `[host]:port` off port 22, each hop its own; `HostKeyAlias` as it is,
+/// with no port, as OpenSSH files it, when `opts` are the hop's own: the
+/// destination's, or a jump hop's from its own blocks (T-290). A jump hop
+/// never takes the destination's alias: its key is another server's.
 pub(crate) fn hop_key_name(hop: &Hop, is_destination: bool, opts: &Options) -> String {
-    match (&opts.host_key_alias, is_destination) {
-        (Some(alias), true) => alias.clone(),
+    match &opts.host_key_alias {
+        Some(alias) if is_destination || opts.destination == *hop => alias.clone(),
         _ => known_hosts::host_name(&hop.host, hop.port),
     }
 }

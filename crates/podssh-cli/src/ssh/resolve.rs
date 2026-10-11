@@ -5,17 +5,16 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use podssh_ssh::options::{default_global_known_hosts, default_identity_files, default_user_known_hosts};
-use podssh_ssh::{Hop, LogLevel, Method, Options, Request, RequestTty, StrictHostKeyChecking};
+use podssh_ssh::{Hop, LogLevel, Options, Request, RequestTty};
 use podssh_ws::Trust;
 
 use podssh_relay::failover::Mode;
 use podssh_relay::relay::{self, RelayList};
 
 use super::args::SshArgs;
-use super::hop::{host_rule, jump_hop, request};
+use super::hop::{host_rule, request};
 use super::options::{parse_port, Settings};
-use super::tokens::{lower_host, Tokens, USER_REFUSES};
+use super::tokens::{jump_token, lower_host, Tokens, USER_REFUSES};
 use crate::relay_settings::Refusal;
 
 // Its old home, for the callers that name it here.
@@ -185,6 +184,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     };
     let filed = super::config::read(&source, &ctx, settings.ignore_unknown.clone()).map_err(Refusal::config)?;
     let (file_user, file_port) = (filed.user.clone(), filed.port);
+    // Each hop of -J reads its own blocks, under these (T-290).
+    let cli = settings.clone();
     let settings = settings.then_file(filed);
     let host = match settings.host_name.as_deref() {
         Some(name) => {
@@ -199,9 +200,9 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         None => settings.port.or(Some(target.port).filter(|p| *p != 22)).or(file_port).unwrap_or(22),
     };
     let proxy_jump = args.jump.as_deref().or(settings.proxy_jump.as_deref());
-    let jump: Vec<Hop> = match proxy_jump {
-        None | Some("none") => Vec::new(),
-        Some(list) => list.split(',').map(|h| jump_hop(h.trim())).collect::<Result<_, _>>()?,
+    let (jump, jump_options) = match proxy_jump {
+        None | Some("none") => (Vec::new(), Vec::new()),
+        Some(list) => super::jump::hops(list, args, &cli, env)?,
     };
 
     // The `%` tokens, with OpenSSH's values for this connection; `%r` once
@@ -216,10 +217,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         local_host: env.local_host.clone(),
         uid: env.uid,
         alias: settings.host_key_alias.as_deref().map(str::to_ascii_lowercase).unwrap_or_else(|| target.host.clone()),
-        jump: match proxy_jump {
-            Some("none") => "none".into(),
-            _ => jump.last().map(|h| h.host.clone()).unwrap_or_default(),
-        },
+        jump: jump_token(proxy_jump),
     };
     // OpenSSH expands a `User` of `-o` or of a file, and takes `-l` and
     // `user@host` as they are.
@@ -234,51 +232,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     let remote_command =
         settings.remote_command.as_deref().map(|c| tokens.text("RemoteCommand ", c, &[])).transpose()?;
     let expand = |setting: &str, p: &str| tokens.expand(setting, p);
-    let mut identity_files: Vec<PathBuf> = args
-        .identity_files
-        .iter()
-        .map(|p| expand("-i ", p))
-        .chain(settings.identity_files.iter().map(|p| expand("-o IdentityFile=", p)))
-        .collect::<Result<_, _>>()?;
-    if identity_files.is_empty() {
-        identity_files = env.home.as_deref().map(default_identity_files).unwrap_or_default();
-    }
-    let known = |setting: &str, list: &Option<Vec<String>>, default: Vec<PathBuf>| -> Result<Vec<PathBuf>, String> {
-        Ok(match list {
-            Some(files) if files.iter().any(|f| f.eq_ignore_ascii_case("none")) => Vec::new(),
-            Some(files) => files.iter().map(|f| expand(setting, f)).collect::<Result<_, _>>()?,
-            None => default,
-        })
-    };
-    let user_known_hosts = known(
-        "-o UserKnownHostsFile=",
-        &settings.user_known_hosts,
-        env.home.as_deref().map(default_user_known_hosts).unwrap_or_default(),
-    )?;
-    let global_known_hosts =
-        known("-o GlobalKnownHostsFile=", &settings.global_known_hosts, default_global_known_hosts())?;
-    // Why no user file is read: a key accepted then is not recorded (T-028).
-    let no_user_known_hosts = match &settings.user_known_hosts {
-        Some(files) if files.iter().any(|f| f.eq_ignore_ascii_case("none")) => Some("UserKnownHostsFile is none"),
-        None if env.home.is_none() && cfg!(windows) => Some("neither HOME nor USERPROFILE is set"),
-        None if env.home.is_none() => Some("HOME is not set"),
-        _ => None,
-    };
-
-    let mut methods = settings
-        .preferred_auth
-        .clone()
-        .unwrap_or_else(|| vec![Method::PublicKey, Method::KeyboardInteractive, Method::Password]);
-    methods.retain(|m| match m {
-        Method::PublicKey => settings.pubkey != Some(false),
-        Method::Password => settings.password != Some(false),
-        Method::KeyboardInteractive => settings.kbd_interactive != Some(false),
-    });
-    let publickey_off = match (methods.contains(&Method::PublicKey), settings.pubkey) {
-        (true, _) => None,
-        (false, Some(false)) => Some("-o PubkeyAuthentication=no".to_string()),
-        (false, _) => Some("PreferredAuthentications does not list publickey".to_string()),
-    };
+    let login = super::login::login(&args.identity_files, &settings, &tokens, env)?;
 
     let request = request(args, &settings, remote_command.as_deref())?;
     let request_tty = if matches!(request, Request::StdioForward { .. } | Request::Nothing) || args.no_tty {
@@ -402,22 +356,15 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     // OpenSSH looks a host key up, and records it, under the alias in lowercase.
     options.host_key_alias = settings.host_key_alias.as_deref().map(str::to_ascii_lowercase);
     options.jump = jump;
-    options.identity_files = identity_files;
-    options.identities_only = settings.identities_only.unwrap_or(false);
+    options.jump_options = jump_options;
+    for hop in &mut options.jump_options {
+        hop.log_level = log_level;
+    }
+    login.apply(&mut options, &settings);
     options.agent = agents.identity.clone();
     options.forward_agent = agents.forward.clone();
-    options.strict_host_key_checking = settings.strict.unwrap_or(StrictHostKeyChecking::Ask);
-    options.user_known_hosts = user_known_hosts;
-    options.no_user_known_hosts = no_user_known_hosts;
     options.host_key_fingerprints = fingerprints;
-    options.global_known_hosts = global_known_hosts;
-    options.batch_mode = settings.batch_mode.unwrap_or(false);
-    options.methods = methods;
-    options.publickey_off = publickey_off;
-    options.password_prompts = settings.password_prompts.unwrap_or(3);
     options.keepalive_interval = keepalive_interval;
-    options.keepalive_max = settings.alive_count.unwrap_or(3);
-    options.connect_timeout = Duration::from_secs(settings.connect_timeout.unwrap_or(60));
     options.request = request;
     options.request_tty = request_tty;
     options.escape_char = escape_char;

@@ -118,7 +118,7 @@ pub async fn run(resolved: &Resolved, name: &str, log: Arc<Log>) -> i32 {
         ));
         // The input belongs to the session from the first attach on: a
         // prompt that read the terminal would race the task that reads it.
-        opts.batch_mode = true;
+        opts.set_batch_mode();
         interrupt.get_or_insert_with(Interrupt::new);
         tokio::select! {
             _ = tokio::time::sleep(wait) => {}

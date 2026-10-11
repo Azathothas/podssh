@@ -363,3 +363,56 @@ fn on_windows_the_default_file_must_be_closed_to_writers() {
     );
     assert_eq!(resolve(&ssh(&["-F", &config, "alias"]), &h.env()).unwrap().options.destination.port, 2222);
 }
+
+/// A hop of -J takes the blocks of its own name, as OpenSSH's jump host does
+/// (T-290): its HostName, Port, User, IdentityFile and HostKeyAlias. With no
+/// user, the local user, never the destination's. The command line's settings
+/// of host keys hold for it, and the destination's blocks do not.
+#[test]
+fn a_jump_hop_takes_the_blocks_of_its_own_name() {
+    let h = Home::new("jump");
+    let f = h.file(
+        "jump",
+        "Host bastion\n  HostName 10.0.0.5\n  Port 2222\n  User admin\n  IdentityFile ~/.ssh/bastion_key\n  \
+         HostKeyAlias bastion-key\n\
+         Host plain\n  HostName plain.example\n\
+         Host dest\n  HostName dest.example\n  User alice\n  IdentityFile ~/.ssh/dest_key\n  ProxyJump bastion\n",
+    );
+    let words = ["-F", &f, "-o", "StrictHostKeyChecking=accept-new", "-o", "HostKeyAlias=dest-key", "dest"];
+    let r = resolve(&ssh(&words), &h.env()).unwrap_or_else(|e| panic!("{e}"));
+    let (o, jump) = (&r.options, &r.options.jump);
+    assert_eq!((jump[0].user.as_deref(), jump[0].host.as_str(), jump[0].port), (Some("admin"), "10.0.0.5", 2222));
+    let hop = &o.jump_options[0];
+    assert_eq!(hop.identity_files, [h.0.join(".ssh/bastion_key")], "the hop's own key, not the destination's");
+    assert_eq!(hop.strict_host_key_checking, StrictHostKeyChecking::AcceptNew, "-o holds for each hop");
+    assert_eq!(hop.host_key_alias.as_deref(), Some("bastion-key"), "its own alias, never the destination's");
+    assert_eq!((o.user.as_str(), o.identity_files.as_slice()), ("alice", [h.0.join(".ssh/dest_key")].as_slice()));
+    assert_eq!(o.host_key_alias.as_deref(), Some("dest-key"));
+
+    let r = resolve(&ssh(&["-F", &f, "-l", "bob", "-J", "plain", "dest"]), &h.env()).unwrap();
+    let jump = &r.options.jump[0];
+    assert_eq!((jump.user.as_deref(), jump.host.as_str()), (Some("envuser"), "plain.example"), "never -l");
+    // user@ and :PORT beat the hop's blocks, and -J the destination's ProxyJump.
+    let r = resolve(&ssh(&["-F", &f, "-J", "root@bastion:2200", "dest"]), &h.env()).unwrap();
+    assert_eq!((r.options.jump[0].user.as_deref(), r.options.jump[0].port), (Some("root"), 2200));
+}
+
+/// The ProxyJump of the first hop of a list puts its chain before it, as
+/// OpenSSH's jump process reads it; a later hop's is not read, as OpenSSH
+/// gives that hop the hops before it as its -J. A loop is refused (T-290).
+#[test]
+fn a_jump_hops_own_proxy_jump_makes_a_chain_and_a_loop_is_refused() {
+    let h = Home::new("chain");
+    let f = h.file(
+        "chain",
+        "Host inner\n  HostName 10.0.0.9\n  ProxyJump outer\nHost outer\n  HostName outer.example\n\
+         Host later\n  ProxyJump nowhere\nHost loop-a\n  ProxyJump loop-b\nHost loop-b\n  ProxyJump loop-a\n",
+    );
+    let r = resolve(&ssh(&["-F", &f, "-J", "inner,later", "dest"]), &h.env()).unwrap_or_else(|e| panic!("{e}"));
+    let hosts: Vec<&str> = r.options.jump.iter().map(|h| h.host.as_str()).collect();
+    assert_eq!(hosts, ["outer.example", "10.0.0.9", "later"]);
+    assert_eq!(r.options.jump_options.len(), 3);
+    let refused = resolve_or_refuse(&ssh(&["-F", &f, "-J", "loop-a", "dest"]), &h.env()).unwrap_err();
+    assert_eq!(refused.code, 64, "{}", refused.message);
+    assert!(refused.message.contains("a jump host loop"), "{}", refused.message);
+}

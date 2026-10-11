@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**287 entries: 83 open, 0 partial, 22 blocked, 182 done.**
+**287 entries: 82 open, 0 partial, 22 blocked, 183 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
-| P2 | 5 | 0 | 18 | 134 | 157 |
+| P2 | 4 | 0 | 18 | 135 | 157 |
 | P3 | 76 | 0 | 4 | 26 | 106 |
-| **All** | 83 | 0 | 22 | 182 | 287 |
+| **All** | 82 | 0 | 22 | 183 | 287 |
 
 ## Entries
 
@@ -361,4 +361,4 @@ repository and CI).
 | [T-287](ssh.md) | P2 | S | none | defect | done | An encrypted key of PKCS#8 or of PuTTY is never asked for, and an encrypted ECDSA key in PEM is refused with its passphrase |
 | [T-288](cli.md) | P1 | S | none | defect | done | On Windows, `podssh keygen` writes a private key with the access list of its directory |
 | [T-289](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -Y` with certificates: a signature made with a certificate, and `cert-authority` lines |
-| [T-290](config.md) | P2 | M | none | defect | open | A `-J` hop takes the `ssh_config` block of its own name, as OpenSSH's jump host does |
+| [T-290](config.md) | P2 | M | none | defect | done | A `-J` hop takes the `ssh_config` block of its own name, as OpenSSH's jump host does |

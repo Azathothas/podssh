@@ -263,12 +263,16 @@ pub(super) fn include_tokens(args: &SshArgs, cli: &Settings, target: &Hop, env: 
             .clone()
             .or_else(|| file.host_key_alias.clone())
             .unwrap_or_else(|| target.host.clone()),
-        jump: match jump {
-            Some("none") => "none".into(),
-            Some(list) => {
-                list.rsplit(',').next().and_then(|h| jump_hop(h.trim()).ok()).map(|h| h.host).unwrap_or_default()
-            }
-            None => String::new(),
-        },
+        jump: jump_token(jump),
+    }
+}
+
+/// `%j` of a `ProxyJump` value, as OpenSSH gives it: the host of its last hop
+/// as typed, `none` for none, and empty with no value.
+pub(super) fn jump_token(list: Option<&str>) -> String {
+    match list {
+        Some("none") => "none".into(),
+        Some(list) => list.rsplit(',').next().and_then(|h| jump_hop(h.trim()).ok()).map(|h| h.host).unwrap_or_default(),
+        None => String::new(),
     }
 }

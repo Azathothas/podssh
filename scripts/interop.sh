@@ -318,6 +318,17 @@ for alias in openssh-alias dropbear-alias; do
         && ok "ssh.config.g_file.${alias}" "ssh -G -F FILE: each line that podssh prints is OpenSSH's ($alias)" \
         || bad "ssh.config.g_file.${alias}" "ssh -G -F FILE ($alias): exit $rc; not OpenSSH's: ${extra:-nothing}" "$W/err"
 done
+# A hop of -J takes the blocks of its own name (T-290): through the alias of
+# OpenSSH's server to Dropbear's, as OpenSSH's ssh does with the same file,
+# whose Host * gives each hop its host keys and login.
+{ cat "$W/ssh_config"; printf 'Host *\n  UserKnownHostsFile %s\n  StrictHostKeyChecking accept-new\n  BatchMode yes\n  IdentitiesOnly yes\n  IdentityAgent none\n' "$KH"; } >"$W/ssh_config_jump"
+env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -F "$W/ssh_config_jump" -J openssh-alias dropbear-alias 'exit 6' \
+    </dev/null >"$W/out" 2>"$W/err"
+rc=$?
+ssh -F "$W/ssh_config_jump" -J openssh-alias dropbear-alias 'exit 6' </dev/null >/dev/null 2>&1
+orc=$?
+[ "$rc" = 6 ] && [ "$orc" = 6 ] && ok ssh.config.jump_alias "-J through the aliases of a -F file, as OpenSSH reads them" \
+    || bad ssh.config.jump_alias "-J through the aliases of a -F file: podssh exit $rc, OpenSSH exit $orc" "$W/err"
 
 # Include and Match final all (T-044): the hosts of a file come from an
 # Include glob, read in sorted order, and Match final all fills what is unset.

@@ -545,7 +545,7 @@ at `crates/podssh-cli/src/ssh/transport.rs:79`, and the relay's close reason is 
    (`crates/podssh-ssh/src/io.rs:131-139`, and `write_out` at `crates/podssh-ssh/src/io.rs:277-287`). T-055 needs the same change.
 3. stdout and stderr stay byte for byte as now; the command's output never goes into the JSON.
 4. Write the file on each path, also after a failure before the session: at the end of
-   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:96-100`). Mode 0600. Refuse `-`: stdout is data.
+   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:98-102`). Mode 0600. Refuse `-`: stdout is data.
 5. Add the row to `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-259`; the set of short flags
    does not change), and change the `ssh` notes and `docs/cli.md` in the same commit.
 

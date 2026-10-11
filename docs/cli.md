@@ -72,13 +72,13 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `-J a,b` makes a chain of hops; `-J a -J b` is an error. Each hop checks
   its own host key, filed under its own name: `host`, or `[host]:port` off
   port 22 (T-030). `HostKeyAlias` names the destination's key alone, as it
-  is and with no port, as OpenSSH files it. The settings of host keys,
-  authentication, keys and time, of `-o`, `-i` and the destination's blocks
-  of `ssh_config`, hold for each hop, and a hop with no user logs in as the
-  destination's user. OpenSSH applies its command line to the destination
-  only (its jump process gets `-l`, `-p`, `-J`, `-F` and `-v`) and gives a
-  jump host the block of its own name, which podssh does not read yet
-  (T-290).
+  is and with no port, as OpenSSH files it. Each hop reads the blocks of
+  `ssh_config` for its own name, as OpenSSH's jump host does, and logs in as
+  its own `user@`, its `User`, else the local user (T-290; see
+  `ssh_config`). The settings of host keys, authentication, keys and time
+  of `-o` and `-i` hold for each hop too; OpenSSH applies its command line
+  to the destination only (its jump process gets `-l`, `-p`, `-J`, `-F` and
+  `-v`).
   `ssh host:2222` connects to a host named `host:2222` on port 22. The port
   form of OpenSSH is `ssh://user@host:2222`. podssh also accepts `host:PORT`,
   because its own "did you mean" message gives that form. A host name cannot
@@ -1058,6 +1058,19 @@ unset; each other `Match` is refused by name with the file and the line
 until T-045. The keywords of the GSSAPI patch of Debian and Fedora
 (`GSSAPIKexAlgorithms` in Fedora's crypto policy) are accepted with no
 effect, as podssh has no GSSAPI.
+
+Each hop of `-J` or `ProxyJump` reads the blocks of its own name, as
+OpenSSH's jump host does (T-290): its `HostName`, `Port`, `User`,
+`IdentityFile`, `HostKeyAlias` and the settings of its host keys and login.
+Its `user@` and `:PORT` beat the file; with neither a `user@` nor a `User`,
+the hop logs in as the local user, never as the destination's: `-l`, `-p`
+and the destination's blocks are the destination's alone. The `ProxyJump` of
+the first hop of a list puts its own chain before it; a later hop's is not
+read, as OpenSSH gives that hop the hops before it as its `-J`. A chain that
+comes back to a hop is refused (64), and so is one of more than 16 hops. The
+settings of host keys, authentication, keys and time of `-o` and `-i` hold
+for each hop too, where OpenSSH's command line holds for the destination
+only.
 
 These are the rules of OpenSSH 10.3p1, measured with `ssh -G`, and podssh
 follows them; `crates/podssh-cli/tests/ssh_config_file.rs` and

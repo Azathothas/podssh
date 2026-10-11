@@ -16,9 +16,11 @@ pub mod dump;
 pub mod forward;
 mod hop;
 pub mod iroh;
+mod jump;
 pub mod keywords;
 mod local_bind;
 pub mod local_spec;
+mod login;
 pub mod node;
 pub mod options;
 pub mod persist;
@@ -202,6 +204,6 @@ async fn tries(resolved: &Resolved, log: &Arc<Log>) -> (i32, Option<podssh_ssh::
         log.info(&format!("{why}; nothing had reached {target}, so podssh tries {how} in {:.1} s", wait.as_secs_f32()));
         tokio::time::sleep(wait).await;
         // A person may not be there to answer a prompt again.
-        opts.batch_mode = true;
+        opts.set_batch_mode();
     }
 }

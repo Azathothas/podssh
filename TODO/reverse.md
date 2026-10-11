@@ -882,12 +882,12 @@ Measured on `3ee70dc`, offline: `podssh operator mynode` gives exit 70;
 `PODSSH_OFFLINE`); `podssh ssh -T node://lab true` gives `"//lab" is not a port` and exit 64.
 
 Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/ssh/hop.rs:30-78`).
-`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:24-49`, chosen at `:315-363`).
+`Transport` is `Relay` or `Direct` (`crates/podssh-cli/src/ssh/resolve.rs:23-48`, chosen at `:269-317`).
 `connect_and_run` gives `relay_stream::spawn` to russh (`crates/podssh-cli/src/ssh/mod.rs` lines 73-116 at `6483366`), and
 `relay_stream` closes with 1002 on a text frame (`crates/podssh-ssh/src/relay_stream.rs:189-195`); the
 operator leg receives text frames (`docs/relay.md:284-287`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:83-93`); `HostKeyAlias` exists
-(`crates/podssh-cli/src/ssh/resolve.rs:403`). `podssh ssh` uses the exit codes of OpenSSH, and
+(`crates/podssh-cli/src/ssh/resolve.rs:357`). `podssh ssh` uses the exit codes of OpenSSH, and
 `podssh proxy` sysexits (`docs/cli.md:927-931`).
 
 ## Approach
@@ -896,7 +896,7 @@ host, never the relay's name (`SECURITY.md:83-93`); `HostKeyAlias` exists
    `operator::run` (T-080) on stdin and stdout: a byte pipe as `podssh proxy`
    (`crates/podssh-cli/src/pipe/relay.rs:97-220`). stdout carries data only; never 0 without `ready`.
 2. `podssh ssh node://[user@]NAME`: `parse_hop` reads `node://` as it reads `ssh://`; add
-   `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:24-49`).
+   `Transport::Node` (`crates/podssh-cli/src/ssh/resolve.rs:23-48`).
 3. For a node, `connect_and_run` opens the operator leg and waits for `ready` (T-080), then gives
    russh the raw stream. Do not give the leg to `relay_stream::spawn` as it is: reuse its pump after
    `ready`, with text frames read as control.

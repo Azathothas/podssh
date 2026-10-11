@@ -912,7 +912,7 @@ sessions (GitHub #17).
 ## Premise
 
 Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-70`,
-`crates/podssh-ssh/src/run.rs:166-207`). `podssh_relay::open` fails over and
+`crates/podssh-ssh/src/run.rs:172-213`). `podssh_relay::open` fails over and
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:187-233`,
 `crates/podssh-relay/src/open.rs:335-349`). With `-N`, no command runs, so a

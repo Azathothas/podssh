@@ -45,4 +45,28 @@ fn hop_key_name_is_each_hops_own() {
     assert_eq!(hop_key_name(&dest, true, &opts), "alias.example");
     assert_eq!(hop_key_name(&hop("jump.example", 2222), false, &opts), "[jump.example]:2222");
     assert_eq!(hop_key_name(&hop("jump.example", 22), false, &opts), "jump.example");
+    // A jump hop's own options, from its own blocks, give it its own alias.
+    let jump = hop("jump.example", 2222);
+    let mut own = Options::new(jump.clone(), "u".into());
+    own.host_key_alias = Some("jump-alias".into());
+    assert_eq!(hop_key_name(&jump, false, &own), "jump-alias");
+}
+
+/// Each hop takes its own options when the caller resolved them, with the
+/// run's memory of its logins; else the connection's (T-290).
+#[test]
+fn a_hop_takes_its_own_options_and_the_runs_memory() {
+    let hop = |host: &str| Hop { user: Some("u".into()), host: host.into(), port: 22 };
+    let mut opts = Options::new(hop("dest.example"), "u".into());
+    opts.jump = vec![hop("a.example"), hop("b.example")];
+    opts.remembered = Some(Default::default());
+    let mut own = Options::new(hop("a.example"), "u".into());
+    own.connect_timeout = std::time::Duration::from_secs(7);
+    opts.jump_options = vec![own];
+    let first = hop_options(&opts, 0);
+    assert_eq!(first.connect_timeout.as_secs(), 7);
+    assert!(first.remembered.is_some(), "the run's memory is the hop's too");
+    assert_eq!(hop_options(&opts, 1).destination.host, "dest.example", "no options of its own: the connection's");
+    opts.set_batch_mode();
+    assert!(opts.batch_mode && opts.jump_options[0].batch_mode);
 }

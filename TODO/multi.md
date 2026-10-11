@@ -47,17 +47,17 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:103-150`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:105-152`,
    `crates/podssh-ssh/src/run.rs:35-72`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:131-287` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
    (`crates/podssh-ssh/src/log.rs:12-15`). Each line gets `HOST: `. With
    `--output-dir`, the bytes go unchanged to `HOST.out` and `HOST.err`, and
    the status to `HOST.status`.
-4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/resolve.rs:414`).
+4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/login.rs:86`).
    An unknown host key refuses that host and gives its fingerprint and
    `-o StrictHostKeyChecking=accept-new`. stdin is not read
-   (`crates/podssh-cli/src/ssh/resolve.rs:428`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:375`).
 5. Get the token once, before the fan-out. Serialize `known_hosts::append`
    in the process with a mutex; T-029 covers two processes.
 6. The exit status: the largest status of the hosts, and 255 for a host that
@@ -116,7 +116,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:1038-1099`); they cannot define a group.
+  (`docs/cli.md:1038-1112`); they cannot define a group.
 
 ## Approach
 
@@ -365,7 +365,7 @@ short numbered list helps a person; a script must still get the usage error.
 ## Premise
 
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
-  (`crates/podssh-cli/src/ssh/resolve.rs:142`).
+  (`crates/podssh-cli/src/ssh/resolve.rs:141`).
 - Read: `run_ssh` gets no terminal state
   (`crates/podssh-cli/src/dispatch.rs:243-245`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
@@ -479,7 +479,7 @@ name is copied by hand.
 ## Premise
 
 - Read: `podssh ssh -t HOST -- docker exec -it NAME sh` works today, as a
-  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:284-292`,
+  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:238-246`,
   `crates/podssh-cli/src/ssh/hop.rs:93-104`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
   finds it (`AGENTS.md:197-201`). Here the programs run on the server, for a
