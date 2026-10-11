@@ -58,6 +58,8 @@ pub mod positionals;
 pub mod proxy;
 pub mod refuse;
 pub mod relay_cmd;
+pub mod relay_diag;
+mod relay_diag_text;
 pub mod relay_settings;
 pub mod relay_spec;
 pub mod sftp;

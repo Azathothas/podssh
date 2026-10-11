@@ -26,7 +26,7 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 - Measured: `PODSSH_OFFLINE=1 podssh pipe stdio relay:example.org:80` exits
   64 with `podssh: unknown subcommand 'pipe'.` The verb table has no `pipe`
-  row (`crates/podssh-cli/src/flags.rs:406-443`).
+  row (`crates/podssh-cli/src/flags.rs:408-445`).
 - Read: the only pump is `crates/podssh-cli/src/pipe/relay.rs:86-205`. At the end
   of input it stops sending and keeps receiving
   (`crates/podssh-cli/src/proxy.rs:8-11`). T-101 is the opposite defect in
@@ -37,8 +37,8 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
 
 ## Approach
 
-1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:406-443`, two
-   required positionals (`crates/podssh-cli/src/positionals.rs:7-117`), a
+1. The verb: a `pipe` row in `crates/podssh-cli/src/flags.rs:408-445`, two
+   required positionals (`crates/podssh-cli/src/positionals.rs:7-122`), a
    `Parsed::Pipe` variant (`crates/podssh-cli/src/parsed.rs:8-142`), a
    dispatch arm, and `pipe` in `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`). No `--timeout` row: the
@@ -68,16 +68,16 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    B's. A program that is not found gives 127, one that cannot run 126, as a
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
-   (`crates/podssh-cli/src/man/notes.rs:11-33`), two examples
-   (`crates/podssh-cli/src/man/examples.rs:8-103`; its test at
-   `crates/podssh-cli/src/man/examples.rs:226-238` learns the new variant),
+   (`crates/podssh-cli/src/man/notes.rs:12-34`), two examples
+   (`crates/podssh-cli/src/man/examples.rs:8-107`; its test at
+   `crates/podssh-cli/src/man/examples.rs:230-242` learns the new variant),
    `docs/design.md:420-428`, `docs/STATUS.md`. Each file stays under 500
-   lines (`AGENTS.md:206-207`).
+   lines (`AGENTS.md:205-206`).
 
 ## Decision
 
 Recommendation: `exec:` splits the words itself and starts no shell, because
-podssh must not assume a shell (`AGENTS.md:190-191`), and the user can name one
+podssh must not assume a shell (`AGENTS.md:189-190`), and the user can name one
 (`exec:sh -c 'CMD'`). The alternative, a `system:` address through
 `/bin/sh -c` as in socat, lost: Windows and some images have no `/bin/sh`.
 
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:784`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:806`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:259-335` a typed error, so that 77 is not
    guessed from a message.
@@ -412,7 +412,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:437-439`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:192-197`, `docs/architecture.md:102-112`,
+  `AGENTS.md:191-196`, `docs/architecture.md:102-112`,
   `docs/target-environment.md:74-78`, `SECURITY.md:83-100`, `README.md:38-44`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:188`). The box refuses each `bind`, AF_UNIX too
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:192-197`, `docs/architecture.md:102-112` and
+allows: `AGENTS.md:191-196`, `docs/architecture.md:102-112` and
 `docs/target-environment.md:74-78` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -610,9 +610,9 @@ running on the server (`docs/design.md:241-243`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:833-835`). After the attach, send the window size again.
+   (`docs/cli.md:855-857`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes.rs:35-142`), `docs/design.md:241-243`,
+   (`crates/podssh-cli/src/man/notes.rs:36-143`), `docs/design.md:241-243`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:32-33`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
@@ -724,7 +724,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
-  (`crates/podssh-cli/src/man/notes.rs:213-217`); a client that calls
+  (`crates/podssh-cli/src/man/notes.rs:214-218`); a client that calls
   `connect()` itself needs a listener (`docs/design.md:440-443`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
@@ -754,8 +754,8 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
    `telnet 127.0.0.1 PORT`.
 4. Write a table "Other TCP protocols" after `README.md:124-129`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
-   form a to `crates/podssh-cli/src/man/examples.rs:8-103`; its ProxyCommand
-   parses (`crates/podssh-cli/src/man/examples.rs:203-210`). Link the table
+   form a to `crates/podssh-cli/src/man/examples.rs:8-107`; its ProxyCommand
+   parses (`crates/podssh-cli/src/man/examples.rs:207-214`). Link the table
    from `docs/design.md:440-443`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
@@ -795,7 +795,7 @@ name, and podssh alone cannot add one.
 
 - Read: the relay is the operator's Cloudflare Worker, another project, and
   its document is the contract (`docs/relay.md:3-16`). It has no publish
-  endpoint (`docs/relay.md:68-95`, `docs/relay.md:244-302`).
+  endpoint (`docs/relay.md:68-95`, `docs/relay.md:244-308`).
 - Read: on the measured sandbox, `connect()` to loopback fails with EACCES
   (`docs/target-environment.md:22`). A node there cannot reach a server on
   127.0.0.1; it can reach a Unix socket (T-176) or a program (`exec:`,
@@ -922,7 +922,7 @@ and with which limits.
 - Read: through the relay, a session ends at 64 MiB (`docs/relay.md:137`);
   the traffic of a USB disk reaches that in seconds.
 - Read: podssh cannot load a module or attach a device, and never assumes a
-  privilege (`AGENTS.md:190-191`). The recipe uses the user's own `usbip` and
+  privilege (`AGENTS.md:189-190`). The recipe uses the user's own `usbip` and
   its privileges.
 
 ## Approach

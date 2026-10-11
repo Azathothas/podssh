@@ -234,7 +234,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "sftp" => "[OPTIONS] DESTINATION",
         "chat" => "[OPTIONS] PEER",
         "man" => "[OPTIONS] [SECTION]",
-        "relay" => "[OPTIONS] SUBCOMMAND NAME",
+        "relay" => "[OPTIONS] SUBCOMMAND [NAME | HOST PORT]",
         "node" => "[OPTIONS] NAME TARGET",
         "operator" => "[OPTIONS] NAME",
         "proxy" => "[OPTIONS] [--] HOST PORT",

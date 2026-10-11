@@ -553,7 +553,7 @@ sh scripts/dev.sh check                     # interop-cp.sh through scripts/fake
 ```
 
 The stand-in relay's `close:BYTES:CODE` mode
-(`scripts/fake-relay.py:288-310`) ends each session after 1,500,000 bytes
+(`scripts/fake-relay.py:363-385`) ends each session after 1,500,000 bytes
 from the target with `1011`. A 5,000,000-byte download must finish over 4
 sessions or more with equal digests, and `-v` names each offset. A new mode
 that counts both directions does the same for an upload. A run stopped with
@@ -755,7 +755,7 @@ relay's limits, and logs in as the first session did".
 
 **Source:** ROADMAP M5 ("Across hosts, `mv` is copy, verify, delete; podssh
 says first that it is not atomic"); the description of `mv` in
-`crates/podssh-cli/src/flags.rs:425-426`.
+`crates/podssh-cli/src/flags.rs:427-428`.
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -773,7 +773,7 @@ user must know this before the move starts.
 
 - Measured on `3ee70dc`, offline: `podssh mv --timeout 30s a b` exits 70
   (`'mv' is not implemented yet; nothing was done.`).
-- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:425-426`),
+- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:427-428`),
   so the operands and options of T-134 apply.
 - Measured (T-133's offline probe): `posix-rename@openssh.com` replaces in
   one step; `SSH_FXP_RENAME` refuses an existing target.
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:217-235` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:774-777`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:796-799`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1634,7 +1634,7 @@ host, and the copy back then destroys that change with no word.
 
 ## Approach
 
-1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:406-443`),
+1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:408-445`),
    with the connection flags that T-134 gives `cp`. It needs a terminal on
    stdin and stdout; else exit 64.
 2. Download with T-134 into a new directory of mode 0700 in the cache

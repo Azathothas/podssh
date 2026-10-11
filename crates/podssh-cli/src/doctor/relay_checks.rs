@@ -3,25 +3,22 @@
 //! host's clock against the relay's. With `--full`, also a login to that
 //! server with a key made for the check (`login`).
 
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use podssh_relay::health::HealthError;
 use podssh_relay::open::Request;
 use podssh_relay::relay::{Relay, RelayList};
 use podssh_relay::token::{self, MintContext, Origin};
 use podssh_ssh::probe::Login;
 use podssh_ssh::relay_stream::RelayStatus;
 use podssh_ws::dial::{self, ProxyChoice};
-use podssh_ws::{http, Trust, Verdict};
+use podssh_ws::{Trust, Verdict};
 
 use super::clock::{format_http_date, parse_http_date};
 use super::Report;
 
 /// The relay version podssh was last measured against (docs/relay.md).
 const MEASURED_VERSION: &str = "2026-10-03-r2";
-
-/// The service name the relay gives in `/health`: with a verified
-/// certificate for the host, this is how the relay is identified.
-const SERVICE: &str = "tcp-ssh-relay";
 
 /// Bound on each request and handshake here.
 const TIMEOUT: Duration = Duration::from_secs(10);
@@ -78,63 +75,21 @@ pub(super) async fn check(report: &mut Report<'_>, relays: &RelayList, trust: &T
 }
 
 /// `GET /health` on one host, through the same proxy-aware, verified path
-/// as a session. Returns the report line and the relay's `Date` header.
+/// as a session (`podssh_relay::health`, which `podssh relay status` reads
+/// too). Returns the report line and the relay's `Date` header.
 async fn health(relay: &Relay, trust: &Trust) -> Result<(String, Option<String>), String> {
     let host = &relay.host;
-    let started = Instant::now();
-    let mut tls = podssh_ws::client::open_tls(host, relay.port, host, trust, &ProxyChoice::FromEnvironment, TIMEOUT)
-        .await
-        .map_err(|e| {
-            let text = e.to_string();
-            format!("{host}: {text}{}", clock_hint(&text))
-        })?;
-    let (tcp, connection) = tls.get_ref();
-    let peer = tcp.peer_addr().map(|a| a.to_string()).unwrap_or_else(|e| format!("an address it cannot name ({e})"));
-    let tls_version = connection
-        .protocol_version()
-        .map(|v| format!("{v:?}").replace("TLSv1_", "TLS 1."))
-        .unwrap_or_else(|| "TLS".into());
-    let opened = match dial::proxy_from_env(host) {
-        Ok(Some(proxy)) => format!(
-            "CONNECT {} through {}",
-            dial::authority(host, relay.port),
-            super::net::proxy_reached(&proxy, &peer)
-        ),
-        _ => format!("TCP {peer}"),
-    };
-    let host_header = if relay.port == 443 { host.clone() } else { dial::authority(host, relay.port) };
-    let exchange =
-        http::exchange(&mut tls, "GET", &host_header, "/health", &[("Accept", "application/json")], b"", 64 * 1024);
-    let response = tokio::time::timeout(TIMEOUT, exchange)
-        .await
-        .map_err(|_| format!("{host}: /health did not answer within {} s (opened {opened})", TIMEOUT.as_secs()))?
-        .map_err(|e| format!("{host}: /health: {e} (opened {opened})"))?;
-    if response.status != 200 {
-        return Err(format!(
-            "{host}: /health answered HTTP {} {} (opened {opened})",
-            response.status,
-            response.body_text(120)
-        ));
+    match podssh_relay::health::fetch(relay, trust, &ProxyChoice::FromEnvironment, TIMEOUT).await {
+        Ok(found) => {
+            let mut line = found.line(host);
+            if found.version.as_deref() != Some(MEASURED_VERSION) {
+                line.push_str(&format!("; podssh was measured against {MEASURED_VERSION}"));
+            }
+            Ok((line, found.date))
+        }
+        Err(HealthError::Connect(text)) => Err(format!("{host}: {text}{}", clock_hint(&text))),
+        Err(e) => Err(format!("{host}: {e}")),
     }
-    let doc: serde_json::Value = serde_json::from_slice(&response.body)
-        .map_err(|_| format!("{host}: /health did not answer with JSON (opened {opened})"))?;
-    let text = |v: &serde_json::Value| v.as_str().map(podssh_ws::text::one_line);
-    let service = text(&doc["service"]).unwrap_or_default();
-    if service != SERVICE {
-        return Err(format!(
-            "{host}: /health names the service {service:?}, not {SERVICE:?}, so this is not the relay (opened {opened})"
-        ));
-    }
-    let version = text(&doc["version"]).unwrap_or_else(|| "(no version)".into());
-    let edge = text(&doc["relay"]["edge_colo"]).map(|c| format!(" at edge {c}")).unwrap_or_default();
-    let mut line = format!(
-        "{host}: {SERVICE} {version}{edge}, {} ms; {tls_version}, certificate verified for {host}; opened {opened}",
-        started.elapsed().as_millis()
-    );
-    if version != MEASURED_VERSION {
-        line.push_str(&format!("; podssh was measured against {MEASURED_VERSION}"));
-    }
-    Ok((line, response.header("date").map(str::to_string)))
 }
 
 /// A certificate that is "expired" or "not valid yet" for every relay host

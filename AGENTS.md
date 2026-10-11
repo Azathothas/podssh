@@ -13,10 +13,9 @@ HTTPS, often through an HTTP CONNECT proxy.
 These commands work: `podssh ssh`, `podssh proxy`, `podssh pipe`, `podssh cp`,
 `podssh mv`, `podssh scp` and `podssh sftp` (files), `podssh doctor`,
 `podssh keygen`, `podssh agent`, `podssh man`, `podssh status`,
-`podssh ping`, `podssh node`, `podssh operator`, `podssh relay` (`pair`, `revoke`,
-`status NAME` and `spec`) and `podssh chat`. `podssh relay status` with no
-NAME, `info` and `trace` refuse with exit code 70, and so do `podssh ts` and
-the iroh road in a build without their features.
+`podssh ping`, `podssh node`, `podssh operator`, `podssh relay` and
+`podssh chat`. `podssh ts` and the iroh road refuse with exit code 70 in a
+build without their features.
 
 ## 2. How a session works
 

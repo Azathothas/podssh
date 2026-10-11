@@ -109,14 +109,14 @@ that minted it".
 
 # T-058: `podssh relay status`, `info`, `spec` and `trace`
 
-**Source:** `crates/podssh-cli/src/positionals.rs:56-62` (the subcommands that the parser
-declares); `docs/relay.md:296-302`; the tester of sandbox A, who used `curl` and a minted token
+**Source:** `crates/podssh-cli/src/positionals.rs`, lines 56-62 at `24f3e2a` (the subcommands that the parser
+declares); `docs/relay.md`, lines 296-302 at `24f3e2a`; the tester of sandbox A, who used `curl` and a minted token
 on `/trace` (`report-podssh-sandbox-KTM-2026-10-08.txt`, outside the repository).
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -132,7 +132,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`crates/podssh-cli/src/flags.rs` lines 315-316 at `af0a163`), not the `HOSTS` of the other commands (lines
 169-170, 326-327, 337-338). Read: `/trace` needs a forward token in `X-Relay-Token`
 (`docs/relay.md:187-188`). The `health` function of `doctor`
-(`crates/podssh-cli/src/doctor/relay_checks.rs:82-138`) already makes a verified `/health`
+(`crates/podssh-cli/src/doctor/relay_checks.rs:80-93`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:117-135` fetches `/relays.json`. `https_get` sends no
 token header (`crates/podssh-ws/src/client.rs:266-277`); `https_request` takes headers (lines
 282-303).
@@ -152,18 +152,32 @@ token header (`crates/podssh-ws/src/client.rs:266-277`); `https_request` takes h
 5. `pair` and `revoke`: refuse by name, and name M4 (T-078, T-083).
 6. Flags as for `doctor` (`--relay-host HOSTS`, `--relay-addr`, `--ca-file`), and `--json`
    (T-049). Each request has the 10 s limit of `doctor`
-   (`crates/podssh-cli/src/doctor/relay_checks.rs:27`), and the run has a limit too.
+   (`crates/podssh-cli/src/doctor/relay_checks.rs:24`), and the run has a limit too.
 7. Remove the owner row (`crates/podssh-cli/src/flags.rs` line 442 at `af0a163`); change `DISPATCHED`, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:237`), the notes, `docs/relay.md:296-302` and
+   (`crates/podssh-cli/src/help.rs`, line 237 at `24f3e2a`), the notes, `docs/relay.md`, lines 296-302 at `24f3e2a`, and
    `docs/STATUS.md`. `dispatch.rs` has 448 lines: put the verb in its own module.
 
 ## Decision
 
 Recommendation: remove the `--timeout` and `--jsonl` rows of `relay`
-(`crates/podssh-cli/src/flags.rs:316-327`), and bound each request in the code, as `doctor`
+(`crates/podssh-cli/src/flags.rs:316-329`), and bound each request in the code, as `doctor`
 does. With the row, the gate of `crates/podssh-cli/src/dispatch.rs:217-235` stops
 `podssh relay status` in each script that leaves `--timeout` out. Keeping the gate lost for that
 reason: the command is bounded anyway.
+
+Taken, with these calls made in the work (2026-10-11). The `/health` request is
+`podssh_relay::health` now: it returns the facts (the version, the edge, the pause, the reverse
+road, the TLS version, how the connection was made, the `Date`), `Health::line` words them, and
+`doctor` adds its note of the measured version and its hint about the clock. `status` asks the
+hosts one after the other, as `doctor` does: one outbound connection at a time (rule 2). It exits
+0 when one host answers, as the pool fails over, and 69 when none does. `info` and `trace` use the
+first host, as `pair` does. `trace` exits 0 when the relay ran the trace, whatever its verdict, 69
+when the relay will not dial the target, and 77 when it refuses the token: on the relay's VPC road
+a closed port connects too (measured below), so the connection says nothing, and a target that
+sends nothing first (HTTP) is reachable and silent. An exit by the verdict lost for that reason.
+The answer of `/trace` holds the caller's address and place; neither the lines nor the JSON show
+them. The banner comes from any target, so it is cleaned to one line. With `--json`, each answer
+is one object, as T-049 decides.
 
 ## Prove
 
@@ -174,7 +188,7 @@ sh scripts/dev.sh check                                   # interop: the stand-i
 cargo test -p podssh-cli --test relay_live -- --ignored   # the live relay, on request
 ```
 
-`scripts/fake-relay.py` (it serves `/health` and the mint: `:86-94`) gets `/relays.json`,
+`scripts/fake-relay.py` (it serves `/health` and the mint: `:90-98`) gets `/relays.json`,
 `/trace` and `/llms-full.txt`. In the gate, `relay status` exits 0 with the stand-in's version;
 `relay trace` sends `X-Relay-Token`, which the stand-in requires; a HOST of `a&b` exits 64 before
 any connection. Planted defect: leave the header out; the stand-in answers 403, the test fails.
@@ -187,6 +201,48 @@ work (step 5 is moot), and the owner row and the entry of `DISPATCHED` are done 
 takes `HOSTS`, with `--relay-addr` and `--ca-file` (step 6). `status` with no NAME, `info`, `spec`
 and `trace` exit 70 until this entry; `status` with NAME is the state of a pair, so step 1's form
 is `status` with no NAME.
+
+2026-10-11, measured on `24f3e2a` with `PODSSH_OFFLINE=1`: `relay status` exits 70 ("'relay
+status' with no NAME, the relay's own state, is not implemented yet"), `relay info` 70, and
+`relay trace github.com 22` 64 ("one word too many"), as a subcommand took one NAME; `--timeout`
+is an unknown flag (64). `spec` is T-060's and done (step 3), and the tests of `spec` read
+`--document`, so the stand-in needs no `/llms-full.txt`. `https_with_token` already sends a token
+in a header (`crates/podssh-ws/src/client.rs:279-301`), for the pairing calls. On the live relay,
+2026-10-11: `/trace` alone answers without a token with the caller's address, city, coordinates
+and network; a target trace answers `target` with `ok`, `road`, `dialed`, `address_family`,
+`connect_ms`, `first_byte_ms`, `bytes_seen`, `verdict` and `banner`, or `error` alone for a
+target in a blocked range or a name with no address; `github.com:23` gives `ok: true`,
+`connect_ms` 4 and the verdict `silent-or-unreachable`.
+
+## Done
+
+Done on 2026-10-11. `podssh relay status` with no NAME asks each relay host for its `/health`
+(`crates/podssh-relay/src/health.rs`, which `doctor` now calls too), `relay info [HOST PORT]`
+reads the first host's `/relays.json`, and `relay trace HOST PORT` has the first host dial a
+target and read its first line, the token in `X-Relay-Token` (`crates/podssh-cli/src/relay_diag.rs`
+and `relay_diag_text.rs`). `--json` gives each answer as one object. A bad target, a word too many
+and a misplaced `--json` exit 64 before any connection; `PODSSH_OFFLINE` exits 69. The flags, the
+help, the manual (`crates/podssh-cli/src/man/notes_relay.rs`, an example, the rows of EXIT STATUS),
+`docs/cli.md`, `docs/relay.md` and `AGENTS.md` follow. `scripts/fake-relay.py` serves
+`/relays.json` and `/trace` in the live relay's shapes, and refuses a target trace without the
+token in its header (403) or with a token in the URL (400).
+
+Prove, on Windows: `cargo test -p podssh-cli --test relay`, 8 passed through the stand-in relay
+(Python and openssl are here): the refusals, with no connection to a relay host that counts them;
+`PODSSH_OFFLINE`; `status` with a host that answers and one that is down (0), and with only the
+one that is down (69); its JSON; `info` with the pool, the limits and the URL for a target, and
+its JSON; `trace` of a target's first line, as two words and as one, and its JSON with no field of
+the caller; 69 for a target that the stand-in cannot dial; 77 for a token that it refuses, which
+is never shown. The unit tests of the lines (`relay_diag_text.rs`, on the live relay's shape) and
+of `Health::line`. Planted, each caught by its assertion: the token header left out (the stand-in
+answers 403), `status` that needs each host to answer, the caller's fields in the JSON of `trace`.
+The test of `crates/podssh-cli/tests/node.rs` that wanted exit 70 now wants 69 offline. Live,
+`cargo test -p podssh-cli --test relay_live -- --ignored`, 3 passed: the default relay's
+`/health`, its pool for `github.com:22`, GitHub's banner through it, and 69 for `10.0.0.1:22`. The
+suites of `podssh-cli` (524 passed) and `podssh-relay` with all features (223 passed). In the build
+image, `scripts/interop.sh` 285 passed, 0 failed, with the new `scripts/interop-relay.sh`:
+`status`, `info` and `trace` through the stand-in relay, OpenSSH's banner by a trace, and 64 for a
+HOST of `a&b`.
 
 # T-059: A relay host that failed recently is tried last, also in the next run
 
@@ -670,7 +726,7 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:112-121`,
    `crates/podssh-cli/src/man/data.rs:119-126`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:289-309`).
+   notes (`crates/podssh-cli/src/man/notes.rs:271-291`).
 
 ## Decision
 

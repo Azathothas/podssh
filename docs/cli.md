@@ -547,6 +547,25 @@ commands. The rules behind them:
   the document against the facts that podssh was built with: exit 0 when
   each holds, 1 when one does not (the relay changed), 69 when the relay
   could not be read (T-060).
+- **The relay's own state, with nothing but the binary (T-058).**
+  `relay status` with no NAME asks each relay host for its `/health`, one
+  after the other, a line for each as it answers (the code that `doctor`
+  uses, in `podssh-relay`): 0 when a host answered, 69 when none did.
+  `relay info [HOST PORT]` reads the first host's `/relays.json`: the edge
+  that this host reaches, the pool best first, the limits, and with a
+  target the URL that the relay chooses for it. `relay trace HOST PORT`
+  asks the first host to dial the target and read its first line: the
+  verdict, the address dialed, the times and the banner, cleaned to one
+  line. The token goes in `X-Relay-Token`, never in the URL, and a cached
+  token that the relay refuses is minted again once. The target is checked
+  first, so no text can add a query parameter. 0 when the trace ran, 69
+  when the relay would not dial the target (a blocked range, a name with
+  no address), 77 when it refused the token. On the relay's VPC road a
+  closed port also connects, so the verdict (`live`, or
+  `silent-or-unreachable` for a target that sent nothing) is the answer,
+  not the connection. The caller's address and place, which `/trace` also
+  sends, are never shown. `--json` gives each answer as one object: each
+  host, the relay's `/relays.json` as it came, or its view of the target.
 - **No token in the output.** `relay pair` prints the label and the expiry.
   The operator's part, the connect token alone, goes to the new private
   file of `--operator-file`; the node's token and the stop token stay in
@@ -557,9 +576,12 @@ commands. The rules behind them:
   it is stopped at once. A relay that cannot be reached keeps the stored
   copy at `revoke`: its stop token is the one way to stop the pair before
   it expires.
-- **`relay` has no `--timeout`.** Each request has a bound of 30 s, so a
-  script needs no `--timeout` (T-058's decision). `--relay-host` names the
-  control host: the first host of the list.
+- **`relay` has no `--timeout`.** Each request has a bound: 30 s for the
+  pairs, 10 s for `/health` and `/relays.json` and 30 s for a trace, and
+  `status`, `info` and `trace` 120 s in all, so a script needs no
+  `--timeout` (T-058's decision). `status` asks each host of
+  `--relay-host`; `pair`, `info` and `trace` use the first, the control
+  host.
 - **A node dials TARGET first,** once, and exits 69 when it cannot; else
   each operator would get a `reject`. It says `online` once the relay has
   its socket, and `online again` after a loss: an operator reaches it from

@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:468-476`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:470-478`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -372,7 +372,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:35-142`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes.rs:36-143`).
 
 ## Decision
 
@@ -832,7 +832,7 @@ their own server, and the gate tests faults against a stand-in in Python.
 
 Read: the relay is a Cloudflare Worker, and its own document is the contract
 (`docs/relay.md:1-21`, `README.md:30-33`). The stand-in serves the forward
-path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:86-98`). The
+path, `/v1/mint` and `/health` only (`scripts/fake-relay.py:90-107`). The
 pinned contract gives the forward path and the tokens
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:73-104`), the
 reverse path and its close table
@@ -854,7 +854,7 @@ the part of podssh:
    an empty frame each 25 s, the limits (180 s idle, 12 h, 64 MiB, frames of
    262144 bytes), the close codes of `docs/relay.md:189-210`, and `/health`
    with the service name that `doctor` checks
-   (`crates/podssh-cli/src/doctor/relay_checks.rs:22-24`).
+   (`crates/podssh-relay/src/health.rs:13-15`).
 3. The reverse path: `/v1/pair`, `/v1/node/<name>`, `/v1/connect/<name>`,
    `/v1/stop/<name>`, the text control frames, the 32-character ids, `409` for
    a second node, and the reverse close table.

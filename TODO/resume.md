@@ -838,7 +838,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:237-252`,
    `crates/podssh-cli/src/man/facts.rs:276-285`), the note at
-   `crates/podssh-cli/src/man/notes.rs:131`, `docs/relay.md`, `README.md`.
+   `crates/podssh-cli/src/man/notes.rs:132`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -1052,8 +1052,8 @@ Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
 killed in a session gives exit 255 (`scripts/interop-faults.sh:151-169`).
 These checks stay, for the forward road, which has no resumption. Read: the
-stand-in relay serves the forward path only (`scripts/fake-relay.py:86-98`),
-and its `stall` mode never ends (`scripts/fake-relay.py:259-262`). The
+stand-in relay serves the forward path only (`scripts/fake-relay.py:90-107`),
+and its `stall` mode never ends (`scripts/fake-relay.py:334-337`). The
 harness cannot change an address or end a stall yet (T-203). The checks need
 T-151 to T-155, the iroh road (T-162 to T-165), the reverse runners (T-079,
 T-080) and a far end (`podssh serve`, T-107).
@@ -1204,7 +1204,7 @@ together (`docs/relay.md:137`).
    cells; 20 MiB up and 20 MiB down in separate sessions; 300 s at most each.
 4. The targets: a far podssh node that sends and drains bytes. For the
    forward road, two public targets, each checked first with `/trace`, which
-   needs a token (`docs/relay.md:187-188`, `docs/relay.md:296-302`). Skip a
+   needs a token (`docs/relay.md:187-188`; `docs/relay.md`, lines 296-302 at `24f3e2a`). Skip a
    target that fails the check, with its reason; never count it as 0.
 5. A control: the same runs through the stand-in relay on loopback
    (`scripts/fake-relay.py`), which shows podssh's own limit.

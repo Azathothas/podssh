@@ -4,7 +4,7 @@
 //! asks whether its node is online. stdout carries the answer, one line, with
 //! the label and never a token. `spec` checks the relay's document against
 //! podssh's facts (`relay_spec.rs`, T-060). `status` with no NAME, `info` and
-//! `trace` are T-058's, and refuse.
+//! `trace` ask the relay about itself (`relay_diag.rs`, T-058).
 
 use std::io::Write;
 
@@ -12,7 +12,7 @@ use podssh_relay::pair::{self, Pair, PairError};
 use podssh_relay::relay::{self, Relay};
 use podssh_ws::dial::ProxyChoice;
 
-use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
+use crate::exit_codes::EXIT_USAGE;
 use crate::exitmap::Fault;
 use crate::pairs;
 use crate::relay_settings::Refusal;
@@ -31,14 +31,22 @@ pub struct RelayArgs {
     /// `spec`: a copy of the relay's document to check, read instead of the
     /// live one.
     pub document: Option<String>,
+    /// `status` with no NAME, `info` and `trace`: one JSON object.
+    pub json: bool,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
 /// Run the verb; returns the process exit code.
 pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let sub = args.subcommand.as_deref();
-    if let Some(extra) = args.args.get(1) {
-        let _ = writeln!(err, "podssh relay: {extra:?} is one word too many: a subcommand takes one NAME");
+    let target = matches!(sub, Some("info" | "trace"));
+    if let Some(extra) = args.args.get(if target { 2 } else { 1 }) {
+        let takes = if target { "info and trace take HOST PORT" } else { "a subcommand takes one NAME" };
+        let _ = writeln!(err, "podssh relay: {extra:?} is one word too many: {takes}");
+        return EXIT_USAGE;
+    }
+    if args.json && !(target || (sub == Some("status") && args.args.is_empty())) {
+        let _ = writeln!(err, "podssh relay: --json goes with status (with no NAME), info and trace");
         return EXIT_USAGE;
     }
     if args.operator_file.is_some() && sub != Some("pair") {
@@ -57,26 +65,19 @@ pub fn run_relay(args: &RelayArgs, out: &mut dyn Write, err: &mut dyn Write) -> 
         (Some(sub @ ("pair" | "revoke")), None) => {
             Err(Refusal::usage(format!("missing NAME: `podssh relay {sub} NAME`, where NAME is the label of a pair")))
         }
-        (Some("status"), None) => {
-            let _ = writeln!(
-                err,
-                "podssh: 'relay status' with no NAME, the relay's own state, is not implemented yet; nothing was \
-                 done. `podssh relay status NAME` gives the state of the pair under NAME."
-            );
-            return EXIT_NOT_IMPLEMENTED;
-        }
+        (Some("status"), None) => return crate::relay_diag::status(args, out, err),
         (Some("spec"), None) => return crate::relay_spec::run(args, out, err),
         (Some("spec"), Some(word)) => {
             Err(Refusal::usage(format!("spec takes no NAME, and {word:?} would be dropped: `podssh relay spec`")))
         }
-        (Some(sub @ ("info" | "trace")), _) => {
-            let _ = writeln!(err, "{}", crate::refuse::not_implemented(&format!("relay {sub}")));
-            return EXIT_NOT_IMPLEMENTED;
-        }
+        (Some("info"), _) => return crate::relay_diag::info(args, out, err),
+        (Some("trace"), _) => return crate::relay_diag::trace(args, out, err),
         (Some(other), _) => Err(Refusal::usage(format!(
-            "there is no subcommand {other:?}; the subcommands are pair, revoke, status and spec"
+            "there is no subcommand {other:?}; the subcommands are pair, revoke, status, info, trace and spec"
         ))),
-        (None, _) => Err(Refusal::usage("missing SUBCOMMAND: pair NAME, revoke NAME, status NAME or spec")),
+        (None, _) => Err(Refusal::usage(
+            "missing SUBCOMMAND: pair NAME, revoke NAME, status [NAME], info [HOST PORT], trace HOST PORT or spec",
+        )),
     };
     match done {
         Ok(()) => 0,

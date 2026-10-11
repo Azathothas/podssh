@@ -22,6 +22,7 @@ pub mod notes;
 mod notes_chat;
 mod notes_pair;
 mod notes_ping;
+mod notes_relay;
 pub mod roff;
 pub mod text;
 

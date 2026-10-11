@@ -107,15 +107,19 @@ fn relay_pair_refuses_an_operator_file_that_exists_before_any_request() {
     assert_eq!(rc, 64, "--operator-file goes with pair only: {err}");
 }
 
-/// T-058's subcommands, and `status` with no NAME, refuse until it.
+/// T-058's subcommands, and `status` with no NAME, ask the relay: offline,
+/// nothing (69), and `trace` first needs its target (64).
 #[test]
-fn the_other_relay_subcommands_are_not_implemented() {
+fn the_relay_diagnostics_ask_nothing_offline() {
     let home = scratch("t058");
-    for sub in ["status", "info", "trace"] {
+    for sub in ["status", "info"] {
         let (rc, out, err) = podssh(&home, &["relay", sub], &[]);
-        assert_eq!(rc, 70, "{sub}: {err}");
-        assert!(err.contains("not implemented yet") && out.is_empty(), "{sub}: {err}");
+        assert_eq!(rc, 69, "{sub}: {err}");
+        assert!(err.contains("PODSSH_OFFLINE") && out.is_empty(), "{sub}: {err}");
     }
+    let (rc, _, err) = podssh(&home, &["relay", "trace"], &[]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("missing HOST"), "{err}");
     let (rc, _, err) = podssh(&home, &["relay", "bogus", "lab"], &[]);
     assert_eq!(rc, 64, "{err}");
     let (rc, _, err) = podssh(&home, &["relay", "--timeout", "5s", "pair", "lab"], &[]);

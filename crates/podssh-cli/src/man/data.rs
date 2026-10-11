@@ -46,7 +46,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              the session, the pair was stopped, or another node serves it. podssh cp and mv: no connection to \
              the server, or it has neither SFTP nor the sh and the tools of a copy by exec. podssh chat: \
              the same of the relay and the pair, or a message went with no acknowledgement; each is said. \
-             podssh ping: no relay host answered, or PODSSH_OFFLINE is set.",
+             podssh ping: no relay host answered, or PODSSH_OFFLINE is set. podssh relay status: no relay              host answered; podssh relay trace: the relay would not dial the target.",
         ),
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,
@@ -71,7 +71,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             sysexits::EX_NOPERM,
             "podssh proxy: the relay or the proxy refused (a token, a blocked address, a proxy's 403 or 407). \
-             podssh node, operator and relay: the relay refused the pair, or the pair expired. podssh \
+             podssh node, operator and relay: the relay refused the pair, or the pair expired; for relay              trace, the token. podssh \
              operator and pipe node:: the node's key is not the one pinned in known-nodes or named by \
              --node-key, or the node's allowlist refused this client's key. podssh cp and mv: the server \
              refused the login, or podssh did not accept its host key. podssh chat: the same of the pair \

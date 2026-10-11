@@ -92,6 +92,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "ssh -o ProxyCommand='podssh operator lab --pair-file lab-operator.json' user@lab".into(),
         ),
         ("whether the node is online; then stop the pair", "podssh relay status lab && podssh relay revoke lab".into()),
+        (
+            "whether the relay reaches a target, and the first line that the target sends",
+            "podssh relay trace github.com 22".into(),
+        ),
         ("make a key where ssh-keygen does not work", "podssh keygen -t ed25519 -f ~/.ssh/id_ed25519".into()),
         ("a key with no passphrase, for a script", "podssh keygen -N '' -f ./deploy_key".into()),
         ("the public key of a private key", "podssh keygen -y -f ~/.ssh/id_ed25519".into()),

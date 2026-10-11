@@ -412,7 +412,7 @@ its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustl
 (`crates/podssh-ws/src/crypto/hmac.rs`), AES-GCM and ChaCha20-Poly1305
 (`crates/podssh-ws/src/crypto/aead.rs`), the ECDHE groups (`crates/podssh-ws/src/crypto/kx.rs`),
 and RSA and ECDSA verification (`crates/podssh-ws/src/crypto/sign.rs`). The stand-in relay
-requires TLS 1.3 (`scripts/fake-relay.py:351-352`).
+requires TLS 1.3 (`scripts/fake-relay.py:426-427`).
 
 ## Approach
 
@@ -427,7 +427,7 @@ requires TLS 1.3 (`scripts/fake-relay.py:351-352`).
    one suite at a time in the container gate, and `scripts/fake-relay.py` with an option for TLS
    1.2 only.
 5. The relay line of `doctor` names the version
-   (`crates/podssh-cli/src/doctor/relay_checks.rs:93-96`); the live relay must still give TLS
+   (`crates/podssh-relay/src/health.rs:98-101`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md:46`, the Trust item of the manual
    (`crates/podssh-cli/src/man/facts.rs:262-275`) and `docs/STATUS.md` in the same commit.

@@ -315,7 +315,7 @@ pub const MAN_FLAGS: &[FlagRow] = &[
 /// own bound, so there is no `--timeout` (T-058).
 pub const RELAY_FLAGS: &[FlagRow] = &[
     row(None, "relay-host", Some("HOSTS"), FlagKind::Supported,
-        "pair: the first of HOST[:PORT][,...] makes the pair (default: env PODSSH_RELAY, else the built-in relay)", None),
+        "relay hosts, HOST[:PORT][,...]: status asks each, and pair, info and trace use the first (default: env PODSSH_RELAY, else the built-in relay and its pool)", None),
     row(None, "relay-addr", Some("HOST=IP"), FlagKind::Supported,
         "use IP for HOST instead of DNS, HOST=IP[,...]; also env PODSSH_RELAY_ADDR (for hosts with no DNS)", None),
     row(None, "ca-file", Some("FILE"), FlagKind::Supported,
@@ -324,6 +324,8 @@ pub const RELAY_FLAGS: &[FlagRow] = &[
         "pair: write the operator's part of the pair to FILE, a new file that only its owner can read", None),
     row(None, "document", Some("FILE"), FlagKind::Supported,
         "spec: check FILE, a copy of the relay's document, and read nothing from the network", None),
+    row(None, "json", None, FlagKind::Supported,
+        "status with no NAME, info and trace: the answer as one JSON object on stdout, when the run ends", None),
 ];
 
 /// **`proxy`.** It is **not an SSH client** (`podssh man proxy`), so not an alias of `ssh`,
@@ -427,7 +429,7 @@ pub const VERBS: &[Verb] = &[
     Verb { name: "man", aliases: &["man"], flags: MAN_FLAGS,
         about: "this manual: each command, flag, variable, file and exit code" },
     Verb { name: "relay", aliases: &["relay"], flags: RELAY_FLAGS,
-        about: "the pairs of the reverse road, and the relay's document against podssh's facts" },
+        about: "the relay's hosts, pool and view of a target; the pairs of the reverse road; its document" },
     Verb { name: "status", aliases: &["status"], flags: STATUS_FLAGS,
         about: "the state of this host as one line of JSON: relays, token, proxy, terminal, a host key" },
     Verb { name: "doctor", aliases: &["doctor"], flags: DOCTOR_FLAGS,

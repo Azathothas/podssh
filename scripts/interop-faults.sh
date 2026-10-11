@@ -297,6 +297,8 @@ runs=$(grep -c . "$RAN-after" 2>/dev/null)
 
 # shellcheck source=scripts/interop-ping.sh
 . "$HERE/interop-ping.sh"
+# shellcheck source=scripts/interop-relay.sh
+. "$HERE/interop-relay.sh"
 
 for f in "$FK"/*.pid; do
     kill "$(cat "$f")" 2>/dev/null

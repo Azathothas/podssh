@@ -57,9 +57,14 @@ pub fn add(cmd: Command, name: &str) -> Command {
             .arg(
                 Arg::new("subcommand")
                     .value_name("SUBCOMMAND")
-                    .help("pair, revoke, status or spec; info and trace are not implemented yet"),
+                    .help("pair, revoke, status, info, trace or spec"),
             )
-            .arg(Arg::new("args").value_name("NAME").num_args(0..).help("the label of a pair, which you choose")),
+            .arg(
+                Arg::new("args")
+                    .value_name("NAME")
+                    .num_args(0..)
+                    .help("the label of a pair, which you choose; for info and trace, HOST PORT"),
+            ),
         "node" => cmd
             .arg(
                 Arg::new("name")

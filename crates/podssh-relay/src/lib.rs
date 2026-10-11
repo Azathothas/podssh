@@ -3,6 +3,8 @@
 //! - [`relay`]: which relay hosts to use, in what order (an explicit list, or
 //!   the default host followed by alternates from the relay's own pool);
 //! - [`pool`]: the pool, as the relay publishes it, cached between runs;
+//! - [`health`]: one host's `/health`, as `podssh doctor` and `podssh relay
+//!   status` read it;
 //! - [`token`] and [`cache`]: tokens from the environment, the cache or a
 //!   fresh mint, kept between runs in a private file, never printed;
 //! - [`mod@open`]: a forward session, failing over from host to host with backoff,
@@ -27,6 +29,7 @@
 pub mod blocking;
 pub mod cache;
 pub mod e2e;
+pub mod health;
 pub mod identity;
 pub mod open;
 #[cfg(feature = "pair")]
