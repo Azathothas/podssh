@@ -286,6 +286,21 @@ Through a round trip of 100 ms the requests in flight multiply the rate,
 until the window of 512 KiB bounds a download near 1.8 MiB/s. The live relay
 waits for `sftp` to name a node (T-296).
 
+`cp --parallel K` (T-141; the same machine and build, 2026-10-12; `cargo test
+-p podssh-cli --test throughput_live -- --ignored --nocapture
+cp_throughput`): a copy up and a copy down of 24 MiB, three chunks of 8 MiB,
+K at once, each over an SFTP session of its own; in MiB/s, up / down, one run
+each:
+
+| Tasks | Loopback, `--direct` | The stand-in relay, 50 ms each way |
+| --- | --- | --- |
+| 1 | 8.72 / 27.49 | 2.76 / 1.84 |
+| 2 | 8.80 / 41.10 | 3.68 / 2.27 |
+| 4 | 8.78 / 52.09 | 3.69 / 2.85 |
+
+Through the stand-in the tasks share 1.5 MiB in flight, three windows; a
+copy up on the loopback is bound by the far `sftp-server`'s writes.
+
 ## `podssh keygen`, measured
 
 | Check | Result |

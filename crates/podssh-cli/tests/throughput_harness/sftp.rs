@@ -36,8 +36,14 @@ fn said_rate(said: &str, source: &str) -> Option<f64> {
 fn run_batch(s: &Session, cell: &Cell, lines: &str, requests: usize, len: u32) -> Result<String, String> {
     let batch = s.home.join("tp-batch");
     std::fs::write(&batch, lines).map_err(|e| e.to_string())?;
+    run_args(s, &sftp_args(cell, &batch.display().to_string(), requests, len))
+}
+
+/// `podssh ARGS` in the session's home, within the run's limit; what it said
+/// on stderr, or why it failed.
+fn run_args(s: &Session, args: &[String]) -> Result<String, String> {
     let mut child = s
-        .command(&sftp_args(cell, &batch.display().to_string(), requests, len))
+        .command(args)
         .current_dir(&s.home)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -69,9 +75,8 @@ fn run_batch(s: &Session, cell: &Cell, lines: &str, requests: usize, len: u32) -
     Ok(said)
 }
 
-/// A put of `bytes` and a get of them back, in `cell`, with `requests` in
-/// flight of `len` bytes each: MiB/s up and down, or why not.
-pub fn sftp_run(s: &Session, cell: &Cell, requests: usize, len: u32, bytes: u64) -> Result<(f64, f64), String> {
+/// The file that each copy sends: `bytes` bytes that no compression shrinks.
+fn make_file(s: &Session, bytes: u64) -> Result<(), String> {
     let file = s.home.join(FILE);
     if std::fs::metadata(&file).map(|m| m.len()).ok() != Some(bytes) {
         let mut seed = 0x9e37_79b9_7f4a_7c15_u64;
@@ -85,6 +90,13 @@ pub fn sftp_run(s: &Session, cell: &Cell, requests: usize, len: u32, bytes: u64)
             .collect();
         std::fs::write(&file, data).map_err(|e| e.to_string())?;
     }
+    Ok(())
+}
+
+/// A put of `bytes` and a get of them back, in `cell`, with `requests` in
+/// flight of `len` bytes each: MiB/s up and down, or why not.
+pub fn sftp_run(s: &Session, cell: &Cell, requests: usize, len: u32, bytes: u64) -> Result<(f64, f64), String> {
+    make_file(s, bytes)?;
     let said = run_batch(s, cell, &format!("put {FILE} tp-put.bin\n"), requests, len)?;
     let up = said_rate(&said, FILE).ok_or_else(|| format!("no rate of the put: {said}"))?;
     let said = run_batch(s, cell, "get tp-put.bin tp-got.bin\n", requests, len)?;
@@ -94,6 +106,26 @@ pub fn sftp_run(s: &Session, cell: &Cell, requests: usize, len: u32, bytes: u64)
         return Err(format!("{} of {bytes} bytes came back", back.len()));
     }
     Ok((up, down))
+}
+
+/// `podssh cp --parallel TASKS` of `bytes` up, then back down, in `cell`,
+/// whose arguments are those of `podssh ssh` with the destination last:
+/// MiB/s up and down, as `-v` says them, or why not (T-141).
+pub fn cp_run(s: &Session, cell: &Cell, tasks: usize, bytes: u64) -> Result<(f64, f64), String> {
+    make_file(s, bytes)?;
+    let (dest, middle) = cell.args.split_last().ok_or("a cell with no destination")?;
+    let mut common = vec!["cp".to_string(), "--timeout".into(), "300s".into(), "-v".into()];
+    common.extend(["--parallel".to_string(), tasks.to_string()]);
+    common.extend(middle.iter().skip(1).map(|a| if a == "-p" { "-P".to_string() } else { a.clone() }));
+    let mut up = common.clone();
+    up.extend([FILE.to_string(), format!("{dest}:tp-cp.bin")]);
+    let said = run_args(s, &up)?;
+    let up_rate = said_rate(&said, FILE).ok_or_else(|| format!("no rate of the copy up: {said}"))?;
+    let mut down = common;
+    down.extend([format!("{dest}:tp-cp.bin"), "tp-cp-back.bin".to_string()]);
+    let said = run_args(s, &down)?;
+    let down_rate = said_rate(&said, "tp-cp.bin").ok_or_else(|| format!("no rate of the copy down: {said}"))?;
+    Ok((up_rate, down_rate))
 }
 
 #[cfg(test)]

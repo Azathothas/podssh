@@ -20,6 +20,8 @@ pub const CP_FLAGS: &[FlagRow] = &[
         "keeping the mode and the times of a file is not implemented yet", Some("no flag")),
     row(Some('i'), "identity-file", Some("FILE"), FlagKind::Supported,
         "identity file, repeatable; also -oIdentityFile=", None),
+    row(None, "parallel", Some("K"), FlagKind::Supported,
+        "copy a file of more than 8 MiB as chunks, K at once, each over a channel of its own in the one connection (1 to 16; default 1)", None),
     row(Some('r'), "recursive", None, FlagKind::Refused,
         "copying a directory is not implemented yet", Some("one command for each file")),
     row(Some('F'), "config", Some("CONFIG"), FlagKind::Supported,

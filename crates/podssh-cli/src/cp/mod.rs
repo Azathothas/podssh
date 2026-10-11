@@ -21,6 +21,7 @@
 
 pub mod byexec;
 pub(crate) mod bysftp;
+pub(crate) mod chunks;
 mod digest;
 pub(crate) mod link;
 mod moving;
@@ -62,6 +63,8 @@ pub struct CpArgs {
     pub verb: &'static str,
     /// scp's `-X NAME=VALUE`, for its SFTP requests (T-140).
     pub sftp_options: Vec<String>,
+    /// `--parallel K` of `cp` and `mv`: the tasks of one file (T-141).
+    pub parallel: Option<String>,
 }
 
 impl CpArgs {
@@ -82,7 +85,12 @@ impl CpArgs {
         } else {
             Vec::new()
         };
-        CpArgs { paths, ssh, moving: verb == "mv", verb, sftp_options }
+        let parallel = if m.try_contains_id("parallel").unwrap_or(false) {
+            m.get_one::<String>("parallel").cloned()
+        } else {
+            None
+        };
+        CpArgs { paths, ssh, moving: verb == "mv", verb, sftp_options, parallel }
     }
 }
 
@@ -105,8 +113,10 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
             return Fault::Usage.code();
         }
     };
-    plan.pipe = match pipe::pipeline(None, None, &args.sftp_options) {
-        Ok(pipe) => pipe,
+    let shape = pipe::pipeline(None, None, &args.sftp_options)
+        .and_then(|pipe| Ok(pipe::Shape { pipe, tasks: pipe::tasks(args.parallel.as_deref())? }));
+    plan.shape = match shape {
+        Ok(shape) => shape,
         Err(why) => {
             let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
             return Fault::Usage.code();
@@ -278,7 +288,7 @@ async fn across(plan: &Plan, resolved: &[Resolved], log: &Arc<Log>, after: After
         direction,
         sources: vec![source],
         destination,
-        pipe: plan.pipe,
+        shape: plan.shape,
     };
     let down = leg(Operand::Remote(from.clone()), Operand::Local(local.display().to_string()), Direction::Down);
     let first = if moving { After::Record } else { After::Keep };

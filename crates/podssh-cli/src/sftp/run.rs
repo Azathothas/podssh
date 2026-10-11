@@ -112,7 +112,8 @@ impl<'a> State<'a> {
                     let handle = self.link.handle();
                     let mut progress = Progress::default();
                     let meter = &self.link.meter;
-                    bysftp::down(sftp, handle, source, &shown, many, self.log, &mut progress, meter, self.pipe).await?;
+                    let shape = crate::cp::pipe::Shape { pipe: self.pipe, tasks: 1 };
+                    bysftp::down(sftp, handle, source, &shown, many, self.log, &mut progress, meter, shape).await?;
                 }
             }
             Command::Put { local, remote } => {
@@ -125,7 +126,8 @@ impl<'a> State<'a> {
                 let shown = source.display().to_string();
                 let mut progress = Progress::default();
                 let (handle, meter) = (self.link.handle(), &self.link.meter);
-                bysftp::up(sftp, handle, &shown, &dest, false, self.log, &mut progress, meter, self.pipe).await?;
+                let shape = crate::cp::pipe::Shape { pipe: self.pipe, tasks: 1 };
+                bysftp::up(sftp, handle, &shown, &dest, false, self.log, &mut progress, meter, shape).await?;
             }
             Command::Rename { from, to } => {
                 let (from, to) = (self.there(from), self.there(to));

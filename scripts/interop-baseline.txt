@@ -29,7 +29,7 @@ harness faults interop 35 scripts/interop-faults.sh
 harness ping interop 3 scripts/interop-ping.sh
 harness relay interop 4 scripts/interop-relay.sh
 harness socks interop 4 scripts/interop-socks.sh
-harness cp interop 68 scripts/interop-cp.sh
+harness cp interop 71 scripts/interop-cp.sh
 harness mv interop 18 scripts/interop-mv.sh
 harness sftp interop 5 scripts/interop-sftp.sh
 harness resume interop 9 scripts/interop-resume.sh
@@ -316,6 +316,8 @@ cp.sftp.down.0 pass
 cp.sftp.down.1 pass
 cp.sftp.down.262145 pass
 cp.sftp.down.5000000 pass
+cp.parallel.up pass
+cp.parallel.down pass
 cp.over.up pass
 cp.over.down pass
 cp.many_into_dir pass
@@ -330,6 +332,7 @@ cp.sshd.flip pass
 cp.sshd.internal_sftp pass
 cp.flip.up pass
 cp.flip.down pass
+cp.parallel.flip pass
 cp.no_part.flip pass
 cp.read_again pass
 cp.sshd.banner pass

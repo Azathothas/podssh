@@ -207,7 +207,8 @@ impl Far {
         if !self.tools.contains("tail") {
             progress.offset = 0;
         }
-        let (temp, file, start) = resume::local_temp(&target, size, progress)?;
+        progress.begin_sequential();
+        let (temp, file, start) = resume::local_temp(&target, size, progress, false)?;
         let shown = temp.display().to_string();
         log.verbose(&match start {
             0 => format!("{source}: writing {shown} by exec"),

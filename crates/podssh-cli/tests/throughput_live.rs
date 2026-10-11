@@ -35,7 +35,7 @@ mod ssh_harness;
 mod throughput_harness;
 
 use podssh_ssh::sftp::Pipeline;
-use throughput_harness::{measure, sftp_run, Cell, Far, Session};
+use throughput_harness::{cp_run, measure, sftp_run, Cell, Far, Session};
 
 const MIB: u64 = 1 << 20;
 /// Each run's MiB in each direction, when `PODSSH_THROUGHPUT_MIB` sets none.
@@ -220,10 +220,43 @@ fn sftp_throughput_by_requests_in_flight() {
             }
         };
         for (requests, len) in PIPES {
-            let depth = Pipeline { requests, len }.depth(len);
+            let depth = Pipeline { requests, len, ..Pipeline::default() }.depth(len);
             match sftp_run(&session, &cell, requests, len, bytes) {
                 Ok((up, down)) => println!("| {} | {requests} | {len} | {depth} | {up:.2} | {down:.2} |", cell.name),
                 Err(why) => println!("| {} | {requests} | {len} | {depth} | failed: {why} | |", cell.name),
+            }
+        }
+    }
+}
+
+/// `cp --parallel K` (T-141): a copy up and a copy down of the run's bytes,
+/// 24 MiB at least so that a file has three chunks, with 1 and 4 tasks, on
+/// the loopback and through the stand-in relay with 50 ms each way.
+#[test]
+#[ignore = "a measurement: cp on the loopback, and through the stand-in relay with a delay"]
+fn cp_throughput_by_tasks() {
+    if ssh_harness::sftp::server_path().is_none() {
+        println!("did not run: no sftp-server here; PODSSH_TEST_SFTP_SERVER names one");
+        return;
+    }
+    let session = Session::start("cp");
+    let bytes = run_bytes().max(24 << 20);
+    println!("\n{} MiB a copy\n", bytes >> 20);
+    println!("| Cell | Tasks | Up MiB/s | Down MiB/s |");
+    println!("| --- | --- | --- | --- |");
+    let delayed = Cell::fake_relay_mode(&session, "delay:50", "forward road, the stand-in relay, 50 ms each way");
+    for cell in [Ok(Cell::direct(&session)), delayed] {
+        let cell = match cell {
+            Ok(cell) => cell,
+            Err((name, why)) => {
+                println!("| {name} | skipped: {why} | | |");
+                continue;
+            }
+        };
+        for tasks in [1, 2, 4] {
+            match cp_run(&session, &cell, tasks, bytes) {
+                Ok((up, down)) => println!("| {} | {tasks} | {up:.2} | {down:.2} |", cell.name),
+                Err(why) => println!("| {} | {tasks} | failed: {why} | |", cell.name),
             }
         }
     }

@@ -4,12 +4,12 @@
 
 use std::sync::Arc;
 
-use podssh_ssh::sftp::Pipeline;
 use podssh_ssh::Log;
 
 use super::link::{self, Link, Road};
 use super::moving::{self, After};
 use super::operand::Operand;
+use super::pipe::Shape;
 use super::plan::{Direction, Plan};
 use super::resume::{self, Before, Progress, TRIES};
 use super::transfer::{self, Cause, Done, Failed};
@@ -50,7 +50,7 @@ pub(super) async fn session(
     for source in &plan.sources {
         let name = named.clone().unwrap_or_else(|| shown(source));
         let (mut done, before) =
-            match attempts(&mut link, resolved, source, &plan.destination, many, log, plan.pipe).await {
+            match attempts(&mut link, resolved, source, &plan.destination, many, log, plan.shape).await {
                 Ok(pair) => pair,
                 Err(failed) => {
                     outcome.failed.get_or_insert((name, failed));
@@ -103,7 +103,7 @@ async fn attempts(
     dest: &Operand,
     many: bool,
     log: &Arc<Log>,
-    pipe: Pipeline,
+    shape: Shape,
 ) -> Result<(Done, Before), Failed> {
     let server = format!("{}@{}", resolved.options.user, resolved.options.destination.host);
     let side = resume::side_name(&server, resolved.options.destination.port, &shown(source), &shown(dest));
@@ -163,7 +163,7 @@ async fn attempts(
         }
         let p = progress.as_mut().expect("set above");
         continued |= p.temp.is_some() && p.offset > 0;
-        match copy(&current, source, dest, many, log, p, pipe).await {
+        match copy(&current, source, dest, many, log, p, shape).await {
             Ok(done) => {
                 *link = Some(current);
                 return Ok((done, first.take().expect("set at the first attempt")));
@@ -250,15 +250,18 @@ async fn copy(
     many: bool,
     log: &Log,
     progress: &mut Progress,
-    pipe: Pipeline,
+    shape: Shape,
 ) -> Result<Done, Failed> {
     let handle = link.handle();
+    if shape.tasks > 1 && matches!(link.road, Road::Exec(_)) {
+        log.verbose(&format!("{}: the copy by exec goes in one stream, not in chunks", shown(source)));
+    }
     match (&link.road, source, dest) {
         (Road::Sftp(sftp), Operand::Local(path), Operand::Remote(dest)) => {
-            bysftp::up(sftp, handle, path, &dest.path, many, log, progress, &link.meter, pipe).await
+            bysftp::up(sftp, handle, path, &dest.path, many, log, progress, &link.meter, shape).await
         }
         (Road::Sftp(sftp), Operand::Remote(src), Operand::Local(dest)) => {
-            bysftp::down(sftp, handle, &src.path, dest, many, log, progress, &link.meter, pipe).await
+            bysftp::down(sftp, handle, &src.path, dest, many, log, progress, &link.meter, shape).await
         }
         (Road::Sftp(sftp), Operand::Remote(src), Operand::Remote(dest)) => {
             transfer::within(sftp, handle, &src.path, &dest.path, log).await

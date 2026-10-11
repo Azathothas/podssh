@@ -49,6 +49,20 @@ for n in 0 1 262145 5000000; do
         || bad "cp.sftp.down.${n}" "cp down, $n bytes: exit $rc" "$CW/err"
 done
 
+# --parallel 4 (T-141): a file of three chunks and a part goes up and comes
+# down as chunks, four at once, each over an SFTP session of its own.
+head -c 25000000 /dev/urandom >"$CW/up/big"
+c 2201 --parallel 4 "$CW/up/big" "$T:cp/big" >"$CW/out" 2>"$CW/err"
+rc=$?
+[ "$rc" = 0 ] && [ "$(sum "$CW/up/big")" = "$(sum "$RD/big")" ] \
+    && ok cp.parallel.up "cp --parallel 4 up, 25000000 bytes: the digests agree" \
+    || bad cp.parallel.up "cp --parallel 4 up: exit $rc" "$CW/err"
+c 2201 --parallel 4 "$T:cp/big" "$CW/down/big" >"$CW/out" 2>"$CW/err"
+rc=$?
+[ "$rc" = 0 ] && [ "$(sum "$RD/big")" = "$(sum "$CW/down/big")" ] \
+    && ok cp.parallel.down "cp --parallel 4 down, 25000000 bytes: the digests agree" \
+    || bad cp.parallel.down "cp --parallel 4 down: exit $rc" "$CW/err"
+
 # Over an existing file, each way; then several sources into a directory.
 head -c 70000 /dev/urandom >"$CW/up/new"
 c 2201 "$CW/up/new" "$T:cp/f262145" >/dev/null 2>"$CW/err"
@@ -172,6 +186,12 @@ rc=$?
 [ "$rc" = 70 ] && cmp -s "$CW/old" "$CW/down/kept" && grep -q "the digests differ" "$CW/err" \
     && ok cp.flip.down "a flipped byte down: exit 70, the destination as it was" \
     || bad cp.flip.down "a flipped byte down: exit $rc" "$CW/err"
+# In chunks too (T-141): the digest of the whole file catches the byte.
+c 2205 --parallel 4 "$CW/up/big" "$T:cp/kept" >/dev/null 2>"$CW/err"
+rc=$?
+[ "$rc" = 70 ] && cmp -s "$CW/old" "$RD/kept" && grep -q "the digests differ" "$CW/err" \
+    && ok cp.parallel.flip "a flipped byte in a chunk: exit 70, the destination as it was" \
+    || bad cp.parallel.flip "a flipped byte in a chunk: exit $rc" "$CW/err"
 no_part cp.no_part.flip "cp through the flipping subsystem"
 
 # No exec (ForceCommand internal-sftp): the far digest is a second read.

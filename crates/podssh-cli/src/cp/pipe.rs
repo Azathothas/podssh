@@ -5,6 +5,31 @@
 
 use podssh_ssh::sftp::Pipeline;
 
+use super::chunks::MOST_TASKS;
+
+/// How a copy goes: the requests in flight of each SFTP session (T-140), and
+/// the tasks of one file, each with a session of its own (T-141).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Shape {
+    pub pipe: Pipeline,
+    pub tasks: usize,
+}
+
+impl Default for Shape {
+    fn default() -> Self {
+        Shape { pipe: Pipeline::default(), tasks: 1 }
+    }
+}
+
+/// The tasks of `--parallel K`: 1 to [`MOST_TASKS`].
+pub fn tasks(text: Option<&str>) -> Result<usize, String> {
+    let Some(text) = text else { return Ok(1) };
+    match text.trim().parse::<usize>() {
+        Ok(n) if (1..=MOST_TASKS).contains(&n) => Ok(n),
+        _ => Err(format!("--parallel {text}: give 1 to {MOST_TASKS} tasks")),
+    }
+}
+
 /// The largest buffer that OpenSSH takes (`-X buffer=`).
 const MOST: u64 = 256 * 1024;
 
@@ -77,6 +102,16 @@ mod tests {
         let options = ["buffer=32K".to_string(), "buffer=16k".to_string()];
         assert_eq!(pipeline(Some("1024"), None, &options).unwrap().len, 16 * 1024);
         assert_eq!(pipeline(Some("256K"), None, &[]).unwrap().len, 256 * 1024);
+    }
+
+    #[test]
+    fn the_tasks_are_one_to_sixteen() {
+        assert_eq!(tasks(None), Ok(1));
+        assert_eq!(tasks(Some("4")), Ok(4));
+        assert_eq!(tasks(Some("16")), Ok(16));
+        assert_eq!(tasks(Some("0")), Err("--parallel 0: give 1 to 16 tasks".into()));
+        assert!(tasks(Some("17")).is_err());
+        assert!(tasks(Some("x")).is_err());
     }
 
     #[test]

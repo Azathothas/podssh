@@ -7,12 +7,14 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
-use podssh_ssh::sftp::{FileAttributes, OpenFlags, Pipeline, Reads, Sftp, Writes, IN_FLIGHT};
+use podssh_ssh::sftp::{FileAttributes, OpenFlags, Reads, Sftp, Writes, IN_FLIGHT};
 use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
+use super::chunks;
 use super::digest::{self, Sum};
 use super::link::Meter;
+use super::pipe::Shape;
 use super::resume::{self, Progress};
 use super::transfer::{self, Cause, Done, Failed, Side};
 use crate::exitmap::Fault;
@@ -47,8 +49,9 @@ pub async fn up(
     log: &Log,
     progress: &mut Progress,
     meter: &Meter,
-    pipe: Pipeline,
+    shape: Shape,
 ) -> Result<Done, Failed> {
+    let pipe = shape.pipe;
     let local = Path::new(source);
     let before = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
     if !before.is_file() {
@@ -89,7 +92,21 @@ pub async fn up(
             (temp, file)
         }
     };
+    let chunked = shape.tasks > 1 && before.len() > chunks::CHUNK;
     let copied = async {
+        if chunked {
+            // Chunks at once, each over a session of its own (T-141); the
+            // digest of the whole source after the last of them.
+            let started = std::time::Instant::now();
+            let tasks = shape.tasks;
+            let each = chunks::share(pipe, tasks, meter.through_relay());
+            log.verbose(&format!("{source}: chunks of {} bytes, {tasks} at once", chunks::CHUNK));
+            chunks::up(handle, local, &temp, before.len(), tasks, each, progress, meter).await?;
+            log.verbose(&rate(source, before.len(), started.elapsed()));
+            let sum = digest::of_file(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
+            return Ok((before.len(), sum));
+        }
+        progress.begin_sequential();
         let mut reader = std::fs::File::open(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
         let mut hasher = Sha256::new();
         // The bytes that an earlier attempt sent are in the digest too.
@@ -129,29 +146,15 @@ pub async fn up(
         sent?;
         finished.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
         log.verbose(&rate(source, offset - started.1, started.0.elapsed()));
-        sftp.fsync(&file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-        sftp.close(&file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-        let after = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
-        if after.len() != before.len() || after.modified().ok() != before.modified().ok() || after.len() != offset {
-            return Err(transfer::changed(source));
-        }
-        let sum: Sum = hasher.finalize().into();
-        let (far, how) = transfer::far_digest(handle, sftp, &temp, offset, Side::Destination).await?;
-        transfer::compare(&sum, &far, &how, source)?;
-        let mode = FileAttributes { permissions: Some(transfer::local_mode(&before)), ..FileAttributes::default() };
-        sftp.setstat(&temp, mode).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-        let not_atomic = transfer::rename_onto(sftp, &temp, &target, log).await?;
-        Ok(Done {
-            source: source.into(),
-            destination: target.clone(),
-            bytes: offset,
-            sum: Some(sum),
-            verified_by: how,
-            not_atomic,
-            removed: None,
-        })
+        Ok((offset, hasher.finalize().into()))
     }
     .await;
+    let copied = match copied {
+        Ok((offset, sum)) => {
+            finish_up(sftp, handle, &file, local, source, &temp, &target, &before, offset, sum, log).await
+        }
+        Err(failed) => Err(failed),
+    };
     match &copied {
         // The next connection writes on in it.
         Err(f) if f.cause == Cause::Broke => progress.save(),
@@ -169,6 +172,46 @@ pub async fn up(
     copied
 }
 
+/// The end of a copy up: the temporary file synced and closed, the source
+/// unchanged, the digests equal, the mode set, and the rename.
+#[allow(clippy::too_many_arguments)]
+async fn finish_up(
+    sftp: &Sftp,
+    handle: &Connection,
+    file: &podssh_ssh::sftp::FileHandle,
+    local: &Path,
+    source: &str,
+    temp: &str,
+    target: &str,
+    before: &std::fs::Metadata,
+    offset: u64,
+    sum: Sum,
+    log: &Log,
+) -> Result<Done, Failed> {
+    {
+        sftp.fsync(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+        sftp.close(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+        let after = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
+        if after.len() != before.len() || after.modified().ok() != before.modified().ok() || after.len() != offset {
+            return Err(transfer::changed(source));
+        }
+        let (far, how) = transfer::far_digest(handle, sftp, temp, offset, Side::Destination).await?;
+        transfer::compare(&sum, &far, &how, source)?;
+        let mode = FileAttributes { permissions: Some(transfer::local_mode(before)), ..FileAttributes::default() };
+        sftp.setstat(temp, mode).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+        let not_atomic = transfer::rename_onto(sftp, temp, target, log).await?;
+        Ok(Done {
+            source: source.into(),
+            destination: target.to_string(),
+            bytes: offset,
+            sum: Some(sum),
+            verified_by: how,
+            not_atomic,
+            removed: None,
+        })
+    }
+}
+
 /// Copy `source` on the server to the local `dest`, or write on in the copy
 /// that `progress` holds.
 #[allow(clippy::too_many_arguments)]
@@ -181,8 +224,9 @@ pub async fn down(
     log: &Log,
     progress: &mut Progress,
     meter: &Meter,
-    pipe: Pipeline,
+    shape: Shape,
 ) -> Result<Done, Failed> {
+    let pipe = shape.pipe;
     let attrs = sftp.stat(source).await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
     if !attrs.is_regular() {
         return Err(failed(Fault::NoInput, format!("{source}: not a regular file; podssh cp copies files")));
@@ -195,7 +239,9 @@ pub async fn down(
         Some(target) => PathBuf::from(target),
         None => transfer::local_target(dest, name, many)?,
     };
-    let (temp, file, start) = resume::local_temp(&target, attrs.size.unwrap_or(0), progress)?;
+    let size = attrs.size.unwrap_or(0);
+    let chunked = shape.tasks > 1 && size > chunks::CHUNK;
+    let (temp, file, start) = resume::local_temp(&target, size, progress, chunked)?;
     let shown = temp.display().to_string();
     log.verbose(&match start {
         0 => format!("{source}: writing {shown}"),
@@ -205,6 +251,39 @@ pub async fn down(
     // renamed: Windows renames no open file.
     let mut out = Some(file);
     let copied: Result<Done, Failed> = async {
+        if chunked {
+            // Chunks at once, each over a session of its own (T-141); a file
+            // that grew or shrank since the start fails, as it does in one
+            // stream; the digest of the whole file after the last chunk.
+            drop(out.take());
+            let started = std::time::Instant::now();
+            let tasks = shape.tasks;
+            let each = chunks::share(pipe, tasks, meter.through_relay());
+            log.verbose(&format!("{source}: chunks of {} bytes, {tasks} at once", chunks::CHUNK));
+            chunks::down(handle, source, &temp, size, tasks, each, progress, meter).await?;
+            log.verbose(&rate(source, size, started.elapsed()));
+            match sftp.stat(source).await {
+                Ok(now) if now.size == attrs.size => {}
+                Ok(_) => return Err(transfer::changed(source)),
+                Err(e) => return Err(transfer::from_sftp(e, Side::Source)),
+            }
+            let sum = digest::of_file(&temp).map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
+            let (far, how) = transfer::far_digest(handle, sftp, source, size, Side::Source).await?;
+            transfer::compare(&sum, &far, &how, source)?;
+            transfer::set_local_mode(&temp, attrs.permissions);
+            std::fs::rename(&temp, &target)
+                .map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
+            return Ok(Done {
+                source: source.into(),
+                destination: target.display().to_string(),
+                bytes: size,
+                sum: Some(sum),
+                verified_by: how,
+                not_atomic: false,
+                removed: None,
+            });
+        }
+        progress.begin_sequential();
         let mut hasher = Sha256::new();
         if let Some(f) = out.as_mut() {
             resume::hash_prefix(f, &mut hasher, start)
@@ -215,7 +294,6 @@ pub async fn down(
             .await
             .map_err(|e| transfer::from_sftp(e, Side::Source))?;
         let mut offset = start;
-        let size = attrs.size.unwrap_or(0);
         // Past the size that the file had at the start, a second look at its
         // size tells a file that grows, which a read would follow while it
         // grows (T-267), from a file of /proc, which says 0 and has bytes.

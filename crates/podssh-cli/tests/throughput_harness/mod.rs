@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 
 pub use cells::Cell;
 #[allow(unused_imports)]
-pub use sftp::sftp_run;
+pub use sftp::{cp_run, sftp_run};
 
 const MIB: f64 = 1_048_576.0;
 const BLOCK: usize = 64 * 1024;

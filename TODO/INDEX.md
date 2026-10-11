@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**293 entries: 65 open, 0 partial, 24 blocked, 204 done.**
+**294 entries: 65 open, 0 partial, 24 blocked, 205 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 59 | 0 | 6 | 45 | 110 |
-| **All** | 65 | 0 | 24 | 204 | 293 |
+| P3 | 59 | 0 | 6 | 46 | 111 |
+| **All** | 65 | 0 | 24 | 205 | 294 |
 
 ## Entries
 
@@ -214,7 +214,7 @@ repository and CI).
 | [T-138](copy.md) | P2 | S | M5 | feature | done | `podssh mv`: copy, verify, delete, and say first that it is not atomic |
 | [T-139](copy.md) | P2 | L | M5 | feature | done | `podssh scp` and `podssh sftp` with the command lines of OpenSSH |
 | [T-140](copy.md) | P3 | M | backlog | feature | done | Pipelined SFTP |
-| [T-141](copy.md) | P3 | M | backlog | feature | open | Parallel transfer in chunks |
+| [T-141](copy.md) | P3 | M | backlog | feature | done | Parallel transfer in chunks |
 | [T-142](copy.md) | P3 | L | backlog | feature | open | Delta copy: only the blocks that changed |
 | [T-143](copy.md) | P3 | M | backlog | feature | open | Copy directories: `-r`, `--exclude`, an ignore file, `--dry-run` |
 | [T-144](copy.md) | P3 | S | backlog | feature | open | `podssh cp --delete`: make the target a mirror |
@@ -368,3 +368,4 @@ repository and CI).
 | [T-294](terminal.md) | P1 | S | none | defect | done | Output that is not UTF-8 stops the session's output in a Windows console |
 | [T-295](terminal.md) | P2 | S | none | defect | done | Ctrl-Break leaves the Windows console raw |
 | [T-296](copy.md) | P3 | M | backlog | feature | open | `cp`, `scp` and `sftp` to a node |
+| [T-297](copy.md) | P3 | M | backlog | feature | open | `cp --parallel K` copies several small files at once |

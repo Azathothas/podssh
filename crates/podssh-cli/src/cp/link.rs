@@ -44,6 +44,11 @@ impl Meter {
         Meter { relay, budget: byte_budget(std::env::var(SESSION_BUDGET_ENV).ok().as_deref()) }
     }
 
+    /// Whether the relay carries the session: its tasks then share its room.
+    pub fn through_relay(&self) -> bool {
+        self.relay.is_some()
+    }
+
     /// The bytes that the session may still carry; no end without a relay.
     pub fn left(&self) -> u64 {
         match &self.relay {

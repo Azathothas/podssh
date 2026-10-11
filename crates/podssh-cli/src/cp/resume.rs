@@ -14,6 +14,7 @@
 //! whole file: a continued copy whose digests differ starts once more from
 //! the first byte, then fails.
 
+use std::collections::BTreeSet;
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -147,6 +148,10 @@ pub struct Progress {
     pub offset: u64,
     /// The offset when the side file was last written.
     saved: u64,
+    /// A copy in chunks (T-141): the bytes of each; 0 for one stream.
+    pub chunk: u64,
+    /// The start of each chunk past `offset` that is in the temporary file.
+    pub chunks: BTreeSet<u64>,
 }
 
 impl Progress {
@@ -166,10 +171,17 @@ impl Progress {
         let field = |name: &str| kept.get(name).and_then(|v| v.as_str()).map(str::to_string);
         let temp = field("temp").filter(|t| is_temp(t));
         let offset = kept.get("offset").and_then(|v| v.as_u64());
+        let chunk = kept.get("chunk").and_then(|v| v.as_u64()).unwrap_or(0);
+        let chunks: BTreeSet<u64> = kept
+            .get("chunks")
+            .and_then(|v| v.as_array())
+            .map(|a| a.iter().filter_map(|v| v.as_u64()).collect())
+            .unwrap_or_default();
         match (field("state"), temp, field("target"), offset) {
             (Some(was), Some(temp), Some(target), Some(offset)) if was == state => {
+                let target = Some(target);
                 let progress =
-                    Progress { dirs, side, state, target: Some(target), temp: Some(temp), offset, saved: offset };
+                    Progress { dirs, side, state, target, temp: Some(temp), offset, saved: offset, chunk, chunks };
                 (progress, None)
             }
             (_, stale, _, _) => {
@@ -184,6 +196,40 @@ impl Progress {
         self.target = Some(target.to_string());
         self.temp = Some(temp.to_string());
         self.offset = 0;
+        self.chunks.clear();
+        self.save();
+    }
+
+    /// A copy in one stream: the chunks of an earlier run in chunks go, as
+    /// the stream writes on from the offset.
+    pub fn begin_sequential(&mut self) {
+        self.chunk = 0;
+        self.chunks.clear();
+    }
+
+    /// A copy in chunks of `chunk` bytes (T-141). The chunks of an earlier
+    /// run of the same size stay; after a run in one stream, or with another
+    /// size, the chunks below the offset count.
+    pub fn begin_chunks(&mut self, chunk: u64) {
+        if self.chunk != chunk {
+            self.offset -= self.offset % chunk;
+            self.chunks.clear();
+            self.chunk = chunk;
+        }
+    }
+
+    /// Whether the chunk that starts at `at` is in the temporary file.
+    pub fn has_chunk(&self, at: u64) -> bool {
+        at < self.offset || self.chunks.contains(&at)
+    }
+
+    /// The chunk that starts at `at` is in the temporary file; the offset
+    /// moves over each chunk done next to it. The side file follows.
+    pub fn finish_chunk(&mut self, at: u64, chunk: u64, size: u64) {
+        self.chunks.insert(at);
+        while self.chunks.remove(&self.offset) {
+            self.offset = (self.offset + chunk).min(size);
+        }
         self.save();
     }
 
@@ -203,17 +249,23 @@ impl Progress {
         self.temp = None;
         self.offset = 0;
         self.saved = 0;
+        self.chunk = 0;
+        self.chunks.clear();
     }
 
     /// Write the side file. Without a cache directory the copy continues
     /// within this run only.
     pub fn save(&mut self) {
-        let body = serde_json::json!({
+        let mut body = serde_json::json!({
             "state": self.state,
             "target": self.target,
             "temp": self.temp,
             "offset": self.offset,
         });
+        if self.chunk > 0 {
+            body["chunk"] = self.chunk.into();
+            body["chunks"] = self.chunks.iter().copied().collect::<Vec<u64>>().into();
+        }
         if podssh_relay::cache::store_file_in_first(&self.dirs, &self.side, body.to_string().as_bytes()).is_ok() {
             self.saved = self.offset;
         }
@@ -223,14 +275,21 @@ impl Progress {
 /// The local temporary file of a copy down, open, and the bytes in it: the
 /// one that `progress` names, cut at its offset, when it holds that many and
 /// the source has as many (`size`); else a new one beside `target`, private.
-pub fn local_temp(target: &Path, size: u64, progress: &mut Progress) -> Result<(PathBuf, File, u64), Failed> {
+/// A copy in `chunks` keeps the bytes past the offset: its chunks.
+pub fn local_temp(
+    target: &Path,
+    size: u64,
+    progress: &mut Progress,
+    chunks: bool,
+) -> Result<(PathBuf, File, u64), Failed> {
     if let Some(temp) = progress.temp.clone() {
         let path = PathBuf::from(&temp);
         let fits = progress.offset <= size
             && std::fs::metadata(&path).is_ok_and(|m| m.is_file() && m.len() >= progress.offset);
         let opened = fits.then(|| std::fs::OpenOptions::new().read(true).write(true).open(&path).ok()).flatten();
         if let Some(mut file) = opened {
-            if file.set_len(progress.offset).and_then(|()| file.seek(SeekFrom::Start(0))).is_ok() {
+            let cut = if chunks && progress.chunk > 0 { Ok(()) } else { file.set_len(progress.offset) };
+            if cut.and_then(|()| file.seek(SeekFrom::Start(0))).is_ok() {
                 return Ok((path, file, progress.offset));
             }
         }
@@ -323,6 +382,38 @@ mod tests {
         assert_eq!(load().offset, SAVE_EVERY);
         p.clear();
         assert_eq!(load().temp, None, "a copy that is done leaves no side file");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The chunks of a copy in chunks (T-141): done out of order, the offset
+    /// moves over each one next to it, and the side file keeps the others.
+    #[test]
+    fn the_map_of_chunks_moves_the_offset_and_survives_a_new_run() {
+        let dir = scratch();
+        let load = || Progress::load_in(vec![dir.clone()], "c.resume".into(), "state".into()).0;
+        let mut p = load();
+        p.begin("f", &transfer::temp_name("f"));
+        p.begin_chunks(8);
+        // A file of 30 bytes: chunks at 0, 8, 16 and 24 (the last of 6).
+        p.finish_chunk(16, 8, 30);
+        p.finish_chunk(8, 8, 30);
+        assert_eq!((p.offset, p.has_chunk(8), p.has_chunk(16), p.has_chunk(0)), (0, true, true, false));
+        let again = load();
+        assert_eq!((again.chunk, again.chunks.iter().copied().collect::<Vec<_>>()), (8, vec![8, 16]));
+        p.finish_chunk(0, 8, 30);
+        assert_eq!((p.offset, p.chunks.len()), (24, 0), "0, 8 and 16 are contiguous");
+        p.finish_chunk(24, 8, 30);
+        assert_eq!(p.offset, 30, "the last chunk ends at the size");
+        // A run in one stream after it keeps the offset, and no chunk.
+        let mut q = load();
+        q.begin_sequential();
+        assert_eq!((q.offset, q.chunk, q.chunks.len()), (30, 0, 0));
+        // A run in chunks of another size counts only what is below the offset.
+        let mut r = load();
+        r.offset = 21;
+        r.begin_chunks(10);
+        assert_eq!((r.offset, r.has_chunk(10), r.has_chunk(20)), (20, true, false));
+        p.clear();
         let _ = std::fs::remove_dir_all(&dir);
     }
 

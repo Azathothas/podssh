@@ -461,6 +461,16 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   of a far digest goes the same way. `-v` says the size and the requests
   of each copy, and its rate before the digest. `scp -X` and `sftp -R`,
   `-B` and `-X` set them.
+- **`--parallel K`** (T-141): a file of more than one chunk of 8 MiB goes
+  as chunks at fixed offsets, K at once (1 to 16; default 1), each over an
+  SFTP session of its own, so a channel and a window of its own, in the one
+  connection; each writes its chunks into the temporary file at their
+  offsets. The side file keeps the chunks that are done, so a copy that
+  breaks goes on with the others. The digest covers the whole file after
+  the last chunk, and nothing is renamed before it. Through the relay the
+  tasks share 1.5 MiB in flight, below the 2 MiB queued that close a
+  session, and a task takes a chunk only while the session may carry it
+  whole. The copy by exec goes in one stream, and `-v` says so.
 - `-r` and `-p` are refused by name until a copy of a directory (T-143)
   and the times (T-146) exist.
 - **A server with no SFTP subsystem gets a copy by exec**

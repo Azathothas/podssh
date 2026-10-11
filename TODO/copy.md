@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:226-244` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1216-1219`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1226-1229`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1164,7 +1164,7 @@ concurrency, `AlpinDale/parsync:src/sync.rs`, read in the issue).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1205,6 +1205,31 @@ sessions at once are allowed when the user asks (the operator's ruling of 2026-1
 flag sets the number, and the default is 1. Add that flag after a
 measurement (T-157) shows the gain of the channels.
 
+2026-10-12, the calls made in the work:
+
+- The tasks are in `crates/podssh-cli/src/cp/chunks.rs`: each opens an SFTP
+  session of its own, so a channel and a window of its own, in the one
+  connection, and takes chunks of 8 MiB in turn; a chunk that a task ends
+  goes into the side file at once (`Progress::finish_chunk`), whose offset
+  moves over the chunks done next to it.
+- Through the relay the tasks share 1.5 MiB in flight, three windows,
+  below the 2 MiB queued that close a session (`1013`): each task keeps
+  1.5 MiB / K. On a direct connection each keeps its own 512 KiB.
+- A task takes a chunk only while the relay session may carry it whole,
+  with the tasks' room more; then each task ends its chunk, and the next
+  session goes on with the chunks left (T-137).
+- The digest of a copy up is read from the source after the last chunk, and
+  the source must be as it was; a copy down hashes the temporary file.
+- The measurement shows a gain (1.55 times down, 1.34 times up through the
+  stand-in with 50 ms each way, at K = 4): the flag is there, and the
+  default stays 1, as the Decision said; several channels are the user's
+  choice.
+- The copy by exec goes in one stream and says so: writing at an offset
+  needs `dd`, which the probe of T-135 does not ask for.
+- Many small files with K tasks (step 5) need the retries of one file
+  (`crates/podssh-cli/src/cp/session.rs`, `attempts`) to run for several
+  files on one connection at once: T-297, new.
+
 ## Prove
 
 ```sh
@@ -1215,6 +1240,24 @@ sh scripts/dev.sh check                       # interop-cp.sh: --parallel 4, equ
 A row of `docs/STATUS.md` gives the throughput with K = 1 and K = 4 by
 T-157's method. Plant: give two chunks the same offset; the digest check
 must fail.
+
+## Done
+
+2026-10-12. `crates/podssh-cli/src/cp/chunks.rs`, from
+`crates/podssh-cli/src/cp/bysftp.rs` when `--parallel K` (K > 1) meets a file
+of more than one chunk; the map of chunks in `crates/podssh-cli/src/cp/resume.rs`.
+`cargo test -p podssh-cli --test cp_parallel`: 2 passed: 25 MiB and a part
+go up with 4 tasks and down with 3, and agree with the disk, against the
+test's server and its `sftp-server`; a file of one chunk goes in one stream;
+`--parallel 0`, `17` and `x` are refused (64). The unit tests: the chunk
+plan covers the file once; the tasks share the room of a relay session; the
+map of chunks done out of order moves the offset and survives a new run.
+In the build image, `scripts/interop.sh` against OpenSSH: `cp.parallel.up`,
+`cp.parallel.down` (25000000 bytes, equal digests) and `cp.parallel.flip`
+(the subsystem that flips a byte: exit 70, the destination as it was).
+Planted defect: two chunks at one offset; the copy up failed, "the digests
+differ", and the destination was not changed. The measurement:
+`docs/STATUS.md`, "Throughput, measured". Step 5 is T-297.
 
 # T-142: Delta copy: only the blocks that changed
 
@@ -1279,7 +1322,7 @@ the final digest check must fail the copy.
 
 # T-143: Copy directories: `-r`, `--exclude`, an ignore file, `--dry-run`
 
-**Source:** the `-r` row (`crates/podssh-cli/src/flags/copy.rs:23-24`);
+**Source:** the `-r` row (`crates/podssh-cli/src/flags/copy.rs:25-26`);
 GitHub #21 (syq's `--dry-run`, parsync's `--exclude`, slingshot's copy with
 no build output) and GitHub #18 (quic-ssh's `qsh cp -r`), read in the
 issues.
@@ -1351,7 +1394,7 @@ drop the name check; that case must then fail.
 ## Correction
 
 2026-10-09 (T-134): `-r` is refused by name now
-(`crates/podssh-cli/src/flags/copy.rs:23-24`), and `podssh cp` copies files
+(`crates/podssh-cli/src/flags/copy.rs:25-26`), and `podssh cp` copies files
 (`crates/podssh-cli/src/cp/`): this entry builds on its temporary name, its
 digest check and its rename for each file of a tree.
 
@@ -1425,7 +1468,7 @@ uplink of a shared host.
 
 - Read: stdout carries answers only, and messages go to stderr
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
-  (`crates/podssh-cli/src/flags/copy.rs:27-28`).
+  (`crates/podssh-cli/src/flags/copy.rs:29-30`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
   (`crates/podssh-ssh/src/io.rs:461-494`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
@@ -1819,16 +1862,16 @@ program writes on, such as a log, need not end at all.
 ## Premise
 
 Read at `a22e3ec`: the copy up over SFTP reads the source until a read
-gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:103-124`), and each read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:120-141`), and each read
 waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
-(`crates/podssh-cli/src/cp/bysftp.rs:134-137`), but only once the read
+(`crates/podssh-cli/src/cp/bysftp.rs:194-197`), but only once the read
 ends. The copy up by exec reads the same way
 (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:229-260`) and with `cat`
+(`crates/podssh-cli/src/cp/bysftp.rs:307-338`) and with `cat`
 (`crates/podssh-cli/src/cp/byexec.rs:329-364`); and so do the far digests
 that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
 `crates/podssh-cli/src/cp/byexec.rs:298-325`).
@@ -1864,7 +1907,7 @@ bound fails the native test.
 
 2026-10-10. Each road of the copy reads what the source held at the start,
 and stops with 66, "the file changed while it was read", at the first byte
-past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:103-124`) and by
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:120-141`) and by
 exec (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); down by exec
 past the size that `wc -c` gave; down over SFTP after a second look at the
 far size, so that a file of `/proc` goes on as before. The far digest by
@@ -1938,3 +1981,48 @@ Through the stand-in relay and a pair, as `tests/node_routes.rs` runs them,
 route is taken; a port with a node is refused. The second command measures
 through the live relay. Planted defect: a node operand read as a host; the
 first test fails.
+
+# T-297: `cp --parallel K` copies several small files at once
+
+**Source:** T-141, step 5 ("many small files: the same K tasks, one file
+each").
+**Category:** feature
+**Milestone:** backlog
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+`cp --parallel K` copies one file of more than a chunk as K chunks at once
+(T-141), but many small files still go one after the other, each waiting
+for its own round trips. A tree of small files through the relay takes the
+sum of their latencies.
+
+## Premise
+
+- Read: `crates/podssh-cli/src/cp/session.rs`, `session` copies each source
+  in turn through `attempts`, which owns the connection (`link: &mut
+  Option<Link>`) to connect again after a break.
+- Read: T-141's tasks each open an SFTP session of their own in one
+  connection (`crates/podssh-cli/src/cp/chunks.rs`).
+
+## Approach
+
+1. With K > 1 and several sources, copy up to K files at once on the one
+   connection, each over an SFTP session of its own, each with its own side
+   file; a file of more than a chunk still goes in chunks.
+2. A break ends the files in flight where they are; the next connection
+   goes on with each from its side file, as one file does now.
+3. The report keeps the order of the sources, and the first failure's code.
+
+## Prove
+
+```sh
+CARGO_BUILD_JOBS=4 cargo test -p podssh-cli --test cp_parallel -- small
+```
+
+Against the test's server, 50 small files with `--parallel 8` arrive, each
+equal to its source, with at most 8 SFTP sessions at once (the server
+counts them); the report lists them in their order. Planted defect: two
+files into one temporary name; a digest check fails.
