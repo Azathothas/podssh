@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**290 entries: 66 open, 0 partial, 24 blocked, 200 done.**
+**292 entries: 67 open, 0 partial, 24 blocked, 201 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 21 | 23 |
-| P2 | 4 | 0 | 18 | 135 | 157 |
-| P3 | 60 | 0 | 6 | 43 | 109 |
-| **All** | 66 | 0 | 24 | 200 | 290 |
+| P1 | 3 | 0 | 0 | 21 | 24 |
+| P2 | 5 | 0 | 18 | 135 | 158 |
+| P3 | 59 | 0 | 6 | 44 | 109 |
+| **All** | 67 | 0 | 24 | 201 | 292 |
 
 ## Entries
 
@@ -205,7 +205,7 @@ repository and CI).
 | [T-129](terminal.md) | P2 | M | M5 | defect | done | L5: Delete, Home and End, Ctrl-Z, Ctrl-S, Ctrl-Q, and remote output over the edited line |
 | [T-130](terminal.md) | P3 | S | backlog | docs | done | State which terminal sequences podssh reads and which it passes unchanged |
 | [T-131](terminal.md) | P3 | S | backlog | measurement | done | Which servers honour the `signal` request for Ctrl-C with no remote pty |
-| [T-132](terminal.md) | P3 | S | backlog | research | open | Compare the Windows console handling with csshw's |
+| [T-132](terminal.md) | P3 | S | backlog | research | done | Compare the Windows console handling with csshw's |
 | [T-133](copy.md) | P2 | M | M5 | feature | done | An SFTP client in the process, the base of `cp` |
 | [T-134](copy.md) | P2 | M | M5 | feature | done | `podssh cp` over SFTP: a temporary name, the digest, then a rename |
 | [T-135](copy.md) | P2 | M | M5 | feature | done | `podssh cp` by exec when the server has no SFTP |
@@ -365,3 +365,5 @@ repository and CI).
 | [T-291](forwarding.md) | P3 | M | backlog | feature | open | The escape `~C`: add and stop the forwards of a running session |
 | [T-292](config.md) | P3 | M | backlog | feature | blocked | `podssh config import` from PuTTY, MobaXterm, Remmina, FinalShell, mRemoteNG and Termius |
 | [T-293](terminal.md) | P3 | M | backlog | feature | open | Ctrl-C with no remote pty sends `signal INT` to the command |
+| [T-294](terminal.md) | P1 | S | none | defect | open | Output that is not UTF-8 stops the session's output in a Windows console |
+| [T-295](terminal.md) | P2 | S | none | defect | open | Ctrl-Break leaves the Windows console raw |

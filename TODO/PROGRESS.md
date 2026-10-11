@@ -66,7 +66,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 290 entries: 66 open, 0 partial, 24 blocked, 200 done.
+`TODO/INDEX.md` holds 292 entries: 67 open, 0 partial, 24 blocked, 201 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -88,7 +88,8 @@ those of M9 and the parked ones; now the P3 entries.
 
 **Then** M9: T-218, T-210 and T-211, then T-251 (the check, and its run
 before the tag), and last T-250 (the one release). Between entries: the
-`none` entries of `TODO/repo.md`, the highest priority first.
+`none` entries, the highest priority first: T-294 (P1) and T-295 (P2)
+come next.
 
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253 and T-255;

@@ -96,13 +96,52 @@ terminfo database of the server must resolve the name.
   turns on virtual-terminal input and output. podssh then sends Ctrl-C to
   the remote side as a byte.
 - podssh restores the console's input and output modes when the session
-  ends, and also when podssh panics.
+  ends, and also when podssh panics. Not yet after Ctrl-Break, which ends
+  podssh through the console's default handler (T-295, below).
 - A console has no resize signal, so podssh reads the window size every
   500 ms. On Unix, SIGWINCH gives the change.
 - Prompts use `CONIN$` and `CONOUT$`, so they work when stdin and stdout are
   redirected.
+- podssh sets no code page. Output goes to the console through Rust's
+  standard output, which writes the console in UTF-16, so text in UTF-8
+  shows whatever the code page is.
 
-`scripts/interop-conpty.py` checks these items in a real pseudo console.
+`scripts/interop-conpty.py` checks these items in a real pseudo console
+against a server with a shell, and `crates/podssh-cli/tests/console.rs`
+against the test's own server, in each run of the tests on Windows.
+
+What a pseudo console showed (T-132, 2026-10-12, Windows 11,
+`crates/podssh-cli/tests/console.rs`):
+
+| Item | Measured | |
+| --- | --- | --- |
+| Text in UTF-8 that is not ASCII (`héllo € ✓`) | Shows as sent. | No fault. |
+| A byte that is not UTF-8 (`0xff`) in the output | The text before it shows; the byte and each later byte of the session are lost, and the session goes on. Rust's console writer refuses the byte (`rust-lang/rust:library/std/src/sys/stdio/windows.rs`, `write`), and podssh takes the refusal as a stdout that is gone. | Fault: T-294. |
+| Ctrl-Break in a session with a pty | podssh ends with `0xC000013A`, and the console's input mode stays raw: `0x3f0`, where it was `0x1f7`. | Fault: T-295. |
+| `~.` in the same session | The mode is `0x1f7` again. | No fault. |
+| A resize | Reaches the server 450 to 505 ms after it. | Kept: the poll costs 500 ms at most; an event of the console would need `ReadConsoleInputW` in place of the stream of bytes that podssh reads. |
+
+### csshw
+
+csshw (`whme/csshw`, at `6dd773b`) is a cluster SSH tool for Windows: it
+opens a console window for each host, runs OpenSSH's `ssh` in it, and sends
+the keys of its own window to each. Each of its console calls against
+podssh (T-132, from GitHub #24):
+
+| csshw | podssh | |
+| --- | --- | --- |
+| A console window of its own for each host (`CreateProcessW`), with the keys of its window written into each (`WriteConsoleInputW`) | One session, in the console where podssh runs | Not needed: podssh is the SSH client, and drives no window. |
+| Keys read as input records (`ReadConsoleInputW`), other events skipped | Keys read as a stream of bytes, with virtual-terminal input | Not needed: the remote pty wants a terminal's bytes, which a key record would need a translation into. |
+| `ENABLE_PROCESSED_INPUT` off, so that Ctrl-C reads as a key | The same, in raw mode | Same. |
+| At its end, Ctrl-C to each process of a host's console (`GenerateConsoleCtrlEvent`) | Starts no process in its console; a `ProxyCommand` ends with podssh | Not needed. |
+| The colour of a whole window by its state (`SetConsoleTextAttribute`, `FillConsoleOutputAttribute`; `disabled_console_color`), and a repaint of the edge that the fill misses (`InvalidateRect`) | No colour of its own: the remote side's colours are escape sequences | Not needed. |
+| A clear screen by `ScrollConsoleScreenBufferW` and `SetConsoleCursorPosition` | The remote side clears with escape sequences | Not needed. |
+| The title, place, size and border colour of each window, DPI awareness, the version of Windows | None | Not needed: the layout of many windows. |
+| No code page set | None set; output in UTF-16 (measured above) | Same. |
+| ConPTY, which the report of #24 names | podssh runs in a console or in a pseudo console | csshw has no code for a pseudo console: its hosts' windows are classic consoles. |
+
+No item of csshw is a fault of podssh. The two faults above came from the
+measurements that the comparison asked for.
 
 ## When podssh supplies the line discipline
 

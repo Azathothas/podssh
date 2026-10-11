@@ -337,7 +337,7 @@ Read:
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
   peer (`SECURITY.md:79-82`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
-  discipline (`docs/terminal.md:107-203`). T-127 (the cursor counts bytes) and
+  discipline (`docs/terminal.md:146-242`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
 - Read in the message of commit `a378863`: `rio-vt` needs `simdutf`, a C++
   library, so it cannot be a dependency of a library crate.
@@ -363,7 +363,7 @@ Read:
    in the gate's container (installed with apk, as `scripts/interop-man.sh:22`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
-6. docs/terminal.md, section "Tests" (`docs/terminal.md:236`), names the
+6. docs/terminal.md, section "Tests" (`docs/terminal.md:275`), names the
    oracle.
 
 ## Decision
@@ -643,7 +643,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:286-304`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:287-305`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:370`, enforced at
   `crates/podssh-ssh/src/run.rs:356-362`); a reply, 30 s

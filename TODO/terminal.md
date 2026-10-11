@@ -2,7 +2,7 @@ This file holds the defects of the line discipline in `crates/podssh-terminal`,
 the rows L1 to L5 of the former defects page (`git show 3ee70dc:docs/defects.md`),
 as T-125 to T-129. `podssh serve` needs the crate on a host with no
 `/dev/ptmx` (T-111), so they come before it. No command uses the crate yet
-(`docs/STATUS.md:359`), so each defect is P2 at most. Three small terminal
+(`docs/STATUS.md:360`), so each defect is P2 at most. Three small terminal
 items for the backlog follow.
 
 # T-125: L1: the mode selection of the line discipline is the wrong way round
@@ -52,7 +52,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    discipline (T-111); a client flag can select it later. Invariant: the
    absence of a pty alone never selects `Cooked`.
 5. Rewrite the tests above to the new table. Same commit:
-   `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:359`, and the module notes
+   `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:360`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-46`,
    `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
    from the lines that you change (`AGENTS.md:207-208`).
@@ -160,7 +160,7 @@ writes over the rows above it.
 4. One `TERM` rule: remove the crate's selection, because the caller sends
    the `TERM` of the request. Remove the unused `libc` dependency.
 5. Same commit: `docs/terminal.md` (who owns raw mode and the size),
-   `docs/STATUS.md:359`.
+   `docs/STATUS.md:360`.
 
 ## Decision
 
@@ -299,7 +299,7 @@ character takes two cells and counts as one.
 3. Backspace, Ctrl-W, Ctrl-D and the arrows act on whole characters; the
    rubout and the arrow echo use the cell count (`ESC [ n D`).
 4. The history keeps bytes (`Vec<u8>`), not lossy strings.
-5. Same commit: `docs/terminal.md:107-145` (the rules), `docs/STATUS.md:359`.
+5. Same commit: `docs/terminal.md:146-184` (the rules), `docs/STATUS.md:360`.
 
 ## Decision
 
@@ -411,7 +411,7 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
    CSI state. Invariant: an escape never consumes Ctrl-C, Ctrl-D or Enter.
 3. A printable byte after a lone `ESC`: see Decision.
 4. Rewrite the tests that pin the loss. Same commit: `docs/terminal.md`
-   lines 104-111 at `a7648ff`, `docs/STATUS.md:359`.
+   lines 104-111 at `a7648ff`, `docs/STATUS.md:360`.
 
 ## Decision
 
@@ -551,12 +551,12 @@ that arrives during an edit is written over the edited line.
 2. Home, End, Ctrl-A and Ctrl-E send the motion: `ESC [ n D` or `ESC [ n C`
    by cells (T-127), or a redraw.
 3. The transparent mode of T-125 refuses nothing. Ctrl-Z, Ctrl-S and Ctrl-Q
-   stay refused in the cooked mode only (`docs/terminal.md:176-178`).
+   stay refused in the cooked mode only (`docs/terminal.md:215-217`).
 4. Output during an edit: `\r` and `ESC [ K` clear the edited line, the
    output is written, then the prompt and the line are drawn again with the
    cursor in place. Invariant: output never changes the line under edit.
 5. Rewrite the tests that pin the old behaviour. Same commit:
-   `docs/terminal.md` lines 142-151 at `cb94460`, `docs/STATUS.md:359`.
+   `docs/terminal.md` lines 142-151 at `cb94460`, `docs/STATUS.md:360`.
 
 ## Decision
 
@@ -656,7 +656,7 @@ and the program's output goes around the line under edit".
 
 **Source:** GitHub #18 and GitHub #19 (nikhiljha/rose
 `nikhiljha/rose:doc/spec.md`, lines 19-42, "Terminal Feature Boundary");
-`docs/terminal.md:147-184`.
+`docs/terminal.md:186-223`.
 **Category:** docs
 **Milestone:** backlog
 **Priority:** P3
@@ -676,7 +676,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
   (`crates/podssh-ssh/src/escape.rs:1-15`, `crates/podssh-ssh/src/escape.rs:43-79`).
   Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:188-220`).
 - Read: the line discipline acts on the arrows, Home, End and its control
-  keys, and refuses other sequences (`docs/terminal.md:147-184`). T-128 and
+  keys, and refuses other sequences (`docs/terminal.md:186-223`). T-128 and
   T-129 change that list.
 - Read in the reports of GitHub #18 and #19, not verified here: rose states
   its terminal boundary in its spec. rose is GPL: read the spec, copy no code.
@@ -737,7 +737,7 @@ escape`: 7 passed; the manual's tests of `podssh-cli`: 42 passed.
 # T-131: Which servers honour the `signal` request for Ctrl-C with no remote pty
 
 **Source:** the section "Open" of `docs/terminal.md`, now the section "Ctrl-C
-with no remote pty" (`docs/terminal.md:205-234`).
+with no remote pty" (`docs/terminal.md:244-273`).
 **Category:** measurement
 **Milestone:** backlog
 **Priority:** P3
@@ -755,7 +755,7 @@ on it. podssh cannot select a behaviour without that fact.
 
 - Read: the section "Open" of `docs/terminal.md` recorded the question as
   open; the table and the decision took its place
-  (`docs/terminal.md:205-234`).
+  (`docs/terminal.md:244-273`).
 - Read: podssh's client never sends a `signal` request: no call in
   `crates/podssh-ssh/src`. With no remote pty, the local terminal stays in
   its normal mode (`docs/terminal.md:24`), so Ctrl-C stops podssh itself.
@@ -834,7 +834,7 @@ of `docs/STATUS.md`. The client's change: T-293.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -865,13 +865,30 @@ find a case that the 14 console checks of podssh do not cover.
 1. Read csshw at the commit of the report (`6dd773b`). List each console
    mode, code page and call that it sets, and each quirk that it handles.
 2. Write a table in the section "The Windows console" of `docs/terminal.md`
-   (`docs/terminal.md:93-105`): each item of csshw against podssh, with
+   (`docs/terminal.md:93-144`): each item of csshw against podssh, with
    "same", "podssh lacks it" or "not needed", and the reason.
 3. Measure the candidates in a real console with `scripts/interop-conpty.py`:
    output that is not UTF-8 (`printf '\377'` on the server), the code page,
    Ctrl-Break, and a resize event against the poll.
 4. Each difference that is a fault gets a new entry; each item that podssh
    keeps different gets its reason in the table.
+
+## Decision
+
+2026-10-12, the calls made in the work: the measurements ran in a pseudo
+console of the test process (`crates/podssh-cli/tests/conpty_harness`),
+against the test's own SSH server, not with `scripts/interop-conpty.py`:
+that script needs a server with a shell, and none was reachable from this
+host (the tailnet's hosts were offline; MSYS2 is not installed here). The
+test's server gained `bytes HEX...` and a pty for a user `pty-...`, with
+`watch`, which reports the pty's size and the keys. The console's input mode
+is read by a process of the console around podssh, as the script does: the
+test binary itself, run again as `console_wrapper`. Ctrl-Break reaches the
+pseudo console as a key of its win32-input-mode. The code page was measured
+by its effect: text that is not ASCII shows as sent. Two faults became
+entries: T-294 (P1: lost output) and T-295 (P2: a raw console after
+Ctrl-Break); their tests are in the file, ignored until each lands. The
+resize keeps the poll.
 
 ## Prove
 
@@ -884,6 +901,27 @@ The first grep shows the table, and the second the measured result for
 output that is not UTF-8 in a console. The ConPTY run that measured it uses
 a server, as in `docs/STATUS.md:78`, and its output is recorded in
 `docs/STATUS.md`.
+
+## Correction
+
+The premise from the report of GitHub #24 ("csshw handles console color and
+ConPTY quirks") holds in part: csshw at `6dd773b` colours its own windows by
+their state (`disabled_console_color` is the colour of a host that takes no
+keys), and has no code for a pseudo console.
+
+## Done
+
+2026-10-12. `docs/terminal.md`, section "The Windows console": the table of
+the measured items and the table of csshw, each item with "same", "not
+needed" or a fault, and the reason. The tests: `cargo test -p podssh-cli
+--test console`: 3 passed (text that is not ASCII shows as sent; a resize
+reaches the server, 450 to 505 ms; after `~.` the input mode is `0x1f7`
+again), 3 ignored. With `-- --ignored`: the test of T-294 fails (the console
+shows "before" and not "after"), and that of T-295 fails (`0x3f0` after
+Ctrl-Break, `0x1f7` before). Planted defect: a podssh whose restore finds
+nothing to put back; the test of `~.` failed with `0x3f0`. `grep -n csshw
+docs/terminal.md` and `grep -n UTF-8 docs/terminal.md` show the tables; the
+run is a row of `docs/STATUS.md`. New entries: T-294 and T-295.
 
 # T-293: Ctrl-C with no remote pty sends `signal INT` to the command
 
@@ -941,3 +979,100 @@ server gets no request. In the build image, OpenSSH's `sleep 30` runs no
 more after the Ctrl-C (`ps`). On Windows, a check of
 `scripts/interop-conpty.py` sends Ctrl-C to `-T` and finds the command's
 end. Planted defect: no request sent; the first test fails.
+
+# T-294: Output that is not UTF-8 stops the session's output in a Windows console
+
+**Source:** T-132: `crates/podssh-cli/tests/console.rs`, measured 2026-10-12.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In a Windows console, a byte of the server's output that is not UTF-8 ends
+the output of the session: the text before it shows, and the byte and each
+later byte are lost, while the session goes on. A file in Latin-1, a binary
+or a program's own bytes do it, also in an interactive session. A terminal
+of Linux shows U+FFFD and goes on.
+
+## Premise
+
+- Measured (T-132): `output_after_a_byte_that_is_not_utf8_shows` in
+  `crates/podssh-cli/tests/console.rs`, ignored until this entry: "before"
+  shows, and "after" does not; podssh exits 0.
+- Read: `write_out` (`crates/podssh-ssh/src/io.rs:339-352`) writes with
+  `tokio::io::stdout()`, which writes with Rust's `Stdout`. On a console
+  that writer turns UTF-8 into UTF-16, and refuses a byte that is not
+  UTF-8 with `InvalidData`
+  (`rust-lang/rust:library/std/src/sys/stdio/windows.rs`, `write`).
+  `handle_msg` then marks stdout as gone
+  (`crates/podssh-ssh/src/io.rs:294-301`), and each later message goes
+  nowhere.
+- Read: stderr has the same writer; there the rest of the one message is
+  lost.
+
+## Approach
+
+1. When stdout or stderr is a Windows console, write each sequence that is
+   not UTF-8 as U+FFFD, and keep an incomplete sequence at the end of a
+   message for the next one, for each stream on its own.
+2. A pipe or a file gets the bytes unchanged, on each platform.
+3. Remove the ignore of the console's test, and test the replacement across
+   the end of a message.
+
+## Prove
+
+```sh
+CARGO_BUILD_JOBS=4 cargo test -p podssh-cli --test console
+CARGO_BUILD_JOBS=4 cargo test -p podssh-ssh --lib utf8
+```
+
+The console shows "before", U+FFFD and "after", and podssh exits 0. A
+character split across two messages shows whole, a bad byte as U+FFFD, and
+bytes for a pipe pass unchanged. Planted defect: no replacement; the
+console's test fails.
+
+# T-295: Ctrl-Break leaves the Windows console raw
+
+**Source:** T-132: `crates/podssh-cli/tests/console.rs`, measured 2026-10-12.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+In a session with a pty in a Windows console, Ctrl-Break ends podssh
+through the console's default handler, which runs no destructor: the
+console's input mode stays raw (`0x3f0`, where it was `0x1f7`), with no
+echo and no line input, for the program that started podssh. Ctrl-Break is
+a signal of the console in each input mode. cmd and PowerShell set their
+own mode again; another parent does not.
+
+## Premise
+
+- Measured (T-132): `ctrl_break_leaves_the_console_mode_as_it_was` in
+  `crates/podssh-cli/tests/console.rs`, ignored until this entry; podssh
+  ended with `0xC000013A`.
+- Read: podssh restores the console's modes on drop and on panic
+  (`crates/podssh-ssh/src/terminal/windows.rs:68-111`), and `podssh ssh`
+  installs no console control handler.
+
+## Approach
+
+1. While the console is raw, a console control handler puts the saved modes
+   back at Ctrl-Break, at a closed window, at logoff and at shutdown, then
+   lets the default handler end podssh, as now.
+2. Remove the ignore of the console's test.
+
+## Prove
+
+```sh
+CARGO_BUILD_JOBS=4 cargo test -p podssh-cli --test console -- ctrl_break
+```
+
+The input mode after Ctrl-Break is the one before it. Planted defect: no
+handler; the test fails.

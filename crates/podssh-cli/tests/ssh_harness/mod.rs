@@ -25,7 +25,8 @@
 //! client's first packet on it, and prints the X server's status and that
 //! cookie. A direct-streamlocal channel to the socket `/echo` (T-040) sends
 //! back what it gets; to another socket it is refused. `exit N` and `kill NAME` end as a
-//! shell's do (T-054, `ends.rs`).
+//! shell's do (T-054, `ends.rs`). `bytes HEX...` sends chosen bytes, and a
+//! user named `pty-...` gets a pty, for `watch` (T-132, `console.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -39,6 +40,7 @@ use std::time::Duration;
 use russh::server::{self, Auth, Msg, Session};
 use russh::{Channel, ChannelId};
 
+mod console;
 mod ends;
 mod sudo;
 mod x11;
@@ -80,6 +82,11 @@ struct Far {
     elevated: HashMap<ChannelId, Elevated>,
     /// The cookie of the client's `x11-req`, in hexadecimal.
     x11_cookie: Option<String>,
+    /// The user `pty-...`: a pty is granted; its size, and the channels of
+    /// `watch` (T-132).
+    pty: bool,
+    pty_size: (u32, u32),
+    watches: Vec<ChannelId>,
 }
 
 impl server::Handler for Far {
@@ -92,6 +99,7 @@ impl server::Handler for Far {
         self.late = user.starts_with("late-");
         self.su = user.starts_with("su-");
         self.nopass = user.starts_with("sudo-nopass-");
+        self.pty = user.starts_with("pty-");
         // A user named key-...: a key is needed, as from an agent (T-034).
         if user.starts_with("key-") {
             return Ok(Auth::Reject {
@@ -181,16 +189,33 @@ impl server::Handler for Far {
         &mut self,
         channel: ChannelId,
         _term: &str,
-        _cols: u32,
-        _rows: u32,
+        cols: u32,
+        rows: u32,
         _px_width: u32,
         _px_height: u32,
         _modes: &[(russh::Pty, u32)],
         session: &mut Session,
     ) -> Result<(), Self::Error> {
         // No reply for the others, as before.
-        if self.su {
+        if self.su || self.pty {
             session.channel_success(channel)?;
+        }
+        self.pty_size = (cols, rows);
+        Ok(())
+    }
+
+    async fn window_change_request(
+        &mut self,
+        channel: ChannelId,
+        cols: u32,
+        rows: u32,
+        _px_width: u32,
+        _px_height: u32,
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.pty_size = (cols, rows);
+        if self.watches.contains(&channel) {
+            console::watch_size(self.pty_size, channel, session)?;
         }
         Ok(())
     }
@@ -244,6 +269,13 @@ impl server::Handler for Far {
         }
         if let Some(ended) = ends::ended(&command, channel, session) {
             return ended;
+        }
+        if let Some(sent) = console::bytes(&command, channel, session) {
+            return sent;
+        }
+        if command == "watch" && self.pty {
+            self.watches.push(channel);
+            return console::watch(channel, self.pty_size, session);
         }
         if command == "x11-probe" {
             let cookie = self.x11_cookie.clone().unwrap_or_default();
@@ -349,33 +381,19 @@ impl server::Handler for Far {
     }
 
     async fn data(&mut self, channel: ChannelId, data: &[u8], session: &mut Session) -> Result<(), Self::Error> {
-        if let Some(elevated) = self.elevated.get_mut(&channel) {
-            elevated.line.extend_from_slice(data);
-            let Some(end) = elevated.line.iter().position(|b| *b == b'\n') else { return Ok(()) };
-            let Elevated { prompt, started, line } = self.elevated.remove(&channel).expect("the command");
-            // The password alone: any other input is held until the start.
-            let password = String::from_utf8_lossy(&line[..end]).trim_end_matches('\r').to_string();
-            let right = password == "secret" && end + 1 == line.len();
-            match (prompt, right) {
-                (Some(_), true) => {
-                    session.extended_data(channel, 1, started.into_bytes())?;
-                    session.data(channel, b"0\n".as_slice())?;
-                    self.echoes.push(channel);
+        if let Some(elevated) = self.elevated.remove(&channel) {
+            match sudo::password(elevated, data, channel, session)? {
+                sudo::Read::Waiting(elevated) => {
+                    self.elevated.insert(channel, elevated);
                 }
-                (None, true) => {
-                    session.data(channel, format!("\r\n{started}0\n").into_bytes())?;
-                    self.echoes.push(channel);
-                }
-                (Some(prompt), false) => {
-                    session.extended_data(channel, 1, format!("Sorry, try again.\n{prompt}").into_bytes())?;
-                    self.elevated.insert(channel, Elevated { prompt: Some(prompt), started, line: Vec::new() });
-                }
-                (None, false) => {
-                    session.data(channel, b"\r\nsu: Authentication failure\r\n".as_slice())?;
-                    session.exit_status_request(channel, 1)?;
-                    session.eof(channel)?;
-                    session.close(channel)?;
-                }
+                sudo::Read::Started => self.echoes.push(channel),
+                sudo::Read::Refused => {}
+            }
+            return Ok(());
+        }
+        if let Some(at) = self.watches.iter().position(|c| *c == channel) {
+            if console::watch_input(data, channel, session)? {
+                self.watches.remove(at);
             }
             return Ok(());
         }
