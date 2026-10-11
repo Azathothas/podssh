@@ -13,7 +13,7 @@ support scripts/interop-conpty-msys2.py
 harness ssh interop 71 scripts/interop.sh
 harness limits interop 2 scripts/interop-limits.sh
 harness status interop 6 scripts/interop-status.sh
-harness keygen interop 47 scripts/interop-keygen.sh
+harness keygen interop 59 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
 harness control interop 13 scripts/interop-control.sh
@@ -159,6 +159,18 @@ keygen.known_hosts.openssh_finds_hashed pass
 keygen.known_hosts.finds_openssh_hashed pass
 keygen.known_hosts.remove pass
 keygen.known_hosts.removed_as_openssh pass
+keygen.sign.make.ed25519 pass
+keygen.sign.openssh_verifies.ed25519 pass
+keygen.sign.verifies_openssh.ed25519 pass
+keygen.sign.both_refuse.ed25519 pass
+keygen.sign.make.ecdsa pass
+keygen.sign.openssh_verifies.ecdsa pass
+keygen.sign.verifies_openssh.ecdsa pass
+keygen.sign.both_refuse.ecdsa pass
+keygen.sign.make.rsa pass
+keygen.sign.openssh_verifies.rsa pass
+keygen.sign.verifies_openssh.rsa pass
+keygen.sign.both_refuse.rsa pass
 keygen.refuse.overwrite pass
 keygen.refuse.overwrite_unchanged pass
 keygen.refuse.argv_passphrase pass

@@ -110,7 +110,14 @@ pub fn add(cmd: Command, name: &str) -> Command {
                 .value_name("[user@]host")
                 .help("a host whose host key is looked up: [user@]host, host:PORT or [IPV6]:PORT"),
         ),
-        "doctor" | "keygen" => cmd,
+        // `-Y sign` signs each file (T-020); with none, standard input.
+        "keygen" => cmd.arg(
+            Arg::new("files")
+                .value_name("FILE")
+                .num_args(1..)
+                .help("with -Y sign: the files to sign, each to FILE.sig; with none, standard input to standard output"),
+        ),
+        "doctor" => cmd,
         // `ts` takes its three forms: bare (status), `[user@]host` (a session)
         // and `-W` (a byte pipe).
         "ts" => cmd

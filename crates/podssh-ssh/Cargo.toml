@@ -56,6 +56,12 @@ md5 = "0.8"
 # versions that russh pulls in, and the `sha1` and `des` that the tree has.
 pkcs5 = { version = "0.8.1", default-features = false, features = ["sha1-insecure", "3des"] }
 pkcs8 = { version = "0.11", default-features = false, features = ["encryption"] }
+# SSH signatures (T-020): the digest of a file read in pieces, and the times
+# of an allowed-signers file, which are local unless they end in Z. The
+# versions and features that the build has (sha2 the workspace's; chrono
+# russh-sftp's), so nothing new is compiled.
+sha2 = { workspace = true }
+chrono = "0.4.45"
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

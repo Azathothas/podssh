@@ -575,6 +575,17 @@ GitHub #23): the time of each step, the round trip, and the throughput.
   wildcard, as its key is for other hosts too, and says so; and a line that
   is no line of a host key stays as it is, where OpenSSH refuses to rewrite
   the file.
+- `-Y sign`, `verify`, `check-novalidate`, `find-principals` and
+  `match-principals` make and check SSH signatures (PROTOCOL.sshsig) as
+  `ssh-keygen -Y` does, with its lines and messages (T-020); git's signing
+  with SSH keys calls them. `sign` signs each FILE to `FILE.sig`, never over
+  one, or standard input to standard output; the agent signs when it holds
+  the key of `-f` (with `-U`, the agent alone), else the private key in
+  `-f`. An RSA key signs with SHA-512 through aws-lc-rs. `verify` reads an
+  allowed-signers file with its `namespaces=`, `valid-after=` and
+  `valid-before=`, and a failure exits 1 where OpenSSH exits 255. A
+  signature made with a certificate, and `cert-authority` lines, are not
+  read yet (T-289); `-r`, a revocation list, is refused.
 - DSA is refused, because OpenSSH 10 removed it.
 - An RSA key is made by aws-lc-rs, whose RSA is constant-time, never by the
   `rsa` crate, whose private-key operations are not (RUSTSEC-2023-0071, the

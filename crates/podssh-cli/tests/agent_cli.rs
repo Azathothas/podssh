@@ -196,3 +196,43 @@ fn agent_refuses_to_listen_when_listening_is_off() {
     assert_eq!(out.status.code(), Some(78), "{err}");
     assert!(err.contains("PODSSH_LISTEN=no"), "{err}");
 }
+
+/// `podssh keygen -Y sign -U` signs with the agent's key, as git signs with
+/// a key that an agent holds (T-020): `-f` names the public key alone, and
+/// the signature holds. Once the agent forgets the key, `-U` refuses.
+#[test]
+fn keygen_signs_with_the_agents_key() {
+    let home = scratch("sign");
+    let key = home.join("id_sign");
+    let made = Command::new(env!("CARGO_BIN_EXE_podssh"))
+        .args(["keygen", "-q", "-t", "ed25519", "-N", "", "-C", "sign-test", "-f"])
+        .arg(&key)
+        .status()
+        .unwrap();
+    assert!(made.success());
+    let (running, sock) = agent(&home, &[]);
+    let added = ran(podssh(&home, Some(&sock), &["agent", "add", key.to_str().unwrap()]));
+    assert_eq!(added.status.code(), Some(0), "{}", String::from_utf8_lossy(&added.stderr));
+    let data = home.join("data");
+    std::fs::write(&data, b"signed by the agent\n").unwrap();
+    let public = format!("{}.pub", key.display());
+    let sign = |sock: &str| {
+        let mut cmd = podssh(&home, Some(sock), &["keygen", "-q", "-Y", "sign", "-U", "-f", &public, "-n", "git"]);
+        cmd.arg(&data);
+        ran(cmd)
+    };
+    let signed = sign(&sock);
+    assert_eq!(signed.status.code(), Some(0), "{}", String::from_utf8_lossy(&signed.stderr));
+    let mut check = podssh(&home, None, &["keygen", "-Y", "check-novalidate", "-n", "git", "-s"]);
+    check.arg(format!("{}.sig", data.display())).stdin(std::fs::File::open(&data).unwrap());
+    let checked = check.output().unwrap();
+    assert_eq!(checked.status.code(), Some(0), "{}", String::from_utf8_lossy(&checked.stderr));
+    assert!(String::from_utf8_lossy(&checked.stdout).starts_with("Good \"git\" signature with ED25519 key SHA256:"));
+    std::fs::remove_file(format!("{}.sig", data.display())).unwrap();
+    let removed = ran(podssh(&home, Some(&sock), &["agent", "remove", "--all"]));
+    assert_eq!(removed.status.code(), Some(0), "{}", String::from_utf8_lossy(&removed.stderr));
+    let refused = sign(&sock);
+    assert_eq!(refused.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("the agent does not hold the key"));
+    drop(running);
+}

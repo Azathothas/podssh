@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**285 entries: 85 open, 0 partial, 22 blocked, 178 done.**
+**286 entries: 85 open, 0 partial, 22 blocked, 179 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 134 | 156 |
-| P3 | 79 | 0 | 4 | 22 | 105 |
-| **All** | 85 | 0 | 22 | 178 | 285 |
+| P3 | 79 | 0 | 4 | 23 | 106 |
+| **All** | 85 | 0 | 22 | 179 | 286 |
 
 ## Entries
 
@@ -93,7 +93,7 @@ repository and CI).
 | [T-017](cli.md) | P0 | S | M3 | defect | done | A repeated flag follows OpenSSH; `-J` and `-W` only once (GitHub #16) |
 | [T-018](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -p` and `-c`: change the passphrase and the comment of a key |
 | [T-019](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -F`, `-R` and `-H`: find, remove and hash `known_hosts` entries |
-| [T-020](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -Y`: SSH signatures |
+| [T-020](cli.md) | P3 | M | backlog | feature | done | `podssh keygen -Y`: SSH signatures |
 | [T-021](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -s`: user and host certificates |
 | [T-022](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -e`, `-i` and `-m`: convert key formats |
 | [T-023](ssh.md) | P2 | S | M3 | defect | done | With `PubkeyAuthentication=no`, the denial still says "no key was offered; use -i FILE" (GitHub #7) |
@@ -360,3 +360,4 @@ repository and CI).
 | [T-286](repo.md) | P1 | S | none | defect | done | Two tests of the record's interop share one scratch tree, and one removes it under the other |
 | [T-287](ssh.md) | P2 | S | none | defect | done | An encrypted key of PKCS#8 or of PuTTY is never asked for, and an encrypted ECDSA key in PEM is refused with its passphrase |
 | [T-288](cli.md) | P1 | S | none | defect | done | On Windows, `podssh keygen` writes a private key with the access list of its directory |
+| [T-289](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -Y` with certificates: a signature made with a certificate, and `cert-authority` lines |

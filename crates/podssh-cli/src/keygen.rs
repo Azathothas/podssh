@@ -54,6 +54,15 @@ pub struct KeygenArgs {
     pub find_host: Option<String>,
     pub remove_host: Option<String>,
     pub hash_hosts: bool,
+    /// `-Y OP` and its flags: SSH signatures (T-020).
+    pub signature_op: Option<String>,
+    pub namespace: Option<String>,
+    pub signature_file: Option<String>,
+    pub identity: Option<String>,
+    pub options: Vec<String>,
+    pub agent_key: bool,
+    /// The files that `-Y sign` signs.
+    pub files: Vec<String>,
 }
 
 impl KeygenArgs {
@@ -61,6 +70,9 @@ impl KeygenArgs {
     /// declare read as absent.
     pub fn from_matches(m: &ArgMatches) -> Self {
         let one = |id: &str| m.try_get_one::<String>(id).ok().flatten().cloned();
+        let many = |id: &str| -> Vec<String> {
+            m.try_get_many::<String>(id).ok().flatten().map(|v| v.cloned().collect()).unwrap_or_default()
+        };
         let flag = |id: &str| m.try_get_one::<bool>(id).ok().flatten().copied().unwrap_or(false);
         let given = |id: &str| match m.try_get_one::<String>(id).ok().flatten() {
             None => NewPassphrase::Absent,
@@ -83,6 +95,13 @@ impl KeygenArgs {
             find_host: one("find-host"),
             remove_host: one("remove-host"),
             hash_hosts: flag("hash-hosts"),
+            signature_op: one("signature"),
+            namespace: one("namespace"),
+            signature_file: one("signature-file"),
+            identity: one("identity"),
+            options: many("option"),
+            agent_key: flag("agent-key"),
+            files: many("files"),
         }
     }
 }
@@ -103,6 +122,29 @@ pub fn run_keygen(args: &KeygenArgs, out: &mut dyn Write, err: &mut dyn Write) -
             "podssh keygen: a passphrase on the command line is refused: every process on this host can read it.\n  \
              Leave -P out to be asked for the old one (terminal or SSH_ASKPASS), or use -P '' for a key without one."
         );
+        return EXIT_USAGE;
+    }
+    if args.signature_op.is_some() {
+        if args.find_host.is_some() || args.remove_host.is_some() || args.hash_hosts {
+            let _ = writeln!(err, "podssh keygen: -Y cannot go with -F, -R or -H");
+            return EXIT_USAGE;
+        }
+        if args.change_passphrase || args.change_comment || args.print_public || args.fingerprint {
+            let _ = writeln!(err, "podssh keygen: -Y cannot go with -p, -c, -y or -l");
+            return EXIT_USAGE;
+        }
+        return crate::keygen_sign::run(args, out, err);
+    }
+    let lone = [
+        (args.namespace.is_some(), "-n"),
+        (args.signature_file.is_some(), "-s"),
+        (args.identity.is_some(), "-I"),
+        (!args.options.is_empty(), "-O"),
+        (args.agent_key, "-U"),
+        (!args.files.is_empty(), "a FILE argument"),
+    ];
+    if let Some((_, flag)) = lone.iter().find(|(given, _)| *given) {
+        let _ = writeln!(err, "podssh keygen: {flag} goes with -Y (SSH signatures)");
         return EXIT_USAGE;
     }
     if args.find_host.is_some() || args.remove_host.is_some() || args.hash_hosts {

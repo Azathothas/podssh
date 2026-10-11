@@ -344,6 +344,12 @@ const KEYGEN: &[&str] = &[
      removes them, and -H hashes each host name, as ssh-keygen does; a host on another port is [HOST]:PORT. -R \
      and -H keep the old text as FILE.old. -R keeps a line that names the host through a wildcard, as its key \
      is for other hosts too.",
+    "podssh keygen -Y sign -f KEY -n NAMESPACE FILE signs FILE to FILE.sig, or standard input to standard \
+     output, as ssh-keygen -Y sign does for git; the agent signs when it holds the key of KEY (-U: the agent \
+     alone). -Y verify -f SIGNERS -I PRINCIPAL -n NAMESPACE -s FILE.sig checks the data on standard input \
+     against SIGNERS, an allowed-signers file, and says Good or Could not verify signature. (exit 1). -Y \
+     check-novalidate, find-principals and match-principals are those of ssh-keygen. A signature never \
+     replaces a file.",
     "podssh asks for the passphrase two times, on the terminal or through SSH_ASKPASS. -N '' makes a key \
      with no passphrase. A passphrase given with -N is refused, because each process on the host can \
      read a command line. With no terminal and no SSH_ASKPASS, podssh stops at once and names -N ''.",

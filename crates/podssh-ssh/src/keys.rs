@@ -323,6 +323,14 @@ fn warn_if_readable_by_others(path: &Path, log: &Log) {
     let _ = (path, log);
 }
 
+/// The keys that the agent of `choice` holds: none when no agent runs (for
+/// `podssh keygen -Y sign`, T-020).
+pub async fn agent_keys(choice: &Agent) -> Result<Vec<PublicKey>, String> {
+    let Some(mut agent) = connect_agent(choice).await? else { return Ok(Vec::new()) };
+    let held = agent.request_identities().await.map_err(|e| e.to_string())?;
+    Ok(held.iter().map(|id| id.public_key().into_owned()).collect())
+}
+
 /// The agent of `choice`, or `None` when none runs: for the login, and
 /// for each agent channel of `-A` (T-036).
 pub(crate) async fn connect_agent(choice: &Agent) -> Result<Option<DynAgent>, String> {

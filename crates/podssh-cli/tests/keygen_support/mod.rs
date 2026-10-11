@@ -128,3 +128,34 @@ pub fn podssh_asked(args: &[&str], askpass: &str, old: &str, new: &str) -> Run {
 pub fn key_part(line: &str) -> String {
     line.split_whitespace().take(2).collect::<Vec<_>>().join(" ")
 }
+
+/// Run `podssh ARGS` with `input` on stdin, nothing to ask with, and no
+/// agent: SSH_AUTH_SOCK names a file that is not there.
+pub fn podssh_input(args: &[&str], input: &[u8], dir: &Path) -> Run {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
+    cmd.args(args)
+        .env("PODSSH_OFFLINE", "1")
+        .env("SSH_AUTH_SOCK", dir.join("no-agent"))
+        .env_remove("SSH_ASKPASS")
+        .env_remove("SSH_ASKPASS_REQUIRE")
+        .env_remove("DISPLAY")
+        .env_remove("WAYLAND_DISPLAY")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    detach(&mut cmd);
+    let mut child = cmd.spawn().expect("the podssh binary runs");
+    let mut stdin = child.stdin.take().expect("its stdin");
+    let input = input.to_vec();
+    let feeder = std::thread::spawn(move || {
+        use std::io::Write;
+        let _ = stdin.write_all(&input);
+    });
+    let output = child.wait_with_output().expect("podssh ends");
+    let _ = feeder.join();
+    Run {
+        code: output.status.code().unwrap_or(-1),
+        out: String::from_utf8_lossy(&output.stdout).into_owned(),
+        err: String::from_utf8_lossy(&output.stderr).into_owned(),
+    }
+}

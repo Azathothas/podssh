@@ -57,6 +57,14 @@ impl RsaSigner {
         let pair = KeyPair::from_der(&der).map_err(|e| format!("aws-lc-rs refused the RSA key: {e}"))?;
         Ok(RsaSigner { pair })
     }
+
+    /// The signature of `data` with SHA-512 (`rsa-sha2-512`), as an SSH
+    /// signature of OpenSSH's takes it (T-020).
+    pub(crate) fn sign_sha512(&self, data: &[u8]) -> Result<Vec<u8>, SignError> {
+        let mut signature = vec![0u8; self.pair.public_modulus_len()];
+        self.pair.sign(&RSA_PKCS1_SHA512, &SystemRandom::new(), data, &mut signature).map_err(|_| SignError::Failed)?;
+        Ok(signature)
+    }
 }
 
 /// Why an RSA key did not sign.

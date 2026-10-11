@@ -155,6 +155,42 @@ cmp -s "$KH.ours" "$KH.openssh" && cmp -s "$KH.ours.old" "$KH.plain" \
     && ok keygen.known_hosts.removed_as_openssh "keygen -R leaves the file that ssh-keygen -R leaves, and FILE.old" \
     || bad keygen.known_hosts.removed_as_openssh "keygen -R left another file than ssh-keygen -R" "$KH.ours"
 
+# SSH signatures (T-020): OpenSSH's ssh-keygen -Y verify accepts each
+# signature of keygen -Y sign, keygen -Y verify each of OpenSSH's, and both
+# refuse changed data and another namespace.
+printf 'signed data\n' >"$KG/data"
+printf 'changed data\n' >"$KG/changed"
+for t in ed25519 ecdsa rsa; do
+    key="$KG/id_$t"
+    printf 'signer@example.com %s\n' "$(cut -d' ' -f1,2 "$key.pub")" >"$KG/allowed_$t"
+    rm -f "$KG/data.sig"
+    "$BIN" keygen -q -Y sign -f "$key" -n git "$KG/data" >"$KG/out" 2>"$KG/err"
+    expect_rc "keygen.sign.make.${t}" "keygen -Y sign with an $t key" 0 $? "$KG/err"
+    mv "$KG/data.sig" "$KG/ours_$t.sig"
+    ssh-keygen -q -Y sign -f "$key" -n git "$KG/data" >/dev/null 2>&1
+    mv "$KG/data.sig" "$KG/theirs_$t.sig"
+    ssh-keygen -Y verify -f "$KG/allowed_$t" -I signer@example.com -n git -s "$KG/ours_$t.sig" \
+        <"$KG/data" >"$KG/out" 2>&1
+    expect_rc "keygen.sign.openssh_verifies.${t}" "ssh-keygen -Y verify accepts the $t signature of keygen -Y sign" \
+        0 $? "$KG/out"
+    "$BIN" keygen -Y verify -f "$KG/allowed_$t" -I signer@example.com -n git -s "$KG/theirs_$t.sig" \
+        <"$KG/data" >"$KG/out" 2>&1
+    expect_rc "keygen.sign.verifies_openssh.${t}" "keygen -Y verify accepts the $t signature of ssh-keygen -Y sign" \
+        0 $? "$KG/out"
+    refused=0
+    ssh-keygen -Y verify -f "$KG/allowed_$t" -I signer@example.com -n git -s "$KG/ours_$t.sig" \
+        <"$KG/changed" >/dev/null 2>&1 || refused=$((refused + 1))
+    ssh-keygen -Y verify -f "$KG/allowed_$t" -I signer@example.com -n file -s "$KG/ours_$t.sig" \
+        <"$KG/data" >/dev/null 2>&1 || refused=$((refused + 1))
+    "$BIN" keygen -Y verify -f "$KG/allowed_$t" -I signer@example.com -n git -s "$KG/theirs_$t.sig" \
+        <"$KG/changed" >/dev/null 2>&1 || refused=$((refused + 1))
+    "$BIN" keygen -Y verify -f "$KG/allowed_$t" -I signer@example.com -n file -s "$KG/theirs_$t.sig" \
+        <"$KG/data" >/dev/null 2>&1 || refused=$((refused + 1))
+    [ "$refused" = 4 ] \
+        && ok "keygen.sign.both_refuse.${t}" "each tool refuses changed data and another namespace, $t" \
+        || bad "keygen.sign.both_refuse.${t}" "$refused of 4 refusals of changed data or another namespace, $t"
+done
+
 # Refusals leave nothing behind.
 before=$(sha256sum <"$KG/id_ed25519")
 "$BIN" keygen -N '' -q -f "$KG/id_ed25519" >"$KG/out" 2>"$KG/err"

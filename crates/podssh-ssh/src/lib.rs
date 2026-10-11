@@ -51,6 +51,7 @@ pub mod session;
 pub mod sftp;
 pub mod signals;
 mod socks;
+pub mod sshsig;
 pub mod terminal;
 
 /// A connection to one hop, logged in.
