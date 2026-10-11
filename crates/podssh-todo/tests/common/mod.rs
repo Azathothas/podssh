@@ -148,8 +148,12 @@ pub struct Tree {
 }
 
 impl Tree {
+    /// Each call has a directory of its own: two tests that run at once
+    /// with one name must not remove each other's tree (T-286).
     pub fn new(name: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("podssh-todo-{}-{name}", std::process::id()));
+        static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!("podssh-todo-{}-{name}-{call}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         let t = Self { root };
         t.write("TODO/INDEX.md", INDEX);

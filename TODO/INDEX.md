@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**282 entries: 89 open, 0 partial, 22 blocked, 171 done.**
+**283 entries: 89 open, 0 partial, 22 blocked, 172 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
-| P1 | 2 | 0 | 0 | 19 | 21 |
+| P1 | 2 | 0 | 0 | 20 | 22 |
 | P2 | 5 | 0 | 18 | 132 | 155 |
 | P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 89 | 0 | 22 | 171 | 282 |
+| **All** | 89 | 0 | 22 | 172 | 283 |
 
 ## Entries
 
@@ -357,3 +357,4 @@ repository and CI).
 | [T-283](repo.md) | P1 | S | none | defect | done | The console checks type into `less` and `top` before they have drawn |
 | [T-284](ssh.md) | P1 | S | none | defect | done | `podssh agent` signs with a key added for a confirmation of each use |
 | [T-285](ssh.md) | P2 | S | none | defect | done | A login waits out its limit after the agent fails to sign |
+| [T-286](repo.md) | P1 | S | none | defect | done | Two tests of the record's interop share one scratch tree, and one removes it under the other |

@@ -3195,3 +3195,46 @@ The workflow passes 20 runs in a row, and the job `windows` of the push passes.
 of `top` waits for its load average before `q`. The workflow `conpty-repeat`
 (`.github/workflows/conpty-repeat.yml`), started by hand at `ff75425` (run 38131561933): 20 of 20
 runs passed, each 14 of 14 checks, and the job `windows` of that push passed them too.
+
+# T-286: Two tests of the record's interop share one scratch tree, and one removes it under the other
+
+**Source:** the whole workspace's tests on Windows, 2026-10-11, during T-274:
+`each_way_that_a_run_misses_the_baseline_is_named` of `crates/podssh-todo/tests/interop.rs` failed
+once, and passed three times alone.
+**Category:** defect
+**Milestone:** none
+**Priority:** P1
+**Effort:** S
+**Status:** done
+
+## Problem
+
+A test of the record failed at random. A check that fails at random hides a real failure.
+
+## Premise
+
+Read, at `262c7c0`: the scratch tree of a test is `podssh-todo-PID-NAME` in the temporary
+directory (`crates/podssh-todo/tests/common/mod.rs`, lines 151-153), so two trees of one name in
+one run are one directory, which each removes as it starts and when it drops (lines 194-197).
+`scored` makes its tree under the name `score` (`crates/podssh-todo/tests/interop.rs:169-174`), and
+two tests that run at once call it. Measured: 30 runs of the test binary, six at once, failed 5
+times, each in a write of the tree, or with a baseline that a removal had taken away.
+
+## Approach
+
+Each tree gets a directory of its own: a count of the calls in the process in its name. The drop
+of one test's tree then removes nothing of another's.
+
+## Prove
+
+```sh
+cargo test -p podssh-todo --test interop
+```
+
+60 runs of the test binary, six at once, all pass; and 20 runs of the crate's tests in a row.
+
+## Done
+
+2026-10-11. `crates/podssh-todo/tests/common/mod.rs:153-156`: the name of each tree has a count of
+the calls in the process. 60 runs of the test binary, six at once: 60 passed, where 5 of 30 failed
+before; 20 runs of `cargo test -p podssh-todo` in a row: 20 passed.
