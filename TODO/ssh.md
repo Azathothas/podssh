@@ -2368,3 +2368,6 @@ cipher are refused by name before the question.
 - `cargo test -p podssh-ssh`: 120 passed; `cargo test -p podssh-cli`: 544 passed, 0 failed, 31
   ignored; clippy. In the build image: the tests of `key_file` and `keygen`, and of `podssh
   agent`, passed.
+- At `fbb9b94` the gate's step lint failed in CI on the format of
+  `crates/podssh-ssh/src/key_file_tests.rs`, which rustfmt had not been run on; the next commit
+  formats it, and `cargo fmt` of the gate's packages finds nothing more.

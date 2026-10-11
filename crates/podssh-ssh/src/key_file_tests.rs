@@ -191,9 +191,11 @@ fn the_pkcs8_schemes_of_openssh_and_openssl_open() {
     use pkcs5::pbes2::{EncryptionScheme, Pbkdf2Prf};
     let key = PrivateKey::random(&mut rand::rng(), Algorithm::Ecdsa { curve: EcdsaCurve::NistP256 }).unwrap();
     let der = pkcs8_der(&key);
-    let openssh = encrypt_pkcs8(&der, Pbkdf2Prf::HmacWithSha1, EncryptionScheme::Aes128Cbc { iv: rand::random() }, "p8");
+    let openssh =
+        encrypt_pkcs8(&der, Pbkdf2Prf::HmacWithSha1, EncryptionScheme::Aes128Cbc { iv: rand::random() }, "p8");
     asked_then_opened(&openssh, &key, "p8", "PKCS#8 of OpenSSH: HMAC-SHA1, AES-128-CBC");
-    let des3 = encrypt_pkcs8(&der, Pbkdf2Prf::HmacWithSha256, EncryptionScheme::DesEde3Cbc { iv: rand::random() }, "p8");
+    let des3 =
+        encrypt_pkcs8(&der, Pbkdf2Prf::HmacWithSha256, EncryptionScheme::DesEde3Cbc { iv: rand::random() }, "p8");
     asked_then_opened(&des3, &key, "p8", "PKCS#8 of OpenSSL's -v2 des3");
 }
 
