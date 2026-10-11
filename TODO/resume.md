@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:199-349`).
+   (`crates/podssh-cli/src/man/facts.rs:200-350`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -817,10 +817,10 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:194-231`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:292-330`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:295-334`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:332-346` (the `warnings` of keepalives), and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:334-348` (the `warnings` of keepalives), and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -834,11 +834,11 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:332-346` (the `warnings` of keepalives).
+   `crates/podssh-cli/src/ssh/resolve.rs:334-348` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:273-288`,
-   `crates/podssh-cli/src/man/facts.rs:315-324`), the note at
-   `crates/podssh-cli/src/man/notes.rs:153`, `docs/relay.md`, `README.md`.
+   (`crates/podssh-cli/src/man/facts.rs:274-289`,
+   `crates/podssh-cli/src/man/facts.rs:316-325`), the note at
+   `crates/podssh-cli/src/man/notes.rs:159`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -957,7 +957,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:199-349`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:200-350`).
 
 ## Decision
 

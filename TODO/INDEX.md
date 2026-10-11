@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**287 entries: 80 open, 0 partial, 22 blocked, 185 done.**
+**287 entries: 79 open, 0 partial, 22 blocked, 186 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 135 | 157 |
-| P3 | 74 | 0 | 4 | 28 | 106 |
-| **All** | 80 | 0 | 22 | 185 | 287 |
+| P3 | 73 | 0 | 4 | 29 | 106 |
+| **All** | 79 | 0 | 22 | 186 | 287 |
 
 ## Entries
 
@@ -110,7 +110,7 @@ repository and CI).
 | [T-034](ssh.md) | P2 | L | backlog | feature | done | `podssh agent`: an SSH agent inside podssh, with no separate binary |
 | [T-035](forwarding.md) | P2 | M | M8 | feature | done | `-R`: remote forwarding, each connection made out through the proxy |
 | [T-036](forwarding.md) | P2 | M | backlog | feature | done | `-A`: agent forwarding, off by default as in OpenSSH |
-| [T-037](forwarding.md) | P3 | M | backlog | feature | open | `-X` and `-Y`: X11 forwarding to the display that `DISPLAY` names |
+| [T-037](forwarding.md) | P3 | M | backlog | feature | done | `-X` and `-Y`: X11 forwarding to the display that `DISPLAY` names |
 | [T-038](forwarding.md) | P2 | M | backlog | feature | done | `-L` and `-D` when a probe shows that a local bind is allowed |
 | [T-039](forwarding.md) | P2 | M | backlog | feature | done | Connection sharing: `ControlMaster`, `ControlPath`, `-O` and `-S` over an AF_UNIX socket |
 | [T-040](forwarding.md) | P3 | S | backlog | feature | open | `-W` to a Unix socket on the server (streamlocal) |

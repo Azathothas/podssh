@@ -48,6 +48,9 @@ pub struct Client {
     /// The agent that this server may use (`-A`): an agent channel is
     /// accepted only when it is on, which it is for the destination alone.
     agent: Forward,
+    /// The display that this server may use (`-X`, `-Y`): an `x11` channel
+    /// is accepted only then, for the destination alone (T-037).
+    x11: Option<crate::x11::Forward>,
 }
 
 impl Client {
@@ -59,12 +62,20 @@ impl Client {
             disconnect: Arc::new(Mutex::new(None)),
             forwards: Arc::new(Mutex::new(Vec::new())),
             agent: Forward::new(Agent::Off),
+            x11: None,
         }
     }
 
     /// Let this server use `agent` (T-036): the destination's, with `-A`.
     pub fn forwarding_agent(mut self, agent: Agent) -> Self {
         self.agent = Forward::new(agent);
+        self
+    }
+
+    /// Let this server open X11 channels to `x11` (T-037): the destination's,
+    /// with `-X` or `-Y`.
+    pub fn forwarding_x11(mut self, x11: Option<crate::x11::Forward>) -> Self {
+        self.x11 = x11;
         self
     }
 
@@ -85,10 +96,10 @@ impl Client {
 
     /// The one place that refuses a channel that the server opens and podssh
     /// did not ask for, as OpenSSH refuses it; russh would accept it, and read
-    /// and drop its data with no end. -R and -A (T-035, T-036) accept their
-    /// own channels before this; -X (T-037) will accept its own kind, only
-    /// for its own requests. Each reads an accepted channel at once or closes
-    /// it: a channel kept unread stops the whole session.
+    /// and drop its data with no end. -R, -A and -X (T-035, T-036, T-037)
+    /// accept their own channels before this, only for their own requests.
+    /// Each reads an accepted channel at once or closes it: a channel kept
+    /// unread stops the whole session.
     async fn unasked(&self, kind: &str, reply: ChannelOpenHandle) {
         match kind {
             "auth-agent@openssh.com" => {
@@ -237,13 +248,16 @@ impl Handler for Client {
 
     async fn server_channel_open_x11(
         &mut self,
-        _channel: Channel<Msg>,
+        channel: Channel<Msg>,
         _originator_address: &str,
         _originator_port: u32,
         reply: ChannelOpenHandle,
         _session: &mut Session,
     ) -> Result<(), Self::Error> {
-        self.unasked("x11", reply).await;
+        match &self.x11 {
+            Some(x11) => crate::x11::join(x11.clone(), channel, reply, self.log.clone()),
+            None => self.unasked("x11", reply).await,
+        }
         Ok(())
     }
 }

@@ -73,6 +73,8 @@ pub struct Resolved {
     pub control: super::control::Plan,
     /// `--record FILE` (T-033), made as the run starts.
     pub record: Option<PathBuf>,
+    /// `-X` and `-Y` (T-037), probed as the run starts.
+    pub x11: Option<super::x11::Plan>,
 }
 
 /// What the process environment contributes, gathered once so it can be
@@ -407,9 +409,18 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         gateway_ports: args.gateway_ports || settings.gateway_ports.unwrap_or(false),
         control,
         record: None,
+        x11: None,
     };
     super::persist::check(args, &mut resolved)?;
     super::elevate::check(args, &mut resolved)?;
     super::recording::check(args, &mut resolved)?;
+    // X11 goes on a session alone, as OpenSSH asks for it; a run with it
+    // makes a connection of its own, as a master's session would not ask.
+    if !matches!(resolved.options.request, Request::StdioForward { .. } | Request::Nothing) {
+        resolved.x11 = super::x11::plan(args, &settings);
+    }
+    if resolved.x11.is_some() && resolved.control.path.take().is_some() {
+        resolved.notes.push("X11 forwarding makes a connection of its own: ControlPath has no effect".into());
+    }
     Ok(resolved)
 }

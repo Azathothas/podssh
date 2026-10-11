@@ -127,6 +127,12 @@ const SSH: &[&str] = &[
      server, and root on it, can use each key of the agent, though it cannot read one. podssh does not bind \
      the agent to the server's host key, as OpenSSH does, so the hosts that an agent limits a key to do \
      not hold over it. An agent channel that a server opens with no -A is refused, with a warning.",
+    "-X and -Y forward X11 to the display of DISPLAY; -x turns it off, and the last of the three wins. The \
+     server is given a spoofed cookie, and podssh puts the real one in each X11 channel's first packet. -Y \
+     uses the cookie of XAUTHORITY or ~/.Xauthority, and gives the server's X clients full access; -X an \
+     untrusted cookie that xauth makes, for ForwardX11Timeout, and with no xauth it is refused. With no \
+     DISPLAY, no X server that answers, or no cookie that it takes, the run ends with 255 before anything \
+     connects.",
     "-M with -S PATH (or ControlMaster and ControlPath) makes this run the control master, on Unix: other \
      runs with -S PATH go through its one connection, as with OpenSSH, whose ssh -O check and clients \
      work with it; a second -M asks before each request. -O check, forward, cancel, exit and stop speak to the \

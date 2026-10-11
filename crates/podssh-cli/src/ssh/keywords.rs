@@ -41,6 +41,9 @@ pub const HONOURED: &[Keyword] = &[
     kw("ExitOnForwardFailure", "yes|no", "yes: a forward of -R that the server refuses ends the run with 255", "yes"),
     kw("ForwardAgent", "yes|no|PATH|$NAME", "yes is -A: while the session lasts, the server may use the agent that \
         podssh logs in with; PATH, or the variable NAME, names another agent (default no)", "yes"),
+    kw("ForwardX11", "yes|no", "yes is -X: the server may open X11 channels to DISPLAY (default no)", "yes"),
+    kw("ForwardX11Timeout", "TIME", "-X: no new X11 channel after this time; 0 for none (default 20m)", "20m"),
+    kw("ForwardX11Trusted", "yes|no", "yes: -X gives the X server's own cookie, as -Y does (default no)", "yes"),
     kw("GatewayPorts", "yes|no", "the same as -g (default no)", "yes"),
     kw("GlobalKnownHostsFile", "FILE...|none", "the system known_hosts files", "/dev/null"),
     kw("HostKeyAlias", "NAME", "look up and record the host key under this name, in lowercase", "alias"),
@@ -71,6 +74,7 @@ pub const HONOURED: &[Keyword] = &[
     kw("StrictHostKeyChecking", "yes|accept-new|no|ask", "what to do with an unknown host key (default ask); a changed key is refused with each value", "accept-new"),
     kw("User", "USER", "the same as -l, but it takes the % tokens, not %C or %r", "user"),
     kw("UserKnownHostsFile", "FILE...|none", "the user's known_hosts files; a new host key goes to the first", "/dev/null"),
+    kw("XAuthLocation", "PATH", "the xauth that makes the untrusted cookie of -X (default: xauth in PATH)", "/usr/bin/xauth"),
 ];
 
 /// Keywords accepted with no effect: they ask for nothing podssh does
@@ -81,8 +85,7 @@ pub const IGNORED: &[&str] = &[
     "CanonicalizeHostname", "CanonicalizeMaxDots", "CanonicalizePermittedCNAMEs", "CASignatureAlgorithms",
     "CertificateFile", "ChannelTimeout", "CheckHostIP", "Ciphers",
     "EnableEscapeCommandline", "EnableSSHKeysign",
-    "FingerprintHash", "ForwardX11", "ForwardX11Timeout",
-    "ForwardX11Trusted", "GSSAPIAuthentication", "GSSAPIClientIdentity", "GSSAPIDelegateCredentials",
+    "FingerprintHash", "GSSAPIAuthentication", "GSSAPIClientIdentity", "GSSAPIDelegateCredentials",
     "GSSAPIKeyExchange", "GSSAPIKexAlgorithms", "GSSAPIRenewalForcesRekey", "GSSAPIServerIdentity", "GSSAPITrustDns",
     "HashKnownHosts",
     "HostbasedAcceptedAlgorithms", "HostbasedAuthentication", "HostKeyAlgorithms", "IPQoS", "KexAlgorithms",
@@ -90,7 +93,7 @@ pub const IGNORED: &[&str] = &[
     "PermitLocalCommand", "PubkeyAcceptedAlgorithms", "PubkeyAcceptedKeyTypes", "RekeyLimit",
     "RequiredRSASize", "SecurityKeyProvider", "StreamLocalBindMask", "StreamLocalBindUnlink",
     "SyslogFacility", "Tag", "TCPKeepAlive", "Tunnel", "TunnelDevice", "UpdateHostKeys", "VerifyHostKeyDNS",
-    "VersionAddendum", "VisualHostKey", "WarnWeakCrypto", "XAuthLocation",
+    "VersionAddendum", "VisualHostKey", "WarnWeakCrypto",
 ];
 
 /// Keywords refused by name, and why. `options.rs` gives the same reasons.

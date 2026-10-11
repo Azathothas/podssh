@@ -20,7 +20,10 @@
 //! sh -c '...'` and `su -c '...'` run as sudo and su run them, with the
 //! password `secret`: the prompt, then the command's marker, then `0` and its
 //! input echoed, as `id -u; cat` as root; `sudo-nopass-...` has a NOPASSWD
-//! rule, and only `su-...` is granted a pty.
+//! rule, and only `su-...` is granted a pty. `x11-probe` (T-037) opens an
+//! `x11` channel to the client with the cookie of its `x11-req`, sends an X
+//! client's first packet on it, and prints the X server's status and that
+//! cookie.
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -66,6 +69,8 @@ struct Far {
     su: bool,
     nopass: bool,
     elevated: HashMap<ChannelId, Elevated>,
+    /// The cookie of the client's `x11-req`, in hexadecimal.
+    x11_cookie: Option<String>,
 }
 
 /// A command of sudo (with its prompt) or of su (with none), until it starts.
@@ -178,6 +183,20 @@ impl server::Handler for Far {
         Ok(())
     }
 
+    async fn x11_request(
+        &mut self,
+        channel: ChannelId,
+        _single_connection: bool,
+        _protocol: &str,
+        cookie: &str,
+        _screen: u32,
+        session: &mut Session,
+    ) -> Result<(), Self::Error> {
+        self.x11_cookie = Some(cookie.to_string());
+        session.channel_success(channel)?;
+        Ok(())
+    }
+
     async fn exec_request(
         &mut self,
         channel: ChannelId,
@@ -209,6 +228,19 @@ impl server::Handler for Far {
                 None => session.data(channel, b"Password: ".as_slice())?,
             }
             self.elevated.insert(channel, Elevated { prompt, started, line: Vec::new() });
+            return Ok(());
+        }
+        if command == "x11-probe" {
+            let cookie = self.x11_cookie.clone().unwrap_or_default();
+            let handle = session.handle();
+            tokio::spawn(async move {
+                let status = x11_probe(&handle, &cookie).await;
+                let _ =
+                    handle.data(channel, format!("x11 status {status}\nx11-req cookie {cookie}\n").into_bytes()).await;
+                let _ = handle.exit_status_request(channel, 0).await;
+                let _ = handle.eof(channel).await;
+                let _ = handle.close(channel).await;
+            });
             return Ok(());
         }
         if let Some(rest) = command.strip_prefix("append ") {
@@ -390,6 +422,30 @@ impl server::Handler for Far {
         }
         Ok(())
     }
+}
+
+/// An X client's first packet on a new `x11` channel to the client, with
+/// `cookie` (hexadecimal): the X server's first byte of answer, or `none`
+/// when the channel was refused or closed.
+async fn x11_probe(handle: &server::Handle, cookie: &str) -> String {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let Ok(channel) = handle.channel_open_x11("127.0.0.1", 6010).await else { return "refused".into() };
+    let cookie: Vec<u8> =
+        (0..cookie.len() / 2).filter_map(|i| u8::from_str_radix(&cookie[2 * i..2 * i + 2], 16).ok()).collect();
+    let name = b"MIT-MAGIC-COOKIE-1";
+    let mut setup = vec![b'l', 0, 11, 0, 0, 0];
+    setup.extend_from_slice(&(name.len() as u16).to_le_bytes());
+    setup.extend_from_slice(&(cookie.len() as u16).to_le_bytes());
+    setup.extend_from_slice(&[0, 0]);
+    setup.extend_from_slice(name);
+    setup.extend_from_slice(&[0, 0]);
+    setup.extend_from_slice(&cookie);
+    let mut stream = channel.into_stream();
+    let mut status = [0u8; 1];
+    if stream.write_all(&setup).await.is_err() || stream.read_exact(&mut status).await.is_err() {
+        return "none".into();
+    }
+    status[0].to_string()
 }
 
 /// The server on the loopback, with the host key in `key`, on the current

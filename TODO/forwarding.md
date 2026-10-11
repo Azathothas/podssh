@@ -206,10 +206,10 @@ remote host that must use the key, such as `git` on a build host.
 
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
-   (`crates/podssh-cli/src/ssh/keywords.rs:25-94`). Change the help of `-a`
+   (`crates/podssh-cli/src/ssh/keywords.rs:25-97`). Change the help of `-a`
    (`crates/podssh-cli/src/flags.rs:211-212`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
-   before the shell or exec request (`crates/podssh-ssh/src/session.rs:96-120`).
+   before the shell or exec request (`crates/podssh-ssh/src/session.rs:99-123`).
    Never to a jump hop.
 3. In the handler, accept `auth-agent@openssh.com` only when `-A` was given
    for this connection. For each such channel, connect to the agent with the
@@ -325,7 +325,7 @@ measured here on `3ee70dc`.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -338,10 +338,10 @@ X11 channel.
 
 - Measured, offline: `podssh ssh -X example.invalid true` gives "-X is
   refused. Leave it out. X11 forwarding is not supported.", exit 64; `-Y`
-  the same (`crates/podssh-cli/src/flags.rs:259-262`).
+  the same (`crates/podssh-cli/src/flags.rs`, lines 259-262 at `e58ebcd`).
 - Measured, offline: `-o ForwardX11=yes` is accepted with no effect, as
   `ForwardAgent` is. Read: `ForwardX11Trusted`, `ForwardX11Timeout` and
-  `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:79-94`).
+  `XAuthLocation` are ignored too (`crates/podssh-cli/src/ssh/keywords.rs:83-97`).
 - Read: russh 0.64.1 has `Channel::request_x11` (`x11-req`), and its default
   handler accepts each `x11` channel. podssh's handler does not override it
   (`crates/podssh-ssh/src/handler.rs` lines 44-88 at `8d668b7`).
@@ -385,6 +385,19 @@ The second fork, `-X` with no `xauth`: recommendation: refuse it and name
 `-Y`. The alternative, to give trusted access under `-X`, lost: it gives more
 than the user asked for, and says nothing.
 
+Taken, with these calls made in the work (2026-10-11). With no cookie for the
+display, the probe asks the X server for a connection with none, and when it
+takes one (VcXsrv and X410 with access control off, on Windows) the channels
+carry none; else the run is refused, as decided. The last of `-X`, `-Y` and
+`-x` wins, and `-Y` also sets `ForwardX11Trusted`, as `ssh.c` does; `-X`'s
+cookie lasts `ForwardX11Timeout` and a minute more (`xauth ... timeout`), as
+OpenSSH asks, and after the timeout a new X11 channel is refused. X11 is asked
+for on a session alone, never with `-N` or `-W`, where OpenSSH asks for none
+either, and on the destination alone; such a run makes a connection of its
+own, as a master's session would not ask. A first packet with another cookie
+closes its channel. A Linux abstract socket is not tried: the socket of the
+file system alone.
+
 ## Prove
 
 ```sh
@@ -409,6 +422,39 @@ server opens, as administratively prohibited, in one place: `unasked` in
 `crates/podssh-ssh/src/handler.rs`. This entry accepts its own kind there,
 only for its own requests, and reads an accepted channel at once or closes
 it (`SECURITY.md`, "Design rules").
+
+## Done
+
+2026-10-11. The display, the authority file, the probe, the request and the
+swap of the cookie in `crates/podssh-ssh/src/x11.rs:1-339`; the session asks
+(`crates/podssh-ssh/src/session.rs:92-94`) and the handler joins an `x11`
+channel when the destination's run asked
+(`crates/podssh-ssh/src/handler.rs:249-262`). The plan and the probe of the
+command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
+`crates/podssh-cli/src/flags.rs:259-262`, and the keywords, honoured now, at
+`crates/podssh-cli/src/ssh/keywords.rs:44-46` and
+`crates/podssh-cli/src/ssh/keywords.rs:77`.
+- `cargo test -p podssh-ssh --lib -- x11`: 4 passed: `DISPLAY` as Xlib reads
+  it, the cookie of a display in an authority file, the real cookie in the
+  first packet in both byte orders (none for an X server that takes none, and
+  another cookie refused), and the end of `-X`'s time.
+- `cargo test -p podssh-cli --test ssh_x11`: 3 passed: the plan of the flags
+  and keywords; the probe's refusals (no `DISPLAY`, `-X` with no `xauth`
+  naming `-Y`, no cookie for an X server that wants one); and against the
+  test's server, which opens an `x11` channel back, a fake X server on the
+  loopback got the real cookie while the server had a spoofed one. Planted,
+  each restored: the real cookie in `x11-req` (the Prove's plant) failed the
+  channel's test; the first packet passed on as it came failed it and the
+  swap's unit test.
+- `scripts/interop-x11.sh:1-55`, a new harness of four checks against
+  OpenSSH's sshd with `X11Forwarding` and an Xvfb in the box: `x11.trusted`
+  (`xdpyinfo` through `-Y`), `x11.spoofed` (the server's `xauth list` holds
+  no real cookie), `x11.untrusted` (`-X`, env-allowed for an Xvfb with no
+  SECURITY extension) and `x11.no_display`. The gate runs them at this push.
+- `docs/cli.md:295-318`, a note of the manual and the variable `XAUTHORITY`
+  say what the flags do, and the risk of `-Y`.
+- `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
+  577 passed, 0 failed, 31 ignored; clippy; rustfmt.
 
 # T-038: `-L` and `-D` when a probe shows that a local bind is allowed
 

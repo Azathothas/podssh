@@ -85,6 +85,10 @@ pub struct SshArgs {
     /// The last of `-A` and `-a`: whether the server may use the agent
     /// (T-036); `None` when neither was given.
     pub forward_agent: Option<bool>,
+    /// The last of `-X`, `-Y` and `-x`: whether the server may open X11
+    /// channels (T-037); and whether `-Y`, trusted, was given.
+    pub forward_x11: Option<bool>,
+    pub x11_trusted: bool,
 }
 
 /// The long-only rows that are spellings of `-o NAME=VALUE`.
@@ -161,6 +165,13 @@ impl SshArgs {
             (Some(yes), Some(no)) => Some(yes > no),
             (yes, no) => yes.map(|_| true).or(no.map(|_| false)),
         };
+        // -X and -Y set ForwardX11, -x clears it, the last one wins; -Y also
+        // sets ForwardX11Trusted, as OpenSSH's do.
+        let x11_yes = at("forward-x11").max(at("forward-x11-trusted"));
+        let forward_x11 = match (x11_yes, at("no-x11")) {
+            (Some(yes), Some(no)) => Some(yes > no),
+            (yes, no) => yes.map(|_| true).or(no.map(|_| false)),
+        };
         SshArgs {
             destination: one("destination"),
             command: many("remote-command"),
@@ -212,6 +223,8 @@ impl SshArgs {
             control_path: last("control-path"),
             control_command: one("control-command"),
             forward_agent,
+            forward_x11,
+            x11_trusted: flag("forward-x11-trusted"),
         }
     }
 }

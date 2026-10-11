@@ -79,7 +79,7 @@ impl Persist {
 
 /// OpenSSH's time format (sshd_config(5), TIME FORMATS): numbers, each with
 /// a unit of s, m, h, d or w, or none for seconds, added up.
-fn seconds(time: &str) -> Option<u64> {
+pub(super) fn seconds(time: &str) -> Option<u64> {
     if time.is_empty() {
         return None;
     }

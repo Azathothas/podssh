@@ -310,9 +310,11 @@ where
         fingerprints: if is_destination { opts.host_key_fingerprints.clone() } else { Vec::new() },
     };
     let config = Arc::new(client_config(opts, &policy));
-    // Only the destination may use the agent (-A), never a jump hop.
+    // Only the destination may use the agent (-A) and the display (-X),
+    // never a jump hop.
     let forwarded = if is_destination { opts.forward_agent.clone() } else { Agent::Off };
-    let client = Client::new(policy, log.clone()).forwarding_agent(forwarded);
+    let x11 = if is_destination { opts.forward_x11.clone() } else { None };
+    let client = Client::new(policy, log.clone()).forwarding_agent(forwarded).forwarding_x11(x11);
     let refusal = client.refusal();
     let disconnect = client.disconnect();
     let forwards = client.forwards();

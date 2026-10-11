@@ -24,6 +24,12 @@ pub struct Settings {
     /// apart from it (T-036).
     pub forward_agent: Option<bool>,
     pub forward_agent_path: Option<String>,
+    /// `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` (seconds) and
+    /// `XAuthLocation` (T-037).
+    pub forward_x11: Option<bool>,
+    pub forward_x11_trusted: Option<bool>,
+    pub forward_x11_timeout: Option<u64>,
+    pub xauth_location: Option<String>,
     pub strict: Option<StrictHostKeyChecking>,
     pub user_known_hosts: Option<Vec<String>>,
     pub global_known_hosts: Option<Vec<String>>,
@@ -102,6 +108,15 @@ impl Settings {
                     set(&mut self.forward_agent_path, path);
                 }
             },
+            "forwardx11" => set(&mut self.forward_x11, yes_no(value).ok_or_else(|| bad("expected yes or no"))?),
+            "forwardx11trusted" => {
+                set(&mut self.forward_x11_trusted, yes_no(value).ok_or_else(|| bad("expected yes or no"))?)
+            }
+            "forwardx11timeout" => set(
+                &mut self.forward_x11_timeout,
+                super::control::seconds(&value.to_ascii_lowercase()).ok_or_else(|| bad("not a time"))?,
+            ),
+            "xauthlocation" => set(&mut self.xauth_location, unquote(value)),
             "stricthostkeychecking" => set(
                 &mut self.strict,
                 StrictHostKeyChecking::parse(value).ok_or_else(|| bad("expected yes, accept-new, no or ask"))?,
@@ -295,6 +310,10 @@ impl Settings {
             identity_agent: self.identity_agent.or(file.identity_agent),
             forward_agent: self.forward_agent.or(file.forward_agent),
             forward_agent_path: self.forward_agent_path.or(file.forward_agent_path),
+            forward_x11: self.forward_x11.or(file.forward_x11),
+            forward_x11_trusted: self.forward_x11_trusted.or(file.forward_x11_trusted),
+            forward_x11_timeout: self.forward_x11_timeout.or(file.forward_x11_timeout),
+            xauth_location: self.xauth_location.or(file.xauth_location),
             strict: self.strict.or(file.strict),
             user_known_hosts: self.user_known_hosts.or(file.user_known_hosts),
             global_known_hosts: self.global_known_hosts.or(file.global_known_hosts),

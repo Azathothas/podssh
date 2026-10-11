@@ -155,12 +155,14 @@ Each rule is implemented.
   and AES-256-CTR. podssh writes no key in an old scheme.
 - **A channel that podssh did not ask for is refused.** A server can open
   channels toward the client (`forwarded-tcpip`, agent, X11, `session`,
-  `direct-tcpip` and the two streamlocal kinds). podssh asks for none, so
-  it refuses each with "administratively prohibited", as OpenSSH does, and
-  warns about an agent or X11 channel. A feature that asks for one kind
+  `direct-tcpip` and the two streamlocal kinds). podssh refuses each that
+  it did not ask for with "administratively prohibited", as OpenSSH does,
+  and warns about an agent or X11 channel. A feature that asks for one kind
   (`-R`, `-A`, `-X`) accepts only that kind, for its own requests, and reads
   an accepted channel at once or closes it: a channel kept unread would stop
-  the whole session.
+  the whole session. `-X` and `-Y` give the server a spoofed cookie; the
+  real one never leaves this host, and replaces the spoofed one in the first
+  packet of each X11 channel (T-037).
 
 ## Known gaps
 

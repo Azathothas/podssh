@@ -207,6 +207,9 @@ pub struct Options {
     /// `-A` and `ForwardAgent` (T-036): the agent that the destination's
     /// server may use while the session lasts. Off by default, as in OpenSSH.
     pub forward_agent: Agent,
+    /// `-X` and `-Y` (T-037): the display that the destination's server may
+    /// open X11 channels to, probed before the connection. Off by default.
+    pub forward_x11: Option<crate::x11::Forward>,
     pub strict_host_key_checking: StrictHostKeyChecking,
     /// `UserKnownHostsFile`: read, and the first one is where new keys go.
     pub user_known_hosts: Vec<PathBuf>,
@@ -318,6 +321,7 @@ impl Options {
             identities_only: false,
             agent: Agent::FromEnvironment,
             forward_agent: Agent::Off,
+            forward_x11: None,
             strict_host_key_checking: StrictHostKeyChecking::Ask,
             user_known_hosts: Vec::new(),
             no_user_known_hosts: None,

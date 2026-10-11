@@ -118,6 +118,7 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       never does not use it. When SSH_ASKPASS_REQUIRE is not set, podssh asks on the terminal, and uses \
       the program only when there is no terminal and DISPLAY or WAYLAND_DISPLAY is set.",
     ),
+    (&["XAUTHORITY"], "The authority file of the X server of DISPLAY, whose cookie -Y forwards (else ~/.Xauthority)."),
     (
         &["HOME", "USERPROFILE"],
         "The home directory, for ~ in file names (USERPROFILE on Windows when HOME is not set).",

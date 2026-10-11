@@ -57,6 +57,7 @@ pub mod signals;
 mod socks;
 pub mod sshsig;
 pub mod terminal;
+pub mod x11;
 
 /// A connection to one hop, logged in.
 pub type Connection = russh::client::Handle<handler::Client>;

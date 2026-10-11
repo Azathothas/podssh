@@ -292,6 +292,30 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   host, is refused as administratively prohibited, with a warning, as
   OpenSSH refuses it. A server that refuses the request says so, and the
   session goes on without the agent.
+- `-X` and `-Y` forward X11 (T-037) to the display that `DISPLAY` names,
+  off by default; `-x` turns it off, and the last of the three wins, over
+  `-o ForwardX11`. The server listens; for each `x11` channel that it opens,
+  podssh connects to the local X server (`:N` is the socket
+  `/tmp/.X11-unix/XN`, on Windows TCP port 6000+N; `HOST:N` is TCP port
+  6000+N of HOST), as one more local connection, and puts the real cookie in
+  place of a spoofed one: the server is given a random cookie of the same
+  length (`x11-req`), never the real one, and a channel whose X client sends
+  another is closed. `-Y` uses the cookie of the authority file
+  (`XAUTHORITY`, else `~/.Xauthority`, read by podssh itself), and gives the
+  server's X clients the access of each local one. `-X` uses an untrusted
+  cookie that `xauth` makes (`XAuthLocation`, else `xauth` in `PATH`), which
+  lasts `ForwardX11Timeout` (20 minutes), after which a new X11 channel is
+  refused; with no `xauth`, `-X` is refused, naming `-Y`.
+  `ForwardX11Trusted yes` makes `-X` act as `-Y`. Before anything connects,
+  podssh checks `DISPLAY`, that its X server answers, and that there is a
+  cookie, or that the X server takes a connection with none (as VcXsrv and
+  X410 do with access control off); a check that fails ends the run with
+  255 and its reason, where OpenSSH goes on with no X11. X11 goes on a
+  session alone (with `-N` or `-W` it is not asked), on the destination
+  alone, never on a jump host, and such a run makes a connection of its
+  own, with no `ControlPath`. **The risk:** with `-Y`, a program on the
+  server can read what you type in each X window and draw in each; forward
+  only to a server that you trust.
 
 ## Connection sharing
 

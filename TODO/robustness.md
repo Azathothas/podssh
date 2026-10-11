@@ -470,7 +470,7 @@ sh scripts/dev.sh check                    # interop: the slow reader stays unde
 
 Each command exits 0. Planted defect: set `WINDOW`
 (`crates/podssh-ssh/src/run.rs:30`) to 64 MiB, and russh's queue of a
-channel (`channel_buffer_size`, `crates/podssh-ssh/src/run.rs:408-417`) to
+channel (`channel_buffer_size`, `crates/podssh-ssh/src/run.rs:410-419`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
 check at `crates/podssh-ws/src/session.rs:336-338`; the fragment test must
@@ -501,7 +501,7 @@ fail.
   ignored. The table says so.
 - The window is not the only bound of a reader that takes nothing: russh queues at most 100
   messages of a channel (`channel_buffer_size`, its default, which
-  `crates/podssh-ssh/src/run.rs:408-417` leaves), each of 32 KiB at most, and its task then reads
+  `crates/podssh-ssh/src/run.rs:410-419` leaves), each of 32 KiB at most, and its task then reads
   no more from the server. Measured in the build image on 2026-10-11, with the Prove's plant: the
   window at 64 MiB gave a peak of 8948 KiB, held by the queue; the queue at 2^20 messages as well
   gave 62708 KiB, and even a reader that took each byte held 62084 KiB, as the server outran the
@@ -643,10 +643,10 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:274-292`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:275-293`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
-  (`crates/podssh-ssh/src/options.rs:331`, enforced at
-  `crates/podssh-ssh/src/run.rs:325-331`); a reply, 30 s
+  (`crates/podssh-ssh/src/options.rs:335`, enforced at
+  `crates/podssh-ssh/src/run.rs:327-333`); a reply, 30 s
   (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability
@@ -779,7 +779,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:71`, `docs/STATUS.md:75`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:971-972` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:995-996` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -796,14 +796,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:971-972`). A difference that the table does not name fails,
+   `docs/cli.md:995-996`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:971-972` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:995-996` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed

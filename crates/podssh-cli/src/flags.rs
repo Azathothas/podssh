@@ -204,7 +204,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "run the command as root with su -c, in a pty; the password is asked here (terminal or SSH_ASKPASS)", None),
     // -x and -k disable things podssh never does, so they need no work.
     row(Some('x'), "no-x11", None, FlagKind::Supported,
-        "no X11 forwarding (podssh never forwards X11)", None),
+        "no X11 forwarding (the default); the last of -X, -Y and -x wins", None),
     // T-036: the last of -A and -a wins, as in OpenSSH.
     row(Some('A'), "forward-agent", None, FlagKind::Supported,
         "forward the agent: while the session lasts, the server may use its keys (ForwardAgent=yes)", None),
@@ -256,10 +256,10 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "podssh has no list of algorithms to query", Some("no flag")),
     row(Some('w'), "tunnel", Some("TUN"), FlagKind::Refused,
         "a tunnel device needs privileges that podssh never assumes", Some("-W HOST:PORT")),
-    row(Some('X'), "forward-x11", None, FlagKind::Refused,
-        "X11 forwarding is not supported", Some("no flag")),
-    row(Some('Y'), "forward-x11-trusted", None, FlagKind::Refused,
-        "X11 forwarding is not supported", Some("no flag")),
+    row(Some('X'), "forward-x11", None, FlagKind::Supported,
+        "X11 forwarding to DISPLAY, untrusted: a cookie that xauth makes; refused before the connection when the probe fails", None),
+    row(Some('Y'), "forward-x11-trusted", None, FlagKind::Supported,
+        "X11 forwarding to DISPLAY, trusted: the X server's own cookie, never sent to the server", None),
     row(Some('y'), "syslog", None, FlagKind::Refused,
         "podssh does not write to syslog", Some("-E LOGFILE")),
 ];

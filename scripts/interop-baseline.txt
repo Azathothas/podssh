@@ -16,6 +16,7 @@ harness status interop 6 scripts/interop-status.sh
 harness hostkeys interop 4 scripts/interop-hostkeys.sh
 harness sudo interop 3 scripts/interop-sudo.sh
 harness recording interop 3 scripts/interop-recording.sh
+harness x11 interop 3 scripts/interop-x11.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -466,3 +467,7 @@ sudo.nopass pass
 recording.session pass
 recording.no_overwrite pass
 recording.play pass
+x11.trusted pass
+x11.spoofed pass
+x11.untrusted env-allowed an Xvfb with the SECURITY extension
+x11.no_display pass

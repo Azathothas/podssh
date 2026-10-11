@@ -85,9 +85,12 @@ pub async fn attach(
         }
     }
 
-    // Before the shell or the command, as OpenSSH asks (T-036).
+    // Before the shell or the command, as OpenSSH asks (T-036, T-037).
     if opts.forward_agent != Agent::Off {
         crate::agent_forward::request(&mut channel, &mut early, log).await?;
+    }
+    if let Some(x11) = &opts.forward_x11 {
+        crate::x11::request(&mut channel, &mut early, x11, log).await?;
     }
 
     // From here a drop is no failure to try again: the server may run it.

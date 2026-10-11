@@ -29,6 +29,7 @@ mod recording;
 pub mod resolve;
 pub mod tokens;
 pub mod transport;
+pub mod x11;
 
 use std::io::Write;
 use std::sync::Arc;
@@ -105,6 +106,16 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
 }
 
 async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i32 {
+    // -X and -Y: the probe, before anything connects (T-037).
+    if let Some(plan) = resolved.x11.clone() {
+        match x11::probe(&plan, &x11::Env::from_process()).await {
+            Ok(forward) => resolved.options.forward_x11 = Some(forward),
+            Err(why) => {
+                log.error(&why);
+                return podssh_ssh::EXIT_FAILURE;
+            }
+        }
+    }
     // The file of --record, before anything connects (T-033).
     if let Some(path) = resolved.record.clone() {
         match recording::create(&path) {
