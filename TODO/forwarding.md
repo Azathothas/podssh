@@ -59,7 +59,7 @@ server listens, and the client connects out for each connection.
 3. In the handler, accept a `forwarded-tcpip` channel only for an address and
    a port that podssh asked for, and reject the rest. Dial the spec's target
    with `podssh_ws::dial::dial` and `ProxyChoice::FromEnvironment`, as
-   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:114-120`), with the
+   `--direct` does (`crates/podssh-cli/src/ssh/transport.rs:115-121`), with the
    limit of 20 s (`crates/podssh-relay/src/open.rs:27-29`).
 4. Copy both ways. Pass EOF on in each direction, and close both ends on an
    error. The SSH window is the flow control.
@@ -441,7 +441,7 @@ AF_UNIX.
 - Read: `AGENTS.md:191-196` (no bind, no listen),
   `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:85-102` ("Nothing
   listens") and `README.md:38-44` state the rule from before the ruling.
-  `docs/design.md:437-439` already allows a local listener for `pipe` after
+  `docs/design.md:449-451` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.
@@ -916,7 +916,7 @@ Read: a drop ends the run with 255 (`crates/podssh-ssh/src/run.rs:62-70`,
 backs off with jitter, but only before a session exists
 (`crates/podssh-relay/src/open.rs:187-233`,
 `crates/podssh-relay/src/open.rs:335-349`). With `-N`, no command runs, so a
-new connection has no side effect on the server. `docs/design.md:238-243`
+new connection has no side effect on the server. `docs/design.md:250-255`
 puts a new connection with a new login in layer 3, for a standard sshd.
 T-153 (M6) resumes a session when both ends run podssh.
 

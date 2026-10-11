@@ -51,6 +51,7 @@ races them.
 | A standard sshd, public | The forward road, with failover across relay hosts | The direct road (`--direct`, or when a probe shows it works) | None |
 | A standard sshd behind a podssh `roost` | The iroh or reverse road to the roost | The forward road | None |
 | A tailnet node | The tailscale road (feature `ts`) | None | None |
+| A service that `cloudflared` publishes (`cf://HOST`) | The WebSocket of the tunnel, as `cloudflared access tcp` opens it, through `HTTPS_PROXY` | None | None |
 
 Each road has the same rules:
 
@@ -60,6 +61,17 @@ Each road has the same rules:
 - the relay's close reason goes to the user;
 - credentials never go on argv, in URLs, or in output;
 - each capability is probed before podssh uses it.
+
+**The road of a Cloudflare tunnel (T-264, built 2026-10-11).** `podssh ssh
+cf://HOST` and `podssh proxy cf://HOST` open the WebSocket to `wss://HOST/`
+that `cloudflared access tcp` opens, with the same upgrade, read in its
+source: no relay, and no program of Cloudflare's. The credentials of
+Cloudflare Access go in its headers. Each message up is at most 16 KiB, as
+the origin cuts a longer one, and podssh sends no Ping, as the origin answers
+one outside the lock of its writes; the end of the stream, with no Close, is
+the end of the session. MEASURED against a stand-in on the loopback
+(`cargo test -p podssh-ws --features plain-ws --test cloudflare_access`); a
+live check waits for a service that the operator publishes.
 
 **The race (T-164, built 2026-10-10).** `podssh ssh node://NAME
 --iroh-ticket TICKET` races the iroh road to the node's ticket and the

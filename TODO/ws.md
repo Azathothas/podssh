@@ -1,7 +1,7 @@
 This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP and proxies, TLS
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
-`podssh-ws` item of ROADMAP M4 and `docs/design.md:134-138`, and from GitHub issues. The crate
+`podssh-ws` item of ROADMAP M4 and `docs/design.md:146-150`, and from GitHub issues. The crate
 must build with no C compiler (`scripts/gate.sh:154-165`).
 
 # T-063: W10: the frame decoder does not check a received control frame
@@ -287,7 +287,7 @@ The scan passes on the tree, and the example still builds. Planted defect: add a
 
 # T-066: A `rustls::ClientConfig` that the caller supplies, for podbox
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:96-97` and 102-104. Read here
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:108-109` and 102-104. Read here
 on `3ee70dc`.
 **Category:** feature
 **Milestone:** M4
@@ -328,7 +328,7 @@ HTTP/1.1 only (`docs/relay.md:231`). The `tls12` feature of `rustls` is on in th
 5. `podssh-ws` must not depend on `ring`, also not in its tests: the gate builds the tests with
    no C compiler. The tests make the caller's configuration with podssh's own provider.
 6. The default stays `Trust`, so the binary does not change.
-7. Change `docs/design.md:134-138` and `docs/architecture.md` in the same commit.
+7. Change `docs/design.md:146-150` and `docs/architecture.md` in the same commit.
 
 ## Decision
 
@@ -388,7 +388,7 @@ unknown, and the test fails.
 # T-067: TLS 1.2, for intercepting proxies
 
 **Source:** `docs/STATUS.md` (Components, `podssh-ws`: "No TLS 1.2 (some intercepting proxies
-need it)"); `docs/design.md:96-97`. podssh has not measured such a proxy.
+need it)"); `docs/design.md:108-109`. podssh has not measured such a proxy.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P2
@@ -430,7 +430,7 @@ requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
    (`crates/podssh-relay/src/health.rs:98-101`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:287-303`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:298-314`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -491,7 +491,7 @@ that speaks only TLS 1.2 carrying an OpenSSH session.
 
 # T-068: Plain `ws://` to loopback, for tests only
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:135-136`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:147-148`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P3
@@ -525,7 +525,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 4. The runners of `podssh-relay` (T-079, T-081) must take any stream type, so that podbox's
    tests can use them.
 5. The binary never enables the feature; a check in the gate proves it.
-6. Change `docs/design.md:135-136` in the same commit.
+6. Change `docs/design.md:147-148` in the same commit.
 
 ## Decision
 
@@ -581,7 +581,7 @@ the feature. Planted defect: remove the loopback check; the refusal test fails.
 
 # T-069: Typed session errors in `podssh-ws`
 
-**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:136-137`.
+**Source:** the `podssh-ws` item of ROADMAP M4; `docs/design.md:148-149`.
 **Category:** feature
 **Milestone:** M4
 **Priority:** P2
@@ -601,7 +601,7 @@ Read; the lines of the files that this entry changed are those of `723d90b`. `se
 `read_frame` (170-221) and `write` (223-228) return `Result<_, String>`; `watch_liveness`
 returns a `String` (142-166). The callers keep or pass the text:
 `crates/podssh-ssh/src/relay_stream.rs` lines 95-96 and 138-140 at `23b5d82` put it in `RelayEnd::Failed`;
-`crates/podssh-cli/src/pipe/relay.rs:103-175` prints it; `podssh-transport` makes a write error
+`crates/podssh-cli/src/pipe/relay.rs:105-181` prints it; `podssh-transport` makes a write error
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
@@ -698,7 +698,7 @@ socks5:// is not supported; podssh speaks HTTP CONNECT to an http:// proxy"
 `HTTPS_PROXY`, `all_proxy` and `ALL_PROXY` (lines 163 and 184), and parses the first that is set
 (line 192). `dial` makes the error `DialError::BadProxy` (line 232), which stops the failover at
 once (`crates/podssh-relay/src/open.rs:69`) and gives exit 78 in `podssh proxy`
-(`crates/podssh-cli/src/proxy.rs:185`). `doctor` reports it as `FAIL`
+(`crates/podssh-cli/src/proxy.rs:255`). `doctor` reports it as `FAIL`
 (`crates/podssh-cli/src/doctor/net.rs`, lines 101-107). Two tests assert the refusal:
 `crates/podssh-cli/tests/doctor.rs`, lines 144-153, and `crates/podssh-ws/tests/dial.rs`, lines
 50-58.
@@ -717,7 +717,7 @@ once (`crates/podssh-relay/src/open.rs:69`) and gives exit 78 in `podssh proxy`
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`
    (`crates/podssh-relay/src/open.rs:61-83`) and the exit codes of `podssh proxy`
-   (`crates/podssh-cli/src/proxy.rs:181-194`) already treat: a refused user or password as 407
+   (`crates/podssh-cli/src/proxy.rs:251-264`) already treat: a refused user or password as 407
    (the same for each host: stop); 0x02 (not allowed) as 403; 0x03, 0x04 and 0x05 as 502.
 5. Credentials never in output: `Display` shows the host and port only (now
    `crates/podssh-ws/src/proxy.rs:70-75`).
@@ -822,7 +822,7 @@ a value with its top bit set, which section 5.2 forbids too. `frame::encode` wri
 form (`:80-88`). The tests check the encoder at the boundaries 125, 126, 65535 and 65536
 (`crates/podssh-ws/tests/rfc6455.rs:92-117`), and no test decodes a length that is not
 minimal. The only caller in the code is `next_event`, for the frames of the relay
-(`crates/podssh-ws/src/client.rs:390-399`). The stand-in relay writes the minimal form
+(`crates/podssh-ws/src/client.rs:405-414`). The stand-in relay writes the minimal form
 (`scripts/fake_ws.py:21-29`); the frames of the real relay were not checked for it.
 
 ## Approach
@@ -833,7 +833,7 @@ minimal. The only caller in the code is `next_event`, for the frames of the rela
 2. A client that receives such a frame fails the WebSocket connection (RFC 6455 section 7.1.7):
    it sends a Close with 1002, a protocol error (section 7.4.1), and then closes the TCP
    connection. Since T-063 the session sends that Close for each error of the decoder
-   (`crates/podssh-ws/src/session.rs:268-275`), so this entry needs no new path.
+   (`crates/podssh-ws/src/session.rs:304-311`), so this entry needs no new path.
 3. The rule holds in both directions (`Role::Client` and `Role::Server`), so a stand-in relay in
    Rust (T-068) checks podssh's own frames with it too.
 4. `crates/podssh-ws/tests/rfc6455.rs` has 486 lines: put the tests in a new file,

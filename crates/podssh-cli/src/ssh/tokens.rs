@@ -8,7 +8,13 @@
 
 use std::path::{Path, PathBuf};
 
+use podssh_ssh::Hop;
 use sha1::{Digest, Sha1};
+
+use super::args::SshArgs;
+use super::hop::jump_hop;
+use super::options::{parse_port, Settings};
+use super::resolve::Env;
 
 /// The tokens, for the refusal of an unknown one.
 pub const TOKENS: &str = "%%, %C, %d, %h, %i, %j, %k, %L, %l, %n, %p, %r and %u";
@@ -233,4 +239,36 @@ pub fn local_uid() -> Option<u32> {
 #[cfg(not(unix))]
 pub fn local_uid() -> Option<u32> {
     None
+}
+
+/// The `%` tokens of an `Include`, with the values of the moment, as OpenSSH
+/// gives them: the command line's, else those of the lines read so far
+/// (`file`), else the defaults; none is lowercased yet.
+pub(super) fn include_tokens(args: &SshArgs, cli: &Settings, target: &Hop, env: &Env, file: &Settings) -> Tokens {
+    let host = cli.host_name.clone().or_else(|| file.host_name.clone()).unwrap_or_else(|| target.host.clone());
+    let port = args.port.as_deref().and_then(parse_port).or(cli.port).or(Some(target.port).filter(|p| *p != 22));
+    let remote_user = args.login.clone().or_else(|| cli.user.clone()).or_else(|| target.user.clone());
+    let jump = args.jump.as_deref().or(cli.proxy_jump.as_deref()).or(file.proxy_jump.as_deref());
+    Tokens {
+        home: env.home.clone(),
+        host,
+        original: target.host.clone(),
+        port: port.or(file.port).unwrap_or(22),
+        remote_user: remote_user.or_else(|| file.user.clone()).or_else(|| env.user.clone()).unwrap_or_default(),
+        local_user: env.user.clone(),
+        local_host: env.local_host.clone(),
+        uid: env.uid,
+        alias: cli
+            .host_key_alias
+            .clone()
+            .or_else(|| file.host_key_alias.clone())
+            .unwrap_or_else(|| target.host.clone()),
+        jump: match jump {
+            Some("none") => "none".into(),
+            Some(list) => {
+                list.rsplit(',').next().and_then(|h| jump_hop(h.trim()).ok()).map(|h| h.host).unwrap_or_default()
+            }
+            None => String::new(),
+        },
+    }
 }

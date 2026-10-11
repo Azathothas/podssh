@@ -45,6 +45,11 @@ pub struct RelaySession<S = RelayStream> {
     pong_seen: tokio::sync::Notify,
     /// Bound on one write.
     write_timeout: Duration,
+    /// The largest message that [`RelaySession::send_binary`] sends, when
+    /// one is set: a larger payload goes as several messages (T-264).
+    max_message: Option<usize>,
+    /// Whether [`RelaySession::watch_liveness`] sends Pings.
+    pings: bool,
 }
 
 /// The Pongs that [`RelaySession::take_pongs`] keeps for the one who reads.
@@ -85,7 +90,26 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
             pong_log: std::sync::Mutex::new(std::collections::VecDeque::new()),
             pong_seen: tokio::sync::Notify::new(),
             write_timeout,
+            max_message: None,
+            pings: true,
         }
+    }
+
+    /// Send no binary message over `max` bytes: a larger payload goes as
+    /// several messages, never as fragments of one, as a peer that cuts each
+    /// message at a size of its own needs (the origin of `cloudflared`,
+    /// T-264).
+    pub fn with_max_message(mut self, max: usize) -> Self {
+        self.max_message = Some(max.max(1));
+        self
+    }
+
+    /// Send no Ping: [`RelaySession::watch_liveness`] then waits for ever,
+    /// and the idle bound of each read finds a dead link. For a peer that
+    /// answers a Ping outside the lock of its other writes (T-264).
+    pub fn without_pings(mut self) -> Self {
+        self.pings = false;
+        self
     }
 
     /// The Pongs that came since the last call, each with its payload and
@@ -99,10 +123,19 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
         self.pong_seen.notified().await;
     }
 
-    /// Send one binary frame.
+    /// Send one binary frame; several messages when the payload is over the
+    /// bound of [`RelaySession::with_max_message`].
     pub async fn send_binary(&self, payload: &[u8]) -> Result<(), SessionError> {
         self.no_data_after_close()?;
-        self.write(frame::OPCODE_BINARY, payload).await
+        match self.max_message {
+            Some(max) if payload.len() > max => {
+                for part in payload.chunks(max) {
+                    self.write(frame::OPCODE_BINARY, part).await?;
+                }
+                Ok(())
+            }
+            _ => self.write(frame::OPCODE_BINARY, payload).await,
+        }
     }
 
     /// Send one text frame.
@@ -169,6 +202,9 @@ impl<S: AsyncRead + AsyncWrite> RelaySession<S> {
     /// until it returns; the caller races it with its pumps, and
     /// [`RelaySession::read_frame`] must be running for anything to be heard.
     pub async fn watch_liveness(&self, every: Duration, allowed: u32) -> SessionError {
+        if !self.pings {
+            return std::future::pending().await;
+        }
         let mut sent: u64 = 0;
         let mut heard = self.frames_received();
         let mut missed: u32 = 0;

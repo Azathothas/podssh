@@ -80,6 +80,17 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       flag wins, and an empty value is no value. A bad value is a configuration error (78).",
     ),
     (&["PODSSH_RELAY_TOKEN"], "A relay token to use in place of one podssh mints. podssh never prints it."),
+    (
+        &["PODSSH_CF_ACCESS_CLIENT_ID", "PODSSH_CF_ACCESS_CLIENT_SECRET"],
+        "A service token of Cloudflare Access, both or neither, for a cf://HOST destination behind Access: \
+      podssh sends them in the headers that cloudflared sends, never in a URL, and never prints them.",
+    ),
+    (
+        &["PODSSH_CF_ACCESS_TOKEN", "PODSSH_CF_ACCESS_TOKEN_FILE"],
+        "A token of Cloudflare Access for a cf://HOST destination, or the file that holds one: what \
+      cloudflared access token -app=https://HOST prints on a host where its login can run. The variable \
+      wins over the file; podssh never prints the token.",
+    ),
     (&["PODSSH_NICK"], "The nick of podssh chat, as --nick: the name that the peer sees. The flag wins."),
     (
         &["PODSSH_REPLAY_BUFFER"],

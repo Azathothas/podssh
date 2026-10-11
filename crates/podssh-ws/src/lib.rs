@@ -12,6 +12,7 @@
 
 pub mod bundle;
 pub mod client;
+pub mod cloudflare;
 pub mod crypto;
 pub mod dial;
 pub mod error;

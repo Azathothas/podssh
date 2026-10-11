@@ -25,12 +25,6 @@ pub async fn connect_loopback(
     timeout: Duration,
     idle: Option<Duration>,
 ) -> Result<RelaySession<TcpStream>, ConnectError> {
-    if !dial::is_loopback(host) {
-        return Err(ConnectError::Config(format!(
-            "plain ws:// goes only to the loopback, and {host:?} is not: a token over plain TCP \
-             must not leave this host"
-        )));
-    }
     // The rules of a path and a token are those of `connect`.
     let config = WsClientConfig {
         endpoint: Endpoint { host: host.to_string(), port, path: path.to_string() },
@@ -40,9 +34,30 @@ pub async fn connect_loopback(
         idle_timeout: idle,
         proxy: ProxyChoice::Direct,
     };
-    config.validate().map_err(ConnectError::Config)?;
-    if token.contains(['\r', '\n']) {
-        return Err(ConnectError::Config("the relay token contains a line break".into()));
+    // Another host is refused by `loopback_tcp`, before any connection.
+    if dial::is_loopback(host) {
+        config.validate().map_err(ConnectError::Config)?;
+        if token.contains(['\r', '\n']) {
+            return Err(ConnectError::Config("the relay token contains a line break".into()));
+        }
+    }
+    let tcp = loopback_tcp(host, port, timeout).await?;
+    let host_header = dial::authority(host.trim_start_matches('[').trim_end_matches(']'), port);
+    let (tcp, pending) = tokio::time::timeout(timeout, upgrade(tcp, &host_header, path, token))
+        .await
+        .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: timeout })??;
+    Ok(RelaySession::new(tcp, pending, idle, WRITE_TIMEOUT))
+}
+
+/// A TCP connection to `host:port` on the loopback, and nowhere else: a host
+/// that is not the loopback is refused before any connection, and of the
+/// addresses that a name resolves to, only a loopback one is used.
+pub(crate) async fn loopback_tcp(host: &str, port: u16, timeout: Duration) -> Result<TcpStream, ConnectError> {
+    if !dial::is_loopback(host) {
+        return Err(ConnectError::Config(format!(
+            "plain ws:// goes only to the loopback, and {host:?} is not: a token over plain TCP \
+             must not leave this host"
+        )));
     }
     let name = host.trim_start_matches('[').trim_end_matches(']');
     let addrs = tokio::time::timeout(timeout, tokio::net::lookup_host((name, port)))
@@ -54,13 +69,8 @@ pub async fn connect_loopback(
     let Some(addr) = addrs.into_iter().find(|a| a.ip().is_loopback()) else {
         return Err(ConnectError::Config(format!("{name:?} resolved to no loopback address")));
     };
-    let tcp = tokio::time::timeout(timeout, TcpStream::connect(addr))
+    tokio::time::timeout(timeout, TcpStream::connect(addr))
         .await
         .map_err(|_| ConnectError::Timeout { step: "the TCP connection", after: timeout })?
-        .map_err(|e| ConnectError::Dial(DialError::Connect { target: addr.to_string(), detail: e.to_string() }))?;
-    let host_header = dial::authority(name, port);
-    let (tcp, pending) = tokio::time::timeout(timeout, upgrade(tcp, &host_header, path, token))
-        .await
-        .map_err(|_| ConnectError::Timeout { step: "the WebSocket upgrade", after: timeout })??;
-    Ok(RelaySession::new(tcp, pending, idle, WRITE_TIMEOUT))
+        .map_err(|e| ConnectError::Dial(DialError::Connect { target: addr.to_string(), detail: e.to_string() }))
 }

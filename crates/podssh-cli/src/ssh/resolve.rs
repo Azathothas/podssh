@@ -43,6 +43,9 @@ pub enum Transport {
     /// key file when `--iroh-key` names one, and the relays to try after the
     /// ticket's (T-165).
     Iroh { ticket: String, key: Option<String>, relays: Vec<String>, trust: Trust, channel: crate::channel::Ask },
+    /// The service that `cloudflared` publishes under `host`, over its
+    /// WebSocket (`cf://HOST`, T-264).
+    Cloudflare { host: String, trust: Trust },
 }
 
 /// A command line, resolved.
@@ -139,10 +142,12 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     let destination = args.destination.as_deref().ok_or("missing destination: podssh ssh [user@]host [command]")?;
     let node = super::node::destination(destination)?;
     let iroh = super::iroh::destination(destination)?;
-    let target = match (&node, &iroh) {
-        (Some((user, label)), _) => Hop { user: user.clone(), host: label.clone(), port: 22 },
-        (None, Some(dest)) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
-        (None, None) => parse_hop(destination)?,
+    let tunnel = super::cloudflare::destination(destination)?;
+    let target = match (&node, &iroh, &tunnel) {
+        (Some((user, label)), ..) => Hop { user: user.clone(), host: label.clone(), port: 22 },
+        (None, Some(dest), _) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
+        (None, None, Some((user, host))) => Hop { user: user.clone(), host: host.clone(), port: 22 },
+        (None, None, None) => parse_hop(destination)?,
     };
     if args.iroh_ticket.is_some() && node.is_none() {
         return Err("--iroh-ticket is for a node://NAME destination, whose pair it races with".into());
@@ -171,7 +176,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     // line, but for `User` and `Port`, which `user@host` and `host:PORT`
     // also beat.
     let source = super::config::file(args.config.as_deref(), env.ssh_config.as_deref(), env.home.as_deref());
-    let so_far = |file: &Settings| include_tokens(args, &settings, &target, env, file);
+    let so_far = |file: &Settings| super::tokens::include_tokens(args, &settings, &target, env, file);
     let ctx = super::config::Context {
         host: &target.host,
         home: env.home.as_deref(),
@@ -326,6 +331,8 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             None => Trust::Default,
         };
         super::iroh::transport(dest, &ask(&dest.shown), trust)?
+    } else if let Some((_, host)) = &tunnel {
+        super::cloudflare::transport(&ask(host), env)?
     } else if args.direct {
         if family.is_some() {
             return Err(
@@ -453,36 +460,4 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     };
     super::persist::check(args, &mut resolved)?;
     Ok(resolved)
-}
-
-/// The `%` tokens of an `Include`, with the values of the moment, as OpenSSH
-/// gives them: the command line's, else those of the lines read so far
-/// (`file`), else the defaults; none is lowercased yet.
-fn include_tokens(args: &SshArgs, cli: &Settings, target: &Hop, env: &Env, file: &Settings) -> Tokens {
-    let host = cli.host_name.clone().or_else(|| file.host_name.clone()).unwrap_or_else(|| target.host.clone());
-    let port = args.port.as_deref().and_then(parse_port).or(cli.port).or(Some(target.port).filter(|p| *p != 22));
-    let remote_user = args.login.clone().or_else(|| cli.user.clone()).or_else(|| target.user.clone());
-    let jump = args.jump.as_deref().or(cli.proxy_jump.as_deref()).or(file.proxy_jump.as_deref());
-    Tokens {
-        home: env.home.clone(),
-        host,
-        original: target.host.clone(),
-        port: port.or(file.port).unwrap_or(22),
-        remote_user: remote_user.or_else(|| file.user.clone()).or_else(|| env.user.clone()).unwrap_or_default(),
-        local_user: env.user.clone(),
-        local_host: env.local_host.clone(),
-        uid: env.uid,
-        alias: cli
-            .host_key_alias
-            .clone()
-            .or_else(|| file.host_key_alias.clone())
-            .unwrap_or_else(|| target.host.clone()),
-        jump: match jump {
-            Some("none") => "none".into(),
-            Some(list) => {
-                list.rsplit(',').next().and_then(|h| jump_hop(h.trim()).ok()).map(|h| h.host).unwrap_or_default()
-            }
-            None => String::new(),
-        },
-    }
 }

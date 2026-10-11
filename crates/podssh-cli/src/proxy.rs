@@ -44,6 +44,18 @@ pub struct ProxyArgs {
 
 /// Run the verb; returns the process exit code.
 pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
+    match args.target.as_deref().map(crate::ssh::cloudflare::destination) {
+        Some(Ok(Some((None, host)))) => return run_cloudflare(&host, args, err),
+        Some(Ok(Some((Some(_), _)))) => {
+            let _ = writeln!(err, "podssh proxy: a cf://HOST has no user here: the SSH client logs in");
+            return EXIT_USAGE;
+        }
+        Some(Err(why)) => {
+            let _ = writeln!(err, "podssh proxy: {why}");
+            return EXIT_USAGE;
+        }
+        _ => {}
+    }
     let (host, port) = match parse_target(args.target.as_deref(), args.port.as_deref()) {
         Ok(t) => t,
         Err(why) => {
@@ -107,6 +119,64 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
     code
 }
 
+/// `podssh proxy cf://HOST` (T-264): the pipe to the service that
+/// `cloudflared` publishes under HOST, over its WebSocket, with no relay.
+fn run_cloudflare(host: &str, args: &ProxyArgs, err: &mut dyn Write) -> i32 {
+    let relay_flag = args.relay_host.is_some() || args.relay_failover.is_some() || args.relay_addr.is_some();
+    let why = if args.port.is_some() {
+        Some("cf://HOST takes no PORT: the tunnel's rule names the service")
+    } else if relay_flag {
+        Some("the relay's flags do not apply to cf://HOST: its road is the tunnel's WebSocket")
+    } else {
+        None
+    };
+    if let Some(why) = why {
+        let _ = writeln!(err, "podssh proxy: {why}");
+        return EXIT_USAGE;
+    }
+    if podssh_relay::open::offline() {
+        let _ =
+            writeln!(err, "podssh: {} is set, so podssh does not connect anywhere", podssh_relay::open::OFFLINE_ENV);
+        return EX_UNAVAILABLE;
+    }
+    let access = match crate::ssh::cloudflare::access_from(&|name| std::env::var(name).ok()) {
+        Ok(access) => access,
+        Err(why) => {
+            let _ = writeln!(err, "podssh proxy: {why}");
+            return EX_CONFIG;
+        }
+    };
+    let ca_file = args.ca_file.clone().or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
+    let trust = ca_file.map_or(Trust::Default, |file| Trust::File(file.into()));
+    let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
+        Ok(rt) => rt,
+        Err(e) => {
+            let _ = writeln!(err, "podssh proxy: could not start the async runtime: {e}");
+            return EXIT_NOT_IMPLEMENTED;
+        }
+    };
+    let code = runtime.block_on(async {
+        let timeout = podssh_relay::open::CONNECT_TIMEOUT;
+        let idle = Some(podssh_ws::client::DEFAULT_IDLE_TIMEOUT);
+        let proxy = podssh_ws::ProxyChoice::FromEnvironment;
+        match podssh_ws::cloudflare::connect(host, &access, &trust, &proxy, timeout, idle).await {
+            Ok(session) => {
+                let shown = format!("{}{host}", crate::ssh::cloudflare::SCHEME);
+                let carried = crate::pipe::relay::carry(session, shown, false, true);
+                let pumped = crate::pipe::pump::pump(crate::pipe::local::stdio(), carried).await;
+                crate::pipe::report(pumped, "podssh", err).await
+            }
+            Err(e) => {
+                let (line, code) = crate::ssh::cloudflare::refusal(host, &e);
+                let _ = writeln!(err, "podssh: {line}");
+                code
+            }
+        }
+    });
+    runtime.shutdown_background();
+    code
+}
+
 /// `HOST PORT`, or one word: `HOST:PORT` or `[IPV6]:PORT`. HOST may be a
 /// bare IPv6 address (OpenSSH gives `%h` so) or one in brackets.
 pub fn parse_target(target: Option<&str>, port: Option<&str>) -> Result<(String, u16), String> {
@@ -164,7 +234,7 @@ async fn session(road: &Road<'_>, path: &str, target: &str, v6: bool, err: &mut 
     .await;
     match opened {
         Ok(opened) => {
-            let relayed = crate::pipe::relay::carry(opened.session, target.to_string(), v6);
+            let relayed = crate::pipe::relay::carry(opened.session, target.to_string(), v6, false);
             let pumped = crate::pipe::pump::pump(crate::pipe::local::stdio(), relayed).await;
             crate::pipe::report(pumped, "podssh", err).await
         }

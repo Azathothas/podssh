@@ -89,6 +89,24 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   socket on the server, for OpenSSH) is refused until T-040 (exit 64). A
   `-J` hop keeps its own reading, where a host alone is port 22. `-V` prints
   the version and does not connect.
+- **`cf://[user@]HOST` is a service that `cloudflared` publishes (T-264).**
+  HOST is the DNS name of a tunnel's `ssh://` or `tcp://` rule. podssh opens
+  the WebSocket to `wss://HOST/` that `cloudflared access tcp` opens, with
+  its upgrade, through `HTTPS_PROXY` when one is set: no relay, and no
+  program of Cloudflare's. A name behind Cloudflare Access needs a service
+  token, `PODSSH_CF_ACCESS_CLIENT_ID` and `PODSSH_CF_ACCESS_CLIENT_SECRET`
+  (both or neither), or a token that `cloudflared access token
+  -app=https://HOST` made where its login runs, in `PODSSH_CF_ACCESS_TOKEN`
+  or the file of `PODSSH_CF_ACCESS_TOKEN_FILE`; each goes in its header,
+  never in a URL, and a bad one exits 78 (255 for `ssh`) naming the
+  variable, never the value. A refusal of Access (a redirect to its login
+  page, 401 or 403) names those variables and exits 77, another refusal 69.
+  The host key is recorded under HOST. A tunnel has no port here; `-J`,
+  `-4`, `-6`, `HostName` and `--direct` are refused (64). `podssh proxy
+  cf://HOST` is the same pipe, with no PORT and no relay flag. Each message
+  up is at most 16 KiB, as the origin cuts a longer one; podssh sends no
+  Ping, as the origin answers one outside the lock of its writes; and the
+  end of the stream, with no Close, is the end of the session.
 - **`--host-key-fingerprint SHA256:B64[,...]` accepts only the keys that it
   names** (T-031), for a script that got the server's fingerprint from its
   operator and has no `known_hosts`: under each `StrictHostKeyChecking`,

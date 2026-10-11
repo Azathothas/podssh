@@ -134,7 +134,7 @@ Measured on `3ee70dc` (`PODSSH_OFFLINE=1`, stdin from `/dev/null`): `podssh rela
 (`docs/relay.md:202-203`). The `health` function of `doctor`
 (`crates/podssh-cli/src/doctor/relay_checks.rs:81-94`) already makes a verified `/health`
 request; `crates/podssh-relay/src/pool.rs:120-137` fetches `/relays.json`. `https_get` sends no
-token header (`crates/podssh-ws/src/client.rs:269-280`); `https_request` takes headers (lines
+token header (`crates/podssh-ws/src/client.rs:284-295`); `https_request` takes headers (lines
 282-303).
 
 ## Approach
@@ -207,7 +207,7 @@ status' with no NAME, the relay's own state, is not implemented yet"), `relay in
 `relay trace github.com 22` 64 ("one word too many"), as a subcommand took one NAME; `--timeout`
 is an unknown flag (64). `spec` is T-060's and done (step 3), and the tests of `spec` read
 `--document`, so the stand-in needs no `/llms-full.txt`. `https_with_token` already sends a token
-in a header (`crates/podssh-ws/src/client.rs:282-304`), for the pairing calls. On the live relay,
+in a header (`crates/podssh-ws/src/client.rs:297-319`), for the pairing calls. On the live relay,
 2026-10-11: `/trace` alone answers without a token with the caller's address, city, coordinates
 and network; a target trace answers `target` with `ok`, `road`, `dialed`, `address_family`,
 `connect_ms`, `first_byte_ms`, `bytes_seen`, `verdict` and `banner`, or `error` alone for a
@@ -284,7 +284,7 @@ nothing, and a host that does not start TLS, each cost the 20 s limit before the
 4. Print one note for each moved host: "trying HOST last: it failed N s ago (REASON)".
 5. Ignore a record with a time in the future (a clock that moved).
 6. `doctor` and `status` (T-051) show the records. State the window in THE RELAY section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:215-228`) and in `docs/relay.md:30-63`.
+   manual (`crates/podssh-cli/src/man/facts.rs:226-239`) and in `docs/relay.md:30-63`.
 7. This is retry policy across runs. T-220 shortens the wait inside one run; the two work
    together.
 
@@ -451,7 +451,7 @@ relay sends no keepalives on reverse sockets, and a quiet socket becomes dormant
 1. A live test, ignored by default, in a new file crates/podssh-relay/tests/live_reverse.rs:
    `POST /v1/pair`; a node socket to `/v1/node/NAME`; an operator socket to `/v1/connect/NAME`;
    the node answers `open` with `ready`. Send `ready` with `RelaySession::send_text`
-   (`crates/podssh-ws/src/session.rs:108-112`), which sends a real text frame; since T-071,
+   (`crates/podssh-ws/src/session.rs:141-145`), which sends a real text frame; since T-071,
    `Leg::send_control` over `WsSocket` sends one too.
 2. Three runs of 240 s: (a) no payload and no pings; (b) WebSocket pings every 20 s from both
    ends; (c) one byte of payload every 60 s. For each socket, record the time, the code and the
@@ -634,7 +634,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
    a slow target also starts the next host. Measure the open times through a proxy in the box,
    and record D in `docs/STATUS.md`.
 3. Send a Close to each attempt that is not kept, at once. The relay then frees the target
-   socket within 15 s (`docs/design.md:208-210`, `docs/relay.md:211`); the target still sees one
+   socket within 15 s (`docs/design.md:220-222`, `docs/relay.md:211`); the target still sees one
    short connection, because the relay dials it before the upgrade.
 4. One mint at a time for each relay deployment (single flight, keyed as T-057 keys the cache),
    against the brake of `docs/relay.md:153`. When the minting attempt is the silent one, the next
@@ -647,7 +647,7 @@ listener" (lines 86-88 at `22c3b88`), and the ruling on Q10 allows more than one
 7. Add the flag to `SSH_FLAGS`, `PROXY_FLAGS` and `DOCTOR_FLAGS`
    (`crates/podssh-cli/src/flags.rs:112-259`, 323-343) and to `ONCE`
    (`crates/podssh-cli/src/ssh/args.rs:92-108`); the variable to VARIABLES and the modes to THE
-   RELAY (`crates/podssh-cli/src/man/facts.rs:45-151`, 170-183); both to `docs/relay.md:30-63`.
+   RELAY (`crates/podssh-cli/src/man/facts.rs:45-162`, 170-183); both to `docs/relay.md:30-63`.
 8. T-059 orders the hosts across runs; this entry shortens the wait in one run. GitHub #25 asks
    for a circuit breaker: retry policy, not overlap.
 
@@ -769,10 +769,10 @@ the module comment repeats it (`crates/podssh-relay/src/cache.rs`, lines 4-8 at 
 5. `doctor` names the directory in use and the variable that chose it; `status` (T-051) shows
    it; the settings file of T-048 can set it. The session log (T-056) and the failure records
    (T-059) use the same chain.
-6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:120-129`,
+6. Change in the same commit: VARIABLES and FILES (`crates/podssh-cli/src/man/facts.rs:131-140`,
    `crates/podssh-cli/src/man/data.rs:126-133`), the test of lines 365-377 at `22c3b88`, the comment
    of `cache.rs`, and the `doctor`
-   notes (`crates/podssh-cli/src/man/notes.rs:271-291`).
+   notes (`crates/podssh-cli/src/man/notes.rs:278-298`).
 
 ## Decision
 
@@ -938,7 +938,7 @@ with no reason. Each drop read as the end of the TCP stream with no Close frame
 had drops, so the traffic does not cause them.
 
 Read: on the forward path, keepalives every 60 s kept one session for 602 s
-(`docs/STATUS.md:141`). That is one run, before 2026-10-09.
+(`docs/STATUS.md:142`). That is one run, before 2026-10-09.
 
 ## Approach
 

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**282 entries: 90 open, 0 partial, 22 blocked, 170 done.**
+**282 entries: 89 open, 0 partial, 22 blocked, 171 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 19 | 21 |
-| P2 | 6 | 0 | 18 | 131 | 155 |
+| P2 | 5 | 0 | 18 | 132 | 155 |
 | P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 90 | 0 | 22 | 170 | 282 |
+| **All** | 89 | 0 | 22 | 171 | 282 |
 
 ## Entries
 
@@ -335,7 +335,7 @@ repository and CI).
 | [T-261](resume.md) | P2 | S | M6 | feature | done | A node that lost its socket connects again on `409`, until the resume deadline |
 | [T-262](resume.md) | P1 | M | M6 | defect | done | A session cut at random points can end before its bytes come through |
 | [T-263](resume.md) | P3 | S | M6 | feature | done | A node in plain mode, for a client with no resumable layer |
-| [T-264](roads.md) | P2 | M | backlog | feature | open | Reach a service that `cloudflared` publishes, through `HTTPS_PROXY` |
+| [T-264](roads.md) | P2 | M | backlog | feature | done | Reach a service that `cloudflared` publishes, through `HTTPS_PROXY` |
 | [T-265](ws.md) | P1 | S | M6 | defect | done | A silent first address holds the whole of a direct dial |
 | [T-266](repo.md) | P1 | S | none | defect | done | The vi check of the Windows console job fails at random |
 | [T-267](copy.md) | P1 | S | none | defect | done | A copy follows a source that grows, and does not end |

@@ -32,7 +32,7 @@ Read, the parsers that take input from a peer or a file: WebSocket frames
 (`crates/podssh-ws/src/proxy.rs:82`), `NO_PROXY` and the CONNECT status
 (`crates/podssh-ws/src/dial.rs`, lines 178 and 334 at `22c3b88`); since T-070 (2026-10-11), a
 SOCKS5 proxy's answers (`crates/podssh-ws/src/socks5.rs:156`); close
-reasons (`crates/podssh-ws/src/session.rs:335`); PEM bundles
+reasons (`crates/podssh-ws/src/session.rs:371`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:95`);
 `known_hosts` lines, in a private function
@@ -107,7 +107,7 @@ sh scripts/dev.sh check                                   # the gate does not ch
 
 The list names each target, and each run ends with no crash (`ws_frame`
 after T-063). Planted defect: remove the length guard of
-`close_code_and_reason` (`crates/podssh-ws/src/session.rs:336-338`);
+`close_code_and_reason` (`crates/podssh-ws/src/session.rs:372-374`);
 `close_reason` must crash within its 120 s.
 
 ## Done
@@ -443,7 +443,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:401-404`): a proxy head that never ends stops at
+   (`docs/development.md:402-405`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -473,7 +473,7 @@ Each command exits 0. Planted defect: set `WINDOW`
 channel (`channel_buffer_size`, `crates/podssh-ssh/src/run.rs:380-389`) to
 2^20 messages; the slow-reader check must fail. The window alone is not
 enough: the queue is a second bound (Correction). A second plant: remove the
-check at `crates/podssh-ws/src/session.rs:300-302`; the fragment test must
+check at `crates/podssh-ws/src/session.rs:336-338`; the fragment test must
 fail.
 
 ## Correction
@@ -530,7 +530,7 @@ whose output nobody reads; `scripts/interop-baseline.txt` has its two ids.
 - `cargo test -p podssh-ssh --test known_hosts`: 17 passed. A file of 16 MiB is read; one byte
   more is unreadable, with its reason, and a record into it is refused, the file unchanged.
 - Planted, natively: without the check of fragments
-  (`crates/podssh-ws/src/session.rs:300-302`), a message of 16777217 bytes came through, and the
+  (`crates/podssh-ws/src/session.rs:336-338`), a message of 16777217 bytes came through, and the
   test failed; without the bound of `known_hosts`, the larger file was read, and the test failed.
 - In the build image, `scripts/interop-limits.sh` alone with the Prove's plants: as the code is, a
   reader that took each byte peaked at 6884 KiB, and one that took nothing for 30 s at 7460 KiB,
@@ -564,8 +564,8 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 
 - WebSocket frames: `encode` and `decode` (`crates/podssh-ws/src/frame.rs:67`,
   `crates/podssh-ws/src/frame.rs:113`).
-- The joining of fragments (`crates/podssh-ws/src/session.rs:294-318`). It is
-  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:77`) takes
+- The joining of fragments (`crates/podssh-ws/src/session.rs:330-354`). It is
+  private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:82`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:107-183`, `crates/podssh-ws/src/names.rs:8-57`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:265-321`).
@@ -617,7 +617,7 @@ trip of frames must fail and print the smallest frame that fails.
 
 # T-203: The fault-injection harness: latency, jitter, bandwidth, a new address
 
-**Source:** `docs/design.md:253-255` (layers 2 and 3 need the harness
+**Source:** `docs/design.md:265-267` (layers 2 and 3 need the harness
 extended), and the exit criteria of M6 (`docs/ROADMAP.md`, M6; T-156).
 **Category:** chore
 **Milestone:** M6
@@ -643,7 +643,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:260-278`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:261-279`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:302`, enforced at
   `crates/podssh-ssh/src/run.rs:297-303`); a reply, 30 s
@@ -671,7 +671,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate, item 9 since T-156,
-   `docs/development.md:281-293`) and the faults table of docs/STATUS.md.
+   `docs/development.md:282-294`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 
@@ -779,7 +779,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:71`, `docs/STATUS.md:75`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:842-843` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:860-861` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -796,14 +796,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:842-843`). A difference that the table does not name fails,
+   `docs/cli.md:860-861`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:842-843` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:860-861` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed

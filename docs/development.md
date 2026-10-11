@@ -36,6 +36,7 @@ cargo test -p podssh-ts -p podssh-cli --features podssh-cli/ts   # its tests
 cargo build -p podssh-cli --features iroh                        # with the iroh road
 cargo test -p podssh-iroh -p podssh-cli --features podssh-cli/iroh-test   # its tests
 cargo test -p podssh-ws --features plain-ws --test plain_loopback   # plain ws:// to loopback, for tests
+cargo test -p podssh-ws --features plain-ws --test cloudflare_access # the road of cloudflared (T-264)
 ```
 
 - A `cargo build` or `cargo test` at the root uses `default-members`. These

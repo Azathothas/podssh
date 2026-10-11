@@ -57,6 +57,13 @@ const SSH: &[&str] = &[
      -W and --direct cannot go with it yet. The session runs the resumable layer: a lost link is \
      replaced by a new one, for 10 minutes. podssh asks the ticket's relay first, then those of \
      --iroh-relay (see THE RELAY).",
+    "cf://[user@]HOST reaches a service that Cloudflare's cloudflared publishes under HOST, the name of \
+     a tunnel's ssh:// or tcp:// rule: over the WebSocket that cloudflared access tcp opens, through \
+     HTTPS_PROXY when one is set, with no relay and no program of Cloudflare's. A name behind Cloudflare \
+     Access needs a service token (PODSSH_CF_ACCESS_CLIENT_ID and PODSSH_CF_ACCESS_CLIENT_SECRET) or a \
+     token made where its login runs (PODSSH_CF_ACCESS_TOKEN or PODSSH_CF_ACCESS_TOKEN_FILE); a refusal \
+     of Access says so. The host key is recorded and checked under HOST. A tunnel has no port here, and \
+     -J, -4, -6, HostName and --direct cannot go with it. podssh proxy cf://HOST is the same pipe.",
     "node://NAME with --iroh-ticket TICKET races the two roads to the node: the iroh road starts first, \
      the pair's road 250 ms later, or at once when the iroh road fails, and the first far end that \
      speaks carries the session; the other link ends before it sends anything, so it opens nothing at \

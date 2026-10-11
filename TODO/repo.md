@@ -328,7 +328,7 @@ Read:
   members with `CC=/nonexistent`, and the release too (lines 339-342). The
   gate builds the library crates with `CC` and `CXX` set to `/nonexistent`,
   and the release with neither (`scripts/gate.sh:154-165`,
-  `scripts/gate.sh:296-298`). The help omits the work record, interop, the man
+  `scripts/gate.sh:298-300`). The help omits the work record, interop, the man
   page, the C++ plant, and the subcommand `gate` (line 602 at `912acd0`).
 - Stale comments, at `912acd0`: `scripts/dev.sh` lines 69-73 ("the default
   build"), lines 397-404 ("links the fork since 4b", "steps 4-5") and line
@@ -348,7 +348,7 @@ Read:
    comment. Invariant: the text of the bridge does not change by one byte;
    compare the old and the new text with `cmp`.
 3. Correct the help and the stale comments to the gate as it is
-   (`scripts/gate.sh:135-350`).
+   (`scripts/gate.sh:135-352`).
 4. Extend the size check of `scripts/check-repo.py` to the shell and Python
    files under `scripts/`, with a floor (T-223).
 5. Drop the sentence on the exception from `docs/decisions.md`, and move it
@@ -457,7 +457,7 @@ Read:
 3. On a run by hand, make the list of the commits since the last tag as an
    artifact, so that it can be read before a tag.
 4. Link each "Fixes #N" of a commit to its issue in the list.
-5. docs/development.md, "Release builds" (`docs/development.md:556-601`): the
+5. docs/development.md, "Release builds" (`docs/development.md:557-602`): the
    body is the notes file and the generated list.
 
 No new shell script: each step is a step of the workflow.
@@ -930,14 +930,14 @@ sees it.
 
 Read:
 
-- `docs/STATUS.md:168-182`: the box, measured by hand on 2026-10-08.
+- `docs/STATUS.md:169-183`: the box, measured by hand on 2026-10-08.
 - `scripts/test_in_box.sh:192-195`: the box runs `probe.sh`, then
   `sandbox-check.sh` (or, with `BOX_RUN=tt`, the session of T-004), and the
   script exits with the code of the second.
   `scripts/sandbox-check.sh:85-218` prints the exit code of each step and does
   not fail on it (T-006). So today the box exits 0 when podssh fails in it.
 - `scripts/box/probe.sh:122-127` exits 1 when the box differs from the sandbox
-  in a required property (17 properties, `docs/STATUS.md:175`).
+  in a required property (17 properties, `docs/STATUS.md:176`).
 - The box needs a static binary; CI uploads one
   (`.github/workflows/build.yml:88-93`).
 - The box uses `--disable-dns` (`scripts/test_in_box.sh:112`) and a mask on
@@ -964,7 +964,7 @@ Read:
    that CI runs the box.
 
 Pitfall: the live path can drop a session (179 of 180 short sessions,
-`docs/STATUS.md:205`). Run a failure again by hand and record it. Never retry
+`docs/STATUS.md:206`). Run a failure again by hand and record it. Never retry
 inside the job.
 
 ## Decision
@@ -982,7 +982,7 @@ test "$(grep -c '^match ' box.log)" -eq 17                  # the box was faithf
 
 The run passed, with the job `box`, and its log has 17 `match` lines.
 Planted defect: run the job by hand with the seccomp option removed (an input
-of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:176`,
+of `workflow_dispatch`); the probe must exit 1, as in `docs/STATUS.md:177`,
 and the job must fail.
 
 ## Blocker
@@ -1148,7 +1148,7 @@ Read:
 
 - `scripts/gate.sh` lines 55-166 at `528bb64` have no step for rustfmt or clippy. There is no
   rustfmt.toml and no clippy.toml.
-- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:306`).
+- One `allow` for clippy exists (`crates/podssh-ws/src/client.rs:321`).
 - Files near 500 lines: `crates/podssh-cli/src/flags.rs` (469),
   crates/podssh-transport/src/socket.rs at `e8bbd4d` (458),
   `crates/podssh-cli/src/tree.rs` (454). Formatting can make a file longer.
@@ -1279,7 +1279,7 @@ warning, and the gate checks the format and the lints".
 # T-216: Advisories and licenses of the dependencies, checked in CI
 
 **Source:** the triage of GitHub #27 (2026-10-08); the advisories of iroh
-(`docs/design.md:459-461`) show that a dependency can get one.
+(`docs/design.md:471-473`) show that a dependency can get one.
 **Category:** chore
 **Milestone:** none
 **Priority:** P2
@@ -1610,8 +1610,8 @@ Read, in the tree as it is now:
   compiles one C++ file with the `cc` crate. With both variables set, the
   build must fail at `/nonexistent`; the control, with `CC` alone, must not
   stop there.
-- `docs/development.md:240-242` states the rule with `CXX`, and
-  `docs/STATUS.md:360` records the measurement. Rule 4 of
+- `docs/development.md:241-243` states the rule with `CXX`, and
+  `docs/STATUS.md:361` records the measurement. Rule 4 of
   `docs/architecture.md` named `CC=/nonexistent` only; it was repaired in the
   same change as the record.
 - `.github/workflows/build.yml:103-111` runs the plant on each push.
@@ -1642,7 +1642,7 @@ the same script in its step "the no-C rule is load-bearing".
 (CXX=/nonexistent)"). Measured with `sh scripts/dev.sh plant` in
 `rust:1-alpine`: the C plant failed twice for the right reason, the C++ plant
 failed at `CXX=/nonexistent`, the control with `CC` alone was not stopped
-there, and the clean tree built (`docs/STATUS.md:360`). The CI run of
+there, and the clean tree built (`docs/STATUS.md:361`). The CI run of
 `eacd94e`, which contains `a378863`, passed, with its step "the no-C rule is
 load-bearing".
 
@@ -2035,7 +2035,7 @@ Read:
 
 - `scripts/box/seccomp.json:5-10`: `bind` fails with EACCES for each socket,
   whatever its family.
-- `docs/STATUS.md:196`: in sandbox A, `bind` is refused for AF_INET and
+- `docs/STATUS.md:197`: in sandbox A, `bind` is refused for AF_INET and
   allowed for AF_UNIX. In the KTM report (read there), `doctor` printed
   `Permission denied (os error 13)` for AF_INET, and "bound" for an AF_UNIX
   path and for the abstract namespace.
@@ -2129,7 +2129,7 @@ Read:
 - The record's checker reads `AGENTS.md` for ids, and drops a missing file
   with no word (`crates/podssh-todo/src/refs.rs:43-48`). It accepts
   `AGENTS.md` as a cited root file (line 20). The gate runs the checker in the
-  container (`scripts/gate.sh:247-254`). 22 lines of `TODO/` cite `AGENTS.md`.
+  container (`scripts/gate.sh:249-256`). 22 lines of `TODO/` cite `AGENTS.md`.
 - The area file that was TODO/agents.md is `TODO/machine.md` now.
 
 Not known: whether `wsl-toolkit run --exclude` matches a pattern at any depth,
@@ -2216,8 +2216,8 @@ Measured with grep over the `src`, `tests` and `examples` of `podssh-cli`:
   unused dependencies.
 
 Read: `libc` (line 44) is used only in code under `cfg(unix)`
-(`crates/podssh-cli/src/ssh/tokens.rs:213`, `crates/podssh-cli/src/ssh/tokens.rs:230`,
-`crates/podssh-cli/src/ssh/resolve.rs:119`,
+(`crates/podssh-cli/src/ssh/tokens.rs:219`, `crates/podssh-cli/src/ssh/tokens.rs:236`,
+`crates/podssh-cli/src/ssh/resolve.rs:122`,
 the module of `crates/podssh-cli/src/doctor/unix.rs`). T-060 decides whether a
 command uses `podssh-probe`.
 

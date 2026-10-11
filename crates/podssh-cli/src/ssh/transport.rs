@@ -93,6 +93,7 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
             lines: vec!["an iroh: destination is reached over the iroh road, not here".into()],
             code: sysexits::EX_USAGE,
         }),
+        Transport::Cloudflare { host, trust } => super::cloudflare::reach(host, trust, log).await,
         Transport::Direct => {
             if podssh_relay::open::offline() {
                 return Err(NotReached {

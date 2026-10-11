@@ -48,8 +48,8 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:131-156`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:271-291`) and
-   `docs/cli.md:427-445` in the same commit.
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:278-298`) and
+   `docs/cli.md:445-463` in the same commit.
 
 ## Decision
 
@@ -126,7 +126,7 @@ Read: the data is in tables already. Commands and flags: `VERBS`
 and the availability (lines 443-451 at `22c3b88`). Arguments: the parser
 (`crates/podssh-cli/src/man/model.rs:199-203`). Keywords:
 `crates/podssh-cli/src/ssh/keywords.rs:25-106`, with the stated defaults (lines 99-104 at `22c3b88`).
-Variables: `crates/podssh-cli/src/man/facts.rs:45-151`. The files and the exit codes were text
+Variables: `crates/podssh-cli/src/man/facts.rs:45-162`. The files and the exit codes were text
 blocks only (`crates/podssh-cli/src/man/facts.rs` lines 100-145 and 231-271 at `332ee58`), and the blocks of the
 manual do not keep the kind and the `instead` of a flag.
 
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:86-118` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:45-58`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:271-291`) and `docs/cli.md:427-445` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:278-298`) and `docs/cli.md:445-463` in the same commit.
 
 ## Decision
 
@@ -410,7 +410,7 @@ Measured: `podssh ping example.org` exits 64 ("unknown subcommand 'ping'. No clo
 so none is guessed.").
 
 Read: the session pings the relay every 10 s and counts the pongs, but it measures no round
-trip (`crates/podssh-ws/src/session.rs:170-194`; the payload is a counter, `:191`). `doctor`
+trip (`crates/podssh-ws/src/session.rs:203-230`; the payload is a counter, `:227`). `doctor`
 prints the milliseconds of each `/health` request
 (`crates/podssh-cli/src/doctor/relay_checks.rs`, lines 130-132 at `24f3e2a`). The relay counts both directions
 against 64 MiB for each session (`docs/relay.md:152`). The stand-in relay answers pings
@@ -545,7 +545,7 @@ at `crates/podssh-cli/src/ssh/transport.rs:79`, and the relay's close reason is 
    (`crates/podssh-ssh/src/io.rs:131-139`, and `write_out` at `crates/podssh-ssh/src/io.rs:277-287`). T-055 needs the same change.
 3. stdout and stderr stay byte for byte as now; the command's output never goes into the JSON.
 4. Write the file on each path, also after a failure before the session: at the end of
-   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:95-99`). Mode 0600. Refuse `-`: stdout is data.
+   `run_ssh` (`crates/podssh-cli/src/ssh/mod.rs:96-100`). Mode 0600. Refuse `-`: stdout is data.
 5. Add the row to `SSH_FLAGS` (`crates/podssh-cli/src/flags.rs:112-259`; the set of short flags
    does not change), and change the `ssh` notes and `docs/cli.md` in the same commit.
 
@@ -590,7 +590,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:889-905`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:907-923`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:277-287`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:116-126`), and stdio needs no listener.
@@ -669,7 +669,7 @@ replaces a whole file (lines 178-197 at `22c3b88`), and no function appends to o
    two processes do not mix their lines.
 5. A size limit: at 1 MiB, rename the file to `sessions.1.jsonl`, and start a new one.
 6. `podssh status` (T-051) shows the last line in short form.
-7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:45-151`; the tests require
+7. Add the variable to VARIABLES (`crates/podssh-cli/src/man/facts.rs:45-162`; the tests require
    it) and the file to FILES, in the same commit.
 
 ## Prove

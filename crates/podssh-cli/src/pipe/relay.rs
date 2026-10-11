@@ -20,7 +20,7 @@ use podssh_relay::failover::Mode;
 use podssh_relay::open::Request;
 use podssh_relay::relay::RelayList;
 use podssh_ws::session::close_code_and_reason;
-use podssh_ws::{frame, RelaySession, Trust};
+use podssh_ws::{frame, RelaySession, SessionError, Trust};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
@@ -80,7 +80,7 @@ pub async fn open(road: &Road<'_>, host: &str, port: u16, say: &mut dyn FnMut(&s
         failover: road.failover,
     };
     match podssh_relay::open(&request, &mut |note: &str| say(note)).await {
-        Ok(opened) => Ok(carry(opened.session, target, podssh_relay::relay::is_ipv6_literal(host))),
+        Ok(opened) => Ok(carry(opened.session, target, podssh_relay::relay::is_ipv6_literal(host), false)),
         Err(failure) => {
             for line in failure.lines(&target) {
                 say(&line);
@@ -91,8 +91,10 @@ pub async fn open(road: &Road<'_>, host: &str, port: u16, say: &mut dyn FnMut(&s
 }
 
 /// The end of an open session to `target` (`host:port`); `v6` for the note
-/// on an IPv6 target that closes at once.
-pub fn carry(session: RelaySession, target: String, v6: bool) -> End {
+/// on an IPv6 target that closes at once. With `quiet_end`, the end of the
+/// stream with no Close is the end of the session, as on the road of
+/// `cloudflared`, where neither side sends a Close (T-264).
+pub fn carry(session: RelaySession, target: String, v6: bool, quiet_end: bool) -> End {
     let session = Arc::new(session);
     let status = Arc::new(Status::default());
     let up_failed = Arc::new(Notify::new());
@@ -131,6 +133,10 @@ pub fn carry(session: RelaySession, target: String, v6: bool) -> End {
             };
             let f = match read {
                 Ok(f) => f,
+                Err(SessionError::ClosedWithoutClose(_)) if quiet_end => {
+                    down_status.set_once(Ended::Closed { code: None, reason: String::new() });
+                    break;
+                }
                 Err(e) => {
                     down_status.set_once(Ended::Failed(e.to_string()));
                     break;

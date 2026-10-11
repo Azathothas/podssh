@@ -168,6 +168,8 @@ step_libs() {
     # its tests run with the feature, and the binary must never enable it.
     tests "plain ws:// to the loopback: test (feature plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-ws --features plain-ws --test plain_loopback
+    tests "the road of a Cloudflare tunnel against a stand-in (T-264, feature plain-ws, no C compiler)" \
+        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-ws --features plain-ws --test cloudflare_access
     tests "the blocking facade against a stand-in relay (features blocking, plain-ws, no C compiler)" \
         env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast -p podssh-relay --features blocking,plain-ws --test blocking_plain
     run "the binary does not enable plain-ws" sh scripts/no-plain-ws.sh

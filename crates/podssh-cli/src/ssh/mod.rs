@@ -9,6 +9,7 @@
 
 mod agents;
 pub mod args;
+pub mod cloudflare;
 pub mod config;
 pub mod control;
 pub mod dump;

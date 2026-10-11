@@ -207,13 +207,23 @@ pub async fn open_tls(
 /// and any bytes that arrived after the response head (the relay dials the
 /// target first, so its first frame can share a segment with the headers). On
 /// any other status, reads a little of the body for the error message.
-pub async fn upgrade<S>(mut tls: S, host_header: &str, path: &str, token: &str) -> Result<(S, Vec<u8>), ConnectError>
+pub async fn upgrade<S>(tls: S, host_header: &str, path: &str, token: &str) -> Result<(S, Vec<u8>), ConnectError>
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    let key = handshake::generate_key().map_err(|e| ConnectError::Upgrade(e.to_string()))?;
+    upgrade_with(tls, &handshake::build_request(host_header, path, token, &key), &key).await
+}
+
+/// [`upgrade`] with a request that the caller built with `key`, as another
+/// road's upgrade needs (T-264). The `Location` of a redirect comes back as
+/// the body of the refusal, without its query, which a login page may fill.
+pub async fn upgrade_with<S>(mut tls: S, request: &[u8], key: &str) -> Result<(S, Vec<u8>), ConnectError>
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
 {
     let io = |e: std::io::Error| ConnectError::Upgrade(e.to_string());
-    let key = handshake::generate_key().map_err(|e| ConnectError::Upgrade(e.to_string()))?;
-    tls.write_all(&handshake::build_request(host_header, path, token, &key)).await.map_err(io)?;
+    tls.write_all(request).await.map_err(io)?;
     tls.flush().await.map_err(io)?;
 
     let mut buf = Vec::with_capacity(1024);
@@ -232,10 +242,15 @@ where
         buf.extend_from_slice(&chunk[..n]);
     };
     let head = String::from_utf8_lossy(&buf[..head_end]).into_owned();
-    let (status, reason, _) = http::parse_head(&head).map_err(ConnectError::Upgrade)?;
+    let (status, reason, headers) = http::parse_head(&head).map_err(ConnectError::Upgrade)?;
     if status == 101 {
-        handshake::check_response(&head, &key).map_err(|e| ConnectError::Upgrade(e.to_string()))?;
+        handshake::check_response(&head, key).map_err(|e| ConnectError::Upgrade(e.to_string()))?;
         return Ok((tls, buf.split_off(head_end)));
+    }
+    let location = headers.iter().find(|(name, _)| name == "location").map(|(_, to)| to);
+    if let Some(to) = location.filter(|_| (300..400).contains(&status)) {
+        let to = to.split(['?', '#']).next().unwrap_or_default();
+        return Err(ConnectError::Refused { status, body: format!("a redirect to {}", crate::text::one_line(to)) });
     }
     // Not upgraded: the body says why. A short, bounded read; on any trouble
     // the status line alone is reported.
