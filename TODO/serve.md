@@ -63,7 +63,7 @@ Recommendation: the server goes in crates/podssh-ssh/src/server/, and only
 the command line in crates/podssh-cli/src/serve.rs. `docs/design.md:28-30`
 gives `podssh-ssh` the "russh client and server"; the crate links aws-lc
 already (`crates/podssh-ssh/Cargo.toml:12-18`), holds the helpers to reuse,
-and is read by the variable test (`crates/podssh-cli/src/man/facts.rs:363-368`).
+and is read by the variable test (`crates/podssh-cli/src/man/facts.rs:366-371`).
 A new crate lost: it repeats the russh dependency and its C exception, and
 makes the helpers public. `podssh-cli` lost: it is the command line.
 
@@ -1161,7 +1161,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:191-196`, `docs/architecture.md:102-112`).
+  (`AGENTS.md:191-196`, `docs/architecture.md:107-117`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
   TCP and an AF_UNIX socket to test the host, and closes them at once
@@ -1187,7 +1187,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:191-196` and `docs/architecture.md:102-112`, which then name this
+   `AGENTS.md:191-196` and `docs/architecture.md:107-117`, which then name this
    exception and the ruling.
 
 ## Prove

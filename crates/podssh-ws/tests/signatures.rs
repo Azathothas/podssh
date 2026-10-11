@@ -7,7 +7,7 @@
 //! deleted to make room, because a file that only fits because its comments
 //! were removed is not a split.
 
-use podssh_ws::crypto::sign::{ECDSA_P256_SHA256, ECDSA_P384_SHA384, ED25519};
+use podssh_ws::crypto::sign::{ECDSA_P256_SHA256, ECDSA_P256_SHA384, ECDSA_P384_SHA256, ECDSA_P384_SHA384, ED25519};
 
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
@@ -165,4 +165,28 @@ fn a_p256_signature_does_not_verify_as_p384() {
 
     // A 65-byte point cannot be a P-384 key: the length is 97.
     assert!(ECDSA_P384_SHA384.verify_signature(point.as_bytes(), message, sig.to_der().as_bytes()).is_err());
+}
+
+/// **In TLS 1.2 the hash of an ECDSA signature is not the curve's** (T-067):
+/// P-256 with SHA-384 and P-384 with SHA-256 each verify under their own
+/// algorithm, and neither under the curve's usual hash.
+#[test]
+fn ecdsa_with_the_other_hash_verifies_only_under_its_own_algorithm() {
+    use p256::ecdsa::signature::hazmat::PrehashSigner;
+    use sha2::Digest;
+
+    let message = b"a TLS 1.2 key exchange";
+    let p256_key = p256::ecdsa::SigningKey::from_bytes(&[0x71u8; 32].into()).expect("a scalar");
+    let sig: p256::ecdsa::Signature = p256_key.sign_prehash(&sha2::Sha384::digest(message)).expect("a signature");
+    let (point, der) = (p256_key.verifying_key().to_encoded_point(false), sig.to_der());
+    assert!(ECDSA_P256_SHA384.verify_signature(point.as_bytes(), message, der.as_bytes()).is_ok());
+    assert!(ECDSA_P256_SHA384.verify_signature(point.as_bytes(), b"another", der.as_bytes()).is_err());
+    assert!(ECDSA_P256_SHA256.verify_signature(point.as_bytes(), message, der.as_bytes()).is_err());
+
+    let p384_key = p384::ecdsa::SigningKey::from_bytes(&[0x72u8; 48].into()).expect("a scalar");
+    let sig: p384::ecdsa::Signature = p384_key.sign_prehash(&sha2::Sha256::digest(message)).expect("a signature");
+    let (point, der) = (p384_key.verifying_key().to_encoded_point(false), sig.to_der());
+    assert!(ECDSA_P384_SHA256.verify_signature(point.as_bytes(), message, der.as_bytes()).is_ok());
+    assert!(ECDSA_P384_SHA256.verify_signature(point.as_bytes(), b"another", der.as_bytes()).is_err());
+    assert!(ECDSA_P384_SHA384.verify_signature(point.as_bytes(), message, der.as_bytes()).is_err());
 }

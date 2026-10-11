@@ -17,6 +17,8 @@ Usage: fake-relay.py --cert CERT --key KEY --port-file FILE [--mode MODE]
 
 Modes:
   normal           behave
+  tls12            behave, over TLS 1.2 alone, as a proxy that intercepts
+                   TLS can (T-067)
   refuse:STATUS    answer every upgrade with HTTP STATUS
   blackhole        accept TCP and never start TLS
   silent           finish TLS, then never answer a request
@@ -424,7 +426,11 @@ async def main():
     parser.add_argument("--keepalive", type=float, default=25.0)
     args = parser.parse_args()
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.minimum_version = ssl.TLSVersion.TLSv1_3
+    if args.mode == "tls12":
+        context.minimum_version = ssl.TLSVersion.TLSv1_2
+        context.maximum_version = ssl.TLSVersion.TLSv1_2
+    else:
+        context.minimum_version = ssl.TLSVersion.TLSv1_3
     context.load_cert_chain(args.cert, args.key)
     if args.mode == "blackhole":
         server = await asyncio.start_server(hold, "127.0.0.1", 0)

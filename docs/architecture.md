@@ -43,8 +43,13 @@ the user gives. For each host, `podssh-ws` connects:
 2. Else directly. The address comes from, in order: an IP literal, a pinned
    address (`--relay-addr`), the system resolver, DNS over HTTPS by IP
    literal.
-3. TLS 1.3 with a verified certificate for the relay's name, then the
-   WebSocket upgrade.
+3. TLS with a verified certificate for the relay's name, then the
+   WebSocket upgrade. One ClientHello offers TLS 1.3 first, and TLS 1.2
+   with ECDHE and AES-GCM or ChaCha20-Poly1305, for a proxy that intercepts
+   TLS and speaks only 1.2 (T-067). A server that speaks 1.3 gets 1.3, and
+   the downgrade value of RFC 8446 section 4.1.3, which rustls checks, stops
+   a forced fall to 1.2. There is no CBC suite, no RSA key exchange and no
+   SHA-1.
 
 The trust store is `--ca-file` or `SSL_CERT_FILE` alone, else the Mozilla
 roots compiled into the binary (`webpki-roots`), a `podssh-ca.pem` next to

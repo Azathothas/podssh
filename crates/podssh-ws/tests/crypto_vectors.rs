@@ -311,12 +311,22 @@ fn a_malformed_peer_key_share_is_an_error_not_a_panic() {
 #[test]
 fn the_provider_offers_only_what_it_implements() {
     let p = podssh_ws::crypto::provider();
-    // **Two suites, both TLS 1.3.** The `tls12` feature is on because
-    // rustls's builder needs it, and a TLS 1.2 suite listed here would be one
-    // podssh cannot complete.
-    assert_eq!(p.cipher_suites.len(), 2);
+    // **Two suites, both TLS 1.3, until T-067.** The `tls12` feature was on
+    // because rustls's builder needs it, and a TLS 1.2 suite listed here
+    // would have been one podssh could not complete. Since 2026-10-11 six
+    // TLS 1.2 suites follow them, each of which completed a handshake and
+    // moved data with OpenSSL's `s_server` (`tests/tls12.rs`): ECDHE, with
+    // AES-GCM or ChaCha20-Poly1305, and nothing else.
+    assert_eq!(p.cipher_suites.len(), 8);
+    let tls13: Vec<bool> =
+        p.cipher_suites.iter().map(|s| matches!(s, rustls::SupportedCipherSuite::Tls13(_))).collect();
+    assert_eq!(tls13, [true, true, false, false, false, false, false, false], "TLS 1.3 comes first");
     for suite in &p.cipher_suites {
-        assert!(matches!(suite, rustls::SupportedCipherSuite::Tls13(_)), "a TLS 1.2 suite is offered");
+        if let rustls::SupportedCipherSuite::Tls12(s) = suite {
+            let name = format!("{:?}", s.common.suite);
+            assert!(name.starts_with("TLS_ECDHE_"), "{name}: not an ephemeral key exchange");
+            assert!(name.contains("_GCM_") || name.contains("CHACHA20_POLY1305"), "{name}: not an AEAD");
+        }
     }
     assert_eq!(p.kx_groups.len(), 2);
     // **THREE signature algorithms, and the third was added because a
@@ -337,10 +347,15 @@ fn the_provider_offers_only_what_it_implements() {
     // `HandshakeFailure` alert until RSA could be verified (MEASURED,
     // `tests/live_doh.rs`), so RSA PKCS #1 v1.5 and PSS with SHA-256, -384 and
     // -512 joined; `tests/rsa.rs` checks them against OpenSSL's signatures.
+    //
+    // Two more on 2026-10-11 (T-067): in TLS 1.2 the hash of an ECDSA
+    // signature is not bound to the curve, and OpenSSL's `s_server` signed
+    // its key exchange with a P-256 key and SHA-384, which failed as
+    // `BadSignature` until P-256/SHA-384 joined, with P-384/SHA-256 beside it.
     assert_eq!(
         p.signature_verification_algorithms.all.len(),
-        9,
-        "ECDSA P-256/SHA-256, ECDSA P-384/SHA-384, Ed25519, and RSA PKCS #1 and PSS with three hashes"
+        11,
+        "ECDSA on each curve with each hash, Ed25519, and RSA PKCS #1 and PSS with three hashes"
     );
     assert!(podssh_ws::crypto::suites::self_check().is_ok());
 }
@@ -366,11 +381,18 @@ fn the_signature_mapping_covers_every_algorithm_it_lists() {
             );
         }
     }
-    // **Six mapped schemes.** The third is ECDSA_NISTP384_SHA384, added
-    // after the live handshake named `ecdsa-with-SHA384` as the algorithm it
-    // could not verify; see `the_provider_offers_only_what_it_implements` for
-    // the measurement. The other three are RSA-PSS with SHA-256, -384 and
-    // -512: TLS 1.3 signs its handshake with RSA-PSS only (RFC 8446 4.2.3),
-    // while PKCS #1 v1.5 is for certificate chains and needs no scheme.
-    assert_eq!(algs.mapping.len(), 6, "ECDSA P-256, ECDSA P-384, Ed25519, and RSA-PSS with three hashes");
+    // **Six mapped schemes, then nine.** The third is ECDSA_NISTP384_SHA384,
+    // added after the live handshake named `ecdsa-with-SHA384` as the
+    // algorithm it could not verify; see
+    // `the_provider_offers_only_what_it_implements` for the measurement. The
+    // next three are RSA-PSS with SHA-256, -384 and -512: TLS 1.3 signs its
+    // handshake with RSA-PSS only (RFC 8446 4.2.3), while PKCS #1 v1.5 was for
+    // certificate chains and needed no scheme. Since T-067, a TLS 1.2 server
+    // may sign its key exchange with PKCS #1 v1.5, so it has its three
+    // schemes, which rustls takes for TLS 1.2 only.
+    assert_eq!(
+        algs.mapping.len(),
+        9,
+        "ECDSA P-256, ECDSA P-384, Ed25519, RSA-PSS and RSA PKCS #1 with three hashes each"
+    );
 }

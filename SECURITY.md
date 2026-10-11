@@ -54,7 +54,9 @@ The host-key check makes a relay in the middle safe:
 Each rule is implemented.
 
 - **TLS to the relay is verified** against trusted roots and against the
-  relay's host name. There is no option that skips the verification, and no
+  relay's host name, with TLS 1.3, or TLS 1.2 with ECDHE and an AEAD for a
+  proxy that intercepts TLS (T-067); a server that speaks 1.3 cannot be
+  forced down to 1.2. There is no option that skips the verification, and no
   crate carries a verifier that accepts each certificate: a test scans the
   source of each one (T-065). The verifier that prints a chain for a
   diagnosis lives in an example of `podssh-ws`, outside each library.

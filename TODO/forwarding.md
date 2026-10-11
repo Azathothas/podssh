@@ -439,7 +439,7 @@ AF_UNIX.
   (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`). Read: `-o LocalForward` and
   `-o DynamicForward` too (`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`).
 - Read: `AGENTS.md:191-196` (no bind, no listen),
-  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:83-100` ("Nothing
+  `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:85-102` ("Nothing
   listens") and `README.md:38-44` state the rule from before the ruling.
   `docs/design.md:437-439` already allows a local listener for `pipe` after
   a probe.
@@ -535,7 +535,7 @@ box fails.
 (`crates/podssh-cli/src/pipe/listen.rs`), which `-L` and `-D` can share.
 The refusals of `-L` and `-D` say "podssh ssh opens no local listener yet"
 and name `podssh pipe tcp-listen:` (`crates/podssh-cli/src/flags.rs`, lines 215-220 at `97146aa`,
-`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:83-100` and
+`crates/podssh-cli/src/ssh/options.rs`, lines 185-189 at `97146aa`). `SECURITY.md:85-102` and
 `README.md:38-44` state the ruling now, as `AGENTS.md:191-196` and
 `docs/target-environment.md:74-78` did already.
 
@@ -946,7 +946,7 @@ In the fault harness (`scripts/interop-faults.sh`), a run with the new flag,
 `--relay-host` set to `relay-kill` then `relay-a`, and
 `-N -R 127.0.0.1:2291:127.0.0.1:2203` carries a connection to port 2291.
 Then the stand-in relay `relay-kill` stops, as at
-`scripts/interop-faults.sh:159-169`. Within 60 s, a new connection to port
+`scripts/interop-faults.sh:165-175`. Within 60 s, a new connection to port
 2291 reads Dropbear's banner again. Planted defect: no new connection, and
 the second read fails.
 

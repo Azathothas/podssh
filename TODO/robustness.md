@@ -53,7 +53,7 @@ compiler.
    consumes at most its input, and a control frame has FIN and 125 bytes or
    fewer (fails until T-063); `forward_path` after `parse_relay_list` has the
    form `/connect/HOST/PORT`; `one_line` leaves no control character
-   (`SECURITY.md:68-71`); `Reassembler::push` stays under a stated limit
+   (`SECURITY.md:70-73`); `Reassembler::push` stays under a stated limit
    (fails until T-096); the command line target calls `parse`, never the
    dispatch, so no target reaches the network.
 3. Reach a private parser through a wrapper under `#[cfg(fuzzing)]`, which
@@ -119,7 +119,7 @@ seconds at `scripts/interop.sh:350`, the tty at `:334`), so it is not a
 stable key. The formats differ: `ok` and four spaces in
 `scripts/interop.sh:22` and `scripts/interop-pty.py:34`, three in
 `scripts/interop-man.sh:23`. The gate shows the last 80 result lines only
-(`scripts/gate.sh:318`). The totals are typed in `docs/STATUS.md:21`, line 57 at `3cbf215`
+(`scripts/gate.sh:322`). The totals are typed in `docs/STATUS.md:21`, line 57 at `3cbf215`
 and line 196 at `22c3b88`.
 
 ## Approach
@@ -201,7 +201,7 @@ Read:
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
-  peer (`SECURITY.md:68-71`).
+  peer (`SECURITY.md:70-73`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
   discipline (`docs/terminal.md:81-177`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
@@ -212,7 +212,7 @@ Read:
 
 1. A model of a VT terminal for the tests: the `vt100` crate (pure Rust, over
    `vte`) as a dev-dependency. The gate's library test step runs under
-   `CC=/nonexistent` and `CXX=/nonexistent` (`scripts/gate.sh:145-146`), so it
+   `CC=/nonexistent` and `CXX=/nonexistent` (`scripts/gate.sh:148-150`), so it
    shows that no C or C++ comes with it.
 2. A helper: bytes in, screen out (rows, cursor, attributes). Each case
    compares screens, not bytes.
@@ -380,7 +380,7 @@ the gate must show it.
 
 1. `proptest` as a dev-dependency of podssh-ws, podssh-relay and podssh-ssh.
    The gate's library test step runs under `CC=/nonexistent` and
-   `CXX=/nonexistent` (`scripts/gate.sh:145-146`), so it shows that no C comes
+   `CXX=/nonexistent` (`scripts/gate.sh:148-150`), so it shows that no C comes
    with it. Commit the regression files of proptest as seeds.
 2. One test file for each crate (tests/properties.rs), with these properties:
    - frames: for each opcode, FIN, role, mask and payload up to 262144 bytes,
@@ -439,7 +439,7 @@ minutes, and no harness can test that yet.
 Read:
 
 - The modes of the stand-in relay: `normal`, `refuse`, `blackhole`, `silent`,
-  `stall` and `close` (`scripts/fake-relay.py:18-25`). The stand-in proxy maps
+  `stall` and `close` (`scripts/fake-relay.py:18-27`). The stand-in proxy maps
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:36-44` starts one stand-in for each fault; its
@@ -513,7 +513,7 @@ fail when the resume layer is off.
 ## Correction
 
 Item 4 needs the reverse road in the stand-in relay, which serves the
-forward road only (`scripts/fake-relay.py:85-86`). T-156 builds it (its
+forward road only (`scripts/fake-relay.py:87-88`). T-156 builds it (its
 item 1) and makes those checks its measurement (its items 2 to 5). T-203
 gives T-156 the faults that those checks need: `pause:AFTER:FOR` for the
 stall that ends, `cut` for a host stopped mid-session, and `--move` for the

@@ -34,7 +34,7 @@ drop or add frames (`SECURITY.md:33-36`).
 
 ## Approach
 
-1. A sans-IO codec (`docs/architecture.md:94-98`) in a new module
+1. A sans-IO codec (`docs/architecture.md:99-103`) in a new module
    crates/podssh-relay/src/session/, with each file under 500 lines. A record
    is a type byte, a 32-bit length and a body of 64 KiB or less: `GREETING`
    and `ACCEPT` (far end), `OPEN` and `PROOF` (client), `REFUSE`, `DATA` (its
@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:180-310`).
+   (`crates/podssh-cli/src/man/facts.rs:180-313`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -837,7 +837,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
    `crates/podssh-cli/src/ssh/resolve.rs:364-378` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:237-252`,
-   `crates/podssh-cli/src/man/facts.rs:276-285`), the note at
+   `crates/podssh-cli/src/man/facts.rs:279-288`), the note at
    `crates/podssh-cli/src/man/notes.rs:132`, `docs/relay.md`, `README.md`.
 
 ## Decision
@@ -957,7 +957,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:180-310`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:180-313`).
 
 ## Decision
 
@@ -1050,10 +1050,10 @@ a stall of 3 minutes. Today each of these faults ends the session.
 
 Measured in the gate (`docs/STATUS.md`, "Faults between podssh and the relay,
 measured"): a relay that stalls is declared dead at 50 s, and a relay host
-killed in a session gives exit 255 (`scripts/interop-faults.sh:151-169`).
+killed in a session gives exit 255 (`scripts/interop-faults.sh:157-175`).
 These checks stay, for the forward road, which has no resumption. Read: the
-stand-in relay serves the forward path only (`scripts/fake-relay.py:90-107`),
-and its `stall` mode never ends (`scripts/fake-relay.py:334-337`). The
+stand-in relay serves the forward path only (`scripts/fake-relay.py:92-109`),
+and its `stall` mode never ends (`scripts/fake-relay.py:336-339`). The
 harness cannot change an address or end a stall yet (T-203). The checks need
 T-151 to T-155, the iroh road (T-162 to T-165), the reverse runners (T-079,
 T-080) and a far end (`podssh serve`, T-107).
@@ -1588,7 +1588,7 @@ that invariant. Bytes are dropped only where a client attaches after output
 that it never received: T-158, T-159 and T-161. The report puts the tracker
 in `podssh-transport`; it cannot work there. The layer runs under SSH and
 sees only ciphertext (`docs/design.md:220-221`), and the transport crates do
-not know the protocol that they carry (`docs/architecture.md:99-101`). The
+not know the protocol that they carry (`docs/architecture.md:104-106`). The
 plaintext of a pty exists only on the far end that keeps the shell. Read in
 the report, not verified here: tty7 drops bytes from its ring until a tracker
 says that it is at a boundary

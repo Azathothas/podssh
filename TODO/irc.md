@@ -1027,7 +1027,7 @@ run podssh, or who wants a public channel, has no chat.
 Read: the client is sans-IO, and T-091 to T-098 repair its defects. Measured
 on 2026-10-05: of seven public networks, only `irc.undernet.org:6667`
 accepted the relay's addresses (`docs/irc.md:99-121`). On port 6667 the relay
-and each server read the text (`SECURITY.md:149-153`).
+and each server read the text (`SECURITY.md:151-155`).
 
 ## Approach
 

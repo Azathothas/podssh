@@ -175,7 +175,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 
 1. One adapter per kind, in crates/podssh-cli/src/pipe/remote.rs: it opens
    its road and gives a duplex stream and, at the end, a close reason. The
-   pump does not know the road (`docs/architecture.md:99-101`).
+   pump does not know the road (`docs/architecture.md:104-106`).
 2. `relay:HOST:PORT`: parse as `crates/podssh-cli/src/proxy.rs:98-108` does;
    open with `crates/podssh-relay/src/open.rs:180-212`. Keep the rules of
    proxy: no Close at the end of input, the ping watcher
@@ -412,8 +412,8 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:437-439`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:191-196`, `docs/architecture.md:102-112`,
-  `docs/target-environment.md:74-78`, `SECURITY.md:83-100`, `README.md:38-44`.
+  `AGENTS.md:191-196`, `docs/architecture.md:107-117`,
+  `docs/target-environment.md:74-78`, `SECURITY.md:85-102`, `README.md:38-44`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:188`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:191-196`, `docs/architecture.md:102-112` and
+allows: `AGENTS.md:191-196`, `docs/architecture.md:107-117` and
 `docs/target-environment.md:74-78` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -652,7 +652,7 @@ sh scripts/dev.sh check                               # interop-faults.sh: the d
 
 In `scripts/interop-faults.sh`, `--persist -tt` goes through two stand-in
 relays. The input sets `MARK=kept`; the harness kills the first stand-in, as
-`scripts/interop-faults.sh:159-169` does; the input then runs `echo M=$MARK`
+`scripts/interop-faults.sh:165-175` does; the input then runs `echo M=$MARK`
 and `tmux kill-session`. The output has `M=kept`, and the exit is 0. With
 tmux moved off `PATH`, the exit is 255 and names tmux. Plant: start tmux
 without `-A`; the second attach fails, and the check must fail.

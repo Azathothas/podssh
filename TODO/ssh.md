@@ -172,13 +172,13 @@ Read:
    disconnect, then `describe`. Example: "railway.new: the relay lost its
    connection to railway.new:22 (relay close 1011: write failed: Network
    connection lost.)". Keep the code and the reason verbatim:
-   `scripts/interop-faults.sh:128` looks for them.
+   `scripts/interop-faults.sh:134` looks for them.
 4. Write a second line that says what to do. For the hop from the relay to
    the target: another relay host (`--relay-host`), and
    `podssh relay trace HOST:PORT` when T-058 exists.
 5. Use the same classification in `podssh proxy`
    (`crates/podssh-cli/src/proxy.rs` lines 252-280 at `80f20bf`). Keep `CODE REASON` in its line:
-   `scripts/interop-faults.sh:147` looks for `1009 session byte cap`.
+   `scripts/interop-faults.sh:153` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
 7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:265`. T-025 uses the
@@ -316,7 +316,7 @@ sh scripts/dev.sh check
 The unit test checks the rule: which phases and which closes allow a retry.
 In the gate, `scripts/fake-relay.py` gets a mode that drops only its first
 session during the handshake, beside the modes at
-`scripts/fake-relay.py:18-25`. Through it, `exit 5` still gives 5, with one
+`scripts/fake-relay.py:18-27`. Through it, `exit 5` still gives 5, with one
 retry note. A second case drops after the exec request: exit 255, and a file
 that the command appends to has one line. Planted defect: retry in each
 phase, and that file has two lines.
@@ -1247,7 +1247,7 @@ runs: with no user database entry, OpenSSH's programs stop at once
    (`crates/podssh-cli/src/flags.rs:408-445`), in
    `crates/podssh-cli/src/positionals.rs` and in `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`); `docs/cli.md`;
-   "Nothing listens" in `SECURITY.md:83-100`; `docs/STATUS.md`.
+   "Nothing listens" in `SECURITY.md:85-102`; `docs/STATUS.md`.
 
 ## Decision
 
@@ -1379,7 +1379,7 @@ Read:
   stops reading makes the session idle, not stuck (GitHub #36). Only a stall
   below SSH causes the hang.
 - The stand-in relay's `stall:` mode reads the client's frames and drops them
-  (`scripts/fake-relay.py:345-349`), so no fault tests a stuck write today.
+  (`scripts/fake-relay.py:347-351`), so no fault tests a stuck write today.
   GitHub #36 cites it as scripts/box/fake-relay.py, which does not exist.
 - The reporter measured a zero-window stall outside podssh: after 2.0 MiB,
   the write stayed blocked (read in the issue, not verified here).

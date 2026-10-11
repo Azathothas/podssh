@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**276 entries: 96 open, 0 partial, 22 blocked, 158 done.**
+**276 entries: 95 open, 0 partial, 22 blocked, 159 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 14 | 0 | 18 | 122 | 154 |
+| P2 | 13 | 0 | 18 | 123 | 154 |
 | P3 | 80 | 0 | 4 | 19 | 103 |
-| **All** | 96 | 0 | 22 | 158 | 276 |
+| **All** | 95 | 0 | 22 | 159 | 276 |
 
 ## Entries
 
@@ -140,7 +140,7 @@ repository and CI).
 | [T-064](ws.md) | P3 | S | M4 | defect | done | W13: `OsRng::fill_bytes` panics when the system gives no random bytes |
 | [T-065](ws.md) | P2 | S | M4 | defect | done | W14: `probe::PrintChain` accepts each certificate, and is a public export |
 | [T-066](ws.md) | P2 | M | M4 | feature | done | A `rustls::ClientConfig` that the caller supplies, for podbox |
-| [T-067](ws.md) | P2 | M | backlog | feature | open | TLS 1.2, for intercepting proxies |
+| [T-067](ws.md) | P2 | M | backlog | feature | done | TLS 1.2, for intercepting proxies |
 | [T-068](ws.md) | P3 | S | M4 | feature | done | Plain `ws://` to loopback, for tests only |
 | [T-069](ws.md) | P2 | S | M4 | feature | done | Typed session errors in `podssh-ws` |
 | [T-070](ws.md) | P2 | M | backlog | feature | open | A SOCKS5 proxy for the egress |

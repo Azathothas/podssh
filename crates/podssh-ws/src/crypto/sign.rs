@@ -31,6 +31,14 @@ pub static ECDSA_P256_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP256Sh
 /// 2026-10-02 in `rust:1-alpine` against `tcp.ssh.relay.ajam.dev:443`.
 pub static ECDSA_P384_SHA384: &dyn SignatureVerificationAlgorithm = &EcdsaP384Sha384;
 pub static ED25519: &dyn SignatureVerificationAlgorithm = &Ed25519Verify;
+/// **ECDSA with the other hash, for TLS 1.2 (T-067).** TLS 1.2 does not bind
+/// the hash of an ECDSA signature to the curve (TLS 1.3 does), so a server
+/// with a P-256 key signs with SHA-384 when the client offers that first, as
+/// OpenSSL's `s_server` did: with P-256/SHA-256 alone in its place, each
+/// ECDSA suite failed with `BadSignature`. rustls's own providers map each
+/// scheme to both curves, with the same hash.
+pub static ECDSA_P256_SHA384: &dyn SignatureVerificationAlgorithm = &EcdsaP256Sha384;
+pub static ECDSA_P384_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP384Sha256;
 
 /// RSA joined on 2026-10-08, when a measurement needed it (see
 /// [`super::rsa_sig`]): Google's DNS-over-HTTPS resolvers refuse a client
@@ -39,6 +47,8 @@ static SUPPORTED_SIG_ALGS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms
     all: &[
         ECDSA_P384_SHA384,
         ECDSA_P256_SHA256,
+        ECDSA_P256_SHA384,
+        ECDSA_P384_SHA256,
         ED25519,
         rsa_sig::RSA_PKCS1_SHA256,
         rsa_sig::RSA_PKCS1_SHA384,
@@ -52,14 +62,23 @@ static SUPPORTED_SIG_ALGS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms
     // is signed with SHA-384. P-256 stays because the leaf and the first
     // intermediate are on it — a client that dropped it would fail on the
     // next certificate the edge serves.
+    //
+    // TLS 1.3 takes the first algorithm of a scheme, the one of its curve;
+    // TLS 1.2 tries each until one fits the key, so the second of each scheme
+    // has the scheme's hash on the other curve.
     mapping: &[
-        (SignatureScheme::ECDSA_NISTP384_SHA384, &[ECDSA_P384_SHA384, ECDSA_P256_SHA256]),
-        (SignatureScheme::ECDSA_NISTP256_SHA256, &[ECDSA_P256_SHA256, ECDSA_P384_SHA384]),
+        (SignatureScheme::ECDSA_NISTP384_SHA384, &[ECDSA_P384_SHA384, ECDSA_P256_SHA384]),
+        (SignatureScheme::ECDSA_NISTP256_SHA256, &[ECDSA_P256_SHA256, ECDSA_P384_SHA256]),
         (SignatureScheme::ED25519, &[ED25519]),
         // TLS 1.3 signs the handshake with RSA-PSS only (RFC 8446 4.2.3).
         (SignatureScheme::RSA_PSS_SHA256, &[rsa_sig::RSA_PSS_SHA256]),
         (SignatureScheme::RSA_PSS_SHA384, &[rsa_sig::RSA_PSS_SHA384]),
         (SignatureScheme::RSA_PSS_SHA512, &[rsa_sig::RSA_PSS_SHA512]),
+        // A TLS 1.2 server may sign its key exchange with PKCS #1 v1.5
+        // (T-067); rustls takes these for TLS 1.2 only.
+        (SignatureScheme::RSA_PKCS1_SHA256, &[rsa_sig::RSA_PKCS1_SHA256]),
+        (SignatureScheme::RSA_PKCS1_SHA384, &[rsa_sig::RSA_PKCS1_SHA384]),
+        (SignatureScheme::RSA_PKCS1_SHA512, &[rsa_sig::RSA_PKCS1_SHA512]),
     ],
 };
 
@@ -103,34 +122,7 @@ pub struct EcdsaP256Sha256;
 
 impl SignatureVerificationAlgorithm for EcdsaP256Sha256 {
     fn verify_signature(&self, public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
-        // **The EC point, with its SEC1 `0x04` tag.** `from_sec1_bytes`
-        // parses the whole `ECPoint`, tag included, so a bare 64-byte
-        // coordinate pair is refused and the refusal is indistinguishable from
-        // a bad signature: both are `InvalidSignature`.
-        //
-        // MEASURED 2026-10-02 in `rust:1-alpine`: this is not theoretical.
-        // `rustls-webpki` hands the `SignatureVerificationAlgorithm` the
-        // content of the SPKI's BIT STRING *with the unused-bits byte still
-        // attached* — `signed_data.rs:241` passes `spki.key_value`, and
-        // `der.rs:344` builds that by `read_byte()` for the unused-bit count
-        // and then `read_bytes_to_end()`. So the live relay's certificate
-        // chain verified because its `0x04` happened to sit one position before
-        // `from_sec1_bytes` found a point it accepted, while podssh's own
-        // hand-minted certificate — whose point also starts `04` — was refused
-        // with `BadSignature` in every one of the three hostname tests.
-        // Two forms are accepted, and both are a real encoding: the SEC1
-        // point, and the point with the tag removed (RFC 5480 §2.2 and RFC 5915
-        // carry them in that order and both occur in the wild).
-        let key = match public_key.first() {
-            Some(0x04) => VerifyingKey::from_sec1_bytes(public_key),
-            _ => {
-                let mut tagged = Vec::with_capacity(public_key.len() + 1);
-                tagged.push(0x04);
-                tagged.extend_from_slice(public_key);
-                VerifyingKey::from_sec1_bytes(&tagged)
-            }
-        }
-        .map_err(|_| InvalidSignature)?;
+        let key = p256_key(public_key)?;
         let sig = Signature::from_der(signature).map_err(|_| InvalidSignature)?;
         // `Verifier` hashes the message with the curve's default digest,
         // which for P-256 is SHA-256 — matching `ECDSA_SHA256` above. A
@@ -140,6 +132,84 @@ impl SignatureVerificationAlgorithm for EcdsaP256Sha256 {
 
     fn public_key_alg_id(&self) -> AlgorithmIdentifier {
         alg_id::ECDSA_P256
+    }
+
+    fn signature_alg_id(&self) -> AlgorithmIdentifier {
+        alg_id::ECDSA_SHA256
+    }
+}
+
+/// The P-256 key of a certificate, for each verifier of P-256.
+fn p256_key(public_key: &[u8]) -> Result<VerifyingKey, InvalidSignature> {
+    // **The EC point, with its SEC1 `0x04` tag.** `from_sec1_bytes`
+    // parses the whole `ECPoint`, tag included, so a bare 64-byte
+    // coordinate pair is refused and the refusal is indistinguishable from
+    // a bad signature: both are `InvalidSignature`.
+    //
+    // MEASURED 2026-10-02 in `rust:1-alpine`: this is not theoretical.
+    // `rustls-webpki` hands the `SignatureVerificationAlgorithm` the
+    // content of the SPKI's BIT STRING *with the unused-bits byte still
+    // attached* — `signed_data.rs:241` passes `spki.key_value`, and
+    // `der.rs:344` builds that by `read_byte()` for the unused-bit count
+    // and then `read_bytes_to_end()`. So the live relay's certificate
+    // chain verified because its `0x04` happened to sit one position before
+    // `from_sec1_bytes` found a point it accepted, while podssh's own
+    // hand-minted certificate — whose point also starts `04` — was refused
+    // with `BadSignature` in every one of the three hostname tests.
+    // Two forms are accepted, and both are a real encoding: the SEC1
+    // point, and the point with the tag removed (RFC 5480 §2.2 and RFC 5915
+    // carry them in that order and both occur in the wild).
+    match public_key.first() {
+        Some(0x04) => VerifyingKey::from_sec1_bytes(public_key),
+        _ => {
+            let mut tagged = Vec::with_capacity(public_key.len() + 1);
+            tagged.push(0x04);
+            tagged.extend_from_slice(public_key);
+            VerifyingKey::from_sec1_bytes(&tagged)
+        }
+    }
+    .map_err(|_| InvalidSignature)
+}
+
+// ── ECDSA P-256 with SHA-384, and P-384 with SHA-256 ────────────────────────
+
+#[derive(Debug)]
+pub struct EcdsaP256Sha384;
+
+impl SignatureVerificationAlgorithm for EcdsaP256Sha384 {
+    fn verify_signature(&self, public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+        use p256::ecdsa::signature::hazmat::PrehashVerifier;
+        use sha2::Digest;
+        let key = p256_key(public_key)?;
+        let sig = Signature::from_der(signature).map_err(|_| InvalidSignature)?;
+        // The digest is longer than the curve: ECDSA takes its leftmost 256
+        // bits (FIPS 186-5, section 6.4.2), as `verify_prehash` does.
+        key.verify_prehash(&sha2::Sha384::digest(message), &sig).map_err(|_| InvalidSignature)
+    }
+
+    fn public_key_alg_id(&self) -> AlgorithmIdentifier {
+        alg_id::ECDSA_P256
+    }
+
+    fn signature_alg_id(&self) -> AlgorithmIdentifier {
+        alg_id::ECDSA_SHA384
+    }
+}
+
+#[derive(Debug)]
+pub struct EcdsaP384Sha256;
+
+impl SignatureVerificationAlgorithm for EcdsaP384Sha256 {
+    fn verify_signature(&self, public_key: &[u8], message: &[u8], signature: &[u8]) -> Result<(), InvalidSignature> {
+        use p384::ecdsa::signature::hazmat::PrehashVerifier;
+        use sha2::Digest;
+        let key = p384::ecdsa::VerifyingKey::from_sec1_bytes(public_key).map_err(|_| InvalidSignature)?;
+        let sig = p384::ecdsa::Signature::from_der(signature).map_err(|_| InvalidSignature)?;
+        key.verify_prehash(&sha2::Sha256::digest(message), &sig).map_err(|_| InvalidSignature)
+    }
+
+    fn public_key_alg_id(&self) -> AlgorithmIdentifier {
+        alg_id::ECDSA_P384
     }
 
     fn signature_alg_id(&self) -> AlgorithmIdentifier {

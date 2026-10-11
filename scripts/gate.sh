@@ -141,9 +141,13 @@ step_libs() {
     run "library crates build with no C compiler" \
         env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS --features podssh-relay/blocking
 
+    # The TLS 1.2 suites (T-067) are checked against OpenSSL's s_server, each
+    # alone; named, so that a missing openssl fails rather than skips.
+    run "openssl, for the TLS 1.2 checks against its s_server" apk add --no-cache openssl
     # shellcheck disable=SC2086
     tests "library crates: tests, no C compiler" \
-        env CC=/nonexistent CXX=/nonexistent cargo test --locked --no-fail-fast $LIBS --features podssh-relay/blocking
+        env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 \
+        cargo test --locked --no-fail-fast $LIBS --features podssh-relay/blocking
 
     # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:
     # its tests run with the feature, and the binary must never enable it.

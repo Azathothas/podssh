@@ -256,6 +256,45 @@ fn a_target_that_the_relay_cannot_dial_is_69() {
     assert!(stdout.contains("the relay did not dial it: refused: cannot reach"), "{stdout}");
 }
 
+/// A relay host behind a proxy that speaks only TLS 1.2 (T-067): its
+/// `/health`, a token, a trace, and an SSH session through a WebSocket,
+/// each over TLS 1.2.
+#[test]
+fn a_relay_that_speaks_only_tls12_is_reached_with_tls12() {
+    let s = Session::start("relay-tls12");
+    let cell = match Cell::fake_relay_mode(&s, "tls12", "the stand-in relay, TLS 1.2 alone") {
+        Ok(cell) => cell,
+        Err((_, why)) => {
+            eprintln!("did not run: {why}");
+            return;
+        }
+    };
+    let at = |flag: &str| cell.args.iter().position(|a| a == flag).map(|i| cell.args[i + 1].clone()).unwrap();
+    let flags = vec!["--ca-file".to_string(), at("--ca-file"), "--relay-addr".into(), "relay-a.test=127.0.0.1".into()];
+    let mut args = words(&["status", "--relay-host", &at("--relay-host")]);
+    args.extend(flags.iter().cloned());
+    let out = ran(relay(&s, &args));
+    let stdout = text(&out.stdout);
+    assert_eq!(out.status.code(), Some(0), "stdout: {stdout}\nstderr: {}", text(&out.stderr));
+    assert!(stdout.contains("; TLS 1.2, certificate verified for relay-a.test;"), "{stdout}");
+    let target = banner_target("SSH-2.0-behind-tls12\r\n");
+    let mut args = words(&["trace", "127.0.0.1", &target.to_string(), "--relay-host", &at("--relay-host")]);
+    args.extend(flags);
+    let out = ran(relay(&s, &args));
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert!(text(&out.stdout).contains("banner: SSH-2.0-behind-tls12"), "{}", text(&out.stdout));
+    let mut ssh = cell.args.clone();
+    ssh.push("greet".into());
+    let mut cmd = s.command(&ssh);
+    for name in ["HTTPS_PROXY", "https_proxy", "ALL_PROXY", "all_proxy"] {
+        cmd.env_remove(name);
+    }
+    cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+    let out = ran(cmd);
+    assert_eq!(out.status.code(), Some(0), "{}", text(&out.stderr));
+    assert_eq!(text(&out.stdout), ssh_harness::GREETING);
+}
+
 #[test]
 fn a_token_that_the_relay_refuses_is_77() {
     let s = Session::start("relay-trace-token");

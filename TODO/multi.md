@@ -266,7 +266,7 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:83-100` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:85-102` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
 
@@ -569,7 +569,7 @@ expect rule.
    reads `\r`, `\n`, `\t` and `\xNN`. Each rule waits `--expect-timeout`
    (default 30 s); a miss ends the session with 255 and names the rule.
 3. No secrets: `--send` is on the command line, which each process can read
-   (`docs/architecture.md:124-126`). The manual says so; passwords come
+   (`docs/architecture.md:129-131`). The manual says so; passwords come
    through `SSH_ASKPASS`.
 4. Tasks before and after the connection: the shell does them
    (`cmd && podssh ssh host; cmd`). Only `LocalCommand` needs podssh,
@@ -745,7 +745,7 @@ a ticket, or a tool that asks an AI.
   (`AGENTS.md:197-201`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:94-111`).
 - Read: credentials never go to output, logs, URLs or argv
-  (`docs/architecture.md:124-126`). The token type never shows itself
+  (`docs/architecture.md:129-131`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
   credentials or tokens (`docs/cli.md:443-445`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
@@ -780,7 +780,7 @@ a ticket, or a tool that asks an AI.
 6. podssh calls no AI service and no network address for this: the program
    decides what to do with the report.
 7. In the same commit: `docs/cli.md` (the hook), the notes of the manual,
-   `SECURITY.md:61-65` (what the report holds), `docs/STATUS.md`.
+   `SECURITY.md:63-67` (what the report holds), `docs/STATUS.md`.
 
 ## Decision
 

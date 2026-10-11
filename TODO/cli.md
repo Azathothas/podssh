@@ -602,7 +602,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    or `proxy`.
 4. Same commit: a row in `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-143`),
    which `each_variable_in_the_source_is_documented` requires
-   (`crates/podssh-cli/src/man/facts.rs:405-418`); "default: env
+   (`crates/podssh-cli/src/man/facts.rs:408-421`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
    it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:890-892`;
    `docs/STATUS.md`.

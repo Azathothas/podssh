@@ -67,6 +67,13 @@ async fn a_real_handshake_with_the_live_relay_verifies_chain_and_hostname() {
             // that fails loudly rather than silently succeeding.
             let (_, session) = tls.get_ref();
             assert!(!session.is_handshaking(), "the handshake did not complete");
+            // The TLS 1.2 suites (T-067) are offered too: the relay must
+            // still choose 1.3.
+            assert_eq!(
+                session.protocol_version(),
+                Some(tokio_rustls::rustls::ProtocolVersion::TLSv1_3),
+                "the live relay did not give TLS 1.3"
+            );
         }
         Err(e) => panic!(
             "FAIL the live handshake was rejected: {e}\n\

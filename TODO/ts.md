@@ -382,7 +382,7 @@ WebSocket mode with no pin (`vendor/tailscale-rs/ts_derp/src/client.rs:141-147`)
 
 Read, at `0b6f4b8`: `podssh ts` takes the proxy from `--ts-proxy` only (`crates/podssh-cli/src/ts.rs`
 lines 176-207), against the manual (`crates/podssh-cli/src/man/facts.rs:45-51`), the rule at
-`docs/target-environment.md:68-71` and `SECURITY.md:61-65`. A URL with no port means 80 in podssh
+`docs/target-environment.md:68-71` and `SECURITY.md:63-67`. A URL with no port means 80 in podssh
 (`crates/podssh-ws/src/dial.rs:70`) but 8080 in the fork (`vendor/tailscale-rs/ts_http_util/src/proxy.rs`, lines
 39-41 at `0b6f4b8`).
 Not measured: whether the proxy of a sandbox allows `tcp.ts.relay.ajam.dev:443` (`docs/tailscale.md:78-79`).

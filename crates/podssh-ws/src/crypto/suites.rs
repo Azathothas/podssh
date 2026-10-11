@@ -4,11 +4,12 @@
 //! suite that has not is worse than absent: the peer can select it, and the
 //! failure arrives in the record layer rather than during negotiation.
 //!
-//! **TLS 1.2 suites are deliberately absent.** The `tls12` feature is on
-//! because rustls's `ClientConfig` path needs it to be *usable*, but podssh
-//! offers no TLS 1.2 suite. The relay negotiates 1.3, and carrying a TLS 1.2
-//! suite this provider cannot complete would be the same defect as offering an
-//! untested one.
+//! **The TLS 1.2 suites (T-067) come after the TLS 1.3 ones**, for the
+//! proxies that intercept TLS and speak only 1.2. Each completed a handshake
+//! and moved data with OpenSSL's `s_server` (`tests/tls12.rs`). A server
+//! that speaks 1.3 still gets 1.3: rustls offers both versions in one
+//! ClientHello and checks the downgrade value of RFC 8446 section 4.1.3, so a
+//! fall to 1.2 cannot be forced.
 
 use rustls::crypto::CryptoProvider;
 use rustls::{CipherSuite, SupportedCipherSuite};
@@ -19,6 +20,7 @@ use super::hkdf::PureHkdf;
 use super::kx::{SECP256R1, X25519};
 use super::random::OsRandom;
 use super::sign::{signature_algorithms, NoClientKeys};
+use super::tls12;
 
 /// `confidentiality_limit` is `2^24` for AES-GCM, the value rustls's own
 /// reference providers use, cited there to `draft-irtf-aead-limits-08`. A
@@ -52,7 +54,16 @@ pub static TLS13_AES_128_GCM_SHA256: SupportedCipherSuite = SupportedCipherSuite
 /// **Preference order is this order**, and the first entry is also the
 /// default key share in the `ClientHello`. AES-256-GCM first because that is
 /// what the live relay has been measured negotiating.
-static ALL_CIPHER_SUITES: &[SupportedCipherSuite] = &[TLS13_AES_256_GCM_SHA384, TLS13_AES_128_GCM_SHA256];
+static ALL_CIPHER_SUITES: &[SupportedCipherSuite] = &[
+    TLS13_AES_256_GCM_SHA384,
+    TLS13_AES_128_GCM_SHA256,
+    tls12::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+    tls12::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+    tls12::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
+    tls12::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+    tls12::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+    tls12::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
+];
 
 static ALL_KX_GROUPS: &[&'static dyn rustls::crypto::SupportedKxGroup] = &[X25519, SECP256R1];
 
@@ -85,14 +96,32 @@ pub fn self_check() -> Result<(), String> {
         return Err("the provider offers no signature algorithms".into());
     }
     // Every suite must name a hash, and that hash must be one of the two the
-    // HKDF provider knows how to run.
+    // HKDF provider, and the HMAC under the TLS 1.2 PRF, know how to run.
+    let known = |h: rustls::crypto::hash::HashAlgorithm| {
+        matches!(h, rustls::crypto::hash::HashAlgorithm::SHA256 | rustls::crypto::hash::HashAlgorithm::SHA384)
+    };
+    let mut tls13_first = true;
     for suite in &p.cipher_suites {
-        if let SupportedCipherSuite::Tls13(s) = suite {
-            let h = s.common.hash_provider.algorithm();
-            let ok =
-                matches!(h, rustls::crypto::hash::HashAlgorithm::SHA256 | rustls::crypto::hash::HashAlgorithm::SHA384);
-            if !ok {
-                return Err(format!("suite {:?} names a hash with no HKDF", s.common.suite));
+        match suite {
+            SupportedCipherSuite::Tls13(s) => {
+                if !tls13_first {
+                    return Err(format!("suite {:?} comes after a TLS 1.2 suite", s.common.suite));
+                }
+                if !known(s.common.hash_provider.algorithm()) {
+                    return Err(format!("suite {:?} names a hash with no HKDF", s.common.suite));
+                }
+            }
+            SupportedCipherSuite::Tls12(s) => {
+                tls13_first = false;
+                if !known(s.common.hash_provider.algorithm()) {
+                    return Err(format!("suite {:?} names a hash with no PRF", s.common.suite));
+                }
+                if s.kx != rustls::crypto::KeyExchangeAlgorithm::ECDHE {
+                    return Err(format!("suite {:?} has no ephemeral key exchange", s.common.suite));
+                }
+                if s.sign.is_empty() {
+                    return Err(format!("suite {:?} can verify no signature", s.common.suite));
+                }
             }
         }
     }

@@ -9,7 +9,7 @@ echo "== faults (a stand-in relay and proxy, OpenSSH behind them)"
 FK="$W/faults"
 mkdir -p "$FK"
 NAMES="relay-a relay-r503 relay-silent relay-hole relay-dead relay-stall relay-close relay-cap relay-kill relay-hshake
-relay-delay relay-jitter relay-rate relay-cut relay-persist relay-dropfirst relay-dropafter"
+relay-delay relay-jitter relay-rate relay-cut relay-persist relay-dropfirst relay-dropafter relay-tls12"
 SAN=$(for n in $NAMES; do printf 'DNS:%s.test,' "$n"; done)
 PINS=$(for n in $NAMES; do printf '%s.test=127.0.0.1,' "$n"; done)
 SAN=${SAN%,}
@@ -36,7 +36,7 @@ fi
 for spec in a:normal r503:refuse:503 silent:silent hole:blackhole dead:normal stall:stall:12 \
         close:close:300000:1011 cap:close:1:1009 kill:normal hshake:close:1:1011 \
         delay:delay:2000 jitter:jitter:0:1500:7 rate:rate:65536 cut:cut:1000000 persist:normal \
-        dropfirst:dropfirst:20:1011 dropafter:dropfirstat:3:1011; do
+        dropfirst:dropfirst:20:1011 dropafter:dropfirstat:3:1011 tls12:tls12; do
     name=${spec%%:*}
     python3 "$HERE/fake-relay.py" --cert "$FK/relay.pem" --key "$FK/relay.key" --keepalive 2 \
         --port-file "$FK/$name.port" --mode "${spec#*:}" >"$FK/$name.log" 2>&1 &
@@ -46,7 +46,7 @@ port() { cat "$FK/$1.port" 2>/dev/null; }
 tries=0
 while [ "$tries" -lt 30 ]; do
     missing=0
-    for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist dropfirst dropafter; do
+    for n in a r503 silent hole dead stall close cap kill hshake delay jitter rate cut persist dropfirst dropafter tls12; do
         [ -s "$FK/$n.port" ] || missing=1
     done
     [ "$missing" = 0 ] && break
@@ -82,6 +82,12 @@ r "relay-a.test:$(port a)" "$T" 'echo through-the-stand-in' >"$FK/out" 2>"$FK/er
 rc=$?
 [ "$rc" = 0 ] && [ "$(cat "$FK/out")" = through-the-stand-in ] \
     && ok "faults: the stand-in relay carries a session (control)" || bad "faults: the control: exit $rc" "$FK/err"
+
+# T-067: a relay host behind a proxy that speaks only TLS 1.2.
+r "relay-tls12.test:$(port tls12)" "$T" 'echo over-tls12' >"$FK/out" 2>"$FK/err" </dev/null
+rc=$?
+[ "$rc" = 0 ] && [ "$(cat "$FK/out")" = over-tls12 ] \
+    && ok "faults: a stand-in relay that speaks only TLS 1.2 carries a session" || bad "faults: TLS 1.2: exit $rc" "$FK/err"
 
 files() { n=0; for f in "$@"; do [ -e "$f" ] && n=$((n + 1)); done; echo "$n"; }
 for spec in "dead:a relay host that is down" "r503:a relay host answering 503" \

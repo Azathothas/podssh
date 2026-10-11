@@ -22,5 +22,6 @@ pub mod random;
 pub mod rsa_sig;
 pub mod sign;
 pub mod suites;
+pub mod tls12;
 
 pub use suites::provider;

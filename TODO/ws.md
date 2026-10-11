@@ -2,7 +2,7 @@ This file holds the work on `podssh-ws`, the crate that reaches the relay: TCP a
 with podssh's own pure-Rust provider, and the WebSocket client. W10, W13 and W14 are rows of the
 former defects page (`git show 3ee70dc:docs/defects.md`); the features come from the
 `podssh-ws` item of ROADMAP M4 and `docs/design.md:134-138`, and from GitHub issues. The crate
-must build with no C compiler (`scripts/gate.sh:139-146`).
+must build with no C compiler (`scripts/gate.sh:139-150`).
 
 # T-063: W10: the frame decoder does not check a received control frame
 
@@ -137,7 +137,7 @@ row, panic the same way: `rng.fill_bytes` for the X25519 secret
    range), and compute the shared secret with the `diffie_hellman` function of `elliptic-curve`
    0.13. Check the API of `p256` 0.13.2 first. No generator that can panic goes in.
 4. Make the source a parameter in the tests, so a failing source can be planted.
-5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:361-385`
+5. Add a test that reads the crate's source, as `crates/podssh-cli/src/man/facts.rs:364-388`
    does, and fails on `fill_bytes(` or `OsRng` outside `random.rs`.
 
 ## Decision
@@ -232,7 +232,7 @@ cannot look for that word alone.
    (`crates/podssh-ws/examples/inspect_peer_chain.rs`), and remove `pub mod probe;`. Keep each
    file under 500 lines.
 2. Add the test that `probe.rs` (lines 9-12 at `510d86f`) promised: a scan of the source of `podssh-ws`,
-   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:361-385`
+   `podssh-relay`, `podssh-ssh` and `podssh-cli`, as `crates/podssh-cli/src/man/facts.rs:364-388`
    reads source. It fails on `impl ServerCertVerifier` and on `set_certificate_verifier`.
 3. In the example, replace the two unchecked indexes with `get`, so a short certificate gives
    "cannot read" and no panic.
@@ -393,7 +393,7 @@ need it)"); `docs/design.md:96-97`. podssh has not measured such a proxy.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -403,8 +403,8 @@ the system bundle).
 
 ## Premise
 
-Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs:55`),
-and its comment says that TLS 1.2 suites are absent on purpose (`:7-11`). The configuration
+Read: the provider has two suites, both TLS 1.3 (`crates/podssh-ws/src/crypto/suites.rs`, line 55
+at `0d3d13a`), and its comment says that TLS 1.2 suites are absent on purpose (lines 7-11 at `0d3d13a`). The configuration
 enables both versions (`crates/podssh-ws/src/tls.rs:251-253`); rustls accepts that, because one
 suite is usable, and then offers no TLS 1.2 suite (rustls 0.23.45, `with_protocol_versions` in
 its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustls` and
@@ -412,7 +412,7 @@ its `src/builder.rs`, read in the cargo registry). The `tls12` feature of `rustl
 (`crates/podssh-ws/src/crypto/hmac.rs`), AES-GCM and ChaCha20-Poly1305
 (`crates/podssh-ws/src/crypto/aead.rs`), the ECDHE groups (`crates/podssh-ws/src/crypto/kx.rs`),
 and RSA and ECDSA verification (`crates/podssh-ws/src/crypto/sign.rs`). The stand-in relay
-requires TLS 1.3 (`scripts/fake-relay.py:426-427`).
+requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
 
 ## Approach
 
@@ -421,7 +421,7 @@ requires TLS 1.3 (`scripts/fake-relay.py:426-427`).
    AEAD: GCM with a 4-byte implicit salt and an 8-byte explicit nonce; ChaCha20-Poly1305 with
    the nonce of RFC 7905.
 2. The TLS 1.3 suites stay first in `ALL_CIPHER_SUITES`, and `self_check`
-   (`crates/podssh-ws/src/crypto/suites.rs:76-100`) checks the new suites too.
+   (`crates/podssh-ws/src/crypto/suites.rs:87-129`) checks the new suites too.
 3. No CBC suite, no RSA key exchange, no SHA-1 suite.
 4. Test each suite against software that podssh did not write: `openssl s_server -tls1_2` with
    one suite at a time in the container gate, and `scripts/fake-relay.py` with an option for TLS
@@ -429,8 +429,8 @@ requires TLS 1.3 (`scripts/fake-relay.py:426-427`).
 5. The relay line of `doctor` names the version
    (`crates/podssh-relay/src/health.rs:98-101`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
-6. Change the comment of `suites.rs`, `docs/architecture.md:46`, the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:262-275`) and `docs/STATUS.md` in the same commit.
+6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
+   (`crates/podssh-cli/src/man/facts.rs:262-278`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -439,6 +439,17 @@ TLS 1.3 answers with 1.3, and the downgrade value of RFC 8446 section 4.1.3, whi
 checks, stops a forced fall to 1.2. A second attempt with 1.2 after a failed 1.3 handshake lost:
 that attempt is the downgrade that the value cannot show, and it doubles the time to fail. A flag
 that turns 1.2 on lost: the hosts that need it see a failure first.
+
+Taken, with these calls made in the work (2026-10-11). The PRF of each TLS 1.2 suite is rustls's
+own over this provider's HMAC (`PrfUsingHmac`), and its records are `crypto/tls12.rs` on the
+provider's AEAD. ECDSA with the other hash on each curve joined the verifiers: TLS 1.2 does not
+bind the hash to the curve, and OpenSSL's `s_server` signed its key exchange with a P-256 key and
+SHA-384, which failed as `BadSignature` until then; rustls's own providers map each scheme to both
+curves with its hash. RSA PKCS #1 got its three schemes, for a TLS 1.2 key exchange; rustls takes
+them for TLS 1.2 only. The checks are `s_server` with one suite at a time, natively and in the
+gate, whose library step installs openssl and sets `PODSSH_TEST_OPENSSL`, so that a missing
+openssl fails rather than skips. The stand-in relay's TLS 1.2 mode is a mode (`tls12`), so that
+the cells of the harness and the faults of the gate start it as they start the others.
 
 ## Prove
 
@@ -452,6 +463,31 @@ cargo test -p podssh-ws --test live_handshake -- --ignored   # the live relay st
 Each TLS 1.2 suite completes a handshake and moves data with OpenSSL. The stand-in relay in its
 TLS 1.2 mode carries a session. The live test asserts TLS 1.3. Planted defect: remove one suite
 from the list; its OpenSSL check fails.
+
+## Done
+
+Done on 2026-10-11. Six TLS 1.2 suites follow the two of TLS 1.3
+(`crates/podssh-ws/src/crypto/tls12.rs`): ECDHE_ECDSA and ECDHE_RSA, each with AES-256-GCM,
+AES-128-GCM and ChaCha20-Poly1305, the PRF rustls's own over the provider's HMAC. The verifiers
+gained ECDSA P-256/SHA-384 and P-384/SHA-256, and the handshake gained the three schemes of RSA
+PKCS #1, for TLS 1.2. `self_check` checks that TLS 1.3 comes first, and that each TLS 1.2 suite is
+ECDHE with a hash that its PRF can run. The stand-in relay has a mode `tls12`. The manual's Trust
+item, `docs/architecture.md`, `SECURITY.md` and `docs/STATUS.md` say so, and the gate's library
+step installs openssl and sets `PODSSH_TEST_OPENSSL`.
+
+Prove, on Windows: `CC=/nonexistent CXX=/nonexistent cargo test -p podssh-ws --test tls12`, 9
+passed against OpenSSL 3.5.7's `s_server`, held to TLS 1.2 and to one suite at a time: each of the
+six suites carried 20 lines each way, reversed by the server; a key exchange signed with PKCS #1
+v1.5 (`-sigalgs RSA+SHA256`); TLS 1.3 from a server that speaks it; and no handshake with a CBC
+suite alone. The whole crate with no C compiler, 173 passed, with the live handshake, which now
+asserts that the live relay gives TLS 1.3. `tests/signatures.rs`: ECDSA with the other hash
+verifies under its own algorithm only. `cargo test -p podssh-cli --test relay`: through the
+stand-in in its mode `tls12`, `relay status` names TLS 1.2, and a trace and an SSH session work.
+Planted, each caught by its check: a suite removed from the list (HandshakeFailure, the Prove's
+plant), the P-256/SHA-384 verifier taken out of the mapping (`BadSignature`), and a wrong explicit
+nonce of GCM (`BadRecordMac`). In the build image: the same 9 checks with Alpine's OpenSSL 3.5.9
+and `PODSSH_TEST_OPENSSL` set; `scripts/interop.sh` 286 passed, 0 failed, with a stand-in relay
+that speaks only TLS 1.2 carrying an OpenSSH session.
 
 # T-068: Plain `ws://` to loopback, for tests only
 
@@ -569,7 +605,7 @@ returns a `String` (142-166). The callers keep or pass the text:
 `TransportError::Unexpected` (crates/podssh-transport/src/socket.rs at `e8bbd4d` lines 104-113, 143, 161
 and 185), and, since T-072, a read error `Aborted` with its text. Tests and the gate match the
 text: `crates/podssh-ws/tests/session.rs` lines 108 ("continuation") and 172 ("without a
-WebSocket Close"), and `scripts/interop-faults.sh:155` ("pings unanswered").
+WebSocket Close"), and `scripts/interop-faults.sh:161` ("pings unanswered").
 `WsError` exists (`crates/podssh-ws/src/error.rs:56-76`), but the session does not use it.
 
 ## Approach

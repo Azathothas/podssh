@@ -1,4 +1,5 @@
-//! TLS 1.3 record protection, in pure Rust.
+//! TLS 1.3 record protection, in pure Rust, and the AEAD that the TLS 1.2
+//! records of `tls12.rs` use too.
 //!
 //! **Only what `suites.rs` offers is implemented.** Offering a suite whose
 //! AEAD cannot be completed is worse than not offering it, because a peer that
@@ -244,7 +245,9 @@ impl MessageDecrypter for Decrypter {
     }
 }
 
-struct Unsupported;
+/// A key or an IV of the wrong size, which rustls never gives: each record
+/// fails, honestly, rather than a panic losing the session.
+pub(crate) struct Unsupported;
 
 impl MessageEncrypter for Unsupported {
     fn encrypt(&mut self, _m: OutboundPlainMessage<'_>, _seq: u64) -> Result<OutboundOpaqueMessage, Error> {
