@@ -73,19 +73,24 @@ if ! cargo fuzz --version 2>/dev/null | grep -q " $CARGO_FUZZ_VERSION\$"; then
     retry3 cargo install cargo-fuzz --version "$CARGO_FUZZ_VERSION" --locked || exit 1
 fi
 SANITIZER=address
+# This host's own target: cargo-fuzz builds for the platform that it was
+# built for, and a release binary of it is musl's, where the sanitizer does
+# not work (the first run in CI, 2026-10-11).
+TARGET=$(rustc +"$NIGHTLY" -vV | sed -n 's/^host: //p')
+[ -n "$TARGET" ] || exit 1
 
 python3 scripts/fuzz-seeds.py || exit 1
 if [ $# -eq 0 ]; then
     set -- $(cargo +"$NIGHTLY" fuzz list) || exit 1
 fi
-echo "fuzz.sh: $# targets, $RUN_FOR s each, sanitizer $SANITIZER, $NIGHTLY"
-timeout 3600 cargo +"$NIGHTLY" fuzz build -s "$SANITIZER" || exit 1
+echo "fuzz.sh: $# targets, $RUN_FOR s each, sanitizer $SANITIZER, $NIGHTLY, $TARGET"
+timeout 3600 cargo +"$NIGHTLY" fuzz build -s "$SANITIZER" --target "$TARGET" || exit 1
 
 failed=0
 for target in "$@"; do
     echo
     echo "== $target"
-    timeout $((RUN_FOR + 300)) cargo +"$NIGHTLY" fuzz run -s "$SANITIZER" "$target" -- \
+    timeout $((RUN_FOR + 300)) cargo +"$NIGHTLY" fuzz run -s "$SANITIZER" --target "$TARGET" "$target" -- \
         -max_total_time="$RUN_FOR" -rss_limit_mb=512 -print_final_stats=1 >"fuzz/$target.log" 2>&1
     rc=$?
     grep -E '^(Done|stat::number_of_executed_units|stat::new_units_added)' "fuzz/$target.log"
