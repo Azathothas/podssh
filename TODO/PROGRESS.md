@@ -93,7 +93,9 @@ before the tag), and last T-250 (the one release). Between entries: the
 **Skip** the entries that wait for the relay's operator (status
 `blocked`): T-086, T-106, T-169, T-173, T-180, T-226, T-253 and T-255;
 and the entries that the operator holds (status `blocked`, Q32): T-085,
-T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248.
+T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
+parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
+T-124 and T-150, "Parked open work"), which waits as they wait.
 
 ## Parked open work
 
@@ -103,6 +105,14 @@ it can start.
 | Entry | Start condition |
 | --- | --- |
 | T-150 | T-112 is done: `podssh serve` has an SFTP server |
+| T-114 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
+| T-115 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
+| T-116 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
+| T-119 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
+| T-120 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
+| T-122 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
+| T-123 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
+| T-124 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
 | T-250 | Each entry is done, except the relay's, and the gate is green |
 | T-251 | Each entry is done, except the relay's; it runs before the tag of T-250 |
 

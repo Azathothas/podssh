@@ -63,7 +63,9 @@ files, and its result is in `docs/STATUS.md`.
 ## Start condition
 
 Each entry of `TODO/` is done, except the entries that wait for the relay's
-operator, and the check of T-251 passed before the tag.
+operator, the entries that the operator holds (Q32) and the work parked
+behind them (`TODO/PROGRESS.md`), and the check of T-251 passed before the
+tag.
 
 # T-251: The check of a release from end to end, with no human
 
@@ -142,7 +144,8 @@ and nothing runs. T-250 runs the same script on the published files.
 ## Start condition
 
 Each entry of `TODO/` is done, except the entries that wait for the relay's
-operator.
+operator, the entries that the operator holds (Q32) and the work parked
+behind them (`TODO/PROGRESS.md`).
 
 ## Correction
 

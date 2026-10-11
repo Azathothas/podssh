@@ -617,6 +617,11 @@ request and sets `SSH_ORIGINAL_COMMAND`; `no-pty` gives `ssh -tt` no pty;
 `expiry-time` refuses the key. A planted parser that ignores `restrict` fails
 the pty check.
 
+## Start condition
+
+T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
+request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
+
 # T-115: `podssh serve`: a TOTP second factor
 
 **Source:** GitHub #18 (VLOD-ZDOV/quic-ssh `src/totp.rs`: TOTP with no PAM).
@@ -676,6 +681,11 @@ podssh: the login works, a second use of the same code is refused, and a
 wrong code is refused. A planted check that ignores the step fails the
 replay test.
 
+## Start condition
+
+T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
+request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
+
 # T-116: `podssh serve`: an audit log
 
 **Source:** GitHub #25 (ImKKingshuk/USBoverSSH `usboverssh/src/audit.rs`).
@@ -730,6 +740,11 @@ has the login and the exit status, and `grep -c SECRET-MARKER` on it prints 0.
 With `--audit-commands` it prints 1. A planted log of each command line by
 default fails the first count. A file that cannot be written does not stop
 the session.
+
+## Start condition
+
+T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
+request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
 
 # T-117: `podssh serve`: a clean stop, and SIGHUP reads the settings again
 
@@ -912,6 +927,11 @@ removed control characters. In the gate, with a `--motd` file, an interactive
 with `$HOME/.hushlogin`, the shell does not. A planted serve that prints it
 for exec fails the second check.
 
+## Start condition
+
+T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
+request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
+
 # T-120: `podssh serve`: shell integration marks, when asked
 
 **Source:** GitHub #20 (l0ng-ai/tty7
@@ -965,6 +985,11 @@ marks in the line discipline mode. In the gate, `ssh -tt` through
 `ESC ] 7;file://` in the output, and the SHA-256 of `~/.bashrc` is the same
 before and after. Without the flag, no mark appears. A planted run that
 appends to `~/.bashrc` fails the digest check.
+
+## Start condition
+
+T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
+request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
 
 # T-121: Install `podssh serve` or `podssh node` as a service with no privileges
 
@@ -1077,6 +1102,11 @@ so its serve steps show that sessions work and the log names the fallback. On
 a host with systemd, `systemctl --user list-units 'podssh-serve-*'` lists the
 scope of an open session; that run is recorded in `docs/STATUS.md`.
 
+## Start condition
+
+T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
+request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
+
 # T-123: `podssh serve` accepts `tcpip-forward` from a standard `ssh -R`
 
 **Source:** GitHub #18 (EpicEric/sandhole: reverse proxying through a stock
@@ -1137,6 +1167,11 @@ stand-in relay in memory. The second uses the live relay: OpenSSH's
 `ssh -R 0:127.0.0.1:2201` through `podssh serve --stdio`, then
 `podssh operator NAME` reads the banner of the client's port 2201. A planted
 serve that binds a socket fails a check that counts the open sockets of serve.
+
+## Start condition
+
+T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
+request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
 
 # T-124: `podssh serve --listen`: SSH on a TCP port on a host that allows it
 
@@ -1204,6 +1239,11 @@ and an AF_UNIX path, and checks the connection caps. In the gate, OpenSSH's
 seccomp filter refuses `bind`, a new step shows that serve exits 69 with the
 line that names the address and the errno. A planted serve that binds before
 the probe, or with no `--listen`, fails a check of its open sockets.
+
+## Start condition
+
+T-107 to T-112 are done: `podssh serve` exists, with its authorized keys and its answer to each
+request. The operator holds them (Q32, `docs/decisions.md`), so this entry waits as they wait.
 
 # T-222: `podssh serve` finds a shell with no passwd entry and no `/etc/shells`, and names each candidate that failed (GitHub #32)
 
