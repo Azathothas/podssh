@@ -1018,6 +1018,15 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:222`.
   print.
 - `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
+- Correction, the same day: at `8d2187c` the gate did not build on Linux.
+  `crates/podssh-ssh/src/mux/msession.rs`, which Unix builds alone, matched
+  the escapes with no `~#`, and the build on Windows never compiled it. The
+  repair: the session of a client of a control master lists the master's
+  forwards with `~#`, as OpenSSH's `~#` lists the master's connections, and
+  its `~?` names it (`crates/podssh-ssh/src/mux/msession.rs:32-34` and
+  `crates/podssh-ssh/src/mux/msession.rs:160-165`). In the build image
+  (`sh scripts/dev.sh run`), `cargo clippy --all-targets -p podssh-ssh -p
+  podssh-cli -- -D warnings` passed.
 
 # T-042: `-R` forwards come back after a drop
 

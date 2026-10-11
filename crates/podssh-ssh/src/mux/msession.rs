@@ -29,7 +29,8 @@ const CHUNK: usize = 32 * 1024;
 const OPEN_LIMIT: Duration = Duration::from_secs(60);
 /// How long one side of a stdio forward may still talk once the other ended.
 const GRACE: Duration = Duration::from_secs(2);
-const HELP: &[u8] = b"\r\nSupported escape sequences:\r\n ~.   - terminate this session\r\n ~?   - this message\r\n \
+const HELP: &[u8] = b"\r\nSupported escape sequences:\r\n ~.   - terminate this session\r\n \
+~#   - list forwarded connections\r\n ~?   - this message\r\n \
 ~~   - send the escape character by typing it twice\r\n(Note that escapes are only recognized immediately after newline.)\r\n";
 
 async fn failure(stream: &mut UnixStream, rid: u32, reason: String) {
@@ -155,6 +156,12 @@ async fn pump(
                             }
                             Command::Help => {
                                 let _ = err.write_all(HELP).await;
+                            }
+                            // The forwards are the master's, as OpenSSH's
+                            // ~# lists the master's connections (T-041).
+                            Command::List => {
+                                let listing = crate::tally::listing().replace('\n', "\r\n");
+                                let _ = err.write_all(listing.as_bytes()).await;
                             }
                             // A re-key is the whole connection's: the master's.
                             Command::Rekey => {}
