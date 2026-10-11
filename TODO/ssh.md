@@ -490,6 +490,14 @@ and 0), and `-N` and `yes` never 0. Before it, CI's step `release` at
 port 2210, the sshd stopped after the block, and each client ended at 60 s.
 The planted runs in the build image wait for T-251.
 
+CI at `615c415` failed once in the gate's step `iroh`: `tests/ssh_exit_status.rs` read 64 KiB of
+`spew-mute` before it closed stdout, but podssh had no stdin, so it sent the end of input at
+once, and `spew-mute` stops at the end of input: under load, fewer than 64 KiB came
+(`UnexpectedEof`). The test now holds stdin open, so that the remote writes until podssh itself
+sends the end of input when its stdout closes, which is the case of step 1. 2026-10-11:
+`cargo test -p podssh-cli --test ssh_exit_status` passed 20 runs in a row on Windows, and 20 in
+the build image (`sh scripts/dev.sh run`).
+
 # T-027: Host certificates and `@cert-authority` in `known_hosts` (GitHub #29)
 
 **Source:** GitHub #29 (2026-10-08; read by the reporter, not measured); the
