@@ -95,6 +95,8 @@ pub struct Env {
     /// The system's `ssh_config`, read after `~/.ssh/config`; `None` reads
     /// none, as in the tests.
     pub system_config: Option<PathBuf>,
+    /// podssh's own settings file (T-048); none in the tests.
+    pub settings: crate::settings::Defaults,
 }
 
 impl Env {
@@ -112,8 +114,15 @@ impl Env {
             uid: super::tokens::local_uid(),
             ssh_config: var("PODSSH_SSH_CONFIG"),
             system_config: Some(super::config::system_file()),
+            settings: crate::settings::here().clone(),
         }
     }
+}
+
+/// The CA file: `--ca-file`, else `SSL_CERT_FILE`, else the settings
+/// file's `CaFile` (T-048).
+pub(super) fn ca_file(args: &SshArgs, env: &Env) -> Option<String> {
+    crate::settings::ca_file_from(args.ca_file.as_deref(), env.ssl_cert_file.clone(), &env.settings)
 }
 
 /// With no user name in the environment, uid 0 is `root` by convention; any
@@ -296,7 +305,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         let race = super::iroh::race(args)?;
         super::node::transport(&ask(label), env, race)?
     } else if let Some(dest) = &iroh {
-        let trust = match args.ca_file.clone().or_else(|| env.ssl_cert_file.clone()) {
+        let trust = match ca_file(args, env) {
             Some(file) => Trust::File(file.into()),
             None => Trust::Default,
         };
@@ -311,8 +320,12 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         }
         Transport::Direct
     } else {
-        let relays = crate::relay_settings::relays(args.relay_host.as_deref(), env.relay.clone())?;
-        let failover = crate::relay_settings::failover(args.relay_failover.as_deref(), env.relay_failover.clone())?;
+        let relays = crate::relay_settings::relays_from(args.relay_host.as_deref(), env.relay.clone(), &env.settings)?;
+        let failover = crate::relay_settings::failover_from(
+            args.relay_failover.as_deref(),
+            env.relay_failover.clone(),
+            &env.settings,
+        )?;
         relay::check_target(&first).map_err(|why| format!("cannot reach {first} through the relay: {why}"))?;
         // The relay dials a literal as it is; a family of the other kind
         // cannot apply to it.
@@ -325,7 +338,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
             }
             _ => {}
         }
-        let trust = match args.ca_file.clone().or_else(|| env.ssl_cert_file.clone()) {
+        let trust = match ca_file(args, env) {
             Some(file) => Trust::File(file.into()),
             None => Trust::Default,
         };

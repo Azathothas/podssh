@@ -71,7 +71,7 @@ pub(super) fn transport(r: &Ask<'_>, env: &Env, race: Option<super::iroh::Race>)
     if let Some(why) = why {
         return Err(format!("{SCHEME}{}: {why}", r.label));
     }
-    let trust = match r.args.ca_file.clone().or_else(|| env.ssl_cert_file.clone()) {
+    let trust = match super::resolve::ca_file(r.args, env) {
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,
     };

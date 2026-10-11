@@ -31,8 +31,10 @@ asks both for one verdict (`scripts/relay-spec-agree.py`).
 
 The code is in `crates/podssh-relay/`.
 
-1. If `--relay-host` or `PODSSH_RELAY` is given, podssh tries those hosts in
-   that order: `HOST[:PORT][,HOST[:PORT]...]`, separated by commas only.
+1. If `--relay-host`, `PODSSH_RELAY` or the `RelayHost` of podssh's
+   settings file (T-048) is given, in that order of precedence, podssh tries
+   those hosts in that order: `HOST[:PORT][,HOST[:PORT]...]`, separated by
+   commas only.
 2. Else, podssh tries the default host `tcp.ssh.relay.ajam.dev`, then up to
    three hosts of its pool. The pool is the `pool[].host` list of
    `/relays.json`, cached on disk. Six measured hosts seed it until a cached
@@ -40,8 +42,9 @@ The code is in `crates/podssh-relay/`.
    mint, when the cache is older than 7 days.
 3. For each host, podssh gets a token, then opens the WebSocket. Each step
    has a limit of 20 s, and the whole attempt has a limit of 45 s.
-4. The hosts overlap, as `--relay-failover MODE` or `PODSSH_RELAY_FAILOVER`
-   says (the flag wins; T-220). `staggered`, the default: the next host
+4. The hosts overlap, as `--relay-failover MODE`, `PODSSH_RELAY_FAILOVER` or
+   the settings file's `RelayFailover` says (the flag wins, then the
+   variable; T-220). `staggered`, the default: the next host
    starts when the attempt before it has not opened within 2 s, or at once
    when it failed; the first attempt that opens is kept, and of two that
    opened together, the earlier in the list. `parallel`: each host starts at

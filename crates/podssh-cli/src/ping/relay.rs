@@ -90,8 +90,7 @@ impl Leg {
 /// The trust for the relay: `--ca-file`, else `SSL_CERT_FILE`, else the
 /// system's and the built-in roots.
 pub fn trust(ca_file: Option<&str>) -> Trust {
-    let file =
-        ca_file.map(str::to_string).or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
+    let file = crate::settings::ca_file(ca_file);
     match file {
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,

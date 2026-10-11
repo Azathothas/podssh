@@ -47,8 +47,7 @@ pub fn settings(args: &PipeArgs, addresses: [&Address; 2]) -> Result<Settings, R
         args.ssh.relay_failover.as_deref(),
         std::env::var(podssh_relay::failover::MODE_ENV).ok(),
     )?;
-    let ca_file =
-        args.ssh.ca_file.clone().or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
+    let ca_file = crate::settings::ca_file(args.ssh.ca_file.as_deref());
     let trust = match ca_file {
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,

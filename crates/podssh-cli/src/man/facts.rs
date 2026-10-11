@@ -75,6 +75,11 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (&["PODSSH_RELAY_ADDR"], "Addresses to use in place of DNS, as --relay-addr, after the flag's addresses."),
     (
+        &["PODSSH_SETTINGS"],
+        "The file of podssh's own settings (see FILES), an absolute path that must exist; none reads none. \
+      The flags and the other variables beat the file.",
+    ),
+    (
         &["PODSSH_TIMEOUT"],
         "The default of --timeout for each command that has the flag, as a whole duration such as 30s; the \
       flag wins, and an empty value is no value. A bad value is a configuration error (78).",
@@ -139,6 +144,7 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
         &["XDG_CACHE_HOME", "LOCALAPPDATA", "XDG_RUNTIME_DIR", "TMPDIR", "TMP", "TEMP"],
         "Where podssh keeps its cache (see FILES).",
     ),
+    (&["XDG_CONFIG_HOME", "APPDATA"], "Where podssh looks for its settings file, APPDATA on Windows (see FILES)."),
     (&["TERM"], "Sent to the server with a pty request; xterm-256color when it is not set."),
     (
         &["COLUMNS", "LINES"],
@@ -215,7 +221,8 @@ fn relay() -> Vec<Block> {
         item(
             vec![lit("Hosts")],
             format!(
-                "With no --relay-host and no PODSSH_RELAY, podssh tries {} first, then up to {} hosts of its \
+                "With no --relay-host, no PODSSH_RELAY and no RelayHost in the settings file, podssh tries {} first, \
+                 then up to {} hosts of its \
                  pool. The relay publishes the pool; podssh caches it, and fetches it again at the next token \
                  mint once it is {} days old. Until a pool is cached, these hosts are the pool: {}.",
                 relay::DEFAULT_RELAY_HOST,

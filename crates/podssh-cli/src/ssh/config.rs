@@ -300,7 +300,7 @@ fn read_file(path: &Path, checked: bool) -> Result<Option<String>, String> {
 }
 
 #[cfg(unix)]
-fn owner_alone_writes(path: &Path, _file: &std::fs::File, meta: &std::fs::Metadata) -> Result<(), String> {
+pub(crate) fn owner_alone_writes(path: &Path, _file: &std::fs::File, meta: &std::fs::Metadata) -> Result<(), String> {
     use std::os::unix::fs::MetadataExt;
     if (meta.uid() == 0 || Some(meta.uid()) == super::tokens::local_uid()) && meta.mode() & 0o022 == 0 {
         return Ok(());
@@ -314,13 +314,13 @@ fn owner_alone_writes(path: &Path, _file: &std::fs::File, meta: &std::fs::Metada
 // Windows keeps the owner and the writers in an access list, which the
 // cache's check reads, as OpenSSH for Windows does (T-274).
 #[cfg(not(unix))]
-fn owner_alone_writes(path: &Path, file: &std::fs::File, _meta: &std::fs::Metadata) -> Result<(), String> {
+pub(crate) fn owner_alone_writes(path: &Path, file: &std::fs::File, _meta: &std::fs::Metadata) -> Result<(), String> {
     podssh_relay::cache::closed(path, file, podssh_relay::cache::Others::Read)
         .map_err(|why| format!("bad owner or permissions: {why}"))
 }
 
 /// A keyword and its arguments: `Keyword value` or `Keyword=value`.
-fn split(line: &str) -> (&str, &str) {
+pub(crate) fn split(line: &str) -> (&str, &str) {
     let at = line.find(|c: char| c == '=' || c.is_whitespace()).unwrap_or(line.len());
     let (keyword, rest) = line.split_at(at);
     (keyword, rest.trim_start().trim_start_matches('=').trim())
@@ -328,7 +328,7 @@ fn split(line: &str) -> (&str, &str) {
 
 /// The arguments up to a `#` that starts a word outside double quotes:
 /// OpenSSH reads that as a comment, also after a value.
-fn uncomment(value: &str) -> &str {
+pub(crate) fn uncomment(value: &str) -> &str {
     let (mut quoted, mut word_start) = (false, true);
     for (i, c) in value.char_indices() {
         if c == '#' && word_start && !quoted {

@@ -56,7 +56,7 @@ pub(super) fn prepare(plan: IrcPlan, nick: String, args: &ChatArgs) -> Result<Re
     let failover = crate::relay_settings::failover_of_env()?;
     let path = relay::forward_path(&plan.server, plan.port).map_err(Refusal::usage)?;
     crate::pairs::online()?;
-    let ca = args.ca_file.clone().or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
+    let ca = crate::settings::ca_file(args.ca_file.as_deref());
     let trust = ca.map_or(Trust::Default, |file| Trust::File(file.into()));
     let irc_trust = args.irc_ca_file.as_ref().map_or(Trust::Default, |file| Trust::File(file.into()));
     let label = podssh_ws::dial::authority(&plan.server, plan.port);

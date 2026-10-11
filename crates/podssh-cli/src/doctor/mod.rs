@@ -69,10 +69,12 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
         Err(refusal) => return refusal.report("doctor", err),
     };
     let cert_env = std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty());
-    let (trust, trust_from) = match (&args.ca_file, cert_env) {
-        (Some(file), _) => (Trust::File(file.into()), "--ca-file"),
-        (None, Some(file)) => (Trust::File(file.into()), "SSL_CERT_FILE"),
-        (None, None) => (Trust::Default, "the default"),
+    let settings = crate::settings::here();
+    let (trust, trust_from) = match (&args.ca_file, cert_env, &settings.ca_file) {
+        (Some(file), ..) => (Trust::File(file.into()), "--ca-file"),
+        (None, Some(file), _) => (Trust::File(file.into()), "SSL_CERT_FILE"),
+        (None, None, Some(value)) => (Trust::File(value.text.clone().into()), "CaFile of the settings file"),
+        (None, None, None) => (Trust::Default, "the default"),
     };
 
     let mut report = Report::new(out);
@@ -90,6 +92,10 @@ pub fn run_doctor(args: &DoctorArgs, out: &mut dyn Write, err: &mut dyn Write) -
 
     report.section("this host");
     host::check(&mut report);
+    match &settings.path {
+        Some(path) => report.ok("settings", format!("podssh's settings are read from {}", path.display())),
+        None => report.ok("settings", "no settings file; the flags, the variables and the defaults hold".to_string()),
+    }
     agent::check(&mut report);
     #[cfg(feature = "iroh")]
     iroh::udp(&mut report);

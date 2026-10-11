@@ -32,6 +32,7 @@ fn env() -> Env {
         // No ssh_config file: these tests hold the command line alone.
         ssh_config: Some("none".into()),
         system_config: None,
+        settings: Default::default(),
     }
 }
 

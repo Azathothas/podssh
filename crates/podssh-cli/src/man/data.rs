@@ -211,6 +211,20 @@ pub fn files() -> Vec<(Vec<String>, String)> {
             "CA certificates in the directory of the podssh binary, added to the trust store.".to_string(),
         ),
         (
+            if cfg!(windows) {
+                vec![r"%APPDATA%\podssh\settings".to_string(), crate::settings::BESIDE_BINARY.to_string()]
+            } else {
+                vec!["$XDG_CONFIG_HOME/podssh/settings".to_string(), crate::settings::BESIDE_BINARY.to_string()]
+            },
+            "podssh's own settings: RelayHost, RelayAddr (each line adds), RelayFailover and CaFile, as Keyword \
+             value lines, below the flags and the variables. The file of PODSSH_SETTINGS, else the first of these \
+             that exists (~/.config/podssh/settings with no XDG_CONFIG_HOME; the second beside the podssh \
+             binary); never one of the working directory. A symbolic link, a file of another user than you or \
+             root, one that others can change, and a bad line are refused (78) by each command that reaches the \
+             relay. podssh never writes it, and no keyword holds a token."
+                .to_string(),
+        ),
+        (
             podssh_ws::tls::SYSTEM_BUNDLES.iter().map(|s| s.to_string()).collect(),
             "The system CA bundles. The first one that podssh can read is added to the trust store.".to_string(),
         ),

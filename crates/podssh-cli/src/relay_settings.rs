@@ -11,6 +11,7 @@ use podssh_relay::relay::{self, RelayList};
 
 use crate::exit_codes::EXIT_USAGE;
 use crate::exitmap::sysexits::EX_CONFIG;
+use crate::settings::Defaults;
 
 /// A refusal before anything is attempted, with the exit code that says
 /// where the fault is: in the command line (64) or in the environment (78).
@@ -58,13 +59,24 @@ impl std::fmt::Display for Refusal {
 }
 
 /// The relay hosts: `--relay-host`, else `PODSSH_RELAY` (`env`), else the
-/// default host and its pool. The message names the flag or the variable
-/// that gave the bad value.
+/// settings file's `RelayHost` (T-048), else the default host and its pool.
+/// The message names the flag, the variable or the line that gave the bad
+/// value.
 pub fn relays(flag: Option<&str>, env: Option<String>) -> Result<RelayList, Refusal> {
+    relays_from(flag, env, crate::settings::here())
+}
+
+/// [`relays`] with the settings given.
+pub fn relays_from(flag: Option<&str>, env: Option<String>, file: &Defaults) -> Result<RelayList, Refusal> {
     let pool = podssh_relay::pool::alternates(relay::DEFAULT_RELAY_HOST);
     // select_relays reads the variable only when there is no flag, and an
     // empty variable as no variable.
     let from_env = flag.is_none() && env.as_deref().is_some_and(|v| !v.trim().is_empty());
+    if let (None, false, Some(value)) = (flag, from_env, &file.relay_host) {
+        file.check()?;
+        return relay::select_relays(Some(&value.text), None, &pool)
+            .map_err(|why| Refusal::config(format!("{}: RelayHost {}: {why}", value.at, value.text)));
+    }
     relay::select_relays(flag, env, &pool).map_err(|why| {
         if from_env {
             Refusal::config(format!("{}: {why}", relay::RELAY_ENV))
@@ -75,12 +87,22 @@ pub fn relays(flag: Option<&str>, env: Option<String>) -> Result<RelayList, Refu
 }
 
 /// How the relay hosts are tried (T-220): `--relay-failover`, else
-/// `PODSSH_RELAY_FAILOVER` (`env`), else `staggered`.
+/// `PODSSH_RELAY_FAILOVER` (`env`), else the settings file's
+/// `RelayFailover` (T-048), else `staggered`.
 pub fn failover(flag: Option<&str>, env: Option<String>) -> Result<Mode, Refusal> {
-    match flag {
-        Some(word) => Mode::parse(word)
+    failover_from(flag, env, crate::settings::here())
+}
+
+/// [`failover`] with the settings given.
+pub fn failover_from(flag: Option<&str>, env: Option<String>, file: &Defaults) -> Result<Mode, Refusal> {
+    let env_set = env.as_deref().is_some_and(|v| !v.trim().is_empty());
+    match (flag, env_set, &file.relay_failover) {
+        (Some(word), ..) => Mode::parse(word)
             .ok_or_else(|| Refusal::usage(format!("--relay-failover: {word:?} is not a mode: give {}", Mode::NAMES))),
-        None => Mode::from_env(env).map_err(Refusal::config),
+        (None, false, Some(value)) => Mode::parse(&value.text).ok_or_else(|| {
+            Refusal::config(format!("{}: RelayFailover {:?} is not a mode: give {}", value.at, value.text, Mode::NAMES))
+        }),
+        _ => Mode::from_env(env).map_err(Refusal::config),
     }
 }
 
@@ -95,15 +117,15 @@ mod tests {
 
     #[test]
     fn a_bad_variable_is_78_and_a_bad_flag_64() {
-        let bad = relays(None, Some("bad host!".into())).unwrap_err();
+        let bad = relays_from(None, Some("bad host!".into()), &Defaults::default()).unwrap_err();
         assert_eq!(bad.code, EX_CONFIG);
         assert!(bad.message.starts_with("PODSSH_RELAY: "), "{bad}");
-        let bad = relays(Some("bad host!"), Some("good.example".into())).unwrap_err();
+        let bad = relays_from(Some("bad host!"), Some("good.example".into()), &Defaults::default()).unwrap_err();
         assert_eq!(bad.code, EXIT_USAGE);
         assert!(bad.message.starts_with("--relay-host: "), "{bad}");
         // The flag wins, so a bad variable beside a good flag is not read.
-        assert!(relays(Some("good.example"), Some("bad host!".into())).is_ok());
+        assert!(relays_from(Some("good.example"), Some("bad host!".into()), &Defaults::default()).is_ok());
         // An empty variable is no variable.
-        assert!(relays(None, Some("  ".into())).is_ok());
+        assert!(relays_from(None, Some("  ".into()), &Defaults::default()).is_ok());
     }
 }

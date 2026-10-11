@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**289 entries: 75 open, 0 partial, 23 blocked, 191 done.**
+**289 entries: 74 open, 0 partial, 23 blocked, 192 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 135 | 157 |
-| P3 | 69 | 0 | 5 | 34 | 108 |
-| **All** | 75 | 0 | 23 | 191 | 289 |
+| P3 | 68 | 0 | 5 | 35 | 108 |
+| **All** | 74 | 0 | 23 | 192 | 289 |
 
 ## Entries
 
@@ -121,7 +121,7 @@ repository and CI).
 | [T-045](config.md) | P3 | M | backlog | feature | done | `Match` in `ssh_config` |
 | [T-046](config.md) | P2 | S | M8 | feature | done | `podssh ssh -G`: print the settings in effect (GitHub #14, #22) |
 | [T-047](config.md) | P3 | M | backlog | feature | done | Import host lists from other clients into `ssh_config` |
-| [T-048](config.md) | P3 | M | backlog | feature | open | A podssh settings file for its own defaults, below flags and variables |
+| [T-048](config.md) | P3 | M | backlog | feature | done | A podssh settings file for its own defaults, below flags and variables |
 | [T-049](machine.md) | P2 | S | backlog | feature | done | `podssh doctor --json` (GitHub #9) |
 | [T-050](machine.md) | P2 | S | backlog | feature | done | `podssh man --json`: the commands, flags, keywords, variables and exit codes as data (GitHub #10) |
 | [T-051](machine.md) | P2 | M | backlog | feature | done | `podssh status`: one line of JSON about the state of this host (GitHub #11) |

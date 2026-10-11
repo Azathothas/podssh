@@ -89,8 +89,7 @@ fn connect_code(e: &ConnectError) -> i32 {
 /// `--ca-file`, else `SSL_CERT_FILE`, else podssh's own roots, as for
 /// `podssh proxy`.
 pub(crate) fn trust(ca_file: Option<&str>) -> Trust {
-    let file =
-        ca_file.map(str::to_string).or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
+    let file = crate::settings::ca_file(ca_file);
     match file {
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,

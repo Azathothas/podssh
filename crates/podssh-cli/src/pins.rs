@@ -1,7 +1,9 @@
 //! `--relay-addr HOST=IP` and `PODSSH_RELAY_ADDR`: addresses to use instead of
 //! DNS, for hosts that have none. The flag's pins come first, then the
-//! environment's; TLS still checks the host's name, so a wrong address fails
-//! the handshake rather than connecting somewhere else.
+//! environment's, then the settings file's (T-048); TLS still checks the
+//! host's name, so a wrong address fails the handshake rather than
+//! connecting somewhere else. Each command that reaches the relay starts
+//! here, so a settings file that cannot be read is refused here (78).
 
 use crate::relay_settings::Refusal;
 
@@ -11,12 +13,18 @@ pub const PINS_ENV: &str = "PODSSH_RELAY_ADDR";
 /// Parse the flag and the environment and install the pins for this process.
 /// A bad flag is a usage error, a bad variable a configuration error.
 pub fn apply(flag: Option<&str>) -> Result<(), Refusal> {
+    let file = crate::settings::here();
+    file.check()?;
     let mut pins = match flag {
         Some(text) => podssh_ws::resolve::parse_pins(text).map_err(|e| Refusal::usage(format!("--relay-addr: {e}")))?,
         None => Vec::new(),
     };
     if let Some(text) = std::env::var(PINS_ENV).ok().filter(|v| !v.trim().is_empty()) {
         pins.extend(podssh_ws::resolve::parse_pins(&text).map_err(|e| Refusal::config(format!("{PINS_ENV}: {e}")))?);
+    }
+    for value in &file.relay_addr {
+        let more = podssh_ws::resolve::parse_pins(&value.text);
+        pins.extend(more.map_err(|e| Refusal::config(format!("{}: RelayAddr {}: {e}", value.at, value.text)))?);
     }
     podssh_ws::resolve::set_pins(pins);
     Ok(())

@@ -97,7 +97,7 @@ pub fn run_proxy(args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             return EXIT_USAGE;
         }
     };
-    let ca_file = args.ca_file.clone().or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
+    let ca_file = crate::settings::ca_file(args.ca_file.as_deref());
     let trust = match ca_file {
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,
@@ -146,7 +146,7 @@ fn run_cloudflare(host: &str, args: &ProxyArgs, err: &mut dyn Write) -> i32 {
             return EX_CONFIG;
         }
     };
-    let ca_file = args.ca_file.clone().or_else(|| std::env::var("SSL_CERT_FILE").ok().filter(|v| !v.trim().is_empty()));
+    let ca_file = crate::settings::ca_file(args.ca_file.as_deref());
     let trust = ca_file.map_or(Trust::Default, |file| Trust::File(file.into()));
     let runtime = match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(rt) => rt,

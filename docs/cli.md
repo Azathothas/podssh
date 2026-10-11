@@ -571,7 +571,8 @@ renamed.
 writes one line of JSON and exits 0 (GitHub #11). It is the cheap call
 before anything else; `podssh doctor` is the report that measures.
 
-- The line: `schema`, `podssh`, `relays` and `relays_from`, `pool`,
+- The line: `schema`, `podssh`, `relays` and `relays_from`, `settings`
+  (the path of podssh's settings file, or null), `pool`,
   `token` (its source, the relay that it is for, its expiry, whether it can
   be used), `proxy` (the variable, `HOST:PORT` and the kind, `http` or
   `socks5`), `offline`, `attachment`, `stdin_tty`, `stdout_tty`,
@@ -1039,6 +1040,27 @@ name on stderr. A bad line ends the run with its number (65); a file that
 cannot be read gives 66. The formats of PuTTY, MobaXterm, Remmina,
 FinalShell, mRemoteNG and Termius, and Ansible's YAML, are refused by name
 (64) until a real export of each is at hand to test against (T-292).
+
+## podssh's settings file
+
+A file states podssh's own settings once (T-048), below the flags and the
+variables and above the built-in defaults: `RelayHost` (as `--relay-host`
+and `PODSSH_RELAY`), `RelayAddr` (as `--relay-addr` and `PODSSH_RELAY_ADDR`;
+each line adds to the flag's and the variable's pins), `RelayFailover` (as
+`--relay-failover`) and `CaFile` (as `--ca-file` and `SSL_CERT_FILE`; `~` is
+the home). It has `Keyword value` lines, `Keyword=value` too, and `#`
+comments, read as an `ssh_config` line is; the first value of a keyword
+wins. The file is the one that `PODSSH_SETTINGS` names, an absolute path
+that must exist (`none` reads none); else the first that exists of
+`$XDG_CONFIG_HOME/podssh/settings` (`~/.config/podssh/settings`, and
+`%APPDATA%\podssh\settings` on Windows) and `podssh.settings` beside the
+binary. It is never read from the working directory or `/tmp`, as a file
+that names relay hosts decides where tokens go. A symbolic link, a file of
+another user than you or root, one that others can change, an unknown
+keyword and a bad value are refused (78, with the file and the line) by each
+command that reaches the relay. podssh never writes the file, and no
+keyword holds a token. `podssh status` gives its path as `settings` and
+`relays_from: "the settings file"`, and `podssh doctor` names it.
 
 ## Exit codes
 

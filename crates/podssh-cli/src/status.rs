@@ -55,10 +55,12 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         Some(Ok(v)) => v,
         Some(Err(why)) => return crate::relay_settings::Refusal::usage(why).report("status", err),
     };
-    let relays_from = match (&args.relay_host, &env_relay) {
-        (Some(_), _) => "--relay-host",
-        (None, Some(_)) => "PODSSH_RELAY",
-        (None, None) => "default and pool",
+    let settings = crate::settings::here();
+    let relays_from = match (&args.relay_host, &env_relay, &settings.relay_host) {
+        (Some(_), ..) => "--relay-host",
+        (None, Some(_), _) => "PODSSH_RELAY",
+        (None, None, Some(_)) => "the settings file",
+        (None, None, None) => "default and pool",
     };
     let attachment = crate::non_interactive::resolve_tty(tty, false);
     let line = json!({
@@ -66,6 +68,7 @@ pub fn run_status(args: &StatusArgs, tty: Tty, out: &mut dyn Write, err: &mut dy
         "podssh": crate::help::version(),
         "relays": relays.hosts.iter().map(|r| json!({ "host": r.host, "port": r.port })).collect::<Vec<_>>(),
         "relays_from": relays_from,
+        "settings": settings.path.as_ref().map(|p| p.display().to_string()),
         "pool": pool_state(&relays),
         "token": token_state(&relays),
         "cache": cache_state(),

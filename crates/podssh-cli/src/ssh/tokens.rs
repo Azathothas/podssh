@@ -202,7 +202,7 @@ pub fn host_name(value: &str, typed: &str) -> Result<String, String> {
 }
 
 /// `~` or a leading `~/` as the home directory, as OpenSSH reads it.
-pub(super) fn tilde(path: &str, home: Option<&Path>) -> PathBuf {
+pub(crate) fn tilde(path: &str, home: Option<&Path>) -> PathBuf {
     match (path.strip_prefix("~/").or_else(|| path.strip_prefix("~\\")), home) {
         (Some(rest), Some(h)) => h.join(rest),
         _ if path == "~" => home.map(PathBuf::from).unwrap_or_else(|| PathBuf::from(path)),
