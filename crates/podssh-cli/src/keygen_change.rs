@@ -100,7 +100,7 @@ fn check_comment(comment: &str) -> Result<(), Failed> {
 /// `SSH_ASKPASS`, or `-P ''` says that there is none.
 fn open(path: &Path, text: &str, given: NewPassphrase) -> Result<(PrivateKey, Zeroizing<String>), Failed> {
     let shown = path.display();
-    match podssh_ssh::russh::keys::decode_secret_key(text, None) {
+    match podssh_ssh::key_file::decode(text, None) {
         Ok(key) => return Ok((key, Zeroizing::new(String::new()))),
         Err(podssh_ssh::russh::keys::Error::KeyIsEncrypted) => {}
         Err(e) => return Err((EXIT_FAILED, format!("{shown}: not a private key that podssh reads: {e}"))),
@@ -119,7 +119,7 @@ fn open(path: &Path, text: &str, given: NewPassphrase) -> Result<(PrivateKey, Ze
         _ => prompt::ask("Enter old passphrase: ", false)
             .map_err(|e| (EXIT_FAILED, format!("{shown} is encrypted, and its passphrase: {e}")))?,
     };
-    podssh_ssh::russh::keys::decode_secret_key(text, Some(old.as_str()))
+    podssh_ssh::key_file::decode(text, Some(old.as_str()))
         .map(|key| (key, old))
         .map_err(|_| (EXIT_FAILED, format!("{shown}: incorrect passphrase")))
 }

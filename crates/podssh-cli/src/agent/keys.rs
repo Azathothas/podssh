@@ -188,7 +188,7 @@ pub async fn lock(locking: bool, _out: &mut dyn Write, err: &mut dyn Write) -> i
 
 /// A key file, opened with its passphrase when it asks for one.
 async fn load(path: &Path, err: &mut dyn Write) -> Result<PrivateKey, i32> {
-    match podssh_ssh::russh::keys::load_secret_key(path, None) {
+    match podssh_ssh::key_file::load(path, None) {
         Ok(key) => Ok(key),
         Err(podssh_ssh::russh::keys::Error::KeyIsEncrypted) => {
             let passphrase = match ask(format!("Enter passphrase for {}: ", path.display())).await {
@@ -198,7 +198,7 @@ async fn load(path: &Path, err: &mut dyn Write) -> Result<PrivateKey, i32> {
                     return Err(EX_NOPERM);
                 }
             };
-            podssh_ssh::russh::keys::load_secret_key(path, Some(passphrase.as_str())).map_err(|_| {
+            podssh_ssh::key_file::load(path, Some(passphrase.as_str())).map_err(|_| {
                 let _ = writeln!(err, "podssh agent: bad passphrase for {}", path.display());
                 EX_NOPERM
             })

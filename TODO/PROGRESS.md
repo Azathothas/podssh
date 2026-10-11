@@ -66,7 +66,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 285 entries: 87 open, 0 partial, 22 blocked, 176 done.
+`TODO/INDEX.md` holds 285 entries: 86 open, 0 partial, 22 blocked, 177 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 
@@ -83,9 +83,8 @@ the surface for agents: done.
 
 **Now:** the `backlog` entries, in the order of `TODO/INDEX.md` ("The
 order, and the argument for it"): M3 to M8 are done, but for the entries on
-hold and those of the relay's operator. The P2 entries of effort S are done;
-now the other P2 entries, then P3. First a defect found on 2026-10-11:
-T-287.
+hold and those of the relay's operator. The P2 entries are done, but for
+those of M9 and the parked ones; now the P3 entries.
 
 **Then** M9: T-218, T-210 and T-211, then T-251 (the check, and its run
 before the tag), and last T-250 (the one release). Between entries: the

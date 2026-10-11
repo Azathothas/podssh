@@ -54,7 +54,7 @@ Read:
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:139-145`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:106`),
-   so that only the notes change. No document changes: `docs/cli.md:923-966`
+   so that only the notes change. No document changes: `docs/cli.md:922-974`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:203` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:279`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:280`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -295,13 +295,13 @@ Read:
    terminal and no `SSH_ASKPASS`, a retry that needs a prompt stops. Keep a
    typed password in memory (zeroized) for the retry; do not ask twice.
 6. Say each retry on stderr, with the hop and the reason. Document the rule
-   in `docs/cli.md:866-921`, and add a row to `docs/STATUS.md`.
+   in `docs/cli.md:865-920`, and add a row to `docs/STATUS.md`.
 
 ## Decision
 
 Recommendation: retry inside podssh, and only before the session request.
 Only podssh knows whether the request was sent, and `podssh ssh` keeps the
-exit code 255 of OpenSSH (`docs/cli.md:876-879`). The alternative, a distinct
+exit code 255 of OpenSSH (`docs/cli.md:875-878`). The alternative, a distinct
 exit code for the caller to retry on, lost: it breaks scripts that expect
 OpenSSH's codes, and a caller that retries each 255 runs a command twice.
 
@@ -420,7 +420,7 @@ Read:
    measured code.
 4. Make the mapping from `io::End` to an exit code a pure function in
    `crates/podssh-ssh/src/session.rs`, with a test for each variant.
-5. Write the measured rule in `docs/cli.md:866-921`, and the measurement in
+5. Write the measured rule in `docs/cli.md:865-920`, and the measurement in
    `docs/STATUS.md`.
 
 ## Prove
@@ -537,7 +537,7 @@ Read:
   `crates/podssh-ssh/src/hostkey.rs:226-233` (no terminal). `accept-new`
   records the plain key (`crates/podssh-ssh/src/hostkey.rs:197`). GitHub #29
   cites line 91 at `22c3b88`, which builds the question about other key types.
-- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5438`).
+- `ssh-key` 0.7.0-rc.11 is in the tree (`Cargo.lock:5446`).
   `Certificate::validate_at` checks the signature, the SHA-256 fingerprint of
   the CA and the validity window. The caller must check the certificate type,
   the principals and the critical options (the crate's documentation).
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:923-966` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:922-974` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -1706,7 +1706,7 @@ Read, at `9fefff2`:
   the session after 180 s with no payload (`docs/relay.md:150`). The relay's
   own keepalive frames keep the ping watcher content meanwhile.
 - A prompt has its own limit when nobody watches the terminal (60 s, T-005;
-  `docs/cli.md:937-940`). A person who types slowly must not meet a limit
+  `docs/cli.md:945-948`). A person who types slowly must not meet a limit
   of the server.
 
 Not measured: it needs a server that stalls.
@@ -1730,7 +1730,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:36-37`,
    `crates/podssh-cli/src/flags.rs:169-170`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:964-966` asks for a limit on the whole operation.
+   `docs/cli.md:972-974` asks for a limit on the whole operation.
 
 ## Decision
 
@@ -2179,7 +2179,7 @@ constraint of a key (lines 296-297), and when a request to sign names such a key
 that is always ready with `true`; it never calls the agent's `confirm` (lines 348-356).
 
 Read: podssh's `confirm` refuses (`crates/podssh-cli/src/agent/serve.rs:155-158`), and is never
-called. `docs/cli.md:786-787` says that the key "is never used".
+called. `docs/cli.md:785-786` says that the key "is never used".
 
 ## Approach
 
@@ -2279,7 +2279,7 @@ says why at `-v` and goes on with the next key (`crates/podssh-ssh/src/keys.rs:1
 **Milestone:** none
 **Priority:** P2
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2330,3 +2330,41 @@ cargo test -p podssh-cli --test keygen -- formats
 ```
 
 Plant: answer as russh does, with no look at the text; the tests of the question fail.
+
+## Done
+
+2026-10-11. `podssh_ssh::key_file` (`crates/podssh-ssh/src/key_file.rs:25-42`) reads each key
+file: `podssh ssh -i` (`crates/podssh-ssh/src/keys.rs:231-276`), `podssh agent add` and
+`add-passphrase`, and `podssh keygen -p` and `-c`. It finds an encrypted key by its text (a PEM key
+with `Proc-Type: 4,ENCRYPTED`, `BEGIN ENCRYPTED PRIVATE KEY`, a PuTTY key whose `Encryption` is
+not `none`) and answers "encrypted" with no passphrase. It decrypts a PEM key of AES-128-CBC,
+AES-192-CBC, AES-256-CBC or DES-EDE3-CBC, its key made as OpenSSL's `EVP_BytesToKey` makes it, and
+gives russh the plain key of the same label. A PKCS#8 key goes to russh, whose `pkcs5` now has the
+schemes of OpenSSH's `ssh-keygen -m PKCS8` (PBKDF2 with HMAC-SHA1: its feature `sha1-insecure`)
+and of OpenSSL's `-v2 des3` (its feature `3des`), turned on in `crates/podssh-ssh/Cargo.toml`
+with no new crate; one of PBES1 or of a scheme of PKCS#12, a DSA key and a PEM key of another
+cipher are refused by name before the question.
+- `cargo test -p podssh-ssh --lib -- key_file`: 8 passed: the key of a passphrase equals OpenSSL
+  3.5.7's for 16, 24 and 32 bytes; ECDSA keys in PEM of each of the four ciphers, an RSA key of
+  AES-128-CBC and of DES-EDE3-CBC, a PKCS#8 key of russh's, of OpenSSH's scheme and of OpenSSL's
+  `-v2 des3` are each asked for, open with their passphrase and refuse another; a PuTTY key is
+  asked for by its `Encryption` line; DES-CBC, DSA and a scheme of PKCS#12 are refused by name.
+  `cargo test -p podssh-cli --test keygen -- formats`: 1 passed. Planted, each restored: russh's
+  answer with no look at the text (the Prove's plant) failed 7 of the 8 tests and the test of the
+  CLI ("Der: unexpected ASN.1 DER tag"); `pkcs5` without `sha1-insecure` failed the test of
+  OpenSSH's scheme.
+- Against files on Windows (2026-10-11): `podssh keygen -p` wrote, from each key that OpenSSL
+  3.5.7 encrypted in PEM (AES-128-CBC, AES-192-CBC, AES-256-CBC, DES-EDE3-CBC; ECDSA and RSA) and
+  in PKCS#8 (PBES2 with AES-128-CBC, AES-256-CBC or Triple DES, and scrypt), and from those that
+  the `ssh-keygen` of OpenSSH for Windows 10.0p2 encrypted with `-m PEM` and `-m PKCS8`, the key
+  that this `ssh-keygen` reads from the original; the scrypt key, which this `ssh-keygen` does not
+  read, was written too. The encrypted PuTTY keys of ssh-key 0.7.0-rc.11's tests (Ed25519, ECDSA
+  and RSA, versions 2 and 3) became keys that OpenSSH reads. OpenSSL's `-v1 PBE-SHA1-3DES` was
+  refused at once: "a scheme of PKCS#12 (1.2.840.113549.1.12.1.3)".
+- `scripts/interop-keygen.sh` has six new checks, `keygen.formats.*` (the floor of keygen is 41):
+  an ECDSA key that OpenSSH's `ssh-keygen` encrypted in PEM and in PKCS#8 logs in to sshd, its
+  passphrase asked through `SSH_ASKPASS`, and `-p` writes the same key in the format of OpenSSH.
+  The gate runs them at this push.
+- `cargo test -p podssh-ssh`: 120 passed; `cargo test -p podssh-cli`: 544 passed, 0 failed, 31
+  ignored; clippy. In the build image: the tests of `key_file` and `keygen`, and of `podssh
+  agent`, passed.

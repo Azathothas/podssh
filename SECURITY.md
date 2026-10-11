@@ -147,6 +147,12 @@ Each rule is implemented.
   the check of a server's RSA certificate, with the public key only, and in
   russh's reader of an RSA key in a PEM or PKCS#8 file, which computes with
   the key once, as it reads it.
+- **Old schemes are read, never written.** A key file encrypted as OpenSSL
+  encrypts a PEM key (its key from MD5 of the passphrase, AES or Triple DES
+  in CBC mode), or as OpenSSH's `ssh-keygen -m PKCS8` encrypts it (PBKDF2
+  with HMAC-SHA1), is opened so that it can be used or rewritten (T-287):
+  `podssh keygen -p` writes it in the format of OpenSSH, with bcrypt-pbkdf
+  and AES-256-CTR. podssh writes no key in an old scheme.
 - **A channel that podssh did not ask for is refused.** A server can open
   channels toward the client (`forwarded-tcpip`, agent, X11, `session`,
   `direct-tcpip` and the two streamlocal kinds). podssh asks for none, so

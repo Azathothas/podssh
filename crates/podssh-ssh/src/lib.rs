@@ -30,6 +30,7 @@ pub mod handler;
 pub mod hostcert;
 pub mod hostkey;
 pub mod io;
+pub mod key_file;
 pub mod keygen;
 pub mod keys;
 pub mod known_hosts;

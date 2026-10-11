@@ -89,6 +89,31 @@ theirs=$(ssh-keygen -y -f "$KG/id_ed25519" 2>"$KG/err")
     && ok keygen.change.openssh_comment "keygen -c: OpenSSH reads the new comment, and the .pub has it" \
     || bad keygen.change.openssh_comment "keygen -c: ssh-keygen -y gave '$theirs'" "$KG/id_ed25519.pub"
 
+# Keys of PEM and of PKCS#8 that OpenSSH encrypted (T-287): podssh asks for
+# the passphrase and logs in with each, and -p writes the same key in the
+# format of OpenSSH.
+printf '#!/bin/sh\ncase "$1" in\n  "Enter new passphrase"*|"Enter same passphrase"*) echo "" ;;\n  *) echo "pem words" ;;\nesac\n' \
+    >"$W/askpass-pem"
+chmod 700 "$W/askpass-pem"
+# ssh-keygen reads the name of -m in any case.
+for l in pem pkcs8; do
+    f="$KG/id_$l"
+    ssh-keygen -q -t ecdsa -m "$l" -N 'pem words' -C "kg-$l" -f "$f"
+    want=$(cut -d' ' -f1,2 "$f.pub")
+    cat "$f.pub" >>"$H/.ssh/authorized_keys"
+    SSH_ASKPASS="$W/askpass-pem" SSH_ASKPASS_REQUIRE=force \
+        p 2201 -i "$f" "$T" true </dev/null >"$KG/out" 2>"$KG/err"
+    expect_rc "keygen.formats.login_${l}" "an ecdsa key of $l that OpenSSH encrypted logs in, its passphrase asked" \
+        0 $? "$KG/err"
+    SSH_ASKPASS="$W/askpass-pem" SSH_ASKPASS_REQUIRE=force \
+        "$BIN" keygen -p -q -f "$f" </dev/null >"$KG/out" 2>"$KG/err"
+    expect_rc "keygen.formats.convert_${l}" "keygen -p opens an encrypted key of $l" 0 $? "$KG/err"
+    theirs=$(ssh-keygen -y -P '' -f "$f" 2>"$KG/err" | cut -d' ' -f1,2)
+    [ "$(head -1 "$f")" = "-----BEGIN OPENSSH PRIVATE KEY-----" ] && [ -n "$theirs" ] && [ "$theirs" = "$want" ] \
+        && ok "keygen.formats.same_key_${l}" "keygen -p of $l: OpenSSH reads the same key, in its own format" \
+        || bad "keygen.formats.same_key_${l}" "keygen -p of $l: ssh-keygen -y gave '$theirs'" "$KG/err"
+done
+
 # Refusals leave nothing behind.
 before=$(sha256sum <"$KG/id_ed25519")
 "$BIN" keygen -N '' -q -f "$KG/id_ed25519" >"$KG/out" 2>"$KG/err"

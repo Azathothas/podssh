@@ -228,7 +228,7 @@ impl PublicKeys {
             return None;
         }
         warn_if_readable_by_others(path, &self.log);
-        match russh::keys::load_secret_key(path, None) {
+        match crate::key_file::load(path, None) {
             Ok(key) => Some(key),
             // Opened earlier in this run: no second question.
             Err(russh::keys::Error::KeyIsEncrypted) if self.kept(path).is_some() => self.kept(path),
@@ -250,7 +250,7 @@ impl PublicKeys {
         // a prompt, not this. One that does not open the key is forgotten.
         let target = Target::passphrase(path);
         if let Some(stored) = credential_store::stored(&self.agent_choice, &target, &self.log).await {
-            match russh::keys::load_secret_key(path, Some(stored.as_str())) {
+            match crate::key_file::load(path, Some(stored.as_str())) {
                 Ok(key) => {
                     if let Some(memory) = &self.remembered {
                         memory.keep_key(path, &key);
@@ -271,7 +271,7 @@ impl PublicKeys {
                 .unwrap_or(Err(PromptError::Failed("the prompt thread failed".into())));
             match answer {
                 Ok(p) if p.is_empty() => return None,
-                Ok(p) => match russh::keys::load_secret_key(path, Some(p.as_str())) {
+                Ok(p) => match crate::key_file::load(path, Some(p.as_str())) {
                     Ok(key) => {
                         if let Some(memory) = &self.remembered {
                             memory.keep_key(path, &key);
@@ -295,7 +295,7 @@ impl PublicKeys {
             public_path.push(".pub");
             if let Ok(k) = russh::keys::load_public_key(PathBuf::from(public_path)) {
                 out.push(k);
-            } else if let Ok(k) = russh::keys::load_secret_key(path, None) {
+            } else if let Ok(k) = crate::key_file::load(path, None) {
                 out.push(k.public_key().clone());
             }
         }

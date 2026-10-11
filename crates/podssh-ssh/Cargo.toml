@@ -42,6 +42,20 @@ aws-lc-rs = "1.16.2"
 # in constant time, for its PKCS#1 form (T-257). The features that `rsa`
 # asks for, so nothing new is compiled.
 crypto-bigint = { version = "0.7.3", default-features = false, features = ["alloc", "zeroize"] }
+# A PEM key that OpenSSL encrypted, opened as OpenSSL encrypted it (T-287):
+# its key from MD5 of the passphrase, and AES or Triple DES in CBC mode. The
+# versions that russh pulls in, so nothing new is compiled.
+aes = "0.9"
+cbc = "0.2"
+des = "0.9"
+md5 = "0.8"
+# An encrypted key of PKCS#8 (T-287), opened by russh through `pkcs5`: these
+# features turn on the schemes of OpenSSH's `ssh-keygen -m PKCS8` (PBKDF2
+# with HMAC-SHA1) and of OpenSSL's `-v2 des3` (Triple DES), to read keys and
+# never to write them; `pkcs8` reads the scheme before the question. The
+# versions that russh pulls in, and the `sha1` and `des` that the tree has.
+pkcs5 = { version = "0.8.1", default-features = false, features = ["sha1-insecure", "3des"] }
+pkcs8 = { version = "0.11", default-features = false, features = ["encryption"] }
 
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }

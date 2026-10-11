@@ -365,3 +365,37 @@ fn a_new_key_is_private() {
         assert_eq!((mode(&key), mode(&public), mode(&sub)), (0o600, 0o644, 0o700));
     }
 }
+
+/// An encrypted key of another format is asked for, and `-p` writes it in
+/// the format of OpenSSH, the same key (T-287): here a key of PKCS#8. A key
+/// of a scheme that podssh does not open (one of PKCS#12) is refused before
+/// any question.
+#[test]
+fn encrypted_formats_are_asked_for_and_converted() {
+    let dir = scratch();
+    let ask = askpass(&dir);
+    let key = podssh_ssh::keygen::generate(podssh_ssh::keygen::KeyKind::Ed25519, "p8").unwrap();
+    let mut text = Vec::new();
+    podssh_ssh::russh::keys::encode_pkcs8_pem_encrypted(&key, b"p8 words", 2048, &mut text).unwrap();
+    let path = file(&dir, "p8");
+    std::fs::write(&path, &text).unwrap();
+    let run = podssh_asked(&["keygen", "-p", "-f", &path], &ask, "p8 words", "");
+    assert_eq!(run.code, 0, "{}", run.err);
+    assert!(std::fs::read_to_string(&path).unwrap().starts_with("-----BEGIN OPENSSH PRIVATE KEY-----"));
+    let shown = podssh(&["keygen", "-y", "-f", &path]);
+    assert_eq!(shown.code, 0, "{}", shown.err);
+    assert_eq!(key_part(&shown.out), key_part(&key.public_key().to_openssh().unwrap()), "another key");
+
+    // pbeWithSHA1And3-KeyTripleDES-CBC, as OpenSSL's -v1 PBE-SHA1-3DES writes it.
+    let mut der = vec![0x30, 0x30, 0x30, 0x1c, 0x06, 0x0a, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x0c, 0x01, 0x03];
+    der.extend_from_slice(&[0x30, 0x0e, 0x04, 0x08, 1, 2, 3, 4, 5, 6, 7, 8, 0x02, 0x02, 0x08, 0x00, 0x04, 0x10]);
+    der.extend_from_slice(&[0u8; 16]);
+    use base64::Engine;
+    let body = base64::engine::general_purpose::STANDARD.encode(&der);
+    let path = file(&dir, "p12");
+    std::fs::write(&path, format!("-----BEGIN ENCRYPTED PRIVATE KEY-----\n{body}\n-----END ENCRYPTED PRIVATE KEY-----\n"))
+        .unwrap();
+    let run = podssh(&["keygen", "-p", "-f", &path]);
+    assert_eq!(run.code, 1, "{}", run.err);
+    assert!(run.err.contains("PKCS#12") && !run.err.contains("terminal"), "asked, or no name: {}", run.err);
+}

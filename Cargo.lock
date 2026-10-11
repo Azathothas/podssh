@@ -3866,9 +3866,11 @@ dependencies = [
  "aes-gcm 0.11.1",
  "cbc",
  "der 0.8.2",
+ "des",
  "pbkdf2",
  "rand_core 0.10.1",
  "scrypt",
+ "sha1 0.11.0",
  "sha2 0.11.0",
  "spki 0.8.1",
 ]
@@ -4003,13 +4005,19 @@ dependencies = [
 name = "podssh-ssh"
 version = "0.1.0"
 dependencies = [
+ "aes 0.9.3",
  "aws-lc-rs",
  "base64 0.22.1",
+ "cbc",
  "crypto-bigint 0.7.5",
+ "des",
  "futures-util",
  "hmac 0.12.1",
  "libc",
+ "md5 0.8.1",
  "pageant",
+ "pkcs5",
+ "pkcs8 0.11.0",
  "podssh-ws",
  "rand 0.10.3",
  "russh",

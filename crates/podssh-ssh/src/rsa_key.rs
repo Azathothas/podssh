@@ -170,7 +170,7 @@ const SEQUENCE: u8 = 0x30;
 /// PKCS#1's RSAPrivateKey of `key` (RFC 8017, appendix A.1.2), in DER. An
 /// mpint of SSH is the contents of a DER INTEGER: the same minimal two's
 /// complement.
-fn pkcs1(key: &RsaKeypair) -> Result<Zeroizing<Vec<u8>>, String> {
+pub(crate) fn pkcs1(key: &RsaKeypair) -> Result<Zeroizing<Vec<u8>>, String> {
     let (public, private) = (key.public(), key.private());
     let dp = crt_exponent(private.d(), private.p())?;
     let dq = crt_exponent(private.d(), private.q())?;

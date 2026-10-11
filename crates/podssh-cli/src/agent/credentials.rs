@@ -52,7 +52,7 @@ pub async fn add_passphrase(args: &AgentArgs, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh agent: {file}: no such key file");
         return EX_NOINPUT;
     }
-    if podssh_ssh::russh::keys::load_secret_key(path, None).is_ok() {
+    if podssh_ssh::key_file::load(path, None).is_ok() {
         let _ = writeln!(err, "podssh agent: {file} needs no passphrase: nothing to keep");
         return EX_DATAERR;
     }
@@ -60,7 +60,7 @@ pub async fn add_passphrase(args: &AgentArgs, err: &mut dyn Write) -> i32 {
         Ok(secret) => secret,
         Err(code) => return code,
     };
-    if podssh_ssh::russh::keys::load_secret_key(path, Some(secret.as_str())).is_err() {
+    if podssh_ssh::key_file::load(path, Some(secret.as_str())).is_err() {
         let _ = writeln!(err, "podssh agent: the passphrase does not open {file}; it is not kept");
         return EX_DATAERR;
     }

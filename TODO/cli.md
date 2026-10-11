@@ -187,7 +187,7 @@ measured: the debug binary has no `ts`).
 1. In the `Parsed::Command` arm, refuse a verb of `VERB_OWNER`
    (`crates/podssh-cli/src/flags.rs`, line 453 at `7aa955a`) before the gate. Keep one usage
    error first: a `--timeout` value that was given and does not parse is 64
-   (`docs/cli.md:870-871`).
+   (`docs/cli.md:869-870`).
 2. Give `require_timeout` the verb's name. The message names that verb, gives
    one true reason, and shows an example for that verb only. Replace
    `({attachment:?})` with words: "stdin or stdout is not a terminal", or
@@ -197,7 +197,7 @@ measured: the debug binary has no `ts`).
    (`crates/podssh-cli/src/dispatch.rs`, lines 424-477 at `7aa955a`,
    `crates/podssh-cli/tests/non_interactive.rs` lines 252-284 at `37ace00`). `ts` is the only verb
    that runs the gate today (`crates/podssh-cli/tests/ts_behave.rs:220-226`).
-5. Same commit: `docs/STATUS.md`. `docs/cli.md:900` needs no change.
+5. Same commit: `docs/STATUS.md`. `docs/cli.md:899` needs no change.
 
 ## Decision
 
@@ -604,7 +604,7 @@ variable matters when `cp`, `mv` and `relay` exist. `ssh` and `proxy` have no
    which `each_variable_in_the_source_is_documented` requires
    (`crates/podssh-cli/src/man/facts/tests.rs:57-70`); "default: env
    PODSSH_TIMEOUT" in the help of each `--timeout` row, as `--relay-host` says
-   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:964-966`;
+   it (`crates/podssh-cli/src/flags.rs:171-172`); `docs/cli.md:972-974`;
    `docs/STATUS.md`.
 5. Do this after T-008, so that a verb that does nothing still exits 70 first.
 
@@ -1061,7 +1061,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:85-92`).
    (`NewPassphrase`, `crates/podssh-cli/src/keygen.rs:26-34`).
 2. Read the key with each format that `podssh ssh -i` reads:
    `russh::keys::decode_secret_key`, the reader behind `load_secret_key`
-   (`crates/podssh-ssh/src/keys.rs:231`). Ask for the old passphrase on the
+   (`crates/podssh-ssh/src/keys.rs`, line 231 at `fe19445`). Ask for the old passphrase on the
    terminal or through `SSH_ASKPASS`, as `-y` does. With neither, refuse at
    once and name `-P ''` and `-N ''` (as `crates/podssh-cli/src/keygen.rs:218-222`).
 3. `-p`: ask for the new passphrase twice (or take `-N ''`), and encrypt with
@@ -1073,7 +1073,7 @@ on argv (`crates/podssh-cli/src/keygen.rs:85-92`).
    original, then rename it over the original. Never write a different key
    over the file. For `-c`, write `FILE.pub` again.
 5. Same commit: the PEM message at `crates/podssh-ssh/src/keygen.rs:184-187`
-   names `podssh keygen -p`; `docs/cli.md:539-573`, the notes of `keygen`
+   names `podssh keygen -p`; `docs/cli.md:539-572`, the notes of `keygen`
    (`crates/podssh-cli/src/man/notes.rs:333-348`), `docs/STATUS.md`.
 
 ## Decision
@@ -1192,7 +1192,7 @@ The default files are the ones of `podssh ssh`
    it, and say so.
 4. `-H`: a random salt of 20 bytes and the HMAC-SHA1 of `hashed_matches`, so
    podssh and OpenSSH both find the result.
-5. Same commit: `docs/cli.md:539-573`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:539-572`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfall: a rewrite can lose a key that `podssh ssh` appends at the same moment
 (T-029). Read the file again just before the rename, and refuse if it changed.
@@ -1257,7 +1257,7 @@ that crate as `russh::keys::ssh_key` (`crates/podssh-ssh/src/keygen.rs:11-13`).
    matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:299-321`).
    Print the lines and the exit codes of OpenSSH.
 4. Refuse `-r` (a key revocation list) by name until podssh reads one.
-5. Same commit: `docs/cli.md:539-573`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:539-572`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: read the signed file as bytes, never as text. A namespace that does
 not match is a failure, never a warning.
@@ -1321,7 +1321,7 @@ as plain keys (`docs/STATUS.md`, section "Components"). T-027 covers that side.
    `force-command=`, `source-address=`, and the `no-` and `permit-` options;
    refuse the others by name.
 5. `-L`: print the certificate as `ssh-keygen -L` does.
-6. Same commit: `docs/cli.md:539-573`, the notes of `keygen`, `docs/STATUS.md`.
+6. Same commit: `docs/cli.md:539-572`, the notes of `keygen`, `docs/STATUS.md`.
 
 ## Decision
 
@@ -1372,7 +1372,7 @@ with `-p`.
 
 Read: `read_key_file` takes only an OpenSSH private key or a public key line
 (`crates/podssh-ssh/src/keygen.rs:174-195`). `podssh ssh -i` loads a key with
-`russh::keys::load_secret_key` (`crates/podssh-ssh/src/keys.rs:231`), which
+`russh::keys::load_secret_key` (`crates/podssh-ssh/src/keys.rs`, line 231 at `fe19445`), which
 calls `decode_secret_key`: OpenSSH, PKCS#1 RSA, PKCS#8 (also encrypted), SEC1
 EC and PuTTY PPK. russh also has `encode_pkcs8_pem` and
 `encode_pkcs8_pem_encrypted` (russh 0.64.1, `Cargo.lock`; its
@@ -1389,7 +1389,7 @@ keys/format/mod.rs, read in the local cargo registry).
    public key in that format, and write the OpenSSH line to stdout.
 4. `-m` with a new key and with `-p` (T-018): write the private key in that
    format; use `encode_pkcs8_pem_encrypted` when there is a passphrase.
-5. Same commit: `docs/cli.md:539-573`, the notes of `keygen`, `docs/STATUS.md`.
+5. Same commit: `docs/cli.md:539-572`, the notes of `keygen`, `docs/STATUS.md`.
 
 Pitfalls: no new C dependency. A format that a key type does not have (PEM
 for Ed25519) is refused by name.
@@ -1419,8 +1419,10 @@ the last check fails.
 
 Read after T-018 (2026-10-11): the message of `read_key_file` names `podssh keygen -p -f FILE`
 (`crates/podssh-ssh/src/keygen.rs:184-187`), which writes a key of PEM, PKCS#8 or PuTTY in the
-format of OpenSSH; `-y` and `-l` still refuse such a file. The encrypted keys of PKCS#8 and of
-PuTTY are read once T-287 is done.
+format of OpenSSH; `-y` and `-l` still refuse such a file. Since T-287 (2026-10-11), each key
+file is read through `podssh_ssh::key_file` (`crates/podssh-ssh/src/key_file.rs:25-42`), which asks
+for the passphrase of an encrypted key of each format and opens an encrypted PEM key of RSA or
+ECDSA; `-y` can read through it.
 
 # T-230: The help and the manual say that `-R` is refused because podssh never binds
 
@@ -1535,7 +1537,7 @@ file); measured here on `3ee70dc`.
 A `PODSSH_RELAY` or `PODSSH_RELAY_ADDR` that cannot be used makes
 `podssh proxy`, `podssh ssh` and `podssh doctor` exit 64, the code of a usage
 error. The command line is correct; a setting of the environment is not.
-`docs/cli.md:870-871` and `docs/decisions.md` ("Exit codes") give 78
+`docs/cli.md:869-870` and `docs/decisions.md` ("Exit codes") give 78
 (`EX_CONFIG`) for a configuration error. A script that reads 64 looks for the
 fault in its arguments.
 
@@ -1651,7 +1653,7 @@ flag (`crates/podssh-cli/tests/non_interactive.rs:185`).
 The real gate is `can_ask` (`crates/podssh-ssh/src/prompt.rs:74`), called at
 `crates/podssh-ssh/src/auth.rs:189`, `crates/podssh-ssh/src/auth.rs:306`,
 `crates/podssh-ssh/src/keys.rs:263` and `crates/podssh-cli/src/keygen.rs:218`.
-Its refusals name the real remedies (`docs/cli.md:929-931`). Commands use
+Its refusals name the real remedies (`docs/cli.md:937-939`). Commands use
 these parts of the module, which stay: `Attachment`, `resolve`, `resolve_tty`,
 `parse_timeout`, `require_timeout` (`crates/podssh-cli/src/dispatch.rs:219-237`,
 `crates/podssh-cli/src/ts.rs:54-63`) and `refuse_jsonl_in_proxy`

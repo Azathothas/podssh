@@ -559,8 +559,7 @@ GitHub #23): the time of each step, the round trip, and the throughput.
   format of OpenSSH, as `ssh-keygen -p` does. Measured with keys that
   OpenSSH's `ssh-keygen -m` made: PEM (RSA, also encrypted, and ECDSA) and
   PKCS#8 became keys of OpenSSH with the same public key, and so did the
-  plain keys of PuTTY. An encrypted key of PKCS#8 or of PuTTY, and an
-  encrypted ECDSA key in PEM, are not read yet (T-287).
+  keys of PuTTY. An encrypted key of each format is asked for (T-287).
 - A passphrase given with `-N` or `-P` is refused (exit 64), because each
   process on the host can read a command line. `-N ''` and `-P ''` are
   accepted. With no terminal and no `SSH_ASKPASS`, podssh refuses at once
@@ -926,6 +925,15 @@ rules behind it:
   controlling terminal, as with OpenSSH. Thus
   `echo x | podssh ssh host cat` can still ask for a password.
   `SSH_ASKPASS` with `SSH_ASKPASS_REQUIRE` works as in OpenSSH.
+- A key file is read in the format of OpenSSH, PEM (RSA or ECDSA), PKCS#8 or
+  PuTTY, and its passphrase is asked when it is encrypted, in each of them
+  (T-287): a PEM key of AES-128-CBC, AES-192-CBC, AES-256-CBC or
+  DES-EDE3-CBC, as OpenSSH's `ssh-keygen -m PEM` and OpenSSL write them; a
+  PKCS#8 key of PBES2, with PBKDF2 or scrypt, as `ssh-keygen -m PKCS8` and
+  OpenSSL's `-v2` write them; and an encrypted PuTTY key. A key that no
+  passphrase would open (DSA, a PEM key of another cipher, a PKCS#8 key of
+  PBES1 or of a scheme of PKCS#12) is skipped before the question, and
+  podssh says why.
 - With no terminal and no askpass program, a prompt becomes a refusal that
   names the remedy. For an unknown host key: its fingerprint and
   `-o StrictHostKeyChecking=accept-new`. For a password: a key file.
