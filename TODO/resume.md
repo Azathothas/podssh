@@ -246,7 +246,7 @@ fails it, and so does one that drops its oldest bytes when it is full.
 
 The bound of the Decision counts 16 sessions on a node, but the node takes
 the relay's limit from its `hello`: 64 sessions, measured 2026-10-09
-(`docs/reverse.md:24-27`). With each session's 4 MiB kept, a node can hold
+(`docs/reverse.md:29-32`). With each session's 4 MiB kept, a node can hold
 256 MiB; T-153, which makes the node a far end that keeps sessions, bounds
 the whole node (its step 6). Step 7's `-v` line belongs to the resume loop
 of T-153: no resume runs before it, and `Link::resume` gives the count of
@@ -361,7 +361,7 @@ clients that never come back.
 
 Recommendation: after a loss, a node retries `409` with the backoff until the
 deadline, because the relay can still hold its old socket; a first
-registration still exits on `409` (`docs/reverse.md:19`). The alternative, an
+registration still exits on `409` (`docs/reverse.md:24`). The alternative, an
 exit on each `409`, lost: a new node address would end each session. The
 operator confirms this change of `docs/reverse.md`: T-261, to which the
 operator agreed on 2026-10-09 (Q31).
@@ -779,8 +779,8 @@ no `GREETING`, and that the default node greets.
 as they are, with no resumable layer: the node's handler is then the TCP
 handler alone, which dials TARGET at `open`
 (`crates/podssh-cli/src/node.rs`, lines 152-163 at `8e31960`). The node's first line names its
-mode (`crates/podssh-cli/src/node.rs:176`). `--plain` with `--iroh` is
-refused with 64 (`crates/podssh-cli/src/node.rs:68-71`): the iroh road
+mode (`crates/podssh-cli/src/node.rs:259`). `--plain` with `--iroh` is
+refused with 64 (`crates/podssh-cli/src/node.rs:72-75`): the iroh road
 always runs the layer. The flag's row, the manual's note of `node`,
 `docs/reverse.md` and `docs/cli.md`.
 - Native: `cargo test -p podssh-cli -- plain`, 3 passed. The argument test:
@@ -807,7 +807,7 @@ always runs the layer. The flag's row, the manual's note of `node`,
 
 The relay cuts a connection after 180 s with no payload, and its empty
 keepalive frames do not count (`docs/relay.md:107-108`, `docs/relay.md:160`). A
-reverse socket gets no keepalive at all (`docs/reverse.md:28-36`). SSH's own
+reverse socket gets no keepalive at all (`docs/reverse.md:33-41`). SSH's own
 keepalives must not end a session that the layer would resume.
 
 ## Premise
@@ -820,7 +820,7 @@ sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
 the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:329-369`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
-`crates/podssh-cli/src/ssh/resolve.rs:359-373` (the `warnings` of keepalives), and `podssh ssh` exits 255.
+`crates/podssh-cli/src/ssh/resolve.rs:360-374` (the `warnings` of keepalives), and `podssh ssh` exits 255.
 
 ## Approach
 
@@ -834,7 +834,7 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 3. Carry the `ACK` of T-152 in each `PONG`. The cost is about 20 bytes each
    way each 10 s: under 0.2 MiB in 12 h.
 4. On the resumable road, do not print the warning of
-   `crates/podssh-cli/src/ssh/resolve.rs:359-373` (the `warnings` of keepalives).
+   `crates/podssh-cli/src/ssh/resolve.rs:360-374` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
    (`crates/podssh-cli/src/man/facts.rs:298-313`,
    `crates/podssh-cli/src/man/facts.rs:340-349`), the note at

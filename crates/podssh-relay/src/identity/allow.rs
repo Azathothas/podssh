@@ -3,7 +3,9 @@
 //! file holds one key on each line, as its fingerprint (`SHA256:...`) or as
 //! the key in iroh's hex or base32, then an optional comment; a line that
 //! starts with `#` is a comment. A line that is not a key lets nobody in,
-//! and is named.
+//! and is named. A word `routes=A,B` right after the key lets it use those
+//! routes of the node (T-089), `routes=*` each one; a key with no such word
+//! reaches the node's target that has no route, and no route.
 
 use std::path::Path;
 
@@ -13,9 +15,18 @@ use crate::cache::{self, Others};
 /// The keys of an allowlist.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Allowlist {
-    names: Vec<KeyName>,
+    keys: Vec<Entry>,
     /// The numbers of the lines that hold no key, from 1.
     bad: Vec<usize>,
+}
+
+/// A key, and the routes that it may use.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Entry {
+    name: KeyName,
+    routes: Vec<String>,
+    /// `routes=*`: each route.
+    all: bool,
 }
 
 impl Allowlist {
@@ -27,11 +38,26 @@ impl Allowlist {
             if line.is_empty() || line.starts_with('#') {
                 continue;
             }
-            let word = line.split_whitespace().next().unwrap_or_default();
-            match KeyName::parse(word) {
-                Some(name) if !list.names.contains(&name) => list.names.push(name),
-                Some(_) => {}
-                None => list.bad.push(n + 1),
+            let mut words = line.split_whitespace();
+            let name = KeyName::parse(words.next().unwrap_or_default());
+            let routes = match words.next().and_then(|w| w.strip_prefix("routes=")) {
+                None => Some((Vec::new(), false)),
+                Some("*") => Some((Vec::new(), true)),
+                Some(list) => {
+                    let routes: Vec<String> = list.split(',').map(str::to_string).collect();
+                    routes.iter().all(|r| podssh_ws::names::check_node_name(r).is_ok()).then_some((routes, false))
+                }
+            };
+            match (name, routes) {
+                (Some(name), Some((routes, all))) => match list.keys.iter_mut().find(|e| e.name == name) {
+                    // A key on two lines has the routes of both.
+                    Some(entry) => {
+                        entry.routes.extend(routes);
+                        entry.all |= all;
+                    }
+                    None => list.keys.push(Entry { name, routes, all }),
+                },
+                _ => list.bad.push(n + 1),
             }
         }
         list
@@ -50,16 +76,21 @@ impl Allowlist {
 
     /// Whether `key` may get in.
     pub fn admits(&self, key: &PublicKey) -> bool {
-        self.names.iter().any(|name| name.matches(key))
+        self.keys.iter().any(|e| e.name.matches(key))
+    }
+
+    /// Whether `key` may use `route` of the node.
+    pub fn grants(&self, key: &PublicKey, route: &str) -> bool {
+        self.keys.iter().any(|e| e.name.matches(key) && (e.all || e.routes.iter().any(|r| r == route)))
     }
 
     /// How many keys the list holds.
     pub fn len(&self) -> usize {
-        self.names.len()
+        self.keys.len()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.names.is_empty()
+        self.keys.is_empty()
     }
 
     /// The numbers of the lines that are not a key, from 1.
@@ -76,6 +107,16 @@ pub fn admits(path: &Path, key: &PublicKey) -> Result<(), String> {
     match Allowlist::read(path) {
         Ok(list) if list.admits(key) => Ok(()),
         Ok(_) => Err(format!("it is not in {}", path.display())),
+        Err(why) => Err(why),
+    }
+}
+
+/// Whether the client `key` may use `route` of the node, by the allowlist at
+/// `path`, read again for each session (T-089).
+pub fn grants(path: &Path, key: &PublicKey, route: &str) -> Result<(), String> {
+    match Allowlist::read(path) {
+        Ok(list) if list.grants(key, route) => Ok(()),
+        Ok(_) => Err(format!("{} does not give it the route {route}", path.display())),
         Err(why) => Err(why),
     }
 }

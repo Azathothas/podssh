@@ -44,20 +44,31 @@ pub struct Destination {
     pub user: Option<String>,
     pub ticket: String,
     pub shown: String,
+    /// The route of the node, of `iroh:TICKET/ROUTE` (T-089).
+    pub route: Option<String>,
 }
 
-/// `[USER@]iroh:TICKET` as its parts; `None` for each other destination. A
-/// ticket that is not one is refused here, before anything connects.
+/// `[USER@]iroh:TICKET[/ROUTE]` as its parts (a route of T-089); `None` for
+/// each other destination. A ticket that is not one is refused here.
 pub fn destination(text: &str) -> Result<Option<Destination>, String> {
     if !is_iroh(text) {
         return Ok(None);
     }
-    let (user, ticket) = match text.rsplit_once('@') {
+    let (user, named) = match text.rsplit_once('@') {
         Some(("", _)) => return Err(format!("{text:?}: empty user name")),
-        Some((user, ticket)) => (Some(user.to_string()), ticket),
+        Some((user, named)) => (Some(user.to_string()), named),
         None => (None, text),
     };
-    Ok(Some(Destination { user, ticket: ticket.to_string(), shown: shown(ticket)? }))
+    let (ticket, route) = match named.split_once('/') {
+        Some((ticket, route)) => {
+            podssh_ws::names::check_node_name(route).map_err(|_| format!("{text:?}: {route:?} is not a route"))?;
+            (ticket, Some(route.to_string()))
+        }
+        None => (named, None),
+    };
+    let node = shown(ticket)?;
+    let shown = route.as_ref().map_or_else(|| node.clone(), |r| format!("{node}/{r}"));
+    Ok(Some(Destination { user, ticket: ticket.to_string(), shown, route }))
 }
 
 /// The node's name: `iroh:` and its key.
@@ -96,7 +107,9 @@ pub(super) fn transport(dest: &Destination, r: &Ask<'_>, trust: Trust) -> Result
         return Err(Refusal::usage(format!("{}: {why}", dest.shown)));
     }
     let relays = relays(r.args.iroh_relay.as_deref())?;
-    let channel = channel_ask(r.args).map_err(|why| Refusal::usage(format!("{}: {why}", dest.shown)))?;
+    let channel = channel_ask(r.args)
+        .and_then(|ask| ask.to_route(dest.route.as_deref()))
+        .map_err(|why| Refusal::usage(format!("{}: {why}", dest.shown)))?;
     let key = channel.client_key.clone();
     Ok(Transport::Iroh { ticket: dest.ticket.clone(), key, relays, trust, channel })
 }

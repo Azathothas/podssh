@@ -782,8 +782,27 @@ commands. The rules behind them:
   `--timeout` (T-058's decision). `status` asks each host of
   `--relay-host`; `pair`, `info` and `trace` use the first, the control
   host.
+- **Routes (T-089).** `node NAME [TARGET] ROUTE=TARGET...` offers each
+  TARGET under its ROUTE, with one pair and one node: a route has the form
+  of a pair's name, and a TARGET with no route is the one of an operator
+  that names none. The operator names one as `NAME/ROUTE`: `podssh operator
+  lab/web`, `podssh ssh node://user@lab/web`, `podssh ssh
+  user@iroh:TICKET/web`. The route travels in the end-to-end channel, in
+  the operator's encrypted proof of its key, so the relay never sees it,
+  and `--no-e2e` offers none (64). With `--allow FILE`, a key reaches a
+  route only when its line says so, after the key: `SHA256:... routes=web,db
+  laptop`, or `routes=*` for each; a line with no `routes=` reaches the
+  TARGET with no route alone, as before, and a list that is not one makes
+  its line a bad one. The node checks the route after the key, before it
+  dials: a route that it does not have, and one that the key may not use,
+  are refused with the same words, so that an operator learns no route
+  that it may not use. With no allowlist, each operator with the pair's
+  connect token may use each route. The known hosts keep a route's host key
+  under `node://NAME/ROUTE`. `pipe`'s `node:` and `iroh:` addresses name no
+  route yet.
 - **A node dials TARGET first,** once, and exits 69 when it cannot; else
-  each operator would get a `reject`. It says `online` once the relay has
+  each operator would get a `reject`. With routes, each TARGET is dialled
+  once. It says `online` once the relay has
   its socket, and `online again` after a loss: an operator reaches it from
   that line on, not from the first (T-271). It runs until Ctrl-C or SIGTERM
   (exit 0). Its stdout stays empty.

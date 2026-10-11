@@ -9,6 +9,31 @@ use podssh_relay::pair;
 
 use pair_harness::*;
 
+/// The targets of a node with routes (T-089): `ROUTE=TARGET`, one TARGET
+/// with no route at most, each route once, a route with the form of a pair's
+/// name, and none with `--no-e2e`, as a route travels in the channel.
+#[test]
+fn node_routes_are_read_and_refused_before_any_connection() {
+    let home = scratch("routes");
+    for (args, says) in [
+        (vec!["node", "lab", "web=127.0.0.1:80", "web=127.0.0.1:81"], "the route web is given twice"),
+        (vec!["node", "lab", "127.0.0.1:80", "127.0.0.1:81"], "two TARGETs with no route"),
+        (vec!["node", "lab", ".web=127.0.0.1:80"], "is not a route"),
+        (vec!["node", "lab", "a/b=127.0.0.1:80"], "is not a route"),
+        (vec!["node", "lab", "web=127.0.0.1"], "TARGET web=127.0.0.1"),
+        (vec!["node", "lab", "web=127.0.0.1:80", "--no-e2e"], "travels in the end-to-end channel"),
+        (vec!["operator", "lab/../x"], "is not a route"),
+        (vec!["operator", "lab/web", "--no-e2e"], "travels in the end-to-end channel"),
+        (vec!["ssh", "node://lab/a b"], "is not a route"),
+        (vec!["ssh", "--no-e2e", "node://lab/web"], "travels in the end-to-end channel"),
+    ] {
+        let (rc, out, err) = podssh(&home, &args, &[]);
+        assert_eq!(rc, 64, "{args:?}: {err}");
+        assert!(err.contains(says), "{args:?}: {err}");
+        assert!(out.is_empty(), "{args:?}: stdout {out:?}");
+    }
+}
+
 #[test]
 fn node_needs_a_name_and_a_target_and_refuses_bad_ones_before_any_connection() {
     let home = scratch("parse");

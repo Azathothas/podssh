@@ -72,6 +72,7 @@ pub(in crate::chat) async fn run<W: AsyncWrite + Unpin>(
         after: ", one peer at a time",
         handler: door.clone(),
         open,
+        routes: None,
     };
     let (stop, stopped) = watch::channel(false);
     let (gone_tx, gone) = watch::channel(false);

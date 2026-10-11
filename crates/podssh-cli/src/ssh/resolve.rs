@@ -156,7 +156,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     let iroh = super::iroh::destination(destination)?;
     let tunnel = super::cloudflare::destination(destination)?;
     let target = match (&node, &iroh, &tunnel) {
-        (Some((user, label)), ..) => Hop { user: user.clone(), host: label.clone(), port: 22 },
+        (Some((user, label, _)), ..) => Hop { user: user.clone(), host: label.clone(), port: 22 },
         (None, Some(dest), _) => Hop { user: dest.user.clone(), host: dest.shown.clone(), port: 22 },
         (None, None, Some((user, host))) => Hop { user: user.clone(), host: host.clone(), port: 22 },
         (None, None, None) => parse_hop(destination)?,
@@ -292,8 +292,9 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         _ => None,
     };
     let first = jump.first().map(|h| h.host.clone()).unwrap_or_else(|| host.clone());
-    let ask = |label| super::node::Ask {
+    let ask = |label, route| super::node::Ask {
         label,
+        route,
         args,
         host_name: settings.host_name.is_some(),
         port: args.port.is_some() || settings.port.is_some(),
@@ -301,17 +302,17 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         family,
         forward: matches!(request, Request::StdioForward(_)),
     };
-    let transport = if let Some((_, label)) = &node {
+    let transport = if let Some((_, label, route)) = &node {
         let race = super::iroh::race(args)?;
-        super::node::transport(&ask(label), env, race)?
+        super::node::transport(&ask(label, route.as_deref()), env, race)?
     } else if let Some(dest) = &iroh {
         let trust = match ca_file(args, env) {
             Some(file) => Trust::File(file.into()),
             None => Trust::Default,
         };
-        super::iroh::transport(dest, &ask(&dest.shown), trust)?
+        super::iroh::transport(dest, &ask(&dest.shown, None), trust)?
     } else if let Some((_, host)) = &tunnel {
-        super::cloudflare::transport(&ask(host), env)?
+        super::cloudflare::transport(&ask(host, None), env)?
     } else if args.direct {
         if family.is_some() {
             return Err(
@@ -377,7 +378,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     // A node is named `node://NAME` in the messages and the known hosts; a
     // node of the iroh road, `iroh:` and its key.
     let shown = match (&node, &iroh) {
-        (Some((_, label)), _) => format!("{}{label}", super::node::SCHEME),
+        (Some((_, label, route)), _) => super::node::shown(label, route.as_deref()),
         (None, Some(dest)) => dest.shown.clone(),
         (None, None) => host.clone(),
     };

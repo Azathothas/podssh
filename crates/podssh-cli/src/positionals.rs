@@ -79,7 +79,8 @@ pub fn add(cmd: Command, name: &str) -> Command {
             .arg(
                 Arg::new("target")
                     .value_name("TARGET")
-                    .help("the TCP service that each session reaches: HOST:PORT, or [IPV6]:PORT"),
+                    .num_args(0..)
+                    .help("the TCP service that each session reaches: HOST:PORT, or [IPV6]:PORT; ROUTE=HOST:PORT offers one more under ROUTE, which an operator names as NAME/ROUTE"),
             ),
         "pipe" => cmd
             .arg(
@@ -91,7 +92,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
         "operator" => cmd.arg(
             Arg::new("name")
                 .value_name("NAME")
-                .help("the label of a pair: stored here, or named for the --pair-file"),
+                .help("the label of a pair: stored here, or named for the --pair-file; NAME/ROUTE names a route of its node"),
         ),
         "proxy" => cmd
             .arg(

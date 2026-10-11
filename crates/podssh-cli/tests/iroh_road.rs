@@ -23,7 +23,9 @@ const LIMIT: Duration = Duration::from_secs(60);
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("podssh-iroh-road-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    // Private, as a user's own directory is: the node refuses an allowlist
+    // that others can change, as a host's temporary directory may let them.
+    podssh_relay::cache::private_dir(&dir).expect("a scratch directory");
     cleanup::at_test_end(&dir);
     dir
 }

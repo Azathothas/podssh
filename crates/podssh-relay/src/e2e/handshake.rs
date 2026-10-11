@@ -1,7 +1,9 @@
 //! The channel's handshake: Noise XX, each end's proof of its key in the
 //! encrypted payloads of the second and third messages, then the node's
 //! verdict. The operator learns the node's key before it proves its own, so
-//! a node that it refuses learns nothing of it.
+//! a node that it refuses learns nothing of it. The operator's proof may
+//! name a route of the node (T-089), encrypted with it, so that the relay
+//! never sees which.
 
 use std::future::Future;
 
@@ -16,6 +18,10 @@ use crate::identity::{Identity, PublicKey};
 
 /// The version of a proof of a key, its first byte.
 const PROOF_VERSION: u8 = 1;
+/// The version of a proof that names a route after it: its length in one
+/// byte, then its name (T-089). A node of an earlier podssh refuses it, as a
+/// proof that it does not read.
+const ROUTED_PROOF: u8 = 2;
 /// A proof: its version, the sender's Ed25519 key, and that key's signature
 /// of the sender's Noise static key.
 const PROOF_LEN: usize = 1 + 32 + 64;
@@ -30,10 +36,11 @@ pub struct Offered<T> {
 }
 
 /// The node's side after the operator's proof: the operator's key, which the
-/// node lets in or refuses.
+/// node lets in or refuses, and the route that it named.
 pub struct Asked<T> {
     channel: Channel<T>,
     peer: PublicKey,
+    route: Option<String>,
 }
 
 /// Start the channel on `transport` as its initiator, an operator: the
@@ -53,7 +60,7 @@ pub async fn initiate<T: AsyncRead + AsyncWrite + Unpin>(mut transport: T, me: &
     .await?;
     let mut payload = vec![0u8; MAX_MESSAGE];
     let k = state.read_message(&message, &mut payload).map_err(not_noise("the node's message"))?;
-    let peer = peer_of(&payload[..k], state.get_remote_static())?;
+    let (peer, _) = peer_of(&payload[..k], state.get_remote_static())?;
     Ok(Offered { transport, state, peer, proof: proof(me) })
 }
 
@@ -63,12 +70,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Offered<T> {
         self.peer
     }
 
-    /// Prove this end's key, then wait for the node's verdict: the channel,
-    /// or why the node refused.
-    pub async fn accept(self) -> Result<Channel<T>, Error> {
+    /// Prove this end's key, with `route` of the node when one is asked
+    /// (T-089), then wait for the node's verdict: the channel, or why the
+    /// node refused.
+    pub async fn accept(self, route: Option<&str>) -> Result<Channel<T>, Error> {
         let Offered { mut transport, mut state, proof, .. } = self;
+        let payload = routed(&proof, route)?;
         let mut out = vec![0u8; MAX_MESSAGE];
-        let n = state.write_message(&proof, &mut out).map_err(noise)?;
+        let n = state.write_message(&payload, &mut out).map_err(noise)?;
         write_frame(&mut transport, &out[..n]).await?;
         let state = state.into_stateless_transport_mode().map_err(noise)?;
         let mut channel = Channel::new(transport, state);
@@ -107,15 +116,20 @@ pub async fn respond<T: AsyncRead + AsyncWrite + Unpin>(mut transport: T, me: &I
     write_frame(&mut transport, &out[..n]).await?;
     within("the operator's proof of its key", async { whole(read_frame(&mut transport, &mut message).await?) }).await?;
     let k = state.read_message(&message, &mut payload).map_err(not_noise("the operator's proof"))?;
-    let peer = peer_of(&payload[..k], state.get_remote_static())?;
+    let (peer, route) = peer_of(&payload[..k], state.get_remote_static())?;
     let state = state.into_stateless_transport_mode().map_err(noise)?;
-    Ok(Asked { channel: Channel::new(transport, state), peer })
+    Ok(Asked { channel: Channel::new(transport, state), peer, route })
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin> Asked<T> {
     /// The operator's key, which its proof proved.
     pub fn peer(&self) -> PublicKey {
         self.peer
+    }
+
+    /// The route of this node that the operator named, if one (T-089).
+    pub fn route(&self) -> Option<&str> {
+        self.route.as_deref()
     }
 
     /// Let the operator in: the verdict, then the channel.
@@ -146,13 +160,37 @@ fn proof(me: &Identity) -> [u8; PROOF_LEN] {
     out
 }
 
+/// The proof of this end, with `route` after it when one is named.
+fn routed(proof: &[u8; PROOF_LEN], route: Option<&str>) -> Result<Vec<u8>, Error> {
+    let Some(route) = route else { return Ok(proof.to_vec()) };
+    let bad = || Error::Handshake(format!("the route {route:?} is not a route's name"));
+    podssh_ws::names::check_node_name(route).map_err(|_| bad())?;
+    let len = u8::try_from(route.len()).map_err(|_| bad())?;
+    let mut payload = proof.to_vec();
+    payload[0] = ROUTED_PROOF;
+    payload.push(len);
+    payload.extend_from_slice(route.as_bytes());
+    Ok(payload)
+}
+
 /// The peer's key, from its proof: the key must sign the Noise static key
-/// that the handshake proved the peer holds.
-fn peer_of(payload: &[u8], remote_static: Option<&[u8]>) -> Result<PublicKey, Error> {
+/// that the handshake proved the peer holds; and the route that the proof
+/// names, if one.
+fn peer_of(payload: &[u8], remote_static: Option<&[u8]>) -> Result<(PublicKey, Option<String>), Error> {
     let unread = || Error::Handshake("the peer's proof of its key is not one that this podssh reads".into());
-    if payload.len() != PROOF_LEN || payload[0] != PROOF_VERSION {
-        return Err(unread());
-    }
+    let (payload, route) = match payload.first() {
+        Some(&PROOF_VERSION) if payload.len() == PROOF_LEN => (payload, None),
+        Some(&ROUTED_PROOF) if payload.len() > PROOF_LEN + 1 => {
+            let named = &payload[PROOF_LEN + 1..];
+            let route = std::str::from_utf8(named)
+                .ok()
+                .filter(|r| r.len() == usize::from(payload[PROOF_LEN]))
+                .filter(|r| podssh_ws::names::check_node_name(r).is_ok())
+                .ok_or_else(unread)?;
+            (&payload[..PROOF_LEN], Some(route.to_string()))
+        }
+        _ => return Err(unread()),
+    };
     let key = PublicKey(payload[1..33].try_into().map_err(|_| unread())?);
     let binding: [u8; 64] = payload[33..].try_into().map_err(|_| unread())?;
     let noise_key: [u8; 32] = remote_static
@@ -161,7 +199,7 @@ fn peer_of(payload: &[u8], remote_static: Option<&[u8]>) -> Result<PublicKey, Er
     if !key.signed(&noise_key, &binding) {
         return Err(Error::Handshake(format!("the key {key} does not sign the peer's Noise key")));
     }
-    Ok(key)
+    Ok((key, route))
 }
 
 /// A frame that must be there: the stream's end in its place is a cut.

@@ -40,13 +40,34 @@ impl Node {
 
 /// Serve one session's channel on `link`, the stream that the layer or the
 /// relay carries: the handshake, the operator's key against the node's
-/// admission, then the target from `open`, and the bytes between the two.
+/// admission, then the target from `open`, and the bytes between the two. A
+/// node served so has no routes: an operator that names one is refused.
 pub async fn serve_node<L, A, O, F>(link: L, node: &Node, open: O)
 where
     L: AsyncRead + AsyncWrite + Unpin,
     A: AsyncRead + AsyncWrite + Unpin,
     O: FnOnce() -> F,
     F: Future<Output = Result<A, String>>,
+{
+    serve_routed(link, node, |_, route: Option<String>| async move {
+        match route {
+            Some(route) => Err(Refusal::Other(format!("this node has no routes, so none named {route}"))),
+            None => open().await.map_err(Refusal::NoTarget),
+        }
+    })
+    .await
+}
+
+/// [`serve_node`] for a node with routes (T-089): once the operator's key is
+/// let in, `open` gets it and the route that it named, and gives the target
+/// of that route, or the refusal: a route that the key may not use is the
+/// node's refusal, not its target's.
+pub async fn serve_routed<L, A, O, F>(link: L, node: &Node, open: O)
+where
+    L: AsyncRead + AsyncWrite + Unpin,
+    A: AsyncRead + AsyncWrite + Unpin,
+    O: FnOnce(PublicKey, Option<String>) -> F,
+    F: Future<Output = Result<A, Refusal>>,
 {
     let asked = match respond(link, &node.identity).await {
         Ok(asked) => asked,
@@ -56,26 +77,27 @@ where
         }
     };
     let peer = asked.peer();
+    let to = asked.route().map(|r| format!(" to the route {r}")).unwrap_or_default();
     if let Err(why) = (node.admit)(&peer) {
         (node.say)(format!("refused the operator key {peer}: {why}"));
         asked.refuse(Refusal::NotAllowed).await;
         return;
     }
-    let target = match tokio::time::timeout(TARGET_WAIT, open()).await {
+    let target = match tokio::time::timeout(TARGET_WAIT, open(peer, asked.route().map(str::to_string))).await {
         Ok(Ok(target)) => target,
-        Ok(Err(why)) => {
-            (node.say)(format!("the operator key {peer} came in; the target could not be reached: {why}"));
-            asked.refuse(Refusal::NoTarget(why)).await;
+        Ok(Err(refusal)) => {
+            (node.say)(format!("the operator key {peer} came in{to}; refused: {refusal}"));
+            asked.refuse(refusal).await;
             return;
         }
         Err(_) => {
             let why = format!("it did not answer within {} s", TARGET_WAIT.as_secs());
-            (node.say)(format!("the operator key {peer} came in; the target could not be reached: {why}"));
+            (node.say)(format!("the operator key {peer} came in{to}; the target could not be reached: {why}"));
             asked.refuse(Refusal::NoTarget(why)).await;
             return;
         }
     };
-    (node.say)(format!("the operator key {peer} came in"));
+    (node.say)(format!("the operator key {peer} came in{to}"));
     let channel = match asked.admit().await {
         Ok(channel) => channel,
         Err(e) => {
@@ -101,6 +123,20 @@ where
     A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
     C: FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
 {
+    operator_to(app, identity, check, None)
+}
+
+/// [`operator`] to `route` of the node, when one is named (T-089).
+pub fn operator_to<A, C>(
+    app: A,
+    identity: Arc<Identity>,
+    check: C,
+    route: Option<String>,
+) -> (DuplexStream, impl Future<Output = Result<PublicKey, Error>> + Send)
+where
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    C: FnOnce(&PublicKey) -> Result<(), String> + Send + 'static,
+{
     let (ours, theirs) = tokio::io::duplex(PIPE);
     let session = async move {
         let offered = initiate(theirs, &identity).await?;
@@ -109,7 +145,7 @@ where
             offered.reject().await;
             return Err(Error::NodeKey(why));
         }
-        offered.accept().await?.carry(app).await?;
+        offered.accept(route.as_deref()).await?.carry(app).await?;
         Ok(node)
     };
     (ours, session)

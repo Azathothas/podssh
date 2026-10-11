@@ -32,7 +32,7 @@ fn channel_to(lines: &Receiver<String>) -> Operator {
         .and_then(|rest| rest.split_whitespace().next())
         .and_then(KeyName::parse)
         .unwrap_or_else(|| panic!("no key in {line:?}"));
-    Operator { identity: Arc::new(Identity::from_seed(&[0x33; 32])), expect: Expect::Named(key) }
+    Operator { identity: Arc::new(Identity::from_seed(&[0x33; 32])), expect: Expect::Named(key), route: None }
 }
 
 #[test]

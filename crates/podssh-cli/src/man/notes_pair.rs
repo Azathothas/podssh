@@ -25,6 +25,15 @@ pub(super) const NODE: &[&str] = &[
      line to add. With no allowlist, each operator with the pair's connect token comes in, and its key \
      is said. TARGET is dialled only once the operator's key is let in. --no-e2e carries the bytes with \
      no channel, to operators run with --no-e2e too: the relay then sees them.",
+    "Routes: podssh node lab 127.0.0.1:22 web=127.0.0.1:8080 db=127.0.0.1:5432 offers each TARGET \
+     under its route, here web and db, a name of the form of a pair's, with one pair and one node for \
+     all; the TARGET with no route is the one of an operator that names none. An operator names a route as NAME/ROUTE (podssh operator NAME/ROUTE, \
+     podssh ssh node://NAME/ROUTE, iroh:TICKET/ROUTE), in the end-to-end channel, so the relay never \
+     sees it and --no-e2e offers none. With --allow, a key reaches a route only when its line says so: \
+     KEY routes=web,db, or routes=* for each; a key with no routes= reaches the TARGET with no route \
+     alone. A route that the node does not have, or that the key may not use, is refused with the same \
+     words, before any dial. With no allowlist, each operator may use each route. Each TARGET is \
+     dialled once at the start.",
     "The node runs until Ctrl-C or SIGTERM (exit 0), or until the relay ends the pair: stopped, \
      expired, refused, or served by another node; each has its code in EXIT STATUS. A broken \
      connection to the relay is made again, after a growing wait. After a loss the relay can still \
@@ -72,4 +81,7 @@ pub(super) const OPERATOR: &[&str] = &[
      replaced. --node-key KEY expects that key, or fingerprint, instead, and reads and writes no pin. A \
      node that refuses this operator's key ends the session with exit 77, and the line names the key to \
      add to its allowlist. --no-e2e carries the bytes with no channel, to a node run with --no-e2e.",
+    "NAME/ROUTE names a route of the node (see podssh node): the route travels in the end-to-end \
+     channel, encrypted, and the node refuses one that it does not have, or that this operator's key \
+     may not use, before it dials anything.",
 ];

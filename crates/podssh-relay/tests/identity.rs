@@ -123,6 +123,31 @@ fn an_allowlist_takes_fingerprints_and_keys_and_names_its_bad_lines() {
     assert!(Allowlist::parse("").is_empty());
 }
 
+/// The routes of a key (T-089): a word `routes=` after it, `*` for each;
+/// with none, the target with no route alone. A key on two lines has the
+/// routes of both, and a list that is not one makes the line a bad one.
+#[test]
+fn an_allowlist_grants_routes_by_key() {
+    let text = format!(
+        "{OPENSSH_FINGERPRINT} routes=web,db the laptop\n{IROH_BASE32} routes=*\n{IROH_HEX} routes=ssh\n\
+         {OPENSSH_FINGERPRINT} routes=git\nSHA256:4GCq9Leo8YikY6DuOUiMStys+sW6A5GLCsemjyLisjY routes=bad/name\n"
+    );
+    let list = Allowlist::parse(&text);
+    let (laptop, client) = (key(OPENSSH_KEY), key(IROH_HEX));
+    assert!(list.admits(&laptop) && list.grants(&laptop, "web") && list.grants(&laptop, "db"));
+    assert!(list.grants(&laptop, "git"), "the routes of its second line");
+    assert!(!list.grants(&laptop, "ssh"));
+    assert!(list.grants(&client, "anything"), "routes=* grants each route");
+    assert_eq!(list.bad_lines(), [5], "a route that is not one makes its line a bad one");
+    let plain = Allowlist::parse(&format!("{OPENSSH_FINGERPRINT} the laptop\n"));
+    assert!(plain.admits(&laptop) && !plain.grants(&laptop, "web"), "no routes= word: no route");
+    let path = scratch("grants").join("allow");
+    write_own(&path, &format!("{OPENSSH_FINGERPRINT} routes=web\n"));
+    assert_eq!(allow::grants(&path, &laptop, "web"), Ok(()));
+    let why = allow::grants(&path, &laptop, "db").unwrap_err();
+    assert!(why.contains("does not give it the route db"), "{why}");
+}
+
 #[test]
 fn the_node_reads_its_allowlist_again_for_each_session() {
     let path = scratch("allow").join("allow");

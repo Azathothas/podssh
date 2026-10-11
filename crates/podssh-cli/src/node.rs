@@ -1,6 +1,8 @@
 //! `podssh node NAME TARGET` (T-083): the node of the pair stored under the
 //! label NAME, in front of the TCP service TARGET. Each session that an
-//! operator opens is one connection to TARGET. The node runs until Ctrl-C or
+//! operator opens is one connection to TARGET. `ROUTE=TARGET` offers a target
+//! under a route (T-089), which an operator names in the end-to-end channel,
+//! and the allowlist grants by key. The node runs until Ctrl-C or
 //! SIGTERM (exit 0), or until the relay ends the pair. stdout stays empty:
 //! a node has no answer to give. Each session runs the resumable layer
 //! (T-153), or with `--plain` carries TARGET's bytes as they are (T-263).
@@ -13,6 +15,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use podssh_relay::pair::Pair;
+use podssh_relay::reverse::routes::{Route, Routed, Routes};
 use podssh_relay::reverse::{self, E2e, Exit, Layered, NodeConfig, Settings, TcpHandler, Wire};
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
@@ -29,8 +32,9 @@ const DIAL_LIMIT: Duration = Duration::from_secs(8);
 pub struct NodeArgs {
     /// The label of a stored pair.
     pub name: Option<String>,
-    /// `HOST:PORT`, or `[IPV6]:PORT`.
-    pub target: Option<String>,
+    /// Each TARGET: `HOST:PORT` or `[IPV6]:PORT`, and `ROUTE=TARGET` for a
+    /// route (T-089).
+    pub targets: Vec<String>,
     pub relay_addr: Option<String>,
     pub ca_file: Option<String>,
     /// A pair file to use in place of the store.
@@ -97,8 +101,7 @@ struct Ready {
     /// Whether the pair came from the store, whose copy goes when the relay
     /// says that the pair was stopped.
     stored: bool,
-    host: String,
-    port: u16,
+    targets: Vec<Route>,
     trust: Trust,
     plain: bool,
     /// The node's key, for the end-to-end channel; `None` with `--no-e2e`.
@@ -132,9 +135,7 @@ pub(crate) fn key_flags(args: &NodeArgs) -> Result<KeyFlags, Refusal> {
 fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     let label = args.name.clone().ok_or("missing NAME: the label of a pair (podssh relay pair NAME)")?;
     pairs::check_label(&label)?;
-    let target = args.target.as_deref().ok_or("missing TARGET: the HOST:PORT that each session reaches")?;
-    let (host, port) =
-        crate::proxy::parse_target(Some(target), None).map_err(|why| Refusal::usage(format!("TARGET: {why}")))?;
+    let targets = targets_of(&args.targets, args.no_e2e)?;
     // The channel's flags are usage errors, said before anything is read.
     let flags = key_flags(args)?;
     if args.no_e2e && (flags.key.is_some() || flags.ephemeral || flags.allow.is_some()) {
@@ -158,21 +159,103 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         Some(place) => Some(crate::channel::load_node_key(&place)?),
         None => None,
     };
-    Ok(Ready { label, pair, stored, host, port, trust, plain: args.plain, key, allow: flags.allow })
+    Ok(Ready { label, pair, stored, targets, trust, plain: args.plain, key, allow: flags.allow })
+}
+
+/// The targets of the command line (T-089): `TARGET`, which an operator
+/// that names no route reaches, and `ROUTE=TARGET` for each route; at most
+/// one with no route, each route once. A route travels in the end-to-end
+/// channel, so `--no-e2e` offers none.
+pub(crate) fn targets_of(words: &[String], no_e2e: bool) -> Result<Vec<Route>, Refusal> {
+    if words.is_empty() {
+        return Err("missing TARGET: the HOST:PORT that each session reaches, or ROUTE=HOST:PORT".into());
+    }
+    let mut targets: Vec<Route> = Vec::new();
+    for word in words {
+        let (name, target) = match word.split_once('=') {
+            Some((route, target)) => {
+                podssh_ws::names::check_node_name(route).map_err(|_| {
+                    Refusal::usage(format!(
+                        "{word}: {route:?} is not a route: letters, digits, '.', '-' and '_', not first '-' or '.'"
+                    ))
+                })?;
+                (Some(route.to_string()), target)
+            }
+            None => (None, word.as_str()),
+        };
+        let (host, port) = crate::proxy::parse_target(Some(target), None)
+            .map_err(|why| Refusal::usage(format!("TARGET {word}: {why}")))?;
+        if targets.iter().any(|t| t.name == name) {
+            return Err(Refusal::usage(match &name {
+                Some(route) => format!("the route {route} is given twice"),
+                None => "two TARGETs with no route: give each one but one a ROUTE=".to_string(),
+            }));
+        }
+        targets.push(Route { name, host, port });
+    }
+    if no_e2e && targets.iter().any(|t| t.name.is_some()) {
+        return Err(Refusal::usage("a route travels in the end-to-end channel, which --no-e2e turns off"));
+    }
+    Ok(targets)
+}
+
+/// `NAME/ROUTE` as the label of a pair and the route of its node (T-089).
+pub(crate) fn label_and_route(text: &str) -> Result<(String, Option<String>), Refusal> {
+    let (label, route) = match text.split_once('/') {
+        Some((label, route)) => (label, Some(route)),
+        None => (text, None),
+    };
+    pairs::check_label(label)?;
+    if let Some(route) = route {
+        podssh_ws::names::check_node_name(route).map_err(|_| {
+            Refusal::usage(format!(
+                "{text}: {route:?} is not a route: letters, digits, '.', '-' and '_', not first '-' or '.'"
+            ))
+        })?;
+    }
+    Ok((label.to_string(), route.map(str::to_string)))
+}
+
+/// The targets as the first line says them.
+pub(crate) fn shown(targets: &[Route]) -> String {
+    let each = targets.iter().map(|t| {
+        let at = podssh_ws::dial::authority(&t.host, t.port);
+        t.name.as_ref().map_or(at.clone(), |route| format!("{route}={at}"))
+    });
+    each.collect::<Vec<_>>().join(", ")
+}
+
+/// Each target, dialled once: a node that cannot reach one would refuse its
+/// sessions, so it does not start (69).
+pub(crate) async fn probe(targets: &[Route]) -> Result<(), Refusal> {
+    let proxy = ProxyChoice::FromEnvironment;
+    for t in targets {
+        if let Err(e) = podssh_ws::dial::dial(&t.host, t.port, &proxy, DIAL_LIMIT).await {
+            let shown = shown(std::slice::from_ref(t));
+            return Err(Refusal { message: format!("TARGET {shown}: {e}"), code: Fault::RelayUnreachable.code() });
+        }
+    }
+    Ok(())
+}
+
+/// The routes of a node, when it has one, with who may use each.
+pub(crate) fn routes_of(targets: &[Route], allow: Option<PathBuf>) -> Option<Routes> {
+    targets.iter().any(|t| t.name.is_some()).then(|| Routes {
+        routes: Arc::new(targets.to_vec()),
+        grant: crate::channel::grant_of(allow),
+        timeout: DIAL_LIMIT,
+    })
 }
 
 async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, pair, stored, host, port, trust, plain, key, allow } = ready;
-    let target = podssh_ws::dial::authority(&host, port);
+    let Ready { label, pair, stored, targets, trust, plain, key, allow } = ready;
+    let target = shown(&targets);
     let proxy = ProxyChoice::FromEnvironment;
     // TARGET first: a node that cannot reach it would serve no session.
-    match podssh_ws::dial::dial(&host, port, &proxy, DIAL_LIMIT).await {
-        Ok(probe) => drop(probe),
-        Err(e) => {
-            let refusal = Refusal { message: format!("TARGET {target}: {e}"), code: Fault::RelayUnreachable.code() };
-            return refusal.report("node", err);
-        }
+    if let Err(refusal) = probe(&targets).await {
+        return refusal.report("node", err);
     }
+    let routes = routes_of(&targets, allow.clone());
     let mode = if plain { "in plain mode, with no resumable layer" } else { "with the resumable layer" };
     let _ = writeln!(
         err,
@@ -203,7 +286,8 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         wire: Wire::Tls,
         say: Some(&say),
     };
-    let tcp = TcpHandler { host, port, timeout: DIAL_LIMIT };
+    let first = &targets[0];
+    let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT };
     let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
     // TARGET at `open` with no layer: an operator that does not speak the
     // layer can use the node, and a lost leg ends the session. With the
@@ -211,14 +295,24 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
     // new one, with the same connection to TARGET, dialled only after the
     // layer's handshake. The channel (T-088) runs above the layer, and
     // reaches TARGET only once the operator's key is let in.
-    let exit = match (plain, channel) {
-        (true, None) => Box::pin(reverse::run(&mut config, Arc::new(tcp), stop_signal())).await,
-        (true, Some(node)) => Box::pin(reverse::run(&mut config, Arc::new(E2e::new(tcp, node)), stop_signal())).await,
-        (false, None) => {
+    let exit = match (plain, channel, routes) {
+        // Routes (T-089): the target of the route that each operator named.
+        (true, Some(node), Some(routes)) => {
+            Box::pin(reverse::run(&mut config, Arc::new(Routed::new(routes, node)), stop_signal())).await
+        }
+        (false, Some(node), Some(routes)) => {
+            let handler = Arc::new(Layered::new(Routed::new(routes, node), settings, budget));
+            Box::pin(reverse::run(&mut config, handler, stop_signal())).await
+        }
+        (true, None, _) => Box::pin(reverse::run(&mut config, Arc::new(tcp), stop_signal())).await,
+        (true, Some(node), None) => {
+            Box::pin(reverse::run(&mut config, Arc::new(E2e::new(tcp, node)), stop_signal())).await
+        }
+        (false, None, _) => {
             let handler = Arc::new(Layered::new(tcp, settings, budget));
             Box::pin(reverse::run(&mut config, handler, stop_signal())).await
         }
-        (false, Some(node)) => {
+        (false, Some(node), None) => {
             let handler = Arc::new(Layered::new(E2e::new(tcp, node), settings, budget));
             Box::pin(reverse::run(&mut config, handler, stop_signal())).await
         }

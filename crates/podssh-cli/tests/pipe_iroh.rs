@@ -44,7 +44,11 @@ fn a_line_goes_to_the_target_of_a_node_of_the_iroh_road_and_comes_back() {
     let client_key = session.home.join("client.key");
     let place = podssh_iroh::keys::Place::File(client_key.clone());
     let key = podssh_iroh::keys::load(&place, &mut podssh_relay::session::OsEntropy).expect("a key");
-    let allow = session.home.join("allow");
+    // In a directory of its own: the node refuses an allowlist that others
+    // can change, as a host's temporary directory may let them.
+    let private = session.home.join("private");
+    podssh_relay::cache::private_dir(&private).unwrap();
+    let allow = private.join("allow");
     std::fs::write(&allow, format!("{} the test's client\n", podssh_iroh::keys::fingerprint(&key.public()))).unwrap();
     let node_args = [
         "node".to_string(),

@@ -14,6 +14,11 @@ come from dropssh, a sibling project that implemented both sides.
    which ends each session on it.
 3. Do not close the socket to end one session.
 4. Send `ready {id}` only after the local service accepts the connection.
+   With the resumable layer (T-153) and the end-to-end channel (T-088),
+   the local service is the node's podssh: `ready` goes at once, and the
+   node dials TARGET after the layer's handshake and once the channel let
+   the operator's key in, and, with routes (T-089), the route that it
+   named.
 5. Route by id, never by the order of arrival. Validate the hex before you
    look up the id.
 6. On `409` (a second socket for the same name) at the first registration,

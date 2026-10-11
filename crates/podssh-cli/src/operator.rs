@@ -122,9 +122,10 @@ pub(crate) fn judged(label: &str, carried: &Carried) -> Option<(i32, String)> {
 }
 
 fn prepare(args: &OperatorArgs) -> Result<(String, podssh_relay::pair::OperatorPart, crate::channel::Ask), Refusal> {
-    let label = args.name.clone().ok_or("missing NAME: the label of a pair (podssh relay pair NAME)")?;
-    pairs::check_label(&label)?;
+    let name = args.name.clone().ok_or("missing NAME: the label of a pair (podssh relay pair NAME)")?;
+    let (label, route) = crate::node::label_and_route(&name)?;
     let ask = crate::channel::Ask::of(args.client_key.as_deref(), None, args.node_key.as_deref(), args.no_e2e)
+        .and_then(|ask| ask.to_route(route.as_deref()))
         .map_err(Refusal::usage)?;
     if args.no_e2e && args.client_key.is_some() {
         return Err(Refusal::usage(

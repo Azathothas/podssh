@@ -48,7 +48,7 @@ pub(super) fn prepare(label: String, ask: &Ask, args: &ChatArgs) -> Result<Ready
     let shown = label.clone();
     let say = move |line: String| eprintln!("podssh chat: {shown}: {line}");
     let channel = ask.operator(Expect::Pinned(label.clone()), &say).map_err(Refusal::config)?;
-    let Some(Operator { identity, expect }) = channel else {
+    let Some(Operator { identity, expect, .. }) = channel else {
         return Err(Refusal::usage("chat always runs the end-to-end channel"));
     };
     Ok(Ready { label, part, trust, identity, expect })
@@ -89,7 +89,7 @@ pub(super) async fn run<W: AsyncWrite + Unpin>(
             Err(Stop::Refused(refusal)) => return run::refused(refusal.code, refusal.message, lines, out).await,
         };
         let (app, chat) = tokio::io::duplex(PIPE);
-        let channel = Some(Operator { identity: identity.clone(), expect: expect.clone() });
+        let channel = Some(Operator { identity: identity.clone(), expect: expect.clone(), route: None });
         let shown = label.clone();
         let say = move |line: Line| {
             if let Line::Always(text) = line {

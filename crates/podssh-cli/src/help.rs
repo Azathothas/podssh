@@ -253,7 +253,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "chat" => "[OPTIONS] PEER",
         "man" => "[OPTIONS] [SECTION]",
         "relay" => "[OPTIONS] SUBCOMMAND [NAME | HOST PORT]",
-        "node" => "[OPTIONS] NAME TARGET",
+        "node" => "[OPTIONS] NAME TARGET [ROUTE=TARGET]...",
         "operator" => "[OPTIONS] NAME",
         "proxy" => "[OPTIONS] [--] HOST PORT",
         "play" => "[OPTIONS] FILE",

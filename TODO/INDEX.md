@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**289 entries: 69 open, 0 partial, 24 blocked, 196 done.**
+**289 entries: 68 open, 0 partial, 24 blocked, 197 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
 | P2 | 4 | 0 | 18 | 135 | 157 |
-| P3 | 63 | 0 | 6 | 39 | 108 |
-| **All** | 69 | 0 | 24 | 196 | 289 |
+| P3 | 62 | 0 | 6 | 40 | 108 |
+| **All** | 68 | 0 | 24 | 197 | 289 |
 
 ## Entries
 
@@ -162,7 +162,7 @@ repository and CI).
 | [T-086](reverse.md) | P3 | M | backlog | feature | blocked | Pairing by a short one-time code, given out of band |
 | [T-087](reverse.md) | P2 | M | backlog | feature | done | Node identity and access: a node key, an allowlist, an expected fingerprint, revocation |
 | [T-088](reverse.md) | P2 | L | backlog | feature | done | End-to-end encryption between two podssh ends |
-| [T-089](reverse.md) | P3 | M | backlog | feature | open | A node offers several named targets, each with its own grant |
+| [T-089](reverse.md) | P3 | M | backlog | feature | done | A node offers several named targets, each with its own grant |
 | [T-090](reverse.md) | P3 | M | backlog | feature | open | Find a node by name with no payload leak |
 | [T-091](irc.md) | P2 | S | M8 | defect | done | I1: `CAP END` is sent only after 001 |
 | [T-092](irc.md) | P2 | M | M8 | defect | done | I2: the client asks for each offered capability |

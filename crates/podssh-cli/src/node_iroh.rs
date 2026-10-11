@@ -22,6 +22,7 @@ use podssh_iroh::keys::{self, Place};
 use podssh_iroh::{ticket, Allowlist, Options, Udp};
 use podssh_relay::e2e::ends;
 use podssh_relay::pair::Pair;
+use podssh_relay::reverse::routes::{Route, Routes};
 use podssh_relay::reverse::{self, Handler, Layered, NodeConfig, TcpHandler, Wire};
 use podssh_relay::session::keep::Keeper;
 use podssh_relay::session::{OsEntropy, Settings};
@@ -43,7 +44,7 @@ const CLOSE_LIMIT: Duration = Duration::from_secs(5);
 
 /// Run the node; returns the process exit code.
 pub fn run(args: &NodeArgs, err: &mut dyn Write) -> i32 {
-    let (ready, host, port) = match prepare(args) {
+    let (ready, targets) = match prepare(args) {
         Ok(ready) => ready,
         Err(refusal) => return refusal.report("node", err),
     };
@@ -56,7 +57,7 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     };
     // On the heap, as each large future here: Windows gives the main
     // thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(serve_tcp(ready, host, port, err)));
+    let code = runtime.block_on(Box::pin(serve_tcp(ready, targets, err)));
     // A session may still be closing; the node has ended, so none is waited for.
     runtime.shutdown_background();
     code
@@ -88,12 +89,10 @@ pub(crate) struct Flags<'a> {
     pub e2e: bool,
 }
 
-fn prepare(args: &NodeArgs) -> Result<(Ready, String, u16), Refusal> {
+fn prepare(args: &NodeArgs) -> Result<(Ready, Vec<Route>), Refusal> {
     let label = args.name.clone().ok_or("missing NAME: the node's name, which labels its key")?;
     crate::pairs::check_label(&label)?;
-    let target = args.target.as_deref().ok_or("missing TARGET: the HOST:PORT that each session reaches")?;
-    let (host, port) =
-        crate::proxy::parse_target(Some(target), None).map_err(|why| Refusal::usage(format!("TARGET: {why}")))?;
+    let targets = crate::node::targets_of(&args.targets, args.no_e2e)?;
     // One key for both roads (T-087), by the flags' names of T-087 or T-163.
     let flags = crate::node::key_flags(args)?;
     let place: Place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
@@ -107,7 +106,7 @@ fn prepare(args: &NodeArgs) -> Result<(Ready, String, u16), Refusal> {
         ca_file: args.ca_file.as_deref(),
         e2e: !args.no_e2e,
     })?;
-    Ok((ready, host, port))
+    Ok((ready, targets))
 }
 
 /// The relays, the pins and the pair of a node of both roads, in order.
@@ -138,18 +137,16 @@ pub(crate) fn ready(flags: Flags<'_>) -> Result<Ready, Refusal> {
     })
 }
 
-/// The node in front of TARGET: dialled once first, then each session's.
-async fn serve_tcp(ready: Ready, host: String, port: u16, err: &mut dyn Write) -> i32 {
-    let target = podssh_ws::dial::authority(&host, port);
-    let proxy = ProxyChoice::FromEnvironment;
+/// The node in front of its targets: each dialled once first, then each
+/// session's, by its route (T-089).
+async fn serve_tcp(ready: Ready, targets: Vec<Route>, err: &mut dyn Write) -> i32 {
+    let target = crate::node::shown(&targets);
     // TARGET first: a node that cannot reach it would serve no session.
-    match podssh_ws::dial::dial(&host, port, &proxy, DIAL_LIMIT).await {
-        Ok(probe) => drop(probe),
-        Err(e) => {
-            let refusal = Refusal { message: format!("TARGET {target}: {e}"), code: Fault::RelayUnreachable.code() };
-            return refusal.report("node", err);
-        }
+    if let Err(refusal) = crate::node::probe(&targets).await {
+        return refusal.report("node", err);
     }
+    let routes = crate::node::routes_of(&targets, ready.allow.clone());
+    let (host, port) = (targets[0].host.clone(), targets[0].port);
     let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT };
     let open = move || {
         let host = host.clone();
@@ -159,7 +156,8 @@ async fn serve_tcp(ready: Ready, host: String, port: u16, err: &mut dyn Write) -
                 .map_err(|e| e.to_string())
         }
     };
-    let roads = Roads { verb: "node", serving: format!("serving {target}"), after: " until Ctrl-C", handler, open };
+    let serving = format!("serving {target}");
+    let roads = Roads { verb: "node", serving, after: " until Ctrl-C", handler, open, routes };
     serve(ready, roads, crate::node::stop_signal(), err).await
 }
 
@@ -175,6 +173,9 @@ pub(crate) struct Roads<H, O> {
     pub after: &'static str,
     pub handler: H,
     pub open: O,
+    /// The routes of a node (T-089), which choose each session's target in
+    /// place of `handler` and `open`.
+    pub routes: Option<Routes>,
 }
 
 /// Serve both roads until `until`, or until both ended.
@@ -191,7 +192,7 @@ where
     A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let Ready { label, place, allow, relays, trust, pair, e2e } = ready;
-    let Roads { verb, serving, after, handler, open: target } = roads;
+    let Roads { verb, serving, after, handler, open: target, routes } = roads;
     // The pair's road needs these after the iroh road has taken its own.
     let (label_text, trust_pair) = (label.clone(), trust.clone());
     let proxy = ProxyChoice::FromEnvironment;
@@ -288,10 +289,10 @@ where
     // Each session of either road is a pipe (T-164): with the channel, the
     // target is reached once the operator's key is let in.
     let open = {
-        let channel = channel.clone();
+        let (channel, routes) = (channel.clone(), routes.clone());
         move || {
-            let (target, channel) = (target.clone(), channel.clone());
-            async move { crate::channel::piped(channel, target).await }
+            let (target, channel, routes) = (target.clone(), channel.clone(), routes.clone());
+            async move { crate::channel::piped_by(channel, routes, target).await }
         }
     };
     let settings = Settings { features: podssh_iroh::FEATURES, ..crate::layered::settings() };
@@ -326,7 +327,7 @@ where
             wire: Wire::Tls,
             say: Some(&say_pair),
         };
-        let piped = crate::channel::Piped { inner: Arc::new(handler), channel: channel.clone() };
+        let piped = crate::channel::Piped { inner: Arc::new(handler), channel: channel.clone(), routes };
         let layered = Layered::with_keeper(piped, crate::layered::settings(), budget, keeper.clone());
         let exit = Box::pin(reverse::run(&mut config, Arc::new(layered), until_stopped(stopped.clone()))).await;
         if let Some((_, why)) = crate::node::ended(&label_text, exit) {

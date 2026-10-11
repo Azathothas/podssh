@@ -296,7 +296,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Node(Box::new(crate::node::NodeArgs {
             name: get("name"),
-            target: get("target"),
+            targets: matches.get_many::<String>("target").map(|v| v.cloned().collect()).unwrap_or_default(),
             relay_addr: get("relay-addr"),
             ca_file: get("ca-file"),
             pair_file: get("pair-file"),

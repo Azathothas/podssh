@@ -12,6 +12,7 @@ use std::sync::Arc;
 
 use podssh_relay::e2e::{self, ends, Refusal as NodeRefusal};
 use podssh_relay::identity::{allow, file, pins, Identity, KeyName, PublicKey};
+use podssh_relay::reverse::routes::{Grant, Routes};
 use podssh_relay::reverse::{Handler, Opening, SessionId};
 use podssh_relay::session::OsEntropy;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
@@ -41,10 +42,12 @@ pub enum Expect {
     Pinned(String),
 }
 
-/// An operator's channel: its key, and how it checks the node's.
+/// An operator's channel: its key, how it checks the node's, and the route
+/// of the node that it names (T-089).
 pub struct Operator {
     pub identity: Arc<Identity>,
     pub expect: Expect,
+    pub route: Option<String>,
 }
 
 /// The channel of a client, as its command line asks it.
@@ -57,6 +60,8 @@ pub struct Ask {
     pub node_key: Option<KeyName>,
     /// `--no-e2e`.
     pub off: bool,
+    /// The route of the node, of `NAME/ROUTE` (T-089).
+    pub route: Option<String>,
 }
 
 impl Ask {
@@ -82,7 +87,19 @@ impl Ask {
         if off && node_key.is_some() {
             return Err("--node-key checks the node's key in the end-to-end channel, which --no-e2e turns off".into());
         }
-        Ok(Ask { client_key: client_key.or(iroh_key).map(str::to_string), node_key, off })
+        Ok(Ask { client_key: client_key.or(iroh_key).map(str::to_string), node_key, off, route: None })
+    }
+
+    /// This channel to `route` of the node, when one is named: a route
+    /// travels in the channel, which `--no-e2e` turns off.
+    pub fn to_route(mut self, route: Option<&str>) -> Result<Ask, String> {
+        if let Some(route) = route {
+            if self.off {
+                return Err(format!("the route {route} travels in the end-to-end channel, which --no-e2e turns off"));
+            }
+            self.route = Some(route.to_string());
+        }
+        Ok(self)
     }
 
     /// The operator's channel with this client's key `identity`, loaded by the
@@ -90,7 +107,7 @@ impl Ask {
     /// `fallback` does. `None` with `--no-e2e`.
     pub fn with(&self, identity: Arc<Identity>, fallback: Expect) -> Option<Operator> {
         let expect = self.node_key.clone().map_or(fallback, Expect::Named);
-        (!self.off).then_some(Operator { identity, expect })
+        (!self.off).then_some(Operator { identity, expect, route: self.route.clone() })
     }
 
     /// The operator's channel: this client's key, loaded or made, and the
@@ -102,7 +119,7 @@ impl Ask {
         }
         let identity = client_identity(self.client_key.as_deref(), say)?;
         let expect = self.node_key.clone().map_or(fallback, Expect::Named);
-        Ok(Some(Operator { identity, expect }))
+        Ok(Some(Operator { identity, expect, route: self.route.clone() }))
     }
 }
 
@@ -161,8 +178,8 @@ pub fn around<A: Bytes + 'static>(
     channel: Option<Operator>,
     say: impl Fn(String) + Send + 'static,
 ) -> (Box<dyn Bytes>, Option<Session>) {
-    let Some(Operator { identity, expect }) = channel else { return (Box::new(app), None) };
-    let (cipher, session) = ends::operator(app, identity, check(expect, say));
+    let Some(Operator { identity, expect, route }) = channel else { return (Box::new(app), None) };
+    let (cipher, session) = ends::operator_to(app, identity, check(expect, say), route);
     (Box::new(cipher), Some(Box::pin(session)))
 }
 
@@ -240,6 +257,17 @@ pub fn admit_of(allow: Option<PathBuf>) -> Arc<ends::Admit> {
     }
 }
 
+/// Which routes each operator may use (T-089): those that its line of the
+/// allowlist at `allow` grants, read again for each session; with no
+/// allowlist, each route, as the relay's connect token decided who reaches
+/// the node.
+pub fn grant_of(allow: Option<PathBuf>) -> Arc<Grant> {
+    match allow {
+        Some(path) => Arc::new(move |key: &PublicKey, route: &str| allow::grants(&path, key, route)),
+        None => Arc::new(|_: &PublicKey, _: &str| Ok(())),
+    }
+}
+
 /// Who may come in, as the node starts.
 pub fn who_may(allow: Option<&Path>) -> String {
     let Some(path) = allow else {
@@ -282,18 +310,41 @@ where
     Ok(ours)
 }
 
-/// A node's handler whose every session is [`piped`].
+/// A session of a node as a pipe, as [`piped`] makes it, but with `routes`
+/// (T-089), which choose its target by the route that the operator named.
+pub async fn piped_by<A, O, F>(
+    channel: Option<ends::Node>,
+    routes: Option<Routes>,
+    open: O,
+) -> Result<DuplexStream, String>
+where
+    A: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+    O: FnOnce() -> F + Send + 'static,
+    F: Future<Output = Result<A, String>> + Send + 'static,
+{
+    let (Some(node), Some(routes)) = (channel.clone(), routes) else { return piped(channel, open).await };
+    let (ours, theirs) = tokio::io::duplex(PIPE);
+    tokio::spawn(async move {
+        let open =
+            move |key: PublicKey, route: Option<String>| async move { routes.open(&key, route.as_deref()).await };
+        ends::serve_routed(theirs, &node, open).await
+    });
+    Ok(ours)
+}
+
+/// A node's handler whose every session is [`piped_by`].
 pub struct Piped<H: Handler> {
     pub inner: Arc<H>,
     pub channel: Option<ends::Node>,
+    pub routes: Option<Routes>,
 }
 
 impl<H: Handler> Handler for Piped<H> {
     type Stream = DuplexStream;
 
     fn open(&self, id: SessionId) -> Opening<DuplexStream> {
-        let (inner, channel) = (self.inner.clone(), self.channel.clone());
-        Box::pin(async move { piped(channel, move || inner.open(id)).await })
+        let (inner, channel, routes) = (self.inner.clone(), self.channel.clone(), self.routes.clone());
+        Box::pin(async move { piped_by(channel, routes, move || inner.open(id)).await })
     }
 
     fn queue_bytes(&self) -> usize {

@@ -201,9 +201,9 @@ pub fn files() -> Vec<(Vec<String>, String)> {
         (
             vec!["the file of --allow".to_string()],
             "The operator keys that may come in to podssh node, on each road: one key on each line, as its \
-             fingerprint (SHA256:...) or in iroh's hex or base32, then a comment if any; # starts a comment \
-             line. Read again for each session. A file of the user that others cannot change; others may \
-             read it."
+             fingerprint (SHA256:...) or in iroh's hex or base32, then routes=ROUTE,... for the routes that \
+             it may use (routes=* for each), then a comment if any; # starts a comment line. Read again for \
+             each session. A file of the user that others cannot change; others may read it."
                 .to_string(),
         ),
         (

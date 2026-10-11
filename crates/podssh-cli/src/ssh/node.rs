@@ -1,7 +1,8 @@
 //! `podssh ssh node://[user@]NAME` (T-084): SSH to the TCP service of a
 //! pair's node, through the operator's leg of the reverse road. The
 //! destination's host is `node://NAME`, so the messages and the known hosts
-//! name the node so: a name that no DNS name can be.
+//! name the node so: a name that no DNS name can be. `node://NAME/ROUTE`
+//! names a route of the node (T-089), and its own name in the known hosts.
 
 use std::sync::Arc;
 
@@ -20,30 +21,44 @@ pub const SCHEME: &str = "node://";
 /// Each direction of the pipe between the SSH client and the leg.
 const PIPE: usize = 256 * 1024;
 
-/// `node://[user@]NAME` as the user and NAME; `None` for each other
-/// destination. `node:NAME`, with no slashes, is a host named `node`.
-pub fn destination(text: &str) -> Result<Option<(Option<String>, String)>, String> {
+/// A node that a destination names: its user, the label of its pair, and
+/// the route of the node (T-089).
+pub type Named = (Option<String>, String, Option<String>);
+
+/// `node://[user@]NAME[/ROUTE]` as the user, NAME and the route; `None` for
+/// each other destination. `node:NAME`, with no slashes, is a host named
+/// `node`.
+pub fn destination(text: &str) -> Result<Option<Named>, String> {
     let Some(rest) = text.strip_prefix(SCHEME) else { return Ok(None) };
     let rest = rest.trim_end_matches('/');
-    let (user, label) = match rest.rsplit_once('@') {
-        Some((user, label)) if !user.is_empty() => (Some(user.to_string()), label),
+    let (user, name) = match rest.rsplit_once('@') {
+        Some((user, name)) if !user.is_empty() => (Some(user.to_string()), name),
         Some(_) => return Err(format!("{text:?}: empty user name")),
         None => (None, rest),
     };
-    if label.is_empty() {
+    if name.is_empty() {
         return Err(format!("{text:?}: no NAME after {SCHEME}"));
     }
-    if label.contains(':') {
+    if name.contains(':') {
         return Err(format!("{text:?}: a node has no port; NAME is the label of a pair"));
     }
-    crate::pairs::check_label(label).map_err(|refusal| format!("{text:?}: {}", refusal.message))?;
-    Ok(Some((user, label.to_string())))
+    let (label, route) =
+        crate::node::label_and_route(name).map_err(|refusal| format!("{text:?}: {}", refusal.message))?;
+    Ok(Some((user, label, route)))
+}
+
+/// The name of a node, and of its route, in the messages and the known
+/// hosts: `node://NAME`, or `node://NAME/ROUTE`.
+pub fn shown(label: &str, route: Option<&str>) -> String {
+    route.map_or_else(|| format!("{SCHEME}{label}"), |r| format!("{SCHEME}{label}/{r}"))
 }
 
 /// What a node can be reached with: the relay, alone, with no `-J`, `-W` or
 /// `-p`, which T-084 leaves for later.
 pub(super) struct Ask<'a> {
     pub label: &'a str,
+    /// The route of the node (T-089).
+    pub route: Option<&'a str>,
     pub args: &'a SshArgs,
     pub host_name: bool,
     pub port: bool,
@@ -75,7 +90,9 @@ pub(super) fn transport(r: &Ask<'_>, env: &Env, race: Option<super::iroh::Race>)
         Some(file) => Trust::File(file.into()),
         None => Trust::Default,
     };
-    let channel = super::iroh::channel_ask(r.args).map_err(|why| format!("{SCHEME}{}: {why}", r.label))?;
+    let channel = super::iroh::channel_ask(r.args)
+        .and_then(|ask| ask.to_route(r.route))
+        .map_err(|why| format!("{SCHEME}{}: {why}", r.label))?;
     Ok(Transport::Node { label: r.label.to_string(), pair_file: r.args.pair_file.clone(), trust, race, channel })
 }
 

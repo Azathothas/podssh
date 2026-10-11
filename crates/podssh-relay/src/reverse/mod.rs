@@ -10,6 +10,7 @@ pub mod framing;
 pub mod layered;
 pub mod node;
 pub mod operator;
+pub mod routes;
 pub mod serve;
 pub mod sessions;
 pub mod tcp;
