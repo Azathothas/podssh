@@ -9,7 +9,7 @@
 use std::net::IpAddr;
 use std::time::Duration;
 
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
@@ -152,8 +152,13 @@ fn reply_text(reply: u8) -> &'static str {
 }
 
 /// The greeting, the user and password when the proxy asks for them, and
-/// CONNECT.
-async fn exchange(stream: &mut TcpStream, proxy: &Proxy, target: Target<'_>, port: u16) -> Result<(), Step> {
+/// CONNECT. Any stream, so that the fuzzer can play the proxy.
+async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
+    stream: &mut S,
+    proxy: &Proxy,
+    target: Target<'_>,
+    port: u16,
+) -> Result<(), Step> {
     let credentials = proxy.credentials();
     let methods: &[u8] = match credentials {
         Some(_) => &[NO_AUTHENTICATION, USER_PASSWORD],
@@ -225,7 +230,11 @@ async fn exchange(stream: &mut TcpStream, proxy: &Proxy, target: Target<'_>, por
 
 /// The user and the password of RFC 1929; their lengths were checked when
 /// the proxy URL was read.
-async fn authenticate(stream: &mut TcpStream, user: &str, password: &str) -> Result<(), Step> {
+async fn authenticate<S: AsyncRead + AsyncWrite + Unpin>(
+    stream: &mut S,
+    user: &str,
+    password: &str,
+) -> Result<(), Step> {
     let mut message = vec![0x01, user.len() as u8];
     message.extend_from_slice(user.as_bytes());
     message.push(password.len() as u8);
@@ -239,5 +248,53 @@ async fn authenticate(stream: &mut TcpStream, user: &str, password: &str) -> Res
         [0x01 | VERSION, 0x00] => Ok(()),
         [0x01 | VERSION, _] => Err(Step::Auth("it refused the user and the password".into())),
         [version, _] => Err(Step::Protocol(format!("its answer to the password has version {version}, not 1"))),
+    }
+}
+
+/// The exchange with a proxy that answers `answer` and then ends, for the
+/// fuzzer (`fuzz/`): whether a tunnel came of it. The proxy's side is always
+/// ready, so one poll ends the exchange; a second would be a wait on nothing.
+#[cfg(fuzzing)]
+pub fn fuzz_exchange(answer: &[u8], credentials: bool, by_name: bool) -> bool {
+    use std::future::Future;
+    use std::pin::Pin;
+    use std::task::{Context, Poll, Waker};
+
+    /// The proxy's side: `answer` to read, then the end; each write taken.
+    struct Scripted<'a>(&'a [u8]);
+
+    impl AsyncRead for Scripted<'_> {
+        fn poll_read(
+            mut self: Pin<&mut Self>,
+            _: &mut Context<'_>,
+            buf: &mut tokio::io::ReadBuf<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            let n = buf.remaining().min(self.0.len());
+            buf.put_slice(&self.0[..n]);
+            self.0 = &self.0[n..];
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    impl AsyncWrite for Scripted<'_> {
+        fn poll_write(self: Pin<&mut Self>, _: &mut Context<'_>, buf: &[u8]) -> Poll<std::io::Result<usize>> {
+            Poll::Ready(Ok(buf.len()))
+        }
+        fn poll_flush(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+        fn poll_shutdown(self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    let url = if credentials { "socks5://user:password@proxy.invalid" } else { "socks5://proxy.invalid" };
+    let proxy = Proxy::parse(url).expect("a SOCKS5 URL");
+    let target = if by_name { Target::Name("relay.invalid") } else { Target::Addr(IpAddr::from([192, 0, 2, 1])) };
+    let mut stream = Scripted(answer);
+    let mut exchange = std::pin::pin!(exchange(&mut stream, &proxy, target, 443));
+    match exchange.as_mut().poll(&mut Context::from_waker(Waker::noop())) {
+        Poll::Ready(done) => done.is_ok(),
+        Poll::Pending => panic!("the SOCKS5 exchange waited on a proxy that is always ready"),
     }
 }

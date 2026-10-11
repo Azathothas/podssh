@@ -217,6 +217,13 @@ fn is_null_device(path: &Path) -> bool {
     }
 }
 
+/// Whether `line` holds a key, for the fuzzer (`fuzz/`), which cannot reach
+/// the private parser.
+#[cfg(fuzzing)]
+pub fn fuzz_parse_line(line: &str) -> bool {
+    parse_line(line).is_some()
+}
+
 /// One line: `[marker] patterns keytype base64 [comment]`. `None` for blank
 /// lines, comments, unknown markers and anything that does not parse.
 fn parse_line(line: &str) -> Option<(Option<Marker>, &str, PublicKey)> {

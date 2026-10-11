@@ -94,6 +94,20 @@ fn a_begin_without_an_end_is_an_error() {
     assert!(err.contains("END"), "got {err}");
 }
 
+/// A block with no bytes is no certificate: refused here, by its name, and
+/// not as a parse error of the trust store later (T-198, found by reading
+/// for the fuzz target `pem_bundle`).
+#[test]
+fn an_empty_block_is_an_error() {
+    for pem in [
+        "-----BEGIN CERTIFICATE-----\n-----END CERTIFICATE-----\n",
+        "-----BEGIN CERTIFICATE----- \r\n \n-----END CERTIFICATE-----",
+    ] {
+        let err = bundle::pem_certificates(pem.as_bytes()).expect_err("an empty block");
+        assert!(err.contains("empty"), "{err}");
+    }
+}
+
 #[test]
 fn non_base64_inside_a_block_is_an_error() {
     let pem = "-----BEGIN CERTIFICATE-----\nnot base64 at all!\n-----END CERTIFICATE-----\n";

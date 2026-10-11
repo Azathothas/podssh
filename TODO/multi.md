@@ -34,7 +34,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 - Read: a host-key prompt waits for the user
   (`crates/podssh-ssh/src/hostkey.rs:207-245`); N prompts at once cannot
   work. `known_hosts` is appended under a lock since T-029
-  (`crates/podssh-ssh/src/known_hosts.rs:305-351`).
+  (`crates/podssh-ssh/src/known_hosts.rs:312-358`).
 - Read: with no cached token, each session mints one
   (`crates/podssh-relay/src/token.rs:134-179`); the relay allows 120 attempts
   with no token for each minute and address (`docs/relay.md:138`).

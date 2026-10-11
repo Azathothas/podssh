@@ -395,6 +395,40 @@ wrong: the tests built their input with the same assumptions as the code.
    starts podssh sets `PODSSH_SSH_CONFIG=none`, so that the `ssh_config` of
    the machine cannot change it (T-043).
 
+## Fuzzing
+
+`fuzz/` holds a fuzz target for each parser of the bytes of a peer or of a
+file (T-198): cargo-fuzz and libFuzzer, on a pinned nightly Rust. It is a
+workspace of its own, which the root workspace excludes, so the gate builds
+none of it. Each target checks more than the absence of a panic; its first
+lines say what. `cargo +nightly fuzz list` names the targets.
+
+```sh
+export PODSSH_BUILD_IMAGE=docker.io/library/rust:1-trixie   # glibc, for this machine's runs
+sh scripts/dev.sh run -- 'sh /work/scripts/fuzz.sh 120'      # each target for 120 s
+sh scripts/dev.sh run -- 'sh /work/scripts/fuzz.sh 60 ws_frame close_reason'
+gh workflow run fuzz.yml -f seconds=300                       # in CI
+```
+
+1. Linux with glibc only, and always with the address sanitizer. On
+   Windows, libFuzzer's coverage needs the runtime of MSVC's address
+   sanitizer, which these build tools lack: the link fails with
+   `__start___sancov_pcs` unresolved.
+2. On musl, the build image's C library, each target died of a signal
+   within five inputs (2026-10-11), so `scripts/fuzz.sh` refuses musl with
+   69. `PODSSH_BUILD_IMAGE` gives `scripts/dev.sh` a glibc image instead.
+3. The workflow `fuzz` runs each target for 120 s each Monday, and by hand.
+   A crash fails it, and the crash's input is its artifact.
+4. A crash becomes a unit test first, then a repair. The test names the
+   target that found it.
+5. `scripts/fuzz-seeds.py` seeds the targets with bytes that podssh did not
+   make: the frames of RFC 6455, the IRC grammar fixture, and the hosts of
+   the relay's document.
+6. A private parser is reached through a function under `cfg(fuzzing)`,
+   which cargo-fuzz sets: `podssh_ws::fuzz_exchange` and
+   `podssh_ssh::known_hosts::fuzz_parse_line`. Their crates declare the cfg
+   (`[lints.rust]`), so that clippy takes it.
+
 ## Live tests
 
 These tests use the network. Run them only on request.

@@ -33,8 +33,9 @@ default-members = [
 # its own lockfile), so it is excluded here: otherwise cargo finds two
 # workspace roots in one tree and refuses (`multiple workspace roots`).
 # Exclusion does not block the path dependency — `podssh-ts` still reaches
-# the fork's `tailscale` package by path.
-exclude = ["vendor/tailscale-rs"]
+# the fork's `tailscale` package by path. `fuzz/` is cargo-fuzz's workspace
+# (T-198), built with nightly Rust and libFuzzer, never by the gate.
+exclude = ["vendor/tailscale-rs", "fuzz"]
 
 # Versions below were resolved on 2026-10-01, not recalled. Before loosening a
 # range, re-run the no-C build of the library crates (see scripts/gate.sh).

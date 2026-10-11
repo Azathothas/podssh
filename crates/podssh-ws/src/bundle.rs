@@ -99,6 +99,9 @@ pub fn pem_certificates(bytes: &[u8]) -> Result<Vec<CertificateDer<'static>>, St
         // single-line input, which is why every real certificate was rejected
         // as "not valid base64" and no unit test had caught it.
         let der = base64_decode(&strip_whitespace(body))?;
+        if der.is_empty() {
+            return Err("a CERTIFICATE block is empty".into());
+        }
         out.push(CertificateDer::from(der));
         rest = &rest[body_end + END.len()..];
     }

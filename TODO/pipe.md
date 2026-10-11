@@ -63,14 +63,14 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    ENOSYS), two pipes; Windows uses pipes. stderr is shared. When the other
    side ends, the child gets the end of input, and podssh waits for it as a
    shell waits. Add the `process` feature of tokio to podssh-cli
-   (`Cargo.toml:71-73` lacks it; `crates/podssh-ssh/Cargo.toml:22` has it).
+   (`Cargo.toml:72-74` lacks it; `crates/podssh-ssh/Cargo.toml:22` has it).
 6. The exit status: the child's, and 128 + N for a signal; with two children,
    B's. A program that is not found gives 127, one that cannot run 126, as a
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
    (`crates/podssh-cli/src/man/notes.rs:12-34`), two examples
-   (`crates/podssh-cli/src/man/examples.rs:8-107`; its test at
-   `crates/podssh-cli/src/man/examples.rs:230-242` learns the new variant),
+   (`crates/podssh-cli/src/man/examples.rs:8-111`; its test at
+   `crates/podssh-cli/src/man/examples.rs:234-246` learns the new variant),
    `docs/design.md:420-428`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:205-206`).
 
@@ -754,8 +754,8 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
    `telnet 127.0.0.1 PORT`.
 4. Write a table "Other TCP protocols" after `README.md:124-129`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
-   form a to `crates/podssh-cli/src/man/examples.rs:8-107`; its ProxyCommand
-   parses (`crates/podssh-cli/src/man/examples.rs:207-214`). Link the table
+   form a to `crates/podssh-cli/src/man/examples.rs:8-111`; its ProxyCommand
+   parses (`crates/podssh-cli/src/man/examples.rs:211-218`). Link the table
    from `docs/design.md:440-443`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 

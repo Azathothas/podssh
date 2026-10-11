@@ -15,6 +15,24 @@ fn chunked_bodies_decode_and_incomplete_ones_ask_for_more() {
     assert!(decode_chunked(full, 4).is_err(), "the size cap applies");
 }
 
+/// The relay chooses each chunk's size: one near the largest number, after a
+/// chunk or alone, under each cap, is refused and wraps nothing. The sums
+/// that it passed overflowed: a panic in a build with overflow checks, and
+/// in the release build a slice that ends before it starts, which aborts
+/// (found by the fuzz target `http_chunked`, T-198).
+#[test]
+fn a_chunk_size_near_the_largest_number_is_refused() {
+    let huge = format!("{:x}", usize::MAX);
+    let less = format!("{:x}", usize::MAX - 1);
+    for size in [&huge, &less] {
+        for raw in [format!("1\r\na\r\n{size}\r\nxx\r\n0\r\n\r\n"), format!("{size}\r\nxx\r\n0\r\n\r\n")] {
+            for max in [1024, usize::MAX] {
+                assert!(decode_chunked(raw.as_bytes(), max).is_err(), "{raw:?} under {max}");
+            }
+        }
+    }
+}
+
 #[tokio::test]
 async fn a_content_length_body_is_read_exactly() {
     let raw = b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nX-A: b\r\n\r\nhello trailing";

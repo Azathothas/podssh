@@ -30,7 +30,7 @@ core: the handshake, a host key that does not change, and key authentication.
   `crates/podssh-ssh/Cargo.toml:18` has it. `run_stream` serves one
   connection over any stream, as `crates/podssh-ssh/src/run.rs:32-37` does.
   To reuse: `crates/podssh-ssh/src/keygen.rs:60-130` (a key, mode 0600, never
-  over a file), `crates/podssh-ssh/src/known_hosts.rs:238-241` (a key line),
+  over a file), `crates/podssh-ssh/src/known_hosts.rs:245-248` (a key line),
   `crates/podssh-relay/src/cache/dirs.rs:50-87` (the directories).
 
 ## Approach
@@ -125,7 +125,7 @@ and stderr apart, and an environment that a cage can give.
    `pre_exec`); the working directory `HOME` when it exists, else `/`.
 4. Environment: see Decision. `env` requests: only names that match
    `--accept-env PATTERN` (default `LANG`, `LC_*`), with the wildcard of
-   `crates/podssh-ssh/src/known_hosts.rs:280-303`. Never `LD_*`, `PATH`,
+   `crates/podssh-ssh/src/known_hosts.rs:287-310`. Never `LD_*`, `PATH`,
    `HOME`, `SHELL`, `ENV`, `BASH_ENV` or `IFS`, whatever the pattern.
 5. Output: stdout as data and stderr as extended data 1, through each
    channel's writer (T-118). After the child exits, read its pipes to their
@@ -569,7 +569,7 @@ so a key with limits cannot be used at all.
   OpenSSH's `authorized_keys` options are the format that users know
   (sshd(8), section "AUTHORIZED_KEYS FILE FORMAT").
 - Read: the patterns of `from=` are those of `known_hosts`, which
-  `crates/podssh-ssh/src/known_hosts.rs:244-267` matches (negation included).
+  `crates/podssh-ssh/src/known_hosts.rs:251-274` matches (negation included).
 - Read: on the reverse road, serve does not know the client's address: the
   stream comes from the relay (`docs/relay.md:244-268`).
 - Read in the reports of GitHub #21 and #18, not verified here: agent-ssh-cli
@@ -705,7 +705,7 @@ syslog and no `/var`. A record must not leak secrets or session data.
 
 - Read: podssh's log goes to stderr or to a file
   (`crates/podssh-ssh/src/log.rs:23-33`), as lines with no structure.
-- Read: `serde_json` is a workspace dependency (`Cargo.toml:102`), but not a
+- Read: `serde_json` is a workspace dependency (`Cargo.toml:103`), but not a
   dependency of `podssh-ssh` yet.
 - Read in the report of GitHub #25, not verified here: USBoverSSH writes an
   audit log of connection events.

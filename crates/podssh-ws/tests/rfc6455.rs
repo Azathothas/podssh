@@ -366,6 +366,18 @@ fn a_101_with_the_wrong_accept_value_is_rejected() {
     assert!(format!("{err}").contains("Sec-WebSocket-Accept"), "got {err}");
 }
 
+/// A refused upgrade's text is the peer's, on its way to a terminal: no ESC,
+/// BEL or CR of it is kept (T-198: the fuzz target `ws_upgrade` found the head
+/// copied whole).
+#[test]
+fn a_refused_upgrade_keeps_no_control_character_of_the_peer() {
+    for head in ["\u{1b}\0&\n\n266\n", "HTTP/1.1\t266 101 \u{1b}[2J\u{7}\r\nX: \r\u{1b}]0;t\u{7}\r\n\r\n"] {
+        let err = handshake::check_response(head, "dGhlIHNhbXBsZSBub25jZQ==").expect_err("not a 101");
+        let shown = err.to_string();
+        assert!(!shown.contains(['\u{1b}', '\u{7}', '\r', '\0']), "{shown:?}");
+    }
+}
+
 #[test]
 fn a_101_without_the_upgrade_header_is_rejected() {
     let key = "dGhlIHNhbXBsZSBub25jZQ==";

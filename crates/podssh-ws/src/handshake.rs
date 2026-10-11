@@ -183,7 +183,9 @@ pub fn check_response(head: &str, expected_key: &str) -> Result<(), WsError> {
         .ok_or_else(|| WsError::Upgrade { status: 0, why: format!("no status code in {status_line:?}") })?;
 
     if status != 101 {
-        return Err(WsError::Upgrade { status, why: head.to_string() });
+        // The peer's text goes to the user's terminal (T-198: the fuzz
+        // target `ws_upgrade` found an ESC kept here).
+        return Err(WsError::Upgrade { status, why: crate::text::one_line(head) });
     }
 
     let mut upgrade_ok = false;

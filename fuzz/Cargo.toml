@@ -1,0 +1,153 @@
+[package]
+name = "podssh-fuzz"
+description = "The fuzz targets of podssh's parsers (T-198), for cargo-fuzz and libFuzzer."
+version = "0.0.0"
+edition = "2021"
+license = "0BSD"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+# Its own workspace: the root workspace excludes this directory, so the gate
+# builds nothing of it, and libFuzzer's C++ stays out of the library crates.
+[workspace]
+members = ["."]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+podssh-ws = { path = "../crates/podssh-ws" }
+podssh-relay = { path = "../crates/podssh-relay" }
+podssh-ssh = { path = "../crates/podssh-ssh" }
+podssh-core = { path = "../crates/podssh-core" }
+podssh-cli = { path = "../crates/podssh-cli" }
+
+# A crash names its line.
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "ws_frame"
+path = "fuzz_targets/ws_frame.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "http_head"
+path = "fuzz_targets/http_head.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "http_chunked"
+path = "fuzz_targets/http_chunked.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ws_upgrade"
+path = "fuzz_targets/ws_upgrade.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "proxy_url"
+path = "fuzz_targets/proxy_url.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "no_proxy"
+path = "fuzz_targets/no_proxy.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "connect_status"
+path = "fuzz_targets/connect_status.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "socks5_answer"
+path = "fuzz_targets/socks5_answer.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "close_reason"
+path = "fuzz_targets/close_reason.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pem_bundle"
+path = "fuzz_targets/pem_bundle.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "relay_list"
+path = "fuzz_targets/relay_list.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "relay_pool"
+path = "fuzz_targets/relay_pool.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "known_hosts_line"
+path = "fuzz_targets/known_hosts_line.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "escape_filter"
+path = "fuzz_targets/escape_filter.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "irc_message"
+path = "fuzz_targets/irc_message.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "irc_framing"
+path = "fuzz_targets/irc_framing.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "cli_args"
+path = "fuzz_targets/cli_args.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "one_line"
+path = "fuzz_targets/one_line.rs"
+test = false
+doc = false
+bench = false

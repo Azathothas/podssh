@@ -50,6 +50,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "HTTPS_PROXY=http://proxy.example.org:3128 podssh ssh user@example.org".into(),
         ),
         (
+            "through a SOCKS5 proxy, which gets the relay's name",
+            "ALL_PROXY=socks5h://proxy.example.org:1080 podssh ssh user@example.org".into(),
+        ),
+        (
             "on a host with no DNS: give the address of the relay",
             format!("podssh ssh --relay-addr {relay}=ADDRESS user@example.org"),
         ),

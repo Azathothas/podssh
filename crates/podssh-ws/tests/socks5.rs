@@ -131,6 +131,15 @@ async fn echoes(mut stream: TcpStream) {
 
 #[test]
 fn socks5_urls_parse_with_their_port_and_their_credentials() {
+    // A host that no name or address holds is refused, and each proxy's URL
+    // parses back to it (T-198: the fuzz target `proxy_url` found `]_::`).
+    for odd in ["]_::", "http://[a]b]:1", "socks5://a b:1", "http://a\u{7}b:1"] {
+        assert!(Proxy::parse(odd).is_err(), "{odd:?}");
+    }
+    for good in ["::1", "http://[2001:db8::1]:3128", "socks5h://u:p@fe80::1%25eth0", "proxy.example:3128"] {
+        let p = Proxy::parse(good).unwrap_or_else(|e| panic!("{good:?}: {e}"));
+        assert_eq!(Proxy::parse(&p.url()), Ok(p.clone()), "{good:?}");
+    }
     let p = Proxy::parse("socks5://proxy.example").unwrap();
     assert_eq!((p.host.as_str(), p.port, p.kind), ("proxy.example", 1080, ProxyKind::Socks5));
     let p = Proxy::parse("SOCKS5H://alice:s%40cret@[::1]:9050").unwrap();

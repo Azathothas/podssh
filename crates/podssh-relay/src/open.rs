@@ -98,11 +98,11 @@ impl OpenError {
                     }
                     ConnectError::Refused { status: 502, .. } => Some(format!("the relay could not reach {target}")),
                     ConnectError::Dial(DialError::ProxyRefused { status, .. }) if *status >= 500 => Some(format!(
-                        "the HTTP proxy could not reach the relay (it answered {status}); another relay host may \
+                        "the proxy could not reach the relay (it answered {status}); another relay host may \
                          work: --relay-host or PODSSH_RELAY"
                     )),
                     ConnectError::Dial(DialError::ProxyRefused { .. }) => {
-                        Some("the HTTP proxy does not allow connections to the relay".to_string())
+                        Some("the proxy does not allow connections to the relay".to_string())
                     }
                     _ => None,
                 };

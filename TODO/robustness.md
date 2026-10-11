@@ -13,7 +13,7 @@ what a user sees. The main sources are GitHub #25 and GitHub #34.
 **Milestone:** backlog
 **Priority:** P2
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -36,7 +36,7 @@ reasons (`crates/podssh-ws/src/session.rs:335`); PEM bundles
 (`crates/podssh-ws/src/bundle.rs:72`); relay lists and the pool document
 (`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:92`);
 `known_hosts` lines, in a private function
-(`crates/podssh-ssh/src/known_hosts.rs:222`); the escape filter
+(`crates/podssh-ssh/src/known_hosts.rs:229`); the escape filter
 (`crates/podssh-ssh/src/escape.rs:30`); IRC lines and frames
 (`crates/podssh-core/src/irc/encode.rs:88`,
 `crates/podssh-core/src/irc/framing.rs:110`); the command line
@@ -77,6 +77,25 @@ guidance reaches parser states that random input seldom reaches. Property
 tests alone (T-202) lost: they explore the bytes blindly. Both stay: T-202 in
 the gate on stable Rust, the fuzzer on a schedule.
 
+Decided in the work (2026-10-11):
+- The targets run on Linux with glibc and the address sanitizer only. On
+  Windows the link of libFuzzer's coverage needs MSVC's sanitizer runtime,
+  which these build tools lack; on musl, the build image's C library, each
+  target died of a signal within five inputs. This machine runs them in
+  `docker.io/library/rust:1-trixie` through `scripts/dev.sh` and its
+  `PODSSH_BUILD_IMAGE`, and CI on `ubuntu-24.04`. A target with no
+  sanitizer on musl lost: its crashes were the C library's, not podssh's.
+- The fuzz crate depends on `podssh-cli`, for the target of the command line,
+  and so builds aws-lc: a second fuzz crate for one target lost, as cargo-fuzz
+  builds the targets of one crate once.
+- A private parser is reached through a function under `cfg(fuzzing)`, and
+  its crate declares the cfg (`[lints.rust]`), so that clippy's
+  `unexpected_cfgs` passes with `-D warnings`. Making the parsers public
+  lost: the public API would grow for the fuzzer alone.
+- An input that a target found is kept as a unit test in the crate of its
+  parser (`crates/podssh-core/tests/fuzz_found.rs`, and next to the tests of
+  each other parser), so the gate runs it on stable Rust at each push.
+
 ## Prove
 
 ```sh
@@ -90,6 +109,52 @@ The list names each target, and each run ends with no crash (`ws_frame`
 after T-063). Planted defect: remove the length guard of
 `close_code_and_reason` (`crates/podssh-ws/src/session.rs:336-338`);
 `close_reason` must crash within its 120 s.
+
+## Done
+
+2026-10-11, in the commit that closes this entry.
+- `fuzz/` (its own workspace; the root excludes it, so the gate builds none of it): 18 targets,
+  one for each parser of the Premise, each with checks beyond the absence of a panic, written in
+  its first lines; `fuzz/src/lib.rs` checks text that is safe on one line. `scripts/fuzz.sh` (a
+  pinned nightly, cargo-fuzz 0.13.2, the address sanitizer, glibc only),
+  `scripts/fuzz-seeds.py` (seeds from RFC 6455's frames, the IRC grammar fixture and the hosts
+  of the relay's document), `.github/workflows/fuzz.yml` (each Monday and by hand), and the
+  section "Fuzzing" of `docs/development.md`. `cargo +nightly fuzz list` names the 18.
+- Each target ran 120 s on glibc with the address sanitizer
+  (`PODSSH_BUILD_IMAGE=docker.io/library/rust:1-trixie sh scripts/dev.sh run -- 'sh
+  /work/scripts/fuzz.sh 120'`), with no crash: ws_frame 53.0 M inputs, known_hosts_line 32.0 M,
+  pem_bundle 29.0 M, connect_status 22.8 M, socks5_answer 22.3 M, one_line 19.2 M, proxy_url
+  17.3 M, http_chunked 15.4 M, escape_filter 13.4 M, relay_pool 11.4 M, ws_upgrade 10.3 M,
+  close_reason 10.0 M, http_head 6.2 M, relay_list 4.4 M, no_proxy 2.9 M, irc_message
+  3.4 M, irc_framing 2.2 M, cli_args 0.5 M.
+- Found, each repaired with a test first:
+  - `irc_message`: a line `:prefix :text`, a trailing with no command, stopped the IRC parser
+    with a panic, which the release build turns into an abort: one line of a server ended
+    `podssh chat --irc`. `Message::parse` now refuses it, and `parse_command` no longer slices
+    past a missing command (`crates/podssh-core/tests/fuzz_found.rs`; planted, the refusal
+    removed, the test fails).
+  - `irc_message`, again: `@ @ :` parsed as a command named `@`, which `to_wire` wrote as it
+    was, and which a server reads back as tags. The encoder now takes a command of letters or
+    three digits only (RFC 2812, section 2.3.1), and the test of the same file checks it.
+  - `ws_upgrade`: a refused upgrade kept the peer's head whole, ESC included, in its message;
+    it is now made safe for one line (`tests/rfc6455.rs`).
+  - `proxy_url`: a host such as `]_::` parsed, and its URL did not parse back; a host with a
+    bracket, `@`, `/`, `?`, `#`, a space or a control character is now refused (`tests/socks5.rs`).
+  - Read for `http_chunked`: a chunk size near the largest number wrapped the sums of
+    `decode_chunked`, a panic with overflow checks and, in the release build, a slice that ends
+    before it starts (`tests/http.rs`; the old code fails the test).
+  - Read for `pem_bundle`: an empty CERTIFICATE block passed as a certificate; it is refused by
+    name (`tests/bundle.rs`).
+- Three checks of the targets were wrong and were corrected: the escape filter holds an escape
+  across reads, so its bound is for the stream; a Latin-1 line is two bytes of UTF-8 for each
+  byte above 0x7f; the count of a lost IRC line depends on where the frames were cut. The IRC
+  message target drops NUL first, as the byte layer does.
+- Planted, in the build image's copy only: with the length guard of `close_code_and_reason`
+  removed, `close_reason` crashed at its first input; with `decode_chunked` as it was,
+  `http_chunked` crashed after 6.9 M inputs.
+- Native, Windows: `cargo test -p podssh-core` and `-p podssh-ws`, each suite passed (185 in
+  podssh-ws); `cargo clippy --all-targets -D warnings` for the five crates that changed.
+- Waits: the first run of `.github/workflows/fuzz.yml` in CI, started by hand after the push.
 
 # T-199: A scored interop harness
 
@@ -370,7 +435,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
   private, but `RelaySession::new` (`crates/podssh-ws/src/session.rs:77`) takes
   any stream, so a test can drive it.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:107-183`, `crates/podssh-ws/src/names.rs:8-57`).
-- `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:247-303`).
+- `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:254-310`).
 - The escape filter, which keeps its state from one read to the next
   (`crates/podssh-ssh/src/escape.rs:30-70`).
 - The sanitizer (`crates/podssh-ws/src/text.rs:12-57`).

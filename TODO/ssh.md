@@ -524,7 +524,7 @@ ends up with pinned keys where the CA was the intent.
 Read:
 
 - `known_hosts` parses the marker (`crates/podssh-ssh/src/known_hosts.rs:23-29`,
-  `crates/podssh-ssh/src/known_hosts.rs:230`), and the lookup uses only lines
+  `crates/podssh-ssh/src/known_hosts.rs:237`), and the lookup uses only lines
   with no marker, besides `@revoked`
   (`judge`, `crates/podssh-ssh/src/known_hosts.rs:101-118`). `CertAuthority` has two
   hits in `crates/` and `docs/`: the definition and the parse.
@@ -805,7 +805,7 @@ measured: a race needs two processes; the test below makes it certain.
 
 ## Approach
 
-1. In `append` (`crates/podssh-ssh/src/known_hosts.rs:305-351`), lock the open
+1. In `append` (`crates/podssh-ssh/src/known_hosts.rs:312-358`), lock the open
    file with `std::fs::File::try_lock`. It is stable since Rust 1.89, the
    minimum that `crates/podssh-ssh/Cargo.toml:8` declares, and it needs no new
    dependency (`flock` on Unix, `LockFileEx` on Windows). Try again for 5 s at
@@ -974,7 +974,7 @@ and no other.
    only, as `HostKeyAlias` (`crates/podssh-ssh/src/run.rs:270-273`).
 3. In `Policy::check`, refuse a revoked key and a changed key first, as today
    (`crates/podssh-ssh/src/hostkey.rs:146-149`). Then accept a key whose SHA-256
-   fingerprint (`crates/podssh-ssh/src/known_hosts.rs:367-370`) is in the
+   fingerprint (`crates/podssh-ssh/src/known_hosts.rs:374-377`) is in the
    list, and record nothing. Refuse any other key, also under `accept-new`
    and `no`, with the fingerprint seen and the ones expected.
 4. Jump hops keep the normal policy; say so in the help.
@@ -1571,7 +1571,7 @@ with the key file of one, and has no agent to hold one.
   exit 64, and writes nothing.
 - Read: the default key files leave out the types of security keys
   (`crates/podssh-ssh/src/options.rs:318-322`). `known_hosts::key_type` names
-  them (`crates/podssh-ssh/src/known_hosts.rs:361-362`), and `ssh-key`
+  them (`crates/podssh-ssh/src/known_hosts.rs:368-369`), and `ssh-key`
   0.7.0-rc.11 has their algorithms.
 - Read: podssh offers each key that an agent lists
   (`crates/podssh-ssh/src/keys.rs:119-171`), so an `sk-` key in OpenSSH's

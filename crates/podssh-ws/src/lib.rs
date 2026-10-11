@@ -37,4 +37,6 @@ pub use dial::{DialError, HttpProxy, Proxy, ProxyChoice, ProxyKind};
 pub use error::{SessionError, Verdict, WsError};
 pub use frame::Frame;
 pub use session::RelaySession;
+#[cfg(fuzzing)]
+pub use socks5::fuzz_exchange;
 pub use tls::Trust;

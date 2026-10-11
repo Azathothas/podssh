@@ -33,7 +33,9 @@ use crate::irc::message::{CapVerb, Command, Middle, ParseError, Trailing};
 /// a real server — see [`crate::irc::message::Trailing`].
 pub fn parse_command(params: Vec<String>, trailing: Option<(String, bool)>) -> Result<Command, ParseError> {
     let name = params.first().cloned().unwrap_or_default();
-    let middles: Vec<Middle> = params[1..].iter().map(|p| Middle(p.clone())).collect();
+    // No command at all is the caller's refusal; this slice must not stop the
+    // process when one forgets it.
+    let middles: Vec<Middle> = params.iter().skip(1).map(|p| Middle(p.clone())).collect();
     let trail = trailing.map(|(value, colon)| Trailing::as_written(value, colon));
     let all: Vec<Trailing> =
         middles.iter().map(|m| Trailing::as_written(m.0.clone(), false)).chain(trail.clone()).collect();

@@ -76,7 +76,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
 6. Same commit: `docs/cli.md` (lines 62-75 at `3cbf215`), the help at
    `crates/podssh-cli/src/positionals.rs:20` and
    `crates/podssh-cli/src/positionals.rs:95`, an example in
-   `crates/podssh-cli/src/man/examples.rs:8-107`, `docs/relay.md`,
+   `crates/podssh-cli/src/man/examples.rs:8-111`, `docs/relay.md`,
    `docs/STATUS.md`. Use `2001:db8::/32` in offline tests only: the relay
    refuses that range.
 
@@ -492,7 +492,7 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:181-185`) read it.
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes.rs:36-227`)
-   and an example (`crates/podssh-cli/src/man/examples.rs:8-107`). Pitfall: the
+   and an example (`crates/podssh-cli/src/man/examples.rs:8-111`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:412-420`); teach `flag_exists`
    (`crates/podssh-cli/src/man/notes.rs:381-395`) that `--` ends the options.
@@ -1102,9 +1102,9 @@ on a scratch file that holds one public host key (offline):
   keeps `FILE.old`, and warns that `FILE.old` holds the names.
 
 Read: podssh matches hashed lines with HMAC-SHA1
-(`crates/podssh-ssh/src/known_hosts.rs:244-278`), finds the lines of a host
+(`crates/podssh-ssh/src/known_hosts.rs:251-285`), finds the lines of a host
 with their numbers (`scan`, `crates/podssh-ssh/src/known_hosts.rs:138-168`), and
-appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs:305-351`).
+appends without a rewrite (`crates/podssh-ssh/src/known_hosts.rs:312-358`).
 The default files are the ones of `podssh ssh`
 (`crates/podssh-cli/src/man/data.rs:129`).
 
@@ -1185,7 +1185,7 @@ that crate as `russh::keys::ssh_key` (`crates/podssh-ssh/src/keygen.rs:11-14`).
 3. `verify`, `check-novalidate`, `find-principals`, `match-principals`: parse
    the allowed-signers format of ssh-keygen(1) (principals, `namespaces=`,
    `valid-after=`, `valid-before=`, `cert-authority`), with the pattern
-   matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:281-303`).
+   matcher of `known_hosts` (`crates/podssh-ssh/src/known_hosts.rs:288-310`).
    Print the lines and the exit codes of OpenSSH.
 4. Refuse `-r` (a key revocation list) by name until podssh reads one.
 5. Same commit: `docs/cli.md:521-533`, the notes of `keygen`, `docs/STATUS.md`.

@@ -758,7 +758,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:177` there), examples in
-   `crates/podssh-cli/src/man/examples.rs:8-100`; update `docs/cli.md`, `docs/reverse.md` and
+   `crates/podssh-cli/src/man/examples.rs:8-104`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
    T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:38`), so keep the two apart. Never

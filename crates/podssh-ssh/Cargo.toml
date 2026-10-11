@@ -48,3 +48,8 @@ windows-sys = { version = "0.61", features = [
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "signal", "process"] }
+
+# cargo-fuzz builds with `--cfg fuzzing` (`fuzz/`), under which the parser of
+# a known_hosts line, private here, is reachable by the fuzzer.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }

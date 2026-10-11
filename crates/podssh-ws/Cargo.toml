@@ -51,3 +51,8 @@ rustls-pki-types = { workspace = true }
 p256 = { workspace = true }
 p384 = { workspace = true }
 ed25519-dalek = { workspace = true }
+
+# cargo-fuzz builds with `--cfg fuzzing` (`fuzz/`), under which the SOCKS5
+# exchange, private here, is reachable by the fuzzer.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(fuzzing)"] }

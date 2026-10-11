@@ -3,7 +3,7 @@ to I8 of the former defects page (`git show 3ee70dc:docs/defects.md`), and the r
 decides how `podssh chat` works (T-099). No command uses the client, and `podssh chat` exits 70.
 The client is sans-IO, so its unit tests need no network. The live probe
 `crates/podssh-cli/examples/live_irc.rs` reaches real servers through the relay, with a token from
-the environment, the cache or a mint, never printed (`docs/development.md:454-461`). Each defect was read
+the environment, the cache or a mint, never printed (`docs/development.md:488-495`). Each defect was read
 again on `3ee70dc`.
 
 # T-091: I1: `CAP END` is sent only after 001
@@ -162,7 +162,7 @@ cargo test -p podssh-core --no-fail-fast
 The new file crates/podssh-core/tests/cap_list.rs holds `only_listed_capabilities_are_requested`,
 `a_value_is_never_sent_back`, `a_list_on_several_lines_gives_one_request` and
 `the_continuation_marker_is_not_a_capability`. Its input is a `CAP LS 302` reply captured from a
-real server, kept byte for byte with the server, version and date (`docs/development.md:467-468`).
+real server, kept byte for byte with the server, version and date (`docs/development.md:501-502`).
 Plant: remove the list filter; the first test must fail with `sasl=PLAIN` in the `REQ`. Then repeat
 the live runs of T-091; the probe prints the offered and enabled capabilities.
 
@@ -170,7 +170,7 @@ the live runs of T-091; the probe prints the offered and enabled capabilities.
 
 2026-10-10 (T-094): a `JOIN` of three parameters, which only `extended-join` sends, is no longer
 read as keys: the parser keeps it whole, as an unknown command
-(`crates/podssh-core/src/irc/command.rs:76-85`), so the session reports no join for it. The fixed
+(`crates/podssh-core/src/irc/command.rs:78-87`), so the session reports no join for it. The fixed
 list of step 2 keeps `extended-join` off. Measured in the build image: ergo 2.18.0 lists its
 capabilities with values, and the request that sends them back is refused, as the problem says;
 the registration still ends (T-091).
@@ -780,7 +780,7 @@ none, the relay cut it after 184 s (`docs/STATUS.md:134-135`).
 1. Send `PING :podssh-<generation>` when the client side is quiet for one period. Reuse
    `payload_plan_for` (`crates/podssh-core/src/irc/reap.rs:101-135`).
 2. Count the matching `PONG` as a reception (`received_since_last_beat`). A server answers
-   `PONG <server> :<token>`, so match the trailing (`crates/podssh-core/src/irc/command.rs:153-161`).
+   `PONG <server> :<token>`, so match the trailing (`crates/podssh-core/src/irc/command.rs:155-163`).
 3. Remove the `PRIVMSG` heartbeat and its parser
    (`crates/podssh-core/src/irc/session_send.rs`, lines 89-106 at `94f6243`, `crates/podssh-core/src/irc/reap.rs`, lines 53-75 at `94f6243`,
    `crates/podssh-core/src/irc/session_recv.rs`, lines 97-104 at `94f6243`). No released podssh sends it.
@@ -811,7 +811,7 @@ with no channel message. With the keepalive off (the control), the relay must cl
 2026-10-10 (T-094), measured in the build image: to `PING :tok123`, ngircd 27 and InspIRCd 4.11.0
 answer `:srv PONG srv :tok123`, and ergo 2.18.0 answers `:ergo.test PONG ergo.test tok123`, the
 token as a middle. `Command::Pong` keeps the server and the token, the last parameter in either
-form (`crates/podssh-core/src/irc/command.rs:153-161`), so step 2 matches `token`, not only a
+form (`crates/podssh-core/src/irc/command.rs:155-163`), so step 2 matches `token`, not only a
 trailing; the three lines are in the fixture of the grammar.
 
 ## Done

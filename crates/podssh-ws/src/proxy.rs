@@ -117,6 +117,13 @@ impl Proxy {
         if host.is_empty() {
             return Err("the proxy URL names no host".into());
         }
+        // A name or an address holds none of these, and `url()` could not
+        // write such a host back in a form that parses (T-198: the fuzz
+        // target `proxy_url` found `]_::`).
+        let odd = |c: char| matches!(c, '[' | ']' | '@' | '/' | '?' | '#') || c.is_whitespace() || c.is_control();
+        if let Some(c) = host.chars().find(|c| odd(*c)) {
+            return Err(format!("the proxy URL's host holds {c:?}, which no host name or address holds"));
+        }
         if let (ProxyKind::Socks5, Some((user, password))) = (kind, &credentials) {
             // RFC 1929 gives each one a length byte, and 0 is no length.
             for (what, value) in [("user", user), ("password", password)] {

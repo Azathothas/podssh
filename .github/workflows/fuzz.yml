@@ -1,0 +1,48 @@
+name: fuzz
+
+# T-198: each fuzz target of fuzz/ for 120 s, with libFuzzer and the address
+# sanitizer on a pinned nightly Rust (scripts/fuzz.sh), each week and by
+# hand. Not a part of the build: the gate runs on stable Rust, and libFuzzer
+# is C++. The input of a crash is kept as an artifact; it becomes a unit test
+# first, then a repair.
+
+on:
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: "Seconds for each target"
+        required: false
+        default: "120"
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: fuzz
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7
+
+      # A release binary of cargo-fuzz, checked against its checksum;
+      # scripts/fuzz.sh keeps it when the version is its own.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz@0.13.2
+
+      - name: each target
+        env:
+          CARGO_BUILD_JOBS: "4"
+          RUN_FOR: ${{ inputs.seconds || '120' }}
+        run: sh scripts/fuzz.sh "$RUN_FOR"
+
+      - name: the input of each crash
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-artifacts
+          path: fuzz/artifacts
+          if-no-files-found: ignore

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**278 entries: 96 open, 0 partial, 22 blocked, 160 done.**
+**278 entries: 95 open, 0 partial, 22 blocked, 161 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 16 | 18 |
-| P2 | 12 | 0 | 18 | 124 | 154 |
+| P2 | 11 | 0 | 18 | 125 | 154 |
 | P3 | 82 | 0 | 4 | 19 | 105 |
-| **All** | 96 | 0 | 22 | 160 | 278 |
+| **All** | 95 | 0 | 22 | 161 | 278 |
 
 ## Entries
 
@@ -269,7 +269,7 @@ repository and CI).
 | [T-193](multi.md) | P3 | M | backlog | feature | open | Jobs on the far host: start, list, stop |
 | [T-195](multi.md) | P3 | S | backlog | feature | open | Hand an error report to a program that the user names, for triage by an AI or a script |
 | [T-197](multi.md) | P3 | M | backlog | feature | open | A queue of detached remote jobs: submit, list, wait and fetch the output, with no GPU logic |
-| [T-198](robustness.md) | P2 | M | backlog | chore | open | Fuzz each parser |
+| [T-198](robustness.md) | P2 | M | backlog | chore | done | Fuzz each parser |
 | [T-199](robustness.md) | P2 | M | backlog | chore | open | A scored interop harness |
 | [T-200](robustness.md) | P3 | M | backlog | chore | open | A terminal oracle |
 | [T-201](robustness.md) | P2 | M | backlog | chore | open | Resource limits, stated and tested |

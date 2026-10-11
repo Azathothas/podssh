@@ -707,7 +707,7 @@ once (`crates/podssh-relay/src/open.rs:65`) and gives exit 78 in `podssh proxy`
 
 1. A proxy type with two forms, HTTP and SOCKS5, in `dial.rs`; `ProxyChoice::Via` takes it
    (`crates/podssh-ws/src/dial.rs:27-36`). Parse `socks5://` and `socks5h://` with an optional
-   `user:password@`, decoded as for HTTP (now `crates/podssh-ws/src/proxy.rs:170-188`).
+   `user:password@`, decoded as for HTTP (now `crates/podssh-ws/src/proxy.rs:177-195`).
 2. The SOCKS5 exchange (RFC 1928): offer the method 0x00, and 0x02 only with credentials; the
    user and password of RFC 1929, each of 1 to 255 bytes; CONNECT with the address type 3, the
    host name, so the client needs no DNS (`crates/podssh-ws/src/dial.rs:6-9`). Read exactly the
@@ -790,11 +790,11 @@ Planted defect: send the address (type 1); the stand-in refuses it, and the test
   --no-fail-fast`: 1443 passed, 0 failed, 49 ignored, and no scratch left.
 - Planted, then restored: the name sent as the address 127.0.0.1 (type 1) failed
   `a_tunnel_goes_by_name_and_needs_no_dns` and the test of reply 8 (7 passed, 2 failed).
-- Waits for T-251: `scripts/interop-socks.sh`, which `scripts/interop-faults.sh` runs in the
-  build image: OpenSSH's `ssh -D` as the SOCKS5 proxy carries `podssh ssh` to the stand-in relay
-  and `relay status` to its `/health`, ssh's own `-vv` log shows each request with the relay's
-  name, and the password of the proxy URL appears in no output. CI runs it at each push, in the
-  step `release`; the clippy run with the feature `ts` is CI's too (step `lint`).
+- `scripts/interop-socks.sh`, which `scripts/interop-faults.sh` runs in the build image:
+  OpenSSH's `ssh -D` as the SOCKS5 proxy carries `podssh ssh` to the stand-in relay and `relay
+  status` to its `/health`, ssh's own `-vv` log shows each request with the relay's name, and the
+  password of the proxy URL appears in no output. In CI at `385486f` (run 38111621670): the step
+  `release`, interop 288 passed, 0 failed; the step `lint`, clippy with the feature `ts`, passed.
 
 # T-242: The frame decoder accepts a length that is not in the minimal form
 

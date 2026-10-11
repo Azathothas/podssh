@@ -184,17 +184,21 @@ pub fn decode_chunked(raw: &[u8], max_body: usize) -> Result<Option<Vec<u8>>, St
                 None => Ok(None),
             };
         }
-        if out.len() + size > max_body {
+        // The peer chooses the size: no sum with it may wrap.
+        if size > max_body.saturating_sub(out.len()) {
             return Err("the response body is larger than allowed".into());
         }
-        if raw.len() < at + size + 2 {
+        let Some(end) = at.checked_add(size).and_then(|end| end.checked_add(2)) else {
+            return Err(format!("bad chunk size {size_hex:?}"));
+        };
+        if raw.len() < end {
             return Ok(None);
         }
-        out.extend_from_slice(&raw[at..at + size]);
-        if &raw[at + size..at + size + 2] != b"\r\n" {
+        out.extend_from_slice(&raw[at..end - 2]);
+        if &raw[end - 2..end] != b"\r\n" {
             return Err("a chunk is not followed by CRLF".into());
         }
-        at += size + 2;
+        at = end;
     }
 }
 

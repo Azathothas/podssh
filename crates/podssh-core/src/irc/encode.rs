@@ -128,6 +128,11 @@ impl Message {
         }
 
         let (params, trailing) = split_params(rest);
+        // A trailing with no command before it: `:prefix :text` (T-198: the
+        // fuzz target `irc_message` found that it stopped the process).
+        if params.is_empty() {
+            return Err(ParseError::MissingCommand { line: line.to_string() });
+        }
         let command = parse_command(params, trailing)?;
         Ok(Message { tags, prefix, command })
     }
@@ -184,6 +189,17 @@ impl Message {
         }
         let name = self.command.name();
         check_middle("the command", &name)?;
+        // RFC 2812 §2.3.1: letters, or three digits. Another first byte reads
+        // back as another part of the line: `@` as tags (T-198: the fuzz
+        // target `irc_message` found `@ @ :`).
+        let letters = name.chars().all(|c| c.is_ascii_alphabetic());
+        let numeric = name.len() == 3 && name.chars().all(|c| c.is_ascii_digit());
+        if !letters && !numeric {
+            return Err(Unsafe {
+                field: "the command".into(),
+                found: format!("{name:?}, not letters or three digits"),
+            });
+        }
         let params = self.command.params();
         let colon = colon_at(&self.command, params.len());
         for (i, param) in params.iter().enumerate() {
