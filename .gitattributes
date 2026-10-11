@@ -55,3 +55,10 @@ crates/podssh-core/tests/fixtures/*.txt -text
 crates/podssh-ws/tests/fixtures/rsa/*.der binary
 crates/podssh-ws/tests/fixtures/rsa/*.sig binary
 crates/podssh-ws/tests/fixtures/rsa/msg -text
+
+# Test data of signatures and certificates (T-020, T-021): the bytes that
+# were signed stay as they are. With text=auto, a checkout with CRLF made the
+# signed file another one, and the check of OpenSSH's signature failed in CI
+# on Windows at b37abb3.
+crates/podssh-ssh/src/sshsig_testdata/** -text
+crates/podssh-ssh/src/cert_testdata/** -text
