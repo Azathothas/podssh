@@ -13,6 +13,7 @@ support scripts/interop-conpty-msys2.py
 harness ssh interop 71 scripts/interop.sh
 harness limits interop 2 scripts/interop-limits.sh
 harness status interop 6 scripts/interop-status.sh
+harness hostkeys interop 4 scripts/interop-hostkeys.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -452,3 +453,7 @@ conpty.restore.status pass
 conpty.second pass
 conpty.escape_disconnect pass
 conpty.restore.escape pass
+hostkeys.jump_names pass
+hostkeys.jump_changed pass
+hostkeys.alias_no_port pass
+hostkeys.alias_read pass

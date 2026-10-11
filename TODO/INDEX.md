@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**286 entries: 83 open, 0 partial, 22 blocked, 181 done.**
+**287 entries: 83 open, 0 partial, 22 blocked, 182 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 21 | 23 |
-| P2 | 4 | 0 | 18 | 134 | 156 |
-| P3 | 77 | 0 | 4 | 25 | 106 |
-| **All** | 83 | 0 | 22 | 181 | 286 |
+| P2 | 5 | 0 | 18 | 134 | 157 |
+| P3 | 76 | 0 | 4 | 26 | 106 |
+| **All** | 83 | 0 | 22 | 182 | 287 |
 
 ## Entries
 
@@ -103,7 +103,7 @@ repository and CI).
 | [T-027](ssh.md) | P2 | M | backlog | feature | done | Host certificates and `@cert-authority` in `known_hosts` (GitHub #29) |
 | [T-028](ssh.md) | P2 | S | backlog | defect | done | `accept-new` when `known_hosts` cannot be written: verify, and say that the key was not recorded |
 | [T-029](ssh.md) | P2 | S | backlog | defect | done | Two processes that record the same new host key at the same time |
-| [T-030](ssh.md) | P3 | S | backlog | chore | open | Each hop of a `-J` chain checks its own host key |
+| [T-030](ssh.md) | P3 | S | backlog | chore | done | Each hop of a `-J` chain checks its own host key |
 | [T-031](ssh.md) | P2 | S | backlog | feature | done | Accept only the host key that a fingerprint names, for scripts with no `known_hosts` |
 | [T-032](ssh.md) | P3 | S | backlog | feature | open | Run a remote command under `sudo` or `su`, with the password from `SSH_ASKPASS` |
 | [T-033](ssh.md) | P3 | M | backlog | feature | open | Record a session as asciicast v2, and play it again |
@@ -361,3 +361,4 @@ repository and CI).
 | [T-287](ssh.md) | P2 | S | none | defect | done | An encrypted key of PKCS#8 or of PuTTY is never asked for, and an encrypted ECDSA key in PEM is refused with its passphrase |
 | [T-288](cli.md) | P1 | S | none | defect | done | On Windows, `podssh keygen` writes a private key with the access list of its directory |
 | [T-289](cli.md) | P3 | M | backlog | feature | open | `podssh keygen -Y` with certificates: a signature made with a certificate, and `cert-authority` lines |
+| [T-290](config.md) | P2 | M | none | defect | open | A `-J` hop takes the `ssh_config` block of its own name, as OpenSSH's jump host does |

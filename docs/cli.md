@@ -69,7 +69,16 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   `docs/design.md` section 5). With the layer, a lost link to the relay is
   replaced by a new one for 10 minutes and the SSH session goes on where it
   was, with one line on stderr for each loss and each resume (T-153).
-  `-J a,b` makes a chain of hops; `-J a -J b` is an error.
+  `-J a,b` makes a chain of hops; `-J a -J b` is an error. Each hop checks
+  its own host key, filed under its own name: `host`, or `[host]:port` off
+  port 22 (T-030). `HostKeyAlias` names the destination's key alone, as it
+  is and with no port, as OpenSSH files it. The settings of host keys,
+  authentication, keys and time, of `-o`, `-i` and the destination's blocks
+  of `ssh_config`, hold for each hop, and a hop with no user logs in as the
+  destination's user. OpenSSH applies its command line to the destination
+  only (its jump process gets `-l`, `-p`, `-J`, `-F` and `-v`) and gives a
+  jump host the block of its own name, which podssh does not read yet
+  (T-290).
   `ssh host:2222` connects to a host named `host:2222` on port 22. The port
   form of OpenSSH is `ssh://user@host:2222`. podssh also accepts `host:PORT`,
   because its own "did you mean" message gives that form. A host name cannot

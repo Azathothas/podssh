@@ -255,6 +255,17 @@ async fn with_master<T>(
     }
 }
 
+/// The name that `known_hosts` files the key of `hop` under (T-030): `host`,
+/// or `[host]:port` off port 22, each hop its own; for the destination,
+/// `HostKeyAlias` as it is, with no port, as OpenSSH files it. A jump hop
+/// never takes the alias: its key is another server's.
+pub(crate) fn hop_key_name(hop: &Hop, is_destination: bool, opts: &Options) -> String {
+    match (&opts.host_key_alias, is_destination) {
+        (Some(alias), true) => alias.clone(),
+        _ => known_hosts::host_name(&hop.host, hop.port),
+    }
+}
+
 /// The SSH handshake and login for one hop.
 pub(crate) async fn connect<S>(
     stream: S,
@@ -267,12 +278,8 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     let user = hop.user.clone().unwrap_or_else(|| opts.user.clone());
-    let alias = match (&opts.host_key_alias, is_destination) {
-        (Some(alias), true) => alias.clone(),
-        _ => hop.host.clone(),
-    };
     let policy = Policy {
-        name: known_hosts::host_name(&alias, hop.port),
+        name: hop_key_name(hop, is_destination, opts),
         strict: opts.strict_host_key_checking,
         user_files: opts.user_known_hosts.clone(),
         no_user_file: opts.no_user_known_hosts,
@@ -423,36 +430,5 @@ pub fn describe(e: &russh::Error) -> String {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    const DROP: &str = "railway.new: the connection closed unexpectedly";
-
-    /// The first line from each kind of relay end, from a server disconnect
-    /// and from a bare error (GitHub #17).
-    #[test]
-    fn first_line_names_the_hop_that_broke() {
-        let lost = RelayEnd::Closed { code: Some(1011), reason: "write failed: Network connection lost.".into() };
-        let lines = failure_lines(DROP, Some(&lost), "railway.new:22");
-        assert_eq!(
-            lines[0],
-            "railway.new: the relay lost its connection to railway.new:22 (relay close 1011: write failed: Network connection lost.)"
-        );
-        assert!(lines[1].contains("--relay-host"), "{lines:?}");
-        let cap = RelayEnd::Closed { code: Some(1009), reason: "session byte cap".into() };
-        let lines = failure_lines(DROP, Some(&cap), "railway.new:22");
-        assert!(lines[0].contains("at one of its limits (relay close 1009: session byte cap)"), "{lines:?}");
-        assert!(lines[1].contains("64 MiB"), "{lines:?}");
-        let gone = RelayEnd::Failed(podssh_ws::SessionError::Idle("the relay sent nothing for 40 s".into()));
-        let lines = failure_lines(DROP, Some(&gone), "railway.new:22");
-        assert!(lines[0].starts_with("railway.new: the connection between podssh and the relay broke"), "{lines:?}");
-        // A normal close of the relay: the message, then the relay's words.
-        let done = RelayEnd::Closed { code: Some(1000), reason: "target closed".into() };
-        let server = "railway.new: the server ended the connection: too many sessions (TooManyConnections)";
-        let lines = failure_lines(server, Some(&done), "railway.new:22");
-        assert_eq!(lines[0], server);
-        assert!(lines[1].contains("target closed"), "{lines:?}");
-        // No relay (--direct): the message as it is.
-        assert_eq!(failure_lines(DROP, None, "railway.new:22"), vec![DROP.to_string()]);
-    }
-}
+#[path = "run_tests.rs"]
+mod tests;

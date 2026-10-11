@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:1029-1093`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:1038-1102`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:1029-1102`, FILES (`crates/podssh-cli/src/man/data.rs:119-216`) and the
+7. Change `docs/cli.md:1038-1111`, FILES (`crates/podssh-cli/src/man/data.rs:119-216`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -279,7 +279,7 @@ compared with OpenSSH's; its first run is CI's, at the push of this commit.
 
 # T-045: `Match` in `ssh_config`
 
-**Source:** `docs/cli.md:1082-1085`; GitHub #22 (the `match_directive/` module of lablup/bssh,
+**Source:** `docs/cli.md:1091-1094`; GitHub #22 (the `match_directive/` module of lablup/bssh,
 and TeddyHuang-00/sshping issue #211 with PR #212, where a skipped `Match` changed the target;
 read in the reports, not verified here).
 **Category:** feature
@@ -296,7 +296,7 @@ block is worse: a skipped `Match` can change the host that podssh connects to.
 
 ## Premise
 
-Read: `docs/cli.md:1082-1085`: `Match` never overrides a value that is set, and podssh must refuse
+Read: `docs/cli.md:1091-1094`: `Match` never overrides a value that is set, and podssh must refuse
 it by name, not skip it. `-P TAG` is accepted and ignored today
 (`crates/podssh-cli/src/flags.rs:214-215`), so `Match tagged` would give the tag its meaning.
 The login name comes from the environment, never from the user database
@@ -320,7 +320,7 @@ canonical pass: `CanonicalizeHostname` is accepted and ignored
 5. A value from a `Match` block follows the first-value rule
    (`crates/podssh-cli/src/ssh/options.rs:336-340`).
 6. `-G` (T-046) evaluates the same blocks and prints the result.
-7. Change `docs/cli.md:1082-1085` and the `ssh` notes in the same commit.
+7. Change `docs/cli.md:1091-1094` and the `ssh` notes in the same commit.
 
 ## Decision
 
@@ -387,7 +387,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:150`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:37-151`) and `docs/cli.md:48-161`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes.rs:37-154`) and `docs/cli.md:48-170`
    in the same commit.
 
 ## Decision
@@ -650,3 +650,69 @@ Native, Windows 11: `cargo test -p podssh-cli --test ssh_config_file`, 11 passed
 against the lines that OpenSSH 10.3p1's `ssh -G -F FILE` printed for six command lines. Planted,
 a `RemoteCommand` left as it is: the test fails. clippy with `-D warnings`: no warning. `cargo
 test --workspace --no-fail-fast`: 1165 passed, 0 failed, 38 ignored.
+
+# T-290: A `-J` hop takes the `ssh_config` block of its own name, as OpenSSH's jump host does
+
+**Source:** the work of T-030 (2026-10-11): OpenSSH's jump process, measured with `ssh -v`.
+**Category:** defect
+**Milestone:** none
+**Priority:** P2
+**Effort:** M
+**Status:** open
+
+## Problem
+
+A hop of `-J` or `ProxyJump` is a host as typed: podssh reads no block of `ssh_config` for it.
+With a block `Host bastion` that sets `HostName`, `Port`, `User` and `IdentityFile`, `podssh ssh -J
+bastion host` connects to a host named `bastion` on port 22, where OpenSSH connects to the
+bastion's `HostName` and port, as its user, with its key. The common `ProxyJump bastion` of a file
+that OpenSSH reads fails in podssh. The destination's blocks hold for each hop instead: its
+`IdentityFile` is offered to the bastion. And a hop that names no user logs in as the destination's
+user, where OpenSSH's jump host logs in as its own `User`, else as the local user.
+
+## Premise
+
+Measured with OpenSSH 10.3p1 (2026-10-11, `ssh -v -F FILE -o ... -J
+ju@jump.invalid:2222,second.invalid dest.invalid`): the jump host runs as `ssh -l ju -p 2222 -F
+FILE -v -W '[%h]:%p' jump.invalid`, and the hop after it as `ssh -J ju@jump.invalid:2222 -F FILE -v
+-W '[%h]:%p' second.invalid`. Each is a process of its own, which reads the file for its own
+host; no `-o` of the command line reaches it, and no `-l` of the destination. ssh(1) says the
+same of `-J`: the command line is for the destination, and `ssh_config` gives a jump host its
+settings (read in the manual).
+
+Read: the hops come from `-J` or `ProxyJump` as text
+(`crates/podssh-cli/src/ssh/resolve.rs:201-205`), parsed by `jump_hop` alone
+(`crates/podssh-cli/src/ssh/hop.rs:60-65`). Each hop logs in as its own user or the destination's
+(`crates/podssh-ssh/src/run.rs:280`), with the identities of the destination
+(`crates/podssh-ssh/src/run.rs:327`).
+
+## Approach
+
+1. Read the file's blocks for each hop's own name, as for the destination (`config::read` with
+   the hop's host in the `Context`, `crates/podssh-cli/src/ssh/config.rs:56-74`): `HostName`,
+   `Port` and `User` of the block, under the `user@` and `:PORT` of the hop's text, as for the
+   destination (T-043). A hop with no user and no `User` of its own logs in as the local user, as
+   OpenSSH's jump host does: `-l`, `-p` and the destination's `User` are the destination's alone.
+2. The settings of host keys, authentication, keys and time of the command line (`-o`, `-i`)
+   still hold for each hop, as today (T-030, podssh's difference from OpenSSH): a script's
+   `-o StrictHostKeyChecking=accept-new -i KEY` keeps working through a jump. The hop's own
+   blocks fill what the command line leaves unset, in place of the destination's: its
+   `IdentityFile` after those of `-i`, its `UserKnownHostsFile`, its `StrictHostKeyChecking`.
+   Each hop then carries its own options to `run::connect`.
+3. A `ProxyJump` in a hop's block puts its chain before the hop, as OpenSSH's jump process does;
+   a loop is refused with 64, as OpenSSH refuses a jump host loop.
+4. `-G` prints the destination's settings alone, as OpenSSH's `ssh -G` does. `docs/cli.md` and
+   the manual's notes say what a hop takes.
+
+## Prove
+
+```sh
+cargo test -p podssh-cli --test ssh_config_file -- jump
+sh scripts/dev.sh check
+```
+
+A file with `Host bastion` (`HostName`, `Port`, `User`, `IdentityFile`) and `-J bastion`: the plan
+of the run holds the bastion's address, port, user and key; a hop with no user, the local user. In
+`scripts/interop.sh`, `-F FILE -J openssh-alias dropbear-alias` (the aliases of T-043) runs the
+command, beside OpenSSH's `ssh` with the same line. Plant: read no block for a hop; the test and
+the check fail.

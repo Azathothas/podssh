@@ -343,6 +343,8 @@ head -c 16 "$W/out" | grep -q "SSH-2.0-dropbear" && ok ssh.forward.w_banner "-W 
 # shellcheck disable=SC2086
 p 2203 $K -o BatchMode=yes -J "$T:2201" "$T" 'exit 5' </dev/null >"$W/out" 2>"$W/err"
 expect_rc ssh.forward.jump "-J through OpenSSH to Dropbear" 5 $? "$W/err"
+# shellcheck source=scripts/interop-hostkeys.sh
+. "$HERE/interop-hostkeys.sh"
 printf '\000\000\000\005\001\000\000\000\003' >"$W/fxp_init"
 # stdin stays open a moment: OpenSSH's sftp-server exits on end of input
 # without flushing its reply (measured 2026-10-08 on a Debian host, without

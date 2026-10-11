@@ -19,7 +19,8 @@ use crate::prompt::{self, PromptError};
 /// Everything the check needs, owned, so it can run on a blocking thread.
 #[derive(Debug, Clone)]
 pub struct Policy {
-    /// The name the key is filed under: `host` or `[host]:port`.
+    /// The name the key is filed under: `host` or `[host]:port`, or the
+    /// destination's `HostKeyAlias` (`run::hop_key_name`).
     pub name: String,
     pub strict: StrictHostKeyChecking,
     /// Read in order; new keys go into the first.

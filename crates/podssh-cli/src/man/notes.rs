@@ -77,7 +77,10 @@ const SSH: &[&str] = &[
      key that cannot be recorded (no HOME, UserKnownHostsFile none, a failed write) holds for this \
      connection only, and podssh says so. A host that a @cert-authority line names is asked for a host \
      certificate, accepted with no record when that CA signed it for this host and it is valid now, and \
-     refused with the check that failed.",
+     refused with the check that failed. Each hop of -J checks its own key, under its own name, \
+     [HOST]:PORT off port 22; HostKeyAlias names the destination's key alone, with no port, as OpenSSH \
+     files it. The settings of host keys and authentication of -o and -i hold for each hop, where \
+     OpenSSH's command line holds for the destination only.",
     "Authentication tries the agent and the identity files, then keyboard-interactive and password. \
      Prompts go to the terminal or to SSH_ASKPASS. With -o BatchMode=yes, each prompt is an error.",
     "-t asks for a pty when there is a local terminal. -tt asks for one also when there is none, so \
