@@ -174,7 +174,7 @@ const PIPE: &[&str] = &[
      (see podssh node): the relay carries TCP only, and this host sends no UDP. Each datagram is its \
      length in two bytes, big-endian, then its bytes, 65,507 at most; the other side gives and takes \
      that framing on stdin and stdout, a descriptor or a socket. A program of exec: beside it gets one \
-     end of an AF_UNIX datagram socketpair as its stdin and stdout on Unix, which needs no bind: each \
+     end of a Unix datagram socketpair as its stdin and stdout on Unix, which needs no bind: each \
      send is one datagram at the target, each receive one answer; where that is refused, and on \
      Windows, its stdin and stdout carry the framing. The node's session has no half-close: after the \
      end of this side's input it waits for answers until none came for 5 s. A datagram socket has no \
