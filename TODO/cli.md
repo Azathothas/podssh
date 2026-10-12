@@ -76,7 +76,7 @@ GitHub #2, not verified here: the relay's `/trace` dials `[V6]:8079`.
 6. Same commit: `docs/cli.md` (lines 62-75 at `3cbf215`), the help at
    `crates/podssh-cli/src/positionals.rs:20` and
    `crates/podssh-cli/src/positionals.rs:108`, an example in
-   `crates/podssh-cli/src/man/examples.rs:8-147`, `docs/relay.md`,
+   `crates/podssh-cli/src/man/examples.rs:8-151`, `docs/relay.md`,
    `docs/STATUS.md`. Use `2001:db8::/32` in offline tests only: the relay
    refuses that range.
 
@@ -492,7 +492,7 @@ risk is a changed option (a host, a relay, a trust store), not a command.
    `[OPTIONS] [--] HOST PORT` for `proxy`; `--help` and the synopsis of the
    manual (`crates/podssh-cli/src/man/model.rs:186-190`) read it.
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-198` and `crates/podssh-cli/src/man/notes.rs:46-143`)
-   and an example (`crates/podssh-cli/src/man/examples.rs:8-147`). Pitfall: the
+   and an example (`crates/podssh-cli/src/man/examples.rs:8-151`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
    (`crates/podssh-cli/src/man/notes.rs:336-344`); teach `flag_exists`
    (`crates/podssh-cli/src/man/notes.rs:305-319`) that `--` ends the options.

@@ -91,6 +91,10 @@ fn examples() -> Vec<(&'static str, String)> {
             r"printf 'HEAD / HTTP/1.0\r\nHost: example.org\r\n\r\n' | podssh proxy example.org 80".into(),
         ),
         (
+            "a VNC desktop at 127.0.0.1:5901 for a viewer: OpenSSH listens, podssh carries its session",
+            "ssh -N -L 5901:127.0.0.1:5901 -o ProxyCommand='podssh proxy %h %p' user@desktop.example.org".into(),
+        ),
+        (
             "a program at the other end of stdin and stdout, as socat joins them; its exit status is the pipe's",
             r#"podssh pipe stdio "exec:sh -c 'tr a-z A-Z'""#.into(),
         ),

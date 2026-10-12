@@ -69,8 +69,8 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
    (`crates/podssh-cli/src/man/notes.rs:18-44`), two examples
-   (`crates/podssh-cli/src/man/examples.rs:8-147`; its test at
-   `crates/podssh-cli/src/man/examples.rs:270-286` learns the new variant),
+   (`crates/podssh-cli/src/man/examples.rs:8-151`; its test at
+   `crates/podssh-cli/src/man/examples.rs:274-290` learns the new variant),
    `docs/design.md:669-678`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:205-206`).
 
@@ -713,7 +713,7 @@ verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -754,8 +754,8 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
    `telnet 127.0.0.1 PORT`.
 4. Write a table "Other TCP protocols" after `README.md:125-130`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
-   form a to `crates/podssh-cli/src/man/examples.rs:8-147`; its ProxyCommand
-   parses (`crates/podssh-cli/src/man/examples.rs:247-254`). Link the table
+   form a to `crates/podssh-cli/src/man/examples.rs:8-151`; its ProxyCommand
+   parses (`crates/podssh-cli/src/man/examples.rs:251-258`). Link the table
    from `docs/design.md:711-714`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
@@ -771,6 +771,100 @@ python scripts/check-repo.py               # the links of the new table
 A row of `docs/STATUS.md` gives the RFB line seen through form a, with the
 date. Plant: write the example with `-L` given to `podssh ssh`; the test of
 the examples must refuse it.
+
+## Correction
+
+2026-10-12: the Prove's plant no longer fails. T-038 made `-L` a flag of
+`podssh ssh` (`crates/podssh-cli/src/flags.rs:231` says "forward-local"),
+so an example with `podssh ssh -L 5901:127.0.0.1:5901 user@host` parses. The
+plant that the test of the examples must refuse gives `-L` to the
+ProxyCommand's `podssh proxy`, which has no such flag:
+`ssh -o ProxyCommand='podssh proxy -L 5901:127.0.0.1:5901 %h %p' user@host`.
+
+2026-10-12: step 1c named no client that can run with no listener. Two
+were found by their manuals (read on 2026-10-12, not run here): SSVNC's
+`ssvncviewer exec=COMMAND` runs COMMAND and speaks RFB on its stdio, and
+TigerVNC's `vncviewer` takes a Unix socket's path (its synopsis,
+`vncviewer [options] [unix socket]`). The second still needs a listener,
+but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
+(`docs/STATUS.md:227`); there OpenSSH's form a fails before it binds, as
+`ssh` finds no entry for the user (`docs/STATUS.md:232`).
+
+## Done
+
+2026-10-12, a draft whose checks have not run yet. What was made:
+- `README.md`, a section `### Other TCP protocols` after "Relay limits": a
+  table of VNC, RDP and Telnet (what works with no listener, with a local
+  listener, and the limits: 64 MiB through the relay, which is 21 full
+  screens of 1024x768 at 32 bits with no compression; plain text, so
+  `ssh:` and never `relay:`), then the commands of each form, and that a
+  listener takes one client unless `--keep-listening`.
+- The manual's example of form a, in
+  `crates/podssh-cli/src/man/examples.rs`: OpenSSH's `ssh` with
+  `-N -L 5901:127.0.0.1:5901` and `podssh proxy %h %p` as its
+  ProxyCommand. `docs/design.md:674` links the table.
+- `scripts/interop-desktop.sh`, sourced by `scripts/interop.sh` after
+  `scripts/interop-pipe.sh`, with 7 checks (the harness `desktop`, floor 7,
+  in `scripts/interop-baseline.txt`): TigerVNC's `Xvnc` and BusyBox's
+  `telnetd` behind OpenSSH on 127.0.0.1; form a through the stand-in relay
+  (`desktop.vnc.proxy_command`); form b on a TCP port
+  (`desktop.vnc.pipe_tcp_listen`); form c, a client that runs
+  `podssh pipe stdio ssh:` through the stand-in relay, to the server's
+  ServerInit (`desktop.vnc.command`); TigerVNC's viewer at a
+  `unix-listen:` socket (`desktop.vnc.viewer_unix_listen`); the bytes of an
+  idle and of a busy desktop (`desktop.vnc.rate`); Telnet's first byte
+  through a raw pipe (`desktop.telnet.options`) and BusyBox's `telnet`
+  through form b (`desktop.telnet.client`). The packages `tigervnc`,
+  `tigervnc-client`, `busybox-extras` and `xsetroot` join the image's
+  `apk add` (`scripts/interop.sh:25`); each is in Alpine v3.22 and edge
+  (pkgs.alpinelinux.org, read on 2026-10-12).
+- `docs/STATUS.md`, a section "Other TCP protocols, measured", whose
+  rows say that the gate's first run fills them in.
+
+The calls made where the Approach left a choice:
+- The table follows "Relay limits", not `README.md:124-129` at once: the
+  paragraphs after those lines (chat, the variables, the tokens) would fall
+  under its heading, and the table cites the limits above it.
+- Form c's client is the harness's own (`rfb.py`, about 40 lines of
+  Python), as Alpine packages no viewer that runs a command: it does what
+  `ssvncviewer exec=` does, with podssh as the command.
+- The viewer in the gate is TigerVNC's, at a `unix-listen:` socket, as
+  that is the form for a host like sandbox A.
+- The rate is TigerVNC's viewer's, on the loopback, counted by a relay of
+  the harness on the server's side (`podssh pipe` prints no byte count),
+  after the first 5 s of each run of 20 s, and scaled to a minute: idle,
+  then a screen of new noise 4 times a second (two random bitmaps of
+  1024x768, set in turn as the root window's pattern with `xsetroot`).
+  Noise does not compress, so the busy rate is near the most that a screen
+  of that size changes; a viewer that measures a slow road may pick a
+  lossy encoding and send less. A run of 20 s keeps the gate short.
+- The example puts `-N -L` before the ProxyCommand: the start of the
+  manual keeps three first steps, and its filter takes each command that
+  starts with "ssh -o ProxyCommand='podssh proxy"
+  (`crates/podssh-cli/src/man/examples.rs:154`). It has no
+  `ServerAliveInterval`, so that its line stays within rustfmt's 120
+  columns; the note of proxy asks for it
+  (`crates/podssh-cli/src/man/notes.rs:135`).
+- Form b runs with `--direct`, as `scripts/interop-pipe.sh` runs `ssh:`;
+  forms a and c go through the stand-in relay.
+- The citations of `crates/podssh-cli/src/man/examples.rs` in
+  `TODO/cli.md`, `TODO/pipe.md` and `TODO/reverse.md` were moved by hand,
+  4 lines, as `cargo todo remap` would move them.
+
+What waits:
+- The 7 checks of `scripts/interop-desktop.sh` in the gate's step
+  `release` wait for CI and T-251. The RFB line of form a, the rates and
+  the minutes that 64 MiB lasts go into `docs/STATUS.md` from the first run
+  that passes.
+- Native here: `cargo test -p podssh-cli --lib man::examples` with the new
+  example, 4 passed; the plant of the Correction (`-L` given to the
+  ProxyCommand's `podssh proxy`) fails the test of the examples with
+  "unknown flag '-L'", and was taken out; the whole lib suite, 278 passed.
+  The Prove's `grep` finds the heading, `README.md:163`;
+  `python scripts/check-repo.py`: each check ok, the doc links too;
+  `python scripts/check-scripts.py`: 44 scripts LF and parse under dash.
+- An RDP client and server, and each client through the live relay, did
+  not run: the table says "not measured" for RDP.
 
 # T-180: Publish a local HTTP service at `https://NAME` through the relay
 

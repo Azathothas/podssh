@@ -39,6 +39,7 @@ harness sftp interop 5 scripts/interop-sftp.sh
 harness resume interop 9 scripts/interop-resume.sh
 harness edit interop 8 scripts/interop-edit.sh
 harness pipe interop 9 scripts/interop-pipe.sh
+harness desktop interop 7 scripts/interop-desktop.sh
 harness pty interop 13 scripts/interop-pty.py
 harness man man 7 scripts/interop-man.sh
 harness conpty conpty 14 scripts/interop-conpty.py
@@ -486,6 +487,15 @@ pipe.proxy.late_reply pass
 pipe.ssh.digest pass
 pipe.listen.tcp pass
 pipe.listen.unix_other_user pass
+
+# scripts/interop-desktop.sh
+desktop.vnc.proxy_command pass
+desktop.vnc.pipe_tcp_listen pass
+desktop.vnc.command pass
+desktop.vnc.viewer_unix_listen pass
+desktop.vnc.rate pass
+desktop.telnet.options pass
+desktop.telnet.client pass
 
 # scripts/interop-pty.py
 pty.shell pass

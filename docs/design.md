@@ -711,7 +711,7 @@ AF_UNIX or loopback bind works. Tools that start an ssh-like program
 already work through podssh (`GIT_SSH_COMMAND`, `rsync -e`, the
 `core.gitProxy` of git with `podssh proxy`). Tools that call `connect()`
 themselves (curl, browsers) need a listener or the sandbox's own proxy;
-podssh cannot help them without one.
+podssh cannot help them without one ([the clients that work](../README.md#other-tcp-protocols)).
 
 ## 7. iroh
 

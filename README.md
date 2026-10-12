@@ -181,6 +181,42 @@ the owner can read the cache.
 | Targets | Public hosts only; the relay refuses private, link-local and internal addresses | None |
 | IPv6 targets | The relay takes an IPv6 address, but reached no IPv6 host when measured (2026-10-08) | `--direct`, where the host has IPv6 |
 
+### Other TCP protocols
+
+`podssh proxy` and `podssh pipe` carry any TCP stream. A client that runs a
+command as its transport needs no listener. A client that calls `connect()`
+itself needs a local port or socket: `podssh pipe` listens only where you
+ask for it and the host allows the bind (`podssh doctor` tries an AF_INET
+and an AF_UNIX bind), and OpenSSH's `ssh -L`, with podssh as its
+`ProxyCommand`, listens where a bind works and the user has an entry in the
+user database. Through the relay, a session ends at 64 MiB, both directions
+together ("Relay limits" above); `--direct` avoids the relay where the host
+has a road of its own. These protocols are often not encrypted: reach them
+with `ssh:`, so that the relay sees SSH only.
+
+| Protocol | With no listener | With a local listener | Limits |
+| --- | --- | --- | --- |
+| VNC (RFB, port 5900 + display) | A viewer that runs a command as its transport: SSVNC's `ssvncviewer exec=COMMAND` (its manual; not run here) | `pipe unix-listen:` and TigerVNC's `vncviewer`, which takes a socket's path, where only an AF_UNIX bind works; else `pipe tcp-listen:` or `ssh -L` | 64 MiB through the relay, 21 full screens of 1024x768 at 32 bits with no compression; [docs/STATUS.md](docs/STATUS.md) has a viewer's rate |
+| RDP (port 3389) | No client that runs a command was found; FreeRDP's `/proxy:` takes an HTTP or SOCKS5 proxy, a listener (`podssh ssh -D`) | `pipe tcp-listen:` or `ssh -L` (not measured) | 64 MiB through the relay |
+| Telnet (port 23) | `podssh proxy HOST 23` carries the bytes, but the server's first bytes are options (IAC) that a client must answer | `pipe tcp-listen:`, then `telnet 127.0.0.1 PORT` | Plain text, the password too: use `ssh:` to a host near the server |
+
+```sh
+# VNC where only an AF_UNIX bind works: TigerVNC's viewer at the socket
+podssh pipe unix-listen:/tmp/vnc.sock ssh:me@desktop.example.org,127.0.0.1:5901 &
+vncviewer /tmp/vnc.sock
+# VNC where a TCP bind works: podssh listens ...
+podssh pipe tcp-listen:5901 ssh:me@desktop.example.org,127.0.0.1:5901 &
+# ... or OpenSSH listens, and podssh carries its session
+ssh -N -L 5901:127.0.0.1:5901 -o ProxyCommand='podssh proxy %h %p' -o ServerAliveInterval=60 me@desktop.example.org
+# no listener: the viewer runs podssh
+ssvncviewer 'exec=podssh pipe stdio ssh:me@desktop.example.org,127.0.0.1:5901'
+# Telnet to a device behind an SSH host
+podssh pipe tcp-listen:2323 ssh:me@gateway.example.org,router.lan:23 & telnet 127.0.0.1 2323
+```
+
+A listener of `podssh pipe` takes one client, then closes; a viewer that
+connects again needs `--keep-listening`.
+
 ## Build
 
 podssh is a Rust workspace (`crates/`). It needs Rust 1.89 or later and a C
