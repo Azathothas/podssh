@@ -27,9 +27,11 @@ fn the_line_says_the_bytes_the_percent_the_rate_and_the_time_left() {
 
 #[test]
 fn the_bucket_lets_the_limit_s_bytes_through_each_second() {
-    // 8000 Kbit/s: 1,000,000 bytes a second.
-    let mut bucket = Bucket::of_kbits(8000);
+    // 8000 Kbit/s: 1,000,000 bytes a second, from the test's own start: a
+    // second reading of the clock gave the bucket the bytes of the time
+    // between the two (CI at ebde017).
     let start = Instant::now();
+    let mut bucket = Bucket::of_kbits_at(8000, start);
     assert_eq!(bucket.take_at(250_000, start), Duration::from_millis(250), "an empty bucket waits");
     // A second on, a quarter of a second of bytes at most is saved up.
     let later = start + Duration::from_secs(1);

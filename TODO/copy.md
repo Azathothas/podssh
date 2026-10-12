@@ -1594,6 +1594,13 @@ progress to stdout; the pipe case must then fail.
 (`crates/podssh-cli/src/cp/`): with `--jsonl`, each file gives one `done` or
 `error` object; the events of progress are this entry's.
 
+2026-10-12. CI at `ebde017` failed the bucket's test in the three gate
+jobs: the test made its bucket, then read the clock again, and the time
+between the two gave the bucket bytes, so the first wait was a little under
+250 ms. The bucket now takes the instant that it starts at
+(`Bucket::of_kbits_at`), and the test gives it its own; the interop checks
+`cp.limit` (5.1 s) and `cp.interrupt` passed in that run.
+
 ## Done
 
 2026-10-12. `crates/podssh-cli/src/cp/gauge.rs` (the line and the

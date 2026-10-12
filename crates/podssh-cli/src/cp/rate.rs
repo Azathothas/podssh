@@ -19,7 +19,12 @@ impl Bucket {
     /// A bucket of `kbits` Kbit/s (1000 bits), empty: the first bytes wait
     /// for their time too.
     pub fn of_kbits(kbits: u64) -> Bucket {
-        Bucket { rate: kbits as f64 * 1000.0 / 8.0, tokens: 0.0, last: Instant::now() }
+        Bucket::of_kbits_at(kbits, Instant::now())
+    }
+
+    /// The same bucket, which starts at `now`.
+    pub fn of_kbits_at(kbits: u64, now: Instant) -> Bucket {
+        Bucket { rate: kbits as f64 * 1000.0 / 8.0, tokens: 0.0, last: now }
     }
 
     /// The bytes a second.
