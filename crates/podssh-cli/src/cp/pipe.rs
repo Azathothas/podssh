@@ -10,8 +10,8 @@ use super::meta::Keep;
 
 /// How a copy goes: the requests in flight of each SFTP session (T-140), the
 /// tasks of one file, each with a session of its own (T-141), whether only
-/// the changed blocks go (T-142), and what it keeps besides the bytes
-/// (T-146).
+/// the changed blocks go (T-142), what it keeps besides the bytes (T-146),
+/// and whether it writes into the destination itself (T-147).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Shape {
     pub pipe: Pipeline,
@@ -19,11 +19,13 @@ pub struct Shape {
     /// Only the blocks that changed, over an older version (T-142).
     pub delta: bool,
     pub keep: Keep,
+    /// `--inplace`: into the destination itself, with no temporary name.
+    pub inplace: bool,
 }
 
 impl Default for Shape {
     fn default() -> Self {
-        Shape { pipe: Pipeline::default(), tasks: 1, delta: false, keep: Keep::default() }
+        Shape { pipe: Pipeline::default(), tasks: 1, delta: false, keep: Keep::default(), inplace: false }
     }
 }
 

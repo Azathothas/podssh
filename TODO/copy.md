@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:226-244` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1297-1300`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1312-1315`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1356,7 +1356,7 @@ sent and their bytes; `docs/cli.md` and `docs/STATUS.md` say the rest.
 
 # T-143: Copy directories: `-r`, `--exclude`, an ignore file, `--dry-run`
 
-**Source:** the `-r` row (`crates/podssh-cli/src/flags/copy.rs:29-30`);
+**Source:** the `-r` row (`crates/podssh-cli/src/flags/copy.rs:31-32`);
 GitHub #21 (syq's `--dry-run`, parsync's `--exclude`, slingshot's copy with
 no build output) and GitHub #18 (quic-ssh's `qsh cp -r`), read in the
 issues.
@@ -1428,7 +1428,7 @@ drop the name check; that case must then fail.
 ## Correction
 
 2026-10-09 (T-134): `-r` is refused by name now
-(`crates/podssh-cli/src/flags/copy.rs:29-30`), and `podssh cp` copies files
+(`crates/podssh-cli/src/flags/copy.rs:31-32`), and `podssh cp` copies files
 (`crates/podssh-cli/src/cp/`): this entry builds on its temporary name, its
 digest check and its rename for each file of a tree.
 
@@ -1546,7 +1546,7 @@ uplink of a shared host.
 
 - Read: stdout carries answers only, and messages go to stderr
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
-  (`crates/podssh-cli/src/flags/copy.rs:43-44`).
+  (`crates/podssh-cli/src/flags/copy.rs:45-46`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
   (`crates/podssh-ssh/src/io.rs:461-494`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
@@ -1740,7 +1740,7 @@ through the check after the rename.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1781,6 +1781,34 @@ In the gate, `stat -c %i` of the destination is equal before and after,
 and the digests are equal. With T-134's server that flips a byte, the exit
 is not zero and the message says that the destination is damaged. Plant:
 write to a temporary name and rename; the inode check must then fail.
+
+## Done
+
+2026-10-12. `crates/podssh-cli/src/cp/in_place.rs` (the refusals, the
+open with no truncation here and on the server, the message of a damaged
+destination, and the check before a copy down connects), and `--inplace`
+on each road: `bysftp.rs` up and down, in chunks too, `delta.rs` (the
+changed blocks go into the destination, and no `copy-data` is needed),
+`transfer::within`, and the copy by exec (`byexec/files.rs`: a first
+attempt with `cat >`, whose truncation keeps the inode, a later one with
+`cat >>`, a link refused by `test -L`, and no `mv` at the end). The calls
+made: (1) a temporary file that is the destination is never removed: a
+failure, a stale record (`session::drop_temp` now removes only podssh's
+temporary names) and a source that changed leave it, and each failure
+after the first write says that it is damaged, in place of "the
+destination was not changed". (2) The notice is said once a run, before
+the first byte, as `mv`'s is. (3) A local destination that is a link or a
+directory is refused before anything connects, so a test without a server
+shows it. (4) No holes in place: the destination's old bytes would stay in
+them. `cargo test -p podssh-cli --test cp_inplace`: 2 passed here (up and
+down over a longer old file, a second hard-linked name sees the new bytes,
+without `--inplace` it keeps the old ones; `--delta` and `mv`), and the
+test of a link refused runs on Unix; `--test cp_args`: 9 passed, with the
+refusals of a directory (and, on Unix, a link) before anything connects.
+The gate's checks (`scripts/interop-inplace.sh`: the same inode by `stat`
+on each road and each way, a flipped byte that exits 70 and names the
+destination damaged, a link refused) and the planted defect wait for
+T-251.
 
 # T-148: ZMODEM in a terminal session
 
@@ -2007,16 +2035,16 @@ program writes on, such as a log, need not end at all.
 ## Premise
 
 Read at `a22e3ec`: the copy up over SFTP reads the source until a read
-gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:147-173`), and each read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:157-183`), and each read
 waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
-(`crates/podssh-cli/src/cp/bysftp.rs:262-265`), but only once the read
+(`crates/podssh-cli/src/cp/bysftp.rs:258-261`), but only once the read
 ends. The copy up by exec reads the same way
-(`crates/podssh-cli/src/cp/byexec/files.rs:105-130`); the copies down read
+(`crates/podssh-cli/src/cp/byexec/files.rs:119-144`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:390-429`) and with `cat`
+(`crates/podssh-cli/src/cp/bysftp.rs:401-440`) and with `cat`
 (`crates/podssh-cli/src/cp/byexec.rs:332-369`); and so do the far digests
 that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
 `crates/podssh-cli/src/cp/byexec.rs:303-330`).
@@ -2052,8 +2080,8 @@ bound fails the native test.
 
 2026-10-10. Each road of the copy reads what the source held at the start,
 and stops with 66, "the file changed while it was read", at the first byte
-past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:147-173`) and by
-exec (`crates/podssh-cli/src/cp/byexec/files.rs:105-130`); down by exec
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:157-183`) and by
+exec (`crates/podssh-cli/src/cp/byexec/files.rs:119-144`); down by exec
 past the size that `wc -c` gave; down over SFTP after a second look at the
 far size, so that a file of `/proc` goes on as before. The far digest by
 reading, over SFTP and by exec, stops one byte past the copy's size. One

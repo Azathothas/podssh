@@ -25,6 +25,7 @@ pub(crate) mod chunks;
 pub mod delta;
 mod digest;
 pub mod gauge;
+pub mod in_place;
 pub(crate) mod link;
 pub mod meta;
 mod mirror;
@@ -89,6 +90,8 @@ pub struct CpArgs {
     pub preserve: bool,
     pub owner: bool,
     pub sparse: bool,
+    /// `--inplace` (T-147).
+    pub inplace: bool,
 }
 
 impl CpArgs {
@@ -140,6 +143,7 @@ impl CpArgs {
             preserve: flag("preserve"),
             owner: flag("owner"),
             sparse: flag("sparse"),
+            inplace: flag("inplace"),
         }
     }
 }
@@ -177,6 +181,21 @@ fn tree_of(args: &CpArgs) -> Result<Option<tree::Tree>, String> {
     Ok(Some(tree::Tree { excludes, dry_run: args.dry_run, follow: args.verb == "scp", delete: args.delete }))
 }
 
+/// `--inplace` down: a local destination that is a link or a directory,
+/// refused before anything connects (T-147); `None` when each may be written.
+fn inplace_before(plan: &Plan) -> Option<String> {
+    let (Direction::Down, Operand::Local(dest)) = (plan.direction, &plan.destination) else { return None };
+    if plan.tree.is_some() {
+        return None;
+    }
+    let many = plan.sources.len() > 1;
+    plan.sources.iter().find_map(|source| {
+        let Operand::Remote(remote) = source else { return None };
+        let name = remote.path.trim_end_matches('/').rsplit('/').next().unwrap_or("");
+        in_place::check_before(dest, name, many).err()
+    })
+}
+
 /// Run `podssh cp` or `podssh mv`; returns the process exit code.
 pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let verb = args.verb;
@@ -189,7 +208,8 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     };
     let keep = meta::Keep { times: args.preserve, owner: args.owner, sparse: args.sparse };
     let shape = pipe::pipeline(None, None, &args.sftp_options).and_then(|pipe| {
-        Ok(pipe::Shape { pipe, tasks: pipe::tasks(args.parallel.as_deref())?, delta: args.delta, keep })
+        let tasks = pipe::tasks(args.parallel.as_deref())?;
+        Ok(pipe::Shape { pipe, tasks, delta: args.delta, keep, inplace: args.inplace })
     });
     plan.shape = match shape {
         Ok(shape) => shape,
@@ -213,6 +233,10 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
             return Fault::Usage.code();
         }
     };
+    if let Some(why) = args.inplace.then(|| inplace_before(&plan)).flatten() {
+        let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
+        return Fault::Usage.code();
+    }
     if let Some(why) = args.moving.then(|| moving::same_text(&plan)).flatten() {
         let _ = writeln!(err, "podssh mv: {why}.\n  Nothing has been attempted.");
         return Fault::Usage.code();
@@ -255,6 +279,9 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     // Before any byte moves, and before the first line of -v.
     if let Some(text) = args.moving.then(|| moving::notice(&args.paths, &plan)).flatten() {
         log.info(&text);
+    }
+    if args.inplace {
+        log.info(in_place::NOTICE);
     }
     for r in &resolved {
         for note in &r.notes {

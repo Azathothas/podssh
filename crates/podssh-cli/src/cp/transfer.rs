@@ -17,7 +17,9 @@ use podssh_ssh::sftp::{FileAttributes, OpenFlags, Sftp, SftpError};
 use podssh_ssh::{Connection, Log};
 
 use super::digest::{self, Sum};
-use super::meta::{self, Keep, Stamp};
+use super::in_place;
+use super::meta::{self, Stamp};
+use super::pipe::Shape;
 use crate::exitmap::Fault;
 
 /// One file copied and verified, or moved.
@@ -213,15 +215,17 @@ pub(super) async fn rename_raw(sftp: &Sftp, from: &str, target: &str, log: &Log)
 }
 
 /// Copy `source` to `dest` on one server with `copy-data`: no byte comes
-/// through here, and both digests are taken there.
+/// through here, and both digests are taken there. With `--inplace`, into
+/// the destination itself (T-147).
 pub async fn within(
     sftp: &Sftp,
     handle: &Connection,
     source: &str,
     dest: &str,
-    keep: Keep,
+    shape: Shape,
     log: &Log,
 ) -> Result<Done, Failed> {
+    let (keep, inplace) = (shape.keep, shape.inplace);
     let attrs = sftp.stat(source).await.map_err(|e| from_sftp(e, Side::Source))?;
     if !attrs.is_regular() {
         return Err(failed(Fault::NoInput, format!("{source}: not a regular file; podssh cp copies files")));
@@ -230,18 +234,25 @@ pub async fn within(
     let (_, name) = split_remote(source.trim_end_matches('/'));
     let target = remote_target(sftp, dest, name, false).await?;
     let (dir, leaf) = split_remote(&target);
-    let temp = format!("{dir}{}", temp_name(leaf));
+    let temp = if inplace { target.clone() } else { format!("{dir}{}", temp_name(leaf)) };
+    if inplace {
+        in_place::check_far(sftp, &target).await?;
+    }
     let from = sftp
         .open_file(source, OpenFlags::READ, FileAttributes::default())
         .await
         .map_err(|e| from_sftp(e, Side::Source))?;
     let new = FileAttributes { permissions: Some(0o600), ..FileAttributes::default() };
     let flags = OpenFlags::CREATE | OpenFlags::EXCLUDE | OpenFlags::WRITE;
-    let to = match sftp.open_file(&temp, flags, new).await {
+    let opened = match inplace {
+        true => in_place::open_far(sftp, &target).await,
+        false => sftp.open_file(&temp, flags, new).await.map_err(|e| from_sftp(e, Side::Destination)),
+    };
+    let to = match opened {
         Ok(to) => to,
-        Err(e) => {
+        Err(failed) => {
             let _ = sftp.close(&from).await;
-            return Err(from_sftp(e, Side::Destination));
+            return Err(failed);
         }
     };
     log.verbose(&format!("{source}: copy-data to {temp} on the server"));
@@ -250,13 +261,21 @@ pub async fn within(
         let limit = podssh_ssh::sftp::DATA_WAIT + std::time::Duration::from_secs(size / (16 << 20));
         sftp.copy_data(&from, &to, limit).await.map_err(|e| from_sftp(e, Side::Destination))?;
         sftp.close(&to).await.map_err(|e| from_sftp(e, Side::Destination))?;
+        if inplace {
+            // The old bytes past the new end go.
+            let cut = FileAttributes { size: Some(size), ..FileAttributes::default() };
+            sftp.setstat(&temp, cut).await.map_err(|e| from_sftp(e, Side::Destination))?;
+        }
         let (sum, how) = far_digest(handle, sftp, source, size, Side::Source).await?;
         let (copy, _) = far_digest(handle, sftp, &temp, size, Side::Destination).await?;
         compare(&sum, &copy, &how, source)?;
         let stamp = Stamp::of_far(&attrs, 0o777);
         meta::set_far(sftp, &temp, &stamp, keep, log).await?;
-        let not_atomic = rename_onto(sftp, &temp, &target, log).await?;
-        meta::times_after_rename(sftp, &target, &stamp, keep).await;
+        let mut not_atomic = false;
+        if !inplace {
+            not_atomic = rename_onto(sftp, &temp, &target, log).await?;
+            meta::times_after_rename(sftp, &target, &stamp, keep).await;
+        }
         Ok(Done {
             source: source.into(),
             destination: target.clone(),
@@ -271,6 +290,9 @@ pub async fn within(
     let _ = sftp.close(&from).await;
     if copied.is_err() {
         let _ = sftp.close(&to).await;
+        if inplace {
+            return copied.map_err(|f| in_place::damaged(f, &target));
+        }
         let _ = sftp.remove(&temp).await;
     }
     copied

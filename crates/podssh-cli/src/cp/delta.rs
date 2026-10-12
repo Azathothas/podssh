@@ -13,13 +13,15 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use podssh_ssh::sftp::{FileAttributes, OpenFlags, Pipeline, Reads, Sftp, Writes};
+use podssh_ssh::sftp::{FileAttributes, OpenFlags, Reads, Sftp, Writes};
 use podssh_ssh::{Connection, Log};
 use sha2::{Digest, Sha256};
 
 use super::chunks::{read_at, write_at};
 use super::digest::{self, Sum};
-use super::meta::{self, Keep, Stamp};
+use super::in_place;
+use super::meta::{self, Stamp};
+use super::pipe::Shape;
 use super::transfer::{self, Done, Failed, Side};
 use crate::exitmap::Fault;
 
@@ -114,6 +116,8 @@ pub async fn far_blocks(handle: &Connection, path: &str, size: u64) -> Option<Ve
 /// A copy up by blocks over the older `target` on the server: the copy's
 /// result, or `None` when it goes in full (no command, no `copy-data`, or
 /// digests that differ after the delta, each said at `-v` or as a note).
+/// With `--inplace` the changed blocks go into `target` itself (T-147), and
+/// no `copy-data` is needed.
 #[allow(clippy::too_many_arguments)]
 pub async fn up(
     sftp: &Sftp,
@@ -122,15 +126,15 @@ pub async fn up(
     source: &str,
     target: &str,
     before: &std::fs::Metadata,
-    pipe: Pipeline,
-    keep: Keep,
+    shape: Shape,
     log: &Log,
 ) -> Result<Option<Done>, Failed> {
+    let (pipe, keep, inplace) = (shape.pipe, shape.keep, shape.inplace);
     let old = match sftp.stat(target).await {
         Ok(attrs) if attrs.is_regular() && attrs.size.unwrap_or(0) > 0 => attrs,
         _ => return Ok(None),
     };
-    if !sftp.has("copy-data") {
+    if !inplace && !sftp.has("copy-data") {
         log.verbose(&format!("{source}: the server has no copy-data: a full copy"));
         return Ok(None);
     }
@@ -142,20 +146,28 @@ pub async fn up(
     let near = local_blocks(local).map_err(|e| Failed::new(Fault::NoInput, format!("{source}: {e}")))?;
     let plan = plan(&near, &far, before.len());
     let (dir, leaf) = transfer::split_remote(target);
-    let temp = format!("{dir}{}", transfer::temp_name(leaf));
+    let temp = if inplace { target.to_string() } else { format!("{dir}{}", transfer::temp_name(leaf)) };
     let made = async {
-        // The temporary file is the old one, made inside the server.
-        let attrs = FileAttributes { permissions: Some(0o600), ..FileAttributes::default() };
-        let flags = OpenFlags::CREATE | OpenFlags::EXCLUDE | OpenFlags::WRITE;
-        let file = sftp.open_file(&temp, flags, attrs).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-        let from = sftp
-            .open_file(target, OpenFlags::READ, FileAttributes::default())
-            .await
-            .map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-        let limit = podssh_ssh::sftp::DATA_WAIT + Duration::from_secs(old.size.unwrap_or(0) / (16 << 20));
-        let copied = sftp.copy_data(&from, &file, limit).await;
-        let _ = sftp.close(&from).await;
-        copied.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+        let file = if inplace {
+            sftp.open_file(target, OpenFlags::WRITE, FileAttributes::default())
+                .await
+                .map_err(|e| transfer::from_sftp(e, Side::Destination))?
+        } else {
+            // The temporary file is the old one, made inside the server.
+            let attrs = FileAttributes { permissions: Some(0o600), ..FileAttributes::default() };
+            let flags = OpenFlags::CREATE | OpenFlags::EXCLUDE | OpenFlags::WRITE;
+            let file =
+                sftp.open_file(&temp, flags, attrs).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+            let from = sftp
+                .open_file(target, OpenFlags::READ, FileAttributes::default())
+                .await
+                .map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+            let limit = podssh_ssh::sftp::DATA_WAIT + Duration::from_secs(old.size.unwrap_or(0) / (16 << 20));
+            let copied = sftp.copy_data(&from, &file, limit).await;
+            let _ = sftp.close(&from).await;
+            copied.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+            file
+        };
         let reader = std::fs::File::open(local).map_err(|e| Failed::new(Fault::NoInput, format!("{source}: {e}")))?;
         for &i in &plan.send {
             let at = i * BLOCK;
@@ -182,30 +194,44 @@ pub async fn up(
         Ok(())
     }
     .await;
+    // A failure removes the temporary file; one in the destination itself
+    // leaves it damaged, and says so (T-147).
+    let gone = |failed: Failed| {
+        let temp = temp.clone();
+        async move {
+            if inplace {
+                return in_place::damaged(failed, &temp);
+            }
+            let _ = sftp.remove(&temp).await;
+            failed
+        }
+    };
     if let Err(failed) = made {
-        let _ = sftp.remove(&temp).await;
-        return Err(failed);
+        return Err(gone(failed).await);
     }
     log.verbose(&said(source, &plan, near.len()));
     let after = std::fs::metadata(local).map_err(|e| Failed::new(Fault::NoInput, format!("{source}: {e}")))?;
     if after.len() != before.len() || after.modified().ok() != before.modified().ok() {
-        let _ = sftp.remove(&temp).await;
-        return Err(transfer::changed(source));
+        return Err(gone(transfer::changed(source)).await);
     }
     let sum = digest::of_file(local).map_err(|e| Failed::new(Fault::NoInput, format!("{source}: {e}")))?;
     let (far_sum, how) = transfer::far_digest(handle, sftp, &temp, plan.size, Side::Destination).await?;
     if far_sum != sum {
-        let _ = sftp.remove(&temp).await;
+        if !inplace {
+            let _ = sftp.remove(&temp).await;
+        }
         log.info(&format!("{source}: the digests differ after the delta ({how}): a full copy follows"));
         return Ok(None);
     }
     let stamp = Stamp::of_local(before);
     if let Err(failed) = meta::set_far(sftp, &temp, &stamp, keep, log).await {
-        let _ = sftp.remove(&temp).await;
-        return Err(failed);
+        return Err(gone(failed).await);
     }
-    let not_atomic = transfer::rename_onto(sftp, &temp, target, log).await?;
-    meta::times_after_rename(sftp, target, &stamp, keep).await;
+    let mut not_atomic = false;
+    if !inplace {
+        not_atomic = transfer::rename_onto(sftp, &temp, target, log).await?;
+        meta::times_after_rename(sftp, target, &stamp, keep).await;
+    }
     Ok(Some(Done {
         source: source.into(),
         destination: target.to_string(),
@@ -223,7 +249,8 @@ fn said(source: &str, plan: &Plan, blocks: usize) -> String {
 }
 
 /// A copy down by blocks over the older local `target`: the copy's result,
-/// or `None` when it goes in full.
+/// or `None` when it goes in full. With `--inplace` the changed blocks go
+/// into `target` itself (T-147).
 #[allow(clippy::too_many_arguments)]
 pub async fn down(
     sftp: &Sftp,
@@ -232,10 +259,10 @@ pub async fn down(
     target: &Path,
     size: u64,
     stamp: &Stamp,
-    pipe: Pipeline,
-    keep: Keep,
+    shape: Shape,
     log: &Log,
 ) -> Result<Option<Done>, Failed> {
+    let (pipe, keep, inplace) = (shape.pipe, shape.keep, shape.inplace);
     if !std::fs::metadata(target).is_ok_and(|m| m.is_file() && m.len() > 0) {
         return Ok(None);
     }
@@ -248,14 +275,18 @@ pub async fn down(
     let near = local_blocks(target).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
     let plan = plan(&far, &near, size);
     let leaf = target.file_name().and_then(|n| n.to_str()).unwrap_or("file");
-    let temp: PathBuf = target.with_file_name(transfer::temp_name(leaf));
+    let temp: PathBuf = if inplace { target.to_path_buf() } else { target.with_file_name(transfer::temp_name(leaf)) };
     let made = async {
-        // The temporary file is the old one, copied on this disk.
-        let out =
-            transfer::create_private(&temp).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
-        let mut old =
-            std::fs::File::open(target).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
-        std::io::copy(&mut old, &mut &out).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
+        let out = if inplace {
+            std::fs::OpenOptions::new().write(true).open(target)
+        } else {
+            // The temporary file is the old one, copied on this disk.
+            transfer::create_private(&temp).and_then(|out| {
+                std::io::copy(&mut std::fs::File::open(target)?, &mut &out)?;
+                Ok(out)
+            })
+        }
+        .map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
         let file = sftp
             .open_file(source, OpenFlags::READ, FileAttributes::default())
             .await
@@ -292,6 +323,9 @@ pub async fn down(
     }
     .await;
     if let Err(failed) = made {
+        if inplace {
+            return Err(in_place::damaged(failed, &shown));
+        }
         let _ = std::fs::remove_file(&temp);
         return Err(failed);
     }
@@ -299,15 +333,22 @@ pub async fn down(
     let sum = digest::of_file(&temp).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
     let (far_sum, how) = transfer::far_digest(handle, sftp, source, size, Side::Source).await?;
     if far_sum != sum {
-        let _ = std::fs::remove_file(&temp);
+        if !inplace {
+            let _ = std::fs::remove_file(&temp);
+        }
         log.info(&format!("{source}: the digests differ after the delta ({how}): a full copy follows"));
         return Ok(None);
     }
     if let Err(failed) = meta::set_local(&temp, stamp, keep, log) {
+        if inplace {
+            return Err(in_place::damaged(failed, &shown));
+        }
         let _ = std::fs::remove_file(&temp);
         return Err(failed);
     }
-    std::fs::rename(&temp, target).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
+    if !inplace {
+        std::fs::rename(&temp, target).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
+    }
     Ok(Some(Done {
         source: source.into(),
         destination: shown,

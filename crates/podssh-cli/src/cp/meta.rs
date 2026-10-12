@@ -20,7 +20,7 @@ use std::path::Path;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use podssh_ssh::sftp::{FileAttributes, Sftp, SftpError};
+use podssh_ssh::sftp::{FileAttributes, Sftp, SftpError, Writes};
 use podssh_ssh::Log;
 
 use super::transfer::{self, Failed, Side};
@@ -265,6 +265,26 @@ pub fn runs(offset: u64, data: &[u8], holes: bool) -> Vec<(bool, Range<usize>)> 
         at = end;
     }
     out
+}
+
+/// The runs of `data` to the server: each run of data in writes of `block`
+/// bytes at most, each hole skipped.
+pub(super) async fn send_runs(
+    writes: &mut Writes<'_>,
+    data: &[u8],
+    runs: Vec<(bool, std::ops::Range<usize>)>,
+    block: usize,
+) -> Result<(), SftpError> {
+    for (hole, range) in runs {
+        if hole {
+            writes.skip(range.len() as u64);
+            continue;
+        }
+        for part in data[range].chunks(block) {
+            writes.send(part.to_vec()).await?;
+        }
+    }
+    Ok(())
 }
 
 /// A local file written front to back with holes: each block of [`HOLE`]

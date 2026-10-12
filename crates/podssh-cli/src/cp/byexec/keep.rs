@@ -41,6 +41,15 @@ fn word(args: &mut Vec<String>, value: String) -> String {
 }
 
 impl Far {
+    /// Whether the far `path` is a symbolic link (`test -L`).
+    pub(super) async fn is_link(&self, handle: &Connection, path: &str) -> Result<bool, Failed> {
+        let script = self.marked("if [ -L \"$1\" ]; then echo link; else echo other; fi");
+        let cmd = command(&script, &[path]).map_err(|why| failed(Fault::Usage, why))?;
+        let got = exec::capture(handle, &cmd, STEP_WAIT, 4096).await.map_err(|e| step_failed(path, e))?;
+        let at = after_marker(&got.stdout, &self.marker);
+        Ok(at.is_some_and(|at| String::from_utf8_lossy(&got.stdout[at..]).trim() == "link"))
+    }
+
     /// The mode, the times and the owner of the far file `path`, from
     /// `stat`; `None` when no `stat` there prints them.
     pub(super) async fn stamp(&self, handle: &Connection, path: &str) -> Result<Option<Stamp>, Failed> {
@@ -59,9 +68,10 @@ impl Far {
     }
 
     /// Give `temp` what `keep` asks of `stamp`, and its mode, as far as the
-    /// server has the tools; then rename it onto `target`. A directory of
-    /// that name is refused: `mv` would put the file inside it, where the
-    /// SFTP road's rename fails.
+    /// server has the tools; then rename it onto `target`, unless it is the
+    /// target itself (`--inplace`, T-147). A directory of that name is
+    /// refused: `mv` would put the file inside it, where the SFTP road's
+    /// rename fails.
     pub(in crate::cp) async fn rename(
         &self,
         handle: &Connection,
@@ -101,7 +111,7 @@ impl Far {
                 _ => note(log, "times-range", "the times were not kept: SFTP carries 1970 to 2106 only"),
             }
         }
-        script.push_str("exec mv -f -- \"$1\" \"$2\"");
+        script.push_str(if temp == target { "exit 0" } else { "exec mv -f -- \"$1\" \"$2\"" });
         let words: Vec<&str> = args.iter().map(String::as_str).collect();
         let cmd = command(&script, &words).map_err(|why| failed(Fault::Usage, why))?;
         let got = exec::capture(handle, &cmd, STEP_WAIT, 4096).await.map_err(|e| step_failed(target, e))?;

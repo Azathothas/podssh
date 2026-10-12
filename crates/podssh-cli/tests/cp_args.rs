@@ -160,3 +160,28 @@ fn mv_between_hosts_says_first_that_it_is_not_atomic() {
     assert_eq!(rc, 69, "{err}");
     assert!(!err.contains("different hosts"), "{err}");
 }
+
+#[test]
+fn inplace_refuses_a_link_or_a_directory_here_before_it_connects() {
+    let dir = std::env::temp_dir().join(format!("podssh-cp-args-inplace-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(dir.join("into/x")).unwrap();
+    let into = dir.join("into").display().to_string();
+    // The far file x would land on into/x, a directory (T-147).
+    let (rc, out, err) = cp(&["--inplace", "host:x", &into]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(out.is_empty());
+    assert!(err.contains("a directory") && err.contains("Nothing has been attempted"), "{err}");
+    #[cfg(unix)]
+    {
+        std::fs::write(dir.join("real"), b"real").unwrap();
+        std::os::unix::fs::symlink(dir.join("real"), dir.join("into/link")).unwrap();
+        let (rc, _, err) = cp(&["--inplace", "host:link", &into]);
+        assert_eq!(rc, 64, "{err}");
+        assert!(err.contains("a symbolic link"), "{err}");
+    }
+    // A file that is neither goes on to connect: offline, 69.
+    let (rc, _, err) = cp(&["--inplace", "host:y", &into]);
+    assert_eq!(rc, 69, "{err}");
+    let _ = std::fs::remove_dir_all(&dir);
+}

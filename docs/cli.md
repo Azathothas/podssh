@@ -520,6 +520,21 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   version 3 carries the times in whole seconds from 1970 to 2106 and no
   inode, extended attribute or ACL: those, a far source's hard links, and
   the owner on Windows are not kept.
+- **`--inplace`** (T-147, `crates/podssh-cli/src/cp/in_place.rs`) writes
+  into the destination itself, with no temporary name and no rename: the
+  file keeps its inode, so its other hard links and each program that
+  holds it open see the new bytes, no second copy needs room, and no name
+  is added to its directory. It is opened with no truncation, written, and
+  cut to the source's size; the digests are compared as for each copy.
+  podssh says first, on stderr, that a copy that fails leaves its
+  destination damaged, and each failure after the first write names the
+  destination as damaged (a mismatch exits 70). A destination that is a
+  symbolic link or a directory is refused (64), here before anything
+  connects. A copy that broke goes on at its offset in the destination;
+  with `--delta` only the changed blocks are written into it, and no
+  `copy-data` is needed; `mv` removes the source only after the check. By
+  exec, the first attempt writes with `cat >` (a truncation keeps the
+  inode) and a later one appends. No holes are made in place.
 - **Progress, an interruption and a limit** (T-145). On stderr, when it is
   a terminal and `-q` is not given, one line that a carriage return
   rewrites, 4 times a second at most: the name, the bytes of the total,

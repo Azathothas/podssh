@@ -14,8 +14,10 @@ use sha2::{Digest, Sha256};
 
 use super::{command, failed, step_failed, Far, Kind};
 use crate::cp::digest::{self, Sum};
+use crate::cp::in_place;
 use crate::cp::link::Meter;
-use crate::cp::meta::{self, Keep, Stamp};
+use crate::cp::meta::{self, Stamp};
+use crate::cp::pipe::Shape;
 use crate::cp::resume::{self, Progress};
 use crate::cp::transfer::{self, Cause, Done, Failed};
 use crate::exitmap::Fault;
@@ -48,8 +50,9 @@ impl Far {
         log: &Log,
         progress: &mut Progress,
         meter: &Meter,
-        keep: Keep,
+        shape: Shape,
     ) -> Result<Done, Failed> {
+        let (keep, inplace) = (shape.keep, shape.inplace);
         let local = Path::new(source);
         let before = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
         if !before.is_file() {
@@ -63,12 +66,19 @@ impl Far {
             Some(target) => target.clone(),
             None => self.target(handle, dest, name, many).await?,
         };
+        // --inplace: into the destination itself, never through a link
+        // (T-147).
+        if inplace && (self.is_link(handle, &target).await? || self.kind(handle, &target).await? == Kind::Dir) {
+            let why = format!("{target}: a symbolic link or a directory; --inplace writes into a file");
+            return Err(failed(Fault::Usage, why));
+        }
         // What came before the break is what the far file holds once its
         // writer, which the break may have left running, stops adding to it.
         let mut kept = None;
         if let Some(temp) = progress.temp.clone() {
             match self.settled(handle, &temp).await? {
                 Some(size) if size <= before.len() => kept = Some((temp, size)),
+                _ if !resume::is_temp(&temp) => {}
                 _ => self.remove(handle, &temp).await,
             }
         }
@@ -80,17 +90,21 @@ impl Far {
             }
             None => {
                 let (dir, leaf) = transfer::split_remote(&target);
-                let temp = format!("{dir}{}", transfer::temp_name(leaf));
+                let temp = if inplace { target.clone() } else { format!("{dir}{}", transfer::temp_name(leaf)) };
                 progress.begin(&target, &temp);
                 log.verbose(&format!("{source}: writing {temp} by exec"));
                 (temp, 0)
             }
         };
-        let script = match (start, self.raw) {
-            (0, true) => "umask 077; set -C; exec cat > \"$1\"",
-            (0, false) => "umask 077; set -C; exec base64 -d > \"$1\"",
-            (_, true) => "exec cat >> \"$1\"",
-            (_, false) => "exec base64 -d >> \"$1\"",
+        // A new temporary file only (set -C); the destination itself is cut
+        // where it is, so that its inode stays (T-147).
+        let script = match (start, self.raw, inplace) {
+            (0, true, false) => "umask 077; set -C; exec cat > \"$1\"",
+            (0, false, false) => "umask 077; set -C; exec base64 -d > \"$1\"",
+            (0, true, true) => "umask 077; exec cat > \"$1\"",
+            (0, false, true) => "umask 077; exec base64 -d > \"$1\"",
+            (_, true, _) => "exec cat >> \"$1\"",
+            (_, false, _) => "exec base64 -d >> \"$1\"",
         };
         let cmd = command(script, &[&temp]).map_err(|why| failed(Fault::Usage, why))?;
         let copied = async {
@@ -160,6 +174,7 @@ impl Far {
             })
         }
         .await;
+        let copied = copied.map_err(|f| if inplace { in_place::damaged(f, &target) } else { f });
         match &copied {
             // Only what the far file held at the start is known to be there;
             // the next attempt counts it again.
@@ -168,7 +183,9 @@ impl Far {
                 progress.save();
             }
             Err(_) => {
-                self.remove(handle, &temp).await;
+                if temp != target {
+                    self.remove(handle, &temp).await;
+                }
                 progress.clear();
             }
             Ok(_) => progress.clear(),
@@ -188,8 +205,9 @@ impl Far {
         log: &Log,
         progress: &mut Progress,
         meter: &Meter,
-        keep: Keep,
+        shape: Shape,
     ) -> Result<Done, Failed> {
+        let (keep, inplace) = (shape.keep, shape.inplace);
         // What -p and --owner keep, read before anything reads the file and
         // so changes its access time: BusyBox's `wc -c` of `kind` reads it
         // (T-146).
@@ -215,7 +233,13 @@ impl Far {
             progress.offset = 0;
         }
         progress.begin_sequential();
-        let (temp, file, start) = resume::local_temp(&target, size, progress, false)?;
+        if inplace {
+            in_place::check_local(&target)?;
+        }
+        let (temp, file, start) = match inplace {
+            true => in_place::open_local(&target, progress)?,
+            false => resume::local_temp(&target, size, progress, false)?,
+        };
         let shown = temp.display().to_string();
         log.verbose(&match start {
             0 => format!("{source}: writing {shown} by exec"),
@@ -254,7 +278,9 @@ impl Far {
                 return Err(failed(Fault::SessionFault, format!("{source}: {came} bytes came, and wc -c gave {size}")));
             }
             if let Some(f) = out.take() {
-                f.sync_all().map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
+                // Into the destination itself: its old bytes past the end go.
+                let cut = if inplace { f.set_len(came) } else { Ok(()) };
+                cut.and_then(|()| f.sync_all()).map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
             }
             let sum: Sum = hasher.finalize().into();
             let on_disk = digest::of_file(&temp).map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
@@ -270,8 +296,10 @@ impl Far {
                 ),
                 None => {}
             }
-            std::fs::rename(&temp, &target)
-                .map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
+            if !inplace {
+                std::fs::rename(&temp, &target)
+                    .map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
+            }
             Ok(Done {
                 source: source.into(),
                 destination: target.display().to_string(),
@@ -284,10 +312,13 @@ impl Far {
         }
         .await;
         drop(out);
+        let copied = copied.map_err(|f| if inplace { in_place::damaged(f, &shown) } else { f });
         match &copied {
             Err(f) if matches!(f.cause, Cause::Broke | Cause::Spent) => progress.save(),
             Err(_) => {
-                let _ = std::fs::remove_file(&temp);
+                if temp != target {
+                    let _ = std::fs::remove_file(&temp);
+                }
                 progress.clear();
             }
             Ok(_) => progress.clear(),

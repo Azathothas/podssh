@@ -15,6 +15,7 @@ use sha2::{Digest, Sha256};
 use super::chunks;
 use super::delta;
 use super::digest::{self, Sum};
+use super::in_place;
 use super::link::Meter;
 use super::meta::{self, Keep, Stamp};
 use super::pipe::Shape;
@@ -71,18 +72,21 @@ pub async fn up(
         Some(target) => target.clone(),
         None => transfer::remote_target(sftp, dest, name, many).await?,
     };
+    if shape.inplace {
+        in_place::check_far(sftp, &target).await?;
+    }
     // Over an older version, only the blocks that changed (T-142); a copy
     // that broke goes on where it was instead.
     if shape.delta && progress.temp.is_none() {
-        let keep = shape.keep;
-        if let Some(done) = delta::up(sftp, handle, local, source, &target, &before, shape.pipe, keep, log).await? {
+        if let Some(done) = delta::up(sftp, handle, local, source, &target, &before, shape, log).await? {
             return Ok(done);
         }
     }
     let chunked = shape.tasks > 1 && before.len() > chunks::CHUNK;
     // Holes for the blocks of zeros of a sparse file, or of each file with
-    // --sparse; not with chunks, which may write a block again (T-146).
-    let holes = !chunked && (shape.keep.sparse || meta::is_sparse(&before));
+    // --sparse; not with chunks, which may write a block again (T-146), nor
+    // into the destination itself, whose old bytes would stay (T-147).
+    let holes = !chunked && !shape.inplace && (shape.keep.sparse || meta::is_sparse(&before));
     // Write on in the temporary file when it holds the bytes below the offset.
     let mut kept = None;
     if let Some(temp) = progress.temp.clone() {
@@ -94,7 +98,7 @@ pub async fn up(
         let cut = fits && (!holes || sftp.setstat(&temp, size).await.is_ok());
         if cut {
             kept = sftp.open_file(&temp, OpenFlags::WRITE, FileAttributes::default()).await.ok().map(|f| (temp, f));
-        } else {
+        } else if resume::is_temp(&temp) {
             let _ = sftp.remove(&temp).await;
         }
     }
@@ -102,6 +106,12 @@ pub async fn up(
         Some((temp, file)) => {
             log.verbose(&format!("{source}: continuing {temp} at byte {}", progress.offset));
             (temp, file)
+        }
+        None if shape.inplace => {
+            let file = in_place::open_far(sftp, &target).await?;
+            progress.begin(&target, &target);
+            log.verbose(&format!("{source}: writing into {target} itself"));
+            (target.clone(), file)
         }
         None => {
             let (dir, leaf) = transfer::split_remote(&target);
@@ -164,7 +174,7 @@ pub async fn up(
             }
             hasher.update(&buf[..n]);
             rate::take(carried as u64).await;
-            if let Err(e) = send_runs(&mut writes, &buf[..n], runs, block).await {
+            if let Err(e) = meta::send_runs(&mut writes, &buf[..n], runs, block).await {
                 break Err(transfer::from_sftp(e, Side::Destination));
             }
             offset += n as u64;
@@ -184,11 +194,12 @@ pub async fn up(
     .await;
     let copied = match copied {
         Ok((offset, sum)) => {
-            let ends = Ends { offset, sum, keep: shape.keep, holes };
+            let ends = Ends { offset, sum, keep: shape.keep, holes, inplace: shape.inplace };
             finish_up(sftp, handle, &file, local, source, &temp, &target, &before, ends, log).await
         }
         Err(failed) => Err(failed),
     };
+    let copied = copied.map_err(|f| if shape.inplace { in_place::damaged(f, &target) } else { f });
     match &copied {
         // The next connection writes on in it.
         Err(f) if f.cause == Cause::Broke => progress.save(),
@@ -198,7 +209,9 @@ pub async fn up(
         }
         Err(_) => {
             let _ = sftp.close(&file).await;
-            let _ = sftp.remove(&temp).await;
+            if temp != target {
+                let _ = sftp.remove(&temp).await;
+            }
             progress.clear();
         }
         Ok(_) => progress.clear(),
@@ -206,33 +219,14 @@ pub async fn up(
     copied
 }
 
-/// The runs of `data` to the server: each run of data in writes of `block`
-/// bytes at most, each hole skipped.
-async fn send_runs(
-    writes: &mut Writes<'_>,
-    data: &[u8],
-    runs: Vec<(bool, std::ops::Range<usize>)>,
-    block: usize,
-) -> Result<(), podssh_ssh::sftp::SftpError> {
-    for (hole, range) in runs {
-        if hole {
-            writes.skip(range.len() as u64);
-            continue;
-        }
-        for part in data[range].chunks(block) {
-            writes.send(part.to_vec()).await?;
-        }
-    }
-    Ok(())
-}
-
-/// How a copy up ended: its bytes, their digest, what it keeps, and whether
-/// it left holes.
+/// How a copy up ended: its bytes, their digest, what it keeps, whether it
+/// left holes, and whether it wrote into the destination itself.
 struct Ends {
     offset: u64,
     sum: Sum,
     keep: Keep,
     holes: bool,
+    inplace: bool,
 }
 
 /// The end of a copy up: the temporary file synced and closed, its size set
@@ -251,11 +245,13 @@ async fn finish_up(
     ends: Ends,
     log: &Log,
 ) -> Result<Done, Failed> {
-    let Ends { offset, sum, keep, holes } = ends;
+    let Ends { offset, sum, keep, holes, inplace } = ends;
     {
         sftp.fsync(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
         sftp.close(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
-        if holes {
+        // After holes, and into the destination itself, whose old bytes past
+        // the new end go (T-147).
+        if holes || inplace {
             let size = FileAttributes { size: Some(offset), ..FileAttributes::default() };
             sftp.setstat(temp, size).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
         }
@@ -267,8 +263,11 @@ async fn finish_up(
         transfer::compare(&sum, &far, &how, source)?;
         let stamp = Stamp::of_local(before);
         meta::set_far(sftp, temp, &stamp, keep, log).await?;
-        let not_atomic = transfer::rename_onto(sftp, temp, target, log).await?;
-        meta::times_after_rename(sftp, target, &stamp, keep).await;
+        let mut not_atomic = false;
+        if !inplace {
+            not_atomic = transfer::rename_onto(sftp, temp, target, log).await?;
+            meta::times_after_rename(sftp, target, &stamp, keep).await;
+        }
         Ok(Done {
             source: source.into(),
             destination: target.to_string(),
@@ -312,16 +311,21 @@ pub async fn down(
         None => transfer::local_target(dest, name, many)?,
     };
     let size = attrs.size.unwrap_or(0);
+    if shape.inplace {
+        in_place::check_local(&target)?;
+    }
     // Over an older version here, only the blocks that changed (T-142).
     let stamp = Stamp::of_far(&attrs, 0o777);
     if shape.delta && progress.temp.is_none() {
-        let keep = shape.keep;
-        if let Some(done) = delta::down(sftp, handle, source, &target, size, &stamp, pipe, keep, log).await? {
+        if let Some(done) = delta::down(sftp, handle, source, &target, size, &stamp, shape, log).await? {
             return Ok(done);
         }
     }
     let chunked = shape.tasks > 1 && size > chunks::CHUNK;
-    let (temp, file, start) = resume::local_temp(&target, size, progress, chunked)?;
+    let (temp, file, start) = match shape.inplace {
+        true => in_place::open_local(&target, progress)?,
+        false => resume::local_temp(&target, size, progress, chunked)?,
+    };
     let shown = temp.display().to_string();
     log.verbose(&match start {
         0 => format!("{source}: writing {shown}"),
@@ -341,6 +345,10 @@ pub async fn down(
             let each = chunks::share(pipe, tasks, meter.through_relay());
             log.verbose(&format!("{source}: chunks of {} bytes, {tasks} at once", chunks::CHUNK));
             chunks::down(handle, source, &temp, size, tasks, each, progress, meter).await?;
+            if shape.inplace {
+                let cut = std::fs::OpenOptions::new().write(true).open(&temp).and_then(|f| f.set_len(size));
+                cut.map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
+            }
             log.verbose(&rate(source, size, started.elapsed()));
             match sftp.stat(source).await {
                 Ok(now) if now.size == attrs.size => {}
@@ -351,8 +359,10 @@ pub async fn down(
             let (far, how) = transfer::far_digest(handle, sftp, source, size, Side::Source).await?;
             transfer::compare(&sum, &far, &how, source)?;
             meta::set_local(&temp, &stamp, shape.keep, log)?;
-            std::fs::rename(&temp, &target)
-                .map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
+            if !shape.inplace {
+                std::fs::rename(&temp, &target)
+                    .map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
+            }
             return Ok(Done {
                 source: source.into(),
                 destination: target.display().to_string(),
@@ -381,8 +391,9 @@ pub async fn down(
         let started = std::time::Instant::now();
         let mut reads = Reads::new(sftp, &file, start, rate::shaped(pipe, sftp.read_len()));
         let mut bar = gauge::Gauge::new(source, size, start);
-        // --sparse: the blocks of zeros are holes here (T-146).
-        let mut holes = shape.keep.sparse.then(|| meta::Holes::new(start));
+        // --sparse: the blocks of zeros are holes here (T-146); not in the
+        // destination itself, whose old bytes would stay.
+        let mut holes = (shape.keep.sparse && !shape.inplace).then(|| meta::Holes::new(start));
         log.verbose(&format!("{source}: reads of {} bytes, {} in flight", reads.block(), reads.depth()));
         // A read below the size of the start goes out only while the relay
         // session may carry it (T-137); the failure that stopped them.
@@ -439,7 +450,9 @@ pub async fn down(
         read?;
         log.verbose(&rate(source, offset - start, started.elapsed()));
         if let Some(f) = out.take() {
-            f.sync_all().map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
+            // Into the destination itself: its old bytes past the end go.
+            let cut = if shape.inplace { f.set_len(offset) } else { Ok(()) };
+            cut.and_then(|()| f.sync_all()).map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
         }
         let sum: Sum = hasher.finalize().into();
         let on_disk = digest::of_file(&temp).map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
@@ -447,7 +460,10 @@ pub async fn down(
         let (far, how) = transfer::far_digest(handle, sftp, source, offset, Side::Source).await?;
         transfer::compare(&sum, &far, &how, source)?;
         meta::set_local(&temp, &stamp, shape.keep, log)?;
-        std::fs::rename(&temp, &target).map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
+        if !shape.inplace {
+            let renamed = std::fs::rename(&temp, &target);
+            renamed.map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
+        }
         Ok(Done {
             source: source.into(),
             destination: target.display().to_string(),
@@ -460,10 +476,13 @@ pub async fn down(
     }
     .await;
     drop(out);
+    let copied = copied.map_err(|f| if shape.inplace { in_place::damaged(f, &shown) } else { f });
     match &copied {
         Err(f) if matches!(f.cause, Cause::Broke | Cause::Spent) => progress.save(),
         Err(_) => {
-            let _ = std::fs::remove_file(&temp);
+            if temp != target {
+                let _ = std::fs::remove_file(&temp);
+            }
             progress.clear();
         }
         Ok(_) => progress.clear(),

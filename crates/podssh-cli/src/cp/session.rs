@@ -242,6 +242,10 @@ async fn pause(source: &Operand, why: &str, tries: u32, log: &Log) {
 /// Remove a temporary file that a copy left and cannot continue: on the
 /// server for a copy up, here for a copy down.
 async fn drop_temp(link: &Link, source: &Operand, dest: &Operand, temp: &str) {
+    // An --inplace copy's record names the destination itself (T-147).
+    if !resume::is_temp(temp) {
+        return;
+    }
     match (source, dest) {
         (Operand::Local(_), _) => match &link.road {
             Road::Sftp(sftp) => {
@@ -279,13 +283,13 @@ async fn copy(
             bysftp::down(sftp, handle, &src.path, dest, many, log, progress, &link.meter, shape).await
         }
         (Road::Sftp(sftp), Operand::Remote(src), Operand::Remote(dest)) => {
-            transfer::within(sftp, handle, &src.path, &dest.path, shape.keep, log).await
+            transfer::within(sftp, handle, &src.path, &dest.path, shape, log).await
         }
         (Road::Exec(far), Operand::Local(path), Operand::Remote(dest)) => {
-            far.up(handle, path, &dest.path, many, log, progress, &link.meter, shape.keep).await
+            far.up(handle, path, &dest.path, many, log, progress, &link.meter, shape).await
         }
         (Road::Exec(far), Operand::Remote(src), Operand::Local(dest)) => {
-            far.down(handle, &src.path, dest, many, log, progress, &link.meter, shape.keep).await
+            far.down(handle, &src.path, dest, many, log, progress, &link.meter, shape).await
         }
         (Road::Exec(_), Operand::Remote(_), Operand::Remote(_)) => {
             unreachable!("a copy within one server by exec goes through this host")

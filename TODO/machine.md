@@ -48,14 +48,14 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
    keep the additions small, or split first.
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:131-156`).
-6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:181-201`) and
-   `docs/cli.md:657-675` in the same commit.
+6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:185-205`) and
+   `docs/cli.md:672-690` in the same commit.
 
 ## Decision
 
 Recommendation: `--json` writes one JSON document when a one-shot report is complete (`doctor`,
 `man`, `status`, `relay`, `ping`); `--jsonl` stays for the events of a long run (`chat`, `cp`,
-`ts`: `crates/podssh-cli/src/flags.rs`, lines 272-273 at `7aa955a`, `crates/podssh-cli/src/flags/copy.rs:43-44`,
+`ts`: `crates/podssh-cli/src/flags.rs`, lines 272-273 at `7aa955a`, `crates/podssh-cli/src/flags/copy.rs:45-46`,
 `crates/podssh-cli/src/flags.rs:319-320`). `--jsonl` also makes the run
 non-interactive and starts the `--timeout` rule
 (`crates/podssh-cli/src/non_interactive.rs:62-70`, 187-203), which a bounded report does not
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:86-118` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:45-58`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:181-201`) and `docs/cli.md:657-675` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:185-205`) and `docs/cli.md:672-690` in the same commit.
 
 ## Decision
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1352-1377`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1367-1392`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:349-362`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:116-126`), and stdio needs no listener.

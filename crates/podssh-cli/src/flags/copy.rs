@@ -18,6 +18,8 @@ pub const CP_FLAGS: &[FlagRow] = &[
         "keep the access and the modification times too (the mode is kept always), with -r each directory's", None),
     row(None, "owner", None, FlagKind::Supported,
         "keep the owner and the group, by number, where the side that writes may give a file away (root); else a note", None),
+    row(None, "inplace", None, FlagKind::Supported,
+        "write into the destination itself: its inode and hard links stay, and no second copy needs room; a failure leaves it damaged, which is said first; a link is refused", None),
     row(None, "sparse", None, FlagKind::Supported,
         "a hole for each block of 64 KiB of zeros, whatever the source; without it only a copy up of a sparse file makes holes", None),
     row(Some('i'), "identity-file", Some("FILE"), FlagKind::Supported,

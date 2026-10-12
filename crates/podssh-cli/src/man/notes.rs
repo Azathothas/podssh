@@ -66,6 +66,10 @@ const CP: &[&str] = &[
      one -r upload, two names of one file arrive as one file with two names (hardlink@openssh.com). \
      SFTP version 3 carries the times in whole seconds from 1970 to 2106, and no inode, extended \
      attribute or ACL: those, and a far source's hard links, are not kept.",
+    "--inplace writes into the destination itself, with no temporary name and no rename: it keeps its \
+     inode and hard links, and needs no room for a second copy. podssh says first that a copy that \
+     fails leaves its destination damaged, and a failure says so. A destination that is a link or a \
+     directory is refused (exit 64).",
     "A server with no SFTP subsystem gets a copy by exec, and podssh says so. Each step is one command \
      with no pty, sh -c 'SCRIPT' sh PATH..., so the login shell only starts sh, and each path is one \
      quoted word; a path with a newline or a NUL is refused. A probe finds the far tools: cat, wc, mv \
