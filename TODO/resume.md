@@ -1691,6 +1691,17 @@ screen model with the far end's. A planted replay from a random offset fails
 it, and so does a replay that leaves out the modes. The `grep` shows the
 recorded result.
 
+## Start condition
+
+T-159 is done: a far end keeps a shell, its ring and its pty after the
+client leaves. Each step measures what a client gets when it attaches to
+such a shell (the ring replayed from a boundary and a window change sent to
+the kept pty; the modes sent again; a snapshot kept by the far end), and no
+far end keeps a shell yet: T-159 waits for `podssh serve`, which the
+operator holds (Q32). T-158 made the client's side (`~d`, `--attach`,
+61796d8), against a stand-in far end that keeps a shell but no screen. The
+boundary of the replay is T-221's, which can be done before this entry.
+
 # T-221: Replayed output after dropped bytes starts at a boundary of the terminal grammar (GitHub #31)
 
 **Source:** GitHub #31 (2026-10-08: a rule for where a kept window may start),
