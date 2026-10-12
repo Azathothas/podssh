@@ -1503,6 +1503,19 @@ before the echo. With ECHO off at the far end, no typed letter shows before
 the server writes it. A planted predictor that ignores the ECHO flag fails
 the second check.
 
+## Start condition
+
+T-107 and T-110 are done: `podssh serve` exists and runs a shell on a real
+pty. The operator holds them (Q32, `docs/decisions.md`), so this entry waits
+as they wait, as T-159 does. Step 3 is the far end's: the offset of the input
+that reached the pty and its ECHO flag come from `podssh serve`, and the
+invariant of step 3 (no prediction while ECHO is off, so that a password never
+shows) cannot hold without them; step 5 turns prediction on only to a podssh
+far end. A model on the client alone would guess the ECHO flag, which the
+invariant forbids. Read at `d56d316` (2026-10-12): the verb table of
+`crates/podssh-cli/src/flags.rs` has no `serve`, and no source outside the
+tests uses `russh::server`.
+
 # T-161: Screen state and scrollback when a client attaches
 
 **Source:** GitHub #19 (Nemo-010, 2026-10-08: ssh-obi replays the byte stream
