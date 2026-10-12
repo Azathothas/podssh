@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 59 open, 0 partial, 25 blocked, 219 done.**
+**303 entries: 58 open, 0 partial, 25 blocked, 220 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 53 | 0 | 7 | 60 | 120 |
-| **All** | 59 | 0 | 25 | 219 | 303 |
+| P3 | 52 | 0 | 7 | 61 | 120 |
+| **All** | 58 | 0 | 25 | 220 | 303 |
 
 ## Entries
 
@@ -245,7 +245,7 @@ repository and CI).
 | [T-169](roads.md) | P3 | L | backlog | feature | blocked | A self-hosted relay that speaks the relay's contract |
 | [T-170](roads.md) | P3 | M | backlog | research | done | A Cloudflare quick tunnel made by podssh itself, with no `cloudflared`: the protocol and its ports |
 | [T-171](roads.md) | P3 | M | backlog | research | done | The functions of Mosh that M6 and T-160 do not give, made in podssh itself |
-| [T-172](roads.md) | P3 | S | backlog | research | open | Multipath TCP on the direct road |
+| [T-172](roads.md) | P3 | S | backlog | research | done | Multipath TCP on the direct road |
 | [T-173](roads.md) | P3 | L | M8 | feature | blocked | Resumption in the relay for a standard sshd |
 | [T-174](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe A B` with local addresses |
 | [T-175](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe` with remote addresses |

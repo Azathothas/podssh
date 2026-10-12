@@ -121,6 +121,21 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   up is at most 16 KiB, as the origin cuts a longer one; podssh sends no
   Ping, as the origin answers one outside the lock of its writes; and the
   end of the stream, with no Close, is the end of the session.
+- **`PODSSH_MPTCP=yes` asks for Multipath TCP on the direct road** (T-172),
+  on Linux, and only on request. With `--direct` and no proxy, each attempt
+  asks the kernel for a socket of `IPPROTO_MPTCP`: where the server speaks
+  MPTCP too, the connection can go on over another network of this host
+  when one goes, where the host's path manager has an endpoint on each.
+  Where `/proc/sys/net/mptcp/enabled` is not 1, where the kernel or a
+  sandbox refuses the socket, through a proxy (MPTCP would reach the proxy
+  only), and on another system, the connection is plain TCP, the same
+  stream; `-v` says which, and on Linux 5.16 and later whether the server
+  took MPTCP. The relay's road never asks for it. It is a variable, not a
+  flag or an `-o` keyword, so that each command that reaches its first hop
+  as `ssh --direct` does (`cp`, `mv`, `scp`, `sftp`, `edit`, `ping`, the
+  hops of `pipe ssh:`) reads it, and OpenSSH has no keyword for it. Another
+  value than yes or no is refused before the connection (78; 255 for
+  `ssh`).
 - **`--host-key-fingerprint SHA256:B64[,...]` accepts only the keys that it
   names** (T-031), for a script that got the server's fingerprint from its
   operator and has no `known_hosts`: under each `StrictHostKeyChecking`,

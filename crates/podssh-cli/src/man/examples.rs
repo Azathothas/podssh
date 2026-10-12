@@ -60,6 +60,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh ssh -- user@example.org uptime".into(),
         ),
         ("an IPv6 address with a port, with no relay", "podssh ssh --direct 'user@[2001:db8::1]:2222'".into()),
+        (
+            "with no relay, on Linux: Multipath TCP, and -v says whether the server took it",
+            "PODSSH_MPTCP=yes podssh ssh --direct -v user@example.org".into(),
+        ),
         ("send a file with no scp", "podssh ssh user@example.org 'cat > notes.txt' < notes.txt".into()),
         (
             "change a file of a host in an editor here; it goes back only if the host's file did not change",

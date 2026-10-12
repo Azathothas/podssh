@@ -8,6 +8,7 @@
 //! the proxy accepts `CONNECT name:443` and resolves the name itself. So the
 //! proxy path sends the relay's *name*, never an address, and needs no DNS.
 
+use std::net::SocketAddr;
 use std::time::Duration;
 
 use base64::Engine as _;
@@ -15,6 +16,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 
+pub use crate::mptcp::Multipath;
 pub use crate::proxy::{HttpProxy, Proxy, ProxyKind};
 
 /// The longest CONNECT response head podssh reads before giving up.
@@ -150,6 +152,29 @@ pub fn no_proxy_matches(list: &str, host: &str) -> bool {
 /// The whole operation (resolution, connect, and the CONNECT exchange) is
 /// bounded by `timeout`.
 pub async fn dial(host: &str, port: u16, proxy: &ProxyChoice, timeout: Duration) -> Result<TcpStream, DialError> {
+    dial_as(host, port, proxy, timeout, false).await.map(|(stream, _)| stream)
+}
+
+/// [`dial`], with Multipath TCP asked for (T-172, [`crate::mptcp`]): only a
+/// connection with no proxy can carry it, and only Linux makes it. Else, and
+/// where the kernel refuses it, the stream is plain TCP, as [`dial`] gives
+/// it; the second value says which, and why.
+pub async fn dial_multipath(
+    host: &str,
+    port: u16,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+) -> Result<(TcpStream, Multipath), DialError> {
+    dial_as(host, port, proxy, timeout, true).await
+}
+
+async fn dial_as(
+    host: &str,
+    port: u16,
+    proxy: &ProxyChoice,
+    timeout: Duration,
+    multipath: bool,
+) -> Result<(TcpStream, Multipath), DialError> {
     check_name(host)?;
     let proxy = match proxy {
         ProxyChoice::Direct => None,
@@ -157,14 +182,18 @@ pub async fn dial(host: &str, port: u16, proxy: &ProxyChoice, timeout: Duration)
         ProxyChoice::FromEnvironment => proxy_from_env(host).map_err(DialError::BadProxy)?,
     };
     let deadline = Instant::now() + timeout;
-    let stream = match proxy {
-        None => connect_direct(host, port, deadline, timeout).await?,
-        Some(p) if p.kind == ProxyKind::Socks5 => crate::socks5::connect(&p, host, port, deadline, timeout).await?,
-        Some(p) => connect_via(&p, host, port, deadline, timeout).await?,
+    // Through a proxy, MPTCP could reach the proxy only, never the target.
+    let proxied = || Multipath::Plain("a proxy carries the connection, and Multipath TCP would reach it only".into());
+    let (stream, how) = match proxy {
+        None => connect_race(host, port, deadline, timeout, multipath.then(crate::mptcp::probe)).await?,
+        Some(p) if p.kind == ProxyKind::Socks5 => {
+            (crate::socks5::connect(&p, host, port, deadline, timeout).await?, proxied())
+        }
+        Some(p) => (connect_via(&p, host, port, deadline, timeout).await?, proxied()),
     };
     // A keystroke and an echo must not wait for Nagle.
     let _ = stream.set_nodelay(true);
-    Ok(stream)
+    Ok((stream, how))
 }
 
 /// Resolve and connect: the addresses in the order of [`interleave`], each
@@ -176,6 +205,26 @@ pub(crate) async fn connect_direct(
     deadline: Instant,
     budget: Duration,
 ) -> Result<TcpStream, DialError> {
+    connect_race(host, port, deadline, budget, None).await.map(|(stream, _)| stream)
+}
+
+/// One attempt of the race: plain TCP, or with `ask`, the probe's answer,
+/// Multipath TCP where the host offers it.
+async fn attempt(addr: SocketAddr, ask: Option<Result<(), String>>) -> std::io::Result<(TcpStream, Multipath)> {
+    match ask {
+        Some(offer) => crate::mptcp::connect(addr, offer).await,
+        None => Ok((TcpStream::connect(addr).await?, Multipath::Plain("Multipath TCP was not asked for".into()))),
+    }
+}
+
+/// [`connect_direct`], each attempt as `ask` says.
+async fn connect_race(
+    host: &str,
+    port: u16,
+    deadline: Instant,
+    budget: Duration,
+    ask: Option<Result<(), String>>,
+) -> Result<(TcpStream, Multipath), DialError> {
     let target = authority(host, port);
     // Pinned addresses, the system resolver, then DNS over HTTPS: a host with
     // a broken resolver but working TCP egress still gets there.
@@ -193,7 +242,8 @@ pub(crate) async fn connect_direct(
     loop {
         if running.is_empty() || Instant::now() >= next_at {
             if let Some(addr) = waiting.next() {
-                running.spawn(async move { (addr, TcpStream::connect(addr).await) });
+                let ask = ask.clone();
+                running.spawn(async move { (addr, attempt(addr, ask).await) });
                 next_at = Instant::now() + ATTEMPT_DELAY;
                 continue;
             }

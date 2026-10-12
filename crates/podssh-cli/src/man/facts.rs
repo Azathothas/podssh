@@ -198,6 +198,14 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       Else they listen where the bind works.",
     ),
     (
+        &["PODSSH_MPTCP"],
+        "yes: with --direct and no proxy, ask Linux for Multipath TCP, which can carry a connection on \
+      after one of two networks of this host goes, where the server speaks it too. Where the kernel \
+      offers none, a proxy carries the connection or the server does not speak it, the connection is \
+      plain TCP; -v says which. no, or unset, asks for nothing; another value is refused before the \
+      connection, as a configuration error (78; podssh ssh exits 255).",
+    ),
+    (
         &["PODSSH_OFFLINE"],
         "Forbid each network connection. Test suites set it. podssh doctor then shows the network \
       checks as one ???? line.",

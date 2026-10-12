@@ -105,6 +105,8 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     code: sysexits::EX_UNAVAILABLE,
                 });
             }
+            let multipath = multipath_asked(std::env::var(MPTCP_ENV).ok().as_deref())
+                .map_err(|why| NotReached { lines: vec![why], code: sysexits::EX_CONFIG })?;
             let rounds = resolved.connection_attempts.max(1);
             for round in 1..=rounds {
                 if round > 1 {
@@ -113,13 +115,7 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
                     tokio::time::sleep(wait).await;
                 }
                 log.verbose(&format!("connecting to {target} directly"));
-                let dialled = podssh_ws::dial::dial(
-                    &first.host,
-                    first.port,
-                    &ProxyChoice::FromEnvironment,
-                    podssh_relay::open::CONNECT_TIMEOUT,
-                )
-                .await;
+                let dialled = direct(&first.host, first.port, multipath, &target, log).await;
                 match dialled {
                     Ok(tcp) => {
                         let _ = tcp.set_nodelay(true);
@@ -133,5 +129,55 @@ pub async fn reach_skipping(resolved: &Resolved, skip: usize, log: &Arc<Log>) ->
             }
             Err(NotReached { lines: Vec::new(), code: sysexits::EX_UNAVAILABLE })
         }
+    }
+}
+
+/// The variable that asks for Multipath TCP on the direct road (T-172).
+pub const MPTCP_ENV: &str = "PODSSH_MPTCP";
+
+/// `PODSSH_MPTCP`: yes asks for Multipath TCP; no, empty or unset asks for
+/// nothing; another value is a setting that cannot be used.
+fn multipath_asked(value: Option<&str>) -> Result<bool, String> {
+    let Some(value) = value else { return Ok(false) };
+    match value.trim().to_ascii_lowercase().as_str() {
+        "" | "no" | "off" | "false" | "0" => Ok(false),
+        "yes" | "on" | "true" | "1" => Ok(true),
+        _ => Err(format!("{MPTCP_ENV}={value}: yes or no")),
+    }
+}
+
+/// One dial of `--direct`, through `HTTPS_PROXY` when it is set; with
+/// `multipath`, Multipath TCP where the road and the host allow it, and `-v`
+/// says which the connection got.
+async fn direct(
+    host: &str,
+    port: u16,
+    multipath: bool,
+    target: &str,
+    log: &Log,
+) -> Result<tokio::net::TcpStream, podssh_ws::DialError> {
+    let (proxy, limit) = (ProxyChoice::FromEnvironment, podssh_relay::open::CONNECT_TIMEOUT);
+    if !multipath {
+        return podssh_ws::dial::dial(host, port, &proxy, limit).await;
+    }
+    let (tcp, how) = podssh_ws::dial::dial_multipath(host, port, &proxy, limit).await?;
+    log.verbose(&format!("{target}: {how}"));
+    Ok(tcp)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::multipath_asked;
+
+    #[test]
+    fn podssh_mptcp_asks_with_yes_and_refuses_another_word() {
+        assert_eq!(multipath_asked(None), Ok(false));
+        for no in ["", "no", "OFF", "0", "false"] {
+            assert_eq!(multipath_asked(Some(no)), Ok(false), "{no}");
+        }
+        for yes in ["yes", "On", "1", "true"] {
+            assert_eq!(multipath_asked(Some(yes)), Ok(true), "{yes}");
+        }
+        assert!(multipath_asked(Some("maybe")).unwrap_err().contains("PODSSH_MPTCP=maybe"));
     }
 }

@@ -1,5 +1,6 @@
 //! podssh-ws — reaching the relay: TCP (directly or through an HTTP CONNECT
 //! proxy), TLS with podssh's own pure-Rust crypto provider, and RFC 6455.
+//! With `--direct` on Linux, TCP can be Multipath TCP on request (`mptcp`).
 //!
 //! Why a crypto provider of its own: rustls 0.23 ships none in pure Rust, and
 //! `ring` and `aws-lc-sys` both need a C compiler, which podssh's default build
@@ -19,6 +20,7 @@ pub mod error;
 pub mod frame;
 pub mod handshake;
 pub mod http;
+pub mod mptcp;
 pub mod names;
 #[cfg(feature = "plain-ws")]
 pub mod plain;

@@ -43,7 +43,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    for `ts`. The default build and the releases stay without the feature.
 2. The endpoint: the `Minimal` preset, no pkarr or DNS discovery, and the
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
-   (`crates/podssh-ws/src/dial.rs:94-118`), so `ALL_PROXY` and `NO_PROXY` act
+   (`crates/podssh-ws/src/dial.rs:96-120`), so `ALL_PROXY` and `NO_PROXY` act
    as on the other roads; iroh's own selection ignores both
    (`docs/design.md:742`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:316-317`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:678`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:125-251`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-205`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-213`).
 
 ## Decision
 
@@ -510,9 +510,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-205`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-213`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:242-404`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:250-412`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -1747,7 +1747,7 @@ MPTCP).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1758,8 +1758,8 @@ whether MPTCP helps podssh on any road.
 ## Premise
 
 Read: `--direct` connects with a plain `TcpStream::connect`
-(`crates/podssh-ws/src/dial.rs:173-223`, the call at
-`crates/podssh-ws/src/dial.rs:196`). Through a proxy, MPTCP can reach only the
+(`crates/podssh-ws/src/dial.rs:202-273`, the call at
+`crates/podssh-ws/src/dial.rs:246`). Through a proxy, MPTCP can reach only the
 proxy. `podssh-ws` has no `libc` dependency (`crates/podssh-ws/Cargo.toml`).
 Read in the report, not verified here: RustConn uses MPTCP. Not known:
 whether the relay's edge or a target server accepts MPTCP. Linux offers it
@@ -1780,6 +1780,33 @@ from version 5.6, when `/proc/sys/net/mptcp/enabled` is 1.
 5. Write the results and a recommendation in `docs/design.md` section 5 (the
    table of failures).
 
+## Decision
+
+2026-10-12: the request is the variable `PODSSH_MPTCP` (yes or no), read
+where the first hop is reached with `--direct`
+(`crates/podssh-cli/src/ssh/transport.rs`), so `ssh`, `cp`, `mv`, `scp`,
+`sftp`, `edit`, `ping` and the hops of `pipe ssh:` take it; another value
+is refused before the connection (78, and 255 for `ssh`). A flag lost: it
+would be a row in each of eight flag tables, with their parity tests, for a
+switch that is on request only until it is measured. An `-o` keyword lost:
+OpenSSH has none, and a file that OpenSSH also reads would break. The
+address `tcp:` of `pipe` and `chat --direct` dial by themselves and do not
+ask yet: step 2 names `--direct`.
+
+2026-10-12: each error of the socket call gives plain TCP, not only the
+four of step 1: a plain socket gives the error again when its cause is not
+MPTCP (no descriptor left). An error for the others lost: it would fail a
+dial that plain TCP can make. A connect that fails on a socket of MPTCP is
+the attempt's failure, as on plain TCP, with no second try. Through a
+proxy, the connection is plain TCP and says so: MPTCP could reach the proxy
+only.
+
+2026-10-12: whether the server took MPTCP is the option `TCP_IS_MPTCP`
+(Linux 5.16 and later), which is 0 on a connection that fell back: `-v`
+says it, and step 4 needs no capture of the SYN-ACK, as the kernel reads
+its MP_CAPABLE. A capture lost: it needs a privilege that podssh never
+assumes. An older kernel does not say, and `-v` says that.
+
 ## Prove
 
 ```sh
@@ -1791,6 +1818,41 @@ grep -n 'Multipath TCP' docs/design.md
 The test asks for an MPTCP socket where the kernel refuses it, and gets plain
 TCP with the same result; a planted dial that fails instead fails the test.
 The `grep` shows the recorded result.
+
+## Done
+
+2026-10-12 (a draft; the main session builds and runs it). With
+`PODSSH_MPTCP=yes`, `--direct` with no proxy asks Linux for Multipath TCP.
+- `crates/podssh-ws/src/mptcp.rs`: the probe (the switch of
+  `/proc/sys/net/mptcp/enabled` at 1, on Linux only), the socket of
+  `IPPROTO_MPTCP` through `libc` (now a dependency of podssh-ws on Linux
+  alone, which compiles no C), the fallback to plain TCP with its reason,
+  and the answer of `TCP_IS_MPTCP`. `crates/podssh-ws/src/dial.rs`:
+  `dial_multipath`, and each attempt of the race of RFC 8305 asks for MPTCP
+  when the dial does; `dial` is unchanged for its callers.
+  `crates/podssh-cli/src/ssh/transport.rs`: `PODSSH_MPTCP`, and a line of
+  `-v` that names the kind of connection.
+- The manual: `PODSSH_MPTCP` in ENVIRONMENT and an example; `docs/cli.md`
+  (Options of `podssh ssh`); `docs/design.md` section 5, the row of a
+  changed client address, with the recommendation: on request and on
+  `--direct` only, until it is measured; `docs/STATUS.md`.
+- Tests: `cargo test -p podssh-ws --test mptcp` (a refused socket of MPTCP,
+  planted, gives plain TCP with the same bytes; a host whose switch is off
+  gives plain TCP and the probe's reason; the direct dial that asks for
+  MPTCP carries the same bytes on each host; where the host offers MPTCP,
+  both ends of MPTCP on the loopback carry them, and the server took it,
+  else the test says that it did not run); the unit tests of
+  `podssh_ws::mptcp` (the switch, the words of `-v`) and of the variable
+  (`cargo test -p podssh-cli --lib -- transport`). Results on Windows 11:
+  `mptcp` 4 passed and the live test ignored, the unit tests 3 and 1; in
+  the build image: 4 passed, on a kernel with no Multipath TCP (the test of both ends said so), and the unit tests 2. The plant of the Prove, a fallback that
+  returns the error instead, which must fail the first test, waits for
+  T-251.
+- Waiting for T-251 and the operator's hosts: step 3, a session to a server
+  that speaks MPTCP with one of two networks taken down; step 4, whether
+  Cloudflare's edge takes MPTCP, by the ignored live test
+  `live_the_relay_s_edge_answers_a_socket_of_mptcp` from a Linux host that
+  offers it. `docs/design.md` gets both results then.
 
 # T-173: Resumption in the relay for a standard sshd
 

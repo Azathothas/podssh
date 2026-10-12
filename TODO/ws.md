@@ -430,7 +430,7 @@ requires TLS 1.3 (`scripts/fake-relay.py`, lines 426-427 at `0d3d13a`).
    (`crates/podssh-relay/src/health.rs:98-101`, which `doctor` and `relay status` share); the live relay must still give TLS
    1.3.
 6. Change the comment of `suites.rs`, `docs/architecture.md` (line 46 at `0d3d13a`), the Trust item of the manual
-   (`crates/podssh-cli/src/man/facts.rs:353-369`) and `docs/STATUS.md` in the same commit.
+   (`crates/podssh-cli/src/man/facts.rs:361-377`) and `docs/STATUS.md` in the same commit.
 
 ## Decision
 
@@ -513,7 +513,7 @@ is possible. `podssh-relay` gives the TLS type back (`Opened`,
 `crates/podssh-relay/src/open.rs:149-154`). The tests use in-memory streams
 (`crates/podssh-ws/tests/session.rs:34-36`) or local TLS servers
 (`crates/podssh-ws/tests/hostname_verification.rs:55`). `dial::is_loopback` exists
-(`crates/podssh-ws/src/dial.rs:120-128`).
+(`crates/podssh-ws/src/dial.rs:122-130`).
 
 ## Approach
 
@@ -706,13 +706,13 @@ once (`crates/podssh-relay/src/open.rs:70`) and gives exit 78 in `podssh proxy`
 ## Approach
 
 1. A proxy type with two forms, HTTP and SOCKS5, in `dial.rs`; `ProxyChoice::Via` takes it
-   (`crates/podssh-ws/src/dial.rs:27-36`). Parse `socks5://` and `socks5h://` with an optional
+   (`crates/podssh-ws/src/dial.rs:29-38`). Parse `socks5://` and `socks5h://` with an optional
    `user:password@`, decoded as for HTTP (now `crates/podssh-ws/src/proxy.rs:177-195`).
 2. The SOCKS5 exchange (RFC 1928): offer the method 0x00, and 0x02 only with credentials; the
    user and password of RFC 1929, each of 1 to 255 bytes; CONNECT with the address type 3, the
    host name, so the client needs no DNS (`crates/podssh-ws/src/dial.rs:6-9`). Read exactly the
    length of the reply: the bytes after it belong to TLS, as `read_head_exact` keeps them
-   (`:287-310`). Bound each step.
+   (`:337-360`). Bound each step.
 3. When the proxy answers 0x08 (address type not supported), resolve the name in podssh's own
    order (pinned, system, DNS over HTTPS), and try once with the address.
 4. Map each answer to the HTTP case that `another_host_may_help`

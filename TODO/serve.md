@@ -188,9 +188,9 @@ tells the user nothing.
   handle sends `AdministrativelyProhibited`
   (`Eugeny/russh:russh/src/lib_inner.rs`, lines 570-620). A refusal can carry
   a reason with `ChannelOpenFailure::Other`.
-- Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs:149-168` (a time
+- Read: the dialer to reuse: `crates/podssh-ws/src/dial.rs:151-197` (a time
   limit; `HTTPS_PROXY` when it is set) and
-  `crates/podssh-ws/src/dial.rs:101-107` (loopback never through a proxy).
+  `crates/podssh-ws/src/dial.rs:103-109` (loopback never through a proxy).
   The client copies a forward with half-close in
   `crates/podssh-ssh/src/forward.rs:39-110`.
 - Read: in the measured sandbox, `connect()` to loopback failed with `EACCES`
@@ -214,7 +214,7 @@ tells the user nothing.
 
 Pitfalls: `direct-streamlocal@openssh.com` (AF_UNIX) stays refused here; T-040
 is the client side. A host name that `check_name` refuses
-(`crates/podssh-ws/src/dial.rs:335-344`) gets that reason, not a generic one.
+(`crates/podssh-ws/src/dial.rs:385-394`) gets that reason, not a generic one.
 
 ## Prove
 
@@ -490,10 +490,10 @@ out with matching digests.
   T-079), and the operator connects through the relay (T-084).
 - Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:233-237`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
-  `docs/STATUS.md:229`). With no pty device, no podssh code can give the child
+  `docs/STATUS.md:230`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:45`).
 - Read: one relay session carries 64 MiB, both directions together
-  (`docs/relay.md:223`; measured: `docs/STATUS.md:237`). 200 MiB each way
+  (`docs/relay.md:223`; measured: `docs/STATUS.md:238`). 200 MiB each way
   needs the new sessions of T-137.
 - Read: the box matches the sandbox, except the `EACCES` on loopback
   `connect()` (`scripts/test_in_box.sh:19-26`).
@@ -1269,7 +1269,7 @@ no reason (`docs/target-environment.md:63-64`).
   the report are older; the content is at the lines given here.
 - Read: the report says that `docs/cli.md` records why podssh does not call
   `getpwuid`. It does not; that record is `docs/target-environment.md:37-44`.
-- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:229`):
+- Read: a sandbox mounts `/tmp` and `$HOME` noexec (`docs/STATUS.md:230`):
   the mode bits pass there, the exec fails, and `access(X_OK)` fails. doctor
   runs a real copy, as "only a real attempt tells them apart"
   (`crates/podssh-cli/src/doctor/host.rs:174-176`).
@@ -1295,7 +1295,7 @@ no reason (`docs/target-environment.md:63-64`).
    (`crates/podssh-cli/src/doctor/host.rs:10-25`) from the same function.
 6. T-108 runs the result. Never call `getpwuid`. Same commit: `--shell` in
    `crates/podssh-cli/src/flags.rs`, `SHELL` in
-   `crates/podssh-cli/src/man/facts.rs:45-205`, `docs/cli.md`.
+   `crates/podssh-cli/src/man/facts.rs:45-213`, `docs/cli.md`.
 
 ## Decision
 
@@ -1320,7 +1320,7 @@ crates/podssh-ssh/tests/serve_shell.rs gives the function a directory `sh`,
 a data file `dash` (mode 0644), a data file with mode 0755 (the spawn fails),
 a link to a missing file and a good shell: each failure is named, and the
 good shell wins. A planted `exists()` test fails the directory case. In the
-gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:196`) is
+gate, a copy of `/bin/sh` in `/dev/shm` (noexec: `docs/STATUS.md:197`) is
 refused as `--shell`. The static binary (`$BIN`) refuses a missing named shell.
 
 ## Blocker
@@ -1352,10 +1352,10 @@ criterion of M5 (T-113) needs them.
 
 - Read: `podssh doctor` asks for a pty with `posix_openpt`
   (`crates/podssh-cli/src/doctor/unix.rs:78-93`). Both real sandboxes have no
-  `/dev/ptmx` (`docs/STATUS.md:229`), and the target has no `/dev/pts`
+  `/dev/ptmx` (`docs/STATUS.md:230`), and the target has no `/dev/pts`
   (`docs/target-environment.md:26`).
 - Read: the box and the sandboxes run with `NoNewPrivs=1` and a seccomp
-  filter (`docs/STATUS.md:208`). With `NoNewPrivs=1`, a process can add a
+  filter (`docs/STATUS.md:209`). With `NoNewPrivs=1`, a process can add a
   filter of its own; a filter is inherited by each child.
 - Read, not measured here: for a program, a tty is the success of the tty
   `ioctl` calls on its descriptors. musl's `isatty` calls `TIOCGWINSZ`;

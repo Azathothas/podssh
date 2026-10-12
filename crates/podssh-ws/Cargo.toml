@@ -29,6 +29,11 @@ zeroize = { workspace = true }
 # DNS-over-HTTPS answers are JSON (resolve.rs).
 serde_json = { workspace = true }
 
+# The socket of Multipath TCP (T-172), which Linux alone makes: the socket
+# call with IPPROTO_MPTCP, and getsockopt. libc compiles no C.
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }
+
 [features]
 # A plain WebSocket over TCP to the loopback, for the tests of an embedder
 # (podbox) and a stand-in relay (T-068). Off by default; the binary never
