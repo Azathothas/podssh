@@ -9,7 +9,9 @@
 //! (T-164). Each session runs the resumable layer, and reaches TARGET only
 //! after its handshake. stdout stays empty: the lines are on stderr. The
 //! roads serve any target: `podssh chat --listen NAME --iroh` serves its
-//! conversations on both (T-099).
+//! conversations on both (T-099). With `--sshd`, the node is a roost: its
+//! sshd's version line is checked at the start and on each road's sessions
+//! (T-166).
 
 use std::future::Future;
 use std::io::Write;
@@ -57,7 +59,7 @@ pub fn run(args: &NodeArgs, err: &mut dyn Write) -> i32 {
     };
     // On the heap, as each large future here: Windows gives the main
     // thread 1 MiB of stack.
-    let code = runtime.block_on(Box::pin(serve_tcp(ready, targets, err)));
+    let code = runtime.block_on(Box::pin(serve_tcp(ready, targets, args.sshd, err)));
     // A session may still be closing; the node has ended, so none is waited for.
     runtime.shutdown_background();
     code
@@ -92,7 +94,7 @@ pub(crate) struct Flags<'a> {
 fn prepare(args: &NodeArgs) -> Result<(Ready, Vec<Route>), Refusal> {
     let label = args.name.clone().ok_or("missing NAME: the node's name, which labels its key")?;
     crate::pairs::check_label(&label)?;
-    let targets = crate::node::targets_of(&args.targets, args.no_e2e)?;
+    let targets = crate::node::targets_of(&crate::node::words_of(args), args.no_e2e)?;
     // One key for both roads (T-087), by the flags' names of T-087 or T-163.
     let flags = crate::node::key_flags(args)?;
     let place: Place = crate::channel::node_place(&label, flags.key.as_deref(), flags.ephemeral)?;
@@ -138,23 +140,21 @@ pub(crate) fn ready(flags: Flags<'_>) -> Result<Ready, Refusal> {
 }
 
 /// The node in front of its targets: each dialled once first, then each
-/// session's, by its route (T-089).
-async fn serve_tcp(ready: Ready, targets: Vec<Route>, err: &mut dyn Write) -> i32 {
-    let target = crate::node::shown(&targets);
-    // TARGET first: a node that cannot reach it would serve no session.
-    if let Err(refusal) = crate::node::probe(&targets).await {
-        return refusal.report("node", err);
-    }
-    let routes = crate::node::routes_of(&targets, ready.allow.clone());
+/// session's, by its route (T-089); a roost's checked as an sshd each time
+/// (T-166).
+async fn serve_tcp(ready: Ready, targets: Vec<Route>, roost: bool, err: &mut dyn Write) -> i32 {
+    // TARGET first: a node that cannot reach it would serve no session, and
+    // a roost whose sshd does not answer as one would refuse each.
+    let target = match crate::node::probe(&targets, roost).await {
+        Ok(versions) => crate::node::serving(&targets, &versions),
+        Err(refusal) => return refusal.report("node", err),
+    };
+    let routes = crate::node::routes_of(&targets, ready.allow.clone(), roost);
     let (host, port) = (targets[0].host.clone(), targets[0].port);
-    let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT };
+    let handler = TcpHandler { host: host.clone(), port, timeout: DIAL_LIMIT, sshd: roost };
     let open = move || {
         let host = host.clone();
-        async move {
-            podssh_ws::dial::dial(&host, port, &ProxyChoice::FromEnvironment, DIAL_LIMIT)
-                .await
-                .map_err(|e| e.to_string())
-        }
+        async move { reverse::tcp::dial_target(&host, port, DIAL_LIMIT, roost).await }
     };
     let serving = format!("serving {target}");
     let roads = Roads { verb: "node", serving, after: " until Ctrl-C", handler, open, routes };

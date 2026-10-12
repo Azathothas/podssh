@@ -2,17 +2,18 @@
 //! Each session runs the end-to-end channel, whose operator names a route
 //! in its encrypted proof; once its key is let in, the node checks that the
 //! key may use that route, and only then dials the route's target. A target
-//! with no route is the one that an operator who names none reaches.
+//! with no route is the one that an operator who names none reaches. A
+//! roost's targets are each a standard sshd, checked at each dial (T-166).
 
 use std::sync::Arc;
 use std::time::Duration;
 
-use podssh_ws::ProxyChoice;
 use tokio::io::DuplexStream;
 use tokio::net::TcpStream;
 
 use super::framing::SessionId;
 use super::node::{Handler, Opening};
+use super::tcp::dial_target;
 use crate::e2e::ends::{serve_routed, Node};
 use crate::e2e::Refusal;
 use crate::identity::PublicKey;
@@ -38,6 +39,8 @@ pub struct Routes {
     pub routes: Arc<Vec<Route>>,
     pub grant: Arc<Grant>,
     pub timeout: Duration,
+    /// Each target is a standard sshd, whose version line comes first.
+    pub sshd: bool,
 }
 
 impl Routes {
@@ -53,9 +56,7 @@ impl Routes {
         if let Some(name) = route {
             (self.grant)(key, name).map_err(|_| refused())?;
         }
-        podssh_ws::dial::dial(&target.host, target.port, &ProxyChoice::FromEnvironment, self.timeout)
-            .await
-            .map_err(|e| Refusal::NoTarget(e.to_string()))
+        dial_target(&target.host, target.port, self.timeout, self.sshd).await.map_err(Refusal::NoTarget)
     }
 }
 

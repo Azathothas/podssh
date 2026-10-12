@@ -1,6 +1,7 @@
 //! The notes of the two ends of the reverse road, `node` and `operator`,
-//! apart from the others for the length of the file: the pair, the layer,
-//! the end-to-end channel and its keys (T-087, T-088), and the iroh road.
+//! apart from the others for the length of the file: the pair, the layer, a
+//! roost (T-166), the end-to-end channel and its keys (T-087, T-088), and
+//! the iroh road.
 
 pub(super) const NODE: &[&str] = &[
     "podssh node serves TARGET, a TCP service, to the operators of the pair stored under NAME (see \
@@ -15,6 +16,16 @@ pub(super) const NODE: &[&str] = &[
      that ends at once with the reason. podssh ssh node:// and podssh operator speak the layer. For an \
      operator that does not, --plain carries each session's bytes as they are, TARGET dialled at the \
      start of the session: a lost link then ends the session. The node's first line names its mode.",
+    "A roost: with --sshd, the node serves a standard sshd, TARGET, or 127.0.0.1:22 when no TARGET is \
+     given. A normal server gets the resumable layer, and with --iroh the iroh road, this way: the roost \
+     owns the TCP connection to sshd. Before the node goes online, it dials each TARGET and reads its \
+     first line, which must be SSH's version line (SSH-2.0-...) within 10 s; else it exits, and names \
+     TARGET and what came back: 78 for another service, 69 for no line or a close. The node's first \
+     line gives the version line. Each session's connection to sshd, made after the layer's handshake, \
+     is checked the same way, and a session whose TARGET does not answer as sshd ends at once with the \
+     reason. The check takes no byte of the session: the client still reads sshd's line. podssh ssh \
+     node://NAME keeps sshd's host key under node://NAME, the name that the user gives, as OpenSSH does \
+     for a host behind a ProxyCommand.",
     "Each session runs the end-to-end channel above the layer (Noise XX): the relay sees ciphertext \
      only, and the operator's key and the node's prove themselves in it. The node's key is a private \
      file in the cache (node-NAME.key, or iroh-node-NAME.key of an earlier podssh), or the file of \

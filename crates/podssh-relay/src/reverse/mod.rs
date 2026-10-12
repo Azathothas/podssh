@@ -1,7 +1,7 @@
 //! The reverse road (feature `pair`): its codecs (the framing of each leg,
 //! the control messages, the close table, the state of each session) and its
-//! runners, the node (T-079) and the operator (T-080); and the node's far end
-//! of the resumable layer (T-153).
+//! runners, the node (T-079) and the operator (T-080); the node's far end of
+//! the resumable layer (T-153); and the check of a roost's sshd (T-166).
 
 pub mod closes;
 pub mod control;
@@ -13,6 +13,7 @@ pub mod operator;
 pub mod routes;
 pub mod serve;
 pub mod sessions;
+pub mod sshd;
 pub mod tcp;
 pub mod wire;
 

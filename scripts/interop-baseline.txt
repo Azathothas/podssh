@@ -29,6 +29,7 @@ harness faults interop 35 scripts/interop-faults.sh
 harness ping interop 3 scripts/interop-ping.sh
 harness relay interop 4 scripts/interop-relay.sh
 harness socks interop 4 scripts/interop-socks.sh
+harness roost interop 6 scripts/interop-roost.sh
 harness cp interop 80 scripts/interop-cp.sh
 harness keep interop 11 scripts/interop-keep.sh
 harness inplace interop 6 scripts/interop-inplace.sh
@@ -309,6 +310,14 @@ socks.hosts pass
 socks.listen pass
 socks.session pass
 socks.relay_status pass
+
+# scripts/interop-roost.sh
+roost.version.openssh pass
+roost.version.dropbear pass
+roost.cut.openssh pass
+roost.cut.dropbear pass
+roost.preflight.closed pass
+roost.preflight.other pass
 
 # scripts/interop-cp.sh
 cp.sftp.up.0 pass

@@ -124,6 +124,14 @@ node_live -- --ignored`), and `podssh ssh node://` logged in to
 railway.new through the layer, which then limited the anonymous visitor
 (its exit 13) in place of running `exit 3`.
 
+`podssh node NAME [TARGET] --sshd` (T-166) is a roost: a node in front of
+a standard sshd, `127.0.0.1:22` by default, so that a normal server gets
+the layer. Before it registers, it reads each TARGET's first line, and
+requires SSH's version line within 10 s; each session's own connection to
+sshd, made after the layer's handshake, is checked again, and a session
+whose TARGET does not answer as sshd ends with the reason. The check peeks,
+so the line still reaches the client ([cli.md](cli.md)).
+
 Synchronous code (podbox) runs the node and the operator through
 `podssh_relay::blocking` (feature `blocking`, T-081): a handler opens each
 session of the node as a reader and a writer, and an operator session runs

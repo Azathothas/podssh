@@ -48,7 +48,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             sysexits::EX_UNAVAILABLE,
             "podssh proxy: no relay host could be reached, or the relay ended the session abnormally. \
              podssh node, operator and relay: the relay or TARGET could not be reached, the node did not take \
-             the session, the pair was stopped, or another node serves it. podssh cp and mv: no connection to \
+             the session, the pair was stopped, or another node serves it; with --sshd, a TARGET that sent \
+             no line within 10 s, or closed first. podssh cp and mv: no connection to \
              the server, or it has neither SFTP nor the sh and the tools of a copy by exec. podssh chat: \
              the same of the relay and the pair, or a message went with no acknowledgement; each is said. \
              podssh ping: no relay host answered, or PODSSH_OFFLINE is set. podssh relay status: no relay \
@@ -92,7 +93,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              PODSSH_RELAY_TOKEN that is not a token. The same value as a flag is a usage error (64). \
              podssh node, operator, relay and chat: no pair is stored under the label, the pair cannot be \
              read or stored, or a node cannot connect as it is set up. podssh edit: VISUAL, EDITOR and PATH \
-             give no editor, the editor does not start, or PODSSH_CACHE_DIR is none.",
+             give no editor, the editor does not start, or PODSSH_CACHE_DIR is none. podssh node --sshd: a \
+             TARGET whose first line is not an SSH version line, which is another service.",
         ),
         row(
             podssh_ssh::EXIT_FAILURE,

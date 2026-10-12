@@ -104,8 +104,8 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh relay pair lab --operator-file lab-operator.json".into(),
         ),
         (
-            "then the node: each operator's session reaches this host's SSH server",
-            "podssh node lab 127.0.0.1:22".into(),
+            "then the node, a roost in front of this host's sshd at 127.0.0.1:22: each operator's session reaches it",
+            "podssh node lab --sshd".into(),
         ),
         (
             "from outside, log in to the node's SSH server with the operator's file",

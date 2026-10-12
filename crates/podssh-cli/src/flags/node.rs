@@ -1,9 +1,9 @@
 //! The flag rows of `node`: those of a pair, as `operator` has them, the
-//! plain mode (T-263), the node's key and allowlist on each road and the
-//! end-to-end channel (T-087, T-088), and those of the iroh road (T-163),
-//! which a build has with the feature `iroh` only; in another build,
-//! `--iroh` is refused with exit 70. The key's flags of T-163 keep their
-//! names beside the new ones.
+//! plain mode (T-263), a roost in front of a standard sshd (T-166), the
+//! node's key and allowlist on each road and the end-to-end channel (T-087,
+//! T-088), and those of the iroh road (T-163), which a build has with the
+//! feature `iroh` only; in another build, `--iroh` is refused with exit 70.
+//! The key's flags of T-163 keep their names beside the new ones.
 
 use super::{row, FlagKind, FlagRow};
 
@@ -18,6 +18,8 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "use the pair in FILE, a private file, not the one stored under NAME (operator: its operator's part will do)", None),
     row(None, "plain", None, FlagKind::Supported,
         "carry each session's bytes as they are, with no resumable layer, for an operator that does not speak it; a lost link ends the session", None),
+    row(None, "sshd", None, FlagKind::Supported,
+        "a roost: each TARGET (default 127.0.0.1:22) is a standard sshd, which must send its SSH version line first, at the start and on each session's connection", None),
     row(None, "key", Some("FILE"), FlagKind::Supported,
         "the node's key in FILE, on each road, made when missing (default: node-NAME.key in the cache); its fingerprint is said as the node starts", None),
     row(None, "ephemeral-key", None, FlagKind::Supported,

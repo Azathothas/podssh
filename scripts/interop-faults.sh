@@ -426,6 +426,8 @@ runs=$(grep -c . "$RAN-after" 2>/dev/null)
 . "$HERE/interop-relay.sh"
 # shellcheck source=scripts/interop-socks.sh
 . "$HERE/interop-socks.sh"
+# shellcheck source=scripts/interop-roost.sh
+. "$HERE/interop-roost.sh"
 
 for f in "$FK"/*.pid; do
     kill "$(cat "$f")" 2>/dev/null

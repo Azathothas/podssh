@@ -985,6 +985,20 @@ commands. The rules behind them:
   its socket, and `online again` after a loss: an operator reaches it from
   that line on, not from the first (T-271). It runs until Ctrl-C or SIGTERM
   (exit 0). Its stdout stays empty.
+- **A roost is `node --sshd`** (T-166): a node in front of a standard
+  sshd, TARGET, or `127.0.0.1:22` when none is given, so that a normal
+  server gets the resumable layer and, with `--iroh`, the iroh road. Before
+  it goes online, it dials each TARGET and reads the first line, which must
+  be SSH's version line (`SSH-2.0-`, or `SSH-1.99-`; RFC 4253, section 4.2)
+  within 10 s; else it exits, and names TARGET and what came back: 78 for
+  another service, 69 for no line or a close. The node's first line gives
+  each version line. Each session's connection to sshd, made after the
+  layer's handshake, is checked the same way: a session whose TARGET no
+  longer answers as sshd ends at once with the reason. The check peeks and
+  takes no byte, so the client reads sshd's line itself. `ssh node://NAME`
+  keeps sshd's host key under `node://NAME`, the name that the user gives,
+  as OpenSSH keeps a host's behind a `ProxyCommand`; not under the address
+  of sshd behind the roost, which each roost shares (`127.0.0.1`).
 - **`node --plain`** carries each session's bytes as they are, with no
   resumable layer, for an operator that does not speak it (T-263): a lost
   link ends the session, as before T-153. The node's first line names its
@@ -995,7 +1009,8 @@ commands. The rules behind them:
   reach, a stopped pair, or a pair that another node serves; 77 for a
   refused or expired pair, a node key that differs from its pin or from
   `--node-key`, and an operator key that the node's allowlist refuses; 78
-  for no stored pair, or a node that cannot connect as it is set up; 70 for
+  for no stored pair, a node that cannot connect as it is set up, or a
+  roost whose TARGET is another service; 70 for
   a fault of the node that the relay closed (`1003`, `1009`), or a failure
   of the end-to-end channel.
 - **Each session runs the end-to-end channel** (T-088): Noise XX above the

@@ -139,6 +139,17 @@ podssh chat --listen NAME                       # the side that waits
 podssh chat NAME --pair-file op.json            # the other side, with op.json sent over a trusted channel
 ```
 
+A standard sshd gets a session that survives a lost link when a podssh next
+to it owns the TCP connection to it: a roost. The roost checks that sshd
+answers with SSH's version line, before it goes online and for each
+session:
+
+```sh
+podssh relay pair lab --operator-file op.json   # on the server, once
+podssh node lab --sshd                          # the roost, in front of 127.0.0.1:22
+podssh ssh --pair-file op.json node://me@lab    # from outside; a lost link resumes the session
+```
+
 `podssh man environment` lists each variable that podssh reads. The usual
 one is `HTTPS_PROXY`: podssh sends the relay's name in `CONNECT`, so it
 needs no DNS through a proxy. A SOCKS5 proxy works too

@@ -49,7 +49,7 @@ races them.
 | --- | --- | --- | --- |
 | A podssh node or peer (a name or a ticket) | The iroh road (direct when UDP works, else through a relay) | The reverse road with the resumable layer | None |
 | A standard sshd, public | The forward road, with failover across relay hosts | The direct road (`--direct`, or when a probe shows it works) | None |
-| A standard sshd behind a podssh `roost` | The iroh or reverse road to the roost | The forward road | None |
+| A standard sshd behind a podssh `roost` (`podssh node NAME --sshd`) | The iroh or reverse road to the roost | The forward road | None |
 | A tailnet node | The tailscale road (feature `ts`) | None | None |
 | A service that `cloudflared` publishes (`cf://HOST`) | The WebSocket of the tunnel, as `cloudflared access tcp` opens it, through `HTTPS_PROXY` | None | None |
 
@@ -89,6 +89,19 @@ live relay and iroh's relay server on the loopback, the iroh road won when
 both answered, and TARGET saw one connection; with the iroh road pointed at
 a silent relay, the pair's road won (`cargo test -p podssh-cli --features
 iroh-test --test road_race -- --ignored`).
+
+**The roost (T-166, built 2026-10-12).** A roost is `podssh node NAME
+[TARGET] --sshd`: a node in front of a standard sshd, by default
+`127.0.0.1:22`, which owns the TCP connection to it, so that a normal
+server gets the resumable layer and, with `--iroh`, the iroh road. It is a
+flag of `node`, not a command of its own (pigeons' `roost`): a roost is a
+node, with the same pair, keys, roads and exit codes. Before it registers,
+the roost dials each TARGET and peeks at its first line, which must be
+SSH's version line within 10 s, as iroh-ssh checks its sshd; each
+session's own connection, made after the layer's handshake, is checked
+again. The client keeps sshd's host key under `node://NAME`. MEASURED:
+`cargo test -p podssh-cli --test roost` (8 passed, 2026-10-12); the gate's
+`scripts/interop-roost.sh` waits for a run (T-251).
 
 ### A quick tunnel that podssh makes itself (T-170, research of 2026-10-12)
 

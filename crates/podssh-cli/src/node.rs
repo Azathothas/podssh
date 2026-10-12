@@ -7,7 +7,9 @@
 //! a node has no answer to give. Each session runs the resumable layer
 //! (T-153), or with `--plain` carries TARGET's bytes as they are (T-263).
 //! With `--iroh`, the node serves the iroh road instead, with no pair
-//! (T-163, `node_iroh`).
+//! (T-163, `node_iroh`). With `--sshd`, the node is a roost in front of a
+//! standard sshd (T-166): TARGET, by default 127.0.0.1:22, must send an SSH
+//! version line first, at the start and on each session's connection.
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -16,7 +18,7 @@ use std::time::Duration;
 
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::routes::{Route, Routed, Routes};
-use podssh_relay::reverse::{self, E2e, Exit, Layered, NodeConfig, Settings, TcpHandler, Wire};
+use podssh_relay::reverse::{self, sshd, E2e, Exit, Layered, NodeConfig, Settings, TcpHandler, Wire};
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
 
@@ -26,6 +28,8 @@ use crate::relay_settings::Refusal;
 
 /// Bound on each dial of TARGET, under the node's 10 s to open a session.
 const DIAL_LIMIT: Duration = Duration::from_secs(8);
+/// A roost's TARGET when the command line names none: the sshd of this host.
+pub(crate) const SSHD: &str = "127.0.0.1:22";
 
 /// What `podssh node` was asked to do.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -59,6 +63,8 @@ pub struct NodeArgs {
     pub no_e2e: bool,
     /// The iroh relays, in place of the variable and the table.
     pub iroh_relay: Option<String>,
+    /// A roost (T-166): each TARGET is a standard sshd.
+    pub sshd: bool,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
@@ -107,6 +113,8 @@ struct Ready {
     /// The node's key, for the end-to-end channel; `None` with `--no-e2e`.
     key: Option<podssh_relay::identity::file::Key>,
     allow: Option<PathBuf>,
+    /// A roost: each TARGET is checked as an sshd.
+    sshd: bool,
 }
 
 /// The node's key and allowlist, by their names of T-087 or of T-163.
@@ -135,7 +143,7 @@ pub(crate) fn key_flags(args: &NodeArgs) -> Result<KeyFlags, Refusal> {
 fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     let label = args.name.clone().ok_or("missing NAME: the label of a pair (podssh relay pair NAME)")?;
     pairs::check_label(&label)?;
-    let targets = targets_of(&args.targets, args.no_e2e)?;
+    let targets = targets_of(&words_of(args), args.no_e2e)?;
     // The channel's flags are usage errors, said before anything is read.
     let flags = key_flags(args)?;
     if args.no_e2e && (flags.key.is_some() || flags.ephemeral || flags.allow.is_some()) {
@@ -159,7 +167,16 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         Some(place) => Some(crate::channel::load_node_key(&place)?),
         None => None,
     };
-    Ok(Ready { label, pair, stored, targets, trust, plain: args.plain, key, allow: flags.allow })
+    Ok(Ready { label, pair, stored, targets, trust, plain: args.plain, key, allow: flags.allow, sshd: args.sshd })
+}
+
+/// The TARGETs of the command line; for a roost that names none, the sshd
+/// of this host.
+pub(crate) fn words_of(args: &NodeArgs) -> Vec<String> {
+    match args.sshd && args.targets.is_empty() {
+        true => vec![SSHD.to_string()],
+        false => args.targets.clone(),
+    }
 }
 
 /// The targets of the command line (T-089): `TARGET`, which an operator
@@ -226,36 +243,62 @@ pub(crate) fn shown(targets: &[Route]) -> String {
 }
 
 /// Each target, dialled once: a node that cannot reach one would refuse its
-/// sessions, so it does not start (69).
-pub(crate) async fn probe(targets: &[Route]) -> Result<(), Refusal> {
-    let proxy = ProxyChoice::FromEnvironment;
+/// sessions, so it does not start (69). A roost's targets must each send an
+/// SSH version line first (T-166): their lines, in order, for the node's
+/// first line. Another service there is a TARGET set up wrong (78); a
+/// silence or a close, one out of reach (69).
+pub(crate) async fn probe(targets: &[Route], roost: bool) -> Result<Vec<String>, Refusal> {
+    let (proxy, unreachable) = (ProxyChoice::FromEnvironment, Fault::RelayUnreachable.code());
+    let mut versions = Vec::new();
     for t in targets {
-        if let Err(e) = podssh_ws::dial::dial(&t.host, t.port, &proxy, DIAL_LIMIT).await {
-            let shown = shown(std::slice::from_ref(t));
-            return Err(Refusal { message: format!("TARGET {shown}: {e}"), code: Fault::RelayUnreachable.code() });
+        let shown = shown(std::slice::from_ref(t));
+        let dialled = podssh_ws::dial::dial(&t.host, t.port, &proxy, DIAL_LIMIT).await;
+        let stream = dialled.map_err(|e| Refusal { message: format!("TARGET {shown}: {e}"), code: unreachable })?;
+        if !roost {
+            continue;
+        }
+        match sshd::check(&stream, sshd::BANNER_LIMIT).await {
+            Ok(line) => versions.push(line),
+            Err(why) => {
+                let fault = if why.is_other() { Fault::Config } else { Fault::RelayUnreachable };
+                let message = format!("TARGET {shown} is not an SSH server: it {why}; --sshd serves a standard sshd");
+                return Err(Refusal { message, code: fault.code() });
+            }
         }
     }
-    Ok(())
+    Ok(versions)
+}
+
+/// The targets as the node's first line says them: a roost's, each with the
+/// version line that its sshd sent.
+pub(crate) fn serving(targets: &[Route], versions: &[String]) -> String {
+    if versions.len() != targets.len() {
+        return shown(targets);
+    }
+    let each = targets.iter().zip(versions).map(|(t, line)| format!("{} ({line})", shown(std::slice::from_ref(t))));
+    format!("the sshd {}", each.collect::<Vec<_>>().join(", "))
 }
 
 /// The routes of a node, when it has one, with who may use each.
-pub(crate) fn routes_of(targets: &[Route], allow: Option<PathBuf>) -> Option<Routes> {
+pub(crate) fn routes_of(targets: &[Route], allow: Option<PathBuf>, roost: bool) -> Option<Routes> {
     targets.iter().any(|t| t.name.is_some()).then(|| Routes {
         routes: Arc::new(targets.to_vec()),
         grant: crate::channel::grant_of(allow),
         timeout: DIAL_LIMIT,
+        sshd: roost,
     })
 }
 
 async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, pair, stored, targets, trust, plain, key, allow } = ready;
-    let target = shown(&targets);
+    let Ready { label, pair, stored, targets, trust, plain, key, allow, sshd: roost } = ready;
     let proxy = ProxyChoice::FromEnvironment;
-    // TARGET first: a node that cannot reach it would serve no session.
-    if let Err(refusal) = probe(&targets).await {
-        return refusal.report("node", err);
-    }
-    let routes = routes_of(&targets, allow.clone());
+    // TARGET first: a node that cannot reach it would serve no session, and
+    // a roost whose sshd does not answer as one would refuse each.
+    let target = match probe(&targets, roost).await {
+        Ok(versions) => serving(&targets, &versions),
+        Err(refusal) => return refusal.report("node", err),
+    };
+    let routes = routes_of(&targets, allow.clone(), roost);
     let mode = if plain { "in plain mode, with no resumable layer" } else { "with the resumable layer" };
     let _ = writeln!(
         err,
@@ -287,7 +330,7 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         say: Some(&say),
     };
     let first = &targets[0];
-    let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT };
+    let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
     let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
     // TARGET at `open` with no layer: an operator that does not speak the
     // layer can use the node, and a lost leg ends the session. With the
