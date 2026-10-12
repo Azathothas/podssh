@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 63 open, 0 partial, 25 blocked, 215 done.**
+**303 entries: 62 open, 0 partial, 25 blocked, 216 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 57 | 0 | 7 | 56 | 120 |
-| **All** | 63 | 0 | 25 | 215 | 303 |
+| P3 | 56 | 0 | 7 | 57 | 120 |
+| **All** | 62 | 0 | 25 | 216 | 303 |
 
 ## Entries
 
@@ -221,7 +221,7 @@ repository and CI).
 | [T-145](copy.md) | P3 | S | backlog | feature | done | Progress, cancellation and a bandwidth limit for copies |
 | [T-146](copy.md) | P3 | M | backlog | feature | done | Keep the metadata of a copy |
 | [T-147](copy.md) | P3 | S | backlog | feature | done | `podssh cp --inplace` |
-| [T-148](copy.md) | P3 | M | backlog | feature | open | ZMODEM in a terminal session |
+| [T-148](copy.md) | P3 | M | backlog | feature | done | ZMODEM in a terminal session |
 | [T-149](copy.md) | P3 | M | backlog | feature | done | `podssh edit HOST:PATH` |
 | [T-150](copy.md) | P3 | M | backlog | feature | open | A copy protocol between two podssh ends |
 | [T-151](resume.md) | P2 | L | M6 | feature | done | The resumable layer: its handshake and the byte offsets |

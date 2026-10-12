@@ -167,7 +167,7 @@ local program to a target, and `podssh proxy` stays a second pump.
   private and gives only an exit code.
 - Read: `TODO/issues.md` (#26) says that a binary protocol through `-W` is
   measured. Only exec is measured with digests (`docs/STATUS.md:72`); `-W`
-  was checked with a banner of 16 bytes (`scripts/interop.sh:354-356`).
+  was checked with a banner of 16 bytes (`scripts/interop.sh:357-359`).
 - Read: `node:` needs T-084 (M4) and `iroh:` needs T-163 (M6); both are done
   before M7 starts.
 
@@ -430,7 +430,7 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:668-670`).
 2. podssh listens only for a `-listen:` address that the user gives.
    `PODSSH_LISTEN=no` turns listening off: each such address then exits 78
    before any bind. Add the variable to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-194`); the settings file of T-048
+   (`crates/podssh-cli/src/man/facts.rs:45-200`); the settings file of T-048
    can set the same.
 3. The attempt is the probe: socket, bind, listen. EACCES or EPERM exits 77
    with the errno and an address that needs no listener; another error exits
@@ -580,11 +580,11 @@ running on the server (`docs/design.md:404-408`).
 ## Premise
 
 - Measured: `podssh ssh --persist host` exits 64 (`unknown flag '--persist'`).
-- Read: a lost link is `End::Lost` (`crates/podssh-ssh/src/io.rs:31-32`),
+- Read: a lost link is `End::Lost` (`crates/podssh-ssh/src/io.rs:33-34`),
   an error at `crates/podssh-ssh/src/session.rs:42`. An exit status, a
   close with no status, and `~.` are other ends
   (`crates/podssh-ssh/src/session.rs:39-41`). Raw mode is entered once for
-  each session (`crates/podssh-ssh/src/session.rs:140-167`).
+  each session (`crates/podssh-ssh/src/session.rs:140-171`).
 - Read: the relay ends a session at 64 MiB (1009) or 12 h (1001)
   (`docs/relay.md:219-225`). Sandbox A measured the cap at 67,107,943 bytes,
   and one close `1011` in 180 short sessions (`docs/STATUS.md:235-236`).
@@ -612,7 +612,7 @@ running on the server (`docs/design.md:404-408`).
    cached token. A prompt with no terminal ends the loop
    (`docs/cli.md:1446-1448`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
-   (`crates/podssh-cli/src/man/notes_ssh.rs:4-173`), `docs/design.md:404-408`,
+   (`crates/podssh-cli/src/man/notes_ssh.rs:4-186`), `docs/design.md:404-408`,
    `docs/STATUS.md`, and tmux in the interop image
    (`scripts/interop.sh:24-25`). T-025 shares the classes of close codes;
    T-153 replaces this loop when both ends run podssh.
@@ -978,7 +978,7 @@ random hides a real failure.
 ## Premise
 
 Read: the input outlives a session, and its task reads stdin from the first
-session on (`crates/podssh-ssh/src/io.rs:132`); each session asks whether
+session on (`crates/podssh-ssh/src/io.rs:146`); each session asks whether
 stdin is a terminal before its pty request
 (`crates/podssh-ssh/src/session.rs:67`). std's answer on Windows, for a
 handle that is no console, asks a pipe's name (`GetFileInformationByHandleEx`
@@ -1011,9 +1011,9 @@ runs of the test binary, six at once, all pass.
 
 ## Done
 
-2026-10-11. `crates/podssh-ssh/src/terminal/mod.rs:55-58`:
+2026-10-11. `crates/podssh-ssh/src/terminal/mod.rs:56-59`:
 `stdin_is_terminal` asks once and keeps the answer;
-`crates/podssh-ssh/src/io.rs:393`: the input's task asks before it reads.
+`crates/podssh-ssh/src/io.rs:465`: the input's task asks before it reads.
 `crates/podssh-cli/tests/persist.rs:223`: after the loss, the test waits for
 the second "[podssh] attached" before it types. Without the repair the test
 failed (exit 101, after 31.4 s); with it, `cargo test -p podssh-cli --test

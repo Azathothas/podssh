@@ -376,6 +376,20 @@ that `podssh ssh` changed first, refused with 73 and the copy named; an
 editor that fails; a link) and the planted defect, the check before the
 send skipped, wait for T-251.
 
+ZMODEM in a terminal session (T-148; 2026-10-12, `cargo test -p
+podssh-ssh --test zmodem`, 20 passed): `podssh ssh` with a pty and
+a local terminal finds the start of lrzsz's `sz` and `rz` in the output
+(ZRQINIT and ZRINIT, with their CRC), asks on the terminal, receives into
+a temporary name with the CRC of each frame and the length checked, then
+renames, and sends a local file to `rz` (also by `~Z`, which types `rz`).
+The tests check the headers and the subpackets against vectors computed
+from the spec's rules, the search for a start, each wait of 10 s with 4
+tries, a file each way between podssh's two sides and through the
+session's question, a refusal, a name that is taken, and Ctrl-C. With no
+terminal there is no watcher. Not measured: against lrzsz itself, as
+Alpine has no lrzsz package now; the gate's `pty.zmodem.*` say `env`
+without one, and the planted defect waits for T-251.
+
 ## `podssh keygen`, measured
 
 | Check | Result |

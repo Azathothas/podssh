@@ -21,6 +21,7 @@ mod windows;
 use windows as platform;
 pub(crate) mod termination;
 pub(crate) mod text;
+pub(crate) mod watch;
 
 pub use platform::{pty_modes, read_line, RawMode};
 #[cfg(unix)]

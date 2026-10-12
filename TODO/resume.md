@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:231-393`).
+   (`crates/podssh-cli/src/man/facts.rs:237-399`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -836,9 +836,9 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:360-374` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:317-332`,
-   `crates/podssh-cli/src/man/facts.rs:359-368`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:151`, `docs/relay.md`, `README.md`.
+   (`crates/podssh-cli/src/man/facts.rs:323-338`,
+   `crates/podssh-cli/src/man/facts.rs:365-374`), the note at
+   `crates/podssh-cli/src/man/notes_ssh.rs:164`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -957,7 +957,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:231-393`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:237-399`).
 
 ## Decision
 
@@ -1318,8 +1318,8 @@ so the keys and the sequence numbers of the SSH connection live in the client
 process. A new process cannot continue that byte stream, so an attach is a
 new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
-to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-5`,
-`crates/podssh-ssh/src/escape.rs:61-100`). The flag table has 469 lines, near
+to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-8`,
+`crates/podssh-ssh/src/escape.rs:65-104`). The flag table has 469 lines, near
 the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-270`).
 
 ## Approach
@@ -1337,7 +1337,7 @@ the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-270`).
    verified here). Refuse an attach from inside the same shell.
 5. Put the new rows of the flag table in a new file, so that `flags.rs` stays
    under 500 lines. Add `~d` to the help of `~?`
-   (`crates/podssh-ssh/src/escape.rs:99-107`) and to the manual.
+   (`crates/podssh-ssh/src/escape.rs:103-111`) and to the manual.
 6. Against a standard sshd, use `--persist` with tmux (T-178).
 
 ## Decision

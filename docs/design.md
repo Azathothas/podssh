@@ -453,7 +453,7 @@ functions of bytes only.
 | A new client | Only the client process that holds the key comes back (paper §2.1; GitHub mobile-shell/mosh#394); mosh.org suggests screen or tmux | T-158 and T-159 attach from a new process; T-161 gives the screen |
 | Encryption | AES-128 in OCB mode, with a key that SSH carries (paper §2.2) | SSH, and the Noise channel above the layer (T-088) |
 | The start | SSH runs `mosh-server`, which prints a port and a key, then forks (`src/frontend/mosh-server.cc:450-462`); it listens on a UDP port of 60001 to 60999 (`src/network/network.h:142-143`) | No listener (`AGENTS.md`, section 5, rule 2): a node or a roost reaches out (T-083, T-166); a start from a standard sshd: T-167 |
-| An escape | Ctrl-^ then `.` (paper, Figure 1) | `~.` (`crates/podssh-ssh/src/escape.rs:1-5`) |
+| An escape | Ctrl-^ then `.` (paper, Figure 1) | `~.` (`crates/podssh-ssh/src/escape.rs:1-8`) |
 
 What podssh does not need, and why:
 

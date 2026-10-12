@@ -464,7 +464,7 @@ result, `Resolved` (lines 27-41 at `22c3b88`), holds the settings in effect, the
    `serveraliveinterval 60` (the relay's idle cut, `docs/relay.md:160`) and `connecttimeout 60`.
 6. It does not wait for T-043: with no file, `-G` shows the effect of `-o`. After T-043 and
    T-044, `-v` names the files that were read, on stderr.
-7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-173`) and `docs/cli.md:48-266`
+7. Change the `ssh` notes (`crates/podssh-cli/src/man/notes_ssh.rs:4-186`) and `docs/cli.md:48-266`
    in the same commit.
 
 ## Decision
@@ -702,7 +702,7 @@ configuration directory first; the operator corrected it on 2026-10-08 (`docs/de
 5. No keyword for a token: a token in a file is a stored credential (question Q5, T-034).
 6. podssh never writes the file: csshw creates one, but podssh changes nothing unasked.
 7. `doctor` and `status` (T-051) name the file in use. Change in the same commit: VARIABLES and
-   FILES (`crates/podssh-cli/src/man/facts.rs:45-194`, 98-142), `docs/relay.md:30-81` and
+   FILES (`crates/podssh-cli/src/man/facts.rs:45-200`, 98-142), `docs/relay.md:30-81` and
    `docs/cli.md`. The cache directory is the work of T-243.
 
 ## Decision
@@ -943,7 +943,7 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:333-341`
   hop that reads no block (the Prove's plant): both tests failed; restored.
 - `cargo test -p podssh-ssh --lib -- run::`: 3 passed, among them a hop's own options with the
   run's memory, else the connection's, its own `HostKeyAlias`, and `set_batch_mode` for each hop.
-- `scripts/interop.sh:324-334`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
+- `scripts/interop.sh:327-337`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
 - `docs/cli.md:76-82` and `docs/cli.md:1524-1536`, and the manual's file `~/.ssh/config`, say what

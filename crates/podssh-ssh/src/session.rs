@@ -162,7 +162,11 @@ pub async fn attach(
             .map_err(|e| log.info(&format!("--record: the file could not be written: {e}")))
             .ok()
     });
-    let through = io::Through { elevated, record, detaching: crate::keep::Detaching::new(detach) };
+    // ZMODEM (T-148) only with a raw terminal and a terminal on stdout: with
+    // no terminal, nothing is ever received.
+    let zmodem = crate::zmodem::Zmodem::for_session(raw.is_some() && terminal::stdout_is_terminal());
+    let detaching = crate::keep::Detaching::new(detach);
+    let through = io::Through { elevated, zmodem, record, detaching };
     let end = io::pump(handle, channel, early, escapes, pty, input, through, log).await;
     drop(raw);
     if let io::End::Detached(name) = &end {

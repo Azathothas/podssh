@@ -486,6 +486,12 @@ pty.second pass
 pty.escape_disconnect pass
 pty.restore.escape pass
 pty.forwards pass
+pty.zmodem.receive env-allowed sz and rz of lrzsz, which Alpine does not package now (T-148)
+pty.zmodem.temp env-allowed sz and rz of lrzsz, which Alpine does not package now (T-148)
+pty.zmodem.refuse env-allowed sz and rz of lrzsz, which Alpine does not package now (T-148)
+pty.zmodem.send env-allowed sz and rz of lrzsz, which Alpine does not package now (T-148)
+pty.zmodem.escape env-allowed sz and rz of lrzsz, which Alpine does not package now (T-148)
+pty.zmodem.no_terminal env-allowed sz and rz of lrzsz, which Alpine does not package now (T-148)
 
 # scripts/interop-man.sh
 man.roff pass

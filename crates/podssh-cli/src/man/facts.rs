@@ -117,6 +117,12 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       gives progress objects instead.",
     ),
     (
+        &["PODSSH_ZMODEM"],
+        "off: podssh ssh does not watch a session's output for ZMODEM (sz and rz of lrzsz), and the bytes \
+      go to stdout as they come. Else it watches in each session with a pty and a local terminal (see \
+      podssh ssh).",
+    ),
+    (
         &["PODSSH_SESSION_BUDGET"],
         "Lowers the bytes that podssh cp and mv carry in one relay session before they open a new one, \
       for a relay with smaller limits: a whole number of bytes, 1048576 at least. It never raises the \

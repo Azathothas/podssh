@@ -900,7 +900,7 @@ as a TCP host again, and the gate's check fails with the server's error.
 (`crates/podssh-ssh/src/options.rs:164-181`), opened by `open_target`
 (`crates/podssh-ssh/src/forward.rs:24-37`); through a control master
 (`crates/podssh-ssh/src/mux/client.rs:177-192`,
-`crates/podssh-ssh/src/mux/msession.rs:244-251`). The command line reads a
+`crates/podssh-ssh/src/mux/msession.rs:251-258`). The command line reads a
 path at `crates/podssh-cli/src/ssh/hop.rs:86-89`, and the row of `-W` says so
 (`crates/podssh-cli/src/flags.rs:139-140`).
 - `cargo test -p podssh-cli --test ssh_stdio_socket`: 2 passed. The test of
@@ -942,7 +942,7 @@ many bytes moved.
 
 Read: today the only forward is `-W` (`crates/podssh-ssh/src/forward.rs:39-110`),
 and it counts nothing. The escapes are `~.`, `~R`, `~?` and `~~`
-(`crates/podssh-ssh/src/escape.rs:1-19`); OpenSSH also has `~#`, which lists
+(`crates/podssh-ssh/src/escape.rs:1-22`); OpenSSH also has `~#`, which lists
 the forwarded connections. `podssh status` (T-051) runs in another process,
 so it cannot see the forwards of a session without a state file or a
 listener.
@@ -952,8 +952,8 @@ listener.
 1. Count, for each forward: the connections opened, closed and failed, and
    the bytes in each direction. Keep the counters in the forward's own task;
    put no lock on the data path.
-2. Add `~#` to the escapes (`crates/podssh-ssh/src/escape.rs:9-19`) and to its
-   help (`crates/podssh-ssh/src/escape.rs:99-107`): one line for each forward,
+2. Add `~#` to the escapes (`crates/podssh-ssh/src/escape.rs:10-22`) and to its
+   help (`crates/podssh-ssh/src/escape.rs:103-111`): one line for each forward,
    with its counts.
 3. At the end of a session, with `-v`, print one line for each forward. Do
    not call it "Transferred": OpenSSH's line of that name counts the bytes of
@@ -999,7 +999,7 @@ count each chunk twice, and the unit test fails.
 and `crates/podssh-ssh/src/remote.rs:147`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
-`crates/podssh-ssh/src/escape.rs:67` and `crates/podssh-ssh/src/io.rs:241`,
+`crates/podssh-ssh/src/escape.rs:71` and `crates/podssh-ssh/src/io.rs:247`,
 and the lines of `-v` at `crates/podssh-ssh/src/run.rs:247`.
 - `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
   1000 down through a forward's copy, counted once, with one connection; one
@@ -1024,7 +1024,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:247`.
   repair: the session of a client of a control master lists the master's
   forwards with `~#`, as OpenSSH's `~#` lists the master's connections, and
   its `~?` names it (`crates/podssh-ssh/src/mux/msession.rs:32-34` and
-  `crates/podssh-ssh/src/mux/msession.rs:160-165`). In the build image
+  `crates/podssh-ssh/src/mux/msession.rs:162-167`). In the build image
   (`sh scripts/dev.sh run`), `cargo clippy --all-targets -p podssh-ssh -p
   podssh-cli -- -D warnings` passed.
 - Correction: at `f80e7f3` the gate failed both checks of this entry, each
@@ -1360,7 +1360,7 @@ counts, and cannot change them.
 ## Premise
 
 Read: the escapes are `~.`, `~R`, `~#`, `~?` and `~~`
-(`crates/podssh-ssh/src/escape.rs:11-19`). The listeners of `-L` and `-D` are
+(`crates/podssh-ssh/src/escape.rs:12-22`). The listeners of `-L` and `-D` are
 served from the start of the session (`crates/podssh-ssh/src/local.rs:125-146`),
 and `-R` is asked for after the login (`crates/podssh-ssh/src/remote.rs:46-110`).
 ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,

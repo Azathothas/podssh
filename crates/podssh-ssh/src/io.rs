@@ -1,13 +1,13 @@
 //! Copying between the local stdin/stdout/stderr and a session channel, with
-//! window-size changes and the escape character, until the channel closes.
-//! The input outlives a session: `--persist` attaches a new one after a
-//! lost link, and it reads on where the last one stopped.
+//! window-size changes, the escape character and ZMODEM, until the channel
+//! closes. The input outlives a session: `--persist` attaches a new one
+//! after a lost link, and it reads on where the last one stopped.
 
 use std::sync::Arc;
 use std::time::Duration;
 
 use russh::client::{Handle, Msg};
-use russh::{Channel, ChannelMsg, ChannelWriteHalf};
+use russh::{Channel, ChannelMsg, ChannelReadHalf, ChannelWriteHalf};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::sync::mpsc;
 
@@ -17,9 +17,11 @@ use crate::handler::Client;
 use crate::log::Log;
 use crate::record::Recorder;
 use crate::signals;
+use crate::terminal;
 use crate::terminal::termination::Termination;
 use crate::terminal::text::Consoles;
-use crate::terminal::{self, Size};
+use crate::terminal::watch::Resize;
+use crate::zmodem::Zmodem;
 
 /// How a session ended.
 #[derive(Debug)]
@@ -70,11 +72,13 @@ struct Out {
 }
 
 /// What a session's output passes through on its way out: the filter of an
-/// elevated command (T-032), then the recording (T-033). A detach that
-/// waits for the far end's answer reads the session's messages too (T-158).
+/// elevated command (T-032), ZMODEM (T-148), then the recording (T-033).
+/// A detach that waits for the far end's answer reads the session's
+/// messages too (T-158).
 #[derive(Default)]
 pub struct Through {
     pub elevated: Option<Elevated>,
+    pub zmodem: Option<Zmodem>,
     pub record: Option<Recorder>,
     pub detaching: crate::keep::Detaching,
 }
@@ -85,6 +89,16 @@ impl Through {
             Some(e) => e.feed(data, stderr),
             None => data.to_vec(),
         };
+        // A transfer takes its bytes off stdout, and adds podssh's words.
+        let data = match self.zmodem.as_mut().filter(|_| !stderr) {
+            Some(z) => z.output(&data, std::time::Instant::now()),
+            None => data,
+        };
+        self.recorded(data, log)
+    }
+
+    /// What the terminal shows, into the recording.
+    fn recorded(&mut self, data: Vec<u8>, log: &Log) -> Vec<u8> {
         if let Some(Err(e)) = self.record.as_mut().map(|r| r.output(&data)) {
             log.info(&format!("--record stopped: {e}"));
             self.record = None;
@@ -192,6 +206,11 @@ pub async fn pump(
     let mut resize = Resize::new(pty);
     let mut stop = Termination::new(pty && terminal::raw_active());
     loop {
+        if let Err(end) = zmodem_out(&writer, &mut reader, &mut status, &mut out, &mut through, log).await {
+            return end;
+        }
+        let zmodem_at = through.zmodem.as_ref().and_then(Zmodem::deadline);
+        let streaming = through.zmodem.as_ref().is_some_and(Zmodem::more);
         tokio::select! {
             chunk = next(input, reading && !held) => match chunk {
                 Some(bytes) => {
@@ -199,31 +218,18 @@ pub async fn pump(
                         Some(e) => e.feed(&bytes),
                         None => (bytes, Vec::new()),
                     };
+                    // A question or a transfer of ZMODEM takes the keys.
+                    let data = match through.zmodem.as_mut() {
+                        Some(z) => z.keys(data, std::time::Instant::now()),
+                        None => data,
+                    };
                     if !data.is_empty() {
-                        // The send waits for the channel's window, which a
-                        // connection that ended never opens: the channel's
-                        // messages are read meanwhile, and its end ends this.
                         crate::outcome::stdin(data.len());
-                        let send = writer.data_bytes(data);
-                        tokio::pin!(send);
-                        loop {
-                            tokio::select! {
-                                sent = &mut send => {
-                                    if sent.is_err() {
-                                        // The channel is closing; keep reading for its status.
-                                        reading = false;
-                                    }
-                                    break;
-                                }
-                                msg = reader.wait() => match msg {
-                                    Some(m) => {
-                                        if let Some(end) = handle_msg(m, &mut status, &mut out, &mut through, log).await {
-                                            return end;
-                                        }
-                                    }
-                                    None => return status.map(End::Status).unwrap_or(End::Lost),
-                                },
-                            }
+                        match send(&writer, &mut reader, data, &mut status, &mut out, &mut through, log).await {
+                            Ok(true) => {}
+                            // The channel is closing; keep reading for its status.
+                            Ok(false) => reading = false,
+                            Err(end) => return end,
                         }
                     }
                     for command in commands {
@@ -240,6 +246,10 @@ pub async fn pump(
                             }
                             Command::List => log.banner(&crate::tally::listing()),
                             Command::Detach => through.detaching.ask(&writer, log).await,
+                            Command::Zmodem => match through.zmodem.as_mut() {
+                                Some(z) => z.escape(),
+                                None => log.info("ZMODEM works in a session with a pty and a local terminal"),
+                            },
                         }
                     }
                 }
@@ -287,9 +297,71 @@ pub async fn pump(
                     let _ = r.resize(size);
                 }
             }
+            // A wait of ZMODEM that ran out, and a sender's next bytes,
+            // which the top of the loop sends.
+            () = sleep_until(zmodem_at.map(Into::into)), if zmodem_at.is_some() => {
+                if let Some(z) = through.zmodem.as_mut() {
+                    z.tick(std::time::Instant::now());
+                }
+            }
+            () = std::future::ready(()), if streaming => {}
             _ = stop.next() => return End::Terminated,
         }
     }
+}
+
+/// Send `data` on the channel. The send waits for the channel's window,
+/// which a connection that ended never opens: the channel's messages are
+/// read meanwhile, and its end ends this (`Err`). `Ok(false)`: the channel
+/// is closing.
+async fn send(
+    writer: &ChannelWriteHalf<Msg>,
+    reader: &mut ChannelReadHalf,
+    data: Vec<u8>,
+    status: &mut Option<i32>,
+    out: &mut Out,
+    through: &mut Through,
+    log: &Log,
+) -> Result<bool, End> {
+    let send = writer.data_bytes(data);
+    tokio::pin!(send);
+    loop {
+        tokio::select! {
+            sent = &mut send => return Ok(sent.is_ok()),
+            msg = reader.wait() => match msg {
+                Some(m) => {
+                    if let Some(end) = handle_msg(m, status, out, through, log).await {
+                        return Err(end);
+                    }
+                }
+                None => return Err(status.map_or(End::Lost, End::Status)),
+            },
+        }
+    }
+}
+
+/// What ZMODEM has for the terminal and for the server between the
+/// server's messages: its words after a key or a wait, and a sender's next
+/// bytes (T-148). `Err` when the channel ended meanwhile.
+async fn zmodem_out(
+    writer: &ChannelWriteHalf<Msg>,
+    reader: &mut ChannelReadHalf,
+    status: &mut Option<i32>,
+    out: &mut Out,
+    through: &mut Through,
+    log: &Log,
+) -> Result<(), End> {
+    let Some(taken) = through.zmodem.as_mut().map(|z| z.take(std::time::Instant::now())) else {
+        return Ok(());
+    };
+    if !taken.screen.is_empty() {
+        let screen = through.recorded(taken.screen, log);
+        let _ = write_out(&out.consoles.text(false, screen), false).await;
+    }
+    if !taken.server.is_empty() {
+        send(writer, reader, taken.server, status, out, through, log).await?;
+    }
+    Ok(())
 }
 
 async fn handle_msg(
@@ -414,54 +486,4 @@ async fn next(input: &mut Input, reading: bool) -> Option<Vec<u8>> {
         return std::future::pending().await;
     }
     input.next().await
-}
-
-/// Window-size changes: SIGWINCH on Unix, polling on Windows (a console has
-/// no signal for it).
-struct Resize {
-    active: bool,
-    last: Option<Size>,
-    #[cfg(unix)]
-    signal: Option<tokio::signal::unix::Signal>,
-    #[cfg(windows)]
-    tick: tokio::time::Interval,
-}
-
-impl Resize {
-    fn new(active: bool) -> Self {
-        Resize {
-            active,
-            last: terminal::size(),
-            #[cfg(unix)]
-            signal: if active {
-                tokio::signal::unix::signal(tokio::signal::unix::SignalKind::window_change()).ok()
-            } else {
-                None
-            },
-            #[cfg(windows)]
-            tick: tokio::time::interval(std::time::Duration::from_millis(500)),
-        }
-    }
-
-    async fn next(&mut self) -> Option<Size> {
-        if !self.active {
-            return std::future::pending().await;
-        }
-        loop {
-            #[cfg(unix)]
-            match self.signal.as_mut() {
-                Some(s) => {
-                    s.recv().await?;
-                }
-                None => return std::future::pending().await,
-            }
-            #[cfg(windows)]
-            self.tick.tick().await;
-            let now = terminal::size();
-            if now.is_some() && now != self.last {
-                self.last = now;
-                return now;
-            }
-        }
-    }
 }

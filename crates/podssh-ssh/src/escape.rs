@@ -1,10 +1,11 @@
 //! The escape character of an interactive session (ssh(1), ESCAPE
 //! CHARACTERS): recognised only at the start of a line, and only when a pty
 //! was allocated. podssh implements `~.` (disconnect), `~R` (re-key), `~#`
-//! (the forwards and their counts, T-041), `~?` (help) and `~~` (a literal
-//! `~`); any other character after `~` is sent as typed, with the `~`.
-//! `~d` (detach, T-158) is an escape only when the far end keeps shells,
-//! which the road learns; elsewhere it is sent as typed.
+//! (the forwards and their counts, T-041), `~Z` (send by ZMODEM, T-148),
+//! `~?` (help) and `~~` (a literal `~`); any other character after `~` is
+//! sent as typed, with the `~`. `~d` (detach, T-158) is an escape only when
+//! the far end keeps shells, which the road learns; elsewhere it is sent as
+//! typed.
 
 /// Something the user asked for with an escape.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,19 +16,22 @@ pub enum Command {
     List,
     /// `~d`: the far end keeps the shell, and this client leaves it.
     Detach,
+    /// `~Z`: a file to send by ZMODEM; podssh types `rz` (T-148).
+    Zmodem,
     Help,
 }
 
 /// Each escape, after the escape character: its key, what it asks, and its
-/// words in the help of `~?`, which are OpenSSH's. The input, the help and
-/// the manual's note of the terminal (T-130) read this table, and no other
-/// list of escapes.
+/// words in the help of `~?` (OpenSSH's; `~Z` is podssh's). The input, the
+/// help and the manual's note of the terminal (T-130) read this table, and
+/// no other list of escapes.
 pub const ESCAPES: &[(u8, Command, &str)] = &[
     (b'.', Command::Disconnect, "terminate connection"),
     (b'R', Command::Rekey, "request rekey"),
     (b'#', Command::List, "list forwarded connections"),
     // Not OpenSSH's: podssh's own, for a far end that keeps shells (T-158).
     (b'd', Command::Detach, "detach: the far end keeps the shell"),
+    (b'Z', Command::Zmodem, "send a file by ZMODEM (types rz)"),
     (b'?', Command::Help, "this message"),
 ];
 
@@ -165,9 +169,9 @@ mod tests {
     fn the_help_lists_each_escape_in_openssh_s_words() {
         let help = Escapes::new(b'~').help();
         let want = "Supported escape sequences:\n ~.   - terminate connection\n ~R   - request rekey\n \
-                    ~#   - list forwarded connections\n ~?   - this message\n ~~   - send the escape \
-                    character by typing it twice\n(Note that escapes are only recognized immediately after \
-                    newline.)\n";
+                    ~#   - list forwarded connections\n ~Z   - send a file by ZMODEM (types rz)\n ~?   - this \
+                    message\n ~~   - send the escape character by typing it twice\n(Note that escapes are only \
+                    recognized immediately after newline.)\n";
         assert_eq!(help, want);
         // `~d` too, where the far end keeps shells.
         let mut e = Escapes::new(b'~').with_detach(true);

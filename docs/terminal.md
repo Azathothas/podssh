@@ -46,12 +46,13 @@ the manual read; a test holds the manual's note to it.
   and the key after it: `~.` ends the session and sends nothing after it,
   `~R` asks for a re-key, `~#` lists the forwards with what each carried,
   `~d` leaves the shell to a far end that keeps shells ("Detach and attach
-  again" below) and goes as typed elsewhere, `~?` lists the escapes, and
-  `~~` sends one `~`; another key goes with the `~` before it. A resize
-  sends the new size. Each other byte passes
+  again" below) and goes as typed elsewhere, `~Z` sends a file by ZMODEM,
+  `~?` lists the escapes, and `~~` sends one `~`; another key goes with the
+  `~` before it. A resize sends the new size. Each other byte passes
   unchanged, as the remote side reads it: Ctrl-C, Ctrl-Z, Ctrl-D, Ctrl-S,
   Ctrl-Q, Escape, the sequences of the keys, of the mouse and of a
-  bracketed paste.
+  bracketed paste; only a question or a transfer of ZMODEM takes the keys
+  ("ZMODEM in a session" below).
 - **A client with no pty:** podssh reads no byte; stdin is the command's
   data, escapes are off, and Ctrl-C is the local terminal's, which ends
   podssh ("Ctrl-C with no remote pty" below).
@@ -337,6 +338,65 @@ node in plain mode on the stand-in relay. In a pseudo console on Windows,
 or a pty on Linux, it sets a variable in a shell, types `~d`, lists the
 kept shells, attaches by name from a new process, and reads the variable
 back.
+
+## ZMODEM in a session
+
+Some servers give a shell and nothing else: no SFTP, and exec refused. A
+file can then cross inside the terminal session, with `sz` and `rz` of
+lrzsz on the server and ZMODEM in podssh (T-148). The code is
+`crates/podssh-ssh/src/zmodem/`; the protocol is Chuck Forsberg's "The
+ZMODEM Inter Application File Transfer Protocol" (1988), and the section
+numbers below are its.
+
+- **When podssh watches.** Only in a session with a pty, a raw local
+  terminal and a terminal on stdout, and when `PODSSH_ZMODEM` is not `off`.
+  With no terminal nothing is watched, so nothing is ever received: the
+  bytes go to stdout as they come. A session through a control master is
+  not watched, and `~Z` there says so.
+- **The start.** `sz` prints `rz\r`, then the hex header ZRQINIT:
+  `**`, ZDLE (0x18), `B00` and twelve more hex digits ("may be scanned for
+  B00", 8.1). `rz` prints "rz waiting to receive." and the hex header
+  ZRINIT, `B01`. A start counts only when its 14 hex digits are whole and
+  their CRC-16 holds; text that only looks like one passes unchanged. The
+  bytes of a start that the end of a message cut wait for the next message,
+  100 ms at most.
+- **Receive.** podssh asks where the files go: Enter takes the directory of
+  the last answer (the current directory at first), a path changes it (`~`
+  at its start is the home directory), and Ctrl-C refuses and sends the
+  cancel sequence (eight CAN and ten backspaces, 8.4). A name that the
+  server sends counts by its last
+  component, which must be one that may be written here. Each file comes
+  as T-134 writes a copy: to `.NAME.podssh-RANDOM.part` beside it, with the
+  CRC of each subpacket checked; at ZEOF the length must be what came and
+  what ZFILE said; then the file gets the server's time and its mode
+  (without the write bits of the group and others), and a rename gives it
+  its name. A name that is taken is replaced only after the answer `y`;
+  else the server's file is skipped (ZSKIP). A transfer that ends before
+  ZEOF removes the temporary file.
+- **Send.** When `rz` waits, podssh asks for a local file. `~Z` asks first,
+  then types `rz` and Enter on the server ("The sending program may send
+  the string "rz\r"", 8.1). The file goes as ZFILE (binary, no option for a
+  name that exists, so that the server's `rz` keeps its own rule), then
+  ZDATA's subpackets of 1024 bytes, ZCRCE and ZEOF; a ZRINIT after ZEOF
+  says that it is whole, and ZFIN and "OO" end the session.
+- **Limits.** Each wait for a frame has 10 s, the spec's response time
+  (8.1); after it the last header goes again, and after 4 waits ("40
+  seconds total") the transfer ends with the cancel sequence and the
+  session goes on. A ZRPOS at the same place 4 times also ends it. Ctrl-C
+  during a transfer stops it; each other key is dropped, as it would land
+  in the protocol's stream. A file of 4 GiB or more is refused: positions
+  have 32 bits. A command from the server (ZCOMMAND, `sz -c`) never runs.
+- **What crosses.** Headers in hex, and in binary with CRC-16 or CRC-32 as
+  the receiver allows (CANFC32); ZDLE escapes of ZDLE, DLE, XON and XOFF
+  with and without the parity bit, and of CR after `@` (7.2), as lrzsz
+  sends them; each control character when the receiver asks (ESCCTL).
+  podssh's ZRINIT is `B0100000023be50`, the flags of lrzsz's `rz`.
+
+`crates/podssh-ssh/tests/zmodem.rs` checks the search for a start, the
+frames and their CRCs against vectors from the spec, the limits, and a
+file each way. The gate's check (`scripts/interop-pty.py`, `pty.zmodem.*`)
+runs `sz` and `rz` of lrzsz in a real pty; Alpine has no lrzsz package
+now, and the check says `env` without one (T-148's Correction).
 
 ## Tests
 

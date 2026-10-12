@@ -41,7 +41,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
   reads and writes of 261120 bytes, 3195 handles. No extension gives a
   digest.
 - Read: that server exits at the end of its input without its last reply
-  (`scripts/interop.sh:363-365`).
+  (`scripts/interop.sh:366-368`).
 
 ## Approach
 
@@ -64,7 +64,7 @@ ever (tty7's issue 1126, read in GitHub #20; GitHub #15 was this class).
    extension list for T-134.
 6. Each `SSH_FX_*` status gives a sentence with the path; the server's text
    goes through `podssh_ws::text::one_line`
-   (`crates/podssh-ssh/src/io.rs:327`).
+   (`crates/podssh-ssh/src/io.rs:399`).
 7. No EOF before the last reply. Fail at once on a reply id that no request
    has, and on a `READ` reply longer than its request.
 
@@ -332,12 +332,12 @@ a script expects, and its login shell may not be a POSIX shell.
 
 - Read: an exec with no pty carries bytes unchanged: 262144, 262145 and
   5,000,000 bytes up and back with equal digests on OpenSSH and Dropbear
-  (`docs/STATUS.md:72`, `scripts/interop.sh:136-151`), and 300 KB up and
+  (`docs/STATUS.md:72`, `scripts/interop.sh:139-154`), and 300 KB up and
   5 MB down through the relay (`docs/STATUS.md:75`).
 - Read: a command goes as one string, never as a shell request
   (`crates/podssh-ssh/src/options.rs:63-64`), with no pty when stdin is not
   a terminal (`crates/podssh-ssh/src/session.rs:68-78`).
-- Read: the gate's Dropbear has no SFTP setting (`scripts/interop.sh:80-82`);
+- Read: the gate's Dropbear has no SFTP setting (`scripts/interop.sh:83-85`);
   whether it finds an `sftp-server` is not measured.
 - Not measured: the login shell runs the command, so a start-up file that
   prints text puts that text before the data.
@@ -657,7 +657,7 @@ old writer can race the new one.
    ways; 11 h 30 min) go in `crates/podssh-relay/src/relay.rs`, beside
    `RELAY_IDLE_SECS`. A variable `PODSSH_SESSION_BUDGET` can lower the byte
    budget (a relay with smaller caps, the tests), never raise it; add it to
-   `crates/podssh-cli/src/man/facts.rs:45-194`.
+   `crates/podssh-cli/src/man/facts.rs:45-200`.
 2. Count the payload bytes both ways in the relay stream (an atomic counter
    beside `RelayStatus`), and keep the session's start time.
 3. Invariant: no session passes a budget. Before a data request that would
@@ -670,7 +670,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:232-393`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:238-399`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -1818,7 +1818,7 @@ terminal, a copy that needs no SFTP; read in the issue).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1830,8 +1830,8 @@ which needs support in the terminal client.
 ## Premise
 
 - Read: `podssh ssh` writes the remote output to stdout as it comes
-  (`crates/podssh-ssh/src/io.rs:295-310`) and passes the local keys through
-  the escape filter (`crates/podssh-ssh/src/io.rs:196-250`). Nothing looks
+  (`crates/podssh-ssh/src/io.rs:367-382`) and passes the local keys through
+  the escape filter (`crates/podssh-ssh/src/io.rs:215-260`). Nothing looks
   for a ZMODEM header.
 - Not verified here: ZMODEM escapes its control bytes, so it crosses a pty;
   whether a ZMODEM crate in pure Rust exists and is maintained.
@@ -1880,6 +1880,94 @@ server that runs commands in another shell, or lacks one of those tools,
 allows exec and still has neither road: such a server is the one that the
 Decision waits for.
 
+2026-10-12. **The second Premise, read.** ZMODEM escapes ZDLE, 020, 0220,
+021, 0221, 023 and 0223, and its receiver ignores XON and XOFF (the spec's
+section 7.2, "The ZMODEM Inter Application File Transfer Protocol", Chuck
+Forsberg, 1988); lrzsz's `sz` and `rz` set their pty raw, so each other
+byte crosses as it is. A ZMODEM crate in pure Rust exists and is
+maintained: `zmodem2` (MIT OR Apache-2.0, sans-IO, 0.7.3 on 2026-10-10,
+read on crates.io and docs.rs); the Done says why podssh has its own.
+
+2026-10-12. **The Prove's "The gate adds `lrzsz`" does not hold.**
+pkgs.alpinelinux.org lists no package `lrzsz`, and no file `sz`, `rz`, `lsz`
+or `lrz`, in edge (main, community and testing) or in v3.18 (read on
+2026-10-12; not measured in the build image). `scripts/interop.sh` therefore
+tries `apk add lrzsz` apart from its other packages, and the ZMODEM checks
+of `scripts/interop-pty.py` print `env` without it; the baseline allows
+that. Until the build image has `sz` and `rz` (built from lrzsz's source,
+or another package), those checks do not run.
+
+## Done
+
+2026-10-12. ZMODEM in `crates/podssh-ssh/src/zmodem/`: `wire.rs` (the
+CRCs, the escapes, hex and binary headers, subpackets), `read.rs` (the
+reader of headers and subpackets, a byte at a time), `detect.rs` (the start
+of `sz` and `rz` in the output, with its CRC), `receive.rs` and `send.rs`
+(the two sides, sans-IO), `files.rs` (the check of a name, T-134's
+temporary name and rename, the file to send), `ask.rs` (the line of a
+question), and `session.rs` with `session/acts.rs` (`Zmodem`, which joins
+them to a session). The pump (`crates/podssh-ssh/src/io.rs`) gives it the
+output, the keys and the time, and sends what it has; the session
+(`crates/podssh-ssh/src/session.rs`) makes one only with a raw terminal and
+a terminal on stdout. The window's size and the signals moved from `io.rs`
+to `crates/podssh-ssh/src/terminal/watch.rs`, so that `io.rs` stays under
+500 lines. The escape `~Z` (`crates/podssh-ssh/src/escape.rs`); the
+variable `PODSSH_ZMODEM` (`off`); the manual's notes of `ssh` and its
+ENVIRONMENT; `docs/terminal.md` ("ZMODEM in a session").
+
+The calls made where the Approach left a choice:
+
+- podssh's own code, not `zmodem2`: its minor versions 0.2 to 0.7 came
+  from 2025-09 to 2026-06, each free to change its API, and it would bring
+  `hex` and `thiserror` 1 into the library; the part that one file each way
+  needs is about 2,300 lines here with their comments, and its tests check
+  it against vectors from the spec.
+- The question reads its keys from the session's input task, not from the
+  terminal a second time: that task holds a read of stdin, and a second
+  reader would take keys from it. While a question is open the far side
+  waits (`sz` sends ZRQINIT again, `rz` ZRINIT), and what it sends meanwhile
+  is dropped.
+- Receive asks for a directory: Enter takes the last one (the current
+  directory at first), a path changes it, Ctrl-C refuses. A name that is
+  taken asks again, `[y/N]`; the answer `y` replaces it. A name counts by
+  its last component, checked as T-143 checks a far listing. The file gets
+  the server's time, and its mode without the write bits of the group and
+  others.
+- Send: the key `~Z`, which no escape of OpenSSH uses (`~C` is T-291's,
+  `~d` T-158's). It asks for the file, then types `rz` and Enter, as the
+  spec lets a sender do (8.1). ZFILE has no option of management, so that
+  the far `rz` keeps its own rule for a name that exists.
+- ZRINIT's flags are those of lrzsz's `rz` (0x23: full duplex, I/O during
+  the disk's work, CRC-32); subpackets of 1024 bytes; a stream with ZCRCG,
+  and ZCRCW where the receiver gives a buffer.
+- Each wait 10 s, 4 waits ("40 seconds total", 8.1), then the cancel
+  sequence; the same ZRPOS 4 times also ends it. Ctrl-C during a transfer
+  cancels it, and each other key is dropped. A file of 4 GiB or more is
+  refused, and a command from the server (ZCOMMAND) never runs.
+- A start counts only with its 14 hex digits and their CRC; the bytes of a
+  start that a message cut wait 100 ms at most.
+- Through a control master, `~Z` says that ZMODEM works in a session of its
+  own.
+
+`cargo test -p podssh-ssh --test zmodem`: 20 passed here and in the build image (the CRCs'
+check values; hex headers equal to what lrzsz prints, `B0100000023be50`
+and `B00000000000000`; binary headers, escapes and subpackets equal to
+vectors computed apart from this code from the spec's rules; each byte
+value with each frame end and each CRC; a changed byte fails the CRC; five
+CAN cancel and four do not; the detector with text around a start, a bad
+CRC, a cut start and the hold; ZFILE's data; the names; 70,001 bytes
+between the two sides; each wait and its tries, 40 s in all; ZRPOS for a
+wrong position and for a bad CRC, and a ZEOF at another position ignored;
+no watcher with no terminal; the session asks, then receives into the
+directory given with no temporary file left; a name that is taken replaced
+only after `y`; a refusal; a command refused; Ctrl-C keeps nothing; the
+session sends the file named to `rz`). `cargo test -p podssh-ssh --lib
+escape` and `cargo test -p podssh-cli --lib man`: passed. The gate's
+check (`scripts/interop-pty.py`, `pty.zmodem.*`: `sz`, a refusal, `rz`,
+`~Z`, and no terminal) and the planted defect (receive with no question;
+`pty.zmodem.no_terminal` must then fail) wait for T-251, and for `sz` and
+`rz` in the build image (Correction).
+
 # T-149: `podssh edit HOST:PATH`
 
 **Source:** GitHub #21 (MobaRust: work on remote files, with a check for
@@ -1903,7 +1991,7 @@ host, and the copy back then destroys that change with no word.
   probe (`crates/podssh-cli/src/pager.rs:96`) and runs it with
   `run_program` (`crates/podssh-cli/src/pager.rs:134`).
 - Read: `VISUAL` and `EDITOR` are not in the manual's variables
-  (`crates/podssh-cli/src/man/facts.rs:45-194`).
+  (`crates/podssh-cli/src/man/facts.rs:45-200`).
 - Read: the relay cuts a session after 180 s with no payload
   (`crates/podssh-relay/src/relay.rs:19-21`); an editor stays open longer.
 

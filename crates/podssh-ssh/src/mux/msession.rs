@@ -32,6 +32,8 @@ const GRACE: Duration = Duration::from_secs(2);
 const HELP: &[u8] = b"\r\nSupported escape sequences:\r\n ~.   - terminate this session\r\n \
 ~#   - list forwarded connections\r\n ~?   - this message\r\n \
 ~~   - send the escape character by typing it twice\r\n(Note that escapes are only recognized immediately after newline.)\r\n";
+/// The answer to `~Z` in a session through a master (T-148).
+const ZMODEM_NOTE: &[u8] = b"\r\npodssh: ZMODEM works in a session of its own, not through a control master\r\n";
 
 async fn failure(stream: &mut UnixStream, rid: u32, reason: String) {
     let _ = wire::write(stream, &Message::Failure { rid, reason }).await;
@@ -167,6 +169,11 @@ async fn pump(
                             // A shared session learns no offer of kept shells,
                             // so its escapes never detach (T-158).
                             Command::Rekey | Command::Detach => {}
+                            // ZMODEM is watched in a session of podssh's own
+                            // terminal, not in one that a master carries.
+                            Command::Zmodem => {
+                                let _ = err.write_all(ZMODEM_NOTE).await;
+                            }
                         }
                     }
                 }

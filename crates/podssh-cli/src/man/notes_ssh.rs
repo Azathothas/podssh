@@ -56,11 +56,24 @@ pub const SSH: &[&str] = &[
      -e; -e none turns it off) at the start of a line, and the key after it: ~. ends the session, ~R asks \
      for a re-key, ~# lists the forwards of the session with the connections and bytes of each (with -v, \
      the end of a run prints the same lines), ~d leaves the shell to a far end that keeps shells (see \
-     --attach) and goes as typed elsewhere, ~? lists the escapes, and ~~ sends one ~; another key goes \
-     with the ~ before it. Each other byte passes unchanged, as the remote side reads it: Ctrl-C, Ctrl-Z, \
-     Ctrl-D, Escape, the sequences of the keys, the mouse and a paste. A resize of the terminal sends the \
-     new size. With no pty, podssh reads no byte: stdin is the command's data, and Ctrl-C is the local \
-     terminal's, which stops podssh. A session through a control master has its escapes at the master.",
+     --attach) and goes as typed elsewhere, ~Z sends a file by ZMODEM (below), ~? lists the escapes, and \
+     ~~ sends one ~; another key goes with the ~ before it. Each other byte passes unchanged, as the remote \
+     side reads it: Ctrl-C, Ctrl-Z, Ctrl-D, Escape, the sequences of the keys, the mouse and a paste; only \
+     a question of ZMODEM, and a transfer, take the keys. A resize of the terminal sends the new size. With \
+     no pty, podssh reads no byte: stdin is the command's data, and Ctrl-C is the local terminal's, which \
+     stops podssh. A session through a control master has its escapes at the master.",
+    "ZMODEM, for a server that gives a shell and nothing else: in a session with a pty and a local \
+     terminal, podssh watches the output for the start of sz or rz of lrzsz. When sz sends, podssh asks \
+     where the files go (Enter takes the directory of the last answer, at first the current one; Ctrl-C \
+     refuses and cancels sz). Each file comes to a temporary name beside its own, the CRC of each frame and \
+     the length checked, then a rename gives it its name; a name that the server sends is one component, \
+     and a file that exists is replaced only after the answer y. When rz waits, podssh asks which local \
+     file to send; ~Z asks first, then types rz on the server. Each wait for the other side has 10 s, and \
+     after 4 waits with no answer the transfer ends and the session goes on. Ctrl-C during a transfer \
+     stops it, and a file that did not end is removed. A file of 4 GiB or more cannot cross: the \
+     positions of ZMODEM have 32 bits. A command that the server sends (sz with a command) never runs \
+     here. With no terminal, through a control master, or with PODSSH_ZMODEM set to off, nothing is \
+     watched, and the bytes go to stdout as they come.",
     "--sudo runs the command as root with sudo -S, with no pty, and --su with su -c, in a pty: the password \
      is asked here, on the terminal or through SSH_ASKPASS, never taken from the command line. podssh \
      answers one prompt, holds its input until the command starts, and asks nothing when sudo asks \

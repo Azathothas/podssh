@@ -3,16 +3,21 @@
 
 Checks raw mode, the window size and a resize, Ctrl-C, full-screen programs
 (vi, less, top), the ~. and ~# escapes, the exit status, and that the local
-terminal is restored afterwards. Prints one `ok` or `FAIL` line per check; exits 1 if
-any check failed. Called by scripts/interop.sh with: PODSSH KNOWN_HOSTS KEY.
+terminal is restored afterwards; then ZMODEM with sz and rz of lrzsz (T-148),
+or `env` lines when the host has no lrzsz. Prints one `ok` or `FAIL` line per
+check; exits 1 if any check failed. Called by scripts/interop.sh with:
+PODSSH KNOWN_HOSTS KEY.
 """
 
 import fcntl
+import hashlib
 import os
 import pty
 import select
+import shutil
 import signal
 import struct
+import subprocess
 import sys
 import termios
 import time
@@ -50,6 +55,13 @@ def check(name, text, condition, detail=b""):
     sys.stdout.flush()
 
 
+# unmet(ID, TEXT): a precondition of the host is missing, as interop-lib.sh's
+# unmet prints it; the baseline allows `env` for that ID.
+def unmet(name, text):
+    print(f"env   {name} {text}")
+    sys.stdout.flush()
+
+
 class Terminal:
     def __init__(self, rows, cols, extra=""):
         pid, fd = pty.fork()
@@ -80,12 +92,13 @@ class Terminal:
         self.buf += chunk
         return True
 
-    def expect(self, needle, timeout=15):
+    def expect(self, needle, timeout=15, since=0):
+        """Wait for `needle` in what came after byte `since` of the output."""
         end = time.time() + timeout
-        while needle not in self.buf and time.time() < end:
+        while needle not in self.buf[since:] and time.time() < end:
             if not self._read(min(0.5, max(0.0, end - time.time()))):
                 break
-        return needle in self.buf
+        return needle in self.buf[since:]
 
     def finish(self, timeout=15):
         """Wait for the wrapper to exit; return the status podssh exited with."""
@@ -165,5 +178,123 @@ listed = t.expect(b"-R 127.0.0.1:2290:127.0.0.1:2201: 0 connections (0 open, 0 f
 check("pty.forwards", "~# lists the forwards of the session", ready and listed, t.buf)
 t.send(b"\rexit\r")
 t.finish()
+
+# ZMODEM (T-148): sz and rz of lrzsz on the server, which is this host.
+# Its names are sz and rz, or lsz and lrz where lrzsz keeps its own.
+ZLOCAL = "/tmp/podssh-zmodem-here"
+ZFAR = "/tmp/podssh-zmodem-far"
+ZMODEM_IDS = [
+    "pty.zmodem.receive",
+    "pty.zmodem.temp",
+    "pty.zmodem.refuse",
+    "pty.zmodem.send",
+    "pty.zmodem.escape",
+    "pty.zmodem.no_terminal",
+]
+SZ = next((n for n in ("sz", "lsz") if shutil.which(n)), None)
+RZ = next((n for n in ("rz", "lrz") if shutil.which(n)), None)
+
+
+def digest(path):
+    try:
+        with open(path, "rb") as f:
+            return hashlib.sha256(f.read()).hexdigest()
+    except OSError:
+        return None
+
+
+def zmodem():
+    for d in (ZLOCAL, ZFAR):
+        shutil.rmtree(d, ignore_errors=True)
+    for d in ("in", "pipe"):
+        os.makedirs(f"{ZLOCAL}/{d}")
+    os.makedirs(ZFAR)
+    os.chmod(ZFAR, 0o777)
+    with open(f"{ZFAR}/down.bin", "wb") as f:
+        f.write(os.urandom(300_000) + bytes(range(256)) * 4)
+    os.chmod(f"{ZFAR}/down.bin", 0o644)
+    with open(f"{ZLOCAL}/up.bin", "wb") as f:
+        f.write(bytes(range(256)) * 1000 + os.urandom(44_444))
+
+    # sz: the question, the directory typed, and the file with its digest.
+    t = Terminal(24, 120)
+    ready = marker(t, "ZM", 1, 1)
+    mark = len(t.buf)
+    t.send(f"cd {ZFAR} && {SZ} down.bin\r".encode())
+    asked = t.expect(b"Receive into", since=mark)
+    t.send(f"{ZLOCAL}/in\r".encode())
+    came = t.expect(b"received ", 60, since=mark)
+    back = marker(t, "ZMR", 2, 3)
+    same = digest(f"{ZLOCAL}/in/down.bin") == digest(f"{ZFAR}/down.bin")
+    check("pty.zmodem.receive", "sz on the server: a question, then the file with an equal digest",
+          ready and asked and came and back and same, t.buf)
+    parts = [n for n in os.listdir(f"{ZLOCAL}/in") if n.endswith(".part")]
+    check("pty.zmodem.temp", "no temporary file is left after the rename", came and not parts, t.buf)
+
+    # Ctrl-C at the question cancels sz, and the shell comes back.
+    mark = len(t.buf)
+    t.send(f"{SZ} down.bin\r".encode())
+    asked = t.expect(b"Receive into", since=mark)
+    t.send(b"\x03", 2.0)
+    t.send(b"\r")
+    back = marker(t, "ZMN", 4, 4)
+    check("pty.zmodem.refuse", "Ctrl-C at the question cancels sz, and the shell comes back", asked and back, t.buf)
+
+    # rz: the question, the local file typed, and its digest on the server.
+    mark = len(t.buf)
+    t.send(f"{RZ}\r".encode())
+    asked = t.expect(b"Send which file?", since=mark)
+    t.send(f"{ZLOCAL}/up.bin\r".encode())
+    sent = t.expect(b"sent up.bin", 60, since=mark)
+    back = marker(t, "ZMS", 3, 3)
+    same = digest(f"{ZFAR}/up.bin") == digest(f"{ZLOCAL}/up.bin")
+    check("pty.zmodem.send", "rz on the server: a question, then the file with an equal digest",
+          asked and sent and back and same, t.buf)
+
+    # ~Z asks for the file first, then types rz.
+    os.remove(f"{ZFAR}/up.bin")
+    mark = len(t.buf)
+    t.send(b"\r~Z")
+    asked = t.expect(b"send which file by ZMODEM", since=mark)
+    t.send(f"{ZLOCAL}/up.bin\r".encode())
+    sent = t.expect(b"sent up.bin", 60, since=mark)
+    back = marker(t, "ZME", 5, 5)
+    same = digest(f"{ZFAR}/up.bin") == digest(f"{ZLOCAL}/up.bin")
+    check("pty.zmodem.escape", "~Z asks for a file, types rz, and the file arrives",
+          asked and sent and back and same, t.buf)
+    t.send(b"exit\r")
+    t.finish()
+
+    # With no terminal (pipes, -tt forces the pty): sz's bytes reach stdout,
+    # and nothing is written here. The pipe of stdin stays open, so that sz
+    # waits as it would for an answer.
+    cmd = [BIN, "ssh", "--direct", "-p", "2201", "-o", f"UserKnownHostsFile={KNOWN_HOSTS}",
+           "-o", "IdentityAgent=none", "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "-i", KEY,
+           "-tt", "podtest@127.0.0.1", f"cd {ZFAR} && timeout 20 {SZ} down.bin"]
+    p = subprocess.Popen(cmd, cwd=f"{ZLOCAL}/pipe", stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                         stderr=subprocess.STDOUT)
+    out = b""
+    end = time.time() + 30
+    while b"**\x18B00" not in out and time.time() < end:
+        ready, _, _ = select.select([p.stdout.fileno()], [], [], 0.5)
+        if ready:
+            chunk = os.read(p.stdout.fileno(), 65536)
+            if not chunk:
+                break
+            out += chunk
+    # A receiver that answered would have the file, or its temporary name, by now.
+    time.sleep(3)
+    p.kill()
+    p.wait()
+    written = os.listdir(f"{ZLOCAL}/pipe")
+    check("pty.zmodem.no_terminal", "with no terminal nothing is received, and sz's bytes reach stdout",
+          b"**\x18B00" in out and not written, out + f"\nwritten: {written}".encode())
+
+
+if SZ and RZ:
+    zmodem()
+else:
+    for name in ZMODEM_IDS:
+        unmet(name, "no sz and rz of lrzsz on this host")
 
 sys.exit(1 if fails else 0)

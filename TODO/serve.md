@@ -110,7 +110,7 @@ and stderr apart, and an environment that a cage can give.
   lines 601-667). russh also gives each data message to the kept `Channel`,
   and waits when 100 wait unread (`Eugeny/russh:russh/src/server/encrypted.rs`,
   lines 1350-1356): an unread channel stops the whole connection.
-- Read: the client side to match is `crates/podssh-ssh/src/io.rs:295-355`;
+- Read: the client side to match is `crates/podssh-ssh/src/io.rs:367-427`;
   `crates/podssh-ssh/src/signals.rs:26-64` maps names to numbers only;
   `tokio` with `process` is a dependency (`crates/podssh-ssh/Cargo.toml:22`).
 
@@ -239,7 +239,7 @@ hold"). A session skips this entry until the operator lifts the hold.
 # T-110: `podssh serve`: a real pty when `/dev/ptmx` exists
 
 **Source:** `docs/ROADMAP.md:183-188`, `docs/design.md:336-340`,
-`docs/terminal.md:76-86`; GitHub #20 (bound every PTY wait).
+`docs/terminal.md:77-87`; GitHub #20 (bound every PTY wait).
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -277,11 +277,11 @@ it there.
    `crates/podssh-ssh/src/terminal/unix.rs:86-163` to a shared module and
    read it both ways. Skip a mode that the kernel refuses.
 3. Size: `TIOCSWINSZ` on the master from `pty-req` and each `window-change`.
-   A zero size becomes 80x24 (`docs/terminal.md:79-80`).
+   A zero size becomes 80x24 (`docs/terminal.md:80-81`).
 4. The child: `setsid`, `ioctl(TIOCSCTTY)`, the slave on descriptors 0 to 2,
    then exec, in `pre_exec`. The parent closes its copy of the slave, or the
    master never sees the end. `TERM` from the request (empty:
-   `xterm-256color`, as `crates/podssh-ssh/src/terminal/mod.rs:104-109`);
+   `xterm-256color`, as `crates/podssh-ssh/src/terminal/mod.rs:105-110`);
    `SSH_TTY` names the slave.
 5. I/O: the master is read without blocking through tokio's `AsyncFd`; output
    goes through the channel's writer (T-118). `EIO` after the child is gone
@@ -303,7 +303,7 @@ The test file crates/podssh-ssh/tests/serve_pty.rs applies modes and sizes to
 a real pty and reads them back. In the gate, the pty driver
 `scripts/interop-pty.py` gets a mode that runs OpenSSH's `ssh -t` against
 `podssh serve --stdio`: size, resize, Ctrl-C, `vi`, `less`, `top`, an exit
-status and `~.`. The `-tt` cases of `scripts/interop.sh:417-445` run against
+status and `~.`. The `-tt` cases of `scripts/interop.sh:420-448` run against
 serve too. A planted serve that skips `TIOCSWINSZ` fails the size check.
 
 ## Blocker
@@ -332,14 +332,14 @@ command, and the session must end.
 ## Premise
 
 - Read: `crates/podssh-terminal` holds podbox's echo, editing and history
-  rules (`docs/terminal.md:153-191`), and reports Ctrl-C and Ctrl-\ as
+  rules (`docs/terminal.md:154-192`), and reports Ctrl-C and Ctrl-\ as
   `Event::Signal` (`crates/podssh-terminal/src/echo.rs:421-423`). No command
   uses it, and it has the defects T-125 to T-129, which come first.
 - Read, at `cb94460`: the crate refuses to add `\r` before `\n`
   (`crates/podssh-terminal/src/echo.rs` lines 31-37,
   `crates/podssh-terminal/src/passthrough.rs:56-74`). Here the child writes
   to a pipe and the client's terminal is raw: the case where a lone `\n`
-  must become `\r\n` (`docs/terminal.md:246-249`).
+  must become `\r\n` (`docs/terminal.md:247-250`).
 - Read: a signal to the group also stops a shell that does not catch it
   (`crates/podssh-terminal/src/session.rs:36-46`). Not measured yet: which
   shell mode survives.
@@ -379,7 +379,7 @@ sh scripts/test_in_box.sh target/x86_64-unknown-linux-musl/release/podssh
 The test file crates/podssh-ssh/tests/serve_line.rs uses `--pty line`: Ctrl-C
 ends `sleep 30` within 5 s, the next line runs, and output lines end in CR
 LF. The gate runs the same through OpenSSH's `ssh -tt`, in the shape of
-`scripts/interop.sh:426-435`: `AFTER-5` and exit 9 within 15 s. In the box
+`scripts/interop.sh:429-438`: `AFTER-5` and exit 9 within 15 s. In the box
 (no `/dev/ptmx`), a new step drives `podssh serve --stdio` with
 `podman exec -i` from OpenSSH on the host. A planted serve that signals the
 shell's pid and not its group fails the 15 s check.
@@ -424,7 +424,7 @@ default since OpenSSH 9.0), need an SFTP subsystem on the server.
   `subsystem_request` must answer (`Eugeny/russh:russh/src/server/mod.rs`,
   lines 686-696 at `22c3b88`).
 - Read: the client reaches an SFTP subsystem already: `-s sftp` gets
-  `SSH_FXP_VERSION` from OpenSSH's `sftp-server` (`scripts/interop.sh:362-370`).
+  `SSH_FXP_VERSION` from OpenSSH's `sftp-server` (`scripts/interop.sh:365-373`).
 - Read in the report of GitHub #20, not verified here: tty7 issue #1126 is an
   SFTP wait that did not end; GitHub #15 is the same class in podssh.
 
@@ -488,7 +488,7 @@ out with matching digests.
 
 - Read: `podssh serve` runs in the sandbox as a node (T-107 on the runner of
   T-079), and the operator connects through the relay (T-084).
-- Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:232-236`).
+- Read: `vi`, `less` and `top` need a real pty (`docs/terminal.md:233-237`).
   The measured sandboxes have no `/dev/ptmx` (`docs/target-environment.md:26`,
   `docs/STATUS.md:227`). With no pty device, no podssh code can give the child
   a tty: shims are excluded (`docs/decisions.md:45`).
@@ -1295,7 +1295,7 @@ no reason (`docs/target-environment.md:63-64`).
    (`crates/podssh-cli/src/doctor/host.rs:10-25`) from the same function.
 6. T-108 runs the result. Never call `getpwuid`. Same commit: `--shell` in
    `crates/podssh-cli/src/flags.rs`, `SHELL` in
-   `crates/podssh-cli/src/man/facts.rs:45-194`, `docs/cli.md`.
+   `crates/podssh-cli/src/man/facts.rs:45-200`, `docs/cli.md`.
 
 ## Decision
 

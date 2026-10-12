@@ -35,7 +35,7 @@ Read:
   `Permission denied (publickey,keyboard-interactive).`, the note about
   keyboard-interactive, then the wrong note.
 - The gate's check "password with BatchMode" runs this case against OpenSSH
-  (`scripts/interop.sh:180-183`). It only looks for the password note, so its
+  (`scripts/interop.sh:183-186`). It only looks for the password note, so its
   output holds the wrong note today (inferred, not measured).
 
 ## Approach
@@ -70,7 +70,7 @@ a pure function that builds the notes from the methods, the server's first
 list and the keys offered: no key note when `publickey` is off or not
 accepted, and the old note when keys were tried and failed. Planted defect:
 put back the unconditional `notes.extend`, and the test fails. The second
-runs the gate, where `scripts/interop.sh:180-183` also asserts that the
+runs the gate, where `scripts/interop.sh:183-186` also asserts that the
 output has `publickey was not tried` and not `no key was offered`.
 
 ## Done
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:228` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:415`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:429`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -388,7 +388,7 @@ Read:
   (`crates/podssh-ssh/src/io.rs`, line 226 at `8cf2587`,
   `crates/podssh-ssh/src/session.rs:19-20`,
   `crates/podssh-ssh/src/session.rs:41`). A channel that ends with no Close
-  is `Lost`: an error, and 255 (`crates/podssh-ssh/src/io.rs:266`,
+  is `Lost`: an error, and 255 (`crates/podssh-ssh/src/io.rs:276`,
   `crates/podssh-ssh/src/session.rs:42`).
 - A closed stdout (EPIPE) gives the status so far, or 0 when none came
   (`crates/podssh-ssh/src/io.rs`, lines 200-204 at `8cf2587`).
@@ -889,7 +889,7 @@ Read: each hop gets its own name for the check, its host and its port, as
 destination only (`crates/podssh-ssh/src/run.rs`, lines 270-273 at `e85e6d2`). The order of
 host-key algorithms comes from the keys recorded for that hop
 (`crates/podssh-ssh/src/run.rs:401-423`). The gate's check "-J through
-OpenSSH to Dropbear" (`scripts/interop.sh:358-359`) passes only when this
+OpenSSH to Dropbear" (`scripts/interop.sh:361-362`) passes only when this
 holds: both hops are 127.0.0.1, both keys are Ed25519 and differ, and each
 is recorded under its own port.
 
@@ -954,7 +954,7 @@ filed as it is, with no port, as OpenSSH files it (the Correction).
   10.3p1 did, and under `StrictHostKeyChecking=yes` each tool took the key that
   the other had filed and went on to the login.
 - A new harness, `scripts/interop-hostkeys.sh:1-58`, sourced after the check of
-  `-J` (`scripts/interop.sh:360-361`), has four checks (its floor is 4):
+  `-J` (`scripts/interop.sh:363-364`), has four checks (its floor is 4):
   `hostkeys.jump_names`, from an empty file under accept-new, `-J` through
   OpenSSH to Dropbear files `[127.0.0.1]:2201` and `[127.0.0.1]:2203`;
   `hostkeys.jump_changed`, with the jump's key changed, exits 255 with a
@@ -1124,8 +1124,8 @@ acceptable.
    the password only for a prompt that ends the output with no newline after
    it, before M2, and once.
 5. Put the filter in a new module, crates/podssh-ssh/src/elevate.rs. Hook it
-   into `handle_msg` (`crates/podssh-ssh/src/io.rs:295-355`) and the stdin
-   branch (`crates/podssh-ssh/src/io.rs:194-250`), and keep `io.rs` under 500
+   into `handle_msg` (`crates/podssh-ssh/src/io.rs:367-427`) and the stdin
+   branch (`crates/podssh-ssh/src/io.rs:208-260`), and keep `io.rs` under 500
    lines.
 6. Pitfalls: with a NOPASSWD rule, M1 never comes, so no password is sent;
    `-k` makes `sudo` ask also with cached credentials; the remote login shell
@@ -1173,9 +1173,9 @@ M1, and the NOPASSWD check fails.
 2026-10-11. The markers, the command and the filter in
 `crates/podssh-ssh/src/elevate.rs:1-290`. The session wraps the command
 (`crates/podssh-ssh/src/session.rs:114-127`, the question at
-`crates/podssh-ssh/src/session.rs:177-186`), and the pump filters the output,
-asks, and holds its input until the start (`crates/podssh-ssh/src/io.rs:171-180`,
-`crates/podssh-ssh/src/io.rs:372-379`). The flags at
+`crates/podssh-ssh/src/session.rs:181-190`), and the pump filters the output,
+asks, and holds its input until the start (`crates/podssh-ssh/src/io.rs:185-194`,
+`crates/podssh-ssh/src/io.rs:444-451`). The flags at
 `crates/podssh-cli/src/flags.rs:203-208`, and their check in
 `crates/podssh-cli/src/ssh/elevate.rs:1-43`.
 - `cargo test -p podssh-ssh -- elevate`: 5 passed: the quoting of the
@@ -1218,9 +1218,9 @@ and no player.
 ## Premise
 
 - Read: each output of a session passes `handle_msg`
-  (`crates/podssh-ssh/src/io.rs:295-314`), and each window change passes the
-  resize branch (`crates/podssh-ssh/src/io.rs:284-289`). The size at the start
-  is `terminal::size` (`crates/podssh-ssh/src/terminal/mod.rs:71`).
+  (`crates/podssh-ssh/src/io.rs:367-386`), and each window change passes the
+  resize branch (`crates/podssh-ssh/src/io.rs:294-299`). The size at the start
+  is `terminal::size` (`crates/podssh-ssh/src/terminal/mod.rs:72`).
   `podssh-ssh` has no JSON dependency
   (`crates/podssh-ssh/Cargo.toml:17-30`).
 - Measured, offline: `podssh ssh --record /tmp/s.cast example.invalid` gives
@@ -1282,7 +1282,7 @@ byte boundary, and the UTF-8 test fails.
 2026-10-11. The recorder in `crates/podssh-ssh/src/record.rs:1-153`, which a
 session starts with the size of its start
 (`crates/podssh-ssh/src/session.rs:146-154`) and its output passes through
-(`crates/podssh-ssh/src/io.rs:72-94`). The flag at
+(`crates/podssh-ssh/src/io.rs:74-108`). The flag at
 `crates/podssh-cli/src/flags.rs:205-206`, its check and its file in
 `crates/podssh-cli/src/ssh/recording.rs:1-42`; the verb in
 `crates/podssh-cli/src/play.rs:1-86`, its flags in
@@ -2234,7 +2234,7 @@ user sees a session that hangs.
 Measured: a hung run of the control held no TCP connection (the relay
 host's reset had come through), and `-vv` printed nothing after the login.
 Read at `b62d657`: the session's loop awaited each send of stdin's bytes on
-the channel inside its `select!` (now `crates/podssh-ssh/src/io.rs:202-228`),
+the channel inside its `select!` (now `crates/podssh-ssh/src/io.rs:226-234`),
 and a send waits for the channel's window; while it waited, the loop read
 none of the channel's messages, which carry the end. And in the relay
 stream, the task that sends stopped reading the pipe when a send failed,
@@ -2268,7 +2268,7 @@ hang. Plant: the relay stream's receiving task with no stop fails its test.
 ## Done
 
 2026-10-10. The session's loop reads the channel's messages while a send
-waits for the window (`crates/podssh-ssh/src/io.rs:202-228`), and in the
+waits for the window (`crates/podssh-ssh/src/io.rs:226-234`), and in the
 relay stream each task's end with the link stops the other
 (`crates/podssh-ssh/src/relay_stream.rs:117-206`).
 - T-156's control of a stopped relay host (the forward road, 20 MiB up and

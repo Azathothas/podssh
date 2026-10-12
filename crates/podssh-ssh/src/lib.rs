@@ -20,6 +20,8 @@
 //!   ([`probe`]);
 //! - a shell that the far end keeps after `~d`, joined again by a later
 //!   login ([`keep`]).
+//! - ZMODEM inside a terminal session, for a server that gives a shell and
+//!   nothing else ([`zmodem`]).
 
 mod agent_forward;
 mod answer;
@@ -63,6 +65,7 @@ pub mod sshsig;
 pub mod tally;
 pub mod terminal;
 pub mod x11;
+pub mod zmodem;
 
 /// A connection to one hop, logged in.
 pub type Connection = russh::client::Handle<handler::Client>;
