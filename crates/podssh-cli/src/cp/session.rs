@@ -13,7 +13,7 @@ use super::pipe::Shape;
 use super::plan::{Direction, Plan};
 use super::resume::{self, Before, Progress, TRIES};
 use super::transfer::{self, Cause, Done, Failed};
-use super::{bysftp, tree_copy, Outcome};
+use super::{bysftp, mirror, tree_copy, Outcome};
 use crate::exitmap::Fault;
 use crate::ssh::resolve::Resolved;
 
@@ -97,7 +97,7 @@ pub(super) async fn session(
         }
     }
     // --delete: once each copy of the run succeeded (T-144).
-    tree_copy::finish_deletes(&link, &mut outcome, log).await;
+    mirror::finish_deletes(&link, &mut outcome, log).await;
     if let Some(link) = link {
         link.close().await;
     }
@@ -279,13 +279,13 @@ async fn copy(
             bysftp::down(sftp, handle, &src.path, dest, many, log, progress, &link.meter, shape).await
         }
         (Road::Sftp(sftp), Operand::Remote(src), Operand::Remote(dest)) => {
-            transfer::within(sftp, handle, &src.path, &dest.path, log).await
+            transfer::within(sftp, handle, &src.path, &dest.path, shape.keep, log).await
         }
         (Road::Exec(far), Operand::Local(path), Operand::Remote(dest)) => {
-            far.up(handle, path, &dest.path, many, log, progress, &link.meter).await
+            far.up(handle, path, &dest.path, many, log, progress, &link.meter, shape.keep).await
         }
         (Road::Exec(far), Operand::Remote(src), Operand::Local(dest)) => {
-            far.down(handle, &src.path, dest, many, log, progress, &link.meter).await
+            far.down(handle, &src.path, dest, many, log, progress, &link.meter, shape.keep).await
         }
         (Road::Exec(_), Operand::Remote(_), Operand::Remote(_)) => {
             unreachable!("a copy within one server by exec goes through this host")

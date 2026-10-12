@@ -91,6 +91,8 @@ struct Seen {
     reordered: usize,
     reads: usize,
     writes: usize,
+    /// The bytes that the writes carried.
+    written: u64,
 }
 
 const FXP_READ: u8 = 5;
@@ -193,6 +195,7 @@ async fn start(server: &Path, dir: &Path, plan: Plan) -> (Sftp, Child, Arc<Mutex
                     s.max_requests = s.max_requests.max(s.open.len());
                     if p[4] == FXP_WRITE {
                         s.writes += 1;
+                        s.written += bytes;
                         up_plan.fail_write == Some(s.writes - 1)
                     } else {
                         false
@@ -412,5 +415,64 @@ async fn a_failed_write_keeps_the_acknowledged_part_contiguous() {
     let (sftp, _child, _seen) = start(&server, &dir, Plan::default()).await;
     assert_eq!(upload(&sftp, "up.bin", &want, acked, pipe).await, Ok(want.len() as u64));
     assert_eq!(std::fs::read(dir.join("up.bin")).expect("on disk"), want, "the file is whole");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Holes (T-146): a block of zeros is skipped, never written, and counts as
+/// acknowledged once the writes before it are, with replies out of order
+/// too; the size set at the end gives back each byte.
+#[tokio::test]
+async fn a_hole_is_never_written_and_counts_as_acknowledged() {
+    let server = need_server!();
+    let dir = scratch("holes");
+    let (sftp, _child, seen) = start(&server, &dir, Plan { reorder: true, ..Plan::default() }).await;
+    let block = 64 * 1024;
+    // A hole first, with no write in flight; then holes behind writes.
+    let mut want = vec![0u8; block];
+    want.extend(data(4 * block));
+    want.extend(vec![0u8; 3 * block]);
+    want.extend(data(2 * block));
+    want.extend(vec![0u8; 2 * block]);
+    let flags = OpenFlags::CREATE | OpenFlags::WRITE;
+    let file = bounded(sftp.open_file("holes.bin", flags, FileAttributes::default())).await.expect("open");
+    let pipe = Pipeline { requests: 8, len: 32 * 1024, ..Pipeline::default() };
+    let mut writes = Writes::new(&sftp, &file, 0, pipe);
+    for part in want.chunks(32 * 1024) {
+        if part.iter().all(|b| *b == 0) {
+            writes.skip(part.len() as u64);
+        } else {
+            bounded(writes.send(part.to_vec())).await.expect("a write");
+        }
+    }
+    let acked = bounded(writes.finish()).await.expect("each write");
+    assert_eq!(acked, want.len() as u64, "the holes count as acknowledged");
+    drop(writes);
+    bounded(sftp.close(&file)).await.expect("close");
+    let size = FileAttributes { size: Some(want.len() as u64), ..FileAttributes::default() };
+    bounded(sftp.setstat("holes.bin", size)).await.expect("the size");
+    assert_eq!(std::fs::read(dir.join("holes.bin")).expect("on disk"), want, "each byte, the holes zeros");
+    assert_eq!(seen.lock().unwrap().written, 6 * block as u64, "only the blocks with data were sent");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// `hardlink@openssh.com` (T-146): a second name of one file, so a write
+/// through the first shows through the second; a name that exists is
+/// refused.
+#[tokio::test]
+async fn a_hard_link_is_a_second_name_of_one_file() {
+    let server = need_server!();
+    let dir = scratch("hardlink");
+    let (sftp, _child, _seen) = start(&server, &dir, Plan::default()).await;
+    if !sftp.has("hardlink@openssh.com") {
+        eprintln!("did not run: the server has no hardlink@openssh.com");
+        return;
+    }
+    std::fs::write(dir.join("first"), b"one").expect("written");
+    bounded(sftp.hardlink("first", "second")).await.expect("the link");
+    std::fs::write(dir.join("first"), b"two").expect("written again");
+    assert_eq!(std::fs::read(dir.join("second")).expect("the second name"), b"two");
+    let refused = bounded(sftp.hardlink("first", "second")).await.expect_err("the name exists");
+    assert!(refused.to_string().contains("hardlink second to first"), "{refused}");
+    drop(sftp);
     let _ = std::fs::remove_dir_all(&dir);
 }

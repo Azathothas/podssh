@@ -26,6 +26,8 @@ pub mod delta;
 mod digest;
 pub mod gauge;
 pub(crate) mod link;
+pub mod meta;
+mod mirror;
 mod moving;
 pub mod operand;
 pub(crate) mod pipe;
@@ -83,6 +85,10 @@ pub struct CpArgs {
     pub delete: bool,
     /// `-l KBITS`: the bandwidth (T-145).
     pub limit: Option<String>,
+    /// `-p`, `--owner` and `--sparse` (T-146).
+    pub preserve: bool,
+    pub owner: bool,
+    pub sparse: bool,
 }
 
 impl CpArgs {
@@ -131,6 +137,9 @@ impl CpArgs {
             dry_run: flag("dry-run"),
             delete: flag("delete"),
             limit: many("limit").pop(),
+            preserve: flag("preserve"),
+            owner: flag("owner"),
+            sparse: flag("sparse"),
         }
     }
 }
@@ -147,7 +156,7 @@ struct Outcome {
     /// What `--delete` removed (T-144), and what waits for the end of the
     /// run.
     deleted: Vec<String>,
-    pending: Vec<tree_copy::Pending>,
+    pending: Vec<mirror::Pending>,
 }
 
 /// What `-r` and its flags ask for (T-143); `None` without `-r`. `scp -r`
@@ -178,8 +187,10 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
             return Fault::Usage.code();
         }
     };
-    let shape = pipe::pipeline(None, None, &args.sftp_options)
-        .and_then(|pipe| Ok(pipe::Shape { pipe, tasks: pipe::tasks(args.parallel.as_deref())?, delta: args.delta }));
+    let keep = meta::Keep { times: args.preserve, owner: args.owner, sparse: args.sparse };
+    let shape = pipe::pipeline(None, None, &args.sftp_options).and_then(|pipe| {
+        Ok(pipe::Shape { pipe, tasks: pipe::tasks(args.parallel.as_deref())?, delta: args.delta, keep })
+    });
     plan.shape = match shape {
         Ok(shape) => shape,
         Err(why) => {

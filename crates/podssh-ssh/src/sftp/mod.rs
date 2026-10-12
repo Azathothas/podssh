@@ -146,6 +146,15 @@ fn ssh_strings(parts: &[&str]) -> Vec<u8> {
     out
 }
 
+/// An extension's reply that is a status: OK, or the failure that it names.
+fn status_reply(what: &str, reply: russh_sftp::protocol::Packet, limit: Duration) -> Result<(), SftpError> {
+    match reply {
+        russh_sftp::protocol::Packet::Status(s) if s.status_code == StatusCode::Ok => Ok(()),
+        russh_sftp::protocol::Packet::Status(s) => Err(SftpError::from_raw(what, Raw::Status(s), limit)),
+        _ => Err(SftpError::Protocol(format!("{what}: a reply of the wrong type"))),
+    }
+}
+
 impl Sftp {
     /// The `sftp` subsystem on a new session channel of `handle`. A refusal,
     /// or no answer to the request, is [`SftpError::NoSftp`].
@@ -316,11 +325,19 @@ impl Sftp {
         data.extend_from_slice(&ssh_strings(&[to.0.as_str()]));
         data.extend_from_slice(&0u64.to_be_bytes());
         let what = "copy-data";
-        match within(limit, what, self.raw.extended("copy-data", data)).await? {
-            russh_sftp::protocol::Packet::Status(s) if s.status_code == StatusCode::Ok => Ok(()),
-            russh_sftp::protocol::Packet::Status(s) => Err(SftpError::from_raw(what, Raw::Status(s), limit)),
-            _ => Err(SftpError::Protocol(format!("{what}: a reply of the wrong type"))),
+        status_reply(what, within(limit, what, self.raw.extended("copy-data", data)).await?, limit)
+    }
+
+    /// A second name, `new`, for the file `existing`
+    /// (`hardlink@openssh.com`, T-146).
+    pub async fn hardlink(&self, existing: &str, new: &str) -> Result<(), SftpError> {
+        let what = format!("hardlink {new} to {existing}");
+        if !self.extensions.contains_key("hardlink@openssh.com") {
+            let message = "the server has no hardlink@openssh.com".to_string();
+            return Err(SftpError::Status { what, code: StatusCode::OpUnsupported as u32, message });
         }
+        let request = self.raw.extended("hardlink@openssh.com", ssh_strings(&[existing, new]));
+        status_reply(&what, within(self.limits.metadata, &what, request).await?, self.limits.metadata)
     }
 
     /// The file system of `path` (`statvfs@openssh.com`), for `df`.
@@ -366,7 +383,8 @@ impl Sftp {
         within(self.limits.data, "fsync a file", self.raw.fsync(file.0.as_str())).await.map(|_| true)
     }
 
-    /// Set what `attrs` names on `path`: the permission bits of a copy.
+    /// Set what `attrs` names on `path`: the permission bits of a copy, its
+    /// times and owner (T-146), or its size.
     pub async fn setstat(&self, path: &str, attrs: FileAttributes) -> Result<(), SftpError> {
         within(self.limits.metadata, &format!("set the attributes of {path}"), self.raw.setstat(path, attrs))
             .await
@@ -389,13 +407,7 @@ impl Sftp {
         let what = format!("rename {from} to {to}");
         if self.extensions.contains_key("posix-rename@openssh.com") {
             let request = self.raw.extended("posix-rename@openssh.com", ssh_strings(&[from, to]));
-            return match within(self.limits.metadata, &what, request).await? {
-                russh_sftp::protocol::Packet::Status(s) if s.status_code == StatusCode::Ok => Ok(()),
-                russh_sftp::protocol::Packet::Status(s) => {
-                    Err(SftpError::from_raw(&what, Raw::Status(s), self.limits.metadata))
-                }
-                _ => Err(SftpError::Protocol(format!("{what}: a reply of the wrong type"))),
-            };
+            return status_reply(&what, within(self.limits.metadata, &what, request).await?, self.limits.metadata);
         }
         within(self.limits.metadata, &what, self.raw.rename(from, to)).await.map(|_| ())
     }

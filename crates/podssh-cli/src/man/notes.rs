@@ -57,15 +57,24 @@ const CP: &[&str] = &[
      With --jsonl each file gives one JSON object: done, with the bytes, the SHA-256 and how the far \
      side was checked, or error, with the exit code.",
     "Several sources go into a directory. A copy from server to server goes through a temporary file on \
-     this host, one connection at a time. -r and -p are refused by name: copying a directory, and \
-     keeping the mode and the times, are not implemented yet.",
+     this host, one connection at a time. -r copies a directory and what it holds, each link as a link \
+     (scp -r follows links).",
+    "A copy keeps the source's permission bits. -p keeps the access and the modification times too, \
+     and with -r each directory's, set after its files; --owner keeps the owner and the group by number \
+     where the side that writes may give a file away (root), and says where it could not. A block of 64 \
+     KiB of zeros is a hole, never sent: up when the source has holes, both ways with --sparse. Within \
+     one -r upload, two names of one file arrive as one file with two names (hardlink@openssh.com). \
+     SFTP version 3 carries the times in whole seconds from 1970 to 2106, and no inode, extended \
+     attribute or ACL: those, and a far source's hard links, are not kept.",
     "A server with no SFTP subsystem gets a copy by exec, and podssh says so. Each step is one command \
      with no pty, sh -c 'SCRIPT' sh PATH..., so the login shell only starts sh, and each path is one \
      quoted word; a path with a newline or a NUL is refused. A probe finds the far tools: cat, wc, mv \
      and rm are needed. The bytes go raw through cat when the 256 byte values come back unchanged, \
      else through base64. Each answer comes after a random marker, so text that a login prints first \
      is never data. The temporary name, the digests and the rename are as above; a copy down keeps \
-     mode 0600. With no POSIX sh, or a needed tool missing, the copy exits 69 and names it.",
+     mode 0600, or with -p or --owner what stat says of the far file; up, chmod, touch -t and chown set \
+     what a copy keeps, where the server has them. With no POSIX sh, or a needed tool missing, the copy \
+     exits 69 and names it.",
     "Each SFTP reply that carries no file data is waited for 30 s at most, and each read or write 60 s. \
      --timeout bounds the whole copy, the login included. The exit codes are the sysexits of \
      EXIT STATUS, as for podssh proxy.",
@@ -78,7 +87,8 @@ const CP: &[&str] = &[
 
 const SCP: &[&str] = &[
     "podssh scp takes the command line of OpenSSH's scp, and copies as podssh cp does: over SFTP, or by \
-     exec when the server has no SFTP; under a temporary name, verified by its digest, then renamed.",
+     exec when the server has no SFTP; under a temporary name, verified by its digest, then renamed. -p \
+     keeps the times, as podssh cp -p does.",
     "Each letter of OpenSSH's usage parses: -B is BatchMode=yes, -3, -s and -T are accepted and change \
      nothing, and the others that podssh does not carry are refused by name. An operand can be a URI, \
      scp://[user@]host[:port][/path]: its path is under the login directory, and // makes it absolute. \
@@ -93,7 +103,8 @@ const SFTP: &[&str] = &[
      fetches that file and ends; one with a directory starts there.",
     "The commands: get and put (with reget and reput, which are the same), rename, rm (with * and ? in \
      the last name), mkdir [-p], rmdir, ls [-la], cd, lcd, pwd, lpwd, chmod, df [-hi], help, version, and \
-     bye, exit or quit. get and put copy as podssh cp does. The exit code is that of the first command \
+     bye, exit or quit. get and put copy as podssh cp does; get -p and put -p, or each of them after \
+     sftp -p, keep the times. The exit code is that of the first command \
      that ends the batch, as for podssh cp; a usage error is 64 where OpenSSH gives 1.",
 ];
 

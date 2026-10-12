@@ -19,6 +19,7 @@ use sha2::{Digest, Sha256};
 
 use super::chunks::{read_at, write_at};
 use super::digest::{self, Sum};
+use super::meta::{self, Keep, Stamp};
 use super::transfer::{self, Done, Failed, Side};
 use crate::exitmap::Fault;
 
@@ -122,6 +123,7 @@ pub async fn up(
     target: &str,
     before: &std::fs::Metadata,
     pipe: Pipeline,
+    keep: Keep,
     log: &Log,
 ) -> Result<Option<Done>, Failed> {
     let old = match sftp.stat(target).await {
@@ -197,9 +199,13 @@ pub async fn up(
         log.info(&format!("{source}: the digests differ after the delta ({how}): a full copy follows"));
         return Ok(None);
     }
-    let mode = FileAttributes { permissions: Some(transfer::local_mode(before)), ..FileAttributes::default() };
-    sftp.setstat(&temp, mode).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+    let stamp = Stamp::of_local(before);
+    if let Err(failed) = meta::set_far(sftp, &temp, &stamp, keep, log).await {
+        let _ = sftp.remove(&temp).await;
+        return Err(failed);
+    }
     let not_atomic = transfer::rename_onto(sftp, &temp, target, log).await?;
+    meta::times_after_rename(sftp, target, &stamp, keep).await;
     Ok(Some(Done {
         source: source.into(),
         destination: target.to_string(),
@@ -225,8 +231,9 @@ pub async fn down(
     source: &str,
     target: &Path,
     size: u64,
-    permissions: Option<u32>,
+    stamp: &Stamp,
     pipe: Pipeline,
+    keep: Keep,
     log: &Log,
 ) -> Result<Option<Done>, Failed> {
     if !std::fs::metadata(target).is_ok_and(|m| m.is_file() && m.len() > 0) {
@@ -296,7 +303,10 @@ pub async fn down(
         log.info(&format!("{source}: the digests differ after the delta ({how}): a full copy follows"));
         return Ok(None);
     }
-    transfer::set_local_mode(&temp, permissions);
+    if let Err(failed) = meta::set_local(&temp, stamp, keep, log) {
+        let _ = std::fs::remove_file(&temp);
+        return Err(failed);
+    }
     std::fs::rename(&temp, target).map_err(|e| Failed::new(Fault::CantCreate, format!("{shown}: {e}")))?;
     Ok(Some(Done {
         source: source.into(),

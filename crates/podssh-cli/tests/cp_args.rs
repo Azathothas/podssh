@@ -57,13 +57,15 @@ fn each_refusal_is_64_and_nothing_is_attempted() {
 }
 
 #[test]
-fn preserve_refuses_by_name() {
-    // -r copies a directory since T-143; -p waits for T-146.
-    for flag in ["-p", "--preserve"] {
-        let (rc, out, err) = cp(&[flag, "a", "host:b"]);
-        assert_eq!(rc, 64, "{flag}: {err}");
-        assert!(out.is_empty(), "{flag} wrote to stdout");
-        assert!(err.contains("is refused") && err.contains("not implemented yet"), "{flag}: {err}");
+fn preserve_owner_and_sparse_go_on_to_connect() {
+    // -p keeps the times since T-146, --owner the owner, and --sparse makes
+    // holes: offline, nothing answers (69).
+    for flags in [&["-p"][..], &["--preserve"], &["--owner"], &["--sparse"], &["-p", "--owner", "--sparse", "-r"]] {
+        let mut words = flags.to_vec();
+        words.extend(["a", "host:b"]);
+        let (rc, out, err) = cp(&words);
+        assert_eq!(rc, 69, "{flags:?}: {err}");
+        assert!(out.is_empty(), "{flags:?} wrote to stdout");
     }
 }
 

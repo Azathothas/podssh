@@ -30,6 +30,7 @@ harness ping interop 3 scripts/interop-ping.sh
 harness relay interop 4 scripts/interop-relay.sh
 harness socks interop 4 scripts/interop-socks.sh
 harness cp interop 80 scripts/interop-cp.sh
+harness keep interop 11 scripts/interop-keep.sh
 harness mv interop 18 scripts/interop-mv.sh
 harness sftp interop 5 scripts/interop-sftp.sh
 harness resume interop 9 scripts/interop-resume.sh
@@ -388,6 +389,19 @@ cp.grow.down.exec pass
 cp.grow.down.internal_sftp pass
 cp.grow.down.sftp pass
 cp.no_part.exec pass
+
+# scripts/interop-keep.sh
+keep.times.up.sftp pass
+keep.times.up.exec pass
+keep.times.down.sftp pass
+keep.times.down.exec pass
+keep.times.without pass
+keep.times.dirs pass
+keep.sparse.up pass
+keep.sparse.down pass
+keep.hardlink pass
+keep.owner.up pass
+keep.owner.down pass
 
 # scripts/interop-mv.sh
 mv.up.exec pass

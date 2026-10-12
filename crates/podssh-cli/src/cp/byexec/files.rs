@@ -15,6 +15,7 @@ use sha2::{Digest, Sha256};
 use super::{command, failed, step_failed, Far, Kind};
 use crate::cp::digest::{self, Sum};
 use crate::cp::link::Meter;
+use crate::cp::meta::{self, Keep, Stamp};
 use crate::cp::resume::{self, Progress};
 use crate::cp::transfer::{self, Cause, Done, Failed};
 use crate::exitmap::Fault;
@@ -47,6 +48,7 @@ impl Far {
         log: &Log,
         progress: &mut Progress,
         meter: &Meter,
+        keep: Keep,
     ) -> Result<Done, Failed> {
         let local = Path::new(source);
         let before = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
@@ -146,7 +148,7 @@ impl Far {
             let sum: Sum = hasher.finalize().into();
             let (far, how) = self.digest(handle, &temp, sent).await?;
             transfer::compare(&sum, &far, &how, source)?;
-            self.rename(handle, &temp, &target, Some(transfer::local_mode(&before))).await?;
+            self.rename(handle, &temp, &target, &Stamp::of_local(&before), keep, log).await?;
             Ok(Done {
                 source: source.into(),
                 destination: target.clone(),
@@ -186,7 +188,12 @@ impl Far {
         log: &Log,
         progress: &mut Progress,
         meter: &Meter,
+        keep: Keep,
     ) -> Result<Done, Failed> {
+        // What -p and --owner keep, read before anything reads the file and
+        // so changes its access time: BusyBox's `wc -c` of `kind` reads it
+        // (T-146).
+        let stamp = if keep.times || keep.owner { self.stamp(handle, source).await? } else { None };
         let size = match self.kind(handle, source).await? {
             Kind::File(n) => n,
             Kind::Missing => return Err(failed(Fault::NoInput, format!("{source}: no such file or directory"))),
@@ -254,6 +261,15 @@ impl Far {
             transfer::compare(&sum, &on_disk, "this disk", &shown)?;
             let (far, how) = self.digest(handle, source, size).await?;
             transfer::compare(&sum, &far, &how, source)?;
+            match &stamp {
+                Some(stamp) => meta::set_local(&temp, stamp, keep, log)?,
+                None if keep.times || keep.owner => meta::note(
+                    log,
+                    "stat",
+                    "the server has no stat that podssh reads: the copy by exec kept no times and no owner",
+                ),
+                None => {}
+            }
             std::fs::rename(&temp, &target)
                 .map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
             Ok(Done {

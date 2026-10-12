@@ -25,7 +25,7 @@ fn podssh(args: &[&str]) -> (i32, Vec<u8>, String) {
 
 #[test]
 fn each_scp_letter_that_podssh_does_not_carry_is_refused_by_name() {
-    for flag in [&["-O"][..], &["-R"], &["-p"], &["-S", "ssh"], &["-D", "/x"], &["-c", "aes128-ctr"]] {
+    for flag in [&["-O"][..], &["-R"], &["-S", "ssh"], &["-D", "/x"], &["-c", "aes128-ctr"]] {
         let mut args = vec!["scp"];
         args.extend_from_slice(flag);
         args.extend_from_slice(&["a", "host:b"]);
@@ -45,6 +45,8 @@ fn scp_goes_on_to_connect_with_its_own_letters_and_no_timeout() {
         &["-P", "2222", "-B", "-C", "-q", "-v", "-4", "a", "host:b"],
         &["-3", "-s", "-T", "host:a", "."],
         &["-A", "a", "host:b"],
+        // The times too (T-146).
+        &["-p", "-r", "a", "host:b"],
         &["-o", "BatchMode=yes", "-i", "id_test", "-J", "jump", "a", "host:b"],
         &["a", "scp://u@host:2222/dir/b"],
         &["scp://host//srv/a", "."],
@@ -79,7 +81,7 @@ fn scp_refuses_as_cp_does_in_its_own_name() {
 
 #[test]
 fn each_sftp_letter_that_podssh_does_not_carry_is_refused_by_name() {
-    for flag in [&["-r"][..], &["-p"], &["-S", "ssh"], &["-D", "/x"], &["-c", "aes128-ctr"]] {
+    for flag in [&["-r"][..], &["-S", "ssh"], &["-D", "/x"], &["-c", "aes128-ctr"]] {
         let mut args = vec!["sftp"];
         args.extend_from_slice(flag);
         args.push("host");
@@ -112,6 +114,8 @@ fn sftp_asks_for_its_destination_and_for_commands_with_no_terminal() {
         &["host:dir/file"],
         &["sftp://u@host:2222/x"],
         &["-s", "sftp", "-b", shown.as_str(), "host"],
+        // Each get and put keeps the times (T-146).
+        &["-p", "-b", shown.as_str(), "host"],
         // SFTP's requests in flight and their size (T-140).
         &["-B", "32768", "-R", "16", "-X", "buffer=4", "-b", shown.as_str(), "host"],
     ] {

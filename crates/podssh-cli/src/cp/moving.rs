@@ -18,6 +18,7 @@ use podssh_ssh::Log;
 use super::byexec::Kind;
 use super::digest;
 use super::link::{Link, Road};
+use super::meta::{Keep, Stamp};
 use super::operand::Operand;
 use super::plan::Plan;
 use super::resume::{far, local, Before};
@@ -151,7 +152,7 @@ pub async fn rename(link: &Link, source: &str, dest: &str, log: &Log) -> Result<
             }
             log.verbose(&format!("{source}: a rename to {target} on the server, by mv"));
             // Across two file systems, `mv` copies and removes by itself.
-            far.rename(handle, source, &target, None).await?;
+            far.rename(handle, source, &target, &Stamp::default(), Keep::default(), log).await?;
             Ok(Some(renamed(source, &target, size, false)))
         }
     }

@@ -499,8 +499,27 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   leave paths out; `--dry-run` says each action (`mkdir`, `copy`, `link`,
   `skip`; with `--jsonl` an object each) and changes nothing. `mv -r`
   removes the source once each item of it is copied. A directory goes up or
-  down, over SFTP, not between two servers. `-p` is refused by name until
-  the times are kept (T-146).
+  down, over SFTP, not between two servers.
+- **What a copy keeps** (T-146, `crates/podssh-cli/src/cp/meta.rs`): the
+  source's permission bits always. `-p` keeps the access and the
+  modification times too (`scp -p`, `sftp -p`, `get -p` and `put -p` as
+  well), and with `-r` each directory's, set after its files; `--owner`
+  keeps the owner and the group by number where the side that writes may
+  give a file away (root), and says once where it could not. Each is set
+  on the temporary file before the rename; a side that refuses the mode or
+  the times fails the copy, and the destination stays as it was. Where a
+  server's rename changes the times (Cygwin's sets the access time), they
+  are set once more after it. A block of 64 KiB of zeros, aligned in the
+  file, is a hole, never sent, and the size is set at the end: up when the
+  source has holes (fewer blocks than its size, or the sparse attribute on
+  Windows), and both ways with `--sparse`; not with `--parallel` or
+  `--delta`, which may write a block again. Within one `-r` upload, two
+  names of one file (one device and inode; on Windows one volume and file
+  index) arrive as one file with two names, by `hardlink@openssh.com`, else
+  as two files, said once. SFTP
+  version 3 carries the times in whole seconds from 1970 to 2106 and no
+  inode, extended attribute or ACL: those, a far source's hard links, and
+  the owner on Windows are not kept.
 - **Progress, an interruption and a limit** (T-145). On stderr, when it is
   a terminal and `-q` is not given, one line that a carriage return
   rewrites, 4 times a second at most: the name, the bytes of the total,
@@ -537,7 +556,10 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   first (a start-up file, a `ForceCommand` banner) is never taken as data.
   The temporary name, the digests and the rename (`mv -f`, atomic on one
   file system) are those of the SFTP road. A copy down keeps mode 0600: no
-  portable command reads the far file's mode. A copy within one server
+  portable command reads the far file's mode; with `-p` or `--owner`,
+  `stat` gives it (GNU's and BusyBox's `-c`, else BSD's `-f`), where the
+  server has one. Up, `chown`, `chmod` and `touch -t` (in UTC) set what a
+  copy keeps on the temporary file before `mv`. A copy within one server
   goes through this host. Each step with no file data waits 15 s at most.
 - `--jsonl` prints one object per file: `{"event":"done", "source",
   "destination", "bytes", "sha256", "verified_by", "atomic"}`, or
@@ -625,7 +647,8 @@ renamed.
   asks at a prompt; with no terminal and no `-b` it refuses (64). A
   destination whose path names a file fetches it and ends.
 - The commands: `get` and `put` (`reget` and `reput` are the same: a copy
-  that broke goes on by itself), `rename`, `rm` (with `*` and `?` in the
+  that broke goes on by itself; `-p` keeps the times, as `sftp -p` does
+  for each), `rename`, `rm` (with `*` and `?` in the
   last name), `mkdir [-p]`, `rmdir`, `ls [-la]`, `cd`, `lcd`, `pwd`,
   `lpwd`, `chmod`, `df [-hi]` (`statvfs@openssh.com`), `help`, `version`,
   and `bye`. The local commands (`lls`, `lmkdir`, `!command`) and `ln`,

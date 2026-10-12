@@ -2,7 +2,8 @@
 //! broken connection (T-136): the temporary file stays, and the next attempt
 //! writes on at the offset below which each byte is in it. The digest covers
 //! the whole file, the bytes of each attempt. The reads and the writes go
-//! with requests in flight together (T-140), as `pipe` says.
+//! with requests in flight together (T-140), as `pipe` says. A block of zeros
+//! of a sparse file is a hole, never sent (T-146, [`meta`]).
 
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -15,6 +16,7 @@ use super::chunks;
 use super::delta;
 use super::digest::{self, Sum};
 use super::link::Meter;
+use super::meta::{self, Keep, Stamp};
 use super::pipe::Shape;
 use super::resume::{self, Progress};
 use super::transfer::{self, Cause, Done, Failed, Side};
@@ -72,16 +74,25 @@ pub async fn up(
     // Over an older version, only the blocks that changed (T-142); a copy
     // that broke goes on where it was instead.
     if shape.delta && progress.temp.is_none() {
-        if let Some(done) = delta::up(sftp, handle, local, source, &target, &before, shape.pipe, log).await? {
+        let keep = shape.keep;
+        if let Some(done) = delta::up(sftp, handle, local, source, &target, &before, shape.pipe, keep, log).await? {
             return Ok(done);
         }
     }
+    let chunked = shape.tasks > 1 && before.len() > chunks::CHUNK;
+    // Holes for the blocks of zeros of a sparse file, or of each file with
+    // --sparse; not with chunks, which may write a block again (T-146).
+    let holes = !chunked && (shape.keep.sparse || meta::is_sparse(&before));
     // Write on in the temporary file when it holds the bytes below the offset.
     let mut kept = None;
     if let Some(temp) = progress.temp.clone() {
-        let fits = progress.offset <= before.len()
-            && sftp.stat(&temp).await.is_ok_and(|a| a.size.unwrap_or(0) >= progress.offset);
-        if fits {
+        let far = sftp.stat(&temp).await.ok().and_then(|a| a.size);
+        let fits = progress.offset <= before.len() && far.is_some_and(|size| holes || size >= progress.offset);
+        // With holes the size becomes the offset: a hole at the end counts,
+        // and what a write past it left goes, so the next hole reads as zeros.
+        let size = FileAttributes { size: Some(progress.offset), ..FileAttributes::default() };
+        let cut = fits && (!holes || sftp.setstat(&temp, size).await.is_ok());
+        if cut {
             kept = sftp.open_file(&temp, OpenFlags::WRITE, FileAttributes::default()).await.ok().map(|f| (temp, f));
         } else {
             let _ = sftp.remove(&temp).await;
@@ -104,7 +115,6 @@ pub async fn up(
             (temp, file)
         }
     };
-    let chunked = shape.tasks > 1 && before.len() > chunks::CHUNK;
     let copied = async {
         if chunked {
             // Chunks at once, each over a session of its own (T-141); the
@@ -129,9 +139,14 @@ pub async fn up(
         let mut writes = Writes::new(sftp, &file, offset, rate::shaped(pipe, sftp.write_len()));
         log.verbose(&format!("{source}: writes of {} bytes, {} in flight", writes.block(), writes.depth()));
         let mut bar = gauge::Gauge::new(source, before.len(), offset);
-        let mut buf = vec![0u8; writes.block() as usize];
+        let block = writes.block() as usize;
+        // With holes, reads of whole blocks of zeros, aligned in the file.
+        let hole = meta::HOLE as usize;
+        let unit = if holes { block.max(hole) / hole * hole } else { block };
+        let mut buf = vec![0u8; unit];
         let sent = loop {
-            let n = match reader.read(&mut buf) {
+            let want = if holes { unit - (offset % meta::HOLE) as usize } else { unit };
+            let n = match reader.read(&mut buf[..want]) {
                 Ok(n) => n,
                 Err(e) => break Err(failed(Fault::NoInput, format!("{source}: {e}"))),
             };
@@ -141,13 +156,15 @@ pub async fn up(
             if offset + n as u64 > before.len() {
                 break Err(transfer::changed(source));
             }
+            let runs = meta::runs(offset, &buf[..n], holes);
+            let carried: usize = runs.iter().filter(|(hole, _)| !hole).map(|(_, r)| r.len()).sum();
             // Before the relay's limits, a new session goes on (T-137).
-            if let Some(spent) = spent(meter, n as u64) {
+            if let Some(spent) = spent(meter, carried as u64) {
                 break Err(spent);
             }
             hasher.update(&buf[..n]);
-            rate::take(n as u64).await;
-            if let Err(e) = writes.send(buf[..n].to_vec()).await {
+            rate::take(carried as u64).await;
+            if let Err(e) = send_runs(&mut writes, &buf[..n], runs, block).await {
                 break Err(transfer::from_sftp(e, Side::Destination));
             }
             offset += n as u64;
@@ -167,7 +184,8 @@ pub async fn up(
     .await;
     let copied = match copied {
         Ok((offset, sum)) => {
-            finish_up(sftp, handle, &file, local, source, &temp, &target, &before, offset, sum, log).await
+            let ends = Ends { offset, sum, keep: shape.keep, holes };
+            finish_up(sftp, handle, &file, local, source, &temp, &target, &before, ends, log).await
         }
         Err(failed) => Err(failed),
     };
@@ -188,8 +206,38 @@ pub async fn up(
     copied
 }
 
-/// The end of a copy up: the temporary file synced and closed, the source
-/// unchanged, the digests equal, the mode set, and the rename.
+/// The runs of `data` to the server: each run of data in writes of `block`
+/// bytes at most, each hole skipped.
+async fn send_runs(
+    writes: &mut Writes<'_>,
+    data: &[u8],
+    runs: Vec<(bool, std::ops::Range<usize>)>,
+    block: usize,
+) -> Result<(), podssh_ssh::sftp::SftpError> {
+    for (hole, range) in runs {
+        if hole {
+            writes.skip(range.len() as u64);
+            continue;
+        }
+        for part in data[range].chunks(block) {
+            writes.send(part.to_vec()).await?;
+        }
+    }
+    Ok(())
+}
+
+/// How a copy up ended: its bytes, their digest, what it keeps, and whether
+/// it left holes.
+struct Ends {
+    offset: u64,
+    sum: Sum,
+    keep: Keep,
+    holes: bool,
+}
+
+/// The end of a copy up: the temporary file synced and closed, its size set
+/// after holes, the source unchanged, the digests equal, what the copy keeps
+/// set, and the rename.
 #[allow(clippy::too_many_arguments)]
 async fn finish_up(
     sftp: &Sftp,
@@ -200,22 +248,27 @@ async fn finish_up(
     temp: &str,
     target: &str,
     before: &std::fs::Metadata,
-    offset: u64,
-    sum: Sum,
+    ends: Ends,
     log: &Log,
 ) -> Result<Done, Failed> {
+    let Ends { offset, sum, keep, holes } = ends;
     {
         sftp.fsync(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
         sftp.close(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+        if holes {
+            let size = FileAttributes { size: Some(offset), ..FileAttributes::default() };
+            sftp.setstat(temp, size).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+        }
         let after = std::fs::metadata(local).map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
         if after.len() != before.len() || after.modified().ok() != before.modified().ok() || after.len() != offset {
             return Err(transfer::changed(source));
         }
         let (far, how) = transfer::far_digest(handle, sftp, temp, offset, Side::Destination).await?;
         transfer::compare(&sum, &far, &how, source)?;
-        let mode = FileAttributes { permissions: Some(transfer::local_mode(before)), ..FileAttributes::default() };
-        sftp.setstat(temp, mode).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
+        let stamp = Stamp::of_local(before);
+        meta::set_far(sftp, temp, &stamp, keep, log).await?;
         let not_atomic = transfer::rename_onto(sftp, temp, target, log).await?;
+        meta::times_after_rename(sftp, target, &stamp, keep).await;
         Ok(Done {
             source: source.into(),
             destination: target.to_string(),
@@ -260,8 +313,10 @@ pub async fn down(
     };
     let size = attrs.size.unwrap_or(0);
     // Over an older version here, only the blocks that changed (T-142).
+    let stamp = Stamp::of_far(&attrs, 0o777);
     if shape.delta && progress.temp.is_none() {
-        if let Some(done) = delta::down(sftp, handle, source, &target, size, attrs.permissions, pipe, log).await? {
+        let keep = shape.keep;
+        if let Some(done) = delta::down(sftp, handle, source, &target, size, &stamp, pipe, keep, log).await? {
             return Ok(done);
         }
     }
@@ -295,7 +350,7 @@ pub async fn down(
             let sum = digest::of_file(&temp).map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
             let (far, how) = transfer::far_digest(handle, sftp, source, size, Side::Source).await?;
             transfer::compare(&sum, &far, &how, source)?;
-            transfer::set_local_mode(&temp, attrs.permissions);
+            meta::set_local(&temp, &stamp, shape.keep, log)?;
             std::fs::rename(&temp, &target)
                 .map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
             return Ok(Done {
@@ -326,6 +381,8 @@ pub async fn down(
         let started = std::time::Instant::now();
         let mut reads = Reads::new(sftp, &file, start, rate::shaped(pipe, sftp.read_len()));
         let mut bar = gauge::Gauge::new(source, size, start);
+        // --sparse: the blocks of zeros are holes here (T-146).
+        let mut holes = shape.keep.sparse.then(|| meta::Holes::new(start));
         log.verbose(&format!("{source}: reads of {} bytes, {} in flight", reads.block(), reads.depth()));
         // A read below the size of the start goes out only while the relay
         // session may carry it (T-137); the failure that stopped them.
@@ -352,11 +409,17 @@ pub async fn down(
                         }
                     }
                     hasher.update(&data);
-                    if let Err(e) = out.as_mut().map_or(Ok(()), |f| f.write_all(&data)) {
+                    let wrote = match (out.as_mut(), holes.as_mut()) {
+                        (Some(f), Some(h)) => h.write(f, &data),
+                        (Some(f), None) => f.write_all(&data),
+                        (None, _) => Ok(()),
+                    };
+                    if let Err(e) = wrote {
                         break Err(failed(Fault::CantCreate, format!("{shown}: {e}")));
                     }
                     offset += data.len() as u64;
-                    progress.advance(offset);
+                    // What is on the disk: a block held for its hole is not.
+                    progress.advance(holes.as_ref().map_or(offset, meta::Holes::done));
                     bar.set(offset);
                     rate::take(data.len() as u64).await;
                 }
@@ -367,6 +430,12 @@ pub async fn down(
         drop(reads);
         bar.finish();
         let _ = sftp.close(&file).await;
+        if let (Some(f), Some(h)) = (out.as_mut(), holes.as_mut()) {
+            // After a failure the file reaches the offset of its record, a
+            // hole at its end included; else what is held is written too.
+            let ended = if read.is_err() { f.set_len(h.done()) } else { h.finish(f) };
+            ended.map_err(|e| failed(Fault::CantCreate, format!("{shown}: {e}")))?;
+        }
         read?;
         log.verbose(&rate(source, offset - start, started.elapsed()));
         if let Some(f) = out.take() {
@@ -377,7 +446,7 @@ pub async fn down(
         transfer::compare(&sum, &on_disk, "this disk", &shown)?;
         let (far, how) = transfer::far_digest(handle, sftp, source, offset, Side::Source).await?;
         transfer::compare(&sum, &far, &how, source)?;
-        transfer::set_local_mode(&temp, attrs.permissions);
+        meta::set_local(&temp, &stamp, shape.keep, log)?;
         std::fs::rename(&temp, &target).map_err(|e| failed(Fault::CantCreate, format!("{}: {e}", target.display())))?;
         Ok(Done {
             source: source.into(),

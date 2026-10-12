@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:226-244` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1274-1277`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1297-1300`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1356,7 +1356,7 @@ sent and their bytes; `docs/cli.md` and `docs/STATUS.md` say the rest.
 
 # T-143: Copy directories: `-r`, `--exclude`, an ignore file, `--dry-run`
 
-**Source:** the `-r` row (`crates/podssh-cli/src/flags/copy.rs:27-28`);
+**Source:** the `-r` row (`crates/podssh-cli/src/flags/copy.rs:29-30`);
 GitHub #21 (syq's `--dry-run`, parsync's `--exclude`, slingshot's copy with
 no build output) and GitHub #18 (quic-ssh's `qsh cp -r`), read in the
 issues.
@@ -1428,7 +1428,7 @@ drop the name check; that case must then fail.
 ## Correction
 
 2026-10-09 (T-134): `-r` is refused by name now
-(`crates/podssh-cli/src/flags/copy.rs:27-28`), and `podssh cp` copies files
+(`crates/podssh-cli/src/flags/copy.rs:29-30`), and `podssh cp` copies files
 (`crates/podssh-cli/src/cp/`): this entry builds on its temporary name, its
 digest check and its rename for each file of a tree.
 
@@ -1546,7 +1546,7 @@ uplink of a shared host.
 
 - Read: stdout carries answers only, and messages go to stderr
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
-  (`crates/podssh-cli/src/flags/copy.rs:41-42`).
+  (`crates/podssh-cli/src/flags/copy.rs:43-44`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
   (`crates/podssh-ssh/src/io.rs:461-494`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
@@ -1625,14 +1625,14 @@ the test of the pipe failed.
 
 # T-146: Keep the metadata of a copy
 
-**Source:** the `-p` row (`crates/podssh-cli/src/flags/copy.rs:19-20`);
+**Source:** the `-p` row (`crates/podssh-cli/src/flags/copy.rs:17-18`);
 GitHub #21 (syq's metadata: hard links, ACLs, extended attributes, sparse
 files, ownership, its pull requests 777 and 778; read in the issue).
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1691,8 +1691,46 @@ the `stat` check must then fail.
 ## Correction
 
 2026-10-09 (T-134): `-p` is refused by name now
-(`crates/podssh-cli/src/flags/copy.rs:19-20`); a copy keeps the source's
+(`crates/podssh-cli/src/flags/copy.rs:17-18`); a copy keeps the source's
 permission bits already, and this entry adds the times and the rest.
+
+## Done
+
+2026-10-12. `crates/podssh-cli/src/cp/meta.rs` (what a copy keeps: the
+plan of the attributes, their setting on each side, the holes, the hard
+links), `crates/podssh-cli/src/cp/byexec/keep.rs` (the copy by exec's:
+`chown`, `chmod` and `touch -t` in UTC up, `stat` down), and in
+`podssh-ssh` `Sftp::hardlink` and `Writes::skip`. `-p` works for `cp`,
+`mv`, `scp` and `sftp` (`sftp -p`, `get -p`, `put -p`), on each road, up,
+down and within one server, and with `-r` for each directory, set after
+its files; `--owner` and `--sparse` are new rows of `cp` and `mv`. The
+calls made: (1) `--owner` asks the side that writes to set the owner, and
+says so when it refuses, in place of asking first whether the far user is
+root: a user who is not root may still give a file its own group, and the
+refusal is the same answer. (2) Holes up when the source has them (fewer
+blocks than its size, or Windows's sparse attribute), and both ways with
+`--sparse`: holes in each block of zeros of a file that has none would
+give away the blocks that a program reserved, which GNU `cp`'s
+`--sparse=auto` avoids too; none with `--parallel` or `--delta`, which may
+write a block again, and none by exec. (3) Measured here: the
+`sftp-server` of Git for Windows (Cygwin) sets a file's access time at a
+rename, and at a stat, which reads the file's first bytes; so with `-p`
+the times are read back after the rename and set again when they differ,
+and the access time of a far source on such a server cannot be read as it
+was. (4) On Windows a source's hard links are found by the volume's serial
+number and the file's index (`GetFileInformationByHandle`), as the
+device and the inode on Unix. `cargo test -p podssh-cli --test cp_meta`: 7
+passed here (the plan of each option; `-p` up and down, the copy's own
+time without it, the mode; each directory of a tree; `scp -p`, `put -p`,
+`get -p` and `sftp -p`; `--sparse` each way, with each byte; two
+hard-linked names as one file, and again over itself, with no temporary
+name left; `--owner`); `cargo test -p podssh-ssh --test sftp_pipeline`: 7
+passed (a hole is never written and counts as acknowledged, also with
+replies out of order; `hardlink@openssh.com`). In the build image against OpenSSH (`scripts/interop-keep.sh`): `keep.times.up.sftp`, `keep.times.down.sftp`, `keep.times.up.exec`, `keep.times.without`, `keep.times.dirs`, `keep.sparse.up` and `keep.sparse.down` (a sparse file of 100 MiB with 1 MiB of data took 1024 KiB on each side), `keep.hardlink` (one inode) and `keep.owner.up` and `keep.owner.down` passed; `keep.times.down.exec` found the access time moved, as BusyBox's `wc -c` read the file before `stat` did: `stat` comes first now, and that check waits for CI's gate. The Unix branches of `cp_meta` in the build image, as root: 7 passed. Planted
+defects: a local file's modification time dropped from its stamp: the
+three tests of `-p` failed; dropped from the plan of the attributes only:
+its test and the tree's failed, and the copy of a file kept its time
+through the check after the rename.
 
 # T-147: `podssh cp --inplace`
 
@@ -1969,19 +2007,19 @@ program writes on, such as a log, need not end at all.
 ## Premise
 
 Read at `a22e3ec`: the copy up over SFTP reads the source until a read
-gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:133-156`), and each read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:147-173`), and each read
 waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
-(`crates/podssh-cli/src/cp/bysftp.rs:210-213`), but only once the read
+(`crates/podssh-cli/src/cp/bysftp.rs:262-265`), but only once the read
 ends. The copy up by exec reads the same way
-(`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); the copies down read
+(`crates/podssh-cli/src/cp/byexec/files.rs:105-130`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:333-366`) and with `cat`
-(`crates/podssh-cli/src/cp/byexec.rs:329-364`); and so do the far digests
+(`crates/podssh-cli/src/cp/bysftp.rs:390-429`) and with `cat`
+(`crates/podssh-cli/src/cp/byexec.rs:332-369`); and so do the far digests
 that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
-`crates/podssh-cli/src/cp/byexec.rs:298-325`).
+`crates/podssh-cli/src/cp/byexec.rs:303-330`).
 
 ## Approach
 
@@ -2014,8 +2052,8 @@ bound fails the native test.
 
 2026-10-10. Each road of the copy reads what the source held at the start,
 and stops with 66, "the file changed while it was read", at the first byte
-past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:133-156`) and by
-exec (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); down by exec
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:147-173`) and by
+exec (`crates/podssh-cli/src/cp/byexec/files.rs:105-130`); down by exec
 past the size that `wc -c` gave; down over SFTP after a second look at the
 far size, so that a file of `/proc` goes on as before. The far digest by
 reading, over SFTP and by exec, stops one byte past the copy's size. One

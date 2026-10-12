@@ -20,6 +20,7 @@ pub(super) fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &
                 "mkdir" => format!("mkdir {to}"),
                 "copy" => format!("copy {from} -> {to}"),
                 "link" => format!("link {from} -> {to}"),
+                "hardlink" => format!("hardlink {from} -> {to}"),
                 "delete" => format!("delete {to}"),
                 _ => format!("skip {from}: {to}"),
             };

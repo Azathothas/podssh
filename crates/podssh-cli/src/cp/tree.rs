@@ -14,6 +14,8 @@ use std::path::Path;
 
 use podssh_ssh::sftp::Sftp;
 
+use super::meta::Stamp;
+
 /// The levels of a walk at most.
 pub const MOST_DEPTH: usize = 64;
 
@@ -33,9 +35,11 @@ pub struct Tree {
 /// joined by `/`, the root itself `""`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Item {
+    /// A directory, with its mode, and its times and owner for `-p` and
+    /// `--owner` (T-146), read before its listing.
     Dir {
         rel: String,
-        mode: Option<u32>,
+        stamp: Stamp,
     },
     File {
         rel: String,
@@ -183,7 +187,7 @@ fn walk_local_in(
     }
     items.push(Item::Dir {
         rel: rel.into(),
-        mode: std::fs::metadata(dir).ok().map(|m| super::transfer::local_mode(&m)),
+        stamp: std::fs::metadata(dir).map(|m| Stamp::of_local(&m)).unwrap_or_default(),
     });
     let mut entries: Vec<_> = match std::fs::read_dir(dir) {
         Ok(read) => read.filter_map(Result::ok).collect(),
@@ -247,8 +251,8 @@ pub async fn walk_far(sftp: &Sftp, root: &str, tree: &Tree, windows: bool) -> Ve
                 continue;
             }
         }
-        let mode = sftp.stat(&dir).await.ok().and_then(|a| a.permissions).map(|p| p & 0o7777);
-        items.push(Item::Dir { rel: rel.clone(), mode });
+        let stamp = sftp.stat(&dir).await.map(|a| Stamp::of_far(&a, 0o7777)).unwrap_or_default();
+        items.push(Item::Dir { rel: rel.clone(), stamp });
         let mut entries = match sftp.read_dir(&dir).await {
             Ok(entries) => entries,
             Err(e) => {
@@ -345,7 +349,7 @@ mod tests {
 
     #[test]
     fn delete_takes_what_the_source_lacks_the_deepest_first() {
-        let dir = |r: &str| Item::Dir { rel: r.into(), mode: None };
+        let dir = |r: &str| Item::Dir { rel: r.into(), stamp: Stamp::default() };
         let file = |r: &str| Item::File { rel: r.into() };
         let source = [dir(""), dir("a"), file("a/keep"), file("top")];
         let target = [

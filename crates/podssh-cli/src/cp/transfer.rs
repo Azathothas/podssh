@@ -6,9 +6,10 @@
 //! **The destination's name never holds a file that was not verified.** The
 //! bytes go to `.NAME.podssh-RANDOM.part` in the destination's directory,
 //! created anew with mode 0600; after the digests agree, the file gets the
-//! source's permission bits and is renamed onto the destination, at once
-//! where the server has `posix-rename@openssh.com`. A failure removes the
-//! temporary file.
+//! source's permission bits, and what `-p` and `--owner` keep (T-146,
+//! [`super::meta`]), and is renamed onto the destination, at once where the
+//! server has `posix-rename@openssh.com`. A failure removes the temporary
+//! file.
 
 use std::path::{Path, PathBuf};
 
@@ -16,6 +17,7 @@ use podssh_ssh::sftp::{FileAttributes, OpenFlags, Sftp, SftpError};
 use podssh_ssh::{Connection, Log};
 
 use super::digest::{self, Sum};
+use super::meta::{self, Keep, Stamp};
 use crate::exitmap::Fault;
 
 /// One file copied and verified, or moved.
@@ -212,7 +214,14 @@ pub(super) async fn rename_raw(sftp: &Sftp, from: &str, target: &str, log: &Log)
 
 /// Copy `source` to `dest` on one server with `copy-data`: no byte comes
 /// through here, and both digests are taken there.
-pub async fn within(sftp: &Sftp, handle: &Connection, source: &str, dest: &str, log: &Log) -> Result<Done, Failed> {
+pub async fn within(
+    sftp: &Sftp,
+    handle: &Connection,
+    source: &str,
+    dest: &str,
+    keep: Keep,
+    log: &Log,
+) -> Result<Done, Failed> {
     let attrs = sftp.stat(source).await.map_err(|e| from_sftp(e, Side::Source))?;
     if !attrs.is_regular() {
         return Err(failed(Fault::NoInput, format!("{source}: not a regular file; podssh cp copies files")));
@@ -244,9 +253,10 @@ pub async fn within(sftp: &Sftp, handle: &Connection, source: &str, dest: &str, 
         let (sum, how) = far_digest(handle, sftp, source, size, Side::Source).await?;
         let (copy, _) = far_digest(handle, sftp, &temp, size, Side::Destination).await?;
         compare(&sum, &copy, &how, source)?;
-        let mode = FileAttributes { permissions: attrs.permissions.map(|p| p & 0o777), ..FileAttributes::default() };
-        sftp.setstat(&temp, mode).await.map_err(|e| from_sftp(e, Side::Destination))?;
+        let stamp = Stamp::of_far(&attrs, 0o777);
+        meta::set_far(sftp, &temp, &stamp, keep, log).await?;
         let not_atomic = rename_onto(sftp, &temp, &target, log).await?;
+        meta::times_after_rename(sftp, &target, &stamp, keep).await;
         Ok(Done {
             source: source.into(),
             destination: target.clone(),
@@ -288,18 +298,6 @@ pub(super) fn create_private(path: &Path) -> std::io::Result<std::fs::File> {
         options.mode(0o600);
     }
     options.open(path)
-}
-
-/// The server's permission bits on the local copy, where the system has
-/// them.
-pub(super) fn set_local_mode(path: &Path, permissions: Option<u32>) {
-    #[cfg(unix)]
-    if let Some(bits) = permissions {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(bits & 0o777));
-    }
-    #[cfg(not(unix))]
-    let _ = (path, permissions);
 }
 
 #[cfg(test)]

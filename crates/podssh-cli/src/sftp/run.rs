@@ -6,12 +6,13 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use podssh_ssh::sftp::{FileAttributes, Pipeline, Sftp};
+use podssh_ssh::sftp::{FileAttributes, Sftp};
 use podssh_ssh::Log;
 
 use super::commands::{self, Command};
 use crate::cp::bysftp;
 use crate::cp::link::{Link, Road};
+use crate::cp::pipe::Shape;
 use crate::cp::resume::Progress;
 use crate::cp::transfer::{self, Failed, Side};
 use crate::exitmap::Fault;
@@ -31,8 +32,9 @@ pub struct State<'a> {
     pub lcwd: PathBuf,
     home: String,
     log: &'a Log,
-    /// The requests in flight of each get and put (T-140).
-    pipe: Pipeline,
+    /// The requests in flight of each get and put (T-140), and whether `-p`
+    /// keeps the times of each (T-146).
+    shape: Shape,
 }
 
 fn failed(fault: Fault, message: String) -> Failed {
@@ -41,13 +43,13 @@ fn failed(fault: Fault, message: String) -> Failed {
 
 impl<'a> State<'a> {
     /// A session at the login directory, and at this host's directory.
-    pub async fn new(link: &'a Link, log: &'a Log, pipe: Pipeline) -> Result<State<'a>, Failed> {
+    pub async fn new(link: &'a Link, log: &'a Log, shape: Shape) -> Result<State<'a>, Failed> {
         let Road::Sftp(sftp) = &link.road else {
             return Err(failed(Fault::RelayUnreachable, "the server has no SFTP subsystem".into()));
         };
         let home = sftp.realpath(".").await.map_err(|e| transfer::from_sftp(e, Side::Source))?;
         let lcwd = std::env::current_dir().map_err(|e| failed(Fault::CantCreate, format!("this directory: {e}")))?;
-        Ok(State { link, sftp, cwd: home.clone(), lcwd, home, log, pipe })
+        Ok(State { link, sftp, cwd: home.clone(), lcwd, home, log, shape })
     }
 
     /// `path` under the directory there.
@@ -99,7 +101,7 @@ impl<'a> State<'a> {
         // An SFTP error names its step and its path already.
         let gone = |e| transfer::from_sftp(e, Side::Destination);
         match command {
-            Command::Get { remote, local } => {
+            Command::Get { remote, local, preserve } => {
                 let sources = self.expand(remote).await?;
                 let many = sources.len() > 1;
                 let dest = match local {
@@ -112,11 +114,12 @@ impl<'a> State<'a> {
                     let handle = self.link.handle();
                     let mut progress = Progress::default();
                     let meter = &self.link.meter;
-                    let shape = crate::cp::pipe::Shape { pipe: self.pipe, ..Default::default() };
+                    let mut shape = self.shape;
+                    shape.keep.times |= *preserve;
                     bysftp::down(sftp, handle, source, &shown, many, self.log, &mut progress, meter, shape).await?;
                 }
             }
-            Command::Put { local, remote } => {
+            Command::Put { local, remote, preserve } => {
                 let source = self.here(local);
                 let dest = match remote {
                     Some(r) => self.there(r),
@@ -126,7 +129,8 @@ impl<'a> State<'a> {
                 let shown = source.display().to_string();
                 let mut progress = Progress::default();
                 let (handle, meter) = (self.link.handle(), &self.link.meter);
-                let shape = crate::cp::pipe::Shape { pipe: self.pipe, ..Default::default() };
+                let mut shape = self.shape;
+                shape.keep.times |= *preserve;
                 bysftp::up(sftp, handle, &shown, &dest, false, self.log, &mut progress, meter, shape).await?;
             }
             Command::Rename { from, to } => {

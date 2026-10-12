@@ -15,19 +15,45 @@ pub struct Line {
 /// The commands of `podssh sftp`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
-    Get { remote: String, local: Option<String> },
-    Put { local: String, remote: Option<String> },
-    Rename { from: String, to: String },
+    /// `preserve`: `-p` or `-P`, the times too (T-146).
+    Get {
+        remote: String,
+        local: Option<String>,
+        preserve: bool,
+    },
+    Put {
+        local: String,
+        remote: Option<String>,
+        preserve: bool,
+    },
+    Rename {
+        from: String,
+        to: String,
+    },
     Rm(String),
-    Mkdir { path: String, parents: bool },
+    Mkdir {
+        path: String,
+        parents: bool,
+    },
     Rmdir(String),
-    Ls { path: Option<String>, long: bool, all: bool },
+    Ls {
+        path: Option<String>,
+        long: bool,
+        all: bool,
+    },
     Cd(Option<String>),
     Lcd(Option<String>),
     Pwd,
     Lpwd,
-    Chmod { mode: u32, path: String },
-    Df { path: Option<String>, human: bool, inodes: bool },
+    Chmod {
+        mode: u32,
+        path: String,
+    },
+    Df {
+        path: Option<String>,
+        human: bool,
+        inodes: bool,
+    },
     Help,
     Version,
     Bye,
@@ -39,8 +65,8 @@ const NOT_YET: &[&str] =
 
 /// The commands that `help` lists, with their forms.
 pub const HELP: &[(&str, &str)] = &[
-    ("get [-af] remote [local]", "copy a file here, verified by its digest"),
-    ("put [-af] local [remote]", "copy a file there, verified by its digest"),
+    ("get [-afp] remote [local]", "copy a file here, verified by its digest; -p keeps its times"),
+    ("put [-afp] local [remote]", "copy a file there, verified by its digest; -p keeps its times"),
     ("reget, reput", "the same: a copy that broke goes on by itself"),
     ("rename old new", "rename a file on the server"),
     ("rm path", "remove a file; * and ? match in the last name"),
@@ -143,18 +169,16 @@ fn command(name: &str, args: &[String]) -> Result<Command, String> {
     let opt = |list: &[String], i: usize| list.get(i).cloned();
     Ok(match name {
         "get" | "reget" | "put" | "reput" => {
-            let (seen, rest) = switches(name, args, "afpR")?;
-            if seen.contains('p') {
-                return Err(format!("{name} -p: keeping the mode and the times of a file is not implemented yet"));
-            }
+            let (seen, rest) = switches(name, args, "afpPR")?;
             if seen.contains('R') {
                 return Err(format!("{name} -R: copying a directory is not implemented yet"));
             }
-            arity(1..=2, rest, &format!("{name} [-af] path [path]"))?;
+            arity(1..=2, rest, &format!("{name} [-afp] path [path]"))?;
+            let preserve = seen.contains(['p', 'P']);
             if name.ends_with("get") {
-                Command::Get { remote: rest[0].clone(), local: opt(rest, 1) }
+                Command::Get { remote: rest[0].clone(), local: opt(rest, 1), preserve }
             } else {
-                Command::Put { local: rest[0].clone(), remote: opt(rest, 1) }
+                Command::Put { local: rest[0].clone(), remote: opt(rest, 1), preserve }
             }
         }
         "rename" => {
@@ -259,9 +283,9 @@ mod tests {
         assert!(!line("-@pwd").echo);
         assert_eq!(
             line(r#"put 'a b' "c \"d\"""#).command,
-            Command::Put { local: "a b".into(), remote: Some(r#"c "d""#.into()) }
+            Command::Put { local: "a b".into(), remote: Some(r#"c "d""#.into()), preserve: false }
         );
-        assert_eq!(line(r"get a\ b").command, Command::Get { remote: "a b".into(), local: None });
+        assert_eq!(line(r"get a\ b").command, Command::Get { remote: "a b".into(), local: None, preserve: false });
         assert_eq!(parse_line("   "), Ok(None));
         assert_eq!(parse_line("# a comment"), Ok(None));
         assert!(parse_line("put 'a").is_err());
@@ -272,10 +296,15 @@ mod tests {
         assert_eq!(line("mkdir -p a/b").command, Command::Mkdir { path: "a/b".into(), parents: true });
         assert_eq!(line("ls -la").command, Command::Ls { path: None, long: true, all: true });
         assert_eq!(line("chmod 640 f").command, Command::Chmod { mode: 0o640, path: "f".into() });
-        assert_eq!(line("reget a b").command, Command::Get { remote: "a".into(), local: Some("b".into()) });
+        assert_eq!(
+            line("reget a b").command,
+            Command::Get { remote: "a".into(), local: Some("b".into()), preserve: false }
+        );
+        // -p and -P keep the times (T-146).
+        assert_eq!(line("get -p a").command, Command::Get { remote: "a".into(), local: None, preserve: true });
+        assert_eq!(line("put -fP a").command, Command::Put { local: "a".into(), remote: None, preserve: true });
         assert_eq!(line("exit").command, Command::Bye);
         for (bad, says) in [
-            ("get -p a", "not implemented yet"),
             ("put -R d", "copying a directory"),
             ("rename a", "the form is"),
             ("chmod 999 f", "octal"),

@@ -277,6 +277,19 @@ impl<'a> Writes<'a> {
         Ok(())
     }
 
+    /// Leave the next `n` bytes unwritten: a hole, which reads as zeros once
+    /// a later write or the file's size passes it (T-146). It counts as
+    /// acknowledged once each write before it is.
+    pub fn skip(&mut self, n: u64) {
+        let end = self.next + n;
+        self.next = end;
+        if self.inflight.is_empty() {
+            self.acked = end;
+        } else {
+            self.inflight.push_back(Box::pin(std::future::ready((end, Ok(())))));
+        }
+    }
+
     /// Wait for each write in flight: the end of the acknowledged part, or
     /// the first failure.
     pub async fn finish(&mut self) -> Result<u64, SftpError> {

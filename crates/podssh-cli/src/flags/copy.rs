@@ -14,10 +14,12 @@ pub const CP_FLAGS: &[FlagRow] = &[
     //   `ssh` usage prints `[-P tag]`. Three programs, one letter, two meanings.
     row(Some('P'), "port", Some("PORT"), FlagKind::Supported,
         "port to connect to; this is scp's -P", None),
-    // Refused by name until their entries build them (T-146, T-143): a
-    // flag that parses and does nothing is a promise the binary breaks.
-    row(Some('p'), "preserve", None, FlagKind::Refused,
-        "keeping the mode and the times of a file is not implemented yet", Some("no flag")),
+    row(Some('p'), "preserve", None, FlagKind::Supported,
+        "keep the access and the modification times too (the mode is kept always), with -r each directory's", None),
+    row(None, "owner", None, FlagKind::Supported,
+        "keep the owner and the group, by number, where the side that writes may give a file away (root); else a note", None),
+    row(None, "sparse", None, FlagKind::Supported,
+        "a hole for each block of 64 KiB of zeros, whatever the source; without it only a copy up of a sparse file makes holes", None),
     row(Some('i'), "identity-file", Some("FILE"), FlagKind::Supported,
         "identity file, repeatable; also -oIdentityFile=", None),
     row(None, "parallel", Some("K"), FlagKind::Supported,

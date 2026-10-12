@@ -1,21 +1,28 @@
 //! The copy of a directory over one connection (T-143): the walk of
 //! `tree.rs`, then each directory made, each file copied as one copy goes
 //! (`session::attempts`, with its continuation after a break), each link
-//! made, and each directory's mode set after its files. An item that cannot
-//! be copied is reported and the walk goes on; the exit is then not zero, as
-//! for `scp`. `--dry-run` says each action and changes nothing.
+//! made, and each directory's mode, and what `-p` and `--owner` keep, set
+//! after its files. Up, two names of one local file arrive as one file with
+//! two names (T-146). An item that cannot be copied is reported and the walk
+//! goes on; the exit is then not zero, as for `scp`. `--dry-run` says each
+//! action and changes nothing.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use std::collections::HashMap;
+
 use podssh_ssh::sftp::{FileAttributes, Sftp};
 use podssh_ssh::Log;
 
+use super::digest::Sum;
 use super::link::{Link, Road};
+use super::meta;
+use super::mirror::{refused_root, Pending};
 use super::operand::{Operand, Remote};
 use super::pipe::Shape;
 use super::session::{attempts, shown};
-use super::transfer::{self, Failed, Side};
+use super::transfer::{self, Done, Failed, Side};
 use super::tree::{self, Item, Tree};
 use super::Outcome;
 use crate::exitmap::Fault;
@@ -37,7 +44,7 @@ fn local_join(root: &Path, rel: &str) -> PathBuf {
 }
 
 /// The SFTP session of the connection, while it lasts.
-fn sftp_of(link: &Option<Link>) -> Option<&Sftp> {
+pub(super) fn sftp_of(link: &Option<Link>) -> Option<&Sftp> {
     match link.as_ref().map(|l| &l.road) {
         Some(Road::Sftp(sftp)) => Some(sftp),
         _ => None,
@@ -58,27 +65,9 @@ pub async fn is_dir(link: &Option<Link>, source: &Operand, tree: &Tree) -> bool 
 
 /// Record a failure of the tree, and say it at once: each one is reported,
 /// and the first sets the exit code.
-fn failed(outcome: &mut Outcome, log: &Log, name: String, failed: Failed) {
+pub(super) fn failed(outcome: &mut Outcome, log: &Log, name: String, failed: Failed) {
     log.error(&failed.message);
     outcome.failed.get_or_insert((name, failed));
-}
-
-/// Whether `--delete` may not take `root` as its target: the root of a file
-/// system, or the home directory (`home`). The answer says why.
-fn refused_root(root: &str, home: Option<&str>) -> Option<String> {
-    let trimmed = root.trim_end_matches(['/', '\\']);
-    // A path that Windows gives in its verbatim form (`\\?\C:\`).
-    let trimmed = trimmed.strip_prefix(r"\\?\").unwrap_or(trimmed);
-    let drive_root = trimmed.len() == 2 && trimmed.ends_with(':');
-    if trimmed.is_empty() || drive_root || trimmed == "." {
-        return Some(format!("--delete may not take {root:?}, the root of a file system or the home directory"));
-    }
-    match home {
-        Some(home) if home.trim_end_matches(['/', '\\']).eq_ignore_ascii_case(trimmed) => {
-            Some(format!("--delete may not take {root}, the home directory"))
-        }
-        _ => None,
-    }
 }
 
 /// Copy the directory `source` to `dest` over `link`: up or down.
@@ -142,9 +131,12 @@ async fn up(
     let items = tree::walk_local(Path::new(src), tree);
     let mut dirs = Vec::new();
     let mut clean = true;
+    // The far name, the size and the digest of each file copied that has
+    // other names here, by its device and inode (T-146).
+    let mut linked: HashMap<(u64, u64), (String, u64, Option<Sum>)> = HashMap::new();
     for item in &items {
         match item {
-            Item::Dir { rel, mode } => {
+            Item::Dir { rel, stamp } => {
                 let target = remote_join(&root, rel);
                 if tree.dry_run {
                     outcome.planned.push(("mkdir", local_join(Path::new(src), rel).display().to_string(), target));
@@ -160,18 +152,58 @@ async fn up(
                     failed(outcome, log, target.clone(), transfer::from_sftp(e, Side::Destination));
                     continue;
                 }
-                dirs.push((target, *mode));
+                dirs.push((target, *stamp));
             }
             Item::File { rel } => {
                 let from = local_join(Path::new(src), rel).display().to_string();
                 let target = remote_join(&root, rel);
+                let id = meta::inode(Path::new(&from));
+                if let Some((first, bytes, sum)) = id.and_then(|id| linked.get(&id)).cloned() {
+                    if tree.dry_run {
+                        outcome.planned.push(("hardlink", target, first));
+                        continue;
+                    }
+                    let Some(sftp) = sftp_of(link) else { return };
+                    match meta::hard_link(sftp, &first, &target, log).await {
+                        Ok(true) => {
+                            let verified_by = format!("a hard link to {first}");
+                            let not_atomic = false;
+                            let (source, destination, removed) = (from, target, None);
+                            outcome.done.push(Done {
+                                source,
+                                destination,
+                                bytes,
+                                sum,
+                                verified_by,
+                                not_atomic,
+                                removed,
+                            });
+                            continue;
+                        }
+                        // No hardlink@openssh.com: a copy.
+                        Ok(false) => {}
+                        Err(f) => {
+                            clean = false;
+                            failed(outcome, log, from, f);
+                            continue;
+                        }
+                    }
+                }
                 if tree.dry_run {
+                    if let Some(id) = id {
+                        linked.entry(id).or_insert((target.clone(), 0, None));
+                    }
                     outcome.planned.push(("copy", from, target));
                     continue;
                 }
                 let to = Operand::Remote(Remote { path: target, ..dst.clone() });
                 match attempts(link, resolved, &Operand::Local(from.clone()), &to, false, log, shape).await {
-                    Ok((done, _)) => outcome.done.push(done),
+                    Ok((done, _)) => {
+                        if let Some(id) = id {
+                            linked.entry(id).or_insert((done.destination.clone(), done.bytes, done.sum));
+                        }
+                        outcome.done.push(done)
+                    }
                     Err(f) => {
                         clean = false;
                         failed(outcome, log, from, f);
@@ -204,12 +236,12 @@ async fn up(
             }
         }
     }
-    // Each directory's mode after its files, the deepest first.
+    // Each directory's mode, and what -p and --owner keep, after its files,
+    // the deepest first; one that the server refuses is said.
     if let Some(sftp) = sftp_of(link) {
-        for (dir, mode) in dirs.iter().rev() {
-            if let Some(mode) = mode {
-                let attrs = FileAttributes { permissions: Some(*mode), ..FileAttributes::default() };
-                let _ = sftp.setstat(dir, attrs).await;
+        for (dir, stamp) in dirs.iter().rev() {
+            if let Err(f) = meta::set_far(sftp, dir, stamp, shape.keep, log).await {
+                log.info(&f.message);
             }
         }
     }
@@ -231,45 +263,6 @@ async fn up(
     // mv -r: the source goes once each item of it is copied.
     if moving && clean && !tree.dry_run {
         remove_local(src, &items, log);
-    }
-}
-
-/// A delete of `--delete` that waits for the end of the run: on the server
-/// or here, a directory or not.
-pub struct Pending {
-    pub far: bool,
-    pub dir: bool,
-    pub path: String,
-}
-
-/// The deletes of the run, at its end: each one when no copy of the run
-/// failed; else none, which is said (T-144).
-pub async fn finish_deletes(link: &Option<Link>, outcome: &mut Outcome, log: &Log) {
-    let pending = std::mem::take(&mut outcome.pending);
-    if pending.is_empty() {
-        return;
-    }
-    if outcome.failed.is_some() {
-        log.info(&format!("a copy failed, so nothing was deleted ({} would have been)", pending.len()));
-        return;
-    }
-    for item in pending {
-        let removed = if item.far {
-            match sftp_of(link) {
-                Some(sftp) if item.dir => {
-                    sftp.rmdir(&item.path).await.map_err(|e| transfer::from_sftp(e, Side::Destination))
-                }
-                Some(sftp) => sftp.remove(&item.path).await.map_err(|e| transfer::from_sftp(e, Side::Destination)),
-                None => Err(Failed::new(Fault::SessionFault, format!("{}: no connection was left", item.path))),
-            }
-        } else {
-            let gone = if item.dir { std::fs::remove_dir(&item.path) } else { std::fs::remove_file(&item.path) };
-            gone.map_err(|e| Failed::new(Fault::CantCreate, format!("{}: {e}", item.path)))
-        };
-        match removed {
-            Ok(()) => outcome.deleted.push(item.path),
-            Err(f) => failed(outcome, log, item.path, f),
-        }
     }
 }
 
@@ -309,7 +302,7 @@ async fn down(
     let mut clean = true;
     for item in &items {
         match item {
-            Item::Dir { rel, mode } => {
+            Item::Dir { rel, stamp } => {
                 let target = local_join(&root, rel);
                 if tree.dry_run {
                     outcome.planned.push(("mkdir", remote_join(&src.path, rel), target.display().to_string()));
@@ -321,7 +314,7 @@ async fn down(
                     failed(outcome, log, shown.clone(), Failed::new(Fault::CantCreate, format!("{shown}: {e}")));
                     continue;
                 }
-                dirs.push((target, *mode));
+                dirs.push((target, *stamp));
             }
             Item::File { rel } => {
                 let from = remote_join(&src.path, rel);
@@ -367,15 +360,11 @@ async fn down(
             }
         }
     }
-    #[cfg(unix)]
-    for (dir, mode) in dirs.iter().rev() {
-        if let Some(mode) = mode {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(dir, std::fs::Permissions::from_mode(*mode));
+    for (dir, stamp) in dirs.iter().rev() {
+        if let Err(f) = meta::set_local(dir, stamp, shape.keep, log) {
+            log.info(&f.message);
         }
     }
-    #[cfg(not(unix))]
-    let _ = dirs;
     // --delete: what the target has and the source lacks; it goes at the end
     // of the run (T-144).
     if tree.delete && root.is_dir() {

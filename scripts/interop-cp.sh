@@ -449,6 +449,9 @@ wait "$grower" 2>/dev/null
 rm -f "$CW/up/grow" "$RD/growfar"
 no_part cp.no_part.exec "cp by exec"
 
+# What a copy keeps besides the bytes (T-146).
+# shellcheck source=scripts/interop-keep.sh
+. "$HERE/interop-keep.sh"
 # podssh mv, while these servers run (T-138).
 # shellcheck source=scripts/interop-mv.sh
 . "$HERE/interop-mv.sh"

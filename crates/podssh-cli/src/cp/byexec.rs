@@ -17,7 +17,8 @@
 //! the digests compared (a digest command, else a second read), then `mv -f`
 //! onto the destination, which `rename(2)` makes atomic on one file system.
 //! A failure removes the temporary file. A copy down keeps mode 0600: no
-//! portable command reads the far file's mode.
+//! portable command reads the far file's mode; with `-p` or `--owner`,
+//! `stat` gives it where the server has one ([`keep`], T-146).
 
 use std::collections::BTreeSet;
 use std::time::Duration;
@@ -33,12 +34,16 @@ use super::transfer::{Cause, Failed};
 use crate::exitmap::Fault;
 
 mod files;
+mod keep;
+
+pub use keep::{parse_stamp, touch_time};
 
 /// The limit of a step that moves no file data: the probe, a size, a rename.
 pub const STEP_WAIT: Duration = Duration::from_secs(15);
 
 /// The tools that the probe looks for.
-pub const TOOLS: &[&str] = &["cat", "wc", "tail", "mv", "rm", "chmod", "base64", "sha256sum", "shasum", "openssl"];
+pub const TOOLS: &[&str] =
+    &["cat", "wc", "tail", "mv", "rm", "chmod", "touch", "chown", "stat", "base64", "sha256sum", "shasum", "openssl"];
 
 /// The tools that a copy by exec cannot do without.
 const NEEDED: &[&str] = &["cat", "wc", "mv", "rm"];
@@ -361,40 +366,6 @@ impl Far {
             return Err(failed(Fault::NoInput, format!("{path}: the far side could not read it: {}", why.trim())));
         }
         Ok(count)
-    }
-
-    /// Give `temp` the mode `mode` when the server has `chmod`, then rename
-    /// it onto `target`. A directory of that name is refused: `mv` would put
-    /// the file inside it, where the SFTP road's rename fails.
-    pub(super) async fn rename(
-        &self,
-        handle: &Connection,
-        temp: &str,
-        target: &str,
-        mode: Option<u32>,
-    ) -> Result<(), Failed> {
-        let octal = mode.map(|m| format!("{m:o}"));
-        // `--` before the mode: a strict POSIX chmod takes a later `--` as a
-        // file.
-        let (script, args): (&str, Vec<&str>) = match &octal {
-            Some(m) if self.tools.contains("chmod") => (
-                "if [ -d \"$3\" ]; then echo \"a directory has that name\" >&2; exit 1; fi; \
-                 chmod -- \"$1\" \"$2\" && exec mv -f -- \"$2\" \"$3\"",
-                vec![m.as_str(), temp, target],
-            ),
-            _ => (
-                "if [ -d \"$2\" ]; then echo \"a directory has that name\" >&2; exit 1; fi; \
-                 exec mv -f -- \"$1\" \"$2\"",
-                vec![temp, target],
-            ),
-        };
-        let cmd = command(script, &args).map_err(|why| failed(Fault::Usage, why))?;
-        let got = exec::capture(handle, &cmd, STEP_WAIT, 4096).await.map_err(|e| step_failed(target, e))?;
-        if got.status != Some(0) {
-            let why = String::from_utf8_lossy(&got.stderr);
-            return Err(failed(Fault::CantCreate, format!("{target}: the rename failed: {}", why.trim())));
-        }
-        Ok(())
     }
 
     /// The size of the far file `path` once it stands still: a writer that a
