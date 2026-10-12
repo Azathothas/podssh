@@ -81,7 +81,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
             .arg(
                 Arg::new("name")
                     .value_name("NAME")
-                    .help("the label of a stored pair (podssh relay pair NAME); with --iroh, the node's name, which labels its key"),
+                    .help("the label of a stored pair (podssh relay pair NAME); with --iroh, the node's name, which labels its key; with --temporary, the label of its lines (default upgrade)"),
             )
             .arg(
                 Arg::new("target")

@@ -150,6 +150,15 @@ podssh node lab --sshd                          # the roost, in front of 127.0.0
 podssh ssh --pair-file op.json node://me@lab    # from outside; a lost link resumes the session
 ```
 
+When the server has a podssh on its `PATH`, `podssh ssh --upgrade` does
+these steps itself: it logs in, starts a temporary roost there in that SSH
+session, and moves the session to it. With no podssh there, the session
+stays as it is, with one note; podssh never copies itself to a server.
+
+```sh
+podssh ssh --upgrade me@example.org
+```
+
 `podssh man environment` lists each variable that podssh reads. The usual
 one is `HTTPS_PROXY`: podssh sends the relay's name in `CONNECT`, so it
 needs no DNS through a proxy. A SOCKS5 proxy works too

@@ -419,6 +419,11 @@ session on it ends.
      never assumed): `podssh ssh --persist` since T-178, and for a
      tunnel of `-N`, a new connection that asks for its forwards again,
      since T-042;
+   - a podssh that the user installed on the server: `podssh ssh --upgrade`
+     (T-167) logs in, starts a temporary node there in that SSH session (a
+     roost, whose pair's token comes back in the SSH channel), and logs in
+     again through it, so the session gets layer 2; with no podssh there,
+     the session stays, with one note, and nothing is copied to the server;
    - a relay feature: a Durable Object that owns the target socket across
      client reconnections, a resume token in the `101` response, and offset
      framing as a protocol version that the client selects. This is a
@@ -462,7 +467,7 @@ functions of bytes only.
 | The latest screen, not each byte | Frames of the difference of screens, at most one each half round trip (20 to 250 ms), after 8 ms of collection, so Ctrl-C stops a flood within a round trip (paper §2.3; `src/network/transportsender.h:49-50`, `src/network/transportsender-impl.h:55-71`) | T-303, on request, to `podssh serve` |
 | No head-of-line blocking | Each datagram is an idempotent difference from a numbered state, so a lost one costs only itself (paper §2.2) | The iroh road carries a stream (T-162); datagrams: T-304 |
 | Congestion | A smoothed round trip and a timeout of 50 ms to 1 s, as TCP computes them; ECN slows the sender (`src/network/network.h:139-140`, `src/network/network.cc:461-500`) | TCP or QUIC under the layer; a rate limit for copies (T-145) |
-| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:232`, `crates/podssh-cli/src/layered.rs:243`); a notice that does not touch the screen: T-302 |
+| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:250`, `crates/podssh-cli/src/layered.rs:261`); a notice that does not touch the screen: T-302 |
 | A new client | Only the client process that holds the key comes back (paper §2.1; GitHub mobile-shell/mosh#394); mosh.org suggests screen or tmux | T-158 and T-159 attach from a new process; T-161 gives the screen |
 | Encryption | AES-128 in OCB mode, with a key that SSH carries (paper §2.2) | SSH, and the Noise channel above the layer (T-088) |
 | The start | SSH runs `mosh-server`, which prints a port and a key, then forks (`src/frontend/mosh-server.cc:450-462`); it listens on a UDP port of 60001 to 60999 (`src/network/network.h:142-143`) | No listener (`AGENTS.md`, section 5, rule 2): a node or a roost reaches out (T-083, T-166); a start from a standard sshd: T-167 |

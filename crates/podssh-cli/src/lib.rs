@@ -56,6 +56,8 @@ pub mod node;
 // `podssh node --iroh`: the iroh road, with the feature `iroh` only.
 #[cfg(feature = "iroh")]
 pub mod node_iroh;
+// `podssh node --temporary`: the far end of `podssh ssh --upgrade` (T-167).
+pub mod node_temp;
 pub mod non_interactive;
 pub mod operator;
 pub mod pager;
@@ -84,6 +86,8 @@ pub mod tree;
 // so it is compiled only with the `ts` feature (see Cargo.toml).
 #[cfg(feature = "ts")]
 pub mod ts;
+// The line of a temporary node to `podssh ssh --upgrade` (T-167).
+mod upgrade_line;
 
 pub use flags::{FlagKind, FlagRow, Verb, VERBS};
 pub use tree::{parse, Parsed};

@@ -167,6 +167,65 @@ pub async fn send(
     finish(&mut channel, progress, cap, sink).await
 }
 
+/// Why a command gave no line of the kind asked for.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum NoLine {
+    /// It ended first: its status, and what it wrote, up to the cap.
+    Ended(Captured),
+    /// It did not run, or did not end, within the limit.
+    Failed(ExecError),
+}
+
+/// Run `command` with no input, and give the rest of the first line of its
+/// stdout that starts with `mark`, within `limit`, and the command's
+/// channel. The command goes on: a temporary node runs on after its line
+/// (T-167), and the caller keeps its channel open for as long as it needs
+/// the command. The lines before are kept, up to `cap`, for a command that
+/// ends with no such line.
+pub async fn first_line(
+    handle: &Handle<Client>,
+    command: &str,
+    mark: &str,
+    limit: Duration,
+    cap: usize,
+) -> Result<(String, Channel<Msg>), NoLine> {
+    let run = async {
+        let mut channel = open(handle, command, limit).await.map_err(NoLine::Failed)?;
+        let _ = channel.eof().await;
+        let (mut out, mut pending) = (Captured::default(), Vec::new());
+        loop {
+            let message = channel.wait().await;
+            match message {
+                None => return Err(NoLine::Ended(out)),
+                Some(ChannelMsg::Failure) => return Err(NoLine::Failed(ExecError::Refused("exec".into()))),
+                Some(ChannelMsg::Data { data }) => {
+                    pending.extend_from_slice(&data);
+                    while let Some(end) = pending.iter().position(|b| *b == b'\n') {
+                        let line: Vec<u8> = pending.drain(..=end).collect();
+                        let text = String::from_utf8_lossy(&line);
+                        if let Some(rest) = text.trim_end_matches(['\r', '\n']).strip_prefix(mark) {
+                            return Ok((rest.to_string(), channel));
+                        }
+                        keep(&mut out.stdout, &line, cap);
+                    }
+                    // A line longer than the cap is no line of ours.
+                    if pending.len() > cap {
+                        keep(&mut out.stdout, &pending, cap);
+                        pending.clear();
+                    }
+                }
+                Some(ChannelMsg::ExtendedData { data, ext: 1 }) => keep(&mut out.stderr, &data, cap),
+                Some(ChannelMsg::ExitStatus { exit_status }) => out.status = Some(exit_status),
+                Some(_) => {}
+            }
+        }
+    };
+    match tokio::time::timeout(limit, run).await {
+        Err(_) => Err(NoLine::Failed(ExecError::Timeout(limit))),
+        Ok(result) => result,
+    }
+}
+
 /// `text` as one word for a POSIX shell, in single quotes. A newline or a
 /// NUL has no safe spelling across the shells that a login may run, so such
 /// a word has none here.

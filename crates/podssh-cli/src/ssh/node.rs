@@ -184,7 +184,7 @@ pub(super) async fn connect(
 }
 
 /// What the leg says of a session that failed; nothing for a normal end.
-fn explain(outcome: &LegOutcome) -> Option<String> {
+pub(super) fn explain(outcome: &LegOutcome) -> Option<String> {
     match outcome {
         LegOutcome::NeverReady { code: Some(code), reason } => {
             Some(format!("the node did not take the session (relay close {code}): {reason}"))

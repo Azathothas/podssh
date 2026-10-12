@@ -22,6 +22,8 @@
 //!   login ([`keep`]).
 //! - ZMODEM inside a terminal session, for a server that gives a shell and
 //!   nothing else ([`zmodem`]).
+//! - a run in two halves, for `podssh ssh --upgrade`: the login, then the
+//!   request on its connection ([`upgrade`]).
 
 mod agent_forward;
 mod answer;
@@ -64,6 +66,7 @@ mod socks;
 pub mod sshsig;
 pub mod tally;
 pub mod terminal;
+pub mod upgrade;
 pub mod x11;
 pub mod zmodem;
 

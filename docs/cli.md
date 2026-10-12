@@ -185,6 +185,35 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   refusal is its words on stderr and its exit status. With a command,
   `-N`, `-W`, `-s`, `-T`, `RemoteCommand` or `--persist`, `--attach` is a
   usage error (64), and a control master does not carry it.
+- **`--upgrade` moves the session to a better road** (T-167), when the
+  server has a podssh. The login is as each run's, on the forward road or
+  with `--direct`; then podssh runs `podssh --version` there (10 s) and,
+  when a line `podssh VERSION` comes back, `podssh node --temporary KEY` in
+  the same SSH session, KEY being the fingerprint of this client's key
+  (`client.key` in the cache, or `--client-key`). That node stands in front
+  of the sshd of its session (a roost, T-166), makes a pair that no file
+  keeps, and writes one line on its stdout: the pair's relay, name, connect
+  token and expiry, and its own key. The SSH channel carries that line,
+  encrypted, so the token crosses the relay only inside SSH, and it is on
+  no argv. podssh opens the operator's leg to the pair, reads the node's
+  greeting (no layer, no move), and logs in again through the node with the
+  resumable layer and the end-to-end channel, which must find the node's
+  key of the line. The host key is the same, under DEST's own name, so
+  `known_hosts` needs no change, and no `-J` hop is used again. The first
+  connection closes once the second login is done; until then, a failure
+  of the move (no podssh, no line within 60 s, no layer, a failed second
+  login) is one note on stderr, and the session runs on the first
+  connection. The logins after the first ask nothing. podssh never copies
+  itself to the server: a podssh must be on the `PATH` of a command that
+  sshd runs. The node ends with its last session, or 10 minutes after its
+  start with none, and stops its pair. On Unix it leaves its SSH session
+  (SIGHUP ignored, its standard streams to `/dev/null`), so that the end of
+  the first connection does not end it; on Windows it cannot, says so in its
+  line, and the first connection stays open while the session runs.
+  `--upgrade` with `node://`, `iroh:`, `cf://`, `--persist`, `-R` or `-O`
+  is a usage error (64); `ControlPath` has no effect with it. The move takes
+  the pair's road alone: the iroh road to the node, raced with it as T-164
+  races them, is not built yet (T-167's Decision).
 - **`--result-file FILE` writes the result of the run as JSON** (T-054), at
   its end, also when it failed before it connected, so that a script tells
   the remote command's status from a failure of podssh with no parsing of
@@ -999,6 +1028,16 @@ commands. The rules behind them:
   keeps sshd's host key under `node://NAME`, the name that the user gives,
   as OpenSSH keeps a host's behind a `ProxyCommand`; not under the address
   of sshd behind the roost, which each roost shares (`127.0.0.1`).
+- **`node --temporary KEY` is the far end of `ssh --upgrade`** (T-167),
+  which starts it in its own SSH session on the server: a roost in front of
+  the sshd of `SSH_CONNECTION` (on the loopback first, then at the server's
+  address), or of TARGET; a pair made on the relay of `PODSSH_RELAY`, else
+  the default, and kept in no file; a key for this run only; and the client
+  key KEY alone let in. Its one line on stdout, `podssh-upgrade/1` and
+  JSON, goes out once the relay takes the pair's sessions. It ends with
+  its last session, or 10 minutes after its start with none, and stops its
+  pair. With it, `--iroh`, `--pair-file`, `--plain`, `--no-e2e`, the flags
+  of the node's key and a route are usage errors (64).
 - **`node --plain`** carries each session's bytes as they are, with no
   resumable layer, for an operator that does not speak it (T-263): a lost
   link ends the session, as before T-153. The node's first line names its

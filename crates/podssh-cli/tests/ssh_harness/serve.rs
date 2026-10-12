@@ -9,6 +9,7 @@ use std::time::Duration;
 
 use russh::server;
 
+use super::podssh::Podssh;
 use super::Far;
 
 /// The server on the loopback, with the host key in `key`, on the current
@@ -25,6 +26,20 @@ pub async fn start_counting(key: &Path) -> (u16, Arc<AtomicUsize>) {
 /// [`start_counting`], with host certificates of the key that the server
 /// presents to a client that asks for one (T-027).
 pub async fn start_with(key: &Path, certificates: Vec<russh::keys::Certificate>) -> (u16, Arc<AtomicUsize>) {
+    start_far(key, certificates, None).await
+}
+
+/// [`start_counting`], with each command `podssh ...` run as the binary
+/// under test (T-167), with what `podssh` gives.
+pub async fn start_podssh(key: &Path, podssh: Podssh) -> (u16, Arc<AtomicUsize>) {
+    start_far(key, Vec::new(), Some(podssh)).await
+}
+
+async fn start_far(
+    key: &Path,
+    certificates: Vec<russh::keys::Certificate>,
+    podssh: Option<Podssh>,
+) -> (u16, Arc<AtomicUsize>) {
     let connections = Arc::new(AtomicUsize::new(0));
     let counted = connections.clone();
     let mut config = server::Config::default();
@@ -36,11 +51,12 @@ pub async fn start_with(key: &Path, certificates: Vec<russh::keys::Certificate>)
     let sftp_root = key.parent().map(Path::to_path_buf);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("a port on the loopback");
     let port = listener.local_addr().unwrap().port();
+    let podssh = podssh.map(|podssh| Arc::new(podssh.on(port)));
     tokio::spawn(async move {
         while let Ok((stream, _)) = listener.accept().await {
             counted.fetch_add(1, Ordering::SeqCst);
             let config = config.clone();
-            let far = Far { sftp_root: sftp_root.clone(), ..Far::default() };
+            let far = Far { sftp_root: sftp_root.clone(), podssh: podssh.clone(), ..Far::default() };
             tokio::spawn(async move {
                 if let Ok(session) = server::run_stream(config, stream, far).await {
                     let _ = session.await;

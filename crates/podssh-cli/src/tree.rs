@@ -311,6 +311,7 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
             no_e2e: matches.get_flag("no-e2e"),
             iroh_relay: get("iroh-relay"),
             sshd: matches.get_flag("sshd"),
+            temporary: get("temporary"),
             refused,
         }));
     }

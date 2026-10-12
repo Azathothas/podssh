@@ -6,7 +6,7 @@ itself; Multipath TCP; and resumption in the relay (M8).
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
-**Source:** ROADMAP M6 (the iroh road); `docs/design.md:689-865`;
+**Source:** ROADMAP M6 (the iroh road); `docs/design.md:694-870`;
 `docs/decisions.md` (2026-10-08: iroh is a road that the user must select);
 GitHub #18 (Nemo-010, 2026-10-08: the iroh-ssh, zuko, GPU-Share and quic-ssh
 reports).
@@ -24,13 +24,13 @@ and it keeps a connection across address changes. podssh has no iroh code.
 
 ## Premise
 
-Read, not measured (`docs/design.md:696-717`): iroh 1.1 or later (advisories
+Read, not measured (`docs/design.md:701-722`): iroh 1.1 or later (advisories
 up to 1.0.3), MIT or Apache-2.0, MSRV 1.91, the aws-lc-rs backend, about 190
 to 245 crates. In the target sandbox it runs only with no UDP transport (or a
 UDP bind after a probe), podssh's proxy in `proxy_url(...)`, the `Minimal`
 preset with no pkarr or DNS, peers dialled by ticket, and a home relay whose
 `/ping` passes the proxy. The operator accepted netlink sockets and extra
-connections for this road (`docs/design.md:854-857`). The sandbox refuses UDP
+connections for this road (`docs/design.md:859-862`). The sandbox refuses UDP
 (`docs/target-environment.md:23`). Measured on `3ee70dc`: `--iroh` is an
 unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 
@@ -45,7 +45,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
    (`crates/podssh-ws/src/dial.rs:94-118`), so `ALL_PROXY` and `NO_PROXY` act
    as on the other roads; iroh's own selection ignores both
-   (`docs/design.md:715`).
+   (`docs/design.md:720`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
    probe that binds a UDP socket to port 0 and closes it, as `bind_inet`
    probes TCP (`crates/podssh-cli/src/doctor/unix.rs:137-166`).
@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:445-453`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:447-455`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -140,8 +140,8 @@ that uses iroh's own proxy selection fails with `ALL_PROXY` set.
 
 # T-163: iroh tickets and node keys
 
-**Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:716` and
-`docs/design.md:822-823`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
+**Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:721` and
+`docs/design.md:827-828`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
 handoff; iroh-ssh's persistent and ephemeral keys).
 **Category:** feature
 **Milestone:** M6
@@ -157,12 +157,12 @@ no form for a ticket, no place for the keys, and no rule for who may connect.
 ## Premise
 
 Read: with the `Minimal` preset nothing is discovered, so a ticket gives the
-key and the relay URL (`docs/design.md:716`). The key is the identity, and
-access is by an allowlist of keys or a relay token (`docs/design.md:822-823`).
+key and the relay URL (`docs/design.md:721`). The key is the identity, and
+access is by an allowlist of keys or a relay token (`docs/design.md:827-828`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:314-315`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:316-317`,
 `crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -183,17 +183,17 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:314-315`,
    its allowlist file (one key on each line), and logs a refused key by its
    fingerprint. T-087 extends this.
 5. The node prints its ticket and its fingerprint on stderr when it starts.
-   `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:672`).
+   `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:677`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:123-249`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-200`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-205`).
 
 ## Decision
 
 Recommendation: a ticket is an address, and the node's allowlist of client
 keys gives access. A ticket can then go on a command line or into
 `ssh_config` with no risk. The alternative, a bearer ticket (tailcat's address
-is one: `docs/design.md:649-650`), lost: each process on the host can read a
+is one: `docs/design.md:654-655`), lost: each process on the host can read a
 command line, and the rules forbid credentials there.
 
 2026-10-10, the shape of the command line and the files:
@@ -348,7 +348,7 @@ limit of iroh to each connection.
 Read: for a podssh node, the iroh road is first and the reverse road with the
 resumable layer is second, raced (`docs/design.md:48-53`). The first real
 sandbox can block what iroh needs, so the fallback is necessary
-(`docs/design.md:859-865`). The user must select iroh (`docs/decisions.md`,
+(`docs/design.md:864-870`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:56-63`). The relay opener tries one host at a time
 (`crates/podssh-relay/src/open.rs:188-247`), and no code races two roads.
@@ -372,7 +372,7 @@ sandbox can block what iroh needs, so the fallback is necessary
 6. With `-v`, print the road that won and its time.
 7. Each resume of T-153 runs the same race.
 8. Docs: the rule of the race in `docs/design.md` section 2, and the notes of
-   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-186`).
+   `ssh` in the manual (`crates/podssh-cli/src/man/notes_ssh.rs:4-198`).
 
 ## Decision
 
@@ -488,9 +488,9 @@ forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
 (`crates/podssh-relay/src/pool.rs:20-29`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
-published (`docs/design.md:839-841`). At least three projects run the iroh
+published (`docs/design.md:844-846`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
-`docs/design.md:845-847`). The URLs of n0's relays for iroh 1.x must be read
+`docs/design.md:850-852`). The URLs of n0's relays for iroh 1.x must be read
 in iroh's source at the pinned version.
 
 ## Approach
@@ -510,9 +510,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-200`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-205`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:237-399`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:242-404`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.
@@ -623,7 +623,7 @@ other build.
 # T-166: A roost: a podssh next to a standard sshd
 
 **Source:** `docs/design.md:52` (a standard sshd behind a podssh `roost`) and
-`docs/design.md:410-413`; the `roost` of pigeons (`docs/design.md:849-852`);
+`docs/design.md:410-413`; the `roost` of pigeons (`docs/design.md:854-857`);
 GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh reaches sshd by node id, and
 refuses early when no sshd answers).
 **Category:** feature
@@ -668,7 +668,7 @@ not verified here: iroh-ssh checks that a local sshd answers before it accepts
 Recommendation: the client records the host key of sshd under the name that
 the user gives to `podssh ssh` (the roost's name), as OpenSSH does for a host
 with a `ProxyCommand`. `podssh ssh` names a host this way today
-(`crates/podssh-ssh/src/run.rs:330-340`). The alternative, the address of sshd
+(`crates/podssh-ssh/src/run.rs:341-351`). The alternative, the address of sshd
 behind the roost (`127.0.0.1`), lost: each roost would share one name, and one
 key would replace another.
 
@@ -794,7 +794,7 @@ over plain ssh).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -805,7 +805,7 @@ hand takes several steps on two hosts.
 ## Premise
 
 Read: to a standard sshd, the forward road is the only road, and it has no
-resumption (`docs/design.md:51`, `docs/design.md:414-426`). A podssh on the
+resumption (`docs/design.md:51`, `docs/design.md:414-431`). A podssh on the
 server can be a roost (T-166). podssh starts another program only when the
 user names it or a probe finds it (`AGENTS.md`, section 5, rule 3); this
 entry keeps that rule for the server too. Inferred: an SSH connection cannot
@@ -837,6 +837,44 @@ an action that the user must ask for. The alternative, an automatic upload
 (syq installs a helper on SSH servers: read in GitHub #19), lost for that
 reason.
 
+2026-10-12, before the work:
+
+- The spelling: `podssh ssh --upgrade DEST`, a flag of `ssh`, as
+  `--persist` is; the far end is `podssh node --temporary KEY`, a flag of
+  `node`, as the roost of T-166 is. KEY is the fingerprint of this client's
+  key (`client.key`, or `--client-key`): a public key, so it may go on
+  argv; the node lets in that key alone. Lost: a verb of its own on either
+  side.
+- The node makes a pair, not an iroh endpoint: the pair's road is in each
+  build, and the iroh road only in builds with the feature `iroh`, which no
+  release has. So the move takes the pair's road alone, and the race of
+  T-164 (item 4) is not run: a node and a client that both have the
+  feature could race the two roads, which this draft leaves open.
+- The line is `podssh-upgrade/1 ` and JSON: the relay, the pair's name, the
+  connect token, the expiry, the node's key and whether the node left its
+  SSH session. The client takes the first line with that mark, as a
+  login's own lines may come first; it checks each field as an operator's
+  file is checked, and the end-to-end channel must then find the node's key
+  of the line.
+- The node goes online before it writes the line, so the client's leg never
+  meets a node that is not there yet. On Unix it then leaves its SSH
+  session: SIGHUP ignored, its standard streams `/dev/null`, and `setsid`
+  where it may. On Windows it cannot, and says so in the line: the client
+  then keeps the first connection open while the session runs.
+- The node's TARGET is the sshd of `SSH_CONNECTION`, on the loopback first
+  (no proxy is in the way there), then at the server's address; each is
+  checked as T-166 checks a roost's.
+- The first connection stays open until the second login is done (the
+  phase `Ready` of the login, which podssh-ssh keeps). Until then each
+  failure (no podssh, no line within 60 s, no layer in the greeting, a
+  failed leg, handshake or login) is one note, and the session runs on the
+  first connection, which logged in already: no second prompt. Lost: the
+  close of the first connection at once (item 4 as written), after which a
+  failed second login would have no session to fall back on.
+- With `node://`, `iroh:`, `cf://`, `--persist`, `-R` (two connections
+  would each ask for the forward) and `-O`, `--upgrade` is a usage error
+  (64); `ControlPath` has no effect with it, with a note under `-v`.
+
 ## Prove
 
 ```sh
@@ -850,6 +888,61 @@ on no argv. The interop harness logs in to OpenSSH with a podssh on the
 server's PATH, upgrades, and survives a fault of T-156. With no podssh there,
 the session stays on the forward road with one note; a planted client that
 starts a node with no probe fails this check.
+
+## Done
+
+2026-10-12, a draft for the main session to build and test.
+
+- podssh-ssh: `upgrade` (new): `login`, the hops logged in with their
+  connections kept, and `request`, the run's request on them, each failing
+  in a run's own words; `begin`, `logged_in` and `reached`, the phase of a
+  second login. `run::run_handles` is the request half of a run, split out
+  of `run_inner`. `exec::first_line` runs a command and gives the rest of
+  its first stdout line with a mark, and the command's channel, left open.
+- podssh-cli: `ssh --upgrade` (`ssh/upgrade.rs`, new; the flag, `args.rs`,
+  `resolve.rs`, `mod.rs`): the checks and the run of the Decision.
+  `node --temporary KEY` (`node_temp.rs`, new; `node.rs`, `tree.rs`,
+  `flags/node.rs`). The line (`upgrade_line.rs`, new). `layered::Begin`: the
+  layer's client may start before `carry`, so that `--upgrade` reads the
+  node's greeting first. `SSH_CONNECTION` is in ENVIRONMENT.
+- The manual: the flags' rows, the notes of `ssh` and `node`, an example.
+  `README.md`, `SECURITY.md`, `docs/cli.md`, `docs/design.md` (layer 3 of
+  section 5) and `docs/STATUS.md`.
+- Tests, written and not run here (this draft ran no build): unit tests in
+  `crates/podssh-cli/src/upgrade_line.rs` (the line reads back; a line that
+  is no offer is refused by name) and `crates/podssh-cli/src/node_temp.rs`
+  (the sshd of the session, on the loopback first; with no session,
+  127.0.0.1:22; a TARGET wins; a route is refused).
+  `crates/podssh-cli/tests/upgrade.rs`:
+  `upgrade_refuses_what_two_connections_cannot_carry`,
+  `a_client_key_goes_with_upgrade_alone`,
+  `with_no_podssh_on_the_server_the_session_stays_with_one_note` (the
+  tests' server answers `podssh --version` with no podssh: one note, the
+  command runs, one login), and, through the stand-in relay,
+  `the_session_moves_to_the_temporary_node_and_no_argv_holds_a_token`
+  (`crates/podssh-cli/tests/ssh_harness/podssh.rs`, new: a server whose
+  `podssh ...` commands run the binary under test, with `SSH_CONNECTION`,
+  each argv kept; the move, three connections to sshd, and no argv and no
+  output with a word of a token's shape). Results: 5 passed here (Windows
+  11, with Python and openssl), and 5 passed in the build image; the unit
+  tests of `upgrade_line` and `node_temp`: 4 passed. The test of the move
+  first overflowed the 1 MiB stack of Windows's main thread in the debug
+  build: podssh now runs each command on a thread of 16 MiB
+  (`crates/podssh-cli/src/main.rs`).
+- The gate: `scripts/interop-upgrade.sh` (new), sourced by
+  `scripts/interop-faults.sh`, with three ids in
+  `scripts/interop-baseline.txt`: `upgrade.none` (OpenSSH with no podssh on
+  its PATH: one note, the command ran), `upgrade.cut.openssh` and
+  `upgrade.cut.dropbear` (a wrapper in `/usr/bin` runs the binary under
+  test on the server; the session moves to the node, and a stand-in proxy
+  cuts the client's link during the remote command, which resumes and ends
+  0). They wait for CI's gate and T-251.
+- Waits for T-251: `sh scripts/dev.sh check` with the new harness, and the
+  planted client that starts a node with no probe (`upgrade.none` and
+  `with_no_podssh_on_the_server_the_session_stays_with_one_note` must then
+  fail on their note). No live run: the live relay's pairs are the same
+  calls as the stand-in's. A Windows server, where the node cannot leave its
+  session, is not measured.
 
 # T-168: UDP over the relay
 
@@ -1423,7 +1516,7 @@ T-300 is done.
 # T-171: The functions of Mosh that M6 and T-160 do not give, made in podssh itself
 
 **Source:** GitHub #22 (Nemo-010, 2026-10-08: SSHub selects a Mosh transport
-for each host); `docs/design.md:428-429`; the operator's ruling of
+for each host); `docs/design.md:433-434`; the operator's ruling of
 2026-10-08: no road depends on a program of another project, and podssh
 makes the useful functions itself (`docs/decisions.md`).
 **Category:** research
@@ -1442,7 +1535,7 @@ functions that are still missing.
 ## Premise
 
 Read: an interactive echo for high latency, as Mosh has, is a later option on
-top of layer 2 (`docs/design.md:428-429`). The measured sandbox refuses UDP
+top of layer 2 (`docs/design.md:433-434`). The measured sandbox refuses UDP
 (`docs/target-environment.md:23`), and the relay carries no UDP
 (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:222`). Not
 verified here (from the published description of Mosh): it roams to a new
@@ -1505,13 +1598,13 @@ names.
 The layer runs under SSH, so a node in front of a standard sshd carries SSH's ciphertext, and
 cannot see the pty's bytes; the functions of the screen (an echo's acknowledgement, frames of the
 screen) need `podssh serve` (T-110), and a notice drawn on the screen needs the client's model of
-T-160 (`docs/design.md:446-453`). And the iroh road (Approach, item 2) gives a direct UDP path,
+T-160 (`docs/design.md:451-458`). And the iroh road (Approach, item 2) gives a direct UDP path,
 but carries a session as one QUIC stream, so a lost packet still holds the bytes after it; only
 datagrams (T-304) remove that.
 
 ## Done
 
-2026-10-12. The map is in `docs/design.md:435-492`, section 5, "The functions of Mosh, and where
+2026-10-12. The map is in `docs/design.md:440-497`, section 5, "The functions of Mosh, and where
 podssh gives each": a table of 13 functions, each with Mosh's way (the paper's section, or a file
 and lines of Mosh at `decd9b7`) and podssh's entry; and four functions that podssh does not need,
 each with the reason (scrollback, forwarding, UTF-8 only, a UDP port on the server).
@@ -1586,7 +1679,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:414-426` (layer 3) and `docs/design.md:874-877` (question 1 of
+`docs/design.md:414-431` (layer 3) and `docs/design.md:879-882` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -1607,9 +1700,9 @@ target within 15 s, and it has no resumption (`docs/design.md:384-387`). The
 option is a Durable Object that owns the target socket across reconnections,
 a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
-it costs Durable Object time for the whole session (`docs/design.md:422-426`).
+it costs Durable Object time for the whole session (`docs/design.md:427-431`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:874-877`). The relay is in another repository.
+(`docs/design.md:879-882`). The relay is in another repository.
 
 ## Approach
 

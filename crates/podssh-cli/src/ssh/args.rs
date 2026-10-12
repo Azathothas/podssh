@@ -71,6 +71,9 @@ pub struct SshArgs {
     pub attach_list: bool,
     /// `--take`: take the kept shell from the client that has it.
     pub take: bool,
+    /// `--upgrade`: the session moves to a temporary node on the server
+    /// (T-167).
+    pub upgrade: bool,
     /// `--sudo` and `--su`: the remote command runs as root (T-032).
     pub sudo: bool,
     /// `--record FILE`: the session's output in an asciicast v2 file (T-033).
@@ -226,6 +229,7 @@ impl SshArgs {
             attach: one("attach"),
             attach_list: false,
             take: flag("take"),
+            upgrade: flag("upgrade"),
             sudo: flag("sudo"),
             record: one("record"),
             tag: one("tag").filter(|t| !t.is_empty()),

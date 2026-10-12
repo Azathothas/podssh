@@ -122,6 +122,14 @@ Each rule is implemented.
   for each session, and dials its target only after it let the key in. No
   end falls back to plain text: one with the channel refuses a peer
   without it.
+- **`podssh ssh --upgrade` copies nothing to the server, and its token
+  crosses the relay only inside SSH** (T-167). It runs a podssh that is on
+  the server already, after `podssh --version` found one. The temporary
+  node's line, with its pair's connect token, comes back on that command's
+  stdout, in the SSH channel; the token is on no argv, in no file and in no
+  log. The node lets in the client key that the command names alone, and
+  the client checks the node's key of the line in the end-to-end channel,
+  then the server's host key under the destination's own name.
 - **Chat writes a file only once the user accepts it, and runs nothing**
   (T-099). `podssh chat` always runs the end-to-end channel, so the relay
   reads no message and no file. A file goes under a temporary name into the

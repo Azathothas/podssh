@@ -117,6 +117,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ),
         ("whether the node is online; then stop the pair", "podssh relay status lab && podssh relay revoke lab".into()),
         (
+            "log in, then move the session to a node that the server's own podssh starts: it resumes after a lost link",
+            "podssh ssh --upgrade user@example.org".into(),
+        ),
+        (
             "whether the relay reaches a target, and the first line that the target sends",
             "podssh relay trace github.com 22".into(),
         ),

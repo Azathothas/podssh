@@ -30,6 +30,7 @@ harness ping interop 3 scripts/interop-ping.sh
 harness relay interop 4 scripts/interop-relay.sh
 harness socks interop 4 scripts/interop-socks.sh
 harness roost interop 6 scripts/interop-roost.sh
+harness upgrade interop 3 scripts/interop-upgrade.sh
 harness cp interop 80 scripts/interop-cp.sh
 harness keep interop 11 scripts/interop-keep.sh
 harness inplace interop 6 scripts/interop-inplace.sh
@@ -318,6 +319,11 @@ roost.cut.openssh pass
 roost.cut.dropbear pass
 roost.preflight.closed pass
 roost.preflight.other pass
+
+# scripts/interop-upgrade.sh
+upgrade.none pass
+upgrade.cut.openssh pass
+upgrade.cut.dropbear pass
 
 # scripts/interop-cp.sh
 cp.sftp.up.0 pass

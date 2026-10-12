@@ -28,7 +28,8 @@
 //! shell's do (T-054, `ends.rs`). `bytes HEX...` sends chosen bytes, and a
 //! user named `pty-...` gets a pty, for `watch` (T-132, `console.rs`). The
 //! subsystem `sftp` is OpenSSH's `sftp-server` in the directory of the host
-//! key, when this machine has one (T-140, `sftp.rs`).
+//! key, when this machine has one (T-140, `sftp.rs`). On a server of
+//! `start_podssh`, `podssh ...` runs the binary under test (T-167, `podssh.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -45,6 +46,7 @@ use russh::{Channel, ChannelId};
 mod console;
 mod ends;
 mod forward;
+pub mod podssh;
 mod serve;
 pub mod sftp;
 mod sudo;
@@ -52,7 +54,7 @@ mod x11;
 
 // Each test binary uses a part of it.
 #[allow(unused_imports)]
-pub use serve::{start, start_counting, start_with};
+pub use serve::{start, start_counting, start_podssh, start_with};
 use sudo::{elevation, Elevated};
 use x11::x11_probe;
 
@@ -101,6 +103,8 @@ struct Far {
     /// `../escape` too (T-143).
     evil: bool,
     sftps: HashMap<ChannelId, tokio::process::ChildStdin>,
+    /// A server of `start_podssh`: what its podssh gets (T-167).
+    podssh: Option<Arc<podssh::Podssh>>,
 }
 
 impl server::Handler for Far {
@@ -261,6 +265,9 @@ impl server::Handler for Far {
             return Ok(());
         }
         session.channel_success(channel)?;
+        if let Some(ran) = podssh::run(self.podssh.as_ref(), &command, channel, session) {
+            return ran;
+        }
         if let Some((prompt, started)) = elevation(&command) {
             if self.nopass && prompt.is_some() {
                 session.extended_data(channel, 1, started.into_bytes())?;

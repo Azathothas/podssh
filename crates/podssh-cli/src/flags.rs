@@ -200,6 +200,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
     attach::ATTACH,
     attach::TAKE,
+    row(None, "upgrade", None, FlagKind::Supported,
+        "log in, then move the session to a temporary node that the server's podssh starts, which resumes after a lost link; with no podssh there, the session stays", None),
     row(None, "sudo", None, FlagKind::Supported,
         "run the command as root with sudo -S, with no pty; the password is asked here (terminal or SSH_ASKPASS)", None),
     row(None, "record", Some("FILE"), FlagKind::Supported,

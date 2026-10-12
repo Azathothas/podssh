@@ -70,6 +70,20 @@ pub fn learn(found: &Found, offer: &Offer) {
     }
 }
 
+/// Where the layer's client starts: on a leg whose far end has not spoken
+/// yet, or already started on it, by a caller that read the far end's
+/// greeting first (`podssh ssh --upgrade`, T-167).
+pub enum Begin {
+    Link(DuplexStream),
+    Started(Box<client::Client<DuplexStream>>),
+}
+
+impl From<DuplexStream> for Begin {
+    fn from(link: DuplexStream) -> Begin {
+        Begin::Link(link)
+    }
+}
+
 /// Carry `app` to the node: `link` is the pipe to `first`, a leg already
 /// connected. Each lost leg is replaced, until the session ends or cannot
 /// go on. `expires_ms`, the pair's expiry in milliseconds since the epoch,
@@ -77,7 +91,7 @@ pub fn learn(found: &Found, offer: &Offer) {
 /// `keep.v1`, and `offer` learns whether the far end keeps shells.
 pub async fn carry<A>(
     config: &OperatorConfig<'_>,
-    link: DuplexStream,
+    link: impl Into<Begin>,
     first: JoinHandle<LegOutcome>,
     app: A,
     expires_ms: Option<i64>,
@@ -89,7 +103,11 @@ where
 {
     let legs = Mutex::new(Some(first));
     let layer = if offer.is_some() { ssh_settings() } else { settings() };
-    let client = match client::start(link, Ask::New, layer, &mut OsEntropy).await {
+    let started = match link.into() {
+        Begin::Started(client) => Ok(*client),
+        Begin::Link(link) => client::start(link, Ask::New, layer, &mut OsEntropy).await,
+    };
+    let client = match started {
         Ok(client) => client,
         Err(e) => return Carried { why: Some(e.to_string()), leg: last(&legs).await, channel: None },
     };
@@ -125,7 +143,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn carry_through<A>(
     config: &OperatorConfig<'_>,
-    link: DuplexStream,
+    link: impl Into<Begin>,
     first: JoinHandle<LegOutcome>,
     app: A,
     expires_ms: Option<i64>,
@@ -144,7 +162,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn carry_keeping<A>(
     config: &OperatorConfig<'_>,
-    link: DuplexStream,
+    link: impl Into<Begin>,
     first: JoinHandle<LegOutcome>,
     app: A,
     expires_ms: Option<i64>,

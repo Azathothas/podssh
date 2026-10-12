@@ -75,6 +75,8 @@ pub struct Resolved {
     pub record: Option<PathBuf>,
     /// `-X` and `-Y` (T-037), probed as the run starts.
     pub x11: Option<super::x11::Plan>,
+    /// `--upgrade` (T-167): what the move to a temporary node needs.
+    pub upgrade: Option<super::upgrade::Upgrade>,
 }
 
 /// What the process environment contributes, gathered once so it can be
@@ -168,10 +170,11 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     if args.iroh_relay.is_some() && !iroh_road {
         return Err("--iroh-relay is for an iroh:TICKET destination, or --iroh-ticket".into());
     }
-    // The channel's flags are for a destination of two podssh ends (T-087).
+    // The channel's flags are for a destination of two podssh ends (T-087);
+    // --upgrade takes this client's key for its temporary node (T-167).
     let channel = [
-        ("--client-key", args.client_key.is_some()),
-        ("--iroh-key", args.iroh_key.is_some()),
+        ("--client-key", args.client_key.is_some() && !args.upgrade),
+        ("--iroh-key", args.iroh_key.is_some() && !args.upgrade),
         ("--node-key", args.node_key.is_some()),
         ("--no-e2e", args.no_e2e),
     ];
@@ -436,8 +439,10 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         control,
         record: None,
         x11: None,
+        upgrade: None,
     };
     super::persist::check(args, &mut resolved)?;
+    super::upgrade::check(args, env, &mut resolved)?;
     super::elevate::check(args, &mut resolved)?;
     super::recording::check(args, &mut resolved)?;
     super::attach::check(args, &mut resolved)?;

@@ -93,6 +93,18 @@ pub const SSH: &[&str] = &[
      and a password that the server took are kept for the run. Keys typed meanwhile go to the \
      session after the attach. With a command, -W, -s, -T, node:// or iroh:, --persist is refused \
      (exit 64).",
+    "--upgrade logs in as each run does, then asks the server for podssh --version. When a podssh \
+     answers, it runs a temporary podssh node there in the same SSH session, with this client's key \
+     (client.key in the cache, or --client-key): a node in front of the sshd of that session, with a pair \
+     that no file keeps. The node's one line, the pair's connect token and the node's key, comes back in \
+     the SSH channel, encrypted, and is on no argv. podssh then logs in again through that node, with the \
+     resumable layer and the end-to-end channel, and with the same host key, so known_hosts needs no \
+     change; the first connection closes once that login is done. The session then resumes after a lost \
+     link, as one to a node does. When no podssh answers, it starts no node, it offers no layer, or the \
+     second login fails, one note says so and the session stays on the first connection. podssh never \
+     copies itself to the server: install it there, on the PATH of a command that sshd runs. The node ends \
+     with its last session, or 10 minutes after its start with none. --upgrade with node://, iroh:, \
+     cf://, --persist, a remote forward or -O is refused (exit 64); ControlPath has no effect with it.",
     "-L [BIND:]PORT:HOST:HOSTPORT listens here, and each connection that it takes goes on from the \
      server; HOST:HOSTPORT may be a socket path on the server, and the listening side a socket path here \
      (mode 0600). -D [BIND:]PORT, or a socket path, is a SOCKS4, SOCKS4a and SOCKS5 proxy, CONNECT only \

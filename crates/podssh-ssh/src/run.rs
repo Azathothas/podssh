@@ -182,10 +182,21 @@ async fn run_inner<S>(stream: S, opts: &Options, log: &Arc<Log>) -> Result<i32, 
 where
     S: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
-    let mut handles = connect_hops(stream, opts, log).await.map_err(|e| {
+    let handles = connect_hops(stream, opts, log).await.map_err(|e| {
         crate::outcome::failed(e.class());
         e.to_string()
     })?;
+    run_handles(handles, opts, log).await
+}
+
+/// The request of `opts` on `handles`, each hop logged in, and each
+/// connection closed at its end; `--upgrade` runs it on the connection that
+/// probed the server (T-167).
+pub(crate) async fn run_handles(
+    mut handles: Vec<Handle<Client>>,
+    opts: &Options,
+    log: &Arc<Log>,
+) -> Result<i32, String> {
     let host = display(&opts.destination);
     let result = match &opts.request {
         Request::StdioForward(target) => {

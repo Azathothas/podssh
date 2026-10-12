@@ -31,6 +31,7 @@ pub mod resolve;
 pub mod result;
 pub mod tokens;
 pub mod transport;
+mod upgrade;
 pub mod x11;
 
 use std::io::Write;
@@ -195,6 +196,10 @@ async fn connect_and_run(mut resolved: Resolved, log: Arc<Log>) -> i32 {
     }
     if let Some(kept) = resolved.persist.clone() {
         return Box::pin(persist::run(&resolved, &kept, log)).await;
+    }
+    // --upgrade (T-167): the first login, then a move to a temporary node.
+    if let Some(upgrade) = resolved.upgrade.clone() {
+        return Box::pin(upgrade::run(&resolved, &upgrade, log)).await;
     }
     let opts = &resolved.options;
     if let Transport::Node { label, pair_file, trust, race, channel } = &resolved.transport {

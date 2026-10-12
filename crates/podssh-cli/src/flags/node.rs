@@ -20,6 +20,8 @@ pub const NODE_FLAGS: &[FlagRow] = &[
         "carry each session's bytes as they are, with no resumable layer, for an operator that does not speak it; a lost link ends the session", None),
     row(None, "sshd", None, FlagKind::Supported,
         "a roost: each TARGET (default 127.0.0.1:22) is a standard sshd, which must send its SSH version line first, at the start and on each session's connection", None),
+    row(None, "temporary", Some("KEY"), FlagKind::Supported,
+        "the far end that podssh ssh --upgrade starts on its server: a roost in front of the session's sshd, with a pair and a key that no file keeps, for the client key KEY alone; one line on stdout gives the offer; it ends with its last session, or after 10 minutes with none", None),
     row(None, "key", Some("FILE"), FlagKind::Supported,
         "the node's key in FILE, on each road, made when missing (default: node-NAME.key in the cache); its fingerprint is said as the node starts", None),
     row(None, "ephemeral-key", None, FlagKind::Supported,

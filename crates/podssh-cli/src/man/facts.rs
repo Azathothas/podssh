@@ -75,6 +75,11 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     ),
     (&["PODSSH_RELAY_ADDR"], "Addresses to use in place of DNS, as --relay-addr, after the flag's addresses."),
     (
+        &["SSH_CONNECTION"],
+        "Set by sshd in a session: podssh node --temporary, which podssh ssh --upgrade starts there, stands \
+      in front of the server's address and port that it names, tried on the loopback first.",
+    ),
+    (
         &["PODSSH_SESSION_LOG"],
         "A line for each session of podssh ssh and podssh proxy, at its end (see FILES): 1 or yes in the cache, \
       an absolute path in that file, 0 or no for none; over SessionLog of the settings file; off by default. \

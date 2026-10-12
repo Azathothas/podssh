@@ -26,6 +26,15 @@ pub(super) const NODE: &[&str] = &[
      reason. The check takes no byte of the session: the client still reads sshd's line. podssh ssh \
      node://NAME keeps sshd's host key under node://NAME, the name that the user gives, as OpenSSH does \
      for a host behind a ProxyCommand.",
+    "--temporary KEY is the node that podssh ssh --upgrade starts on its server (see podssh ssh): a roost \
+     in front of the sshd that its SSH session came through (SSH_CONNECTION: on the loopback first, then \
+     at the server's address), or of TARGET, with a pair that it makes on the relay of PODSSH_RELAY (else \
+     the default) and that no file keeps, and a key for this run only. It lets in the client key KEY \
+     alone. Once the relay takes the pair's sessions, it writes one line to stdout, the pair's connect \
+     token and its own key, and on Unix leaves that SSH session: SIGHUP is ignored, and stdin, stdout and \
+     stderr become /dev/null. It ends with its last session, or 10 minutes after its start with none, and \
+     stops its pair. With it, --iroh, --pair-file, --plain, --no-e2e, the flags of the node's key, and \
+     a route are refused (exit 64).",
     "Each session runs the end-to-end channel above the layer (Noise XX): the relay sees ciphertext \
      only, and the operator's key and the node's prove themselves in it. The node's key is a private \
      file in the cache (node-NAME.key, or iroh-node-NAME.key of an earlier podssh), or the file of \

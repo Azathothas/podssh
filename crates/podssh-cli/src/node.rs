@@ -9,7 +9,9 @@
 //! With `--iroh`, the node serves the iroh road instead, with no pair
 //! (T-163, `node_iroh`). With `--sshd`, the node is a roost in front of a
 //! standard sshd (T-166): TARGET, by default 127.0.0.1:22, must send an SSH
-//! version line first, at the start and on each session's connection.
+//! version line first, at the start and on each session's connection. With
+//! `--temporary KEY`, it is the far end of `podssh ssh --upgrade` (T-167,
+//! `node_temp`).
 
 use std::io::Write;
 use std::path::PathBuf;
@@ -65,11 +67,17 @@ pub struct NodeArgs {
     pub iroh_relay: Option<String>,
     /// A roost (T-166): each TARGET is a standard sshd.
     pub sshd: bool,
+    /// The temporary node of `podssh ssh --upgrade`, for this client key
+    /// (T-167).
+    pub temporary: Option<String>,
     pub refused: Vec<(String, &'static str, &'static str)>,
 }
 
 /// Run the verb; returns the process exit code.
 pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
+    if let Some(key) = &args.temporary {
+        return crate::node_temp::run(args, key, err);
+    }
     // The key and the allowlist serve each road (T-087); the relays are the
     // iroh road's alone.
     if args.iroh_relay.is_some() && !args.iroh {
