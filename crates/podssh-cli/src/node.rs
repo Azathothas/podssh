@@ -11,16 +11,18 @@
 //! standard sshd (T-166): TARGET, by default 127.0.0.1:22, must send an SSH
 //! version line first, at the start and on each session's connection. With
 //! `--temporary KEY`, it is the far end of `podssh ssh --upgrade` (T-167,
-//! `node_temp`).
+//! `node_temp`). `udp:HOST:PORT` is a UDP TARGET: each session is one flow
+//! of datagrams from this host (T-168, `node_udp`).
 
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
+use podssh_relay::e2e::ends::Node;
 use podssh_relay::pair::Pair;
 use podssh_relay::reverse::routes::{Route, Routed, Routes};
-use podssh_relay::reverse::{self, sshd, E2e, Exit, Layered, NodeConfig, Settings, TcpHandler, Wire};
+use podssh_relay::reverse::{self, sshd, E2e, Exit, Handler, Layered, NodeConfig, Settings, TcpHandler, Wire};
 use podssh_ws::dial::ProxyChoice;
 use podssh_ws::Trust;
 
@@ -87,6 +89,12 @@ pub fn run_node(args: &NodeArgs, err: &mut dyn Write) -> i32 {
         let why = "--plain is for the pair's road: the iroh road always runs the resumable layer";
         return Refusal::usage(why.to_string()).report("node", err);
     }
+    // A UDP TARGET is the pair's road's alone (T-168), in a build with the
+    // iroh road or without it.
+    if args.iroh && args.targets.iter().any(|t| t.starts_with("udp:") || t.contains("=udp:")) {
+        let why = "a udp: TARGET goes on the pair's road: the iroh road carries TCP only";
+        return Refusal::usage(why.to_string()).report("node", err);
+    }
     if args.iroh {
         return iroh(args, err);
     }
@@ -123,6 +131,8 @@ struct Ready {
     allow: Option<PathBuf>,
     /// A roost: each TARGET is checked as an sshd.
     sshd: bool,
+    /// The one TARGET is UDP (T-168).
+    udp: bool,
 }
 
 /// The node's key and allowlist, by their names of T-087 or of T-163.
@@ -151,7 +161,13 @@ pub(crate) fn key_flags(args: &NodeArgs) -> Result<KeyFlags, Refusal> {
 fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
     let label = args.name.clone().ok_or("missing NAME: the label of a pair (podssh relay pair NAME)")?;
     pairs::check_label(&label)?;
-    let targets = targets_of(&words_of(args), args.no_e2e)?;
+    let (targets, udp) = match crate::node_udp::target_of(&args.targets)? {
+        Some(_) if args.sshd => {
+            return Err(Refusal::usage("--sshd stands in front of an sshd, which a udp: TARGET is not"))
+        }
+        Some(target) => (vec![target], true),
+        None => (targets_of(&words_of(args), args.no_e2e)?, false),
+    };
     // The channel's flags are usage errors, said before anything is read.
     let flags = key_flags(args)?;
     if args.no_e2e && (flags.key.is_some() || flags.ephemeral || flags.allow.is_some()) {
@@ -175,7 +191,8 @@ fn prepare(args: &NodeArgs) -> Result<Ready, Refusal> {
         Some(place) => Some(crate::channel::load_node_key(&place)?),
         None => None,
     };
-    Ok(Ready { label, pair, stored, targets, trust, plain: args.plain, key, allow: flags.allow, sshd: args.sshd })
+    let sshd = args.sshd;
+    Ok(Ready { label, pair, stored, targets, trust, plain: args.plain, key, allow: flags.allow, sshd, udp })
 }
 
 /// The TARGETs of the command line; for a roost that names none, the sshd
@@ -298,13 +315,21 @@ pub(crate) fn routes_of(targets: &[Route], allow: Option<PathBuf>, roost: bool) 
 }
 
 async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
-    let Ready { label, pair, stored, targets, trust, plain, key, allow, sshd: roost } = ready;
+    let Ready { label, pair, stored, targets, trust, plain, key, allow, sshd: roost, udp } = ready;
     let proxy = ProxyChoice::FromEnvironment;
-    // TARGET first: a node that cannot reach it would serve no session, and
-    // a roost whose sshd does not answer as one would refuse each.
-    let target = match probe(&targets, roost).await {
-        Ok(versions) => serving(&targets, &versions),
-        Err(refusal) => return refusal.report("node", err),
+    // TARGET first: a node that cannot reach it would serve no session, a
+    // roost whose sshd does not answer as one would refuse each, and a UDP
+    // one, on a host that refuses UDP, could send nothing.
+    let target = if udp {
+        match crate::node_udp::probe(&targets[0], DIAL_LIMIT).await {
+            Ok(()) => crate::node_udp::shown(&targets[0]),
+            Err(refusal) => return refusal.report("node", err),
+        }
+    } else {
+        match probe(&targets, roost).await {
+            Ok(versions) => serving(&targets, &versions),
+            Err(refusal) => return refusal.report("node", err),
+        }
     };
     let routes = routes_of(&targets, allow.clone(), roost);
     let mode = if plain { "in plain mode, with no resumable layer" } else { "with the resumable layer" };
@@ -338,6 +363,16 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         say: Some(&say),
     };
     let first = &targets[0];
+    // A flow of UDP for each session (T-168); a flow that did not end
+    // plainly says so on the node's lines.
+    if udp {
+        let flow_label = label.clone();
+        let flow_say: Arc<dyn Fn(String) + Send + Sync> =
+            Arc::new(move |line: String| eprintln!("podssh node: {flow_label}: {line}"));
+        let handler = crate::node_udp::handler(first, DIAL_LIMIT, flow_say);
+        let exit = with_handler(&mut config, handler, plain, channel).await;
+        return finish(&label, exit, err);
+    }
     let tcp = TcpHandler { host: first.host.clone(), port: first.port, timeout: DIAL_LIMIT, sshd: roost };
     let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
     // TARGET at `open` with no layer: an operator that does not speak the
@@ -369,6 +404,25 @@ async fn serve(ready: Ready, err: &mut dyn Write) -> i32 {
         }
     };
     finish(&label, exit, err)
+}
+
+/// Run the node with `inner` opening each session's target, as the TCP
+/// target's arms above do: at `open` with no layer, or after the layer's
+/// handshake, with the channel above the layer.
+async fn with_handler<H: Handler>(config: &mut NodeConfig<'_>, inner: H, plain: bool, channel: Option<Node>) -> Exit {
+    let (settings, budget) = (crate::layered::settings(), reverse::layered::NODE_BUDGET);
+    match (plain, channel) {
+        (true, None) => Box::pin(reverse::run(config, Arc::new(inner), stop_signal())).await,
+        (true, Some(node)) => Box::pin(reverse::run(config, Arc::new(E2e::new(inner, node)), stop_signal())).await,
+        (false, None) => {
+            let handler = Arc::new(Layered::new(inner, settings, budget));
+            Box::pin(reverse::run(config, handler, stop_signal())).await
+        }
+        (false, Some(node)) => {
+            let handler = Arc::new(Layered::new(E2e::new(inner, node), settings, budget));
+            Box::pin(reverse::run(config, handler, stop_signal())).await
+        }
+    }
 }
 
 /// The exit code for each end of a node, by the table of `exitmap`, and what

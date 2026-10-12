@@ -2,10 +2,11 @@
 //! checked before anything starts. `-` is `stdio`. The local kinds are
 //! `stdio`, `fd:N` (Unix) and `exec:CMD`; the remote ones `relay:HOST:PORT`,
 //! `tcp:HOST:PORT`, `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME` and
-//! `iroh:TICKET`; a local socket `unix-connect:PATH` (T-176); and the
+//! `iroh:TICKET`; a local socket `unix-connect:PATH` (T-176); the
 //! listeners `unix-listen:PATH` and `tcp-listen:[ADDR:]PORT` (T-177), one
-//! side at most. The kinds of later entries are known, and refused as not
-//! built yet, so that a script gets 70 and not a usage error.
+//! side at most; and UDP through a node, `udp:node:NAME` (T-168). The kinds
+//! of later entries are known, and refused as not built yet, so that a
+//! script gets 70 and not a usage error.
 
 use crate::exit_codes::EXIT_NOT_IMPLEMENTED;
 use crate::relay_settings::Refusal;
@@ -30,6 +31,9 @@ pub enum Address {
     Node(String),
     /// The TARGET of a node of the iroh road, by its ticket.
     Iroh(String),
+    /// UDP through the node of the pair under this label, whose TARGET is
+    /// `udp:HOST:PORT`: each datagram after its 16-bit length.
+    UdpNode(String),
     /// A local socket: a path, `@NAME` in Linux's abstract namespace, or on
     /// Windows a named pipe.
     Unix(String),
@@ -56,6 +60,7 @@ pub const KINDS: &[&str] = &[
     "tcp:HOST:PORT",
     "ssh:[USER@]HOP[,HOP...],HOST:PORT",
     "node:NAME",
+    "udp:node:NAME",
     "iroh:TICKET",
     "unix-connect:PATH",
     "unix-listen:PATH",
@@ -99,13 +104,8 @@ pub fn parse(text: &str) -> Result<Address, Refusal> {
         }
         "tcp" => target(kind, rest).map(|(host, port)| Address::Tcp { host, port }),
         "ssh" => ssh(rest),
-        "node" => {
-            if rest.contains(',') {
-                return Err(Refusal::usage(format!("node:{rest}: a node serves one TARGET; name the node alone")));
-            }
-            crate::pairs::check_label(rest)?;
-            Ok(Address::Node(rest.to_string()))
-        }
+        "node" => node_label("node", rest).map(Address::Node),
+        "udp" => udp(rest),
         "iroh" => iroh(rest),
         "unix-connect" => socket_name(kind, rest).map(Address::Unix),
         "unix-listen" => socket_name(kind, rest).map(Address::UnixListen),
@@ -117,6 +117,29 @@ pub fn parse(text: &str) -> Result<Address, Refusal> {
         }),
         other => Err(Refusal::usage(format!("{other}: no such kind of address; the kinds are {kinds}"))),
     }
+}
+
+/// The label of `node:NAME`, the pair of the node.
+fn node_label(kind: &str, rest: &str) -> Result<String, Refusal> {
+    if rest.contains(',') {
+        return Err(Refusal::usage(format!("{kind}:{rest}: a node serves one TARGET; name the node alone")));
+    }
+    crate::pairs::check_label(rest)?;
+    Ok(rest.to_string())
+}
+
+/// `udp:node:NAME`: datagrams through a node that sends them as UDP. This
+/// host sends none, and the relay carries TCP only, so a target of UDP is
+/// named on the node's command line: `podssh node NAME udp:HOST:PORT`.
+fn udp(rest: &str) -> Result<Address, Refusal> {
+    let Some(label) = rest.strip_prefix("node:") else {
+        let kinds = KINDS.join(", ");
+        return Err(Refusal::usage(format!(
+            "udp:{rest}: this host sends no UDP, and the relay carries TCP only: run podssh node NAME \
+             udp:HOST:PORT where UDP is allowed, and name udp:node:NAME here; the kinds are {kinds}"
+        )));
+    };
+    node_label("udp:node", label).map(Address::UdpNode)
 }
 
 /// `[USER@]HOP[,HOP...],HOST:PORT`: the last item is the target, each other
@@ -263,7 +286,7 @@ mod tests {
 
     #[test]
     fn an_unknown_kind_is_a_usage_error_that_lists_the_kinds_and_a_later_kind_is_not_built() {
-        let refusal = parse("udp:example.org:80").unwrap_err();
+        let refusal = parse("sctp:example.org:80").unwrap_err();
         assert_eq!(refusal.code, 64);
         assert!(refusal.message.contains("exec:CMD"), "{}", refusal.message);
         assert_eq!(code("example.org"), 64);
@@ -315,6 +338,14 @@ mod tests {
             assert_eq!(code(bad), 64, "{bad}");
         }
         assert_eq!(parse("node:lab").unwrap(), Address::Node("lab".into()));
+        assert_eq!(parse("udp:node:lab").unwrap(), Address::UdpNode("lab".into()));
+        // UDP leaves through a node: a target of UDP is the node's to name.
+        let refusal = parse("udp:example.org:53").unwrap_err();
+        assert_eq!(refusal.code, 64);
+        assert!(refusal.message.contains("podssh node NAME udp:HOST:PORT"), "{}", refusal.message);
+        for bad in ["udp:node:", "udp:node:lab,53", "udp:node:../x", "udp:lab"] {
+            assert_eq!(code(bad), 64, "{bad}");
+        }
         if !cfg!(feature = "iroh") {
             assert_eq!(code("iroh:endpointabc"), 70);
         }

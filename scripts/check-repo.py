@@ -98,15 +98,20 @@ LISTENERS = {
     ],
     # The iroh road (feature `iroh`, T-162), which the user selects: its probe
     # binds a UDP socket to port 0 and closes it, and only when the probe
-    # allowed it does the endpoint bind UDP for direct paths.
-    "UdpSocket": ["crates/podssh-iroh/src/probe.rs"],
+    # allowed it does the endpoint bind UDP for direct paths. And a node's
+    # UDP TARGET (T-168), which the user names (`podssh node NAME
+    # udp:HOST:PORT`): each flow is a socket of port 0, connected to the
+    # target, made only after the node's probe made and closed one.
+    "UdpSocket": ["crates/podssh-iroh/src/probe.rs", "crates/podssh-relay/src/udp/flow.rs"],
     # The bind probes of `podssh doctor`, which close at once and never listen;
     # and the iroh road's probe and endpoint, as above, with the commands that
     # make the endpoint: `podssh node --iroh`, `podssh ssh iroh:` (T-163) and
     # the race of `podssh ssh --iroh-ticket` (T-164). And `podssh agent`
     # (T-034), which the user starts: it binds through `podssh pipe`'s
-    # listener, after PODSSH_LISTEN, and the bind is its probe.
+    # listener, after PODSSH_LISTEN, and the bind is its probe. And the
+    # flows of a node's UDP TARGET (T-168), as above.
     "bind(": [
+        "crates/podssh-relay/src/udp/flow.rs",
         "crates/podssh-cli/src/agent/serve.rs",
         "crates/podssh-cli/src/doctor/unix.rs",
         "crates/podssh-cli/src/pipe/listen.rs",

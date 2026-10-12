@@ -249,7 +249,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | --- | --- |
 | `crates/podssh-cli` | The `podssh` binary: arguments, help, the manual and its tables (`src/man/`), the pager, dispatch, `proxy`, `ssh` options, `doctor`, `keygen` |
 | `crates/podssh-ssh` | The SSH client on `russh`: the relay stream, `known_hosts`, authentication, prompts, terminal, exit codes, key generation, the SFTP client (`sftp/`) |
-| `crates/podssh-relay` | Relay hosts, the pool, failover, tokens, the forward opener; the pairs, the codecs and the runners of the reverse road; the resumable layer (`session/`); the blocking facade for podbox |
+| `crates/podssh-relay` | Relay hosts, the pool, failover, tokens, the forward opener; the pairs, the codecs and the runners of the reverse road; the resumable layer (`session/`); UDP in a stream and its flow at a node (`udp/`); the blocking facade for podbox |
 | `crates/podssh-ws` | TLS (podssh's own pure-Rust rustls provider), proxies, DNS fallbacks, the WebSocket client |
 | `crates/podssh-core` | Sans-IO protocol code: `irc/` |
 | `crates/podssh-terminal` | A line discipline (not used yet) |

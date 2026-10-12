@@ -121,6 +121,14 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh ssh --upgrade user@example.org".into(),
         ),
         (
+            "a node of a DNS server, on a host that allows UDP: each session is one flow of datagrams",
+            "podssh node dns udp:10.0.0.2:53".into(),
+        ),
+        (
+            "from outside, a program whose stdin and stdout are a datagram socket (Unix) sends each query",
+            "podssh pipe 'exec:python3 query.py' udp:node:dns --pair-file dns-operator.json".into(),
+        ),
+        (
             "whether the relay reaches a target, and the first line that the target sends",
             "podssh relay trace github.com 22".into(),
         ),

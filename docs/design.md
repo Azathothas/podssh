@@ -674,6 +674,7 @@ needs `bind`, which the measured sandbox refuses for TCP.
 | `relay:HOST:PORT` | TCP through the relay (what `podssh proxy` is now) |
 | `ssh:[USER@]BASTION,HOST:PORT` | TCP that an SSH server opens (`-W`) |
 | `node:NAME[,PORT]` | A podssh node through the reverse road |
+| `udp:node:NAME` | UDP that a node sends, for its TARGET `udp:HOST:PORT` (T-168) |
 | `iroh:TICKET` | A podssh peer over iroh (section 7) |
 
 Since T-174 and T-175, `podssh pipe` has the local addresses (`-`,
@@ -681,7 +682,28 @@ Since T-174 and T-175, `podssh pipe` has the local addresses (`-`,
 `iroh:`) and `tcp:HOST:PORT`, the direct road through `HTTPS_PROXY`;
 since T-176, `unix-connect:PATH`, with a named pipe or AF_UNIX on Windows;
 since T-177, the listeners `unix-listen:PATH` and `tcp-listen:[ADDR:]PORT`,
-after a probe, for one client or, with `--keep-listening`, each in turn.
+after a probe, for one client or, with `--keep-listening`, each in turn;
+since T-168, `udp:node:NAME`.
+
+**UDP over the relay** (T-168). The relay carries TCP only, and the
+measured sandbox refuses UDP, so a datagram leaves from a node on a host
+that allows it: `podssh node NAME udp:HOST:PORT`, which probes UDP before
+it registers. Each session is one flow, a UDP socket of the node connected
+to the target; in the session, each datagram is its length in two bytes,
+then its bytes (65,507 at most). The near end binds nothing: a program gets
+an AF_UNIX `SOCK_DGRAM` socketpair, or stdin and stdout carry the framing.
+The limits, which UDP itself does not have:
+
+- Over TCP, datagrams wait for each other. A lost segment delays each later
+  datagram until it is sent again, where UDP would lose the one datagram
+  and go on; a protocol that times its own packets (QUIC, a game) sees the
+  delay as congestion.
+- Nothing is dropped on the way: what UDP would drop arrives late, and the
+  relay's limits of a session hold for each flow.
+- The session has no half-close: the near end keeps it 5 s after its last
+  datagram for the answers, and the node ends a flow after 60 s with no
+  datagram. Each flow is a session of the relay, with the setup of one: the
+  layer's handshake and the end-to-end channel's.
 
 A listener exists only where it is allowed: on the far side (a node, or SSH
 `-R`, where the server listens), or locally after a probe shows that an

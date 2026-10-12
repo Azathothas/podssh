@@ -33,6 +33,7 @@ pub fn open(address: &Address) -> Result<End, Unopened> {
         | Address::Ssh { .. }
         | Address::Node(_)
         | Address::Iroh(_)
+        | Address::UdpNode(_)
         | Address::Unix(_)
         | Address::UnixListen(_)
         | Address::TcpListen { .. } => Err(Unopened {
@@ -48,12 +49,12 @@ type Pair = (std::os::unix::net::UnixStream, std::os::unix::net::UnixStream);
 type Pair = ();
 
 #[cfg(unix)]
-fn socketpair() -> io::Result<Pair> {
+pub(super) fn socketpair() -> io::Result<Pair> {
     std::os::unix::net::UnixStream::pair()
 }
 
 #[cfg(not(unix))]
-fn socketpair() -> io::Result<Pair> {
+pub(super) fn socketpair() -> io::Result<Pair> {
     Err(io::Error::new(io::ErrorKind::Unsupported, "no socketpair here"))
 }
 
@@ -111,7 +112,7 @@ fn child_end(read: super::pump::Reader, write: super::pump::Writer, child: tokio
 
 /// A program that cannot start gives what a shell gives: 127 when it is not
 /// found, else 126.
-fn not_started(program: &str, e: io::Error) -> Unopened {
+pub(super) fn not_started(program: &str, e: io::Error) -> Unopened {
     let code = if e.kind() == io::ErrorKind::NotFound { 127 } else { 126 };
     Unopened { code, why: format!("exec:{program}: {e}") }
 }

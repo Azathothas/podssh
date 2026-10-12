@@ -30,7 +30,12 @@ pub struct Settings {
 pub fn is_remote(address: &Address) -> bool {
     matches!(
         address,
-        Address::Relay { .. } | Address::Tcp { .. } | Address::Ssh { .. } | Address::Node(_) | Address::Iroh(_)
+        Address::Relay { .. }
+            | Address::Tcp { .. }
+            | Address::Ssh { .. }
+            | Address::Node(_)
+            | Address::UdpNode(_)
+            | Address::Iroh(_)
     )
 }
 
@@ -72,6 +77,7 @@ pub async fn open(address: &Address, settings: &Settings, err: &mut dyn Write) -
         Address::Tcp { host, port } => tcp(host, *port, &mut say).await,
         Address::Ssh { hops, host, port } => super::ssh::open(hops, host, *port, &settings.ssh, &mut say).await,
         Address::Node(label) => super::node::open(label, &settings.ssh, &mut say).await,
+        Address::UdpNode(label) => super::datagram::open_node(label, &settings.ssh, &mut say).await,
         Address::Iroh(ticket) => super::iroh::open(ticket, &settings.ssh, &settings.trust, &mut say).await,
         _ => unreachable!("a local address"),
     }

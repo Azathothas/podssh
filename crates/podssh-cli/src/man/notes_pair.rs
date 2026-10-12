@@ -54,6 +54,14 @@ pub(super) const NODE: &[&str] = &[
      alone. A route that the node does not have, or that the key may not use, is refused with the same \
      words, before any dial. With no allowlist, each operator may use each route. Each TARGET is \
      dialled once at the start.",
+    "TARGET udp:HOST:PORT offers a UDP service, for a host that allows UDP: each session is one flow, \
+     a UDP socket from this host to HOST:PORT, with each datagram after its length in two bytes in \
+     the session's bytes, as podssh pipe udp:node:NAME carries them. The flow ends with its session, \
+     or after 60 s with no datagram either way. Before it registers, the node opens a UDP socket to \
+     TARGET and closes it, with nothing sent: a host that refuses UDP, as a sandbox does, exits 78, \
+     and a name with no address 69. A UDP TARGET is the node's only one, with no route, and not on \
+     the iroh road. A datagram of the target over 65,507 bytes is dropped, and the node says how \
+     many when the flow ends.",
     "The node runs until Ctrl-C or SIGTERM (exit 0), or until the relay ends the pair: stopped, \
      expired, refused, or served by another node; each has its code in EXIT STATUS. A broken \
      connection to the relay is made again, after a growing wait. After a loss the relay can still \

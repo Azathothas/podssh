@@ -1,11 +1,11 @@
 The work of milestone M7, `podssh pipe` and `--persist`, and the backlog of
 streams that `pipe` can carry: desktop streams and Telnet, a published HTTP
-service, serial devices and USB/IP. The design is `docs/design.md:650-692`;
+service, serial devices and USB/IP. The design is `docs/design.md:650-714`;
 the milestone is `docs/ROADMAP.md:231-240`.
 
 # T-174: `podssh pipe A B` with local addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:667-692`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:667-714`;
 GitHub #26 (Nemo-010, 2026-10-08). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M7
@@ -69,9 +69,9 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
    (`crates/podssh-cli/src/man/notes.rs:18-44`), two examples
-   (`crates/podssh-cli/src/man/examples.rs:8-135`; its test at
-   `crates/podssh-cli/src/man/examples.rs:258-274` learns the new variant),
-   `docs/design.md:669-677`, `docs/STATUS.md`. Each file stays under 500
+   (`crates/podssh-cli/src/man/examples.rs:8-143`; its test at
+   `crates/podssh-cli/src/man/examples.rs:266-282` learns the new variant),
+   `docs/design.md:669-678`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:205-206`).
 
 ## Decision
@@ -136,7 +136,7 @@ pump of `podssh proxy` stays until T-175 moves it onto this one.
 
 # T-175: `podssh pipe` with remote addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:674-677`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:674-678`;
 GitHub #26 (Nemo-010, 2026-10-08); the RustConn report in GitHub #24 (one
 address model across roads; read in the report, not verified here).
 **Category:** feature
@@ -198,11 +198,11 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:1442`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:1473`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:331-405` a typed error, so that 77 is not
    guessed from a message.
-7. In the same commit: `docs/cli.md`, `docs/design.md:669-677`, the notes,
+7. In the same commit: `docs/cli.md`, `docs/design.md:669-678`, the notes,
    the examples, `docs/STATUS.md`.
 
 ## Decision
@@ -389,7 +389,7 @@ ROADMAP M7 is done; T-040 gives the remote form.
 
 # T-177: `podssh pipe` with a local listener after a probe
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:686-692`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:708-714`;
 GitHub #26 (a local-only mode, as the `--local` of bunflared; read in the
 report, not verified here); sandbox A of T-001.
 **Category:** feature
@@ -401,9 +401,9 @@ report, not verified here); sandbox A of T-001.
 ## Problem
 
 Desktop clients, browsers and database clients call `connect()` themselves:
-they need a local port or socket (`docs/design.md:689-692`). podssh refuses
+they need a local port or socket (`docs/design.md:711-714`). podssh refuses
 each listener. The design allows one for `pipe`, locally, after a probe
-shows that an AF_UNIX or loopback bind works (`docs/design.md:686-688`).
+shows that an AF_UNIX or loopback bind works (`docs/design.md:708-710`).
 
 ## Premise
 
@@ -412,8 +412,8 @@ shows that an AF_UNIX or loopback bind works (`docs/design.md:686-688`).
   allows the bind. The default is loopback and AF_UNIX; the user can
   configure the address and can turn listening off.
 - Read: five documents still say that podssh never listens:
-  `AGENTS.md:191-196`, `docs/architecture.md:116-126`,
-  `docs/target-environment.md:74-78`, `SECURITY.md:94-111`, `README.md:38-44`.
+  `AGENTS.md:191-196`, `docs/architecture.md:116-129`,
+  `docs/target-environment.md:74-78`, `SECURITY.md:94-114`, `README.md:38-45`.
 - Read: sandbox A refuses an AF_INET bind and allows an AF_UNIX bind
   (`docs/STATUS.md:229`). The box refuses each `bind`, AF_UNIX too
   (`scripts/box/seccomp.json:5-10`), so it gives the refused case.
@@ -500,7 +500,7 @@ Plant: bind with no umask; the check of the mode must fail.
 ## Correction
 
 2026-10-10: three of the five documents already say what the ruling
-allows: `AGENTS.md:191-196`, `docs/architecture.md:116-126` and
+allows: `AGENTS.md:191-196`, `docs/architecture.md:116-129` and
 `docs/target-environment.md:74-78` name a listener that the user asks for,
 after a probe. `SECURITY.md` and `README.md` still said that nothing
 listens, and change here. Step 4's umask 077 makes a socket's file mode
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:417-421`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:1500-1502`). After the attach, send the window size again.
+   (`docs/cli.md:1531-1533`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-198`), `docs/design.md:417-421`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -718,14 +718,14 @@ verified here.
 ## Problem
 
 Users ask how to carry RDP, VNC and Telnet. The documents show SSH and one
-HTTP request (`README.md:124-129`). They do not say which clients work with
+HTTP request (`README.md:125-130`). They do not say which clients work with
 no listener, or that the relay ends a desktop stream after 64 MiB.
 
 ## Premise
 
 - Read: a byte pipe carries each TCP protocol
   (`crates/podssh-cli/src/man/notes.rs:130-134`); a client that calls
-  `connect()` itself needs a listener (`docs/design.md:689-692`), which
+  `connect()` itself needs a listener (`docs/design.md:711-714`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:162`), then Close 1009 (`docs/relay.md:223`); public
@@ -752,11 +752,11 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 3. Telnet: `podssh proxy HOST 23` carries the bytes, but a person needs a
    client that answers the IAC options: form a or b with
    `telnet 127.0.0.1 PORT`.
-4. Write a table "Other TCP protocols" after `README.md:124-129`: the
+4. Write a table "Other TCP protocols" after `README.md:125-130`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
-   form a to `crates/podssh-cli/src/man/examples.rs:8-135`; its ProxyCommand
-   parses (`crates/podssh-cli/src/man/examples.rs:235-242`). Link the table
-   from `docs/design.md:689-692`.
+   form a to `crates/podssh-cli/src/man/examples.rs:8-143`; its ProxyCommand
+   parses (`crates/podssh-cli/src/man/examples.rs:243-250`). Link the table
+   from `docs/design.md:711-714`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
 ## Prove

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 60 open, 0 partial, 25 blocked, 218 done.**
+**303 entries: 59 open, 0 partial, 25 blocked, 219 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 54 | 0 | 7 | 59 | 120 |
-| **All** | 60 | 0 | 25 | 218 | 303 |
+| P3 | 53 | 0 | 7 | 60 | 120 |
+| **All** | 59 | 0 | 25 | 219 | 303 |
 
 ## Entries
 
@@ -241,7 +241,7 @@ repository and CI).
 | [T-165](roads.md) | P2 | S | M6 | feature | done | Configurable iroh relays, the operator's relay first |
 | [T-166](roads.md) | P3 | M | backlog | feature | done | A roost: a podssh next to a standard sshd |
 | [T-167](roads.md) | P3 | M | backlog | feature | done | Start from a standard sshd, then move the session to a better road |
-| [T-168](roads.md) | P3 | M | backlog | feature | open | UDP over the relay |
+| [T-168](roads.md) | P3 | M | backlog | feature | done | UDP over the relay |
 | [T-169](roads.md) | P3 | L | backlog | feature | blocked | A self-hosted relay that speaks the relay's contract |
 | [T-170](roads.md) | P3 | M | backlog | research | done | A Cloudflare quick tunnel made by podssh itself, with no `cloudflared`: the protocol and its ports |
 | [T-171](roads.md) | P3 | M | backlog | research | done | The functions of Mosh that M6 and T-160 do not give, made in podssh itself |

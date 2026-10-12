@@ -6,7 +6,7 @@ itself; Multipath TCP; and resumption in the relay (M8).
 
 # T-162: The iroh road behind the cargo feature `iroh`
 
-**Source:** ROADMAP M6 (the iroh road); `docs/design.md:694-870`;
+**Source:** ROADMAP M6 (the iroh road); `docs/design.md:716-892`;
 `docs/decisions.md` (2026-10-08: iroh is a road that the user must select);
 GitHub #18 (Nemo-010, 2026-10-08: the iroh-ssh, zuko, GPU-Share and quic-ssh
 reports).
@@ -24,13 +24,13 @@ and it keeps a connection across address changes. podssh has no iroh code.
 
 ## Premise
 
-Read, not measured (`docs/design.md:701-722`): iroh 1.1 or later (advisories
+Read, not measured (`docs/design.md:723-744`): iroh 1.1 or later (advisories
 up to 1.0.3), MIT or Apache-2.0, MSRV 1.91, the aws-lc-rs backend, about 190
 to 245 crates. In the target sandbox it runs only with no UDP transport (or a
 UDP bind after a probe), podssh's proxy in `proxy_url(...)`, the `Minimal`
 preset with no pkarr or DNS, peers dialled by ticket, and a home relay whose
 `/ping` passes the proxy. The operator accepted netlink sockets and extra
-connections for this road (`docs/design.md:859-862`). The sandbox refuses UDP
+connections for this road (`docs/design.md:881-884`). The sandbox refuses UDP
 (`docs/target-environment.md:23`). Measured on `3ee70dc`: `--iroh` is an
 unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 
@@ -45,7 +45,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    relays of T-165. `proxy_url(...)` gets what `proxy_from_env` selects
    (`crates/podssh-ws/src/dial.rs:94-118`), so `ALL_PROXY` and `NO_PROXY` act
    as on the other roads; iroh's own selection ignores both
-   (`docs/design.md:720`).
+   (`docs/design.md:742`).
 3. UDP: `clear_ip_transports()` by default. Add the UDP transport only after a
    probe that binds a UDP socket to port 0 and closes it, as `bind_inet`
    probes TCP (`crates/podssh-cli/src/doctor/unix.rs:137-166`).
@@ -59,7 +59,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:94-111`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:94-114`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -140,8 +140,8 @@ that uses iroh's own proxy selection fails with `ALL_PROXY` set.
 
 # T-163: iroh tickets and node keys
 
-**Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:721` and
-`docs/design.md:827-828`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
+**Source:** ROADMAP M6 (dialled by ticket); `docs/design.md:743` and
+`docs/design.md:849-850`; GitHub #18 (Nemo-010, 2026-10-08: zuko's ticket
 handoff; iroh-ssh's persistent and ephemeral keys).
 **Category:** feature
 **Milestone:** M6
@@ -157,8 +157,8 @@ no form for a ticket, no place for the keys, and no rule for who may connect.
 ## Premise
 
 Read: with the `Minimal` preset nothing is discovered, so a ticket gives the
-key and the relay URL (`docs/design.md:721`). The key is the identity, and
-access is by an allowlist of keys or a relay token (`docs/design.md:827-828`).
+key and the relay URL (`docs/design.md:743`). The key is the identity, and
+access is by an allowlist of keys or a relay token (`docs/design.md:849-850`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
@@ -183,9 +183,9 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:316-317`,
    its allowlist file (one key on each line), and logs a refused key by its
    fingerprint. T-087 extends this.
 5. The node prints its ticket and its fingerprint on stderr when it starts.
-   `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:677`).
+   `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:678`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:123-249`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:125-251`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-205`).
 
 ## Decision
@@ -348,7 +348,7 @@ limit of iroh to each connection.
 Read: for a podssh node, the iroh road is first and the reverse road with the
 resumable layer is second, raced (`docs/design.md:48-53`). The first real
 sandbox can block what iroh needs, so the fallback is necessary
-(`docs/design.md:864-870`). The user must select iroh (`docs/decisions.md`,
+(`docs/design.md:886-892`). The user must select iroh (`docs/decisions.md`,
 2026-10-08). Each road has one attempt for each host, with a time limit
 (`docs/design.md:56-63`). The relay opener tries one host at a time
 (`crates/podssh-relay/src/open.rs:188-247`), and no code races two roads.
@@ -488,9 +488,9 @@ forward road has one default relay name in library code
 (`crates/podssh-relay/src/relay.rs:12-13`) and a seed pool
 (`crates/podssh-relay/src/pool.rs:20-29`); the same shape fits the iroh
 relays. n0's free relays are for development, with a rate limit that is not
-published (`docs/design.md:844-846`). At least three projects run the iroh
+published (`docs/design.md:866-868`). At least three projects run the iroh
 relay protocol on Workers and Durable Objects (read, not verified:
-`docs/design.md:850-852`). The URLs of n0's relays for iroh 1.x must be read
+`docs/design.md:872-874`). The URLs of n0's relays for iroh 1.x must be read
 in iroh's source at the pinned version.
 
 ## Approach
@@ -623,7 +623,7 @@ other build.
 # T-166: A roost: a podssh next to a standard sshd
 
 **Source:** `docs/design.md:52` (a standard sshd behind a podssh `roost`) and
-`docs/design.md:410-413`; the `roost` of pigeons (`docs/design.md:854-857`);
+`docs/design.md:410-413`; the `roost` of pigeons (`docs/design.md:876-879`);
 GitHub #18 (Nemo-010, 2026-10-08: iroh-ssh reaches sshd by node id, and
 refuses early when no sshd answers).
 **Category:** feature
@@ -952,7 +952,7 @@ over TCP, `EpicEric/sandhole:book/src/udp_over_tcp.md`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -983,6 +983,64 @@ section 5, rule 2).
 5. State the limits in `docs/design.md` section 6: over TCP, datagrams wait
    for each other, and a lost segment delays each later datagram.
 
+## Decision
+
+2026-10-12, in the work:
+
+1. The address. The relay carries TCP only, and the near end sends no UDP,
+   so the target of UDP is named where the datagrams leave:
+   `podssh node NAME udp:HOST:PORT`, in the grammar of the addresses of
+   T-175. The pipe names the road and the framing: `udp:node:NAME`, the
+   session to that node. A plain `node:NAME` carries the same bytes, the
+   framing in them, on stdin and stdout; `udp:` adds the datagram
+   socketpair of a program beside it, the check of the framing (65) and the
+   wait for answers (item 5). `udp:HOST:PORT` in the pipe is a usage error
+   (64) that names the node's form. Lost: `udp:HOST:PORT` as the pipe's own
+   address, with the node named by a flag: an operator would then choose
+   where a node sends UDP, and a node chooses its targets, as for TCP
+   (T-089).
+2. One flow is one session. Its socket is made when the session opens: under
+   the layer after the layer's handshake, under the channel once the
+   operator's key is let in, as a TCP target is dialled. `node.rs` runs
+   either handler under the layer and the channel by one function. A UDP
+   TARGET is the node's only one: no second TARGET, no route (the routes'
+   dial is TCP, `crates/podssh-relay/src/reverse/routes.rs`), and not on the
+   iroh road, whose far end dials TCP; each is refused by name (64). Lost:
+   a UDP route, which needs a kind in the table of routes; no request asks
+   for it.
+3. The probe resolves TARGET as each dial does (pins, the system, DNS over
+   HTTPS), makes a socket of port 0, connects it and closes it, with no
+   datagram sent. A host that refuses UDP (EPERM or EACCES) exits 78, the
+   code of a probe that the mode needs (`Fault::Capability`); a name with
+   no address 69. Lost: a datagram to the target as the probe, which a
+   service would take as a query.
+4. The framing. A length over 65,507 is refused where it is read: the
+   stream is not the framing. At the node it ends the flow with a line; at
+   the near end it ends the pipe with 65 (`EX_DATAERR`) and the reason. A
+   longer datagram from a socket (UDP over IPv6, or the program's AF_UNIX
+   socket) is counted and dropped, and the count is said when the flow
+   ends. A refusal of the target's host (ICMP port unreachable) is counted,
+   and the flow goes on, as UDP does.
+5. The end. The layer has no half-close: a session ends at the end of its
+   input. So after this side's input ended, the near end keeps the session
+   until no bytes came from the node for 5 s, the time a DNS client waits
+   for an answer, then ends it. A datagram socket gets no end when its peer
+   closes (Linux shuts the peer down for stream and seqpacket sockets only:
+   read in `af_unix.c`, `unix_release_sock`, not measured). So the
+   program's end is its exit: the task that holds its socket waits for it,
+   and its exit code is the pipe's, as `exec:`'s is. When the other side
+   ends first, the program gets 10 s, then SIGTERM, then 10 s and SIGKILL.
+   The node's session opens before the program starts, so that a program
+   does not start, and wait, when the session cannot open. Lost:
+   `SOCK_SEQPACKET`, which has an end of input both ways, against step 3
+   and macOS, which has no AF_UNIX seqpacket socket.
+6. Where the datagram socketpair is refused, and on Windows, whose AF_UNIX
+   has no datagram socket, the program gets the stream of `exec:`, the
+   framing on its stdin and stdout; a line says so where it was refused.
+7. No local UDP listener is made (step 3 makes the near end with none).
+   With T-177 done, `udp-listen:` could come after a probe, each client's
+   address a flow; that is a request for the operator, not made here.
+
 ## Prove
 
 ```sh
@@ -996,6 +1054,64 @@ and keeps each datagram whole across split reads; a planted decoder that
 joins two datagrams fails it. The pipe test sends DNS queries from a child,
 over the socketpair and a node, to a local UDP echo server, and checks each
 reply.
+
+## Done
+
+2026-10-12. Written as a draft beside T-166, then merged over it: a UDP
+TARGET and `--sshd` do not go together (64), and `--iroh` with a UDP
+TARGET is refused before the road's build is looked at (64).
+
+- podssh-relay: `crates/podssh-relay/src/udp/codec.rs` (the framing:
+  `framed`, `encode`, `Decoder`, and `Frames`, a reader of datagrams that is
+  safe to cancel in a `select!`), `crates/podssh-relay/src/udp/flow.rs`
+  (`connect`, `probe` and `carry`: a socket of port 0 connected to the
+  target, the idle limit of 60 s, the counts of a flow) and
+  `crates/podssh-relay/src/reverse/udp.rs` (`UdpHandler`, a node's handler
+  of a UDP target, under the layer and the channel as `TcpHandler` is).
+- podssh-cli: `podssh node NAME udp:HOST:PORT`
+  (`crates/podssh-cli/src/node_udp.rs`, and `crates/podssh-cli/src/node.rs`);
+  `podssh pipe` with `udp:node:NAME`
+  (`crates/podssh-cli/src/pipe/datagram.rs`: the bridge to the node's
+  session, and the program on a datagram socketpair;
+  `crates/podssh-cli/src/pipe/mod.rs` opens the node's session first).
+- `scripts/check-repo.py`: the flow's socket joins the table of listeners,
+  as a socket that the user names and a probe allows. `python
+  scripts/check-repo.py`: ok, 2026-10-12.
+- The manual (the notes of `pipe` and `node`, the rows of 65 and 78, two
+  examples, the help of TARGET), `docs/cli.md`, `docs/design.md` (section
+  6: the address, and the limits of UDP over TCP), `docs/architecture.md`
+  (rule 3, and the row of `podssh-relay`), the map of `AGENTS.md`,
+  `SECURITY.md`, `README.md` and `docs/STATUS.md`. `tests/pipe.rs` of
+  podssh-cli takes `sctp:` for an unknown kind, and checks that
+  `udp:HOST:PORT` names the node's form.
+- `cargo test -p podssh-relay --test udp_framing`: 12 passed here. Its tests:
+  fixed bytes and a DNS query decode to their datagrams; a datagram is
+  framed as its length then its bytes; one over 65,507 is not framed; a
+  length over 65,507 is refused as soon as its two bytes came; each
+  datagram stays whole across reads cut in pieces of 1, 2, 3, 7 and 1000
+  bytes, and through a reader that trickles; two datagrams in one read stay
+  two; a stream that ends inside a datagram, or that is not the framing, is
+  an error; a flow to a UDP server on the loopback carries five queries and
+  their answers, and ends at the end of its stream; a flow ends after its
+  idle limit; a flow whose stream is not the framing ends, says so, and
+  sends nothing; the probe sends nothing.
+- `cargo test -p podssh-cli --test pipe_udp`: 3 passed here (Windows 11,
+  with Python and openssl), 4 passed (the program on the socketpair among them) in the build image. Its tests:
+  `udp:HOST:PORT` in the pipe, a second TARGET, a UDP route, a TARGET with
+  no port and `--iroh` are refused with 64; through the stand-in relay,
+  three DNS queries on stdin, each after its length, come back answered on
+  stdout, the pipe ends with 0 after its input, and a length of 65,535
+  exits 65; on Unix, a Python program on the datagram socketpair sends
+  three queries, checks each answer, and its status is the pipe's.
+- `cargo test -p podssh-cli --lib -- node_udp address datagram`:
+  12 passed here and 13 in the build image (the UDP TARGET's parse; the pipe's `udp:` addresses; on Unix,
+  a program's datagrams through the socketpair, whole, and its status 3).
+- Waits for T-251: the plant of a decoder that joins two datagrams, which
+  must fail `two_datagrams_in_one_read_stay_two` and the tests of split
+  reads; clippy and the tests of Unix in the build image; the gate; a node
+  in the box (`scripts/test_in_box.sh`), whose seccomp refuses UDP, where
+  the probe must exit 78; and a live run of a node in front of a DNS server
+  through the live relay.
 
 # T-169: A self-hosted relay that speaks the relay's contract
 
@@ -1679,7 +1795,7 @@ The `grep` shows the recorded result.
 # T-173: Resumption in the relay for a standard sshd
 
 **Source:** ROADMAP M8 (not now; look at it again after M6);
-`docs/design.md:414-431` (layer 3) and `docs/design.md:879-882` (question 1 of
+`docs/design.md:414-431` (layer 3) and `docs/design.md:901-904` (question 1 of
 section 8).
 **Category:** feature
 **Milestone:** M8
@@ -1702,7 +1818,7 @@ a resume token in the `101` response, and offset framing as a protocol
 version that the client selects. It is a project of the relay's operator, and
 it costs Durable Object time for the whole session (`docs/design.md:427-431`).
 The recommendation is "not now; look at it again after M6"
-(`docs/design.md:879-882`). The relay is in another repository.
+(`docs/design.md:901-904`). The relay is in another repository.
 
 ## Approach
 

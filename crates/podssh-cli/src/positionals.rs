@@ -87,7 +87,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
                 Arg::new("target")
                     .value_name("TARGET")
                     .num_args(0..)
-                    .help("the TCP service that each session reaches: HOST:PORT, or [IPV6]:PORT; ROUTE=HOST:PORT offers one more under ROUTE, which an operator names as NAME/ROUTE; with --sshd and none, 127.0.0.1:22"),
+                    .help("the TCP service that each session reaches: HOST:PORT, or [IPV6]:PORT; ROUTE=HOST:PORT offers one more under ROUTE, which an operator names as NAME/ROUTE; udp:HOST:PORT, alone, a UDP service; with --sshd and none, 127.0.0.1:22"),
             ),
         "pipe" => cmd
             .arg(

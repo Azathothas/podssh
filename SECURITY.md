@@ -108,7 +108,10 @@ Each rule is implemented.
   host allows a bind, and closes it without listening. The iroh road, in a
   build with the feature `iroh`, binds UDP for its direct paths only after
   a probe allows it; with no UDP, its relay carries each byte, and a peer
-  is accepted only with the ALPN of podssh's sessions.
+  is accepted only with the ALPN of podssh's sessions. A node whose TARGET
+  is `udp:HOST:PORT` (T-168) sends UDP from its host, one socket of port 0
+  for each flow, connected to the target, after a probe; the client of
+  such a node, `podssh pipe udp:node:NAME`, sends no UDP and binds nothing.
 - **Each end of a road between two podssh ends proves its key** (T-087).
   A node has one Ed25519 key for each label and a client one for each user,
   in the private files of the cache, the same on each road; a key is shown

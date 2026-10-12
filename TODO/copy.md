@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:229-247` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1432-1435`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1463-1466`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1177,7 +1177,7 @@ stream.
 - Read: `AGENTS.md` rule 2 allows one outbound connection. Several channels
   in one SSH connection keep the rule; several relay sessions at once do
   not. The operator accepted more than one outbound connection for the iroh
-  road (`docs/design.md:859-862`), and on 2026-10-08 for one copy when the
+  road (`docs/design.md:881-884`), and on 2026-10-08 for one copy when the
   user asks (`docs/decisions.md`).
 - Read: the cap of 64 MiB is for each session (`docs/relay.md:162`).
 - Not measured: whether one relay session, or the path itself, limits the
@@ -2081,7 +2081,7 @@ defect wait for T-251.
 **Source:** GitHub #18 (zuko's `files` server, `adonm/zuko:src/files.rs`)
 and GitHub #21 (parsync's internal helper,
 `AlpinDale/parsync:src/remote_helper.rs`), read in the issues;
-`docs/design.md:864-870`.
+`docs/design.md:886-892`.
 **Category:** feature
 **Milestone:** backlog
 **Priority:** P3
@@ -2102,7 +2102,7 @@ can do better.
   request; it names its own requests `NAME@openssh.com`.
 - Read: `podssh serve` will have an SFTP server in the process (T-112).
 - Read: both roads between podssh ends carry the same `cp`
-  (`docs/design.md:864-870`).
+  (`docs/design.md:886-892`).
 
 ## Approach
 

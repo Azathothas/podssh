@@ -41,7 +41,8 @@ podssh --TLS 1.3 + WebSocket, port 443--> relay --TCP--> sshd (or another TCP se
   `tcp-listen:`) or of `podssh ssh -L` and `-D`, after the bind shows that
   the host allows it. The iroh
   road, in a build with the feature `iroh`, binds UDP for direct paths only
-  after a probe allows it.
+  after a probe allows it. A node that you give a UDP target (`podssh node
+  NAME udp:HOST:PORT`) sends UDP from its host, after a probe.
 - **Fallbacks.** If one relay host fails, podssh tries the next one. If DNS
   fails, podssh uses pinned addresses or DNS over HTTPS. If the relay goes
   silent, podssh finds it in 30 to 40 s.

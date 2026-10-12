@@ -18,6 +18,8 @@
 //!   allowlist and an operator's pins, the same on each road;
 //! - [`e2e`]: the channel between two podssh ends, Noise XX above the
 //!   resumable layer, in which each end proves its key;
+//! - [`udp`]: UDP in a stream (T-168): each datagram after its length, and
+//!   the flow at the far end, a UDP socket connected to the target;
 //! - `blocking` (feature `blocking`): a synchronous facade over all of these,
 //!   for a caller with no async runtime: it owns a runtime on the current
 //!   thread, and refuses a call from inside a tokio runtime.
@@ -42,6 +44,7 @@ pub mod relay;
 pub mod reverse;
 pub mod session;
 pub mod token;
+pub mod udp;
 
 pub use open::{open, Failure, OpenError, Opened, Request};
 pub use relay::{Relay, DEFAULT_RELAY_HOST, RELAY_ENV};

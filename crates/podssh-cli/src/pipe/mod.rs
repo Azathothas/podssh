@@ -4,13 +4,16 @@
 //! pump (`pump`) copies both ways; the local ends are stdin and stdout, an
 //! inherited descriptor, and a child (`local`); the remote ends open a road
 //! (`remote`, `relay`); a listening side (`listen`, `serve`) joins each
-//! client to the other side. A road that failed gives the pipe's exit code,
-//! as `podssh proxy` gives it; else a child's status, B's when both are
-//! children, as a shell gives it; with neither, a clean end gives 0.
+//! client to the other side; `udp:node:NAME` carries datagrams through a
+//! node, and gives a program beside it a datagram socket (`datagram`). A
+//! road that failed gives the pipe's exit code, as `podssh proxy` gives it;
+//! else a child's status, B's when both are children, as a shell gives it;
+//! with neither, a clean end gives 0.
 
 use std::io::Write;
 
 pub mod address;
+pub mod datagram;
 pub mod iroh;
 pub mod listen;
 #[cfg(windows)]
@@ -83,26 +86,68 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
 }
 
 async fn run(a: address::Address, b: address::Address, settings: &remote::Settings, err: &mut dyn Write) -> i32 {
-    let a = match open(&a, settings, err).await {
-        Ok(end) => end,
-        Err(code) => return code,
+    use address::Address::UdpNode;
+    // The node's session first, beside a program of datagrams: a datagram
+    // socket has no end of input, so a program started first would not
+    // learn that the session failed.
+    let opened = if matches!(b, UdpNode(_)) && !matches!(a, UdpNode(_)) {
+        in_turn(&b, &a, settings, err).await.map(|(b, a)| (a, b))
+    } else {
+        in_turn(&a, &b, settings, err).await
     };
-    let b = match open(&b, settings, err).await {
-        Ok(end) => end,
-        Err(code) => {
-            // A's child, if any, would wait for input that never comes; its
-            // road is closed as at any end.
-            if let Some(mut child) = a.child {
-                let _ = child.kill().await;
-            }
-            if let Some(ending) = a.ending {
-                let _ = ending.finish().await;
-            }
-            return code;
-        }
+    let (a, b) = match opened {
+        Ok(ends) => ends,
+        Err(code) => return code,
     };
     let pumped = pump::pump(a, b).await;
     report(pumped, "podssh pipe", err).await
+}
+
+/// `first`, then `second`; when `second` cannot open, `first` is closed as
+/// at any end.
+async fn in_turn(
+    first: &address::Address,
+    second: &address::Address,
+    settings: &remote::Settings,
+    err: &mut dyn Write,
+) -> Result<(pump::End, pump::End), i32> {
+    let opened = beside(first, second, settings, err).await?;
+    match beside(second, first, settings, err).await {
+        Ok(other) => Ok((opened, other)),
+        Err(code) => {
+            let pump::End { read, write, child, ending, .. } = opened;
+            drop((read, write));
+            // A child would wait for input that never comes.
+            if let Some(mut child) = child {
+                let _ = child.kill().await;
+            }
+            if let Some(ending) = ending {
+                let _ = ending.finish().await;
+            }
+            Err(code)
+        }
+    }
+}
+
+/// Open `address`, whose other side is `other`: a program beside
+/// `udp:node:` gets datagrams.
+async fn beside(
+    address: &address::Address,
+    other: &address::Address,
+    settings: &remote::Settings,
+    err: &mut dyn Write,
+) -> Result<pump::End, i32> {
+    if let (address::Address::Exec(words), address::Address::UdpNode(_)) = (address, other) {
+        let mut say = |line: &str| {
+            let _ = writeln!(err, "podssh pipe: {line}");
+        };
+        let opened = datagram::exec(words, &mut say);
+        return opened.map_err(|unopened| {
+            let _ = writeln!(err, "podssh pipe: {}", unopened.why);
+            unopened.code
+        });
+    }
+    open(address, settings, err).await
 }
 
 /// Open one end: the end, or the exit code once its lines are written.

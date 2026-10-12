@@ -37,7 +37,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             sysexits::EX_DATAERR,
             "podssh agent add-passphrase: the passphrase does not open the key file, or the file needs none; \
-             nothing is kept.",
+             nothing is kept. podssh pipe: the bytes of a udp: address are not each datagram after its \
+             length.",
         ),
         row(
             sysexits::EX_NOINPUT,
@@ -94,7 +95,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              podssh node, operator, relay and chat: no pair is stored under the label, the pair cannot be \
              read or stored, or a node cannot connect as it is set up. podssh edit: VISUAL, EDITOR and PATH \
              give no editor, the editor does not start, or PODSSH_CACHE_DIR is none. podssh node --sshd: a \
-             TARGET whose first line is not an SSH version line, which is another service.",
+             TARGET whose first line is not an SSH version line, which is another service. podssh node: this host \
+             refuses UDP for a udp: TARGET.",
         ),
         row(
             podssh_ssh::EXIT_FAILURE,

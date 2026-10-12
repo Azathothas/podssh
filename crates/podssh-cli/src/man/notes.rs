@@ -149,10 +149,10 @@ const PIPE: &[&str] = &[
      descriptor that podssh inherited, 3 or more, on Unix), or exec:CMD (a program); relay:HOST:PORT \
      (TCP through the relay, as podssh proxy carries it), tcp:HOST:PORT (TCP from this host, through \
      HTTPS_PROXY when it is set), ssh:[USER@]HOP[,HOP...],HOST:PORT (TCP that the last SSH hop opens, \
-     as -W asks), node:NAME (the TARGET of the node of a pair), iroh:TICKET (the TARGET of a node of \
-     the iroh road), or unix-connect:PATH (a local socket; @NAME in Linux's abstract namespace; on \
-     Windows a Unix socket or a named pipe, \\\\.\\pipe\\NAME). Both are checked before anything \
-     starts, and stdio on both sides is refused.",
+     as -W asks), node:NAME (the TARGET of the node of a pair), udp:node:NAME (UDP through a node; see \
+     below), iroh:TICKET (the TARGET of a node of the iroh road), or unix-connect:PATH (a local \
+     socket; @NAME in Linux's abstract namespace; on Windows a Unix socket or a named pipe, \
+     \\\\.\\pipe\\NAME). Both are checked before anything starts, and stdio on both sides is refused.",
     "unix-listen:PATH (by the names of unix-connect:) and tcp-listen:[ADDR:]PORT (on 127.0.0.1, or on \
      ADDR, an address of this host; port 0 asks for a free one) listen, one side at most. The bind is \
      the probe: a host that refuses it gives 77, and the line names the error. A Unix socket is made \
@@ -170,6 +170,17 @@ const PIPE: &[&str] = &[
      quotes, and no variables, globs or escapes; exec:sh -c 'CMD' names a shell. The program gets one \
      end of a socketpair as its stdin and stdout, or two pipes where a socketpair is refused and on \
      Windows. Its stderr is podssh's.",
+    "udp:node:NAME carries UDP through the node of the pair under NAME, whose TARGET is udp:HOST:PORT \
+     (see podssh node): the relay carries TCP only, and this host sends no UDP. Each datagram is its \
+     length in two bytes, big-endian, then its bytes, 65,507 at most; the other side gives and takes \
+     that framing on stdin and stdout, a descriptor or a socket. A program of exec: beside it gets one \
+     end of an AF_UNIX datagram socketpair as its stdin and stdout on Unix, which needs no bind: each \
+     send is one datagram at the target, each receive one answer; where that is refused, and on \
+     Windows, its stdin and stdout carry the framing. The node's session has no half-close: after the \
+     end of this side's input it waits for answers until none came for 5 s. A datagram socket has no \
+     end of input either: when the other side ends, the program gets 10 s to exit, then SIGTERM. A \
+     length over 65,507 in the stream exits 65; a longer datagram of the program is counted and \
+     dropped. Over the relay, datagrams wait for each other: a lost segment delays each later one.",
     "When one side's input ends, the other side gets the end of its input, and the other direction goes \
      on, so that a reply still comes back: tcp:, ssh: and unix-connect: pass it on as a half-close. The \
      relay has no half-close, so relay: sends nothing at the end of input, and the target's bytes come \
@@ -180,8 +191,8 @@ const PIPE: &[&str] = &[
     "A road that failed gives the exit status, as podssh proxy gives it: 69 for a road out of reach, 77 \
      for a refusal (of the relay, a proxy, a host key or a login) and 78 for a setting that cannot be \
      used. Else the status is the program's (B's when both are programs), 128 + N for a signal, 127 for \
-     a program that is not found and 126 for one that cannot run; with neither, 0. The address serial: \
-     is not built yet, and exits 70.",
+     a program that is not found and 126 for one that cannot run; with neither, 0. 65 for a stream of \
+     udp: that is not its framing. The address serial: is not built yet, and exits 70.",
 ];
 
 const DOCTOR: &[&str] = &[

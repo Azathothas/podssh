@@ -1043,6 +1043,17 @@ commands. The rules behind them:
   link ends the session, as before T-153. The node's first line names its
   mode. The iroh road always runs the layer, so `--plain` with `--iroh` is
   refused (64).
+- **`node NAME udp:HOST:PORT` offers a UDP service** (T-168), on a host that
+  allows UDP: the relay carries TCP only, so the datagrams leave from the
+  node. Each session is one flow, a UDP socket from the node's host to
+  HOST:PORT, with each datagram after its length (two bytes, big-endian) in
+  the session's bytes; the flow ends with its session, or after 60 s with
+  no datagram either way. Before it registers, the node opens a UDP socket
+  to TARGET and closes it, with nothing sent: a host that refuses UDP (a
+  sandbox's EPERM) exits 78, a name with no address 69. A UDP TARGET is the
+  node's only one: a second TARGET, a route of UDP and `--iroh` are usage
+  errors (64). The client is `pipe`'s `udp:node:NAME`; `operator` carries
+  the same framing on stdin and stdout.
 - **The exit codes follow the faults of E24**
   (`crates/podssh-cli/src/exitmap.rs`): 69 for a relay or TARGET out of
   reach, a stopped pair, or a pair that another node serves; 77 for a
@@ -1103,12 +1114,12 @@ commands. The rules behind them:
   two byte streams that exist already: stdin and stdout (`-` or `stdio`), a
   descriptor that the caller opened (`fd:N`, 3 or more, on Unix), a program
   (`exec:CMD`), or a road (T-175): `relay:HOST:PORT`, `tcp:HOST:PORT`,
-  `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME` and `iroh:TICKET`; or a
-  local socket (T-176), `unix-connect:PATH`; or, on one side at most, a
-  listener (T-177): `unix-listen:PATH` or `tcp-listen:[ADDR:]PORT`. Both
-  addresses are checked before anything starts; an unknown kind is a usage
-  error (64) that lists the kinds, and `serial:`, the kind of a later
-  entry, exits 70.
+  `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME`, `udp:node:NAME` (T-168)
+  and `iroh:TICKET`; or a local socket (T-176), `unix-connect:PATH`; or, on
+  one side at most, a listener (T-177): `unix-listen:PATH` or
+  `tcp-listen:[ADDR:]PORT`. Both addresses are checked before anything
+  starts; an unknown kind is a usage error (64) that lists the kinds, and
+  `serial:`, the kind of a later entry, exits 70.
 - **A listener only when asked, and only where a probe allows it** (the
   operator's ruling of 2026-10-08). `PODSSH_LISTEN=no` turns listening off:
   a listening address then exits 78 before any bind. The bind itself is
@@ -1162,12 +1173,32 @@ commands. The rules behind them:
   program that exited after its output ended ends it too, and so does a
   road that ended, as the other side's input may never end. podssh waits
   for each program, as a shell does.
+- **UDP through a node, with no UDP here** (T-168). `udp:node:NAME` is the
+  session to the node of the pair under NAME, whose TARGET is
+  `udp:HOST:PORT`: this host sends no UDP and binds nothing, and the relay
+  carries TCP. In the session, each datagram is its length (two bytes,
+  big-endian) then its bytes, 65,507 at most, one flow for each session;
+  the other side gives and takes that framing on stdin and stdout, a
+  descriptor or a socket. A length over 65,507 is refused (65), with the
+  reason. `exec:` beside it gets one end of an AF_UNIX `SOCK_DGRAM`
+  socketpair as its stdin and stdout on Unix, which needs no bind: each
+  send is one datagram at the target and each receive one answer, and a
+  datagram over 65,507 bytes is counted and dropped. Where the socketpair
+  is refused, and on Windows, which has none, its stdin and stdout carry
+  the framing, and a line says so where it was refused. The node's session
+  is opened first, so a program does not start when it fails. The session
+  has no half-close, so after the end of this side's input it waits for
+  answers until none came for 5 s. A datagram socket has no end of input:
+  when the other side ends, the program gets 10 s to exit, then SIGTERM,
+  then 10 s more and SIGKILL; its status is the pipe's. `udp:HOST:PORT`
+  here is a usage error (64) that names the node's form. A local UDP
+  listener is not made.
 - **The exit status.** A road that failed gives it, as `podssh proxy` gives
   it: 69 for a road out of reach, 77 for a refusal (the relay, a proxy, a
-  host key, a login) and 78 for a setting that cannot be used. Else the
-  program's, B's when both are programs, 128 + N for a signal, 127 for a
-  program that is not found and 126 for one that cannot run; with neither,
-  0.
+  host key, a login) and 78 for a setting that cannot be used; 65 for a
+  stream of `udp:` that is not its framing. Else the program's, B's when
+  both are programs, 128 + N for a signal, 127 for a program that is not
+  found and 126 for one that cannot run; with neither, 0.
 
 ## `podssh agent`
 
