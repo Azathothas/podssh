@@ -1,5 +1,5 @@
 //! The local ends of `podssh pipe` (T-174): stdin and stdout, an inherited
-//! descriptor, and a child.
+//! descriptor, a child, and a serial line (T-181, `serial`).
 //!
 //! A child gets one end of a socketpair as its stdin and stdout, so that
 //! the end of its input is a half-close and its output still comes back.
@@ -27,6 +27,7 @@ pub fn open(address: &Address) -> Result<End, Unopened> {
         Address::Stdio => Ok(stdio()),
         Address::Fd(n) => descriptor(*n),
         Address::Exec(words) => exec(words, &socketpair),
+        Address::Serial { path, baud } => super::serial::open(path, *baud),
         // A remote address goes to its road (`remote`), never here.
         Address::Relay { .. }
         | Address::Tcp { .. }

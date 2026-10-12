@@ -4,9 +4,8 @@
 //! `tcp:HOST:PORT`, `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME` and
 //! `iroh:TICKET`; a local socket `unix-connect:PATH` (T-176); the
 //! listeners `unix-listen:PATH` and `tcp-listen:[ADDR:]PORT` (T-177), one
-//! side at most; and UDP through a node, `udp:node:NAME` (T-168). The kinds
-//! of later entries are known, and refused as not built yet, so that a
-//! script gets 70 and not a usage error.
+//! side at most; UDP through a node, `udp:node:NAME` (T-168); and a serial
+//! line `serial:PATH[,BAUD]` (T-181), on Unix.
 
 use crate::exit_codes::EXIT_NOT_IMPLEMENTED;
 use crate::relay_settings::Refusal;
@@ -41,6 +40,8 @@ pub enum Address {
     UnixListen(String),
     /// A TCP port that podssh listens on: 127.0.0.1, or the address given.
     TcpListen { host: String, port: u16 },
+    /// A serial device of this host, at a speed of [`BAUDS`] (Unix).
+    Serial { path: String, baud: u32 },
 }
 
 impl Address {
@@ -65,10 +66,16 @@ pub const KINDS: &[&str] = &[
     "unix-connect:PATH",
     "unix-listen:PATH",
     "tcp-listen:[ADDR:]PORT",
+    "serial:PATH[,BAUD]",
 ];
 
-/// The kinds of later entries: a serial line (T-181).
-const LATER: &[&str] = &["serial"];
+/// The speeds of `serial:`, in baud: those that Linux names.
+pub const BAUDS: &[u32] = &[
+    1200, 1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200, 230400, 460800, 500000, 576000, 921600, 1000000,
+    1152000, 1500000, 2000000, 2500000, 3000000, 3500000, 4000000,
+];
+/// The speed of `serial:` with no BAUD.
+pub const DEFAULT_BAUD: u32 = 115200;
 
 /// A and B, each checked: no side starts before both are good.
 pub fn both(a: Option<&str>, b: Option<&str>) -> Result<(Address, Address), Refusal> {
@@ -110,11 +117,8 @@ pub fn parse(text: &str) -> Result<Address, Refusal> {
         "unix-connect" => socket_name(kind, rest).map(Address::Unix),
         "unix-listen" => socket_name(kind, rest).map(Address::UnixListen),
         "tcp-listen" => tcp_port(rest),
+        "serial" => serial(rest),
         "stdio" => Err(Refusal::usage("stdio takes nothing after it")),
-        later if LATER.contains(&later) => Err(Refusal {
-            message: format!("{later}: addresses are not built yet; the kinds are {kinds}"),
-            code: EXIT_NOT_IMPLEMENTED,
-        }),
         other => Err(Refusal::usage(format!("{other}: no such kind of address; the kinds are {kinds}"))),
     }
 }
@@ -196,6 +200,31 @@ fn tcp_port(rest: &str) -> Result<Address, Refusal> {
             .to_string(),
     };
     Ok(Address::TcpListen { host, port })
+}
+
+/// `serial:PATH[,BAUD]`: a device of this host, on Unix; BAUD from
+/// [`BAUDS`], [`DEFAULT_BAUD`] when none is given. The text after the last
+/// comma is BAUD, so a PATH with a comma takes a BAUD after it.
+fn serial(rest: &str) -> Result<Address, Refusal> {
+    if cfg!(windows) {
+        return Err(Refusal::usage(format!(
+            "serial:{rest}: a serial line is opened on Unix only; a COM port of Windows is not built yet"
+        )));
+    }
+    let (path, baud) = match rest.rsplit_once(',') {
+        None => (rest, DEFAULT_BAUD),
+        Some((path, baud)) => match baud.trim().parse::<u32>() {
+            Ok(baud) if BAUDS.contains(&baud) => (path, baud),
+            _ => {
+                let bauds: Vec<String> = BAUDS.iter().map(u32::to_string).collect();
+                return Err(Refusal::usage(format!("serial:{rest}: BAUD is one of {}", bauds.join(", "))));
+            }
+        },
+    };
+    if path.is_empty() {
+        return Err(Refusal::usage(format!("serial:{rest}: names no device, such as serial:/dev/ttyUSB0")));
+    }
+    Ok(Address::Serial { path: path.to_string(), baud })
 }
 
 /// `iroh:TICKET`, in a build with the feature `iroh`.
@@ -285,13 +314,31 @@ mod tests {
     }
 
     #[test]
-    fn an_unknown_kind_is_a_usage_error_that_lists_the_kinds_and_a_later_kind_is_not_built() {
+    fn an_unknown_kind_is_a_usage_error_that_lists_the_kinds() {
         let refusal = parse("sctp:example.org:80").unwrap_err();
         assert_eq!(refusal.code, 64);
         assert!(refusal.message.contains("exec:CMD"), "{}", refusal.message);
+        assert!(refusal.message.contains("serial:PATH[,BAUD]"), "{}", refusal.message);
         assert_eq!(code("example.org"), 64);
         assert_eq!(code("stdio:x"), 64);
-        assert_eq!(code("serial:/dev/ttyS0"), 70);
+    }
+
+    #[test]
+    fn a_serial_line_takes_a_speed_of_the_table_and_is_unix_s() {
+        if cfg!(windows) {
+            assert_eq!(code("serial:COM3"), 64);
+            assert_eq!(code("serial:COM3,9600"), 64);
+            return;
+        }
+        let serial = |path: &str, baud| Address::Serial { path: path.into(), baud };
+        assert_eq!(parse("serial:/dev/ttyUSB0").unwrap(), serial("/dev/ttyUSB0", 115200));
+        assert_eq!(parse("serial:/dev/ttyS0,9600").unwrap(), serial("/dev/ttyS0", 9600));
+        assert_eq!(parse("serial:/dev/odd,name,4000000").unwrap(), serial("/dev/odd,name", 4000000));
+        assert!(!parse("serial:/dev/ttyS0").unwrap().listens());
+        for bad in ["serial:", "serial:,9600", "serial:/dev/ttyS0,", "serial:/dev/ttyS0,9601", "serial:/dev/x,fast"] {
+            assert_eq!(code(bad), 64, "{bad}");
+        }
+        assert_eq!(code("serial:/dev/ttyS0,8000000"), 64);
     }
 
     #[test]

@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 57 open, 0 partial, 25 blocked, 221 done.**
+**303 entries: 56 open, 0 partial, 25 blocked, 222 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 51 | 0 | 7 | 62 | 120 |
-| **All** | 57 | 0 | 25 | 221 | 303 |
+| P3 | 50 | 0 | 7 | 63 | 120 |
+| **All** | 56 | 0 | 25 | 222 | 303 |
 
 ## Entries
 
@@ -254,7 +254,7 @@ repository and CI).
 | [T-178](pipe.md) | P2 | M | M7 | feature | done | `--persist`: connect again and attach `tmux` again |
 | [T-179](pipe.md) | P3 | S | backlog | docs | done | Desktop streams and Telnet through `proxy` and `pipe` |
 | [T-180](pipe.md) | P3 | L | backlog | feature | blocked | Publish a local HTTP service at `https://NAME` through the relay |
-| [T-181](pipe.md) | P3 | S | backlog | feature | open | A `serial:` address for a local serial device |
+| [T-181](pipe.md) | P3 | S | backlog | feature | done | A `serial:` address for a local serial device |
 | [T-182](pipe.md) | P3 | S | backlog | docs | open | USB/IP devices through `podssh pipe`: a tested recipe, with no driver in podssh |
 | [T-183](multi.md) | P3 | M | backlog | feature | open | Run one command on many hosts |
 | [T-184](multi.md) | P3 | S | backlog | feature | open | Host groups and brace expansion of host names |

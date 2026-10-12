@@ -161,7 +161,8 @@ async fn session(n: u64, client: pump::End, other: Rc<Address>, settings: Rc<rem
 }
 
 /// SIGINT and SIGTERM, or Ctrl-C on Windows: 128 and the signal's number.
-struct Interrupt {
+/// A pipe with a serial line listens for them too (T-181).
+pub(super) struct Interrupt {
     #[cfg(unix)]
     signals: Option<(tokio::signal::unix::Signal, tokio::signal::unix::Signal)>,
     #[cfg(windows)]
@@ -169,7 +170,7 @@ struct Interrupt {
 }
 
 impl Interrupt {
-    fn new() -> Interrupt {
+    pub(super) fn new() -> Interrupt {
         #[cfg(unix)]
         {
             use tokio::signal::unix::{signal, SignalKind};
@@ -181,7 +182,7 @@ impl Interrupt {
         }
     }
 
-    async fn next(&mut self) -> i32 {
+    pub(super) async fn next(&mut self) -> i32 {
         #[cfg(unix)]
         if let Some((int, term)) = self.signals.as_mut() {
             return tokio::select! {

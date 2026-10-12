@@ -1130,11 +1130,11 @@ commands. The rules behind them:
   descriptor that the caller opened (`fd:N`, 3 or more, on Unix), a program
   (`exec:CMD`), or a road (T-175): `relay:HOST:PORT`, `tcp:HOST:PORT`,
   `ssh:[USER@]HOP[,HOP...],HOST:PORT`, `node:NAME`, `udp:node:NAME` (T-168)
-  and `iroh:TICKET`; or a local socket (T-176), `unix-connect:PATH`; or, on
-  one side at most, a listener (T-177): `unix-listen:PATH` or
-  `tcp-listen:[ADDR:]PORT`. Both addresses are checked before anything
-  starts; an unknown kind is a usage error (64) that lists the kinds, and
-  `serial:`, the kind of a later entry, exits 70.
+  and `iroh:TICKET`; or a local socket (T-176), `unix-connect:PATH`; or a
+  serial line (T-181), `serial:PATH[,BAUD]`; or, on one side at most, a
+  listener (T-177): `unix-listen:PATH` or `tcp-listen:[ADDR:]PORT`. Both
+  addresses are checked before anything starts; an unknown kind is a usage
+  error (64) that lists the kinds.
 - **A listener only when asked, and only where a probe allows it** (the
   operator's ruling of 2026-10-08). `PODSSH_LISTEN=no` turns listening off:
   a listening address then exits 78 before any bind. The bind itself is
@@ -1174,6 +1174,24 @@ commands. The rules behind them:
   (a keyword of a session, such as `RequestTTY`, is refused) and `--direct`;
   `node:` takes the pair of the label or of `--pair-file`; `iroh:` the key
   of `--iroh-key` and the relays of `--iroh-relay`.
+- **A serial line is a stream too** (the operator's ruling of 2026-10-08,
+  T-181). `serial:PATH[,BAUD]` opens a device such as `/dev/ttyUSB0` at
+  BAUD, one of the speeds that Linux names from 1200 to 4000000 (115200 when
+  none is given), with 8 data bits, no parity, 1 stop bit and no flow
+  control, in raw mode, with the modem's lines ignored; the text after the
+  last comma is BAUD. The attempt is the probe: a path that is not a
+  character device, or one that is no terminal (`/dev/null`), exits 64;
+  an open that this user may not make exits 77, and the line gives the
+  device's mode, uid and gid, as podssh assumes no group such as
+  `dialout`; another failure exits 69 with the error. The open has
+  `O_NOCTTY` and `O_NONBLOCK`, so it never takes a controlling terminal
+  nor waits for a carrier; `TIOCEXCL` then holds the line alone. Its
+  settings are saved first and go back on each way out: when the pipe
+  ends, at SIGINT and SIGTERM (130 and 143), and in the panic hook. A
+  line has no half-close and no end: the end of the other side's input
+  leaves it open, and the pipe ends when the other side ends it, at a
+  signal, or when the device fails (a read or a write that fails, 69).
+  On Windows, `serial:COM3` exits 64: a COM port is not built yet.
 - **No shell.** `exec:` splits its words with single and double quotes
   only, as podssh assumes no shell; `exec:sh -c 'CMD'` names one. The child
   gets one end of a socketpair as its stdin and stdout, so that the end of

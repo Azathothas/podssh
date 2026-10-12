@@ -100,6 +100,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ),
         ("a descriptor that the calling program opened for podssh, on Unix", "podssh pipe fd:3 stdio".into()),
         (
+            "a board's serial console on stdin and stdout, at 115200 baud, on Unix; Ctrl-C ends it",
+            "podssh pipe serial:/dev/ttyUSB0,115200 stdio".into(),
+        ),
+        (
             "a TCP service behind an SSH server, on stdin and stdout, as -W reaches it",
             "podssh pipe stdio ssh:user@bastion.example.org,db.internal:5432".into(),
         ),

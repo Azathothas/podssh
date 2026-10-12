@@ -5,10 +5,11 @@
 //! inherited descriptor, and a child (`local`); the remote ends open a road
 //! (`remote`, `relay`); a listening side (`listen`, `serve`) joins each
 //! client to the other side; `udp:node:NAME` carries datagrams through a
-//! node, and gives a program beside it a datagram socket (`datagram`). A
-//! road that failed gives the pipe's exit code, as `podssh proxy` gives it;
-//! else a child's status, B's when both are children, as a shell gives it;
-//! with neither, a clean end gives 0.
+//! node, and gives a program beside it a datagram socket (`datagram`); a
+//! serial line (`serial`) is a local end whose settings go back at each end,
+//! a signal's too. A road that failed gives the pipe's exit code, as
+//! `podssh proxy` gives it; else a child's status, B's when both are
+//! children, as a shell gives it; with neither, a clean end gives 0.
 
 use std::io::Write;
 
@@ -23,6 +24,7 @@ pub mod node;
 pub mod pump;
 pub mod relay;
 pub mod remote;
+pub mod serial;
 pub mod serve;
 pub mod ssh;
 pub mod unix;
@@ -86,6 +88,26 @@ pub fn run_pipe(args: &PipeArgs, err: &mut dyn Write) -> i32 {
 }
 
 async fn run(a: address::Address, b: address::Address, settings: &remote::Settings, err: &mut dyn Write) -> i32 {
+    // With a serial line, SIGINT and SIGTERM drop the ends, so that its
+    // settings go back, and podssh exits with 128 and the signal's number.
+    let serial = |x: &address::Address| matches!(x, address::Address::Serial { .. });
+    let mut stop = (serial(&a) || serial(&b)).then(serve::Interrupt::new);
+    tokio::select! {
+        code = joined(a, b, settings, err) => code,
+        code = interrupted(&mut stop) => code,
+    }
+}
+
+/// The exit code of a signal, when `stop` listens for them; else never.
+async fn interrupted(stop: &mut Option<serve::Interrupt>) -> i32 {
+    match stop {
+        Some(stop) => stop.next().await,
+        None => std::future::pending().await,
+    }
+}
+
+/// Open both ends, pump, and report.
+async fn joined(a: address::Address, b: address::Address, settings: &remote::Settings, err: &mut dyn Write) -> i32 {
     use address::Address::UdpNode;
     // The node's session first, beside a program of datagrams: a datagram
     // socket has no end of input, so a program started first would not

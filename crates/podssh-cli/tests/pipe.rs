@@ -4,7 +4,9 @@
 //! and a descriptor that is not open is refused. `unix-connect:` (T-176)
 //! reaches a server of the test that reads to the end of its input and
 //! answers with the SHA-256 of what it read: an AF_UNIX socket, and on
-//! Windows a named pipe too.
+//! Windows a named pipe too. `serial:` (T-181) opens a pty of the test as
+//! its device, on Linux: the bytes go both ways, and the line's settings
+//! come back at the end, at a signal too.
 
 use std::io::{Read, Write};
 use std::process::{Command, Stdio};
@@ -62,7 +64,7 @@ fn each_address_is_checked_before_anything_starts() {
         (&["stdio", "sctp:example.org:80"][..], 64, "the kinds are"),
         (&["stdio", "udp:example.org:53"][..], 64, "udp:node:NAME"),
         (&["stdio", "exec:sh -c 'exit"][..], 64, "does not close"),
-        (&["stdio", "serial:/dev/ttyS0"][..], 70, "not built yet"),
+        (&["stdio", "serial:/dev/ttyS0,9601"][..], 64, if cfg!(windows) { "Unix only" } else { "BAUD is one of" }),
         (&["fd:x", "stdio"][..], 64, "fd:"),
     ] {
         let (rc, out, err) = pipe(args);
@@ -245,4 +247,184 @@ fn unix_connect_reaches_a_named_pipe_on_windows() {
     let _ = serving.join();
     assert_eq!(code, 0, "{err}");
     assert_eq!(out, "from a named pipe\n", "{err}");
+}
+
+/// `serial:` (T-181), on Linux, with a pty of the test as its device: the
+/// test holds the pty and its far end, which podssh opens by its path, and
+/// compares the far end's settings before and after.
+#[cfg(target_os = "linux")]
+mod serial {
+    use std::fs::File;
+    use std::io::{Read, Write};
+    use std::os::fd::{AsRawFd, FromRawFd};
+    use std::os::unix::fs::OpenOptionsExt;
+    use std::process::{Command, Stdio};
+    use std::sync::mpsc;
+    use std::time::{Duration, Instant};
+
+    /// The settings of a terminal that the tests compare: the flags, the
+    /// special characters and both speeds.
+    #[derive(Debug, PartialEq, Eq)]
+    struct Settings {
+        flags: [libc::tcflag_t; 4],
+        cc: Vec<libc::cc_t>,
+        speeds: [libc::speed_t; 2],
+    }
+
+    fn settings(line: &File) -> Settings {
+        // SAFETY: an all-zero termios is valid for tcgetattr to fill.
+        let mut t: libc::termios = unsafe { std::mem::zeroed() };
+        // SAFETY: tcgetattr writes into the struct that this function owns.
+        let rc = unsafe { libc::tcgetattr(line.as_raw_fd(), &mut t) };
+        assert_eq!(rc, 0, "tcgetattr: {}", std::io::Error::last_os_error());
+        // SAFETY: both read the struct above.
+        let speeds = unsafe { [libc::cfgetispeed(&t), libc::cfgetospeed(&t)] };
+        Settings { flags: [t.c_iflag, t.c_oflag, t.c_cflag, t.c_lflag], cc: t.c_cc.to_vec(), speeds }
+    }
+
+    /// A pty pair, as openpty makes one: the pty, its far end, and the far
+    /// end's path; or why this host has none.
+    fn pty() -> Result<(File, File, String), String> {
+        let error = |what: &str| format!("{what}: {}", std::io::Error::last_os_error());
+        // SAFETY: flags for a new pty; the result is checked.
+        let master = unsafe { libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY | libc::O_CLOEXEC) };
+        if master < 0 {
+            return Err(error("posix_openpt"));
+        }
+        // SAFETY: the pty just opened, owned once from here.
+        let master = unsafe { File::from_raw_fd(master) };
+        // SAFETY: calls on the pty that this function holds.
+        if unsafe { libc::grantpt(master.as_raw_fd()) } != 0 || unsafe { libc::unlockpt(master.as_raw_fd()) } != 0 {
+            return Err(error("grantpt or unlockpt"));
+        }
+        let mut name = [0 as libc::c_char; 128];
+        // SAFETY: the pty, and a buffer of the length given.
+        let rc = unsafe { libc::ptsname_r(master.as_raw_fd(), name.as_mut_ptr(), name.len()) };
+        if rc != 0 {
+            return Err(format!("ptsname_r: {rc}"));
+        }
+        // SAFETY: ptsname_r wrote a string that ends in 0 into the buffer.
+        let path = unsafe { std::ffi::CStr::from_ptr(name.as_ptr()) }.to_string_lossy().into_owned();
+        // Never this process's controlling terminal.
+        let far = std::fs::OpenOptions::new().read(true).write(true).custom_flags(libc::O_NOCTTY).open(&path);
+        let far = far.map_err(|e| format!("{path}: {e}"))?;
+        Ok((master, far, path))
+    }
+
+    /// `n` bytes of `from`, read in a thread, within 10 s.
+    fn read_within(mut from: impl Read + Send + 'static, n: usize, what: &str) -> Vec<u8> {
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let mut got = vec![0u8; n];
+            let _ = tx.send(from.read_exact(&mut got).map(|()| got));
+        });
+        match rx.recv_timeout(Duration::from_secs(10)) {
+            Ok(Ok(got)) => got,
+            Ok(Err(e)) => panic!("{what}: {e}"),
+            Err(_) => panic!("{what}: no {n} bytes within 10 s"),
+        }
+    }
+
+    /// Wait until `ready` holds, 10 s at most.
+    fn wait_until(what: &str, mut ready: impl FnMut() -> bool) {
+        let end = Instant::now() + Duration::from_secs(10);
+        while !ready() {
+            assert!(Instant::now() < end, "{what}: not within 10 s");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    #[test]
+    fn serial_bytes_go_both_ways_and_the_settings_come_back_at_a_signal() {
+        let (master, line, path) = match pty() {
+            Ok(pair) => pair,
+            Err(why) => {
+                eprintln!("did not run: no pty here: {why}");
+                return;
+            }
+        };
+        let before = settings(&line);
+        let mut child = Command::new(env!("CARGO_BIN_EXE_podssh"))
+            .args(["pipe", &format!("serial:{path},57600"), "stdio"])
+            .env("PODSSH_SSH_CONFIG", "none")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("podssh runs");
+        // podssh has the line once it is raw; a podssh that ended first fails.
+        wait_until("the line set raw", || {
+            if let Ok(Some(status)) = child.try_wait() {
+                panic!("podssh ended first: {status}");
+            }
+            settings(&line).flags[3] & libc::ICANON == 0
+        });
+        let raw = settings(&line);
+        assert_eq!(raw.speeds, [libc::B57600, libc::B57600], "the speed asked for");
+        assert_eq!(raw.flags[3] & (libc::ECHO | libc::ISIG), 0, "no echo and no signals");
+        let frame = raw.flags[2] & (libc::CSIZE | libc::PARENB | libc::CSTOPB);
+        assert_eq!(frame, libc::CS8, "8 data bits, no parity, 1 stop bit");
+        assert_ne!(raw.flags[2] & libc::CLOCAL, 0, "the modem's lines ignored");
+        // Held alone: a second open fails, but root's may not.
+        // SAFETY: geteuid cannot fail.
+        if unsafe { libc::geteuid() } != 0 {
+            let again = std::fs::OpenOptions::new().read(true).write(true).custom_flags(libc::O_NOCTTY).open(&path);
+            assert_eq!(again.err().and_then(|e| e.raw_os_error()), Some(libc::EBUSY), "TIOCEXCL holds the line");
+        }
+        // From the device to stdout.
+        (&master).write_all(b"from the device\n").unwrap();
+        let stdout = child.stdout.take().unwrap();
+        assert_eq!(read_within(stdout, 16, "podssh's stdout"), b"from the device\n");
+        // From stdin to the device.
+        let mut stdin = child.stdin.take().unwrap();
+        stdin.write_all(b"to the device\n").unwrap();
+        stdin.flush().unwrap();
+        let device = master.try_clone().unwrap();
+        assert_eq!(read_within(device, 14, "the device"), b"to the device\n");
+        // The end of input leaves the line open, as it has no end; SIGTERM
+        // ends the pipe, and the line's settings go back on the way out.
+        drop(stdin);
+        // SAFETY: a signal to the child that this test started.
+        unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGTERM) };
+        wait_until("podssh's end after SIGTERM", || child.try_wait().unwrap().is_some());
+        let out = child.wait_with_output().unwrap();
+        let err = String::from_utf8_lossy(&out.stderr);
+        assert_eq!(out.status.code(), Some(143), "{err}");
+        assert_eq!(settings(&line), before, "the line's settings came back");
+    }
+
+    /// The pipe ends when the other side ends, and the settings go back as
+    /// the end drops: a program's output reached the device first.
+    #[test]
+    fn serial_settings_come_back_when_the_other_side_ends() {
+        let (master, line, path) = match pty() {
+            Ok(pair) => pair,
+            Err(why) => {
+                eprintln!("did not run: no pty here: {why}");
+                return;
+            }
+        };
+        let before = settings(&line);
+        let (code, _, err) = super::pipe(&[&format!("serial:{path}"), &super::podssh_with("--version")]);
+        assert_eq!(code, 0, "{err}");
+        assert_eq!(settings(&line), before, "the line's settings came back");
+        assert_eq!(read_within(master, 6, "the device"), b"podssh");
+    }
+
+    #[test]
+    fn serial_refuses_what_is_not_a_serial_line() {
+        let (code, out, err) = super::pipe(&["stdio", "serial:/dev/null"]);
+        assert_eq!(code, 64, "{err}");
+        assert!(err.contains("no terminal"), "{err}");
+        assert!(out.is_empty(), "{out}");
+        let file = std::env::temp_dir().join(format!("podssh-serial-{}", std::process::id()));
+        std::fs::write(&file, b"not a device").unwrap();
+        let (code, _, err) = super::pipe(&["stdio", &format!("serial:{}", file.display())]);
+        let _ = std::fs::remove_file(&file);
+        assert_eq!(code, 64, "{err}");
+        assert!(err.contains("not a character device"), "{err}");
+        let (code, _, err) = super::pipe(&["stdio", "serial:/dev/podssh-no-such-line"]);
+        assert_eq!(code, 69, "{err}");
+        assert!(err.contains("/dev/podssh-no-such-line"), "{err}");
+    }
 }

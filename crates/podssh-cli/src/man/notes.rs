@@ -150,9 +150,10 @@ const PIPE: &[&str] = &[
      (TCP through the relay, as podssh proxy carries it), tcp:HOST:PORT (TCP from this host, through \
      HTTPS_PROXY when it is set), ssh:[USER@]HOP[,HOP...],HOST:PORT (TCP that the last SSH hop opens, \
      as -W asks), node:NAME (the TARGET of the node of a pair), udp:node:NAME (UDP through a node; see \
-     below), iroh:TICKET (the TARGET of a node of the iroh road), or unix-connect:PATH (a local \
-     socket; @NAME in Linux's abstract namespace; on Windows a Unix socket or a named pipe, \
-     \\\\.\\pipe\\NAME). Both are checked before anything starts, and stdio on both sides is refused.",
+     below), iroh:TICKET (the TARGET of a node of the iroh road), unix-connect:PATH (a local socket; \
+     @NAME in Linux's abstract namespace; on Windows a Unix socket or a named pipe, \\\\.\\pipe\\NAME), \
+     or serial:PATH[,BAUD] (a serial line, on Unix). Both are checked before anything starts, and stdio \
+     on both sides is refused.",
     "unix-listen:PATH (by the names of unix-connect:) and tcp-listen:[ADDR:]PORT (on 127.0.0.1, or on \
      ADDR, an address of this host; port 0 asks for a free one) listen, one side at most. The bind is \
      the probe: a host that refuses it gives 77, and the line names the error. A Unix socket is made \
@@ -192,7 +193,15 @@ const PIPE: &[&str] = &[
      for a refusal (of the relay, a proxy, a host key or a login) and 78 for a setting that cannot be \
      used. Else the status is the program's (B's when both are programs), 128 + N for a signal, 127 for \
      a program that is not found and 126 for one that cannot run; with neither, 0. 65 for a stream of \
-     udp: that is not its framing. The address serial: is not built yet, and exits 70.",
+     udp: that is not its framing.",
+    "serial:PATH[,BAUD] opens a serial device of this host, such as /dev/ttyUSB0, at BAUD (115200 when \
+     none is given; from 1200 to 4000000), with 8 data bits, no parity, 1 stop bit and no flow control, \
+     in raw mode; a PATH with a comma takes a BAUD after it. The path must be a character device that is \
+     a terminal (else 64), and one that this user may open: a refusal is 77 and says whose the device is, \
+     as podssh assumes no group; another failure is 69. podssh holds the line alone while the pipe runs, \
+     and puts its settings back at the end, also at SIGINT and SIGTERM, which then exit 130 and 143. The \
+     line has no end: the end of the other side's input leaves it open, and the pipe ends when the other \
+     side ends it, at a signal, or when the device fails (69). On Windows, serial: is refused (64).",
 ];
 
 const DOCTOR: &[&str] = &[

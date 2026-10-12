@@ -1,11 +1,11 @@
 The work of milestone M7, `podssh pipe` and `--persist`, and the backlog of
 streams that `pipe` can carry: desktop streams and Telnet, a published HTTP
-service, serial devices and USB/IP. The design is `docs/design.md:650-714`;
+service, serial devices and USB/IP. The design is `docs/design.md:650-715`;
 the milestone is `docs/ROADMAP.md:231-240`.
 
 # T-174: `podssh pipe A B` with local addresses
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:667-714`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:233-237`), `docs/design.md:667-715`;
 GitHub #26 (Nemo-010, 2026-10-08). Measured here on `3ee70dc`.
 **Category:** feature
 **Milestone:** M7
@@ -69,8 +69,8 @@ the verb, the address grammar, the copy loop, and the local addresses `-`,
    shell gives. With no child, a clean end gives 0.
 7. In the same commit: `docs/cli.md`, the notes
    (`crates/podssh-cli/src/man/notes.rs:18-44`), two examples
-   (`crates/podssh-cli/src/man/examples.rs:8-151`; its test at
-   `crates/podssh-cli/src/man/examples.rs:274-290` learns the new variant),
+   (`crates/podssh-cli/src/man/examples.rs:8-155`; its test at
+   `crates/podssh-cli/src/man/examples.rs:278-294` learns the new variant),
    `docs/design.md:669-678`, `docs/STATUS.md`. Each file stays under 500
    lines (`AGENTS.md:205-206`).
 
@@ -198,7 +198,7 @@ local program to a target, and `podssh proxy` stays a second pump.
 5. `node:NAME` after T-084, and `iroh:TICKET` after T-163: one adapter and
    one test each. If T-163 makes a ticket a credential, read it from a file
    (`iroh:@FILE`), never from argv.
-6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:1488`): 69; 77 for a
+6. Exit codes: sysexits, as `podssh proxy` (`docs/cli.md:1506`): 69; 77 for a
    refusal (the relay, the proxy, a host key, the authentication); 78. Give
    `crates/podssh-ssh/src/run.rs:331-405` a typed error, so that 77 is not
    guessed from a message.
@@ -389,7 +389,7 @@ ROADMAP M7 is done; T-040 gives the remote form.
 
 # T-177: `podssh pipe` with a local listener after a probe
 
-**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:708-714`;
+**Source:** ROADMAP M7 (`docs/ROADMAP.md:236-237`), `docs/design.md:709-715`;
 GitHub #26 (a local-only mode, as the `--local` of bunflared; read in the
 report, not verified here); sandbox A of T-001.
 **Category:** feature
@@ -401,9 +401,9 @@ report, not verified here); sandbox A of T-001.
 ## Problem
 
 Desktop clients, browsers and database clients call `connect()` themselves:
-they need a local port or socket (`docs/design.md:711-714`). podssh refuses
+they need a local port or socket (`docs/design.md:712-715`). podssh refuses
 each listener. The design allows one for `pipe`, locally, after a probe
-shows that an AF_UNIX or loopback bind works (`docs/design.md:708-710`).
+shows that an AF_UNIX or loopback bind works (`docs/design.md:709-711`).
 
 ## Premise
 
@@ -610,7 +610,7 @@ running on the server (`docs/design.md:417-421`).
    Keys typed meanwhile wait in a queue of 64 KiB, and go after the attach.
 6. Each attempt checks the host key with the same policy, and uses the
    cached token. A prompt with no terminal ends the loop
-   (`docs/cli.md:1546-1548`). After the attach, send the window size again.
+   (`docs/cli.md:1564-1566`). After the attach, send the window size again.
 7. In the same commit: `docs/cli.md`, the notes of ssh
    (`crates/podssh-cli/src/man/notes_ssh.rs:4-198`), `docs/design.md:417-421`,
    `docs/STATUS.md`, and tmux in the interop image
@@ -725,7 +725,7 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
 
 - Read: a byte pipe carries each TCP protocol
   (`crates/podssh-cli/src/man/notes.rs:130-134`); a client that calls
-  `connect()` itself needs a listener (`docs/design.md:711-714`), which
+  `connect()` itself needs a listener (`docs/design.md:712-715`), which
   T-177 adds where a probe allows it.
 - Read: 64 MiB for each session, both directions together
   (`docs/relay.md:162`), then Close 1009 (`docs/relay.md:223`); public
@@ -754,9 +754,9 @@ no listener, or that the relay ends a desktop stream after 64 MiB.
    `telnet 127.0.0.1 PORT`.
 4. Write a table "Other TCP protocols" after `README.md:125-130`: the
    protocol, what works now, what needs a listener, the 64 MiB limit. Add
-   form a to `crates/podssh-cli/src/man/examples.rs:8-151`; its ProxyCommand
-   parses (`crates/podssh-cli/src/man/examples.rs:251-258`). Link the table
-   from `docs/design.md:711-714`.
+   form a to `crates/podssh-cli/src/man/examples.rs:8-155`; its ProxyCommand
+   parses (`crates/podssh-cli/src/man/examples.rs:255-262`). Link the table
+   from `docs/design.md:712-715`.
 5. No code. Record the measurements in `docs/STATUS.md`.
 
 ## Prove
@@ -841,7 +841,7 @@ The calls made where the Approach left a choice:
 - The example puts `-N -L` before the ProxyCommand: the start of the
   manual keeps three first steps, and its filter takes each command that
   starts with "ssh -o ProxyCommand='podssh proxy"
-  (`crates/podssh-cli/src/man/examples.rs:154`). It has no
+  (`crates/podssh-cli/src/man/examples.rs:158`). It has no
   `ServerAliveInterval`, so that its line stays within rustfmt's 120
   columns; the note of proxy asks for it
   (`crates/podssh-cli/src/man/notes.rs:135`).
@@ -943,7 +943,7 @@ serial console when SSH fails). Read in the reports, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -977,6 +977,35 @@ on a serial line.
 5. In the same commit: `docs/cli.md`, the notes, one example
    (`podssh pipe serial:/dev/ttyUSB0,115200 stdio`), `docs/STATUS.md`.
 
+## Decision
+
+2026-10-12: an open that this user may not make (EACCES, EPERM) exits 77,
+as `unix-connect:` gives for a socket of another user (T-176), and the line
+gives the device's mode, uid and gid, so that the user sees which group
+opens it; each other failure exits 69, as step 2 says. 69 for a refusal
+lost: a script could not tell a missing device from one that needs a group.
+
+2026-10-12: with a serial line on a side, `podssh pipe` catches SIGINT and
+SIGTERM, which would kill it with the line still raw: the ends drop, the
+settings go back, and podssh exits 130 or 143, as a listener does (T-177).
+A line has no end of its own, so a signal is how a session at a terminal
+ends, and the end of the other side's input leaves the line open. The
+line's output is its last word: a read or a write that fails (an adapter
+pulled out) ends the pipe with 69 and the error, rather than a wait for
+the other side's input.
+
+2026-10-12: BAUD is the text after the last comma, so a PATH with a comma
+takes a BAUD after it. The table is the speeds that Linux names, from 1200
+to 4000000; another Unix gives the number to `cfsetspeed`, and a device
+that refuses it gives 69 at `tcsetattr`. The settings go back with
+`TCSADRAIN`, so that the bytes written go out at the speed they were
+written at, and in the panic hook with `TCSANOW`; `TIOCNXCL` follows.
+
+2026-10-12: the Prove's pty pair is made with `posix_openpt`, `grantpt`,
+`unlockpt` and `ptsname_r`, which `openpty` calls: they are in the C
+library itself, where `openpty` is in libutil on an older glibc, and the
+pty harness of the tests (T-158) makes its pty so.
+
 ## Prove
 
 ```sh
@@ -987,6 +1016,46 @@ cargo test -p podssh-cli --test pipe -- serial
 On Linux, a pty pair from `openpty` stands in for the device: bytes go both
 ways, and `tcgetattr` before and after gives equal settings. `/dev/null`
 exits 64. Plant: skip the restore; the comparison of the settings must fail.
+
+## Done
+
+2026-10-12. Written as a draft beside T-168, then merged over it.
+`serial:PATH[,BAUD]` is an address of `podssh pipe` on Unix.
+- The grammar (`crates/podssh-cli/src/pipe/address.rs`): BAUD from the
+  table, 115200 when none is given; a BAUD not in it, an empty PATH, and on
+  Windows each `serial:` exit 64 before anything starts. The kinds of later
+  entries are gone from the grammar, as `serial:` was the last.
+- The line (`crates/podssh-cli/src/pipe/serial.rs`): a character device
+  that is a terminal, opened with `O_NOCTTY` and `O_NONBLOCK`, then
+  `TIOCEXCL`; the settings saved, then raw at BAUD, 8 data bits, no parity,
+  1 stop bit, no flow control, `CLOCAL` and `CREAD`, VMIN 1 and VTIME 0;
+  read and written through tokio's `AsyncFd`; the settings and `TIOCNXCL`
+  back when the line drops, and in a panic hook set once for the process.
+  `crates/podssh-cli/src/pipe/mod.rs`: SIGINT and SIGTERM end a pipe with a
+  serial line through the listener's `Interrupt`
+  (`crates/podssh-cli/src/pipe/serve.rs`).
+- The manual (the notes of `pipe`, an example), `docs/cli.md`,
+  `docs/design.md` section 6, `docs/STATUS.md`.
+- Tests: `cargo test -p podssh-cli --test pipe -- serial`, on Linux, with a
+  pty of the test as the device: the bytes go both ways at 57600 baud, the
+  line is raw at the speed asked for, a second open gets EBUSY (for a user
+  that is not root), and after SIGTERM (143) the settings equal those
+  before; with `exec:` of `podssh --version` on the other side the pipe
+  ends by itself, the program's bytes reach the device, and the settings
+  equal those before; `/dev/null` and a file exit 64, a missing device 69.
+  The table row of `each_address_is_checked_before_anything_starts` now
+  gives 64 for a BAUD not in the table (Unix) and for `serial:` on Windows.
+  The unit tests of the grammar, of the codes of a refused open, and of
+  the table against Linux's speeds, by
+  `cargo test -p podssh-cli --lib -- pipe::`. Results: in the build image
+  (Alpine, as root), `--test pipe` 10 passed (the 3 of `serial` among them) and the unit tests of `pipe::`
+  24 passed; here (Windows 11) `--test pipe` 7 passed and the lib suite 279
+  passed, with the Linux tests not built; `cargo clippy -p podssh-cli
+  --all-targets -- -D warnings` clean in both. The plant of the Prove, a
+  drop that skips the restore: both comparisons of the settings failed in the build image (`serial_settings_come_back_when_the_other_side_ends` and `serial_bytes_go_both_ways_and_the_settings_come_back_at_a_signal`), and the plant was taken out.
+- Waiting for the operator's hardware: a real serial device (a board on
+  `/dev/ttyUSB0`). The COM port of Windows (`SetCommState`), step 4's
+  second step, is not built: `serial:` exits 64 there and says so.
 
 # T-182: USB/IP devices through `podssh pipe`: a tested recipe, with no driver in podssh
 
