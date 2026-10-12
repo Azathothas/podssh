@@ -245,6 +245,7 @@ impl Progress {
     /// The copy is done, or cannot continue: the side file goes.
     pub fn clear(&mut self) {
         podssh_relay::cache::remove_named_from(&self.dirs, &self.side);
+        CURRENT.lock().unwrap().take();
         self.target = None;
         self.temp = None;
         self.offset = 0;
@@ -266,10 +267,24 @@ impl Progress {
             body["chunk"] = self.chunk.into();
             body["chunks"] = self.chunks.iter().copied().collect::<Vec<u64>>().into();
         }
-        if podssh_relay::cache::store_file_in_first(&self.dirs, &self.side, body.to_string().as_bytes()).is_ok() {
+        if let Ok(path) = podssh_relay::cache::store_file_in_first(&self.dirs, &self.side, body.to_string().as_bytes())
+        {
             self.saved = self.offset;
+            if let Some(temp) = &self.temp {
+                *CURRENT.lock().unwrap() = Some((temp.clone(), path.display().to_string()));
+            }
         }
     }
+}
+
+/// The copy in progress of the run: its temporary file and its side file,
+/// for the words of an interruption (T-145).
+static CURRENT: std::sync::Mutex<Option<(String, String)>> = std::sync::Mutex::new(None);
+
+/// The temporary file and the side file of the copy in progress, if one has
+/// written its side file.
+pub fn current() -> Option<(String, String)> {
+    CURRENT.lock().unwrap().clone()
 }
 
 /// The local temporary file of a copy down, open, and the bytes in it: the

@@ -25,7 +25,7 @@ fn podssh(args: &[&str]) -> (i32, Vec<u8>, String) {
 
 #[test]
 fn each_scp_letter_that_podssh_does_not_carry_is_refused_by_name() {
-    for flag in [&["-O"][..], &["-R"], &["-p"], &["-S", "ssh"], &["-D", "/x"], &["-l", "100"], &["-c", "aes128-ctr"]] {
+    for flag in [&["-O"][..], &["-R"], &["-p"], &["-S", "ssh"], &["-D", "/x"], &["-c", "aes128-ctr"]] {
         let mut args = vec!["scp"];
         args.extend_from_slice(flag);
         args.extend_from_slice(&["a", "host:b"]);
@@ -79,7 +79,7 @@ fn scp_refuses_as_cp_does_in_its_own_name() {
 
 #[test]
 fn each_sftp_letter_that_podssh_does_not_carry_is_refused_by_name() {
-    for flag in [&["-r"][..], &["-p"], &["-l", "100"], &["-S", "ssh"], &["-D", "/x"], &["-c", "aes128-ctr"]] {
+    for flag in [&["-r"][..], &["-p"], &["-S", "ssh"], &["-D", "/x"], &["-c", "aes128-ctr"]] {
         let mut args = vec!["sftp"];
         args.extend_from_slice(flag);
         args.push("host");

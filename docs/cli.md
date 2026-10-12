@@ -501,6 +501,18 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   removes the source once each item of it is copied. A directory goes up or
   down, over SFTP, not between two servers. `-p` is refused by name until
   the times are kept (T-146).
+- **Progress, an interruption and a limit** (T-145). On stderr, when it is
+  a terminal and `-q` is not given, one line that a carriage return
+  rewrites, 4 times a second at most: the name, the bytes of the total,
+  the percent, the rate and the time left; nothing in a pipe
+  (`PODSSH_PROGRESS=line` or `off` sets the line on or off). With
+  `--jsonl`, a `progress` object on stdout each second, before the `done`
+  one. The first SIGINT or SIGTERM (Ctrl-C on Windows) ends the copy in
+  flight, keeps the temporary file and its side file, names them, and
+  exits 130; the same command then goes on from them; a second signal ends
+  podssh at once. `-l LIMIT` (`cp`, `mv`, `scp`, `sftp`) is OpenSSH's, in
+  Kbit/s: a token bucket before each request, requests of 10 s of bytes at
+  most, and about one second of them in flight.
 - **`--delete`** (T-144), with `-r`, makes the copy's root a mirror: what
   it holds and the source lacks goes, a directory after what it holds, at
   the end of the run and only when each copy of the run succeeded; after a

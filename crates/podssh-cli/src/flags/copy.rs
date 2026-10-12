@@ -30,6 +30,8 @@ pub const CP_FLAGS: &[FlagRow] = &[
         "with -r, leave out a path: * and ? within a name; with a /, from the root of the copy; repeatable", None),
     row(None, "exclude-from", Some("FILE"), FlagKind::Supported,
         "with -r, the --exclude patterns of FILE, one a line; # starts a comment", None),
+    row(Some('l'), "limit", Some("KBITS"), FlagKind::Supported,
+        "at most KBITS Kbit/s, as OpenSSH's scp -l: a token bucket before each request", None),
     row(None, "delete", None, FlagKind::Supported,
         "with -r, delete what the target has and the source lacks, once each copy succeeded; never an excluded name, the file that a link names, the root or the home directory", None),
     row(None, "dry-run", None, FlagKind::Supported,

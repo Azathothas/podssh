@@ -49,6 +49,38 @@ for n in 0 1 262145 5000000; do
         || bad "cp.sftp.down.${n}" "cp down, $n bytes: exit $rc" "$CW/err"
 done
 
+# -l (T-145): 8000 Kbit/s takes 5000000 bytes in 4.5 s or more; with the
+# progress line on, stdout, a file here, gets nothing.
+now() { python3 -c 'import time; print(time.time())'; }
+start=$(now)
+export PODSSH_PROGRESS=line
+c 2201 -l 8000 "$CW/up/f5000000" "$T:cp/limited" >"$CW/out" 2>"$CW/err"
+rc=$?
+unset PODSSH_PROGRESS
+took=$(python3 -c "print(round($(now) - $start, 1))")
+[ "$rc" = 0 ] && python3 -c "import sys; sys.exit(0 if $took >= 4.5 else 1)" && [ ! -s "$CW/out" ] \
+    && grep -q "f5000000  " "$CW/err" && [ "$(sum "$CW/up/f5000000")" = "$(sum "$RD/limited")" ] \
+    && ok cp.limit "cp -l 8000, 5000000 bytes: $took s, the line on stderr, nothing on stdout" \
+    || bad cp.limit "cp -l 8000: exit $rc, $took s" "$CW/err"
+# SIGINT in the middle: 130, the temporary file and the side file named and
+# kept; the same command then goes on from them. podssh itself, not a shell,
+# gets the signal: env execs it.
+env -u SSH_AUTH_SOCK HOME="$W" "$BIN" cp --direct -P 2201 -o UserKnownHostsFile="$KH" \
+    -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes -o BatchMode=yes $K \
+    --timeout 120s -l 4000 "$CW/up/f5000000" "$T:cp/interrupted" >"$CW/out" 2>"$CW/err" &
+pid=$!
+sleep 2
+kill -INT "$pid"
+wait "$pid"
+rc=$?
+side=$(sed -n 's/.*(its record: \(.*\))$/\1/p' "$CW/err")
+[ "$rc" = 130 ] && grep -q "interrupted; the partial copy stays at" "$CW/err" && [ -n "$side" ] && [ -f "$side" ] \
+    && find "$RD" -name '.interrupted.podssh-*.part' | grep -q . \
+    && c 2201 -v "$CW/up/f5000000" "$T:cp/interrupted" >"$CW/out" 2>"$CW/err2" \
+    && grep -q "continuing" "$CW/err2" && [ "$(sum "$CW/up/f5000000")" = "$(sum "$RD/interrupted")" ] \
+    && ok cp.interrupt "SIGINT: exit 130, the partial copy and its record kept, and the next run went on" \
+    || bad cp.interrupt "SIGINT: exit $rc" "$CW/err"
+
 # --parallel 4 (T-141): a file of three chunks and a part goes up and comes
 # down as chunks, four at once, each over an SFTP session of its own.
 head -c 25000000 /dev/urandom >"$CW/up/big"

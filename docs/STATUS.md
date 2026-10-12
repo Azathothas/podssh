@@ -332,6 +332,16 @@ Linux, a file held with no sharing on Windows) deletes nothing, and stderr
 says so. `.` as the source of a copy to the login directory is refused
 (64). Planted, deletes after a failed copy: that test fails.
 
+Progress, `-l` and an interruption of a copy (T-145; Windows 11,
+2026-10-12, `cargo test -p podssh-cli --test cp_progress`, 3 passed and
+the test of SIGINT on Unix; the build image, `cp.limit` and `cp.interrupt`
+against OpenSSH): the line says the bytes, the percent, the rate and the
+time left, and goes to stderr only; `-l 8000` held 1,500,000 bytes to 1.4 s
+or more here and 5,000,000 to 4.5 s or more in the gate; `--jsonl` gives
+`progress` objects; SIGINT after 2 s gave 130, kept and named the
+temporary file and its record, and the same command went on from them.
+Planted, the line on stdout: the test of the pipe fails.
+
 ## `podssh keygen`, measured
 
 | Check | Result |

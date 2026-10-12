@@ -29,7 +29,7 @@ harness faults interop 35 scripts/interop-faults.sh
 harness ping interop 3 scripts/interop-ping.sh
 harness relay interop 4 scripts/interop-relay.sh
 harness socks interop 4 scripts/interop-socks.sh
-harness cp interop 78 scripts/interop-cp.sh
+harness cp interop 80 scripts/interop-cp.sh
 harness mv interop 18 scripts/interop-mv.sh
 harness sftp interop 5 scripts/interop-sftp.sh
 harness resume interop 9 scripts/interop-resume.sh
@@ -316,6 +316,8 @@ cp.sftp.down.0 pass
 cp.sftp.down.1 pass
 cp.sftp.down.262145 pass
 cp.sftp.down.5000000 pass
+cp.limit pass
+cp.interrupt pass
 cp.parallel.up pass
 cp.parallel.down pass
 cp.tree.dry_run pass

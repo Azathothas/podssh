@@ -111,6 +111,12 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       acknowledgement comes. Another value is ignored.",
     ),
     (
+        &["PODSSH_PROGRESS"],
+        "line or off: the progress line of podssh cp, mv, scp and sftp on stderr, on or off whatever \
+      stderr is. With neither, the line shows when stderr is a terminal and -q is not given; --jsonl \
+      gives progress objects instead.",
+    ),
+    (
         &["PODSSH_SESSION_BUDGET"],
         "Lowers the bytes that podssh cp and mv carry in one relay session before they open a new one, \
       for a relay with smaller limits: a whole number of bytes, 1048576 at least. It never raises the \

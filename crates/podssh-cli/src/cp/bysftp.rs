@@ -18,6 +18,7 @@ use super::link::Meter;
 use super::pipe::Shape;
 use super::resume::{self, Progress};
 use super::transfer::{self, Cause, Done, Failed, Side};
+use super::{gauge, rate};
 use crate::exitmap::Fault;
 
 fn failed(fault: Fault, message: String) -> Failed {
@@ -125,8 +126,9 @@ pub async fn up(
             .map_err(|e| failed(Fault::NoInput, format!("{source}: {e}")))?;
         let mut offset = progress.offset;
         let started = (std::time::Instant::now(), offset);
-        let mut writes = Writes::new(sftp, &file, offset, pipe);
+        let mut writes = Writes::new(sftp, &file, offset, rate::shaped(pipe, sftp.write_len()));
         log.verbose(&format!("{source}: writes of {} bytes, {} in flight", writes.block(), writes.depth()));
+        let mut bar = gauge::Gauge::new(source, before.len(), offset);
         let mut buf = vec![0u8; writes.block() as usize];
         let sent = loop {
             let n = match reader.read(&mut buf) {
@@ -144,12 +146,15 @@ pub async fn up(
                 break Err(spent);
             }
             hasher.update(&buf[..n]);
+            rate::take(n as u64).await;
             if let Err(e) = writes.send(buf[..n].to_vec()).await {
                 break Err(transfer::from_sftp(e, Side::Destination));
             }
             offset += n as u64;
             progress.advance(writes.acked());
+            bar.set(offset);
         };
+        bar.finish();
         // Each write in flight ends first: the next attempt writes on at the
         // end of the part that the server acknowledged.
         let finished = writes.finish().await;
@@ -319,7 +324,8 @@ pub async fn down(
         // grows (T-267), from a file of /proc, which says 0 and has bytes.
         let mut looked = false;
         let started = std::time::Instant::now();
-        let mut reads = Reads::new(sftp, &file, start, pipe);
+        let mut reads = Reads::new(sftp, &file, start, rate::shaped(pipe, sftp.read_len()));
+        let mut bar = gauge::Gauge::new(source, size, start);
         log.verbose(&format!("{source}: reads of {} bytes, {} in flight", reads.block(), reads.depth()));
         // A read below the size of the start goes out only while the relay
         // session may carry it (T-137); the failure that stopped them.
@@ -351,12 +357,15 @@ pub async fn down(
                     }
                     offset += data.len() as u64;
                     progress.advance(offset);
+                    bar.set(offset);
+                    rate::take(data.len() as u64).await;
                 }
                 Ok(None) => break stopped.take().map_or(Ok(()), Err),
                 Err(e) => break Err(transfer::from_sftp(e, Side::Source)),
             }
         };
         drop(reads);
+        bar.finish();
         let _ = sftp.close(&file).await;
         read?;
         log.verbose(&rate(source, offset - start, started.elapsed()));

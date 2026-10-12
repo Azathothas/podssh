@@ -186,6 +186,7 @@ async fn down_task(
             match reads.next(&mut allow).await {
                 Ok(Some(data)) => {
                     let take = ((end - pos) as usize).min(data.len());
+                    super::rate::take(take as u64).await;
                     if let Err(e) = write_at(local, pos, &data[..take]) {
                         break Err(Failed::new(Fault::CantCreate, format!("{shown}: {e}")));
                     }
@@ -261,6 +262,7 @@ async fn up_task(
                 Ok(_) => break Err(transfer::changed(shown)),
                 Err(e) => break Err(Failed::new(Fault::NoInput, format!("{shown}: {e}"))),
             }
+            super::rate::take(want as u64).await;
             if let Err(e) = writes.send(buf[..want].to_vec()).await {
                 break Err(transfer::from_sftp(e, Side::Destination));
             }

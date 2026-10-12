@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**295 entries: 63 open, 0 partial, 24 blocked, 208 done.**
+**295 entries: 62 open, 0 partial, 24 blocked, 209 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 57 | 0 | 6 | 49 | 112 |
-| **All** | 63 | 0 | 24 | 208 | 295 |
+| P3 | 56 | 0 | 6 | 50 | 112 |
+| **All** | 62 | 0 | 24 | 209 | 295 |
 
 ## Entries
 
@@ -218,7 +218,7 @@ repository and CI).
 | [T-142](copy.md) | P3 | L | backlog | feature | done | Delta copy: only the blocks that changed |
 | [T-143](copy.md) | P3 | M | backlog | feature | done | Copy directories: `-r`, `--exclude`, an ignore file, `--dry-run` |
 | [T-144](copy.md) | P3 | S | backlog | feature | done | `podssh cp --delete`: make the target a mirror |
-| [T-145](copy.md) | P3 | S | backlog | feature | open | Progress, cancellation and a bandwidth limit for copies |
+| [T-145](copy.md) | P3 | S | backlog | feature | done | Progress, cancellation and a bandwidth limit for copies |
 | [T-146](copy.md) | P3 | M | backlog | feature | open | Keep the metadata of a copy |
 | [T-147](copy.md) | P3 | S | backlog | feature | open | `podssh cp --inplace` |
 | [T-148](copy.md) | P3 | M | backlog | feature | open | ZMODEM in a terminal session |

@@ -657,7 +657,7 @@ old writer can race the new one.
    ways; 11 h 30 min) go in `crates/podssh-relay/src/relay.rs`, beside
    `RELAY_IDLE_SECS`. A variable `PODSSH_SESSION_BUDGET` can lower the byte
    budget (a relay with smaller caps, the tests), never raise it; add it to
-   `crates/podssh-cli/src/man/facts.rs:45-175`.
+   `crates/podssh-cli/src/man/facts.rs:45-181`.
 2. Count the payload bytes both ways in the relay stream (an atomic counter
    beside `RelayStatus`), and keep the session's start time.
 3. Invariant: no session passes a budget. Before a data request that would
@@ -670,7 +670,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:213-374`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:219-380`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:226-244` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1262-1265`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1274-1277`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1533,7 +1533,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1546,7 +1546,7 @@ uplink of a shared host.
 
 - Read: stdout carries answers only, and messages go to stderr
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
-  (`crates/podssh-cli/src/flags/copy.rs:39-40`).
+  (`crates/podssh-cli/src/flags/copy.rs:41-42`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
   (`crates/podssh-ssh/src/io.rs:461-494`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take
@@ -1593,6 +1593,28 @@ progress to stdout; the pipe case must then fail.
 2026-10-09 (T-134): the copy code exists now
 (`crates/podssh-cli/src/cp/`): with `--jsonl`, each file gives one `done` or
 `error` object; the events of progress are this entry's.
+
+## Done
+
+2026-10-12. `crates/podssh-cli/src/cp/gauge.rs` (the line and the
+`progress` objects), `crates/podssh-cli/src/cp/rate.rs` (the token bucket
+of `-l`, which the run's copies share, with requests of 10 s of bytes at
+most and about one second of them in flight), and the interruption in
+`crates/podssh-cli/src/cp/mod.rs` (`interrupted`), which names the copy's
+temporary file and side file from the record that `Progress::save`
+keeps. The calls made: `PODSSH_PROGRESS=line` or `off` sets the line on or
+off, so that a test can show that it never reaches stdout; the line counts
+the bytes of this run, not those that an earlier attempt brought; `-l`
+waits in the copy's loops, before each write and after each read, which
+also keeps fewer reads in flight; `sftp -l` and `scp -l` take it too.
+`cargo test -p podssh-cli --test cp_progress`: 3 passed here (the line,
+the rate and the time left; the bucket and the sizes under a limit; a copy
+under `-l 8000` that takes 1.4 s or more, its line on stderr only, its
+`progress` objects with `--jsonl`, and `-l 0` refused); the test of SIGINT
+runs on Unix (130, the partial copy named, the next run goes on). In the
+build image against OpenSSH: `cp.limit` (5,000,000 bytes in 4.5 s or more,
+nothing on stdout) and `cp.interrupt`. Planted defect: the line on stdout;
+the test of the pipe failed.
 
 # T-146: Keep the metadata of a copy
 
@@ -1808,7 +1830,7 @@ host, and the copy back then destroys that change with no word.
   probe (`crates/podssh-cli/src/pager.rs:96`) and runs it with
   `run_program` (`crates/podssh-cli/src/pager.rs:134`).
 - Read: `VISUAL` and `EDITOR` are not in the manual's variables
-  (`crates/podssh-cli/src/man/facts.rs:45-175`).
+  (`crates/podssh-cli/src/man/facts.rs:45-181`).
 - Read: the relay cuts a session after 180 s with no payload
   (`crates/podssh-relay/src/relay.rs:19-21`); an editor stays open longer.
 
@@ -1940,16 +1962,16 @@ program writes on, such as a log, need not end at all.
 ## Premise
 
 Read at `a22e3ec`: the copy up over SFTP reads the source until a read
-gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:131-152`), and each read
+gives no byte (`crates/podssh-cli/src/cp/bysftp.rs:133-156`), and each read
 waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
-(`crates/podssh-cli/src/cp/bysftp.rs:205-208`), but only once the read
+(`crates/podssh-cli/src/cp/bysftp.rs:210-213`), but only once the read
 ends. The copy up by exec reads the same way
 (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:327-358`) and with `cat`
+(`crates/podssh-cli/src/cp/bysftp.rs:333-366`) and with `cat`
 (`crates/podssh-cli/src/cp/byexec.rs:329-364`); and so do the far digests
 that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
 `crates/podssh-cli/src/cp/byexec.rs:298-325`).
@@ -1985,7 +2007,7 @@ bound fails the native test.
 
 2026-10-10. Each road of the copy reads what the source held at the start,
 and stops with 66, "the file changed while it was read", at the first byte
-past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:131-152`) and by
+past it: up over SFTP (`crates/podssh-cli/src/cp/bysftp.rs:133-156`) and by
 exec (`crates/podssh-cli/src/cp/byexec/files.rs:103-128`); down by exec
 past the size that `wc -c` gave; down over SFTP after a second look at the
 far size, so that a file of `/proc` goes on as before. The far digest by

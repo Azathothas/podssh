@@ -24,11 +24,14 @@ pub(crate) mod bysftp;
 pub(crate) mod chunks;
 pub mod delta;
 mod digest;
+pub mod gauge;
 pub(crate) mod link;
 mod moving;
 pub mod operand;
 pub(crate) mod pipe;
 pub mod plan;
+pub mod rate;
+mod report;
 pub(crate) mod resume;
 mod session;
 pub(crate) mod transfer;
@@ -48,6 +51,7 @@ use crate::ssh::resolve::{self, Env, Resolved};
 use moving::After;
 use operand::{Operand, Remote};
 use plan::{Direction, Plan};
+use report::report;
 use resume::Before;
 use session::session;
 use transfer::{Done, Failed};
@@ -77,6 +81,8 @@ pub struct CpArgs {
     pub dry_run: bool,
     /// `--delete` (T-144).
     pub delete: bool,
+    /// `-l KBITS`: the bandwidth (T-145).
+    pub limit: Option<String>,
 }
 
 impl CpArgs {
@@ -124,6 +130,7 @@ impl CpArgs {
             exclude_from,
             dry_run: flag("dry-run"),
             delete: flag("delete"),
+            limit: many("limit").pop(),
         }
     }
 }
@@ -180,6 +187,14 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
             return Fault::Usage.code();
         }
     };
+    let limit = match args.limit.as_deref().map(|text| rate::parse("-l", text)).transpose() {
+        Ok(limit) => limit,
+        Err(why) => {
+            let _ = writeln!(err, "podssh {verb}: {why}.\n  Nothing has been attempted.");
+            return Fault::Usage.code();
+        }
+    };
+    rate::set(limit);
     plan.tree = match tree_of(args) {
         Ok(tree) => tree,
         Err(why) => {
@@ -225,6 +240,7 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
         }
     }
     let log = Arc::new(Log::new(resolved[0].options.log_level));
+    gauge::init(jsonl, resolved[0].options.log_level == podssh_ssh::LogLevel::Quiet);
     // Before any byte moves, and before the first line of -v.
     if let Some(text) = args.moving.then(|| moving::notice(&args.paths, &plan)).flatten() {
         log.info(&text);
@@ -245,92 +261,72 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
         }
     };
     let after = if args.moving { After::Remove } else { After::Keep };
-    let run = run_plan(&plan, &resolved, &log, after);
+    // On the heap: the copy's future is large, and Windows gives the main
+    // thread 1 MiB of stack.
+    let run = Box::pin(run_plan(&plan, &resolved, &log, after));
     let outcome = runtime.block_on(async {
-        match deadline {
-            Some(limit) => tokio::time::timeout(limit, run).await.unwrap_or_else(|_| Outcome {
-                failed: Some((
-                    String::new(),
-                    Failed::new(Fault::TimedOut, format!("the --timeout of {} s passed", limit.as_secs())),
-                )),
-                ..Outcome::default()
-            }),
-            None => run.await,
+        let run = async {
+            match deadline {
+                Some(limit) => tokio::time::timeout(limit, run).await.unwrap_or_else(|_| Outcome {
+                    failed: Some((
+                        String::new(),
+                        Failed::new(Fault::TimedOut, format!("the --timeout of {} s passed", limit.as_secs())),
+                    )),
+                    ..Outcome::default()
+                }),
+                None => run.await,
+            }
+        };
+        // The first SIGINT or SIGTERM (Ctrl-C on Windows) ends the copy in
+        // flight and keeps what it made; a second one ends podssh at once.
+        tokio::select! {
+            outcome = run => Some(outcome),
+            () = interrupted() => {
+                tokio::spawn(async {
+                    interrupted().await;
+                    std::process::exit(130);
+                });
+                None
+            }
         }
     });
+    let Some(outcome) = outcome else {
+        let kept = match resume::current() {
+            Some((temp, side)) => {
+                format!("; the partial copy stays at {temp}, and the same command goes on from it (its record: {side})")
+            }
+            None => String::new(),
+        };
+        let _ = writeln!(err, "podssh {verb}: interrupted{kept}");
+        runtime.shutdown_background();
+        return 130;
+    };
     runtime.shutdown_background();
     report(&outcome, jsonl, out, &log)
 }
 
-/// Print each action of a dry run, each file done and the failure; the exit
-/// code.
-fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &Log) -> i32 {
-    for (action, from, to) in &outcome.planned {
-        if jsonl {
-            let line = serde_json::json!({ "event": "plan", "action": action, "source": from, "destination": to });
-            let _ = writeln!(out, "{line}");
-        } else {
-            let line = match *action {
-                "mkdir" => format!("mkdir {to}"),
-                "copy" => format!("copy {from} -> {to}"),
-                "link" => format!("link {from} -> {to}"),
-                "delete" => format!("delete {to}"),
-                _ => format!("skip {from}: {to}"),
-            };
-            let _ = writeln!(out, "{line}");
-        }
-    }
-    for path in &outcome.deleted {
-        if jsonl {
-            let _ = writeln!(out, "{}", serde_json::json!({ "event": "deleted", "path": path }));
-        } else {
-            log.verbose(&format!("deleted {path}"));
-        }
-    }
-    if !outcome.deleted.is_empty() {
-        log.info(&format!("{} deleted, which the source does not have", outcome.deleted.len()));
-    }
-    for done in &outcome.done {
-        let sha256 = done.sum.as_ref().map(digest::hex);
-        if jsonl {
-            let mut line = serde_json::json!({
-                "event": "done",
-                "source": done.source,
-                "destination": done.destination,
-                "bytes": done.bytes,
-                "sha256": sha256,
-                "verified_by": done.verified_by,
-                "atomic": !done.not_atomic,
-            });
-            if let Some(removed) = done.removed {
-                line["source_removed"] = removed.into();
+/// A signal that asks the run to end: SIGINT or SIGTERM, or Ctrl-C on
+/// Windows; never when none can be listened for.
+async fn interrupted() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{signal, SignalKind};
+        match (signal(SignalKind::interrupt()), signal(SignalKind::terminate())) {
+            (Ok(mut int), Ok(mut term)) => {
+                tokio::select! {
+                    _ = int.recv() => {}
+                    _ = term.recv() => {}
+                }
             }
-            let _ = writeln!(out, "{line}");
-        } else {
-            let how = match &sha256 {
-                Some(hex) => format!("{} bytes, SHA-256 {hex} (far side: {})", done.bytes, done.verified_by),
-                None => format!("{} bytes, renamed on the server", done.bytes),
-            };
-            let source = match done.removed {
-                Some(true) => "; the source is gone",
-                Some(false) => "; the source stays",
-                None => "",
-            };
-            log.verbose(&format!("{} -> {}: {how}{source}", done.source, done.destination));
+            _ => std::future::pending().await,
         }
     }
-    let Some((source, failed)) = &outcome.failed else { return 0 };
-    if jsonl {
-        let line = serde_json::json!({
-            "event": "error",
-            "source": source,
-            "message": failed.message,
-            "code": failed.fault.code(),
-        });
-        let _ = writeln!(out, "{line}");
+    #[cfg(windows)]
+    {
+        if tokio::signal::ctrl_c().await.is_err() {
+            std::future::pending::<()>().await;
+        }
     }
-    log.error(&failed.message);
-    failed.fault.code()
 }
 
 /// Run each copy of the plan; `after` says what becomes of each source.

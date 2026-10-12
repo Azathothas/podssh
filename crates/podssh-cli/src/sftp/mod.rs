@@ -40,6 +40,8 @@ pub struct SftpArgs {
     pub buffer: Option<String>,
     pub requests: Option<String>,
     pub sftp_options: Vec<String>,
+    /// `-l KBITS`: the bandwidth (T-145).
+    pub limit: Option<String>,
 }
 
 impl SftpArgs {
@@ -59,6 +61,7 @@ impl SftpArgs {
             subsystem: one("subsystem-name"),
             buffer: one("buffer-size"),
             requests: one("requests"),
+            limit: one("limit"),
             sftp_options: if m.try_contains_id("sftp-option").unwrap_or(false) {
                 m.get_many::<String>("sftp-option").map(|v| v.cloned().collect()).unwrap_or_default()
             } else {
@@ -113,6 +116,10 @@ pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, er
         Ok(pipe) => pipe,
         Err(why) => return refuse(err, &why),
     };
+    match args.limit.as_deref().map(|text| crate::cp::rate::parse("-l", text)).transpose() {
+        Ok(limit) => crate::cp::rate::set(limit),
+        Err(why) => return refuse(err, &why),
+    }
     // With no terminal the commands come from -b; a destination with a path
     // can still name one file to fetch.
     if args.batch.is_none() && !tty.stdin && server.path.is_empty() {
@@ -142,6 +149,7 @@ pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, er
     // sftp-server uses no agent (T-036): no agent channel is ever accepted.
     resolved.options.forward_agent = podssh_ssh::Agent::Off;
     let log = Arc::new(Log::new(resolved.options.log_level));
+    crate::cp::gauge::init(false, resolved.options.log_level == podssh_ssh::LogLevel::Quiet);
     for note in &resolved.notes {
         log.verbose(note);
     }
