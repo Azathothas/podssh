@@ -189,3 +189,115 @@ fn the_tree_flags_go_with_r() {
         assert!(err.contains("go with -r"), "{err}");
     }
 }
+
+/// A file that no copy can read for as long as the value lives: a FIFO on
+/// Unix (a walk skips it), a file held with no sharing on Windows.
+struct Unreadable(#[allow(dead_code)] Option<std::fs::File>);
+
+fn unreadable(path: &Path) -> Unreadable {
+    #[cfg(unix)]
+    {
+        let made = Command::new("mkfifo").arg(path).status().unwrap();
+        assert!(made.success(), "mkfifo");
+        Unreadable(None)
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        std::fs::write(path, b"held").unwrap();
+        let held = std::fs::OpenOptions::new().read(true).share_mode(0).open(path).unwrap();
+        Unreadable(Some(held))
+    }
+}
+
+/// The source copied once into the server's `dest`, where each later run of
+/// the same command lands again: `dest/src`.
+fn mirrored(home: &Path, port: u16) {
+    fixture(&home.join("src"));
+    std::fs::create_dir_all(home.join("dest")).unwrap();
+    let (rc, _, err) = cp(home, port, &["-r", "src", "u@127.0.0.1:dest"]);
+    assert_eq!(rc, 0, "{err}");
+    assert_eq!(listing(&home.join("dest/src")), listing(&home.join("src")));
+}
+
+#[test]
+fn delete_mirrors_the_target_and_keeps_what_it_must() {
+    need_server!();
+    let home = scratch("delete");
+    let (_runtime, port) = server(&home);
+    mirrored(&home, port);
+    // What the source lacks, an excluded name, and (on Unix) a link to a
+    // file outside the target.
+    let target = home.join("dest/src");
+    std::fs::write(target.join("extra.txt"), b"x").unwrap();
+    std::fs::create_dir_all(target.join("old/deep")).unwrap();
+    std::fs::write(target.join("old/deep/y"), b"y").unwrap();
+    std::fs::write(target.join("kept.log"), b"log").unwrap();
+    std::fs::write(home.join("outside.txt"), b"outside").unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(home.join("outside.txt"), target.join("link")).unwrap();
+    // A dry run names each delete, and changes nothing.
+    let run = |extra: &[&'static str]| {
+        let mut args = vec!["-r", "--delete", "--exclude", "*.log"];
+        args.extend_from_slice(extra);
+        args.extend(["src", "u@127.0.0.1:dest"]);
+        cp(&home, port, &args)
+    };
+    let (rc, out, err) = run(&["--dry-run"]);
+    assert_eq!(rc, 0, "{err}");
+    assert!(out.lines().any(|l| l == "delete dest/src/extra.txt"), "{out}");
+    assert!(out.lines().any(|l| l == "delete dest/src/old"), "{out}");
+    assert!(!out.contains("kept.log"), "{out}");
+    assert!(target.join("extra.txt").exists(), "a dry run deleted nothing");
+    // The mirror: what the source lacks goes; the excluded name, the file
+    // that the link named, and each file of the source stay.
+    let (rc, _, err) = run(&[]);
+    assert_eq!(rc, 0, "{err}");
+    assert!(err.contains("deleted, which the source does not have"), "{err}");
+    assert!(!target.join("extra.txt").exists() && !target.join("old").exists(), "{err}");
+    assert!(target.join("kept.log").exists(), "an excluded name is never deleted");
+    assert_eq!(std::fs::read(home.join("outside.txt")).unwrap(), b"outside", "never the file that a link names");
+    #[cfg(unix)]
+    assert!(std::fs::symlink_metadata(target.join("link")).is_err(), "the link went");
+    let mut want = listing(&home.join("src"));
+    want.insert("kept.log".into(), Some(b"log".to_vec()));
+    assert_eq!(listing(&target), want);
+    // Down, the same: a file here that the server's tree lacks goes.
+    std::fs::create_dir_all(home.join("back")).unwrap();
+    let (rc, _, err) = cp(&home, port, &["-r", "u@127.0.0.1:src", "back"]);
+    assert_eq!(rc, 0, "{err}");
+    std::fs::write(home.join("back/src/stale"), b"s").unwrap();
+    let (rc, _, err) = cp(&home, port, &["-r", "--delete", "u@127.0.0.1:src", "back"]);
+    assert_eq!(rc, 0, "{err}");
+    assert!(!home.join("back/src/stale").exists(), "{err}");
+    assert_eq!(listing(&home.join("back/src")), listing(&home.join("src")));
+}
+
+#[test]
+fn delete_after_a_failed_copy_deletes_nothing() {
+    need_server!();
+    let home = scratch("delete-failed");
+    let (_runtime, port) = server(&home);
+    mirrored(&home, port);
+    std::fs::write(home.join("dest/src/extra.txt"), b"x").unwrap();
+    let _held = unreadable(&home.join("src/cannot"));
+    let (rc, _, err) = cp(&home, port, &["-r", "--delete", "src", "u@127.0.0.1:dest"]);
+    assert_ne!(rc, 0, "{err}");
+    assert!(err.contains("nothing was deleted"), "{err}");
+    assert!(home.join("dest/src/extra.txt").exists(), "nothing deleted: {err}");
+}
+
+#[test]
+fn delete_refuses_the_login_directory_and_needs_r() {
+    need_server!();
+    let home = scratch("delete-home");
+    let (_runtime, port) = server(&home);
+    fixture(&home.join("src"));
+    // `.` as the source: the copy's root would be the login directory.
+    let (rc, _, err) = cp(&home, port, &["-r", "--delete", ".", "u@127.0.0.1:"]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("--delete may not take"), "{err}");
+    let (rc, _, err) = cp(&home, port, &["--delete", "src", "u@127.0.0.1:x"]);
+    assert_eq!(rc, 64, "{err}");
+    assert!(err.contains("go with -r"), "{err}");
+}

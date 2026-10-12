@@ -92,6 +92,38 @@ rc=$?
     && ok cp.tree.down "cp -r down: the digests agree, the link is a link" \
     || bad cp.tree.down "cp -r down: exit $rc" "$CW/err"
 
+# --delete (T-144): the target becomes a mirror: what the source lacks goes,
+# and an excluded name and the file that a link names stay. A copy that
+# fails (a FIFO in the source) deletes nothing.
+rm -f "$TR/fifo"
+mkdir -p "$RD/m"
+chown podtest:podtest "$RD/m"
+c 2201 -r "$TR" "$T:cp/m" >/dev/null 2>"$CW/err"
+printf x >"$RD/m/tree/extra"
+mkdir -p "$RD/m/tree/old/deep"
+printf y >"$RD/m/tree/old/deep/y"
+printf log >"$RD/m/tree/kept.log"
+printf outside >"$CW/outside"
+ln -s "$CW/outside" "$RD/m/tree/out-link"
+# What this script made as root in the server's tree is its user's, as
+# its own files are.
+chown -hR podtest:podtest "$RD/m/tree"
+c 2201 -r --delete --exclude '*.log' "$TR" "$T:cp/m" >"$CW/out" 2>"$CW/err"
+rc=$?
+[ "$rc" = 0 ] && [ ! -e "$RD/m/tree/extra" ] && [ ! -e "$RD/m/tree/old" ] && [ -f "$RD/m/tree/kept.log" ] \
+    && [ ! -L "$RD/m/tree/out-link" ] && [ "$(cat "$CW/outside")" = outside ] \
+    && [ "$(lists "$TR")" = "$(cd "$RD/m/tree" && find . -type f ! -name kept.log -exec sha256sum {} + | sort)" ] \
+    && ok cp.delete.mirror "cp -r --delete: what the source lacks went; the excluded name and the link's file stayed" \
+    || bad cp.delete.mirror "cp -r --delete: exit $rc" "$CW/err"
+printf z >"$RD/m/tree/extra2"
+mkfifo "$TR/fifo2"
+c 2201 -r --delete "$TR" "$T:cp/m" >"$CW/out" 2>"$CW/err"
+rc=$?
+rm -f "$TR/fifo2"
+[ "$rc" != 0 ] && grep -q "nothing was deleted" "$CW/err" && [ -f "$RD/m/tree/extra2" ] \
+    && ok cp.delete.failed "cp -r --delete after a failed copy: nothing deleted" \
+    || bad cp.delete.failed "cp -r --delete after a failed copy: exit $rc" "$CW/err"
+
 # --delta (T-142): over an older version, only the blocks of 1 MiB that
 # changed go: -v says how many bytes, and no full copy follows.
 # delta_sent: the bytes that -v says the delta sent.

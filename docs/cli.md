@@ -501,6 +501,14 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   removes the source once each item of it is copied. A directory goes up or
   down, over SFTP, not between two servers. `-p` is refused by name until
   the times are kept (T-146).
+- **`--delete`** (T-144), with `-r`, makes the copy's root a mirror: what
+  it holds and the source lacks goes, a directory after what it holds, at
+  the end of the run and only when each copy of the run succeeded; after a
+  failed copy nothing goes, and stderr says so. An excluded name never
+  goes, nor the file that a link names (the link goes). A root of a file
+  system and the home directory are refused as the root (64). `--dry-run`
+  lists each `delete`; at the end stderr gives the number of deletes, and
+  `-v` and `--jsonl` give each one.
 - **A server with no SFTP subsystem gets a copy by exec**
   (`crates/podssh-cli/src/cp/byexec.rs`), and podssh says so once. Each
   step is one command on a channel with no pty, `sh -c 'SCRIPT' sh PATH...`:

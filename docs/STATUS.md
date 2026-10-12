@@ -322,6 +322,16 @@ is written outside the target, and the rest of the tree comes. Planted, no
 check of the names: the file that `../escape` names is written outside the
 target, and the test fails.
 
+`cp -r --delete` (T-144; Windows 11, 2026-10-12, `cargo test -p podssh-cli
+--test cp_tree -- delete`, 3 passed; the build image, `cp.delete.*` against
+OpenSSH): what the target has and the source lacks goes, a directory after
+what it holds; an excluded name stays, a link goes and the file that it
+named stays; a dry run lists each `delete` and changes nothing; down, a
+file here that the server's tree lacks goes. A copy that fails (a FIFO on
+Linux, a file held with no sharing on Windows) deletes nothing, and stderr
+says so. `.` as the source of a copy to the login directory is refused
+(64). Planted, deletes after a failed copy: that test fails.
+
 ## `podssh keygen`, measured
 
 | Check | Result |

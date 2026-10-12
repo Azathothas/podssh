@@ -63,6 +63,24 @@ fn failed(outcome: &mut Outcome, log: &Log, name: String, failed: Failed) {
     outcome.failed.get_or_insert((name, failed));
 }
 
+/// Whether `--delete` may not take `root` as its target: the root of a file
+/// system, or the home directory (`home`). The answer says why.
+fn refused_root(root: &str, home: Option<&str>) -> Option<String> {
+    let trimmed = root.trim_end_matches(['/', '\\']);
+    // A path that Windows gives in its verbatim form (`\\?\C:\`).
+    let trimmed = trimmed.strip_prefix(r"\\?\").unwrap_or(trimmed);
+    let drive_root = trimmed.len() == 2 && trimmed.ends_with(':');
+    if trimmed.is_empty() || drive_root || trimmed == "." {
+        return Some(format!("--delete may not take {root:?}, the root of a file system or the home directory"));
+    }
+    match home {
+        Some(home) if home.trim_end_matches(['/', '\\']).eq_ignore_ascii_case(trimmed) => {
+            Some(format!("--delete may not take {root}, the home directory"))
+        }
+        _ => None,
+    }
+}
+
 /// Copy the directory `source` to `dest` over `link`: up or down.
 #[allow(clippy::too_many_arguments)]
 pub async fn copy(
@@ -114,6 +132,13 @@ async fn up(
     let into =
         many || dst.path.is_empty() || dst.path.ends_with('/') || sftp.stat(&dst.path).await.is_ok_and(|a| a.is_dir());
     let root = if into { remote_join(&dst.path, &leaf) } else { dst.path.clone() };
+    if tree.delete {
+        let real = sftp.realpath(if root.is_empty() { "." } else { &root }).await.unwrap_or_else(|_| root.clone());
+        let home = sftp.realpath(".").await.ok();
+        if let Some(why) = refused_root(&real, home.as_deref()).or_else(|| refused_root(&root, None)) {
+            return failed(outcome, log, root, Failed::new(Fault::Usage, why));
+        }
+    }
     let items = tree::walk_local(Path::new(src), tree);
     let mut dirs = Vec::new();
     let mut clean = true;
@@ -163,7 +188,7 @@ async fn up(
                     continue;
                 }
                 let Some(sftp) = sftp_of(link) else { return };
-                if let Err(e) = sftp.symlink(&target, names).await {
+                if let Err(e) = far_link(sftp, &target, names).await {
                     clean = false;
                     failed(outcome, log, target, transfer::from_sftp(e, Side::Destination));
                 }
@@ -188,9 +213,63 @@ async fn up(
             }
         }
     }
+    // --delete: what the target has and the source lacks; it goes at the end
+    // of the run, once each copy of it succeeded (T-144).
+    if tree.delete {
+        if let Some(sftp) = sftp_of(link) {
+            let target = tree::walk_far(sftp, &root, &Tree { follow: false, ..tree.clone() }, false).await;
+            for item in tree::to_delete(&items, &target) {
+                let path = remote_join(&root, tree::rel_of(&item));
+                if tree.dry_run {
+                    outcome.planned.push(("delete", String::new(), path));
+                } else {
+                    outcome.pending.push(Pending { far: true, dir: matches!(item, Item::Dir { .. }), path });
+                }
+            }
+        }
+    }
     // mv -r: the source goes once each item of it is copied.
     if moving && clean && !tree.dry_run {
         remove_local(src, &items, log);
+    }
+}
+
+/// A delete of `--delete` that waits for the end of the run: on the server
+/// or here, a directory or not.
+pub struct Pending {
+    pub far: bool,
+    pub dir: bool,
+    pub path: String,
+}
+
+/// The deletes of the run, at its end: each one when no copy of the run
+/// failed; else none, which is said (T-144).
+pub async fn finish_deletes(link: &Option<Link>, outcome: &mut Outcome, log: &Log) {
+    let pending = std::mem::take(&mut outcome.pending);
+    if pending.is_empty() {
+        return;
+    }
+    if outcome.failed.is_some() {
+        log.info(&format!("a copy failed, so nothing was deleted ({} would have been)", pending.len()));
+        return;
+    }
+    for item in pending {
+        let removed = if item.far {
+            match sftp_of(link) {
+                Some(sftp) if item.dir => {
+                    sftp.rmdir(&item.path).await.map_err(|e| transfer::from_sftp(e, Side::Destination))
+                }
+                Some(sftp) => sftp.remove(&item.path).await.map_err(|e| transfer::from_sftp(e, Side::Destination)),
+                None => Err(Failed::new(Fault::SessionFault, format!("{}: no connection was left", item.path))),
+            }
+        } else {
+            let gone = if item.dir { std::fs::remove_dir(&item.path) } else { std::fs::remove_file(&item.path) };
+            gone.map_err(|e| Failed::new(Fault::CantCreate, format!("{}: {e}", item.path)))
+        };
+        match removed {
+            Ok(()) => outcome.deleted.push(item.path),
+            Err(f) => failed(outcome, log, item.path, f),
+        }
     }
 }
 
@@ -213,6 +292,17 @@ async fn down(
     }
     let into = many || Path::new(dst).is_dir();
     let root = if into { Path::new(dst).join(&leaf) } else { PathBuf::from(dst) };
+    if tree.delete {
+        let real = std::fs::canonicalize(&root)
+            .map(|p| p.display().to_string())
+            .unwrap_or_else(|_| root.display().to_string());
+        let home = std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")).ok();
+        let home = home.and_then(|h| std::fs::canonicalize(h).ok()).map(|p| p.display().to_string());
+        let shown_root = root.display().to_string();
+        if let Some(why) = refused_root(&real, home.as_deref()).or_else(|| refused_root(&shown_root, None)) {
+            return failed(outcome, log, shown_root, Failed::new(Fault::Usage, why));
+        }
+    }
     let Some(sftp) = sftp_of(link) else { return };
     let items = tree::walk_far(sftp, &src.path, tree, cfg!(windows)).await;
     let mut dirs = Vec::new();
@@ -286,6 +376,20 @@ async fn down(
     }
     #[cfg(not(unix))]
     let _ = dirs;
+    // --delete: what the target has and the source lacks; it goes at the end
+    // of the run (T-144).
+    if tree.delete && root.is_dir() {
+        let mut target = tree::walk_local(&root, &Tree { follow: false, ..tree.clone() });
+        target.retain(|i| !matches!(i, Item::Skip { .. }));
+        for item in tree::to_delete(&items, &target) {
+            let path = local_join(&root, tree::rel_of(&item)).display().to_string();
+            if tree.dry_run {
+                outcome.planned.push(("delete", String::new(), path));
+            } else {
+                outcome.pending.push(Pending { far: false, dir: matches!(item, Item::Dir { .. }), path });
+            }
+        }
+    }
     if moving && clean && !tree.dry_run {
         if let Some(sftp) = sftp_of(link) {
             remove_far(sftp, &src.path, &items, log).await;
@@ -293,8 +397,40 @@ async fn down(
     }
 }
 
-/// A symbolic link at `at` that names `names`.
+/// A symbolic link at `target` on the server that names `names`: one that a
+/// copy before made stays, and anything else there is replaced, as a file
+/// is (a link cannot be made over a name that exists).
+async fn far_link(sftp: &Sftp, target: &str, names: &str) -> Result<(), podssh_ssh::sftp::SftpError> {
+    if let Ok(attrs) = sftp.lstat(target).await {
+        if attrs.is_symlink() && sftp.readlink(target).await.is_ok_and(|now| now == names) {
+            return Ok(());
+        }
+        if attrs.is_dir() {
+            sftp.rmdir(target).await?;
+        } else {
+            sftp.remove(target).await?;
+        }
+    }
+    sftp.symlink(target, names).await
+}
+
+/// A symbolic link at `at` that names `names`: one there that names the same
+/// stays, and another file or link there is replaced.
 fn make_link(at: &Path, names: &str) -> std::io::Result<()> {
+    if let Ok(meta) = std::fs::symlink_metadata(at) {
+        if meta.file_type().is_symlink() && std::fs::read_link(at).is_ok_and(|now| now == Path::new(names)) {
+            return Ok(());
+        }
+        if meta.is_dir() {
+            std::fs::remove_dir(at)?;
+        } else {
+            std::fs::remove_file(at)?;
+        }
+    }
+    new_link(at, names)
+}
+
+fn new_link(at: &Path, names: &str) -> std::io::Result<()> {
     #[cfg(unix)]
     {
         std::os::unix::fs::symlink(names, at)

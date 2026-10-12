@@ -75,6 +75,8 @@ pub struct CpArgs {
     pub excludes: Vec<String>,
     pub exclude_from: Option<String>,
     pub dry_run: bool,
+    /// `--delete` (T-144).
+    pub delete: bool,
 }
 
 impl CpArgs {
@@ -121,6 +123,7 @@ impl CpArgs {
             excludes: many("exclude"),
             exclude_from,
             dry_run: flag("dry-run"),
+            delete: flag("delete"),
         }
     }
 }
@@ -134,14 +137,18 @@ struct Outcome {
     recorded: Vec<Before>,
     /// The actions of a dry run (T-143), in their order.
     planned: Vec<tree_copy::Planned>,
+    /// What `--delete` removed (T-144), and what waits for the end of the
+    /// run.
+    deleted: Vec<String>,
+    pending: Vec<tree_copy::Pending>,
 }
 
 /// What `-r` and its flags ask for (T-143); `None` without `-r`. `scp -r`
 /// follows links, as OpenSSH's does; `cp -r` copies them as links.
 fn tree_of(args: &CpArgs) -> Result<Option<tree::Tree>, String> {
     if !args.recursive {
-        if args.dry_run || !args.excludes.is_empty() || args.exclude_from.is_some() {
-            return Err("--dry-run, --exclude and --exclude-from go with -r".into());
+        if args.dry_run || args.delete || !args.excludes.is_empty() || args.exclude_from.is_some() {
+            return Err("--dry-run, --delete, --exclude and --exclude-from go with -r".into());
         }
         return Ok(None);
     }
@@ -151,7 +158,7 @@ fn tree_of(args: &CpArgs) -> Result<Option<tree::Tree>, String> {
             tree::read_excludes(std::path::Path::new(file)).map_err(|e| format!("--exclude-from {file}: {e}"))?,
         );
     }
-    Ok(Some(tree::Tree { excludes, dry_run: args.dry_run, follow: args.verb == "scp" }))
+    Ok(Some(tree::Tree { excludes, dry_run: args.dry_run, follow: args.verb == "scp", delete: args.delete }))
 }
 
 /// Run `podssh cp` or `podssh mv`; returns the process exit code.
@@ -267,10 +274,21 @@ fn report(outcome: &Outcome, jsonl: bool, out: &mut dyn Write, log: &Log) -> i32
                 "mkdir" => format!("mkdir {to}"),
                 "copy" => format!("copy {from} -> {to}"),
                 "link" => format!("link {from} -> {to}"),
+                "delete" => format!("delete {to}"),
                 _ => format!("skip {from}: {to}"),
             };
             let _ = writeln!(out, "{line}");
         }
+    }
+    for path in &outcome.deleted {
+        if jsonl {
+            let _ = writeln!(out, "{}", serde_json::json!({ "event": "deleted", "path": path }));
+        } else {
+            log.verbose(&format!("deleted {path}"));
+        }
+    }
+    if !outcome.deleted.is_empty() {
+        log.info(&format!("{} deleted, which the source does not have", outcome.deleted.len()));
     }
     for done in &outcome.done {
         let sha256 = done.sum.as_ref().map(digest::hex);

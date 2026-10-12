@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:226-244` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1254-1257`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1262-1265`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1465,7 +1465,7 @@ defect: no check of the names; the test of `../escape` failed.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1506,6 +1506,24 @@ outside it: after `--delete`, only the extra files are gone. When one copy
 fails (a source file that cannot be read), nothing is deleted. Plant:
 delete before the copies; the failing case must then fail the test.
 
+## Done
+
+2026-10-12. `crates/podssh-cli/src/cp/tree.rs` (`to_delete`) and
+`crates/podssh-cli/src/cp/tree_copy.rs` (`finish_deletes`). The calls made:
+the deletes of each tree wait for the end of the run, and go only when no
+copy of the run failed; the target's walk follows no link, and leaves out
+what the patterns name and what it cannot list; the root of a copy is
+refused when it is a root of a file system or the home directory, here or
+on the server (`realpath`), before anything is copied; a delete that fails
+is reported, and the others go on. A tree copied again over itself keeps a
+link that names the same, and replaces what else is at a link's name (the
+gate's mirror check found that SFTP's `symlink` does not overwrite). `cargo test -p podssh-cli --test cp_tree
+-- delete`: 3 passed (a mirror up with a dry run first, and down; nothing
+deleted after a failed copy; the login directory refused, and `--delete`
+without `-r`); the unit test of the deletes' order. In the build image
+against OpenSSH: `cp.delete.mirror` and `cp.delete.failed`. Planted defect:
+deletes after a failed copy; that test failed.
+
 # T-145: Progress, cancellation and a bandwidth limit for copies
 
 **Source:** GitHub #21 (MobaRust's progress and cancellation) and GitHub #25
@@ -1528,7 +1546,7 @@ uplink of a shared host.
 
 - Read: stdout carries answers only, and messages go to stderr
   (`crates/podssh-cli/src/dispatch.rs:3-7`). `cp` has a `--jsonl` row
-  (`crates/podssh-cli/src/flags/copy.rs:37-38`).
+  (`crates/podssh-cli/src/flags/copy.rs:39-40`).
 - Read: `podssh ssh` handles SIGTERM and SIGHUP only with a raw terminal
   (`crates/podssh-ssh/src/io.rs:461-494`); no copy code exists yet.
 - Measured (T-139): the `scp` and `sftp` of OpenSSH 10.3p1 take

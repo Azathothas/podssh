@@ -96,6 +96,8 @@ pub(super) async fn session(
             outcome.failed.get_or_insert((name, failed));
         }
     }
+    // --delete: once each copy of the run succeeded (T-144).
+    tree_copy::finish_deletes(&link, &mut outcome, log).await;
     if let Some(link) = link {
         link.close().await;
     }

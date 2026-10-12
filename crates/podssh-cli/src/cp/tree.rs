@@ -24,6 +24,9 @@ pub struct Tree {
     pub excludes: Vec<String>,
     pub dry_run: bool,
     pub follow: bool,
+    /// `--delete` (T-144): what the target has and the source lacks goes,
+    /// once each copy of the run succeeded.
+    pub delete: bool,
 }
 
 /// One thing of a tree, by its path under the root of the copy: components
@@ -116,6 +119,30 @@ pub fn read_excludes(path: &Path) -> std::io::Result<Vec<String>> {
         .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
         .map(str::to_string)
         .collect())
+}
+
+/// The path under the root of an item.
+pub fn rel_of(item: &Item) -> &str {
+    match item {
+        Item::Dir { rel, .. } | Item::File { rel } | Item::Link { rel, .. } | Item::Skip { rel, .. } => rel,
+    }
+}
+
+/// What `--delete` removes: each item of the target that the source does
+/// not have, a directory after what it holds; never the root, never a
+/// skipped item.
+pub fn to_delete(source: &[Item], target: &[Item]) -> Vec<Item> {
+    let kept: HashSet<&str> = source.iter().map(rel_of).collect();
+    let mut gone: Vec<Item> = target
+        .iter()
+        .filter(|i| !matches!(i, Item::Skip { .. }) && !rel_of(i).is_empty() && !kept.contains(rel_of(i)))
+        .cloned()
+        .collect();
+    // The deepest first: a directory's contents before it.
+    gone.sort_by(|a, b| {
+        rel_of(b).matches('/').count().cmp(&rel_of(a).matches('/').count()).then(rel_of(b).cmp(rel_of(a)))
+    });
+    gone
 }
 
 fn join(rel: &str, name: &str) -> String {
@@ -314,6 +341,27 @@ mod tests {
         std::fs::write(&path, "# comment\n*.tmp\r\n\n  \nbuild/\n").unwrap();
         assert_eq!(read_excludes(&path).unwrap(), vec!["*.tmp".to_string(), "build/".to_string()]);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn delete_takes_what_the_source_lacks_the_deepest_first() {
+        let dir = |r: &str| Item::Dir { rel: r.into(), mode: None };
+        let file = |r: &str| Item::File { rel: r.into() };
+        let source = [dir(""), dir("a"), file("a/keep"), file("top")];
+        let target = [
+            dir(""),
+            dir("a"),
+            file("a/keep"),
+            file("a/extra"),
+            dir("old"),
+            dir("old/deeper"),
+            file("old/deeper/x"),
+            Item::Link { rel: "link".into(), target: "/etc/passwd".into() },
+            Item::Skip { rel: "fifo".into(), why: "a FIFO".into() },
+            file("top"),
+        ];
+        let rels: Vec<String> = to_delete(&source, &target).iter().map(|i| rel_of(i).to_string()).collect();
+        assert_eq!(rels, ["old/deeper/x", "old/deeper", "a/extra", "old", "link"]);
     }
 
     #[test]
