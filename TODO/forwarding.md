@@ -207,9 +207,9 @@ remote host that must use the key, such as `git` on a build host.
 1. `-A` and `-o ForwardAgent=yes|no|PATH` turn the forward on; it is off by
    default. Move `ForwardAgent` from `IGNORED` to `HONOURED`
    (`crates/podssh-cli/src/ssh/keywords.rs:25-98`). Change the help of `-a`
-   (`crates/podssh-cli/src/flags.rs:213-214`, the row `no-agent-forwarding`).
+   (`crates/podssh-cli/src/flags.rs:215-216`, the row `no-agent-forwarding`).
 2. On the destination's session channel, send `auth-agent-req@openssh.com`
-   before the shell or exec request (`crates/podssh-ssh/src/session.rs:100-124`).
+   before the shell or exec request (`crates/podssh-ssh/src/session.rs:109-133`).
    Never to a jump hop.
 3. In the handler, accept `auth-agent@openssh.com` only when `-A` was given
    for this connection. For each such channel, connect to the agent with the
@@ -368,7 +368,7 @@ X11 channel.
    allows. Else refuse `-X`, and name `-Y`.
 5. Move `ForwardX11`, `ForwardX11Trusted`, `ForwardX11Timeout` and
    `XAuthLocation` to `HONOURED`. Change the help of `-x`
-   (`crates/podssh-cli/src/flags.rs:208-209`).
+   (`crates/podssh-cli/src/flags.rs:210-211`).
 6. On Windows, a `DISPLAY` such as `localhost:0` (VcXsrv, X410) is TCP port
    6000. The X server's connection is local and named by the user, as the
    agent's connection is (`crates/podssh-ssh/src/keys.rs:334-371`, `connect_agent`).
@@ -427,11 +427,11 @@ it (`SECURITY.md`, "Design rules").
 
 2026-10-11. The display, the authority file, the probe, the request and the
 swap of the cookie in `crates/podssh-ssh/src/x11.rs:1-339`; the session asks
-(`crates/podssh-ssh/src/session.rs:93-95`) and the handler joins an `x11`
+(`crates/podssh-ssh/src/session.rs:98-100`) and the handler joins an `x11`
 channel when the destination's run asked
 (`crates/podssh-ssh/src/handler.rs:249-262`). The plan and the probe of the
 command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
-`crates/podssh-cli/src/flags.rs:262-265`, and the keywords, honoured now, at
+`crates/podssh-cli/src/flags.rs:264-267`, and the keywords, honoured now, at
 `crates/podssh-cli/src/ssh/keywords.rs:44-46` and
 `crates/podssh-cli/src/ssh/keywords.rs:78`.
 - `cargo test -p podssh-ssh --lib -- x11`: 4 passed: `DISPLAY` as Xlib reads
@@ -458,7 +458,7 @@ command line in `crates/podssh-cli/src/ssh/x11.rs:1-153`, the flags at
   this Xvfb takes an untrusted cookie of `xauth` at all
   (`scripts/interop-x11.sh:37-51`): env when it does not, a failure when it
   does and podssh's `-X` fails.
-- `docs/cli.md:348-371`, a note of the manual and the variable `XAUTHORITY`
+- `docs/cli.md:363-386`, a note of the manual and the variable `XAUTHORITY`
   say what the flags do, and the risk of `-Y`.
 - `cargo test -p podssh-ssh`: 155 passed; `cargo test -p podssh-cli`:
   577 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -494,7 +494,7 @@ AF_UNIX.
 - Read: `AGENTS.md:191-196` (no bind, no listen),
   `docs/target-environment.md:74-78` (rule 3), `SECURITY.md:94-111` ("Nothing
   listens") and `README.md:38-44` state the rule from before the ruling.
-  `docs/design.md:451-453` already allows a local listener for `pipe` after
+  `docs/design.md:458-460` already allows a local listener for `pipe` after
   a probe.
 - Read: the Podman box refuses each `bind` (`scripts/box/seccomp.json:5-10`),
   so it tests the refusal.
@@ -900,7 +900,7 @@ as a TCP host again, and the gate's check fails with the server's error.
 (`crates/podssh-ssh/src/options.rs:164-181`), opened by `open_target`
 (`crates/podssh-ssh/src/forward.rs:24-37`); through a control master
 (`crates/podssh-ssh/src/mux/client.rs:177-192`,
-`crates/podssh-ssh/src/mux/msession.rs:242-249`). The command line reads a
+`crates/podssh-ssh/src/mux/msession.rs:244-251`). The command line reads a
 path at `crates/podssh-cli/src/ssh/hop.rs:86-89`, and the row of `-W` says so
 (`crates/podssh-cli/src/flags.rs:139-140`).
 - `cargo test -p podssh-cli --test ssh_stdio_socket`: 2 passed. The test of
@@ -942,7 +942,7 @@ many bytes moved.
 
 Read: today the only forward is `-W` (`crates/podssh-ssh/src/forward.rs:39-110`),
 and it counts nothing. The escapes are `~.`, `~R`, `~?` and `~~`
-(`crates/podssh-ssh/src/escape.rs:1-15`); OpenSSH also has `~#`, which lists
+(`crates/podssh-ssh/src/escape.rs:1-19`); OpenSSH also has `~#`, which lists
 the forwarded connections. `podssh status` (T-051) runs in another process,
 so it cannot see the forwards of a session without a state file or a
 listener.
@@ -952,8 +952,8 @@ listener.
 1. Count, for each forward: the connections opened, closed and failed, and
    the bytes in each direction. Keep the counters in the forward's own task;
    put no lock on the data path.
-2. Add `~#` to the escapes (`crates/podssh-ssh/src/escape.rs:7-15`) and to its
-   help (`crates/podssh-ssh/src/escape.rs:78-86`): one line for each forward,
+2. Add `~#` to the escapes (`crates/podssh-ssh/src/escape.rs:9-19`) and to its
+   help (`crates/podssh-ssh/src/escape.rs:99-107`): one line for each forward,
    with its counts.
 3. At the end of a session, with `-v`, print one line for each forward. Do
    not call it "Transferred": OpenSSH's line of that name counts the bytes of
@@ -999,7 +999,7 @@ count each chunk twice, and the unit test fails.
 and `crates/podssh-ssh/src/remote.rs:147`, `-W` at
 `crates/podssh-ssh/src/forward.rs:42` and
 `crates/podssh-ssh/src/forward.rs:53`; `~#` at
-`crates/podssh-ssh/src/escape.rs:47` and `crates/podssh-ssh/src/io.rs:236`,
+`crates/podssh-ssh/src/escape.rs:67` and `crates/podssh-ssh/src/io.rs:241`,
 and the lines of `-v` at `crates/podssh-ssh/src/run.rs:247`.
 - `cargo test -p podssh-ssh -- forward_counts`: 3 passed: 262144 bytes up and
   1000 down through a forward's copy, counted once, with one connection; one
@@ -1014,7 +1014,7 @@ and the lines of `-v` at `crates/podssh-ssh/src/run.rs:247`.
   -W` through OpenSSH's sshd to a TCP echo server, 262144 bytes each way) and
   `pty.forwards` (`scripts/interop-pty.py`, `~#` in a session with `-R
   0:127.0.0.1:2201`).
-- `docs/cli.md:225-230` and the manual's note of `-t` say what `~#` and `-v`
+- `docs/cli.md:240-245` and the manual's note of `-t` say what `~#` and `-v`
   print.
 - `cargo test -p podssh-ssh`: 158 passed; `cargo test -p podssh-cli`:
   578 passed, 0 failed, 31 ignored; clippy; rustfmt.
@@ -1142,7 +1142,7 @@ link: the mode at `crates/podssh-cli/src/ssh/persist.rs:38-45` and
 serves `-L` and `-D`, and tells a loss from an end
 (`crates/podssh-ssh/src/persist.rs:57-62`); a refused `-R` asked again in
 `crates/podssh-ssh/src/remote.rs:46-115`, as `Options::forwards_again` says
-(`crates/podssh-ssh/src/options.rs:292-301`), which the loop sets after the
+(`crates/podssh-ssh/src/options.rs:295-304`), which the loop sets after the
 first loss (`crates/podssh-cli/src/ssh/persist.rs:163-172`); the rule of
 `STEADY` at `crates/podssh-cli/src/ssh/persist.rs:142-148`.
 - `cargo test -p podssh-cli --test persist`: 5 passed. The new test runs
@@ -1360,7 +1360,7 @@ counts, and cannot change them.
 ## Premise
 
 Read: the escapes are `~.`, `~R`, `~#`, `~?` and `~~`
-(`crates/podssh-ssh/src/escape.rs:9-15`). The listeners of `-L` and `-D` are
+(`crates/podssh-ssh/src/escape.rs:11-19`). The listeners of `-L` and `-D` are
 served from the start of the session (`crates/podssh-ssh/src/local.rs:125-146`),
 and `-R` is asked for after the login (`crates/podssh-ssh/src/remote.rs:46-110`).
 ssh(1), ESCAPE CHARACTERS: `~C` opens a command line that takes `-L`, `-R`,

@@ -170,13 +170,28 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   nothing (as `BatchMode=yes`), unless `SSH_ASKPASS_REQUIRE=force` names a
   program of `SSH_ASKPASS` to ask. With `-N` and no forward, or with
   `--persist-name`, it is a usage error (64).
+- **`--attach NAME DEST` joins a shell that the far end keeps** (T-158),
+  from a new podssh process or from another host; `--attach DEST` with no
+  other word lists the kept shells, one on each line, and exits 0. Only a
+  far end of `node://NAME` that names `keep.v1` in the resumable layer
+  keeps shells: another destination is a usage error (64), and a far end
+  that keeps none ends the run with 255 before a session opens. In a
+  session with a pty there, `~d` asks the far end to keep the shell,
+  prints the name that it keeps it as, and exits 0; elsewhere `~d` goes to
+  the server as typed ([terminal.md](terminal.md), "Detach and attach
+  again"). The far end gives a shell to one client at a time: `--take`
+  takes it from the client that has it, whose session ends. It refuses an
+  attach from inside the shell itself, which `PODSSH_SHELL_ID` names. Its
+  refusal is its words on stderr and its exit status. With a command,
+  `-N`, `-W`, `-s`, `-T`, `RemoteCommand` or `--persist`, `--attach` is a
+  usage error (64), and a control master does not carry it.
 - **`--result-file FILE` writes the result of the run as JSON** (T-054), at
   its end, also when it failed before it connected, so that a script tells
   the remote command's status from a failure of podssh with no parsing of
   stderr: `schema`, `exit` (the code that podssh exits with), `status` (the
   remote exit status, or null), `signal` (`name` and `core_dumped`, or
   null), `end` (`status`, `signal`, `no-status`, `lost`, `escaped`,
-  `terminated`, `failed`, or `shared`; null with no session, as with `-W`),
+  `terminated`, `detached`, `failed`, or `shared`; null with no session, as with `-W`),
   `failure` (`connect`, `host-key`, `auth`, `forward`, `relay`, `session`,
   `usage`, `config` or `not-built`, or null: `connect` also when podssh got
   no session for another cause), `bytes` (`stdin`, `stdout`

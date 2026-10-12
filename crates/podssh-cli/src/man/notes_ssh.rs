@@ -55,7 +55,8 @@ pub const SSH: &[&str] = &[
     "What podssh reads from the terminal: in a session with a pty, the escape character (~, or that of \
      -e; -e none turns it off) at the start of a line, and the key after it: ~. ends the session, ~R asks \
      for a re-key, ~# lists the forwards of the session with the connections and bytes of each (with -v, \
-     the end of a run prints the same lines), ~? lists the escapes, and ~~ sends one ~; another key goes \
+     the end of a run prints the same lines), ~d leaves the shell to a far end that keeps shells (see \
+     --attach) and goes as typed elsewhere, ~? lists the escapes, and ~~ sends one ~; another key goes \
      with the ~ before it. Each other byte passes unchanged, as the remote side reads it: Ctrl-C, Ctrl-Z, \
      Ctrl-D, Escape, the sequences of the keys, the mouse and a paste. A resize of the terminal sends the \
      new size. With no pty, podssh reads no byte: stdin is the command's data, and Ctrl-C is the local \
@@ -101,6 +102,16 @@ pub const SSH: &[&str] = &[
      change, and the new one is printed. The logins after the first ask nothing, unless \
      SSH_ASKPASS_REQUIRE is force and SSH_ASKPASS names a program to ask. With no forward, or \
      --persist-name, -N with --persist is refused (exit 64).",
+    "--attach NAME DEST joins the shell that the far end keeps as NAME, and --attach DEST with no other \
+     word lists the shells kept there, one on each line, then exits 0. A far end that keeps shells says \
+     so in the resumable layer of node://NAME; a podssh node in front of an SSH server keeps none, and \
+     then --attach ends with 255 before a session opens. In a session with a pty there, ~d asks the far \
+     end to keep the shell, prints the name that it keeps it as, and exits 0; elsewhere ~d is sent as \
+     typed. The far end gives a shell to one client at a time: --take takes it from the client that has \
+     it, whose session ends. It refuses an attach from inside the shell itself: it puts PODSSH_SHELL_ID \
+     in each shell's environment, and podssh sends that value. A refusal of the far end comes as its \
+     words on stderr and its exit status. Another destination, a command, -N, -W, -s, -T or --persist \
+     with --attach is refused (exit 64). Against a standard sshd, --persist keeps the shell in tmux.",
     "-A forwards the agent, off by default as in OpenSSH; -a turns it off, and the last of the two wins, \
      over the keyword ForwardAgent. podssh asks for it on the session, never on a jump host, and joins each \
      agent channel that the server opens to the agent that podssh logs in with (IdentityAgent, else \
@@ -151,7 +162,7 @@ pub const SSH: &[&str] = &[
     "--result-file FILE writes one JSON object to FILE at the end of each run, also of one that failed \
      before it connected: schema, exit (the code that podssh exits with), status (the remote exit status, \
      or null), signal (its name and core_dumped, or null), end (status, signal, no-status, lost, escaped, \
-     terminated, failed, or shared through a control master, which tells the exit code alone; null with no \
+     terminated, detached, failed, or shared through a control master, which tells the exit code alone; null with no \
      session, as with -W), failure (connect, host-key, auth, forward, relay, session, usage, config or \
      not-built, or null), bytes (stdin, stdout and stderr, as they passed; null through a control master, \
      which carries them), duration_ms, and relay (its host, close_code and reason, or null with no relay). \

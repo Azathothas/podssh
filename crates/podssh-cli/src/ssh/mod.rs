@@ -9,6 +9,7 @@
 
 mod agents;
 pub mod args;
+mod attach;
 pub mod cloudflare;
 pub mod config;
 pub mod control;
@@ -75,6 +76,9 @@ fn run(args: &SshArgs, err: &mut dyn Write) -> i32 {
         let _ = writeln!(err, "podssh {} (SSH: russh, aws-lc-rs)", env!("CARGO_PKG_VERSION"));
         return 0;
     }
+    // `--attach DEST` alone lists the kept shells at DEST (T-158).
+    let listed = attach::listing(args);
+    let args = listed.as_ref().unwrap_or(args);
     // Before anything is resolved or connects: the road is not in this build.
     if let Some(destination) = args.destination.as_deref().filter(|d| iroh::is_iroh(d) && !cfg!(feature = "iroh")) {
         let _ = writeln!(err, "podssh ssh: {}", iroh::refusal(destination));

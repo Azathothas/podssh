@@ -2,7 +2,7 @@ This file holds the defects of the line discipline in `crates/podssh-terminal`,
 the rows L1 to L5 of the former defects page (`git show 3ee70dc:docs/defects.md`),
 as T-125 to T-129. `podssh serve` needs the crate on a host with no
 `/dev/ptmx` (T-111), so they come before it. No command uses the crate yet
-(`docs/STATUS.md:473`), so each defect is P2 at most. Three small terminal
+(`docs/STATUS.md:474`), so each defect is P2 at most. Three small terminal
 items for the backlog follow.
 
 # T-125: L1: the mode selection of the line discipline is the wrong way round
@@ -52,7 +52,7 @@ a local echo to the echo of the remote pty, so each key shows two times.
    discipline (T-111); a client flag can select it later. Invariant: the
    absence of a pty alone never selects `Cooked`.
 5. Rewrite the tests above to the new table. Same commit:
-   `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:473`, and the module notes
+   `docs/terminal.md` ("Select a mode"), `docs/STATUS.md:474`, and the module notes
    (`crates/podssh-terminal/src/session.rs:1-46`,
    `crates/podssh-terminal/src/lib.rs:18-34`). Remove the warning markers
    from the lines that you change (`AGENTS.md:207-208`).
@@ -144,7 +144,7 @@ writes over the rows above it.
 - Read, at `7e4a518`: the crate has its own `TERM` rule: it replaces `dumb` and
   `unknown`, and reads `PODSSH_TERM`
   (`git show 7e4a518:crates/podssh-terminal/src/term.rs`, lines 47-53). The documented rule
-  sends `TERM` unchanged (`docs/terminal.md:86-91`). The
+  sends `TERM` unchanged (`docs/terminal.md:88-93`). The
   manual does not name `PODSSH_TERM`, and its variable test does not read
   this crate (`crates/podssh-cli/src/man/facts/tests.rs:15-20`).
 
@@ -160,7 +160,7 @@ writes over the rows above it.
 4. One `TERM` rule: remove the crate's selection, because the caller sends
    the `TERM` of the request. Remove the unused `libc` dependency.
 5. Same commit: `docs/terminal.md` (who owns raw mode and the size),
-   `docs/STATUS.md:473`.
+   `docs/STATUS.md:474`.
 
 ## Decision
 
@@ -299,7 +299,7 @@ character takes two cells and counts as one.
 3. Backspace, Ctrl-W, Ctrl-D and the arrows act on whole characters; the
    rubout and the arrow echo use the cell count (`ESC [ n D`).
 4. The history keeps bytes (`Vec<u8>`), not lossy strings.
-5. Same commit: `docs/terminal.md:151-189` (the rules), `docs/STATUS.md:473`.
+5. Same commit: `docs/terminal.md:153-191` (the rules), `docs/STATUS.md:474`.
 
 ## Decision
 
@@ -411,7 +411,7 @@ next key with it: a letter is lost, and a Ctrl-C after Escape stops nothing.
    CSI state. Invariant: an escape never consumes Ctrl-C, Ctrl-D or Enter.
 3. A printable byte after a lone `ESC`: see Decision.
 4. Rewrite the tests that pin the loss. Same commit: `docs/terminal.md`
-   lines 104-111 at `a7648ff`, `docs/STATUS.md:473`.
+   lines 104-111 at `a7648ff`, `docs/STATUS.md:474`.
 
 ## Decision
 
@@ -551,12 +551,12 @@ that arrives during an edit is written over the edited line.
 2. Home, End, Ctrl-A and Ctrl-E send the motion: `ESC [ n D` or `ESC [ n C`
    by cells (T-127), or a redraw.
 3. The transparent mode of T-125 refuses nothing. Ctrl-Z, Ctrl-S and Ctrl-Q
-   stay refused in the cooked mode only (`docs/terminal.md:220-222`).
+   stay refused in the cooked mode only (`docs/terminal.md:222-224`).
 4. Output during an edit: `\r` and `ESC [ K` clear the edited line, the
    output is written, then the prompt and the line are drawn again with the
    cursor in place. Invariant: output never changes the line under edit.
 5. Rewrite the tests that pin the old behaviour. Same commit:
-   `docs/terminal.md` lines 142-151 at `cb94460`, `docs/STATUS.md:473`.
+   `docs/terminal.md` lines 142-151 at `cb94460`, `docs/STATUS.md:474`.
 
 ## Decision
 
@@ -656,7 +656,7 @@ and the program's output goes around the line under edit".
 
 **Source:** GitHub #18 and GitHub #19 (nikhiljha/rose
 `nikhiljha/rose:doc/spec.md`, lines 19-42, "Terminal Feature Boundary");
-`docs/terminal.md:191-228`.
+`docs/terminal.md:193-230`.
 **Category:** docs
 **Milestone:** backlog
 **Priority:** P3
@@ -673,10 +673,10 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
 
 - Read: in a session with a pty, the client acts only on the escape
   character at the start of a line: `~.`, `~R`, `~?` and `~~`
-  (`crates/podssh-ssh/src/escape.rs:1-15`, `crates/podssh-ssh/src/escape.rs:43-79`).
-  Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:191-223`).
+  (`crates/podssh-ssh/src/escape.rs:1-19`, `crates/podssh-ssh/src/escape.rs:63-100`).
+  Each other byte goes to the channel (`crates/podssh-ssh/src/io.rs:196-228`).
 - Read: the line discipline acts on the arrows, Home, End and its control
-  keys, and refuses other sequences (`docs/terminal.md:191-228`). T-128 and
+  keys, and refuses other sequences (`docs/terminal.md:193-230`). T-128 and
   T-129 change that list.
 - Read in the reports of GitHub #18 and #19, not verified here: rose states
   its terminal boundary in its spec. rose is GPL: read the spec, copy no code.
@@ -690,7 +690,7 @@ passes a sequence, a user can expect podssh to act on it. No page lists both.
 2. Put the same list in the manual's notes for `ssh`
    (`crates/podssh-cli/src/man/notes.rs:17-44`), and for `serve` when it
    exists.
-3. A drift test: each escape command of `crates/podssh-ssh/src/escape.rs:8-15`
+3. A drift test: each escape command of `crates/podssh-ssh/src/escape.rs:10-19`
    is in the note, and the note names no other.
 
 ## Decision
@@ -720,10 +720,10 @@ fails. The binary (`$BIN`) prints the note in its manual.
 
 ## Done
 
-2026-10-12. The table at `crates/podssh-ssh/src/escape.rs:17-26`, read by
-the input at `crates/podssh-ssh/src/escape.rs:49` and by `~?` at
-`crates/podssh-ssh/src/escape.rs:81-91`; the note at
-`crates/podssh-cli/src/man/notes_ssh.rs:55-62`, and the section "What
+2026-10-12. The table at `crates/podssh-ssh/src/escape.rs:21-32`, read by
+the input at `crates/podssh-ssh/src/escape.rs:63` and by `~?` at
+`crates/podssh-ssh/src/escape.rs:102-112`; the note at
+`crates/podssh-cli/src/man/notes_ssh.rs:55-63`, and the section "What
 podssh reads from the terminal" of `docs/terminal.md`. The tests:
 `the_terminal_note_names_each_escape` (`crates/podssh-cli/src/man/notes.rs`)
 finds the escapes `~.`, `~R`, `~#`, `~?` and `~~` in the note, and no other;
@@ -737,7 +737,7 @@ escape`: 7 passed; the manual's tests of `podssh-cli`: 42 passed.
 # T-131: Which servers honour the `signal` request for Ctrl-C with no remote pty
 
 **Source:** the section "Open" of `docs/terminal.md`, now the section "Ctrl-C
-with no remote pty" (`docs/terminal.md:249-278`).
+with no remote pty" (`docs/terminal.md:251-280`).
 **Category:** measurement
 **Milestone:** backlog
 **Priority:** P3
@@ -755,7 +755,7 @@ on it. podssh cannot select a behaviour without that fact.
 
 - Read: the section "Open" of `docs/terminal.md` recorded the question as
   open; the table and the decision took its place
-  (`docs/terminal.md:249-278`).
+  (`docs/terminal.md:251-280`).
 - Read: podssh's client never sends a `signal` request: no call in
   `crates/podssh-ssh/src`. With no remote pty, the local terminal stays in
   its normal mode (`docs/terminal.md:24`), so Ctrl-C stops podssh itself.
@@ -849,14 +849,14 @@ find a case that the 14 console checks of podssh do not cover.
   (raw mode, restored on drop and on panic),
   `crates/podssh-ssh/src/terminal/windows.rs:133-156` (pty modes),
   `crates/podssh-ssh/src/terminal/windows.rs:160-199` (prompts), and the size
-  poll every 500 ms (`crates/podssh-ssh/src/io.rs:411-459`). The checks of
+  poll every 500 ms (`crates/podssh-ssh/src/io.rs:419-467`). The checks of
   `scripts/interop-conpty.py` pass 14 of 14 (`docs/STATUS.md:79`).
 - Read: podssh sets no console code page, and remote output goes through
-  Rust's standard output (`crates/podssh-ssh/src/io.rs:349-362`). Rust's
+  Rust's standard output (`crates/podssh-ssh/src/io.rs:357-370`). Rust's
   documentation of `std::io::Stdout` says that a console refuses bytes that
   are not UTF-8. podssh then takes stdout as closed: it stops writing,
   sends the end of input, and waits for the exit status
-  (`crates/podssh-ssh/src/io.rs:297-304`). Not measured.
+  (`crates/podssh-ssh/src/io.rs:303-310`). Not measured.
 - Read in the report of GitHub #24, not verified here: csshw handles console
   color and ConPTY quirks in `whme/csshw:src/utils/windows.rs`.
 
@@ -865,7 +865,7 @@ find a case that the 14 console checks of podssh do not cover.
 1. Read csshw at the commit of the report (`6dd773b`). List each console
    mode, code page and call that it sets, and each quirk that it handles.
 2. Write a table in the section "The Windows console" of `docs/terminal.md`
-   (`docs/terminal.md:93-149`): each item of csshw against podssh, with
+   (`docs/terminal.md:95-151`): each item of csshw against podssh, with
    "same", "podssh lacks it" or "not needed", and the reason.
 3. Measure the candidates in a real console with `scripts/interop-conpty.py`:
    output that is not UTF-8 (`printf '\377'` on the server), the code page,
@@ -945,7 +945,7 @@ command is the process that the server started. podssh never sends it.
 - Measured (T-131): the table of `docs/terminal.md`, section "Ctrl-C with no
   remote pty", by `crates/podssh-ssh/tests/signal_request.rs`.
 - Read: with no remote pty the local terminal keeps its mode
-  (`crates/podssh-ssh/src/session.rs:131`), so Ctrl-C is SIGINT to podssh,
+  (`crates/podssh-ssh/src/session.rs:140`), so Ctrl-C is SIGINT to podssh,
   or `CTRL_C_EVENT` in a Windows console, and it ends podssh. No code of
   `crates/podssh-ssh/src` sends a `signal` request.
 - Read: OpenSSH's client sends none either; OpenSSH's sshd refuses one for
@@ -1002,13 +1002,13 @@ of Linux shows U+FFFD and goes on.
 - Measured (T-132): `output_after_a_byte_that_is_not_utf8_shows` in
   `crates/podssh-cli/tests/console.rs`, ignored until this entry: "before"
   shows, and "after" does not; podssh exits 0.
-- Read: `write_out` (`crates/podssh-ssh/src/io.rs:349-362`) writes with
+- Read: `write_out` (`crates/podssh-ssh/src/io.rs:357-370`) writes with
   `tokio::io::stdout()`, which writes with Rust's `Stdout`. On a console
   that writer turns UTF-8 into UTF-16, and refuses a byte that is not
   UTF-8 with `InvalidData`
   (`rust-lang/rust:library/std/src/sys/stdio/windows.rs`, `write`).
   `handle_msg` then marks stdout as gone
-  (`crates/podssh-ssh/src/io.rs:297-304`), and each later message goes
+  (`crates/podssh-ssh/src/io.rs:303-310`), and each later message goes
   nowhere.
 - Read: stderr has the same writer; there the rest of the one message is
   lost.
@@ -1041,7 +1041,7 @@ writes each sequence that is not UTF-8 as U+FFFD and holds a sequence that
 the end of a message cuts; `Consoles` keeps one for stdout and one for
 stderr when each is a console (`terminal::is_console`, which is false on
 Unix). The session's output takes it on its way to `write_out`
-(`crates/podssh-ssh/src/io.rs:297-308`), and the close writes what a
+(`crates/podssh-ssh/src/io.rs:303-314`), and the close writes what a
 stream still holds. `cargo test -p podssh-ssh --lib utf8`: 5 passed (text
 unchanged; a bad byte as U+FFFD with the rest after it; a character split
 across three messages shows whole; a cut sequence at the end as U+FFFD; a

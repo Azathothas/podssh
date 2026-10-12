@@ -403,6 +403,13 @@ version, 5 the role, 6 busy, 7 a record out of its place, 0 another reason.
   that still waits is a link that the client left. The client warns an hour
   before its pair expires (72 h at most); at the expiry the relay ends each
   session of the pair with `1001`, which no resume carries on.
+- **Kept shells** (T-158), when both sides name `keep.v1`: `podssh ssh`
+  names it, and a far end that keeps a shell after its client leaves, as
+  `podssh serve` will (T-159); a node never names it, as its SSH server is
+  another program. The layer carries nothing more for it: the road reads
+  the offer from the handshake, then SSH asks the far end to keep a shell
+  (`~d`) or to join one (`--attach`), with requests of its own
+  (`docs/terminal.md`, "Detach and attach again").
 
 Measured 2026-10-09: `podssh node` runs the far end for each session, and
 `podssh ssh node://` and `podssh operator` run the client. A node keeps 64

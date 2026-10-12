@@ -64,6 +64,13 @@ pub struct SshArgs {
     pub persist: bool,
     /// The tmux session of `--persist`.
     pub persist_name: Option<String>,
+    /// `--attach NAME`: the kept shell to join (T-158).
+    pub attach: Option<String>,
+    /// `--attach DEST` with no other word: list the kept shells there; set
+    /// by `ssh::attach::listing`, never by the parser.
+    pub attach_list: bool,
+    /// `--take`: take the kept shell from the client that has it.
+    pub take: bool,
     /// `--sudo` and `--su`: the remote command runs as root (T-032).
     pub sudo: bool,
     /// `--record FILE`: the session's output in an asciicast v2 file (T-033).
@@ -117,6 +124,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("iroh-relay", "give the relays as one comma list"),
     ("iroh-ticket", "give one ticket"),
     ("persist-name", "give one name"),
+    ("attach", "give one name"),
     ("record", "give one file"),
     ("control-command", "give one command, as OpenSSH asks"),
 ];
@@ -215,6 +223,9 @@ impl SshArgs {
             iroh_ticket: one("iroh-ticket"),
             persist: flag("persist"),
             persist_name: one("persist-name"),
+            attach: one("attach"),
+            attach_list: false,
+            take: flag("take"),
             sudo: flag("sudo"),
             record: one("record"),
             tag: one("tag").filter(|t| !t.is_empty()),

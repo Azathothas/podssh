@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**295 entries: 59 open, 0 partial, 24 blocked, 212 done.**
+**295 entries: 58 open, 0 partial, 24 blocked, 213 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 53 | 0 | 6 | 53 | 112 |
-| **All** | 59 | 0 | 24 | 212 | 295 |
+| P3 | 52 | 0 | 6 | 54 | 112 |
+| **All** | 58 | 0 | 24 | 213 | 295 |
 
 ## Entries
 
@@ -231,7 +231,7 @@ repository and CI).
 | [T-155](resume.md) | P2 | S | M6 | feature | done | Move a session to a new relay connection before the relay's limits |
 | [T-156](resume.md) | P2 | M | M6 | measurement | done | M6 exit: a session survives a stopped relay host, a new address and a stall of 3 minutes |
 | [T-157](resume.md) | P2 | M | M6 | measurement | done | Throughput on each road and relay, by a committed method |
-| [T-158](resume.md) | P3 | M | backlog | feature | open | Detach and attach again |
+| [T-158](resume.md) | P3 | M | backlog | feature | done | Detach and attach again |
 | [T-159](resume.md) | P3 | M | backlog | feature | open | Sessions on the far end that outlive the client |
 | [T-160](resume.md) | P3 | L | backlog | feature | open | Local echo and prediction for high latency |
 | [T-161](resume.md) | P3 | L | backlog | research | open | Screen state and scrollback when a client attaches |

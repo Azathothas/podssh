@@ -17,7 +17,9 @@
 //!   for podssh's own failures ([`mod@run`]);
 //! - keys made and read in OpenSSH's formats, for hosts with no working
 //!   `ssh-keygen` ([`keygen`]), and a host-key probe that never logs in
-//!   ([`probe`]).
+//!   ([`probe`]);
+//! - a shell that the far end keeps after `~d`, joined again by a later
+//!   login ([`keep`]).
 
 mod agent_forward;
 mod answer;
@@ -33,6 +35,7 @@ pub mod handler;
 pub mod hostcert;
 pub mod hostkey;
 pub mod io;
+pub mod keep;
 pub mod key_file;
 pub mod keygen;
 pub mod keys;

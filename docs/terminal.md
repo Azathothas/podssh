@@ -45,8 +45,10 @@ the manual read; a test holds the manual's note to it.
   `~` unless `-e` names another (`-e none`: none), at the start of a line,
   and the key after it: `~.` ends the session and sends nothing after it,
   `~R` asks for a re-key, `~#` lists the forwards with what each carried,
-  `~?` lists the escapes, and `~~` sends one `~`; another key goes with the
-  `~` before it. A resize sends the new size. Each other byte passes
+  `~d` leaves the shell to a far end that keeps shells ("Detach and attach
+  again" below) and goes as typed elsewhere, `~?` lists the escapes, and
+  `~~` sends one `~`; another key goes with the `~` before it. A resize
+  sends the new size. Each other byte passes
   unchanged, as the remote side reads it: Ctrl-C, Ctrl-Z, Ctrl-D, Ctrl-S,
   Ctrl-Q, Escape, the sequences of the keys, of the mouse and of a
   bracketed paste.
@@ -276,6 +278,65 @@ Ctrl-C does now; the command's status or signal is podssh's exit code, as
 for each command. A flag keeps OpenSSH's behaviour, whose client sends no
 request. With a remote pty nothing changes: Ctrl-C is a byte, and the
 remote pty's line discipline signals the foreground group.
+
+## Detach and attach again
+
+A user can leave a shell running and join it again later, from a new
+podssh process or from another host, where the far end keeps shells
+(T-158). tmux does this on a server that has tmux; a cage usually has none.
+The keys and the sequence numbers of the SSH connection live in the client
+process, above the resumable layer, so a new process cannot go on with the
+connection's bytes: the far end keeps the shell, and a new SSH login joins
+it. A client in the background that keeps the connection and takes
+attaches over a local socket lost: it needs a listener, and it dies with
+the client's host.
+
+- **The offer.** A far end that keeps shells names `keep.v1` in the
+  `GREETING` of the resumable layer, and `podssh ssh` names it in its
+  `OPEN`; as for each feature, a name counts only when both sides give it.
+  A podssh node never names it: its SSH server is another program, which
+  keeps no shell. The road of `node://NAME`, raced with `--iroh-ticket`
+  too, learns the offer before the SSH login. The iroh road alone
+  (`iroh:TICKET`) does not read it yet, so no shell is kept there.
+- **`~d`.** With the offer, in a session of a shell with a pty on a
+  terminal, `~d` at the start of a line sends `env detach@podssh NAME` on
+  the shell's channel, with a reply asked. NAME is new (8 hexadecimal
+  digits), or the name that the session attached. SUCCESS: the far end
+  keeps the shell and closes the channel; podssh prints "HOST keeps the
+  shell as NAME" and exits 0, and `--result-file` says `detached`.
+  FAILURE: a line, and the session goes on. Nothing typed after `~d` in
+  the same read is sent. With no offer, `~d` is two bytes for the server,
+  as before.
+- **`--attach NAME DEST`.** A new login asks for a pty, as `-tt` does,
+  and before `shell` sends `env attach@podssh NAME`; with `--take`, `env
+  take@podssh yes`; and `env from@podssh ID` when `PODSSH_SHELL_ID` is set
+  where podssh runs. Each waits for its reply, and a FAILURE is a far end
+  that joins no shell (255). The far end then joins the shell to the
+  channel, or refuses with its words on stderr and an exit status, which
+  podssh exits with.
+- **`--attach DEST`.** The subsystem `shells@podssh`: one line for each
+  kept shell, its name and `attached` or `detached`.
+- **The far end decides.** One client has a shell at a time; `--take`
+  takes it, and the far end ends the other client's channel. The far end
+  puts `PODSSH_SHELL_ID` in the environment of each shell that it starts,
+  and refuses an attach whose `from@podssh` names the shell to join: a
+  shell joined to a client inside it would feed its own output back.
+- **The requests are `env` and `subsystem` requests**, which the handler
+  of russh's server sees. russh 0.64.1 answers a channel request or a
+  global request of another name with FAILURE and calls no handler, so a
+  request of podssh's own type would never reach `podssh serve`.
+- **Where shells are kept.** `podssh serve` (T-107 to T-110, which the
+  operator holds) keeps them, with the lease and the limits of T-159; the
+  screen that a client finds on an attach is T-161's. Against a standard
+  sshd, `--persist` keeps the shell in tmux (T-178).
+
+`crates/podssh-cli/tests/attach.rs` tests it with a stand-in of the far
+end in the test process: the layer as `podssh serve` speaks it, with
+`keep.v1`, and a russh server whose shells outlive their client, behind a
+node in plain mode on the stand-in relay. In a pseudo console on Windows,
+or a pty on Linux, it sets a variable in a shell, types `~d`, lists the
+kept shells, attaches by name from a new process, and reads the variable
+back.
 
 ## Tests
 

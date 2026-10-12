@@ -440,6 +440,7 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
     super::persist::check(args, &mut resolved)?;
     super::elevate::check(args, &mut resolved)?;
     super::recording::check(args, &mut resolved)?;
+    super::attach::check(args, &mut resolved)?;
     // X11 goes on a session alone, as OpenSSH asks for it; a run with it
     // makes a connection of its own, as a master's session would not ask.
     if !matches!(resolved.options.request, Request::StdioForward(_) | Request::Nothing) {

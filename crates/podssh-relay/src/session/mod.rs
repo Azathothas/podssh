@@ -56,6 +56,15 @@ pub use sessions::Sessions;
 /// not know, and uses a feature only when both sides named it.
 pub const FEATURES: &[&str] = &["replay.v1", "heartbeat.v1", "move.v1"];
 
+/// The far end keeps a shell after its client leaves, for a later client
+/// to join (T-158). Only a far end that keeps shells names it, never a
+/// node, whose SSH server is another program.
+pub const KEEP: &str = "keep.v1";
+
+/// The features of `podssh ssh`, which can ask a far end to keep a shell,
+/// and of a far end that keeps shells: those of [`FEATURES`], and [`KEEP`].
+pub const SHELL_FEATURES: &[&str] = &["replay.v1", "heartbeat.v1", "move.v1", KEEP];
+
 /// What one end of the layer offers and keeps.
 #[derive(Debug, Clone, Copy)]
 pub struct Settings {

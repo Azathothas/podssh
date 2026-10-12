@@ -19,6 +19,7 @@ use unix as platform;
 mod windows;
 #[cfg(windows)]
 use windows as platform;
+pub(crate) mod termination;
 pub(crate) mod text;
 
 pub use platform::{pty_modes, read_line, RawMode};

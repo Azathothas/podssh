@@ -12,7 +12,8 @@ use podssh_relay::reverse::closes::resumes;
 use podssh_relay::reverse::{operator, OperatorConfig, Outcome as LegOutcome, RelayClose};
 use podssh_relay::session::client::{self, Found, Outcome};
 use podssh_relay::session::resume::{self, Next, Note};
-use podssh_relay::session::{replay, Ask, End, Ended, OsEntropy, Settings};
+use podssh_relay::session::{replay, Ask, End, Ended, OsEntropy, Settings, KEEP, SHELL_FEATURES};
+use podssh_ssh::keep::Offer;
 use podssh_ws::client::ConnectError;
 use tokio::io::{AsyncRead, AsyncWrite, DuplexStream};
 use tokio::task::JoinHandle;
@@ -53,10 +54,27 @@ pub fn settings() -> Settings {
     Settings { replay_capacity: capacity, ..Settings::default() }
 }
 
+/// The layer's settings of `podssh ssh`: those of [`settings`], with
+/// `keep.v1` named too, so that a far end that keeps shells says so (T-158).
+pub fn ssh_settings() -> Settings {
+    Settings { features: SHELL_FEATURES, ..settings() }
+}
+
+/// What the far end that `found` names says of its shells, into `offer`:
+/// it keeps them when both sides named `keep.v1` (T-158).
+pub fn learn(found: &Found, offer: &Offer) {
+    if let Found::Layer { features, .. } = found {
+        if features.iter().any(|name| name == KEEP) {
+            offer.set();
+        }
+    }
+}
+
 /// Carry `app` to the node: `link` is the pipe to `first`, a leg already
 /// connected. Each lost leg is replaced, until the session ends or cannot
 /// go on. `expires_ms`, the pair's expiry in milliseconds since the epoch,
-/// gives a warning an hour before it.
+/// gives a warning an hour before it. With `offer`, the client names
+/// `keep.v1`, and `offer` learns whether the far end keeps shells.
 pub async fn carry<A>(
     config: &OperatorConfig<'_>,
     link: DuplexStream,
@@ -64,18 +82,23 @@ pub async fn carry<A>(
     app: A,
     expires_ms: Option<i64>,
     say: &(dyn Fn(Line) + Sync),
+    offer: Option<&Offer>,
 ) -> Carried
 where
     A: AsyncRead + AsyncWrite + Unpin + Send,
 {
     let legs = Mutex::new(Some(first));
-    let client = match client::start(link, Ask::New, settings(), &mut OsEntropy).await {
+    let layer = if offer.is_some() { ssh_settings() } else { settings() };
+    let client = match client::start(link, Ask::New, layer, &mut OsEntropy).await {
         Ok(client) => client,
         Err(e) => return Carried { why: Some(e.to_string()), leg: last(&legs).await, channel: None },
     };
     say(Line::Verbose(client.found().to_string()));
     if let Found::Layer { features, .. } = client.found() {
         say(Line::Verbose(format!("the layer's features: {}", features.join(", "))));
+    }
+    if let Some(offer) = offer {
+        learn(client.found(), offer);
     }
     let legs_ref = &legs;
     let connect = |ended: &Ended| {
@@ -113,10 +136,30 @@ pub async fn carry_through<A>(
 where
     A: crate::channel::Bytes + 'static,
 {
+    carry_keeping(config, link, first, app, expires_ms, say, channel, pin_say, None).await
+}
+
+/// [`carry_through`] for `podssh ssh`, which names `keep.v1`: `offer`
+/// learns whether the far end keeps shells (T-158).
+#[allow(clippy::too_many_arguments)]
+pub async fn carry_keeping<A>(
+    config: &OperatorConfig<'_>,
+    link: DuplexStream,
+    first: JoinHandle<LegOutcome>,
+    app: A,
+    expires_ms: Option<i64>,
+    say: &(dyn Fn(Line) + Sync),
+    channel: Option<crate::channel::Operator>,
+    pin_say: impl Fn(String) + Send + 'static,
+    offer: Option<&Offer>,
+) -> Carried
+where
+    A: crate::channel::Bytes + 'static,
+{
     let me = channel.as_ref().map(|c| c.identity.clone());
     let (stream, session) = crate::channel::around(app, channel, pin_say);
-    let Some(session) = session else { return carry(config, link, first, stream, expires_ms, say).await };
-    let (mut carried, outcome) = tokio::join!(carry(config, link, first, stream, expires_ms, say), session);
+    let Some(session) = session else { return carry(config, link, first, stream, expires_ms, say, offer).await };
+    let (mut carried, outcome) = tokio::join!(carry(config, link, first, stream, expires_ms, say, offer), session);
     if let Err(e) = outcome {
         carried.channel = crate::channel::judged(&e, me.as_deref());
     }

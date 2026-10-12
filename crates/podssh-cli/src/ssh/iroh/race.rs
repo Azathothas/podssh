@@ -245,7 +245,8 @@ pub(in crate::ssh) async fn connect(
             return EXIT_FAILURE;
         }
     };
-    let settings = layered::settings();
+    // `podssh ssh` names `keep.v1`, for `~d` and `--attach` (T-158).
+    let settings = layered::ssh_settings();
     let client = match Box::pin(client::start(first, Ask::New, settings, &mut OsEntropy)).await {
         Ok(client) => client,
         Err(e) => {
@@ -255,6 +256,7 @@ pub(in crate::ssh) async fn connect(
         }
     };
     log.verbose(&format!("{shown}: {}", client.found()));
+    layered::learn(client.found(), &opts.keep.offer);
     let say = |line: Line| match line {
         Line::Always(text) => log.info(&format!("{shown}: {text}")),
         Line::Verbose(text) => log.verbose(&format!("{shown}: {text}")),

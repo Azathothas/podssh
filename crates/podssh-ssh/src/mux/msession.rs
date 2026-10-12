@@ -164,7 +164,9 @@ async fn pump(
                                 let _ = err.write_all(listing.as_bytes()).await;
                             }
                             // A re-key is the whole connection's: the master's.
-                            Command::Rekey => {}
+                            // A shared session learns no offer of kept shells,
+                            // so its escapes never detach (T-158).
+                            Command::Rekey | Command::Detach => {}
                         }
                     }
                 }

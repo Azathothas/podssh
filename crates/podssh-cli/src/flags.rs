@@ -198,6 +198,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "at the end, one JSON object in FILE: the exit, the remote status or signal, the end, the failure, the bytes and the relay", None),
     row(None, "persist-name", Some("NAME"), FlagKind::Supported,
         "the tmux session of --persist: letters, digits, _ and -, 32 at most (default podssh)", None),
+    attach::ATTACH,
+    attach::TAKE,
     row(None, "sudo", None, FlagKind::Supported,
         "run the command as root with sudo -S, with no pty; the password is asked here (terminal or SSH_ASKPASS)", None),
     row(None, "record", Some("FILE"), FlagKind::Supported,
@@ -269,6 +271,7 @@ pub const SSH_FLAGS: &[FlagRow] = &[
 
 // `cp`, `mv` and their aliases: their table is in `flags/copy.rs`.
 mod agent;
+mod attach;
 mod chat;
 mod config;
 mod copy;

@@ -267,6 +267,9 @@ pub struct Options {
     pub request_tty: RequestTty,
     /// `EscapeChar`; `None` is `none`.
     pub escape_char: Option<u8>,
+    /// Kept shells (T-158): whether the far end keeps them, which the road
+    /// learns, and what `--attach` asks of them.
+    pub keep: crate::keep::Keep,
     /// `SetEnv`.
     pub set_env: Vec<(String, String)>,
     /// `SendEnv` patterns, matched against the local environment.
@@ -373,6 +376,7 @@ impl Options {
             record: None,
             request_tty: RequestTty::Auto,
             escape_char: Some(b'~'),
+            keep: crate::keep::Keep::default(),
             set_env: Vec::new(),
             send_env: Vec::new(),
             compression: false,

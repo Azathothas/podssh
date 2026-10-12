@@ -346,7 +346,7 @@ the node then exits (docs/reverse.md, line 19 at `fb228e9`).
    `/v1/connect/<name>`. If none does, "each relay host" means each address of
    the control host (pins, resolver, DNS over HTTPS). Write it in
    `docs/relay.md`, with `docs/reverse.md` and the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:226-388`).
+   (`crates/podssh-cli/src/man/facts.rs:231-393`).
 6. A node keeps the replay buffer of each session (T-152): with the relay's
    limit of 64 sessions and 4 MiB each, 256 MiB. Bound the node's whole
    replay memory (a session past the bound gets `REFUSE` busy, code 6), and
@@ -817,7 +817,7 @@ Read: a read waits 90 s at most (`crates/podssh-ws/src/client.rs:23-25`, set at
 frame each 25 s. The ping watcher acts only after a first Pong
 (`crates/podssh-ws/src/session.rs:194-231`); Pongs and the idle cut on reverse
 sockets are not measured (T-061). russh sends a keepalive each 60 s and ends
-the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:329-369`).
+the session after 3 with no answer (`crates/podssh-ssh/src/options.rs:332-372`).
 Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 `-o ServerAliveInterval=0` prints the warning of
 `crates/podssh-cli/src/ssh/resolve.rs:360-374` (the `warnings` of keepalives), and `podssh ssh` exits 255.
@@ -836,9 +836,9 @@ Measured on `3ee70dc`, offline (`PODSSH_OFFLINE=1`, a `.invalid` host):
 4. On the resumable road, do not print the warning of
    `crates/podssh-cli/src/ssh/resolve.rs:360-374` (the `warnings` of keepalives).
 5. In the same commit: "Liveness" and "Idle limit" in the manual
-   (`crates/podssh-cli/src/man/facts.rs:312-327`,
-   `crates/podssh-cli/src/man/facts.rs:354-363`), the note at
-   `crates/podssh-cli/src/man/notes_ssh.rs:140`, `docs/relay.md`, `README.md`.
+   (`crates/podssh-cli/src/man/facts.rs:317-332`,
+   `crates/podssh-cli/src/man/facts.rs:359-368`), the note at
+   `crates/podssh-cli/src/man/notes_ssh.rs:151`, `docs/relay.md`, `README.md`.
 
 ## Decision
 
@@ -957,7 +957,7 @@ node's side (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:133-13
 6. When the client knows the expiry of the pair (from the node's ticket,
    T-163), it warns 1 h before; at the expiry the session ends with the reason.
 7. `-v` prints one line for each move. Docs: `docs/relay.md` ("Limits that
-   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:226-388`).
+   users see") and the manual (`crates/podssh-cli/src/man/facts.rs:231-393`).
 
 ## Decision
 
@@ -1164,7 +1164,7 @@ road, and the same faults end a session of the forward road with 255
 # T-157: Throughput on each road and relay, by a committed method
 
 **Source:** ROADMAP M6 (throughput on each road and relay, in and out of a
-sandbox, before a default depends on it); `docs/design.md:597-617`; the two
+sandbox, before a default depends on it); `docs/design.md:604-624`; the two
 sandbox reports of 2026-10-08; GitHub #18 (warren's method) and GitHub #23
 (sshping: throughput up and down).
 **Category:** measurement
@@ -1188,7 +1188,7 @@ proxy (4 runs). Read in the report, not verified here: the script's target
 (thinkbroadband) gave `1011 write failed` and 0 bytes, and the relay's
 `/trace` showed that the relay could not reach it.
 Read: no iroh figure exists for a relay through a CONNECT proxy
-(`docs/design.md:597-617`). A session carries 64 MiB at most, both directions
+(`docs/design.md:604-624`). A session carries 64 MiB at most, both directions
 together (`docs/relay.md:162`).
 
 ## Approach
@@ -1303,7 +1303,7 @@ GitHub #18 (zuko: a detached pty with a lease).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1319,8 +1319,8 @@ process. A new process cannot continue that byte stream, so an attach is a
 new SSH login to a far end that kept the shell (T-159). Read: podssh knows
 the escapes `~.`, `~R`, `~?` and `~~`, and another character after `~` goes
 to the server with the `~` (`crates/podssh-ssh/src/escape.rs:1-5`,
-`crates/podssh-ssh/src/escape.rs:41-79`). The flag table has 469 lines, near
-the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-268`).
+`crates/podssh-ssh/src/escape.rs:61-100`). The flag table has 469 lines, near
+the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-270`).
 
 ## Approach
 
@@ -1337,7 +1337,7 @@ the limit of 500 (the table of `ssh`: `crates/podssh-cli/src/flags.rs:112-268`).
    verified here). Refuse an attach from inside the same shell.
 5. Put the new rows of the flag table in a new file, so that `flags.rs` stays
    under 500 lines. Add `~d` to the help of `~?`
-   (`crates/podssh-ssh/src/escape.rs:78-86`) and to the manual.
+   (`crates/podssh-ssh/src/escape.rs:99-107`) and to the manual.
 6. Against a standard sshd, use `--persist` with tmux (T-178).
 
 ## Decision
@@ -1362,6 +1362,111 @@ as two bytes otherwise. The attach test (crates/podssh-cli/tests/attach.rs)
 runs `podssh serve` and the client: it sets a variable in the shell, detaches,
 attaches by name, and reads the variable back. A planted far end that ends
 the shell on a detach fails it.
+
+## Correction
+
+2026-10-12, read before the work:
+
+- No far end keeps a shell yet: `podssh serve` (T-107 to T-110) waits for
+  the operator (Q32), and the kept shells, their lease and their limits are
+  T-159's, which waits on it. So the attach test cannot run `podssh serve`.
+  It runs a stand-in of the far end in the test process
+  (`crates/podssh-cli/tests/keep_harness/mod.rs`): the layer as `podssh
+  serve` speaks it, with `keep.v1`, and a russh server whose shells outlive
+  their client, behind a node in plain mode on the stand-in relay, as
+  T-156 ran its far end.
+- Step 3's channel request of podssh cannot reach a far end on russh: its
+  server answers a channel request or a global request of a type that it
+  does not know with FAILURE, and calls no handler (russh 0.64.1, the
+  version of `Cargo.lock`: `Eugeny/russh:russh/src/server/encrypted.rs`,
+  lines 1682-1686 and 1760-1763 at `b03c8d5`). The requests are therefore
+  `env` requests of podssh's own names and a subsystem, which the handler
+  sees (`crates/podssh-ssh/src/keep.rs`).
+- An escape needs a pty and a terminal on stdin
+  (`crates/podssh-ssh/src/session.rs:153`), so a test cannot type `~d`
+  through a pipe: the attach test types it in a pseudo console on Windows
+  (`crates/podssh-cli/tests/conpty_harness/mod.rs`) and in a pty on Linux
+  (`crates/podssh-cli/tests/pty_harness/mod.rs`, new).
+- The Premise's numbers moved: the escapes are `~.`, `~R`, `~#`, `~?` and
+  `~~` since T-041, and the flag table had 464 lines before this entry. Its
+  rows are one slice, which a second file cannot extend, so the two new
+  rows are constants of a new file that `SSH_FLAGS` names.
+- Step 4's refusal of an attach from inside the same shell: the client
+  cannot tell which shell it runs in. The far end puts `PODSSH_SHELL_ID` in
+  each shell that it starts, the client sends it, and the far end refuses.
+
+## Done
+
+2026-10-12.
+
+- The layer: `keep.v1` (`KEEP`) and `SHELL_FEATURES` in
+  `crates/podssh-relay/src/session/mod.rs`. `podssh ssh` names it
+  (`layered::ssh_settings`), and the road of `node://NAME`, raced with
+  `--iroh-ticket` too, reads the far end's answer before the SSH login
+  (`layered::learn`, `layered::carry_keeping`;
+  `crates/podssh-cli/src/ssh/node.rs`,
+  `crates/podssh-cli/src/ssh/iroh/race.rs`). A node names FEATURES, never
+  `keep.v1`.
+- The client: `crates/podssh-ssh/src/keep.rs` (the offer, what the user
+  asked, the name, the requests `detach@podssh`, `attach@podssh`,
+  `take@podssh`, `from@podssh` and the subsystem `shells@podssh`, and the
+  answer to `~d`). `~d` in the table of `crates/podssh-ssh/src/escape.rs`,
+  an escape and a line of `~?` only with the offer. `session.rs` refuses an
+  attach or a list with no offer (255), asks for the attach before `shell`,
+  and gives `~d` its name; `io.rs` ends the session with `End::Detached`
+  on SUCCESS and goes on after FAILURE, and `--result-file` says
+  `detached`. `Termination` moved to
+  `crates/podssh-ssh/src/terminal/termination.rs`, so that `io.rs` stays
+  under 500 lines.
+- The command line: `--attach NAME` and `--take`, in
+  `crates/podssh-cli/src/flags/attach.rs`, which `SSH_FLAGS` names; the
+  checks and what they ask in `crates/podssh-cli/src/ssh/attach.rs`.
+  `--attach DEST` with no other word lists the kept shells. The manual's
+  notes of `ssh` (`~d` in the terminal's note, a note of `--attach`,
+  `detached` in the result file) and `PODSSH_SHELL_ID` in ENVIRONMENT;
+  `docs/terminal.md` ("Detach and attach again"), `docs/cli.md`,
+  `docs/design.md` (section 5), `docs/STATUS.md`.
+- The calls made where the Approach left a choice. The client names the
+  shell: 8 hexadecimal digits at the first detach, the attached name after
+  an attach. SSH's SUCCESS carries no data, and only a global request's
+  answer does, which russh's server never lets through; the far end
+  refuses a name that another shell has. `~d` ends the input there, as
+  `~.` does, and a refused detach leaves the session running. A value flag
+  of the table needs its value, so `--attach WORD` with no destination
+  makes WORD the destination, and lists. `--attach` is for `node://NAME`
+  only (64 elsewhere), the one road that reads the offer: the iroh road
+  alone (`iroh:TICKET`) carries the layer inside podssh-iroh's `carry`,
+  which gives no handshake to read, so `~d` goes as two bytes there and
+  `--attach` is refused; it comes with a far end that keeps shells on that
+  road (T-159). A refusal of the far end is its words on stderr and its
+  exit status, which podssh exits with. `--take` takes the shell, and the
+  far end ends the other client's channel (255 there). A control master
+  does not carry an attach: the run makes its own connection.
+- Prove: `cargo test -p podssh-ssh --lib escape`: 9 passed here (among them
+  `tilde_d_detaches_only_when_the_far_end_keeps_shells` and
+  `the_help_names_tilde_d_only_where_it_detaches`).
+  `cargo test -p podssh-cli --test attach`: 6 passed here, on Windows 11
+  with Python and openssl, and in the build image with the pty of Linux
+  (6 passed). Its tests:
+  `a_shell_left_with_tilde_d_is_attached_again_by_name` (the variable, `~d`
+  in a terminal, the list, `--attach NAME` from a new process, the
+  variable read back); `a_far_end_that_ends_the_shell_on_a_detach_fails_the_check`
+  (the planted far end of the Prove, run here as the control: the read
+  fails with exit 1); `a_far_end_that_keeps_no_shells_refuses_attach_and_gets_tilde_d_as_bytes`;
+  `the_far_end_refuses_a_nested_attach_and_a_second_client_unless_take`;
+  `attach_refuses_what_it_cannot_serve_before_anything_connects`. The
+  tests of `~d` run on Windows and Linux only; each test but the last says
+  "did not run" with no Python or no openssl. The unit tests of
+  `keep.rs` and `ssh/attach.rs`: 13 and 1 passed; the suites of
+  `podssh-ssh` and `podssh-relay`, and those of `podssh-cli` that the change
+  reaches (`ssh_args`, `node_plain`, the manual's and the flags'), passed,
+  and so did a build with the feature `iroh`.
+- Waits for T-251: the gate's run in the build image (the pty of Linux),
+  and the planted client: an `Escapes` that takes `~d` with no offer must
+  fail `tilde_d_detaches_only_when_the_far_end_keeps_shells` and
+  `a_far_end_that_keeps_no_shells_refuses_attach_and_gets_tilde_d_as_bytes`.
+  A run against `podssh serve`, and live through the relay, waits for
+  T-159.
 
 # T-159: Sessions on the far end that outlive the client
 

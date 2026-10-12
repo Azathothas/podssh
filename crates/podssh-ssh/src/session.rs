@@ -11,6 +11,7 @@ use russh::{Channel, ChannelMsg};
 use crate::escape::Escapes;
 use crate::handler::Client;
 use crate::io;
+use crate::keep::Ask;
 use crate::log::Log;
 use crate::options::{Agent, Elevate, Options, Request, RequestTty};
 use crate::terminal;
@@ -39,6 +40,8 @@ pub fn code(end: io::End, host: &str) -> Result<i32, String> {
         io::End::Status(code) => Ok(code),
         io::End::NoStatus | io::End::Escaped(_) | io::End::Terminated => Ok(NO_STATUS),
         io::End::Lost => Err(format!("the connection to {host} was lost before the session ended")),
+        // The far end keeps the shell, as the user asked (T-158).
+        io::End::Detached(_) => Ok(0),
     }
 }
 
@@ -52,6 +55,8 @@ pub async fn attach(
     log: &Arc<Log>,
     input: &mut io::Input,
 ) -> Result<io::End, String> {
+    // `--attach` needs a far end that keeps shells (T-158).
+    opts.keep.check(host)?;
     let mut channel =
         handle.channel_open_session().await.map_err(|e| format!("the server refused to open a session: {e}"))?;
     for (name, value) in environment(opts) {
@@ -96,6 +101,10 @@ pub async fn attach(
 
     // From here a drop is no failure to try again: the server may run it.
     crate::retry::reached(crate::retry::Phase::Requested);
+    // `--attach NAME` (T-158): the shell request joins the kept shell.
+    if let Some(Ask::Attach { name, take }) = &opts.keep.ask {
+        crate::keep::ask_attach(&mut channel, &mut early, name, *take).await?;
+    }
     let mut elevated = None;
     let what = match &opts.request {
         Request::Shell => {
@@ -139,8 +148,10 @@ pub async fn attach(
     } else {
         None
     };
+    // `~d` keeps a shell on a far end that keeps shells (T-158).
+    let detach = opts.keep.detach_name(pty && stdin_tty && opts.request == Request::Shell);
     let escapes = match (pty && stdin_tty, opts.escape_char) {
-        (true, Some(c)) => Some(Escapes::new(c)),
+        (true, Some(c)) => Some(Escapes::new(c).with_detach(detach.is_some())),
         _ => None,
     };
     // `--record` (T-033): the output from here on, with the size of now.
@@ -151,9 +162,12 @@ pub async fn attach(
             .map_err(|e| log.info(&format!("--record: the file could not be written: {e}")))
             .ok()
     });
-    let through = io::Through { elevated, record };
+    let through = io::Through { elevated, record, detaching: crate::keep::Detaching::new(detach) };
     let end = io::pump(handle, channel, early, escapes, pty, input, through, log).await;
     drop(raw);
+    if let io::End::Detached(name) = &end {
+        log.info(&crate::keep::kept_line(name, host));
+    }
     if pty && stdin_tty {
         log.info(&format!("Connection to {host} closed."));
     }

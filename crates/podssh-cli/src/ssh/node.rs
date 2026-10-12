@@ -10,7 +10,7 @@ use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome as
 use podssh_ssh::{Log, EXIT_FAILURE};
 use podssh_ws::{ProxyChoice, Trust};
 
-use crate::layered::Line;
+use crate::layered::{carry_keeping, Line};
 
 use super::args::SshArgs;
 use super::resolve::{Env, Transport};
@@ -160,9 +160,12 @@ pub(super) async fn connect(
         let (log, shown) = (log.clone(), shown.clone());
         move |line: String| log.info(&format!("{shown}: {line}"))
     };
+    // The layer learns whether the far end keeps shells, before the SSH
+    // login, for `~d` and `--attach` (T-158).
+    let offer = Some(&opts.keep.offer);
     let (code, carried) = tokio::join!(
         podssh_ssh::run(ssh_end, opts, None, log.clone()),
-        crate::layered::carry_through(&config, link_end, leg, layer_end, Some(part.expires_ms), &say, channel, pin_say)
+        carry_keeping(&config, link_end, leg, layer_end, Some(part.expires_ms), &say, channel, pin_say, offer)
     );
     // A refused key, or a changed node key, is the session's end whatever
     // the SSH client saw after it.

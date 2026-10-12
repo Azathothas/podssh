@@ -122,6 +122,11 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       for a relay with smaller limits: a whole number of bytes, 1048576 at least. It never raises the \
       budget of THE RELAY's session limits; another value is ignored.",
     ),
+    (
+        &["PODSSH_SHELL_ID"],
+        "Set by a far end that keeps shells in each shell that it starts: the shell's id there. podssh ssh \
+      --attach sends it, so that the far end refuses to join a shell to a client that runs inside it.",
+    ),
     (&["SSL_CERT_FILE"], "Trust only the CA certificates in this file, as --ca-file. The flag wins."),
     (
         &["SSH_AUTH_SOCK"],

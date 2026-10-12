@@ -37,7 +37,7 @@ reasons (`crates/podssh-ws/src/session.rs:371`); PEM bundles
 (`crates/podssh-relay/src/relay.rs:107`, `crates/podssh-relay/src/pool.rs:95`);
 `known_hosts` lines, in a private function
 (`crates/podssh-ssh/src/known_hosts.rs:250`); the escape filter
-(`crates/podssh-ssh/src/escape.rs:43`); IRC lines and frames
+(`crates/podssh-ssh/src/escape.rs:63`); IRC lines and frames
 (`crates/podssh-core/src/irc/encode.rs:88`,
 `crates/podssh-core/src/irc/framing.rs:110`); the command line
 (`crates/podssh-cli/src/tree.rs:117`). No fuzz target exists. libFuzzer is
@@ -331,13 +331,13 @@ byte test that a person wrote with the same mistake.
 Read:
 
 - `crates/podssh-ssh/src/log.rs:70-83` turns LF into CR LF when the terminal
-  is raw. The help of `~?` (`crates/podssh-ssh/src/escape.rs:82-91`) goes
+  is raw. The help of `~?` (`crates/podssh-ssh/src/escape.rs:103-112`) goes
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
   peer (`SECURITY.md:79-82`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
-  discipline (`docs/terminal.md:151-247`). T-127 (the cursor counts bytes) and
+  discipline (`docs/terminal.md:153-249`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
 - Read in the message of commit `a378863`: `rio-vt` needs `simdutf`, a C++
   library, so it cannot be a dependency of a library crate.
@@ -363,7 +363,7 @@ Read:
    in the gate's container (installed with apk, as `scripts/interop-man.sh:22`
    installs groff) and through `vt100`. The two must give the same screens
    before the model judges podssh.
-6. docs/terminal.md, section "Tests" (`docs/terminal.md:280`), names the
+6. docs/terminal.md, section "Tests" (`docs/terminal.md:341`), names the
    oracle.
 
 ## Decision
@@ -422,7 +422,7 @@ Read, the bounds today:
   (`crates/podssh-ssh/src/relay_stream.rs:30-33`). Pump buffers: 32 KiB
   (`crates/podssh-cli/src/pipe/pump.rs:22`).
 - Time: `crates/podssh-ws/src/client.rs:21-35`,
-  `crates/podssh-relay/src/open.rs:30-34`, `crates/podssh-ssh/src/session.rs:21`.
+  `crates/podssh-relay/src/open.rs:30-34`, `crates/podssh-ssh/src/session.rs:22`.
 - No limit: a `known_hosts` file was read whole (`crates/podssh-ssh/src/known_hosts.rs`,
   lines 186-192 at `72ca309`); the IRC buffer (T-096).
 - Two texts disagreed until T-024. The comment on the SSH window
@@ -570,7 +570,7 @@ Read: the candidates, each a pure function or a state machine with no I/O.
 - Relay lists and paths (`crates/podssh-relay/src/relay.rs:107-183`, `crates/podssh-ws/src/names.rs:8-57`).
 - `known_hosts` patterns (`crates/podssh-ssh/src/known_hosts.rs:277-333`).
 - The escape filter, which keeps its state from one read to the next
-  (`crates/podssh-ssh/src/escape.rs:43-79`).
+  (`crates/podssh-ssh/src/escape.rs:63-100`).
 - The sanitizer (`crates/podssh-ws/src/text.rs:12-57`).
 
 Read: no crate uses a library for property tests. `proptest` is pure Rust;
@@ -643,11 +643,11 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:400-418`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:401-419`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
-  (`crates/podssh-ssh/src/options.rs:370`, enforced at
+  (`crates/podssh-ssh/src/options.rs:373`, enforced at
   `crates/podssh-ssh/src/run.rs:356-362`); a reply, 30 s
-  (`crates/podssh-ssh/src/session.rs:21`); a write, 60 s, and liveness, three
+  (`crates/podssh-ssh/src/session.rs:22`); a write, 60 s, and liveness, three
   times 10 s (`crates/podssh-ws/src/client.rs:31-35`).
 - The gate's container gets no added capability
   (`.github/workflows/build.yml:68-79`).
@@ -774,12 +774,12 @@ Read, each claim of GitHub #34 at the lines as they are now:
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
   `scripts/sandbox-check.sh:204-217` does, in a sandbox. Nobody knows whether
   the gate's image has `/usr/bin/ssh`.
-- `crates/podssh-ssh/src/io.rs:309-316`, with `crates/podssh-ssh/src/io.rs:48-50`,
+- `crates/podssh-ssh/src/io.rs:315-322`, with `crates/podssh-ssh/src/io.rs:51-53`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:72`, `docs/STATUS.md:76`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:1371-1372` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:1386-1387` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -796,14 +796,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:1371-1372`). A difference that the table does not name fails,
+   `docs/cli.md:1386-1387`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:1371-1372` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:1386-1387` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed
@@ -818,7 +818,7 @@ sh scripts/dev.sh check     # interop: for each case, the code of OpenSSH, of po
 
 The interop section shows, for each case, the reference code, podssh's code
 and the literal, and the signal row as a named difference. Planted defect 1:
-map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:316`; the literal
+map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:322`; the literal
 check of 143 must fail, and the table must report its signal row as broken.
 Planted defect 2: let the reference run `true` in place of `exit 3`; the
 derived check must fail.

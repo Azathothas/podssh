@@ -24,7 +24,7 @@ pub struct Facts {
     /// The signal that killed it, and whether it dumped core.
     pub signal: Option<(String, bool)>,
     /// How its session ended: `status`, `signal`, `no-status`, `lost`,
-    /// `escaped` or `terminated`.
+    /// `escaped`, `terminated` or `detached` (T-158).
     pub end: Option<&'static str>,
     /// Why the run failed: `connect`, `host-key`, `auth`, `forward`, `relay`
     /// or `session`.
@@ -96,6 +96,7 @@ pub fn ended(end: &End) {
         End::Lost => "lost",
         End::Escaped(_) => "escaped",
         End::Terminated => "terminated",
+        End::Detached(_) => "detached",
     });
 }
 

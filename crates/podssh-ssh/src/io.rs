@@ -17,6 +17,7 @@ use crate::handler::Client;
 use crate::log::Log;
 use crate::record::Recorder;
 use crate::signals;
+use crate::terminal::termination::Termination;
 use crate::terminal::text::Consoles;
 use crate::terminal::{self, Size};
 
@@ -33,6 +34,8 @@ pub enum End {
     Escaped(Command),
     /// podssh was told to stop (SIGTERM, SIGHUP).
     Terminated,
+    /// `~d`: the far end keeps the shell under this name (T-158).
+    Detached(String),
 }
 
 /// What a user types while `--persist` connects again waits for the next
@@ -67,11 +70,13 @@ struct Out {
 }
 
 /// What a session's output passes through on its way out: the filter of an
-/// elevated command (T-032), then the recording (T-033).
+/// elevated command (T-032), then the recording (T-033). A detach that
+/// waits for the far end's answer reads the session's messages too (T-158).
 #[derive(Default)]
 pub struct Through {
     pub elevated: Option<Elevated>,
     pub record: Option<Recorder>,
+    pub detaching: crate::keep::Detaching,
 }
 
 impl Through {
@@ -234,6 +239,7 @@ pub async fn pump(
                                 }
                             }
                             Command::List => log.banner(&crate::tally::listing()),
+                            Command::Detach => through.detaching.ask(&writer, log).await,
                         }
                     }
                 }
@@ -339,6 +345,8 @@ async fn handle_msg(
             }
             return Some(end_with(*status));
         }
+        // The answer to `~d`, when one is awaited (T-158).
+        reply @ (ChannelMsg::Success | ChannelMsg::Failure) => return through.detaching.answer(&reply, log),
         // Eof: the server sends nothing more, but the exit status and the
         // close are still to come.
         _ => {}
@@ -455,40 +463,5 @@ impl Resize {
                 return now;
             }
         }
-    }
-}
-
-/// SIGTERM and SIGHUP while the terminal is raw: end the session properly so
-/// the terminal is restored, instead of dying with it raw.
-struct Termination {
-    #[cfg(unix)]
-    signals: Option<(tokio::signal::unix::Signal, tokio::signal::unix::Signal)>,
-}
-
-impl Termination {
-    fn new(active: bool) -> Self {
-        #[cfg(unix)]
-        {
-            use tokio::signal::unix::{signal, SignalKind};
-            let signals =
-                if active { signal(SignalKind::terminate()).ok().zip(signal(SignalKind::hangup()).ok()) } else { None };
-            Termination { signals }
-        }
-        #[cfg(not(unix))]
-        {
-            let _ = active;
-            Termination {}
-        }
-    }
-
-    async fn next(&mut self) {
-        #[cfg(unix)]
-        if let Some((term, hup)) = self.signals.as_mut() {
-            tokio::select! {
-                _ = term.recv() => return,
-                _ = hup.recv() => return,
-            }
-        }
-        std::future::pending::<()>().await
     }
 }
