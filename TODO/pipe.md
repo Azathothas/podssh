@@ -852,10 +852,17 @@ The calls made where the Approach left a choice:
   4 lines, as `cargo todo remap` would move them.
 
 What waits:
-- The 7 checks of `scripts/interop-desktop.sh` in the gate's step
-  `release` wait for CI and T-251. The RFB line of form a, the rates and
-  the minutes that 64 MiB lasts go into `docs/STATUS.md` from the first run
-  that passes.
+- The rates and the minutes that 64 MiB lasts go into `docs/STATUS.md`
+  from the first run of the gate that passes `desktop.vnc.rate`.
+
+The gate's first run (CI, 3224a88, the step `release`): 6 of the 7 checks
+of `scripts/interop-desktop.sh` passed, and `docs/STATUS.md` has their
+lines. `desktop.vnc.rate` failed: in each of its two runs the meter counted
+56 bytes down (the version, the security types, the result and the
+ServerInit) and 14 up, and the connection ended within 0.2 s. In the build
+image, with no podssh, TigerVNC's viewer 1.16.2 quit the same way, after
+"Unable to find fonts"; with `font-dejavu` it stayed until its timeout.
+`font-dejavu` joins the image's `apk add`.
 
 What ran:
 - Native here: `cargo test -p podssh-cli --lib man::examples` with the new

@@ -530,18 +530,18 @@ The forms are those of [README.md](../README.md), "Other TCP protocols"
 carries its session; (b) `podssh pipe` listens; (c) a client runs podssh as
 its transport, and nothing listens. The servers run on 127.0.0.1 behind
 OpenSSH in the gate's `scripts/interop-desktop.sh` and
-`scripts/interop-usbip.sh`, whose checks wait for CI and T-251: each
-UNVERIFIED below is filled in from its first run.
+`scripts/interop-usbip.sh`, in CI: each UNVERIFIED below is filled in from
+the first run that passes its check.
 
 | Check | Result |
 | --- | --- |
-| VNC, form a: `ssh -N -L` to TigerVNC's `Xvnc` (no password, local connections only), with `podssh proxy` through the stand-in relay as its `ProxyCommand` | The RFB version line at the local port: UNVERIFIED |
-| VNC, form b: `podssh pipe tcp-listen:127.0.0.1:0 ssh:...,127.0.0.1:5921` | The RFB version line at the listener: UNVERIFIED |
-| VNC, form c: the harness's client (`rfb.py`), which runs `podssh pipe stdio ssh:` through the stand-in relay as its transport, as `ssvncviewer exec=` does | The version, the security type None and the server's ServerInit (1024x768, the desktop's name): UNVERIFIED |
-| VNC, form b where only an AF_UNIX bind works: TigerVNC's `vncviewer` at the socket of `podssh pipe unix-listen:`, on an Xvfb | The viewer's line of the RFB version: UNVERIFIED |
-| The bytes of a desktop to TigerVNC's viewer on the loopback, counted on the server's side after the first 5 s: 20 s idle, then 20 s of a screen of new noise 4 times a second | Idle, UNVERIFIED bytes a minute; busy, UNVERIFIED; 64 MiB lasts UNVERIFIED minutes busy |
-| Telnet: `podssh pipe stdio ssh:` to BusyBox's `telnetd` | The first byte, IAC (255): UNVERIFIED |
-| Telnet, form b: BusyBox's `telnet` at `podssh pipe tcp-listen:`, and `echo TELNET-$((6*7))` typed to the shell | `TELNET-42` came back: UNVERIFIED |
+| VNC, form a: `ssh -N -L` to TigerVNC's `Xvnc` (no password, local connections only), with `podssh proxy` through the stand-in relay as its `ProxyCommand` | `RFB 003.008` at the local port (CI, 3224a88) |
+| VNC, form b: `podssh pipe tcp-listen:127.0.0.1:0 ssh:...,127.0.0.1:5921` | `RFB 003.008` at the listener (CI, 3224a88) |
+| VNC, form c: the harness's client (`rfb.py`), which runs `podssh pipe stdio ssh:` through the stand-in relay as its transport, as `ssvncviewer exec=` does | `RFB 003.008 1024x768 podssh-desktop`, and the client exited 0 (CI, 3224a88) |
+| VNC, form b where only an AF_UNIX bind works: TigerVNC's `vncviewer` at the socket of `podssh pipe unix-listen:`, on an Xvfb | `CConnection: Using RFB protocol version 3.8` (CI, 3224a88) |
+| The bytes of a desktop to TigerVNC's viewer on the loopback, counted on the server's side after the first 5 s: 20 s idle, then 20 s of a screen of new noise 4 times a second | Idle, UNVERIFIED bytes a minute; busy, UNVERIFIED; 64 MiB lasts UNVERIFIED minutes busy. The first run (CI, 3224a88) counted 56 bytes down and 14 up in each run, which ended at once: the image had no font, and the viewer quit after the server's ServerInit ("Unable to find fonts", seen in the build image); `font-dejavu` joins the image |
+| Telnet: `podssh pipe stdio ssh:` to BusyBox's `telnetd` | The first byte, IAC (255) (CI, 3224a88) |
+| Telnet, form b: BusyBox's `telnet` at `podssh pipe tcp-listen:`, and `echo TELNET-$((6*7))` typed to the shell | `TELNET-42` came back (CI, 3224a88) |
 | USB/IP, form b (T-182): `usbip list -r 127.0.0.1` of Linux's tools at `podssh pipe tcp-listen:127.0.0.1:3240`, whose other side is a stand-in of `usbipd` behind OpenSSH | The device 1-1 in the list, and the request that the stand-in read (version 0x0111, `OP_REQ_DEVLIST`): UNVERIFIED |
 | USB/IP on two Linux hosts with the modules `usbip-host` and `vhci-hcd` (T-182): `usbip attach` through the recipe of README.md, a read from the device, `usbip port`, `usbip detach` | Waits for the operator's machines: UNVERIFIED |
 | Read, not run (2026-10-12) | SSVNC's `ssvncviewer` runs the command of `exec=COMMAND` and speaks RFB on its stdio (its manual page); Alpine has no package of it, so the harness's client stands in. TigerVNC's `vncviewer` takes a Unix socket's path, and its `-via` runs `/usr/bin/ssh -f -L` by default (its manual page, `VNC_VIA_CMD`), which binds. FreeRDP's `/proxy:` takes an HTTP or SOCKS5 proxy (its manual page). No RDP server or client ran. |
