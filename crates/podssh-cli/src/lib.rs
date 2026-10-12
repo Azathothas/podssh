@@ -43,6 +43,8 @@ pub mod exitmap;
 #[rustfmt::skip]
 pub mod flags;
 pub mod help;
+// The hosts of a word: braces and groups (T-184).
+pub mod hosts;
 pub mod keygen;
 pub mod keygen_cert;
 pub mod keygen_change;

@@ -33,7 +33,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
             .arg(
                 Arg::new("hosts")
                     .value_name("HOSTS")
-                    .help("the hosts, a comma list of [user@]host[:port], each named as it is written here"),
+                    .help("the hosts, a comma list of [user@]host[:port], each named as it is written here; braces as in bash, web{01..12} and {a,b}, and @GROUP of the settings file"),
             )
             .arg(
                 Arg::new("remote-command")

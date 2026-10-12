@@ -3,8 +3,9 @@
 //! failure; the refusals of the command line (64) against the binary,
 //! offline; and real sessions against the test's SSH server on the
 //! loopback: a line for each host with its label, a status file of
-//! `--output-dir`, and a host key that no question can accept. Against
-//! OpenSSH and Dropbear it runs in the gate (`scripts/interop-each.sh`).
+//! `--output-dir`, and a host key that no question can accept; and the
+//! braces and the groups of T-184 through the binary. Against OpenSSH and
+//! Dropbear it runs in the gate (`scripts/interop-each.sh`).
 
 mod cleanup;
 mod ssh_harness;
@@ -102,12 +103,19 @@ async fn fail_fast_starts_no_host_after_a_failure_and_the_running_ones_end() {
 /// `podssh each` with `args`, its home in `home`, with no settings file and
 /// no ssh_config: (exit code, stdout, stderr).
 fn each(home: &Path, args: &[&str], offline: bool) -> (i32, String, String) {
+    let mut words = vec!["each"];
+    words.extend_from_slice(args);
+    podssh(home, &words, offline, None)
+}
+
+/// `podssh` with `args`, its home in `home`, with the settings file
+/// `settings` or none, and no ssh_config.
+fn podssh(home: &Path, args: &[&str], offline: bool, settings: Option<&Path>) -> (i32, String, String) {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_podssh"));
-    cmd.arg("each")
-        .args(args)
+    cmd.args(args)
         .current_dir(home)
         .env("PODSSH_SSH_CONFIG", "none")
-        .env("PODSSH_SETTINGS", "none")
+        .env("PODSSH_SETTINGS", settings.map_or_else(|| "none".into(), |p| p.as_os_str().to_owned()))
         .env("HOME", home)
         .env("USERPROFILE", home)
         .stdin(Stdio::null())
@@ -134,7 +142,8 @@ fn a_bad_command_line_is_64_before_anything_connects() {
         (&["a,,b", "--", "true"][..], "an empty host"),
         (&["--parallel", "0", "a", "--", "true"][..], "--parallel 0"),
         (&["--parallel", "65", "a", "--", "true"][..], "from 1 to 64"),
-        (&["a,bad host!", "--", "true"][..], "bad host!"),
+        // A name that the relay cannot carry; a blank would part two hosts.
+        (&["a,bad!host", "--", "true"][..], "bad!host"),
         (&["-o", "SessionType=none", "a", "--", "true"][..], "SessionType"),
         (&["--output-dir", dir.as_str(), "Web1,web1", "--", "true"][..], "would share their files"),
         (&["--no-such-flag", "a", "--", "true"][..], "--no-such-flag"),
@@ -161,6 +170,43 @@ fn offline_each_host_fails_with_255_and_is_named() {
     // -q: no word from podssh, and the same status.
     let (code, _, err) = each(&home, &["-q", "web1.example.org", "--", "true"], true);
     assert_eq!((code, err.as_str()), (255, ""));
+}
+
+/// Braces and groups (T-184), offline: `each` expands them before anything
+/// connects, `ssh` takes a pattern of one host and refuses one of more,
+/// naming `podssh each`, and a cycle of groups is the file's fault (78).
+#[test]
+fn braces_and_groups_give_the_hosts_and_ssh_takes_one() {
+    let home = scratch("groups");
+    let dir = home.join("conf");
+    podssh_relay::cache::private_dir(&dir).unwrap();
+    let file = dir.join("settings");
+    std::fs::write(&file, include_str!("fixtures/groups.settings")).unwrap();
+    let run = |args: &[&str]| podssh(&home, args, true, Some(&file));
+    let (code, _, err) = run(&["each", "@web,db{1..2}.example.org", "--", "true"]);
+    assert_eq!(code, 255, "{err}");
+    assert!(err.contains("podssh each: 5 hosts: 0 gave 0, 5 failed"), "{err}");
+    for host in ["web01.example.org", "web03.example.org", "db2.example.org"] {
+        assert!(err.contains(&format!("podssh: {host}: ")), "{host}: {err}");
+    }
+    for (args, says) in [
+        (&["each", "web{3..1}", "--", "true"][..], "runs backwards"),
+        (&["each", "@nope", "--", "true"][..], "no group of that name"),
+        (&["ssh", "web{1..3}.example.org", "true"][..], "podssh each"),
+        (&["ssh", "@web", "true"][..], "gives 3 hosts"),
+        (&["ssh", "a,b", "true"][..], "gives 2 hosts"),
+    ] {
+        let (code, out, err) = run(args);
+        assert_eq!(code, 64, "{args:?}: {err}");
+        assert!(err.contains(says) && out.is_empty(), "{args:?}: {err}");
+    }
+    // A group of one host is that host: ssh goes on, and offline ends 255.
+    let (code, _, err) = run(&["ssh", "@one", "true"]);
+    assert_eq!(code, 255, "{err}");
+    std::fs::write(&file, "[groups]\na @b\nb @a\n").unwrap();
+    let (code, _, err) = run(&["each", "x", "--", "true"]);
+    assert_eq!(code, 78, "{err}");
+    assert!(err.contains("make a cycle"), "{err}");
 }
 
 /// The test's server on a runtime of its own, and a port where nothing

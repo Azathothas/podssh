@@ -232,7 +232,8 @@ pub fn files() -> Vec<(Vec<String>, String)> {
              that exists (~/.config/podssh/settings with no XDG_CONFIG_HOME; the second beside the podssh \
              binary); never one of the working directory. A symbolic link, a file of another user than you or \
              root, one that others can change, and a bad line are refused (78) by each command that reaches the \
-             relay. podssh never writes it, and no keyword holds a token."
+             relay. podssh never writes it, and no keyword holds a token. After a line [groups], each line \
+             is NAME HOSTS: a group of hosts, which podssh each takes as @NAME."
                 .to_string(),
         ),
         (

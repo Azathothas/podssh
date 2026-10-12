@@ -29,6 +29,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh each --parallel 2 web1.example.org,web2.example.org,user@db.example.org -- uptime".into(),
         ),
         (
+            "twelve hosts in one word, and the group db of the settings file; each host once",
+            "podssh each 'web{01..12}.example.org,@db' -- 'df -h /'".into(),
+        ),
+        (
             "a Unix socket on the server, on stdin and stdout",
             "podssh ssh -W /run/postgresql/.s.PGSQL.5432 user@db.example.org".into(),
         ),

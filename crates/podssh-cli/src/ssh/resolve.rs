@@ -154,6 +154,9 @@ pub fn resolve_or_refuse(args: &SshArgs, env: &Env) -> Result<Resolved, Refusal>
         settings.apply(raw)?;
     }
     let destination = args.destination.as_deref().ok_or("missing destination: podssh ssh [user@]host [command]")?;
+    // Braces and a group of one host give that host; of more, the hint is
+    // `podssh each` (T-184).
+    let destination = &crate::hosts::one(destination, &env.settings.groups)?;
     let node = super::node::destination(destination)?;
     let iroh = super::iroh::destination(destination)?;
     let tunnel = super::cloudflare::destination(destination)?;

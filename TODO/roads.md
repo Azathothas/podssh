@@ -185,7 +185,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:318-319`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:678`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:128-254`), and each new variable to
+   (`crates/podssh-cli/src/man/data.rs:128-255`), and each new variable to
    `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-213`).
 
 ## Decision

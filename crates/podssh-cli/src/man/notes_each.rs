@@ -7,6 +7,13 @@ pub const EACH: &[&str] = &[
      that names none, -i, -o, -F and -J; the Host blocks of ssh_config apply to each host as podssh ssh \
      applies them. Each host is checked before anything connects: a bad one exits 64, and nothing has run \
      anywhere. A host named twice runs once.",
+    "An item of the list takes the braces of bash: web{1..3} is web1, web2 and web3, {01..12} keeps its \
+     zero padding, {a..c} gives letters, {1..9..2} a step, a{b,c}d is abd and acd, and braces nest. @NAME \
+     is the group NAME of the settings file (see FILES): after a line [groups], each line is NAME HOSTS, \
+     whose hosts are a list of the same kind and can name groups. 1000 hosts at most; more, none, an \
+     empty host, a range that runs backwards or a group that is not there is a usage error (64), and a \
+     group that names itself, through others or not, is refused with the file (78). Square brackets stay \
+     an IPv6 address. podssh ssh takes a pattern of one host, and refuses one of more, naming podssh each.",
     "At most --parallel hosts run at once (8; 1 to 64), each on a connection of its own. No host gets a \
      terminal or stdin: each session is as podssh ssh -T -n makes it. Nothing asks a question: BatchMode is \
      on, and an unknown host key refuses its host and names its fingerprint and -o \

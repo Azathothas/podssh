@@ -1,0 +1,9 @@
+# A settings file of podssh with groups of hosts (T-184): the settings come
+# first, then the table, whose lines are NAME HOSTS.
+RelayFailover serial
+
+[groups]
+web web{01..03}.example.org
+db = u@db1.example.org:2222, u@db2.example.org:2222
+all @web,@db bastion.example.org  # a comment
+one bastion.example.org

@@ -484,6 +484,24 @@ host, and a list of hosts changes both.
   resolved as `podssh ssh` resolves a destination, with the `Host` blocks of
   `ssh_config` for that host, before anything connects: a bad host fails
   the whole run with 64, and nothing has run anywhere.
+- **Braces and groups** (T-184, `crates/podssh-cli/src/hosts.rs`) are
+  expanded first, so that a shell that has no braces (dash, cmd,
+  PowerShell) and a settings file can name many hosts. An item takes the
+  braces of bash, in bash's order: `PREFIX{A..B}SUFFIX` (numbers, with the
+  zero padding of the wider of A and B when either starts with 0, as
+  `{01..12}`; or letters, `{a..c}`), `{A..B..N}` with a step,
+  `{a,b,c}` (an empty item gives the rest alone), and each nested. `@NAME`
+  is a group of the settings file (below), whose hosts are a list of the
+  same kind and can name groups. A word gives 1000 hosts at most; more,
+  none, an empty host, a range that runs backwards (bash would count down),
+  braces that hold nothing or neither a list nor a range, a blank inside
+  braces, and a group that is not there are usage errors (64). Square
+  brackets stay an IPv6 literal (T-007), as in `pdsh` they would be a
+  range: braces are what users of bash and csshw know. `podssh ssh` takes a
+  pattern that gives one host, such as a group of one, and refuses one
+  that gives more, with 64 and `podssh each` in the message. The settings
+  for each host stay in the `Host` blocks of `ssh_config` (T-043): a group
+  is a list of names, never their settings.
 - **The options** are those of `ssh` that make sense for many hosts: `-p`
   and `-l` (for each host that names none), `-i`, `-o`, `-F`, `-J`, `-v`,
   `-q`, `--direct` and the relay's. `--parallel N` runs at most N hosts at
@@ -1518,6 +1536,16 @@ keyword and a bad value are refused (78, with the file and the line) by each
 command that reaches the relay. podssh never writes the file, and no
 keyword holds a token. `podssh status` gives its path as `settings` and
 `relays_from: "the settings file"`, and `podssh doctor` names it.
+
+After a line `[groups]`, to the end of the file, each line is
+`NAME HOSTS` (or `NAME=HOSTS`): a group of hosts for `podssh each`, named
+`@NAME` (T-184). A name has letters, digits, `.`, `_` and `-`, and does
+not start with `.` or `-`; its hosts are a word of `podssh each`, with
+commas or blanks between items, braces, and other groups. The settings
+come before the table: a line of the table that is a setting's keyword is
+refused, and so are a group given twice, another table, and a group that
+names one that is not there or itself, through others or not (78, with
+its line), as each bad line of the file is.
 
 ## The log of the sessions
 

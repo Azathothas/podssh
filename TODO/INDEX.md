@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 54 open, 0 partial, 25 blocked, 224 done.**
+**303 entries: 53 open, 0 partial, 25 blocked, 225 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 48 | 0 | 7 | 65 | 120 |
-| **All** | 54 | 0 | 25 | 224 | 303 |
+| P3 | 47 | 0 | 7 | 66 | 120 |
+| **All** | 53 | 0 | 25 | 225 | 303 |
 
 ## Entries
 
@@ -257,7 +257,7 @@ repository and CI).
 | [T-181](pipe.md) | P3 | S | backlog | feature | done | A `serial:` address for a local serial device |
 | [T-182](pipe.md) | P3 | S | backlog | docs | done | USB/IP devices through `podssh pipe`: a tested recipe, with no driver in podssh |
 | [T-183](multi.md) | P3 | M | backlog | feature | done | Run one command on many hosts |
-| [T-184](multi.md) | P3 | S | backlog | feature | open | Host groups and brace expansion of host names |
+| [T-184](multi.md) | P3 | S | backlog | feature | done | Host groups and brace expansion of host names |
 | [T-185](multi.md) | P3 | L | backlog | feature | open | Interactive broadcast to several sessions, with an emergency stop |
 | [T-186](multi.md) | P3 | L | backlog | feature | open | A control surface for agents on live sessions |
 | [T-187](multi.md) | P3 | M | backlog | feature | open | Snippets and argument templates, shown before they run |

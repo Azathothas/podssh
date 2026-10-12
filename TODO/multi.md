@@ -57,7 +57,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/login.rs:86`).
    An unknown host key refuses that host and gives its fingerprint and
    `-o StrictHostKeyChecking=accept-new`. stdin is not read
-   (`crates/podssh-cli/src/ssh/resolve.rs:408`).
+   (`crates/podssh-cli/src/ssh/resolve.rs:411`).
 5. Get the token once, before the fan-out. Serialize `known_hosts::append`
    in the process with a mutex; T-029 covers two processes.
 6. The exit status: the largest status of the hosts, and 255 for a host that
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:1559-1562`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:1587-1590`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -164,7 +164,7 @@ groups, and settings for each host); GitHub #18 (bssh:
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -181,7 +181,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:1673-1766`); they cannot define a group.
+  (`docs/cli.md:1701-1794`); they cannot define a group.
 
 ## Approach
 
@@ -217,6 +217,54 @@ cargo test -p podssh-cli hosts::
 The cases: `web{1..3}`, `{01..10}` with its padding, `a{b,c}d`, nesting,
 1001 hosts refused, `@group` from a fixture file, and a cycle refused.
 Plant: drop the zero padding; the case `{01..10}` must fail.
+
+## Done
+
+2026-10-12. Written as a draft over T-183.
+`crates/podssh-cli/src/hosts.rs` expands a word: the items at each comma
+outside braces, the braces of each item in bash's order, the first pair
+first and each result again, and `@NAME` from the table of groups; its
+tests are in `crates/podssh-cli/src/hosts_tests.rs`, with the fixture
+`crates/podssh-cli/tests/fixtures/groups.settings`. `settings.rs` reads the
+table: after a line `[groups]`, each line is `NAME HOSTS`, into
+`Defaults::groups`, and the whole table is expanded once as the file is
+read, so that a fault of a group is the file's (78, with its line), refused
+by each command that checks the settings (`pins::apply`), as each bad line
+of the file is. `podssh each` expands its word with it before any host is
+resolved, and `resolve_or_refuse` takes `hosts::one` of the destination.
+The calls made: a range of letters (`{a..c}`) and a step (`{A..B..N}`, N
+at least 1) are taken, as bash takes them; the padding is bash's, the width
+of the wider of A and B when either starts with a 0 (`{1..010}` gives
+`001`); an empty item of a list gives the rest alone, as in bash
+(`w{,1}`), and an empty host is refused; blanks outside braces part hosts
+as commas do, for the lines of the table, and a blank inside braces is
+refused; braces that hold nothing, or neither a list nor a range, are
+refused where bash would keep them as text, as no host name holds a brace;
+a host given twice runs once; the limit of 1000 counts the hosts after
+that, and a range is refused before it is made; a group that the command
+line names and the table lacks is 64 and names the groups that there are,
+while one that a group names is the file's (78); a group's name has
+letters, digits, `.`, `_` and `-`, not first a `.` or a `-`, and a name
+that is a setting's keyword, a group given twice and a table other than
+`[groups]` are refused, so that a setting put after the table is not taken
+for a group; a pattern that gives one host is that host for `podssh ssh`
+and each command that resolves a destination as it does, so that a group
+of one names a bastion, and one that gives more is refused (64), naming
+`podssh each`. `cargo test -p podssh-cli hosts::` (`web{1..3}`, `{01..10}`
+with its padding, letters and a step, `a{b,c}d`, nesting, `h{1..1001}`
+and three other ways past 1000 refused, the other refusals, `@group` from
+the fixture, `podssh ssh`'s pattern of one host and of three, and a cycle
+of two groups and of one refused with its line, 78 also at run time):
+5 passed here (Windows 11). `cargo test -p podssh-cli --test each --
+braces_and_groups` (through the binary, offline: a group and a range give
+five hosts, each named; the refusals of `each` and of `ssh`, 64; a group
+of one for `ssh`; a cycle in the file, 78): passed, with the 8 tests of
+T-183, 9 in all; the lib suite, 287; `--test flag_table` and `--test
+man_flag_parity`, 8 and 5; clippy clean. The plant of the Prove, the
+padding dropped: `a_range_gives_each_number_and_keeps_a_zero_padding` and
+`a_group_of_the_settings_file_names_hosts_and_groups` failed, and it was
+taken out. The broadcast of T-185 is not built: it will
+take the same word.
 
 # T-185: Interactive broadcast to several sessions, with an emergency stop
 
@@ -544,7 +592,7 @@ name is copied by hand.
 ## Premise
 
 - Read: `podssh ssh -t HOST -- docker exec -it NAME sh` works today, as a
-  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:266-274`,
+  remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:269-277`,
   `crates/podssh-cli/src/ssh/hop.rs:97-108`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
   finds it (`AGENTS.md:197-201`). Here the programs run on the server, for a
@@ -703,7 +751,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:162`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:1559-1562`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:1587-1590`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -812,14 +860,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:141-143`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:855-857`).
+  credentials or tokens (`docs/cli.md:873-875`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:79-109`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:302-317`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:1559-1562`), which is not a failure of podssh.
+  status (`docs/cli.md:1587-1590`), which is not a failure of podssh.
 
 ## Approach
 

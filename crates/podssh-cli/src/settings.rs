@@ -9,7 +9,9 @@
 //! binary; never the working directory or `/tmp`, as a file that names relay
 //! hosts decides where tokens go. A symbolic link, a file of another user
 //! than this one or root, and one that others can change are refused. podssh
-//! never writes the file, and no keyword holds a token.
+//! never writes the file, and no keyword holds a token. After a line
+//! `[groups]`, each line is `NAME HOSTS`: a group of hosts, `@NAME` on the
+//! command line (T-184, [`crate::hosts`]).
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -51,6 +53,8 @@ pub struct Defaults {
     pub ca_file: Option<Value>,
     /// `SessionLog` (T-056).
     pub session_log: Option<Value>,
+    /// The `[groups]` table (T-184): each group's name and its hosts.
+    pub groups: crate::hosts::Groups,
 }
 
 impl Defaults {
@@ -167,16 +171,29 @@ fn read_checked(path: &Path) -> Result<String, String> {
 /// file alike.
 pub fn parse(text: &str, file: &str, home: Option<&Path>) -> Result<Defaults, String> {
     let mut d = Defaults::default();
+    // Past `[groups]`, each line is a group, to the end of the file.
+    let mut in_groups = false;
     for (i, raw) in text.lines().enumerate() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
+        let at = format!("{file}:{}", i + 1);
+        if line.starts_with('[') {
+            match crate::ssh::config::uncomment(line).trim() {
+                "[groups]" => in_groups = true,
+                other => return Err(format!("{at}: {other} is not a table of podssh's settings; the one is [groups]")),
+            }
+            continue;
+        }
         let (keyword, value) = crate::ssh::config::split(line);
         let value = crate::ssh::config::uncomment(value).trim();
-        let at = format!("{file}:{}", i + 1);
         if value.is_empty() {
             return Err(format!("{at}: {keyword} needs a value"));
+        }
+        if in_groups {
+            crate::hosts::group_line(&mut d.groups, keyword, value, &at)?;
+            continue;
         }
         let value = Value { text: value.to_string(), at: at.clone() };
         let text = &value.text;
@@ -214,6 +231,8 @@ pub fn parse(text: &str, file: &str, home: Option<&Path>) -> Result<Defaults, St
             }
         }
     }
+    // A group that names one that is not there, or itself, is the file's fault.
+    crate::hosts::check_groups(&d.groups)?;
     Ok(d)
 }
 

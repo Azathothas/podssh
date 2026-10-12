@@ -49,7 +49,7 @@ failed (lines 156-168). The sections are "this host", "egress" and "relay" (line
 5. The JSON carries the same detail strings as the text, which hide proxy credentials and
    tokens today (`crates/podssh-cli/tests/doctor.rs:131-156`).
 6. Change the `doctor` notes (`crates/podssh-cli/src/man/notes.rs:209-229`) and
-   `docs/cli.md:839-857` in the same commit.
+   `docs/cli.md:857-875` in the same commit.
 
 ## Decision
 
@@ -335,7 +335,7 @@ and `crates/podssh-ssh/src/keys.rs:86-118` offers a key to the server.
 5. The line joins the JSON of T-049. The script can call `doctor --full` and keep its OpenSSH
    step.
 6. Change `DOCTOR_FLAGS` (`crates/podssh-cli/src/flags/relay.rs:45-58`), the `doctor` notes
-   (`crates/podssh-cli/src/man/notes.rs:209-229`) and `docs/cli.md:839-857` in the same commit.
+   (`crates/podssh-cli/src/man/notes.rs:209-229`) and `docs/cli.md:857-875` in the same commit.
 
 ## Decision
 
@@ -674,7 +674,7 @@ stdin and stdout gives typed tools, with no shell quoting.
 
 Measured: `podssh mcp` exits 64 (unknown subcommand).
 
-Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1611-1636`),
+Read: a prompt goes to the controlling terminal or to `SSH_ASKPASS` (`docs/cli.md:1639-1664`),
 and the terminal of an agent can be the user's own. The session output goes straight to the
 process's stdout (`crates/podssh-ssh/src/io.rs:378-395`), which an MCP server over stdio uses for
 its protocol. podssh never listens (`docs/architecture.md:116-129`), and stdio needs no listener.
@@ -909,7 +909,7 @@ its session at `crates/podssh-cli/src/proxy.rs:258-261`; the bytes of the
 pump at `crates/podssh-cli/src/pipe/pump.rs:94` and
 `crates/podssh-cli/src/pipe/pump.rs:104-132`, and the relay's close at
 `crates/podssh-cli/src/pipe/relay.rs:198`. `SessionLog` at
-`crates/podssh-cli/src/settings.rs:204-207`, and `podssh status` at
+`crates/podssh-cli/src/settings.rs:221-224`, and `podssh status` at
 `crates/podssh-cli/src/status.rs:103-114`. The variable in VARIABLES, the
 two files in FILES, and `docs/cli.md`.
 

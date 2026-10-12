@@ -84,22 +84,6 @@ pub fn parallel(text: Option<&str>) -> Result<usize, String> {
     }
 }
 
-/// The hosts of `word`: a comma list, each item trimmed. An empty list or
-/// item is refused (64), and a host named twice runs once, in its first
-/// place.
-pub fn hosts_of(word: &str) -> Result<Vec<String>, Refusal> {
-    let mut hosts: Vec<String> = Vec::new();
-    for item in word.split(',').map(str::trim) {
-        if item.is_empty() {
-            return Err(Refusal::usage(format!("{word:?}: an empty host; give [user@]host[:port],...")));
-        }
-        if !hosts.iter().any(|h| h == item) {
-            hosts.push(item.to_string());
-        }
-    }
-    Ok(hosts)
-}
-
 /// Run `podssh each`; the process exit code.
 pub fn run_each(args: &EachArgs, err: &mut dyn Write) -> i32 {
     let usage = |err: &mut dyn Write, why: String| Refusal::usage(why).report("each", err);
@@ -116,13 +100,14 @@ pub fn run_each(args: &EachArgs, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = crate::pins::apply(args.ssh.relay_addr.as_deref()) {
         return refusal.report("each", err);
     }
-    let labels = match hosts_of(word) {
+    // The hosts, their braces and groups expanded (T-184), then each host
+    // before anything connects: a bad one fails the run, and nothing has
+    // run anywhere.
+    let env = Env::from_process();
+    let labels = match crate::hosts::expand(word, &env.settings.groups) {
         Ok(labels) => labels,
         Err(refusal) => return refusal.report("each", err),
     };
-    // Each host before anything connects: a bad one fails the run, and
-    // nothing has run anywhere.
-    let env = Env::from_process();
     let mut plans = Vec::with_capacity(labels.len());
     for label in &labels {
         match host::plan(label, &args.ssh, &env) {
@@ -199,14 +184,6 @@ async fn fan_out(plans: &[Plan], files: Vec<Option<out::Files>>, parallel: usize
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn the_hosts_are_a_comma_list_each_once() {
-        assert_eq!(hosts_of("a, u@b:2222 ,a").unwrap(), ["a", "u@b:2222"]);
-        for bad in ["", "a,,b", "a,", " , "] {
-            assert_eq!(hosts_of(bad).unwrap_err().code, 64, "{bad:?}");
-        }
-    }
 
     #[test]
     fn parallel_is_one_to_64() {
