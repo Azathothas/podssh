@@ -220,7 +220,7 @@ fn scp_and_sftp_keep_the_times_with_p() {
     // put -p, get -p, and a put with neither. scp read local.bin, which on
     // Linux moved its access time: it gets its times again first.
     set_times(&home.join("local.bin"), ATIME, MTIME);
-    let batch ="put -p local.bin put.bin\nget -p put.bin get.bin\nput local.bin plain.bin\n";
+    let batch = "put -p local.bin put.bin\nget -p put.bin get.bin\nput local.bin plain.bin\n";
     std::fs::write(home.join("batch"), batch).unwrap();
     let (rc, _, err) = podssh(&home, port, "sftp", &["-b", "batch", "u@127.0.0.1"]);
     assert_eq!(rc, 0, "{err}");
