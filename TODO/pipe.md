@@ -792,7 +792,7 @@ but an AF_UNIX one, which sandbox A allows where it refuses AF_INET
 
 ## Done
 
-2026-10-12, a draft whose checks have not run yet. What was made:
+2026-10-12. What was made:
 - `README.md`, a section `### Other TCP protocols` after "Relay limits": a
   table of VNC, RDP and Telnet (what works with no listener, with a local
   listener, and the limits: 64 MiB through the relay, which is 21 full
@@ -856,6 +856,8 @@ What waits:
   `release` wait for CI and T-251. The RFB line of form a, the rates and
   the minutes that 64 MiB lasts go into `docs/STATUS.md` from the first run
   that passes.
+
+What ran:
 - Native here: `cargo test -p podssh-cli --lib man::examples` with the new
   example, 4 passed; the plant of the Correction (`-L` given to the
   ProxyCommand's `podssh proxy`) fails the test of the examples with
@@ -1067,7 +1069,7 @@ and workloads are streams (`docs/decisions.md`).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1115,6 +1117,77 @@ python scripts/check-repo.py         # the links of the table
 A row of `docs/STATUS.md` gives `usbip port` on the client after the attach,
 with the date and the commands. Plant: delete "64 MiB" from the row; the
 first command must fail.
+
+## Done
+
+2026-10-12. What was made:
+- `README.md`, the row "USB/IP (port 3240)" of the table "Other TCP
+  protocols" of T-179 (`README.md:181`): the recipe, `usbip` with root
+  and the modules (`usbip-host` on the server, `vhci-hcd` on the client)
+  and podssh with neither, 64 MiB through the relay and then 1009, and
+  `ssh:`, never `relay:` to a public `usbipd`, as USB/IP is not
+  encrypted. Below the table, the recipe's commands, and the paragraph
+  that says why it needs `--keep-listening` and that the device stays
+  while the session lasts.
+- `scripts/interop-usbip.sh`, sourced by `scripts/interop.sh` after
+  `scripts/interop-desktop.sh` (the harness `usbip`, floor 1, in
+  `scripts/interop-baseline.txt`): the recipe as far as the list of the
+  server's devices. `podssh pipe tcp-listen:127.0.0.1:3240` reaches a
+  stand-in of `usbipd` through OpenSSH with `ssh:`, and the real
+  `usbip list -r 127.0.0.1` must list its device 1-1, while the stand-in reads
+  the request of version 0x0111 and code `OP_REQ_DEVLIST`
+  (`usbip.list_remote`). The package `linux-tools-usbip` joins the
+  image's `apk add` (`scripts/interop.sh:25`); it is in Alpine v3.22 and
+  edge (pkgs.alpinelinux.org, read on 2026-10-12).
+- `docs/STATUS.md`, two rows in "Other TCP protocols, measured", with
+  UNVERIFIED where the results go.
+
+The calls made where the Approach left a choice:
+- A check in the gate, which the Approach did not name: the list is the
+  part of the recipe that needs no module, as `usbip list -r` only dials
+  TCP and sends `OP_REQ_DEVLIST`
+  (`torvalds/linux:tools/usb/usbip/src/usbip_list.c`, read on
+  2026-10-12). The stand-in's reply has the layout of
+  `torvalds/linux:tools/usb/usbip/src/usbip_network.h` and
+  `torvalds/linux:tools/usb/usbip/libsrc/usbip_common.h` (a device of 312
+  bytes, then 4 bytes for each interface), with the version that
+  `torvalds/linux:tools/usb/usbip/configure.ac` defines, 0x00000111, as
+  the client refuses another.
+- The recipe adds `--keep-listening` to step 1's command: a listener
+  takes one client, and `usbip list -r` and `usbip attach -r` connect
+  once each. It keeps the local port 3240, so `usbip` needs no
+  `--tcp-port`.
+- `usbip attach` hands its TCP socket to the kernel
+  (`usbip_vhci_attach_device(port, sockfd, ...)` in
+  `torvalds/linux:tools/usb/usbip/src/usbip_attach.c`), so the device's
+  traffic passes podssh for as long as the pipe's session lasts; the
+  README says so. `usbip` dials TCP only, so a host that refuses an
+  AF_INET bind, as sandbox A does (`docs/STATUS.md:227`), cannot run the
+  recipe, nor can one without the modules.
+- The row states the limit by the throughput measured through sandbox A's
+  proxy (`docs/STATUS.md:234`): 64 MiB is about 2 minutes of reads at
+  0.5 to 0.7 MB/s.
+
+What waits:
+- `usbip.list_remote` in the gate's step `release`: UNVERIFIED; it waits
+  for CI and T-251.
+- Step 3, the attach, a read from the device, `usbip port` and the
+  detach on two Linux hosts with the modules: it waits for the operator's
+  machines (or the tailnet hosts of `docs/STATUS.md`, if they have the
+  modules and a device): UNVERIFIED.
+
+What ran:
+- Native here: the Prove's `grep` finds the row, `README.md:181`;
+  `python scripts/check-repo.py`: each check ok, the doc links too.
+- In the build image (Alpine, `linux-tools-usbip`), with no module: the
+  harness's stand-in of `usbipd` on a port of its own, and the real
+  `usbip --tcp-port PORT list -r 127.0.0.1` without podssh. usbip listed
+  "1-1: unknown vendor : unknown product (1d6b:0104)" with the stand-in's
+  path and the interface (08/06/50), and exited 0; the stand-in read the
+  request `0111800500000000`. The image has no `usb.ids`, so usbip says
+  that it could not open it, and names no vendor.
+  Planted, "64 MiB" deleted from the row in a copy of `README.md`: the
+  `grep` found nothing and exited 1.
 
 
 # T-282: On Windows a session that `--persist` attaches again waits for a key

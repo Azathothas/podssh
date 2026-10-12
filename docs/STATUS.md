@@ -523,11 +523,12 @@ The lines are `wc -l` of each crate's `src/` and `tests/` (2026-10-09, T-082;
 ## Other TCP protocols, measured
 
 The forms are those of [README.md](../README.md), "Other TCP protocols"
-(T-179, 2026-10-12): (a) OpenSSH listens and `podssh proxy` carries its
-session; (b) `podssh pipe` listens; (c) a client runs podssh as its
-transport, and nothing listens. The servers run on 127.0.0.1 behind OpenSSH
-in the gate's `scripts/interop-desktop.sh`, whose checks wait for CI and
-T-251: each UNVERIFIED below is filled in from its first run.
+(T-179 and T-182, 2026-10-12): (a) OpenSSH listens and `podssh proxy`
+carries its session; (b) `podssh pipe` listens; (c) a client runs podssh as
+its transport, and nothing listens. The servers run on 127.0.0.1 behind
+OpenSSH in the gate's `scripts/interop-desktop.sh` and
+`scripts/interop-usbip.sh`, whose checks wait for CI and T-251: each
+UNVERIFIED below is filled in from its first run.
 
 | Check | Result |
 | --- | --- |
@@ -538,6 +539,8 @@ T-251: each UNVERIFIED below is filled in from its first run.
 | The bytes of a desktop to TigerVNC's viewer on the loopback, counted on the server's side after the first 5 s: 20 s idle, then 20 s of a screen of new noise 4 times a second | Idle, UNVERIFIED bytes a minute; busy, UNVERIFIED; 64 MiB lasts UNVERIFIED minutes busy |
 | Telnet: `podssh pipe stdio ssh:` to BusyBox's `telnetd` | The first byte, IAC (255): UNVERIFIED |
 | Telnet, form b: BusyBox's `telnet` at `podssh pipe tcp-listen:`, and `echo TELNET-$((6*7))` typed to the shell | `TELNET-42` came back: UNVERIFIED |
+| USB/IP, form b (T-182): `usbip list -r 127.0.0.1` of Linux's tools at `podssh pipe tcp-listen:127.0.0.1:3240`, whose other side is a stand-in of `usbipd` behind OpenSSH | The device 1-1 in the list, and the request that the stand-in read (version 0x0111, `OP_REQ_DEVLIST`): UNVERIFIED |
+| USB/IP on two Linux hosts with the modules `usbip-host` and `vhci-hcd` (T-182): `usbip attach` through the recipe of README.md, a read from the device, `usbip port`, `usbip detach` | Waits for the operator's machines: UNVERIFIED |
 | Read, not run (2026-10-12) | SSVNC's `ssvncviewer` runs the command of `exec=COMMAND` and speaks RFB on its stdio (its manual page); Alpine has no package of it, so the harness's client stands in. TigerVNC's `vncviewer` takes a Unix socket's path, and its `-via` runs `/usr/bin/ssh -f -L` by default (its manual page, `VNC_VIA_CMD`), which binds. FreeRDP's `/proxy:` takes an HTTP or SOCKS5 proxy (its manual page). No RDP server or client ran. |
 
 ## The relay

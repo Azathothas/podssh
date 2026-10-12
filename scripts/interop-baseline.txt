@@ -40,6 +40,7 @@ harness resume interop 9 scripts/interop-resume.sh
 harness edit interop 8 scripts/interop-edit.sh
 harness pipe interop 9 scripts/interop-pipe.sh
 harness desktop interop 7 scripts/interop-desktop.sh
+harness usbip interop 1 scripts/interop-usbip.sh
 harness pty interop 13 scripts/interop-pty.py
 harness man man 7 scripts/interop-man.sh
 harness conpty conpty 14 scripts/interop-conpty.py
@@ -496,6 +497,9 @@ desktop.vnc.viewer_unix_listen pass
 desktop.vnc.rate pass
 desktop.telnet.options pass
 desktop.telnet.client pass
+
+# scripts/interop-usbip.sh
+usbip.list_remote pass
 
 # scripts/interop-pty.py
 pty.shell pass

@@ -22,7 +22,7 @@ mkdir -p "$W"
 echo "== servers"
 # openssh-client-default is ssh itself, for the % tokens of `ssh -G`.
 apk add --no-cache openssh-server openssh-server-pam openssh-keygen openssh-sftp-server openssh-client-default \
-    dropbear python3 linux-pam openssl tmux curl sudo xvfb xauth xdpyinfo tigervnc tigervnc-client busybox-extras xsetroot >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
+    dropbear python3 linux-pam openssl tmux curl sudo xvfb xauth xdpyinfo tigervnc tigervnc-client busybox-extras xsetroot linux-tools-usbip >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
 # sz and rz of lrzsz, for the ZMODEM checks of interop-pty.py (T-148). Alpine
 # has no lrzsz package now: without one, those checks say env.
 apk add --no-cache lrzsz >"$W/apk-lrzsz.log" 2>&1 || echo "interop: no lrzsz package; the ZMODEM checks say env"
@@ -463,6 +463,8 @@ saved=$(p 2201 $K -o BatchMode=yes "$T" 'cat /tmp/pipe-vi' </dev/null 2>/dev/nul
 . "$HERE/interop-pipe.sh"
 # shellcheck source=scripts/interop-desktop.sh
 . "$HERE/interop-desktop.sh"
+# shellcheck source=scripts/interop-usbip.sh
+. "$HERE/interop-usbip.sh"
 # shellcheck source=scripts/interop-sudo.sh
 . "$HERE/interop-sudo.sh"
 # shellcheck source=scripts/interop-recording.sh

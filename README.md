@@ -199,6 +199,7 @@ with `ssh:`, so that the relay sees SSH only.
 | VNC (RFB, port 5900 + display) | A viewer that runs a command as its transport: SSVNC's `ssvncviewer exec=COMMAND` (its manual; not run here) | `pipe unix-listen:` and TigerVNC's `vncviewer`, which takes a socket's path, where only an AF_UNIX bind works; else `pipe tcp-listen:` or `ssh -L` | 64 MiB through the relay, 21 full screens of 1024x768 at 32 bits with no compression; [docs/STATUS.md](docs/STATUS.md) has a viewer's rate |
 | RDP (port 3389) | No client that runs a command was found; FreeRDP's `/proxy:` takes an HTTP or SOCKS5 proxy, a listener (`podssh ssh -D`) | `pipe tcp-listen:` or `ssh -L` (not measured) | 64 MiB through the relay |
 | Telnet (port 23) | `podssh proxy HOST 23` carries the bytes, but the server's first bytes are options (IAC) that a client must answer | `pipe tcp-listen:`, then `telnet 127.0.0.1 PORT` | Plain text, the password too: use `ssh:` to a host near the server |
+| USB/IP (port 3240) | None: `usbip` dials a host and port itself | `pipe --keep-listening tcp-listen:127.0.0.1:3240` to `ssh:`, then `usbip attach -r 127.0.0.1 -b BUSID`: `usbip` needs root and the kernel modules (`usbip-host` on the server, `vhci-hcd` here), podssh neither | 64 MiB through the relay, about 2 minutes of a disk read at the 0.5 to 0.7 MB/s measured through a sandbox's proxy: the session then ends (1009), and the device goes away; not encrypted: use `ssh:`, never `relay:` to a public `usbipd` |
 
 ```sh
 # VNC where only an AF_UNIX bind works: TigerVNC's viewer at the socket
@@ -212,10 +213,17 @@ ssh -N -L 5901:127.0.0.1:5901 -o ProxyCommand='podssh proxy %h %p' -o ServerAliv
 ssvncviewer 'exec=podssh pipe stdio ssh:me@desktop.example.org,127.0.0.1:5901'
 # Telnet to a device behind an SSH host
 podssh pipe tcp-listen:2323 ssh:me@gateway.example.org,router.lan:23 & telnet 127.0.0.1 2323
+# USB/IP: list the server's devices, then attach one (usbipd runs there; each usbip command connects once)
+podssh pipe --keep-listening tcp-listen:127.0.0.1:3240 ssh:me@usbhost.example.org,127.0.0.1:3240 &
+usbip list -r 127.0.0.1
+sudo usbip attach -r 127.0.0.1 -b 1-1
 ```
 
 A listener of `podssh pipe` takes one client, then closes; a viewer that
-connects again needs `--keep-listening`.
+connects again, and `usbip`, which connects once to list and once to
+attach, need `--keep-listening`. After `usbip attach`, the kernel speaks
+USB/IP on the connection to podssh's listener, and the device stays while
+that session lasts; `usbip detach` ends it.
 
 ## Build
 
