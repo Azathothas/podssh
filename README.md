@@ -10,7 +10,7 @@ an HTTP proxy is their only way out. podssh needs no root, no `LD_PRELOAD`,
 no installed `ssh`, and no TLS or crypto library of the system.
 
 > [!WARNING]
-> **Status: beta.** `podssh ssh`, `podssh proxy`, `podssh pipe`,
+> **Status: beta.** `podssh ssh`, `podssh each`, `podssh proxy`, `podssh pipe`,
 > `podssh cp`, `podssh mv`, `podssh scp`, `podssh sftp` and `podssh edit`
 > (files), `podssh doctor`, `podssh keygen`, `podssh agent`, `podssh man`,
 > `podssh status`, `podssh ping`, the reverse road (`podssh node`,

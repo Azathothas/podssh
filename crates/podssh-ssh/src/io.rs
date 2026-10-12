@@ -8,8 +8,7 @@ use std::time::Duration;
 
 use russh::client::{Handle, Msg};
 use russh::{Channel, ChannelMsg, ChannelReadHalf, ChannelWriteHalf};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::sync::mpsc;
+use tokio::io::AsyncWriteExt;
 
 use crate::elevate::Elevated;
 use crate::escape::{Command, Escapes};
@@ -22,6 +21,10 @@ use crate::terminal::termination::Termination;
 use crate::terminal::text::Consoles;
 use crate::terminal::watch::Resize;
 use crate::zmodem::Zmodem;
+
+mod input;
+
+pub use input::Input;
 
 /// How a session ended.
 #[derive(Debug)]
@@ -60,6 +63,12 @@ pub fn end_with(status: Option<i32>) -> End {
     status.map(End::Status).unwrap_or(End::NoStatus)
 }
 
+/// Where a session's output goes in place of this process's stdout and
+/// stderr (T-183): each piece as it came, and whether it is stderr's. One
+/// process then runs several sessions, and the receiver says whose each
+/// piece is. A receiver that is gone reads as a stdout whose reader went.
+pub type Sink = tokio::sync::mpsc::Sender<(Vec<u8>, bool)>;
+
 /// Whether stdout's reader has gone, and since when: the channel's data then
 /// goes nowhere, the server hears the end of input, and the status is
 /// awaited for a while, never read as a success.
@@ -69,6 +78,8 @@ struct Out {
     told: bool,
     /// The text of stdout and of stderr for a Windows console (T-294).
     consoles: Consoles,
+    /// The sink in place of the process's streams, when there is one.
+    sink: Option<Sink>,
 }
 
 /// What a session's output passes through on its way out: the filter of an
@@ -81,6 +92,8 @@ pub struct Through {
     pub zmodem: Option<Zmodem>,
     pub record: Option<Recorder>,
     pub detaching: crate::keep::Detaching,
+    /// Where the output goes in place of stdout and stderr (T-183).
+    pub sink: Option<Sink>,
 }
 
 impl Through {
@@ -107,73 +120,6 @@ impl Through {
     }
 }
 
-/// The local input of a run. It is read on its own task from the first
-/// session on, so that a session after a lost link reads on where the last
-/// one stopped, and what came between them waits in a queue.
-#[derive(Default)]
-pub struct Input {
-    /// `-n`: nothing is read, and the far side sees the end of input at once.
-    null: bool,
-    rx: Option<mpsc::Receiver<Vec<u8>>>,
-    /// The input has ended: a later session sees its end after the queue.
-    ended: bool,
-    queued: Vec<u8>,
-    /// Bytes that did not fit the queue.
-    dropped: usize,
-}
-
-impl Input {
-    /// The input of a run; none with `null` (`-n`).
-    pub fn new(null: bool) -> Self {
-        Input { null, ..Input::default() }
-    }
-
-    /// Whether a session has input to read.
-    fn open(&self) -> bool {
-        !self.null && !(self.ended && self.queued.is_empty())
-    }
-
-    /// The next bytes: the queue first, then what is read; `None` at the
-    /// end. The task that reads starts at the first call, after the login,
-    /// so that it takes nothing that a prompt reads.
-    async fn next(&mut self) -> Option<Vec<u8>> {
-        if !self.queued.is_empty() {
-            return Some(std::mem::take(&mut self.queued));
-        }
-        if self.ended {
-            return None;
-        }
-        let read = self.rx.get_or_insert_with(spawn_stdin).recv().await;
-        if read.is_none() {
-            self.ended = true;
-        }
-        read
-    }
-
-    /// Between two sessions: keep what is read for the next one, [`QUEUE`]
-    /// bytes at most. It never returns; the wait drops it when it ends.
-    pub async fn queue(&mut self) {
-        loop {
-            match self.rx.as_mut() {
-                Some(rx) if !self.ended => match rx.recv().await {
-                    Some(bytes) => {
-                        let kept = bytes.len().min(QUEUE.saturating_sub(self.queued.len()));
-                        self.queued.extend_from_slice(&bytes[..kept]);
-                        self.dropped += bytes.len() - kept;
-                    }
-                    None => self.ended = true,
-                },
-                _ => std::future::pending::<()>().await,
-            }
-        }
-    }
-
-    /// The bytes that did not fit the queue since the last call.
-    pub fn take_dropped(&mut self) -> usize {
-        std::mem::take(&mut self.dropped)
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 pub async fn pump(
     handle: &Handle<Client>,
@@ -187,7 +133,10 @@ pub async fn pump(
 ) -> End {
     let (mut reader, writer) = channel.split();
     let mut status: Option<i32> = None;
-    let mut out = Out { consoles: Consoles::of_this_process(), ..Out::default() };
+    // A sink takes the bytes unchanged: its receiver knows where they go.
+    let sink = through.sink.take();
+    let consoles = if sink.is_some() { Consoles::default() } else { Consoles::of_this_process() };
+    let mut out = Out { consoles, sink, ..Out::default() };
     // False once this session's input has ended, or its channel takes no more.
     let mut reading = input.open();
     // An elevated command's input waits for it to start (T-032).
@@ -212,7 +161,7 @@ pub async fn pump(
         let zmodem_at = through.zmodem.as_ref().and_then(Zmodem::deadline);
         let streaming = through.zmodem.as_ref().is_some_and(Zmodem::more);
         tokio::select! {
-            chunk = next(input, reading && !held) => match chunk {
+            chunk = input::next(input, reading && !held) => match chunk {
                 Some(bytes) => {
                     let (data, commands) = match escapes.as_mut() {
                         Some(e) => e.feed(&bytes),
@@ -356,7 +305,7 @@ async fn zmodem_out(
     };
     if !taken.screen.is_empty() {
         let screen = through.recorded(taken.screen, log);
-        let _ = write_out(&out.consoles.text(false, screen), false).await;
+        let _ = write_out(out.sink.as_ref(), &out.consoles.text(false, screen), false).await;
     }
     if !taken.server.is_empty() {
         send(writer, reader, taken.server, status, out, through, log).await?;
@@ -376,13 +325,13 @@ async fn handle_msg(
             let data = out.consoles.text(false, through.out(&data, false, log));
             // Whoever reads our stdout has gone (EPIPE): the data goes
             // nowhere, and the exit status is awaited (T-026).
-            if out.gone.is_none() && write_out(&data, false).await.is_err() {
+            if out.gone.is_none() && write_out(out.sink.as_ref(), &data, false).await.is_err() {
                 out.gone = Some(tokio::time::Instant::now());
             }
         }
         ChannelMsg::ExtendedData { data, .. } => {
             let data = out.consoles.text(true, through.out(&data, true, log));
-            let _ = write_out(&data, true).await;
+            let _ = write_out(out.sink.as_ref(), &data, true).await;
         }
         ChannelMsg::ExitStatus { exit_status } => {
             crate::outcome::status(exit_status);
@@ -406,13 +355,13 @@ async fn handle_msg(
         ChannelMsg::Close => {
             // A command that never started: what su said, its refusal.
             if let Some(e) = through.elevated.as_mut().filter(|e| !e.started()) {
-                let _ = write_out(&out.consoles.text(true, e.finish()), true).await;
+                let _ = write_out(out.sink.as_ref(), &out.consoles.text(true, e.finish()), true).await;
             }
             // A sequence that the end cut, for a console (T-294).
             for stderr in [false, true] {
                 let tail = out.consoles.finish(stderr);
                 if !tail.is_empty() {
-                    let _ = write_out(&tail, stderr).await;
+                    let _ = write_out(out.sink.as_ref(), &tail, stderr).await;
                 }
             }
             return Some(end_with(*status));
@@ -426,8 +375,12 @@ async fn handle_msg(
     None
 }
 
-async fn write_out(data: &[u8], to_stderr: bool) -> std::io::Result<()> {
-    if to_stderr {
+async fn write_out(sink: Option<&Sink>, data: &[u8], to_stderr: bool) -> std::io::Result<()> {
+    if let Some(sink) = sink {
+        sink.send((data.to_vec(), to_stderr))
+            .await
+            .map_err(|_| std::io::Error::from(std::io::ErrorKind::BrokenPipe))?;
+    } else if to_stderr {
         let mut err = tokio::io::stderr();
         err.write_all(data).await?;
         err.flush().await?;
@@ -456,34 +409,4 @@ async fn sleep_until(at: Option<tokio::time::Instant>) {
         Some(at) => tokio::time::sleep_until(at).await,
         None => std::future::pending().await,
     }
-}
-
-/// Read stdin on its own task. The receiver yields `None` at end of input.
-fn spawn_stdin() -> mpsc::Receiver<Vec<u8>> {
-    // Asked before the task reads: on Windows the question would wait for
-    // the pending read.
-    let _ = crate::terminal::stdin_is_terminal();
-    let (tx, rx) = mpsc::channel(8);
-    tokio::spawn(async move {
-        let mut stdin = tokio::io::stdin();
-        let mut buf = vec![0u8; 32 * 1024];
-        loop {
-            match stdin.read(&mut buf).await {
-                Ok(0) | Err(_) => break,
-                Ok(n) => {
-                    if tx.send(buf[..n].to_vec()).await.is_err() {
-                        break;
-                    }
-                }
-            }
-        }
-    });
-    rx
-}
-
-async fn next(input: &mut Input, reading: bool) -> Option<Vec<u8>> {
-    if !reading {
-        return std::future::pending().await;
-    }
-    input.next().await
 }

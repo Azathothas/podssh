@@ -15,7 +15,7 @@ the bssh report); GitHub #18 (the bssh report, item 10: output modes and
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -28,13 +28,13 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 - Measured: `podssh each a,b -- true` exits 64 (`unknown subcommand 'each'`),
   and `podssh ssh 'web1,web2' true` exits 64 (`',' is not allowed`).
 - Read: remote output goes straight to the stdout and stderr of the process
-  (`crates/podssh-ssh/src/io.rs:429-442`), and podssh's own messages go to
-  stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:70-95`).
+  (`crates/podssh-ssh/src/io.rs:378-395`), and podssh's own messages go to
+  stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:79-109`).
   Two hosts cannot be told apart.
 - Read: a host-key prompt waits for the user
   (`crates/podssh-ssh/src/hostkey.rs:208-246`); N prompts at once cannot
   work. `known_hosts` is appended under a lock since T-029
-  (`crates/podssh-ssh/src/known_hosts.rs:335-406`).
+  (`crates/podssh-ssh/src/known_hosts.rs:335-410`).
 - Read: with no cached token, each session mints one
   (`crates/podssh-relay/src/token.rs:134-179`); the relay allows 120 attempts
   with no token for each minute and address (`docs/relay.md:163`).
@@ -49,9 +49,9 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 2. One runtime, one task for each host, each on the existing path: the relay
    open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:156-230`,
    `crates/podssh-ssh/src/run.rs:35-80`). Invariant: no second SSH client.
-3. Sinks: give `crates/podssh-ssh/src/io.rs:178-442` a sink for stdout and
+3. Sinks: give `crates/podssh-ssh/src/io.rs:124-395` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
-   (`crates/podssh-ssh/src/log.rs:12-15`). Each line gets `HOST: `. With
+   (`crates/podssh-ssh/src/log.rs:12-18`). Each line gets `HOST: `. With
    `--output-dir`, the bytes go unchanged to `HOST.out` and `HOST.err`, and
    the status to `HOST.status`.
 4. No prompts: BatchMode is on (`crates/podssh-cli/src/ssh/login.rs:86`).
@@ -64,15 +64,15 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:359-404`,
-   `crates/podssh-cli/src/positionals.rs:7-151`, a `Parsed` variant,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:361-408`,
+   `crates/podssh-cli/src/positionals.rs:7-167`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:110-113`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:1502-1505`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:1559-1562`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -89,6 +89,71 @@ The test gives the statuses 0, 3 and 255 in each order. In
 and `exit 3` exits 3, with one prefixed line for each host; a closed port
 adds 255 and is named. Plant: return the status of the first host; the order
 0, 3 must fail.
+
+## Done
+
+2026-10-12. Written as a draft, then merged over T-148 and T-181.
+`crates/podssh-cli/src/each/` (`mod.rs`: the command line, the plan of each
+host before anything connects, the summary and the exit; `fan.rs`: the
+fan-out, the rule of the exit status and the summary's lines, plain
+functions of the hosts' ends; `host.rs`: one host on the road and the SSH
+client of `podssh ssh`, `transport::reach` and `podssh_ssh::run::run_outcome`,
+and the token before the hosts; `out.rs`: the lines with their label, the one
+writer, and the files of `--output-dir`), the rows of
+`crates/podssh-cli/src/flags/each.rs`, and the notes of
+`crates/podssh-cli/src/man/notes_each.rs`. In `podssh-ssh`: `io::Sink`, a
+channel that takes a session's output in place of the process's streams,
+carried by `Options::output` (the bytes unchanged, with no console's
+conversion, which the writer does for a line); `Log::with_prefix`, which
+puts the prefix on each line of a message; and a mutex of the process around
+`known_hosts::append`. The calls made: the command line is `podssh each
+[OPTIONS] HOSTS [--] COMMAND...`, the command's words joined as `ssh` joins
+them; the flags are those of the Approach, and `-F`, `-J`, `-v`, `-q` and
+`--relay-failover` too, with `-p` and `-l` as on `ssh`; a far line is
+`HOST: LINE`, and podssh's own lines of a host are `podssh: HOST: ...`, each
+line of a message, so that the rule that podssh's lines start with
+`podssh: ` holds; the label is the host as the list writes it; a host named
+twice runs once; a note or a warning that each host has is said once; one
+writer task puts each whole line, through tokio's stdout and stderr, so that
+a slow reader holds no host's session; a line of more than 64 KiB comes in
+pieces, and a last line with no newline gets one; with `--output-dir` the
+files are made before anything connects (73), their names have `%XX` for
+each byte but a letter, a digit, `.`, `_`, `-` and `@`, two hosts whose
+files differ only in case are refused (64), a status file of an earlier
+run is removed, and a host that never ran has none; the token before the
+hosts is `token::obtain` at the first relay host, skipped offline, with
+`--direct` and with `PODSSH_CACHE_DIR=none` (then each host mints, as each
+run does); a `SessionType` that asks for no command and a `node://` or
+`iroh:` destination are refused (64), and the forwards, X11 and the control
+socket of `ssh_config` are not used (said with `-v`); a host is not tried
+again after a drop of the relay (T-025), as the phase of a try
+(`podssh_ssh::retry`) is the process's; a host that never started adds
+nothing to the exit, which a failure already made non-zero; `-q` leaves the
+summary out. `cargo test -p podssh-cli --test each` (the statuses 0, 3 and
+255 in each order and the plant's order 0, 3; `--fail-fast` on a paused
+clock; the refusals, 64, offline; each host named with 255 offline; against
+the test's server on the loopback, 0, 127 and 255 in each order, one line of
+known_hosts after two sessions that met the key at once, the lines and the
+files of `exit 3`, `--fail-fast` with one at once, and an unknown host key):
+8 passed here (Windows 11). The unit tests of `each::` (the comma list,
+`--parallel`, the names of the files, the lines): 5 passed; the lib suite,
+283. The plant of the Prove, the first host's status as the exit: the
+orders failed (`the_exit_is_the_largest_status_in_each_order` and
+`each_order_of_0_127_and_255_exits_255_and_each_host_is_named`), and it was
+taken out. In the merge: `io::Sink` also takes ZMODEM's screen (T-148); the
+run's input moved from `crates/podssh-ssh/src/io.rs` to its own module,
+`crates/podssh-ssh/src/io/input.rs`, so that the file keeps under 500
+lines; and the note of `--output-dir` names the dot, the underscore and the
+hyphen in words, as the check of the notes reads `_` as a variable. The
+code has no Unix-only branch. The gate's checks
+(`scripts/interop-each.sh`, sourced by `scripts/interop.sh`: OpenSSH and
+Dropbear at once with `exit 3`, the orders 0, 3 and 3, 0, a closed port, the
+bytes of `--output-dir`, an unknown host key, `--fail-fast`) and the planted
+defect, the first host's status, wait for CI and T-251. Each host's session
+takes the process's records (`podssh_ssh::outcome`, `retry`, and the
+handler's last error): a lost session's words may name another host's
+error, and `podssh each` writes no `--result-file` and no line of the
+session log.
 
 # T-184: Host groups and brace expansion of host names
 
@@ -116,7 +181,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:1613-1706`); they cannot define a group.
+  (`docs/cli.md:1673-1766`); they cannot define a group.
 
 ## Approach
 
@@ -174,8 +239,8 @@ a broadcast needs a stop that works at once.
 ## Premise
 
 - Read: a session reads stdin on its own task and sends each chunk to one
-  channel (`crates/podssh-ssh/src/io.rs:462-482`,
-  `crates/podssh-ssh/src/io.rs:215-260`).
+  channel (`crates/podssh-ssh/src/io/input.rs:77-97`,
+  `crates/podssh-ssh/src/io.rs:164-209`).
 - Read: escapes work only at the start of a line, and only with a pty
   (`crates/podssh-ssh/src/escape.rs:1-8`).
 - Read: each session can live in one process, so a broadcast needs no
@@ -367,7 +432,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:156`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:253-255`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:256-258`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -423,7 +488,7 @@ that can be missing. `podssh doctor` checks only this host.
 
 - Read: an exec request runs one command through the shell of the server
   (`crates/podssh-ssh/src/session.rs:114-127`), and its output goes to stdout
-  (`crates/podssh-ssh/src/io.rs:429-442`); podssh cannot read it.
+  (`crates/podssh-ssh/src/io.rs:378-395`); podssh cannot read it.
 - Read: on Linux, `/proc/loadavg`, `/proc/meminfo`, `/proc/uptime` and
   `/proc/net/dev` hold the facts, and a POSIX shell reads them with `read`,
   with no other tool.
@@ -437,7 +502,7 @@ that can be missing. `podssh doctor` checks only this host.
    built-ins of the shell, and `df -P` only when `command -v df` finds it.
    No text of the user goes into the script.
 3. Read the output with the sink of T-183
-   (`crates/podssh-ssh/src/io.rs:178-442`), parse it, and print one line for
+   (`crates/podssh-ssh/src/io.rs:124-395`), parse it, and print one line for
    each fact: load, memory and swap, uptime, network bytes (two samples,
    1 s apart), disk, processes. `--json` gives one object, in the shape of
    T-049.
@@ -548,8 +613,8 @@ expect rule.
 - Measured: `podssh ssh -o LocalCommand=true -o PermitLocalCommand=yes -v user@host.invalid true`
   prints `-o LocalCommand has no effect in podssh`, and the same for
   `PermitLocalCommand` (`crates/podssh-cli/src/ssh/keywords.rs:93-94`).
-- Read: remote output arrives at `crates/podssh-ssh/src/io.rs:367-382`, and
-  input leaves at `crates/podssh-ssh/src/io.rs:215-255`. An expect rule goes
+- Read: remote output arrives at `crates/podssh-ssh/src/io.rs:316-331`, and
+  input leaves at `crates/podssh-ssh/src/io.rs:164-204`. An expect rule goes
   between them.
 - Read from memory, to verify against OpenSSH 10.3p1: OpenSSH runs
   `LocalCommand` after the connection, with the user's shell, only with
@@ -638,7 +703,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:162`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:1502-1505`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:1559-1562`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -747,14 +812,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:141-143`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:798-800`).
+  credentials or tokens (`docs/cli.md:855-857`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
-  (`crates/podssh-ssh/src/log.rs:70-95`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:299-314`.
+  (`crates/podssh-ssh/src/log.rs:79-109`). The exit code leaves through
+  `crates/podssh-cli/src/dispatch.rs:302-317`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:1502-1505`), which is not a failure of podssh.
+  status (`docs/cli.md:1559-1562`), which is not a failure of podssh.
 
 ## Approach
 
@@ -853,7 +918,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-116`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-119`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -886,5 +951,5 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-116`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-119`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.

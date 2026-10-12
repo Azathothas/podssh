@@ -279,6 +279,9 @@ pub struct Options {
     pub log_level: LogLevel,
     /// `-n`: send end-of-file at once instead of reading stdin.
     pub stdin_null: bool,
+    /// Where the session's output goes in place of stdout and stderr
+    /// (`podssh each`, T-183); `None` writes to the process's own.
+    pub output: Option<crate::io::Sink>,
     /// The destination's host key for the whole run, shared by each
     /// connection that a run opens again (`cp`, T-136); `None` for one
     /// connection.
@@ -382,6 +385,7 @@ impl Options {
             compression: false,
             log_level: LogLevel::Info,
             stdin_null: false,
+            output: None,
             host_key_pin: None,
             host_key_fingerprints: Vec::new(),
             remembered: None,

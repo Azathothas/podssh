@@ -21,6 +21,7 @@ pub mod model;
 pub mod notes;
 mod notes_chat;
 mod notes_config;
+mod notes_each;
 mod notes_edit;
 mod notes_keygen;
 mod notes_mcp;

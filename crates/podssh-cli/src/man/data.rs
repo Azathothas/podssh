@@ -71,7 +71,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             sysexits::EX_CANTCREAT,
             "podssh cp and mv: the destination cannot be written. podssh edit: the far file changed since \
              it was fetched, so nothing was sent and the copy here stays, or no cache directory takes the copy. \
-             podssh chat: the directory of --accept-dir is not there.",
+             podssh chat: the directory of --accept-dir is not there. podssh each: a file of --output-dir \
+             cannot be made; no host has run.",
         ),
         row(
             sysexits::EX_TEMPFAIL,
@@ -103,13 +104,15 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             "podssh ssh: the connection, the host key, a node's key or the authentication failed, the \
              session ended with no exit status (also when stdout closed and none came within 5 s), or the \
              server ended a run of -N. OpenSSH uses the same code. podssh ping: the destination could \
-             not be reached or logged in to, or a measure broke.",
+             not be reached or logged in to, or a measure broke. podssh each: a host could not be reached \
+             or logged in to, or its session ended with no exit status.",
         ),
         (
             Code::Remote,
             "podssh ssh: the exit status of the remote command, unchanged. When signal N stopped the \
              command, 128 + N. podssh ping: the status of the remote program of a measure that failed, \
-             127 when the host lacks it. podssh edit: the status of an editor that failed; nothing was sent."
+             127 when the host lacks it. podssh edit: the status of an editor that failed; nothing was sent. \
+             podssh each: the largest status of the hosts, 0 only when each gave 0."
                 .to_string(),
         ),
     ]

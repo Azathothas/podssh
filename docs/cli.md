@@ -472,6 +472,63 @@ keywords have no effect.
   `bool` of `PROTOCOL.mux` is a `uint32`, and the port of a stdio forward
   a `uint32`, not the string that the document says.
 
+## `podssh each`
+
+`podssh each [OPTIONS] HOSTS [--] COMMAND...` runs one command on each host
+of a list (T-183, `crates/podssh-cli/src/each/`). It is a verb of its own:
+`podssh ssh` keeps the command line and the exit codes of OpenSSH for one
+host, and a list of hosts changes both.
+
+- **The hosts** are a comma list of `[user@]host[:port]`, each named in
+  the output as it is written. A host named twice runs once. Each one is
+  resolved as `podssh ssh` resolves a destination, with the `Host` blocks of
+  `ssh_config` for that host, before anything connects: a bad host fails
+  the whole run with 64, and nothing has run anywhere.
+- **The options** are those of `ssh` that make sense for many hosts: `-p`
+  and `-l` (for each host that names none), `-i`, `-o`, `-F`, `-J`, `-v`,
+  `-q`, `--direct` and the relay's. `--parallel N` runs at most N hosts at
+  once (8 by default, 64 at most), each on a connection of its own, in one
+  process and one runtime, on the road and the SSH client of `ssh`: no
+  second client.
+- **No terminal, no input, no question.** Each session has no pty (`-T`)
+  and reads no stdin (`-n`). `BatchMode` is on: an unknown host key
+  refuses its host and gives its fingerprint and
+  `-o StrictHostKeyChecking=accept-new`; a password is never asked. The
+  keys that `accept-new` records go in one at a time, also within the
+  process (T-029 covers two processes). A `SessionType` of `ssh_config`
+  that asks for no command is refused (64), and so is a `node://` or
+  `iroh:` destination; the forwards, X11 and the control socket of
+  `ssh_config` are not used, and `-v` says so.
+- **One relay token.** Through the relay, a token is read or minted once,
+  before the hosts start, so that each host reads the one that the cache
+  keeps: the relay sees one mint, not one for each host (it allows 120
+  attempts with no token a minute for each address). With
+  `PODSSH_CACHE_DIR=none`, each host mints its own.
+- **The output.** The far output of each host goes through a sink in place
+  of the process's streams (`podssh_ssh::io::Sink`): each line becomes
+  `HOST: LINE` on stdout or stderr, as the host wrote it, and one writer
+  puts each line whole, so that no host's line cuts another's; a line of
+  more than 64 KiB comes in pieces, each with its label, and a last line
+  with no newline gets one. podssh's own messages of a host are
+  `podssh: HOST: ...`, each line of them, and a note or a warning that each
+  host has is said once. With `--output-dir DIR`, the bytes go unchanged to
+  `DIR/HOST.out` and `DIR/HOST.err`, and the status to `DIR/HOST.status` at
+  the host's end; nothing of theirs goes to stdout. A byte of HOST other
+  than a letter, a digit, `.`, `_`, `-` and `@` is `%XX` in a file's name,
+  and two hosts whose files would differ only in case are refused (64).
+  The files are made before anything connects (73 when they cannot be),
+  with no status file left from an earlier run: a host with none did not
+  run.
+- **The exit status** is the largest status of the hosts: 0 only when each
+  host gave 0, and 255 for a host that could not connect or log in, or
+  whose session ended with no status. `--fail-fast` starts no new host after
+  a failure (a status other than 0, or no session); the hosts that run end
+  as they end. A summary on stderr gives each host and its status, or why
+  it has none; `-q` leaves it out.
+- A host's session is not tried again after a drop of the relay, as
+  `ssh`'s is (T-025): the phase of a try is the process's, and many
+  sessions share it.
+
 ## A word with no subcommand
 
 `podssh example.org` never connects. podssh selects a suggestion in two
@@ -1523,6 +1580,9 @@ with its exit code unchanged. At 1 MiB the file becomes `sessions.1.jsonl`
   destination the codes of `podssh ssh`: 255 for a failure of podssh, and
   the status of the remote program of a measure (127 when the host lacks
   it).
+- `podssh each` gives the largest status of its hosts: 0 only when each
+  host gave 0, and 255 for a host with no session; 64 and 78 come before
+  anything connects, and 73 when a file of `--output-dir` cannot be made.
 - A command that is not implemented exits 70. It never exits 0.
 - A drop of the relay before any request reached the destination is tried
   again (T-025): during the SSH handshake or the login, before the

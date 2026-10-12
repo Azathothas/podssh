@@ -28,6 +28,8 @@ pub mod config_import;
 pub mod cp;
 pub mod dispatch;
 pub mod doctor;
+// `podssh each`: one command on many hosts at once (T-183).
+pub mod each;
 // `podssh edit`: one far file, changed in an editor here (T-149).
 pub mod edit;
 pub mod exit_codes;

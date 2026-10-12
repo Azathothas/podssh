@@ -479,6 +479,8 @@ saved=$(p 2201 $K -o BatchMode=yes "$T" 'cat /tmp/pipe-vi' </dev/null 2>/dev/nul
 . "$HERE/interop-result.sh"
 # shellcheck source=scripts/interop-mcp.sh
 . "$HERE/interop-mcp.sh"
+# shellcheck source=scripts/interop-each.sh
+. "$HERE/interop-each.sh"
 
 echo
 echo "== an interactive terminal (a local pty, driven by scripts/interop-pty.py)"

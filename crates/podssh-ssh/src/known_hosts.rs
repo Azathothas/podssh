@@ -340,6 +340,10 @@ pub fn wildcard(pattern: &[u8], text: &[u8]) -> bool {
 /// Existing content is never rewritten: comments and lines podssh cannot
 /// parse stay exactly as they are.
 pub fn append(path: &Path, name: &str, key: &PublicKey) -> std::io::Result<Recorded> {
+    // One append at a time in this process too: `podssh each` records
+    // several hosts at once (T-183), and the file's lock is for processes.
+    static APPENDING: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _one = APPENDING.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         let mut builder = std::fs::DirBuilder::new();
         builder.recursive(true);

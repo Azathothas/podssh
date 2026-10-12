@@ -27,6 +27,22 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .allow_hyphen_values(true)
                     .help("the command to run on the host, its words joined with spaces as OpenSSH joins them; without one, the host starts a shell"),
             ),
+        // The hosts, then the command, which takes everything after its
+        // first word, as `ssh`'s does; `--` before it is the usual form.
+        "each" => cmd
+            .arg(
+                Arg::new("hosts")
+                    .value_name("HOSTS")
+                    .help("the hosts, a comma list of [user@]host[:port], each named as it is written here"),
+            )
+            .arg(
+                Arg::new("remote-command")
+                    .value_name("COMMAND")
+                    .num_args(1..)
+                    .trailing_var_arg(true)
+                    .allow_hyphen_values(true)
+                    .help("the command to run on each host, its words joined with spaces as OpenSSH joins them"),
+            ),
         // Any count parses for `cp`, `mv` and `scp`: each says itself what a
         // short list lacks, in words clap's count error does not have.
         "cp" | "mv" | "scp" => cmd.arg(Arg::new("paths").value_name("PATH").num_args(1..).help("SRC... DST")),

@@ -398,6 +398,10 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         return Parsed::Edit(Box::new(crate::edit::EditArgs::from_matches(&matches, refused)));
     }
 
+    if verb.name == "each" {
+        return Parsed::Each(Box::new(crate::each::EachArgs::from_matches(&matches, refused)));
+    }
+
     if verb.name == "agent" {
         let get = |id: &str| matches.get_one::<String>(id).cloned();
         return Parsed::Agent(Box::new(crate::agent::AgentArgs {

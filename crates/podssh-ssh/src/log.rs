@@ -12,6 +12,9 @@ use crate::options::LogLevel;
 pub struct Log {
     level: LogLevel,
     file: Option<Mutex<File>>,
+    /// Put after `podssh: `, and before a banner, on each line: the host
+    /// that a line is about, when one process runs several (T-183).
+    prefix: Option<String>,
 }
 
 impl std::fmt::Debug for Log {
@@ -23,13 +26,19 @@ impl std::fmt::Debug for Log {
 impl Log {
     /// Messages at `level` and above go to stderr.
     pub fn new(level: LogLevel) -> Self {
-        Log { level, file: None }
+        Log { level, file: None, prefix: None }
+    }
+
+    /// The same log with `prefix` on each line, such as `web1: `.
+    pub fn with_prefix(mut self, prefix: impl Into<String>) -> Self {
+        self.prefix = Some(prefix.into());
+        self
     }
 
     /// Messages at `level` and above are appended to `path` instead (`-E`).
     pub fn to_file(level: LogLevel, path: &Path) -> std::io::Result<Self> {
         let file = OpenOptions::new().create(true).append(true).open(path)?;
-        Ok(Log { level, file: Some(Mutex::new(file)) })
+        Ok(Log { level, file: Some(Mutex::new(file)), prefix: None })
     }
 
     pub fn level(&self) -> LogLevel {
@@ -70,11 +79,16 @@ impl Log {
     fn write(&self, message: &str, prefix: bool) {
         // In raw mode the terminal does not turn LF into CR LF.
         let raw = self.file.is_none() && crate::terminal::raw_active();
+        let mut lead = String::from(if prefix { "podssh: " } else { "" });
+        lead.push_str(self.prefix.as_deref().unwrap_or_default());
         let mut text = String::with_capacity(message.len() + 10);
-        if prefix {
-            text.push_str("podssh: ");
+        text.push_str(&lead);
+        // With a prefix each line of a message gets it, so that a host's
+        // lines can be found among the others'.
+        match &self.prefix {
+            Some(_) => text.push_str(&message.trim_end_matches('\n').replace('\n', &format!("\n{lead}"))),
+            None => text.push_str(message),
         }
-        text.push_str(message);
         if !text.ends_with('\n') {
             text.push('\n');
         }

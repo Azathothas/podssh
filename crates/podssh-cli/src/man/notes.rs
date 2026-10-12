@@ -5,6 +5,7 @@
 
 use super::notes_chat::CHAT;
 use super::notes_config::CONFIG;
+use super::notes_each::EACH;
 use super::notes_edit::EDIT;
 use super::notes_keygen::KEYGEN;
 use super::notes_mcp::MCP;
@@ -18,6 +19,7 @@ use super::notes_ssh::SSH;
 pub fn for_verb(name: &str) -> &'static [&'static str] {
     match name {
         "ssh" => SSH,
+        "each" => EACH,
         "cp" => CP,
         "mv" => MV,
         "scp" => SCP,

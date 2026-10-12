@@ -25,6 +25,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ("log in to a host, through the relay", "podssh ssh user@example.org".into()),
         ("run one command; podssh exits with its exit status", "podssh ssh user@example.org 'uname -a'".into()),
         (
+            "the same command on three hosts, two at once: each line starts with its host; the exit is the worst",
+            "podssh each --parallel 2 web1.example.org,web2.example.org,user@db.example.org -- uptime".into(),
+        ),
+        (
             "a Unix socket on the server, on stdin and stdout",
             "podssh ssh -W /run/postgresql/.s.PGSQL.5432 user@db.example.org".into(),
         ),
@@ -283,6 +287,7 @@ mod tests {
                     Parsed::Ping(_) => "ping",
                     Parsed::Play(_) => "play",
                     Parsed::Edit(_) => "edit",
+                    Parsed::Each(_) => "each",
                     Parsed::Config(_) => "config",
                     Parsed::Mcp(_) => "mcp",
                     Parsed::Man { .. } => "man",

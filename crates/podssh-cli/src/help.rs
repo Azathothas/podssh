@@ -248,6 +248,7 @@ pub fn verb_notes(verb: &Verb) -> String {
 pub fn usage_tail(verb: &Verb) -> &'static str {
     match verb.name {
         "ssh" => "[OPTIONS] [--] [user@]host [COMMAND...]",
+        "each" => "[OPTIONS] HOSTS [--] COMMAND...",
         "cp" | "mv" | "scp" => "[OPTIONS] SRC... DST",
         "sftp" => "[OPTIONS] DESTINATION",
         "edit" => "[OPTIONS] [user@]host:PATH",
