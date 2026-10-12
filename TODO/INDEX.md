@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**295 entries: 58 open, 0 partial, 24 blocked, 213 done.**
+**303 entries: 63 open, 0 partial, 25 blocked, 215 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 52 | 0 | 6 | 54 | 112 |
-| **All** | 58 | 0 | 24 | 213 | 295 |
+| P3 | 57 | 0 | 7 | 56 | 120 |
+| **All** | 63 | 0 | 25 | 215 | 303 |
 
 ## Entries
 
@@ -243,8 +243,8 @@ repository and CI).
 | [T-167](roads.md) | P3 | M | backlog | feature | open | Start from a standard sshd, then move the session to a better road |
 | [T-168](roads.md) | P3 | M | backlog | feature | open | UDP over the relay |
 | [T-169](roads.md) | P3 | L | backlog | feature | blocked | A self-hosted relay that speaks the relay's contract |
-| [T-170](roads.md) | P3 | M | backlog | research | open | A Cloudflare quick tunnel made by podssh itself, with no `cloudflared`: the protocol and its ports |
-| [T-171](roads.md) | P3 | M | backlog | research | open | The functions of Mosh that M6 and T-160 do not give, made in podssh itself |
+| [T-170](roads.md) | P3 | M | backlog | research | done | A Cloudflare quick tunnel made by podssh itself, with no `cloudflared`: the protocol and its ports |
+| [T-171](roads.md) | P3 | M | backlog | research | done | The functions of Mosh that M6 and T-160 do not give, made in podssh itself |
 | [T-172](roads.md) | P3 | S | backlog | research | open | Multipath TCP on the direct road |
 | [T-173](roads.md) | P3 | L | M8 | feature | blocked | Resumption in the relay for a standard sshd |
 | [T-174](pipe.md) | P2 | M | M7 | feature | done | `podssh pipe A B` with local addresses |
@@ -370,3 +370,11 @@ repository and CI).
 | [T-296](copy.md) | P3 | M | backlog | feature | open | `cp`, `scp` and `sftp` to a node |
 | [T-297](copy.md) | P3 | M | backlog | feature | open | `cp --parallel K` copies several small files at once |
 | [T-298](copy.md) | P3 | S | backlog | feature | open | `sftp`'s `-r`: `get -r` and `put -r` of a directory |
+| [T-299](roads.md) | P3 | S | backlog | measurement | blocked | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
+| [T-300](roads.md) | P3 | L | backlog | feature | open | `podssh node` publishes a quick tunnel over HTTP/2, with no `cloudflared` |
+| [T-301](roads.md) | P3 | M | backlog | feature | open | The quick tunnel over QUIC, where a probe finds UDP |
+| [T-302](resume.md) | P3 | M | backlog | feature | open | A notice in the terminal while the far end is silent |
+| [T-303](resume.md) | P3 | L | backlog | feature | open | The latest screen on request: frames that let Ctrl-C show within a round trip |
+| [T-304](resume.md) | P3 | L | backlog | feature | open | Keys and screen frames as QUIC datagrams on the iroh road |
+| [T-305](resume.md) | P3 | M | backlog | feature | open | Roam at once: a new link beside a silent one |
+| [T-306](resume.md) | P3 | S | backlog | feature | open | A resume deadline that the user sets, for a host that sleeps |

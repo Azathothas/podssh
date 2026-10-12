@@ -90,6 +90,157 @@ both answered, and TARGET saw one connection; with the iroh road pointed at
 a silent relay, the pair's road won (`cargo test -p podssh-cli --features
 iroh-test --test road_race -- --ignored`).
 
+### A quick tunnel that podssh makes itself (T-170, research of 2026-10-12)
+
+The question: can podssh publish a service at `https://NAME.trycloudflare.com`
+with no account and no `cloudflared`, and can a cage do it? The research read
+Cloudflare's documents and the source of cloudflared at `bf4f502` (GitHub
+`cloudflare/cloudflared`, release 2026.10.0), online. No test reached
+Cloudflare. Each fact below is READ, unless it says otherwise; a path with a
+line is a file of cloudflared.
+
+**The answer.** A quick tunnel needs no account, but its connector must reach
+Cloudflare's tunnel edge on port 7844: by QUIC on UDP, or by HTTP/2 over TLS
+on TCP. The measured cage allows `CONNECT` to ports 443, 80 and 8443 only,
+and no UDP (`docs/target-environment.md`), so a cage cannot publish a quick
+tunnel by the documented road (INFERRED: port 7844 was not measured there).
+A host whose egress reaches TCP port 7844 can. There, podssh would be the
+connector and the origin in one process, so nothing listens; and a client in
+a cage reaches the name on port 443 through `HTTPS_PROXY`, with the
+WebSocket of `cf://` (T-264). Whether the edge also takes a tunnel on port
+443 is not verified. T-299 measures the ports, with the operator's leave
+(Q43); T-300 and T-301 build the connector after it.
+
+**The request for a tunnel.** `cloudflared tunnel --url URL` posts to
+`https://api.trycloudflare.com/tunnel`, the default of a hidden flag
+(`cmd/cloudflared/tunnel/cmd.go:869-874`), with `Content-Type:
+application/json`, cloudflared's `User-Agent` and an empty body
+(`cmd/cloudflared/tunnel/quick_tunnel.go:144-150`). It waits 15 s, and reads
+1 MiB of the reply at most (`quick_tunnel.go:24`, `quick_tunnel.go:32`). The
+JSON reply has `success`, `errors` (each a code and a message) and `result`:
+`id` (a UUID), `name`, `hostname`, `account_tag` and `secret`, bytes that Go
+writes in base64 (`quick_tunnel.go:262-287`). The id, the account tag and the
+secret are the tunnel's credentials (`quick_tunnel.go:182-186`): podssh would
+keep the secret as it keeps a token, never shown. cloudflared's HTTP client
+for this request has no proxy setting, so it goes direct, never through
+`HTTPS_PROXY` (`quick_tunnel.go:137-143`). The body `{"auth_mode":"otp"}`
+asks for a protected tunnel, whose visitors get a one-time PIN by mail
+(`--allowed-mail`; `quick_tunnel.go:28-44`); that needs a browser, so podssh
+has no use for it.
+
+**What Cloudflare promises.** A quick tunnel has a new name each time, needs
+no account, takes 200 requests in flight at most (more get `429`), carries no
+Server-Sent Events, has no uptime guarantee, and is for testing and
+development (Cloudflare, "Quick Tunnels",
+https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/, updated
+2026-09-30). cloudflared's own notice adds that such tunnels fall under
+Cloudflare's Online Services Terms of Use (`quick_tunnel.go:26`). Those terms
+(https://www.cloudflare.com/website-terms/, effective 2025-08-01) do not name
+Tunnel; their section 7 forbids going around a limit of the services, and
+getting at them by means that Cloudflare did not make available on purpose.
+Whether a connector of podssh's own is such a means is the operator's call
+(Q43). A limit on how often a tunnel can be made: not documented, not
+verified. cloudflared makes one connection for a quick tunnel, where a named
+tunnel makes four (`quick_tunnel.go:221-223`, `cmd.go:784-788`). The
+protocol below is not a published contract: cloudflared is its only
+documented client, so podssh would pin it, as it pins the relay's.
+
+**Where the edge is.** cloudflared looks up the SRV record
+`_v2-origintunneld._tcp.argotunnel.com` (`us-v2-origintunneld` with
+`--region us`) with the system's resolver, then with DNS over TLS to
+1.1.1.1:853 (`edgediscovery/allregions/discovery.go:16-26`,
+`discovery.go:112-132`, `edgediscovery/allregions/regions.go:138-144`). The
+record must give two regions, and gives their port
+(`edgediscovery/allregions/regions.go:21-34`, `discovery.go:172-193`).
+Cloudflare's documents name them `region1.v2.argotunnel.com` and
+`region2.v2.argotunnel.com`, each with ten IPv4 and ten IPv6 addresses, on
+port 7844 for TCP and UDP; port 443 serves optional things only (updates,
+`api.cloudflare.com`, a TXT record of features), and a tunnel runs without
+them ("Configuration", https://developers.cloudflare.com/tunnel/configuration/,
+updated 2026-09-29). A hidden flag, `--edge`, replaces the lookup with given
+addresses, and its help says that it works only in Cloudflare's own test
+environment (`cmd.go:671-676`, `supervisor/supervisor.go:56-64`). podssh's
+DNS over HTTPS asks for A and AAAA records only
+(`crates/podssh-ws/src/resolve.rs:124`); the connector needs SRV, or the
+two documented names.
+
+**No proxy.** cloudflared dials the edge with a plain dialer, never through a
+proxy (`edgediscovery/dial.go:13-42`). The request for proxy support (GitHub
+cloudflare/cloudflared#350) was closed on 2023-09-05 by a maintainer: the
+project does not want it, and QUIC, not HTTP/2, is the transport that it
+means users to have.
+
+**The two transports.** Both use TLS, with Cloudflare's own roots added to
+the system's (`tlsconfig/origin_ca.go:76-104`, `tlsconfig/cloudflare_ca.go`).
+
+| | HTTP/2 | QUIC |
+| --- | --- | --- |
+| Carrier | TLS over TCP, port 7844 | QUIC over UDP, port 7844 |
+| TLS name, ALPN | `h2.cftunnel.com`, no ALPN | `quic.cftunnel.com`, `argotunnel` (`connection/protocol.go:9-21`, `protocol.go:58-72`) |
+| Roles | cloudflared runs an HTTP/2 server on the connection that it dialed; the edge is the HTTP/2 client (`connection/http2.go:53-97`) | The edge opens a stream for each request (`connection/quic_connection.go:170-201`) |
+| The control stream | The edge's request with `Cf-Cloudflared-Proxy-Connection-Upgrade: control-stream` (`http2.go:26-32`, `http2.go:405-407`) | The first stream, which cloudflared opens (`quic_connection.go:89-96`) |
+| A request | An HTTP/2 stream; the same header says `websocket`, and `Cf-Cloudflared-Proxy-Src` marks raw TCP (`http2.go:377-420`) | Six bytes that name the kind of stream, the version `01`, then a Cap'n Proto `ConnectRequest`: a destination, a type (http, websocket or tcp) and headers as metadata (`tunnelrpc/quic/protocol.go:8-29`, `tunnelrpc/proto/quic_metadata_protocol.capnp:8-28`) |
+| The answer | The status, a 101 sent as 200, and the origin's headers in the one header `Cf-Cloudflared-Response-Headers`, each name and value in base64 with no padding (`http2.go:238-286`, `connection/header.go:50-112`) | The same six bytes and version, then a `ConnectResponse`: an error and metadata (`tunnelrpc/quic/request_server_stream.go:35-58`) |
+| Datagrams | None | On, for the UDP and ICMP of private networks (`supervisor/tunnel.go:580-599`) |
+
+A quick tunnel uses QUIC unless `--protocol` names another, and a protocol
+that the user names has no fallback (`quick_tunnel.go:217-219`,
+`protocol.go:117-137`): `--protocol http2` makes a quick tunnel over TCP.
+That the edge accepts a quick tunnel over HTTP/2 is not verified; cloudflared
+allows it, and no document says.
+
+**The registration.** On the control stream, cloudflared is a client of
+Cap'n Proto RPC with the standard framing of a stream
+(`tunnelrpc/utils.go:55-61`, `tunnelrpc/registration_client.go:36-45`). It
+calls the edge's `registerConnection` with the account tag and the secret,
+the tunnel's id, the index of the connection, and its options: a client id,
+a list of features, its version and its platform
+(`tunnelrpc/proto/tunnelrpc.capnp:113-169`). The answer is an error, with
+whether and when to try again, or the details: an id of the connection, the
+data center, and whether the tunnel is managed remotely
+(`tunnelrpc.capnp:137-158`). A tunnel that is not managed remotely then
+sends its ingress rules as JSON (`updateLocalConfiguration`;
+`connection/control.go:108-119`), and `unregisterConnection` ends the
+connection (`control.go:124-147`). The default features include
+`serialized_headers` (`features/features.go:5-25`), the form of the answers
+of HTTP/2 above.
+
+**A WebSocket through the tunnel.** For an HTTP origin, cloudflared sends the
+upgrade on to the origin, and after its 101 copies the stream's bytes both
+ways, unchanged (`proxy/proxy.go:234-321`). So the frames of the visitor's
+WebSocket reach the origin (INFERRED from cloudflared's side; that the edge
+passes them unchanged is not verified). podssh, as the origin in the same
+process, would answer the upgrade itself and run the resumable layer over the
+WebSocket; its client is the road of T-264, with no credential of Access,
+since a quick tunnel has none.
+
+**What podssh needs, with no C:**
+
+- HTTP/2: `h2` 0.4.19 is in `Cargo.lock` already, through hyper (READ); it
+  serves a connection that its caller dialed, as cloudflared does.
+- Cap'n Proto: the crates `capnp` and `capnp-rpc` (0.27, MIT,
+  https://github.com/capnproto/capnproto-rust). Their code generator needs
+  the `capnp` tool, which is C++ (docs.rs, capnpc 0.27.0), so the generated
+  code would be committed, or the few messages written by hand. That this RPC
+  and cloudflared's (`zombiezen.com/go/capnproto2`) agree on the wire: not
+  verified.
+- TLS: podssh's own provider (`crates/podssh-ws/src/tls.rs`), with a trust
+  store that holds the root of the edge's certificate. Which root signs
+  `h2.cftunnel.com`: not verified.
+- QUIC: only after a UDP probe, as on the iroh road (section 7). A QUIC
+  connection binds a UDP socket (`connection/quic.go:24-95`).
+- The egress to port 7844: direct TCP where a probe allows it; through a
+  proxy only where it allows `CONNECT` to 7844; through the relay's forward
+  road only if the relay reaches Cloudflare's addresses, which its direct
+  road refuses and its VPC road may not
+  (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:224-227`; not
+  verified).
+
+A connector in Rust exists: libcfd (crates.io, 0.2.0 of 2026-09-23) says that
+it makes quick tunnels over QUIC and HTTP/2 (READ in its documentation, not
+verified). Its repository has no license that GitHub detects, so podssh
+copies nothing from it.
+
 ## 3. The core as a library for podbox
 
 podbox is the container runtime that podssh grew out of (HEAD `452d792`). It
@@ -267,6 +418,65 @@ of layer 2. It needs podssh at both ends, and it cannot use UDP here.
 The fault-injection harness in the gate (`scripts/interop-faults.sh`) tests
 layer 1. Layers 2 and 3 need it extended: latency, jitter, limited
 bandwidth, a changed address.
+
+### The functions of Mosh, and where podssh gives each (T-171, research of 2026-10-12)
+
+Mosh is a remote shell over UDP. Its sources here: the paper (K. Winstein
+and H. Balakrishnan, "Mosh: An Interactive Remote Shell for Mobile Clients",
+USENIX ATC 2012, https://mosh.org/mosh-paper.pdf), https://mosh.org, and its
+source at `decd9b7` (GitHub `mobile-shell/mosh`; the last release is 1.4.0,
+of 2022-10-27), read online. podssh runs no `mosh-server`
+(`docs/decisions.md`, 2026-10-08), and copies no code of Mosh, whose license
+is the GPL. Each fact below is READ; nothing was measured in this research.
+A path with a line is a file of Mosh.
+
+**The difference of layers.** Mosh moves the screen; podssh moves bytes.
+Mosh's server runs a terminal emulator, and sends the client the state of
+the screen (paper §2, §3). podssh's layer runs under SSH, so it carries
+SSH's bytes, and only the end that runs the SSH server sees the bytes of the
+pty in clear. So a function of the screen needs `podssh serve` at the far
+end (T-107, T-110, which the operator holds), or a model of the screen on
+the client (T-160). A node in front of a standard sshd can give the
+functions of bytes only.
+
+| Function of Mosh | In Mosh | In podssh |
+| --- | --- | --- |
+| Roaming | The server sends to the address of the newest authentic datagram (paper §2.2; `src/network/network.cc:482-487`, `src/network/network.cc:522-529`); the client takes a new source port after 10 s with no round trip (`src/network/network.h:146`, `src/network/network.cc:396-397`) | A resume over a new link, through any road (T-153), measured with a new address (T-156). A silent old link is found dead after 30 s (`crates/podssh-relay/src/session/pump.rs:59`); a new link beside it, sooner: T-305 |
+| Outages and sleep | The server keeps the session until its client comes back; `MOSH_SERVER_NETWORK_TMOUT` sets a limit, none by default (`src/frontend/mosh-server.cc:394-406`) | 10 minutes (`crates/podssh-relay/src/session/resume.rs:40`, T-153); a shell that `podssh serve` keeps longer (T-159); a deadline that the user sets: T-306 |
+| A heartbeat | An empty acknowledgement each 3 s, which also keeps a NAT's mapping (paper §2.3; `src/network/transportsender.h:51`) | Each 10 s on the layer (T-154; `crates/podssh-relay/src/session/pump.rs:56`); SSH's keepalives on the forward road |
+| Local echo | Each key is predicted; the predictions of an epoch show once one of them is confirmed; by default they show when the round trip passes 30 ms, or a prediction waited 250 ms, and are underlined past 80 ms (paper §3.2; `src/frontend/terminaloverlay.h:215-225`) | T-160, on request, above 120 ms |
+| The echo's acknowledgement | The server marks the last key that the program has had for 50 ms, so the client knows when its echo is due (paper §3.2) | T-160, item 3: the far end reports the offset of the input that reached the pty |
+| The latest screen, not each byte | Frames of the difference of screens, at most one each half round trip (20 to 250 ms), after 8 ms of collection, so Ctrl-C stops a flood within a round trip (paper §2.3; `src/network/transportsender.h:49-50`, `src/network/transportsender-impl.h:55-71`) | T-303, on request, to `podssh serve` |
+| No head-of-line blocking | Each datagram is an idempotent difference from a numbered state, so a lost one costs only itself (paper §2.2) | The iroh road carries a stream (T-162); datagrams: T-304 |
+| Congestion | A smoothed round trip and a timeout of 50 ms to 1 s, as TCP computes them; ECN slows the sender (`src/network/network.h:139-140`, `src/network/network.cc:461-500`) | TCP or QUIC under the layer; a rate limit for copies (T-145) |
+| A notice of silence | A line at the top after 6.5 s with no word from the server, or 10 s with no acknowledged state, drawn over its own model of the screen (`src/frontend/terminaloverlay.h:159-161`, `src/frontend/terminaloverlay.cc:204-218`) | A line on stderr at a loss and at a resume (`crates/podssh-cli/src/layered.rs:232`, `crates/podssh-cli/src/layered.rs:243`); a notice that does not touch the screen: T-302 |
+| A new client | Only the client process that holds the key comes back (paper §2.1; GitHub mobile-shell/mosh#394); mosh.org suggests screen or tmux | T-158 and T-159 attach from a new process; T-161 gives the screen |
+| Encryption | AES-128 in OCB mode, with a key that SSH carries (paper §2.2) | SSH, and the Noise channel above the layer (T-088) |
+| The start | SSH runs `mosh-server`, which prints a port and a key, then forks (`src/frontend/mosh-server.cc:450-462`); it listens on a UDP port of 60001 to 60999 (`src/network/network.h:142-143`) | No listener (`AGENTS.md`, section 5, rule 2): a node or a roost reaches out (T-083, T-166); a start from a standard sshd: T-167 |
+| An escape | Ctrl-^ then `.` (paper, Figure 1) | `~.` (`crates/podssh-ssh/src/escape.rs:1-5`) |
+
+What podssh does not need, and why:
+
+- **Scrollback.** Mosh keeps the screen only, so the output of a `cat` of a
+  large file is lost to the terminal's scrollback (paper §2; GitHub
+  mobile-shell/mosh#122, open). podssh passes each byte, so the local
+  scrollback stays whole. The frames of T-303 would lose it, so they come
+  on request only.
+- **Forwarding.** Mosh has no port forwarding and no agent forwarding
+  (GitHub mobile-shell/mosh#337 and #696, open); podssh has SSH's.
+- **UTF-8 only.** mosh-server does not run without a UTF-8 locale
+  (`src/frontend/mosh-server.cc:338-360`); podssh passes bytes in any
+  encoding.
+- **A UDP port on the server.** podssh listens on nothing, by its rules.
+
+Mosh's own figures (paper §4), not podssh's: over a 3G link, the median
+response to a key was 5 ms with Mosh and 503 ms with SSH, as Mosh showed
+70 % of keys at once; with 29 % loss each way, the mean was 0.329 s for Mosh
+with no prediction and 16.8 s for SSH. Each new entry above measures podssh
+first, with the fault harness (T-203), and with Mosh as a reference, never a
+road, where a test host of the operator's has it. That harness shapes the
+TCP stream of the stand-in relay, where a loss is only a delay; a loss of
+datagrams needs a stand-in of its own (T-304).
 
 ### The end-to-end channel above layer 2 (T-088)
 

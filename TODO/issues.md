@@ -42,7 +42,8 @@ T-165. QUIC with a fallback over TLS and TCP: T-162 and T-164 (the reverse
 road is the fallback), T-124 (a server that listens, after a probe). A
 self-hosted relay: T-169 (it waits for the relay's operator). SSH on port 443: podssh already carries SSH over port 443
 through the relay; for a server that listens, T-124. UDP over TCP:
-T-168. A Cloudflare quick tunnel, made by podssh itself: T-170. QUIC between peers with a relay
+T-168. A Cloudflare quick tunnel, made by podssh itself: T-170 (the research, done), then T-299
+(the measurement), T-300 and T-301. QUIC between peers with a relay
 fallback and an allowlist: T-162, T-087. The sandbox limits (no UDP, port 22
 refused, only CONNECT): already a decision (probe, never assume;
 `docs/decisions.md`, 2026-10-05).
@@ -70,7 +71,9 @@ T-148. Pipelined SFTP: T-140.
 **#22, `ssh_config` and the flags of OpenSSH.** The parser: T-043, T-044. The
 settings in effect (`-G`): T-046. `Match`: T-045. `-F` and the port forms of
 copy tools: T-043, T-139. Repeated flags: T-017 (done). Values that start with
-`-`: T-011.
+`-`: T-011. A Mosh transport for each host (SSHub's report): no road runs
+`mosh-server` (`docs/decisions.md`); the functions of Mosh: T-171 (the map, done), then T-302,
+T-303, T-304, T-305 and T-306.
 
 **#23, output for machines.** JSON on each surface: T-049, T-050, T-051,
 T-054. Latency and throughput, and a short preflight: T-053. The health of
@@ -127,7 +130,7 @@ corrects a claim that the code does not support.
 | willykeenan/warren | T-169, T-088, T-089, T-087, T-086, T-180, T-201, T-151, T-157, T-224, T-227 |
 | arjun988/GPU-Share | T-086, T-087, T-162, T-052, T-134, T-114, T-169, T-197, T-179, T-090 |
 | EpicEric/sandhole | T-123, T-124, T-168, T-169, T-180, T-114, T-157 |
-| mirkobozzetto/bunflared | T-170, T-180, T-177, T-055; WebSocket passthrough already holds (`podssh proxy` is a byte pipe) |
+| mirkobozzetto/bunflared | T-170, T-299, T-300, T-301, T-180, T-177, T-055; WebSocket passthrough already holds (`podssh proxy` is a byte pipe) |
 | greaber/syq | T-079, T-083, T-136, T-134, T-147, T-054, T-089, T-145, T-146, T-143, T-226 |
 | menhera-org/ssh-obi | T-167, T-151, T-152, T-153, T-154, T-158, T-119, T-122 |
 | ado11231/slingshot | T-086, T-114, T-079, T-143, T-178, T-189, T-193, T-192, T-220; a menu-bar app: no, podssh is a CLI (`docs/decisions.md`) |
@@ -138,7 +141,7 @@ corrects a claim that the code does not support.
 | OthmaneBlial/MobaRust | T-149, T-145, T-041, T-038, T-053, T-187, T-185, T-201, T-047, T-179, T-181, T-202, T-227 |
 | yituorou/meatshell | T-070, T-047, T-034, T-148, T-134, T-041, T-189, T-179, T-181, T-185 |
 | TeddyHuang-00/sshping | T-053, T-157, T-045, T-049 |
-| Petyok/SSHub | T-043, T-049, T-054, T-042, T-171, T-034, T-033, T-047, T-011 |
+| Petyok/SSHub | T-043, T-049, T-054, T-042, T-171, T-302, T-303, T-304, T-305, T-306, T-034, T-033, T-047, T-011 |
 | cubic-vm/cubic | T-011, T-139, T-181, T-049, T-050, T-051, T-035, T-013 |
 | rssh-org/rssh | T-033, T-041, T-034, T-195, T-190, T-185, T-187, T-222; colored command blocks: no, podssh is a CLI (`docs/decisions.md`) |
 | totoshko88/RustConn | T-175, T-043, T-038, T-172, T-153, T-056, T-034, T-189, T-191, T-032, T-047 |
