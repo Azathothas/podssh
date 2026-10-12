@@ -30,6 +30,13 @@ pub fn add(cmd: Command, name: &str) -> Command {
         // Any count parses for `cp`, `mv` and `scp`: each says itself what a
         // short list lacks, in words clap's count error does not have.
         "cp" | "mv" | "scp" => cmd.arg(Arg::new("paths").value_name("PATH").num_args(1..).help("SRC... DST")),
+        // One file, optional, so that `edit` with none says itself what it
+        // needs; a second word is clap's refusal.
+        "edit" => cmd.arg(
+            Arg::new("file")
+                .value_name("[user@]host:PATH")
+                .help("the file to edit, on a server: [user@]host:path, [user@][IPV6]:path or scp://[user@]host[:port]/path"),
+        ),
         // Optional, so that `sftp` with none says itself what it needs.
         "sftp" => cmd.arg(
             Arg::new("destination")

@@ -272,6 +272,7 @@ mod agent;
 mod chat;
 mod config;
 mod copy;
+mod edit;
 mod keygen;
 mod mcp;
 mod node;
@@ -285,6 +286,7 @@ pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
 pub use config::CONFIG_FLAGS;
 pub use copy::CP_FLAGS;
+pub use edit::EDIT_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
 pub use mcp::MCP_FLAGS;
 pub use node::NODE_FLAGS;
@@ -370,6 +372,8 @@ pub const VERBS: &[Verb] = &[
         about: "file commands on a host, from a batch or at a prompt, as OpenSSH's sftp" },
     Verb { name: "mv", aliases: &["mv"], flags: CP_FLAGS,
         about: "move files; across hosts this is a copy and a delete" },
+    Verb { name: "edit", aliases: &["edit"], flags: EDIT_FLAGS,
+        about: "edit a file of a host in an editor here; it goes back only when the host's file did not change meanwhile" },
     Verb { name: "man", aliases: &["man"], flags: MAN_FLAGS,
         about: "this manual: each command, flag, variable, file and exit code" },
     Verb { name: "relay", aliases: &["relay"], flags: RELAY_FLAGS,
@@ -400,7 +404,7 @@ pub const VERBS: &[Verb] = &[
 /// of the commands that work would.
 pub const GROUPS: &[(&str, &[&str])] = &[
     ("Connect", &["ssh", "proxy", "pipe", "ts"]),
-    ("Copy files", &["cp", "mv", "scp", "sftp"]),
+    ("Copy files", &["cp", "mv", "scp", "sftp", "edit"]),
     ("Keys", &["keygen", "agent"]),
     ("Check this host and the path", &["doctor", "status", "ping"]),
     ("The reverse road", &["node", "operator"]),

@@ -152,21 +152,32 @@ pub fn run_program(cmd: &[OsString], text: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-/// SIGINT and SIGQUIT ignored while the value lives, then restored.
-struct Interrupts {
+/// SIGINT and SIGQUIT ignored while the value lives, then restored: while a
+/// pager or the editor of `podssh edit` runs, the keys are the child's. The
+/// whole action is kept and put back, its flags too, so a handler that tokio
+/// installed before (`podssh edit` waits for SIGINT while a file moves)
+/// stays as it was.
+pub(crate) struct Interrupts {
     #[cfg(unix)]
-    previous: [libc::sighandler_t; 2],
+    previous: [libc::sigaction; 2],
 }
 
 impl Interrupts {
-    fn ignore() -> Interrupts {
+    pub(crate) fn ignore() -> Interrupts {
         #[cfg(unix)]
         {
-            // SAFETY: setting SIG_IGN has no preconditions; Drop restores the
-            // handlers that were there.
-            let previous =
-                unsafe { [libc::signal(libc::SIGINT, libc::SIG_IGN), libc::signal(libc::SIGQUIT, libc::SIG_IGN)] };
-            Interrupts { previous }
+            // SAFETY: an all-zero sigaction is a valid value of the C type;
+            // SIG_IGN with an empty mask has no preconditions, and Drop puts
+            // back each action that was there.
+            unsafe {
+                let mut ignore: libc::sigaction = std::mem::zeroed();
+                ignore.sa_sigaction = libc::SIG_IGN;
+                libc::sigemptyset(&mut ignore.sa_mask);
+                let mut previous: [libc::sigaction; 2] = std::mem::zeroed();
+                libc::sigaction(libc::SIGINT, &ignore, &mut previous[0]);
+                libc::sigaction(libc::SIGQUIT, &ignore, &mut previous[1]);
+                Interrupts { previous }
+            }
         }
         #[cfg(not(unix))]
         Interrupts {}
@@ -176,10 +187,10 @@ impl Interrupts {
 impl Drop for Interrupts {
     fn drop(&mut self) {
         #[cfg(unix)]
-        // SAFETY: restores the handlers that `ignore` read.
+        // SAFETY: restores the actions that `ignore` read.
         unsafe {
-            libc::signal(libc::SIGINT, self.previous[0]);
-            libc::signal(libc::SIGQUIT, self.previous[1]);
+            libc::sigaction(libc::SIGINT, &self.previous[0], std::ptr::null_mut());
+            libc::sigaction(libc::SIGQUIT, &self.previous[1], std::ptr::null_mut());
         }
     }
 }

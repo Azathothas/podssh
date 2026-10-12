@@ -332,8 +332,8 @@ a script expects, and its login shell may not be a POSIX shell.
 
 - Read: an exec with no pty carries bytes unchanged: 262144, 262145 and
   5,000,000 bytes up and back with equal digests on OpenSSH and Dropbear
-  (`docs/STATUS.md:71`, `scripts/interop.sh:136-151`), and 300 KB up and
-  5 MB down through the relay (`docs/STATUS.md:74`).
+  (`docs/STATUS.md:72`, `scripts/interop.sh:136-151`), and 300 KB up and
+  5 MB down through the relay (`docs/STATUS.md:75`).
 - Read: a command goes as one string, never as a shell request
   (`crates/podssh-ssh/src/options.rs:63-64`), with no pty when stdin is not
   a terminal (`crates/podssh-ssh/src/session.rs:63-73`).
@@ -480,7 +480,7 @@ GitHub #17 (talaria0101, 2026-10-08: drops that repeat on one target).
 A dropped relay session ends a copy, and a new run sends the whole file
 again. On a link that drops every few minutes, a large file never arrives.
 GitHub #17 measured one drop (`1011`) in 180 short sessions from one edge
-(`docs/STATUS.md:234`), and drops that came back 3 times of 3 on one target.
+(`docs/STATUS.md:235`), and drops that came back 3 times of 3 on one target.
 
 ## Premise
 
@@ -637,7 +637,7 @@ old writer can race the new one.
 
 - Read: the pinned contract gives the same caps
   (`crates/podssh-probe/tests/spec/relay-spec-2026-10-03-r2.txt:233-235`).
-- Measured in the KTM sandbox (`docs/STATUS.md:233`; the 99 s are in the
+- Measured in the KTM sandbox (`docs/STATUS.md:234`; the 99 s are in the
   report): `podssh proxy` received 67,107,943 bytes, then the relay closed
   with `1009 session byte cap`, 921 bytes short of 64 MiB on that side.
 - Read: `podssh-relay` has a constant for the idle cut only
@@ -657,7 +657,7 @@ old writer can race the new one.
    ways; 11 h 30 min) go in `crates/podssh-relay/src/relay.rs`, beside
    `RELAY_IDLE_SECS`. A variable `PODSSH_SESSION_BUDGET` can lower the byte
    budget (a relay with smaller caps, the tests), never raise it; add it to
-   `crates/podssh-cli/src/man/facts.rs:45-181`.
+   `crates/podssh-cli/src/man/facts.rs:45-189`.
 2. Count the payload bytes both ways in the relay stream (an atomic counter
    beside `RelayStatus`), and keep the session's start time.
 3. Invariant: no session passes a budget. Before a data request that would
@@ -670,7 +670,7 @@ old writer can race the new one.
 5. Only the relay transport counts: `--direct` has no cap. With `-J`, the
    one relay session carries the whole chain.
 6. A "Session limits" item in the manual's relay section
-   (`crates/podssh-cli/src/man/facts.rs:219-380`), from the constants;
+   (`crates/podssh-cli/src/man/facts.rs:227-388`), from the constants;
    `docs/relay.md` and `docs/cli.md`. T-155 does the same for the
    resumable layer of M6; this entry needs no M6 work.
 
@@ -755,7 +755,7 @@ relay's limits, and logs in as the first session did".
 
 **Source:** ROADMAP M5 ("Across hosts, `mv` is copy, verify, delete; podssh
 says first that it is not atomic"); the description of `mv` in
-`crates/podssh-cli/src/flags.rs:371-372`.
+`crates/podssh-cli/src/flags.rs:373-374`.
 **Category:** feature
 **Milestone:** M5
 **Priority:** P2
@@ -773,7 +773,7 @@ user must know this before the move starts.
 
 - Measured on `3ee70dc`, offline: `podssh mv --timeout 30s a b` exits 70
   (`'mv' is not implemented yet; nothing was done.`).
-- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:371-372`),
+- Read: `mv` shares `CP_FLAGS` (`crates/podssh-cli/src/flags.rs:373-374`),
   so the operands and options of T-134 apply.
 - Measured (T-133's offline probe): `posix-rename@openssh.com` replaces in
   one step; `SSH_FXP_RENAME` refuses an existing target.
@@ -951,14 +951,14 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
    `rm`, `mkdir`, `rmdir`, `ls`, `cd`, `lcd`, `pwd`, `lpwd`, `chmod`, `df`,
    `bye`; a leading `-` goes on after an error. The same commands at a
    prompt on a terminal; with no terminal and no `-b`, exit 64.
-6. Same commit: `crates/podssh-cli/src/help.rs:215-263`, the manual and its
+6. Same commit: `crates/podssh-cli/src/help.rs:215-264`, the manual and its
    examples, `docs/cli.md`.
 
 ## Decision
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
-the gate of `crates/podssh-cli/src/dispatch.rs:226-244` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1312-1315`)
+the gate of `crates/podssh-cli/src/dispatch.rs:229-247` skips them; T-133's
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1363-1366`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -1065,7 +1065,7 @@ trip is long, so such a copy uses a small part of what the path carries.
   (`crates/podssh-ssh/src/run.rs:26-29`): `docs/relay.md:236-240` gives
   2 MiB, `1013` and no drop. The window can grow only after that is
   settled; T-062 measures the `1013`.
-- Measured in two sandboxes (`docs/STATUS.md:232`): 20 MiB through the
+- Measured in two sandboxes (`docs/STATUS.md:233`): 20 MiB through the
   relay with `podssh proxy` (no SSH window in the path) at 0.5 to 0.7 MB/s
   through a CONNECT proxy, and 1.8 to 6.9 MiB/s with no proxy. SFTP through
   the relay is not measured.
@@ -1273,7 +1273,7 @@ differ", and the destination was not changed. The measurement:
 
 A copy over an older version of the same file sends each byte again.
 Through the relay that costs a new session for each 60 MiB (T-137), at 0.5
-to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:232`).
+to 0.7 MB/s in the KTM sandbox (`docs/STATUS.md:233`).
 
 ## Premise
 
@@ -1538,7 +1538,7 @@ in the issues; the `-l limit` of OpenSSH's `scp` and `sftp` (T-139).
 ## Problem
 
 A copy through the relay can take minutes (0.5 to 0.7 MB/s in the KTM
-sandbox, `docs/STATUS.md:232`). podssh would show no progress, a Ctrl-C
+sandbox, `docs/STATUS.md:233`). podssh would show no progress, a Ctrl-C
 would leave a temporary file with no word, and one copy can take the whole
 uplink of a shared host.
 
@@ -1888,7 +1888,7 @@ remote changes before the save; read in the issue).
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1903,13 +1903,13 @@ host, and the copy back then destroys that change with no word.
   probe (`crates/podssh-cli/src/pager.rs:96`) and runs it with
   `run_program` (`crates/podssh-cli/src/pager.rs:134`).
 - Read: `VISUAL` and `EDITOR` are not in the manual's variables
-  (`crates/podssh-cli/src/man/facts.rs:45-181`).
+  (`crates/podssh-cli/src/man/facts.rs:45-189`).
 - Read: the relay cuts a session after 180 s with no payload
   (`crates/podssh-relay/src/relay.rs:19-21`); an editor stays open longer.
 
 ## Approach
 
-1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:352-395`),
+1. A new verb `edit` in `VERBS` (`crates/podssh-cli/src/flags.rs:354-399`),
    with the connection flags that T-134 gives `cp`. It needs a terminal on
    stdin and stdout; else exit 64.
 2. Download with T-134 into a new directory of mode 0700 in the cache
@@ -1945,6 +1945,48 @@ With `EDITOR` set to a script that adds a line, the far file gets the line
 and the digests are equal. When the script first changes the far file
 through `podssh ssh`, podssh refuses, keeps the local copy and exits
 non-zero. Plant: skip the check of step 5; that case must then fail.
+
+## Done
+
+2026-10-12. `crates/podssh-cli/src/edit/` (`mod.rs`: the steps and their
+exit codes; `editor.rs`: the choice of the editor and its run; `local.rs`:
+the private directory and the copy; `far.rs`: the fetch, the check and the
+send, each through the copy of one file of `cp`, `session::attempts`), the
+rows of `crates/podssh-cli/src/flags/edit.rs`, and `Shape::mode`
+(`crates/podssh-cli/src/cp/pipe.rs`), which gives a copy up the far file's
+mode on its temporary file, before the rename, on both roads. The calls
+made: the copy keeps the far file's whole name, not only its extension, as
+an editor reads a name such as `.bashrc` too, and a name that this system
+cannot hold becomes `file` with the extension; the editor is chosen before
+the terminal is checked, so that a test of the binary with no terminal
+reaches both refusals; a value of `VISUAL` or `EDITOR` is split at blanks
+with no shell, as `PAGER` is, unless it names a file, as a Windows path
+with a blank does; an editor that ends with a status other than 0 sends
+nothing, and podssh exits with that status (128 + N for a signal), as
+`vim`'s `:cq` asks; after a failure the copy here stays, named, only when
+it holds a change; `PODSSH_CACHE_DIR=none` refuses with 78, as it keeps no
+file; a far file that changed is 73, as the destination of the send may
+not be written; the mode of a far file by exec is read from its line of
+`ls -lnid`; a symbolic link is resolved over SFTP (`lstat`, then
+`realpath`) and the file that it names is edited, as T-134's rename would
+put a file in the link's place, and by exec a link is refused (66), as no
+portable command names its file; while the editor runs, SIGINT and SIGQUIT
+are ignored with `sigaction`, so that tokio's handler comes back whole
+(`crates/podssh-cli/src/pager.rs`, whose `Interrupts` the pager shares),
+and on Windows a listener holds Ctrl-C; the first SIGINT or SIGTERM while
+a file moves ends the run with 130. `cargo test -p podssh-cli --test
+edit_args`: 5 passed here (a bad operand, no editor, 78 naming `EDITOR`, no
+terminal, 64, the help with the connection flags and no `--timeout`, and
+the choice of the editor); the unit tests of `edit::` (the operand, the
+choice and the words of an editor, the name of the copy, the mode in a
+line of `ls -lnid`, the hints of a copy): 6 passed; their Unix branches
+(`sigaction`, the mode of the directory) passed clippy and the tests in the
+build image. The gate's cases
+(`scripts/interop-edit.sh`, sourced by `scripts/interop-cp.sh`: an
+`EDITOR` script that adds a line, over SFTP and by exec, with the far mode
+kept; no change; a far change made first through `podssh ssh`, refused
+with 73 and the copy named; an editor that fails; a link) and the planted
+defect wait for T-251.
 
 # T-150: A copy protocol between two podssh ends
 
@@ -2040,11 +2082,11 @@ waits for the server's answer to the write before it. The check's writer
 adds a byte to the source in a loop, so a read gives no byte only when the
 writer adds none for a whole round trip: when the runner does not schedule
 it. The check after the read gives 66 to a source whose size moved
-(`crates/podssh-cli/src/cp/bysftp.rs:258-261`), but only once the read
+(`crates/podssh-cli/src/cp/bysftp.rs:260-263`), but only once the read
 ends. The copy up by exec reads the same way
 (`crates/podssh-cli/src/cp/byexec/files.rs:119-144`); the copies down read
 the far file until it ends, over SFTP
-(`crates/podssh-cli/src/cp/bysftp.rs:401-440`) and with `cat`
+(`crates/podssh-cli/src/cp/bysftp.rs:405-444`) and with `cat`
 (`crates/podssh-cli/src/cp/byexec.rs:332-369`); and so do the far digests
 that read the file again (`crates/podssh-cli/src/cp/digest.rs:78-109`,
 `crates/podssh-cli/src/cp/byexec.rs:303-330`).

@@ -55,7 +55,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
 5. `doctor`, with the feature: a UDP line, and the `/ping` of the home relay
    through the proxy (`crates/podssh-cli/src/doctor/host.rs:10-25`).
 6. `availability()` knows `ts` as the only build feature
-   (`crates/podssh-cli/src/flags.rs:438-446`): extend it. With no feature, an
+   (`crates/podssh-cli/src/flags.rs:442-450`): extend it. With no feature, an
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
@@ -162,7 +162,7 @@ access is by an allowlist of keys or a relay token (`docs/design.md:592-593`).
 Read in the reports, not verified here: iroh-ssh warns when a server's key is
 ephemeral (`rustonbsd/iroh-ssh:src/ssh.rs`); zuko hands over a ticket out of
 band (`adonm/zuko:docs/protocol.md`). Read: `podssh ts` keeps its node key in
-the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:309-310`,
+the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:311-312`,
 `crates/podssh-cli/src/ts.rs:166`). Credentials never go on argv
 (`AGENTS.md`, section 4).
 
@@ -185,8 +185,8 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:309-310`,
 5. The node prints its ticket and its fingerprint on stderr when it starts.
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:442`).
 6. Add the key files to FILES in the manual
-   (`crates/podssh-cli/src/man/data.rs:119-243`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-181`).
+   (`crates/podssh-cli/src/man/data.rs:121-247`), and each new variable to
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-189`).
 
 ## Decision
 
@@ -510,9 +510,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-181`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-189`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:218-380`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:226-388`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.

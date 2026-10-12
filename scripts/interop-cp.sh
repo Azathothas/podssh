@@ -464,6 +464,9 @@ no_part cp.no_part.exec "cp by exec"
 # A copy that goes on after a broken connection (T-136).
 # shellcheck source=scripts/interop-resume.sh
 . "$HERE/interop-resume.sh"
+# podssh edit, over SFTP on 2201 and by exec on 2207 (T-149).
+# shellcheck source=scripts/interop-edit.sh
+. "$HERE/interop-edit.sh"
 
 for port in 2205 2206 2207 2208 2209; do
     [ -f "$W/sshd-$port.pid" ] && kill "$(cat "$W/sshd-$port.pid")" 2>/dev/null

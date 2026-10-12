@@ -67,8 +67,9 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         ),
         row(
             sysexits::EX_CANTCREAT,
-            "podssh cp and mv: the destination cannot be written. podssh chat: the directory of \
-             --accept-dir is not there.",
+            "podssh cp and mv: the destination cannot be written. podssh edit: the far file changed since \
+             it was fetched, so nothing was sent and the copy here stays, or no cache directory takes the copy. \
+             podssh chat: the directory of --accept-dir is not there.",
         ),
         row(
             sysexits::EX_TEMPFAIL,
@@ -90,7 +91,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              cp, proxy and doctor). For podssh proxy also a proxy URL that is not http://, or a \
              PODSSH_RELAY_TOKEN that is not a token. The same value as a flag is a usage error (64). \
              podssh node, operator, relay and chat: no pair is stored under the label, the pair cannot be \
-             read or stored, or a node cannot connect as it is set up.",
+             read or stored, or a node cannot connect as it is set up. podssh edit: VISUAL, EDITOR and PATH \
+             give no editor, the editor does not start, or PODSSH_CACHE_DIR is none.",
         ),
         row(
             podssh_ssh::EXIT_FAILURE,
@@ -103,7 +105,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             Code::Remote,
             "podssh ssh: the exit status of the remote command, unchanged. When signal N stopped the \
              command, 128 + N. podssh ping: the status of the remote program of a measure that failed, \
-             127 when the host lacks it."
+             127 when the host lacks it. podssh edit: the status of an editor that failed; nothing was sent."
                 .to_string(),
         ),
     ]
@@ -169,7 +171,9 @@ pub fn files() -> Vec<(Vec<String>, String)> {
                  relay's list of hosts ({}). It holds each pair of the reverse road under its label ({}), \
                  as podssh relay pair writes it, and, until a copy that broke is done, its side file \
                  (podssh-cp-*.resume: the offset, the temporary file's name and the source's state, never a \
-                 byte of the file). Each file has mode 0600; on Windows, an access list that lets in only \
+                 byte of the file). While podssh edit runs, a directory edit-RANDOM of mode 0700 holds the \
+                 copy of the far file; it goes after the edit, and stays, named, after a failure when the copy \
+                 holds a change. Each file has mode 0600; on Windows, an access list that lets in only \
                  you, SYSTEM and the Administrators. podssh ignores a cache file that is a symbolic link, \
                  that belongs to another user, or that others can read.",
                 podssh_relay::cache::file_name(podssh_relay::DEFAULT_RELAY_HOST),

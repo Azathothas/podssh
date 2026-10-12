@@ -167,7 +167,15 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
     (&["ProgramData"], "On Windows, the directory of the system known_hosts file."),
     (&["PAGER"], "The pager of podssh man on a terminal. Empty, or cat, writes the manual with no pager."),
     (&["LESS"], "Options for less. podssh man sets FRX when it starts less and LESS is not set."),
-    (&["PATH"], "Where podssh man looks for less, and where podssh doctor looks for directories that run programs."),
+    (
+        &["VISUAL", "EDITOR"],
+        "The editor of podssh edit: VISUAL, else EDITOR, else vi on PATH. A program and its words, split at \
+      blanks with no shell, or one program whose path has a blank; an empty value is no value.",
+    ),
+    (
+        &["PATH"],
+        "Where podssh man looks for less, podssh edit for vi, and podssh doctor for directories that run programs.",
+    ),
     (
         &["PODSSH_LISTEN"],
         "no: podssh pipe listens on nothing, and unix-listen: and tcp-listen: exit 78 before any bind. \

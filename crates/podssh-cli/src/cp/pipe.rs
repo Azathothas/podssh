@@ -11,7 +11,8 @@ use super::meta::Keep;
 /// How a copy goes: the requests in flight of each SFTP session (T-140), the
 /// tasks of one file, each with a session of its own (T-141), whether only
 /// the changed blocks go (T-142), what it keeps besides the bytes (T-146),
-/// and whether it writes into the destination itself (T-147).
+/// whether it writes into the destination itself (T-147), and the mode that
+/// a copy up gives the far file (T-149).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Shape {
     pub pipe: Pipeline,
@@ -21,11 +22,15 @@ pub struct Shape {
     pub keep: Keep,
     /// `--inplace`: into the destination itself, with no temporary name.
     pub inplace: bool,
+    /// The permission bits of the far file after a copy up, in place of the
+    /// local source's: `podssh edit` keeps the far file's mode. Set on the
+    /// temporary file before the rename, so the name never has another mode.
+    pub mode: Option<u32>,
 }
 
 impl Default for Shape {
     fn default() -> Self {
-        Shape { pipe: Pipeline::default(), tasks: 1, delta: false, keep: Keep::default(), inplace: false }
+        Shape { pipe: Pipeline::default(), tasks: 1, delta: false, keep: Keep::default(), inplace: false, mode: None }
     }
 }
 

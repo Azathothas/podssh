@@ -111,6 +111,9 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Ping(args) => crate::ping::run(args, s.out, s.err),
         Parsed::Play(args) if refusals("play", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Play(args) => crate::play::run(args, s.out, s.err),
+        Parsed::Edit(args) if refusals("edit", &args.refused, s.err) => EXIT_USAGE,
+        // The editor is on the process's own terminal.
+        Parsed::Edit(args) => crate::edit::run_edit(args, tty, s.err),
         Parsed::Config(args) if refusals("config", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Config(args) => crate::config_import::run(args, s.out, s.err),
         Parsed::Mcp(args) if refusals("mcp", &args.refused, s.err) => EXIT_USAGE,

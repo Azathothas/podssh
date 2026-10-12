@@ -109,9 +109,10 @@ pub(super) async fn session(
 /// with no new byte, the relay opener's backoff between them. A refused
 /// login, a host key that changed, or any other answer ends it at once.
 /// Gives the file done and its source as it was before the copy; `link` is
-/// `None` when the last connection broke.
+/// `None` when the last connection broke. `podssh edit` fetches and sends
+/// its file with it too.
 #[allow(clippy::too_many_arguments)]
-pub(super) async fn attempts(
+pub(crate) async fn attempts(
     link: &mut Option<Link>,
     resolved: &Resolved,
     source: &Operand,

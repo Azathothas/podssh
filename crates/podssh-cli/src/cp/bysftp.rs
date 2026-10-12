@@ -194,7 +194,7 @@ pub async fn up(
     .await;
     let copied = match copied {
         Ok((offset, sum)) => {
-            let ends = Ends { offset, sum, keep: shape.keep, holes, inplace: shape.inplace };
+            let ends = Ends { offset, sum, keep: shape.keep, holes, inplace: shape.inplace, mode: shape.mode };
             finish_up(sftp, handle, &file, local, source, &temp, &target, &before, ends, log).await
         }
         Err(failed) => Err(failed),
@@ -227,6 +227,8 @@ struct Ends {
     keep: Keep,
     holes: bool,
     inplace: bool,
+    /// The far file's mode that `podssh edit` keeps (T-149).
+    mode: Option<u32>,
 }
 
 /// The end of a copy up: the temporary file synced and closed, its size set
@@ -245,7 +247,7 @@ async fn finish_up(
     ends: Ends,
     log: &Log,
 ) -> Result<Done, Failed> {
-    let Ends { offset, sum, keep, holes, inplace } = ends;
+    let Ends { offset, sum, keep, holes, inplace, mode } = ends;
     {
         sftp.fsync(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
         sftp.close(file).await.map_err(|e| transfer::from_sftp(e, Side::Destination))?;
@@ -261,7 +263,9 @@ async fn finish_up(
         }
         let (far, how) = transfer::far_digest(handle, sftp, temp, offset, Side::Destination).await?;
         transfer::compare(&sum, &far, &how, source)?;
-        let stamp = Stamp::of_local(before);
+        // The source's mode, or the far file's that `podssh edit` keeps.
+        let mut stamp = Stamp::of_local(before);
+        stamp.mode = mode.or(stamp.mode);
         meta::set_far(sftp, temp, &stamp, keep, log).await?;
         let mut not_atomic = false;
         if !inplace {

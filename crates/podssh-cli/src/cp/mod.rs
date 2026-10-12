@@ -23,7 +23,7 @@ pub mod byexec;
 pub(crate) mod bysftp;
 pub(crate) mod chunks;
 pub mod delta;
-mod digest;
+pub(crate) mod digest;
 pub mod gauge;
 pub mod in_place;
 pub(crate) mod link;
@@ -36,7 +36,7 @@ pub mod plan;
 pub mod rate;
 mod report;
 pub(crate) mod resume;
-mod session;
+pub(crate) mod session;
 pub(crate) mod transfer;
 pub mod tree;
 mod tree_copy;
@@ -209,7 +209,7 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
     let keep = meta::Keep { times: args.preserve, owner: args.owner, sparse: args.sparse };
     let shape = pipe::pipeline(None, None, &args.sftp_options).and_then(|pipe| {
         let tasks = pipe::tasks(args.parallel.as_deref())?;
-        Ok(pipe::Shape { pipe, tasks, delta: args.delta, keep, inplace: args.inplace })
+        Ok(pipe::Shape { pipe, tasks, delta: args.delta, keep, inplace: args.inplace, mode: None })
     });
     plan.shape = match shape {
         Ok(shape) => shape,
@@ -344,8 +344,9 @@ pub fn run_cp(args: &CpArgs, deadline: Option<Duration>, jsonl: bool, out: &mut 
 }
 
 /// A signal that asks the run to end: SIGINT or SIGTERM, or Ctrl-C on
-/// Windows; never when none can be listened for.
-async fn interrupted() {
+/// Windows; never when none can be listened for. `podssh edit` waits for it
+/// too.
+pub(crate) async fn interrupted() {
     #[cfg(unix)]
     {
         use tokio::signal::unix::{signal, SignalKind};

@@ -115,7 +115,7 @@ pub(super) fn temp_name(name: &str) -> String {
 }
 
 /// The far digest: by a command when the server can, else by a second read.
-pub(super) async fn far_digest(
+pub(crate) async fn far_digest(
     handle: &Connection,
     sftp: &Sftp,
     path: &str,

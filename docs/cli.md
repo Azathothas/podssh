@@ -669,6 +669,57 @@ renamed.
   and `bye`. The local commands (`lls`, `lmkdir`, `!command`) and `ln`,
   `chown`, `chgrp` are refused by name.
 
+## `podssh edit`
+
+`podssh edit [user@]host:PATH` changes one file of a server in an editor
+here (`crates/podssh-cli/src/edit/`), with the connection flags of `cp`
+and no `--timeout`: a person decides how long an edit takes.
+
+- **The fetch** is the copy down of `cp` (a temporary name, the digests, a
+  rename; a new connection after a break), into a new directory of mode
+  0700 in the cache directories (`edit-RANDOM`), as a file of mode 0600
+  with the far file's name, so that the editor knows its kind by its name
+  or its extension; a name that this system cannot hold becomes `file` with
+  the extension. podssh records the far file's size and time of change (by
+  exec, the line of `ls -lnid`), its SHA-256 and its mode.
+- **No session while a person edits.** The connection closes before the
+  editor starts: no relay session waits, so its idle limit (180 s) and its
+  12 h cap cannot end an edit, and a lost link costs nothing. The second
+  connection meets the first one's host key and logs in as the first did,
+  with no second question (T-136, T-137).
+- **The editor** is `VISUAL`, else `EDITOR`, else `vi` when a probe finds
+  it on `PATH` (`AGENTS.md`, rule 3); with none, the exit is 78 and the
+  message names `EDITOR`. A value is a program and its words, split at
+  blanks with no shell, or one program whose path has a blank. The editor
+  runs on this terminal: `edit` needs a terminal on stdin and stdout (else
+  64, checked after the editor's choice, so that a test with no terminal
+  reaches both refusals). While it runs, SIGINT and SIGQUIT are ignored
+  here (on Windows a listener holds Ctrl-C), so the keys are the editor's.
+  An editor whose program returns while its window stays open leaves no
+  change when it returns, and the copy goes: give it its flag to wait, as
+  `code --wait`.
+- **The check before the send.** A copy whose SHA-256 did not change sends
+  nothing (exit 0). Else a new connection compares the far file with the
+  record: its size and time of change (by exec, the line of `ls -lnid`),
+  then its SHA-256 (`sha256sum` over exec, else a second read), as a write
+  in the same second keeps the size and the time. When the far file
+  changed, nothing is sent and the exit is 73: a change made there is never
+  overwritten. The check and the rename are a moment apart; no lock of
+  SFTP version 3 closes that moment.
+- **The send** is the copy up of `cp`, with the far file's mode on the
+  temporary file before the rename, so the name never has another mode.
+  `Shape::mode` carries it to both roads; without a mode from the server,
+  the file gets the copy's mode, and podssh says so.
+- **A symbolic link stays a link**: over SFTP, `lstat` finds it and
+  `realpath` names the file that the edit changes; by exec, where no
+  portable command names that file, a link is refused (66).
+- **The copy here** goes after a success. After a failure it stays and is
+  named when it holds a change, and goes when it holds none. An editor that
+  ends with a status other than 0 sends nothing, and `edit` exits with that
+  status (128 + N for signal N). The first SIGINT or SIGTERM while a file
+  moves ends the run with 130: during the fetch nothing stays here; during
+  the send the copy stays, named, with the far side's partial copy.
+
 ## `podssh doctor`
 
 `podssh man doctor` gives the checks. The rules behind them:

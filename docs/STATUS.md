@@ -12,8 +12,8 @@ and two Linux hosts on a tailnet.
 ## Summary
 
 These commands work: `podssh ssh`, `podssh proxy`, `podssh pipe`, `podssh cp`,
-`podssh mv`, `podssh scp` and `podssh sftp` (files), `podssh doctor`,
-`podssh keygen`, `podssh man`, `podssh status`, `podssh node`,
+`podssh mv`, `podssh scp`, `podssh sftp` and `podssh edit` (files),
+`podssh doctor`, `podssh keygen`, `podssh man`, `podssh status`, `podssh node`,
 `podssh operator` and `podssh relay` (`pair`, `revoke`, `status NAME` and
 `spec`). The other commands refuse with exit code 70.
 
@@ -54,6 +54,7 @@ in [ROADMAP.md](ROADMAP.md).
 | `podssh mv` | **Works** for files: within one server the server renames; between hosts it is the copy of `cp`, its digest check, then a delete of the source, said first to be not atomic. The source goes only while it is still the file that was copied (T-138; `scripts/interop-mv.sh` in the gate, see "`podssh cp`, measured"). |
 | `podssh scp` | **Works** with the command line of OpenSSH's scp: each letter of its usage parses (supported, accepted, or refused by name), `-B` is BatchMode, and an operand can be a `scp://` URI with a port; the copy is `cp`'s (T-139). |
 | `podssh sftp` | **Works** with the command line of OpenSSH's sftp: `-b FILE` (or `-`) runs a batch with OpenSSH's `-` and `@` prefixes, a terminal gets a prompt, and a destination that names a file fetches it. `get`, `put`, `rename`, `rm` (with patterns), `mkdir`, `rmdir`, `ls`, `cd`, `lcd`, `pwd`, `lpwd`, `chmod`, `df`, `bye` (T-139). |
+| `podssh edit` | **Works** on a terminal: one far file comes down as `cp` copies one, into a private directory of the cache; the connection closes while `VISUAL`, `EDITOR` or `vi` runs; a changed copy goes back as `cp` sends one, with the far mode, only while the far file's size, time of change and SHA-256 are the ones fetched (else 73, and the copy stays, named) (T-149; see "`podssh cp`, measured"). |
 | `podssh relay` | **Works** for `pair NAME` (with `--operator-file`), `revoke NAME` and `status NAME`: a pair kept under a label, never a token in the output (T-083, `cargo test -p podssh-cli --test node`, offline, and the live test above, 2026-10-09). `spec` checks the relay's document (T-060). `status` with no NAME reads each relay host's `/health`, `info [HOST PORT]` its `/relays.json`, and `trace HOST PORT` has the relay dial a target and read its first line, the token in a header (T-058, Windows, 2026-10-11: `cargo test -p podssh-cli --test relay`, 8 passed, through the stand-in relay; live, `--test relay_live -- --ignored`, 3 passed: the live relay's hosts, its pool for `github.com:22`, GitHub's banner through it, and 69 for a target in a blocked range). |
 | `podssh status` | **Works.** One line of JSON about this host: the relays and where they came from, the pool, the token (never the token), the proxy (never its credentials), the terminal, and a destination's host key. No connection, no DNS, no write (T-051). |
 | `podssh pipe A B` | **Works.** The local addresses (T-174): stdin and stdout (`-`, `stdio`), an inherited descriptor (`fd:N`, Unix) and a program (`exec:CMD`, words split with quotes and no shell, on a socketpair or, where one is refused and on Windows, two pipes); the exit status is the program's, B's of two, 127 and 126 as a shell gives them. The roads (T-175): `relay:HOST:PORT` (no Close at the end of input), `tcp:HOST:PORT`, `ssh:[USER@]HOP[,HOP...],HOST:PORT` (as `-W`), `node:NAME` and `iroh:TICKET`; a road that failed gives 69, 77 or 78, as `proxy`. Each address is checked before anything starts; the end of one side's input half-closes the other side where the road has a half-close, and a road that ended ends the pipe. Native, Windows, 2026-10-10: `cargo test -p podssh-cli pipe::`, `--test pipe` and `--test pipe_remote` (a late reply through `relay:` and `proxy`, `tcp:` and `ssh:` passing the end of input on, `node:` over the reverse road, 69 offline), and `--features iroh-test --test pipe_iroh`. In the gate, `scripts/interop-pipe.sh` at b20de13 (CI, 2026-10-10): `exec:cat` gave 5,000,000 bytes back unchanged, `fd:3` was read, the statuses 7 and 143 came through, a reply after the end of input came back through `relay:` and through `proxy`, and 5,000,000 bytes through OpenSSH with `ssh:` gave the far end's equal digest. A local socket (T-176): `unix-connect:PATH`, `@NAME` on Linux, and on Windows an AF_UNIX socket or a named pipe: 1,000,000 bytes to a server that reads to the end of its input gave its digest back, on Windows through AF_UNIX (Windows 11) and on Linux through a Unix socket and `@NAME` (the build image), and a named pipe's greeting came through (`cargo test -p podssh-cli --test pipe -- unix`, 2026-10-10); the same three tests of Windows passed in CI's job `windows` on `windows-2025` at `41507c9` (run 38009651835). The listeners (T-177): `unix-listen:PATH`, made mode 0600 and closed to another user's clients (`@NAME` on Linux; on Windows an AF_UNIX socket or a named pipe, whose client's token user is checked), and `tcp-listen:[ADDR:]PORT`, which says who can connect; one client, or each in turn with `--keep-listening`; `PODSSH_LISTEN=no` gives 78 before any bind. Native, Windows 11 (`cargo test -p podssh-cli --test pipe_listen`, 2026-10-10): 6 passed, and 10 runs in a row, podssh at both ends through AF_UNIX, a named pipe and TCP; the build image: 8 passed, with the mode 0600, a stale socket replaced, `@NAME`, and SIGTERM giving 143 and removing the file. In the gate at `9460b4e` (run 38019504447), CI, 2026-10-10: `tcp-listen:` with `exec:cat` gave 5,000,000 bytes back unchanged, and at `@NAME` a client of another user was closed while this user's was served. In CI at `d636c14` (run 38036448263) `tests/pipe_listen.rs` read a server's stderr before its reader had taken it, and found nothing: the tests that read a stream after a process ended now wait for the end of the stream, and so does `tests/persist.rs`, which slept 200 ms for it. |
@@ -361,6 +362,18 @@ with `--delta` and with `mv`, and without `--inplace` kept the old ones;
 the notice came first. The inode check by `stat`, the copy by exec and a
 flipped byte that leaves the destination damaged (`scripts/interop-inplace.sh`)
 and the planted defect wait for T-251.
+
+`podssh edit` (T-149; Windows 11, 2026-10-12, `cargo test -p podssh-cli
+--test edit_args`, 5 passed, and the unit tests of `edit::`,
+6 passed): the operand, the editor and the terminal are refused before
+anything is attempted (64, 78 naming `EDITOR`, 64), `VISUAL` wins over
+`EDITOR` and `vi` on `PATH` comes last, the copy keeps the far name or its
+extension, and the far mode is read from a line of `ls -lnid`. The cases
+of `scripts/interop-edit.sh` against OpenSSH (an `EDITOR` that adds a
+line, over SFTP and by exec, with the far mode kept; no change; a far file
+that `podssh ssh` changed first, refused with 73 and the copy named; an
+editor that fails; a link) and the planted defect, the check before the
+send skipped, wait for T-251.
 
 ## `podssh keygen`, measured
 

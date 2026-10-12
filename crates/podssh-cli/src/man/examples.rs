@@ -62,6 +62,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ("an IPv6 address with a port, with no relay", "podssh ssh --direct 'user@[2001:db8::1]:2222'".into()),
         ("send a file with no scp", "podssh ssh user@example.org 'cat > notes.txt' < notes.txt".into()),
         (
+            "change a file of a host in an editor here; it goes back only if the host's file did not change",
+            "EDITOR=nano podssh edit user@example.org:notes.txt".into(),
+        ),
+        (
             "through an HTTP CONNECT proxy",
             "HTTPS_PROXY=http://proxy.example.org:3128 podssh ssh user@example.org".into(),
         ),
@@ -254,6 +258,7 @@ mod tests {
                     Parsed::Status { .. } => "status",
                     Parsed::Ping(_) => "ping",
                     Parsed::Play(_) => "play",
+                    Parsed::Edit(_) => "edit",
                     Parsed::Config(_) => "config",
                     Parsed::Mcp(_) => "mcp",
                     Parsed::Man { .. } => "man",

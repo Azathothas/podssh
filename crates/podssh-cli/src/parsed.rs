@@ -100,6 +100,8 @@ pub enum Parsed {
     Ping(Box<crate::ping::PingArgs>),
     /// `podssh play FILE` (T-033).
     Play(Box<crate::play::PlayArgs>),
+    /// `podssh edit [user@]host:PATH` (T-149).
+    Edit(Box<crate::edit::EditArgs>),
     /// `podssh config import FORMAT FILE` (T-047).
     Config(Box<crate::config_import::ConfigArgs>),
     /// `podssh mcp` (T-055).
@@ -170,6 +172,7 @@ impl Parsed {
             Parsed::Status { refused, .. } => !refused.is_empty(),
             Parsed::Ping(args) => !args.refused.is_empty(),
             Parsed::Play(args) => !args.refused.is_empty(),
+            Parsed::Edit(args) => !args.refused.is_empty(),
             Parsed::Config(args) => !args.refused.is_empty(),
             Parsed::Mcp(args) => !args.refused.is_empty(),
             Parsed::Node(args) => !args.refused.is_empty(),

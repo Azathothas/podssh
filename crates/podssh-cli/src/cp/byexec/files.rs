@@ -162,7 +162,10 @@ impl Far {
             let sum: Sum = hasher.finalize().into();
             let (far, how) = self.digest(handle, &temp, sent).await?;
             transfer::compare(&sum, &far, &how, source)?;
-            self.rename(handle, &temp, &target, &Stamp::of_local(&before), keep, log).await?;
+            // The source's mode, or the far file's that `podssh edit` keeps.
+            let mut stamp = Stamp::of_local(&before);
+            stamp.mode = shape.mode.or(stamp.mode);
+            self.rename(handle, &temp, &target, &stamp, keep, log).await?;
             Ok(Done {
                 source: source.into(),
                 destination: target.clone(),

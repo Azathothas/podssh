@@ -35,6 +35,7 @@ harness inplace interop 6 scripts/interop-inplace.sh
 harness mv interop 18 scripts/interop-mv.sh
 harness sftp interop 5 scripts/interop-sftp.sh
 harness resume interop 9 scripts/interop-resume.sh
+harness edit interop 8 scripts/interop-edit.sh
 harness pipe interop 9 scripts/interop-pipe.sh
 harness pty interop 13 scripts/interop-pty.py
 harness man man 7 scripts/interop-man.sh
@@ -449,6 +450,16 @@ resume.budget.up pass
 resume.budget.down pass
 resume.passphrase_once pass
 resume.nothing_left pass
+
+# scripts/interop-edit.sh
+edit.sftp.add_line pass
+edit.exec.add_line pass
+edit.no_copy_left pass
+edit.unchanged pass
+edit.far_changed pass
+edit.editor_failed pass
+edit.link pass
+edit.no_terminal pass
 
 # scripts/interop-pipe.sh
 pipe.exec_cat pass

@@ -5,6 +5,7 @@
 
 use super::notes_chat::CHAT;
 use super::notes_config::CONFIG;
+use super::notes_edit::EDIT;
 use super::notes_keygen::KEYGEN;
 use super::notes_mcp::MCP;
 use super::notes_pair::{NODE, OPERATOR};
@@ -21,6 +22,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "mv" => MV,
         "scp" => SCP,
         "sftp" => SFTP,
+        "edit" => EDIT,
         "proxy" => PROXY,
         "pipe" => PIPE,
         "node" => NODE,

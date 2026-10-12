@@ -304,7 +304,7 @@ impl Far {
     /// the copy's `size` bytes and one more at most, so that a file that
     /// grows ends the read, and its longer digest fails the comparison
     /// (T-267).
-    async fn digest(&self, handle: &Connection, path: &str, size: u64) -> Result<(Sum, String), Failed> {
+    pub(crate) async fn digest(&self, handle: &Connection, path: &str, size: u64) -> Result<(Sum, String), Failed> {
         let named = if path.starts_with('/') { path.to_string() } else { format!("./{path}") };
         if let Some(found) = digest::by_command(handle, &named, size).await {
             return Ok(found);

@@ -235,7 +235,7 @@ pub fn verb_notes(verb: &Verb) -> String {
         s.push_str("-V here is the validity of a certificate, with -s; podssh -V prints the version.\n");
         s.push_str("-n, -s, -I, -O and -U mean one thing with -Y and another with -s, as in ssh-keygen.\n");
     }
-    if matches!(verb.name, "cp" | "mv" | "scp" | "sftp") {
+    if matches!(verb.name, "cp" | "mv" | "scp" | "sftp" | "edit") {
         s.push('\n');
         s.push_str("-P here is the port, as on scp and sftp. On ssh it is a Tag.\n");
     }
@@ -250,6 +250,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "ssh" => "[OPTIONS] [--] [user@]host [COMMAND...]",
         "cp" | "mv" | "scp" => "[OPTIONS] SRC... DST",
         "sftp" => "[OPTIONS] DESTINATION",
+        "edit" => "[OPTIONS] [user@]host:PATH",
         "chat" => "[OPTIONS] PEER",
         "man" => "[OPTIONS] [SECTION]",
         "relay" => "[OPTIONS] SUBCOMMAND [NAME | HOST PORT]",
