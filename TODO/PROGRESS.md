@@ -95,9 +95,9 @@ before the tag), and last T-250 (the one release). Between entries: the
 and the entries that the operator holds (status `blocked`, Q32): T-085,
 T-107 to T-113, T-117, T-118, T-213, T-222, T-245 and T-248; and the work
 parked behind them (T-114, T-115, T-116, T-119, T-120, T-122, T-123,
-T-124 and T-150, "Parked open work"), which waits as they wait; and the
-entries that wait for an answer of the operator: T-292 (Q41) and T-062
-(Q42).
+T-124, T-150 and T-159, "Parked open work"), which waits as they wait;
+and the entries that wait for an answer of the operator: T-292 (Q41) and
+T-062 (Q42).
 
 ## Parked open work
 
@@ -115,6 +115,7 @@ it can start.
 | T-122 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
 | T-123 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
 | T-124 | T-107 to T-112 are done: `podssh serve` exists (the operator holds them, Q32) |
+| T-159 | T-107, T-108, T-110 and T-117 are done: `podssh serve` runs a shell on a pty, and stops its process group (the operator holds them, Q32) |
 | T-250 | Each entry is done, except the relay's, and the gate is green |
 | T-251 | Each entry is done, except the relay's; it runs before the tag of T-250 |
 

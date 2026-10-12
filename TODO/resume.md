@@ -1431,6 +1431,20 @@ lease of 2 s, the process group is gone after the lease. A planted server that
 keeps nothing fails the first check; a planted server with no lease fails the
 second.
 
+## Start condition
+
+T-107, T-108, T-110 and T-117 are done: `podssh serve` exists, with a shell on
+a real pty and a stop that signals each child's process group. The operator
+holds them (Q32, `docs/decisions.md`), so this entry waits as they wait, as
+T-114 does. Read at `b03c8d5` (2026-10-12): no source in `crates/` outside
+the tests uses `russh::server`, and the verb table of
+`crates/podssh-cli/src/flags.rs` has no `serve`. The far end of the resumable
+layer keeps a stream to its target until the resume deadline, not a shell
+(`crates/podssh-relay/src/session/keep.rs`), so a kept shell has no other
+place to live. The parts that need no server (the lease, the limits, the stop
+and the state file) wait too, as the TOTP code of T-115 waits: their shape
+follows the server's pty and channels, which T-107 to T-110 decide.
+
 # T-160: Local echo and prediction for high latency
 
 **Source:** `docs/design.md:264-265`; GitHub #19 and GitHub #18 (Nemo-010,
