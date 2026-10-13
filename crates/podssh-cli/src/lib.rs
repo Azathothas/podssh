@@ -83,6 +83,8 @@ pub mod relay_diag;
 mod relay_diag_text;
 pub mod relay_settings;
 pub mod relay_spec;
+// `podssh run`: copy a project, then run a command in it (T-192).
+pub mod run_cmd;
 pub mod session_log;
 pub mod settings;
 pub mod sftp;

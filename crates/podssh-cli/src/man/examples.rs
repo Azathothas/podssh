@@ -37,6 +37,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh job start user@build.example.org -- make all && podssh job list user@build.example.org".into(),
         ),
         (
+            "copy the project here to a stronger host, only what changed, then run its tests there",
+            "podssh run user@build.example.org -- cargo test".into(),
+        ),
+        (
             "queue a build on the least busy of three hosts, wait 2 h at most for its status, then fetch its output",
             "podssh job submit 'build{1..3}.example.org' -- make all && podssh job wait --timeout 2h \
              build2.example.org 0123abcd && podssh job fetch build2.example.org 0123abcd"
@@ -303,6 +307,7 @@ mod tests {
                     Parsed::Edit(_) => "edit",
                     Parsed::Each(_) => "each",
                     Parsed::Job(_) => "job",
+                    Parsed::Run(_) => "run",
                     Parsed::Config(_) => "config",
                     Parsed::Mcp(_) => "mcp",
                     Parsed::Man { .. } => "man",

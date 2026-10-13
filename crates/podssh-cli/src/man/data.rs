@@ -109,7 +109,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              not be reached or logged in to, or a measure broke. podssh each: a host could not be reached \
              or logged in to, or its session ended with no exit status. podssh job: the host could not be \
              reached or logged in to, has no tmux, has no such job, or gave no answer; for wait, also a job \
-             that is lost.",
+             that is lost. podssh run: the copy failed, and the command did not run.",
         ),
         (
             Code::Remote,
@@ -117,7 +117,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              command, 128 + N. podssh ping: the status of the remote program of a measure that failed, \
              127 when the host lacks it. podssh edit: the status of an editor that failed; nothing was sent. \
              podssh each: the largest status of the hosts, 0 only when each gave 0. podssh job wait: the \
-             exit status of the job."
+             exit status of the job. podssh run: the status of the command, as podssh ssh gives it."
                 .to_string(),
         ),
     ]

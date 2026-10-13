@@ -402,6 +402,10 @@ pub fn parse_verb(verb: &'static Verb, rest: &[std::ffi::OsString]) -> Parsed {
         return Parsed::Each(Box::new(crate::each::EachArgs::from_matches(&matches, refused)));
     }
 
+    if verb.name == "run" {
+        return Parsed::Run(Box::new(crate::run_cmd::RunArgs::from_matches(&matches, refused)));
+    }
+
     // The command of `job start` must follow `--` (T-193).
     if verb.name == "job" {
         let dashed = rest.iter().any(|a| a == "--");

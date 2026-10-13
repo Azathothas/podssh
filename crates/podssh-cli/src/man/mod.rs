@@ -30,6 +30,7 @@ mod notes_pair;
 mod notes_ping;
 mod notes_play;
 mod notes_relay;
+mod notes_run;
 mod notes_ssh;
 pub mod roff;
 pub mod text;

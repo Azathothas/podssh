@@ -29,6 +29,11 @@ pub struct Tree {
     /// `--delete` (T-144): what the target has and the source lacks goes,
     /// once each copy of the run succeeded.
     pub delete: bool,
+    /// `podssh run` (T-192): the destination is the root of the copy, also
+    /// when it is a directory already, and a file whose size and time of
+    /// change are the far file's is not sent again.
+    pub onto: bool,
+    pub changed_only: bool,
 }
 
 /// One thing of a tree, by its path under the root of the copy: components

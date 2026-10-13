@@ -547,6 +547,41 @@ host, and a list of hosts changes both.
   `ssh`'s is (T-025): the phase of a try is the process's, and many
   sessions share it.
 
+## `podssh run`
+
+`podssh run [OPTIONS] [user@]host[:DIR] [--] COMMAND...` copies a project to
+a host, then runs a command in it, with the command's exit status (T-192,
+`crates/podssh-cli/src/run_cmd/`).
+
+- **The project** is the working directory, or `--from DIR`. The far
+  directory is the DIR of `host:DIR` (a relative DIR, and `~/`, are under
+  the home directory; `scp://[user@]host[:port]/DIR` works too), else
+  `~/.podssh/run/NAME`, NAME the name of the project here. A parent that is
+  not there is made, with mode 0700. The home directory itself and the root
+  are refused (64). The connection flags are those of `ssh`, and the `Host`
+  blocks of `ssh_config` apply.
+- **The copy is that of `podssh cp -r -p`**
+  (`crates/podssh-cli/src/cp/sync.rs`): each file to a temporary name,
+  verified by its digest, then renamed, with its times kept; a new
+  connection after a break, and a new relay session before its limits. It
+  goes onto the far directory itself, also when the directory is there,
+  and a file whose size and time of change (to the second) are the far
+  file's is not sent again: a second run with no change sends no file. It
+  goes over SFTP, as a directory of `cp -r` does. `target/`,
+  `node_modules/` and `.git/` never go, at any depth, nor what the
+  project's `.podsshignore` (a pattern a line, as the file of
+  `--exclude-from`), `--exclude` and `--exclude-from` leave out. Nothing on
+  the far side is removed. `-v` says the files sent and those not sent
+  again: `DIR: files sent N, unchanged M`.
+- **Then the command** runs on the same connection, as `podssh ssh` runs
+  one: `cd 'DIR' && COMMAND`, DIR in single quotes for a POSIX shell, the
+  words of COMMAND joined with spaces as OpenSSH joins them, with stdin and
+  no pty. When the relay session has less than 16 MiB left after the copy,
+  the command runs on a new session.
+- **The exit status** is the command's, with the rules of `podssh ssh`;
+  a copy that failed exits 255 and runs nothing. 64 and 78 come before
+  anything connects.
+
 ## `podssh job`
 
 `podssh job [OPTIONS] SUBCOMMAND HOST [ID [DIR]] [-- COMMAND...]` keeps jobs
@@ -1690,6 +1725,8 @@ with its exit code unchanged. At 1 MiB the file becomes `sessions.1.jsonl`
 - `podssh each` gives the largest status of its hosts: 0 only when each
   host gave 0, and 255 for a host with no session; 64 and 78 come before
   anything connects, and 73 when a file of `--output-dir` cannot be made.
+- `podssh run` gives the status of its command, as `podssh ssh` gives it,
+  and 255 when the copy failed, which runs nothing.
 - `podssh job` uses the codes of `podssh ssh`: 255 for a failure of podssh,
   a host with no tmux or no such job among them. `job wait` gives the job's
   status, and 75 when its `--timeout` passed; `job fetch` gives 75 for a

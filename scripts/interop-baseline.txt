@@ -23,6 +23,7 @@ harness result interop 10 scripts/interop-result.sh
 harness mcp interop 4 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
 harness job interop 11 scripts/interop-job.sh
+harness run interop 3 scripts/interop-run.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -619,3 +620,8 @@ job.queue.slots pass
 job.queue.wait pass
 job.queue.fetch pass
 job.queue.choose pass
+
+# scripts/interop-run.sh
+run.status pass
+run.excludes pass
+run.again pass
