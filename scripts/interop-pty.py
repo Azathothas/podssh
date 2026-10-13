@@ -4,8 +4,9 @@
 Checks raw mode, the window size and a resize, Ctrl-C, full-screen programs
 (vi, less, top), the ~. and ~# escapes, ~C with -R and -KR, -L and -KL
 (T-291), the exit status, and that the local terminal is restored
-afterwards; then ZMODEM with sz and rz of lrzsz (T-148), or `env` lines
-when the host has no lrzsz.
+afterwards; the host picker of a run with no destination (T-188); then
+ZMODEM with sz and rz of lrzsz (T-148), or `env` lines when the host has no
+lrzsz.
 Prints one `ok` or `FAIL` line per check; exits 1 if any check failed.
 Called by scripts/interop.sh with: PODSSH KNOWN_HOSTS KEY.
 """
@@ -65,11 +66,11 @@ def unmet(name, text):
 
 
 class Terminal:
-    def __init__(self, rows, cols, extra=""):
+    def __init__(self, rows, cols, extra="", command=None):
         pid, fd = pty.fork()
         if pid == 0:
             env = dict(os.environ, TERM="xterm-256color")
-            os.execve("/bin/sh", ["/bin/sh", "-c", wrapper(extra)], env)
+            os.execve("/bin/sh", ["/bin/sh", "-c", command or wrapper(extra)], env)
         self.pid, self.fd, self.buf = pid, fd, b""
         self.resize(rows, cols)
 
@@ -245,6 +246,30 @@ check("pty.command_line.local", "~C -L makes a local port answer, and -KL makes 
       t.buf + f"\nport={lport} up={up!r} down={down!r}".encode())
 t.send(b"\rexit\r")
 t.finish()
+
+
+# The host picker (T-188): no destination, stdin and stdout on the pty, and
+# a file of -F with three Host names; 2 logs in to the second, whose
+# RemoteCommand prints a marker. With stdout alone a terminal, nothing is
+# asked, and the exit is 64.
+PICK = "/tmp/podssh-picker.conf"
+with open(PICK, "w") as f:
+    f.write("Host one\n    HostName 127.0.0.1\n    Port 2299\n"
+            "Host two\n    HostName 127.0.0.1\n    Port 2201\n    User podtest\n"
+            "    RemoteCommand echo PICKED-$((20+22))\n"
+            "Host three *.example.org\n    HostName 127.0.0.1\n    Port 2298\n")
+PICKER = (f"'{BIN}' ssh --direct -F {PICK} -o UserKnownHostsFile='{KNOWN_HOSTS}' -o IdentityAgent=none "
+          f"-o IdentitiesOnly=yes -o BatchMode=yes -i '{KEY}'")
+t = Terminal(24, 80, command=f"{PICKER}; echo RC=$?")
+listed = t.expect(b"3  three") and t.expect(b"Host to log in to")
+t.send(b"2\r")
+status = t.finish()
+check("pty.picker.choose", "no destination on a terminal: the Host names, and 2 logs in to two (exit 0)",
+      listed and b"PICKED-42" in t.buf and status == 0, t.buf)
+t = Terminal(24, 80, command=f"{PICKER} </dev/null; echo RC=$?")
+status = t.finish()
+check("pty.picker.stdout_alone", "stdin not a terminal: no list, no question, and exit 64",
+      status == 64 and b"Host to log in to" not in t.buf and b"missing destination" in t.buf, t.buf)
 
 # ZMODEM (T-148): sz and rz of lrzsz on the server, which is this host.
 # Its names are sz and rz, or lsz and lrz where lrzsz keeps its own.

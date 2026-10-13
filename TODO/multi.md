@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:174-250`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:185-261`,
    `crates/podssh-ssh/src/run.rs:35-80`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:130-413` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:1816-1819`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:1841-1844`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:1934-2027`); they cannot define a group.
+  (`docs/cli.md:1959-2052`); they cannot define a group.
 
 ## Approach
 
@@ -593,7 +593,7 @@ starts with no hosts). Read in the report, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -621,12 +621,45 @@ short numbered list helps a person; a script must still get the usage error.
    patterns, no negations), in the order of the files. With no names, keep
    exit 64.
 3. Read a number, or a text that filters the list, with `read_line`
-   (`crates/podssh-ssh/src/terminal/mod.rs:28`). Empty input or Ctrl-D exits
+   (`crates/podssh-ssh/src/terminal/mod.rs:26`). Empty input or Ctrl-D exits
    64. The prompt has the limit of a terminal that nobody watches
-   (`crates/podssh-ssh/src/terminal/mod.rs:78-89`).
+   (`crates/podssh-ssh/src/terminal/mod.rs:76-87`).
 4. The chosen name takes the normal path, as if the user typed it.
 5. In the same commit: the notes of ssh, `docs/cli.md`, `docs/STATUS.md`.
    This entry depends on T-043.
+
+## Decision
+
+- **A number picks; text only narrows.** Text keeps the names that hold
+  it, case set aside, and the list comes again; a list of one name still
+  takes its number. Lost: a pick when one name is left, which logs in to a
+  host that the person did not see in the list. A number outside the list
+  and a text that no name holds are said in the next question; 20 answers
+  at most, then 64.
+- **The list is the one that the reader gives with no host.** The
+  `Host` lines of the files that a run reads, in their order, each name
+  once, and each `Include` whose block holds for any host (outside each
+  block, or after `Host *`), read by the reader of T-043 with a list of
+  names (`config::host_names`). Lost: each `Include` whatever its block,
+  as the reader never reads an `Include` of a block that does not apply: a
+  bad file under one host must not stop each run.
+- **A file that cannot be read shows no picker**: the run refuses with
+  64, `missing destination`, and the reason. Lost: 78, as the resolve
+  gives for the same file: the fault of the run is still its missing
+  destination, and the picker only helps.
+- **`BatchMode` does not apply.** The picker comes before a connection,
+  and it needs stdin and stdout on a terminal: a script has neither. Lost:
+  `BatchMode` first, which needs the `ssh_config` of a host not known yet.
+- **The list goes to the terminal**, in the question of
+  `podssh_ssh::terminal::read_line`, not to stdout, which stays the data of
+  the command; the answer is echoed. With stdin and stdout on a terminal,
+  no time limit applies, as a person is there.
+- **The tests are a module of `crates/podssh-cli/tests/ssh_args.rs`**
+  (`tests/ssh_picker/mod.rs`), as that file is near 500 lines; the Prove's
+  filter `picker` matches the module's path. They answer through `Keys`,
+  and a test that must read nothing has no answer: with the plant, `pick`
+  asks, and the test fails at once, also where the test runs on a
+  terminal.
 
 ## Prove
 
@@ -639,6 +672,43 @@ sh scripts/dev.sh check                              # interop-pty.py: the choic
 `scripts/interop-pty.py` gives a fixture ssh_config with three `Host` lines;
 typing 2 logs in to the second host, with exit 0. Plant: show the picker
 when only stdout is a terminal; that case must fail.
+
+## Done
+
+2026-10-13.
+`crates/podssh-cli/src/ssh/picker.rs`: `wanted` (no destination, stdin and
+stdout terminals), `names` (the literal `Host` names, through
+`config::host_names` in `crates/podssh-cli/src/ssh/config.rs`, whose
+reader keeps the names of each `Host` line it reads when asked), `choose`
+(a number, or a text that narrows) and `pick`, with `Keys` for the
+terminal (`Terminal`, through `read_line`) or a test's answers.
+`dispatch::run_with` passes its `Tty` to `run_ssh`, which picks before
+anything else is resolved; `dispatch::run`, which the tests call, has no
+terminal and shows none. The note of `ssh` in the manual, the section "The
+host picker" of `docs/cli.md`, and `docs/STATUS.md`. The gate:
+`scripts/interop-pty.py` writes a file of `-F` with the hosts one, two and
+three, sees the list on a pty, types 2, and two's `RemoteCommand` prints
+`PICKED-42` with exit 0 (`pty.picker.choose`); with stdin from /dev/null
+and stdout on the pty, no list, no question, and 64
+(`pty.picker.stdout_alone`); its floor in `scripts/interop-baseline.txt`
+is 15. `cargo test -p podssh-cli --test ssh_args -- picker` (no terminal,
+stdout alone and stdin alone: nothing read, and 64 from the resolve; a
+destination given and no name: nothing read; the names of a home with an
+`Include`, a pattern, a negated name, a name twice and an `Include` of a
+block for one host; `-F` and `-F none`; a number, a text that narrows, a
+number outside the list, a text that no name holds; an empty line, blanks
+and a failed terminal, 64; the name picked with the command kept, and its
+`Host` block applied): 4 passed on Windows 11. The plant of the Prove,
+`wanted` true with stdout alone a terminal:
+`no_terminal_or_stdout_alone_reads_nothing_and_exits_64` failed; restored,
+it passed. The tests of `ssh_config` and `ssh_config_file` (the reader's
+change) passed; `cargo test -p podssh-cli`, 799 passed; clippy clean,
+rustfmt after one line it reflowed. In the build image (the steps `lint`
+and `release`, green; interop 535 passed, 0 failed),
+`scripts/interop-pty.py` 17 of 17 with `pty.picker.choose` (a pty with no
+destination lists the three `Host` names, and 2 logs in to the second,
+whose `RemoteCommand` ran) and `pty.picker.stdout_alone` (no list, no
+question, exit 64). The plant in the gate waits for T-251.
 
 # T-189: The health of the far host over the session
 
@@ -877,7 +947,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:162`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:1816-1819`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:1841-1844`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -986,14 +1056,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:143-145`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:1017-1019`).
+  credentials or tokens (`docs/cli.md:1042-1044`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:79-94`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:302-317`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:1816-1819`), which is not a failure of podssh.
+  status (`docs/cli.md:1841-1844`), which is not a failure of podssh.
 
 ## Approach
 

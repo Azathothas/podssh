@@ -9,6 +9,9 @@ use podssh_cli::ssh::resolve::{parse_hop, resolve, resolve_or_refuse, Env, Trans
 use podssh_cli::tree::{parse, Parsed};
 use podssh_ssh::{Agent, LogLevel, Method, Request, RequestTty, StdioTarget, StrictHostKeyChecking};
 
+// The host picker (T-188), in a module of its own: this file is near 500 lines.
+mod ssh_picker;
+
 fn ssh(words: &[&str]) -> SshArgs {
     let argv: Vec<std::ffi::OsString> = std::iter::once("ssh").chain(words.iter().copied()).map(Into::into).collect();
     match parse(argv) {

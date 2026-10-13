@@ -26,6 +26,7 @@ mod login;
 pub mod node;
 pub mod options;
 pub mod persist;
+pub mod picker;
 mod recording;
 pub mod resolve;
 pub mod result;
@@ -42,14 +43,16 @@ use podssh_ssh::retry::Retry;
 use podssh_ssh::{Log, LogLevel, EXIT_FAILURE};
 
 use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
+use crate::pager::Tty;
 use crate::session_log::Place;
 use crate::snippets::Asking;
 use args::SshArgs;
 use resolve::{Env, Resolved, Transport};
 
 /// Run `podssh ssh`; returns the process exit code. With `--result-file`,
-/// the run's result is written at its end, on each path (T-054).
-pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
+/// the run's result is written at its end, on each path (T-054). `tty` says
+/// whether stdin and stdout are terminals, for the host picker (T-188).
+pub fn run_ssh(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
     let (started, start_ms) = (std::time::Instant::now(), crate::pairs::now_ms());
     if args.result_file.as_deref() == Some("-") {
         let _ = writeln!(err, "podssh ssh: --result-file -: stdout carries the command's output; name a file");
@@ -60,7 +63,7 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
         Ok(place) => place,
         Err(refusal) => return refusal.report("ssh", err),
     };
-    let code = run(args, err);
+    let code = run(args, tty, err);
     let object = result::object(code, started);
     if let Some(path) = &args.result_file {
         result::write(path, &object, err);
@@ -73,11 +76,20 @@ pub fn run_ssh(args: &SshArgs, err: &mut dyn Write) -> i32 {
     code
 }
 
-fn run(args: &SshArgs, err: &mut dyn Write) -> i32 {
+fn run(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
     if args.version {
         let _ = writeln!(err, "podssh {} (SSH: russh, aws-lc-rs)", env!("CARGO_PKG_VERSION"));
         return 0;
     }
+    let env = Env::from_process();
+    // No destination, and a person at the terminal (T-188): a `Host` name of
+    // ssh_config, picked from a list; in each other case the run refuses as
+    // before.
+    let picked = match picker::pick(args, tty, &env, &mut picker::Terminal) {
+        Ok(picked) => picked,
+        Err(refusal) => return refusal.report("ssh", err),
+    };
+    let args = picked.as_ref().unwrap_or(args);
     // `--attach DEST` alone lists the kept shells at DEST (T-158).
     let listed = attach::listing(args);
     let args = listed.as_ref().unwrap_or(args);
@@ -93,7 +105,6 @@ fn run(args: &SshArgs, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("ssh", err);
     }
-    let env = Env::from_process();
     // A snippet (T-187): its command as written goes through the resolve,
     // and its values go in once the connection is known.
     let chosen = match crate::snippets::choose(args, &env.settings.snippets) {

@@ -647,6 +647,31 @@ the values that change (T-187, `crates/podssh-cli/src/snippets.rs`).
   `x; touch MARK` to OpenSSH and Dropbear: each comes back unchanged, and
   MARK is never made.
 
+## The host picker
+
+`podssh ssh` with no destination is a usage error (64). When stdin and
+stdout are both terminals, a person is there, and podssh first offers the
+literal `Host` names of `ssh_config` (T-188,
+`crates/podssh-cli/src/ssh/picker.rs`):
+
+- The names come from the files that a run reads (`-F`, else
+  `PODSSH_SSH_CONFIG`, else `~/.ssh/config` and the system's file), in
+  their order, each once, and from each `Include` whose block holds for any
+  host: outside each block, or after `Host *`. A pattern (`*`, `?`) and a
+  negated name are not names, and `known_hosts` is not read, as its names
+  can be hashed.
+- Each name has a number. A number picks its name; other text narrows the
+  list to the names that hold it, case set aside. An empty line, the end of
+  input and a terminal that fails pick none (64). A number outside the list
+  and a text that no name holds are said, and the question comes again, 20
+  times at most.
+- The name picked takes the path of a typed destination: its `Host`
+  blocks, the relay or `--direct`, and the rest of the command line.
+- With no name to list, or with stdin or stdout not a terminal, nothing is
+  read, and the run refuses with 64 and `missing destination`, as before:
+  a script still gets its usage error. A test that calls `dispatch::run`
+  has no terminal, so it never sees the picker.
+
 ## A word with no subcommand
 
 `podssh example.org` never connects. podssh selects a suggestion in two

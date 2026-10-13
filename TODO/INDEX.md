@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**304 entries: 36 open, 0 partial, 25 blocked, 243 done.**
+**304 entries: 35 open, 0 partial, 25 blocked, 244 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 30 | 0 | 7 | 84 | 121 |
-| **All** | 36 | 0 | 25 | 243 | 304 |
+| P3 | 29 | 0 | 7 | 85 | 121 |
+| **All** | 35 | 0 | 25 | 244 | 304 |
 
 ## Entries
 
@@ -261,7 +261,7 @@ repository and CI).
 | [T-185](multi.md) | P3 | L | backlog | feature | open | Interactive broadcast to several sessions, with an emergency stop |
 | [T-186](multi.md) | P3 | L | backlog | feature | open | A control surface for agents on live sessions |
 | [T-187](multi.md) | P3 | M | backlog | feature | done | Snippets and argument templates, shown before they run |
-| [T-188](multi.md) | P3 | S | backlog | feature | open | A host picker when `podssh ssh` gets no destination |
+| [T-188](multi.md) | P3 | S | backlog | feature | done | A host picker when `podssh ssh` gets no destination |
 | [T-189](multi.md) | P3 | M | backlog | feature | open | The health of the far host over the session |
 | [T-190](multi.md) | P3 | M | backlog | feature | open | Containers and pods as destinations |
 | [T-191](multi.md) | P3 | M | backlog | feature | open | Expect rules, and tasks before and after a connection |

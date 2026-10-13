@@ -77,17 +77,10 @@ const MAX_DEPTH: usize = 16;
 /// the command line's `IgnoreUnknown`, which holds for the files too and
 /// beats theirs.
 pub fn read(source: &Source, ctx: &Context, ignore_unknown: Option<String>) -> Result<Settings, String> {
-    // A named file is the user's choice; OpenSSH checks only its default,
-    // and each file that an `Include` reads.
-    let files: Vec<(&Path, Kind)> = match source {
-        Source::None => return Ok(Settings::default()),
-        Source::Given(path) => vec![(path.as_path(), Kind::Given)],
-        Source::Default(user) => {
-            let mut files: Vec<(&Path, Kind)> = user.iter().map(|p| (p.as_path(), Kind::User)).collect();
-            files.extend(ctx.system.map(|p| (p, Kind::System)));
-            files
-        }
-    };
+    if *source == Source::None {
+        return Ok(Settings::default());
+    }
+    let files = files_of(source, ctx.system);
     let mut reader = Reader {
         ctx,
         out: Settings { ignore_unknown, ..Settings::default() },
@@ -95,6 +88,7 @@ pub fn read(source: &Source, ctx: &Context, ignore_unknown: Option<String>) -> R
         wants_final: false,
         final_host: String::new(),
         chain: Vec::new(),
+        names: None,
     };
     for (path, kind) in &files {
         reader.file(path, *kind, true)?;
@@ -109,6 +103,41 @@ pub fn read(source: &Source, ctx: &Context, ignore_unknown: Option<String>) -> R
         }
     }
     Ok(reader.out)
+}
+
+/// The files of `source`, in the order they are read. A named file is the
+/// user's choice; OpenSSH checks only its default, and each file that an
+/// `Include` reads.
+fn files_of<'a>(source: &'a Source, system: Option<&'a Path>) -> Vec<(&'a Path, Kind)> {
+    match source {
+        Source::None => Vec::new(),
+        Source::Given(path) => vec![(path.as_path(), Kind::Given)],
+        Source::Default(user) => {
+            let mut files: Vec<(&Path, Kind)> = user.iter().map(|p| (p.as_path(), Kind::User)).collect();
+            files.extend(system.map(|p| (p, Kind::System)));
+            files
+        }
+    }
+}
+
+/// The literal names of the `Host` lines of `source`, in the order of the
+/// files, each once, for the host picker (T-188): no pattern and no negated
+/// name. No host is known yet, so an `Include` is read where its block
+/// holds for any host: outside each block, or after `Host *`.
+pub fn host_names(source: &Source, ctx: &Context) -> Result<Vec<String>, String> {
+    let mut reader = Reader {
+        ctx,
+        out: Settings::default(),
+        pass: Pass::First,
+        wants_final: false,
+        final_host: String::new(),
+        chain: Vec::new(),
+        names: Some(Vec::new()),
+    };
+    for (path, kind) in files_of(source, ctx.system) {
+        reader.file(path, kind, true)?;
+    }
+    Ok(reader.names.unwrap_or_default())
 }
 
 /// Where a file comes from: whether it is checked, and where a relative
@@ -141,6 +170,9 @@ struct Reader<'a> {
     final_host: String,
     /// The files being read, for the message of a loop.
     chain: Vec<String>,
+    /// The literal names of the `Host` lines read, when they are asked for
+    /// ([`host_names`]).
+    names: Option<Vec<String>>,
 }
 
 impl Reader<'_> {
@@ -177,6 +209,9 @@ impl Reader<'_> {
             let at = |why: &str| format!("{file}:{n}: {}", why.strip_prefix("-o ").unwrap_or(why));
             match keyword.to_ascii_lowercase().as_str() {
                 "host" => {
+                    if let Some(names) = self.names.as_mut() {
+                        add_names(names, value);
+                    }
                     let host = if self.pass == Pass::Final { self.final_host.as_str() } else { self.ctx.host };
                     active = host_matches(value, host);
                 }
@@ -340,6 +375,16 @@ pub(crate) fn uncomment(value: &str) -> &str {
         word_start = !quoted && c.is_whitespace();
     }
     value
+}
+
+/// The literal names of a `Host` line into `names`, each once: a pattern
+/// (`*`, `?`) and a negated name (`!`) name no one host.
+fn add_names(names: &mut Vec<String>, patterns: &str) {
+    for name in patterns.split_whitespace() {
+        if !name.contains(['*', '?', '!']) && !names.iter().any(|n| n == name) {
+            names.push(name.to_string());
+        }
+    }
 }
 
 /// A `Host` line's patterns against the host as typed, as OpenSSH matches

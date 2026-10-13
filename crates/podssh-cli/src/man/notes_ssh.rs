@@ -103,6 +103,12 @@ pub const SSH: &[&str] = &[
      connects for each other answer, for a name that the file does not have, and when nobody can answer or \
      BatchMode is on and --yes is not given. A word that no placeholder takes, and -N, -s, -W or -O, with \
      --snippet are refused (exit 64).",
+    "With no destination, and stdin and stdout both terminals, podssh lists the literal Host names of \
+     ssh_config (those of -F, or of ~/.ssh/config and the system's file, with their Include lines), each with \
+     a number, and logs in to the one picked, as if it were typed. A number picks; other text narrows the \
+     list to the names that hold it; an empty line or the end of input picks none (exit 64). A pattern, a \
+     negated name and a name of known_hosts are never listed. In each other case, and with no name to \
+     list, a missing destination is a usage error (exit 64).",
     "--record FILE keeps what the session showed, with its timing, as asciicast v2, for podssh play: never \
      what was typed, and never the command line. The file is closed to others and never written over (exit \
      255); the output can hold a secret that a program printed.",

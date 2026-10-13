@@ -254,7 +254,7 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
                 return EXIT_USAGE;
             }
             if let Some(args) = ssh {
-                return crate::ssh::run_ssh(args, s.err);
+                return crate::ssh::run_ssh(args, tty, s.err);
             }
             if let Some(args) = keygen {
                 return crate::keygen::run_keygen(args, s.out, s.err);
