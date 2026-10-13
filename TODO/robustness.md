@@ -556,7 +556,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:405-408`): a proxy head that never ends stops at
+   (`docs/development.md:410-413`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:422-440`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:423-441`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:380`, enforced at
   `crates/podssh-ssh/src/run.rs:367-373`); a reply, 30 s
@@ -871,7 +871,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate, item 9 since T-156,
-   `docs/development.md:285-297`) and the faults table of docs/STATUS.md.
+   `docs/development.md:290-302`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 
@@ -952,7 +952,7 @@ read in the report, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -968,7 +968,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - The matrix is at `scripts/interop.sh:117-127`. It expects 3, 0, 1, 127 and
   143, against OpenSSH (port 2201) and Dropbear (port 2203). `grep -c` gives
   17 lines with `expect_rc`, each a call; the helper is
-  `scripts/interop-lib.sh:53-60` (T-199). `scripts/interop-keygen.sh` has 6
+  `scripts/interop-lib.sh:53-126` (T-199). `scripts/interop-keygen.sh` has 6
   more, for `podssh keygen`.
 - `scripts/interop.sh` (lines 31-32 at `5c7a1ad`) installed `openssh-server`,
   `openssh-keygen` and others, but no client package. No harness ran the stock `ssh`; only
@@ -977,7 +977,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
 - `crates/podssh-ssh/src/io.rs:342-349`, with `crates/podssh-ssh/src/io.rs:59-61`,
   maps an exit status that does not fit
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
-  (`docs/STATUS.md:73`, `docs/STATUS.md:77`).
+  (`docs/STATUS.md:73`, `docs/STATUS.md:78`).
 - A correction to the framing of #34: for a signal, podssh differs from
   OpenSSH on purpose. `docs/cli.md:1595-1596` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
@@ -1022,3 +1022,118 @@ map an exit signal to 255 at `crates/podssh-ssh/src/io.rs:349`; the literal
 check of 143 must fail, and the table must report its signal row as broken.
 Planted defect 2: let the reference run `true` in place of `exit 3`; the
 derived check must fail.
+
+## Correction
+
+2026-10-12: the second item of the Premise no longer holds. Since `5521cbf`
+(T-238, 2026-10-08), `scripts/interop.sh:24` installs
+`openssh-client-default`, OpenSSH's `ssh`, for the % tokens of `ssh -G`,
+and harnesses run it: `scripts/interop-status.sh` compares four exit codes
+of a session with no status with it (T-026), and `ssh.config.jump_alias`
+the code of `-J` through a `-F` file. The image has `ssh` because the
+script installs it, so item 1 of the Approach needs no new package; the run
+prints the client's path and version (`ref.client`). Also,
+`scripts/interop-keygen.sh` has 20 calls of `expect_rc` now, none of them
+for `podssh ssh`.
+
+2026-10-12: "Today one row" is two rows short. Read in OpenSSH's source
+(openssh-portable at its default branch, 2026-10-12; read, not run):
+`client_input_channel_req` in `clientloop.c` takes `exit-status` and no
+`exit-signal`, and `client_loop` starts its status at -1, so a signal gives
+255, as `docs/cli.md:1486-1487` says. `check_host_key` in `sshconnect.c`
+goes on past a changed key under `StrictHostKeyChecking=no`: it turns off
+password and keyboard-interactive login and the forwardings, then accepts
+the key, so `ssh.hostkey.changed_refused` gives 0 with OpenSSH. In
+`hostfile.c`, a failed read ends the loop of `hostkeys_foreach_file` as the
+end of the file does, so a directory named by `UserKnownHostsFile` reads as
+empty; the key's add fails with a message only, and
+`ssh.hostkey.unreadable_refused` gives 0 too. podssh refuses both on
+purpose (`docs/cli.md`, "Prompts and time limits"; T-028), so the table
+has three rows.
+
+## Done
+
+2026-10-13. What was made:
+- `scripts/interop-lib.sh`: `stock_raw` runs OpenSSH's `ssh` with
+  `-F /dev/null`, the environment of `p`, stdin from `/dev/null` and a
+  limit of 60 s, and keeps its code (`none` with no `ssh`) and its stderr;
+  `stock` adds the settings of `p`, with a `known_hosts` of its own;
+  `p_ref` and `direct_ref` run it first and podssh after with the same
+  arguments, and give podssh's code. The next `expect_rc` writes the case's
+  id, literal, both codes, text and OpenSSH's command line to `$W/refs`.
+- `scripts/interop.sh`: each case of the matrix (`ssh.exit.*`, 10), of the
+  refusals of authentication (10) and of the host keys (5:
+  `strict_known`, `changed_refused`, `unreadable_refused`,
+  `unrecordable_connects` and `cert_accepted`) runs through `p_ref` or
+  `direct_ref`. Its literal check `ssh.ID` stays as it was: "differs from
+  the promise".
+- `scripts/interop-reference.sh`, a new harness (`ref`, floor 26, in
+  `scripts/interop-baseline.txt`), sourced after the host keys.
+  `ref.client` names the client's path and version. `ref.ID` checks each
+  of the 25 cases, "differs from OpenSSH": podssh's code must be OpenSSH's,
+  or meet the row of the table (`differs`) that names the case, with
+  OpenSSH's code, podssh's and the reason. Each line shows OpenSSH's code,
+  podssh's and the literal. A difference that no row names fails with the
+  three codes and OpenSSH's command line; a row that the run does not meet
+  fails as broken; a reference of 0 for a case whose literal is not 0 fails
+  as a broken reference (item 5).
+- The rows, from the reading of the Correction: `signal` (OpenSSH 255,
+  podssh 143), `changed_key` (OpenSSH 0, podssh 255) and
+  `unreadable_known_hosts` (OpenSSH 0, podssh 255).
+- `crates/podssh-ssh/src/lib.rs:16` now agrees with
+  `docs/cli.md:1486-1487`: 128 plus the signal's number, where OpenSSH
+  gives 255. `docs/cli.md` names the two differences of the host keys
+  beside their rules; `docs/development.md` (item 7 of the gate) says that
+  each code is checked twice; `docs/STATUS.md` has a row for OpenSSH's
+  codes, measured below.
+
+A defect found and repaired: `ssh.hostkey.strict_known` gave
+`-o StrictHostKeyChecking=yes` to `p`, whose `accept-new` came first, and
+the first value of a keyword wins (`docs/cli.md:307` says "the first value
+of each"), so the check ran under `accept-new`. It now names each option
+itself, through `direct_ref`, with the run's `known_hosts`, which OpenSSH
+reads too.
+
+The calls made where the Approach left a choice:
+- The derived checks are a harness of their own, `ref.ID` beside `ssh.ID`,
+  so a change gives two named failures, and `scripts/interop.sh` stays
+  under the limit of 500 lines (499). Their ids are the literal words of
+  one loop, which the reader of `cargo todo interop` expands as it is; a new
+  helper would have changed that reader
+  (`crates/podssh-todo/src/interop/words.rs:14-15`).
+- OpenSSH runs first at each site, and `p_ref` and `direct_ref` give both
+  clients one list of arguments, so that the two cannot drift apart.
+- `stock` keeps its own `known_hosts` (`$W/known_hosts.openssh`): with the
+  file of `p`, OpenSSH's `accept-new` would record each key before podssh,
+  and `ssh.hostkey.recorded` would count OpenSSH's lines. A case that names
+  its own file (the host keys) gives both clients that file.
+- Not compared: `-J` (OpenSSH gives a hop of `-J` none of the `-o`
+  options; `ssh.config.jump_alias` compares the `-F` form already),
+  `--host-key-fingerprint` (podssh's own), the refused `-R` (no
+  `expect_rc`, and run under its own `timeout`), `-N` (ended by
+  `timeout`), the ptys through pipes, and `podssh keygen`.
+- With no `sshd.pam`, `ref.auth.kbdint_pam` says `env`, as
+  `ssh.auth.kbdint_pam` does; the baseline wants `pass` for both.
+- No probe of `ssh` before the package line: the script installs it, and
+  a missing client fails `ref.client` and each `ref.ID` ("no reference").
+
+Measured, 2026-10-13, the step `release` in the build image
+(`sh scripts/dev.sh run -- 'sh /work/scripts/gate.sh release'`): green,
+interop 504 passed, 0 failed, 1 env; `ref` 26 of 26, with
+OpenSSH_10.3p1. OpenSSH's codes agree with podssh's in 22 of the 25
+cases; the other three are the rows of the table, as read in OpenSSH's
+source: a signal (OpenSSH 255, podssh 143, on both servers), a changed key
+under `StrictHostKeyChecking=no` (OpenSSH 0, podssh 255), and a directory
+as `known_hosts` (OpenSSH 0, podssh 255). `docs/STATUS.md` has each code.
+Planted, in one run: the signal mapped to 255 at
+`crates/podssh-ssh/src/io.rs:349`, and OpenSSH's code for `exit 3` given
+as 0 in `stock_raw`. 8 checks failed, as due: `ssh.exit.openssh.143` and
+`ssh.exit.dropbear.143` ("wanted exit 143, got 255"), `result.*.signal`,
+`ref.exit.*.143` ("the row 'signal' is broken") and `ref.exit.*.3` ("the
+reference is broken"). Restored, the run above. Native: `cargo todo
+interop` (532 ids of 36 harnesses meet the baseline), `cargo todo check`
+and `cargo test -p podssh-todo` passed. `scripts/interop.sh` had grown to
+503 lines with main's later checks; the wait for the sshd of port 2211 is
+the helper `wait_port` of `scripts/interop-lib.sh` now, and the script has
+498.
+

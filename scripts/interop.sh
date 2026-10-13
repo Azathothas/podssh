@@ -20,7 +20,7 @@ mkdir -p "$W"
 . "$HERE/interop-lib.sh"
 
 echo "== servers"
-# openssh-client-default is ssh itself, for the % tokens of `ssh -G`.
+# openssh-client-default is ssh itself: the % tokens of `ssh -G`, and each exit code's reference (T-225).
 apk add --no-cache openssh-server openssh-server-pam openssh-keygen openssh-sftp-server openssh-client-default \
     dropbear python3 linux-pam openssl tmux curl sudo xvfb xauth xdpyinfo tigervnc tigervnc-client busybox-extras xsetroot font-dejavu linux-tools-usbip >"$W/apk.log" 2>&1 || { cat "$W/apk.log"; exit 1; }
 # sz and rz of lrzsz, for the ZMODEM checks of interop-pty.py (T-148). Alpine
@@ -121,7 +121,7 @@ for srv in openssh:2201 dropbear:2203; do
         want=${spec%%:*}
         cmd=${spec#*:}
         # shellcheck disable=SC2086
-        p "$port" $K -o BatchMode=yes "$T" "$cmd" >"$W/out" 2>"$W/err" </dev/null
+        p_ref "$port" $K -o BatchMode=yes "$T" "$cmd" >"$W/out" 2>"$W/err" </dev/null
         expect_rc "ssh.exit.${srv%%:*}.${spec%%:*}" "port $port: '$cmd'" "$want" $? "$W/err"
     done
 done
@@ -159,12 +159,12 @@ done
 echo
 echo "== authentication"
 for k in rsa ecdsa; do
-    p 2201 -i "$W/id_$k" -o BatchMode=yes "$T" true </dev/null >"$W/out" 2>"$W/err"
+    p_ref 2201 -i "$W/id_$k" -o BatchMode=yes "$T" true </dev/null >"$W/out" 2>"$W/err"
     expect_rc "ssh.auth.key.${k}" "$k key" 0 $? "$W/err"
 done
-SSH_ASKPASS="$W/askpass-passphrase" SSH_ASKPASS_REQUIRE=force p 2201 -i "$W/id_enc" "$T" true </dev/null >"$W/out" 2>"$W/err"
+SSH_ASKPASS="$W/askpass-passphrase" SSH_ASKPASS_REQUIRE=force p_ref 2201 -i "$W/id_enc" "$T" true </dev/null >"$W/out" 2>"$W/err"
 expect_rc ssh.auth.encrypted_askpass "encrypted key, passphrase from SSH_ASKPASS" 0 $? "$W/err"
-p 2201 -i "$W/id_enc" -o BatchMode=yes "$T" true </dev/null >"$W/out" 2>"$W/err"
+p_ref 2201 -i "$W/id_enc" -o BatchMode=yes "$T" true </dev/null >"$W/out" 2>"$W/err"
 rc=$?
 expect_rc ssh.auth.encrypted_batch "encrypted key, nobody to ask" 255 $rc "$W/err"
 grep -q "skipped encrypted key" "$W/err" && ok ssh.auth.encrypted_named "the refusal names the skipped key" \
@@ -172,15 +172,15 @@ grep -q "skipped encrypted key" "$W/err" && ok ssh.auth.encrypted_named "the ref
 for srv in openssh:2201 dropbear:2203; do
     port=${srv#*:}
     SSH_ASKPASS="$W/askpass-password" SSH_ASKPASS_REQUIRE=force \
-        p "$port" -o PubkeyAuthentication=no "$T" 'exit 4' </dev/null >"$W/out" 2>"$W/err"
+        p_ref "$port" -o PubkeyAuthentication=no "$T" 'exit 4' </dev/null >"$W/out" 2>"$W/err"
     expect_rc "ssh.auth.password.${srv%%:*}" "port $port: password from SSH_ASKPASS" 4 $? "$W/err"
     SSH_ASKPASS="$W/askpass-wrong" SSH_ASKPASS_REQUIRE=force \
-        p "$port" -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 "$T" true </dev/null >"$W/out" 2>"$W/err"
+        p_ref "$port" -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 "$T" true </dev/null >"$W/out" 2>"$W/err"
     expect_rc "ssh.auth.wrong_password.${srv%%:*}" "port $port: wrong password" 255 $? "$W/err"
 done
 grep -q "Permission denied" "$W/err" && ok ssh.auth.permission_denied "a wrong password says Permission denied" \
     || bad ssh.auth.permission_denied "no Permission denied" "$W/err"
-p 2201 -o PubkeyAuthentication=no -o BatchMode=yes "$T" true </dev/null >"$W/out" 2>"$W/err"
+p_ref 2201 -o PubkeyAuthentication=no -o BatchMode=yes "$T" true </dev/null >"$W/out" 2>"$W/err"
 expect_rc ssh.auth.password_batch "password with BatchMode" 255 $? "$W/err"
 grep -q "password authentication was skipped" "$W/err" && ok ssh.auth.password_batch_named "BatchMode names the skipped password" \
     || bad ssh.auth.password_batch_named "no note" "$W/err"
@@ -190,7 +190,7 @@ grep -q "publickey was not tried: -o PubkeyAuthentication=no" "$W/err" && ! grep
     || bad ssh.auth.keys_off_note "keys turned off: the wrong note" "$W/err"
 if [ -n "$PAM_SSHD" ]; then
     SSH_ASKPASS="$W/askpass-password" SSH_ASKPASS_REQUIRE=force \
-        p 2204 -o PubkeyAuthentication=no "$T" 'exit 6' </dev/null >"$W/out" 2>"$W/err"
+        p_ref 2204 -o PubkeyAuthentication=no "$T" 'exit 6' </dev/null >"$W/out" 2>"$W/err"
     expect_rc ssh.auth.kbdint_pam "keyboard-interactive (PAM) from SSH_ASKPASS" 6 $? "$W/err"
 else
     unmet ssh.auth.kbdint_pam "keyboard-interactive: sshd.pam is not in this image"
@@ -200,12 +200,13 @@ echo
 echo "== host keys"
 grep -c . "$KH" >/dev/null && ok ssh.hostkey.recorded "keys were recorded with accept-new ($(grep -c . "$KH") lines)" \
     || bad ssh.hostkey.recorded "known_hosts is empty"
-# shellcheck disable=SC2086
-p 2201 $K -o StrictHostKeyChecking=yes -o BatchMode=yes "$T" true </dev/null >"$W/out" 2>"$W/err"
+# shellcheck disable=SC2086  # not p, whose accept-new would come first: the first -o of a keyword wins
+direct_ref -p 2201 -o UserKnownHostsFile="$KH" -o StrictHostKeyChecking=yes -o IdentityAgent=none -o IdentitiesOnly=yes \
+    $K -o BatchMode=yes "$T" true </dev/null >"$W/out" 2>"$W/err"
 expect_rc ssh.hostkey.strict_known "a recorded key is accepted under StrictHostKeyChecking=yes" 0 $? "$W/err"
 sed 's/^\(\[127.0.0.1\]:2201 ssh-ed25519 \).*/\1AAAAC3NzaC1lZDI1NTE5AAAAIBXkNYHrJ3fDOpgDDGbs1lnK9rmzEHaN7Jbn9jC7Wjlx/' "$KH" >"$W/kh_changed"
 # shellcheck disable=SC2086
-env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile="$W/kh_changed" \
+direct_ref -p 2201 -o UserKnownHostsFile="$W/kh_changed" \
     -o StrictHostKeyChecking=no -o IdentityAgent=none $K "$T" true </dev/null >"$W/out" 2>"$W/err"
 expect_rc ssh.hostkey.changed_refused "a changed key is refused even with StrictHostKeyChecking=no" 255 $? "$W/err"
 grep -q "HAS CHANGED" "$W/err" && ok ssh.hostkey.changed_warning "the changed-key warning is shown" \
@@ -214,7 +215,7 @@ grep -q "HAS CHANGED" "$W/err" && ok ssh.hostkey.changed_warning "the changed-ke
 # and a key that cannot be recorded is said to hold for this connection only.
 mkdir -p "$W/kh_dir"
 # shellcheck disable=SC2086
-env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile="$W/kh_dir" \
+direct_ref -p 2201 -o UserKnownHostsFile="$W/kh_dir" \
     -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes "$T" true \
     </dev/null >"$W/out" 2>"$W/err"
 expect_rc ssh.hostkey.unreadable_refused "T-028: accept-new refuses a key when the user file cannot be read" 255 $? "$W/err"
@@ -222,7 +223,7 @@ grep -q "kh_dir" "$W/err" && grep -q "cannot be verified" "$W/err" \
     && ok ssh.hostkey.unreadable_named "T-028: the refusal names the file that cannot be read" \
     || bad ssh.hostkey.unreadable_named "T-028: the file is not named" "$W/err"
 # shellcheck disable=SC2086
-env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2201 -o UserKnownHostsFile=/proc/podssh-known-hosts \
+direct_ref -p 2201 -o UserKnownHostsFile=/proc/podssh-known-hosts \
     -o StrictHostKeyChecking=accept-new -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes "$T" true \
     </dev/null >"$W/out" 2>"$W/err"
 expect_rc ssh.hostkey.unrecordable_connects "T-028: accept-new connects when the key cannot be recorded" 0 $? "$W/err"
@@ -252,22 +253,19 @@ ssh-keygen -q -t ed25519 -N '' -C interop-ca -f "$W/ca_t027"
 ssh-keygen -q -s "$W/ca_t027" -I podssh-t027 -h -n 127.0.0.1 -V -5m:+1h "$W/host_ed25519.pub"
 sshd_conf 2211 "KbdInteractiveAuthentication no" "HostCertificate $W/host_ed25519-cert.pub"
 /usr/sbin/sshd -f "$W/sshd-2211.conf" -E "$W/sshd-2211.log" || cat "$W/sshd-2211.log"
-tries=0
-while ! python3 -c 'import socket; socket.create_connection(("127.0.0.1", 2211), 1).close()' 2>/dev/null; do
-    tries=$((tries + 1))
-    [ "$tries" -ge 50 ] && break
-    sleep 0.1
-done
+wait_port 2211
 printf '@cert-authority [127.0.0.1]:2211 %s\n' "$(cat "$W/ca_t027.pub")" >"$W/kh_ca"
 cp "$W/kh_ca" "$W/kh_ca.before"
 # shellcheck disable=SC2086
-env -u SSH_AUTH_SOCK HOME="$W" "$BIN" ssh --direct -p 2211 -o UserKnownHostsFile="$W/kh_ca" \
+direct_ref -p 2211 -o UserKnownHostsFile="$W/kh_ca" \
     -o StrictHostKeyChecking=yes -o IdentityAgent=none -o IdentitiesOnly=yes $K -o BatchMode=yes "$T" true \
     </dev/null >"$W/out" 2>"$W/err"
 expect_rc ssh.hostkey.cert_accepted "T-027: a host certificate from a CA of known_hosts, under StrictHostKeyChecking=yes" 0 $? "$W/err"
 cmp -s "$W/kh_ca" "$W/kh_ca.before" && ok ssh.hostkey.cert_unrecorded "T-027: nothing was recorded" \
     || bad ssh.hostkey.cert_unrecorded "T-027: known_hosts changed" "$W/kh_ca"
 kill "$(cat "$W/sshd-2211.pid")" 2>/dev/null
+# shellcheck source=scripts/interop-reference.sh
+. "$HERE/interop-reference.sh"
 
 echo
 echo "== % tokens, against OpenSSH's own expansion (ssh -G)"

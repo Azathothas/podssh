@@ -54,7 +54,7 @@ Read:
 4. Give the note about skipped encrypted keys
    (`crates/podssh-ssh/src/keys.rs:139-145`) the same condition as step 1.
 5. Keep `PublicKeys::new` for each login (`crates/podssh-ssh/src/auth.rs:106`),
-   so that only the notes change. No document changes: `docs/cli.md:1643-1695`
+   so that only the notes change. No document changes: `docs/cli.md:1643-1698`
    already says that a refusal names the remedy.
 
 ## Prove
@@ -181,7 +181,7 @@ Read:
    `scripts/interop-faults.sh:228` looks for `1009 session byte cap`.
 6. Correct the comment on the window (`crates/podssh-ssh/src/run.rs` lines
    25-29 at `80f20bf`). The window of 512 KiB stays: it is below both limits.
-7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:436`. T-025 uses the
+7. Update `docs/relay.md` (lines 155-158 at `80f20bf`) and `docs/STATUS.md:437`. T-025 uses the
    classification for its retry rule. T-227 is a different path
    (`--direct`).
 
@@ -704,7 +704,7 @@ Not measured here: each case needs a server.
    (`HOME` is not set, `UserKnownHostsFile none`, or the write error); the
    next run cannot detect a changed key.
 4. Check the file type before the open: a FIFO blocks an open for reading.
-5. Update `docs/cli.md:1643-1695` (one line) and the manual's note on host keys
+5. Update `docs/cli.md:1643-1698` (one line) and the manual's note on host keys
    (`crates/podssh-cli/src/man/notes.rs`, lines 60-66 at `33c9a31`).
 
 ## Decision
@@ -889,7 +889,7 @@ Read: each hop gets its own name for the check, its host and its port, as
 destination only (`crates/podssh-ssh/src/run.rs`, lines 270-273 at `e85e6d2`). The order of
 host-key algorithms comes from the keys recorded for that hop
 (`crates/podssh-ssh/src/run.rs:412-434`). The gate's check "-J through
-OpenSSH to Dropbear" (`scripts/interop.sh:361-362`) passes only when this
+OpenSSH to Dropbear" (`scripts/interop.sh:359-360`) passes only when this
 holds: both hops are 127.0.0.1, both keys are Ed25519 and differ, and each
 is recorded under its own port.
 
@@ -954,7 +954,7 @@ filed as it is, with no port, as OpenSSH files it (the Correction).
   10.3p1 did, and under `StrictHostKeyChecking=yes` each tool took the key that
   the other had filed and went on to the login.
 - A new harness, `scripts/interop-hostkeys.sh:1-58`, sourced after the check of
-  `-J` (`scripts/interop.sh:363-364`), has four checks (its floor is 4):
+  `-J` (`scripts/interop.sh:361-362`), has four checks (its floor is 4):
   `hostkeys.jump_names`, from an empty file under accept-new, `-J` through
   OpenSSH to Dropbear files `[127.0.0.1]:2201` and `[127.0.0.1]:2203`;
   `hostkeys.jump_changed`, with the jump's key changed, exits 255 with a
@@ -1859,7 +1859,7 @@ Not measured: it needs a server that stalls.
 5. Make the comment and the manual (`crates/podssh-cli/src/ssh/keywords.rs:36-37`,
    `crates/podssh-cli/src/flags.rs:169-170`) say the same: the handshake, and
    each answer during the authentication.
-   `docs/cli.md:1693-1695` asks for a limit on the whole operation.
+   `docs/cli.md:1696-1698` asks for a limit on the whole operation.
 
 ## Decision
 

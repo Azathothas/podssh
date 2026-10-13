@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 49 open, 0 partial, 25 blocked, 229 done.**
+**303 entries: 48 open, 0 partial, 25 blocked, 230 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 43 | 0 | 7 | 70 | 120 |
-| **All** | 49 | 0 | 25 | 229 | 303 |
+| P3 | 42 | 0 | 7 | 71 | 120 |
+| **All** | 48 | 0 | 25 | 230 | 303 |
 
 ## Entries
 
@@ -296,7 +296,7 @@ repository and CI).
 | [T-222](serve.md) | P2 | S | M5 | feature | blocked | `podssh serve` finds a shell with no passwd entry and no `/etc/shells`, and names each candidate that failed (GitHub #32) |
 | [T-223](repo.md) | P3 | S | none | defect | done | `scripts/check-repo.py` passes when it finds nothing to check (GitHub #33) |
 | [T-224](repo.md) | P2 | S | none | chore | done | The gate finds a listener in the source: a scan with an allow-list (GitHub #33) |
-| [T-225](robustness.md) | P3 | M | backlog | chore | open | The interop gate takes each expected exit code from stock OpenSSH, beside the literal (GitHub #34) |
+| [T-225](robustness.md) | P3 | M | backlog | chore | done | The interop gate takes each expected exit code from stock OpenSSH, beside the literal (GitHub #34) |
 | [T-226](reverse.md) | P2 | M | backlog | feature | blocked | Pairing grants that are signed and used once, not bearer tokens that can be replayed (GitHub #35) |
 | [T-227](ssh.md) | P2 | S | backlog | defect | done | `--direct` has no limit on a stuck write, but the relay leg fails after 60 s (GitHub #36) |
 | [T-228](ssh.md) | P2 | M | backlog | feature | done | A credential helper inside podssh, for passphrases and passwords |

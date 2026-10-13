@@ -1669,6 +1669,8 @@ with its exit code unchanged. At 1 MiB the file becomes `sessions.1.jsonl`
   watches does not stop podssh for ever.
 - `-o BatchMode=yes` makes each prompt a refusal.
 - A changed host key is refused, also on a terminal.
+  So it is under `StrictHostKeyChecking=no`, where OpenSSH warns, turns off
+  passwords and forwarding, and logs in with a key (T-225).
 - A host that a `@cert-authority` line names is asked for a host
   certificate (T-027), which is checked as OpenSSH checks it: from a CA of
   such a line, signed, within its validity window, a host certificate,
@@ -1681,7 +1683,8 @@ with its exit code unchanged. At 1 MiB the file becomes `sessions.1.jsonl`
 - Under `accept-new` and `no`, a key that podssh cannot verify is refused
   (T-028): one that no readable file knows while a user `known_hosts` file
   exists and cannot be read (a directory, a FIFO, no permission), as a key
-  recorded there is not seen. A key that is accepted and not recorded
+  recorded there is not seen. OpenSSH reads a directory there as empty, and
+  logs in (T-225). A key that is accepted and not recorded
   (`HOME` is not set, `UserKnownHostsFile none`, or the write failed) holds
   for this connection only, and podssh says so: the next run cannot tell a
   changed key from a new one. `UserKnownHostsFile /dev/null` reads as empty.

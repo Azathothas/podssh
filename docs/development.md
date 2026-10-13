@@ -279,7 +279,12 @@ dependencies that these minimums allow. The other steps make sure that:
    ptys through pipes, and a real pty (`scripts/interop-pty.py`: resize,
    Ctrl-C, `vi`, `less`, `top`, `~.`). A session whose output nobody reads
    for 30 s, while the server writes 50 MB, must peak under half of that
-   (`scripts/interop-limits.sh`, T-201).
+   (`scripts/interop-limits.sh`, T-201). Each exit code of the matrix and
+   of the refusals is checked twice (T-225): `ssh.ID` against its literal,
+   and `ref.ID` against OpenSSH's own client, run first with the same
+   arguments (`scripts/interop-reference.sh`). A difference on purpose is a
+   row of that script's table, with its reason; a difference that no row
+   names fails, and so does a row that the run does not meet.
 8. OpenSSH accepts the keys of `podssh keygen` (`scripts/interop-keygen.sh`):
    its `ssh-keygen` reads them and its `sshd` accepts them for login.
 9. podssh handles a relay that fails (`scripts/interop-faults.sh`). A

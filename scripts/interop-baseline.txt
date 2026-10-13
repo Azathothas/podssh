@@ -13,6 +13,7 @@ support scripts/interop-conpty-msys2.py
 harness ssh interop 72 scripts/interop.sh
 harness limits interop 2 scripts/interop-limits.sh
 harness status interop 6 scripts/interop-status.sh
+harness ref interop 26 scripts/interop-reference.sh
 harness hostkeys interop 4 scripts/interop-hostkeys.sh
 harness sudo interop 3 scripts/interop-sudo.sh
 harness recording interop 3 scripts/interop-recording.sh
@@ -131,6 +132,34 @@ status.as_openssh.wout pass
 status.as_openssh.yes pass
 status.no_success.n pass
 status.no_success.yes pass
+
+# scripts/interop-reference.sh
+ref.client pass
+ref.exit.openssh.0 pass
+ref.exit.openssh.1 pass
+ref.exit.openssh.127 pass
+ref.exit.openssh.143 pass
+ref.exit.openssh.3 pass
+ref.exit.dropbear.0 pass
+ref.exit.dropbear.1 pass
+ref.exit.dropbear.127 pass
+ref.exit.dropbear.143 pass
+ref.exit.dropbear.3 pass
+ref.auth.key.ecdsa pass
+ref.auth.key.rsa pass
+ref.auth.encrypted_askpass pass
+ref.auth.encrypted_batch pass
+ref.auth.password.dropbear pass
+ref.auth.password.openssh pass
+ref.auth.wrong_password.dropbear pass
+ref.auth.wrong_password.openssh pass
+ref.auth.password_batch pass
+ref.auth.kbdint_pam pass
+ref.hostkey.strict_known pass
+ref.hostkey.changed_refused pass
+ref.hostkey.unreadable_refused pass
+ref.hostkey.unrecordable_connects pass
+ref.hostkey.cert_accepted pass
 
 # scripts/interop-keygen.sh
 keygen.make.ecdsa pass
