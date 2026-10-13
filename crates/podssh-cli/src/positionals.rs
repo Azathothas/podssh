@@ -57,7 +57,7 @@ pub fn add(cmd: Command, name: &str) -> Command {
         "sftp" => cmd.arg(
             Arg::new("destination")
                 .value_name("DESTINATION")
-                .help("[user@]host[:path], or sftp://[user@]host[:port][/path]"),
+                .help("[user@]host[:path], sftp://[user@]host[:port][/path], or node://[user@]NAME[/ROUTE][:path], the node of a pair"),
         ),
         "chat" => cmd.arg(
             Arg::new("peer")

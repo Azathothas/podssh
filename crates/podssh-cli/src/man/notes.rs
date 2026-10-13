@@ -51,6 +51,11 @@ const CP: &[&str] = &[
      for the port, as scp has it. An operand names a server when a : comes before any /: \
      [user@]host:path or [user@][IPV6]:path. ./a:b is a local file, and on Windows so is C:\\x. An \
      empty path, host:, is the login directory.",
+    "node://[user@]NAME[/ROUTE]:path is the node of the pair under the label NAME (see podssh node), \
+     reached through its pair as podssh ssh node://NAME reaches it, and its route ROUTE; the path comes \
+     after the first : after the name, and with none it is the login directory. --pair-file, \
+     --client-key, --node-key and --no-e2e are those of podssh ssh. A port, -J or --direct cannot reach \
+     a node (exit 64).",
     "The destination's name never holds a file that was not verified. The bytes go to \
      .NAME.podssh-RANDOM.part beside the destination, a new file of mode 0600. The SHA-256 of what was \
      sent is compared with the far side's; then the file takes the source's permission bits and is \
@@ -100,6 +105,7 @@ const SCP: &[&str] = &[
     "Each letter of OpenSSH's usage parses: -B is BatchMode=yes, -3, -s and -T are accepted and change \
      nothing, and the others that podssh does not carry are refused by name. An operand can be a URI, \
      scp://[user@]host[:port][/path]: its path is under the login directory, and // makes it absolute. \
+     An operand can name the node of a pair, node://[user@]NAME[/ROUTE]:path, as for podssh cp. \
      podssh scp takes no flag for a time limit, as OpenSSH's takes none; each wait of a copy has its own.",
 ];
 
@@ -108,7 +114,8 @@ const SFTP: &[&str] = &[
      commands of FILE in order and prints each line first; a line that starts with @ is not printed, and \
      one that starts with - does not end the batch when it fails. Else, on a terminal, it asks at a \
      prompt; with no terminal and no -b it refuses (exit 64). A destination with the path of a file \
-     fetches that file and ends; one with a directory starts there.",
+     fetches that file and ends; one with a directory starts there. The destination can be the node of a \
+     pair, node://[user@]NAME[/ROUTE][:path], as for podssh cp.",
     "The commands: get and put (with reget and reput, which are the same), rename, rm (with * and ? in \
      the last name), mkdir [-p], rmdir, ls [-la], cd, lcd, pwd, lpwd, chmod, df [-hi], help, version, and \
      bye, exit or quit. get and put copy as podssh cp does; get -p and put -p, or each of them after \

@@ -9,6 +9,14 @@
 //! read as OpenSSH's `parse_uri` reads it: the path after the first `/` is
 //! relative to the login directory (`//` makes it absolute), the user and the
 //! path are percent-decoded, and the port is the operand's own.
+//!
+//! A node of a pair (T-296), `node://[user@]NAME[/ROUTE]:path`, is reached
+//! as `podssh ssh node://` reaches it: the path comes after the first `:`
+//! after the name, as a `/` there names a route (T-089); with no `:`, the
+//! login directory.
+
+/// The scheme of a node's operand (T-296).
+const NODE: &str = "node://";
 
 /// One side of a copy.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -30,22 +38,29 @@ pub struct Remote {
     pub port: Option<u16>,
     /// The path on the server; empty for the login directory.
     pub path: String,
+    /// A node of a pair (T-296): `host` is the pair's label, with `/ROUTE`
+    /// when the operand names a route of the node.
+    pub node: bool,
 }
 
 impl Remote {
     /// The server as `ssh` takes it: `[user@]host`, an IPv6 address in
-    /// brackets.
+    /// brackets, or `node://[user@]NAME[/ROUTE]`.
     pub fn destination(&self) -> String {
-        let host = if self.host.contains(':') { format!("[{}]", self.host) } else { self.host.clone() };
-        match &self.user {
-            Some(user) => format!("{user}@{host}"),
-            None => host,
+        let user = self.user.as_ref().map_or_else(String::new, |user| format!("{user}@"));
+        if self.node {
+            return format!("{NODE}{user}{}", self.host);
         }
+        let host = if self.host.contains(':') { format!("[{}]", self.host) } else { self.host.clone() };
+        format!("{user}{host}")
     }
 
     /// Whether `other` names the same login on the same server.
     pub fn same_server(&self, other: &Remote) -> bool {
-        self.user == other.user && self.host.eq_ignore_ascii_case(&other.host) && self.port == other.port
+        self.user == other.user
+            && self.host.eq_ignore_ascii_case(&other.host)
+            && self.port == other.port
+            && self.node == other.node
     }
 }
 
@@ -76,6 +91,9 @@ fn drive(text: &str) -> bool {
 
 /// Read one operand. `windows` makes a drive letter local.
 pub fn parse(text: &str, windows: bool) -> Result<Operand, String> {
+    if let Some(rest) = text.strip_prefix(NODE) {
+        return node(text, rest).map(Operand::Remote);
+    }
     if let Some(rest) = text.strip_prefix("scp://").or_else(|| text.strip_prefix("sftp://")) {
         return uri(text, rest).map(Operand::Remote);
     }
@@ -100,7 +118,33 @@ pub fn parse(text: &str, windows: bool) -> Result<Operand, String> {
         host: host.to_string(),
         port: None,
         path: path.to_string(),
+        node: false,
     }))
+}
+
+/// `[user@]NAME[/ROUTE][:path]` after `node://` (T-296): the user ends at
+/// the last `@` before the first `:`, which starts the path. The label and
+/// the route are checked where the destination is resolved, as for `ssh`.
+fn node(text: &str, rest: &str) -> Result<Remote, String> {
+    let (name, path) = rest.split_once(':').unwrap_or((rest, ""));
+    let (user, name) = match name.rsplit_once('@') {
+        Some((user, name)) => (Some(user), name),
+        None => (None, name),
+    };
+    if user == Some("") {
+        return Err(format!("{text:?} has an empty user before '@'"));
+    }
+    let name = name.trim_end_matches('/');
+    if name.is_empty() {
+        return Err(format!("{text:?} names no node after {NODE}"));
+    }
+    Ok(Remote {
+        user: user.map(str::to_string),
+        host: name.to_string(),
+        port: None,
+        path: path.to_string(),
+        node: true,
+    })
 }
 
 /// `[user@]host[:port][/path]` after the scheme of `text`.
@@ -149,7 +193,7 @@ fn uri(text: &str, rest: &str) -> Result<Remote, String> {
         None if after.is_empty() => String::new(),
         None => return Err(format!("{text:?} has {after:?} after its host")),
     };
-    Ok(Remote { user, host: host.to_string(), port, path })
+    Ok(Remote { user, host: host.to_string(), port, path, node: false })
 }
 
 /// Percent-decoding, as OpenSSH's `urldecode`: `%XX` and `+` for a space; a
@@ -181,7 +225,13 @@ mod tests {
     use super::*;
 
     fn remote(user: Option<&str>, host: &str, path: &str) -> Operand {
-        Operand::Remote(Remote { user: user.map(str::to_string), host: host.into(), port: None, path: path.into() })
+        Operand::Remote(Remote {
+            user: user.map(str::to_string),
+            host: host.into(),
+            port: None,
+            path: path.into(),
+            node: false,
+        })
     }
 
     #[test]
@@ -203,7 +253,7 @@ mod tests {
     fn an_ipv6_host_goes_in_brackets() {
         assert_eq!(parse("[2001:db8::1]:a", false), Ok(remote(None, "2001:db8::1", "a")));
         assert_eq!(parse("u@[::1]:/x", false), Ok(remote(Some("u"), "::1", "/x")));
-        let r = Remote { user: Some("u".into()), host: "::1".into(), port: None, path: String::new() };
+        let r = Remote { user: Some("u".into()), host: "::1".into(), port: None, path: String::new(), node: false };
         assert_eq!(r.destination(), "u@[::1]");
     }
 
@@ -218,7 +268,13 @@ mod tests {
     #[test]
     fn a_uri_names_its_port_and_a_path_under_the_login_directory() {
         let at = |user: Option<&str>, host: &str, port: Option<u16>, path: &str| {
-            Ok(Operand::Remote(Remote { user: user.map(str::to_string), host: host.into(), port, path: path.into() }))
+            Ok(Operand::Remote(Remote {
+                user: user.map(str::to_string),
+                host: host.into(),
+                port,
+                path: path.into(),
+                node: false,
+            }))
         };
         assert_eq!(parse("scp://host", false), at(None, "host", None, ""));
         assert_eq!(parse("scp://u@host:2222/dir/f", false), at(Some("u"), "host", Some(2222), "dir/f"));
@@ -243,9 +299,33 @@ mod tests {
 
     #[test]
     fn a_port_makes_another_server() {
-        let a = Remote { user: None, host: "h".into(), port: Some(22), path: String::new() };
+        let a = Remote { user: None, host: "h".into(), port: Some(22), path: String::new(), node: false };
         let b = Remote { port: Some(2222), ..a.clone() };
         assert!(!a.same_server(&b) && a.same_server(&a.clone()));
+    }
+
+    #[test]
+    fn a_node_names_its_pair_its_route_and_the_path_after_the_first_colon() {
+        let node = |user: Option<&str>, host: &str, path: &str| {
+            Ok(Operand::Remote(Remote {
+                user: user.map(str::to_string),
+                host: host.into(),
+                port: None,
+                path: path.into(),
+                node: true,
+            }))
+        };
+        assert_eq!(parse("node://u@lab:dir/f", false), node(Some("u"), "lab", "dir/f"));
+        assert_eq!(parse("node://lab/ssh:/srv/f", false), node(None, "lab/ssh", "/srv/f"), "a / names a route");
+        assert_eq!(parse("node://u@lab", false), node(Some("u"), "lab", ""), "no : is the login directory");
+        assert_eq!(parse("node://lab:a:b@c", true), node(None, "lab", "a:b@c"), "the first : starts the path");
+        let Ok(Operand::Remote(r)) = parse("node://u@lab/ssh:f", false) else { panic!("a node") };
+        assert_eq!(r.destination(), "node://u@lab/ssh");
+        let host = Remote { node: false, ..r.clone() };
+        assert!(!r.same_server(&host), "a node is not the host of its label");
+        for bad in ["node://", "node://u@", "node://@lab:f", "node://:f"] {
+            assert!(parse(bad, false).is_err(), "{bad} must be refused");
+        }
     }
 
     #[test]

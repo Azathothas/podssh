@@ -958,7 +958,7 @@ Where podssh must replace them, OpenSSH's own `scp` and `sftp` cannot run
 
 Recommendation: `scp` and `sftp` get no `--timeout` row, as in OpenSSH, so
 the gate of `crates/podssh-cli/src/dispatch.rs:232-250` skips them; T-133's
-limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1709-1712`)
+limits keep each wait finite. Usage errors stay 64 (`docs/cli.md:1727-1730`)
 where OpenSSH gives 1; a script that tests for "not zero" works with both.
 `--timeout` required with no terminal, as for `cp`, lost: each script that
 runs `scp` in a pipe would exit 64 under `podssh scp`.
@@ -2239,7 +2239,7 @@ reach.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -2284,6 +2284,72 @@ Through the stand-in relay and a pair, as `tests/node_routes.rs` runs them,
 route is taken; a port with a node is refused. The second command measures
 through the live relay. Planted defect: a node operand read as a host; the
 first test fails.
+
+## Done
+
+2026-10-13. An operand `node://[user@]NAME[/ROUTE]:PATH` for `cp`, `mv`
+and `scp`, and a destination `node://[user@]NAME[/ROUTE][:PATH]` for
+`sftp`, read in `crates/podssh-cli/src/cp/operand.rs` (a `Remote` that is
+a node, whose `destination` is the form that `ssh` resolves, so the label,
+the route, the user and each refusal are those of `ssh node://`). The
+copy's link (`crates/podssh-cli/src/cp/link.rs`, `hops`) reaches a node
+through `reach` in `crates/podssh-cli/src/ssh/node.rs`: the pair and the
+channel of T-088, taken as `pipe node:` takes them (the pair first, so a
+copy that cannot go makes no key of this client), then a task that
+carries the stream over the operator's leg, in the resumable layer when
+the node offers it, with a new leg after each lost one, as `pipe node:`
+carries its bytes; SSH and SFTP run on that stream as on the first hop of
+any road, and the host key is kept under `node://NAME[/ROUTE]`. A port,
+`-J` and `--direct` with a node are refused where `ssh` refuses them,
+before anything connects (64).
+
+The calls made where the Approach left a choice:
+
+- With no `:` after the name, the path is the login directory, as `host:`
+  is; `node://` always names a node, never a local path.
+- `--pair-file`, `--client-key`, `--node-key` and `--no-e2e` are rows of
+  `cp`, `mv`, `scp` and `sftp` too (`crates/podssh-cli/src/flags/copy.rs`,
+  `crates/podssh-cli/src/flags/scp.rs`), in the words of `ssh`'s, so that a
+  pair in an operator's file can be named: without them a copy reaches only
+  the pairs stored under their label. `--iroh-ticket` is not: the race of
+  two roads is the runner of `ssh` alone.
+- A copy's session to a node has no relay meter (T-137): the layer moves
+  it to a new leg before the relay's limits (T-155), and a node in plain
+  mode that the relay cuts is a break, which the copy goes on after
+  (T-136).
+- A leg that the relay refuses before it starts gives the copy its code
+  (69, 77 or 78), as `pipe node:` does. A carriage that fails later is said
+  by its task, as `podssh operator` judges it (the channel's refusal, the
+  leg's end), and the SSH side sees its stream end.
+- Only the copy's link reaches a node: `podssh ping` and `pipe`'s `ssh:`
+  call `ssh::transport::reach`, which still refuses a `node://`
+  destination. `podssh edit` reads its operand with the same function as
+  `cp`, so it reaches a node stored under its label too.
+
+The manual (the notes of `cp`, `scp` and `sftp`, the help of `sftp`'s
+destination, and an example of `scp` with an operator's file),
+`docs/cli.md` and `docs/STATUS.md`. Tests: `cargo test -p podssh-cli
+--test node_copy`:
+`a_node_operand_names_its_pair_and_a_port_with_a_node_is_refused`
+(offline: with no pair under the label, `cp`, `scp` and `sftp` exit 78 and
+name the node and the remedy; with one, 69 at `PODSSH_OFFLINE` and no
+token shown; no key of the client made; a port, `-o Port`, `-J`,
+`--direct` and a bad route, 64) and
+`copies_reach_a_node_and_its_route_through_the_stand_in_relay` (a node in
+front of the test's server, with the route `other` to a second server:
+`cp` up and down, `scp` up, `sftp`'s put and get, each equal to the
+source, and a copy and a get through the route in the second server's
+directory; it says that it did not run with no Python, no openssl or no
+`sftp-server`): 3 passed on Windows 11, 2026-10-13. The unit tests of
+`cp::operand` (a node, its route and the path after the first `:`) and of
+`sftp`'s destination: passed. Planted, `node://` read as a host: both tests
+failed; restored, they passed. The SFTP cell of the reverse road through
+the live relay (`PODSSH_THROUGHPUT_MIB=1 cargo test -p podssh-cli --test
+throughput_live -- --ignored --nocapture sftp_throughput`, 2026-10-13, 1
+MiB a copy, 12 MiB through the relay): `sftp` to a node, with the layer,
+put 0.13 to 1.30 MiB/s and got 0.13 to 0.71 MiB/s, by the requests in
+flight (1 to 64 of 32768 bytes, and 1 or 2 of 261120); the run of 20 MiB a
+copy moves more than 100 MiB through the live relay and waits for T-251.
 
 # T-297: `cp --parallel K` copies several small files at once
 

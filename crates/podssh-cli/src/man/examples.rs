@@ -132,6 +132,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh ssh --pair-file lab-operator.json node://user@lab".into(),
         ),
         (
+            "copy a file to the node's SSH server with the same file; the path comes after the first : after the name",
+            "podssh scp --pair-file lab-operator.json notes.txt node://user@lab:notes.txt".into(),
+        ),
+        (
             "or with OpenSSH, with podssh as its way to the node",
             "ssh -o ProxyCommand='podssh operator lab --pair-file lab-operator.json' user@lab".into(),
         ),

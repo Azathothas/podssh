@@ -188,12 +188,12 @@ fn throughput_on_each_road() {
 const PIPES: [(usize, u32); 6] = [(1, 32768), (4, 32768), (16, 32768), (64, 32768), (1, 261120), (2, 261120)];
 
 /// SFTP by the requests in flight and their size (T-140): a put and a get of
-/// the run's bytes for each pipeline, on the loopback, and through the
-/// stand-in relay with 50 ms each way, a round trip of a far relay; the rate
-/// of each is what podssh's `-v` says. The live relay carries SFTP to the
-/// test's server when `sftp` can name a node (T-296).
+/// the run's bytes for each pipeline, on the loopback, through the stand-in
+/// relay with 50 ms each way, a round trip of a far relay, and through the
+/// live relay to a node in front of the test's server, which `sftp` names
+/// as `node://` (T-296); the rate of each is what podssh's `-v` says.
 #[test]
-#[ignore = "a measurement: SFTP on the loopback, and through the stand-in relay with a delay"]
+#[ignore = "network: SFTP on the loopback, through the stand-in relay with a delay, and to a node on the live relay"]
 fn sftp_throughput_by_requests_in_flight() {
     if ssh_harness::sftp::server_path().is_none() {
         println!("did not run: no sftp-server here; PODSSH_TEST_SFTP_SERVER names one");
@@ -210,7 +210,7 @@ fn sftp_throughput_by_requests_in_flight() {
     println!("| Cell | Requests | Bytes each | In flight | Put MiB/s | Get MiB/s |");
     println!("| --- | --- | --- | --- | --- | --- |");
     let delayed = Cell::fake_relay_mode(&session, "delay:50", "forward road, the stand-in relay, 50 ms each way");
-    let node = Err(("reverse road, the live relay".to_string(), "podssh sftp names no node yet (T-296)".to_string()));
+    let node = Cell::reverse(&session);
     for cell in [Ok(Cell::direct(&session)), delayed, node] {
         let cell = match cell {
             Ok(cell) => cell,

@@ -27,7 +27,8 @@ use run::{Flow, State};
 /// `sftp`'s command line as parsed.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct SftpArgs {
-    /// `[user@]host[:path]`, or `sftp://[user@]host[:port][/path]`.
+    /// `[user@]host[:path]`, `sftp://[user@]host[:port][/path]`, or a node of
+    /// a pair, `node://[user@]NAME[/ROUTE][:path]` (T-296).
     pub destination: Option<String>,
     /// The connection flags, read as `ssh` reads them.
     pub ssh: SshArgs,
@@ -75,7 +76,7 @@ impl SftpArgs {
 }
 
 /// The server and the path of a destination. With no `:`, the whole is
-/// `[user@]host`, never a local file.
+/// `[user@]host`, never a local file; `node://` names a node (T-296).
 fn destination(text: &str) -> Result<Remote, String> {
     match operand::parse(text, false)? {
         Operand::Remote(remote) => Ok(remote),
@@ -88,7 +89,13 @@ fn destination(text: &str) -> Result<Remote, String> {
             if host.is_empty() || host.contains(['/', '\\']) || user == Some("") {
                 return Err(format!("{text:?} names no host"));
             }
-            Ok(Remote { user: user.map(str::to_string), host: host.to_string(), port: None, path: String::new() })
+            Ok(Remote {
+                user: user.map(str::to_string),
+                host: host.to_string(),
+                port: None,
+                path: String::new(),
+                node: false,
+            })
         }
     }
 }
@@ -109,7 +116,10 @@ pub fn run_sftp(args: &SftpArgs, tty: crate::pager::Tty, out: &mut dyn Write, er
         Fault::Usage.code()
     };
     let Some(text) = &args.destination else {
-        return refuse(err, "give a destination: [user@]host[:path], or sftp://[user@]host[:port][/path]");
+        return refuse(
+            err,
+            "give a destination: [user@]host[:path], sftp://[user@]host[:port][/path] or node://[user@]NAME[:path]",
+        );
     };
     let server = match destination(text) {
         Ok(server) => server,
@@ -294,13 +304,17 @@ mod tests {
     #[test]
     fn a_destination_is_a_host_with_or_without_a_path() {
         let at = |user: Option<&str>, host: &str, port: Option<u16>, path: &str| {
-            Ok(Remote { user: user.map(str::to_string), host: host.into(), port, path: path.into() })
+            Ok(Remote { user: user.map(str::to_string), host: host.into(), port, path: path.into(), node: false })
         };
         assert_eq!(destination("host"), at(None, "host", None, ""));
         assert_eq!(destination("u@host"), at(Some("u"), "host", None, ""));
         assert_eq!(destination("u@host:dir/f"), at(Some("u"), "host", None, "dir/f"));
         assert_eq!(destination("sftp://u@host:2222/x"), at(Some("u"), "host", Some(2222), "x"));
         assert_eq!(destination("[::1]"), at(None, "::1", None, ""));
+        // A node of a pair, and the path after the first : (T-296).
+        let node = destination("node://u@lab/ssh:dir").expect("a node");
+        assert_eq!((node.node, node.host.as_str(), node.path.as_str()), (true, "lab/ssh", "dir"));
+        assert_eq!(node.destination(), "node://u@lab/ssh");
         for bad in ["", "@host", "/tmp/x", "./x"] {
             assert!(destination(bad).is_err(), "{bad:?}");
         }

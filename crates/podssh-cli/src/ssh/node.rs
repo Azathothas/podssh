@@ -3,17 +3,23 @@
 //! destination's host is `node://NAME`, so the messages and the known hosts
 //! name the node so: a name that no DNS name can be. `node://NAME/ROUTE`
 //! names a route of the node (T-089), and its own name in the known hosts.
+//! `cp`, `scp` and `sftp` reach a node too (T-296), on the stream of
+//! [`reach`].
 
 use std::sync::Arc;
 
 use podssh_relay::reverse::{operator, OperatorConfig, OperatorLimits, Outcome as LegOutcome, Wire};
 use podssh_ssh::{Log, EXIT_FAILURE};
 use podssh_ws::{ProxyChoice, Trust};
+use tokio::sync::oneshot;
 
-use crate::layered::{carry_keeping, Line};
+use crate::exitmap::sysexits;
+use crate::layered::{carry_keeping, carry_through, Line};
+use crate::relay_settings::Refusal;
 
 use super::args::SshArgs;
 use super::resolve::{Env, Transport};
+use super::transport::{NotReached, Reached};
 
 /// The form of a node's destination.
 pub const SCHEME: &str = "node://";
@@ -181,6 +187,85 @@ pub(super) async fn connect(
         }
     }
     code
+}
+
+/// The stream to the node of the pair under `label`, for a copy (T-296): a
+/// task carries it over the operator's leg, in the resumable layer when the
+/// node offers it, a new leg after each lost one, as `connect` carries a
+/// session, and SSH runs on it as on the first hop of any road. When the
+/// carriage fails, the task says why, and SSH sees its stream end. A copy
+/// names no iroh ticket: the pair's road is its only one.
+pub async fn reach(
+    label: &str,
+    pair_file: Option<&str>,
+    trust: &Trust,
+    ask: &crate::channel::Ask,
+    log: &Arc<Log>,
+) -> Result<Reached, NotReached> {
+    let shown = format!("{SCHEME}{label}");
+    let refused =
+        |refusal: Refusal| NotReached { lines: vec![format!("{shown}: {}", refusal.message)], code: refusal.code };
+    // The pair, then the channel of T-088, as `pipe node:` takes them: a
+    // copy that cannot go makes no key of this client.
+    let part = crate::pairs::operator_part(label, pair_file)
+        .and_then(|part| {
+            crate::pairs::online()?;
+            Ok(part)
+        })
+        .map_err(refused)?;
+    let say_line = |line: String| log.info(&format!("{shown}: {line}"));
+    let channel = ask
+        .operator(crate::channel::Expect::Pinned(label.to_string()), &say_line)
+        .map_err(|why| refused(Refusal::config(why)))?;
+    log.verbose(&format!("connecting to {shown} through the relay {}", part.relay.host));
+    let (ours, theirs) = tokio::io::duplex(PIPE);
+    let (started, has_started) = oneshot::channel();
+    let (task_label, task_shown, task_trust, task_log) = (label.to_string(), shown.clone(), trust.clone(), log.clone());
+    tokio::spawn(async move {
+        let proxy = ProxyChoice::FromEnvironment;
+        let config = OperatorConfig {
+            relay: &part.relay,
+            name: &part.name,
+            connect_token: part.connect_token(),
+            trust: &task_trust,
+            proxy: &proxy,
+            timeout: podssh_relay::open::CONNECT_TIMEOUT,
+            limits: OperatorLimits::default(),
+            wire: Wire::Tls,
+        };
+        let (link, leg_end) = tokio::io::duplex(PIPE);
+        let leg = match operator::start(&config, leg_end).await {
+            Ok(leg) => {
+                let _ = started.send(Ok(()));
+                leg
+            }
+            Err(e) => {
+                let _ = started.send(Err(crate::pairs::connect_refusal(&e, &task_label)));
+                return;
+            }
+        };
+        let say = |line: Line| match line {
+            Line::Always(text) => task_log.info(&format!("{task_shown}: {text}")),
+            Line::Verbose(text) => task_log.verbose(&format!("{task_shown}: {text}")),
+        };
+        let pin_say = {
+            let (log, shown) = (task_log.clone(), task_shown.clone());
+            move |line: String| log.info(&format!("{shown}: {line}"))
+        };
+        let carried = carry_through(&config, link, leg, theirs, Some(part.expires_ms), &say, channel, pin_say).await;
+        // A clean end says nothing: the copy closed its connection.
+        if let Some((_, why)) = crate::operator::judged(&task_label, &carried) {
+            task_log.error(&format!("{task_shown}: {why}"));
+        }
+    });
+    match has_started.await {
+        Ok(Ok(())) => Ok(Reached { stream: Box::new(ours), relay: None }),
+        Ok(Err(refusal)) => Err(refused(refusal)),
+        Err(_) => Err(NotReached {
+            lines: vec![format!("{shown}: the leg's task ended before it started")],
+            code: sysexits::EX_SOFTWARE,
+        }),
+    }
 }
 
 /// What the leg says of a session that failed; nothing for a normal end.

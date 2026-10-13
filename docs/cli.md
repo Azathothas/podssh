@@ -617,6 +617,20 @@ SFTP, through the relay or with `--direct`, with the connection flags of
   on Windows a drive letter (`C:\x`) is local. `host:` is the login
   directory. Two local operands, sources from both sides, or remote
   sources on two servers exit 64 before anything connects.
+- **A node of a pair** (T-296): `node://[user@]NAME[/ROUTE]:path` is the
+  node of the pair under the label NAME, reached through its pair as
+  `podssh ssh node://NAME` reaches it (`crates/podssh-cli/src/ssh/node.rs`,
+  `reach`): the operator's leg, the resumable layer when the node offers
+  it, the end-to-end channel, and the host key under `node://NAME`. The
+  path comes after the first `:` after the name, as a `/` there names a
+  route (T-089); with no `:`, it is the login directory. `--pair-file`,
+  `--client-key`, `--node-key` and `--no-e2e` are those of `ssh`. A port,
+  `-J` and `--direct` cannot reach a node, and exit 64 before anything
+  connects. The session carries no relay budget of its own: the layer
+  moves it to a new leg before the relay's limits (T-155), and a node in
+  plain mode that the relay cuts is a broken connection, which the copy
+  goes on after. `scp` and `mv` take the same operand, and `sftp` the
+  destination `node://[user@]NAME[/ROUTE][:path]`.
 - **The destination's name never holds a file that was not verified.**
   The bytes go to `.NAME.podssh-RANDOM.part` beside the destination (a new
   file of mode 0600). The SHA-256 of what was sent is compared with the far
@@ -835,6 +849,10 @@ renamed.
   under the login directory, `//` makes it absolute, the user and the path
   are percent-decoded, and the port is that operand's own. `cp` and `mv`
   take URIs too.
+- **A node of a pair** (T-296): an operand of `scp`,
+  `node://[user@]NAME[/ROUTE]:path`, and a destination of `sftp`,
+  `node://[user@]NAME[/ROUTE][:path]`, reach the node as `cp` reaches it;
+  `-P`, `-J` and `--direct` with a node exit 64.
 - **No `--timeout`**, as OpenSSH's have none; each wait of a copy has its
   own limit. Usage errors are 64 where OpenSSH gives 1.
 - **`sftp -b FILE`** (`-b -` for stdin) runs each line in order and prints

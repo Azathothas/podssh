@@ -64,4 +64,13 @@ pub const CP_FLAGS: &[FlagRow] = &[
         "trust only the CA certificates in FILE for the relay (default: env SSL_CERT_FILE, else system and built-in roots)", None),
     row(None, "direct", None, FlagKind::Supported,
         "connect without the relay: TCP, through HTTPS_PROXY when one is set", None),
+    // A node of a pair (T-296), with the flags of `ssh node://`.
+    row(None, "pair-file", Some("FILE"), FlagKind::Supported,
+        "node://NAME: the pair in FILE, or its operator's part, not the one stored under NAME", None),
+    row(None, "client-key", Some("FILE"), FlagKind::Supported,
+        "node://NAME: this client's key in FILE, made when missing (default: client.key in the cache)", None),
+    row(None, "node-key", Some("KEY"), FlagKind::Supported,
+        "node://NAME: the node's key, or its fingerprint SHA256:..., in place of the pins of known-nodes", None),
+    row(None, "no-e2e", None, FlagKind::Supported,
+        "node://NAME: no end-to-end channel, to a node that runs none either; the relay then sees each byte", None),
 ];

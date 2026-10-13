@@ -1,5 +1,6 @@
 //! One connection to a server for `cp` or `mv`, and the road of its files:
-//! SFTP, or a command for each step when the server has none (T-135).
+//! SFTP, or a command for each step when the server has none (T-135). The
+//! server can be a node of a pair, reached through its pair (T-296).
 
 use std::sync::Arc;
 
@@ -11,7 +12,7 @@ use podssh_ssh::{Connection, Log, RelayStatus};
 use super::byexec::Far;
 use super::transfer::{Cause, Failed};
 use crate::exitmap::Fault;
-use crate::ssh::resolve::Resolved;
+use crate::ssh::resolve::{Resolved, Transport};
 
 /// Room for the framing of SSH and SFTP around the bytes of one request.
 const OVERHEAD: u64 = 64 << 10;
@@ -122,7 +123,16 @@ pub async fn open_sftp(resolved: &Resolved, log: &Arc<Log>, name: &str) -> Resul
 /// The connection to `resolved`'s server, each hop logged in, and the relay
 /// leg's status when the relay carries it.
 async fn hops(resolved: &Resolved, log: &Arc<Log>) -> Result<(Vec<Connection>, Option<RelayStatus>), Failed> {
-    let reached = match crate::ssh::transport::reach(resolved, log).await {
+    let reached = match &resolved.transport {
+        // A node of a pair, through its pair, as `ssh node://` reaches it
+        // (T-296). Its session has no relay status here: the resumable layer
+        // moves it to a new leg before the relay's limits (T-155).
+        Transport::Node { label, pair_file, trust, channel, .. } => {
+            crate::ssh::node::reach(label, pair_file.as_deref(), trust, channel, log).await
+        }
+        _ => crate::ssh::transport::reach(resolved, log).await,
+    };
+    let reached = match reached {
         Ok(reached) => reached,
         Err(not) => {
             for line in &not.lines {

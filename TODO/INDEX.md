@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**304 entries: 40 open, 0 partial, 25 blocked, 239 done.**
+**304 entries: 39 open, 0 partial, 25 blocked, 240 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 34 | 0 | 7 | 80 | 121 |
-| **All** | 40 | 0 | 25 | 239 | 304 |
+| P3 | 33 | 0 | 7 | 81 | 121 |
+| **All** | 39 | 0 | 25 | 240 | 304 |
 
 ## Entries
 
@@ -367,7 +367,7 @@ repository and CI).
 | [T-293](terminal.md) | P3 | M | backlog | feature | done | Ctrl-C with no remote pty sends `signal INT` to the command |
 | [T-294](terminal.md) | P1 | S | none | defect | done | Output that is not UTF-8 stops the session's output in a Windows console |
 | [T-295](terminal.md) | P2 | S | none | defect | done | Ctrl-Break leaves the Windows console raw |
-| [T-296](copy.md) | P3 | M | backlog | feature | open | `cp`, `scp` and `sftp` to a node |
+| [T-296](copy.md) | P3 | M | backlog | feature | done | `cp`, `scp` and `sftp` to a node |
 | [T-297](copy.md) | P3 | M | backlog | feature | open | `cp --parallel K` copies several small files at once |
 | [T-298](copy.md) | P3 | S | backlog | feature | open | `sftp`'s `-r`: `get -r` and `put -r` of a directory |
 | [T-299](roads.md) | P3 | S | backlog | measurement | blocked | The quick tunnel's edge, measured: its ports through a proxy and the relay, and a captured registration |
