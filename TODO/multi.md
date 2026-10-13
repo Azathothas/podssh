@@ -385,11 +385,12 @@ a broadcast needs a stop that works at once.
   (`crates/podssh-cli/tests/each_interactive/shell.rs`), with a shell that
   reads lines, as a shell on a pipe does; the server of
   `crates/podssh-cli/tests/ssh_harness/mod.rs` runs commands and gives no
-  shell, and the file is at 494 lines, which four drafts change. The stop is tested by SIGQUIT
-  through a pipe on Unix; by `Ctrl-\` typed into a pty that is podssh's
-  controlling terminal on Linux (the pty of `pty_harness` is no
-  controlling terminal, so the test gives one with `setsid` and
-  `TIOCSCTTY`); and on Windows by Ctrl-Break typed into a pseudo console,
+  shell, and the file is at 494 lines, which four drafts change. The stop
+  is tested by SIGQUIT through a pipe on Unix; by `Ctrl-\` typed into a
+  pty that is podssh's controlling terminal on Linux (the pty of
+  `pty_harness` is no controlling terminal, so the test gives one with
+  `setsid` and `TIOCSCTTY`); and on Windows by Ctrl-Break typed into a
+  pseudo console,
   as a key of the win32 input mode (VK_CANCEL with Ctrl), since no byte is
   Ctrl-Break: the keys that `crates/podssh-cli/tests/console.rs` types for
   T-295.
