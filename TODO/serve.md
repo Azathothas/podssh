@@ -1011,8 +1011,8 @@ with no privileges needs a way that the host allows, found by a probe.
 ## Premise
 
 - Read: podssh never assumes a tool or a privilege; it starts a program only
-  when a probe found it (`AGENTS.md:189-201`).
-- Read: a credential never goes on argv or into output (`AGENTS.md:160-165`).
+  when a probe found it (`AGENTS.md:224-236`).
+- Read: a credential never goes on argv or into output (`AGENTS.md:195-200`).
   The command line of a unit file is argv, so it must hold no token.
 - Read in the reports of GitHub #20 and #18, not verified here: tty7, zuko
   and iroh-ssh install services, and iroh-ssh adds a firewall rule (which
@@ -1068,7 +1068,7 @@ own scope; serve does nothing like it.
 ## Premise
 
 - Read: podssh must not assume systemd, and starts a program only when a probe
-  found it (`AGENTS.md:189-201`, `docs/target-environment.md:91-93`).
+  found it (`AGENTS.md:224-236`, `docs/target-environment.md:91-93`).
 - Read: T-110 and T-111 start each child with `setsid`, in serve's cgroup.
 - Read in the report of GitHub #19, not verified here: ssh-obi moves its pty
   children into a transient scope when systemd is there, and works without
@@ -1196,7 +1196,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
   when the user asks for it and a probe at run time allows the bind. The
   default is loopback and AF_UNIX; the user can set the address and can turn
   listening off. The rules still say that podssh never listens
-  (`AGENTS.md:191-196`, `docs/architecture.md:116-129`).
+  (`AGENTS.md:226-231`, `docs/architecture.md:116-129`).
 - Read: russh has the listener: `Server::run_on_socket` and `run_on_address`
   (`Eugeny/russh:russh/src/server/mod.rs`, lines 900-1010 at `22c3b88`). doctor binds a
   TCP and an AF_UNIX socket to test the host, and closes them at once
@@ -1222,7 +1222,7 @@ a VM with no sshd, or on a network that lets only port 443 in. Without
 5. Later step: SSH and TLS on one port. Read the first bytes: `SSH-2.0-` goes
    to SSH; a TLS ClientHello (0x16) is refused.
 6. Same commit: the flags, the manual, `docs/cli.md`, and the rules in
-   `AGENTS.md:191-196` and `docs/architecture.md:116-129`, which then name this
+   `AGENTS.md:226-231` and `docs/architecture.md:116-129`, which then name this
    exception and the ruling.
 
 ## Prove

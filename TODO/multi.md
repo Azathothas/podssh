@@ -598,7 +598,7 @@ name is copied by hand.
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:269-277`,
   `crates/podssh-cli/src/ssh/hop.rs:97-108`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:197-201`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:232-236`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -858,7 +858,7 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:197-201`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:232-236`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:102-119`).
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:141-143`). The token type never shows itself

@@ -53,6 +53,8 @@ entries.
    [TODO/issues.md](TODO/issues.md), and make each new request an entry
    ([TODO/RULES.md](TODO/RULES.md)).
 5. If an entry is `partial`, continue it first. Its notes say what is done.
+6. Then merge the drafts that `TODO/PROGRESS.md` lists ("Drafts"), one at a
+   time in the order of the index, as "Drafting agents" below says.
 
 ### The loop
 
@@ -75,6 +77,39 @@ Take the first entry of the work order that is not done and not blocked.
 
 After a compaction of your context, read this file again, then
 `TODO/PROGRESS.md` and the entry that is `partial`.
+
+### Drafting agents
+
+One entry at a time is slow. The operator asked on 2026-10-12 for more
+work at once: while the main session merges and tests, subagents draft
+the next entries.
+
+- **A drafting agent** works in a git worktree of its own under
+  `.claude/worktrees/` (excluded from git), on a local branch. It reads
+  this file and its entries, writes the code, the tests, the manual, the
+  documents and the record, and puts UNVERIFIED where a result goes. It
+  commits "DRAFT T-NNN: ..." in its worktree, one commit for each entry.
+  It never builds: no cargo, no `scripts/dev.sh`, no container, no live
+  test, no push. Run about five at a time, each on entries of a different
+  area, so that their drafts touch different files. Tell each one to check
+  first that its entries are not held or blocked.
+- **The main session merges** one draft at a time, in the order of the
+  index: it applies the draft's diff (`git diff A^ A -- PATHS`, then
+  `git apply --3way`), resolves the conflicts with later work, builds,
+  runs the tests and the planted defects, and runs the Unix-only tests and
+  clippy in the build image (CI's Rust can be newer than this machine's).
+  Then it fills in each UNVERIFIED with the result, closes the entry,
+  commits and pushes (section 6). A draft is never pushed or merged
+  untested.
+- **A test of a draft that fails** may have found a real defect that the
+  agent could not see: repair the code, never weaken the test.
+- **The record of the drafts** is the table "Drafts" of
+  `TODO/PROGRESS.md`: each draft that waits, its branch, its commit and its
+  state. Update it when a draft is merged or made, and remove the worktree
+  and its branch once each of its drafts is merged.
+- **An agent that stops** (a session limit, a crash): commit what it left
+  on its branch as "WIP T-NNN: ...", write its state in the table, and
+  later resume it, or start a new agent on that branch.
 
 ### When you need a decision
 
