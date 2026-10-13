@@ -106,6 +106,11 @@ pub struct SshArgs {
     /// channels (T-037); and whether `-Y`, trusted, was given.
     pub forward_x11: Option<bool>,
     pub x11_trusted: bool,
+    /// `--snippet NAME`: the command of the settings file in place of a
+    /// command, whose values are the words after the host (T-187).
+    pub snippet: Option<String>,
+    /// `--yes`: run the snippet with no question.
+    pub yes: bool,
 }
 
 /// The long-only rows that are spellings of `-o NAME=VALUE`.
@@ -133,6 +138,7 @@ pub const ONCE: &[(&str, &str)] = &[
     ("attach", "give one name"),
     ("record", "give one file"),
     ("control-command", "give one command, as OpenSSH asks"),
+    ("snippet", "give one snippet"),
 ];
 
 /// The refusal for a flag of [`ONCE`] given more than once, if there is one.
@@ -250,6 +256,8 @@ impl SshArgs {
             forward_agent,
             forward_x11,
             x11_trusted: flag("forward-x11-trusted"),
+            snippet: one("snippet"),
+            yes: flag("yes"),
         }
     }
 }

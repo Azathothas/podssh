@@ -26,6 +26,7 @@ use clap::ArgMatches;
 use podssh_ssh::LogLevel;
 
 use crate::relay_settings::Refusal;
+use crate::snippets::Asking;
 use crate::ssh::args::SshArgs;
 use crate::ssh::resolve::Env;
 use fan::Ended;
@@ -90,7 +91,7 @@ pub fn run_each(args: &EachArgs, err: &mut dyn Write) -> i32 {
     let Some(word) = args.hosts.as_deref() else {
         return usage(err, "give the hosts and the command: podssh each HOSTS -- COMMAND".into());
     };
-    if args.ssh.command.is_empty() {
+    if args.ssh.command.is_empty() && args.ssh.snippet.is_none() {
         return usage(err, "give the command to run on each host: podssh each HOSTS -- COMMAND".into());
     }
     let parallel = match parallel(args.parallel.as_deref()) {
@@ -102,17 +103,35 @@ pub fn run_each(args: &EachArgs, err: &mut dyn Write) -> i32 {
     }
     // The hosts, their braces and groups expanded (T-184), then each host
     // before anything connects: a bad one fails the run, and nothing has
-    // run anywhere.
+    // run anywhere. A snippet (T-187) goes through as written, and its
+    // values go in for each host.
     let env = Env::from_process();
+    let chosen = match crate::snippets::choose(&args.ssh, &env.settings.snippets) {
+        Ok(chosen) => chosen,
+        Err(refusal) => return refusal.report("each", err),
+    };
+    let ssh = chosen.as_ref().map_or(&args.ssh, |(ssh, _)| ssh);
     let labels = match crate::hosts::expand(word, &env.settings.groups) {
         Ok(labels) => labels,
         Err(refusal) => return refusal.report("each", err),
     };
     let mut plans = Vec::with_capacity(labels.len());
     for label in &labels {
-        match host::plan(label, &args.ssh, &env) {
+        match host::plan(label, ssh, &env) {
             Ok(plan) => plans.push(plan),
             Err(refusal) => return refusal.report("each", err),
+        }
+    }
+    // Shown and asked once for all the hosts, before a file is made.
+    if let Some((_, snippet)) = &chosen {
+        let asking = Asking {
+            yes: args.ssh.yes,
+            quiet: plans.iter().all(|p| p.resolved.options.log_level < LogLevel::Info),
+            batch: plans.iter().any(|p| p.batch_mode),
+        };
+        let runs = plans.iter_mut().map(|p| (p.label.clone(), &mut p.resolved)).collect();
+        if let Err(refusal) = crate::snippets::settle("each", snippet, runs, asking, err) {
+            return refusal.report("each", err);
         }
     }
     let files = match out::prepare(&labels, args.output_dir.as_deref()) {

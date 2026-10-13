@@ -33,6 +33,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh each 'web{01..12}.example.org,@db' -- 'df -h /'".into(),
         ),
         (
+            "the command logs of the settings file, nginx as its {{1}}: shown, quoted, and asked first",
+            "podssh ssh --snippet logs user@example.org nginx".into(),
+        ),
+        (
             "a Unix socket on the server, on stdin and stdout",
             "podssh ssh -W /run/postgresql/.s.PGSQL.5432 user@db.example.org".into(),
         ),

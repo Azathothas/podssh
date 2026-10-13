@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**304 entries: 37 open, 0 partial, 25 blocked, 242 done.**
+**304 entries: 36 open, 0 partial, 25 blocked, 243 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 31 | 0 | 7 | 83 | 121 |
-| **All** | 37 | 0 | 25 | 242 | 304 |
+| P3 | 30 | 0 | 7 | 84 | 121 |
+| **All** | 36 | 0 | 25 | 243 | 304 |
 
 ## Entries
 
@@ -260,7 +260,7 @@ repository and CI).
 | [T-184](multi.md) | P3 | S | backlog | feature | done | Host groups and brace expansion of host names |
 | [T-185](multi.md) | P3 | L | backlog | feature | open | Interactive broadcast to several sessions, with an emergency stop |
 | [T-186](multi.md) | P3 | L | backlog | feature | open | A control surface for agents on live sessions |
-| [T-187](multi.md) | P3 | M | backlog | feature | open | Snippets and argument templates, shown before they run |
+| [T-187](multi.md) | P3 | M | backlog | feature | done | Snippets and argument templates, shown before they run |
 | [T-188](multi.md) | P3 | S | backlog | feature | open | A host picker when `podssh ssh` gets no destination |
 | [T-189](multi.md) | P3 | M | backlog | feature | open | The health of the far host over the session |
 | [T-190](multi.md) | P3 | M | backlog | feature | open | Containers and pods as destinations |

@@ -43,12 +43,12 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   worktrees (`.claude/worktrees/`, excluded from git) on local branches
   `worktree-agent-*`, never pushed; they do not build. The main session
   merges a draft, builds it, runs its tests and plants, fills each
-  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-296, T-297 and T-298 so). Waiting to
+  UNVERIFIED and closes the entry (T-179 to T-184, T-200, T-202, T-221, T-225, T-232, T-235, T-242, T-279, T-280, T-229, T-281, T-289, T-291, T-293, T-187, T-296, T-297 and T-298 so). Waiting to
   be merged, in the order of the index:
 
   | Entry | Branch (`worktree-agent-` and) | Commit | State |
   | --- | --- | --- | --- |
-  | T-187, T-188 | `a56cc4d17c82784aa` | `a38421b..e206acd`, `e206acd..78fc010` | drafted (the WIP `0473ad2` finished); its harness of snippets is sourced by `scripts/interop-each.sh`; a declined snippet and no pick exit 64 |
+  | T-188 | `a56cc4d17c82784aa` | `e206acd..78fc010` | drafted; the host picker; a no-pick exits 64 |
   | T-306, T-302, T-305 | `afbe1f388cda562f1` | `bda737c`, `949623b`, `17b4e31` (one each, on `905f92c`) | drafted; T-302 adds a new entry, the notice on the forward road, with the id after T-306, kept free for it; new variables `PODSSH_SPARE_LINKS` and `PODSSH_TITLE_STACK`; spare links off in the library, on in the commands |
   | T-193, T-197, T-192 | `a3f5849c868ae85c1` | `24b9f6e..d95181c`, `d95181c..0e6f48c`, `0e6f48c..a36b0ef` | drafted; `podssh job` (tmux on the far host, probed) and `podssh run`; the far tests need tmux and `sftp-server`, else they say "did not run" and pass; T-192 must call T-195's `not_a_failure` when both are in; T-193's step 3 waits for `podssh serve` |
   | T-195, T-189 | `a75061d0db98a3897` | `e4bcd06..e0b09c2`, `e0b09c2..9d3a6e4` | drafted, on `e4bcd06`; T-195 is `PODSSH_ERROR_PROGRAM`, and a command that passes a remote status on (T-192's `run`) must call `not_a_failure`; T-189 is `podssh health`, its two fixtures of `/proc` written by hand (capture real ones in the build image); `tests/ssh_harness/mod.rs` reaches 500 lines |
@@ -60,7 +60,7 @@ entry keeps its proof in the entry; this page keeps no history (git does).
   harness that `scripts/interop-each.sh` sources, as `scripts/interop.sh`
   is at 500 lines. `crates/podssh-cli/tests/ssh_harness/mod.rs`, `crates/podssh-cli/src/tree.rs`
   and `crates/podssh-cli/src/flags.rs` are near 500 lines, so a merge splits
-  them where needed. The next merge is T-187, then the others in the order
+  them where needed. The next merge is T-188, then the others in the order
   of the index.
 
   Each entry of the work order is drafted. CI: the gate passed at
@@ -95,7 +95,7 @@ and `CARGO_BUILD_JOBS=4`:
 
 ## Counts
 
-`TODO/INDEX.md` holds 304 entries: 37 open, 0 partial, 25 blocked, 242 done.
+`TODO/INDEX.md` holds 304 entries: 36 open, 0 partial, 25 blocked, 243 done.
 
 Open includes parked work. `cargo todo check` verifies this line.
 

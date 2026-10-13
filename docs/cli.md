@@ -554,7 +554,8 @@ host, and a list of hosts changes both.
   `-q`, `--direct` and the relay's. `--parallel N` runs at most N hosts at
   once (8 by default, 64 at most), each on a connection of its own, in one
   process and one runtime, on the road and the SSH client of `ssh`: no
-  second client.
+  second client. `--snippet NAME` and `--yes` run a command of the
+  settings file on each host (see "Snippets").
 - **No terminal, no input, no question.** Each session has no pty (`-T`)
   and reads no stdin (`-n`). `BatchMode` is on: an unknown host key
   refuses its host and gives its fingerprint and
@@ -593,6 +594,58 @@ host, and a list of hosts changes both.
 - A host's session is not tried again after a drop of the relay, as
   `ssh`'s is (T-025): the phase of a try is the process's, and many
   sessions share it.
+
+## Snippets
+
+A snippet is a command that the settings file keeps, with placeholders for
+the values that change (T-187, `crates/podssh-cli/src/snippets.rs`).
+`podssh ssh --snippet NAME [user@]host [WORD...]` and
+`podssh each --snippet NAME HOSTS [WORD...]` run it in place of a command.
+
+- **The table.** After a line `[snippets]` of the settings file (below),
+  each line is `NAME COMMAND`, or `NAME = COMMAND`. A name is as a group's.
+  A command in double quotes, with none inside, loses them: a `#` that
+  starts a word outside double quotes starts a comment, as in `ssh_config`.
+- **The placeholders.** `{{host}}` is the host that podssh connects to,
+  after `HostName` (OpenSSH's `%h`); `{{user}}` is the user; `{{port}}` is
+  the port; `{{1}}` to `{{9}}` are the words after the host. The words must
+  be as many as the highest `{{N}}`: a word that no placeholder takes would
+  be a command of its own, and is refused (64). Blanks inside the braces
+  are allowed. A `{{` that starts no name, as `{{.Names}}` of a Go
+  template, is text, and `\{{` gives `{{`. An unknown name is the file's
+  fault (78, with its line), as each bad line of the file is.
+- **The quoting.** Each value goes in quoted for a POSIX shell, as one word
+  that runs nothing: a value of letters, digits and `@%+:,./_-` as it is,
+  else in single quotes, each `'` as `'\''`. A `=` and a `~` are quoted,
+  as zsh and each shell read them first. A placeholder inside the
+  command's own single or double quotes would undo the quotes of podssh,
+  so the file refuses it (78), and a quote that does not close too. A
+  template for another shell (cmd, PowerShell) must not put a placeholder
+  inside its own quotes.
+- **The question.** The command line is resolved as each one is; then the
+  values go in, and the whole command is shown before anything connects:
+  `the snippet NAME runs this on HOST:` and the command, each control
+  character as its escape. podssh asks `Run it? [y/N]` on the terminal or
+  through `SSH_ASKPASS`, and the question holds the command, as stderr can
+  go elsewhere; only `y` or `yes` runs it. With `--yes` it runs with no
+  question, and the command goes to stderr (not with `-q`). With nobody to
+  ask (no terminal and no `SSH_ASKPASS`), or with `BatchMode`, and no
+  `--yes`, the command is shown and the run is refused (64). Each other
+  answer, Ctrl-D and a failed askpass program refuse it too (64). `-G`
+  asks nothing and runs nothing.
+- **`podssh each`** shows each host with its command, or the command once
+  when it is the same on each host, and asks once for all the hosts,
+  before a file of `--output-dir` is made. `BatchMode` in the
+  `ssh_config` blocks of one host forbids the question.
+- **The command line.** `--snippet` given twice, `--yes` with no
+  `--snippet`, a name that the file does not have, and `-N`, `-s`, `-W` or
+  `-O` with `--snippet` are refused (64), and so is a `SessionType` of
+  `ssh_config` that asks for no command. `Match command` sees the command
+  as written, with its placeholders. `--persist` and `--attach` refuse a
+  snippet, as they refuse a command; `--sudo` and `--su` run it as root.
+- The gate's `scripts/interop-snippets.sh` gives the values `a'b` and
+  `x; touch MARK` to OpenSSH and Dropbear: each comes back unchanged, and
+  MARK is never made.
 
 ## A word with no subcommand
 
@@ -1709,7 +1762,7 @@ command that reaches the relay. podssh never writes the file, and no
 keyword holds a token. `podssh status` gives its path as `settings` and
 `relays_from: "the settings file"`, and `podssh doctor` names it.
 
-After a line `[groups]`, to the end of the file, each line is
+After a line `[groups]`, to the next table or the end of the file, each line is
 `NAME HOSTS` (or `NAME=HOSTS`): a group of hosts for `podssh each`, named
 `@NAME` (T-184). A name has letters, digits, `.`, `_` and `-`, and does
 not start with `.` or `-`; its hosts are a word of `podssh each`, with
@@ -1718,6 +1771,10 @@ come before the table: a line of the table that is a setting's keyword is
 refused, and so are a group given twice, another table, and a group that
 names one that is not there or itself, through others or not (78, with
 its line), as each bad line of the file is.
+
+After a line `[snippets]`, each line is `NAME COMMAND`: a command for
+`--snippet NAME` (T-187, "Snippets" above). The two tables can come in
+either order; a table other than `[groups]` and `[snippets]` is refused.
 
 ## The log of the sessions
 

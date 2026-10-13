@@ -39,10 +39,11 @@ use std::sync::Arc;
 
 use podssh_ssh::relay_stream::RelayEnd;
 use podssh_ssh::retry::Retry;
-use podssh_ssh::{Log, EXIT_FAILURE};
+use podssh_ssh::{Log, LogLevel, EXIT_FAILURE};
 
 use crate::exit_codes::{EXIT_NOT_IMPLEMENTED, EXIT_USAGE};
 use crate::session_log::Place;
+use crate::snippets::Asking;
 use args::SshArgs;
 use resolve::{Env, Resolved, Transport};
 
@@ -92,10 +93,27 @@ fn run(args: &SshArgs, err: &mut dyn Write) -> i32 {
     if let Err(refusal) = crate::pins::apply(args.relay_addr.as_deref()) {
         return refusal.report("ssh", err);
     }
-    let resolved = match resolve::resolve_or_refuse(args, &Env::from_process()) {
+    let env = Env::from_process();
+    // A snippet (T-187): its command as written goes through the resolve,
+    // and its values go in once the connection is known.
+    let chosen = match crate::snippets::choose(args, &env.settings.snippets) {
+        Ok(chosen) => chosen,
+        Err(refusal) => return refusal.report("ssh", err),
+    };
+    let args = chosen.as_ref().map_or(args, |(args, _)| args);
+    let mut resolved = match resolve::resolve_or_refuse(args, &env) {
         Ok(r) => r,
         Err(refusal) => return refusal.report("ssh", err),
     };
+    // Shown and asked before anything connects; -G runs nothing.
+    if let Some((_, snippet)) = chosen.as_ref().filter(|_| !args.print_config) {
+        let options = &resolved.options;
+        let asking = Asking { yes: args.yes, quiet: options.log_level < LogLevel::Info, batch: options.batch_mode };
+        let label = args.destination.clone().unwrap_or_default();
+        if let Err(refusal) = crate::snippets::settle("ssh", snippet, vec![(label, &mut resolved)], asking, err) {
+            return refusal.report("ssh", err);
+        }
+    }
     // -G: the settings, and nothing opened: no relay, no token, no pool.
     if args.print_config {
         let mut out = std::io::stdout().lock();

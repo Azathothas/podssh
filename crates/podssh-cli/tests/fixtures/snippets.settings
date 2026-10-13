@@ -1,0 +1,10 @@
+# A settings file of podssh with snippets (T-187): the settings come first,
+# then the table, whose lines are NAME COMMAND. {{1}} to {{9}} take the
+# words after the host; {{host}}, {{user}} and {{port}} the connection's.
+RelayFailover serial
+
+[snippets]
+code exit {{1}}
+logs journalctl -u {{1}} -n 50
+who = "printf '%s@%s:%s #%s\n' {{user}} {{host}} {{port}} {{1}}"
+up uptime  # a comment

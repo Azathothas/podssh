@@ -209,6 +209,8 @@ pub const SSH_FLAGS: &[FlagRow] = &[
         "keep the session's output, with its timing, in FILE as asciicast v2 (mode 0600, never over a file); podssh play shows it again", None),
     row(None, "su", None, FlagKind::Supported,
         "run the command as root with su -c, in a pty; the password is asked here (terminal or SSH_ASKPASS)", None),
+    snippet::SNIPPET,
+    snippet::YES,
     // -x and -k disable things podssh never does, so they need no work.
     row(Some('x'), "no-x11", None, FlagKind::Supported,
         "no X11 forwarding (the default); the last of -X, -Y and -x wins", None),
@@ -290,6 +292,7 @@ mod play;
 mod relay;
 mod scp;
 mod signal;
+mod snippet;
 pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
 pub use config::CONFIG_FLAGS;

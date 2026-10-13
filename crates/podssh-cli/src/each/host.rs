@@ -23,6 +23,9 @@ pub(crate) struct Plan {
     pub label: String,
     pub resolved: Resolved,
     pub log: Arc<Log>,
+    /// `BatchMode` as `-o` and ssh_config give it, before each turns it on:
+    /// with it, a snippet asks nothing (T-187).
+    pub batch_mode: bool,
 }
 
 /// The plan of the host `label`: the command line of `args` with that
@@ -50,6 +53,7 @@ pub(crate) fn plan(label: &str, args: &SshArgs, env: &Env) -> Result<Plan, Refus
     }
     // N questions at once cannot be answered: an unknown host key refuses
     // its host and names its fingerprint and accept-new.
+    let batch_mode = resolved.options.batch_mode;
     resolved.options.set_batch_mode();
     let forwards = !resolved.local.is_empty() || !resolved.options.remote_forwards.is_empty();
     if forwards || resolved.x11.is_some() || resolved.control.path.is_some() {
@@ -58,7 +62,7 @@ pub(crate) fn plan(label: &str, args: &SshArgs, env: &Env) -> Result<Plan, Refus
     }
     resolved.options.remote_forwards.clear();
     let log = Arc::new(Log::new(resolved.options.log_level).with_prefix(format!("{label}: ")));
-    Ok(Plan { label: label.to_string(), resolved, log })
+    Ok(Plan { label: label.to_string(), resolved, log, batch_mode })
 }
 
 /// Run the command on the host of `plan`, its output into `place` as it

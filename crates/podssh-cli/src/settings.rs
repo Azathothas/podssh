@@ -11,7 +11,9 @@
 //! than this one or root, and one that others can change are refused. podssh
 //! never writes the file, and no keyword holds a token. After a line
 //! `[groups]`, each line is `NAME HOSTS`: a group of hosts, `@NAME` on the
-//! command line (T-184, [`crate::hosts`]).
+//! command line (T-184, [`crate::hosts`]); after a line `[snippets]`, each
+//! line is `NAME COMMAND`: a command of `--snippet` (T-187,
+//! [`crate::snippets`]).
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
@@ -55,6 +57,17 @@ pub struct Defaults {
     pub session_log: Option<Value>,
     /// The `[groups]` table (T-184): each group's name and its hosts.
     pub groups: crate::hosts::Groups,
+    /// The `[snippets]` table (T-187): each snippet's name and its command.
+    pub snippets: crate::snippets::Snippets,
+}
+
+/// The table that a line of the file is in.
+#[derive(Clone, Copy)]
+enum Table {
+    /// Before the first table: the settings.
+    Settings,
+    Groups,
+    Snippets,
 }
 
 impl Defaults {
@@ -171,8 +184,8 @@ fn read_checked(path: &Path) -> Result<String, String> {
 /// file alike.
 pub fn parse(text: &str, file: &str, home: Option<&Path>) -> Result<Defaults, String> {
     let mut d = Defaults::default();
-    // Past `[groups]`, each line is a group, to the end of the file.
-    let mut in_groups = false;
+    // Past a table's line, each line is of that table, to the next table.
+    let mut table = Table::Settings;
     for (i, raw) in text.lines().enumerate() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
@@ -180,10 +193,15 @@ pub fn parse(text: &str, file: &str, home: Option<&Path>) -> Result<Defaults, St
         }
         let at = format!("{file}:{}", i + 1);
         if line.starts_with('[') {
-            match crate::ssh::config::uncomment(line).trim() {
-                "[groups]" => in_groups = true,
-                other => return Err(format!("{at}: {other} is not a table of podssh's settings; the one is [groups]")),
-            }
+            table = match crate::ssh::config::uncomment(line).trim() {
+                "[groups]" => Table::Groups,
+                "[snippets]" => Table::Snippets,
+                other => {
+                    return Err(format!(
+                        "{at}: {other} is not a table of podssh's settings; the tables are [groups] and [snippets]"
+                    ))
+                }
+            };
             continue;
         }
         let (keyword, value) = crate::ssh::config::split(line);
@@ -191,9 +209,16 @@ pub fn parse(text: &str, file: &str, home: Option<&Path>) -> Result<Defaults, St
         if value.is_empty() {
             return Err(format!("{at}: {keyword} needs a value"));
         }
-        if in_groups {
-            crate::hosts::group_line(&mut d.groups, keyword, value, &at)?;
-            continue;
+        match table {
+            Table::Groups => {
+                crate::hosts::group_line(&mut d.groups, keyword, value, &at)?;
+                continue;
+            }
+            Table::Snippets => {
+                crate::snippets::snippet_line(&mut d.snippets, keyword, value, &at)?;
+                continue;
+            }
+            Table::Settings => {}
         }
         let value = Value { text: value.to_string(), at: at.clone() };
         let text = &value.text;

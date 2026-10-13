@@ -92,6 +92,17 @@ pub const SSH: &[&str] = &[
      answers one prompt, holds its input until the command starts, and asks nothing when sudo asks \
      nothing; a second prompt, a wrong password, ends the input. The remote shell must read POSIX \
      quoting.",
+    "--snippet NAME runs the command NAME of the settings file (see FILES): after a line [snippets], each \
+     line is NAME COMMAND. The placeholders of a command get these values: {{host}} the host that podssh \
+     connects to, after HostName; {{user}} the user; {{port}} the port; {{1}} to {{9}} the words after the \
+     host, which must be as many as the highest of them. Each value goes in quoted for a POSIX shell, as one \
+     word that runs nothing. Thus a placeholder must not be inside the command's own quotes: the file \
+     refuses that, and an unknown placeholder, with exit 78. \\{{ gives {{ as text. podssh shows the whole \
+     command, with its values, and asks on the terminal or through SSH_ASKPASS: only y or yes runs it. \
+     --yes runs it with no question, and shows it on stderr (not with -q). podssh exits 64 before anything \
+     connects for each other answer, for a name that the file does not have, and when nobody can answer or \
+     BatchMode is on and --yes is not given. A word that no placeholder takes, and -N, -s, -W or -O, with \
+     --snippet are refused (exit 64).",
     "--record FILE keeps what the session showed, with its timing, as asciicast v2, for podssh play: never \
      what was typed, and never the command line. The file is closed to others and never written over (exit \
      255); the output can hold a secret that a program printed.",

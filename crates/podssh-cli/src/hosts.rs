@@ -95,7 +95,8 @@ pub fn check_groups(groups: &Groups) -> Result<(), String> {
     Ok(())
 }
 
-fn is_group_name(name: &str) -> bool {
+/// Whether `name` can name a group, or a snippet (T-187).
+pub(crate) fn is_group_name(name: &str) -> bool {
     !name.is_empty()
         && !name.starts_with(['.', '-'])
         && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))

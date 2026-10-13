@@ -1,5 +1,6 @@
 //! The flag rows of `each` (T-183): the connection flags of `ssh` that make
-//! sense for many hosts, and the three of the fan-out. A module of its own
+//! sense for many hosts, the three of the fan-out, and the two of a snippet
+//! (T-187), shared with `ssh`. A module of its own
 //! so that `flags.rs` stays short; the rules of the table are in [`super`].
 
 use super::{row, FlagKind, FlagRow};
@@ -14,6 +15,8 @@ pub const EACH_FLAGS: &[FlagRow] = &[
         "start no new host after one failed; the hosts that run end as they end", None),
     row(None, "output-dir", Some("DIR"), FlagKind::Supported,
         "each host's output, unchanged, in DIR/HOST.out and DIR/HOST.err, and its status in DIR/HOST.status", None),
+    super::snippet::SNIPPET,
+    super::snippet::YES,
     row(Some('p'), "port", Some("PORT"), FlagKind::Supported,
         "port to connect to, for each host that names none", None),
     row(Some('l'), "login-name", Some("USER"), FlagKind::Supported,

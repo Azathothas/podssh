@@ -4,7 +4,8 @@
 # status, fails the order 0, 3), a closed port named with 255, the files of
 # --output-dir, a host key that no question can accept, and --fail-fast.
 # Sourced by scripts/interop.sh; uses ok, bad, expect_rc, $BIN, $W, $K, $T
-# and $KH.
+# and $KH. At its end it sources scripts/interop-snippets.sh (T-187), which
+# uses its e(); interop.sh has its 500 lines.
 
 echo
 echo "== podssh each (T-183, OpenSSH and Dropbear at once)"
@@ -57,3 +58,5 @@ rc=$?
 [ "$rc" = 255 ] && [ ! -e /tmp/podssh-each-ran ] && grep -q "not started (--fail-fast)" "$EW/err" \
     && ok each.fail_fast "--fail-fast with one at once: after the closed port, no host started" \
     || bad each.fail_fast "exit $rc" "$EW/err"
+# shellcheck source=scripts/interop-snippets.sh
+. "$HERE/interop-snippets.sh"

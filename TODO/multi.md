@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:156-232`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:174-250`,
    `crates/podssh-ssh/src/run.rs:35-80`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:130-413` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -64,7 +64,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:363-410`,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:366-413`,
    `crates/podssh-cli/src/positionals.rs:7-167`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:110-113`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:1759-1762`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:1816-1819`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:1877-1970`); they cannot define a group.
+  (`docs/cli.md:1934-2027`); they cannot define a group.
 
 ## Approach
 
@@ -416,7 +416,7 @@ the reports, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -449,6 +449,71 @@ command must be shown, with its values in it, before it runs.
 5. In the same commit: `docs/cli.md`, the notes, an example,
    `docs/STATUS.md`.
 
+## Decision
+
+- **The words after the host are the values.** `podssh ssh --snippet NAME
+  HOST [WORD...]`: the words must be as many as the highest `{{N}}` of the
+  command, and a word that no placeholder takes is refused (64), as it
+  would be a command of its own: this is the refusal of "a snippet and a
+  command together". Lost: `--arg N=VALUE` flags, which double the typing
+  for each value; and `--` between the values and a command, for which
+  OpenSSH's command line has no place.
+- **`{{host}}` is the host that podssh connects to**, after `HostName`, as
+  OpenSSH's `%h`; the label that the question shows is the host as the
+  command line names it. Lost: the alias as typed (`%n`), a name of this
+  host's `ssh_config` that the far host does not know.
+- **POSIX quotes, and a plain value as it is.** A value of letters, digits
+  and `@%+:,./_-` goes in bare, so that the command that the question
+  shows reads as one would type it; any other value goes in single quotes.
+  `=` and `~` are quoted (zsh and each shell read them first). Lost:
+  quotes on each value (a noisier question); quotes for the far shell
+  found by a probe, which would need a connection before the question.
+- **A placeholder inside the command's own quotes is the file's fault**,
+  in single and in double quotes (78), and so is a quote that does not
+  close, which also finds a `#` that the file read as a comment. Lost:
+  quotes of another kind inside double quotes (`\$`, `` \` ``, `\"`), a
+  second rule to get right; and a warning alone, which runs the command.
+- **The values go in after the resolve.** The command line goes through
+  the resolve with the command as written, so that `Match command`, the
+  request and the checks of `--persist`, `--attach` and `--sudo` see a
+  command; `Chosen::apply` then puts the values in, once the user, the host
+  and the port of `ssh_config` are known. Lost: the values before the
+  resolve (the user and the port of `ssh_config` are not known then); and
+  a second resolve with the values in, which reads `ssh_config` twice.
+- **The question goes where the answer comes from.** It holds the whole
+  command, on the terminal or to `SSH_ASKPASS`, as stderr can go
+  elsewhere; with `--yes` the command goes to stderr, and `-q` (or a
+  `LogLevel` below `INFO`) leaves it out. With nobody to ask, the command
+  is shown on stderr before the refusal, so that a script's log shows what
+  did not run. `-G` asks nothing and runs nothing.
+- **`BatchMode` forbids the question**, as it forbids each prompt (the
+  Approach does not say): a script with `BatchMode=yes` and a terminal
+  that nobody watches would wait 60 s. For `podssh each`, which turns
+  `BatchMode` on for its hosts, the value of `-o` and `ssh_config` before
+  that is kept in `Plan::batch_mode`, and one host with it is enough.
+- **Each end that does not run is 64**: no, Ctrl-D, a failed askpass
+  program, nobody to ask. Lost: 255, which tells a script that a
+  connection failed; 1, a status of the remote command; 130, a signal.
+- **`podssh each` asks once**, after each host is resolved and before a
+  file of `--output-dir` is made, and shows the command once when each
+  host has the same.
+- **The gate's check takes two values.** The Prove's value
+  `a'b; touch /tmp/inj`, put in with no quotes, leaves a quote open: `sh`
+  refuses the line, and the `touch` does not run, so the plant would fail
+  the check by its output alone. `scripts/interop-snippets.sh` gives `a'b`,
+  which must come back unchanged, and `x; touch MARK`, which must come
+  back unchanged with no MARK: the plant fails each. It is sourced at the
+  end of `scripts/interop-each.sh`, as `scripts/interop.sh` has 500 lines,
+  and uses its `e()`.
+- **The askpass test runs on Unix.** On Windows a batch file cannot take
+  the question as an argument: the standard library refuses a line break
+  in the arguments of a `.cmd` (`batch file arguments are invalid`). The
+  host-key question has the same lines; Windows gets `confirm` with a
+  test's answers, and the runs with `--yes` and with nobody to ask.
+- The rows of `--snippet` and `--yes` are in
+  `crates/podssh-cli/src/flags/snippet.rs`, the same on `ssh` and `each`,
+  so that `flags.rs` stays under 500 lines.
+
 ## Prove
 
 ```sh
@@ -461,6 +526,64 @@ In `scripts/interop.sh`, the snippet `printf %s {{1}}` with the value
 `a'b; touch /tmp/inj` prints the value unchanged, and `/tmp/inj` does not
 exist on the server. Plant: insert the values with no quotes; `/tmp/inj`
 then exists, and the check must fail.
+
+## Correction
+
+2026-10-13: the premise "no settings file exists yet; T-048 adds it" is
+gone: T-048 is done, and `crates/podssh-cli/src/settings.rs` reads the
+file, with the table `[groups]` of T-184 after its settings. `[snippets]`
+is a second table of it.
+
+## Done
+
+2026-10-13. Finished from the start that an earlier agent left
+(`snippets.rs` alone). `crates/podssh-cli/src/snippets.rs`: the pieces of
+a command (text and placeholders, the refusals of a template), the
+quoting, the expansion, the line of the table, `choose` (the command
+line), `shown`, `confirm` with an `Asker` (the terminal or `SSH_ASKPASS`
+through `podssh_ssh::prompt`, or a test's answers) and `settle`, which
+fills the snippet in for each resolved connection and asks once.
+`settings.rs` reads `[snippets]` beside `[groups]`, in either order, into
+`Defaults::snippets`, and refuses a third table; `hosts::is_group_name`
+names a snippet too. `SshArgs` has `snippet` and `yes`, and a second
+`--snippet` is refused as a second `-J` is. `ssh::run` and `each::run_each`
+choose the snippet before the resolve and settle it after, before
+anything connects; `each::host::Plan` keeps `batch_mode`. The manual: the
+rows of `crates/podssh-cli/src/flags/snippet.rs` on `ssh` and `each`, a
+note of each, FILES, and an example; `docs/cli.md` has the section
+"Snippets", and the settings file and `podssh each` name it. The gate:
+`scripts/interop-snippets.sh` (OpenSSH and Dropbear: `a'b` and
+`x; touch MARK` each come back unchanged and MARK is never made; the
+question answered y and n by an askpass program; `each --snippet` with the
+user, host and port of each host) and its 7 lines in
+`scripts/interop-baseline.txt`. `crates/podssh-cli/tests/snippets.rs`,
+with the fixture `crates/podssh-cli/tests/fixtures/snippets.settings`: the
+values quoted (the exact command of the Prove's value), and on Unix each
+hostile value through `sh -c`, back unchanged and its command never run;
+the refusals of a template and of the table (78, with the line); the
+command line (64); `confirm` with a test's answers (only y or yes runs it,
+a cancel and nobody to ask refuse, `BatchMode` refuses, `--yes` and `-q`);
+through the binary with no terminal, the refusals before anything connects
+(64, the command shown, no file of `--output-dir`) and a bad table (78);
+against the test's SSH server on the loopback, `ssh` and `each` with
+`--yes` (exit 3 of `exit {{1}}`, the command shown once), and with no
+`--yes` no connection; on Unix, the answers y and n of an askpass program.
+`cargo test -p podssh-cli --test snippets`: 7 passed on Windows 11 and 9
+in the build image (with the tests of Unix). `cargo test -p podssh-cli
+--lib`, 292 passed (the settings, the hosts, the notes and the examples of
+the manual), and `--test flag_table`, `--test man_flag_parity`, `--test
+each` and `--test settings`: passed; `cargo test -p podssh-cli`, 795
+passed. Clippy and rustfmt: clean. The plant of the Prove, the values in
+with no quotes (`expand` with no `quote`): `each_value_is_one_quoted_word`
+failed; restored, it passed. In the build image (the steps `lint` and
+`release`, green; interop 533 passed, 0 failed),
+`scripts/interop-snippets.sh` against OpenSSH 10.3p1 and Dropbear: 7 of
+7, the value `a'b` back as one word and a command in a value back
+unchanged and not run on each server, the question through `SSH_ASKPASS`
+answered y and n, and `each --snippet` on each host. Planted in the image, the values with no
+quotes: the four checks `snippets.quote.*` and `snippets.injection.*`
+failed (the quote broke the line, exit 2; the injected command ran), and no
+other.
 
 # T-188: A host picker when `podssh ssh` gets no destination
 
@@ -754,7 +877,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:162`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:1759-1762`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:1816-1819`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -795,7 +918,7 @@ outlives the session, show it later, or stop it.
 ## Premise
 
 - Read: a session ends with its connection (`docs/design.md:381`), and `-f`
-  is refused (`crates/podssh-cli/src/flags.rs:248-249`).
+  is refused (`crates/podssh-cli/src/flags.rs:250-251`).
 - Read: tmux is never assumed; T-178 probes it with `command -v tmux`.
 - Read: `podssh serve` (T-107, M5) runs on the far end only where the user
   starts it.
@@ -863,14 +986,14 @@ a ticket, or a tool that asks an AI.
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:143-145`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:964-966`).
+  credentials or tokens (`docs/cli.md:1017-1019`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:79-94`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:302-317`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:1759-1762`), which is not a failure of podssh.
+  status (`docs/cli.md:1816-1819`), which is not a failure of podssh.
 
 ## Approach
 

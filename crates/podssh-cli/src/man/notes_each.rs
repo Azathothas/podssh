@@ -26,6 +26,11 @@ pub const EACH: &[&str] = &[
      end; each byte of HOST but a letter, a digit, a dot, an underscore, a hyphen and @ is written %XX. \
      The files are made before anything connects (73 when they cannot be), and a host with no status \
      file did not run.",
+    "--snippet NAME runs the command NAME of the settings file on each host, as podssh ssh --snippet runs \
+     it (see podssh ssh): the words after HOSTS fill {{1}} to {{9}}, and {{host}}, {{user}} and {{port}} \
+     are those of each host. podssh shows each host and its command once, before anything connects and \
+     before a file of --output-dir is made, and asks once for all the hosts; --yes runs them with no \
+     question.",
     "At the end a summary on stderr gives each host and its status; -q leaves it out. The exit status is \
      the largest of the hosts': 0 only when each host gave 0, and 255 when one could not connect or log \
      in. With --fail-fast no host starts after one failed, and the hosts that run end as they end.",

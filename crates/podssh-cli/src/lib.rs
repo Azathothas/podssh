@@ -85,6 +85,8 @@ pub mod relay_spec;
 pub mod session_log;
 pub mod settings;
 pub mod sftp;
+// Commands of the settings file, shown and asked before they run (T-187).
+pub mod snippets;
 pub mod ssh;
 pub mod status;
 pub mod suggest;
