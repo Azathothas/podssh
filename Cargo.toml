@@ -108,7 +108,7 @@ unicode-width = { version = "0.2", default-features = false }
 # Pure Rust over `vte`, with no build script that compiles C; the gate runs
 # the tests of the library crates with CC and CXX at /nonexistent, which
 # shows it. `rio-vt` lost: it needs `simdutf`, a C++ library.
-vt100 = "0.15"
+vt100 = "0.16"
 # Property tests of the state machines, for the tests only (T-202): each
 # property on 256 inputs, and the smallest input that fails. Pure Rust; no
 # default features, so neither its fork of each case nor its timeouts, which
