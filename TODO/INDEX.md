@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**304 entries: 43 open, 0 partial, 25 blocked, 236 done.**
+**304 entries: 42 open, 0 partial, 25 blocked, 237 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 37 | 0 | 7 | 77 | 121 |
-| **All** | 43 | 0 | 25 | 236 | 304 |
+| P3 | 36 | 0 | 7 | 78 | 121 |
+| **All** | 42 | 0 | 25 | 237 | 304 |
 
 ## Entries
 
@@ -352,7 +352,7 @@ repository and CI).
 | [T-278](repo.md) | P2 | S | none | chore | done | CI's `ubuntu-latest` moves to Ubuntu 26 from 2026-10-19: name the runners' systems through `v1.0.0` |
 | [T-279](forwarding.md) | P3 | M | backlog | defect | done | `-A` binds the forwarded agent to the server's host key, as OpenSSH does |
 | [T-280](roads.md) | P3 | M | backlog | feature | done | The iroh road through a SOCKS5 proxy |
-| [T-281](ts.md) | P3 | M | backlog | feature | open | `podssh ts` through a SOCKS5 proxy |
+| [T-281](ts.md) | P3 | M | backlog | feature | done | `podssh ts` through a SOCKS5 proxy |
 | [T-282](pipe.md) | P1 | S | none | defect | done | On Windows a session that `--persist` attaches again waits for a key |
 | [T-283](repo.md) | P1 | S | none | defect | done | The console checks type into `less` and `top` before they have drawn |
 | [T-284](ssh.md) | P1 | S | none | defect | done | `podssh agent` signs with a key added for a confirmation of each use |

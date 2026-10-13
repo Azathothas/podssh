@@ -67,7 +67,8 @@ pub struct RuntimeSelection {
     pub derp_host: Option<String>,
     /// Pin port; meaningful only with `derp_host`.
     pub derp_port: Option<u16>,
-    /// CONNECT proxy URL for every outbound TCP path, or `None` for direct.
+    /// The proxy URL for every outbound TCP path, HTTP CONNECT or SOCKS5
+    /// (T-281), or `None` for direct.
     pub proxy_url: Option<String>,
     /// The hosts that bypass that proxy, as a `no_proxy` list.
     pub no_proxy: Option<String>,
@@ -105,7 +106,7 @@ pub struct TsConfig {
     pub ephemeral: bool,
     /// The tailnet route.
     pub mode: TsMode,
-    /// CONNECT proxy URL, or `None` for direct.
+    /// The proxy URL, HTTP CONNECT or SOCKS5 (T-281), or `None` for direct.
     pub proxy_url: Option<String>,
     /// The hosts that bypass that proxy, as a `no_proxy` list.
     pub no_proxy: Option<String>,
@@ -179,9 +180,10 @@ pub struct TsProxy {
 }
 
 impl TsProxy {
-    /// The URL for the fork: `http://[USER:PASSWORD@]HOST:PORT`, the port
-    /// always written, as podssh reads a URL with none (80, where the fork
-    /// would read 8080), and the credentials escaped. Never for a message.
+    /// The URL for the fork: `http://[USER:PASSWORD@]HOST:PORT`, or
+    /// `socks5h://` with the same parts for a SOCKS5 proxy, the port always
+    /// written, as podssh reads a URL with none (80, where the fork would
+    /// read 8080), and the credentials escaped. Never for a message.
     pub fn url(&self) -> String {
         self.proxy.url()
     }
@@ -204,16 +206,11 @@ pub fn choose_proxy(flag: Option<&str>, var: impl Fn(&str) -> Option<String>) ->
         },
     };
     // podssh-ws's reading, as for each other command: a bare `host:port`,
-    // the port 80 for an `http://` URL with none, the credentials decoded.
+    // the port 80 for an `http://` URL with none, 1080 for a SOCKS5 one, the
+    // credentials decoded. The fork dials through either kind since its
+    // patch 0022 (T-281), by the host's name.
     let proxy =
         podssh_ws::HttpProxy::parse(&raw).map_err(|why| ConfigError::BadProxyUrl(format!("{source}: {why}")))?;
-    // The fork's DERP dial speaks HTTP CONNECT only (T-070).
-    if proxy.kind != podssh_ws::ProxyKind::Http {
-        return Err(ConfigError::BadProxyUrl(format!(
-            "{source}: {proxy} is a SOCKS5 proxy, and podssh ts reaches DERP through an HTTP CONNECT proxy only \
-             (http://)"
-        )));
-    }
     let no_proxy = match flag {
         Some(_) => None,
         None => podssh_ws::dial::NO_PROXY_VARS.iter().find_map(|name| set(name)),

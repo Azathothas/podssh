@@ -1,7 +1,8 @@
 //! The network check of each Tailscale mode, before the start (T-102): the
 //! DERP servers that `tcp` tries, read from Tailscale's own default map, the
-//! proxy of the checks, and a run in which no check passes, so no node
-//! starts. The proxy there refuses on the loopback: no test here leaves the
+//! proxy of the checks, a SOCKS5 one too (T-281), and a run in which no
+//! check passes, so no node starts. The proxy there refuses on the
+//! loopback, or tunnels to a stand-in there: no test here leaves the
 //! machine.
 #![cfg(feature = "ts")]
 
@@ -84,7 +85,12 @@ fn refused_run(mode: &str) -> (i32, String, String, bool) {
 
 /// [`refused_run`] through `proxy`, which must refuse as port 1 does.
 fn refused_run_through(mode: &str, proxy: &str) -> (i32, String, String, bool) {
-    let dir = std::env::temp_dir().join(format!("podssh-ts-probe-{mode}-{}", std::process::id()));
+    run_in(mode, mode, proxy)
+}
+
+/// [`refused_run_through`] in a scratch directory of its own, `name`.
+fn run_in(name: &str, mode: &str, proxy: &str) -> (i32, String, String, bool) {
+    let dir = std::env::temp_dir().join(format!("podssh-ts-probe-{name}-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     cleanup::at_test_end(&dir);
     let key = dir.join("key");
@@ -142,6 +148,84 @@ fn a_forced_mode_is_checked_alone() {
     assert_eq!(rc, 78, "{err}");
     assert!(err.contains("podssh ts: mode relay tcp.ts.relay.ajam.dev:443: could not reach the proxy"), "{err}");
     assert!(!err.contains("mode tcp"), "tcp was not asked for: {err}");
+    assert!(!started, "the node started: the state file was made");
+}
+
+/// A stand-in SOCKS5 proxy before a stand-in DERP server on the loopback
+/// (T-281): `--ts-proxy socks5h://` is taken, and the check of `relay`
+/// reaches the relay host through it by name, with the address type 3. The
+/// stand-in server speaks no TLS, so no mode is ready and no node starts.
+/// With the refusal of SOCKS5 restored, the run ends at 64 and the proxy
+/// sees nothing.
+#[test]
+fn the_check_of_relay_goes_through_a_socks5_proxy_by_name() {
+    use std::io::{Read, Write};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex};
+
+    // The DERP server: each connection is counted, and closed.
+    let derp = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let derp_port = derp.local_addr().unwrap().port();
+    let reached = Arc::new(AtomicUsize::new(0));
+    let counted = reached.clone();
+    std::thread::spawn(move || {
+        for stream in derp.incoming().flatten() {
+            counted.fetch_add(1, Ordering::SeqCst);
+            drop(stream);
+        }
+    });
+    // The proxy: no authentication; each CONNECT is kept, and tunnelled to
+    // the DERP server.
+    let proxy = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let proxy_port = proxy.local_addr().unwrap().port();
+    let seen: Arc<Mutex<Vec<(u8, String, u16)>>> = Arc::default();
+    let kept = seen.clone();
+    std::thread::spawn(move || {
+        for mut client in proxy.incoming().flatten() {
+            let mut head = [0u8; 2];
+            if client.read_exact(&mut head).is_err() {
+                continue;
+            }
+            let mut methods = vec![0u8; usize::from(head[1])];
+            let _ = client.read_exact(&mut methods);
+            let _ = client.write_all(&[5, 0]);
+            let mut request = [0u8; 4];
+            let _ = client.read_exact(&mut request);
+            let host = match request[3] {
+                3 => {
+                    let mut length = [0u8; 1];
+                    let _ = client.read_exact(&mut length);
+                    let mut name = vec![0u8; usize::from(length[0])];
+                    let _ = client.read_exact(&mut name);
+                    String::from_utf8_lossy(&name).into_owned()
+                }
+                4 => {
+                    let mut octets = [0u8; 16];
+                    let _ = client.read_exact(&mut octets);
+                    std::net::Ipv6Addr::from(octets).to_string()
+                }
+                _ => {
+                    let mut octets = [0u8; 4];
+                    let _ = client.read_exact(&mut octets);
+                    std::net::Ipv4Addr::from(octets).to_string()
+                }
+            };
+            let mut port = [0u8; 2];
+            let _ = client.read_exact(&mut port);
+            kept.lock().unwrap().push((request[3], host, u16::from_be_bytes(port)));
+            let Ok(mut server) = std::net::TcpStream::connect(("127.0.0.1", derp_port)) else { continue };
+            let _ = client.write_all(&[5, 0, 0, 1, 127, 0, 0, 1, 0, 0]);
+            // The server closes at once: what it sends, nothing, goes back.
+            let _ = std::io::copy(&mut server, &mut client);
+        }
+    });
+
+    let (rc, out, err, started) = run_in("socks5", "relay", &format!("socks5h://127.0.0.1:{proxy_port}"));
+    assert_eq!(rc, 78, "{err}");
+    assert!(out.is_empty(), "stdout carries nothing: {out}");
+    assert!(err.contains("podssh ts: mode relay tcp.ts.relay.ajam.dev:443: "), "{err}");
+    assert_eq!(*seen.lock().unwrap(), [(3, "tcp.ts.relay.ajam.dev".to_string(), 443)], "{err}");
+    assert_eq!(reached.load(Ordering::SeqCst), 1, "the tunnel did not reach the DERP server: {err}");
     assert!(!started, "the node started: the state file was made");
 }
 

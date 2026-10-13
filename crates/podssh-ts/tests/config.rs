@@ -98,7 +98,7 @@ fn the_fork_gets_the_port_and_the_credentials_as_podssh_reads_them() {
 #[test]
 fn a_bad_proxy_is_named_by_its_source_and_never_quoted() {
     let refused = [
-        (Some("socks5://user:secret@proxy.example:1080"), &[][..], "--ts-proxy"),
+        (Some("socks4://user:secret@proxy.example:1080"), &[][..], "--ts-proxy"),
         (None, &[("HTTPS_PROXY", "http://user:secret@:3128")][..], "HTTPS_PROXY"),
         (None, &[("all_proxy", "http://user:secret@proxy.example:99999")][..], "all_proxy"),
     ];
@@ -110,12 +110,19 @@ fn a_bad_proxy_is_named_by_its_source_and_never_quoted() {
     }
 }
 
-/// A SOCKS5 proxy, which each other command takes since T-070, is refused
-/// here by name: the fork's DERP dial speaks HTTP CONNECT only.
+/// A SOCKS5 proxy, which each other command takes since T-070, is taken
+/// here too (T-281): the fork gets it as `socks5h://` with its port and its
+/// credentials, reads it as a SOCKS5 proxy, and shows the credentials
+/// nowhere. The planted refusal of T-070 fails this test.
 #[test]
-fn a_socks5_proxy_is_refused_by_name() {
-    let set: &'static [(&'static str, &'static str)] = &[("ALL_PROXY", "socks5h://u:secret@proxy.example:1080")];
-    let Err(ConfigError::BadProxyUrl(why)) = choose_proxy(None, vars(set)) else { panic!("accepted") };
-    assert!(why.starts_with("ALL_PROXY: ") && why.contains("SOCKS5") && why.contains("HTTP CONNECT"), "{why}");
-    assert!(!why.contains("secret"), "the password is quoted: {why}");
+fn a_socks5_proxy_is_taken_and_the_fork_reads_it_as_one() {
+    let set: &'static [(&'static str, &'static str)] = &[("ALL_PROXY", "socks5://u:s%40cret@proxy.example")];
+    let p = choose_proxy(None, vars(set)).expect("a SOCKS5 proxy is taken").expect("a proxy");
+    assert_eq!((p.source, p.url()), ("ALL_PROXY", "socks5h://u:s%40cret@proxy.example:1080".to_string()));
+    let selection = TsMode::default_relay().runtime_selection(Some(p.url().as_str()));
+    let fork = podssh_ts::node::selection_to_options(&selection).expect("the fork reads it").proxy.expect("a proxy");
+    assert_eq!((fork.host.as_str(), fork.port), ("proxy.example", 1080));
+    assert_eq!(fork.kind, ts_http_util::proxy::ProxyKind::Socks5);
+    let shown = format!("{fork:?} {p:?} {}", p.proxy);
+    assert!(!shown.contains("s%40cret") && !shown.contains("s@cret"), "{shown}");
 }

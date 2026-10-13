@@ -1,9 +1,10 @@
 //! The relay's DERP dial over WebSocket goes through the proxy (T-103,
 //! patch 0017): the fork's `ws::connect` asks the proxy to `CONNECT` the
 //! relay by name, a host on the `no_proxy` list goes direct, and the
-//! credentials reach the proxy as they were typed. The proxy and the relay
-//! are stand-ins on the loopback, and an `.invalid` name resolves nowhere:
-//! only a tunnel reaches it.
+//! credentials reach the proxy as they were typed; through a SOCKS5 proxy
+//! too (T-281, patch 0022). The proxy and the relay are stand-ins on the
+//! loopback, and an `.invalid` name resolves nowhere: only a tunnel reaches
+//! it.
 
 use std::sync::{Arc, Mutex};
 
@@ -117,6 +118,82 @@ async fn a_proxy_at_an_ipv6_address_is_reached() {
     let _reset = Reset;
     ts_http_util::proxy::connect("relay.example", 443).await.expect("the tunnel opens");
     assert_eq!(first_lines(&heads), ["CONNECT relay.example:443 HTTP/1.1"]);
+}
+
+/// A stand-in SOCKS5 proxy (T-281, patch 0022): takes the user and the
+/// password of its setting, keeps the bytes of each CONNECT request, answers
+/// success, and closes, so a TLS handshake through it fails.
+async fn socks5_stand_in(user: &'static [u8], password: &'static [u8]) -> (u16, Arc<Mutex<Vec<Vec<u8>>>>) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let requests = Arc::new(Mutex::new(Vec::new()));
+    let kept = requests.clone();
+    tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let mut head = [0u8; 2];
+            if stream.read_exact(&mut head).await.is_err() {
+                continue;
+            }
+            let mut methods = vec![0u8; usize::from(head[1])];
+            let _ = stream.read_exact(&mut methods).await;
+            if !methods.contains(&2) {
+                let _ = stream.write_all(&[5, 0xff]).await;
+                continue;
+            }
+            let _ = stream.write_all(&[5, 2]).await;
+            let mut auth = [0u8; 2];
+            let _ = stream.read_exact(&mut auth).await;
+            let mut got_user = vec![0u8; usize::from(auth[1])];
+            let _ = stream.read_exact(&mut got_user).await;
+            let mut length = [0u8; 1];
+            let _ = stream.read_exact(&mut length).await;
+            let mut got_password = vec![0u8; usize::from(length[0])];
+            let _ = stream.read_exact(&mut got_password).await;
+            let taken = got_user == user && got_password == password;
+            let _ = stream.write_all(&[1, if taken { 0 } else { 1 }]).await;
+            if !taken {
+                continue;
+            }
+            let mut request = vec![0u8; 4];
+            let _ = stream.read_exact(&mut request).await;
+            // The address, after its length for a name, then the port.
+            let address = match request[3] {
+                1 => 4,
+                4 => 16,
+                _ => {
+                    let mut length = [0u8; 1];
+                    let _ = stream.read_exact(&mut length).await;
+                    request.push(length[0]);
+                    usize::from(length[0])
+                }
+            };
+            let mut rest = vec![0u8; address + 2];
+            let _ = stream.read_exact(&mut rest).await;
+            request.extend_from_slice(&rest);
+            kept.lock().unwrap().push(request);
+            let _ = stream.write_all(&[5, 0, 0, 1, 127, 0, 0, 1, 0, 0]).await;
+        }
+    });
+    (port, requests)
+}
+
+/// The relay's DERP dial over WebSocket through a SOCKS5 proxy (T-281):
+/// the relay's name with the address type 3, after the user and the
+/// password as they were typed; the proxy resolves the name, and this host
+/// never looked it up.
+#[tokio::test]
+async fn the_relay_dial_goes_through_a_socks5_proxy_by_name() {
+    let _serial = SERIAL.lock().await;
+    let (port, requests) = socks5_stand_in(b"us@er", b"p:s s").await;
+    // Escaped in the URL as podssh-ws escapes them.
+    configure(Some(ProxyConfig::from_url(&format!("socks5h://us%40er:p%3As%20s@127.0.0.1:{port}")).unwrap()));
+    let _reset = Reset;
+    let dialled = ts_derp::ws::connect("relay.invalid", 443).await;
+    assert!(dialled.is_err(), "the stand-in speaks no TLS");
+    let mut want = vec![5, 1, 0, 3, 13];
+    want.extend_from_slice(b"relay.invalid");
+    want.extend_from_slice(&443u16.to_be_bytes());
+    assert_eq!(*requests.lock().unwrap(), [want]);
 }
 
 /// The fork's `no_proxy` rules are podssh's, case for case: podssh's checks

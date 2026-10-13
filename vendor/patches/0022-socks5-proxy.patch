@@ -1,0 +1,657 @@
+diff --git a/ts_http_util/src/lib.rs b/ts_http_util/src/lib.rs
+index 16d7507..7ce0628 100644
+--- a/ts_http_util/src/lib.rs
++++ b/ts_http_util/src/lib.rs
+@@ -14,6 +14,8 @@ mod error;
+ pub mod http1;
+ pub mod http2;
+ pub mod proxy;
++// podssh's patch 0022: the dial through a SOCKS5 proxy.
++mod socks5;
+ 
+ pub use client::{Client, ClientExt};
+ pub use error::Error;
+diff --git a/ts_http_util/src/proxy.rs b/ts_http_util/src/proxy.rs
+index ff21be2..58fd8d5 100644
+--- a/ts_http_util/src/proxy.rs
++++ b/ts_http_util/src/proxy.rs
+@@ -27,6 +27,10 @@
+ //! sites have fixed signatures (`TcpDialer::dial`, `dial_tcp`,
+ //! `dial_by_ipusage`) owned by three crates. Tests scope it: configure, use,
+ //! reset in the same test.
++//!
++//! The proxy can be a SOCKS5 one too (`socks5://`, `socks5h://`; podssh's
++//! patch 0022): the same four sites, the same bound and the same host name,
++//! with the exchange of RFC 1928 in place of `CONNECT` (`socks5.rs`).
+ 
+ use std::io;
+ use std::sync::{Mutex, OnceLock};
+@@ -47,6 +51,20 @@ pub const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(
+ /// rather than guessed at the call site.
+ pub const DEFAULT_PORT: u16 = 8080;
+ 
++/// Default port of a SOCKS5 proxy whose URL names none: SOCKS's own
++/// (podssh's patch 0022).
++pub const SOCKS5_DEFAULT_PORT: u16 = 1080;
++
++/// How a proxy tunnels (podssh's patch 0022).
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub enum ProxyKind {
++    /// HTTP `CONNECT`: `http://`.
++    Http,
++    /// SOCKS5 `CONNECT` (RFC 1928): `socks5://` and `socks5h://` alike. Both
++    /// send the host name, as the host may have no DNS.
++    Socks5,
++}
++
+ /// A configured proxy: where it is, and what it answers to.
+ #[derive(Clone, PartialEq, Eq)]
+ pub struct ProxyConfig {
+@@ -55,9 +73,14 @@ pub struct ProxyConfig {
+     pub host: String,
+     /// Proxy port.
+     pub port: u16,
++    /// How the proxy tunnels (podssh's patch 0022).
++    pub kind: ProxyKind,
+     /// `Proxy-Authorization` value (`Basic …`), if the proxy needs one.
+     /// Stored encoded so the password is never re-derived per connection.
+     auth_header: Option<String>,
++    /// The user and the password of RFC 1929, decoded, for a SOCKS5 proxy
++    /// (podssh's patch 0022).
++    socks_credentials: Option<crate::socks5::Credentials>,
+     /// The entries of the `no_proxy` list: hosts that go direct.
+     no_proxy: Vec<String>,
+ }
+@@ -69,18 +92,25 @@ impl std::fmt::Debug for ProxyConfig {
+         f.debug_struct("ProxyConfig")
+             .field("host", &self.host)
+             .field("port", &self.port)
++            .field("kind", &self.kind)
+             .field(
+                 "auth_header",
+                 &self.auth_header.as_ref().map(|_| "<redacted>"),
+             )
++            .field(
++                "socks_credentials",
++                &self.socks_credentials.as_ref().map(|_| "<redacted>"),
++            )
+             .field("no_proxy", &self.no_proxy)
+             .finish()
+     }
+ }
+ 
+ impl ProxyConfig {
+-    /// Parse `http://[user:pass@]host[:port]`. Only the `http` scheme names a
+-    /// CONNECT proxy; anything else is refused rather than reinterpreted.
++    /// Parse `http://[user:pass@]host[:port]`, or `socks5://` or
++    /// `socks5h://` with the same parts (port 1080; podssh's patch 0022).
++    /// Only these schemes name a proxy; anything else is refused rather than
++    /// reinterpreted.
+     ///
+     /// The user name and the password are percent-decoded, as the proxy
+     /// expects them, and no error quotes the URL, which may hold them
+@@ -88,12 +118,16 @@ impl ProxyConfig {
+     pub fn from_url(url: &str) -> Result<Self, String> {
+         let parsed =
+             url::Url::parse(url).map_err(|e| format!("the proxy URL does not parse: {e}"))?;
+-        if parsed.scheme() != "http" {
+-            return Err(format!(
+-                "the proxy URL is {}://, not http://: only http:// names a CONNECT proxy",
+-                parsed.scheme()
+-            ));
+-        }
++        let kind = match parsed.scheme() {
++            "http" => ProxyKind::Http,
++            "socks5" | "socks5h" => ProxyKind::Socks5,
++            other => {
++                return Err(format!(
++                    "the proxy URL is {other}://: only http:// names a CONNECT proxy, and \
++                     socks5:// or socks5h:// a SOCKS5 one"
++                ));
++            }
++        };
+         // An IPv6 address without the URL's brackets, as a socket address
+         // takes it: `[::1]` resolves nowhere.
+         let host = match parsed.host() {
+@@ -104,7 +138,22 @@ impl ProxyConfig {
+         if host.is_empty() {
+             return Err("the proxy URL names no host".to_string());
+         }
+-        let port = parsed.port().unwrap_or(DEFAULT_PORT);
++        let port = parsed.port().unwrap_or(match kind {
++            ProxyKind::Http => DEFAULT_PORT,
++            ProxyKind::Socks5 => SOCKS5_DEFAULT_PORT,
++        });
++        if kind == ProxyKind::Socks5 {
++            let socks_credentials =
++                crate::socks5::credentials(parsed.username(), parsed.password())?;
++            return Ok(Self {
++                host,
++                port,
++                kind,
++                auth_header: None,
++                socks_credentials,
++                no_proxy: Vec::new(),
++            });
++        }
+         let auth_header = match (parsed.username(), parsed.password()) {
+             ("", _) => None,
+             (user, pass) => {
+@@ -122,7 +171,9 @@ impl ProxyConfig {
+         Ok(Self {
+             host,
+             port,
++            kind,
+             auth_header,
++            socks_credentials: None,
+             no_proxy: Vec::new(),
+         })
+     }
+@@ -318,6 +369,18 @@ pub async fn connect(host: &str, port: u16) -> io::Result<TcpStream> {
+ }
+ 
+ async fn connect_via(config: &ProxyConfig, host: &str, port: u16) -> io::Result<TcpStream> {
++    // podssh's patch 0022: a SOCKS5 proxy gets the exchange of RFC 1928 in
++    // place of `CONNECT`, by the same name and within the same bound.
++    if config.kind == ProxyKind::Socks5 {
++        return crate::socks5::connect(
++            &config.host,
++            config.port,
++            config.socks_credentials.as_ref(),
++            host,
++            port,
++        )
++        .await;
++    }
+     let mut stream = TcpStream::connect((config.host.as_str(), config.port)).await?;
+ 
+     let mut request = format!("CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n");
+diff --git a/ts_http_util/src/socks5.rs b/ts_http_util/src/socks5.rs
+new file mode 100644
+index 0000000..3d3f1d4
+--- /dev/null
++++ b/ts_http_util/src/socks5.rs
+@@ -0,0 +1,314 @@
++//! A tunnel through a SOCKS5 proxy (RFC 1928), with the user and the
++//! password of RFC 1929 when the proxy URL has them (podssh's patch 0022).
++//!
++//! The host name goes to the proxy (address type 3), so this host needs no
++//! DNS for it, as with [`crate::proxy`]'s `CONNECT`. A proxy that takes no
++//! names (reply 8) gets one more connection, with an address of the system
++//! resolver's. The reply is read to exactly its end: the bytes after it
++//! belong to TLS.
++
++use std::{io, net::IpAddr};
++
++use tokio::{
++    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
++    net::TcpStream,
++};
++
++const VERSION: u8 = 5;
++const NO_AUTHENTICATION: u8 = 0x00;
++const USER_PASSWORD: u8 = 0x02;
++const NO_ACCEPTABLE_METHOD: u8 = 0xff;
++const CONNECT: u8 = 0x01;
++const IPV4: u8 = 0x01;
++const NAME: u8 = 0x03;
++const IPV6: u8 = 0x04;
++/// The reply of a proxy that takes no host names.
++const ADDRESS_TYPE_NOT_SUPPORTED: u8 = 0x08;
++
++/// The user and the password of RFC 1929, decoded, 1 to 255 bytes each.
++pub(crate) type Credentials = (Vec<u8>, Vec<u8>);
++
++/// Where the proxy is asked to go.
++#[derive(Debug, Clone, Copy)]
++pub(crate) enum Target<'a> {
++    /// A host name, with the address type 3.
++    Name(&'a str),
++    /// An address: the host was one, or the proxy takes no names.
++    Addr(IpAddr),
++}
++
++impl<'a> Target<'a> {
++    /// `host` as a target: an address when it is one (with or without the
++    /// brackets of an IPv6 address), else the name.
++    pub(crate) fn of(host: &'a str) -> Self {
++        let bare = host.trim_start_matches('[').trim_end_matches(']');
++        match bare.parse::<IpAddr>() {
++            Ok(addr) => Target::Addr(addr),
++            Err(_) => Target::Name(host),
++        }
++    }
++}
++
++/// Why no tunnel was opened.
++#[derive(Debug)]
++pub(crate) enum Failure {
++    /// Reply 8 to a host name: the proxy takes no names, and an address may
++    /// get through.
++    NoNames,
++    /// Each other failure, with what the proxy did. No message holds the
++    /// user or the password.
++    Io(io::Error),
++}
++
++impl From<io::Error> for Failure {
++    fn from(err: io::Error) -> Self {
++        Failure::Io(err)
++    }
++}
++
++impl Failure {
++    /// The failure as an I/O error.
++    pub(crate) fn into_io(self) -> io::Error {
++        match self {
++            Failure::NoNames => io::Error::new(
++                io::ErrorKind::ConnectionRefused,
++                "the SOCKS5 proxy takes no host names (reply 8, address type not supported)",
++            ),
++            Failure::Io(err) => err,
++        }
++    }
++}
++
++/// A tunnel to `host:port` through the SOCKS5 proxy at `proxy_host:port`:
++/// by name, and once more with an address of the system resolver's when the
++/// proxy takes no names. The caller bounds the whole.
++pub(crate) async fn connect(
++    proxy_host: &str,
++    proxy_port: u16,
++    credentials: Option<&Credentials>,
++    host: &str,
++    port: u16,
++) -> io::Result<TcpStream> {
++    let target = Target::of(host);
++    let mut stream = TcpStream::connect((proxy_host, proxy_port)).await?;
++    match exchange(&mut stream, credentials, target, port).await {
++        Ok(()) => Ok(stream),
++        Err(Failure::NoNames) => {
++            let addr = tokio::net::lookup_host((host, port))
++                .await?
++                .next()
++                .ok_or_else(|| {
++                    io::Error::new(
++                        io::ErrorKind::NotFound,
++                        format!("the SOCKS5 proxy takes no host names, and {host} has no address"),
++                    )
++                })?
++                .ip();
++            let mut stream = TcpStream::connect((proxy_host, proxy_port)).await?;
++            exchange(&mut stream, credentials, Target::Addr(addr), port)
++                .await
++                .map_err(Failure::into_io)?;
++            Ok(stream)
++        }
++        Err(failure) => Err(failure.into_io()),
++    }
++}
++
++/// `%XX` escapes decoded, as in a URL's user name and password, as bytes:
++/// RFC 1929 sends bytes.
++pub(crate) fn percent_decode_bytes(text: &str) -> Result<Vec<u8>, String> {
++    let bytes = text.as_bytes();
++    let mut out = Vec::with_capacity(bytes.len());
++    let mut i = 0;
++    while i < bytes.len() {
++        if bytes[i] == b'%' {
++            let value = text
++                .get(i + 1..i + 3)
++                .and_then(|hex| u8::from_str_radix(hex, 16).ok())
++                .ok_or_else(|| {
++                    "a % escape in the proxy credentials is not two hex digits".to_string()
++                })?;
++            out.push(value);
++            i += 3;
++        } else {
++            out.push(bytes[i]);
++            i += 1;
++        }
++    }
++    Ok(out)
++}
++
++/// The user and the password of a SOCKS5 proxy URL, each decoded, as RFC
++/// 1929 takes them: 1 to 255 bytes each. `None` when the URL has neither.
++/// No error quotes them.
++pub(crate) fn credentials(
++    user: &str,
++    password: Option<&str>,
++) -> Result<Option<Credentials>, String> {
++    if user.is_empty() && password.is_none() {
++        return Ok(None);
++    }
++    let user = percent_decode_bytes(user)?;
++    let password = percent_decode_bytes(password.unwrap_or(""))?;
++    for (what, value) in [("user", &user), ("password", &password)] {
++        if value.is_empty() || value.len() > 255 {
++            return Err(format!(
++                "the SOCKS5 {what} has {} bytes; RFC 1929 takes 1 to 255",
++                value.len()
++            ));
++        }
++    }
++    Ok(Some((user, password)))
++}
++
++/// The text of a reply (RFC 1928, section 6).
++fn reply_text(reply: u8) -> &'static str {
++    match reply {
++        0x01 => "general failure",
++        0x02 => "connection not allowed by its rules",
++        0x03 => "network unreachable",
++        0x04 => "host unreachable",
++        0x05 => "connection refused",
++        0x06 => "TTL expired",
++        0x07 => "command not supported",
++        0x08 => "address type not supported",
++        _ => "a reply that RFC 1928 does not name",
++    }
++}
++
++fn protocol(detail: String) -> Failure {
++    Failure::Io(io::Error::new(
++        io::ErrorKind::InvalidData,
++        format!("the SOCKS5 proxy did not answer as its protocol says: {detail}"),
++    ))
++}
++
++/// The greeting, the user and password when the proxy asks for them, and
++/// `CONNECT`. Any stream, so that a test can play the proxy.
++pub(crate) async fn exchange<S: AsyncRead + AsyncWrite + Unpin>(
++    stream: &mut S,
++    credentials: Option<&Credentials>,
++    target: Target<'_>,
++    port: u16,
++) -> Result<(), Failure> {
++    let methods: &[u8] = match credentials {
++        Some(_) => &[NO_AUTHENTICATION, USER_PASSWORD],
++        None => &[NO_AUTHENTICATION],
++    };
++    let mut greeting = vec![VERSION, methods.len() as u8];
++    greeting.extend_from_slice(methods);
++    stream.write_all(&greeting).await?;
++    let mut chosen = [0u8; 2];
++    stream.read_exact(&mut chosen).await?;
++    if chosen[0] != VERSION {
++        return Err(protocol(format!(
++            "its answer to the greeting has the version {}, not 5",
++            chosen[0]
++        )));
++    }
++    match (chosen[1], credentials) {
++        (NO_AUTHENTICATION, _) => {}
++        (USER_PASSWORD, Some((user, password))) => authenticate(stream, user, password).await?,
++        (NO_ACCEPTABLE_METHOD, None) => {
++            return Err(Failure::Io(io::Error::new(
++                io::ErrorKind::PermissionDenied,
++                "the SOCKS5 proxy needs a user and a password, and the proxy URL has none",
++            )));
++        }
++        (NO_ACCEPTABLE_METHOD, Some(_)) => {
++            return Err(Failure::Io(io::Error::new(
++                io::ErrorKind::PermissionDenied,
++                "the SOCKS5 proxy takes neither no authentication nor a user and a password",
++            )));
++        }
++        (other, _) => {
++            return Err(protocol(format!(
++                "it chose the method {other:#04x}, which was not offered"
++            )));
++        }
++    }
++    let mut request = vec![VERSION, CONNECT, 0x00];
++    match target {
++        Target::Name(name) => {
++            let len = u8::try_from(name.len()).map_err(|_| {
++                io::Error::new(
++                    io::ErrorKind::InvalidInput,
++                    format!("{name} is longer than the 255 bytes of SOCKS5"),
++                )
++            })?;
++            request.push(NAME);
++            request.push(len);
++            request.extend_from_slice(name.as_bytes());
++        }
++        Target::Addr(IpAddr::V4(addr)) => {
++            request.push(IPV4);
++            request.extend_from_slice(&addr.octets());
++        }
++        Target::Addr(IpAddr::V6(addr)) => {
++            request.push(IPV6);
++            request.extend_from_slice(&addr.octets());
++        }
++    }
++    request.extend_from_slice(&port.to_be_bytes());
++    stream.write_all(&request).await?;
++    let mut head = [0u8; 4];
++    stream.read_exact(&mut head).await?;
++    if head[0] != VERSION {
++        return Err(protocol(format!("its reply has the version {}, not 5", head[0])));
++    }
++    match (head[1], target) {
++        (0x00, _) => {}
++        (ADDRESS_TYPE_NOT_SUPPORTED, Target::Name(_)) => return Err(Failure::NoNames),
++        // A refusal: what follows is not read, as the stream is not used.
++        (reply, _) => {
++            return Err(Failure::Io(io::Error::new(
++                io::ErrorKind::ConnectionRefused,
++                format!(
++                    "the SOCKS5 proxy refused CONNECT: reply {reply}, {}",
++                    reply_text(reply)
++                ),
++            )));
++        }
++    }
++    // The bound address, which the dial does not use, to exactly its end.
++    let rest = match head[3] {
++        IPV4 => 4 + 2,
++        IPV6 => 16 + 2,
++        NAME => {
++            let mut len = [0u8; 1];
++            stream.read_exact(&mut len).await?;
++            usize::from(len[0]) + 2
++        }
++        other => return Err(protocol(format!("its reply has the address type {other}"))),
++    };
++    let mut bound = vec![0u8; rest];
++    stream.read_exact(&mut bound).await?;
++    Ok(())
++}
++
++/// The user and the password of RFC 1929; their lengths were checked.
++async fn authenticate<S: AsyncRead + AsyncWrite + Unpin>(
++    stream: &mut S,
++    user: &[u8],
++    password: &[u8],
++) -> Result<(), Failure> {
++    let mut message = vec![0x01, user.len() as u8];
++    message.extend_from_slice(user);
++    message.push(password.len() as u8);
++    message.extend_from_slice(password);
++    stream.write_all(&message).await?;
++    let mut status = [0u8; 2];
++    stream.read_exact(&mut status).await?;
++    // RFC 1929 gives this answer the version 1. A few servers give it the
++    // version of SOCKS, 5, and curl reads the status alone: both are taken.
++    match status {
++        [0x01 | VERSION, 0x00] => Ok(()),
++        [0x01 | VERSION, _] => Err(Failure::Io(io::Error::new(
++            io::ErrorKind::PermissionDenied,
++            "the SOCKS5 proxy refused the user and the password",
++        ))),
++        [version, _] => Err(protocol(format!(
++            "its answer to the password has the version {version}, not 1"
++        ))),
++    }
++}
+diff --git a/ts_http_util/tests/proxy.rs b/ts_http_util/tests/proxy.rs
+index ff50777..ea57e20 100644
+--- a/ts_http_util/tests/proxy.rs
++++ b/ts_http_util/tests/proxy.rs
+@@ -184,7 +184,7 @@ fn proxy_urls_parse_and_bad_ones_are_refused() {
+     let config = ProxyConfig::from_url("http://[::1]:3128").unwrap();
+     assert_eq!((config.host.as_str(), config.port), ("::1", 3128));
+ 
+-    assert!(ProxyConfig::from_url("socks5://proxy.example:1080").is_err());
++    assert!(ProxyConfig::from_url("socks4://proxy.example:1080").is_err());
+     assert!(ProxyConfig::from_url("http://:3128").is_err());
+     assert!(ProxyConfig::from_url("not a url").is_err());
+ }
+@@ -236,7 +236,7 @@ async fn a_host_on_the_no_proxy_list_is_dialled_direct() {
+ #[test]
+ fn no_message_shows_the_credentials() {
+     for url in [
+-        "socks5://user:secret@proxy.example:1080",
++        "socks4://user:secret@proxy.example:1080",
+         "http://user:secret@",
+         "http://user:%zz@proxy.example:3128",
+     ] {
+@@ -259,3 +259,146 @@ impl Drop for ResetOnDrop {
+         configure(None);
+     }
+ }
++
++/// What a fake SOCKS5 proxy got on each connection: the greeting, the user
++/// and password (when it asked for them), and the CONNECT request.
++type Socks5Seen = std::sync::Arc<std::sync::Mutex<Vec<Vec<u8>>>>;
++
++/// podssh's patch 0022: a fake SOCKS5 proxy for one connection of each of
++/// `replies`, which it answers in turn; it asks for a user and a password
++/// when `credentials`, and takes any. After a reply of success it echoes
++/// bytes both ways.
++async fn fake_socks5(replies: Vec<u8>, credentials: bool) -> (u16, Socks5Seen) {
++    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
++    let port = listener.local_addr().unwrap().port();
++    let seen: Socks5Seen = Default::default();
++    let seen_task = seen.clone();
++    tokio::spawn(async move {
++        for reply in replies {
++            let (mut stream, _) = listener.accept().await.unwrap();
++            let mut got = Vec::new();
++            let mut head = [0u8; 2];
++            stream.read_exact(&mut head).await.unwrap();
++            let mut methods = vec![0u8; usize::from(head[1])];
++            stream.read_exact(&mut methods).await.unwrap();
++            got.extend_from_slice(&head);
++            got.extend_from_slice(&methods);
++            stream.write_all(&[5, if credentials { 2 } else { 0 }]).await.unwrap();
++            if credentials {
++                // The version 1, then the user and the password, each after
++                // its length.
++                let mut version_and_length = [0u8; 2];
++                stream.read_exact(&mut version_and_length).await.unwrap();
++                let mut user = vec![0u8; usize::from(version_and_length[1])];
++                stream.read_exact(&mut user).await.unwrap();
++                let mut length = [0u8; 1];
++                stream.read_exact(&mut length).await.unwrap();
++                let mut password = vec![0u8; usize::from(length[0])];
++                stream.read_exact(&mut password).await.unwrap();
++                got.extend_from_slice(&version_and_length);
++                got.extend_from_slice(&user);
++                got.push(length[0]);
++                got.extend_from_slice(&password);
++                stream.write_all(&[1, 0]).await.unwrap();
++            }
++            let mut request = [0u8; 4];
++            stream.read_exact(&mut request).await.unwrap();
++            got.extend_from_slice(&request);
++            let length = match request[3] {
++                1 => 4,
++                4 => 16,
++                _ => {
++                    let mut length = [0u8; 1];
++                    stream.read_exact(&mut length).await.unwrap();
++                    got.push(length[0]);
++                    usize::from(length[0])
++                }
++            };
++            let mut rest = vec![0u8; length + 2];
++            stream.read_exact(&mut rest).await.unwrap();
++            got.extend_from_slice(&rest);
++            seen_task.lock().unwrap().push(got);
++            stream.write_all(&[5, reply, 0, 1, 127, 0, 0, 1, 0, 0]).await.unwrap();
++            if reply == 0 {
++                let (mut reader, mut writer) = stream.split();
++                drop(tokio::io::copy(&mut reader, &mut writer).await);
++            }
++        }
++    });
++    (port, seen)
++}
++
++/// podssh's patch 0022: a SOCKS5 proxy URL parses with SOCKS's port, its
++/// credentials decoded and never shown; one that RFC 1929 cannot carry is
++/// refused with no word of it.
++#[test]
++fn a_socks5_proxy_parses_with_its_port_and_hides_its_credentials() {
++    let config = ProxyConfig::from_url("socks5h://us%40er:p%3As@proxy.example").unwrap();
++    assert_eq!((config.host.as_str(), config.port), ("proxy.example", 1080));
++    assert_eq!(config.kind, ts_http_util::proxy::ProxyKind::Socks5);
++    let shown = format!("{config:?}");
++    assert!(
++        !shown.contains("us@er") && !shown.contains("us%40er") && !shown.contains("p:s"),
++        "{shown}"
++    );
++    let config = ProxyConfig::from_url("http://proxy.example").unwrap();
++    assert_eq!(config.kind, ts_http_util::proxy::ProxyKind::Http);
++    let why = ProxyConfig::from_url("socks5://alice@proxy.example:1080").unwrap_err();
++    assert!(why.contains("RFC 1929") && !why.contains("alice"), "{why}");
++}
++
++/// podssh's patch 0022: through a SOCKS5 proxy, the host goes by name (the
++/// address type 3), with the user and the password of RFC 1929 decoded,
++/// and the tunnel carries bytes right after the reply.
++#[tokio::test]
++async fn connect_through_socks5_sends_the_name_and_the_password() {
++    let _serial = serial().await;
++    let (port, seen) = fake_socks5(vec![0], true).await;
++    configure(Some(
++        ProxyConfig::from_url(&format!("socks5h://us%40er:p%3As@127.0.0.1:{port}")).unwrap(),
++    ));
++    let _reset = ResetOnDrop;
++
++    let mut stream = connect("relay.example", 443).await.unwrap();
++    stream.write_all(b"ping").await.unwrap();
++    let mut back = [0u8; 4];
++    stream.read_exact(&mut back).await.unwrap();
++    assert_eq!(&back, b"ping");
++
++    let mut want = vec![5, 2, 0, 2, 1, 5];
++    want.extend_from_slice(b"us@er");
++    want.push(3);
++    want.extend_from_slice(b"p:s");
++    want.extend_from_slice(&[5, 1, 0, 3, 13]);
++    want.extend_from_slice(b"relay.example");
++    want.extend_from_slice(&443u16.to_be_bytes());
++    assert_eq!(*seen.lock().unwrap(), vec![want]);
++}
++
++/// podssh's patch 0022: a refusal names its reply, and a proxy that takes
++/// no names (reply 8) gets one more connection, with an address.
++#[tokio::test]
++async fn a_socks5_refusal_is_named_and_reply_8_gets_an_address() {
++    let _serial = serial().await;
++    let (port, _) = fake_socks5(vec![2], false).await;
++    configure(Some(
++        ProxyConfig::from_url(&format!("socks5://127.0.0.1:{port}")).unwrap(),
++    ));
++    let _reset = ResetOnDrop;
++    let err = connect("relay.example", 443).await.unwrap_err();
++    assert!(err.to_string().contains("reply 2, connection not allowed"), "{err}");
++
++    let (port, seen) = fake_socks5(vec![8, 0], false).await;
++    configure(Some(
++        ProxyConfig::from_url(&format!("socks5://127.0.0.1:{port}")).unwrap(),
++    ));
++    let mut stream = connect("localhost", 443).await.unwrap();
++    stream.write_all(b"ping").await.unwrap();
++    let mut back = [0u8; 4];
++    stream.read_exact(&mut back).await.unwrap();
++    let seen = seen.lock().unwrap().clone();
++    assert_eq!(seen.len(), 2, "{seen:?}");
++    // The greeting is 3 bytes; the address type is the fourth of CONNECT.
++    assert_eq!(seen[0][6], 3, "the name first");
++    assert!(matches!(seen[1][6], 1 | 4), "then an address: {:?}", seen[1]);
++}

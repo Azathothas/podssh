@@ -27,6 +27,10 @@
 //! sites have fixed signatures (`TcpDialer::dial`, `dial_tcp`,
 //! `dial_by_ipusage`) owned by three crates. Tests scope it: configure, use,
 //! reset in the same test.
+//!
+//! The proxy can be a SOCKS5 one too (`socks5://`, `socks5h://`; podssh's
+//! patch 0022): the same four sites, the same bound and the same host name,
+//! with the exchange of RFC 1928 in place of `CONNECT` (`socks5.rs`).
 
 use std::io;
 use std::sync::{Mutex, OnceLock};
@@ -47,6 +51,20 @@ pub const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(
 /// rather than guessed at the call site.
 pub const DEFAULT_PORT: u16 = 8080;
 
+/// Default port of a SOCKS5 proxy whose URL names none: SOCKS's own
+/// (podssh's patch 0022).
+pub const SOCKS5_DEFAULT_PORT: u16 = 1080;
+
+/// How a proxy tunnels (podssh's patch 0022).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ProxyKind {
+    /// HTTP `CONNECT`: `http://`.
+    Http,
+    /// SOCKS5 `CONNECT` (RFC 1928): `socks5://` and `socks5h://` alike. Both
+    /// send the host name, as the host may have no DNS.
+    Socks5,
+}
+
 /// A configured proxy: where it is, and what it answers to.
 #[derive(Clone, PartialEq, Eq)]
 pub struct ProxyConfig {
@@ -55,9 +73,14 @@ pub struct ProxyConfig {
     pub host: String,
     /// Proxy port.
     pub port: u16,
+    /// How the proxy tunnels (podssh's patch 0022).
+    pub kind: ProxyKind,
     /// `Proxy-Authorization` value (`Basic …`), if the proxy needs one.
     /// Stored encoded so the password is never re-derived per connection.
     auth_header: Option<String>,
+    /// The user and the password of RFC 1929, decoded, for a SOCKS5 proxy
+    /// (podssh's patch 0022).
+    socks_credentials: Option<crate::socks5::Credentials>,
     /// The entries of the `no_proxy` list: hosts that go direct.
     no_proxy: Vec<String>,
 }
@@ -69,9 +92,14 @@ impl std::fmt::Debug for ProxyConfig {
         f.debug_struct("ProxyConfig")
             .field("host", &self.host)
             .field("port", &self.port)
+            .field("kind", &self.kind)
             .field(
                 "auth_header",
                 &self.auth_header.as_ref().map(|_| "<redacted>"),
+            )
+            .field(
+                "socks_credentials",
+                &self.socks_credentials.as_ref().map(|_| "<redacted>"),
             )
             .field("no_proxy", &self.no_proxy)
             .finish()
@@ -79,8 +107,10 @@ impl std::fmt::Debug for ProxyConfig {
 }
 
 impl ProxyConfig {
-    /// Parse `http://[user:pass@]host[:port]`. Only the `http` scheme names a
-    /// CONNECT proxy; anything else is refused rather than reinterpreted.
+    /// Parse `http://[user:pass@]host[:port]`, or `socks5://` or
+    /// `socks5h://` with the same parts (port 1080; podssh's patch 0022).
+    /// Only these schemes name a proxy; anything else is refused rather than
+    /// reinterpreted.
     ///
     /// The user name and the password are percent-decoded, as the proxy
     /// expects them, and no error quotes the URL, which may hold them
@@ -88,12 +118,16 @@ impl ProxyConfig {
     pub fn from_url(url: &str) -> Result<Self, String> {
         let parsed =
             url::Url::parse(url).map_err(|e| format!("the proxy URL does not parse: {e}"))?;
-        if parsed.scheme() != "http" {
-            return Err(format!(
-                "the proxy URL is {}://, not http://: only http:// names a CONNECT proxy",
-                parsed.scheme()
-            ));
-        }
+        let kind = match parsed.scheme() {
+            "http" => ProxyKind::Http,
+            "socks5" | "socks5h" => ProxyKind::Socks5,
+            other => {
+                return Err(format!(
+                    "the proxy URL is {other}://: only http:// names a CONNECT proxy, and \
+                     socks5:// or socks5h:// a SOCKS5 one"
+                ));
+            }
+        };
         // An IPv6 address without the URL's brackets, as a socket address
         // takes it: `[::1]` resolves nowhere.
         let host = match parsed.host() {
@@ -104,7 +138,22 @@ impl ProxyConfig {
         if host.is_empty() {
             return Err("the proxy URL names no host".to_string());
         }
-        let port = parsed.port().unwrap_or(DEFAULT_PORT);
+        let port = parsed.port().unwrap_or(match kind {
+            ProxyKind::Http => DEFAULT_PORT,
+            ProxyKind::Socks5 => SOCKS5_DEFAULT_PORT,
+        });
+        if kind == ProxyKind::Socks5 {
+            let socks_credentials =
+                crate::socks5::credentials(parsed.username(), parsed.password())?;
+            return Ok(Self {
+                host,
+                port,
+                kind,
+                auth_header: None,
+                socks_credentials,
+                no_proxy: Vec::new(),
+            });
+        }
         let auth_header = match (parsed.username(), parsed.password()) {
             ("", _) => None,
             (user, pass) => {
@@ -122,7 +171,9 @@ impl ProxyConfig {
         Ok(Self {
             host,
             port,
+            kind,
             auth_header,
+            socks_credentials: None,
             no_proxy: Vec::new(),
         })
     }
@@ -318,6 +369,18 @@ pub async fn connect(host: &str, port: u16) -> io::Result<TcpStream> {
 }
 
 async fn connect_via(config: &ProxyConfig, host: &str, port: u16) -> io::Result<TcpStream> {
+    // podssh's patch 0022: a SOCKS5 proxy gets the exchange of RFC 1928 in
+    // place of `CONNECT`, by the same name and within the same bound.
+    if config.kind == ProxyKind::Socks5 {
+        return crate::socks5::connect(
+            &config.host,
+            config.port,
+            config.socks_credentials.as_ref(),
+            host,
+            port,
+        )
+        .await;
+    }
     let mut stream = TcpStream::connect((config.host.as_str(), config.port)).await?;
 
     let mut request = format!("CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n");

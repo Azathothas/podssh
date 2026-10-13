@@ -14,6 +14,8 @@ mod error;
 pub mod http1;
 pub mod http2;
 pub mod proxy;
+// podssh's patch 0022: the dial through a SOCKS5 proxy.
+mod socks5;
 
 pub use client::{Client, ClientExt};
 pub use error::Error;

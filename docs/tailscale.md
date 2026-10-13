@@ -42,6 +42,12 @@ HTTPS. Build it only with `--features ts`; see [development.md](development.md).
   over WebSocket to the relay too, by name and within 20 s (patch 0017).
   Credentials in `--ts-proxy` can be read in the list of processes, and
   `podssh ts` says so.
+- The proxy can be SOCKS5 (`socks5://`, `socks5h://`, port 1080; T-281,
+  patch 0022), as for each other podssh command: each connection of the
+  node sends the host's name to it (the address type 3), with the user and
+  password of RFC 1929, reads its reply to exactly its end, and tries once
+  more with an address of the system resolver when the proxy takes no
+  names. The checks before the start go through it with podssh-ws's SOCKS5.
 
 ## Connecting again (T-104, 2026-10-10)
 

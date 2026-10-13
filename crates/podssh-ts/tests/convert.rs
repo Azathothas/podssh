@@ -45,13 +45,14 @@ fn a_bad_proxy_url_is_named_not_swallowed() {
         derp_ws: true,
         derp_host: Some("tcp.ts.relay.ajam.dev".to_string()),
         derp_port: Some(443),
-        proxy_url: Some("socks5://user:secret@proxy.example:1080".to_string()),
+        proxy_url: Some("socks4://user:secret@proxy.example:1080".to_string()),
         no_proxy: None,
         retry_refused: false,
     };
     let Err(ConfigError::BadProxyUrl(why)) = selection_to_options(&sel) else { panic!("accepted") };
-    // The fork's refusal says why, and quotes no URL (patch 0017).
-    assert!(why.contains("socks5"), "{why}");
+    // The fork's refusal says why, and quotes no URL (patch 0017). SOCKS5
+    // is taken since patch 0022 (T-281); SOCKS4 is not.
+    assert!(why.contains("socks4"), "{why}");
     assert!(!why.contains("secret"), "the password is quoted: {why}");
 }
 

@@ -63,9 +63,10 @@ a re-pin, and the diff should show only dependency-resolution changes.
 
 `tailscale-rs/LOCAL-PATCHES.md` describes each patch, with its proof. In
 short: DERP over a WebSocket to a pinned relay (`ts_derp::ws`), with the
-ClientInfo JSON that the relay's parser expects; one HTTP CONNECT proxy for
-each connection of the node, to the control server and to DERP, over the
-WebSocket too, by host name, with a `no_proxy` list and a bound on each dial;
+ClientInfo JSON that the relay's parser expects; one HTTP CONNECT or SOCKS5
+proxy for each connection of the node, to the control server and to DERP,
+over the WebSocket too, by host name, with a `no_proxy` list and a bound on
+each dial;
 the runtime options that gate UDP off and pin the relay; the tailnet auth key
 in memory that is cleared; and a logout.
 

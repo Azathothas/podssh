@@ -167,7 +167,7 @@ fn ts_with_a_bad_proxy_is_64() {
         "--ts-state".to_string(),
         "s.json".to_string(),
         "--ts-proxy".to_string(),
-        "socks5://proxy.example:1080".to_string(),
+        "socks4://proxy.example:1080".to_string(), // SOCKS5 is taken since T-281; SOCKS4 is not
         "--timeout".to_string(),
         "30s".to_string(),
     ];

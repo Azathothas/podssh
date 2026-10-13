@@ -287,8 +287,9 @@ const TS: &[&str] = &[
      With none ready, each check's reason is printed and the exit is 78.",
     "Each connection of the node, to the control server and to DERP, goes through the proxy of the checks, \
      with the no_proxy list of the environment; a URL with no port means port 80, as for each podssh \
-     command. Credentials in --ts-proxy can be read in the list of processes, and podssh ts says so; \
-     HTTPS_PROXY names the proxy as well.",
+     command. The proxy is an HTTP CONNECT one, or a SOCKS5 one (socks5:// or socks5h://, port 1080), \
+     which gets each host's name too. Credentials in --ts-proxy can be read in the list of processes, \
+     and podssh ts says so; HTTPS_PROXY names the proxy as well.",
     "An ephemeral node (--ts-ephemeral) logs out at the end of the run, after an error too, in 5 s at \
      most and after the bound of --timeout: the tailnet then keeps no offline device. A node that is \
      not ephemeral never logs out, so its key, and the relay's allowlist entry for it, stay.",

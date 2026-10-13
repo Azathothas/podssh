@@ -494,8 +494,8 @@ risk is a changed option (a host, a relay, a trust store), not a command.
 2. A note for `ssh` and `proxy` (`crates/podssh-cli/src/man/notes_ssh.rs:4-220` and `crates/podssh-cli/src/man/notes.rs:48-145`)
    and an example (`crates/podssh-cli/src/man/examples.rs:8-163`). Pitfall: the
    notes test reads a bare `--` as a flag that does not exist
-   (`crates/podssh-cli/src/man/notes.rs:349-357`); teach `flag_exists`
-   (`crates/podssh-cli/src/man/notes.rs:316-332`) that `--` ends the options.
+   (`crates/podssh-cli/src/man/notes.rs:350-358`); teach `flag_exists`
+   (`crates/podssh-cli/src/man/notes.rs:317-333`) that `--` ends the options.
 3. `podssh proxy` (`crates/podssh-cli/src/proxy.rs:203-208`): when HOST or PORT
    is missing and a relay or trust flag was given, add one line: a HOST that
    starts with `-` is read as a flag; put `--` before it.
