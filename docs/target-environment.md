@@ -74,7 +74,7 @@ should name them:
 3. **One outbound connection, and no listener unless the user asks for it
    and a probe allows it.** No `bind()`, no `listen()`, no loopback services
    by default. Features that need a local listening socket (`ssh -L`, `-D`,
-   `ControlMaster`) probe first. Where the bind is refused, they fail with a
+   `ControlMaster`, `podssh session`) probe first. Where the bind is refused, they fail with a
    clear message ([decisions.md](decisions.md), 2026-10-08).
 4. **No pty required.** A remote pty needs nothing local. When there is no
    pty anywhere, podssh can supply the line discipline (echo, editing,

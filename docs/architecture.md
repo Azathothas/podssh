@@ -116,8 +116,8 @@ These rules apply to each change. The reasons are in
 3. **One outbound connection, and no listener that the user did not ask
    for.** No `bind`, no `listen`, no loopback helpers. `podssh doctor` binds
    a socket to test the host and closes it without listening. A listener
-   that the user asks for (`-L`, `-D`, connection sharing, `podssh agent`)
-   opens only when a probe at run time allows the bind: on loopback or
+   that the user asks for (`-L`, `-D`, connection sharing, `podssh agent`,
+   `podssh session`) opens only when a probe at run time allows the bind: on loopback or
    AF_UNIX, unless the user sets the address. A race between relay hosts can
    open a second connection for a short time ([decisions.md](decisions.md),
    2026-10-08). The iroh road (feature `iroh`), which the user selects,

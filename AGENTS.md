@@ -287,7 +287,7 @@ These rules come from [docs/decisions.md](docs/decisions.md).
 | `crates/podssh-relay` | Relay hosts, the pool, failover, tokens, the forward opener; the pairs, the codecs and the runners of the reverse road; the resumable layer (`session/`); UDP in a stream and its flow at a node (`udp/`); the blocking facade for podbox |
 | `crates/podssh-ws` | TLS (podssh's own pure-Rust rustls provider), proxies, DNS fallbacks, the WebSocket client |
 | `crates/podssh-core` | Sans-IO protocol code: `irc/` |
-| `crates/podssh-terminal` | A line discipline (not used yet) |
+| `crates/podssh-terminal` | A line discipline (not used yet); the grammar of a terminal's output and its ring, which `podssh session` reads |
 | `crates/podssh-probe` | Facts about the relay document (tests only) |
 | `crates/podssh-ts` | The Tailscale adapter (feature `ts`) |
 | `crates/podssh-iroh` | The iroh road (feature `iroh`): the endpoint as podssh sets it up, the UDP probe, the session streams, the far end and its allowlist, the client, the keys and the tickets |

@@ -401,8 +401,16 @@ real programs wrote (vim, and an interactive bash whose prompt sets the
 title; `scripts/capture-terminal.py` adds less and top from a pty of
 Linux) at each offset, and checks the first byte kept against anstyle-parse,
 vte's parser: a terminal that starts there does what the terminal that read
-the whole stream does. No far end keeps a shell yet, so no ring is used:
-`podssh serve` will hold one for each kept shell (T-159).
+the whole stream does. No far end keeps a shell yet: `podssh serve` will
+hold a ring for each kept shell (T-159).
+
+`podssh session` (T-186) uses the grammar on this side of a session that
+it holds for an agent. `capture --raw` gives the bytes of such a ring of
+64 KiB, from a boundary. `wait --idle` counts output that stops inside a
+sequence or a character as output that goes on, until the tracker
+(`Tracker::open`) calls it broken. `capture` gives the screen of a model of
+a terminal (`vt100`, the model of the oracle of T-200), which reads each
+byte of the session's output from its first.
 
 ## ZMODEM in a session
 

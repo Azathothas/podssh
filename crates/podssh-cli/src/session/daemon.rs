@@ -165,6 +165,10 @@ async fn serve(args: &SessionArgs, plan: Plan, out: &mut dyn Write, err: &mut dy
         Ok(listener) => listener,
         Err((code, line)) => {
             let _ = writeln!(err, "podssh session: {line}");
+            // An AF_UNIX socket needs Windows 10 1803; a named pipe, none.
+            if cfg!(windows) && args.socket.is_none() {
+                let _ = writeln!(err, "podssh session: --socket \\\\.\\pipe\\NAME listens on a named pipe instead");
+            }
             let _ = writeln!(
                 err,
                 "podssh session: with no listener, podssh ssh -tt HOST COMMAND runs a command with a pty in one call"

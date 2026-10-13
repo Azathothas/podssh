@@ -1522,6 +1522,103 @@ gets no answer.
 (empty, with a space or a comma, or `USER@` with no host), and 78 for a
 `-F` file that does not exist.
 
+## `podssh session`
+
+`podssh session` (T-186) keeps one SSH session with a pty between the calls
+of an agent, which runs one command at a time and must not wait for a
+shell to end: it opens the session once, types into it, waits until its
+output stops, and reads its screen, each with a call of its own.
+
+- `podssh session start NAME [OPTIONS] HOST [COMMAND]` runs `podssh session
+  serve` in the background: this binary again, which leaves the session of
+  its starter (`setsid`; on Windows a process with no console), logs in as
+  `podssh ssh` does, with its connection flags and the `Host` blocks of
+  ssh_config, and holds a session with a pty: the login shell, or COMMAND.
+  It is the one SSH client of podssh, on each of its roads. `start` returns
+  once the request of the session went to the server, after the login and
+  the pty, with the path of the socket on stdout. What the session's podssh
+  says until then comes on stderr, and when it ends first, its exit code is
+  `start`'s: 255 for a connection or a login that failed, 77 for a bind
+  that this host refuses. When the session is not ready within `--timeout`
+  (60 s), it is stopped, and `start` exits 75. A name that runs already is
+  refused (69).
+- The session's podssh reads no terminal. A prompt has none: a key's
+  passphrase comes from `podssh agent` or `SSH_ASKPASS`, and a new host
+  key needs `StrictHostKeyChecking=accept-new` or a `known_hosts` that has
+  it. The pty's size is that of `COLUMNS` and `LINES`, else 80 by 24. No
+  forward, no X11 and no control socket of ssh_config is used (said with
+  `-v`).
+- `send NAME TEXT` types TEXT, then Enter (a carriage return), which
+  `--no-enter` leaves out. In TEXT, `\r`, `\n`, `\t`, `\e` (Escape), `\xNN`
+  (`\x03` is Ctrl-C) and `\\` give the bytes that they name; each other `\`
+  is refused, so a path of Windows writes each `\` twice. `send NAME` with
+  no TEXT types stdin as it is, 512 KiB at most: a password goes so, and
+  never stands in a command line, which each process of the host can read.
+- `wait NAME` returns when the output has stopped for `--idle` (2 s by
+  default), counted from the later of the last output and the last send:
+  a wait right after a send waits for what the send brings. Output that
+  stops inside an escape sequence or a UTF-8 character has not stopped,
+  until the grammar of T-221 calls the sequence broken (10 s). With
+  `--match TEXT` it returns when TEXT comes in the output since the last
+  send, with the terminal's sequences and control bytes taken out (a colour
+  between two letters hides no match); with both, the first that comes. It
+  writes `idle` or `match` on stdout. The echo of the line that `send`
+  typed is output too: match a text that only the command writes. It exits
+  75 when `--timeout` (60 s) passes first, and 69 when the session ended
+  first, with its status.
+- `capture NAME` writes the screen, as a terminal of the pty's size shows
+  it after the session's output: its rows, with no blank at their ends and
+  no empty row at the end, as `tmux capture-pane` gives them. The model is
+  the one of the terminal oracle (T-200), `vt100`, pure Rust. `--raw`
+  writes the last 64 KiB of the output as it came, from a place where a
+  terminal can start to read it: the ring of T-221, never inside a
+  sequence or a character.
+- `stop NAME` ends the session and its podssh. `list` writes a line for
+  each session of the cache that answers: its name, `running` or `ended`
+  and the status, and its host, with a tab between them.
+- The session's podssh ends at `stop`, 60 s after its session ended (so
+  that its last screen and its status can be read), after an hour with no
+  request, or at SIGINT, SIGTERM or SIGHUP. `podssh session serve NAME
+  [OPTIONS] HOST` is that podssh in the foreground, for a program that keeps
+  it itself: one line of JSON on stdout when it is ready, and its messages
+  on stderr; `--detach`, which `start` gives it, writes nothing more on
+  stdout and stderr after that line, so that a program that reads them to
+  their end does not wait for it.
+
+**The socket.** `start` and `serve` listen, as the operator allowed (Q1):
+on `NAME.sock` in the directory `sessions` of the first usable directory of
+the cache (FILES), made with mode 0700, through the listener of `podssh
+pipe` (T-177): the socket is made mode 0600, and a client of another user
+is closed before a byte of it is read; on Windows it is an AF_UNIX socket
+whose clients must run as this user. `--socket PATH` names another place:
+also `\\.\pipe\NAME` on Windows, and `@NAME` in Linux's abstract namespace,
+which has no file and where the check of the user is the guard. No TCP: a
+request types into a shell, and a TCP peer's user cannot be read. The bind
+is the probe: a host that refuses it gets the reason, and `start` exits 77;
+`PODSSH_LISTEN=no` refuses `start` and `serve` before any bind (78), and
+so does `PODSSH_CACHE_DIR=none` with no `--socket`. A client looks for NAME
+in each directory of the cache, in its order.
+
+**The risk.** Each program that runs as you can type into the session and
+read its screen, as it can use your keys. The socket carries no key,
+password or token: the session's podssh logs in with what `podssh ssh`
+would use, and a request carries text to type.
+
+**The protocol** of the socket, for a program that speaks to it itself:
+one JSON line for each request and one for each answer, with the version
+first (`"schema":1`). A request has the session's `name` and its `op`:
+`info`; `send`, with `text`, or `bytes` in base64; `wait`, with `idle_ms`,
+`match` and `timeout_ms`; `capture`, with `raw`; `stop`. An answer has
+`ok`, and the fields of its operation (`screen`, `cursor`, `rows` and
+`cols`; or `bytes`; `by`; `state` and `status`), or `code`, the exit code
+that the client gives, and `error`. A line of another schema, or another
+session's name, is refused (64).
+
+Exit codes: 0; 64 a usage error; 69 no session of that name answers, or it
+ended; 70 an answer that this podssh cannot read; 75 the `--timeout` passed
+first; 77 the bind refused; 78 `PODSSH_LISTEN=no`, or no directory for the
+socket; 255 the connection or the login of `start` failed.
+
 ## podssh's settings file
 
 A file states podssh's own settings once (T-048), below the flags and the
@@ -1617,6 +1714,10 @@ with its exit code unchanged. At 1 MiB the file becomes `sessions.1.jsonl`
 - `podssh each` gives the largest status of its hosts: 0 only when each
   host gave 0, and 255 for a host with no session; 64 and 78 come before
   anything connects, and 73 when a file of `--output-dir` cannot be made.
+- `podssh session` uses sysexits: 69 no session of that name, or one that
+  ended; 75 a `--timeout` that passed; 77 a bind that the host refuses; 78
+  `PODSSH_LISTEN=no`; and `start` gives 255 for a connection or a login
+  that failed, as `podssh ssh` does.
 - A command that is not implemented exits 70. It never exits 0.
 - A drop of the relay before any request reached the destination is tried
   again (T-025): during the SSH handshake or the login, before the

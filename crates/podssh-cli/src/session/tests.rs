@@ -1,7 +1,9 @@
 //! The unit tests of `podssh session` (T-186): the command line, the text
 //! of `send`, the protocol's lines and the place of the socket.
 
-use super::wire::{self, Op, Wait};
+use std::time::Duration;
+
+use super::wire::{Op, Wait};
 use super::*;
 use crate::tree::{parse, Parsed};
 
