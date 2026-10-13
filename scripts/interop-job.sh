@@ -4,8 +4,8 @@
 # running (the planted defect, a stop of each session named podssh-job-,
 # ends both); the log gives the output of a job that printed and ended, and
 # the list its status; with tmux off PATH, start exits 255 and names tmux.
-# Sourced by scripts/interop-each.sh; uses ok, bad, $BIN, $W, $K, $T, $KH
-# and p.
+# Then the queue of T-197, below. Sourced by scripts/interop-each.sh; uses
+# ok, bad, $BIN, $W, $K, $T, $KH and p.
 
 echo
 echo "== podssh job (T-193, OpenSSH and Dropbear)"
@@ -62,3 +62,46 @@ if [ -n "$tmuxbin" ] && mv "$tmuxbin" "$tmuxbin.off"; then
 else
     bad job.no_tmux "tmux is not in the image" /dev/null
 fi
+
+# The queue (T-197), on OpenSSH: three jobs with one slot, `sleep 2; echo J`
+# twice, then `exit 5`. Right after the submits one runs and two wait (the
+# planted defect, a runner that ignores the slots, runs more); wait on the
+# last exits 5 within 30 s; fetch gets an out that holds J; and a submit to
+# both servers goes to the one with fewer jobs queued or running.
+H="$T:2201"
+q1=$(j submit "$H" --slots 1 -- 'sleep 2; echo J' 2>"$JW/err")
+q2=$(j submit "$H" --slots 1 -- 'sleep 2; echo J' 2>>"$JW/err")
+q3=$(j submit "$H" --slots 1 -- 'exit 5' 2>>"$JW/err")
+j list "$H" >"$JW/list" 2>>"$JW/err"
+n=0
+while [ "$n" -lt 10 ] && ! grep -q "  running " "$JW/list"; do
+    j list "$H" >"$JW/list" 2>>"$JW/err"
+    n=$((n + 1))
+done
+r=$(grep -c "  running " "$JW/list")
+w=$(grep -c "  queued " "$JW/list")
+[ "$r" = 1 ] && [ "$w" = 2 ] \
+    && ok job.queue.slots "three jobs with one slot: one runs and two are queued" \
+    || bad job.queue.slots "running $r, queued $w" "$JW/list"
+began=$(date +%s)
+j wait "$H" "$q3" --timeout 30s >"$JW/out" 2>"$JW/err"
+rc=$?
+took=$(($(date +%s) - began))
+[ "$rc" = 5 ] && [ "$took" -le 30 ] \
+    && ok job.queue.wait "wait on the last job: exit 5, in $took s" \
+    || bad job.queue.wait "exit $rc after $took s" "$JW/err"
+rm -rf "$JW/got"
+j fetch "$H" "$q1" "$JW/got" >"$JW/out" 2>"$JW/err"
+rc=$?
+[ "$rc" = 0 ] && [ "$(cat "$JW/got/out" 2>/dev/null)" = J ] \
+    && ok job.queue.fetch "fetch of the first job: its out holds J" \
+    || bad job.queue.fetch "exit $rc" "$JW/err"
+s1=$(j submit "$H" -- sleep 60 2>"$JW/err")
+got=$(j submit "$T:2201,$T:2203" -- sleep 60 2>>"$JW/err")
+[ "${got% *}" = "$T:2203" ] && [ "${#s1}" = 8 ] \
+    && ok job.queue.choose "a submit to both servers goes to Dropbear's, which has no job: $got" \
+    || bad job.queue.choose "the answer '$got'" "$JW/err"
+for id in "$q1" "$q2" "$q3" "$s1"; do
+    j stop "$H" "$id" >/dev/null 2>&1
+done
+j stop "$T:2203" "${got#* }" >/dev/null 2>&1

@@ -22,7 +22,7 @@ harness match interop 18 scripts/interop-match.sh
 harness result interop 10 scripts/interop-result.sh
 harness mcp interop 4 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
-harness job interop 7 scripts/interop-job.sh
+harness job interop 11 scripts/interop-job.sh
 harness keygen interop 79 scripts/interop-keygen.sh
 harness agent interop 23 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -615,3 +615,7 @@ job.dropbear.start pass
 job.dropbear.stop pass
 job.dropbear.log pass
 job.no_tmux pass
+job.queue.slots pass
+job.queue.wait pass
+job.queue.fetch pass
+job.queue.choose pass

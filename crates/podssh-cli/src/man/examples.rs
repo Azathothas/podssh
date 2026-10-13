@@ -37,6 +37,12 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh job start user@build.example.org -- make all && podssh job list user@build.example.org".into(),
         ),
         (
+            "queue a build on the least busy of three hosts, wait 2 h at most for its status, then fetch its output",
+            "podssh job submit 'build{1..3}.example.org' -- make all && podssh job wait --timeout 2h \
+             build2.example.org 0123abcd && podssh job fetch build2.example.org 0123abcd"
+                .into(),
+        ),
+        (
             "a Unix socket on the server, on stdin and stdout",
             "podssh ssh -W /run/postgresql/.s.PGSQL.5432 user@db.example.org".into(),
         ),

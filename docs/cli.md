@@ -549,9 +549,9 @@ host, and a list of hosts changes both.
 
 ## `podssh job`
 
-`podssh job [OPTIONS] SUBCOMMAND HOST [ID] [-- COMMAND...]` keeps jobs on a
-far host that go on after the connection ends (T-193,
-`crates/podssh-cli/src/job/`).
+`podssh job [OPTIONS] SUBCOMMAND HOST [ID [DIR]] [-- COMMAND...]` keeps jobs
+on a far host that go on after the connection ends (T-193), and a queue of
+them (T-197; `crates/podssh-cli/src/job/`).
 
 - **The host** is a plain POSIX host, reached as `podssh ssh` reaches a
   destination, with the connection flags of `ssh` (`-p`, `-l`, `-i`, `-o`,
@@ -577,17 +577,54 @@ far host that go on after the connection ends (T-193,
   that no word of it is read as a flag of podssh, and a command with a
   newline or a NUL has no word for a far shell (64 for each).
 - `list HOST` prints a line for each job, in the order of their starts:
-  the ID, the state (`running`; `done`; or `lost`, when neither the job's
-  tmux session nor its status is there, as after a restart of the host),
+  the ID, the state (`queued`; `running`; `done`; or `lost`, when neither
+  the job's tmux session nor its status is there, as after a restart),
   the exit status (`-` while there is none) and the command. `log HOST ID`
   writes the job's output to stdout as it comes, also after the job's end.
   `stop HOST ID` ends the tmux session of that exact name,
   `-t =podssh-job-ID`, never one whose name only starts so, and removes the
   job's directory with its output.
+- **The queue lives on the far host** (T-197), so that the client can stop
+  at any time and needs no listener to wait (`docs/decisions.md`, Q7: no
+  logic of GPUs and no list of devices; the slots are the only limit).
+  `submit HOST -- COMMAND` makes the job's directory with the state
+  `queued`, and starts the runner, `tmux new-session -d -s podssh-runner`,
+  unless one runs: the name of the session is the lock, so that no second
+  runner starts. The runner, the far script itself, starts the oldest
+  queued job (the names sort by the time of the submit) while fewer jobs
+  run on the host than the slots, and checks again each second; with
+  nothing queued and nothing running, it gives its name up, looks once
+  more, and ends, so that a submit at that moment starts a runner of its
+  own. `--slots N` (1 to 64) sets the slots, which stay for the next
+  submits; 1 until one sets them. A job of `start` runs at once, and counts
+  against the slots. A list or a state that finds a queued job and no
+  runner, as after a restart of tmux's server, starts one.
+- **A list of hosts for `submit`**, with the braces and the groups of
+  `podssh each` (T-184): one `list` of each host gives its jobs queued or
+  running, the host with the fewest gets the job, the first of the list on
+  a tie, and stdout gives `HOST ID`. A host that does not answer is left
+  out, and said; with none, nothing is queued (255).
+- `wait HOST ID` reads the job's state every 5 s, each read a call of its
+  own, and exits with the job's status, or 255 for a job that is lost.
+  After a lost connection it connects again, 5 times in a row at most,
+  with the backoff of the relay opener; a host that does not answer the
+  first connection is 255 at once. `--timeout DURATION` exits 75 when the
+  job has not ended by then; the job runs on.
+- `fetch HOST ID [DIR]` copies the job's output to `DIR/out`, as `podssh cp`
+  copies a file (over SFTP, or by exec; a temporary name, the digests, a
+  rename; a new connection after a break), and with `--files GLOB` each
+  regular file of that pattern of sh, in the home directory of the host, to
+  `DIR/files` by its path. DIR is `./podssh-job-ID` by default. A pattern
+  with an absolute path or a `..` is refused (64), and so is each path that
+  has no place under `DIR/files`. A job that is queued or running is not
+  fetched, as its output is not whole yet (75). `list --json` gives one
+  JSON object: `host`, and `jobs`, each with `id`, `state`, `status` (null
+  while there is none), `started_ms` and `command`.
 - **The exit status** is that of `podssh ssh`: 0; 64 for a usage error and
   78 for a setting, before anything connects; 255 when the host cannot be
   reached or logged in to, has no tmux, has no job of that ID, or gives no
-  answer.
+  answer. `wait` gives the job's status; 75 when its `--timeout` passed,
+  and when `fetch` finds the job queued or running.
 
 ## A word with no subcommand
 
@@ -1654,7 +1691,9 @@ with its exit code unchanged. At 1 MiB the file becomes `sessions.1.jsonl`
   host gave 0, and 255 for a host with no session; 64 and 78 come before
   anything connects, and 73 when a file of `--output-dir` cannot be made.
 - `podssh job` uses the codes of `podssh ssh`: 255 for a failure of podssh,
-  a host with no tmux or no such job among them.
+  a host with no tmux or no such job among them. `job wait` gives the job's
+  status, and 75 when its `--timeout` passed; `job fetch` gives 75 for a
+  job that has not ended.
 - A command that is not implemented exits 70. It never exits 0.
 - A drop of the relay before any request reached the destination is tried
   again (T-025): during the SSH handshake or the login, before the

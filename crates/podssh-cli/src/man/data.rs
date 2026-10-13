@@ -77,7 +77,9 @@ pub fn exit_codes() -> Vec<(Code, String)> {
         row(
             sysexits::EX_TEMPFAIL,
             "podssh cp and mv: the --timeout passed before the copy ended; a later try can work. podssh \
-             chat: the --timeout passed, or the peer talks with another peer; a later try can work.",
+             chat: the --timeout passed, or the peer talks with another peer; a later try can work. podssh \
+             job wait: the --timeout passed before the job ended, which runs on; podssh job fetch: the job is \
+             queued or running, so its output is not whole yet.",
         ),
         row(
             sysexits::EX_NOPERM,
@@ -106,14 +108,16 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              server ended a run of -N. OpenSSH uses the same code. podssh ping: the destination could \
              not be reached or logged in to, or a measure broke. podssh each: a host could not be reached \
              or logged in to, or its session ended with no exit status. podssh job: the host could not be \
-             reached or logged in to, has no tmux, has no such job, or gave no answer.",
+             reached or logged in to, has no tmux, has no such job, or gave no answer; for wait, also a job \
+             that is lost.",
         ),
         (
             Code::Remote,
             "podssh ssh: the exit status of the remote command, unchanged. When signal N stopped the \
              command, 128 + N. podssh ping: the status of the remote program of a measure that failed, \
              127 when the host lacks it. podssh edit: the status of an editor that failed; nothing was sent. \
-             podssh each: the largest status of the hosts, 0 only when each gave 0."
+             podssh each: the largest status of the hosts, 0 only when each gave 0. podssh job wait: the \
+             exit status of the job."
                 .to_string(),
         ),
     ]

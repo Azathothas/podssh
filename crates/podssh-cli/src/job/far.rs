@@ -240,7 +240,7 @@ mod tests {
     /// shell's syntax of each line is read by the tests that run it.
     #[test]
     fn the_script_names_each_action_of_the_client() {
-        for action in ["start)", "job)", "list)", "log)", "stop)"] {
+        for action in ["start | submit)", "job)", "runner)", "list)", "state)", "log)", "files)", "stop)"] {
             assert!(SCRIPT.contains(&format!("\n{action}\n")), "{action}");
         }
         assert!(!SCRIPT.contains('\r'), "a CR breaks dash");

@@ -56,6 +56,15 @@ fn a_bad_command_line_is_64_before_anything_connects() {
         (&["job", "stop", "web1", "abcd1234", "abcd1235"][..], "give one ID"),
         (&["job", "list", "a,b"][..], "gives 2 hosts"),
         (&["job", "--no-such-flag", "list", "web1"][..], "--no-such-flag"),
+        // The queue (T-197): each flag with its subcommand, and a list of
+        // hosts for submit alone.
+        (&["job", "--slots", "0", "submit", "web1", "--", "true"][..], "1 to 64"),
+        (&["job", "--slots", "2", "list", "web1"][..], "--slots goes with podssh job submit"),
+        (&["job", "--json", "stop", "web1", "abcd1234"][..], "--json goes with podssh job list"),
+        (&["job", "--timeout", "soon", "wait", "web1", "abcd1234"][..], "bad --timeout"),
+        (&["job", "--files", "/etc/*", "fetch", "web1", "abcd1234"][..], "under the home directory"),
+        (&["job", "submit", "web{3..1}", "--", "true"][..], "runs backwards"),
+        (&["job", "wait", "a,b", "abcd1234"][..], "gives 2 hosts"),
     ] {
         let (code, out, err) = podssh(&home, args);
         assert_eq!(code, 64, "{args:?}: {err}");
@@ -67,7 +76,14 @@ fn a_bad_command_line_is_64_before_anything_connects() {
 #[test]
 fn a_host_out_of_reach_is_255_and_stdout_stays_empty() {
     let home = scratch("offline");
-    for args in [&["job", "list", "web1.example.org"][..], &["job", "start", "web1.example.org", "--", "true"][..]] {
+    for args in [
+        &["job", "list", "web1.example.org"][..],
+        &["job", "start", "web1.example.org", "--", "true"][..],
+        // No host of the list answers: nothing is queued.
+        &["job", "submit", "web1.example.org,web2.example.org", "--", "true"][..],
+        &["job", "wait", "web1.example.org", "abcd1234"][..],
+        &["job", "fetch", "web1.example.org", "abcd1234"][..],
+    ] {
         let (code, out, err) = podssh(&home, args);
         assert_eq!(code, 255, "{args:?}: {err}");
         assert!(out.is_empty(), "{args:?}: {out}");
@@ -80,10 +96,10 @@ fn the_help_and_the_manual_name_each_subcommand() {
     let home = scratch("help");
     let (code, out, _) = podssh(&home, &["job", "--help"]);
     assert_eq!(code, 0);
-    assert!(out.contains("podssh job [OPTIONS] SUBCOMMAND HOST [ID] [-- COMMAND...]"), "{out}");
+    assert!(out.contains("podssh job [OPTIONS] SUBCOMMAND HOST [ID [DIR]] [-- COMMAND...]"), "{out}");
     let (code, man, _) = podssh(&home, &["man", "--no-pager", "job"]);
     assert_eq!(code, 0);
-    for word in ["start", "list", "log", "stop", "tmux"] {
+    for word in ["start", "submit", "list", "log", "wait", "fetch", "stop", "tmux", "--slots", "--timeout"] {
         assert!(man.contains(word), "{word}: {man}");
     }
 }
