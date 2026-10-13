@@ -60,3 +60,6 @@ rc=$?
     || bad each.fail_fast "exit $rc" "$EW/err"
 # shellcheck source=scripts/interop-snippets.sh
 . "$HERE/interop-snippets.sh"
+# The facts of the far hosts (T-189), on the same two servers.
+# shellcheck source=scripts/interop-health.sh
+. "$HERE/interop-health.sh"

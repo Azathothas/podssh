@@ -277,6 +277,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
         "node" => "[OPTIONS] NAME TARGET [ROUTE=TARGET]...",
         "operator" => "[OPTIONS] NAME",
         "proxy" => "[OPTIONS] [--] HOST PORT",
+        "health" => "[OPTIONS] [user@]host",
         "play" => "[OPTIONS] FILE",
         "config" => "import FORMAT FILE",
         _ => "[OPTIONS]",

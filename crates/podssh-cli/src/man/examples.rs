@@ -22,6 +22,10 @@ fn examples() -> Vec<(&'static str, String)> {
             "and through a host: the login, the echo through cat, and 8 MiB down and up",
             "podssh ping user@example.org".into(),
         ),
+        (
+            "a host's load, memory, uptime, network and disks, from one command that only reads",
+            "podssh health user@example.org".into(),
+        ),
         ("log in to a host, through the relay", "podssh ssh user@example.org".into()),
         ("run one command; podssh exits with its exit status", "podssh ssh user@example.org 'uname -a'".into()),
         (
@@ -301,6 +305,7 @@ mod tests {
                     Parsed::Doctor { .. } => "doctor",
                     Parsed::Status { .. } => "status",
                     Parsed::Ping(_) => "ping",
+                    Parsed::Health(_) => "health",
                     Parsed::Play(_) => "play",
                     Parsed::Edit(_) => "edit",
                     Parsed::Each(_) => "each",

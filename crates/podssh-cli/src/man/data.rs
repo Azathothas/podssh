@@ -23,7 +23,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             0,
             "Success. For podssh ssh: the remote command exited 0. For podssh chat: each message was \
              acknowledged, and the one thing of --send or --file is done. For podssh ping: a relay host \
-             gave its measures, or with a destination each measure has its number.",
+             gave its measures, or with a destination each measure has its number. For podssh health: the \
+             facts came, or the host has no /proc and gave its system's name.",
         ),
         row(
             crate::doctor::EXIT_FAILED,
@@ -105,7 +106,8 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              session ended with no exit status (also when stdout closed and none came within 5 s), or the \
              server ended a run of -N. OpenSSH uses the same code. podssh ping: the destination could \
              not be reached or logged in to, or a measure broke. podssh each: a host could not be reached \
-             or logged in to, or its session ended with no exit status.",
+             or logged in to, or its session ended with no exit status. podssh health: the host could not \
+             be reached or logged in to, it has no sh, or its answer had none of the lines of the script.",
         ),
         (
             Code::Remote,

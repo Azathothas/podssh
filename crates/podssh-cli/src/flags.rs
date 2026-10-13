@@ -282,6 +282,7 @@ mod config;
 mod copy;
 mod each;
 mod edit;
+mod health;
 mod keygen;
 mod mcp;
 mod node;
@@ -299,6 +300,7 @@ pub use config::CONFIG_FLAGS;
 pub use copy::CP_FLAGS;
 pub use each::EACH_FLAGS;
 pub use edit::EDIT_FLAGS;
+pub use health::HEALTH_FLAGS;
 pub use keygen::KEYGEN_FLAGS;
 pub use mcp::MCP_FLAGS;
 pub use node::NODE_FLAGS;
@@ -404,6 +406,8 @@ pub const VERBS: &[Verb] = &[
         about: "an SSH agent inside podssh, and add, list, remove and lock its keys" },
     Verb { name: "ping", aliases: &["ping"], flags: PING_FLAGS,
         about: "a short check of the path: each step to the relay, pings, and with a host the echo and throughput" },
+    Verb { name: "health", aliases: &["health"], flags: HEALTH_FLAGS,
+        about: "the far host's load, CPUs, memory, uptime, network, disks and processes, read over one exec" },
     Verb { name: "play", aliases: &["play"], flags: PLAY_FLAGS,
         about: "play a recording of podssh ssh --record again, with its timing" },
     Verb { name: "config", aliases: &["config"], flags: CONFIG_FLAGS,
@@ -420,7 +424,7 @@ pub const GROUPS: &[(&str, &[&str])] = &[
     ("Connect", &["ssh", "each", "proxy", "pipe", "ts"]),
     ("Copy files", &["cp", "mv", "scp", "sftp", "edit"]),
     ("Keys", &["keygen", "agent"]),
-    ("Check this host and the path", &["doctor", "status", "ping"]),
+    ("Check this host and the path", &["doctor", "status", "ping", "health"]),
     ("The reverse road", &["node", "operator"]),
     ("Messages", &["chat"]),
     ("Recordings", &["play"]),

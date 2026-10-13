@@ -1120,6 +1120,43 @@ GitHub #23): the time of each step, the round trip, and the throughput.
   cannot be reached or logged in to, the status of a remote program that
   failed, and 255 for a measure that broke.
 
+## `podssh health`
+
+`podssh health [OPTIONS] [user@]host` gives the facts of the far host
+(T-189): its load and CPUs, the busy share of the CPUs, its memory and
+swap, its uptime, the bytes of each network interface, the use of its
+disks, and its processes. It only reads: it never stops or changes a
+process.
+
+- The host is resolved, reached and logged in to as `podssh ssh` does it
+  (`ssh_config`, `-J`, `-i`, `-o`, the relay or `--direct`). Then one exec
+  runs a fixed script, as `sh -c 'SCRIPT' sh`, so that a login shell of
+  fish or csh only starts `sh`. No text of the user goes into the script.
+- The script reads `loadavg`, `uptime`, `meminfo`, `stat` and `net/dev` of
+  `/proc` with the shell's `read`, and counts the processes with a glob of
+  the shell. It runs `sleep 1` and a second read of `stat`, `uptime` and
+  `net/dev` only where `command -v` finds `sleep`, and `df -P -k` of the
+  root and the home only where it finds `df`: a host with neither gives no
+  rate, no busy share and no disk, and the other facts.
+- The available memory is the kernel's `MemAvailable`. A kernel before
+  3.14 has none: then the free memory, the buffers and the cache stand for
+  it, and the line and the JSON say that it is an estimate. The rates are
+  the difference of two samples over the seconds between them, by the
+  host's own `/proc/uptime`. A name that the host gives (an interface, a
+  mount, a file system) has the controls of a terminal taken out.
+- A host with no `/proc` gives the name that `uname -s` prints (when it has
+  `uname`) and "no facts for this system", with exit 0.
+- One line for each fact on stdout; with `--json`, one JSON object, also
+  after a failure, in the shape of `doctor --json`: `schema` (1),
+  `podssh`, `destination`, `system`, `load`, `cpus`, `cpu_busy_percent`,
+  `interval_s`, `memory` (in KiB, with `available_estimated`), `uptime_s`,
+  `network` (each `interface` with `rx_bytes`, `tx_bytes`, `rx_per_s` and
+  `tx_per_s`), `disks`, `processes`, `error` and `exit`.
+- The exit codes of `podssh ssh`: 0 with the facts; 255 when the host
+  cannot be reached or logged in to, has no `sh`, or gave none of the
+  script's lines; 64 and 78 before anything connects. The script has 30 s,
+  and the whole run 120 s.
+
 ## `podssh keygen`
 
 `podssh man keygen` gives the flags. The rules behind them:

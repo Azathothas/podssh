@@ -129,6 +129,11 @@ pub fn add(cmd: Command, name: &str) -> Command {
                 .value_name("[user@]host")
                 .help("a host to log in to for the echo and the throughput; with none, the relay leg alone"),
         ),
+        "health" => cmd.arg(
+            Arg::new("destination")
+                .value_name("[user@]host")
+                .help("the host to read: [user@]host, host:PORT, [user@][IPV6]:PORT or ssh://[user@]host[:PORT]"),
+        ),
         "play" => cmd.arg(Arg::new("file").value_name("FILE").help("the recording: an asciicast v2 file")),
         "config" => cmd.arg(Arg::new("subcommand").value_name("SUBCOMMAND").help("import")).arg(
             Arg::new("args")

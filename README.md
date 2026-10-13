@@ -13,7 +13,7 @@ no installed `ssh`, and no TLS or crypto library of the system.
 > **Status: beta.** `podssh ssh`, `podssh each`, `podssh proxy`, `podssh pipe`,
 > `podssh cp`, `podssh mv`, `podssh scp`, `podssh sftp` and `podssh edit`
 > (files), `podssh doctor`, `podssh keygen`, `podssh agent`, `podssh man`,
-> `podssh status`, `podssh ping`, the reverse road (`podssh node`,
+> `podssh status`, `podssh ping`, `podssh health`, the reverse road (`podssh node`,
 > `podssh operator`, `podssh relay`) and `podssh chat` work.
 > Tests run them against OpenSSH and Dropbear servers, through the live
 > relay, and in a box like the target sandbox. The measured state is in

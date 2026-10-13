@@ -7,6 +7,7 @@ use super::notes_chat::CHAT;
 use super::notes_config::CONFIG;
 use super::notes_each::EACH;
 use super::notes_edit::EDIT;
+use super::notes_health::HEALTH;
 use super::notes_keygen::KEYGEN;
 use super::notes_mcp::MCP;
 use super::notes_pair::{NODE, OPERATOR};
@@ -34,6 +35,7 @@ pub fn for_verb(name: &str) -> &'static [&'static str] {
         "doctor" => DOCTOR,
         "status" => STATUS,
         "ping" => PING,
+        "health" => HEALTH,
         "play" => PLAY,
         "config" => CONFIG,
         "mcp" => MCP,

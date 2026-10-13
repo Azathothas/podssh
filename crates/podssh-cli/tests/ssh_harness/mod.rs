@@ -27,6 +27,8 @@
 //! back what it gets; to another socket it is refused. `exit N` and `kill NAME` end as a
 //! shell's do (T-054, `ends.rs`). `bytes HEX...` sends chosen bytes, and a
 //! user named `pty-...` gets a pty, for `watch` (T-132, `console.rs`). The
+//! script of `podssh health` gets the answer of a Debian host (T-189,
+//! `health.rs`). The
 //! subsystem `sftp` is OpenSSH's `sftp-server` in the directory of the host
 //! key, when this machine has one (T-140, `sftp.rs`). On a server of
 //! `start_podssh`, `podssh ...` runs the binary under test (T-167, `podssh.rs`).
@@ -47,6 +49,7 @@ mod console;
 mod ends;
 mod far;
 mod forward;
+mod health;
 mod interrupt;
 pub mod podssh;
 mod serve;
@@ -245,6 +248,9 @@ impl server::Handler for Far {
             }
             self.elevated.insert(channel, Elevated { prompt, started, line: Vec::new() });
             return Ok(());
+        }
+        if let Some(answered) = health::answer(&command, channel, session) {
+            return answered;
         }
         if let Some(ended) = ends::ended(&command, channel, session) {
             return ended;

@@ -98,6 +98,8 @@ pub enum Parsed {
     Agent(Box<crate::agent::AgentArgs>),
     /// `podssh ping` (T-053).
     Ping(Box<crate::ping::PingArgs>),
+    /// `podssh health [user@]host` (T-189).
+    Health(Box<crate::health::HealthArgs>),
     /// `podssh play FILE` (T-033).
     Play(Box<crate::play::PlayArgs>),
     /// `podssh edit [user@]host:PATH` (T-149).
@@ -173,6 +175,7 @@ impl Parsed {
             Parsed::Doctor { refused, .. } => !refused.is_empty(),
             Parsed::Status { refused, .. } => !refused.is_empty(),
             Parsed::Ping(args) => !args.refused.is_empty(),
+            Parsed::Health(args) => !args.refused.is_empty(),
             Parsed::Play(args) => !args.refused.is_empty(),
             Parsed::Edit(args) => !args.refused.is_empty(),
             Parsed::Each(args) => !args.refused.is_empty(),

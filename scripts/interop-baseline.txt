@@ -24,6 +24,7 @@ harness result interop 13 scripts/interop-result.sh
 harness mcp interop 4 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
 harness snippets interop 7 scripts/interop-snippets.sh
+harness health interop 4 scripts/interop-health.sh
 harness keygen interop 92 scripts/interop-keygen.sh
 harness agent interop 30 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -670,3 +671,8 @@ snippets.injection.dropbear pass
 snippets.asked pass
 snippets.declined pass
 snippets.each pass
+# scripts/interop-health.sh
+health.openssh.memory pass
+health.openssh.lines pass
+health.dropbear.memory pass
+health.dropbear.lines pass

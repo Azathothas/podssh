@@ -64,15 +64,15 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:366-413`,
-   `crates/podssh-cli/src/positionals.rs:7-167`, a `Parsed` variant,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:368-417`,
+   `crates/podssh-cli/src/positionals.rs:7-172`, a `Parsed` variant,
    `crates/podssh-cli/tests/flag_table.rs:110-113`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:1886-1889`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:1923-1926`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:2004-2097`); they cannot define a group.
+  (`docs/cli.md:2041-2134`); they cannot define a group.
 
 ## Approach
 
@@ -606,7 +606,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:156`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:256-258`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:258-260`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -720,7 +720,7 @@ end). Read in the reports, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -732,7 +732,7 @@ that can be missing. `podssh doctor` checks only this host.
 
 - Read: an exec request runs one command through the shell of the server
   (`crates/podssh-ssh/src/session.rs:116-129`), and its output goes to stdout
-  (`crates/podssh-ssh/src/io.rs:396-413`); podssh cannot read it.
+  (`crates/podssh-ssh/src/io.rs:384-401`); podssh cannot read it.
 - Read: on Linux, `/proc/loadavg`, `/proc/meminfo`, `/proc/uptime` and
   `/proc/net/dev` hold the facts, and a POSIX shell reads them with `read`,
   with no other tool.
@@ -746,7 +746,7 @@ that can be missing. `podssh doctor` checks only this host.
    built-ins of the shell, and `df -P` only when `command -v df` finds it.
    No text of the user goes into the script.
 3. Read the output with the sink of T-183
-   (`crates/podssh-ssh/src/io.rs:130-413`), parse it, and print one line for
+   (`crates/podssh-ssh/src/io.rs:127-401`), parse it, and print one line for
    each fact: load, memory and swap, uptime, network bytes (two samples,
    1 s apart), disk, processes. `--json` gives one object, in the shape of
    T-049.
@@ -755,6 +755,49 @@ that can be missing. `podssh doctor` checks only this host.
 5. The exit codes of `podssh ssh`: 0, or 255 for a failure.
 6. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. T-013 can then group the command.
+
+## Decision
+
+2026-10-13, the draft. The answer is read with `exec::capture`
+(`crates/podssh-ssh/src/exec.rs:58-78`), as `podssh ping` reads its
+measures and the copy by exec its steps: one command with no pty and no
+input, its own limit (30 s) and cap (1 MiB), its status and its stderr.
+The sink of T-183 lost: it carries a session of `podssh_ssh::run` with the
+request of the command line, and needs a task to drain it, for nothing that
+the capture lacks.
+
+The facts are more than the Approach names: the CPUs and their busy share,
+from a second read of `/proc/stat` (GitHub #21 asks for the CPU), and the
+seconds between the two samples from a second read of `/proc/uptime`, in
+place of a second that is assumed. `sleep` and `uname` run only where
+`command -v` finds them, as `df` does. `read -t 1` as the wait lost: dash
+has no `-t`. `df -P -k` reads the root and the home, one line for each
+mount; each mount of the host lost, as most of them (`tmpfs`, `proc`, the
+overlays of a container) are noise for this check.
+
+The script is one line with no single quote, no `!` and no line break, so
+that fish, csh and each POSIX shell read `sh -c '...'` the same way. Its
+first line, `podssh-health 1`, is the number of its form; what a login
+prints before it is not read. A section is a line `@ NAME`, which no line
+of `/proc` starts with.
+
+Facts go to stdout, a failure to stderr (`podssh: health HOST: ...`); with
+`--json` stdout holds one object also after a failure, as for
+`podssh ping`, so that a script reads `error` and `exit`. Each failure
+after the command line is 255, as `podssh ssh` gives it, a relay out of
+reach too (where `podssh proxy` gives 69); a target that the relay cannot
+carry is 64. The whole run has 120 s. The verb is in the group "Check this
+host and the path" (T-013), with `doctor`, `status` and `ping`.
+
+The Prove's fixtures could not be captured here (no container may run in a
+draft): `tests/fixtures/health/` holds two answers written by hand in the
+form of the kernel's `/proc` and of `df -P`, as Debian 12 and Alpine 3.20
+give them, each one saying so on its first lines. T-251 captures both in
+the build image. The test's SSH server answers the script with the Debian
+one, so that the whole road is tested natively. The gate's check is in
+`scripts/interop-health.sh`, sourced by `scripts/interop-each.sh`, as
+`scripts/interop.sh` has 500 lines; `scripts/interop-ping.sh` is sourced
+the same way.
 
 ## Prove
 
@@ -767,6 +810,54 @@ sh scripts/dev.sh check             # interop.sh: the comparison below
 In `scripts/interop.sh`, `health --json` runs against OpenSSH and Dropbear,
 and its available memory is within 5 % of `MemAvailable` read over exec.
 Plant: read `MemFree` in place of `MemAvailable`; the comparison must fail.
+
+## Correction
+
+The first premise is wrong in its last words: podssh reads the output of a
+command with `exec::capture` (`crates/podssh-ssh/src/exec.rs:58-78`), as
+`podssh ping` does for its measures (`crates/podssh-cli/src/ping/far.rs`),
+and since T-183 a session's output can go to a sink (`io::Sink` in
+`crates/podssh-ssh/src/io.rs`). The Approach takes the capture
+(Decision).
+
+## Done
+
+2026-10-13. `crates/podssh-cli/src/health/`:
+`mod.rs` (the command line, the road and the login of `podssh ssh`, one
+capture, the exit codes), `script.rs` (the script and its command),
+`parse.rs` with `parse_tests.rs` (the sections, and the load, CPUs, busy
+share, memory and swap, uptime, interfaces with their rates, disks and
+processes; a host with no `/proc`, one with no `sleep`, a kernel with no
+`MemAvailable`, no `sh`, hostile names), and `show.rs` (one line for each
+fact, the JSON object). The rows of `crates/podssh-cli/src/flags/health.rs`,
+the verb and its group in `crates/podssh-cli/src/flags.rs`, its argument,
+its `Parsed` variant, its dispatch, its usage, the notes of
+`crates/podssh-cli/src/man/notes_health.rs`, an example, and the exit codes
+0 and 255 in EXIT STATUS. `docs/cli.md` ("`podssh health`"),
+`docs/STATUS.md`, `README.md` and `AGENTS.md` name the command. The test's
+SSH server answers the script (`crates/podssh-cli/tests/ssh_harness/health.rs`),
+and `crates/podssh-cli/tests/health.rs` runs the binary against it: one
+line for each fact, the JSON with the available memory of `MemAvailable`,
+255 at a closed port with the error in the JSON, and 64 with no host.
+`cargo test -p podssh-cli health::` (the reader, the script's form, the
+lines and the JSON), 13 passed, and `cargo test -p podssh-cli --test
+health`, 3 passed, on Windows 11. `cargo test -p podssh-cli --test
+flag_table --test man_flag_parity` and `cargo test -p podssh-cli man::`:
+passed; `cargo test -p podssh-cli`, 830 passed. Planted, `MemFree` in
+place of `MemAvailable`: three tests of the reader and two of the binary
+failed; restored, they passed. `scripts/interop-health.sh` gives
+`health.openssh.memory`, `health.dropbear.memory` and
+`health.openssh.lines`, `health.dropbear.lines`, in
+`scripts/interop-baseline.txt` with the floor 4. In the build image (the
+steps `lint` and `release`, green; interop 542 passed, 0 failed), against
+OpenSSH 10.3p1 and Dropbear on the box's real `/proc`: 4 of 4. The gate's
+plant first passed: in the build image `MemFree` is within 5 % of
+`MemAvailable` (31,194,108 and 31,579,848 kB), so the check that the merge
+received could not fail on it. The check now also wants the value nearer
+`MemAvailable` than `MemFree` (unless the two are within 16 MiB): the code
+passed it, and the plant failed both servers. The answers of Debian and
+Alpine in the unit tests stay written by hand in the kernel's form; the
+gate reads a real `/proc`. The code has no branch for one system.
 
 # T-190: Containers and pods as destinations
 
@@ -947,7 +1038,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:162`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:1886-1889`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:1923-1926`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1061,9 +1152,9 @@ a ticket, or a tool that asks an AI.
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:302-330`.
+  `crates/podssh-cli/src/dispatch.rs:304-332`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:1886-1889`), which is not a failure of podssh.
+  status (`docs/cli.md:1923-1926`), which is not a failure of podssh.
 
 ## Approach
 
@@ -1266,7 +1357,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-119`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-121`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -1299,5 +1390,5 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-119`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-121`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.

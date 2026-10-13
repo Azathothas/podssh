@@ -1,0 +1,65 @@
+A fixture of T-189: the answer of the script of podssh health, written by
+hand in the form that Alpine 3.20 in a container (Linux 6.6, BusyBox df)
+gives, not captured; T-251 captures one in the build image.
+podssh-health 1
+@ loadavg
+1.42 0.97 0.66 3/389 1207
+@ uptime
+5310.08 40118.71
+@ meminfo
+MemTotal:        8131876 kB
+MemFree:         2214620 kB
+MemAvailable:    5986712 kB
+Buffers:          102944 kB
+Cached:          3605332 kB
+SwapCached:            0 kB
+Active:          1950012 kB
+Inactive:        3248804 kB
+SwapTotal:             0 kB
+SwapFree:              0 kB
+Dirty:              1024 kB
+Writeback:             0 kB
+AnonPages:       1490528 kB
+Mapped:           611216 kB
+Shmem:            129512 kB
+Slab:             421388 kB
+@ stat
+cpu  95210 12 41377 2020931 2312 0 1311 0 0 0
+cpu0 23801 3 10344 505233 578 0 1006 0 0 0
+cpu1 23802 3 10345 505232 578 0 101 0 0 0
+cpu2 23803 3 10344 505233 578 0 102 0 0 0
+cpu3 23804 3 10344 505233 578 0 102 0 0 0
+ctxt 21883901
+btime 1760300000
+processes 9871
+procs_running 3
+procs_blocked 0
+@ net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+  eth0: 31337421   24117    0    0    0     0          0         0  1874205   15062    0    0    0     0       0          0
+@ processes
+5
+@ stat 2
+cpu  95510 12 41477 2021231 2312 0 1311 0 0 0
+cpu0 23876 3 10369 505308 578 0 1006 0 0 0
+cpu1 23877 3 10370 505307 578 0 101 0 0 0
+cpu2 23878 3 10369 505308 578 0 102 0 0 0
+cpu3 23879 3 10369 505308 578 0 102 0 0 0
+ctxt 21885110
+btime 1760300000
+processes 9873
+procs_running 1
+procs_blocked 0
+@ uptime 2
+5311.08 40122.70
+@ net/dev 2
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo:       0       0    0    0    0     0          0         0        0       0    0    0    0     0       0          0
+  eth0: 31338445   24121    0    0    0     0          0         0  1874717   15066    0    0    0     0       0          0
+@ df
+Filesystem           1024-blocks    Used Available Capacity Mounted on
+overlay               61255492  21386712  36727456  37% /
+@ end

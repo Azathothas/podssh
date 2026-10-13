@@ -750,7 +750,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
    FILE, and prints only the label and the expiry. `podssh relay revoke NAME` stops the pair and deletes the
    local copies. `podssh relay status NAME` gives presence; agree on the form with T-058, whose `relay status`
    has no NAME.
-4. Exit codes as `podssh proxy` (`docs/cli.md:1890`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
+4. Exit codes as `podssh proxy` (`docs/cli.md:1927`): 64 usage; 69 the relay or TARGET cannot be reached; 77 a
    refused pair (`403`); 78 no usable pair; 0 after a stop by a signal. Add the rows to
    `crates/podssh-cli/src/man/facts.rs:457`.
 5. `doctor`: one line for each stored pair, with its expiry and its presence, as in
@@ -758,7 +758,7 @@ So a local TCP TARGET exists only where the host allows it; `podssh serve` (M5) 
 6. Remove `node` and `relay` from `VERB_OWNER`, and add them to `DISPATCHED`
    (`crates/podssh-cli/tests/flag_table.rs:110-113`). New variables go in `VARIABLES`
    (`crates/podssh-cli/src/man/facts.rs:45`), files in FILES (`:262` there), examples in
-   `crates/podssh-cli/src/man/examples.rs:8-168`; update `docs/cli.md`, `docs/reverse.md` and
+   `crates/podssh-cli/src/man/examples.rs:8-172`; update `docs/cli.md`, `docs/reverse.md` and
    `docs/STATUS.md` (lines 48-50 at `af0a163`).
 7. Pitfalls: `podssh man relay` shows the command; the topic THE RELAY has its own key since
    T-234 (`relay-facts`, `crates/podssh-cli/src/man/facts.rs:38`), so keep the two apart. Never
@@ -888,7 +888,7 @@ Read: `parse_hop` strips `ssh://` and reads `host:PORT` (`crates/podssh-cli/src/
 operator leg receives text frames (`docs/relay.md:294-297`). A host key is recorded under the target
 host, never the relay's name (`SECURITY.md:87-97`); `HostKeyAlias` exists
 (`crates/podssh-cli/src/ssh/resolve.rs:393`). `podssh ssh` uses the exit codes of OpenSSH, and
-`podssh proxy` sysexits (`docs/cli.md:1886-1890`).
+`podssh proxy` sysexits (`docs/cli.md:1923-1927`).
 
 ## Approach
 
@@ -947,7 +947,7 @@ cargo test -p podssh-cli --test node_live -- --ignored ssh_to_a_node
 22. `operator.rs` runs the binary with no stored pair (78, naming `podssh relay pair`), and checks
 that stdout stays empty. The binary line must exit 255, name `podssh relay pair lab`, and open no
 connection. The live test runs `podssh ssh node://lab 'exit 3'` through a node whose TARGET is
-`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:78`), and expects 3. Plant: read `node:`
+`railway.new:22` (an anonymous SSH service, `docs/STATUS.md:79`), and expects 3. Plant: read `node:`
 with no slashes as a node; `node_destinations` must fail.
 
 ## Done

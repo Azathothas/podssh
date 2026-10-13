@@ -1,0 +1,103 @@
+A fixture of T-189: the answer of the script of podssh health, written by
+hand in the form that Debian 12 (Linux 6.1) gives, not captured; T-251
+captures one in the build image. podssh reads nothing before the mark.
+podssh-health 1
+@ loadavg
+0.15 0.21 0.18 1/213 40531
+@ uptime
+1093624.53 4317402.12
+@ meminfo
+MemTotal:        4022708 kB
+MemFree:          310224 kB
+MemAvailable:    2561432 kB
+Buffers:          131080 kB
+Cached:          2154820 kB
+SwapCached:          212 kB
+Active:          1502636 kB
+Inactive:        1767660 kB
+Active(anon):     701204 kB
+Inactive(anon):   302860 kB
+Active(file):     801432 kB
+Inactive(file):  1464800 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:       1048572 kB
+SwapFree:        1046268 kB
+Zswap:                 0 kB
+Zswapped:              0 kB
+Dirty:               132 kB
+Writeback:             0 kB
+AnonPages:        984300 kB
+Mapped:           303472 kB
+Shmem:             19668 kB
+KReclaimable:     213120 kB
+Slab:             312904 kB
+SReclaimable:     213120 kB
+SUnreclaim:        99784 kB
+KernelStack:        6528 kB
+PageTables:        12360 kB
+SecPageTables:         0 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:     3059924 kB
+Committed_AS:    2765012 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:       24584 kB
+VmallocChunk:          0 kB
+Percpu:             1520 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:         0 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+FileHugePages:         0 kB
+FilePmdMapped:         0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+Hugetlb:               0 kB
+DirectMap4k:      157548 kB
+DirectMap2M:     4036608 kB
+@ stat
+cpu  2255380 3157 734567 418034990 132458 0 18512 0 0 0
+cpu0 1128190 1542 367012 209017330 66101 0 11013 0 0 0
+cpu1 1127190 1615 367555 209017660 66357 0 7499 0 0 0
+intr 172832101 9 0 0 0 0 0 0 0 0 0
+ctxt 412345678
+btime 1759183211
+processes 1205611
+procs_running 1
+procs_blocked 0
+softirq 98317365 0 21315677 1052 10735432 1286533 0 3131 36921330 0 27954210
+@ net/dev
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 92467112  730310    0    0    0     0          0         0 92467112  730310    0    0    0     0       0          0
+  eth0: 9873315276 9210337    0  312    0     0          0         0 1325104577 4910323    0    0    0     0       0          0
+@ processes
+146
+@ stat 2
+cpu  2255392 3157 734571 418035179 132459 0 18512 0 0 0
+cpu0 1128198 1542 367014 209017424 66101 0 11013 0 0 0
+cpu1 1127194 1615 367557 209017755 66358 0 7499 0 0 0
+intr 172832514 9 0 0 0 0 0 0 0 0 0
+ctxt 412346012
+btime 1759183211
+processes 1205613
+procs_running 1
+procs_blocked 0
+softirq 98317571 0 21315720 1052 10735460 1286533 0 3131 36921411 0 27954264
+@ uptime 2
+1093625.54 4317404.13
+@ net/dev 2
+Inter-|   Receive                                                |  Transmit
+ face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+    lo: 92467512  730314    0    0    0     0          0         0 92467512  730314    0    0    0     0       0          0
+  eth0: 9873416276 9210437    0  312    0     0          0         0 1325124577 4910343    0    0    0     0       0          0
+@ df
+Filesystem     1024-blocks     Used Available Capacity Mounted on
+/dev/sda1         40970400 12583124  26276552      33% /
+/dev/sda1         40970400 12583124  26276552      33% /
+@ end

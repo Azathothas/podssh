@@ -45,6 +45,8 @@ pub mod exitmap;
 #[rustfmt::skip]
 pub mod flags;
 pub mod help;
+// `podssh health`: the facts of the far host, over one exec (T-189).
+pub mod health;
 // The hosts of a word: braces and groups (T-184).
 pub mod hosts;
 pub mod keygen;

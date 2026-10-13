@@ -109,6 +109,8 @@ pub fn run_with(p: &Parsed, s: &mut Streams<'_>, tty: Tty) -> i32 {
         Parsed::Relay(args) => crate::relay_cmd::run_relay(args, s.out, s.err),
         Parsed::Ping(args) if refusals("ping", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Ping(args) => crate::ping::run(args, s.out, s.err),
+        Parsed::Health(args) if refusals("health", &args.refused, s.err) => EXIT_USAGE,
+        Parsed::Health(args) => crate::health::run(args, s.out, s.err),
         Parsed::Play(args) if refusals("play", &args.refused, s.err) => EXIT_USAGE,
         Parsed::Play(args) => crate::play::run(args, s.out, s.err),
         Parsed::Edit(args) if refusals("edit", &args.refused, s.err) => EXIT_USAGE,
