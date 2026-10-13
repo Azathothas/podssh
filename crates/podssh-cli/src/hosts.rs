@@ -111,7 +111,7 @@ fn add(word: &str, groups: &Groups, within: &mut Vec<String>, hosts: &mut Vec<St
         Some((name, at)) => Fault::File(format!("{at}: the group {name}: {why}")),
         None => Fault::Word(why),
     };
-    for item in items(word).map_err(&fault)? {
+    for item in items(word).map_err(fault)? {
         if let Some(name) = item.strip_prefix('@') {
             if within.iter().any(|n| n == name) {
                 let mut cycle = within.clone();
@@ -131,7 +131,7 @@ fn add(word: &str, groups: &Groups, within: &mut Vec<String>, hosts: &mut Vec<St
             continue;
         }
         let mut words = Vec::new();
-        braces(&item, &mut words).map_err(&fault)?;
+        braces(&item, &mut words).map_err(fault)?;
         for host in words {
             if host.is_empty() {
                 return Err(fault(format!("{item}: an empty host")));
