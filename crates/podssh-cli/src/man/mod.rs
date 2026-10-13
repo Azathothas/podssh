@@ -21,6 +21,7 @@ pub mod model;
 pub mod notes;
 mod notes_chat;
 mod notes_config;
+mod notes_containers;
 mod notes_each;
 mod notes_edit;
 mod notes_health;

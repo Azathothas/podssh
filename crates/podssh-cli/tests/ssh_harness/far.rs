@@ -56,6 +56,8 @@ pub(super) struct Far {
     pub(super) sftps: HashMap<ChannelId, tokio::process::ChildStdin>,
     /// A server of `start_podssh`: what its podssh gets (T-167).
     pub(super) podssh: Option<Arc<super::podssh::Podssh>>,
+    /// The user `containers-...`: a host with docker and kubectl (T-190).
+    pub(super) containers: Option<String>,
     /// The commands of `wait-signal` (T-293).
     pub(super) waits: HashMap<ChannelId, super::interrupt::Wait>,
 }

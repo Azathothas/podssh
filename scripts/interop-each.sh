@@ -63,3 +63,8 @@ rc=$?
 # The facts of the far hosts (T-189), on the same two servers.
 # shellcheck source=scripts/interop-health.sh
 . "$HERE/interop-health.sh"
+
+# podssh containers (T-190) runs after the hosts of each, from here:
+# scripts/interop.sh is at its 500 lines.
+# shellcheck source=scripts/interop-containers.sh
+. "$HERE/interop-containers.sh"

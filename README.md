@@ -10,11 +10,12 @@ an HTTP proxy is their only way out. podssh needs no root, no `LD_PRELOAD`,
 no installed `ssh`, and no TLS or crypto library of the system.
 
 > [!WARNING]
-> **Status: beta.** `podssh ssh`, `podssh each`, `podssh proxy`, `podssh pipe`,
-> `podssh cp`, `podssh mv`, `podssh scp`, `podssh sftp` and `podssh edit`
-> (files), `podssh doctor`, `podssh keygen`, `podssh agent`, `podssh man`,
-> `podssh status`, `podssh ping`, `podssh health`, the reverse road (`podssh node`,
-> `podssh operator`, `podssh relay`) and `podssh chat` work.
+> **Status: beta.** `podssh ssh`, `podssh each`, `podssh containers`,
+> `podssh proxy`, `podssh pipe`, `podssh cp`, `podssh mv`, `podssh scp`,
+> `podssh sftp` and `podssh edit` (files), `podssh doctor`, `podssh keygen`,
+> `podssh agent`, `podssh man`, `podssh status`, `podssh ping`,
+> `podssh health`, the reverse road (`podssh node`, `podssh operator`,
+> `podssh relay`) and `podssh chat` work.
 > Tests run them against OpenSSH and Dropbear servers, through the live
 > relay, and in a box like the target sandbox. The measured state is in
 > [docs/STATUS.md](docs/STATUS.md).
@@ -84,6 +85,7 @@ podssh ssh -N -L 5432:db.internal:5432 user@bastion  # a local port to the datab
 podssh ssh -N -D 1080 user@bastion           # a SOCKS proxy on 127.0.0.1:1080
 podssh ssh -M -N -S /tmp/cm-%C user@host &   # Unix: later runs with -S /tmp/cm-%C share this connection
 podssh ssh -tt user@example.org < script.txt # a remote pty; local stdin is a pipe
+podssh containers user@example.org           # the containers of docker, podman and kubectl, each with the command that enters it
 ```
 
 Files go over SFTP, or by exec where the server has no SFTP, verified by

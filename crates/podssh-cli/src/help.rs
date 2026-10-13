@@ -268,6 +268,7 @@ pub fn usage_tail(verb: &Verb) -> &'static str {
     match verb.name {
         "ssh" => "[OPTIONS] [--] [user@]host [COMMAND...]",
         "each" => "[OPTIONS] HOSTS [--] COMMAND...",
+        "containers" => "[OPTIONS] [user@]host",
         "cp" | "mv" | "scp" => "[OPTIONS] SRC... DST",
         "sftp" => "[OPTIONS] DESTINATION",
         "edit" => "[OPTIONS] [user@]host:PATH",

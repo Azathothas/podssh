@@ -34,6 +34,9 @@
 //! `start_podssh`, `podssh ...` runs the binary under test (T-167, `podssh.rs`).
 //! `wait-signal PATH acts` and `wait-signal PATH deaf` write each `signal`
 //! request into PATH, and end by it or run on (T-293, `interrupt.rs`).
+//! For a user named `containers-...`, the list of `podssh containers` and
+//! the exec of a container answer as on a host with docker and kubectl, and
+//! a pty is granted (T-190, `containers.rs`).
 
 // Each test binary uses a part of it.
 #![allow(dead_code)]
@@ -46,6 +49,7 @@ use russh::server::{self, Auth, Msg, Session};
 use russh::{Channel, ChannelId, Sig};
 
 mod console;
+mod containers;
 mod ends;
 mod far;
 mod forward;
@@ -82,6 +86,7 @@ impl server::Handler for Far {
         self.nopass = user.starts_with("sudo-nopass-");
         self.pty = user.starts_with("pty-");
         self.evil = user.starts_with("evil-");
+        self.containers = user.starts_with("containers-").then(|| user.to_string());
         if watch::refused(self.watch.as_deref(), user, &mut self.cut) {
             return Ok(Auth::reject());
         }
@@ -176,7 +181,7 @@ impl server::Handler for Far {
         session: &mut Session,
     ) -> Result<(), Self::Error> {
         // No reply for the others, as before.
-        if self.su || self.pty {
+        if self.su || self.pty || self.containers.is_some() {
             session.channel_success(channel)?;
         }
         self.pty_size = (cols, rows);
@@ -233,6 +238,9 @@ impl server::Handler for Far {
         }
         session.channel_success(channel)?;
         if let Some(ran) = podssh::run(self.podssh.as_ref(), &command, channel, session) {
+            return ran;
+        }
+        if let Some(ran) = containers::run(self.containers.as_deref(), &command, channel, session) {
             return ran;
         }
         if let Some((prompt, started)) = elevation(&command) {

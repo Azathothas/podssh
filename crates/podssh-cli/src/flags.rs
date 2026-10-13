@@ -279,6 +279,7 @@ mod agent;
 mod attach;
 mod chat;
 mod config;
+mod containers;
 mod copy;
 mod each;
 mod edit;
@@ -297,6 +298,7 @@ mod snippet;
 pub use agent::AGENT_FLAGS;
 pub use chat::CHAT_FLAGS;
 pub use config::CONFIG_FLAGS;
+pub use containers::CONTAINERS_FLAGS;
 pub use copy::CP_FLAGS;
 pub use each::EACH_FLAGS;
 pub use edit::EDIT_FLAGS;
@@ -370,6 +372,8 @@ pub const VERBS: &[Verb] = &[
         about: "the OpenSSH-compatible client, over the relay" },
     Verb { name: "each", aliases: &["each"], flags: EACH_FLAGS,
         about: "one command on many hosts at once: each line with its host, and the worst status as the exit" },
+    Verb { name: "containers", aliases: &["containers"], flags: CONTAINERS_FLAGS,
+        about: "the containers of a host, of docker, podman or kubectl, each with the command that enters it" },
     Verb { name: "proxy", aliases: &["proxy"], flags: PROXY_FLAGS,
         about: "ProxyCommand form: a byte pipe, not an SSH client" },
     Verb { name: "pipe", aliases: &["pipe"], flags: PIPE_FLAGS,
@@ -421,7 +425,7 @@ pub const VERBS: &[Verb] = &[
 /// holds; a purpose does not change between releases and builds, as a list
 /// of the commands that work would.
 pub const GROUPS: &[(&str, &[&str])] = &[
-    ("Connect", &["ssh", "each", "proxy", "pipe", "ts"]),
+    ("Connect", &["ssh", "each", "containers", "proxy", "pipe", "ts"]),
     ("Copy files", &["cp", "mv", "scp", "sftp", "edit"]),
     ("Keys", &["keygen", "agent"]),
     ("Check this host and the path", &["doctor", "status", "ping", "health"]),

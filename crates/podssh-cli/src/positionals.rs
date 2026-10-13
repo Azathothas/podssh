@@ -43,6 +43,12 @@ pub fn add(cmd: Command, name: &str) -> Command {
                     .allow_hyphen_values(true)
                     .help("the command to run on each host, its words joined with spaces as OpenSSH joins them"),
             ),
+        // One host; a second word is clap's refusal (T-190).
+        "containers" => cmd.arg(
+            Arg::new("destination")
+                .value_name("[user@]host")
+                .help("the host whose containers are listed: [user@]host, host:PORT, [user@][IPV6]:PORT or ssh://[user@]host[:PORT]"),
+        ),
         // Any count parses for `cp`, `mv` and `scp`: each says itself what a
         // short list lacks, in words clap's count error does not have.
         "cp" | "mv" | "scp" => cmd.arg(Arg::new("paths").value_name("PATH").num_args(1..).help("SRC... DST")),

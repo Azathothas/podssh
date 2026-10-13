@@ -25,6 +25,7 @@ harness mcp interop 4 scripts/interop-mcp.sh
 harness each interop 7 scripts/interop-each.sh
 harness snippets interop 7 scripts/interop-snippets.sh
 harness health interop 4 scripts/interop-health.sh
+harness containers interop 8 scripts/interop-containers.sh
 harness keygen interop 92 scripts/interop-keygen.sh
 harness agent interop 30 scripts/interop-agent.sh
 harness local interop 6 scripts/interop-local.sh
@@ -676,3 +677,13 @@ health.openssh.memory pass
 health.openssh.lines pass
 health.dropbear.memory pass
 health.dropbear.lines pass
+
+# scripts/interop-containers.sh
+containers.list pass
+containers.shown pass
+containers.dropbear pass
+containers.exec pass
+containers.exec_tty pass
+containers.denied pass
+containers.bad_name pass
+containers.none pass

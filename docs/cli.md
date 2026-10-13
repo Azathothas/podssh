@@ -672,6 +672,65 @@ literal `Host` names of `ssh_config` (T-188,
   a script still gets its usage error. A test that calls `dispatch::run`
   has no terminal, so it never sees the picker.
 
+## `podssh containers`
+
+`podssh containers [OPTIONS] [user@]host` lists the containers of a host,
+each with the `podssh ssh` command that enters it (T-190,
+`crates/podssh-cli/src/containers/`). It is a verb, not a form of the
+destination: `node://` and `cf://` name a road to an SSH server, and a
+container is a command on the server, which `podssh ssh -t HOST -- docker
+exec -it NAME sh` already says in OpenSSH's words.
+
+- **One login, one script.** podssh logs in as `ssh` does, through the
+  relay or with `--direct`, with `-p`, `-l`, `-i`, `-o`, `-F` and `-J`, and
+  runs one command with no pty: `sh -c 'SCRIPT'`, so that a login shell
+  that is not POSIX (csh, fish) only starts `sh`. The script looks for
+  docker, podman and kubectl with `command -v`, on the `PATH` of a command,
+  and runs the list of each that it finds: `docker ps` and `podman ps` with
+  the format `{{.Names}}`, and `kubectl get pods -o name` in the current
+  context and namespace, with `--request-timeout=20s`. `--tool` asks one
+  tool alone. A program runs only where the probe found it (AGENTS.md,
+  section 5, rule 3): none here, and none there that `sh` did not find.
+- **Marks.** A line `podssh-containers TOOL` comes before each tool's list
+  on stdout and on stderr, `podssh-containers end TOOL STATUS` after it,
+  and `podssh-containers done` at the end. Text before the first mark (a
+  start-up file, a banner) is dropped; a list with no last mark was cut,
+  and is not believed (69). The list waits 60 s at most, and podssh reads
+  1 MiB of it at most.
+- **Names.** A name is taken when it has letters, digits, `_`, `.` and `-`
+  alone, a letter or a digit first, and 253 bytes at most, as Docker,
+  Podman and Kubernetes name them; kubectl's has `pod/` first. Such a word
+  is one word to each shell, so the command that carries it cannot be read
+  as two. A name of another form is left out, and named on stderr (65).
+- **The lines.** Each line on stdout is the tool, the name, padded, and
+  `podssh ssh -t FLAGS HOST -- TOOL exec -it NAME sh` (`kubectl exec -it
+  pod/NAME -- sh`), with the connection flags that were given; a value that
+  is not one plain word is in single quotes. A tool that fails (no access
+  to docker's socket, a cluster that does not answer) gives its lines of
+  stderr, `podssh: TOOL: ...`, and its status; the other tools go on.
+- **`--exec NAME`** enters NAME on the same connection, after the list:
+  a password is asked once. The first tool, in the order docker, podman,
+  kubectl, whose whole list holds NAME runs its exec with the program of
+  `--shell` (`sh` by default; one word of letters, digits, `_`, `.`, `-`
+  and `/`). `pod/` may be left out of a pod's name. With a terminal here,
+  or with `-tt`, the session has a pty and the tool gets `-it`; with none,
+  `-i` alone, as docker refuses `-t` when its input is not a terminal. A
+  name that two tools list (docker and podman, or a `docker` that runs
+  podman) is said on stderr, and `--tool` enters the other.
+- **The exit status:** 0 when each tool gave its whole list; 65 when a
+  name was left out; 69 when the host has none of the tools, one failed,
+  the list was cut, or `--exec` names no container that a whole list has;
+  255 when the connection or the login failed, or the list did not end in
+  time. With `--exec`, the status of the session, as `ssh` gives it. A
+  usage error is 64 before anything connects: a value of `--exec`,
+  `--shell` or `--tool` that is not one, `--shell` or `-t` with no
+  `--exec`, a word after the host, and a `node://` or `iroh:` destination.
+  The forwards, X11 and the control socket of `ssh_config` are not used,
+  and `-v` says so.
+- `podssh pipe exec:` (T-174) carries the streams of `docker exec -i`, and
+  Docker's contexts here are not used: they connect with OpenSSH, not with
+  podssh.
+
 ## A word with no subcommand
 
 `podssh example.org` never connects. podssh selects a suggestion in two

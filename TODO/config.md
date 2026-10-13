@@ -1,7 +1,7 @@
 This file holds the work on configuration files: OpenSSH's `ssh_config` (`-F`, `Host`,
 `Include`, `Match` and `-G`), host lists from other clients, and a settings file for podssh's
 own options. The rules of OpenSSH that podssh follows were measured with `ssh -G` and are in
-`docs/cli.md:2041-2137`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
+`docs/cli.md:2100-2196`. Since T-043, `podssh ssh` reads `~/.ssh/config` and the file of `-F`.
 
 # T-043: Read `ssh_config`: `~/.ssh/config`, `-F FILE`, `Host` patterns, and `Match` refused by name (GitHub #14, #22)
 
@@ -206,7 +206,7 @@ No glob code exists in podssh. `known_hosts::wildcard`
    stands, and `Match final all` applies after the last line and fills only unset values, as
    measured. Each other `Match` stays refused by name until T-045.
 6. Check each included file as T-043 checks the user file: its owner and its mode.
-7. Change `docs/cli.md:2041-2146`, FILES (`crates/podssh-cli/src/man/data.rs:130-260`) and the
+7. Change `docs/cli.md:2100-2205`, FILES (`crates/podssh-cli/src/man/data.rs:132-262`) and the
    `ssh` notes in the same commit.
 
 ## Prove
@@ -541,7 +541,7 @@ work.
 
 ## Premise
 
-Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:368-417`).
+Read: podssh has no import and no `config` command (`crates/podssh-cli/src/flags.rs:370-421`).
 `serde_json` is a dependency of the binary (`crates/podssh-cli/Cargo.toml:53`), so a JSON
 export needs no new crate. XML and YAML need a parser that the binary does not have. The export
 formats of the other clients were not read here. Each step below starts from a real export of
@@ -564,9 +564,9 @@ that client: bytes captured from the real program (`AGENTS.md`, section 6, rule 
    a comment line. Never drop it silently.
 6. The output must read with the reader of T-043 and with OpenSSH.
 7. Add the verb to the tables: `VERBS`, and `VERB_OWNER` or a dispatch arm
-   (`crates/podssh-cli/src/flags.rs:368-447`), the arguments, `usage_tail`
-   (`crates/podssh-cli/src/help.rs:267-285`), the manual's notes and examples, and
-   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-113`).
+   (`crates/podssh-cli/src/flags.rs:370-451`), the arguments, `usage_tail`
+   (`crates/podssh-cli/src/help.rs:267-286`), the manual's notes and examples, and
+   `DISPATCHED` (`crates/podssh-cli/tests/flag_table.rs:110-136`).
 
 ## Decision
 
@@ -624,10 +624,10 @@ output. Planted defect: copy the password field into a comment; the secret test 
 `crates/podssh-cli/src/config_import/mod.rs:94-98` and the options of
 `ansible_ssh_common_args` at
 `crates/podssh-cli/src/config_import/mod.rs:100-153`; the verb in the
-tables at `crates/podssh-cli/src/flags.rs:413-414`,
-`crates/podssh-cli/src/positionals.rs:138-143`,
+tables at `crates/podssh-cli/src/flags.rs:417-418`,
+`crates/podssh-cli/src/positionals.rs:144-149`,
 `crates/podssh-cli/src/tree.rs:374-380` and
-`crates/podssh-cli/src/dispatch.rs:122-123`.
+`crates/podssh-cli/src/dispatch.rs:125-126`.
 - `cargo test -p podssh-cli --test config_import`: 5 passed. The fixture
   `crates/podssh-cli/tests/fixtures/ansible/inventory.ini`, read by
   ansible-core 2.21.0 in the build image (`inventory.list.json` and
@@ -946,7 +946,7 @@ try after the first reaches each hop (`crates/podssh-ssh/src/options.rs:343-351`
 - `scripts/interop.sh:325-335`: `ssh.config.jump_alias`, `-F FILE -J openssh-alias dropbear-alias`
   with podssh and with OpenSSH's `ssh`, each to exit 6 (the floor of ssh is 72). The gate runs it
   at this push.
-- `docs/cli.md:76-82` and `docs/cli.md:2070-2082`, and the manual's file `~/.ssh/config`, say what
+- `docs/cli.md:76-82` and `docs/cli.md:2129-2141`, and the manual's file `~/.ssh/config`, say what
   a hop takes.
 - `cargo test -p podssh-ssh`: 142 passed; `cargo test -p podssh-cli`: 565 passed, 0 failed,
   31 ignored; clippy; rustfmt.

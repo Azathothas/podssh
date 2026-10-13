@@ -33,6 +33,14 @@ fn examples() -> Vec<(&'static str, String)> {
             "podssh each --parallel 2 web1.example.org,web2.example.org,user@db.example.org -- uptime".into(),
         ),
         (
+            "the containers of a host, of docker, podman and kubectl, each with the command that enters it",
+            "podssh containers user@example.org".into(),
+        ),
+        (
+            "enter one of them on the same connection, with bash",
+            "podssh containers --exec web --shell bash user@example.org".into(),
+        ),
+        (
             "twelve hosts in one word, and the group db of the settings file; each host once",
             "podssh each 'web{01..12}.example.org,@db' -- 'df -h /'".into(),
         ),
@@ -309,6 +317,7 @@ mod tests {
                     Parsed::Play(_) => "play",
                     Parsed::Edit(_) => "edit",
                     Parsed::Each(_) => "each",
+                    Parsed::Containers(_) => "containers",
                     Parsed::Config(_) => "config",
                     Parsed::Mcp(_) => "mcp",
                     Parsed::Man { .. } => "man",

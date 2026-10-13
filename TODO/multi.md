@@ -64,15 +64,15 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    could not connect or log in; 0 only when each host gave 0. `--fail-fast`
    starts no new host after a failure, and the running ones finish. A
    summary on stderr gives each host and its status.
-7. In the same commit: `crates/podssh-cli/src/flags.rs:368-417`,
-   `crates/podssh-cli/src/positionals.rs:7-172`, a `Parsed` variant,
-   `crates/podssh-cli/tests/flag_table.rs:110-113`, the notes, an example,
+7. In the same commit: `crates/podssh-cli/src/flags.rs:370-421`,
+   `crates/podssh-cli/src/positionals.rs:7-178`, a `Parsed` variant,
+   `crates/podssh-cli/tests/flag_table.rs:110-136`, the notes, an example,
    `docs/cli.md`, `docs/STATUS.md`. T-013 can then group the commands.
 
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:1923-1926`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:1982-1985`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:2041-2134`); they cannot define a group.
+  (`docs/cli.md:2100-2193`); they cannot define a group.
 
 ## Approach
 
@@ -606,7 +606,7 @@ short numbered list helps a person; a script must still get the usage error.
 - Measured: `podssh ssh </dev/null` exits 64 with "missing destination"
   (`crates/podssh-cli/src/ssh/resolve.rs:156`).
 - Read: `run_ssh` gets no terminal state
-  (`crates/podssh-cli/src/dispatch.rs:258-260`), and the entry point of the
+  (`crates/podssh-cli/src/dispatch.rs:261-263`), and the entry point of the
   tests has none on purpose (`crates/podssh-cli/src/dispatch.rs:31-39`,
   `crates/podssh-cli/src/pager.rs:21-45`).
 - Read: the names can come only from the `Host` lines of ssh_config (T-043,
@@ -868,7 +868,7 @@ the report, not verified here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -882,7 +882,7 @@ name is copied by hand.
   remote command with a pty (`crates/podssh-cli/src/ssh/resolve.rs:269-277`,
   `crates/podssh-cli/src/ssh/hop.rs:97-108`). Only the list is missing.
 - Read: podssh starts a program only when the user names it or a probe
-  finds it (`AGENTS.md:232-236`). Here the programs run on the server, for a
+  finds it (`AGENTS.md:233-237`). Here the programs run on the server, for a
   request of the user.
 
 ## Approach
@@ -913,6 +913,61 @@ alternative, a destination such as `docker:NAME@HOST`, lost: `podssh ssh`
 takes the destinations of OpenSSH, and a new form in
 `crates/podssh-cli/src/ssh/hop.rs:30-78` breaks that parity.
 
+The draft (2026-10-13) keeps the verb. `podssh ssh` now takes `node://`,
+`iroh:` and `cf://` too (T-084, T-163, T-264), so parity alone does not
+decide; but each of those names a road to an SSH server, and a container is
+a command on a server, which `podssh ssh -t HOST -- docker exec -it NAME sh`
+already says in OpenSSH's words. The calls of the draft:
+
+- **`--exec` on the connection of the list**, not a second `podssh ssh`:
+  the login (`podssh_ssh::upgrade::login`) runs the list with
+  `exec::capture`, then the session on the same handles
+  (`podssh_ssh::upgrade::request`), as `--upgrade` does (T-167). A
+  password is asked once. The alternative, the printed command run as a new
+  process, lost: two logins, two questions, and the list can change between
+  them.
+- **The script** is one line with no `'`, under `sh -c '...'`, as the copy
+  by exec runs its steps (T-135): a login shell that is not POSIX (csh,
+  fish) only starts `sh`. Marks before and after each tool's list, on stdout
+  and on stderr, and one at the end, tell a login's banner from a list and
+  a cut list from a whole one. kubectl gets `--request-timeout=20s`, and
+  the whole list 60 s, as rule 4 of section 6 of AGENTS.md wants a limit on
+  each wait.
+- **Names, and no quoting of them**: a name of letters, digits, `_`, `.`
+  and `-`, a letter or a digit first, 253 bytes at most (`pod/` first for
+  kubectl), is one word to each shell, csh and fish included, so it goes
+  bare; a listed name of another form is left out and named (65). Each
+  other word of a shown command (a flag's value, the host) goes through
+  `list::word`, bare when plain, else `exec::shell_word`. The alternative,
+  quoting each name as T-187 would, lost: T-187 is not done, and a quoted
+  `a;b` would still reach the far tool as a name that no tool gave.
+- **`--tool TOOL`**, a flag the Approach does not name: docker and podman
+  can list the same name (a host with both, or podman-docker, whose
+  `docker` runs podman). `--exec` takes the first tool in the order
+  docker, podman, kubectl, says so, and `--tool` takes another.
+- **The pty**: with a terminal here, or with `-tt` (the row `-t` of
+  `containers`), the session has a pty and the tool gets `-it`; with none,
+  `-i` alone, as docker refuses `-t` when its input is not a terminal. A
+  line always shows `podssh ssh -t ... -it`, for a person at a terminal.
+- **Exit codes**: 0, 65 (a name left out), 69 (no tool, a tool that
+  failed, a cut list, or no container NAME), 255 (no connection, no login,
+  a list that did not end in time), 64 before anything connects; with
+  `--exec`, the session's status. A `node://` or `iroh:` destination is
+  refused (64), as `podssh each` refuses it: its road has its own runner,
+  and `transport::reach` does not reach it.
+- **The fixtures** (`crates/podssh-cli/tests/fixtures/containers/`) are
+  written in the formats that `docker ps --format`, `podman ps --format`
+  and `kubectl get pods -o name` give: no runtime is on this machine, and
+  none was captured.
+- **The gate's harness** is `scripts/interop-containers.sh`, sourced at the
+  end of `scripts/interop-each.sh`, as `scripts/interop.sh` is at its 500
+  lines. Its stand-ins go into the first directory of the `PATH` that each
+  server gives a command. A run against a real runtime is there too:
+  podman, rootless as the test user, with an image made from the build
+  image's own busybox (no registry); the gate's container has no
+  privileges, so the id `containers.podman` may say env, and the baseline
+  allows it.
+
 ## Prove
 
 ```sh
@@ -924,6 +979,54 @@ sh scripts/dev.sh check                 # interop.sh: the stand-ins below
 In `scripts/interop.sh`, stand-ins for `docker` and `kubectl` on the `PATH`
 of the server print the captured output; the list and `--exec` reach them.
 Plant: skip the check of the names; the fixture with `a;b` must fail.
+
+## Done
+
+2026-10-13. `crates/podssh-cli/src/containers/` (`mod.rs`: the command line, the plan
+before anything connects, the run on one connection, the lines and the
+exit; `list.rs`: the script, its parse, the check of the names, the command
+that enters a container, the shown flags), the rows of
+`crates/podssh-cli/src/flags/containers.rs`, the verb in the table, the
+group "Connect", the parser and the dispatch, the notes of
+`crates/podssh-cli/src/man/notes_containers.rs`, two examples, the exit
+codes 65, 69, 255 and the remote status in the manual, `docs/cli.md`
+(section "`podssh containers`"), README.md and AGENTS.md (section 1). The
+test's SSH server answers the list and the exec for a user
+`containers-...` (`crates/podssh-cli/tests/ssh_harness/containers.rs`) and
+grants such a user a pty.
+
+- Windows 11: `cargo test -p podssh-cli containers::` (the script, the
+  parse of the fixtures, a failed tool, the names and the plant's `a;b`, a
+  cut list, `--exec` and `--shell`, the holders and the command, the
+  quoting, the shown flags): 9 passed; `cargo test -p podssh-cli --test
+  containers` (the refusals, 64, offline; offline 255; against the test's
+  server: five lines whose commands parse as `podssh ssh` with the exec of
+  their container, `--tool kubectl`, a refused docker beside kubectl (69),
+  `a;b` left out (65), no tool (69), and `--exec` on one connection with
+  `-i`, with `-tt` and `-it`, and a name that no list has): 7 passed; the
+  manual's tests passed; `cargo test -p podssh-cli`, 846 passed.
+- The merge found two defects of the draft: a word with `=` inside
+  (`StrictHostKeyChecking=accept-new`) was quoted in the shown command,
+  against its own tests, and is plain now, as `=` means nothing inside a
+  word of a POSIX shell (a word that starts with `=` stays quoted); and the
+  manual's note wrote `_` alone, which the manual's check reads as a
+  variable, so it says "underscores".
+- Planted, `list::valid_name` true: `a_name_that_a_shell_would_read_is_left_out`
+  and `a_name_that_a_shell_would_read_is_left_out_with_65` failed; restored,
+  they passed. In the build image, the same
+  plant failed `containers.bad_name` (exit 0, where 65 is due), and no
+  other check.
+- In the build image (the steps `lint` and `release`, green; interop 550
+  passed, 0 failed): `scripts/interop-containers.sh` 8 of 8 against
+  OpenSSH 10.3p1 and Dropbear, with stand-ins of docker and kubectl.
+- The draft's check of a real runtime, a rootless podman inside the gate's
+  container, stopped the WSL distribution that runs the build image during
+  its first run: the job ended mid-interop, and the next run could not
+  start a container until `wsl-toolkit base ensure --repair` cleared the
+  engine's run state. The harness runs no real runtime now, and
+  `containers.podman` is gone from the baseline; the run without it kept
+  the distribution up. A real runtime (docker, podman or kubectl on a far
+  host) waits for a host that has one, at T-251.
 
 # T-191: Expect rules, and tasks before and after a connection
 
@@ -1038,7 +1141,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:162`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:1923-1926`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:1982-1985`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1142,19 +1245,19 @@ a ticket, or a tool that asks an AI.
 ## Premise
 
 - Read: podssh starts another program only when the user names it
-  (`AGENTS.md:232-236`), as it runs `SSH_ASKPASS`: the program, no shell, and
+  (`AGENTS.md:233-237`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:102-119`).
 - Read: credentials never go to output, logs, URLs or argv
   (`docs/architecture.md:141-143`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
-  credentials or tokens (`docs/cli.md:1042-1044`).
+  credentials or tokens (`docs/cli.md:1101-1103`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
   (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:304-332`.
+  `crates/podssh-cli/src/dispatch.rs:307-335`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:1923-1926`), which is not a failure of podssh.
+  status (`docs/cli.md:1982-1985`), which is not a failure of podssh.
 
 ## Approach
 
@@ -1357,7 +1460,7 @@ queue, no wait for a result, and no way to get the output back.
    gives one object.
 4. `job wait HOST ID [--timeout D]` reads `state` every 5 s until it is
    `done`, and exits with the job's status. When the limit passes first, it
-   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-121`.
+   exits 75; add the code to `crates/podssh-cli/src/man/data.rs:19-123`.
 5. `job fetch HOST ID [DIR]` copies `out`, and the files that `--files GLOB`
    names, with the engine of T-134; DIR is `./podssh-job-ID` by default.
 6. With a list of hosts (T-184), `submit` picks the host with the fewest
@@ -1390,5 +1493,5 @@ one running and two queued must fail.
 ## Correction
 
 2026-10-09 (T-134): 75 (`EX_TEMPFAIL`) is in the table of exit codes
-already (`crates/podssh-cli/src/man/data.rs:19-121`), for a `--timeout` of
+already (`crates/podssh-cli/src/man/data.rs:19-123`), for a `--timeout` of
 `cp` that passed; this entry adds its sentence for `job wait`.

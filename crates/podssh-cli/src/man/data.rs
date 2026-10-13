@@ -39,7 +39,7 @@ pub fn exit_codes() -> Vec<(Code, String)> {
             sysexits::EX_DATAERR,
             "podssh agent add-passphrase: the passphrase does not open the key file, or the file needs none; \
              nothing is kept. podssh pipe: the bytes of a udp: address are not each datagram after its \
-             length.",
+             length. podssh containers: a tool listed a name that podssh does not take, which is left out.",
         ),
         row(
             sysexits::EX_NOINPUT,
@@ -56,7 +56,9 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              the same of the relay and the pair, or a message went with no acknowledgement; each is said. \
              podssh ping: no relay host answered, or PODSSH_OFFLINE is set. podssh relay status: no relay \
              host answered; podssh relay trace: the relay would not dial the target. podssh agent: no agent \
-             answers at SSH_AUTH_SOCK, or the agent keeps no passwords.",
+             answers at SSH_AUTH_SOCK, or the agent keeps no passwords. podssh containers: the host has \
+             none of docker, podman and kubectl, one of them failed, or --exec names no container that a \
+             list has.",
         ),
         row(
             crate::exit_codes::EXIT_NOT_IMPLEMENTED,
@@ -106,15 +108,15 @@ pub fn exit_codes() -> Vec<(Code, String)> {
              session ended with no exit status (also when stdout closed and none came within 5 s), or the \
              server ended a run of -N. OpenSSH uses the same code. podssh ping: the destination could \
              not be reached or logged in to, or a measure broke. podssh each: a host could not be reached \
-             or logged in to, or its session ended with no exit status. podssh health: the host could not \
-             be reached or logged in to, it has no sh, or its answer had none of the lines of the script.",
+             or logged in to, or its session ended with no exit status. podssh health: the host could not              be reached or logged in to, it has no sh, or its answer had none of the lines of the script.              podssh containers: the host could not be reached or logged in to, or its list did not end              within 60 s.",
         ),
         (
             Code::Remote,
             "podssh ssh: the exit status of the remote command, unchanged. When signal N stopped the \
              command, 128 + N. podssh ping: the status of the remote program of a measure that failed, \
              127 when the host lacks it. podssh edit: the status of an editor that failed; nothing was sent. \
-             podssh each: the largest status of the hosts, 0 only when each gave 0."
+             podssh each: the largest status of the hosts, 0 only when each gave 0. podssh containers \
+             --exec: the status of the session in the container."
                 .to_string(),
         ),
     ]

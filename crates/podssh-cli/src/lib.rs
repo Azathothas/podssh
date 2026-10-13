@@ -25,6 +25,8 @@ pub mod channel;
 pub mod chat;
 pub mod clap_error;
 pub mod config_import;
+// `podssh containers`: the containers of a host, and --exec (T-190).
+pub mod containers;
 pub mod cp;
 pub mod dispatch;
 pub mod doctor;
