@@ -73,10 +73,19 @@ impl Log {
     fn at(&self, level: LogLevel, message: &str) {
         if self.level >= level {
             self.write(message, true);
+        } else if level == LogLevel::Error && crate::said::on() {
+            // -q hides an error from the screen, not from the report of a
+            // failure (T-195).
+            crate::said::keep(&host_text(message, true, self.prefix.as_deref(), false));
         }
     }
 
     fn write(&self, message: &str, prefix: bool) {
+        // podssh's own words go into the report of a failure (T-195); a
+        // server's banner does not.
+        if prefix && crate::said::on() {
+            crate::said::keep(&host_text(message, true, self.prefix.as_deref(), false));
+        }
         // In raw mode the terminal does not turn LF into CR LF.
         let raw = self.file.is_none() && crate::terminal::raw_active();
         let text = host_text(message, prefix, self.prefix.as_deref(), raw);

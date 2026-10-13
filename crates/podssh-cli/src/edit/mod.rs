@@ -190,6 +190,8 @@ fn edit(
     };
     if !status.success() {
         let code = editor::code_of(status);
+        // The editor's status is the editor's, no failure of podssh (T-195).
+        crate::error_program::not_a_failure();
         if changed {
             log.error(&kept(&format!("the editor ended with {code}, so nothing was sent")));
         } else {

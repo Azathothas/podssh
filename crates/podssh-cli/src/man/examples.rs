@@ -78,6 +78,10 @@ fn examples() -> Vec<(&'static str, String)> {
         ),
         ("send a file with no scp", "podssh ssh user@example.org 'cat > notes.txt' < notes.txt".into()),
         (
+            "a failure of podssh as one JSON object on the stdin of your program; a remote status starts none",
+            "PODSSH_ERROR_PROGRAM=$HOME/bin/triage podssh ssh user@example.org uptime".into(),
+        ),
+        (
             "change a file of a host in an editor here; it goes back only if the host's file did not change",
             "EDITOR=nano podssh edit user@example.org:notes.txt".into(),
         ),

@@ -156,6 +156,11 @@ pub fn run_each(args: &EachArgs, err: &mut dyn Write) -> i32 {
             let _ = writeln!(err, "podssh each: {line}");
         }
     }
+    // The hosts' statuses are theirs; a host with no session is podssh's
+    // failure (T-195).
+    if !ends.iter().any(|end| matches!(end, Ended::Failed(_))) {
+        crate::error_program::not_a_failure();
+    }
     fan::exit_status(&ends)
 }
 

@@ -206,7 +206,12 @@ pub async fn report(pumped: pump::Pumped, prefix: &str, err: &mut dyn Write) -> 
     if let Some((code, _)) = b_road.as_ref().or(a_road.as_ref()) {
         return *code;
     }
-    b_child.or(a_child).unwrap_or(0)
+    let child = b_child.or(a_child);
+    // A child's status is the child's, no failure of podssh (T-195).
+    if child.is_some() {
+        crate::error_program::not_a_failure();
+    }
+    child.unwrap_or(0)
 }
 
 async fn finished(ending: Option<Box<dyn pump::Ending>>) -> pump::Verdict {

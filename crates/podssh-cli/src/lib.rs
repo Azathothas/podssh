@@ -32,6 +32,8 @@ pub mod doctor;
 pub mod each;
 // `podssh edit`: one far file, changed in an editor here (T-149).
 pub mod edit;
+// The report of a failure, to the program of `PODSSH_ERROR_PROGRAM` (T-195).
+pub mod error_program;
 pub mod exit_codes;
 // **The fault table of the exit codes, as code.** `exit_codes.rs` holds the two
 // candidate usage constants and names the fork; `exitmap.rs` holds the whole

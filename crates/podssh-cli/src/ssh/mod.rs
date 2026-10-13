@@ -65,6 +65,11 @@ pub fn run_ssh(args: &SshArgs, tty: Tty, err: &mut dyn Write) -> i32 {
     };
     let code = run(args, tty, err);
     let object = result::object(code, started);
+    // With no failure class, the code is the remote command's, or a
+    // session's that ended with none: no failure of podssh (T-195).
+    if object["failure"].is_null() {
+        crate::error_program::not_a_failure();
+    }
     if let Some(path) = &args.result_file {
         result::write(path, &object, err);
     }

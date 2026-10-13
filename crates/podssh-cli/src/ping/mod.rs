@@ -182,6 +182,10 @@ pub fn run(args: &PingArgs, out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     if args.json {
         let _ = writeln!(out, "{}", json(&report, size, count));
     }
+    // A remote program's status is the host's, no failure of podssh (T-195).
+    if report.far.as_ref().is_some_and(|far| far.login.is_some() && far.status.is_some_and(|s| s != 0)) {
+        crate::error_program::not_a_failure();
+    }
     report.code
 }
 

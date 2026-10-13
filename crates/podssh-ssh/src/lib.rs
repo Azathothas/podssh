@@ -65,6 +65,8 @@ pub mod remote;
 pub mod retry;
 mod rsa_key;
 pub mod run;
+// podssh's last messages, for the report of a failure (T-195).
+pub mod said;
 pub mod session;
 pub mod sftp;
 pub mod signals;

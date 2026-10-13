@@ -117,6 +117,14 @@ pub fn carried(sent: u64, received: u64) {
     run_mut(|run| run.carried = Some((sent, received)));
 }
 
+/// `podssh proxy`: the relay host that opened its session, and the relay's
+/// close code, for the report of a failure (T-195).
+pub fn relay_seen() -> Option<(String, Option<u16>)> {
+    let run = RUN.lock().unwrap_or_else(|e| e.into_inner());
+    let run = run.as_ref()?;
+    Some((run.relay_host.clone()?, run.close_code))
+}
+
 /// The line of a run of `podssh ssh`, from its result (T-054); none when it
 /// named no destination.
 pub fn ssh_line(start_ms: i64, result: &Value) -> Option<Value> {

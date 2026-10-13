@@ -1,8 +1,9 @@
 # --result-file (T-054) against OpenSSH's sshd on port 2201 and Dropbear on
 # port 2203: the remote status, a signal, 5,000,000 bytes each way, and a
 # refused login, each in the JSON object of the run, while stdout stays as
-# it is; and a run through a podssh control master (T-039). Sourced by
-# scripts/interop.sh; uses ok, bad, p, $W, $K and $T.
+# it is; a run through a podssh control master (T-039); and the program of
+# PODSSH_ERROR_PROGRAM (T-195), which a remote status never starts.
+# Sourced by scripts/interop.sh; uses ok, bad, p, $W, $K and $T.
 
 echo
 echo "== --result-file (T-054, OpenSSH, then Dropbear)"
@@ -80,3 +81,30 @@ r = json.loads(open(sys.argv[1]).readline())
 sys.exit(0 if (r["verb"], r["port"], r["via"], r["exit"], r["end"]) == ("ssh", 2201, "direct", 0, "status") else 1)' "$SL" \
     && ok result.session_log "PODSSH_SESSION_LOG: one line for a run of echo SECRET-WORD, and no SECRET-WORD in it" \
     || bad result.session_log "the session log after exit $rc" "$SL"
+# PODSSH_ERROR_PROGRAM (T-195): a remote exit 3 starts no program, on each
+# server; a login that no key opens hands one report to it. The planted
+# defect, a program for each exit that is not 0, fails the first check.
+cat >"$RW/triage" <<EOF
+#!/bin/sh
+cat >>"$RW/reports"
+EOF
+chmod 700 "$RW/triage"
+rm -f "$RW/reports"
+export PODSSH_ERROR_PROGRAM="$RW/triage"
+for srv in openssh:2201 dropbear:2203; do
+    port=${srv#*:}
+    # shellcheck disable=SC2086
+    p "$port" $K -o BatchMode=yes "$T" 'echo out; exit 3' </dev/null >"$RW/out" 2>"$RW/err"
+    rc=$?
+    [ "$rc" = 3 ] && [ ! -e "$RW/reports" ] \
+        && ok "result.error_program.${srv%%:*}" "port $port: a remote exit 3 starts no program" \
+        || bad "result.error_program.${srv%%:*}" "port $port: exit $rc; $(cat "$RW/reports" 2>/dev/null)" "$RW/err"
+done
+p 2201 -o BatchMode=yes -o PasswordAuthentication=no "$T" true </dev/null >"$RW/out" 2>"$RW/err"
+rc=$?
+unset PODSSH_ERROR_PROGRAM
+[ "$rc" = 255 ] && [ "$(wc -l <"$RW/reports")" -eq 1 ] && python3 -c 'import json, sys
+r = json.loads(open(sys.argv[1]).readline())
+sys.exit(0 if (r["verb"], r["exit"], r["schema"]) == ("ssh", 255, 1) and r["messages"] else 1)' "$RW/reports" \
+    && ok result.error_program.failure "a login that no key opens: exit 255, and one report with its messages" \
+    || bad result.error_program.failure "exit $rc; $(cat "$RW/reports" 2>/dev/null)" "$RW/err"

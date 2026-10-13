@@ -1828,6 +1828,51 @@ with its exit code unchanged. At 1 MiB the file becomes `sessions.1.jsonl`
 `podssh status` gives the file and the last line, in short, as
 `session_log`.
 
+## The report of a failure
+
+When podssh itself fails, it gives a report of the failure to a program
+that the user names in `PODSSH_ERROR_PROGRAM` (T-195): a script that files
+a ticket, or a tool that asks an AI for the cause. podssh calls no AI
+service and no network address for this; the program decides what to do
+with the report (`docs/decisions.md`, 2026-10-08).
+
+- **The program.** podssh starts it as it starts `SSH_ASKPASS`: by its
+  name, with no shell and no argument. A variable, and no flag, so that it
+  reaches each command, also `podssh proxy` under the `ProxyCommand` of
+  OpenSSH. The program's environment has no `PODSSH_ERROR_PROGRAM`, so a
+  podssh that it runs starts no program of its own, and no credential
+  variable (`PODSSH_RELAY_TOKEN` and the tokens of Cloudflare Access); the
+  proxy variables stay, for a program that needs the proxy. Its stdout and
+  stderr go to podssh's stderr, as stdout is data. After 30 s podssh stops
+  it. Its status is ignored, and podssh's exit code does not change. A
+  program that does not start gives one line on stderr.
+- **When.** Only when podssh itself fails: each exit code that is not 0,
+  but a status that podssh passes on and a stop that the user asked for.
+  The code path decides, not the number. `podssh ssh` passes on the remote
+  command's status (255 too) and a session's end with no status: each
+  run whose `--result-file` has no `failure`. `podssh each` passes on the
+  statuses of its hosts when each host had a session; `podssh ping` the
+  status of the remote program of a measure; `podssh pipe` a child's
+  status; `podssh edit` the editor's. 130 and 143, which podssh gives after
+  SIGINT and SIGTERM, start no program.
+- **The report.** One JSON object and a line break on the program's stdin:
+  `schema` (1), `podssh` (the version), `os`, `arch`, `verb` (the
+  command's canonical name, or null for a word that names no command),
+  `exit`, `messages` and `relay`. `messages` holds the last 64 lines of
+  podssh's own messages, 16 KiB at most, each line 2048 bytes at most:
+  what podssh wrote to stderr, or to the file of `-E`, and the errors that
+  `-q` hides. `relay` is the relay host of the run with its `close_code`
+  and `reason`, or null. The lines that `podssh node`, `operator`, `chat`,
+  `pipe` and `agent` write while they serve are not kept; a server's banner
+  and the bytes of a session never are.
+- **No credential.** A report never holds a token, a proxy URL or its
+  password, a key, the environment, the command line as typed, or a byte
+  of a session. podssh's messages hold none (`SECURITY.md`), and each line
+  also goes through a mask: the value of each credential variable and of
+  each proxy variable, with its user and its password, becomes `<hidden>`,
+  so does the user and password of each URL, and the controls of a
+  terminal are dropped, as in the lines of `podssh doctor`.
+
 ## Exit codes
 
 `podssh man exit-status` gives each code. The rules behind them:

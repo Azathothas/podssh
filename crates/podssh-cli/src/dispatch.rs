@@ -304,15 +304,28 @@ where
     I: IntoIterator<Item = S>,
     S: Into<std::ffi::OsString> + Clone,
 {
-    let parsed = crate::tree::parse(args);
+    let argv: Vec<std::ffi::OsString> = args.into_iter().map(Into::into).collect();
+    // A program that the user names gets the report of a failure (T-195).
+    let hook = crate::error_program::Hook::from_env(argv.first().map(|a| a.as_os_str()));
+    let parsed = crate::tree::parse(argv);
     // Unlocked handles: each write takes the lock briefly. Holding the lock
     // for the whole run would deadlock any verb that writes through
     // tokio's stdout, which locks from a helper thread.
     let mut out = std::io::stdout();
     let mut err = std::io::stderr();
-    let rc = run_with(&parsed, &mut Streams { out: &mut out, err: &mut err }, Tty::probed());
+    let rc = if hook.is_some() {
+        let mut tee = crate::error_program::Tee::new(&mut err);
+        let rc = run_with(&parsed, &mut Streams { out: &mut out, err: &mut tee }, Tty::probed());
+        tee.finish();
+        rc
+    } else {
+        run_with(&parsed, &mut Streams { out: &mut out, err: &mut err }, Tty::probed())
+    };
     let _ = out.flush();
     let _ = err.flush();
+    if let Some(hook) = hook {
+        hook.after(rc, &mut err);
+    }
     rc
 }
 

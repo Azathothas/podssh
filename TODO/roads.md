@@ -59,7 +59,7 @@ unknown flag (exit 64), and `Cargo.lock` has no iroh crate.
    iroh destination refuses before it connects and names `--features iroh`,
    as `crates/podssh-cli/tests/ts_not_built.rs:1-4` shows for `ts`.
 7. Docs: the "Outbound only" item of `README.md`, "Nothing listens" in
-   `SECURITY.md:94-114`, `docs/architecture.md` (rule 3, the crates),
+   `SECURITY.md:98-118`, `docs/architecture.md` (rule 3, the crates),
    `docs/design.md` section 7, and `AGENTS.md` (sections 3 and 7).
 
 ## Decision
@@ -186,7 +186,7 @@ the file that `--ts-state` names (`crates/podssh-cli/src/flags.rs:323-324`,
    `podssh ssh iroh:TICKET` dials it (the address of `docs/design.md:678`).
 6. Add the key files to FILES in the manual
    (`crates/podssh-cli/src/man/data.rs:128-258`), and each new variable to
-   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-220`).
+   `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-231`).
 
 ## Decision
 
@@ -510,9 +510,9 @@ in iroh's source at the pinned version.
    not in the list.
 6. `doctor`, with the feature, reports the `/ping` of each relay and the home
    relay.
-7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-220`),
+7. Add the variable to `VARIABLES` (`crates/podssh-cli/src/man/facts.rs:45-231`),
    the flag to the flag table, and the default to the relay section of the
-   manual (`crates/podssh-cli/src/man/facts.rs:257-419`). The tests compare
+   manual (`crates/podssh-cli/src/man/facts.rs:268-430`). The tests compare
    `VARIABLES` with the source in both directions
    (`crates/podssh-cli/src/man/facts.rs:43-44`), so a variable that only the
    feature reads is in the manual only with the feature.

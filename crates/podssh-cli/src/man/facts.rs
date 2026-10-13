@@ -87,6 +87,17 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       Another value is refused (78).",
     ),
     (
+        &["PODSSH_ERROR_PROGRAM"],
+        "A program that gets a report when podssh itself fails, run as SSH_ASKPASS is: by its name, with no \
+      shell and no argument. Its stdin is one JSON object: schema (1), podssh, os, arch, verb, exit, messages \
+      (the last 64 lines of podssh's own messages, 16 KiB at most) and relay (host, close code and reason, \
+      or null). A report never holds a token, a proxy URL or its password, a key, the environment, the \
+      command line or a byte of a session. An exit 0, the status of a remote command or of a child that \
+      podssh passes on, and a stop by SIGINT or SIGTERM start no program. Its stdout and stderr go to \
+      stderr; after 30 s podssh stops it. Its status is ignored, and the exit code stays the run's. podssh \
+      calls no AI service and no address for the report: the program decides.",
+    ),
+    (
         &["PODSSH_SETTINGS"],
         "The file of podssh's own settings (see FILES), an absolute path that must exist; none reads none. \
       The flags and the other variables beat the file.",

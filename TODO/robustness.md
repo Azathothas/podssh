@@ -55,7 +55,7 @@ compiler.
    consumes at most its input, and a control frame has FIN and 125 bytes or
    fewer (fails until T-063); `forward_path` after `parse_relay_list` has the
    form `/connect/HOST/PORT`; `one_line` leaves no control character
-   (`SECURITY.md:79-82`); `Reassembler::push` stays under a stated limit
+   (`SECURITY.md:83-86`); `Reassembler::push` stays under a stated limit
    (fails until T-096); the command line target calls `parse`, never the
    dispatch, so no target reaches the network.
 3. Reach a private parser through a wrapper under `#[cfg(fuzzing)]`, which
@@ -330,12 +330,12 @@ byte test that a person wrote with the same mistake.
 
 Read:
 
-- `crates/podssh-ssh/src/log.rs:108-124` turns LF into CR LF when the terminal
+- `crates/podssh-ssh/src/log.rs:117-133` turns LF into CR LF when the terminal
   is raw. The help of `~?` (`crates/podssh-ssh/src/escape.rs:141-150`) goes
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
 - `crates/podssh-ws/src/text.rs:12-51` is the one sanitizer for text from a
-  peer (`SECURITY.md:79-82`).
+  peer (`SECURITY.md:83-86`).
 - docs/terminal.md gives the redraw sequence and the refusals of the line
   discipline (`docs/terminal.md:162-258`). T-127 (the cursor counts bytes) and
   T-129 (Home and End do not move the screen's cursor) are screen defects.
@@ -415,7 +415,7 @@ sh scripts/dev.sh check                           # the model and tmux agree on 
 ```
 
 Each command exits 0. Planted defect: remove the CR LF conversion
-(`crates/podssh-ssh/src/log.rs:120-122`); the help case must fail. After M5,
+(`crates/podssh-ssh/src/log.rs:129-131`); the help case must fail. After M5,
 `cargo test -p podssh-terminal --test oracle` must fail while T-127 is open.
 
 ## Correction
@@ -843,7 +843,7 @@ Read:
   names and answers a status (`scripts/fake-proxy.py:1-27`). Neither shapes
   the traffic.
 - `scripts/interop-faults.sh:42-50` starts one stand-in for each fault; its
-  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:447-465`, 14 of 14 since T-236).
+  checks are at lines 73-182 at `8d668b7` (`docs/STATUS.md:448-466`, 14 of 14 since T-236).
 - The time limits that latency meets today: the SSH handshake, 60 s
   (`crates/podssh-ssh/src/options.rs:383`, enforced at
   `crates/podssh-ssh/src/run.rs:367-373`); a reply, 30 s
@@ -979,7 +979,7 @@ Read, each claim of GitHub #34 at the lines as they are now:
   (the -1 of `railway.new`) to 255, and an exit signal to 128 plus its number
   (`docs/STATUS.md:74`, `docs/STATUS.md:79`).
 - A correction to the framing of #34: for a signal, podssh differs from
-  OpenSSH on purpose. `docs/cli.md:1843-1844` says 128 plus the signal's number,
+  OpenSSH on purpose. `docs/cli.md:1888-1889` says 128 plus the signal's number,
   and that OpenSSH gives 255. `crates/podssh-ssh/src/lib.rs:16` says that the
   codes follow OpenSSH, with 128 plus a signal. The two texts disagree, and no
   record measures the code of OpenSSH.
@@ -996,14 +996,14 @@ Read, each claim of GitHub #34 at the lines as they are now:
    code. Then run podssh and compare.
 3. A table of the intended differences, each with its reason. Today one row:
    a signal (OpenSSH's code, against 128 plus the number;
-   `docs/cli.md:1843-1844`). A difference that the table does not name fails,
+   `docs/cli.md:1888-1889`). A difference that the table does not name fails,
    with both codes and the command.
 4. Keep each literal as a second check with its own name, so that a change
    gives two named failures: "differs from OpenSSH" and "differs from the
    promise".
 5. Refuse a reference of 0 for a case that must fail, so that a broken
    reference cannot pass.
-6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:1843-1844` agree with
+6. Make `crates/podssh-ssh/src/lib.rs:16` and `docs/cli.md:1888-1889` agree with
    the measurement, and record the codes of OpenSSH in docs/STATUS.md.
 
 Relation: T-199 (GitHub #25) scores the harness against a committed

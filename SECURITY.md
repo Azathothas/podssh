@@ -64,7 +64,11 @@ Each rule is implemented.
   never goes into output, logs, URLs or command lines. The types that hold a
   token or the tailnet key do not print it, and clear it from memory when
   they drop it; a redaction removes the whole token. `podssh keygen` refuses
-  a passphrase on the command line, and never prints a private key.
+  a passphrase on the command line, and never prints a private key. The
+  report of a failure that the program of `PODSSH_ERROR_PROGRAM` gets
+  (T-195) holds podssh's own messages only, each through a mask that hides
+  the value of each credential and proxy variable and the user and password
+  of each URL; the program gets no credential variable in its environment.
 - **On Windows, the owner and the access list of a private file are
   checked** (T-274), as OpenSSH for Windows checks them: the owner is the
   user, SYSTEM, the Administrators or TrustedInstaller, and a file that

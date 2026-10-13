@@ -106,6 +106,10 @@ podssh mv user@example.org:inbox/a.csv .     # down, then the far file goes
 - `--direct` connects without the relay.
 - The exit codes are those of OpenSSH: the remote status, 128 plus a signal
   number, or 255 for a failure of podssh. See `podssh man exit-status`.
+- `PODSSH_ERROR_PROGRAM` names a program that gets each failure of podssh
+  as one JSON object on its stdin: the command, the exit code and podssh's
+  last messages, with no credential. A remote status starts no program.
+  podssh calls no AI service itself; the program decides.
 
 If the host has an `ssh` client, podssh can be its `ProxyCommand`:
 

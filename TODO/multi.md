@@ -29,7 +29,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   and `podssh ssh 'web1,web2' true` exits 64 (`',' is not allowed`).
 - Read: remote output goes straight to the stdout and stderr of the process
   (`crates/podssh-ssh/src/io.rs:396-413`), and podssh's own messages go to
-  stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:79-94`).
+  stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:83-103`).
   Two hosts cannot be told apart.
 - Read: a host-key prompt waits for the user
   (`crates/podssh-ssh/src/hostkey.rs:208-246`); N prompts at once cannot
@@ -47,7 +47,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
    flags), and `--parallel N` (default 8, 64 at most), `--fail-fast`,
    `--output-dir DIR`.
 2. One runtime, one task for each host, each on the existing path: the relay
-   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:185-261`,
+   open and `podssh_ssh::run` (`crates/podssh-cli/src/ssh/mod.rs:190-266`,
    `crates/podssh-ssh/src/run.rs:35-80`). Invariant: no second SSH client.
 3. Sinks: give `crates/podssh-ssh/src/io.rs:130-413` a sink for stdout and
    stderr in place of the streams of the process, and give `Log` a prefix
@@ -72,7 +72,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
 ## Decision
 
 Recommendation: a new verb, because `podssh ssh` keeps the command line and
-the exit codes of OpenSSH for one host (`docs/cli.md:1841-1844`), and a list
+the exit codes of OpenSSH for one host (`docs/cli.md:1886-1889`), and a list
 of hosts changes both. The alternative, `podssh ssh --hosts LIST`, lost: one
 flag would change what the exit status means.
 
@@ -184,7 +184,7 @@ is not a shell. A set of hosts has no name.
   (`crates/podssh-cli/src/ssh/hop.rs:30-78`,
   `crates/podssh-ws/src/names.rs:10-24`).
 - Read: the `Host` lines of ssh_config are patterns, not lists
-  (`docs/cli.md:1959-2052`); they cannot define a group.
+  (`docs/cli.md:2004-2097`); they cannot define a group.
 
 ## Approach
 
@@ -382,7 +382,7 @@ and read the screen, over several of its own calls. Each run of
 4. One JSON line for each request and each answer, with a version first.
 5. The background podssh ends with its session, after `stop`, or after 1 h
    with no request, and removes its socket. Credentials never cross it.
-6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:94-114` (a
+6. In the same commit: `docs/cli.md`, the notes, `SECURITY.md:98-118` (a
    local socket that runs commands), `docs/STATUS.md`. T-039 can use the
    same background process.
 
@@ -947,7 +947,7 @@ of the command.
    quoted for a POSIX shell (T-187). When the copy used most of the 64 MiB
    (`docs/relay.md:162`), run the exec on a new session (T-137).
 4. The exit status: the command's, with the rules of `podssh ssh`
-   (`docs/cli.md:1841-1844`). A failed copy exits 255 and runs nothing.
+   (`docs/cli.md:1886-1889`). A failed copy exits 255 and runs nothing.
 5. In the same commit: the rows, the notes, an example, `docs/cli.md`,
    `docs/STATUS.md`. This entry depends on T-134 and T-143.
 
@@ -1039,7 +1039,7 @@ podssh never calls an AI service itself.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -1054,22 +1054,22 @@ a ticket, or a tool that asks an AI.
   (`AGENTS.md:232-236`), as it runs `SSH_ASKPASS`: the program, no shell, and
   its first line read back (`crates/podssh-ssh/src/prompt.rs:102-119`).
 - Read: credentials never go to output, logs, URLs or argv
-  (`docs/architecture.md:143-145`). The token type never shows itself
+  (`docs/architecture.md:141-143`). The token type never shows itself
   (`crates/podssh-relay/src/token.rs:27-56`), and doctor never shows proxy
   credentials or tokens (`docs/cli.md:1042-1044`).
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
-  (`crates/podssh-ssh/src/log.rs:79-94`). The exit code leaves through
-  `crates/podssh-cli/src/dispatch.rs:302-317`.
+  (`crates/podssh-ssh/src/log.rs:83-103`). The exit code leaves through
+  `crates/podssh-cli/src/dispatch.rs:302-330`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
-  status (`docs/cli.md:1841-1844`), which is not a failure of podssh.
+  status (`docs/cli.md:1886-1889`), which is not a failure of podssh.
 
 ## Approach
 
 1. A variable `PODSSH_ERROR_PROGRAM`: one program, with no shell and no
    arguments, as `SSH_ASKPASS`. Add it to `VARIABLES`
-   (`crates/podssh-cli/src/man/facts.rs:45-220`).
+   (`crates/podssh-cli/src/man/facts.rs:45-231`).
 2. When: only when podssh itself fails: a usage error (64), a configuration
    error (78), 69, 70, 77, or 255 for a failure of podssh. Never after a
    success, and never for the status of a remote command or of an `exec:`
@@ -1089,7 +1089,7 @@ a ticket, or a tool that asks an AI.
 6. podssh calls no AI service and no network address for this: the program
    decides what to do with the report.
 7. In the same commit: `docs/cli.md` (the hook), the notes of the manual,
-   `SECURITY.md:63-67` (what the report holds), `docs/STATUS.md`.
+   `SECURITY.md:63-71` (what the report holds), `docs/STATUS.md`.
 
 ## Decision
 
@@ -1097,6 +1097,58 @@ Recommendation: a variable, as `SSH_ASKPASS`, because it reaches each verb,
 also `podssh proxy` under the `ProxyCommand` of OpenSSH, with no new row in
 each flag table. The alternative, a flag `--on-error PROG` on each verb,
 lost: a row for each verb, and each `ProxyCommand` line must change.
+
+When (2026-10-13, the draft): each exit code that is not 0 is a failure of
+podssh, but a status that a code path passes on and 130 and 143. A path
+that gives another program's status says so
+(`crates/podssh-cli/src/error_program/mod.rs`, `not_a_failure`): `ssh` when
+the result of T-054 has no `failure` (the remote status, 255 too, and an
+end with no status, by the same rule as `--result-file`), `each` when each
+host had a session, `ping` for a remote program's status, `pipe` for a
+child's, `edit` for the editor's. The list of the Approach (64, 78, 69, 70,
+77, 255) lost: it leaves out 1 (`doctor`'s FAIL, `keygen`), 65, 66, 73 and
+75 (`cp`, `chat`, `agent`), which are failures of podssh too, and a list of
+numbers is what "the code path decides" warns against. A mark at each
+failure path in place of each status path lost: there are many more of
+them, and a new path that forgot its mark would give no report, where a new
+status path that forgets gives one too many. 130 and 143 are read by their
+number: podssh gives them only after the user's SIGINT and SIGTERM, which
+are no failure, and a mark in each of the five places lost to the number.
+
+The report names its form `schema` (1), and podssh's version `podssh`, as
+each JSON object of podssh does (T-049, T-054); the Approach's `version`
+is read as the form's number. `-q` hides an error from the screen, not
+from the report: the program is there for a failure's cause, and a script
+that runs with `-q` needs it most. The last messages are kept in
+`podssh-ssh` (`crates/podssh-ssh/src/said.rs`), where `Log` is, and the
+stderr of the command line feeds them through a tee in `main_with_args`,
+only when the variable is set: a run with none keeps nothing. A server's
+banner is not kept: it is not podssh's message.
+
+The mask is a second guard, as podssh's messages hold no credential: the
+value of each credential variable (`PODSSH_RELAY_TOKEN` and the three of
+Cloudflare Access) and of each proxy variable, whole and as its
+`user:password`, its user and its password (3 bytes at least, the longest
+first), and the user and password of each URL, become `<hidden>`; then
+`podssh_ws::text::one_line`, as for the lines of `podssh doctor`. Doctor has
+no mask to reuse: it never builds a string with a credential. The program's
+environment has no `PODSSH_ERROR_PROGRAM` (a podssh that it runs would
+start it again) and no credential variable; the proxy variables stay. A
+clean environment lost: the program needs `PATH`, the home and the proxy to
+reach its own service. The relay comes from the record of the SSH client
+(`podssh_ssh::outcome`), else from the session log's record of `proxy`
+(`relay_seen`). A panic (101) gives no report: it ends the run inside
+`main_with_args`; a `catch_unwind` there lost, as the state after a panic
+is not known.
+
+The test's program is the test binary run with no argument, as the
+variable takes none: each test of `crates/podssh-cli/tests/error_program.rs`
+first acts as the program when `PODSSH_TEST_REPORT_TO` is set. The Prove's
+"a helper test, run with `--exact`" needs arguments; the limit's test runs
+the ignored test `sleeper` with them, through `error_program::give`. The
+gate's check is in `scripts/interop-result.sh`, the harness of the same
+code path (the failure class of T-054), as `scripts/interop.sh` has 500
+lines.
 
 ## Prove
 
@@ -1114,6 +1166,58 @@ gives exit 69 and a report; `podssh --version` gives none. With a token of
 the right form in `PODSSH_RELAY_TOKEN`, and a proxy URL with a user and a
 password in `https_proxy`, the report holds neither. Plant: start the
 program for each exit that is not 0; the remote `exit 3` check must fail.
+
+## Correction
+
+The premise of two writers is not whole. `Log` writes to the file of `-E`
+in place of stderr when it is given (`crates/podssh-ssh/src/log.rs:83-103`),
+and `podssh node`, `operator`, `chat`, `pipe` and `agent` write their lines
+while they serve with `eprintln!`, which is neither writer
+(`crates/podssh-cli/src/node.rs:351`). The report keeps what goes through
+the two writers, the file of `-E` too; the lines of `eprintln!` are not
+kept, and `docs/cli.md` says so.
+
+## Done
+
+2026-10-13. In `podssh-ssh`:
+`crates/podssh-ssh/src/said.rs`, the last 64 lines of podssh's own
+messages, 16 KiB at most, each cut at 2048 bytes, kept only after
+`said::start`; `Log` keeps each message that it writes with `podssh: `,
+and each error that `-q` hides. In `podssh-cli`:
+`crates/podssh-cli/src/error_program/` (`mod.rs`: the hook of
+`main_with_args`, the rule of a failure, `not_a_failure`, the tee of the
+command line's stderr, and `give`, which runs the program with the report on
+its stdin from a thread, its stdout and stderr on stderr, and stops it
+after 30 s; `report.rs`: the object, the secrets and the mask; `tests.rs`),
+`main_with_args` in `crates/podssh-cli/src/dispatch.rs`, the marks of
+`ssh`, `each`, `ping`, `pipe` and `edit`, `session_log::relay_seen`, the
+row of `PODSSH_ERROR_PROGRAM` in ENVIRONMENT and an example in EXAMPLES.
+`docs/cli.md` ("The report of a failure"), `SECURITY.md`, `README.md` and
+`docs/STATUS.md` say what the report holds. `scripts/interop-result.sh`
+gives `result.error_program.openssh`, `result.error_program.dropbear` (a
+remote `exit 3` starts no program) and `result.error_program.failure` (a
+login that no key opens gives one report), in
+`scripts/interop-baseline.txt` with the floor of `result` at 13.
+`cargo test -p podssh-cli --test error_program` (a usage error and an
+offline `proxy` give a report; `--version` and the manual give none; no
+credential in the report or in the program's environment; a program that
+does not start is one line; the limit stops a program; on the test's
+server a remote `exit 3`, `kill TERM` and `exit 255` start no program and a
+closed port does): 7 passed on Windows 11 (and one ignored, the program of
+the limit's test). The unit tests,
+`cargo test -p podssh-cli --lib error_program::` (the rule, the mask, the
+secrets, the object, the tee, the manual's row) and
+`cargo test -p podssh-ssh --lib said::`: 8 and 3 passed.
+`cargo test -p podssh-cli man::`: 35 passed; podssh-cli and podssh-ssh
+together, 1073 passed. Planted, a program for each exit that is not 0:
+`a_remote_status_starts_no_program` failed; restored, it passed. In the
+build image (the steps `lint` and `release`, green; interop 538 passed,
+0 failed), `scripts/interop-result.sh` 13 of 13 with
+`result.error_program.openssh` and `.dropbear` (a remote `exit 3` starts no
+program) and `result.error_program.failure` (a login that no key opens:
+255, and one report with its messages). Planted in the image, a program for each
+exit that is not 0: the three checks `result.error_program.*` failed (a
+report of the remote's `exit 3`), and no other. The code has no branch for one system.
 
 # T-197: A queue of detached remote jobs: submit, list, wait and fetch the output, with no GPU logic
 
