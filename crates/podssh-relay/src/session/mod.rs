@@ -19,8 +19,10 @@
 //! - [`link`]: a session past its handshake, record by record, and
 //!   [`replay`]: the bytes that it keeps until the peer acknowledges them;
 //! - [`client`] and [`far`]: the two ends over tokio streams, [`pump`]: one
-//!   link of a session, [`resume`]: the client's session across links, and
-//!   [`keep`]: the sessions that a far end keeps across links;
+//!   link of a session, [`resume`]: the client's session across links,
+//!   [`beside`]: a new link beside the one that carries it, before the
+//!   relay's limits or when it went silent, and [`keep`]: the sessions that
+//!   a far end keeps across links;
 //! - [`deadline`]: how long each end waits for a new link (T-306), and
 //!   [`hearing`]: what the client heard from the far end, for a notice of
 //!   its silence (T-302);
@@ -30,6 +32,7 @@
 //! replay buffer are sans-IO: bytes and records in, records and events out,
 //! with no socket and no clock.
 
+pub mod beside;
 pub mod client;
 pub mod deadline;
 pub mod decode;
@@ -95,6 +98,10 @@ pub struct Settings {
     pub move_bytes: u64,
     /// The age of one link after which the client moves the session.
     pub move_age: std::time::Duration,
+    /// Whether the client opens a spare link beside a link that went
+    /// silent, so that a new address of the client resumes the session in
+    /// seconds (T-305): off here, on in podssh's commands.
+    pub spare_links: bool,
 }
 
 impl Default for Settings {
@@ -107,6 +114,7 @@ impl Default for Settings {
             wall_clock: std::time::SystemTime::now,
             move_bytes: resume::MOVE_BYTES,
             move_age: resume::MOVE_AGE,
+            spare_links: false,
         }
     }
 }

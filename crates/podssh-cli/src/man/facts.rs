@@ -128,6 +128,12 @@ pub const VARIABLES: &[(&[&str], &str)] = &[
       podssh ssh).",
     ),
     (
+        &["PODSSH_SPARE_LINKS"],
+        "no: with a node that offers the resumable layer, podssh opens no spare link beside a link that \
+      went silent, and finds such a link dead after 30 s only (see podssh ssh). Else a spare link opens \
+      once the node has not answered for 3 s, one each 10 s at most.",
+    ),
+    (
         &["PODSSH_TITLE_STACK"],
         "yes or no: whether the terminal keeps a stack of window titles (XTWINOPS 22 and 23), where the \
       notice of a silent node shows (see podssh ssh). With neither, podssh knows xterm and VTE by \

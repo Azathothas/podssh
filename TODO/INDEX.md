@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**304 entries: 51 open, 0 partial, 25 blocked, 228 done.**
+**304 entries: 50 open, 0 partial, 25 blocked, 229 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 45 | 0 | 7 | 69 | 121 |
-| **All** | 51 | 0 | 25 | 228 | 304 |
+| P3 | 44 | 0 | 7 | 70 | 121 |
+| **All** | 50 | 0 | 25 | 229 | 304 |
 
 ## Entries
 
@@ -376,6 +376,6 @@ repository and CI).
 | [T-302](resume.md) | P3 | M | backlog | feature | done | A notice in the terminal while the far end is silent |
 | [T-303](resume.md) | P3 | L | backlog | feature | open | The latest screen on request: frames that let Ctrl-C show within a round trip |
 | [T-304](resume.md) | P3 | L | backlog | feature | open | Keys and screen frames as QUIC datagrams on the iroh road |
-| [T-305](resume.md) | P3 | M | backlog | feature | open | Roam at once: a new link beside a silent one |
+| [T-305](resume.md) | P3 | M | backlog | feature | done | Roam at once: a new link beside a silent one |
 | [T-306](resume.md) | P3 | S | backlog | feature | done | A resume deadline that the user sets, for a host that sleeps |
 | [T-307](resume.md) | P3 | M | backlog | feature | open | A notice of silence on the forward road |

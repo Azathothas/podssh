@@ -15,7 +15,8 @@
 //! and only then does the new link's handshake take the offsets. An offset
 //! taken earlier could fall behind the acknowledgements that the old link
 //! still carried, and ask for bytes that the other side no longer keeps
-//! (T-262).
+//! (T-262). A link that went silent gets a spare link beside it in the same
+//! way, which takes the session when it greets first (T-305, `beside`).
 
 use std::future::Future;
 use std::sync::atomic::Ordering;
@@ -23,8 +24,10 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::sync::mpsc;
 use tokio::time::Instant;
 
+use super::beside::{self, failure, Beside, Plan};
 use super::client::{self, Client, ClientError, Outcome};
 use super::deadline::{away, client_wait, forgotten};
 use super::decode::Decoder;
@@ -73,11 +76,17 @@ pub enum Note {
     Moved { bytes: u64, age: Duration, resent: u64 },
     /// A move failed; the old link goes on until it ends, then a resume.
     MoveFailed { why: String },
+    /// The link said nothing for `quiet`: a spare link opens beside it
+    /// (T-305).
+    Spare { quiet: Duration },
+    /// The spare link closed, as the old link spoke first, or it failed;
+    /// the old link goes on.
+    SpareClosed { why: String },
 }
 
 /// Why a resume on a new link failed.
 #[derive(Debug)]
-enum Failed {
+pub(super) enum Failed {
     /// Worth another attempt: the link failed, or took too long.
     Again(String),
     /// The far end cannot resume the session.
@@ -88,7 +97,7 @@ enum Failed {
 }
 
 impl Failed {
-    fn reason(self) -> String {
+    pub(super) fn reason(self) -> String {
         match self {
             Failed::Again(why) | Failed::Final(why) | Failed::Forgotten(why) => why,
         }
@@ -97,7 +106,7 @@ impl Failed {
 
 /// A new link whose far end greeted: the bytes read so far, the `GREETING`
 /// first.
-struct Greeted<L> {
+pub(super) struct Greeted<L> {
     link: L,
     first: Vec<u8>,
 }
@@ -123,9 +132,10 @@ fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 
 /// Carry the session of `client` between `app` and its links until it ends.
 /// `connect` is asked for a new link after each loss, with the end of the
-/// lost one, and for a move, with [`End::Moving`]; `note` hears of each
-/// loss, attempt, resume and move. With no layer at the far end, the bytes
-/// pass as they are, on the first link only.
+/// lost one, and for a move or a spare link beside a silent one, with
+/// [`End::Moving`]; `note` hears of each loss, attempt, resume, move and
+/// spare. With no layer at the far end, the bytes pass as they are, on the
+/// first link only.
 pub async fn run<L, A, C, F, N>(
     client: Client<L>,
     mut app: A,
@@ -145,83 +155,83 @@ where
         return Client::from_parts(parts).run(app).await;
     };
     let settings = parts.settings;
+    let hearing = parts.hearing;
     let mut link = parts.link;
-    let mut carry = Carry::new(settings.link(&established)).with_hearing(parts.hearing);
+    let mut carry = Carry::new(settings.link(&established)).with_hearing(hearing.clone());
     let moves = lock(&carry.state).moves();
+    let heartbeat = lock(&carry.state).heartbeat();
     loop {
         let watch = Watch::moving_at(if moves { settings.move_bytes } else { 0 });
         let started = Instant::now();
         let state = carry.state.clone();
         // A session whose application ended is closing: its `CLOSE` goes on
-        // the link that it has, with no move first.
-        let carry_closing = carry.app_ended();
-        let closing = |watch: &Watch| carry_closing || watch.app_ended.load(Ordering::SeqCst);
+        // the link that it has, with no new link beside it.
+        let closing = carry.app_ended();
+        // The steps of the watch beside the link, said as they come.
+        let (said, mut steps) = mpsc::unbounded_channel();
         let (ended, greeted) = {
             let pump = pump::run(&mut app, link, decoder, &mut carry, &watch);
-            // The move: once the link nears the relay's limits, a new link,
-            // greeted while the old one goes on.
-            let moving = async {
-                if !moves {
-                    return std::future::pending().await;
-                }
-                // The pump tells when the link passes its bytes.
-                let old = tokio::time::sleep_until(started + settings.move_age);
-                tokio::select! {
-                    _ = watch.due.notified() => {}
-                    _ = old => {}
-                }
-                if closing(&watch) {
-                    return std::future::pending().await;
-                }
-                // One guard: a second lock in the same expression would wait
-                // for the first, which lives to the end of the statement.
-                let (received, sent) = {
-                    let link = lock(&state);
-                    (link.received(), link.sent())
-                };
-                let at = Ended { end: End::Moving, received, sent };
-                match connect(&at).await {
-                    Next::Link(new) => match tokio::time::timeout(client::HANDSHAKE_LIMIT, greeted(new)).await {
-                        Ok(result) => result,
-                        Err(_) => Err(Failed::Again("the new link's far end did not greet in time".into())),
-                    },
-                    Next::Retry(why) | Next::Stop(why) => Err(Failed::Again(why)),
-                }
+            // A new link beside this one, greeted while this one goes on: a
+            // move before the relay's limits, or a spare when it went silent.
+            let plan = Plan {
+                moves,
+                spares: settings.spare_links,
+                heartbeat,
+                move_at: started + settings.move_age,
+                closing,
+                watch: &watch,
+                state: &state,
+                hearing: &hearing,
+                said: &said,
             };
+            let beside = beside::next(plan, &mut connect);
             tokio::pin!(pump);
-            tokio::pin!(moving);
-            tokio::select! {
-                ended = &mut pump => (ended, None),
-                greeted = &mut moving => match greeted {
-                    // The application ended while the new link greeted: the
-                    // session closes on the old one.
-                    Ok(_) if closing(&watch) => ((&mut pump).await, None),
-                    // The new link greeted: the old one stops at a record
-                    // boundary and retires, and the new one's handshake then
-                    // takes the offsets.
-                    Ok(greeted) => {
-                        watch.retire.store(true, Ordering::SeqCst);
+            tokio::pin!(beside);
+            loop {
+                tokio::select! {
+                    ended = &mut pump => break (ended, None),
+                    Some(step) = steps.recv() => note(step),
+                    (why, greeted) = &mut beside => {
+                        // The application ended while the new link greeted:
+                        // the session closes on the old one.
+                        if closing || watch.app_ended.load(Ordering::SeqCst) {
+                            break ((&mut pump).await, None);
+                        }
+                        // The old link stops at a record boundary, and a move
+                        // retires it; a spare's old link carries nothing to
+                        // say it to. The new one's handshake then takes the
+                        // offsets.
+                        watch.retire.store(why == Beside::Move, Ordering::SeqCst);
                         watch.stop.notify_one();
-                        let ended = (&mut pump).await;
-                        (ended, Some(greeted))
+                        break ((&mut pump).await, Some((why, greeted)));
                     }
-                    Err(failed) => {
-                        note(Note::MoveFailed { why: failed.reason() });
-                        ((&mut pump).await, None)
-                    }
-                },
+                }
             }
         };
+        while let Ok(step) = steps.try_recv() {
+            note(step);
+        }
         let bytes = watch.bytes.load(Ordering::Relaxed);
-        if let Some(greeted) = greeted {
+        if let Some((why, greeted)) = greeted {
             if ended.end.resumable() {
+                // A spare that takes the session is a resume after a loss.
+                let lost = Instant::now();
+                if let Beside::Spare(quiet) = why {
+                    let why = format!("the link said nothing for {} s, and a spare link answered", quiet.as_secs());
+                    note(Note::Lost { why });
+                }
                 let resumed = async {
                     let shaken = prove(greeted, &established, &carry.state, settings, entropy).await?;
                     resend(shaken, &mut carry).await
                 };
                 match tokio::time::timeout(client::HANDSHAKE_LIMIT, resumed).await {
                     Ok(Ok((new, new_decoder, resent))) => {
-                        note(Note::Moved { bytes, age: started.elapsed(), resent });
+                        // The far end's `ACCEPT` answers each question.
+                        hearing.heard();
+                        note(match why {
+                            Beside::Move => Note::Moved { bytes, age: started.elapsed(), resent },
+                            Beside::Spare(_) => Note::Resumed { resent, after: lost.elapsed() },
+                        });
                         link = new;
                         decoder = new_decoder;
                         continue;
@@ -238,8 +248,8 @@ where
                     }
                     // The old link is gone: the session goes on as after a
                     // loss.
-                    Ok(Err(Failed::Again(why))) => note(Note::MoveFailed { why }),
-                    Err(_) => note(Note::MoveFailed { why: "the new link's handshake took too long".into() }),
+                    Ok(Err(Failed::Again(why_not))) => note(failure(why, why_not)),
+                    Err(_) => note(failure(why, "the new link's handshake took too long".into())),
                 }
             }
         }
@@ -253,6 +263,7 @@ where
         note(Note::Lost { why: describe(&ended.end) });
         match resume_loop(&ended, &established, &mut carry, settings, &mut connect, &mut note, entropy).await {
             Resumed::On(new, new_decoder) => {
+                hearing.heard();
                 link = new;
                 decoder = new_decoder;
             }
@@ -353,7 +364,7 @@ fn describe(end: &End) -> String {
 
 /// The far end's first bytes on a new link: a `GREETING`, as on the first
 /// link, else the far end no longer speaks the layer.
-async fn greeted<L>(mut link: L) -> Result<Greeted<L>, Failed>
+pub(super) async fn greeted<L>(mut link: L) -> Result<Greeted<L>, Failed>
 where
     L: AsyncRead + Unpin,
 {

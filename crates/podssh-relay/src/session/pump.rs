@@ -82,9 +82,10 @@ pub enum End {
     /// The peer retired this link: the session goes on over another one
     /// (T-155).
     Retired,
-    /// This link nears the relay's limits, and the session moves: what the
-    /// resume driver gives its caller when it asks for a new link (T-155);
-    /// no link ends so.
+    /// This link nears the relay's limits, and the session moves, or it
+    /// went silent, and a spare link opens beside it: what the resume driver
+    /// gives its caller when it asks for a new link beside the one that
+    /// goes on (T-155, T-305); no link ends so.
     Moving,
     /// No new link carried the session on, for this reason: the far end did
     /// not resume it, the transport said not to come back, or the deadline

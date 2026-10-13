@@ -62,17 +62,23 @@ static OWN_DEADLINE: Mutex<Option<Duration>> = Mutex::new(None);
 /// 30 s, and a resume needs the time after that.
 pub const SHORTEST_DEADLINE: Duration = Duration::from_secs(60);
 
+/// `no`: a client opens no spare link beside a silent one (T-305).
+pub const SPARE_LINKS_ENV: &str = "PODSSH_SPARE_LINKS";
+
 /// The layer's settings, with the replay buffer of `PODSSH_REPLAY_BUFFER`
-/// and the deadlines of `--resume-deadline`.
+/// and the deadlines of `--resume-deadline`; a client opens a spare link
+/// beside a silent one (T-305), unless `PODSSH_SPARE_LINKS` is `no`.
 pub fn settings() -> Settings {
     let capacity = replay::capacity(std::env::var(replay::CAPACITY_ENV).ok().as_deref());
     let defaults = Settings::default();
     let far = *lock(&FAR_DEADLINE);
     let own = *lock(&OWN_DEADLINE);
+    let spare_links = !std::env::var(SPARE_LINKS_ENV).is_ok_and(|v| v.trim().eq_ignore_ascii_case("no"));
     Settings {
         replay_capacity: capacity,
         resume_deadline: far.unwrap_or(defaults.resume_deadline),
         client_deadline: own,
+        spare_links,
         ..defaults
     }
 }
@@ -405,6 +411,11 @@ pub(crate) fn line_of(note: Note) -> Line {
             after.as_secs_f64(),
             if resent > 0 { format!(", {resent} bytes sent again") } else { String::new() }
         )),
+        Note::Spare { quiet } => Line::Verbose(format!(
+            "the link said nothing for {:.1} s: a spare link opens beside it",
+            quiet.as_secs_f64()
+        )),
+        Note::SpareClosed { why } => Line::Verbose(format!("the spare link closed ({why}); the link goes on")),
     }
 }
 

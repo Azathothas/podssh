@@ -64,6 +64,16 @@ impl Hearing {
         }
         Some(now.saturating_duration_since(*lock(&self.heard)))
     }
+
+    /// How long the far end has said nothing at `now`, asked or not.
+    pub fn quiet(&self, now: Instant) -> Duration {
+        now.saturating_duration_since(self.heard_at())
+    }
+
+    /// When the far end's last bytes came.
+    pub fn heard_at(&self) -> Instant {
+        *lock(&self.heard)
+    }
 }
 
 #[cfg(test)]

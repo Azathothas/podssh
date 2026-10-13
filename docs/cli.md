@@ -74,7 +74,12 @@ scripts. The facts about OpenSSH on this page were measured with OpenSSH
   (T-153). `--resume-deadline TIME` waits at most TIME, never longer than
   the node keeps the session; when the node forgot the session, as after a
   sleep of this host longer than its deadline, the line says so, with how
-  long this side was away by the wall clock (T-306).
+  long this side was away by the wall clock (T-306). A link that goes
+  silent gets a spare link beside it once the node has not answered for
+  3 s, which resumes the session when it greets first: a new address of
+  this host costs seconds, not the 30 s after which a silent link is dead
+  (T-305); `-v` says each spare link, and `PODSSH_SPARE_LINKS=no` turns
+  them off.
   `-J a,b` makes a chain of hops; `-J a -J b` is an error. Each hop checks
   its own host key, filed under its own name: `host`, or `[host]:port` off
   port 22 (T-030). `HostKeyAlias` names the destination's key alone, as it
