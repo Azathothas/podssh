@@ -3,8 +3,8 @@
 //! emergency stop, which the console turns into CTRL_BREAK_EVENT and at
 //! which it drops the line that is half typed; and Ctrl-C, which goes to no
 //! host. A pseudo console takes Ctrl-Break as a key of the win32 input mode
-//! (VK_CANCEL with Ctrl), as Windows Terminal sends it: there is no byte for
-//! it.
+//! (VK_CANCEL with Ctrl): there is no byte for it. `tests/console.rs` types
+//! it so for T-295.
 
 use super::*;
 use crate::conpty_harness::Console;

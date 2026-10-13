@@ -258,7 +258,7 @@ repository and CI).
 | [T-182](pipe.md) | P3 | S | backlog | docs | done | USB/IP devices through `podssh pipe`: a tested recipe, with no driver in podssh |
 | [T-183](multi.md) | P3 | M | backlog | feature | done | Run one command on many hosts |
 | [T-184](multi.md) | P3 | S | backlog | feature | done | Host groups and brace expansion of host names |
-| [T-185](multi.md) | P3 | L | backlog | feature | open | Interactive broadcast to several sessions, with an emergency stop |
+| [T-185](multi.md) | P3 | L | backlog | feature | done | Interactive broadcast to several sessions, with an emergency stop |
 | [T-186](multi.md) | P3 | L | backlog | feature | open | A control surface for agents on live sessions |
 | [T-187](multi.md) | P3 | M | backlog | feature | open | Snippets and argument templates, shown before they run |
 | [T-188](multi.md) | P3 | S | backlog | feature | open | A host picker when `podssh ssh` gets no destination |
