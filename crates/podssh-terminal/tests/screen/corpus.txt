@@ -1,0 +1,49 @@
+# The corpus of the terminal oracle (T-200): sequences that tmux and the
+# model of tests/screen/mod.rs must show alike before the model judges the
+# bytes that podssh writes (tests/calibration.rs). Each is a kind of
+# sequence that podssh writes: text, line breaks with and without CR, the
+# cursor's motions and where they stop, the clears, a rubout, wide
+# characters and accents, rows that wrap, a screen that scrolls, the shapes
+# of the line discipline's redraws, and what the sanitizer leaves of
+# hostile text.
+#
+# One case a line: a name, one space, and the bytes. \e is ESC; \r, \n, \b,
+# \t and \a are CR, LF, BS, TAB and BEL; \\ is a backslash and \xHH a byte;
+# {N*TEXT} is TEXT N times, TEXT with these escapes too; each other
+# character stands for itself, in UTF-8. The panes are 80 columns wide. No
+# case ends with the cursor past the last column, a state that tmux and the
+# model each report in their own way, and that podssh never leaves: a row
+# that the line discipline fills ends with CR LF.
+text hello, world
+crlf-lines one\r\ntwo\r\nthree
+lf-keeps-the-column one\ntwo\nthree
+cr-overwrites abcdef\rXY
+rubout abc\b \b\b \b
+backspace-stops-at-the-left \b\bab\b\b\bX
+motions abcdefgh\e[3D\e[2C\e[DX
+motion-up-and-down a\r\nb\r\nc\e[2Ad\e[Be
+up-stops-at-the-top x\e[9Ay
+down-stops-at-the-bottom x\e[99By
+right-stops-at-the-margin ab\e[200Cz\r
+left-stops-at-the-margin abc\e[99Dz
+erase-to-the-end-of-the-row abcdef\e[3D\e[K
+erase-below one\r\ntwo\r\nthree\e[A\r\e[J
+wrap-at-the-last-column {80*a}bcd
+full-row-then-crlf {80*a}\r\nb
+wide-characters 中文 ok
+wide-character-at-the-last-column {79*a}中x
+wide-character-fills-the-row {78*a}中x
+accent e\xcc\x81x
+accent-after-a-wide-character 中\xcc\x81x
+scroll {30*line\r\n}end
+bell-and-tab a\ab\tc
+attributes \e[1;31mred\e[0m plain
+cursor-position \e[3;5Hx
+redraw-on-one-row $ abc\e[K\r$ ab
+redraw-over-rows $ {78*a}xyz\e[A\r$ {78*a}xy\e[J\e[2D
+erase-a-line-of-two-rows $ {90*a}\e[A\r$ \e[J
+rubout-of-a-wide-character $ a中\b \b\b \b
+output-around-the-line $ ab\r\e[Kone\r\ntwo\r\n$ ab
+output-mid-line $ abc\e[2D\r\e[Kx\r\n$ abc\e[2D
+help-in-raw-mode Supported escape sequences:\r\n ~.   - terminate connection\r\n ~?   - this message\r\n
+sanitized-hostile-text podssh: ok[2J]0;title FAKE31m

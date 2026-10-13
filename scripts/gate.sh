@@ -156,12 +156,12 @@ step_libs() {
     run "library crates build with no C compiler" \
         env CC=/nonexistent CXX=/nonexistent cargo build --locked $LIBS --features podssh-relay/blocking
 
-    # The TLS 1.2 suites (T-067) are checked against OpenSSL's s_server, each
-    # alone; named, so that a missing openssl fails rather than skips.
-    run "openssl, for the TLS 1.2 checks against its s_server" retry3 apk add --no-cache openssl
+    # The TLS 1.2 suites (T-067) against OpenSSL's s_server, each alone, and the
+    # terminal oracle's model against tmux (T-200); named, so that one missing fails.
+    run "openssl and tmux, for the TLS 1.2 checks and the terminal oracle" retry3 apk add --no-cache openssl tmux
     # shellcheck disable=SC2086
     tests "library crates: tests, no C compiler" \
-        env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 \
+        env CC=/nonexistent CXX=/nonexistent PODSSH_TEST_OPENSSL=1 PODSSH_TEST_TMUX=/usr/bin/tmux \
         cargo test --locked --no-fail-fast $LIBS --features podssh-relay/blocking
 
     # The plain ws:// to the loopback (T-068) is behind the feature `plain-ws`:

@@ -9,3 +9,8 @@ publish.workspace = true
 
 [dependencies]
 unicode-width = { workspace = true }
+
+[dev-dependencies]
+# The terminal oracle (T-200): a model terminal reads what the discipline
+# writes, and the tests compare its screens (tests/screen/).
+vt100 = { workspace = true }

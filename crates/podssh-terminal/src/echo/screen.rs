@@ -8,14 +8,16 @@
 //!
 //! **The terminal's rules, as xterm and VTE apply them**: writing past the
 //! last column wraps to the next row; a wide character that does not fit in
-//! the rest of a row starts the next one and leaves the rest blank; `CUU`,
+//! the rest of a row starts the next one, and the rest of the row keeps what
+//! it held (the `vt100` crate's model does so), so a redraw erases it first
+//! (T-200); `CUU`,
 //! `CUD`, `CUF` and `CUB` stop at the margins, and a backspace does not go
 //! up a row. A full row is left at once (the discipline writes `\r\n` there),
 //! so a place never waits on a pending wrap. **A line taller than the screen
 //! is not drawn right**: `ESC [ A` stops at the top row.
 
 use super::units::units;
-use super::{Discipline, Event, PROMPT};
+use super::{Discipline, Event, EL, PROMPT};
 use crate::window::Size;
 
 /// A cell of the edit area: its row from the first row of the prompt, and
@@ -161,15 +163,24 @@ impl Discipline {
     }
 
     /// The redraw over several rows: up to the first row of the area, `\r`,
-    /// the prompt and the line, `\r\n` when the line filled its last row,
-    /// `ESC [ J` for the rows that a longer area left below, and the cursor
-    /// back to its place.
+    /// the prompt and the line, `ESC [ K` before a wide glyph that starts the
+    /// next row, `\r\n` when the line filled its last row, `ESC [ J` for the
+    /// rows that a longer area left below, and the cursor back to its place.
     pub(crate) fn redraw_rows(&self, end: Place, cursor: Place) -> Vec<u8> {
         let mut out = Vec::with_capacity(PROMPT.len() + self.line.len() + 24);
         csi(&mut out, self.shown.row, b'A');
         out.push(b'\r');
         out.extend_from_slice(PROMPT);
-        out.extend_from_slice(&self.line);
+        let mut at = self.place(0);
+        for u in units(&self.line, self.utf8) {
+            // The cell that a wide glyph leaves at the end of a row may show
+            // what an older line put there.
+            if start(at, u.cells, self.width) != at {
+                out.extend_from_slice(EL);
+            }
+            out.extend_from_slice(&self.line[u.start..u.start + u.len]);
+            at = advance(at, u.cells, self.width);
+        }
         if end.col == 0 {
             out.extend_from_slice(b"\r\n");
         }

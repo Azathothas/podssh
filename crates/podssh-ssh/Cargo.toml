@@ -84,6 +84,9 @@ pageant = { version = "0.2.4", default-features = false, features = ["wmmessage"
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["macros", "rt", "signal", "process"] }
+# The terminal oracle (T-200): a model terminal in raw mode shows podssh's
+# messages and the help of `~?` (tests/terminal_oracle.rs).
+vt100 = { workspace = true }
 
 # cargo-fuzz builds with `--cfg fuzzing` (`fuzz/`), under which the parser of
 # a known_hosts line, private here, is reachable by the fuzzer.

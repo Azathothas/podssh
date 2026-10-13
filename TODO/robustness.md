@@ -315,7 +315,7 @@ here.
 **Milestone:** backlog
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -330,7 +330,7 @@ byte test that a person wrote with the same mistake.
 
 Read:
 
-- `crates/podssh-ssh/src/log.rs:79-97` turns LF into CR LF when the terminal
+- `crates/podssh-ssh/src/log.rs:108-124` turns LF into CR LF when the terminal
   is raw. The help of `~?` (`crates/podssh-ssh/src/escape.rs:107-116`) goes
   through it. The raw state is a global (`raw_active`), so a test cannot set
   it from outside.
@@ -373,6 +373,39 @@ needs no process and no pty, and runs on Windows too. tmux alone lost: each
 case would need a pty and a process. A model with C++ dependencies (`rio-vt`)
 lost by the no-C rule.
 
+Decided in the work (2026-10-12):
+- `vt100` 0.15 (MIT, pure Rust over `vte`), a dev-dependency only. Its
+  `Parser`, rows, cursor and cells are all that the tests use, so a later
+  release, which may share `unicode-width` 0.2 with the workspace where 0.15
+  brings 0.1 into the tests, is a change of one line.
+- One model, `crates/podssh-terminal/tests/screen/mod.rs`, which the tests
+  of podssh-ws and podssh-ssh read through `#[path]`, as podssh-ts reads a
+  test of the fork. A copy in each crate lost: three models can disagree, as
+  two sanitizers once did. A crate of its own for tests lost: a workspace
+  member for one file.
+- What the screen must show comes from the model too: the prompt and the
+  line drawn on an empty screen, and the cursor where a mark after the text
+  before the line's cursor lands. Each cell from the prompt's row down must
+  agree. A model of the wrap written in the test lost: it would be a second
+  copy of the rules of `crates/podssh-terminal/src/echo/screen.rs`, and the
+  oracle would judge the discipline by its own rules.
+- The runs of keys come from a fixed xorshift, as `pseudo_random` in
+  `crates/podssh-relay/tests/session_replay.rs`, with the seed in each
+  failure. proptest lost here: T-202 brings it to other crates, and a run of
+  keys needs no shrinking to be read.
+- The runs leave out the control bytes that the discipline types into the
+  line (TAB, VT, FF and the like) and an accent typed alone. A terminal
+  moves its cursor for the first in its own way, where T-127 decided one
+  cell; and an accent echoed after a row that the line filled lands on the
+  next row, where a terminal has no letter to put it on. The oracle would
+  show both; neither is a regression of T-127 or T-129.
+- The calibration runs in the gate's step `libs`, in the tests of the
+  library crates, with `PODSSH_TEST_TMUX` as `PODSSH_TEST_OPENSSL` is set
+  there. A script beside `scripts/interop-man.sh` lost: the comparison needs
+  the model, which is Rust. No sequence of the corpus ends with the cursor
+  past the last column, which tmux and the model report each in its own way,
+  and which the discipline never leaves.
+
 ## Prove
 
 ```sh
@@ -382,8 +415,88 @@ sh scripts/dev.sh check                           # the model and tmux agree on 
 ```
 
 Each command exits 0. Planted defect: remove the CR LF conversion
-(`crates/podssh-ssh/src/log.rs:95-97`); the help case must fail. After M5,
+(`crates/podssh-ssh/src/log.rs:120-122`); the help case must fail. After M5,
 `cargo test -p podssh-terminal --test oracle` must fail while T-127 is open.
+
+## Correction
+
+2026-10-12: the oracle's first run found a defect of the line discipline,
+which the draft could not see, as it had not run. With IUTF8 on 8 and 16
+columns, `screen_runs_of_keys_with_iutf8_on_8_columns` (seed 1016) and its
+neighbour on 16 columns failed: a redraw over rows wrote the prompt and the
+line in one piece, and where a wide character did not fit in the last cell
+of a row, the terminal took it to the next row and kept what that cell
+held, a `7` of the line before. `crates/podssh-terminal/src/echo/screen.rs`
+said that the terminal leaves the rest of such a row blank; the `vt100`
+model keeps it. `redraw_rows` now writes the line a step at a time, with
+`ESC [ K` before a wide glyph that starts the next row, and the module's
+note says so. tmux agreed with the model after the change (the calibration
+below).
+
+2026-10-12: tmux 3.7c's `capture-pane -p` gives the cells that a tab
+skipped as the tab itself, so the case `bell-and-tab` differed in its text
+and not in its screen (the cursor in column 9 in both).
+`crates/podssh-terminal/tests/calibration.rs` reads each tab of tmux's rows
+as the blanks up to the next stop of 8.
+
+## Done
+
+2026-10-12. Written as a draft, then merged over T-183: `message_text` stays
+pure, and the prefix of a host (T-183) goes on each line in `host_text`.
+- The model: `vt100` 0.15 in `[workspace.dependencies]` (`Cargo.toml`), a
+  dev-dependency of podssh-terminal, podssh-ws and podssh-ssh.
+  `crates/podssh-terminal/tests/screen/mod.rs`: bytes in, a screen out (each
+  row, the cursor, each cell's character and attributes, the other screen).
+- The newline rule is a pure function, `podssh_ssh::log::message_text`
+  (`crates/podssh-ssh/src/log.rs`), which `Log::write` calls with the state
+  of raw mode; the test touches no global state.
+- `crates/podssh-terminal/tests/oracle.rs` (M5, T-125 to T-129 being done):
+  `screen_t127_a_wide_character_and_an_accent_take_their_cells`,
+  `screen_t127_backspace_takes_a_whole_character_off_the_screen`,
+  `screen_t126_a_wide_character_that_does_not_fit_starts_the_next_row`,
+  `screen_t129_home_end_and_delete_on_a_line_of_three_rows`,
+  `screen_t129_output_goes_above_the_line_under_edit`,
+  `screen_t129_history_and_ctrl_c_on_rows`, and 1100 runs of up to 48 steps
+  from a fixed xorshift: `screen_runs_of_keys_with_iutf8_on_16_columns`,
+  `screen_runs_of_keys_with_iutf8_on_8_columns`,
+  `screen_runs_of_keys_without_iutf8_on_20_columns` and
+  `screen_runs_with_no_width_known_stay_on_one_row`. Each checks the screen
+  after each key, and after output that ended its row.
+- `crates/podssh-ws/tests/terminal_oracle.rs`:
+  `hostile_text_through_one_line_stays_on_its_row` (16 hostile texts: ESC
+  and C1 sequences, BEL, BS, CR, LF, VT, FF, DEL, NUL, the bidirectional
+  controls), `a_hostile_banner_through_multi_line_shows_its_lines_as_rows`,
+  and the control `the_model_shows_what_the_sanitizer_prevents`.
+- `crates/podssh-ssh/tests/terminal_oracle.rs`:
+  `the_help_of_tilde_question_shows_each_line_from_the_first_column`,
+  `a_message_of_several_lines_shows_each_from_the_first_column`,
+  `after_the_server_s_output_a_message_and_the_help_start_on_rows_of_their_own`,
+  and the control
+  `without_raw_mode_the_text_keeps_its_line_feeds_which_a_raw_terminal_shows_as_stairs`.
+- The calibration: `crates/podssh-terminal/tests/screen/corpus.txt`, 33
+  sequences of the kinds that podssh writes, and
+  `crates/podssh-terminal/tests/calibration.rs`:
+  `the_corpus_reads_and_the_model_draws_each_case`,
+  `the_model_and_tmux_show_the_same_screens` (each sequence raw in a tmux
+  pane of its own, each call of tmux within 10 s) and
+  `the_scratch_directory_goes_when_the_server_goes`. `scripts/gate.sh`, step
+  `libs`, installs tmux and names it with `PODSSH_TEST_TMUX`.
+- `docs/terminal.md` ("Tests"), `docs/development.md` (the step `libs`) and
+  `docs/STATUS.md`.
+- Here (Windows 11): `cargo test -p podssh-terminal` (the oracle 10
+  passed, with the redraw of the Correction; the calibration said that it
+  did not run, with no tmux), `cargo test -p podssh-ws --test
+  terminal_oracle` 3 passed, `cargo test -p podssh-ssh --test
+  terminal_oracle` 4 passed; clippy of the three crates clean. Planted: the
+  CR LF conversion of `message_text` removed, 3 of the 4 cases of
+  podssh-ssh failed, the help's among them; the cells of a step counted as
+  its bytes in `crates/podssh-terminal/src/echo/units.rs`, 6 of the 10
+  cases of the oracle failed. Both were taken out.
+- In the build image (Alpine, tmux 3.7c, `CC` and `CXX` at `/nonexistent`
+  as in the gate's step `libs`): the calibration 3 passed (the model and
+  tmux show the same screens for the 33 sequences), the oracle 10, the
+  oracle of podssh-ws 3, and of podssh-ssh 4; clippy clean. `vt100` 0.15.2
+  and `vte` 0.11.1 built with no C compiler.
 
 # T-201: Resource limits, stated and tested
 
@@ -443,7 +556,7 @@ Read, the bounds today:
    `crates/podssh-ssh/src/run.rs:26-29` does since T-024, and the result of
    T-062 when it exists.
 3. Tests in the process, with a peer over `tokio::io::duplex`, so no network
-   (`docs/development.md:402-405`): a proxy head that never ends stops at
+   (`docs/development.md:405-408`): a proxy head that never ends stops at
    16 KiB, and an upgrade head too; fragments past 16 MiB give the error, not
    more memory; a pool body over 256 KiB is refused; a cache file over 64 KiB
    is ignored.
@@ -671,7 +784,7 @@ Read:
    session back from 127.0.0.2, and a stall of 3 minutes, each with the digest
    of a running transfer intact. T-156 uses these checks as its measurement.
 5. Update docs/development.md (item 8 of the gate, item 9 since T-156,
-   `docs/development.md:282-294`) and the faults table of docs/STATUS.md.
+   `docs/development.md:285-297`) and the faults table of docs/STATUS.md.
 
 Pitfall: each check must show that its fault was injected (see Prove).
 

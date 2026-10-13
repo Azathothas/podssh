@@ -56,6 +56,10 @@ rustls-pki-types = { workspace = true }
 p256 = { workspace = true }
 p384 = { workspace = true }
 ed25519-dalek = { workspace = true }
+# The terminal oracle (T-200): a model terminal shows the text that the
+# sanitizer leaves, and the cells it takes (tests/terminal_oracle.rs).
+vt100 = { workspace = true }
+unicode-width = { workspace = true }
 
 # cargo-fuzz builds with `--cfg fuzzing` (`fuzz/`), under which the SOCKS5
 # exchange, private here, is reachable by the fuzzer.

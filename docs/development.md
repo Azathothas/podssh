@@ -243,6 +243,9 @@ dependencies that these minimums allow. The other steps make sure that:
    C++, so `CC` alone does not stop a C++ dependency on a host that has `c++`.
    The test of the feature `plain-ws` of `podssh-ws` runs too, and
    `scripts/no-plain-ws.sh` shows that the binary does not enable it (T-068).
+   tmux, installed here and named by `PODSSH_TEST_TMUX`, shows each sequence
+   of the terminal oracle's corpus as its model does (T-200,
+   `docs/terminal.md`, "Tests").
 2. (`record`) The work record agrees with itself (`crates/podssh-todo`). Its
    checker passes its tests, where each planted disagreement must be found,
    and then checks `TODO/`: the counts against the rows, the status, title and

@@ -100,6 +100,12 @@ serde = { version = "1", features = ["derive"] }
 # The cells of a character on a terminal, for the cursor of the line
 # discipline (podssh-terminal). Pure Rust, no dependency, no build script.
 unicode-width = { version = "0.2", default-features = false }
+# A model of a VT terminal, for the tests of the terminal oracle only (T-200):
+# a test compares what a terminal shows after podssh's bytes, not the bytes.
+# Pure Rust over `vte`, with no build script that compiles C; the gate runs
+# the tests of the library crates with CC and CXX at /nonexistent, which
+# shows it. `rio-vt` lost: it needs `simdutf`, a C++ library.
+vt100 = "0.15"
 serde_json = "1"
 # The relay's facts file (podssh-probe). Pure Rust, and it must stay so: the build image
 # has no C compiler, so a TOML parser that wanted `cc` would fail the gate.

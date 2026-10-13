@@ -404,3 +404,33 @@ Linux test hosts grant ptys, so a test must force the paths with no pty:
 `sshd -o PermitTTY=no`, a server that never answers `pty-req`, and runs with
 no local terminal. Include a shell-only server like podbox's, which refuses
 `exec` and has no sftp subsystem.
+
+The terminal oracle (T-200) judges what a terminal shows, not the bytes. A
+test that compares bytes with bytes that a person wrote passes when both
+share a mistake, such as a wrong column or lines that step down like
+stairs. The model is the `vt100` crate, a VT terminal in raw mode, in the
+tests only (`crates/podssh-terminal/tests/screen/mod.rs`); the tests of
+podssh-ws and podssh-ssh read the same file. Each test compares rows, the
+cursor and the attributes of cells:
+
+- `cargo test -p podssh-terminal --test oracle`: after each key of a run,
+  the screen shows the prompt and the line from the first column of a row,
+  wrapped as the terminal wraps them, with nothing after them, and the
+  cursor in the cell where the next character after the text before the
+  line's cursor lands. What the screen must show is the model's own drawing
+  of the prompt and the line on an empty screen. The runs come from a fixed
+  generator: keys of one and two cells, each editing key in each form,
+  output, and a lone Escape, on 8, 16 and 20 columns and with no width.
+- `cargo test -p podssh-ws --test terminal_oracle`: hostile text after
+  `one_line` stays on its row, the cursor moves by its width, and no cell
+  takes an attribute; after `multi_line`, each line is a row.
+- `cargo test -p podssh-ssh --test terminal_oracle`: each line of a message
+  and of the help of `~?` starts at the first column in raw mode
+  (`log::message_text`).
+
+The model must agree with tmux before it judges podssh: each sequence of a
+fixed corpus (`crates/podssh-terminal/tests/screen/corpus.txt`) goes
+through both, and the rows and the cursor must be the same
+(`cargo test -p podssh-terminal --test calibration`). `PODSSH_TEST_TMUX`
+names tmux; the gate installs it and names it, and with no tmux on the host
+the check says that it did not run.

@@ -79,22 +79,7 @@ impl Log {
     fn write(&self, message: &str, prefix: bool) {
         // In raw mode the terminal does not turn LF into CR LF.
         let raw = self.file.is_none() && crate::terminal::raw_active();
-        let mut lead = String::from(if prefix { "podssh: " } else { "" });
-        lead.push_str(self.prefix.as_deref().unwrap_or_default());
-        let mut text = String::with_capacity(message.len() + 10);
-        text.push_str(&lead);
-        // With a prefix each line of a message gets it, so that a host's
-        // lines can be found among the others'.
-        match &self.prefix {
-            Some(_) => text.push_str(&message.trim_end_matches('\n').replace('\n', &format!("\n{lead}"))),
-            None => text.push_str(message),
-        }
-        if !text.ends_with('\n') {
-            text.push('\n');
-        }
-        if raw {
-            text = text.replace("\r\n", "\n").replace('\n', "\r\n");
-        }
+        let text = host_text(message, prefix, self.prefix.as_deref(), raw);
         match &self.file {
             Some(file) => {
                 let mut file = file.lock().unwrap_or_else(|e| e.into_inner());
@@ -107,4 +92,33 @@ impl Log {
             }
         }
     }
+}
+
+/// The text of one message as podssh writes it: `podssh: ` first when
+/// `prefix`, a line break at its end, and each line break as CR LF when
+/// `raw`. A terminal in raw mode does not turn LF into CR LF, so each line
+/// after a bare LF would start where the one before it ended. Pure, so that
+/// a test needs no terminal and no global state (T-200).
+pub fn message_text(message: &str, prefix: bool, raw: bool) -> String {
+    host_text(message, prefix, None, raw)
+}
+
+/// [`message_text`], with `host` after the lead of each line of the message,
+/// so that a host's lines can be found among the others' (T-183).
+fn host_text(message: &str, prefix: bool, host: Option<&str>, raw: bool) -> String {
+    let mut lead = String::from(if prefix { "podssh: " } else { "" });
+    lead.push_str(host.unwrap_or_default());
+    let mut text = String::with_capacity(message.len() + 10);
+    text.push_str(&lead);
+    match host {
+        Some(_) => text.push_str(&message.trim_end_matches('\n').replace('\n', &format!("\n{lead}"))),
+        None => text.push_str(message),
+    }
+    if !text.ends_with('\n') {
+        text.push('\n');
+    }
+    if raw {
+        text = text.replace("\r\n", "\n").replace('\n', "\r\n");
+    }
+    text
 }

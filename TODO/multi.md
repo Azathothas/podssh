@@ -29,7 +29,7 @@ succeeded. `podssh ssh` takes one destination, as OpenSSH does.
   and `podssh ssh 'web1,web2' true` exits 64 (`',' is not allowed`).
 - Read: remote output goes straight to the stdout and stderr of the process
   (`crates/podssh-ssh/src/io.rs:378-395`), and podssh's own messages go to
-  stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:79-109`).
+  stderr with one `podssh: ` prefix (`crates/podssh-ssh/src/log.rs:79-94`).
   Two hosts cannot be told apart.
 - Read: a host-key prompt waits for the user
   (`crates/podssh-ssh/src/hostkey.rs:208-246`); N prompts at once cannot
@@ -864,7 +864,7 @@ a ticket, or a tool that asks an AI.
 - Read: podssh's messages leave through two writers: `Streams.err` in the
   command line (`crates/podssh-cli/src/dispatch.rs:26-29`), and `Log`, which
   writes to the stderr of the process itself
-  (`crates/podssh-ssh/src/log.rs:79-109`). The exit code leaves through
+  (`crates/podssh-ssh/src/log.rs:79-94`). The exit code leaves through
   `crates/podssh-cli/src/dispatch.rs:302-317`.
 - Read: for `podssh ssh`, an exit that is not 0 can be the remote command's
   status (`docs/cli.md:1587-1590`), which is not a failure of podssh.

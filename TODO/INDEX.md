@@ -61,15 +61,15 @@ repository and CI).
 
 ## Counts
 
-**303 entries: 53 open, 0 partial, 25 blocked, 225 done.**
+**303 entries: 52 open, 0 partial, 25 blocked, 226 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 0 | 0 | 0 | 1 | 1 |
 | P1 | 2 | 0 | 0 | 22 | 24 |
 | P2 | 4 | 0 | 18 | 136 | 158 |
-| P3 | 47 | 0 | 7 | 66 | 120 |
-| **All** | 53 | 0 | 25 | 225 | 303 |
+| P3 | 46 | 0 | 7 | 67 | 120 |
+| **All** | 52 | 0 | 25 | 226 | 303 |
 
 ## Entries
 
@@ -271,7 +271,7 @@ repository and CI).
 | [T-197](multi.md) | P3 | M | backlog | feature | open | A queue of detached remote jobs: submit, list, wait and fetch the output, with no GPU logic |
 | [T-198](robustness.md) | P2 | M | backlog | chore | done | Fuzz each parser |
 | [T-199](robustness.md) | P2 | M | backlog | chore | done | A scored interop harness |
-| [T-200](robustness.md) | P3 | M | backlog | chore | open | A terminal oracle |
+| [T-200](robustness.md) | P3 | M | backlog | chore | done | A terminal oracle |
 | [T-201](robustness.md) | P2 | M | backlog | chore | done | Resource limits, stated and tested |
 | [T-202](robustness.md) | P3 | S | backlog | chore | open | Property tests for the state machines |
 | [T-203](robustness.md) | P2 | M | M6 | chore | done | The fault-injection harness: latency, jitter, bandwidth, a new address |
