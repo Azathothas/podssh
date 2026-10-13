@@ -70,9 +70,10 @@ entry keeps its proof in the entry; this page keeps no history (git does).
 Measured on 2026-10-09 after T-060, on Windows 11 with native cargo 1.98.0
 and `CARGO_BUILD_JOBS=4`:
 
-- `cargo test --workspace --no-fail-fast`, again after T-198
-  (2026-10-11): 1448 passed, 0 failed, 49 ignored (the live tests, and the checks of
-  faults and of the exit of M6). With the feature `iroh` and the test
+- `cargo test --workspace --no-fail-fast`, again at `905f92c`
+  (2026-10-13): 1887 passed, 1 failed, 54 ignored (the live tests, and the
+  checks of faults and of the exit of M6). The failure was a test of T-042
+  that depends on time; it is repaired, and passed 20 runs in a row. With the feature `iroh` and the test
   relay, `cargo test -p podssh-iroh -p podssh-cli --features
   podssh-cli/iroh-test`, with the same: 468 passed, 0 failed, 29 ignored.
   With the feature `ts`, `cargo test -p podssh-ts -p podssh-cli --features

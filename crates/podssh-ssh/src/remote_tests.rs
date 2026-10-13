@@ -236,7 +236,9 @@ async fn a_forward_refused_after_a_loss_is_asked_again_until_the_server_takes_it
 #[tokio::test]
 async fn a_forward_refused_for_the_whole_time_warns_or_ends_the_run() {
     let test = async {
-        let again = Again { within: Duration::from_millis(300), wait: |_| Duration::from_millis(40) };
+        // Each ask is a round trip, which took more than 260 ms on a loaded
+        // host; 300 ms then held one ask again, not two. 2 s holds several.
+        let again = Again { within: Duration::from_secs(2), wait: |_| Duration::from_millis(40) };
         let run = log_in_again(vec![forward(2291, "127.0.0.1", 2203)], usize::MAX, false, Some(again)).await;
         assert!(run.client.is_ok(), "the run goes on: {}", run.logged);
         assert!(run.asked.lock().unwrap().len() > 2, "{}", run.logged);
